@@ -59,3 +59,27 @@ typings/
 
 # next.js build output
 .next
+
+
+########################
+# misc / editors
+########################
+*~
+*#
+.DS_STORE
+.netbeans
+nbproject
+.idea
+
+
+
+
+########################
+# generated files
+########################
+.dist
+dist
+.tmp
+tmp
+
+
