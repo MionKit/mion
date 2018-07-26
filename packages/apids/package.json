@@ -1,0 +1,34 @@
+{
+  "name": "apids",
+  "version": "0.0.0",
+  "description": "rest api dashboard",
+  "keywords": [
+    "rest",
+    "api",
+    "dashboard",
+    "framework",
+    "graphic",
+    "modeling"
+  ],
+  "author": "ma jerez <jerez.m82@gmail.com>",
+  "homepage": "https://apids.io",
+  "license": "MIT",
+  "main": "lib/apids.js",
+  "directories": {
+    "lib": "lib",
+    "test": "__tests__"
+  },
+  "files": [
+    "lib"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/frontdock/api-ds.git"
+  },
+  "scripts": {
+    "test": "echo \"Error: run tests from root\" && exit 1"
+  },
+  "bugs": {
+    "url": "https://github.com/frontdock/api-ds/issues"
+  }
+}
