@@ -11,14 +11,14 @@
    xmlns:xlink="http://www.w3.org/1999/xlink"
    xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
-   width="800"
+   width="900"
    height="80"
-   viewBox="0 0 211.66666 21.166666"
+   viewBox="0 0 238.12499 21.166666"
    version="1.1"
    id="svg8"
    inkscape:version="0.92.3 (2405546, 2018-03-11)"
-   sodipodi:docname="banner-800x80.svg"
-   inkscape:export-filename="C:\Users\jerez\Projects\apids\logo\logo-banner-800x80.png"
+   sodipodi:docname="banner-900x80.svg"
+   inkscape:export-filename="C:\Users\jerez\Projects\apids\logo\public\logo-banner-900x80.png"
    inkscape:export-xdpi="96"
    inkscape:export-ydpi="96">
   <defs
@@ -27,7 +27,7 @@
        sodipodi:type="inkscape:persp3d"
        inkscape:vp_x="0 : 132.29166 : 1"
        inkscape:vp_y="0 : 999.99994 : 0"
-       inkscape:vp_z="529.16665 : 132.29166 : 1"
+       inkscape:vp_z="529.16664 : 132.29166 : 1"
        inkscape:persp3d-origin="264.58333 : 88.194441 : 1"
        id="perspective2470" />
     <linearGradient
@@ -89,8 +89,8 @@
      inkscape:pageopacity="0.0"
      inkscape:pageshadow="2"
      inkscape:zoom="0.7"
-     inkscape:cx="-120.37547"
-     inkscape:cy="609.87603"
+     inkscape:cx="-358.9469"
+     inkscape:cy="609.87602"
      inkscape:document-units="mm"
      inkscape:current-layer="layer1"
      showgrid="false"
@@ -132,11 +132,11 @@
      style="display:inline">
     <rect
        id="rect3713"
-       width="211.66667"
+       width="238.125"
        height="21.166666"
        x="3.2697405e-006"
        y="226.85225"
-       style="fill:#162d50;fill-opacity:0.99553576;stroke:none;stroke-width:0.0472289" />
+       style="fill:#162d50;fill-opacity:0.99553576;stroke:none;stroke-width:0.05009381" />
     <flowRoot
        xml:space="preserve"
        id="flowRoot3721"
