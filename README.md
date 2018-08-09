@@ -28,4 +28,9 @@ API DS is build on top of standard technologies like [json-schema](http://json-s
 npm install apids
 ```
 
-
+## Built with
+![node.js](https://github.com/apids/apids/blob/master/logo/other_logos/node.png?raw=true) &nbsp;&nbsp;
+![Typescript](https://github.com/apids/apids/blob/master/logo/other_logos/ts.png?raw=true) &nbsp;&nbsp;
+![vue.js](https://github.com/apids/apids/blob/master/logo/other_logos/vue.js.png?raw=true) &nbsp;&nbsp;
+![typeORM](https://github.com/apids/apids/blob/master/logo/other_logos/typeorm.png?raw=true) &nbsp;&nbsp;
+![Open Api](https://github.com/apids/apids/blob/master/logo/other_logos/open-api.png?raw=true) &nbsp;&nbsp;
