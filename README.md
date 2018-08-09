@@ -1,5 +1,5 @@
 <p align="center">
-  <img alt='API DS, The APi Dashboard' src='https://raw.githubusercontent.com/apids/apids/master/logo/public/logox150.png'>
+  <img alt='API DS, The APi Dashboard' src='https://raw.githubusercontent.com/apids/apids/master/logo/public/logox150-inverse.png'>
 </p>
 <p align="center">
   <strong>API DS is Framework and Admin Dashboard to build and manage REST APIs</strong>
