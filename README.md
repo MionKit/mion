@@ -20,12 +20,14 @@ API DS is build on top of standard technologies like [json-schema](http://json-s
 
 ## Architecture
 
-Models definition                            | API Definition                  | Typescript Code Generation   | REST Server 
+Models definition                            | API Definition                  | Typescript Models            | REST Server 
 -------------------------------------------- | ------------------------------- | -----------------------------| -----------
 Models are defined using [json-schemas](http://json-schema.org/) and custom properties to configure persistence | Open-API Definition files are automatically generated using the Models.  | Typescript code and .tsd definition files are automatically generated from the Open-API definition files. | A lightweight server is implemented using [Zeit's Micro](https://github.com/zeit/micro). this can be customized to support microservices architecture.
 
-## API DS - The Dashboard
-API DS take a completely different approach than traditional frameworks and offer a Web Dashboard to assist developers with the creation of Models and The Definition of The REST API using Open-API definition files.  
+
+Web Dashboard | Code Generation
+------------- | ---------------
+API DS takes a completely different approach than traditional frameworks and offers a Web interface to define Models and the REST API. Models can be still defined using JSON-schema and the REST API can still be defined using Open-API definition files, but the integrated dashboard simplifies this process trillions of times for developer's joy. | Typescript code is automatically generated based on the Models and Open-API definition files. The Models defined in JSON-schemas are translated to TypeORM models and And the REST Endpoints are translated to microservices defined using Zeit/Micro library 
 
 
 ## Quick Start
