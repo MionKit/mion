@@ -20,7 +20,7 @@ API DS is build on top of standard technologies like [json-schema](http://json-s
 
 ## Architecture
 
-Models definition                            | API Definition                  | Typescript Models            | REST Server 
+Models Definition                            | API Definition                  | Typescript Models            | REST Server 
 -------------------------------------------- | ------------------------------- | -----------------------------| -----------
 Models are defined using [json-schemas](http://json-schema.org/) and custom properties to configure persistence | Open-API Definition files are automatically generated using the Models.  | Typescript code and .tsd definition files are automatically generated from the Open-API definition files. | A lightweight server is implemented using [Zeit's Micro](https://github.com/zeit/micro). this can be customized to support microservices architecture.
 
