@@ -14,6 +14,7 @@ API DS is build on top of standard technologies like [json-schema](http://json-s
 - Build APIs using [Node.js](https://nodejs.org/en/) and [Typescript](https://www.typescriptlang.org/)
 - Models editor.
 - [Open API](https://www.openapis.org/) editor and automatic Typescript code generation.
+- Default User, Groups and Assets Modelsans Rest Enpoints
 - Simple Access Control List
 - Automatic Server & Client side validation
 
@@ -24,7 +25,11 @@ API DS is build on top of standard technologies like [json-schema](http://json-s
 npm install apids
 ```
 
+## Contributing
 
+You are welcome to open issues and pull request.
+
+---
 
 *Powered By:*   
 ![node.js](https://github.com/apids/apids/blob/master/logo/other_logos/node.png?raw=true) &nbsp;&nbsp;
