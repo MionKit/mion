@@ -6,32 +6,47 @@
 </p>
 
 ---
-
 API DS is build on top of standard technologies like [json-schema](http://json-schema.org/) and [Open Api](https://www.openapis.org/).
 
 ## Features
 
-- Build APIs using [Node.js](https://nodejs.org/en/) and [Typescript](https://www.typescriptlang.org/)
+- Build APIs using [Node.js](https://nodejs.org/en/) and [Typescript](https://www.typescriptlang.org/).
 - Models editor.
 - [Open API](https://www.openapis.org/) editor and automatic Typescript code generation.
-- Default User, Groups and Assets Modelsans Rest Enpoints
-- Simple Access Control List
-- Automatic Server & Client side validation
+- Default User, Groups and Assets Models and Rest Endpoints.
+- Simple Access Control List.
+- Automatic Server & Client side validation.
+- built for performance.
+
+## Architecture
+
+Models definition                            | API Definition                  | Typescript Code Generation   | REST Server 
+-------------------------------------------- | ------------------------------- | -----------------------------| -----------
+Models are defined using [json-schemas](http://json-schema.org/) and custom properties to configure persistence | Open-API Definition files are automatically generated using the Models.  | Typescript code and .tsd definition files are automatically generated from the Open-API definition files. | A lightweight server is implemented using [Zeit's Micro](https://github.com/zeit/micro). this can be customized to support microservices architecture.
+
+## API DS - The Dashboard
+API DS take a completely different approach than traditional frameworks and offer a Web Dashboard to assist developers with the creation of Models and The Definition of The REST API using Open-API definition files.  
 
 
 ## Quick Start
-
+Install apids
 ```sh
 npm install apids
 ```
+To create your first project fork the [apids-starter](https://github.com/apids/apids-strater) repo.
+
 
 ## Contributing
 
-You are welcome to open issues and pull request.
+You are welcome to open issues and pull request! 👍   
+Please run [prettier](https://github.com/prettier/prettier) before submitting your pull request. 
+```sh
+npm run prettier
+```
 
 ---
 
-*Powered By:*   
+*Powered by*   
 ![node.js](https://github.com/apids/apids/blob/master/logo/other_logos/node.png?raw=true) &nbsp;&nbsp;
 ![Typescript](https://github.com/apids/apids/blob/master/logo/other_logos/ts.png?raw=true) &nbsp;&nbsp;
 ![typeORM](https://github.com/apids/apids/blob/master/logo/other_logos/typeorm.png?raw=true) &nbsp;&nbsp;
