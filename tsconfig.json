@@ -1,0 +1,6 @@
+{
+  "extends": "./tsconfig.node-8.json",
+  "compilerOptions": {
+
+  }
+}
