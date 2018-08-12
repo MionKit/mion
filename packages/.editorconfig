@@ -1,0 +1,9 @@
+# top-most EditorConfig file
+root = true
+
+# Tab indentation typescript
+[*.ts]
+indent_style = space
+indent_size = 4
+trim_trailing_whitespace = true
+max_line_length = 120
