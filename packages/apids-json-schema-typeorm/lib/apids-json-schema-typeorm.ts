@@ -4,6 +4,4 @@
  * @see https://opensource.org/licenses/ISC
  */
 
-export default class  ApidsJsonSchemaTypeorms{
-
-}
+export default class ApidsJsonSchemaTypeorms {}

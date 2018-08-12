@@ -17,7 +17,8 @@
   "homepage": "https://github.com/frontdock/api-ds#readme",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "tslint-check": "tslint-config-prettier-check ./tslint.json"
+    "tslint-check": "tslint-config-prettier-check ./tslint.json",
+    "format-ts" : "prettier --write packages/**/*.ts"
   },
   "repository": {
     "type": "git",
