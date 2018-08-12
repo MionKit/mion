@@ -12,11 +12,12 @@ API DS is build on top of standard technologies like [json-schema](http://json-s
 
 - Build APIs using [Node.js](https://nodejs.org/en/) and [Typescript](https://www.typescriptlang.org/).
 - Models editor.
-- [Open API](https://www.openapis.org/) editor and automatic Typescript code generation.
+- [Open API](https://www.openapis.org/) editor.
+- Automatic Typescript code generation.
 - Default User, Groups and Assets Models and Rest Endpoints.
 - Simple Access Control List.
 - Automatic Server & Client side validation.
-- built for performance.
+- Built for performance.
 
 ## Architecture
 
@@ -57,7 +58,7 @@ run the test using typescript without need to precompile to js.
 
 
 ## ISC License (ISC)
-Copyright 2018 API DS
+Copyright 2018 *API DS*
 
 Permission to use, copy, modify, and/or distribute this software for any purpose with or without fee is hereby granted, provided that the above copyright notice and this permission notice appear in all copies.
 
