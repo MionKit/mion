@@ -45,8 +45,8 @@ To create your first project fork the [apids-starter](https://github.com/apids/a
 You are welcome to open issues and pull request! 👍   
 
 **TSLint and prettier:**   
-All pull request must pass TSLint and [prettier](https://github.com/prettier/prettier),  run bellow command to 
-automatically format all typescript files.
+All pull request must pass TSLint and [prettier](https://github.com/prettier/prettier) before being merged. 
+Run bellow command to automatically format all typescript files and check Lint errors.
 ```sh
 npm run format-ts && npm run lint
 ```  
