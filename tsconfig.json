@@ -2,5 +2,12 @@
   "extends": "./tsconfig.node-8.json",
   "compilerOptions": {
 
-  }
+  },
+  "include": [
+    "src/**/*"
+  ],
+  "exclude": [
+    "node_modules",
+    "**/*.spec.ts"
+  ]
 }

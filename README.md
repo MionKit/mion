@@ -43,13 +43,13 @@ To create your first project fork the [apids-starter](https://github.com/apids/a
 ## Contributing
 
 You are welcome to open issues and pull request! 👍   
-Please run [prettier](https://github.com/prettier/prettier) before submitting your pull request. 
-```sh
-npm run prettier
-```
 
 **TSLint and prettier:**   
-All pull request must pass tsLint and prettier.   
+All pull request must pass TSLint and [prettier](https://github.com/prettier/prettier),  run bellow command to 
+automatically format all typescript files.
+```sh
+npm run format-ts && npm run lint
+```  
 
 **Testing using Jest and Typescript:**
 Testing is implemented using Jest and test must be written in typescript, ts-jest is used tu automatically 
