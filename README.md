@@ -48,6 +48,14 @@ Please run [prettier](https://github.com/prettier/prettier) before submitting yo
 npm run prettier
 ```
 
+**TSLint and prettier:**   
+All pull request must pass tsLint and prettier.   
+
+**Testing using Jest and Typescript:**
+Testing is implemented using Jest and test must be written in typescript, ts-jest is used tu automatically 
+run the test using typescript without need to precompile to js.  
+
+
 ---
 
 *Powered by*   
