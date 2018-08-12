@@ -4,7 +4,4 @@
  * @see https://opensource.org/licenses/ISC
  */
 
-export default class  ApiDS{
-    private hello:any;
-private lol:any;
-}
+export default class ApiDS {}
