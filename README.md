@@ -25,6 +25,11 @@ Models Definition                            | API Definition                  |
 -------------------------------------------- | ------------------------------- | -----------------------------| -----------
 Models are defined using [json-schemas](http://json-schema.org/) and custom properties to configure persistence | Open-API Definition files are automatically generated using the Models.  | Typescript code and .tsd definition files are automatically generated from the Open-API definition files. | A lightweight server is implemented using [Zeit's Micro](https://github.com/zeit/micro). this can be customized to support microservices architecture.
 
+**Json Schema vs Open API Schemas**   
+Due to the nature of Models defined for persistence there are some divergences between json schema specification and Open-API specification. These divergances can be found here:    
+https://github.com/OAI/OpenAPI-Specification/blob/OpenAPI.next/versions/3.0.0.md#schemaObject   
+
+
 ## Tools
 API DS takes a completely different approach than traditional frameworks and offers a Web interface to define Models and the REST API.
 
