@@ -70,7 +70,7 @@ run the test using typescript without need to precompile to js.
 
 ---
 
-*Powered by*   
+*Powered by:*   
 
 ![node.js](https://github.com/apids/apids/blob/master/logo/other_logos/node.png?raw=true) &nbsp;&nbsp;
 ![Typescript](https://github.com/apids/apids/blob/master/logo/other_logos/ts.png?raw=true) &nbsp;&nbsp;
