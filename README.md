@@ -34,7 +34,7 @@ Models are defined using JSON-schema and the REST API is defined using Open-API 
 
 
 ## Quick Start
-Install apids
+Install API DS
 ```sh
 npm install apids
 ```
@@ -52,7 +52,7 @@ Run bellow command to automatically format all typescript files and check Lint e
 npm run format-ts && npm run lint
 ```  
 
-**Testing using Jest and Typescript:**
+**Testing using Jest and Typescript:**   
 Testing is implemented using Jest and test must be written in typescript, ts-jest is used tu automatically 
 run the test using typescript without need to precompile to js.  
 
