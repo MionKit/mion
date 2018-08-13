@@ -46,15 +46,15 @@ To create your first project fork the [apids-starter](https://github.com/apids/a
 You are welcome to open issues and pull request! 👍   
 
 **TSLint and prettier:**   
-All pull request must pass TSLint and [prettier](https://github.com/prettier/prettier) before being merged. 
+All pull request must pass TSLint and [prettier](https://github.com/prettier/prettier) before being merged.    
 Run bellow command to automatically format all typescript files and check Lint errors.
 ```sh
 npm run format-ts && npm run lint
 ```  
 
 **Testing using Jest and Typescript:**   
-Testing is implemented using Jest and test must be written in typescript, ts-jest is used tu automatically 
-run the test using typescript without need to precompile to js.  
+Tests are implemented using Jest and must be written in typescript or tsx. ts-jest is used tu automatically 
+run ts files without need to precompile to js.  
 
 &nbsp;   
 &nbsp;   
