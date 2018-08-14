@@ -45,7 +45,7 @@ fs.writeFileSync('schemas/user.json',json_schema);
 
 ### Compiling Json-Schema to Typescript.
 
-```json
+```ts
 //filename: schemas/user.json
 {
     id:'/user'
@@ -71,7 +71,7 @@ fs.writeFileSync('src/user.ts',json_schema);
 
 Below json is not a valid TypeORM entity (nested objects not allowed)
 
-```json
+```ts
 //filename: schemas/user.json
 {
     id:'/user'
