@@ -69,9 +69,7 @@ npm run format-ts && npm run lint
 Tests are implemented using Jest and must be written in typescript or tsx. ts-jest is used tu automatically
 run ts files without need to precompile to js.
 
-&nbsp;
-
----
+## &nbsp;
 
 _Powered by:_
 
