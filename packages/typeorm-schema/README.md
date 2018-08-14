@@ -67,7 +67,7 @@ fs.writeFileSync('src/user.ts',json_schema);
 
 &nbsp;
 
-## Validating json TypeORM entities.
+### Validating json TypeORM entities.
 
 Below json is not a valid TypeORM entity (nested objects not allowed)
 
