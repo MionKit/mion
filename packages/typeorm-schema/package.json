@@ -8,7 +8,7 @@
   ],
   "author": "M-jerez <jerez.m82@gmail.com>",
   "homepage": "https://github.com/frontdock/api-ds/tree/master/packages/apids-json-schema-typeorm#readme",
-  "license": "ISC",
+  "license": "MIT",
   "main": "lib/apids-json-schema-typeorm.js",
   "directories": {
     "lib": "lib",
