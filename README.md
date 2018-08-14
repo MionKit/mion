@@ -33,7 +33,7 @@ and <a href='https://www.openapis.org' target='_blank'>Open Api</a>
 Due to the nature of Models defined for persistence there are some divergences between json schema specification and Open-API specification. These divergances can be found here:  
 https://github.com/OAI/OpenAPI-Specification/blob/OpenAPI.next/versions/3.0.0.md#schemaObject
 
-## Development Tools
+## Developer Tools
 
 API DS takes a completely different approach than traditional frameworks and offers a Web interface to define Models and the REST API.
 
