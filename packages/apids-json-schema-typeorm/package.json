@@ -26,5 +26,8 @@
   },
   "bugs": {
     "url": "https://github.com/apids/apids/issues"
+  },
+  "devDependencies": {
+    "typeorm": "^0.2.7"
   }
 }
