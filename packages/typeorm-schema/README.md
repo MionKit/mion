@@ -43,7 +43,7 @@ fs.writeFileSync('schemas/user.json',json_schema);
 
 &nbsp;
 
-### Compiling Json-Schema to Typescript
+### Compiling Json-Schema to Typescript.
 
 ```json
 //filename: schemas/user.json
@@ -67,7 +67,7 @@ fs.writeFileSync('src/user.ts',json_schema);
 
 &nbsp;
 
-## Validating json files
+## Validating json TypeORM entities.
 
 Below json is not a valid TypeORM entity (nested objects not allowed)
 
@@ -98,7 +98,7 @@ JsonSchema.validate(json_schema); //fail: nested objects not allowed
 
 &nbsp;
 
-### Validating Typescript files
+### Validating Typescript TypeORM entities.
 
 Below Typescript is not a TypeORM entity (mising @Entity annotation)
 
@@ -117,3 +117,7 @@ import {Typescript} from '@apids/typeormSchema';
 const typescrip = fs.readFileSync('src/user.ts');
 Typescript.validate(json_schema); //fail: mising @Entity() annotation.
 ```
+
+## &nbsp;
+
+_License: [MIT](./LICENSE)_
