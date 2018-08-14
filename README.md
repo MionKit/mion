@@ -29,10 +29,9 @@ and <a href='https://www.openapis.org' target='_blank'>Open Api</a>
 | Models are defined using [json-schemas](http://json-schema.org/) and custom properties to configure persistence | Open-API Definition files are automatically generated using the Models. | Typescript code and .tsd definition files are automatically generated from the Open-API definition files. | A lightweight server is implemented using [Zeit's Micro](https://github.com/zeit/micro). this can be customized to support microservices architecture. |
 <!-- prettier-ignore-end -->
 
-**Json Schema vs Open API Schemas**   
-Due to the nature of Models defined for persistence there are some divergences between json schema specification and Open-API specification. These divergances can be found here:    
-https://github.com/OAI/OpenAPI-Specification/blob/OpenAPI.next/versions/3.0.0.md#schemaObject   
-
+**Json Schema vs Open API Schemas**  
+Due to the nature of Models defined for persistence there are some divergences between json schema specification and Open-API specification. These divergances can be found here:  
+https://github.com/OAI/OpenAPI-Specification/blob/OpenAPI.next/versions/3.0.0.md#schemaObject
 
 ## Tools
 
@@ -70,7 +69,6 @@ npm run format-ts && npm run lint
 Tests are implemented using Jest and must be written in typescript or tsx. ts-jest is used tu automatically
 run ts files without need to precompile to js.
 
-&nbsp;  
 &nbsp;
 
 ---
@@ -83,4 +81,4 @@ _Powered by:_
 ![Open Api](https://github.com/apids/apids/blob/master/logo/other_logos/open-api.png?raw=true) &nbsp;&nbsp;
 ![vue.js](https://github.com/apids/apids/blob/master/logo/other_logos/vue.js.png?raw=true) &nbsp;&nbsp;
 
-[MIT](./LICENSE) license.
+_License: [MIT](./LICENSE)_
