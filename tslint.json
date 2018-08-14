@@ -3,6 +3,11 @@
     "tslint:latest",
     "tslint-config-prettier"
   ],
+  "linterOptions": {
+    "exclude": [
+        "packages/**/node_modules/**"
+    ] 
+  },
   "rules": {
     "no-console": false
   }
