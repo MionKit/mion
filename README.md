@@ -2,31 +2,43 @@
   <img alt='API DS, The APi Dashboard' src='https://raw.githubusercontent.com/apids/apids/master/logo/public/logox150-inverse.png'>
 </p>
 <p align="center">
-  <strong>API DS is Framework and Admin Dashboard to build and manage REST APIs</strong>.<br/>
+  <strong>API DS is a set of tools to build REST APIs using 
+    <a href='https://nodejs.org/' target='_blank'>Node</a>,
+    <a href='https://www.typescriptlang.org/' target='_blank'>Typescript</a> and
+    <a href='https://www.fastify.io/' target='_blank'>Fastify</a>.
+  </strong><br/>
    It is build on top of standards like 
-<a href='http://json-schema.org/' target='_blank'>Json-Schema</a>
-and <a href='https://www.openapis.org' target='_blank'>Open Api</a>
+<a href='http://json-schema.org/' target='_blank'>Json Schema</a>
+and <a href='https://www.openapis.org' target='_blank'>Open Api</a>.<br/>
 </p>
 
 ---
 
 ## Features
 
-- Build APIs using [Node.js](https://nodejs.org/en/) and [Typescript](https://www.typescriptlang.org/).
-- Models editor.
-- [Open API](https://www.openapis.org/) editor.
-- Automatic Typescript code generation.
+**Automatic code generation.**
+
+- Automatic [Open Api](https://www.openapis.org/) spec files generation.
+- Automatic Typescript Models generation.
+- Automatic server code generation.
+- Automatic Server & Client side validation from Json schemas and Api spec files.
+
+**API DS starter project**
+
 - Default User, Groups and Assets Models and Rest Endpoints.
 - Simple Access Control List.
-- Automatic Server & Client side validation.
-- Built for performance.
+
+**Web Dashboard (Coming Later)**
+
+- Models editor.
+- [Open API](https://www.openapis.org/) editor.
 
 ## Architecture
 
 <!-- prettier-ignore-start -->
 | Models Definition  | API Definition | Typescript Models | REST Server |
 | ------------------ | -------------- | ----------------- | ----------- |
-| Models are defined using [json-schemas](http://json-schema.org/) and custom properties to configure persistence | Open-API Definition files are automatically generated using the Models. | Typescript code and .tsd definition files are automatically generated from the Open-API definition files. | A lightweight server is implemented using [Zeit's Micro](https://github.com/zeit/micro). this can be customized to support microservices architecture. |
+| Models are defined using [json-schemas](http://json-schema.org/) and custom properties to configure persistence | Open-API Definition files are automatically generated using the Models. | Typescript code and .tsd definition files are automatically generated from the Open-API definition files. | A lightweight server is implemented using [Fastify](https://www.fastify.io/). this can be customized to support serverless architecture. |
 <!-- prettier-ignore-end -->
 
 **Json Schema vs Open API Schemas**  
@@ -35,13 +47,33 @@ https://github.com/OAI/OpenAPI-Specification/blob/OpenAPI.next/versions/3.0.0.md
 
 ## Developer Tools
 
-API DS takes a completely different approach than traditional frameworks and offers a Web interface to define Models and the REST API.
+API DS heavily relies on code generation during development time.  
+Bellow is the typical development workflow:
 
-<!-- prettier-ignore-start -->
-| Web Dashboard | Code Generation |
-|-------------- | --------------- |
-| Models are defined using JSON-schema and the REST API is defined using Open-API definition files, but the integrated Dashboard simplifies this process trillions of times for developer's joy. | The Models defined in JSON-schemas are translated to TypeORM models and and the REST Endpoints are translated to microservices defined using Zeit/Micro library |
-<!-- prettier-ignore-end -->
+1. Write your model definitions using json schema
+2. Automatically generate Open Api spec files from your models
+   ```
+   apids g rest
+   ```
+3. Automatically generate your typescript models from json schema
+   ```
+   apids g types
+   ```
+4. Edit and customize your open api spec files.
+5. Automatically generate your fastify server files from your json schemas and open api spec files
+   ```
+   apids g fastify
+   ```
+
+Execute all steps in one (generate api spec, types and server files)
+
+```
+apids g
+```
+
+## Web Dashboard (Coming Later)
+
+The integrated web dashboard simplifies the process of generate and edit json schemas and the Open-Api spec files.
 
 ## Quick Start
 
@@ -75,8 +107,7 @@ _Powered by:_
 
 ![node.js](https://github.com/apids/apids/blob/master/logo/other_logos/node.png?raw=true) &nbsp;&nbsp;
 ![Typescript](https://github.com/apids/apids/blob/master/logo/other_logos/ts.png?raw=true) &nbsp;&nbsp;
-![typeORM](https://github.com/apids/apids/blob/master/logo/other_logos/typeorm.png?raw=true) &nbsp;&nbsp;
 ![Open Api](https://github.com/apids/apids/blob/master/logo/other_logos/open-api.png?raw=true) &nbsp;&nbsp;
-![vue.js](https://github.com/apids/apids/blob/master/logo/other_logos/vue.js.png?raw=true) &nbsp;&nbsp;
+![Fastify](https://github.com/apids/apids/blob/master/logo/other_logos/fastify.js.png?raw=true) &nbsp;&nbsp;
 
 _License: [MIT](./LICENSE)_
