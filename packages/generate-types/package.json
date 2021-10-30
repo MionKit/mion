@@ -1,0 +1,34 @@
+{
+  "name": "generate-types",
+  "version": "0.0.0",
+  "description": "package to generate typescript models from json schema",
+  "keywords": [
+    "typescript",
+    "types",
+    "models",
+    "json",
+    "schema",
+    "generate"
+  ],
+  "author": "ma jerez <jerez.m82@gmail.com>",
+  "homepage": "https://github.com/apids/apids/tree/main/packages/generate-types#readme",
+  "license": "MIT",
+  "main": "lib/generate-types.js",
+  "directories": {
+    "lib": "lib",
+    "test": "__tests__"
+  },
+  "files": [
+    "lib"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/apids/apids.git"
+  },
+  "scripts": {
+    "test": "echo \"Error: run tests from root\" && exit 1"
+  },
+  "bugs": {
+    "url": "https://github.com/apids/apids/issues"
+  }
+}

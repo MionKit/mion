@@ -50,7 +50,7 @@ and <a href='https://www.openapis.org' target='_blank'>Open Api</a>.<br/>
 
 &nbsp;
 
-## Command line tools
+## Command line tool
 
 API DS heavily relies on code generation during development time. Use the the generate command to generate artifacts.
 
