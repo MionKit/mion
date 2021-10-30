@@ -1,5 +1,5 @@
 <p align="center">
-  <img alt='API DS, The APi Dashboard' src='https://raw.githubusercontent.com/apids/apids/master/assets/public/logox150-inverse.png'>
+  <img alt='API DS, The APi Dashboard' src='./assets/public/logox150-inverse.png?raw=true'>
 </p>
 <p align="center">
   <strong>API DS is a set of tools to build REST APIs using 
@@ -37,7 +37,7 @@ and <a href='https://www.openapis.org' target='_blank'>Open Api</a>.<br/>
 
 ## Workflow
 
-![workflow](https://raw.githubusercontent.com/apids/apids/master/assets/public/workflow.png)
+![workflow](./assets/public/workflow.png?raw=true)
 
 <!-- prettier-ignore-start -->
 | ⓵ Models Definition | ⓶ Typescript | ⓷ API Spec Files | ⓸ Fastify Server |
@@ -108,9 +108,9 @@ run ts files without need to precompile to js.
 
 _Powered by:_
 
-![node.js](https://github.com/apids/apids/blob/master/logo/other_logos/node.png?raw=true) &nbsp;&nbsp;
-![Typescript](https://github.com/apids/apids/blob/master/logo/other_logos/ts.png?raw=true) &nbsp;&nbsp;
-![Open Api](https://github.com/apids/apids/blob/master/logo/other_logos/open-api.png?raw=true) &nbsp;&nbsp;
-![Fastify](https://github.com/apids/apids/blob/master/logo/other_logos/fastify.js.png?raw=true) &nbsp;&nbsp;
+![node.js](./assets/other_logos/node.png?raw=true) &nbsp;&nbsp;
+![Typescript](./assets/other_logos/ts.png?raw=true) &nbsp;&nbsp;
+![Open Api](./assets/other_logos/open-api.png?raw=true) &nbsp;&nbsp;
+![Fastify](./assets/other_logos/fastify.js.png?raw=true) &nbsp;&nbsp;
 
 _License: [MIT](./LICENSE)_
