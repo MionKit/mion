@@ -1,0 +1,35 @@
+{
+  "name": "generate-api-specs",
+  "version": "0.0.0",
+  "description": "package to generate api spec files from json schema models",
+  "keywords": [
+    "api",
+    "open",
+    "apecs",
+    "rest",
+    "json",
+    "shcema",
+    "swagger"
+  ],
+  "author": "ma jerez <jerez.m82@gmail.com>",
+  "homepage": "https://github.com/apids/apids/tree/main/packages/generate-api-specs#readme",
+  "license": "MIT",
+  "main": "lib/generate-api-specs.js",
+  "directories": {
+    "lib": "lib",
+    "test": "__tests__"
+  },
+  "files": [
+    "lib"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/apids/apids.git"
+  },
+  "scripts": {
+    "test": "echo \"Error: run tests from root\" && exit 1"
+  },
+  "bugs": {
+    "url": "https://github.com/apids/apids/issues"
+  }
+}
