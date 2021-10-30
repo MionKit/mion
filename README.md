@@ -12,7 +12,7 @@
 and <a href='https://www.openapis.org' target='_blank'>Open Api</a>.<br/>
 </p>
 
----
+&nbsp;
 
 ## Features
 
@@ -33,49 +33,50 @@ and <a href='https://www.openapis.org' target='_blank'>Open Api</a>.<br/>
 - Models editor.
 - [Open API](https://www.openapis.org/) editor.
 
-## Architecture
+&nbsp;
+
+## Workflow
+
+![workflow](https://raw.githubusercontent.com/apids/apids/master/logo/public/workflow.png)
 
 <!-- prettier-ignore-start -->
-| Models Definition  | API Definition | Typescript Models | REST Server |
+| ⓵ Models Definition | ⓶ Typescript | ⓷ API Spec Files | ⓸ Fastify Server |
 | ------------------ | -------------- | ----------------- | ----------- |
-| Models are defined using [json-schemas](http://json-schema.org/) and custom properties to configure persistence | Open-API Definition files are automatically generated using the Models. | Typescript code and .tsd definition files are automatically generated from the Open-API definition files. | A lightweight server is implemented using [Fastify](https://www.fastify.io/). this can be customized to support serverless architecture. |
+| Models are defined using [Json Schema](http://json-schema.org/). Optionally  custom properties can be used to configure persistence. | Typescript models are automatically generated from the Json Schema Models. | Open-API Definition files with basic crud operations are automatically generated from the Json Shchema Models. | A [Fastify](https://www.fastify.io/) lightweight server implementation is automatically  generated from the Api spec files, the Types and Json Schemas. |
 <!-- prettier-ignore-end -->
 
-**Json Schema vs Open API Schemas**  
-Due to the nature of Models defined for persistence there are some divergences between json schema specification and Open-API specification. These divergances can be found here:  
-https://github.com/OAI/OpenAPI-Specification/blob/OpenAPI.next/versions/3.0.0.md#schemaObject
+> **Json Schema vs Open API Schemas**  
+> Due to the nature of Models defined for persistence there are some divergences between json schema specification and Open-API specification. These divergances can be found [here!](https://github.com/OAI/OpenAPI-Specification/blob/OpenAPI.next/versions/3.0.0.md#schemaObject)
 
-## Developer Tools
+&nbsp;
 
-API DS heavily relies on code generation during development time.  
-Bellow is the typical development workflow:
+## Command line tools
 
-1. Write your model definitions using json schema
-2. Automatically generate Open Api spec files from your models
-   ```
-   apids g rest
-   ```
-3. Automatically generate your typescript models from json schema
-   ```
-   apids g types
-   ```
-4. Edit and customize your open api spec files.
-5. Automatically generate your fastify server files from your json schemas and open api spec files
-   ```
-   apids g fastify
-   ```
+API DS heavily relies on code generation during development time. Use the the generate command to generate artifacts.
 
-Execute all steps in one (generate api spec, types and server files)
+```shell
+## generate Api spec files
+apids g rest
 
-```
-apids g
+## generate Typescript models
+apids g types
+
+## generate Fastify server files
+apids g fastify
+
+## generate all artifacts in one go (api spec, types and server files)
+apisds g
 ```
 
-## Web Dashboard (Coming Later)
+&nbsp;
+
+## Web dashboard (coming later)
 
 The integrated web dashboard simplifies the process of generate and edit json schemas and the Open-Api spec files.
 
-## Quick Start
+&nbsp;
+
+## Quick start
 
 Install API DS
 
@@ -84,6 +85,8 @@ npm install apids
 ```
 
 To create your first project fork the [apids-starter](https://github.com/apids/apids-strater) repo.
+
+&nbsp;
 
 ## Contributing
 
