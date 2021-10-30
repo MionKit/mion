@@ -1,14 +1,14 @@
 {
   "devDependencies": {
-    "@types/jest": "^23.3.1",
-    "@types/node": "^10.5.8",
-    "jest": "^23.5.0",
-    "lerna": "^2.11.0",
-    "prettier": "^1.14.2",
-    "ts-jest": "^23.1.3",
-    "tslint": "^5.11.0",
-    "tslint-config-prettier": "^1.14.0",
-    "typescript": "^3.0.1"
+    "@types/jest": "^27.0.2",
+    "@types/node": "^16.11.6",
+    "jest": "^27.3.1",
+    "lerna": "^4.0.0",
+    "prettier": "^2.4.1",
+    "ts-jest": "^27.0.7",
+    "tslint": "^5.20.1",
+    "tslint-config-prettier": "^1.18.0",
+    "typescript": "^4.4.4"
   },
   "name": "apids",
   "description": "Api DS is framework to build and manage REST APIs",
@@ -18,8 +18,8 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "tslint-check": "tslint-config-prettier-check ./tslint.json",
-    "format-ts" : "prettier --write packages/**/*.ts",
-    "format-md" : "prettier --write ./**/*.md",
+    "format-ts": "prettier --write packages/**/*.ts",
+    "format-md": "prettier --write ./**/*.md",
     "lint": "tslint -c tslint.json \"packages/**/*.ts\""
   },
   "repository": {
