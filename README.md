@@ -1,5 +1,5 @@
 <p align="center">
-  <img alt='API DS, The APi Dashboard' src='https://raw.githubusercontent.com/apids/apids/master/logo/public/logox150-inverse.png'>
+  <img alt='API DS, The APi Dashboard' src='https://raw.githubusercontent.com/apids/apids/master/assets/public/logox150-inverse.png'>
 </p>
 <p align="center">
   <strong>API DS is a set of tools to build REST APIs using 
@@ -37,7 +37,7 @@ and <a href='https://www.openapis.org' target='_blank'>Open Api</a>.<br/>
 
 ## Workflow
 
-![workflow](https://raw.githubusercontent.com/apids/apids/master/logo/public/workflow.png)
+![workflow](https://raw.githubusercontent.com/apids/apids/master/assets/public/workflow.png)
 
 <!-- prettier-ignore-start -->
 | ⓵ Models Definition | ⓶ Typescript | ⓷ API Spec Files | ⓸ Fastify Server |
