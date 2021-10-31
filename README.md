@@ -12,6 +12,14 @@
 and <a href='https://www.openapis.org' target='_blank'>Open Api</a>.<br/>
 </p>
 
+---
+
+<p align=center>
+<img src="https://img.shields.io/travis/apids/apids.svg?style=flat-square&maxAge=86400" alt="Travis" style="max-width:100%;">
+<img src="https://img.shields.io/badge/code_style-prettier-ff69b4.svg?style=flat-square&maxAge=99999999" alt="npm"  style="max-width:100%;">
+<img src="https://img.shields.io/badge/license-MIT-97ca00.svg?style=flat-square&maxAge=99999999" alt="npm"  style="max-width:100%;">
+</p>
+
 &nbsp;
 
 ## Features
