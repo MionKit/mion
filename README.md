@@ -92,31 +92,46 @@ To create your first project fork the [apids-starter](https://github.com/apids/a
 
 You are welcome to open issues and pull request! 👍
 
-**Lerna:**
-This project is a monorepo managed using lerna.js
+**Monorepo:**  
+This project is a monorepo managed using [lerna](https://lerna.js.org/) and npm [workspaces](https://docs.npmjs.com/cli/v7/using-npm/workspaces). (`npm >= 7` required)
 
 ```sh
 npm i lerna -g
 ```
 
-**Typescript compiling while developing:**
+Each package of this monorepo is compiled and tested individually.
+
+```sh
+cd packages/cli
+```
+
+**Typescript compiling:**
 
 ```sh
 npm run dev
-## internally calls lerna to run tsc --watch in all the packages
 ```
 
-**TSLint and prettier:**  
-All pull request must pass TSLint and [prettier](https://github.com/prettier/prettier) before being merged.  
+**Unit testing using Jest:**  
+Tests are implemented using Jest and must be written in typescript . ts-jest is used tu automatically
+run ts files without need to precompile to js.
+
+```sh
+npm run dev:test
+```
+
+**ESLint and Prettier:**  
+All pull request must pass ESLint and [prettier](https://github.com/prettier/prettier) before being merged.  
 Run bellow command to automatically format all typescript files and check Lint errors.
 
 ```sh
-npm run format-ts && npm run lint
+npm run format && npm run lint
 ```
 
-**Testing using Jest and Typescript:**  
-Tests are implemented using Jest and must be written in typescript or tsx. ts-jest is used tu automatically
-run ts files without need to precompile to js.
+**Build:**
+
+```
+npm run build
+```
 
 ## &nbsp;
 
