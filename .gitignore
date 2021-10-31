@@ -72,9 +72,6 @@ nbproject
 .idea
 .vscode
 
-
-
-
 ########################
 # generated files
 ########################
@@ -82,5 +79,10 @@ nbproject
 dist
 .tmp
 tmp
+
+###############################################################
+# generated files typescript compilation into lib lerna package
+###############################################################
+lib
 
 
