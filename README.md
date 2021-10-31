@@ -92,6 +92,20 @@ To create your first project fork the [apids-starter](https://github.com/apids/a
 
 You are welcome to open issues and pull request! 👍
 
+**Lerna:**
+This project is a monorepo managed using lerna.js
+
+```sh
+npm i lerna -g
+```
+
+**Typescript compiling while developing:**
+
+```sh
+npm run dev
+## internally calls lerna to run tsc --watch in all the packages
+```
+
 **TSLint and prettier:**  
 All pull request must pass TSLint and [prettier](https://github.com/prettier/prettier) before being merged.  
 Run bellow command to automatically format all typescript files and check Lint errors.

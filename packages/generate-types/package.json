@@ -14,6 +14,7 @@
   "homepage": "https://github.com/apids/apids/tree/main/packages/generate-types#readme",
   "license": "MIT",
   "main": "lib/generate-types.js",
+  "types": "lib/generate-types.d.ts",
   "directories": {
     "lib": "lib",
     "test": "__tests__"
@@ -26,9 +27,17 @@
     "url": "git+https://github.com/apids/apids.git"
   },
   "scripts": {
-    "test": "echo \"Error: run tests from root\" && exit 1"
+    "test": "echo \"Error: run tests from root\" && exit 1",
+    "tsc": "tsc",
+    "tsc:watch": "tsc --watch"
   },
   "bugs": {
     "url": "https://github.com/apids/apids/issues"
+  },
+  "dependencies": {
+    "json-schema-to-typescript": "^10.1.5"
+  },
+  "devDependencies": {
+    "typescript": "^4.4.4"
   }
 }

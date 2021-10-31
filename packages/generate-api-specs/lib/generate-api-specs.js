@@ -1,7 +1,7 @@
-'use strict';
-
-module.exports = generateApiSpecs;
-
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.generateApiSpecs = void 0;
 function generateApiSpecs() {
-    // TODO
 }
+exports.generateApiSpecs = generateApiSpecs;
+//# sourceMappingURL=generate-api-specs.js.map

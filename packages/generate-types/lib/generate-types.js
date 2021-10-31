@@ -1,7 +1,7 @@
-'use strict';
-
-module.exports = generateTypes;
-
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.generateTypes = void 0;
 function generateTypes() {
-    // TODO
 }
+exports.generateTypes = generateTypes;
+//# sourceMappingURL=generate-types.js.map

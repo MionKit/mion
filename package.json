@@ -1,9 +1,8 @@
 {
   "devDependencies": {
     "@types/jest": "^27.0.2",
-    "@types/node": "^16.11.6",
+    "@types/node": "^12.18.4",
     "jest": "^27.3.1",
-    "lerna": "^4.0.0",
     "prettier": "^2.4.1",
     "ts-jest": "^27.0.7",
     "tslint": "^5.20.1",
@@ -20,7 +19,10 @@
     "tslint-check": "tslint-config-prettier-check ./tslint.json",
     "format-ts": "prettier --write packages/**/*.ts",
     "format-md": "prettier --write ./**/*.md",
-    "lint": "tslint -c tslint.json \"packages/**/*.ts\""
+    "lint": "tslint -c tslint.json \"packages/**/*.ts\"",
+    "tsc": "tsc",
+    "dev": "lerna run --stream --no-sort --concurrency 99 tsc:watch",
+    "publish": "lerna run tsc && lerna publish"
   },
   "repository": {
     "type": "git",
