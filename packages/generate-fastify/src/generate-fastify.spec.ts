@@ -1,6 +1,4 @@
-'use strict';
-
-const generateFastify = require('..');
+/********* 2021 API DS  - MIT LICENSE *********/
 
 describe('generate-fastify', () => {
     it('needs tests');

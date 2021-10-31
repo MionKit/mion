@@ -1,27 +1,14 @@
 {
-  "devDependencies": {
-    "@types/jest": "^27.0.2",
-    "@types/node": "^12.18.4",
-    "jest": "^27.3.1",
-    "prettier": "^2.4.1",
-    "ts-jest": "^27.0.7",
-    "tslint": "^5.20.1",
-    "tslint-config-prettier": "^1.18.0",
-    "typescript": "^4.4.4"
-  },
   "name": "apids",
   "description": "Api DS is framework to build and manage REST APIs",
   "version": "0.0.0",
   "main": "index.js",
   "homepage": "https://github.com/apids/apids#readme",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "tslint-check": "tslint-config-prettier-check ./tslint.json",
-    "format-ts": "prettier --write packages/**/*.ts",
-    "format-md": "prettier --write ./**/*.md",
-    "lint": "tslint -c tslint.json \"packages/**/*.ts\"",
-    "tsc": "tsc",
-    "dev": "lerna run --stream --no-sort --concurrency 99 tsc:watch",
+    "test": "npm run test -ws",
+    "format": "prettier --write packages/**/*.ts",
+    "lint": "eslint packages/**/src --ext .ts",
+    "build": "npm run tsc -ws",
     "publish": "lerna run tsc && lerna publish"
   },
   "repository": {
@@ -40,5 +27,8 @@
   "license": "MIT",
   "bugs": {
     "url": "https://github.com/apids/issues"
-  }
+  },
+  "workspaces": [
+    "packages/*"
+  ]
 }
