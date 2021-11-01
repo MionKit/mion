@@ -12,8 +12,4 @@
 // }
 // compile(mySchema, 'MySchema')
 //   .then(ts => ...)
-
-export function GenerateTypes() {
-    // TODO
-    console.log('hello');
-}
+export * from 'json-schema-to-typescript';
