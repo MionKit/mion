@@ -2,8 +2,8 @@
 
 > Read Json Schemas source files and generates Typescript files.
 >
-> **This is just a wrapper for the more well know npm package [json-schema-to-typescript](https://www.npmjs.com/package/json-schema-to-typescript)**  
-> **Check [json-schema-to-typescript](https://www.npmjs.com/package/json-schema-to-typescript) documentation for more info!**
+> **This is just a wrapper for the well known npm package `json-schema-to-typescript`.**  
+> **Please check [json-schema-to-typescript](https://www.npmjs.com/package/json-schema-to-typescript) documentation for more info!**
 
 ### Usage
 
