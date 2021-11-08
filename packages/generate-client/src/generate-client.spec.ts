@@ -1,7 +1,7 @@
 /********* 2021 API DS  - MIT LICENSE *********/
 
 import {JSONSchema} from 'json-schema-to-typescript';
-import {compile, compileFromFile, Options} from './generate-types';
+import {compile, compileFromFile, Options} from './generate-client';
 
 describe('generate types', () => {
     it('should re export methods and properties from json schema to typescript', async () => {
