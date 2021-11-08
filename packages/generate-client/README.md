@@ -1,4 +1,4 @@
-# `generate-types`
+# `generate-client`
 
 > Read Json Schemas source files and generates Typescript files.
 >
@@ -9,7 +9,7 @@
 
 ```ts
 import {JSONSchema} from 'json-schema-to-typescript';
-import {compile, compileFromFile, Options} from '@apids/generate-types';
+import {compile, compileFromFile, Options} from '@apids/generate-client';
 
 const mySchema = {
   type: 'object',

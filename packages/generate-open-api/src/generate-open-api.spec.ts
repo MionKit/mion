@@ -1,5 +1,5 @@
 /********* 2021 API DS  - MIT LICENSE *********/
 
-describe('generate-api-specs', () => {
+describe('generate-open-api', () => {
     it('needs tests');
 });

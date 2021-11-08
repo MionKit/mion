@@ -1,20 +1,21 @@
 {
-  "name": "@apids/generate-types",
+  "name": "@apids/generate-open-api",
   "version": "0.0.0",
-  "description": "package to generate typescript models from json schema",
+  "description": "package to generate api spec files from json schema models",
   "keywords": [
-    "typescript",
-    "types",
-    "models",
+    "api",
+    "open",
+    "apecs",
+    "rest",
     "json",
-    "schema",
-    "generate"
+    "shcema",
+    "swagger"
   ],
   "author": "ma jerez <jerez.m82@gmail.com>",
-  "homepage": "https://github.com/apids/apids/tree/main/packages/generate-types#readme",
+  "homepage": "https://github.com/apids/apids/tree/main/packages/generate-open-api#readme",
   "license": "MIT",
-  "main": ".dist/generate-types.js",
-  "types": ".dist/generate-types.d.ts",
+  "main": ".dist/generate-open-api.js",
+  "types": ".dist/generate-open-api.d.ts",
   "directories": {
     "lib": ".dist",
     "test": "__tests__"
@@ -48,8 +49,5 @@
     "rimraf": "^3.0.2",
     "ts-jest": "^27.0.7",
     "typescript": "^4.4.4"
-  },
-  "dependencies": {
-    "json-schema-to-typescript": "^10.1.5"
   }
 }
