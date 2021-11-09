@@ -1,17 +1,17 @@
 <p align="center">
-  <img alt='API DS, The APi Dashboard' src='./assets/public/logox150-inverse.png?raw=true'>
+  <img alt='API DS, The APi Dashboard' src='./assets/public/logox150.png?raw=true'>
 </p>
 <p align="center">
-  <strong>API DS is a new way of building APIs based on
+  <strong>The quick way of building APIs based on
     <a href='https://www.typescriptlang.org/' target='_blank'>Typescript</a> and
     <a href='https://www.fastify.io/' target='_blank'>Fastify</a>.
   </strong>
 </p>
 
 <p align=center>
-<img src="https://img.shields.io/travis/apids/apids.svg?style=flat-square&maxAge=86400" alt="Travis" style="max-width:100%;">
-<img src="https://img.shields.io/badge/code_style-prettier-ff69b4.svg?style=flat-square&maxAge=99999999" alt="npm"  style="max-width:100%;">
-<img src="https://img.shields.io/badge/license-MIT-97ca00.svg?style=flat-square&maxAge=99999999" alt="npm"  style="max-width:100%;">
+  <img src="https://img.shields.io/travis/apids/apids.svg?style=flat-square&maxAge=86400" alt="Travis" style="max-width:100%;">
+  <img src="https://img.shields.io/badge/code_style-prettier-ff69b4.svg?style=flat-square&maxAge=99999999" alt="npm"  style="max-width:100%;">
+  <img src="https://img.shields.io/badge/license-MIT-97ca00.svg?style=flat-square&maxAge=99999999" alt="npm"  style="max-width:100%;">
 </p>
 
 &nbsp;&nbsp;&nbsp;&nbsp;
@@ -42,26 +42,25 @@
 
 ApisDS does not uses `GET`, `POST`, `PUT` or `DELETE` request like traditional REST APIS.
 
-**All http request to the API are made using the `POST` method and all the required data is sent in the url or http body.**
-
-ApiDS routing is based in the file system, so the URL in the request must also match the file system.
+**All http request to the API are made using the `POST` method and all the required data is sent in the http body.**  
+Routing is based in the file system, so URL must match the file path + method call.
 
 `Example: get user by id = 01`
 
 ```js
-//file:  api/user/index.ts
+// file:  api/user/index.ts
+// or file:  api/user.ts
 
-@path('/:id')
-export async getUser(req: Req, users: UserEntity) {
-  const id = req.url.params.id;
-  const user = await users.get(id);
+export async getUser(req: Req, resp: Resp, body: Body<Schema>, db: DB) {
+  const id = body.user.id;
+  const user = await db.users.get(id);
   return user;
 }
 ```
 
 ```
 # HTTP REQUEST
-URL: https://my.api.com/api/user/getUser/01
+URL: https://my.api.com/api/user/getUser
 Method: POST
 
 # HEADERS
@@ -70,10 +69,11 @@ Content-Type: text/plain
 
 # BODY
 {
-  "headers" : {
-    "Authorization": "Bearer <token>"
-  },
-  "version" : 1.0
+  "Authorization": "Bearer <token>"
+  "version" : 1.0,
+  "user" : {
+    "id" : 1
+  }
 }
 
 ```
