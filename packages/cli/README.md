@@ -17,7 +17,9 @@ apids g fastify
 ## generate all artifacts in one go (api spec, types and server files)
 apisds g
 ```
+
 ## &nbsp;
+
 ![apids](../../assets/public/banner-inversex90.png?raw=true)
 
-_License: [MIT](../../LICENSE)_
+_[MIT](../../LICENSE) LICENSE_

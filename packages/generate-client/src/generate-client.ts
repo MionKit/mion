@@ -1,4 +1,4 @@
-/********* 2021 API DS  - MIT LICENSE *********/
+/* ######## 2021 ApiDS - MIT LICENSE ######## */
 
 //export * as GenerateTypes from 'json-schema-to-typescript';
 

@@ -1,4 +1,4 @@
-/********* 2021 API DS  - MIT LICENSE *********/
+/* ######## 2021 ApiDS - MIT LICENSE ######## */
 
 import {JSONSchema} from 'json-schema-to-typescript';
 import {compile, compileFromFile, Options} from './generate-client';
