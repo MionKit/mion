@@ -17,9 +17,16 @@
 
 # `@apids/router`
 
-This router follows the ApiDS design pattern where all requests are made using `HTTP POST` and all the required data is sent in the `HTTP Request Body`, so there are no dynamic parameters in the url.
+This router follows the **ApiDS RPC** pattern.
 
-Static analysis is used to generate the routes and the required schemas for automatic [validation & serialization](https://www.fastify.io/docs/latest/Validation-and-Serialization/).
+**`Requests & Responses`**
+
+- Requests are made using only `HTTP POST` method.
+- Data is send and recieved only in the `HTTP BODY`.
+- Data is send and received only in `JSON` format.
+
+A compiling step is used to analyze all your src files and generate a single typescript files containing al the api routes and a single json file containing schemas required for automatic [validation & serialization](https://www.fastify.io/docs/latest/Validation-and-Serialization/).
+Once these two files are generated they can be used an imported normaly into your [fastify](https://www.fastify.io/) server.
 
 ## `ROUTES`
 
