@@ -39,26 +39,25 @@
 
 ## `RPC API`
 
-ApisDS uses **RPC** style routing sytem, it is less like traditional REST apis and more like GrafphQL. Have a look to this Presentation for more info about each different type of API:  
+ApisDS uses **RPC** style routing, it is not like traditional REST apis and does not use all HTTP Methods. Have a look to this Presentation for more info about each different type of API:  
 [Nate Barbettini – API Throwdown: RPC vs REST vs GraphQL, Iterate 2018](https://www.youtube.com/watch?v=IvsANO0qZEg)
 
-**`ApiDS Request-Response model`**
+**`Requests & Responses`**
 
-- Api Requests are made using extricly `HTTP POST` method.
-- Data is send and recieved extricly in the `HTTP BODY`.
-- Data is send and received extricly in `JSON ` format.
+- Requests are made using only `HTTP POST` method.
+- Data is send and recieved only in the `HTTP BODY`.
+- Data is send and received only in `JSON` format.
 
-This might seem quite strict but is a tradeof for simplicity and performance.
+This is quite strict but is a tradeof for simplicity and performance.
 
 **`RPC VS REST Requests`**
 
-| RPC                                      | REST                              | Descriotion     |
-| ---------------------------------------- | --------------------------------- | --------------- |
-| `POST http://myapi.com/users/getByID` \* | `GET http://myapi.com/users/1`    | get user by id  |
-| `POST http://myapi.com/users/create`     | `POST http://myapi.com/users`     | create new user |
-| `POST http://myapi.com/users/delete` \*  | `DELETE http://myapi.com/users/1` | delete user     |
-| `POST http://myapi.com/users/getAll`     | `GET http://myapi.com/users`      | get All users   |
-| \* _id = 1 send in the body_             |
+| RPC                                                      | REST                                             | Descriotion     |
+| -------------------------------------------------------- | ------------------------------------------------ | --------------- |
+| `POST http://myapi.com/users/getByID`<br>`BODY {"id":1}` | `GET http://myapi.com/users/1`<br>`BODY NONE`    | get user by id  |
+| `POST http://myapi.com/users/create`<br>`BODY EMPTY`     | `POST http://myapi.com/users`<br>`BODY NONE`     | create new user |
+| `POST http://myapi.com/users/delete`<br>`BODY {"id":1}`  | `DELETE http://myapi.com/users/1`<br>`BODY NONE` | delete user     |
+| `POST http://myapi.com/users/getAll`<br>`BODY EMPTY`     | `GET http://myapi.com/users` <br>`BODY NONE`     | get All users   |
 
 &nbsp;&nbsp;&nbsp;&nbsp;
 
@@ -66,18 +65,20 @@ This might seem quite strict but is a tradeof for simplicity and performance.
 
 Routing is based in the file system, URLs must match the `file path` + `method name`, (more info about the router [here](./packages/router/)).
 
-`Example: get user by id = 01`
+**`File`**
 
 ```js
 // file:  api/user/index.ts
 // or file:  api/user.ts
 
-export async getUser(req: Req, resp: Resp, body: Body<Schema>, db: DB) {
+export async getUser(body: Body, db: DB) {
   const id = body.user.id;
   const user = await db.users.get(id);
   return user;
 }
 ```
+
+**`Request`**
 
 ```
 # HTTP REQUEST
@@ -85,8 +86,8 @@ URL: https://my.api.com/api/user/getUser
 Method: POST
 
 # HEADERS
-Accept: text/plain
-Content-Type: text/plain
+Accept: application/json
+Content-Type: application/json
 
 # BODY
 {
