@@ -39,7 +39,8 @@
 
 ## `RPC API`
 
-ApisDS uses **RPC** style routing, it is not like traditional REST apis and does not use all HTTP Methods. Have a look to this Presentation for more info about each different type of API:  
+ApisDS uses **Remote Procedure Call** style routing, it is not like traditional REST apis and
+does not use `GET`, `PUT` or `DELETE` methods. Have a look to this great Presentation for more info about each different type of APIs:  
 [Nate Barbettini – API Throwdown: RPC vs REST vs GraphQL, Iterate 2018](https://www.youtube.com/watch?v=IvsANO0qZEg)
 
 **`Requests & Responses`**
