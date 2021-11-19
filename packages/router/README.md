@@ -21,10 +21,10 @@ This router follows the ApiDS design pattern where all requests are made using `
 
 Static analysis is used to generate the routes and the required schemas for automatic [validation & serialization](https://www.fastify.io/docs/latest/Validation-and-Serialization/).
 
-### `ROUTES`
+## `ROUTES`
 
-Routes are defined using the `file path` + `export method name`, the file extension gets removed from the path.  
-An error will be thrown If the file name contains non safe URL characters <sup>(`encodeURI(path) !== path`)</sup>.
+Routes are defined using the `file path` + `method name`, the file extension gets removed from the path.  
+An error will be thrown durin compile time If the file name contains non safe URL characters <sup>(`encodeURI(path) !== path`)</sup>.
 
 ```ts
 // file: api/index.ts
@@ -49,51 +49,61 @@ export const getAll: ApiRoute<Req, Resp> = (body, ds) => ds.users.getAll();
 
 &nbsp;&nbsp;&nbsp;&nbsp;
 
-### `DECLARING ROUTES USING EXPORTS`
+## `DECLARING ROUTES USING EXPORTS`
 
-All the [named exports](https://www.typescriptlang.org/docs/handbook/modules.html#export) from a module are interpreted as a route.
-The exported functions must be of the type [`ApiRoute`](./src/types.ts). It's also possible to export objects of the type [`ApiRouteOptions`](./src/types.ts) similar to [`fastify.route(options)`](https://www.fastify.io/docs/latest/Routes/#options) except the `method` and `url` are not configurable.  
-Any exported property that does not match the types of `ApiRoute` or `ApiRouteOptions` will cause an error during the routes generation.
+Routes are declared using the [default](https://www.typescriptlang.org/docs/handbook/modules.html#default-exports) or [named](https://www.typescriptlang.org/docs/handbook/modules.html#export) exports and must be of the type [`ApiRoute`](./src/types.ts) or [`ApiRouteOptions`](./src/types.ts).  
 
-// TODO: [default export](https://www.typescriptlang.org/docs/handbook/modules.html#default-exports) is used to export an plain object with multiple routes.
+The [`ApiRouteOptions`](./src/types.ts) object is similar to the options object in [`fastify.route(options)`](https://www.fastify.io/docs/latest/Routes/#options) except `method` and `url` are not configurable.    
 
-**Route declaration using a function:**
+Any exported property that does not match the type of `ApiRoute` or `ApiRouteOptions` will cause an error during compilation.
 
-```ts
-// we can't declare the correct ApiRoute type so is more prone to errors
-// we also need to declare the types of all the parameters and the return types
-export function sayHello(
-  body: Request,
-  data: ApiDS,
-  req: FastifyRequest,
-  reply: FastifyReply,
-): Response {
-  return {sentence: `hello`};
+**`Using default and named exports:`**
+```js
+import {ApiRoutes, ApiRoute} from '@apids/router/src/types';
+
+// declaring routes using default export
+const route1: ApiRoute<Request1, Response1> = () => {...};
+const route2: ApiRoute<Request2, Response2> = () => {...};
+export default const routes: ApiRoutes = {
+  route1,
+  route2,
 }
+
+// declaring a route using named export
+export const route3: ApiRoute<Request3, Response3> = () => {...};
 ```
 
-**Route declaration using arrow functions:** <sup>(Preferred Method)</sup>
+**`Route declaration using ApiRoute:`**
 
 ```ts
 import {ApiRoute} from '@apids/router/src/types';
+interface Request {name: string};
+interface Reply {sentence: string};
 
-// correct ApiRoute type is declared so no need to re-declare parameters and return types
-export const sayHello2: ApiRoute<Request, Response> = (
-  body,
-  data,
-  req,
-  reply,
-) => ({sentence: `hello`});
+// when adding ApiRoute type all parameters from the function call are automatically infered by typesctipt
+export const sayHello2: ApiRoute<Request, Reply> = (
+  body: Request,
+  db: ApiDS,
+  request: FastifyRequest,
+  reply: FastifyReply,
+) => ({sentence: `hello ${body.name}`});
 ```
 
-**Route declaration using ApiRouteOptions object:**
+**`Route declaration using ApiRouteOptions:`**
 
 ```ts
 import {ApiRouteOptions} from '@apids/router/src/types';
+interface Request {name: string};
+interface Reply {sentence: string};
+
 // ApiRouteOptions is a wrapper for Fastify Route Options
-// correct ApiRouteOptions type is declared so no need to re-declare parameters and return types
-export const sayHello3: ApiRouteOptions<Request, Response> = {
-  handler: (body, data, req, reply) => ({sentence: `hello`}),
+export const sayHello3: ApiRouteOptions<Request, Reply> = {
+  handler: (
+    body: Request,
+    db: ApiDS,
+    request: FastifyRequest,
+    reply: FastifyReply,
+  ) => ({sentence: `hello ${body.name}`}),
   version: '1.0.0',
   logLevel: 'debug',
 };
@@ -101,11 +111,13 @@ export const sayHello3: ApiRouteOptions<Request, Response> = {
 
 &nbsp;&nbsp;&nbsp;&nbsp;
 
-### `AUTOMATIC VALIDATION & SERIALIZATION USING TYPES`
+## `AUTOMATIC VALIDATION & SERIALIZATION USING TYPES`
 
 Fastify uses Json Schemas for automatic [validation & serialization](https://www.fastify.io/docs/latest/Validation-and-Serialization/).  
-The `Request` and `Response` types of each route <sup>(`ApiRoute<Request, Response>`)</sup> are evaluated and a JSON schema is generated and added to fastify so http request and responses are automatically validated.  
+The `Request` and `Response` types of each route <sup>(`ApiRoute<Request, Response>`)</sup> are evaluatedat compile time and a JSON schema is generated and added to fastify so http request and responses are automatically validated.  
 [`vega/ts-json-schema-generator`](https://github.com/vega/ts-json-schema-generator) is used to transform the types into Json Schemas.
+
+**`Validation example`**
 
 ```ts
 // file: api/users.ts
@@ -127,12 +139,11 @@ export const getById: ApiRoute<Request, User> = (body) => {
 
 export const getById2: ApiRoute<Request, User> = (body) => {
   // throws a serialization error (server error) as 'surname' is missing
-  // typescript can also catch static type errors
-  return {id: body.user_id, name: 'Peter'};
+  return {id: body.user_id, name: 'Peter'} as any;
 };
 ```
 
-**Based in the previous code bellow are few valid and invalid `http.request.body` examples:**
+**`Validation results`**
 
 ```http
 # HTTP REQUEST
@@ -151,24 +162,24 @@ Method: POST
 
 &nbsp;&nbsp;&nbsp;&nbsp;
 
-### `GENERATING FILES`
+## `COMPILING ROUTES`
 
-// TODO ...
+The `RouterCompiler` reads the `srcDir` where all the route definitions are located and generates a single typescript file containing all routes and a single json file containing all the schemas for validation and serialization.
 
 ```ts
-import RouterReader from 'x';
+import RouterCompiler from 'x';
 
-const routes = new RouterReader({
-  rootDir: './examples',
-  prefix: 'api',
-  outDir: '.dist',
+const routes = new RouterCompiler({
+  srcDir: './examples',
+  prefixPath: 'api',
+  outDir: '.dist/',
+  apiFileName: 'api.ts',
+  schemasFileName: 'schemas.json',
 });
 
 routes.parse();
 routes.save();
 ```
-
-&nbsp;&nbsp;&nbsp;&nbsp;
 
 ## &nbsp;
 

@@ -21,6 +21,6 @@ export interface ApiRouteOptions<RequestSchema, ReplySchema>
     handler: ApiRoute<RequestSchema, ReplySchema>;
 }
 
-export interface MultiRoutes {
+export interface ApiRoutes {
     [keys: string]: ApiRoute<Object, Object> | ApiRouteOptions<Object, Object>;
 }
