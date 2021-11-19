@@ -18,32 +18,53 @@
 
 ## `FEATURES`
 
-`Routing`
+**`Routing`**
 
-1. NO REST
-1. NO CORS
-1. Opinionated
+1. RPC API _<sup>(No REST)</sup>_
 1. File System Based Routing
-1. Request Merging
+1. Opinionated
+1. Simple HTTP Requests
 1. Serverless ready
 1. JWT Authentication
 1. Automatic typescript client generation
+1. Access Control List _<sup>(linux-like)</sup>_
 
-`Data`
+**`Data`** (under review, maybe integration with [prisma](https://www.prisma.io/) is a better alternative)
 
 1. Database Mapping
 1. Automatic CRUD operations
 1. Automatic Schema Validation
-1. Access Control List _<sup>(linux-like)</sup>_
 
 &nbsp;&nbsp;&nbsp;&nbsp;
 
-## `NOT A REST FRAMEWORK`
+## `RPC API`
 
-ApisDS does not uses `GET`, `POST`, `PUT` or `DELETE` request like traditional REST APIS.
+ApisDS uses **RPC** style routing sytem, it is less like traditional REST apis and more like GrafphQL. Have a look to this Presentation for more info about each different type of API:  
+[Nate Barbettini – API Throwdown: RPC vs REST vs GraphQL, Iterate 2018](https://www.youtube.com/watch?v=IvsANO0qZEg)
 
-**All http request to the API are made using the `POST` method and all the required data is sent in the http body.**  
-Routing is based in the file system, so URL must match the file path + method call.
+**`ApiDS Request-Response model`**
+
+- Api Requests are made using extricly `HTTP POST` method.
+- Data is send and recieved extricly in the `HTTP BODY`.
+- Data is send and received extricly in `JSON ` format.
+
+This might seem quite strict but is a tradeof for simplicity and performance.
+
+**`RPC VS REST Requests`**
+
+| RPC                                      | REST                              | Descriotion     |
+| ---------------------------------------- | --------------------------------- | --------------- |
+| `POST http://myapi.com/users/getByID` \* | `GET http://myapi.com/users/1`    | get user by id  |
+| `POST http://myapi.com/users/create`     | `POST http://myapi.com/users`     | create new user |
+| `POST http://myapi.com/users/delete` \*  | `DELETE http://myapi.com/users/1` | delete user     |
+| `POST http://myapi.com/users/getAll`     | `GET http://myapi.com/users`      | get All users   |
+| \* _id = 1 send in the body_             |
+
+&nbsp;&nbsp;&nbsp;&nbsp;
+
+## `FILE SYSTEM BASED ROUTING`
+
+Routing is based in the file system, URLs must match the `file path` + `method name`, (more info about the router [here](./packages/router/)).
 
 `Example: get user by id = 01`
 
@@ -80,24 +101,21 @@ Content-Type: text/plain
 
 &nbsp;&nbsp;&nbsp;&nbsp;
 
-## `NO CORS MODE`
+## `SIMPLE HTTP REQUESTS` <small>(Uder review - This needs a securty audit if implemented)</small>
 
-> Cross-Origin Resource Sharing [(CORS)](https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS) is a pain in the \*\*\* for developers.  
-> Is a security model designed for web 1.0 where the expected response from the server was html instead the json data from the api.
->
-> **ApiDS has ditch CORS completely!**
+[Simple http requests](https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS#simple_requests), are request that does not trigguer a CORS preflight request, therefore increasing the application performance.  
+When a simple http request mode is enabled the server response will be sent as content-type: text/plain instead json, therefore metting all the critea for a simple http request.
 
-When no CORS mode is enabled ApiDS enforces [simple http requests](https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS#simple_requests), thee are `POST` or `GET` requests, with only browser default headers, and text/plain content-type.  
+Please be carefull enabling this feature and only use it for autheticated requests. It is also recomened to disallow yuur app from bein embeding as iframe using the [`X-Frame-Options: SAMEORIGIN`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/X-Frame-Options) policy.
 All data required for the API to work including authentication credentials and query data is sent in the http body.
 
 &nbsp;&nbsp;&nbsp;&nbsp;
 
 ## `OPINIONATED`
 
-- **Convention over configuration**
-- **Prioritizes developer friendliness and performance over existing conventions.**
-
-Some features like persistence data mapping, default crud operations and User-Group ACL requires to structure the data in an **opinionated way**
+- Convention over configuration.
+- Prioritizes developer friendliness and performance over existing conventions.
+- Integrate Routing + Data Mapping requires a tight coupling between the two parts (Aka the ApiDS way).
 
 &nbsp;&nbsp;&nbsp;&nbsp;
 
@@ -137,9 +155,10 @@ npx apisds g
 
 ## `CONTRIBUTING`
 
-You are welcome to open issues and pull request! 👍
+The software is provided as it is without guarantees. If you want something done you are welcome to open issues and pull request! 👍 🎊 🎉
 
-**Monorepo:**  
+**`Monorepo:`**
+
 This project is a monorepo managed using [lerna](https://lerna.js.org/) and npm [workspaces](https://docs.npmjs.com/cli/v7/using-npm/workspaces). (`npm >= 7` required)
 
 ```sh
@@ -158,7 +177,8 @@ npm run dev
 npm run dev:test
 ```
 
-**ESLint and Prettier:**  
+**`ESLint and Prettier:`**
+
 All pull request must pass ESLint and [Prettier](https://github.com/prettier/prettier) before being merged.  
 Run bellow command to automatically format all typescript files and check Lint errors.
 
@@ -166,7 +186,7 @@ Run bellow command to automatically format all typescript files and check Lint e
 npm run format && npm run lint
 ```
 
-**Build:**
+**`Build:`**
 
 ```
 npm run build
