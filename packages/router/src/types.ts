@@ -1,4 +1,9 @@
-/* ######## 2021 ApiDS - MIT LICENSE ######## */
+/* ########
+ * 2021 ApiDS
+ * Author: Ma-jerez
+ * License: MIT
+ * The software is provided "as is", without warranty of any kind.
+ * ######## */
 /* eslint-disable @typescript-eslint/ban-types */
 import {
     FastifyInstance,
@@ -19,6 +24,8 @@ export type ApiRoute<RequestSchema, ReplySchema> = (
 export interface ApiRouteOptions<RequestSchema, ReplySchema>
     extends RouteShorthandOptions {
     handler: ApiRoute<RequestSchema, ReplySchema>;
+    requestSchemaId: string;
+    replySchemaId: string;
 }
 
 export interface ApiRoutes {

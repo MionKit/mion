@@ -2,10 +2,10 @@
   <img alt='API DS, The APi Dashboard' src='./assets/public/logox150.png?raw=true'>
 </p>
 <p align="center">
-  <strong>The quick way of building APIs based on
+  <strong>The quick way of building APIs.</strong><br/>
+  Built on top of
     <a href='https://www.typescriptlang.org/' target='_blank'>Typescript</a> and
     <a href='https://www.fastify.io/' target='_blank'>Fastify</a>.
-  </strong>
 </p>
 
 <p align=center>
@@ -48,8 +48,6 @@ does not use `GET`, `PUT` or `DELETE` methods. Have a look to this great Present
 - Requests are made using only `HTTP POST` method.
 - Data is send and recieved only in the `HTTP BODY`.
 - Data is send and received only in `JSON` format.
-
-This is quite strict but is a tradeof for simplicity and performance.
 
 **`RPC VS REST Requests`**
 

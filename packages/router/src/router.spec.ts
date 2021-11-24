@@ -1,4 +1,9 @@
-/* ######## 2021 ApiDS - MIT LICENSE ######## */
+/* ########
+ * 2021 ApiDS
+ * Author: Ma-jerez
+ * License: MIT
+ * The software is provided "as is", without warranty of any kind.
+ * ######## */
 
 import {JSONSchema} from 'json-schema-to-typescript';
 import {compile, compileFromFile, Options} from './router';
