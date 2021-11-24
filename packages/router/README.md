@@ -31,7 +31,7 @@ Once these two files are generated they can be used an imported normaly into you
 ## `ROUTES`
 
 Routes are defined using the `file path` + `method name`, the file extension gets removed from the path.  
-An error will be thrown durin compile time If the file name contains non safe URL characters <sup>(`encodeURI(path) !== path`)</sup>.
+An error will be thrown durin compile time If the file name contains non safe URL characters `encodeURI(path) !== path`.
 
 ```ts
 // file: api/index.ts
@@ -58,7 +58,7 @@ export const getAll: ApiRoute<Req, Resp> = (body, ds) => ds.users.getAll();
 
 ## `DECLARING ROUTES USING EXPORTS`
 
-Routes are declared using the [default](https://www.typescriptlang.org/docs/handbook/modules.html#default-exports) or [named](https://www.typescriptlang.org/docs/handbook/modules.html#export) exports and must be of the type [`ApiRoute`](./src/types.ts) or [`ApiRouteOptions`](./src/types.ts).  
+Routes are declared using the [default](https://www.typescriptlang.org/docs/handbook/modules.html#default-exports) or [named](https://www.typescriptlang.org/docs/handbook/modules.html#export) exports and must be of the type [`ApiRoute`](./src/types.ts) or [`ApiRouteOptions`](./src/types.ts).  The default export is an object with multiple routes.
 
 The [`ApiRouteOptions`](./src/types.ts) object is similar to the options object in [`fastify.route(options)`](https://www.fastify.io/docs/latest/Routes/#options) except `method` and `url` are not configurable.    
 
@@ -121,8 +121,25 @@ export const sayHello3: ApiRouteOptions<Request, Reply> = {
 ## `AUTOMATIC VALIDATION & SERIALIZATION USING TYPES`
 
 Fastify uses Json Schemas for automatic [validation & serialization](https://www.fastify.io/docs/latest/Validation-and-Serialization/).  
-The `Request` and `Response` types of each route <sup>(`ApiRoute<Request, Response>`)</sup> are evaluatedat compile time and a JSON schema is generated and added to fastify so http request and responses are automatically validated.  
-[`vega/ts-json-schema-generator`](https://github.com/vega/ts-json-schema-generator) is used to transform the types into Json Schemas.
+
+During compilation you can pass a directory containing all schemas `schemasDir` and ApiDS will evaluate the `Request` and `Response` types of each route <sup>(`ApiRoute<Request, Response>`)</sup> and use it's corresponding schema for automatic validation and serialization.  Alternatively you can manually define the [schema id](https://json-schema.org/understanding-json-schema/basics.html#declaring-a-unique-identifier) using `ApiRouteOptions.requestSchemaId` and `ApiRouteOptions.replySchemaId`.
+
+
+**`schema definition`**
+
+```ts
+import {ApiRouteOptions} from '@apids/router/src/types';
+interface User {name: string};
+interface HelloReply {sentence: string};
+
+export const sayHello: ApiRouteOptions<User, HelloReply> = {
+  handler: ( ) => ({sentence: `hello ${body.name}`}),
+  requestSchemaId: '#user.json'; // '$id' or 'id' of each json schema
+  replySchemaId: '#hello-reply.json';
+};
+```
+
+You can use [`vega/ts-json-schema-generator`](https://github.com/vega/ts-json-schema-generator) to automatically generate the schemas from your Typescript files.
 
 **`Validation example`**
 
@@ -178,10 +195,9 @@ import RouterCompiler from 'x';
 
 const routes = new RouterCompiler({
   srcDir: './examples',
-  prefixPath: 'api',
-  outDir: '.dist/',
-  apiFileName: 'api.ts',
-  schemasFileName: 'schemas.json',
+  schemasDir: './examples',
+  prefixApiUrlPath: 'api',
+  outFile: '.dist/api.ts',
 });
 
 routes.parse();
