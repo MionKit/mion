@@ -58,13 +58,14 @@ export const getAll: ApiRoute<Req, Resp> = (body, ds) => ds.users.getAll();
 
 ## `DECLARING ROUTES USING EXPORTS`
 
-Routes are declared using the [default](https://www.typescriptlang.org/docs/handbook/modules.html#default-exports) or [named](https://www.typescriptlang.org/docs/handbook/modules.html#export) exports and must be of the type [`ApiRoute`](./src/types.ts) or [`ApiRouteOptions`](./src/types.ts).  The default export is an object with multiple routes.
+Routes are declared using the [default](https://www.typescriptlang.org/docs/handbook/modules.html#default-exports) or [named](https://www.typescriptlang.org/docs/handbook/modules.html#export) exports and must be of the type [`ApiRoute`](./src/types.ts) or [`ApiRouteOptions`](./src/types.ts). The default export is an object with multiple routes.
 
-The [`ApiRouteOptions`](./src/types.ts) object is similar to the options object in [`fastify.route(options)`](https://www.fastify.io/docs/latest/Routes/#options) except `method` and `url` are not configurable.    
+The [`ApiRouteOptions`](./src/types.ts) object is similar to the options object in [`fastify.route(options)`](https://www.fastify.io/docs/latest/Routes/#options) except `method` and `url` are not configurable.
 
 Any exported property that does not match the type of `ApiRoute` or `ApiRouteOptions` will cause an error during compilation.
 
 **`Using default and named exports:`**
+
 ```js
 import {ApiRoutes, ApiRoute} from '@apids/router/src/types';
 
@@ -84,8 +85,12 @@ export const route3: ApiRoute<Request3, Response3> = () => {...};
 
 ```ts
 import {ApiRoute} from '@apids/router/src/types';
-interface Request {name: string};
-interface Reply {sentence: string};
+interface Request {
+  name: string;
+}
+interface Reply {
+  sentence: string;
+}
 
 // when adding ApiRoute type all parameters from the function call are automatically infered by typesctipt
 export const sayHello2: ApiRoute<Request, Reply> = (
@@ -100,8 +105,12 @@ export const sayHello2: ApiRoute<Request, Reply> = (
 
 ```ts
 import {ApiRouteOptions} from '@apids/router/src/types';
-interface Request {name: string};
-interface Reply {sentence: string};
+interface Request {
+  name: string;
+}
+interface Reply {
+  sentence: string;
+}
 
 // ApiRouteOptions is a wrapper for Fastify Route Options
 export const sayHello3: ApiRouteOptions<Request, Reply> = {
@@ -120,10 +129,9 @@ export const sayHello3: ApiRouteOptions<Request, Reply> = {
 
 ## `AUTOMATIC VALIDATION & SERIALIZATION USING TYPES`
 
-Fastify uses Json Schemas for automatic [validation & serialization](https://www.fastify.io/docs/latest/Validation-and-Serialization/).  
+Fastify uses Json Schemas for automatic [validation & serialization](https://www.fastify.io/docs/latest/Validation-and-Serialization/).
 
-During compilation you can pass a directory containing all schemas `schemasDir` and ApiDS will evaluate the `Request` and `Response` types of each route <sup>(`ApiRoute<Request, Response>`)</sup> and use it's corresponding schema for automatic validation and serialization.  Alternatively you can manually define the [schema id](https://json-schema.org/understanding-json-schema/basics.html#declaring-a-unique-identifier) using `ApiRouteOptions.requestSchemaId` and `ApiRouteOptions.replySchemaId`.
-
+During compilation you can pass a directory containing all schemas `schemasDir` and ApiDS will evaluate the `Request` and `Response` types of each route <sup>(`ApiRoute<Request, Response>`)</sup> and use it's corresponding schema for automatic validation and serialization. Alternatively you can manually define the [schema id](https://json-schema.org/understanding-json-schema/basics.html#declaring-a-unique-identifier) using `ApiRouteOptions.requestSchemaId` and `ApiRouteOptions.replySchemaId`.
 
 **`schema definition`**
 
@@ -191,17 +199,17 @@ Method: POST
 The `RouterCompiler` reads the `srcDir` where all the route definitions are located and generates a single typescript file containing all routes and a single json file containing all the schemas for validation and serialization.
 
 ```ts
-import RouterCompiler from 'x';
+import {routerCompiler} from 'x';
 
-const routes = new RouterCompiler({
+const compiler = routerCompiler({
   srcDir: './examples',
   schemasDir: './examples',
-  prefixApiUrlPath: 'api',
+  apiUrlPrefix: 'api',
   outFile: '.dist/api.ts',
 });
 
-routes.parse();
-routes.save();
+compiler.parse();
+compiler.save();
 ```
 
 ## &nbsp;

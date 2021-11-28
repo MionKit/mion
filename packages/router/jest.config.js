@@ -4,4 +4,5 @@ module.exports = {
   testEnvironment: 'node',
   collectCoverage: true,
   coverageDirectory: '.dist',
+  collectCoverageFrom: ['src/**'],
 };
