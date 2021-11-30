@@ -93,12 +93,9 @@ interface Reply {
 }
 
 // when adding ApiRoute type all parameters from the function call are automatically infered by typesctipt
-export const sayHello2: ApiRoute<Request, Reply> = (
-  body: Request,
-  db: ApiDS,
-  request: FastifyRequest,
-  reply: FastifyReply,
-) => ({sentence: `hello ${body.name}`});
+export const sayHello2: ApiRoute<Request, Reply> = (body: Request, db: ApiDS, request: FastifyRequest, reply: FastifyReply) => ({
+  sentence: `hello ${body.name}`,
+});
 ```
 
 **`Route declaration using ApiRouteOptions:`**
@@ -114,12 +111,7 @@ interface Reply {
 
 // ApiRouteOptions is a wrapper for Fastify Route Options
 export const sayHello3: ApiRouteOptions<Request, Reply> = {
-  handler: (
-    body: Request,
-    db: ApiDS,
-    request: FastifyRequest,
-    reply: FastifyReply,
-  ) => ({sentence: `hello ${body.name}`}),
+  handler: (body: Request, db: ApiDS, request: FastifyRequest, reply: FastifyReply) => ({sentence: `hello ${body.name}`}),
   version: '1.0.0',
   logLevel: 'debug',
 };
@@ -131,19 +123,25 @@ export const sayHello3: ApiRouteOptions<Request, Reply> = {
 
 Fastify uses Json Schemas for automatic [validation & serialization](https://www.fastify.io/docs/latest/Validation-and-Serialization/).
 
-During compilation you can pass a directory containing all schemas `schemasDir` and ApiDS will evaluate the `Request` and `Response` types of each route <sup>(`ApiRoute<Request, Response>`)</sup> and use it's corresponding schema for automatic validation and serialization. Alternatively you can manually define the [schema id](https://json-schema.org/understanding-json-schema/basics.html#declaring-a-unique-identifier) using `ApiRouteOptions.requestSchemaId` and `ApiRouteOptions.replySchemaId`.
+During compilation you can pass a directory containing all schemas `schemasDir` and ApiDS will evaluate the `Request` and `Response` types of each route <sup>(`ApiRoute<Request, Response>`)</sup> and use it's corresponding schema for automatic validation and serialization. Alternatively you can manually add scehmas and define the schemas for each route as you would [normally do in fastify](https://www.fastify.io/docs/latest/Validation-and-Serialization/).
 
 **`schema definition`**
 
 ```ts
 import {ApiRouteOptions} from '@apids/router/src/types';
-interface User {name: string};
-interface HelloReply {sentence: string};
+interface User {
+  name: string;
+}
+interface HelloReply {
+  sentence: string;
+}
 
 export const sayHello: ApiRouteOptions<User, HelloReply> = {
-  handler: ( ) => ({sentence: `hello ${body.name}`}),
-  requestSchemaId: '#user.json'; // '$id' or 'id' of each json schema
-  replySchemaId: '#hello-reply.json';
+  handler: () => ({sentence: `hello ${body.name}`}),
+  schema: {
+    body: {$ref: '#other-user'}, // would use #other-user schema instead #user
+    response: {$ref: '#other-hello-reply'}, // would use #other-hello-reply schema instead #hello-reply
+  },
 };
 ```
 
