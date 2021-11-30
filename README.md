@@ -2,7 +2,7 @@
   <img alt='API DS, The APi Dashboard' src='./assets/public/logox150.png?raw=true'>
 </p>
 <p align="center">
-  <strong>The quick way of building APIs.</strong><br/>
+  <strong>The quick way of building APIs in node.js.</strong><br/>
   Built on top of
     <a href='https://www.typescriptlang.org/' target='_blank'>Typescript</a> and
     <a href='https://www.fastify.io/' target='_blank'>Fastify</a>.
@@ -39,19 +39,21 @@
 
 ## `RPC API`
 
-ApisDS uses **Remote Procedure Call** style routing, it is not like traditional REST apis and
-does not use `GET`, `PUT` or `DELETE` methods. Have a look to this great Presentation for more info about each different type of APIs:  
+ApisDS uses **Remote Procedure Call** style routing, unlike traditional REST apis it
+does not use `GET`, `PUT`, `POST` and `DELETE` methods, It only uses the `POST` method.
+
+Please have a look to this great Presentation for more info about each different type of API and the pros and cons of each one:  
 [Nate Barbettini – API Throwdown: RPC vs REST vs GraphQL, Iterate 2018](https://www.youtube.com/watch?v=IvsANO0qZEg)
 
 **`Requests & Responses`**
 
 - Requests are made using only `HTTP POST` method.
-- Data is send and recieved only in the `HTTP BODY`.
-- Data is send and received only in `JSON` format.
+- Data is sent and received only in the `HTTP BODY`.
+- Data is sent and received only in `JSON` format.
 
 **`RPC VS REST Requests`**
 
-| RPC                                                      | REST                                             | Descriotion     |
+| RPC                                                      | REST                                             | Description     |
 | -------------------------------------------------------- | ------------------------------------------------ | --------------- |
 | `POST http://myapi.com/users/getByID`<br>`BODY {"id":1}` | `GET http://myapi.com/users/1`<br>`BODY NONE`    | get user by id  |
 | `POST http://myapi.com/users/create`<br>`BODY EMPTY`     | `POST http://myapi.com/users`<br>`BODY NONE`     | create new user |
@@ -60,9 +62,10 @@ does not use `GET`, `PUT` or `DELETE` methods. Have a look to this great Present
 
 &nbsp;&nbsp;&nbsp;&nbsp;
 
-## `FILE SYSTEM BASED ROUTING`
+## `FILE-SYSTEM BASED ROUTING`
 
-Routing is based in the file system, URLs must match the `file path` + `method name`, (more info about the router [here](./packages/router/)).
+Routing is based in the file system, generated URLs match the `file path` + `method name` pattern.  
+More info about the router [here](./packages/router/)).
 
 **`File`**
 

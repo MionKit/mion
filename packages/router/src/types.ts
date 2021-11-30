@@ -5,9 +5,9 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 /* eslint-disable @typescript-eslint/ban-types */
-import {FastifyInstance, FastifyReply, FastifyRequest, RouteShorthandOptions} from 'fastify';
+import {FastifyInstance, FastifyReply, FastifyRequest, FastifySchema, RouteShorthandOptions} from 'fastify';
 
-export type ApiDS = any; // todo: import ApiDS from ORM
+export interface ApiDS extends FastifyInstance {} // todo: import ApiDS from ORM
 
 /**
  * Fastify like route handler.
@@ -16,15 +16,15 @@ export type ApiRoute<RequestSchema, ReplySchema> = (
     /**
      * Any Type representing http request body
      */
-    body: RequestSchema,
+    body?: RequestSchema,
 
     /**
      * ApiDS application
      */
-    db: ApiDS,
+    db?: ApiDS,
 
-    request: FastifyRequest,
-    reply: FastifyReply,
+    request?: FastifyRequest,
+    reply?: FastifyReply,
 ) => ReplySchema | Promise<ReplySchema>;
 
 /**
@@ -37,16 +37,14 @@ export interface ApiRouteOptions<RequestSchema, ReplySchema> extends RouteShorth
     handler: ApiRoute<RequestSchema, ReplySchema>;
 
     /**
-     * Id of the JSON schema that represents the http Request body, used for input validation
-     * @see ../README.md#automatic-validation--serialization-using-types
+     * Same as FastifySchema but only body and response allowed
+     * @see https://www.fastify.io/docs/latest/Routes/#routes-options
+     * @see https://www.fastify.io/docs/latest/Validation-and-Serialization/
      */
-    requestSchemaId?: string;
-
-    /**
-     * Id of the JSON schema that represents the http Response body, used for output serialization
-     * @see ../README.md#automatic-validation--serialization-using-types
-     */
-    replySchemaId?: string;
+    schema: {
+        body: unknown;
+        response: unknown;
+    };
 }
 
 /**
