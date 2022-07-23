@@ -1,0 +1,7 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "noImplicitReturns": true
+  },
+  "include": ["./src/*"]
+}
