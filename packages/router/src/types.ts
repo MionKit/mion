@@ -16,15 +16,15 @@ export type ApiRoute<RequestSchema, ReplySchema> = (
     /**
      * Any Type representing http request body
      */
-    body?: RequestSchema,
+    body: RequestSchema,
 
     /**
      * ApiDS application
      */
-    db?: ApiDS,
+    db: ApiDS,
 
-    request?: FastifyRequest,
-    reply?: FastifyReply,
+    request: FastifyRequest,
+    reply: FastifyReply,
 ) => ReplySchema | Promise<ReplySchema>;
 
 /**
@@ -41,9 +41,9 @@ export interface ApiRouteOptions<RequestSchema, ReplySchema> extends RouteShorth
      * @see https://www.fastify.io/docs/latest/Routes/#routes-options
      * @see https://www.fastify.io/docs/latest/Validation-and-Serialization/
      */
-    schema: {
-        body: unknown;
-        response: unknown;
+    schema?: {
+        body?: unknown;
+        response?: unknown;
     };
 }
 
