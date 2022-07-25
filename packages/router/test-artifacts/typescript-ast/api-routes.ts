@@ -7,8 +7,8 @@
 
 // ####### All difrent ways to export an api route #######
 // AST VIEWER USED FOR DEVELOPING https://ts-ast-viewer.com/
-import {ApiRoute, ApiRouteOptions, ApiDS} from '@apids/router/src/types';
-import {FastifyReply, FastifyRequest} from 'fastify';
+import {ApiRoute, ApiRouteOptions} from '@apids/router/src/types';
+import {FastifyInstance, FastifyReply, FastifyRequest} from 'fastify';
 
 interface Message {
     sentence: string;
@@ -23,48 +23,48 @@ interface User extends Entity {
 }
 
 // function with no types should fail
-export function functionWithNoTypes(body, data, req, reply) {
+export function functionWithNoTypes(body, req, reply, app) {
     return {sentence: `hello to ${body.username}`};
 }
 
 // parameter types, no return type
-export function functionWithNoReturType(body: User, api: ApiDS, req: FastifyRequest, reply: FastifyReply) {
+export function functionWithNoReturType(body: User, req: FastifyRequest, reply: FastifyReply, app: FastifyInstance) {
     return {sentence: `hello to ${body.username}`};
 }
 
 // parameter types, return type
-export function functionWithTypes(body: User, api: ApiDS, req: FastifyRequest, reply: FastifyReply): Message {
+export function functionWithTypes(body: User, req: FastifyRequest, reply: FastifyReply, app: FastifyInstance): Message {
     return {sentence: `hello to ${body.username}`};
 }
 
 // constant with type + arrow function
-export const arrowFunction: ApiRoute<User, Message> = (body, api, req, reply) => ({
+export const arrowFunction: ApiRoute<User, Message> = (body, req, reply, app) => ({
     sentence: `hello to ${body.username}`,
 });
 
 // multiple exported constants
-export const multipleExport1ArrowFunction: ApiRoute<User, Message> = (body, api, req, reply) => ({
+export const multipleExport1ArrowFunction: ApiRoute<User, Message> = (body, req, reply, app) => ({
         sentence: `hello to ${body.username}`,
     }),
     multipleExport2ArrowFunction: ApiRoute<User, Message> = (body) => ({sentence: `hello to ${body.username}`});
 
 // constant with type + anonimous function
-export const anonimousFunction: ApiRoute<User, Message> = function (body, api, req, reply) {
+export const anonimousFunction: ApiRoute<User, Message> = function (body, req, reply, app) {
     return {sentence: `hello to ${body.username}`};
 };
 
 // constant with type + named function
-export const namedFunction: ApiRoute<User, Message> = function abc(body, api, req, reply) {
+export const namedFunction: ApiRoute<User, Message> = function abc(body, req, reply, app) {
     return {sentence: `hello to ${body.username}`};
 };
 
 // constant + arrow function enclosing in parenthesis and declaring type using as (casting)
-export const arrowFunctionWithCasting = ((body, api, req, reply) => ({
+export const arrowFunctionWithCasting = ((body, req, reply, app) => ({
     sentence: `hello to ${body.username}`,
 })) as ApiRoute<User, Message>;
 
 // constant + anonimous function and declaring type using as (casting)
-export const anonimousFunctionWithCasting = function (body, api, req, reply) {
+export const anonimousFunctionWithCasting = function (body, req, reply, app) {
     return {sentence: `hello to ${body.username}`};
 } as ApiRoute<User, Message>;
 
@@ -92,14 +92,14 @@ export const optionsObjecWithReferences: ApiRouteOptions<User, Message> = {
 };
 
 // async
-export const asyncAnonimousFunction: ApiRoute<User, Message> = async function (body, api, req, reply) {
+export const asyncAnonimousFunction: ApiRoute<User, Message> = async function (body, req, reply, app) {
     return {sentence: `hello to ${body.username}`};
 };
 
 // async
-export const asyncArrowFunction: ApiRoute<User, User> = async (body: User, ds: ApiDS): Promise<User> => {
+export const asyncArrowFunction: ApiRoute<User, User> = async (body: User, req, reply, app): Promise<User> => {
     const userId = body.id;
-    const user = await ds.users.findById(userId);
+    const user = await (app as any).datasTore.users.findById(userId);
     return user;
 };
 
@@ -111,19 +111,19 @@ export const asyncOptionsObjectWithCasting = {
 } as ApiRouteOptions<User, Message>;
 
 // exporting after
-const exportedAfterDeclaration: ApiRoute<User, Message> = (body, api, req, reply) => ({
+const exportedAfterDeclaration: ApiRoute<User, Message> = (body, req, reply, app) => ({
     sentence: `hello to ${body.username}`,
 });
 export {exportedAfterDeclaration};
 
 // exporting after + renaming
-const someRoute: ApiRoute<User, Message> = (body, api, req, reply) => ({
+const someRoute: ApiRoute<User, Message> = (body, req, reply, app) => ({
     sentence: `hello to ${body.username}`,
 });
 export {someRoute as exportedAndRenameAfterDeclaration};
 
 // reexporting something already exported
-export const someRoute2: ApiRoute<User, Message> = (body, api, req, reply) => ({
+export const someRoute2: ApiRoute<User, Message> = (body, req, reply, app) => ({
     sentence: `hello to ${body.username}`,
 });
 export {someRoute2 as reExportedRoute2};

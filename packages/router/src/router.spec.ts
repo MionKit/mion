@@ -11,7 +11,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as model1 from './../examples/api/model1/index';
 import {addApiRoutes} from './router';
-import {ApiRouterOptions} from './types';
+import {ApiRouterConfig} from './types';
 
 describe('generate types', () => {
     // it('should compile', async () => {
