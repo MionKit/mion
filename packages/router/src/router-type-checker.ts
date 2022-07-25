@@ -61,8 +61,10 @@ export interface ExportedMetadata {
 
 export type FunctionLike = FunctionDeclaration | ArrowFunction | FunctionExpression;
 
+export const ABSOLUTE_PATH_TOKEN = '/{{PROJECT_ROOT}}';
+
 export function getRoutesMetadata(tsConfigFilePath: string, options: ApiRouterOptions): ExportedMetadata {
-    const files = getAllFillesFromDirectory(options.srcDir);
+    const files = getAllFillesFromDirectory(options.routesDir);
     const project = new Project({tsConfigFilePath});
     let exportMetadata: ExportedMetadata = {};
     files.forEach((fileName) => {
@@ -80,7 +82,7 @@ export function getRouteMetadata(
     options: ApiRouterOptions,
     project = new Project({tsConfigFilePath}),
 ): ExportedMetadata {
-    const rootPath = resolve(options.srcDir);
+    const rootPath = resolve(options.routesDir);
     const sourceFile = project.getSourceFileOrThrow(fileName);
     const typeChecker = project.getTypeChecker();
     const exportedDeclarations = sourceFile.getExportedDeclarations();
@@ -108,7 +110,7 @@ export function getRouteMetadata(
     // ####### LOGS ##########
     // console.dir(exportMetadata, {depth: 5});
     // console.log(JSON.stringify(exportMetadata));
-    return exportMetadata;
+    return sanitizeOutput(exportMetadata, options);
 }
 
 function getAPIDataFromExportedFuncion(exportName: string, functionNode: FunctionLike, checker: TypeChecker): FunctionData {
@@ -270,4 +272,11 @@ function findParentvariableStatement(node: Node<ts.Node> | undefined): VariableS
     if (node === undefined) throw new Error('Parent Variable Statement not found');
     if (Node.isVariableStatement(node)) return node;
     return findParentvariableStatement(node.getParent());
+}
+
+// step required to standarise and sanitise the output object
+function sanitizeOutput(exportMetadata: ExportedMetadata, options: ApiRouterOptions): ExportedMetadata {
+    const metaString = JSON.stringify(exportMetadata);
+    const metaFixPackageRoot = (metaString as any).replaceAll(options.appRootDir, ABSOLUTE_PATH_TOKEN);
+    return JSON.parse(metaFixPackageRoot);
 }

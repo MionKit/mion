@@ -66,23 +66,26 @@ export type ApiRoutesFile = ApiRoutes | ApiRoute<any, any> | ApiRouteOptions<any
  */
 export interface ApiRouterOptions {
     /**
-     * Root directory for the Api rooute files.
+     * ProjectRoot, required to normalize imports
      */
-    srcDir: string;
+    appRootDir?: string;
 
     /**
-     * Glob patter to include route files, relative to @var srcDir
+     * Root directory for the Api rooute files.
+     */
+    routesDir: string;
+
+    /**
+     * Glob patter to include route files, relative to @var routesDir
      * @example './src/routes/**'
      * @see https://github.com/micromatch/picomatch
      */
-    // TODO
     srcInclude?: string | string[];
 
     /**
-     * Glob patter to ignore file within the src directory, relative to @var srcDir
+     * Glob patter to ignore file within the src directory, relative to @var routesDir
      * @see https://github.com/micromatch/picomatch
      */
-    // TODO
     srcIgnore?: string | string[];
 
     /**

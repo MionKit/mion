@@ -36,7 +36,7 @@ export function getNonApiRouteItems(routes: ApiRoutes): {[key: string]: any} {
     return nonRoutes;
 }
 
-export function getAllRouteFiles(opts: ApiRouterOptions, dirTree: DirectoryTree = getDirectoryTree(opts.srcDir)): string[] {
+export function getAllRouteFiles(opts: ApiRouterOptions, dirTree: DirectoryTree = getDirectoryTree(opts.routesDir)): string[] {
     const pmInclude = opts.srcInclude ? pm(opts.srcInclude) : undefined;
     const pmIgnore = opts.srcIgnore ? pm(opts.srcIgnore) : undefined;
     const files = _getAllPathsRecursively(dirTree, pmInclude, pmIgnore);

@@ -6,25 +6,25 @@
  * ######## */
 
 import * as path from 'path';
-import {ExportedMetadata, getRouteMetadata, RouteMetadata} from './router-type-checker';
+import {ABSOLUTE_PATH_TOKEN, ExportedMetadata, getRouteMetadata, RouteMetadata} from './router-type-checker';
 import {ApiRouterOptions} from './types';
-import {metadataSnapshot} from './router-type-cheker-spec-metadata-snapshot';
+import {metadataSnapshot} from '../test-artifacts/typescript-ast/router-type-cheker-spec-metadata-snapshot';
+import * as appRoot from 'app-root-path';
 
 describe('router-type-checker', () => {
+    // parse main routes api test file to reuse in every tet
     const apiRoutesFile = path.resolve(path.join(__dirname, '../test-artifacts/typescript-ast/api-routes.ts'));
     const tsConfigfile = path.resolve(path.join(__dirname, '../test-artifacts/typescript-ast/tsconfig.json'));
-    const packageRoot = path.resolve(path.join(__dirname, '../'));
-    const packageRootSnapshot = '/PACKAGE_ROOT';
-    const options: ApiRouterOptions = {
-        srcDir: path.resolve(path.join(__dirname, '../test-artifacts/typescript-ast')),
-        outDir: '',
-    };
+    const routesDir = path.resolve(path.join(__dirname, '../test-artifacts/typescript-ast'));
+    const options: ApiRouterOptions = {routesDir, appRootDir: appRoot.path, outDir: ''};
     let routesMetadata: ExportedMetadata, compileError;
     try {
         const meta = getRouteMetadata(tsConfigfile, apiRoutesFile, options);
         const metaString = JSON.stringify(meta);
-        const metaFixPackageRoot = (metaString as any).replaceAll(packageRoot, packageRootSnapshot);
+        const metaFixPackageRoot = (metaString as any).replaceAll(appRoot.path, ABSOLUTE_PATH_TOKEN);
         routesMetadata = JSON.parse(metaFixPackageRoot);
+        // ####### LOG METADATA ##########
+        // console.dir(routesMetadata, {depth: 5});
     } catch (e) {
         compileError = e;
     }
@@ -113,6 +113,25 @@ describe('router-type-checker', () => {
         const snapshotRoute = metadataSnapshot[expectedRouteName];
         compareRouteWithExpectedSnapshot(routeMeta, snapshotRoute);
     });
+
+    // TODO sanitize metadata so no absulute paths are in the data
+    it('should replace the absolute paths in metadata by {{PROJECT_ROOT}} string', () => {
+        const expectedRouteName = 'api-routes.ts/functionWithTypes';
+        const routeMeta = routesMetadata[expectedRouteName] as RouteMetadata;
+        const snapshotRoute = metadataSnapshot[expectedRouteName] as RouteMetadata;
+        compareRouteWithExpectedSnapshot(routeMeta, snapshotRoute);
+    });
+
+    /**
+     * TODO IMPORTANT accept exports from return values at runtime
+     * ie a general wrapper to a route that adds extra functionality:
+     * export const insertUser =  baseModelInsertRoute((body, api, req, reply) => {...}): ApiRoute<Req, Reply>;
+     * in this example as long as the type of insertUser matches ApiRoute<Req, Reply> should be ok;
+     *  */
+
+    it('should extrac metadata when exported item is returned at runtime but the return type matches ApiRoute', () => {});
+
+    it('should extrac metadata when exported item is returned at runtime but the return type matches ApiRouteOptions', () => {});
 
     // TODO ApiRouteOptions Objects
 
