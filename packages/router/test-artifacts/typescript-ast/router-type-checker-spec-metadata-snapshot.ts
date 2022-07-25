@@ -1,12 +1,12 @@
 /**
  * IT IS VERY IMPORTANT TO REVIEW AND UPDATE THIS SNAPSHOT OF THE GENERATED METADATA FROM api-routes.ts file
- * The values of this snapshot should be as expected for test to work correctly
+ * The values of this snapshot should be as expected for unit test to work correctly
  * */
 
 export const metadataSnapshot: any = {
     'api-routes.ts/functionWithNoTypes': {
         exportedName: 'functionWithNoTypes',
-        fileName: '/{{PROJECT_ROOT}}/packages/router/test-artifacts/typescript-ast/api-routes.ts',
+        fileName: 'api-routes.ts',
         metadata: {
             exportedName: 'functionWithNoTypes',
             kind: 'FunctionDeclaration',
@@ -98,7 +98,7 @@ export const metadataSnapshot: any = {
     },
     'api-routes.ts/functionWithNoReturType': {
         exportedName: 'functionWithNoReturType',
-        fileName: '/{{PROJECT_ROOT}}/packages/router/test-artifacts/typescript-ast/api-routes.ts',
+        fileName: 'api-routes.ts',
         metadata: {
             exportedName: 'functionWithNoReturType',
             kind: 'FunctionDeclaration',
@@ -142,12 +142,12 @@ export const metadataSnapshot: any = {
                     },
                 },
                 req: {
-                    type: 'FastifyRequest<RouteGenericInterface, Server, IncomingMessage>',
+                    type: 'FastifyRequest<RouteGenericInterface, Server, IncomingMessage, unknown, FastifyLoggerInstance>',
                     name: 'FastifyRequest',
                     escapedName: 'FastifyRequest',
                     fullyQualifiedName: '"/{{PROJECT_ROOT}}/node_modules/fastify/types/request".FastifyRequest',
                     type_text:
-                        'import("/{{PROJECT_ROOT}}/node_modules/fastify/types/request").FastifyRequest<import("/{{PROJECT_ROOT}}/node_modules/fastify/types/route").RouteGenericInterface, import("http").Server, import("http").IncomingMessage>',
+                        'import("/{{PROJECT_ROOT}}/node_modules/fastify/types/request").FastifyRequest<import("/{{PROJECT_ROOT}}/node_modules/fastify/types/route").RouteGenericInterface, import("http").Server, import("http").IncomingMessage, unknown, import("/{{PROJECT_ROOT}}/node_modules/fastify/types/logger").FastifyLoggerInstance>',
                     aliasType: null,
                     aliasTypeArguments: null,
                     structure: {
@@ -196,7 +196,7 @@ export const metadataSnapshot: any = {
     },
     'api-routes.ts/functionWithTypes': {
         exportedName: 'functionWithTypes',
-        fileName: '/{{PROJECT_ROOT}}/packages/router/test-artifacts/typescript-ast/api-routes.ts',
+        fileName: 'api-routes.ts',
         metadata: {
             exportedName: 'functionWithTypes',
             kind: 'FunctionDeclaration',
@@ -240,12 +240,12 @@ export const metadataSnapshot: any = {
                     },
                 },
                 req: {
-                    type: 'FastifyRequest<RouteGenericInterface, Server, IncomingMessage>',
+                    type: 'FastifyRequest<RouteGenericInterface, Server, IncomingMessage, unknown, FastifyLoggerInstance>',
                     name: 'FastifyRequest',
                     escapedName: 'FastifyRequest',
                     fullyQualifiedName: '"/{{PROJECT_ROOT}}/node_modules/fastify/types/request".FastifyRequest',
                     type_text:
-                        'import("/{{PROJECT_ROOT}}/node_modules/fastify/types/request").FastifyRequest<import("/{{PROJECT_ROOT}}/node_modules/fastify/types/route").RouteGenericInterface, import("http").Server, import("http").IncomingMessage>',
+                        'import("/{{PROJECT_ROOT}}/node_modules/fastify/types/request").FastifyRequest<import("/{{PROJECT_ROOT}}/node_modules/fastify/types/route").RouteGenericInterface, import("http").Server, import("http").IncomingMessage, unknown, import("/{{PROJECT_ROOT}}/node_modules/fastify/types/logger").FastifyLoggerInstance>',
                     aliasType: null,
                     aliasTypeArguments: null,
                     structure: {
@@ -294,7 +294,7 @@ export const metadataSnapshot: any = {
     },
     'api-routes.ts/arrowFunction': {
         exportedName: 'arrowFunction',
-        fileName: '/{{PROJECT_ROOT}}/packages/router/test-artifacts/typescript-ast/api-routes.ts',
+        fileName: 'api-routes.ts',
         metadata: {
             exportedName: 'arrowFunction',
             kind: 'ArrowFunction',
@@ -336,12 +336,12 @@ export const metadataSnapshot: any = {
                     },
                 },
                 req: {
-                    type: 'FastifyRequest<RouteGenericInterface, Server, IncomingMessage>',
+                    type: 'FastifyRequest<RouteGenericInterface, Server, IncomingMessage, unknown, FastifyLoggerInstance>',
                     name: 'FastifyRequest',
                     escapedName: 'FastifyRequest',
                     fullyQualifiedName: '"/{{PROJECT_ROOT}}/node_modules/fastify/types/request".FastifyRequest',
                     type_text:
-                        'import("/{{PROJECT_ROOT}}/node_modules/fastify/types/request").FastifyRequest<import("/{{PROJECT_ROOT}}/node_modules/fastify/types/route").RouteGenericInterface, import("http").Server, import("http").IncomingMessage>',
+                        'import("/{{PROJECT_ROOT}}/node_modules/fastify/types/request").FastifyRequest<import("/{{PROJECT_ROOT}}/node_modules/fastify/types/route").RouteGenericInterface, import("http").Server, import("http").IncomingMessage, unknown, import("/{{PROJECT_ROOT}}/node_modules/fastify/types/logger").FastifyLoggerInstance>',
                     aliasType: null,
                     aliasTypeArguments: null,
                     structure: {
@@ -388,7 +388,7 @@ export const metadataSnapshot: any = {
     },
     'api-routes.ts/multipleExport1ArrowFunction': {
         exportedName: 'multipleExport1ArrowFunction',
-        fileName: '/{{PROJECT_ROOT}}/packages/router/test-artifacts/typescript-ast/api-routes.ts',
+        fileName: 'api-routes.ts',
         metadata: {
             exportedName: 'multipleExport1ArrowFunction',
             kind: 'ArrowFunction',
@@ -430,12 +430,12 @@ export const metadataSnapshot: any = {
                     },
                 },
                 req: {
-                    type: 'FastifyRequest<RouteGenericInterface, Server, IncomingMessage>',
+                    type: 'FastifyRequest<RouteGenericInterface, Server, IncomingMessage, unknown, FastifyLoggerInstance>',
                     name: 'FastifyRequest',
                     escapedName: 'FastifyRequest',
                     fullyQualifiedName: '"/{{PROJECT_ROOT}}/node_modules/fastify/types/request".FastifyRequest',
                     type_text:
-                        'import("/{{PROJECT_ROOT}}/node_modules/fastify/types/request").FastifyRequest<import("/{{PROJECT_ROOT}}/node_modules/fastify/types/route").RouteGenericInterface, import("http").Server, import("http").IncomingMessage>',
+                        'import("/{{PROJECT_ROOT}}/node_modules/fastify/types/request").FastifyRequest<import("/{{PROJECT_ROOT}}/node_modules/fastify/types/route").RouteGenericInterface, import("http").Server, import("http").IncomingMessage, unknown, import("/{{PROJECT_ROOT}}/node_modules/fastify/types/logger").FastifyLoggerInstance>',
                     aliasType: null,
                     aliasTypeArguments: null,
                     structure: {
@@ -482,7 +482,7 @@ export const metadataSnapshot: any = {
     },
     'api-routes.ts/multipleExport2ArrowFunction': {
         exportedName: 'multipleExport2ArrowFunction',
-        fileName: '/{{PROJECT_ROOT}}/packages/router/test-artifacts/typescript-ast/api-routes.ts',
+        fileName: 'api-routes.ts',
         metadata: {
             exportedName: 'multipleExport2ArrowFunction',
             kind: 'ArrowFunction',
@@ -520,7 +520,7 @@ export const metadataSnapshot: any = {
     },
     'api-routes.ts/anonimousFunction': {
         exportedName: 'anonimousFunction',
-        fileName: '/{{PROJECT_ROOT}}/packages/router/test-artifacts/typescript-ast/api-routes.ts',
+        fileName: 'api-routes.ts',
         metadata: {
             exportedName: 'anonimousFunction',
             kind: 'FunctionExpression',
@@ -562,12 +562,12 @@ export const metadataSnapshot: any = {
                     },
                 },
                 req: {
-                    type: 'FastifyRequest<RouteGenericInterface, Server, IncomingMessage>',
+                    type: 'FastifyRequest<RouteGenericInterface, Server, IncomingMessage, unknown, FastifyLoggerInstance>',
                     name: 'FastifyRequest',
                     escapedName: 'FastifyRequest',
                     fullyQualifiedName: '"/{{PROJECT_ROOT}}/node_modules/fastify/types/request".FastifyRequest',
                     type_text:
-                        'import("/{{PROJECT_ROOT}}/node_modules/fastify/types/request").FastifyRequest<import("/{{PROJECT_ROOT}}/node_modules/fastify/types/route").RouteGenericInterface, import("http").Server, import("http").IncomingMessage>',
+                        'import("/{{PROJECT_ROOT}}/node_modules/fastify/types/request").FastifyRequest<import("/{{PROJECT_ROOT}}/node_modules/fastify/types/route").RouteGenericInterface, import("http").Server, import("http").IncomingMessage, unknown, import("/{{PROJECT_ROOT}}/node_modules/fastify/types/logger").FastifyLoggerInstance>',
                     aliasType: null,
                     aliasTypeArguments: null,
                     structure: {
@@ -614,7 +614,7 @@ export const metadataSnapshot: any = {
     },
     'api-routes.ts/namedFunction': {
         exportedName: 'namedFunction',
-        fileName: '/{{PROJECT_ROOT}}/packages/router/test-artifacts/typescript-ast/api-routes.ts',
+        fileName: 'api-routes.ts',
         metadata: {
             exportedName: 'namedFunction',
             kind: 'FunctionExpression',
@@ -656,12 +656,12 @@ export const metadataSnapshot: any = {
                     },
                 },
                 req: {
-                    type: 'FastifyRequest<RouteGenericInterface, Server, IncomingMessage>',
+                    type: 'FastifyRequest<RouteGenericInterface, Server, IncomingMessage, unknown, FastifyLoggerInstance>',
                     name: 'FastifyRequest',
                     escapedName: 'FastifyRequest',
                     fullyQualifiedName: '"/{{PROJECT_ROOT}}/node_modules/fastify/types/request".FastifyRequest',
                     type_text:
-                        'import("/{{PROJECT_ROOT}}/node_modules/fastify/types/request").FastifyRequest<import("/{{PROJECT_ROOT}}/node_modules/fastify/types/route").RouteGenericInterface, import("http").Server, import("http").IncomingMessage>',
+                        'import("/{{PROJECT_ROOT}}/node_modules/fastify/types/request").FastifyRequest<import("/{{PROJECT_ROOT}}/node_modules/fastify/types/route").RouteGenericInterface, import("http").Server, import("http").IncomingMessage, unknown, import("/{{PROJECT_ROOT}}/node_modules/fastify/types/logger").FastifyLoggerInstance>',
                     aliasType: null,
                     aliasTypeArguments: null,
                     structure: {
@@ -708,7 +708,7 @@ export const metadataSnapshot: any = {
     },
     'api-routes.ts/arrowFunctionWithCasting': {
         exportedName: 'arrowFunctionWithCasting',
-        fileName: '/{{PROJECT_ROOT}}/packages/router/test-artifacts/typescript-ast/api-routes.ts',
+        fileName: 'api-routes.ts',
         metadata: {
             exportedName: 'arrowFunctionWithCasting',
             kind: 'ArrowFunction',
@@ -750,12 +750,12 @@ export const metadataSnapshot: any = {
                     },
                 },
                 req: {
-                    type: 'FastifyRequest<RouteGenericInterface, Server, IncomingMessage>',
+                    type: 'FastifyRequest<RouteGenericInterface, Server, IncomingMessage, unknown, FastifyLoggerInstance>',
                     name: 'FastifyRequest',
                     escapedName: 'FastifyRequest',
                     fullyQualifiedName: '"/{{PROJECT_ROOT}}/node_modules/fastify/types/request".FastifyRequest',
                     type_text:
-                        'import("/{{PROJECT_ROOT}}/node_modules/fastify/types/request").FastifyRequest<import("/{{PROJECT_ROOT}}/node_modules/fastify/types/route").RouteGenericInterface, import("http").Server, import("http").IncomingMessage>',
+                        'import("/{{PROJECT_ROOT}}/node_modules/fastify/types/request").FastifyRequest<import("/{{PROJECT_ROOT}}/node_modules/fastify/types/route").RouteGenericInterface, import("http").Server, import("http").IncomingMessage, unknown, import("/{{PROJECT_ROOT}}/node_modules/fastify/types/logger").FastifyLoggerInstance>',
                     aliasType: null,
                     aliasTypeArguments: null,
                     structure: {
@@ -802,7 +802,7 @@ export const metadataSnapshot: any = {
     },
     'api-routes.ts/anonimousFunctionWithCasting': {
         exportedName: 'anonimousFunctionWithCasting',
-        fileName: '/{{PROJECT_ROOT}}/packages/router/test-artifacts/typescript-ast/api-routes.ts',
+        fileName: 'api-routes.ts',
         metadata: {
             exportedName: 'anonimousFunctionWithCasting',
             kind: 'FunctionExpression',
@@ -844,12 +844,12 @@ export const metadataSnapshot: any = {
                     },
                 },
                 req: {
-                    type: 'FastifyRequest<RouteGenericInterface, Server, IncomingMessage>',
+                    type: 'FastifyRequest<RouteGenericInterface, Server, IncomingMessage, unknown, FastifyLoggerInstance>',
                     name: 'FastifyRequest',
                     escapedName: 'FastifyRequest',
                     fullyQualifiedName: '"/{{PROJECT_ROOT}}/node_modules/fastify/types/request".FastifyRequest',
                     type_text:
-                        'import("/{{PROJECT_ROOT}}/node_modules/fastify/types/request").FastifyRequest<import("/{{PROJECT_ROOT}}/node_modules/fastify/types/route").RouteGenericInterface, import("http").Server, import("http").IncomingMessage>',
+                        'import("/{{PROJECT_ROOT}}/node_modules/fastify/types/request").FastifyRequest<import("/{{PROJECT_ROOT}}/node_modules/fastify/types/route").RouteGenericInterface, import("http").Server, import("http").IncomingMessage, unknown, import("/{{PROJECT_ROOT}}/node_modules/fastify/types/logger").FastifyLoggerInstance>',
                     aliasType: null,
                     aliasTypeArguments: null,
                     structure: {
@@ -896,22 +896,22 @@ export const metadataSnapshot: any = {
     },
     'api-routes.ts/optionsObjectWithTypes': {
         exportedName: 'optionsObjectWithTypes',
-        fileName: '/{{PROJECT_ROOT}}/packages/router/test-artifacts/typescript-ast/api-routes.ts',
+        fileName: 'api-routes.ts',
         metadata: {exportedName: 'optionsObjectWithTypes', kind: 'VariableDeclaration'},
     },
     'api-routes.ts/optionsObjectWithCasting': {
         exportedName: 'optionsObjectWithCasting',
-        fileName: '/{{PROJECT_ROOT}}/packages/router/test-artifacts/typescript-ast/api-routes.ts',
+        fileName: 'api-routes.ts',
         metadata: {exportedName: 'optionsObjectWithCasting', kind: 'AsExpression'},
     },
     'api-routes.ts/optionsObjecWithReferences': {
         exportedName: 'optionsObjecWithReferences',
-        fileName: '/{{PROJECT_ROOT}}/packages/router/test-artifacts/typescript-ast/api-routes.ts',
+        fileName: 'api-routes.ts',
         metadata: {exportedName: 'optionsObjecWithReferences', kind: 'VariableDeclaration'},
     },
     'api-routes.ts/asyncAnonimousFunction': {
         exportedName: 'asyncAnonimousFunction',
-        fileName: '/{{PROJECT_ROOT}}/packages/router/test-artifacts/typescript-ast/api-routes.ts',
+        fileName: 'api-routes.ts',
         metadata: {
             exportedName: 'asyncAnonimousFunction',
             kind: 'FunctionExpression',
@@ -953,12 +953,12 @@ export const metadataSnapshot: any = {
                     },
                 },
                 req: {
-                    type: 'FastifyRequest<RouteGenericInterface, Server, IncomingMessage>',
+                    type: 'FastifyRequest<RouteGenericInterface, Server, IncomingMessage, unknown, FastifyLoggerInstance>',
                     name: 'FastifyRequest',
                     escapedName: 'FastifyRequest',
                     fullyQualifiedName: '"/{{PROJECT_ROOT}}/node_modules/fastify/types/request".FastifyRequest',
                     type_text:
-                        'import("/{{PROJECT_ROOT}}/node_modules/fastify/types/request").FastifyRequest<import("/{{PROJECT_ROOT}}/node_modules/fastify/types/route").RouteGenericInterface, import("http").Server, import("http").IncomingMessage>',
+                        'import("/{{PROJECT_ROOT}}/node_modules/fastify/types/request").FastifyRequest<import("/{{PROJECT_ROOT}}/node_modules/fastify/types/route").RouteGenericInterface, import("http").Server, import("http").IncomingMessage, unknown, import("/{{PROJECT_ROOT}}/node_modules/fastify/types/logger").FastifyLoggerInstance>',
                     aliasType: null,
                     aliasTypeArguments: null,
                     structure: {
@@ -1005,7 +1005,7 @@ export const metadataSnapshot: any = {
     },
     'api-routes.ts/asyncArrowFunction': {
         exportedName: 'asyncArrowFunction',
-        fileName: '/{{PROJECT_ROOT}}/packages/router/test-artifacts/typescript-ast/api-routes.ts',
+        fileName: 'api-routes.ts',
         metadata: {
             exportedName: 'asyncArrowFunction',
             kind: 'ArrowFunction',
@@ -1063,12 +1063,12 @@ export const metadataSnapshot: any = {
     },
     'api-routes.ts/asyncOptionsObjectWithCasting': {
         exportedName: 'asyncOptionsObjectWithCasting',
-        fileName: '/{{PROJECT_ROOT}}/packages/router/test-artifacts/typescript-ast/api-routes.ts',
+        fileName: 'api-routes.ts',
         metadata: {exportedName: 'asyncOptionsObjectWithCasting', kind: 'AsExpression'},
     },
     'api-routes.ts/exportedAfterDeclaration': {
         exportedName: 'exportedAfterDeclaration',
-        fileName: '/{{PROJECT_ROOT}}/packages/router/test-artifacts/typescript-ast/api-routes.ts',
+        fileName: 'api-routes.ts',
         metadata: {
             exportedName: 'exportedAfterDeclaration',
             kind: 'ArrowFunction',
@@ -1110,12 +1110,12 @@ export const metadataSnapshot: any = {
                     },
                 },
                 req: {
-                    type: 'FastifyRequest<RouteGenericInterface, Server, IncomingMessage>',
+                    type: 'FastifyRequest<RouteGenericInterface, Server, IncomingMessage, unknown, FastifyLoggerInstance>',
                     name: 'FastifyRequest',
                     escapedName: 'FastifyRequest',
                     fullyQualifiedName: '"/{{PROJECT_ROOT}}/node_modules/fastify/types/request".FastifyRequest',
                     type_text:
-                        'import("/{{PROJECT_ROOT}}/node_modules/fastify/types/request").FastifyRequest<import("/{{PROJECT_ROOT}}/node_modules/fastify/types/route").RouteGenericInterface, import("http").Server, import("http").IncomingMessage>',
+                        'import("/{{PROJECT_ROOT}}/node_modules/fastify/types/request").FastifyRequest<import("/{{PROJECT_ROOT}}/node_modules/fastify/types/route").RouteGenericInterface, import("http").Server, import("http").IncomingMessage, unknown, import("/{{PROJECT_ROOT}}/node_modules/fastify/types/logger").FastifyLoggerInstance>',
                     aliasType: null,
                     aliasTypeArguments: null,
                     structure: {
@@ -1162,7 +1162,7 @@ export const metadataSnapshot: any = {
     },
     'api-routes.ts/exportedAndRenameAfterDeclaration': {
         exportedName: 'exportedAndRenameAfterDeclaration',
-        fileName: '/{{PROJECT_ROOT}}/packages/router/test-artifacts/typescript-ast/api-routes.ts',
+        fileName: 'api-routes.ts',
         metadata: {
             exportedName: 'exportedAndRenameAfterDeclaration',
             kind: 'ArrowFunction',
@@ -1204,12 +1204,12 @@ export const metadataSnapshot: any = {
                     },
                 },
                 req: {
-                    type: 'FastifyRequest<RouteGenericInterface, Server, IncomingMessage>',
+                    type: 'FastifyRequest<RouteGenericInterface, Server, IncomingMessage, unknown, FastifyLoggerInstance>',
                     name: 'FastifyRequest',
                     escapedName: 'FastifyRequest',
                     fullyQualifiedName: '"/{{PROJECT_ROOT}}/node_modules/fastify/types/request".FastifyRequest',
                     type_text:
-                        'import("/{{PROJECT_ROOT}}/node_modules/fastify/types/request").FastifyRequest<import("/{{PROJECT_ROOT}}/node_modules/fastify/types/route").RouteGenericInterface, import("http").Server, import("http").IncomingMessage>',
+                        'import("/{{PROJECT_ROOT}}/node_modules/fastify/types/request").FastifyRequest<import("/{{PROJECT_ROOT}}/node_modules/fastify/types/route").RouteGenericInterface, import("http").Server, import("http").IncomingMessage, unknown, import("/{{PROJECT_ROOT}}/node_modules/fastify/types/logger").FastifyLoggerInstance>',
                     aliasType: null,
                     aliasTypeArguments: null,
                     structure: {
@@ -1256,7 +1256,7 @@ export const metadataSnapshot: any = {
     },
     'api-routes.ts/someRoute2': {
         exportedName: 'someRoute2',
-        fileName: '/{{PROJECT_ROOT}}/packages/router/test-artifacts/typescript-ast/api-routes.ts',
+        fileName: 'api-routes.ts',
         metadata: {
             exportedName: 'someRoute2',
             kind: 'ArrowFunction',
@@ -1298,12 +1298,12 @@ export const metadataSnapshot: any = {
                     },
                 },
                 req: {
-                    type: 'FastifyRequest<RouteGenericInterface, Server, IncomingMessage>',
+                    type: 'FastifyRequest<RouteGenericInterface, Server, IncomingMessage, unknown, FastifyLoggerInstance>',
                     name: 'FastifyRequest',
                     escapedName: 'FastifyRequest',
                     fullyQualifiedName: '"/{{PROJECT_ROOT}}/node_modules/fastify/types/request".FastifyRequest',
                     type_text:
-                        'import("/{{PROJECT_ROOT}}/node_modules/fastify/types/request").FastifyRequest<import("/{{PROJECT_ROOT}}/node_modules/fastify/types/route").RouteGenericInterface, import("http").Server, import("http").IncomingMessage>',
+                        'import("/{{PROJECT_ROOT}}/node_modules/fastify/types/request").FastifyRequest<import("/{{PROJECT_ROOT}}/node_modules/fastify/types/route").RouteGenericInterface, import("http").Server, import("http").IncomingMessage, unknown, import("/{{PROJECT_ROOT}}/node_modules/fastify/types/logger").FastifyLoggerInstance>',
                     aliasType: null,
                     aliasTypeArguments: null,
                     structure: {
@@ -1350,7 +1350,7 @@ export const metadataSnapshot: any = {
     },
     'api-routes.ts/reExportedRoute2': {
         exportedName: 'reExportedRoute2',
-        fileName: '/{{PROJECT_ROOT}}/packages/router/test-artifacts/typescript-ast/api-routes.ts',
+        fileName: 'api-routes.ts',
         metadata: {
             exportedName: 'reExportedRoute2',
             kind: 'ArrowFunction',
@@ -1392,12 +1392,12 @@ export const metadataSnapshot: any = {
                     },
                 },
                 req: {
-                    type: 'FastifyRequest<RouteGenericInterface, Server, IncomingMessage>',
+                    type: 'FastifyRequest<RouteGenericInterface, Server, IncomingMessage, unknown, FastifyLoggerInstance>',
                     name: 'FastifyRequest',
                     escapedName: 'FastifyRequest',
                     fullyQualifiedName: '"/{{PROJECT_ROOT}}/node_modules/fastify/types/request".FastifyRequest',
                     type_text:
-                        'import("/{{PROJECT_ROOT}}/node_modules/fastify/types/request").FastifyRequest<import("/{{PROJECT_ROOT}}/node_modules/fastify/types/route").RouteGenericInterface, import("http").Server, import("http").IncomingMessage>',
+                        'import("/{{PROJECT_ROOT}}/node_modules/fastify/types/request").FastifyRequest<import("/{{PROJECT_ROOT}}/node_modules/fastify/types/route").RouteGenericInterface, import("http").Server, import("http").IncomingMessage, unknown, import("/{{PROJECT_ROOT}}/node_modules/fastify/types/logger").FastifyLoggerInstance>',
                     aliasType: null,
                     aliasTypeArguments: null,
                     structure: {

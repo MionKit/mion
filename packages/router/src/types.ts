@@ -76,36 +76,10 @@ export interface ApiRouterOptions {
     routesDir: string;
 
     /**
-     * Glob patter to include route files, relative to @var routesDir
-     * @example './src/routes/**'
-     * @see https://github.com/micromatch/picomatch
-     */
-    srcInclude?: string | string[];
-
-    /**
-     * Glob patter to ignore file within the src directory, relative to @var routesDir
-     * @see https://github.com/micromatch/picomatch
-     */
-    srcIgnore?: string | string[];
-
-    /**
      * The directory where json schemas are located
      * @example './scehmas'
      */
     schemasDir?: string;
-
-    /**
-     * Glob patter to include files within the schemas directory, relative to @var schemasDir
-     * @example './src/routes/package.json'
-     */
-    // TODO
-    // schemasInclude?: string | string[];
-
-    /**
-     * Glob patter to ignore files within the schemas directory, relative to @var schemasDir
-     * @example './src/routes/package.json'
-     */
-    // schemasIgone?: string | string[];
 
     /**
      * Prefix for the api url

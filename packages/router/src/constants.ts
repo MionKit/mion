@@ -6,4 +6,5 @@
  * ######## */
 
 export const API_ROUTE_PARAMS_LENGTH = 4;
-export const ALLOWED_EXTENSIONS = ['.ts', '.js', '.tsx', '.jsx', '.mts', '.mjs'];
+export const ALLOWED_EXTENSIONS = ['.ts', '.tsx', '.mts'];
+export const ABSOLUTE_PATH_TOKEN = '/{{PROJECT_ROOT}}'; // used to sanitise absolute path in metadata output

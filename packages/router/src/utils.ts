@@ -8,9 +8,8 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import {join} from 'path';
-import * as pm from 'picomatch';
-import {ALLOWED_EXTENSIONS, API_ROUTE_PARAMS_LENGTH} from './constants';
-import {ApiRouterOptions, ApiRoute, ApiRouteOptions, ApiRoutes, DirectoryTree} from './types';
+import {API_ROUTE_PARAMS_LENGTH} from './constants';
+import {ApiRouteOptions, ApiRoutes, DirectoryTree} from './types';
 
 export function isApiRoute(item: any): boolean {
     return typeof item === 'function' && item.length <= API_ROUTE_PARAMS_LENGTH;
@@ -34,44 +33,6 @@ export function getNonApiRouteItems(routes: ApiRoutes): {[key: string]: any} {
         if (!isRoute) nonRoutes[key] = value;
     }
     return nonRoutes;
-}
-
-export function getAllRouteFiles(opts: ApiRouterOptions, dirTree: DirectoryTree = getDirectoryTree(opts.routesDir)): string[] {
-    const pmInclude = opts.srcInclude ? pm(opts.srcInclude) : undefined;
-    const pmIgnore = opts.srcIgnore ? pm(opts.srcIgnore) : undefined;
-    const files = _getAllPathsRecursively(dirTree, pmInclude, pmIgnore);
-    // TODO: decide if we want to fail or not
-    // if (files.length === 0) {
-    //     const includeError = opts.srcInclude ? `Include pattern '${opts.srcInclude}'.` : '';
-    //     const ignoreError = opts.srcIgnore ? `Ignore pattern '${opts.srcIgnore}'.` : '';
-    //     throw new Error(`No router files found in '${opts.srcDir}'! ${includeError} ${ignoreError}`);
-    // }
-    return files;
-}
-
-// recursively get all files that match ina directory
-function _getAllPathsRecursively(dirTree: DirectoryTree, pmInclude?: pm.Matcher, pmIgnore?: pm.Matcher): string[] {
-    const files: string[] = [];
-    const itemInDirectory = Object.keys(dirTree);
-    itemInDirectory.forEach((name) => {
-        const item = dirTree[name];
-        const isFile = typeof item === 'string';
-        if (!isFile) return files.push(..._getAllPathsRecursively(item, pmInclude, pmIgnore));
-        if (isPathIncluded(item, pmInclude, pmIgnore)) return files.push(item);
-    });
-    return files;
-}
-
-export function isAllowedFileExension(filename: string): boolean {
-    const ext = path.extname(filename).toLowerCase();
-    return !!ALLOWED_EXTENSIONS.find((allowedExt) => allowedExt === ext);
-}
-
-export function isPathIncluded(fileName: string, pmInclude?: pm.Matcher, pmIgnore?: pm.Matcher) {
-    const isAllowed = isAllowedFileExension(fileName);
-    const isIncluded = pmInclude ? pmInclude(fileName) && isAllowed : isAllowed;
-    const isExcluded = pmIgnore ? pmIgnore(fileName) : false;
-    return isIncluded && !isExcluded;
 }
 
 /**
