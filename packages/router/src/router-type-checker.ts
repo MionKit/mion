@@ -101,13 +101,13 @@ export function getRouteMetadata(
             // when exported item is casted as ApiRoute
             // when exported item is an ApiRouteOptions
             const relativePath = relative(rootPath, fileName);
-            exportMetadata[`${relativePath}${sep}${exportedName}`] = {exportedName, fileName, metadata};
+            exportMetadata[`${relativePath}${sep}${exportedName}`] = {exportedName, fileName: relativePath, metadata};
         });
     }
 
     // ####### LOGS ##########
     // console.dir(exportMetadata, {depth: 5});
-    console.log(JSON.stringify(exportMetadata));
+    // console.log(JSON.stringify(exportMetadata));
     return exportMetadata;
 }
 
