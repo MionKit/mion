@@ -5,76 +5,204 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
+import {relative, resolve, sep} from 'path';
 import {
     Project,
     Node,
     FunctionDeclaration,
     ParameterDeclaration,
-    ExportedDeclarations,
     VariableDeclaration,
     ts,
-    Symbol,
     ArrowFunction,
     Type,
     VariableStatement,
     FunctionExpression,
     TypeChecker,
+    AsExpression,
+    ParenthesizedExpression,
 } from 'ts-morph';
+import {ApiRouterOptions} from './types';
+import {getAllFillesFromDirectory} from './utils';
 
-interface TypeInfo {
+export interface TypeInfo {
     type: string; // type
     name: string; // type as is declared in the file, used to get the schema id
     escapedName: string; // equal to name?
-    fullyQualifiedName: string; // uncludes the type path i.e
-    structure: any;
-    type_solved?: any;
+    fullyQualifiedName: string; // includes the type path i.e
+    type_text: string; // full import sentence for the type
+    aliasType: string | null; // In case the Type is a generic type ie: Route<Req, resp>
+    aliasTypeArguments: TypeInfo[] | null; // if type is a generic this is the list of arguments to the generic ie: Req, Resp
+    structure?: any;
+    aliasSymbol?;
+    properties?;
 }
 
-interface TypesInfoMap {
+export interface TypesInfoMap {
     [key: string]: TypeInfo;
 }
 
-interface FunctionData {
-    exportName: string;
-    decType: string;
+export interface FunctionData {
+    kind: string;
+    exportedName: string;
     parameters: TypesInfoMap;
     returnType: TypeInfo;
     signature?: any;
 }
 
-export function getRoutesTypes(tsConfigFilePath: string, fileName: string) {
-    const project = new Project({
-        tsConfigFilePath,
+export interface RouteMetadata {
+    exportedName: string;
+    fileName: string;
+    metadata: FunctionData;
+}
+
+export interface ExportedMetadata {
+    [key: string]: RouteMetadata;
+}
+
+export type FunctionLike = FunctionDeclaration | ArrowFunction | FunctionExpression;
+
+export function getRoutesMetadata(tsConfigFilePath: string, options: ApiRouterOptions): ExportedMetadata {
+    const files = getAllFillesFromDirectory(options.srcDir);
+    const project = new Project({tsConfigFilePath});
+    let exportMetadata: ExportedMetadata = {};
+    files.forEach((fileName) => {
+        exportMetadata = {
+            ...exportMetadata,
+            ...getRouteMetadata(tsConfigFilePath, fileName, options, project),
+        };
     });
+    return exportMetadata;
+}
+
+export function getRouteMetadata(
+    tsConfigFilePath: string,
+    fileName: string,
+    options: ApiRouterOptions,
+    project = new Project({tsConfigFilePath}),
+): ExportedMetadata {
+    const rootPath = resolve(options.srcDir);
     const sourceFile = project.getSourceFileOrThrow(fileName);
     const typeChecker = project.getTypeChecker();
     const exportedDeclarations = sourceFile.getExportedDeclarations();
+    let exportMetadata: ExportedMetadata = {};
     for (const [name, declarations] of exportedDeclarations) {
-        const functionsData: any = declarations
-            .map((declaration) => {
-                // when exported item is a function
-                if (Node.isFunctionDeclaration(declaration)) {
-                    return getAPIDataFromExportedFuncion(name, declaration, typeChecker);
-                } else if (Node.isVariableDeclaration(declaration)) {
-                    return getAPIDataFromExportedVariable(name, declaration, typeChecker);
-                } else {
-                    // TODO throw when is other type
-                    return getOtherType(name, declaration, typeChecker);
-                }
-                // when exported item is an ApiRoute
-                // when exported item is casted as ApiRoute
-                // when exported item is an ApiRouteOptions
-            })
-            .filter((item) => !!item);
-        // console.log('####### functionData ##########');
-        // console.log(functionsData);
-        // console.log(functionsData[0]?.parameters);
+        declarations.forEach((declaration) => {
+            const exportedName = name;
+            let metadata;
+            // when exported item is a function
+            if (Node.isFunctionDeclaration(declaration)) {
+                metadata = getAPIDataFromExportedFuncion(exportedName, declaration, typeChecker);
+            } else if (Node.isVariableDeclaration(declaration)) {
+                metadata = getAPIDataFromExportedVariable(exportedName, declaration, typeChecker);
+            } else {
+                throw new Error(getNoExportedFunctionErrorMessage(declaration, false));
+            }
+            // when exported item is an ApiRoute
+            // when exported item is casted as ApiRoute
+            // when exported item is an ApiRouteOptions
+            const relativePath = relative(rootPath, fileName);
+            exportMetadata[`${relativePath}${sep}${exportedName}`] = {exportedName, fileName, metadata};
+        });
     }
+
+    // ####### LOGS ##########
+    // console.dir(exportMetadata, {depth: 5});
+    console.log(JSON.stringify(exportMetadata));
+    return exportMetadata;
+}
+
+function getAPIDataFromExportedFuncion(exportName: string, functionNode: FunctionLike, checker: TypeChecker): FunctionData {
+    if (!Node.isFunctionDeclaration(functionNode) && !Node.isArrowFunction!) throw new Error('node is not a function');
+    const returnType = functionNode.getReturnType();
+    const parameters = getFunctionparameters(functionNode, checker);
+    validateFunctionParameters(exportName, functionNode, parameters);
+    return {
+        exportedName: exportName,
+        kind: functionNode.getKindName(),
+        parameters,
+        returnType: getFunctionReturnType(returnType, checker),
+    };
+}
+
+function getAPIDataFromExportedVariable(
+    exportName: string,
+    declaration: VariableDeclaration | AsExpression | ParenthesizedExpression,
+    checker: TypeChecker,
+): FunctionData {
+    if (
+        !Node.isVariableDeclaration(declaration) &&
+        !Node.isAsExpression(declaration) &&
+        !Node.isParenthesizedExpression(declaration)
+    )
+        throw new Error('node is not a variable declaration');
+    let childFunctionData;
+    declaration.forEachChildAsArray().forEach((node) => {
+        checkIfIsValidNode(node);
+        if (Node.isArrowFunction(node) || Node.isFunctionExpression(node)) {
+            if (childFunctionData) throw new Error(getDuplicatedExportedFunctionErrorMessage(node));
+            childFunctionData = getAPIDataFromExportedFuncion(exportName, node, checker);
+        } else if (Node.isObjectLiteralExpression(node)) {
+            // expression is an object literal and should have a property called handler that must be a function
+        } else if (Node.isAsExpression(node) || Node.isParenthesizedExpression(node)) {
+            // expression has been casted, should deep dive into childs to get the function
+            childFunctionData = getAPIDataFromExportedVariable(exportName, node, checker);
+        } else if (Node.isParenthesizedExpression(node)) {
+            // expression has been casted, should deep dive into childs to get the function
+            childFunctionData = getAPIDataFromExportedVariable(exportName, node, checker);
+        }
+    });
+
+    return {
+        exportedName: exportName,
+        kind: declaration.getKindName(),
+        ...childFunctionData,
+    };
+}
+
+function getFunctionparameters(functionNode: FunctionLike, checker: TypeChecker): TypesInfoMap {
+    const parameters: ParameterDeclaration[] = functionNode.getParameters();
+    const params: any = {};
+    parameters.forEach((param) => {
+        const name = param.getName();
+        const paramType = param.getType();
+        params[name] = {
+            ...getTypeInfo(paramType, checker),
+            structure: param.getStructure(),
+        };
+    });
+    return params;
+}
+
+function getTypeInfo(paramType: Type<ts.Type>, checker: TypeChecker): TypeInfo {
+    const aliasArguments = paramType.getAliasTypeArguments();
+    const aliasTypeArguments = aliasArguments.length ? aliasArguments.map((typeNode) => getTypeInfo(typeNode, checker)) : null;
+    return {
+        type: checker.compilerObject.typeToString(paramType.compilerType),
+        name: paramType.getSymbol()?.getName() || '',
+        escapedName: paramType.getSymbol()?.getEscapedName() || '',
+        fullyQualifiedName: paramType.getSymbol()?.getFullyQualifiedName() || '',
+        type_text: checker.getTypeText(paramType),
+        aliasType: paramType.getAliasSymbol()?.getName() || null,
+        aliasSymbol: paramType.getAliasSymbol(),
+        aliasTypeArguments,
+        // properties: paramType.getProperties().map((p) => ({
+        //     name: p.getEscapedName(),
+        //     type: // todo
+        // })),
+    };
+}
+
+function getFunctionReturnType(returnType: Type<ts.Type>, checker: TypeChecker) {
+    return {
+        ...getTypeInfo(returnType, checker),
+        structure: null,
+    };
 }
 
 // https://stackoverflow.com/questions/47421000/is-there-a-way-to-get-the-line-number-of-node-from-typescript-compiler-api
 // https://github.com/Microsoft/TypeScript-wiki/blob/main/Using-the-Compiler-API.md
-function getSourceCodeInfo(node: Node<ts.Node>) {
+function getSourceCodeInfo(node: Node<ts.Node>, searchForParents = true) {
+    const exportStatement = searchForParents ? findParentvariableStatement(node) : node;
     const sourceFile = node.compilerNode.getSourceFile();
     let {line} = sourceFile.getLineAndCharacterOfPosition(node.getStart());
     const fileLine = line + 1;
@@ -84,21 +212,29 @@ function getSourceCodeInfo(node: Node<ts.Node>) {
     return {fileLine, fileName, description, code};
 }
 
-function getNoExportedFunctionErrorMessage(node: Node<ts.Node>) {
-    const parentVariableStatement = findParentvariableStatement(node);
-    const info = getSourceCodeInfo(parentVariableStatement);
-    console.log('Node kind', node.getKindName());
+function getNoExportedFunctionErrorMessage(node: Node<ts.Node>, searchForParents = true) {
+    const info = getSourceCodeInfo(node, searchForParents);
     return `Router Files can only export functions and arrow funcions.\nNon valid export fount at => ${info.description}\n${info.code}`;
 }
 
 function getDuplicatedExportedFunctionErrorMessage(node: Node<ts.Node>) {
-    const parentVariableStatement = findParentvariableStatement(node);
-    const info = getSourceCodeInfo(parentVariableStatement);
-    console.log('Node kind', node.getKindName());
+    const info = getSourceCodeInfo(node);
     return `More than one function Exported in a single statement fount at => ${info.description}\n${info.code}`;
 }
 
-function checkIfIsValidExportedFunction(node: Node<ts.Node>) {
+function getInvalidNumberOfParametersMessage(node: Node<ts.Node>) {
+    const info = getSourceCodeInfo(node);
+    return `Route functions can only have 4 parameters.\nInvalid route found at => ${info.description}\n${info.code}`;
+}
+
+function getInvalidparameterTypeMessage(node: Node<ts.Node>) {
+    const info = getSourceCodeInfo(node, false);
+    return `Parameters in a Route function have the wrong type.
+    The only valid signature for a route is 'function myRoute(body: any, api: ApiDS, req: FastifyRequest, reply: FastifyReply){}'.
+    Invalid route found at => ${info.description}\n${info.code}`;
+}
+
+function checkIfIsValidNode(node: Node<ts.Node>) {
     if (
         !Node.isIdentifier(node) &&
         !Node.isFunctionDeclaration(node) &&
@@ -108,116 +244,30 @@ function checkIfIsValidExportedFunction(node: Node<ts.Node>) {
         !Node.isParenthesizedExpression(node) &&
         !Node.isFunctionExpression(node) &&
         !Node.isAsExpression(node) &&
-        !Node.isObjectLiteralExpression(node) &&
-        !Node.isCallExpression(node)
+        !Node.isObjectLiteralExpression(node)
     )
         throw new Error(getNoExportedFunctionErrorMessage(node));
+}
+
+function validateFunctionParameters(exportName: string, functionNode: FunctionLike, parameters: TypesInfoMap) {
+    const parametersArray = Object.values(parameters);
+    const apiDS = parametersArray[1];
+    const fastifyRequest = parametersArray[2];
+    const fastifyReply = parametersArray[3];
+    // TODO check the actual ts.Type instead the parameter.name (would require checkint types are assignable)
+    // this can be easyly implemented once checker.isAssignableTo gets made public https://github.com/microsoft/TypeScript/pull/9943
+    const invalidApiDSType = apiDS && apiDS.name !== 'ApiDS' && apiDS.type !== 'any';
+    const invalidFastifyRequestType = fastifyRequest && fastifyRequest.name !== 'FastifyRequest' && fastifyRequest.type !== 'any';
+    const invalidFastifyReplyType = fastifyReply && fastifyReply.name !== 'FastifyReply' && fastifyRequest.type !== 'any';
+    if (parametersArray.length > 4) throw new Error(getInvalidNumberOfParametersMessage(functionNode));
+    if (invalidApiDSType || invalidFastifyRequestType || invalidFastifyReplyType) {
+        console.log('parameters', parameters);
+        throw new Error(getInvalidparameterTypeMessage(functionNode));
+    }
 }
 
 function findParentvariableStatement(node: Node<ts.Node> | undefined): VariableStatement {
     if (node === undefined) throw new Error('Parent Variable Statement not found');
     if (Node.isVariableStatement(node)) return node;
     return findParentvariableStatement(node.getParent());
-}
-
-function getAPIDataFromExportedFuncion(
-    exportName: string,
-    declaration: FunctionDeclaration | ArrowFunction | FunctionExpression,
-    checker: TypeChecker,
-): FunctionData {
-    if (!Node.isFunctionDeclaration(declaration) && !Node.isArrowFunction!) throw new Error('node is not a function');
-    const returnType = declaration.getReturnType();
-    return {
-        exportName: exportName,
-        decType: declaration.getKindName(),
-        // signature: checker.getResolvedSignature(declaration.getSignature()),
-        parameters: getFunctionparameters(declaration.getParameters(), checker),
-        returnType: getFunctionReturnType(returnType, checker),
-    };
-}
-
-function getFunctionparameters(parameters: ParameterDeclaration[], checker: TypeChecker): TypesInfoMap {
-    const params: any = {};
-    parameters.forEach((param) => {
-        const name = param.getName();
-        const paramType = param.getType();
-        const paramSymbol = paramType.getSymbol();
-        params[name] = {
-            paramType,
-            type: checker.compilerObject.typeToString(paramType.compilerType),
-            type_solved:
-                paramSymbol !== undefined
-                    ? checker.compilerObject.typeToString(checker.getTypeOfSymbolAtLocation(paramSymbol, param).compilerType)
-                    : '',
-            name: paramType.getSymbol()?.getName() || '',
-            escapedName: paramType.getSymbol()?.getEscapedName() || '',
-            fullyQualifiedName: paramType.getSymbol()?.getFullyQualifiedName() || '',
-            structure: param.getStructure(),
-        };
-    });
-    return params;
-}
-
-function getFunctionReturnType(returnType: Type<ts.Type>, checker: TypeChecker) {
-    return {
-        type: checker.compilerObject.typeToString(returnType.compilerType),
-        name: symbolToString(returnType.getSymbol(), checker),
-        escapedName: returnType.getSymbol()?.getEscapedName() || '',
-        fullyQualifiedName: returnType.getSymbol()?.getFullyQualifiedName() || '',
-        structure: null,
-    };
-}
-
-function getAPIDataFromExportedVariable(exportName: string, declaration: VariableDeclaration, checker: TypeChecker) {
-    if (!Node.isVariableDeclaration(declaration)) throw new Error('node is not a variable declaration');
-    let childFunctionData;
-    declaration.forEachChildAsArray().forEach((node) => {
-        checkIfIsValidExportedFunction(node);
-        if (Node.isArrowFunction(node) || Node.isFunctionExpression(node)) {
-            if (childFunctionData) throw new Error(getDuplicatedExportedFunctionErrorMessage(node));
-            childFunctionData = getAPIDataFromExportedFuncion(exportName, node, checker);
-        } else if (Node.isAsExpression(node)) {
-            // expression has been casted, whe should deep dive into childs
-        } else if (Node.isObjectLiteralExpression(node)) {
-            // expression is an object literal and should match the Api Schema
-        } else if (Node.isParenthesizedExpression(node)) {
-            const returnType = node;
-            // Enclosing expression
-            if (exportName === 'selfInvokedReturningAnonimousFunctionWithTypes') {
-                console.log;
-            }
-        } else if (Node.isAsExpression(node)) {
-            // todo
-        } else if (Node.isCallExpression(node)) {
-            // Call expression, we need to get the returned value
-        }
-    });
-
-    const apiData = {
-        ...getOtherType(exportName, declaration, checker),
-        ...childFunctionData,
-    };
-
-    if (apiData.exportName === 'arrowFunction') {
-        // console.log(apiData);
-        console.log(apiData);
-    }
-    return apiData;
-}
-
-function symbolToString(symbol: Symbol | undefined, checker: TypeChecker) {
-    if (symbol === undefined) return '';
-    return checker.compilerObject.symbolToString(symbol.compilerSymbol);
-}
-
-function getOtherType(exportName: string, declaration: ExportedDeclarations, checker: TypeChecker) {
-    const declarationType = declaration.getType();
-    const apiData = {
-        exportName: exportName,
-        decType: declaration.getKindName(),
-        type: checker.compilerObject.typeToString(declarationType.compilerType),
-    };
-
-    if (apiData.exportName === 'suma') console.log(apiData);
-    return apiData;
 }

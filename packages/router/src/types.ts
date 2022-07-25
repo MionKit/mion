@@ -5,18 +5,20 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 /* eslint-disable @typescript-eslint/ban-types */
-import {FastifyInstance, FastifyReply, FastifyRequest, FastifySchema, RouteShorthandOptions} from 'fastify';
+import {FastifyReply, FastifyRequest, RouteShorthandOptions} from 'fastify';
 
-export interface ApiDS extends FastifyInstance {} // todo: import ApiDS from ORM
+export interface ApiDS {
+    [key: string]: any;
+} // todo: import ApiDS from ORM
 
 /**
  * Fastify like route handler.
  */
-export type ApiRoute<RequestSchema, ReplySchema> = (
+export type ApiRoute<RequestBody, ReplyBody> = (
     /**
      * Any Type representing http request body
      */
-    body: RequestSchema,
+    body: RequestBody,
 
     /**
      * ApiDS application
@@ -25,16 +27,16 @@ export type ApiRoute<RequestSchema, ReplySchema> = (
 
     request: FastifyRequest,
     reply: FastifyReply,
-) => ReplySchema | Promise<ReplySchema>;
+) => ReplyBody | Promise<ReplyBody>;
 
 /**
  * Fastify like Route Options object, a route handler is the only required field
  */
-export interface ApiRouteOptions<RequestSchema, ReplySchema> extends RouteShorthandOptions {
+export interface ApiRouteOptions<RequestBody, ReplyBody> extends RouteShorthandOptions {
     /**
      * Fastify like route handler.
      */
-    handler: ApiRoute<RequestSchema, ReplySchema>;
+    handler: ApiRoute<RequestBody, ReplyBody>;
 
     /**
      * Same as FastifySchema but only body and response allowed
@@ -62,7 +64,7 @@ export type ApiRoutesFile = ApiRoutes | ApiRoute<any, any> | ApiRouteOptions<any
 /**
  * Options used to generate the Api foutes
  */
-export interface ApiCompilerOptions {
+export interface ApiRouterOptions {
     /**
      * Root directory for the Api rooute files.
      */
@@ -73,12 +75,14 @@ export interface ApiCompilerOptions {
      * @example './src/routes/**'
      * @see https://github.com/micromatch/picomatch
      */
+    // TODO
     srcInclude?: string | string[];
 
     /**
      * Glob patter to ignore file within the src directory, relative to @var srcDir
      * @see https://github.com/micromatch/picomatch
      */
+    // TODO
     srcIgnore?: string | string[];
 
     /**
@@ -91,13 +95,14 @@ export interface ApiCompilerOptions {
      * Glob patter to include files within the schemas directory, relative to @var schemasDir
      * @example './src/routes/package.json'
      */
-    schemasInclude?: string | string[];
+    // TODO
+    // schemasInclude?: string | string[];
 
     /**
      * Glob patter to ignore files within the schemas directory, relative to @var schemasDir
      * @example './src/routes/package.json'
      */
-    schemasIgone?: string | string[];
+    // schemasIgone?: string | string[];
 
     /**
      * Prefix for the api url

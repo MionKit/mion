@@ -6,81 +6,70 @@
  * ######## */
 
 // ####### All difrent ways to export an api route #######
-import {ApiRoute, ApiRouteOptions} from '@apids/router/src/types';
+// AST VIEWER USED FOR DEVELOPING https://ts-ast-viewer.com/
+import {ApiRoute, ApiRouteOptions, ApiDS} from '@apids/router/src/types';
 import {FastifyReply, FastifyRequest} from 'fastify';
-import {HostCancellationToken} from 'typescript';
 
-type ApiDS = any;
-
-interface Request {
-    username: string;
-}
-
-interface Response {
+interface Message {
     sentence: string;
 }
 
-interface User {
+interface Entity {
     id: number;
-    name: string;
-    surname: string;
 }
 
-// no types
+interface User extends Entity {
+    username: string;
+}
+
+// function with no types should fail
 export function functionWithNoTypes(body, data, req, reply) {
     return {sentence: `hello to ${body.username}`};
 }
 
 // parameter types, no return type
-export function functionWithNoReturType(body: Request, data: ApiDS, req: FastifyRequest, reply: FastifyReply) {
+export function functionWithNoReturType(body: User, api: ApiDS, req: FastifyRequest, reply: FastifyReply) {
     return {sentence: `hello to ${body.username}`};
 }
 
 // parameter types, return type
-export function functionWithTypes(body: Request, data: ApiDS, req: FastifyRequest, reply: FastifyReply): Response {
+export function functionWithTypes(body: User, api: ApiDS, req: FastifyRequest, reply: FastifyReply): Message {
     return {sentence: `hello to ${body.username}`};
 }
 
 // constant with type + arrow function
-export const arrowFunction: ApiRoute<Request, Response> = (body, data, req, reply) => ({
+export const arrowFunction: ApiRoute<User, Message> = (body, api, req, reply) => ({
     sentence: `hello to ${body.username}`,
 });
 
 // multiple exported constants
-export const multipleExport1ArrowFunction: ApiRoute<Request, Response> = (body, data, req, reply) => ({
+export const multipleExport1ArrowFunction: ApiRoute<User, Message> = (body, api, req, reply) => ({
         sentence: `hello to ${body.username}`,
     }),
-    multipleExport2ArrowFunction: ApiRoute<Request, Response> = (body) => ({sentence: `hello to ${body.username}`});
+    multipleExport2ArrowFunction: ApiRoute<User, Message> = (body) => ({sentence: `hello to ${body.username}`});
 
 // constant with type + anonimous function
-export const anonimousFunction: ApiRoute<Request, Response> = function (body, data, req, reply) {
+export const anonimousFunction: ApiRoute<User, Message> = function (body, api, req, reply) {
     return {sentence: `hello to ${body.username}`};
 };
 
 // constant with type + named function
-export const namedFunction: ApiRoute<Request, Response> = function abc(body, data, req, reply) {
+export const namedFunction: ApiRoute<User, Message> = function abc(body, api, req, reply) {
     return {sentence: `hello to ${body.username}`};
 };
 
 // constant + arrow function enclosing in parenthesis and declaring type using as (casting)
-export const arrowFunctionWithCasting = ((body, data, req, reply) => ({
+export const arrowFunctionWithCasting = ((body, api, req, reply) => ({
     sentence: `hello to ${body.username}`,
-})) as ApiRoute<Request, Response>;
+})) as ApiRoute<User, Message>;
 
 // constant + anonimous function and declaring type using as (casting)
-export const anonimousFunctionWithCasting = function (body, data, req, reply) {
+export const anonimousFunctionWithCasting = function (body, api, req, reply) {
     return {sentence: `hello to ${body.username}`};
-} as ApiRoute<Request, Response>;
-
-// route options no types
-export const optionsObjectWithNoTypes = {
-    handler: (body) => ({sentence: `hello to ${body.username}`}),
-    version: '1.0.0',
-    logLevel: 'debug',
-};
+} as ApiRoute<User, Message>;
 
 // route options
-export const optionsObjectWithTypes: ApiRouteOptions<Request, Response> = {
+export const optionsObjectWithTypes: ApiRouteOptions<User, Message> = {
     handler: (body) => ({sentence: `hello to ${body.username}`}),
     version: '1.0.0',
     logLevel: 'debug',
@@ -91,19 +80,19 @@ export const optionsObjectWithCasting = {
     handler: (body) => ({sentence: `hello to ${body.username}`}),
     version: '1.0.0',
     logLevel: 'debug',
-} as ApiRouteOptions<Request, Response>;
+} as ApiRouteOptions<User, Message>;
 
 // route options constructed
 const handler1 = (body) => ({sentence: `hello to ${body.username}`});
 const version1 = '1.0.0';
-export const optionsObjecWithReferences: ApiRouteOptions<Request, Response> = {
+export const optionsObjecWithReferences: ApiRouteOptions<User, Message> = {
     handler: handler1,
     version: version1,
     logLevel: 'debug',
 };
 
 // async
-export const asyncAnonimousFunction: ApiRoute<Request, Response> = async function (body, data, req, reply) {
+export const asyncAnonimousFunction: ApiRoute<User, Message> = async function (body, api, req, reply) {
     return {sentence: `hello to ${body.username}`};
 };
 
@@ -119,38 +108,22 @@ export const asyncOptionsObjectWithCasting = {
     handler: async (body) => ({sentence: `hello to ${body.username}`}),
     version: '1.0.0',
     logLevel: 'debug',
-} as ApiRouteOptions<Request, Response>;
-
-// self invoked function declaring type
-export const selfInvokedReturningAnonimousFunctionWithTypes: ApiRoute<Request, Response> = (() => {
-    const route: ApiRoute<Request, Response> = function (body, data, req, reply) {
-        return {sentence: `hello to ${body.username}`};
-    };
-    return route;
-})();
-
-// self invoked function with no type
-export const selfInvokedReturningAnonimousFunctionWithNoTypes = (() => {
-    const route = function (body, data, req, reply) {
-        return {sentence: `hello to ${body.username}`};
-    };
-    return route;
-})();
+} as ApiRouteOptions<User, Message>;
 
 // exporting after
-const exportedAfterDeclaration: ApiRoute<Request, Response> = (body, data, req, reply) => ({
+const exportedAfterDeclaration: ApiRoute<User, Message> = (body, api, req, reply) => ({
     sentence: `hello to ${body.username}`,
 });
 export {exportedAfterDeclaration};
 
 // exporting after + renaming
-const someRoute: ApiRoute<Request, Response> = (body, data, req, reply) => ({
+const someRoute: ApiRoute<User, Message> = (body, api, req, reply) => ({
     sentence: `hello to ${body.username}`,
 });
 export {someRoute as exportedAndRenameAfterDeclaration};
 
 // reexporting something already exported
-export const someRoute2: ApiRoute<Request, Response> = (body, data, req, reply) => ({
+export const someRoute2: ApiRoute<User, Message> = (body, api, req, reply) => ({
     sentence: `hello to ${body.username}`,
 });
 export {someRoute2 as reExportedRoute2};
