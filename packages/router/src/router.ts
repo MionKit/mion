@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {ApiCompilerOptions, ApiRoute, ApiRouteOptions, ApiRoutes} from './types';
+import {ApiRouterOptions, ApiRoute, ApiRouteOptions, ApiRoutes} from './types';
 import {getNonApiRouteItems} from './utils';
 
 function addApiRoute(path: string, route: ApiRoute<any, any>) {}

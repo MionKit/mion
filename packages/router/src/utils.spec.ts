@@ -7,7 +7,7 @@
 
 import * as path from 'path';
 import {getAllRouteFiles, getDirectoryTree, getNonApiRouteItems, isApiRoute, isApiRouteOptions, isApiRoutes} from './utils';
-import {ApiCompilerOptions} from './types';
+import {ApiRouterOptions} from './types';
 
 describe.skip('generate types', () => {
     it('isApiRoute should return true when passed value is isApiRoute', async () => {
@@ -108,7 +108,7 @@ describe.skip('generate types', () => {
 
     it('getAllRouterPaths should return all files in a directory', async () => {
         const srcDir = path.join(__dirname, '../test-artifacts/api-routes');
-        const options: ApiCompilerOptions = {srcDir, outDir: ''};
+        const options: ApiRouterOptions = {srcDir, outDir: ''};
         const files = getAllRouteFiles(options);
         const result = ['model1/model1.ts', 'model2/model2.ts', 'model3.ts'];
         expect(files).toEqual(result);
@@ -120,12 +120,12 @@ describe.skip('generate types', () => {
             model2: {'model2.ts': 'model2/model2.ts'},
             'model3.ts': 'model3.ts',
         };
-        const options1: ApiCompilerOptions = {srcDir: 'root', outDir: '', srcInclude: 'model2/**/*.ts'};
+        const options1: ApiRouterOptions = {srcDir: 'root', outDir: '', srcInclude: 'model2/**/*.ts'};
         const files1 = getAllRouteFiles(options1, directoryTree);
         const result1 = ['model2/model2.ts'];
         expect(files1).toEqual(result1);
 
-        const options2: ApiCompilerOptions = {srcDir: 'root', outDir: '', srcInclude: ['model2/**/*.ts', 'model3.ts']};
+        const options2: ApiRouterOptions = {srcDir: 'root', outDir: '', srcInclude: ['model2/**/*.ts', 'model3.ts']};
         const files2 = getAllRouteFiles(options2, directoryTree);
         const result2 = ['model2/model2.ts', 'model3.ts'];
         expect(files2).toEqual(result2);
@@ -138,12 +138,12 @@ describe.skip('generate types', () => {
             'model3.ts': 'model3.ts',
             'model3.spec.ts': 'model3.spec.ts',
         };
-        const options1: ApiCompilerOptions = {srcDir: 'root', outDir: '', srcIgnore: '**/*.spec.ts'};
+        const options1: ApiRouterOptions = {srcDir: 'root', outDir: '', srcIgnore: '**/*.spec.ts'};
         const files1 = getAllRouteFiles(options1, directoryTree);
         const result1 = ['model1/model1.ts', 'model2/model2.ts', 'model3.ts'];
         expect(files1).toEqual(result1);
 
-        const options2: ApiCompilerOptions = {
+        const options2: ApiRouterOptions = {
             srcDir: 'root',
             outDir: '',
             srcIgnore: ['**/*.spec.ts', 'model2/**/*', 'model3.ts'],
@@ -165,7 +165,7 @@ describe.skip('generate types', () => {
             'model1.mjs': 'model1.mjs',
             'other.css': 'other.css',
         };
-        const options1: ApiCompilerOptions = {srcDir: 'root', outDir: ''};
+        const options1: ApiRouterOptions = {srcDir: 'root', outDir: ''};
         const files1 = getAllRouteFiles(options1, directoryTree);
         const result1 = ['model1/model1.ts', 'model1.ts', 'model1.js', 'model1.tsx', 'model1.jsx', 'model1.mts', 'model1.mjs'];
         expect(files1).toEqual(result1);

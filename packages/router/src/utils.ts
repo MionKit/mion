@@ -7,9 +7,10 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
+import {join} from 'path';
 import * as pm from 'picomatch';
 import {ALLOWED_EXTENSIONS, API_ROUTE_PARAMS_LENGTH} from './constants';
-import {ApiCompilerOptions, ApiRoute, ApiRouteOptions, ApiRoutes, DirectoryTree} from './types';
+import {ApiRouterOptions, ApiRoute, ApiRouteOptions, ApiRoutes, DirectoryTree} from './types';
 
 export function isApiRoute(item: any): boolean {
     return typeof item === 'function' && item.length <= API_ROUTE_PARAMS_LENGTH;
@@ -35,7 +36,7 @@ export function getNonApiRouteItems(routes: ApiRoutes): {[key: string]: any} {
     return nonRoutes;
 }
 
-export function getAllRouteFiles(opts: ApiCompilerOptions, dirTree: DirectoryTree = getDirectoryTree(opts.srcDir)): string[] {
+export function getAllRouteFiles(opts: ApiRouterOptions, dirTree: DirectoryTree = getDirectoryTree(opts.srcDir)): string[] {
     const pmInclude = opts.srcInclude ? pm(opts.srcInclude) : undefined;
     const pmIgnore = opts.srcIgnore ? pm(opts.srcIgnore) : undefined;
     const files = _getAllPathsRecursively(dirTree, pmInclude, pmIgnore);
@@ -94,4 +95,15 @@ export function getDirectoryTree(rootDir: string, currentDir = rootDir): Directo
         else rootTree[file] = path.relative(rootDir, fName);
     });
     return rootTree;
+}
+
+// https://stackoverflow.com/questions/41462606/get-all-files-recursively-in-directories-nodejs
+export function getAllFillesFromDirectory(Directory) {
+    let files: string[] = [];
+    fs.readdirSync(Directory).forEach((file) => {
+        const Absolute = join(Directory, file);
+        if (fs.statSync(Absolute).isDirectory()) return getAllFillesFromDirectory(Absolute);
+        else return files.push(Absolute);
+    });
+    return files;
 }
