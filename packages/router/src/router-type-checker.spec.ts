@@ -13,13 +13,18 @@ import {metadataSnapshot} from './router-type-cheker-spec-metadata-snapshot';
 describe('router-type-checker', () => {
     const apiRoutesFile = path.resolve(path.join(__dirname, '../test-artifacts/typescript-ast/api-routes.ts'));
     const tsConfigfile = path.resolve(path.join(__dirname, '../test-artifacts/typescript-ast/tsconfig.json'));
+    const packageRoot = path.resolve(path.join(__dirname, '../'));
+    const packageRootSnapshot = '/PACKAGE_ROOT';
     const options: ApiRouterOptions = {
         srcDir: path.resolve(path.join(__dirname, '../test-artifacts/typescript-ast')),
         outDir: '',
     };
     let routesMetadata: ExportedMetadata, compileError;
     try {
-        routesMetadata = getRouteMetadata(tsConfigfile, apiRoutesFile, options);
+        const meta = getRouteMetadata(tsConfigfile, apiRoutesFile, options);
+        const metaString = JSON.stringify(meta);
+        const metaFixPackageRoot = (metaString as any).replaceAll(packageRoot, packageRootSnapshot);
+        routesMetadata = JSON.parse(metaFixPackageRoot);
     } catch (e) {
         compileError = e;
     }
@@ -42,44 +47,74 @@ describe('router-type-checker', () => {
     });
 
     it('should extrac metadata when exported item is a functionWithNoTypes', () => {
-        const routeMeta = routesMetadata['api-routes.ts/functionWithNoTypes'];
-        const snapshotRoute = metadataSnapshot['api-routes.ts/functionWithNoTypes'];
+        const expectedRouteName = 'api-routes.ts/functionWithNoTypes';
+        const routeMeta = routesMetadata[expectedRouteName];
+        const snapshotRoute = metadataSnapshot[expectedRouteName];
         compareRouteWithExpectedSnapshot(routeMeta, snapshotRoute);
     });
 
-    // it('should extrac metadata when exported item is a functionWithNoReturType', () => {
-    //     expect(routesMetadata['api-routes.ts/functionWithNoTypes']).toBeTruthy();
-    // });
+    it('should extrac metadata when exported item is a functionWithNoReturType', () => {
+        const expectedRouteName = 'api-routes.ts/functionWithNoReturType';
+        const routeMeta = routesMetadata[expectedRouteName];
+        const snapshotRoute = metadataSnapshot[expectedRouteName];
+        compareRouteWithExpectedSnapshot(routeMeta, snapshotRoute);
+    });
 
-    // it('should extrac metadata when exported item is a functionWithNoReturType', () => {
-    //     expect(routesMetadata['api-routes.ts/functionWithNoTypes']).toBeTruthy();
-    // });
+    it('should extrac metadata when exported item is a functionWithTypes', () => {
+        const expectedRouteName = 'api-routes.ts/functionWithTypes';
+        const routeMeta = routesMetadata[expectedRouteName];
+        const snapshotRoute = metadataSnapshot[expectedRouteName];
+        compareRouteWithExpectedSnapshot(routeMeta, snapshotRoute);
+    });
 
-    // it('should extrac metadata when exported item is a functionWithNoTypes', () => {
-    //     expect(routesMetadata['api-routes.ts/functionWithNoTypes']).toBeTruthy();
-    // });
+    it('should extrac metadata when exported item is a arrowFunction', () => {
+        const expectedRouteName = 'api-routes.ts/arrowFunction';
+        const routeMeta = routesMetadata[expectedRouteName];
+        const snapshotRoute = metadataSnapshot[expectedRouteName];
+        compareRouteWithExpectedSnapshot(routeMeta, snapshotRoute);
+    });
 
-    // it('should extrac metadata when exported item is a functionWithNoTypes', () => {
-    //     expect(routesMetadata['api-routes.ts/functionWithNoTypes']).toBeTruthy();
-    // });
+    it('should extrac metadata when exported item is a functionWithNoReturType', () => {
+        const expectedRouteName = 'api-routes.ts/multipleExport1ArrowFunction';
+        const routeMeta = routesMetadata[expectedRouteName];
+        const snapshotRoute = metadataSnapshot[expectedRouteName];
+        compareRouteWithExpectedSnapshot(routeMeta, snapshotRoute);
+    });
 
-    // it('should extrac metadata when exported item is a functionWithNoTypes', () => {
-    //     expect(routesMetadata['api-routes.ts/functionWithNoTypes']).toBeTruthy();
-    // });
+    it('should extrac metadata when exported item is a functionWithTypes', () => {
+        const expectedRouteName = 'api-routes.ts/anonimousFunction';
+        const routeMeta = routesMetadata[expectedRouteName];
+        const snapshotRoute = metadataSnapshot[expectedRouteName];
+        compareRouteWithExpectedSnapshot(routeMeta, snapshotRoute);
+    });
 
-    // it('should extrac metadata when exported item is a functionWithNoTypes', () => {
-    //     expect(routesMetadata['api-routes.ts/functionWithNoTypes']).toBeTruthy();
-    // });
+    it('should extrac metadata when exported item is a arrowFunction', () => {
+        const expectedRouteName = 'api-routes.ts/namedFunction';
+        const routeMeta = routesMetadata[expectedRouteName];
+        const snapshotRoute = metadataSnapshot[expectedRouteName];
+        compareRouteWithExpectedSnapshot(routeMeta, snapshotRoute);
+    });
 
-    // it('should extrac metadata when exported item is a functionWithNoTypes', () => {
-    //     expect(routesMetadata['api-routes.ts/functionWithNoTypes']).toBeTruthy();
-    // });
+    it('should extrac metadata when exported item is a functionWithTypes', () => {
+        const expectedRouteName = 'api-routes.ts/arrowFunctionWithCasting';
+        const routeMeta = routesMetadata[expectedRouteName];
+        const snapshotRoute = metadataSnapshot[expectedRouteName];
+        compareRouteWithExpectedSnapshot(routeMeta, snapshotRoute);
+        // ensure correct property types
+        expect(routeMeta.metadata.parameters.body.escapedName).toEqual('User');
+        expect(routeMeta.metadata.parameters.api.escapedName).toEqual('ApiDS');
+        expect(routeMeta.metadata.parameters.req.escapedName).toEqual('FastifyRequest');
+        expect(routeMeta.metadata.parameters.reply.escapedName).toEqual('FastifyReply');
+    });
 
-    // it('should extrac metadata when exported item is a functionWithNoTypes', () => {
-    //     expect(routesMetadata['api-routes.ts/functionWithNoTypes']).toBeTruthy();
-    // });
+    it('should extrac metadata when exported item is a arrowFunction', () => {
+        const expectedRouteName = 'api-routes.ts/anonimousFunctionWithCasting';
+        const routeMeta = routesMetadata[expectedRouteName];
+        const snapshotRoute = metadataSnapshot[expectedRouteName];
+        compareRouteWithExpectedSnapshot(routeMeta, snapshotRoute);
+    });
 
-    // it('should extrac metadata when exported item is a functionWithNoTypes', () => {
-    //     expect(routesMetadata['api-routes.ts/functionWithNoTypes']).toBeTruthy();
-    // });
+    // TODO ApiRouteOptions Objects
+
+    // TODO WHEN COMPILE SHOULD FAIL
 });

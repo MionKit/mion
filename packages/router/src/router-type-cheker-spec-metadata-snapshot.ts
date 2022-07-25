@@ -1,9 +1,12 @@
-import {ExportedMetadata} from './router-type-checker';
+/**
+ * IT IS VERY IMPORTANT TO REVIEW AND UPDATE THIS SNAPSHOT OF THE GENERATED METADATA FROM api-routes.ts file
+ * The values of this snapshot should be as expected for test to work correctly
+ * */
 
-export const metadataSnapshot: ExportedMetadata = {
+export const metadataSnapshot: any = {
     'api-routes.ts/functionWithNoTypes': {
         exportedName: 'functionWithNoTypes',
-        fileName: '/FULL_FILE_PATH_HAS_BEEN_REMOVED/test-artifacts/typescript-ast/api-routes.ts',
+        fileName: '/PACKAGE_ROOT/test-artifacts/typescript-ast/api-routes.ts',
         metadata: {
             exportedName: 'functionWithNoTypes',
             kind: 'FunctionDeclaration',
@@ -95,7 +98,7 @@ export const metadataSnapshot: ExportedMetadata = {
     },
     'api-routes.ts/functionWithNoReturType': {
         exportedName: 'functionWithNoReturType',
-        fileName: '/FULL_FILE_PATH_HAS_BEEN_REMOVED/test-artifacts/typescript-ast/api-routes.ts',
+        fileName: '/PACKAGE_ROOT/test-artifacts/typescript-ast/api-routes.ts',
         metadata: {
             exportedName: 'functionWithNoReturType',
             kind: 'FunctionDeclaration',
@@ -123,8 +126,8 @@ export const metadataSnapshot: ExportedMetadata = {
                     type: 'ApiDS',
                     name: 'ApiDS',
                     escapedName: 'ApiDS',
-                    fullyQualifiedName: '"/FULL_FILE_PATH_HAS_BEEN_REMOVED/src/types".ApiDS',
-                    type_text: 'import("/FULL_FILE_PATH_HAS_BEEN_REMOVED/src/types").ApiDS',
+                    fullyQualifiedName: '"/PACKAGE_ROOT/src/types".ApiDS',
+                    type_text: 'import("/PACKAGE_ROOT/src/types").ApiDS',
                     aliasType: null,
                     aliasTypeArguments: null,
                     structure: {
@@ -193,7 +196,7 @@ export const metadataSnapshot: ExportedMetadata = {
     },
     'api-routes.ts/functionWithTypes': {
         exportedName: 'functionWithTypes',
-        fileName: '/FULL_FILE_PATH_HAS_BEEN_REMOVED/test-artifacts/typescript-ast/api-routes.ts',
+        fileName: '/PACKAGE_ROOT/test-artifacts/typescript-ast/api-routes.ts',
         metadata: {
             exportedName: 'functionWithTypes',
             kind: 'FunctionDeclaration',
@@ -221,8 +224,8 @@ export const metadataSnapshot: ExportedMetadata = {
                     type: 'ApiDS',
                     name: 'ApiDS',
                     escapedName: 'ApiDS',
-                    fullyQualifiedName: '"/FULL_FILE_PATH_HAS_BEEN_REMOVED/src/types".ApiDS',
-                    type_text: 'import("/FULL_FILE_PATH_HAS_BEEN_REMOVED/src/types").ApiDS',
+                    fullyQualifiedName: '"/PACKAGE_ROOT/src/types".ApiDS',
+                    type_text: 'import("/PACKAGE_ROOT/src/types").ApiDS',
                     aliasType: null,
                     aliasTypeArguments: null,
                     structure: {
@@ -291,7 +294,7 @@ export const metadataSnapshot: ExportedMetadata = {
     },
     'api-routes.ts/arrowFunction': {
         exportedName: 'arrowFunction',
-        fileName: '/FULL_FILE_PATH_HAS_BEEN_REMOVED/test-artifacts/typescript-ast/api-routes.ts',
+        fileName: '/PACKAGE_ROOT/test-artifacts/typescript-ast/api-routes.ts',
         metadata: {
             exportedName: 'arrowFunction',
             kind: 'ArrowFunction',
@@ -318,8 +321,8 @@ export const metadataSnapshot: ExportedMetadata = {
                     type: 'ApiDS',
                     name: 'ApiDS',
                     escapedName: 'ApiDS',
-                    fullyQualifiedName: '"/FULL_FILE_PATH_HAS_BEEN_REMOVED/src/types".ApiDS',
-                    type_text: 'import("/FULL_FILE_PATH_HAS_BEEN_REMOVED/src/types").ApiDS',
+                    fullyQualifiedName: '"/PACKAGE_ROOT/src/types".ApiDS',
+                    type_text: 'import("/PACKAGE_ROOT/src/types").ApiDS',
                     aliasType: null,
                     aliasTypeArguments: null,
                     structure: {
@@ -385,7 +388,7 @@ export const metadataSnapshot: ExportedMetadata = {
     },
     'api-routes.ts/multipleExport1ArrowFunction': {
         exportedName: 'multipleExport1ArrowFunction',
-        fileName: '/FULL_FILE_PATH_HAS_BEEN_REMOVED/test-artifacts/typescript-ast/api-routes.ts',
+        fileName: '/PACKAGE_ROOT/test-artifacts/typescript-ast/api-routes.ts',
         metadata: {
             exportedName: 'multipleExport1ArrowFunction',
             kind: 'ArrowFunction',
@@ -412,8 +415,8 @@ export const metadataSnapshot: ExportedMetadata = {
                     type: 'ApiDS',
                     name: 'ApiDS',
                     escapedName: 'ApiDS',
-                    fullyQualifiedName: '"/FULL_FILE_PATH_HAS_BEEN_REMOVED/src/types".ApiDS',
-                    type_text: 'import("/FULL_FILE_PATH_HAS_BEEN_REMOVED/src/types").ApiDS',
+                    fullyQualifiedName: '"/PACKAGE_ROOT/src/types".ApiDS',
+                    type_text: 'import("/PACKAGE_ROOT/src/types").ApiDS',
                     aliasType: null,
                     aliasTypeArguments: null,
                     structure: {
@@ -479,7 +482,7 @@ export const metadataSnapshot: ExportedMetadata = {
     },
     'api-routes.ts/multipleExport2ArrowFunction': {
         exportedName: 'multipleExport2ArrowFunction',
-        fileName: '/FULL_FILE_PATH_HAS_BEEN_REMOVED/test-artifacts/typescript-ast/api-routes.ts',
+        fileName: '/PACKAGE_ROOT/test-artifacts/typescript-ast/api-routes.ts',
         metadata: {
             exportedName: 'multipleExport2ArrowFunction',
             kind: 'ArrowFunction',
@@ -517,7 +520,7 @@ export const metadataSnapshot: ExportedMetadata = {
     },
     'api-routes.ts/anonimousFunction': {
         exportedName: 'anonimousFunction',
-        fileName: '/FULL_FILE_PATH_HAS_BEEN_REMOVED/test-artifacts/typescript-ast/api-routes.ts',
+        fileName: '/PACKAGE_ROOT/test-artifacts/typescript-ast/api-routes.ts',
         metadata: {
             exportedName: 'anonimousFunction',
             kind: 'FunctionExpression',
@@ -544,8 +547,8 @@ export const metadataSnapshot: ExportedMetadata = {
                     type: 'ApiDS',
                     name: 'ApiDS',
                     escapedName: 'ApiDS',
-                    fullyQualifiedName: '"/FULL_FILE_PATH_HAS_BEEN_REMOVED/src/types".ApiDS',
-                    type_text: 'import("/FULL_FILE_PATH_HAS_BEEN_REMOVED/src/types").ApiDS',
+                    fullyQualifiedName: '"/PACKAGE_ROOT/src/types".ApiDS',
+                    type_text: 'import("/PACKAGE_ROOT/src/types").ApiDS',
                     aliasType: null,
                     aliasTypeArguments: null,
                     structure: {
@@ -611,7 +614,7 @@ export const metadataSnapshot: ExportedMetadata = {
     },
     'api-routes.ts/namedFunction': {
         exportedName: 'namedFunction',
-        fileName: '/FULL_FILE_PATH_HAS_BEEN_REMOVED/test-artifacts/typescript-ast/api-routes.ts',
+        fileName: '/PACKAGE_ROOT/test-artifacts/typescript-ast/api-routes.ts',
         metadata: {
             exportedName: 'namedFunction',
             kind: 'FunctionExpression',
@@ -638,8 +641,8 @@ export const metadataSnapshot: ExportedMetadata = {
                     type: 'ApiDS',
                     name: 'ApiDS',
                     escapedName: 'ApiDS',
-                    fullyQualifiedName: '"/FULL_FILE_PATH_HAS_BEEN_REMOVED/src/types".ApiDS',
-                    type_text: 'import("/FULL_FILE_PATH_HAS_BEEN_REMOVED/src/types").ApiDS',
+                    fullyQualifiedName: '"/PACKAGE_ROOT/src/types".ApiDS',
+                    type_text: 'import("/PACKAGE_ROOT/src/types").ApiDS',
                     aliasType: null,
                     aliasTypeArguments: null,
                     structure: {
@@ -705,7 +708,7 @@ export const metadataSnapshot: ExportedMetadata = {
     },
     'api-routes.ts/arrowFunctionWithCasting': {
         exportedName: 'arrowFunctionWithCasting',
-        fileName: '/FULL_FILE_PATH_HAS_BEEN_REMOVED/test-artifacts/typescript-ast/api-routes.ts',
+        fileName: '/PACKAGE_ROOT/test-artifacts/typescript-ast/api-routes.ts',
         metadata: {
             exportedName: 'arrowFunctionWithCasting',
             kind: 'ArrowFunction',
@@ -732,8 +735,8 @@ export const metadataSnapshot: ExportedMetadata = {
                     type: 'ApiDS',
                     name: 'ApiDS',
                     escapedName: 'ApiDS',
-                    fullyQualifiedName: '"/FULL_FILE_PATH_HAS_BEEN_REMOVED/src/types".ApiDS',
-                    type_text: 'import("/FULL_FILE_PATH_HAS_BEEN_REMOVED/src/types").ApiDS',
+                    fullyQualifiedName: '"/PACKAGE_ROOT/src/types".ApiDS',
+                    type_text: 'import("/PACKAGE_ROOT/src/types").ApiDS',
                     aliasType: null,
                     aliasTypeArguments: null,
                     structure: {
@@ -799,7 +802,7 @@ export const metadataSnapshot: ExportedMetadata = {
     },
     'api-routes.ts/anonimousFunctionWithCasting': {
         exportedName: 'anonimousFunctionWithCasting',
-        fileName: '/FULL_FILE_PATH_HAS_BEEN_REMOVED/test-artifacts/typescript-ast/api-routes.ts',
+        fileName: '/PACKAGE_ROOT/test-artifacts/typescript-ast/api-routes.ts',
         metadata: {
             exportedName: 'anonimousFunctionWithCasting',
             kind: 'FunctionExpression',
@@ -826,8 +829,8 @@ export const metadataSnapshot: ExportedMetadata = {
                     type: 'ApiDS',
                     name: 'ApiDS',
                     escapedName: 'ApiDS',
-                    fullyQualifiedName: '"/FULL_FILE_PATH_HAS_BEEN_REMOVED/src/types".ApiDS',
-                    type_text: 'import("/FULL_FILE_PATH_HAS_BEEN_REMOVED/src/types").ApiDS',
+                    fullyQualifiedName: '"/PACKAGE_ROOT/src/types".ApiDS',
+                    type_text: 'import("/PACKAGE_ROOT/src/types").ApiDS',
                     aliasType: null,
                     aliasTypeArguments: null,
                     structure: {
@@ -893,22 +896,22 @@ export const metadataSnapshot: ExportedMetadata = {
     },
     'api-routes.ts/optionsObjectWithTypes': {
         exportedName: 'optionsObjectWithTypes',
-        fileName: '/FULL_FILE_PATH_HAS_BEEN_REMOVED/test-artifacts/typescript-ast/api-routes.ts',
+        fileName: '/PACKAGE_ROOT/test-artifacts/typescript-ast/api-routes.ts',
         metadata: {exportedName: 'optionsObjectWithTypes', kind: 'VariableDeclaration'},
     },
     'api-routes.ts/optionsObjectWithCasting': {
         exportedName: 'optionsObjectWithCasting',
-        fileName: '/FULL_FILE_PATH_HAS_BEEN_REMOVED/test-artifacts/typescript-ast/api-routes.ts',
+        fileName: '/PACKAGE_ROOT/test-artifacts/typescript-ast/api-routes.ts',
         metadata: {exportedName: 'optionsObjectWithCasting', kind: 'AsExpression'},
     },
     'api-routes.ts/optionsObjecWithReferences': {
         exportedName: 'optionsObjecWithReferences',
-        fileName: '/FULL_FILE_PATH_HAS_BEEN_REMOVED/test-artifacts/typescript-ast/api-routes.ts',
+        fileName: '/PACKAGE_ROOT/test-artifacts/typescript-ast/api-routes.ts',
         metadata: {exportedName: 'optionsObjecWithReferences', kind: 'VariableDeclaration'},
     },
     'api-routes.ts/asyncAnonimousFunction': {
         exportedName: 'asyncAnonimousFunction',
-        fileName: '/FULL_FILE_PATH_HAS_BEEN_REMOVED/test-artifacts/typescript-ast/api-routes.ts',
+        fileName: '/PACKAGE_ROOT/test-artifacts/typescript-ast/api-routes.ts',
         metadata: {
             exportedName: 'asyncAnonimousFunction',
             kind: 'FunctionExpression',
@@ -935,8 +938,8 @@ export const metadataSnapshot: ExportedMetadata = {
                     type: 'ApiDS',
                     name: 'ApiDS',
                     escapedName: 'ApiDS',
-                    fullyQualifiedName: '"/FULL_FILE_PATH_HAS_BEEN_REMOVED/src/types".ApiDS',
-                    type_text: 'import("/FULL_FILE_PATH_HAS_BEEN_REMOVED/src/types").ApiDS',
+                    fullyQualifiedName: '"/PACKAGE_ROOT/src/types".ApiDS',
+                    type_text: 'import("/PACKAGE_ROOT/src/types").ApiDS',
                     aliasType: null,
                     aliasTypeArguments: null,
                     structure: {
@@ -1002,7 +1005,7 @@ export const metadataSnapshot: ExportedMetadata = {
     },
     'api-routes.ts/asyncArrowFunction': {
         exportedName: 'asyncArrowFunction',
-        fileName: '/FULL_FILE_PATH_HAS_BEEN_REMOVED/test-artifacts/typescript-ast/api-routes.ts',
+        fileName: '/PACKAGE_ROOT/test-artifacts/typescript-ast/api-routes.ts',
         metadata: {
             exportedName: 'asyncArrowFunction',
             kind: 'ArrowFunction',
@@ -1030,8 +1033,8 @@ export const metadataSnapshot: ExportedMetadata = {
                     type: 'ApiDS',
                     name: 'ApiDS',
                     escapedName: 'ApiDS',
-                    fullyQualifiedName: '"/FULL_FILE_PATH_HAS_BEEN_REMOVED/src/types".ApiDS',
-                    type_text: 'import("/FULL_FILE_PATH_HAS_BEEN_REMOVED/src/types").ApiDS',
+                    fullyQualifiedName: '"/PACKAGE_ROOT/src/types".ApiDS',
+                    type_text: 'import("/PACKAGE_ROOT/src/types").ApiDS',
                     aliasType: null,
                     aliasTypeArguments: null,
                     structure: {
@@ -1060,12 +1063,12 @@ export const metadataSnapshot: ExportedMetadata = {
     },
     'api-routes.ts/asyncOptionsObjectWithCasting': {
         exportedName: 'asyncOptionsObjectWithCasting',
-        fileName: '/FULL_FILE_PATH_HAS_BEEN_REMOVED/test-artifacts/typescript-ast/api-routes.ts',
+        fileName: '/PACKAGE_ROOT/test-artifacts/typescript-ast/api-routes.ts',
         metadata: {exportedName: 'asyncOptionsObjectWithCasting', kind: 'AsExpression'},
     },
     'api-routes.ts/exportedAfterDeclaration': {
         exportedName: 'exportedAfterDeclaration',
-        fileName: '/FULL_FILE_PATH_HAS_BEEN_REMOVED/test-artifacts/typescript-ast/api-routes.ts',
+        fileName: '/PACKAGE_ROOT/test-artifacts/typescript-ast/api-routes.ts',
         metadata: {
             exportedName: 'exportedAfterDeclaration',
             kind: 'ArrowFunction',
@@ -1092,8 +1095,8 @@ export const metadataSnapshot: ExportedMetadata = {
                     type: 'ApiDS',
                     name: 'ApiDS',
                     escapedName: 'ApiDS',
-                    fullyQualifiedName: '"/FULL_FILE_PATH_HAS_BEEN_REMOVED/src/types".ApiDS',
-                    type_text: 'import("/FULL_FILE_PATH_HAS_BEEN_REMOVED/src/types").ApiDS',
+                    fullyQualifiedName: '"/PACKAGE_ROOT/src/types".ApiDS',
+                    type_text: 'import("/PACKAGE_ROOT/src/types").ApiDS',
                     aliasType: null,
                     aliasTypeArguments: null,
                     structure: {
@@ -1159,7 +1162,7 @@ export const metadataSnapshot: ExportedMetadata = {
     },
     'api-routes.ts/exportedAndRenameAfterDeclaration': {
         exportedName: 'exportedAndRenameAfterDeclaration',
-        fileName: '/FULL_FILE_PATH_HAS_BEEN_REMOVED/test-artifacts/typescript-ast/api-routes.ts',
+        fileName: '/PACKAGE_ROOT/test-artifacts/typescript-ast/api-routes.ts',
         metadata: {
             exportedName: 'exportedAndRenameAfterDeclaration',
             kind: 'ArrowFunction',
@@ -1186,8 +1189,8 @@ export const metadataSnapshot: ExportedMetadata = {
                     type: 'ApiDS',
                     name: 'ApiDS',
                     escapedName: 'ApiDS',
-                    fullyQualifiedName: '"/FULL_FILE_PATH_HAS_BEEN_REMOVED/src/types".ApiDS',
-                    type_text: 'import("/FULL_FILE_PATH_HAS_BEEN_REMOVED/src/types").ApiDS',
+                    fullyQualifiedName: '"/PACKAGE_ROOT/src/types".ApiDS',
+                    type_text: 'import("/PACKAGE_ROOT/src/types").ApiDS',
                     aliasType: null,
                     aliasTypeArguments: null,
                     structure: {
@@ -1253,7 +1256,7 @@ export const metadataSnapshot: ExportedMetadata = {
     },
     'api-routes.ts/someRoute2': {
         exportedName: 'someRoute2',
-        fileName: '/FULL_FILE_PATH_HAS_BEEN_REMOVED/test-artifacts/typescript-ast/api-routes.ts',
+        fileName: '/PACKAGE_ROOT/test-artifacts/typescript-ast/api-routes.ts',
         metadata: {
             exportedName: 'someRoute2',
             kind: 'ArrowFunction',
@@ -1280,8 +1283,8 @@ export const metadataSnapshot: ExportedMetadata = {
                     type: 'ApiDS',
                     name: 'ApiDS',
                     escapedName: 'ApiDS',
-                    fullyQualifiedName: '"/FULL_FILE_PATH_HAS_BEEN_REMOVED/src/types".ApiDS',
-                    type_text: 'import("/FULL_FILE_PATH_HAS_BEEN_REMOVED/src/types").ApiDS',
+                    fullyQualifiedName: '"/PACKAGE_ROOT/src/types".ApiDS',
+                    type_text: 'import("/PACKAGE_ROOT/src/types").ApiDS',
                     aliasType: null,
                     aliasTypeArguments: null,
                     structure: {
@@ -1347,7 +1350,7 @@ export const metadataSnapshot: ExportedMetadata = {
     },
     'api-routes.ts/reExportedRoute2': {
         exportedName: 'reExportedRoute2',
-        fileName: '/FULL_FILE_PATH_HAS_BEEN_REMOVED/test-artifacts/typescript-ast/api-routes.ts',
+        fileName: '/PACKAGE_ROOT/test-artifacts/typescript-ast/api-routes.ts',
         metadata: {
             exportedName: 'reExportedRoute2',
             kind: 'ArrowFunction',
@@ -1374,8 +1377,8 @@ export const metadataSnapshot: ExportedMetadata = {
                     type: 'ApiDS',
                     name: 'ApiDS',
                     escapedName: 'ApiDS',
-                    fullyQualifiedName: '"/FULL_FILE_PATH_HAS_BEEN_REMOVED/src/types".ApiDS',
-                    type_text: 'import("/FULL_FILE_PATH_HAS_BEEN_REMOVED/src/types").ApiDS',
+                    fullyQualifiedName: '"/PACKAGE_ROOT/src/types".ApiDS',
+                    type_text: 'import("/PACKAGE_ROOT/src/types").ApiDS',
                     aliasType: null,
                     aliasTypeArguments: null,
                     structure: {
