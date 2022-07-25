@@ -21,6 +21,7 @@ import {
     AsExpression,
     ParenthesizedExpression,
 } from 'ts-morph';
+import {ABSOLUTE_PATH_TOKEN, API_ROUTE_PARAMS_LENGTH} from './constants';
 import {ApiRouterOptions} from './types';
 import {getAllFillesFromDirectory} from './utils';
 
@@ -60,8 +61,6 @@ export interface ExportedMetadata {
 }
 
 export type FunctionLike = FunctionDeclaration | ArrowFunction | FunctionExpression;
-
-export const ABSOLUTE_PATH_TOKEN = '/{{PROJECT_ROOT}}';
 
 export function getRoutesMetadata(tsConfigFilePath: string, options: ApiRouterOptions): ExportedMetadata {
     const files = getAllFillesFromDirectory(options.routesDir);
@@ -226,7 +225,7 @@ function getDuplicatedExportedFunctionErrorMessage(node: Node<ts.Node>) {
 
 function getInvalidNumberOfParametersMessage(node: Node<ts.Node>) {
     const info = getSourceCodeInfo(node);
-    return `Route functions can only have 4 parameters.\nInvalid route found at => ${info.description}\n${info.code}`;
+    return `Route functions can only have ${API_ROUTE_PARAMS_LENGTH} parameters.\nInvalid route found at => ${info.description}\n${info.code}`;
 }
 
 function getInvalidparameterTypeMessage(node: Node<ts.Node>) {
@@ -261,7 +260,7 @@ function validateFunctionParameters(exportName: string, functionNode: FunctionLi
     const invalidApiDSType = apiDS && apiDS.name !== 'ApiDS' && apiDS.type !== 'any';
     const invalidFastifyRequestType = fastifyRequest && fastifyRequest.name !== 'FastifyRequest' && fastifyRequest.type !== 'any';
     const invalidFastifyReplyType = fastifyReply && fastifyReply.name !== 'FastifyReply' && fastifyRequest.type !== 'any';
-    if (parametersArray.length > 4) throw new Error(getInvalidNumberOfParametersMessage(functionNode));
+    if (parametersArray.length > API_ROUTE_PARAMS_LENGTH) throw new Error(getInvalidNumberOfParametersMessage(functionNode));
     if (invalidApiDSType || invalidFastifyRequestType || invalidFastifyReplyType) {
         console.log('parameters', parameters);
         throw new Error(getInvalidparameterTypeMessage(functionNode));

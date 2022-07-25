@@ -6,8 +6,7 @@
  * ######## */
 
 import * as path from 'path';
-import {getAllRouteFiles, getDirectoryTree, getNonApiRouteItems, isApiRoute, isApiRouteOptions, isApiRoutes} from './utils';
-import {ApiRouterOptions} from './types';
+import {getDirectoryTree, getNonApiRouteItems, isApiRoute, isApiRouteOptions, isApiRoutes} from './utils';
 
 describe.skip('generate types', () => {
     it('isApiRoute should return true when passed value is isApiRoute', async () => {
@@ -104,70 +103,5 @@ describe.skip('generate types', () => {
             'file.txt': 'file.txt',
         };
         expect(tree).toEqual(result);
-    });
-
-    it('getAllRouterPaths should return all files in a directory', async () => {
-        const srcDir = path.join(__dirname, '../test-artifacts/api-routes');
-        const options: ApiRouterOptions = {routesDir: srcDir, outDir: ''};
-        const files = getAllRouteFiles(options);
-        const result = ['model1/model1.ts', 'model2/model2.ts', 'model3.ts'];
-        expect(files).toEqual(result);
-    });
-
-    it('getAllRouterPaths should return only included files', async () => {
-        const directoryTree = {
-            model1: {'model1.ts': 'model1/model1.ts'},
-            model2: {'model2.ts': 'model2/model2.ts'},
-            'model3.ts': 'model3.ts',
-        };
-        const options1: ApiRouterOptions = {routesDir: 'root', outDir: '', srcInclude: 'model2/**/*.ts'};
-        const files1 = getAllRouteFiles(options1, directoryTree);
-        const result1 = ['model2/model2.ts'];
-        expect(files1).toEqual(result1);
-
-        const options2: ApiRouterOptions = {routesDir: 'root', outDir: '', srcInclude: ['model2/**/*.ts', 'model3.ts']};
-        const files2 = getAllRouteFiles(options2, directoryTree);
-        const result2 = ['model2/model2.ts', 'model3.ts'];
-        expect(files2).toEqual(result2);
-    });
-
-    it('getAllRouterPaths should return only files that are not Ignored', async () => {
-        const directoryTree = {
-            model1: {'model1.ts': 'model1/model1.ts', 'model1.spec.ts': 'model1/model1.spec.ts'},
-            model2: {'model2.ts': 'model2/model2.ts', 'model2.spec.ts': 'model1/model2.spec.ts'},
-            'model3.ts': 'model3.ts',
-            'model3.spec.ts': 'model3.spec.ts',
-        };
-        const options1: ApiRouterOptions = {routesDir: 'root', outDir: '', srcIgnore: '**/*.spec.ts'};
-        const files1 = getAllRouteFiles(options1, directoryTree);
-        const result1 = ['model1/model1.ts', 'model2/model2.ts', 'model3.ts'];
-        expect(files1).toEqual(result1);
-
-        const options2: ApiRouterOptions = {
-            routesDir: 'root',
-            outDir: '',
-            srcIgnore: ['**/*.spec.ts', 'model2/**/*', 'model3.ts'],
-        };
-        const files2 = getAllRouteFiles(options2, directoryTree);
-        const result2 = ['model1/model1.ts'];
-        expect(files2).toEqual(result2);
-    });
-
-    it('getAllRouterPaths should only include allowed files', async () => {
-        const directoryTree = {
-            model1: {'model1.ts': 'model1/model1.ts'},
-            other: {'other1.txt': 'other/other1.txt'},
-            'model1.ts': 'model1.ts',
-            'model1.js': 'model1.js',
-            'model1.tsx': 'model1.tsx',
-            'model1.jsx': 'model1.jsx',
-            'model1.mts': 'model1.mts',
-            'model1.mjs': 'model1.mjs',
-            'other.css': 'other.css',
-        };
-        const options1: ApiRouterOptions = {routesDir: 'root', outDir: ''};
-        const files1 = getAllRouteFiles(options1, directoryTree);
-        const result1 = ['model1/model1.ts', 'model1.ts', 'model1.js', 'model1.tsx', 'model1.jsx', 'model1.mts', 'model1.mjs'];
-        expect(files1).toEqual(result1);
     });
 });

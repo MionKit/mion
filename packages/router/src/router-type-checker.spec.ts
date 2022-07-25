@@ -6,9 +6,9 @@
  * ######## */
 
 import * as path from 'path';
-import {ABSOLUTE_PATH_TOKEN, ExportedMetadata, getRouteMetadata, RouteMetadata} from './router-type-checker';
+import {ExportedMetadata, getRouteMetadata, RouteMetadata} from './router-type-checker';
 import {ApiRouterOptions} from './types';
-import {metadataSnapshot} from '../test-artifacts/typescript-ast/router-type-cheker-spec-metadata-snapshot';
+import {metadataSnapshot} from '../test-artifacts/typescript-ast/router-type-checker-spec-metadata-snapshot';
 import * as appRoot from 'app-root-path';
 
 describe('router-type-checker', () => {
@@ -16,15 +16,18 @@ describe('router-type-checker', () => {
     const apiRoutesFile = path.resolve(path.join(__dirname, '../test-artifacts/typescript-ast/api-routes.ts'));
     const tsConfigfile = path.resolve(path.join(__dirname, '../test-artifacts/typescript-ast/tsconfig.json'));
     const routesDir = path.resolve(path.join(__dirname, '../test-artifacts/typescript-ast'));
-    const options: ApiRouterOptions = {routesDir, appRootDir: appRoot.path, outDir: ''};
-    let routesMetadata: ExportedMetadata, compileError;
+    const options = {
+        routesDir,
+        appRootDir: appRoot.path,
+        outDir: '',
+    } as ApiRouterOptions;
+    let routesMetadata: ExportedMetadata;
+    let compileError;
     try {
-        const meta = getRouteMetadata(tsConfigfile, apiRoutesFile, options);
-        const metaString = JSON.stringify(meta);
-        const metaFixPackageRoot = (metaString as any).replaceAll(appRoot.path, ABSOLUTE_PATH_TOKEN);
-        routesMetadata = JSON.parse(metaFixPackageRoot);
+        routesMetadata = getRouteMetadata(tsConfigfile, apiRoutesFile, options);
         // ####### LOG METADATA ##########
         // console.dir(routesMetadata, {depth: 5});
+        // console.log(JSON.stringify(routesMetadata)); // to update snapshot file
     } catch (e) {
         compileError = e;
     }
