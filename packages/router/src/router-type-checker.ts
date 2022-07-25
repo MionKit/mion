@@ -21,8 +21,8 @@ import {
     AsExpression,
     ParenthesizedExpression,
 } from 'ts-morph';
-import {ABSOLUTE_PATH_TOKEN, API_ROUTE_PARAMS_LENGTH} from './constants';
-import {ApiRouterOptions} from './types';
+import {ABSOLUTE_PATH_TOKEN, API_ROUTE_PARAMS_LENGTH, ROUTE_PARAMETERS_EXPECTED_TYPE_NAME} from './constants';
+import {ApiRouterConfig} from './types';
 import {getAllFillesFromDirectory} from './utils';
 
 export interface TypeInfo {
@@ -62,7 +62,7 @@ export interface ExportedMetadata {
 
 export type FunctionLike = FunctionDeclaration | ArrowFunction | FunctionExpression;
 
-export function getRoutesMetadata(tsConfigFilePath: string, options: ApiRouterOptions): ExportedMetadata {
+export function getRoutesMetadata(tsConfigFilePath: string, options: ApiRouterConfig): ExportedMetadata {
     const files = getAllFillesFromDirectory(options.routesDir);
     const project = new Project({tsConfigFilePath});
     let exportMetadata: ExportedMetadata = {};
@@ -78,7 +78,7 @@ export function getRoutesMetadata(tsConfigFilePath: string, options: ApiRouterOp
 export function getRouteMetadata(
     tsConfigFilePath: string,
     fileName: string,
-    options: ApiRouterOptions,
+    options: ApiRouterConfig,
     project = new Project({tsConfigFilePath}),
 ): ExportedMetadata {
     const rootPath = resolve(options.routesDir);
@@ -252,19 +252,23 @@ function checkIfIsValidNode(node: Node<ts.Node>) {
 
 function validateFunctionParameters(exportName: string, functionNode: FunctionLike, parameters: TypesInfoMap) {
     const parametersArray = Object.values(parameters);
-    const apiDS = parametersArray[1];
-    const fastifyRequest = parametersArray[2];
-    const fastifyReply = parametersArray[3];
+    if (parametersArray.length > API_ROUTE_PARAMS_LENGTH) throw new Error(getInvalidNumberOfParametersMessage(functionNode));
+
     // TODO check the actual ts.Type instead the parameter.name (would require checkint types are assignable)
     // this can be easyly implemented once checker.isAssignableTo gets made public https://github.com/microsoft/TypeScript/pull/9943
-    const invalidApiDSType = apiDS && apiDS.name !== 'ApiDS' && apiDS.type !== 'any';
-    const invalidFastifyRequestType = fastifyRequest && fastifyRequest.name !== 'FastifyRequest' && fastifyRequest.type !== 'any';
-    const invalidFastifyReplyType = fastifyReply && fastifyReply.name !== 'FastifyReply' && fastifyRequest.type !== 'any';
-    if (parametersArray.length > API_ROUTE_PARAMS_LENGTH) throw new Error(getInvalidNumberOfParametersMessage(functionNode));
-    if (invalidApiDSType || invalidFastifyRequestType || invalidFastifyReplyType) {
+    const invalidFastifyRequestType = isValidParameterType(parametersArray, 1);
+    const invalidFastifyReplyType = isValidParameterType(parametersArray, 2);
+    const invalidFastifyInstanceType = isValidParameterType(parametersArray, 3);
+    if (invalidFastifyInstanceType || invalidFastifyRequestType || invalidFastifyReplyType) {
         console.log('parameters', parameters);
         throw new Error(getInvalidparameterTypeMessage(functionNode));
     }
+}
+
+function isValidParameterType(parametersArray: TypeInfo[], paramIndex: number) {
+    const param = parametersArray[paramIndex];
+    const expectedTypeName = ROUTE_PARAMETERS_EXPECTED_TYPE_NAME[paramIndex];
+    return param && param.name !== expectedTypeName && param.type !== 'any';
 }
 
 function findParentvariableStatement(node: Node<ts.Node> | undefined): VariableStatement {
@@ -274,7 +278,7 @@ function findParentvariableStatement(node: Node<ts.Node> | undefined): VariableS
 }
 
 // step required to standarise and sanitise the output object
-function sanitizeOutput(exportMetadata: ExportedMetadata, options: ApiRouterOptions): ExportedMetadata {
+function sanitizeOutput(exportMetadata: ExportedMetadata, options: ApiRouterConfig): ExportedMetadata {
     const metaString = JSON.stringify(exportMetadata);
     const metaFixPackageRoot = (metaString as any).replaceAll(options.appRootDir, ABSOLUTE_PATH_TOKEN);
     return JSON.parse(metaFixPackageRoot);

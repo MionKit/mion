@@ -7,9 +7,10 @@
 
 import * as path from 'path';
 import {ExportedMetadata, getRouteMetadata, RouteMetadata} from './router-type-checker';
-import {ApiRouterOptions} from './types';
+import {ApiRouterConfig} from './types';
 import {metadataSnapshot} from '../test-artifacts/typescript-ast/router-type-checker-spec-metadata-snapshot';
 import * as appRoot from 'app-root-path';
+import {writeFileSync} from 'fs';
 
 describe('router-type-checker', () => {
     // parse main routes api test file to reuse in every tet
@@ -20,14 +21,14 @@ describe('router-type-checker', () => {
         routesDir,
         appRootDir: appRoot.path,
         outDir: '',
-    } as ApiRouterOptions;
+    } as ApiRouterConfig;
     let routesMetadata: ExportedMetadata;
     let compileError;
     try {
         routesMetadata = getRouteMetadata(tsConfigfile, apiRoutesFile, options);
         // ####### LOG METADATA ##########
-        // console.dir(routesMetadata, {depth: 5});
-        // console.log(JSON.stringify(routesMetadata)); // to update snapshot file
+        console.dir(routesMetadata, {depth: 5});
+        // writeFileSync(path.join(routesDir, 'metadata-snapshot.json'), JSON.stringify(routesMetadata));
     } catch (e) {
         compileError = e;
     }
@@ -105,9 +106,9 @@ describe('router-type-checker', () => {
         compareRouteWithExpectedSnapshot(routeMeta, snapshotRoute);
         // ensure correct property types
         expect(routeMeta.metadata.parameters.body.escapedName).toEqual('User');
-        expect(routeMeta.metadata.parameters.api.escapedName).toEqual('ApiDS');
         expect(routeMeta.metadata.parameters.req.escapedName).toEqual('FastifyRequest');
         expect(routeMeta.metadata.parameters.reply.escapedName).toEqual('FastifyReply');
+        expect(routeMeta.metadata.parameters.app.escapedName).toEqual('FastifyInstance');
     });
 
     it('should extrac metadata when exported item is a arrowFunction', () => {

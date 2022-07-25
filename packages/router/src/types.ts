@@ -5,11 +5,8 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 /* eslint-disable @typescript-eslint/ban-types */
-import {FastifyReply, FastifyRequest, RouteShorthandOptions} from 'fastify';
-
-export interface ApiDS {
-    [key: string]: any;
-} // todo: import ApiDS from ORM
+import {FastifyInstance, FastifyReply, FastifyRequest, RouteShorthandOptions} from 'fastify';
+import {IncomingMessage, Server, ServerResponse} from 'http';
 
 /**
  * Fastify like route handler.
@@ -20,13 +17,12 @@ export type ApiRoute<RequestBody, ReplyBody> = (
      */
     body: RequestBody,
 
+    request: FastifyRequest<RequestBody>,
+    reply: FastifyReply<Server, IncomingMessage, ServerResponse, ReplyBody>,
     /**
      * ApiDS application
      */
-    db: ApiDS,
-
-    request: FastifyRequest,
-    reply: FastifyReply,
+    app: FastifyInstance,
 ) => ReplyBody | Promise<ReplyBody>;
 
 /**
@@ -64,7 +60,7 @@ export type ApiRoutesFile = ApiRoutes | ApiRoute<any, any> | ApiRouteOptions<any
 /**
  * Options used to generate the Api foutes
  */
-export interface ApiRouterOptions {
+export interface ApiRouterConfig {
     /**
      * ProjectRoot, required to normalize imports
      */
