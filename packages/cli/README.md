@@ -15,7 +15,7 @@ mikrokit g types
 mikrokit g fastify
 
 ## generate all artifacts in one go (api spec, types and server files)
-apisds g
+MikroKit g
 ```
 
 ## &nbsp;
