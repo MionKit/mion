@@ -1,46 +1,55 @@
 <p align="center">
-  <img alt='API DS, The APi Dashboard' src='./assets/public/logox150.png?raw=true'>
+  <img alt='MikroKit, a mikro kit for Typescript Serverless APIs' src='./assets/public/logox150.png?raw=true'>
 </p>
 <p align="center">
-  <strong>The quick way of building APIs in node.js.</strong><br/>
+  <strong>A mikro kit for Typescript Serverless APIs.</strong><br/>
   Built on top of
-    <a href='https://www.typescriptlang.org/' target='_blank'>Typescript</a> and
-    <a href='https://www.fastify.io/' target='_blank'>Fastify</a>.
+    <a href='https://www.typescriptlang.org/' target='_blank'>Serverless Framework</a> and
+    <a href='https://deepkit.io/' target='_blank'>Deepkit</a>.
 </p>
 
 <p align=center>
-  <img src="https://img.shields.io/travis/apids/apids.svg?style=flat-square&maxAge=86400" alt="Travis" style="max-width:100%;">
+  <img src="https://img.shields.io/travis/mikrokit/mikrokit.svg?style=flat-square&maxAge=86400" alt="Travis" style="max-width:100%;">
   <img src="https://img.shields.io/badge/code_style-prettier-ff69b4.svg?style=flat-square&maxAge=99999999" alt="npm"  style="max-width:100%;">
   <img src="https://img.shields.io/badge/license-MIT-97ca00.svg?style=flat-square&maxAge=99999999" alt="npm"  style="max-width:100%;">
 </p>
 
-&nbsp;&nbsp;&nbsp;&nbsp;
+## `Why another kit/framework`
 
-## `FEATURES`
+Serverless applications have different requirements than conventional server apps.  
+With that in mind **MikroKit is designed to build lightweight Apis,**. It is a very opinionated micro framework with simplicity and speed in mind.
 
-**`Routing`**
+## `MikroKit vs Deepkit`
 
-1. RPC API _<sup>(No REST)</sup>_
-1. File System Based Routing
-1. Opinionated
-1. Simple HTTP Requests
-1. Serverless ready
+[Deepkit](https://deepkit.io/) is an amazing web framework that brings types to the runtime world, it is a full batteries included
+and enterprise grade framework (Web Framework, ORM, HTTP, RPC, Dependency Injection, etc).
+MikroKit uses only the core `runtime types` library from deepkit to produce a minimal framework oriented for serverless Apis.
+
+## `Opinionated`
+
+MikroKit opinions might not always be the best but are taken with quick development and fast code execution in mind.
+
+- Convention over configuration.
+- Prioritizes developer friendliness and performance over existing conventions.
+- Integrating Routing + Data Mapping requires a tight coupling between the two parts (Aka the MikroKit way).
+
+## `Features`
+
+1. [AWS & Serverless framework](https://www.serverless.com/) for your cloud infrastructure
+1. [AWS Cognito](https://aws.amazon.com/cognito/) for user management, sign up emails, password reset, etc
+1. RPC like
+1. File Based Routing
 1. JWT Authentication
-1. Automatic typescript client generation
+1. [Postgress.js](https://github.com/porsager/postgres) for DataBase access.
 1. Access Control List _<sup>(linux-like)</sup>_
-
-**`Data`** (under review, maybe integration with [prisma](https://www.prisma.io/) is a better alternative)
-
-1. Database Mapping
 1. Automatic CRUD operations
-1. Automatic Schema Validation
+1. Automatic Validation and Serialization
+1. Typescript client
 
-&nbsp;&nbsp;&nbsp;&nbsp;
-
-## `RPC API`
+## `RPC like`
 
 ApisDS uses **Remote Procedure Call** style routing, unlike traditional REST apis it
-does not use `GET`, `PUT`, `POST` and `DELETE` methods, It only uses the `POST` method.
+does not use `GET`, `PUT`, `POST` and `DELETE` methods, everything is transmitted using `HTTP POST` method.
 
 Please have a look to this great Presentation for more info about each different type of API and the pros and cons of each one:  
 [Nate Barbettini – API Throwdown: RPC vs REST vs GraphQL, Iterate 2018](https://www.youtube.com/watch?v=IvsANO0qZEg)
@@ -60,12 +69,10 @@ Please have a look to this great Presentation for more info about each different
 | `POST http://myapi.com/users/delete`<br>`BODY {"id":1}`  | `DELETE http://myapi.com/users/1`<br>`BODY NONE` | delete user     |
 | `POST http://myapi.com/users/getAll`<br>`BODY EMPTY`     | `GET http://myapi.com/users` <br>`BODY NONE`     | get All users   |
 
-&nbsp;&nbsp;&nbsp;&nbsp;
-
-## `FILE-SYSTEM BASED ROUTING`
+## `FILE BASED ROUTING`
 
 Routing is based in the file system, generated URLs match the `file path` + `method name` pattern.  
-More info about the router [here](./packages/router/)).
+More info about the router [here](./packages/router/).
 
 **`File`**
 
@@ -102,61 +109,35 @@ Content-Type: application/json
 
 ```
 
-&nbsp;&nbsp;&nbsp;&nbsp;
+## `Quick start`
 
-## `SIMPLE HTTP REQUESTS` <small>(Uder review - This needs a securty audit if implemented)</small>
-
-[Simple http requests](https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS#simple_requests), are request that does not trigguer a CORS preflight request, therefore increasing the application performance.  
-When a simple http request mode is enabled the server response will be sent as content-type: text/plain instead json, therefore metting all the critea for a simple http request.
-
-Please be carefull enabling this feature and only use it for autheticated requests. It is also recomened to disallow yuur app from bein embeding as iframe using the [`X-Frame-Options: SAMEORIGIN`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/X-Frame-Options) policy.
-All data required for the API to work including authentication credentials and query data is sent in the http body.
-
-&nbsp;&nbsp;&nbsp;&nbsp;
-
-## `OPINIONATED`
-
-- Convention over configuration.
-- Prioritizes developer friendliness and performance over existing conventions.
-- Integrate Routing + Data Mapping requires a tight coupling between the two parts (Aka the ApiDS way).
-
-&nbsp;&nbsp;&nbsp;&nbsp;
-
-## `QUICK START`
-
-Install API DS cli.
+Install MikroKit cli.
 
 ```sh
-npm install apids
+npm install mikrokit
 ```
 
 To create your first project.
 
 ```sh
-npx degit https://github.com/apids/apids-strater
+npx degit https://github.com/mikrokit/mikrokit-strater
 ```
-
-&nbsp;&nbsp;&nbsp;&nbsp;
 
 ## `CLI`
 
 ```shell
 ## generate Open Api spec files
-npx apids g openApi
+npx mikrokit g openApi
 
 ## generate Api browser client (typescript)
-npx apids g apiClient
+npx mikrokit g apiClient
 
-## generate Fastify server files
-npx apids g fastify
 
 ## generate all artifacts in one go (api spec, types and server files)
 npx apisds g
 ```
 
-&nbsp;&nbsp;&nbsp;&nbsp;
-
-## `CONTRIBUTING`
+## `Contributing`
 
 The software is provided as it is without guarantees. If you want something done you are welcome to open issues and pull request! 👍 🎊 🎉
 
@@ -195,15 +176,10 @@ npm run format && npm run lint
 npm run build
 ```
 
-&nbsp;&nbsp;&nbsp;&nbsp;
-
 ## &nbsp;
 
 _Powered by:_
 
-![node.js](./assets/other_logos/node.png?raw=true) &nbsp;&nbsp;
-![Typescript](./assets/other_logos/ts.png?raw=true) &nbsp;&nbsp;
-![Open Api](./assets/other_logos/open-api.png?raw=true) &nbsp;&nbsp;
-![Fastify](./assets/other_logos/fastify.js.png?raw=true) &nbsp;&nbsp;
+![aws, deepkit, serverless, postgress.js, mikrokit](./assets/public/tech-stack-830x100.png?raw=true) &nbsp;&nbsp;
 
 _License: [MIT](./LICENSE)_
