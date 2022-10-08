@@ -1,5 +1,5 @@
 <p align="center">
-  <img alt='MikroKit, a mikro kit for Typescript Serverless APIs' src='./assets/public/logox150.png?raw=true'>
+  <img alt='MikroKit, a mikro kit for Typescript Serverless APIs' src='./assets/public/logo.svg?raw=true' width="403" height="150">
 </p>
 <p align="center">
   <strong>Minimal kit for Serverless APIs written in Typescript.</strong><br/>
@@ -25,6 +25,8 @@ With that in mind **MikroKit is designed to build lightweight Apis**. It is a ve
 Mikrokit is inspired by Deepkit, an amazing web framework that brings types to the runtime world, Deepkit is an enterprise grade framework with many features: Web Framework, ORM, HTTP, RPC, Dependency Injection, Admin Dashboard and many more...
 
 MikroKit uses only the core `runtime types` library from deepkit to produce a minimal framework oriented for serverless Apis with all the advantages of runtime types.
+
+![MikroKit loves Deepkit](./assets/public/mikrokit-and-deepkit.png?raw=true)
 
 ## `Opinionated`
 
