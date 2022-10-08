@@ -9,7 +9,7 @@
 
 ```ts
 import {JSONSchema} from 'json-schema-to-typescript';
-import {compile, compileFromFile, Options} from '@apids/generate-client';
+import {compile, compileFromFile, Options} from '@mikrokit/generate-client';
 
 const mySchema = {
   type: 'object',
@@ -55,6 +55,6 @@ export interface MySchema {
 
 ## &nbsp;
 
-![apids](../../assets/public/banner-inversex90.png?raw=true)
+![mikrokit](../../assets/public/banner-inversex90.png?raw=true)
 
 _[MIT](../../LICENSE) LICENSE_

@@ -1,5 +1,5 @@
 /* ########
- * 2021 ApiDS
+ * 2021 MikroKit
  * Author: Ma-jerez
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
@@ -231,7 +231,7 @@ function getInvalidNumberOfParametersMessage(node: Node<ts.Node>) {
 function getInvalidparameterTypeMessage(node: Node<ts.Node>) {
     const info = getSourceCodeInfo(node, false);
     return `Parameters in a Route function have the wrong type.
-    The only valid signature for a route is 'function myRoute(body: any, api: ApiDS, req: FastifyRequest, reply: FastifyReply){}'.
+    The only valid signature for a route is 'function myRoute(body: any, api: MikroKit, req: FastifyRequest, reply: FastifyReply){}'.
     Invalid route found at => ${info.description}\n${info.code}`;
 }
 
