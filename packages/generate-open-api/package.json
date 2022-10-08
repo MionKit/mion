@@ -1,5 +1,5 @@
 {
-  "name": "@apids/generate-open-api",
+  "name": "@mikrokit/generate-open-api",
   "version": "0.0.0",
   "description": "package to generate api spec files from json schema models",
   "keywords": [
@@ -12,7 +12,7 @@
     "swagger"
   ],
   "author": "ma jerez <jerez.m82@gmail.com>",
-  "homepage": "https://github.com/apids/apids/tree/main/packages/generate-open-api#readme",
+  "homepage": "https://github.com/mikrokit/mikrokit/tree/main/packages/generate-open-api#readme",
   "license": "MIT",
   "main": ".dist/generate-open-api.js",
   "types": ".dist/generate-open-api.d.ts",
@@ -25,7 +25,7 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/apids/apids.git"
+    "url": "git+https://github.com/mikrokit/mikrokit.git"
   },
   "scripts": {
     "test": "jest",
@@ -36,7 +36,7 @@
     "build": "rimraf .dist && jest && tsc --build tsconfig.build.json"
   },
   "bugs": {
-    "url": "https://github.com/apids/apids/issues"
+    "url": "https://github.com/mikrokit/mikrokit/issues"
   },
   "devDependencies": {
     "@types/jest": "^27.0.2",

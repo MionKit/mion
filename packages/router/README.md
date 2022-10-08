@@ -1,23 +1,23 @@
 <p align="center">
-  <img alt='API DS, The APi Dashboard' width="" src='../../assets/public/bannerx90.png?raw=true'>
+  <img alt='MikroKit, The APi Dashboard' width="" src='../../assets/public/bannerx90.png?raw=true'>
 </p>
 <p align="center">
   <strong>File based router for
-    <a href='../..' >ApiDs</a> and
+    <a href='../..' >MikroKit</a> and
     <a href='https://www.fastify.io/' target='_blank'>Fastify</a>.
   </strong>
 </p>
 <p align=center>
-  <img src="https://img.shields.io/travis/apids/apids.svg?style=flat-square&maxAge=86400" alt="Travis" style="max-width:100%;">
+  <img src="https://img.shields.io/travis/mikrokit/mikrokit.svg?style=flat-square&maxAge=86400" alt="Travis" style="max-width:100%;">
   <img src="https://img.shields.io/badge/code_style-prettier-ff69b4.svg?style=flat-square&maxAge=99999999" alt="npm"  style="max-width:100%;">
   <img src="https://img.shields.io/badge/license-MIT-97ca00.svg?style=flat-square&maxAge=99999999" alt="npm"  style="max-width:100%;">
 </p>
 
 &nbsp;&nbsp;&nbsp;&nbsp;
 
-# `@apids/router`
+# `@mikrokit/router`
 
-This router follows the **ApiDS RPC** pattern.
+This router follows the **MikroKit RPC** pattern.
 
 **`Requests & Responses`**
 
@@ -67,7 +67,7 @@ Any exported property that does not match the type of `ApiRoute` or `ApiRouteOpt
 **`Using default and named exports:`**
 
 ```js
-import {ApiRoutes, ApiRoute} from '@apids/router/src/types';
+import {ApiRoutes, ApiRoute} from '@mikrokit/router/src/types';
 
 // declaring routes using default export
 const route1: ApiRoute<Request1, Response1> = () => {...};
@@ -84,7 +84,7 @@ export const route3: ApiRoute<Request3, Response3> = () => {...};
 **`Route declaration using ApiRoute:`**
 
 ```ts
-import {ApiRoute} from '@apids/router/src/types';
+import {ApiRoute} from '@mikrokit/router/src/types';
 interface Request {
   name: string;
 }
@@ -93,7 +93,7 @@ interface Reply {
 }
 
 // when adding ApiRoute type all parameters from the function call are automatically infered by typesctipt
-export const sayHello2: ApiRoute<Request, Reply> = (body: Request, db: ApiDS, request: FastifyRequest, reply: FastifyReply) => ({
+export const sayHello2: ApiRoute<Request, Reply> = (body: Request, db: MikroKit, request: FastifyRequest, reply: FastifyReply) => ({
   sentence: `hello ${body.name}`,
 });
 ```
@@ -101,7 +101,7 @@ export const sayHello2: ApiRoute<Request, Reply> = (body: Request, db: ApiDS, re
 **`Route declaration using ApiRouteOptions:`**
 
 ```ts
-import {ApiRouteOptions} from '@apids/router/src/types';
+import {ApiRouteOptions} from '@mikrokit/router/src/types';
 interface Request {
   name: string;
 }
@@ -111,7 +111,7 @@ interface Reply {
 
 // ApiRouteOptions is a wrapper for Fastify Route Options
 export const sayHello3: ApiRouteOptions<Request, Reply> = {
-  handler: (body: Request, db: ApiDS, request: FastifyRequest, reply: FastifyReply) => ({sentence: `hello ${body.name}`}),
+  handler: (body: Request, db: MikroKit, request: FastifyRequest, reply: FastifyReply) => ({sentence: `hello ${body.name}`}),
   version: '1.0.0',
   logLevel: 'debug',
 };
@@ -123,12 +123,12 @@ export const sayHello3: ApiRouteOptions<Request, Reply> = {
 
 Fastify uses Json Schemas for automatic [validation & serialization](https://www.fastify.io/docs/latest/Validation-and-Serialization/).
 
-During compilation you can pass a directory containing all schemas `schemasDir` and ApiDS will evaluate the `Request` and `Response` types of each route <sup>(`ApiRoute<Request, Response>`)</sup> and use it's corresponding schema for automatic validation and serialization. Alternatively you can manually add scehmas and define the schemas for each route as you would [normally do in fastify](https://www.fastify.io/docs/latest/Validation-and-Serialization/).
+During compilation you can pass a directory containing all schemas `schemasDir` and MikroKit will evaluate the `Request` and `Response` types of each route <sup>(`ApiRoute<Request, Response>`)</sup> and use it's corresponding schema for automatic validation and serialization. Alternatively you can manually add scehmas and define the schemas for each route as you would [normally do in fastify](https://www.fastify.io/docs/latest/Validation-and-Serialization/).
 
 **`schema definition`**
 
 ```ts
-import {ApiRouteOptions} from '@apids/router/src/types';
+import {ApiRouteOptions} from '@mikrokit/router/src/types';
 interface User {
   name: string;
 }
@@ -151,7 +151,7 @@ You can use [`vega/ts-json-schema-generator`](https://github.com/vega/ts-json-sc
 
 ```ts
 // file: api/users.ts
-import {ApiRoute} from '@apids/router/src/types';
+import {ApiRoute} from '@mikrokit/router/src/types';
 
 interface Request {
   user_id: number;

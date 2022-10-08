@@ -14,7 +14,7 @@
     "lib": ["es6"],
     "outDir": ".dist",
     "paths": {
-      "@apids/*": ["packages/*"]
+      "@mikrokit/*": ["packages/*"]
     }
   },
   "exclude": ["node_modules", ".dist"]

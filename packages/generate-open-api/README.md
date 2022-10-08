@@ -12,6 +12,6 @@ const generateApiSpecs = require('generate-open-api');
 
 ## &nbsp;
 
-![apids](../../assets/public/banner-inversex90.png?raw=true)
+![mikrokit](../../assets/public/banner-inversex90.png?raw=true)
 
 _[MIT](../../LICENSE) LICENSE_
