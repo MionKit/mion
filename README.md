@@ -176,7 +176,7 @@ npx mikrokit g apiClient
 
 
 ## generate all artifacts in one go (api spec, types and server files)
-npx MikroKit g
+npx mikrokit g
 ```
 
 ## `Contributing`
