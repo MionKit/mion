@@ -13,202 +13,193 @@
   <img src="https://img.shields.io/badge/license-MIT-97ca00.svg?style=flat-square&maxAge=99999999" alt="npm"  style="max-width:100%;">
 </p>
 
-&nbsp;&nbsp;&nbsp;&nbsp;
 
 # `@mikrokit/router`
 
-This router follows the **MikroKit RPC** pattern.
+MikroKit Router uses **Remote Procedure Call** style routing, unlike traditional REST apis it does not use `GET`, `PUT`, `POST` and `DELETE` methods, everything is transmitted using `HTTP POST` method and data is sent/received in the request/response `BODY`.
 
-**`Requests & Responses`**
+**_This router can be used as an standalone router and does not requires to use the full [MikroKit Framework](https://github.com/MikroKit/MikroKit)_**
 
-- Requests are made using only `HTTP POST` method.
-- Data is send and recieved only in the `HTTP BODY`.
-- Data is send and received only in `JSON` format.
 
-A compiling step is used to analyze all your src files and generate a single typescript files containing al the api routes and a single json file containing schemas required for automatic [validation & serialization](https://www.fastify.io/docs/latest/Validation-and-Serialization/).
-Once these two files are generated they can be used an imported normaly into your [fastify](https://www.fastify.io/) server.
+### Rpc VS Rest
 
-## `ROUTES`
+| RPC Like Request                                               | REST Request                                            | Description     |
+| -------------------------------------------------------------- | ------------------------------------------------------- | --------------- |
+| POST `http://myapi.com/users/get`<br>BODY `{"id":1}`           | GET `http://myapi.com/users/1`<br>BODY `NONE`           | Get user by id  |
+| POST `http://myapi.com/users/create`<br>BODY `{"name":"John"}` | POST `http://myapi.com/users`<br>BODY `{"name":"John"}` | Create new user |
+| POST `http://myapi.com/users/delete`<br>BODY `{"id":1}`        | DELETE `http://myapi.com/users/1`<br>BODY `NONE`        | Delete user     |
+| POST `http://myapi.com/users/getAll`<br>BODY `NONE`            | GET `http://myapi.com/users` <br>BODY `NONE`            | Get All users   |
 
-Routes are defined using the `file path` + `method name`, the file extension gets removed from the path.  
-An error will be thrown durin compile time If the file name contains non safe URL characters `encodeURI(path) !== path`.
+Please have a look to this great Presentation for more info about each different type of API and the pros and cons of each one:  
+[Nate Barbettini – API Throwdown: RPC vs REST vs GraphQL, Iterate 2018](https://www.youtube.com/watch?v=IvsANO0qZEg)
 
-```ts
-// file: api/index.ts
 
-// fastify route: api/sayHello
-export function sayHello(body: RequestSchema): ReplySchema {
-  return {sentence: `Hello to ${body.name}`};
-}
-```
+## The router
 
-```ts
-// file: api/users.ts
+Blazing fast router **based in plain javascript objects** so no magic required and no need to manually declare router names. Thanks to the rpc style there is no need for parameters or regular expression parsing when finding a route, just a simple object in memory with all the routes on it, can't get faster than that.
 
-// fastify route: api/users/getById
-export function getById(body: Req): User {
-  return {id: body.id, name: 'Peter'};
-}
+Routes are defined using a plain javascript object, where every field is a route, this also eliminates naming collisions.
 
-// fastify route: api/users/getAll
-export const getAll: ApiRoute<Req, Resp> = (body, ds) => ds.users.getAll();
-```
+This router uses [Deepkit](https://deepkit.io/) runtime types to automatically [validate](https://docs.deepkit.io/english/validation.html) the data send in the request and [serialize](https://docs.deepkit.io/english/serialization.html) the data send in the response.
 
-&nbsp;&nbsp;&nbsp;&nbsp;
 
-## `DECLARING ROUTES USING EXPORTS`
-
-Routes are declared using the [default](https://www.typescriptlang.org/docs/handbook/modules.html#default-exports) or [named](https://www.typescriptlang.org/docs/handbook/modules.html#export) exports and must be of the type [`ApiRoute`](./src/types.ts) or [`ApiRouteOptions`](./src/types.ts). The default export is an object with multiple routes.
-
-The [`ApiRouteOptions`](./src/types.ts) object is similar to the options object in [`fastify.route(options)`](https://www.fastify.io/docs/latest/Routes/#options) except `method` and `url` are not configurable.
-
-Any exported property that does not match the type of `ApiRoute` or `ApiRouteOptions` will cause an error during compilation.
-
-**`Using default and named exports:`**
+## Declaring routes
 
 ```js
-import {ApiRoutes, ApiRoute} from '@mikrokit/router/src/types';
+import {mikroKitRouter} from '@mikrokit/router';
 
-// declaring routes using default export
-const route1: ApiRoute<Request1, Response1> = () => {...};
-const route2: ApiRoute<Request2, Response2> = () => {...};
-export default const routes: ApiRoutes = {
-  route1,
-  route2,
-}
-
-// declaring a route using named export
-export const route3: ApiRoute<Request3, Response3> = () => {...};
-```
-
-**`Route declaration using ApiRoute:`**
-
-```ts
-import {ApiRoute} from '@mikrokit/router/src/types';
-interface Request {
-  name: string;
-}
-interface Reply {
-  sentence: string;
-}
-
-// when adding ApiRoute type all parameters from the function call are automatically infered by typesctipt
-export const sayHello2: ApiRoute<Request, Reply> = (body: Request, db: MikroKit, request: FastifyRequest, reply: FastifyReply) => ({
-  sentence: `hello ${body.name}`,
-});
-```
-
-**`Route declaration using ApiRouteOptions:`**
-
-```ts
-import {ApiRouteOptions} from '@mikrokit/router/src/types';
-interface Request {
-  name: string;
-}
-interface Reply {
-  sentence: string;
-}
-
-// ApiRouteOptions is a wrapper for Fastify Route Options
-export const sayHello3: ApiRouteOptions<Request, Reply> = {
-  handler: (body: Request, db: MikroKit, request: FastifyRequest, reply: FastifyReply) => ({sentence: `hello ${body.name}`}),
-  version: '1.0.0',
-  logLevel: 'debug',
+const sayHello = (name: string) => {
+  return `Hello ${name}.`;
 };
-```
 
-&nbsp;&nbsp;&nbsp;&nbsp;
-
-## `AUTOMATIC VALIDATION & SERIALIZATION USING TYPES`
-
-Fastify uses Json Schemas for automatic [validation & serialization](https://www.fastify.io/docs/latest/Validation-and-Serialization/).
-
-During compilation you can pass a directory containing all schemas `schemasDir` and MikroKit will evaluate the `Request` and `Response` types of each route <sup>(`ApiRoute<Request, Response>`)</sup> and use it's corresponding schema for automatic validation and serialization. Alternatively you can manually add scehmas and define the schemas for each route as you would [normally do in fastify](https://www.fastify.io/docs/latest/Validation-and-Serialization/).
-
-**`schema definition`**
-
-```ts
-import {ApiRouteOptions} from '@mikrokit/router/src/types';
-interface User {
-  name: string;
-}
-interface HelloReply {
-  sentence: string;
-}
-
-export const sayHello: ApiRouteOptions<User, HelloReply> = {
-  handler: () => ({sentence: `hello ${body.name}`}),
-  schema: {
-    body: {$ref: '#other-user'}, // would use #other-user schema instead #user
-    response: {$ref: '#other-hello-reply'}, // would use #other-hello-reply schema instead #hello-reply
-  },
+const sayHello2 = (name1: string, name2: string) => {
+  return `Hello ${name1} and ${name2}.`;
 };
+
+const options = { prefix: 'api/' };
+
+const routes = {
+  sayHello, // api/sayHello
+};
+
+mikroKitRouter.addRoutes(routes, options);
 ```
 
-You can use [`vega/ts-json-schema-generator`](https://github.com/vega/ts-json-schema-generator) to automatically generate the schemas from your Typescript files.
+### Passing function parameters
 
-**`Validation example`**
+The function parameters are passed in the request body in a field with the same name as the called function and must be passed as an array or value if there is only one parameter.
 
-```ts
-// file: api/users.ts
-import {ApiRoute} from '@mikrokit/router/src/types';
 
-interface Request {
-  user_id: number;
+```yml
+# HTTP REQUEST
+URL: https://my.api.com/api/sayHello
+Method: POST
+
+# POST REQUEST 1 BODY (single parameter)
+{
+  "sayHello": "John"
 }
 
-interface User {
+# POST REQUEST 2 BODY (multiple parameters in order)
+{
+  "sayHello2": ["Adan", "Eve"]
+}
+```
+
+### Reading function response
+
+The response gets also returned in a field with the same name as the called function
+
+```yml
+# HTTP RESPONSE
+URL: https://my.api.com/api/sayHello
+
+# POST RESPONSE 1 BODY
+{
+  "sayHello": "Hello John."
+}
+
+# POST RESPONSE 2 BODY
+{
+  "sayHello2": "Hello Adan and Eve."
+}
+```
+
+## Automatic Validation and Serialization
+
+Thanks to Deepkit's magic the type information is available at runtime and the data is auto-magically Validated and Serialized. For mor information please read deepkit's documentation:
+
+* Request [Validation](https://docs.deepkit.io/english/validation.html)
+* Response [Serialization](https://docs.deepkit.io/english/serialization.html)
+
+
+### Request Validation examples
+
+```js
+import {mikroKitRouter} from '@mikrokit/router';
+
+interface Entity {
   id: number;
-  name: string;
-  surname: string;
-}
-
-export const getById: ApiRoute<Request, User> = (body) => {
-  return {id: body.user_id, name: 'Peter', surname: 'Smith'};
 };
 
-export const getById2: ApiRoute<Request, User> = (body) => {
-  // throws a serialization error (server error) as 'surname' is missing
-  return {id: body.user_id, name: 'Peter'} as any;
+const getUser = async (entity: Entity) => {
+  const user = await db.users.getById(entity.id);
+  return user;
 };
+
+const options = { prefix: 'api/' };
+
+const routes = {
+  users: {
+    getUser, // api/users/getUser
+  }
+};
+
+mikroKitRouter.addRoutes(routes, options);
 ```
 
-**`Validation results`**
-
-```http
+```yml
 # HTTP REQUEST
 URL: https://my.api.com/api/users/getById
 Method: POST
 
-# VALID BODY
-{"user_id" : 1}
+# VALID REQUEST BODY
+{
+  "getUser": [ {"id" : 1} ]
+}
 
-# INVALID BODY (user_id is not a number)
-{"user_id" : "1"}
+# INVALID REQUEST BODY (user.id is not a number)
+{
+  "getUser": [ {"id" : "1"} ]
+}
 
-# INVALID BODY (missing parameter user_id)
-{"user_id" : "1"}
+# INVALID REQUEST BODY (missing parameter user.id)
+{
+  "getUser": [ {"ID" : 1} ]
+}
 ```
 
-&nbsp;&nbsp;&nbsp;&nbsp;
+## Route metadata
 
-## `COMPILING ROUTES`
+Routes can be customized using the `@route` decorator.
 
-The `RouterCompiler` reads the `srcDir` where all the route definitions are located and generates a single typescript file containing all routes and a single json file containing all the schemas for validation and serialization.
+```js
+import {mikroKitRouter, route} from '@mikrokit/router';
 
-```ts
-import {routerCompiler} from 'x';
+@route({
+  functionName: 'sayMyName', // renaming the function name
+  validateField: 'name', // field name used to identify the function's parameters data
+  serializeField: 'name', // field name used to identify the function's returned data
+})
+const sayHello = (name: string) => {
+  return `Your name is ${name}.`;
+};
 
-const compiler = routerCompiler({
-  srcDir: './examples',
-  schemasDir: './examples',
-  apiUrlPrefix: 'api',
-  outFile: '.dist/api.ts',
-});
+const options = { prefix: 'api/' };
 
-compiler.parse();
-compiler.save();
+const routes = {
+  sayHello, // api/sayMyName
+};
+
+mikroKitRouter.addRoutes(routes, options);
 ```
+
+```yml
+# HTTP REQUEST (route is api/sayMyName instead api/sayHello )
+URL: https://my.api.com/api/sayMyName 
+Method: POST
+
+# POST REQUEST BODY (function parameters read from "name" instead "sayHello")
+{
+  "name": "Adan"
+}
+
+# POST RESPONSE BODY (function parameters read from "name" instead "sayHello")
+{
+  "name": "Your name is Adan"
+}
+```
+
 
 ## &nbsp;
 

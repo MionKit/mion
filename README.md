@@ -50,7 +50,7 @@ _Simplicity is the best pattern_.
 
 ## `RPC like`
 
-MikroKit uses **Remote Procedure Call** style routing, unlike traditional REST apis it does not use `GET`, `PUT`, `POST` and `DELETE` methods, everything is transmitted using `HTTP POST` method and absolutely all data is sent/received in the request/response `BODY`.
+MikroKit Router uses **Remote Procedure Call** style routing, unlike traditional REST apis it does not use `GET`, `PUT`, `POST` and `DELETE` methods, everything is transmitted using `HTTP POST` method and absolutely all data is sent/received in the request/response `BODY`.
 
 ### Requests & Responses
 
@@ -72,11 +72,11 @@ Please have a look to this great Presentation for more info about each different
 
 ## `Routing`
 
-Blazing fast router **based in module Imports**. Thanks to the rpc style there is no need for parameters or regular expression parsing when finding a route, just a simple object in memory with all the routes on it, can't get faster than that.
+Blazing fast router **based in plain javascript objects** so no magic required and no need to manually declare router names. Thanks to the rpc style there is no need for parameters or regular expression parsing when finding a route, just a simple object in memory with all the routes on it, can't get faster than that.
 
 All data is transmitted in the body, so data that is traditionally send via HTTP headers (like Authorization tokens), is send in the body. _Headers are supposed to be data for/by the server/browser and should not be used in Application level_, this also could prevent some problems with proxies and generate some problem with some other software that relies in headers (0Auth etc).
 
-Routes are just defined using a plain javascript object, where every field is a route, so this also eliminates naming collisions. All data from the Application is sent/returned in the `data` field.  
+Routes are just defined using a plain javascript object, where every field is a route, so this also eliminates naming collisions. All data from the Application is sent/returned in the a field with the same name as the called function.  
 More info about the router [here](./packages/router/).
 
 MikroKit uses deepkit to automatically [validate](https://docs.deepkit.io/english/validation.html) the data send in the request and [serialize](https://docs.deepkit.io/english/serialization.html) the data send in the response.
@@ -116,7 +116,7 @@ mikroKitRouter.addRoutes(routes, options);
 
 ### Request
 
-```
+```yml
 # HTTP REQUEST
 URL: https://my.api.com/api/v1/users/getUser
 Method: POST
@@ -127,7 +127,7 @@ Accept: application/json
 # BODY
 {
   "Authorization": "Bearer <token>"
-  "data: {
+  "data": {
     "id" : 1
   }
 }
@@ -135,7 +135,7 @@ Accept: application/json
 
 ### Response
 
-```
+```yml
 # HTTP RESPONSE
 URL: https://my.api.com/api/v1/users/getUser
 
@@ -146,7 +146,7 @@ Content-Type: application/json; charset=utf-8
 {
   "version" : 1,
   "type" : "User",
-  "data: {
+  "data": {
     "id" : 1,
     "name" : "John"
   }
