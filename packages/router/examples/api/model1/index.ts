@@ -1,7 +1,7 @@
-import {ApiRoute, ApiRouteOptions} from '@apids/router/src/types';
+import {ApiRoute, ApiRouteOptions} from '@mikrokit/router/src/types';
 import {FastifyReply, FastifyRequest} from 'fastify';
 
-export type ApiDS = any;
+export type MikroKit = any;
 
 interface Request {
     username: string;
@@ -18,7 +18,7 @@ interface User {
 }
 
 // exporting a route as a function, we can't declare the correct ApiRoute type for the function
-export function sayHello(body: Request, data: ApiDS, req: FastifyRequest, reply: FastifyReply) {
+export function sayHello(body: Request, data: MikroKit, req: FastifyRequest, reply: FastifyReply) {
     return {sentence: `hello to ${body.username}`};
 }
 
@@ -34,7 +34,7 @@ export const sayHello3 = {
     logLevel: 'debug',
 } as ApiRouteOptions<Request, Response>;
 
-export const getById: ApiRoute<User, User> = async (body: User, ds: ApiDS): Promise<User> => {
+export const getById: ApiRoute<User, User> = async (body: User, ds: MikroKit): Promise<User> => {
     const userId = body.id;
     const user = await ds.users.findById(userId);
     return user;

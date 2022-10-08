@@ -1,5 +1,5 @@
 /* ########
- * 2021 ApiDS
+ * 2021 MikroKit
  * Author: Ma-jerez
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
@@ -7,7 +7,7 @@
 
 // ####### All difrent ways to export an api route #######
 // AST VIEWER USED FOR DEVELOPING https://ts-ast-viewer.com/
-import {ApiRoute, ApiRouteOptions} from '@apids/router/src/types';
+import {ApiRoute, ApiRouteOptions} from '@mikrokit/router/src/types';
 import {FastifyInstance, FastifyReply, FastifyRequest} from 'fastify';
 
 interface Message {

@@ -1,5 +1,5 @@
 {
-  "name": "@apids/generate-client",
+  "name": "@mikrokit/generate-client",
   "version": "0.0.0",
   "description": "package to generate typescript models from json schema",
   "keywords": [
@@ -11,7 +11,7 @@
     "generate"
   ],
   "author": "ma jerez <jerez.m82@gmail.com>",
-  "homepage": "https://github.com/apids/apids/tree/main/packages/generate-client#readme",
+  "homepage": "https://github.com/mikrokit/mikrokit/tree/main/packages/generate-client#readme",
   "license": "MIT",
   "main": ".dist/generate-client.js",
   "types": ".dist/generate-client.d.ts",
@@ -24,7 +24,7 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/apids/apids.git"
+    "url": "git+https://github.com/mikrokit/mikrokit.git"
   },
   "scripts": {
     "test": "jest",
@@ -35,7 +35,7 @@
     "build": "rimraf .dist && jest && tsc --build tsconfig.build.json"
   },
   "bugs": {
-    "url": "https://github.com/apids/apids/issues"
+    "url": "https://github.com/mikrokit/mikrokit/issues"
   },
   "devDependencies": {
     "@types/jest": "^27.0.2",

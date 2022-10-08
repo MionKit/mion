@@ -1,4 +1,4 @@
-import {ApiRoute} from '@apids/router/src/types';
+import {ApiRoute} from '@mikrokit/router/src/types';
 
 interface Request {
     username: string;

@@ -123,16 +123,16 @@ export const metadataSnapshot: any = {
                     },
                 },
                 api: {
-                    type: 'ApiDS',
-                    name: 'ApiDS',
-                    escapedName: 'ApiDS',
-                    fullyQualifiedName: '"/PACKAGE_ROOT/src/types".ApiDS',
-                    type_text: 'import("/PACKAGE_ROOT/src/types").ApiDS',
+                    type: 'MikroKit',
+                    name: 'MikroKit',
+                    escapedName: 'MikroKit',
+                    fullyQualifiedName: '"/PACKAGE_ROOT/src/types".MikroKit',
+                    type_text: 'import("/PACKAGE_ROOT/src/types").MikroKit',
                     aliasType: null,
                     aliasTypeArguments: null,
                     structure: {
                         name: 'api',
-                        type: 'ApiDS',
+                        type: 'MikroKit',
                         isReadonly: false,
                         decorators: [],
                         hasQuestionToken: false,
@@ -145,9 +145,9 @@ export const metadataSnapshot: any = {
                     type: 'FastifyRequest<RouteGenericInterface, Server, IncomingMessage>',
                     name: 'FastifyRequest',
                     escapedName: 'FastifyRequest',
-                    fullyQualifiedName: '"/Users/majerez/Projects/apids/node_modules/fastify/types/request".FastifyRequest',
+                    fullyQualifiedName: '"/Users/majerez/Projects/mikrokit/node_modules/fastify/types/request".FastifyRequest',
                     type_text:
-                        'import("/Users/majerez/Projects/apids/node_modules/fastify/types/request").FastifyRequest<import("/Users/majerez/Projects/apids/node_modules/fastify/types/route").RouteGenericInterface, import("http").Server, import("http").IncomingMessage>',
+                        'import("/Users/majerez/Projects/mikrokit/node_modules/fastify/types/request").FastifyRequest<import("/Users/majerez/Projects/mikrokit/node_modules/fastify/types/route").RouteGenericInterface, import("http").Server, import("http").IncomingMessage>',
                     aliasType: null,
                     aliasTypeArguments: null,
                     structure: {
@@ -165,9 +165,9 @@ export const metadataSnapshot: any = {
                     type: 'FastifyReply<Server, IncomingMessage, ServerResponse, RouteGenericInterface, unknown>',
                     name: 'FastifyReply',
                     escapedName: 'FastifyReply',
-                    fullyQualifiedName: '"/Users/majerez/Projects/apids/node_modules/fastify/types/reply".FastifyReply',
+                    fullyQualifiedName: '"/Users/majerez/Projects/mikrokit/node_modules/fastify/types/reply".FastifyReply',
                     type_text:
-                        'import("/Users/majerez/Projects/apids/node_modules/fastify/types/reply").FastifyReply<import("http").Server, import("http").IncomingMessage, import("http").ServerResponse, import("/Users/majerez/Projects/apids/node_modules/fastify/types/route").RouteGenericInterface, unknown>',
+                        'import("/Users/majerez/Projects/mikrokit/node_modules/fastify/types/reply").FastifyReply<import("http").Server, import("http").IncomingMessage, import("http").ServerResponse, import("/Users/majerez/Projects/mikrokit/node_modules/fastify/types/route").RouteGenericInterface, unknown>',
                     aliasType: null,
                     aliasTypeArguments: null,
                     structure: {
@@ -221,16 +221,16 @@ export const metadataSnapshot: any = {
                     },
                 },
                 api: {
-                    type: 'ApiDS',
-                    name: 'ApiDS',
-                    escapedName: 'ApiDS',
-                    fullyQualifiedName: '"/PACKAGE_ROOT/src/types".ApiDS',
-                    type_text: 'import("/PACKAGE_ROOT/src/types").ApiDS',
+                    type: 'MikroKit',
+                    name: 'MikroKit',
+                    escapedName: 'MikroKit',
+                    fullyQualifiedName: '"/PACKAGE_ROOT/src/types".MikroKit',
+                    type_text: 'import("/PACKAGE_ROOT/src/types").MikroKit',
                     aliasType: null,
                     aliasTypeArguments: null,
                     structure: {
                         name: 'api',
-                        type: 'ApiDS',
+                        type: 'MikroKit',
                         isReadonly: false,
                         decorators: [],
                         hasQuestionToken: false,
@@ -243,9 +243,9 @@ export const metadataSnapshot: any = {
                     type: 'FastifyRequest<RouteGenericInterface, Server, IncomingMessage>',
                     name: 'FastifyRequest',
                     escapedName: 'FastifyRequest',
-                    fullyQualifiedName: '"/Users/majerez/Projects/apids/node_modules/fastify/types/request".FastifyRequest',
+                    fullyQualifiedName: '"/Users/majerez/Projects/mikrokit/node_modules/fastify/types/request".FastifyRequest',
                     type_text:
-                        'import("/Users/majerez/Projects/apids/node_modules/fastify/types/request").FastifyRequest<import("/Users/majerez/Projects/apids/node_modules/fastify/types/route").RouteGenericInterface, import("http").Server, import("http").IncomingMessage>',
+                        'import("/Users/majerez/Projects/mikrokit/node_modules/fastify/types/request").FastifyRequest<import("/Users/majerez/Projects/mikrokit/node_modules/fastify/types/route").RouteGenericInterface, import("http").Server, import("http").IncomingMessage>',
                     aliasType: null,
                     aliasTypeArguments: null,
                     structure: {
@@ -263,9 +263,9 @@ export const metadataSnapshot: any = {
                     type: 'FastifyReply<Server, IncomingMessage, ServerResponse, RouteGenericInterface, unknown>',
                     name: 'FastifyReply',
                     escapedName: 'FastifyReply',
-                    fullyQualifiedName: '"/Users/majerez/Projects/apids/node_modules/fastify/types/reply".FastifyReply',
+                    fullyQualifiedName: '"/Users/majerez/Projects/mikrokit/node_modules/fastify/types/reply".FastifyReply',
                     type_text:
-                        'import("/Users/majerez/Projects/apids/node_modules/fastify/types/reply").FastifyReply<import("http").Server, import("http").IncomingMessage, import("http").ServerResponse, import("/Users/majerez/Projects/apids/node_modules/fastify/types/route").RouteGenericInterface, unknown>',
+                        'import("/Users/majerez/Projects/mikrokit/node_modules/fastify/types/reply").FastifyReply<import("http").Server, import("http").IncomingMessage, import("http").ServerResponse, import("/Users/majerez/Projects/mikrokit/node_modules/fastify/types/route").RouteGenericInterface, unknown>',
                     aliasType: null,
                     aliasTypeArguments: null,
                     structure: {
@@ -318,11 +318,11 @@ export const metadataSnapshot: any = {
                     },
                 },
                 api: {
-                    type: 'ApiDS',
-                    name: 'ApiDS',
-                    escapedName: 'ApiDS',
-                    fullyQualifiedName: '"/PACKAGE_ROOT/src/types".ApiDS',
-                    type_text: 'import("/PACKAGE_ROOT/src/types").ApiDS',
+                    type: 'MikroKit',
+                    name: 'MikroKit',
+                    escapedName: 'MikroKit',
+                    fullyQualifiedName: '"/PACKAGE_ROOT/src/types".MikroKit',
+                    type_text: 'import("/PACKAGE_ROOT/src/types").MikroKit',
                     aliasType: null,
                     aliasTypeArguments: null,
                     structure: {
@@ -339,9 +339,9 @@ export const metadataSnapshot: any = {
                     type: 'FastifyRequest<RouteGenericInterface, Server, IncomingMessage>',
                     name: 'FastifyRequest',
                     escapedName: 'FastifyRequest',
-                    fullyQualifiedName: '"/Users/majerez/Projects/apids/node_modules/fastify/types/request".FastifyRequest',
+                    fullyQualifiedName: '"/Users/majerez/Projects/mikrokit/node_modules/fastify/types/request".FastifyRequest',
                     type_text:
-                        'import("/Users/majerez/Projects/apids/node_modules/fastify/types/request").FastifyRequest<import("/Users/majerez/Projects/apids/node_modules/fastify/types/route").RouteGenericInterface, import("http").Server, import("http").IncomingMessage>',
+                        'import("/Users/majerez/Projects/mikrokit/node_modules/fastify/types/request").FastifyRequest<import("/Users/majerez/Projects/mikrokit/node_modules/fastify/types/route").RouteGenericInterface, import("http").Server, import("http").IncomingMessage>',
                     aliasType: null,
                     aliasTypeArguments: null,
                     structure: {
@@ -358,9 +358,9 @@ export const metadataSnapshot: any = {
                     type: 'FastifyReply<Server, IncomingMessage, ServerResponse, RouteGenericInterface, unknown>',
                     name: 'FastifyReply',
                     escapedName: 'FastifyReply',
-                    fullyQualifiedName: '"/Users/majerez/Projects/apids/node_modules/fastify/types/reply".FastifyReply',
+                    fullyQualifiedName: '"/Users/majerez/Projects/mikrokit/node_modules/fastify/types/reply".FastifyReply',
                     type_text:
-                        'import("/Users/majerez/Projects/apids/node_modules/fastify/types/reply").FastifyReply<import("http").Server, import("http").IncomingMessage, import("http").ServerResponse, import("/Users/majerez/Projects/apids/node_modules/fastify/types/route").RouteGenericInterface, unknown>',
+                        'import("/Users/majerez/Projects/mikrokit/node_modules/fastify/types/reply").FastifyReply<import("http").Server, import("http").IncomingMessage, import("http").ServerResponse, import("/Users/majerez/Projects/mikrokit/node_modules/fastify/types/route").RouteGenericInterface, unknown>',
                     aliasType: null,
                     aliasTypeArguments: null,
                     structure: {
@@ -412,11 +412,11 @@ export const metadataSnapshot: any = {
                     },
                 },
                 api: {
-                    type: 'ApiDS',
-                    name: 'ApiDS',
-                    escapedName: 'ApiDS',
-                    fullyQualifiedName: '"/PACKAGE_ROOT/src/types".ApiDS',
-                    type_text: 'import("/PACKAGE_ROOT/src/types").ApiDS',
+                    type: 'MikroKit',
+                    name: 'MikroKit',
+                    escapedName: 'MikroKit',
+                    fullyQualifiedName: '"/PACKAGE_ROOT/src/types".MikroKit',
+                    type_text: 'import("/PACKAGE_ROOT/src/types").MikroKit',
                     aliasType: null,
                     aliasTypeArguments: null,
                     structure: {
@@ -433,9 +433,9 @@ export const metadataSnapshot: any = {
                     type: 'FastifyRequest<RouteGenericInterface, Server, IncomingMessage>',
                     name: 'FastifyRequest',
                     escapedName: 'FastifyRequest',
-                    fullyQualifiedName: '"/Users/majerez/Projects/apids/node_modules/fastify/types/request".FastifyRequest',
+                    fullyQualifiedName: '"/Users/majerez/Projects/mikrokit/node_modules/fastify/types/request".FastifyRequest',
                     type_text:
-                        'import("/Users/majerez/Projects/apids/node_modules/fastify/types/request").FastifyRequest<import("/Users/majerez/Projects/apids/node_modules/fastify/types/route").RouteGenericInterface, import("http").Server, import("http").IncomingMessage>',
+                        'import("/Users/majerez/Projects/mikrokit/node_modules/fastify/types/request").FastifyRequest<import("/Users/majerez/Projects/mikrokit/node_modules/fastify/types/route").RouteGenericInterface, import("http").Server, import("http").IncomingMessage>',
                     aliasType: null,
                     aliasTypeArguments: null,
                     structure: {
@@ -452,9 +452,9 @@ export const metadataSnapshot: any = {
                     type: 'FastifyReply<Server, IncomingMessage, ServerResponse, RouteGenericInterface, unknown>',
                     name: 'FastifyReply',
                     escapedName: 'FastifyReply',
-                    fullyQualifiedName: '"/Users/majerez/Projects/apids/node_modules/fastify/types/reply".FastifyReply',
+                    fullyQualifiedName: '"/Users/majerez/Projects/mikrokit/node_modules/fastify/types/reply".FastifyReply',
                     type_text:
-                        'import("/Users/majerez/Projects/apids/node_modules/fastify/types/reply").FastifyReply<import("http").Server, import("http").IncomingMessage, import("http").ServerResponse, import("/Users/majerez/Projects/apids/node_modules/fastify/types/route").RouteGenericInterface, unknown>',
+                        'import("/Users/majerez/Projects/mikrokit/node_modules/fastify/types/reply").FastifyReply<import("http").Server, import("http").IncomingMessage, import("http").ServerResponse, import("/Users/majerez/Projects/mikrokit/node_modules/fastify/types/route").RouteGenericInterface, unknown>',
                     aliasType: null,
                     aliasTypeArguments: null,
                     structure: {
@@ -544,11 +544,11 @@ export const metadataSnapshot: any = {
                     },
                 },
                 api: {
-                    type: 'ApiDS',
-                    name: 'ApiDS',
-                    escapedName: 'ApiDS',
-                    fullyQualifiedName: '"/PACKAGE_ROOT/src/types".ApiDS',
-                    type_text: 'import("/PACKAGE_ROOT/src/types").ApiDS',
+                    type: 'MikroKit',
+                    name: 'MikroKit',
+                    escapedName: 'MikroKit',
+                    fullyQualifiedName: '"/PACKAGE_ROOT/src/types".MikroKit',
+                    type_text: 'import("/PACKAGE_ROOT/src/types").MikroKit',
                     aliasType: null,
                     aliasTypeArguments: null,
                     structure: {
@@ -565,9 +565,9 @@ export const metadataSnapshot: any = {
                     type: 'FastifyRequest<RouteGenericInterface, Server, IncomingMessage>',
                     name: 'FastifyRequest',
                     escapedName: 'FastifyRequest',
-                    fullyQualifiedName: '"/Users/majerez/Projects/apids/node_modules/fastify/types/request".FastifyRequest',
+                    fullyQualifiedName: '"/Users/majerez/Projects/mikrokit/node_modules/fastify/types/request".FastifyRequest',
                     type_text:
-                        'import("/Users/majerez/Projects/apids/node_modules/fastify/types/request").FastifyRequest<import("/Users/majerez/Projects/apids/node_modules/fastify/types/route").RouteGenericInterface, import("http").Server, import("http").IncomingMessage>',
+                        'import("/Users/majerez/Projects/mikrokit/node_modules/fastify/types/request").FastifyRequest<import("/Users/majerez/Projects/mikrokit/node_modules/fastify/types/route").RouteGenericInterface, import("http").Server, import("http").IncomingMessage>',
                     aliasType: null,
                     aliasTypeArguments: null,
                     structure: {
@@ -584,9 +584,9 @@ export const metadataSnapshot: any = {
                     type: 'FastifyReply<Server, IncomingMessage, ServerResponse, RouteGenericInterface, unknown>',
                     name: 'FastifyReply',
                     escapedName: 'FastifyReply',
-                    fullyQualifiedName: '"/Users/majerez/Projects/apids/node_modules/fastify/types/reply".FastifyReply',
+                    fullyQualifiedName: '"/Users/majerez/Projects/mikrokit/node_modules/fastify/types/reply".FastifyReply',
                     type_text:
-                        'import("/Users/majerez/Projects/apids/node_modules/fastify/types/reply").FastifyReply<import("http").Server, import("http").IncomingMessage, import("http").ServerResponse, import("/Users/majerez/Projects/apids/node_modules/fastify/types/route").RouteGenericInterface, unknown>',
+                        'import("/Users/majerez/Projects/mikrokit/node_modules/fastify/types/reply").FastifyReply<import("http").Server, import("http").IncomingMessage, import("http").ServerResponse, import("/Users/majerez/Projects/mikrokit/node_modules/fastify/types/route").RouteGenericInterface, unknown>',
                     aliasType: null,
                     aliasTypeArguments: null,
                     structure: {
@@ -638,11 +638,11 @@ export const metadataSnapshot: any = {
                     },
                 },
                 api: {
-                    type: 'ApiDS',
-                    name: 'ApiDS',
-                    escapedName: 'ApiDS',
-                    fullyQualifiedName: '"/PACKAGE_ROOT/src/types".ApiDS',
-                    type_text: 'import("/PACKAGE_ROOT/src/types").ApiDS',
+                    type: 'MikroKit',
+                    name: 'MikroKit',
+                    escapedName: 'MikroKit',
+                    fullyQualifiedName: '"/PACKAGE_ROOT/src/types".MikroKit',
+                    type_text: 'import("/PACKAGE_ROOT/src/types").MikroKit',
                     aliasType: null,
                     aliasTypeArguments: null,
                     structure: {
@@ -659,9 +659,9 @@ export const metadataSnapshot: any = {
                     type: 'FastifyRequest<RouteGenericInterface, Server, IncomingMessage>',
                     name: 'FastifyRequest',
                     escapedName: 'FastifyRequest',
-                    fullyQualifiedName: '"/Users/majerez/Projects/apids/node_modules/fastify/types/request".FastifyRequest',
+                    fullyQualifiedName: '"/Users/majerez/Projects/mikrokit/node_modules/fastify/types/request".FastifyRequest',
                     type_text:
-                        'import("/Users/majerez/Projects/apids/node_modules/fastify/types/request").FastifyRequest<import("/Users/majerez/Projects/apids/node_modules/fastify/types/route").RouteGenericInterface, import("http").Server, import("http").IncomingMessage>',
+                        'import("/Users/majerez/Projects/mikrokit/node_modules/fastify/types/request").FastifyRequest<import("/Users/majerez/Projects/mikrokit/node_modules/fastify/types/route").RouteGenericInterface, import("http").Server, import("http").IncomingMessage>',
                     aliasType: null,
                     aliasTypeArguments: null,
                     structure: {
@@ -678,9 +678,9 @@ export const metadataSnapshot: any = {
                     type: 'FastifyReply<Server, IncomingMessage, ServerResponse, RouteGenericInterface, unknown>',
                     name: 'FastifyReply',
                     escapedName: 'FastifyReply',
-                    fullyQualifiedName: '"/Users/majerez/Projects/apids/node_modules/fastify/types/reply".FastifyReply',
+                    fullyQualifiedName: '"/Users/majerez/Projects/mikrokit/node_modules/fastify/types/reply".FastifyReply',
                     type_text:
-                        'import("/Users/majerez/Projects/apids/node_modules/fastify/types/reply").FastifyReply<import("http").Server, import("http").IncomingMessage, import("http").ServerResponse, import("/Users/majerez/Projects/apids/node_modules/fastify/types/route").RouteGenericInterface, unknown>',
+                        'import("/Users/majerez/Projects/mikrokit/node_modules/fastify/types/reply").FastifyReply<import("http").Server, import("http").IncomingMessage, import("http").ServerResponse, import("/Users/majerez/Projects/mikrokit/node_modules/fastify/types/route").RouteGenericInterface, unknown>',
                     aliasType: null,
                     aliasTypeArguments: null,
                     structure: {
@@ -732,11 +732,11 @@ export const metadataSnapshot: any = {
                     },
                 },
                 api: {
-                    type: 'ApiDS',
-                    name: 'ApiDS',
-                    escapedName: 'ApiDS',
-                    fullyQualifiedName: '"/PACKAGE_ROOT/src/types".ApiDS',
-                    type_text: 'import("/PACKAGE_ROOT/src/types").ApiDS',
+                    type: 'MikroKit',
+                    name: 'MikroKit',
+                    escapedName: 'MikroKit',
+                    fullyQualifiedName: '"/PACKAGE_ROOT/src/types".MikroKit',
+                    type_text: 'import("/PACKAGE_ROOT/src/types").MikroKit',
                     aliasType: null,
                     aliasTypeArguments: null,
                     structure: {
@@ -753,9 +753,9 @@ export const metadataSnapshot: any = {
                     type: 'FastifyRequest<RouteGenericInterface, Server, IncomingMessage>',
                     name: 'FastifyRequest',
                     escapedName: 'FastifyRequest',
-                    fullyQualifiedName: '"/Users/majerez/Projects/apids/node_modules/fastify/types/request".FastifyRequest',
+                    fullyQualifiedName: '"/Users/majerez/Projects/mikrokit/node_modules/fastify/types/request".FastifyRequest',
                     type_text:
-                        'import("/Users/majerez/Projects/apids/node_modules/fastify/types/request").FastifyRequest<import("/Users/majerez/Projects/apids/node_modules/fastify/types/route").RouteGenericInterface, import("http").Server, import("http").IncomingMessage>',
+                        'import("/Users/majerez/Projects/mikrokit/node_modules/fastify/types/request").FastifyRequest<import("/Users/majerez/Projects/mikrokit/node_modules/fastify/types/route").RouteGenericInterface, import("http").Server, import("http").IncomingMessage>',
                     aliasType: null,
                     aliasTypeArguments: null,
                     structure: {
@@ -772,9 +772,9 @@ export const metadataSnapshot: any = {
                     type: 'FastifyReply<Server, IncomingMessage, ServerResponse, RouteGenericInterface, unknown>',
                     name: 'FastifyReply',
                     escapedName: 'FastifyReply',
-                    fullyQualifiedName: '"/Users/majerez/Projects/apids/node_modules/fastify/types/reply".FastifyReply',
+                    fullyQualifiedName: '"/Users/majerez/Projects/mikrokit/node_modules/fastify/types/reply".FastifyReply',
                     type_text:
-                        'import("/Users/majerez/Projects/apids/node_modules/fastify/types/reply").FastifyReply<import("http").Server, import("http").IncomingMessage, import("http").ServerResponse, import("/Users/majerez/Projects/apids/node_modules/fastify/types/route").RouteGenericInterface, unknown>',
+                        'import("/Users/majerez/Projects/mikrokit/node_modules/fastify/types/reply").FastifyReply<import("http").Server, import("http").IncomingMessage, import("http").ServerResponse, import("/Users/majerez/Projects/mikrokit/node_modules/fastify/types/route").RouteGenericInterface, unknown>',
                     aliasType: null,
                     aliasTypeArguments: null,
                     structure: {
@@ -826,11 +826,11 @@ export const metadataSnapshot: any = {
                     },
                 },
                 api: {
-                    type: 'ApiDS',
-                    name: 'ApiDS',
-                    escapedName: 'ApiDS',
-                    fullyQualifiedName: '"/PACKAGE_ROOT/src/types".ApiDS',
-                    type_text: 'import("/PACKAGE_ROOT/src/types").ApiDS',
+                    type: 'MikroKit',
+                    name: 'MikroKit',
+                    escapedName: 'MikroKit',
+                    fullyQualifiedName: '"/PACKAGE_ROOT/src/types".MikroKit',
+                    type_text: 'import("/PACKAGE_ROOT/src/types").MikroKit',
                     aliasType: null,
                     aliasTypeArguments: null,
                     structure: {
@@ -847,9 +847,9 @@ export const metadataSnapshot: any = {
                     type: 'FastifyRequest<RouteGenericInterface, Server, IncomingMessage>',
                     name: 'FastifyRequest',
                     escapedName: 'FastifyRequest',
-                    fullyQualifiedName: '"/Users/majerez/Projects/apids/node_modules/fastify/types/request".FastifyRequest',
+                    fullyQualifiedName: '"/Users/majerez/Projects/mikrokit/node_modules/fastify/types/request".FastifyRequest',
                     type_text:
-                        'import("/Users/majerez/Projects/apids/node_modules/fastify/types/request").FastifyRequest<import("/Users/majerez/Projects/apids/node_modules/fastify/types/route").RouteGenericInterface, import("http").Server, import("http").IncomingMessage>',
+                        'import("/Users/majerez/Projects/mikrokit/node_modules/fastify/types/request").FastifyRequest<import("/Users/majerez/Projects/mikrokit/node_modules/fastify/types/route").RouteGenericInterface, import("http").Server, import("http").IncomingMessage>',
                     aliasType: null,
                     aliasTypeArguments: null,
                     structure: {
@@ -866,9 +866,9 @@ export const metadataSnapshot: any = {
                     type: 'FastifyReply<Server, IncomingMessage, ServerResponse, RouteGenericInterface, unknown>',
                     name: 'FastifyReply',
                     escapedName: 'FastifyReply',
-                    fullyQualifiedName: '"/Users/majerez/Projects/apids/node_modules/fastify/types/reply".FastifyReply',
+                    fullyQualifiedName: '"/Users/majerez/Projects/mikrokit/node_modules/fastify/types/reply".FastifyReply',
                     type_text:
-                        'import("/Users/majerez/Projects/apids/node_modules/fastify/types/reply").FastifyReply<import("http").Server, import("http").IncomingMessage, import("http").ServerResponse, import("/Users/majerez/Projects/apids/node_modules/fastify/types/route").RouteGenericInterface, unknown>',
+                        'import("/Users/majerez/Projects/mikrokit/node_modules/fastify/types/reply").FastifyReply<import("http").Server, import("http").IncomingMessage, import("http").ServerResponse, import("/Users/majerez/Projects/mikrokit/node_modules/fastify/types/route").RouteGenericInterface, unknown>',
                     aliasType: null,
                     aliasTypeArguments: null,
                     structure: {
@@ -935,11 +935,11 @@ export const metadataSnapshot: any = {
                     },
                 },
                 api: {
-                    type: 'ApiDS',
-                    name: 'ApiDS',
-                    escapedName: 'ApiDS',
-                    fullyQualifiedName: '"/PACKAGE_ROOT/src/types".ApiDS',
-                    type_text: 'import("/PACKAGE_ROOT/src/types").ApiDS',
+                    type: 'MikroKit',
+                    name: 'MikroKit',
+                    escapedName: 'MikroKit',
+                    fullyQualifiedName: '"/PACKAGE_ROOT/src/types".MikroKit',
+                    type_text: 'import("/PACKAGE_ROOT/src/types").MikroKit',
                     aliasType: null,
                     aliasTypeArguments: null,
                     structure: {
@@ -956,9 +956,9 @@ export const metadataSnapshot: any = {
                     type: 'FastifyRequest<RouteGenericInterface, Server, IncomingMessage>',
                     name: 'FastifyRequest',
                     escapedName: 'FastifyRequest',
-                    fullyQualifiedName: '"/Users/majerez/Projects/apids/node_modules/fastify/types/request".FastifyRequest',
+                    fullyQualifiedName: '"/Users/majerez/Projects/mikrokit/node_modules/fastify/types/request".FastifyRequest',
                     type_text:
-                        'import("/Users/majerez/Projects/apids/node_modules/fastify/types/request").FastifyRequest<import("/Users/majerez/Projects/apids/node_modules/fastify/types/route").RouteGenericInterface, import("http").Server, import("http").IncomingMessage>',
+                        'import("/Users/majerez/Projects/mikrokit/node_modules/fastify/types/request").FastifyRequest<import("/Users/majerez/Projects/mikrokit/node_modules/fastify/types/route").RouteGenericInterface, import("http").Server, import("http").IncomingMessage>',
                     aliasType: null,
                     aliasTypeArguments: null,
                     structure: {
@@ -975,9 +975,9 @@ export const metadataSnapshot: any = {
                     type: 'FastifyReply<Server, IncomingMessage, ServerResponse, RouteGenericInterface, unknown>',
                     name: 'FastifyReply',
                     escapedName: 'FastifyReply',
-                    fullyQualifiedName: '"/Users/majerez/Projects/apids/node_modules/fastify/types/reply".FastifyReply',
+                    fullyQualifiedName: '"/Users/majerez/Projects/mikrokit/node_modules/fastify/types/reply".FastifyReply',
                     type_text:
-                        'import("/Users/majerez/Projects/apids/node_modules/fastify/types/reply").FastifyReply<import("http").Server, import("http").IncomingMessage, import("http").ServerResponse, import("/Users/majerez/Projects/apids/node_modules/fastify/types/route").RouteGenericInterface, unknown>',
+                        'import("/Users/majerez/Projects/mikrokit/node_modules/fastify/types/reply").FastifyReply<import("http").Server, import("http").IncomingMessage, import("http").ServerResponse, import("/Users/majerez/Projects/mikrokit/node_modules/fastify/types/route").RouteGenericInterface, unknown>',
                     aliasType: null,
                     aliasTypeArguments: null,
                     structure: {
@@ -1030,16 +1030,16 @@ export const metadataSnapshot: any = {
                     },
                 },
                 ds: {
-                    type: 'ApiDS',
-                    name: 'ApiDS',
-                    escapedName: 'ApiDS',
-                    fullyQualifiedName: '"/PACKAGE_ROOT/src/types".ApiDS',
-                    type_text: 'import("/PACKAGE_ROOT/src/types").ApiDS',
+                    type: 'MikroKit',
+                    name: 'MikroKit',
+                    escapedName: 'MikroKit',
+                    fullyQualifiedName: '"/PACKAGE_ROOT/src/types".MikroKit',
+                    type_text: 'import("/PACKAGE_ROOT/src/types").MikroKit',
                     aliasType: null,
                     aliasTypeArguments: null,
                     structure: {
                         name: 'ds',
-                        type: 'ApiDS',
+                        type: 'MikroKit',
                         isReadonly: false,
                         decorators: [],
                         hasQuestionToken: false,
@@ -1092,11 +1092,11 @@ export const metadataSnapshot: any = {
                     },
                 },
                 api: {
-                    type: 'ApiDS',
-                    name: 'ApiDS',
-                    escapedName: 'ApiDS',
-                    fullyQualifiedName: '"/PACKAGE_ROOT/src/types".ApiDS',
-                    type_text: 'import("/PACKAGE_ROOT/src/types").ApiDS',
+                    type: 'MikroKit',
+                    name: 'MikroKit',
+                    escapedName: 'MikroKit',
+                    fullyQualifiedName: '"/PACKAGE_ROOT/src/types".MikroKit',
+                    type_text: 'import("/PACKAGE_ROOT/src/types").MikroKit',
                     aliasType: null,
                     aliasTypeArguments: null,
                     structure: {
@@ -1113,9 +1113,9 @@ export const metadataSnapshot: any = {
                     type: 'FastifyRequest<RouteGenericInterface, Server, IncomingMessage>',
                     name: 'FastifyRequest',
                     escapedName: 'FastifyRequest',
-                    fullyQualifiedName: '"/Users/majerez/Projects/apids/node_modules/fastify/types/request".FastifyRequest',
+                    fullyQualifiedName: '"/Users/majerez/Projects/mikrokit/node_modules/fastify/types/request".FastifyRequest',
                     type_text:
-                        'import("/Users/majerez/Projects/apids/node_modules/fastify/types/request").FastifyRequest<import("/Users/majerez/Projects/apids/node_modules/fastify/types/route").RouteGenericInterface, import("http").Server, import("http").IncomingMessage>',
+                        'import("/Users/majerez/Projects/mikrokit/node_modules/fastify/types/request").FastifyRequest<import("/Users/majerez/Projects/mikrokit/node_modules/fastify/types/route").RouteGenericInterface, import("http").Server, import("http").IncomingMessage>',
                     aliasType: null,
                     aliasTypeArguments: null,
                     structure: {
@@ -1132,9 +1132,9 @@ export const metadataSnapshot: any = {
                     type: 'FastifyReply<Server, IncomingMessage, ServerResponse, RouteGenericInterface, unknown>',
                     name: 'FastifyReply',
                     escapedName: 'FastifyReply',
-                    fullyQualifiedName: '"/Users/majerez/Projects/apids/node_modules/fastify/types/reply".FastifyReply',
+                    fullyQualifiedName: '"/Users/majerez/Projects/mikrokit/node_modules/fastify/types/reply".FastifyReply',
                     type_text:
-                        'import("/Users/majerez/Projects/apids/node_modules/fastify/types/reply").FastifyReply<import("http").Server, import("http").IncomingMessage, import("http").ServerResponse, import("/Users/majerez/Projects/apids/node_modules/fastify/types/route").RouteGenericInterface, unknown>',
+                        'import("/Users/majerez/Projects/mikrokit/node_modules/fastify/types/reply").FastifyReply<import("http").Server, import("http").IncomingMessage, import("http").ServerResponse, import("/Users/majerez/Projects/mikrokit/node_modules/fastify/types/route").RouteGenericInterface, unknown>',
                     aliasType: null,
                     aliasTypeArguments: null,
                     structure: {
@@ -1186,11 +1186,11 @@ export const metadataSnapshot: any = {
                     },
                 },
                 api: {
-                    type: 'ApiDS',
-                    name: 'ApiDS',
-                    escapedName: 'ApiDS',
-                    fullyQualifiedName: '"/PACKAGE_ROOT/src/types".ApiDS',
-                    type_text: 'import("/PACKAGE_ROOT/src/types").ApiDS',
+                    type: 'MikroKit',
+                    name: 'MikroKit',
+                    escapedName: 'MikroKit',
+                    fullyQualifiedName: '"/PACKAGE_ROOT/src/types".MikroKit',
+                    type_text: 'import("/PACKAGE_ROOT/src/types").MikroKit',
                     aliasType: null,
                     aliasTypeArguments: null,
                     structure: {
@@ -1207,9 +1207,9 @@ export const metadataSnapshot: any = {
                     type: 'FastifyRequest<RouteGenericInterface, Server, IncomingMessage>',
                     name: 'FastifyRequest',
                     escapedName: 'FastifyRequest',
-                    fullyQualifiedName: '"/Users/majerez/Projects/apids/node_modules/fastify/types/request".FastifyRequest',
+                    fullyQualifiedName: '"/Users/majerez/Projects/mikrokit/node_modules/fastify/types/request".FastifyRequest',
                     type_text:
-                        'import("/Users/majerez/Projects/apids/node_modules/fastify/types/request").FastifyRequest<import("/Users/majerez/Projects/apids/node_modules/fastify/types/route").RouteGenericInterface, import("http").Server, import("http").IncomingMessage>',
+                        'import("/Users/majerez/Projects/mikrokit/node_modules/fastify/types/request").FastifyRequest<import("/Users/majerez/Projects/mikrokit/node_modules/fastify/types/route").RouteGenericInterface, import("http").Server, import("http").IncomingMessage>',
                     aliasType: null,
                     aliasTypeArguments: null,
                     structure: {
@@ -1226,9 +1226,9 @@ export const metadataSnapshot: any = {
                     type: 'FastifyReply<Server, IncomingMessage, ServerResponse, RouteGenericInterface, unknown>',
                     name: 'FastifyReply',
                     escapedName: 'FastifyReply',
-                    fullyQualifiedName: '"/Users/majerez/Projects/apids/node_modules/fastify/types/reply".FastifyReply',
+                    fullyQualifiedName: '"/Users/majerez/Projects/mikrokit/node_modules/fastify/types/reply".FastifyReply',
                     type_text:
-                        'import("/Users/majerez/Projects/apids/node_modules/fastify/types/reply").FastifyReply<import("http").Server, import("http").IncomingMessage, import("http").ServerResponse, import("/Users/majerez/Projects/apids/node_modules/fastify/types/route").RouteGenericInterface, unknown>',
+                        'import("/Users/majerez/Projects/mikrokit/node_modules/fastify/types/reply").FastifyReply<import("http").Server, import("http").IncomingMessage, import("http").ServerResponse, import("/Users/majerez/Projects/mikrokit/node_modules/fastify/types/route").RouteGenericInterface, unknown>',
                     aliasType: null,
                     aliasTypeArguments: null,
                     structure: {
@@ -1280,11 +1280,11 @@ export const metadataSnapshot: any = {
                     },
                 },
                 api: {
-                    type: 'ApiDS',
-                    name: 'ApiDS',
-                    escapedName: 'ApiDS',
-                    fullyQualifiedName: '"/PACKAGE_ROOT/src/types".ApiDS',
-                    type_text: 'import("/PACKAGE_ROOT/src/types").ApiDS',
+                    type: 'MikroKit',
+                    name: 'MikroKit',
+                    escapedName: 'MikroKit',
+                    fullyQualifiedName: '"/PACKAGE_ROOT/src/types".MikroKit',
+                    type_text: 'import("/PACKAGE_ROOT/src/types").MikroKit',
                     aliasType: null,
                     aliasTypeArguments: null,
                     structure: {
@@ -1301,9 +1301,9 @@ export const metadataSnapshot: any = {
                     type: 'FastifyRequest<RouteGenericInterface, Server, IncomingMessage>',
                     name: 'FastifyRequest',
                     escapedName: 'FastifyRequest',
-                    fullyQualifiedName: '"/Users/majerez/Projects/apids/node_modules/fastify/types/request".FastifyRequest',
+                    fullyQualifiedName: '"/Users/majerez/Projects/mikrokit/node_modules/fastify/types/request".FastifyRequest',
                     type_text:
-                        'import("/Users/majerez/Projects/apids/node_modules/fastify/types/request").FastifyRequest<import("/Users/majerez/Projects/apids/node_modules/fastify/types/route").RouteGenericInterface, import("http").Server, import("http").IncomingMessage>',
+                        'import("/Users/majerez/Projects/mikrokit/node_modules/fastify/types/request").FastifyRequest<import("/Users/majerez/Projects/mikrokit/node_modules/fastify/types/route").RouteGenericInterface, import("http").Server, import("http").IncomingMessage>',
                     aliasType: null,
                     aliasTypeArguments: null,
                     structure: {
@@ -1320,9 +1320,9 @@ export const metadataSnapshot: any = {
                     type: 'FastifyReply<Server, IncomingMessage, ServerResponse, RouteGenericInterface, unknown>',
                     name: 'FastifyReply',
                     escapedName: 'FastifyReply',
-                    fullyQualifiedName: '"/Users/majerez/Projects/apids/node_modules/fastify/types/reply".FastifyReply',
+                    fullyQualifiedName: '"/Users/majerez/Projects/mikrokit/node_modules/fastify/types/reply".FastifyReply',
                     type_text:
-                        'import("/Users/majerez/Projects/apids/node_modules/fastify/types/reply").FastifyReply<import("http").Server, import("http").IncomingMessage, import("http").ServerResponse, import("/Users/majerez/Projects/apids/node_modules/fastify/types/route").RouteGenericInterface, unknown>',
+                        'import("/Users/majerez/Projects/mikrokit/node_modules/fastify/types/reply").FastifyReply<import("http").Server, import("http").IncomingMessage, import("http").ServerResponse, import("/Users/majerez/Projects/mikrokit/node_modules/fastify/types/route").RouteGenericInterface, unknown>',
                     aliasType: null,
                     aliasTypeArguments: null,
                     structure: {
@@ -1374,11 +1374,11 @@ export const metadataSnapshot: any = {
                     },
                 },
                 api: {
-                    type: 'ApiDS',
-                    name: 'ApiDS',
-                    escapedName: 'ApiDS',
-                    fullyQualifiedName: '"/PACKAGE_ROOT/src/types".ApiDS',
-                    type_text: 'import("/PACKAGE_ROOT/src/types").ApiDS',
+                    type: 'MikroKit',
+                    name: 'MikroKit',
+                    escapedName: 'MikroKit',
+                    fullyQualifiedName: '"/PACKAGE_ROOT/src/types".MikroKit',
+                    type_text: 'import("/PACKAGE_ROOT/src/types").MikroKit',
                     aliasType: null,
                     aliasTypeArguments: null,
                     structure: {
@@ -1395,9 +1395,9 @@ export const metadataSnapshot: any = {
                     type: 'FastifyRequest<RouteGenericInterface, Server, IncomingMessage>',
                     name: 'FastifyRequest',
                     escapedName: 'FastifyRequest',
-                    fullyQualifiedName: '"/Users/majerez/Projects/apids/node_modules/fastify/types/request".FastifyRequest',
+                    fullyQualifiedName: '"/Users/majerez/Projects/mikrokit/node_modules/fastify/types/request".FastifyRequest',
                     type_text:
-                        'import("/Users/majerez/Projects/apids/node_modules/fastify/types/request").FastifyRequest<import("/Users/majerez/Projects/apids/node_modules/fastify/types/route").RouteGenericInterface, import("http").Server, import("http").IncomingMessage>',
+                        'import("/Users/majerez/Projects/mikrokit/node_modules/fastify/types/request").FastifyRequest<import("/Users/majerez/Projects/mikrokit/node_modules/fastify/types/route").RouteGenericInterface, import("http").Server, import("http").IncomingMessage>',
                     aliasType: null,
                     aliasTypeArguments: null,
                     structure: {
@@ -1414,9 +1414,9 @@ export const metadataSnapshot: any = {
                     type: 'FastifyReply<Server, IncomingMessage, ServerResponse, RouteGenericInterface, unknown>',
                     name: 'FastifyReply',
                     escapedName: 'FastifyReply',
-                    fullyQualifiedName: '"/Users/majerez/Projects/apids/node_modules/fastify/types/reply".FastifyReply',
+                    fullyQualifiedName: '"/Users/majerez/Projects/mikrokit/node_modules/fastify/types/reply".FastifyReply',
                     type_text:
-                        'import("/Users/majerez/Projects/apids/node_modules/fastify/types/reply").FastifyReply<import("http").Server, import("http").IncomingMessage, import("http").ServerResponse, import("/Users/majerez/Projects/apids/node_modules/fastify/types/route").RouteGenericInterface, unknown>',
+                        'import("/Users/majerez/Projects/mikrokit/node_modules/fastify/types/reply").FastifyReply<import("http").Server, import("http").IncomingMessage, import("http").ServerResponse, import("/Users/majerez/Projects/mikrokit/node_modules/fastify/types/route").RouteGenericInterface, unknown>',
                     aliasType: null,
                     aliasTypeArguments: null,
                     structure: {
