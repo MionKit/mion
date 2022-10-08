@@ -20,13 +20,13 @@ Serverless applications have different requirements than conventional server app
 
 With that in mind **MikroKit is designed to build lightweight Apis**. It is a very opinionated micro framework with simplicity and speed in mind.
 
-### MikroKit vs [Deepkit](https://deepkit.io/)
+### MikroKit vs Deepkit
 
-Mikrokit is inspired by Deepkit, an amazing web framework that brings types to the runtime world, Deepkit is an enterprise grade framework with many features: Web Framework, ORM, HTTP, RPC, Dependency Injection, Admin Dashboard and many more...
+Deepkit is an amazing web new framework that brings types to the runtime world, with a full batteries included philosophy an even if it is still in beta it could be considered enterprise grade framework with many features: Web Framework, ORM, HTTP, RPC, Dependency Injection, Admin Dashboard and many more...
+
+[![Deepkit](./assets/other_logos/deepkit_text.svg?raw=true)](https://deepkit.io/)
 
 MikroKit uses only the core `runtime types` library from deepkit to produce a minimal framework oriented for serverless Apis with all the advantages of runtime types.
-
-![MikroKit loves Deepkit](./assets/public/mikrokit-and-deepkit.png?raw=true)
 
 ## `Opinionated`
 
