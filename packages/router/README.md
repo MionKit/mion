@@ -39,6 +39,8 @@ This router uses [Deepkit](https://deepkit.io/) runtime types to automatically [
 
 ## Declaring routes
 
+Routes are defined using a plain javascript object, where every property is a route.
+
 ```js
 import {mikroKitRouter} from '@mikrokit/router';
 
@@ -54,6 +56,7 @@ const options = {prefix: 'api/'};
 
 const routes = {
   sayHello, // api/sayHello
+  sayHello2, // api/sayHello2
 };
 
 mikroKitRouter.addRoutes(routes, options);
@@ -147,8 +150,9 @@ mikroKitRouter.addRoutes(routes, apiOptions);
 
 ## Execution Order
 
-The order in which `routes` and `hook functions` are added to the router is important as they will be executed in exactly the same order they where declared. hooks wont generate any route and can't be called alone, they are just added to the router to indicate the exact point on where the hook is executed.
-For better performance An execution path is generated for every route.
+The order in which `routes` and `hook functions` are added to the router is important as they will be executed in the same order they where declared. hooks wont generate any route and can't be called alone, they are just added to the router to indicate the exact point on where the hook is executed. An execution path is generated for every route.
+
+**_To guarantee the correct execution order of hooks and routes, <span style="color:orange">the properties of the router CAN NOT BE numeric or digits only.</span>_** An error will thrown when adding routes with `mikroKitRouter.addRoutes`. More info about javascript properties order [here](https://stackoverflow.com/questions/5525795/does-javascript-guarantee-object-property-order) and [here](https://www.stefanjudis.com/today-i-learned/property-order-is-predictable-in-javascript-objects-since-es2015/).
 
 ```js
 const routes = {
@@ -164,7 +168,18 @@ const routes = {
   loggingHook, // hook, forceExecutionOnError = true
 };
 
+const invalidRoutes = {
+  authorizationHook, // hook
+  1: { // invalid (this would execute before the authorizationHook)
+    getFoo, // route
+  },
+  '2': { // invalid (this would execute before the authorizationHook)
+    getBar, // route
+  }
+}
+
 mikroKitRouter.addRoutes(routes);
+mikroKitRouter.addRoutes(invalidRoutes); // throws an error
 ```
 
 `route: users/getUser`

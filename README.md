@@ -75,7 +75,7 @@ Blazing fast router **based in plain javascript objects** so no magic required a
 
 All data is transmitted in the body, so data that is traditionally send via HTTP headers (like Authorization tokens), is send in the body. _Headers are supposed to be data for/by the server/browser and should not be used in Application level_, this also could prevent some problems with proxies and generate some problem with some other software that relies in headers (0Auth etc).
 
-Routes are just defined using a plain javascript object, where every property is a route, so this also eliminates naming collisions. Data to the for the called function is send in the `params` field and data returned is send back in the `response` field.  
+Routes are defined using a plain javascript object, where every property is a route, so this also eliminates naming collisions. Data to the for the called function is send in the `params` field and data returned is send back in the `response` field.  
 More info about the router [here](./packages/router/).
 
 MikroKit uses deepkit to automatically [validate](https://docs.deepkit.io/english/validation.html) the data send in the request and [serialize](https://docs.deepkit.io/english/serialization.html) the data send in the response.
@@ -113,8 +113,6 @@ const routes = {
 mikroKitRouter.addRoutes(routes, options);
 ```
 
-### Request & Response
-
 ```yml
 # HTTP REQUEST
 URL: https://my.api.com/api/v1/users/getUser
@@ -131,8 +129,6 @@ Accept: application/json
   }]
 }
 ```
-
-### Response
 
 ```yml
 # HTTP RESPONSE
