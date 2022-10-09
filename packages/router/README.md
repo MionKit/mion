@@ -19,12 +19,12 @@ MikroKit Router uses **Remote Procedure Call** style routing, unlike traditional
 
 ### Rpc VS Rest
 
-| RPC Like Request                                                            | REST Request                                            | Description     |
-| --------------------------------------------------------------------------- | ------------------------------------------------------- | --------------- |
-| POST `http://myapi.com/users/get`<br>BODY `{"params":[{"id":1}]}`           | GET `http://myapi.com/users/1`<br>BODY `NONE`           | Get user by id  |
-| POST `http://myapi.com/users/create`<br>BODY `{"params":[{"name":"John"}]}` | POST `http://myapi.com/users`<br>BODY `{"name":"John"}` | Create new user |
-| POST `http://myapi.com/users/delete`<br>BODY `{"params":[{"id":1}]}`        | DELETE `http://myapi.com/users/1`<br>BODY `NONE`        | Delete user     |
-| POST `http://myapi.com/users/getAll`<br>BODY `{}`                           | GET `http://myapi.com/users` <br>BODY `NONE`            | Get All users   |
+| RPC Like Request                                            | REST Request                            | Description     |
+| ----------------------------------------------------------- | --------------------------------------- | --------------- |
+| POST `/users/get`<br>BODY `{"params":[{"id":1}]}`           | GET `/users/1`<br>BODY `NONE`           | Get user by id  |
+| POST `/users/create`<br>BODY `{"params":[{"name":"John"}]}` | POST `/users`<br>BODY `{"name":"John"}` | Create new user |
+| POST `/users/delete`<br>BODY `{"params":[{"id":1}]}`        | DELETE `/users/1`<br>BODY `NONE`        | Delete user     |
+| POST `/users/getAll`<br>BODY `{}`                           | GET `/users` <br>BODY `NONE`            | Get All users   |
 
 Please have a look to this great Presentation for more info about each different type of API and the pros and cons of each one:  
 [Nate Barbettini – API Throwdown: RPC vs REST vs GraphQL, Iterate 2018](https://www.youtube.com/watch?v=IvsANO0qZEg)
@@ -59,7 +59,7 @@ const routes = {
 mikroKitRouter.addRoutes(routes, options);
 ```
 
-### Request & Response data
+### Request & Response
 
 The function parameters are passed in the request body in the `params` field, must be an Array with the same order and types as the parameters in the called function.
 
