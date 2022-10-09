@@ -2,9 +2,7 @@
   <img alt='MikroKit, The APi Dashboard' width="" src='../../assets/public/bannerx90.png?raw=true'>
 </p>
 <p align="center">
-  <strong>File based router for
-    <a href='../..' >MikroKit</a> and
-    <a href='https://www.fastify.io/' target='_blank'>Fastify</a>.
+  <strong>RPC Like router with automatic Validation and Serialization
   </strong>
 </p>
 <p align=center>
@@ -13,26 +11,23 @@
   <img src="https://img.shields.io/badge/license-MIT-97ca00.svg?style=flat-square&maxAge=99999999" alt="npm"  style="max-width:100%;">
 </p>
 
-
 # `@mikrokit/router`
 
 MikroKit Router uses **Remote Procedure Call** style routing, unlike traditional REST apis it does not use `GET`, `PUT`, `POST` and `DELETE` methods, everything is transmitted using `HTTP POST` method and data is sent/received in the request/response `BODY`.
 
 **_This router can be used as an standalone router and does not requires to use the full [MikroKit Framework](https://github.com/MikroKit/MikroKit)_**
 
-
 ### Rpc VS Rest
 
-| RPC Like Request                                               | REST Request                                            | Description     |
-| -------------------------------------------------------------- | ------------------------------------------------------- | --------------- |
-| POST `http://myapi.com/users/get`<br>BODY `{"id":1}`           | GET `http://myapi.com/users/1`<br>BODY `NONE`           | Get user by id  |
-| POST `http://myapi.com/users/create`<br>BODY `{"name":"John"}` | POST `http://myapi.com/users`<br>BODY `{"name":"John"}` | Create new user |
-| POST `http://myapi.com/users/delete`<br>BODY `{"id":1}`        | DELETE `http://myapi.com/users/1`<br>BODY `NONE`        | Delete user     |
-| POST `http://myapi.com/users/getAll`<br>BODY `NONE`            | GET `http://myapi.com/users` <br>BODY `NONE`            | Get All users   |
+| RPC Like Request                                                            | REST Request                                            | Description     |
+| --------------------------------------------------------------------------- | ------------------------------------------------------- | --------------- |
+| POST `http://myapi.com/users/get`<br>BODY `{"params":[{"id":1}]}`           | GET `http://myapi.com/users/1`<br>BODY `NONE`           | Get user by id  |
+| POST `http://myapi.com/users/create`<br>BODY `{"params":[{"name":"John"}]}` | POST `http://myapi.com/users`<br>BODY `{"name":"John"}` | Create new user |
+| POST `http://myapi.com/users/delete`<br>BODY `{"params":[{"id":1}]}`        | DELETE `http://myapi.com/users/1`<br>BODY `NONE`        | Delete user     |
+| POST `http://myapi.com/users/getAll`<br>BODY `{}`                           | GET `http://myapi.com/users` <br>BODY `NONE`            | Get All users   |
 
 Please have a look to this great Presentation for more info about each different type of API and the pros and cons of each one:  
 [Nate Barbettini – API Throwdown: RPC vs REST vs GraphQL, Iterate 2018](https://www.youtube.com/watch?v=IvsANO0qZEg)
-
 
 ## The router
 
@@ -41,7 +36,6 @@ Blazing fast router **based in plain javascript objects** so no magic required a
 Routes are defined using a plain javascript object, where every field is a route, this also eliminates naming collisions.
 
 This router uses [Deepkit](https://deepkit.io/) runtime types to automatically [validate](https://docs.deepkit.io/english/validation.html) the data send in the request and [serialize](https://docs.deepkit.io/english/serialization.html) the data send in the response.
-
 
 ## Declaring routes
 
@@ -56,7 +50,7 @@ const sayHello2 = (name1: string, name2: string) => {
   return `Hello ${name1} and ${name2}.`;
 };
 
-const options = { prefix: 'api/' };
+const options = {prefix: 'api/'};
 
 const routes = {
   sayHello, // api/sayHello
@@ -65,53 +59,134 @@ const routes = {
 mikroKitRouter.addRoutes(routes, options);
 ```
 
-### Passing function parameters
+### Request & Response data
 
-The function parameters are passed in the request body in a field with the same name as the called function and must be passed as an array or value if there is only one parameter.
+The function parameters are passed in the request body in the `params` field, must be an Array with the same order and types as the parameters in the called function.
 
+The response data gets returned in the `response` field.
 
-```yml
-# HTTP REQUEST
-URL: https://my.api.com/api/sayHello
-Method: POST
+| POST REQUEST     | Request Body                   | Response Body                         |
+| ---------------- | ------------------------------ | ------------------------------------- |
+| `/api/sayHello`  | `{"params": ["John"] }`        | `{"response": "Hello John."}`         |
+| `/api/sayHello2` | `{"params": ["Adan", "Eve"] }` | `{"response": "Hello Adan and Eve."}` |
 
-# POST REQUEST 1 BODY (single parameter)
-{
-  "sayHello": "John"
+## Hooks
+
+A route might require some extra data like authorization, preconditions, postprocessing, etc... To support this just declare an especial type of function called a `hook function`.
+
+Hooks can use the `routeContext` to share data with other routes and hooks. The return value will be ignored unless `canReturnData` is set to true in the `@hook` decorator.
+
+```js
+import {mikroKitRouter, hook} from '@mikrokit/router';
+import {decodeToken} from './myAuth';
+import {formatErrors} from './myErrorUtils';
+
+interface Entity {
+  id: number;
 }
 
-# POST REQUEST 2 BODY (multiple parameters in order)
-{
-  "sayHello2": ["Adan", "Eve"]
+const apiOptions = {prefix: 'api/'};
+
+@hook({
+  stopNormalExecutionOnError: true,
+  fieldName: 'Authorization',
+  inHeader: true, // MikroKit framework never uses headers, but this is still and option in this router
+})
+const authorizationHook = async (token: string) => {
+  const user = decodeToken(token);
+  const isAuthorized = await routeContext.db.auth.isAuthorized(user.id);
+  if (!isAuthorized) { throw {code: 401, message: 'user is not authorized'}; }
+  routeContext.user = user; // user is added to routeContext to shared with other routes/hooks
+  return user; // ignored, it wont do nothing
+};
+
+const getUser = async (entity: Entity) => {
+  const user = await routeContext.db.users.getById(entity.id);
+  return user;
+};
+
+// the hook does not have any parameters, no field is required in the request body
+@hook({
+  forceExecutionOnError: true,
+  fieldName: 'errors'
+  canReturnData: true,
+})
+const errorHandlerHook = () => {
+  const errors = routeContext.errors;
+  if (errors.length) {
+    return formatErrors(errors);
+    routeContext.response = null; // delete any possible previous data from the route
+  }
 }
+
+
+/* the function does not have any parameters and doesn't return anything
+ * so there is no field in the request/response body */
+@hook({ forceExecutionOnError: true})
+const loggingHook = () => {
+  const errors = routeContext.errors;
+  if (errors.length) this.logger.error(errors);
+  else this.logger.log({{
+    route: routeContext.request.path,
+    params: routeContext.request.params
+  }});
+}
+
+
+const routes = {
+  // if `fieldName` would not have been set in the hook, then the `fieldName` would be : api/authorizationHook
+  authorizationHook, // fieldName: Authorization (in the header as configured in the hook)
+  users: {
+    getUser, // fieldName: api/users/getUser
+  },
+  loggingHook, // no fieldName and always executed
+};
+
+mikroKitRouter.addRoutes(routes, apiOptions);
 ```
 
-### Reading function response
+## Execution Order
 
-The response gets also returned in a field with the same name as the called function
+The order in which `routes` and `hook functions` are added to the router is important as they will be executed in exactly the same order they where declared. hooks wont generate any route and can't be called alone, they are just added to the router to indicate the exact point on where the hook is executed.
+For better performance An execution path is generated for every route.
 
-```yml
-# HTTP RESPONSE
-URL: https://my.api.com/api/sayHello
+```js
+const routes = {
+  authorizationHook, // hook
+  users: {
+    userOnlyHook // hook
+    getUser, // route: users/getUser
+  },
+  pets: {
+    getPet, // route: users/getUser
+  }
+  errorHandlerHook, // hook, forceExecutionOnError = true
+  loggingHook, // hook, forceExecutionOnError = true
+};
 
-# POST RESPONSE 1 BODY
-{
-  "sayHello": "Hello John."
-}
+mikroKitRouter.addRoutes(routes);
+```
 
-# POST RESPONSE 2 BODY
-{
-  "sayHello2": "Hello Adan and Eve."
-}
+`route: users/getUser`
+
+```mermaid
+graph LR;
+  A(authorizationHook) --> B(userOnlyHook) --> C{{getUser}} --> E(errorHandlerHook) --> D(loggingHook)
+```
+
+`pets/getPets`
+
+```mermaid
+graph LR;
+  A(authorizationHook) --> B{{getPet}} --> E(errorHandlerHook) --> C(loggingHook)
 ```
 
 ## Automatic Validation and Serialization
 
 Thanks to Deepkit's magic the type information is available at runtime and the data is auto-magically Validated and Serialized. For mor information please read deepkit's documentation:
 
-* Request [Validation](https://docs.deepkit.io/english/validation.html)
-* Response [Serialization](https://docs.deepkit.io/english/serialization.html)
-
+- Request [Validation](https://docs.deepkit.io/english/validation.html)
+- Response [Serialization](https://docs.deepkit.io/english/serialization.html)
 
 ### Request Validation examples
 
@@ -120,19 +195,19 @@ import {mikroKitRouter} from '@mikrokit/router';
 
 interface Entity {
   id: number;
-};
+}
 
 const getUser = async (entity: Entity) => {
-  const user = await db.users.getById(entity.id);
+  const user = await routeContext.db.users.getById(entity.id);
   return user;
 };
 
-const options = { prefix: 'api/' };
+const options = {prefix: 'api/'};
 
 const routes = {
   users: {
     getUser, // api/users/getUser
-  }
+  },
 };
 
 mikroKitRouter.addRoutes(routes, options);
@@ -167,7 +242,7 @@ Routes can be customized using the `@route` decorator.
 import {mikroKitRouter, route} from '@mikrokit/router';
 
 @route({
-  functionName: 'sayMyName', // renaming the function name
+  fieldName: 'sayMyName', // renaming the function name
   validateField: 'name', // field name used to identify the function's parameters data
   serializeField: 'name', // field name used to identify the function's returned data
 })
@@ -186,7 +261,7 @@ mikroKitRouter.addRoutes(routes, options);
 
 ```yml
 # HTTP REQUEST (route is api/sayMyName instead api/sayHello )
-URL: https://my.api.com/api/sayMyName 
+URL: https://my.api.com/api/sayMyName
 Method: POST
 
 # POST REQUEST BODY (function parameters read from "name" instead "sayHello")
@@ -199,7 +274,6 @@ Method: POST
   "name": "Your name is Adan"
 }
 ```
-
 
 ## &nbsp;
 

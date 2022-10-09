@@ -6,7 +6,6 @@
  * ######## */
 
 import {ApiRouterConfig, ApiRoute, ApiRouteOptions} from './types';
-import {getNonApiRouteItems} from './utils';
 
 function addApiRoute<Req, Resp>(path: string, route: ApiRoute<Req, Resp>) {}
 
