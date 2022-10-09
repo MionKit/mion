@@ -22,7 +22,7 @@ With that in mind **MikroKit is designed to build lightweight Apis**. It is a ve
 
 ### MikroKit vs Deepkit
 
-Deepkit is an amazing web new framework that brings types to the runtime world, with a full batteries included philosophy an even if it is still in beta it could be considered enterprise grade framework with many features: Web Framework, ORM, HTTP, RPC, Dependency Injection, Admin Dashboard and many more...
+Deepkit is an amazing modern web framework that brings types to the runtime world, with a full batteries included philosophy, it is still on early stages but could be considered an enterprise grade framework with many features like: Web Framework, ORM, HTTP, RPC, Dependency Injection, Dashboard, Events and many more...
 
 [![Deepkit](./assets/other_logos/deepkit_text.svg?raw=true)](https://deepkit.io/)
 
@@ -30,8 +30,7 @@ MikroKit uses only the core `runtime types` library from deepkit to produce a mi
 
 ## `Opinionated`
 
-MikroKit opinions might not always be the best, but are always taken with quick development and fast code execution and minimum abstractions in mind.
-_Simplicity is the best pattern_.
+MikroKit opinions might not always be the best or suit every scenario, but are always taken with quick development, fast code execution and minimum abstractions in mind. _Simplicity can be the best pattern_.
 
 - Convention over configuration.
 - Prioritizes developer friendliness and performance over existing conventions.
@@ -39,14 +38,14 @@ _Simplicity is the best pattern_.
 
 ## `Features`
 
-1. [AWS & Serverless framework](https://www.serverless.com/) for your cloud infrastructure
-1. [AWS Cognito](https://aws.amazon.com/cognito/) for user management, sign up emails, password reset, etc
+1. [AWS & Serverless framework](https://www.serverless.com/) for cloud infrastructure
+1. [AWS Cognito](https://aws.amazon.com/cognito/) for Authentication, sign up emails, password reset, etc
 1. RPC Like Routing
-1. [Postgres.js](https://github.com/porsager/postgres) for quick DataBase access with great support for types.
+1. [Postgres.js](https://github.com/porsager/postgres) for quick DataBase access with great support for types, (No database access abstraction).
 1. Base Models with Automatic CRUD operations
 1. Automatic Validation and Serialization
 1. Access Control List _<sup>(linux-like)</sup>_
-1. Typescript client
+1. Automatic Typescript client generation.
 
 ## `RPC like`
 
@@ -60,12 +59,12 @@ MikroKit Router uses **Remote Procedure Call** style routing, unlike traditional
 
 ### Rpc VS Rest
 
-| RPC Like Request                                               | REST Request                                            | Description     |
-| -------------------------------------------------------------- | ------------------------------------------------------- | --------------- |
-| POST `http://myapi.com/users/get`<br>BODY `{"id":1}`           | GET `http://myapi.com/users/1`<br>BODY `NONE`           | Get user by id  |
-| POST `http://myapi.com/users/create`<br>BODY `{"name":"John"}` | POST `http://myapi.com/users`<br>BODY `{"name":"John"}` | Create new user |
-| POST `http://myapi.com/users/delete`<br>BODY `{"id":1}`        | DELETE `http://myapi.com/users/1`<br>BODY `NONE`        | Delete user     |
-| POST `http://myapi.com/users/getAll`<br>BODY `NONE`            | GET `http://myapi.com/users` <br>BODY `NONE`            | Get All users   |
+| RPC Like Request                                                          | REST Request                                            | Description     |
+| ------------------------------------------------------------------------- | ------------------------------------------------------- | --------------- |
+| POST `http://myapi.com/users/get`<br>BODY `{"params":{"id":1}}`           | GET `http://myapi.com/users/1`<br>BODY `NONE`           | Get user by id  |
+| POST `http://myapi.com/users/create`<br>BODY `{"params":{"name":"John"}}` | POST `http://myapi.com/users`<br>BODY `{"name":"John"}` | Create new user |
+| POST `http://myapi.com/users/delete`<br>BODY `{"params":{"id":1}}`        | DELETE `http://myapi.com/users/1`<br>BODY `NONE`        | Delete user     |
+| POST `http://myapi.com/users/getAll`<br>BODY `{}`                         | GET `http://myapi.com/users` <br>BODY `NONE`            | Get All users   |
 
 Please have a look to this great Presentation for more info about each different type of API and the pros and cons of each one:  
 [Nate Barbettini – API Throwdown: RPC vs REST vs GraphQL, Iterate 2018](https://www.youtube.com/watch?v=IvsANO0qZEg)
@@ -76,7 +75,7 @@ Blazing fast router **based in plain javascript objects** so no magic required a
 
 All data is transmitted in the body, so data that is traditionally send via HTTP headers (like Authorization tokens), is send in the body. _Headers are supposed to be data for/by the server/browser and should not be used in Application level_, this also could prevent some problems with proxies and generate some problem with some other software that relies in headers (0Auth etc).
 
-Routes are just defined using a plain javascript object, where every field is a route, so this also eliminates naming collisions. All data from the Application is sent/returned in the a field with the same name as the called function.  
+Routes are just defined using a plain javascript object, where every property is a route, so this also eliminates naming collisions. Data to the for the called function is send in the `params` field and data returned is send back in the `response` field.  
 More info about the router [here](./packages/router/).
 
 MikroKit uses deepkit to automatically [validate](https://docs.deepkit.io/english/validation.html) the data send in the request and [serialize](https://docs.deepkit.io/english/serialization.html) the data send in the response.
@@ -93,7 +92,7 @@ interface User {
 }
 
 const getUser = async (user: User) => {
-  const user = await db.users.get(user.id);
+  const user = await routeContext.db.users.get(user.id);
   return user;
 };
 
@@ -114,7 +113,7 @@ const routes = {
 mikroKitRouter.addRoutes(routes, options);
 ```
 
-### Request
+### Request & Response
 
 ```yml
 # HTTP REQUEST
@@ -127,9 +126,9 @@ Accept: application/json
 # BODY
 {
   "Authorization": "Bearer <token>"
-  "data": {
+  "params": [{
     "id" : 1
-  }
+  }]
 }
 ```
 
@@ -144,9 +143,7 @@ Content-Type: application/json; charset=utf-8
 
 # BODY
 {
-  "version" : 1,
-  "type" : "User",
-  "data": {
+  "response": {
     "id" : 1,
     "name" : "John"
   }
