@@ -7,8 +7,8 @@
 
 import {Executable, Hook, RouteObject, RouterOptions, RoutesWithId} from './types';
 
-export const ROUTE_INPUT_FIELD_NAME = 'params';
-export const ROUTE_OUTPUT_FIELD_NAME = 'response';
+export const ROUTE_INPUT_FIELD_NAME = 'input';
+export const ROUTE_OUTPUT_FIELD_NAME = 'output';
 
 export const DEFAULT_ROUTE: Readonly<Required<RouteObject>> = {
     path: '',
@@ -50,7 +50,5 @@ export const DEFAULT_ROUTE_OPTIONS: Readonly<Required<RouterOptions>> = {
 
 export const ROUTE_KEYS = Object.keys(DEFAULT_ROUTE);
 export const HOOK_KEYS = Object.keys(DEFAULT_HOOK);
-export const EXECUTABLE_KEYS = Object.keys(DEFAULT_HOOK);
-export const ROUTES_WITH_ID_KEYS = Object.keys(DEFAULT_ROUTES_WITH_ID);
 
 export const MAX_ROUTE_NESTING = 10;

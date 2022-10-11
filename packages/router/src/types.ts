@@ -5,10 +5,10 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {EXECUTABLE_KEYS, ROUTES_WITH_ID_KEYS} from './constants';
-
 export type RouteContext = {
     errors: [];
+    input: any[];
+    output: any;
 };
 
 // #######  Router entries #######
@@ -16,17 +16,17 @@ export type RouteContext = {
 export type Handler = (context: any, ...args: any) => any | void | Promise<any | void>;
 
 export type RouteObject = {
-    path?: string;
-    inputFieldName?: string;
-    outputFieldName?: string;
+    path?: string; // overrides route's path
+    inputFieldName?: string; // overrides request body input field name
+    outputFieldName?: string; // overrides response body output field name
     route: Handler;
 };
 
 export type Route = RouteObject | Handler;
 
 export type Hook = {
-    stopOnError?: boolean; // Estop normal execution chain if error is thrown
-    forceRunOnError?: boolean; // Executes the hook even if an error was thrown by another hook or route
+    stopOnError?: boolean; // Stops normal execution path if error is thrown
+    forceRunOnError?: boolean; // Executes the hook even if an error was thrown previously in the execution path
     canReturnData?: boolean; // enables returning data in the responseBody
     returnInHeader?: boolean; // sets the value in a heather rather than the body
     fieldName?: string; // the fieldName in the request/response body

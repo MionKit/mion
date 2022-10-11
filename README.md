@@ -41,9 +41,9 @@ MikroKit opinions might not always be the best or suit every scenario, but are a
 1. [AWS & Serverless framework](https://www.serverless.com/) for cloud infrastructure
 1. [AWS Cognito](https://aws.amazon.com/cognito/) for Authentication, sign up emails, password reset, etc
 1. RPC Like Routing
-1. [Postgres.js](https://github.com/porsager/postgres) for quick DataBase access with great support for types, (No database access abstraction).
-1. Base Models with Automatic CRUD operations
 1. Automatic Validation and Serialization
+1. [Postgres.js](https://github.com/porsager/postgres) for quick DataBase access with great support for types, (No database access abstraction).
+1. Base Models with CRUD & Filters operations
 1. Access Control List _<sup>(linux-like)</sup>_
 1. Automatic Typescript client generation.
 
@@ -71,12 +71,12 @@ Please have a look to this great Presentation for more info about each different
 
 ## `Routing`
 
-Blazing fast router **based in plain javascript objects** so no magic required and no need to manually declare router names. Thanks to the rpc style there is no need for parameters or regular expression parsing when finding a route, just a simple object in memory with all the routes on it, can't get faster than that.
+Blazing fast router **based in plain javascript objects**. Thanks to the RPC Like routing style there is no need for parameters or regular expression parsing when finding a route, just a simple [Map](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Map) in memory with all the routes on it. **_!Can't get faster than that!_**
 
-All data is transmitted in the body, so data that is traditionally send via HTTP headers (like Authorization tokens), is send in the body. _Headers are supposed to be data for/by the server/browser and should not be used in Application level_, this also could prevent some problems with proxies and generate some problem with some other software that relies in headers (0Auth etc).
+All data is transmitted in the body, so data that is usually send via HTTP headers (like Authorization tokens), is send in the body wen using MikroKit. _Headers are supposed to be data for/by the server/browser and should not be used in Application level_, this also could prevent some problems with proxies but also generate some problem with some other software that relies in headers (Auth providers etc).
 
-Routes are defined using a plain javascript object, where every property is a route, so this also eliminates naming collisions. Data to the for the called function is send in the `params` field and data returned is send back in the `response` field.  
-More info about the router [here](./packages/router/).
+Routes are defined using a plain javascript object, where every property is a route. Data to the for the called route is send in the `input` field and data returned is send back in the `output` field.  
+Router documentation [here](./packages/router/).
 
 MikroKit uses deepkit to automatically [validate](https://docs.deepkit.io/english/validation.html) the data send in the request and [serialize](https://docs.deepkit.io/english/serialization.html) the data send in the response.
 
@@ -91,7 +91,7 @@ interface User {
   name: string;
 }
 
-const getUser = async (user: User) => {
+const getUser = async (user: Pick<User, 'id'>) => {
   const user = await routeContext.db.users.get(user.id);
   return user;
 };
@@ -105,59 +105,88 @@ const routes = {
   users: {
     getUser, // api/users/getUser
   },
-  pets: {
-    getPet, // api/pets/getPet
-  },
 };
 
 mikroKitRouter.addRoutes(routes, options);
 ```
 
+<table>
+<tr><th>POST HTTP REQUEST</th><th>HTTP RESPONSE</th></tr>
+<tr>
+<td>
+
 ```yml
-# HTTP REQUEST
-URL: https://my.api.com/api/v1/users/getUser
-Method: POST
+PATH: api/v1/users/getUser
 
 # HEADERS
 Accept: application/json
 
 # BODY
 {
-  "Authorization": "Bearer <token>"
-  "params": [{
+  "input": [{
     "id" : 1
   }]
 }
 ```
 
+</td>
+<td>
+
 ```yml
-# HTTP RESPONSE
-URL: https://my.api.com/api/v1/users/getUser
+PATH: api/v1/users/getUser
 
 # HEADERS
 Content-Type: application/json; charset=utf-8
 
 # BODY
 {
-  "response": {
-    "id" : 1,
-    "name" : "John"
+  "output": {
+    "id" : 1, "name" : "John"
   }
 }
 ```
 
+</td>
+</tr>
+</table>
+
 ## `Quick start`
 
-Install MikroKit cli.
-
-```sh
-npm install mikrokit
-```
-
-To create your first project.
+#### You can use MikroKit base project.
 
 ```sh
 npx degit https://github.com/mikrokit/mikrokit-base
+```
+
+#### Or manually intall in your own project
+
+Some steps are required to be able to use deepkit runtime types, [docs here](https://docs.deepkit.io/english/runtime-types.html#runtime-types-installation).
+
+Reflection must be enabled in _tsconfig.json_
+
+```json
+{
+  "compilerOptions": {
+    "module": "CommonJS",
+    "target": "es6",
+    "moduleResolution": "node",
+    "experimentalDecorators": true
+  },
+  "reflection": true
+}
+```
+
+Install deepkit required packages
+
+```sh
+npm install --save @deepkit/type
+npm install --save-dev @deepkit/type-compiler
+```
+
+Install MikroKit CLI.
+
+```sh
+npm install mikrokit
 ```
 
 ## `CLI`
