@@ -44,11 +44,11 @@ Routes are defined using a plain javascript object, where every property is a ro
 ```js
 import {mikroKitRouter} from '@mikrokit/router';
 
-const sayHello = (name: string) => {
+const sayHello = (context, name: string) => {
   return `Hello ${name}.`;
 };
 
-const sayHello2 = (name1: string, name2: string) => {
+const sayHello2 = (context, name1: string, name2: string) => {
   return `Hello ${name1} and ${name2}.`;
 };
 
@@ -80,7 +80,7 @@ A route might require some extra data like authorization, preconditions, postpro
 Hooks can use the `routeContext` to share data with other routes and hooks. The return value will be ignored unless `canReturnData` is set to true in the `@hook` decorator.
 
 ```js
-import {mikroKitRouter, hook} from '@mikrokit/router';
+import {Route, Hook} from '@mikrokit/router/types';
 import {decodeToken} from './myAuth';
 import {formatErrors} from './myErrorUtils';
 
@@ -90,17 +90,17 @@ interface Entity {
 
 const apiOptions = {prefix: 'api/'};
 
-@hook({
+const authorizationHook: Hook = {
   stopNormalExecutionOnError: true,
   fieldName: 'Authorization',
   inHeader: true, // MikroKit framework never uses headers, but this is still and option in this router
-})
-const authorizationHook = async (token: string) => {
-  const user = decodeToken(token);
-  const isAuthorized = await routeContext.db.auth.isAuthorized(user.id);
-  if (!isAuthorized) { throw {code: 401, message: 'user is not authorized'}; }
-  routeContext.user = user; // user is added to routeContext to shared with other routes/hooks
-  return user; // ignored, it wont do nothing
+  async handler(context, token: string) {
+    const user = decodeToken(token);
+    const isAuthorized = await routeContext.db.auth.isAuthorized(user.id);
+    if (!isAuthorized) { throw {code: 401, message: 'user is not authorized'}; }
+    routeContext.user = user; // user is added to routeContext to shared with other routes/hooks
+    return user; // ignored, it wont do nothing
+  }
 };
 
 const getUser = async (entity: Entity) => {
@@ -185,14 +185,14 @@ mikroKitRouter.addRoutes(invalidRoutes); // throws an error
 `route: users/getUser`
 
 ```mermaid
-graph LR;
+graph TD;
   A(authorizationHook) --> B(userOnlyHook) --> C{{getUser}} --> E(errorHandlerHook) --> D(loggingHook)
 ```
 
 `pets/getPets`
 
 ```mermaid
-graph LR;
+graph TD;
   A(authorizationHook) --> B{{getPet}} --> E(errorHandlerHook) --> C(loggingHook)
 ```
 
@@ -257,9 +257,7 @@ Routes can be customized using the `@route` decorator.
 import {mikroKitRouter, route} from '@mikrokit/router';
 
 @route({
-  fieldName: 'sayMyName', // renaming the function name
-  validateField: 'name', // field name used to identify the function's parameters data
-  serializeField: 'name', // field name used to identify the function's returned data
+  path: 'user/sayMyName', // renaming the function name
 })
 const sayHello = (name: string) => {
   return `Your name is ${name}.`;
