@@ -75,10 +75,11 @@ Blazing fast router **based in plain javascript objects**. Thanks to the RPC Lik
 
 All data is transmitted in the body, so data that is usually send via HTTP headers (like Authorization tokens), is send in the body wen using MikroKit. _Headers are supposed to be data for/by the server/browser and should not be used in Application level_, this also could prevent some problems with proxies but also generate some problem with some other software that relies in headers (Auth providers etc).
 
-Routes are defined using a plain javascript object, where every property is a route. Data to the for the called route is send in the `input` field and data returned is send back in the `output` field.  
-Router documentation [here](./packages/router/).
+Routes are defined using a plain javascript object, where every property is a route. Data to the for the called route is send in the `input` field and data returned is send back in the `output` field.
 
 MikroKit uses deepkit to automatically [validate](https://docs.deepkit.io/english/validation.html) the data send in the request and [serialize](https://docs.deepkit.io/english/serialization.html) the data send in the response.
+
+Full router documentation [here!](./packages/router/)
 
 ### Example:
 

@@ -13,25 +13,21 @@
 
 # `@mikrokit/router`
 
+Blazing fast router **_based in plain javascript objects_**. Thanks to the rpc style there is no need for parameters or regular expression parsing when finding a route, just a simple [Map](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Map) in memory containing all the routes, can't get faster than that.
+
 MikroKit Router uses **Remote Procedure Call** style routing, unlike traditional REST apis it does not use `GET`, `PUT`, `POST` and `DELETE` methods, everything is transmitted using `HTTP POST` method and all data is sent/received in the request and response `BODY`.
 
 ### Rpc VS Rest
 
-| RPC Like Request                                            | REST Request                            | Description     |
-| ----------------------------------------------------------- | --------------------------------------- | --------------- |
-| POST `/users/get`<br>BODY `{"params":[{"id":1}]}`           | GET `/users/1`<br>BODY `NONE`           | Get user by id  |
-| POST `/users/create`<br>BODY `{"params":[{"name":"John"}]}` | POST `/users`<br>BODY `{"name":"John"}` | Create new user |
-| POST `/users/delete`<br>BODY `{"params":[{"id":1}]}`        | DELETE `/users/1`<br>BODY `NONE`        | Delete user     |
-| POST `/users/getAll`<br>BODY `{}`                           | GET `/users` <br>BODY `NONE`            | Get All users   |
+| RPC Like Request                                           | REST Request                            | Description     |
+| ---------------------------------------------------------- | --------------------------------------- | --------------- |
+| POST `/users/get`<br>BODY `{"input":[{"id":1}]}`           | GET `/users/1`<br>BODY `NONE`           | Get user by id  |
+| POST `/users/create`<br>BODY `{"input":[{"name":"John"}]}` | POST `/users`<br>BODY `{"name":"John"}` | Create new user |
+| POST `/users/delete`<br>BODY `{"input":[{"id":1}]}`        | DELETE `/users/1`<br>BODY `NONE`        | Delete user     |
+| POST `/users/getAll`<br>BODY `{}`                          | GET `/users` <br>BODY `NONE`            | Get All users   |
 
 Please have a look to this great Presentation for more info about each different type of API and the pros and cons of each one:  
 [Nate Barbettini – API Throwdown: RPC vs REST vs GraphQL, Iterate 2018](https://www.youtube.com/watch?v=IvsANO0qZEg)
-
-## The router
-
-Blazing fast router **_based in plain javascript objects_**. Thanks to the rpc style there is no need for parameters or regular expression parsing when finding a route, just a simple [Map](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Map) in memory with all the routes on it, can't get faster than that.
-
-Routes are defined using a plain javascript object, where every field is a route, this also helps eliminating naming collisions.
 
 ## Routes
 
@@ -166,7 +162,8 @@ graph LR;
   A(authorizationHook) --> B{{getPet}} --> E(errorHandlerHook) --> C(loggingHook)
 ```
 
-**_To guarantee the correct execution order of hooks and routes, <span style="color:orange">the properties of the router CAN NOT BE numeric or digits only.</span>_** An error will thrown when adding routes with `mkkRouter.addRoutes`. More info about order of properties in javascript objects [here](https://stackoverflow.com/questions/5525795/does-javascript-guarantee-object-property-order) and [here](https://www.stefanjudis.com/today-i-learned/property-order-is-predictable-in-javascript-objects-since-es2015/).
+**_To guarantee the correct execution order of hooks and routes, the properties of the router CAN NOT BE numeric or digits only._**  
+An error will thrown when adding routes with `mkkRouter.addRoutes`. More info about order of properties in javascript objects [here](https://stackoverflow.com/questions/5525795/does-javascript-guarantee-object-property-order) and [here](https://www.stefanjudis.com/today-i-learned/property-order-is-predictable-in-javascript-objects-since-es2015/).
 
 ```js
 const invalidRoutes = {
