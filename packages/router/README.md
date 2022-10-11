@@ -13,9 +13,7 @@
 
 # `@mikrokit/router`
 
-MikroKit Router uses **Remote Procedure Call** style routing, unlike traditional REST apis it does not use `GET`, `PUT`, `POST` and `DELETE` methods, everything is transmitted using `HTTP POST` method and data is sent/received in the request/response `BODY`.
-
-**_This router can be used as an standalone router and does not requires to use the full [MikroKit Framework](https://github.com/MikroKit/MikroKit)_**
+MikroKit Router uses **Remote Procedure Call** style routing, unlike traditional REST apis it does not use `GET`, `PUT`, `POST` and `DELETE` methods, everything is transmitted using `HTTP POST` method and all data is sent/received in the request and response `BODY`.
 
 ### Rpc VS Rest
 
@@ -31,25 +29,25 @@ Please have a look to this great Presentation for more info about each different
 
 ## The router
 
-Blazing fast router **based in plain javascript objects** so no magic required and no need to manually declare router names. Thanks to the rpc style there is no need for parameters or regular expression parsing when finding a route, just a simple object in memory with all the routes on it, can't get faster than that.
+Blazing fast router **_based in plain javascript objects_**. Thanks to the rpc style there is no need for parameters or regular expression parsing when finding a route, just a simple [Map](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Map) in memory with all the routes on it, can't get faster than that.
 
-Routes are defined using a plain javascript object, where every field is a route, this also eliminates naming collisions.
+Routes are defined using a plain javascript object, where every field is a route, this also helps eliminating naming collisions.
 
-This router uses [Deepkit](https://deepkit.io/) runtime types to automatically [validate](https://docs.deepkit.io/english/validation.html) the data send in the request and [serialize](https://docs.deepkit.io/english/serialization.html) the data send in the response.
+## Routes
 
-## Declaring routes
-
-Routes are defined using a plain javascript object, where every property is a route.
+Routes are just functions where the first parameter is the `context` and the rest of parameters are passed in the request body. Route names are defined using a plain javascript object, where every property of the object is the route's name.
 
 ```js
-import {mikroKitRouter} from '@mikrokit/router';
+import {mkkRouter, Handler, Route} from '@mikrokit/router';
 
-const sayHello = (context, name: string) => {
+const sayHello: Handler = (context, name: string) => {
   return `Hello ${name}.`;
 };
 
-const sayHello2 = (context, name1: string, name2: string) => {
-  return `Hello ${name1} and ${name2}.`;
+const sayHello2: Route = {
+  route(context, name1: string, name2: string) {
+    return `Hello ${name1} and ${name2}.`;
+  },
 };
 
 const options = {prefix: 'api/'};
@@ -59,100 +57,83 @@ const routes = {
   sayHello2, // api/sayHello2
 };
 
-mikroKitRouter.addRoutes(routes, options);
+mkkRouter.addRoutes(routes, options);
 ```
 
-### Request & Response
+Using javascript names helps keeping route names simple, it is not recommended to use the array notation to define route names. no url decoding is done when finding the route
 
-The function parameters are passed in the request body in the `params` field, must be an Array with the same order and types as the parameters in the called function.
+```js
+const sayHello: Handler = (context, name: string) => {
+  return `Hello ${name}.`;
+};
 
-The response data gets returned in the `response` field.
+const routes = {
+  'say-Hello': sayHello, // api/say-Hello  !! NOT GOOD
+};
 
-| POST REQUEST     | Request Body                   | Response Body                         |
-| ---------------- | ------------------------------ | ------------------------------------- |
-| `/api/sayHello`  | `{"params": ["John"] }`        | `{"response": "Hello John."}`         |
-| `/api/sayHello2` | `{"params": ["Adan", "Eve"] }` | `{"response": "Hello Adan and Eve."}` |
+mkkRouter.addRoutes(routes, options);
+```
+
+#### Request & Response
+
+The function parameters are passed in the request body, as an Array in the `input` field. Elements in the array must have the same order as the function parameters. The function response data gets returned in the `output` field.
+
+This names can be configured in the router options.
+
+| POST REQUEST     | Request Body                  | Response Body                       |
+| ---------------- | ----------------------------- | ----------------------------------- |
+| `/api/sayHello`  | `{"input": ["John"] }`        | `{"output": "Hello John."}`         |
+| `/api/sayHello2` | `{"input": ["Adan", "Eve"] }` | `{"output": "Hello Adan and Eve."}` |
 
 ## Hooks
 
-A route might require some extra data like authorization, preconditions, postprocessing, etc... To support this just declare an especial type of function called a `hook function`.
+A route might require some extra data like authorization, preconditions, logging, etc... Hooks are auxiliary functions executed in order before or after the route.
 
-Hooks can use the `routeContext` to share data with other routes and hooks. The return value will be ignored unless `canReturnData` is set to true in the `@hook` decorator.
+Hooks can use the `context` to share data with other routes and hooks. The return value will be ignored unless `canReturnData` is set to true, in that case the returned value will be serialized in the response body.
 
 ```js
-import {Route, Hook} from '@mikrokit/router/types';
-import {decodeToken} from './myAuth';
-import {formatErrors} from './myErrorUtils';
-
-interface Entity {
-  id: number;
-}
-
-const apiOptions = {prefix: 'api/'};
+import {mkkRouter, mkkContext, Route, Hook} from '@mikrokit/router';
 
 const authorizationHook: Hook = {
   stopNormalExecutionOnError: true,
   fieldName: 'Authorization',
-  inHeader: true, // MikroKit framework never uses headers, but this is still and option in this router
-  async handler(context, token: string) {
-    const user = decodeToken(token);
-    const isAuthorized = await routeContext.db.auth.isAuthorized(user.id);
-    if (!isAuthorized) { throw {code: 401, message: 'user is not authorized'}; }
-    routeContext.user = user; // user is added to routeContext to shared with other routes/hooks
-    return user; // ignored, it wont do nothing
+  async hook(context: AppContext, token: string) {
+    cons me = await getAuthUser(token);
+    if (!isAuthorized) throw {code: 401, message: 'user is not authorized'};
+    context.auth = {me}; // user is added to context to shared with other routes/hooks
   }
 };
 
-const getUser = async (entity: Entity) => {
-  const user = await routeContext.db.users.getById(entity.id);
-  return user;
+const getPet = async (context: AppContext, petId: number) => {
+  const pet = context.
+  ...
+  return pet;
 };
 
-// the hook does not have any parameters, no field is required in the request body
-@hook({
+const loggingHook: Hook = {
   forceExecutionOnError: true,
-  fieldName: 'errors'
-  canReturnData: true,
-})
-const errorHandlerHook = () => {
-  const errors = routeContext.errors;
-  if (errors.length) {
-    return formatErrors(errors);
-    routeContext.response = null; // delete any possible previous data from the route
+  async hook(context: AppContext) {
+    const me = context.errors;
+    if (context.errors) await context.cloudLogs.error(context.errors);
+    else context.cloudLogs.log(context.request.path, context.auth.me, context.mkkOutput)
   }
-}
-
-
-/* the function does not have any parameters and doesn't return anything
- * so there is no field in the request/response body */
-@hook({ forceExecutionOnError: true})
-const loggingHook = () => {
-  const errors = routeContext.errors;
-  if (errors.length) this.logger.error(errors);
-  else this.logger.log({{
-    route: routeContext.request.path,
-    params: routeContext.request.params
-  }});
-}
-
+};
 
 const routes = {
   // if `fieldName` would not have been set in the hook, then the `fieldName` would be : api/authorizationHook
-  authorizationHook, // fieldName: Authorization (in the header as configured in the hook)
+  authorizationHook, // fieldName: Authorization
   users: {
-    getUser, // fieldName: api/users/getUser
+    getPet, // fieldName: api/users/getPet
   },
-  loggingHook, // no fieldName and always executed
+  loggingHook, // no fieldName, is executed even when there are errors in the execution path
 };
 
-mikroKitRouter.addRoutes(routes, apiOptions);
+mkkRouter.addRoutes(routes, apiOptions);
 ```
 
 ## Execution Order
 
-The order in which `routes` and `hook functions` are added to the router is important as they will be executed in the same order they where declared. hooks wont generate any route and can't be called alone, they are just added to the router to indicate the exact point on where the hook is executed. An execution path is generated for every route.
-
-**_To guarantee the correct execution order of hooks and routes, <span style="color:orange">the properties of the router CAN NOT BE numeric or digits only.</span>_** An error will thrown when adding routes with `mikroKitRouter.addRoutes`. More info about javascript properties order [here](https://stackoverflow.com/questions/5525795/does-javascript-guarantee-object-property-order) and [here](https://www.stefanjudis.com/today-i-learned/property-order-is-predictable-in-javascript-objects-since-es2015/).
+The order in which `routes` and `hooks` are added to the router is important as they will be executed in the same order they are declared (Top Down order). An execution path is generated for every route.
 
 ```js
 const routes = {
@@ -164,60 +145,166 @@ const routes = {
   pets: {
     getPet, // route: users/getUser
   }
-  errorHandlerHook, // hook, forceExecutionOnError = true
-  loggingHook, // hook, forceExecutionOnError = true
+  errorHandlerHook, // hook,
+  loggingHook, // hook,
 };
 
-const invalidRoutes = {
-  authorizationHook, // hook
-  1: { // invalid (this would execute before the authorizationHook)
-    getFoo, // route
-  },
-  '2': { // invalid (this would execute before the authorizationHook)
-    getBar, // route
-  }
-}
-
-mikroKitRouter.addRoutes(routes);
-mikroKitRouter.addRoutes(invalidRoutes); // throws an error
+mkkRouter.addRoutes(routes);
 ```
 
-`route: users/getUser`
+#### Execution path for: `users/getUser`
 
 ```mermaid
-graph TD;
+graph LR;
   A(authorizationHook) --> B(userOnlyHook) --> C{{getUser}} --> E(errorHandlerHook) --> D(loggingHook)
 ```
 
-`pets/getPets`
+#### Execution path for: `pets/getPets`
 
 ```mermaid
-graph TD;
+graph LR;
   A(authorizationHook) --> B{{getPet}} --> E(errorHandlerHook) --> C(loggingHook)
 ```
 
+**_To guarantee the correct execution order of hooks and routes, <span style="color:orange">the properties of the router CAN NOT BE numeric or digits only.</span>_** An error will thrown when adding routes with `mkkRouter.addRoutes`. More info about order of properties in javascript objects [here](https://stackoverflow.com/questions/5525795/does-javascript-guarantee-object-property-order) and [here](https://www.stefanjudis.com/today-i-learned/property-order-is-predictable-in-javascript-objects-since-es2015/).
+
+```js
+const invalidRoutes = {
+  authorizationHook, // hook
+  1: {
+    // invalid (this would execute before the authorizationHook)
+    getFoo, // route
+  },
+  2: {
+    // invalid (this would execute before the authorizationHook)
+    getBar, // route
+  },
+};
+
+mkkRouter.addRoutes(invalidRoutes); // throws an error
+```
+
+## Routes & Hooks options
+
+<table>
+<tr><th>Hook Config</th><th>Route Config</th></tr>
+<tr>
+<td>
+
+```js
+// ### default values shown ###
+type Hook = {
+  // Stops normal execution path if error is thrown
+  stopOnError?: true,
+
+  // Executes the hook even if an error was thrown previously
+  forceRunOnError?: false,
+
+  // enables returning data in the response body
+  canReturnData?: false,
+
+  // sets the value in a heather rather than the body
+  returnInHeader?: false,
+
+  // overrides the fieldName in the request/response body
+  fieldName?: '', // default value's taken from route's name
+
+  // hook's main handler
+  hook: Handler,
+};
+```
+
+</td>
+<td>
+
+```js
+// ### default values shown ###
+type RouteObject = {
+  // overrides route's path
+  path?: '', // default value's taken from route's path
+
+  // overrides request body input field name
+  inputFieldName?: 'input',
+
+  // overrides response body output field name
+  outputFieldName?: 'output',
+
+  // route's main handler
+  route: Handler,
+};
+```
+
+</td>
+</tr>
+</table>
+
+## Context
+
+This router is agnostic about the server so the only context known by the router is the `errors`, `input` for the input data, and `output` for the output data. The rest of the context must be set when the app gets initialized as follows.
+
+```js
+import {mkkRouter, mkkContext, Route, Hook} from '@mikrokit/router';
+import {someDbDriver} from 'someDbDriver';
+import {cloudLogs} from 'someCloudLogLibrary';
+
+const appContext = {
+  cloudLogs,
+  db: someDbDriver,
+};
+// the App context, it is static and readOnly
+mkkRouter.setAppContext(appContext);
+
+
+const authContext = {
+  auth: {me: null}
+}
+// a function that returns a new context for every new request
+// can be called multiple times and will throw an error if there are naming collisions
+// be sure objects don't store references to existing objects structuredClone used for this.
+mkkRouter.setRouteContext(() => structuredClone(authContext));
+
+
+type AppContext = typeof appContext && typeof authContext && mkkContext;
+const route1 = async (context: AppContext, petId: number) => {
+  // use of context inside handlers
+  context.cloudLogs ... ;
+  context.db ... ;
+  context.auth.me ...;
+  ...
+  return pet;
+};
+const routes = { route1 };
+mkkRouter.addRoutes(routes);
+
+```
+
 ## Automatic Validation and Serialization
+
+This router uses [Deepkit](https://deepkit.io/) runtime types to automatically [validate](https://docs.deepkit.io/english/validation.html) input data and [serialize](https://docs.deepkit.io/english/serialization.html) output data.
 
 Thanks to Deepkit's magic the type information is available at runtime and the data is auto-magically Validated and Serialized. For mor information please read deepkit's documentation:
 
 - Request [Validation](https://docs.deepkit.io/english/validation.html)
 - Response [Serialization](https://docs.deepkit.io/english/serialization.html)
 
-### Request Validation examples
+#### Request Validation examples
+
+<table>
+<tr><th>Code</th><th> Request <code>POST: users/getById</code> </th></tr>
+<tr>
+<td>
 
 ```js
-import {mikroKitRouter} from '@mikrokit/router';
+import {mkkRouter} from '@mikrokit/router';
 
 interface Entity {
   id: number;
 }
 
-const getUser = async (entity: Entity) => {
-  const user = await routeContext.db.users.getById(entity.id);
+const getUser = async (context, entity: Entity) => {
+  const user = await context.db.getUserById(entity.id);
   return user;
 };
-
-const options = {prefix: 'api/'};
 
 const routes = {
   users: {
@@ -225,14 +312,13 @@ const routes = {
   },
 };
 
-mikroKitRouter.addRoutes(routes, options);
+mkkRouter.addRoutes(routes);
 ```
 
-```yml
-# HTTP REQUEST
-URL: https://my.api.com/api/users/getById
-Method: POST
+</td>
+<td>
 
+```yml
 # VALID REQUEST BODY
 {
   "getUser": [ {"id" : 1} ]
@@ -247,46 +333,16 @@ Method: POST
 {
   "getUser": [ {"ID" : 1} ]
 }
-```
 
-## Route metadata
-
-Routes can be customized using the `@route` decorator.
-
-```js
-import {mikroKitRouter, route} from '@mikrokit/router';
-
-@route({
-  path: 'user/sayMyName', // renaming the function name
-})
-const sayHello = (name: string) => {
-  return `Your name is ${name}.`;
-};
-
-const options = { prefix: 'api/' };
-
-const routes = {
-  sayHello, // api/sayMyName
-};
-
-mikroKitRouter.addRoutes(routes, options);
-```
-
-```yml
-# HTTP REQUEST (route is api/sayMyName instead api/sayHello )
-URL: https://my.api.com/api/sayMyName
-Method: POST
-
-# POST REQUEST BODY (function parameters read from "name" instead "sayHello")
+# INVALID REQUEST BODY (missing parameters)
 {
-  "name": "Adan"
-}
-
-# POST RESPONSE BODY (function parameters read from "name" instead "sayHello")
-{
-  "name": "Your name is Adan"
+  "getUser": []
 }
 ```
+
+</td>
+</tr>
+</table>
 
 ## &nbsp;
 
