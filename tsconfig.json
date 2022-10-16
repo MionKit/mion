@@ -17,5 +17,6 @@
       "@mikrokit/*": ["packages/*"]
     }
   },
+  "reflection": true,
   "exclude": ["node_modules", ".dist"]
 }

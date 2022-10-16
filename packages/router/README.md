@@ -248,20 +248,22 @@ const appContext = {
   cloudLogs,
   db: someDbDriver,
 };
-// the App context, it is static and readOnly
-mkkRouter.setAppContext(appContext);
-
 
 const authContext = {
   auth: {me: null}
 }
-// a function that returns a new context for every new request
-// can be called multiple times and will throw an error if there are naming collisions
-// be sure objects don't store references to existing objects structuredClone used for this.
-mkkRouter.setRouteContext(() => structuredClone(authContext));
+
+/** Sets the  App and Route call context
+ * First parameter is the static part of the app, libraries, drivers etc..
+ * Second parameter is a factory function that returns a new context for every new request.
+ * Be sure returned values don't store references to existing objects (no shallow copies),
+ * you can use structuredClone used * for this.
+ * */
+const appContext = mkkRouter.setContext(appContext, () => structuredClone(authContext));
+
+type AppContext = typeof appContext;
 
 
-type AppContext = typeof appContext && typeof authContext && mkkContext;
 const route1 = async (context: AppContext, petId: number) => {
   // use of context inside handlers
   context.cloudLogs ... ;
