@@ -1,11 +1,13 @@
 /* ########
- * 2021 MikroKit
+ * 2022 MikroKit
  * Author: Ma-jerez
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
 import {Context as AWSContext, APIGatewayProxyCallback, APIGatewayEvent} from 'aws-lambda';
+import type {TypeFunction, Type, ValidationErrorItem} from '@deepkit/type';
+import {ReflectionKind} from '@deepkit/type';
 
 // #######  Router entries #######
 
@@ -80,15 +82,19 @@ export type MkError = {
 // ####### Context #######
 
 export type Context<AppContext, ServerlessReq extends MkRequest, ServerlessResp extends MkResponse, ServerlessCallContext> = {
-    app: AppContext; // static context
-    req: ServerlessReq;
-    resp: ServerlessResp;
-    callContext?: ServerlessCallContext;
-    path?: string;
+    app: Readonly<AppContext>; // static context
+    req: Readonly<ServerlessReq>;
+    resp: Readonly<ServerlessResp>;
+    callContext?: Readonly<ServerlessCallContext>;
+    path?: Readonly<string>;
     errors: MkError[];
     requestData: MapObj;
     responseData: MapObj;
 };
+
+// #######  reflection #######
+
+export type RouteParamValidator = (data: any) => ValidationErrorItem[];
 
 // #######  type guards #######
 
@@ -118,6 +124,10 @@ export const isExecutable = (entry: Executable | RoutesWithId): entry is Executa
         ((entry as any).routes === 'undefined' || typeof (entry as Executable).handler === 'function')
     );
 };
+
+export const isFunctionType = (t: Type): t is TypeFunction => t.kind === ReflectionKind.function;
+
+// #######  Others #######
 
 export type MapObj = {
     [key: string]: any;
