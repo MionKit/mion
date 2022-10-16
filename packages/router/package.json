@@ -37,8 +37,6 @@
   "bugs": {
     "url": "https://github.com/mikrokit/mikrokit/issues"
   },
-  "devDependencies": {
-  },
   "dependencies": {
     "http-status-codes": "^2.2.0"
   }

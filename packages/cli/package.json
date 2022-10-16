@@ -36,8 +36,6 @@
   "bugs": {
     "url": "https://github.com/mikrokit/mikrokit/issues"
   },
-  "devDependencies": {
-  },
   "dependencies": {
     "commander": "^8.3.0"
   }
