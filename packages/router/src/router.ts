@@ -21,20 +21,30 @@ import {
     RouterOptions,
     Routes,
     RoutesWithId,
+    Context,
+    MapObj,
+    MkRequest,
+    MkResponse,
+    JsonParser,
+    MkError,
 } from './types';
-
+import {StatusCodes} from 'http-status-codes';
+import {stringify} from 'querystring';
 type RouterKeyEntryList = [string, Routes | Hook | Route][];
+
+// ############# PUBLIC METHODS #############
 
 export const addRoutes = (routes: Routes, opts?: RouterOptions) => {
     recursiveFlatRoutes(routes, getDefaultRouterOptions(opts));
 };
-export const getRoute = (path: string) => flatRouter.get(path);
+export const getRouteExecutionPath = (path: string) => flatRouter.get(path);
 export const getEntries = () => flatRouter.entries();
 export const geSize = () => flatRouter.size;
 export const getRouteExecutable = (path: string) => routesByPath.get(path);
 export const getHookExecutable = (fieldName: string) => hooksByFieldName.get(fieldName);
 export const geHooksSize = () => hooksByFieldName.size;
 export const getComplexity = () => complexity;
+export const setJsonParser = (parser: JsonParser) => (json = parser);
 export const reset = () => {
     flatRouter.clear();
     hooksByFieldName.clear();
@@ -44,12 +54,74 @@ export const reset = () => {
     complexity = 0;
 };
 
+/**
+ * Initializes the static app context.
+ * @param app
+ */
+export const setContext = <AppContext extends MapObj>(app: AppContext) => {
+    if (appContext) throw 'Context has been already defined';
+    appContext = app;
+};
+
+export const run = async <ServerlessReq extends MkRequest, ServerlessResp extends MkResponse, ServerlessCallContext>(
+    path: string,
+    req: ServerlessReq,
+    resp: ServerlessResp,
+    callContext?: ServerlessCallContext,
+): Promise<any> => {
+    if (!appContext) throw 'Context has not been defined';
+    const executionPath = getRouteExecutionPath(path);
+    if (!executionPath) return routeError(StatusCodes.NOT_FOUND, 'Route not found');
+
+    const requestData = req.body ? JSON.stringify(req.body) : {};
+    if (typeof requestData !== 'object') return routeError(StatusCodes.BAD_REQUEST, 'Invalid request body');
+
+    const context: Context<typeof appContext, ServerlessReq, ServerlessResp, ServerlessCallContext> = {
+        app: appContext, // static context
+        req,
+        resp,
+        callContext,
+        path,
+        requestData,
+        responseData: {},
+        errors: [],
+    };
+
+    for (let i = 0; i < executionPath.length; i++) {
+        const executor = executionPath[i];
+        const params: any[] = requestData[executor.inputFieldName] || [];
+        const totalRequiredParams = executor.handler.length <= 1 ? 0 : executor.handler.length - 1;
+        // if (params.length !== totalRequiredParams)
+        //     context.errors.push({
+        //         statusCode: StatusCodes.BAD_REQUEST,
+        //         message: `Request field ${executor.inputFieldName} requires ${totalRequiredParams} `,
+        //     });
+        try {
+            const result = await executor.handler(context, ...params);
+        } catch (e: any) {
+            context.errors.push({
+                code: e?.code,
+                message: e?.message,
+                ...e,
+            });
+        }
+
+        resp;
+    }
+};
+
+// ############# PRIVATE STATE #############
+
 const flatRouter: Map<string, Executable[]> = new Map();
 const hooksByFieldName: Map<string, Executable> = new Map();
 const routesByPath: Map<string, Executable> = new Map();
 const definedHookFieldNames: Map<string, boolean> = new Map();
 const definedRoutes: Map<string, boolean> = new Map();
+let json: JsonParser = JSON;
 let complexity = 0;
+let appContext: MapObj | null = null;
+
+// ############# PRIVATE METHODS #############
 
 const recursiveFlatRoutes = (
     routes: Routes,
@@ -234,4 +306,44 @@ const getDefaultRouterOptions = (opts?: RouterOptions) => {
 
 const getHookFieldName = (item: Hook, key: string) => {
     return item?.fieldName || key;
+};
+
+const findDuplicates = (withDuplicated: string[]): string[] => {
+    const duplicates: string[] = [];
+    const times: {[keys: string]: number} = {};
+    withDuplicated.forEach((key) => (times[key] = (times[key] ?? 0) + 1));
+    Object.entries(times)
+        .filter(([key, times]) => times > 1)
+        .map(([key]) => key);
+    return duplicates;
+};
+
+export const routeError = (statusCode: number, message: string): MkResponse => {
+    return {
+        statusCode,
+        // prevent leaking any other fields from error
+        body: json.stringify({
+            errors: [
+                {
+                    statusCode,
+                    message,
+                },
+            ],
+        }),
+    };
+};
+
+export const routeError2 = (err: MkError): MkResponse => {
+    return {
+        statusCode: err.statusCode,
+        // prevent leaking any other fields from error
+        body: json.stringify({
+            errors: [
+                {
+                    statusCode: err.statusCode,
+                    message: err.message,
+                },
+            ],
+        }),
+    };
 };
