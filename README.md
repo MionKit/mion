@@ -98,7 +98,6 @@ const getUser = async (user: Pick<User, 'id'>) => {
 };
 
 const options = {
-  version: 1,
   prefix: 'api/v1/',
 };
 
