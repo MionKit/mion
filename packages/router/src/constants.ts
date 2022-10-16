@@ -1,5 +1,5 @@
 /* ########
- * 2021 MikroKit
+ * 2022 MikroKit
  * Author: Ma-jerez
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
@@ -7,8 +7,8 @@
 
 import {Executable, Hook, RouteObject, RouterOptions, RoutesWithId} from './types';
 
-export const ROUTE_INPUT_FIELD_NAME = 'input';
-export const ROUTE_OUTPUT_FIELD_NAME = 'output';
+export const ROUTE_INPUT_FIELD_NAME = 'params';
+export const ROUTE_OUTPUT_FIELD_NAME = 'response';
 
 export const DEFAULT_ROUTE: Readonly<Required<RouteObject>> = {
     path: '',

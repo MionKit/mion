@@ -1,5 +1,5 @@
 /* ########
- * 2021 MikroKit
+ * 2022 MikroKit
  * Author: Ma-jerez
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
@@ -49,9 +49,10 @@ export const reset = () => {
     flatRouter.clear();
     hooksByFieldName.clear();
     routesByPath.clear();
-    definedHookFieldNames.clear();
-    definedRoutes.clear();
+    hookNames.clear();
+    routeNames.clear();
     complexity = 0;
+    appContext = null;
 };
 
 /**
@@ -115,8 +116,8 @@ export const run = async <ServerlessReq extends MkRequest, ServerlessResp extend
 const flatRouter: Map<string, Executable[]> = new Map();
 const hooksByFieldName: Map<string, Executable> = new Map();
 const routesByPath: Map<string, Executable> = new Map();
-const definedHookFieldNames: Map<string, boolean> = new Map();
-const definedRoutes: Map<string, boolean> = new Map();
+const hookNames: Map<string, boolean> = new Map();
+const routeNames: Map<string, boolean> = new Map();
 let json: JsonParser = JSON;
 let complexity = 0;
 let appContext: MapObj | null = null;
@@ -146,13 +147,13 @@ const recursiveFlatRoutes = (
         if (isHook(item)) {
             routeEntry = getExecutableFromHook(item, path, nestLevel, key);
             const fieldName = routeEntry.outputFieldName;
-            if (definedHookFieldNames.has(fieldName))
+            if (hookNames.has(fieldName))
                 throw `Invalid hook: ${path}. Naming collision, the fieldName ${fieldName} has been already used`;
-            definedHookFieldNames.set(fieldName, true);
+            hookNames.set(fieldName, true);
         } else if (isRoute(item)) {
             routeEntry = getExecutableFromRoute(item, path, nestLevel, opts);
-            if (definedRoutes.has(routeEntry.path)) throw `Invalid route: ${path}. Naming collision, duplicated route`;
-            definedRoutes.set(routeEntry.path, true);
+            if (routeNames.has(routeEntry.path)) throw `Invalid route: ${path}. Naming collision, duplicated route`;
+            routeNames.set(routeEntry.path, true);
         } else if (isRoutes(item)) {
             routeEntry = {
                 path,

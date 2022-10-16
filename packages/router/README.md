@@ -19,12 +19,12 @@ MikroKit Router uses **Remote Procedure Call** style routing, unlike traditional
 
 ### Rpc VS Rest
 
-| RPC Like Request                                           | REST Request                            | Description     |
-| ---------------------------------------------------------- | --------------------------------------- | --------------- |
-| POST `/users/get`<br>BODY `{"input":[{"id":1}]}`           | GET `/users/1`<br>BODY `NONE`           | Get user by id  |
-| POST `/users/create`<br>BODY `{"input":[{"name":"John"}]}` | POST `/users`<br>BODY `{"name":"John"}` | Create new user |
-| POST `/users/delete`<br>BODY `{"input":[{"id":1}]}`        | DELETE `/users/1`<br>BODY `NONE`        | Delete user     |
-| POST `/users/getAll`<br>BODY `{}`                          | GET `/users` <br>BODY `NONE`            | Get All users   |
+| RPC Like Request                                            | REST Request                            | Description     |
+| ----------------------------------------------------------- | --------------------------------------- | --------------- |
+| POST `/users/get`<br>BODY `{"params":[{"id":1}]}`           | GET `/users/1`<br>BODY `NONE`           | Get user by id  |
+| POST `/users/create`<br>BODY `{"params":[{"name":"John"}]}` | POST `/users`<br>BODY `{"name":"John"}` | Create new user |
+| POST `/users/delete`<br>BODY `{"params":[{"id":1}]}`        | DELETE `/users/1`<br>BODY `NONE`        | Delete user     |
+| POST `/users/getAll`<br>BODY `{}`                           | GET `/users` <br>BODY `NONE`            | Get All users   |
 
 Please have a look to this great Presentation for more info about each different type of API and the pros and cons of each one:  
 [Nate Barbettini – API Throwdown: RPC vs REST vs GraphQL, Iterate 2018](https://www.youtube.com/watch?v=IvsANO0qZEg)
@@ -72,14 +72,14 @@ mkkRouter.addRoutes(routes, options);
 
 #### Request & Response
 
-The function parameters are passed in the request body, as an Array in the `input` field. Elements in the array must have the same order as the function parameters. The function response data gets returned in the `output` field.
+The function parameters are passed in the request body, as an Array in the `params` field. Elements in the array must have the same order as the function parameters. The function response data gets returned in the `response` field.
 
 This names can be configured in the router options.
 
-| POST REQUEST     | Request Body                  | Response Body                       |
-| ---------------- | ----------------------------- | ----------------------------------- |
-| `/api/sayHello`  | `{"input": ["John"] }`        | `{"output": "Hello John."}`         |
-| `/api/sayHello2` | `{"input": ["Adan", "Eve"] }` | `{"output": "Hello Adan and Eve."}` |
+| POST REQUEST     | Request Body                   | Response Body                         |
+| ---------------- | ------------------------------ | ------------------------------------- |
+| `/api/sayHello`  | `{"params": ["John"] }`        | `{"response": "Hello John."}`         |
+| `/api/sayHello2` | `{"params": ["Adan", "Eve"] }` | `{"response": "Hello Adan and Eve."}` |
 
 ## Hooks
 
@@ -220,11 +220,11 @@ type RouteObject = {
   // overrides route's path
   path?: '', // default value's taken from route's path
 
-  // overrides request body input field name
-  inputFieldName?: 'input',
+  // overrides request body params field name
+  inputFieldName?: 'params',
 
-  // overrides response body output field name
-  outputFieldName?: 'output',
+  // overrides response body response field name
+  outputFieldName?: 'response',
 
   // route's main handler
   route: Handler,
@@ -237,7 +237,7 @@ type RouteObject = {
 
 ## Context
 
-This router is agnostic about the server so the only context known by the router is the `errors`, `input` for the input data, and `output` for the output data. The rest of the context must be set when the app gets initialized as follows.
+This router is agnostic about the server so the only context known by the router is the `errors`, `params` for the route parameters data, and `response` for the route response data. The rest of the context must be set when the app gets initialized as follows.
 
 ```js
 import {mkkRouter, mkkContext, Route, Hook} from '@mikrokit/router';
@@ -279,7 +279,7 @@ mkkRouter.addRoutes(routes);
 
 ## Automatic Validation and Serialization
 
-This router uses [Deepkit](https://deepkit.io/) runtime types to automatically [validate](https://docs.deepkit.io/english/validation.html) input data and [serialize](https://docs.deepkit.io/english/serialization.html) output data.
+This router uses [Deepkit](https://deepkit.io/) runtime types to automatically [validate](https://docs.deepkit.io/english/validation.html) params data and [serialize](https://docs.deepkit.io/english/serialization.html) response data.
 
 Thanks to Deepkit's magic the type information is available at runtime and the data is auto-magically Validated and Serialized. For mor information please read deepkit's documentation:
 
