@@ -5,11 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-export type RouteContext = {
-    errors: [];
-    input: any[];
-    output: any;
-};
+import {Context as AWSContext, APIGatewayProxyCallback, APIGatewayEvent} from 'aws-lambda';
 
 // #######  Router entries #######
 
@@ -64,7 +60,37 @@ export type Executable = {
     handler: Handler;
 };
 
-// ####### type guards #######
+// ####### RESPONSE & RESPONSE #######
+export type MkRequest = {
+    headers: {[header: string]: string | undefined};
+    body: string | null | undefined;
+};
+
+export type MkResponse = {
+    statusCode: number;
+    headers?: {[header: string]: boolean | number | string} | undefined;
+    body: string | null;
+};
+
+export type MkError = {
+    statusCode: number;
+    message: string;
+};
+
+// ####### Context #######
+
+export type Context<AppContext, ServerlessReq extends MkRequest, ServerlessResp extends MkResponse, ServerlessCallContext> = {
+    app: AppContext; // static context
+    req: ServerlessReq;
+    resp: ServerlessResp;
+    callContext?: ServerlessCallContext;
+    path?: string;
+    errors: MkError[];
+    requestData: MapObj;
+    responseData: MapObj;
+};
+
+// #######  type guards #######
 
 export const isHandler = (entry: Hook | Route | Routes): entry is Handler => {
     return typeof entry === 'function';
@@ -92,3 +118,9 @@ export const isExecutable = (entry: Executable | RoutesWithId): entry is Executa
         ((entry as any).routes === 'undefined' || typeof (entry as Executable).handler === 'function')
     );
 };
+
+export type MapObj = {
+    [key: string]: any;
+};
+
+export type JsonParser = {parse: (s: string) => any; stringify: (any) => string};
