@@ -209,22 +209,22 @@ The software is provided as it is without guarantees. If you want something done
 
 ### Monorepo
 
-This project is a monorepo managed using [lerna](https://lerna.js.org/) and npm [workspaces](https://docs.npmjs.com/cli/v7/using-npm/workspaces). (`npm >= 7` required)
+This project is a monorepo managed using npm [workspaces](https://docs.npmjs.com/cli/v7/using-npm/workspaces). (`npm >= 7` required)
 
-```sh
-npm i lerna -g
-```
+**_!! ALL Dev Dependencies mus be installed in root package !!_**
 
 Each package within this monorepo is compiled using and tested individually using typescript and [jest](https://jestjs.io/).
+To run an npm command in a workspace, append `-w @mikrokit/<name>` to the command.
 
 ```sh
-cd packages/<my_api_ds_package>
+## run jest tests
+npm run test -w @mikrokit/router
 
 ## compiles typescript
-npm run dev
+npm run dev -w @mikrokit/router
 
 ## run jest unit tests
-npm run dev:test
+npm run dev:test -w @mikrokit/router
 ```
 
 ### ESLint and Prettier
