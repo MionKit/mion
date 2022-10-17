@@ -26,15 +26,19 @@ import {
     MkRequest,
     MkResponse,
     JsonParser,
-    MkError,
+    SharedDataFactory,
 } from './types';
 import {StatusCodes} from 'http-status-codes';
-import {stringify} from 'querystring';
+import {getParamValidators} from './reflection';
+import {Type, typeOf} from '@deepkit/type';
 type RouterKeyEntryList = [string, Routes | Hook | Route][];
 
 // ############# PUBLIC METHODS #############
 
 export const addRoutes = (routes: Routes, opts?: RouterOptions) => {
+    // TODO: Not sure if bellow code is required. using the wrong context type is a big fail and should be catch during dev
+    // TODO: fix should be just to use correct context type
+    // if (!contextType) throw 'Context needs to be defined before adding routes';
     recursiveFlatRoutes(routes, getDefaultRouterOptions(opts));
 };
 export const getRouteExecutionPath = (path: string) => flatRouter.get(path);
@@ -52,51 +56,67 @@ export const reset = () => {
     hookNames.clear();
     routeNames.clear();
     complexity = 0;
-    appContext = null;
+    _app = undefined;
+    _sharedDataFactory = undefined;
+    contextType = undefined;
 };
 
 /**
- * Initializes the static app context.
+ * Initializes the static Call Context for the routes.
+ * Returns Typed run function and Typed null context. these can be used to set the types for all routes.
  * @param app
+ * @param handlersDataFactory
+ * @returns Typed run function and Typed null context
  */
-export const setContext = <AppContext extends MapObj>(app: AppContext) => {
-    if (appContext) throw 'Context has been already defined';
-    appContext = app;
+export const setCallContext = <
+    App extends MapObj,
+    SharedData extends MapObj,
+    ServerReq extends MkRequest,
+    ServerResp extends MkResponse,
+>(
+    app: App,
+    handlersDataFactory?: SharedDataFactory<SharedData>,
+) => {
+    if (_app) throw 'Context has been already defined';
+    type ResolveContext = Context<App, SharedData, ServerReq, ServerResp>;
+    // type ResolvedRun = typeof run<ServerReq, ServerResp>;
+    _app = app;
+    _sharedDataFactory = handlersDataFactory;
+    contextType = typeOf<ResolveContext>();
+    const typedContext: ResolveContext = {} as any;
+    // const runRoute: ResolvedRun = run;
+    return {typedContext};
 };
 
-export const run = async <ServerlessReq extends MkRequest, ServerlessResp extends MkResponse, ServerlessCallContext>(
+export const run = async <ServerReq extends MkRequest, ServerResp extends MkResponse>(
     path: string,
-    req: ServerlessReq,
-    resp: ServerlessResp,
-    callContext?: ServerlessCallContext,
+    req: ServerReq,
+    resp: ServerResp,
 ): Promise<any> => {
-    if (!appContext) throw 'Context has not been defined';
+    if (!_app) throw 'Context has not been defined';
     const executionPath = getRouteExecutionPath(path);
     if (!executionPath) return routeError(StatusCodes.NOT_FOUND, 'Route not found');
 
-    const requestData = req.body ? JSON.stringify(req.body) : {};
-    if (typeof requestData !== 'object') return routeError(StatusCodes.BAD_REQUEST, 'Invalid request body');
+    const request = req.body ? JSON.stringify(req.body) : {};
+    if (typeof request !== 'object') return routeError(StatusCodes.BAD_REQUEST, 'Invalid request body');
 
-    const context: Context<typeof appContext, ServerlessReq, ServerlessResp, ServerlessCallContext> = {
-        app: appContext, // static context
-        req,
-        resp,
-        callContext,
+    const context: Context<MapObj, MapObj, ServerReq, ServerResp> = {
+        app: _app, // static context
+        server: {
+            req,
+            resp,
+        },
         path,
-        requestData,
-        responseData: {},
+        request,
+        reply: {},
         errors: [],
+        shared: _sharedDataFactory?.() || {},
     };
 
     for (let i = 0; i < executionPath.length; i++) {
         const executor = executionPath[i];
-        const params: any[] = requestData[executor.inputFieldName] || [];
-        const totalRequiredParams = executor.handler.length <= 1 ? 0 : executor.handler.length - 1;
-        // if (params.length !== totalRequiredParams)
-        //     context.errors.push({
-        //         statusCode: StatusCodes.BAD_REQUEST,
-        //         message: `Request field ${executor.inputFieldName} requires ${totalRequiredParams} `,
-        //     });
+        const params: any[] = request[executor.inputFieldName] || [];
+        // TODO: VALIDATE PARAMETERS
         try {
             const result = await executor.handler(context, ...params);
         } catch (e: any) {
@@ -120,7 +140,9 @@ const hookNames: Map<string, boolean> = new Map();
 const routeNames: Map<string, boolean> = new Map();
 let json: JsonParser = JSON;
 let complexity = 0;
-let appContext: MapObj | null = null;
+let _app: MapObj | undefined;
+let _sharedDataFactory: SharedDataFactory<MapObj> | undefined;
+let contextType: Type | undefined;
 
 // ############# PRIVATE METHODS #############
 
@@ -240,6 +262,12 @@ const getExecutableFromHook = (hook: Hook, path: string, nestLevel: number, key:
     if (existing) {
         return existing;
     }
+    const handler = getHandler(hook, path);
+    // TODO: Not sure if bellow code is required. using the wrong context type is a big fail and should be catch during dev
+    // TODO: fix should be just to use correct context type
+    // if (!contextType) throw 'Context must be defined before creating routes.'; // this  should not happen
+    // if (!isFirstParameterContext(contextType, handler) && false)
+    //     throw `Invalid hook: ${path}. First parameter the handler must be of Type ${contextType.typeName},`;
     const executable = {
         ...DEFAULT_EXECUTABLE,
         ...hook,
@@ -248,7 +276,8 @@ const getExecutableFromHook = (hook: Hook, path: string, nestLevel: number, key:
         inputFieldName: hookName,
         outputFieldName: hookName,
         isRoute: false,
-        handler: getHandler(hook, path),
+        handler,
+        paramValidators: getParamValidators(handler),
     };
     delete (executable as any).hook;
     hooksByFieldName.set(hookName, executable);
@@ -260,6 +289,11 @@ const getExecutableFromRoute = (route: Route, path: string, nestLevel: number, o
     const existing = routesByPath.get(path);
     if (existing) return existing;
     const handler = getHandler(route, path);
+    // TODO: Not sure if bellow code is required. using the wrong context type is a big fail and should be catch during dev
+    // TODO: fix should be just to use correct context type
+    // if (!contextType) throw 'Context must be defined before creating routes.'; // this  should not happen
+    // if (!isFirstParameterContext(contextType, handler))
+    //     throw `Invalid route: ${path}. First parameter the handler must be of Type ${contextType.typeName},`;
     const routeObj = isHandler(route) ? {...DEFAULT_ROUTE} : {...DEFAULT_ROUTE, ...route};
     const executable = {
         ...DEFAULT_EXECUTABLE,
@@ -268,6 +302,7 @@ const getExecutableFromRoute = (route: Route, path: string, nestLevel: number, o
         isRoute: true,
         nestLevel,
         handler,
+        paramValidators: getParamValidators(handler),
     };
     delete (executable as any).route;
     routesByPath.set(path, executable);
@@ -319,7 +354,7 @@ const findDuplicates = (withDuplicated: string[]): string[] => {
     return duplicates;
 };
 
-export const routeError = (statusCode: number, message: string): MkResponse => {
+const routeError = (statusCode: number, message: string): MkResponse => {
     return {
         statusCode,
         // prevent leaking any other fields from error
@@ -328,21 +363,6 @@ export const routeError = (statusCode: number, message: string): MkResponse => {
                 {
                     statusCode,
                     message,
-                },
-            ],
-        }),
-    };
-};
-
-export const routeError2 = (err: MkError): MkResponse => {
-    return {
-        statusCode: err.statusCode,
-        // prevent leaking any other fields from error
-        body: json.stringify({
-            errors: [
-                {
-                    statusCode: err.statusCode,
-                    message: err.message,
                 },
             ],
         }),

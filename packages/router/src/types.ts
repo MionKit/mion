@@ -17,6 +17,7 @@ export type RouteObject = {
     path?: string; // overrides route's path
     inputFieldName?: string; // overrides request body input field name
     outputFieldName?: string; // overrides response body output field name
+    description?: string; // description of the route, mostly for documentation purposes
     route: Handler;
 };
 
@@ -26,8 +27,9 @@ export type Hook = {
     stopOnError?: boolean; // Stops normal execution path if error is thrown
     forceRunOnError?: boolean; // Executes the hook even if an error was thrown previously in the execution path
     canReturnData?: boolean; // enables returning data in the responseBody
-    returnInHeader?: boolean; // sets the value in a heather rather than the body
+    inHeader?: boolean; // sets the value in a heather rather than the body
     fieldName?: string; // the fieldName in the request/response body
+    description?: string; // description of the route, mostly for documentation purposes
     hook: Handler;
 };
 
@@ -55,11 +57,13 @@ export type Executable = {
     stopOnError: boolean;
     forceRunOnError: boolean;
     canReturnData: boolean;
-    returnInHeader: boolean;
+    inHeader: boolean;
     inputFieldName: string;
     outputFieldName: string;
     isRoute: boolean;
     handler: Handler;
+    paramValidators: RouteParamValidator[];
+    handlerType: TypeFunction; // reflection data about the handler
 };
 
 // ####### RESPONSE & RESPONSE #######
@@ -81,16 +85,20 @@ export type MkError = {
 
 // ####### Context #######
 
-export type Context<AppContext, ServerlessReq extends MkRequest, ServerlessResp extends MkResponse, ServerlessCallContext> = {
-    app: Readonly<AppContext>; // static context
-    req: Readonly<ServerlessReq>;
-    resp: Readonly<ServerlessResp>;
-    callContext?: Readonly<ServerlessCallContext>;
-    path?: Readonly<string>;
-    errors: MkError[];
-    requestData: MapObj;
-    responseData: MapObj;
+export type Context<App, SharedData extends MapObj, ServerReq extends MkRequest, ServerResp extends MkResponse> = {
+    app: Readonly<App>; // Static Data: main App, db driver, libraries, etc...
+    server: {
+        req: Readonly<ServerReq>; // Server request, '@types/aws-lambda/APIGatewayEvent' when using aws lambda
+        resp: Readonly<ServerResp>; // Server response, '@types/aws-lambda/APIGatewayProxyCallback' when using aws lambda
+    };
+    path: Readonly<string>;
+    errors: MkError[]; // route errors
+    request: MapObj; // parsed request.body
+    reply: MapObj; // returned data (non parsed)
+    shared?: SharedData; // shared data between route/hooks handlers
 };
+
+export type SharedDataFactory<SharedData extends MapObj> = () => SharedData;
 
 // #######  reflection #######
 

@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {Executable, Hook, RouteObject, RouterOptions, RoutesWithId} from './types';
+import {Executable, Hook, MkRequest, MkResponse, RouteObject, RouterOptions, RoutesWithId} from './types';
 
 export const ROUTE_INPUT_FIELD_NAME = 'params';
 export const ROUTE_OUTPUT_FIELD_NAME = 'response';
@@ -14,14 +14,16 @@ export const DEFAULT_ROUTE: Readonly<Required<RouteObject>> = {
     path: '',
     inputFieldName: ROUTE_INPUT_FIELD_NAME,
     outputFieldName: ROUTE_OUTPUT_FIELD_NAME,
+    description: '',
     route: () => null,
 };
 export const DEFAULT_HOOK: Readonly<Required<Hook>> = {
     stopOnError: true,
     forceRunOnError: false,
     canReturnData: false,
-    returnInHeader: false,
+    inHeader: false,
     fieldName: '',
+    description: '',
     hook: () => null,
 };
 
@@ -31,11 +33,24 @@ export const DEFAULT_EXECUTABLE: Readonly<Required<Executable>> = {
     stopOnError: true,
     forceRunOnError: false,
     canReturnData: false,
-    returnInHeader: false,
+    inHeader: false,
     inputFieldName: '',
     outputFieldName: '',
     isRoute: false,
     handler: () => null,
+    paramValidators: [],
+    handlerType: null as any,
+};
+
+export const DEFAULT_REQUEST: Readonly<Required<MkRequest>> = {
+    headers: {},
+    body: '{}',
+};
+
+export const DEFAULT_RESPONSE: Readonly<Required<MkResponse>> = {
+    statusCode: 0,
+    headers: {},
+    body: null,
 };
 
 export const DEFAULT_ROUTES_WITH_ID: Readonly<Required<RoutesWithId>> = {

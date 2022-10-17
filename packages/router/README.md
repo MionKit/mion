@@ -93,14 +93,14 @@ import {mkkRouter, mkkContext, Route, Hook} from '@mikrokit/router';
 const authorizationHook: Hook = {
   stopNormalExecutionOnError: true,
   fieldName: 'Authorization',
-  async hook(context: AppContext, token: string) {
+  async hook(context: CallContext, token: string) {
     cons me = await getAuthUser(token);
     if (!isAuthorized) throw {code: 401, message: 'user is not authorized'};
     context.auth = {me}; // user is added to context to shared with other routes/hooks
   }
 };
 
-const getPet = async (context: AppContext, petId: number) => {
+const getPet = async (context: CallContext, petId: number) => {
   const pet = context.
   ...
   return pet;
@@ -108,7 +108,7 @@ const getPet = async (context: AppContext, petId: number) => {
 
 const loggingHook: Hook = {
   forceExecutionOnError: true,
-  async hook(context: AppContext) {
+  async hook(context: CallContext) {
     const me = context.errors;
     if (context.errors) await context.cloudLogs.error(context.errors);
     else context.cloudLogs.log(context.request.path, context.auth.me, context.mkkOutput)
@@ -201,7 +201,7 @@ type Hook = {
   canReturnData?: false,
 
   // sets the value in a heather rather than the body
-  returnInHeader?: false,
+  inHeader?: false,
 
   // overrides the fieldName in the request/response body
   fieldName?: '', // default value's taken from route's name
@@ -235,23 +235,46 @@ type RouteObject = {
 </tr>
 </table>
 
-## Context
+## Call Context
 
-This router is agnostic about the server so the only context known by the router is the `errors`, `params` for the route parameters data, and `response` for the route response data. The rest of the context must be set when the app gets initialized as follows.
+All data related to the call and app is passed in the first parameter to routes/hooks handler. The `setCallContext` returns a strongly typed run function that can be used as serverless handler and a strongly typed `typedContext` object which must be only used to get the type for the routes.
+
+#### Context Type
 
 ```js
+export type Context<App, SharedData extends MapObj, ServerReq extends MkRequest, ServerResp extends MkResponse> = {
+    app: Readonly<App>; // Static Data: main App, db driver, libraries, etc...
+    server: {
+        req: Readonly<ServerReq>; // Server request, '@types/aws-lambda/APIGatewayEvent' when using aws lambda
+        resp: Readonly<ServerResp>; // Server response, '@types/aws-lambda/APIGatewayProxyCallback' when using aws lambda
+    };
+    path: Readonly<string>;
+    errors: MkError[]; // route errors
+    request: MapObj; // parsed request.body
+    reply: MapObj; // returned data (non parsed)
+    shared?: SharedData; // shared data between route/hooks handlers
+};
+```
+
+#### Using context
+
+```js
+import {APIGatewayProxyResult, APIGatewayEvent} from 'aws-lambda';
 import {mkkRouter, mkkContext, Route, Hook} from '@mikrokit/router';
 import {someDbDriver} from 'someDbDriver';
 import {cloudLogs} from 'someCloudLogLibrary';
 
-const appContext = {
+const app = {
   cloudLogs,
   db: someDbDriver,
 };
 
-const authContext = {
+const sharedData = {
   auth: {me: null}
 }
+
+type App = typeof app;
+type SharedData = typeof sharedData;
 
 /** Sets the  App and Route call context
  * First parameter is the static part of the app, libraries, drivers etc..
@@ -259,12 +282,11 @@ const authContext = {
  * Be sure returned values don't store references to existing objects (no shallow copies),
  * you can use structuredClone used * for this.
  * */
-const appContext = mkkRouter.setContext(appContext, () => structuredClone(authContext));
+const {typedContext} = mkkRouter.setCallContext<App, SharedData, APIGatewayEvent, APIGatewayProxyResult>(app, () => structuredClone(authContext));
+type CallContext = typeof typedContext;
 
-type AppContext = typeof appContext;
 
-
-const route1 = async (context: AppContext, petId: number) => {
+const route1 = async (context: CallContext, petId: number) => {
   // use of context inside handlers
   context.cloudLogs ... ;
   context.db ... ;

@@ -14,6 +14,7 @@ import {
     getRouteExecutionPath,
     getRouteExecutable,
     reset,
+    setCallContext,
 } from './router';
 import {Executable, Handler, Hook, RouteObject, Routes} from './types';
 
@@ -50,24 +51,28 @@ describe('router should', () => {
             inputFieldName: 'first',
             outputFieldName: 'first',
             isRoute: false,
+            paramValidators: [],
         },
         userBefore: {
             path: 'users/userBefore',
             inputFieldName: 'userBefore',
             outputFieldName: 'userBefore',
             isRoute: false,
+            paramValidators: [],
         },
         userAfter: {
             path: 'users/userAfter',
             inputFieldName: 'userAfter',
             outputFieldName: 'userAfter',
             isRoute: false,
+            paramValidators: [],
         },
         last: {
             path: 'last',
             inputFieldName: 'last',
             outputFieldName: 'last',
             isRoute: false,
+            paramValidators: [],
         },
     };
 
@@ -77,18 +82,21 @@ describe('router should', () => {
             inputFieldName: 'params',
             outputFieldName: 'response',
             isRoute: true,
+            paramValidators: [],
         },
         usersPetsGetUserPet: {
             path: 'users/pets/getUserPet',
             inputFieldName: 'params',
             outputFieldName: 'response',
             isRoute: true,
+            paramValidators: [],
         },
         petsGetPet: {
             path: 'pets/getPet',
             inputFieldName: 'params',
             outputFieldName: 'response',
             isRoute: true,
+            paramValidators: [],
         },
     };
 
@@ -134,7 +142,7 @@ describe('router should', () => {
                 stopOnError: true,
                 forceRunOnError: false,
                 canReturnData: false,
-                returnInHeader: false,
+                inHeader: false,
                 inputFieldName: 'first',
                 outputFieldName: 'first',
                 isRoute: false,
@@ -153,7 +161,7 @@ describe('router should', () => {
                 stopOnError: true,
                 forceRunOnError: false,
                 canReturnData: false,
-                returnInHeader: false,
+                inHeader: false,
                 inputFieldName: 'params',
                 outputFieldName: 'response',
                 isRoute: true,
