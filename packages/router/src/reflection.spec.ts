@@ -5,9 +5,11 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {ReflectionKind, reflect, validateFunction, typeOf} from '@deepkit/type';
+import {ReflectionKind, reflect, typeOf} from '@deepkit/type';
 import {getParamValidators, isFirstParameterContext} from './reflection';
-import {Context, isFunctionType, MapObj, MkRequest, MkResponse, RouteParamValidator} from './types';
+import {setCallContext} from './router';
+import {Context, isFunctionType, RouteParamValidator} from './types';
+import {APIGatewayProxyResult, APIGatewayEvent} from 'aws-lambda';
 
 describe('Deepkit reflection should', () => {
     type Message = {
@@ -23,7 +25,7 @@ describe('Deepkit reflection should', () => {
     const app = {db: () => null};
     const req = {headers: {}, body: '{}'};
     const resp = {statusCode: 200, headers: {}, body: null};
-    const context = {abc: 'abc'};
+    const sharedDataFactory = () => ({hello: 'world'});
     const paramUser = {
         id: 1,
         name: 'john',
@@ -32,11 +34,11 @@ describe('Deepkit reflection should', () => {
         lastUpdate: new Date('December 17, 2020 03:24:00'),
     };
 
-    type AppContext = Context<typeof app, typeof req, typeof resp, typeof context>;
+    type CallContext = Context<typeof app, ReturnType<typeof sharedDataFactory>, typeof req, typeof resp>;
     const printSum = (a: number, b: number, c?: {message: string}, d?: Message) =>
         `${c?.message || d?.message || 'sum'} => ${a + b}`;
 
-    const updateUser = (context: AppContext, user: User, counterStart?: number): User => {
+    const updateUser = (context: CallContext, user: User, counterStart?: number): User => {
         const updated = {
             ...user,
             lastUpdate: new Date(),
@@ -103,9 +105,17 @@ describe('Deepkit reflection should', () => {
     });
 
     it('validate if the first parameter of a route is Context', () => {
-        const contextType = typeOf<AppContext>();
+        const contextType = typeOf<CallContext>();
 
         expect(isFirstParameterContext(contextType, updateUser)).toBeTruthy();
         expect(isFirstParameterContext(contextType, printSum)).toBeFalsy();
+    });
+
+    it('should set call context', () => {
+        type App = typeof app;
+        type SharedData = ReturnType<typeof sharedDataFactory>;
+        type AppContext = Context<App, SharedData, APIGatewayEvent, APIGatewayProxyResult>;
+        const {typedContext} = setCallContext<App, SharedData, APIGatewayEvent, APIGatewayProxyResult>(app, sharedDataFactory);
+        type AppContext2 = typeof typedContext;
     });
 });
