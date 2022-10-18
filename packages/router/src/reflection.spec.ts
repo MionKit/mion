@@ -7,7 +7,7 @@
 
 import {ReflectionKind, reflect, typeOf} from '@deepkit/type';
 import {getParamValidators, isFirstParameterContext} from './reflection';
-import {setCallContext} from './router';
+import {initRouter} from './router';
 import {Context, isFunctionType, RouteParamValidator} from './types';
 import {APIGatewayProxyResult, APIGatewayEvent} from 'aws-lambda';
 
@@ -115,7 +115,6 @@ describe('Deepkit reflection should', () => {
         type App = typeof app;
         type SharedData = ReturnType<typeof sharedDataFactory>;
         type AppContext = Context<App, SharedData, APIGatewayEvent, APIGatewayProxyResult>;
-        const {typedContext} = setCallContext<App, SharedData, APIGatewayEvent, APIGatewayProxyResult>(app, sharedDataFactory);
-        type AppContext2 = typeof typedContext;
+        initRouter<App, SharedData, APIGatewayEvent, APIGatewayProxyResult>(app, sharedDataFactory);
     });
 });

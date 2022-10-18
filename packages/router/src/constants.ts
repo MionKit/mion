@@ -18,7 +18,6 @@ export const DEFAULT_ROUTE: Readonly<Required<RouteObject>> = {
     route: () => null,
 };
 export const DEFAULT_HOOK: Readonly<Required<Hook>> = {
-    stopOnError: true,
     forceRunOnError: false,
     canReturnData: false,
     inHeader: false,
@@ -30,7 +29,6 @@ export const DEFAULT_HOOK: Readonly<Required<Hook>> = {
 export const DEFAULT_EXECUTABLE: Readonly<Required<Executable>> = {
     path: '',
     nestLevel: 0,
-    stopOnError: true,
     forceRunOnError: false,
     canReturnData: false,
     inHeader: false,
@@ -39,7 +37,7 @@ export const DEFAULT_EXECUTABLE: Readonly<Required<Executable>> = {
     isRoute: false,
     handler: () => null,
     paramValidators: [],
-    handlerType: null as any,
+    src: null as any,
 };
 
 export const DEFAULT_REQUEST: Readonly<Required<MkRequest>> = {
@@ -61,6 +59,7 @@ export const DEFAULT_ROUTES_WITH_ID: Readonly<Required<RoutesWithId>> = {
 export const DEFAULT_ROUTE_OPTIONS: Readonly<Required<RouterOptions>> = {
     prefix: '',
     suffix: '',
+    enableValidation: true,
 };
 
 export const ROUTE_KEYS = Object.keys(DEFAULT_ROUTE);

@@ -14,9 +14,9 @@ import {
     getRouteExecutionPath,
     getRouteExecutable,
     reset,
-    setCallContext,
+    setRouterOptions,
 } from './router';
-import {Executable, Handler, Hook, RouteObject, Routes} from './types';
+import {Handler, Hook, Route, RouteObject, Routes} from './types';
 
 describe('router should', () => {
     const hook: Hook = {hook() {}};
@@ -139,7 +139,6 @@ describe('router should', () => {
             expect.objectContaining({
                 path: 'first',
                 nestLevel: 0,
-                stopOnError: true,
                 forceRunOnError: false,
                 canReturnData: false,
                 inHeader: false,
@@ -158,9 +157,8 @@ describe('router should', () => {
             expect.objectContaining({
                 path: 'sayHello',
                 nestLevel: 0,
-                stopOnError: true,
                 forceRunOnError: false,
-                canReturnData: false,
+                canReturnData: true,
                 inHeader: false,
                 inputFieldName: 'params',
                 outputFieldName: 'response',
@@ -170,7 +168,8 @@ describe('router should', () => {
     });
 
     it('add prefixes to routes', () => {
-        addRoutes(routes, {prefix: 'api/v1', suffix: '.json'});
+        setRouterOptions({prefix: 'api/v1', suffix: '.json'});
+        addRoutes(routes);
 
         expect(geSize()).toEqual(5);
         expect(geHooksSize()).toEqual(4);
@@ -278,5 +277,10 @@ describe('router should', () => {
         console.log('worstCaseComplexity', worstCaseComplexity);
 
         expect(worstCaseComplexity * ratio > bestCaseComplexity).toBeTruthy();
+    });
+
+    it('should extend routes types', () => {
+        // TODO extend route/hook type and add to readme
+        type MyRoute = Route & {};
     });
 });

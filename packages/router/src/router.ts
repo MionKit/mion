@@ -6,7 +6,13 @@
  * ######## */
 
 import {join} from 'path';
-import {DEFAULT_EXECUTABLE, DEFAULT_ROUTE, DEFAULT_ROUTE_OPTIONS, MAX_ROUTE_NESTING} from './constants';
+import {
+    DEFAULT_ROUTE,
+    DEFAULT_ROUTE_OPTIONS,
+    MAX_ROUTE_NESTING,
+    ROUTE_INPUT_FIELD_NAME,
+    ROUTE_OUTPUT_FIELD_NAME,
+} from './constants';
 import {
     Executable,
     Handler,
@@ -27,19 +33,20 @@ import {
     MkResponse,
     JsonParser,
     SharedDataFactory,
+    MkError,
 } from './types';
 import {StatusCodes} from 'http-status-codes';
-import {getParamValidators} from './reflection';
-import {Type, typeOf} from '@deepkit/type';
+import {getParamValidators, validateParams} from './reflection';
+import {reflect, Type, typeOf} from '@deepkit/type';
 type RouterKeyEntryList = [string, Routes | Hook | Route][];
 
 // ############# PUBLIC METHODS #############
 
-export const addRoutes = (routes: Routes, opts?: RouterOptions) => {
+export const addRoutes = <RouteType extends Route = Route, HookType extends Hook = Hook>(routes: Routes) => {
     // TODO: Not sure if bellow code is required. using the wrong context type is a big fail and should be catch during dev
     // TODO: fix should be just to use correct context type
     // if (!contextType) throw 'Context needs to be defined before adding routes';
-    recursiveFlatRoutes(routes, getDefaultRouterOptions(opts));
+    recursiveFlatRoutes(routes);
 };
 export const getRouteExecutionPath = (path: string) => flatRouter.get(path);
 export const getEntries = () => flatRouter.entries();
@@ -49,6 +56,11 @@ export const getHookExecutable = (fieldName: string) => hooksByFieldName.get(fie
 export const geHooksSize = () => hooksByFieldName.size;
 export const getComplexity = () => complexity;
 export const setJsonParser = (parser: JsonParser) => (json = parser);
+export const setRouterOptions = (routerOptions_?: Partial<RouterOptions>) =>
+    (routerOptions = {
+        ...routerOptions,
+        ...routerOptions_,
+    });
 export const reset = () => {
     flatRouter.clear();
     hooksByFieldName.clear();
@@ -56,78 +68,127 @@ export const reset = () => {
     hookNames.clear();
     routeNames.clear();
     complexity = 0;
-    _app = undefined;
-    _sharedDataFactory = undefined;
+    app = undefined;
+    sharedDataFactory = undefined;
     contextType = undefined;
 };
 
 /**
- * Initializes the static Call Context for the routes.
- * Returns Typed run function and Typed null context. these can be used to set the types for all routes.
+ * Initializes the Router.
  * @param app
  * @param handlersDataFactory
- * @returns Typed run function and Typed null context
+ * @param routerOptions
  */
-export const setCallContext = <
+export const initRouter = <
     App extends MapObj,
-    SharedData extends MapObj,
+    SharedData,
     ServerReq extends MkRequest,
     ServerResp extends MkResponse,
+    RouteType extends Route = Route,
+    HookType extends Hook = Hook,
 >(
-    app: App,
-    handlersDataFactory?: SharedDataFactory<SharedData>,
+    app_: App,
+    handlersDataFactory_?: SharedDataFactory<SharedData>,
+    routerOptions_?: Partial<RouterOptions>,
 ) => {
-    if (_app) throw 'Context has been already defined';
-    type ResolveContext = Context<App, SharedData, ServerReq, ServerResp>;
-    // type ResolvedRun = typeof run<ServerReq, ServerResp>;
-    _app = app;
-    _sharedDataFactory = handlersDataFactory;
+    if (app) throw 'Context has been already defined';
+    app = app_;
+    sharedDataFactory = handlersDataFactory_;
+    setRouterOptions(routerOptions_);
+
+    type ResolveContext = Context<App, SharedData, ServerReq, ServerResp, RouteType, HookType>;
     contextType = typeOf<ResolveContext>();
-    const typedContext: ResolveContext = {} as any;
-    // const runRoute: ResolvedRun = run;
-    return {typedContext};
+    // type ResolvedRun = typeof run<ServerReq, ServerResp, RouteType, HookType>;
+    // const typedContext: ResolveContext = {} as any;
 };
 
-export const run = async <ServerReq extends MkRequest, ServerResp extends MkResponse>(
+export const runRoute = async <
+    ServerReq extends MkRequest,
+    ServerResp extends MkResponse,
+    RouteType extends Route = Route,
+    HookType extends Hook = Hook,
+>(
     path: string,
     req: ServerReq,
     resp: ServerResp,
 ): Promise<any> => {
-    if (!_app) throw 'Context has not been defined';
-    const executionPath = getRouteExecutionPath(path);
-    if (!executionPath) return routeError(StatusCodes.NOT_FOUND, 'Route not found');
+    if (!app) throw 'Context has not been defined';
 
-    const request = req.body ? JSON.stringify(req.body) : {};
-    if (typeof request !== 'object') return routeError(StatusCodes.BAD_REQUEST, 'Invalid request body');
-
-    const context: Context<MapObj, MapObj, ServerReq, ServerResp> = {
-        app: _app, // static context
+    const context: Context<MapObj, MapObj, ServerReq, ServerResp, RouteType, HookType> = {
+        app: app, // static context
         server: {
             req,
             resp,
         },
         path,
-        request,
+        request: null as any,
         reply: {},
         errors: [],
-        shared: _sharedDataFactory?.() || {},
+        privateErrors: [],
+        shared: sharedDataFactory?.() || {},
+        src: null as any,
     };
 
-    for (let i = 0; i < executionPath.length; i++) {
-        const executor = executionPath[i];
-        const params: any[] = request[executor.inputFieldName] || [];
-        // TODO: VALIDATE PARAMETERS
+    const executionPath = getRouteExecutionPath(path) || [];
+    if (!executionPath.length) {
+        const notFound = {statusCode: StatusCodes.NOT_FOUND, message: 'Route not found'};
+        context.errors.push(notFound);
+        context.privateErrors.push(notFound);
+    } else {
         try {
-            const result = await executor.handler(context, ...params);
-        } catch (e: any) {
-            context.errors.push({
-                code: e?.code,
-                message: e?.message,
-                ...e,
-            });
+            context.request = parseRequestBody(req);
+        } catch (e: MkError | any) {
+            context.errors.push(e);
+            context.privateErrors.push(e);
         }
+    }
 
-        resp;
+    await runExecutionPath(executionPath, context);
+
+    // TODO: SERIALIZE OUTPUT and add to context.reply
+};
+
+const parseRequestBody = (req: MkRequest) => {
+    try {
+        const request = req.body ? json.stringify(req.body) : {};
+        if (typeof request !== 'object') throw 'invalid body type, only objects allowed';
+        return request;
+    } catch (e) {
+        throw {statusCode: StatusCodes.BAD_REQUEST, message: 'Invalid request body'};
+    }
+};
+
+const runExecutionPath = async <
+    ServerReq extends MkRequest,
+    ServerResp extends MkResponse,
+    RouteType extends Route = Route,
+    HookType extends Hook = Hook,
+>(
+    executionPath: Executable[],
+    context: Context<MapObj, MapObj, ServerReq, ServerResp, RouteType, HookType>,
+) => {
+    if (executionPath.length && context.request) {
+        for (let index = 0; index < executionPath.length; index++) {
+            const executable = executionPath[index];
+            const params: any[] = context.request[executable.inputFieldName] || [];
+            if (routerOptions.enableValidation) {
+                context.errors.push(...validateParams(executable, params, params));
+            }
+            if (context.errors.length && !executable.forceRunOnError) continue;
+            try {
+                const result = await executable.handler(context, ...params);
+                if (executable.canReturnData) context.reply[executable.outputFieldName] = result;
+            } catch (e: any | MkError | Error) {
+                const executableOrUnknownError = {
+                    statusCode: e.statusCode || StatusCodes.INTERNAL_SERVER_ERROR,
+                    message:
+                        e.message ||
+                        `Unknown error in ${executable.isRoute ? executable.path : executable.inputFieldName} step ${index}`,
+                };
+                context.errors.push(executableOrUnknownError);
+                context.privateErrors.push(e);
+            }
+        }
     }
 };
 
@@ -140,15 +201,17 @@ const hookNames: Map<string, boolean> = new Map();
 const routeNames: Map<string, boolean> = new Map();
 let json: JsonParser = JSON;
 let complexity = 0;
-let _app: MapObj | undefined;
-let _sharedDataFactory: SharedDataFactory<MapObj> | undefined;
+let app: MapObj | undefined;
+let sharedDataFactory: SharedDataFactory<any> | undefined;
 let contextType: Type | undefined;
+let routerOptions = {
+    ...DEFAULT_ROUTE_OPTIONS,
+};
 
 // ############# PRIVATE METHODS #############
 
 const recursiveFlatRoutes = (
     routes: Routes,
-    opts: RouterOptions,
     currentPath = '',
     preHooks: Executable[] = [],
     postHooks: Executable[] = [],
@@ -173,7 +236,7 @@ const recursiveFlatRoutes = (
                 throw `Invalid hook: ${path}. Naming collision, the fieldName ${fieldName} has been already used`;
             hookNames.set(fieldName, true);
         } else if (isRoute(item)) {
-            routeEntry = getExecutableFromRoute(item, path, nestLevel, opts);
+            routeEntry = getExecutableFromRoute(item, path, nestLevel);
             if (routeNames.has(routeEntry.path)) throw `Invalid route: ${path}. Naming collision, duplicated route`;
             routeNames.set(routeEntry.path, true);
         } else if (isRoutes(item)) {
@@ -189,7 +252,6 @@ const recursiveFlatRoutes = (
         // generates the routeExecutionPaths and recurse into sublevels
         minus1Props = recursiveCreateExecutionPath(
             routeEntry,
-            opts,
             currentPath,
             preHooks,
             postHooks,
@@ -205,7 +267,6 @@ const recursiveFlatRoutes = (
 
 const recursiveCreateExecutionPath = (
     routeEntry: Executable | RoutesWithId,
-    opts: RouterOptions,
     currentPath: string,
     preHooks: Executable[],
     postHooks: Executable[],
@@ -239,7 +300,6 @@ const recursiveCreateExecutionPath = (
     } else if (!isExec) {
         recursiveFlatRoutes(
             routeEntry.routes,
-            opts,
             routeEntry.path,
             [...preHooks, ...props.preLevelHooks],
             [...props.postLevelHooks, ...postHooks],
@@ -268,24 +328,26 @@ const getExecutableFromHook = (hook: Hook, path: string, nestLevel: number, key:
     // if (!contextType) throw 'Context must be defined before creating routes.'; // this  should not happen
     // if (!isFirstParameterContext(contextType, handler) && false)
     //     throw `Invalid hook: ${path}. First parameter the handler must be of Type ${contextType.typeName},`;
-    const executable = {
-        ...DEFAULT_EXECUTABLE,
-        ...hook,
+    const executable: Executable = {
         path,
+        forceRunOnError: !!hook.forceRunOnError,
+        canReturnData: !!hook.canReturnData,
+        inHeader: !!hook.inHeader,
         nestLevel,
         inputFieldName: hookName,
         outputFieldName: hookName,
         isRoute: false,
         handler,
         paramValidators: getParamValidators(handler),
+        src: hook,
     };
     delete (executable as any).hook;
     hooksByFieldName.set(hookName, executable);
     return executable;
 };
 
-const getExecutableFromRoute = (route: Route, path: string, nestLevel: number, opts: RouterOptions) => {
-    const routePath = join(opts.prefix, (route as RouteObject)?.path || path) + opts.suffix;
+const getExecutableFromRoute = (route: Route, path: string, nestLevel: number) => {
+    const routePath = join(routerOptions.prefix, (route as RouteObject)?.path || path) + routerOptions.suffix;
     const existing = routesByPath.get(path);
     if (existing) return existing;
     const handler = getHandler(route, path);
@@ -295,14 +357,18 @@ const getExecutableFromRoute = (route: Route, path: string, nestLevel: number, o
     // if (!isFirstParameterContext(contextType, handler))
     //     throw `Invalid route: ${path}. First parameter the handler must be of Type ${contextType.typeName},`;
     const routeObj = isHandler(route) ? {...DEFAULT_ROUTE} : {...DEFAULT_ROUTE, ...route};
-    const executable = {
-        ...DEFAULT_EXECUTABLE,
-        ...routeObj,
+    const executable: Executable = {
         path: routePath,
+        forceRunOnError: false,
+        canReturnData: true,
+        inHeader: false,
+        inputFieldName: routeObj.inputFieldName,
+        outputFieldName: routeObj.outputFieldName,
         isRoute: true,
         nestLevel,
         handler,
         paramValidators: getParamValidators(handler),
+        src: routeObj,
     };
     delete (executable as any).route;
     routesByPath.set(path, executable);
@@ -333,15 +399,12 @@ const getRouteEntryProperties = (
     };
 };
 
-const getDefaultRouterOptions = (opts?: RouterOptions) => {
-    return {
-        ...DEFAULT_ROUTE_OPTIONS,
-        ...opts,
-    };
-};
-
 const getHookFieldName = (item: Hook, key: string) => {
     return item?.fieldName || key;
+};
+
+const getRouteFieldName = (fieldName: string | undefined, key: string) => {
+    return fieldName || key;
 };
 
 const findDuplicates = (withDuplicated: string[]): string[] => {
