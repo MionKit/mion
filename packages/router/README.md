@@ -34,7 +34,7 @@ Please have a look to this great Presentation for more info about each different
 Routes are just functions where the first parameter is the `context` and the rest of parameters are passed in the request body. Route names are defined using a plain javascript object, where every property of the object is the route's name.
 
 ```js
-import {mkkRouter, Handler, Route} from '@mikrokit/router';
+import {Route, Handler, Routes} from '@mikrokit/router';
 
 const sayHello: Handler = (context, name: string) => {
   return `Hello ${name}.`;
@@ -59,12 +59,13 @@ mkkRouter.addRoutes(routes, options);
 Using javascript names helps keeping route names simple, it is not recommended to use the array notation to define route names. no url decoding is done when finding the route
 
 ```js
-const sayHello: Handler = (context, name: string) => {
+const sayHello: Routes = (context, name: string) => {
   return `Hello ${name}.`;
 };
 
-const routes = {
-  'say-Hello': sayHello, // api/say-Hello  !! NOT GOOD
+const routes: Routes = {
+  'say-Hello': sayHello, // api/say-Hello  !! NOT Recommended
+  'say Hello': sayHello, // api/say Hello  !! ROUTE WONT BE FOUND
 };
 
 mkkRouter.addRoutes(routes, options);
@@ -88,19 +89,19 @@ A route might require some extra data like authorization, preconditions, logging
 Hooks can use the `context` to share data with other routes and hooks. The return value will be ignored unless `canReturnData` is set to true, in that case the returned value will be serialized in the response body.
 
 ```js
-import {mkkRouter, mkkContext, Route, Hook} from '@mikrokit/router';
+import {Route, Context, Routes, Hook} from '@mikrokit/router';
 
 const authorizationHook: Hook = {
   stopNormalExecutionOnError: true,
   fieldName: 'Authorization',
-  async hook(context: CallContext, token: string) {
+  async hook(context: Context, token: string) {
     cons me = await getAuthUser(token);
     if (!isAuthorized) throw {code: 401, message: 'user is not authorized'};
     context.auth = {me}; // user is added to context to shared with other routes/hooks
   }
 };
 
-const getPet = async (context: CallContext, petId: number) => {
+const getPet: Route = async (context: Context, petId: number) => {
   const pet = context.
   ...
   return pet;
@@ -108,14 +109,14 @@ const getPet = async (context: CallContext, petId: number) => {
 
 const loggingHook: Hook = {
   forceExecutionOnError: true,
-  async hook(context: CallContext) {
+  async hook(context: Context) {
     const me = context.errors;
     if (context.errors) await context.cloudLogs.error(context.errors);
     else context.cloudLogs.log(context.request.path, context.auth.me, context.mkkOutput)
   }
 };
 
-const routes = {
+const routes: Routes = {
   // if `fieldName` would not have been set in the hook, then the `fieldName` would be : api/authorizationHook
   authorizationHook, // fieldName: Authorization
   users: {
@@ -216,6 +217,8 @@ type Hook = {
 
 ```js
 // ### default values shown ###
+type Route = RouteObject | Handler;
+
 type RouteObject = {
   // overrides route's path
   path?: '', // default value's taken from route's path
@@ -229,20 +232,35 @@ type RouteObject = {
   // route's main handler
   route: Handler,
 };
+
+type Handler = (context: any, ...args: any) => any | void | Promise<any | void>;
 ```
 
 </td>
 </tr>
 </table>
 
+#### Extending Route and Hook Types
+
+```js
+
+```
+
 ## Call Context
 
-All data related to the call and app is passed in the first parameter to routes/hooks handler. The `setCallContext` returns a strongly typed run function that can be used as serverless handler and a strongly typed `typedContext` object which must be only used to get the type for the routes.
+All data related to the call and app is passed in the first parameter to routes/hooks handler the `Context`.
 
 #### Context Type
 
 ```js
-export type Context<App, SharedData extends MapObj, ServerReq extends MkRequest, ServerResp extends MkResponse> = {
+export type Context<
+    App,
+    SharedData,
+    ServerReq extends MkRequest,
+    ServerResp extends MkResponse,
+    RouteType extends Route = Route,
+    HookType extends Hook = Hook,
+> = {
     app: Readonly<App>; // Static Data: main App, db driver, libraries, etc...
     server: {
         req: Readonly<ServerReq>; // Server request, '@types/aws-lambda/APIGatewayEvent' when using aws lambda
@@ -252,7 +270,8 @@ export type Context<App, SharedData extends MapObj, ServerReq extends MkRequest,
     errors: MkError[]; // route errors
     request: MapObj; // parsed request.body
     reply: MapObj; // returned data (non parsed)
-    shared?: SharedData; // shared data between route/hooks handlers
+    shared: SharedData | {}; // shared data between route/hooks handlers
+    src: Readonly<RouteType | HookType>; // the route/hook definition
 };
 ```
 
@@ -260,7 +279,7 @@ export type Context<App, SharedData extends MapObj, ServerReq extends MkRequest,
 
 ```js
 import {APIGatewayProxyResult, APIGatewayEvent} from 'aws-lambda';
-import {mkkRouter, mkkContext, Route, Hook} from '@mikrokit/router';
+import {Routes, Context} from '@mikrokit/router';
 import {someDbDriver} from 'someDbDriver';
 import {cloudLogs} from 'someCloudLogLibrary';
 
@@ -275,25 +294,19 @@ const sharedData = {
 
 type App = typeof app;
 type SharedData = typeof sharedData;
+type CallContext = Context<App, SharedData, APIGatewayEvent, APIGatewayProxyResult>;
 
-/** Sets the  App and Route call context
- * First parameter is the static part of the app, libraries, drivers etc..
- * Second parameter is a factory function that returns a new context for every new request.
- * Be sure returned values don't store references to existing objects (no shallow copies),
- * you can use structuredClone used * for this.
- * */
-const {typedContext} = mkkRouter.setCallContext<App, SharedData, APIGatewayEvent, APIGatewayProxyResult>(app, () => structuredClone(authContext));
-type CallContext = typeof typedContext;
-
+mkkRouter.initRouter(app, () => structuredClone(sharedData));
 
 const route1 = async (context: CallContext, petId: number) => {
   // use of context inside handlers
-  context.cloudLogs ... ;
-  context.db ... ;
-  context.auth.me ...;
+  context.app.cloudLogs ... ;
+  context.app.db ... ;
+  context.shared.auth.me ...;
   ...
   return pet;
 };
+
 const routes = { route1 };
 mkkRouter.addRoutes(routes);
 

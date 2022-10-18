@@ -21,10 +21,9 @@ export type RouteObject = {
     route: Handler;
 };
 
-export type Route = RouteObject | Handler;
+export type Route<RouteType extends RouteObject = RouteObject> = RouteType | Handler;
 
 export type Hook = {
-    stopOnError?: boolean; // Stops normal execution path if error is thrown
     forceRunOnError?: boolean; // Executes the hook even if an error was thrown previously in the execution path
     canReturnData?: boolean; // enables returning data in the responseBody
     inHeader?: boolean; // sets the value in a heather rather than the body
@@ -33,13 +32,13 @@ export type Hook = {
     hook: Handler;
 };
 
-export type Routes = {
-    [key: string]: Hook | Route | Routes;
+export type Routes<RouteType extends Route = Route, HookType extends Hook = Hook> = {
+    [key: string]: HookType | RouteType | Routes<RouteType, HookType>;
 };
 
-export type RoutesWithId = {
+export type RoutesWithId<RouteType extends Route = Route, HookType extends Hook = Hook> = {
     path: string;
-    routes: Routes;
+    routes: Routes<RouteType, HookType>;
 };
 
 // ####### Router Options #######
@@ -47,14 +46,14 @@ export type RoutesWithId = {
 export type RouterOptions = {
     prefix: string;
     suffix: string;
+    enableValidation: boolean;
 };
 
 // ####### Execution Path #######
 
-export type Executable = {
+export type Executable<RouteType extends Route = Route, HookType extends Hook = Hook> = {
     nestLevel: number;
     path: string;
-    stopOnError: boolean;
     forceRunOnError: boolean;
     canReturnData: boolean;
     inHeader: boolean;
@@ -63,7 +62,7 @@ export type Executable = {
     isRoute: boolean;
     handler: Handler;
     paramValidators: RouteParamValidator[];
-    handlerType: TypeFunction; // reflection data about the handler
+    src?: RouteType | HookType;
 };
 
 // ####### RESPONSE & RESPONSE #######
@@ -85,20 +84,30 @@ export type MkError = {
 
 // ####### Context #######
 
-export type Context<App, SharedData extends MapObj, ServerReq extends MkRequest, ServerResp extends MkResponse> = {
+export type Context<
+    App,
+    SharedData,
+    ServerReq extends MkRequest,
+    ServerResp extends MkResponse,
+    RouteType extends Route = Route,
+    HookType extends Hook = Hook,
+> = {
     app: Readonly<App>; // Static Data: main App, db driver, libraries, etc...
     server: {
         req: Readonly<ServerReq>; // Server request, '@types/aws-lambda/APIGatewayEvent' when using aws lambda
         resp: Readonly<ServerResp>; // Server response, '@types/aws-lambda/APIGatewayProxyCallback' when using aws lambda
     };
     path: Readonly<string>;
-    errors: MkError[]; // route errors
-    request: MapObj; // parsed request.body
+    errors: MkError[]; // route errors, returned to the public
+    privateErrors: (MkError | Error | any)[]; // private errors, can be used for logging etc
+    /** parsed request.body */
+    request: MapObj;
     reply: MapObj; // returned data (non parsed)
     shared?: SharedData; // shared data between route/hooks handlers
+    src: Readonly<RouteType | HookType>; // the route/hook definition
 };
 
-export type SharedDataFactory<SharedData extends MapObj> = () => SharedData;
+export type SharedDataFactory<SharedData> = () => SharedData;
 
 // #######  reflection #######
 

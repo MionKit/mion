@@ -5,9 +5,10 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import type {Context, Handler, RouteParamValidator} from './types';
-import {ReflectionKind, reflect, validateFunction, Type, isSameType} from '@deepkit/type';
+import type {Executable, Handler, MkError, RouteParamValidator} from './types';
+import {reflect, validateFunction, Type, isSameType} from '@deepkit/type';
 import {isFunctionType} from './types';
+import {StatusCodes} from 'http-status-codes';
 
 /**
  * Returns an array of functions to validate route handler parameters,
@@ -25,6 +26,21 @@ export const getParamValidators = (handler: Handler): RouteParamValidator[] => {
     });
 
     return paramValidators.slice(1);
+};
+
+export const validateParams = (executable: Executable, params: any[], validators: RouteParamValidator[]): MkError[] => {
+    if (params.length < validators.length)
+        return [
+            {
+                statusCode: StatusCodes.BAD_REQUEST,
+                message: `Invalid input ${executable.inputFieldName}, missing input parameters, expecting ${validators.length} got ${params.length}`,
+            },
+        ];
+    const errors = validators.map((validate, index) => validate(params[index])).flat();
+    return errors.map((validationError) => ({
+        statusCode: StatusCodes.BAD_REQUEST,
+        message: `Invalid input ${executable.inputFieldName}. ${validationError.toString()}`,
+    }));
 };
 
 export const isFirstParameterContext = (contextType: Type, handler: Handler): boolean => {
