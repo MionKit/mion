@@ -36,8 +36,5 @@
   },
   "bugs": {
     "url": "https://github.com/mikrokit/mikrokit/issues"
-  },
-  "dependencies": {
-    "http-status-codes": "^2.2.0"
   }
 }

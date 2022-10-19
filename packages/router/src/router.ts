@@ -6,13 +6,7 @@
  * ######## */
 
 import {join} from 'path';
-import {
-    DEFAULT_ROUTE,
-    DEFAULT_ROUTE_OPTIONS,
-    MAX_ROUTE_NESTING,
-    ROUTE_INPUT_FIELD_NAME,
-    ROUTE_OUTPUT_FIELD_NAME,
-} from './constants';
+import {DEFAULT_ROUTE, DEFAULT_ROUTE_OPTIONS, MAX_ROUTE_NESTING} from './constants';
 import {
     Executable,
     Handler,
@@ -26,7 +20,6 @@ import {
     RouteObject,
     RouterOptions,
     Routes,
-    RoutesWithId,
     Context,
     MapObj,
     MkRequest,
@@ -35,10 +28,14 @@ import {
     SharedDataFactory,
     MkError,
 } from './types';
-import {StatusCodes} from 'http-status-codes';
+import {StatusCodes} from './status-codes';
 import {getParamValidators, validateParams} from './reflection';
-import {reflect, Type, typeOf} from '@deepkit/type';
+import {Type, typeOf} from '@deepkit/type';
 type RouterKeyEntryList = [string, Routes | Hook | Route][];
+type RoutesWithId<RouteType extends Route = Route, HookType extends Hook = Hook> = {
+    path: string;
+    routes: Routes<RouteType, HookType>;
+};
 
 // ############# PUBLIC METHODS #############
 
@@ -49,8 +46,8 @@ export const addRoutes = <RouteType extends Route = Route, HookType extends Hook
     recursiveFlatRoutes(routes);
 };
 export const getRouteExecutionPath = (path: string) => flatRouter.get(path);
-export const getEntries = () => flatRouter.entries();
-export const geSize = () => flatRouter.size;
+export const getRouteEntries = () => flatRouter.entries();
+export const geRoutesSize = () => flatRouter.size;
 export const getRouteExecutable = (path: string) => routesByPath.get(path);
 export const getHookExecutable = (fieldName: string) => hooksByFieldName.get(fieldName);
 export const geHooksSize = () => hooksByFieldName.size;
@@ -71,6 +68,9 @@ export const reset = () => {
     app = undefined;
     sharedDataFactory = undefined;
     contextType = undefined;
+    routerOptions = {
+        ...DEFAULT_ROUTE_OPTIONS,
+    };
 };
 
 /**

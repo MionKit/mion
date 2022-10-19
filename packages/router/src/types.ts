@@ -11,46 +11,62 @@ import {ReflectionKind} from '@deepkit/type';
 
 // #######  Router entries #######
 
+/** Route or Hook Handler */
 export type Handler = (context: any, ...args: any) => any | void | Promise<any | void>;
 
+/** Route definition */
 export type RouteObject = {
-    path?: string; // overrides route's path
-    inputFieldName?: string; // overrides request body input field name
-    outputFieldName?: string; // overrides response body output field name
-    description?: string; // description of the route, mostly for documentation purposes
+    /** overrides route's path */
+    path?: string;
+    /** overrides request body input field name */
+    inputFieldName?: string;
+    /** overrides response body output field name */
+    outputFieldName?: string;
+    /** description of the route, mostly for documentation purposes */
+    description?: string;
+    /** Route Handler */
     route: Handler;
 };
 
+/** A route can be a full route definition or just the handler */
 export type Route<RouteType extends RouteObject = RouteObject> = RouteType | Handler;
 
+/** Hook definition */
 export type Hook = {
-    forceRunOnError?: boolean; // Executes the hook even if an error was thrown previously in the execution path
-    canReturnData?: boolean; // enables returning data in the responseBody
-    inHeader?: boolean; // sets the value in a heather rather than the body
-    fieldName?: string; // the fieldName in the request/response body
-    description?: string; // description of the route, mostly for documentation purposes
+    /** Executes the hook even if an error was thrown previously in the execution path */
+    forceRunOnError?: boolean;
+    /** Enables returning data in the responseBody */
+    canReturnData?: boolean;
+    /** Sets the value in a heather rather than the body */
+    inHeader?: boolean;
+    /** The fieldName in the request/response body */
+    fieldName?: string;
+    /** Description of the route, mostly for documentation purposes */
+    description?: string;
+    /** Hook handler */
     hook: Handler;
 };
 
+/** Data structure to define all the routes, each entry is a route a hook or sub-routes */
 export type Routes<RouteType extends Route = Route, HookType extends Hook = Hook> = {
     [key: string]: HookType | RouteType | Routes<RouteType, HookType>;
 };
 
-export type RoutesWithId<RouteType extends Route = Route, HookType extends Hook = Hook> = {
-    path: string;
-    routes: Routes<RouteType, HookType>;
-};
-
 // ####### Router Options #######
 
+/** Global Router Options */
 export type RouterOptions = {
+    /** prefix for all routes, i.e: api/v1, path separator is added between the prefix and the route */
     prefix: string;
+    /** suffix for all routes, i.e: .json, not path separators is added between the route and the suffix */
     suffix: string;
+    /** enable automatic parameter validation, defaults to true */
     enableValidation: boolean;
 };
 
 // ####### Execution Path #######
 
+/** Data structure used control the execution path, an Executable is generated from each hook or route */
 export type Executable<RouteType extends Route = Route, HookType extends Hook = Hook> = {
     nestLevel: number;
     path: string;
@@ -66,17 +82,21 @@ export type Executable<RouteType extends Route = Route, HookType extends Hook = 
 };
 
 // ####### RESPONSE & RESPONSE #######
+
+/** Any request Object used by the router must follow this interface */
 export type MkRequest = {
     headers: {[header: string]: string | undefined};
     body: string | null | undefined;
 };
 
+/** Any response Object used by the routed must follow this interface  */
 export type MkResponse = {
     statusCode: number;
     headers?: {[header: string]: boolean | number | string} | undefined;
     body: string | null;
 };
 
+/** Any error triggered by hooks or routes must follow this interface, returned errors in the body also follows this interface */
 export type MkError = {
     statusCode: number;
     message: string;
@@ -84,6 +104,7 @@ export type MkError = {
 
 // ####### Context #######
 
+/** The call Context object passed as first parameter to any hook or route */
 export type Context<
     App,
     SharedData,
@@ -92,21 +113,30 @@ export type Context<
     RouteType extends Route = Route,
     HookType extends Hook = Hook,
 > = {
-    app: Readonly<App>; // Static Data: main App, db driver, libraries, etc...
+    /** Static Data: main App, db driver, libraries, etc... */
+    app: Readonly<App>;
+
     server: {
-        req: Readonly<ServerReq>; // Server request, '@types/aws-lambda/APIGatewayEvent' when using aws lambda
-        resp: Readonly<ServerResp>; // Server response, '@types/aws-lambda/APIGatewayProxyCallback' when using aws lambda
+        /** Server request, '@types/aws-lambda/APIGatewayEvent' when using aws lambda */
+        req: Readonly<ServerReq>;
+        /** Server response, '@types/aws-lambda/APIGatewayProxyCallback' when using aws lambda */
+        resp: Readonly<ServerResp>;
     };
+    /** Route's path */
     path: Readonly<string>;
-    errors: MkError[]; // route errors, returned to the public
-    privateErrors: (MkError | Error | any)[]; // private errors, can be used for logging etc
+    /** route errors, returned to the public */
+    errors: MkError[];
+    /** private errors, can be used for logging etc */
+    privateErrors: (MkError | Error | any)[];
     /** parsed request.body */
     request: MapObj;
-    reply: MapObj; // returned data (non parsed)
-    shared?: SharedData; // shared data between route/hooks handlers
-    src: Readonly<RouteType | HookType>; // the route/hook definition
+    /** returned data (non parsed) */
+    reply: MapObj;
+    /** shared data between route/hooks handlers */
+    shared: SharedData;
 };
 
+/** Function used to create the shared data object on each route call  */
 export type SharedDataFactory<SharedData> = () => SharedData;
 
 // #######  reflection #######
@@ -115,27 +145,28 @@ export type RouteParamValidator = (data: any) => ValidationErrorItem[];
 
 // #######  type guards #######
 
+/** Type guard: isHandler */
 export const isHandler = (entry: Hook | Route | Routes): entry is Handler => {
     return typeof entry === 'function';
 };
-
+/** Type guard: isRouteObject */
 export const isRouteObject = (entry: Hook | Route | Routes): entry is RouteObject => {
     return typeof (entry as RouteObject).route === 'function';
 };
-
+/** Type guard: isHook */
 export const isHook = (entry: Hook | Route | Routes): entry is Hook => {
     return typeof (entry as Hook).hook === 'function';
 };
-
+/** Type guard: isRoute */
 export const isRoute = (entry: Hook | Route | Routes): entry is Route => {
     return typeof entry === 'function' || typeof (entry as RouteObject).route === 'function';
 };
-
+/** Type guard: isRoutes */
 export const isRoutes = (entry: any): entry is Route => {
     return typeof entry === 'object';
 };
-
-export const isExecutable = (entry: Executable | RoutesWithId): entry is Executable => {
+/** Type guard: isExecutable */
+export const isExecutable = (entry: Executable | Routes): entry is Executable => {
     return (
         typeof entry.path === 'string' &&
         ((entry as any).routes === 'undefined' || typeof (entry as Executable).handler === 'function')

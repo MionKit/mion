@@ -10,7 +10,9 @@
     "lint": "eslint packages/**/src --ext .ts",
     "build": "npm run tsc -ws",
     "publish": "lerna run tsc && lerna publish",
-    "deepkit-install": "deepkit-type-install"
+    "deepkit-install": "deepkit-type-install",
+    "prepare": "husky install",
+    "embed-readme": "embedme **/README.md"
   },
   "repository": {
     "type": "git",
@@ -40,7 +42,9 @@
     "@types/node": "^16.11.6",
     "@typescript-eslint/eslint-plugin": "^5.2.0",
     "@typescript-eslint/parser": "^5.2.0",
+    "embedme": "^1.22.1",
     "eslint": "^8.1.0",
+    "husky": "^8.0.0",
     "jest": "^27.3.1",
     "prettier": "^2.4.1",
     "ts-jest": "^27.1.5",

@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {Executable, Hook, MkRequest, MkResponse, RouteObject, RouterOptions, RoutesWithId} from './types';
+import {Executable, Hook, MkRequest, MkResponse, RouteObject, RouterOptions} from './types';
 
 export const ROUTE_INPUT_FIELD_NAME = 'params';
 export const ROUTE_OUTPUT_FIELD_NAME = 'response';
@@ -49,11 +49,6 @@ export const DEFAULT_RESPONSE: Readonly<Required<MkResponse>> = {
     statusCode: 0,
     headers: {},
     body: null,
-};
-
-export const DEFAULT_ROUTES_WITH_ID: Readonly<Required<RoutesWithId>> = {
-    path: '',
-    routes: {},
 };
 
 export const DEFAULT_ROUTE_OPTIONS: Readonly<Required<RouterOptions>> = {
