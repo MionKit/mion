@@ -71,7 +71,7 @@ Please have a look to this great Presentation for more info about each different
 
 ## `Routing`
 
-Blazing fast router **based in plain javascript objects**. Thanks to the RPC Like routing style there is no need for parameters or regular expression parsing when finding a route, just a simple [Map](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Map) in memory with all the routes on it. **_!Can't get faster than that!_**
+Blazing fast router **_based in plain javascript objects_**. Thanks to it's RPC style there is no need for parameters or regular expression parsing when finding a route, just a simple [Map](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Map) in memory containing all the routes, can't get faster than that.
 
 All data is transmitted in the body, so data that is usually send via HTTP headers (like Authorization tokens), is send in the body wen using MikroKit. _Headers are supposed to be data for/by the server/browser and should not be used in Application level_, this also could prevent some problems with proxies but also generate some problem with some other software that relies in headers (Auth providers etc).
 
@@ -84,30 +84,28 @@ Full router documentation [here!](./packages/router/)
 ### Example:
 
 ```js
-import {mikroKitRouter} from '@mikrokit/router';
-import {getPet} from './api/petRoutes';
+// packages/router/examples/routes-definition.ts
 
-interface User {
-  id: number;
-  name: string;
-}
+import {Route, Handler, Routes, MkkRouter} from '@mikrokit/router';
 
-const getUser = async (user: Pick<User, 'id'>) => {
-  const user = await routeContext.db.users.get(user.id);
-  return user;
+const sayHello: Handler = (context, name: string) => {
+    return `Hello ${name}.`;
 };
 
-const options = {
-  prefix: 'api/v1/',
+const sayHello2: Route = {
+    route(context, name1: string, name2: string) {
+        return `Hello ${name1} and ${name2}.`;
+    },
 };
 
-const routes = {
-  users: {
-    getUser, // api/users/getUser
-  },
+const routes: Routes = {
+    sayHello, // api/sayHello
+    sayHello2, // api/sayHello2
 };
 
-mikroKitRouter.addRoutes(routes, options);
+MkkRouter.setRouterOptions({prefix: 'api/'});
+MkkRouter.addRoutes(routes);
+
 ```
 
 <table>

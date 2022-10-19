@@ -32,14 +32,14 @@ import {StatusCodes} from './status-codes';
 import {getParamValidators, validateParams} from './reflection';
 import {Type, typeOf} from '@deepkit/type';
 type RouterKeyEntryList = [string, Routes | Hook | Route][];
-type RoutesWithId<RouteType extends Route = Route, HookType extends Hook = Hook> = {
+type RoutesWithId = {
     path: string;
-    routes: Routes<RouteType, HookType>;
+    routes: Routes;
 };
 
 // ############# PUBLIC METHODS #############
 
-export const addRoutes = <RouteType extends Route = Route, HookType extends Hook = Hook>(routes: Routes) => {
+export const addRoutes = (routes: Routes) => {
     // TODO: Not sure if bellow code is required. using the wrong context type is a big fail and should be catch during dev
     // TODO: fix should be just to use correct context type
     // if (!contextType) throw 'Context needs to be defined before adding routes';
@@ -79,14 +79,7 @@ export const reset = () => {
  * @param handlersDataFactory
  * @param routerOptions
  */
-export const initRouter = <
-    App extends MapObj,
-    SharedData,
-    ServerReq extends MkRequest,
-    ServerResp extends MkResponse,
-    RouteType extends Route = Route,
-    HookType extends Hook = Hook,
->(
+export const initRouter = <App extends MapObj, SharedData, ServerReq extends MkRequest, ServerResp extends MkResponse>(
     app_: App,
     handlersDataFactory_?: SharedDataFactory<SharedData>,
     routerOptions_?: Partial<RouterOptions>,
@@ -96,25 +89,20 @@ export const initRouter = <
     sharedDataFactory = handlersDataFactory_;
     setRouterOptions(routerOptions_);
 
-    type ResolveContext = Context<App, SharedData, ServerReq, ServerResp, RouteType, HookType>;
+    type ResolveContext = Context<App, SharedData, ServerReq, ServerResp>;
     contextType = typeOf<ResolveContext>();
-    // type ResolvedRun = typeof run<ServerReq, ServerResp, RouteType, HookType>;
+    // type ResolvedRun = typeof run<ServerReq, ServerResp>;
     // const typedContext: ResolveContext = {} as any;
 };
 
-export const runRoute = async <
-    ServerReq extends MkRequest,
-    ServerResp extends MkResponse,
-    RouteType extends Route = Route,
-    HookType extends Hook = Hook,
->(
+export const runRoute = async <ServerReq extends MkRequest, ServerResp extends MkResponse>(
     path: string,
     req: ServerReq,
     resp: ServerResp,
 ): Promise<any> => {
     if (!app) throw 'Context has not been defined';
 
-    const context: Context<MapObj, MapObj, ServerReq, ServerResp, RouteType, HookType> = {
+    const context: Context<MapObj, MapObj, ServerReq, ServerResp> = {
         app: app, // static context
         server: {
             req,
@@ -126,7 +114,6 @@ export const runRoute = async <
         errors: [],
         privateErrors: [],
         shared: sharedDataFactory?.() || {},
-        src: null as any,
     };
 
     const executionPath = getRouteExecutionPath(path) || [];
@@ -158,14 +145,9 @@ const parseRequestBody = (req: MkRequest) => {
     }
 };
 
-const runExecutionPath = async <
-    ServerReq extends MkRequest,
-    ServerResp extends MkResponse,
-    RouteType extends Route = Route,
-    HookType extends Hook = Hook,
->(
+const runExecutionPath = async <ServerReq extends MkRequest, ServerResp extends MkResponse>(
     executionPath: Executable[],
-    context: Context<MapObj, MapObj, ServerReq, ServerResp, RouteType, HookType>,
+    context: Context<MapObj, MapObj, ServerReq, ServerResp>,
 ) => {
     if (executionPath.length && context.request) {
         for (let index = 0; index < executionPath.length; index++) {

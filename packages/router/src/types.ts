@@ -29,11 +29,11 @@ export type RouteObject = {
 };
 
 /** A route can be a full route definition or just the handler */
-export type Route<RouteType extends RouteObject = RouteObject> = RouteType | Handler;
+export type Route = RouteObject | Handler;
 
 /** Hook definition */
 export type Hook = {
-    /** Executes the hook even if an error was thrown previously in the execution path */
+    /** Executes the hook even if an error was thrown previously */
     forceRunOnError?: boolean;
     /** Enables returning data in the responseBody */
     canReturnData?: boolean;
@@ -48,8 +48,8 @@ export type Hook = {
 };
 
 /** Data structure to define all the routes, each entry is a route a hook or sub-routes */
-export type Routes<RouteType extends Route = Route, HookType extends Hook = Hook> = {
-    [key: string]: HookType | RouteType | Routes<RouteType, HookType>;
+export type Routes = {
+    [key: string]: Hook | Route | Routes;
 };
 
 // ####### Router Options #######
@@ -67,7 +67,7 @@ export type RouterOptions = {
 // ####### Execution Path #######
 
 /** Data structure used control the execution path, an Executable is generated from each hook or route */
-export type Executable<RouteType extends Route = Route, HookType extends Hook = Hook> = {
+export type Executable = {
     nestLevel: number;
     path: string;
     forceRunOnError: boolean;
@@ -78,7 +78,7 @@ export type Executable<RouteType extends Route = Route, HookType extends Hook = 
     isRoute: boolean;
     handler: Handler;
     paramValidators: RouteParamValidator[];
-    src?: RouteType | HookType;
+    src?: Route | Hook;
 };
 
 // ####### RESPONSE & RESPONSE #######
@@ -105,14 +105,7 @@ export type MkError = {
 // ####### Context #######
 
 /** The call Context object passed as first parameter to any hook or route */
-export type Context<
-    App,
-    SharedData,
-    ServerReq extends MkRequest,
-    ServerResp extends MkResponse,
-    RouteType extends Route = Route,
-    HookType extends Hook = Hook,
-> = {
+export type Context<App, SharedData, ServerReq extends MkRequest, ServerResp extends MkResponse> = {
     /** Static Data: main App, db driver, libraries, etc... */
     app: Readonly<App>;
 
@@ -166,7 +159,7 @@ export const isRoutes = (entry: any): entry is Route => {
     return typeof entry === 'object';
 };
 /** Type guard: isExecutable */
-export const isExecutable = (entry: Executable | Routes): entry is Executable => {
+export const isExecutable = (entry: Executable | {path: string}): entry is Executable => {
     return (
         typeof entry.path === 'string' &&
         ((entry as any).routes === 'undefined' || typeof (entry as Executable).handler === 'function')
