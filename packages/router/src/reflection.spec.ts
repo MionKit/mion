@@ -10,6 +10,7 @@ import {getParamValidators, isFirstParameterContext} from './reflection';
 import {initRouter} from './router';
 import {Context, isFunctionType, RouteParamValidator} from './types';
 import {APIGatewayProxyResult, APIGatewayEvent} from 'aws-lambda';
+import {DEFAULT_ROUTE_OPTIONS} from './constants';
 
 describe('Deepkit reflection should', () => {
     type Message = {
@@ -73,10 +74,10 @@ describe('Deepkit reflection should', () => {
     });
 
     it('validate parameters of a route, success', () => {
-        const paramValidatorsUser: RouteParamValidator[] = getParamValidators(updateUser);
-        const paramValidatorsPrintSum: RouteParamValidator[] = getParamValidators(printSum);
-        const paramValidatorsIgnoreFirst: RouteParamValidator[] = getParamValidators((a: any) => null);
-        const noParamValidators: RouteParamValidator[] = getParamValidators(() => null);
+        const paramValidatorsUser: RouteParamValidator[] = getParamValidators(updateUser, DEFAULT_ROUTE_OPTIONS);
+        const paramValidatorsPrintSum: RouteParamValidator[] = getParamValidators(printSum, DEFAULT_ROUTE_OPTIONS);
+        const paramValidatorsIgnoreFirst: RouteParamValidator[] = getParamValidators((a: any) => null, DEFAULT_ROUTE_OPTIONS);
+        const noParamValidators: RouteParamValidator[] = getParamValidators(() => null, DEFAULT_ROUTE_OPTIONS);
 
         expect(paramValidatorsUser.length).toEqual(2);
         expect(paramValidatorsPrintSum.length).toEqual(3);
@@ -93,7 +94,7 @@ describe('Deepkit reflection should', () => {
     });
 
     it('validate parameters of a route, fail', () => {
-        const paramValidatorsUser: RouteParamValidator[] = getParamValidators(updateUser);
+        const paramValidatorsUser: RouteParamValidator[] = getParamValidators(updateUser, DEFAULT_ROUTE_OPTIONS);
 
         const errors1 = paramValidatorsUser[0]({});
         const errors2 = paramValidatorsUser[0](2);
@@ -110,6 +111,8 @@ describe('Deepkit reflection should', () => {
         expect(isFirstParameterContext(contextType, updateUser)).toBeTruthy();
         expect(isFirstParameterContext(contextType, printSum)).toBeFalsy();
     });
+
+    it('should serialize data', () => {});
 
     it('should set call context', () => {
         type App = typeof app;
