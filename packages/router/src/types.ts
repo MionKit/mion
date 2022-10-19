@@ -5,8 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {Context as AWSContext, APIGatewayProxyCallback, APIGatewayEvent} from 'aws-lambda';
-import type {TypeFunction, Type, ValidationErrorItem} from '@deepkit/type';
+import type {TypeFunction, Type, ValidationErrorItem, Serializer, SerializationOptions, NamingStrategy} from '@deepkit/type';
 import {ReflectionKind} from '@deepkit/type';
 
 // #######  Router entries #######
@@ -62,6 +61,20 @@ export type RouterOptions = {
     suffix: string;
     /** enable automatic parameter validation, defaults to true */
     enableValidation: boolean;
+    /** Enables serialization/deserialization */
+    enableSerialization: boolean;
+    /**
+     * Deepkit custom serializer
+     * @link https://docs.deepkit.io/english/serialization.html#serialisation-custom-serialiser
+     * */
+    customSerializer?: Serializer | undefined;
+    /** Deepkit Serialization Options */
+    serializationOptions?: SerializationOptions | undefined;
+    /**
+     * Deepkit Serialization Options
+     * @link https://docs.deepkit.io/english/serialization.html#_naming_strategy
+     * */
+    serializerNamingStrategy?: NamingStrategy | undefined;
 };
 
 // ####### Execution Path #######
@@ -78,6 +91,8 @@ export type Executable = {
     isRoute: boolean;
     handler: Handler;
     paramValidators: RouteParamValidator[];
+    paramsDeSerializers: RouteParamDeserializer[];
+    outputSerializer: RouteOutputSerializer;
     src?: Route | Hook;
 };
 
@@ -118,7 +133,7 @@ export type Context<App, SharedData, ServerReq extends MkRequest, ServerResp ext
     /** Route's path */
     path: Readonly<string>;
     /** route errors, returned to the public */
-    errors: MkError[];
+    responseErrors: MkError[];
     /** private errors, can be used for logging etc */
     privateErrors: (MkError | Error | any)[];
     /** parsed request.body */
@@ -135,6 +150,8 @@ export type SharedDataFactory<SharedData> = () => SharedData;
 // #######  reflection #######
 
 export type RouteParamValidator = (data: any) => ValidationErrorItem[];
+export type RouteParamDeserializer = (data: any) => any;
+export type RouteOutputSerializer = (data: any) => any;
 
 // #######  type guards #######
 

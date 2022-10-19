@@ -29,7 +29,7 @@ import {
     MkError,
 } from './types';
 import {StatusCodes} from './status-codes';
-import {getParamValidators, validateParams} from './reflection';
+import {deserializeParams, getOutputSerializer, getParamsDeserializer, getParamValidators, validateParams} from './reflection';
 import {Type, typeOf} from '@deepkit/type';
 type RouterKeyEntryList = [string, Routes | Hook | Route][];
 type RoutesWithId = {
@@ -95,15 +95,15 @@ export const initRouter = <App extends MapObj, SharedData, ServerReq extends MkR
     // const typedContext: ResolveContext = {} as any;
 };
 
-export const runRoute = async <ServerReq extends MkRequest, ServerResp extends MkResponse>(
+export const runRoute = async <App extends MapObj, SharedData, ServerReq extends MkRequest, ServerResp extends MkResponse>(
     path: string,
     req: ServerReq,
     resp: ServerResp,
-): Promise<any> => {
+): Promise<Context<App, SharedData, ServerReq, ServerResp>> => {
     if (!app) throw 'Context has not been defined';
 
-    const context: Context<MapObj, MapObj, ServerReq, ServerResp> = {
-        app: app, // static context
+    const context: Context<App, SharedData, ServerReq, ServerResp> = {
+        app: app as Readonly<App>, // static context
         server: {
             req,
             resp,
@@ -111,7 +111,7 @@ export const runRoute = async <ServerReq extends MkRequest, ServerResp extends M
         path,
         request: null as any,
         reply: {},
-        errors: [],
+        responseErrors: [],
         privateErrors: [],
         shared: sharedDataFactory?.() || {},
     };
@@ -119,20 +119,20 @@ export const runRoute = async <ServerReq extends MkRequest, ServerResp extends M
     const executionPath = getRouteExecutionPath(path) || [];
     if (!executionPath.length) {
         const notFound = {statusCode: StatusCodes.NOT_FOUND, message: 'Route not found'};
-        context.errors.push(notFound);
+        context.responseErrors.push(notFound);
         context.privateErrors.push(notFound);
     } else {
         try {
             context.request = parseRequestBody(req);
         } catch (e: MkError | any) {
-            context.errors.push(e);
+            context.responseErrors.push(e);
             context.privateErrors.push(e);
         }
     }
 
     await runExecutionPath(executionPath, context);
 
-    // TODO: SERIALIZE OUTPUT and add to context.reply
+    return context;
 };
 
 const parseRequestBody = (req: MkRequest) => {
@@ -145,21 +145,24 @@ const parseRequestBody = (req: MkRequest) => {
     }
 };
 
-const runExecutionPath = async <ServerReq extends MkRequest, ServerResp extends MkResponse>(
+const runExecutionPath = async <App extends MapObj, SharedData, ServerReq extends MkRequest, ServerResp extends MkResponse>(
     executionPath: Executable[],
-    context: Context<MapObj, MapObj, ServerReq, ServerResp>,
+    context: Context<App, SharedData, ServerReq, ServerResp>,
 ) => {
     if (executionPath.length && context.request) {
         for (let index = 0; index < executionPath.length; index++) {
             const executable = executionPath[index];
-            const params: any[] = context.request[executable.inputFieldName] || [];
-            if (routerOptions.enableValidation) {
-                context.errors.push(...validateParams(executable, params, params));
-            }
-            if (context.errors.length && !executable.forceRunOnError) continue;
+
+            deserializeAndValidateParams(context.request[executable.inputFieldName], executable, context);
+            if (context.responseErrors.length && !executable.forceRunOnError) continue;
+
             try {
-                const result = await executable.handler(context, ...params);
-                if (executable.canReturnData) context.reply[executable.outputFieldName] = result;
+                const result = await executable.handler(context, ...context.request[executable.inputFieldName]);
+                if (executable.canReturnData) {
+                    context.reply[executable.outputFieldName] = routerOptions.enableSerialization
+                        ? executable.outputSerializer(result)
+                        : result;
+                }
             } catch (e: any | MkError | Error) {
                 const executableOrUnknownError = {
                     statusCode: e.statusCode || StatusCodes.INTERNAL_SERVER_ERROR,
@@ -167,10 +170,33 @@ const runExecutionPath = async <ServerReq extends MkRequest, ServerResp extends 
                         e.message ||
                         `Unknown error in ${executable.isRoute ? executable.path : executable.inputFieldName} step ${index}`,
                 };
-                context.errors.push(executableOrUnknownError);
+                context.responseErrors.push(executableOrUnknownError);
                 context.privateErrors.push(e);
             }
         }
+    }
+};
+
+const deserializeAndValidateParams = <App extends MapObj, SharedData, ServerReq extends MkRequest, ServerResp extends MkResponse>(
+    params: any[] = [],
+    executable: Executable,
+    context: Context<App, SharedData, ServerReq, ServerResp>,
+) => {
+    if (params.length !== executable.paramValidators.length || params.length !== executable.paramsDeSerializers.length) {
+        context.responseErrors.push({
+            statusCode: StatusCodes.BAD_REQUEST,
+            message: `Invalid input ${executable.inputFieldName}, missing or invalid number of input parameters`,
+        });
+        return;
+    }
+    if (!params.length) return;
+
+    if (routerOptions.enableSerialization)
+        context.request[executable.inputFieldName] = deserializeParams(executable, context.request[executable.inputFieldName]);
+    if (routerOptions.enableValidation) {
+        const errors = validateParams(executable, params);
+        context.responseErrors.push(...errors);
+        context.privateErrors.push(...errors);
     }
 };
 
@@ -320,7 +346,9 @@ const getExecutableFromHook = (hook: Hook, path: string, nestLevel: number, key:
         outputFieldName: hookName,
         isRoute: false,
         handler,
-        paramValidators: getParamValidators(handler),
+        paramValidators: getParamValidators(handler, routerOptions),
+        paramsDeSerializers: getParamsDeserializer(handler, routerOptions),
+        outputSerializer: getOutputSerializer(handler, routerOptions),
         src: hook,
     };
     delete (executable as any).hook;
@@ -349,7 +377,9 @@ const getExecutableFromRoute = (route: Route, path: string, nestLevel: number) =
         isRoute: true,
         nestLevel,
         handler,
-        paramValidators: getParamValidators(handler),
+        paramValidators: getParamValidators(handler, routerOptions),
+        paramsDeSerializers: getParamsDeserializer(handler, routerOptions),
+        outputSerializer: getOutputSerializer(handler, routerOptions),
         src: routeObj,
     };
     delete (executable as any).route;
