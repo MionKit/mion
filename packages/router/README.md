@@ -13,7 +13,7 @@
 
 # `@mikrokit/router`
 
-Blazing fast router **_based in plain javascript objects_**. Thanks to the rpc style there is no need for parameters or regular expression parsing when finding a route, just a simple [Map](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Map) in memory containing all the routes, can't get faster than that.
+Blazing fast router **_where routing is based in plain javascript objects_**. Thanks to it's RPC style there is no need for parameters or regular expression parsing when finding a route, just a simple [Map](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Map) in memory containing all the routes, can't get faster than that.
 
 MikroKit Router uses **Remote Procedure Call** style routing, unlike traditional REST apis it does not use `GET`, `PUT`, `POST` and `DELETE` methods, everything is transmitted using `HTTP POST` method and all data is sent/received in the request and response `BODY`.
 
@@ -31,10 +31,12 @@ Please have a look to this great Presentation for more info about each different
 
 ## Routes
 
-Routes are just functions where the first parameter is the `context` and the rest of parameters are passed in the request body. Route names are defined using a plain javascript object, where every property of the object is the route's name.
+Routes are functions where the first parameter is the `call context`, the rest of parameters are extracted from the request body. Route names are defined using a plain javascript object, where every property of the object is the route's name. Adding types is recommended so correctness is statically checked.
 
-```js
-import {Route, Handler, Routes} from '@mikrokit/router';
+```ts
+// examples/routes-definition.ts
+
+import {Route, Handler, Routes, MkkRouter} from '@mikrokit/router';
 
 const sayHello: Handler = (context, name: string) => {
   return `Hello ${name}.`;
@@ -46,29 +48,32 @@ const sayHello2: Route = {
   },
 };
 
-const options = {prefix: 'api/'};
-
-const routes = {
+const routes: Routes = {
   sayHello, // api/sayHello
   sayHello2, // api/sayHello2
 };
 
-mkkRouter.addRoutes(routes, options);
+MkkRouter.setRouterOptions({prefix: 'api/'});
+MkkRouter.addRoutes(routes);
 ```
 
 Using javascript names helps keeping route names simple, it is not recommended to use the array notation to define route names. no url decoding is done when finding the route
 
-```js
-const sayHello: Routes = (context, name: string) => {
+```ts
+// examples/no-recommended-route-names.ts
+
+import {Routes, MkkRouter, Route} from '@mikrokit/router';
+
+const sayHello: Route = (context, name: string) => {
   return `Hello ${name}.`;
 };
 
 const routes: Routes = {
   'say-Hello': sayHello, // api/say-Hello  !! NOT Recommended
-  'say Hello': sayHello, // api/say Hello  !! ROUTE WONT BE FOUND
+  'say Hello': sayHello, // api/say%20Hello  !! ROUTE WONT BE FOUND
 };
 
-mkkRouter.addRoutes(routes, options);
+MkkRouter.addRoutes(routes);
 ```
 
 #### Request & Response
@@ -88,65 +93,68 @@ A route might require some extra data like authorization, preconditions, logging
 
 Hooks can use the `context` to share data with other routes and hooks. The return value will be ignored unless `canReturnData` is set to true, in that case the returned value will be serialized in the response body.
 
-```js
-import {Route, Context, Routes, Hook} from '@mikrokit/router';
+```ts
+// examples/hooks-definition.ts
+
+import {Route, Routes, MkkRouter, Hook} from '@mikrokit/router';
+import {getAuthUser, isAuthorized} from 'MyAuth';
 
 const authorizationHook: Hook = {
-  stopNormalExecutionOnError: true,
   fieldName: 'Authorization',
-  async hook(context: Context, token: string) {
-    cons me = await getAuthUser(token);
-    if (!isAuthorized) throw {code: 401, message: 'user is not authorized'};
+  inHeader: true,
+  async hook(context, token: string) {
+    const me = await getAuthUser(token);
+    if (!isAuthorized(me)) throw {code: 401, message: 'user is not authorized'};
     context.auth = {me}; // user is added to context to shared with other routes/hooks
-  }
+  },
 };
 
-const getPet: Route = async (context: Context, petId: number) => {
-  const pet = context.
-  ...
+const getPet: Route = async (context, petId: number) => {
+  const pet = context.app.deb.getPet(petId);
+  // ...
   return pet;
 };
 
-const loggingHook: Hook = {
-  forceExecutionOnError: true,
-  async hook(context: Context) {
+const logs: Hook = {
+  async hook(context) {
     const me = context.errors;
     if (context.errors) await context.cloudLogs.error(context.errors);
-    else context.cloudLogs.log(context.request.path, context.auth.me, context.mkkOutput)
-  }
+    else context.cloudLogs.log(context.request.path, context.auth.me, context.mkkOutput);
+  },
 };
 
 const routes: Routes = {
-  // if `fieldName` would not have been set in the hook, then the `fieldName` would be : api/authorizationHook
-  authorizationHook, // fieldName: Authorization
+  authorizationHook, // header: Authorization (defined using fieldName)
   users: {
-    getPet, // fieldName: api/users/getPet
+    getPet,
   },
-  loggingHook, // no fieldName, is executed even when there are errors in the execution path
+  logs,
 };
 
-mkkRouter.addRoutes(routes, apiOptions);
+MkkRouter.addRoutes(routes);
 ```
 
 ## Execution Order
 
 The order in which `routes` and `hooks` are added to the router is important as they will be executed in the same order they are declared (Top Down order). An execution path is generated for every route.
 
-```js
-const routes = {
+```ts
+// examples/correct-definition-order.ts#L12-L26
+
+const routes: Routes = {
   authorizationHook, // hook
   users: {
-    userOnlyHook // hook
+    userOnlyHook, // hook
     getUser, // route: users/getUser
   },
   pets: {
     getPet, // route: users/getUser
-  }
+  },
   errorHandlerHook, // hook,
   loggingHook, // hook,
 };
 
-mkkRouter.addRoutes(routes);
+MkkRouter.addRoutes(routes);
 ```
 
 #### Execution path for: `users/getUser`
@@ -166,20 +174,22 @@ graph LR;
 **_To guarantee the correct execution order of hooks and routes, the properties of the router CAN NOT BE numeric or digits only._**  
 An error will thrown when adding routes with `mkkRouter.addRoutes`. More info about order of properties in javascript objects [here](https://stackoverflow.com/questions/5525795/does-javascript-guarantee-object-property-order) and [here](https://www.stefanjudis.com/today-i-learned/property-order-is-predictable-in-javascript-objects-since-es2015/).
 
-```js
+```ts
+// examples/correct-definition-order.ts#L27-L40
+
 const invalidRoutes = {
   authorizationHook, // hook
   1: {
     // invalid (this would execute before the authorizationHook)
     getFoo, // route
   },
-  2: {
+  '2': {
     // invalid (this would execute before the authorizationHook)
     getBar, // route
   },
 };
 
-mkkRouter.addRoutes(invalidRoutes); // throws an error
+MkkRouter.addRoutes(invalidRoutes); // throws an error
 ```
 
 ## Routes & Hooks options
@@ -189,51 +199,51 @@ mkkRouter.addRoutes(invalidRoutes); // throws an error
 <tr>
 <td>
 
-```js
-// ### default values shown ###
-type Hook = {
-  // Stops normal execution path if error is thrown
-  stopOnError?: true,
+```ts
+// src/types.ts#L33-L49
 
-  // Executes the hook even if an error was thrown previously
-  forceRunOnError?: false,
-
-  // enables returning data in the response body
-  canReturnData?: false,
-
-  // sets the value in a heather rather than the body
-  inHeader?: false,
-
-  // overrides the fieldName in the request/response body
-  fieldName?: '', // default value's taken from route's name
-
-  // hook's main handler
-  hook: Handler,
+/** Hook definition */
+export type Hook = {
+  /** Executes the hook even if an error was thrown previously in the execution path */
+  forceRunOnError?: boolean;
+  /** Enables returning data in the responseBody */
+  canReturnData?: boolean;
+  /** Sets the value in a heather rather than the body */
+  inHeader?: boolean;
+  /** The fieldName in the request/response body */
+  fieldName?: string;
+  /** Description of the route, mostly for documentation purposes */
+  description?: string;
+  /** Hook handler */
+  hook: Handler;
 };
 ```
 
 </td>
 <td>
 
-```js
-// ### default values shown ###
-type Route = RouteObject | Handler;
+```ts
+// src/types.ts#L14-L33
 
-type RouteObject = {
-  // overrides route's path
-  path?: '', // default value's taken from route's path
+/** Route or Hook Handler */
+export type Handler = (context: any, ...args: any) => any | void | Promise<any | void>;
 
-  // overrides request body params field name
-  inputFieldName?: 'params',
-
-  // overrides response body response field name
-  outputFieldName?: 'response',
-
-  // route's main handler
-  route: Handler,
+/** Route definition */
+export type RouteObject = {
+  /** overrides route's path */
+  path?: string;
+  /** overrides request body input field name */
+  inputFieldName?: string;
+  /** overrides response body output field name */
+  outputFieldName?: string;
+  /** description of the route, mostly for documentation purposes */
+  description?: string;
+  /** Route Handler */
+  route: Handler;
 };
 
-type Handler = (context: any, ...args: any) => any | void | Promise<any | void>;
+/** A route can be a full route definition or just the handler */
+export type Route<RouteType extends RouteObject = RouteObject> = RouteType | Handler;
 ```
 
 </td>
@@ -242,8 +252,8 @@ type Handler = (context: any, ...args: any) => any | void | Promise<any | void>;
 
 #### Extending Route and Hook Types
 
-```js
-
+```ts
+// examples/extending-routes-and-hooks.ts
 ```
 
 ## Call Context
@@ -252,64 +262,72 @@ All data related to the call and app is passed in the first parameter to routes/
 
 #### Context Type
 
-```js
+```ts
+// src/types.ts#L107-L138
+
+// ####### Context #######
+
+/** The call Context object passed as first parameter to any hook or route */
 export type Context<
-    App,
-    SharedData,
-    ServerReq extends MkRequest,
-    ServerResp extends MkResponse,
-    RouteType extends Route = Route,
-    HookType extends Hook = Hook,
+  App,
+  SharedData,
+  ServerReq extends MkRequest,
+  ServerResp extends MkResponse,
+  RouteType extends Route = Route,
+  HookType extends Hook = Hook,
 > = {
-    app: Readonly<App>; // Static Data: main App, db driver, libraries, etc...
-    server: {
-        req: Readonly<ServerReq>; // Server request, '@types/aws-lambda/APIGatewayEvent' when using aws lambda
-        resp: Readonly<ServerResp>; // Server response, '@types/aws-lambda/APIGatewayProxyCallback' when using aws lambda
-    };
-    path: Readonly<string>;
-    errors: MkError[]; // route errors
-    request: MapObj; // parsed request.body
-    reply: MapObj; // returned data (non parsed)
-    shared: SharedData | {}; // shared data between route/hooks handlers
-    src: Readonly<RouteType | HookType>; // the route/hook definition
+  /** Static Data: main App, db driver, libraries, etc... */
+  app: Readonly<App>;
+
+  server: {
+    /** Server request, '@types/aws-lambda/APIGatewayEvent' when using aws lambda */
+    req: Readonly<ServerReq>;
+    /** Server response, '@types/aws-lambda/APIGatewayProxyCallback' when using aws lambda */
+    resp: Readonly<ServerResp>;
+  };
+  /** Route's path */
+  path: Readonly<string>;
+  /** route errors, returned to the public */
+  errors: MkError[];
+  /** private errors, can be used for logging etc */
+  privateErrors: (MkError | Error | any)[];
+  /** parsed request.body */
+  request: MapObj;
+  /** returned data (non parsed) */
+  reply: MapObj;
+  /** shared data between route/hooks handlers */
+  shared: SharedData;
 };
 ```
 
 #### Using context
 
-```js
+```ts
+// examples/using-context.ts
+
+import {MkkRouter, Context} from '@mikrokit/router';
 import {APIGatewayProxyResult, APIGatewayEvent} from 'aws-lambda';
-import {Routes, Context} from '@mikrokit/router';
 import {someDbDriver} from 'someDbDriver';
-import {cloudLogs} from 'someCloudLogLibrary';
+import {cloudLogs} from 'MyCloudLogLs';
 
-const app = {
-  cloudLogs,
-  db: someDbDriver,
-};
-
-const sharedData = {
-  auth: {me: null}
-}
+const app = {cloudLogs, db: someDbDriver};
+const sharedData = {auth: {me: null}};
 
 type App = typeof app;
 type SharedData = typeof sharedData;
 type CallContext = Context<App, SharedData, APIGatewayEvent, APIGatewayProxyResult>;
 
-mkkRouter.initRouter(app, () => structuredClone(sharedData));
-
-const route1 = async (context: CallContext, petId: number) => {
+const getMyPet = async (context: CallContext) => {
   // use of context inside handlers
-  context.app.cloudLogs ... ;
-  context.app.db ... ;
-  context.shared.auth.me ...;
-  ...
+  const user = context.shared.auth.me;
+  const pet = context.app.db.getPetFromUser(user);
+  context.app.cloudLogs.log('pet from user retrieved');
   return pet;
 };
 
-const routes = { route1 };
-mkkRouter.addRoutes(routes);
-
+const routes = {getMyPet};
+MkkRouter.initRouter(app, () => structuredClone(sharedData));
+MkkRouter.addRoutes(routes);
 ```
 
 ## Automatic Validation and Serialization
@@ -328,25 +346,27 @@ Thanks to Deepkit's magic the type information is available at runtime and the d
 <tr>
 <td>
 
-```js
-import {mkkRouter} from '@mikrokit/router';
+```ts
+// examples/get-user-request.ts
+
+import {Route, Routes, MkkRouter} from '@mikrokit/router';
 
 interface Entity {
   id: number;
 }
 
-const getUser = async (context, entity: Entity) => {
+const getUser: Route = async (context, entity: Entity) => {
   const user = await context.db.getUserById(entity.id);
   return user;
 };
 
-const routes = {
+const routes: Routes = {
   users: {
     getUser, // api/users/getUser
   },
 };
 
-mkkRouter.addRoutes(routes);
+MkkRouter.addRoutes(routes);
 ```
 
 </td>

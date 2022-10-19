@@ -8,7 +8,7 @@
 import type {Executable, Handler, MkError, RouteParamValidator} from './types';
 import {reflect, validateFunction, Type, isSameType} from '@deepkit/type';
 import {isFunctionType} from './types';
-import {StatusCodes} from 'http-status-codes';
+import {StatusCodes} from './status-codes';
 
 /**
  * Returns an array of functions to validate route handler parameters,

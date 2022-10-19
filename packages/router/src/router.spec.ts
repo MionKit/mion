@@ -8,7 +8,7 @@
 import {
     addRoutes,
     geHooksSize,
-    geSize,
+    geRoutesSize,
     getComplexity,
     getHookExecutable,
     getRouteExecutionPath,
@@ -105,7 +105,7 @@ describe('router should', () => {
     it('create a flat routes Map', () => {
         addRoutes(routes);
 
-        expect(geSize()).toEqual(5);
+        expect(geRoutesSize()).toEqual(5);
         expect(geHooksSize()).toEqual(4);
 
         expect(getRouteExecutionPath('users/getUser')).toEqual([
@@ -171,7 +171,7 @@ describe('router should', () => {
         setRouterOptions({prefix: 'api/v1', suffix: '.json'});
         addRoutes(routes);
 
-        expect(geSize()).toEqual(5);
+        expect(geRoutesSize()).toEqual(5);
         expect(geHooksSize()).toEqual(4);
 
         expect(getRouteExecutionPath('api/v1/users/getUser.json')).toBeTruthy();
