@@ -13,7 +13,7 @@
 
 # `@mikrokit/router`
 
-Blazing fast router **_where routing is based in plain javascript objects_**. Thanks to it's RPC style there is no need for parameters or regular expression parsing when finding a route, just a simple [Map](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Map) in memory containing all the routes, can't get faster than that.
+Blazing fast router **_based in plain javascript objects_**. Thanks to it's RPC style there is no need for parameters or regular expression parsing when finding a route, just a simple [Map](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Map) in memory containing all the routes, can't get faster than that.
 
 MikroKit Router uses **Remote Procedure Call** style routing, unlike traditional REST apis it does not use `GET`, `PUT`, `POST` and `DELETE` methods, everything is transmitted using `HTTP POST` method and all data is sent/received in the request and response `BODY`.
 
@@ -210,7 +210,7 @@ MkkRouter.addRoutes(invalidRoutes); // throws an error
 
 /** Hook definition */
 export type Hook = {
-    /** Executes the hook even if an error was thrown previously in the execution path */
+    /** Executes the hook even if an error was thrown previously */
     forceRunOnError?: boolean;
     /** Enables returning data in the responseBody */
     canReturnData?: boolean;
@@ -250,7 +250,7 @@ export type RouteObject = {
 };
 
 /** A route can be a full route definition or just the handler */
-export type Route<RouteType extends RouteObject = RouteObject> = RouteType | Handler;
+export type Route = RouteObject | Handler;
 
 ```
 
@@ -302,14 +302,7 @@ All data related to the call and app is passed in the first parameter to routes/
 // src/types.ts#L107-L138
 
 /** The call Context object passed as first parameter to any hook or route */
-export type Context<
-    App,
-    SharedData,
-    ServerReq extends MkRequest,
-    ServerResp extends MkResponse,
-    RouteType extends Route = Route,
-    HookType extends Hook = Hook,
-> = {
+export type Context<App, SharedData, ServerReq extends MkRequest, ServerResp extends MkResponse> = {
     /** Static Data: main App, db driver, libraries, etc... */
     app: Readonly<App>;
 
@@ -332,6 +325,13 @@ export type Context<
     /** shared data between route/hooks handlers */
     shared: SharedData;
 };
+
+/** Function used to create the shared data object on each route call  */
+export type SharedDataFactory<SharedData> = () => SharedData;
+
+// #######  reflection #######
+
+export type RouteParamValidator = (data: any) => ValidationErrorItem[];
 
 ```
 
