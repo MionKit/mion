@@ -285,7 +285,8 @@ const someHook: MyHook = {
 
 ## Call Context
 
-All data related to the call and app is passed in the first parameter to routes/hooks handler the `Context`.
+All data related to the Application and called route is passed in the first parameter to routes/hooks handler the `Context`.
+Some data like `request/reply body/headers` or `responseErrors` are available but it is not recommended modifying them specially within a route, their values are automatically assigned by the router. Instead just return data from the function or throw an error.
 
 #### Context Type
 
@@ -366,7 +367,7 @@ Thanks to Deepkit's magic the type information is available at runtime and the d
 #### Request Validation examples
 
 <table>
-<tr><th>Code</th><th> Request <code>POST: users/getById</code> </th></tr>
+<tr><th>Code</th><th> Request <code>POST: users/getUser</code> </th></tr>
 <tr>
 <td>
 
@@ -437,42 +438,6 @@ export const DEFAULT_ROUTE_OPTIONS: Readonly<RouterOptions> = {
   serializationOptions: {
     loosely: false,
   },
-};
-```
-
-#### Options Type
-
-```ts
-// src/types.ts#L65-L93
-
-/** Global Router Options */
-export type RouterOptions = {
-  /** prefix for all routes, i.e: api/v1.
-   * path separator is added between the prefix and the route */
-  prefix: string;
-  /** suffix for all routes, i.e: .json.
-   * Not path separators is added between the route and the suffix */
-  suffix: string;
-  /** enable automatic parameter validation, defaults to true */
-  enableValidation: boolean;
-  /** Enables serialization/deserialization */
-  enableSerialization: boolean;
-  /**
-   * Deepkit Serialization Options
-   * loosely defaults to false, Soft conversion disabled.
-   * !! We Don't recommend to enable soft conversion as validation might fail
-   * */
-  serializationOptions: SerializationOptions;
-  /**
-   * Deepkit custom serializer
-   * @link https://docs.deepkit.io/english/serialization.html#serialisation-custom-serialiser
-   * */
-  customSerializer?: Serializer | undefined;
-  /**
-   * Deepkit Serialization Options
-   * @link https://docs.deepkit.io/english/serialization.html#_naming_strategy
-   * */
-  serializerNamingStrategy?: NamingStrategy | undefined;
 };
 ```
 

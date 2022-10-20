@@ -9,7 +9,7 @@ import {ReflectionKind, reflect, typeOf, deserializeFunction, deserialize, Seria
 import {getOutputSerializer, getParamsDeserializer, getParamValidators, isFirstParameterContext} from './reflection';
 import {initRouter} from './router';
 import {Context, isFunctionType, Route, RouteParamValidator} from './types';
-import {APIGatewayProxyResult, APIGatewayEvent} from 'aws-lambda';
+import {APIGatewayProxyResult, APIGatewayEvent, Handler} from 'aws-lambda';
 import {DEFAULT_ROUTE_OPTIONS} from './constants';
 
 describe('Deepkit reflection should', () => {
@@ -81,7 +81,10 @@ describe('Deepkit reflection should', () => {
 
     it('validate parameters of a route, success', () => {
         const paramValidatorsUser: RouteParamValidator[] = getParamValidators(updateUser, DEFAULT_ROUTE_OPTIONS);
-        const paramValidatorsPrintSum: RouteParamValidator[] = getParamValidators(printSum, DEFAULT_ROUTE_OPTIONS);
+        const paramValidatorsPrintSum: RouteParamValidator[] = getParamValidators(
+            printSum as any as Handler,
+            DEFAULT_ROUTE_OPTIONS,
+        );
         const paramValidatorsIgnoreFirst: RouteParamValidator[] = getParamValidators((a: any) => null, DEFAULT_ROUTE_OPTIONS);
         const noParamValidators: RouteParamValidator[] = getParamValidators(() => null, DEFAULT_ROUTE_OPTIONS);
 
@@ -115,7 +118,7 @@ describe('Deepkit reflection should', () => {
         const contextType = typeOf<CallContext>();
 
         expect(isFirstParameterContext(contextType, updateUser)).toBeTruthy();
-        expect(isFirstParameterContext(contextType, printSum)).toBeFalsy();
+        expect(isFirstParameterContext(contextType, printSum as any as Handler)).toBeFalsy();
     });
 
     it('should serialize/deserialize data', () => {
@@ -126,7 +129,7 @@ describe('Deepkit reflection should', () => {
         const input = JSON.parse(JSON.stringify(dataPoint)); // this would be same as json.parse(body)
 
         const deserialized = deSerializers[0](input);
-        const output = addDate(null, deserialized);
+        const output = addDate(null as any, deserialized);
         const serialized = outputSerializer(output); //safe fo Json to parse
 
         expect(input).toEqual(serializedDataPoint);
