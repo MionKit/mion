@@ -13,9 +13,9 @@
 
 # `@mikrokit/router`
 
-Blazing fast router **_based in plain javascript objects_**. Thanks to it's RPC style there is no need for parameters or regular expression parsing when finding a route, just a simple [Map](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Map) in memory containing all the routes, can't get faster than that.
+Blazing fast router **_based in plain javascript objects_**. Thanks to it's RPC style there is no need to parse parameters or regular expressions when finding a route. Just a simple [Map](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Map) in memory containing all the routes. Can't get faster than that.
 
-MikroKit Router uses **Remote Procedure Call** style routing, unlike traditional REST apis it does not use `GET`, `PUT`, `POST` and `DELETE` methods, everything is transmitted using `HTTP POST` method and all data is sent/received in the request and response `BODY`.
+MikroKit Router uses a **Remote Procedure Call** style routing, unlike traditional REST apis it does not use `GET`, `PUT`, `POST` and `DELETE` methods, everything is transmitted using `HTTP POST` method and all data is sent/received in the request and response `BODY`.
 
 ### Rpc VS Rest
 
@@ -31,12 +31,12 @@ Please have a look to this great Presentation for more info about each different
 
 ## Routes
 
-Routes are functions where the first parameter is the `call context`, the rest of parameters are extracted from the request body. Route names are defined using a plain javascript object, where every property of the object is the route's name. Adding types is recommended so correctness is statically checked.
+A route is just a function, the first parameter is always the `call context`, the rest of parameters are extracted from the request body or headers. Route names are defined using a plain javascript object, where every property of the object is the route's name. Adding types is recommended when defining a route so typescript can statically check parameters.
 
 ```ts
 // examples/routes-definition.ts
 
-import {Route, Handler, Routes, MkkRouter} from '@mikrokit/router';
+import {Route, Handler, Routes, MkRouter} from '@mikrokit/router';
 
 const sayHello: Handler = (context, name: string) => {
   return `Hello ${name}.`;
@@ -53,8 +53,8 @@ const routes: Routes = {
   sayHello2, // api/sayHello2
 };
 
-MkkRouter.setRouterOptions({prefix: 'api/'});
-MkkRouter.addRoutes(routes);
+MkRouter.setRouterOptions({prefix: 'api/'});
+MkRouter.addRoutes(routes);
 ```
 
 Using javascript names helps keeping route names simple, it is not recommended to use the array notation to define route names. no url decoding is done when finding the route
@@ -62,7 +62,7 @@ Using javascript names helps keeping route names simple, it is not recommended t
 ```ts
 // examples/no-recommended-route-names.ts
 
-import {Routes, MkkRouter, Route} from '@mikrokit/router';
+import {Routes, MkRouter, Route} from '@mikrokit/router';
 
 const sayHello: Route = (context, name: string) => {
   return `Hello ${name}.`;
@@ -73,14 +73,12 @@ const routes: Routes = {
   'say Hello': sayHello, // api/say%20Hello  !! ROUTE WONT BE FOUND
 };
 
-MkkRouter.addRoutes(routes);
+MkRouter.addRoutes(routes);
 ```
 
 #### Request & Response
 
 The function parameters are passed in the request body, as an Array in the `params` field. Elements in the array must have the same order as the function parameters. The function response data gets returned in the `response` field.
-
-This names can be configured in the router options.
 
 | POST REQUEST     | Request Body                   | Response Body                         |
 | ---------------- | ------------------------------ | ------------------------------------- |
@@ -91,12 +89,12 @@ This names can be configured in the router options.
 
 A route might require some extra data like authorization, preconditions, logging, etc... Hooks are auxiliary functions executed in order before or after the route.
 
-Hooks can use the `context` to share data with other routes and hooks. The return value will be ignored unless `canReturnData` is set to true, in that case the returned value will be serialized in the response body.
+Hooks can use `context.shared` to share data with other routes and hooks. The return value will be ignored unless `canReturnData` is set to true, in that case the returned value will be serialized in and send back in response body.
 
 ```ts
 // examples/hooks-definition.ts
 
-import {Route, Routes, MkkRouter, Hook} from '@mikrokit/router';
+import {Route, Routes, MkRouter, Hook} from '@mikrokit/router';
 import {getAuthUser, isAuthorized} from 'MyAuth';
 
 const authorizationHook: Hook = {
@@ -131,12 +129,12 @@ const routes: Routes = {
   logs,
 };
 
-MkkRouter.addRoutes(routes);
+MkRouter.addRoutes(routes);
 ```
 
 ## Execution Order
 
-The order in which `routes` and `hooks` are added to the router is important as they will be executed in the same order they are declared (Top Down order). An execution path is generated for every route.
+The order in which `routes` and `hooks` are added to the router is important as they will be executed in the same order they are defined (Top Down order). An execution path is generated for every route.
 
 ```ts
 // examples/correct-definition-order.ts#L12-L26
@@ -154,7 +152,7 @@ const routes: Routes = {
   loggingHook, // hook,
 };
 
-MkkRouter.addRoutes(routes);
+MkRouter.addRoutes(routes);
 ```
 
 #### Execution path for: `users/getUser`
@@ -172,7 +170,7 @@ graph LR;
 ```
 
 **_To guarantee the correct execution order of hooks and routes, the properties of the router CAN NOT BE numeric or digits only._**  
-An error will thrown when adding routes with `mkkRouter.addRoutes`. More info about order of properties in javascript objects [here](https://stackoverflow.com/questions/5525795/does-javascript-guarantee-object-property-order) and [here](https://www.stefanjudis.com/today-i-learned/property-order-is-predictable-in-javascript-objects-since-es2015/).
+An error will thrown when adding routes with `MkRouter.addRoutes`. More info about order of properties in javascript objects [here](https://stackoverflow.com/questions/5525795/does-javascript-guarantee-object-property-order) and [here](https://www.stefanjudis.com/today-i-learned/property-order-is-predictable-in-javascript-objects-since-es2015/).
 
 ```ts
 // examples/correct-definition-order.ts#L27-L40
@@ -189,7 +187,7 @@ const invalidRoutes = {
   },
 };
 
-MkkRouter.addRoutes(invalidRoutes); // throws an error
+MkRouter.addRoutes(invalidRoutes); // throws an error
 ```
 
 ## Routes & Hooks options
@@ -200,7 +198,7 @@ MkkRouter.addRoutes(invalidRoutes); // throws an error
 <td>
 
 ```ts
-// src/types.ts#L33-L48
+// src/types.ts#L42-L56
 
 /** Hook definition */
 export type Hook = {
@@ -223,9 +221,10 @@ export type Hook = {
 <td>
 
 ```ts
-// src/types.ts#L14-L32
+// src/types.ts#L22-L40
 
-export type Handler = (context: any, ...args: any) => any | void | Promise<any | void>;
+/** Route or Hook Handler */
+export type Handler = (context: Context<any, any, any, any>, ...args: any) => any | Promise<any>;
 
 /** Route definition */
 export type RouteObject = {
@@ -291,7 +290,7 @@ All data related to the call and app is passed in the first parameter to routes/
 #### Context Type
 
 ```ts
-// src/types.ts#L122-L146
+// src/types.ts#L137-L166
 
 /** The call Context object passed as first parameter to any hook or route */
 export type Context<App, SharedData, ServerReq extends MkRequest, ServerResp extends MkResponse> = {
@@ -311,9 +310,15 @@ export type Context<App, SharedData, ServerReq extends MkRequest, ServerResp ext
   /** private errors, can be used for logging etc */
   privateErrors: (MkError | Error | any)[];
   /** parsed request.body */
-  request: MapObj;
+  request: {
+    headers: MapObj;
+    body: MapObj;
+  };
   /** returned data (non parsed) */
-  reply: MapObj;
+  reply: {
+    headers: MapObj;
+    body: MapObj;
+  };
   /** shared data between route/hooks handlers */
   shared: SharedData;
 };
@@ -324,16 +329,16 @@ export type Context<App, SharedData, ServerReq extends MkRequest, ServerResp ext
 ```ts
 // examples/using-context.ts
 
-import {MkkRouter, Context} from '@mikrokit/router';
+import {MkRouter, Context} from '@mikrokit/router';
 import {APIGatewayProxyResult, APIGatewayEvent} from 'aws-lambda';
 import {someDbDriver} from 'someDbDriver';
 import {cloudLogs} from 'MyCloudLogLs';
 
 const app = {cloudLogs, db: someDbDriver};
-const sharedData = {auth: {me: null}};
+const getSharedData = () => ({auth: {me: null}});
 
 type App = typeof app;
-type SharedData = typeof sharedData;
+type SharedData = ReturnType<typeof getSharedData>;
 type CallContext = Context<App, SharedData, APIGatewayEvent, APIGatewayProxyResult>;
 
 const getMyPet = async (context: CallContext) => {
@@ -345,13 +350,13 @@ const getMyPet = async (context: CallContext) => {
 };
 
 const routes = {getMyPet};
-MkkRouter.initRouter(app, () => structuredClone(sharedData));
-MkkRouter.addRoutes(routes);
+MkRouter.initRouter(app, getSharedData);
+MkRouter.addRoutes(routes);
 ```
 
 ## Automatic Validation and Serialization
 
-This router uses [Deepkit](https://deepkit.io/) runtime types to automatically [validate](https://docs.deepkit.io/english/validation.html) params data and [serialize](https://docs.deepkit.io/english/serialization.html) response data.
+This router uses [Deepkit](https://deepkit.io/) runtime types to automatically [validate](https://docs.deepkit.io/english/validation.html) params data and [serialize/deserialize](https://docs.deepkit.io/english/serialization.html) response data.
 
 Thanks to Deepkit's magic the type information is available at runtime and the data is auto-magically Validated and Serialized. For mor information please read deepkit's documentation:
 
@@ -368,13 +373,13 @@ Thanks to Deepkit's magic the type information is available at runtime and the d
 ```ts
 // examples/get-user-request.ts
 
-import {Route, Routes, MkkRouter} from '@mikrokit/router';
+import {Route, Routes, MkRouter} from '@mikrokit/router';
 
 interface Entity {
   id: number;
 }
 
-const getUser: Route = async (context, entity: Entity) => {
+const getUser: Route = async (context: any, entity: Entity) => {
   const user = await context.db.getUserById(entity.id);
   return user;
 };
@@ -385,7 +390,7 @@ const routes: Routes = {
   },
 };
 
-MkkRouter.addRoutes(routes);
+MkRouter.addRoutes(routes);
 ```
 
 </td>
@@ -394,28 +399,167 @@ MkkRouter.addRoutes(routes);
 ```yml
 # VALID REQUEST BODY
 {
-  "getUser": [ {"id" : 1} ]
+  "params": [ {"id" : 1} ]
 }
 
 # INVALID REQUEST BODY (user.id is not a number)
 {
-  "getUser": [ {"id" : "1"} ]
+  "params": [ {"id" : "1"} ]
 }
 
 # INVALID REQUEST BODY (missing parameter user.id)
 {
-  "getUser": [ {"ID" : 1} ]
+  "params": [ {"ID" : 1} ]
 }
 
 # INVALID REQUEST BODY (missing parameters)
 {
-  "getUser": []
+  "params": []
 }
 ```
 
 </td>
 </tr>
 </table>
+
+## Router Options
+
+#### Default Options
+
+```ts
+// src/constants.ts#L56-L64
+
+export const DEFAULT_ROUTE_OPTIONS: Readonly<RouterOptions> = {
+  prefix: '',
+  suffix: '',
+  enableValidation: true,
+  enableSerialization: true,
+  serializationOptions: {
+    loosely: false,
+  },
+};
+```
+
+#### Options Type
+
+```ts
+// src/types.ts#L65-L93
+
+/** Global Router Options */
+export type RouterOptions = {
+  /** prefix for all routes, i.e: api/v1.
+   * path separator is added between the prefix and the route */
+  prefix: string;
+  /** suffix for all routes, i.e: .json.
+   * Not path separators is added between the route and the suffix */
+  suffix: string;
+  /** enable automatic parameter validation, defaults to true */
+  enableValidation: boolean;
+  /** Enables serialization/deserialization */
+  enableSerialization: boolean;
+  /**
+   * Deepkit Serialization Options
+   * loosely defaults to false, Soft conversion disabled.
+   * !! We Don't recommend to enable soft conversion as validation might fail
+   * */
+  serializationOptions: SerializationOptions;
+  /**
+   * Deepkit custom serializer
+   * @link https://docs.deepkit.io/english/serialization.html#serialisation-custom-serialiser
+   * */
+  customSerializer?: Serializer | undefined;
+  /**
+   * Deepkit Serialization Options
+   * @link https://docs.deepkit.io/english/serialization.html#_naming_strategy
+   * */
+  serializerNamingStrategy?: NamingStrategy | undefined;
+};
+```
+
+## Full Working Example
+
+```ts
+// examples/full-example.ts
+
+import {MkRouter, Context, Route, Routes, Hook, MkError, StatusCodes} from '@mikrokit/router';
+import {APIGatewayProxyResult, APIGatewayEvent} from 'aws-lambda';
+
+interface User {
+  id: number;
+  name: string;
+  surname: string;
+}
+
+type NewUser = Omit<User, 'id'>;
+
+const myDBService = {
+  usersStore: new Map<number, User>(),
+  createUser: (user: NewUser) => {
+    const id = myDBService.usersStore.size + 1;
+    const newUser: User = {id, ...user};
+    myDBService.usersStore.set(id, newUser);
+    return newUser;
+  },
+  getUser: (id: number) => myDBService.usersStore.get(id),
+  updateUser: (user: User) => {
+    if (!myDBService.usersStore.has(user.id)) return null;
+    myDBService.usersStore.set(user.id, user);
+    return user;
+  },
+  deleteUser: (id: number) => {
+    const user = myDBService.usersStore.get(id);
+    if (!user) return null;
+    myDBService.usersStore.delete(id);
+    return user;
+  },
+};
+
+// user is authorized if token === 'ABCD'
+const myAuthService = {
+  isAuthorized: (token: string) => token === 'ABCD',
+  getIdentity: (token: string) => (token === 'ABCD' ? ({id: 0, name: 'admin', surname: 'admin'} as User) : null),
+};
+
+const app = {
+  db: myDBService,
+  auth: myAuthService,
+};
+const getSharedData = () => ({
+  me: null as any as User,
+});
+
+type App = typeof app;
+type SharedData = ReturnType<typeof getSharedData>;
+type CallContext = Context<App, SharedData, APIGatewayEvent, APIGatewayProxyResult>;
+
+const getUser: Route = (ctx: CallContext, id: number) => ctx.app.db.getUser(id);
+const createUser: Route = (ctx: CallContext, newUser: NewUser) => ctx.app.db.createUser(newUser);
+const updateUser: Route = (ctx: CallContext, user: User) => ctx.app.db.updateUser(user);
+const deleteUser: Route = (ctx: CallContext, id: number) => ctx.app.db.deleteUser(id);
+
+const auth: Hook = {
+  inHeader: true,
+  fieldName: 'Authorization',
+  hook: (ctx: CallContext, token: string) => {
+    const {auth} = ctx.app;
+    if (!auth.isAuthorized(token)) throw {statusCode: StatusCodes.FORBIDDEN, message: 'Not Authorized'} as MkError;
+    ctx.shared.me = auth.getIdentity(token) as User;
+  },
+};
+
+const routes: Routes = {
+  auth,
+  users: {
+    get: getUser, // api/v1/users/get
+    create: createUser, // api/v1/users/create
+    update: updateUser, // api/v1/users/update
+    delete: deleteUser, // api/v1/users/delete
+  },
+};
+
+MkRouter.initRouter(app, getSharedData, {prefix: 'api/v1'});
+MkRouter.addRoutes(routes);
+```
 
 ## &nbsp;
 

@@ -1,13 +1,13 @@
-import {MkkRouter, Context} from '@mikrokit/router';
+import {MkRouter, Context} from '@mikrokit/router';
 import {APIGatewayProxyResult, APIGatewayEvent} from 'aws-lambda';
 import {someDbDriver} from 'someDbDriver';
 import {cloudLogs} from 'MyCloudLogLs';
 
 const app = {cloudLogs, db: someDbDriver};
-const sharedData = {auth: {me: null}};
+const getSharedData = () => ({auth: {me: null}});
 
 type App = typeof app;
-type SharedData = typeof sharedData;
+type SharedData = ReturnType<typeof getSharedData>;
 type CallContext = Context<App, SharedData, APIGatewayEvent, APIGatewayProxyResult>;
 
 const getMyPet = async (context: CallContext) => {
@@ -19,5 +19,5 @@ const getMyPet = async (context: CallContext) => {
 };
 
 const routes = {getMyPet};
-MkkRouter.initRouter(app, () => structuredClone(sharedData));
-MkkRouter.addRoutes(routes);
+MkRouter.initRouter(app, getSharedData);
+MkRouter.addRoutes(routes);

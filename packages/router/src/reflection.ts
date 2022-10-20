@@ -14,7 +14,16 @@ import type {
     RouteParamValidator,
     RouterOptions,
 } from './types';
-import {reflect, validateFunction, Type, isSameType, serializeFunction, deserializeFunction} from '@deepkit/type';
+import {
+    reflect,
+    validateFunction,
+    Type,
+    isSameType,
+    serializeFunction,
+    deserializeFunction,
+    resolveReceiveType,
+    SerializationOptions,
+} from '@deepkit/type';
 import {isFunctionType} from './types';
 import {StatusCodes} from './status-codes';
 
@@ -47,16 +56,22 @@ export const getParamsDeserializer = (handler: Handler, routerOptions: RouterOpt
     const handlerType = reflect(handler);
     if (!isFunctionType(handlerType)) throw 'invalid route handler';
 
+    const opts: SerializationOptions = {
+        ...routerOptions.serializationOptions,
+    };
     const paramDeserializer = handlerType.parameters.map((paramType, index) => {
         // assumes the context type that is the first parameter is always valid
         return index > 0
-            ? deserializeFunction(
-                  routerOptions.serializationOptions,
-                  routerOptions.customSerializer,
-                  routerOptions.serializerNamingStrategy,
-                  paramType,
+            ? serializeDeserializeOptionsFix(
+                  deserializeFunction(
+                      routerOptions.serializationOptions,
+                      routerOptions.customSerializer,
+                      routerOptions.serializerNamingStrategy,
+                      paramType,
+                  ),
+                  opts,
               )
-            : () => null;
+            : (a) => '';
     });
 
     return paramDeserializer.slice(1);
@@ -79,16 +94,16 @@ export const getOutputSerializer = (handler: Handler, routerOptions: RouterOptio
         handlerType.return,
     );
 
-    return outPutSerializer;
+    return serializeDeserializeOptionsFix(outPutSerializer, {...routerOptions.serializationOptions});
 };
 
 export const validateParams = (executable: Executable, params: any[] = []): MkError[] => {
     const validators = executable.paramValidators;
     if (params.length !== validators.length) throw 'Invalid number of parameters';
     const errors = validators.map((validate, index) => validate(params[index])).flat();
-    return errors.map((validationError) => ({
+    return errors.map((validationError, index) => ({
         statusCode: StatusCodes.BAD_REQUEST,
-        message: `Invalid input ${executable.inputFieldName}. ${validationError.toString()}`,
+        message: `Invalid input '${executable.inputFieldName}[${index}]', ${validationError.toString()}.`,
     }));
 };
 
@@ -104,4 +119,9 @@ export const isFirstParameterContext = (contextType: Type, handler: Handler): bo
 
     if (!handlerType.parameters.length) return true;
     return isSameType(contextType, handlerType.parameters[0].type);
+};
+
+// DeepKit serializeFunction and deserializeFunction are not keeping the options when calling the function, so this fixes it
+const serializeDeserializeOptionsFix = (sdFunction: (d: any, b: SerializationOptions) => any, opts: SerializationOptions) => {
+    return (p: any) => sdFunction(p, opts);
 };

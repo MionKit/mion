@@ -27,6 +27,7 @@ import {
     JsonParser,
     SharedDataFactory,
     MkError,
+    RouteReply,
 } from './types';
 import {StatusCodes} from './status-codes';
 import {deserializeParams, getOutputSerializer, getParamsDeserializer, getParamValidators, validateParams} from './reflection';
@@ -99,7 +100,7 @@ export const runRoute = async <App extends MapObj, SharedData, ServerReq extends
     path: string,
     req: ServerReq,
     resp: ServerResp,
-): Promise<Context<App, SharedData, ServerReq, ServerResp>> => {
+): Promise<RouteReply> => {
     if (!app) throw 'Context has not been defined';
 
     const context: Context<App, SharedData, ServerReq, ServerResp> = {
@@ -109,8 +110,14 @@ export const runRoute = async <App extends MapObj, SharedData, ServerReq extends
             resp,
         },
         path,
-        request: null as any,
-        reply: {},
+        request: {
+            headers: {},
+            body: {},
+        },
+        reply: {
+            headers: {},
+            body: {},
+        },
         responseErrors: [],
         privateErrors: [],
         shared: sharedDataFactory?.() || {},
@@ -122,26 +129,32 @@ export const runRoute = async <App extends MapObj, SharedData, ServerReq extends
         context.responseErrors.push(notFound);
         context.privateErrors.push(notFound);
     } else {
-        try {
-            context.request = parseRequestBody(req);
-        } catch (e: MkError | any) {
-            context.responseErrors.push(e);
-            context.privateErrors.push(e);
-        }
+        parseRequestInputs(context);
+        await runExecutionPath(executionPath, context);
     }
 
-    await runExecutionPath(executionPath, context);
-
-    return context;
+    return {
+        statusCode: context.responseErrors.length ? context.responseErrors[0].statusCode : StatusCodes.OK,
+        errors: context.responseErrors,
+        ...context.reply,
+    };
 };
 
-const parseRequestBody = (req: MkRequest) => {
+const parseRequestInputs = <App extends MapObj, SharedData, ServerReq extends MkRequest, ServerResp extends MkResponse>(
+    context: Context<App, SharedData, ServerReq, ServerResp>,
+) => {
+    context.request.headers = context.server.req.headers || {};
     try {
-        const request = req.body ? json.stringify(req.body) : {};
-        if (typeof request !== 'object') throw 'invalid body type, only objects allowed';
-        return request;
+        if (typeof context.server.req.body === 'string') {
+            const parsedBody = json.parse(context.server.req.body);
+            if (typeof parsedBody !== 'object') throw 'wrong body type, only objects allowed';
+            context.request.body = parsedBody;
+        } else {
+            context.request.body = context.server.req.body || {};
+        }
     } catch (e) {
-        throw {statusCode: StatusCodes.BAD_REQUEST, message: 'Invalid request body'};
+        context.responseErrors.push({statusCode: StatusCodes.BAD_REQUEST, message: 'Invalid request body'});
+        context.privateErrors.push(e);
     }
 };
 
@@ -152,17 +165,17 @@ const runExecutionPath = async <App extends MapObj, SharedData, ServerReq extend
     if (executionPath.length && context.request) {
         for (let index = 0; index < executionPath.length; index++) {
             const executable = executionPath[index];
+            if (context.responseErrors.length && !executable.forceRunOnError) continue;
 
-            deserializeAndValidateParams(context.request[executable.inputFieldName], executable, context);
+            deserializeAndValidateParams(context, executable);
             if (context.responseErrors.length && !executable.forceRunOnError) continue;
 
             try {
-                const result = await executable.handler(context, ...context.request[executable.inputFieldName]);
-                if (executable.canReturnData) {
-                    context.reply[executable.outputFieldName] = routerOptions.enableSerialization
-                        ? executable.outputSerializer(result)
-                        : result;
-                }
+                const params = executable.inHeader
+                    ? context.request.headers[executable.inputFieldName]
+                    : context.request.body[executable.inputFieldName];
+                const result = await executable.handler(context, ...params);
+                serializeResponse(context, executable, result);
             } catch (e: any | MkError | Error) {
                 const executableOrUnknownError = {
                     statusCode: e.statusCode || StatusCodes.INTERNAL_SERVER_ERROR,
@@ -178,26 +191,71 @@ const runExecutionPath = async <App extends MapObj, SharedData, ServerReq extend
 };
 
 const deserializeAndValidateParams = <App extends MapObj, SharedData, ServerReq extends MkRequest, ServerResp extends MkResponse>(
-    params: any[] = [],
-    executable: Executable,
     context: Context<App, SharedData, ServerReq, ServerResp>,
+    executable: Executable,
 ) => {
-    if (params.length !== executable.paramValidators.length || params.length !== executable.paramsDeSerializers.length) {
-        context.responseErrors.push({
-            statusCode: StatusCodes.BAD_REQUEST,
-            message: `Invalid input ${executable.inputFieldName}, missing or invalid number of input parameters`,
-        });
-        return;
+    const fieldName = executable.inputFieldName;
+    let params = executable.inHeader ? context.request.headers[fieldName] : context.request.body[fieldName];
+
+    if (executable.inHeader) {
+        if (typeof params === 'string') params = [params];
+        else
+            return context.responseErrors.push({
+                statusCode: StatusCodes.BAD_REQUEST,
+                message: `Invalid header '${fieldName}'. No header found with that name.`,
+            });
     }
+
+    if (!Array.isArray(params))
+        return context.responseErrors.push({
+            statusCode: StatusCodes.BAD_REQUEST,
+            message: `Invalid input '${fieldName}', must be an array of parameters`,
+        });
+
+    if (params.length !== executable.paramValidators.length)
+        return context.responseErrors.push({
+            statusCode: StatusCodes.BAD_REQUEST,
+            message: `Invalid input '${fieldName}', missing or invalid number of input parameters`,
+        });
+
     if (!params.length) return;
 
-    if (routerOptions.enableSerialization)
-        context.request[executable.inputFieldName] = deserializeParams(executable, context.request[executable.inputFieldName]);
-    if (routerOptions.enableValidation) {
-        const errors = validateParams(executable, params);
-        context.responseErrors.push(...errors);
-        context.privateErrors.push(...errors);
+    if (routerOptions.enableSerialization) {
+        try {
+            params = deserializeParams(executable, params);
+            if (executable.inHeader) context.request.headers[fieldName] = params;
+            else context.request.body[fieldName] = params;
+        } catch (e) {
+            return context.responseErrors.push({
+                statusCode: StatusCodes.BAD_REQUEST,
+                message: `Invalid input '${fieldName}', can not deserialize. Parameters might be of the wrong type.`,
+            });
+        }
     }
+
+    if (routerOptions.enableValidation) {
+        try {
+            const errors = validateParams(executable, params);
+            context.responseErrors.push(...errors);
+            context.privateErrors.push(...errors);
+        } catch (e) {
+            return context.responseErrors.push({
+                statusCode: StatusCodes.BAD_REQUEST,
+                message: `Invalid input '${fieldName}', can not validate parameters.`,
+            });
+        }
+    }
+};
+
+const serializeResponse = <App extends MapObj, SharedData, ServerReq extends MkRequest, ServerResp extends MkResponse>(
+    context: Context<App, SharedData, ServerReq, ServerResp>,
+    executable: Executable,
+    result: any,
+) => {
+    if (!executable.canReturnData || result === undefined) return;
+    const deserialized = routerOptions.enableSerialization ? executable.outputSerializer(result) : result;
+    if (executable.inHeader) context.reply.headers[executable.outputFieldName] = deserialized;
+    else context.reply.body[executable.outputFieldName] = deserialized;
 };
 
 // ############# PRIVATE STATE #############
@@ -241,7 +299,7 @@ const recursiveFlatRoutes = (
             routeEntry = getExecutableFromHook(item, path, nestLevel, key);
             const fieldName = routeEntry.outputFieldName;
             if (hookNames.has(fieldName))
-                throw `Invalid hook: ${path}. Naming collision, the fieldName ${fieldName} has been already used`;
+                throw `Invalid hook: ${path}. Naming collision, the fieldName '${fieldName}' has been used in more than one hook/route.`;
             hookNames.set(fieldName, true);
         } else if (isRoute(item)) {
             routeEntry = getExecutableFromRoute(item, path, nestLevel);
@@ -415,31 +473,31 @@ const getHookFieldName = (item: Hook, key: string) => {
     return item?.fieldName || key;
 };
 
-const getRouteFieldName = (fieldName: string | undefined, key: string) => {
-    return fieldName || key;
-};
+// const getRouteFieldName = (fieldName: string | undefined, key: string) => {
+//     return fieldName || key;
+// };
 
-const findDuplicates = (withDuplicated: string[]): string[] => {
-    const duplicates: string[] = [];
-    const times: {[keys: string]: number} = {};
-    withDuplicated.forEach((key) => (times[key] = (times[key] ?? 0) + 1));
-    Object.entries(times)
-        .filter(([key, times]) => times > 1)
-        .map(([key]) => key);
-    return duplicates;
-};
+// const findDuplicates = (withDuplicated: string[]): string[] => {
+//     const duplicates: string[] = [];
+//     const times: {[keys: string]: number} = {};
+//     withDuplicated.forEach((key) => (times[key] = (times[key] ?? 0) + 1));
+//     Object.entries(times)
+//         .filter(([key, times]) => times > 1)
+//         .map(([key]) => key);
+//     return duplicates;
+// };
 
-const routeError = (statusCode: number, message: string): MkResponse => {
-    return {
-        statusCode,
-        // prevent leaking any other fields from error
-        body: json.stringify({
-            errors: [
-                {
-                    statusCode,
-                    message,
-                },
-            ],
-        }),
-    };
-};
+// const routeError = (statusCode: number, message: string): MkResponse => {
+//     return {
+//         statusCode,
+//         // prevent leaking any other fields from error
+//         body: json.stringify({
+//             errors: [
+//                 {
+//                     statusCode,
+//                     message,
+//                 },
+//             ],
+//         }),
+//     };
+// };

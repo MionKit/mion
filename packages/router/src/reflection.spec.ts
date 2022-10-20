@@ -5,10 +5,10 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {ReflectionKind, reflect, typeOf} from '@deepkit/type';
-import {getParamValidators, isFirstParameterContext} from './reflection';
+import {ReflectionKind, reflect, typeOf, deserializeFunction, deserialize, SerializationOptions} from '@deepkit/type';
+import {getOutputSerializer, getParamsDeserializer, getParamValidators, isFirstParameterContext} from './reflection';
 import {initRouter} from './router';
-import {Context, isFunctionType, RouteParamValidator} from './types';
+import {Context, isFunctionType, Route, RouteParamValidator} from './types';
 import {APIGatewayProxyResult, APIGatewayEvent} from 'aws-lambda';
 import {DEFAULT_ROUTE_OPTIONS} from './constants';
 
@@ -23,6 +23,9 @@ describe('Deepkit reflection should', () => {
         counter: number;
         lastUpdate: Date;
     };
+    type DataPoint = {
+        date: Date;
+    };
     const app = {db: () => null};
     const req = {headers: {}, body: '{}'};
     const resp = {statusCode: 200, headers: {}, body: null};
@@ -33,6 +36,9 @@ describe('Deepkit reflection should', () => {
         surname: 'Smith',
         counter: 0,
         lastUpdate: new Date('December 17, 2020 03:24:00'),
+    };
+    const addDate: Route = (context, data: DataPoint): DataPoint => {
+        return data;
     };
 
     type CallContext = Context<typeof app, ReturnType<typeof sharedDataFactory>, typeof req, typeof resp>;
@@ -112,12 +118,41 @@ describe('Deepkit reflection should', () => {
         expect(isFirstParameterContext(contextType, printSum)).toBeFalsy();
     });
 
-    it('should serialize data', () => {});
+    it('should serialize/deserialize data', () => {
+        const dataPoint: DataPoint = {date: new Date('December 19, 2020 03:24:00')};
+        const serializedDataPoint = {date: '2020-12-19T02:24:00.000Z'};
+        const deSerializers = getParamsDeserializer(addDate, DEFAULT_ROUTE_OPTIONS);
+        const outputSerializer = getOutputSerializer(addDate, DEFAULT_ROUTE_OPTIONS);
+        const input = JSON.parse(JSON.stringify(dataPoint)); // this would be same as json.parse(body)
 
-    it('should set call context', () => {
-        type App = typeof app;
-        type SharedData = ReturnType<typeof sharedDataFactory>;
-        type AppContext = Context<App, SharedData, APIGatewayEvent, APIGatewayProxyResult>;
-        initRouter<App, SharedData, APIGatewayEvent, APIGatewayProxyResult>(app, sharedDataFactory);
+        const deserialized = deSerializers[0](input);
+        const output = addDate(null, deserialized);
+        const serialized = outputSerializer(output); //safe fo Json to parse
+
+        expect(input).toEqual(serializedDataPoint);
+        expect(typeof input.date).toEqual('string');
+        expect(deserialized).toEqual(dataPoint);
+        expect(typeof deserialized.date).toEqual('object');
+
+        expect(output).toEqual(dataPoint);
+        expect(typeof output.date).toEqual('object');
+        expect(serialized).toEqual(serializedDataPoint);
+        expect(typeof serialized.date).toEqual('string');
+    });
+
+    it('should not do soft deserialization with router default options', () => {
+        const deSerializers = getParamsDeserializer(updateUser, DEFAULT_ROUTE_OPTIONS);
+        const date = new Date();
+        const user1 = {
+            id: 1,
+            name: false,
+            surname: false,
+            counter: false,
+            lastUpdate: date,
+        };
+        const parsed1 = JSON.parse(JSON.stringify(user1));
+
+        const deserialized1 = deSerializers[0](parsed1);
+        expect(deserialized1).toEqual(user1);
     });
 });
