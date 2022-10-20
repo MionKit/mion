@@ -49,7 +49,7 @@ MikroKit opinions might not always be the best or suit every scenario, but are a
 
 ## `RPC like`
 
-MikroKit Router uses **Remote Procedure Call** style routing, unlike traditional REST apis it does not use `GET`, `PUT`, `POST` and `DELETE` methods, everything is transmitted using `HTTP POST` method and absolutely all data is sent/received in the request/response `BODY`.
+MikroKit Router uses a **Remote Procedure Call** style routing, unlike traditional REST apis it does not use `GET`, `PUT`, `POST` and `DELETE` methods, everything is transmitted using `HTTP POST` method and absolutely all data is sent/received in the request/response `BODY`.
 
 ### Requests & Responses
 
@@ -71,11 +71,11 @@ Please have a look to this great Presentation for more info about each different
 
 ## `Routing`
 
-Blazing fast router **_based in plain javascript objects_**. Thanks to it's RPC style there is no need for parameters or regular expression parsing when finding a route, just a simple [Map](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Map) in memory containing all the routes, can't get faster than that.
+Blazing fast router **_based in plain javascript objects_**. Thanks to it's RPC style there is no need to parse parameters or regular expressions when finding a route. Just a simple [Map](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Map) in memory containing all the routes. Can't get faster than that.
 
 All data is transmitted in the body, so data that is usually send via HTTP headers (like Authorization tokens), is send in the body wen using MikroKit. _Headers are supposed to be data for/by the server/browser and should not be used in Application level_, this also could prevent some problems with proxies but also generate some problem with some other software that relies in headers (Auth providers etc).
 
-Routes are defined using a plain javascript object, where every property is a route. Data to the for the called route is send in the `input` field and data returned is send back in the `output` field.
+Routes are defined using a plain javascript object, where every property is a route. Data to the for the called route is send in the `params` field and data returned is send back in the `response` field.
 
 MikroKit uses deepkit to automatically [validate](https://docs.deepkit.io/english/validation.html) the data send in the request and [serialize](https://docs.deepkit.io/english/serialization.html) the data send in the response.
 
@@ -86,26 +86,25 @@ Full router documentation [here!](./packages/router/)
 ```js
 // packages/router/examples/routes-definition.ts
 
-import {Route, Handler, Routes, MkkRouter} from '@mikrokit/router';
+import {Route, Handler, Routes, MkRouter} from '@mikrokit/router';
 
 const sayHello: Handler = (context, name: string) => {
-    return `Hello ${name}.`;
+  return `Hello ${name}.`;
 };
 
 const sayHello2: Route = {
-    route(context, name1: string, name2: string) {
-        return `Hello ${name1} and ${name2}.`;
-    },
+  route(context, name1: string, name2: string) {
+    return `Hello ${name1} and ${name2}.`;
+  },
 };
 
 const routes: Routes = {
-    sayHello, // api/sayHello
-    sayHello2, // api/sayHello2
+  sayHello, // api/sayHello
+  sayHello2, // api/sayHello2
 };
 
-MkkRouter.setRouterOptions({prefix: 'api/'});
-MkkRouter.addRoutes(routes);
-
+MkRouter.setRouterOptions({prefix: 'api/'});
+MkRouter.addRoutes(routes);
 ```
 
 <table>

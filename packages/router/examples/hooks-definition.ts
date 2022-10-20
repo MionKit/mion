@@ -1,4 +1,4 @@
-import {Route, Routes, MkkRouter, Hook} from '@mikrokit/router';
+import {Route, Routes, MkRouter, Hook} from '@mikrokit/router';
 import {getAuthUser, isAuthorized} from 'MyAuth';
 
 const authorizationHook: Hook = {
@@ -33,4 +33,4 @@ const routes: Routes = {
     logs,
 };
 
-MkkRouter.addRoutes(routes);
+MkRouter.addRoutes(routes);

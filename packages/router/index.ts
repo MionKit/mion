@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-export * as MkkRouter from './src/router';
+export * as MkRouter from './src/router';
 export * from './src/reflection';
 export * from './src/types';
 export * from './src/constants';

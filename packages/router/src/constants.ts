@@ -38,7 +38,7 @@ export const DEFAULT_EXECUTABLE: Readonly<Required<Executable>> = {
     handler: () => null,
     paramValidators: [],
     paramsDeSerializers: [],
-    outputSerializer: () => null,
+    outputSerializer: (a: any) => null as any,
     src: null as any,
 };
 
@@ -58,6 +58,9 @@ export const DEFAULT_ROUTE_OPTIONS: Readonly<RouterOptions> = {
     suffix: '',
     enableValidation: true,
     enableSerialization: true,
+    serializationOptions: {
+        loosely: false,
+    },
 };
 
 export const ROUTE_KEYS = Object.keys(DEFAULT_ROUTE);

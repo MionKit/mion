@@ -15,10 +15,14 @@ import {
     getRouteExecutable,
     reset,
     setRouterOptions,
+    initRouter,
+    runRoute,
 } from './router';
-import {Handler, Hook, Route, RouteObject, Routes} from './types';
+import {Context, Handler, Hook, MkRequest, MkResponse, Route, RouteObject, Routes} from './types';
+import {APIGatewayProxyResult, APIGatewayEvent} from 'aws-lambda';
+import {StatusCodes} from './status-codes';
 
-describe('router should', () => {
+describe('router create routes should', () => {
     const hook: Hook = {hook() {}};
     const route1: Handler = () => 'route1';
     const route2: RouteObject = {
@@ -217,7 +221,7 @@ describe('router should', () => {
             },
         };
         expect(() => addRoutes(fieldCollision)).toThrow(
-            'Invalid hook: postProcess. Naming collision, the fieldName process has been already used',
+            `Invalid hook: postProcess. Naming collision, the fieldName 'process' has been used in more than one hook/route.`,
         );
         expect(() => addRoutes(pathCollision)).toThrow('Invalid route: sayHello2. Naming collision, duplicated route');
     });
@@ -273,14 +277,229 @@ describe('router should', () => {
         addRoutes(worstCase);
         const worstCaseComplexity = getComplexity();
 
-        console.log('bestCaseComplexity', bestCaseComplexity);
-        console.log('worstCaseComplexity', worstCaseComplexity);
-
         expect(worstCaseComplexity * ratio > bestCaseComplexity).toBeTruthy();
     });
 
     it('should extend routes types', () => {
         // TODO extend route/hook type and add to readme
         type MyRoute = Route & {};
+    });
+});
+
+describe('router run routes should', () => {
+    type SimpleUser = {
+        name: string;
+        surname: string;
+    };
+    type DataPoint = {
+        date: Date;
+    };
+    const app = {
+        cloudLogs: {
+            log: () => null,
+            error: () => null,
+        },
+        db: {
+            changeUserName: (user: SimpleUser) => ({name: 'LOREM', surname: user.surname}),
+        },
+    };
+
+    const getSharedData = () => ({auth: {me: null as any}});
+
+    type App = typeof app;
+    type SharedData = ReturnType<typeof getSharedData>;
+    type CallContext = Context<App, SharedData, APIGatewayEvent, APIGatewayProxyResult>;
+
+    const changeUserName: Route = (context: CallContext, user: SimpleUser) => {
+        return context.app.db.changeUserName(user);
+    };
+
+    const getSameDate: Route = (context, data: DataPoint): DataPoint => {
+        return data;
+    };
+
+    const auth: Hook = {
+        fieldName: 'Authorization',
+        inHeader: true,
+        hook: (context: CallContext, token: string) => {
+            if (token !== '1234') throw {statusCode: StatusCodes.FORBIDDEN, message: 'invalid auth token'};
+        },
+    };
+
+    const getDefaultRequest = (params?): MkRequest => ({
+        headers: {},
+        body: JSON.stringify({params}),
+    });
+
+    const getDefaultResponse = (): MkResponse => ({
+        statusCode: 0,
+        headers: {},
+        body: null,
+    });
+
+    beforeEach(() => reset());
+
+    describe('success path', () => {
+        it('read data from body & route', async () => {
+            initRouter(app, getSharedData);
+            addRoutes({changeUserName});
+
+            const request = getDefaultRequest([{name: 'Leo', surname: 'Tungsten'}]);
+            const response = getDefaultResponse();
+
+            const data = await runRoute('changeUserName', request, response);
+            expect(data.body.response).toEqual({name: 'LOREM', surname: 'Tungsten'});
+        });
+
+        it('read data from header & hook', async () => {
+            initRouter(app, getSharedData);
+            addRoutes({auth, changeUserName});
+
+            const request: MkRequest = {
+                headers: {Authorization: '1234'},
+                body: JSON.stringify({params: [{name: 'Leo', surname: 'Tungsten'}]}),
+            };
+            const response = getDefaultResponse();
+
+            const data = await runRoute('changeUserName', request, response);
+            expect(data.errors.length).toEqual(0);
+            expect(data.body).toEqual({response: {name: 'LOREM', surname: 'Tungsten'}});
+        });
+    });
+
+    describe('fail path', () => {
+        it('return an error if no route is found', async () => {
+            initRouter(app, getSharedData);
+            addRoutes({changeUserName});
+
+            const request = getDefaultRequest([{name: 'Leo', surname: 'Tungsten'}]);
+            const response = getDefaultResponse();
+
+            const data = await runRoute('abcd', request, response);
+            expect(data.errors[0]).toEqual({
+                statusCode: 404,
+                message: `Route not found`,
+            });
+        });
+
+        it('return an error if data is missing from header', async () => {
+            initRouter(app, getSharedData);
+            addRoutes({auth, changeUserName});
+
+            const request = getDefaultRequest([{name: 'Leo', surname: 'Tungsten'}]);
+            const response = getDefaultResponse();
+
+            const data = await runRoute('changeUserName', request, response);
+            expect(data.errors[0]).toEqual({
+                statusCode: 400,
+                message: `Invalid header 'Authorization'. No header found with that name.`,
+            });
+        });
+
+        it('return an error if body is not a json object', async () => {
+            initRouter(app, getSharedData);
+            addRoutes({changeUserName});
+
+            const request: MkRequest = {
+                headers: {},
+                body: '1234',
+            };
+            const response = getDefaultResponse();
+
+            const data = await runRoute('changeUserName', request, response);
+            expect(data.errors[0]).toEqual({
+                statusCode: 400,
+                message: `Invalid request body`,
+            });
+        });
+
+        it('return an error if params is  is not an array', async () => {
+            initRouter(app, getSharedData);
+            addRoutes({changeUserName});
+
+            const request: MkRequest = {
+                headers: {},
+                body: JSON.stringify({params: {user: {name: 'Leo', surname: 'Tungsten'}}}),
+            };
+            const response = getDefaultResponse();
+
+            const data = await runRoute('changeUserName', request, response);
+            expect(data.errors[0]).toEqual({
+                statusCode: 400,
+                message: `Invalid input 'params', must be an array of parameters`,
+            });
+        });
+
+        it('return an error if data is missing from body', async () => {
+            initRouter(app, getSharedData);
+            addRoutes({changeUserName});
+
+            const request = getDefaultRequest([]);
+            const response = getDefaultResponse();
+
+            const data = await runRoute('changeUserName', request, response);
+            expect(data.errors[0]).toEqual({
+                statusCode: 400,
+                message: `Invalid input 'params', missing or invalid number of input parameters`,
+            });
+        });
+
+        it("return an error if can't deserialize", async () => {
+            initRouter(app, getSharedData);
+            addRoutes({getSameDate});
+
+            const request = getDefaultRequest([1234]);
+            const response = getDefaultResponse();
+
+            const data = await runRoute('getSameDate', request, response);
+            expect(data.errors[0]).toEqual({
+                statusCode: 400,
+                message: `Invalid input 'params', can not deserialize. Parameters might be of the wrong type.`,
+            });
+        });
+
+        it('return an error if validation fails, incorrect type', async () => {
+            initRouter(app, getSharedData);
+            addRoutes({changeUserName});
+
+            const wrongSimpleUser: SimpleUser = {name: true, surname: 'Smith'} as any;
+            const request = getDefaultRequest([wrongSimpleUser]);
+            const response = getDefaultResponse();
+
+            const data = await runRoute('changeUserName', request, response);
+            expect(data.errors[0]).toEqual({
+                statusCode: 400,
+                message: `Invalid input 'params[0]', name(type): Not a string.`,
+            });
+        });
+
+        it('return an error if validation fails, empty type', async () => {
+            initRouter(app, getSharedData);
+            addRoutes({changeUserName});
+
+            const request = getDefaultRequest([{}]);
+            const response = getDefaultResponse();
+
+            const data = await runRoute('changeUserName', request, response);
+            expect(data.errors[0]).toEqual({
+                statusCode: 400,
+                message: `Invalid input 'params[0]', name(type): Not a string.`,
+            });
+        });
+
+        // TODO: not sure how to make serialization/validation throe an error
+        it.skip("return an error if can't validate", async () => {
+            initRouter(app, getSharedData);
+            addRoutes({getSameDate});
+
+            const request = getDefaultRequest([1234]);
+            const response = getDefaultResponse();
+
+            const data = await runRoute('getSameDate', request, response);
+            expect(data.errors[0]).toEqual({
+                statusCode: 400,
+                message: `Invalid input 'params', can not validate parameters.`,
+            });
+        });
     });
 });

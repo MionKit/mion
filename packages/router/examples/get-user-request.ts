@@ -1,10 +1,10 @@
-import {Route, Routes, MkkRouter} from '@mikrokit/router';
+import {Route, Routes, MkRouter} from '@mikrokit/router';
 
 interface Entity {
     id: number;
 }
 
-const getUser: Route = async (context, entity: Entity) => {
+const getUser: Route = async (context: any, entity: Entity) => {
     const user = await context.db.getUserById(entity.id);
     return user;
 };
@@ -15,4 +15,4 @@ const routes: Routes = {
     },
 };
 
-MkkRouter.addRoutes(routes);
+MkRouter.addRoutes(routes);

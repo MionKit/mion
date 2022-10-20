@@ -5,13 +5,22 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import type {TypeFunction, Type, ValidationErrorItem, Serializer, SerializationOptions, NamingStrategy} from '@deepkit/type';
+import type {
+    TypeFunction,
+    Type,
+    ValidationErrorItem,
+    Serializer,
+    SerializationOptions,
+    NamingStrategy,
+    JSONPartial,
+    JSONSingle,
+} from '@deepkit/type';
 import {ReflectionKind} from '@deepkit/type';
 
 // #######  Router entries #######
 
 /** Route or Hook Handler */
-export type Handler = (context: any, ...args: any) => any | void | Promise<any | void>;
+export type Handler = (context: Context<any, any, any, any>, ...args: any) => any | Promise<any>;
 
 /** Route definition */
 export type RouteObject = {
@@ -55,21 +64,27 @@ export type Routes = {
 
 /** Global Router Options */
 export type RouterOptions = {
-    /** prefix for all routes, i.e: api/v1, path separator is added between the prefix and the route */
+    /** prefix for all routes, i.e: api/v1.
+     * path separator is added between the prefix and the route */
     prefix: string;
-    /** suffix for all routes, i.e: .json, not path separators is added between the route and the suffix */
+    /** suffix for all routes, i.e: .json.
+     * Not path separators is added between the route and the suffix */
     suffix: string;
     /** enable automatic parameter validation, defaults to true */
     enableValidation: boolean;
     /** Enables serialization/deserialization */
     enableSerialization: boolean;
     /**
+     * Deepkit Serialization Options
+     * loosely defaults to false, Soft conversion disabled.
+     * !! We Don't recommend to enable soft conversion as validation might fail
+     * */
+    serializationOptions: SerializationOptions;
+    /**
      * Deepkit custom serializer
      * @link https://docs.deepkit.io/english/serialization.html#serialisation-custom-serialiser
      * */
     customSerializer?: Serializer | undefined;
-    /** Deepkit Serialization Options */
-    serializationOptions?: SerializationOptions | undefined;
     /**
      * Deepkit Serialization Options
      * @link https://docs.deepkit.io/english/serialization.html#_naming_strategy
@@ -100,8 +115,8 @@ export type Executable = {
 
 /** Any request Object used by the router must follow this interface */
 export type MkRequest = {
-    headers: {[header: string]: string | undefined};
-    body: string | null | undefined;
+    headers: {[header: string]: string | undefined} | undefined;
+    body: string | null | undefined | {};
 };
 
 /** Any response Object used by the routed must follow this interface  */
@@ -137,9 +152,15 @@ export type Context<App, SharedData, ServerReq extends MkRequest, ServerResp ext
     /** private errors, can be used for logging etc */
     privateErrors: (MkError | Error | any)[];
     /** parsed request.body */
-    request: MapObj;
+    request: {
+        headers: MapObj;
+        body: MapObj;
+    };
     /** returned data (non parsed) */
-    reply: MapObj;
+    reply: {
+        headers: MapObj;
+        body: MapObj;
+    };
     /** shared data between route/hooks handlers */
     shared: SharedData;
 };
@@ -147,11 +168,18 @@ export type Context<App, SharedData, ServerReq extends MkRequest, ServerResp ext
 /** Function used to create the shared data object on each route call  */
 export type SharedDataFactory<SharedData> = () => SharedData;
 
+export type RouteReply = {
+    statusCode: number;
+    errors: MkError[];
+    headers: MapObj;
+    body: MapObj;
+};
+
 // #######  reflection #######
 
 export type RouteParamValidator = (data: any) => ValidationErrorItem[];
-export type RouteParamDeserializer = (data: any) => any;
-export type RouteOutputSerializer = (data: any) => any;
+export type RouteParamDeserializer = <T>(data: JSONPartial<T>) => T;
+export type RouteOutputSerializer = <T>(data: T) => JSONSingle<T>;
 
 // #######  type guards #######
 
