@@ -11,7 +11,6 @@
     "build": "npm run tsc -ws",
     "publish": "lerna run tsc && lerna publish",
     "deepkit-install": "deepkit-type-install",
-    "prepare": "husky install",
     "embed-readme": "embedme **/README.md"
   },
   "repository": {
@@ -35,8 +34,6 @@
     "node": ">= 16.0.0"
   },
   "devDependencies": {
-    "@deepkit/core": "^1.0.1-alpha.75",
-    "@deepkit/type-compiler": "^1.0.1-alpha.75",
     "@types/aws-lambda": "^8.10.107",
     "@types/jest": "^27.0.2",
     "@types/node": "^16.11.6",
@@ -48,9 +45,6 @@
     "prettier": "^2.4.1",
     "ts-jest": "^27.1.5",
     "typescript": "4.6"
-  },
-  "dependencies": {
-    "@deepkit/type": "^1.0.1-alpha.75"
   },
   "workspaces": [
     "packages/*"
