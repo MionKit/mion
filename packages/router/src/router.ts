@@ -181,7 +181,9 @@ const runExecutionPath = async <App extends MapObj, SharedData, ServerReq extend
                     statusCode: e.statusCode || StatusCodes.INTERNAL_SERVER_ERROR,
                     message:
                         e.message ||
-                        `Unknown error in ${executable.isRoute ? executable.path : executable.inputFieldName} step ${index}`,
+                        `Unknown error executing step ${index} of '${
+                            executable.isRoute ? executable.path : executable.inputFieldName
+                        }'.`,
                 };
                 context.responseErrors.push(executableOrUnknownError);
                 context.privateErrors.push(e);

@@ -286,7 +286,7 @@ describe('router create routes should', () => {
     });
 });
 
-describe('router run routes should', () => {
+describe('router run routes', () => {
     type SimpleUser = {
         name: string;
         surname: string;
@@ -339,7 +339,7 @@ describe('router run routes should', () => {
 
     beforeEach(() => reset());
 
-    describe('success path', () => {
+    describe('success path should', () => {
         it('read data from body & route', async () => {
             initRouter(app, getSharedData);
             addRoutes({changeUserName});
@@ -367,7 +367,7 @@ describe('router run routes should', () => {
         });
     });
 
-    describe('fail path', () => {
+    describe('fail path should', () => {
         it('return an error if no route is found', async () => {
             initRouter(app, getSharedData);
             addRoutes({changeUserName});
@@ -484,6 +484,24 @@ describe('router run routes should', () => {
             expect(data.errors[0]).toEqual({
                 statusCode: 400,
                 message: `Invalid input 'params[0]', name(type): Not a string.`,
+            });
+        });
+
+        it('return an unknown error if a route fails with a generic error', async () => {
+            initRouter(app, getSharedData);
+
+            const routeFail: Route = (c: any) => {
+                throw 'this is a generic error';
+            };
+            addRoutes({routeFail});
+
+            const request = getDefaultRequest([]);
+            const response = getDefaultResponse();
+
+            const data = await runRoute('routeFail', request, response);
+            expect(data.errors[0]).toEqual({
+                statusCode: 500,
+                message: `Unknown error executing step 0 of 'routeFail'.`,
             });
         });
 
