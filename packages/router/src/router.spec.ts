@@ -308,7 +308,7 @@ describe('router run routes', () => {
 
     type App = typeof app;
     type SharedData = ReturnType<typeof getSharedData>;
-    type CallContext = Context<App, SharedData, APIGatewayEvent, APIGatewayProxyResult>;
+    type CallContext = Context<App, SharedData, APIGatewayEvent>;
 
     const changeUserName: Route = (context: CallContext, user: SimpleUser) => {
         return context.app.db.changeUserName(user);
@@ -347,7 +347,7 @@ describe('router run routes', () => {
             const request = getDefaultRequest([{name: 'Leo', surname: 'Tungsten'}]);
             const response = getDefaultResponse();
 
-            const data = await runRoute('changeUserName', request, response);
+            const data = await runRoute('changeUserName', request);
             expect(data.body.response).toEqual({name: 'LOREM', surname: 'Tungsten'});
         });
 
@@ -361,7 +361,7 @@ describe('router run routes', () => {
             };
             const response = getDefaultResponse();
 
-            const data = await runRoute('changeUserName', request, response);
+            const data = await runRoute('changeUserName', request);
             expect(data.errors.length).toEqual(0);
             expect(data.body).toEqual({response: {name: 'LOREM', surname: 'Tungsten'}});
         });
@@ -375,7 +375,7 @@ describe('router run routes', () => {
             const request = getDefaultRequest([{name: 'Leo', surname: 'Tungsten'}]);
             const response = getDefaultResponse();
 
-            const data = await runRoute('abcd', request, response);
+            const data = await runRoute('abcd', request);
             expect(data.errors[0]).toEqual({
                 statusCode: 404,
                 message: `Route not found`,
@@ -389,7 +389,7 @@ describe('router run routes', () => {
             const request = getDefaultRequest([{name: 'Leo', surname: 'Tungsten'}]);
             const response = getDefaultResponse();
 
-            const data = await runRoute('changeUserName', request, response);
+            const data = await runRoute('changeUserName', request);
             expect(data.errors[0]).toEqual({
                 statusCode: 400,
                 message: `Invalid header 'Authorization'. No header found with that name.`,
@@ -406,7 +406,7 @@ describe('router run routes', () => {
             };
             const response = getDefaultResponse();
 
-            const data = await runRoute('changeUserName', request, response);
+            const data = await runRoute('changeUserName', request);
             expect(data.errors[0]).toEqual({
                 statusCode: 400,
                 message: `Invalid request body`,
@@ -423,7 +423,7 @@ describe('router run routes', () => {
             };
             const response = getDefaultResponse();
 
-            const data = await runRoute('changeUserName', request, response);
+            const data = await runRoute('changeUserName', request);
             expect(data.errors[0]).toEqual({
                 statusCode: 400,
                 message: `Invalid input 'params', must be an array of parameters`,
@@ -437,7 +437,7 @@ describe('router run routes', () => {
             const request = getDefaultRequest([]);
             const response = getDefaultResponse();
 
-            const data = await runRoute('changeUserName', request, response);
+            const data = await runRoute('changeUserName', request);
             expect(data.errors[0]).toEqual({
                 statusCode: 400,
                 message: `Invalid input 'params', missing or invalid number of input parameters`,
@@ -451,7 +451,7 @@ describe('router run routes', () => {
             const request = getDefaultRequest([1234]);
             const response = getDefaultResponse();
 
-            const data = await runRoute('getSameDate', request, response);
+            const data = await runRoute('getSameDate', request);
             expect(data.errors[0]).toEqual({
                 statusCode: 400,
                 message: `Invalid input 'params', can not deserialize. Parameters might be of the wrong type.`,
@@ -466,7 +466,7 @@ describe('router run routes', () => {
             const request = getDefaultRequest([wrongSimpleUser]);
             const response = getDefaultResponse();
 
-            const data = await runRoute('changeUserName', request, response);
+            const data = await runRoute('changeUserName', request);
             expect(data.errors[0]).toEqual({
                 statusCode: 400,
                 message: `Invalid input 'params[0]', name(type): Not a string.`,
@@ -480,7 +480,7 @@ describe('router run routes', () => {
             const request = getDefaultRequest([{}]);
             const response = getDefaultResponse();
 
-            const data = await runRoute('changeUserName', request, response);
+            const data = await runRoute('changeUserName', request);
             expect(data.errors[0]).toEqual({
                 statusCode: 400,
                 message: `Invalid input 'params[0]', name(type): Not a string.`,
@@ -498,7 +498,7 @@ describe('router run routes', () => {
             const request = getDefaultRequest([]);
             const response = getDefaultResponse();
 
-            const data = await runRoute('routeFail', request, response);
+            const data = await runRoute('routeFail', request);
             expect(data.errors[0]).toEqual({
                 statusCode: 500,
                 message: `Unknown error executing step 0 of 'routeFail'.`,
@@ -513,7 +513,7 @@ describe('router run routes', () => {
             const request = getDefaultRequest([1234]);
             const response = getDefaultResponse();
 
-            const data = await runRoute('getSameDate', request, response);
+            const data = await runRoute('getSameDate', request);
             expect(data.errors[0]).toEqual({
                 statusCode: 400,
                 message: `Invalid input 'params', can not validate parameters.`,

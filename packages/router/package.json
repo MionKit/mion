@@ -1,6 +1,6 @@
 {
   "name": "@mikrokit/router",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "package to generate typescript models from json schema",
   "keywords": [
     "typescript",

@@ -8,7 +8,7 @@ const getSharedData = () => ({auth: {me: null}});
 
 type App = typeof app;
 type SharedData = ReturnType<typeof getSharedData>;
-type CallContext = Context<App, SharedData, APIGatewayEvent, APIGatewayProxyResult>;
+type CallContext = Context<App, SharedData, APIGatewayEvent>;
 
 const getMyPet = async (context: CallContext) => {
     // use of context inside handlers

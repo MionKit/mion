@@ -28,6 +28,7 @@ import {
     SharedDataFactory,
     MkError,
     RouteReply,
+    ServerCall,
 } from './types';
 import {StatusCodes} from './status-codes';
 import {deserializeParams, getOutputSerializer, getParamsDeserializer, getParamValidators, validateParams} from './reflection';
@@ -80,7 +81,12 @@ export const reset = () => {
  * @param handlersDataFactory
  * @param routerOptions
  */
-export const initRouter = <App extends MapObj, SharedData, ServerReq extends MkRequest, ServerResp extends MkResponse>(
+export const initRouter = <
+    App extends MapObj,
+    SharedData,
+    ServerReq extends MkRequest,
+    AnyServerCall extends ServerCall<ServerReq>,
+>(
     app_: App,
     handlersDataFactory_?: SharedDataFactory<SharedData>,
     routerOptions_?: Partial<RouterOptions>,
@@ -90,25 +96,38 @@ export const initRouter = <App extends MapObj, SharedData, ServerReq extends MkR
     sharedDataFactory = handlersDataFactory_;
     setRouterOptions(routerOptions_);
 
-    type ResolveContext = Context<App, SharedData, ServerReq, ServerResp>;
+    type ResolveContext = Context<App, SharedData, ServerReq, AnyServerCall>;
     contextType = typeOf<ResolveContext>();
     // type ResolvedRun = typeof run<ServerReq, ServerResp>;
     // const typedContext: ResolveContext = {} as any;
 };
 
-export const runRoute = async <App extends MapObj, SharedData, ServerReq extends MkRequest, ServerResp extends MkResponse>(
+export const runRoute = async <
+    App extends MapObj,
+    SharedData,
+    ServerReq extends MkRequest,
+    AnyServerCall extends ServerCall<ServerReq> = ServerCall<ServerReq>,
+>(
     path: string,
     req: ServerReq,
-    resp: ServerResp,
+): Promise<RouteReply> => {
+    return runRouteWithServerCall<App, SharedData, ServerReq, AnyServerCall>(path, {req} as AnyServerCall);
+};
+
+export const runRouteWithServerCall = async <
+    App extends MapObj,
+    SharedData,
+    ServerReq extends MkRequest,
+    AnyServerCall extends ServerCall<ServerReq>,
+>(
+    path: string,
+    serverCall: AnyServerCall,
 ): Promise<RouteReply> => {
     if (!app) throw 'Context has not been defined';
 
-    const context: Context<App, SharedData, ServerReq, ServerResp> = {
+    const context: Context<App, SharedData, ServerReq, AnyServerCall> = {
         app: app as Readonly<App>, // static context
-        server: {
-            req,
-            resp,
-        },
+        server: serverCall,
         path,
         request: {
             headers: {},
@@ -140,8 +159,13 @@ export const runRoute = async <App extends MapObj, SharedData, ServerReq extends
     };
 };
 
-const parseRequestInputs = <App extends MapObj, SharedData, ServerReq extends MkRequest, ServerResp extends MkResponse>(
-    context: Context<App, SharedData, ServerReq, ServerResp>,
+const parseRequestInputs = <
+    App extends MapObj,
+    SharedData,
+    ServerReq extends MkRequest,
+    AnyServerCall extends ServerCall<ServerReq>,
+>(
+    context: Context<App, SharedData, ServerReq, AnyServerCall>,
 ) => {
     context.request.headers = context.server.req.headers || {};
     try {
@@ -158,9 +182,14 @@ const parseRequestInputs = <App extends MapObj, SharedData, ServerReq extends Mk
     }
 };
 
-const runExecutionPath = async <App extends MapObj, SharedData, ServerReq extends MkRequest, ServerResp extends MkResponse>(
+const runExecutionPath = async <
+    App extends MapObj,
+    SharedData,
+    ServerReq extends MkRequest,
+    AnyServerCall extends ServerCall<ServerReq>,
+>(
     executionPath: Executable[],
-    context: Context<App, SharedData, ServerReq, ServerResp>,
+    context: Context<App, SharedData, ServerReq, AnyServerCall>,
 ) => {
     if (executionPath.length && context.request) {
         for (let index = 0; index < executionPath.length; index++) {
@@ -192,8 +221,13 @@ const runExecutionPath = async <App extends MapObj, SharedData, ServerReq extend
     }
 };
 
-const deserializeAndValidateParams = <App extends MapObj, SharedData, ServerReq extends MkRequest, ServerResp extends MkResponse>(
-    context: Context<App, SharedData, ServerReq, ServerResp>,
+const deserializeAndValidateParams = <
+    App extends MapObj,
+    SharedData,
+    ServerReq extends MkRequest,
+    AnyServerCall extends ServerCall<ServerReq>,
+>(
+    context: Context<App, SharedData, ServerReq, AnyServerCall>,
     executable: Executable,
 ) => {
     const fieldName = executable.inputFieldName;
@@ -249,8 +283,13 @@ const deserializeAndValidateParams = <App extends MapObj, SharedData, ServerReq 
     }
 };
 
-const serializeResponse = <App extends MapObj, SharedData, ServerReq extends MkRequest, ServerResp extends MkResponse>(
-    context: Context<App, SharedData, ServerReq, ServerResp>,
+const serializeResponse = <
+    App extends MapObj,
+    SharedData,
+    ServerReq extends MkRequest,
+    AnyServerCall extends ServerCall<ServerReq>,
+>(
+    context: Context<App, SharedData, ServerReq, AnyServerCall>,
     executable: Executable,
     result: any,
 ) => {

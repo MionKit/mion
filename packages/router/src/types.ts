@@ -134,17 +134,21 @@ export type MkError = {
 
 // ####### Context #######
 
+export type ServerCall<ServerReq extends MkRequest> = {
+    /** Server request, '@types/aws-lambda/APIGatewayEvent' when using aws lambda */
+    req: Readonly<ServerReq>;
+};
+
 /** The call Context object passed as first parameter to any hook or route */
-export type Context<App, SharedData, ServerReq extends MkRequest, ServerResp extends MkResponse> = {
+export type Context<
+    App,
+    SharedData,
+    ServerReq extends MkRequest = MkRequest,
+    AnyServerCall extends ServerCall<ServerReq> = ServerCall<ServerReq>,
+> = {
     /** Static Data: main App, db driver, libraries, etc... */
     app: Readonly<App>;
-
-    server: {
-        /** Server request, '@types/aws-lambda/APIGatewayEvent' when using aws lambda */
-        req: Readonly<ServerReq>;
-        /** Server response, '@types/aws-lambda/APIGatewayProxyCallback' when using aws lambda */
-        resp: Readonly<ServerResp>;
-    };
+    server: AnyServerCall;
     /** Route's path */
     path: Readonly<string>;
     /** route errors, returned to the public */

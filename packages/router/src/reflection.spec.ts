@@ -7,9 +7,7 @@
 
 import {ReflectionKind, reflect, typeOf, deserializeFunction, deserialize, SerializationOptions} from '@deepkit/type';
 import {getOutputSerializer, getParamsDeserializer, getParamValidators, isFirstParameterContext} from './reflection';
-import {initRouter} from './router';
-import {Context, isFunctionType, Route, RouteParamValidator} from './types';
-import {APIGatewayProxyResult, APIGatewayEvent, Handler} from 'aws-lambda';
+import {Context, Handler, isFunctionType, Route, RouteParamValidator} from './types';
 import {DEFAULT_ROUTE_OPTIONS} from './constants';
 
 describe('Deepkit reflection should', () => {
@@ -41,7 +39,7 @@ describe('Deepkit reflection should', () => {
         return data;
     };
 
-    type CallContext = Context<typeof app, ReturnType<typeof sharedDataFactory>, typeof req, typeof resp>;
+    type CallContext = Context<typeof app, ReturnType<typeof sharedDataFactory>, typeof req>;
     const printSum = (a: number, b: number, c?: {message: string}, d?: Message) =>
         `${c?.message || d?.message || 'sum'} => ${a + b}`;
 
