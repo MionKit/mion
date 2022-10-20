@@ -4,6 +4,6 @@
     "outDir": ".dist"
   },
   "reflection": true,
-  "include": ["./src/*"],
-  "exclude": ["examples"]
+  "include": ["."],
+  "exclude": ["examples", ".dist"]
 }

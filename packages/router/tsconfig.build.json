@@ -4,6 +4,6 @@
     "outDir": ".dist"
   },
   "reflection": true,
-  "include": ["./src"],
-  "exclude": ["node_modules", "**/*.spec.ts", "examples"]
+  "include": ["."],
+  "exclude": ["node_modules", "**/*.spec.ts", "examples", ".dist"]
 }
