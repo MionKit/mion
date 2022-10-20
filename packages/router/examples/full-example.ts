@@ -47,7 +47,7 @@ const getSharedData = () => ({
 
 type App = typeof app;
 type SharedData = ReturnType<typeof getSharedData>;
-type CallContext = Context<App, SharedData, APIGatewayEvent, APIGatewayProxyResult>;
+type CallContext = Context<App, SharedData, APIGatewayEvent>;
 
 const getUser: Route = (ctx: CallContext, id: number) => ctx.app.db.getUser(id);
 const createUser: Route = (ctx: CallContext, newUser: NewUser) => ctx.app.db.createUser(newUser);
