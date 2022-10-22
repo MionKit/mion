@@ -374,7 +374,7 @@ describe('Run routes', () => {
             expect(response.data).toEqual({[path]: {name: 'LOREM', surname: 'Tungsten'}});
         });
 
-        fit('customize the routeFieldName', async () => {
+        it('customize the routeFieldName', async () => {
             initRouter(app, getSharedData, {routeFieldName: 'apiData'});
             addRoutes({changeUserName});
 
@@ -409,10 +409,7 @@ describe('Run routes', () => {
                 },
             });
 
-            console.log('request', request);
-
             const response = await runRoute(publicPath, request);
-            console.log('response', response);
             expect(response.data[routePath]).toEqual('hello');
         });
     });

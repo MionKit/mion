@@ -6,4 +6,3 @@
  * ######## */
 
 export * from './src/awsLambda';
-export * from './src/mikrokitHttp';

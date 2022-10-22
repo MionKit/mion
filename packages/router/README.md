@@ -299,42 +299,44 @@ Some data like `request/reply body/headers` or `responseErrors` are available bu
 #### Context Type
 
 ```ts
-// src/types.ts#L146-L179
-
-// ####### Context #######
+// src/types.ts#L163-L198
 
 export type ServerCall<ServerReq extends MkRequest> = {
-    /** Server request
-     * i.e: '@types/aws-lambda/APIGatewayEvent'
-     * or http/IncomingMessage */
-    req: ServerReq;
+  /** Server request
+   * i.e: '@types/aws-lambda/APIGatewayEvent'
+   * or http/IncomingMessage */
+  req: ServerReq;
 };
 
 /** The call Context object passed as first parameter to any hook or route */
 export type Context<
-    App,
-    SharedData,
-    ServerReq extends MkRequest,
-    AnyServerCall extends ServerCall<ServerReq> = ServerCall<ServerReq>,
+  App,
+  SharedData,
+  ServerReq extends MkRequest,
+  AnyServerCall extends ServerCall<ServerReq> = ServerCall<ServerReq>,
 > = {
-    /** Static Data: main App, db driver, libraries, etc... */
-    app: Readonly<App>;
-    server: Readonly<AnyServerCall>;
-    /** Route's path */
-    path: Readonly<string>;
-    /** route errors, returned to the public */
-    responseErrors: MkError[];
-    /** parsed request.body */
-    request: {
-        headers: MapObj;
-        body: MapObj;
-    };
-    /** returned data (non parsed) */
-    reply: {
-        headers: MapObj;
-        body: MapObj;
-    };
-    /** shared data between route/hooks handlers */
+  /** Static Data: main App, db driver, libraries, etc... */
+  app: Readonly<App>;
+  server: Readonly<AnyServerCall>;
+  /** Route's path */
+  path: Readonly<string>;
+  /** route errors, returned to the public */
+  responseErrors: MkError[];
+  /** parsed request.body */
+  request: {
+    headers: MapObj;
+    body: MapObj;
+  };
+  /** returned data (non parsed) */
+  reply: {
+    headers: MapObj;
+    body: MapObj;
+  };
+  /** shared data between route/hooks handlers */
+  shared: SharedData;
+  /** Logger */
+  logger: Logger;
+};
 ```
 
 #### Using context
@@ -426,7 +428,7 @@ MkRouter.addRoutes(routes);
 ## `Router Options`
 
 ```ts
-// src/constants.ts#L46-L90
+// src/constants.ts#L69-L122
 
 export const DEFAULT_ROUTE_OPTIONS: Readonly<RouterOptions> = {
   /** prefix for all routes, i.e: api/v1.
@@ -472,6 +474,15 @@ export const DEFAULT_ROUTE_OPTIONS: Readonly<RouterOptions> = {
 
   /** Custom JSON parser, defaults to Native js JSON */
   jsonParser: JSON,
+
+  /**
+   * Logger Interface Based on abstract-logging
+   * @default console
+   * @link https://www.npmjs.com/package/abstract-logging */
+  logger: DEFAULT_LOGGER,
+
+  /** disables logs completely, silent is enabled by default for Jest or when NODE_ENV = 'test */
+  silent: IS_TEST_ENV,
 };
 ```
 
