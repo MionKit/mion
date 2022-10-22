@@ -1,10 +1,6 @@
 import {Route, Routes, MkRouter} from '@mikrokit/router';
 
-interface Entity {
-    id: number;
-}
-
-const getUser: Route = async (context: any, entity: Entity) => {
+const getUser: Route = async (context: any, entity: {id: number}) => {
     const user = await context.db.getUserById(entity.id);
     return user;
 };

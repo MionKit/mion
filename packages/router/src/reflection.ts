@@ -21,7 +21,6 @@ import {
     isSameType,
     serializeFunction,
     deserializeFunction,
-    resolveReceiveType,
     SerializationOptions,
 } from '@deepkit/type';
 import {isFunctionType} from './types';
@@ -103,7 +102,7 @@ export const validateParams = (executable: Executable, params: any[] = []): MkEr
     const errors = validators.map((validate, index) => validate(params[index])).flat();
     return errors.map((validationError, index) => ({
         statusCode: StatusCodes.BAD_REQUEST,
-        message: `Invalid input '${executable.inputFieldName}[${index}]', ${validationError.toString()}.`,
+        message: `Invalid param[${index}] in '${executable.fieldName}', ${validationError.toString()}.`,
     }));
 };
 

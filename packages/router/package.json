@@ -13,8 +13,8 @@
   "author": "ma jerez <jerez.m82@gmail.com>",
   "homepage": "https://github.com/mikrokit/mikrokit/tree/main/packages/router#readme",
   "license": "MIT",
-  "main": ".dist/router.js",
-  "types": ".dist/router.d.ts",
+  "main": ".dist/index.js",
+  "types": ".dist/index.d.ts",
   "directories": {
     "lib": ".dist",
     "test": "__tests__"
