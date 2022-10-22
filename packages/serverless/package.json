@@ -13,8 +13,8 @@
   "author": "ma jerez <jerez.m82@gmail.com>",
   "homepage": "https://github.com/mikrokit/mikrokit/tree/main/packages/router#readme",
   "license": "MIT",
-  "main": ".dist/router.js",
-  "types": ".dist/router.d.ts",
+  "main": ".dist/index.js",
+  "types": ".dist/index.d.ts",
   "directories": {
     "lib": ".dist",
     "test": "__tests__"
@@ -27,7 +27,7 @@
     "url": "git+https://github.com/mikrokit/mikrokit.git"
   },
   "scripts": {
-    "test": "cd ../.. && jest packages/router/src && cd packages/router",
+    "test": "cd ../.. && jest packages/serverless/src && cd packages/serverless",
     "dev": "rimraf .dist && tsc --build tsconfig.build.json --watch",
     "dev:test": "jest --watch",
     "lint": "eslint src --ext .ts",

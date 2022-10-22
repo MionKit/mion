@@ -2,7 +2,7 @@
   <img alt='MikroKit, The APi Dashboard' width="" src='../../assets/public/bannerx90.png?raw=true'>
 </p>
 <p align="center">
-  <strong>Mikrokit Server... less.
+  <strong>Mikro but powerful server(less) for Api development.
   </strong>
 </p>
 <p align=center>
@@ -13,7 +13,9 @@
 
 # `@mikrokit/serverless`
 
-[MikroKit Router](../router/README.md) is agnostic about the server or serverless environment it is used. It could be used on aws lambda, azure functions, a simple http server, etc... Thick package contains a collection serverless handlers and a basic http server based in the MikroKit Router.
+**_[MikroKit Router](../router/README.md) is an RPC like router oriented for Api development,_** &nbsp; but is agnostic about the server or serverless environment it is used. It could be used on aws lambda, azure functions, an http server, etc...
+
+This package contains a collection bindings and a basic http server based in the MikroKit Router.
 
 ## AWS Lambda
 
@@ -21,9 +23,11 @@
 
 ## Google Cloud Functions
 
-## HTTP Server
+## Mikro Http
 
-This is a limited http server, only supports application/json, does not support multipart/form-data, no websocket or streams, it waits for the request end 'event' before calling the route. it is suited only for modern APis where not to large request/response data us used. No file upload support neither, Applications can use third party File Storage services for this.
+This is a limited http server, only supports `application/json` content type, does not support multipart/form-data, no websocket or streams, it waits for the request end 'event' before calling the route. No file upload support neither, Applications should use third party File Storage services for this.
+
+**_It is suited only for modern APIs where not to large request/response data us used._**
 
 ## &nbsp;
 

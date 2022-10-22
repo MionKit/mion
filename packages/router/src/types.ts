@@ -14,22 +14,19 @@ import type {
     NamingStrategy,
     JSONPartial,
     JSONSingle,
+    JSONEntity,
 } from '@deepkit/type';
 import {ReflectionKind} from '@deepkit/type';
 
-// #######  Router entries #######
+// #######  Routes #######
 
 /** Route or Hook Handler */
 export type Handler = (context: Context<any, any, any, any>, ...args: any) => any | Promise<any>;
 
 /** Route definition */
 export type RouteObject = {
-    /** overrides route's path */
+    /** overrides route's path and fieldName in request/response body */
     path?: string;
-    /** overrides request body input field name */
-    inputFieldName?: string;
-    /** overrides response body output field name */
-    outputFieldName?: string;
     /** description of the route, mostly for documentation purposes */
     description?: string;
     /** Route Handler */
@@ -60,16 +57,36 @@ export type Routes = {
     [key: string]: Hook | Route | Routes;
 };
 
+// ####### Router Response #######
+
+export type Headers = {[key: string]: string | boolean | number};
+
+export type RouteReply = {
+    statusCode: number;
+    /** response errors: empty if there were no errors during execution */
+    errors: MkError[];
+    /** response headers */
+    headers: Headers;
+    /** the router response data, JS object */
+    data: MapObj;
+    /** json encoded response, contains data and errors if there are any. */
+    json: string;
+};
+
 // ####### Router Options #######
 
 /** Global Router Options */
-export type RouterOptions = {
+export type RouterOptions<ServerReq extends MkRequest = MkRequest> = {
     /** prefix for all routes, i.e: api/v1.
      * path separator is added between the prefix and the route */
     prefix: string;
     /** suffix for all routes, i.e: .json.
      * Not path separators is added between the route and the suffix */
     suffix: string;
+    /** Transform the path before finding a route */
+    pathTransform?: (request: ServerReq, path: string) => string;
+    /** configures the fieldName in the request/response body used for a route's params/response */
+    routeFieldName?: string;
     /** enable automatic parameter validation, defaults to true */
     enableValidation: boolean;
     /** Enables serialization/deserialization */
@@ -84,12 +101,14 @@ export type RouterOptions = {
      * Deepkit custom serializer
      * @link https://docs.deepkit.io/english/serialization.html#serialisation-custom-serialiser
      * */
-    customSerializer?: Serializer | undefined;
+    customSerializer?: Serializer;
     /**
-     * Deepkit Serialization Options
+     * Deepkit naming strategy
      * @link https://docs.deepkit.io/english/serialization.html#_naming_strategy
      * */
-    serializerNamingStrategy?: NamingStrategy | undefined;
+    serializerNamingStrategy?: NamingStrategy;
+    /** Custom JSON parser, defaults to Native js JSON */
+    jsonParser: JsonParser;
 };
 
 // ####### Execution Path #######
@@ -101,8 +120,7 @@ export type Executable = {
     forceRunOnError: boolean;
     canReturnData: boolean;
     inHeader: boolean;
-    inputFieldName: string;
-    outputFieldName: string;
+    fieldName: string;
     isRoute: boolean;
     handler: Handler;
     paramValidators: RouteParamValidator[];
@@ -115,15 +133,8 @@ export type Executable = {
 
 /** Any request Object used by the router must follow this interface */
 export type MkRequest = {
-    headers: {[header: string]: string | undefined} | undefined;
+    headers: {[header: string]: string | undefined | string[]} | undefined;
     body: string | null | undefined | {};
-};
-
-/** Any response Object used by the routed must follow this interface  */
-export type MkResponse = {
-    statusCode: number;
-    headers?: {[header: string]: boolean | number | string} | undefined;
-    body: string | null;
 };
 
 /** Any error triggered by hooks or routes must follow this interface, returned errors in the body also follows this interface */
@@ -135,26 +146,26 @@ export type MkError = {
 // ####### Context #######
 
 export type ServerCall<ServerReq extends MkRequest> = {
-    /** Server request, '@types/aws-lambda/APIGatewayEvent' when using aws lambda */
-    req: Readonly<ServerReq>;
+    /** Server request
+     * i.e: '@types/aws-lambda/APIGatewayEvent'
+     * or http/IncomingMessage */
+    req: ServerReq;
 };
 
 /** The call Context object passed as first parameter to any hook or route */
 export type Context<
     App,
     SharedData,
-    ServerReq extends MkRequest = MkRequest,
+    ServerReq extends MkRequest,
     AnyServerCall extends ServerCall<ServerReq> = ServerCall<ServerReq>,
 > = {
     /** Static Data: main App, db driver, libraries, etc... */
     app: Readonly<App>;
-    server: AnyServerCall;
+    server: Readonly<AnyServerCall>;
     /** Route's path */
     path: Readonly<string>;
     /** route errors, returned to the public */
     responseErrors: MkError[];
-    /** private errors, can be used for logging etc */
-    privateErrors: (MkError | Error | any)[];
     /** parsed request.body */
     request: {
         headers: MapObj;
@@ -171,13 +182,6 @@ export type Context<
 
 /** Function used to create the shared data object on each route call  */
 export type SharedDataFactory<SharedData> = () => SharedData;
-
-export type RouteReply = {
-    statusCode: number;
-    errors: MkError[];
-    headers: MapObj;
-    body: MapObj;
-};
 
 // #######  reflection #######
 

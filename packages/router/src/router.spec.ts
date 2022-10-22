@@ -18,11 +18,11 @@ import {
     initRouter,
     runRoute,
 } from './router';
-import {Context, Handler, Hook, MkRequest, MkResponse, Route, RouteObject, Routes} from './types';
-import {APIGatewayProxyResult, APIGatewayEvent} from 'aws-lambda';
+import {Context, Handler, Hook, MkRequest, Route, RouteObject, Routes} from './types';
+import {APIGatewayEvent} from 'aws-lambda';
 import {StatusCodes} from './status-codes';
 
-describe('router create routes should', () => {
+describe('Create routes should', () => {
     const hook: Hook = {hook() {}};
     const route1: Handler = () => 'route1';
     const route2: RouteObject = {
@@ -52,29 +52,25 @@ describe('router create routes should', () => {
     const hookExecutables = {
         first: {
             path: 'first',
-            inputFieldName: 'first',
-            outputFieldName: 'first',
+            fieldName: 'first',
             isRoute: false,
             paramValidators: [],
         },
         userBefore: {
             path: 'users/userBefore',
-            inputFieldName: 'userBefore',
-            outputFieldName: 'userBefore',
+            fieldName: 'userBefore',
             isRoute: false,
             paramValidators: [],
         },
         userAfter: {
             path: 'users/userAfter',
-            inputFieldName: 'userAfter',
-            outputFieldName: 'userAfter',
+            fieldName: 'userAfter',
             isRoute: false,
             paramValidators: [],
         },
         last: {
             path: 'last',
-            inputFieldName: 'last',
-            outputFieldName: 'last',
+            fieldName: 'last',
             isRoute: false,
             paramValidators: [],
         },
@@ -82,23 +78,20 @@ describe('router create routes should', () => {
 
     const routeExecutables = {
         usersGetUser: {
-            path: 'users/getUser',
-            inputFieldName: 'params',
-            outputFieldName: 'response',
+            path: '/users/getUser',
+            fieldName: '/users/getUser',
             isRoute: true,
             paramValidators: [],
         },
         usersPetsGetUserPet: {
-            path: 'users/pets/getUserPet',
-            inputFieldName: 'params',
-            outputFieldName: 'response',
+            path: '/users/pets/getUserPet',
+            fieldName: '/users/pets/getUserPet',
             isRoute: true,
             paramValidators: [],
         },
         petsGetPet: {
-            path: 'pets/getPet',
-            inputFieldName: 'params',
-            outputFieldName: 'response',
+            path: '/pets/getPet',
+            fieldName: '/pets/getPet',
             isRoute: true,
             paramValidators: [],
         },
@@ -112,27 +105,27 @@ describe('router create routes should', () => {
         expect(geRoutesSize()).toEqual(5);
         expect(geHooksSize()).toEqual(4);
 
-        expect(getRouteExecutionPath('users/getUser')).toEqual([
+        expect(getRouteExecutionPath('/users/getUser')).toEqual([
             expect.objectContaining({...hookExecutables.first}),
             expect.objectContaining({...hookExecutables.userBefore}),
             expect.objectContaining({...routeExecutables.usersGetUser}),
             expect.objectContaining({...hookExecutables.userAfter}),
             expect.objectContaining({...hookExecutables.last}),
         ]);
-        expect(getRouteExecutionPath('users/setUser')).toBeTruthy();
-        expect(getRouteExecutionPath('users/pets/getUserPet')).toEqual([
+        expect(getRouteExecutionPath('/users/setUser')).toBeTruthy();
+        expect(getRouteExecutionPath('/users/pets/getUserPet')).toEqual([
             expect.objectContaining({...hookExecutables.first}),
             expect.objectContaining({...hookExecutables.userBefore}),
             expect.objectContaining({...routeExecutables.usersPetsGetUserPet}),
             expect.objectContaining({...hookExecutables.userAfter}),
             expect.objectContaining({...hookExecutables.last}),
         ]);
-        expect(getRouteExecutionPath('pets/getPet')).toEqual([
+        expect(getRouteExecutionPath('/pets/getPet')).toEqual([
             expect.objectContaining({...hookExecutables.first}),
             expect.objectContaining({...routeExecutables.petsGetPet}),
             expect.objectContaining({...hookExecutables.last}),
         ]);
-        expect(getRouteExecutionPath('pets/setPet')).toBeTruthy();
+        expect(getRouteExecutionPath('/pets/setPet')).toBeTruthy();
     });
 
     it('add default values to hooks', () => {
@@ -146,8 +139,7 @@ describe('router create routes should', () => {
                 forceRunOnError: false,
                 canReturnData: false,
                 inHeader: false,
-                inputFieldName: 'first',
-                outputFieldName: 'first',
+                fieldName: 'first',
                 isRoute: false,
             }),
         );
@@ -157,15 +149,14 @@ describe('router create routes should', () => {
         const defaultRouteValues = {sayHello: {route: () => null}};
         addRoutes(defaultRouteValues);
 
-        expect(getRouteExecutable('sayHello')).toEqual(
+        expect(getRouteExecutable('/sayHello')).toEqual(
             expect.objectContaining({
-                path: 'sayHello',
+                path: '/sayHello',
                 nestLevel: 0,
                 forceRunOnError: false,
                 canReturnData: true,
                 inHeader: false,
-                inputFieldName: 'params',
-                outputFieldName: 'response',
+                fieldName: '/sayHello',
                 isRoute: true,
             }),
         );
@@ -178,11 +169,11 @@ describe('router create routes should', () => {
         expect(geRoutesSize()).toEqual(5);
         expect(geHooksSize()).toEqual(4);
 
-        expect(getRouteExecutionPath('api/v1/users/getUser.json')).toBeTruthy();
-        expect(getRouteExecutionPath('api/v1/users/setUser.json')).toBeTruthy();
-        expect(getRouteExecutionPath('api/v1/users/pets/getUserPet.json')).toBeTruthy();
-        expect(getRouteExecutionPath('api/v1/pets/getPet.json')).toBeTruthy();
-        expect(getRouteExecutionPath('api/v1/pets/setPet.json')).toBeTruthy();
+        expect(getRouteExecutionPath('/api/v1/users/getUser.json')).toBeTruthy();
+        expect(getRouteExecutionPath('/api/v1/users/setUser.json')).toBeTruthy();
+        expect(getRouteExecutionPath('/api/v1/users/pets/getUserPet.json')).toBeTruthy();
+        expect(getRouteExecutionPath('/api/v1/pets/getPet.json')).toBeTruthy();
+        expect(getRouteExecutionPath('/api/v1/pets/setPet.json')).toBeTruthy();
     });
 
     it('throw an error when a routes are invalid', () => {
@@ -286,7 +277,7 @@ describe('router create routes should', () => {
     });
 });
 
-describe('router run routes', () => {
+describe('Run routes', () => {
     type SimpleUser = {
         name: string;
         surname: string;
@@ -326,15 +317,9 @@ describe('router run routes', () => {
         },
     };
 
-    const getDefaultRequest = (params?): MkRequest => ({
+    const getDefaultRequest = (path: string, params?): MkRequest => ({
         headers: {},
-        body: JSON.stringify({params}),
-    });
-
-    const getDefaultResponse = (): MkResponse => ({
-        statusCode: 0,
-        headers: {},
-        body: null,
+        body: JSON.stringify({[path]: params}),
     });
 
     beforeEach(() => reset());
@@ -344,11 +329,11 @@ describe('router run routes', () => {
             initRouter(app, getSharedData);
             addRoutes({changeUserName});
 
-            const request = getDefaultRequest([{name: 'Leo', surname: 'Tungsten'}]);
-            const response = getDefaultResponse();
+            const path = '/changeUserName';
+            const request = getDefaultRequest(path, [{name: 'Leo', surname: 'Tungsten'}]);
 
-            const data = await runRoute('changeUserName', request);
-            expect(data.body.response).toEqual({name: 'LOREM', surname: 'Tungsten'});
+            const response = await runRoute('/changeUserName', request);
+            expect(response.data[path]).toEqual({name: 'LOREM', surname: 'Tungsten'});
         });
 
         it('read data from header & hook', async () => {
@@ -357,13 +342,44 @@ describe('router run routes', () => {
 
             const request: MkRequest = {
                 headers: {Authorization: '1234'},
-                body: JSON.stringify({params: [{name: 'Leo', surname: 'Tungsten'}]}),
+                body: JSON.stringify({['/changeUserName']: [{name: 'Leo', surname: 'Tungsten'}]}),
             };
-            const response = getDefaultResponse();
 
-            const data = await runRoute('changeUserName', request);
-            expect(data.errors.length).toEqual(0);
-            expect(data.body).toEqual({response: {name: 'LOREM', surname: 'Tungsten'}});
+            const path = '/changeUserName';
+            const response = await runRoute(path, request);
+            expect(response.errors.length).toEqual(0);
+            expect(response.data).toEqual({[path]: {name: 'LOREM', surname: 'Tungsten'}});
+        });
+
+        it('transform the path before finding a route', async () => {
+            const publicPath = '/api/v1/sayHello';
+            // !! Important the route's fieldName is Still the original
+            const routePath = '/api/v1/GET/sayHello';
+            const request = {
+                method: 'GET',
+                ...getDefaultRequest(routePath, []),
+            };
+            const options = {
+                pathTransform: (req, path: string) => {
+                    // publicPath = api/v1/sayHello
+                    // routePath = api/v1/GET/sayHello
+                    const rPath = path.replace(options.prefix, `${options.prefix}/${req.method}`);
+                    return rPath;
+                },
+                prefix: 'api/v1',
+            };
+            initRouter(app, getSharedData, options);
+            addRoutes({
+                GET: {
+                    sayHello: () => 'hello', // api/v1/GET/sayHello
+                },
+            });
+
+            console.log('request', request);
+
+            const response = await runRoute(publicPath, request);
+            console.log('response', response);
+            expect(response.data[routePath]).toEqual('hello');
         });
     });
 
@@ -372,11 +388,10 @@ describe('router run routes', () => {
             initRouter(app, getSharedData);
             addRoutes({changeUserName});
 
-            const request = getDefaultRequest([{name: 'Leo', surname: 'Tungsten'}]);
-            const response = getDefaultResponse();
+            const request = getDefaultRequest('/abcd', [{name: 'Leo', surname: 'Tungsten'}]);
 
-            const data = await runRoute('abcd', request);
-            expect(data.errors[0]).toEqual({
+            const response = await runRoute('/abcd', request);
+            expect(response.errors[0]).toEqual({
                 statusCode: 404,
                 message: `Route not found`,
             });
@@ -386,11 +401,10 @@ describe('router run routes', () => {
             initRouter(app, getSharedData);
             addRoutes({auth, changeUserName});
 
-            const request = getDefaultRequest([{name: 'Leo', surname: 'Tungsten'}]);
-            const response = getDefaultResponse();
+            const request = getDefaultRequest('/changeUserName', [{name: 'Leo', surname: 'Tungsten'}]);
 
-            const data = await runRoute('changeUserName', request);
-            expect(data.errors[0]).toEqual({
+            const response = await runRoute('/changeUserName', request);
+            expect(response.errors[0]).toEqual({
                 statusCode: 400,
                 message: `Invalid header 'Authorization'. No header found with that name.`,
             });
@@ -404,10 +418,9 @@ describe('router run routes', () => {
                 headers: {},
                 body: '1234',
             };
-            const response = getDefaultResponse();
 
-            const data = await runRoute('changeUserName', request);
-            expect(data.errors[0]).toEqual({
+            const response = await runRoute('/changeUserName', request);
+            expect(response.errors[0]).toEqual({
                 statusCode: 400,
                 message: `Invalid request body`,
             });
@@ -419,14 +432,13 @@ describe('router run routes', () => {
 
             const request: MkRequest = {
                 headers: {},
-                body: JSON.stringify({params: {user: {name: 'Leo', surname: 'Tungsten'}}}),
+                body: JSON.stringify({['/changeUserName']: {user: {name: 'Leo', surname: 'Tungsten'}}}),
             };
-            const response = getDefaultResponse();
 
-            const data = await runRoute('changeUserName', request);
-            expect(data.errors[0]).toEqual({
+            const response = await runRoute('/changeUserName', request);
+            expect(response.errors[0]).toEqual({
                 statusCode: 400,
-                message: `Invalid input 'params', must be an array of parameters`,
+                message: `Invalid input '/changeUserName', must be an array of parameters`,
             });
         });
 
@@ -434,13 +446,12 @@ describe('router run routes', () => {
             initRouter(app, getSharedData);
             addRoutes({changeUserName});
 
-            const request = getDefaultRequest([]);
-            const response = getDefaultResponse();
+            const request = getDefaultRequest('/changeUserName', []);
 
-            const data = await runRoute('changeUserName', request);
-            expect(data.errors[0]).toEqual({
+            const response = await runRoute('/changeUserName', request);
+            expect(response.errors[0]).toEqual({
                 statusCode: 400,
-                message: `Invalid input 'params', missing or invalid number of input parameters`,
+                message: `Invalid input '/changeUserName', missing or invalid number of input parameters`,
             });
         });
 
@@ -448,13 +459,12 @@ describe('router run routes', () => {
             initRouter(app, getSharedData);
             addRoutes({getSameDate});
 
-            const request = getDefaultRequest([1234]);
-            const response = getDefaultResponse();
+            const request = getDefaultRequest('/getSameDate', [1234]);
 
-            const data = await runRoute('getSameDate', request);
-            expect(data.errors[0]).toEqual({
+            const response = await runRoute('/getSameDate', request);
+            expect(response.errors[0]).toEqual({
                 statusCode: 400,
-                message: `Invalid input 'params', can not deserialize. Parameters might be of the wrong type.`,
+                message: `Invalid input '/getSameDate', can not deserialize. Parameters might be of the wrong type.`,
             });
         });
 
@@ -463,13 +473,12 @@ describe('router run routes', () => {
             addRoutes({changeUserName});
 
             const wrongSimpleUser: SimpleUser = {name: true, surname: 'Smith'} as any;
-            const request = getDefaultRequest([wrongSimpleUser]);
-            const response = getDefaultResponse();
+            const request = getDefaultRequest('/changeUserName', [wrongSimpleUser]);
 
-            const data = await runRoute('changeUserName', request);
-            expect(data.errors[0]).toEqual({
+            const response = await runRoute('/changeUserName', request);
+            expect(response.errors[0]).toEqual({
                 statusCode: 400,
-                message: `Invalid input 'params[0]', name(type): Not a string.`,
+                message: `Invalid param[0] in '/changeUserName', name(type): Not a string.`,
             });
         });
 
@@ -477,13 +486,12 @@ describe('router run routes', () => {
             initRouter(app, getSharedData);
             addRoutes({changeUserName});
 
-            const request = getDefaultRequest([{}]);
-            const response = getDefaultResponse();
+            const request = getDefaultRequest('/changeUserName', [{}]);
 
-            const data = await runRoute('changeUserName', request);
-            expect(data.errors[0]).toEqual({
+            const response = await runRoute('/changeUserName', request);
+            expect(response.errors[0]).toEqual({
                 statusCode: 400,
-                message: `Invalid input 'params[0]', name(type): Not a string.`,
+                message: `Invalid param[0] in '/changeUserName', name(type): Not a string.`,
             });
         });
 
@@ -495,13 +503,12 @@ describe('router run routes', () => {
             };
             addRoutes({routeFail});
 
-            const request = getDefaultRequest([]);
-            const response = getDefaultResponse();
+            const request = getDefaultRequest('/routeFail', []);
 
-            const data = await runRoute('routeFail', request);
-            expect(data.errors[0]).toEqual({
+            const response = await runRoute('/routeFail', request);
+            expect(response.errors[0]).toEqual({
                 statusCode: 500,
-                message: `Unknown error executing step 0 of 'routeFail'.`,
+                message: `Unknown error in step 0 of execution path.`,
             });
         });
 
@@ -510,13 +517,12 @@ describe('router run routes', () => {
             initRouter(app, getSharedData);
             addRoutes({getSameDate});
 
-            const request = getDefaultRequest([1234]);
-            const response = getDefaultResponse();
+            const request = getDefaultRequest('/getSameDate', [1234]);
 
-            const data = await runRoute('getSameDate', request);
-            expect(data.errors[0]).toEqual({
+            const response = await runRoute('/getSameDate', request);
+            expect(response.errors[0]).toEqual({
                 statusCode: 400,
-                message: `Invalid input 'params', can not validate parameters.`,
+                message: `Invalid input '/getSameDate', can not validate parameters.`,
             });
         });
     });
