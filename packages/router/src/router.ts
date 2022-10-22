@@ -6,7 +6,15 @@
  * ######## */
 
 import {join} from 'path';
-import {DEFAULT_ROUTE, DEFAULT_ROUTE_OPTIONS, MAX_ROUTE_NESTING, ROUTE_PATH_ROOT} from './constants';
+import {
+    CONSOLE_LOGGER,
+    DEFAULT_ROUTE,
+    DEFAULT_ROUTE_OPTIONS,
+    IS_TEST_ENV,
+    MAX_ROUTE_NESTING,
+    ROUTE_PATH_ROOT,
+    SILENT_LOGGER,
+} from './constants';
 import {
     Executable,
     Handler,
@@ -25,7 +33,7 @@ import {
     MkRequest,
     SharedDataFactory,
     MkError,
-    RouteReply,
+    MkResponse,
     ServerCall,
 } from './types';
 import {StatusCodes} from './status-codes';
@@ -51,12 +59,28 @@ export const geRoutesSize = () => flatRouter.size;
 export const getRouteExecutable = (path: string) => routesByPath.get(path);
 export const getHookExecutable = (fieldName: string) => hooksByFieldName.get(fieldName);
 export const geHooksSize = () => hooksByFieldName.size;
+export const forceConsoleLogs = () => {
+    if (!IS_TEST_ENV) throw 'forceConsoleLogs can be called only from test envs';
+    forceLogs = true;
+    routerOptions = {
+        ...routerOptions,
+        logger: CONSOLE_LOGGER,
+    };
+};
 export const getComplexity = () => complexity;
-export const setRouterOptions = <ServerReq extends MkRequest = MkRequest>(routerOptions_?: Partial<RouterOptions<ServerReq>>) =>
-    (routerOptions = {
+export const getRouterOptions = () => routerOptions;
+export const setRouterOptions = <ServerReq extends MkRequest = MkRequest>(routerOptions_?: Partial<RouterOptions<ServerReq>>) => {
+    routerOptions = {
         ...routerOptions,
         ...(routerOptions_ as Partial<RouterOptions>),
-    });
+    };
+    if (forceLogs) {
+        routerOptions.logger = CONSOLE_LOGGER;
+        return;
+    }
+    routerOptions.logger = routerOptions.silent ? SILENT_LOGGER : routerOptions_?.logger || CONSOLE_LOGGER;
+};
+
 export const reset = () => {
     flatRouter.clear();
     hooksByFieldName.clear();
@@ -107,7 +131,7 @@ export const runRoute = async <
 >(
     path: string,
     req: ServerReq,
-): Promise<RouteReply> => {
+): Promise<MkResponse> => {
     return runRoute_<App, SharedData, ServerReq, AnyServerCall>(path, {req} as AnyServerCall);
 };
 
@@ -119,10 +143,10 @@ export const runRoute_ = async <
 >(
     path: string,
     serverCall: AnyServerCall,
-): Promise<RouteReply> => {
+): Promise<MkResponse> => {
     if (!app) throw 'Context has not been defined';
     const transformedPath = routerOptions.pathTransform ? routerOptions.pathTransform(serverCall.req, path) : path;
-    console.info(`Run route ${transformedPath}`);
+    routerOptions.logger.info(`Run route ${transformedPath}`);
     const context: Context<App, SharedData, ServerReq, AnyServerCall> = {
         app: app as Readonly<App>, // static context
         server: serverCall,
@@ -137,6 +161,7 @@ export const runRoute_ = async <
         },
         responseErrors: [],
         shared: sharedDataFactory?.() || {},
+        logger: routerOptions.logger,
     };
 
     const executionPath = getRouteExecutionPath(transformedPath) || [];
@@ -144,19 +169,19 @@ export const runRoute_ = async <
     if (!executionPath.length) {
         const notFound = {statusCode: StatusCodes.NOT_FOUND, message: 'Route not found'};
         context.responseErrors.push(notFound);
-        console.error(notFound);
+        routerOptions.logger.error(notFound);
     } else {
         parseRequestInputs(context);
         await runExecutionPath(executionPath, context);
     }
-
+    const respBody = context.responseErrors.length ? {errors: context.responseErrors} : context.reply.body;
     return {
         statusCode: context.responseErrors.length ? context.responseErrors[0].statusCode : StatusCodes.OK,
         headers: context.reply.headers,
         data: context.reply.body,
         errors: context.responseErrors,
-        json: routerOptions.jsonParser.stringify({errors: context.responseErrors, ...context.reply.body}),
-    };
+        json: routerOptions.jsonParser.stringify(respBody),
+    } as MkResponse;
 };
 
 const parseRequestInputs = <
@@ -178,7 +203,7 @@ const parseRequestInputs = <
         }
     } catch (e) {
         context.responseErrors.push({statusCode: StatusCodes.BAD_REQUEST, message: 'Invalid request body'});
-        console.error(e);
+        routerOptions.logger.error(e);
     }
 };
 
@@ -211,7 +236,7 @@ const runExecutionPath = async <
                     message: e.message || `Unknown error in step ${index} of execution path.`,
                 };
                 context.responseErrors.push(executableOrUnknownError);
-                console.error(e);
+                routerOptions.logger.error(e);
             }
         }
     }
@@ -270,7 +295,7 @@ const deserializeAndValidateParams = <
         try {
             const errors = validateParams(executable, params);
             context.responseErrors.push(...errors);
-            if (errors?.length) console.error(...errors);
+            if (errors?.length) routerOptions.logger.error(...errors);
         } catch (e) {
             return context.responseErrors.push({
                 statusCode: StatusCodes.BAD_REQUEST,
@@ -307,6 +332,7 @@ let complexity = 0;
 let app: MapObj | undefined;
 let sharedDataFactory: SharedDataFactory<any> | undefined;
 let contextType: Type | undefined;
+let forceLogs = false;
 let routerOptions: RouterOptions = {
     ...DEFAULT_ROUTE_OPTIONS,
 };

@@ -2,7 +2,7 @@
   <img alt='MikroKit, The APi Dashboard' width="" src='../../assets/public/bannerx90.png?raw=true'>
 </p>
 <p align="center">
-  <strong>MikroKit Serverless Router for quick Api development.
+  <strong>MikroKit HTTP Server for quick Api development.
   </strong>
 </p>
 <p align=center>
@@ -11,11 +11,13 @@
   <img src="https://img.shields.io/badge/license-MIT-97ca00.svg?style=flat-square&maxAge=99999999" alt="npm"  style="max-width:100%;">
 </p>
 
-# `@mikrokit/serverless`
+# `@mikrokit/http`
 
-**_[MikroKit Router](../router/README.md) is an RPC like router oriented for quick Api development,_** &nbsp; it is agnostic about the server or serverless environment it is used on. It could be used on aws lambda, azure functions, Google cloud functions, or any event based environment.
+**MikroKit router is an RPC like router oriented for quick Api development,** it is agnostic about the environment it is used on. It could be used on [serverless environments](../serverless/README.md), or as an standalone http server.
 
-This package contains a collection bindings for different serverless environments.
+**MikroKit Server is well suited a very specific scenario, that is Apis that works with json data only**. In return it offers quick development, fast execution and a blazing fast router 🚀.
+
+This is a limited http server, only supports `application/json` content type, does not support multipart/form-data, no websocket or streams and no file upload neither. There are better alternatives for those scenarios (like S3 file upload, etc).
 
 ## `RPC like router`
 
@@ -64,12 +66,6 @@ const routes: Routes = {
 MkRouter.setRouterOptions({prefix: 'api/'});
 MkRouter.addRoutes(routes);
 ```
-
-## AWS Lambda
-
-## Azure Functions
-
-## Google Cloud Functions
 
 ## &nbsp;
 

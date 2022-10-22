@@ -54,7 +54,7 @@ MikroKit opinions might not always be the best or suit every scenario, but are a
 
 ## `RPC like`
 
-Here is where MikroKit starts to deviate from traditional frameworks. [The router](./packages/router/) uses a **Remote Procedure Call** style routing, unlike traditional routers it does not use `GET`, `PUT`, `POST` and `DELETE` methods, everything is transmitted using `HTTP POST` method and all data is sent/received in the request/response `body` and `headers`.
+Here is where MikroKit starts to deviate from traditional frameworks. [The router](./packages/router/README.md) uses a **Remote Procedure Call** style routing, unlike traditional routers it does not use `GET`, `PUT`, `POST` and `DELETE` methods, everything is transmitted using `HTTP POST` method and all data is sent/received in the request/response `body` and `headers`.
 
 ### Requests & Responses
 
@@ -86,7 +86,7 @@ Thanks to it's RPC style there is no need to parse parameters or regular express
 
 The reason for this weird naming is to future proof the router to be able to accept multiple routes on a single request. However this can be changed setting the `routeFieldName` in the router options.
 
-📚 [Full router documentation here!](./packages/router/)
+📚 [Full router documentation here!](./packages/router/README.md)
 
 ### Example:
 
@@ -99,11 +99,18 @@ const sayHello: Handler = (context, name: string) => {
   return `Hello ${name}.`;
 };
 
-const routes: Routes = {
-  sayHello, // api/sayHello
+const sayHello2: Route = {
+  route(context, name1: string, name2: string) {
+    return `Hello ${name1} and ${name2}.`;
+  },
 };
 
-MkRouter.setRouterOptions({prefix: 'api/v1'});
+const routes: Routes = {
+  sayHello, // api/sayHello
+  sayHello2, // api/sayHello2
+};
+
+MkRouter.setRouterOptions({prefix: 'api/'});
 MkRouter.addRoutes(routes);
 ```
 
