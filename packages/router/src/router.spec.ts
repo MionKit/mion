@@ -162,7 +162,7 @@ describe('Create routes should', () => {
         );
     });
 
-    it('add prefixes to routes', () => {
+    it('add prefix & suffix to routes', () => {
         setRouterOptions({prefix: 'api/v1', suffix: '.json'});
         addRoutes(routes);
 
@@ -174,6 +174,29 @@ describe('Create routes should', () => {
         expect(getRouteExecutionPath('/api/v1/users/pets/getUserPet.json')).toBeTruthy();
         expect(getRouteExecutionPath('/api/v1/pets/getPet.json')).toBeTruthy();
         expect(getRouteExecutionPath('/api/v1/pets/setPet.json')).toBeTruthy();
+    });
+
+    it('customize route paths', () => {
+        setRouterOptions({prefix: 'api/v1'});
+
+        const routes: Routes = {
+            u: {
+                c: {
+                    path: 'users/create',
+                    route: () => null,
+                },
+                d: {
+                    path: '/users/delete',
+                    route: () => null,
+                },
+            },
+        };
+        addRoutes(routes);
+
+        expect(geRoutesSize()).toEqual(2);
+
+        expect(getRouteExecutionPath('/api/v1/users/create')).toBeTruthy();
+        expect(getRouteExecutionPath('/api/v1/users/delete')).toBeTruthy();
     });
 
     it('throw an error when a routes are invalid', () => {
@@ -349,6 +372,17 @@ describe('Run routes', () => {
             const response = await runRoute(path, request);
             expect(response.errors.length).toEqual(0);
             expect(response.data).toEqual({[path]: {name: 'LOREM', surname: 'Tungsten'}});
+        });
+
+        fit('customize the routeFieldName', async () => {
+            initRouter(app, getSharedData, {routeFieldName: 'apiData'});
+            addRoutes({changeUserName});
+
+            const path = '/changeUserName';
+            const request = getDefaultRequest('apiData', [{name: 'Leo', surname: 'Tungsten'}]);
+
+            const response = await runRoute('/changeUserName', request);
+            expect(response.data.apiData).toEqual({name: 'LOREM', surname: 'Tungsten'});
         });
 
         it('transform the path before finding a route', async () => {

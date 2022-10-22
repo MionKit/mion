@@ -30,6 +30,8 @@ MikroKit uses only the core `@deepkit/type` library from deepkit to produce a mi
 
 ## `Opinionated`
 
+**MikroKit is orientated towards** a very specific scenario, that is **Apis that works with json data only**. In return it offers fast development and lightweight execution.
+
 MikroKit opinions might not always be the best or suit every scenario, but are always taken with quick development, fast code execution and minimum abstractions in mind. _Simplicity can be the best pattern_.
 
 - Convention over configuration.
@@ -52,12 +54,12 @@ MikroKit opinions might not always be the best or suit every scenario, but are a
 
 ## `RPC like`
 
-MikroKit Router uses a **Remote Procedure Call** style routing, unlike traditional REST apis it does not use `GET`, `PUT`, `POST` and `DELETE` methods, everything is transmitted using `HTTP POST` method and absolutely all data is sent/received in the request/response `BODY`.
+Here is where MikroKit starts to deviate from traditional frameworks. [The router](./packages/router/) uses a **Remote Procedure Call** style routing, unlike traditional routers it does not use `GET`, `PUT`, `POST` and `DELETE` methods, everything is transmitted using `HTTP POST` method and all data is sent/received in the request/response `body` and `headers`.
 
 ### Requests & Responses
 
 - Requests are made using only `HTTP POST` method.
-- Data is sent and received only in the `HTTP BODY`.
+- Data is sent and received only in the `body` and `headers`.
 - Data is sent and received only in `JSON` format.
 
 ### Rpc VS Rest

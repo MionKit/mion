@@ -270,7 +270,7 @@ const deserializeAndValidateParams = <
         try {
             const errors = validateParams(executable, params);
             context.responseErrors.push(...errors);
-            console.error(...errors);
+            if (errors?.length) console.error(...errors);
         } catch (e) {
             return context.responseErrors.push({
                 statusCode: StatusCodes.BAD_REQUEST,
@@ -460,7 +460,7 @@ const getExecutableFromHook = (hook: Hook, path: string, nestLevel: number, key:
 };
 
 const getExecutableFromRoute = (route: Route, path: string, nestLevel: number) => {
-    const routePath = ROUTE_PATH_ROOT + join(routerOptions.prefix, (route as RouteObject)?.path || path) + routerOptions.suffix;
+    const routePath = getRoutePath(route, path);
     const existing = routesByPath.get(routePath);
     if (existing) return existing;
     const handler = getHandler(route, routePath);
@@ -475,7 +475,7 @@ const getExecutableFromRoute = (route: Route, path: string, nestLevel: number) =
         forceRunOnError: false,
         canReturnData: true,
         inHeader: false,
-        fieldName: routePath,
+        fieldName: routerOptions.routeFieldName ? routerOptions.routeFieldName : routePath,
         isRoute: true,
         nestLevel,
         handler,
@@ -489,7 +489,10 @@ const getExecutableFromRoute = (route: Route, path: string, nestLevel: number) =
     return executable;
 };
 
-const getRoutePath = (route: Route, path: string, nestLevel: number) => {};
+const getRoutePath = (route: Route, path: string) => {
+    const routePath = join(ROUTE_PATH_ROOT, routerOptions.prefix, (route as RouteObject)?.path || path);
+    return routerOptions.suffix ? routePath + routerOptions.suffix : routePath;
+};
 
 const getEntry = (index, keyEntryList: RouterKeyEntryList) => {
     return keyEntryList[index]?.[1];

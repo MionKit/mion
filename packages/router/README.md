@@ -17,7 +17,11 @@
 
 Thanks to it's RPC style there is no need to parse parameters or regular expressions when finding a route. Just a simple [Map](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Map) in memory containing all the routes. Can't get faster than that.
 
-MikroKit Router uses a **Remote Procedure Call** style routing, unlike traditional REST apis it does not use `GET`, `PUT`, `POST` and `DELETE` methods, everything is transmitted using `HTTP POST` method and all data is sent/received in the request and response `BODY`.
+MikroKit Router uses a **Remote Procedure Call** style routing, unlike traditional routers it does not use `GET`, `PUT`, `POST` and `DELETE` methods, everything **should** be transmitted using `HTTP POST` method and all data is sent/received in the request/response `body` and `headers`.
+
+- `HTTP` method is ignored by this router.
+- Data is sent and received only in the `body` and `headers`. (no request params)
+- Data is sent and received only in `JSON` format.
 
 ### Rpc VS Rest
 
@@ -34,6 +38,8 @@ Please have a look to this great Presentation for more info about each different
 ## `Routes`
 
 A route is just a function, the first parameter is always the `call context`, the rest of parameters are extracted from the request body or headers. Route names are defined using a plain javascript object, where every property of the object is the route's name. Adding types is recommended when defining a route so typescript can statically check parameters.
+
+MikroKit only cares about the `path`, and completely ignores the http method, so in theory request could be made using `POST` or `PUT`, or the router could be used in any event driven environment where the concept of method does not exist.
 
 ```ts
 // examples/routes-definition.ts
