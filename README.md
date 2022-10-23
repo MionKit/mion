@@ -96,23 +96,22 @@ The reason for this weird naming is to future proof the router to be able to acc
 import {Route, Handler, Routes, MkRouter} from '@mikrokit/router';
 
 const sayHello: Handler = (context, name: string) => {
-    return `Hello ${name}.`;
+  return `Hello ${name}.`;
 };
 
 const sayHello2: Route = {
-    route(context, name1: string, name2: string) {
-        return `Hello ${name1} and ${name2}.`;
-    },
+  route(context, name1: string, name2: string) {
+    return `Hello ${name1} and ${name2}.`;
+  },
 };
 
 const routes: Routes = {
-    sayHello, // api/sayHello
-    sayHello2, // api/sayHello2
+  sayHello, // api/sayHello
+  sayHello2, // api/sayHello2
 };
 
 MkRouter.setRouterOptions({prefix: 'api/'});
 MkRouter.addRoutes(routes);
-
 ```
 
 ## `Automatic Serialization & Validation`
@@ -195,20 +194,6 @@ Install MikroKit CLI.
 npm install mikrokit
 ```
 
-## `CLI`
-
-```shell
-## generate Open Api spec files
-npx mikrokit g openApi
-
-## generate Api browser client (typescript)
-npx mikrokit g apiClient
-
-
-## generate all artifacts in one go (api spec, types and server files)
-npx mikrokit g
-```
-
 ## `Contributing`
 
 The software is provided as it is without guarantees. If you want something done you are welcome to open issues and pull request! 👍 🎊 🎉
@@ -243,6 +228,8 @@ npm run format && npm run lint
 ```
 
 ### Build
+
+Build must be done mostly on CI environment, be sure to remove any `.dist` folder or typescript will get types from the build types definitions files instead the source code and wont get lates updates from the other packages.
 
 ```
 npm run build

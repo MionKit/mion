@@ -15,7 +15,7 @@
 
 **MikroKit router is an RPC like router oriented for quick Api development,** it is agnostic about the environment it is used on. It could be used on [serverless environments](../serverless/README.md), or as an standalone http server.
 
-**MikroKit Server is well suited a very specific scenario, that is Apis that works with json data only**. In return it offers quick development, fast execution and a blazing fast router 🚀.
+**MikroKit Server is well suited a very specific scenario, that is Apis that works with json data only**. In return it offers quick development, fast execution and a Lightweight router 🚀.
 
 This is a limited http server, only supports `application/json` content type, does not support multipart/form-data, no websocket or streams and no file upload neither. There are better alternatives for those scenarios (like S3 file upload, etc).
 
@@ -31,9 +31,9 @@ MikroKit router uses a **Remote Procedure Call** style routing, unlike tradition
 
 ## `Routing`
 
-🚀 Blazing fast router **_based in plain javascript objects_**.
+🚀 Lightweight router **_based in plain javascript objects_**.
 
-Thanks to it's RPC style there is no need to parse parameters or regular expressions when finding a route. Just a simple [Map](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Map) in memory containing all the routes. Can't get faster than that.
+Thanks to it's RPC style there is no need to parse parameters or regular expressions when finding a route. Just a simple [Map](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Map) in memory containing all the routes.
 
 `Route parameters` are passed as an array in the request body, in a field with the same name as the route. Elements in the array must have the same order as the function parameters.
 
@@ -49,23 +49,22 @@ The reason for this weird naming is to future proof the router to be able to acc
 import {Route, Handler, Routes, MkRouter} from '@mikrokit/router';
 
 const sayHello: Handler = (context, name: string) => {
-    return `Hello ${name}.`;
+  return `Hello ${name}.`;
 };
 
 const sayHello2: Route = {
-    route(context, name1: string, name2: string) {
-        return `Hello ${name1} and ${name2}.`;
-    },
+  route(context, name1: string, name2: string) {
+    return `Hello ${name1} and ${name2}.`;
+  },
 };
 
 const routes: Routes = {
-    sayHello, // api/sayHello
-    sayHello2, // api/sayHello2
+  sayHello, // api/sayHello
+  sayHello2, // api/sayHello2
 };
 
 MkRouter.setRouterOptions({prefix: 'api/'});
 MkRouter.addRoutes(routes);
-
 ```
 
 ## &nbsp;

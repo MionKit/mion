@@ -2,20 +2,18 @@
 
 > MikroKit command line tool.
 
-## Usage
+## `CLI`
 
-```bash
-## generate Api spec files
-mikrokit g rest
+```shell
+## generate Open Api spec files
+npx mikrokit g openApi
 
-## generate Typescript models
-mikrokit g types
+## generate Api browser client (typescript)
+npx mikrokit g apiClient
 
-## generate Fastify server files
-mikrokit g fastify
 
 ## generate all artifacts in one go (api spec, types and server files)
-apisds g
+npx mikrokit g
 ```
 
 ## &nbsp;

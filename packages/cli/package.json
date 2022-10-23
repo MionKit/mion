@@ -26,13 +26,7 @@
     "url": "git+https://github.com/mikrokit/mikrokit.git"
   },
   "scripts": {
-    "test": "cd ../.. && jest packages/cli/src  && cd packages/cli",
-    "dev": "rimraf .dist && tsc --watch --build tsconfig.build.json",
-    "dev:test": "jest --watch",
-    "lint": "eslint src --ext .ts",
-    "format": "prettier --write src/**/*.ts",
-    "build": "rimraf .dist && tsc --build tsconfig.build.json",
-    "clean": "rimraf .dist"
+
   },
   "bugs": {
     "url": "https://github.com/mikrokit/mikrokit/issues"
