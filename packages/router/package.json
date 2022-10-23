@@ -1,7 +1,7 @@
 {
   "name": "@mikrokit/router",
   "version": "0.1.0",
-  "description": "package to generate typescript models from json schema",
+  "description": "RPC Like router with automatic Validation and Serialization",
   "keywords": [
     "typescript",
     "types",
