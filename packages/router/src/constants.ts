@@ -7,8 +7,6 @@
 
 import {Executable, Hook, MkRequest, RouteObject, RouterOptions} from './types';
 
-const noop = (...args) => {};
-
 export const ROUTE_PATH_ROOT = '/';
 
 export const DEFAULT_ROUTE: Readonly<Required<RouteObject>> = {

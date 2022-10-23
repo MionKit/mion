@@ -27,7 +27,7 @@
     "url": "git+https://github.com/mikrokit/mikrokit.git"
   },
   "scripts": {
-    "test": "cd ../.. && jest packages/compiled-app/src && cd packages/compiled-app",
+    "test": "jest",
     "dev": "rimraf .dist && tsc --build tsconfig.build.json --watch",
     "dev:test": "jest --watch",
     "lint": "eslint src --ext .ts",

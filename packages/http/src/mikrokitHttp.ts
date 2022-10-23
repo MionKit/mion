@@ -23,6 +23,7 @@ export type HttpCallContext<App extends MapObj, SharedData extends MapObj> = Con
 
 export const initHttpApp = <App extends MapObj, SharedData extends MapObj>(
     app: App,
+    version: number,
     handlersDataFactory?: SharedDataFactory<SharedData>,
     routerOptions?: Partial<RouterOptions<HttpRequest>>,
 ) => {
