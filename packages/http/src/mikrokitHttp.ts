@@ -5,11 +5,13 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {Context, Logger, MapObj, MkError, MkRouter, RouterOptions, SharedDataFactory, StatusCodes} from '@mikrokit/router';
+import {Context, MapObj, MkError, MkRequest, MkRouter, RouterOptions, SharedDataFactory, StatusCodes} from '@mikrokit/router';
 import {createServer as createHttp, IncomingMessage, RequestListener, Server as HttpServer, ServerResponse} from 'http';
 import {createServer as createHttps, Server as HttpsServer} from 'https';
 import {DEFAULT_HTTP_OPTIONS} from './constants';
 import {HttpOptions} from './types';
+
+type Logger = typeof console | undefined;
 
 let httpOptions: HttpOptions = {
     ...DEFAULT_HTTP_OPTIONS,
@@ -38,17 +40,13 @@ const startHttpServer = async (httpOptions_: Partial<HttpOptions> = {}): Promise
 
     Object.entries(httpOptions.defaultResponseHeaders).forEach(([key, value]) => defaultResponseHeaders.push({key, value}));
 
-    const logger = MkRouter.getRouterOptions().logger;
+    const logger = httpOptions_.logger;
 
     const port = httpOptions.port !== 80 ? `:${httpOptions.port}` : '';
     const url = `${httpOptions.protocol}://localhost${port}`;
-    if (process.env.NODE_ENV !== 'production') {
-        logger.log?.(`MikroKit local development server running on ${url}`);
-    } else {
-        logger.log?.(`MikroKit server running on ${url}`);
-    }
+    logger?.log(`MikroKit server running on ${url}`);
 
-    return new Promise((resolve, reject) => {
+    return new Promise<HttpServer | HttpsServer>((resolve, reject) => {
         const server =
             httpOptions.protocol === 'https'
                 ? createHttps(httpOptions.options, httpRequestHandler)
@@ -60,13 +58,19 @@ const startHttpServer = async (httpOptions_: Partial<HttpOptions> = {}): Promise
         server.listen(httpOptions.port, () => {
             resolve(server);
         });
+
+        process.on('SIGINT', function () {
+            logger?.log(`Shutting down MikroKit server on ${url}`);
+            server.close();
+            process.exit(0);
+        });
     });
 };
 
 const httpRequestHandler: RequestListener = (httpReq: IncomingMessage, httpResponse: ServerResponse): void => {
     let hasError = false;
     const path = httpReq.url || '/';
-    const logger = MkRouter.getRouterOptions().logger;
+    const logger = httpOptions.logger;
     let size = 0;
     const bodyChunks: any[] = [];
 
@@ -87,29 +91,28 @@ const httpRequestHandler: RequestListener = (httpReq: IncomingMessage, httpRespo
     });
 
     httpReq.on('end', () => {
-        if (!hasError) {
-            const body = Buffer.concat(bodyChunks).toString();
-            const req = {...httpReq, body};
+        if (hasError) return;
+        const body = Buffer.concat(bodyChunks).toString();
+        (httpReq as any).body = body;
 
-            MkRouter.runRoute(path, req)
-                .then((routeReply) => {
-                    if (hasError) return;
-                    reply(httpResponse, logger, routeReply.json, routeReply.statusCode);
-                })
-                .catch((e) => {
-                    if (hasError) return;
-                    hasError = true;
-                    replyError(httpResponse, logger, StatusCodes.INTERNAL_SERVER_ERROR, 'Internal Error');
-                })
-                .finally(() => {
-                    if (!httpResponse.writableEnded) httpResponse.end();
-                });
-        }
+        MkRouter.runRoute_(path, {req: httpReq as any as MkRequest})
+            .then((routeReply) => {
+                if (hasError) return;
+                reply(httpResponse, logger, routeReply.json, routeReply.statusCode);
+            })
+            .catch((e) => {
+                if (hasError) return;
+                hasError = true;
+                replyError(httpResponse, logger, StatusCodes.INTERNAL_SERVER_ERROR, 'Internal Error');
+            })
+            .finally(() => {
+                if (!httpResponse.writableEnded) httpResponse.end();
+            });
     });
 
     httpResponse.on('error', (e) => {
         hasError = true;
-        logger.error({statusCode: 0, message: 'error responding to client'}, e);
+        logger?.error({statusCode: 0, message: 'error responding to client'}, e);
     });
 
     httpResponse.setHeader('server', '@mikrokit/http');
@@ -128,8 +131,10 @@ const reply = (
     e?: Error,
 ) => {
     if (httpResponse.writableEnded) {
-        const mkError: MkError = {statusCode, message: statusMessage || 'no status message'};
-        logger.error({statusCode: 0, message: 'response has ended but server is still trying to reply'}, mkError, json, e);
+        if (logger) {
+            const mkError: MkError = {statusCode, message: statusMessage || 'no status message'};
+            logger.error({statusCode: 0, message: 'response has ended but server is still trying to reply'}, mkError, json, e);
+        }
         return;
     }
     if (statusMessage) httpResponse.statusMessage = statusMessage;
@@ -141,8 +146,7 @@ const reply = (
 
 const replyError = (httpResponse: ServerResponse, logger: Logger, statusCode: number, statusMessage: string, e?: Error) => {
     const mkError: MkError = {statusCode, message: statusMessage};
-    e ? logger.error(mkError, e) : logger.error(mkError);
+    if (logger) e ? logger.error(mkError, e) : logger.error(mkError);
     const jsonBody = JSON.stringify({errors: [mkError]});
-    console.log('jsonBody', jsonBody);
     reply(httpResponse, logger, jsonBody, statusCode, statusMessage, e);
 };

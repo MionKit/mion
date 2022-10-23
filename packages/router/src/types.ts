@@ -58,19 +58,6 @@ export type Routes = {
 };
 
 // ####### Router Options #######
-type LogFunc = (...args: any) => (any | void) | Promise<any | void>;
-/** Follows abstract-logging interface: @link https://www.npmjs.com/package/abstract-logging */
-export type Logger = {
-    fatal: LogFunc;
-    error: LogFunc;
-    warn: LogFunc;
-    info: LogFunc;
-    debug: LogFunc;
-    trace: LogFunc;
-    child?: LogFunc; // pino child
-    log?: LogFunc;
-    [key: string]: any;
-};
 
 /** Global Router Options */
 export type RouterOptions<ServerReq extends MkRequest = MkRequest> = {
@@ -106,10 +93,6 @@ export type RouterOptions<ServerReq extends MkRequest = MkRequest> = {
     serializerNamingStrategy?: NamingStrategy;
     /** Custom JSON parser, defaults to Native js JSON */
     jsonParser: JsonParser;
-    /** app used  */
-    logger: Logger;
-    /** disables logs completely, silent is enabled by default for Jest or when NODE_ENV = 'test */
-    silent: boolean;
 };
 
 // ####### Execution Path #######
@@ -181,6 +164,12 @@ export type Context<
     path: Readonly<string>;
     /** route errors, returned to the public */
     responseErrors: MkError[];
+    /**
+     * list of internal errors.
+     * log is quite expensive so all errors will be logged at once at the end of the request;
+     * error thrown by hooks and routes are automatically catch and added here.
+     */
+    internalErrors: (MkError | any)[];
     /** parsed request.body */
     request: {
         headers: MapObj;
@@ -193,8 +182,6 @@ export type Context<
     };
     /** shared data between route/hooks handlers */
     shared: SharedData;
-    /** Logger */
-    logger: Logger;
 };
 
 /** Function used to create the shared data object on each route call  */

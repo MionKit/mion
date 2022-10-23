@@ -31,7 +31,8 @@
     "dev:test": "jest --watch",
     "lint": "eslint src --ext .ts",
     "format": "prettier --write src/**/*.ts",
-    "build": "rimraf .dist && tsc --build tsconfig.build.json"
+    "build": "rimraf .dist && tsc --build tsconfig.build.json",
+    "clean": "rimraf .dist"
   },
   "bugs": {
     "url": "https://github.com/mikrokit/mikrokit/issues"
