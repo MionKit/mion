@@ -36,8 +36,5 @@
   },
   "bugs": {
     "url": "https://github.com/mikrokit/mikrokit/issues"
-  },
-  "dependencies": {
-    "@mikrokit/http": "^0.1.0"
   }
 }
