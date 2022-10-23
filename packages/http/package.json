@@ -1,7 +1,7 @@
 {
-  "name": "@mikrokit/serverless",
+  "name": "@mikrokit/http",
   "version": "0.1.0",
-  "description": "package to generate typescript models from json schema",
+  "description": "MikroKit HTTP Server for quick Api development.",
   "keywords": [
     "typescript",
     "types",
@@ -11,7 +11,7 @@
     "generate"
   ],
   "author": "ma jerez <jerez.m82@gmail.com>",
-  "homepage": "https://github.com/mikrokit/mikrokit/tree/main/packages/router#readme",
+  "homepage": "https://github.com/mikrokit/mikrokit/tree/main/packages/http#readme",
   "license": "MIT",
   "main": ".dist/index.js",
   "types": ".dist/index.d.ts",
@@ -27,7 +27,7 @@
     "url": "git+https://github.com/mikrokit/mikrokit.git"
   },
   "scripts": {
-    "test": "cd ../.. && jest packages/serverless/src && cd packages/serverless",
+    "test": "cd ../.. && jest packages/http/src && cd packages/http",
     "dev": "rimraf .dist && tsc --build tsconfig.build.json --watch",
     "dev:test": "jest --watch",
     "lint": "eslint src --ext .ts",

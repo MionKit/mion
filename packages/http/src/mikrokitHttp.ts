@@ -6,7 +6,6 @@
  * ######## */
 
 import {Context, Logger, MapObj, MkError, MkRouter, RouterOptions, SharedDataFactory, StatusCodes} from '@mikrokit/router';
-import {getRouterOptions} from '@mikrokit/router/src/router';
 import {createServer as createHttp, IncomingMessage, RequestListener, Server as HttpServer, ServerResponse} from 'http';
 import {createServer as createHttps, Server as HttpsServer} from 'https';
 import {DEFAULT_HTTP_OPTIONS} from './constants';
@@ -28,7 +27,7 @@ export const initHttpApp = <App extends MapObj, SharedData extends MapObj>(
     type CallContext = HttpCallContext<App, SharedData>;
     MkRouter.initRouter(app, handlersDataFactory, routerOptions);
     const emptyContext: CallContext = {} as CallContext;
-    return {emptyContext, startHttpServer};
+    return {emptyContext, startHttpServer, MkRouter};
 };
 
 const startHttpServer = async (httpOptions_: Partial<HttpOptions> = {}): Promise<HttpServer | HttpsServer> => {
@@ -39,7 +38,7 @@ const startHttpServer = async (httpOptions_: Partial<HttpOptions> = {}): Promise
 
     Object.entries(httpOptions.defaultResponseHeaders).forEach(([key, value]) => defaultResponseHeaders.push({key, value}));
 
-    const logger = getRouterOptions().logger;
+    const logger = MkRouter.getRouterOptions().logger;
 
     const port = httpOptions.port !== 80 ? `:${httpOptions.port}` : '';
     const url = `${httpOptions.protocol}://localhost${port}`;
@@ -67,7 +66,7 @@ const startHttpServer = async (httpOptions_: Partial<HttpOptions> = {}): Promise
 const httpRequestHandler: RequestListener = (httpReq: IncomingMessage, httpResponse: ServerResponse): void => {
     let hasError = false;
     const path = httpReq.url || '/';
-    const logger = getRouterOptions().logger;
+    const logger = MkRouter.getRouterOptions().logger;
     let size = 0;
     const bodyChunks: any[] = [];
 

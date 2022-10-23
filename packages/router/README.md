@@ -2,7 +2,7 @@
   <img alt='MikroKit, The APi Dashboard' width="" src='../../assets/public/bannerx90.png?raw=true'>
 </p>
 <p align="center">
-  <strong>RPC Like router with automatic Validation and Serialization
+  <strong>RPC Like router with automatic Validation and Serialization.
   </strong>
 </p>
 <p align=center>
