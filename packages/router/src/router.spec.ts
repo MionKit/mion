@@ -374,6 +374,24 @@ describe('Run routes', () => {
             expect(response.data).toEqual({[path]: {name: 'LOREM', surname: 'Tungsten'}});
         });
 
+        it('if there are no params input field can be omitted', async () => {
+            initRouter(app, getSharedData);
+            addRoutes({sayHello: () => 'hello'});
+
+            const path = '/sayHello';
+            const request1: MkRequest = {headers: {}, body: ''};
+            const request2: MkRequest = {headers: {}, body: '{}'};
+            const request3: MkRequest = {headers: {}, body: '{"/sayHello": null}'};
+
+            const response1 = await runRoute('/sayHello', request1);
+            const response2 = await runRoute('/sayHello', request2);
+            const response3 = await runRoute('/sayHello', request3);
+
+            expect(response1.data[path]).toEqual('hello');
+            expect(response2.data[path]).toEqual('hello');
+            expect(response3.data[path]).toEqual('hello');
+        });
+
         it('customize the routeFieldName', async () => {
             initRouter(app, getSharedData, {routeFieldName: 'apiData'});
             addRoutes({changeUserName});
@@ -454,22 +472,6 @@ describe('Run routes', () => {
             expect(response.errors[0]).toEqual({
                 statusCode: 400,
                 message: `Invalid request body`,
-            });
-        });
-
-        it('return an error if params is  is not an array', async () => {
-            initRouter(app, getSharedData);
-            addRoutes({changeUserName});
-
-            const request: MkRequest = {
-                headers: {},
-                body: JSON.stringify({['/changeUserName']: {user: {name: 'Leo', surname: 'Tungsten'}}}),
-            };
-
-            const response = await runRoute('/changeUserName', request);
-            expect(response.errors[0]).toEqual({
-                statusCode: 400,
-                message: `Invalid input '/changeUserName', must be an array of parameters`,
             });
         });
 

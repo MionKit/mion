@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {Executable, Hook, Logger, MkRequest, RouteObject, RouterOptions} from './types';
+import {Executable, Hook, MkRequest, RouteObject, RouterOptions} from './types';
 
 const noop = (...args) => {};
 
@@ -45,26 +45,7 @@ export const DEFAULT_REQUEST: Readonly<Required<MkRequest>> = {
     body: '{}',
 };
 
-export const SILENT_LOGGER: Readonly<Logger> = {
-    fatal: noop,
-    error: noop,
-    warn: noop,
-    info: noop,
-    debug: noop,
-    trace: noop,
-    child: noop,
-    log: noop,
-};
-
-export const CONSOLE_LOGGER: Logger = {
-    ...console,
-    fatal: (...args) => console.error(...args),
-    isConsoleLog: true,
-};
-
 export const IS_TEST_ENV = process.env.JEST_WORKER_ID !== undefined || process.env.NODE_ENV === 'test';
-
-export const DEFAULT_LOGGER = IS_TEST_ENV ? SILENT_LOGGER : CONSOLE_LOGGER;
 
 export const DEFAULT_ROUTE_OPTIONS: Readonly<RouterOptions> = {
     /** prefix for all routes, i.e: api/v1.
@@ -110,15 +91,6 @@ export const DEFAULT_ROUTE_OPTIONS: Readonly<RouterOptions> = {
 
     /** Custom JSON parser, defaults to Native js JSON */
     jsonParser: JSON,
-
-    /**
-     * Logger Interface Based on abstract-logging
-     * @default console
-     * @link https://www.npmjs.com/package/abstract-logging */
-    logger: DEFAULT_LOGGER,
-
-    /** disables logs completely, silent is enabled by default for Jest or when NODE_ENV = 'test */
-    silent: IS_TEST_ENV,
 };
 
 export const ROUTE_KEYS = Object.keys(DEFAULT_ROUTE);

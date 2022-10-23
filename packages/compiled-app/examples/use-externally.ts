@@ -1,6 +1,11 @@
 import {initHttp, addRoutes, routes} from '@mikrokit/compiled-app';
 
-const {startHttpServer} = initHttp();
+const options = {
+    enableValidation: false,
+    enableSerialization: false,
+};
+
+const {startHttpServer} = initHttp(options);
 
 addRoutes(routes);
 

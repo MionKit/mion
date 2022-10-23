@@ -8,8 +8,8 @@
     "test": "npm run test -ws",
     "format": "prettier --write packages/**/*.ts",
     "lint": "eslint packages/**/src --ext .ts",
-    "build": "npm run tsc -ws",
-    "publish": "lerna run tsc && lerna publish",
+    "build-all": "npm run build -w @mikrokit/router -w @mikrokit/http -w @mikrokit/serverless -w @mikrokit/compiled-app",
+    "clean-all": "npm run clean -ws",
     "deepkit-install": "deepkit-type-install",
     "embed-readme": "embedme **/README.md"
   },

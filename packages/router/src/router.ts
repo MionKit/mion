@@ -6,15 +6,7 @@
  * ######## */
 
 import {join} from 'path';
-import {
-    CONSOLE_LOGGER,
-    DEFAULT_ROUTE,
-    DEFAULT_ROUTE_OPTIONS,
-    IS_TEST_ENV,
-    MAX_ROUTE_NESTING,
-    ROUTE_PATH_ROOT,
-    SILENT_LOGGER,
-} from './constants';
+import {DEFAULT_ROUTE, DEFAULT_ROUTE_OPTIONS, IS_TEST_ENV, MAX_ROUTE_NESTING, ROUTE_PATH_ROOT} from './constants';
 import {
     Executable,
     Handler,
@@ -61,11 +53,7 @@ export const getHookExecutable = (fieldName: string) => hooksByFieldName.get(fie
 export const geHooksSize = () => hooksByFieldName.size;
 export const forceConsoleLogs = () => {
     if (!IS_TEST_ENV) throw 'forceConsoleLogs can be called only from test envs';
-    forceLogs = true;
-    routerOptions = {
-        ...routerOptions,
-        logger: CONSOLE_LOGGER,
-    };
+    forceConsole = true;
 };
 export const getComplexity = () => complexity;
 export const getRouterOptions = () => routerOptions;
@@ -74,11 +62,6 @@ export const setRouterOptions = <ServerReq extends MkRequest = MkRequest>(router
         ...routerOptions,
         ...(routerOptions_ as Partial<RouterOptions>),
     };
-    if (forceLogs) {
-        routerOptions.logger = CONSOLE_LOGGER;
-        return;
-    }
-    routerOptions.logger = routerOptions.silent ? SILENT_LOGGER : routerOptions_?.logger || CONSOLE_LOGGER;
 };
 
 export const reset = () => {
@@ -146,7 +129,6 @@ export const runRoute_ = async <
 ): Promise<MkResponse> => {
     if (!app) throw 'Context has not been defined';
     const transformedPath = routerOptions.pathTransform ? routerOptions.pathTransform(serverCall.req, path) : path;
-    routerOptions.logger.info(`Run route ${transformedPath}`);
     const context: Context<App, SharedData, ServerReq, AnyServerCall> = {
         app: app as Readonly<App>, // static context
         server: serverCall,
@@ -160,8 +142,8 @@ export const runRoute_ = async <
             body: {},
         },
         responseErrors: [],
+        internalErrors: [],
         shared: sharedDataFactory?.() || {},
-        logger: routerOptions.logger,
     };
 
     const executionPath = getRouteExecutionPath(transformedPath) || [];
@@ -169,12 +151,17 @@ export const runRoute_ = async <
     if (!executionPath.length) {
         const notFound = {statusCode: StatusCodes.NOT_FOUND, message: 'Route not found'};
         context.responseErrors.push(notFound);
-        routerOptions.logger.error(notFound);
+        context.internalErrors.push(notFound);
     } else {
         parseRequestInputs(context);
         await runExecutionPath(executionPath, context);
     }
+
     const respBody = context.responseErrors.length ? {errors: context.responseErrors} : context.reply.body;
+
+    if (forceConsole && context.internalErrors) console.error(`route ${transformedPath}`, ...context.internalErrors);
+    else if (forceConsole) console.error(`route ${transformedPath}`, context.reply.headers, context.reply.body);
+
     return {
         statusCode: context.responseErrors.length ? context.responseErrors[0].statusCode : StatusCodes.OK,
         headers: context.reply.headers,
@@ -192,7 +179,8 @@ const parseRequestInputs = <
 >(
     context: Context<App, SharedData, ServerReq, AnyServerCall>,
 ) => {
-    context.request.headers = context.server.req.headers || {};
+    if (context.server.req.headers) context.request.headers = context.server.req.headers;
+    if (!context.server.req.body) return;
     try {
         if (typeof context.server.req.body === 'string') {
             const parsedBody = routerOptions.jsonParser.parse(context.server.req.body);
@@ -201,9 +189,9 @@ const parseRequestInputs = <
         } else {
             context.request.body = context.server.req.body || {};
         }
-    } catch (e) {
+    } catch (err: any) {
         context.responseErrors.push({statusCode: StatusCodes.BAD_REQUEST, message: 'Invalid request body'});
-        routerOptions.logger.error(e);
+        context.internalErrors.push(err);
     }
 };
 
@@ -216,28 +204,26 @@ const runExecutionPath = async <
     executionPath: Executable[],
     context: Context<App, SharedData, ServerReq, AnyServerCall>,
 ) => {
-    if (executionPath.length && context.request) {
-        for (let index = 0; index < executionPath.length; index++) {
-            const executable = executionPath[index];
-            if (context.responseErrors.length && !executable.forceRunOnError) continue;
+    for (let index = 0; index < executionPath.length; index++) {
+        const executable = executionPath[index];
+        if (context.responseErrors.length && !executable.forceRunOnError) continue;
 
-            deserializeAndValidateParams(context, executable);
-            if (context.responseErrors.length && !executable.forceRunOnError) continue;
+        deserializeAndValidateParams(context, executable);
+        if (context.responseErrors.length && !executable.forceRunOnError) continue;
 
-            try {
-                const params = executable.inHeader
-                    ? context.request.headers[executable.fieldName]
-                    : context.request.body[executable.fieldName];
-                const result = await executable.handler(context, ...params);
-                serializeResponse(context, executable, result);
-            } catch (e: any | MkError | Error) {
-                const executableOrUnknownError = {
-                    statusCode: e.statusCode || StatusCodes.INTERNAL_SERVER_ERROR,
-                    message: e.message || `Unknown error in step ${index} of execution path.`,
-                };
-                context.responseErrors.push(executableOrUnknownError);
-                routerOptions.logger.error(e);
-            }
+        try {
+            const params = executable.inHeader
+                ? context.request.headers[executable.fieldName]
+                : context.request.body[executable.fieldName];
+            const result = await executable.handler(context, ...params);
+            serializeResponse(context, executable, result);
+        } catch (err: any | MkError | Error) {
+            const executableOrUnknownError = {
+                statusCode: err.statusCode || StatusCodes.INTERNAL_SERVER_ERROR,
+                message: err.message || `Unknown error in step ${index} of execution path.`,
+            };
+            context.responseErrors.push(executableOrUnknownError);
+            context.internalErrors.push(err);
         }
     }
 };
@@ -256,7 +242,7 @@ const deserializeAndValidateParams = <
 
     if (executable.inHeader) {
         if (typeof params === 'string') params = [params];
-        else if (Array.isArray(params)) params = [params.join()]; // node http headers could be an array of strings
+        else if (Array.isArray(params)) params = [params.join(',')]; // node http headers could be an array of strings
         else
             return context.responseErrors.push({
                 statusCode: StatusCodes.BAD_REQUEST,
@@ -264,19 +250,17 @@ const deserializeAndValidateParams = <
             });
     }
 
-    if (!Array.isArray(params))
-        return context.responseErrors.push({
-            statusCode: StatusCodes.BAD_REQUEST,
-            message: `Invalid input '${fieldName}', must be an array of parameters`,
-        });
+    // defaults to an empty array if required field is omitted from body
+    if (!params) params = [];
+
+    // if there are no params input field can be omitted
+    if (!params.length && !executable.paramsDeSerializers.length) return (context.request.body[fieldName] = params);
 
     if (params.length !== executable.paramValidators.length)
         return context.responseErrors.push({
             statusCode: StatusCodes.BAD_REQUEST,
             message: `Invalid input '${fieldName}', missing or invalid number of input parameters`,
         });
-
-    if (!params.length) return;
 
     if (routerOptions.enableSerialization) {
         try {
@@ -289,13 +273,15 @@ const deserializeAndValidateParams = <
                 message: `Invalid input '${fieldName}', can not deserialize. Parameters might be of the wrong type.`,
             });
         }
-    }
+    } else context.request.body[fieldName] = params;
 
     if (routerOptions.enableValidation) {
         try {
             const errors = validateParams(executable, params);
-            context.responseErrors.push(...errors);
-            if (errors?.length) routerOptions.logger.error(...errors);
+            if (errors?.length) {
+                context.responseErrors.push(...errors);
+                context.internalErrors.push(...errors);
+            }
         } catch (e) {
             return context.responseErrors.push({
                 statusCode: StatusCodes.BAD_REQUEST,
@@ -332,7 +318,7 @@ let complexity = 0;
 let app: MapObj | undefined;
 let sharedDataFactory: SharedDataFactory<any> | undefined;
 let contextType: Type | undefined;
-let forceLogs = false;
+let forceConsole = false;
 let routerOptions: RouterOptions = {
     ...DEFAULT_ROUTE_OPTIONS,
 };
