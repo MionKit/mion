@@ -15,6 +15,20 @@
 
 This is an app exported with included runtime types so cab be used in the [fastify-benchmarks](https://github.com/fastify/benchmarks) repo without using typescript
 
+### Using the app externally:
+
+```ts
+// examples/use-externally.ts
+
+import {initHttp, addRoutes, routes} from '@mikrokit/compiled-app';
+
+const {startHttpServer} = initHttp();
+
+addRoutes(routes);
+
+startHttpServer({port: 3000});
+```
+
 ## &nbsp;
 
 _[MIT](../../LICENSE) LICENSE_

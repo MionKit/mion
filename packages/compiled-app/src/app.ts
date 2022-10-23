@@ -17,13 +17,12 @@ export type HelloWorldHandler = typeof helloWorld;
 export type HelloWorld = ReturnType<typeof helloWorld>;
 export type Context = HttpCallContext<App, Shared>;
 
-export const routes: Routes = {
+export const routes = {
     '/': helloWorld,
 };
 
 export const initHttp = () => {
-    const {emptyContext, startHttpServer} = initHttpApp(app);
-    return startHttpServer;
+    return initHttpApp<App, Shared>(app);
 };
 
-export const addRoutes = () => MkRouter.addRoutes(routes);
+export const addRoutes = (rts: typeof routes) => MkRouter.addRoutes(rts);
