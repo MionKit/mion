@@ -3,6 +3,6 @@ module.exports = {
   preset: 'ts-jest',
   testEnvironment: 'node',
   collectCoverage: true,
-  coverageDirectory: '.dist',
+  coverageDirectory: '.coverage',
   collectCoverageFrom: ['src/**'],
 };

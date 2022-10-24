@@ -79,5 +79,7 @@ nbproject
 dist
 .tmp
 tmp
+.coverage
+coverage
 
 
