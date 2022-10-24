@@ -1,6 +1,6 @@
 import {Routes, MkRouter, Route} from '@mikrokit/router';
 
-const sayHello: Route = (context, name: string) => {
+const sayHello: Route = (context, name: string): string => {
     return `Hello ${name}.`;
 };
 

@@ -42,27 +42,28 @@ The reason for this weird naming is to future proof the router to be able to acc
 ### 📚 [Please read full router documentation here!](./packages/router/README.md)
 
 ```js
-// ../router/examples/routes-definition.ts
+// ../router/examples/routes-definition.routes.ts
 
 import {Route, Handler, Routes, MkRouter} from '@mikrokit/router';
 
-const sayHello: Handler = (context, name: string) => {
-  return `Hello ${name}.`;
+const sayHello: Handler = (context, name: string): string => {
+    return `Hello ${name}.`;
 };
 
 const sayHello2: Route = {
-  route(context, name1: string, name2: string) {
-    return `Hello ${name1} and ${name2}.`;
-  },
+    route(context, name1: string, name2: string): string {
+        return `Hello ${name1} and ${name2}.`;
+    },
 };
 
 const routes: Routes = {
-  sayHello, // api/sayHello
-  sayHello2, // api/sayHello2
+    sayHello, // api/sayHello
+    sayHello2, // api/sayHello2
 };
 
 MkRouter.setRouterOptions({prefix: 'api/'});
 MkRouter.addRoutes(routes);
+
 ```
 
 ## AWS Lambda

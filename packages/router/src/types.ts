@@ -14,7 +14,6 @@ import type {
     NamingStrategy,
     JSONPartial,
     JSONSingle,
-    JSONEntity,
     TypePromise,
 } from '@deepkit/type';
 import {ReflectionKind} from '@deepkit/type';
@@ -121,7 +120,7 @@ export type Executable = {
 /** Any request Object used by the router must follow this interface */
 export type MkRequest = {
     headers: {[header: string]: string | undefined | string[]} | undefined;
-    body: string | null | undefined | {};
+    body: string | null | undefined | {}; // eslint-disable-line @typescript-eslint/ban-types
 };
 
 /** Any error triggered by hooks or routes must follow this interface, returned errors in the body also follows this interface */
@@ -171,6 +170,7 @@ export type Context<
      * list of internal errors.
      * log is quite expensive so all errors will be logged at once at the end of the request;
      * error thrown by hooks and routes are automatically catch and added here.
+     * application error like data not found etc should not be logged here.
      */
     internalErrors: (MkError | any)[];
     /** parsed request.body */
@@ -236,4 +236,7 @@ export type MapObj = {
     [key: string]: any;
 };
 
-export type JsonParser = {parse: (s: string) => any; stringify: (any) => string};
+export type JsonParser = {
+    parse: (text: string) => any;
+    stringify: (js) => string;
+};

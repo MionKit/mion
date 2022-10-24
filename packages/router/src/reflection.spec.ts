@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {ReflectionKind, reflect, typeOf, deserializeFunction, deserialize, SerializationOptions} from '@deepkit/type';
+import {ReflectionKind, reflect, typeOf} from '@deepkit/type';
 import {getOutputSerializer, getParamsDeserializer, getParamValidators, isFirstParameterContext} from './reflection';
 import {Context, Handler, isFunctionType, Route, RouteParamValidator} from './types';
 import {DEFAULT_ROUTE_OPTIONS} from './constants';
@@ -26,7 +26,6 @@ describe('Deepkit reflection should', () => {
     };
     const app = {db: () => null};
     const req = {headers: {}, body: '{}'};
-    const resp = {statusCode: 200, headers: {}, body: null};
     const sharedDataFactory = () => ({hello: 'world'});
     const paramUser = {
         id: 1,
@@ -83,7 +82,7 @@ describe('Deepkit reflection should', () => {
             printSum as any as Handler,
             DEFAULT_ROUTE_OPTIONS,
         );
-        const paramValidatorsIgnoreFirst: RouteParamValidator[] = getParamValidators((a: any) => null, DEFAULT_ROUTE_OPTIONS);
+        const paramValidatorsIgnoreFirst: RouteParamValidator[] = getParamValidators(() => null, DEFAULT_ROUTE_OPTIONS);
         const noParamValidators: RouteParamValidator[] = getParamValidators(() => null, DEFAULT_ROUTE_OPTIONS);
 
         expect(paramValidatorsUser.length).toEqual(2);
@@ -156,4 +155,21 @@ describe('Deepkit reflection should', () => {
         const deserialized1 = deSerializers[0](parsed1);
         expect(deserialized1).toEqual(user1);
     });
+
+    // TODO: validate router explicit types
+    // it('check for handler explicit definitions', () => {
+    //     const funcAllOK = (a: number, name: string): string => `sayHello ${name} ${a}`;
+    //     const funcParamNotDefined = (name): string => `sayHello ${name}`;
+    //     const funcReturnNotDefined = (name: any) => `sayHello ${name}`;
+    //     const funcReturnAny = (name: string): any => `sayHello ${name}`;
+    //     const funcMultipleTypes = (name: number | string): number | string => `sayHello ${name}`;
+    //     const funcOptionalParams = (name?: number): string => `sayHello ${name || 'unknowkn'}`;
+
+    //     expect(hasExplicitTypes(funcAllOK as any as Handler)).toBeTruthy();
+    //     expect(hasExplicitTypes(funcParamNotDefined as any as Handler)).toBeFalsy();
+    //     expect(hasExplicitTypes(funcReturnNotDefined as any as Handler)).toBeFalsy();
+    //     expect(hasExplicitTypes(funcReturnAny as any as Handler)).toBeFalsy();
+    //     expect(hasExplicitTypes(funcMultipleTypes as any as Handler)).toBeTruthy();
+    //     expect(hasExplicitTypes(funcOptionalParams as any as Handler)).toBeTruthy();
+    // });
 });

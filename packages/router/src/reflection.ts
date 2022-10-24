@@ -26,7 +26,6 @@ import {
 } from '@deepkit/type';
 import {isFunctionType} from './types';
 import {StatusCodes} from './status-codes';
-import {isPromise} from '@deepkit/core';
 
 /**
  * Returns an array of functions to validate route handler parameters,
@@ -120,6 +119,22 @@ export const isAsyncHandler = (handler: Handler, type?: Type): boolean => {
 
     return isAsyncType(handlerType.return);
 };
+// TODO: validate router explicit types
+// export const hasExplicitTypes = (handler: Handler, type?: Type): boolean => {
+//     const handlerType = type || reflect(handler);
+//     if (!isFunctionType(handlerType)) throw 'Invalid route/hook handler';
+
+//     const hasExplicitParams = handlerType.parameters.map((paramType, index) => {
+//         console.log('paramType', paramType);
+//         console.log('paramType.originTypes', paramType.originTypes);
+//         console.log('paramType.type', paramType.type);
+//         console.log('paramType.typeArguments', paramType.typeArguments);
+//         console.log('paramType.optional', paramType.optional);
+//         console.log('paramType.type', paramType.visibility);
+//         return paramType;
+//     });
+//     return false;
+// };
 
 export const isFirstParameterContext = (contextType: Type, handler: Handler): boolean => {
     const handlerType = reflect(handler);

@@ -1,13 +1,13 @@
 import {Routes, MkRouter, Hook, Route} from '@mikrokit/router';
 
-const authorizationHook: Hook = {hook() {}};
-const userOnlyHook: Hook = {hook() {}};
-const errorHandlerHook: Hook = {hook() {}};
-const loggingHook: Hook = {hook() {}};
-const getUser: Route = () => null;
-const getPet: Route = () => null;
-const getFoo: Route = () => null;
-const getBar: Route = () => null;
+const authorizationHook: Hook = {hook(): void {}};
+const userOnlyHook: Hook = {hook(): void {}};
+const errorHandlerHook: Hook = {hook(): void {}};
+const loggingHook: Hook = {hook(): void {}};
+const getUser: Route = (): null => null;
+const getPet: Route = (): null => null;
+const getFoo: Route = (): null => null;
+const getBar: Route = (): null => null;
 
 const routes: Routes = {
     authorizationHook, // hook
