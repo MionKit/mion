@@ -23,7 +23,6 @@ export type HttpCallContext<App extends MapObj, SharedData extends MapObj> = Con
 
 export const initHttpApp = <App extends MapObj, SharedData extends MapObj>(
     app: App,
-    version: number,
     handlersDataFactory?: SharedDataFactory<SharedData>,
     routerOptions?: Partial<RouterOptions<HttpRequest>>,
 ) => {
@@ -129,12 +128,12 @@ const reply = (
     json: string,
     statusCode: number,
     statusMessage?: string,
-    e?: Error,
+    err?: Error,
 ) => {
     if (httpResponse.writableEnded) {
         if (logger) {
             const mkError: MkError = {statusCode, message: statusMessage || 'no status message'};
-            logger.error({statusCode: 0, message: 'response has ended but server is still trying to reply'}, mkError, json, e);
+            logger.error({statusCode: 0, message: 'response has ended but server is still trying to reply'}, mkError, json, err);
         }
         return;
     }
