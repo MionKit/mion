@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import type {
+import {
     Executable,
     Handler,
     MkError,
@@ -13,6 +13,7 @@ import type {
     RouteOutputSerializer,
     RouteParamValidator,
     RouterOptions,
+    isAsyncType,
 } from './types';
 import {
     reflect,
@@ -25,6 +26,7 @@ import {
 } from '@deepkit/type';
 import {isFunctionType} from './types';
 import {StatusCodes} from './status-codes';
+import {isPromise} from '@deepkit/core';
 
 /**
  * Returns an array of functions to validate route handler parameters,
@@ -33,9 +35,9 @@ import {StatusCodes} from './status-codes';
  * @param routerOptions
  * @returns the returned array is in the same order as the handler parameters
  */
-export const getParamValidators = (handler: Handler, routerOptions: RouterOptions): RouteParamValidator[] => {
-    const handlerType = reflect(handler);
-    if (!isFunctionType(handlerType)) throw 'invalid route handler';
+export const getParamValidators = (handler: Handler, routerOptions: RouterOptions, type?: Type): RouteParamValidator[] => {
+    const handlerType = type || reflect(handler);
+    if (!isFunctionType(handlerType)) throw 'Invalid route/hook handler';
 
     const paramValidators = handlerType.parameters.map((paramType, index) => {
         // assumes the context type that is the first parameter is always valid
@@ -51,9 +53,9 @@ export const getParamValidators = (handler: Handler, routerOptions: RouterOption
  * @param routerOptions
  * @returns
  */
-export const getParamsDeserializer = (handler: Handler, routerOptions: RouterOptions): RouteParamDeserializer[] => {
-    const handlerType = reflect(handler);
-    if (!isFunctionType(handlerType)) throw 'invalid route handler';
+export const getParamsDeserializer = (handler: Handler, routerOptions: RouterOptions, type?: Type): RouteParamDeserializer[] => {
+    const handlerType = type || reflect(handler);
+    if (!isFunctionType(handlerType)) throw 'Invalid route/hook handler';
 
     const opts: SerializationOptions = {
         ...routerOptions.serializationOptions,
@@ -82,9 +84,9 @@ export const getParamsDeserializer = (handler: Handler, routerOptions: RouterOpt
  * @param routerOptions
  * @returns
  */
-export const getOutputSerializer = (handler: Handler, routerOptions: RouterOptions): RouteOutputSerializer => {
-    const handlerType = reflect(handler);
-    if (!isFunctionType(handlerType)) throw 'invalid route handler';
+export const getOutputSerializer = (handler: Handler, routerOptions: RouterOptions, type?: Type): RouteOutputSerializer => {
+    const handlerType = type || reflect(handler);
+    if (!isFunctionType(handlerType)) throw 'Invalid route/hook handler';
 
     const outPutSerializer = serializeFunction(
         routerOptions.serializationOptions,
@@ -112,9 +114,16 @@ export const deserializeParams = (executable: Executable, params: any[] = []): a
     return deSerializers.map((deserializer, index) => deserializer(params[index]));
 };
 
+export const isAsyncHandler = (handler: Handler, type?: Type): boolean => {
+    const handlerType = type || reflect(handler);
+    if (!isFunctionType(handlerType)) throw 'Invalid route/hook handler';
+
+    return isAsyncType(handlerType.return);
+};
+
 export const isFirstParameterContext = (contextType: Type, handler: Handler): boolean => {
     const handlerType = reflect(handler);
-    if (!isFunctionType(handlerType)) throw 'invalid route handler';
+    if (!isFunctionType(handlerType)) throw 'Invalid route/hook handler';
 
     if (!handlerType.parameters.length) return true;
     return isSameType(contextType, handlerType.parameters[0].type);

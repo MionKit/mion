@@ -128,6 +128,26 @@ describe('Create routes should', () => {
         expect(getRouteExecutionPath('/pets/setPet')).toBeTruthy();
     });
 
+    it('should support methods', () => {
+        function hello() {}
+        const routes = {
+            hello,
+        };
+        addRoutes(routes);
+
+        expect(getRouteExecutable('/hello')).toEqual(
+            expect.objectContaining({
+                path: '/hello',
+                nestLevel: 0,
+                forceRunOnError: false,
+                canReturnData: true,
+                inHeader: false,
+                fieldName: '/hello',
+                isRoute: true,
+            }),
+        );
+    });
+
     it('add default values to hooks', () => {
         const defaultHookValues = {first: {hook: () => null}};
         addRoutes(defaultHookValues);
@@ -294,9 +314,30 @@ describe('Create routes should', () => {
         expect(worstCaseComplexity * ratio > bestCaseComplexity).toBeTruthy();
     });
 
-    it('should extend routes types', () => {
-        // TODO extend route/hook type and add to readme
-        type MyRoute = Route & {};
+    it('differentiate async vs non async routes', () => {
+        // !! Important return types must always be declared as deepkit doe not infers the type
+        const defaultRouteValues = {
+            sayHello: (): null => null,
+            asyncSayHello: async (): Promise<string> => {
+                const hello = await new Promise<string>((res, rej) => {
+                    setTimeout(() => res('hello'), 50);
+                });
+                return hello;
+            },
+        };
+        addRoutes(defaultRouteValues);
+
+        expect(getRouteExecutable('/sayHello')).toEqual(
+            expect.objectContaining({
+                isAsync: false,
+            }),
+        );
+
+        expect(getRouteExecutable('/asyncSayHello')).toEqual(
+            expect.objectContaining({
+                isAsync: true,
+            }),
+        );
     });
 });
 

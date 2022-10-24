@@ -29,8 +29,15 @@ import {
     ServerCall,
 } from './types';
 import {StatusCodes} from './status-codes';
-import {deserializeParams, getOutputSerializer, getParamsDeserializer, getParamValidators, validateParams} from './reflection';
-import {Type, typeOf} from '@deepkit/type';
+import {
+    deserializeParams,
+    getOutputSerializer,
+    getParamsDeserializer,
+    getParamValidators,
+    isAsyncHandler,
+    validateParams,
+} from './reflection';
+import {reflect, Type, typeOf} from '@deepkit/type';
 type RouterKeyEntryList = [string, Routes | Hook | Route][];
 type RoutesWithId = {
     path: string;
@@ -153,8 +160,36 @@ export const runRoute_ = async <
         context.responseErrors.push(notFound);
         context.internalErrors.push(notFound);
     } else {
-        parseRequestInputs(context);
-        await runExecutionPath(executionPath, context);
+        parseRequestHeadersAndBody(context);
+
+        // ### runs execution path
+        for (let index = 0; index < executionPath.length; index++) {
+            const executable = executionPath[index];
+            if (context.responseErrors.length && !executable.forceRunOnError) continue;
+
+            deserializeAndValidateParams(context, executable);
+            if (context.responseErrors.length && !executable.forceRunOnError) continue;
+
+            try {
+                const params = executable.inHeader
+                    ? context.request.headers[executable.fieldName]
+                    : context.request.body[executable.fieldName];
+                if (executable.isAsync) {
+                    const result = await executable.handler(context, ...params);
+                    serializeResponse(context, executable, result);
+                } else {
+                    const result = executable.handler(context, ...params);
+                    serializeResponse(context, executable, result);
+                }
+            } catch (err: any | MkError | Error) {
+                const executableOrUnknownError = {
+                    statusCode: err.statusCode || StatusCodes.INTERNAL_SERVER_ERROR,
+                    message: err.message || `Unknown error in step ${index} of execution path.`,
+                };
+                context.responseErrors.push(executableOrUnknownError);
+                context.internalErrors.push(err);
+            }
+        }
     }
 
     const respBody = context.responseErrors.length ? {errors: context.responseErrors} : context.reply.body;
@@ -171,7 +206,7 @@ export const runRoute_ = async <
     } as MkResponse;
 };
 
-const parseRequestInputs = <
+const parseRequestHeadersAndBody = <
     App extends MapObj,
     SharedData,
     ServerReq extends MkRequest,
@@ -180,7 +215,7 @@ const parseRequestInputs = <
     context: Context<App, SharedData, ServerReq, AnyServerCall>,
 ) => {
     if (context.server.req.headers) context.request.headers = context.server.req.headers;
-    if (!context.server.req.body) return;
+    if (!context.server.req.body || context.server.req.body === '{}') return;
     try {
         if (typeof context.server.req.body === 'string') {
             const parsedBody = routerOptions.jsonParser.parse(context.server.req.body);
@@ -192,39 +227,6 @@ const parseRequestInputs = <
     } catch (err: any) {
         context.responseErrors.push({statusCode: StatusCodes.BAD_REQUEST, message: 'Invalid request body'});
         context.internalErrors.push(err);
-    }
-};
-
-const runExecutionPath = async <
-    App extends MapObj,
-    SharedData,
-    ServerReq extends MkRequest,
-    AnyServerCall extends ServerCall<ServerReq>,
->(
-    executionPath: Executable[],
-    context: Context<App, SharedData, ServerReq, AnyServerCall>,
-) => {
-    for (let index = 0; index < executionPath.length; index++) {
-        const executable = executionPath[index];
-        if (context.responseErrors.length && !executable.forceRunOnError) continue;
-
-        deserializeAndValidateParams(context, executable);
-        if (context.responseErrors.length && !executable.forceRunOnError) continue;
-
-        try {
-            const params = executable.inHeader
-                ? context.request.headers[executable.fieldName]
-                : context.request.body[executable.fieldName];
-            const result = await executable.handler(context, ...params);
-            serializeResponse(context, executable, result);
-        } catch (err: any | MkError | Error) {
-            const executableOrUnknownError = {
-                statusCode: err.statusCode || StatusCodes.INTERNAL_SERVER_ERROR,
-                message: err.message || `Unknown error in step ${index} of execution path.`,
-            };
-            context.responseErrors.push(executableOrUnknownError);
-            context.internalErrors.push(err);
-        }
     }
 };
 
@@ -452,6 +454,7 @@ const getExecutableFromHook = (hook: Hook, path: string, nestLevel: number, key:
         throw `Invalid Hook: ${path}. The 'errors' fieldName is reserver for the router.`;
     }
 
+    const handlerType = reflect(handler);
     const executable: Executable = {
         path,
         forceRunOnError: !!hook.forceRunOnError,
@@ -461,9 +464,11 @@ const getExecutableFromHook = (hook: Hook, path: string, nestLevel: number, key:
         fieldName: hookName,
         isRoute: false,
         handler,
-        paramValidators: getParamValidators(handler, routerOptions),
-        paramsDeSerializers: getParamsDeserializer(handler, routerOptions),
-        outputSerializer: getOutputSerializer(handler, routerOptions),
+        handlerType,
+        paramValidators: getParamValidators(handler, routerOptions, handlerType),
+        paramsDeSerializers: getParamsDeserializer(handler, routerOptions, handlerType),
+        outputSerializer: getOutputSerializer(handler, routerOptions, handlerType),
+        isAsync: isAsyncHandler(handler, handlerType),
         src: hook,
     };
     delete (executable as any).hook;
@@ -482,6 +487,7 @@ const getExecutableFromRoute = (route: Route, path: string, nestLevel: number) =
     // if (!isFirstParameterContext(contextType, handler))
     //     throw `Invalid route: ${path}. First parameter the handler must be of Type ${contextType.typeName},`;
     const routeObj = isHandler(route) ? {...DEFAULT_ROUTE} : {...DEFAULT_ROUTE, ...route};
+    const handlerType = reflect(handler);
     const executable: Executable = {
         path: routePath,
         forceRunOnError: false,
@@ -491,9 +497,11 @@ const getExecutableFromRoute = (route: Route, path: string, nestLevel: number) =
         isRoute: true,
         nestLevel,
         handler,
+        handlerType,
         paramValidators: getParamValidators(handler, routerOptions),
         paramsDeSerializers: getParamsDeserializer(handler, routerOptions),
         outputSerializer: getOutputSerializer(handler, routerOptions),
+        isAsync: isAsyncHandler(handler, handlerType),
         src: routeObj,
     };
     delete (executable as any).route;

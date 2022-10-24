@@ -15,6 +15,7 @@ import type {
     JSONPartial,
     JSONSingle,
     JSONEntity,
+    TypePromise,
 } from '@deepkit/type';
 import {ReflectionKind} from '@deepkit/type';
 
@@ -110,6 +111,8 @@ export type Executable = {
     paramValidators: RouteParamValidator[];
     paramsDeSerializers: RouteParamDeserializer[];
     outputSerializer: RouteOutputSerializer;
+    handlerType: Type;
+    isAsync: boolean;
     src?: Route | Hook;
 };
 
@@ -224,6 +227,8 @@ export const isExecutable = (entry: Executable | {path: string}): entry is Execu
 };
 
 export const isFunctionType = (t: Type): t is TypeFunction => t.kind === ReflectionKind.function;
+export const isAsyncType = (t: Type): t is TypePromise =>
+    t.kind === ReflectionKind.promise || t.kind === ReflectionKind.any || t.kind === ReflectionKind.unknown;
 
 // #######  Others #######
 
