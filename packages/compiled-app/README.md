@@ -22,11 +22,17 @@ This is an app exported with included runtime types so cab be used in the [fasti
 
 import {initHttp, addRoutes, routes} from '@mikrokit/compiled-app';
 
-const {startHttpServer} = initHttp();
+const options = {
+    enableValidation: false,
+    enableSerialization: false,
+};
+
+const {startHttpServer} = initHttp(options);
 
 addRoutes(routes);
 
 startHttpServer({port: 3000});
+
 ```
 
 ## &nbsp;

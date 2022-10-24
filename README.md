@@ -30,7 +30,7 @@ MikroKit uses only the core `@deepkit/type` library from deepkit to produce a mi
 
 ## `Opinionated`
 
-**MikroKit is orientated towards** a very specific scenario, that is **Apis that works with json data only**. In return it offers fast development and lightweight execution.
+**MikroKit is oriented towards** a very specific scenario, that is **Apis that works with json data only**. In return it offers fast development and lightweight execution.
 
 MikroKit opinions might not always be the best or suit every scenario, but are always taken with quick development, fast code execution and minimum abstractions in mind. _Simplicity can be the best pattern_.
 
