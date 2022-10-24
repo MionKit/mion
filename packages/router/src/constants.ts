@@ -23,21 +23,6 @@ export const DEFAULT_HOOK: Readonly<Required<Hook>> = {
     hook: () => null,
 };
 
-export const DEFAULT_EXECUTABLE: Readonly<Required<Executable>> = {
-    path: '',
-    nestLevel: 0,
-    forceRunOnError: false,
-    canReturnData: false,
-    inHeader: false,
-    fieldName: '',
-    isRoute: false,
-    handler: () => null,
-    paramValidators: [],
-    paramsDeSerializers: [],
-    outputSerializer: (a: any) => null as any,
-    src: null as any,
-};
-
 export const DEFAULT_REQUEST: Readonly<Required<MkRequest>> = {
     headers: {},
     body: '{}',

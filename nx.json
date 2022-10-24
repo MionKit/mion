@@ -18,6 +18,9 @@
     "build": {
       "dependsOn": ["^build"],
       "outputs": ["{workspaceRoot}/.dist"]
+    },
+    "clean": {
+      "dependsOn": ["^clean"]
     }
   },
   "defaultBase": "master"
