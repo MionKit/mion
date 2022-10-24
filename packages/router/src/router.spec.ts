@@ -23,7 +23,7 @@ import {APIGatewayEvent} from 'aws-lambda';
 import {StatusCodes} from './status-codes';
 
 describe('Create routes should', () => {
-    const hook: Hook = {hook() {}};
+    const hook: Hook = {hook(): void {}};
     const route1: Handler = () => 'route1';
     const route2: RouteObject = {
         route() {
@@ -129,7 +129,7 @@ describe('Create routes should', () => {
     });
 
     it('should support methods', () => {
-        function hello() {}
+        function hello(): void {}
         const routes = {
             hello,
         };
@@ -149,7 +149,7 @@ describe('Create routes should', () => {
     });
 
     it('add default values to hooks', () => {
-        const defaultHookValues = {first: {hook: () => null}};
+        const defaultHookValues = {first: {hook: (): null => null}};
         addRoutes(defaultHookValues);
 
         expect(getHookExecutable('first')).toEqual(
@@ -166,7 +166,7 @@ describe('Create routes should', () => {
     });
 
     it('add default values to routes', () => {
-        const defaultRouteValues = {sayHello: {route: () => null}};
+        const defaultRouteValues = {sayHello: {route: (): null => null}};
         addRoutes(defaultRouteValues);
 
         expect(getRouteExecutable('/sayHello')).toEqual(
@@ -237,21 +237,21 @@ describe('Create routes should', () => {
         const fieldCollision = {
             preProcess: {
                 fieldName: 'process',
-                hook: () => null,
+                hook: (): null => null,
             },
             postProcess: {
                 fieldName: 'process',
-                hook: () => null,
+                hook: (): null => null,
             },
         };
         const pathCollision = {
             sayHello1: {
                 path: 'sayHello',
-                route: () => null,
+                route: (): null => null,
             },
             sayHello2: {
                 path: 'sayHello',
-                route: () => null,
+                route: (): null => null,
             },
         };
         expect(() => addRoutes(fieldCollision)).toThrow(
@@ -319,7 +319,7 @@ describe('Create routes should', () => {
         const defaultRouteValues = {
             sayHello: (): null => null,
             asyncSayHello: async (): Promise<string> => {
-                const hello = await new Promise<string>((res, rej) => {
+                const hello = await new Promise<string>((res) => {
                     setTimeout(() => res('hello'), 50);
                 });
                 return hello;
@@ -351,15 +351,15 @@ describe('Run routes', () => {
     };
     const app = {
         cloudLogs: {
-            log: () => null,
-            error: () => null,
+            log: (): null => null,
+            error: (): null => null,
         },
         db: {
-            changeUserName: (user: SimpleUser) => ({name: 'LOREM', surname: user.surname}),
+            changeUserName: (user: SimpleUser): SimpleUser => ({name: 'LOREM', surname: user.surname}),
         },
     };
-
-    const getSharedData = () => ({auth: {me: null as any}});
+    const shared = {auth: {me: null as any}};
+    const getSharedData = (): typeof shared => shared;
 
     type App = typeof app;
     type SharedData = ReturnType<typeof getSharedData>;
@@ -437,7 +437,6 @@ describe('Run routes', () => {
             initRouter(app, getSharedData, {routeFieldName: 'apiData'});
             addRoutes({changeUserName});
 
-            const path = '/changeUserName';
             const request = getDefaultRequest('apiData', [{name: 'Leo', surname: 'Tungsten'}]);
 
             const response = await runRoute('/changeUserName', request);
@@ -453,7 +452,7 @@ describe('Run routes', () => {
                 ...getDefaultRequest(routePath, []),
             };
             const options = {
-                pathTransform: (req, path: string) => {
+                pathTransform: (req, path: string): string => {
                     // publicPath = api/v1/sayHello
                     // routePath = api/v1/GET/sayHello
                     const rPath = path.replace(options.prefix, `${options.prefix}/${req.method}`);
@@ -572,7 +571,7 @@ describe('Run routes', () => {
         it('return an unknown error if a route fails with a generic error', async () => {
             initRouter(app, getSharedData);
 
-            const routeFail: Route = (c: any) => {
+            const routeFail: Route = () => {
                 throw 'this is a generic error';
             };
             addRoutes({routeFail});

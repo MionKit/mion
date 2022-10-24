@@ -6,5 +6,6 @@
  * ######## */
 
 export * from './src/mikrokitHttp';
+export * from './src/fastHttp';
 export * from './src/types';
 export * from './src/constants';

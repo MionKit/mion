@@ -91,16 +91,16 @@ The reason for this weird naming is to future proof the router to be able to acc
 ### Example:
 
 ```js
-// packages/router/examples/routes-definition.ts
+// packages/router/examples/routes-definition.routes.ts
 
 import {Route, Handler, Routes, MkRouter} from '@mikrokit/router';
 
-const sayHello: Handler = (context, name: string) => {
+const sayHello: Handler = (context, name: string): string => {
   return `Hello ${name}.`;
 };
 
 const sayHello2: Route = {
-  route(context, name1: string, name2: string) {
+  route(context, name1: string, name2: string): string {
     return `Hello ${name1} and ${name2}.`;
   },
 };
@@ -116,12 +116,12 @@ MkRouter.addRoutes(routes);
 
 ## `Automatic Serialization & Validation`
 
-Mikrokit uses [Deepkit's runtime types](https://deepkit.io/) to automatically [validate](https://docs.deepkit.io/english/validation.html) request params and [serialize/deserialize](https://docs.deepkit.io/english/serialization.html) response data.
+Mikrokit uses [Deepkit's runtime types](https://deepkit.io/) to automatically [validate](https://docs.deepkit.io/english/validation.html) request params and [serialize/deserialize](https://docs.deepkit.io/english/serialization.html) request/response data.
 
 Thanks to Deepkit's magic the type information is available at runtime and the data is auto-magically Validated and Serialized. For more information please read deepkit's documentation:
 
-- Request [Deserialization/Validation](https://docs.deepkit.io/english/validation.html)
-- Response [Serialization](https://docs.deepkit.io/english/serialization.html)
+- Request [Validation](https://docs.deepkit.io/english/validation.html)
+- Response/Request [Serialization/Deserialization](https://docs.deepkit.io/english/serialization.html)
 
 <table>
 <tr><th>POST HTTP REQUEST</th><th>HTTP RESPONSE</th></tr>
@@ -154,6 +154,28 @@ Content-Type: application/json; charset=utf-8
 </td>
 </tr>
 </table>
+
+#### !!! IMPORTANT !!!
+
+Deepkit does not support [Type Inference](https://www.typescriptlang.org/docs/handbook/type-inference.html), `parameter types` and more importantly `return types` must be explicitly defined, so they are correctly validated/serialized.
+
+🚫 Invalid route definitions!
+
+```ts
+const myRoute1: Route = () {};
+const myRoute2: Route = () => null;
+const sayHello: Route = (context, name) => `Hello ${name}`;
+const getYser: Route = async (context, userId) => context.db.getUserById(userId);
+```
+
+✅ Valid route definitions!
+
+```ts
+const myRoute1: Route = (): void {};
+const myRoute2: Route = (): null => null;
+const sayHello: Route = (context: Context, name:string): string => `Hello ${name}`;
+const getYser: Route = async (context: Context, userId:number): Promise<User> => context.db.getUserById(userId);
+```
 
 ## `Quick start`
 

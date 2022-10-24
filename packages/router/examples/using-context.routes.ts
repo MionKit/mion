@@ -4,13 +4,14 @@ import {someDbDriver} from 'someDbDriver';
 import {cloudLogs} from 'MyCloudLogLs';
 
 const app = {cloudLogs, db: someDbDriver};
-const getSharedData = () => ({auth: {me: null}});
+const shared = {auth: {me: null}};
+const getSharedData = (): typeof shared => shared;
 
 type App = typeof app;
 type SharedData = ReturnType<typeof getSharedData>;
 type CallContext = Context<App, SharedData, APIGatewayEvent>;
 
-const getMyPet = async (context: CallContext) => {
+const getMyPet = async (context: CallContext): Promise<Pet> => {
     // use of context inside handlers
     const user = context.shared.auth.me;
     const pet = context.app.db.getPetFromUser(user);

@@ -5,7 +5,7 @@ type MyHook = Hook & {shouldLog: boolean};
 
 const someRoute: MyRoute = {
     doNotFail: true,
-    route: () => {
+    route: (): void => {
         if (someRoute.doNotFail) {
             // do something
         } else {
@@ -16,7 +16,7 @@ const someRoute: MyRoute = {
 
 const someHook: MyHook = {
     shouldLog: false,
-    hook: (context) => {
+    hook: (context): void => {
         if (someHook.shouldLog) {
             context.app.cloudLogs.log('hello');
         } else {
