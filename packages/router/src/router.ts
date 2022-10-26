@@ -467,6 +467,8 @@ const getExecutableFromHook = (hook: Hook, path: string, nestLevel: number, key:
         paramsDeSerializers: getParamsDeserializer(handler, routerOptions, handlerType),
         outputSerializer: getOutputSerializer(handler, routerOptions, handlerType),
         isAsync: isAsyncHandler(handler, handlerType),
+        enableValidation: hook.enableValidation ?? routerOptions.enableValidation,
+        enableSerialization: hook.enableSerialization ?? routerOptions.enableSerialization,
         src: hook,
     };
     delete (executable as any).hook;
@@ -500,6 +502,8 @@ const getExecutableFromRoute = (route: Route, path: string, nestLevel: number) =
         paramsDeSerializers: getParamsDeserializer(handler, routerOptions),
         outputSerializer: getOutputSerializer(handler, routerOptions),
         isAsync: isAsyncHandler(handler, handlerType),
+        enableValidation: (route as RouteObject).enableValidation ?? routerOptions.enableValidation,
+        enableSerialization: (route as RouteObject).enableSerialization ?? routerOptions.enableSerialization,
         src: routeObj,
     };
     delete (executable as any).route;

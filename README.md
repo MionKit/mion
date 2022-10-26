@@ -2,10 +2,7 @@
   <img alt='MikroKit, a mikro kit for Typescript Serverless APIs' src='./assets/public/logo.svg?raw=true' width="403" height="150">
 </p>
 <p align="center">
-  <strong>Minimal kit for Serverless APIs written in Typescript.</strong><br/>
-  Built on top of
-    <a href='https://www.typescriptlang.org/' target='_blank'>Serverless Framework</a> and
-    <a href='https://deepkit.io/' target='_blank'>Deepkit</a>.
+  <strong>Build Serverless Apis at the speed of light.</strong><br/>.
 </p>
 
 <p align=center>
@@ -36,7 +33,7 @@ MikroKit opinions might not always be the best or suit every scenario, but are a
 
 - Convention over configuration.
 - Prioritizes developer friendliness and performance over existing conventions.
-- Tightly Integration between Routing + Data (Aka the MikroKit way).
+<!-- - Tightly Integration between Routing + Data (Aka the MikroKit way). -->
 
 ## `Features`
 
@@ -45,9 +42,9 @@ MikroKit opinions might not always be the best or suit every scenario, but are a
 
 - ✅ RPC Like Routing
 - ✅ Automatic Validation and Serialization
-- 🛠️ [Postgres.js](https://github.com/porsager/postgres) for quick DataBase access with great support for types, (No DataBase access abstraction).
+<!-- - 🛠️ [Postgres.js](https://github.com/porsager/postgres) for quick DataBase access with great support for types, (No DataBase access abstraction).
 - 🛠️ Base Models with CRUD & Filters operations
-- 🛠️ Access Control List _<sup>(linux-like)</sup>_
+- 🛠️ Access Control List _<sup>(linux-like)</sup>_ -->
 - 🛠️ Automatic Typescript client generation.
 
 #### !! MikroKit is currently under heavy development
@@ -86,7 +83,7 @@ Thanks to it's RPC style there is no need to parse parameters or regular express
 
 The reason for this weird naming is to future proof the router to be able to accept multiple routes on a single request. However this can be changed setting the `routeFieldName` in the router options.
 
-📚 [Full router documentation here!](./packages/router/README.md)
+📋 [Full router documentation here!](./packages/router/README.md)
 
 ### Example:
 
@@ -196,11 +193,12 @@ const getYser: Route = async (context: Context, userId:number): Promise<User> =>
 
 #### You can use MikroKit base project.
 
+<!--
 ```sh
 npx degit https://github.com/mikrokit/mikrokit-base
 ```
 
-#### Or manually intall in your own project
+#### Or manually intall in your own project -->
 
 Some steps are required to be able to use deepkit runtime types, [docs here](https://docs.deepkit.io/english/runtime-types.html#runtime-types-installation).
 
@@ -225,11 +223,11 @@ npm install --save @deepkit/type
 npm install --save-dev @deepkit/type-compiler @deepkit/core
 ```
 
-Install MikroKit CLI.
+<!-- Install MikroKit CLI.
 
 ```sh
 npm install mikrokit
-```
+``` -->
 
 ## `Contributing`
 
@@ -237,22 +235,22 @@ The software is provided as it is without guarantees. If you want something done
 
 ### Monorepo
 
-This project is a monorepo managed using npm [workspaces](https://docs.npmjs.com/cli/v7/using-npm/workspaces). (`npm >= 7` required)
+This project is a monorepo managed using npm [workspaces](https://docs.npmjs.com/cli/v7/using-npm/workspaces). (`npm >= 7` required), [NX](https://nx.dev/) and [Lerna](https://lerna.js.org/)
 
 **_!! ALL Dev Dependencies mus be installed in root package !!_**
 
 Each package within this monorepo is compiled using and tested individually using typescript and [jest](https://jestjs.io/).
-To run an npm command in a workspace, append `-w @mikrokit/<name>` to the command.
+To run an npm command in a workspace, `npx nx run <package>:<npm-script>`, i.e: `npx nx run @mikrokit/router:build`
 
 ```sh
-## run jest tests
-npm run test -w @mikrokit/router
+## run jest tests in @mikrokit/router
+npx nx run @mikrokit/router:test
 
-## compiles typescript
-npm run dev -w @mikrokit/router
+## compiles typescript in @mikrokit/router
+npx nx run @mikrokit/router:build
 
-## run jest unit tests
-npm run dev:test -w @mikrokit/router
+## build all packages (NX will build only whats required)
+npx nx run-many --target=build
 ```
 
 ### ESLint and Prettier
@@ -264,21 +262,16 @@ Run bellow command to automatically format all typescript files and check Lint e
 npm run format && npm run lint
 ```
 
-### Build
-
-Build must be done mostly on CI environment, be sure to remove any `.dist` folder or typescript will get types from the build types definitions files instead the source code and wont get lates updates from the other packages.
-
-```
-npm run build
-```
-
 ### Powered by:
 
-- [Serverless Framework](https://www.serverless.com/)
-- [AWS Cognito](https://aws.amazon.com/cognito/)
+- [Typescript](https://www.typescriptlang.org/)
 - [Deepkit](https://deepkit.io/)
-- [Postgres.js](https://github.com/porsager/postgres)
+  <!-- - [Serverless Framework](https://www.serverless.com/)  -->
+  <!-- - [AWS Cognito](https://aws.amazon.com/cognito/) -->
+  <!-- - [Postgres.js](https://github.com/porsager/postgres) -->
 
-![powered by: aws, deepkit, serverless, postgres.js, mikrokit](./assets/public/tech-stack-830x100.png?raw=true) &nbsp;&nbsp;
+<!-- ![powered by: deepkit, serverless, mikrokit](./assets/public/tech-stack-830x100.png?raw=true) &nbsp;&nbsp; -->
+
+---
 
 _License: [MIT](./LICENSE)_
