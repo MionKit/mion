@@ -39,7 +39,7 @@ Thanks to it's RPC style there is no need to parse parameters or regular express
 
 The reason for this weird naming is to future proof the router to be able to accept multiple routes on a single request. However this can be changed setting the `routeFieldName` in the router options.
 
-### 📚 [Please read full router documentation here!](./packages/router/README.md)
+### 📋 [Please read full router documentation here!](./packages/router/README.md)
 
 ```js
 // ../router/examples/routes-definition.routes.ts
@@ -47,31 +47,31 @@ The reason for this weird naming is to future proof the router to be able to acc
 import {Route, Handler, Routes, MkRouter} from '@mikrokit/router';
 
 const sayHello: Handler = (context, name: string): string => {
-    return `Hello ${name}.`;
+  return `Hello ${name}.`;
 };
 
 const sayHello2: Route = {
-    route(context, name1: string, name2: string): string {
-        return `Hello ${name1} and ${name2}.`;
-    },
+  route(context, name1: string, name2: string): string {
+    return `Hello ${name1} and ${name2}.`;
+  },
 };
 
 const routes: Routes = {
-    sayHello, // api/sayHello
-    sayHello2, // api/sayHello2
+  sayHello, // api/sayHello
+  sayHello2, // api/sayHello2
 };
 
 MkRouter.setRouterOptions({prefix: 'api/'});
 MkRouter.addRoutes(routes);
-
 ```
 
+<!--
 ## AWS Lambda
 
 ## Azure Functions
 
-## Google Cloud Functions
+## Google Cloud Functions -->
 
-## &nbsp;
+---
 
 _[MIT](../../LICENSE) LICENSE_
