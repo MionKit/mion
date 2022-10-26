@@ -39,6 +39,8 @@
     "url": "https://github.com/mikrokit/mikrokit/issues"
   },
   "dependencies": {
-    "@mikrokit/http": "^0.1.0"
+    "@deepkit/framework": "^1.0.1-alpha.75",
+    "@mikrokit/http": "^0.1.0",
+    "ts-node": "^10.9.1"
   }
 }

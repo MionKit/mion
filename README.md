@@ -123,32 +123,47 @@ Thanks to Deepkit's magic the type information is available at runtime and the d
 - Request [Validation](https://docs.deepkit.io/english/validation.html)
 - Response/Request [Serialization/Deserialization](https://docs.deepkit.io/english/serialization.html)
 
+#### Request Validation examples
+
 <table>
-<tr><th>POST HTTP REQUEST</th><th>HTTP RESPONSE</th></tr>
+<tr><th>Code</th><th>POST Request <code>/users/getUser</code></th></tr>
 <tr>
 <td>
 
-```yml
-PATH: /api/v1/sayHello
+```ts
+// examples/get-user-request.routes.ts
 
-# HEADERS
-Accept: application/json
+import {Route, Routes, MkRouter} from '@mikrokit/router';
 
-# BODY
-{"/api/v1/users/getUser": ["John"]}
+const getUser: Route = async (context: any, entity: {id: number}): Promise<User> => {
+  const user = await context.db.getUserById(entity.id);
+  return user;
+};
+
+const routes: Routes = {
+  users: {
+    getUser, // api/users/getUser
+  },
+};
+
+MkRouter.addRoutes(routes);
 ```
 
 </td>
 <td>
 
 ```yml
-PATH: /api/v1/sayHello
+# VALID REQUEST BODY
+{ "/users/getUser": [ {"id" : 1} ]}
 
-# HEADERS
-Content-Type: application/json; charset=utf-8
+# INVALID REQUEST BODY (user.id is not a number)
+{"/users/getUser": [ {"id" : "1"} ]}
 
-# BODY
-{"/api/v1/sayHello": "Hello John"}
+# INVALID REQUEST BODY (missing parameter user.id)
+{"/users/getUser": [ {"ID" : 1} ]}
+
+# INVALID REQUEST BODY (missing parameters)
+{"/users/getUser": []}
 ```
 
 </td>
