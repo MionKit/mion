@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {initHttpBenchmarkOnlyDoNotUse, initHttpApp} from '@mikrokit/http';
+import {initHttpApp} from '@mikrokit/http';
 import {MkRouter, RouterOptions, Routes, Route} from '@mikrokit/router';
 
 interface User {
@@ -37,10 +37,6 @@ export const routes: Routes = {
 
 export const initHttp = (options: Partial<RouterOptions>) => {
     return initHttpApp<App, Shared>(app, undefined, options);
-};
-
-export const initHttpBenchmarkOnly = (options: Partial<RouterOptions>) => {
-    return initHttpBenchmarkOnlyDoNotUse<App, Shared>(app, undefined, options);
 };
 
 export const addRoutes = (rts: typeof routes) => MkRouter.addRoutes(rts);

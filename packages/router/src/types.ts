@@ -29,6 +29,10 @@ export type RouteObject = {
     path?: string;
     /** description of the route, mostly for documentation purposes */
     description?: string;
+    /** enable automatic parameter validation, defaults to true */
+    enableValidation?: boolean;
+    /** Enables serialization/deserialization */
+    enableSerialization?: boolean;
     /** Route Handler */
     route: Handler;
 };
@@ -48,6 +52,10 @@ export type Hook = {
     fieldName?: string;
     /** Description of the route, mostly for documentation purposes */
     description?: string;
+    /** enable automatic parameter validation, defaults to true */
+    enableValidation?: boolean;
+    /** Enables serialization/deserialization */
+    enableSerialization?: boolean;
     /** Hook handler */
     hook: Handler;
 };
@@ -113,6 +121,8 @@ export type Executable = {
     handlerType: Type;
     isAsync: boolean;
     src?: Route | Hook;
+    enableValidation: boolean;
+    enableSerialization: boolean;
 };
 
 // ####### RESPONSE & RESPONSE #######

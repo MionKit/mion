@@ -5,13 +5,15 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {Executable, Hook, MkRequest, RouteObject, RouterOptions} from './types';
+import {Hook, MkRequest, RouteObject, RouterOptions} from './types';
 
 export const ROUTE_PATH_ROOT = '/';
 
 export const DEFAULT_ROUTE: Readonly<Required<RouteObject>> = {
     path: '',
     description: '',
+    enableValidation: true,
+    enableSerialization: true,
     route: () => null,
 };
 export const DEFAULT_HOOK: Readonly<Required<Hook>> = {
@@ -20,6 +22,8 @@ export const DEFAULT_HOOK: Readonly<Required<Hook>> = {
     inHeader: false,
     fieldName: '',
     description: '',
+    enableValidation: true,
+    enableSerialization: true,
     hook: () => null,
 };
 
