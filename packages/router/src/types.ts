@@ -178,9 +178,7 @@ export type Context<
     responseErrors: MkError[];
     /**
      * list of internal errors.
-     * log is quite expensive so all errors will be logged at once at the end of the request;
-     * error thrown by hooks and routes are automatically catch and added here.
-     * application error like data not found etc should not be logged here.
+     * As router has no logging all errors are stored here so can be managed in a hook or externally
      */
     internalErrors: (MkError | any)[];
     /** parsed request.body */

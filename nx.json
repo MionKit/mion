@@ -3,24 +3,32 @@
     "default": {
       "runner": "nx/tasks-runners/default",
       "options": {
-        "cacheableOperations": ["test", "lint", "format", "build"]
+        "cacheableOperations": ["test", "lint", "format", "build", "build:csj", "build:esm"]
       }
     }
   },
   "targetDefaults": {
     "lint": {
-      "dependsOn": ["^lint"]
+      "dependsOn": []
     },
     "test": {
-      "dependsOn": ["^test"],
+      "dependsOn": [],
       "outputs": ["{workspaceRoot}/.coverage"]
+    },
+    "build:csj": {
+      "dependsOn": ["^build:csj"],
+      "outputs": ["{workspaceRoot}/.dist/csj"]
+    },
+    "build:esm": {
+      "dependsOn": ["^build:esm"],
+      "outputs": ["{workspaceRoot}/.dist/esm"]
     },
     "build": {
       "dependsOn": ["^build"],
       "outputs": ["{workspaceRoot}/.dist"]
     },
     "clean": {
-      "dependsOn": ["^clean"]
+      "dependsOn": []
     }
   },
   "defaultBase": "master"

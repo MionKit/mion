@@ -58,10 +58,6 @@ export const geRoutesSize = () => flatRouter.size;
 export const getRouteExecutable = (path: string) => routesByPath.get(path);
 export const getHookExecutable = (fieldName: string) => hooksByFieldName.get(fieldName);
 export const geHooksSize = () => hooksByFieldName.size;
-export const forceConsoleLogs = () => {
-    if (!IS_TEST_ENV) throw 'forceConsoleLogs can be called only from test envs';
-    forceConsole = true;
-};
 export const getComplexity = () => complexity;
 export const getRouterOptions = () => routerOptions;
 export const setRouterOptions = <ServerReq extends MkRequest = MkRequest>(routerOptions_?: Partial<RouterOptions<ServerReq>>) => {
@@ -192,9 +188,6 @@ export const runRoute_ = async <
 
     const respBody = context.responseErrors.length ? {errors: context.responseErrors} : context.reply.body;
 
-    // if (forceConsole && context.internalErrors) console.error(`route ${transformedPath}`, ...context.internalErrors);
-    // else if (forceConsole) console.error(`route ${transformedPath}`, context.reply.headers, context.reply.body);
-
     return {
         statusCode: context.responseErrors.length ? context.responseErrors[0].statusCode : StatusCodes.OK,
         headers: context.reply.headers,
@@ -244,48 +237,49 @@ const getValidatedHandlerParams = <
         if (typeof params === 'string') return [params];
         else if (Array.isArray(params)) return [params.join(',')]; // node http headers could be an array of strings
         else
-            throw context.responseErrors.push({
+            throw {
                 statusCode: StatusCodes.BAD_REQUEST,
                 message: `Invalid header '${fieldName}'. No header found with that name.`,
-            });
+            };
     }
 
     // defaults to an empty array if required field is omitted from body
     params = context.request.body[fieldName] ?? [];
 
     if (!Array.isArray(params))
-        throw context.responseErrors.push({
+        throw {
             statusCode: StatusCodes.BAD_REQUEST,
             message: `Invalid input '${fieldName}'. input parameters can only be sent in an array.`,
-        });
+        };
 
     // if there are no params input field can be omitted
     if (!params.length && !executable.paramsDeSerializers.length) return params;
 
     if (params.length !== executable.paramValidators.length)
-        throw context.responseErrors.push({
+        throw {
             statusCode: StatusCodes.BAD_REQUEST,
             message: `Invalid input '${fieldName}', missing or invalid number of input parameters`,
-        });
+        };
 
     if (routerOptions.enableSerialization) {
         try {
             params = deserializeParams(executable, params);
         } catch (e) {
-            throw context.responseErrors.push({
+            throw {
                 statusCode: StatusCodes.BAD_REQUEST,
                 message: `Invalid input '${fieldName}', can not deserialize. Parameters might be of the wrong type.`,
-            });
+            };
         }
     }
 
     if (routerOptions.enableValidation) {
         const errors = validateParams(executable, params);
-        if (errors?.length)
-            throw context.responseErrors.push({
+        if (errors?.length) {
+            throw {
                 statusCode: StatusCodes.BAD_REQUEST,
-                message: `Invalid input '${fieldName}', can not validate parameters.`,
-            });
+                message: errors.map((err) => err.message).join(' | '),
+            };
+        }
     }
 
     return params;
@@ -318,7 +312,6 @@ let complexity = 0;
 let app: MapObj | undefined;
 let sharedDataFactory: SharedDataFactory<any> | undefined;
 // let contextType: Type | undefined;
-let forceConsole = false;
 let routerOptions: RouterOptions = {
     ...DEFAULT_ROUTE_OPTIONS,
 };

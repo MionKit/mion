@@ -74,7 +74,7 @@ describe('serverless router should', () => {
         expect(headers['server']).toEqual('@mikrokit/http');
     });
 
-    it('should get an ok response from a route', async () => {
+    it('should get an error when sending invalid parameters', async () => {
         const requestData = {'/api/getDate': ['NOT A DATE POINT']};
         const response = await fetch(`http://127.0.0.1:${port}/api/getDate`, {
             method: 'POST',
