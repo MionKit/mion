@@ -2,7 +2,7 @@
   <img alt='MikroKit, a mikro kit for Typescript Serverless APIs' src='./assets/public/logo.svg?raw=true' width="403" height="150">
 </p>
 <p align="center">
-  <strong>Build Serverless Apis at the speed of light.</strong><br/>.
+  <strong>Build serverless Apis at the speed of light with typescript.</strong><br/>.
 </p>
 
 <p align=center>

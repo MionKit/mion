@@ -1,6 +1,7 @@
 {
   "name": "@mikrokit/cli",
   "version": "0.1.0",
+  "private": true,
   "description": "mikrokit command line tool",
   "keywords": [
     "cli",
