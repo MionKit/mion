@@ -4,7 +4,7 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
-import {Context, Hook, MkRequest, Route, StatusCodes, MkRouter} from '@mikrokit/router';
+import {Route, MkRouter} from '@mikrokit/router';
 import fetch from 'node-fetch'; // must be node-fetch v2 as v3 is a node module non compatible whit current setup
 import {initHttpApp} from './mikrokitHttp';
 

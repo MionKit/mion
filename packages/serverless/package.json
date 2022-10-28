@@ -13,13 +13,13 @@
   "author": "ma jerez <jerez.m82@gmail.com>",
   "homepage": "https://github.com/mikrokit/mikrokit/tree/main/packages/serverless#readme",
   "license": "MIT",
-  "main": ".dist/cjs/index.js",
-  "module": ".dist/esm/index.js",
-  "types": ".dist/cjs/index.d.ts",
+  "main": "./.dist/cjs/index.js",
+  "module": "./.dist/esm/index.js",
+  "types": "./.dist/cjs/index.d.ts",
   "exports": {
     ".": {
-      "require": ".dist/cjs/index.js",
-      "default": ".dist/esm/index.js"
+      "require": "./.dist/cjs/index.js",
+      "default": "./.dist/esm/index.js"
     }
   },
   "directories": {
