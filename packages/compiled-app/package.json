@@ -24,8 +24,7 @@
     }
   },
   "directories": {
-    "lib": ".dist",
-    "test": "__tests__"
+    "lib": ".dist"
   },
   "files": [
     ".dist"
@@ -42,7 +41,7 @@
     "format": "prettier --write src/**/*.ts",
     "build:csj": "rimraf .dist/csj && tsc --build tsconfig.build.json",
     "build:esm": "rimraf .dist/esm && tsc --build tsconfig.build-esm.json",
-    "build": "npm run build:csj && npm run build:csj",
+    "build": "npm run build:csj && npm run build:esm",
     "clean": "rimraf .dist"
   },
   "bugs": {

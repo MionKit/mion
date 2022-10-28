@@ -5,6 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
+import {MkHeaders} from '@mikrokit/router';
 import {IncomingMessage, ServerResponse} from 'http';
 import {ServerOptions} from 'https';
 
@@ -14,7 +15,7 @@ export type HttpOptions = {
     /** ServerOptions.maxHeaderSize defaults to 8KB, same as default value in new node versions */
     options: ServerOptions;
     /** Set of default response header to add to every response*/
-    defaultResponseHeaders: {[key: string]: string};
+    defaultResponseHeaders: MkHeaders;
     /**
      * 256KB by default, same as lambda payload
      * @link https://docs.aws.amazon.com/lambda/latest/operatorguide/payload.html

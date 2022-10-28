@@ -16,8 +16,7 @@
   "main": ".dist/cli.js",
   "types": ".dist/cli.d.ts",
   "directories": {
-    "lib": ".dist",
-    "test": "__tests__"
+    "lib": ".dist"
   },
   "files": [
     ".dist"

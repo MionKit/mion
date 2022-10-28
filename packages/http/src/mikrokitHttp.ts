@@ -5,18 +5,32 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {Context, MapObj, MkError, MkRequest, MkRouter, RouterOptions, SharedDataFactory, StatusCodes} from '@mikrokit/router';
+import {
+    Context,
+    MapObj,
+    RouteError,
+    MkHeaders,
+    MkRequest,
+    MkRouter,
+    PublicError,
+    RouterOptions,
+    SharedDataFactory,
+    StatusCodes,
+} from '@mikrokit/router';
+import {getRouterOptions} from '@mikrokit/router/src/router';
 import {createServer as createHttp, IncomingMessage, RequestListener, Server as HttpServer, ServerResponse} from 'http';
 import {createServer as createHttps, Server as HttpsServer} from 'https';
 import {DEFAULT_HTTP_OPTIONS} from './constants';
 import {HttpOptions} from './types';
 
 type Logger = typeof console | undefined;
+type HeadersEntries = [string, string | boolean | number][];
 
 let httpOptions: HttpOptions = {
     ...DEFAULT_HTTP_OPTIONS,
 };
-const defaultResponseHeaders: {key: string; value: string}[] = [];
+let routerOptions_: RouterOptions;
+let defaultResponseHeaders: HeadersEntries = [];
 
 export type HttpRequest = IncomingMessage & {body: string};
 export type HttpCallContext<App extends MapObj, SharedData extends MapObj> = Context<App, SharedData, HttpRequest>;
@@ -26,8 +40,9 @@ export const initHttpApp = <App extends MapObj, SharedData extends MapObj>(
     handlersDataFactory?: SharedDataFactory<SharedData>,
     routerOptions?: Partial<RouterOptions<HttpRequest>>,
 ) => {
-    type CallContext = HttpCallContext<App, SharedData>;
+    type CallContext = Readonly<HttpCallContext<App, SharedData>>;
     MkRouter.initRouter(app, handlersDataFactory, routerOptions);
+    routerOptions_ = getRouterOptions();
     const emptyContext: CallContext = {} as CallContext;
     return {emptyContext, startHttpServer, MkRouter};
 };
@@ -38,7 +53,7 @@ const startHttpServer = async (httpOptions_: Partial<HttpOptions> = {}): Promise
         ...httpOptions_,
     };
 
-    Object.entries(httpOptions.defaultResponseHeaders).forEach(([key, value]) => defaultResponseHeaders.push({key, value}));
+    defaultResponseHeaders = Object.entries(httpOptions.defaultResponseHeaders);
 
     const logger = httpOptions_.logger;
 
@@ -98,6 +113,7 @@ const httpRequestHandler: RequestListener = (httpReq: IncomingMessage, httpRespo
         MkRouter.runRoute_(path, {req: httpReq as any as MkRequest})
             .then((routeReply) => {
                 if (hasError) return;
+                addResponseHeaders(httpResponse, routeReply.headers);
                 reply(httpResponse, logger, routeReply.json, routeReply.statusCode);
             })
             .catch((e) => {
@@ -116,37 +132,38 @@ const httpRequestHandler: RequestListener = (httpReq: IncomingMessage, httpRespo
     });
 
     httpResponse.setHeader('server', '@mikrokit/http');
-    httpResponse.setHeader('content-type', 'application/json; charset=utf-8');
+    httpResponse.setHeader('content-type', routerOptions_.responseContentType);
     // here we could check that the client accepts application/json as response and abort
     // but this is gonna be true 99.999% of the time so is better to continue without checking it
-    if (defaultResponseHeaders.length) defaultResponseHeaders.forEach(({key, value}) => httpResponse.setHeader(key, value));
+    addResponseHeaderEntries(httpResponse, defaultResponseHeaders);
 };
 
-const reply = (
-    httpResponse: ServerResponse,
-    logger: Logger,
-    json: string,
-    statusCode: number,
-    statusMessage?: string,
-    err?: Error,
-) => {
+const reply = (httpResponse: ServerResponse, logger: Logger, json: string, statusCode: number, statusMessage?: string) => {
     if (httpResponse.writableEnded) {
         if (logger) {
-            const mkError: MkError = {statusCode, message: statusMessage || 'no status message'};
-            logger.error({statusCode: 0, message: 'response has ended but server is still trying to reply'}, mkError, json, err);
+            const mkError: RouteError = new RouteError(statusCode, 'response has ended but server is still trying to reply');
+            logger.error(mkError);
         }
         return;
     }
     if (statusMessage) httpResponse.statusMessage = statusMessage;
     httpResponse.statusCode = statusCode;
     httpResponse.setHeader('content-length', json.length);
-    httpResponse.write(json);
-    httpResponse.end();
+    httpResponse.end(json);
 };
 
 const replyError = (httpResponse: ServerResponse, logger: Logger, statusCode: number, statusMessage: string, e?: Error) => {
-    const mkError: MkError = {statusCode, message: statusMessage};
-    if (logger) e ? logger.error(mkError, e) : logger.error(mkError);
-    const jsonBody = JSON.stringify({errors: [mkError]});
-    reply(httpResponse, logger, jsonBody, statusCode, statusMessage, e);
+    const publicError: PublicError = {statusCode, message: statusMessage};
+    if (logger) e ? logger.error(publicError, e) : logger.error(publicError);
+    const jsonBody = JSON.stringify({errors: [publicError]});
+    reply(httpResponse, logger, jsonBody, statusCode, statusMessage);
+};
+
+const addResponseHeaders = (httpResponse: ServerResponse, headers: MkHeaders) => {
+    Object.entries(headers).forEach(([key, value]) => httpResponse.setHeader(key, `${value}`));
+};
+
+const addResponseHeaderEntries = (httpResponse: ServerResponse, headerEntries: HeadersEntries) => {
+    if (!headerEntries.length) return;
+    headerEntries.forEach(([key, value]) => httpResponse.setHeader(key, `${value}`));
 };

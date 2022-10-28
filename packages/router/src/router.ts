@@ -6,7 +6,7 @@
  * ######## */
 
 import {join} from 'path';
-import {DEFAULT_ROUTE, DEFAULT_ROUTE_OPTIONS, IS_TEST_ENV, MAX_ROUTE_NESTING, ROUTE_PATH_ROOT} from './constants';
+import {DEFAULT_ROUTE, DEFAULT_ROUTE_OPTIONS, MAX_ROUTE_NESTING, ROUTE_PATH_ROOT} from './constants';
 import {
     Executable,
     Handler,
@@ -26,7 +26,9 @@ import {
     SharedDataFactory,
     MkResponse,
     ServerCall,
-    MkError,
+    RouteError,
+    Mutable,
+    PublicError,
 } from './types';
 import {StatusCodes} from './status-codes';
 import {
@@ -47,9 +49,6 @@ type RoutesWithId = {
 // ############# PUBLIC METHODS #############
 
 export const addRoutes = (routes: Routes) => {
-    // TODO: Not sure if bellow code is required. using the wrong context type is a big fail and should be catch during dev
-    // TODO: fix should be just to use correct context type
-    // if (!contextType) throw 'Context needs to be defined before adding routes';
     recursiveFlatRoutes(routes);
 };
 export const getRouteExecutionPath = (path: string) => flatRouter.get(path);
@@ -99,7 +98,7 @@ export const initRouter = <
     handlersDataFactory_?: SharedDataFactory<SharedData>,
     routerOptions_?: Partial<RouterOptions<ServerReq>>,
 ) => {
-    if (app) throw 'Context has been already defined';
+    if (app) throw new Error('Context has been already defined');
     app = app_;
     sharedDataFactory = handlersDataFactory_;
     setRouterOptions(routerOptions_);
@@ -132,21 +131,23 @@ export const runRoute_ = async <
     path: string,
     serverCall: AnyServerCall,
 ): Promise<MkResponse> => {
-    if (!app) throw 'Context has not been defined';
+    if (!app) throw new Error('Context has not been defined');
     const transformedPath = routerOptions.pathTransform ? routerOptions.pathTransform(serverCall.req, path) : path;
     const context: Context<App, SharedData, ServerReq, AnyServerCall> = {
         app: app as Readonly<App>, // static context
-        server: serverCall,
+        serverCall: serverCall,
         path: transformedPath,
         request: {
             headers: serverCall.req.headers || {},
             body: {},
         },
-        reply: {
+        response: {
+            statusCode: StatusCodes.OK,
+            errors: [],
             headers: {},
             body: {},
+            json: '',
         },
-        responseErrors: [],
         internalErrors: [],
         shared: sharedDataFactory?.() || {},
     };
@@ -154,15 +155,14 @@ export const runRoute_ = async <
     const executionPath = getRouteExecutionPath(transformedPath) || [];
 
     if (!executionPath.length) {
-        const notFound = {statusCode: StatusCodes.NOT_FOUND, message: 'Route not found'};
-        context.responseErrors.push(notFound);
-        context.internalErrors.push(notFound);
+        const notFound = new RouteError(StatusCodes.NOT_FOUND, 'Route not found');
+        handleRouteErrors(context, notFound, 0);
     } else {
         parseRequestBody(context);
         // ### runs execution path
         for (let index = 0; index < executionPath.length; index++) {
             const executable = executionPath[index];
-            if (context.responseErrors.length && !executable.forceRunOnError) continue;
+            if (context.response.errors.length && !executable.forceRunOnError) continue;
 
             try {
                 const handlerParams = getValidatedHandlerParams(context, executable);
@@ -175,26 +175,19 @@ export const runRoute_ = async <
                     const result = executable.handler(context, ...handlerParams);
                     serializeResponse(context, executable, result);
                 }
-            } catch (err: any | MkError | Error) {
-                const handlerError = {
-                    statusCode: err.statusCode || StatusCodes.INTERNAL_SERVER_ERROR,
-                    message: err.message || `Unknown error in step ${index} of execution path.`,
-                };
-                context.responseErrors.push(handlerError);
-                if (handlerError.statusCode >= 400) context.internalErrors.push(err);
+            } catch (err: any | RouteError | Error) {
+                handleRouteErrors(context, err, index);
             }
         }
     }
 
-    const respBody = context.responseErrors.length ? {errors: context.responseErrors} : context.reply.body;
+    const respBody: MapObj = context.response.body;
+    if (context.response.errors.length) {
+        respBody.errors = context.response.errors;
+    }
+    (context.response.json as Mutable<string>) = routerOptions.bodyParser.stringify(respBody);
 
-    return {
-        statusCode: context.responseErrors.length ? context.responseErrors[0].statusCode : StatusCodes.OK,
-        headers: context.reply.headers,
-        data: context.reply.body,
-        errors: context.responseErrors,
-        json: routerOptions.jsonParser.stringify(respBody),
-    } as MkResponse;
+    return context.response;
 };
 
 const parseRequestBody = <
@@ -205,18 +198,31 @@ const parseRequestBody = <
 >(
     context: Context<App, SharedData, ServerReq, AnyServerCall>,
 ) => {
-    if (!context.server.req.body || context.server.req.body === '{}') return;
+    if (!context.serverCall.req.body || context.serverCall.req.body === '{}') return;
     try {
-        if (typeof context.server.req.body === 'string') {
-            const parsedBody = routerOptions.jsonParser.parse(context.server.req.body);
-            if (typeof parsedBody !== 'object') throw 'wrong body type, only objects allowed';
-            context.request.body = parsedBody;
+        if (typeof context.serverCall.req.body === 'string') {
+            const parsedBody = routerOptions.bodyParser.parse(context.serverCall.req.body);
+            if (typeof parsedBody !== 'object')
+                throw new RouteError(
+                    StatusCodes.BAD_REQUEST,
+                    'Wrong parsed body type. Expecting an object containing the route name and parameters.',
+                );
+            (context.request as Mutable<MapObj>).body = parsedBody;
+        } else if (typeof context.serverCall.req.body === 'object') {
+            // lets assume the body has been already parsed
+            (context.request as Mutable<MapObj>).body = context.serverCall.req.body;
         } else {
-            context.request.body = context.server.req.body || {};
+            throw new RouteError(StatusCodes.BAD_REQUEST, 'Wrong request.body, only strings allowed.');
         }
     } catch (err: any) {
-        context.responseErrors.push({statusCode: StatusCodes.BAD_REQUEST, message: 'Invalid request body'});
-        context.internalErrors.push(err);
+        if (!(err instanceof RouteError)) {
+            handleRouteErrors(
+                context,
+                new RouteError(StatusCodes.BAD_REQUEST, `Invalid request body: ${err?.message || 'unknown parsing error.'}`),
+                0,
+            );
+        }
+        handleRouteErrors(context, err, 0);
     }
 };
 
@@ -236,49 +242,42 @@ const getValidatedHandlerParams = <
         params = context.request.headers[fieldName];
         if (typeof params === 'string') return [params];
         else if (Array.isArray(params)) return [params.join(',')]; // node http headers could be an array of strings
-        else
-            throw {
-                statusCode: StatusCodes.BAD_REQUEST,
-                message: `Invalid header '${fieldName}'. No header found with that name.`,
-            };
+        else throw new RouteError(StatusCodes.BAD_REQUEST, `Invalid header '${fieldName}'. No header found with that name.`);
     }
 
     // defaults to an empty array if required field is omitted from body
     params = context.request.body[fieldName] ?? [];
 
     if (!Array.isArray(params))
-        throw {
-            statusCode: StatusCodes.BAD_REQUEST,
-            message: `Invalid input '${fieldName}'. input parameters can only be sent in an array.`,
-        };
+        throw new RouteError(
+            StatusCodes.BAD_REQUEST,
+            `Invalid input '${fieldName}'. input parameters can only be sent in an array.`,
+        );
 
     // if there are no params input field can be omitted
     if (!params.length && !executable.paramsDeSerializers.length) return params;
 
     if (params.length !== executable.paramValidators.length)
-        throw {
-            statusCode: StatusCodes.BAD_REQUEST,
-            message: `Invalid input '${fieldName}', missing or invalid number of input parameters`,
-        };
+        throw new RouteError(
+            StatusCodes.BAD_REQUEST,
+            `Invalid input '${fieldName}', missing or invalid number of input parameters`,
+        );
 
     if (routerOptions.enableSerialization) {
         try {
             params = deserializeParams(executable, params);
         } catch (e) {
-            throw {
-                statusCode: StatusCodes.BAD_REQUEST,
-                message: `Invalid input '${fieldName}', can not deserialize. Parameters might be of the wrong type.`,
-            };
+            throw new RouteError(
+                StatusCodes.BAD_REQUEST,
+                `Invalid input '${fieldName}', can not deserialize. Parameters might be of the wrong type.`,
+            );
         }
     }
 
     if (routerOptions.enableValidation) {
-        const errors = validateParams(executable, params);
-        if (errors?.length) {
-            throw {
-                statusCode: StatusCodes.BAD_REQUEST,
-                message: errors.map((err) => err.message).join(' | '),
-            };
+        const validationErrorMessages = validateParams(executable, params);
+        if (validationErrorMessages?.length) {
+            throw new RouteError(StatusCodes.BAD_REQUEST, validationErrorMessages.join(' | '));
         }
     }
 
@@ -297,8 +296,8 @@ const serializeResponse = <
 ) => {
     if (!executable.canReturnData || result === undefined) return;
     const deserialized = routerOptions.enableSerialization ? executable.outputSerializer(result) : result;
-    if (executable.inHeader) context.reply.headers[executable.fieldName] = deserialized;
-    else context.reply.body[executable.fieldName] = deserialized;
+    if (executable.inHeader) context.response.headers[executable.fieldName] = deserialized;
+    else (context.response as Mutable<MapObj>).body[executable.fieldName] = deserialized;
 };
 
 // ############# PRIVATE STATE #############
@@ -325,27 +324,31 @@ const recursiveFlatRoutes = (
     postHooks: Executable[] = [],
     nestLevel = 0,
 ) => {
-    if (nestLevel > MAX_ROUTE_NESTING) throw 'Too many nested routes, you can only nest routes ${MAX_ROUTE_NESTING} levels';
+    if (nestLevel > MAX_ROUTE_NESTING)
+        throw new Error('Too many nested routes, you can only nest routes ${MAX_ROUTE_NESTING} levels');
 
     const entries = Object.entries(routes);
-    if (entries.length === 0) throw `Invalid route: ${currentPath || 'root Object'}. Can Not define empty routes`;
+    if (entries.length === 0) throw new Error(`Invalid route: ${currentPath || 'root Object'}. Can Not define empty routes`);
 
     let minus1Props: ReturnType<typeof getRouteEntryProperties> | null = null;
     entries.forEach(([key, item], index, array) => {
         // create the executable items
         const path = join(currentPath, `${key}`);
         let routeEntry: Executable | RoutesWithId;
-        if (typeof key !== 'string' || !isNaN(key as any)) throw `Invalid route: ${path}. Numeric route names are not allowed`;
+        if (typeof key !== 'string' || !isNaN(key as any))
+            throw new Error(`Invalid route: ${path}. Numeric route names are not allowed`);
 
         if (isHook(item)) {
             routeEntry = getExecutableFromHook(item, path, nestLevel, key);
             const fieldName = routeEntry.fieldName;
             if (hookNames.has(fieldName))
-                throw `Invalid hook: ${path}. Naming collision, the fieldName '${fieldName}' has been used in more than one hook/route.`;
+                throw new Error(
+                    `Invalid hook: ${path}. Naming collision, the fieldName '${fieldName}' has been used in more than one hook/route.`,
+                );
             hookNames.set(fieldName, true);
         } else if (isRoute(item)) {
             routeEntry = getExecutableFromRoute(item, path, nestLevel);
-            if (routeNames.has(routeEntry.path)) throw `Invalid route: ${path}. Naming collision, duplicated route`;
+            if (routeNames.has(routeEntry.path)) throw new Error(`Invalid route: ${path}. Naming collision, duplicated route`);
             routeNames.set(routeEntry.path, true);
         } else if (isRoutes(item)) {
             routeEntry = {
@@ -354,7 +357,7 @@ const recursiveFlatRoutes = (
             };
         } else {
             const itemType = typeof item;
-            throw `Invalid route: ${path}. Type <${itemType}> is not a valid route.`;
+            throw new Error(`Invalid route: ${path}. Type <${itemType}> is not a valid route.`);
         }
 
         // generates the routeExecutionPaths and recurse into sublevels
@@ -420,7 +423,7 @@ const recursiveCreateExecutionPath = (
 
 const getHandler = (entry: Hook | Route, path): Handler => {
     const handler = isHandler(entry) ? entry : (entry as Hook).hook || (entry as RouteObject).route;
-    if (!isHandler(handler)) throw `Invalid route: ${path}. Missing route handler`;
+    if (!isHandler(handler)) throw new Error(`Invalid route: ${path}. Missing route handler`);
     return handler;
 };
 
@@ -431,18 +434,13 @@ const getExecutableFromHook = (hook: Hook, path: string, nestLevel: number, key:
         return existing;
     }
     const handler = getHandler(hook, path);
-    // TODO: Not sure if bellow code is required. using the wrong context type is a big fail and should be catch during dev
-    // TODO: fix should be just to use correct context type
-    // if (!contextType) throw 'Context must be defined before creating routes.'; // this  should not happen
-    // if (!isFirstParameterContext(contextType, handler) && false)
-    //     throw `Invalid hook: ${path}. First parameter the handler must be of Type ${contextType.typeName},`;
 
     if (!!hook.inHeader && handler.length > 2) {
-        throw `Invalid Hook: ${path}. In header hooks can only have a single parameter besides the Context.`;
+        throw new Error(`Invalid Hook: ${path}. In header hooks can only have a single parameter besides the Context.`);
     }
 
     if (hookName === 'errors') {
-        throw `Invalid Hook: ${path}. The 'errors' fieldName is reserver for the router.`;
+        throw new Error(`Invalid Hook: ${path}. The 'errors' fieldName is reserver for the router.`);
     }
 
     const handlerType = reflect(handler);
@@ -476,9 +474,9 @@ const getExecutableFromRoute = (route: Route, path: string, nestLevel: number) =
     const handler = getHandler(route, routePath);
     // TODO: Not sure if bellow code is required. using the wrong context type is a big fail and should be catch during dev
     // TODO: fix should be just to use correct context type
-    // if (!contextType) throw 'Context must be defined before creating routes.'; // this  should not happen
+    // if (!contextType) throw new Error('Context must be defined before creating routes.'); // this  should not happen
     // if (!isFirstParameterContext(contextType, handler))
-    //     throw `Invalid route: ${path}. First parameter the handler must be of Type ${contextType.typeName},`;
+    //     throw new Error(`Invalid route: ${path}. First parameter the handler must be of Type ${contextType.typeName},`);
     const routeObj = isHandler(route) ? {...DEFAULT_ROUTE} : {...DEFAULT_ROUTE, ...route};
     const handlerType = reflect(handler);
     const executable: Executable = {
@@ -535,6 +533,32 @@ const getRouteEntryProperties = (
 
 const getHookFieldName = (item: Hook, key: string) => {
     return item?.fieldName || key;
+};
+
+const handleRouteErrors = (context: Context<any, any, any, any>, err: any, step: number) => {
+    if (err instanceof RouteError) {
+        // creating a new err object only with only statusCode and message.
+        // So can't leak any other properties accidentally
+        const publicError = {statusCode: err.statusCode, message: err.message};
+        (context.response.errors as Mutable<PublicError[]>).push(publicError);
+        (context.internalErrors as Mutable<RouteError[]>).push(err);
+    } else {
+        const publicError = {
+            statusCode: StatusCodes.INTERNAL_SERVER_ERROR,
+            message: `Unknown error in step ${step} of execution path.`,
+        };
+        let srcError: Error;
+        if (err instanceof Error) {
+            srcError = err;
+        } else if (typeof err === 'string') {
+            srcError = new Error(err);
+        } else {
+            srcError = new Error(`Unknown error in step ${step} of execution path.`);
+        }
+        const privateError: RouteError = new RouteError(publicError.statusCode, publicError.message, undefined, srcError);
+        (context.response.errors as Mutable<PublicError[]>).push(publicError);
+        (context.internalErrors as Mutable<RouteError[]>).push(privateError);
+    }
 };
 
 // const getRouteFieldName = (fieldName: string | undefined, key: string) => {

@@ -3,7 +3,6 @@
     "baseUrl": ".",
     "module": "commonjs",
     "moduleResolution": "Node",
-    "declaration": true,
     "noImplicitAny": false,
     "removeComments": true,
     "noLib": false,
@@ -11,13 +10,23 @@
     "emitDecoratorMetadata": true,
     "experimentalDecorators": true,
     "target": "es6",
-    "sourceMap": true,
     "lib": ["es6"],
     "outDir": ".dist",
+    "composite": true,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+
     "paths": {
       "@mikrokit/*": ["packages/*"]
     }
   },
   "reflection": true,
-  "exclude": ["node_modules", ".dist"]
+  "exclude": ["node_modules", ".dist"],
+  "references": [
+    {"path": "packages/router"},
+    {"path": "packages/http"},
+    {"path": "packages/serverless"},
+    {"path": "packages/compiled-app"}
+  ]
 }
