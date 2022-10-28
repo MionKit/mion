@@ -17,7 +17,6 @@ import {
     SharedDataFactory,
     StatusCodes,
 } from '@mikrokit/router';
-import {getRouterOptions} from '@mikrokit/router/src/router';
 import {createServer as createHttp, IncomingMessage, RequestListener, Server as HttpServer, ServerResponse} from 'http';
 import {createServer as createHttps, Server as HttpsServer} from 'https';
 import {DEFAULT_HTTP_OPTIONS} from './constants';
@@ -29,7 +28,7 @@ type HeadersEntries = [string, string | boolean | number][];
 let httpOptions: HttpOptions = {
     ...DEFAULT_HTTP_OPTIONS,
 };
-let routerOptions_: RouterOptions;
+let defaultResponseContentType: string;
 let defaultResponseHeaders: HeadersEntries = [];
 
 export type HttpRequest = IncomingMessage & {body: string};
@@ -42,7 +41,7 @@ export const initHttpApp = <App extends MapObj, SharedData extends MapObj>(
 ) => {
     type CallContext = Readonly<HttpCallContext<App, SharedData>>;
     MkRouter.initRouter(app, handlersDataFactory, routerOptions);
-    routerOptions_ = getRouterOptions();
+    defaultResponseContentType = MkRouter.getRouterOptions().responseContentType;
     const emptyContext: CallContext = {} as CallContext;
     return {emptyContext, startHttpServer, MkRouter};
 };
@@ -76,8 +75,9 @@ const startHttpServer = async (httpOptions_: Partial<HttpOptions> = {}): Promise
 
         process.on('SIGINT', function () {
             logger?.log(`Shutting down MikroKit server on ${url}`);
-            server.close();
-            process.exit(0);
+            server.close(() => {
+                process.exit(0);
+            });
         });
     });
 };
@@ -132,7 +132,7 @@ const httpRequestHandler: RequestListener = (httpReq: IncomingMessage, httpRespo
     });
 
     httpResponse.setHeader('server', '@mikrokit/http');
-    httpResponse.setHeader('content-type', routerOptions_.responseContentType);
+    httpResponse.setHeader('content-type', defaultResponseContentType);
     // here we could check that the client accepts application/json as response and abort
     // but this is gonna be true 99.999% of the time so is better to continue without checking it
     addResponseHeaderEntries(httpResponse, defaultResponseHeaders);

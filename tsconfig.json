@@ -16,7 +16,6 @@
     "declaration": true,
     "declarationMap": true,
     "sourceMap": true,
-
     "paths": {
       "@mikrokit/*": ["packages/*"]
     }
