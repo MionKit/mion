@@ -28,13 +28,6 @@ export const initAWSApp = <App extends MapObj, SharedData extends MapObj>(
 };
 
 const lambdaHandler = async (req: APIGatewayEvent, awsContext: AwsContext): Promise<APIGatewayProxyResult> => {
-    if (!isMethodAllowed(req.httpMethod))
-        return {
-            statusCode: StatusCodes.METHOD_NOT_ALLOWED,
-            headers: JSON_TYPE_HEADER,
-            body: '{}',
-        };
-
     const serverCall: AwsServerCall = {req, awsContext};
     const resp = await MkRouter.runRoute_(req.path, serverCall);
     return {

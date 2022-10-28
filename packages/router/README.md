@@ -202,6 +202,35 @@ const invalidRoutes = {
 MkRouter.addRoutes(invalidRoutes); // throws an error
 ```
 
+## `Throwing errors within Routes & Hooks`
+
+All errors thrown within Routes/Hooks will be automatically catch and handled, as there is no concept of logger within the router, to errors are generated, One public error to be returned in the `context.response.body` & one private error stored in the `context.internalErrors`. The public errors only contains generic message an an status code, the private errors contains also stack trace and the rest of properties of any js Error.
+
+For proper standardization of errors it is recommended to always throw a `RouteError`, that contains an `statusCode` and both normal `error.message` as well as a `error.publicMessage`.
+
+```ts
+// examples/error-handling.routes.ts
+
+import {Route, RouteError, StatusCodes} from '@mikrokit/router';
+
+const getSomeData: Route = {
+  route: (context): void => {
+    try {
+      const data = context.app.db.getSomeData();
+    } catch (dbError) {
+      const statusCode = StatusCodes.INTERNAL_SERVER_ERROR;
+      const publicMessage = `Cant fetch data.`;
+      // Only statusCode and publicMessage will be returned in the response.body
+      /* 
+             Full RouteError containing dbError message and stacktrace will be added
+             to context.internalErrors, so it can be logged or managed after
+            */
+      throw new RouteError(statusCode, publicMessage, dbError);
+    }
+  },
+};
+```
+
 ## `Routes & Hooks Config`
 
 <table>
@@ -210,7 +239,34 @@ MkRouter.addRoutes(invalidRoutes); // throws an error
 <td>
 
 ```ts
-// src/types.ts#L39-L53
+// src/types.ts#L25-L43
+
+/** Route or Hook Handler */
+export type Handler = (context: Context<any, any, any, any>, ...args: any) => any | Promise<any>;
+
+/** Route definition */
+export type RouteObject = {
+  /** overrides route's path and fieldName in request/response body */
+  path?: string;
+  /** description of the route, mostly for documentation purposes */
+  description?: string;
+  /** enable automatic parameter validation, defaults to true */
+  enableValidation?: boolean;
+  /** Enables serialization/deserialization */
+  enableSerialization?: boolean;
+  /** Route Handler */
+  route: Handler;
+};
+
+/** A route can be a full route definition or just the handler */
+export type Route = RouteObject | Handler;
+```
+
+</td>
+<td>
+
+```ts
+// src/types.ts#L45-L63
 
 /** Hook definition */
 export type Hook = {
@@ -224,32 +280,13 @@ export type Hook = {
   fieldName?: string;
   /** Description of the route, mostly for documentation purposes */
   description?: string;
+  /** enable automatic parameter validation, defaults to true */
+  enableValidation?: boolean;
+  /** Enables serialization/deserialization */
+  enableSerialization?: boolean;
   /** Hook handler */
   hook: Handler;
 };
-```
-
-</td>
-<td>
-
-```ts
-// src/types.ts#L23-L37
-
-/** Route or Hook Handler */
-export type Handler = (context: Context<any, any, any, any>, ...args: any) => any | Promise<any>;
-
-/** Route definition */
-export type RouteObject = {
-  /** overrides route's path and fieldName in request/response body */
-  path?: string;
-  /** description of the route, mostly for documentation purposes */
-  description?: string;
-  /** Route Handler */
-  route: Handler;
-};
-
-/** A route can be a full route definition or just the handler */
-export type Route = RouteObject | Handler;
 ```
 
 </td>
@@ -293,50 +330,61 @@ const someHook: MyHook = {
 
 ## `Call Context`
 
-All data related to the Application and called route is passed in the first parameter to routes/hooks handler the `Context`.
-Some data like `request/reply body/headers` or `responseErrors` are available but it is not recommended modifying them specially within a route, their values are automatically assigned by the router. Instead just return data from the function or throw an error.
+The `Context` or `Call Context` contains all data related to the route being called and is always passed in the first parameter to routes/hooks handler.
+
+Most of the data within the `Context` is marked as read only, this is because it is not recommended modifying the context manually. Instead Hooks/Routes should just return data, modify the `shared` object or throw a `RouteError` and the router would take care of correctly assign values to the `Call Context`. It is still possible to modify them (the context is not a real Immutable js object).
 
 #### Context Type
 
 ```ts
-// src/types.ts#L163-L198
+// src/types.ts#L159-L204
 
-    app: Readonly<App>;
-    server: Readonly<AnyServerCall>;
-    /** Route's path */
-    path: Readonly<string>;
-    /** route errors, returned to the public */
-    responseErrors: MkError[];
-    /**
-     * list of internal errors.
-     * log is quite expensive so all errors will be logged at once at the end of the request;
-     * error thrown by hooks and routes are automatically catch and added here.
-     */
-    internalErrors: (MkError | any)[];
-    /** parsed request.body */
-    request: {
-        headers: MapObj;
-        body: MapObj;
-    };
-    /** returned data (non parsed) */
-    reply: {
-        headers: MapObj;
-        body: MapObj;
-    };
-    /** shared data between route/hooks handlers */
-    shared: SharedData;
+export type MkResponse = {
+  statusCode: Readonly<number>;
+  /** response errors: empty if there were no errors during execution */
+  errors: Readonly<PublicError[]>;
+  /** response headers */
+  headers: MkHeaders;
+  /** the router response data, JS object */
+  body: Readonly<MapObj>;
+  /** json encoded response, contains data and errors if there are any. */
+  json: Readonly<string>;
 };
 
-/** Function used to create the shared data object on each route call  */
-export type SharedDataFactory<SharedData> = () => SharedData;
+/** The call Context object passed as first parameter to any hook or route */
+export type Context<
+  App,
+  SharedData,
+  ServerReq extends MkRequest,
+  AnyServerCall extends ServerCall<ServerReq> = ServerCall<ServerReq>,
+> = Readonly<{
+  /** Static Data: main App, db driver, libraries, etc... */
+  app: Readonly<App>;
+  serverCall: Readonly<AnyServerCall>;
+  /** Route's path */
+  path: Readonly<string>;
+  /**
+   * list of internal errors.
+   * As router has no logging all errors are stored here so can be managed in a hook or externally
+   */
+  internalErrors: Readonly<RouteError[]>;
+  /** parsed request.body */
+  request: Readonly<{
+    headers: MapObj;
+    body: MapObj;
+  }>;
+  /** returned data (non parsed) */
+  response: Readonly<MkResponse>;
+  /** shared data between route/hooks handlers */
+  shared: Readonly<SharedData>;
+}>;
 
-// #######  reflection #######
-
-export type RouteParamValidator = (data: any) => ValidationErrorItem[];
-export type RouteParamDeserializer = <T>(data: JSONPartial<T>) => T;
-export type RouteOutputSerializer = <T>(data: T) => JSONSingle<T>;
-
-// #######  type guards #######
+export type ServerCall<ServerReq extends MkRequest> = {
+  /** Server request
+   * i.e: '@types/aws-lambda/APIGatewayEvent'
+   * or http/IncomingMessage */
+  req: ServerReq;
+};
 ```
 
 #### Using context
@@ -478,23 +526,57 @@ module.exports = {
 ## `Router Options`
 
 ```ts
-// src/constants.ts#L69-L122
+// src/constants.ts#L37-L85
 
-    /**
-     * Deepkit Serialization Options
-     * @link https://docs.deepkit.io/english/serialization.html#_naming_strategy
-     * */
-    serializerNamingStrategy: undefined,
+export const DEFAULT_ROUTE_OPTIONS: Readonly<RouterOptions> = {
+  /** prefix for all routes, i.e: api/v1.
+   * path separator is added between the prefix and the route */
+  prefix: '',
 
-    /** Custom JSON parser, defaults to Native js JSON */
-    jsonParser: JSON,
+  /** suffix for all routes, i.e: .json.
+   * Not path separators is added between the route and the suffix */
+  suffix: '',
+
+  /** Transform the path before finding a route */
+  pathTransform: undefined,
+
+  /** configures the fieldName in the request/response body used for a route's params/response */
+  routeFieldName: undefined,
+
+  /** Enables automatic parameter validation */
+  enableValidation: true,
+
+  /** Enables automatic serialization/deserialization */
+  enableSerialization: true,
+
+  /**
+   * Deepkit Serialization Options
+   * loosely defaults to false, Soft conversion disabled.
+   * !! We Don't recommend to enable soft conversion as validation might fail
+   * */
+  serializationOptions: {
+    loosely: false,
+  },
+
+  /**
+   * Deepkit custom serializer
+   * @link https://docs.deepkit.io/english/serialization.html#serialisation-custom-serialiser
+   * */
+  customSerializer: undefined,
+
+  /**
+   * Deepkit Serialization Options
+   * @link https://docs.deepkit.io/english/serialization.html#_naming_strategy
+   * */
+  serializerNamingStrategy: undefined,
+
+  /** Custom body parser, defaults to Native JSON */
+  bodyParser: JSON,
+
+  /** Response content type.
+   * Might need to get updated if the @field bodyParser returns anything else than json  */
+  responseContentType: 'application/json; charset=utf-8',
 };
-
-export const ROUTE_KEYS = Object.keys(DEFAULT_ROUTE);
-export const HOOK_KEYS = Object.keys(DEFAULT_HOOK);
-
-export const MAX_ROUTE_NESTING = 10;
-
 ```
 
 ## `Full Working Example`

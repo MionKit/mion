@@ -83,7 +83,7 @@ Thanks to it's RPC style there is no need to parse parameters or regular express
 
 The reason for this weird naming is to future proof the router to be able to accept multiple routes on a single request. However this can be changed setting the `routeFieldName` in the router options.
 
-📋 [Full router documentation here!](./packages/router/README.md)
+[Please read full router documentation here! 📗](./packages/router/README.md)
 
 ### Example:
 
@@ -128,7 +128,7 @@ Thanks to Deepkit's magic the type information is available at runtime and the d
 <td>
 
 ```ts
-// examples/get-user-request.routes.ts
+// packages/router/examples/get-user-request.routes.ts
 
 import {Route, Routes, MkRouter} from '@mikrokit/router';
 

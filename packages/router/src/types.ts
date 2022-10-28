@@ -17,6 +17,7 @@ import type {
     TypePromise,
 } from '@deepkit/type';
 import {ReflectionKind} from '@deepkit/type';
+import {statusCodeToReasonPhrase} from './status-codes';
 
 // #######  Routes #######
 
@@ -100,7 +101,9 @@ export type RouterOptions<ServerReq extends MkRequest = MkRequest> = {
      * */
     serializerNamingStrategy?: NamingStrategy;
     /** Custom JSON parser, defaults to Native js JSON */
-    jsonParser: JsonParser;
+    bodyParser: JsonParser;
+    /** response content type, @default "application/json; charset=utf-8" */
+    responseContentType: string;
 };
 
 // ####### Execution Path #######
@@ -134,32 +137,34 @@ export type MkRequest = {
 };
 
 /** Any error triggered by hooks or routes must follow this interface, returned errors in the body also follows this interface */
-export type MkError = {
-    statusCode: number;
-    message: string;
+export class RouteError extends Error {
+    constructor(public statusCode: Readonly<number>, public publicMessage: Readonly<string>, name?: string, err?: Error) {
+        super(err?.message || publicMessage);
+        super.name = name || statusCodeToReasonPhrase[statusCode];
+        if (err?.stack) super.stack = err?.stack;
+        Object.setPrototypeOf(this, RouteError.prototype);
+    }
+}
+
+export type PublicError = {
+    statusCode: Readonly<number>;
+    message: Readonly<string>;
 };
 
 export type MkHeaders = {[key: string]: string | boolean | number};
 
+// ####### Context #######
+
 export type MkResponse = {
-    statusCode: number;
+    statusCode: Readonly<number>;
     /** response errors: empty if there were no errors during execution */
-    errors: MkError[];
+    errors: Readonly<PublicError[]>;
     /** response headers */
     headers: MkHeaders;
     /** the router response data, JS object */
-    data: MapObj;
+    body: Readonly<MapObj>;
     /** json encoded response, contains data and errors if there are any. */
-    json: string;
-};
-
-// ####### Context #######
-
-export type ServerCall<ServerReq extends MkRequest> = {
-    /** Server request
-     * i.e: '@types/aws-lambda/APIGatewayEvent'
-     * or http/IncomingMessage */
-    req: ServerReq;
+    json: Readonly<string>;
 };
 
 /** The call Context object passed as first parameter to any hook or route */
@@ -168,31 +173,33 @@ export type Context<
     SharedData,
     ServerReq extends MkRequest,
     AnyServerCall extends ServerCall<ServerReq> = ServerCall<ServerReq>,
-> = {
+> = Readonly<{
     /** Static Data: main App, db driver, libraries, etc... */
     app: Readonly<App>;
-    server: Readonly<AnyServerCall>;
+    serverCall: Readonly<AnyServerCall>;
     /** Route's path */
     path: Readonly<string>;
-    /** route errors, returned to the public */
-    responseErrors: MkError[];
     /**
      * list of internal errors.
      * As router has no logging all errors are stored here so can be managed in a hook or externally
      */
-    internalErrors: (MkError | any)[];
+    internalErrors: Readonly<RouteError[]>;
     /** parsed request.body */
-    request: {
+    request: Readonly<{
         headers: MapObj;
         body: MapObj;
-    };
+    }>;
     /** returned data (non parsed) */
-    reply: {
-        headers: MapObj;
-        body: MapObj;
-    };
+    response: Readonly<MkResponse>;
     /** shared data between route/hooks handlers */
-    shared: SharedData;
+    shared: Readonly<SharedData>;
+}>;
+
+export type ServerCall<ServerReq extends MkRequest> = {
+    /** Server request
+     * i.e: '@types/aws-lambda/APIGatewayEvent'
+     * or http/IncomingMessage */
+    req: ServerReq;
 };
 
 /** Function used to create the shared data object on each route call  */
@@ -247,4 +254,8 @@ export type MapObj = {
 export type JsonParser = {
     parse: (text: string) => any;
     stringify: (js) => string;
+};
+
+export type Mutable<T> = {
+    -readonly [P in keyof T]: T[P];
 };

@@ -8,7 +8,6 @@
 import {
     Executable,
     Handler,
-    MkError,
     RouteParamDeserializer,
     RouteOutputSerializer,
     RouteParamValidator,
@@ -25,7 +24,6 @@ import {
     SerializationOptions,
 } from '@deepkit/type';
 import {isFunctionType} from './types';
-import {StatusCodes} from './status-codes';
 
 /**
  * Returns an array of functions to validate route handler parameters,
@@ -97,14 +95,13 @@ export const getOutputSerializer = (handler: Handler, routerOptions: RouterOptio
     return serializeDeserializeOptionsFix(outPutSerializer, {...routerOptions.serializationOptions});
 };
 
-export const validateParams = (executable: Executable, params: any[] = []): MkError[] => {
+export const validateParams = (executable: Executable, params: any[] = []): string[] => {
     const validators = executable.paramValidators;
     if (params.length !== validators.length) throw 'Invalid number of parameters';
     const errors = validators.map((validate, index) => validate(params[index])).flat();
-    return errors.map((validationError, index) => ({
-        statusCode: StatusCodes.BAD_REQUEST,
-        message: `Invalid param[${index}] in '${executable.fieldName}', ${validationError.toString()}.`,
-    }));
+    return errors.map(
+        (validationError, index) => `Invalid param[${index}] in '${executable.fieldName}', ${validationError.toString()}.`,
+    );
 };
 
 export const deserializeParams = (executable: Executable, params: any[] = []): any[] => {

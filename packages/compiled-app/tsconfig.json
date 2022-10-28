@@ -18,5 +18,6 @@
   },
   "reflection": true,
   "include": ["."],
-  "exclude": ["examples", ".dist"]
+  "exclude": ["examples", ".dist"],
+  "references": [{"path": "../http/tsconfig.json"}]
 }

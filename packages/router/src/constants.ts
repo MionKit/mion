@@ -76,8 +76,12 @@ export const DEFAULT_ROUTE_OPTIONS: Readonly<RouterOptions> = {
      * */
     serializerNamingStrategy: undefined,
 
-    /** Custom JSON parser, defaults to Native js JSON */
-    jsonParser: JSON,
+    /** Custom body parser, defaults to Native JSON */
+    bodyParser: JSON,
+
+    /** Response content type.
+     * Might need to get updated if the @field bodyParser returns anything else than json  */
+    responseContentType: 'application/json; charset=utf-8',
 };
 
 export const ROUTE_KEYS = Object.keys(DEFAULT_ROUTE);

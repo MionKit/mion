@@ -397,7 +397,7 @@ describe('Run routes', () => {
             const request = getDefaultRequest(path, [{name: 'Leo', surname: 'Tungsten'}]);
 
             const response = await runRoute('/changeUserName', request);
-            expect(response.data[path]).toEqual({name: 'LOREM', surname: 'Tungsten'});
+            expect(response.body[path]).toEqual({name: 'LOREM', surname: 'Tungsten'});
         });
 
         it('read data from header & hook', async () => {
@@ -412,7 +412,7 @@ describe('Run routes', () => {
             const path = '/changeUserName';
             const response = await runRoute(path, request);
             expect(response.errors.length).toEqual(0);
-            expect(response.data).toEqual({[path]: {name: 'LOREM', surname: 'Tungsten'}});
+            expect(response.body).toEqual({[path]: {name: 'LOREM', surname: 'Tungsten'}});
         });
 
         it('if there are no params input field can be omitted', async () => {
@@ -428,9 +428,9 @@ describe('Run routes', () => {
             const response2 = await runRoute('/sayHello', request2);
             const response3 = await runRoute('/sayHello', request3);
 
-            expect(response1.data[path]).toEqual('hello');
-            expect(response2.data[path]).toEqual('hello');
-            expect(response3.data[path]).toEqual('hello');
+            expect(response1.body[path]).toEqual('hello');
+            expect(response2.body[path]).toEqual('hello');
+            expect(response3.body[path]).toEqual('hello');
         });
 
         it('customize the routeFieldName', async () => {
@@ -440,7 +440,7 @@ describe('Run routes', () => {
             const request = getDefaultRequest('apiData', [{name: 'Leo', surname: 'Tungsten'}]);
 
             const response = await runRoute('/changeUserName', request);
-            expect(response.data.apiData).toEqual({name: 'LOREM', surname: 'Tungsten'});
+            expect(response.body.apiData).toEqual({name: 'LOREM', surname: 'Tungsten'});
         });
 
         it('transform the path before finding a route', async () => {
@@ -468,7 +468,7 @@ describe('Run routes', () => {
             });
 
             const response = await runRoute(publicPath, request);
-            expect(response.data[routePath]).toEqual('hello');
+            expect(response.body[routePath]).toEqual('hello');
         });
     });
 
@@ -482,7 +482,7 @@ describe('Run routes', () => {
             const response = await runRoute('/abcd', request);
             expect(response.errors[0]).toEqual({
                 statusCode: 404,
-                message: `Route not found`,
+                message: 'Route not found',
             });
         });
 
@@ -499,7 +499,7 @@ describe('Run routes', () => {
             });
         });
 
-        it('return an error if body is not a json object', async () => {
+        it('return an error if body is not the correct type', async () => {
             initRouter(app, getSharedData);
             addRoutes({changeUserName});
 
@@ -511,7 +511,18 @@ describe('Run routes', () => {
             const response = await runRoute('/changeUserName', request);
             expect(response.errors[0]).toEqual({
                 statusCode: 400,
-                message: `Invalid request body`,
+                message: 'Wrong parsed body type. Expecting an object containing the route name and parameters.',
+            });
+
+            const request2: MkRequest = {
+                headers: {},
+                body: '{-12',
+            };
+
+            const response2 = await runRoute('/changeUserName', request2);
+            expect(response2.errors[0]).toEqual({
+                statusCode: 400,
+                message: 'Invalid request body: Unexpected number in JSON at position 1',
             });
         });
 
@@ -581,7 +592,7 @@ describe('Run routes', () => {
             const response = await runRoute('/routeFail', request);
             expect(response.errors[0]).toEqual({
                 statusCode: 500,
-                message: `Unknown error in step 0 of execution path.`,
+                message: 'Unknown error in step 0 of execution path.',
             });
         });
 
