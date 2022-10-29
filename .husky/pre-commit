@@ -1,4 +1,8 @@
 #!/usr/bin/env sh
 . "$(dirname -- "$0")/_/husky.sh"
 
-npm run lint-pre-commit
+# lint uses lerna that has caching enabled
+npm run lint
+
+# use bellow lint if you want a more readable lint output
+# npm run lint-pre-commit
