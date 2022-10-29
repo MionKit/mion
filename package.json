@@ -20,12 +20,16 @@
     "url": "git+https://github.com:mikrokit/mikrokit.git"
   },
   "keywords": [
-    "api",
-    "rest",
-    "graphic",
-    "dashboard",
-    "database",
-    "framework"
+    "typescript",
+    "API",
+    "RPC",
+    "json",
+    "schema",
+    "generate",
+    "server",
+    "serverless",
+    "framework",
+    "node"
   ],
   "author": "ma-jerez",
   "license": "MIT",

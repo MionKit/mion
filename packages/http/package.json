@@ -4,11 +4,15 @@
   "description": "MikroKit HTTP Server for quick Api development.",
   "keywords": [
     "typescript",
-    "types",
-    "models",
+    "API",
+    "RPC",
     "json",
     "schema",
-    "generate"
+    "generate",
+    "server",
+    "serverless",
+    "framework",
+    "node"
   ],
   "author": "ma jerez <jerez.m82@gmail.com>",
   "homepage": "https://github.com/mikrokit/mikrokit/tree/main/packages/http#readme",
@@ -31,6 +35,9 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/mikrokit/mikrokit.git"
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "scripts": {
     "test": "jest",

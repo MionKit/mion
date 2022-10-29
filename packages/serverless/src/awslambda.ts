@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {MkRouter, Context, MapObj, SharedDataFactory, RouterOptions, StatusCodes} from '@mikrokit/router';
+import {MkRouter, Context, MapObj, SharedDataFactory, RouterOptions} from '@mikrokit/router';
 import {Context as AwsContext, APIGatewayProxyResult, APIGatewayEvent} from 'aws-lambda';
 
 export type AwsServerCall = {
