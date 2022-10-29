@@ -44,7 +44,7 @@ describe('serverless router should', () => {
     const updateHeaders: Route = (context: CallContext): void => {
         context.response.headers['x-something'] = true;
         context.response.headers['server'] = 'my-server';
-        context.serverCall;
+        context.serverCall.awsContext;
     };
 
     MkRouter.addRoutes({changeUserName, getDate, updateHeaders});
