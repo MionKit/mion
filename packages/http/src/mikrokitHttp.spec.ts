@@ -99,7 +99,7 @@ describe('serverless router should', () => {
         expect(headers['server']).toEqual('@mikrokit/http');
     });
 
-    fit('should set response headers', async () => {
+    it('should set response headers from route response', async () => {
         const response = await fetch(`http://127.0.0.1:${port}/api/updateHeaders`, {
             method: 'POST',
             body: '{}',
