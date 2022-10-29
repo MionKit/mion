@@ -246,11 +246,14 @@ To run an npm command in a workspace, `npx nx run <package>:<npm-script>`, i.e: 
 ## run jest tests in @mikrokit/router
 npx nx run @mikrokit/router:test
 
+## run jest in all packages
+npx lerna run test
+
 ## compiles typescript in @mikrokit/router
 npx nx run @mikrokit/router:build
 
-## build all packages (NX will build only whats required)
-npx nx run-many --target=build
+## compiles typescript in all packages (NX will build only whats required)
+npx lerna run build
 ```
 
 ### ESLint and Prettier
