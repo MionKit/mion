@@ -12,7 +12,8 @@
     "build": "lerna run build",
     "clean": "lerna run clean",
     "deepkit-install": "deepkit-type-install",
-    "embed-readme": "embedme **/README.md",
+    "auto-readme": "embedme README.md",
+    "publish-to-npmjs": "npx lerna publish from-package --no-private",
     "prepare": "husky install"
   },
   "repository": {

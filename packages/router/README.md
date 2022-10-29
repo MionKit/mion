@@ -1,5 +1,5 @@
 <p align="center">
-  <img alt='MikroKit, The APi Dashboard' width="" src='../../assets/public/bannerx90.png?raw=true'>
+  <img alt="Typescript Serverless Apis at the speed of light" width="" src='../../assets/public/bannerx90.png?raw=true'>
 </p>
 <p align="center">
   <strong>RPC Like router with automatic Validation and Serialization.
@@ -234,14 +234,13 @@ const getSomeData: Route = {
 ## `Routes & Hooks Config`
 
 <table>
-<tr><th>Hooks config</th><th>Routes config</th></tr>
+<tr><th>Routes config</th><th>Hooks config</th></tr>
 <tr>
 <td>
 
 ```ts
 // src/types.ts#L25-L43
 
-/** Route or Hook Handler */
 export type Handler = (context: Context<any, any, any, any>, ...args: any) => any | Promise<any>;
 
 /** Route definition */
@@ -268,7 +267,6 @@ export type Route = RouteObject | Handler;
 ```ts
 // src/types.ts#L45-L63
 
-/** Hook definition */
 export type Hook = {
   /** Executes the hook even if an error was thrown previously */
   forceRunOnError?: boolean;
@@ -337,19 +335,7 @@ Most of the data within the `Context` is marked as read only, this is because it
 #### Context Type
 
 ```ts
-// src/types.ts#L159-L204
-
-export type MkResponse = {
-  statusCode: Readonly<number>;
-  /** response errors: empty if there were no errors during execution */
-  errors: Readonly<PublicError[]>;
-  /** response headers */
-  headers: MkHeaders;
-  /** the router response data, JS object */
-  body: Readonly<MapObj>;
-  /** json encoded response, contains data and errors if there are any. */
-  json: Readonly<string>;
-};
+// src/types.ts#L157-L204
 
 /** The call Context object passed as first parameter to any hook or route */
 export type Context<
@@ -378,6 +364,18 @@ export type Context<
   /** shared data between route/hooks handlers */
   shared: Readonly<SharedData>;
 }>;
+
+export type MkResponse = {
+  statusCode: Readonly<number>;
+  /** response errors: empty if there were no errors during execution */
+  errors: Readonly<PublicError[]>;
+  /** response headers */
+  headers: MkHeaders;
+  /** the router response data, JS object */
+  body: Readonly<MapObj>;
+  /** json encoded response, contains data and errors if there are any. */
+  json: Readonly<string>;
+};
 
 export type ServerCall<ServerReq extends MkRequest> = {
   /** Server request
@@ -526,57 +524,58 @@ module.exports = {
 ## `Router Options`
 
 ```ts
-// src/constants.ts#L37-L85
+// src/constants.ts#L37-L86
 
 export const DEFAULT_ROUTE_OPTIONS: Readonly<RouterOptions> = {
-  /** prefix for all routes, i.e: api/v1.
-   * path separator is added between the prefix and the route */
-  prefix: '',
+    /** prefix for all routes, i.e: api/v1.
+     * path separator is added between the prefix and the route */
+    prefix: '',
 
-  /** suffix for all routes, i.e: .json.
-   * Not path separators is added between the route and the suffix */
-  suffix: '',
+    /** suffix for all routes, i.e: .json.
+     * No path separator is added between the route and the suffix */
+    suffix: '',
 
-  /** Transform the path before finding a route */
-  pathTransform: undefined,
+    /** function that transforms the path before finding a route */
+    pathTransform: undefined,
 
-  /** configures the fieldName in the request/response body used for a route's params/response */
-  routeFieldName: undefined,
+    /**
+     * configures the fieldName in the request/response body
+     * used to send/receive route's params/response
+     * */
+    routeFieldName: undefined,
 
-  /** Enables automatic parameter validation */
-  enableValidation: true,
+    /** Enables automatic parameter validation */
+    enableValidation: true,
 
-  /** Enables automatic serialization/deserialization */
-  enableSerialization: true,
+    /** Enables automatic serialization/deserialization */
+    enableSerialization: true,
 
-  /**
-   * Deepkit Serialization Options
-   * loosely defaults to false, Soft conversion disabled.
-   * !! We Don't recommend to enable soft conversion as validation might fail
-   * */
-  serializationOptions: {
-    loosely: false,
-  },
+    /**
+     * Deepkit Serialization Options
+     * loosely defaults to false, Soft conversion disabled.
+     * !! We Don't recommend to enable soft conversion as validation might fail
+     * */
+    serializationOptions: {
+        loosely: false,
+    },
 
-  /**
-   * Deepkit custom serializer
-   * @link https://docs.deepkit.io/english/serialization.html#serialisation-custom-serialiser
-   * */
-  customSerializer: undefined,
+    /**
+     * Deepkit custom serializer
+     * @link https://docs.deepkit.io/english/serialization.html#serialisation-custom-serialiser
+     * */
+    customSerializer: undefined,
 
-  /**
-   * Deepkit Serialization Options
-   * @link https://docs.deepkit.io/english/serialization.html#_naming_strategy
-   * */
-  serializerNamingStrategy: undefined,
+    /**
+     * Deepkit Serialization Options
+     * @link https://docs.deepkit.io/english/serialization.html#_naming_strategy
+     * */
+    serializerNamingStrategy: undefined,
 
-  /** Custom body parser, defaults to Native JSON */
-  bodyParser: JSON,
+    /** Custom body parser, defaults to Native JSON */
+    bodyParser: JSON,
 
-  /** Response content type.
-   * Might need to get updated if the @field bodyParser returns anything else than json  */
-  responseContentType: 'application/json; charset=utf-8',
-};
+    /** Response content type.
+     * Might need to get updated if the @field bodyParser returns anything else than json  */
 ```
 
 ## `Full Working Example`

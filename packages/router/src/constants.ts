@@ -40,13 +40,16 @@ export const DEFAULT_ROUTE_OPTIONS: Readonly<RouterOptions> = {
     prefix: '',
 
     /** suffix for all routes, i.e: .json.
-     * Not path separators is added between the route and the suffix */
+     * No path separator is added between the route and the suffix */
     suffix: '',
 
-    /** Transform the path before finding a route */
+    /** function that transforms the path before finding a route */
     pathTransform: undefined,
 
-    /** configures the fieldName in the request/response body used for a route's params/response */
+    /**
+     * configures the fieldName in the request/response body
+     * used to send/receive route's params/response
+     * */
     routeFieldName: undefined,
 
     /** Enables automatic parameter validation */

@@ -155,18 +155,6 @@ export type MkHeaders = {[key: string]: string | boolean | number};
 
 // ####### Context #######
 
-export type MkResponse = {
-    statusCode: Readonly<number>;
-    /** response errors: empty if there were no errors during execution */
-    errors: Readonly<PublicError[]>;
-    /** response headers */
-    headers: MkHeaders;
-    /** the router response data, JS object */
-    body: Readonly<MapObj>;
-    /** json encoded response, contains data and errors if there are any. */
-    json: Readonly<string>;
-};
-
 /** The call Context object passed as first parameter to any hook or route */
 export type Context<
     App,
@@ -194,6 +182,18 @@ export type Context<
     /** shared data between route/hooks handlers */
     shared: Readonly<SharedData>;
 }>;
+
+export type MkResponse = {
+    statusCode: Readonly<number>;
+    /** response errors: empty if there were no errors during execution */
+    errors: Readonly<PublicError[]>;
+    /** response headers */
+    headers: MkHeaders;
+    /** the router response data, JS object */
+    body: Readonly<MapObj>;
+    /** json encoded response, contains data and errors if there are any. */
+    json: Readonly<string>;
+};
 
 export type ServerCall<ServerReq extends MkRequest> = {
     /** Server request

@@ -1,5 +1,5 @@
 <p align="center">
-  <img alt='MikroKit, The APi Dashboard' width="" src='../../assets/public/bannerx90.png?raw=true'>
+  <img alt="Typescript Serverless Apis at the speed of light" width="" src='../../assets/public/bannerx90.png?raw=true'>
 </p>
 <p align="center">
   <strong>MikroKit HTTP Server for quick Api development.
@@ -23,8 +23,8 @@ This is an app exported with included runtime types so cab be used in the [fasti
 import {initHttp, addRoutes, routes} from '@mikrokit/compiled-app';
 
 const options = {
-    enableValidation: false,
-    enableSerialization: false,
+  enableValidation: false,
+  enableSerialization: false,
 };
 
 const {startHttpServer} = initHttp(options);
@@ -32,7 +32,6 @@ const {startHttpServer} = initHttp(options);
 addRoutes(routes);
 
 startHttpServer({port: 3000});
-
 ```
 
 ## &nbsp;
