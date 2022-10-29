@@ -1,14 +1,18 @@
 {
   "name": "@mikrokit/router",
   "version": "0.2.0",
-  "description": "RPC Like router with automatic Validation and Serialization",
+  "description": "Typescript RPC Like router with automatic Validation and Serialization",
   "keywords": [
     "typescript",
-    "types",
-    "models",
+    "API",
+    "RPC",
     "json",
     "schema",
-    "generate"
+    "generate",
+    "server",
+    "serverless",
+    "framework",
+    "node"
   ],
   "author": "ma jerez <jerez.m82@gmail.com>",
   "homepage": "https://github.com/mikrokit/mikrokit/tree/main/packages/router#readme",
@@ -31,6 +35,9 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/mikrokit/mikrokit.git"
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "scripts": {
     "test": "jest",

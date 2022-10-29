@@ -4,12 +4,7 @@
   "private": true,
   "description": "Compiled app to be used in js libraries with needing to compile",
   "keywords": [
-    "typescript",
-    "types",
-    "models",
-    "json",
-    "schema",
-    "generate"
+    "mikrokit compiled app"
   ],
   "author": "ma jerez <jerez.m82@gmail.com>",
   "homepage": "https://github.com/mikrokit/mikrokit/tree/main/packages/compiled-app#readme",

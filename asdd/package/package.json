@@ -4,15 +4,11 @@
   "description": "MikroKit Serverless Router for quick Api development.",
   "keywords": [
     "typescript",
-    "API",
-    "RPC",
+    "types",
+    "models",
     "json",
     "schema",
-    "generate",
-    "server",
-    "serverless",
-    "framework",
-    "node"
+    "generate"
   ],
   "author": "ma jerez <jerez.m82@gmail.com>",
   "homepage": "https://github.com/mikrokit/mikrokit/tree/main/packages/serverless#readme",
