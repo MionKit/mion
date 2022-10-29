@@ -1,6 +1,6 @@
 {
   "name": "@mikrokit/serverless",
-  "version": "0.2.0",
+  "version": "0.2.1-alpha.0",
   "description": "MikroKit Serverless Router for quick Api development.",
   "keywords": [
     "typescript",
@@ -54,7 +54,7 @@
     "url": "https://github.com/mikrokit/mikrokit/issues"
   },
   "dependencies": {
-    "@mikrokit/router": "^0.2.0"
+    "@mikrokit/router": "^0.2.1-alpha.0"
   },
   "devDependencies": {
     "@serverless/event-mocks": "^1.1.1"

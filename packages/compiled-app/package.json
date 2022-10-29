@@ -1,6 +1,6 @@
 {
   "name": "@mikrokit/compiled-app",
-  "version": "0.2.0",
+  "version": "0.2.1-alpha.0",
   "private": true,
   "description": "Compiled app to be used in js libraries with needing to compile",
   "keywords": [
@@ -44,7 +44,7 @@
   },
   "dependencies": {
     "@deepkit/framework": "^1.0.1-alpha.75",
-    "@mikrokit/http": "^0.2.0",
+    "@mikrokit/http": "^0.2.1-alpha.0",
     "ts-node": "^10.9.1"
   }
 }
