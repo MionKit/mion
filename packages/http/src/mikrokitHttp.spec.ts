@@ -39,9 +39,14 @@ describe('serverless router should', () => {
         return dataPoint || {date: new Date('December 17, 2020 03:24:00')};
     };
 
+    const updateHeaders: Route = (context: CallContext): void => {
+        context.response.headers['x-something'] = true;
+        context.response.headers['server'] = 'my-server';
+    };
+
     let server;
 
-    MkRouter.addRoutes({changeUserName, getDate});
+    MkRouter.addRoutes({changeUserName, getDate, updateHeaders});
 
     const port = 8075;
     beforeAll(async () => {
@@ -92,6 +97,21 @@ describe('serverless router should', () => {
         expect(headers['content-type']).toEqual('application/json; charset=utf-8');
         expect(headers['content-length']).toEqual('133');
         expect(headers['server']).toEqual('@mikrokit/http');
+    });
+
+    fit('should set response headers', async () => {
+        const response = await fetch(`http://127.0.0.1:${port}/api/updateHeaders`, {
+            method: 'POST',
+            body: '{}',
+        });
+        const reply = await response.json();
+        const headers = Object.fromEntries(response.headers.entries());
+
+        expect(reply).toEqual({});
+        expect(headers['content-type']).toEqual('application/json; charset=utf-8');
+        expect(headers['content-length']).toEqual('2');
+        expect(headers['server']).toEqual('my-server');
+        expect(headers['x-something']).toEqual('true');
     });
 
     it('should get an error when body size is too large, get default headers and call allowExceedMaxBodySize', async () => {

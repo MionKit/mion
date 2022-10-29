@@ -89,6 +89,12 @@ const httpRequestHandler: RequestListener = (httpReq: IncomingMessage, httpRespo
     let size = 0;
     const bodyChunks: any[] = [];
 
+    httpResponse.setHeader('server', '@mikrokit/http');
+    httpResponse.setHeader('content-type', defaultResponseContentType);
+    // here we could check that the client accepts application/json as response and abort
+    // but this is gonna be true 99.999% of the time so is better to continue without checking it
+    addResponseHeaderEntries(httpResponse, defaultResponseHeaders);
+
     httpReq.on('data', (data) => {
         bodyChunks.push(data);
         const chunkLength = bodyChunks[bodyChunks.length - 1].length;
@@ -111,10 +117,10 @@ const httpRequestHandler: RequestListener = (httpReq: IncomingMessage, httpRespo
         (httpReq as any).body = body;
 
         MkRouter.runRoute_(path, {req: httpReq as any as MkRequest})
-            .then((routeReply) => {
+            .then((routeResponse) => {
                 if (hasError) return;
-                addResponseHeaders(httpResponse, routeReply.headers);
-                reply(httpResponse, logger, routeReply.json, routeReply.statusCode);
+                addResponseHeaders(httpResponse, routeResponse.headers);
+                reply(httpResponse, logger, routeResponse.json, routeResponse.statusCode);
             })
             .catch((e) => {
                 if (hasError) return;
@@ -130,12 +136,6 @@ const httpRequestHandler: RequestListener = (httpReq: IncomingMessage, httpRespo
         hasError = true;
         logger?.error({statusCode: 0, message: 'error responding to client'}, e);
     });
-
-    httpResponse.setHeader('server', '@mikrokit/http');
-    httpResponse.setHeader('content-type', defaultResponseContentType);
-    // here we could check that the client accepts application/json as response and abort
-    // but this is gonna be true 99.999% of the time so is better to continue without checking it
-    addResponseHeaderEntries(httpResponse, defaultResponseHeaders);
 };
 
 const reply = (httpResponse: ServerResponse, logger: Logger, json: string, statusCode: number, statusMessage?: string) => {

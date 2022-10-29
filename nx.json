@@ -16,15 +16,15 @@
       "outputs": ["{workspaceRoot}/.coverage"]
     },
     "build:csj": {
-      "dependsOn": ["^build:csj"],
+      "dependsOn": ["lint", "test", "^build:csj"],
       "outputs": ["{workspaceRoot}/.dist/csj"]
     },
     "build:esm": {
-      "dependsOn": ["^build:esm"],
+      "dependsOn": ["lint", "test", "^build:esm"],
       "outputs": ["{workspaceRoot}/.dist/esm"]
     },
     "build": {
-      "dependsOn": ["^build"],
+      "dependsOn": ["lint", "test", "build:csj", "build:esm"],
       "outputs": ["{workspaceRoot}/.dist"]
     },
     "clean": {
