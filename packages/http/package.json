@@ -1,6 +1,6 @@
 {
   "name": "@mikrokit/http",
-  "version": "0.2.0",
+  "version": "0.2.1-alpha.0",
   "description": "MikroKit HTTP Server for quick Api development.",
   "keywords": [
     "typescript",
@@ -54,6 +54,6 @@
     "url": "https://github.com/mikrokit/mikrokit/issues"
   },
   "dependencies": {
-    "@mikrokit/router": "^0.2.0"
+    "@mikrokit/router": "^0.2.1-alpha.0"
   }
 }
