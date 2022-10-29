@@ -1,5 +1,5 @@
 <p align="center">
-  <img alt='MikroKit, The APi Dashboard' width="" src='../../assets/public/bannerx90.png?raw=true'>
+  <img alt="Typescript Serverless Apis at the speed of light" width="" src='../../assets/public/bannerx90.png?raw=true'>
 </p>
 <p align="center">
   <strong>MikroKit HTTP Server for quick Api development.
@@ -15,7 +15,7 @@
 
 **MikroKit router is an RPC like router oriented for quick Api development,** it is agnostic about the environment it is used on. It could be used on [serverless environments](../serverless/README.md), or as an standalone http server.
 
-**MikroKit Server is well suited a very specific scenario, that is Apis that works with json data only**. In return it offers quick development, fast execution and a Lightweight router 🚀.
+**MikroKit Server is well suited a very specific scenario, that is Apis that works with json data only**. In return it offers quick development, fast execution and a Lightweight router. [Benchmarks here!](https://github.com/MikroKit/benchmarks) 🚀
 
 This is a limited http server, only supports `application/json` content type, does not support multipart/form-data, no websocket or streams and no file upload neither. There are better alternatives for those scenarios (like S3 file upload, etc).
 
@@ -65,6 +65,47 @@ const routes: Routes = {
 
 MkRouter.setRouterOptions({prefix: 'api/'});
 MkRouter.addRoutes(routes);
+```
+
+---
+
+### Write a fully validated API in 5 mins 🚀
+
+```ts
+// examples/full-example.routes.ts
+
+import {initHttpApp} from '@mikrokit/http';
+import {Route} from '@mikrokit/router';
+
+// #### App ####
+
+type SimpleUser = {name: string; surname: string};
+type DataPoint = {date: Date};
+type SharedData = {auth: {me: any}};
+
+const dbChangeUserName = (user: SimpleUser): SimpleUser => ({name: 'NewName', surname: user.surname});
+const app = {db: {changeUserName: dbChangeUserName}};
+const sharedDataFactory = (): SharedData => ({auth: {me: null}});
+
+// #### Routes ####
+
+const changeUserName: Route = (context: CallContext, user: SimpleUser) => {
+  return context.app.db.changeUserName(user);
+};
+
+const getDate: Route = (context: CallContext, dataPoint?: DataPoint): DataPoint => {
+  return dataPoint || {date: new Date('December 17, 2020 03:24:00')};
+};
+
+// #### Init server ####
+
+const routerOpts = {prefix: 'api/'};
+const routes = {changeUserName, getDate};
+const {emptyContext, startHttpServer, MkRouter} = initHttpApp(app, sharedDataFactory, routerOpts);
+MkRouter.addRoutes(routes);
+startHttpServer({port: 8080});
+
+export type CallContext = typeof emptyContext;
 ```
 
 ---

@@ -27,6 +27,10 @@
       "dependsOn": ["lint", "test", "build:csj", "build:esm"],
       "outputs": ["{workspaceRoot}/.dist"]
     },
+    "auto-readme": {
+      "dependsOn": [],
+      "outputs": ["{workspaceRoot}/**/*.md"]
+    },
     "clean": {
       "dependsOn": []
     }

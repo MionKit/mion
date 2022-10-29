@@ -29,10 +29,11 @@ MikroKit uses only the core `@deepkit/type` library from deepkit to produce a mi
 
 **MikroKit is oriented towards** a very specific scenario, that is **Apis that works with json data only**. In return it offers fast development and lightweight execution.
 
-MikroKit opinions might not always be the best or suit every scenario, but are always taken with quick development, fast code execution and minimum abstractions in mind. _Simplicity can be the best pattern_.
+MikroKit opinions might not always be the best or suit every scenario, but are always taken with quick development, fast code execution and minimum abstractions in mind. **_!Simplicity can be the best pattern!_**
 
 - Convention over configuration.
 - Prioritizes developer friendliness and performance over existing conventions.
+- Lightweight by design. [Some benchmarks here!](https://github.com/MikroKit/benchmarks) 🚀
 <!-- - Tightly Integration between Routing + Data (Aka the MikroKit way). -->
 
 ## `Features`
@@ -40,11 +41,13 @@ MikroKit opinions might not always be the best or suit every scenario, but are a
 <!-- 1. [AWS & Serverless framework](https://www.serverless.com/) for cloud infrastructure
 1. [AWS Cognito](https://aws.amazon.com/cognito/) for Authentication, sign up emails, password reset, etc -->
 
-- ✅ RPC Like Routing
+- ✅ RPC Like [Router](packages/router/README.md)
 - ✅ Automatic Validation and Serialization
 <!-- - 🛠️ [Postgres.js](https://github.com/porsager/postgres) for quick DataBase access with great support for types, (No DataBase access abstraction).
 - 🛠️ Base Models with CRUD & Filters operations
 - 🛠️ Access Control List _<sup>(linux-like)</sup>_ -->
+- ✅ AWS Lambda [Handler](packages/serverless/README.md)
+- ✅ Http [Server](packages/http/README.md)
 - 🛠️ Automatic Typescript client generation.
 
 #### !! MikroKit is currently under heavy development
