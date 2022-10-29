@@ -7,35 +7,44 @@
 
 import {MkRouter, Context, MapObj, SharedDataFactory, RouterOptions, StatusCodes} from '@mikrokit/router';
 import {Context as AwsContext, APIGatewayProxyResult, APIGatewayEvent} from 'aws-lambda';
-import {isMethodAllowed, JSON_TYPE_HEADER} from './constants';
 
 export type AwsServerCall = {
     req: APIGatewayEvent;
     awsContext: AwsContext;
 };
 
-export type AwsCallContext<App extends MapObj, SharedData extends MapObj> = Context<App, SharedData, APIGatewayEvent>;
+let defaultResponseContentType: string;
 
-export const initAWSApp = <App extends MapObj, SharedData extends MapObj>(
+export type AwsCallContext<App extends MapObj, SharedData extends MapObj> = Context<
+    App,
+    SharedData,
+    APIGatewayEvent,
+    AwsServerCall
+>;
+
+export const initAwsLambdaApp = <App extends MapObj, SharedData extends MapObj>(
     app: App,
     handlersDataFactory?: SharedDataFactory<SharedData>,
     routerOptions?: Partial<RouterOptions<APIGatewayEvent>>,
 ) => {
     type CallContext = AwsCallContext<App, SharedData>;
     MkRouter.initRouter(app, handlersDataFactory, routerOptions);
+    defaultResponseContentType = MkRouter.getRouterOptions().responseContentType;
     const emptyContext: CallContext = {} as CallContext;
-    return {emptyContext, lambdaHandler};
+    return {emptyContext, lambdaHandler, MkRouter};
 };
 
 const lambdaHandler = async (req: APIGatewayEvent, awsContext: AwsContext): Promise<APIGatewayProxyResult> => {
     const serverCall: AwsServerCall = {req, awsContext};
-    const resp = await MkRouter.runRoute_(req.path, serverCall);
+    const routeResponse = await MkRouter.runRoute_(req.path, serverCall);
     return {
-        statusCode: resp.statusCode,
+        statusCode: routeResponse.statusCode,
         headers: {
-            ...resp.headers,
-            ...JSON_TYPE_HEADER,
+            'content-type': defaultResponseContentType,
+            'content-length': routeResponse.json.length,
+            server: '@mikrokit/serverless',
+            ...routeResponse.headers,
         },
-        body: resp.json,
+        body: routeResponse.json,
     };
 };

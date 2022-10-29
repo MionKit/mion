@@ -40,7 +40,6 @@
     "format": "prettier --write src/**/*.ts",
     "build:csj": "rimraf .dist/csj && tsc --build tsconfig.build.json",
     "build:esm": "rimraf .dist/esm && tsc --build tsconfig.build-esm.json",
-    "build": "npm run build:csj && npm run build:esm",
     "clean": "rimraf .dist"
   },
   "bugs": {
@@ -48,5 +47,8 @@
   },
   "dependencies": {
     "@mikrokit/router": "^0.1.0"
+  },
+  "devDependencies": {
+    "@serverless/event-mocks": "^1.1.1"
   }
 }
