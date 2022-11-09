@@ -3,4 +3,5 @@ module.exports = {
   preset: 'ts-jest',
   testEnvironment: 'node',
   collectCoverage: false,
+  testMatch: ['**/?(*.)+(spec|test).ts?(x)'],
 };

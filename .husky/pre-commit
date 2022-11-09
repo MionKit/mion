@@ -1,8 +1,8 @@
 #!/usr/bin/env sh
 . "$(dirname -- "$0")/_/husky.sh"
 
-# lint uses lerna that has caching enabled
-npm run lint
+# lint staged files only
+npx lint-staged
 
 # use bellow lint if you want a more readable lint output
 # npm run lint-pre-commit
