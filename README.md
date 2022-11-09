@@ -152,7 +152,7 @@ MkRouter.addRoutes(routes);
 </td>
 <td>
 
-```yml
+```yaml
 # VALID REQUEST BODY
 { "/users/getUser": [ {"id" : 1} ]}
 

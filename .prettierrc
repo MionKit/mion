@@ -2,5 +2,5 @@
   "bracketSpacing": false,
   "singleQuote": true,
   "printWidth": 130,
-  "trailingComma": "all"
+  "trailingComma": "es5"
 }
