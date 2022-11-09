@@ -19,5 +19,11 @@ module.exports = {
         '@typescript-eslint/explicit-function-return-type': 'error',
       },
     },
+    {
+      files: ['**/*.spec.ts'],
+      rules: {
+        '@typescript-eslint/no-unused-var': 'off',
+      },
+    },
   ],
 };
