@@ -26,6 +26,8 @@
     {"path": "packages/router"},
     {"path": "packages/http"},
     {"path": "packages/serverless"},
-    {"path": "packages/compiled-app"}
+    {"path": "packages/compiled-app"},
+    {"path": "packages/client-generator"},
+    {"path": "packages/client"}
   ]
 }

@@ -5,4 +5,5 @@ module.exports = {
   collectCoverage: true,
   coverageDirectory: '.coverage',
   collectCoverageFrom: ['src/**'],
+  testMatch: ['**/?(*.)+(spec|test).ts?(x)'],
 };
