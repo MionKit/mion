@@ -80,6 +80,7 @@ describe('generate api spec should', () => {
 });
 
 // bellow tests doesn't need to be run every time is just investigation work
+// eslint-disable-next-line jest/no-disabled-tests
 describe.skip('this is just investigation about how deepkit types serialization works', () => {
     enum Country {
         spain = 'spain',
@@ -104,7 +105,6 @@ describe.skip('this is just investigation about how deepkit types serialization 
     const routeExtendedUser = (ctx, extendedUser: ExtendedUser): ExtendedUser => extendedUser;
 
     type rType = Parameters<typeof routeCountry>;
-
     type typeP = rType[1];
 
     const routers = {

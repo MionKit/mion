@@ -6,7 +6,7 @@
  * ######## */
 
 import {SerializedTypes} from '@deepkit/type';
-import {Executable} from '@mikrokit/router';
+import {Executable, Route, Hook, Route, Handler, Context} from '@mikrokit/router';
 
 export type ClientOptions = {
     apiURL: string;
@@ -45,3 +45,36 @@ export type RemoteHandler<F, Request, Response> = F extends (arg0: any, ...rest:
 
 export type RemoteParams<F> = F extends (arg0: any, ...rest: infer ARG) => infer R ? ARG : never;
 export type RemoteReturn<F> = F extends (arg0: any, ...rest: infer ARG) => infer R ? Awaited<R> : never;
+
+// ########## remote maps ###########
+
+export type ReHandler<H> = H;
+
+export type ClientRoute<RO> = {
+    [P in keyof RO]: RO[P] extends (arg0: Context<any, any, any, any>, ...rest: infer Req) => infer Resp
+        ? (...rest: Req) => Promise<Awaited<Resp>>
+        : RO[P];
+};
+
+export type RHandler<H extends Handler> = H extends (arg0: Context<any, any, any, any>, ...rest: infer Req) => infer Resp
+    ? (...rest: Req) => Promise<Awaited<Resp>>
+    : never;
+
+export type RemoteRoute<R extends Route> = {
+    [P in keyof R]: R[P] extends (arg0: Context<any, any, any, any>, ...rest: infer Req) => infer Resp
+        ? (...rest: Req) => Promise<Awaited<Resp>>
+        : R[P];
+};
+
+export type RemoteRoute<R extends Route> = R extends Route ? RemoteRoute<R> : R extends Handler ? RHandler<R> : never;
+
+const sum = {
+    /** Route Handler */
+    route: (c: any, a: number, b: number) => a + b,
+};
+const sum2 = (c: any, a: number, b: number) => a + b;
+
+type Sum = typeof sum;
+type Sum2 = typeof sum2;
+type ClientSum = RemoteRoute<Sum>;
+type ClientSum2 = RemoteRoute<Sum2>;
