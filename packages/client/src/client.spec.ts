@@ -6,7 +6,7 @@
  * ######## */
 
 describe('client should', () => {
-    it('validate parameters passed toa  remote call', () => {});
+    it('validate parameters passed to  remote call', () => {});
 
     it('make a remote call', () => {});
 
