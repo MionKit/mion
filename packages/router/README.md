@@ -335,7 +335,7 @@ Most of the data within the `Context` is marked as read only, this is because it
 #### Context Type
 
 ```ts
-// src/types.ts#L157-L204
+// src/types.ts#L157-L209
 
 /** The call Context object passed as first parameter to any hook or route */
 export type Context<
@@ -346,6 +346,7 @@ export type Context<
 > = Readonly<{
   /** Static Data: main App, db driver, libraries, etc... */
   app: Readonly<App>;
+  /** Raw server Request and Response */
   serverContext: Readonly<AnyServerContext>;
   /** Route's path */
   path: Readonly<string>;
@@ -377,11 +378,15 @@ export type Response = {
   json: Readonly<string>;
 };
 
-export type ServerContext<ServerReq extends Request> = {
+export type ServerContext<ServerReq extends Request, ServerResp = any> = {
   /** Server request
    * i.e: '@types/aws-lambda/APIGatewayEvent'
    * or http/IncomingMessage */
   req: ServerReq;
+
+  /** Server Response
+   * i.e: 'http/ServerResponse' */
+  resp: ServerResp;
 };
 ```
 
@@ -524,58 +529,60 @@ module.exports = {
 ## `Router Options`
 
 ```ts
-// src/constants.ts#L37-L86
+// src/constants.ts#L37-L88
 
 export const DEFAULT_ROUTE_OPTIONS: Readonly<RouterOptions> = {
-    /** prefix for all routes, i.e: api/v1.
-     * path separator is added between the prefix and the route */
-    prefix: '',
+  /** prefix for all routes, i.e: api/v1.
+   * path separator is added between the prefix and the route */
+  prefix: '',
 
-    /** suffix for all routes, i.e: .json.
-     * No path separator is added between the route and the suffix */
-    suffix: '',
+  /** suffix for all routes, i.e: .json.
+   * No path separator is added between the route and the suffix */
+  suffix: '',
 
-    /** function that transforms the path before finding a route */
-    pathTransform: undefined,
+  /** function that transforms the path before finding a route */
+  pathTransform: undefined,
 
-    /**
-     * configures the fieldName in the request/response body
-     * used to send/receive route's params/response
-     * */
-    routeFieldName: undefined,
+  /**
+   * configures the fieldName in the request/response body
+   * used to send/receive route's params/response
+   * */
+  routeFieldName: undefined,
 
-    /** Enables automatic parameter validation */
-    enableValidation: true,
+  /** Enables automatic parameter validation */
+  enableValidation: true,
 
-    /** Enables automatic serialization/deserialization */
-    enableSerialization: true,
+  /** Enables automatic serialization/deserialization */
+  enableSerialization: true,
 
-    /**
-     * Deepkit Serialization Options
-     * loosely defaults to false, Soft conversion disabled.
-     * !! We Don't recommend to enable soft conversion as validation might fail
-     * */
-    serializationOptions: {
-        loosely: false,
-    },
+  /**
+   * Deepkit Serialization Options
+   * loosely defaults to false, Soft conversion disabled.
+   * !! We Don't recommend to enable soft conversion as validation might fail
+   * */
+  serializationOptions: {
+    loosely: false,
+  },
 
-    /**
-     * Deepkit custom serializer
-     * @link https://docs.deepkit.io/english/serialization.html#serialisation-custom-serialiser
-     * */
-    customSerializer: undefined,
+  /**
+   * Deepkit custom serializer
+   * @link https://docs.deepkit.io/english/serialization.html#serialisation-custom-serialiser
+   * */
+  customSerializer: undefined,
 
-    /**
-     * Deepkit Serialization Options
-     * @link https://docs.deepkit.io/english/serialization.html#_naming_strategy
-     * */
-    serializerNamingStrategy: undefined,
+  /**
+   * Deepkit Serialization Options
+   * @link https://docs.deepkit.io/english/serialization.html#_naming_strategy
+   * */
+  serializerNamingStrategy: undefined,
 
-    /** Custom body parser, defaults to Native JSON */
-    bodyParser: JSON,
+  /** Custom body parser, defaults to Native JSON */
+  bodyParser: JSON,
 
-    /** Response content type.
-     * Might need to get updated if the @field bodyParser returns anything else than json  */
+  /** Response content type.
+   * Might need to get updated if the @field bodyParser returns anything else than json  */
+  responseContentType: 'application/json; charset=utf-8',
+};
 ```
 
 ## `Full Working Example`
