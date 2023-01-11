@@ -239,54 +239,51 @@ const getSomeData: Route = {
 <td>
 
 ```ts
-// src/types.ts#L25-L43
+// src/types.ts#L24-L41
 
+/** Route or Hook Handler */
 export type Handler = (context: Context<any, any, any, any>, ...args: any) => any | Promise<any>;
 
 /** Route definition */
 export type RouteDef = {
-    /** description of the route, mostly for documentation purposes */
-    description?: string;
-    /** enable automatic parameter validation, defaults to true */
-    enableValidation?: boolean;
-    /** Enables serialization/deserialization */
-    enableSerialization?: boolean;
-    /** Route Handler */
-    route: Handler;
+  /** description of the route, mostly for documentation purposes */
+  description?: string;
+  /** enable automatic parameter validation, defaults to true */
+  enableValidation?: boolean;
+  /** Enables serialization/deserialization */
+  enableSerialization?: boolean;
+  /** Route Handler */
+  route: Handler;
 };
 
 /** A route can be a full route definition or just the handler */
 export type Route = RouteDef | Handler;
-
-/** Hook definition */
-export type Hook = {
 ```
 
 </td>
 <td>
 
 ```ts
-// src/types.ts#L45-L63
+// src/types.ts#L43-L61
 
-    forceRunOnError?: boolean;
-    /** Enables returning data in the responseBody */
-    canReturnData?: boolean;
-    /** Sets the value in a heather rather than the body */
-    inHeader?: boolean;
-    /** The fieldName in the request/response body */
-    fieldName?: string;
-    /** Description of the route, mostly for documentation purposes */
-    description?: string;
-    /** enable automatic parameter validation, defaults to true */
-    enableValidation?: boolean;
-    /** Enables serialization/deserialization */
-    enableSerialization?: boolean;
-    /** Hook handler */
-    hook: Handler;
+export type Hook = {
+  /** Executes the hook even if an error was thrown previously */
+  forceRunOnError?: boolean;
+  /** Enables returning data in the responseBody */
+  canReturnData?: boolean;
+  /** Sets the value in a heather rather than the body */
+  inHeader?: boolean;
+  /** The fieldName in the request/response body */
+  fieldName?: string;
+  /** Description of the route, mostly for documentation purposes */
+  description?: string;
+  /** enable automatic parameter validation, defaults to true */
+  enableValidation?: boolean;
+  /** Enables serialization/deserialization */
+  enableSerialization?: boolean;
+  /** Hook handler */
+  hook: Handler;
 };
-
-/** Data structure to define all the routes, each entry is a route a hook or sub-routes */
-export type Routes = {
 ```
 
 </td>
@@ -533,60 +530,60 @@ module.exports = {
 ## `Router Options`
 
 ```ts
-// src/constants.ts#L37-L88
+// src/constants.ts#L36-L87
 
-    /** prefix for all routes, i.e: api/v1.
-     * path separator is added between the prefix and the route */
-    prefix: '',
+export const DEFAULT_ROUTE_OPTIONS: Readonly<RouterOptions> = {
+  /** prefix for all routes, i.e: api/v1.
+   * path separator is added between the prefix and the route */
+  prefix: '',
 
-    /** suffix for all routes, i.e: .json.
-     * No path separator is added between the route and the suffix */
-    suffix: '',
+  /** suffix for all routes, i.e: .json.
+   * No path separator is added between the route and the suffix */
+  suffix: '',
 
-    /** function that transforms the path before finding a route */
-    pathTransform: undefined,
+  /** function that transforms the path before finding a route */
+  pathTransform: undefined,
 
-    /**
-     * configures the fieldName in the request/response body
-     * used to send/receive route's params/response
-     * */
-    routeFieldName: undefined,
+  /**
+   * configures the fieldName in the request/response body
+   * used to send/receive route's params/response
+   * */
+  routeFieldName: undefined,
 
-    /** Enables automatic parameter validation */
-    enableValidation: true,
+  /** Enables automatic parameter validation */
+  enableValidation: true,
 
-    /** Enables automatic serialization/deserialization */
-    enableSerialization: true,
+  /** Enables automatic serialization/deserialization */
+  enableSerialization: true,
 
-    /**
-     * Deepkit Serialization Options
-     * loosely defaults to false, Soft conversion disabled.
-     * !! We Don't recommend to enable soft conversion as validation might fail
-     * */
-    serializationOptions: {
-        loosely: false,
-    },
+  /**
+   * Deepkit Serialization Options
+   * loosely defaults to false, Soft conversion disabled.
+   * !! We Don't recommend to enable soft conversion as validation might fail
+   * */
+  serializationOptions: {
+    loosely: false,
+  },
 
-    /**
-     * Deepkit custom serializer
-     * @link https://docs.deepkit.io/english/serialization.html#serialisation-custom-serialiser
-     * */
-    customSerializer: undefined,
+  /**
+   * Deepkit custom serializer
+   * @link https://docs.deepkit.io/english/serialization.html#serialisation-custom-serialiser
+   * */
+  customSerializer: undefined,
 
-    /**
-     * Deepkit Serialization Options
-     * @link https://docs.deepkit.io/english/serialization.html#_naming_strategy
-     * */
-    serializerNamingStrategy: undefined,
+  /**
+   * Deepkit Serialization Options
+   * @link https://docs.deepkit.io/english/serialization.html#_naming_strategy
+   * */
+  serializerNamingStrategy: undefined,
 
-    /** Custom body parser, defaults to Native JSON */
-    bodyParser: JSON,
+  /** Custom body parser, defaults to Native JSON */
+  bodyParser: JSON,
 
-    /** Response content type.
-     * Might need to get updated if the @field bodyParser returns anything else than json  */
-    responseContentType: 'application/json; charset=utf-8',
+  /** Response content type.
+   * Might need to get updated if the @field bodyParser returns anything else than json  */
+  responseContentType: 'application/json; charset=utf-8',
 };
-
 ```
 
 ## `Full Working Example`
