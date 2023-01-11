@@ -341,8 +341,8 @@ Most of the data within the `Context` is marked as read only, this is because it
 export type Context<
   App,
   SharedData,
-  ServerReq extends MkRequest,
-  AnyServerCall extends ServerCall<ServerReq> = ServerCall<ServerReq>,
+  ServerReq extends Request,
+  AnyServerCall extends ServerCall<ServerReq> = ServerCall<ServerReq>
 > = Readonly<{
   /** Static Data: main App, db driver, libraries, etc... */
   app: Readonly<App>;
@@ -360,24 +360,24 @@ export type Context<
     body: MapObj;
   }>;
   /** returned data (non parsed) */
-  response: Readonly<MkResponse>;
+  response: Readonly<Response>;
   /** shared data between route/hooks handlers */
   shared: Readonly<SharedData>;
 }>;
 
-export type MkResponse = {
+export type Response = {
   statusCode: Readonly<number>;
   /** response errors: empty if there were no errors during execution */
   errors: Readonly<PublicError[]>;
   /** response headers */
-  headers: MkHeaders;
+  headers: Headers;
   /** the router response data, JS object */
   body: Readonly<MapObj>;
   /** json encoded response, contains data and errors if there are any. */
   json: Readonly<string>;
 };
 
-export type ServerCall<ServerReq extends MkRequest> = {
+export type ServerCall<ServerReq extends Request> = {
   /** Server request
    * i.e: '@types/aws-lambda/APIGatewayEvent'
    * or http/IncomingMessage */

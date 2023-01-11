@@ -18,7 +18,7 @@ import {
     initRouter,
     runRoute,
 } from './router';
-import {Context, Handler, Hook, MkRequest, Route, RouteObject, Routes} from './types';
+import {Context, Handler, Hook, Request, Route, RouteObject, Routes} from './types';
 import {APIGatewayEvent} from 'aws-lambda';
 import {StatusCodes} from './status-codes';
 
@@ -144,7 +144,7 @@ describe('Create routes should', () => {
                 inHeader: false,
                 fieldName: '/hello',
                 isRoute: true,
-            }),
+            })
         );
     });
 
@@ -161,7 +161,7 @@ describe('Create routes should', () => {
                 inHeader: false,
                 fieldName: 'first',
                 isRoute: false,
-            }),
+            })
         );
     });
 
@@ -178,7 +178,7 @@ describe('Create routes should', () => {
                 inHeader: false,
                 fieldName: '/sayHello',
                 isRoute: true,
-            }),
+            })
         );
     });
 
@@ -228,7 +228,7 @@ describe('Create routes should', () => {
         expect(() => addRoutes(empty)).toThrow('Invalid route: root Object. Can Not define empty routes');
         expect(() => addRoutes(emptySub)).toThrow('Invalid route: sayHello. Can Not define empty routes');
         expect(() => addRoutes(invalidValues as any)).toThrow(
-            'Invalid route: sayHello/total. Type <number> is not a valid route.',
+            'Invalid route: sayHello/total. Type <number> is not a valid route.'
         );
         expect(() => addRoutes(numericNames)).toThrow('Invalid route: directory/2. Numeric route names are not allowed');
     });
@@ -255,7 +255,7 @@ describe('Create routes should', () => {
             },
         };
         expect(() => addRoutes(fieldCollision)).toThrow(
-            `Invalid hook: postProcess. Naming collision, the fieldName 'process' has been used in more than one hook/route.`,
+            `Invalid hook: postProcess. Naming collision, the fieldName 'process' has been used in more than one hook/route.`
         );
         expect(() => addRoutes(pathCollision)).toThrow('Invalid route: sayHello2. Naming collision, duplicated route');
     });
@@ -330,13 +330,13 @@ describe('Create routes should', () => {
         expect(getRouteExecutable('/sayHello')).toEqual(
             expect.objectContaining({
                 isAsync: false,
-            }),
+            })
         );
 
         expect(getRouteExecutable('/asyncSayHello')).toEqual(
             expect.objectContaining({
                 isAsync: true,
-            }),
+            })
         );
     });
 });
@@ -381,7 +381,7 @@ describe('Run routes', () => {
         },
     };
 
-    const getDefaultRequest = (path: string, params?): MkRequest => ({
+    const getDefaultRequest = (path: string, params?): Request => ({
         headers: {},
         body: JSON.stringify({[path]: params}),
     });
@@ -404,7 +404,7 @@ describe('Run routes', () => {
             initRouter(app, getSharedData);
             addRoutes({auth, changeUserName});
 
-            const request: MkRequest = {
+            const request: Request = {
                 headers: {Authorization: '1234'},
                 body: JSON.stringify({['/changeUserName']: [{name: 'Leo', surname: 'Tungsten'}]}),
             };
@@ -420,9 +420,9 @@ describe('Run routes', () => {
             addRoutes({sayHello: () => 'hello'});
 
             const path = '/sayHello';
-            const request1: MkRequest = {headers: {}, body: ''};
-            const request2: MkRequest = {headers: {}, body: '{}'};
-            const request3: MkRequest = {headers: {}, body: '{"/sayHello": null}'};
+            const request1: Request = {headers: {}, body: ''};
+            const request2: Request = {headers: {}, body: '{}'};
+            const request3: Request = {headers: {}, body: '{"/sayHello": null}'};
 
             const response1 = await runRoute('/sayHello', request1);
             const response2 = await runRoute('/sayHello', request2);
@@ -503,7 +503,7 @@ describe('Run routes', () => {
             initRouter(app, getSharedData);
             addRoutes({changeUserName});
 
-            const request: MkRequest = {
+            const request: Request = {
                 headers: {},
                 body: '1234',
             };
@@ -514,7 +514,7 @@ describe('Run routes', () => {
                 message: 'Wrong parsed body type. Expecting an object containing the route name and parameters.',
             });
 
-            const request2: MkRequest = {
+            const request2: Request = {
                 headers: {},
                 body: '{-12',
             };

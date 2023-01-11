@@ -22,9 +22,9 @@ import {
     Routes,
     Context,
     MapObj,
-    MkRequest,
+    Request,
     SharedDataFactory,
-    MkResponse,
+    Response,
     ServerCall,
     RouteError,
     Mutable,
@@ -59,7 +59,7 @@ export const getHookExecutable = (fieldName: string) => hooksByFieldName.get(fie
 export const geHooksSize = () => hooksByFieldName.size;
 export const getComplexity = () => complexity;
 export const getRouterOptions = () => routerOptions;
-export const setRouterOptions = <ServerReq extends MkRequest = MkRequest>(routerOptions_?: Partial<RouterOptions<ServerReq>>) => {
+export const setRouterOptions = <ServerReq extends Request = Request>(routerOptions_?: Partial<RouterOptions<ServerReq>>) => {
     routerOptions = {
         ...routerOptions,
         ...(routerOptions_ as Partial<RouterOptions>),
@@ -91,12 +91,12 @@ export const reset = () => {
 export const initRouter = <
     App extends MapObj,
     SharedData,
-    ServerReq extends MkRequest,
-    AnyServerCall extends ServerCall<ServerReq>,
+    ServerReq extends Request,
+    AnyServerCall extends ServerCall<ServerReq>
 >(
     app_: App,
     handlersDataFactory_?: SharedDataFactory<SharedData>,
-    routerOptions_?: Partial<RouterOptions<ServerReq>>,
+    routerOptions_?: Partial<RouterOptions<ServerReq>>
 ) => {
     if (app) throw new Error('Context has been already defined');
     app = app_;
@@ -113,24 +113,24 @@ export const initRouter = <
 export const runRoute = async <
     App extends MapObj,
     SharedData,
-    ServerReq extends MkRequest,
-    AnyServerCall extends ServerCall<ServerReq> = ServerCall<ServerReq>,
+    ServerReq extends Request,
+    AnyServerCall extends ServerCall<ServerReq> = ServerCall<ServerReq>
 >(
     path: string,
-    req: ServerReq,
-): Promise<MkResponse> => {
+    req: ServerReq
+): Promise<Response> => {
     return runRoute_<App, SharedData, ServerReq, AnyServerCall>(path, {req} as AnyServerCall);
 };
 
 export const runRoute_ = async <
     App extends MapObj,
     SharedData,
-    ServerReq extends MkRequest,
-    AnyServerCall extends ServerCall<ServerReq>,
+    ServerReq extends Request,
+    AnyServerCall extends ServerCall<ServerReq>
 >(
     path: string,
-    serverCall: AnyServerCall,
-): Promise<MkResponse> => {
+    serverCall: AnyServerCall
+): Promise<Response> => {
     if (!app) throw new Error('Context has not been defined');
     const transformedPath = routerOptions.pathTransform ? routerOptions.pathTransform(serverCall.req, path) : path;
     const context: Context<App, SharedData, ServerReq, AnyServerCall> = {
@@ -190,13 +190,8 @@ export const runRoute_ = async <
     return context.response;
 };
 
-const parseRequestBody = <
-    App extends MapObj,
-    SharedData,
-    ServerReq extends MkRequest,
-    AnyServerCall extends ServerCall<ServerReq>,
->(
-    context: Context<App, SharedData, ServerReq, AnyServerCall>,
+const parseRequestBody = <App extends MapObj, SharedData, ServerReq extends Request, AnyServerCall extends ServerCall<ServerReq>>(
+    context: Context<App, SharedData, ServerReq, AnyServerCall>
 ) => {
     if (!context.serverCall.req.body || context.serverCall.req.body === '{}') return;
     try {
@@ -205,7 +200,7 @@ const parseRequestBody = <
             if (typeof parsedBody !== 'object')
                 throw new RouteError(
                     StatusCodes.BAD_REQUEST,
-                    'Wrong parsed body type. Expecting an object containing the route name and parameters.',
+                    'Wrong parsed body type. Expecting an object containing the route name and parameters.'
                 );
             (context.request as Mutable<MapObj>).body = parsedBody;
         } else if (typeof context.serverCall.req.body === 'object') {
@@ -219,7 +214,7 @@ const parseRequestBody = <
             handleRouteErrors(
                 context,
                 new RouteError(StatusCodes.BAD_REQUEST, `Invalid request body: ${err?.message || 'unknown parsing error.'}`),
-                0,
+                0
             );
         }
         handleRouteErrors(context, err, 0);
@@ -229,11 +224,11 @@ const parseRequestBody = <
 const getValidatedHandlerParams = <
     App extends MapObj,
     SharedData,
-    ServerReq extends MkRequest,
-    AnyServerCall extends ServerCall<ServerReq>,
+    ServerReq extends Request,
+    AnyServerCall extends ServerCall<ServerReq>
 >(
     context: Context<App, SharedData, ServerReq, AnyServerCall>,
-    executable: Executable,
+    executable: Executable
 ): any[] => {
     const fieldName = executable.fieldName;
     let params;
@@ -251,7 +246,7 @@ const getValidatedHandlerParams = <
     if (!Array.isArray(params))
         throw new RouteError(
             StatusCodes.BAD_REQUEST,
-            `Invalid input '${fieldName}'. input parameters can only be sent in an array.`,
+            `Invalid input '${fieldName}'. input parameters can only be sent in an array.`
         );
 
     // if there are no params input field can be omitted
@@ -260,7 +255,7 @@ const getValidatedHandlerParams = <
     if (params.length !== executable.paramValidators.length)
         throw new RouteError(
             StatusCodes.BAD_REQUEST,
-            `Invalid input '${fieldName}', missing or invalid number of input parameters`,
+            `Invalid input '${fieldName}', missing or invalid number of input parameters`
         );
 
     if (routerOptions.enableSerialization) {
@@ -269,7 +264,7 @@ const getValidatedHandlerParams = <
         } catch (e) {
             throw new RouteError(
                 StatusCodes.BAD_REQUEST,
-                `Invalid input '${fieldName}', can not deserialize. Parameters might be of the wrong type.`,
+                `Invalid input '${fieldName}', can not deserialize. Parameters might be of the wrong type.`
             );
         }
     }
@@ -287,12 +282,12 @@ const getValidatedHandlerParams = <
 const serializeResponse = <
     App extends MapObj,
     SharedData,
-    ServerReq extends MkRequest,
-    AnyServerCall extends ServerCall<ServerReq>,
+    ServerReq extends Request,
+    AnyServerCall extends ServerCall<ServerReq>
 >(
     context: Context<App, SharedData, ServerReq, AnyServerCall>,
     executable: Executable,
-    result: any,
+    result: any
 ) => {
     if (!executable.canReturnData || result === undefined) return;
     const deserialized = routerOptions.enableSerialization ? executable.outputSerializer(result) : result;
@@ -322,7 +317,7 @@ const recursiveFlatRoutes = (
     currentPath = '',
     preHooks: Executable[] = [],
     postHooks: Executable[] = [],
-    nestLevel = 0,
+    nestLevel = 0
 ) => {
     if (nestLevel > MAX_ROUTE_NESTING)
         throw new Error('Too many nested routes, you can only nest routes ${MAX_ROUTE_NESTING} levels');
@@ -343,7 +338,7 @@ const recursiveFlatRoutes = (
             const fieldName = routeEntry.fieldName;
             if (hookNames.has(fieldName))
                 throw new Error(
-                    `Invalid hook: ${path}. Naming collision, the fieldName '${fieldName}' has been used in more than one hook/route.`,
+                    `Invalid hook: ${path}. Naming collision, the fieldName '${fieldName}' has been used in more than one hook/route.`
                 );
             hookNames.set(fieldName, true);
         } else if (isRoute(item)) {
@@ -369,7 +364,7 @@ const recursiveFlatRoutes = (
             nestLevel,
             index,
             array,
-            minus1Props,
+            minus1Props
         );
 
         complexity++;
@@ -384,7 +379,7 @@ const recursiveCreateExecutionPath = (
     nestLevel: number,
     index: number,
     routeKeyedEntries: RouterKeyEntryList,
-    minus1Props: ReturnType<typeof getRouteEntryProperties> | null,
+    minus1Props: ReturnType<typeof getRouteEntryProperties> | null
 ) => {
     const minus1 = getEntry(index - 1, routeKeyedEntries);
     const plus1 = getEntry(index + 1, routeKeyedEntries);
@@ -414,7 +409,7 @@ const recursiveCreateExecutionPath = (
             routeEntry.path,
             [...preHooks, ...props.preLevelHooks],
             [...props.postLevelHooks, ...postHooks],
-            nestLevel + 1,
+            nestLevel + 1
         );
     }
 
@@ -514,7 +509,7 @@ const getEntry = (index, keyEntryList: RouterKeyEntryList) => {
 const getRouteEntryProperties = (
     minus1: Routes | Hook | Route | undefined,
     zero: Executable | RoutesWithId,
-    plus1: Routes | Hook | Route | undefined,
+    plus1: Routes | Hook | Route | undefined
 ) => {
     const minus1IsRoute = minus1 && isRoute(minus1);
     const zeroIsRoute = !!(zero as Executable).isRoute;

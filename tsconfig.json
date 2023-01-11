@@ -21,6 +21,7 @@
     }
   },
   "reflection": true,
+  "include": ["."],
   "exclude": ["node_modules", ".dist"],
   "references": [
     {"path": "packages/router"},

@@ -9,8 +9,8 @@ import {
     Context,
     MapObj,
     RouteError,
-    MkHeaders,
-    MkRequest,
+    Headers,
+    Request,
     MkRouter,
     PublicError,
     RouterOptions,
@@ -37,7 +37,7 @@ export type HttpCallContext<App extends MapObj, SharedData extends MapObj> = Con
 export const initHttpApp = <App extends MapObj, SharedData extends MapObj>(
     app: App,
     handlersDataFactory?: SharedDataFactory<SharedData>,
-    routerOptions?: Partial<RouterOptions<HttpRequest>>,
+    routerOptions?: Partial<RouterOptions<HttpRequest>>
 ) => {
     type CallContext = Readonly<HttpCallContext<App, SharedData>>;
     MkRouter.initRouter(app, handlersDataFactory, routerOptions);
@@ -116,7 +116,7 @@ const httpRequestHandler: RequestListener = (httpReq: IncomingMessage, httpRespo
         const body = Buffer.concat(bodyChunks).toString();
         (httpReq as any).body = body;
 
-        MkRouter.runRoute_(path, {req: httpReq as any as MkRequest})
+        MkRouter.runRoute_(path, {req: httpReq as any as Request})
             .then((routeResponse) => {
                 if (hasError) return;
                 addResponseHeaders(httpResponse, routeResponse.headers);
@@ -159,7 +159,7 @@ const replyError = (httpResponse: ServerResponse, logger: Logger, statusCode: nu
     reply(httpResponse, logger, jsonBody, statusCode, statusMessage);
 };
 
-const addResponseHeaders = (httpResponse: ServerResponse, headers: MkHeaders) => {
+const addResponseHeaders = (httpResponse: ServerResponse, headers: Headers) => {
     Object.entries(headers).forEach(([key, value]) => httpResponse.setHeader(key, `${value}`));
 };
 

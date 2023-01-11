@@ -6,7 +6,7 @@
  * ######## */
 
 import {SerializedTypes} from '@deepkit/type';
-import {Executable, Route, Hook, Route, Handler, Context} from '@mikrokit/router';
+import {Executable, Route, Hook, Handler, Context} from '@mikrokit/router';
 
 export type ClientOptions = {
     apiURL: string;

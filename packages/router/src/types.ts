@@ -69,7 +69,7 @@ export type Routes = {
 // ####### Router Options #######
 
 /** Global Router Options */
-export type RouterOptions<ServerReq extends MkRequest = MkRequest> = {
+export type RouterOptions<ServerReq extends Request = Request> = {
     /** prefix for all routes, i.e: api/v1.
      * path separator is added between the prefix and the route */
     prefix: string;
@@ -131,7 +131,7 @@ export type Executable = {
 // ####### RESPONSE & RESPONSE #######
 
 /** Any request Object used by the router must follow this interface */
-export type MkRequest = {
+export type Request = {
     headers: {[header: string]: string | undefined | string[]} | undefined;
     body: string | null | undefined | {}; // eslint-disable-line @typescript-eslint/ban-types
 };
@@ -151,7 +151,7 @@ export type PublicError = {
     message: Readonly<string>;
 };
 
-export type MkHeaders = {[key: string]: string | boolean | number};
+export type Headers = {[key: string]: string | boolean | number};
 
 // ####### Context #######
 
@@ -159,8 +159,8 @@ export type MkHeaders = {[key: string]: string | boolean | number};
 export type Context<
     App,
     SharedData,
-    ServerReq extends MkRequest,
-    AnyServerCall extends ServerCall<ServerReq> = ServerCall<ServerReq>,
+    ServerReq extends Request,
+    AnyServerCall extends ServerCall<ServerReq> = ServerCall<ServerReq>
 > = Readonly<{
     /** Static Data: main App, db driver, libraries, etc... */
     app: Readonly<App>;
@@ -178,24 +178,24 @@ export type Context<
         body: MapObj;
     }>;
     /** returned data (non parsed) */
-    response: Readonly<MkResponse>;
+    response: Readonly<Response>;
     /** shared data between route/hooks handlers */
     shared: Readonly<SharedData>;
 }>;
 
-export type MkResponse = {
+export type Response = {
     statusCode: Readonly<number>;
     /** response errors: empty if there were no errors during execution */
     errors: Readonly<PublicError[]>;
     /** response headers */
-    headers: MkHeaders;
+    headers: Headers;
     /** the router response data, JS object */
     body: Readonly<MapObj>;
     /** json encoded response, contains data and errors if there are any. */
     json: Readonly<string>;
 };
 
-export type ServerCall<ServerReq extends MkRequest> = {
+export type ServerCall<ServerReq extends Request> = {
     /** Server request
      * i.e: '@types/aws-lambda/APIGatewayEvent'
      * or http/IncomingMessage */

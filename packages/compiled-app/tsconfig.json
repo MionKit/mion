@@ -19,5 +19,5 @@
   "reflection": true,
   "include": ["."],
   "exclude": ["examples", ".dist"],
-  "references": [{"path": "../http/tsconfig.json"}]
+  "references": [{"path": "../http"}, {"path": "../router"}]
 }
