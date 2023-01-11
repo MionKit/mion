@@ -8,7 +8,8 @@
 import {MkRouter, Context, MapObj, SharedDataFactory, RouterOptions} from '@mikrokit/router';
 import {Context as AwsContext, APIGatewayProxyResult, APIGatewayEvent} from 'aws-lambda';
 
-export type AwsServerCall = {
+export type AwsServerContext = {
+    resp: null;
     req: APIGatewayEvent;
     awsContext: AwsContext;
 };
@@ -19,13 +20,13 @@ export type AwsCallContext<App extends MapObj, SharedData extends MapObj> = Cont
     App,
     SharedData,
     APIGatewayEvent,
-    AwsServerCall
+    AwsServerContext
 >;
 
 export const initAwsLambdaApp = <App extends MapObj, SharedData extends MapObj>(
     app: App,
     handlersDataFactory?: SharedDataFactory<SharedData>,
-    routerOptions?: Partial<RouterOptions<APIGatewayEvent>>,
+    routerOptions?: Partial<RouterOptions<APIGatewayEvent>>
 ) => {
     type CallContext = AwsCallContext<App, SharedData>;
     MkRouter.initRouter(app, handlersDataFactory, routerOptions);
@@ -35,8 +36,8 @@ export const initAwsLambdaApp = <App extends MapObj, SharedData extends MapObj>(
 };
 
 const lambdaHandler = async (req: APIGatewayEvent, awsContext: AwsContext): Promise<APIGatewayProxyResult> => {
-    const serverCall: AwsServerCall = {req, awsContext};
-    const routeResponse = await MkRouter.runRoute_(req.path, serverCall);
+    const serverContext: AwsServerContext = {req, resp: null, awsContext};
+    const routeResponse = await MkRouter.runRoute_(req.path, serverContext);
     return {
         statusCode: routeResponse.statusCode,
         headers: {

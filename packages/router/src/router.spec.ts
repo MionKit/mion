@@ -18,14 +18,14 @@ import {
     initRouter,
     runRoute,
 } from './router';
-import {Context, Handler, Hook, Request, Route, RouteObject, Routes} from './types';
+import {Context, Handler, Hook, Request, Route, RouteDef, Routes} from './types';
 import {APIGatewayEvent} from 'aws-lambda';
 import {StatusCodes} from './status-codes';
 
 describe('Create routes should', () => {
     const hook: Hook = {hook(): void {}};
     const route1: Handler = () => 'route1';
-    const route2: RouteObject = {
+    const route2: RouteDef = {
         route() {
             return 'route2';
         },

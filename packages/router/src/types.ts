@@ -25,7 +25,7 @@ import {statusCodeToReasonPhrase} from './status-codes';
 export type Handler = (context: Context<any, any, any, any>, ...args: any) => any | Promise<any>;
 
 /** Route definition */
-export type RouteObject = {
+export type RouteDef = {
     /** overrides route's path and fieldName in request/response body */
     path?: string;
     /** description of the route, mostly for documentation purposes */
@@ -39,7 +39,7 @@ export type RouteObject = {
 };
 
 /** A route can be a full route definition or just the handler */
-export type Route = RouteObject | Handler;
+export type Route = RouteDef | Handler;
 
 /** Hook definition */
 export type Hook = {
@@ -160,11 +160,12 @@ export type Context<
     App,
     SharedData,
     ServerReq extends Request,
-    AnyServerCall extends ServerCall<ServerReq> = ServerCall<ServerReq>
+    AnyServerContext extends ServerContext<ServerReq> = ServerContext<ServerReq>
 > = Readonly<{
     /** Static Data: main App, db driver, libraries, etc... */
     app: Readonly<App>;
-    serverCall: Readonly<AnyServerCall>;
+    /** Raw server Request and Response */
+    serverContext: Readonly<AnyServerContext>;
     /** Route's path */
     path: Readonly<string>;
     /**
@@ -195,11 +196,15 @@ export type Response = {
     json: Readonly<string>;
 };
 
-export type ServerCall<ServerReq extends Request> = {
+export type ServerContext<ServerReq extends Request, ServerResp = any> = {
     /** Server request
      * i.e: '@types/aws-lambda/APIGatewayEvent'
      * or http/IncomingMessage */
     req: ServerReq;
+
+    /** Server Response
+     * i.e: 'http/ServerResponse' */
+    resp: ServerResp;
 };
 
 /** Function used to create the shared data object on each route call  */
@@ -217,17 +222,13 @@ export type RouteOutputSerializer = <T>(data: T) => JSONSingle<T>;
 export const isHandler = (entry: Hook | Route | Routes): entry is Handler => {
     return typeof entry === 'function';
 };
-/** Type guard: isRouteObject */
-export const isRouteObject = (entry: Hook | Route | Routes): entry is RouteObject => {
-    return typeof (entry as RouteObject).route === 'function';
-};
 /** Type guard: isHook */
 export const isHook = (entry: Hook | Route | Routes): entry is Hook => {
     return typeof (entry as Hook).hook === 'function';
 };
 /** Type guard: isRoute */
 export const isRoute = (entry: Hook | Route | Routes): entry is Route => {
-    return typeof entry === 'function' || typeof (entry as RouteObject).route === 'function';
+    return typeof entry === 'function' || typeof (entry as RouteDef).route === 'function';
 };
 /** Type guard: isRoutes */
 export const isRoutes = (entry: any): entry is Route => {

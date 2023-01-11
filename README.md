@@ -15,7 +15,7 @@
 
 Serverless applications have different requirements than conventional server apps.
 
-With that in mind **MikroKit is designed to build lightweight Apis**. It is a very opinionated micro framework with simplicity and speed in mind.
+With that in mind **MikroKit is designed to build type safe and lightweight Apis**. It is a very opinionated micro framework **with simplicity and development speed in mind**.
 
 ### MikroKit vs Deepkit
 
@@ -54,7 +54,7 @@ MikroKit opinions might not always be the best or suit every scenario, but are a
 
 ## `RPC like`
 
-Here is where MikroKit starts to deviate from traditional frameworks. [The router](./packages/router/README.md) uses a **Remote Procedure Call** style routing, unlike traditional routers it does not use `GET`, `PUT`, `POST` and `DELETE` methods, everything is transmitted using `HTTP POST` method and all data is sent/received in the request/response `body` and `headers`.
+Here is where MikroKit starts to deviate from traditional frameworks. [The router](./packages/router/README.md) uses a **Remote Procedure Call** style routing, unlike traditional routers it does not use `GET`, `PUT`, `POST` and `DELETE` methods, everything is transmitted using `HTTP POST` method and all data is sent/received in the request/response `body` and optionally in `headers`.
 
 ### Requests & Responses
 

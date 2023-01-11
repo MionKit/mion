@@ -32,14 +32,15 @@ let defaultResponseContentType: string;
 let defaultResponseHeaders: HeadersEntries = [];
 
 export type HttpRequest = IncomingMessage & {body: string};
-export type HttpCallContext<App extends MapObj, SharedData extends MapObj> = Context<App, SharedData, HttpRequest>;
+export type HttpCallContext = {req: HttpRequest; resp: ServerResponse};
+export type HttpContext<App extends MapObj, SharedData extends MapObj> = Context<App, SharedData, HttpRequest, HttpCallContext>;
 
 export const initHttpApp = <App extends MapObj, SharedData extends MapObj>(
     app: App,
     handlersDataFactory?: SharedDataFactory<SharedData>,
     routerOptions?: Partial<RouterOptions<HttpRequest>>
 ) => {
-    type CallContext = Readonly<HttpCallContext<App, SharedData>>;
+    type CallContext = Readonly<HttpContext<App, SharedData>>;
     MkRouter.initRouter(app, handlersDataFactory, routerOptions);
     defaultResponseContentType = MkRouter.getRouterOptions().responseContentType;
     const emptyContext: CallContext = {} as CallContext;
@@ -116,7 +117,7 @@ const httpRequestHandler: RequestListener = (httpReq: IncomingMessage, httpRespo
         const body = Buffer.concat(bodyChunks).toString();
         (httpReq as any).body = body;
 
-        MkRouter.runRoute_(path, {req: httpReq as any as Request})
+        MkRouter.runRoute_(path, {req: httpReq as any as Request, resp: httpResponse})
             .then((routeResponse) => {
                 if (hasError) return;
                 addResponseHeaders(httpResponse, routeResponse.headers);

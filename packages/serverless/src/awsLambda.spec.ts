@@ -44,7 +44,7 @@ describe('serverless router should', () => {
     const updateHeaders: Route = (context: CallContext): void => {
         context.response.headers['x-something'] = true;
         context.response.headers['server'] = 'my-server';
-        context.serverCall.awsContext;
+        context.serverContext.awsContext;
     };
 
     MkRouter.addRoutes({changeUserName, getDate, updateHeaders});
@@ -53,7 +53,7 @@ describe('serverless router should', () => {
         body: string,
         path: string,
         httpMethod = 'POST',
-        headers: APIGatewayProxyEventHeaders = {},
+        headers: APIGatewayProxyEventHeaders = {}
     ) => {
         const context = {} as any;
         const event = createEvent('aws:apiGateway', {

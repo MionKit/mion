@@ -17,7 +17,7 @@ import {
     isRoute,
     isRoutes,
     Route,
-    RouteObject,
+    RouteDef,
     RouterOptions,
     Routes,
     Context,
@@ -25,7 +25,7 @@ import {
     Request,
     SharedDataFactory,
     Response,
-    ServerCall,
+    ServerContext,
     RouteError,
     Mutable,
     PublicError,
@@ -86,13 +86,13 @@ export const reset = () => {
  * @param app_
  * @param handlersDataFactory_
  * @param routerOptions_
- * @returns {emptyContext: Context<App, SharedData, ServerReq, AnyServerCall>}
+ * @returns {emptyContext: Context<App, SharedData, ServerReq, AnyServerContext>}
  */
 export const initRouter = <
     App extends MapObj,
     SharedData,
     ServerReq extends Request,
-    AnyServerCall extends ServerCall<ServerReq>
+    AnyServerContext extends ServerContext<ServerReq>
 >(
     app_: App,
     handlersDataFactory_?: SharedDataFactory<SharedData>,
@@ -103,7 +103,7 @@ export const initRouter = <
     sharedDataFactory = handlersDataFactory_;
     setRouterOptions(routerOptions_);
 
-    type ResolveContext = Context<App, SharedData, ServerReq, AnyServerCall>;
+    type ResolveContext = Context<App, SharedData, ServerReq, AnyServerContext>;
     // contextType = typeOf<ResolveContext>();
     // type ResolvedRun = typeof run<ServerReq, ServerResp>;
     const emptyContext: ResolveContext = {} as any;
@@ -114,31 +114,31 @@ export const runRoute = async <
     App extends MapObj,
     SharedData,
     ServerReq extends Request,
-    AnyServerCall extends ServerCall<ServerReq> = ServerCall<ServerReq>
+    AnyServerContext extends ServerContext<ServerReq> = ServerContext<ServerReq>
 >(
     path: string,
     req: ServerReq
 ): Promise<Response> => {
-    return runRoute_<App, SharedData, ServerReq, AnyServerCall>(path, {req} as AnyServerCall);
+    return runRoute_<App, SharedData, ServerReq, AnyServerContext>(path, {req} as AnyServerContext);
 };
 
 export const runRoute_ = async <
     App extends MapObj,
     SharedData,
     ServerReq extends Request,
-    AnyServerCall extends ServerCall<ServerReq>
+    AnyServerContext extends ServerContext<ServerReq>
 >(
     path: string,
-    serverCall: AnyServerCall
+    serverContext: AnyServerContext
 ): Promise<Response> => {
     if (!app) throw new Error('Context has not been defined');
-    const transformedPath = routerOptions.pathTransform ? routerOptions.pathTransform(serverCall.req, path) : path;
-    const context: Context<App, SharedData, ServerReq, AnyServerCall> = {
+    const transformedPath = routerOptions.pathTransform ? routerOptions.pathTransform(serverContext.req, path) : path;
+    const context: Context<App, SharedData, ServerReq, AnyServerContext> = {
         app: app as Readonly<App>, // static context
-        serverCall: serverCall,
+        serverContext: serverContext,
         path: transformedPath,
         request: {
-            headers: serverCall.req.headers || {},
+            headers: serverContext.req.headers || {},
             body: {},
         },
         response: {
@@ -190,22 +190,27 @@ export const runRoute_ = async <
     return context.response;
 };
 
-const parseRequestBody = <App extends MapObj, SharedData, ServerReq extends Request, AnyServerCall extends ServerCall<ServerReq>>(
-    context: Context<App, SharedData, ServerReq, AnyServerCall>
+const parseRequestBody = <
+    App extends MapObj,
+    SharedData,
+    ServerReq extends Request,
+    AnyServerContext extends ServerContext<ServerReq>
+>(
+    context: Context<App, SharedData, ServerReq, AnyServerContext>
 ) => {
-    if (!context.serverCall.req.body || context.serverCall.req.body === '{}') return;
+    if (!context.serverContext.req.body || context.serverContext.req.body === '{}') return;
     try {
-        if (typeof context.serverCall.req.body === 'string') {
-            const parsedBody = routerOptions.bodyParser.parse(context.serverCall.req.body);
+        if (typeof context.serverContext.req.body === 'string') {
+            const parsedBody = routerOptions.bodyParser.parse(context.serverContext.req.body);
             if (typeof parsedBody !== 'object')
                 throw new RouteError(
                     StatusCodes.BAD_REQUEST,
                     'Wrong parsed body type. Expecting an object containing the route name and parameters.'
                 );
             (context.request as Mutable<MapObj>).body = parsedBody;
-        } else if (typeof context.serverCall.req.body === 'object') {
+        } else if (typeof context.serverContext.req.body === 'object') {
             // lets assume the body has been already parsed
-            (context.request as Mutable<MapObj>).body = context.serverCall.req.body;
+            (context.request as Mutable<MapObj>).body = context.serverContext.req.body;
         } else {
             throw new RouteError(StatusCodes.BAD_REQUEST, 'Wrong request.body, only strings allowed.');
         }
@@ -225,9 +230,9 @@ const getValidatedHandlerParams = <
     App extends MapObj,
     SharedData,
     ServerReq extends Request,
-    AnyServerCall extends ServerCall<ServerReq>
+    AnyServerContext extends ServerContext<ServerReq>
 >(
-    context: Context<App, SharedData, ServerReq, AnyServerCall>,
+    context: Context<App, SharedData, ServerReq, AnyServerContext>,
     executable: Executable
 ): any[] => {
     const fieldName = executable.fieldName;
@@ -283,9 +288,9 @@ const serializeResponse = <
     App extends MapObj,
     SharedData,
     ServerReq extends Request,
-    AnyServerCall extends ServerCall<ServerReq>
+    AnyServerContext extends ServerContext<ServerReq>
 >(
-    context: Context<App, SharedData, ServerReq, AnyServerCall>,
+    context: Context<App, SharedData, ServerReq, AnyServerContext>,
     executable: Executable,
     result: any
 ) => {
@@ -417,7 +422,7 @@ const recursiveCreateExecutionPath = (
 };
 
 const getHandler = (entry: Hook | Route, path): Handler => {
-    const handler = isHandler(entry) ? entry : (entry as Hook).hook || (entry as RouteObject).route;
+    const handler = isHandler(entry) ? entry : (entry as Hook).hook || (entry as RouteDef).route;
     if (!isHandler(handler)) throw new Error(`Invalid route: ${path}. Missing route handler`);
     return handler;
 };
@@ -488,8 +493,8 @@ const getExecutableFromRoute = (route: Route, path: string, nestLevel: number) =
         paramsDeSerializers: getParamsDeserializer(handler, routerOptions),
         outputSerializer: getOutputSerializer(handler, routerOptions),
         isAsync: isAsyncHandler(handler, handlerType),
-        enableValidation: (route as RouteObject).enableValidation ?? routerOptions.enableValidation,
-        enableSerialization: (route as RouteObject).enableSerialization ?? routerOptions.enableSerialization,
+        enableValidation: (route as RouteDef).enableValidation ?? routerOptions.enableValidation,
+        enableSerialization: (route as RouteDef).enableSerialization ?? routerOptions.enableSerialization,
         src: routeObj,
     };
     delete (executable as any).route;
@@ -498,7 +503,7 @@ const getExecutableFromRoute = (route: Route, path: string, nestLevel: number) =
 };
 
 const getRoutePath = (route: Route, path: string) => {
-    const routePath = join(ROUTE_PATH_ROOT, routerOptions.prefix, (route as RouteObject)?.path || path);
+    const routePath = join(ROUTE_PATH_ROOT, routerOptions.prefix, (route as RouteDef)?.path || path);
     return routerOptions.suffix ? routePath + routerOptions.suffix : routePath;
 };
 

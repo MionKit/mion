@@ -5,11 +5,11 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {Hook, Request, RouteObject, RouterOptions} from './types';
+import {Hook, Request, RouteDef, RouterOptions} from './types';
 
 export const ROUTE_PATH_ROOT = '/';
 
-export const DEFAULT_ROUTE: Readonly<Required<RouteObject>> = {
+export const DEFAULT_ROUTE: Readonly<Required<RouteDef>> = {
     path: '',
     description: '',
     enableValidation: true,
