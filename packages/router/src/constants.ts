@@ -10,7 +10,6 @@ import {Hook, Request, RouteDef, RouterOptions} from './types';
 export const ROUTE_PATH_ROOT = '/';
 
 export const DEFAULT_ROUTE: Readonly<Required<RouteDef>> = {
-    path: '',
     description: '',
     enableValidation: true,
     enableSerialization: true,

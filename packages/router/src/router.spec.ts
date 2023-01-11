@@ -196,29 +196,6 @@ describe('Create routes should', () => {
         expect(getRouteExecutionPath('/api/v1/pets/setPet.json')).toBeTruthy();
     });
 
-    it('customize route paths', () => {
-        setRouterOptions({prefix: 'api/v1'});
-
-        const routes: Routes = {
-            u: {
-                c: {
-                    path: 'users/create',
-                    route: () => null,
-                },
-                d: {
-                    path: '/users/delete',
-                    route: () => null,
-                },
-            },
-        };
-        addRoutes(routes);
-
-        expect(geRoutesSize()).toEqual(2);
-
-        expect(getRouteExecutionPath('/api/v1/users/create')).toBeTruthy();
-        expect(getRouteExecutionPath('/api/v1/users/delete')).toBeTruthy();
-    });
-
     it('throw an error when a routes are invalid', () => {
         const empty = {};
         const emptySub = {sayHello: {}};

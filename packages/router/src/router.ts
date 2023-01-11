@@ -468,7 +468,7 @@ const getExecutableFromHook = (hook: Hook, path: string, nestLevel: number, key:
 };
 
 const getExecutableFromRoute = (route: Route, path: string, nestLevel: number) => {
-    const routePath = getRoutePath(route, path);
+    const routePath = getRoutePath(path);
     const existing = routesByPath.get(routePath);
     if (existing) return existing;
     const handler = getHandler(route, routePath);
@@ -502,8 +502,8 @@ const getExecutableFromRoute = (route: Route, path: string, nestLevel: number) =
     return executable;
 };
 
-const getRoutePath = (route: Route, path: string) => {
-    const routePath = join(ROUTE_PATH_ROOT, routerOptions.prefix, (route as RouteDef)?.path || path);
+const getRoutePath = (path: string) => {
+    const routePath = join(ROUTE_PATH_ROOT, routerOptions.prefix, path);
     return routerOptions.suffix ? routePath + routerOptions.suffix : routePath;
 };
 

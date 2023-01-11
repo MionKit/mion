@@ -26,8 +26,6 @@ export type Handler = (context: Context<any, any, any, any>, ...args: any) => an
 
 /** Route definition */
 export type RouteDef = {
-    /** overrides route's path and fieldName in request/response body */
-    path?: string;
     /** description of the route, mostly for documentation purposes */
     description?: string;
     /** enable automatic parameter validation, defaults to true */
