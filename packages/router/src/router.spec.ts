@@ -16,9 +16,8 @@ import {
     reset,
     setRouterOptions,
     initRouter,
-    runRoute,
 } from './router';
-import {Context, Handler, Hook, Request, Route, RouteDef, Routes} from './types';
+import {Handler, Hook, Request, Route, RouteDef, Routes} from './types';
 import {APIGatewayEvent} from 'aws-lambda';
 import {StatusCodes} from './status-codes';
 
@@ -359,8 +358,10 @@ describe('Run routes', () => {
     };
 
     const getDefaultRequest = (path: string, params?): Request => ({
+        path,
         headers: {},
         body: JSON.stringify({[path]: params}),
+        internalErrors: [],
     });
 
     beforeEach(() => reset());

@@ -25,9 +25,9 @@ const getDate: Route = (context: CallContext, dataPoint?: DataPoint): DataPoint 
 
 const routerOpts = {prefix: 'api/'};
 const routes = {changeUserName, getDate};
-const {emptyContext, lambdaHandler, MkRouter} = initAwsLambdaApp(app, sharedDataFactory, routerOpts);
+const {voidContextHandler, lambdaHandler, MkRouter} = initAwsLambdaApp(app, sharedDataFactory, routerOpts);
 MkRouter.addRoutes(routes);
-export type CallContext = typeof emptyContext;
+export type CallContext = typeof voidContextHandler;
 
 // Aws Lambda Handler
 export const handler = lambdaHandler;

@@ -1,4 +1,4 @@
-import {MkRouter, Context, Route, Routes, Hook, MkError, StatusCodes} from '@mikrokit/router';
+import {MkRouter, Context, Route, Routes, Hook, RouteError, StatusCodes} from '@mikrokit/router';
 import {APIGatewayEvent} from 'aws-lambda';
 
 interface User {
@@ -50,11 +50,13 @@ type App = typeof app;
 type SharedData = ReturnType<typeof getSharedData>;
 type CallContext = Context<App, SharedData, APIGatewayEvent>;
 
-const getUser: Route = (ctx: CallContext, id: number): User => {
-    const user = ctx.app.db.getUser(id);
-    if (!user) throw {statusCode: 200, message: 'user not found'};
-    return user;
-};
+const getUser: Route =
+    ({app}: CallContext) =>
+    (id: number): User => {
+        const user = app.db.getUser(id);
+        if (!user) throw {statusCode: 200, message: 'user not found'};
+        return user;
+    };
 const createUser: Route = (ctx: CallContext, newUser: NewUser): User => ctx.app.db.createUser(newUser);
 const updateUser: Route = (ctx: CallContext, user: User): User => {
     const updated = ctx.app.db.updateUser(user);
@@ -71,7 +73,7 @@ const auth: Hook = {
     fieldName: 'Authorization',
     hook: (ctx: CallContext, token: string): void => {
         const {auth} = ctx.app;
-        if (!auth.isAuthorized(token)) throw {statusCode: StatusCodes.FORBIDDEN, message: 'Not Authorized'} as MkError;
+        if (!auth.isAuthorized(token)) throw new RouteError(StatusCodes.FORBIDDEN, 'Not Authorized');
         ctx.shared.me = auth.getIdentity(token) as User;
     },
 };

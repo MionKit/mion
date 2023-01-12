@@ -30,8 +30,8 @@ describe('serverless router should', () => {
     };
     const getSharedData = () => ({auth: {me: null as any}});
 
-    const {emptyContext, lambdaHandler, MkRouter} = initAwsLambdaApp(app, getSharedData, {prefix: 'api/'});
-    type CallContext = typeof emptyContext;
+    const {voidContextHandler, lambdaHandler, MkRouter} = initAwsLambdaApp(app, getSharedData, {prefix: 'api/'});
+    type CallContext = typeof voidContextHandler;
 
     const changeUserName: Route = (context: CallContext, user: SimpleUser) => {
         return context.app.db.changeUserName(user);
@@ -44,7 +44,7 @@ describe('serverless router should', () => {
     const updateHeaders: Route = (context: CallContext): void => {
         context.response.headers['x-something'] = true;
         context.response.headers['server'] = 'my-server';
-        context.serverContext.awsContext;
+        context.rawCallContext.awsContext;
     };
 
     MkRouter.addRoutes({changeUserName, getDate, updateHeaders});

@@ -340,12 +340,12 @@ export type Context<
   App,
   SharedData,
   ServerReq extends Request,
-  AnyServerContext extends ServerContext<ServerReq> = ServerContext<ServerReq>
+  AnyRawCallContext extends RawCallContext<ServerReq> = RawCallContext<ServerReq>
 > = Readonly<{
   /** Static Data: main App, db driver, libraries, etc... */
   app: Readonly<App>;
   /** Raw server Request and Response */
-  serverContext: Readonly<AnyServerContext>;
+  rawCallContext: Readonly<AnyRawCallContext>;
   /** Route's path */
   path: Readonly<string>;
   /**
@@ -376,7 +376,7 @@ export type Response = {
   json: Readonly<string>;
 };
 
-export type ServerContext<ServerReq extends Request, ServerResp = any> = {
+export type RawCallContext<ServerReq extends Request, ServerResp = any> = {
   /** Server request
    * i.e: '@types/aws-lambda/APIGatewayEvent'
    * or http/IncomingMessage */
@@ -591,7 +591,7 @@ export const DEFAULT_ROUTE_OPTIONS: Readonly<RouterOptions> = {
 ```ts
 // examples/full-example.routes.ts
 
-import {MkRouter, Context, Route, Routes, Hook, MkError, StatusCodes} from '@mikrokit/router';
+import {MkRouter, Context, Route, Routes, Hook, RouteError, StatusCodes} from '@mikrokit/router';
 import {APIGatewayEvent} from 'aws-lambda';
 
 interface User {
@@ -664,7 +664,7 @@ const auth: Hook = {
   fieldName: 'Authorization',
   hook: (ctx: CallContext, token: string): void => {
     const {auth} = ctx.app;
-    if (!auth.isAuthorized(token)) throw {statusCode: StatusCodes.FORBIDDEN, message: 'Not Authorized'} as MkError;
+    if (!auth.isAuthorized(token)) throw {statusCode: StatusCodes.FORBIDDEN, message: 'Not Authorized'} as RouteError;
     ctx.shared.me = auth.getIdentity(token) as User;
   },
 };

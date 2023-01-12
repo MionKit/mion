@@ -28,8 +28,8 @@ describe('serverless router should', () => {
     };
     const getSharedData = () => ({auth: {me: null as any}});
 
-    const {emptyContext, startHttpServer} = initHttpApp(app, getSharedData, {prefix: 'api/'});
-    type CallContext = typeof emptyContext;
+    const {voidContextHandler, startHttpServer} = initHttpApp(app, getSharedData, {prefix: 'api/'});
+    type CallContext = typeof voidContextHandler;
 
     const changeUserName: Route = (context: CallContext, user: SimpleUser) => {
         return context.app.db.changeUserName(user);
@@ -60,7 +60,7 @@ describe('serverless router should', () => {
                     if (err) reject();
                     else resolve();
                 });
-            }),
+            })
     );
 
     it('should get an ok response from a route', async () => {

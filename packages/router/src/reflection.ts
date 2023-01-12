@@ -65,9 +65,9 @@ export const getParamsDeserializer = (handler: Handler, routerOptions: RouterOpt
                       routerOptions.serializationOptions,
                       routerOptions.customSerializer,
                       routerOptions.serializerNamingStrategy,
-                      paramType,
+                      paramType
                   ),
-                  opts,
+                  opts
               )
             : (a) => '';
     });
@@ -89,7 +89,7 @@ export const getOutputSerializer = (handler: Handler, routerOptions: RouterOptio
         routerOptions.serializationOptions,
         routerOptions.customSerializer,
         routerOptions.serializerNamingStrategy,
-        handlerType.return,
+        handlerType.return
     );
 
     return serializeDeserializeOptionsFix(outPutSerializer, {...routerOptions.serializationOptions});
@@ -100,7 +100,7 @@ export const validateParams = (executable: Executable, params: any[] = []): stri
     if (params.length !== validators.length) throw 'Invalid number of parameters';
     const errors = validators.map((validate, index) => validate(params[index])).flat();
     return errors.map(
-        (validationError, index) => `Invalid param[${index}] in '${executable.fieldName}', ${validationError.toString()}.`,
+        (validationError, index) => `Invalid param[${index}] in '${executable.fieldName}', ${validationError.toString()}.`
     );
 };
 
@@ -116,6 +116,7 @@ export const isAsyncHandler = (handler: Handler, type?: Type): boolean => {
 
     return isAsyncType(handlerType.return);
 };
+
 // TODO: validate router explicit types
 // export const hasExplicitTypes = (handler: Handler, type?: Type): boolean => {
 //     const handlerType = type || reflect(handler);

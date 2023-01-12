@@ -27,8 +27,10 @@ export const DEFAULT_HOOK: Readonly<Required<Hook>> = {
 };
 
 export const DEFAULT_REQUEST: Readonly<Required<Request>> = {
+    path: '',
     headers: {},
     body: '{}',
+    internalErrors: [],
 };
 
 export const IS_TEST_ENV = process.env.JEST_WORKER_ID !== undefined || process.env.NODE_ENV === 'test';

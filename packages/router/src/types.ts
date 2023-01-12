@@ -20,9 +20,25 @@ import {ReflectionKind} from '@deepkit/type';
 import {statusCodeToReasonPhrase} from './status-codes';
 
 // #######  Routes #######
-
+/** Part of the handler that receives the remote parameters */
+export type RemoteHandler<R = any> = (...args: any) => NotFunction<R> | Promise<NotFunction<R>>;
+/** Closure function that receives the server call context */
+export type ContextClosure<App, SharedData, RawContext extends RawCallContext> = (
+    /** Static Server App */
+    app: Readonly<App>,
+    /** Shared Request data, used to share data between hooks and routes that does not get returned in the response */
+    shared: SharedData,
+    /** Router's Request */
+    req: Readonly<Request>,
+    /** Router's Response */
+    resp: Readonly<Response>,
+    /** contains the raw server request and response */
+    rawCallContext: Readonly<RawContext>
+) => RemoteHandler | void;
 /** Route or Hook Handler */
-export type Handler = (context: Context<any, any, any, any>, ...args: any) => any | Promise<any>;
+export type Handler<App = any, SharedData = any, RawContext extends RawCallContext = any> =
+    | RemoteHandler
+    | ContextClosure<App, SharedData, RawContext>;
 
 /** Route definition */
 export type RouteDef = {
@@ -67,7 +83,7 @@ export type Routes = {
 // ####### Router Options #######
 
 /** Global Router Options */
-export type RouterOptions<ServerReq extends Request = Request> = {
+export type RouterOptions<ServerReq extends RawRequest = RawRequest> = {
     /** prefix for all routes, i.e: api/v1.
      * path separator is added between the prefix and the route */
     prefix: string;
@@ -75,7 +91,7 @@ export type RouterOptions<ServerReq extends Request = Request> = {
      * Not path separators is added between the route and the suffix */
     suffix: string;
     /** Transform the path before finding a route */
-    pathTransform?: (request: ServerReq, path: string) => string;
+    pathTransform?: (path: string, request: ServerReq) => string;
     /** configures the fieldName in the request/response body used for a route's params/response */
     routeFieldName?: string;
     /** enable automatic parameter validation, defaults to true */
@@ -116,6 +132,7 @@ export type Executable = {
     fieldName: string;
     isRoute: boolean;
     handler: Handler;
+    hasClosure: boolean;
     paramValidators: RouteParamValidator[];
     paramsDeSerializers: RouteParamDeserializer[];
     outputSerializer: RouteOutputSerializer;
@@ -129,9 +146,31 @@ export type Executable = {
 // ####### RESPONSE & RESPONSE #######
 
 /** Any request Object used by the router must follow this interface */
-export type Request = {
+export type RawRequest = {
     headers: {[header: string]: string | undefined | string[]} | undefined;
     body: string | null | undefined | {}; // eslint-disable-line @typescript-eslint/ban-types
+};
+
+export type Request = RawRequest & {
+    /** Route's path */
+    path: Readonly<string>;
+    /**
+     * list of internal errors.
+     * By default the router does not log errors, all errors are stored here so can be managed in a hook or externally
+     */
+    internalErrors: Readonly<RouteError[]>;
+};
+
+export type Response = {
+    statusCode: Readonly<number>;
+    /** response errors: empty if there were no errors during execution */
+    errors: Readonly<PublicError[]>;
+    /** response headers */
+    headers: Headers;
+    /** the router response data, JS object */
+    body: Readonly<MapObj>;
+    /** json encoded response, contains data and errors if there are any. */
+    json: Readonly<string>;
 };
 
 /** Any error triggered by hooks or routes must follow this interface, returned errors in the body also follows this interface */
@@ -151,58 +190,15 @@ export type PublicError = {
 
 export type Headers = {[key: string]: string | boolean | number};
 
-// ####### Context #######
-
-/** The call Context object passed as first parameter to any hook or route */
-export type Context<
-    App,
-    SharedData,
-    ServerReq extends Request,
-    AnyServerContext extends ServerContext<ServerReq> = ServerContext<ServerReq>
-> = Readonly<{
-    /** Static Data: main App, db driver, libraries, etc... */
-    app: Readonly<App>;
-    /** Raw server Request and Response */
-    serverContext: Readonly<AnyServerContext>;
-    /** Route's path */
-    path: Readonly<string>;
-    /**
-     * list of internal errors.
-     * As router has no logging all errors are stored here so can be managed in a hook or externally
-     */
-    internalErrors: Readonly<RouteError[]>;
-    /** parsed request.body */
-    request: Readonly<{
-        headers: MapObj;
-        body: MapObj;
-    }>;
-    /** returned data (non parsed) */
-    response: Readonly<Response>;
-    /** shared data between route/hooks handlers */
-    shared: Readonly<SharedData>;
-}>;
-
-export type Response = {
-    statusCode: Readonly<number>;
-    /** response errors: empty if there were no errors during execution */
-    errors: Readonly<PublicError[]>;
-    /** response headers */
-    headers: Headers;
-    /** the router response data, JS object */
-    body: Readonly<MapObj>;
-    /** json encoded response, contains data and errors if there are any. */
-    json: Readonly<string>;
-};
-
-export type ServerContext<ServerReq extends Request, ServerResp = any> = {
-    /** Server request
+export type RawCallContext<RawServerReq extends RawRequest = any, RawServerResp = any> = {
+    /** Raw Server request
      * i.e: '@types/aws-lambda/APIGatewayEvent'
      * or http/IncomingMessage */
-    req: ServerReq;
+    req: RawServerReq;
 
-    /** Server Response
+    /** Raw Server Response
      * i.e: 'http/ServerResponse' */
-    resp: ServerResp;
+    resp: RawServerResp;
 };
 
 /** Function used to create the shared data object on each route call  */
@@ -220,6 +216,11 @@ export type RouteOutputSerializer = <T>(data: T) => JSONSingle<T>;
 export const isHandler = (entry: Hook | Route | Routes): entry is Handler => {
     return typeof entry === 'function';
 };
+
+export const ContextClosure = (entry: ContextClosure<any, any, any> | Handler): entry is ContextClosure<any, any, any> => {
+    return typeof entry === 'function';
+};
+
 /** Type guard: isHook */
 export const isHook = (entry: Hook | Route | Routes): entry is Hook => {
     return typeof (entry as Hook).hook === 'function';
@@ -258,3 +259,9 @@ export type JsonParser = {
 export type Mutable<T> = {
     -readonly [P in keyof T]: T[P];
 };
+
+export type NotNull<T> = {
+    [P in keyof T]: NonNullable<T[P]>;
+};
+.
+export type NotFunction<T> = T extends (...args: any) => any ? never : T;

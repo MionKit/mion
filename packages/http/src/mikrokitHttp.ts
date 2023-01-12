@@ -43,8 +43,8 @@ export const initHttpApp = <App extends MapObj, SharedData extends MapObj>(
     type CallContext = Readonly<HttpContext<App, SharedData>>;
     MkRouter.initRouter(app, handlersDataFactory, routerOptions);
     defaultResponseContentType = MkRouter.getRouterOptions().responseContentType;
-    const emptyContext: CallContext = {} as CallContext;
-    return {emptyContext, startHttpServer, MkRouter};
+    const voidContextHandler: CallContext = {} as CallContext;
+    return {voidContextHandler, startHttpServer, MkRouter};
 };
 
 const startHttpServer = async (httpOptions_: Partial<HttpOptions> = {}): Promise<HttpServer | HttpsServer> => {
