@@ -1,4 +1,4 @@
-import {MkRouter, Context} from '@mikrokit/router';
+import {Router, Context} from '@mikrokit/router';
 import {APIGatewayProxyResult, APIGatewayEvent} from 'aws-lambda';
 import {someDbDriver} from 'someDbDriver';
 import {cloudLogs} from 'MyCloudLogLs';
@@ -20,5 +20,5 @@ const getMyPet = async (context: CallContext): Promise<Pet> => {
 };
 
 const routes = {getMyPet};
-MkRouter.initRouter(app, getSharedData);
-MkRouter.addRoutes(routes);
+Router.initRouter(app, getSharedData);
+Router.addRoutes(routes);

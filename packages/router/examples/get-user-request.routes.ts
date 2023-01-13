@@ -1,4 +1,4 @@
-import {Route, Routes, MkRouter} from '@mikrokit/router';
+import {Route, Routes, Router} from '@mikrokit/router';
 
 const getUser: Route = async (context: any, entity: {id: number}): Promise<User> => {
     const user = await context.db.getUserById(entity.id);
@@ -11,4 +11,4 @@ const routes: Routes = {
     },
 };
 
-MkRouter.addRoutes(routes);
+Router.addRoutes(routes);

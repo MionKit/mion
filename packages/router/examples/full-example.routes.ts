@@ -1,4 +1,4 @@
-import {MkRouter, Context, Route, Routes, Hook, MkError, StatusCodes} from '@mikrokit/router';
+import {Router, Context, Route, Routes, Hook, MkError, StatusCodes} from '@mikrokit/router';
 import {APIGatewayEvent} from 'aws-lambda';
 
 interface User {
@@ -86,5 +86,5 @@ const routes: Routes = {
     },
 };
 
-MkRouter.initRouter(app, getSharedData, {prefix: 'api/v1'});
-MkRouter.addRoutes(routes);
+Router.initRouter(app, getSharedData, {prefix: 'api/v1'});
+Router.addRoutes(routes);

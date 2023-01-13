@@ -11,7 +11,7 @@ import createEvent from '@serverless/event-mocks';
 import {APIGatewayProxyEventHeaders} from 'aws-lambda';
 
 describe('serverless router should', () => {
-    // MkRouter.forceConsoleLogs();
+    // Router.forceConsoleLogs();
     type SimpleUser = {
         name: string;
         surname: string;
@@ -30,7 +30,7 @@ describe('serverless router should', () => {
     };
     const getSharedData = () => ({auth: {me: null as any}});
 
-    const {emptyContext, lambdaHandler, MkRouter} = initAwsLambdaApp(app, getSharedData, {prefix: 'api/'});
+    const {emptyContext, lambdaHandler, Router} = initAwsLambdaApp(app, getSharedData, {prefix: 'api/'});
     type CallContext = typeof emptyContext;
 
     const changeUserName: Route = (context: CallContext, user: SimpleUser) => {
@@ -47,13 +47,13 @@ describe('serverless router should', () => {
         context.serverCall.awsContext;
     };
 
-    MkRouter.addRoutes({changeUserName, getDate, updateHeaders});
+    Router.addRoutes({changeUserName, getDate, updateHeaders});
 
     const getDefaultGatewayEvent = (
         body: string,
         path: string,
         httpMethod = 'POST',
-        headers: APIGatewayProxyEventHeaders = {},
+        headers: APIGatewayProxyEventHeaders = {}
     ) => {
         const context = {} as any;
         const event = createEvent('aws:apiGateway', {

@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {Hook, MkRequest, RouteObject, RouterOptions} from './types';
+import {Hook, Request, RouteObject, RouterOptions} from './types';
 
 export const ROUTE_PATH_ROOT = '/';
 
@@ -27,7 +27,7 @@ export const DEFAULT_HOOK: Readonly<Required<Hook>> = {
     hook: () => null,
 };
 
-export const DEFAULT_REQUEST: Readonly<Required<MkRequest>> = {
+export const DEFAULT_REQUEST: Readonly<Required<Request>> = {
     headers: {},
     body: '{}',
 };

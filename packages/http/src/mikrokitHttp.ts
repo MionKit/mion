@@ -7,11 +7,11 @@
 
 import {
     Context,
-    MapObj,
+    Obj,
     RouteError,
-    MkHeaders,
-    MkRequest,
-    MkRouter,
+    Headers,
+    Request,
+    Router,
     PublicError,
     RouterOptions,
     SharedDataFactory,
@@ -32,18 +32,18 @@ let defaultResponseContentType: string;
 let defaultResponseHeaders: HeadersEntries = [];
 
 export type HttpRequest = IncomingMessage & {body: string};
-export type HttpCallContext<App extends MapObj, SharedData extends MapObj> = Context<App, SharedData, HttpRequest>;
+export type HttpCallContext<App extends Obj, SharedData extends Obj> = Context<App, SharedData, HttpRequest>;
 
-export const initHttpApp = <App extends MapObj, SharedData extends MapObj>(
+export const initHttpApp = <App extends Obj, SharedData extends Obj>(
     app: App,
     handlersDataFactory?: SharedDataFactory<SharedData>,
-    routerOptions?: Partial<RouterOptions<HttpRequest>>,
+    routerOptions?: Partial<RouterOptions<HttpRequest>>
 ) => {
     type CallContext = Readonly<HttpCallContext<App, SharedData>>;
-    MkRouter.initRouter(app, handlersDataFactory, routerOptions);
-    defaultResponseContentType = MkRouter.getRouterOptions().responseContentType;
+    Router.initRouter(app, handlersDataFactory, routerOptions);
+    defaultResponseContentType = Router.getRouterOptions().responseContentType;
     const emptyContext: CallContext = {} as CallContext;
-    return {emptyContext, startHttpServer, MkRouter};
+    return {emptyContext, startHttpServer, Router};
 };
 
 const startHttpServer = async (httpOptions_: Partial<HttpOptions> = {}): Promise<HttpServer | HttpsServer> => {
@@ -116,7 +116,7 @@ const httpRequestHandler: RequestListener = (httpReq: IncomingMessage, httpRespo
         const body = Buffer.concat(bodyChunks).toString();
         (httpReq as any).body = body;
 
-        MkRouter.runRoute_(path, {req: httpReq as any as MkRequest})
+        Router.runRoute_(path, {req: httpReq as any as Request})
             .then((routeResponse) => {
                 if (hasError) return;
                 addResponseHeaders(httpResponse, routeResponse.headers);
@@ -159,7 +159,7 @@ const replyError = (httpResponse: ServerResponse, logger: Logger, statusCode: nu
     reply(httpResponse, logger, jsonBody, statusCode, statusMessage);
 };
 
-const addResponseHeaders = (httpResponse: ServerResponse, headers: MkHeaders) => {
+const addResponseHeaders = (httpResponse: ServerResponse, headers: Headers) => {
     Object.entries(headers).forEach(([key, value]) => httpResponse.setHeader(key, `${value}`));
 };
 

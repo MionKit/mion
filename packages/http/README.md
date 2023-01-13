@@ -46,7 +46,7 @@ The reason for this weird naming is to future proof the router to be able to acc
 ```js
 // ../router/examples/routes-definition.routes.ts
 
-import {Route, Handler, Routes, MkRouter} from '@mikrokit/router';
+import {Route, Handler, Routes, Router} from '@mikrokit/router';
 
 const sayHello: Handler = (context, name: string): string => {
   return `Hello ${name}.`;
@@ -63,8 +63,8 @@ const routes: Routes = {
   sayHello2, // api/sayHello2
 };
 
-MkRouter.setRouterOptions({prefix: 'api/'});
-MkRouter.addRoutes(routes);
+Router.setRouterOptions({prefix: 'api/'});
+Router.addRoutes(routes);
 ```
 
 ---
@@ -101,8 +101,8 @@ const getDate: Route = (context: CallContext, dataPoint?: DataPoint): DataPoint 
 
 const routerOpts = {prefix: 'api/'};
 const routes = {changeUserName, getDate};
-const {emptyContext, startHttpServer, MkRouter} = initHttpApp(app, sharedDataFactory, routerOpts);
-MkRouter.addRoutes(routes);
+const {emptyContext, startHttpServer, Router} = initHttpApp(app, sharedDataFactory, routerOpts);
+Router.addRoutes(routes);
 startHttpServer({port: 8080});
 
 export type CallContext = typeof emptyContext;

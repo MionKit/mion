@@ -6,7 +6,7 @@
  * ######## */
 
 import {serializeType} from '@deepkit/type';
-import {MkRouter, RouterOptions, Routes, Executable} from '@mikrokit/router';
+import {Router, RouterOptions, Routes, Executable} from '@mikrokit/router';
 import {writeFileSync} from 'fs';
 import {resolve} from 'path';
 import {
@@ -59,18 +59,18 @@ export const addClientRoutes = (
         },
         ...generateClientOptions_,
     };
-    MkRouter.setRouterOptions({
+    Router.setRouterOptions({
         ...routerOptions_,
         extraClientData: true,
     });
-    MkRouter.addRoutes(routes);
+    Router.addRoutes(routes);
     addRoutesApiSpec();
     assignHooks();
     createTsClientFile();
 };
 
 const addRoutesApiSpec = () => {
-    const remoteApi = MkRouter.getRouteEntries();
+    const remoteApi = Router.getRouteEntries();
     for (const [path, executionPath] of remoteApi) {
         const {sanitizedPathComponents, sanitizedPathName} = getSanitizedPath(path, true);
         const existingPath = sanitizedPathNames.get(sanitizedPathName);
@@ -237,8 +237,8 @@ const getSerializableRemoteExecutable = (exec: ClientData): RemoteExecutable => 
 };
 
 const removePathPrefixAndSuffix = (path: string): string => {
-    const prefix = MkRouter.getRouterOptions().prefix || '';
-    const suffix = MkRouter.getRouterOptions().suffix || '';
+    const prefix = Router.getRouterOptions().prefix || '';
+    const suffix = Router.getRouterOptions().suffix || '';
     let finalPath = path;
     if (prefix.length) finalPath = finalPath.substring(prefix.length + 1);
     if (suffix.length) finalPath = finalPath.substring(0, finalPath.length - suffix.length);
