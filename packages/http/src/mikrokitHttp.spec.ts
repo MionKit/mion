@@ -4,12 +4,12 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
-import {Route, MkRouter} from '@mikrokit/router';
+import {Route, Router} from '@mikrokit/router';
 import fetch from 'node-fetch'; // must be node-fetch v2 as v3 is a node module non compatible whit current setup
 import {initHttpApp} from './mikrokitHttp';
 
 describe('serverless router should', () => {
-    // MkRouter.forceConsoleLogs();
+    // Router.forceConsoleLogs();
     type SimpleUser = {
         name: string;
         surname: string;
@@ -46,7 +46,7 @@ describe('serverless router should', () => {
 
     let server;
 
-    MkRouter.addRoutes({changeUserName, getDate, updateHeaders});
+    Router.addRoutes({changeUserName, getDate, updateHeaders});
 
     const port = 8075;
     beforeAll(async () => {
@@ -60,7 +60,7 @@ describe('serverless router should', () => {
                     if (err) reject();
                     else resolve();
                 });
-            }),
+            })
     );
 
     it('should get an ok response from a route', async () => {

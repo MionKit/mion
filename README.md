@@ -93,7 +93,7 @@ The reason for this weird naming is to future proof the router to be able to acc
 ```js
 // packages/router/examples/routes-definition.routes.ts
 
-import {Route, Handler, Routes, MkRouter} from '@mikrokit/router';
+import {Route, Handler, Routes, Router} from '@mikrokit/router';
 
 const sayHello: Handler = (context, name: string): string => {
   return `Hello ${name}.`;
@@ -110,8 +110,8 @@ const routes: Routes = {
   sayHello2, // api/sayHello2
 };
 
-MkRouter.setRouterOptions({prefix: 'api/'});
-MkRouter.addRoutes(routes);
+Router.setRouterOptions({prefix: 'api/'});
+Router.addRoutes(routes);
 ```
 
 ## `Automatic Serialization & Validation`
@@ -133,7 +133,7 @@ Thanks to Deepkit's magic the type information is available at runtime and the d
 ```ts
 // packages/router/examples/get-user-request.routes.ts
 
-import {Route, Routes, MkRouter} from '@mikrokit/router';
+import {Route, Routes, Router} from '@mikrokit/router';
 
 const getUser: Route = async (context: any, entity: {id: number}): Promise<User> => {
   const user = await context.db.getUserById(entity.id);
@@ -146,7 +146,7 @@ const routes: Routes = {
   },
 };
 
-MkRouter.addRoutes(routes);
+Router.addRoutes(routes);
 ```
 
 </td>

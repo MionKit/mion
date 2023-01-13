@@ -1,4 +1,4 @@
-import {Route, Handler, Routes, MkRouter} from '@mikrokit/router';
+import {Route, Handler, Routes, Router} from '@mikrokit/router';
 
 const sayHello: Handler = (context, name: string): string => {
     return `Hello ${name}.`;
@@ -15,5 +15,5 @@ const routes: Routes = {
     sayHello2, // api/sayHello2
 };
 
-MkRouter.setRouterOptions({prefix: 'api/'});
-MkRouter.addRoutes(routes);
+Router.setRouterOptions({prefix: 'api/'});
+Router.addRoutes(routes);

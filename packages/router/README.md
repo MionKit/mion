@@ -44,7 +44,7 @@ MikroKit only cares about the `path`, and completely ignores the http method, so
 ```ts
 // examples/routes-definition.routes.ts
 
-import {Route, Handler, Routes, MkRouter} from '@mikrokit/router';
+import {Route, Handler, Routes, Router} from '@mikrokit/router';
 
 const sayHello: Handler = (context, name: string): string => {
   return `Hello ${name}.`;
@@ -61,8 +61,8 @@ const routes: Routes = {
   sayHello2, // api/sayHello2
 };
 
-MkRouter.setRouterOptions({prefix: 'api/'});
-MkRouter.addRoutes(routes);
+Router.setRouterOptions({prefix: 'api/'});
+Router.addRoutes(routes);
 ```
 
 Using javascript names helps keeping route names simple, it is not recommended to use the array notation to define route names. no url decoding is done when finding the route
@@ -70,7 +70,7 @@ Using javascript names helps keeping route names simple, it is not recommended t
 ```ts
 // examples/no-recommended-names.routes.ts
 
-import {Routes, MkRouter, Route} from '@mikrokit/router';
+import {Routes, Router, Route} from '@mikrokit/router';
 
 const sayHello: Route = (context, name: string): string => {
   return `Hello ${name}.`;
@@ -81,7 +81,7 @@ const routes: Routes = {
   'say Hello': sayHello, // api/say%20Hello  !! ROUTE WONT BE FOUND
 };
 
-MkRouter.addRoutes(routes);
+Router.addRoutes(routes);
 ```
 
 #### Request & Response
@@ -106,7 +106,7 @@ Hooks can use `context.shared` to share data with other routes and hooks. The re
 ```ts
 // examples/hooks-definition.routes.ts
 
-import {Route, Routes, MkRouter, Hook} from '@mikrokit/router';
+import {Route, Routes, Router, Hook} from '@mikrokit/router';
 import {getAuthUser, isAuthorized} from 'MyAuth';
 
 const authorizationHook: Hook = {
@@ -141,7 +141,7 @@ const routes: Routes = {
   logs,
 };
 
-MkRouter.addRoutes(routes);
+Router.addRoutes(routes);
 ```
 
 ## `Execution Order`
@@ -164,7 +164,7 @@ const routes: Routes = {
   loggingHook, // hook,
 };
 
-MkRouter.addRoutes(routes);
+Router.addRoutes(routes);
 ```
 
 #### Execution path for: `users/getUser`
@@ -182,7 +182,7 @@ graph LR;
 ```
 
 **_To guarantee the correct execution order of hooks and routes, the properties of the router CAN NOT BE numeric or digits only._**  
-An error will thrown when adding routes with `MkRouter.addRoutes`. More info about order of properties in javascript objects [here](https://stackoverflow.com/questions/5525795/does-javascript-guarantee-object-property-order) and [here](https://www.stefanjudis.com/today-i-learned/property-order-is-predictable-in-javascript-objects-since-es2015/).
+An error will thrown when adding routes with `Router.addRoutes`. More info about order of properties in javascript objects [here](https://stackoverflow.com/questions/5525795/does-javascript-guarantee-object-property-order) and [here](https://www.stefanjudis.com/today-i-learned/property-order-is-predictable-in-javascript-objects-since-es2015/).
 
 ```ts
 // examples/correct-definition-order.routes.ts#L27-L40
@@ -199,7 +199,7 @@ const invalidRoutes = {
   },
 };
 
-MkRouter.addRoutes(invalidRoutes); // throws an error
+Router.addRoutes(invalidRoutes); // throws an error
 ```
 
 ## `Throwing errors within Routes & Hooks`
@@ -341,8 +341,8 @@ Most of the data within the `Context` is marked as read only, this is because it
 export type Context<
   App,
   SharedData,
-  ServerReq extends MkRequest,
-  AnyServerCall extends ServerCall<ServerReq> = ServerCall<ServerReq>,
+  ServerReq extends Request,
+  AnyServerCall extends ServerCall<ServerReq> = ServerCall<ServerReq>
 > = Readonly<{
   /** Static Data: main App, db driver, libraries, etc... */
   app: Readonly<App>;
@@ -356,28 +356,28 @@ export type Context<
   internalErrors: Readonly<RouteError[]>;
   /** parsed request.body */
   request: Readonly<{
-    headers: MapObj;
-    body: MapObj;
+    headers: Obj;
+    body: Obj;
   }>;
   /** returned data (non parsed) */
-  response: Readonly<MkResponse>;
+  response: Readonly<Response>;
   /** shared data between route/hooks handlers */
   shared: Readonly<SharedData>;
 }>;
 
-export type MkResponse = {
+export type Response = {
   statusCode: Readonly<number>;
   /** response errors: empty if there were no errors during execution */
   errors: Readonly<PublicError[]>;
   /** response headers */
-  headers: MkHeaders;
+  headers: Headers;
   /** the router response data, JS object */
-  body: Readonly<MapObj>;
+  body: Readonly<Obj>;
   /** json encoded response, contains data and errors if there are any. */
   json: Readonly<string>;
 };
 
-export type ServerCall<ServerReq extends MkRequest> = {
+export type ServerCall<ServerReq extends Request> = {
   /** Server request
    * i.e: '@types/aws-lambda/APIGatewayEvent'
    * or http/IncomingMessage */
@@ -390,7 +390,7 @@ export type ServerCall<ServerReq extends MkRequest> = {
 ```ts
 // examples/using-context.routes.ts
 
-import {MkRouter, Context} from '@mikrokit/router';
+import {Router, Context} from '@mikrokit/router';
 import {APIGatewayProxyResult, APIGatewayEvent} from 'aws-lambda';
 import {someDbDriver} from 'someDbDriver';
 import {cloudLogs} from 'MyCloudLogLs';
@@ -412,8 +412,8 @@ const getMyPet = async (context: CallContext): Promise<Pet> => {
 };
 
 const routes = {getMyPet};
-MkRouter.initRouter(app, getSharedData);
-MkRouter.addRoutes(routes);
+Router.initRouter(app, getSharedData);
+Router.addRoutes(routes);
 ```
 
 ## `Automatic Serialization and Validation`
@@ -435,7 +435,7 @@ Thanks to Deepkit's magic the type information is available at runtime and the d
 ```ts
 // examples/get-user-request.routes.ts
 
-import {Route, Routes, MkRouter} from '@mikrokit/router';
+import {Route, Routes, Router} from '@mikrokit/router';
 
 const getUser: Route = async (context: any, entity: {id: number}): Promise<User> => {
   const user = await context.db.getUserById(entity.id);
@@ -448,7 +448,7 @@ const routes: Routes = {
   },
 };
 
-MkRouter.addRoutes(routes);
+Router.addRoutes(routes);
 ```
 
 </td>
@@ -498,7 +498,7 @@ const getYser: Route = async (context: Context, userId:number): Promise<User> =>
 
 Declaring explicit types everywhere can be a bit annoying, so you could suffix your route filles with `.routes.ts` and add bellow eslint config to your project, (the important part here is the `overrides` config).
 
-<!-- `MkRouter.addRoutes` will fail if parameter types or return types are not defined and `enableValidation` or `enableSerialization` are enabled. -->
+<!-- `Router.addRoutes` will fail if parameter types or return types are not defined and `enableValidation` or `enableSerialization` are enabled. -->
 
 ```js
 module.exports = {
@@ -583,7 +583,7 @@ export const DEFAULT_ROUTE_OPTIONS: Readonly<RouterOptions> = {
 ```ts
 // examples/full-example.routes.ts
 
-import {MkRouter, Context, Route, Routes, Hook, MkError, StatusCodes} from '@mikrokit/router';
+import {Router, Context, Route, Routes, Hook, MkError, StatusCodes} from '@mikrokit/router';
 import {APIGatewayEvent} from 'aws-lambda';
 
 interface User {
@@ -671,8 +671,8 @@ const routes: Routes = {
   },
 };
 
-MkRouter.initRouter(app, getSharedData, {prefix: 'api/v1'});
-MkRouter.addRoutes(routes);
+Router.initRouter(app, getSharedData, {prefix: 'api/v1'});
+Router.addRoutes(routes);
 ```
 
 ## &nbsp;

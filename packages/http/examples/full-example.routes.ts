@@ -25,8 +25,8 @@ const getDate: Route = (context: CallContext, dataPoint?: DataPoint): DataPoint 
 
 const routerOpts = {prefix: 'api/'};
 const routes = {changeUserName, getDate};
-const {emptyContext, startHttpServer, MkRouter} = initHttpApp(app, sharedDataFactory, routerOpts);
-MkRouter.addRoutes(routes);
+const {emptyContext, startHttpServer, Router} = initHttpApp(app, sharedDataFactory, routerOpts);
+Router.addRoutes(routes);
 startHttpServer({port: 8080});
 
 export type CallContext = typeof emptyContext;
