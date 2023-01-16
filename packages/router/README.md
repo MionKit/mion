@@ -244,7 +244,7 @@ const getSomeData: Route = {
 export type Handler = (context: Context<any, any, any, any>, ...args: any) => any | Promise<any>;
 
 /** Route definition */
-export type RouteObject = {
+export type RouteDef = {
   /** overrides route's path and fieldName in request/response body */
   path?: string;
   /** description of the route, mostly for documentation purposes */
@@ -258,7 +258,7 @@ export type RouteObject = {
 };
 
 /** A route can be a full route definition or just the handler */
-export type Route = RouteObject | Handler;
+export type Route = RouteDef | Handler;
 ```
 
 </td>
@@ -341,12 +341,12 @@ Most of the data within the `Context` is marked as read only, this is because it
 export type Context<
   App,
   SharedData,
-  ServerReq extends Request,
-  AnyServerCall extends ServerCall<ServerReq> = ServerCall<ServerReq>
+  RawServerRequest extends Request,
+  RawContext extends RawServerContext<RawServerRequest> = RawServerContext<RawServerRequest>
 > = Readonly<{
   /** Static Data: main App, db driver, libraries, etc... */
   app: Readonly<App>;
-  serverCall: Readonly<AnyServerCall>;
+  serverContext: Readonly<RawContext>;
   /** Route's path */
   path: Readonly<string>;
   /**
@@ -377,11 +377,11 @@ export type Response = {
   json: Readonly<string>;
 };
 
-export type ServerCall<ServerReq extends Request> = {
+export type RawServerContext<RawServerRequest extends Request> = {
   /** Server request
    * i.e: '@types/aws-lambda/APIGatewayEvent'
    * or http/IncomingMessage */
-  req: ServerReq;
+  req: RawServerRequest;
 };
 ```
 

@@ -29,7 +29,6 @@ export type ClientData = RemoteExecutable & {
     clientData: {
         /** Name to use in generated client */
         camelCaseName: string;
-        handlerLKeysPointer: string[];
         pathComponents: string[];
         paramNames: string[];
         paramTypesAsSrcCode: {[key: string]: string};
@@ -52,4 +51,12 @@ export type ExecutableSourceCode = {
     responseName: string;
     remoteFunctionName: string;
     prefillFunctionName: string;
+};
+
+/**
+ * An Api spec containing src code references instead the object itself
+ * so when is serialized RemoteExecutables are not duplicated
+ *  */
+export type ApiSpecReferences = {
+    [key: string]: string | ApiSpecReferences;
 };

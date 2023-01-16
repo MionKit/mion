@@ -16,7 +16,7 @@ export const getTsSourceCodeForExecutable = (exec: ClientData, execPath?: Client
     const canReturn = exec.canReturnData;
     const camelCaseName = exec.clientData.camelCaseName;
     const fieldName = exec.fieldName;
-    const handlerPointer = `` + exec.clientData.handlerLKeysPointer.map((key) => `['${key}']`).join('');
+    const handlerPointer = `` + exec.handlerPointer.map((key) => `['${key}']`).join('');
     const routesTypeName = getGenerateClientOptions().routesTypeName;
     const jsonFieldName = JSON.stringify(fieldName);
 

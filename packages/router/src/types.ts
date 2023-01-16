@@ -22,10 +22,10 @@ import {statusCodeToReasonPhrase} from './status-codes';
 // #######  Routes #######
 
 /** Route or Hook Handler */
-export type Handler = (context: Context<any, any, any, any>, ...args: any) => any | Promise<any>;
+export type Handler = (context: Context<any, any, any>, ...args: any) => any | Promise<any>;
 
 /** Route definition */
-export type RouteObject = {
+export type RouteDef = {
     /** overrides route's path and fieldName in request/response body */
     path?: string;
     /** description of the route, mostly for documentation purposes */
@@ -39,7 +39,7 @@ export type RouteObject = {
 };
 
 /** A route can be a full route definition or just the handler */
-export type Route = RouteObject | Handler;
+export type Route = RouteDef | Handler;
 
 /** Hook definition */
 export type Hook = {
@@ -69,7 +69,7 @@ export type Routes = {
 // ####### Router Options #######
 
 /** Global Router Options */
-export type RouterOptions<ServerReq extends Request = Request> = {
+export type RouterOptions<RawContext extends RawServerContext = RawServerContext> = {
     /** prefix for all routes, i.e: api/v1.
      * path separator is added between the prefix and the route */
     prefix: string;
@@ -77,7 +77,7 @@ export type RouterOptions<ServerReq extends Request = Request> = {
      * Not path separators is added between the route and the suffix */
     suffix: string;
     /** Transform the path before finding a route */
-    pathTransform?: (request: ServerReq, path: string) => string;
+    pathTransform?: (request: RawContext['rawRequest'], path: string) => string;
     /** configures the fieldName in the request/response body used for a route's params/response */
     routeFieldName?: string;
     /** enable automatic parameter validation, defaults to true */
@@ -121,20 +121,79 @@ export type Executable = {
     paramValidators: RouteParamValidator[];
     paramsDeSerializers: RouteParamDeserializer[];
     outputSerializer: RouteOutputSerializer;
-    handlerType: Type;
+    handlerType: TypeFunction;
     isAsync: boolean;
-    src?: Route | Hook;
+    src: RouteDef | Hook;
     enableValidation: boolean;
     enableSerialization: boolean;
+    handlerPointer: string[];
 };
 
-// ####### RESPONSE & RESPONSE #######
+// ####### REQUEST & RESPONSE #######
 
 /** Any request Object used by the router must follow this interface */
-export type Request = {
+export type RawRequest = {
     headers: {[header: string]: string | undefined | string[]} | undefined;
     body: string | null | undefined | {}; // eslint-disable-line @typescript-eslint/ban-types
 };
+
+export type Headers = {[key: string]: string | boolean | number};
+
+// ####### Context #######
+
+/** The call Context object passed as first parameter to any hook or route */
+export type Context<App, SharedData, RawContext extends RawServerContext = any> = Readonly<{
+    /** Route's path */
+    path: Readonly<string>;
+    /** Static Data: main App, db driver, libraries, etc... */
+    app: Readonly<App>;
+    /** Raw Server call context, contains the raw request and response */
+    rawContext: Readonly<RawContext>;
+    /** Router's own request object */
+    request: Readonly<Request>;
+    /** Router's own response object */
+    response: Readonly<Response>;
+    /** shared data between handlers (route/hooks) and that is not returned in the response. */
+    shared: Readonly<SharedData>;
+}>;
+
+/** Router own request object */
+export type Request = {
+    /** parsed and headers */
+    headers: Obj;
+    /** parsed body */
+    body: Obj;
+    /** All errors thrown during the call are stored here so they can bee logged or handler by a some error handler hook */
+    internalErrors: Readonly<RouteError[]>;
+};
+
+/** Router own response object */
+export type Response = {
+    statusCode: Readonly<number>;
+    /** response errors: empty if there were no errors during execution */
+    publicErrors: Readonly<PublicError[]>;
+    /** response headers */
+    headers: Headers;
+    /** the router response data, JS object */
+    body: Readonly<Obj>;
+    /** json encoded response, contains data and errors if there are any. */
+    json: Readonly<string>;
+};
+
+export type RawServerContext<RawServerRequest extends RawRequest = RawRequest, RawServerResponse = any> = {
+    /** Original Server request
+     * i.e: '@types/aws-lambda/APIGatewayEvent'
+     * or http/IncomingMessage */
+    rawRequest: RawServerRequest;
+    /** Original Server response
+     * i.e: http/ServerResponse */
+    rawResponse?: RawServerResponse;
+};
+
+/** Function used to create the shared data object on each route call  */
+export type SharedDataFactory<SharedData> = () => SharedData;
+
+// #######  Errors #######
 
 /** Any error triggered by hooks or routes must follow this interface, returned errors in the body also follows this interface */
 export class RouteError extends Error {
@@ -151,60 +210,6 @@ export type PublicError = {
     message: Readonly<string>;
 };
 
-export type Headers = {[key: string]: string | boolean | number};
-
-// ####### Context #######
-
-/** The call Context object passed as first parameter to any hook or route */
-export type Context<
-    App,
-    SharedData,
-    ServerReq extends Request,
-    AnyServerCall extends ServerCall<ServerReq> = ServerCall<ServerReq>
-> = Readonly<{
-    /** Static Data: main App, db driver, libraries, etc... */
-    app: Readonly<App>;
-    serverCall: Readonly<AnyServerCall>;
-    /** Route's path */
-    path: Readonly<string>;
-    /**
-     * list of internal errors.
-     * As router has no logging all errors are stored here so can be managed in a hook or externally
-     */
-    internalErrors: Readonly<RouteError[]>;
-    /** parsed request.body */
-    request: Readonly<{
-        headers: Obj;
-        body: Obj;
-    }>;
-    /** returned data (non parsed) */
-    response: Readonly<Response>;
-    /** shared data between route/hooks handlers */
-    shared: Readonly<SharedData>;
-}>;
-
-export type Response = {
-    statusCode: Readonly<number>;
-    /** response errors: empty if there were no errors during execution */
-    errors: Readonly<PublicError[]>;
-    /** response headers */
-    headers: Headers;
-    /** the router response data, JS object */
-    body: Readonly<Obj>;
-    /** json encoded response, contains data and errors if there are any. */
-    json: Readonly<string>;
-};
-
-export type ServerCall<ServerReq extends Request> = {
-    /** Server request
-     * i.e: '@types/aws-lambda/APIGatewayEvent'
-     * or http/IncomingMessage */
-    req: ServerReq;
-};
-
-/** Function used to create the shared data object on each route call  */
-export type SharedDataFactory<SharedData> = () => SharedData;
-
 // #######  reflection #######
 
 export type RouteParamValidator = (data: any) => ValidationErrorItem[];
@@ -217,9 +222,9 @@ export type RouteOutputSerializer = <T>(data: T) => JSONSingle<T>;
 export const isHandler = (entry: Hook | Route | Routes): entry is Handler => {
     return typeof entry === 'function';
 };
-/** Type guard: isRouteObject */
-export const isRouteObject = (entry: Hook | Route | Routes): entry is RouteObject => {
-    return typeof (entry as RouteObject).route === 'function';
+/** Type guard: isRouteDef */
+export const isRouteDef = (entry: Hook | Route | Routes): entry is RouteDef => {
+    return typeof (entry as RouteDef).route === 'function';
 };
 /** Type guard: isHook */
 export const isHook = (entry: Hook | Route | Routes): entry is Hook => {
@@ -227,7 +232,7 @@ export const isHook = (entry: Hook | Route | Routes): entry is Hook => {
 };
 /** Type guard: isRoute */
 export const isRoute = (entry: Hook | Route | Routes): entry is Route => {
-    return typeof entry === 'function' || typeof (entry as RouteObject).route === 'function';
+    return typeof entry === 'function' || typeof (entry as RouteDef).route === 'function';
 };
 /** Type guard: isRoutes */
 export const isRoutes = (entry: any): entry is Route => {
