@@ -4,19 +4,18 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
-import {Route, Router} from '@mikrokit/router';
+import {addRoutes} from '@mikrokit/router';
 import fetch from 'node-fetch'; // must be node-fetch v2 as v3 is a node module non compatible whit current setup
-import {initHttpApp} from './mikrokitHttp';
+import {initHttpApp, startHttpServer} from './mikrokitHttp';
+import type {Context, Route} from '@mikrokit/router';
 
 describe('serverless router should', () => {
-    // Router.forceConsoleLogs();
-    type SimpleUser = {
-        name: string;
-        surname: string;
-    };
-    type DataPoint = {
-        date: Date;
-    };
+    type SimpleUser = {name: string; surname: string};
+    type DataPoint = {date: Date};
+    type MyApp = typeof app;
+    type MySharedData = ReturnType<typeof getSharedData>;
+    type CallContext = Context<MyApp, MySharedData>;
+
     const app = {
         cloudLogs: {
             log: () => null,
@@ -28,8 +27,7 @@ describe('serverless router should', () => {
     };
     const getSharedData = () => ({auth: {me: null as any}});
 
-    const {emptyContext, startHttpServer} = initHttpApp(app, getSharedData, {prefix: 'api/'});
-    type CallContext = typeof emptyContext;
+    initHttpApp(app, getSharedData, {prefix: 'api/'});
 
     const changeUserName: Route = (context: CallContext, user: SimpleUser) => {
         return context.app.db.changeUserName(user);
@@ -46,7 +44,7 @@ describe('serverless router should', () => {
 
     let server;
 
-    Router.addRoutes({changeUserName, getDate, updateHeaders});
+    addRoutes({changeUserName, getDate, updateHeaders});
 
     const port = 8075;
     beforeAll(async () => {

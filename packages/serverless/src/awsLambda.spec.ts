@@ -5,10 +5,12 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {Route} from '@mikrokit/router';
-import {initAwsLambdaApp} from './awsLambda';
+import {addRoutes} from '@mikrokit/router';
+import {initAwsLambdaApp, lambdaHandler} from './awsLambda';
 import createEvent from '@serverless/event-mocks';
-import {APIGatewayProxyEventHeaders} from 'aws-lambda';
+import type {Route} from '@mikrokit/router';
+import type {APIGatewayProxyEventHeaders} from 'aws-lambda';
+import type {AwsCallContext} from './types';
 
 describe('serverless router should', () => {
     // Router.forceConsoleLogs();
@@ -19,6 +21,10 @@ describe('serverless router should', () => {
     type DataPoint = {
         date: Date;
     };
+    type MyApp = typeof app;
+    type MySharedData = ReturnType<typeof getSharedData>;
+    type CallContext = AwsCallContext<MyApp, MySharedData>;
+
     const app = {
         cloudLogs: {
             log: () => null,
@@ -30,8 +36,7 @@ describe('serverless router should', () => {
     };
     const getSharedData = () => ({auth: {me: null as any}});
 
-    const {emptyContext, lambdaHandler, Router} = initAwsLambdaApp(app, getSharedData, {prefix: 'api/'});
-    type CallContext = typeof emptyContext;
+    initAwsLambdaApp(app, getSharedData, {prefix: 'api/'});
 
     const changeUserName: Route = (context: CallContext, user: SimpleUser) => {
         return context.app.db.changeUserName(user);
@@ -44,10 +49,10 @@ describe('serverless router should', () => {
     const updateHeaders: Route = (context: CallContext): void => {
         context.response.headers['x-something'] = true;
         context.response.headers['server'] = 'my-server';
-        context.serverCall.awsContext;
+        context.rawContext.awsContext;
     };
 
-    Router.addRoutes({changeUserName, getDate, updateHeaders});
+    addRoutes({changeUserName, getDate, updateHeaders});
 
     const getDefaultGatewayEvent = (
         body: string,

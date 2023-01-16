@@ -5,8 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {serializeType} from '@deepkit/type';
-import {Router, RouterOptions, Routes, Executable} from '@mikrokit/router';
+import {serializeType, TypeFunction} from '@deepkit/type';
 import {writeFileSync} from 'fs';
 import {resolve} from 'path';
 import {
@@ -15,19 +14,13 @@ import {
     getSourceCodeFromJson,
     getTsSourceCodeForExecutable,
 } from './tsGenerator';
-import {ApiSpec, ClientData, GenerateClientOptions, ExecutableSourceCode} from './types';
 import {format} from 'prettier';
 import {DEFAULT_PRETTIER_OPTIONS} from './constants';
 import {parametersToSrcCode, returnToSrcCode} from './clientReflection';
-import {RemoteExecutable} from '@mikrokit/client';
-
-/**
- * An Api spec containing src code references instead the object itself
- * so when is serialized RemoteExecutables are not duplicated
- *  */
-export type ApiSpecReferences = {
-    [key: string]: string | ApiSpecReferences;
-};
+import {addRoutes, getRouteEntries, getRouterOptions, setRouterOptions} from '@mikrokit/router';
+import type {RemoteExecutable} from '@mikrokit/client';
+import type {RouterOptions, Routes, Executable} from '@mikrokit/router';
+import type {ApiSpec, ClientData, GenerateClientOptions, ExecutableSourceCode, ApiSpecReferences} from './types';
 
 const apiSpec: ApiSpec = {};
 const apiSpecReferences: ApiSpecReferences = {};
@@ -59,18 +52,17 @@ export const addClientRoutes = (
         },
         ...generateClientOptions_,
     };
-    Router.setRouterOptions({
+    setRouterOptions({
         ...routerOptions_,
-        extraClientData: true,
     });
-    Router.addRoutes(routes);
+    addRoutes(routes);
     addRoutesApiSpec();
     assignHooks();
     createTsClientFile();
 };
 
 const addRoutesApiSpec = () => {
-    const remoteApi = Router.getRouteEntries();
+    const remoteApi = getRouteEntries();
     for (const [path, executionPath] of remoteApi) {
         const {sanitizedPathComponents, sanitizedPathName} = getSanitizedPath(path, true);
         const existingPath = sanitizedPathNames.get(sanitizedPathName);
@@ -134,7 +126,6 @@ const getRouteSourceCode = (exec: ClientData, remoteExecutionPath: ClientData[])
 };
 
 const getRemoteExecutable = (exec: Executable, pathComponents: string[]): ClientData => {
-    if (!exec.clientData) throw new Error('Invalid executable handler');
     const isRoute = exec.isRoute;
 
     const pathKeys = isRoute ? pathComponents : getSanitizedPath(exec.fieldName, exec.isRoute).sanitizedPathComponents;
@@ -155,9 +146,9 @@ const getRemoteExecutable = (exec: Executable, pathComponents: string[]): Client
         isAsync: exec.isAsync,
         enableValidation: exec.enableValidation,
         enableSerialization: exec.enableSerialization,
+        handlerPointer: exec.handlerPointer,
         serializedHandler,
         clientData: {
-            handlerLKeysPointer: exec.clientData.handlerLKeysPointer,
             camelCaseName,
             pathComponents: pathKeys,
             paramNames: exec.handlerType.parameters.map((type) => type.name).slice(1), // removes the context
@@ -185,7 +176,7 @@ const assignExecutionPath = (sanitizedPathComponents: string[], exec: ClientData
     let currentApiSpecObject = apiSpec;
     let currentExecutableReferencesApiSpecObject = apiSpecReferences;
     let currentApiObject = api;
-    let currentPrefillRouteObject = prefillData;
+    let currentPrefillRouteDef = prefillData;
     sanitizedPathComponents.forEach((pathComponent, index) => {
         if (!pathComponent) return;
         const isLast = index === sanitizedPathComponents.length - 1;
@@ -209,17 +200,17 @@ const assignExecutionPath = (sanitizedPathComponents: string[], exec: ClientData
             /* 'ΔΔ#${xyz}#ΔΔ' string will be replaced by the reference to the remote call and prefill functions
              * after the api is converted to json, so the end result is an object with the references to the functions */
             if (!currentApiObject[pathComponent]) currentApiObject[pathComponent] = `ΔΔ#${routeSrcCode.remoteFunctionName}#ΔΔ`;
-            if (!currentPrefillRouteObject[pathComponent] && exec.clientData.paramNames.length)
-                currentPrefillRouteObject[pathComponent] = `ΔΔ#${routeSrcCode.prefillFunctionName}#ΔΔ`;
+            if (!currentPrefillRouteDef[pathComponent] && exec.clientData.paramNames.length)
+                currentPrefillRouteDef[pathComponent] = `ΔΔ#${routeSrcCode.prefillFunctionName}#ΔΔ`;
         } else if (!isLast && !currentApiSpecObject[pathComponent]) {
             currentApiSpecObject[pathComponent] = {};
             currentApiObject[pathComponent] = {};
-            currentPrefillRouteObject[pathComponent] = {};
+            currentPrefillRouteDef[pathComponent] = {};
             currentExecutableReferencesApiSpecObject[pathComponent] = {};
         }
         currentApiSpecObject = currentApiSpecObject[pathComponent] as ApiSpec;
         currentApiObject = currentApiObject[pathComponent];
-        currentPrefillRouteObject = currentPrefillRouteObject[pathComponent];
+        currentPrefillRouteDef = currentPrefillRouteDef[pathComponent];
         currentExecutableReferencesApiSpecObject = currentExecutableReferencesApiSpecObject[pathComponent] as any;
     });
 };
@@ -237,8 +228,8 @@ const getSerializableRemoteExecutable = (exec: ClientData): RemoteExecutable => 
 };
 
 const removePathPrefixAndSuffix = (path: string): string => {
-    const prefix = Router.getRouterOptions().prefix || '';
-    const suffix = Router.getRouterOptions().suffix || '';
+    const prefix = getRouterOptions().prefix || '';
+    const suffix = getRouterOptions().suffix || '';
     let finalPath = path;
     if (prefix.length) finalPath = finalPath.substring(prefix.length + 1);
     if (suffix.length) finalPath = finalPath.substring(0, finalPath.length - suffix.length);

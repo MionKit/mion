@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {Headers} from '@mikrokit/router';
+import {Context, Headers, Obj, RawServerContext} from '@mikrokit/router';
 import {IncomingMessage, ServerResponse} from 'http';
 import {ServerOptions} from 'https';
 
@@ -29,3 +29,9 @@ export type HttpOptions = {
     allowExceedMaxBodySize?: (currentSize: number, httpReq: IncomingMessage, httpResponse: ServerResponse) => boolean;
     logger?: typeof console;
 };
+
+export type HttpRequest = IncomingMessage & {body: string};
+
+export type HttpRawServerContext = RawServerContext<HttpRequest, ServerResponse>;
+
+export type HttpCallContext<App extends Obj, SharedData extends Obj> = Context<App, SharedData, HttpRawServerContext>;

@@ -5,22 +5,14 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {
-    Context,
-    Obj,
-    RouteError,
-    Headers,
-    Request,
-    Router,
-    PublicError,
-    RouterOptions,
-    SharedDataFactory,
-    StatusCodes,
-} from '@mikrokit/router';
-import {createServer as createHttp, IncomingMessage, RequestListener, Server as HttpServer, ServerResponse} from 'http';
-import {createServer as createHttps, Server as HttpsServer} from 'https';
+import {StatusCodes, initRouter, getRouterOptions, runRoute, RouteError} from '@mikrokit/router';
+import {createServer as createHttp} from 'http';
+import {createServer as createHttps} from 'https';
 import {DEFAULT_HTTP_OPTIONS} from './constants';
-import {HttpOptions} from './types';
+import type {HttpOptions, HttpRawServerContext} from './types';
+import type {IncomingMessage, RequestListener, Server as HttpServer, ServerResponse} from 'http';
+import type {Server as HttpsServer} from 'https';
+import type {Obj, Headers, RawRequest, PublicError, RouterOptions, SharedDataFactory} from '@mikrokit/router';
 
 type Logger = typeof console | undefined;
 type HeadersEntries = [string, string | boolean | number][];
@@ -31,22 +23,16 @@ let httpOptions: HttpOptions = {
 let defaultResponseContentType: string;
 let defaultResponseHeaders: HeadersEntries = [];
 
-export type HttpRequest = IncomingMessage & {body: string};
-export type HttpCallContext<App extends Obj, SharedData extends Obj> = Context<App, SharedData, HttpRequest>;
-
 export const initHttpApp = <App extends Obj, SharedData extends Obj>(
     app: App,
     handlersDataFactory?: SharedDataFactory<SharedData>,
-    routerOptions?: Partial<RouterOptions<HttpRequest>>
+    routerOptions?: Partial<RouterOptions<HttpRawServerContext>>
 ) => {
-    type CallContext = Readonly<HttpCallContext<App, SharedData>>;
-    Router.initRouter(app, handlersDataFactory, routerOptions);
-    defaultResponseContentType = Router.getRouterOptions().responseContentType;
-    const emptyContext: CallContext = {} as CallContext;
-    return {emptyContext, startHttpServer, Router};
+    initRouter(app, handlersDataFactory, routerOptions);
+    defaultResponseContentType = getRouterOptions().responseContentType;
 };
 
-const startHttpServer = async (httpOptions_: Partial<HttpOptions> = {}): Promise<HttpServer | HttpsServer> => {
+export const startHttpServer = async (httpOptions_: Partial<HttpOptions> = {}): Promise<HttpServer | HttpsServer> => {
     httpOptions = {
         ...httpOptions,
         ...httpOptions_,
@@ -113,10 +99,11 @@ const httpRequestHandler: RequestListener = (httpReq: IncomingMessage, httpRespo
 
     httpReq.on('end', () => {
         if (hasError) return;
+        // monkey patching IncomingMessage to add required body once transfer has ended
         const body = Buffer.concat(bodyChunks).toString();
         (httpReq as any).body = body;
 
-        Router.runRoute_(path, {req: httpReq as any as Request})
+        runRoute(path, {rawRequest: httpReq as any as RawRequest, rawResponse: httpResponse})
             .then((routeResponse) => {
                 if (hasError) return;
                 addResponseHeaders(httpResponse, routeResponse.headers);

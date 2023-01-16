@@ -5,33 +5,25 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {Router, Context, Obj, SharedDataFactory, RouterOptions} from '@mikrokit/router';
-import {Context as AwsContext, APIGatewayProxyResult, APIGatewayEvent} from 'aws-lambda';
-
-export type AwsServerCall = {
-    req: APIGatewayEvent;
-    awsContext: AwsContext;
-};
+import {initRouter, getRouterOptions, runRoute} from '@mikrokit/router';
+import type {Obj, SharedDataFactory, RouterOptions} from '@mikrokit/router';
+import type {Context as AwsContext, APIGatewayProxyResult, APIGatewayEvent} from 'aws-lambda';
+import type {AwsRawServerContext} from './types';
 
 let defaultResponseContentType: string;
-
-export type AwsCallContext<App extends Obj, SharedData extends Obj> = Context<App, SharedData, APIGatewayEvent, AwsServerCall>;
 
 export const initAwsLambdaApp = <App extends Obj, SharedData extends Obj>(
     app: App,
     handlersDataFactory?: SharedDataFactory<SharedData>,
-    routerOptions?: Partial<RouterOptions<APIGatewayEvent>>
+    routerOptions?: Partial<RouterOptions<AwsRawServerContext>>
 ) => {
-    type CallContext = AwsCallContext<App, SharedData>;
-    Router.initRouter(app, handlersDataFactory, routerOptions);
-    defaultResponseContentType = Router.getRouterOptions().responseContentType;
-    const emptyContext: CallContext = {} as CallContext;
-    return {emptyContext, lambdaHandler, Router};
+    initRouter<App, SharedData, AwsRawServerContext>(app, handlersDataFactory, routerOptions);
+    defaultResponseContentType = getRouterOptions().responseContentType;
 };
 
-const lambdaHandler = async (req: APIGatewayEvent, awsContext: AwsContext): Promise<APIGatewayProxyResult> => {
-    const serverCall: AwsServerCall = {req, awsContext};
-    const routeResponse = await Router.runRoute_(req.path, serverCall);
+export const lambdaHandler = async (req: APIGatewayEvent, awsContext: AwsContext): Promise<APIGatewayProxyResult> => {
+    const serverContext: AwsRawServerContext = {rawRequest: req, awsContext};
+    const routeResponse = await runRoute(req.path, serverContext);
     return {
         statusCode: routeResponse.statusCode,
         headers: {

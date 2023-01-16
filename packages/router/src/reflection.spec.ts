@@ -38,7 +38,7 @@ describe('Deepkit reflection should', () => {
         return data;
     };
 
-    type CallContext = Context<typeof app, ReturnType<typeof sharedDataFactory>, typeof req>;
+    type CallContext = Context<typeof app, ReturnType<typeof sharedDataFactory>>;
     const printSum = (a: number, b: number, c?: {message: string}, d?: Message) =>
         `${c?.message || d?.message || 'sum'} => ${a + b}`;
 
@@ -80,7 +80,7 @@ describe('Deepkit reflection should', () => {
         const paramValidatorsUser: RouteParamValidator[] = getParamValidators(updateUser, DEFAULT_ROUTE_OPTIONS);
         const paramValidatorsPrintSum: RouteParamValidator[] = getParamValidators(
             printSum as any as Handler,
-            DEFAULT_ROUTE_OPTIONS,
+            DEFAULT_ROUTE_OPTIONS
         );
         const paramValidatorsIgnoreFirst: RouteParamValidator[] = getParamValidators(() => null, DEFAULT_ROUTE_OPTIONS);
         const noParamValidators: RouteParamValidator[] = getParamValidators(() => null, DEFAULT_ROUTE_OPTIONS);
