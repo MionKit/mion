@@ -69,6 +69,6 @@
     "packages/serverless",
     "packages/compiled-app",
     "packages/client",
-    "packages/client-generator"
+    "packages/spec-generator"
   ]
 }

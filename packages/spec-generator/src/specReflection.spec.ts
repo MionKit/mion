@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {parametersToSrcCode, returnToSrcCode} from './clientReflection';
+import {parametersToSrcCode, returnToSrcCode} from './specReflection';
 
 describe('client reflection should', () => {
     it('return  a type when parameters are primitives', () => {
@@ -18,7 +18,7 @@ describe('client reflection should', () => {
             f: symbol,
             g: unknown,
             h: bigint,
-            j: boolean,
+            j: boolean
         ): void => {};
 
         expect(parametersToSrcCode('', handler)).toEqual({
@@ -97,7 +97,7 @@ describe('client reflection should', () => {
             b: ObjABC<ObjectS, number, boolean>,
             c: ObjABC<ObjectA<string>, number, boolean>,
             d: ObjABC<ObjectA<ObjectS>, number, boolean>,
-            e: ClassA<number>,
+            e: ClassA<number>
         ): void => {};
 
         expect(parametersToSrcCode('', handler)).toEqual({
@@ -169,13 +169,13 @@ describe('client reflection should', () => {
 
         expect(() => parametersToSrcCode('path1', handler)).toThrow("Invalid Handler in path1.a, parameters can't be promises");
         expect(() => parametersToSrcCode('path1', handlerMethod)).toThrow(
-            "Invalid Handler in path1.a, Parameter can't be of type function.",
+            "Invalid Handler in path1.a, Parameter can't be of type function."
         );
         expect(() => parametersToSrcCode('path1', handlerNever)).toThrow(
-            "Invalid Handler in path1.a, Parameter can't be of type never.",
+            "Invalid Handler in path1.a, Parameter can't be of type never."
         );
         expect(() => parametersToSrcCode('path1', handlerRest)).toThrow(
-            "Invalid Handler in path1.args, Parameter can't be of type rest.",
+            "Invalid Handler in path1.args, Parameter can't be of type rest."
         );
     });
 });
