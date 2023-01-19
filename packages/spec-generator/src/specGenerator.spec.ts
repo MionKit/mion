@@ -15,7 +15,7 @@ global.window = Object.create({
 import {serializeType, deserializeType, reflect, Type, toSignature} from '@deepkit/type';
 import {DEFAULT_ROUTE_OPTIONS, getParamValidators, isFunctionType, Handler} from '@mikrokit/router';
 import {join} from 'path';
-import {addClientRoutes, getApiSpec} from './clientGenerator';
+import {addClientRoutes, getApiSpec} from './specGenerator';
 import {myApiRoutes} from './test/myApi.routes';
 import {GenerateClientOptions} from './types';
 

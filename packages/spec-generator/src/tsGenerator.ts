@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {getGenerateClientOptions} from './clientGenerator';
+import {getGenerateClientOptions} from './specGenerator';
 import {ExecutableSourceCode, ClientData} from './types';
 
 export const getTsSourceCodeForExecutable = (exec: ClientData, execPath?: ClientData[]): ExecutableSourceCode => {

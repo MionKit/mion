@@ -16,7 +16,7 @@ import {
 } from './tsGenerator';
 import {format} from 'prettier';
 import {DEFAULT_PRETTIER_OPTIONS} from './constants';
-import {parametersToSrcCode, returnToSrcCode} from './clientReflection';
+import {parametersToSrcCode, returnToSrcCode} from './specReflection';
 import {addRoutes, getRouteEntries, getRouterOptions, setRouterOptions} from '@mikrokit/router';
 import type {RemoteExecutable} from '@mikrokit/client';
 import type {RouterOptions, Routes, Executable} from '@mikrokit/router';
@@ -319,7 +319,7 @@ const createTsClientFile = () => {
  * Some users.getUser returns Promise<User>.
  * At the moment we just generate: type TUsersGetUserRemoteReturn = RemoteReturn<MyApiRoutes['users']['getUser']>;
  * Instead we could just add User to a registry and reuse whenever the User class is referenced:  type User = RemoteReturn<MyApiRoutes['users']['getUser']>;
- * Some steps are done towards it in the clientReflection.ts file but still needs work.
+ * Some steps are done towards it in the specReflection.ts file but still needs work.
  *
  * The main advantage for all this work would be better autocompletion and cleaner generated code, but everything is working now as it should.
  *  */
