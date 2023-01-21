@@ -18,11 +18,11 @@ import {
     initRouter,
     runRoute,
 } from './router';
-import {Context, Handler, Hook, RawRequest, Route, RouteDef, Routes} from './types';
+import {Context, Handler, HookDef, RawRequest, Route, RouteDef, Routes} from './types';
 import {StatusCodes} from './status-codes';
 
 describe('Create routes should', () => {
-    const hook: Hook = {hook(): void {}};
+    const hook: HookDef = {hook(): void {}};
     const route1: Handler = () => 'route1';
     const route2: RouteDef = {
         route() {
@@ -372,7 +372,7 @@ describe('Run routes', () => {
         return data;
     };
 
-    const auth: Hook = {
+    const auth: HookDef = {
         fieldName: 'Authorization',
         inHeader: true,
         hook: (context: CallContext, token: string) => {
