@@ -5,9 +5,9 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {MkClient, RemoteHandler, RemoteParams, RemotePrefill, RemoteReturn} from '@mikrokit/client';
+import {MkSpec, RemoteHandler, RemoteParams, RemotePrefill, RemoteReturn} from '@mikrokit/client';
 
-// ##### Generated Client Input #####
+// ##### Generated Spec Input #####
 
 type User = {id: number; name: string; surname: string};
 type Pet = {id: number; race: string; name: string};
@@ -41,7 +41,7 @@ export const myAppRoutes = {
 
 export type MyAppRoutes = typeof myAppRoutes;
 
-// ##### Generated Client Output #####
+// ##### Generated Spec Output #####
 
 type UsersGetUserRemoteHandler = RemoteHandler<MyAppRoutes['users']['getUser'], UsersGetUserRequest, UsersGetUserResponse>;
 type UsersGetUserRemotePrefill = RemotePrefill<MyAppRoutes['users']['getUser']>;
@@ -53,10 +53,10 @@ export type UsersGetUserResponse = {
     '/api/v1/users/getUser.json': RemoteReturn<MyAppRoutes['users']['getUser']>;
     totalUsers: RemoteReturn<MyAppRoutes['users']['totalUsers']['hook']>;
 };
-const usersGetUserHandler: UsersGetUserRemoteHandler = (...args) => MkClient.remote('/user/getUser', ...args);
-const usersGetUserPrefill: UsersGetUserRemotePrefill = (...args) => MkClient.prefillData('/user/getUse', ...args);
+const usersGetUserHandler: UsersGetUserRemoteHandler = (...args) => MkSpec.remote('/user/getUser', ...args);
+const usersGetUserPrefill: UsersGetUserRemotePrefill = (...args) => MkSpec.prefillData('/user/getUse', ...args);
 
-export const clientRoutes = {
+export const specRoutes = {
     users: {
         getUser: usersGetUserHandler,
     },

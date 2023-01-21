@@ -5,19 +5,19 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {getGenerateClientOptions} from './specGenerator';
-import {ExecutableSourceCode, ClientData} from './types';
+import {getGenerateSpecOptions} from './specGenerator';
+import {ExecutableSourceCode, SpecData} from './types';
 
-export const getTsSourceCodeForExecutable = (exec: ClientData, execPath?: ClientData[]): ExecutableSourceCode => {
-    if (!exec.clientData) throw new Error('error generating client, missing clientData');
+export const getTsSourceCodeForExecutable = (exec: SpecData, execPath?: SpecData[]): ExecutableSourceCode => {
+    if (!exec.specData) throw new Error('error generating spec, missing specData');
 
     const isRoute = exec.isRoute;
-    const hasParams = exec.clientData.paramNames.length;
+    const hasParams = exec.specData.paramNames.length;
     const canReturn = exec.canReturnData;
-    const camelCaseName = exec.clientData.camelCaseName;
+    const camelCaseName = exec.specData.camelCaseName;
     const fieldName = exec.fieldName;
     const handlerPointer = `` + exec.handlerPointer.map((key) => `['${key}']`).join('');
-    const routesTypeName = getGenerateClientOptions().routesTypeName;
+    const routesTypeName = getGenerateSpecOptions().routesTypeName;
     const jsonFieldName = JSON.stringify(fieldName);
 
     const pointerName = `${routesTypeName}${handlerPointer}`;
@@ -55,10 +55,10 @@ export const getTsSourceCodeForExecutable = (exec: ClientData, execPath?: Client
         const reqRes = getFullRequestResponseTypes(exec, execPath);
         requestTemplate = reqRes.requestTemplate;
         responseTemplate = reqRes.responseTemplate;
-        remoteCallTemplate = `const ${remoteFunctionName}: ${remoteCallName} = (...args) => MkClient.remote(${jsonFieldName}, ...args);`;
+        remoteCallTemplate = `const ${remoteFunctionName}: ${remoteCallName} = (...args) => MkSpec.remote(${jsonFieldName}, ...args);`;
     }
     const prefillTemplate = hasParams
-        ? `const ${prefillFunctionName}: ${prefillName} = (...args) => MkClient.prefillData(${jsonFieldName}, ...args);`
+        ? `const ${prefillFunctionName}: ${prefillName} = (...args) => MkSpec.prefillData(${jsonFieldName}, ...args);`
         : '';
     const sourceCode = typeDefTemplate + requestTemplate + responseTemplate + remoteCallTemplate + prefillTemplate + '\n';
     return {
@@ -75,15 +75,15 @@ export const getTsSourceCodeForExecutable = (exec: ClientData, execPath?: Client
     };
 };
 
-const getFullRequestResponseTypes = (routeExec: ClientData, execPath: ClientData[]) => {
-    if (!routeExec.clientData) throw new Error('error generating client, missing clientData');
-    const camelCaseName = routeExec.clientData.camelCaseName;
+const getFullRequestResponseTypes = (routeExec: SpecData, execPath: SpecData[]) => {
+    if (!routeExec.specData) throw new Error('error generating spec, missing specData');
+    const camelCaseName = routeExec.specData.camelCaseName;
 
     const requestFieldsDefinitions = execPath
-        .filter((exec) => exec.clientData?.paramNames.length)
+        .filter((exec) => exec.specData?.paramNames.length)
         .map((exec) => {
             const name = exec.isRoute ? JSON.stringify(exec.path) : JSON.stringify(exec.fieldName);
-            return `${name}: ${exec.clientData.camelCaseName}RemoteParams`;
+            return `${name}: ${exec.specData.camelCaseName}RemoteParams`;
         })
         .join(';');
     const requestTemplate = `type ${camelCaseName}Request = {${requestFieldsDefinitions}};`;
@@ -92,7 +92,7 @@ const getFullRequestResponseTypes = (routeExec: ClientData, execPath: ClientData
         .filter((exec) => exec.canReturnData)
         .map((exec) => {
             const name = exec.isRoute ? JSON.stringify(exec.path) : JSON.stringify(exec.fieldName);
-            return `${name}: ${exec.clientData.camelCaseName}RemoteReturn`;
+            return `${name}: ${exec.specData.camelCaseName}RemoteReturn`;
         })
         .join(';');
     const responseTemplate = `type ${camelCaseName}Response = {${responseFieldsDefinitions}};`;
@@ -100,12 +100,12 @@ const getFullRequestResponseTypes = (routeExec: ClientData, execPath: ClientData
     return {requestTemplate, responseTemplate};
 };
 
-export const getRemoteExecutionPathSrcCode = (remoteExecutionPath: ClientData[], executablesObjectName: string) => {
-    return '[' + remoteExecutionPath.map((exec) => `${executablesObjectName}.${exec.clientData.camelCaseName}`).join(',') + ']';
+export const getRemoteExecutionPathSrcCode = (remoteExecutionPath: SpecData[], executablesObjectName: string) => {
+    return '[' + remoteExecutionPath.map((exec) => `${executablesObjectName}.${exec.specData.camelCaseName}`).join(',') + ']';
 };
 
-export const getPrefillFunctionName = (exec: ClientData) => {
-    return `${deCapitalize(exec.clientData.camelCaseName)}Prefill`;
+export const getPrefillFunctionName = (exec: SpecData) => {
+    return `${deCapitalize(exec.specData.camelCaseName)}Prefill`;
 };
 
 /**

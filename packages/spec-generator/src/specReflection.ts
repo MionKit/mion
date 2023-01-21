@@ -9,7 +9,7 @@ import {reflect, ReflectionKind, Type, TypeParameter} from '@deepkit/type';
 import {isFunctionType} from '@mikrokit/router';
 // import {inspect} from 'util';
 
-// type references, would need to imported into the generated client (Not used as for now)
+// type references, would need to imported into the generated spec (Not used as for now)
 const requiredTypes: Map<string, Type> = new Map();
 
 export const parametersToSrcCode = (path: string, handler: (...args: any[]) => any, type?: Type): {[key: string]: string} => {
