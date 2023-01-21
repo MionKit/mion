@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {Hook, RawRequest, RouteDef, RouterOptions} from './types';
+import {HookDef, RawRequest, RouteDef, RouterOptions} from './types';
 
 export const ROUTE_PATH_ROOT = '/';
 
@@ -16,7 +16,7 @@ export const DEFAULT_ROUTE: Readonly<Required<RouteDef>> = {
     enableSerialization: true,
     route: () => null,
 };
-export const DEFAULT_HOOK: Readonly<Required<Hook>> = {
+export const DEFAULT_HOOK: Readonly<Required<HookDef>> = {
     forceRunOnError: false,
     canReturnData: false,
     inHeader: false,

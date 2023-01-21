@@ -1,4 +1,4 @@
-import {Router, Context, Route, Routes, Hook, MkError, StatusCodes} from '@mikrokit/router';
+import {Router, Context, Route, Routes, HookDef, MkError, StatusCodes} from '@mikrokit/router';
 import {APIGatewayEvent} from 'aws-lambda';
 
 interface User {
@@ -66,7 +66,7 @@ const deleteUser: Route = (ctx: CallContext, id: number): User => {
     if (!deleted) throw {statusCode: 200, message: 'user not found, can not be deleted'};
     return deleted;
 };
-const auth: Hook = {
+const auth: HookDef = {
     inHeader: true,
     fieldName: 'Authorization',
     hook: (ctx: CallContext, token: string): void => {

@@ -10,10 +10,10 @@ import {DEFAULT_ROUTE, DEFAULT_ROUTE_OPTIONS, MAX_ROUTE_NESTING, ROUTE_PATH_ROOT
 import {
     Executable,
     Handler,
-    Hook,
+    HookDef,
     isExecutable,
     isHandler,
-    isHook,
+    isHookDef,
     isRoute,
     isRoutes,
     Route,
@@ -30,6 +30,9 @@ import {
     PublicError,
     Request,
     isRouteDef,
+    RouteExecutable,
+    HookExecutable,
+    Executables,
 } from './types';
 import {StatusCodes} from './status-codes';
 import {
@@ -41,7 +44,7 @@ import {
     validateParams,
 } from './reflection';
 import {reflect, TypeFunction} from '@deepkit/type';
-type RouterKeyEntryList = [string, Routes | Hook | Route][];
+type RouterKeyEntryList = [string, Routes | HookDef | Route][];
 type RoutesWithId = {
     path: string;
     routes: Routes;
@@ -49,8 +52,11 @@ type RoutesWithId = {
 
 // ############# PUBLIC METHODS #############
 
-export const addRoutes = (routes: Routes) => {
+export const addRoutes = <R extends Routes>(routes: R): Executables<R> => {
+    if (!app) throw new Error('Router has not been initialized yet');
     recursiveFlatRoutes(routes);
+    const executables: Executables<R> = {} as any;
+    return executables;
 };
 export const getRouteExecutionPath = (path: string) => flatRouter.get(path);
 export const getRouteEntries = () => flatRouter.entries();
@@ -290,7 +296,7 @@ const recursiveFlatRoutes = (
         if (typeof key !== 'string' || !isNaN(key as any))
             throw new Error(`Invalid route: ${path}. Numeric route names are not allowed`);
 
-        if (isHook(item)) {
+        if (isHookDef(item)) {
             routeEntry = getExecutableFromHook(item, path, nestLevel, key);
             const fieldName = routeEntry.fieldName;
             if (hookNames.has(fieldName))
@@ -348,7 +354,7 @@ const recursiveCreateExecutionPath = (
     } else {
         routeKeyedEntries.forEach(([k, entry], i) => {
             complexity++;
-            if (!isHook(entry)) return;
+            if (!isHookDef(entry)) return;
             const path = join(currentPath, `${k}`);
             const executable = getExecutableFromHook(entry, path, nestLevel, k);
             if (i < index) return props.preLevelHooks.push(executable);
@@ -373,18 +379,16 @@ const recursiveCreateExecutionPath = (
     return props;
 };
 
-const getHandler = (entry: Hook | Route, path): Handler => {
-    const handler = isHandler(entry) ? entry : (entry as Hook).hook || (entry as RouteDef).route;
+const getHandler = (entry: HookDef | Route, path): Handler => {
+    const handler = isHandler(entry) ? entry : (entry as HookDef).hook || (entry as RouteDef).route;
     if (!isHandler(handler)) throw new Error(`Invalid route: ${path}. Missing route handler`);
     return handler;
 };
 
-const getExecutableFromHook = (hook: Hook, path: string, nestLevel: number, key: string) => {
+const getExecutableFromHook = (hook: HookDef, path: string, nestLevel: number, key: string): HookExecutable<Handler> => {
     const hookName = getHookFieldName(hook, key);
     const existing = hooksByFieldName.get(hookName);
-    if (existing) {
-        return existing;
-    }
+    if (existing) return existing as HookExecutable<Handler>;
     const handler = getHandler(hook, path);
 
     if (!!hook.inHeader && handler.length > 2) {
@@ -396,7 +400,7 @@ const getExecutableFromHook = (hook: Hook, path: string, nestLevel: number, key:
     }
 
     const handlerType = reflect(handler) as TypeFunction;
-    const executable: Executable = {
+    const executable: HookExecutable<Handler> = {
         path,
         forceRunOnError: !!hook.forceRunOnError,
         canReturnData: !!hook.canReturnData,
@@ -420,10 +424,10 @@ const getExecutableFromHook = (hook: Hook, path: string, nestLevel: number, key:
     return executable;
 };
 
-const getExecutableFromRoute = (route: Route, path: string, nestLevel: number) => {
+const getExecutableFromRoute = (route: Route, path: string, nestLevel: number): RouteExecutable<Handler> => {
     const routePath = getRoutePath(route, path);
     const existing = routesByPath.get(routePath);
-    if (existing) return existing;
+    if (existing) return existing as RouteExecutable<Handler>;
     const handler = getHandler(route, routePath);
     // TODO: Not sure if bellow code is required. using the wrong context type is a big fail and should be catch during dev
     // TODO: fix should be just to use correct context type
@@ -432,7 +436,7 @@ const getExecutableFromRoute = (route: Route, path: string, nestLevel: number) =
     //     throw new Error(`Invalid route: ${path}. First parameter the handler must be of Type ${contextType.typeName},`);
     const routeObj = isHandler(route) ? {...DEFAULT_ROUTE} : {...DEFAULT_ROUTE, ...route};
     const handlerType = reflect(handler) as TypeFunction;
-    const executable: Executable = {
+    const executable: RouteExecutable<Handler> = {
         path: routePath,
         forceRunOnError: false,
         canReturnData: true,
@@ -476,9 +480,9 @@ const getEntry = (index, keyEntryList: RouterKeyEntryList) => {
 };
 
 const getRouteEntryProperties = (
-    minus1: Routes | Hook | Route | undefined,
+    minus1: Routes | HookDef | Route | undefined,
     zero: Executable | RoutesWithId,
-    plus1: Routes | Hook | Route | undefined
+    plus1: Routes | HookDef | Route | undefined
 ) => {
     const minus1IsRoute = minus1 && isRoute(minus1);
     const zeroIsRoute = !!(zero as Executable).isRoute;
@@ -495,7 +499,7 @@ const getRouteEntryProperties = (
     };
 };
 
-const getHookFieldName = (item: Hook, key: string) => {
+const getHookFieldName = (item: HookDef, key: string) => {
     return item?.fieldName || key;
 };
 

@@ -1,15 +1,16 @@
-import {Routes, Router, Hook, Route} from '@mikrokit/router';
+import {addRoutes} from '@mikrokit/router';
+import type {Routes, HookDef, Route} from '@mikrokit/router';
 
-const authorizationHook: Hook = {hook(): void {}};
-const userOnlyHook: Hook = {hook(): void {}};
-const errorHandlerHook: Hook = {hook(): void {}};
-const loggingHook: Hook = {hook(): void {}};
+const authorizationHook: HookDef = {hook(): void {}};
+const userOnlyHook: HookDef = {hook(): void {}};
+const errorHandlerHook: HookDef = {hook(): void {}};
+const loggingHook: HookDef = {hook(): void {}};
 const getUser: Route = (): null => null;
 const getPet: Route = (): null => null;
 const getFoo: Route = (): null => null;
 const getBar: Route = (): null => null;
 
-const routes: Routes = {
+const routes = {
     authorizationHook, // hook
     users: {
         userOnlyHook, // hook
@@ -22,7 +23,7 @@ const routes: Routes = {
     loggingHook, // hook,
 };
 
-Router.addRoutes(routes);
+addRoutes(routes);
 
 const invalidRoutes = {
     authorizationHook, // hook
@@ -36,4 +37,4 @@ const invalidRoutes = {
     },
 };
 
-Router.addRoutes(invalidRoutes); // throws an error
+addRoutes(invalidRoutes); // throws an error

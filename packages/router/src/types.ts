@@ -21,7 +21,7 @@ import {statusCodeToReasonPhrase} from './status-codes';
 
 // #######  Routes #######
 
-/** Route or Hook Handler */
+/** Route or Hook Handler, the remote function  */
 export type Handler = (context: Context<any, any, any>, ...args: any) => any | Promise<any>;
 
 /** Route definition */
@@ -41,11 +41,12 @@ export type RouteDef = {
 /** A route can be a full route definition or just the handler */
 export type Route = RouteDef | Handler;
 
-/** Hook definition */
-export type Hook = {
+/** Hook definition, a function that hooks into the execution path */
+export type HookDef = {
     /** Executes the hook even if an error was thrown previously */
     forceRunOnError?: boolean;
-    /** Enables returning data in the responseBody */
+    /** Enables returning data in the responseBody,
+     * hooks must explicitly enable returning data */
     canReturnData?: boolean;
     /** Sets the value in a heather rather than the body */
     inHeader?: boolean;
@@ -63,7 +64,7 @@ export type Hook = {
 
 /** Data structure to define all the routes, each entry is a route a hook or sub-routes */
 export type Routes = {
-    [key: string]: Hook | Route | Routes;
+    [key: string]: HookDef | Route | Routes;
 };
 
 // ####### Router Options #######
@@ -108,7 +109,7 @@ export type RouterOptions<RawContext extends RawServerContext = RawServerContext
 
 // ####### Execution Path #######
 
-/** Data structure used control the execution path, an Executable is generated from each hook or route */
+/** Contains the data of each hook or route, Used to generate the execution path for each route. */
 export type Executable = {
     nestLevel: number;
     path: string;
@@ -123,10 +124,34 @@ export type Executable = {
     outputSerializer: RouteOutputSerializer;
     handlerType: TypeFunction;
     isAsync: boolean;
-    src: RouteDef | Hook;
+    src: RouteDef | HookDef;
     enableValidation: boolean;
     enableSerialization: boolean;
     handlerPointer: string[];
+};
+
+export type RouteExecutable<H extends Handler> = Executable & {
+    isRoute: true;
+    canReturnData: true;
+    forceRunOnError: false;
+    handler: H;
+};
+
+export type HookExecutable<H extends Handler> = Executable & {
+    isRoute: false;
+    handler: H;
+};
+
+export type Executables<Type extends Routes> = {
+    [Property in keyof Type]: Type[Property] extends HookDef
+        ? HookExecutable<Type[Property]['hook']>
+        : Type[Property] extends RouteDef
+        ? RouteExecutable<Type[Property]['route']>
+        : Type[Property] extends Handler
+        ? RouteExecutable<Type[Property]>
+        : Type[Property] extends Routes
+        ? Executables<Type[Property]>
+        : never;
 };
 
 // ####### REQUEST & RESPONSE #######
@@ -219,19 +244,19 @@ export type RouteOutputSerializer = <T>(data: T) => JSONSingle<T>;
 // #######  type guards #######
 
 /** Type guard: isHandler */
-export const isHandler = (entry: Hook | Route | Routes): entry is Handler => {
+export const isHandler = (entry: HookDef | Route | Routes): entry is Handler => {
     return typeof entry === 'function';
 };
 /** Type guard: isRouteDef */
-export const isRouteDef = (entry: Hook | Route | Routes): entry is RouteDef => {
+export const isRouteDef = (entry: HookDef | Route | Routes): entry is RouteDef => {
     return typeof (entry as RouteDef).route === 'function';
 };
 /** Type guard: isHook */
-export const isHook = (entry: Hook | Route | Routes): entry is Hook => {
-    return typeof (entry as Hook).hook === 'function';
+export const isHookDef = (entry: HookDef | Route | Routes): entry is HookDef => {
+    return typeof (entry as HookDef).hook === 'function';
 };
 /** Type guard: isRoute */
-export const isRoute = (entry: Hook | Route | Routes): entry is Route => {
+export const isRoute = (entry: HookDef | Route | Routes): entry is Route => {
     return typeof entry === 'function' || typeof (entry as RouteDef).route === 'function';
 };
 /** Type guard: isRoutes */

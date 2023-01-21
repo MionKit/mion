@@ -1,7 +1,7 @@
-import {Route, Hook} from '@mikrokit/router';
+import {Route, HookDef} from '@mikrokit/router';
 
 type MyRoute = Route & {doNotFail: boolean};
-type MyHook = Hook & {shouldLog: boolean};
+type MyHook = HookDef & {shouldLog: boolean};
 
 const someRoute: MyRoute = {
     doNotFail: true,
