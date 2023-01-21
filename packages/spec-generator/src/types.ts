@@ -8,13 +8,15 @@
 import {Options as PrettierOptions} from 'prettier';
 import {RemoteExecutable} from '@mikrokit/client';
 
-export type GenerateClientOptions = {
-    /** The path to the api client file */
+export type GenerateSpecOptions = {
+    /** The path to the api spec file */
     outputFileName: string;
+    entryFileName: string;
+    tsProjectFileName: string;
     /** The Routes types name i.e: MyAppRoutes */
     routesTypeName: string;
     /**
-     * The import sentences for the client must import all Isomorphic types as well the routes type
+     * The import sentences for the spec must import all Isomorphic types as well the routes type
      * ie:
      * import * from './types';
      * import MyRoutes from './api.routes.ts';
@@ -25,9 +27,9 @@ export type GenerateClientOptions = {
     prettierOptions?: PrettierOptions;
 };
 
-export type ClientData = RemoteExecutable & {
-    clientData: {
-        /** Name to use in generated client */
+export type SpecData = RemoteExecutable & {
+    specData: {
+        /** Name to use in generated spec */
         camelCaseName: string;
         pathComponents: string[];
         paramNames: string[];

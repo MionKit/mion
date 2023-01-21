@@ -7,7 +7,7 @@
 
 import {parametersToSrcCode, returnToSrcCode} from './specReflection';
 
-describe('client reflection should', () => {
+describe('spec reflection should', () => {
     it('return  a type when parameters are primitives', () => {
         const handler = (
             a: undefined,

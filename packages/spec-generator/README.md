@@ -2,7 +2,7 @@
   <img alt="Typescript Serverless Apis at the speed of light" width="" src='../../assets/public/bannerx90.png?raw=true'>
 </p>
 <p align="center">
-  <strong>Browser client for Mikrokit Apps.
+  <strong>Browser spec for Mikrokit Apps.
   </strong>
 </p>
 <p align=center>
@@ -13,7 +13,7 @@
 
 # `@mikrokit/spec-generator`
 
-Automatically generates a typescript client for Mikrokit Apps to be used in the browser with automatic validation in the browser side.
+Automatically generates a typescript spec for Mikrokit Apps to be used in the browser with automatic validation in the browser side.
 
 ## Work in progress 🛠️
 

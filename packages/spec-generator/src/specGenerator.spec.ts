@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-// mocks window object used in the client
+// mocks window object used in the spec
 global.window = Object.create({
     location: {
         origin: 'http://mikrokit.io',
@@ -15,22 +15,22 @@ global.window = Object.create({
 import {serializeType, deserializeType, reflect, Type, toSignature} from '@deepkit/type';
 import {DEFAULT_ROUTE_OPTIONS, getParamValidators, isFunctionType, Handler} from '@mikrokit/router';
 import {join} from 'path';
-import {addClientRoutes, getApiSpec} from './specGenerator';
+import {addSpecRoutes, getApiSpec} from './specGenerator';
 import {myApiRoutes} from './test/myApi.routes';
-import {GenerateClientOptions} from './types';
+import {GenerateSpecOptions} from './types';
 
 describe('generate api spec should', () => {
-    const generateOptions: GenerateClientOptions = {
-        outputFileName: join(__dirname, './test/.client/myApi.client.ts'),
+    const generateOptions: GenerateSpecOptions = {
+        outputFileName: join(__dirname, './test/.spec/myApi.spec.ts'),
         routesTypeName: 'MyApiRoutes',
         routesImport: `import {MyApiRoutes} from '../myApi.types';`,
         version: '0.2.1',
-        packageName: '@mikrokit/myApiClient',
+        packageName: '@mikrokit/myApiSpec',
     };
 
-    addClientRoutes(myApiRoutes, generateOptions, {prefix: 'api/v1', suffix: '.json'});
+    addSpecRoutes(myApiRoutes, generateOptions, {prefix: 'api/v1', suffix: '.json'});
 
-    it('generate a typescript client file without typescript errors', () => {
+    it('generate a typescript spec file without typescript errors', () => {
         expect(true).toEqual(true);
     });
 

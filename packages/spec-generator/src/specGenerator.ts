@@ -20,7 +20,7 @@ import {parametersToSrcCode, returnToSrcCode} from './specReflection';
 import {addRoutes, getRouteEntries, getRouterOptions, setRouterOptions} from '@mikrokit/router';
 import type {RemoteExecutable} from '@mikrokit/client';
 import type {RouterOptions, Routes, Executable} from '@mikrokit/router';
-import type {ApiSpec, ClientData, GenerateClientOptions, ExecutableSourceCode, ApiSpecReferences} from './types';
+import type {ApiSpec, SpecData, GenerateSpecOptions, ExecutableSourceCode, ApiSpecReferences} from './types';
 
 const apiSpec: ApiSpec = {};
 const apiSpecReferences: ApiSpecReferences = {};
@@ -28,53 +28,53 @@ const api = {};
 let prefillData = {};
 let hooksSpec: ApiSpecReferences = {};
 const sanitizedPathNames: Map<string, string> = new Map();
-const clientDataByPath: Map<string, ClientData> = new Map();
+const specDataByPath: Map<string, SpecData> = new Map();
 const remoteExecutablesByPath: Map<string, RemoteExecutable> = new Map();
-const clientHooksByFieldName: Map<string, ClientData> = new Map();
-const clientRoutesByPath: Map<string, ClientData> = new Map();
+const specHooksByFieldName: Map<string, SpecData> = new Map();
+const specRoutesByPath: Map<string, SpecData> = new Map();
 const hooksSourceCodeByFieldName: Map<string, ExecutableSourceCode> = new Map();
 const routesSourceCodeByPath: Map<string, ExecutableSourceCode> = new Map();
-let generateClientOptions: GenerateClientOptions;
+let generateSpecOptions: GenerateSpecOptions;
 
-export const getClientHookByFieldName = (fieldName: string) => clientHooksByFieldName.get(fieldName);
-export const getClientRouteByPathName = (pathName: string) => clientRoutesByPath.get(pathName);
-export const getGenerateClientOptions = () => generateClientOptions;
+export const getSpecHookByFieldName = (fieldName: string) => specHooksByFieldName.get(fieldName);
+export const getSpecRouteByPathName = (pathName: string) => specRoutesByPath.get(pathName);
+export const getGenerateSpecOptions = () => generateSpecOptions;
 export const getApiSpec = () => apiSpec;
 
-export const addClientRoutes = (
+export const addSpecRoutes = (
     routes: Routes,
-    generateClientOptions_: GenerateClientOptions,
+    generateSpecOptions_: GenerateSpecOptions,
     routerOptions_: Partial<RouterOptions> = {}
 ) => {
-    generateClientOptions = {
+    generateSpecOptions = {
         prettierOptions: {
             ...DEFAULT_PRETTIER_OPTIONS,
         },
-        ...generateClientOptions_,
+        ...generateSpecOptions_,
     };
     setRouterOptions({
         ...routerOptions_,
     });
     addRoutes(routes);
-    addRoutesApiSpec();
+    generateRoutesApiSpec_();
     assignHooks();
-    createTsClientFile();
+    createTsSpecFile();
 };
 
-const addRoutesApiSpec = () => {
+const generateRoutesApiSpec_ = () => {
     const remoteApi = getRouteEntries();
     for (const [path, executionPath] of remoteApi) {
         const {sanitizedPathComponents, sanitizedPathName} = getSanitizedPath(path, true);
         const existingPath = sanitizedPathNames.get(sanitizedPathName);
         if (existingPath)
             throw new Error(
-                `Can't generate client, there is a name collision between the paths "${existingPath}" and "${path}", both of them gets sanitized to the same client path "${sanitizedPathName}".`
+                `Can't generate spec, there is a name collision between the paths "${existingPath}" and "${path}", both of them gets sanitized to the same spec path "${sanitizedPathName}".`
             );
         sanitizedPathNames.set(sanitizedPathName, path);
 
         const remoteRoutes = executionPath.filter((exec) => exec.canReturnData || exec.paramValidators.length > 0);
         const remoteExecutionPath = remoteRoutes.map((exec) =>
-            exec.isRoute ? getClientRoute(exec, sanitizedPathComponents) : getClientHook(exec, sanitizedPathComponents)
+            exec.isRoute ? getSpecRoute(exec, sanitizedPathComponents) : getSpecHook(exec, sanitizedPathComponents)
         );
 
         // generates the source code so is available later when creating apiSpecs and others
@@ -82,23 +82,23 @@ const addRoutesApiSpec = () => {
             exec.isRoute ? getRouteSourceCode(exec, remoteExecutionPath) : getHookSourceCode(exec)
         );
 
-        const routeExecutable = clientRoutesByPath.get(path);
-        if (!routeExecutable) throw new Error(`Error generating client, can't find RemoteExecutable for path ${path}`);
+        const routeExecutable = specRoutesByPath.get(path);
+        if (!routeExecutable) throw new Error(`Error generating spec, can't find RemoteExecutable for path ${path}`);
 
         assignExecutionPath(sanitizedPathComponents, routeExecutable, remoteExecutionPath);
     }
 };
 
-const getClientHook = (exec: Executable, pathComponents: string[]): ClientData => {
+const getSpecHook = (exec: Executable, pathComponents: string[]): SpecData => {
     const fieldName = exec.fieldName;
-    const clientHook = clientHooksByFieldName.get(fieldName);
-    if (clientHook) return clientHook;
-    const newClientHook = getRemoteExecutable(exec, pathComponents);
-    clientHooksByFieldName.set(fieldName, newClientHook);
-    return newClientHook;
+    const specHook = specHooksByFieldName.get(fieldName);
+    if (specHook) return specHook;
+    const newSpecHook = getRemoteExecutable(exec, pathComponents);
+    specHooksByFieldName.set(fieldName, newSpecHook);
+    return newSpecHook;
 };
 
-const getHookSourceCode = (exec: ClientData): ExecutableSourceCode => {
+const getHookSourceCode = (exec: SpecData): ExecutableSourceCode => {
     const fieldName = exec.fieldName;
     const hookSrcCode = hooksSourceCodeByFieldName.get(fieldName);
     if (hookSrcCode) return hookSrcCode;
@@ -107,16 +107,16 @@ const getHookSourceCode = (exec: ClientData): ExecutableSourceCode => {
     return newHookSrcCode;
 };
 
-const getClientRoute = (exec: Executable, pathComponents: string[]) => {
+const getSpecRoute = (exec: Executable, pathComponents: string[]) => {
     const path = exec.path;
-    const clientRoute = clientRoutesByPath.get(path);
-    if (clientRoute) return clientRoute;
-    const newClientRoute = getRemoteExecutable(exec, pathComponents);
-    clientRoutesByPath.set(path, newClientRoute);
-    return newClientRoute;
+    const specRoute = specRoutesByPath.get(path);
+    if (specRoute) return specRoute;
+    const newSpecRoute = getRemoteExecutable(exec, pathComponents);
+    specRoutesByPath.set(path, newSpecRoute);
+    return newSpecRoute;
 };
 
-const getRouteSourceCode = (exec: ClientData, remoteExecutionPath: ClientData[]): ExecutableSourceCode => {
+const getRouteSourceCode = (exec: SpecData, remoteExecutionPath: SpecData[]): ExecutableSourceCode => {
     const path = exec.path;
     const routeSrcCode = routesSourceCodeByPath.get(path);
     if (routeSrcCode) return routeSrcCode;
@@ -125,12 +125,12 @@ const getRouteSourceCode = (exec: ClientData, remoteExecutionPath: ClientData[])
     return newRouteSrcCode;
 };
 
-const getRemoteExecutable = (exec: Executable, pathComponents: string[]): ClientData => {
+const getRemoteExecutable = (exec: Executable, pathComponents: string[]): SpecData => {
     const isRoute = exec.isRoute;
 
     const pathKeys = isRoute ? pathComponents : getSanitizedPath(exec.fieldName, exec.isRoute).sanitizedPathComponents;
     const camelCaseName = pathKeys.map((n) => capitalize(n)).join('');
-    const existingRemoteExecutable = clientDataByPath.get(camelCaseName);
+    const existingRemoteExecutable = specDataByPath.get(camelCaseName);
     if (existingRemoteExecutable) return existingRemoteExecutable;
 
     const serializedHandler = serializeType(exec.handlerType);
@@ -148,7 +148,7 @@ const getRemoteExecutable = (exec: Executable, pathComponents: string[]): Client
         enableSerialization: exec.enableSerialization,
         handlerPointer: exec.handlerPointer,
         serializedHandler,
-        clientData: {
+        specData: {
             camelCaseName,
             pathComponents: pathKeys,
             paramNames: exec.handlerType.parameters.map((type) => type.name).slice(1), // removes the context
@@ -156,7 +156,7 @@ const getRemoteExecutable = (exec: Executable, pathComponents: string[]): Client
             returnTypeAsSrcCode: returnToSrcCode(exec.fieldName, exec.handler, exec.handlerType),
         },
     };
-    clientDataByPath.set(camelCaseName, newRemoteExecutable);
+    specDataByPath.set(camelCaseName, newRemoteExecutable);
     return newRemoteExecutable;
 };
 
@@ -170,7 +170,7 @@ const getSanitizedPath = (path: string, isRoute: boolean) => {
     return {sanitizedPathComponents, sanitizedPathName};
 };
 
-const assignExecutionPath = (sanitizedPathComponents: string[], exec: ClientData, remoteExecutionPath?: ClientData[]) => {
+const assignExecutionPath = (sanitizedPathComponents: string[], exec: SpecData, remoteExecutionPath?: SpecData[]) => {
     const isRoute = exec.isRoute;
 
     let currentApiSpecObject = apiSpec;
@@ -200,7 +200,7 @@ const assignExecutionPath = (sanitizedPathComponents: string[], exec: ClientData
             /* 'ΔΔ#${xyz}#ΔΔ' string will be replaced by the reference to the remote call and prefill functions
              * after the api is converted to json, so the end result is an object with the references to the functions */
             if (!currentApiObject[pathComponent]) currentApiObject[pathComponent] = `ΔΔ#${routeSrcCode.remoteFunctionName}#ΔΔ`;
-            if (!currentPrefillRouteDef[pathComponent] && exec.clientData.paramNames.length)
+            if (!currentPrefillRouteDef[pathComponent] && exec.specData.paramNames.length)
                 currentPrefillRouteDef[pathComponent] = `ΔΔ#${routeSrcCode.prefillFunctionName}#ΔΔ`;
         } else if (!isLast && !currentApiSpecObject[pathComponent]) {
             currentApiSpecObject[pathComponent] = {};
@@ -215,15 +215,15 @@ const assignExecutionPath = (sanitizedPathComponents: string[], exec: ClientData
     });
 };
 
-const getSerializableRemoteExecutionPath = (remoteExecutionPath: ClientData[]): RemoteExecutable[] => {
+const getSerializableRemoteExecutionPath = (remoteExecutionPath: SpecData[]): RemoteExecutable[] => {
     return remoteExecutionPath.map((exec) => getSerializableRemoteExecutable(exec));
 };
 
-const getSerializableRemoteExecutable = (exec: ClientData): RemoteExecutable => {
-    const SRE = remoteExecutablesByPath.get(exec.clientData.camelCaseName);
+const getSerializableRemoteExecutable = (exec: SpecData): RemoteExecutable => {
+    const SRE = remoteExecutablesByPath.get(exec.specData.camelCaseName);
     if (SRE) return SRE;
-    const NSRE = {...exec, clientData: undefined};
-    remoteExecutablesByPath.set(exec.clientData.camelCaseName, NSRE);
+    const NSRE = {...exec, specData: undefined};
+    remoteExecutablesByPath.set(exec.specData.camelCaseName, NSRE);
     return NSRE;
 };
 
@@ -240,8 +240,8 @@ const capitalize = (string) => string.charAt(0).toUpperCase() + string.slice(1);
 
 const assignHooks = () => {
     const prefillHooks = Object.fromEntries(
-        Array.from(clientHooksByFieldName)
-            .filter(([key, exec]) => !!exec.clientData.paramNames.length)
+        Array.from(specHooksByFieldName)
+            .filter(([key, exec]) => !!exec.specData.paramNames.length)
             .map(([key, exec]) => [key, `ΔΔ#${getPrefillFunctionName(exec)}#ΔΔ`])
     );
     prefillData = {
@@ -250,9 +250,9 @@ const assignHooks = () => {
     };
 
     const hooksExecutableReferences = Object.fromEntries(
-        Array.from(clientHooksByFieldName)
-            .filter(([key, exec]) => !!exec.clientData.paramNames.length || exec.canReturnData)
-            .map(([key, exec]) => [key, `ΔΔ#remoteExecutables.${exec.clientData.camelCaseName}#ΔΔ`])
+        Array.from(specHooksByFieldName)
+            .filter(([key, exec]) => !!exec.specData.paramNames.length || exec.canReturnData)
+            .map(([key, exec]) => [key, `ΔΔ#remoteExecutables.${exec.specData.camelCaseName}#ΔΔ`])
     );
 
     hooksSpec = {
@@ -261,15 +261,15 @@ const assignHooks = () => {
     };
 };
 
-const createTsClientFile = () => {
+const createTsSpecFile = () => {
     const importsTemplate = `
         /* ########
         * THIS FILE IS AUTOMATICALLY GENERATED BY THE MIKROKIT CLIENT GENERATOR
         * !!! DO NOT MODIFY !!!
         * @link https://github.com/MikroKit/MikroKit
         * ######## */
-        import {MkClient, RemoteHandler, RemoteParams, RemotePrefill, RemoteReturn} from '@mikrokit/client';
-        ${generateClientOptions.routesImport};
+        import {MkSpec, RemoteHandler, RemoteParams, RemotePrefill, RemoteReturn} from '@mikrokit/client';
+        ${generateSpecOptions.routesImport};
 
     `;
 
@@ -301,8 +301,8 @@ const createTsClientFile = () => {
         apiSrcCode +
         prefillSrcCode;
 
-    const fileName = resolve(generateClientOptions.outputFileName);
-    const prettified = format(tsFile, generateClientOptions.prettierOptions);
+    const fileName = resolve(generateSpecOptions.outputFileName);
+    const prettified = format(tsFile, generateSpecOptions.prettierOptions);
     writeFileSync(fileName, prettified);
 };
 
