@@ -13,28 +13,10 @@
 
 ## `Why another framework`
 
-Serverless applications have different requirements than conventional server apps.
+1. Serverless applications have different requirements than conventional server apps.
+2. There are not yet many frameworks that offers type safe apis with automatic validation and serialization out of the box.
 
-With that in mind **MikroKit is designed to build lightweight Apis**. It is a very opinionated micro framework with simplicity and speed in mind.
-
-### MikroKit vs Deepkit
-
-Deepkit is an amazing modern web framework that brings types to the runtime world, with a full batteries included philosophy, it is still on early stages but could be considered an enterprise grade framework with many features like: Web Framework, ORM, HTTP, RPC, Dependency Injection, Dashboard, Events and many more...
-
-[![Deepkit](./assets/other_logos/deepkit_text.svg?raw=true)](https://deepkit.io/)
-
-MikroKit uses only the core `@deepkit/type` library from deepkit to produce a minimal framework oriented for serverless Apis with all the advantages of runtime types.
-
-## `Opinionated`
-
-**MikroKit is oriented towards** a very specific scenario, that is **Apis that works with json data only**. In return it offers fast development and lightweight execution.
-
-MikroKit opinions might not always be the best or suit every scenario, but are always taken with quick development, fast code execution and minimum abstractions in mind. **_!Simplicity can be the best pattern!_**
-
-- Convention over configuration.
-- Prioritizes developer friendliness and performance over existing conventions.
-- Lightweight by design. [Some benchmarks here!](https://github.com/MikroKit/benchmarks) 🚀
-<!-- - Tightly Integration between Routing + Data (Aka the MikroKit way). -->
+With that in mind **MikroKit is designed to quickly build lightweight Apis**. It is a very opinionated and lightweight framework with simplicity, and developer experience in mind.
 
 ## `Features`
 
@@ -50,7 +32,20 @@ MikroKit opinions might not always be the best or suit every scenario, but are a
 - ✅ Http [Server](packages/http/README.md)
 - 🛠️ Automatic Typescript client generation.
 
+## `Opinionated`
+
+**MikroKit is oriented towards** a very specific scenario, that is **Apis that works with json data only**. MikroKit architecture might not always be the best or suit every scenario, but are always taken with quick development, lightweight execution and minimum abstractions in mind. **_!Simplicity can be the best pattern!_**
+
+- Convention over configuration.
+- Prioritizes developer experience and performance over existing conventions.
+- Lightweight by design. [Some benchmarks here!](https://github.com/MikroKit/benchmarks) 🚀
+<!-- - Tightly Integration between Routing + Data (Aka the MikroKit way). -->
+
 #### !! MikroKit is currently under heavy development
+
+<!-- ### Automatic Validation and Serialization
+
+MikroKit uses `@deepkit/type` library from [Deepkit](https://deepkit.io/) to bring types to the runtime world. This opens a new world of possibilities. Please check Deepkit's documentation for installation, validation and serialization instructions. -->
 
 ## `RPC like`
 
@@ -64,19 +59,12 @@ Here is where MikroKit starts to deviate from traditional frameworks. [The route
 
 ### Rpc VS Rest
 
-| RPC Like Request                                                   | REST Request                            | Description     |
-| ------------------------------------------------------------------ | --------------------------------------- | --------------- |
-| POST `/users/get`<br>BODY `{"/users/get":[{"id":1}]}`              | GET `/users/1`<br>BODY `NONE`           | Get user by id  |
-| POST `/users/create`<br>BODY `{"/users/create":[{"name":"John"}]}` | POST `/users`<br>BODY `{"name":"John"}` | Create new user |
-| POST `/users/delete`<br>BODY `{"/users/delete":[{"id":1}]}`        | DELETE `/users/1`<br>BODY `NONE`        | Delete user     |
-| POST `/users/getAll`<br>BODY `{"/users/getAll":[]}`                | GET `/users` <br>BODY `NONE`            | Get All users   |
-
 Please have a look to this great Presentation for more info about each different type of API and the pros and cons of each one:  
 [Nate Barbettini – API Throwdown: RPC vs REST vs GraphQL, Iterate 2018](https://www.youtube.com/watch?v=IvsANO0qZEg)
 
 ## `Routing`
 
-🚀 Blazing fast router **_based in plain javascript objects_**.
+🚀 Lightweight and fast router.
 
 Thanks to it's RPC style there is no need to parse parameters or regular expressions when finding a route. Just a simple [Map](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Map) in memory containing all the routes. Can't get faster than that.
 
@@ -84,7 +72,7 @@ Thanks to it's RPC style there is no need to parse parameters or regular express
 
 `Route response` is send back in the body in a field with the same name as the route.
 
-The reason for this weird naming is to future proof the router to be able to accept multiple routes on a single request. However this can be changed setting the `routeFieldName` in the router options.
+The reason for this naming is to future proof the router to be able to accept multiple routes on a single request. However this can be changed setting the `routeFieldName` in the router options.
 
 [Please read full router documentation here! 📗](./packages/router/README.md)
 
@@ -93,32 +81,33 @@ The reason for this weird naming is to future proof the router to be able to acc
 ```js
 // packages/router/examples/routes-definition.routes.ts
 
-import {Route, Handler, Routes, Router} from '@mikrokit/router';
+import {setRouterOptions, addRoutes} from '@mikrokit/router';
+import type {Context, Handler, Routes} from '@mikrokit/router';
 
-const sayHello: Handler = (context, name: string): string => {
+const sayHello = (context: any, name: string): string => {
   return `Hello ${name}.`;
 };
 
-const sayHello2: Route = {
-  route(context, name1: string, name2: string): string {
+const sayHello2 = {
+  route(context: any, name1: string, name2: string): string {
     return `Hello ${name1} and ${name2}.`;
   },
 };
 
-const routes: Routes = {
+const routes = {
   sayHello, // api/sayHello
   sayHello2, // api/sayHello2
 };
 
-Router.setRouterOptions({prefix: 'api/'});
-Router.addRoutes(routes);
+setRouterOptions({prefix: 'api/'});
+export const executables = addRoutes(routes);
 ```
 
 ## `Automatic Serialization & Validation`
 
-Mikrokit uses [Deepkit's runtime types](https://deepkit.io/) to automatically [validate](https://docs.deepkit.io/english/validation.html) request params and [serialize/deserialize](https://docs.deepkit.io/english/serialization.html) request/response data.
+Mikrokit uses [Deepkit's runtime types](https://deepkit.io/) for automatic [validation](https://docs.deepkit.io/english/validation.html) and [serialization/deserialization](https://docs.deepkit.io/english/serialization.html). Thanks to Deepkit's magic the type information is available at runtime and the data can be auto-magically Validated and Serialized.
 
-Thanks to Deepkit's magic the type information is available at runtime and the data is auto-magically Validated and Serialized. For more information please read deepkit's documentation:
+Runtime types allow for a completely new set of capabilities. Please check Deepkit's documentation for install instructions and more information:
 
 - Request [Validation](https://docs.deepkit.io/english/validation.html)
 - Response/Request [Serialization/Deserialization](https://docs.deepkit.io/english/serialization.html)
@@ -133,20 +122,21 @@ Thanks to Deepkit's magic the type information is available at runtime and the d
 ```ts
 // packages/router/examples/get-user-request.routes.ts
 
-import {Route, Routes, Router} from '@mikrokit/router';
+import {Route, Routes, addRoutes} from '@mikrokit/router';
+import type {User} from 'MyModels';
 
-const getUser: Route = async (context: any, entity: {id: number}): Promise<User> => {
+const getUser = async (context: any, entity: {id: number}): Promise<User> => {
   const user = await context.db.getUserById(entity.id);
   return user;
 };
 
-const routes: Routes = {
+const routes = {
   users: {
     getUser, // api/users/getUser
   },
 };
 
-Router.addRoutes(routes);
+export const executables = addRoutes(routes);
 ```
 
 </td>
@@ -172,24 +162,24 @@ Router.addRoutes(routes);
 
 #### !!! IMPORTANT !!!
 
-Deepkit does not support [Type Inference](https://www.typescriptlang.org/docs/handbook/type-inference.html), `parameter types` and more importantly `return types` must be explicitly defined, so they are correctly validated/serialized.
+[Type Inference](https://www.typescriptlang.org/docs/handbook/type-inference.html) is not supported, `parameter types` and `return types` must be explicitly defined, so they are correctly validated/serialized.
 
 🚫 Invalid route definitions!
 
 ```ts
-const myRoute1: Route = () {};
-const myRoute2: Route = () => null;
-const sayHello: Route = (context, name) => `Hello ${name}`;
-const getYser: Route = async (context, userId) => context.db.getUserById(userId);
+const myRoute1 = () => {};
+const myRoute2 = () => null;
+const sayHello = (context, name) => `Hello ${name}`;
+const getYser = async (context, userId) => context.db.getUserById(userId);
 ```
 
 ✅ Valid route definitions!
 
 ```ts
-const myRoute1: Route = (): void {};
-const myRoute2: Route = (): null => null;
-const sayHello: Route = (context: Context, name:string): string => `Hello ${name}`;
-const getYser: Route = async (context: Context, userId:number): Promise<User> => context.db.getUserById(userId);
+const myRoute1 = (): void {};
+const myRoute2 = (): null => null;
+const sayHello = (context: Context, name:string): string => `Hello ${name}`;
+const getYser = async (context: Context, userId:number): Promise<User> => context.db.getUserById(userId);
 ```
 
 ## `Quick start`

@@ -1,14 +1,15 @@
-import {Route, Routes, Router} from '@mikrokit/router';
+import {addRoutes} from '@mikrokit/router';
+import type {User} from 'MyModels';
 
-const getUser: Route = async (context: any, entity: {id: number}): Promise<User> => {
+const getUser = async (context: any, entity: {id: number}): Promise<User> => {
     const user = await context.db.getUserById(entity.id);
     return user;
 };
 
-const routes: Routes = {
+const routes = {
     users: {
         getUser, // api/users/getUser
     },
 };
 
-Router.addRoutes(routes);
+export const executables = addRoutes(routes);

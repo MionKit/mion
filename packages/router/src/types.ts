@@ -154,16 +154,6 @@ export type Executables<Type extends Routes> = {
         : never;
 };
 
-// ####### REQUEST & RESPONSE #######
-
-/** Any request Object used by the router must follow this interface */
-export type RawRequest = {
-    headers: {[header: string]: string | undefined | string[]} | undefined;
-    body: string | null | undefined | {}; // eslint-disable-line @typescript-eslint/ban-types
-};
-
-export type Headers = {[key: string]: string | boolean | number};
-
 // ####### Context #######
 
 /** The call Context object passed as first parameter to any hook or route */
@@ -179,8 +169,10 @@ export type Context<App, SharedData, RawContext extends RawServerContext = any> 
     /** Router's own response object */
     response: Readonly<Response>;
     /** shared data between handlers (route/hooks) and that is not returned in the response. */
-    shared: Readonly<SharedData>;
+    shared: SharedData;
 }>;
+
+// ####### REQUEST & RESPONSE #######
 
 /** Router own request object */
 export type Request = {
@@ -214,6 +206,14 @@ export type RawServerContext<RawServerRequest extends RawRequest = RawRequest, R
      * i.e: http/ServerResponse */
     rawResponse?: RawServerResponse;
 };
+
+/** Any request Object used by the router must follow this interface */
+export type RawRequest = {
+    headers: {[header: string]: string | undefined | string[]} | undefined;
+    body: string | null | undefined | {}; // eslint-disable-line @typescript-eslint/ban-types
+};
+
+export type Headers = {[key: string]: string | boolean | number};
 
 /** Function used to create the shared data object on each route call  */
 export type SharedDataFactory<SharedData> = () => SharedData;

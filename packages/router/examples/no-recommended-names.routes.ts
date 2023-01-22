@@ -1,12 +1,12 @@
-import {Routes, Router, Route} from '@mikrokit/router';
+import {addRoutes} from '@mikrokit/router';
 
-const sayHello: Route = (context, name: string): string => {
+const sayHello = (context: any, name: string): string => {
     return `Hello ${name}.`;
 };
 
-const routes: Routes = {
+const routes = {
     'say-Hello': sayHello, // api/say-Hello  !! NOT Recommended
     'say Hello': sayHello, // api/say%20Hello  !! ROUTE WONT BE FOUND
 };
 
-Router.addRoutes(routes);
+export const executables = addRoutes(routes);
