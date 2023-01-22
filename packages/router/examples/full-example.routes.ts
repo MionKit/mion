@@ -1,5 +1,6 @@
-import {Router, Context, Route, Routes, HookDef, MkError, StatusCodes} from '@mikrokit/router';
-import {APIGatewayEvent} from 'aws-lambda';
+import {addRoutes, initRouter, StatusCodes} from '@mikrokit/router';
+import type {Context, RouteError} from '@mikrokit/router';
+import type {APIGatewayEvent} from 'aws-lambda';
 
 interface User {
     id: number;
@@ -48,35 +49,36 @@ const getSharedData = (): typeof shared => shared;
 
 type App = typeof app;
 type SharedData = ReturnType<typeof getSharedData>;
-type CallContext = Context<App, SharedData, APIGatewayEvent>;
+type ServerlessContext = {rawRequest: APIGatewayEvent; rawResponse?: null};
+type CallContext = Context<App, SharedData, ServerlessContext>;
 
-const getUser: Route = (ctx: CallContext, id: number): User => {
+const getUser = (ctx: CallContext, id: number): User => {
     const user = ctx.app.db.getUser(id);
     if (!user) throw {statusCode: 200, message: 'user not found'};
     return user;
 };
-const createUser: Route = (ctx: CallContext, newUser: NewUser): User => ctx.app.db.createUser(newUser);
-const updateUser: Route = (ctx: CallContext, user: User): User => {
+const createUser = (ctx: CallContext, newUser: NewUser): User => ctx.app.db.createUser(newUser);
+const updateUser = (ctx: CallContext, user: User): User => {
     const updated = ctx.app.db.updateUser(user);
     if (!updated) throw {statusCode: 200, message: 'user not found, can not be updated'};
     return updated;
 };
-const deleteUser: Route = (ctx: CallContext, id: number): User => {
+const deleteUser = (ctx: CallContext, id: number): User => {
     const deleted = ctx.app.db.deleteUser(id);
     if (!deleted) throw {statusCode: 200, message: 'user not found, can not be deleted'};
     return deleted;
 };
-const auth: HookDef = {
+const auth = {
     inHeader: true,
     fieldName: 'Authorization',
     hook: (ctx: CallContext, token: string): void => {
         const {auth} = ctx.app;
-        if (!auth.isAuthorized(token)) throw {statusCode: StatusCodes.FORBIDDEN, message: 'Not Authorized'} as MkError;
+        if (!auth.isAuthorized(token)) throw {statusCode: StatusCodes.FORBIDDEN, message: 'Not Authorized'} as RouteError;
         ctx.shared.me = auth.getIdentity(token) as User;
     },
 };
 
-const routes: Routes = {
+const routes = {
     auth,
     users: {
         get: getUser, // api/v1/users/get
@@ -86,5 +88,5 @@ const routes: Routes = {
     },
 };
 
-Router.initRouter(app, getSharedData, {prefix: 'api/v1'});
-Router.addRoutes(routes);
+initRouter(app, getSharedData, {prefix: 'api/v1'});
+export const executables = addRoutes(routes);

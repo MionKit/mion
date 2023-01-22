@@ -289,7 +289,7 @@ const createTsSpecFile = () => {
     const apiSpecSrcCode = getSourceCodeFromJson(JSON.stringify(apiSpecReferences), 'apiSpec', true);
     const hooksSpecSrcCode = getSourceCodeFromJson(JSON.stringify(hooksSpec), 'hooksSpec', true);
     const apiSrcCode = getSourceCodeFromJson(JSON.stringify(api), 'api', true);
-    const prefillSrcCode = getSourceCodeFromJson(JSON.stringify(prefillData), 'prefillData', true);
+    const prefillSrcCode = getSourceCodeFromJson(JSON.stringify(prefillData), 'prefill', true);
 
     const tsFile =
         importsTemplate +

@@ -13,11 +13,11 @@
 
 # `@mikrokit/router`
 
-🚀 Lightweight router **_based in plain javascript objects_**.
+🚀 Lightweight and fast RPC like router.
 
 Thanks to it's RPC style there is no need to parse parameters or regular expressions when finding a route. Just a simple [Map](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Map) in memory containing all the routes.
 
-MikroKit Router uses a **Remote Procedure Call** style routing, unlike traditional routers it does not use `GET`, `PUT`, `POST` and `DELETE` methods, everything **should** be transmitted using `HTTP POST` method and all data is sent/received in the request/response `body` and `headers`.
+MikroKit Router uses a **Remote Procedure Call** style routing, unlike traditional routers it does not use `GET`, `PUT`, `POST` and `DELETE` methods, The Http method is ignored and all data is sent/received in the request/response `body` or `headers`.
 
 - `HTTP` method is ignored by this router.
 - Data is sent and received only in the `body` and `headers`. (no request params)
@@ -44,25 +44,25 @@ MikroKit only cares about the `path`, and completely ignores the http method, so
 ```ts
 // examples/routes-definition.routes.ts
 
-import {Route, Handler, Routes, Router} from '@mikrokit/router';
+import {setRouterOptions, addRoutes} from '@mikrokit/router';
 
-const sayHello: Handler = (context, name: string): string => {
+const sayHello = (context: any, name: string): string => {
   return `Hello ${name}.`;
 };
 
-const sayHello2: Route = {
-  route(context, name1: string, name2: string): string {
+const sayHello2 = {
+  route(context: any, name1: string, name2: string): string {
     return `Hello ${name1} and ${name2}.`;
   },
 };
 
-const routes: Routes = {
+const routes = {
   sayHello, // api/sayHello
   sayHello2, // api/sayHello2
 };
 
-Router.setRouterOptions({prefix: 'api/'});
-Router.addRoutes(routes);
+setRouterOptions({prefix: 'api/'});
+export const executables = addRoutes(routes);
 ```
 
 Using javascript names helps keeping route names simple, it is not recommended to use the array notation to define route names. no url decoding is done when finding the route
@@ -70,18 +70,18 @@ Using javascript names helps keeping route names simple, it is not recommended t
 ```ts
 // examples/no-recommended-names.routes.ts
 
-import {Routes, Router, Route} from '@mikrokit/router';
+import {addRoutes} from '@mikrokit/router';
 
-const sayHello: Route = (context, name: string): string => {
+const sayHello = (context: any, name: string): string => {
   return `Hello ${name}.`;
 };
 
-const routes: Routes = {
+const routes = {
   'say-Hello': sayHello, // api/say-Hello  !! NOT Recommended
   'say Hello': sayHello, // api/say%20Hello  !! ROUTE WONT BE FOUND
 };
 
-Router.addRoutes(routes);
+export const executables = addRoutes(routes);
 ```
 
 #### Request & Response
@@ -99,41 +99,42 @@ The reason for this weird naming is to future proof the router to be able to acc
 
 ## `Hooks`
 
-A route might require some extra data like authorization, preconditions, logging, etc... Hooks are auxiliary functions executed in order before or after the route.
+A route might require some extra data like authorization, preconditions, logging, etc... Hooks are auxiliary functions that get executed in order before or after the route. (hooks can require remote parameters or act as a bootstrap middleware with no params, mikrokit has no concept of events so there is no distinction, hooks are just a function that gets 'hooked' into the execution path). Multiple Hooks can be executed on but only a single Route will be executed per remote call.
 
-Hooks can use `context.shared` to share data with other routes and hooks. The return value will be ignored unless `canReturnData` is set to true, in that case the returned value will be serialized in and send back in response body.
+Hooks can use `context.shared` to share data with other routes and hooks. The return value will be ignored unless `canReturnData` is set to true, in that case the returned value will be serialized in and sent back in the response body.
 
 ```ts
 // examples/hooks-definition.routes.ts
 
-import {Route, Routes, Router, Hook} from '@mikrokit/router';
+import {addRoutes} from '@mikrokit/router';
 import {getAuthUser, isAuthorized} from 'MyAuth';
+import type {Pet} from 'MyModels';
 
-const authorizationHook: Hook = {
+const authorizationHook = {
   fieldName: 'Authorization',
   inHeader: true,
-  async hook(context, token: string): Promise<void> {
+  async hook(context: any, token: string): Promise<void> {
     const me = await getAuthUser(token);
     if (!isAuthorized(me)) throw {code: 401, message: 'user is not authorized'};
     context.auth = {me}; // user is added to context to shared with other routes/hooks
   },
 };
 
-const getPet: Route = async (context, petId: number): Promise<Pet> => {
+const getPet = async (context, petId: number): Promise<Pet> => {
   const pet = context.app.deb.getPet(petId);
   // ...
   return pet;
 };
 
-const logs: Hook = {
-  async hook(context): Promise<void> {
+const logs = {
+  async hook(context: any): Promise<void> {
     const me = context.errors;
     if (context.errors) await context.cloudLogs.error(context.errors);
     else context.cloudLogs.log(context.request.path, context.auth.me, context.mkkOutput);
   },
 };
 
-const routes: Routes = {
+const routes = {
   authorizationHook, // header: Authorization (defined using fieldName)
   users: {
     getPet,
@@ -141,7 +142,7 @@ const routes: Routes = {
   logs,
 };
 
-Router.addRoutes(routes);
+export const executables = addRoutes(routes);
 ```
 
 ## `Execution Order`
@@ -151,7 +152,7 @@ The order in which `routes` and `hooks` are added to the router is important as 
 ```ts
 // examples/correct-definition-order.routes.ts#L12-L26
 
-const routes: Routes = {
+const routes = {
   authorizationHook, // hook
   users: {
     userOnlyHook, // hook
@@ -164,7 +165,7 @@ const routes: Routes = {
   loggingHook, // hook,
 };
 
-Router.addRoutes(routes);
+export const validExecutables = addRoutes(routes);
 ```
 
 #### Execution path for: `users/getUser`
@@ -199,35 +200,41 @@ const invalidRoutes = {
   },
 };
 
-Router.addRoutes(invalidRoutes); // throws an error
+export const invalidExecutables = addRoutes(invalidRoutes); // throws an error
 ```
 
 ## `Throwing errors within Routes & Hooks`
 
-All errors thrown within Routes/Hooks will be automatically catch and handled, as there is no concept of logger within the router, to errors are generated, One public error to be returned in the `context.response.body` & one private error stored in the `context.internalErrors`. The public errors only contains generic message an an status code, the private errors contains also stack trace and the rest of properties of any js Error.
+All errors thrown within Routes/Hooks will be automatically catch and handled, as there is no concept of logger within the router errors are not automatically logged. Two types of errors can be generated, Public errors are returned in the `response.publicErrors` & and private error stored in the `context.request.internalErrors` to be managed by any logger hook or similar. The public errors only contains generic message and a status code, the private errors contains also stack trace and the rest of properties of any js Error.
 
-For proper standardization of errors it is recommended to always throw a `RouteError`, that contains an `statusCode` and both normal `error.message` as well as a `error.publicMessage`.
+Throwing a `RouteError` will generate a public error otherwise a generic public 500 error is generated.
 
 ```ts
 // examples/error-handling.routes.ts
 
-import {Route, RouteError, StatusCodes} from '@mikrokit/router';
+import {RouteError, StatusCodes} from '@mikrokit/router';
+import type {Pet} from 'MyModels';
 
-const getSomeData: Route = {
-  route: (context): void => {
-    try {
-      const data = context.app.db.getSomeData();
-    } catch (dbError) {
-      const statusCode = StatusCodes.INTERNAL_SERVER_ERROR;
-      const publicMessage = `Cant fetch data.`;
+export const getPet = (context: any, id: string): Promise<Pet> => {
+  try {
+    const pet = context.app.db.getPet(id);
+    if (!pet) {
       // Only statusCode and publicMessage will be returned in the response.body
-      /* 
-             Full RouteError containing dbError message and stacktrace will be added
-             to context.internalErrors, so it can be logged or managed after
-            */
-      throw new RouteError(statusCode, publicMessage, dbError);
+      const statusCode = StatusCodes.BAD_REQUEST;
+      const publicMessage = `Pet with id ${id} can't be found`;
+      throw new RouteError(statusCode, publicMessage);
     }
-  },
+    return pet;
+  } catch (dbError) {
+    // Only statusCode and publicMessage will be returned in the response.body
+    const statusCode = StatusCodes.INTERNAL_SERVER_ERROR;
+    const publicMessage = `Cant fetch data.`;
+    /* 
+         Full RouteError containing dbError message and stacktrace will be added
+         to context.request.internalErrors, so it can be logged or managed after
+        */
+    throw new RouteError(statusCode, publicMessage, undefined, dbError as Error);
+  }
 };
 ```
 
@@ -241,7 +248,7 @@ const getSomeData: Route = {
 ```ts
 // src/types.ts#L25-L43
 
-export type Handler = (context: Context<any, any, any, any>, ...args: any) => any | Promise<any>;
+export type Handler = (context: Context<any, any, any>, ...args: any) => any | Promise<any>;
 
 /** Route definition */
 export type RouteDef = {
@@ -267,10 +274,11 @@ export type Route = RouteDef | Handler;
 ```ts
 // src/types.ts#L45-L63
 
-export type Hook = {
+export type HookDef = {
   /** Executes the hook even if an error was thrown previously */
   forceRunOnError?: boolean;
-  /** Enables returning data in the responseBody */
+  /** Enables returning data in the responseBody,
+   * hooks must explicitly enable returning data */
   canReturnData?: boolean;
   /** Sets the value in a heather rather than the body */
   inHeader?: boolean;
@@ -298,10 +306,10 @@ Your application might need to add some extra metadata to every route or hook, t
 ```ts
 // examples/extending-routes-and-hooks.routes.ts
 
-import {Route, Hook} from '@mikrokit/router';
+import {Route, HookDef} from '@mikrokit/router';
 
 type MyRoute = Route & {doNotFail: boolean};
-type MyHook = Hook & {shouldLog: boolean};
+type MyHook = HookDef & {shouldLog: boolean};
 
 const someRoute: MyRoute = {
   doNotFail: true,
@@ -335,40 +343,43 @@ Most of the data within the `Context` is marked as read only, this is because it
 #### Context Type
 
 ```ts
-// src/types.ts#L157-L204
+// src/types.ts#L157-L209
+
+// ####### Context #######
 
 /** The call Context object passed as first parameter to any hook or route */
-export type Context<
-  App,
-  SharedData,
-  RawServerRequest extends Request,
-  RawContext extends RawServerContext<RawServerRequest> = RawServerContext<RawServerRequest>
-> = Readonly<{
-  /** Static Data: main App, db driver, libraries, etc... */
-  app: Readonly<App>;
-  serverContext: Readonly<RawContext>;
+export type Context<App, SharedData, RawContext extends RawServerContext = any> = Readonly<{
   /** Route's path */
   path: Readonly<string>;
-  /**
-   * list of internal errors.
-   * As router has no logging all errors are stored here so can be managed in a hook or externally
-   */
-  internalErrors: Readonly<RouteError[]>;
-  /** parsed request.body */
-  request: Readonly<{
-    headers: Obj;
-    body: Obj;
-  }>;
-  /** returned data (non parsed) */
+  /** Static Data: main App, db driver, libraries, etc... */
+  app: Readonly<App>;
+  /** Raw Server call context, contains the raw request and response */
+  rawContext: Readonly<RawContext>;
+  /** Router's own request object */
+  request: Readonly<Request>;
+  /** Router's own response object */
   response: Readonly<Response>;
-  /** shared data between route/hooks handlers */
-  shared: Readonly<SharedData>;
+  /** shared data between handlers (route/hooks) and that is not returned in the response. */
+  shared: SharedData;
 }>;
 
+// ####### REQUEST & RESPONSE #######
+
+/** Router own request object */
+export type Request = {
+  /** parsed and headers */
+  headers: Obj;
+  /** parsed body */
+  body: Obj;
+  /** All errors thrown during the call are stored here so they can bee logged or handler by a some error handler hook */
+  internalErrors: Readonly<RouteError[]>;
+};
+
+/** Router own response object */
 export type Response = {
   statusCode: Readonly<number>;
   /** response errors: empty if there were no errors during execution */
-  errors: Readonly<PublicError[]>;
+  publicErrors: Readonly<PublicError[]>;
   /** response headers */
   headers: Headers;
   /** the router response data, JS object */
@@ -377,11 +388,14 @@ export type Response = {
   json: Readonly<string>;
 };
 
-export type RawServerContext<RawServerRequest extends Request> = {
-  /** Server request
+export type RawServerContext<RawServerRequest extends RawRequest = RawRequest, RawServerResponse = any> = {
+  /** Original Server request
    * i.e: '@types/aws-lambda/APIGatewayEvent'
    * or http/IncomingMessage */
-  req: RawServerRequest;
+  rawRequest: RawServerRequest;
+  /** Original Server response
+   * i.e: http/ServerResponse */
+  rawResponse?: RawServerResponse;
 };
 ```
 
@@ -390,10 +404,12 @@ export type RawServerContext<RawServerRequest extends Request> = {
 ```ts
 // examples/using-context.routes.ts
 
-import {Router, Context} from '@mikrokit/router';
-import {APIGatewayProxyResult, APIGatewayEvent} from 'aws-lambda';
+import {addRoutes, initRouter} from '@mikrokit/router';
 import {someDbDriver} from 'someDbDriver';
 import {cloudLogs} from 'MyCloudLogLs';
+import type {Context} from '@mikrokit/router';
+import type {APIGatewayEvent} from 'aws-lambda';
+import type {Pet} from 'MyModels';
 
 const app = {cloudLogs, db: someDbDriver};
 const shared = {auth: {me: null}};
@@ -401,7 +417,8 @@ const getSharedData = (): typeof shared => shared;
 
 type App = typeof app;
 type SharedData = ReturnType<typeof getSharedData>;
-type CallContext = Context<App, SharedData, APIGatewayEvent>;
+type ServerlessContext = {rawRequest: APIGatewayEvent; rawResponse?: null};
+type CallContext = Context<App, SharedData, ServerlessContext>;
 
 const getMyPet = async (context: CallContext): Promise<Pet> => {
   // use of context inside handlers
@@ -412,8 +429,8 @@ const getMyPet = async (context: CallContext): Promise<Pet> => {
 };
 
 const routes = {getMyPet};
-Router.initRouter(app, getSharedData);
-Router.addRoutes(routes);
+initRouter(app, getSharedData);
+export const executables = addRoutes(routes);
 ```
 
 ## `Automatic Serialization and Validation`
@@ -435,20 +452,21 @@ Thanks to Deepkit's magic the type information is available at runtime and the d
 ```ts
 // examples/get-user-request.routes.ts
 
-import {Route, Routes, Router} from '@mikrokit/router';
+import {addRoutes} from '@mikrokit/router';
+import type {User} from 'MyModels';
 
-const getUser: Route = async (context: any, entity: {id: number}): Promise<User> => {
+const getUser = async (context: any, entity: {id: number}): Promise<User> => {
   const user = await context.db.getUserById(entity.id);
   return user;
 };
 
-const routes: Routes = {
+const routes = {
   users: {
     getUser, // api/users/getUser
   },
 };
 
-Router.addRoutes(routes);
+export const executables = addRoutes(routes);
 ```
 
 </td>
@@ -524,58 +542,60 @@ module.exports = {
 ## `Router Options`
 
 ```ts
-// src/constants.ts#L37-L86
+// src/constants.ts#L37-L88
 
 export const DEFAULT_ROUTE_OPTIONS: Readonly<RouterOptions> = {
-    /** prefix for all routes, i.e: api/v1.
-     * path separator is added between the prefix and the route */
-    prefix: '',
+  /** prefix for all routes, i.e: api/v1.
+   * path separator is added between the prefix and the route */
+  prefix: '',
 
-    /** suffix for all routes, i.e: .json.
-     * No path separator is added between the route and the suffix */
-    suffix: '',
+  /** suffix for all routes, i.e: .json.
+   * No path separator is added between the route and the suffix */
+  suffix: '',
 
-    /** function that transforms the path before finding a route */
-    pathTransform: undefined,
+  /** function that transforms the path before finding a route */
+  pathTransform: undefined,
 
-    /**
-     * configures the fieldName in the request/response body
-     * used to send/receive route's params/response
-     * */
-    routeFieldName: undefined,
+  /**
+   * configures the fieldName in the request/response body
+   * used to send/receive route's params/response
+   * */
+  routeFieldName: undefined,
 
-    /** Enables automatic parameter validation */
-    enableValidation: true,
+  /** Enables automatic parameter validation */
+  enableValidation: true,
 
-    /** Enables automatic serialization/deserialization */
-    enableSerialization: true,
+  /** Enables automatic serialization/deserialization */
+  enableSerialization: true,
 
-    /**
-     * Deepkit Serialization Options
-     * loosely defaults to false, Soft conversion disabled.
-     * !! We Don't recommend to enable soft conversion as validation might fail
-     * */
-    serializationOptions: {
-        loosely: false,
-    },
+  /**
+   * Deepkit Serialization Options
+   * loosely defaults to false, Soft conversion disabled.
+   * !! We Don't recommend to enable soft conversion as validation might fail
+   * */
+  serializationOptions: {
+    loosely: false,
+  },
 
-    /**
-     * Deepkit custom serializer
-     * @link https://docs.deepkit.io/english/serialization.html#serialisation-custom-serialiser
-     * */
-    customSerializer: undefined,
+  /**
+   * Deepkit custom serializer
+   * @link https://docs.deepkit.io/english/serialization.html#serialisation-custom-serialiser
+   * */
+  customSerializer: undefined,
 
-    /**
-     * Deepkit Serialization Options
-     * @link https://docs.deepkit.io/english/serialization.html#_naming_strategy
-     * */
-    serializerNamingStrategy: undefined,
+  /**
+   * Deepkit Serialization Options
+   * @link https://docs.deepkit.io/english/serialization.html#_naming_strategy
+   * */
+  serializerNamingStrategy: undefined,
 
-    /** Custom body parser, defaults to Native JSON */
-    bodyParser: JSON,
+  /** Custom body parser, defaults to Native JSON */
+  bodyParser: JSON,
 
-    /** Response content type.
-     * Might need to get updated if the @field bodyParser returns anything else than json  */
+  /** Response content type.
+   * Might need to get updated if the @field bodyParser returns anything else than json  */
+  responseContentType: 'application/json; charset=utf-8',
+};
 ```
 
 ## `Full Working Example`
@@ -583,8 +603,9 @@ export const DEFAULT_ROUTE_OPTIONS: Readonly<RouterOptions> = {
 ```ts
 // examples/full-example.routes.ts
 
-import {Router, Context, Route, Routes, Hook, MkError, StatusCodes} from '@mikrokit/router';
-import {APIGatewayEvent} from 'aws-lambda';
+import {addRoutes, initRouter, StatusCodes} from '@mikrokit/router';
+import type {Context, RouteError} from '@mikrokit/router';
+import type {APIGatewayEvent} from 'aws-lambda';
 
 interface User {
   id: number;
@@ -633,35 +654,36 @@ const getSharedData = (): typeof shared => shared;
 
 type App = typeof app;
 type SharedData = ReturnType<typeof getSharedData>;
-type CallContext = Context<App, SharedData, APIGatewayEvent>;
+type ServerlessContext = {rawRequest: APIGatewayEvent; rawResponse?: null};
+type CallContext = Context<App, SharedData, ServerlessContext>;
 
-const getUser: Route = (ctx: CallContext, id: number): User => {
+const getUser = (ctx: CallContext, id: number): User => {
   const user = ctx.app.db.getUser(id);
   if (!user) throw {statusCode: 200, message: 'user not found'};
   return user;
 };
-const createUser: Route = (ctx: CallContext, newUser: NewUser): User => ctx.app.db.createUser(newUser);
-const updateUser: Route = (ctx: CallContext, user: User): User => {
+const createUser = (ctx: CallContext, newUser: NewUser): User => ctx.app.db.createUser(newUser);
+const updateUser = (ctx: CallContext, user: User): User => {
   const updated = ctx.app.db.updateUser(user);
   if (!updated) throw {statusCode: 200, message: 'user not found, can not be updated'};
   return updated;
 };
-const deleteUser: Route = (ctx: CallContext, id: number): User => {
+const deleteUser = (ctx: CallContext, id: number): User => {
   const deleted = ctx.app.db.deleteUser(id);
   if (!deleted) throw {statusCode: 200, message: 'user not found, can not be deleted'};
   return deleted;
 };
-const auth: Hook = {
+const auth = {
   inHeader: true,
   fieldName: 'Authorization',
   hook: (ctx: CallContext, token: string): void => {
     const {auth} = ctx.app;
-    if (!auth.isAuthorized(token)) throw {statusCode: StatusCodes.FORBIDDEN, message: 'Not Authorized'} as MkError;
+    if (!auth.isAuthorized(token)) throw {statusCode: StatusCodes.FORBIDDEN, message: 'Not Authorized'} as RouteError;
     ctx.shared.me = auth.getIdentity(token) as User;
   },
 };
 
-const routes: Routes = {
+const routes = {
   auth,
   users: {
     get: getUser, // api/v1/users/get
@@ -671,8 +693,8 @@ const routes: Routes = {
   },
 };
 
-Router.initRouter(app, getSharedData, {prefix: 'api/v1'});
-Router.addRoutes(routes);
+initRouter(app, getSharedData, {prefix: 'api/v1'});
+export const executables = addRoutes(routes);
 ```
 
 ## &nbsp;
