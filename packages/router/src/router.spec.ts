@@ -99,6 +99,7 @@ describe('Create routes should', () => {
     beforeEach(() => reset());
 
     it('create a flat routes Map', () => {
+        initRouter({}, () => {});
         addRoutes(routes);
 
         expect(geRoutesSize()).toEqual(5);
@@ -128,6 +129,7 @@ describe('Create routes should', () => {
     });
 
     it('should support methods', () => {
+        initRouter({}, () => {});
         function hello(): void {}
         const routes = {
             hello,
@@ -148,6 +150,7 @@ describe('Create routes should', () => {
     });
 
     it('add default values to hooks', () => {
+        initRouter({}, () => {});
         const defaultHookValues = {first: {hook: (): null => null}};
         addRoutes(defaultHookValues);
 
@@ -165,6 +168,7 @@ describe('Create routes should', () => {
     });
 
     it('add default values to routes', () => {
+        initRouter({}, () => {});
         const defaultRouteValues = {sayHello: {route: (): null => null}};
         addRoutes(defaultRouteValues);
 
@@ -182,6 +186,7 @@ describe('Create routes should', () => {
     });
 
     it('add prefix & suffix to routes', () => {
+        initRouter({}, () => {});
         setRouterOptions({prefix: 'api/v1', suffix: '.json'});
         addRoutes(routes);
 
@@ -196,6 +201,7 @@ describe('Create routes should', () => {
     });
 
     it('customize route paths', () => {
+        initRouter({}, () => {});
         setRouterOptions({prefix: 'api/v1'});
 
         const routes: Routes = {
@@ -219,6 +225,7 @@ describe('Create routes should', () => {
     });
 
     it('throw an error when a routes are invalid', () => {
+        initRouter({}, () => {});
         const empty = {};
         const emptySub = {sayHello: {}};
         const invalidValues = {sayHello: {total: 2}};
@@ -233,6 +240,7 @@ describe('Create routes should', () => {
     });
 
     it('throw an error when there are naming collisions', () => {
+        initRouter({}, () => {});
         const fieldCollision = {
             preProcess: {
                 fieldName: 'process',
@@ -260,6 +268,7 @@ describe('Create routes should', () => {
     });
 
     it('should optimize parsing routes (complexity) when there are multiple routes in a row', () => {
+        initRouter({}, () => {});
         const bestCase = {
             first: hook,
             route1: route1,
@@ -307,6 +316,7 @@ describe('Create routes should', () => {
         addRoutes(bestCase);
         const bestCaseComplexity = getComplexity();
         reset();
+        initRouter({}, () => {});
         addRoutes(worstCase);
         const worstCaseComplexity = getComplexity();
 
@@ -314,6 +324,7 @@ describe('Create routes should', () => {
     });
 
     it('differentiate async vs non async routes', () => {
+        initRouter({}, () => {});
         // !! Important return types must always be declared as deepkit doe not infers the type
         const defaultRouteValues = {
             sayHello: (): null => null,

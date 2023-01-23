@@ -26,6 +26,8 @@ describe('generate api spec should', () => {
         routesImport: `import {MyApiRoutes} from '../myApi.types';`,
         version: '0.2.1',
         packageName: '@mikrokit/myApiSpec',
+        entryFileName: './test/myApi.routes.ts',
+        tsProjectFileName: '../tsconfig.json',
     };
 
     addSpecRoutes(myApiRoutes, generateOptions, {prefix: 'api/v1', suffix: '.json'});

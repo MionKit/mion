@@ -105,6 +105,8 @@ export type RouterOptions<RawContext extends RawServerContext = RawServerContext
     bodyParser: JsonParser;
     /** response content type, @default "application/json; charset=utf-8" */
     responseContentType: string;
+    /** Used to return public data when adding routes */
+    generateRouterPublicData: boolean;
 };
 
 // ####### Execution Path #######
@@ -127,7 +129,7 @@ export type Executable = {
     src: RouteDef | HookDef;
     enableValidation: boolean;
     enableSerialization: boolean;
-    handlerPointer: string[];
+    selfPointer: string[];
 };
 
 export type RouteExecutable<H extends Handler> = Executable & {
@@ -140,18 +142,6 @@ export type RouteExecutable<H extends Handler> = Executable & {
 export type HookExecutable<H extends Handler> = Executable & {
     isRoute: false;
     handler: H;
-};
-
-export type Executables<Type extends Routes> = {
-    [Property in keyof Type]: Type[Property] extends HookDef
-        ? HookExecutable<Type[Property]['hook']>
-        : Type[Property] extends RouteDef
-        ? RouteExecutable<Type[Property]['route']>
-        : Type[Property] extends Handler
-        ? RouteExecutable<Type[Property]>
-        : Type[Property] extends Routes
-        ? Executables<Type[Property]>
-        : never;
 };
 
 // ####### Context #######
@@ -233,6 +223,50 @@ export class RouteError extends Error {
 export type PublicError = {
     statusCode: Readonly<number>;
     message: Readonly<string>;
+};
+
+// ####### Public Facing Types #######
+
+export type ApiSpec<Type extends Routes> = {
+    [Property in keyof Type]: Type[Property] extends HookDef
+        ? PublicHook<Type[Property]['hook']>
+        : Type[Property] extends RouteDef
+        ? PublicRoute<Type[Property]['route']>
+        : Type[Property] extends Handler
+        ? PublicRoute<Type[Property]>
+        : Type[Property] extends Routes
+        ? ApiSpec<Type[Property]>
+        : never;
+};
+
+export type PublicHandler<H extends Handler> = H extends (arg0: Context<any, any, any>, ...rest: infer Req) => infer Resp
+    ? (...rest: Req) => Promise<Awaited<Resp>>
+    : never;
+
+export type PublicRoute<H extends Handler> = {
+    /** This is actually empty void function, included only too keep types */
+    handler: PublicHandler<H>;
+    isRoute: true;
+    canReturnData: true;
+    path: string;
+    inHeader: boolean;
+    fieldName: string;
+    enableValidation: boolean;
+    enableSerialization: boolean;
+    selfPointer: string[];
+};
+
+export type PublicHook<H extends Handler> = {
+    /** This is actually empty void function, included only too keep types */
+    handler: PublicHandler<H>;
+    isRoute: false;
+    canReturnData: boolean;
+    path: string;
+    inHeader: boolean;
+    fieldName: string;
+    enableValidation: boolean;
+    enableSerialization: boolean;
+    selfPointer: string[];
 };
 
 // #######  reflection #######

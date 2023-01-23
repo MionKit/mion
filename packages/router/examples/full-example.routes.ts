@@ -1,4 +1,4 @@
-import {addRoutes, initRouter, StatusCodes} from '@mikrokit/router';
+import {addRoutes, initRouter, PublicHook, StatusCodes} from '@mikrokit/router';
 import type {Context, RouteError} from '@mikrokit/router';
 import type {APIGatewayEvent} from 'aws-lambda';
 
@@ -71,6 +71,7 @@ const deleteUser = (ctx: CallContext, id: number): User => {
 const auth = {
     inHeader: true,
     fieldName: 'Authorization',
+    canReturnData: false,
     hook: (ctx: CallContext, token: string): void => {
         const {auth} = ctx.app;
         if (!auth.isAuthorized(token)) throw {statusCode: StatusCodes.FORBIDDEN, message: 'Not Authorized'} as RouteError;
@@ -79,6 +80,7 @@ const auth = {
 };
 
 const routes = {
+    private: {hook: (): null => null},
     auth,
     users: {
         get: getUser, // api/v1/users/get
@@ -89,4 +91,4 @@ const routes = {
 };
 
 initRouter(app, getSharedData, {prefix: 'api/v1'});
-export const executables = addRoutes(routes);
+export const apiSpec = addRoutes(routes);

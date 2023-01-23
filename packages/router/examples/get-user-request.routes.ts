@@ -12,4 +12,4 @@ const routes = {
     },
 };
 
-export const executables = addRoutes(routes);
+export const apiSpec = addRoutes(routes);

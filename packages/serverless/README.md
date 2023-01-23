@@ -62,7 +62,7 @@ const routes = {
 };
 
 setRouterOptions({prefix: 'api/'});
-export const executables = addRoutes(routes);
+export const apiSpec = addRoutes(routes);
 ```
 
 ### Write a fully validated Serverless API in 5 mins 🚀

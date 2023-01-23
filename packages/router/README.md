@@ -62,7 +62,7 @@ const routes = {
 };
 
 setRouterOptions({prefix: 'api/'});
-export const executables = addRoutes(routes);
+export const apiSpec = addRoutes(routes);
 ```
 
 Using javascript names helps keeping route names simple, it is not recommended to use the array notation to define route names. no url decoding is done when finding the route
@@ -81,7 +81,7 @@ const routes = {
   'say Hello': sayHello, // api/say%20Hello  !! ROUTE WONT BE FOUND
 };
 
-export const executables = addRoutes(routes);
+export const apiSpec = addRoutes(routes);
 ```
 
 #### Request & Response
@@ -142,7 +142,7 @@ const routes = {
   logs,
 };
 
-export const executables = addRoutes(routes);
+export const apiSpec = addRoutes(routes);
 ```
 
 ## `Execution Order`
@@ -203,7 +203,7 @@ const invalidRoutes = {
 export const invalidExecutables = addRoutes(invalidRoutes); // throws an error
 ```
 
-## `Throwing errors within Routes & Hooks`
+## `Throwing errors`
 
 All errors thrown within Routes/Hooks will be automatically catch and handled, as there is no concept of logger within the router errors are not automatically logged. Two types of errors can be generated, Public errors are returned in the `response.publicErrors` & and private error stored in the `context.request.internalErrors` to be managed by any logger hook or similar. The public errors only contains generic message and a status code, the private errors contains also stack trace and the rest of properties of any js Error.
 
@@ -235,6 +235,10 @@ export const getPet = (context: any, id: string): Promise<Pet> => {
         */
     throw new RouteError(statusCode, publicMessage, undefined, dbError as Error);
   }
+};
+
+export const alwaysError = (): void => {
+  throw new Error('This error will generate a public 500 error with no message');
 };
 ```
 
@@ -343,9 +347,7 @@ Most of the data within the `Context` is marked as read only, this is because it
 #### Context Type
 
 ```ts
-// src/types.ts#L157-L209
-
-// ####### Context #######
+// src/types.ts#L148-L163
 
 /** The call Context object passed as first parameter to any hook or route */
 export type Context<App, SharedData, RawContext extends RawServerContext = any> = Readonly<{
@@ -362,41 +364,6 @@ export type Context<App, SharedData, RawContext extends RawServerContext = any> 
   /** shared data between handlers (route/hooks) and that is not returned in the response. */
   shared: SharedData;
 }>;
-
-// ####### REQUEST & RESPONSE #######
-
-/** Router own request object */
-export type Request = {
-  /** parsed and headers */
-  headers: Obj;
-  /** parsed body */
-  body: Obj;
-  /** All errors thrown during the call are stored here so they can bee logged or handler by a some error handler hook */
-  internalErrors: Readonly<RouteError[]>;
-};
-
-/** Router own response object */
-export type Response = {
-  statusCode: Readonly<number>;
-  /** response errors: empty if there were no errors during execution */
-  publicErrors: Readonly<PublicError[]>;
-  /** response headers */
-  headers: Headers;
-  /** the router response data, JS object */
-  body: Readonly<Obj>;
-  /** json encoded response, contains data and errors if there are any. */
-  json: Readonly<string>;
-};
-
-export type RawServerContext<RawServerRequest extends RawRequest = RawRequest, RawServerResponse = any> = {
-  /** Original Server request
-   * i.e: '@types/aws-lambda/APIGatewayEvent'
-   * or http/IncomingMessage */
-  rawRequest: RawServerRequest;
-  /** Original Server response
-   * i.e: http/ServerResponse */
-  rawResponse?: RawServerResponse;
-};
 ```
 
 #### Using context
@@ -430,7 +397,7 @@ const getMyPet = async (context: CallContext): Promise<Pet> => {
 
 const routes = {getMyPet};
 initRouter(app, getSharedData);
-export const executables = addRoutes(routes);
+export const apiSpec = addRoutes(routes);
 ```
 
 ## `Automatic Serialization and Validation`
@@ -466,7 +433,7 @@ const routes = {
   },
 };
 
-export const executables = addRoutes(routes);
+export const apiSpec = addRoutes(routes);
 ```
 
 </td>
@@ -542,7 +509,7 @@ module.exports = {
 ## `Router Options`
 
 ```ts
-// src/constants.ts#L37-L88
+// src/constants.ts#L37-L91
 
 export const DEFAULT_ROUTE_OPTIONS: Readonly<RouterOptions> = {
   /** prefix for all routes, i.e: api/v1.
@@ -595,6 +562,9 @@ export const DEFAULT_ROUTE_OPTIONS: Readonly<RouterOptions> = {
   /** Response content type.
    * Might need to get updated if the @field bodyParser returns anything else than json  */
   responseContentType: 'application/json; charset=utf-8',
+
+  /** Used to return public data when adding routes  */
+  generateRouterPublicData: process.env.GENERATE_ROUTER_DATA === 'true',
 };
 ```
 
@@ -603,7 +573,7 @@ export const DEFAULT_ROUTE_OPTIONS: Readonly<RouterOptions> = {
 ```ts
 // examples/full-example.routes.ts
 
-import {addRoutes, initRouter, StatusCodes} from '@mikrokit/router';
+import {addRoutes, initRouter, PublicHook, StatusCodes} from '@mikrokit/router';
 import type {Context, RouteError} from '@mikrokit/router';
 import type {APIGatewayEvent} from 'aws-lambda';
 
@@ -676,6 +646,7 @@ const deleteUser = (ctx: CallContext, id: number): User => {
 const auth = {
   inHeader: true,
   fieldName: 'Authorization',
+  canReturnData: false,
   hook: (ctx: CallContext, token: string): void => {
     const {auth} = ctx.app;
     if (!auth.isAuthorized(token)) throw {statusCode: StatusCodes.FORBIDDEN, message: 'Not Authorized'} as RouteError;
@@ -684,6 +655,7 @@ const auth = {
 };
 
 const routes = {
+  private: {hook: (): null => null},
   auth,
   users: {
     get: getUser, // api/v1/users/get
@@ -694,7 +666,7 @@ const routes = {
 };
 
 initRouter(app, getSharedData, {prefix: 'api/v1'});
-export const executables = addRoutes(routes);
+export const apiSpec = addRoutes(routes);
 ```
 
 ## &nbsp;

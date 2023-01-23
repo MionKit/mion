@@ -16,11 +16,11 @@ export const getTsSourceCodeForExecutable = (exec: SpecData, execPath?: SpecData
     const canReturn = exec.canReturnData;
     const camelCaseName = exec.specData.camelCaseName;
     const fieldName = exec.fieldName;
-    const handlerPointer = `` + exec.handlerPointer.map((key) => `['${key}']`).join('');
+    const selfPointer = `` + exec.selfPointer.map((key) => `['${key}']`).join('');
     const routesTypeName = getGenerateSpecOptions().routesTypeName;
     const jsonFieldName = JSON.stringify(fieldName);
 
-    const pointerName = `${routesTypeName}${handlerPointer}`;
+    const pointerName = `${routesTypeName}${selfPointer}`;
     const remoteCallName = `${camelCaseName}RemoteCall`;
     const prefillName = `${camelCaseName}RemotePrefill`;
     const remoteParamsName = `${camelCaseName}RemoteParams`;

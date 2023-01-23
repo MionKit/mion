@@ -22,3 +22,7 @@ export const getPet = (context: any, id: string): Promise<Pet> => {
         throw new RouteError(statusCode, publicMessage, undefined, dbError as Error);
     }
 };
+
+export const alwaysError = (): void => {
+    throw new Error('This error will generate a public 500 error with no message');
+};

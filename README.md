@@ -82,25 +82,25 @@ The reason for this naming is to future proof the router to be able to accept mu
 // packages/router/examples/routes-definition.routes.ts
 
 import {setRouterOptions, addRoutes} from '@mikrokit/router';
-import type {Context, Handler, Routes} from '@mikrokit/router';
 
 const sayHello = (context: any, name: string): string => {
-  return `Hello ${name}.`;
+    return `Hello ${name}.`;
 };
 
 const sayHello2 = {
-  route(context: any, name1: string, name2: string): string {
-    return `Hello ${name1} and ${name2}.`;
-  },
+    route(context: any, name1: string, name2: string): string {
+        return `Hello ${name1} and ${name2}.`;
+    },
 };
 
 const routes = {
-  sayHello, // api/sayHello
-  sayHello2, // api/sayHello2
+    sayHello, // api/sayHello
+    sayHello2, // api/sayHello2
 };
 
 setRouterOptions({prefix: 'api/'});
-export const executables = addRoutes(routes);
+export const apiSpec = addRoutes(routes);
+
 ```
 
 ## `Automatic Serialization & Validation`
@@ -122,21 +122,22 @@ Runtime types allow for a completely new set of capabilities. Please check Deepk
 ```ts
 // packages/router/examples/get-user-request.routes.ts
 
-import {Route, Routes, addRoutes} from '@mikrokit/router';
+import {addRoutes} from '@mikrokit/router';
 import type {User} from 'MyModels';
 
 const getUser = async (context: any, entity: {id: number}): Promise<User> => {
-  const user = await context.db.getUserById(entity.id);
-  return user;
+    const user = await context.db.getUserById(entity.id);
+    return user;
 };
 
 const routes = {
-  users: {
-    getUser, // api/users/getUser
-  },
+    users: {
+        getUser, // api/users/getUser
+    },
 };
 
-export const executables = addRoutes(routes);
+export const apiSpec = addRoutes(routes);
+
 ```
 
 </td>
