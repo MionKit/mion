@@ -146,7 +146,7 @@ const getRemoteExecutable = (exec: Executable, pathComponents: string[]): SpecDa
         isAsync: exec.isAsync,
         enableValidation: exec.enableValidation,
         enableSerialization: exec.enableSerialization,
-        handlerPointer: exec.handlerPointer,
+        selfPointer: exec.selfPointer,
         serializedHandler,
         specData: {
             camelCaseName,

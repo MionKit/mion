@@ -85,6 +85,9 @@ export const DEFAULT_ROUTE_OPTIONS: Readonly<RouterOptions> = {
     /** Response content type.
      * Might need to get updated if the @field bodyParser returns anything else than json  */
     responseContentType: 'application/json; charset=utf-8',
+
+    /** Used to return public data when adding routes  */
+    generateRouterPublicData: process.env.GENERATE_ROUTER_DATA === 'true',
 };
 
 export const ROUTE_KEYS = Object.keys(DEFAULT_ROUTE);

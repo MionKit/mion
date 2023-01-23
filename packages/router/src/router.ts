@@ -32,7 +32,7 @@ import {
     isRouteDef,
     RouteExecutable,
     HookExecutable,
-    Executables,
+    ApiSpec,
 } from './types';
 import {StatusCodes} from './status-codes';
 import {
@@ -44,19 +44,34 @@ import {
     validateParams,
 } from './reflection';
 import {reflect, TypeFunction} from '@deepkit/type';
+import {getPublicData} from './publicData';
 type RouterKeyEntryList = [string, Routes | HookDef | Route][];
 type RoutesWithId = {
     path: string;
     routes: Routes;
 };
 
+// ############# PRIVATE STATE #############
+
+const flatRouter: Map<string, Executable[]> = new Map(); // Main Router
+const hooksByFieldName: Map<string, Executable> = new Map();
+const routesByPath: Map<string, Executable> = new Map();
+const hookNames: Map<string, boolean> = new Map();
+const routeNames: Map<string, boolean> = new Map();
+let complexity = 0;
+let app: Obj | undefined;
+let sharedDataFactory: SharedDataFactory<any> | undefined;
+let routerOptions: RouterOptions = {
+    ...DEFAULT_ROUTE_OPTIONS,
+};
+
 // ############# PUBLIC METHODS #############
 
-export const addRoutes = <R extends Routes>(routes: R): Executables<R> => {
+export const addRoutes = <R extends Routes>(routes: R): ApiSpec<R> | null => {
     if (!app) throw new Error('Router has not been initialized yet');
     recursiveFlatRoutes(routes);
-    const executables: Executables<R> = {} as any;
-    return executables;
+    if (!routerOptions.generateRouterPublicData) return null;
+    return getPublicData(routes) as ApiSpec<R>;
 };
 export const getRouteExecutionPath = (path: string) => flatRouter.get(path);
 export const getRouteEntries = () => flatRouter.entries();
@@ -171,6 +186,17 @@ export const runRoute = async <RawContext extends RawServerContext>(
     return context.response;
 };
 
+export const getRoutePath = (route: Route, path: string) => {
+    const routePath = join(ROUTE_PATH_ROOT, routerOptions.prefix, (route as RouteDef)?.path || path);
+    return routerOptions.suffix ? routePath + routerOptions.suffix : routePath;
+};
+
+export const getHookFieldName = (item: HookDef, key: string) => {
+    return item?.fieldName || key;
+};
+
+// ############# PRIVATE METHODS #############
+
 const parseRequestBody = (serverContext: RawServerContext<any, any>, request: Request, response: Response) => {
     if (!serverContext.rawRequest.body || serverContext.rawRequest.body === '{}') return;
     try {
@@ -257,23 +283,6 @@ const serializeResponse = (response: Response, executable: Executable, result: a
     if (executable.inHeader) response.headers[executable.fieldName] = deserialized;
     else (response as Mutable<Obj>).body[executable.fieldName] = deserialized;
 };
-
-// ############# PRIVATE STATE #############
-
-const flatRouter: Map<string, Executable[]> = new Map();
-const hooksByFieldName: Map<string, Executable> = new Map();
-const routesByPath: Map<string, Executable> = new Map();
-const hookNames: Map<string, boolean> = new Map();
-const routeNames: Map<string, boolean> = new Map();
-let complexity = 0;
-let app: Obj | undefined;
-let sharedDataFactory: SharedDataFactory<any> | undefined;
-// let contextType: Type | undefined;
-let routerOptions: RouterOptions = {
-    ...DEFAULT_ROUTE_OPTIONS,
-};
-
-// ############# PRIVATE METHODS #############
 
 const recursiveFlatRoutes = (
     routes: Routes,
@@ -417,7 +426,7 @@ const getExecutableFromHook = (hook: HookDef, path: string, nestLevel: number, k
         enableValidation: hook.enableValidation ?? routerOptions.enableValidation,
         enableSerialization: hook.enableSerialization ?? routerOptions.enableSerialization,
         src: hook,
-        handlerPointer: getHandlerPointerFromHook(path),
+        selfPointer: path.split('/'),
     };
     delete (executable as any).hook;
     hooksByFieldName.set(hookName, executable);
@@ -429,11 +438,6 @@ const getExecutableFromRoute = (route: Route, path: string, nestLevel: number): 
     const existing = routesByPath.get(routePath);
     if (existing) return existing as RouteExecutable<Handler>;
     const handler = getHandler(route, routePath);
-    // TODO: Not sure if bellow code is required. using the wrong context type is a big fail and should be catch during dev
-    // TODO: fix should be just to use correct context type
-    // if (!contextType) throw new Error('Context must be defined before creating routes.'); // this  should not happen
-    // if (!isFirstParameterContext(contextType, handler))
-    //     throw new Error(`Invalid route: ${path}. First parameter the handler must be of Type ${contextType.typeName},`);
     const routeObj = isHandler(route) ? {...DEFAULT_ROUTE} : {...DEFAULT_ROUTE, ...route};
     const handlerType = reflect(handler) as TypeFunction;
     const executable: RouteExecutable<Handler> = {
@@ -453,7 +457,7 @@ const getExecutableFromRoute = (route: Route, path: string, nestLevel: number): 
         enableValidation: (route as RouteDef).enableValidation ?? routerOptions.enableValidation,
         enableSerialization: (route as RouteDef).enableSerialization ?? routerOptions.enableSerialization,
         src: routeObj,
-        handlerPointer: getHandlerPointerFromRoute(route, path),
+        selfPointer: path.split('/'),
     };
     delete (executable as any).route;
     routesByPath.set(routePath, executable);
@@ -468,11 +472,6 @@ const getHandlerPointerFromRoute = (route: Route, path: string): string[] => {
 
 const getHandlerPointerFromHook = (path: string): string[] => {
     return [...path.split('/').filter((key) => !!key), 'hook'];
-};
-
-const getRoutePath = (route: Route, path: string) => {
-    const routePath = join(ROUTE_PATH_ROOT, routerOptions.prefix, (route as RouteDef)?.path || path);
-    return routerOptions.suffix ? routePath + routerOptions.suffix : routePath;
 };
 
 const getEntry = (index, keyEntryList: RouterKeyEntryList) => {
@@ -497,10 +496,6 @@ const getRouteEntryProperties = (
         preLevelHooks: [] as Executable[],
         postLevelHooks: [] as Executable[],
     };
-};
-
-const getHookFieldName = (item: HookDef, key: string) => {
-    return item?.fieldName || key;
 };
 
 const handleRouteErrors = (request: Request, response: Response, err: any, step: number) => {

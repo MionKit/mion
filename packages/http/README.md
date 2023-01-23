@@ -64,7 +64,7 @@ const routes = {
 };
 
 setRouterOptions({prefix: 'api/'});
-export const executables = addRoutes(routes);
+export const apiSpec = addRoutes(routes);
 ```
 
 ---

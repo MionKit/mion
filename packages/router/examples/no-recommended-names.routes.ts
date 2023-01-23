@@ -9,4 +9,4 @@ const routes = {
     'say Hello': sayHello, // api/say%20Hello  !! ROUTE WONT BE FOUND
 };
 
-export const executables = addRoutes(routes);
+export const apiSpec = addRoutes(routes);

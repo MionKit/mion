@@ -24,4 +24,4 @@ const getMyPet = async (context: CallContext): Promise<Pet> => {
 
 const routes = {getMyPet};
 initRouter(app, getSharedData);
-export const executables = addRoutes(routes);
+export const apiSpec = addRoutes(routes);
