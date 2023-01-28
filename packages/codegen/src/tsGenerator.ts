@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {getGenerateSpecOptions} from './specGenerator';
+import {getGenerateSpecOptions} from './routerCodegen';
 import {ExecutableSourceCode, SpecData} from './types';
 
 export const getTsSourceCodeForExecutable = (exec: SpecData, execPath?: SpecData[]): ExecutableSourceCode => {

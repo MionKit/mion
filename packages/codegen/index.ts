@@ -5,4 +5,4 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-export * from './src/specGenerator';
+export * from './src/routerCodegen';

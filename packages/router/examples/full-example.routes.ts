@@ -1,4 +1,4 @@
-import {registerRoutes, initRouter, StatusCodes} from '@mikrokit/router';
+import {registerRoutes, initRouter, StatusCodes, Route} from '@mikrokit/router';
 import type {Context, RouteError} from '@mikrokit/router';
 import type {APIGatewayEvent} from 'aws-lambda';
 
@@ -52,7 +52,7 @@ type SharedData = ReturnType<typeof getSharedData>;
 type ServerlessContext = {rawRequest: APIGatewayEvent; rawResponse?: null};
 type CallContext = Context<SharedData, ServerlessContext>;
 
-const getUser = (app: App, ctx: CallContext, id): User => {
+const getUser: Route = (app: App, ctx: CallContext, id): User => {
     const user = app.db.getUser(id);
     if (!user) throw {statusCode: 200, message: 'user not found'};
     return user;
@@ -89,6 +89,12 @@ const routes = {
         delete: deleteUser, // api/v1/users/delete
     },
 };
+
+type SolvedRoute<R extends Route> = R extends (app: infer App, context: infer Context, ...params: infer Params) => infer Resp
+    ? (app: App, context: Context, ...params: Params) => Resp
+    : never;
+
+type GetUserRoute = SolvedRoute<typeof getUser>;
 
 initRouter(myApp, getSharedData, {prefix: 'api/v1'});
 export const apiSpec = registerRoutes(routes);

@@ -247,7 +247,7 @@ export type PublicRoutes<Type extends Routes> = {
         : never;
 };
 
-export type PublicHandler<H extends Handler> = H extends (app: any, arg0: Context<any, any>, ...rest: infer Req) => infer Resp
+export type PublicHandler<H extends Handler> = H extends (app: any, ctx: Context<any, any>, ...rest: infer Req) => infer Resp
     ? (...rest: Req) => Promise<Awaited<Resp>>
     : never;
 

@@ -27,7 +27,7 @@
     {"path": "packages/http"},
     {"path": "packages/serverless"},
     {"path": "packages/compiled-app"},
-    {"path": "packages/spec-generator"},
+    {"path": "packages/codegen"},
     {"path": "packages/client"}
   ]
 }
