@@ -7,15 +7,30 @@
 
 import {join} from 'path';
 import {getHookExecutable, getHookFieldName, getRouteExecutable, getRoutePath} from './router';
-import {Executable, Handler, isHookDef, isRoute, Obj, ApiSpec, PublicHandler, PublicHook, PublicRoute, Routes} from './types';
+import {
+    Executable,
+    Handler,
+    isHookDef,
+    isRoute,
+    Obj,
+    PublicRoutes,
+    PublicHandler,
+    PublicHook,
+    PublicRoute,
+    Routes,
+} from './types';
 
-export const getPublicData = <R extends Routes>(routes: R): ApiSpec<R> => {
-    return recursiveGetPublicData(routes) as ApiSpec<R>;
+/**
+ * Returns a data structure containing all public information and types of the routes.
+ * This data and types can be used to generate router clients, etc...
+ */
+export const getPublicRoutes = <R extends Routes>(routes: R): PublicRoutes<R> => {
+    return recursiveGetPublicRoutes(routes) as PublicRoutes<R>;
 };
 
-const recursiveGetPublicData = <R extends Routes>(routes: R, currentPointer: string[] = [], publicData: Obj = {}): Obj => {
+const recursiveGetPublicRoutes = <R extends Routes>(routes: R, currentPointer: string[] = [], publicData: Obj = {}): Obj => {
     const entries = Object.entries(routes);
-    entries.forEach(([key, item], index, array) => {
+    entries.forEach(([key, item]) => {
         const newPointer = [...currentPointer, key];
         if (isHookDef(item)) {
             const fieldName = getHookFieldName(item, key);
@@ -31,7 +46,7 @@ const recursiveGetPublicData = <R extends Routes>(routes: R, currentPointer: str
             publicData[key] = getPublicDataFromExecutable(executable);
         } else {
             const subRoutes: Routes = routes[key] as Routes;
-            publicData[key] = recursiveGetPublicData(subRoutes, newPointer);
+            publicData[key] = recursiveGetPublicRoutes(subRoutes, newPointer);
         }
     });
 
@@ -45,7 +60,9 @@ const getPublicDataFromExecutable = <H extends Handler>(executable: Executable):
         path: executable.path,
         inHeader: executable.inHeader,
         fieldName: executable.fieldName,
-        handler: (() => null) as any as PublicHandler<H>,
+        handler: (() => {
+            throw new Error(`Public Route handler can't be called directly, included for type information only.`);
+        }) as any as PublicHandler<H>,
         enableValidation: executable.enableValidation,
         enableSerialization: executable.enableSerialization,
         selfPointer: executable.selfPointer,

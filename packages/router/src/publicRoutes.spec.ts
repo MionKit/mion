@@ -6,7 +6,7 @@
  * ######## */
 
 import {DEFAULT_ROUTE_OPTIONS, DEFAULT_HOOK} from './constants';
-import {getPublicData} from './publicData';
+import {getPublicRoutes} from './publicRoutes';
 import {addRoutes, initRouter, reset} from './router';
 
 describe('Public Route Data should', () => {
@@ -189,10 +189,10 @@ describe('Public Route Data should', () => {
     it('should throw an error when route pr hook is not already created in the router', () => {
         const testR1 = {route1};
         const testR2 = {hook};
-        expect(() => getPublicData(testR1)).toThrow(
+        expect(() => getPublicRoutes(testR1)).toThrow(
             `Route '/route1' not found in router. Please check you have called router.addRoutes first!`
         );
-        expect(() => getPublicData(testR2)).toThrow(
+        expect(() => getPublicRoutes(testR2)).toThrow(
             `Hook 'hook' not found in router. Please check you have called router.addRoutes first!`
         );
     });

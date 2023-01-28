@@ -55,10 +55,10 @@ export const getTsSourceCodeForExecutable = (exec: SpecData, execPath?: SpecData
         const reqRes = getFullRequestResponseTypes(exec, execPath);
         requestTemplate = reqRes.requestTemplate;
         responseTemplate = reqRes.responseTemplate;
-        remoteCallTemplate = `const ${remoteFunctionName}: ${remoteCallName} = (...args) => MkSpec.remote(${jsonFieldName}, ...args);`;
+        remoteCallTemplate = `const ${remoteFunctionName}: ${remoteCallName} = (...args) => remote(${jsonFieldName}, ...args);`;
     }
     const prefillTemplate = hasParams
-        ? `const ${prefillFunctionName}: ${prefillName} = (...args) => MkSpec.prefillData(${jsonFieldName}, ...args);`
+        ? `const ${prefillFunctionName}: ${prefillName} = (...args) => prefillData(${jsonFieldName}, ...args);`
         : '';
     const sourceCode = typeDefTemplate + requestTemplate + responseTemplate + remoteCallTemplate + prefillTemplate + '\n';
     return {

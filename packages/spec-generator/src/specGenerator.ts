@@ -17,7 +17,7 @@ import {
 import {format} from 'prettier';
 import {DEFAULT_PRETTIER_OPTIONS} from './constants';
 import {parametersToSrcCode, returnToSrcCode} from './specReflection';
-import {addRoutes, getRouteEntries, getRouterOptions, setRouterOptions} from '@mikrokit/router';
+import {addRoutes, getRouteEntries, getRouterOptions, initRouter, setRouterOptions} from '@mikrokit/router';
 import type {RemoteExecutable} from '@mikrokit/client';
 import type {RouterOptions, Routes, Executable} from '@mikrokit/router';
 import type {ApiSpec, SpecData, GenerateSpecOptions, ExecutableSourceCode, ApiSpecReferences} from './types';
@@ -55,6 +55,7 @@ export const addSpecRoutes = (
     setRouterOptions({
         ...routerOptions_,
     });
+    initRouter({}, () => {});
     addRoutes(routes);
     generateRoutesApiSpec_();
     assignHooks();
@@ -268,7 +269,8 @@ const createTsSpecFile = () => {
         * !!! DO NOT MODIFY !!!
         * @link https://github.com/MikroKit/MikroKit
         * ######## */
-        import {MkSpec, RemoteHandler, RemoteParams, RemotePrefill, RemoteReturn} from '@mikrokit/client';
+        import type {RemoteHandler, RemoteParams, RemotePrefill, RemoteReturn} from '@mikrokit/client';
+        import {prefillData, remote} from '@mikrokit/client';
         ${generateSpecOptions.routesImport};
 
     `;

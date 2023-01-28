@@ -5,6 +5,6 @@
   },
   "reflection": true,
   "include": ["."],
-  "exclude": ["examples", ".dist"],
+  "exclude": ["examples", ".dist", "src/test/.spec"],
   "references": [{"path": "../router"}, {"path": "../client"}]
 }

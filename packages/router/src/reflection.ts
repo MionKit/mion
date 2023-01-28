@@ -14,16 +14,9 @@ import {
     RouterOptions,
     isAsyncType,
 } from './types';
-import {
-    reflect,
-    validateFunction,
-    Type,
-    isSameType,
-    serializeFunction,
-    deserializeFunction,
-    SerializationOptions,
-} from '@deepkit/type';
+import {reflect, validateFunction, Type, serializeFunction, deserializeFunction, SerializationOptions} from '@deepkit/type';
 import {isFunctionType} from './types';
+import {ROUTE_DEFAULT_PARAM as ROUTE_DEFAULT_PARAMS} from './constants';
 
 /**
  * Returns an array of functions to validate route handler parameters,
@@ -41,7 +34,7 @@ export const getParamValidators = (handler: Handler, routerOptions: RouterOption
         return index > 0 ? validateFunction(routerOptions.customSerializer, paramType) : () => [];
     });
 
-    return paramValidators.slice(1);
+    return paramValidators.slice(ROUTE_DEFAULT_PARAMS.length);
 };
 
 /**
@@ -58,8 +51,8 @@ export const getParamsDeserializer = (handler: Handler, routerOptions: RouterOpt
         ...routerOptions.serializationOptions,
     };
     const paramDeserializer = handlerType.parameters.map((paramType, index) => {
-        // assumes the context type that is the first parameter is always valid
-        return index > 0
+        // assumes the app and context type that is the first parameter is always valid
+        return index > 1
             ? serializeDeserializeOptionsFix(
                   deserializeFunction(
                       routerOptions.serializationOptions,
@@ -72,7 +65,7 @@ export const getParamsDeserializer = (handler: Handler, routerOptions: RouterOpt
             : (a) => '';
     });
 
-    return paramDeserializer.slice(1);
+    return paramDeserializer.slice(ROUTE_DEFAULT_PARAMS.length);
 };
 
 /**
@@ -115,30 +108,6 @@ export const isAsyncHandler = (handler: Handler, type?: Type): boolean => {
     if (!isFunctionType(handlerType)) throw 'Invalid route/hook handler';
 
     return isAsyncType(handlerType.return);
-};
-// TODO: validate router explicit types
-// export const hasExplicitTypes = (handler: Handler, type?: Type): boolean => {
-//     const handlerType = type || reflect(handler);
-//     if (!isFunctionType(handlerType)) throw 'Invalid route/hook handler';
-
-//     const hasExplicitParams = handlerType.parameters.map((paramType, index) => {
-//         console.log('paramType', paramType);
-//         console.log('paramType.originTypes', paramType.originTypes);
-//         console.log('paramType.type', paramType.type);
-//         console.log('paramType.typeArguments', paramType.typeArguments);
-//         console.log('paramType.optional', paramType.optional);
-//         console.log('paramType.type', paramType.visibility);
-//         return paramType;
-//     });
-//     return false;
-// };
-
-export const isFirstParameterContext = (contextType: Type, handler: Handler): boolean => {
-    const handlerType = reflect(handler);
-    if (!isFunctionType(handlerType)) throw 'Invalid route/hook handler';
-
-    if (!handlerType.parameters.length) return true;
-    return isSameType(contextType, handlerType.parameters[0].type);
 };
 
 // DeepKit serializeFunction and deserializeFunction are not keeping the options when calling the function, so this fixes it

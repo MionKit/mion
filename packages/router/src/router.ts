@@ -6,7 +6,7 @@
  * ######## */
 
 import {join} from 'path';
-import {DEFAULT_ROUTE, DEFAULT_ROUTE_OPTIONS, MAX_ROUTE_NESTING, ROUTE_PATH_ROOT} from './constants';
+import {DEFAULT_ROUTE, DEFAULT_ROUTE_OPTIONS, MAX_ROUTE_NESTING, ROUTE_DEFAULT_PARAM, ROUTE_PATH_ROOT} from './constants';
 import {
     Executable,
     Handler,
@@ -32,7 +32,7 @@ import {
     isRouteDef,
     RouteExecutable,
     HookExecutable,
-    ApiSpec,
+    PublicRoutes,
 } from './types';
 import {StatusCodes} from './status-codes';
 import {
@@ -44,7 +44,7 @@ import {
     validateParams,
 } from './reflection';
 import {reflect, TypeFunction} from '@deepkit/type';
-import {getPublicData} from './publicData';
+import {getPublicRoutes} from './publicRoutes';
 type RouterKeyEntryList = [string, Routes | HookDef | Route][];
 type RoutesWithId = {
     path: string;
@@ -67,11 +67,11 @@ let routerOptions: RouterOptions = {
 
 // ############# PUBLIC METHODS #############
 
-export const addRoutes = <R extends Routes>(routes: R): ApiSpec<R> | null => {
+export const addRoutes = <R extends Routes>(routes: R): PublicRoutes<R> | null => {
     if (!app) throw new Error('Router has not been initialized yet');
     recursiveFlatRoutes(routes);
     if (!routerOptions.generateRouterPublicData) return null;
-    return getPublicData(routes) as ApiSpec<R>;
+    return getPublicRoutes(routes) as PublicRoutes<R>;
 };
 export const getRouteExecutionPath = (path: string) => flatRouter.get(path);
 export const getRouteEntries = () => flatRouter.entries();
@@ -112,7 +112,7 @@ export const reset = () => {
  * @param routerOptions_
  * @returns
  */
-export const initRouter = <App extends Obj, SharedData, RawContext extends RawServerContext = RawServerContext>(
+export const initRouter = async <App extends Obj, SharedData, RawContext extends RawServerContext = RawServerContext>(
     application: App,
     sharedDataFactoryFunction?: SharedDataFactory<SharedData>,
     routerOpts?: Partial<RouterOptions<RawContext>>
@@ -129,8 +129,7 @@ export const runRoute = async <RawContext extends RawServerContext>(
 ): Promise<Response> => {
     if (!app) throw new Error('Router has not been initialized yet');
     const transformedPath = routerOptions.pathTransform ? routerOptions.pathTransform(serverContext.rawRequest, path) : path;
-    const context: Context<any, any, RawContext> = {
-        app,
+    const context: Context<any, RawContext> = {
         rawContext: serverContext,
         path: transformedPath,
         request: {
@@ -165,10 +164,10 @@ export const runRoute = async <RawContext extends RawServerContext>(
                 if (executable.inHeader) context.request.headers[executable.fieldName] = handlerParams;
                 else context.request.body[executable.fieldName] = handlerParams;
                 if (executable.isAsync) {
-                    const result = await executable.handler(context, ...handlerParams);
+                    const result = await executable.handler(app, context, ...handlerParams);
                     serializeResponse(context.response, executable, result);
                 } else {
-                    const result = executable.handler(context, ...handlerParams);
+                    const result = executable.handler(app, context, ...handlerParams);
                     serializeResponse(context.response, executable, result);
                 }
             } catch (err: any | RouteError | Error) {
@@ -400,8 +399,8 @@ const getExecutableFromHook = (hook: HookDef, path: string, nestLevel: number, k
     if (existing) return existing as HookExecutable<Handler>;
     const handler = getHandler(hook, path);
 
-    if (!!hook.inHeader && handler.length > 2) {
-        throw new Error(`Invalid Hook: ${path}. In header hooks can only have a single parameter besides the Context.`);
+    if (!!hook.inHeader && handler.length > ROUTE_DEFAULT_PARAM.length + 1) {
+        throw new Error(`Invalid Hook: ${path}. In header hooks can only have a single parameter besides App and Context.`);
     }
 
     if (hookName === 'errors') {
@@ -462,16 +461,6 @@ const getExecutableFromRoute = (route: Route, path: string, nestLevel: number): 
     delete (executable as any).route;
     routesByPath.set(routePath, executable);
     return executable;
-};
-
-const getHandlerPointerFromRoute = (route: Route, path: string): string[] => {
-    const pointer = path.split('/').filter((key) => !!key);
-    if (isRouteDef(route)) return [...pointer, 'route'];
-    return pointer;
-};
-
-const getHandlerPointerFromHook = (path: string): string[] => {
-    return [...path.split('/').filter((key) => !!key), 'hook'];
 };
 
 const getEntry = (index, keyEntryList: RouterKeyEntryList) => {

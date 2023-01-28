@@ -92,5 +92,5 @@ export const DEFAULT_ROUTE_OPTIONS: Readonly<RouterOptions> = {
 
 export const ROUTE_KEYS = Object.keys(DEFAULT_ROUTE);
 export const HOOK_KEYS = Object.keys(DEFAULT_HOOK);
-
 export const MAX_ROUTE_NESTING = 10;
+export const ROUTE_DEFAULT_PARAM = ['app', 'context'];
