@@ -359,7 +359,7 @@ describe('Run routes', () => {
     type DataPoint = {
         date: Date;
     };
-    const app = {
+    const myApp = {
         cloudLogs: {
             log: (): null => null,
             error: (): null => null,
@@ -371,22 +371,22 @@ describe('Run routes', () => {
     const shared = {auth: {me: null as any}};
     const getSharedData = (): typeof shared => shared;
 
-    type App = typeof app;
+    type App = typeof myApp;
     type SharedData = ReturnType<typeof getSharedData>;
-    type CallContext = Context<App, SharedData>;
+    type CallContext = Context<SharedData>;
 
-    const changeUserName: Route = (context: CallContext, user: SimpleUser) => {
-        return context.app.db.changeUserName(user);
+    const changeUserName = (app: App, ctx, user: SimpleUser) => {
+        return app.db.changeUserName(user);
     };
 
-    const getSameDate: Route = (context, data: DataPoint): DataPoint => {
+    const getSameDate = (app, ctx, data: DataPoint): DataPoint => {
         return data;
     };
 
-    const auth: HookDef = {
+    const auth = {
         fieldName: 'Authorization',
         inHeader: true,
-        hook: (context: CallContext, token: string) => {
+        hook: (app, ctx, token: string) => {
             if (token !== '1234') throw {statusCode: StatusCodes.FORBIDDEN, message: 'invalid auth token'};
         },
     };
@@ -400,7 +400,7 @@ describe('Run routes', () => {
 
     describe('success path should', () => {
         it('read data from body & route', async () => {
-            initRouter(app, getSharedData);
+            initRouter(myApp, getSharedData);
             addRoutes({changeUserName});
 
             const path = '/changeUserName';
@@ -411,7 +411,7 @@ describe('Run routes', () => {
         });
 
         it('read data from header & hook', async () => {
-            initRouter(app, getSharedData);
+            initRouter(myApp, getSharedData);
             addRoutes({auth, changeUserName});
 
             const request: RawRequest = {
@@ -426,7 +426,7 @@ describe('Run routes', () => {
         });
 
         it('if there are no params input field can be omitted', async () => {
-            initRouter(app, getSharedData);
+            initRouter(myApp, getSharedData);
             addRoutes({sayHello: () => 'hello'});
 
             const path = '/sayHello';
@@ -444,7 +444,7 @@ describe('Run routes', () => {
         });
 
         it('customize the routeFieldName', async () => {
-            initRouter(app, getSharedData, {routeFieldName: 'apiData'});
+            initRouter(myApp, getSharedData, {routeFieldName: 'apiData'});
             addRoutes({changeUserName});
 
             const request = getDefaultRequest('apiData', [{name: 'Leo', surname: 'Tungsten'}]);
@@ -470,7 +470,7 @@ describe('Run routes', () => {
                 },
                 prefix: 'api/v1',
             };
-            initRouter(app, getSharedData, options);
+            initRouter(myApp, getSharedData, options);
             addRoutes({
                 GET: {
                     sayHello: () => 'hello', // api/v1/GET/sayHello
@@ -484,7 +484,7 @@ describe('Run routes', () => {
 
     describe('fail path should', () => {
         it('return an error if no route is found', async () => {
-            initRouter(app, getSharedData);
+            initRouter(myApp, getSharedData);
             addRoutes({changeUserName});
 
             const request = getDefaultRequest('/abcd', [{name: 'Leo', surname: 'Tungsten'}]);
@@ -497,7 +497,7 @@ describe('Run routes', () => {
         });
 
         it('return an error if data is missing from header', async () => {
-            initRouter(app, getSharedData);
+            initRouter(myApp, getSharedData);
             addRoutes({auth, changeUserName});
 
             const request = getDefaultRequest('/changeUserName', [{name: 'Leo', surname: 'Tungsten'}]);
@@ -510,7 +510,7 @@ describe('Run routes', () => {
         });
 
         it('return an error if body is not the correct type', async () => {
-            initRouter(app, getSharedData);
+            initRouter(myApp, getSharedData);
             addRoutes({changeUserName});
 
             const request: RawRequest = {
@@ -537,7 +537,7 @@ describe('Run routes', () => {
         });
 
         it('return an error if data is missing from body', async () => {
-            initRouter(app, getSharedData);
+            initRouter(myApp, getSharedData);
             addRoutes({changeUserName});
 
             const request = getDefaultRequest('/changeUserName', []);
@@ -550,7 +550,7 @@ describe('Run routes', () => {
         });
 
         it("return an error if can't deserialize", async () => {
-            initRouter(app, getSharedData);
+            initRouter(myApp, getSharedData);
             addRoutes({getSameDate});
 
             const request = getDefaultRequest('/getSameDate', [1234]);
@@ -563,7 +563,7 @@ describe('Run routes', () => {
         });
 
         it('return an error if validation fails, incorrect type', async () => {
-            initRouter(app, getSharedData);
+            initRouter(myApp, getSharedData);
             addRoutes({changeUserName});
 
             const wrongSimpleUser: SimpleUser = {name: true, surname: 'Smith'} as any;
@@ -577,7 +577,7 @@ describe('Run routes', () => {
         });
 
         it('return an error if validation fails, empty type', async () => {
-            initRouter(app, getSharedData);
+            initRouter(myApp, getSharedData);
             addRoutes({changeUserName});
 
             const request = getDefaultRequest('/changeUserName', [{}]);
@@ -590,7 +590,7 @@ describe('Run routes', () => {
         });
 
         it('return an unknown error if a route fails with a generic error', async () => {
-            initRouter(app, getSharedData);
+            initRouter(myApp, getSharedData);
 
             const routeFail: Route = () => {
                 throw 'this is a generic error';
@@ -608,7 +608,7 @@ describe('Run routes', () => {
 
         // TODO: not sure how to make serialization/validation throw an error
         it.skip("return an error if can't validate", async () => {
-            initRouter(app, getSharedData);
+            initRouter(myApp, getSharedData);
             addRoutes({getSameDate});
 
             const request = getDefaultRequest('/getSameDate', [1234]);

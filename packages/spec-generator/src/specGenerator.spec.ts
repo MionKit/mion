@@ -21,7 +21,7 @@ import {GenerateSpecOptions} from './types';
 
 describe('generate api spec should', () => {
     const generateOptions: GenerateSpecOptions = {
-        outputFileName: join(__dirname, './test/.spec/myApi.spec.ts'),
+        outputFileName: join(__dirname, './test/.spec/myPublicApi.routes.ts'),
         routesTypeName: 'MyApiRoutes',
         routesImport: `import {MyApiRoutes} from '../myApi.types';`,
         version: '0.2.1',
@@ -99,12 +99,12 @@ describe.skip('this is just investigation about how deepkit types serialization 
         country: string;
     }
 
-    const routeCountry = (ctx, country: CountryKey): CountryKey => country;
-    const routeSimpleUser = (ctx, user: SimpleUser): SimpleUser => user;
-    const routeDataPoint = (ctx, dataPoint: DataPoint): DataPoint => dataPoint;
-    const routeAndUser = (ctx, andUser: AndUser): AndUser => andUser;
-    const routeOrUser = (ctx, orUser: OrUser): OrUser => orUser;
-    const routeExtendedUser = (ctx, extendedUser: ExtendedUser): ExtendedUser => extendedUser;
+    const routeCountry = (app, ctx, country: CountryKey): CountryKey => country;
+    const routeSimpleUser = (app, ctx, user: SimpleUser): SimpleUser => user;
+    const routeDataPoint = (app, ctx, dataPoint: DataPoint): DataPoint => dataPoint;
+    const routeAndUser = (app, ctx, andUser: AndUser): AndUser => andUser;
+    const routeOrUser = (app, ctx, orUser: OrUser): OrUser => orUser;
+    const routeExtendedUser = (app, ctx, extendedUser: ExtendedUser): ExtendedUser => extendedUser;
 
     type rType = Parameters<typeof routeCountry>;
     type typeP = rType[1];

@@ -34,4 +34,4 @@ export type HttpRequest = IncomingMessage & {body: string};
 
 export type HttpRawServerContext = RawServerContext<HttpRequest, ServerResponse>;
 
-export type HttpCallContext<App extends Obj, SharedData extends Obj> = Context<App, SharedData, HttpRawServerContext>;
+export type HttpCallContext<SharedData extends Obj> = Context<SharedData, HttpRawServerContext>;

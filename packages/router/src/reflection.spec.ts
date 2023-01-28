@@ -5,9 +5,9 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {ReflectionKind, reflect, typeOf} from '@deepkit/type';
-import {getOutputSerializer, getParamsDeserializer, getParamValidators, isFirstParameterContext} from './reflection';
-import {Context, Handler, isFunctionType, Route, RouteParamValidator} from './types';
+import {ReflectionKind, reflect} from '@deepkit/type';
+import {getOutputSerializer, getParamsDeserializer, getParamValidators} from './reflection';
+import {Context, isFunctionType, RouteParamValidator} from './types';
 import {DEFAULT_ROUTE_OPTIONS} from './constants';
 
 describe('Deepkit reflection should', () => {
@@ -24,7 +24,7 @@ describe('Deepkit reflection should', () => {
     type DataPoint = {
         date: Date;
     };
-    const app = {db: () => null};
+    const myApp = {db: () => null};
     const req = {headers: {}, body: '{}'};
     const sharedDataFactory = () => ({hello: 'world'});
     const paramUser = {
@@ -34,15 +34,17 @@ describe('Deepkit reflection should', () => {
         counter: 0,
         lastUpdate: new Date('December 17, 2020 03:24:00'),
     };
-    const addDate: Route = (context, data: DataPoint): DataPoint => {
+
+    type MyApp = typeof myApp;
+    type CallContext = Context<ReturnType<typeof sharedDataFactory>>;
+
+    const addDate = (app: MyApp, ctx: CallContext, data: DataPoint): DataPoint => {
         return data;
     };
-
-    type CallContext = Context<typeof app, ReturnType<typeof sharedDataFactory>>;
-    const printSum = (a: number, b: number, c?: {message: string}, d?: Message) =>
+    const printSum = (app: MyApp, ctx: CallContext, a: number, b: number, c?: {message: string}, d?: Message) =>
         `${c?.message || d?.message || 'sum'} => ${a + b}`;
 
-    const updateUser = (context: CallContext, user: User, counterStart?: number): User => {
+    const updateUser = (app: MyApp, ctx: CallContext, user: User, counterStart?: number): User => {
         const updated = {
             ...user,
             lastUpdate: new Date(),
@@ -51,18 +53,21 @@ describe('Deepkit reflection should', () => {
         return updated;
     };
 
-    it('extract type information from a function', () => {
+    it('extract optional information from function parameters', () => {
         const printSumType = reflect(printSum);
         let requiredParams = 0;
+        let optionalParams = 0;
         if (!isFunctionType(printSumType)) throw 'invalid reflection';
 
         printSumType.parameters.forEach((param) => {
-            if (param.optional) requiredParams++;
+            if (param.optional) optionalParams++;
+            else requiredParams++;
         });
 
         expect(printSumType.kind).toEqual(ReflectionKind.function);
-        expect(printSumType.parameters.length).toEqual(4);
-        expect(requiredParams).toEqual(2);
+        expect(printSumType.parameters.length).toEqual(6);
+        expect(requiredParams).toEqual(4);
+        expect(optionalParams).toEqual(2);
     });
 
     it('extract type information when original variable is not referenced', () => {
@@ -78,16 +83,13 @@ describe('Deepkit reflection should', () => {
 
     it('validate parameters of a route, success', () => {
         const paramValidatorsUser: RouteParamValidator[] = getParamValidators(updateUser, DEFAULT_ROUTE_OPTIONS);
-        const paramValidatorsPrintSum: RouteParamValidator[] = getParamValidators(
-            printSum as any as Handler,
-            DEFAULT_ROUTE_OPTIONS
-        );
-        const paramValidatorsIgnoreFirst: RouteParamValidator[] = getParamValidators(() => null, DEFAULT_ROUTE_OPTIONS);
+        const paramValidatorsPrintSum: RouteParamValidator[] = getParamValidators(printSum, DEFAULT_ROUTE_OPTIONS);
+        const paramValidatorsIgnoreAppRelated: RouteParamValidator[] = getParamValidators((a, c) => null, DEFAULT_ROUTE_OPTIONS);
         const noParamValidators: RouteParamValidator[] = getParamValidators(() => null, DEFAULT_ROUTE_OPTIONS);
 
         expect(paramValidatorsUser.length).toEqual(2);
-        expect(paramValidatorsPrintSum.length).toEqual(3);
-        expect(paramValidatorsIgnoreFirst.length).toEqual(0);
+        expect(paramValidatorsPrintSum.length).toEqual(4);
+        expect(paramValidatorsIgnoreAppRelated.length).toEqual(0);
         expect(noParamValidators.length).toEqual(0);
 
         const userValidationErrors = paramValidatorsUser[0](paramUser);
@@ -111,13 +113,6 @@ describe('Deepkit reflection should', () => {
         expect(errors3.length).toEqual(1);
     });
 
-    it('validate if the first parameter of a route is Context', () => {
-        const contextType = typeOf<CallContext>();
-
-        expect(isFirstParameterContext(contextType, updateUser)).toBeTruthy();
-        expect(isFirstParameterContext(contextType, printSum as any as Handler)).toBeFalsy();
-    });
-
     it('should serialize/deserialize data', () => {
         const dataPoint: DataPoint = {date: new Date('December 19, 2020 03:24:00')};
         const serializedDataPoint = {date: '2020-12-19T02:24:00.000Z'};
@@ -126,7 +121,7 @@ describe('Deepkit reflection should', () => {
         const input = JSON.parse(JSON.stringify(dataPoint)); // this would be same as json.parse(body)
 
         const deserialized = deSerializers[0](input);
-        const output = addDate(null as any, deserialized);
+        const output = addDate(myApp, {} as any, deserialized);
         const serialized = outputSerializer(output); //safe fo Json to parse
 
         expect(input).toEqual(serializedDataPoint);

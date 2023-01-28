@@ -9,13 +9,14 @@ import {Item, Pet, User} from './myApi.types';
 
 export const myApiRoutes = {
     auth: {
-        hook: (ctx, token: string): void => {},
+        hook: (app, ctx, token: string): void => {},
     },
     users: {
-        getUser: async (ctx, id: number): Promise<User> => ({id, name: 'John', surname: 'Smith'}),
+        getUser: async (app, ctx, id: number): Promise<User> => ({id, name: 'John', surname: 'Smith'}),
         setUser: {
             // user param is a type Literal, returned user is the a Type Symbol
-            route: async (ctx, user: {id: number; name: string; surname: string}, user2?: User): Promise<User> => user2 || user,
+            route: async (app, ctx, user: {id: number; name: string; surname: string}, user2?: User): Promise<User> =>
+                user2 || user,
         },
         totalUsers: {
             canReturnData: true,
@@ -25,15 +26,15 @@ export const myApiRoutes = {
         },
     },
     pets: {
-        getPet: async (ctx, id: number): Promise<Pet> => ({id, race: 'Dog', name: 'Lassie'}),
-        setPet: async (ctx, pet: Pet): Promise<Pet> => pet,
+        getPet: async (app, ctx, id: number): Promise<Pet> => ({id, race: 'Dog', name: 'Lassie'}),
+        setPet: async (app, ctx, pet: Pet): Promise<Pet> => pet,
     },
     getNumber: {
         path: 'utils/getNumber',
-        route: async (c, s: string, n: number): Promise<number> => n,
+        route: async (app, ctx, s: string, n: number): Promise<number> => n,
     },
-    getItem: (ctx, item: Item<User>): Item<User> => ({item: {id: 3, name: 'John', surname: 'Smith'}}),
-    getPetOrUser: (ctx, item: Pet | User): Pet | User => item,
+    getItem: (app, ctx, item: Item<User>): Item<User> => ({item: {id: 3, name: 'John', surname: 'Smith'}}),
+    getPetOrUser: (app, ctx, item: Pet | User): Pet | User => item,
     last: {hook(): void {}},
 };
 

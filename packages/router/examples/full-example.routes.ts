@@ -1,4 +1,4 @@
-import {addRoutes, initRouter, PublicHook, StatusCodes} from '@mikrokit/router';
+import {addRoutes, initRouter, PublicHook, Route, StatusCodes, TypedHandler} from '@mikrokit/router';
 import type {Context, RouteError} from '@mikrokit/router';
 import type {APIGatewayEvent} from 'aws-lambda';
 
@@ -38,7 +38,7 @@ const myAuthService = {
     getIdentity: (token: string): User | null => (token === 'ABCD' ? ({id: 0, name: 'admin', surname: 'admin'} as User) : null),
 };
 
-const app = {
+const myApp = {
     db: myDBService,
     auth: myAuthService,
 };
@@ -47,24 +47,24 @@ const shared = {
 };
 const getSharedData = (): typeof shared => shared;
 
-type App = typeof app;
+type App = typeof myApp;
 type SharedData = ReturnType<typeof getSharedData>;
 type ServerlessContext = {rawRequest: APIGatewayEvent; rawResponse?: null};
-type CallContext = Context<App, SharedData, ServerlessContext>;
+type CallContext = Context<SharedData, ServerlessContext>;
 
-const getUser = (ctx: CallContext, id: number): User => {
-    const user = ctx.app.db.getUser(id);
+const getUser = (app: App, ctx: CallContext, id): User => {
+    const user = app.db.getUser(id);
     if (!user) throw {statusCode: 200, message: 'user not found'};
     return user;
 };
-const createUser = (ctx: CallContext, newUser: NewUser): User => ctx.app.db.createUser(newUser);
-const updateUser = (ctx: CallContext, user: User): User => {
-    const updated = ctx.app.db.updateUser(user);
+const createUser = (app: App, ctx: CallContext, newUser: NewUser): User => app.db.createUser(newUser);
+const updateUser = (app: App, ctx: CallContext, user: User): User => {
+    const updated = app.db.updateUser(user);
     if (!updated) throw {statusCode: 200, message: 'user not found, can not be updated'};
     return updated;
 };
-const deleteUser = (ctx: CallContext, id: number): User => {
-    const deleted = ctx.app.db.deleteUser(id);
+const deleteUser = (app: App, ctx: CallContext, id: number): User => {
+    const deleted = app.db.deleteUser(id);
     if (!deleted) throw {statusCode: 200, message: 'user not found, can not be deleted'};
     return deleted;
 };
@@ -72,8 +72,8 @@ const auth = {
     inHeader: true,
     fieldName: 'Authorization',
     canReturnData: false,
-    hook: (ctx: CallContext, token: string): void => {
-        const {auth} = ctx.app;
+    hook: (app: App, ctx: CallContext, token: string): void => {
+        const {auth} = app;
         if (!auth.isAuthorized(token)) throw {statusCode: StatusCodes.FORBIDDEN, message: 'Not Authorized'} as RouteError;
         ctx.shared.me = auth.getIdentity(token) as User;
     },
@@ -90,5 +90,5 @@ const routes = {
     },
 };
 
-initRouter(app, getSharedData, {prefix: 'api/v1'});
+initRouter(myApp, getSharedData, {prefix: 'api/v1'});
 export const apiSpec = addRoutes(routes);

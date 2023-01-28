@@ -22,7 +22,14 @@ import {statusCodeToReasonPhrase} from './status-codes';
 // #######  Routes #######
 
 /** Route or Hook Handler, the remote function  */
-export type Handler = (context: Context<any, any, any>, ...args: any) => any | Promise<any>;
+export type Handler = (
+    /** Static Data: main App, db driver, libraries, etc... */
+    app: any,
+    /** Call Context */
+    context: Context<any, any>,
+    /** Remote Call parameters */
+    ...parameters: any
+) => any | Promise<any>;
 
 /** Route definition */
 export type RouteDef = {
@@ -42,7 +49,7 @@ export type RouteDef = {
 export type Route = RouteDef | Handler;
 
 /** Hook definition, a function that hooks into the execution path */
-export type HookDef = {
+export type HookDef<App = any, CallContext extends Context<any, any> = any> = {
     /** Executes the hook even if an error was thrown previously */
     forceRunOnError?: boolean;
     /** Enables returning data in the responseBody,
@@ -147,11 +154,9 @@ export type HookExecutable<H extends Handler> = Executable & {
 // ####### Context #######
 
 /** The call Context object passed as first parameter to any hook or route */
-export type Context<App, SharedData, RawContext extends RawServerContext = any> = Readonly<{
+export type Context<SharedData, RawContext extends RawServerContext = any> = Readonly<{
     /** Route's path */
     path: Readonly<string>;
-    /** Static Data: main App, db driver, libraries, etc... */
-    app: Readonly<App>;
     /** Raw Server call context, contains the raw request and response */
     rawContext: Readonly<RawContext>;
     /** Router's own request object */
@@ -227,7 +232,9 @@ export type PublicError = {
 
 // ####### Public Facing Types #######
 
-export type ApiSpec<Type extends Routes> = {
+//TODO: some hooks could have no public params and not return any data so they should not be in the public spec
+/** Data structure containing all public data an types of the routes. */
+export type PublicRoutes<Type extends Routes> = {
     [Property in keyof Type]: Type[Property] extends HookDef
         ? PublicHook<Type[Property]['hook']>
         : Type[Property] extends RouteDef
@@ -235,11 +242,11 @@ export type ApiSpec<Type extends Routes> = {
         : Type[Property] extends Handler
         ? PublicRoute<Type[Property]>
         : Type[Property] extends Routes
-        ? ApiSpec<Type[Property]>
+        ? PublicRoutes<Type[Property]>
         : never;
 };
 
-export type PublicHandler<H extends Handler> = H extends (arg0: Context<any, any, any>, ...rest: infer Req) => infer Resp
+export type PublicHandler<H extends Handler> = H extends (app: any, arg0: Context<any, any>, ...rest: infer Req) => infer Resp
     ? (...rest: Req) => Promise<Awaited<Resp>>
     : never;
 

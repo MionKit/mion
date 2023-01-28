@@ -13,4 +13,4 @@ export type AwsRawServerContext = {
     awsContext: AwsContext;
 };
 
-export type AwsCallContext<App extends Obj, SharedData extends Obj> = Context<App, SharedData, AwsRawServerContext>;
+export type AwsCallContext<SharedData extends Obj> = Context<SharedData, AwsRawServerContext>;
