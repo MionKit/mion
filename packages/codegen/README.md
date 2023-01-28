@@ -11,7 +11,7 @@
   <img src="https://img.shields.io/badge/license-MIT-97ca00.svg?style=flat-square&maxAge=99999999" alt="npm"  style="max-width:100%;">
 </p>
 
-# `@mikrokit/spec-generator`
+# `@mikrokit/codegen`
 
 Automatically generates a typescript spec for Mikrokit Apps to be used in the browser with automatic validation in the browser side.
 

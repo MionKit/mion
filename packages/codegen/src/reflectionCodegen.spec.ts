@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {parametersToSrcCode, returnToSrcCode} from './specReflection';
+import {parametersToSrcCode, returnToSrcCode} from './reflectionCodegen';
 
 describe('spec reflection should', () => {
     it('return  a type when parameters are primitives', () => {
