@@ -6,7 +6,7 @@
  * ######## */
 
 import {
-    addRoutes,
+    registerRoutes,
     geHooksSize,
     geRoutesSize,
     getComplexity,
@@ -16,7 +16,7 @@ import {
     reset,
     setRouterOptions,
     initRouter,
-    runRoute,
+    dispatchRoute,
 } from './router';
 import {Context, Handler, HookDef, RawRequest, Route, RouteDef, Routes} from './types';
 import {StatusCodes} from './status-codes';
@@ -100,7 +100,7 @@ describe('Create routes should', () => {
 
     it('create a flat routes Map', () => {
         initRouter({}, () => {});
-        addRoutes(routes);
+        registerRoutes(routes);
 
         expect(geRoutesSize()).toEqual(5);
         expect(geHooksSize()).toEqual(4);
@@ -134,7 +134,7 @@ describe('Create routes should', () => {
         const routes = {
             hello,
         };
-        addRoutes(routes);
+        registerRoutes(routes);
 
         expect(getRouteExecutable('/hello')).toEqual(
             expect.objectContaining({
@@ -152,7 +152,7 @@ describe('Create routes should', () => {
     it('add default values to hooks', () => {
         initRouter({}, () => {});
         const defaultHookValues = {first: {hook: (): null => null}};
-        addRoutes(defaultHookValues);
+        registerRoutes(defaultHookValues);
 
         expect(getHookExecutable('first')).toEqual(
             expect.objectContaining({
@@ -170,7 +170,7 @@ describe('Create routes should', () => {
     it('add default values to routes', () => {
         initRouter({}, () => {});
         const defaultRouteValues = {sayHello: {route: (): null => null}};
-        addRoutes(defaultRouteValues);
+        registerRoutes(defaultRouteValues);
 
         expect(getRouteExecutable('/sayHello')).toEqual(
             expect.objectContaining({
@@ -188,7 +188,7 @@ describe('Create routes should', () => {
     it('add prefix & suffix to routes', () => {
         initRouter({}, () => {});
         setRouterOptions({prefix: 'api/v1', suffix: '.json'});
-        addRoutes(routes);
+        registerRoutes(routes);
 
         expect(geRoutesSize()).toEqual(5);
         expect(geHooksSize()).toEqual(4);
@@ -216,7 +216,7 @@ describe('Create routes should', () => {
                 },
             },
         };
-        addRoutes(routes);
+        registerRoutes(routes);
 
         expect(geRoutesSize()).toEqual(2);
 
@@ -231,12 +231,12 @@ describe('Create routes should', () => {
         const invalidValues = {sayHello: {total: 2}};
         const numericNames = {directory: {2: route1}};
 
-        expect(() => addRoutes(empty)).toThrow('Invalid route: root Object. Can Not define empty routes');
-        expect(() => addRoutes(emptySub)).toThrow('Invalid route: sayHello. Can Not define empty routes');
-        expect(() => addRoutes(invalidValues as any)).toThrow(
+        expect(() => registerRoutes(empty)).toThrow('Invalid route: root Object. Can Not define empty routes');
+        expect(() => registerRoutes(emptySub)).toThrow('Invalid route: sayHello. Can Not define empty routes');
+        expect(() => registerRoutes(invalidValues as any)).toThrow(
             'Invalid route: sayHello/total. Type <number> is not a valid route.'
         );
-        expect(() => addRoutes(numericNames)).toThrow('Invalid route: directory/2. Numeric route names are not allowed');
+        expect(() => registerRoutes(numericNames)).toThrow('Invalid route: directory/2. Numeric route names are not allowed');
     });
 
     it('throw an error when there are naming collisions', () => {
@@ -261,10 +261,10 @@ describe('Create routes should', () => {
                 route: (): null => null,
             },
         };
-        expect(() => addRoutes(fieldCollision)).toThrow(
+        expect(() => registerRoutes(fieldCollision)).toThrow(
             `Invalid hook: postProcess. Naming collision, the fieldName 'process' has been used in more than one hook/route.`
         );
-        expect(() => addRoutes(pathCollision)).toThrow('Invalid route: sayHello2. Naming collision, duplicated route');
+        expect(() => registerRoutes(pathCollision)).toThrow('Invalid route: sayHello2. Naming collision, duplicated route');
     });
 
     it('should optimize parsing routes (complexity) when there are multiple routes in a row', () => {
@@ -313,11 +313,11 @@ describe('Create routes should', () => {
         const worstCaseTotalRoutes = 4;
         const ratio = bestCaseTotalRoutes / worstCaseTotalRoutes;
 
-        addRoutes(bestCase);
+        registerRoutes(bestCase);
         const bestCaseComplexity = getComplexity();
         reset();
         initRouter({}, () => {});
-        addRoutes(worstCase);
+        registerRoutes(worstCase);
         const worstCaseComplexity = getComplexity();
 
         expect(worstCaseComplexity * ratio > bestCaseComplexity).toBeTruthy();
@@ -335,7 +335,7 @@ describe('Create routes should', () => {
                 return hello;
             },
         };
-        addRoutes(defaultRouteValues);
+        registerRoutes(defaultRouteValues);
 
         expect(getRouteExecutable('/sayHello')).toEqual(
             expect.objectContaining({
@@ -401,18 +401,18 @@ describe('Run routes', () => {
     describe('success path should', () => {
         it('read data from body & route', async () => {
             initRouter(myApp, getSharedData);
-            addRoutes({changeUserName});
+            registerRoutes({changeUserName});
 
             const path = '/changeUserName';
             const request = getDefaultRequest(path, [{name: 'Leo', surname: 'Tungsten'}]);
 
-            const response = await runRoute('/changeUserName', {rawRequest: request});
+            const response = await dispatchRoute('/changeUserName', {rawRequest: request});
             expect(response.body[path]).toEqual({name: 'LOREM', surname: 'Tungsten'});
         });
 
         it('read data from header & hook', async () => {
             initRouter(myApp, getSharedData);
-            addRoutes({auth, changeUserName});
+            registerRoutes({auth, changeUserName});
 
             const request: RawRequest = {
                 headers: {Authorization: '1234'},
@@ -420,23 +420,23 @@ describe('Run routes', () => {
             };
 
             const path = '/changeUserName';
-            const response = await runRoute(path, {rawRequest: request});
+            const response = await dispatchRoute(path, {rawRequest: request});
             expect(response.publicErrors.length).toEqual(0);
             expect(response.body).toEqual({[path]: {name: 'LOREM', surname: 'Tungsten'}});
         });
 
         it('if there are no params input field can be omitted', async () => {
             initRouter(myApp, getSharedData);
-            addRoutes({sayHello: () => 'hello'});
+            registerRoutes({sayHello: () => 'hello'});
 
             const path = '/sayHello';
             const request1: RawRequest = {headers: {}, body: ''};
             const request2: RawRequest = {headers: {}, body: '{}'};
             const request3: RawRequest = {headers: {}, body: '{"/sayHello": null}'};
 
-            const response1 = await runRoute('/sayHello', {rawRequest: request1});
-            const response2 = await runRoute('/sayHello', {rawRequest: request2});
-            const response3 = await runRoute('/sayHello', {rawRequest: request3});
+            const response1 = await dispatchRoute('/sayHello', {rawRequest: request1});
+            const response2 = await dispatchRoute('/sayHello', {rawRequest: request2});
+            const response3 = await dispatchRoute('/sayHello', {rawRequest: request3});
 
             expect(response1.body[path]).toEqual('hello');
             expect(response2.body[path]).toEqual('hello');
@@ -445,11 +445,11 @@ describe('Run routes', () => {
 
         it('customize the routeFieldName', async () => {
             initRouter(myApp, getSharedData, {routeFieldName: 'apiData'});
-            addRoutes({changeUserName});
+            registerRoutes({changeUserName});
 
             const request = getDefaultRequest('apiData', [{name: 'Leo', surname: 'Tungsten'}]);
 
-            const response = await runRoute('/changeUserName', {rawRequest: request});
+            const response = await dispatchRoute('/changeUserName', {rawRequest: request});
             expect(response.body.apiData).toEqual({name: 'LOREM', surname: 'Tungsten'});
         });
 
@@ -471,13 +471,13 @@ describe('Run routes', () => {
                 prefix: 'api/v1',
             };
             initRouter(myApp, getSharedData, options);
-            addRoutes({
+            registerRoutes({
                 GET: {
                     sayHello: () => 'hello', // api/v1/GET/sayHello
                 },
             });
 
-            const response = await runRoute(publicPath, {rawRequest: request});
+            const response = await dispatchRoute(publicPath, {rawRequest: request});
             expect(response.body[routePath]).toEqual('hello');
         });
     });
@@ -485,11 +485,11 @@ describe('Run routes', () => {
     describe('fail path should', () => {
         it('return an error if no route is found', async () => {
             initRouter(myApp, getSharedData);
-            addRoutes({changeUserName});
+            registerRoutes({changeUserName});
 
             const request = getDefaultRequest('/abcd', [{name: 'Leo', surname: 'Tungsten'}]);
 
-            const response = await runRoute('/abcd', {rawRequest: request});
+            const response = await dispatchRoute('/abcd', {rawRequest: request});
             expect(response.publicErrors[0]).toEqual({
                 statusCode: 404,
                 message: 'Route not found',
@@ -498,11 +498,11 @@ describe('Run routes', () => {
 
         it('return an error if data is missing from header', async () => {
             initRouter(myApp, getSharedData);
-            addRoutes({auth, changeUserName});
+            registerRoutes({auth, changeUserName});
 
             const request = getDefaultRequest('/changeUserName', [{name: 'Leo', surname: 'Tungsten'}]);
 
-            const response = await runRoute('/changeUserName', {rawRequest: request});
+            const response = await dispatchRoute('/changeUserName', {rawRequest: request});
             expect(response.publicErrors[0]).toEqual({
                 statusCode: 400,
                 message: `Invalid header 'Authorization'. No header found with that name.`,
@@ -511,14 +511,14 @@ describe('Run routes', () => {
 
         it('return an error if body is not the correct type', async () => {
             initRouter(myApp, getSharedData);
-            addRoutes({changeUserName});
+            registerRoutes({changeUserName});
 
             const request: RawRequest = {
                 headers: {},
                 body: '1234',
             };
 
-            const response = await runRoute('/changeUserName', {rawRequest: request});
+            const response = await dispatchRoute('/changeUserName', {rawRequest: request});
             expect(response.publicErrors[0]).toEqual({
                 statusCode: 400,
                 message: 'Wrong parsed body type. Expecting an object containing the route name and parameters.',
@@ -529,7 +529,7 @@ describe('Run routes', () => {
                 body: '{-12',
             };
 
-            const response2 = await runRoute('/changeUserName', {rawRequest: request2});
+            const response2 = await dispatchRoute('/changeUserName', {rawRequest: request2});
             expect(response2.publicErrors[0]).toEqual({
                 statusCode: 400,
                 message: 'Invalid request body: Unexpected number in JSON at position 1',
@@ -538,11 +538,11 @@ describe('Run routes', () => {
 
         it('return an error if data is missing from body', async () => {
             initRouter(myApp, getSharedData);
-            addRoutes({changeUserName});
+            registerRoutes({changeUserName});
 
             const request = getDefaultRequest('/changeUserName', []);
 
-            const response = await runRoute('/changeUserName', {rawRequest: request});
+            const response = await dispatchRoute('/changeUserName', {rawRequest: request});
             expect(response.publicErrors[0]).toEqual({
                 statusCode: 400,
                 message: `Invalid input '/changeUserName', missing or invalid number of input parameters`,
@@ -551,11 +551,11 @@ describe('Run routes', () => {
 
         it("return an error if can't deserialize", async () => {
             initRouter(myApp, getSharedData);
-            addRoutes({getSameDate});
+            registerRoutes({getSameDate});
 
             const request = getDefaultRequest('/getSameDate', [1234]);
 
-            const response = await runRoute('/getSameDate', {rawRequest: request});
+            const response = await dispatchRoute('/getSameDate', {rawRequest: request});
             expect(response.publicErrors[0]).toEqual({
                 statusCode: 400,
                 message: `Invalid input '/getSameDate', can not deserialize. Parameters might be of the wrong type.`,
@@ -564,12 +564,12 @@ describe('Run routes', () => {
 
         it('return an error if validation fails, incorrect type', async () => {
             initRouter(myApp, getSharedData);
-            addRoutes({changeUserName});
+            registerRoutes({changeUserName});
 
             const wrongSimpleUser: SimpleUser = {name: true, surname: 'Smith'} as any;
             const request = getDefaultRequest('/changeUserName', [wrongSimpleUser]);
 
-            const response = await runRoute('/changeUserName', {rawRequest: request});
+            const response = await dispatchRoute('/changeUserName', {rawRequest: request});
             expect(response.publicErrors[0]).toEqual({
                 statusCode: 400,
                 message: `Invalid param[0] in '/changeUserName', name(type): Not a string.`,
@@ -578,11 +578,11 @@ describe('Run routes', () => {
 
         it('return an error if validation fails, empty type', async () => {
             initRouter(myApp, getSharedData);
-            addRoutes({changeUserName});
+            registerRoutes({changeUserName});
 
             const request = getDefaultRequest('/changeUserName', [{}]);
 
-            const response = await runRoute('/changeUserName', {rawRequest: request});
+            const response = await dispatchRoute('/changeUserName', {rawRequest: request});
             expect(response.publicErrors[0]).toEqual({
                 statusCode: 400,
                 message: `Invalid param[0] in '/changeUserName', name(type): Not a string.`,
@@ -595,11 +595,11 @@ describe('Run routes', () => {
             const routeFail: Route = () => {
                 throw 'this is a generic error';
             };
-            addRoutes({routeFail});
+            registerRoutes({routeFail});
 
             const request = getDefaultRequest('/routeFail', []);
 
-            const response = await runRoute('/routeFail', {rawRequest: request});
+            const response = await dispatchRoute('/routeFail', {rawRequest: request});
             expect(response.publicErrors[0]).toEqual({
                 statusCode: 500,
                 message: 'Unknown error in step 0 of execution path.',
@@ -609,11 +609,11 @@ describe('Run routes', () => {
         // TODO: not sure how to make serialization/validation throw an error
         it.skip("return an error if can't validate", async () => {
             initRouter(myApp, getSharedData);
-            addRoutes({getSameDate});
+            registerRoutes({getSameDate});
 
             const request = getDefaultRequest('/getSameDate', [1234]);
 
-            const response = await runRoute('/getSameDate', {rawRequest: request});
+            const response = await dispatchRoute('/getSameDate', {rawRequest: request});
             expect(response.publicErrors[0]).toEqual({
                 statusCode: 400,
                 message: `Invalid input '/getSameDate', can not validate parameters.`,

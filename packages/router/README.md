@@ -44,14 +44,14 @@ MikroKit only cares about the `path`, and completely ignores the http method, so
 ```ts
 // examples/routes-definition.routes.ts
 
-import {setRouterOptions, addRoutes} from '@mikrokit/router';
+import {setRouterOptions, registerRoutes} from '@mikrokit/router';
 
-const sayHello = (context: any, name: string): string => {
+const sayHello = (app, context, name: string): string => {
   return `Hello ${name}.`;
 };
 
 const sayHello2 = {
-  route(context: any, name1: string, name2: string): string {
+  route(app, context, name1: string, name2: string): string {
     return `Hello ${name1} and ${name2}.`;
   },
 };
@@ -62,7 +62,7 @@ const routes = {
 };
 
 setRouterOptions({prefix: 'api/'});
-export const apiSpec = addRoutes(routes);
+export const apiSpec = registerRoutes(routes);
 ```
 
 Using javascript names helps keeping route names simple, it is not recommended to use the array notation to define route names. no url decoding is done when finding the route
@@ -70,9 +70,9 @@ Using javascript names helps keeping route names simple, it is not recommended t
 ```ts
 // examples/no-recommended-names.routes.ts
 
-import {addRoutes} from '@mikrokit/router';
+import {registerRoutes} from '@mikrokit/router';
 
-const sayHello = (context: any, name: string): string => {
+const sayHello = (app, context, name: string): string => {
   return `Hello ${name}.`;
 };
 
@@ -81,7 +81,7 @@ const routes = {
   'say Hello': sayHello, // api/say%20Hello  !! ROUTE WONT BE FOUND
 };
 
-export const apiSpec = addRoutes(routes);
+export const apiSpec = registerRoutes(routes);
 ```
 
 #### Request & Response
@@ -106,28 +106,28 @@ Hooks can use `context.shared` to share data with other routes and hooks. The re
 ```ts
 // examples/hooks-definition.routes.ts
 
-import {addRoutes} from '@mikrokit/router';
+import {registerRoutes} from '@mikrokit/router';
 import {getAuthUser, isAuthorized} from 'MyAuth';
 import type {Pet} from 'MyModels';
 
 const authorizationHook = {
   fieldName: 'Authorization',
   inHeader: true,
-  async hook(context: any, token: string): Promise<void> {
+  async hook(app, context, token: string): Promise<void> {
     const me = await getAuthUser(token);
     if (!isAuthorized(me)) throw {code: 401, message: 'user is not authorized'};
     context.auth = {me}; // user is added to context to shared with other routes/hooks
   },
 };
 
-const getPet = async (context, petId: number): Promise<Pet> => {
+const getPet = async (app, context, petId: number): Promise<Pet> => {
   const pet = context.app.deb.getPet(petId);
   // ...
   return pet;
 };
 
 const logs = {
-  async hook(context: any): Promise<void> {
+  async hook(app, context): Promise<void> {
     const me = context.errors;
     if (context.errors) await context.cloudLogs.error(context.errors);
     else context.cloudLogs.log(context.request.path, context.auth.me, context.mkkOutput);
@@ -142,7 +142,7 @@ const routes = {
   logs,
 };
 
-export const apiSpec = addRoutes(routes);
+export const apiSpec = registerRoutes(routes);
 ```
 
 ## `Execution Order`
@@ -165,7 +165,7 @@ const routes = {
   loggingHook, // hook,
 };
 
-export const validExecutables = addRoutes(routes);
+export const validExecutables = registerRoutes(routes);
 ```
 
 #### Execution path for: `users/getUser`
@@ -200,7 +200,7 @@ const invalidRoutes = {
   },
 };
 
-export const invalidExecutables = addRoutes(invalidRoutes); // throws an error
+export const invalidExecutables = registerRoutes(invalidRoutes); // throws an error
 ```
 
 ## `Throwing errors`
@@ -215,7 +215,7 @@ Throwing a `RouteError` will generate a public error otherwise a generic public 
 import {RouteError, StatusCodes} from '@mikrokit/router';
 import type {Pet} from 'MyModels';
 
-export const getPet = (context: any, id: string): Promise<Pet> => {
+export const getPet = (app, context: any, id: string): Promise<Pet> => {
   try {
     const pet = context.app.db.getPet(id);
     if (!pet) {
@@ -245,14 +245,22 @@ export const alwaysError = (): void => {
 ## `Routes & Hooks Config`
 
 <table>
-<tr><th>Routes config</th><th>Hooks config</th></tr>
+<tr><th>Routes</th><th>Hooks</th></tr>
 <tr>
 <td>
 
 ```ts
-// src/types.ts#L25-L43
+// src/types.ts#L24-L49
 
-export type Handler = (context: Context<any, any, any>, ...args: any) => any | Promise<any>;
+/** Route or Hook Handler, the remote function  */
+export type Handler = (
+  /** Static Data: main App, db driver, libraries, etc... */
+  app: any,
+  /** Call Context */
+  context: Context<any, any>,
+  /** Remote Call parameters */
+  ...parameters: any
+) => any | Promise<any>;
 
 /** Route definition */
 export type RouteDef = {
@@ -276,9 +284,10 @@ export type Route = RouteDef | Handler;
 <td>
 
 ```ts
-// src/types.ts#L45-L63
+// src/types.ts#L51-L70
 
-export type HookDef = {
+/** Hook definition, a function that hooks into the execution path */
+export type HookDef<App = any, CallContext extends Context<any, any> = any> = {
   /** Executes the hook even if an error was thrown previously */
   forceRunOnError?: boolean;
   /** Enables returning data in the responseBody,
@@ -317,7 +326,7 @@ type MyHook = HookDef & {shouldLog: boolean};
 
 const someRoute: MyRoute = {
   doNotFail: true,
-  route: (): void => {
+  route: (app, context): void => {
     if (someRoute.doNotFail) {
       // do something
     } else {
@@ -328,9 +337,9 @@ const someRoute: MyRoute = {
 
 const someHook: MyHook = {
   shouldLog: false,
-  hook: (context): void => {
+  hook: (app, context): void => {
     if (someHook.shouldLog) {
-      context.app.cloudLogs.log('hello');
+      app.cloudLogs.log('hello');
     } else {
       // do something else
     }
@@ -338,23 +347,21 @@ const someHook: MyHook = {
 };
 ```
 
-## `Call Context`
+## `App & Call Context`
 
-The `Context` or `Call Context` contains all data related to the route being called and is always passed in the first parameter to routes/hooks handler.
+The `App` contains all static data and libs from your application, i.e: db access, third party libs etc, and is always passed as first parameter to the routes/hooks handlers.
 
-Most of the data within the `Context` is marked as read only, this is because it is not recommended modifying the context manually. Instead Hooks/Routes should just return data, modify the `shared` object or throw a `RouteError` and the router would take care of correctly assign values to the `Call Context`. It is still possible to modify them (the context is not a real Immutable js object).
+The `Context` or `Call Context` contains all the data related to the ongoing call. Most of the data within the `Context` is marked as read only, this is because it is not recommended modifying the context manually just the `shared` object. It is still possible to modify it (the context is not a real Immutable js object). The context is always passed as the second parameter to the routes/hooks handlers.
 
 #### Context Type
 
 ```ts
-// src/types.ts#L148-L163
+// src/types.ts#L156-L168
 
 /** The call Context object passed as first parameter to any hook or route */
-export type Context<App, SharedData, RawContext extends RawServerContext = any> = Readonly<{
+export type Context<SharedData, RawContext extends RawServerContext = any> = Readonly<{
   /** Route's path */
   path: Readonly<string>;
-  /** Static Data: main App, db driver, libraries, etc... */
-  app: Readonly<App>;
   /** Raw Server call context, contains the raw request and response */
   rawContext: Readonly<RawContext>;
   /** Router's own request object */
@@ -366,38 +373,38 @@ export type Context<App, SharedData, RawContext extends RawServerContext = any> 
 }>;
 ```
 
-#### Using context
+#### Declaring the app and context types
 
 ```ts
 // examples/using-context.routes.ts
 
-import {addRoutes, initRouter} from '@mikrokit/router';
+import {registerRoutes, initRouter} from '@mikrokit/router';
 import {someDbDriver} from 'someDbDriver';
 import {cloudLogs} from 'MyCloudLogLs';
 import type {Context} from '@mikrokit/router';
 import type {APIGatewayEvent} from 'aws-lambda';
 import type {Pet} from 'MyModels';
 
-const app = {cloudLogs, db: someDbDriver};
+const myApp = {cloudLogs, db: someDbDriver};
 const shared = {auth: {me: null}};
 const getSharedData = (): typeof shared => shared;
 
-type App = typeof app;
+type App = typeof myApp;
 type SharedData = ReturnType<typeof getSharedData>;
 type ServerlessContext = {rawRequest: APIGatewayEvent; rawResponse?: null};
-type CallContext = Context<App, SharedData, ServerlessContext>;
+type CallContext = Context<SharedData, ServerlessContext>;
 
-const getMyPet = async (context: CallContext): Promise<Pet> => {
+const getMyPet = async (app: App, context: CallContext): Promise<Pet> => {
   // use of context inside handlers
   const user = context.shared.auth.me;
-  const pet = context.app.db.getPetFromUser(user);
-  context.app.cloudLogs.log('pet from user retrieved');
+  const pet = app.db.getPetFromUser(user);
+  app.cloudLogs.log('pet from user retrieved');
   return pet;
 };
 
 const routes = {getMyPet};
-initRouter(app, getSharedData);
-export const apiSpec = addRoutes(routes);
+initRouter(myApp, getSharedData);
+export const apiSpec = registerRoutes(routes);
 ```
 
 ## `Automatic Serialization and Validation`
@@ -419,10 +426,10 @@ Thanks to Deepkit's magic the type information is available at runtime and the d
 ```ts
 // examples/get-user-request.routes.ts
 
-import {addRoutes} from '@mikrokit/router';
+import {registerRoutes, initRouter} from '@mikrokit/router';
 import type {User} from 'MyModels';
 
-const getUser = async (context: any, entity: {id: number}): Promise<User> => {
+const getUser = async (app, context, entity: {id: number}): Promise<User> => {
   const user = await context.db.getUserById(entity.id);
   return user;
 };
@@ -433,7 +440,7 @@ const routes = {
   },
 };
 
-export const apiSpec = addRoutes(routes);
+export const apiSpec = registerRoutes(routes);
 ```
 
 </td>
@@ -573,7 +580,7 @@ export const DEFAULT_ROUTE_OPTIONS: Readonly<RouterOptions> = {
 ```ts
 // examples/full-example.routes.ts
 
-import {addRoutes, initRouter, PublicHook, StatusCodes} from '@mikrokit/router';
+import {registerRoutes, initRouter, StatusCodes} from '@mikrokit/router';
 import type {Context, RouteError} from '@mikrokit/router';
 import type {APIGatewayEvent} from 'aws-lambda';
 
@@ -613,7 +620,7 @@ const myAuthService = {
   getIdentity: (token: string): User | null => (token === 'ABCD' ? ({id: 0, name: 'admin', surname: 'admin'} as User) : null),
 };
 
-const app = {
+const myApp = {
   db: myDBService,
   auth: myAuthService,
 };
@@ -622,24 +629,24 @@ const shared = {
 };
 const getSharedData = (): typeof shared => shared;
 
-type App = typeof app;
+type App = typeof myApp;
 type SharedData = ReturnType<typeof getSharedData>;
 type ServerlessContext = {rawRequest: APIGatewayEvent; rawResponse?: null};
-type CallContext = Context<App, SharedData, ServerlessContext>;
+type CallContext = Context<SharedData, ServerlessContext>;
 
-const getUser = (ctx: CallContext, id: number): User => {
-  const user = ctx.app.db.getUser(id);
+const getUser = (app: App, ctx: CallContext, id): User => {
+  const user = app.db.getUser(id);
   if (!user) throw {statusCode: 200, message: 'user not found'};
   return user;
 };
-const createUser = (ctx: CallContext, newUser: NewUser): User => ctx.app.db.createUser(newUser);
-const updateUser = (ctx: CallContext, user: User): User => {
-  const updated = ctx.app.db.updateUser(user);
+const createUser = (app: App, ctx: CallContext, newUser: NewUser): User => app.db.createUser(newUser);
+const updateUser = (app: App, ctx: CallContext, user: User): User => {
+  const updated = app.db.updateUser(user);
   if (!updated) throw {statusCode: 200, message: 'user not found, can not be updated'};
   return updated;
 };
-const deleteUser = (ctx: CallContext, id: number): User => {
-  const deleted = ctx.app.db.deleteUser(id);
+const deleteUser = (app: App, ctx: CallContext, id: number): User => {
+  const deleted = app.db.deleteUser(id);
   if (!deleted) throw {statusCode: 200, message: 'user not found, can not be deleted'};
   return deleted;
 };
@@ -647,8 +654,8 @@ const auth = {
   inHeader: true,
   fieldName: 'Authorization',
   canReturnData: false,
-  hook: (ctx: CallContext, token: string): void => {
-    const {auth} = ctx.app;
+  hook: (app: App, ctx: CallContext, token: string): void => {
+    const {auth} = app;
     if (!auth.isAuthorized(token)) throw {statusCode: StatusCodes.FORBIDDEN, message: 'Not Authorized'} as RouteError;
     ctx.shared.me = auth.getIdentity(token) as User;
   },
@@ -665,8 +672,8 @@ const routes = {
   },
 };
 
-initRouter(app, getSharedData, {prefix: 'api/v1'});
-export const apiSpec = addRoutes(routes);
+initRouter(myApp, getSharedData, {prefix: 'api/v1'});
+export const apiSpec = registerRoutes(routes);
 ```
 
 ## &nbsp;

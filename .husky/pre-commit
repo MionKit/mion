@@ -1,8 +1,8 @@
 #!/usr/bin/env sh
 . "$(dirname -- "$0")/_/husky.sh"
 
-# lint staged files only
-npx lint-staged
+# lint staged files only (not working fine with ts monorepo)
+# npx lint-staged
 
-# use bellow lint if you want a more readable lint output
-# npm run lint-pre-commit
+# using lerna to lint full code as lint-staged not workign fine (slower approach)
+npm run lint-pre-commit

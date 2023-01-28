@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {initRouter, getRouterOptions, runRoute} from '@mikrokit/router';
+import {initRouter, getRouterOptions, dispatchRoute} from '@mikrokit/router';
 import type {Obj, SharedDataFactory, RouterOptions} from '@mikrokit/router';
 import type {Context as AwsContext, APIGatewayProxyResult, APIGatewayEvent} from 'aws-lambda';
 import type {AwsRawServerContext} from './types';
@@ -23,7 +23,7 @@ export const initAwsLambdaApp = <App extends Obj, SharedData extends Obj>(
 
 export const lambdaHandler = async (req: APIGatewayEvent, awsContext: AwsContext): Promise<APIGatewayProxyResult> => {
     const serverContext: AwsRawServerContext = {rawRequest: req, awsContext};
-    const routeResponse = await runRoute(req.path, serverContext);
+    const routeResponse = await dispatchRoute(req.path, serverContext);
     return {
         statusCode: routeResponse.statusCode,
         headers: {

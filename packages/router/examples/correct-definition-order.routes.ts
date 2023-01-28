@@ -1,4 +1,4 @@
-import {addRoutes} from '@mikrokit/router';
+import {registerRoutes} from '@mikrokit/router';
 
 const authorizationHook = {hook(): void {}};
 const userOnlyHook = {hook(): void {}};
@@ -22,7 +22,7 @@ const routes = {
     loggingHook, // hook,
 };
 
-export const validExecutables = addRoutes(routes);
+export const validExecutables = registerRoutes(routes);
 
 const invalidRoutes = {
     authorizationHook, // hook
@@ -36,4 +36,4 @@ const invalidRoutes = {
     },
 };
 
-export const invalidExecutables = addRoutes(invalidRoutes); // throws an error
+export const invalidExecutables = registerRoutes(invalidRoutes); // throws an error

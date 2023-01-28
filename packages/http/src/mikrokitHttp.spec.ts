@@ -4,7 +4,7 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
-import {addRoutes} from '@mikrokit/router';
+import {registerRoutes} from '@mikrokit/router';
 import fetch from 'node-fetch'; // must be node-fetch v2 as v3 is a node module non compatible whit current setup
 import {initHttpApp, startHttpServer} from './mikrokitHttp';
 import type {Context, Route} from '@mikrokit/router';
@@ -44,7 +44,7 @@ describe('serverless router should', () => {
 
     let server;
 
-    addRoutes({changeUserName, getDate, updateHeaders});
+    registerRoutes({changeUserName, getDate, updateHeaders});
 
     const port = 8075;
     beforeAll(async () => {

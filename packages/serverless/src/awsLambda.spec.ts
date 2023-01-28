@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {addRoutes} from '@mikrokit/router';
+import {registerRoutes} from '@mikrokit/router';
 import {initAwsLambdaApp, lambdaHandler} from './awsLambda';
 import createEvent from '@serverless/event-mocks';
 import type {Route} from '@mikrokit/router';
@@ -52,7 +52,7 @@ describe('serverless router should', () => {
         context.rawContext.awsContext;
     };
 
-    addRoutes({changeUserName, getDate, updateHeaders});
+    registerRoutes({changeUserName, getDate, updateHeaders});
 
     const getDefaultGatewayEvent = (
         body: string,

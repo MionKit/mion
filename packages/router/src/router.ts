@@ -67,7 +67,7 @@ let routerOptions: RouterOptions = {
 
 // ############# PUBLIC METHODS #############
 
-export const addRoutes = <R extends Routes>(routes: R): PublicRoutes<R> | null => {
+export const registerRoutes = <R extends Routes>(routes: R): PublicRoutes<R> | null => {
     if (!app) throw new Error('Router has not been initialized yet');
     recursiveFlatRoutes(routes);
     if (!routerOptions.generateRouterPublicData) return null;
@@ -123,7 +123,7 @@ export const initRouter = async <App extends Obj, SharedData, RawContext extends
     setRouterOptions(routerOpts);
 };
 
-export const runRoute = async <RawContext extends RawServerContext>(
+export const dispatchRoute = async <RawContext extends RawServerContext>(
     path: string,
     serverContext: RawContext
 ): Promise<Response> => {

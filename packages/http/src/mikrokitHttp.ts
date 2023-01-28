@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {StatusCodes, initRouter, getRouterOptions, runRoute, RouteError} from '@mikrokit/router';
+import {StatusCodes, initRouter, getRouterOptions, dispatchRoute, RouteError} from '@mikrokit/router';
 import {createServer as createHttp} from 'http';
 import {createServer as createHttps} from 'https';
 import {DEFAULT_HTTP_OPTIONS} from './constants';
@@ -103,7 +103,7 @@ const httpRequestHandler: RequestListener = (httpReq: IncomingMessage, httpRespo
         const body = Buffer.concat(bodyChunks).toString();
         (httpReq as any).body = body;
 
-        runRoute(path, {rawRequest: httpReq as any as RawRequest, rawResponse: httpResponse})
+        dispatchRoute(path, {rawRequest: httpReq as any as RawRequest, rawResponse: httpResponse})
             .then((routeResponse) => {
                 if (hasError) return;
                 addResponseHeaders(httpResponse, routeResponse.headers);
