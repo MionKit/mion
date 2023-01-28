@@ -1,4 +1,4 @@
-import {addRoutes, initRouter} from '@mikrokit/router';
+import {registerRoutes, initRouter} from '@mikrokit/router';
 import {someDbDriver} from 'someDbDriver';
 import {cloudLogs} from 'MyCloudLogLs';
 import type {Context} from '@mikrokit/router';
@@ -24,4 +24,4 @@ const getMyPet = async (app: App, context: CallContext): Promise<Pet> => {
 
 const routes = {getMyPet};
 initRouter(myApp, getSharedData);
-export const apiSpec = addRoutes(routes);
+export const apiSpec = registerRoutes(routes);

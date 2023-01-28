@@ -1,7 +1,7 @@
 import {RouteError, StatusCodes} from '@mikrokit/router';
 import type {Pet} from 'MyModels';
 
-export const getPet = (context: any, id: string): Promise<Pet> => {
+export const getPet = (app, context: any, id: string): Promise<Pet> => {
     try {
         const pet = context.app.db.getPet(id);
         if (!pet) {

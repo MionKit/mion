@@ -1,6 +1,6 @@
-import {addRoutes} from '@mikrokit/router';
+import {registerRoutes} from '@mikrokit/router';
 
-const sayHello = (context: any, name: string): string => {
+const sayHello = (app, context, name: string): string => {
     return `Hello ${name}.`;
 };
 
@@ -9,4 +9,4 @@ const routes = {
     'say Hello': sayHello, // api/say%20Hello  !! ROUTE WONT BE FOUND
 };
 
-export const apiSpec = addRoutes(routes);
+export const apiSpec = registerRoutes(routes);

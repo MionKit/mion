@@ -215,6 +215,7 @@ export type SharedDataFactory<SharedData> = () => SharedData;
 
 // #######  Errors #######
 
+// TODO: the interface for Public Errors is a bit confusing, maybe this should be called PublicError
 /** Any error triggered by hooks or routes must follow this interface, returned errors in the body also follows this interface */
 export class RouteError extends Error {
     constructor(public statusCode: Readonly<number>, public publicMessage: Readonly<string>, name?: string, err?: Error) {

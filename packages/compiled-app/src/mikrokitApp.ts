@@ -6,7 +6,7 @@
  * ######## */
 
 import {initHttpApp} from '@mikrokit/http';
-import {addRoutes} from '@mikrokit/router';
+import {registerRoutes} from '@mikrokit/router';
 import type {RouterOptions, Routes, Route} from '@mikrokit/router';
 
 interface User {
@@ -40,4 +40,4 @@ export const initHttp = (options: Partial<RouterOptions>) => {
     return initHttpApp<App, Shared>(app, undefined, options);
 };
 
-export {addRoutes};
+export {registerRoutes as addRoutes};

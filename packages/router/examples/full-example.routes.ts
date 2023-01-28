@@ -1,4 +1,4 @@
-import {addRoutes, initRouter, PublicHook, Route, StatusCodes, TypedHandler} from '@mikrokit/router';
+import {registerRoutes, initRouter, StatusCodes} from '@mikrokit/router';
 import type {Context, RouteError} from '@mikrokit/router';
 import type {APIGatewayEvent} from 'aws-lambda';
 
@@ -91,4 +91,4 @@ const routes = {
 };
 
 initRouter(myApp, getSharedData, {prefix: 'api/v1'});
-export const apiSpec = addRoutes(routes);
+export const apiSpec = registerRoutes(routes);

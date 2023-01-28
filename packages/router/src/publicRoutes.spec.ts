@@ -7,7 +7,7 @@
 
 import {DEFAULT_ROUTE_OPTIONS, DEFAULT_HOOK} from './constants';
 import {getPublicRoutes} from './publicRoutes';
-import {addRoutes, initRouter, reset} from './router';
+import {registerRoutes, initRouter, reset} from './router';
 
 describe('Public Route Data should', () => {
     type SimpleUser = {name: string; surname: string};
@@ -53,7 +53,7 @@ describe('Public Route Data should', () => {
 
     it('not generate public data when  generateRouterPublicData = false', () => {
         initRouter(app, getSharedData, {generateRouterPublicData: false});
-        const publicExecutables = addRoutes(routes);
+        const publicExecutables = registerRoutes(routes);
 
         expect(publicExecutables).toEqual(null);
     });
@@ -64,7 +64,7 @@ describe('Public Route Data should', () => {
             hook,
             route1,
         };
-        const api = addRoutes(testR);
+        const api = registerRoutes(testR);
 
         expect(api).toEqual({
             hook: expect.objectContaining({
@@ -96,7 +96,7 @@ describe('Public Route Data should', () => {
             hook,
             route1,
         };
-        const api = addRoutes(testR);
+        const api = registerRoutes(testR);
 
         expect(api).toEqual({
             hook: expect.objectContaining({
@@ -120,7 +120,7 @@ describe('Public Route Data should', () => {
 
     it('generate public data from some routes', () => {
         initRouter(app, getSharedData, {generateRouterPublicData: true});
-        const publicExecutables = addRoutes(routes);
+        const publicExecutables = registerRoutes(routes);
 
         expect(publicExecutables).toEqual({
             first: expect.objectContaining({

@@ -1,7 +1,7 @@
-import {addRoutes} from '@mikrokit/router';
+import {registerRoutes, initRouter} from '@mikrokit/router';
 import type {User} from 'MyModels';
 
-const getUser = async (context: any, entity: {id: number}): Promise<User> => {
+const getUser = async (app, context, entity: {id: number}): Promise<User> => {
     const user = await context.db.getUserById(entity.id);
     return user;
 };
@@ -12,4 +12,4 @@ const routes = {
     },
 };
 
-export const apiSpec = addRoutes(routes);
+export const apiSpec = registerRoutes(routes);
