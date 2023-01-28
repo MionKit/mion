@@ -1,7 +1,7 @@
 #!/usr/bin/env sh
 . "$(dirname -- "$0")/_/husky.sh"
 
-# lint staged files only (not working fine with ts monorepo)
+# lint staged not workign as not picking correct ts configuration for monorepo
 # npx lint-staged
 
 # using lerna to lint full code as lint-staged not workign fine (slower approach)
