@@ -17,17 +17,17 @@ import {DEFAULT_ROUTE_OPTIONS, getParamValidators, isFunctionType, Handler} from
 import {join} from 'path';
 import {addSpecRoutes, getApiSpec} from './routerCodegen';
 import {myApiRoutes} from './test/myApi.routes';
-import {GenerateSpecOptions} from './types';
+import {CodegenOptions} from './types';
 
 describe('generate api spec should', () => {
-    const generateOptions: GenerateSpecOptions = {
+    const generateOptions: CodegenOptions = {
         outputFileName: join(__dirname, './test/.spec/myPublicApi.routes.ts'),
         routesTypeName: 'MyApiRoutes',
         routesImport: `import {MyApiRoutes} from '../myApi.types';`,
         version: '0.2.1',
         packageName: '@mikrokit/myApiSpec',
         entryFileName: './test/myApi.routes.ts',
-        tsProjectFileName: '../tsconfig.json',
+        tsConfigFilePath: '../tsconfig.json',
     };
 
     addSpecRoutes(myApiRoutes, generateOptions, {prefix: 'api/v1', suffix: '.json'});

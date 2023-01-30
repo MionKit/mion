@@ -11,5 +11,3 @@ export type Pet = {id: number; race: string; name: string};
 export type Item<I> = {
     item: I;
 };
-
-export type {MyApiRoutes} from './myApi.routes';
