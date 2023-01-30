@@ -20,7 +20,7 @@ import {parametersToSrcCode, returnToSrcCode} from './reflectionCodegen';
 import {registerRoutes, getRouteEntries, getRouterOptions, initRouter, setRouterOptions} from '@mikrokit/router';
 import type {RemoteExecutable} from '@mikrokit/client';
 import type {RouterOptions, Routes, Executable} from '@mikrokit/router';
-import type {ApiSpec, SpecData, GenerateSpecOptions, ExecutableSourceCode, ApiSpecReferences} from './types';
+import type {CodegenOptions} from './types';
 
 const apiSpec: ApiSpec = {};
 const apiSpecReferences: ApiSpecReferences = {};
@@ -34,7 +34,7 @@ const specHooksByFieldName: Map<string, SpecData> = new Map();
 const specRoutesByPath: Map<string, SpecData> = new Map();
 const hooksSourceCodeByFieldName: Map<string, ExecutableSourceCode> = new Map();
 const routesSourceCodeByPath: Map<string, ExecutableSourceCode> = new Map();
-let generateSpecOptions: GenerateSpecOptions;
+let generateSpecOptions: CodegenOptions;
 
 export const getSpecHookByFieldName = (fieldName: string) => specHooksByFieldName.get(fieldName);
 export const getSpecRouteByPathName = (pathName: string) => specRoutesByPath.get(pathName);
@@ -43,7 +43,7 @@ export const getApiSpec = () => apiSpec;
 
 export const addSpecRoutes = (
     routes: Routes,
-    generateSpecOptions_: GenerateSpecOptions,
+    generateSpecOptions_: CodegenOptions,
     routerOptions_: Partial<RouterOptions> = {}
 ) => {
     generateSpecOptions = {

@@ -5,6 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
+import {initRouter, Obj, registerRoutes, RouterOptions} from '@mikrokit/router';
 import {Item, Pet, User} from './myApi.types';
 
 export const myApiRoutes = {
@@ -38,4 +39,9 @@ export const myApiRoutes = {
     last: {hook(): void {}},
 };
 
-export type MyApiRoutes = typeof myApiRoutes;
+export const myApp = {db: {query: (params): null => null}};
+export const getSharedData = (): Obj => ({});
+export const options: Partial<RouterOptions> = {prefix: 'v1', generateRouterPublicData: true};
+
+initRouter(myApp, getSharedData, options);
+export const routes = registerRoutes(myApiRoutes);
