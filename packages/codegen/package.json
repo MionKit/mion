@@ -58,14 +58,12 @@
     "@deepkit/type": "^1.0.1-alpha.75",
     "@mikrokit/client": "^0.2.1-alpha.0",
     "@mikrokit/router": "^0.2.1-alpha.0",
-    "i": "^0.3.7",
-    "npm": "^9.4.0",
+    "cross-spawn": "^7.0.3",
     "prettier": "^2.7.1",
     "ts-morph": "^17.0.1"
   },
   "devDependencies": {
     "@deepkit/core": "^1.0.1-alpha.75",
-    "@deepkit/type-compiler": "^1.0.1-alpha.75",
-    "@serverless/event-mocks": "^1.1.1"
+    "@deepkit/type-compiler": "^1.0.1-alpha.75"
   }
 }
