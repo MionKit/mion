@@ -150,21 +150,4 @@ describe('Deepkit reflection should', () => {
         const deserialized1 = deSerializers[0](parsed1);
         expect(deserialized1).toEqual(user1);
     });
-
-    // TODO: validate router explicit types
-    // it('check for handler explicit definitions', () => {
-    //     const funcAllOK = (a: number, name: string): string => `sayHello ${name} ${a}`;
-    //     const funcParamNotDefined = (name): string => `sayHello ${name}`;
-    //     const funcReturnNotDefined = (name: any) => `sayHello ${name}`;
-    //     const funcReturnAny = (name: string): any => `sayHello ${name}`;
-    //     const funcMultipleTypes = (name: number | string): number | string => `sayHello ${name}`;
-    //     const funcOptionalParams = (name?: number): string => `sayHello ${name || 'unknowkn'}`;
-
-    //     expect(hasExplicitTypes(funcAllOK as any as Handler)).toBeTruthy();
-    //     expect(hasExplicitTypes(funcParamNotDefined as any as Handler)).toBeFalsy();
-    //     expect(hasExplicitTypes(funcReturnNotDefined as any as Handler)).toBeFalsy();
-    //     expect(hasExplicitTypes(funcReturnAny as any as Handler)).toBeFalsy();
-    //     expect(hasExplicitTypes(funcMultipleTypes as any as Handler)).toBeTruthy();
-    //     expect(hasExplicitTypes(funcOptionalParams as any as Handler)).toBeTruthy();
-    // });
 });

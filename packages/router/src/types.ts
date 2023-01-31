@@ -113,7 +113,7 @@ export type RouterOptions<RawContext extends RawServerContext = RawServerContext
     /** response content type, @default "application/json; charset=utf-8" */
     responseContentType: string;
     /** Used to return public data when adding routes */
-    generateRouterPublicData: boolean;
+    generateSpec: boolean;
 };
 
 // ####### Execution Path #######
@@ -136,7 +136,6 @@ export type Executable = {
     src: RouteDef | HookDef;
     enableValidation: boolean;
     enableSerialization: boolean;
-    selfPointer: string[];
 };
 
 export type RouteExecutable<H extends Handler> = Executable & {
@@ -252,29 +251,27 @@ export type PublicHandler<H extends Handler> = H extends (app: any, ctx: Context
     : never;
 
 export type PublicRoute<H extends Handler> = {
-    /** This is actually empty void function, included only too keep types */
-    handler: PublicHandler<H>;
+    /** This is actually null, it is included only too reference static types */
+    handlerType: PublicHandler<H>;
     isRoute: true;
     canReturnData: true;
     path: string;
     inHeader: boolean;
-    fieldName: string;
     enableValidation: boolean;
     enableSerialization: boolean;
-    selfPointer: string[];
+    params: string[];
 };
 
 export type PublicHook<H extends Handler> = {
-    /** This is actually empty void function, included only too keep types */
-    handler: PublicHandler<H>;
+    /** This is actually null, it is included only too reference static types */
+    handlerType: PublicHandler<H>;
     isRoute: false;
     canReturnData: boolean;
-    path: string;
     inHeader: boolean;
     fieldName: string;
     enableValidation: boolean;
     enableSerialization: boolean;
-    selfPointer: string[];
+    params: string[];
 };
 
 // #######  reflection #######
@@ -311,6 +308,10 @@ export const isExecutable = (entry: Executable | {path: string}): entry is Execu
         typeof entry.path === 'string' &&
         ((entry as any).routes === 'undefined' || typeof (entry as Executable).handler === 'function')
     );
+};
+
+export const isPublicRoutes = (entry: PublicRoutes<any> | PublicRoute<any> | PublicHook<any>): entry is PublicRoutes<any> => {
+    return typeof entry.handlerType !== 'function' && typeof entry.handlerType !== 'string'; // string is the real value
 };
 
 export const isFunctionType = (t: Type): t is TypeFunction => t.kind === ReflectionKind.function;

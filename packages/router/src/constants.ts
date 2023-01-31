@@ -86,11 +86,12 @@ export const DEFAULT_ROUTE_OPTIONS: Readonly<RouterOptions> = {
      * Might need to get updated if the @field bodyParser returns anything else than json  */
     responseContentType: 'application/json; charset=utf-8',
 
-    /** Used to return public data when adding routes  */
-    generateRouterPublicData: process.env.GENERATE_ROUTER_DATA === 'true',
+    /** set to true to generate router spec for clients.  */
+    generateSpec: process.env.GENERATE_ROUTER_SPEC === 'true',
 };
 
 export const ROUTE_KEYS = Object.keys(DEFAULT_ROUTE);
 export const HOOK_KEYS = Object.keys(DEFAULT_HOOK);
 export const MAX_ROUTE_NESTING = 10;
+
 export const ROUTE_DEFAULT_PARAM = ['app', 'context'];

@@ -571,7 +571,7 @@ export const DEFAULT_ROUTE_OPTIONS: Readonly<RouterOptions> = {
   responseContentType: 'application/json; charset=utf-8',
 
   /** Used to return public data when adding routes  */
-  generateRouterPublicData: process.env.GENERATE_ROUTER_DATA === 'true',
+  generateRouterPublicData: process.env.GENERATE_ROUTER_SPEC === 'true',
 };
 ```
 

@@ -15,7 +15,7 @@ export type CodegenOptions = {
     /** path to tsConfig file. */
     tsConfigFilePath?: string;
     /** The public route types get imported as package instead of relative path. name in package.json used for this. */
-    importAsPackage: boolean;
+    importAsPackage?: boolean;
     /** Prettier options for the generated code. */
     prettierOptions?: PrettierOptions;
 };

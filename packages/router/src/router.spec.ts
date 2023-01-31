@@ -607,6 +607,7 @@ describe('Run routes', () => {
         });
 
         // TODO: not sure how to make serialization/validation throw an error
+        // eslint-disable-next-line jest/no-disabled-tests
         it.skip("return an error if can't validate", async () => {
             initRouter(myApp, getSharedData);
             registerRoutes({getSameDate});

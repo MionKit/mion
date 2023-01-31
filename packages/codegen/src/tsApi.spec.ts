@@ -6,7 +6,7 @@
  * ######## */
 
 import {join} from 'path';
-import {getExportedRoutesVarNames} from './tsApi';
+import {getExportedRoutesVarNames, initTsProject, getGenerateSpecJsCode} from './tsApi';
 import {CodegenOptions} from './types';
 
 describe('tsApi should', () => {
@@ -16,10 +16,11 @@ describe('tsApi should', () => {
         tsConfigFilePath: join(__dirname, '../tsconfig.json'),
         importAsPackage: false,
     };
+    initTsProject(defaultOptions.tsConfigFilePath as string);
 
     it('get exported declarations', () => {
         const exportedNames = getExportedRoutesVarNames(defaultOptions);
-        expect(exportedNames).toEqual(['routes']);
+        expect(exportedNames).toEqual(['myApi']);
     });
 
     it('throw an error when tsConfig file is not found', () => {
@@ -52,5 +53,11 @@ describe('tsApi should', () => {
             `No exported Public Routes found in entry file '${noRoutes.entryFileName}'.` +
                 `\nPlease check you exporting a variable when calling @mikrokit/router.registerRoutes!`
         );
+    });
+
+    it('should get "run and generate" compiled js code', () => {
+        const jsOutFile = getGenerateSpecJsCode(defaultOptions, ['myApi']);
+        expect(jsOutFile.getFilePath()).toContain('test/myApi.routes.ts---rUn-ApP-AnD-GeNerATe-sPEc---.js');
+        expect(jsOutFile.getText()).toBeTruthy();
     });
 });
