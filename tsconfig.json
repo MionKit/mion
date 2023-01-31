@@ -10,7 +10,7 @@
     "emitDecoratorMetadata": true,
     "experimentalDecorators": true,
     "target": "es6",
-    "lib": ["es6"],
+    "lib": ["es6", "ES2021"],
     "outDir": ".dist",
     "composite": true,
     "declaration": true,

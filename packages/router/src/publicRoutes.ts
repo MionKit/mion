@@ -32,18 +32,19 @@ const recursiveGetPublicRoutes = <R extends Routes>(routes: R, currentPointer: s
     const entries = Object.entries(routes);
     entries.forEach(([key, item]) => {
         const newPointer = [...currentPointer, key];
+        const newPointerAsString = newPointer.join('.');
         if (isHookDef(item)) {
             const fieldName = getHookFieldName(item, key);
             const executable = getHookExecutable(fieldName);
             if (!executable)
                 throw new Error(`Hook '${fieldName}' not found in router. Please check you have called router.addRoutes first!`);
-            publicData[key] = getPublicDataFromExecutable(executable);
+            publicData[key] = getPublicHookFromExecutable(executable, newPointerAsString);
         } else if (isRoute(item)) {
             const path = getRoutePath(item, join(...newPointer));
             const executable = getRouteExecutable(path);
             if (!executable)
                 throw new Error(`Route '${path}' not found in router. Please check you have called router.addRoutes first!`);
-            publicData[key] = getPublicDataFromExecutable(executable);
+            publicData[key] = getPublicRouteFromExecutable(executable, newPointerAsString);
         } else {
             const subRoutes: Routes = routes[key] as Routes;
             publicData[key] = recursiveGetPublicRoutes(subRoutes, newPointer);
@@ -53,19 +54,30 @@ const recursiveGetPublicRoutes = <R extends Routes>(routes: R, currentPointer: s
     return publicData;
 };
 
-const getPublicDataFromExecutable = <H extends Handler>(executable: Executable): PublicRoute<H> | PublicHook<H> => {
-    const publicEntry = {
-        isRoute: executable.isRoute,
-        canReturnData: executable.canReturnData,
+const getPublicRouteFromExecutable = <H extends Handler>(executable: Executable, propertyPonter: string): PublicRoute<H> => {
+    return {
+        isRoute: true,
+        canReturnData: true,
         path: executable.path,
         inHeader: executable.inHeader,
-        fieldName: executable.fieldName,
-        handler: (() => {
-            throw new Error(`Public Route handler can't be called directly, included for type information only.`);
-        }) as any as PublicHandler<H>,
+        // handler is included just for static typing purposes and shouldn't be called directly
+        handlerType: propertyPonter as any as PublicHandler<H>,
         enableValidation: executable.enableValidation,
         enableSerialization: executable.enableSerialization,
-        selfPointer: executable.selfPointer,
+        params: executable.handlerType.parameters.map((tp) => tp.name),
     };
-    return publicEntry.isRoute ? (publicEntry as PublicRoute<H>) : (publicEntry as PublicHook<H>);
+};
+
+const getPublicHookFromExecutable = <H extends Handler>(executable: Executable, propertyPonter: string): PublicHook<H> => {
+    return {
+        isRoute: false,
+        canReturnData: executable.canReturnData,
+        inHeader: executable.inHeader,
+        fieldName: executable.fieldName,
+        // handler is included just for static typing purposes and shouldn't be called directly
+        handlerType: propertyPonter as any as PublicHandler<H>,
+        enableValidation: executable.enableValidation,
+        enableSerialization: executable.enableSerialization,
+        params: executable.handlerType.parameters.map((tp) => tp.name),
+    };
 };

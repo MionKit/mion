@@ -4,78 +4,26 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
-
-// mocks window object used in the spec
-global.window = Object.create({
-    location: {
-        origin: 'http://mikrokit.io',
-    },
-});
+process.env.GENERATE_ROUTER_SPEC = 'true'; // required to generate public routes object
 
 import {serializeType, deserializeType, reflect, Type, toSignature} from '@deepkit/type';
 import {DEFAULT_ROUTE_OPTIONS, getParamValidators, isFunctionType, Handler} from '@mikrokit/router';
 import {join} from 'path';
-import {addSpecRoutes, getApiSpec} from './routerCodegen';
-import {myApiRoutes} from './test/myApi.routes';
+import {getSpecFile} from './specCodegen';
+import {myApi} from './test/myApi.routes';
 import {CodegenOptions} from './types';
 
 describe('generate api spec should', () => {
     const generateOptions: CodegenOptions = {
         outputFileName: join(__dirname, './test/.spec/myPublicApi.routes.ts'),
-        routesTypeName: 'MyApiRoutes',
-        routesImport: `import {MyApiRoutes} from '../myApi.types';`,
-        version: '0.2.1',
-        packageName: '@mikrokit/myApiSpec',
-        entryFileName: './test/myApi.routes.ts',
-        tsConfigFilePath: '../tsconfig.json',
+        entryFileName: join(__dirname, './test/myApi.routes.ts'),
+        tsConfigFilePath: join(__dirname, '../tsconfig.json'),
     };
 
-    addSpecRoutes(myApiRoutes, generateOptions, {prefix: 'api/v1', suffix: '.json'});
-
-    it('generate a typescript spec file without typescript errors', () => {
-        expect(true).toEqual(true);
-    });
-
-    it('create api spec using the public paths, display only hooks that either accept or return data and remove prefix, suffix', () => {
-        const apiSpec = getApiSpec();
-        expect(apiSpec).toEqual({
-            users: {
-                getUser: [
-                    expect.objectContaining({isRoute: false, fieldName: 'auth'}),
-                    expect.objectContaining({isRoute: true, path: '/api/v1/users/getUser.json'}),
-                    expect.objectContaining({isRoute: false, fieldName: 'totalUsers'}),
-                ],
-                setUser: [
-                    expect.objectContaining({isRoute: false, fieldName: 'auth'}),
-                    expect.objectContaining({isRoute: true, path: '/api/v1/users/setUser.json'}),
-                    expect.objectContaining({isRoute: false, fieldName: 'totalUsers'}),
-                ],
-            },
-            pets: {
-                getPet: [
-                    expect.objectContaining({isRoute: false, fieldName: 'auth'}),
-                    expect.objectContaining({isRoute: true, path: '/api/v1/pets/getPet.json'}),
-                ],
-                setPet: [
-                    expect.objectContaining({isRoute: false, fieldName: 'auth'}),
-                    expect.objectContaining({isRoute: true, path: '/api/v1/pets/setPet.json'}),
-                ],
-            },
-            utils: {
-                getNumber: [
-                    expect.objectContaining({isRoute: false, fieldName: 'auth'}),
-                    expect.objectContaining({isRoute: true, path: '/api/v1/utils/getNumber.json'}),
-                ],
-            },
-            getItem: [
-                expect.objectContaining({isRoute: false, fieldName: 'auth'}),
-                expect.objectContaining({isRoute: true, path: '/api/v1/getItem.json'}),
-            ],
-            getPetOrUser: [
-                expect.objectContaining({isRoute: false, fieldName: 'auth'}),
-                expect.objectContaining({isRoute: true, path: '/api/v1/getPetOrUser.json'}),
-            ],
-        });
+    it('should get spec source file', () => {
+        const tsSpec = getSpecFile(generateOptions, [myApi], ['myApi']);
+        console.log(tsSpec);
+        expect(tsSpec).toBeTruthy();
     });
 
     // TODO, we should not test too much here, better test the real generated objects

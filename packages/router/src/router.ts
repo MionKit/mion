@@ -67,11 +67,12 @@ let routerOptions: RouterOptions = {
 
 // ############# PUBLIC METHODS #############
 
-export const registerRoutes = <R extends Routes>(routes: R): PublicRoutes<R> | null => {
+export const registerRoutes = <R extends Routes>(routes: R): PublicRoutes<R> => {
     if (!app) throw new Error('Router has not been initialized yet');
     recursiveFlatRoutes(routes);
-    if (!routerOptions.generateRouterPublicData) return null;
-    return getPublicRoutes(routes) as PublicRoutes<R>;
+    if (routerOptions.generateSpec || process.env.GENERATE_ROUTER_SPEC === 'true')
+        return getPublicRoutes(routes) as PublicRoutes<R>;
+    return {} as PublicRoutes<R>;
 };
 export const getRouteExecutionPath = (path: string) => flatRouter.get(path);
 export const getRouteEntries = () => flatRouter.entries();
@@ -425,7 +426,6 @@ const getExecutableFromHook = (hook: HookDef, path: string, nestLevel: number, k
         enableValidation: hook.enableValidation ?? routerOptions.enableValidation,
         enableSerialization: hook.enableSerialization ?? routerOptions.enableSerialization,
         src: hook,
-        selfPointer: path.split('/'),
     };
     delete (executable as any).hook;
     hooksByFieldName.set(hookName, executable);
@@ -456,7 +456,6 @@ const getExecutableFromRoute = (route: Route, path: string, nestLevel: number): 
         enableValidation: (route as RouteDef).enableValidation ?? routerOptions.enableValidation,
         enableSerialization: (route as RouteDef).enableSerialization ?? routerOptions.enableSerialization,
         src: routeObj,
-        selfPointer: path.split('/'),
     };
     delete (executable as any).route;
     routesByPath.set(routePath, executable);
