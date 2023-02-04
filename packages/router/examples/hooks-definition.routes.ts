@@ -1,28 +1,28 @@
-import {registerRoutes} from '@mikrokit/router';
+import {Context, registerRoutes} from '@mikrokit/router';
 import {getAuthUser, isAuthorized} from 'MyAuth';
 import type {Pet} from 'MyModels';
 
 const authorizationHook = {
     fieldName: 'Authorization',
     inHeader: true,
-    async hook(app, context, token: string): Promise<void> {
+    async hook(app, ctx, token: string): Promise<void> {
         const me = await getAuthUser(token);
         if (!isAuthorized(me)) throw {code: 401, message: 'user is not authorized'};
-        context.auth = {me}; // user is added to context to shared with other routes/hooks
+        ctx.shared.auth = {me}; // user is added to ctx to shared with other routes/hooks
     },
 };
 
-const getPet = async (app, context, petId: number): Promise<Pet> => {
-    const pet = context.app.deb.getPet(petId);
+const getPet = async (app, ctx, petId: number): Promise<Pet> => {
+    const pet = app.deb.getPet(petId);
     // ...
     return pet;
 };
 
 const logs = {
-    async hook(app, context): Promise<void> {
-        const me = context.errors;
-        if (context.errors) await context.cloudLogs.error(context.errors);
-        else context.cloudLogs.log(context.request.path, context.auth.me, context.mkkOutput);
+    forceRunOnError: true,
+    async hook(app, ctx: Context<any>): Promise<void> {
+        if (ctx.request) await app.cloudLogs.error(ctx.path, ctx.request.internalErrors);
+        else app.cloudLogs.log(ctx.path, ctx.shared.me.name);
     },
 };
 

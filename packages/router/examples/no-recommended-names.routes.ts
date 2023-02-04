@@ -1,6 +1,6 @@
 import {registerRoutes} from '@mikrokit/router';
 
-const sayHello = (app, context, name: string): string => {
+const sayHello = (app, ctx, name: string): string => {
     return `Hello ${name}.`;
 };
 

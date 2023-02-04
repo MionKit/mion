@@ -14,9 +14,9 @@ type SharedData = ReturnType<typeof getSharedData>;
 type ServerlessContext = {rawRequest: APIGatewayEvent; rawResponse?: null};
 type CallContext = Context<SharedData, ServerlessContext>;
 
-const getMyPet = async (app: App, context: CallContext): Promise<Pet> => {
-    // use of context inside handlers
-    const user = context.shared.auth.me;
+const getMyPet = async (app: App, ctx: CallContext): Promise<Pet> => {
+    // use of ctx inside handlers
+    const user = ctx.shared.auth.me;
     const pet = app.db.getPetFromUser(user);
     app.cloudLogs.log('pet from user retrieved');
     return pet;

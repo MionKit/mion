@@ -22,7 +22,7 @@ const routes = {
     loggingHook, // hook,
 };
 
-export const validExecutables = registerRoutes(routes);
+export const myValidApi = registerRoutes(routes);
 
 const invalidRoutes = {
     authorizationHook, // hook
@@ -36,4 +36,4 @@ const invalidRoutes = {
     },
 };
 
-export const invalidExecutables = registerRoutes(invalidRoutes); // throws an error
+export const myInvalidApi = registerRoutes(invalidRoutes); // throws an error

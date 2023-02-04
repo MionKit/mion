@@ -48,12 +48,12 @@ The reason for this weird naming is to future proof the router to be able to acc
 
 import {setRouterOptions, registerRoutes} from '@mikrokit/router';
 
-const sayHello = (app, context, name: string): string => {
+const sayHello = (app, ctx, name: string): string => {
   return `Hello ${name}.`;
 };
 
 const sayHello2 = {
-  route(app, context, name1: string, name2: string): string {
+  route(app, ctx, name1: string, name2: string): string {
     return `Hello ${name1} and ${name2}.`;
   },
 };

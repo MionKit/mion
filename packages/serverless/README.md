@@ -46,12 +46,12 @@ The reason for this weird naming is to future proof the router to be able to acc
 
 import {setRouterOptions, registerRoutes} from '@mikrokit/router';
 
-const sayHello = (app, context, name: string): string => {
+const sayHello = (app, ctx, name: string): string => {
   return `Hello ${name}.`;
 };
 
 const sayHello2 = {
-  route(app, context, name1: string, name2: string): string {
+  route(app, ctx, name1: string, name2: string): string {
     return `Hello ${name1} and ${name2}.`;
   },
 };
@@ -70,36 +70,37 @@ export const apiSpec = registerRoutes(routes);
 ```ts
 // examples/full-example-serverless.routes.ts
 
-import {initAwsLambdaApp} from '@mikrokit/client';
-import {Route} from '@mikrokit/router';
+import {initAwsLambdaApp, lambdaHandler} from '@mikrokit/serverless';
+import {Context, registerRoutes, Route} from '@mikrokit/router';
+import {AwsRawServerContext} from '../src/types';
 
 // #### App ####
 
 type SimpleUser = {name: string; surname: string};
 type DataPoint = {date: Date};
 type SharedData = {auth: {me: any}};
+type App = typeof myApp;
+type CallContext = Context<SharedData, AwsRawServerContext>;
 
 const dbChangeUserName = (user: SimpleUser): SimpleUser => ({name: 'NewName', surname: user.surname});
-const app = {db: {changeUserName: dbChangeUserName}};
+const myApp = {db: {changeUserName: dbChangeUserName}};
 const sharedDataFactory = (): SharedData => ({auth: {me: null}});
 
 // #### Routes ####
 
-const changeUserName: Route = (context: CallContext, user: SimpleUser) => {
-  return context.app.db.changeUserName(user);
+const changeUserName: Route = (app: App, ctx: CallContext, user: SimpleUser) => {
+  return app.db.changeUserName(user);
 };
 
-const getDate: Route = (context: CallContext, dataPoint?: DataPoint): DataPoint => {
+const getDate: Route = (app: App, ctx: CallContext, dataPoint?: DataPoint): DataPoint => {
   return dataPoint || {date: new Date('December 17, 2020 03:24:00')};
 };
 
-// #### Init server ####
-
+// #### Init App ####
 const routerOpts = {prefix: 'api/'};
 const routes = {changeUserName, getDate};
-const {emptyContext, lambdaHandler, Router} = initAwsLambdaApp(app, sharedDataFactory, routerOpts);
-Router.addRoutes(routes);
-export type CallContext = typeof emptyContext;
+initAwsLambdaApp(myApp, sharedDataFactory, routerOpts);
+export const myApi = registerRoutes(routes);
 
 // Aws Lambda Handler
 export const handler = lambdaHandler;

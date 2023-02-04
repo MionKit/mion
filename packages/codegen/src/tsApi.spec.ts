@@ -44,13 +44,13 @@ describe('tsApi should', () => {
         expect(() => getExportedRoutesVarNames(wrongEntryName)).toThrow(`Entry typescript file 'abc' not found!`);
     });
 
-    it('throw an error when there are no public routes exported in the entry file', () => {
+    it('throw an error when there are no Public Methods exported in the entry file', () => {
         const noRoutes = {
             ...defaultOptions,
             entryFileName: join(__dirname, 'test/myApi.types.ts'),
         };
         expect(() => getExportedRoutesVarNames(noRoutes)).toThrow(
-            `No exported Public Routes found in entry file '${noRoutes.entryFileName}'.` +
+            `No exported Public Methods found in entry file '${noRoutes.entryFileName}'.` +
                 `\nPlease check you exporting a variable when calling @mikrokit/router.registerRoutes!`
         );
     });
