@@ -6,6 +6,7 @@
  * ######## */
 
 import {join} from 'path';
+import {ROUTE_DEFAULT_PARAM} from './constants';
 import {getHookExecutable, getHookFieldName, getRouteExecutable, getRoutePath} from './router';
 import {
     Executable,
@@ -13,10 +14,10 @@ import {
     isHookDef,
     isRoute,
     Obj,
-    PublicRoutes,
+    PublicMethods,
     PublicHandler,
     PublicHook,
-    PublicRoute,
+    PublicMethod,
     Routes,
 } from './types';
 
@@ -24,8 +25,8 @@ import {
  * Returns a data structure containing all public information and types of the routes.
  * This data and types can be used to generate router clients, etc...
  */
-export const getPublicRoutes = <R extends Routes>(routes: R): PublicRoutes<R> => {
-    return recursiveGetPublicRoutes(routes) as PublicRoutes<R>;
+export const getPublicRoutes = <R extends Routes>(routes: R): PublicMethods<R> => {
+    return recursiveGetPublicRoutes(routes) as PublicMethods<R>;
 };
 
 const recursiveGetPublicRoutes = <R extends Routes>(routes: R, currentPointer: string[] = [], publicData: Obj = {}): Obj => {
@@ -44,7 +45,7 @@ const recursiveGetPublicRoutes = <R extends Routes>(routes: R, currentPointer: s
             const executable = getRouteExecutable(path);
             if (!executable)
                 throw new Error(`Route '${path}' not found in router. Please check you have called router.addRoutes first!`);
-            publicData[key] = getPublicRouteFromExecutable(executable, newPointerAsString);
+            publicData[key] = getPublicMethodFromExecutable(executable, newPointerAsString);
         } else {
             const subRoutes: Routes = routes[key] as Routes;
             publicData[key] = recursiveGetPublicRoutes(subRoutes, newPointer);
@@ -54,7 +55,7 @@ const recursiveGetPublicRoutes = <R extends Routes>(routes: R, currentPointer: s
     return publicData;
 };
 
-const getPublicRouteFromExecutable = <H extends Handler>(executable: Executable, propertyPonter: string): PublicRoute<H> => {
+const getPublicMethodFromExecutable = <H extends Handler>(executable: Executable, propertyPonter: string): PublicMethod<H> => {
     return {
         isRoute: true,
         canReturnData: true,
@@ -64,7 +65,7 @@ const getPublicRouteFromExecutable = <H extends Handler>(executable: Executable,
         handlerType: propertyPonter as any as PublicHandler<H>,
         enableValidation: executable.enableValidation,
         enableSerialization: executable.enableSerialization,
-        params: executable.handlerType.parameters.map((tp) => tp.name),
+        params: executable.handlerType.parameters.map((tp) => tp.name).slice(ROUTE_DEFAULT_PARAM.length),
     };
 };
 
@@ -78,6 +79,6 @@ const getPublicHookFromExecutable = <H extends Handler>(executable: Executable, 
         handlerType: propertyPonter as any as PublicHandler<H>,
         enableValidation: executable.enableValidation,
         enableSerialization: executable.enableSerialization,
-        params: executable.handlerType.parameters.map((tp) => tp.name),
+        params: executable.handlerType.parameters.map((tp) => tp.name).slice(ROUTE_DEFAULT_PARAM.length),
     };
 };

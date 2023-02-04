@@ -29,10 +29,9 @@ import {
     Mutable,
     PublicError,
     Request,
-    isRouteDef,
     RouteExecutable,
     HookExecutable,
-    PublicRoutes,
+    PublicMethods,
 } from './types';
 import {StatusCodes} from './status-codes';
 import {
@@ -44,7 +43,7 @@ import {
     validateParams,
 } from './reflection';
 import {reflect, TypeFunction} from '@deepkit/type';
-import {getPublicRoutes} from './publicRoutes';
+import {getPublicRoutes} from './publicMethods';
 type RouterKeyEntryList = [string, Routes | HookDef | Route][];
 type RoutesWithId = {
     path: string;
@@ -67,12 +66,12 @@ let routerOptions: RouterOptions = {
 
 // ############# PUBLIC METHODS #############
 
-export const registerRoutes = <R extends Routes>(routes: R): PublicRoutes<R> => {
+export const registerRoutes = <R extends Routes>(routes: R): PublicMethods<R> => {
     if (!app) throw new Error('Router has not been initialized yet');
     recursiveFlatRoutes(routes);
     if (routerOptions.generateSpec || process.env.GENERATE_ROUTER_SPEC === 'true')
-        return getPublicRoutes(routes) as PublicRoutes<R>;
-    return {} as PublicRoutes<R>;
+        return getPublicRoutes(routes) as PublicMethods<R>;
+    return {} as PublicMethods<R>;
 };
 export const getRouteExecutionPath = (path: string) => flatRouter.get(path);
 export const getRouteEntries = () => flatRouter.entries();

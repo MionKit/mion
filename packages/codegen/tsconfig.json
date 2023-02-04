@@ -4,7 +4,7 @@
     "outDir": ".dist/cjs"
   },
   "reflection": true,
-  "include": ["."],
+  "include": [".", "src/test/.spec/result-spec-api.ts"],
   "exclude": ["examples", ".dist", "src/test/.spec"],
   "references": [{"path": "../router"}, {"path": "../client"}]
 }

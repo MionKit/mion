@@ -234,15 +234,15 @@ export type PublicError = {
 
 //TODO: some hooks could have no public params and not return any data so they should not be in the public spec
 /** Data structure containing all public data an types of the routes. */
-export type PublicRoutes<Type extends Routes> = {
+export type PublicMethods<Type extends Routes> = {
     [Property in keyof Type]: Type[Property] extends HookDef
         ? PublicHook<Type[Property]['hook']>
         : Type[Property] extends RouteDef
-        ? PublicRoute<Type[Property]['route']>
+        ? PublicMethod<Type[Property]['route']>
         : Type[Property] extends Handler
-        ? PublicRoute<Type[Property]>
+        ? PublicMethod<Type[Property]>
         : Type[Property] extends Routes
-        ? PublicRoutes<Type[Property]>
+        ? PublicMethods<Type[Property]>
         : never;
 };
 
@@ -250,7 +250,7 @@ export type PublicHandler<H extends Handler> = H extends (app: any, ctx: Context
     ? (...rest: Req) => Promise<Awaited<Resp>>
     : never;
 
-export type PublicRoute<H extends Handler> = {
+export type PublicMethod<H extends Handler> = {
     /** This is actually null, it is included only too reference static types */
     handlerType: PublicHandler<H>;
     isRoute: true;
@@ -310,7 +310,7 @@ export const isExecutable = (entry: Executable | {path: string}): entry is Execu
     );
 };
 
-export const isPublicRoutes = (entry: PublicRoutes<any> | PublicRoute<any> | PublicHook<any>): entry is PublicRoutes<any> => {
+export const isPublicRoutes = (entry: PublicMethods<any> | PublicMethod<any> | PublicHook<any>): entry is PublicMethods<any> => {
     return typeof entry.handlerType !== 'function' && typeof entry.handlerType !== 'string'; // string is the real value
 };
 

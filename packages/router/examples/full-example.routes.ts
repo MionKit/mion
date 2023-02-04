@@ -73,9 +73,8 @@ const auth = {
     fieldName: 'Authorization',
     canReturnData: false,
     hook: (app: App, ctx: CallContext, token: string): void => {
-        const {auth} = app;
-        if (!auth.isAuthorized(token)) throw {statusCode: StatusCodes.FORBIDDEN, message: 'Not Authorized'} as RouteError;
-        ctx.shared.me = auth.getIdentity(token) as User;
+        if (!app.auth.isAuthorized(token)) throw {statusCode: StatusCodes.FORBIDDEN, message: 'Not Authorized'} as RouteError;
+        ctx.shared.me = app.auth.getIdentity(token) as User;
     },
 };
 
@@ -89,12 +88,6 @@ const routes = {
         delete: deleteUser, // api/v1/users/delete
     },
 };
-
-type SolvedRoute<R extends Route> = R extends (app: infer App, context: infer Context, ...params: infer Params) => infer Resp
-    ? (app: App, context: Context, ...params: Params) => Resp
-    : never;
-
-type GetUserRoute = SolvedRoute<typeof getUser>;
 
 initRouter(myApp, getSharedData, {prefix: 'api/v1'});
 export const apiSpec = registerRoutes(routes);

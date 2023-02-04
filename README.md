@@ -2,7 +2,7 @@
   <img alt='MikroKit, a mikro kit for Typescript Serverless APIs' src='./assets/public/logo.svg?raw=true' width="403" height="150">
 </p>
 <p align="center">
-  <strong>Build serverless Apis at the speed of light with typescript.</strong><br/>.
+  <strong>Typescript Apis at the speed of light 🚀</strong><br/>.
 </p>
 
 <p align=center>
@@ -83,12 +83,12 @@ The reason for this naming is to future proof the router to be able to accept mu
 
 import {setRouterOptions, registerRoutes} from '@mikrokit/router';
 
-const sayHello = (app, context, name: string): string => {
+const sayHello = (app, ctx, name: string): string => {
     return `Hello ${name}.`;
 };
 
 const sayHello2 = {
-    route(app, context, name1: string, name2: string): string {
+    route(app, ctx, name1: string, name2: string): string {
         return `Hello ${name1} and ${name2}.`;
     },
 };
@@ -125,8 +125,8 @@ Runtime types allow for a completely new set of capabilities. Please check Deepk
 import {registerRoutes, initRouter} from '@mikrokit/router';
 import type {User} from 'MyModels';
 
-const getUser = async (app, context, entity: {id: number}): Promise<User> => {
-    const user = await context.db.getUserById(entity.id);
+const getUser = async (app, ctx, entity: {id: number}): Promise<User> => {
+    const user = await ctx.db.getUserById(entity.id);
     return user;
 };
 

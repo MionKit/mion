@@ -6,10 +6,10 @@
  * ######## */
 
 import {DEFAULT_ROUTE_OPTIONS, DEFAULT_HOOK} from './constants';
-import {getPublicRoutes} from './publicRoutes';
+import {getPublicRoutes} from './publicMethods';
 import {registerRoutes, initRouter, reset} from './router';
 
-describe('Public Route Data should', () => {
+describe('Public Mothods should', () => {
     type SimpleUser = {name: string; surname: string};
     const hook = {hook(): void {}};
     const route1 = () => 'route1';

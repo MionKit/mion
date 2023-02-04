@@ -4,7 +4,7 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
-process.env.GENERATE_ROUTER_SPEC = 'true'; // required to generate public routes object
+process.env.GENERATE_ROUTER_SPEC = 'true'; // required to generate Public Methods object
 
 import {serializeType, deserializeType, reflect, Type, toSignature} from '@deepkit/type';
 import {DEFAULT_ROUTE_OPTIONS, getParamValidators, isFunctionType, Handler} from '@mikrokit/router';
@@ -22,7 +22,6 @@ describe('generate api spec should', () => {
 
     it('should get spec source file', () => {
         const tsSpec = getSpecFile(generateOptions, [myApi], ['myApi']);
-        console.log(tsSpec);
         expect(tsSpec).toBeTruthy();
     });
 
@@ -68,14 +67,11 @@ describe.skip('this is just investigation about how deepkit types serialization 
 
     const serializeDeserializeHandlerType = (handlerType: Type) => {
         if (!isFunctionType(handlerType)) throw 'Invalid handler';
-        console.log('toSignature', toSignature(handlerType as any));
         const serializedType = serializeType(handlerType);
         const json = JSON.stringify(serializedType);
         const restoredType = JSON.parse(json);
         const desHandlerType = deserializeType(restoredType);
         if (!isFunctionType(desHandlerType)) throw 'Invalid deserialized handler';
-        // console.log('handlerType', handlerType.parameters[1].type.jit);
-        // console.log('desHandlerType', desHandlerType.parameters[1].type.jit);
         return desHandlerType;
     };
 
@@ -109,7 +105,6 @@ describe.skip('this is just investigation about how deepkit types serialization 
 
         const validItem = {hello: 'world'};
 
-        console.log('validator', validators[0](validItem));
         expect(validators[0]('a')).toEqual(restoredValidators[0]('a'));
         expect(validators[0](validItem)).toEqual(restoredValidators[0](validItem));
     });

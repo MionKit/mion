@@ -8,9 +8,9 @@
 import {Options as PrettierOptions} from 'prettier';
 
 export type CodegenOptions = {
-    /** The path to the generated public routes file */
+    /** The path to the generated Public Methods file */
     outputFileName: string;
-    /** The path to the file where the public routes get exported. */
+    /** The path to the file where the Public Methods get exported. */
     entryFileName: string;
     /** path to tsConfig file. */
     tsConfigFilePath?: string;

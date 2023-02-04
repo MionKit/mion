@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {PublicRoutes} from '@mikrokit/router';
+import {PublicMethods} from '@mikrokit/router';
 import {existsSync} from 'fs';
 import {basename} from 'path';
 import {Project, Node, OutputFile} from 'ts-morph';
@@ -48,7 +48,7 @@ export function getExportedRoutesVarNames(options: CodegenOptions): string[] {
 
     if (!exportedPublicRoutesNames.length)
         throw new Error(
-            `No exported Public Routes found in entry file '${options.entryFileName}'.` +
+            `No exported Public Methods found in entry file '${options.entryFileName}'.` +
                 `\nPlease check you exporting a variable when calling @mikrokit/router.registerRoutes!`
         );
 

@@ -1,9 +1,9 @@
 import {RouteError, StatusCodes} from '@mikrokit/router';
 import type {Pet} from 'MyModels';
 
-export const getPet = (app, context: any, id: string): Promise<Pet> => {
+export const getPet = (app, ctx, id: string): Promise<Pet> => {
     try {
-        const pet = context.app.db.getPet(id);
+        const pet = app.db.getPet(id);
         if (!pet) {
             // Only statusCode and publicMessage will be returned in the response.body
             const statusCode = StatusCodes.BAD_REQUEST;
@@ -17,7 +17,7 @@ export const getPet = (app, context: any, id: string): Promise<Pet> => {
         const publicMessage = `Cant fetch data.`;
         /* 
          Full RouteError containing dbError message and stacktrace will be added
-         to context.request.internalErrors, so it can be logged or managed after
+         to ctx.request.internalErrors, so it can be logged or managed after
         */
         throw new RouteError(statusCode, publicMessage, undefined, dbError as Error);
     }
