@@ -49,7 +49,7 @@ export type RouteDef = {
 export type Route = RouteDef | Handler;
 
 /** Hook definition, a function that hooks into the execution path */
-export type HookDef<App = any, CallContext extends Context<any, any> = any> = {
+export type HookDef = {
     /** Executes the hook even if an error was thrown previously */
     forceRunOnError?: boolean;
     /** Enables returning data in the responseBody,
