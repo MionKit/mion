@@ -20,7 +20,7 @@ describe('tsApi should', () => {
 
     it('get exported declarations', () => {
         const exportedNames = getExportedRoutesVarNames(defaultOptions);
-        expect(exportedNames).toEqual(['myApi']);
+        expect(exportedNames).toEqual(['myApi', 'authApi']);
     });
 
     it('throw an error when tsConfig file is not found', () => {

@@ -44,9 +44,10 @@ import {
 } from './reflection';
 import {reflect, TypeFunction} from '@deepkit/type';
 import {getPublicRoutes} from './publicMethods';
+
 type RouterKeyEntryList = [string, Routes | HookDef | Route][];
 type RoutesWithId = {
-    path: string;
+    pathPointer: string[];
     routes: Routes;
 };
 
@@ -185,6 +186,8 @@ export const dispatchRoute = async <RawContext extends RawServerContext>(
     return context.response;
 };
 
+export const getRoutePathFromPointer = (route: Route, pointer: string[]) => getRoutePath(route, join(...pointer));
+
 export const getRoutePath = (route: Route, path: string) => {
     const routePath = join(ROUTE_PATH_ROOT, routerOptions.prefix, (route as RouteDef)?.path || path);
     return routerOptions.suffix ? routePath + routerOptions.suffix : routePath;
@@ -285,7 +288,7 @@ const serializeResponse = (response: Response, executable: Executable, result: a
 
 const recursiveFlatRoutes = (
     routes: Routes,
-    currentPath = '',
+    currentPointer: string[] = [],
     preHooks: Executable[] = [],
     postHooks: Executable[] = [],
     nestLevel = 0
@@ -294,42 +297,46 @@ const recursiveFlatRoutes = (
         throw new Error('Too many nested routes, you can only nest routes ${MAX_ROUTE_NESTING} levels');
 
     const entries = Object.entries(routes);
-    if (entries.length === 0) throw new Error(`Invalid route: ${currentPath || 'root Object'}. Can Not define empty routes`);
+    if (entries.length === 0)
+        throw new Error(`Invalid route: ${currentPointer.length ? join(...currentPointer) : '*'}. Can Not define empty routes`);
 
     let minus1Props: ReturnType<typeof getRouteEntryProperties> | null = null;
     entries.forEach(([key, item], index, array) => {
         // create the executable items
-        const path = join(currentPath, `${key}`);
+        const newPointer = [...currentPointer, key];
         let routeEntry: Executable | RoutesWithId;
         if (typeof key !== 'string' || !isNaN(key as any))
-            throw new Error(`Invalid route: ${path}. Numeric route names are not allowed`);
+            throw new Error(`Invalid route: ${join(...newPointer)}. Numeric route names are not allowed`);
 
         if (isHookDef(item)) {
-            routeEntry = getExecutableFromHook(item, path, nestLevel, key);
+            routeEntry = getExecutableFromHook(item, newPointer, nestLevel, key);
             const fieldName = routeEntry.fieldName;
             if (hookNames.has(fieldName))
                 throw new Error(
-                    `Invalid hook: ${path}. Naming collision, the fieldName '${fieldName}' has been used in more than one hook/route.`
+                    `Invalid hook: ${join(
+                        ...newPointer
+                    )}. Naming collision, the fieldName '${fieldName}' has been used in more than one hook/route.`
                 );
             hookNames.set(fieldName, true);
         } else if (isRoute(item)) {
-            routeEntry = getExecutableFromRoute(item, path, nestLevel);
-            if (routeNames.has(routeEntry.path)) throw new Error(`Invalid route: ${path}. Naming collision, duplicated route`);
+            routeEntry = getExecutableFromRoute(item, newPointer, nestLevel);
+            if (routeNames.has(routeEntry.path))
+                throw new Error(`Invalid route: ${join(...newPointer)}. Naming collision, duplicated route`);
             routeNames.set(routeEntry.path, true);
         } else if (isRoutes(item)) {
             routeEntry = {
-                path,
+                pathPointer: newPointer,
                 routes: item,
             };
         } else {
             const itemType = typeof item;
-            throw new Error(`Invalid route: ${path}. Type <${itemType}> is not a valid route.`);
+            throw new Error(`Invalid route: ${join(...newPointer)}. Type <${itemType}> is not a valid route.`);
         }
 
         // generates the routeExecutionPaths and recurse into sublevels
         minus1Props = recursiveCreateExecutionPath(
             routeEntry,
-            currentPath,
+            newPointer,
             preHooks,
             postHooks,
             nestLevel,
@@ -344,7 +351,7 @@ const recursiveFlatRoutes = (
 
 const recursiveCreateExecutionPath = (
     routeEntry: Executable | RoutesWithId,
-    currentPath: string,
+    currentPointer: string[],
     preHooks: Executable[],
     postHooks: Executable[],
     nestLevel: number,
@@ -363,8 +370,8 @@ const recursiveCreateExecutionPath = (
         routeKeyedEntries.forEach(([k, entry], i) => {
             complexity++;
             if (!isHookDef(entry)) return;
-            const path = join(currentPath, `${k}`);
-            const executable = getExecutableFromHook(entry, path, nestLevel, k);
+            const newPointer = [...currentPointer.slice(0, -1), k];
+            const executable = getExecutableFromHook(entry, newPointer, nestLevel, k);
             if (i < index) return props.preLevelHooks.push(executable);
             if (i > index) return props.postLevelHooks.push(executable);
         });
@@ -377,7 +384,7 @@ const recursiveCreateExecutionPath = (
     } else if (!isExec) {
         recursiveFlatRoutes(
             routeEntry.routes,
-            routeEntry.path,
+            routeEntry.pathPointer,
             [...preHooks, ...props.preLevelHooks],
             [...props.postLevelHooks, ...postHooks],
             nestLevel + 1
@@ -387,29 +394,31 @@ const recursiveCreateExecutionPath = (
     return props;
 };
 
-const getHandler = (entry: HookDef | Route, path): Handler => {
+const getHandler = (entry: HookDef | Route, pathPointer: string[]): Handler => {
     const handler = isHandler(entry) ? entry : (entry as HookDef).hook || (entry as RouteDef).route;
-    if (!isHandler(handler)) throw new Error(`Invalid route: ${path}. Missing route handler`);
+    if (!isHandler(handler)) throw new Error(`Invalid route: ${join(...pathPointer)}. Missing route handler`);
     return handler;
 };
 
-const getExecutableFromHook = (hook: HookDef, path: string, nestLevel: number, key: string): HookExecutable<Handler> => {
+const getExecutableFromHook = (hook: HookDef, hookPointer: string[], nestLevel: number, key: string): HookExecutable<Handler> => {
     const hookName = getHookFieldName(hook, key);
     const existing = hooksByFieldName.get(hookName);
     if (existing) return existing as HookExecutable<Handler>;
-    const handler = getHandler(hook, path);
+    const handler = getHandler(hook, hookPointer);
 
     if (!!hook.inHeader && handler.length > ROUTE_DEFAULT_PARAM.length + 1) {
-        throw new Error(`Invalid Hook: ${path}. In header hooks can only have a single parameter besides App and Context.`);
+        throw new Error(
+            `Invalid Hook: ${join(...hookPointer)}. In header hooks can only have a single parameter besides App and Context.`
+        );
     }
 
     if (hookName === 'errors') {
-        throw new Error(`Invalid Hook: ${path}. The 'errors' fieldName is reserver for the router.`);
+        throw new Error(`Invalid Hook: ${join(...hookPointer)}. The 'errors' fieldName is reserver for the router.`);
     }
 
     const handlerType = reflect(handler) as TypeFunction;
     const executable: HookExecutable<Handler> = {
-        path,
+        path: hookName,
         forceRunOnError: !!hook.forceRunOnError,
         canReturnData: !!hook.canReturnData,
         inHeader: !!hook.inHeader,
@@ -425,17 +434,18 @@ const getExecutableFromHook = (hook: HookDef, path: string, nestLevel: number, k
         enableValidation: hook.enableValidation ?? routerOptions.enableValidation,
         enableSerialization: hook.enableSerialization ?? routerOptions.enableSerialization,
         src: hook,
+        selfPointer: hookPointer,
     };
     delete (executable as any).hook;
     hooksByFieldName.set(hookName, executable);
     return executable;
 };
 
-const getExecutableFromRoute = (route: Route, path: string, nestLevel: number): RouteExecutable<Handler> => {
-    const routePath = getRoutePath(route, path);
+const getExecutableFromRoute = (route: Route, routePointer: string[], nestLevel: number): RouteExecutable<Handler> => {
+    const routePath = getRoutePathFromPointer(route, routePointer);
     const existing = routesByPath.get(routePath);
     if (existing) return existing as RouteExecutable<Handler>;
-    const handler = getHandler(route, routePath);
+    const handler = getHandler(route, routePointer);
     const routeObj = isHandler(route) ? {...DEFAULT_ROUTE} : {...DEFAULT_ROUTE, ...route};
     const handlerType = reflect(handler) as TypeFunction;
     const executable: RouteExecutable<Handler> = {
@@ -455,6 +465,7 @@ const getExecutableFromRoute = (route: Route, path: string, nestLevel: number): 
         enableValidation: (route as RouteDef).enableValidation ?? routerOptions.enableValidation,
         enableSerialization: (route as RouteDef).enableSerialization ?? routerOptions.enableSerialization,
         src: routeObj,
+        selfPointer: routePointer,
     };
     delete (executable as any).route;
     routesByPath.set(routePath, executable);

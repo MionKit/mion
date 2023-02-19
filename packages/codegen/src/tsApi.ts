@@ -5,7 +5,6 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {PublicMethods} from '@mikrokit/router';
 import {existsSync} from 'fs';
 import {basename} from 'path';
 import {Project, Node, OutputFile} from 'ts-morph';

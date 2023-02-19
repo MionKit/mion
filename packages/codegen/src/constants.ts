@@ -11,5 +11,8 @@ export const DEFAULT_PRETTIER_OPTIONS: PrettierOptions = {
     singleQuote: true,
     printWidth: 200,
     trailingComma: 'es5',
-    parser: 'babel',
+    parser: 'typescript',
 };
+
+export const PUBLIC_METHODS_SPEC_EXPORT_NAME = 'PUBLIC_METHODS';
+export const ROUTES_SPEC_EXPORT_NAME = 'ROUTES';

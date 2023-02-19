@@ -5,6 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
+import {PublicMethod} from '@mikrokit/router';
 import {Options as PrettierOptions} from 'prettier';
 
 export type CodegenOptions = {
@@ -18,4 +19,12 @@ export type CodegenOptions = {
     importAsPackage?: boolean;
     /** Prettier options for the generated code. */
     prettierOptions?: PrettierOptions;
+};
+
+export type PublicMethodsSpec = {
+    [key: string]: PublicMethodsSpec | PublicMethod;
+};
+
+export type RoutesSpec = {
+    [key: string]: RoutesSpec | PublicMethod[];
 };
