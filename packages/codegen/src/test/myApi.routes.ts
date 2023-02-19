@@ -39,9 +39,14 @@ export const myApiRoutes = {
     last: {hook(): void {}},
 };
 
+export const publicEndpoints = {
+    login: (app, ctx, email: string, pass: string): string => 'AUTH-TOKEN-XWZ',
+};
+
 export const myApp = {db: {query: (params): null => null}};
 export const getSharedData = (): Obj => ({});
 export const options: Partial<RouterOptions> = {prefix: 'v1', generateSpec: true};
 
 initRouter(myApp, getSharedData, options);
 export const myApi = registerRoutes(myApiRoutes);
+export const authApi = registerRoutes(publicEndpoints);

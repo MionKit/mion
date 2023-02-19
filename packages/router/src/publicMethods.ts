@@ -7,7 +7,7 @@
 
 import {join} from 'path';
 import {ROUTE_DEFAULT_PARAM} from './constants';
-import {getHookExecutable, getHookFieldName, getRouteExecutable, getRoutePath} from './router';
+import {getHookExecutable, getHookFieldName, getRouteExecutable, getRouteExecutionPath, getRoutePath} from './router';
 import {
     Executable,
     Handler,
@@ -17,8 +17,9 @@ import {
     PublicMethods,
     PublicHandler,
     PublicHook,
-    PublicMethod,
+    PublicRoute,
     Routes,
+    isPuplicExecutable,
 } from './types';
 
 /**
@@ -45,7 +46,7 @@ const recursiveGetPublicRoutes = <R extends Routes>(routes: R, currentPointer: s
             const executable = getRouteExecutable(path);
             if (!executable)
                 throw new Error(`Route '${path}' not found in router. Please check you have called router.addRoutes first!`);
-            publicData[key] = getPublicMethodFromExecutable(executable, newPointerAsString);
+            publicData[key] = getPublicRouteFromExecutable(executable, newPointerAsString);
         } else {
             const subRoutes: Routes = routes[key] as Routes;
             publicData[key] = recursiveGetPublicRoutes(subRoutes, newPointer);
@@ -55,7 +56,7 @@ const recursiveGetPublicRoutes = <R extends Routes>(routes: R, currentPointer: s
     return publicData;
 };
 
-const getPublicMethodFromExecutable = <H extends Handler>(executable: Executable, propertyPonter: string): PublicMethod<H> => {
+const getPublicRouteFromExecutable = <H extends Handler>(executable: Executable, propertyPonter: string): PublicRoute<H> => {
     return {
         isRoute: true,
         canReturnData: true,
@@ -66,6 +67,10 @@ const getPublicMethodFromExecutable = <H extends Handler>(executable: Executable
         enableValidation: executable.enableValidation,
         enableSerialization: executable.enableSerialization,
         params: executable.handlerType.parameters.map((tp) => tp.name).slice(ROUTE_DEFAULT_PARAM.length),
+        publicExecutionPathPointers:
+            getRouteExecutionPath(executable.path)
+                ?.filter((exec) => isPuplicExecutable(exec))
+                .map((exec) => exec.selfPointer) || [],
     };
 };
 

@@ -136,6 +136,7 @@ export type Executable = {
     src: RouteDef | HookDef;
     enableValidation: boolean;
     enableSerialization: boolean;
+    selfPointer: string[];
 };
 
 export type RouteExecutable<H extends Handler> = Executable & {
@@ -238,9 +239,9 @@ export type PublicMethods<Type extends Routes> = {
     [Property in keyof Type]: Type[Property] extends HookDef
         ? PublicHook<Type[Property]['hook']>
         : Type[Property] extends RouteDef
-        ? PublicMethod<Type[Property]['route']>
+        ? PublicRoute<Type[Property]['route']>
         : Type[Property] extends Handler
-        ? PublicMethod<Type[Property]>
+        ? PublicRoute<Type[Property]>
         : Type[Property] extends Routes
         ? PublicMethods<Type[Property]>
         : never;
@@ -250,7 +251,7 @@ export type PublicHandler<H extends Handler> = H extends (app: any, ctx: Context
     ? (...rest: Req) => Promise<Awaited<Resp>>
     : never;
 
-export type PublicMethod<H extends Handler> = {
+export type PublicRoute<H extends Handler> = {
     /** This is actually null, it is included only too reference static types */
     handlerType: PublicHandler<H>;
     isRoute: true;
@@ -260,6 +261,7 @@ export type PublicMethod<H extends Handler> = {
     enableValidation: boolean;
     enableSerialization: boolean;
     params: string[];
+    publicExecutionPathPointers?: string[][];
 };
 
 export type PublicHook<H extends Handler> = {
@@ -273,6 +275,8 @@ export type PublicHook<H extends Handler> = {
     enableSerialization: boolean;
     params: string[];
 };
+
+export type PublicMethod<H extends Handler = any> = PublicRoute<H> | PublicHook<H>;
 
 // #######  reflection #######
 
@@ -303,14 +307,22 @@ export const isRoutes = (entry: any): entry is Route => {
     return typeof entry === 'object';
 };
 /** Type guard: isExecutable */
-export const isExecutable = (entry: Executable | {path: string}): entry is Executable => {
+export const isExecutable = (entry: Executable | {pathPointer: string[]}): entry is Executable => {
     return (
-        typeof entry.path === 'string' &&
+        typeof (entry as Executable)?.path === 'string' &&
         ((entry as any).routes === 'undefined' || typeof (entry as Executable).handler === 'function')
     );
 };
 
-export const isPublicRoutes = (entry: PublicMethods<any> | PublicMethod<any> | PublicHook<any>): entry is PublicMethods<any> => {
+export const isPuplicExecutable = (entry: Executable): entry is Executable => {
+    return entry.canReturnData || !!entry.paramValidators.length;
+};
+
+export const isPuplicMethod = (entry: PublicRoute<any> | PublicHook<any>): entry is PublicMethod<any> => {
+    return entry.canReturnData || !!entry.params.length;
+};
+
+export const isPublicRoutes = (entry: PublicMethods<any> | PublicRoute<any> | PublicHook<any>): entry is PublicMethods<any> => {
     return typeof entry.handlerType !== 'function' && typeof entry.handlerType !== 'string'; // string is the real value
 };
 

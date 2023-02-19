@@ -38,6 +38,7 @@ describe('Create routes should', () => {
             setUser: route2,
             pets: {
                 getUserPet: route2,
+                userPetsAfter: hook,
             },
             userAfter: hook,
         },
@@ -54,24 +55,35 @@ describe('Create routes should', () => {
             fieldName: 'first',
             isRoute: false,
             paramValidators: [],
+            selfPointer: ['first'],
         },
         userBefore: {
-            path: 'users/userBefore',
+            path: 'userBefore',
             fieldName: 'userBefore',
             isRoute: false,
             paramValidators: [],
+            selfPointer: ['users', 'userBefore'],
         },
         userAfter: {
-            path: 'users/userAfter',
+            path: 'userAfter',
             fieldName: 'userAfter',
             isRoute: false,
             paramValidators: [],
+            selfPointer: ['users', 'userAfter'],
+        },
+        userPetsAfter: {
+            path: 'userPetsAfter',
+            fieldName: 'userPetsAfter',
+            isRoute: false,
+            paramValidators: [],
+            selfPointer: ['users', 'pets', 'userPetsAfter'],
         },
         last: {
             path: 'last',
             fieldName: 'last',
             isRoute: false,
             paramValidators: [],
+            selfPointer: ['last'],
         },
     };
 
@@ -81,18 +93,21 @@ describe('Create routes should', () => {
             fieldName: '/users/getUser',
             isRoute: true,
             paramValidators: [],
+            selfPointer: ['users', 'getUser'],
         },
         usersPetsGetUserPet: {
             path: '/users/pets/getUserPet',
             fieldName: '/users/pets/getUserPet',
             isRoute: true,
             paramValidators: [],
+            selfPointer: ['users', 'pets', 'getUserPet'],
         },
         petsGetPet: {
             path: '/pets/getPet',
             fieldName: '/pets/getPet',
             isRoute: true,
             paramValidators: [],
+            selfPointer: ['pets', 'getPet'],
         },
     };
 
@@ -103,7 +118,7 @@ describe('Create routes should', () => {
         registerRoutes(routes);
 
         expect(geRoutesSize()).toEqual(5);
-        expect(geHooksSize()).toEqual(4);
+        expect(geHooksSize()).toEqual(5);
 
         expect(getRouteExecutionPath('/users/getUser')).toEqual([
             expect.objectContaining({...hookExecutables.first}),
@@ -117,6 +132,7 @@ describe('Create routes should', () => {
             expect.objectContaining({...hookExecutables.first}),
             expect.objectContaining({...hookExecutables.userBefore}),
             expect.objectContaining({...routeExecutables.usersPetsGetUserPet}),
+            expect.objectContaining({...hookExecutables.userPetsAfter}),
             expect.objectContaining({...hookExecutables.userAfter}),
             expect.objectContaining({...hookExecutables.last}),
         ]);
@@ -191,7 +207,7 @@ describe('Create routes should', () => {
         registerRoutes(routes);
 
         expect(geRoutesSize()).toEqual(5);
-        expect(geHooksSize()).toEqual(4);
+        expect(geHooksSize()).toEqual(5);
 
         expect(getRouteExecutionPath('/api/v1/users/getUser.json')).toBeTruthy();
         expect(getRouteExecutionPath('/api/v1/users/setUser.json')).toBeTruthy();
@@ -231,7 +247,7 @@ describe('Create routes should', () => {
         const invalidValues = {sayHello: {total: 2}};
         const numericNames = {directory: {2: route1}};
 
-        expect(() => registerRoutes(empty)).toThrow('Invalid route: root Object. Can Not define empty routes');
+        expect(() => registerRoutes(empty)).toThrow('Invalid route: *. Can Not define empty routes');
         expect(() => registerRoutes(emptySub)).toThrow('Invalid route: sayHello. Can Not define empty routes');
         expect(() => registerRoutes(invalidValues as any)).toThrow(
             'Invalid route: sayHello/total. Type <number> is not a valid route.'
@@ -351,7 +367,7 @@ describe('Create routes should', () => {
     });
 });
 
-describe('Run routes', () => {
+describe('Dispatch routes', () => {
     type SimpleUser = {
         name: string;
         surname: string;
