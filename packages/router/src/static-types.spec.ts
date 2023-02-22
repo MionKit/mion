@@ -7,10 +7,11 @@
 
 import {typeOf, ReceiveType, resolveReceiveType, reflect} from '@deepkit/type';
 import {getOutputSerializer, getParamsDeserializer, getParamValidators} from './reflection';
-import {Context, isFunctionType, RouteParamValidator} from './types';
+import {Context, isFunctionType, RouteParamValidator, Routes} from './types';
 import {DEFAULT_ROUTE_OPTIONS} from './constants';
 import {HookString, SHook, SRoute, RouteDef} from './static-types';
 import {inspect} from 'util';
+import {API} from './constants';
 
 const printS = {showHidden: true, depth: 8, colors: true};
 
@@ -105,6 +106,34 @@ describe('Static types reflection exploratory work', () => {
         typeFromClass(User1);
         // interfaces can't be used as those are pure types and gets completelly erased during compilie time
         // typeFromClass(User2);
+        expect(true).toEqual(true);
+    });
+
+    it('using receivedType for client', () => {
+        type Rute<Args extends any[]> = (...args: Args) => any;
+
+        function client<T>(type?: ReceiveType<T>) {
+            console.log('type', inspect(type, printS));
+            const rtype = resolveReceiveType(type);
+            console.log('receivedType client', inspect(rtype, printS));
+        }
+
+        const auth: Rute<[string]> = (token): boolean => token === 'ABC';
+        const counter = Math.random();
+
+        const api = {
+            auth,
+            abc: 'hello',
+            cdf: true,
+            acd: counter === 0.91,
+        };
+
+        console.log('typeof testApi');
+        client<API>();
+
+        console.log('typeof api');
+        client<typeof api>();
+        //console.log('interface reflect', inspect(reflect(api), printS));
         expect(true).toEqual(true);
     });
 });

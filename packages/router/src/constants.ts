@@ -95,3 +95,11 @@ export const HOOK_KEYS = Object.keys(DEFAULT_HOOK);
 export const MAX_ROUTE_NESTING = 10;
 
 export const ROUTE_DEFAULT_PARAM = ['app', 'context'];
+
+export const testApi = {
+    abc: 'hello',
+    cdf: true,
+    acd: false,
+};
+
+export type API = typeof testApi;
