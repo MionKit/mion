@@ -9,7 +9,7 @@ import {PublicMethods, isPublicRoutes, ROUTE_DEFAULT_PARAM} from '@mikrokit/rout
 import {parse} from 'path';
 import type {CodegenOptions} from './types';
 // @ypes/cross-spawn is not updated,, once it gets updated we could use normal es6 import
-import spawn = require('cross-spawn');
+const spawn = require('cross-spawn'); // eslint-disable-line @typescript-eslint/no-var-requires
 
 /** Resturns the TS Spec Source Code */
 export const getSpecFile = (options: CodegenOptions, routesList: PublicMethods<any>[], exportNames: string[]) => {

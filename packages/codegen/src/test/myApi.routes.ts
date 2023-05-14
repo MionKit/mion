@@ -39,6 +39,8 @@ export const myApiRoutes = {
     last: {hook(): void {}},
 };
 
+export type MyApiRoutes = typeof myApiRoutes;
+
 export const myApp = {db: {query: (params): null => null}};
 export const getSharedData = (): Obj => ({});
 export const options: Partial<RouterOptions> = {prefix: 'v1', generateSpec: true};
