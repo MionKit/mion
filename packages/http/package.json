@@ -47,7 +47,7 @@
     "format": "prettier --write src/**/*.ts",
     "build:csj": "rimraf .dist/csj && tsc --build tsconfig.build.json",
     "build:esm": "rimraf .dist/esm && tsc --build tsconfig.build-esm.json",
-    "build:": "npm run build:csj && npm run build:esm",
+    "build": "npm run build:csj && npm run build:esm",
     "auto-readme": "embedme **/*.md && prettier --write **/*.md",
     "clean": "rimraf .dist"
   },
