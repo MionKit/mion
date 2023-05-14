@@ -28,7 +28,7 @@ export const mikrokitSayHelloRoute: Route = (): SayHello => ({hello: 'world'});
 
 export const routes: Routes = {
     '/': mikrokitSayHelloRoute,
-    updateUser: (context, user: User): User => {
+    updateUser: (app: App, context, user: User): User => {
         return {
             ...user,
             lastUpdate: new Date(),
