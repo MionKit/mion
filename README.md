@@ -29,11 +29,11 @@
   - Automatic random generator
   - Getting more track then deepkit and main maintainer seems less of a personality then the one from deepkit
   - has AOT compilation and outputs better (lees) code. ATM deepkit seems to import all typescript compiler (maybe a bug?)
-  - types are declared in comments rather than types.
 
 - Typia cons:
   - code quality seem to be worst than deepkit
   - having the metadata during the runtime instead generating functions is lees flexible than having the type information at runtime
+  - types are declared in comments rather than types.
 
 ## Tests
 
