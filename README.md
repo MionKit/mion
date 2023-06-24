@@ -11,7 +11,7 @@
 </p>
 
 <p align=center>
-  <img src="https://img.shields.io/travis/mion/mion.svg?style=flat-square&maxAge=86400" alt="Travis" style="max-width:100%;">
+  <img src="https://img.shields.io/travis/MionKit/mion.svg?style=flat-square&maxAge=86400" alt="Travis" style="max-width:100%;">
   <img src="https://img.shields.io/badge/code_style-prettier-ff69b4.svg?style=flat-square&maxAge=99999999" alt="npm"  style="max-width:100%;">
   <img src="https://img.shields.io/badge/license-MIT-97ca00.svg?style=flat-square&maxAge=99999999" alt="npm"  style="max-width:100%;">
 </p>
@@ -43,7 +43,7 @@ With that in mind **mion is designed to quickly build lightweight Apis**. It is 
 
 - Convention over configuration.
 - Prioritizes developer experience and performance over existing conventions.
-- Lightweight by design. [Some benchmarks here!](https://github.com/mion/benchmarks) 🚀
+- Lightweight by design. [Some benchmarks here!](https://github.com/MionKit/benchmarks) 🚀
 <!-- - Tightly Integration between Routing + Data (Aka the mion way). -->
 
 #### !! mion is currently under heavy development
@@ -192,7 +192,7 @@ const getYser = async (context: Context, userId:number): Promise<User> => contex
 
 <!--
 ```sh
-npx degit https://github.com/mion/mion-base
+npx degit https://github.com/MionKit/mion-base
 ```
 
 #### Or manually intall in your own project -->
