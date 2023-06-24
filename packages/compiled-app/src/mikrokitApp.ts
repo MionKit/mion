@@ -1,13 +1,13 @@
 /* ########
- * 2022 MikroKit
+ * 2022 mion
  * Author: Ma-jerez
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {initHttpApp} from '@mikrokit/http';
-import {registerRoutes} from '@mikrokit/router';
-import type {RouterOptions, Routes, Route} from '@mikrokit/router';
+import {initHttpApp} from '@mionkit/http';
+import {registerRoutes} from '@mionkit/router';
+import type {RouterOptions, Routes, Route} from '@mionkit/router';
 
 interface User {
     id: number;
@@ -24,10 +24,10 @@ export type Shared = typeof SharedArrayBuffer;
 export type HelloReply = {hello: string};
 type SayHello = {hello: string};
 
-export const mikrokitSayHelloRoute: Route = (): SayHello => ({hello: 'world'});
+export const mionSayHelloRoute: Route = (): SayHello => ({hello: 'world'});
 
 export const routes: Routes = {
-    '/': mikrokitSayHelloRoute,
+    '/': mionSayHelloRoute,
     updateUser: (app: App, context, user: User): User => {
         return {
             ...user,

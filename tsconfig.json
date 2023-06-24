@@ -10,19 +10,14 @@
     "emitDecoratorMetadata": true,
     "experimentalDecorators": true,
     "target": "es6",
-    "lib": [
-      "es6",
-      "ES2021"
-    ],
+    "lib": ["es6", "ES2021"],
     "outDir": ".dist",
     "composite": true,
     "declaration": true,
     "declarationMap": true,
     "sourceMap": true,
     "paths": {
-      "@mikrokit/*": [
-        "packages/*"
-      ]
+      "@mionkit/*": ["packages/*"]
     },
     "plugins": [
       {
@@ -32,10 +27,7 @@
     "strictNullChecks": true
   },
   "reflection": true,
-  "exclude": [
-    "node_modules",
-    ".dist"
-  ],
+  "exclude": ["node_modules", ".dist"],
   "references": [
     {
       "path": "packages/router"

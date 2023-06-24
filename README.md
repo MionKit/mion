@@ -1,12 +1,16 @@
 <p align="center">
-  <img alt='MikroKit, a mikro kit for Typescript Serverless APIs' src='./assets/public/logo.svg?raw=true' width="403" height="150">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="./assets/public/logo-dark.svg?raw=true">
+    <source media="(prefers-color-scheme: light)" srcset="./assets/public/logo.svg?raw=true">
+    <img alt='mion, a mikro kit for Typescript Serverless APIs' src='./assets/public/logo.svg?raw=true' width="403" height="150">
+  </picture>
 </p>
+
 <p align="center">
   <strong>Typescript Apis at the speed of light 🚀</strong><br/>.
 </p>
 
 <p align=center>
-  <img src="https://img.shields.io/travis/mikrokit/mikrokit.svg?style=flat-square&maxAge=86400" alt="Travis" style="max-width:100%;">
   <img src="https://img.shields.io/badge/code_style-prettier-ff69b4.svg?style=flat-square&maxAge=99999999" alt="npm"  style="max-width:100%;">
   <img src="https://img.shields.io/badge/license-MIT-97ca00.svg?style=flat-square&maxAge=99999999" alt="npm"  style="max-width:100%;">
 </p>
@@ -16,7 +20,7 @@
 1. Serverless applications have different requirements than conventional server apps.
 2. There are not yet many frameworks that offers type safe apis with automatic validation and serialization out of the box.
 
-With that in mind **MikroKit is designed to quickly build lightweight Apis**. It is a very opinionated and lightweight framework with simplicity, and developer experience in mind.
+With that in mind **mion is designed to quickly build lightweight Apis**. It is a very opinionated and lightweight framework with simplicity, and developer experience in mind.
 
 ## `Features`
 
@@ -53,22 +57,22 @@ Cons of typia:
 
 ## `Opinionated`
 
-**MikroKit is oriented towards** a very specific scenario, that is **Apis that works with json data only**. MikroKit architecture might not always be the best or suit every scenario, but are always taken with quick development, lightweight execution and minimum abstractions in mind. **_!Simplicity can be the best pattern!_**
+**mion is oriented towards** a very specific scenario, that is **Apis that works with json data only**. mion architecture might not always be the best or suit every scenario, but are always taken with quick development, lightweight execution and minimum abstractions in mind. **_!Simplicity can be the best pattern!_**
 
 - Convention over configuration.
 - Prioritizes developer experience and performance over existing conventions.
-- Lightweight by design. [Some benchmarks here!](https://github.com/MikroKit/benchmarks) 🚀
-<!-- - Tightly Integration between Routing + Data (Aka the MikroKit way). -->
+- Lightweight by design. [Some benchmarks here!](https://github.com/MionKit/benchmarks) 🚀
+<!-- - Tightly Integration between Routing + Data (Aka the mion way). -->
 
-#### !! MikroKit is currently under heavy development
+#### !! mion is currently under heavy development
 
 <!-- ### Automatic Validation and Serialization
 
-MikroKit uses `@deepkit/type` library from [Deepkit](https://deepkit.io/) to bring types to the runtime world. This opens a new world of possibilities. Please check Deepkit's documentation for installation, validation and serialization instructions. -->
+mion uses `@deepkit/type` library from [Deepkit](https://deepkit.io/) to bring types to the runtime world. This opens a new world of possibilities. Please check Deepkit's documentation for installation, validation and serialization instructions. -->
 
 ## `RPC like`
 
-Here is where MikroKit starts to deviate from traditional frameworks. [The router](./packages/router/README.md) uses a **Remote Procedure Call** style routing, unlike traditional routers it does not use `GET`, `PUT`, `POST` and `DELETE` methods, everything is transmitted using `HTTP POST` method and all data is sent/received in the request/response `body` and `headers`.
+Here is where mion starts to deviate from traditional frameworks. [The router](./packages/router/README.md) uses a **Remote Procedure Call** style routing, unlike traditional routers it does not use `GET`, `PUT`, `POST` and `DELETE` methods, everything is transmitted using `HTTP POST` method and all data is sent/received in the request/response `body` and `headers`.
 
 ### Requests & Responses
 
@@ -100,7 +104,7 @@ The reason for this naming is to future proof the router to be able to accept mu
 ```js
 // packages/router/examples/routes-definition.routes.ts
 
-import {setRouterOptions, registerRoutes} from '@mikrokit/router';
+import {setRouterOptions, registerRoutes} from '@mionkit/router';
 
 const sayHello = (app, ctx, name: string): string => {
   return `Hello ${name}.`;
@@ -123,7 +127,7 @@ export const apiSpec = registerRoutes(routes);
 
 ## `Automatic Serialization & Validation`
 
-Mikrokit uses [Deepkit's runtime types](https://deepkit.io/) for automatic [validation](https://docs.deepkit.io/english/validation.html) and [serialization/deserialization](https://docs.deepkit.io/english/serialization.html). Thanks to Deepkit's magic the type information is available at runtime and the data can be auto-magically Validated and Serialized.
+mion uses [Deepkit's runtime types](https://deepkit.io/) for automatic [validation](https://docs.deepkit.io/english/validation.html) and [serialization/deserialization](https://docs.deepkit.io/english/serialization.html). Thanks to Deepkit's magic the type information is available at runtime and the data can be auto-magically Validated and Serialized.
 
 Runtime types allow for a completely new set of capabilities. Please check Deepkit's documentation for install instructions and more information:
 
@@ -140,7 +144,7 @@ Runtime types allow for a completely new set of capabilities. Please check Deepk
 ```ts
 // packages/router/examples/get-user-request.routes.ts
 
-import {registerRoutes, initRouter} from '@mikrokit/router';
+import {registerRoutes, initRouter} from '@mionkit/router';
 import type {User} from 'MyModels';
 
 const getUser = async (app, ctx, entity: {id: number}): Promise<User> => {
@@ -202,11 +206,11 @@ const getYser = async (context: Context, userId:number): Promise<User> => contex
 
 ## `Quick start`
 
-#### You can use MikroKit base project.
+#### You can use mion base project.
 
 <!--
 ```sh
-npx degit https://github.com/mikrokit/mikrokit-base
+npx degit https://github.com/MionKit/mion-base
 ```
 
 #### Or manually intall in your own project -->
@@ -234,10 +238,10 @@ npm install --save @deepkit/type
 npm install --save-dev @deepkit/type-compiler @deepkit/core
 ```
 
-<!-- Install MikroKit CLI.
+<!-- Install mion CLI.
 
 ```sh
-npm install mikrokit
+npm install mion
 ``` -->
 
 ## `Contributing`
@@ -251,17 +255,17 @@ This project is a monorepo managed using npm [workspaces](https://docs.npmjs.com
 **_!! ALL Dev Dependencies mus be installed in root package !!_**
 
 Each package within this monorepo is compiled using and tested individually using typescript and [jest](https://jestjs.io/).
-To run an npm command in a workspace, `npx nx run <package>:<npm-script>`, i.e: `npx nx run @mikrokit/router:build`
+To run an npm command in a workspace, `npx nx run <package>:<npm-script>`, i.e: `npx nx run @mionkit/router:build`
 
 ```sh
-## run jest tests in @mikrokit/router
-npx nx run @mikrokit/router:test
+## run jest tests in @mionkit/router
+npx nx run @mionkit/router:test
 
 ## run jest in all packages
 npx lerna run test
 
-## compiles typescript in @mikrokit/router
-npx nx run @mikrokit/router:build
+## compiles typescript in @mionkit/router
+npx nx run @mionkit/router:build
 
 ## compiles typescript in all packages (NX will build only whats required)
 npx lerna run build
@@ -284,7 +288,7 @@ npm run format && npm run lint
   <!-- - [AWS Cognito](https://aws.amazon.com/cognito/) -->
   <!-- - [Postgres.js](https://github.com/porsager/postgres) -->
 
-<!-- ![powered by: deepkit, serverless, mikrokit](./assets/public/tech-stack-830x100.png?raw=true) &nbsp;&nbsp; -->
+<!-- ![powered by: deepkit, serverless, mion](./assets/public/tech-stack-830x100.png?raw=true) &nbsp;&nbsp; -->
 
 ---
 

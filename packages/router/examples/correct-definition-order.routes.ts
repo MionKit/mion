@@ -1,4 +1,4 @@
-import {registerRoutes} from '@mikrokit/router';
+import {registerRoutes} from '@mionkit/router';
 
 const authorizationHook = {hook(): void {}};
 const userOnlyHook = {hook(): void {}};

@@ -1,4 +1,4 @@
-import {registerRoutes, initRouter} from '@mikrokit/router';
+import {registerRoutes, initRouter} from '@mionkit/router';
 import type {User} from 'MyModels';
 
 const getUser = async (app, ctx, entity: {id: number}): Promise<User> => {

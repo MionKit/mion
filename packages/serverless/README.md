@@ -1,25 +1,28 @@
 <p align="center">
-  <img alt="Typescript Serverless Apis at the speed of light" width="" src='../../assets/public/bannerx90.png?raw=true'>
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="../../assets/public/bannerx90-dark.png?raw=true">
+    <source media="(prefers-color-scheme: light)" srcset="../../assets/public/bannerx90.png?raw=true">
+    <img alt='mion, a mikro kit for Typescript Serverless APIs' src='../../assets/public/bannerx90.png?raw=true'>
+  </picture>
 </p>
 <p align="center">
-  <strong>MikroKit Serverless Router for quick Api development.
+  <strong>mion Serverless Router for quick Api development.
   </strong>
 </p>
 <p align=center>
-  <img src="https://img.shields.io/travis/mikrokit/mikrokit.svg?style=flat-square&maxAge=86400" alt="Travis" style="max-width:100%;">
   <img src="https://img.shields.io/badge/code_style-prettier-ff69b4.svg?style=flat-square&maxAge=99999999" alt="npm"  style="max-width:100%;">
   <img src="https://img.shields.io/badge/license-MIT-97ca00.svg?style=flat-square&maxAge=99999999" alt="npm"  style="max-width:100%;">
 </p>
 
-# `@mikrokit/serverless`
+# `@mionkit/serverless`
 
-**_[MikroKit Router](../router/README.md) is an RPC like router oriented for quick Api development,_** &nbsp; it is agnostic about the server or serverless environment it is used on. It could be used on aws lambda, azure functions, Google cloud functions, or any event based environment.
+**_[mion Router](../router/README.md) is an RPC like router oriented for quick Api development,_** &nbsp; it is agnostic about the server or serverless environment it is used on. It could be used on aws lambda, azure functions, Google cloud functions, or any event based environment.
 
 This package contains a collection bindings for different serverless environments.
 
 ## `RPC like router`
 
-MikroKit router uses a **Remote Procedure Call** style routing, unlike traditional routers it does not use `GET`, `PUT`, `POST` and `DELETE` methods, everything is transmitted using `HTTP POST` method and all data is sent/received in the request/response `body` and `headers`.
+mion router uses a **Remote Procedure Call** style routing, unlike traditional routers it does not use `GET`, `PUT`, `POST` and `DELETE` methods, everything is transmitted using `HTTP POST` method and all data is sent/received in the request/response `body` and `headers`.
 
 ### Requests & Responses
 
@@ -44,7 +47,7 @@ The reason for this weird naming is to future proof the router to be able to acc
 ```js
 // ../router/examples/routes-definition.routes.ts
 
-import {setRouterOptions, registerRoutes} from '@mikrokit/router';
+import {setRouterOptions, registerRoutes} from '@mionkit/router';
 
 const sayHello = (app, ctx, name: string): string => {
   return `Hello ${name}.`;
@@ -70,8 +73,8 @@ export const apiSpec = registerRoutes(routes);
 ```ts
 // examples/full-example-serverless.routes.ts
 
-import {initAwsLambdaApp, lambdaHandler} from '@mikrokit/serverless';
-import {Context, registerRoutes, Route} from '@mikrokit/router';
+import {initAwsLambdaApp, lambdaHandler} from '@mionkit/serverless';
+import {Context, registerRoutes, Route} from '@mionkit/router';
 import {AwsRawServerContext} from '../src/types';
 
 // #### App ####

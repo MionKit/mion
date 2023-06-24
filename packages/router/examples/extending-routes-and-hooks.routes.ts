@@ -1,4 +1,4 @@
-import {Route, HookDef} from '@mikrokit/router';
+import {Route, HookDef} from '@mionkit/router';
 
 type MyRoute = Route & {doNotFail: boolean};
 type MyHook = HookDef & {shouldLog: boolean};

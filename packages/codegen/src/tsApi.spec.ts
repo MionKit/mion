@@ -1,5 +1,5 @@
 /* ########
- * 2023 MikroKit
+ * 2023 mion
  * Author: Ma-jerez
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
@@ -51,7 +51,7 @@ describe('tsApi should', () => {
         };
         expect(() => getExportedRoutesVarNames(noRoutes)).toThrow(
             `No exported Public Methods found in entry file '${noRoutes.entryFileName}'.` +
-                `\nPlease check you exporting a variable when calling @mikrokit/router.registerRoutes!`
+                `\nPlease check you exporting a variable when calling @mionkit/router.registerRoutes!`
         );
     });
 

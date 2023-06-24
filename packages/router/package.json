@@ -1,5 +1,5 @@
 {
-  "name": "@mikrokit/router",
+  "name": "@mionkit/router",
   "version": "0.2.1-alpha.0",
   "description": "Typescript RPC Like router with automatic Validation and Serialization",
   "keywords": [
@@ -15,7 +15,7 @@
     "node"
   ],
   "author": "ma jerez <jerez.m82@gmail.com>",
-  "homepage": "https://github.com/mikrokit/mikrokit/tree/main/packages/router#readme",
+  "homepage": "https://github.com/MionKit/mion/tree/main/packages/router#readme",
   "license": "MIT",
   "main": "./.dist/cjs/index.js",
   "module": "./.dist/esm/index.js",
@@ -34,7 +34,7 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/mikrokit/mikrokit.git"
+    "url": "git+https://github.com/MionKit/mion.git"
   },
   "publishConfig": {
     "access": "public"
@@ -52,7 +52,7 @@
     "clean": "rimraf .dist"
   },
   "bugs": {
-    "url": "https://github.com/mikrokit/mikrokit/issues"
+    "url": "https://github.com/MionKit/mion/issues"
   },
   "dependencies": {
     "typia": "^3.8.6"

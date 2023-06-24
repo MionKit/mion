@@ -1,23 +1,27 @@
 <p align="center">
-  <img alt="Typescript Serverless Apis at the speed of light" width="" src='../../assets/public/bannerx90.png?raw=true'>
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="../../assets/public/bannerx90-dark.png?raw=true">
+    <source media="(prefers-color-scheme: light)" srcset="../../assets/public/bannerx90.png?raw=true">
+    <img alt='mion, a mikro kit for Typescript Serverless APIs' src='../../assets/public/bannerx90.png?raw=true'>
+  </picture>
 </p>
 <p align="center">
   <strong>RPC Like router with automatic Validation and Serialization.
   </strong>
 </p>
 <p align=center>
-  <img src="https://img.shields.io/travis/mikrokit/mikrokit.svg?style=flat-square&maxAge=86400" alt="Travis" style="max-width:100%;">
+
   <img src="https://img.shields.io/badge/code_style-prettier-ff69b4.svg?style=flat-square&maxAge=99999999" alt="npm"  style="max-width:100%;">
   <img src="https://img.shields.io/badge/license-MIT-97ca00.svg?style=flat-square&maxAge=99999999" alt="npm"  style="max-width:100%;">
 </p>
 
-# `@mikrokit/router`
+# `@mion/router`
 
 🚀 Lightweight and fast RPC like router.
 
 Thanks to it's RPC style there is no need to parse parameters or regular expressions when finding a route. Just a simple [Map](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Map) in memory containing all the routes.
 
-MikroKit Router uses a **Remote Procedure Call** style routing, unlike traditional routers it does not use `GET`, `PUT`, `POST` and `DELETE` methods, The Http method is ignored and all data is sent/received in the request/response `body` or `headers`.
+mion Router uses a **Remote Procedure Call** style routing, unlike traditional routers it does not use `GET`, `PUT`, `POST` and `DELETE` methods, The Http method is ignored and all data is sent/received in the request/response `body` or `headers`.
 
 - `HTTP` method is ignored by this router.
 - Data is sent and received only in the `body` and `headers`. (no request params)
@@ -39,12 +43,12 @@ Please have a look to this great Presentation for more info about each different
 
 A route is just a function, the first parameter is always the `call context`, the rest of parameters are extracted from the request body or headers. Route names are defined using a plain javascript object, where every property of the object is the route's name. Adding types is recommended when defining a route so typescript can statically check parameters.
 
-MikroKit only cares about the `path`, and completely ignores the http method, so in theory request could be made using `POST` or `PUT`, or the router could be used in any event driven environment where the concept of method does not exist.
+mion only cares about the `path`, and completely ignores the http method, so in theory request could be made using `POST` or `PUT`, or the router could be used in any event driven environment where the concept of method does not exist.
 
 ```ts
 // examples/routes-definition.routes.ts
 
-import {setRouterOptions, registerRoutes} from '@mikrokit/router';
+import {setRouterOptions, registerRoutes} from '@mion/router';
 
 const sayHello = (app, ctx, name: string): string => {
   return `Hello ${name}.`;
@@ -70,7 +74,7 @@ Using javascript names helps keeping route names simple, it is not recommended t
 ```ts
 // examples/no-recommended-names.routes.ts
 
-import {registerRoutes} from '@mikrokit/router';
+import {registerRoutes} from '@mion/router';
 
 const sayHello = (app, ctx, name: string): string => {
   return `Hello ${name}.`;
@@ -99,14 +103,14 @@ The reason for this weird naming is to future proof the router to be able to acc
 
 ## `Hooks`
 
-A route might require some extra data like authorization, preconditions, logging, etc... Hooks are auxiliary functions that get executed in order before or after the route. (hooks can require remote parameters or act as a bootstrap middleware with no params, mikrokit has no concept of events so there is no distinction, hooks are just a function that gets 'hooked' into the execution path). Multiple Hooks can be executed on but only a single Route will be executed per remote call.
+A route might require some extra data like authorization, preconditions, logging, etc... Hooks are auxiliary functions that get executed in order before or after the route. (hooks can require remote parameters or act as a bootstrap middleware with no params, mion has no concept of events so there is no distinction, hooks are just a function that gets 'hooked' into the execution path). Multiple Hooks can be executed on but only a single Route will be executed per remote call.
 
 Hooks can use `context.shared` to share data with other routes and hooks. The return value will be ignored unless `canReturnData` is set to true, in that case the returned value will be serialized in and sent back in the response body.
 
 ```ts
 // examples/hooks-definition.routes.ts
 
-import {Context, registerRoutes} from '@mikrokit/router';
+import {Context, registerRoutes} from '@mion/router';
 import {getAuthUser, isAuthorized} from 'MyAuth';
 import type {Pet} from 'MyModels';
 
@@ -212,7 +216,7 @@ Throwing a `RouteError` will generate a public error otherwise a generic public 
 ```ts
 // examples/error-handling.routes.ts
 
-import {RouteError, StatusCodes} from '@mikrokit/router';
+import {RouteError, StatusCodes} from '@mion/router';
 import type {Pet} from 'MyModels';
 
 export const getPet = (app, ctx, id: string): Promise<Pet> => {
@@ -319,7 +323,7 @@ Your application might need to add some extra metadata to every route or hook, t
 ```ts
 // examples/extending-routes-and-hooks.routes.ts
 
-import {Route, HookDef} from '@mikrokit/router';
+import {Route, HookDef} from '@mion/router';
 
 type MyRoute = Route & {doNotFail: boolean};
 type MyHook = HookDef & {shouldLog: boolean};
@@ -377,10 +381,10 @@ export type Context<SharedData, RawContext extends RawServerContext = any> = Rea
 ```ts
 // examples/using-context.routes.ts
 
-import {registerRoutes, initRouter} from '@mikrokit/router';
+import {registerRoutes, initRouter} from '@mion/router';
 import {someDbDriver} from 'someDbDriver';
 import {cloudLogs} from 'MyCloudLogLs';
-import type {Context} from '@mikrokit/router';
+import type {Context} from '@mion/router';
 import type {APIGatewayEvent} from 'aws-lambda';
 import type {Pet} from 'MyModels';
 
@@ -408,7 +412,7 @@ export const apiSpec = registerRoutes(routes);
 
 ## `Automatic Serialization and Validation`
 
-Mikrokit uses [Deepkit's runtime types](https://deepkit.io/) to automatically [validate](https://docs.deepkit.io/english/validation.html) request params and [serialize/deserialize](https://docs.deepkit.io/english/serialization.html) request/response data.
+mion uses [Deepkit's runtime types](https://deepkit.io/) to automatically [validate](https://docs.deepkit.io/english/validation.html) request params and [serialize/deserialize](https://docs.deepkit.io/english/serialization.html) request/response data.
 
 Thanks to Deepkit's magic the type information is available at runtime and the data can be auto-magically Validated and Serialized. For more information please read deepkit's documentation:
 
@@ -425,7 +429,7 @@ Thanks to Deepkit's magic the type information is available at runtime and the d
 ```ts
 // examples/get-user-request.routes.ts
 
-import {registerRoutes, initRouter} from '@mikrokit/router';
+import {registerRoutes, initRouter} from '@mion/router';
 import type {User} from 'MyModels';
 
 const getUser = async (app, ctx, entity: {id: number}): Promise<User> => {
@@ -579,8 +583,8 @@ export const DEFAULT_ROUTE_OPTIONS: Readonly<RouterOptions> = {
 ```ts
 // examples/full-example.routes.ts
 
-import {registerRoutes, initRouter, StatusCodes, Route} from '@mikrokit/router';
-import type {Context, RouteError} from '@mikrokit/router';
+import {registerRoutes, initRouter, StatusCodes, Route} from '@mion/router';
+import type {Context, RouteError} from '@mion/router';
 import type {APIGatewayEvent} from 'aws-lambda';
 
 interface User {

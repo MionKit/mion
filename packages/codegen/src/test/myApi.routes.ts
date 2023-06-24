@@ -1,11 +1,11 @@
 /* ########
- * 2022 MikroKit
+ * 2022 mion
  * Author: Ma-jerez
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {Handler, HookDef, initRouter, Obj, registerRoutes, RouterOptions} from '@mikrokit/router';
+import {Handler, HookDef, initRouter, Obj, registerRoutes, RouterOptions} from '@mionkit/router';
 import {Item, Pet, User} from './myApi.types';
 
 export const myApiRoutes = {

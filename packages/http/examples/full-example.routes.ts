@@ -1,5 +1,5 @@
-import {initHttpApp} from '@mikrokit/http';
-import {Route} from '@mikrokit/router';
+import {initHttpApp} from '@mionkit/http';
+import {Route} from '@mionkit/router';
 
 // #### App ####
 

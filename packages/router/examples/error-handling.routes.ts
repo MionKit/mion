@@ -1,4 +1,4 @@
-import {RouteError, StatusCodes} from '@mikrokit/router';
+import {RouteError, StatusCodes} from '@mionkit/router';
 import type {Pet} from 'MyModels';
 
 export const getPet = (app, ctx, id: string): Promise<Pet> => {

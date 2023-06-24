@@ -1,12 +1,12 @@
 /* ########
- * 2022 MikroKit
+ * 2022 mion
  * Author: Ma-jerez
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
 import {reflect, ReflectionKind, Type, TypeParameter} from '@deepkit/type';
-import {isFunctionType} from '@mikrokit/router';
+import {isFunctionType} from '@mionkit/router';
 // import {inspect} from 'util';
 
 // type references, would need to imported into the generated spec (Not used as for now)

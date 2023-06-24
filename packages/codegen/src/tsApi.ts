@@ -1,5 +1,5 @@
 /* ########
- * 2023 MikroKit
+ * 2023 mion
  * Author: Ma-jerez
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
@@ -48,7 +48,7 @@ export function getExportedRoutesVarNames(options: CodegenOptions): string[] {
     if (!exportedPublicRoutesNames.length)
         throw new Error(
             `No exported Public Methods found in entry file '${options.entryFileName}'.` +
-                `\nPlease check you exporting a variable when calling @mikrokit/router.registerRoutes!`
+                `\nPlease check you exporting a variable when calling @mionkit/router.registerRoutes!`
         );
 
     return exportedPublicRoutesNames;
@@ -56,15 +56,15 @@ export function getExportedRoutesVarNames(options: CodegenOptions): string[] {
 
 /**
  * Returns the import section of the type.getText(), works as type ID
- *  I.e. type<PublicRoutes>.getText() returns:  import("/node_modules/@mikrokit/packages/router/src/types").PublicRoutes<{}> | null
- *  The id part is:                             import("/node_modules/@mikrokit/packages/router/src/types").PublicRoutes
+ *  I.e. type<PublicRoutes>.getText() returns:  import("/node_modules/@mionkit/packages/router/src/types").PublicRoutes<{}> | null
+ *  The id part is:                             import("/node_modules/@mionkit/packages/router/src/types").PublicRoutes
  *  */
 const getPublicRoutesTypeId = (options: CodegenOptions) => {
     if (!project) throw new Error('TS Project has not been initialized!');
     // we create a new file beside the entryFile and extract the import path (id) from type.getText() result.
     // !!Important this can change depending on the retunr type of router.registerRoutes()!!
     const publicRoutesFileSample = `
-        import {initRouter, registerRoutes} from '@mikrokit/router';
+        import {initRouter, registerRoutes} from '@mionkit/router';
         const myApp = {};
         const getShared = () => ({});
         const api = {};
@@ -79,7 +79,7 @@ const getPublicRoutesTypeId = (options: CodegenOptions) => {
     const sampleExportsDeclaration = exampleFile.getExportedDeclarations().get(publicRoutesExportedName);
     if (!sampleExportsDeclaration) throw new Error(`Developer Error`);
 
-    // this is expected to be something like: import("/node_modules/@mikrokit/packages/router/src/types").PublicRoutes<{}> | null
+    // this is expected to be something like: import("/node_modules/@mionkit/packages/router/src/types").PublicRoutes<{}> | null
     const samplePublicRoutesTypeText = sampleExportsDeclaration[0].getType().getText();
     return samplePublicRoutesTypeText.replace('<{}>', '');
 };
@@ -91,7 +91,7 @@ export const getGenerateSpecJsCode = (options: CodegenOptions, exportedPublicRou
     const runAppAndGenerateSpec = `
         process.env.GENERATE_ROUTER_SPEC = 'true';
         import {${exportedPublicRoutesNames.join(', ')}} from './${entryTsName}';
-        import {generateSpecFile} from '@mikrokit/codegen';
+        import {generateSpecFile} from '@mionkit/codegen';
         const exportedRoutes = ${JSON.stringify(exportedPublicRoutesNames)};
         generateSpecFile(${JSON.stringify(options.outputFileName)}, exportedRoutes); 
     `;

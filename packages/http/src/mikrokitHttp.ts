@@ -1,18 +1,18 @@
 /* ########
- * 2022 MikroKit
+ * 2022 mion
  * Author: Ma-jerez
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {StatusCodes, initRouter, getRouterOptions, dispatchRoute, RouteError} from '@mikrokit/router';
+import {StatusCodes, initRouter, getRouterOptions, dispatchRoute, RouteError} from '@mionkit/router';
 import {createServer as createHttp} from 'http';
 import {createServer as createHttps} from 'https';
 import {DEFAULT_HTTP_OPTIONS} from './constants';
 import type {HttpOptions, HttpRawServerContext} from './types';
 import type {IncomingMessage, RequestListener, Server as HttpServer, ServerResponse} from 'http';
 import type {Server as HttpsServer} from 'https';
-import type {Obj, Headers, RawRequest, PublicError, RouterOptions, SharedDataFactory} from '@mikrokit/router';
+import type {Obj, Headers, RawRequest, PublicError, RouterOptions, SharedDataFactory} from '@mionkit/router';
 
 type Logger = typeof console | undefined;
 type HeadersEntries = [string, string | boolean | number][];
@@ -44,7 +44,7 @@ export const startHttpServer = async (httpOptions_: Partial<HttpOptions> = {}): 
 
     const port = httpOptions.port !== 80 ? `:${httpOptions.port}` : '';
     const url = `${httpOptions.protocol}://localhost${port}`;
-    logger?.log(`MikroKit server running on ${url}`);
+    logger?.log(`mion server running on ${url}`);
 
     return new Promise<HttpServer | HttpsServer>((resolve, reject) => {
         const server =
@@ -60,7 +60,7 @@ export const startHttpServer = async (httpOptions_: Partial<HttpOptions> = {}): 
         });
 
         process.on('SIGINT', function () {
-            logger?.log(`Shutting down MikroKit server on ${url}`);
+            logger?.log(`Shutting down mion server on ${url}`);
             server.close(() => {
                 process.exit(0);
             });
@@ -75,7 +75,7 @@ const httpRequestHandler: RequestListener = (httpReq: IncomingMessage, httpRespo
     let size = 0;
     const bodyChunks: any[] = [];
 
-    httpResponse.setHeader('server', '@mikrokit/http');
+    httpResponse.setHeader('server', '@mionkit/http');
     httpResponse.setHeader('content-type', defaultResponseContentType);
     // here we could check that the client accepts application/json as response and abort
     // but this is gonna be true 99.999% of the time so is better to continue without checking it

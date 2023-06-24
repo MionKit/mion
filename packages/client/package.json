@@ -1,7 +1,7 @@
 {
-  "name": "@mikrokit/client",
+  "name": "@mionkit/client",
   "version": "0.2.1-alpha.0",
-  "description": "Browser client for Mikrokit Apps.",
+  "description": "Browser client for mion Apps.",
   "keywords": [
     "typescript",
     "API",
@@ -15,7 +15,7 @@
     "node"
   ],
   "author": "ma jerez <jerez.m82@gmail.com>",
-  "homepage": "https://github.com/mikrokit/mikrokit/tree/main/packages/client#readme",
+  "homepage": "https://github.com/MionKit/mion/tree/main/packages/client#readme",
   "license": "MIT",
   "main": "./.dist/cjs/index.js",
   "module": "./.dist/esm/index.js",
@@ -34,7 +34,7 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/mikrokit/mikrokit.git"
+    "url": "git+https://github.com/MionKit/mion.git"
   },
   "publishConfig": {
     "access": "public"
@@ -52,11 +52,11 @@
     "clean": "rimraf .dist"
   },
   "bugs": {
-    "url": "https://github.com/mikrokit/mikrokit/issues"
+    "url": "https://github.com/MionKit/mion/issues"
   },
   "dependencies": {
     "@deepkit/type": "^1.0.1-alpha.75",
-    "@mikrokit/router": "^0.2.1-alpha.0"
+    "@mionkit/router": "^0.2.1-alpha.0"
   },
   "devDependencies": {
     "@deepkit/core": "^1.0.1-alpha.75",
