@@ -43,7 +43,7 @@ describe('serverless router should', () => {
     };
 
     const getDate: Route = (app: MyApp, ctx: CallContext, dataPoint?: DataPoint): DataPoint => {
-        return dataPoint || {date: new Date('December 17, 2020 03:24:00')};
+        return dataPoint || {date: new Date('2022-04-10T02:13:00.000Z')};
     };
 
     const updateHeaders: Route = (app: MyApp, context: CallContext): void => {
@@ -80,14 +80,14 @@ describe('serverless router should', () => {
     };
 
     it('should get an ok response from a route', async () => {
-        const requestData = {'/api/getDate': [{date: new Date('April 10, 2022 03:24:00')}]};
+        const requestData = {'/api/getDate': [{date: new Date('2022-04-10T02:13:00.000Z')}]};
         const {event, context} = getDefaultGatewayEvent(JSON.stringify(requestData), '/api/getDate');
 
         const awsResponse = await lambdaHandler(event, context);
         const parsedResponse = JSON.parse(awsResponse.body);
         const headers = awsResponse.headers || {};
 
-        expect(parsedResponse).toEqual({'/api/getDate': {date: '2022-04-10T01:24:00.000Z'}});
+        expect(parsedResponse).toEqual({'/api/getDate': {date: '2022-04-10T02:13:00.000Z'}});
         expect(headers['content-type']).toEqual('application/json; charset=utf-8');
         expect(headers['content-length']).toEqual(52);
         expect(headers['server']).toEqual('@mionkit/serverless');
