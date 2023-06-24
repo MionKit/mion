@@ -1,12 +1,12 @@
 /* ########
- * 2022 MikroKit
+ * 2022 mion
  * Author: Ma-jerez
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
 import {SerializedTypes} from '@deepkit/type';
-import type {Executable, Route, HookDef, Handler, Context} from '@mikrokit/router';
+import type {Executable, Route, HookDef, Handler, Context} from '@mion/router';
 
 export type ClientOptions = {
     apiURL: string;

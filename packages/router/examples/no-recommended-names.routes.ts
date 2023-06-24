@@ -1,4 +1,4 @@
-import {registerRoutes} from '@mikrokit/router';
+import {registerRoutes} from '@mion/router';
 
 const sayHello = (app, ctx, name: string): string => {
     return `Hello ${name}.`;

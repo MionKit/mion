@@ -1,9 +1,9 @@
 {
-  "name": "mikrokit",
-  "description": "MikroKit is framework to build and manage REST APIs",
+  "name": "mion",
+  "description": "mion is framework to build and manage REST APIs",
   "version": "0.1.0",
   "main": "index.js",
-  "homepage": "https://github.com/mikrokit/mikrokit#readme",
+  "homepage": "https://github.com/mion/mion#readme",
   "scripts": {
     "test": "lerna run test",
     "format": "prettier --write packages/**/*.ts",
@@ -21,7 +21,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com:mikrokit/mikrokit.git"
+    "url": "git+https://github.com:mion/mion.git"
   },
   "keywords": [
     "typescript",
@@ -38,7 +38,7 @@
   "author": "ma-jerez",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/mikrokit/issues"
+    "url": "https://github.com/mion/issues"
   },
   "engines": {
     "node": ">= 16.0.0"

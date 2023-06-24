@@ -1,17 +1,17 @@
 {
-  "name": "@mikrokit/cli",
+  "name": "@mion/cli",
   "version": "0.1.0",
   "private": true,
-  "description": "mikrokit command line tool",
+  "description": "mion command line tool",
   "keywords": [
     "cli",
-    "mikrokit",
+    "mion",
     "fastify",
     "rest",
     "api"
   ],
   "author": "ma jerez <jerez.m82@gmail.com>",
-  "homepage": "https://github.com/mikrokit/mikrokit/tree/main/packages/cli#readme",
+  "homepage": "https://github.com/mion/mion/tree/main/packages/cli#readme",
   "license": "MIT",
   "main": ".dist/cli.js",
   "types": ".dist/cli.d.ts",
@@ -23,13 +23,13 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/mikrokit/mikrokit.git"
+    "url": "git+https://github.com/mion/mion.git"
   },
   "scripts": {
 
   },
   "bugs": {
-    "url": "https://github.com/mikrokit/mikrokit/issues"
+    "url": "https://github.com/mion/mion/issues"
   },
   "dependencies": {
     "commander": "^8.3.0"

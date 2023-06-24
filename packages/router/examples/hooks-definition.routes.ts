@@ -1,4 +1,4 @@
-import {Context, registerRoutes} from '@mikrokit/router';
+import {Context, registerRoutes} from '@mion/router';
 import {getAuthUser, isAuthorized} from 'MyAuth';
 import type {Pet} from 'MyModels';
 

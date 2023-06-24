@@ -17,7 +17,7 @@
     "declarationMap": true,
     "sourceMap": true,
     "paths": {
-      "@mikrokit/*": ["packages/*"]
+      "@mion/*": ["packages/*"]
     }
   },
   "reflection": true,

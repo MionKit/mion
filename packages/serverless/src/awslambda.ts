@@ -1,12 +1,12 @@
 /* ########
- * 2022 MikroKit
+ * 2022 mion
  * Author: Ma-jerez
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {initRouter, getRouterOptions, dispatchRoute} from '@mikrokit/router';
-import type {Obj, SharedDataFactory, RouterOptions} from '@mikrokit/router';
+import {initRouter, getRouterOptions, dispatchRoute} from '@mion/router';
+import type {Obj, SharedDataFactory, RouterOptions} from '@mion/router';
 import type {Context as AwsContext, APIGatewayProxyResult, APIGatewayEvent} from 'aws-lambda';
 import type {AwsRawServerContext} from './types';
 
@@ -29,7 +29,7 @@ export const lambdaHandler = async (req: APIGatewayEvent, awsContext: AwsContext
         headers: {
             'content-type': defaultResponseContentType,
             'content-length': routeResponse.json.length,
-            server: '@mikrokit/serverless',
+            server: '@mion/serverless',
             ...routeResponse.headers,
         },
         body: routeResponse.json,

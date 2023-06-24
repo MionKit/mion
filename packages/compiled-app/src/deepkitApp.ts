@@ -1,5 +1,5 @@
 /* ########
- * 2022 MikroKit
+ * 2022 mion
  * Author: Ma-jerez
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
@@ -18,19 +18,19 @@ interface User {
 }
 
 type SayHello = {hello: string};
-// these body types are just so the returned date is in the same format as mikrokit
+// these body types are just so the returned date is in the same format as mion
 
-type MikroKitUpdate = {
+type mionUpdate = {
     '/updateUser': User;
 };
 
-type MikroKitSayHelloResponse = {
+type mionSayHelloResponse = {
     '/': SayHello;
 };
 
 let app;
 
-export const deepKitSayHelloRoute = (): MikroKitSayHelloResponse => {
+export const deepKitSayHelloRoute = (): mionSayHelloResponse => {
     return {'/': {hello: 'world'}};
 };
 
@@ -39,7 +39,7 @@ export const setRoutes = () => {
 
     router.any('/', deepKitSayHelloRoute);
 
-    router.post('/updateUser', (body: HttpBody<MikroKitUpdate>): MikroKitUpdate => {
+    router.post('/updateUser', (body: HttpBody<mionUpdate>): mionUpdate => {
         const user = body['/updateUser'];
         return {
             '/updateUser': {
