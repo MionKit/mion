@@ -1,5 +1,9 @@
 <p align="center">
-  <img alt="Typescript Serverless Apis at the speed of light" width="" src='../../assets/public/bannerx90.png?raw=true'>
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="../../assets/public/bannerx90-dark.png?raw=true">
+    <source media="(prefers-color-scheme: light)" srcset="../../assets/public/bannerx90.png?raw=true">
+    <img alt='MikroKit, a mikro kit for Typescript Serverless APIs' src='../../assets/public/bannerx90.png?raw=true'>
+  </picture>
 </p>
 <p align="center">
   <strong>MikroKit Serverless Router for quick Api development.
