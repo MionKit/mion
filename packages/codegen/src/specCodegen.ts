@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {PublicMethods, isPublicRoutes, PublicRoute, Obj, isPuplicMethod} from '@mion/router';
+import {PublicMethods, isPublicRoutes, PublicRoute, Obj, isPuplicMethod} from '@mionkit/router';
 import {dirname, parse, relative} from 'path';
 import type {CodegenOptions, PublicMethodsSpec, RoutesSpec} from './types';
 import {DEFAULT_PRETTIER_OPTIONS, PUBLIC_METHODS_SPEC_EXPORT_NAME, ROUTES_SPEC_EXPORT_NAME} from './constants';

@@ -1,5 +1,5 @@
 {
-  "name": "@mion/compiled-app",
+  "name": "@mionkit/compiled-app",
   "version": "0.2.1-alpha.0",
   "private": true,
   "description": "Compiled app to be used in js libraries with needing to compile",
@@ -7,7 +7,7 @@
     "mion compiled app"
   ],
   "author": "ma jerez <jerez.m82@gmail.com>",
-  "homepage": "https://github.com/mion/mion/tree/main/packages/compiled-app#readme",
+  "homepage": "https://github.com/MionKit/mion/tree/main/packages/compiled-app#readme",
   "license": "MIT",
   "main": "./.dist/cjs/index.js",
   "module": "./.dist/esm/index.js",
@@ -26,7 +26,7 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/mion/mion.git"
+    "url": "git+https://github.com/MionKit/mion.git"
   },
   "scripts": {
     "test": "jest",
@@ -41,11 +41,11 @@
     "clean": "rimraf .dist"
   },
   "bugs": {
-    "url": "https://github.com/mion/mion/issues"
+    "url": "https://github.com/MionKit/mion/issues"
   },
   "dependencies": {
     "@deepkit/framework": "^1.0.1-alpha.75",
-    "@mion/http": "^0.2.1-alpha.0",
+    "@mionkit/http": "^0.2.1-alpha.0",
     "ts-node": "^10.9.1"
   }
 }

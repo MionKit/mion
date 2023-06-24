@@ -10,12 +10,11 @@
   </strong>
 </p>
 <p align=center>
-  <img src="https://img.shields.io/travis/mion/mion.svg?style=flat-square&maxAge=86400" alt="Travis" style="max-width:100%;">
   <img src="https://img.shields.io/badge/code_style-prettier-ff69b4.svg?style=flat-square&maxAge=99999999" alt="npm"  style="max-width:100%;">
   <img src="https://img.shields.io/badge/license-MIT-97ca00.svg?style=flat-square&maxAge=99999999" alt="npm"  style="max-width:100%;">
 </p>
 
-# `@mion/serverless`
+# `@mionkit/serverless`
 
 **_[mion Router](../router/README.md) is an RPC like router oriented for quick Api development,_** &nbsp; it is agnostic about the server or serverless environment it is used on. It could be used on aws lambda, azure functions, Google cloud functions, or any event based environment.
 
@@ -48,7 +47,7 @@ The reason for this weird naming is to future proof the router to be able to acc
 ```js
 // ../router/examples/routes-definition.routes.ts
 
-import {setRouterOptions, registerRoutes} from '@mion/router';
+import {setRouterOptions, registerRoutes} from '@mionkit/router';
 
 const sayHello = (app, ctx, name: string): string => {
   return `Hello ${name}.`;
@@ -74,8 +73,8 @@ export const apiSpec = registerRoutes(routes);
 ```ts
 // examples/full-example-serverless.routes.ts
 
-import {initAwsLambdaApp, lambdaHandler} from '@mion/serverless';
-import {Context, registerRoutes, Route} from '@mion/router';
+import {initAwsLambdaApp, lambdaHandler} from '@mionkit/serverless';
+import {Context, registerRoutes, Route} from '@mionkit/router';
 import {AwsRawServerContext} from '../src/types';
 
 // #### App ####

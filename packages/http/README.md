@@ -10,16 +10,15 @@
   </strong>
 </p>
 <p align=center>
-  <img src="https://img.shields.io/travis/mion/mion.svg?style=flat-square&maxAge=86400" alt="Travis" style="max-width:100%;">
   <img src="https://img.shields.io/badge/code_style-prettier-ff69b4.svg?style=flat-square&maxAge=99999999" alt="npm"  style="max-width:100%;">
   <img src="https://img.shields.io/badge/license-MIT-97ca00.svg?style=flat-square&maxAge=99999999" alt="npm"  style="max-width:100%;">
 </p>
 
-# `@mion/http`
+# `@mionkit/http`
 
 **mion router is an RPC like router oriented for quick Api development,** it is agnostic about the environment it is used on. It could be used on [serverless environments](../serverless/README.md), or as an standalone http server.
 
-**mion Server is well suited a very specific scenario, that is Apis that works with json data only**. In return it offers quick development, fast execution and a Lightweight router. [Benchmarks here!](https://github.com/mion/benchmarks) 🚀
+**mion Server is well suited a very specific scenario, that is Apis that works with json data only**. In return it offers quick development, fast execution and a Lightweight router. [Benchmarks here!](https://github.com/MionKit/benchmarks) 🚀
 
 This is a limited http server, only supports `application/json` content type, does not support multipart/form-data, no websocket or streams and no file upload neither. There are better alternatives for those scenarios (like S3 file upload, etc).
 
@@ -50,7 +49,7 @@ The reason for this weird naming is to future proof the router to be able to acc
 ```js
 // ../router/examples/routes-definition.routes.ts
 
-import {setRouterOptions, registerRoutes} from '@mion/router';
+import {setRouterOptions, registerRoutes} from '@mionkit/router';
 
 const sayHello = (app, ctx, name: string): string => {
   return `Hello ${name}.`;
@@ -78,8 +77,8 @@ export const apiSpec = registerRoutes(routes);
 ```ts
 // examples/full-example.routes.ts
 
-import {initHttpApp} from '@mion/http';
-import {Route} from '@mion/router';
+import {initHttpApp} from '@mionkit/http';
+import {Route} from '@mionkit/router';
 
 // #### App ####
 

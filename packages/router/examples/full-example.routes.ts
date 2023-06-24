@@ -1,5 +1,5 @@
-import {registerRoutes, initRouter, StatusCodes, Route} from '@mion/router';
-import type {Context, RouteError} from '@mion/router';
+import {registerRoutes, initRouter, StatusCodes, Route} from '@mionkit/router';
+import type {Context, RouteError} from '@mionkit/router';
 import type {APIGatewayEvent} from 'aws-lambda';
 
 interface User {

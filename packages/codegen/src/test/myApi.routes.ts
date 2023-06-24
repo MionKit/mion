@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {Handler, HookDef, initRouter, Obj, registerRoutes, RouterOptions} from '@mion/router';
+import {Handler, HookDef, initRouter, Obj, registerRoutes, RouterOptions} from '@mionkit/router';
 import {Item, Pet, User} from './myApi.types';
 
 export const myApiRoutes = {

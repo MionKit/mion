@@ -3,7 +3,7 @@
   "description": "mion is framework to build and manage REST APIs",
   "version": "0.1.0",
   "main": "index.js",
-  "homepage": "https://github.com/mion/mion#readme",
+  "homepage": "https://github.com/MionKit/mion#readme",
   "scripts": {
     "test": "lerna run test",
     "format": "prettier --write packages/**/*.ts",
@@ -21,7 +21,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com:mion/mion.git"
+    "url": "git+https://github.com:MionKit/mion.git"
   },
   "keywords": [
     "typescript",
@@ -38,7 +38,7 @@
   "author": "ma-jerez",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/mion/issues"
+    "url": "https://github.com/MionKit/issues"
   },
   "engines": {
     "node": ">= 16.0.0"
