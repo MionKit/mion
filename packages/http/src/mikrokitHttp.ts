@@ -5,14 +5,14 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {StatusCodes, initRouter, getRouterOptions, dispatchRoute, RouteError} from '@mion/router';
+import {StatusCodes, initRouter, getRouterOptions, dispatchRoute, RouteError} from '@mionkit/router';
 import {createServer as createHttp} from 'http';
 import {createServer as createHttps} from 'https';
 import {DEFAULT_HTTP_OPTIONS} from './constants';
 import type {HttpOptions, HttpRawServerContext} from './types';
 import type {IncomingMessage, RequestListener, Server as HttpServer, ServerResponse} from 'http';
 import type {Server as HttpsServer} from 'https';
-import type {Obj, Headers, RawRequest, PublicError, RouterOptions, SharedDataFactory} from '@mion/router';
+import type {Obj, Headers, RawRequest, PublicError, RouterOptions, SharedDataFactory} from '@mionkit/router';
 
 type Logger = typeof console | undefined;
 type HeadersEntries = [string, string | boolean | number][];
@@ -75,7 +75,7 @@ const httpRequestHandler: RequestListener = (httpReq: IncomingMessage, httpRespo
     let size = 0;
     const bodyChunks: any[] = [];
 
-    httpResponse.setHeader('server', '@mion/http');
+    httpResponse.setHeader('server', '@mionkit/http');
     httpResponse.setHeader('content-type', defaultResponseContentType);
     // here we could check that the client accepts application/json as response and abort
     // but this is gonna be true 99.999% of the time so is better to continue without checking it

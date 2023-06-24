@@ -5,10 +5,10 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {registerRoutes} from '@mion/router';
+import {registerRoutes} from '@mionkit/router';
 import {initAwsLambdaApp, lambdaHandler} from './awsLambda';
 import createEvent from '@serverless/event-mocks';
-import type {Route} from '@mion/router';
+import type {Route} from '@mionkit/router';
 import type {APIGatewayProxyEventHeaders} from 'aws-lambda';
 import type {AwsCallContext} from './types';
 
@@ -90,7 +90,7 @@ describe('serverless router should', () => {
         expect(parsedResponse).toEqual({'/api/getDate': {date: '2022-04-10T01:24:00.000Z'}});
         expect(headers['content-type']).toEqual('application/json; charset=utf-8');
         expect(headers['content-length']).toEqual(52);
-        expect(headers['server']).toEqual('@mion/serverless');
+        expect(headers['server']).toEqual('@mionkit/serverless');
     });
 
     it('should get an error when sending invalid parameters', async () => {
@@ -108,7 +108,7 @@ describe('serverless router should', () => {
         expect(parsedResponse).toEqual({errors: [expectedError]});
         expect(headers['content-type']).toEqual('application/json; charset=utf-8');
         expect(headers['content-length']).toEqual(133);
-        expect(headers['server']).toEqual('@mion/serverless');
+        expect(headers['server']).toEqual('@mionkit/serverless');
     });
 
     it('should set response headers from route response', async () => {

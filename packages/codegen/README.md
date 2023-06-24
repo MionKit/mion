@@ -10,12 +10,11 @@
   </strong>
 </p>
 <p align=center>
-  <img src="https://img.shields.io/travis/mion/mion.svg?style=flat-square&maxAge=86400" alt="Travis" style="max-width:100%;">
   <img src="https://img.shields.io/badge/code_style-prettier-ff69b4.svg?style=flat-square&maxAge=99999999" alt="npm"  style="max-width:100%;">
   <img src="https://img.shields.io/badge/license-MIT-97ca00.svg?style=flat-square&maxAge=99999999" alt="npm"  style="max-width:100%;">
 </p>
 
-# `@mion/codegen`
+# `@mionkit/codegen`
 
 Automatically generates a typescript spec for mion Apps to be used in the browser with automatic validation in the browser side.
 

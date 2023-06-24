@@ -6,7 +6,7 @@
  * ######## */
 
 import {reflect, ReflectionKind, Type, TypeParameter} from '@deepkit/type';
-import {isFunctionType} from '@mion/router';
+import {isFunctionType} from '@mionkit/router';
 // import {inspect} from 'util';
 
 // type references, would need to imported into the generated spec (Not used as for now)

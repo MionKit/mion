@@ -1,4 +1,4 @@
-import {setRouterOptions, registerRoutes} from '@mion/router';
+import {setRouterOptions, registerRoutes} from '@mionkit/router';
 
 const sayHello = (app, ctx, name: string): string => {
     return `Hello ${name}.`;

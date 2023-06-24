@@ -4,10 +4,10 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
-import {registerRoutes} from '@mion/router';
+import {registerRoutes} from '@mionkit/router';
 import fetch from 'node-fetch'; // must be node-fetch v2 as v3 is a node module non compatible whit current setup
 import {initHttpApp, startHttpServer} from './mionHttp';
-import type {Context, Route} from '@mion/router';
+import type {Context, Route} from '@mionkit/router';
 
 describe('serverless router should', () => {
     type SimpleUser = {name: string; surname: string};
@@ -74,7 +74,7 @@ describe('serverless router should', () => {
         expect(headers['connection']).toEqual('close');
         expect(headers['content-type']).toEqual('application/json; charset=utf-8');
         expect(headers['content-length']).toEqual('52');
-        expect(headers['server']).toEqual('@mion/http');
+        expect(headers['server']).toEqual('@mionkit/http');
     });
 
     it('should get an error when sending invalid parameters', async () => {
@@ -94,7 +94,7 @@ describe('serverless router should', () => {
         expect(headers['connection']).toEqual('close');
         expect(headers['content-type']).toEqual('application/json; charset=utf-8');
         expect(headers['content-length']).toEqual('133');
-        expect(headers['server']).toEqual('@mion/http');
+        expect(headers['server']).toEqual('@mionkit/http');
     });
 
     it('should set response headers from route response', async () => {
@@ -153,7 +153,7 @@ describe('serverless router should', () => {
             expect(headers['connection']).toEqual('close');
             expect(headers['content-type']).toEqual('application/json; charset=utf-8');
             expect(headers['content-length']).toEqual('69');
-            expect(headers['server']).toEqual('@mion/http');
+            expect(headers['server']).toEqual('@mionkit/http');
             expect(isCalled).toEqual(true);
         } catch (e) {
             err = e;

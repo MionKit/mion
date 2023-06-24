@@ -7,7 +7,7 @@
 process.env.GENERATE_ROUTER_SPEC = 'true'; // required to generate Public Methods object
 
 import {serializeType, deserializeType, reflect, Type} from '@deepkit/type';
-import {DEFAULT_ROUTE_OPTIONS, getParamValidators, isFunctionType, Handler} from '@mion/router';
+import {DEFAULT_ROUTE_OPTIONS, getParamValidators, isFunctionType, Handler} from '@mionkit/router';
 import {join} from 'path';
 import {formatCode, getRelativeImport, getSpecFile} from './specCodegen';
 import {myApi, authApi} from './test/myApi.routes';

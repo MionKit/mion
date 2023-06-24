@@ -17,7 +17,7 @@
     "declarationMap": true,
     "sourceMap": true,
     "paths": {
-      "@mion/*": ["packages/*"]
+      "@mionkit/*": ["packages/*"]
     }
   },
   "reflection": true,
