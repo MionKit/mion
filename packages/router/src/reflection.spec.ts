@@ -21,7 +21,7 @@ describe('Deepkit reflection should', () => {
         counter: number;
         lastUpdate: Date;
     };
-    type DataPoint = {
+    type DatePoint = {
         date: Date;
     };
     const myApp = {db: () => null};
@@ -38,7 +38,7 @@ describe('Deepkit reflection should', () => {
     type MyApp = typeof myApp;
     type CallContext = Context<ReturnType<typeof sharedDataFactory>>;
 
-    const addDate = (app: MyApp, ctx: CallContext, data: DataPoint): DataPoint => {
+    const addDate = (app: MyApp, ctx: CallContext, data: DatePoint): DatePoint => {
         return data;
     };
     const printSum = (app: MyApp, ctx: CallContext, a: number, b: number, c?: {message: string}, d?: Message) =>
@@ -114,8 +114,8 @@ describe('Deepkit reflection should', () => {
     });
 
     it('should serialize/deserialize data', () => {
-        const dataPoint: DataPoint = {date: new Date('December 19, 2020 03:24:00')};
-        const serializedDataPoint = {date: '2020-12-19T02:24:00.000Z'};
+        const dataPoint: DatePoint = {date: new Date('2020-12-19T00:24:00.000')};
+        const serializedDataPoint = {date: '2020-12-19T00:24:00.000Z'};
         const deSerializers = getParamsDeserializer(addDate, DEFAULT_ROUTE_OPTIONS);
         const outputSerializer = getOutputSerializer(addDate, DEFAULT_ROUTE_OPTIONS);
         const input = JSON.parse(JSON.stringify(dataPoint)); // this would be same as json.parse(body)
