@@ -32,6 +32,25 @@ With that in mind **MikroKit is designed to quickly build lightweight Apis**. It
 - ✅ Http [Server](packages/http/README.md)
 - 🛠️ Automatic Typescript client generation.
 
+## Typia vs deepkit
+
+[typia](https://typia.io/) is a validation library that offers similar validation features as deepkit.
+
+After using deepkit for a while there are some things i dnt like too much, like weird kirks like not being able to use reflection when importing interfaces or types, only works with classes. quite a bit delay in supporting lattest versions of TS, direction and popularity of the library.
+
+A big drawback is that when using ncc compiler to reduce the size of the deployed package for serverless env it includes the whole tsc library and resulting file is quite big.
+
+\*\*The intent of the feature branch is to try using typia for automattic validation instead deepkit.
+
+Pros of typia:
+
+- AOT compilation so probably reduced size of final artifact to deploy to serverless
+- hopefully better support for latest ts version as it offers less features and reflection than deepkit
+
+Cons of typia:
+
+- deepkit offers full reflection not only validation so a whole new set of features could be used instead just validation
+
 ## `Opinionated`
 
 **MikroKit is oriented towards** a very specific scenario, that is **Apis that works with json data only**. MikroKit architecture might not always be the best or suit every scenario, but are always taken with quick development, lightweight execution and minimum abstractions in mind. **_!Simplicity can be the best pattern!_**
@@ -84,23 +103,22 @@ The reason for this naming is to future proof the router to be able to accept mu
 import {setRouterOptions, registerRoutes} from '@mikrokit/router';
 
 const sayHello = (app, ctx, name: string): string => {
-    return `Hello ${name}.`;
+  return `Hello ${name}.`;
 };
 
 const sayHello2 = {
-    route(app, ctx, name1: string, name2: string): string {
-        return `Hello ${name1} and ${name2}.`;
-    },
+  route(app, ctx, name1: string, name2: string): string {
+    return `Hello ${name1} and ${name2}.`;
+  },
 };
 
 const routes = {
-    sayHello, // api/sayHello
-    sayHello2, // api/sayHello2
+  sayHello, // api/sayHello
+  sayHello2, // api/sayHello2
 };
 
 setRouterOptions({prefix: 'api/'});
 export const apiSpec = registerRoutes(routes);
-
 ```
 
 ## `Automatic Serialization & Validation`
@@ -126,18 +144,17 @@ import {registerRoutes, initRouter} from '@mikrokit/router';
 import type {User} from 'MyModels';
 
 const getUser = async (app, ctx, entity: {id: number}): Promise<User> => {
-    const user = await ctx.db.getUserById(entity.id);
-    return user;
+  const user = await ctx.db.getUserById(entity.id);
+  return user;
 };
 
 const routes = {
-    users: {
-        getUser, // api/users/getUser
-    },
+  users: {
+    getUser, // api/users/getUser
+  },
 };
 
 export const apiSpec = registerRoutes(routes);
-
 ```
 
 </td>

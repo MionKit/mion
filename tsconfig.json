@@ -10,24 +10,50 @@
     "emitDecoratorMetadata": true,
     "experimentalDecorators": true,
     "target": "es6",
-    "lib": ["es6", "ES2021"],
+    "lib": [
+      "es6",
+      "ES2021"
+    ],
     "outDir": ".dist",
     "composite": true,
     "declaration": true,
     "declarationMap": true,
     "sourceMap": true,
     "paths": {
-      "@mikrokit/*": ["packages/*"]
-    }
+      "@mikrokit/*": [
+        "packages/*"
+      ]
+    },
+    "plugins": [
+      {
+        "transform": "typia/lib/transform"
+      }
+    ],
+    "strictNullChecks": true
   },
   "reflection": true,
-  "exclude": ["node_modules", ".dist"],
+  "exclude": [
+    "node_modules",
+    ".dist"
+  ],
   "references": [
-    {"path": "packages/router"},
-    {"path": "packages/http"},
-    {"path": "packages/serverless"},
-    {"path": "packages/compiled-app"},
-    {"path": "packages/codegen"},
-    {"path": "packages/client"}
+    {
+      "path": "packages/router"
+    },
+    {
+      "path": "packages/http"
+    },
+    {
+      "path": "packages/serverless"
+    },
+    {
+      "path": "packages/compiled-app"
+    },
+    {
+      "path": "packages/codegen"
+    },
+    {
+      "path": "packages/client"
+    }
   ]
 }
