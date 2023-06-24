@@ -1,4 +1,4 @@
-import {initHttp, addRoutes, routes} from '@mikrokit/compiled-app';
+import {initHttp, addRoutes, routes} from '@mion/compiled-app';
 
 const options = {
     enableValidation: false,
