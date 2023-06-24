@@ -1,5 +1,5 @@
 {
-  "name": "@mion/cli",
+  "name": "@mionkit/cli",
   "version": "0.1.0",
   "private": true,
   "description": "mion command line tool",
@@ -11,7 +11,7 @@
     "api"
   ],
   "author": "ma jerez <jerez.m82@gmail.com>",
-  "homepage": "https://github.com/mion/mion/tree/main/packages/cli#readme",
+  "homepage": "https://github.com/MionKit/mion/tree/main/packages/cli#readme",
   "license": "MIT",
   "main": ".dist/cli.js",
   "types": ".dist/cli.d.ts",
@@ -23,13 +23,13 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/mion/mion.git"
+    "url": "git+https://github.com/MionKit/mion.git"
   },
   "scripts": {
 
   },
   "bugs": {
-    "url": "https://github.com/mion/mion/issues"
+    "url": "https://github.com/MionKit/mion/issues"
   },
   "dependencies": {
     "commander": "^8.3.0"

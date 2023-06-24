@@ -1,5 +1,5 @@
-import {initHttpApp} from '@mion/http';
-import {Route} from '@mion/router';
+import {initHttpApp} from '@mionkit/http';
+import {Route} from '@mionkit/router';
 
 // #### App ####
 

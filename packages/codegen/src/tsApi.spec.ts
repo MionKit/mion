@@ -51,7 +51,7 @@ describe('tsApi should', () => {
         };
         expect(() => getExportedRoutesVarNames(noRoutes)).toThrow(
             `No exported Public Methods found in entry file '${noRoutes.entryFileName}'.` +
-                `\nPlease check you exporting a variable when calling @mion/router.registerRoutes!`
+                `\nPlease check you exporting a variable when calling @mionkit/router.registerRoutes!`
         );
     });
 

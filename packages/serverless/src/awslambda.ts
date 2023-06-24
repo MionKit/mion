@@ -5,8 +5,8 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {initRouter, getRouterOptions, dispatchRoute} from '@mion/router';
-import type {Obj, SharedDataFactory, RouterOptions} from '@mion/router';
+import {initRouter, getRouterOptions, dispatchRoute} from '@mionkit/router';
+import type {Obj, SharedDataFactory, RouterOptions} from '@mionkit/router';
 import type {Context as AwsContext, APIGatewayProxyResult, APIGatewayEvent} from 'aws-lambda';
 import type {AwsRawServerContext} from './types';
 
@@ -29,7 +29,7 @@ export const lambdaHandler = async (req: APIGatewayEvent, awsContext: AwsContext
         headers: {
             'content-type': defaultResponseContentType,
             'content-length': routeResponse.json.length,
-            server: '@mion/serverless',
+            server: '@mionkit/serverless',
             ...routeResponse.headers,
         },
         body: routeResponse.json,

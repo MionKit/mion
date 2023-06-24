@@ -11,7 +11,6 @@
 </p>
 
 <p align=center>
-  <img src="https://img.shields.io/travis/mion/mion.svg?style=flat-square&maxAge=86400" alt="Travis" style="max-width:100%;">
   <img src="https://img.shields.io/badge/code_style-prettier-ff69b4.svg?style=flat-square&maxAge=99999999" alt="npm"  style="max-width:100%;">
   <img src="https://img.shields.io/badge/license-MIT-97ca00.svg?style=flat-square&maxAge=99999999" alt="npm"  style="max-width:100%;">
 </p>
@@ -43,7 +42,7 @@ With that in mind **mion is designed to quickly build lightweight Apis**. It is 
 
 - Convention over configuration.
 - Prioritizes developer experience and performance over existing conventions.
-- Lightweight by design. [Some benchmarks here!](https://github.com/mion/benchmarks) 🚀
+- Lightweight by design. [Some benchmarks here!](https://github.com/MionKit/benchmarks) 🚀
 <!-- - Tightly Integration between Routing + Data (Aka the mion way). -->
 
 #### !! mion is currently under heavy development
@@ -86,7 +85,7 @@ The reason for this naming is to future proof the router to be able to accept mu
 ```js
 // packages/router/examples/routes-definition.routes.ts
 
-import {setRouterOptions, registerRoutes} from '@mion/router';
+import {setRouterOptions, registerRoutes} from '@mionkit/router';
 
 const sayHello = (app, ctx, name: string): string => {
   return `Hello ${name}.`;
@@ -126,7 +125,7 @@ Runtime types allow for a completely new set of capabilities. Please check Deepk
 ```ts
 // packages/router/examples/get-user-request.routes.ts
 
-import {registerRoutes, initRouter} from '@mion/router';
+import {registerRoutes, initRouter} from '@mionkit/router';
 import type {User} from 'MyModels';
 
 const getUser = async (app, ctx, entity: {id: number}): Promise<User> => {
@@ -192,7 +191,7 @@ const getYser = async (context: Context, userId:number): Promise<User> => contex
 
 <!--
 ```sh
-npx degit https://github.com/mion/mion-base
+npx degit https://github.com/MionKit/mion-base
 ```
 
 #### Or manually intall in your own project -->
@@ -237,17 +236,17 @@ This project is a monorepo managed using npm [workspaces](https://docs.npmjs.com
 **_!! ALL Dev Dependencies mus be installed in root package !!_**
 
 Each package within this monorepo is compiled using and tested individually using typescript and [jest](https://jestjs.io/).
-To run an npm command in a workspace, `npx nx run <package>:<npm-script>`, i.e: `npx nx run @mion/router:build`
+To run an npm command in a workspace, `npx nx run <package>:<npm-script>`, i.e: `npx nx run @mionkit/router:build`
 
 ```sh
-## run jest tests in @mion/router
-npx nx run @mion/router:test
+## run jest tests in @mionkit/router
+npx nx run @mionkit/router:test
 
 ## run jest in all packages
 npx lerna run test
 
-## compiles typescript in @mion/router
-npx nx run @mion/router:build
+## compiles typescript in @mionkit/router
+npx nx run @mionkit/router:build
 
 ## compiles typescript in all packages (NX will build only whats required)
 npx lerna run build

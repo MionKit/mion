@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {MkSpec, RemoteHandler, RemoteParams, RemotePrefill, RemoteReturn} from '@mion/client';
+import {MkSpec, RemoteHandler, RemoteParams, RemotePrefill, RemoteReturn} from '@mionkit/client';
 
 // ##### Generated Spec Input #####
 

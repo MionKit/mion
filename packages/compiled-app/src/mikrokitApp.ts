@@ -5,9 +5,9 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {initHttpApp} from '@mion/http';
-import {registerRoutes} from '@mion/router';
-import type {RouterOptions, Routes, Route} from '@mion/router';
+import {initHttpApp} from '@mionkit/http';
+import {registerRoutes} from '@mionkit/router';
+import type {RouterOptions, Routes, Route} from '@mionkit/router';
 
 interface User {
     id: number;
