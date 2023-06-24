@@ -1,23 +1,23 @@
 # `cli`
 
-> MikroKit command line tool.
+> mion command line tool.
 
 ## `CLI`
 
 ```shell
 ## generate Open Api spec files
-npx mikrokit g openApi
+npx mion g openApi
 
 ## generate Api browser client (typescript)
-npx mikrokit g apiClient
+npx mion g apiClient
 
 
 ## generate all artifacts in one go (api spec, types and server files)
-npx mikrokit g
+npx mion g
 ```
 
 ## &nbsp;
 
-![mikrokit](../../assets/public/banner-inversex90.png?raw=true)
+![mion](../../assets/public/banner-inversex90.png?raw=true)
 
 _[MIT](../../LICENSE) LICENSE_

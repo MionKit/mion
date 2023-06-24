@@ -1,7 +1,7 @@
-import {registerRoutes, initRouter} from '@mikrokit/router';
+import {registerRoutes, initRouter} from '@mion/router';
 import {someDbDriver} from 'someDbDriver';
 import {cloudLogs} from 'MyCloudLogLs';
-import type {Context} from '@mikrokit/router';
+import type {Context} from '@mion/router';
 import type {APIGatewayEvent} from 'aws-lambda';
 import type {Pet} from 'MyModels';
 

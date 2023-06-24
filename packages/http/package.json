@@ -1,7 +1,7 @@
 {
-  "name": "@mikrokit/http",
+  "name": "@mion/http",
   "version": "0.2.1-alpha.0",
-  "description": "MikroKit HTTP Server for quick Api development.",
+  "description": "mion HTTP Server for quick Api development.",
   "keywords": [
     "typescript",
     "API",
@@ -15,7 +15,7 @@
     "node"
   ],
   "author": "ma jerez <jerez.m82@gmail.com>",
-  "homepage": "https://github.com/mikrokit/mikrokit/tree/main/packages/http#readme",
+  "homepage": "https://github.com/mion/mion/tree/main/packages/http#readme",
   "license": "MIT",
   "main": "./.dist/cjs/index.js",
   "module": "./.dist/esm/index.js",
@@ -34,7 +34,7 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/mikrokit/mikrokit.git"
+    "url": "git+https://github.com/mion/mion.git"
   },
   "publishConfig": {
     "access": "public"
@@ -52,9 +52,9 @@
     "clean": "rimraf .dist"
   },
   "bugs": {
-    "url": "https://github.com/mikrokit/mikrokit/issues"
+    "url": "https://github.com/mion/mion/issues"
   },
   "dependencies": {
-    "@mikrokit/router": "^0.2.1-alpha.0"
+    "@mion/router": "^0.2.1-alpha.0"
   }
 }

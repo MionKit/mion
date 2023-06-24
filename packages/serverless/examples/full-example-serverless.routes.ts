@@ -1,5 +1,5 @@
-import {initAwsLambdaApp, lambdaHandler} from '@mikrokit/serverless';
-import {Context, registerRoutes, Route} from '@mikrokit/router';
+import {initAwsLambdaApp, lambdaHandler} from '@mion/serverless';
+import {Context, registerRoutes, Route} from '@mion/router';
 import {AwsRawServerContext} from '../src/types';
 
 // #### App ####
