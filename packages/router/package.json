@@ -55,6 +55,6 @@
     "url": "https://github.com/MionKit/mion/issues"
   },
   "dependencies": {
-    "typia": "^3.8.6"
+    "typia": "^3.8.9"
   }
 }
