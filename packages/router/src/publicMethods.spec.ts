@@ -8,6 +8,9 @@
 import {DEFAULT_ROUTE_OPTIONS, DEFAULT_HOOK} from './constants';
 import {getPublicRoutes} from './publicMethods';
 import {registerRoutes, initRouter, reset} from './router';
+import {SerializedTypes, TypeFunction, deserializeType, reflect} from '@deepkit/type';
+import {Executable, Handler, isFunctionType} from './types';
+import {deserializeParams, getParamValidators, getParamsDeserializer, validateParams} from './reflection';
 
 describe('Public Mothods should', () => {
     type SimpleUser = {name: string; surname: string};
@@ -52,14 +55,14 @@ describe('Public Mothods should', () => {
     beforeEach(() => reset());
 
     it('not generate public data when  generateSpec = false', () => {
-        initRouter(app, getSharedData, {generateSpec: false});
+        initRouter(app, getSharedData, {getPublicRoutesData: false});
         const publicExecutables = registerRoutes(routes);
 
         expect(publicExecutables).toEqual({});
     });
 
     it('generate all the required public fields for hook and route', () => {
-        initRouter(app, getSharedData, {generateSpec: true});
+        initRouter(app, getSharedData, {getPublicRoutesData: true});
         const testR = {
             hook,
             routes: {
@@ -70,7 +73,7 @@ describe('Public Mothods should', () => {
 
         expect(api).toEqual({
             hook: expect.objectContaining({
-                handlerType: 'hook',
+                _handler: 'hook',
                 isRoute: false,
                 canReturnData: DEFAULT_HOOK.canReturnData,
                 inHeader: DEFAULT_HOOK.inHeader,
@@ -80,7 +83,7 @@ describe('Public Mothods should', () => {
             }),
             routes: {
                 route1: expect.objectContaining({
-                    handlerType: 'routes.route1',
+                    _handler: 'routes.route1',
                     isRoute: true,
                     canReturnData: true,
                     path: '/routes/route1',
@@ -92,8 +95,74 @@ describe('Public Mothods should', () => {
         });
     });
 
+    // here we do the whole serialization deserialization that would occur in the server and client respectively
+    const stringifyAndDeserialize = (serializedType: SerializedTypes) => {
+        const json = JSON.stringify(serializedType);
+        const restoredType = JSON.parse(json);
+        const desHandlerType = deserializeType(restoredType);
+        if (!isFunctionType(desHandlerType)) throw 'Invalid deserialized handler';
+        return desHandlerType;
+    };
+
+    const getValidators = (route: Handler, restoredHandlerType: TypeFunction) => {
+        const validators = getParamValidators(route, DEFAULT_ROUTE_OPTIONS);
+        const restoredValidators = getParamValidators(restoredHandlerType, DEFAULT_ROUTE_OPTIONS);
+        return {validators, restoredValidators};
+    };
+
+    const getDeSerializers = (route: Handler, restoredHandlerType: TypeFunction) => {
+        const deSerializers = getParamsDeserializer(route, DEFAULT_ROUTE_OPTIONS);
+        const restoredDeSerializers = getParamsDeserializer(restoredHandlerType, DEFAULT_ROUTE_OPTIONS);
+        return {deSerializers, restoredDeSerializers};
+    };
+
+    it('be able to convert serialized handler types to json, deserialize and use them for validation', () => {
+        initRouter(app, getSharedData, {getPublicRoutesData: true});
+        const testR = {
+            addMilliseconds: (app, ctx, ms: number, date: Date) => date.setMilliseconds(date.getMilliseconds() + ms),
+        };
+        const api = registerRoutes(testR);
+        const addMillisecondsHandlerType = stringifyAndDeserialize(api.addMilliseconds.handlerSerializedType);
+        const {validators, restoredValidators} = getValidators(testR.addMilliseconds, addMillisecondsHandlerType);
+        const {deSerializers, restoredDeSerializers} = getDeSerializers(testR.addMilliseconds, addMillisecondsHandlerType);
+        const executable = {
+            fieldName: 'addMilliseconds',
+            paramsDeSerializers: deSerializers,
+            paramValidators: validators,
+        } as any as Executable;
+        const restoredExecutable = {
+            fieldName: 'addMilliseconds',
+            paramsDeSerializers: restoredDeSerializers,
+            paramValidators: restoredValidators,
+        } as any as Executable;
+        const date = new Date('2022-12-19T00:24:00.00');
+
+        // ###### Validation ######
+        // Dates does not trow an error when validating, TODO: investigate if is an error in deepkit
+        const expectedValidationError = [`Invalid param[0] in 'addMilliseconds', (type): Not a number.`];
+        expect(validateParams(executable, [123, date])).toEqual([]);
+        expect(validateParams(restoredExecutable, [123, date])).toEqual([]);
+        expect(validateParams(executable, ['noNumber', new Date('noDate')])).toEqual(expectedValidationError);
+        expect(validateParams(restoredExecutable, ['noNumber', new Date('noDate')])).toEqual(expectedValidationError);
+
+        // ###### Serialization ######
+        const deserialized = deserializeParams(executable, [123, '2022-12-19T00:24:00.00']);
+        const deserializedFromRestored = deserializeParams(restoredExecutable, [123, '2022-12-19T00:24:00.00']);
+        expect(deserialized).toEqual([123, date]);
+        expect(deserializedFromRestored).toEqual([123, date]);
+
+        // Dates does not trow an error when serializing, TODO: investigate if is an error in deepkit
+        const expectedThrownError = 'Validation error:\n(type): Cannot convert noNumber to number';
+        expect(() => {
+            deserializeParams(executable, ['noNumber', 'noDate']);
+        }).toThrow(expectedThrownError);
+        expect(() => {
+            deserializeParams(restoredExecutable, ['noNumber', 'noDate']);
+        }).toThrow(expectedThrownError);
+    });
+
     it('generate public data when suing prefix and suffix', () => {
-        initRouter(app, getSharedData, {generateSpec: true, prefix: 'v1', suffix: '.json'});
+        initRouter(app, getSharedData, {getPublicRoutesData: true, prefix: 'v1', suffix: '.json'});
         const testR = {
             hook,
             route1,
@@ -117,7 +186,7 @@ describe('Public Mothods should', () => {
     });
 
     it('generate public data from some routes', () => {
-        initRouter(app, getSharedData, {generateSpec: true});
+        initRouter(app, getSharedData, {getPublicRoutesData: true});
         const publicExecutables = registerRoutes(routes);
 
         expect(publicExecutables).toEqual({
