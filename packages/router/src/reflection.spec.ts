@@ -7,8 +7,9 @@
 
 import {ReflectionKind, reflect} from '@deepkit/type';
 import {getOutputSerializer, getParamsDeserializer, getParamValidators} from './reflection';
-import {Context, isFunctionType, RouteParamValidator} from './types';
+import {Context, isFunctionType} from './types';
 import {DEFAULT_ROUTE_OPTIONS} from './constants';
+import {RouteParamValidator} from './types.reflection';
 
 describe('Deepkit reflection should', () => {
     type Message = {

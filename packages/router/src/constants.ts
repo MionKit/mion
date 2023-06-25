@@ -6,6 +6,7 @@
  * ######## */
 
 import {HookDef, RawRequest, RouteDef, RouterOptions} from './types';
+import {ReflectionOptions} from './types.reflection';
 
 export const ROUTE_PATH_ROOT = '/';
 
@@ -34,6 +35,30 @@ export const DEFAULT_REQUEST: Readonly<Required<RawRequest>> = {
 
 export const IS_TEST_ENV = process.env.JEST_WORKER_ID !== undefined || process.env.NODE_ENV === 'test';
 
+/** Reflection and Deepkit Serialization-Validation options */
+export const DEFAULT_REFLECTION_OPTIONS: Readonly<ReflectionOptions> = {
+    /**
+     * Deepkit Serialization Options
+     * loosely defaults to false, Soft conversion disabled.
+     * !! We Don't recommend to enable soft conversion as validation might fail
+     * */
+    serializationOptions: {
+        loosely: false,
+    },
+
+    /**
+     * Deepkit custom serializer
+     * @link https://docs.deepkit.io/english/serialization.html#serialisation-custom-serialiser
+     * */
+    customSerializer: undefined,
+
+    /**
+     * Deepkit Serialization Options
+     * @link https://docs.deepkit.io/english/serialization.html#_naming_strategy
+     * */
+    serializerNamingStrategy: undefined,
+};
+
 export const DEFAULT_ROUTE_OPTIONS: Readonly<RouterOptions> = {
     /** prefix for all routes, i.e: api/v1.
      * path separator is added between the prefix and the route */
@@ -58,26 +83,8 @@ export const DEFAULT_ROUTE_OPTIONS: Readonly<RouterOptions> = {
     /** Enables automatic serialization/deserialization */
     enableSerialization: true,
 
-    /**
-     * Deepkit Serialization Options
-     * loosely defaults to false, Soft conversion disabled.
-     * !! We Don't recommend to enable soft conversion as validation might fail
-     * */
-    serializationOptions: {
-        loosely: false,
-    },
-
-    /**
-     * Deepkit custom serializer
-     * @link https://docs.deepkit.io/english/serialization.html#serialisation-custom-serialiser
-     * */
-    customSerializer: undefined,
-
-    /**
-     * Deepkit Serialization Options
-     * @link https://docs.deepkit.io/english/serialization.html#_naming_strategy
-     * */
-    serializerNamingStrategy: undefined,
+    /** Reflection and Deepkit Serialization-Validation options */
+    reflectionOptions: DEFAULT_REFLECTION_OPTIONS,
 
     /** Custom body parser, defaults to Native JSON */
     bodyParser: JSON,
@@ -87,11 +94,11 @@ export const DEFAULT_ROUTE_OPTIONS: Readonly<RouterOptions> = {
     responseContentType: 'application/json; charset=utf-8',
 
     /** set to true to generate router spec for clients.  */
-    generateSpec: process.env.GENERATE_ROUTER_SPEC === 'true',
+    getPublicRoutesData: process.env.GENERATE_ROUTER_SPEC === 'true',
 };
 
 export const ROUTE_KEYS = Object.keys(DEFAULT_ROUTE);
 export const HOOK_KEYS = Object.keys(DEFAULT_HOOK);
 export const MAX_ROUTE_NESTING = 10;
 
-export const ROUTE_DEFAULT_PARAM = ['app', 'context'];
+export const ROUTE_DEFAULT_PARAMS = ['app', 'context'];
