@@ -1,5 +1,5 @@
 {
-  "name": "mion",
+  "name": "mionkit",
   "description": "mion is framework to build and manage REST APIs",
   "version": "0.1.0",
   "main": "index.js",
@@ -64,6 +64,7 @@
     "typescript": "4.6"
   },
   "workspaces": [
+    "packages/runtype",
     "packages/router",
     "packages/http",
     "packages/serverless",
