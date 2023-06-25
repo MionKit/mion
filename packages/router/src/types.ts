@@ -7,7 +7,7 @@
 
 import type {TypeFunction, SerializedTypes} from '@deepkit/type';
 import {statusCodeToReasonPhrase} from './status-codes';
-import {ReflectionOptions, RouteOutputSerializer, RouteParamDeserializer, RouteParamValidator} from '@mionkit/runtype';
+import {ReflectionOptions, FunctionReturnSerializer, FunctionParamDeserializer, FunctionParamValidator} from '@mionkit/runtype';
 
 // #######  Routes #######
 
@@ -106,9 +106,9 @@ export type Executable = {
     fieldName: string;
     isRoute: boolean;
     handler: Handler;
-    paramValidators: RouteParamValidator[];
-    paramsDeSerializers: RouteParamDeserializer[];
-    outputSerializer: RouteOutputSerializer;
+    paramValidators: FunctionParamValidator[];
+    paramsDeSerializers: FunctionParamDeserializer[];
+    outputSerializer: FunctionReturnSerializer;
     handlerType: TypeFunction;
     isAsync: boolean;
     src: RouteDef | HookDef;

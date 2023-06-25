@@ -16,26 +16,34 @@ import {
 } from '@deepkit/type';
 import {
     ReflectionOptions,
-    RemoteCall,
-    RouteOutputSerializer,
-    RouteParamDeserializer,
-    RouteParamValidator,
+    Handler,
+    FunctionReturnSerializer,
+    FunctionParamDeserializer,
+    FunctionParamValidator,
     isAsyncType,
     isFunctionType,
 } from './types';
-import {REMOTE_DEFAULT_PARAMS} from './constants';
 
 /**
- * Returns an array of functions to validate route handler parameters,
- * First param is excluded from the returned array a is alway the route Context and doesn't need to be validated
+
  * @param handler
  * @param routerOptions
  * @returns the returned array is in the same order as the handler parameters
  */
-export const getParamValidators = (
-    handlerOrType: RemoteCall | Type,
-    reflectionOptions: ReflectionOptions
-): RouteParamValidator[] => {
+
+/**
+ * Returns an array of functions to validate route handler parameters,
+ * First param is excluded from the returned array a is alway the route Context and doesn't need to be validated
+ * @param handlerOrType
+ * @param reflectionOptions
+ * @param skipParams
+ * @returns an array containing a validation function for each parameter
+ */
+export const getFunctionParamValidators = (
+    handlerOrType: Handler | Type,
+    reflectionOptions: ReflectionOptions,
+    skipInitialParams: number
+): FunctionParamValidator[] => {
     const handlerType: Type = isType(handlerOrType) ? handlerOrType : reflect(handlerOrType);
     if (!isFunctionType(handlerType)) throw new Error('Invalid handler type must be a function');
 
@@ -44,7 +52,7 @@ export const getParamValidators = (
         return index > 0 ? validateFunction(reflectionOptions.customSerializer, paramType) : () => [];
     });
 
-    return paramValidators.slice(REMOTE_DEFAULT_PARAMS.length);
+    return paramValidators.slice(skipInitialParams);
 };
 
 /**
@@ -53,10 +61,11 @@ export const getParamValidators = (
  * @param routerOptions
  * @returns
  */
-export const getParamsDeserializer = (
-    handlerOrType: RemoteCall | Type,
-    reflectionOptions: ReflectionOptions
-): RouteParamDeserializer[] => {
+export const getFunctionParamsDeserializer = (
+    handlerOrType: Handler | Type,
+    reflectionOptions: ReflectionOptions,
+    skipInitialParams: number
+): FunctionParamDeserializer[] => {
     const handlerType: Type = isType(handlerOrType) ? handlerOrType : reflect(handlerOrType);
     if (!isFunctionType(handlerType)) throw new Error('Invalid handler type must be a function');
 
@@ -78,7 +87,7 @@ export const getParamsDeserializer = (
             : (a) => '';
     });
 
-    return paramDeserializer.slice(REMOTE_DEFAULT_PARAMS.length);
+    return paramDeserializer.slice(skipInitialParams);
 };
 
 /**
@@ -87,10 +96,10 @@ export const getParamsDeserializer = (
  * @param routerOptions
  * @returns
  */
-export const getOutputSerializer = (
-    handlerOrType: RemoteCall | Type,
+export const getFunctionReturnSerializer = (
+    handlerOrType: Handler | Type,
     reflectionOptions: ReflectionOptions
-): RouteOutputSerializer => {
+): FunctionReturnSerializer => {
     const handlerType: Type = isType(handlerOrType) ? handlerOrType : reflect(handlerOrType);
     if (!isFunctionType(handlerType)) throw new Error('Invalid handler type must be a function');
 
@@ -111,7 +120,11 @@ export const getOutputSerializer = (
  * @param params
  * @returns
  */
-export const validateParams = (functionName: string, validators: RouteParamValidator[], params: any[] = []): string[] => {
+export const validateFunctionParams = (
+    functionName: string,
+    validators: FunctionParamValidator[],
+    params: any[] = []
+): string[] => {
     if (params.length !== validators.length) throw new Error('Invalid number of parameters');
     const errors = validators.map((validate, index) => validate(params[index])).flat();
     // TODO: return default error instead new one
@@ -124,7 +137,7 @@ export const validateParams = (functionName: string, validators: RouteParamValid
  * @param params
  * @returns
  */
-export const deserializeParams = (deSerializers: RouteParamDeserializer[], params: any[] = []): any[] => {
+export const deserializeFunctionParams = (deSerializers: FunctionParamDeserializer[], params: any[] = []): any[] => {
     if (params.length !== deSerializers.length) throw new Error('Invalid number of parameters');
     return deSerializers.map((deserializer, index) => deserializer(params[index]));
 };
@@ -134,7 +147,7 @@ export const deserializeParams = (deSerializers: RouteParamDeserializer[], param
  * @param handlerOrType
  * @returns
  */
-export const isAsyncHandler = (handlerOrType: RemoteCall | Type): boolean => {
+export const isAsyncHandler = (handlerOrType: Handler | Type): boolean => {
     const handlerType: Type = isType(handlerOrType) ? handlerOrType : reflect(handlerOrType);
     if (!isFunctionType(handlerType)) throw new Error('Invalid handler type must be a function');
     return isAsyncType(handlerType.return);

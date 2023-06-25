@@ -6,11 +6,13 @@
  * ######## */
 
 import {ReflectionKind, reflect} from '@deepkit/type';
-import {RouteParamValidator, isFunctionType} from './types';
-import {getOutputSerializer, getParamValidators, getParamsDeserializer} from './reflection';
+import {FunctionParamValidator, isFunctionType} from './types';
+import {getFunctionReturnSerializer, getFunctionParamValidators, getFunctionParamsDeserializer} from './functionReflection';
 import {DEFAULT_REFLECTION_OPTIONS} from './constants';
 
 describe('Deepkit reflection should', () => {
+    const REMOTE_DEFAULT_PARAMS = ['app', 'ctx'];
+    const skip = REMOTE_DEFAULT_PARAMS.length;
     type Message = {
         message: string;
     };
@@ -77,13 +79,26 @@ describe('Deepkit reflection should', () => {
     });
 
     it('validate parameters of a route, success', () => {
-        const paramValidatorsUser: RouteParamValidator[] = getParamValidators(updateUser, DEFAULT_REFLECTION_OPTIONS);
-        const paramValidatorsPrintSum: RouteParamValidator[] = getParamValidators(printSum, DEFAULT_REFLECTION_OPTIONS);
-        const paramValidatorsIgnoreAppRelated: RouteParamValidator[] = getParamValidators(
-            (a, c) => null,
-            DEFAULT_REFLECTION_OPTIONS
+        const paramValidatorsUser: FunctionParamValidator[] = getFunctionParamValidators(
+            updateUser,
+            DEFAULT_REFLECTION_OPTIONS,
+            skip
         );
-        const noParamValidators: RouteParamValidator[] = getParamValidators(() => null, DEFAULT_REFLECTION_OPTIONS);
+        const paramValidatorsPrintSum: FunctionParamValidator[] = getFunctionParamValidators(
+            printSum,
+            DEFAULT_REFLECTION_OPTIONS,
+            skip
+        );
+        const paramValidatorsIgnoreAppRelated: FunctionParamValidator[] = getFunctionParamValidators(
+            (a, c) => null,
+            DEFAULT_REFLECTION_OPTIONS,
+            skip
+        );
+        const noParamValidators: FunctionParamValidator[] = getFunctionParamValidators(
+            () => null,
+            DEFAULT_REFLECTION_OPTIONS,
+            skip
+        );
 
         expect(paramValidatorsUser.length).toEqual(2);
         expect(paramValidatorsPrintSum.length).toEqual(4);
@@ -100,7 +115,11 @@ describe('Deepkit reflection should', () => {
     });
 
     it('validate parameters of a route, fail', () => {
-        const paramValidatorsUser: RouteParamValidator[] = getParamValidators(updateUser, DEFAULT_REFLECTION_OPTIONS);
+        const paramValidatorsUser: FunctionParamValidator[] = getFunctionParamValidators(
+            updateUser,
+            DEFAULT_REFLECTION_OPTIONS,
+            skip
+        );
 
         const errors1 = paramValidatorsUser[0]({});
         const errors2 = paramValidatorsUser[0](2);
@@ -114,8 +133,8 @@ describe('Deepkit reflection should', () => {
     it('should serialize/deserialize data', () => {
         const dataPoint: DatePoint = {date: new Date('2020-12-19T00:24:00.000')};
         const serializedDataPoint = {date: '2020-12-19T00:24:00.000Z'};
-        const deSerializers = getParamsDeserializer(addDate, DEFAULT_REFLECTION_OPTIONS);
-        const outputSerializer = getOutputSerializer(addDate, DEFAULT_REFLECTION_OPTIONS);
+        const deSerializers = getFunctionParamsDeserializer(addDate, DEFAULT_REFLECTION_OPTIONS, skip);
+        const outputSerializer = getFunctionReturnSerializer(addDate, DEFAULT_REFLECTION_OPTIONS);
         const input = JSON.parse(JSON.stringify(dataPoint)); // this would be same as json.parse(body)
 
         const deserialized = deSerializers[0](input);
@@ -134,7 +153,7 @@ describe('Deepkit reflection should', () => {
     });
 
     it('should not do soft deserialization with router default options', () => {
-        const deSerializers = getParamsDeserializer(updateUser, DEFAULT_REFLECTION_OPTIONS);
+        const deSerializers = getFunctionParamsDeserializer(updateUser, DEFAULT_REFLECTION_OPTIONS, skip);
         const date = new Date();
         const user1 = {
             id: 1,
