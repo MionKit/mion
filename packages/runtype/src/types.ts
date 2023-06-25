@@ -18,7 +18,7 @@ import type {
 } from '@deepkit/type';
 import {ReflectionKind} from '@deepkit/type';
 
-export type RemoteCall<Ret = any> = (...params: any[]) => Ret | Promise<Ret>;
+export type Handler<Ret = any> = (...params: any[]) => Ret | Promise<Ret>;
 
 // ####### Router Options #######
 
@@ -42,11 +42,15 @@ export type ReflectionOptions = {
     serializerNamingStrategy?: NamingStrategy;
 };
 
-// #######  reflection #######
+// #######  params reflection #######
+export type FunctionParamValidator = (data: any) => ValidationErrorItem[];
+export type FunctionParamDeserializer = <T>(data: JSONPartial<T>) => T;
+export type FunctionParamSerializer = <T>(data: T) => JSONPartial<T>;
 
-export type RouteParamValidator = (data: any) => ValidationErrorItem[];
-export type RouteParamDeserializer = <T>(data: JSONPartial<T>) => T;
-export type RouteOutputSerializer = <T>(data: T) => JSONSingle<T>;
+// #######  return reflection #######
+export type FunctionReturnValidator = (data: any) => ValidationErrorItem[];
+export type FunctionReturnDeSerializer = <T>(data: T) => JSONSingle<T>;
+export type FunctionReturnSerializer = <T>(data: T) => JSONSingle<T>;
 
 // #######  type guards #######
 

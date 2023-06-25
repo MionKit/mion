@@ -6,5 +6,5 @@
  * ######## */
 
 export * from './src/constants';
-export * from './src/reflection';
+export * from './src/functionReflection';
 export * from './src/types';

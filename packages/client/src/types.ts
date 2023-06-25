@@ -25,9 +25,9 @@ export type RemoteExecutable = Omit<
     Executable,
     'handler' | 'paramValidators' | 'paramsDeSerializers' | 'outputSerializer' | 'handlerType' | 'src'
 > & {
-    // paramValidators: RouteParamValidator[];
-    // paramsDeSerializers: RouteParamDeserializer[];
-    // outputSerializer: RouteOutputSerializer;
+    // paramValidators: FunctionParamValidator[];
+    // paramsDeSerializers: FunctionParamDeserializer[];
+    // outputSerializer: FunctionReturnSerializer;
     serializedHandler: SerializedTypes;
 };
 
