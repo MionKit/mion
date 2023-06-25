@@ -18,6 +18,8 @@ import type {
 } from '@deepkit/type';
 import {ReflectionKind} from '@deepkit/type';
 
+export type RemoteCall<Ret = any> = (...params: any[]) => Ret | Promise<Ret>;
+
 // ####### Router Options #######
 
 /** Reflection and Deepkit Serialization-Validation options */

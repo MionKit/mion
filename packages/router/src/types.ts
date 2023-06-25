@@ -19,7 +19,7 @@ import type {
 } from '@deepkit/type';
 import {ReflectionKind} from '@deepkit/type';
 import {statusCodeToReasonPhrase} from './status-codes';
-import {ReflectionOptions, RouteOutputSerializer, RouteParamDeserializer, RouteParamValidator} from './types.reflection';
+import {ReflectionOptions, RouteOutputSerializer, RouteParamDeserializer, RouteParamValidator} from '@mionkit/runtype';
 
 // #######  Routes #######
 

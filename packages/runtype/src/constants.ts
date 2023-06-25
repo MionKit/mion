@@ -30,3 +30,5 @@ export const DEFAULT_REFLECTION_OPTIONS: Readonly<ReflectionOptions> = {
      * */
     serializerNamingStrategy: undefined,
 };
+
+export const REMOTE_DEFAULT_PARAMS = ['app', 'ctx'];

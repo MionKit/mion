@@ -9,8 +9,8 @@ import {DEFAULT_ROUTE_OPTIONS, DEFAULT_HOOK} from './constants';
 import {getPublicRoutes} from './publicMethods';
 import {registerRoutes, initRouter, reset} from './router';
 import {SerializedTypes, TypeFunction, deserializeType, reflect} from '@deepkit/type';
-import {Executable, Handler, isFunctionType} from './types';
-import {deserializeParams, getParamValidators, getParamsDeserializer, validateParams} from './reflection';
+import {Executable, Handler} from './types';
+import {deserializeParams, getParamValidators, getParamsDeserializer, isFunctionType, validateParams} from '@mionkit/runtype';
 
 describe('Public Mothods should', () => {
     type SimpleUser = {name: string; surname: string};
@@ -105,14 +105,14 @@ describe('Public Mothods should', () => {
     };
 
     const getValidators = (route: Handler, restoredHandlerType: TypeFunction) => {
-        const validators = getParamValidators(route, DEFAULT_ROUTE_OPTIONS);
-        const restoredValidators = getParamValidators(restoredHandlerType, DEFAULT_ROUTE_OPTIONS);
+        const validators = getParamValidators(route, DEFAULT_ROUTE_OPTIONS.reflectionOptions);
+        const restoredValidators = getParamValidators(restoredHandlerType, DEFAULT_ROUTE_OPTIONS.reflectionOptions);
         return {validators, restoredValidators};
     };
 
     const getDeSerializers = (route: Handler, restoredHandlerType: TypeFunction) => {
-        const deSerializers = getParamsDeserializer(route, DEFAULT_ROUTE_OPTIONS);
-        const restoredDeSerializers = getParamsDeserializer(restoredHandlerType, DEFAULT_ROUTE_OPTIONS);
+        const deSerializers = getParamsDeserializer(route, DEFAULT_ROUTE_OPTIONS.reflectionOptions);
+        const restoredDeSerializers = getParamsDeserializer(restoredHandlerType, DEFAULT_ROUTE_OPTIONS.reflectionOptions);
         return {deSerializers, restoredDeSerializers};
     };
 
@@ -140,24 +140,31 @@ describe('Public Mothods should', () => {
         // ###### Validation ######
         // Dates does not trow an error when validating, TODO: investigate if is an error in deepkit
         const expectedValidationError = [`Invalid param[0] in 'addMilliseconds', (type): Not a number.`];
-        expect(validateParams(executable, [123, date])).toEqual([]);
-        expect(validateParams(restoredExecutable, [123, date])).toEqual([]);
-        expect(validateParams(executable, ['noNumber', new Date('noDate')])).toEqual(expectedValidationError);
-        expect(validateParams(restoredExecutable, ['noNumber', new Date('noDate')])).toEqual(expectedValidationError);
+        expect(validateParams(executable.fieldName, executable.paramValidators, [123, date])).toEqual([]);
+        expect(validateParams(restoredExecutable.fieldName, restoredExecutable.paramValidators, [123, date])).toEqual([]);
+        expect(validateParams(executable.fieldName, executable.paramValidators, ['noNumber', new Date('noDate')])).toEqual(
+            expectedValidationError
+        );
+        expect(
+            validateParams(restoredExecutable.fieldName, restoredExecutable.paramValidators, ['noNumber', new Date('noDate')])
+        ).toEqual(expectedValidationError);
 
         // ###### Serialization ######
-        const deserialized = deserializeParams(executable, [123, '2022-12-19T00:24:00.00']);
-        const deserializedFromRestored = deserializeParams(restoredExecutable, [123, '2022-12-19T00:24:00.00']);
+        const deserialized = deserializeParams(executable.paramsDeSerializers, [123, '2022-12-19T00:24:00.00']);
+        const deserializedFromRestored = deserializeParams(restoredExecutable.paramsDeSerializers, [
+            123,
+            '2022-12-19T00:24:00.00',
+        ]);
         expect(deserialized).toEqual([123, date]);
         expect(deserializedFromRestored).toEqual([123, date]);
 
         // Dates does not trow an error when serializing, TODO: investigate if is an error in deepkit
         const expectedThrownError = 'Validation error:\n(type): Cannot convert noNumber to number';
         expect(() => {
-            deserializeParams(executable, ['noNumber', 'noDate']);
+            deserializeParams(executable.paramsDeSerializers, ['noNumber', 'noDate']);
         }).toThrow(expectedThrownError);
         expect(() => {
-            deserializeParams(restoredExecutable, ['noNumber', 'noDate']);
+            deserializeParams(restoredExecutable.paramsDeSerializers, ['noNumber', 'noDate']);
         }).toThrow(expectedThrownError);
     });
 

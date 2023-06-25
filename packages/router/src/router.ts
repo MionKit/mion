@@ -34,16 +34,16 @@ import {
     PublicMethods,
 } from './types';
 import {StatusCodes} from './status-codes';
+import {reflect, TypeFunction} from '@deepkit/type';
+import {getPublicRoutes} from './publicMethods';
 import {
     deserializeParams,
     getOutputSerializer,
-    getParamsDeserializer,
     getParamValidators,
+    getParamsDeserializer,
     isAsyncHandler,
     validateParams,
-} from './reflection';
-import {reflect, TypeFunction} from '@deepkit/type';
-import {getPublicRoutes} from './publicMethods';
+} from '@mionkit/runtype';
 
 type RouterKeyEntryList = [string, Routes | HookDef | Route][];
 type RoutesWithId = {
@@ -261,7 +261,7 @@ const getValidatedHandlerParams = (request: Request, executable: Executable): an
 
     if (routerOptions.enableSerialization) {
         try {
-            params = deserializeParams(executable, params);
+            params = deserializeParams(executable.paramsDeSerializers, params);
         } catch (e) {
             throw new RouteError(
                 StatusCodes.BAD_REQUEST,
@@ -271,7 +271,7 @@ const getValidatedHandlerParams = (request: Request, executable: Executable): an
     }
 
     if (routerOptions.enableValidation) {
-        const validationErrorMessages = validateParams(executable, params);
+        const validationErrorMessages = validateParams(executable.fieldName, executable.paramValidators, params);
         if (validationErrorMessages?.length) {
             throw new RouteError(StatusCodes.BAD_REQUEST, validationErrorMessages.join(' | '));
         }
@@ -428,9 +428,9 @@ const getExecutableFromHook = (hook: HookDef, hookPointer: string[], nestLevel: 
         isRoute: false,
         handler,
         handlerType,
-        paramValidators: getParamValidators(handlerType, routerOptions),
-        paramsDeSerializers: getParamsDeserializer(handlerType, routerOptions),
-        outputSerializer: getOutputSerializer(handlerType, routerOptions),
+        paramValidators: getParamValidators(handlerType, routerOptions.reflectionOptions),
+        paramsDeSerializers: getParamsDeserializer(handlerType, routerOptions.reflectionOptions),
+        outputSerializer: getOutputSerializer(handlerType, routerOptions.reflectionOptions),
         isAsync: isAsyncHandler(handlerType),
         enableValidation: hook.enableValidation ?? routerOptions.enableValidation,
         enableSerialization: hook.enableSerialization ?? routerOptions.enableSerialization,
@@ -459,9 +459,9 @@ const getExecutableFromRoute = (route: Route, routePointer: string[], nestLevel:
         nestLevel,
         handler,
         handlerType,
-        paramValidators: getParamValidators(handlerType, routerOptions),
-        paramsDeSerializers: getParamsDeserializer(handlerType, routerOptions),
-        outputSerializer: getOutputSerializer(handlerType, routerOptions),
+        paramValidators: getParamValidators(handlerType, routerOptions.reflectionOptions),
+        paramsDeSerializers: getParamsDeserializer(handlerType, routerOptions.reflectionOptions),
+        outputSerializer: getOutputSerializer(handlerType, routerOptions.reflectionOptions),
         isAsync: isAsyncHandler(handlerType),
         enableValidation: (route as RouteDef).enableValidation ?? routerOptions.enableValidation,
         enableSerialization: (route as RouteDef).enableSerialization ?? routerOptions.enableSerialization,
