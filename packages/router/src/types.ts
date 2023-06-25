@@ -15,24 +15,26 @@ import type {
     JSONPartial,
     JSONSingle,
     TypePromise,
+    SerializedTypes,
 } from '@deepkit/type';
 import {ReflectionKind} from '@deepkit/type';
 import {statusCodeToReasonPhrase} from './status-codes';
+import {ReflectionOptions, RouteOutputSerializer, RouteParamDeserializer, RouteParamValidator} from './types.reflection';
 
 // #######  Routes #######
 
 /** Route or Hook Handler, the remote function  */
-export type Handler = (
+export type Handler<App = any, CallContext extends Context<any, any> = any, Ret = any> = (
     /** Static Data: main App, db driver, libraries, etc... */
-    app: any,
+    app: App,
     /** Call Context */
-    context: Context<any, any>,
+    context: CallContext,
     /** Remote Call parameters */
     ...parameters: any
-) => any | Promise<any>;
+) => Ret | Promise<Ret>;
 
 /** Route definition */
-export type RouteDef = {
+export type RouteDef<App = any, CallContext extends Context<any, any> = any, Ret = any> = {
     /** overrides route's path and fieldName in request/response body */
     path?: string;
     /** description of the route, mostly for documentation purposes */
@@ -42,14 +44,16 @@ export type RouteDef = {
     /** Enables serialization/deserialization */
     enableSerialization?: boolean;
     /** Route Handler */
-    route: Handler;
+    route: Handler<App, CallContext, Ret>;
 };
 
 /** A route can be a full route definition or just the handler */
-export type Route = RouteDef | Handler;
+export type Route<App = any, CallContext extends Context<any, any> = any, Ret = any> =
+    | RouteDef<App, CallContext, Ret>
+    | Handler<App, CallContext, Ret>;
 
 /** Hook definition, a function that hooks into the execution path */
-export type HookDef<App = any, CallContext extends Context<any, any> = any> = {
+export type HookDef<App = any, CallContext extends Context<any, any> = any, Ret = any> = {
     /** Executes the hook even if an error was thrown previously */
     forceRunOnError?: boolean;
     /** Enables returning data in the responseBody,
@@ -66,12 +70,12 @@ export type HookDef<App = any, CallContext extends Context<any, any> = any> = {
     /** Enables serialization/deserialization */
     enableSerialization?: boolean;
     /** Hook handler */
-    hook: Handler;
+    hook: Handler<App, CallContext, Ret>;
 };
 
 /** Data structure to define all the routes, each entry is a route a hook or sub-routes */
-export type Routes = {
-    [key: string]: HookDef | Route | Routes;
+export type Routes<App = any, CallContext extends Context<any, any> = any> = {
+    [key: string]: HookDef<App, CallContext> | Route<App, CallContext> | Routes<App, CallContext>;
 };
 
 // ####### Router Options #######
@@ -92,28 +96,14 @@ export type RouterOptions<RawContext extends RawServerContext = RawServerContext
     enableValidation: boolean;
     /** Enables serialization/deserialization */
     enableSerialization: boolean;
-    /**
-     * Deepkit Serialization Options
-     * loosely defaults to false, Soft conversion disabled.
-     * !! We Don't recommend to enable soft conversion as validation might fail
-     * */
-    serializationOptions: SerializationOptions;
-    /**
-     * Deepkit custom serializer
-     * @link https://docs.deepkit.io/english/serialization.html#serialisation-custom-serialiser
-     * */
-    customSerializer?: Serializer;
-    /**
-     * Deepkit naming strategy
-     * @link https://docs.deepkit.io/english/serialization.html#_naming_strategy
-     * */
-    serializerNamingStrategy?: NamingStrategy;
+    /** Reflection and Deepkit Serialization-Validation options */
+    reflectionOptions: ReflectionOptions;
     /** Custom JSON parser, defaults to Native js JSON */
     bodyParser: JsonParser;
     /** response content type, @default "application/json; charset=utf-8" */
     responseContentType: string;
     /** Used to return public data when adding routes */
-    generateSpec: boolean;
+    getPublicRoutesData: boolean;
 };
 
 // ####### Execution Path #######
@@ -252,8 +242,10 @@ export type PublicHandler<H extends Handler> = H extends (app: any, ctx: Context
     : never;
 
 export type PublicRoute<H extends Handler> = {
-    /** This is actually null, it is included only too reference static types */
-    handlerType: PublicHandler<H>;
+    /** Type reference to the route handler, its value is actually null or void function ans should never be called. */
+    _handler: PublicHandler<H>;
+    /** Json serializable structure so the Type information can be transmitted over the wire */
+    handlerSerializedType: SerializedTypes;
     isRoute: true;
     canReturnData: true;
     path: string;
@@ -265,8 +257,10 @@ export type PublicRoute<H extends Handler> = {
 };
 
 export type PublicHook<H extends Handler> = {
-    /** This is actually null, it is included only too reference static types */
-    handlerType: PublicHandler<H>;
+    /** Type reference to the route handler, its value is actually null or void function ans should never be called. */
+    _handler: PublicHandler<H>;
+    /** Json serializable structure so the Type information can be transmitted over the wire */
+    handlerSerializedType: SerializedTypes;
     isRoute: false;
     canReturnData: boolean;
     inHeader: boolean;
@@ -277,12 +271,6 @@ export type PublicHook<H extends Handler> = {
 };
 
 export type PublicMethod<H extends Handler = any> = PublicRoute<H> | PublicHook<H>;
-
-// #######  reflection #######
-
-export type RouteParamValidator = (data: any) => ValidationErrorItem[];
-export type RouteParamDeserializer = <T>(data: JSONPartial<T>) => T;
-export type RouteOutputSerializer = <T>(data: T) => JSONSingle<T>;
 
 // #######  type guards #######
 
@@ -323,12 +311,10 @@ export const isPuplicMethod = (entry: PublicRoute<any> | PublicHook<any>): entry
 };
 
 export const isPublicRoutes = (entry: PublicMethods<any> | PublicRoute<any> | PublicHook<any>): entry is PublicMethods<any> => {
-    return typeof entry.handlerType !== 'function' && typeof entry.handlerType !== 'string'; // string is the real value
+    return typeof entry._handler !== 'function' && typeof entry._handler !== 'string'; // string is the real value
 };
 
 export const isFunctionType = (t: Type): t is TypeFunction => t.kind === ReflectionKind.function;
-export const isAsyncType = (t: Type): t is TypePromise =>
-    t.kind === ReflectionKind.promise || t.kind === ReflectionKind.any || t.kind === ReflectionKind.unknown;
 
 // #######  Others #######
 

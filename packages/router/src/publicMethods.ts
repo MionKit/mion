@@ -6,8 +6,9 @@
  * ######## */
 
 import {join} from 'path';
-import {ROUTE_DEFAULT_PARAM} from './constants';
+import {ROUTE_DEFAULT_PARAMS} from './constants';
 import {getHookExecutable, getHookFieldName, getRouteExecutable, getRouteExecutionPath, getRoutePath} from './router';
+import {reflect, serializeType} from '@deepkit/type';
 import {
     Executable,
     Handler,
@@ -63,10 +64,11 @@ const getPublicRouteFromExecutable = <H extends Handler>(executable: Executable,
         path: executable.path,
         inHeader: executable.inHeader,
         // handler is included just for static typing purposes and shouldn't be called directly
-        handlerType: propertyPonter as any as PublicHandler<H>,
+        _handler: propertyPonter as any as PublicHandler<H>,
+        handlerSerializedType: serializeType(reflect(executable.handler)),
         enableValidation: executable.enableValidation,
         enableSerialization: executable.enableSerialization,
-        params: executable.handlerType.parameters.map((tp) => tp.name).slice(ROUTE_DEFAULT_PARAM.length),
+        params: executable.handlerType.parameters.map((tp) => tp.name).slice(ROUTE_DEFAULT_PARAMS.length),
         publicExecutionPathPointers:
             getRouteExecutionPath(executable.path)
                 ?.filter((exec) => isPuplicExecutable(exec))
@@ -81,9 +83,10 @@ const getPublicHookFromExecutable = <H extends Handler>(executable: Executable, 
         inHeader: executable.inHeader,
         fieldName: executable.fieldName,
         // handler is included just for static typing purposes and shouldn't be called directly
-        handlerType: propertyPonter as any as PublicHandler<H>,
+        _handler: propertyPonter as any as PublicHandler<H>,
+        handlerSerializedType: serializeType(reflect(executable.handler)),
         enableValidation: executable.enableValidation,
         enableSerialization: executable.enableSerialization,
-        params: executable.handlerType.parameters.map((tp) => tp.name).slice(ROUTE_DEFAULT_PARAM.length),
+        params: executable.handlerType.parameters.map((tp) => tp.name).slice(ROUTE_DEFAULT_PARAMS.length),
     };
 };

@@ -6,7 +6,7 @@
  * ######## */
 
 import {join} from 'path';
-import {DEFAULT_ROUTE, DEFAULT_ROUTE_OPTIONS, MAX_ROUTE_NESTING, ROUTE_DEFAULT_PARAM, ROUTE_PATH_ROOT} from './constants';
+import {DEFAULT_ROUTE, DEFAULT_ROUTE_OPTIONS, MAX_ROUTE_NESTING, ROUTE_DEFAULT_PARAMS, ROUTE_PATH_ROOT} from './constants';
 import {
     Executable,
     Handler,
@@ -70,7 +70,8 @@ let routerOptions: RouterOptions = {
 export const registerRoutes = <R extends Routes>(routes: R): PublicMethods<R> => {
     if (!app) throw new Error('Router has not been initialized yet');
     recursiveFlatRoutes(routes);
-    if (routerOptions.generateSpec || process.env.GENERATE_ROUTER_SPEC === 'true')
+    // we only want to get information about the routes when creating api spec
+    if (routerOptions.getPublicRoutesData || process.env.GENERATE_ROUTER_SPEC === 'true')
         return getPublicRoutes(routes) as PublicMethods<R>;
     return {} as PublicMethods<R>;
 };
@@ -406,7 +407,7 @@ const getExecutableFromHook = (hook: HookDef, hookPointer: string[], nestLevel: 
     if (existing) return existing as HookExecutable<Handler>;
     const handler = getHandler(hook, hookPointer);
 
-    if (!!hook.inHeader && handler.length > ROUTE_DEFAULT_PARAM.length + 1) {
+    if (!!hook.inHeader && handler.length > ROUTE_DEFAULT_PARAMS.length + 1) {
         throw new Error(
             `Invalid Hook: ${join(...hookPointer)}. In header hooks can only have a single parameter besides App and Context.`
         );
@@ -427,10 +428,10 @@ const getExecutableFromHook = (hook: HookDef, hookPointer: string[], nestLevel: 
         isRoute: false,
         handler,
         handlerType,
-        paramValidators: getParamValidators(handler, routerOptions, handlerType),
-        paramsDeSerializers: getParamsDeserializer(handler, routerOptions, handlerType),
-        outputSerializer: getOutputSerializer(handler, routerOptions, handlerType),
-        isAsync: isAsyncHandler(handler, handlerType),
+        paramValidators: getParamValidators(handlerType, routerOptions),
+        paramsDeSerializers: getParamsDeserializer(handlerType, routerOptions),
+        outputSerializer: getOutputSerializer(handlerType, routerOptions),
+        isAsync: isAsyncHandler(handlerType),
         enableValidation: hook.enableValidation ?? routerOptions.enableValidation,
         enableSerialization: hook.enableSerialization ?? routerOptions.enableSerialization,
         src: hook,
@@ -458,10 +459,10 @@ const getExecutableFromRoute = (route: Route, routePointer: string[], nestLevel:
         nestLevel,
         handler,
         handlerType,
-        paramValidators: getParamValidators(handler, routerOptions),
-        paramsDeSerializers: getParamsDeserializer(handler, routerOptions),
-        outputSerializer: getOutputSerializer(handler, routerOptions),
-        isAsync: isAsyncHandler(handler, handlerType),
+        paramValidators: getParamValidators(handlerType, routerOptions),
+        paramsDeSerializers: getParamsDeserializer(handlerType, routerOptions),
+        outputSerializer: getOutputSerializer(handlerType, routerOptions),
+        isAsync: isAsyncHandler(handlerType),
         enableValidation: (route as RouteDef).enableValidation ?? routerOptions.enableValidation,
         enableSerialization: (route as RouteDef).enableSerialization ?? routerOptions.enableSerialization,
         src: routeObj,
