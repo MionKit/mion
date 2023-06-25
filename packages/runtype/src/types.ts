@@ -42,17 +42,17 @@ export type ReflectionOptions = {
     serializerNamingStrategy?: NamingStrategy;
 };
 
-// #######  params reflection #######
+// #######  VALIDATE #######
 export type FunctionParamValidator = (data: any) => ValidationErrorItem[];
-export type FunctionParamDeserializer = <T>(data: JSONPartial<T>) => T;
-export type FunctionParamSerializer = <T>(data: T) => JSONPartial<T>;
-
-// #######  return reflection #######
 export type FunctionReturnValidator = (data: any) => ValidationErrorItem[];
-export type FunctionReturnDeSerializer = <T>(data: T) => JSONSingle<T>;
-export type FunctionReturnSerializer = <T>(data: T) => JSONSingle<T>;
 
-// #######  type guards #######
+// #######  SERIALIZE #######
+export type FunctionParamSerializer = <T>(data: T) => JSONPartial<T>;
+export type FunctionReturnDeSerializer = <T>(data: T) => JSONSingle<T>;
+
+// #######  DE-SERIALIZE #######
+export type FunctionParamDeserializer = <T>(data: JSONPartial<T>) => T;
+export type FunctionReturnSerializer = <T>(data: T) => JSONSingle<T>;
 
 export const isFunctionType = (t: Type): t is TypeFunction => t.kind === ReflectionKind.function;
 
