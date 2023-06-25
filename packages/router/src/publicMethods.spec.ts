@@ -100,7 +100,7 @@ describe('Public Mothods should', () => {
         const json = JSON.stringify(serializedType);
         const restoredType = JSON.parse(json);
         const desHandlerType = deserializeType(restoredType);
-        if (!isFunctionType(desHandlerType)) throw 'Invalid deserialized handler';
+        if (!isFunctionType(desHandlerType)) throw new Error('Invalid deserialized handler');
         return desHandlerType;
     };
 

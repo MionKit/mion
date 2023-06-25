@@ -14,7 +14,7 @@ const requiredTypes: Map<string, Type> = new Map();
 
 export const parametersToSrcCode = (path: string, handler: (...args: any[]) => any, type?: Type): {[key: string]: string} => {
     const handlerType = type || reflect(handler);
-    if (!isFunctionType(handlerType)) throw 'Invalid route/hook handler';
+    if (!isFunctionType(handlerType)) throw new Error('Invalid handler type must be a function');
     const paramNames: {[key: string]: string} = {};
     handlerType.parameters.forEach((pt) => {
         // console.log(inspect(pt, false, 5, true));
@@ -25,7 +25,7 @@ export const parametersToSrcCode = (path: string, handler: (...args: any[]) => a
 
 export const returnToSrcCode = (path: string, handler: (...args: any[]) => any, type?: Type): string => {
     const handlerType = type || reflect(handler);
-    if (!isFunctionType(handlerType)) throw 'Invalid route/hook handler';
+    if (!isFunctionType(handlerType)) throw new Error('Invalid handler type must be a function');
     return validateAndGetType(handlerType.return, path, true);
 };
 
