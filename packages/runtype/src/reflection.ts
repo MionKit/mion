@@ -37,7 +37,7 @@ export const getParamValidators = (
     reflectionOptions: ReflectionOptions
 ): RouteParamValidator[] => {
     const handlerType: Type = isType(handlerOrType) ? handlerOrType : reflect(handlerOrType);
-    if (!isFunctionType(handlerType)) throw 'Invalid route/hook handler';
+    if (!isFunctionType(handlerType)) throw new Error('Invalid handler type must be a function');
 
     const paramValidators = handlerType.parameters.map((paramType, index) => {
         // assumes the context type that is the first parameter is always valid
@@ -58,7 +58,7 @@ export const getParamsDeserializer = (
     reflectionOptions: ReflectionOptions
 ): RouteParamDeserializer[] => {
     const handlerType: Type = isType(handlerOrType) ? handlerOrType : reflect(handlerOrType);
-    if (!isFunctionType(handlerType)) throw 'Invalid route/hook handler';
+    if (!isFunctionType(handlerType)) throw new Error('Invalid handler type must be a function');
 
     const opts: SerializationOptions = {
         ...reflectionOptions.serializationOptions,
@@ -92,7 +92,7 @@ export const getOutputSerializer = (
     reflectionOptions: ReflectionOptions
 ): RouteOutputSerializer => {
     const handlerType: Type = isType(handlerOrType) ? handlerOrType : reflect(handlerOrType);
-    if (!isFunctionType(handlerType)) throw 'Invalid route/hook handler';
+    if (!isFunctionType(handlerType)) throw new Error('Invalid handler type must be a function');
 
     const outPutSerializer = serializeFunction(
         reflectionOptions.serializationOptions,
@@ -112,7 +112,7 @@ export const getOutputSerializer = (
  * @returns
  */
 export const validateParams = (functionName: string, validators: RouteParamValidator[], params: any[] = []): string[] => {
-    if (params.length !== validators.length) throw 'Invalid number of parameters';
+    if (params.length !== validators.length) throw new Error('Invalid number of parameters');
     const errors = validators.map((validate, index) => validate(params[index])).flat();
     // TODO: return default error instead new one
     return errors.map((validationError, index) => `Invalid param[${index}] in '${functionName}', ${validationError.toString()}.`);
@@ -125,7 +125,7 @@ export const validateParams = (functionName: string, validators: RouteParamValid
  * @returns
  */
 export const deserializeParams = (deSerializers: RouteParamDeserializer[], params: any[] = []): any[] => {
-    if (params.length !== deSerializers.length) throw 'Invalid number of parameters';
+    if (params.length !== deSerializers.length) throw new Error('Invalid number of parameters');
     return deSerializers.map((deserializer, index) => deserializer(params[index]));
 };
 
@@ -136,7 +136,7 @@ export const deserializeParams = (deSerializers: RouteParamDeserializer[], param
  */
 export const isAsyncHandler = (handlerOrType: RemoteCall | Type): boolean => {
     const handlerType: Type = isType(handlerOrType) ? handlerOrType : reflect(handlerOrType);
-    if (!isFunctionType(handlerType)) throw 'Invalid route/hook handler';
+    if (!isFunctionType(handlerType)) throw new Error('Invalid handler type must be a function');
     return isAsyncType(handlerType.return);
 };
 
