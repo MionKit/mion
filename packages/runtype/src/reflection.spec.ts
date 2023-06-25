@@ -6,10 +6,7 @@
  * ######## */
 
 import {ReflectionKind, reflect} from '@deepkit/type';
-import {getOutputSerializer, getParamsDeserializer, getParamValidators} from './reflection';
-import {Context, isFunctionType} from './types';
-import {DEFAULT_ROUTE_OPTIONS} from './constants';
-import {RouteParamValidator} from './types.reflection';
+import {isFunctionType} from './types';
 
 describe('Deepkit reflection should', () => {
     type Message = {
@@ -36,16 +33,13 @@ describe('Deepkit reflection should', () => {
         lastUpdate: new Date('December 17, 2020 03:24:00'),
     };
 
-    type MyApp = typeof myApp;
-    type CallContext = Context<ReturnType<typeof sharedDataFactory>>;
-
-    const addDate = (app: MyApp, ctx: CallContext, data: DatePoint): DatePoint => {
+    const addDate = (app, ctx, data: DatePoint): DatePoint => {
         return data;
     };
-    const printSum = (app: MyApp, ctx: CallContext, a: number, b: number, c?: {message: string}, d?: Message) =>
+    const printSum = (app, ctx, a: number, b: number, c?: {message: string}, d?: Message) =>
         `${c?.message || d?.message || 'sum'} => ${a + b}`;
 
-    const updateUser = (app: MyApp, ctx: CallContext, user: User, counterStart?: number): User => {
+    const updateUser = (app, ctx, user: User, counterStart?: number): User => {
         const updated = {
             ...user,
             lastUpdate: new Date(),

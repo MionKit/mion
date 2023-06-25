@@ -1,7 +1,7 @@
 {
-  "name": "@mionkit/router",
+  "name": "@mionkit/runtype",
   "version": "0.2.1-alpha.0",
-  "description": "Typescript RPC Like router with automatic Validation and Serialization",
+  "description": "Runtime type system based on @deepkit/type",
   "keywords": [
     "typescript",
     "API",
@@ -12,10 +12,12 @@
     "server",
     "serverless",
     "framework",
-    "node"
+    "node",
+    "runtime types",
+    "deepkit"
   ],
   "author": "ma jerez <jerez.m82@gmail.com>",
-  "homepage": "https://github.com/MionKit/mion/tree/main/packages/router#readme",
+  "homepage": "https://github.com/MionKit/mion/tree/main/packages/client#readme",
   "license": "MIT",
   "main": "./.dist/cjs/index.js",
   "module": "./.dist/esm/index.js",
@@ -55,8 +57,7 @@
     "url": "https://github.com/MionKit/mion/issues"
   },
   "dependencies": {
-    "@deepkit/type": "^1.0.1-alpha.75",
-    "@mionkit/runtype": "^0.2.1-alpha.0"
+    "@deepkit/type": "^1.0.1-alpha.75"
   },
   "devDependencies": {
     "@deepkit/core": "^1.0.1-alpha.75",

@@ -6,7 +6,7 @@
  * ######## */
 
 import {HookDef, RawRequest, RouteDef, RouterOptions} from './types';
-import {ReflectionOptions} from './types.reflection';
+import {DEFAULT_REFLECTION_OPTIONS} from '@mionkit/runtype';
 
 export const ROUTE_PATH_ROOT = '/';
 
@@ -34,30 +34,6 @@ export const DEFAULT_REQUEST: Readonly<Required<RawRequest>> = {
 };
 
 export const IS_TEST_ENV = process.env.JEST_WORKER_ID !== undefined || process.env.NODE_ENV === 'test';
-
-/** Reflection and Deepkit Serialization-Validation options */
-export const DEFAULT_REFLECTION_OPTIONS: Readonly<ReflectionOptions> = {
-    /**
-     * Deepkit Serialization Options
-     * loosely defaults to false, Soft conversion disabled.
-     * !! We Don't recommend to enable soft conversion as validation might fail
-     * */
-    serializationOptions: {
-        loosely: false,
-    },
-
-    /**
-     * Deepkit custom serializer
-     * @link https://docs.deepkit.io/english/serialization.html#serialisation-custom-serialiser
-     * */
-    customSerializer: undefined,
-
-    /**
-     * Deepkit Serialization Options
-     * @link https://docs.deepkit.io/english/serialization.html#_naming_strategy
-     * */
-    serializerNamingStrategy: undefined,
-};
 
 export const DEFAULT_ROUTE_OPTIONS: Readonly<RouterOptions> = {
     /** prefix for all routes, i.e: api/v1.

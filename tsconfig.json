@@ -23,6 +23,7 @@
   "reflection": true,
   "exclude": ["node_modules", ".dist"],
   "references": [
+    {"path": "packages/runtype"},
     {"path": "packages/router"},
     {"path": "packages/http"},
     {"path": "packages/serverless"},
