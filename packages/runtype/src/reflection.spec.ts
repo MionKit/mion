@@ -52,7 +52,7 @@ describe('Deepkit reflection should', () => {
         const printSumType = reflect(printSum);
         let requiredParams = 0;
         let optionalParams = 0;
-        if (!isFunctionType(printSumType)) throw 'invalid reflection';
+        if (!isFunctionType(printSumType)) throw new Error('invalid reflection');
 
         printSumType.parameters.forEach((param) => {
             if (param.optional) optionalParams++;

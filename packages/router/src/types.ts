@@ -5,19 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import type {
-    TypeFunction,
-    Type,
-    ValidationErrorItem,
-    Serializer,
-    SerializationOptions,
-    NamingStrategy,
-    JSONPartial,
-    JSONSingle,
-    TypePromise,
-    SerializedTypes,
-} from '@deepkit/type';
-import {ReflectionKind} from '@deepkit/type';
+import type {TypeFunction, SerializedTypes} from '@deepkit/type';
 import {statusCodeToReasonPhrase} from './status-codes';
 import {ReflectionOptions, RouteOutputSerializer, RouteParamDeserializer, RouteParamValidator} from '@mionkit/runtype';
 

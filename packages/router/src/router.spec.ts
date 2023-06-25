@@ -609,7 +609,7 @@ describe('Dispatch routes', () => {
             initRouter(myApp, getSharedData);
 
             const routeFail: Route = () => {
-                throw 'this is a generic error';
+                throw new Error('this is a generic error');
             };
             registerRoutes({routeFail});
 
