@@ -314,8 +314,6 @@ export const isPublicRoutes = (entry: PublicMethods<any> | PublicRoute<any> | Pu
     return typeof entry._handler !== 'function' && typeof entry._handler !== 'string'; // string is the real value
 };
 
-export const isFunctionType = (t: Type): t is TypeFunction => t.kind === ReflectionKind.function;
-
 // #######  Others #######
 
 export type Obj = {

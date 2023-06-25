@@ -1,10 +1,11 @@
 {
   "extends": "../../tsconfig.json",
   "compilerOptions": {
-    "outDir": ".dist/cjs"
+    "module": "ES2020",
+    "outDir": ".dist/esm"
   },
   "reflection": true,
   "include": ["."],
   "exclude": ["node_modules", "**/*.spec.ts", "examples", ".dist"],
-  "references": [{"path": "../runtype"}]
+  "references": []
 }

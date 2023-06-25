@@ -1,5 +1,5 @@
 /* ########
- * 2022 mion
+ * 2023 mion
  * Author: Ma-jerez
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
@@ -14,6 +14,7 @@ import type {
     JSONPartial,
     JSONSingle,
     TypePromise,
+    TypeFunction,
 } from '@deepkit/type';
 import {ReflectionKind} from '@deepkit/type';
 
@@ -46,6 +47,8 @@ export type RouteParamDeserializer = <T>(data: JSONPartial<T>) => T;
 export type RouteOutputSerializer = <T>(data: T) => JSONSingle<T>;
 
 // #######  type guards #######
+
+export const isFunctionType = (t: Type): t is TypeFunction => t.kind === ReflectionKind.function;
 
 // TODO: we might be missing some scenarios here and might need more test
 export const isAsyncType = (t: Type): t is TypePromise =>
