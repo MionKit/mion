@@ -46,7 +46,7 @@ export const validateFunctionParams = (
 ): string[] => {
     if (params.length !== validators.length) throw new Error('Invalid number of parameters');
     const errors = validators.map((validate, index) => validate(params[index])).flat();
-    // TODO: return default error instead new one
+    // TODO: return default error instead new one, we might nee to change RouteError so it can handle returning error data
     return errors.map((validationError, index) => `Invalid param[${index}] in '${functionName}', ${validationError.toString()}.`);
 };
 

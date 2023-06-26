@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {initRouter, Obj, registerRoutes, RouterOptions} from '@mionkit/router';
+import {initRouter, Obj, registerRoutes, RouterOptions, Routes} from '@mionkit/router';
 import {Item, Pet, User} from './myApi.types';
 
 export const myApiRoutes = {
@@ -37,14 +37,14 @@ export const myApiRoutes = {
     getItem: (app, ctx, item: Item<User>): Item<User> => ({item: {id: 3, name: 'John', surname: 'Smith'}}),
     getPetOrUser: (app, ctx, item: Pet | User): Pet | User => item,
     last: {hook(): void {}},
-};
+} satisfies Routes;
 
 export const publicEndpoints = {
     login: {
         inHeader: true,
         route: (app, ctx, email: string, pass: string): string => 'AUTH-TOKEN-XWZ',
     },
-};
+} satisfies Routes;
 
 export const myApp = {db: {query: (params): null => null}};
 export const getSharedData = (): Obj => ({});
