@@ -6,7 +6,7 @@
  * ######## */
 
 import {FunctionParamValidator} from './types';
-import {getFunctionParamValidators} from './functionValidation';
+import {getFunctionParamValidators} from './validation';
 import {DEFAULT_REFLECTION_OPTIONS} from './constants';
 
 describe('Deepkit reflection should', () => {

@@ -282,7 +282,7 @@ const deserializeAndValidateParameters = (request: Request, executable: Executab
 
 const serializeResponse = (response: Response, executable: Executable, result: any) => {
     if (!executable.canReturnData || result === undefined) return;
-    const deserialized = routerOptions.enableSerialization ? executable.outputSerializer(result) : result;
+    const deserialized = routerOptions.enableSerialization ? executable.returnValueSerializer(result) : result;
     if (executable.inHeader) response.headers[executable.fieldName] = deserialized;
     else (response as Mutable<Obj>).body[executable.fieldName] = deserialized;
 };
@@ -434,7 +434,7 @@ const getExecutableFromHook = (hook: HookDef, hookPointer: string[], nestLevel: 
             routerOptions.reflectionOptions,
             ROUTE_DEFAULT_PARAMS.length
         ),
-        outputSerializer: getFunctionReturnSerializer(handlerType, routerOptions.reflectionOptions),
+        returnValueSerializer: getFunctionReturnSerializer(handlerType, routerOptions.reflectionOptions),
         isAsync: isAsyncHandler(handlerType),
         enableValidation: hook.enableValidation ?? routerOptions.enableValidation,
         enableSerialization: hook.enableSerialization ?? routerOptions.enableSerialization,
@@ -469,7 +469,7 @@ const getExecutableFromRoute = (route: Route, routePointer: string[], nestLevel:
             routerOptions.reflectionOptions,
             ROUTE_DEFAULT_PARAMS.length
         ),
-        outputSerializer: getFunctionReturnSerializer(handlerType, routerOptions.reflectionOptions),
+        returnValueSerializer: getFunctionReturnSerializer(handlerType, routerOptions.reflectionOptions),
         isAsync: isAsyncHandler(handlerType),
         enableValidation: (route as RouteDef).enableValidation ?? routerOptions.enableValidation,
         enableSerialization: (route as RouteDef).enableSerialization ?? routerOptions.enableSerialization,
