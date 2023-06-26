@@ -1,2 +1,13 @@
 # package.json is formatted by package managers, so we ignore it here
 package.json
+
+
+########################
+# generated files
+########################
+.dist
+dist
+.tmp
+tmp
+.coverage
+coverage

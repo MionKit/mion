@@ -6,7 +6,8 @@
   "homepage": "https://github.com/MionKit/mion#readme",
   "scripts": {
     "test": "lerna run test",
-    "format": "prettier --write packages/**/*.ts",
+    "format": "prettier --write packages/**/*.{ts,md}",
+    "check-format-pre-commit": "CI=true prettier --check packages/**/*.{ts,md}",
     "lint": "lerna run lint",
     "lint-pre-commit": "CI=true lerna run lint -- --no-color --quiet",
     "build": "lerna run build",
