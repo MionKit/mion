@@ -601,7 +601,7 @@ describe('Dispatch routes', () => {
             const response = await dispatchRoute('/changeUserName', {rawRequest: request});
             expect(response.publicErrors[0]).toEqual({
                 statusCode: 400,
-                message: `Invalid param[0] in '/changeUserName', name(type): Not a string.`,
+                message: `Invalid param[0] in '/changeUserName', name(type): Not a string. | Invalid param[1] in '/changeUserName', surname(type): Not a string.`,
             });
         });
 

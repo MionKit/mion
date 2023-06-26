@@ -84,11 +84,11 @@ describe('Deepkit reflection should', () => {
             skip
         );
 
-        const errors1 = paramValidatorsUser[0]({});
+        const errors1 = paramValidatorsUser[0]({abcdef: 'hello'});
         const errors2 = paramValidatorsUser[0](2);
         const errors3 = paramValidatorsUser[1](null); // optional parameters can't be null, only undefined
 
-        expect(errors1.length).toEqual(1);
+        expect(errors1.length).toEqual(5); // one error por invalid field
         expect(errors2.length).toEqual(1);
         expect(errors3.length).toEqual(1);
     });

@@ -44,7 +44,7 @@
     "url": "https://github.com/MionKit/mion/issues"
   },
   "dependencies": {
-    "@deepkit/framework": "^1.0.1-alpha.75",
+    "@deepkit/framework": "^1.0.1-alpha.97",
     "@mionkit/http": "^0.2.1-alpha.0",
     "ts-node": "^10.9.1"
   }
