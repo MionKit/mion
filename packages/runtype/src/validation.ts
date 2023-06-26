@@ -6,7 +6,7 @@
  * ######## */
 
 import {reflect, validateFunction, Type, isType} from '@deepkit/type';
-import {ReflectionOptions, Handler, FunctionParamValidator, isFunctionType} from './types';
+import {ReflectionOptions, Handler, FunctionParamValidator, isFunctionType, FunctionReturnValidator} from './types';
 
 /**
  * Returns an array of functions to validate route handler parameters,
@@ -48,4 +48,36 @@ export const validateFunctionParams = (
     const errors = validators.map((validate, index) => validate(params[index])).flat();
     // TODO: return default error instead new one
     return errors.map((validationError, index) => `Invalid param[${index}] in '${functionName}', ${validationError.toString()}.`);
+};
+
+/**
+ * Returns a function to validate route handler return type
+ * @param handlerOrType
+ * @param reflectionOptions
+ * @returns
+ */
+export const getFunctionReturnValidator = (
+    handlerOrType: Handler | Type,
+    reflectionOptions: ReflectionOptions
+): FunctionReturnValidator => {
+    const handlerType: Type = isType(handlerOrType) ? handlerOrType : reflect(handlerOrType);
+    if (!isFunctionType(handlerType)) throw new Error('Invalid handler type must be a function');
+    return validateFunction(reflectionOptions.customSerializer, handlerType.return);
+};
+
+/**
+ * Validates a function return type
+ * @param functionName
+ * @param returnValidator
+ * @param returnValue
+ * @returns
+ */
+export const validateFunctionReturnType = (
+    functionName: string,
+    returnValidator: FunctionReturnValidator,
+    returnValue: any
+): string[] => {
+    const errors = returnValidator(returnValue);
+    // TODO: return default error instead new one
+    return errors.map((validationError, index) => `Invalid return type '${functionName}', ${validationError.toString()}.`);
 };

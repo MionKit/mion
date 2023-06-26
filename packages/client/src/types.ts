@@ -23,11 +23,11 @@ export type ResponseData = {
 
 export type RemoteExecutable = Omit<
     Executable,
-    'handler' | 'paramValidators' | 'paramsDeSerializers' | 'outputSerializer' | 'handlerType' | 'src'
+    'handler' | 'paramValidators' | 'paramsDeSerializers' | 'returnValueSerializer' | 'handlerType' | 'src'
 > & {
     // paramValidators: FunctionParamValidator[];
     // paramsDeSerializers: FunctionParamDeserializer[];
-    // outputSerializer: FunctionReturnSerializer;
+    // returnValueSerializer: FunctionReturnSerializer;
     serializedHandler: SerializedTypes;
 };
 

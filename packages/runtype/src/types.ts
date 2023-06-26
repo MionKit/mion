@@ -48,11 +48,11 @@ export type FunctionReturnValidator = (data: any) => ValidationErrorItem[];
 
 // #######  SERIALIZE #######
 export type FunctionParamSerializer = <T>(data: T) => JSONPartial<T>;
-export type FunctionReturnDeSerializer = <T>(data: T) => JSONSingle<T>;
+export type FunctionReturnSerializer = <T>(data: T) => JSONPartial<T>;
 
 // #######  DE-SERIALIZE #######
 export type FunctionParamDeserializer = <T>(data: JSONPartial<T>) => T;
-export type FunctionReturnSerializer = <T>(data: T) => JSONSingle<T>;
+export type FunctionReturnDeSerializer = <T>(data: T) => JSONPartial<T>;
 
 export const isFunctionType = (t: Type): t is TypeFunction => t.kind === ReflectionKind.function;
 
