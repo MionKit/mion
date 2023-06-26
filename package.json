@@ -8,7 +8,7 @@
     "test": "lerna run test",
     "format": "prettier --write packages/**/*.ts",
     "lint": "lerna run lint",
-    "lint-pre-commit": "lerna run lint --no-progress",
+    "lint-pre-commit": "CI=true lerna run lint -- --no-color --quiet",
     "build": "lerna run build",
     "clean": "lerna run clean",
     "deepkit-install": "deepkit-type-install",
