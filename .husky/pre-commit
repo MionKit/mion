@@ -4,5 +4,8 @@
 # lint staged not workign as not picking correct ts configuration for monorepo
 # npx lint-staged
 
+# fails if some files are not properly formatted
+npm run check-format-pre-commit
+
 # using lerna to lint full code as lint-staged not workign fine (slower approach)
 npm run lint-pre-commit
