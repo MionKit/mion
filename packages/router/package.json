@@ -59,7 +59,5 @@
     "@mionkit/runtype": "^0.2.1-alpha.0"
   },
   "devDependencies": {
-    "@deepkit/core": "^1.0.1-alpha.75",
-    "@deepkit/type-compiler": "^1.0.1-alpha.75"
   }
 }

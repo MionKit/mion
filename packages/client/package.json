@@ -59,8 +59,6 @@
     "@mionkit/router": "^0.2.1-alpha.0"
   },
   "devDependencies": {
-    "@deepkit/core": "^1.0.1-alpha.75",
-    "@deepkit/type-compiler": "^1.0.1-alpha.75",
     "@serverless/event-mocks": "^1.1.1",
     "@types/web": "^0.0.79"
   }
