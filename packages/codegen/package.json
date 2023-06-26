@@ -63,8 +63,6 @@
     "ts-morph": "^17.0.1"
   },
   "devDependencies": {
-    "@deepkit/core": "^1.0.1-alpha.75",
-    "@deepkit/type-compiler": "^1.0.1-alpha.75",
     "@types/prettier": "^2.7.2",
     "module-from-string": "^3.3.0"
   }
