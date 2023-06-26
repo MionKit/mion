@@ -108,7 +108,7 @@ export type Executable = {
     handler: Handler;
     paramValidators: FunctionParamValidator[];
     paramsDeSerializers: FunctionParamDeserializer[];
-    outputSerializer: FunctionReturnSerializer;
+    returnValueSerializer: FunctionReturnSerializer;
     handlerType: TypeFunction;
     isAsync: boolean;
     src: RouteDef | HookDef;

@@ -6,8 +6,7 @@
  * ######## */
 
 export * from './src/constants';
-export * from './src/functionValidation';
-export * from './src/functionSerialization';
-export * from './src/functionDeSerialization';
+export * from './src/validation';
+export * from './src/serialization';
 export * from './src/lib';
 export * from './src/types';

@@ -14,10 +14,20 @@
   <img src="https://img.shields.io/badge/license-MIT-97ca00.svg?style=flat-square&maxAge=99999999" alt="npm"  style="max-width:100%;">
 </p>
 
-# `@mionkit/client`
+# `@mionkit/runtypes`
 
-Browser client for mion Apis
+RunTyme Types support
 
-## Work in progress 🛠️
+## Description
 
-_[MIT](../../LICENSE) LICENSE_
+This library provides support for runtime types based on [@deepkit/type].  
+Having runtime types enables a full new set of features when using typescript/javascript.
+
+### Features
+
+- Validation, serialization & deserialization of function parameters
+- Validation, serialization & deserialization of function return values
+
+---
+
+[MIT LICENSE](../../LICENSE)
