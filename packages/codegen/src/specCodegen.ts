@@ -11,7 +11,7 @@ import type {CodegenOptions, PublicMethodsSpec, RoutesSpec} from './types';
 import {DEFAULT_PRETTIER_OPTIONS, PUBLIC_METHODS_SPEC_EXPORT_NAME, ROUTES_SPEC_EXPORT_NAME} from './constants';
 import {format, Options as PrettierOptions} from 'prettier';
 // @ypes/cross-spawn is not updated,, once it gets updated we could use normal es6 import
-import spawn = require('cross-spawn');
+import * as spawn from 'cross-spawn';
 
 /** Resturns the TS Spec Source Code */
 export const getSpecFile = (options: CodegenOptions, routesList: PublicMethods<any>[], exportNames: string[]) => {
