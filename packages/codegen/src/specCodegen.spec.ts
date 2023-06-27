@@ -26,7 +26,7 @@ describe('generate api spec should', () => {
     // this test might take few more seconds than normal
     it('generate ts spec file and file must compile correctly to js', () => {
         // generates and format ts spec file
-        const tsSpec = getSpecFile(generateOptions, [myApi, authApi], ['myApi', 'authApi']);
+        const tsSpec = getSpecFile(generateOptions, {myApi, authApi});
         const formatedTsSpec = formatCode(tsSpec);
         writeFileSync(generateOptions.outputFileName, formatedTsSpec);
 

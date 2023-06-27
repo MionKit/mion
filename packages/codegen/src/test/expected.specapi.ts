@@ -5,7 +5,7 @@ export const PUBLIC_METHODS = {
         auth: {
             isRoute: false,
             canReturnData: false,
-            inHeader: false,
+            inHeader: true,
             fieldName: 'auth',
             _handler: expect.any(Function),
             handlerSerializedType: expect.any(Object),
