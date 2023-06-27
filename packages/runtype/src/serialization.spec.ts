@@ -15,7 +15,7 @@ import {
 } from './serialization';
 import {DEFAULT_REFLECTION_OPTIONS} from './constants';
 
-describe('Deepkit reflection should', () => {
+describe('Deepkit serialization should', () => {
     const skip = 2; // skipping app and ctx
     type User = {
         id: number;

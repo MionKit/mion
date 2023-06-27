@@ -6,10 +6,10 @@
  * ######## */
 
 import {FunctionParamValidator} from './types';
-import {getFunctionParamValidators} from './validation';
+import {getFunctionParamValidators, validateFunctionParams} from './validation';
 import {DEFAULT_REFLECTION_OPTIONS} from './constants';
 
-describe('Deepkit reflection should', () => {
+describe('Deepkit validation should', () => {
     const skip = 2; // skipping app and ctx
     type Message = {
         message: string;
@@ -42,39 +42,21 @@ describe('Deepkit reflection should', () => {
     };
 
     it('validate parameters of a route, success', () => {
-        const paramValidatorsUser: FunctionParamValidator[] = getFunctionParamValidators(
-            updateUser,
-            DEFAULT_REFLECTION_OPTIONS,
-            skip
-        );
-        const paramValidatorsPrintSum: FunctionParamValidator[] = getFunctionParamValidators(
-            printSum,
-            DEFAULT_REFLECTION_OPTIONS,
-            skip
-        );
-        const paramValidatorsIgnoreAppRelated: FunctionParamValidator[] = getFunctionParamValidators(
-            (a, c) => null,
-            DEFAULT_REFLECTION_OPTIONS,
-            skip
-        );
-        const noParamValidators: FunctionParamValidator[] = getFunctionParamValidators(
-            () => null,
-            DEFAULT_REFLECTION_OPTIONS,
-            skip
-        );
+        const paramValidatorsUser = getFunctionParamValidators(updateUser, DEFAULT_REFLECTION_OPTIONS, skip);
+        const paramValidatorsPrintSum = getFunctionParamValidators(printSum, DEFAULT_REFLECTION_OPTIONS, skip);
+        const paramValidatorsIgnoreAppRelated = getFunctionParamValidators((a, c) => null, DEFAULT_REFLECTION_OPTIONS, skip);
+        const noParamValidators = getFunctionParamValidators(() => null, DEFAULT_REFLECTION_OPTIONS, skip);
 
         expect(paramValidatorsUser.length).toEqual(2);
         expect(paramValidatorsPrintSum.length).toEqual(4);
         expect(paramValidatorsIgnoreAppRelated.length).toEqual(0);
         expect(noParamValidators.length).toEqual(0);
 
-        const userValidationErrors = paramValidatorsUser[0](paramUser);
-        const counterStartValErrors = paramValidatorsUser[1](1);
-        const counterStartValErrors2 = paramValidatorsUser[1](undefined);
+        const updateUserResponse = validateFunctionParams(paramValidatorsUser, [paramUser, 0]);
+        const counterStartResponse = validateFunctionParams(paramValidatorsUser, [paramUser, undefined]);
 
-        expect(userValidationErrors.length).toEqual(0);
-        expect(counterStartValErrors.length).toEqual(0);
-        expect(counterStartValErrors2.length).toEqual(0);
+        expect(updateUserResponse).toEqual({hasErrors: false, totalErrors: 0, errors: [[], []]});
+        expect(counterStartResponse).toEqual({hasErrors: false, totalErrors: 0, errors: [[], []]});
     });
 
     it('validate parameters of a route, fail', () => {
@@ -84,12 +66,22 @@ describe('Deepkit reflection should', () => {
             skip
         );
 
-        const errors1 = paramValidatorsUser[0]({abcdef: 'hello'});
-        const errors2 = paramValidatorsUser[0](2);
-        const errors3 = paramValidatorsUser[1](null); // optional parameters can't be null, only undefined
+        const resp1 = validateFunctionParams(paramValidatorsUser, [{abcdef: 'hello'}]);
+        const resp2 = validateFunctionParams(paramValidatorsUser, [2]);
+        const resp3 = validateFunctionParams(paramValidatorsUser, [null]); // required parameters can't be null, only undefined
 
-        expect(errors1.length).toEqual(5); // one error por invalid field
-        expect(errors2.length).toEqual(1);
-        expect(errors3.length).toEqual(1);
+        expect(resp1).toEqual({hasErrors: true, totalErrors: 5, errors: expect.any(Array)}); // one error por invalid field
+        expect(resp2).toEqual({hasErrors: true, totalErrors: 1, errors: expect.any(Array)});
+        expect(resp3).toEqual({hasErrors: true, totalErrors: 1, errors: expect.any(Array)});
+    });
+
+    it('should accept a shorter parameters array if some parameters are undefined', () => {
+        const paramValidatorsUser = getFunctionParamValidators(updateUser, DEFAULT_REFLECTION_OPTIONS, skip);
+
+        const updateUserResponse = validateFunctionParams(paramValidatorsUser, [paramUser]);
+        expect(updateUserResponse).toEqual({hasErrors: false, totalErrors: 0, errors: [[], []]});
+        expect(() => {
+            validateFunctionParams(paramValidatorsUser, [paramUser, 3, 3]);
+        }).toThrow('Invalid number of parameters');
     });
 });

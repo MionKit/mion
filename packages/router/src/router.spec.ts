@@ -18,7 +18,7 @@ import {
     initRouter,
     dispatchRoute,
 } from './router';
-import {Context, Handler, HookDef, RawRequest, Route, RouteDef, Routes} from './types';
+import {Context, Handler, HookDef, PublicError, RawRequest, Route, RouteDef, Routes} from './types';
 import {StatusCodes} from './status-codes';
 
 describe('Create routes should', () => {
@@ -54,35 +54,30 @@ describe('Create routes should', () => {
             path: 'first',
             fieldName: 'first',
             isRoute: false,
-            paramValidators: [],
             selfPointer: ['first'],
         },
         userBefore: {
             path: 'userBefore',
             fieldName: 'userBefore',
             isRoute: false,
-            paramValidators: [],
             selfPointer: ['users', 'userBefore'],
         },
         userAfter: {
             path: 'userAfter',
             fieldName: 'userAfter',
             isRoute: false,
-            paramValidators: [],
             selfPointer: ['users', 'userAfter'],
         },
         userPetsAfter: {
             path: 'userPetsAfter',
             fieldName: 'userPetsAfter',
             isRoute: false,
-            paramValidators: [],
             selfPointer: ['users', 'pets', 'userPetsAfter'],
         },
         last: {
             path: 'last',
             fieldName: 'last',
             isRoute: false,
-            paramValidators: [],
             selfPointer: ['last'],
         },
     };
@@ -92,21 +87,18 @@ describe('Create routes should', () => {
             path: '/users/getUser',
             fieldName: '/users/getUser',
             isRoute: true,
-            paramValidators: [],
             selfPointer: ['users', 'getUser'],
         },
         usersPetsGetUserPet: {
             path: '/users/pets/getUserPet',
             fieldName: '/users/pets/getUserPet',
             isRoute: true,
-            paramValidators: [],
             selfPointer: ['users', 'pets', 'getUserPet'],
         },
         petsGetPet: {
             path: '/pets/getPet',
             fieldName: '/pets/getPet',
             isRoute: true,
-            paramValidators: [],
             selfPointer: ['pets', 'getPet'],
         },
     };
@@ -283,7 +275,7 @@ describe('Create routes should', () => {
         expect(() => registerRoutes(pathCollision)).toThrow('Invalid route: sayHello2. Naming collision, duplicated route');
     });
 
-    it('should optimize parsing routes (complexity) when there are multiple routes in a row', () => {
+    it('optimize parsing routes (complexity) when there are multiple routes in a row', () => {
         initRouter({}, () => {});
         const bestCase = {
             first: hook,
@@ -586,10 +578,16 @@ describe('Dispatch routes', () => {
             const request = getDefaultRequest('/changeUserName', [wrongSimpleUser]);
 
             const response = await dispatchRoute('/changeUserName', {rawRequest: request});
-            expect(response.publicErrors[0]).toEqual({
+            const error: PublicError = {
                 statusCode: 400,
-                message: `Invalid param[0] in '/changeUserName', name(type): Not a string.`,
-            });
+                message: `Invalid input in '/changeUserName', validation failed. Parameters might be of the wrong type or have invalid values.`,
+                errorData: expect.objectContaining({
+                    hasErrors: true,
+                    totalErrors: 1,
+                    errors: expect.any(Array),
+                }),
+            };
+            expect(response.publicErrors[0]).toEqual(error);
         });
 
         it('return an error if validation fails, empty type', async () => {
@@ -599,10 +597,16 @@ describe('Dispatch routes', () => {
             const request = getDefaultRequest('/changeUserName', [{}]);
 
             const response = await dispatchRoute('/changeUserName', {rawRequest: request});
-            expect(response.publicErrors[0]).toEqual({
+            const error: PublicError = {
                 statusCode: 400,
-                message: `Invalid param[0] in '/changeUserName', name(type): Not a string. | Invalid param[1] in '/changeUserName', surname(type): Not a string.`,
-            });
+                message: `Invalid input in '/changeUserName', validation failed. Parameters might be of the wrong type or have invalid values.`,
+                errorData: expect.objectContaining({
+                    hasErrors: true,
+                    totalErrors: 2,
+                    errors: expect.any(Array),
+                }),
+            };
+            expect(response.publicErrors[0]).toEqual(error);
         });
 
         it('return an unknown error if a route fails with a generic error', async () => {

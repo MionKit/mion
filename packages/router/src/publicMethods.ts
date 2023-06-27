@@ -8,7 +8,6 @@
 import {join} from 'path';
 import {ROUTE_DEFAULT_PARAMS} from './constants';
 import {getHookExecutable, getHookFieldName, getRouteExecutable, getRouteExecutionPath, getRoutePath} from './router';
-import {reflect, serializeType} from '@deepkit/type';
 import {
     Executable,
     Handler,
@@ -22,6 +21,7 @@ import {
     Routes,
     isPuplicExecutable,
 } from './types';
+import {getSerializedFunctionTypes} from '@mionkit/runtype';
 
 /**
  * Returns a data structure containing all public information and types of the routes.
@@ -65,10 +65,10 @@ const getPublicRouteFromExecutable = <H extends Handler>(executable: Executable,
         inHeader: executable.inHeader,
         // handler is included just for static typing purposes and shouldn't be called directly
         _handler: propertyPonter as any as PublicHandler<H>,
-        handlerSerializedType: serializeType(reflect(executable.handler)),
+        handlerSerializedType: getSerializedFunctionTypes(executable.handler),
         enableValidation: executable.enableValidation,
         enableSerialization: executable.enableSerialization,
-        params: executable.handlerType.parameters.map((tp) => tp.name).slice(ROUTE_DEFAULT_PARAMS.length),
+        params: executable.reflection.handlerType.parameters.map((tp) => tp.name).slice(ROUTE_DEFAULT_PARAMS.length),
         publicExecutionPathPointers:
             getRouteExecutionPath(executable.path)
                 ?.filter((exec) => isPuplicExecutable(exec))
@@ -84,9 +84,9 @@ const getPublicHookFromExecutable = <H extends Handler>(executable: Executable, 
         fieldName: executable.fieldName,
         // handler is included just for static typing purposes and shouldn't be called directly
         _handler: propertyPonter as any as PublicHandler<H>,
-        handlerSerializedType: serializeType(reflect(executable.handler)),
+        handlerSerializedType: getSerializedFunctionTypes(executable.handler),
         enableValidation: executable.enableValidation,
         enableSerialization: executable.enableSerialization,
-        params: executable.handlerType.parameters.map((tp) => tp.name).slice(ROUTE_DEFAULT_PARAMS.length),
+        params: executable.reflection.handlerType.parameters.map((tp) => tp.name).slice(ROUTE_DEFAULT_PARAMS.length),
     };
 };

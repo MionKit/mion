@@ -7,7 +7,7 @@
 
 import type {TypeFunction, SerializedTypes} from '@deepkit/type';
 import {statusCodeToReasonPhrase} from './status-codes';
-import {ReflectionOptions, FunctionReturnSerializer, FunctionParamDeserializer, FunctionParamValidator} from '@mionkit/runtype';
+import {ReflectionOptions, FunctionReflection} from '@mionkit/runtype';
 
 // #######  Routes #######
 
@@ -106,10 +106,7 @@ export type Executable = {
     fieldName: string;
     isRoute: boolean;
     handler: Handler;
-    paramValidators: FunctionParamValidator[];
-    paramsDeSerializers: FunctionParamDeserializer[];
-    returnValueSerializer: FunctionReturnSerializer;
-    handlerType: TypeFunction;
+    reflection: FunctionReflection;
     isAsync: boolean;
     src: RouteDef | HookDef;
     enableValidation: boolean;
@@ -193,10 +190,16 @@ export type SharedDataFactory<SharedData> = () => SharedData;
 
 // #######  Errors #######
 
-// TODO: the interface for Public Errors is a bit confusing, maybe this should be called PublicError
+// TODO: the interface for Public Errors is a bit confusing, maybe this should be called PublicError, review the way params are passed etc.
 /** Any error triggered by hooks or routes must follow this interface, returned errors in the body also follows this interface */
 export class RouteError extends Error {
-    constructor(public statusCode: Readonly<number>, public publicMessage: Readonly<string>, name?: string, err?: Error) {
+    constructor(
+        public readonly statusCode: number,
+        public readonly publicMessage: string,
+        name?: string,
+        err?: Error,
+        public readonly errorData?: Obj
+    ) {
         super(err?.message || publicMessage);
         super.name = name || statusCodeToReasonPhrase[statusCode];
         if (err?.stack) super.stack = err?.stack;
@@ -207,6 +210,7 @@ export class RouteError extends Error {
 export type PublicError = {
     statusCode: Readonly<number>;
     message: Readonly<string>;
+    errorData?: Readonly<unknown>;
 };
 
 // ####### Public Facing Types #######
@@ -291,15 +295,11 @@ export const isExecutable = (entry: Executable | {pathPointer: string[]}): entry
 };
 
 export const isPuplicExecutable = (entry: Executable): entry is Executable => {
-    return entry.canReturnData || !!entry.paramValidators.length;
+    return entry.canReturnData || !!entry.reflection.paramsLength;
 };
 
 export const isPuplicMethod = (entry: PublicRoute<any> | PublicHook<any>): entry is PublicMethod<any> => {
     return entry.canReturnData || !!entry.params.length;
-};
-
-export const isPublicRoutes = (entry: PublicMethods<any> | PublicRoute<any> | PublicHook<any>): entry is PublicMethods<any> => {
-    return typeof entry._handler !== 'function' && typeof entry._handler !== 'string'; // string is the real value
 };
 
 // #######  Others #######
