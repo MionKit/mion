@@ -61,7 +61,7 @@ describe('serverless router should', () => {
             })
     );
 
-    it('should get an ok response from a route', async () => {
+    it('get an ok response from a route', async () => {
         const requestData = {'/api/getDate': [{date: new Date('2022-04-22T00:17:00.000Z')}]};
         const response = await fetch(`http://127.0.0.1:${port}/api/getDate`, {
             method: 'POST',
@@ -77,7 +77,7 @@ describe('serverless router should', () => {
         expect(headers['server']).toEqual('@mionkit/http');
     });
 
-    it('should get an error when sending invalid parameters', async () => {
+    it('get an error when sending invalid parameters', async () => {
         const requestData = {'/api/getDate': ['NOT A DATE POINT']};
         const response = await fetch(`http://127.0.0.1:${port}/api/getDate`, {
             method: 'POST',
@@ -97,7 +97,7 @@ describe('serverless router should', () => {
         expect(headers['server']).toEqual('@mionkit/http');
     });
 
-    it('should set response headers from route response', async () => {
+    it('set response headers from route response', async () => {
         const response = await fetch(`http://127.0.0.1:${port}/api/updateHeaders`, {
             method: 'POST',
             body: '{}',
@@ -112,7 +112,7 @@ describe('serverless router should', () => {
         expect(headers['x-something']).toEqual('true');
     });
 
-    it('should get an error when body size is too large, get default headers and call allowExceedMaxBodySize', async () => {
+    it('get an error when body size is too large, get default headers and call allowExceedMaxBodySize', async () => {
         const smallPort = port + 1;
         let isCalled = false;
         const httpOptions = {

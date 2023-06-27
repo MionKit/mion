@@ -9,7 +9,7 @@
     "format": "prettier --write packages/**/*.{ts,md}",
     "check-format-pre-commit": "CI=true prettier --check packages/**/*.{ts,md}",
     "lint": "lerna run lint",
-    "lint-pre-commit": "CI=true lerna run lint -- --no-color --quiet",
+    "lint-pre-commit": "CI=true lerna run lint -- --quiet",
     "build": "lerna run build",
     "clean": "lerna run clean",
     "deepkit-install": "deepkit-type-install",
