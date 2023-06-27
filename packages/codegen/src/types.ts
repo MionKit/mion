@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {PublicMethod} from '@mionkit/router';
+import {Executable, PublicHook, PublicMethod, PublicMethods, PublicRoute} from '@mionkit/router';
 import {Options as PrettierOptions} from 'prettier';
 
 export type CodegenOptions = {
@@ -21,10 +21,21 @@ export type CodegenOptions = {
     prettierOptions?: PrettierOptions;
 };
 
+/** A directory of routes exported into the specs file.  */
+export type ExportedRoutesMap = {
+    [key: string]: PublicMethods<any>;
+};
+
 export type PublicMethodsSpec = {
     [key: string]: PublicMethodsSpec | PublicMethod;
 };
 
 export type RoutesSpec = {
     [key: string]: RoutesSpec | PublicMethod[];
+};
+
+// #######  guards #######
+
+export const hasChildRoutes = (entry: PublicMethods<any> | PublicRoute<any> | PublicHook<any>): entry is PublicMethods<any> => {
+    return typeof entry._handler !== 'function' && typeof entry._handler !== 'string'; // string is the real value
 };
