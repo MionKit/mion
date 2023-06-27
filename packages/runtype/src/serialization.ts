@@ -5,17 +5,16 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {reflect, Type, deserializeFunction, SerializationOptions, isType, serializeFunction, JSONPartial} from '@deepkit/type';
 import {
     ReflectionOptions,
     Handler,
     FunctionParamDeserializer,
-    isFunctionType,
     FunctionParamSerializer,
     FunctionReturnSerializer,
     FunctionReturnDeSerializer,
+    getHandlerType,
 } from './types';
-import {serializeDeserializeOptionsFix} from './lib';
+import {Type, deserializeFunction, SerializationOptions, serializeFunction, JSONPartial, SerializeFunction} from '@deepkit/type';
 
 /**
  * Returns an Array of functions to Deserialize route handler parameters.
@@ -99,43 +98,46 @@ const getReturnSD = (
     reflectionOptions: ReflectionOptions,
     deserialize: boolean
 ): FunctionReturnSerializer | FunctionReturnDeSerializer => {
-    const sdFunction = deserialize ? deserializeFunction : serializeFunction;
-    const handlerType: Type = isType(handlerOrType) ? handlerOrType : reflect(handlerOrType);
-    if (!isFunctionType(handlerType)) throw new Error('Invalid handler type must be a function');
+    const sFunctionCreate = deserialize ? deserializeFunction : serializeFunction;
+    const handlerType: Type = getHandlerType(handlerOrType);
 
     const opts: SerializationOptions = {
         ...reflectionOptions.serializationOptions,
     };
-
-    return serializeDeserializeOptionsFix(
-        sdFunction(
-            reflectionOptions.serializationOptions,
-            reflectionOptions.customSerializer,
-            reflectionOptions.serializerNamingStrategy,
-            handlerType.return
-        ),
-        opts
+    const sFunction = sFunctionCreate(
+        reflectionOptions.serializationOptions,
+        reflectionOptions.customSerializer,
+        reflectionOptions.serializerNamingStrategy,
+        handlerType.return
     );
+    return createSingleParamSerializeFunction(sFunction, opts);
 };
 
+/**
+ * Creates a serializer or deserializer function to validate params
+ * @param handlerOrType
+ * @param reflectionOptions
+ * @param skipInitialParams
+ * @param deserialize
+ * @returns
+ */
 const getParamsSD = (
     handlerOrType: Handler | Type,
     reflectionOptions: ReflectionOptions,
     skipInitialParams: number,
     deserialize: boolean
 ): FunctionParamDeserializer[] | FunctionParamSerializer[] => {
-    const sdFunction = deserialize ? deserializeFunction : serializeFunction;
-    const handlerType: Type = isType(handlerOrType) ? handlerOrType : reflect(handlerOrType);
-    if (!isFunctionType(handlerType)) throw new Error('Invalid handler type must be a function');
+    const sFunctionCreate = deserialize ? deserializeFunction : serializeFunction;
+    const handlerType: Type = getHandlerType(handlerOrType);
 
     const opts: SerializationOptions = {
         ...reflectionOptions.serializationOptions,
     };
     const paramSD = handlerType.parameters.map((paramType, index) => {
-        // assumes the app and context type that is the first parameter is always valid
-        return index > 1
-            ? serializeDeserializeOptionsFix(
-                  sdFunction(
+        const shouldCreateSerializer = index >= skipInitialParams;
+        return shouldCreateSerializer
+            ? createSingleParamSerializeFunction(
+                  sFunctionCreate(
                       reflectionOptions.serializationOptions,
                       reflectionOptions.customSerializer,
                       reflectionOptions.serializerNamingStrategy,
@@ -143,8 +145,13 @@ const getParamsSD = (
                   ),
                   opts
               )
-            : (a) => '';
+            : (null as any as SerializeFunction);
     });
 
     return paramSD.slice(skipInitialParams);
+};
+
+// DeepKit serializeFunction and deserializeFunction are not keeping the options when calling the function, so this fixes it
+const createSingleParamSerializeFunction = (sFunction: SerializeFunction, opts: SerializationOptions) => {
+    return (p: JSONPartial<unknown> | unknown) => sFunction(p, opts);
 };

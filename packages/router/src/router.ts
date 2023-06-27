@@ -36,14 +36,7 @@ import {
 import {StatusCodes} from './status-codes';
 import {reflect, TypeFunction} from '@deepkit/type';
 import {getPublicRoutes} from './publicMethods';
-import {
-    deserializeFunctionParams,
-    getFunctionReturnSerializer,
-    getFunctionParamValidators,
-    getFunctionParamsDeserializer,
-    isAsyncHandler,
-    validateFunctionParams,
-} from '@mionkit/runtype';
+import {isAsyncHandler, getFunctionReflectionMethods} from '@mionkit/runtype';
 
 type RouterKeyEntryList = [string, Routes | HookDef | Route][];
 type RoutesWithId = {
@@ -251,9 +244,9 @@ const deserializeAndValidateParameters = (request: Request, executable: Executab
         );
 
     // if there are no params input field can be omitted
-    if (!params.length && !executable.paramsDeSerializers.length) return params;
+    if (!params.length && !executable.reflection.paramsLength) return params;
 
-    if (params.length !== executable.paramValidators.length)
+    if (params.length !== executable.reflection.paramsLength)
         throw new RouteError(
             StatusCodes.BAD_REQUEST,
             `Invalid input '${fieldName}', missing or invalid number of input parameters`
@@ -261,7 +254,7 @@ const deserializeAndValidateParameters = (request: Request, executable: Executab
 
     if (routerOptions.enableSerialization) {
         try {
-            params = deserializeFunctionParams(executable.paramsDeSerializers, params);
+            params = executable.reflection.deserializeParams(params);
         } catch (e) {
             throw new RouteError(
                 StatusCodes.BAD_REQUEST,
@@ -271,9 +264,15 @@ const deserializeAndValidateParameters = (request: Request, executable: Executab
     }
 
     if (routerOptions.enableValidation) {
-        const validationErrorMessages = validateFunctionParams(executable.fieldName, executable.paramValidators, params);
-        if (validationErrorMessages?.length) {
-            throw new RouteError(StatusCodes.BAD_REQUEST, validationErrorMessages.join(' | '));
+        const validationResponse = executable.reflection.validateParams(params);
+        if (validationResponse.hasErrors) {
+            throw new RouteError(
+                StatusCodes.BAD_REQUEST,
+                `Invalid input in '${fieldName}', validation failed. Parameters might be of the wrong type or have invalid values.`,
+                undefined,
+                undefined,
+                validationResponse
+            );
         }
     }
 
@@ -282,9 +281,9 @@ const deserializeAndValidateParameters = (request: Request, executable: Executab
 
 const serializeResponse = (response: Response, executable: Executable, result: any) => {
     if (!executable.canReturnData || result === undefined) return;
-    const deserialized = routerOptions.enableSerialization ? executable.returnValueSerializer(result) : result;
-    if (executable.inHeader) response.headers[executable.fieldName] = deserialized;
-    else (response as Mutable<Obj>).body[executable.fieldName] = deserialized;
+    const serialized = routerOptions.enableSerialization ? executable.reflection.serializeReturn(result) : result;
+    if (executable.inHeader) response.headers[executable.fieldName] = serialized;
+    else (response as Mutable<Obj>).body[executable.fieldName] = serialized;
 };
 
 const recursiveFlatRoutes = (
@@ -427,14 +426,7 @@ const getExecutableFromHook = (hook: HookDef, hookPointer: string[], nestLevel: 
         fieldName: hookName,
         isRoute: false,
         handler,
-        handlerType,
-        paramValidators: getFunctionParamValidators(handlerType, routerOptions.reflectionOptions, ROUTE_DEFAULT_PARAMS.length),
-        paramsDeSerializers: getFunctionParamsDeserializer(
-            handlerType,
-            routerOptions.reflectionOptions,
-            ROUTE_DEFAULT_PARAMS.length
-        ),
-        returnValueSerializer: getFunctionReturnSerializer(handlerType, routerOptions.reflectionOptions),
+        reflection: getFunctionReflectionMethods(handlerType, routerOptions.reflectionOptions, ROUTE_DEFAULT_PARAMS.length),
         isAsync: isAsyncHandler(handlerType),
         enableValidation: hook.enableValidation ?? routerOptions.enableValidation,
         enableSerialization: hook.enableSerialization ?? routerOptions.enableSerialization,
@@ -462,14 +454,7 @@ const getExecutableFromRoute = (route: Route, routePointer: string[], nestLevel:
         isRoute: true,
         nestLevel,
         handler,
-        handlerType,
-        paramValidators: getFunctionParamValidators(handlerType, routerOptions.reflectionOptions, ROUTE_DEFAULT_PARAMS.length),
-        paramsDeSerializers: getFunctionParamsDeserializer(
-            handlerType,
-            routerOptions.reflectionOptions,
-            ROUTE_DEFAULT_PARAMS.length
-        ),
-        returnValueSerializer: getFunctionReturnSerializer(handlerType, routerOptions.reflectionOptions),
+        reflection: getFunctionReflectionMethods(handlerType, routerOptions.reflectionOptions, ROUTE_DEFAULT_PARAMS.length),
         isAsync: isAsyncHandler(handlerType),
         enableValidation: (route as RouteDef).enableValidation ?? routerOptions.enableValidation,
         enableSerialization: (route as RouteDef).enableSerialization ?? routerOptions.enableSerialization,
@@ -509,11 +494,11 @@ const handleRouteErrors = (request: Request, response: Response, err: any, step:
     if (err instanceof RouteError) {
         // creating a new err object only with only statusCode and message.
         // So can't leak any other properties accidentally
-        const publicError = {statusCode: err.statusCode, message: err.message};
+        const publicError: PublicError = {statusCode: err.statusCode, message: err.message, errorData: err.errorData};
         (response.publicErrors as Mutable<PublicError[]>).push(publicError);
         (request.internalErrors as Mutable<RouteError[]>).push(err);
     } else {
-        const publicError = {
+        const publicError: PublicError = {
             statusCode: StatusCodes.INTERNAL_SERVER_ERROR,
             message: `Unknown error in step ${step} of execution path.`,
         };
@@ -525,6 +510,7 @@ const handleRouteErrors = (request: Request, response: Response, err: any, step:
         } else {
             srcError = new Error(`Unknown error in step ${step} of execution path.`);
         }
+        // TODO: No need to use new RouteError, maybe we should create a new Private Error interface
         const privateError: RouteError = new RouteError(publicError.statusCode, publicError.message, undefined, srcError);
         (response.publicErrors as Mutable<PublicError[]>).push(publicError);
         (request.internalErrors as Mutable<RouteError[]>).push(privateError);

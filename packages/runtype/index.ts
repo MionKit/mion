@@ -8,5 +8,5 @@
 export * from './src/constants';
 export * from './src/validation';
 export * from './src/serialization';
-export * from './src/lib';
+export * from './src/reflection';
 export * from './src/types';
