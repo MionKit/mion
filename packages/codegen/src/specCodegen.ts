@@ -5,16 +5,21 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {PublicMethods, isPublicRoutes, PublicRoute, Obj, isPuplicMethod} from '@mionkit/router';
+import {PublicMethods, PublicRoute, Obj, isPuplicMethod} from '@mionkit/router';
 import {dirname, parse, relative} from 'path';
-import type {CodegenOptions, PublicMethodsSpec, RoutesSpec} from './types';
+import {hasChildRoutes, type CodegenOptions, type ExportedRoutesMap, type PublicMethodsSpec, type RoutesSpec} from './types';
 import {DEFAULT_PRETTIER_OPTIONS, PUBLIC_METHODS_SPEC_EXPORT_NAME, ROUTES_SPEC_EXPORT_NAME} from './constants';
 import {format, Options as PrettierOptions} from 'prettier';
 // @ypes/cross-spawn is not updated,, once it gets updated we could use normal es6 import
 import * as spawn from 'cross-spawn';
+import {randomUUID} from 'crypto';
+
+// TODO: we could use https://ts-morph.com/manipulation/ instead string based code generation but better done than perfect!
 
 /** Resturns the TS Spec Source Code */
-export const getSpecFile = (options: CodegenOptions, routesList: PublicMethods<any>[], exportNames: string[]) => {
+export const getSpecFile = (options: CodegenOptions, exportedRoutes: ExportedRoutesMap) => {
+    const routesList = Object.values(exportedRoutes);
+    const exportNames = Object.keys(exportedRoutes);
     const {publicMethods, routes} = getPublicMethodsAndRoutes(routesList, exportNames);
     const relativeImport = getRelativeImport(options.entryFileName, options.outputFileName);
     const specFileHeader =
@@ -54,7 +59,7 @@ const recursiveSetHandlerTypeAndCreateRouteExecutables = (
     const newRoutes: PublicMethods<any> = {};
     Object.entries(methods).forEach(([key, item]) => {
         const newPointer = [...currentPointer, key];
-        if (isPublicRoutes(item)) {
+        if (hasChildRoutes(item)) {
             newRoutes[key] = recursiveSetHandlerTypeAndCreateRouteExecutables(item, exportName, newPointer, routeExecutables);
         } else if (isPuplicMethod(item)) {
             if (item.isRoute) {
@@ -99,7 +104,7 @@ const assignProperty = (obj: Obj, pointer: string[], value: any) => {
 };
 
 // This does not support src code containing scaped double quotes, multiple lines etc, very simple statements only;
-const codeWrapper = '##@@==>ThIs==IS==SourCe==CoDE<==@@##';
+const codeWrapper = `##@@==>${randomUUID()}<==@@##`;
 const setCodeAsJsonString = (code: string) => `${codeWrapper}${code}${codeWrapper}`;
 const jsonStringsToCode = (srcFile: string) => srcFile.replaceAll(`"${codeWrapper}`, '').replaceAll(`${codeWrapper}"`, '');
 

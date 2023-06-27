@@ -10,6 +10,7 @@ import {Item, Pet, User} from './myApi.types';
 
 export const myApiRoutes = {
     auth: {
+        inHeader: true,
         hook: (app, ctx, token: string): void => {},
     },
     users: {
