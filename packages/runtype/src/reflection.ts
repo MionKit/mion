@@ -29,6 +29,11 @@ import {
     serializeFunctionParams,
 } from './serialization';
 
+function getFunctionParamsLength(handlerType: TypeFunction, skipInitialParams: number): number {
+    const length = handlerType.parameters.length;
+    return length <= skipInitialParams ? 0 : length - skipInitialParams;
+}
+
 // implement a lazy function reflection class that implements the FunctionReflection interface but is using getters to lazy load the properties
 class LazyFunctionReflection implements FunctionReflection {
     public readonly handlerType: TypeFunction;
@@ -42,7 +47,7 @@ class LazyFunctionReflection implements FunctionReflection {
 
     constructor(handlerOrType: Handler | Type, private reflectionOptions: ReflectionOptions, private skipInitialParams: number) {
         this.handlerType = getHandlerType(handlerOrType);
-        this.paramsLength = this.handlerType.parameters.length;
+        this.paramsLength = getFunctionParamsLength(this.handlerType, skipInitialParams);
     }
 
     get validateParams(): (params: any[]) => ParamsValidationResponse {
@@ -118,11 +123,10 @@ const _getFunctionReflectionMethods = (
     const returnSerializer = getFunctionReturnSerializer(handlerType, reflectionOptions);
     const returnDeSerializer = getFunctionReturnDeserializer(handlerType, reflectionOptions);
 
-    const length = handlerType.parameters.length;
     // prettier-ignore
     return {
         handlerType: handlerType,
-        paramsLength:  length <= skipInitialParams ? 0 : length - skipInitialParams,
+        paramsLength:  getFunctionParamsLength(handlerType, skipInitialParams),
         validateParams: (params: any[]) => validateFunctionParams(paramsValidators, params),
         serializeParams: (params: any[]) => serializeFunctionParams(paramsSerializers, params),
         deserializeParams: (serializedParams: JSONPartial<any>) => deserializeFunctionParams(paramsDeSerializers, serializedParams),
