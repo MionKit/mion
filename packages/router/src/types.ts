@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import type {TypeFunction, SerializedTypes} from '@deepkit/type';
+import type {SerializedTypes} from '@deepkit/type';
 import {statusCodeToReasonPhrase} from './status-codes';
 import {ReflectionOptions, FunctionReflection} from '@mionkit/runtype';
 
@@ -92,6 +92,8 @@ export type RouterOptions<RawContext extends RawServerContext = RawServerContext
     responseContentType: string;
     /** Used to return public data when adding routes */
     getPublicRoutesData: boolean;
+    /** lazy load function reflection, should improve cold start performance */
+    lazyLoadReflection: boolean;
 };
 
 // ####### Execution Path #######

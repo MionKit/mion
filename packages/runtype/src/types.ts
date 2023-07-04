@@ -92,6 +92,7 @@ export const isFunctionType = (t: Type): t is TypeFunction => t.kind === Reflect
 export const isAsyncType = (t: Type): t is TypePromise =>
     t.kind === ReflectionKind.promise || t.kind === ReflectionKind.any || t.kind === ReflectionKind.unknown;
 
+// #######  UTILS (if this section grows we can extract this into it's own file) #######
 /**
  * Checks whether a handler returns a promise.
  * @param handlerOrType

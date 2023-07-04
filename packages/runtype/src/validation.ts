@@ -5,15 +5,15 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {reflect, validateFunction, Type, isType, SerializationOptions} from '@deepkit/type';
+import {validateFunction, Type} from '@deepkit/type';
 import {
     ReflectionOptions,
     Handler,
     FunctionParamValidator,
-    isFunctionType,
     FunctionReturnValidator,
     ParamsValidationResponse,
     ReturnValidationResponse,
+    getHandlerType,
 } from './types';
 
 /**
@@ -29,8 +29,7 @@ export const getFunctionParamValidators = (
     reflectionOptions: ReflectionOptions,
     skipInitialParams: number
 ): FunctionParamValidator[] => {
-    const handlerType: Type = isType(handlerOrType) ? handlerOrType : reflect(handlerOrType);
-    if (!isFunctionType(handlerType)) throw new Error('Invalid handler type must be a function');
+    const handlerType: Type = getHandlerType(handlerOrType);
 
     /* 
         TODO: https://github.com/MionKit/mion/issues/15
@@ -83,8 +82,7 @@ export const getFunctionReturnValidator = (
     handlerOrType: Handler | Type,
     reflectionOptions: ReflectionOptions
 ): FunctionReturnValidator => {
-    const handlerType: Type = isType(handlerOrType) ? handlerOrType : reflect(handlerOrType);
-    if (!isFunctionType(handlerType)) throw new Error('Invalid handler type must be a function');
+    const handlerType: Type = getHandlerType(handlerOrType);
     return validateFunction(reflectionOptions.customSerializer, handlerType.return);
 };
 

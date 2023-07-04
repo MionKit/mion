@@ -19,27 +19,32 @@ describe('Deepkit reflection should', () => {
     const printSum = (app, ctx, a: number, b: number, date: Date, c?: {message: string}, d?: Message) =>
         `${c?.message || d?.message || 'sum'} => ${a + b} at ${date.toISOString}`;
 
-    it('create an object containing all serialization, deserialization and validation functions', () => {
-        const reflection = getFunctionReflectionMethods(printSum, DEFAULT_REFLECTION_OPTIONS, skip);
+    function setup(lazy = false) {
+        const reflection = getFunctionReflectionMethods(printSum, DEFAULT_REFLECTION_OPTIONS, skip, lazy);
 
         const handlerType: Type = reflect(printSum);
         const params = [3, 3, new Date('2021-12-19T00:24:00.000'), {message: 'hello'}, {message: 'world'}];
         const serializedParams = [3, 3, '2021-12-19T00:24:00.000Z', {message: 'hello'}, {message: 'world'}];
 
-        expect(reflection).toEqual(
-            expect.objectContaining({
-                paramsLength: params.length,
-                handlerType: handlerType,
-                validateParams: expect.any(Function),
-                serializeParams: expect.any(Function),
-                deserializeParams: expect.any(Function),
-                validateReturn: expect.any(Function),
-                serializeReturn: expect.any(Function),
-                deserializeReturn: expect.any(Function),
-            })
-        );
         const expected1: ParamsValidationResponse = {errors: [[], [], [], [], []], hasErrors: false, totalErrors: 0};
         const expected2: ReturnValidationResponse = {error: [], hasErrors: false};
+        return {reflection, handlerType, params, serializedParams, expected1, expected2};
+    }
+
+    it('create an object containing all serialization, deserialization and validation functions', () => {
+        const {reflection, params, serializedParams, expected1, expected2} = setup();
+        expect(reflection.validateParams(params)).toEqual(expected1);
+        expect(reflection.validateReturn('sum ...')).toEqual(expected2);
+
+        expect(reflection.serializeParams(params)).toEqual(serializedParams);
+        expect(reflection.serializeReturn('sum ...')).toEqual('sum ...');
+
+        expect(reflection.deserializeParams(serializedParams)).toEqual(params);
+        expect(reflection.deserializeReturn('sum ...')).toEqual('sum ...');
+    });
+
+    it('run in lazy mode', () => {
+        const {reflection, params, serializedParams, expected1, expected2} = setup(true);
         expect(reflection.validateParams(params)).toEqual(expected1);
         expect(reflection.validateReturn('sum ...')).toEqual(expected2);
 
