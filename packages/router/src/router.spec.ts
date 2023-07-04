@@ -642,3 +642,56 @@ describe('Dispatch routes', () => {
         });
     });
 });
+
+describe('Lazy loading', () => {
+    const totalRoutes = 1000;
+
+    interface User {
+        id: number;
+        name: string;
+        surname: string;
+        lastUpdate: Date;
+    }
+
+    interface DateAndLocale {
+        date: Date;
+        locale: string;
+    }
+
+    const defaultRoute = (app, context, user: User, date: DateAndLocale, message?: string) => `hello ${user.name} ${message}`;
+    const myApp = {};
+    const ctx = {};
+
+    const routes = {};
+    for (let i = 0; i < totalRoutes; ++i) {
+        routes[`route-${i}`] = defaultRoute;
+    }
+
+    beforeEach(() => reset());
+
+    it('should load app faster when using lazy load as no reflection function is called until route gets called', () => {
+        // no lazy load
+        const loadingTimeNo = process.hrtime.bigint();
+        initRouter(myApp, () => {}, {lazyLoadReflection: false});
+        registerRoutes(routes);
+        const endTimeNo = process.hrtime.bigint();
+        //console.log(routes1);
+
+        reset();
+
+        // lazy load
+        const loadingTimeLazy = process.hrtime.bigint();
+        initRouter(myApp, () => {}, {lazyLoadReflection: true});
+        registerRoutes(routes);
+        const endTimeLazy = process.hrtime.bigint();
+
+        const coldStartLazy = Number(endTimeLazy - loadingTimeLazy) / 1000000;
+        const coldStartNoLazy = Number(endTimeNo - loadingTimeNo) / 1000000;
+        console.log('load ms', {
+            'no lazy': coldStartNoLazy,
+            lazy: coldStartLazy,
+        });
+
+        expect(coldStartNoLazy).toBeGreaterThan(coldStartLazy);
+    });
+});

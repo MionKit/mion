@@ -34,9 +34,8 @@ import {
     PublicMethods,
 } from './types';
 import {StatusCodes} from './status-codes';
-import {reflect, TypeFunction} from '@deepkit/type';
 import {getPublicRoutes} from './publicMethods';
-import {isAsyncHandler, getFunctionReflectionMethods} from '@mionkit/runtype';
+import {isAsyncHandler, getFunctionReflectionMethods, getHandlerType} from '@mionkit/runtype';
 
 type RouterKeyEntryList = [string, Routes | HookDef | Route][];
 type RoutesWithId = {
@@ -286,6 +285,14 @@ const serializeResponse = (response: Response, executable: Executable, result: a
     else (response as Mutable<Obj>).body[executable.fieldName] = serialized;
 };
 
+/**
+ * Optimized algorithm to flatten the routes object into a list of Executable objects.
+ * @param routes
+ * @param currentPointer current pointer in the routes object i.e. ['users', 'get']
+ * @param preHooks hooks one level up preceding current pointer
+ * @param postHooks hooks one level up  following the current pointer
+ * @param nestLevel
+ */
 const recursiveFlatRoutes = (
     routes: Routes,
     currentPointer: string[] = [],
@@ -308,6 +315,7 @@ const recursiveFlatRoutes = (
         if (typeof key !== 'string' || !isNaN(key as any))
             throw new Error(`Invalid route: ${join(...newPointer)}. Numeric route names are not allowed`);
 
+        // generates a hook
         if (isHookDef(item)) {
             routeEntry = getExecutableFromHook(item, newPointer, nestLevel, key);
             const fieldName = routeEntry.fieldName;
@@ -318,22 +326,28 @@ const recursiveFlatRoutes = (
                     )}. Naming collision, the fieldName '${fieldName}' has been used in more than one hook/route.`
                 );
             hookNames.set(fieldName, true);
-        } else if (isRoute(item)) {
+        }
+        // generates a route
+        else if (isRoute(item)) {
             routeEntry = getExecutableFromRoute(item, newPointer, nestLevel);
             if (routeNames.has(routeEntry.path))
                 throw new Error(`Invalid route: ${join(...newPointer)}. Naming collision, duplicated route`);
             routeNames.set(routeEntry.path, true);
-        } else if (isRoutes(item)) {
+        }
+        // generates structure required to go one level down
+        else if (isRoutes(item)) {
             routeEntry = {
                 pathPointer: newPointer,
                 routes: item,
             };
-        } else {
+        }
+        // throws an error if the route is invalid
+        else {
             const itemType = typeof item;
             throw new Error(`Invalid route: ${join(...newPointer)}. Type <${itemType}> is not a valid route.`);
         }
 
-        // generates the routeExecutionPaths and recurse into sublevels
+        // recurse into sublevels
         minus1Props = recursiveCreateExecutionPath(
             routeEntry,
             newPointer,
@@ -416,7 +430,7 @@ const getExecutableFromHook = (hook: HookDef, hookPointer: string[], nestLevel: 
         throw new Error(`Invalid Hook: ${join(...hookPointer)}. The 'errors' fieldName is reserver for the router.`);
     }
 
-    const handlerType = reflect(handler) as TypeFunction;
+    const handlerType = getHandlerType(handler);
     const executable: HookExecutable<Handler> = {
         path: hookName,
         forceRunOnError: !!hook.forceRunOnError,
@@ -426,7 +440,12 @@ const getExecutableFromHook = (hook: HookDef, hookPointer: string[], nestLevel: 
         fieldName: hookName,
         isRoute: false,
         handler,
-        reflection: getFunctionReflectionMethods(handlerType, routerOptions.reflectionOptions, ROUTE_DEFAULT_PARAMS.length),
+        reflection: getFunctionReflectionMethods(
+            handlerType,
+            routerOptions.reflectionOptions,
+            ROUTE_DEFAULT_PARAMS.length,
+            routerOptions.lazyLoadReflection
+        ),
         isAsync: isAsyncHandler(handlerType),
         enableValidation: hook.enableValidation ?? routerOptions.enableValidation,
         enableSerialization: hook.enableSerialization ?? routerOptions.enableSerialization,
@@ -444,7 +463,7 @@ const getExecutableFromRoute = (route: Route, routePointer: string[], nestLevel:
     if (existing) return existing as RouteExecutable<Handler>;
     const handler = getHandler(route, routePointer);
     const routeObj = isHandler(route) ? {...DEFAULT_ROUTE} : {...DEFAULT_ROUTE, ...route};
-    const handlerType = reflect(handler) as TypeFunction;
+    const handlerType = getHandlerType(handler);
     const executable: RouteExecutable<Handler> = {
         path: routePath,
         forceRunOnError: false,
@@ -454,7 +473,12 @@ const getExecutableFromRoute = (route: Route, routePointer: string[], nestLevel:
         isRoute: true,
         nestLevel,
         handler,
-        reflection: getFunctionReflectionMethods(handlerType, routerOptions.reflectionOptions, ROUTE_DEFAULT_PARAMS.length),
+        reflection: getFunctionReflectionMethods(
+            handlerType,
+            routerOptions.reflectionOptions,
+            ROUTE_DEFAULT_PARAMS.length,
+            routerOptions.lazyLoadReflection
+        ),
         isAsync: isAsyncHandler(handlerType),
         enableValidation: (route as RouteDef).enableValidation ?? routerOptions.enableValidation,
         enableSerialization: (route as RouteDef).enableSerialization ?? routerOptions.enableSerialization,
