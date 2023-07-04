@@ -73,7 +73,7 @@ export const DEFAULT_ROUTE_OPTIONS: Readonly<RouterOptions> = {
     getPublicRoutesData: process.env.GENERATE_ROUTER_SPEC === 'true',
 
     /** lazy load reflection.  */
-    lazyLoadReflection: false,
+    lazyLoadReflection: true,
 };
 
 export const ROUTE_KEYS = Object.keys(DEFAULT_ROUTE);

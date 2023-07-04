@@ -380,8 +380,6 @@ describe('Dispatch routes', () => {
     const getSharedData = (): typeof shared => shared;
 
     type App = typeof myApp;
-    type SharedData = ReturnType<typeof getSharedData>;
-    type CallContext = Context<SharedData>;
 
     const changeUserName = (app: App, ctx, user: SimpleUser) => {
         return app.db.changeUserName(user);
@@ -660,7 +658,6 @@ describe('Lazy loading', () => {
 
     const defaultRoute = (app, context, user: User, date: DateAndLocale, message?: string) => `hello ${user.name} ${message}`;
     const myApp = {};
-    const ctx = {};
 
     const routes = {};
     for (let i = 0; i < totalRoutes; ++i) {
@@ -669,13 +666,12 @@ describe('Lazy loading', () => {
 
     beforeEach(() => reset());
 
-    it('should load app faster when using lazy load as no reflection function is called until route gets called', () => {
+    it('should load app faster when using lazy load reflection methods', () => {
         // no lazy load
         const loadingTimeNo = process.hrtime.bigint();
         initRouter(myApp, () => {}, {lazyLoadReflection: false});
         registerRoutes(routes);
         const endTimeNo = process.hrtime.bigint();
-        //console.log(routes1);
 
         reset();
 
@@ -687,10 +683,10 @@ describe('Lazy loading', () => {
 
         const coldStartLazy = Number(endTimeLazy - loadingTimeLazy) / 1000000;
         const coldStartNoLazy = Number(endTimeNo - loadingTimeNo) / 1000000;
-        console.log('load ms', {
-            'no lazy': coldStartNoLazy,
-            lazy: coldStartLazy,
-        });
+        // console.log('load ms', {
+        //     'no lazy': coldStartNoLazy,
+        //     lazy: coldStartLazy,
+        // });
 
         expect(coldStartNoLazy).toBeGreaterThan(coldStartLazy);
     });
