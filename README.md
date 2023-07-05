@@ -7,7 +7,7 @@
 </p>
 
 <p align="center">
-  <strong>Typescript Apis at the speed of light 🚀</strong><br/>.
+  <strong>Typescript Apis at the speed of light 🚀</strong><br/>
 </p>
 
 <p align=center>
@@ -88,23 +88,22 @@ The reason for this naming is to future proof the router to be able to accept mu
 import {setRouterOptions, registerRoutes} from '@mionkit/router';
 
 const sayHello = (app, ctx, name: string): string => {
-    return `Hello ${name}.`;
+  return `Hello ${name}.`;
 };
 
 const sayHello2 = {
-    route(app, ctx, name1: string, name2: string): string {
-        return `Hello ${name1} and ${name2}.`;
-    },
+  route(app, ctx, name1: string, name2: string): string {
+    return `Hello ${name1} and ${name2}.`;
+  },
 };
 
 const routes = {
-    sayHello, // api/sayHello
-    sayHello2, // api/sayHello2
+  sayHello, // api/sayHello
+  sayHello2, // api/sayHello2
 };
 
 setRouterOptions({prefix: 'api/'});
 export const apiSpec = registerRoutes(routes);
-
 ```
 
 ## `Automatic Serialization & Validation`
@@ -130,18 +129,17 @@ import {registerRoutes, initRouter} from '@mionkit/router';
 import type {User} from 'MyModels';
 
 const getUser = async (app, ctx, entity: {id: number}): Promise<User> => {
-    const user = await ctx.db.getUserById(entity.id);
-    return user;
+  const user = await ctx.db.getUserById(entity.id);
+  return user;
 };
 
 const routes = {
-    users: {
-        getUser, // api/users/getUser
-    },
+  users: {
+    getUser, // api/users/getUser
+  },
 };
 
 export const apiSpec = registerRoutes(routes);
-
 ```
 
 </td>
