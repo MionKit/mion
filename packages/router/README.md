@@ -207,11 +207,13 @@ const invalidRoutes = {
 export const myInvalidApi = registerRoutes(invalidRoutes); // throws an error
 ```
 
-## `Throwing errors`
+## `Handling errors`
 
-All errors thrown within Routes/Hooks will be automatically catch and handled, as there is no concept of logger within the router errors are not automatically logged. Two types of errors can be generated, Public errors are returned in the `response.publicErrors` & and private error stored in the `context.request.internalErrors` to be managed by any logger hook or similar. The public errors only contains generic message and a status code, the private errors contains also stack trace and the rest of properties of any js Error.
+All errors thrown within Routes/Hooks will be catch and handled, as there is no concept of logger within the router errors are not automatically logged.
 
-Throwing a `RouteError` will generate a public error otherwise a generic public 500 error is generated.
+For every error thrown within the Routes/Hook Two types of errors are generated, Public errors are returned in the `response.publicErrors` & and private error stored in the `context.request.internalErrors` to be managed by any logger hook or similar. The public errors should only contains generic message and a status code, the private errors contains also stack trace and the rest of properties of any js Error.
+
+Throwing a `RouteError` generates a public error otherwise a generic public 500 error is generated.
 
 ```ts
 // examples/error-handling.routes.ts

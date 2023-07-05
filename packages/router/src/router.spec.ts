@@ -498,6 +498,7 @@ describe('Dispatch routes', () => {
             const response = await dispatchRoute('/abcd', {rawRequest: request});
             expect(response.publicErrors[0]).toEqual({
                 statusCode: 404,
+                name: 'Not Found',
                 message: 'Route not found',
             });
         });
@@ -511,6 +512,7 @@ describe('Dispatch routes', () => {
             const response = await dispatchRoute('/changeUserName', {rawRequest: request});
             expect(response.publicErrors[0]).toEqual({
                 statusCode: 400,
+                name: 'Invalid Header',
                 message: `Invalid header 'Authorization'. No header found with that name.`,
             });
         });
@@ -527,7 +529,8 @@ describe('Dispatch routes', () => {
             const response = await dispatchRoute('/changeUserName', {rawRequest: request});
             expect(response.publicErrors[0]).toEqual({
                 statusCode: 400,
-                message: 'Wrong parsed body type. Expecting an object containing the route name and parameters.',
+                name: 'Invalid Request Body',
+                message: 'Wrong request body. Expecting an json body containing the route name and parameters.',
             });
 
             const request2: RawRequest = {
@@ -537,7 +540,8 @@ describe('Dispatch routes', () => {
 
             const response2 = await dispatchRoute('/changeUserName', {rawRequest: request2});
             expect(response2.publicErrors[0]).toEqual({
-                statusCode: 400,
+                statusCode: 422,
+                name: 'Parsing Request Body Error',
                 message: 'Invalid request body: Unexpected number in JSON at position 1',
             });
         });
@@ -551,7 +555,8 @@ describe('Dispatch routes', () => {
             const response = await dispatchRoute('/changeUserName', {rawRequest: request});
             expect(response.publicErrors[0]).toEqual({
                 statusCode: 400,
-                message: `Invalid input '/changeUserName', missing or invalid number of input parameters`,
+                name: 'Invalid Params Length',
+                message: `Invalid params '/changeUserName', missing or invalid number of input parameters`,
             });
         });
 
@@ -564,7 +569,8 @@ describe('Dispatch routes', () => {
             const response = await dispatchRoute('/getSameDate', {rawRequest: request});
             expect(response.publicErrors[0]).toEqual({
                 statusCode: 400,
-                message: `Invalid input '/getSameDate', can not deserialize. Parameters might be of the wrong type.`,
+                name: 'Serialization Error',
+                message: `Invalid params '/getSameDate', can not deserialize. Parameters might be of the wrong type.`,
             });
         });
 
@@ -577,8 +583,9 @@ describe('Dispatch routes', () => {
 
             const response = await dispatchRoute('/changeUserName', {rawRequest: request});
             const error: PublicError = {
+                name: 'Validation Error',
                 statusCode: 400,
-                message: `Invalid input in '/changeUserName', validation failed. Parameters might be of the wrong type or have invalid values.`,
+                message: `Invalid params in '/changeUserName', validation failed.`,
                 errorData: expect.objectContaining({
                     hasErrors: true,
                     totalErrors: 1,
@@ -596,8 +603,9 @@ describe('Dispatch routes', () => {
 
             const response = await dispatchRoute('/changeUserName', {rawRequest: request});
             const error: PublicError = {
+                name: 'Validation Error',
                 statusCode: 400,
-                message: `Invalid input in '/changeUserName', validation failed. Parameters might be of the wrong type or have invalid values.`,
+                message: `Invalid params in '/changeUserName', validation failed.`,
                 errorData: expect.objectContaining({
                     hasErrors: true,
                     totalErrors: 2,
@@ -620,7 +628,8 @@ describe('Dispatch routes', () => {
             const response = await dispatchRoute('/routeFail', {rawRequest: request});
             expect(response.publicErrors[0]).toEqual({
                 statusCode: 500,
-                message: 'Unknown error in step 0 of execution path.',
+                name: 'Unknown Error',
+                message: 'Unknown error in step 0 of route execution path.',
             });
         });
 
@@ -635,7 +644,7 @@ describe('Dispatch routes', () => {
             const response = await dispatchRoute('/getSameDate', {rawRequest: request});
             expect(response.publicErrors[0]).toEqual({
                 statusCode: 400,
-                message: `Invalid input '/getSameDate', can not validate parameters.`,
+                message: `Invalid params '/getSameDate', can not validate parameters.`,
             });
         });
     });

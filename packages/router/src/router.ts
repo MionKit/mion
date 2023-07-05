@@ -25,7 +25,6 @@ import {
     SharedDataFactory,
     Response,
     RawServerContext,
-    RouteError,
     Mutable,
     PublicError,
     Request,
@@ -36,6 +35,7 @@ import {
 import {StatusCodes} from './status-codes';
 import {getPublicRoutes} from './publicMethods';
 import {isAsyncHandler, getFunctionReflectionMethods, getHandlerType} from '@mionkit/runtype';
+import {RouteError} from './errors';
 
 type RouterKeyEntryList = [string, Routes | HookDef | Route][];
 type RoutesWithId = {
@@ -144,7 +144,7 @@ export const dispatchRoute = async <RawContext extends RawServerContext>(
     const executionPath = getRouteExecutionPath(transformedPath) || [];
 
     if (!executionPath.length) {
-        const notFound = new RouteError(StatusCodes.NOT_FOUND, 'Route not found');
+        const notFound = new RouteError({statusCode: StatusCodes.NOT_FOUND, publicMessage: 'Route not found'});
         handleRouteErrors(context.request, context.response, notFound, 0);
     } else {
         parseRequestBody(context.rawContext, context.request, context.response);
@@ -190,6 +190,18 @@ export const getHookFieldName = (item: HookDef, key: string) => {
     return item?.fieldName || key;
 };
 
+export const getPublicErrorFromRouteError = (routeError: RouteError): PublicError => {
+    // creating a new public error object to avoid exposing the original error
+    const publicError: PublicError = {
+        name: routeError.name,
+        statusCode: routeError.statusCode,
+        message: routeError.publicMessage,
+    };
+    if (routeError.id) publicError.id = routeError.id;
+    if (routeError.publicData) publicError.errorData = routeError.publicData;
+    return publicError;
+};
+
 // ############# PRIVATE METHODS #############
 
 const parseRequestBody = (serverContext: RawServerContext<any, any>, request: Request, response: Response) => {
@@ -198,23 +210,32 @@ const parseRequestBody = (serverContext: RawServerContext<any, any>, request: Re
         if (typeof serverContext.rawRequest.body === 'string') {
             const parsedBody = routerOptions.bodyParser.parse(serverContext.rawRequest.body);
             if (typeof parsedBody !== 'object')
-                throw new RouteError(
-                    StatusCodes.BAD_REQUEST,
-                    'Wrong parsed body type. Expecting an object containing the route name and parameters.'
-                );
+                throw new RouteError({
+                    statusCode: StatusCodes.BAD_REQUEST,
+                    name: 'Invalid Request Body',
+                    publicMessage: 'Wrong request body. Expecting an json body containing the route name and parameters.',
+                });
             (request as Mutable<Obj>).body = parsedBody;
         } else if (typeof serverContext.rawRequest.body === 'object') {
-            // lets assume the body has been already parsed
+            // lets assume the body has been already parsed, TODO: investigate possible security issues
             (request as Mutable<Obj>).body = serverContext.rawRequest.body;
         } else {
-            throw new RouteError(StatusCodes.BAD_REQUEST, 'Wrong request.body, only strings allowed.');
+            throw new RouteError({
+                statusCode: StatusCodes.BAD_REQUEST,
+                name: 'Invalid Request Body',
+                publicMessage: 'Wrong request body, expecting a json string.',
+            });
         }
     } catch (err: any) {
         if (!(err instanceof RouteError)) {
             handleRouteErrors(
                 request,
                 response,
-                new RouteError(StatusCodes.BAD_REQUEST, `Invalid request body: ${err?.message || 'unknown parsing error.'}`),
+                new RouteError({
+                    statusCode: StatusCodes.UNPROCESSABLE_ENTITY,
+                    name: 'Parsing Request Body Error',
+                    publicMessage: `Invalid request body: ${err?.message || 'unknown parsing error.'}`,
+                }),
                 0
             );
         }
@@ -230,48 +251,55 @@ const deserializeAndValidateParameters = (request: Request, executable: Executab
         params = request.headers[fieldName];
         if (typeof params === 'string') return [params];
         else if (Array.isArray(params)) return [params.join(',')]; // node http headers could be an array of strings
-        else throw new RouteError(StatusCodes.BAD_REQUEST, `Invalid header '${fieldName}'. No header found with that name.`);
+        else
+            throw new RouteError({
+                statusCode: StatusCodes.BAD_REQUEST,
+                name: 'Invalid Header',
+                publicMessage: `Invalid header '${fieldName}'. No header found with that name.`,
+            });
     }
 
     // defaults to an empty array if required field is omitted from body
     params = request.body[fieldName] ?? [];
 
     if (!Array.isArray(params))
-        throw new RouteError(
-            StatusCodes.BAD_REQUEST,
-            `Invalid input '${fieldName}'. input parameters can only be sent in an array.`
-        );
+        throw new RouteError({
+            statusCode: StatusCodes.BAD_REQUEST,
+            name: 'Invalid Params Array',
+            publicMessage: `Invalid params '${fieldName}'. input parameters can only be sent in an array.`,
+        });
 
     // if there are no params input field can be omitted
     if (!params.length && !executable.reflection.paramsLength) return params;
 
     if (params.length !== executable.reflection.paramsLength)
-        throw new RouteError(
-            StatusCodes.BAD_REQUEST,
-            `Invalid input '${fieldName}', missing or invalid number of input parameters`
-        );
+        throw new RouteError({
+            statusCode: StatusCodes.BAD_REQUEST,
+            name: 'Invalid Params Length',
+            publicMessage: `Invalid params '${fieldName}', missing or invalid number of input parameters`,
+        });
 
     if (routerOptions.enableSerialization) {
         try {
             params = executable.reflection.deserializeParams(params);
         } catch (e) {
-            throw new RouteError(
-                StatusCodes.BAD_REQUEST,
-                `Invalid input '${fieldName}', can not deserialize. Parameters might be of the wrong type.`
-            );
+            throw new RouteError({
+                statusCode: StatusCodes.BAD_REQUEST,
+                name: 'Serialization Error',
+                publicMessage: `Invalid params '${fieldName}', can not deserialize. Parameters might be of the wrong type.`,
+            });
         }
     }
 
     if (routerOptions.enableValidation) {
         const validationResponse = executable.reflection.validateParams(params);
         if (validationResponse.hasErrors) {
-            throw new RouteError(
-                StatusCodes.BAD_REQUEST,
-                `Invalid input in '${fieldName}', validation failed. Parameters might be of the wrong type or have invalid values.`,
-                undefined,
-                undefined,
-                validationResponse
-            );
+            throw new RouteError({
+                statusCode: StatusCodes.BAD_REQUEST,
+                name: 'Validation Error',
+                publicMessage: `Invalid params in '${fieldName}', validation failed.`,
+                publicData: validationResponse,
+            });
         }
     }
 
@@ -515,28 +543,17 @@ const getRouteEntryProperties = (
 };
 
 const handleRouteErrors = (request: Request, response: Response, err: any, step: number) => {
-    if (err instanceof RouteError) {
-        // creating a new err object only with only statusCode and message.
-        // So can't leak any other properties accidentally
-        const publicError: PublicError = {statusCode: err.statusCode, message: err.message, errorData: err.errorData};
-        (response.publicErrors as Mutable<PublicError[]>).push(publicError);
-        (request.internalErrors as Mutable<RouteError[]>).push(err);
-    } else {
-        const publicError: PublicError = {
-            statusCode: StatusCodes.INTERNAL_SERVER_ERROR,
-            message: `Unknown error in step ${step} of execution path.`,
-        };
-        let srcError: Error;
-        if (err instanceof Error) {
-            srcError = err;
-        } else if (typeof err === 'string') {
-            srcError = new Error(err);
-        } else {
-            srcError = new Error(`Unknown error in step ${step} of execution path.`);
-        }
-        // TODO: No need to use new RouteError, maybe we should create a new Private Error interface
-        const privateError: RouteError = new RouteError(publicError.statusCode, publicError.message, undefined, srcError);
-        (response.publicErrors as Mutable<PublicError[]>).push(publicError);
-        (request.internalErrors as Mutable<RouteError[]>).push(privateError);
-    }
+    const routeError =
+        err instanceof RouteError
+            ? err
+            : new RouteError({
+                  statusCode: StatusCodes.INTERNAL_SERVER_ERROR,
+                  publicMessage: `Unknown error in step ${step} of route execution path.`,
+                  originalError: err,
+                  name: 'Unknown Error',
+              });
+
+    const publicError = getPublicErrorFromRouteError(routeError);
+    (response.publicErrors as Mutable<PublicError[]>).push(publicError);
+    (request.internalErrors as Mutable<RouteError[]>).push(routeError);
 };

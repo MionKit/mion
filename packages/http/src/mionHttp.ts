@@ -5,7 +5,14 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {StatusCodes, initRouter, getRouterOptions, dispatchRoute, RouteError} from '@mionkit/router';
+import {
+    StatusCodes,
+    initRouter,
+    getRouterOptions,
+    dispatchRoute,
+    RouteError,
+    getPublicErrorFromRouteError,
+} from '@mionkit/router';
 import {createServer as createHttp} from 'http';
 import {createServer as createHttps} from 'https';
 import {DEFAULT_HTTP_OPTIONS} from './constants';
@@ -13,6 +20,7 @@ import type {HttpOptions, HttpRawServerContext} from './types';
 import type {IncomingMessage, RequestListener, Server as HttpServer, ServerResponse} from 'http';
 import type {Server as HttpsServer} from 'https';
 import type {Obj, Headers, RawRequest, PublicError, RouterOptions, SharedDataFactory} from '@mionkit/router';
+import {error} from 'console';
 
 type Logger = typeof console | undefined;
 type HeadersEntries = [string, string | boolean | number][];
@@ -88,13 +96,19 @@ const httpRequestHandler: RequestListener = (httpReq: IncomingMessage, httpRespo
         if (size > httpOptions.maxBodySize) {
             if (httpOptions.allowExceedMaxBodySize && httpOptions.allowExceedMaxBodySize(size, httpReq, httpResponse)) return;
             hasError = true;
-            replyError(httpResponse, logger, StatusCodes.REQUEST_TOO_LONG, 'Request Payload Too Large');
+            const error = new RouteError({statusCode: StatusCodes.REQUEST_TOO_LONG, publicMessage: 'Request Payload Too Large'});
+            replyError(httpResponse, logger, error);
         }
     });
 
     httpReq.on('error', (e) => {
         hasError = true;
-        replyError(httpResponse, logger, StatusCodes.BAD_REQUEST, 'Bad Request', e);
+        const error = new RouteError({
+            statusCode: StatusCodes.BAD_REQUEST,
+            publicMessage: 'Request Connection Error',
+            originalError: e,
+        });
+        replyError(httpResponse, logger, error);
     });
 
     httpReq.on('end', () => {
@@ -112,7 +126,12 @@ const httpRequestHandler: RequestListener = (httpReq: IncomingMessage, httpRespo
             .catch((e) => {
                 if (hasError) return;
                 hasError = true;
-                replyError(httpResponse, logger, StatusCodes.INTERNAL_SERVER_ERROR, 'Internal Error');
+                const error = new RouteError({
+                    statusCode: StatusCodes.INTERNAL_SERVER_ERROR,
+                    publicMessage: 'Internal Error',
+                    originalError: e,
+                });
+                replyError(httpResponse, logger, error);
             })
             .finally(() => {
                 if (!httpResponse.writableEnded) httpResponse.end();
@@ -128,7 +147,10 @@ const httpRequestHandler: RequestListener = (httpReq: IncomingMessage, httpRespo
 const reply = (httpResponse: ServerResponse, logger: Logger, json: string, statusCode: number, statusMessage?: string) => {
     if (httpResponse.writableEnded) {
         if (logger) {
-            const mkError: RouteError = new RouteError(statusCode, 'response has ended but server is still trying to reply');
+            const mkError: RouteError = new RouteError({
+                statusCode,
+                publicMessage: 'response has ended but server is still trying to reply',
+            });
             logger.error(mkError);
         }
         return;
@@ -139,11 +161,11 @@ const reply = (httpResponse: ServerResponse, logger: Logger, json: string, statu
     httpResponse.end(json);
 };
 
-const replyError = (httpResponse: ServerResponse, logger: Logger, statusCode: number, statusMessage: string, e?: Error) => {
-    const publicError: PublicError = {statusCode, message: statusMessage};
-    if (logger) e ? logger.error(publicError, e) : logger.error(publicError);
-    const jsonBody = JSON.stringify({errors: [publicError]});
-    reply(httpResponse, logger, jsonBody, statusCode, statusMessage);
+const replyError = (httpResponse: ServerResponse, logger: Logger, routeError: RouteError) => {
+    const publicError: PublicError = getPublicErrorFromRouteError(routeError);
+    if (logger) logger.error(routeError);
+    const jsonBody = getRouterOptions().bodyParser.stringify({errors: [publicError]});
+    reply(httpResponse, logger, jsonBody, publicError.statusCode, publicError.name);
 };
 
 const addResponseHeaders = (httpResponse: ServerResponse, headers: Headers) => {
