@@ -77,8 +77,8 @@ export const apiSpec = registerRoutes(routes);
 ```ts
 // examples/full-example.routes.ts
 
-import {initHttpApp} from '@mionkit/http';
-import {Route} from '@mionkit/router';
+import {initHttpApp, startHttpServer} from '@mionkit/http';
+import {registerRoutes} from '@mionkit/router';
 
 // #### App ####
 
@@ -92,11 +92,11 @@ const sharedDataFactory = (): SharedData => ({auth: {me: null}});
 
 // #### Routes ####
 
-const changeUserName: Route = (context: CallContext, user: SimpleUser) => {
-  return context.app.db.changeUserName(user);
+const changeUserName = (app, ctx, user: SimpleUser): SimpleUser => {
+  return ctx.app.db.changeUserName(user);
 };
 
-const getDate: Route = (context: CallContext, dataPoint?: DataPoint): DataPoint => {
+const getDate = (app, ctx, dataPoint?: DataPoint): DataPoint => {
   return dataPoint || {date: new Date('December 17, 2020 03:24:00')};
 };
 
@@ -104,11 +104,9 @@ const getDate: Route = (context: CallContext, dataPoint?: DataPoint): DataPoint 
 
 const routerOpts = {prefix: 'api/'};
 const routes = {changeUserName, getDate};
-const {emptyContext, startHttpServer, Router} = initHttpApp(app, sharedDataFactory, routerOpts);
-Router.addRoutes(routes);
+initHttpApp(app, sharedDataFactory, routerOpts);
+registerRoutes(routes);
 startHttpServer({port: 8080});
-
-export type CallContext = typeof emptyContext;
 ```
 
 ---

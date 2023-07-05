@@ -8,21 +8,28 @@ export const getPet = (app, ctx, id: string): Promise<Pet> => {
             // Only statusCode and publicMessage will be returned in the response.body
             const statusCode = StatusCodes.BAD_REQUEST;
             const publicMessage = `Pet with id ${id} can't be found`;
-            throw new RouteError(statusCode, publicMessage);
+            throw new RouteError({statusCode, publicMessage});
         }
         return pet;
     } catch (dbError) {
-        // Only statusCode and publicMessage will be returned in the response.body
         const statusCode = StatusCodes.INTERNAL_SERVER_ERROR;
         const publicMessage = `Cant fetch data.`;
-        /* 
-         Full RouteError containing dbError message and stacktrace will be added
-         to ctx.request.internalErrors, so it can be logged or managed after
-        */
-        throw new RouteError(statusCode, publicMessage, undefined, dbError as Error);
+        /*
+         * Only statusCode and publicMessage will be returned in the response.body.
+         *
+         * Full RouteError containing dbError message and stacktrace will be added
+         * to ctx.request.internalErrors, so it can be logged or managed after
+         */
+        throw new RouteError({statusCode, publicMessage, originalError: dbError as Error});
     }
 };
 
 export const alwaysError = (): void => {
+    /*
+     * this will generate a public 500 error with an 'Unknown Error' message.
+     *
+     * Full RouteError containing dbError message and stacktrace will be added
+     * to ctx.request.internalErrors, so it can be logged or managed after
+     */
     throw new Error('This error will generate a public 500 error with no message');
 };
