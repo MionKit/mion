@@ -87,13 +87,14 @@ describe('serverless router should', () => {
         const headers = Object.fromEntries(response.headers.entries());
 
         const expectedError = {
-            message: `Invalid input '/api/getDate', can not deserialize. Parameters might be of the wrong type.`,
+            message: `Invalid params '/api/getDate', can not deserialize. Parameters might be of the wrong type.`,
+            name: 'Serialization Error',
             statusCode: 400,
         };
         expect(reply).toEqual({errors: [expectedError]});
         expect(headers['connection']).toEqual('close');
         expect(headers['content-type']).toEqual('application/json; charset=utf-8');
-        expect(headers['content-length']).toEqual('133');
+        expect(headers['content-length']).toEqual('163');
         expect(headers['server']).toEqual('@mionkit/http');
     });
 
@@ -146,13 +147,14 @@ describe('serverless router should', () => {
             const expectedError = {
                 message: `Request Payload Too Large`,
                 statusCode: 413,
+                name: 'Request Payload Too Large',
             };
             expect(reply).toEqual({errors: [expectedError]});
             expect(headers['x-app-name']).toEqual('MyApp');
             expect(headers['x-instance-id']).toEqual('3089');
             expect(headers['connection']).toEqual('close');
             expect(headers['content-type']).toEqual('application/json; charset=utf-8');
-            expect(headers['content-length']).toEqual('69');
+            expect(headers['content-length']).toEqual('104');
             expect(headers['server']).toEqual('@mionkit/http');
             expect(isCalled).toEqual(true);
         } catch (e) {

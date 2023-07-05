@@ -74,6 +74,9 @@ export const DEFAULT_ROUTE_OPTIONS: Readonly<RouterOptions> = {
 
     /** lazy load reflection.  */
     lazyLoadReflection: true,
+
+    /** set true to automatically generate and id for every error.  */
+    autoGenerateErrorId: false,
 };
 
 export const ROUTE_KEYS = Object.keys(DEFAULT_ROUTE);

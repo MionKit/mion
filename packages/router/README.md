@@ -48,7 +48,7 @@ mion only cares about the `path`, and completely ignores the http method, so in 
 ```ts
 // examples/routes-definition.routes.ts
 
-import {setRouterOptions, registerRoutes} from '@mion/router';
+import {setRouterOptions, registerRoutes} from '@mionkit/router';
 
 const sayHello = (app, ctx, name: string): string => {
   return `Hello ${name}.`;
@@ -74,7 +74,7 @@ Using javascript names helps keeping route names simple, it is not recommended t
 ```ts
 // examples/no-recommended-names.routes.ts
 
-import {registerRoutes} from '@mion/router';
+import {registerRoutes} from '@mionkit/router';
 
 const sayHello = (app, ctx, name: string): string => {
   return `Hello ${name}.`;
@@ -110,7 +110,7 @@ Hooks can use `context.shared` to share data with other routes and hooks. The re
 ```ts
 // examples/hooks-definition.routes.ts
 
-import {Context, registerRoutes} from '@mion/router';
+import {Context, registerRoutes} from '@mionkit/router';
 import {getAuthUser, isAuthorized} from 'MyAuth';
 import type {Pet} from 'MyModels';
 
@@ -207,16 +207,18 @@ const invalidRoutes = {
 export const myInvalidApi = registerRoutes(invalidRoutes); // throws an error
 ```
 
-## `Throwing errors`
+## `Handling errors`
 
-All errors thrown within Routes/Hooks will be automatically catch and handled, as there is no concept of logger within the router errors are not automatically logged. Two types of errors can be generated, Public errors are returned in the `response.publicErrors` & and private error stored in the `context.request.internalErrors` to be managed by any logger hook or similar. The public errors only contains generic message and a status code, the private errors contains also stack trace and the rest of properties of any js Error.
+All errors thrown within Routes/Hooks will be catch and handled, as there is no concept of logger within the router errors are not automatically logged.
 
-Throwing a `RouteError` will generate a public error otherwise a generic public 500 error is generated.
+For every error thrown within the Routes/Hook Two types of errors are generated, Public errors are returned in the `response.publicErrors` & and private error stored in the `context.request.internalErrors` to be managed by any logger hook or similar. The public errors should only contains generic message and a status code, the private errors contains also stack trace and the rest of properties of any js Error.
+
+Throwing a `RouteError` generates a public error otherwise a generic public 500 error is generated.
 
 ```ts
 // examples/error-handling.routes.ts
 
-import {RouteError, StatusCodes} from '@mion/router';
+import {RouteError, StatusCodes} from '@mionkit/router';
 import type {Pet} from 'MyModels';
 
 export const getPet = (app, ctx, id: string): Promise<Pet> => {
@@ -226,22 +228,29 @@ export const getPet = (app, ctx, id: string): Promise<Pet> => {
       // Only statusCode and publicMessage will be returned in the response.body
       const statusCode = StatusCodes.BAD_REQUEST;
       const publicMessage = `Pet with id ${id} can't be found`;
-      throw new RouteError(statusCode, publicMessage);
+      throw new RouteError({statusCode, publicMessage});
     }
     return pet;
   } catch (dbError) {
-    // Only statusCode and publicMessage will be returned in the response.body
     const statusCode = StatusCodes.INTERNAL_SERVER_ERROR;
     const publicMessage = `Cant fetch data.`;
-    /* 
-         Full RouteError containing dbError message and stacktrace will be added
-         to ctx.request.internalErrors, so it can be logged or managed after
-        */
-    throw new RouteError(statusCode, publicMessage, undefined, dbError as Error);
+    /*
+     * Only statusCode and publicMessage will be returned in the response.body.
+     *
+     * Full RouteError containing dbError message and stacktrace will be added
+     * to ctx.request.internalErrors, so it can be logged or managed after
+     */
+    throw new RouteError({statusCode, publicMessage, originalError: dbError as Error});
   }
 };
 
 export const alwaysError = (): void => {
+  /*
+   * this will generate a public 500 error with an 'Unknown Error' message.
+   *
+   * Full RouteError containing dbError message and stacktrace will be added
+   * to ctx.request.internalErrors, so it can be logged or managed after
+   */
   throw new Error('This error will generate a public 500 error with no message');
 };
 ```
@@ -256,32 +265,32 @@ export const alwaysError = (): void => {
 ```ts
 // src/types.ts#L24-L49
 
-/** Route or Hook Handler, the remote function  */
-export type Handler = (
-  /** Static Data: main App, db driver, libraries, etc... */
-  app: any,
-  /** Call Context */
-  context: Context<any, any>,
-  /** Remote Call parameters */
-  ...parameters: any
-) => any | Promise<any>;
-
 /** Route definition */
-export type RouteDef = {
-  /** overrides route's path and fieldName in request/response body */
-  path?: string;
-  /** description of the route, mostly for documentation purposes */
-  description?: string;
-  /** enable automatic parameter validation, defaults to true */
-  enableValidation?: boolean;
-  /** Enables serialization/deserialization */
-  enableSerialization?: boolean;
-  /** Route Handler */
-  route: Handler;
+export type RouteDef<App = any, CallContext extends Context<any, any> = any, Ret = any> = {
+    /** overrides route's path and fieldName in request/response body */
+    path?: string;
+    /** description of the route, mostly for documentation purposes */
+    description?: string;
+    /** enable automatic parameter validation, defaults to true */
+    enableValidation?: boolean;
+    /** Enables serialization/deserialization */
+    enableSerialization?: boolean;
+    /** Route Handler */
+    route: Handler<App, CallContext, Ret>;
 };
 
 /** A route can be a full route definition or just the handler */
-export type Route = RouteDef | Handler;
+export type Route<App = any, CallContext extends Context<any, any> = any, Ret = any> =
+    | RouteDef<App, CallContext, Ret>
+    | Handler<App, CallContext, Ret>;
+
+/** Hook definition, a function that hooks into the execution path */
+export type HookDef<App = any, CallContext extends Context<any, any> = any, Ret = any> = {
+    /** Executes the hook even if an error was thrown previously */
+    forceRunOnError?: boolean;
+    /** Enables returning data in the responseBody,
+     * hooks must explicitly enable returning data */
+    canReturnData?: boolean;
 ```
 
 </td>
@@ -290,26 +299,26 @@ export type Route = RouteDef | Handler;
 ```ts
 // src/types.ts#L51-L70
 
-/** Hook definition, a function that hooks into the execution path */
-export type HookDef<App = any, CallContext extends Context<any, any> = any> = {
-  /** Executes the hook even if an error was thrown previously */
-  forceRunOnError?: boolean;
-  /** Enables returning data in the responseBody,
-   * hooks must explicitly enable returning data */
-  canReturnData?: boolean;
-  /** Sets the value in a heather rather than the body */
-  inHeader?: boolean;
-  /** The fieldName in the request/response body */
-  fieldName?: string;
-  /** Description of the route, mostly for documentation purposes */
-  description?: string;
-  /** enable automatic parameter validation, defaults to true */
-  enableValidation?: boolean;
-  /** Enables serialization/deserialization */
-  enableSerialization?: boolean;
-  /** Hook handler */
-  hook: Handler;
+    inHeader?: boolean;
+    /** The fieldName in the request/response body */
+    fieldName?: string;
+    /** Description of the route, mostly for documentation purposes */
+    description?: string;
+    /** enable automatic parameter validation, defaults to true */
+    enableValidation?: boolean;
+    /** Enables serialization/deserialization */
+    enableSerialization?: boolean;
+    /** Hook handler */
+    hook: Handler<App, CallContext, Ret>;
 };
+
+/** Data structure to define all the routes, each entry is a route a hook or sub-routes */
+export type Routes<App = any, CallContext extends Context<any, any> = any> = {
+    [key: string]: HookDef<App, CallContext> | Route<App, CallContext> | Routes<App, CallContext>;
+};
+
+// ####### Router Options #######
+
 ```
 
 </td>
@@ -323,7 +332,7 @@ Your application might need to add some extra metadata to every route or hook, t
 ```ts
 // examples/extending-routes-and-hooks.routes.ts
 
-import {Route, HookDef} from '@mion/router';
+import {Route, HookDef} from '@mionkit/router';
 
 type MyRoute = Route & {doNotFail: boolean};
 type MyHook = HookDef & {shouldLog: boolean};
@@ -362,18 +371,19 @@ The `Context` or `Call Context` contains all the data related to the ongoing cal
 ```ts
 // src/types.ts#L156-L168
 
-export type Context<SharedData, RawContext extends RawServerContext = any> = Readonly<{
-  /** Route's path */
-  path: Readonly<string>;
-  /** Raw Server call context, contains the raw request and response */
-  rawContext: Readonly<RawContext>;
-  /** Router's own request object */
-  request: Readonly<Request>;
-  /** Router's own response object */
-  response: Readonly<Response>;
-  /** shared data between handlers (route/hooks) and that is not returned in the response. */
-  shared: SharedData;
-}>;
+    body: Obj;
+    /** All errors thrown during the call are stored here so they can bee logged or handler by a some error handler hook */
+    internalErrors: Readonly<RouteError[]>;
+};
+
+/** Router own response object */
+export type Response = {
+    statusCode: Readonly<number>;
+    /** response errors: empty if there were no errors during execution */
+    publicErrors: Readonly<PublicError[]>;
+    /** response headers */
+    headers: Headers;
+    /** the router response data, JS object */
 ```
 
 #### Declaring the app and context types
@@ -381,10 +391,10 @@ export type Context<SharedData, RawContext extends RawServerContext = any> = Rea
 ```ts
 // examples/using-context.routes.ts
 
-import {registerRoutes, initRouter} from '@mion/router';
+import {registerRoutes, initRouter} from '@mionkit/router';
 import {someDbDriver} from 'someDbDriver';
 import {cloudLogs} from 'MyCloudLogLs';
-import type {Context} from '@mion/router';
+import type {Context} from '@mionkit/router';
 import type {APIGatewayEvent} from 'aws-lambda';
 import type {Pet} from 'MyModels';
 
@@ -429,7 +439,7 @@ Thanks to Deepkit's magic the type information is available at runtime and the d
 ```ts
 // examples/get-user-request.routes.ts
 
-import {registerRoutes, initRouter} from '@mion/router';
+import {registerRoutes, initRouter} from '@mionkit/router';
 import type {User} from 'MyModels';
 
 const getUser = async (app, ctx, entity: {id: number}): Promise<User> => {
@@ -545,26 +555,8 @@ export const DEFAULT_ROUTE_OPTIONS: Readonly<RouterOptions> = {
   /** Enables automatic serialization/deserialization */
   enableSerialization: true,
 
-  /**
-   * Deepkit Serialization Options
-   * loosely defaults to false, Soft conversion disabled.
-   * !! We Don't recommend to enable soft conversion as validation might fail
-   * */
-  serializationOptions: {
-    loosely: false,
-  },
-
-  /**
-   * Deepkit custom serializer
-   * @link https://docs.deepkit.io/english/serialization.html#serialisation-custom-serialiser
-   * */
-  customSerializer: undefined,
-
-  /**
-   * Deepkit Serialization Options
-   * @link https://docs.deepkit.io/english/serialization.html#_naming_strategy
-   * */
-  serializerNamingStrategy: undefined,
+  /** Reflection and Deepkit Serialization-Validation options */
+  reflectionOptions: DEFAULT_REFLECTION_OPTIONS,
 
   /** Custom body parser, defaults to Native JSON */
   bodyParser: JSON,
@@ -574,8 +566,20 @@ export const DEFAULT_ROUTE_OPTIONS: Readonly<RouterOptions> = {
   responseContentType: 'application/json; charset=utf-8',
 
   /** set to true to generate router spec for clients.  */
-  generateSpec: process.env.GENERATE_ROUTER_SPEC === 'true',
+  getPublicRoutesData: process.env.GENERATE_ROUTER_SPEC === 'true',
+
+  /** lazy load reflection.  */
+  lazyLoadReflection: true,
+
+  /** set true to automatically generate and id for every error.  */
+  autoGenerateErrorId: false,
 };
+
+export const ROUTE_KEYS = Object.keys(DEFAULT_ROUTE);
+export const HOOK_KEYS = Object.keys(DEFAULT_HOOK);
+export const MAX_ROUTE_NESTING = 10;
+
+export const ROUTE_DEFAULT_PARAMS = ['app', 'context'];
 ```
 
 ## `Full Working Example`
@@ -583,8 +587,8 @@ export const DEFAULT_ROUTE_OPTIONS: Readonly<RouterOptions> = {
 ```ts
 // examples/full-example.routes.ts
 
-import {registerRoutes, initRouter, StatusCodes, Route} from '@mion/router';
-import type {Context, RouteError} from '@mion/router';
+import {registerRoutes, initRouter, StatusCodes, Route} from '@mionkit/router';
+import type {Context, RouteError} from '@mionkit/router';
 import type {APIGatewayEvent} from 'aws-lambda';
 
 interface User {

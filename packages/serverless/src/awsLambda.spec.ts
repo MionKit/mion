@@ -102,12 +102,13 @@ describe('serverless router should', () => {
         const headers = awsResponse.headers || {};
 
         const expectedError = {
-            message: `Invalid input '/api/getDate', can not deserialize. Parameters might be of the wrong type.`,
+            message: `Invalid params '/api/getDate', can not deserialize. Parameters might be of the wrong type.`,
             statusCode: 400,
+            name: 'Serialization Error',
         };
         expect(parsedResponse).toEqual({errors: [expectedError]});
         expect(headers['content-type']).toEqual('application/json; charset=utf-8');
-        expect(headers['content-length']).toEqual(133);
+        expect(headers['content-length']).toEqual(163);
         expect(headers['server']).toEqual('@mionkit/serverless');
     });
 
