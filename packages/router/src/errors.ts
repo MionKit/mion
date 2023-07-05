@@ -25,7 +25,7 @@ export class RouteError extends Error {
         super.name = name || statusCodeToReasonPhrase[statusCode] || 'UnknownError';
         if (originalError?.stack) super.stack = originalError?.stack;
         const {autoGenerateErrorId} = getRouterOptions();
-        this.id = id || autoGenerateErrorId ? `${new Date().toISOString()}-${randomUUID()}` : undefined;
+        this.id = id || autoGenerateErrorId ? `${new Date().toISOString()}@${randomUUID()}` : undefined;
         this.statusCode = statusCode;
         this.publicMessage = publicMessage;
         this.publicData = publicData;
