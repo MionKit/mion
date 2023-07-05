@@ -1,6 +1,6 @@
 {
   "name": "@mionkit/router",
-  "version": "0.2.1-alpha.0",
+  "version": "0.3.0-alpha.0",
   "description": "Typescript RPC Like router with automatic Validation and Serialization",
   "keywords": [
     "typescript",
@@ -56,8 +56,6 @@
   },
   "dependencies": {
     "@deepkit/type": "^1.0.1-alpha.97",
-    "@mionkit/runtype": "^0.2.1-alpha.0"
-  },
-  "devDependencies": {
+    "@mionkit/runtype": "^0.3.0-alpha.0"
   }
 }
