@@ -1,6 +1,6 @@
 {
   "name": "@mionkit/http",
-  "version": "0.3.0-alpha.0",
+  "version": "0.3.1-alpha.0",
   "description": "mion HTTP Server for quick Api development.",
   "keywords": [
     "typescript",
@@ -55,6 +55,6 @@
     "url": "https://github.com/MionKit/mion/issues"
   },
   "dependencies": {
-    "@mionkit/router": "^0.3.0-alpha.0"
+    "@mionkit/router": "^0.3.1-alpha.0"
   }
 }
