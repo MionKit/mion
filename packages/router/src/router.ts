@@ -174,6 +174,7 @@ export const dispatchRoute = async <RawContext extends RawServerContext>(
     if (context.response.publicErrors.length) {
         respBody.errors = context.response.publicErrors;
     }
+    // TODO: when there are error we should json encode the errors and return in the response.json?
     (context.response.json as Mutable<string>) = routerOptions.bodyParser.stringify(respBody);
 
     return context.response;

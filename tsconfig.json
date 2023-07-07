@@ -9,7 +9,7 @@
     "strict": true,
     "emitDecoratorMetadata": true,
     "experimentalDecorators": true,
-    "target": "es6",
+    "target": "es2020",
     "lib": ["es6", "ES2021"],
     "outDir": ".dist",
     "composite": true,
@@ -20,7 +20,6 @@
       "@mionkit/*": ["packages/*"]
     }
   },
-  "reflection": true,
   "exclude": ["node_modules", ".dist"],
   "references": [
     {"path": "packages/runtype"},

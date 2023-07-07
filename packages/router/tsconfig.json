@@ -3,8 +3,8 @@
   "compilerOptions": {
     "outDir": ".dist/cjs"
   },
-  "reflection": true,
   "include": ["."],
   "exclude": ["examples", ".dist"],
-  "references": [{"path": "../runtype"}]
+  "references": [{"path": "../runtype"}],
+  "reflection": true
 }
