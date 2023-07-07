@@ -4,7 +4,7 @@
     "module": "ES2020",
     "outDir": ".dist/esm"
   },
-  "reflection": true,
+  "reflection": false,
   "include": ["."],
   "exclude": ["node_modules", "**/*.spec.ts", "examples", ".dist"],
   "references": []

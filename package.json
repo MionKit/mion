@@ -14,7 +14,7 @@
     "clean": "lerna run clean",
     "deepkit-install": "deepkit-type-install",
     "auto-readme": "embedme README.md",
-    "publish-to-npmjs": "npx lerna publish from-package --no-private",
+    "publish-to-npmjs": "lerna publish from-package --no-private",
     "prepare": "husky install"
   },
   "lint-staged": {
