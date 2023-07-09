@@ -5,8 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import type {SerializedTypes} from '@deepkit/type';
-import {ReflectionOptions, FunctionReflection} from '@mionkit/runtype';
+import {ReflectionOptions, FunctionReflection, SerializedTypes} from '@mionkit/runtype';
 import {RouteError} from './errors';
 
 // #######  Routes #######
@@ -111,7 +110,6 @@ export type Executable = {
     isRoute: boolean;
     handler: Handler;
     reflection: FunctionReflection;
-    isAsync: boolean;
     src: RouteDef | HookDef;
     enableValidation: boolean;
     enableSerialization: boolean;

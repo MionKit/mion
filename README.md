@@ -246,6 +246,7 @@ npx nx run @mionkit/router:test
 npx lerna run test
 
 ## compiles typescript in @mionkit/router
+## Please note that the build is only building the project's files if there are any dependencies they should be build before
 npx nx run @mionkit/router:build
 
 ## compiles typescript in all packages (NX will build only whats required)
