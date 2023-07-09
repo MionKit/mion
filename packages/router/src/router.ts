@@ -176,9 +176,10 @@ export const dispatchRoute = async <RawContext extends RawServerContext>(
     const respBody: Obj = context.response.body;
     if (context.response.publicErrors.length) {
         respBody.errors = context.response.publicErrors;
+        (context.response.json as Mutable<string>) = routerOptions.bodyParser.stringify(context.response.publicErrors);
+    } else {
+        (context.response.json as Mutable<string>) = routerOptions.bodyParser.stringify(respBody);
     }
-    // TODO: when there are error we should json encode the errors and return in the response.json?
-    (context.response.json as Mutable<string>) = routerOptions.bodyParser.stringify(respBody);
 
     return context.response;
 };
@@ -192,6 +193,34 @@ export const getRoutePath = (route: Route, path: string) => {
 
 export const getHookFieldName = (item: HookDef, key: string) => {
     return item?.fieldName || key;
+};
+
+/**
+ * This is a function to be called from outside the router.
+ * Whenever there is an error outside the router, this function should be called.
+ * So error keep the same format as when they were generated inside the router.
+ * This also stringifies public errors into response.json.
+ * @param routeResponse
+ * @param originalError
+ */
+export const generateRouteResponseFromOutsideError = (
+    originalError: any,
+    statusCode: StatusCodes = StatusCodes.INTERNAL_SERVER_ERROR,
+    publicMessage = 'Internal Error'
+): Response => {
+    const error = new RouteError({
+        statusCode,
+        publicMessage,
+        originalError,
+    });
+    const publicErrors = [getPublicErrorFromRouteError(error)];
+    return {
+        statusCode,
+        publicErrors,
+        headers: {},
+        body: {},
+        json: routerOptions.bodyParser.stringify(publicErrors),
+    };
 };
 
 export const getPublicErrorFromRouteError = (routeError: RouteError): PublicError => {
