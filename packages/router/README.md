@@ -207,13 +207,13 @@ const invalidRoutes = {
 export const myInvalidApi = registerRoutes(invalidRoutes); // throws an error
 ```
 
-## `Handling errors`
+## `Handling Errors`
 
-All errors thrown within Routes/Hooks will be catch and handled, as there is no concept of logger within the router errors are not automatically logged.
+All errors thrown within Routes/Hooks will be catch and handled. As there is no concept of logger within the router errors are not automatically logged instead they are added to the `context.request.internalErrors` to be managed by the application logger.
 
-For every error thrown within the Routes/Hook Two types of errors are generated, Public errors are returned in the `response.publicErrors` & and private error stored in the `context.request.internalErrors` to be managed by any logger hook or similar. The public errors should only contains generic message and a status code, the private errors contains also stack trace and the rest of properties of any js Error.
+For every error thrown within the Routes/Hook Two types of errors are generated: Public errors stored in the `response.publicErrors` & and private error stored in the `context.request.internalErrors` to be managed by the application logger. The public errors should only contain a generic message and a status code as this information is sent back to the client, while private errors contains the stack trace and the rest of properties of any js Error.
 
-Throwing a `RouteError` generates a public error otherwise a generic public 500 error is generated.
+If `RouterOptions.autoGenerateErrorId` is set to true an error id will be automatically generated and both public and private error will share the same id so errors can be traced properly.
 
 ```ts
 // examples/error-handling.routes.ts
@@ -240,7 +240,7 @@ export const getPet = (app, ctx, id: string): Promise<Pet> => {
      * Full RouteError containing dbError message and stacktrace will be added
      * to ctx.request.internalErrors, so it can be logged or managed after
      */
-    throw new RouteError({statusCode, publicMessage, originalError: dbError as Error});
+    return new RouteError({statusCode, publicMessage, originalError: dbError as Error});
   }
 };
 

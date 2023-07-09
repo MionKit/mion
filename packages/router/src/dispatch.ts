@@ -5,9 +5,9 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {Executable, Context, Obj, Response, RawServerContext, Mutable, PublicError, Request, RouterOptions} from './types';
+import {Executable, Context, Obj, Response, RawServerContext, Mutable, Request, RouterOptions} from './types';
 import {StatusCodes} from './status-codes';
-import {RouteError} from './errors';
+import {RouteError, PublicError} from './errors';
 import {getApp, getRouteExecutionPath, getRouterOptions, getSharedDataFactory} from './router';
 
 export const dispatchRoute = async <RawContext extends RawServerContext>(
@@ -52,10 +52,10 @@ export const dispatchRoute = async <RawContext extends RawServerContext>(
                 else context.request.body[executable.fieldName] = handlerParams;
                 if (executable.reflection.isAsync) {
                     const result = await executable.handler(getApp(), context, ...handlerParams);
-                    serializeResponse(context.response, executable, result, opts);
+                    handleRouteResult(context, executable, result, opts, index);
                 } else {
                     const result = executable.handler(getApp(), context, ...handlerParams);
-                    serializeResponse(context.response, executable, result, opts);
+                    handleRouteResult(context, executable, result, opts, index);
                 }
             } catch (err: any | RouteError | Error) {
                 handleRouteErrors(context.request, context.response, err, index);
@@ -76,6 +76,20 @@ export const dispatchRoute = async <RawContext extends RawServerContext>(
 
 // ############# PRIVATE METHODS #############
 
+const handleRouteResult = (
+    context: Context<any>,
+    executable: Executable,
+    result: any,
+    routerOptions: RouterOptions,
+    stepIndex
+) => {
+    if (result instanceof Error || result instanceof RouteError) {
+        handleRouteErrors(context.request, context.response, result, stepIndex);
+    } else {
+        serializeResponse(context.response, executable, result, routerOptions);
+    }
+};
+
 const parseRequestBody = (
     serverContext: RawServerContext<any, any>,
     request: Request,
@@ -93,9 +107,6 @@ const parseRequestBody = (
                     publicMessage: 'Wrong request body. Expecting an json body containing the route name and parameters.',
                 });
             (request as Mutable<Obj>).body = parsedBody;
-        } else if (typeof serverContext.rawRequest.body === 'object') {
-            // lets assume the body has been already parsed, TODO: investigate possible security issues
-            (request as Mutable<Obj>).body = serverContext.rawRequest.body;
         } else {
             throw new RouteError({
                 statusCode: StatusCodes.BAD_REQUEST,
@@ -156,7 +167,7 @@ const deserializeAndValidateParameters = (request: Request, executable: Executab
             publicMessage: `Invalid params '${fieldName}', missing or invalid number of input parameters`,
         });
 
-    if (routerOptions.enableSerialization) {
+    if (executable.enableSerialization) {
         try {
             params = executable.reflection.deserializeParams(params);
         } catch (e) {
@@ -168,7 +179,7 @@ const deserializeAndValidateParameters = (request: Request, executable: Executab
         }
     }
 
-    if (routerOptions.enableValidation) {
+    if (executable.enableValidation) {
         const validationResponse = executable.reflection.validateParams(params);
         if (validationResponse.hasErrors) {
             throw new RouteError({

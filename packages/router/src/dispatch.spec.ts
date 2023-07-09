@@ -7,8 +7,9 @@
 
 import {registerRoutes, reset, initRouter} from './router';
 import {dispatchRoute} from './dispatch';
-import {PublicError, RawRequest, Route, RouteDef, Routes} from './types';
+import {RawRequest, Route, RouteDef, Routes} from './types';
 import {StatusCodes} from './status-codes';
+import {RouteError, PublicError} from './errors';
 
 describe('Dispatch routes', () => {
     type SimpleUser = {
@@ -278,6 +279,38 @@ describe('Dispatch routes', () => {
 
             const response = await dispatchRoute('/routeFail', {rawRequest: request});
             expect(response.publicErrors[0]).toEqual({
+                statusCode: 500,
+                name: 'Unknown Error',
+                message: 'Unknown error in step 0 of route execution path.',
+            });
+        });
+
+        it('handle a returned error instead a thrown one', async () => {
+            initRouter(myApp, getSharedData);
+
+            const routes = {
+                returnRouteError: (): RouteError => {
+                    return new RouteError({statusCode: 400, publicMessage: 'some route error'});
+                },
+                returnError: (): Error => {
+                    return new Error('some error');
+                },
+            };
+
+            registerRoutes(routes);
+
+            const request1 = getDefaultRequest('/returnRouteError', []);
+            const request2 = getDefaultRequest('/returnError', []);
+
+            const response1 = await dispatchRoute('/returnRouteError', {rawRequest: request1});
+            const response2 = await dispatchRoute('/returnError', {rawRequest: request2});
+            expect(response1.publicErrors[0]).toEqual({
+                statusCode: 400,
+                name: 'Bad Request',
+                message: 'some route error',
+            });
+            // TODO: are we sure we want to return so generic error?
+            expect(response2.publicErrors[0]).toEqual({
                 statusCode: 500,
                 name: 'Unknown Error',
                 message: 'Unknown error in step 0 of route execution path.',

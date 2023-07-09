@@ -19,7 +19,7 @@ import {DEFAULT_HTTP_OPTIONS} from './constants';
 import type {HttpOptions, HttpRawServerContext} from './types';
 import type {IncomingMessage, RequestListener, Server as HttpServer, ServerResponse} from 'http';
 import type {Server as HttpsServer} from 'https';
-import type {Obj, Headers, RawRequest, PublicError, RouterOptions, SharedDataFactory} from '@mionkit/router';
+import type {Obj, Headers, RawRequest, RouterOptions, SharedDataFactory} from '@mionkit/router';
 import {error} from 'console';
 
 type Logger = typeof console | undefined;

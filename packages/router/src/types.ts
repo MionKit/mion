@@ -6,7 +6,7 @@
  * ######## */
 
 import {ReflectionOptions, FunctionReflection, SerializedTypes} from '@mionkit/runtype';
-import {RouteError} from './errors';
+import {PublicError, RouteError} from './errors';
 
 // #######  Routes #######
 
@@ -190,38 +190,6 @@ export type Headers = {[key: string]: string | boolean | number};
 /** Function used to create the shared data object on each route call  */
 export type SharedDataFactory<SharedData> = () => SharedData;
 
-// #######  Errors #######
-
-// TODO: the interface for Public Errors is a bit confusing, maybe this should be called PublicError, review the way params are passed etc.
-/** Any error triggered by hooks or routes must follow this interface, returned errors in the body also follows this interface */
-export type RouteErrorParams = {
-    /** id of the error. */
-    id?: number | string;
-    /** response status code */
-    statusCode: Readonly<number>;
-    /** the message that will be returned in the response */
-    publicMessage: Readonly<string>;
-    /**
-     * the error message, it is private and wont be returned in the response.
-     * If not defined, it is assigned from originalError.message or publicMessage.
-     */
-    message?: Readonly<string>;
-    /** options data related to the error, ie validation data */
-    publicData?: Readonly<unknown>;
-    /** original error used to create the RouteError */
-    originalError?: Readonly<Error>;
-    /** name of the error, if not defined it is assigned from status code */
-    name?: Readonly<string>;
-};
-
-export type PublicError = {
-    id?: number | string;
-    name: Readonly<string>;
-    statusCode: Readonly<number>;
-    message: Readonly<string>;
-    errorData?: Readonly<unknown>;
-};
-
 // ####### Public Facing Types #######
 
 //TODO: some hooks could have no public params and not return any data so they should not be in the public spec
@@ -238,6 +206,7 @@ export type PublicMethods<Type extends Routes> = {
         : never;
 };
 
+/** Handler type in the client's side */
 export type PublicHandler<H extends Handler> = H extends (app: any, ctx: Context<any, any>, ...rest: infer Req) => infer Resp
     ? (...rest: Req) => Promise<Awaited<Resp>>
     : never;

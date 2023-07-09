@@ -51,18 +51,6 @@ let routerOptions: RouterOptions = {
 
 // ############# PUBLIC METHODS #############
 
-export const registerRoutes = <R extends Routes>(routes: R): PublicMethods<R> => {
-    if (!app) throw new Error('Router has not been initialized yet');
-    recursiveFlatRoutes(routes);
-    // we only want to get information about the routes when creating api spec
-    if (routerOptions.getPublicRoutesData || process.env.GENERATE_ROUTER_SPEC === 'true') {
-        // eslint-disable-next-line @typescript-eslint/no-var-requires
-        const {getPublicRoutes} = require('./publicMethods');
-        return getPublicRoutes(routes) as PublicMethods<R>;
-    }
-
-    return {} as PublicMethods<R>;
-};
 export const getRouteExecutionPath = (path: string) => flatRouter.get(path);
 export const getRouteEntries = () => flatRouter.entries();
 export const geRoutesSize = () => flatRouter.size;
@@ -113,6 +101,19 @@ export const initRouter = async <App extends Obj, SharedData, RawContext extends
     app = application;
     sharedDataFactory = sharedDataFactoryFunction;
     setRouterOptions(routerOpts);
+};
+
+export const registerRoutes = <R extends Routes>(routes: R): PublicMethods<R> => {
+    if (!app) throw new Error('Router has not been initialized yet');
+    recursiveFlatRoutes(routes);
+    // we only want to get information about the routes when creating api spec
+    if (routerOptions.getPublicRoutesData || process.env.GENERATE_ROUTER_SPEC === 'true') {
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
+        const {getPublicRoutes} = require('./publicMethods');
+        return getPublicRoutes(routes) as PublicMethods<R>;
+    }
+
+    return {} as PublicMethods<R>;
 };
 
 export const getRoutePathFromPointer = (route: Route, pointer: string[]) => getRoutePath(route, join(...pointer));
