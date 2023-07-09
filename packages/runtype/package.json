@@ -58,5 +58,6 @@
   },
   "dependencies": {
     "@deepkit/type": "^1.0.1-alpha.97"
-  }
+  },
+  "gitHead": "2efdcd77c572e64f2b9621b4921ffd2f5e83bc0a"
 }
