@@ -91,10 +91,10 @@ describe('serverless router should', () => {
             name: 'Serialization Error',
             statusCode: 400,
         };
-        expect(reply).toEqual({errors: [expectedError]});
+        expect(reply).toEqual([expectedError]);
         expect(headers['connection']).toEqual('close');
         expect(headers['content-type']).toEqual('application/json; charset=utf-8');
-        expect(headers['content-length']).toEqual('163');
+        expect(headers['content-length']).toEqual('152');
         expect(headers['server']).toEqual('@mionkit/http');
     });
 
@@ -149,12 +149,12 @@ describe('serverless router should', () => {
                 statusCode: 413,
                 name: 'Request Payload Too Large',
             };
-            expect(reply).toEqual({errors: [expectedError]});
+            expect(reply).toEqual([expectedError]);
             expect(headers['x-app-name']).toEqual('MyApp');
             expect(headers['x-instance-id']).toEqual('3089');
             expect(headers['connection']).toEqual('close');
             expect(headers['content-type']).toEqual('application/json; charset=utf-8');
-            expect(headers['content-length']).toEqual('104');
+            expect(headers['content-length']).toEqual('93');
             expect(headers['server']).toEqual('@mionkit/http');
             expect(isCalled).toEqual(true);
         } catch (e) {
