@@ -13,6 +13,7 @@ import {
     ReflectionOptions,
     ReturnValidationResponse,
     getHandlerType,
+    isAsyncHandler,
 } from './types';
 import {
     getFunctionParamValidators,
@@ -38,6 +39,7 @@ function getFunctionParamsLength(handlerType: TypeFunction, skipInitialParams: n
 class LazyFunctionReflection implements FunctionReflection {
     public readonly handlerType: TypeFunction;
     public readonly paramsLength: number;
+    public readonly isAsync: boolean;
     private _validateParams: null | ((params: any[]) => ParamsValidationResponse) = null;
     private _serializeParams: null | ((params: any[]) => JSONPartial<any>[]) = null;
     private _deserializeParams: null | ((serializedParams: JSONPartial<any>[]) => any[]) = null;
@@ -48,6 +50,7 @@ class LazyFunctionReflection implements FunctionReflection {
     constructor(handlerOrType: Handler | Type, private reflectionOptions: ReflectionOptions, private skipInitialParams: number) {
         this.handlerType = getHandlerType(handlerOrType);
         this.paramsLength = getFunctionParamsLength(this.handlerType, skipInitialParams);
+        this.isAsync = isAsyncHandler(this.handlerType);
     }
 
     get validateParams(): (params: any[]) => ParamsValidationResponse {
@@ -127,6 +130,7 @@ const _getFunctionReflectionMethods = (
     return {
         handlerType: handlerType,
         paramsLength:  getFunctionParamsLength(handlerType, skipInitialParams),
+        isAsync: isAsyncHandler(handlerType),
         validateParams: (params: any[]) => validateFunctionParams(paramsValidators, params),
         serializeParams: (params: any[]) => serializeFunctionParams(paramsSerializers, params),
         deserializeParams: (serializedParams: JSONPartial<any>) => deserializeFunctionParams(paramsDeSerializers, serializedParams),
