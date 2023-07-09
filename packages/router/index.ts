@@ -6,6 +6,7 @@
  * ######## */
 
 export * from './src/router';
+export * from './src/dispatch';
 export * from './src/errors';
 export * from './src/types';
 export * from './src/constants';
