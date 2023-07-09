@@ -5,8 +5,8 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {initRouter, getRouterOptions, dispatchRoute} from '@mionkit/router';
-import type {Obj, SharedDataFactory, RouterOptions} from '@mionkit/router';
+import {initRouter, getRouterOptions, dispatchRoute, generateRouteResponseFromOutsideError} from '@mionkit/router';
+import type {Obj, SharedDataFactory, RouterOptions, PublicError, Response} from '@mionkit/router';
 import type {Context as AwsContext, APIGatewayProxyResult, APIGatewayEvent} from 'aws-lambda';
 import type {AwsRawServerContext} from './types';
 
@@ -23,7 +23,16 @@ export const initAwsLambdaApp = <App extends Obj, SharedData extends Obj>(
 
 export const lambdaHandler = async (req: APIGatewayEvent, awsContext: AwsContext): Promise<APIGatewayProxyResult> => {
     const serverContext: AwsRawServerContext = {rawRequest: req, awsContext};
-    const routeResponse = await dispatchRoute(req.path, serverContext);
+    return dispatchRoute(req.path, serverContext)
+        .then((routeResponse) => {
+            return reply(routeResponse);
+        })
+        .catch((e) => {
+            return reply(generateRouteResponseFromOutsideError(e));
+        });
+};
+
+const reply = (routeResponse: Response) => {
     return {
         statusCode: routeResponse.statusCode,
         headers: {

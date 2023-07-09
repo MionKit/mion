@@ -106,9 +106,9 @@ describe('serverless router should', () => {
             statusCode: 400,
             name: 'Serialization Error',
         };
-        expect(parsedResponse).toEqual({errors: [expectedError]});
+        expect(parsedResponse).toEqual([expectedError]);
         expect(headers['content-type']).toEqual('application/json; charset=utf-8');
-        expect(headers['content-length']).toEqual(163);
+        expect(headers['content-length']).toEqual(152);
         expect(headers['server']).toEqual('@mionkit/serverless');
     });
 
