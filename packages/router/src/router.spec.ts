@@ -18,7 +18,7 @@ import {
     initRouter,
     dispatchRoute,
 } from './router';
-import {Context, Handler, HookDef, PublicError, RawRequest, Route, RouteDef, Routes} from './types';
+import {Handler, HookDef, PublicError, RawRequest, Route, RouteDef, Routes} from './types';
 import {StatusCodes} from './status-codes';
 
 describe('Create routes should', () => {
@@ -342,20 +342,16 @@ describe('Create routes should', () => {
                 });
                 return hello;
             },
+            noReturnType: () => null,
         };
         registerRoutes(defaultRouteValues);
 
-        expect(getRouteExecutable('/sayHello')).toEqual(
-            expect.objectContaining({
-                isAsync: false,
-            })
-        );
+        expect(getRouteExecutable('/sayHello')?.reflection.isAsync).toEqual(false);
+        expect(getRouteExecutable('/asyncSayHello')?.reflection.isAsync).toEqual(true);
 
-        expect(getRouteExecutable('/asyncSayHello')).toEqual(
-            expect.objectContaining({
-                isAsync: true,
-            })
-        );
+        // when there is no return type we asume the function is async.
+        // this is done so await is enforced in case we don't know the return type
+        expect(getRouteExecutable('/noReturnType')?.reflection.isAsync).toEqual(true);
     });
 });
 

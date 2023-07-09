@@ -52,7 +52,7 @@ type SharedData = ReturnType<typeof getSharedData>;
 type ServerlessContext = {rawRequest: APIGatewayEvent; rawResponse?: null};
 type CallContext = Context<SharedData, ServerlessContext>;
 
-const getUser: Route = (app: App, ctx: CallContext, id): User => {
+const getUser: Route = (app: App, ctx: CallContext, id) => {
     const user = app.db.getUser(id);
     if (!user) throw {statusCode: 200, message: 'user not found'};
     return user;

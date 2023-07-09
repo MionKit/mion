@@ -49,7 +49,7 @@
     "build:esm": "rimraf .dist/esm && tsc --project tsconfig.build-esm.json",
     "build": "npm run build:csj && npm run build:esm",
     "auto-readme": "embedme **/*.md && prettier --write **/*.md",
-    "clean": "rimraf .dist"
+    "clean": "rimraf .dist & rimraf .coverage"
   },
   "bugs": {
     "url": "https://github.com/MionKit/mion/issues"

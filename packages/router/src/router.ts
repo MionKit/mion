@@ -33,8 +33,7 @@ import {
     PublicMethods,
 } from './types';
 import {StatusCodes} from './status-codes';
-import {getPublicRoutes} from './publicMethods';
-import {isAsyncHandler, getFunctionReflectionMethods, getHandlerType} from '@mionkit/runtype';
+import {getFunctionReflectionMethods} from '@mionkit/runtype';
 import {RouteError} from './errors';
 
 type RouterKeyEntryList = [string, Routes | HookDef | Route][];
@@ -63,8 +62,12 @@ export const registerRoutes = <R extends Routes>(routes: R): PublicMethods<R> =>
     if (!app) throw new Error('Router has not been initialized yet');
     recursiveFlatRoutes(routes);
     // we only want to get information about the routes when creating api spec
-    if (routerOptions.getPublicRoutesData || process.env.GENERATE_ROUTER_SPEC === 'true')
+    if (routerOptions.getPublicRoutesData || process.env.GENERATE_ROUTER_SPEC === 'true') {
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
+        const {getPublicRoutes} = require('./publicMethods');
         return getPublicRoutes(routes) as PublicMethods<R>;
+    }
+
     return {} as PublicMethods<R>;
 };
 export const getRouteExecutionPath = (path: string) => flatRouter.get(path);
@@ -157,7 +160,7 @@ export const dispatchRoute = async <RawContext extends RawServerContext>(
                 const handlerParams = deserializeAndValidateParameters(context.request, executable);
                 if (executable.inHeader) context.request.headers[executable.fieldName] = handlerParams;
                 else context.request.body[executable.fieldName] = handlerParams;
-                if (executable.isAsync) {
+                if (executable.reflection.isAsync) {
                     const result = await executable.handler(app, context, ...handlerParams);
                     serializeResponse(context.response, executable, result);
                 } else {
@@ -206,7 +209,7 @@ export const getPublicErrorFromRouteError = (routeError: RouteError): PublicErro
 // ############# PRIVATE METHODS #############
 
 const parseRequestBody = (serverContext: RawServerContext<any, any>, request: Request, response: Response) => {
-    if (!serverContext.rawRequest.body || serverContext.rawRequest.body === '{}') return;
+    if (!serverContext.rawRequest.body) return;
     try {
         if (typeof serverContext.rawRequest.body === 'string') {
             const parsedBody = routerOptions.bodyParser.parse(serverContext.rawRequest.body);
@@ -459,7 +462,6 @@ const getExecutableFromHook = (hook: HookDef, hookPointer: string[], nestLevel: 
         throw new Error(`Invalid Hook: ${join(...hookPointer)}. The 'errors' fieldName is reserver for the router.`);
     }
 
-    const handlerType = getHandlerType(handler);
     const executable: HookExecutable<Handler> = {
         path: hookName,
         forceRunOnError: !!hook.forceRunOnError,
@@ -470,12 +472,11 @@ const getExecutableFromHook = (hook: HookDef, hookPointer: string[], nestLevel: 
         isRoute: false,
         handler,
         reflection: getFunctionReflectionMethods(
-            handlerType,
+            handler,
             routerOptions.reflectionOptions,
             ROUTE_DEFAULT_PARAMS.length,
             routerOptions.lazyLoadReflection
         ),
-        isAsync: isAsyncHandler(handlerType),
         enableValidation: hook.enableValidation ?? routerOptions.enableValidation,
         enableSerialization: hook.enableSerialization ?? routerOptions.enableSerialization,
         src: hook,
@@ -492,7 +493,6 @@ const getExecutableFromRoute = (route: Route, routePointer: string[], nestLevel:
     if (existing) return existing as RouteExecutable<Handler>;
     const handler = getHandler(route, routePointer);
     const routeObj = isHandler(route) ? {...DEFAULT_ROUTE} : {...DEFAULT_ROUTE, ...route};
-    const handlerType = getHandlerType(handler);
     const executable: RouteExecutable<Handler> = {
         path: routePath,
         forceRunOnError: false,
@@ -503,12 +503,11 @@ const getExecutableFromRoute = (route: Route, routePointer: string[], nestLevel:
         nestLevel,
         handler,
         reflection: getFunctionReflectionMethods(
-            handlerType,
+            handler,
             routerOptions.reflectionOptions,
             ROUTE_DEFAULT_PARAMS.length,
             routerOptions.lazyLoadReflection
         ),
-        isAsync: isAsyncHandler(handlerType),
         enableValidation: (route as RouteDef).enableValidation ?? routerOptions.enableValidation,
         enableSerialization: (route as RouteDef).enableSerialization ?? routerOptions.enableSerialization,
         src: routeObj,

@@ -28,5 +28,6 @@
     {"path": "packages/serverless"},
     {"path": "packages/codegen"},
     {"path": "packages/client"}
-  ]
+  ],
+  "reflection": true
 }
