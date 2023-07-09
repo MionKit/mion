@@ -1,8 +1,8 @@
 <p align="center">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="../../assets/public/bannerx90-dark.png?raw=true">
-    <source media="(prefers-color-scheme: light)" srcset="../../assets/public/bannerx90.png?raw=true">
-    <img alt='mion, a mikro kit for Typescript Serverless APIs' src='../../assets/public/bannerx90.png?raw=true'>
+    <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/MionKit/mion/master/assets/public/bannerx90-dark.png">
+    <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/MionKit/mion/master/assets/public/bannerx90.png">
+    <img alt='mion, a mikro kit for Typescript Serverless APIs' src='https://raw.githubusercontent.com/MionKit/mion/master/assets/public/bannerx90.png'>
   </picture>
 </p>
 <p align="center">
