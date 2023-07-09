@@ -56,5 +56,6 @@
   },
   "dependencies": {
     "@mionkit/runtype": "^0.3.1"
-  }
+  },
+  "gitHead": "2efdcd77c572e64f2b9621b4921ffd2f5e83bc0a"
 }
