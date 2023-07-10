@@ -14,6 +14,7 @@ import {
     serializeFunctionParams,
 } from './serialization';
 import {DEFAULT_REFLECTION_OPTIONS} from './constants';
+import {getHandlerType} from './types';
 
 describe('Deepkit serialization should', () => {
     const skip = 2; // skipping app and ctx
@@ -42,11 +43,14 @@ describe('Deepkit serialization should', () => {
         return updated;
     };
 
+    const updateUserType = getHandlerType(updateUser);
+    const addDateType = getHandlerType(addDate);
+
     it('serialize/deserialize params', () => {
         const dataPoint: DatePoint = {date: date1};
         const serializedDataPoint = {date: date1Serialized};
-        const serializers = getFunctionParamsSerializer(addDate, DEFAULT_REFLECTION_OPTIONS, skip);
-        const deSerializers = getFunctionParamsDeserializer(addDate, DEFAULT_REFLECTION_OPTIONS, skip);
+        const serializers = getFunctionParamsSerializer(addDateType, DEFAULT_REFLECTION_OPTIONS, skip);
+        const deSerializers = getFunctionParamsDeserializer(addDateType, DEFAULT_REFLECTION_OPTIONS, skip);
         const serializedParams = serializeFunctionParams(serializers, [dataPoint]);
         const deserializedParams = deserializeFunctionParams(deSerializers, serializedParams);
 
@@ -67,8 +71,8 @@ describe('Deepkit serialization should', () => {
             surname: 'smith',
             lastUpdate: date1Serialized,
         };
-        const serializer = getFunctionReturnSerializer(updateUser, DEFAULT_REFLECTION_OPTIONS);
-        const deSerializer = getFunctionReturnDeserializer(updateUser, DEFAULT_REFLECTION_OPTIONS);
+        const serializer = getFunctionReturnSerializer(updateUserType, DEFAULT_REFLECTION_OPTIONS);
+        const deSerializer = getFunctionReturnDeserializer(updateUserType, DEFAULT_REFLECTION_OPTIONS);
 
         const serializedReturn = serializer(user);
         const deserializedReturn = deSerializer(serializedUser);

@@ -111,11 +111,11 @@ class LazyFunctionReflection implements FunctionReflection {
     }
 }
 
-const _getFunctionReflectionMethods = (
+function _getFunctionReflectionMethods(
     handlerOrType: Handler | Type,
     reflectionOptions: ReflectionOptions,
     skipInitialParams: number
-): FunctionReflection => {
+): FunctionReflection {
     const handlerType: Type = getHandlerType(handlerOrType);
 
     const paramsValidators = getFunctionParamValidators(handlerType, reflectionOptions, skipInitialParams);
@@ -138,7 +138,7 @@ const _getFunctionReflectionMethods = (
         serializeReturn: (returnValue: any) => returnSerializer(returnValue),
         deserializeReturn: (serializedReturnValue: any) => returnDeSerializer(serializedReturnValue),
     };
-};
+}
 
 /**
  * Gets an object with all the functions required to, serialize, deserialize and validate a function.
@@ -147,18 +147,18 @@ const _getFunctionReflectionMethods = (
  * @param skipInitialParams
  * @returns
  */
-export const getFunctionReflectionMethods = (
+export function getFunctionReflectionMethods(
     handlerOrType: Handler | Type,
     reflectionOptions: ReflectionOptions,
     skipInitialParams: number,
     useLazyReflection = true
-): FunctionReflection => {
+): FunctionReflection {
     if (useLazyReflection) {
         return new LazyFunctionReflection(handlerOrType, reflectionOptions, skipInitialParams);
     } else {
         return _getFunctionReflectionMethods(handlerOrType, reflectionOptions, skipInitialParams);
     }
-};
+}
 
 /** Gets a data structure that can be serialized in json and transmitted over the wire  */
 export const getSerializedFunctionTypes = (handler: Handler): SerializedTypes => serializeType(reflect(handler));

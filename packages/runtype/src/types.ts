@@ -70,6 +70,7 @@ export type ItemValidationError = Pick<ValidationErrorItem, 'path' | 'code' | 'm
 // #######  VALIDATE #######
 export type FunctionParamValidator = (param: any) => ItemValidationError;
 export type FunctionReturnValidator = (returnValue: any) => ItemValidationError;
+export type FunctionParamsValidator = (params: any[]) => ItemValidationError;
 /** Params Validation response */
 export type ParamsValidationResponse = {
     hasErrors: boolean;
