@@ -1,6 +1,6 @@
 {
   "name": "@mionkit/router",
-  "version": "0.3.1",
+  "version": "0.4.0-alpha.0",
   "description": "Typescript RPC Like router with automatic Validation and Serialization",
   "keywords": [
     "typescript",
@@ -55,7 +55,7 @@
     "url": "https://github.com/MionKit/mion/issues"
   },
   "dependencies": {
-    "@mionkit/runtype": "^0.3.1"
+    "@mionkit/runtype": "^0.4.0-alpha.0"
   },
   "gitHead": "2efdcd77c572e64f2b9621b4921ffd2f5e83bc0a"
 }
