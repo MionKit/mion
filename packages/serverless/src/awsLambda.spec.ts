@@ -6,7 +6,7 @@
  * ######## */
 
 import {registerRoutes} from '@mionkit/router';
-import {initAwsLambdaApp, lambdaHandler} from './awsLambda';
+import {initAwsLambdaRouter, lambdaHandler} from './awsLambda';
 import createEvent from '@serverless/event-mocks';
 import type {Route} from '@mionkit/router';
 import type {APIGatewayProxyEventHeaders} from 'aws-lambda';
@@ -36,7 +36,7 @@ describe('serverless router should', () => {
     };
     const getSharedData = () => ({auth: {me: null as any}});
 
-    initAwsLambdaApp(myApp, getSharedData, {prefix: 'api/'});
+    initAwsLambdaRouter(myApp, getSharedData, {prefix: 'api/'});
 
     const changeUserName: Route = (app: MyApp, ctx: CallContext, user: SimpleUser) => {
         return app.db.changeUserName(user);

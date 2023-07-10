@@ -10,6 +10,11 @@ import {RouteError} from './errors';
 
 // #######  Routes #######
 
+export type SimpleHandler<Ret = any> = (
+    /** Remote Call parameters */
+    ...parameters: any
+) => Ret | Promise<Ret>;
+
 /** Route or Hook Handler, the remote function  */
 export type Handler<App = any, CallContext extends Context<any, any> = any, Ret = any> = (
     /** Static Data: main App, db driver, libraries, etc... */
@@ -57,7 +62,7 @@ export type HookDef<App = any, CallContext extends Context<any, any> = any, Ret 
     /** Enables serialization/deserialization */
     enableSerialization?: boolean;
     /** Hook handler */
-    hook: Handler<App, CallContext, Ret>;
+    hook: Handler<App, CallContext, Ret> | SimpleHandler<Ret>;
 };
 
 /** Data structure to define all the routes, each entry is a route a hook or sub-routes */
@@ -95,6 +100,11 @@ export type RouterOptions<RawContext extends RawServerContext = RawServerContext
     lazyLoadReflection: boolean;
     /** automatically generate and uuid */
     autoGenerateErrorId: boolean;
+    /** Use AsyncLocalStorage to pass context to route handlers.
+     * When enabled the route callContext can be obtained using the `getCallContext` function
+     * instead passing the context as a parameter to the route handler.
+     */
+    useAsyncCallContext: boolean;
 };
 
 // ####### Execution Path #######
@@ -108,7 +118,7 @@ export type Executable = {
     inHeader: boolean;
     fieldName: string;
     isRoute: boolean;
-    handler: Handler;
+    handler: Handler | SimpleHandler;
     reflection: FunctionReflection;
     src: RouteDef | HookDef;
     enableValidation: boolean;
@@ -116,14 +126,14 @@ export type Executable = {
     selfPointer: string[];
 };
 
-export type RouteExecutable<H extends Handler> = Executable & {
+export type RouteExecutable<H extends Handler | SimpleHandler> = Executable & {
     isRoute: true;
     canReturnData: true;
     forceRunOnError: false;
     handler: H;
 };
 
-export type HookExecutable<H extends Handler> = Executable & {
+export type HookExecutable<H extends Handler | SimpleHandler> = Executable & {
     isRoute: false;
     handler: H;
 };
@@ -238,7 +248,11 @@ export type PublicMethods<Type extends Routes> = {
         : never;
 };
 
-export type PublicHandler<H extends Handler> = H extends (app: any, ctx: Context<any, any>, ...rest: infer Req) => infer Resp
+// prettier-ignore
+export type PublicHandler<H extends Handler | SimpleHandler> = 
+    H extends (app: any, ctx: Context<any, any>, ...rest: infer Req) => infer Resp
+    ? (...rest: Req) => Promise<Awaited<Resp>>
+    :  H extends (...rest: infer Req) => infer Resp
     ? (...rest: Req) => Promise<Awaited<Resp>>
     : never;
 

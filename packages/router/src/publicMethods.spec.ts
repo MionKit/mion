@@ -5,9 +5,9 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {DEFAULT_ROUTE_OPTIONS, DEFAULT_HOOK, ROUTE_DEFAULT_PARAMS} from './constants';
+import {DEFAULT_ROUTE_OPTIONS, DEFAULT_HOOK} from './constants';
 import {getPublicRoutes} from './publicMethods';
-import {registerRoutes, initRouter, reset} from './router';
+import {registerRoutes, initRouter, reset, getRouteDefaultParams} from './router';
 import {getFunctionReflectionMethods} from '@mionkit/runtype';
 
 describe('Public Mothods should', () => {
@@ -102,7 +102,7 @@ describe('Public Mothods should', () => {
         const reflection = getFunctionReflectionMethods(
             testR.addMilliseconds,
             DEFAULT_ROUTE_OPTIONS.reflectionOptions,
-            ROUTE_DEFAULT_PARAMS.length
+            getRouteDefaultParams().length
         );
         const date = new Date('2022-12-19T00:24:00.00');
 

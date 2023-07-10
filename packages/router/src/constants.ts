@@ -36,19 +36,19 @@ export const DEFAULT_REQUEST: Readonly<Required<RawRequest>> = {
 export const IS_TEST_ENV = process.env.JEST_WORKER_ID !== undefined || process.env.NODE_ENV === 'test';
 
 export const DEFAULT_ROUTE_OPTIONS: Readonly<RouterOptions> = {
-    /** prefix for all routes, i.e: api/v1.
+    /** Prefix for all routes, i.e: api/v1.
      * path separator is added between the prefix and the route */
     prefix: '',
 
-    /** suffix for all routes, i.e: .json.
+    /** Suffix for all routes, i.e: .json.
      * No path separator is added between the route and the suffix */
     suffix: '',
 
-    /** function that transforms the path before finding a route */
+    /** Function that transforms the path before finding a route */
     pathTransform: undefined,
 
     /**
-     * configures the fieldName in the request/response body
+     * Configures the fieldName in the request/response body
      * used to send/receive route's params/response
      * */
     routeFieldName: undefined,
@@ -72,15 +72,16 @@ export const DEFAULT_ROUTE_OPTIONS: Readonly<RouterOptions> = {
     /** set to true to generate router spec for clients.  */
     getPublicRoutesData: process.env.GENERATE_ROUTER_SPEC === 'true',
 
-    /** lazy load reflection.  */
+    /** Lazy load reflection.  */
     lazyLoadReflection: true,
 
-    /** set true to automatically generate and id for every error.  */
+    /** Set true to automatically generate and id for every error.  */
     autoGenerateErrorId: false,
+
+    /** Set true to get the call context using `getCallContext` function instead a router's parameter.  */
+    useAsyncCallContext: false,
 };
 
 export const ROUTE_KEYS = Object.keys(DEFAULT_ROUTE);
 export const HOOK_KEYS = Object.keys(DEFAULT_HOOK);
 export const MAX_ROUTE_NESTING = 10;
-
-export const ROUTE_DEFAULT_PARAMS = ['app', 'context'];

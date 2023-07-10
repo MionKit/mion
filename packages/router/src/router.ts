@@ -6,7 +6,7 @@
  * ######## */
 
 import {join} from 'path';
-import {DEFAULT_ROUTE, DEFAULT_ROUTE_OPTIONS, MAX_ROUTE_NESTING, ROUTE_DEFAULT_PARAMS, ROUTE_PATH_ROOT} from './constants';
+import {DEFAULT_ROUTE, DEFAULT_ROUTE_OPTIONS, MAX_ROUTE_NESTING, ROUTE_PATH_ROOT} from './constants';
 import {
     Executable,
     Handler,
@@ -44,7 +44,7 @@ const hookNames: Map<string, boolean> = new Map();
 const routeNames: Map<string, boolean> = new Map();
 let complexity = 0;
 let app: Obj | undefined;
-let sharedDataFactory: SharedDataFactory<any> | undefined;
+let sharedDataFactoryFunction: SharedDataFactory<any> | undefined;
 let routerOptions: RouterOptions = {
     ...DEFAULT_ROUTE_OPTIONS,
 };
@@ -71,7 +71,7 @@ export const getHookExecutable = (fieldName: string) => hooksByFieldName.get(fie
 export const geHooksSize = () => hooksByFieldName.size;
 export const getComplexity = () => complexity;
 export const getRouterOptions = (): Readonly<RouterOptions> => routerOptions;
-export const getSharedDataFactory = () => sharedDataFactory;
+export const getSharedDataFactory = () => sharedDataFactoryFunction;
 export const getApp = (): Readonly<typeof app> => app;
 export const setRouterOptions = <ServerContext extends RawServerContext = RawServerContext>(
     routerOptions_?: Partial<RouterOptions<ServerContext>>
@@ -90,7 +90,7 @@ export const reset = () => {
     routeNames.clear();
     complexity = 0;
     app = undefined;
-    sharedDataFactory = undefined;
+    sharedDataFactoryFunction = undefined;
     // contextType = undefined;
     routerOptions = {
         ...DEFAULT_ROUTE_OPTIONS,
@@ -99,20 +99,20 @@ export const reset = () => {
 
 /**
  * Initializes the Router.
- * @param app_
- * @param sharedDataFactory_
- * @param routerOptions_
+ * @param application
+ * @param sharedDataFactory a factory function that returns an object to be shared in the `callContext.shared`
+ * @param routerOptions
  * @returns
  */
 export const initRouter = async <App extends Obj, SharedData, RawContext extends RawServerContext = RawServerContext>(
     application: App,
-    sharedDataFactoryFunction?: SharedDataFactory<SharedData>,
-    routerOpts?: Partial<RouterOptions<RawContext>>
+    sharedDataFactory?: SharedDataFactory<SharedData>,
+    routerOptions?: Partial<RouterOptions<RawContext>>
 ) => {
     if (app) throw new Error('Router already initialized');
     app = application;
-    sharedDataFactory = sharedDataFactoryFunction;
-    setRouterOptions(routerOpts);
+    sharedDataFactoryFunction = sharedDataFactory;
+    setRouterOptions(routerOptions);
 };
 
 export const getRoutePathFromPointer = (route: Route, pointer: string[]) => getRoutePath(route, join(...pointer));
@@ -125,6 +125,13 @@ export const getRoutePath = (route: Route, path: string) => {
 export const getHookFieldName = (item: HookDef, key: string) => {
     return item?.fieldName || key;
 };
+
+export function getRouteDefaultParams(): string[] {
+    if (!routerOptions.useAsyncCallContext) {
+        return ['app', 'context'];
+    }
+    return [];
+}
 
 // ############# PRIVATE METHODS #############
 
@@ -263,7 +270,7 @@ const getExecutableFromHook = (hook: HookDef, hookPointer: string[], nestLevel: 
     if (existing) return existing as HookExecutable<Handler>;
     const handler = getHandler(hook, hookPointer);
 
-    if (!!hook.inHeader && handler.length > ROUTE_DEFAULT_PARAMS.length + 1) {
+    if (!!hook.inHeader && handler.length > getRouteDefaultParams().length + 1) {
         throw new Error(
             `Invalid Hook: ${join(...hookPointer)}. In header hooks can only have a single parameter besides App and Context.`
         );
@@ -285,7 +292,7 @@ const getExecutableFromHook = (hook: HookDef, hookPointer: string[], nestLevel: 
         reflection: getFunctionReflectionMethods(
             handler,
             routerOptions.reflectionOptions,
-            ROUTE_DEFAULT_PARAMS.length,
+            getRouteDefaultParams().length,
             routerOptions.lazyLoadReflection
         ),
         enableValidation: hook.enableValidation ?? routerOptions.enableValidation,
@@ -316,7 +323,7 @@ const getExecutableFromRoute = (route: Route, routePointer: string[], nestLevel:
         reflection: getFunctionReflectionMethods(
             handler,
             routerOptions.reflectionOptions,
-            ROUTE_DEFAULT_PARAMS.length,
+            getRouteDefaultParams().length,
             routerOptions.lazyLoadReflection
         ),
         enableValidation: (route as RouteDef).enableValidation ?? routerOptions.enableValidation,
