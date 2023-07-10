@@ -141,36 +141,31 @@ describe('Dispatch routes', () => {
             expect(response.body[routePath]).toEqual('hello');
         });
 
-        it('should be able to access context and app not using function parameters', async () => {
-            initRouter(myApp, getSharedData);
-            let appFromParam;
+        it('use async local context', async () => {
+            initRouter(myApp, getSharedData, {useAsyncCallContext: true});
             let appFromModule;
-            let ctxFromParam;
-            let ctxFromModule;
+            let asyncCallContext;
             const contextBefore = getCallContext();
 
-            const sumTwo = (app, ctx, val: number) => {
-                appFromParam = app;
+            // note that when using async local context the app and context parameters are not passed to the handler
+            const sumTwo = (val: number) => {
                 appFromModule = getApp();
-                ctxFromParam = ctx;
-                ctxFromModule = getCallContext();
+                asyncCallContext = getCallContext();
                 return val + 2;
             };
             registerRoutes({sumTwo});
             const path = '/sumTwo';
             const request = getDefaultRequest(path, [2]);
-            await dispatchRoute('/sumTwo', {rawRequest: request});
+            const response = await dispatchRoute(path, {rawRequest: request});
             const contextAfter = getCallContext();
 
-            expect(appFromParam).toBeDefined();
             expect(appFromModule).toBeDefined();
-            expect(ctxFromParam).toBeDefined();
-            expect(ctxFromModule).toBeDefined();
-            expect(appFromParam === appFromModule).toBeTruthy();
-            expect(ctxFromParam === ctxFromModule).toBeTruthy();
+            expect(asyncCallContext.shared).toEqual(shared);
+            expect(myApp === appFromModule).toBeTruthy();
             // when call context is called from outside the context it should be undefined
             expect(contextBefore as any).not.toBeDefined();
             expect(contextAfter as any).not.toBeDefined();
+            expect(response.body[path]).toEqual(4);
         });
     });
 

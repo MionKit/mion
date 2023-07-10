@@ -5,7 +5,18 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {Executable, Context, Obj, Response, RawServerContext, Mutable, PublicError, Request, RouterOptions} from './types';
+import {
+    Executable,
+    Context,
+    Obj,
+    Response,
+    RawServerContext,
+    Mutable,
+    PublicError,
+    Request,
+    RouterOptions,
+    SimpleHandler,
+} from './types';
 import {StatusCodes} from './status-codes';
 import {RouteError} from './errors';
 import {getApp, getRouteExecutionPath, getRouterOptions, getSharedDataFactory} from './router';
@@ -21,6 +32,7 @@ export const dispatchRoute = async <RawContext extends RawServerContext>(
 ): Promise<Response> => {
     const opts = getRouterOptions();
     const transformedPath = opts.pathTransform ? opts.pathTransform(serverContext.rawRequest, path) : path;
+    const sharedFactory = getSharedDataFactory();
     const context: Context<any, RawContext> = {
         rawContext: serverContext,
         path: transformedPath,
@@ -36,7 +48,7 @@ export const dispatchRoute = async <RawContext extends RawServerContext>(
             body: {},
             json: '',
         },
-        shared: getSharedDataFactory?.() || {},
+        shared: sharedFactory ? sharedFactory() : {},
     };
 
     const executionPath = getRouteExecutionPath(transformedPath) || [];
@@ -56,15 +68,16 @@ export const dispatchRoute = async <RawContext extends RawServerContext>(
                 if (executable.inHeader) context.request.headers[executable.fieldName] = handlerParams;
                 else context.request.body[executable.fieldName] = handlerParams;
                 if (executable.reflection.isAsync) {
-                    const result = await asyncLocalStorage.run(context, () => {
-                        return executable.handler(getApp(), context, ...handlerParams);
-                    });
+                    const result = opts.useAsyncCallContext
+                        ? await asyncLocalStorage.run(context, () => (executable.handler as SimpleHandler)(...handlerParams))
+                        : await executable.handler(getApp(), context, ...handlerParams);
                     serializeResponse(context.response, executable, result, opts);
                 } else {
-                    asyncLocalStorage.run(context, () => {
-                        const result = executable.handler(getApp(), context, ...handlerParams);
-                        serializeResponse(context.response, executable, result, opts);
-                    });
+                    const result = opts.useAsyncCallContext
+                        ? asyncLocalStorage.run(context, () => (executable.handler as SimpleHandler)(...handlerParams))
+                        : executable.handler(getApp(), context, ...handlerParams);
+
+                    serializeResponse(context.response, executable, result, opts);
                 }
             } catch (err: any | RouteError | Error) {
                 handleRouteErrors(context.request, context.response, err, index);

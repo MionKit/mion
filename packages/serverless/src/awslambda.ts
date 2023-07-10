@@ -12,12 +12,12 @@ import type {AwsRawServerContext} from './types';
 
 let defaultResponseContentType: string;
 
-export const initAwsLambdaApp = <App extends Obj, SharedData extends Obj>(
+export const initAwsLambdaRouter = <App extends Obj, SharedData extends Obj>(
     app: App,
-    handlersDataFactory?: SharedDataFactory<SharedData>,
+    sharedDataFactory?: SharedDataFactory<SharedData>,
     routerOptions?: Partial<RouterOptions<AwsRawServerContext>>
 ) => {
-    initRouter<App, SharedData, AwsRawServerContext>(app, handlersDataFactory, routerOptions);
+    initRouter<App, SharedData, AwsRawServerContext>(app, sharedDataFactory, routerOptions);
     defaultResponseContentType = getRouterOptions().responseContentType;
 };
 

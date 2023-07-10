@@ -6,8 +6,14 @@
  * ######## */
 
 import {join} from 'path';
-import {ROUTE_DEFAULT_PARAMS} from './constants';
-import {getHookExecutable, getHookFieldName, getRouteExecutable, getRouteExecutionPath, getRoutePath} from './router';
+import {
+    getHookExecutable,
+    getHookFieldName,
+    getRouteDefaultParams,
+    getRouteExecutable,
+    getRouteExecutionPath,
+    getRoutePath,
+} from './router';
 import {
     Executable,
     Handler,
@@ -68,7 +74,7 @@ const getPublicRouteFromExecutable = <H extends Handler>(executable: Executable,
         handlerSerializedType: getSerializedFunctionTypes(executable.handler),
         enableValidation: executable.enableValidation,
         enableSerialization: executable.enableSerialization,
-        params: executable.reflection.handlerType.parameters.map((tp) => tp.name).slice(ROUTE_DEFAULT_PARAMS.length),
+        params: executable.reflection.handlerType.parameters.map((tp) => tp.name).slice(getRouteDefaultParams().length),
         publicExecutionPathPointers:
             getRouteExecutionPath(executable.path)
                 ?.filter((exec) => isPuplicExecutable(exec))
@@ -87,6 +93,6 @@ const getPublicHookFromExecutable = <H extends Handler>(executable: Executable, 
         handlerSerializedType: getSerializedFunctionTypes(executable.handler),
         enableValidation: executable.enableValidation,
         enableSerialization: executable.enableSerialization,
-        params: executable.reflection.handlerType.parameters.map((tp) => tp.name).slice(ROUTE_DEFAULT_PARAMS.length),
+        params: executable.reflection.handlerType.parameters.map((tp) => tp.name).slice(getRouteDefaultParams().length),
     };
 };
