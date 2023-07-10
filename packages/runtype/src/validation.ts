@@ -5,15 +5,13 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {validateFunction, Type} from '@deepkit/type';
+import {validateFunction, TypeFunction} from '@deepkit/type';
 import {
     ReflectionOptions,
-    Handler,
     FunctionParamValidator,
     FunctionReturnValidator,
     ParamsValidationResponse,
     ReturnValidationResponse,
-    getHandlerType,
 } from './types';
 
 /**
@@ -24,26 +22,17 @@ import {
  * @param skipParams
  * @returns an array containing a validation function for each parameter
  */
-export const getFunctionParamValidators = (
-    handlerOrType: Handler | Type,
+export function getFunctionParamValidators(
+    handlerType: TypeFunction,
     reflectionOptions: ReflectionOptions,
     skipInitialParams: number
-): FunctionParamValidator[] => {
-    const handlerType: Type = getHandlerType(handlerOrType);
-
-    /* 
-        TODO: https://github.com/MionKit/mion/issues/15
-        if we remove any skip params like app and ctx from functions then we could use `validateFunction`
-        and pass the handlerType instead creating an array of validator fo each param
-        this could be more performant. 
-    */
+): FunctionParamValidator[] {
     const paramValidators = handlerType.parameters.map((paramType, index) => {
-        // assumes the context type that is the first parameter is always valid
-        return index > 0 ? validateFunction(reflectionOptions.customSerializer, paramType) : () => [];
+        return index >= skipInitialParams ? validateFunction(reflectionOptions.customSerializer, paramType) : () => [];
     });
 
-    return paramValidators.slice(skipInitialParams);
-};
+    return skipInitialParams > 0 ? paramValidators.slice(skipInitialParams) : paramValidators;
+}
 
 /**
  * Validate route parameters
@@ -52,7 +41,7 @@ export const getFunctionParamValidators = (
  * @param params
  * @returns
  */
-export const validateFunctionParams = (validators: FunctionParamValidator[], params: any[] = []): ParamsValidationResponse => {
+export function validateFunctionParams(validators: FunctionParamValidator[], params: any[] = []): ParamsValidationResponse {
     if (params.length > validators.length) throw new Error('Invalid number of parameters');
     let totalErrors = 0;
     const errors = validators.map((validate, index) => {
@@ -70,7 +59,7 @@ export const validateFunctionParams = (validators: FunctionParamValidator[], par
         totalErrors,
         errors,
     };
-};
+}
 
 /**
  * Returns a function to validate route handler return type
@@ -78,13 +67,12 @@ export const validateFunctionParams = (validators: FunctionParamValidator[], par
  * @param reflectionOptions
  * @returns
  */
-export const getFunctionReturnValidator = (
-    handlerOrType: Handler | Type,
+export function getFunctionReturnValidator(
+    handlerType: TypeFunction,
     reflectionOptions: ReflectionOptions
-): FunctionReturnValidator => {
-    const handlerType: Type = getHandlerType(handlerOrType);
+): FunctionReturnValidator {
     return validateFunction(reflectionOptions.customSerializer, handlerType.return);
-};
+}
 
 /**
  * Validates a function return type
@@ -93,10 +81,7 @@ export const getFunctionReturnValidator = (
  * @param returnValue
  * @returns
  */
-export const validateFunctionReturnType = (
-    returnValidator: FunctionReturnValidator,
-    returnValue: any
-): ReturnValidationResponse => {
+export function validateFunctionReturnType(returnValidator: FunctionReturnValidator, returnValue: any): ReturnValidationResponse {
     const itemErrors = returnValidator(returnValue).map((error) => ({
         path: error.path,
         message: error.message,
@@ -106,4 +91,4 @@ export const validateFunctionReturnType = (
         hasErrors: !!itemErrors.length,
         error: itemErrors,
     };
-};
+}
