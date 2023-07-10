@@ -5,9 +5,9 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {registerRoutes, reset, initRouter} from './router';
-import {dispatchRoute} from './dispatch';
-import {PublicError, RawRequest, Route, RouteDef, Routes} from './types';
+import {registerRoutes, reset, initRouter, getApp} from './router';
+import {dispatchRoute, getCallContext} from './dispatch';
+import {Context, PublicError, RawRequest, Route} from './types';
 import {StatusCodes} from './status-codes';
 
 describe('Dispatch routes', () => {
@@ -31,6 +31,9 @@ describe('Dispatch routes', () => {
     const getSharedData = (): typeof shared => shared;
 
     type App = typeof myApp;
+    type Req = ReturnType<typeof getDefaultRequest>;
+    type RawServerContext = {rawRequest: Req};
+    type CallContext = Context<typeof getSharedData, RawServerContext>;
 
     const changeUserName = (app: App, ctx, user: SimpleUser) => {
         return app.db.changeUserName(user);
@@ -136,6 +139,38 @@ describe('Dispatch routes', () => {
 
             const response = await dispatchRoute(publicPath, {rawRequest: request});
             expect(response.body[routePath]).toEqual('hello');
+        });
+
+        it('should be able to access context and app not using function parameters', async () => {
+            initRouter(myApp, getSharedData);
+            let appFromParam;
+            let appFromModule;
+            let ctxFromParam;
+            let ctxFromModule;
+            const contextBefore = getCallContext();
+
+            const sumTwo = (app, ctx, val: number) => {
+                appFromParam = app;
+                appFromModule = getApp();
+                ctxFromParam = ctx;
+                ctxFromModule = getCallContext();
+                return val + 2;
+            };
+            registerRoutes({sumTwo});
+            const path = '/sumTwo';
+            const request = getDefaultRequest(path, [2]);
+            await dispatchRoute('/sumTwo', {rawRequest: request});
+            const contextAfter = getCallContext();
+
+            expect(appFromParam).toBeDefined();
+            expect(appFromModule).toBeDefined();
+            expect(ctxFromParam).toBeDefined();
+            expect(ctxFromModule).toBeDefined();
+            expect(appFromParam === appFromModule).toBeTruthy();
+            expect(ctxFromParam === ctxFromModule).toBeTruthy();
+            // when call context is called from outside the context it should be undefined
+            expect(contextBefore as any).not.toBeDefined();
+            expect(contextAfter as any).not.toBeDefined();
         });
     });
 
