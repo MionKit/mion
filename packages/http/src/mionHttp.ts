@@ -31,12 +31,12 @@ let httpOptions: HttpOptions = {
 let defaultResponseContentType: string;
 let defaultResponseHeaders: HeadersEntries = [];
 
-export const initHttpApp = <App extends Obj, SharedData extends Obj>(
+export const initHttpRouter = <App extends Obj, SharedData extends Obj>(
     app: App,
-    handlersDataFactory?: SharedDataFactory<SharedData>,
+    sharedDataFactory?: SharedDataFactory<SharedData>,
     routerOptions?: Partial<RouterOptions<HttpRawServerContext>>
 ) => {
-    initRouter(app, handlersDataFactory, routerOptions);
+    initRouter(app, sharedDataFactory, routerOptions);
     defaultResponseContentType = getRouterOptions().responseContentType;
 };
 

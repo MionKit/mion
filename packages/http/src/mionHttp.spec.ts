@@ -6,7 +6,7 @@
  * ######## */
 import {registerRoutes} from '@mionkit/router';
 import fetch from 'node-fetch'; // must be node-fetch v2 as v3 is a node module non compatible whit current setup
-import {initHttpApp, startHttpServer} from './mionHttp';
+import {initHttpRouter, startHttpServer} from './mionHttp';
 import type {Context, Route} from '@mionkit/router';
 
 describe('serverless router should', () => {
@@ -27,7 +27,7 @@ describe('serverless router should', () => {
     };
     const getSharedData = () => ({auth: {me: null as any}});
 
-    initHttpApp(app, getSharedData, {prefix: 'api/'});
+    initHttpRouter(app, getSharedData, {prefix: 'api/'});
 
     const changeUserName: Route = (app: MyApp, context: CallContext, user: SimpleUser) => {
         return app.db.changeUserName(user);
