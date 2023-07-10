@@ -9,6 +9,11 @@ import {Executable, Context, Obj, Response, RawServerContext, Mutable, PublicErr
 import {StatusCodes} from './status-codes';
 import {RouteError} from './errors';
 import {getApp, getRouteExecutionPath, getRouterOptions, getSharedDataFactory} from './router';
+import {AsyncLocalStorage} from 'node:async_hooks';
+
+const asyncLocalStorage = new AsyncLocalStorage();
+
+export const getCallContext = <R extends Context<any, RawServerContext>>(): R => asyncLocalStorage.getStore() as R;
 
 export const dispatchRoute = async <RawContext extends RawServerContext>(
     path: string,
@@ -51,11 +56,15 @@ export const dispatchRoute = async <RawContext extends RawServerContext>(
                 if (executable.inHeader) context.request.headers[executable.fieldName] = handlerParams;
                 else context.request.body[executable.fieldName] = handlerParams;
                 if (executable.reflection.isAsync) {
-                    const result = await executable.handler(getApp(), context, ...handlerParams);
+                    const result = await asyncLocalStorage.run(context, () => {
+                        return executable.handler(getApp(), context, ...handlerParams);
+                    });
                     serializeResponse(context.response, executable, result, opts);
                 } else {
-                    const result = executable.handler(getApp(), context, ...handlerParams);
-                    serializeResponse(context.response, executable, result, opts);
+                    asyncLocalStorage.run(context, () => {
+                        const result = executable.handler(getApp(), context, ...handlerParams);
+                        serializeResponse(context.response, executable, result, opts);
+                    });
                 }
             } catch (err: any | RouteError | Error) {
                 handleRouteErrors(context.request, context.response, err, index);
