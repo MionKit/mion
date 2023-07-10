@@ -17,24 +17,23 @@
 
 # `@mion/router`
 
-🚀 Lightweight and fast RPC like router.
+🚀 Lightweight and fast HTTP router with automatic validation and serialization out of the box.
 
-Thanks to it's RPC style there is no need to parse parameters or regular expressions when finding a route. Just a simple [Map](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Map) in memory containing all the routes.
+Thanks to it's RPC routing style is quite performant as there is no need to parse parameters or match regular expressions when finding a route. Just a direct mapping from url to the route handler.
 
-mion Router uses a **Remote Procedure Call** style routing, unlike traditional routers it does not use `GET`, `PUT`, `POST` and `DELETE` methods, The Http method is ignored and all data is sent/received in the request/response `body` or `headers`.
+mion Router uses a **Remote Procedure Call** style routing, unlike traditional routers it does not use `GET`, `PUT`, `POST`, or any other method, in fact the Http method is completely ignored.
 
-- `HTTP` method is ignored by this router.
-- Data is sent and received only in the `body` and `headers`. (no request params)
-- Data is sent and received only in `JSON` format.
+As well as this rpc style restriction, it only supports sending/receiving data as json or in http headers. (TODO: url params might be beneficial as well)
 
-### Rpc VS Rest
+This limitations make it suitable for modern APIs and grants better performant than a more relaxed architectures where many options are allowed.
 
-| RPC Like Request                                                   | REST Request                            | Description     |
-| ------------------------------------------------------------------ | --------------------------------------- | --------------- |
-| POST `/users/get`<br>BODY `{"/users/get":[{"id":1}]}`              | GET `/users/1`<br>BODY `NONE`           | Get user by id  |
-| POST `/users/create`<br>BODY `{"/users/create":[{"name":"John"}]}` | POST `/users`<br>BODY `{"name":"John"}` | Create new user |
-| POST `/users/delete`<br>BODY `{"/users/delete":[{"id":1}]}`        | DELETE `/users/1`<br>BODY `NONE`        | Delete user     |
-| POST `/users/getAll`<br>BODY `{"/users/getAll":[]}`                | GET `/users` <br>BODY `NONE`            | Get All users   |
+### Rpc Like VS Rest
+
+We mention explicitly RPC **like** as the router is designed to work over http, but still providing some advantages that are not possible with REST apis.
+
+- Type Safety
+- Less complexity
+- Better developer experience
 
 Please have a look to this great Presentation for more info about each different type of API and the pros and cons of each one:  
 [Nate Barbettini – API Throwdown: RPC vs REST vs GraphQL, Iterate 2018](https://www.youtube.com/watch?v=IvsANO0qZEg)
