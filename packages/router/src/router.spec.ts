@@ -13,7 +13,7 @@ import {
     getHookExecutable,
     getRouteExecutionPath,
     getRouteExecutable,
-    reset,
+    resetRouter,
     setRouterOptions,
     initRouter,
 } from './router';
@@ -101,7 +101,7 @@ describe('Create routes should', () => {
         },
     };
 
-    beforeEach(() => reset());
+    beforeEach(() => resetRouter());
 
     it('create a flat routes Map', () => {
         initRouter({}, () => {});
@@ -321,7 +321,7 @@ describe('Create routes should', () => {
 
         registerRoutes(bestCase);
         const bestCaseComplexity = getComplexity();
-        reset();
+        resetRouter();
         initRouter({}, () => {});
         registerRoutes(worstCase);
         const worstCaseComplexity = getComplexity();
@@ -376,7 +376,7 @@ describe('Lazy loading', () => {
         routes[`route-${i}`] = defaultRoute;
     }
 
-    beforeEach(() => reset());
+    beforeEach(() => resetRouter());
 
     it('should load app faster when using lazy load reflection methods', () => {
         // no lazy load
@@ -385,7 +385,7 @@ describe('Lazy loading', () => {
         registerRoutes(routes);
         const endTimeNo = process.hrtime.bigint();
 
-        reset();
+        resetRouter();
 
         // lazy load
         const loadingTimeLazy = process.hrtime.bigint();

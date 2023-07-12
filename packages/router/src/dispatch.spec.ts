@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {registerRoutes, reset, initRouter, getApp} from './router';
+import {registerRoutes, resetRouter, initRouter, getApp} from './router';
 import {dispatchRoute, getCallContext} from './dispatch';
 import {Context, PublicError, RawRequest, Route} from './types';
 import {StatusCodes} from './status-codes';
@@ -56,7 +56,7 @@ describe('Dispatch routes', () => {
         body: JSON.stringify({[path]: params}),
     });
 
-    beforeEach(() => reset());
+    beforeEach(() => resetRouter());
 
     describe('success path should', () => {
         it('read data from body & route', async () => {
