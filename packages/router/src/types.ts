@@ -105,6 +105,8 @@ export type RouterOptions<RawContext extends RawServerContext = RawServerContext
      * instead passing the context as a parameter to the route handler.
      */
     useAsyncCallContext: boolean;
+    /** whether to use setImmediate or process.nextTick to dispatch the route */
+    useSetImmediate: boolean;
 };
 
 // ####### Execution Path #######

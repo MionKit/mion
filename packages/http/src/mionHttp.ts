@@ -12,15 +12,15 @@ import {
     dispatchRoute,
     RouteError,
     generateRouteResponseFromOutsideError,
+    dispatchRouteCallback,
 } from '@mionkit/router';
 import {createServer as createHttp} from 'http';
 import {createServer as createHttps} from 'https';
 import {DEFAULT_HTTP_OPTIONS} from './constants';
 import type {HttpOptions, HttpRawServerContext} from './types';
-import type {IncomingMessage, RequestListener, Server as HttpServer, ServerResponse} from 'http';
+import type {IncomingMessage, Server as HttpServer, ServerResponse} from 'http';
 import type {Server as HttpsServer} from 'https';
-import type {Obj, Headers, RawRequest, PublicError, RouterOptions, SharedDataFactory} from '@mionkit/router';
-import {error} from 'console';
+import type {Obj, Headers, RawRequest, RouterOptions, SharedDataFactory} from '@mionkit/router';
 
 type Logger = typeof console | undefined;
 type HeadersEntries = [string, string | boolean | number][];
@@ -31,16 +31,24 @@ let httpOptions: HttpOptions = {
 let defaultResponseContentType: string;
 let defaultResponseHeaders: HeadersEntries = [];
 
-export const initHttpRouter = <App extends Obj, SharedData extends Obj>(
+export function resetHttpRouter() {
+    httpOptions = {
+        ...DEFAULT_HTTP_OPTIONS,
+    };
+    defaultResponseContentType = '';
+    defaultResponseHeaders = [];
+}
+
+export function initHttpRouter<App extends Obj, SharedData extends Obj>(
     app: App,
     sharedDataFactory?: SharedDataFactory<SharedData>,
     routerOptions?: Partial<RouterOptions<HttpRawServerContext>>
-) => {
+) {
     initRouter(app, sharedDataFactory, routerOptions);
     defaultResponseContentType = getRouterOptions().responseContentType;
-};
+}
 
-export const startHttpServer = async (httpOptions_: Partial<HttpOptions> = {}): Promise<HttpServer | HttpsServer> => {
+export async function startHttpServer(httpOptions_: Partial<HttpOptions> = {}): Promise<HttpServer | HttpsServer> {
     httpOptions = {
         ...httpOptions,
         ...httpOptions_,
@@ -74,9 +82,9 @@ export const startHttpServer = async (httpOptions_: Partial<HttpOptions> = {}): 
             });
         });
     });
-};
+}
 
-const httpRequestHandler: RequestListener = (httpReq: IncomingMessage, httpResponse: ServerResponse): void => {
+function httpRequestHandler(httpReq: IncomingMessage, httpResponse: ServerResponse): void {
     let hasError = false;
     const path = httpReq.url || '/';
     const logger = httpOptions.logger;
@@ -117,30 +125,44 @@ const httpRequestHandler: RequestListener = (httpReq: IncomingMessage, httpRespo
         const body = Buffer.concat(bodyChunks).toString();
         (httpReq as any).body = body;
 
-        dispatchRoute(path, {rawRequest: httpReq as any as RawRequest, rawResponse: httpResponse})
-            .then((routeResponse) => {
-                if (hasError) return;
-                addResponseHeaders(httpResponse, routeResponse.headers);
-                reply(httpResponse, logger, routeResponse.json, routeResponse.statusCode);
-            })
-            .catch((e) => {
-                if (hasError) return;
-                hasError = true;
-                const routeResponse = generateRouteResponseFromOutsideError(e);
-                reply(httpResponse, logger, routeResponse.json, routeResponse.statusCode);
-            })
-            .finally(() => {
+        const rawContext = {rawRequest: httpReq as any as RawRequest, rawResponse: httpResponse};
+        const success = (routeResponse) => {
+            if (hasError) return;
+            addResponseHeaders(httpResponse, routeResponse.headers);
+            reply(httpResponse, logger, routeResponse.json, routeResponse.statusCode);
+        };
+        const fail = (e) => {
+            if (hasError) return;
+            hasError = true;
+            const routeResponse = generateRouteResponseFromOutsideError(e);
+            reply(httpResponse, logger, routeResponse.json, routeResponse.statusCode);
+        };
+        if (httpOptions.useCallbacks) {
+            dispatchRouteCallback(path, rawContext, (e, routeResponse) => {
+                if (e) {
+                    fail(e);
+                } else {
+                    success(routeResponse);
+                }
                 if (!httpResponse.writableEnded) httpResponse.end();
             });
+        } else {
+            dispatchRoute(path, rawContext)
+                .then((routeResponse) => success(routeResponse))
+                .catch((e) => fail(e))
+                .finally(() => {
+                    if (!httpResponse.writableEnded) httpResponse.end();
+                });
+        }
     });
 
     httpResponse.on('error', (e) => {
         hasError = true;
         logger?.error({statusCode: 0, message: 'error responding to client'}, e);
     });
-};
+}
 
-const reply = (httpResponse: ServerResponse, logger: Logger, json: string, statusCode: number, statusMessage?: string) => {
+function reply(httpResponse: ServerResponse, logger: Logger, json: string, statusCode: number, statusMessage?: string) {
     if (httpResponse.writableEnded) {
         if (logger) {
             logger.error(
@@ -156,13 +178,13 @@ const reply = (httpResponse: ServerResponse, logger: Logger, json: string, statu
     httpResponse.statusCode = statusCode;
     httpResponse.setHeader('content-length', json.length);
     httpResponse.end(json);
-};
+}
 
-const addResponseHeaders = (httpResponse: ServerResponse, headers: Headers) => {
+function addResponseHeaders(httpResponse: ServerResponse, headers: Headers) {
     Object.entries(headers).forEach(([key, value]) => httpResponse.setHeader(key, `${value}`));
-};
+}
 
-const addResponseHeaderEntries = (httpResponse: ServerResponse, headerEntries: HeadersEntries) => {
+function addResponseHeaderEntries(httpResponse: ServerResponse, headerEntries: HeadersEntries) {
     if (!headerEntries.length) return;
     headerEntries.forEach(([key, value]) => httpResponse.setHeader(key, `${value}`));
-};
+}

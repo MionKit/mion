@@ -27,6 +27,7 @@ export const DEFAULT_HTTP_OPTIONS: HttpOptions = {
      * */
     maxBodySize: 256000, // 256KB
     allowExceedMaxBodySize: undefined,
+    useCallbacks: false,
 };
 
 export const isMethodAllowed = (method: string) => !!ALLOWED_HTTP_METHODS.find((allowed) => allowed === method);

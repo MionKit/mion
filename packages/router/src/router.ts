@@ -82,7 +82,7 @@ export const setRouterOptions = <ServerContext extends RawServerContext = RawSer
     };
 };
 
-export const reset = () => {
+export const resetRouter = () => {
     flatRouter.clear();
     hooksByFieldName.clear();
     routesByPath.clear();

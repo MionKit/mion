@@ -7,7 +7,7 @@
 
 import {DEFAULT_ROUTE_OPTIONS, DEFAULT_HOOK} from './constants';
 import {getPublicRoutes} from './publicMethods';
-import {registerRoutes, initRouter, reset, getRouteDefaultParams} from './router';
+import {registerRoutes, initRouter, resetRouter, getRouteDefaultParams} from './router';
 import {getFunctionReflectionMethods} from '@mionkit/runtype';
 
 describe('Public Mothods should', () => {
@@ -50,7 +50,7 @@ describe('Public Mothods should', () => {
     const shared = {auth: {me: null as any}};
     const getSharedData = (): typeof shared => shared;
 
-    beforeEach(() => reset());
+    beforeEach(() => resetRouter());
 
     it('not generate public data when  generateSpec = false', () => {
         initRouter(app, getSharedData, {getPublicRoutesData: false});
