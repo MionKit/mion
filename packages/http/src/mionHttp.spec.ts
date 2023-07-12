@@ -4,12 +4,14 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
-import {registerRoutes} from '@mionkit/router';
+import {registerRoutes, resetRouter} from '@mionkit/router';
 import fetch from 'node-fetch'; // must be node-fetch v2 as v3 is a node module non compatible whit current setup
-import {initHttpRouter, startHttpServer} from './mionHttp';
+import {initHttpRouter, resetHttpRouter, startHttpServer} from './mionHttp';
 import type {Context, Route} from '@mionkit/router';
 
 describe('serverless router should', () => {
+    resetRouter();
+    resetHttpRouter();
     type SimpleUser = {name: string; surname: string};
     type DataPoint = {date: Date};
     type MyApp = typeof app;
@@ -75,6 +77,34 @@ describe('serverless router should', () => {
         expect(headers['content-type']).toEqual('application/json; charset=utf-8');
         expect(headers['content-length']).toEqual('52');
         expect(headers['server']).toEqual('@mionkit/http');
+    });
+
+    it('get an ok response from a route using callback', async () => {
+        const portCallback = 8076;
+        const callbacksServer = await startHttpServer({port: portCallback, useCallbacks: true});
+        const requestData = {'/api/getDate': [{date: new Date('2022-04-22T00:17:00.000Z')}]};
+        const response = await fetch(`http://127.0.0.1:${portCallback}/api/getDate`, {
+            method: 'POST',
+            body: JSON.stringify(requestData),
+        });
+        const reply = await response.json();
+        const headers = Object.fromEntries(response.headers.entries());
+
+        expect(reply).toEqual({'/api/getDate': {date: '2022-04-22T00:17:00.000Z'}});
+        expect(headers['connection']).toEqual('close');
+        expect(headers['content-type']).toEqual('application/json; charset=utf-8');
+        expect(headers['content-length']).toEqual('52');
+        expect(headers['server']).toEqual('@mionkit/http');
+
+        const closeCallbacksServer = () => {
+            return new Promise<void>((resolve, reject) => {
+                callbacksServer.close((err) => {
+                    if (err) reject();
+                    else resolve();
+                });
+            });
+        };
+        await closeCallbacksServer();
     });
 
     it('get an error when sending invalid parameters', async () => {

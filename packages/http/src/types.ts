@@ -28,6 +28,9 @@ export type HttpOptions = {
      */
     allowExceedMaxBodySize?: (currentSize: number, httpReq: IncomingMessage, httpResponse: ServerResponse) => boolean;
     logger?: typeof console;
+
+    /** use callback instead promises for handling the requests */
+    useCallbacks?: boolean;
 };
 
 export type HttpRequest = IncomingMessage & {body: string};

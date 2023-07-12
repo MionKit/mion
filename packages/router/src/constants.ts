@@ -80,6 +80,9 @@ export const DEFAULT_ROUTE_OPTIONS: Readonly<RouterOptions> = {
 
     /** Set true to get the call context using `getCallContext` function instead a router's parameter.  */
     useAsyncCallContext: false,
+
+    /** uses `process.setImmediate` instead of `process.nextTick` to run the route.  */
+    useSetImmediate: true,
 };
 
 export const ROUTE_KEYS = Object.keys(DEFAULT_ROUTE);
