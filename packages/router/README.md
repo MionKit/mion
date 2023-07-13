@@ -102,7 +102,9 @@ The reason for this weird naming is to future proof the router to be able to acc
 
 ## `Hooks`
 
-A route might require some extra data like authorization, preconditions, logging, etc... Hooks are auxiliary functions that get executed in order before or after the route. (hooks can require remote parameters or act as a bootstrap middleware with no params, mion has no concept of events so there is no distinction, hooks are just a function that gets 'hooked' into the execution path). Multiple Hooks can be executed on but only a single Route will be executed per remote call.
+A route might require some extra data like authorization, preconditions, logging, or some processing like body parsing, etc... Hooks are just auxiliary functions that get executed in order before or after a route.
+
+Hooks can require remote parameters or just acts as a middleware with no params, mion has no concept of middleware, plugin or anything similar, so there is no distinction. A hooks is just a function that gets 'hooked' into the execution path. Multiple Hooks can be executed on but only a single Route will be executed per remote call.
 
 Hooks can use `context.shared` to share data with other routes and hooks. The return value will be ignored unless `canReturnData` is set to true, in that case the returned value will be serialized in and sent back in the response body.
 
@@ -208,11 +210,14 @@ export const myInvalidApi = registerRoutes(invalidRoutes); // throws an error
 
 ## `Handling errors`
 
-All errors thrown within Routes/Hooks will be catch and handled, as there is no concept of logger within the router errors are not automatically logged.
+All errors thrown within Routes/Hooks will be catch and handled, as there is no concept of logger within the router, errors are not automatically logged.
 
-For every error thrown within the Routes/Hook Two types of errors are generated, Public errors are returned in the `response.publicErrors` & and private error stored in the `context.request.internalErrors` to be managed by any logger hook or similar. The public errors should only contains generic message and a status code, the private errors contains also stack trace and the rest of properties of any js Error.
+For every error thrown within the Routes/Hooks Two types of errors are generated, a Public and a Private error.
 
-Throwing a `RouteError` generates a public error otherwise a generic public 500 error is generated.
+- Public errors: Are returned in the `context.response.publicErrors` and only contain a generic message and a status code, these errors are returned in the response body.
+- Private errors: are stored in the `context.request.internalErrors` to be managed by any logger hook or similar. These errors also contains the stack trace and the rest of properties of any regular js Error.
+
+Throwing a `RouteError` generates a public error with defined status code and message. Throwing any other error will generate a public 500 error with generic message.
 
 ```ts
 // examples/error-handling.routes.ts
@@ -262,62 +267,64 @@ export const alwaysError = (): void => {
 <td>
 
 ```ts
-// src/types.ts#L24-L49
+// src/types.ts#L18-L46
+
+/** Route or Hook Handler, the remote function  */
+export type Handler<App = any, CallContext extends Context<any, any> = any, Ret = any> = (
+  /** Static Data: main App, db driver, libraries, etc... */
+  app: App,
+  /** Call Context */
+  context: CallContext,
+  /** Remote Call parameters */
+  ...parameters: any
+) => Ret | Promise<Ret>;
 
 /** Route definition */
 export type RouteDef<App = any, CallContext extends Context<any, any> = any, Ret = any> = {
-    /** overrides route's path and fieldName in request/response body */
-    path?: string;
-    /** description of the route, mostly for documentation purposes */
-    description?: string;
-    /** enable automatic parameter validation, defaults to true */
-    enableValidation?: boolean;
-    /** Enables serialization/deserialization */
-    enableSerialization?: boolean;
-    /** Route Handler */
-    route: Handler<App, CallContext, Ret>;
+  /** overrides route's path and fieldName in request/response body */
+  path?: string;
+  /** description of the route, mostly for documentation purposes */
+  description?: string;
+  /** enable automatic parameter validation, defaults to true */
+  enableValidation?: boolean;
+  /** Enables serialization/deserialization */
+  enableSerialization?: boolean;
+  /** Route Handler */
+  route: Handler<App, CallContext, Ret>;
 };
 
 /** A route can be a full route definition or just the handler */
 export type Route<App = any, CallContext extends Context<any, any> = any, Ret = any> =
-    | RouteDef<App, CallContext, Ret>
-    | Handler<App, CallContext, Ret>;
-
-/** Hook definition, a function that hooks into the execution path */
-export type HookDef<App = any, CallContext extends Context<any, any> = any, Ret = any> = {
-    /** Executes the hook even if an error was thrown previously */
-    forceRunOnError?: boolean;
-    /** Enables returning data in the responseBody,
-     * hooks must explicitly enable returning data */
-    canReturnData?: boolean;
+  | RouteDef<App, CallContext, Ret>
+  | Handler<App, CallContext, Ret>;
 ```
 
 </td>
 <td>
 
 ```ts
-// src/types.ts#L51-L70
+// src/types.ts#L47-L66
 
-    inHeader?: boolean;
-    /** The fieldName in the request/response body */
-    fieldName?: string;
-    /** Description of the route, mostly for documentation purposes */
-    description?: string;
-    /** enable automatic parameter validation, defaults to true */
-    enableValidation?: boolean;
-    /** Enables serialization/deserialization */
-    enableSerialization?: boolean;
-    /** Hook handler */
-    hook: Handler<App, CallContext, Ret>;
+/** Hook definition, a function that hooks into the execution path */
+export type HookDef<App = any, CallContext extends Context<any, any> = any, Ret = any> = {
+  /** Executes the hook even if an error was thrown previously */
+  forceRunOnError?: boolean;
+  /** Enables returning data in the responseBody,
+   * hooks must explicitly enable returning data */
+  canReturnData?: boolean;
+  /** Sets the value in a heather rather than the body */
+  inHeader?: boolean;
+  /** The fieldName in the request/response body */
+  fieldName?: string;
+  /** Description of the route, mostly for documentation purposes */
+  description?: string;
+  /** enable automatic parameter validation, defaults to true */
+  enableValidation?: boolean;
+  /** Enables serialization/deserialization */
+  enableSerialization?: boolean;
+  /** Hook handler */
+  hook: Handler<App, CallContext, Ret> | SimpleHandler<Ret>;
 };
-
-/** Data structure to define all the routes, each entry is a route a hook or sub-routes */
-export type Routes<App = any, CallContext extends Context<any, any> = any> = {
-    [key: string]: HookDef<App, CallContext> | Route<App, CallContext> | Routes<App, CallContext>;
-};
-
-// ####### Router Options #######
-
 ```
 
 </td>
@@ -368,8 +375,11 @@ The `Context` or `Call Context` contains all the data related to the ongoing cal
 #### Context Type
 
 ```ts
-// src/types.ts#L156-L168
+// src/types.ts#L161-L182
 
+    /** parsed and headers */
+    headers: Obj;
+    /** parsed body */
     body: Obj;
     /** All errors thrown during the call are stored here so they can bee logged or handler by a some error handler hook */
     internalErrors: Readonly<RouteError[]>;
@@ -383,6 +393,12 @@ export type Response = {
     /** response headers */
     headers: Headers;
     /** the router response data, JS object */
+    body: Readonly<Obj>;
+    /** json encoded response, contains data and errors if there are any. */
+    json: Readonly<string>;
+};
+
+export type RawServerContext<RawServerRequest extends RawRequest = RawRequest, RawServerResponse = any> = {
 ```
 
 #### Declaring the app and context types
@@ -416,6 +432,40 @@ const getMyPet = async (app: App, ctx: CallContext): Promise<Pet> => {
 
 const routes = {getMyPet};
 initRouter(myApp, getSharedData);
+export const apiSpec = registerRoutes(routes);
+```
+
+#### Async Call Context
+
+It is also possible to configure the router to NOT pass the `App` and `CallContext` as function parameters. When `RouterOptions.useAsyncCallContext` is enabled it is possible to use `getCallContext()` from any function within the handler's call stack, this is a really nice to have feature as we do not have to propagate the context down the call stack. Unfortunately there is an small performance drop so is up to the user to decide if enabling/disabling this feature is justified. This feature is based on node's [AsyncLocalStorage](https://nodejs.org/api/async_context.html#class-asynclocalstorage).
+
+```ts
+// examples/routes-definition-async-call-context.routes.ts
+
+import {setRouterOptions, registerRoutes, getCallContext, getApp} from '@mionkit/router';
+
+type SharedData = {
+  myCompanyName: string;
+};
+
+const sayHello = (name: string): string => {
+  const {shared} = getCallContext<SharedData>();
+  return `Hello ${name}. From ${shared.myCompanyName}.`;
+};
+
+const sayHello2 = {
+  route(name1: string, name2: string): string {
+    const {shared} = getCallContext<SharedData>();
+    return `Hello ${name1} and ${name2}. From ${shared.myCompanyName}.`;
+  },
+};
+
+const routes = {
+  sayHello, // api/sayHello
+  sayHello2, // api/sayHello2
+};
+
+setRouterOptions({prefix: 'api/', useAsyncCallContext: true});
 export const apiSpec = registerRoutes(routes);
 ```
 
@@ -528,22 +578,22 @@ module.exports = {
 ## `Router Options`
 
 ```ts
-// src/constants.ts#L37-L91
+// src/constants.ts#L38-L83
 
 export const DEFAULT_ROUTE_OPTIONS: Readonly<RouterOptions> = {
-  /** prefix for all routes, i.e: api/v1.
+  /** Prefix for all routes, i.e: api/v1.
    * path separator is added between the prefix and the route */
   prefix: '',
 
-  /** suffix for all routes, i.e: .json.
+  /** Suffix for all routes, i.e: .json.
    * No path separator is added between the route and the suffix */
   suffix: '',
 
-  /** function that transforms the path before finding a route */
+  /** Function that transforms the path before finding a route */
   pathTransform: undefined,
 
   /**
-   * configures the fieldName in the request/response body
+   * Configures the fieldName in the request/response body
    * used to send/receive route's params/response
    * */
   routeFieldName: undefined,
@@ -567,16 +617,45 @@ export const DEFAULT_ROUTE_OPTIONS: Readonly<RouterOptions> = {
   /** set to true to generate router spec for clients.  */
   getPublicRoutesData: process.env.GENERATE_ROUTER_SPEC === 'true',
 
-  /** lazy load reflection.  */
+  /** Lazy load reflection.  */
   lazyLoadReflection: true,
 
-  /** set true to automatically generate and id for every error.  */
+  /** Set true to automatically generate and id for every error.  */
   autoGenerateErrorId: false,
-};
 
-export const ROUTE_KEYS = Object.keys(DEFAULT_ROUTE);
-export const HOOK_KEYS = Object.keys(DEFAULT_HOOK);
-export const MAX_ROUTE_NESTING = 10;
+  /** Set true to get the call context using `getCallContext` function instead a router's parameter.  */
+  useAsyncCallContext: false,
+};
+```
+
+#### Reflection Options
+
+```ts
+// ../runtype/src/constants.ts#L10-L32
+
+/** Reflection and Deepkit Serialization-Validation options */
+export const DEFAULT_REFLECTION_OPTIONS: Readonly<ReflectionOptions> = {
+  /**
+   * Deepkit Serialization Options
+   * loosely defaults to false, Soft conversion disabled.
+   * !! We Don't recommend to enable soft conversion as validation might fail
+   * */
+  serializationOptions: {
+    loosely: false,
+  },
+
+  /**
+   * Deepkit custom serializer
+   * @link https://docs.deepkit.io/english/serialization.html#serialisation-custom-serialiser
+   * */
+  customSerializer: undefined,
+
+  /**
+   * Deepkit Serialization Options
+   * @link https://docs.deepkit.io/english/serialization.html#_naming_strategy
+   * */
+  serializerNamingStrategy: undefined,
+};
 ```
 
 ## `Full Working Example`
@@ -638,7 +717,7 @@ type SharedData = ReturnType<typeof getSharedData>;
 type ServerlessContext = {rawRequest: APIGatewayEvent; rawResponse?: null};
 type CallContext = Context<SharedData, ServerlessContext>;
 
-const getUser: Route = (app: App, ctx: CallContext, id): User => {
+const getUser: Route = (app: App, ctx: CallContext, id) => {
   const user = app.db.getUser(id);
   if (!user) throw {statusCode: 200, message: 'user not found'};
   return user;

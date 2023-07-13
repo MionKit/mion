@@ -11,7 +11,7 @@
     "lint": "lerna run lint",
     "lint-pre-commit": "CI=true lerna run lint -- --quiet",
     "build": "lerna run build",
-    "clean": "lerna run clean",
+    "clean": "lerna run clean  && nx reset",
     "deepkit-install": "deepkit-type-install",
     "auto-readme": "embedme README.md",
     "npm-publish": "lerna publish from-package --no-private",
