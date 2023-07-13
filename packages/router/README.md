@@ -437,7 +437,9 @@ export const apiSpec = registerRoutes(routes);
 
 #### Async Call Context
 
-It is also possible to configure the router to NOT pass the `App` and `CallContext` as function parameters. When `RouterOptions.useAsyncCallContext` is enabled it is possible to use `getCallContext()` from any function within the handler's call stack, this is a really nice to have feature as we do not have to propagate the context down the call stack. Unfortunately there is an small performance drop so is up to the user to decide if enabling/disabling this feature is justified. This feature is based on node's [AsyncLocalStorage](https://nodejs.org/api/async_context.html#class-asynclocalstorage).
+It is also possible to configure the router to NOT pass the `App` and `CallContext` as function parameters. When `RouterOptions.useAsyncCallContext` is enabled it is possible to use `getCallContext()` from any function within the handler's call stack.
+
+**This is a really nice to have feature** as it is not necessary to propagate the context down the call stack. Unfortunately there is an small drop in performance so it is up to the user to decide if enabling/disabling this feature is justified. This feature is based on node's [AsyncLocalStorage](https://nodejs.org/api/async_context.html#class-asynclocalstorage).
 
 ```ts
 // examples/routes-definition-async-call-context.routes.ts
@@ -448,12 +450,14 @@ type SharedData = {
   myCompanyName: string;
 };
 
+// Note the app and context are not passed as function parameters.
 const sayHello = (name: string): string => {
   const {shared} = getCallContext<SharedData>();
   return `Hello ${name}. From ${shared.myCompanyName}.`;
 };
 
 const sayHello2 = {
+  // Note the app and context are not passed as function parameters.
   route(name1: string, name2: string): string {
     const {shared} = getCallContext<SharedData>();
     return `Hello ${name1} and ${name2}. From ${shared.myCompanyName}.`;
