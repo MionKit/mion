@@ -77,7 +77,7 @@ export const apiSpec = registerRoutes(routes);
 ```ts
 // examples/full-example.routes.ts
 
-import {initHttpApp, startHttpServer} from '@mionkit/http';
+import {initHttpRouter, startHttpServer} from '@mionkit/http';
 import {registerRoutes} from '@mionkit/router';
 
 // #### App ####
@@ -104,7 +104,7 @@ const getDate = (app, ctx, dataPoint?: DataPoint): DataPoint => {
 
 const routerOpts = {prefix: 'api/'};
 const routes = {changeUserName, getDate};
-initHttpApp(app, sharedDataFactory, routerOpts);
+initHttpRouter(app, sharedDataFactory, routerOpts);
 registerRoutes(routes);
 startHttpServer({port: 8080});
 ```

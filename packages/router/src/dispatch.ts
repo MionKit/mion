@@ -31,9 +31,6 @@ export function getCallContext<R extends Context<any, RawServerContext>>(): R {
 type CallBack = (err: any, response: Response | undefined) => void;
 
 export function dispatchRoute<RawContext extends RawServerContext>(path: string, serverContext: RawContext): Promise<Response> {
-    const opts = getRouterOptions();
-    const asyncRun = opts.useSetImmediate ? setImmediate : process.nextTick;
-
     return new Promise<Response>((resolve, reject) => {
         const callBack = (err: any, response: Response | undefined) => {
             if (response) {
@@ -42,7 +39,8 @@ export function dispatchRoute<RawContext extends RawServerContext>(path: string,
                 reject(err);
             }
         };
-        asyncRun(() => _dispatchRoute(path, serverContext, opts, callBack));
+        // Enqueue route execution
+        setImmediate(() => _dispatchRoute(path, serverContext, callBack));
     });
 }
 
@@ -51,18 +49,17 @@ export function dispatchRouteCallback<RawContext extends RawServerContext>(
     serverContext: RawContext,
     cb: CallBack
 ): void {
-    const opts = getRouterOptions();
-    const asyncRun = opts.useSetImmediate ? setImmediate : process.nextTick;
-    asyncRun(() => _dispatchRoute(path, serverContext, opts, cb));
+    // Enqueue route execution
+    setImmediate(() => _dispatchRoute(path, serverContext, cb));
 }
 
 function _dispatchRoute<RawContext extends RawServerContext>(
     path: string,
     serverContext: RawContext,
-    opts: RouterOptions,
     cb: CallBack
 ): Promise<Response> | void {
     try {
+        const opts = getRouterOptions();
         const transformedPath = opts.pathTransform ? opts.pathTransform(serverContext.rawRequest, path) : path;
         const sharedFactory = getSharedDataFactory();
         const context: Context<any, RawContext> = {
@@ -82,12 +79,11 @@ function _dispatchRoute<RawContext extends RawServerContext>(
             },
             shared: sharedFactory ? sharedFactory() : {},
         };
-        const executionPath = getRouteExecutionPath(transformedPath) || [];
 
-        let totalExecuted = 0;
-        const end = (): void => {
-            totalExecuted++;
-            if (totalExecuted < executionPath.length) return;
+        const executionPath = getRouteExecutionPath(transformedPath) || [];
+        const lastStep = executionPath.length - 1;
+        const end = (executionStep: number): void => {
+            if (executionStep < lastStep) return;
             const respBody: Obj = context.response.body;
             if (context.response.publicErrors.length) {
                 respBody.errors = context.response.publicErrors;
@@ -101,38 +97,47 @@ function _dispatchRoute<RawContext extends RawServerContext>(
         if (!executionPath.length) {
             const notFound = new RouteError({statusCode: StatusCodes.NOT_FOUND, publicMessage: 'Route not found'});
             handleRouteErrors(context.request, context.response, notFound, 0);
-            end();
+            end(0);
         } else {
             parseRequestBody(context.rawContext, context.request, context.response, opts);
-            // ### runs execution path, suing for loop for performance
-            for (let index = 0; index < executionPath.length; index++) {
-                const executable = executionPath[index];
-                if (context.response.publicErrors.length && !executable.forceRunOnError) {
-                    end();
-                    continue;
-                }
-
-                try {
-                    const handlerParams = deserializeAndValidateParameters(context.request, executable, opts);
-                    if (executable.inHeader) context.request.headers[executable.fieldName] = handlerParams;
-                    else context.request.body[executable.fieldName] = handlerParams;
-
-                    runHandler(handlerParams, context, executable, opts, (err, result) => {
-                        if (err) {
-                            handleRouteErrors(context.request, context.response, err, index);
-                        } else {
-                            serializeResponse(context.response, executable, result, opts);
-                        }
-                        end();
-                    });
-                } catch (err: any | RouteError | Error) {
-                    handleRouteErrors(context.request, context.response, err, index);
-                    end();
-                }
+            // ### runs execution path
+            for (let i = 0; i < executionPath.length; i++) {
+                execute(context, executionPath[i], opts, i, end);
             }
         }
     } catch (err: any | RouteError | Error) {
+        // todo create response and send error
         cb(err, undefined);
+    }
+}
+
+function execute(
+    context: Context<any, RawServerContext>,
+    executable: Executable,
+    opts: RouterOptions,
+    executionStep: number,
+    end: (executionStep: number) => void
+) {
+    if (context.response.publicErrors.length && !executable.forceRunOnError) {
+        return end(executionStep);
+    }
+
+    try {
+        const handlerParams = deserializeAndValidateParameters(context.request, executable, opts);
+        if (executable.inHeader) context.request.headers[executable.fieldName] = handlerParams;
+        else context.request.body[executable.fieldName] = handlerParams;
+
+        runHandler(handlerParams, context, executable, opts, (err, result) => {
+            if (err) {
+                handleRouteErrors(context.request, context.response, err, executionStep);
+            } else {
+                serializeResponse(context.response, executable, result, opts);
+            }
+            end(executionStep);
+        });
+    } catch (err: any | RouteError | Error) {
+        handleRouteErrors(context.request, context.response, err, executionStep);
+        end(executionStep);
     }
 }
 
