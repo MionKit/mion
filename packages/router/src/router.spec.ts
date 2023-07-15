@@ -16,6 +16,8 @@ import {
     resetRouter,
     setRouterOptions,
     initRouter,
+    addStartHooks,
+    addEndHooks,
 } from './router';
 import {Handler, HookDef, RouteDef, Routes} from './types';
 
@@ -45,6 +47,21 @@ describe('Create routes should', () => {
             setPet: route2,
         },
         last: hook,
+    };
+
+    const defaultRouterExecutables = {
+        parseRequestBody: {
+            path: 'parseRequestBody',
+            fieldName: 'parseRequestBody',
+            isRoute: false,
+            selfPointer: ['parseRequestBody'],
+        },
+        stringifyResponseBody: {
+            path: 'stringifyResponseBody',
+            fieldName: 'stringifyResponseBody',
+            isRoute: false,
+            selfPointer: ['stringifyResponseBody'],
+        },
     };
 
     const hookExecutables = {
@@ -108,28 +125,34 @@ describe('Create routes should', () => {
         registerRoutes(routes);
 
         expect(geRoutesSize()).toEqual(5);
-        expect(geHooksSize()).toEqual(5);
+        expect(geHooksSize()).toEqual(7);
 
         expect(getRouteExecutionPath('/users/getUser')).toEqual([
+            expect.objectContaining({...defaultRouterExecutables.parseRequestBody}),
             expect.objectContaining({...hookExecutables.first}),
             expect.objectContaining({...hookExecutables.userBefore}),
             expect.objectContaining({...routeExecutables.usersGetUser}),
             expect.objectContaining({...hookExecutables.userAfter}),
             expect.objectContaining({...hookExecutables.last}),
+            expect.objectContaining({...defaultRouterExecutables.stringifyResponseBody}),
         ]);
         expect(getRouteExecutionPath('/users/setUser')).toBeTruthy();
         expect(getRouteExecutionPath('/users/pets/getUserPet')).toEqual([
+            expect.objectContaining({...defaultRouterExecutables.parseRequestBody}),
             expect.objectContaining({...hookExecutables.first}),
             expect.objectContaining({...hookExecutables.userBefore}),
             expect.objectContaining({...routeExecutables.usersPetsGetUserPet}),
             expect.objectContaining({...hookExecutables.userPetsAfter}),
             expect.objectContaining({...hookExecutables.userAfter}),
             expect.objectContaining({...hookExecutables.last}),
+            expect.objectContaining({...defaultRouterExecutables.stringifyResponseBody}),
         ]);
         expect(getRouteExecutionPath('/pets/getPet')).toEqual([
+            expect.objectContaining({...defaultRouterExecutables.parseRequestBody}),
             expect.objectContaining({...hookExecutables.first}),
             expect.objectContaining({...routeExecutables.petsGetPet}),
             expect.objectContaining({...hookExecutables.last}),
+            expect.objectContaining({...defaultRouterExecutables.stringifyResponseBody}),
         ]);
         expect(getRouteExecutionPath('/pets/setPet')).toBeTruthy();
     });
@@ -204,6 +227,38 @@ describe('Create routes should', () => {
         expect(getRouteExecutionPath('/api/v1/users/pets/getUserPet.json')).toBeTruthy();
         expect(getRouteExecutionPath('/api/v1/pets/getPet.json')).toBeTruthy();
         expect(getRouteExecutionPath('/api/v1/pets/setPet.json')).toBeTruthy();
+    });
+
+    it('add start and end global hooks', () => {
+        initRouter({}, () => {});
+        const prependHooks = {
+            p1: {hook: () => null},
+            p2: {hook: () => null},
+        };
+
+        const appendHooks = {
+            a1: {hook: () => null},
+            a2: {hook: () => null},
+        };
+        addStartHooks(prependHooks);
+        addEndHooks(appendHooks);
+        registerRoutes(routes);
+
+        const expectedExecutionPath = [
+            expect.objectContaining({...defaultRouterExecutables.parseRequestBody}),
+            expect.objectContaining({fieldName: 'p1', isRoute: false}),
+            expect.objectContaining({fieldName: 'p2', isRoute: false}),
+            expect.objectContaining({fieldName: 'first', isRoute: false}),
+            expect.objectContaining({path: '/pets/getPet', isRoute: true}),
+            expect.objectContaining({fieldName: 'last', isRoute: false}),
+            expect.objectContaining({fieldName: 'a1', isRoute: false}),
+            expect.objectContaining({fieldName: 'a2', isRoute: false}),
+            expect.objectContaining({...defaultRouterExecutables.stringifyResponseBody}),
+        ];
+
+        expect(getRouteExecutionPath('/pets/getPet')).toEqual(expectedExecutionPath);
+        expect(() => addStartHooks(prependHooks)).toThrow('Can not add start hooks after the router has been initialized');
+        expect(() => addEndHooks(appendHooks)).toThrow('Can not add end hooks after the router has been initialized');
     });
 
     it('customize route paths', () => {

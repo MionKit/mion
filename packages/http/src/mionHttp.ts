@@ -125,7 +125,7 @@ function httpRequestHandler(httpReq: IncomingMessage, httpResponse: ServerRespon
         const body = Buffer.concat(bodyChunks).toString();
         (httpReq as any).body = body;
 
-        const rawContext = {rawRequest: httpReq as any as RawRequest, rawResponse: httpResponse};
+        const rawCallContext = {rawRequest: httpReq as any as RawRequest, rawResponse: httpResponse};
         const success = (routeResponse) => {
             if (hasError) return;
             addResponseHeaders(httpResponse, routeResponse.headers);
@@ -138,7 +138,7 @@ function httpRequestHandler(httpReq: IncomingMessage, httpResponse: ServerRespon
             reply(httpResponse, logger, routeResponse.json, routeResponse.statusCode);
         };
         if (httpOptions.useCallbacks) {
-            dispatchRouteCallback(path, rawContext, (e, routeResponse) => {
+            dispatchRouteCallback(path, rawCallContext, (e, routeResponse) => {
                 if (e) {
                     fail(e);
                 } else {
@@ -147,7 +147,7 @@ function httpRequestHandler(httpReq: IncomingMessage, httpResponse: ServerRespon
                 if (!httpResponse.writableEnded) httpResponse.end();
             });
         } else {
-            dispatchRoute(path, rawContext)
+            dispatchRoute(path, rawCallContext)
                 .then((routeResponse) => success(routeResponse))
                 .catch((e) => fail(e))
                 .finally(() => {

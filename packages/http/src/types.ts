@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {Context, Headers, Obj, RawServerContext} from '@mionkit/router';
+import {Context, Headers, Obj, RawServerCallContext} from '@mionkit/router';
 import {IncomingMessage, ServerResponse} from 'http';
 import {ServerOptions} from 'https';
 
@@ -35,6 +35,6 @@ export type HttpOptions = {
 
 export type HttpRequest = IncomingMessage & {body: string};
 
-export type HttpRawServerContext = RawServerContext<HttpRequest, ServerResponse>;
+export type HttpRawServerContext = RawServerCallContext<HttpRequest, ServerResponse>;
 
 export type HttpCallContext<SharedData extends Obj> = Context<SharedData, HttpRawServerContext>;

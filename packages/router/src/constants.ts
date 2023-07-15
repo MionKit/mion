@@ -25,6 +25,7 @@ export const DEFAULT_HOOK: Readonly<Required<HookDef>> = {
     description: '',
     enableValidation: true,
     enableSerialization: true,
+    isInternal: false,
     hook: () => null,
 };
 

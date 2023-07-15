@@ -49,7 +49,7 @@ describe('serverless router should', () => {
     const updateHeaders: Route = (app: MyApp, context: CallContext): void => {
         context.response.headers['x-something'] = true;
         context.response.headers['server'] = 'my-server';
-        context.rawContext.awsContext;
+        context.rawCallContext.awsContext;
     };
 
     registerRoutes({changeUserName, getDate, updateHeaders});
@@ -79,7 +79,7 @@ describe('serverless router should', () => {
         return {context, event};
     };
 
-    it('should get an ok response from a route', async () => {
+    it('get an ok response from a route', async () => {
         const requestData = {'/api/getDate': [{date: new Date('2022-04-10T02:13:00.000Z')}]};
         const {event, context} = getDefaultGatewayEvent(JSON.stringify(requestData), '/api/getDate');
 
@@ -93,7 +93,7 @@ describe('serverless router should', () => {
         expect(headers['server']).toEqual('@mionkit/serverless');
     });
 
-    it('should get an error when sending invalid parameters', async () => {
+    it('get an error when sending invalid parameters', async () => {
         const requestData = {'/api/getDate': ['NOT A DATE POINT']};
         const {event, context} = getDefaultGatewayEvent(JSON.stringify(requestData), '/api/getDate');
 
@@ -112,7 +112,7 @@ describe('serverless router should', () => {
         expect(headers['server']).toEqual('@mionkit/serverless');
     });
 
-    it('should set response headers from route response', async () => {
+    it('set response headers from route response', async () => {
         const requestData = {};
         const {event, context} = getDefaultGatewayEvent(JSON.stringify(requestData), '/api/updateHeaders');
 

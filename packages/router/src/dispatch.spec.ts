@@ -7,8 +7,9 @@
 
 import {registerRoutes, resetRouter, initRouter, getApp} from './router';
 import {dispatchRoute, getCallContext} from './dispatch';
-import {Context, PublicError, RawRequest, Route} from './types';
+import {Context, RawRequest, Route} from './types';
 import {StatusCodes} from './status-codes';
+import {PublicError} from './errors';
 
 describe('Dispatch routes', () => {
     type SimpleUser = {
@@ -167,6 +168,23 @@ describe('Dispatch routes', () => {
             expect(contextAfter as any).not.toBeDefined();
             expect(response.body[path]).toEqual(4);
         });
+
+        it('support async handlers', async () => {
+            initRouter(myApp, getSharedData);
+            registerRoutes({
+                sumTwo: async (app, ctx, val: number) => {
+                    return new Promise((resolve) => {
+                        setTimeout(() => {
+                            resolve(val + 2);
+                        }, 500);
+                    });
+                },
+            });
+            const path = '/sumTwo';
+            const request = getDefaultRequest(path, [2]);
+            const response = await dispatchRoute(path, {rawRequest: request});
+            expect(response.body[path]).toEqual(4);
+        });
     });
 
     describe('fail path should', () => {
@@ -222,7 +240,7 @@ describe('Dispatch routes', () => {
             const response2 = await dispatchRoute('/changeUserName', {rawRequest: request2});
             expect(response2.publicErrors[0]).toEqual({
                 statusCode: 422,
-                name: 'Parsing Request Body Error',
+                name: 'Parsing Request Body',
                 message: 'Invalid request body: Unexpected number in JSON at position 1',
             });
         });
@@ -299,18 +317,18 @@ describe('Dispatch routes', () => {
         it('return an unknown error if a route fails with a generic error', async () => {
             initRouter(myApp, getSharedData);
 
-            const routeFail: Route = () => {
+            const myRoute: Route = () => {
                 throw new Error('this is a generic error');
             };
-            registerRoutes({routeFail});
+            registerRoutes({myRoute});
 
-            const request = getDefaultRequest('/routeFail', []);
+            const request = getDefaultRequest('/myRoute', []);
 
-            const response = await dispatchRoute('/routeFail', {rawRequest: request});
+            const response = await dispatchRoute('/myRoute', {rawRequest: request});
             expect(response.publicErrors[0]).toEqual({
                 statusCode: 500,
                 name: 'Unknown Error',
-                message: 'Unknown error in step 0 of route execution path.',
+                message: 'Unknown error in step /myRoute of route execution path.',
             });
         });
 

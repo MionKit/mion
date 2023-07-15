@@ -6,7 +6,7 @@
  * ######## */
 
 import {ReflectionOptions, FunctionReflection, SerializedTypes} from '@mionkit/runtype';
-import {RouteError} from './errors';
+import {PublicError, RouteError} from './errors';
 
 // #######  Routes #######
 
@@ -39,6 +39,20 @@ export type RouteDef<App = any, CallContext extends Context<any, any> = any, Ret
     route: Handler<App, CallContext, Ret>;
 };
 
+/**
+ * Function to be run before and after every single executable.
+ * Can be used for things like param validation, serialization.
+ * Be careful with performance as this function is run for every single executable.
+ */
+export type ExecutableMicroTask<CallContext extends Context<any, any> = any> = (
+    /** Static Data: main App, db driver, libraries, etc... */
+    step: number,
+    /** The */
+    executable: Executable,
+    /** Call Context */
+    context: CallContext
+) => void;
+
 /** A route can be a full route definition or just the handler */
 export type Route<App = any, CallContext extends Context<any, any> = any, Ret = any> =
     | RouteDef<App, CallContext, Ret>
@@ -61,6 +75,16 @@ export type HookDef<App = any, CallContext extends Context<any, any> = any, Ret 
     enableValidation?: boolean;
     /** Enables serialization/deserialization */
     enableSerialization?: boolean;
+    /** Used for internal hooks that are required for processing the request/response.
+     * It is equivalent to:
+     *  - forceRunOnError: true
+     *  - canReturnData: false
+     *  - inHeader: false
+     *  - enableValidation: false
+     *  - enableSerialization: false
+     * These hooks should only modify the call context and net get any remote parameters or return any data.
+     */
+    isInternal?: boolean;
     /** Hook handler */
     hook: Handler<App, CallContext, Ret> | SimpleHandler<Ret>;
 };
@@ -70,10 +94,14 @@ export type Routes<App = any, CallContext extends Context<any, any> = any> = {
     [key: string]: HookDef<App, CallContext> | Route<App, CallContext> | Routes<App, CallContext>;
 };
 
+export type HooksCollection = {
+    [key: string]: HookDef;
+};
+
 // ####### Router Options #######
 
 /** Global Router Options */
-export type RouterOptions<RawContext extends RawServerContext = RawServerContext> = {
+export type RouterOptions<RawContext extends RawServerCallContext = RawServerCallContext> = {
     /** prefix for all routes, i.e: api/v1.
      * path separator is added between the prefix and the route */
     prefix: string;
@@ -141,11 +169,11 @@ export type HookExecutable<H extends Handler | SimpleHandler> = Executable & {
 // ####### Context #######
 
 /** The call Context object passed as first parameter to any hook or route */
-export type Context<SharedData, RawContext extends RawServerContext = any> = Readonly<{
+export type Context<SharedData, RawContext extends RawServerCallContext = RawServerCallContext> = Readonly<{
     /** Route's path */
     path: Readonly<string>;
     /** Raw Server call context, contains the raw request and response */
-    rawContext: Readonly<RawContext>;
+    rawCallContext: Readonly<RawContext>;
     /** Router's own request object */
     request: Readonly<Request>;
     /** Router's own response object */
@@ -179,7 +207,7 @@ export type Response = {
     json: Readonly<string>;
 };
 
-export type RawServerContext<RawServerRequest extends RawRequest = RawRequest, RawServerResponse = any> = {
+export type RawServerCallContext<RawServerRequest extends RawRequest = RawRequest, RawServerResponse = any> = {
     /** Original Server request
      * i.e: '@types/aws-lambda/APIGatewayEvent'
      * or http/IncomingMessage */
@@ -199,38 +227,6 @@ export type Headers = {[key: string]: string | boolean | number};
 
 /** Function used to create the shared data object on each route call  */
 export type SharedDataFactory<SharedData> = () => SharedData;
-
-// #######  Errors #######
-
-// TODO: the interface for Public Errors is a bit confusing, maybe this should be called PublicError, review the way params are passed etc.
-/** Any error triggered by hooks or routes must follow this interface, returned errors in the body also follows this interface */
-export type RouteErrorParams = {
-    /** id of the error. */
-    id?: number | string;
-    /** response status code */
-    statusCode: Readonly<number>;
-    /** the message that will be returned in the response */
-    publicMessage: Readonly<string>;
-    /**
-     * the error message, it is private and wont be returned in the response.
-     * If not defined, it is assigned from originalError.message or publicMessage.
-     */
-    message?: Readonly<string>;
-    /** options data related to the error, ie validation data */
-    publicData?: Readonly<unknown>;
-    /** original error used to create the RouteError */
-    originalError?: Readonly<Error>;
-    /** name of the error, if not defined it is assigned from status code */
-    name?: Readonly<string>;
-};
-
-export type PublicError = {
-    id?: number | string;
-    name: Readonly<string>;
-    statusCode: Readonly<number>;
-    message: Readonly<string>;
-    errorData?: Readonly<unknown>;
-};
 
 // ####### Public Facing Types #######
 
@@ -290,40 +286,40 @@ export type PublicMethod<H extends Handler = any> = PublicRoute<H> | PublicHook<
 // #######  type guards #######
 
 /** Type guard: isHandler */
-export const isHandler = (entry: HookDef | Route | Routes): entry is Handler => {
+export function isHandler(entry: HookDef | Route | Routes): entry is Handler {
     return typeof entry === 'function';
-};
+}
 /** Type guard: isRouteDef */
-export const isRouteDef = (entry: HookDef | Route | Routes): entry is RouteDef => {
+export function isRouteDef(entry: HookDef | Route | Routes): entry is RouteDef {
     return typeof (entry as RouteDef).route === 'function';
-};
+}
 /** Type guard: isHook */
-export const isHookDef = (entry: HookDef | Route | Routes): entry is HookDef => {
+export function isHookDef(entry: HookDef | Route | Routes): entry is HookDef {
     return typeof (entry as HookDef).hook === 'function';
-};
+}
 /** Type guard: isRoute */
-export const isRoute = (entry: HookDef | Route | Routes): entry is Route => {
+export function isRoute(entry: HookDef | Route | Routes): entry is Route {
     return typeof entry === 'function' || typeof (entry as RouteDef).route === 'function';
-};
+}
 /** Type guard: isRoutes */
-export const isRoutes = (entry: any): entry is Route => {
+export function isRoutes(entry: any): entry is Route {
     return typeof entry === 'object';
-};
+}
 /** Type guard: isExecutable */
-export const isExecutable = (entry: Executable | {pathPointer: string[]}): entry is Executable => {
+export function isExecutable(entry: Executable | {pathPointer: string[]}): entry is Executable {
     return (
         typeof (entry as Executable)?.path === 'string' &&
         ((entry as any).routes === 'undefined' || typeof (entry as Executable).handler === 'function')
     );
-};
+}
 
-export const isPuplicExecutable = (entry: Executable): entry is Executable => {
+export function isPuplicExecutable(entry: Executable): entry is Executable {
     return entry.canReturnData || !!entry.reflection.paramsLength;
-};
+}
 
-export const isPuplicMethod = (entry: PublicRoute<any> | PublicHook<any>): entry is PublicMethod<any> => {
+export function isPuplicMethod(entry: PublicRoute<any> | PublicHook<any>): entry is PublicMethod<any> {
     return entry.canReturnData || !!entry.params.length;
-};
+}
 
 // #######  Others #######
 

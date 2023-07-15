@@ -5,32 +5,24 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {
-    Executable,
-    Context,
-    Obj,
-    Response,
-    RawServerContext,
-    Mutable,
-    PublicError,
-    Request,
-    RouterOptions,
-    SimpleHandler,
-} from './types';
+import {Executable, Context, Obj, Response, RawServerCallContext, Mutable, Request, RouterOptions, SimpleHandler} from './types';
 import {StatusCodes} from './status-codes';
-import {RouteError} from './errors';
+import {RouteError, PublicError} from './errors';
 import {getApp, getRouteExecutionPath, getRouterOptions, getSharedDataFactory} from './router';
 import {AsyncLocalStorage} from 'node:async_hooks';
 
 const asyncLocalStorage = new AsyncLocalStorage();
 
-export function getCallContext<R extends Context<any, RawServerContext>>(): R {
+export function getCallContext<R extends Context<any, RawServerCallContext>>(): R {
     return asyncLocalStorage.getStore() as R;
 }
 
 type CallBack = (err: any, response: Response | undefined) => void;
 
-export function dispatchRoute<RawContext extends RawServerContext>(path: string, serverContext: RawContext): Promise<Response> {
+export function dispatchRoute<RawCallContext extends RawServerCallContext>(
+    path: string,
+    rawCallContext: RawCallContext
+): Promise<Response> {
     return new Promise<Response>((resolve, reject) => {
         const callBack = (err: any, response: Response | undefined) => {
             if (response) {
@@ -40,33 +32,33 @@ export function dispatchRoute<RawContext extends RawServerContext>(path: string,
             }
         };
         // Enqueue route execution
-        setImmediate(() => _dispatchRoute(path, serverContext, callBack));
+        setImmediate(() => _dispatchRoute(path, rawCallContext, callBack));
     });
 }
 
-export function dispatchRouteCallback<RawContext extends RawServerContext>(
+export function dispatchRouteCallback<RawCallContext extends RawServerCallContext>(
     path: string,
-    serverContext: RawContext,
+    rawCallContext: RawCallContext,
     cb: CallBack
 ): void {
     // Enqueue route execution
-    setImmediate(() => _dispatchRoute(path, serverContext, cb));
+    setImmediate(() => _dispatchRoute(path, rawCallContext, cb));
 }
 
-function _dispatchRoute<RawContext extends RawServerContext>(
+function _dispatchRoute<RawCallContext extends RawServerCallContext>(
     path: string,
-    serverContext: RawContext,
+    rawCallContext: RawCallContext,
     cb: CallBack
 ): Promise<Response> | void {
     try {
         const opts = getRouterOptions();
-        const transformedPath = opts.pathTransform ? opts.pathTransform(serverContext.rawRequest, path) : path;
+        const transformedPath = opts.pathTransform ? opts.pathTransform(rawCallContext.rawRequest, path) : path;
         const sharedFactory = getSharedDataFactory();
-        const context: Context<any, RawContext> = {
-            rawContext: serverContext,
+        const context: Context<any, RawCallContext> = {
+            rawCallContext,
             path: transformedPath,
             request: {
-                headers: serverContext.rawRequest.headers || {},
+                headers: rawCallContext.rawRequest.headers || {},
                 body: {},
                 internalErrors: [],
             },
@@ -81,69 +73,58 @@ function _dispatchRoute<RawContext extends RawServerContext>(
         };
 
         const executionPath = getRouteExecutionPath(transformedPath) || [];
-        const lastStep = executionPath.length - 1;
-        const end = (executionStep: number): void => {
-            if (executionStep < lastStep) return;
-            const respBody: Obj = context.response.body;
-            if (context.response.publicErrors.length) {
-                respBody.errors = context.response.publicErrors;
-                (context.response.json as Mutable<string>) = opts.bodyParser.stringify(context.response.publicErrors);
-            } else {
-                (context.response.json as Mutable<string>) = opts.bodyParser.stringify(respBody);
-            }
-            cb(undefined, context.response);
-        };
+        const end = () => cb(undefined, context.response);
 
         if (!executionPath.length) {
             const notFound = new RouteError({statusCode: StatusCodes.NOT_FOUND, publicMessage: 'Route not found'});
-            handleRouteErrors(context.request, context.response, notFound, 0);
-            end(0);
+            handleRouteErrors(context.request, context.response, notFound, 'findRoute');
+            end();
         } else {
-            parseRequestBody(context.rawContext, context.request, context.response, opts);
             // ### runs execution path
-            for (let i = 0; i < executionPath.length; i++) {
-                execute(context, executionPath[i], opts, i, end);
-            }
+            runExecutionPath(0, context, executionPath, opts, end);
         }
     } catch (err: any | RouteError | Error) {
-        // todo create response and send error
         cb(err, undefined);
     }
 }
 
-function execute(
-    context: Context<any, RawServerContext>,
-    executable: Executable,
+function runExecutionPath(
+    step: number,
+    context: Context<any, RawServerCallContext>,
+    executionPath: Executable[],
     opts: RouterOptions,
-    executionStep: number,
-    end: (executionStep: number) => void
+    end: () => void
 ) {
-    if (context.response.publicErrors.length && !executable.forceRunOnError) {
-        return end(executionStep);
+    const executable = executionPath[step];
+    if (!executable) return end();
+    const next = () => runExecutionPath(step + 1, context, executionPath, opts, end);
+    const {response, request} = context;
+    if (response.publicErrors.length && !executable.forceRunOnError) {
+        return next();
     }
 
     try {
-        const handlerParams = deserializeAndValidateParameters(context.request, executable, opts);
-        if (executable.inHeader) context.request.headers[executable.fieldName] = handlerParams;
-        else context.request.body[executable.fieldName] = handlerParams;
+        const handlerParams = deserializeAndValidateParameters(request, executable, opts);
+        if (executable.inHeader) request.headers[executable.fieldName] = handlerParams;
+        else request.body[executable.fieldName] = handlerParams;
 
         runHandler(handlerParams, context, executable, opts, (err, result) => {
             if (err) {
-                handleRouteErrors(context.request, context.response, err, executionStep);
+                handleRouteErrors(request, response, err, executable.fieldName);
             } else {
-                serializeResponse(context.response, executable, result, opts);
+                serializeResponse(response, executable, result, opts);
             }
-            end(executionStep);
+            next();
         });
     } catch (err: any | RouteError | Error) {
-        handleRouteErrors(context.request, context.response, err, executionStep);
-        end(executionStep);
+        handleRouteErrors(request, response, err, executable.fieldName);
+        next();
     }
 }
 
 function runHandler(
     handlerParams: any[],
-    context: Context<any, RawServerContext>,
+    context: Context<any, RawServerCallContext>,
     executable: Executable,
     opts: RouterOptions,
     cb: CallBack
@@ -165,50 +146,6 @@ function runHandler(
 }
 
 // ############# PRIVATE METHODS #############
-
-const parseRequestBody = (
-    serverContext: RawServerContext<any, any>,
-    request: Request,
-    response: Response,
-    routerOptions: RouterOptions
-) => {
-    if (!serverContext.rawRequest.body) return;
-    try {
-        if (typeof serverContext.rawRequest.body === 'string') {
-            const parsedBody = routerOptions.bodyParser.parse(serverContext.rawRequest.body);
-            if (typeof parsedBody !== 'object')
-                throw new RouteError({
-                    statusCode: StatusCodes.BAD_REQUEST,
-                    name: 'Invalid Request Body',
-                    publicMessage: 'Wrong request body. Expecting an json body containing the route name and parameters.',
-                });
-            (request as Mutable<Obj>).body = parsedBody;
-        } else if (typeof serverContext.rawRequest.body === 'object') {
-            // lets assume the body has been already parsed, TODO: investigate possible security issues
-            (request as Mutable<Obj>).body = serverContext.rawRequest.body;
-        } else {
-            throw new RouteError({
-                statusCode: StatusCodes.BAD_REQUEST,
-                name: 'Invalid Request Body',
-                publicMessage: 'Wrong request body, expecting a json string.',
-            });
-        }
-    } catch (err: any) {
-        if (!(err instanceof RouteError)) {
-            handleRouteErrors(
-                request,
-                response,
-                new RouteError({
-                    statusCode: StatusCodes.UNPROCESSABLE_ENTITY,
-                    name: 'Parsing Request Body Error',
-                    publicMessage: `Invalid request body: ${err?.message || 'unknown parsing error.'}`,
-                }),
-                0
-            );
-        }
-        handleRouteErrors(request, response, err, 0);
-    }
-};
 
 const deserializeAndValidateParameters = (request: Request, executable: Executable, routerOptions: RouterOptions): any[] => {
     const fieldName = executable.fieldName;
@@ -280,13 +217,13 @@ const serializeResponse = (response: Response, executable: Executable, result: a
     else (response as Mutable<Obj>).body[executable.fieldName] = serialized;
 };
 
-const handleRouteErrors = (request: Request, response: Response, err: any, step: number) => {
+const handleRouteErrors = (request: Request, response: Response, err: any, executableName: string) => {
     const routeError =
         err instanceof RouteError
             ? err
             : new RouteError({
                   statusCode: StatusCodes.INTERNAL_SERVER_ERROR,
-                  publicMessage: `Unknown error in step ${step} of route execution path.`,
+                  publicMessage: `Unknown error in step ${executableName} of route execution path.`,
                   originalError: err,
                   name: 'Unknown Error',
               });
