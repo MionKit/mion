@@ -46,7 +46,7 @@ import {
     CoreOptions,
     addDefaultGlobalOptions,
 } from '@mionkit/core';
-import {BodyParserOptions, Handler, HookDef, HooksCollection, mionHooks, mion404Handler} from '@mionkit/hooks';
+import {BodyParserOptions, Handler, HookDef, HooksCollection, mionHooks} from '@mionkit/hooks';
 
 type RouterKeyEntryList = [string, Routes | HookDef | Route][];
 type RouteEntryProperties = ReturnType<typeof getRouteEntryProperties>;
@@ -148,8 +148,8 @@ export function getRouteExecutionPath(path: string) {
 
 export function getNotFoundExecutionPath(): Executable[] {
     if (notFoundExecutionPath) return notFoundExecutionPath;
-    const routePath = 'mion404Handler';
-    const notFoundHandlerExecutable = _getExecutableFromRoute(mion404Handler, [routePath], 0, routePath);
+    const hookName = 'mion404NotfoundHook';
+    const notFoundHandlerExecutable = _getExecutableFromHook(mionHooks.mion404Hook, [hookName], 0, hookName);
     notFoundExecutionPath = [...startHooks, notFoundHandlerExecutable, ...endHooks];
     return notFoundExecutionPath;
 }
@@ -390,18 +390,29 @@ function getHandler(entry: HookDef | Route, pathPointer: string[]): Handler {
 }
 
 function getExecutableFromHook(hook: HookDef, hookPointer: string[], nestLevel: number, key: string): HookExecutable<Handler> {
-    const routerOptions = getGlobalOptions<FullRouterOptions>();
     const hookName = getHookFieldName(hook, key);
     const existing = hooksByFieldName.get(hookName);
     if (existing) return existing as HookExecutable<Handler>;
-    const handler = getHandler(hook, hookPointer);
+    const executable = _getExecutableFromHook(hook, hookPointer, nestLevel, hookName);
+    // this delete is not required at the moment but it will be if we want to add the ability to extend Routes or Hook definition objects
+    delete (executable as any).hook;
+    hooksByFieldName.set(hookName, executable);
+    return executable;
+}
 
+function _getExecutableFromHook(
+    hook: HookDef,
+    hookPointer: string[],
+    nestLevel: number,
+    hookName: string
+): HookExecutable<Handler> {
+    const routerOptions = getGlobalOptions<FullRouterOptions>();
+    const handler = getHandler(hook, hookPointer);
     if (!!hook.inHeader && handler.length > getRouteDefaultParams().length + 1) {
         throw new Error(
             `Invalid Hook: ${join(...hookPointer)}. In header hooks can only have a single parameter besides App and Context.`
         );
     }
-
     if (hookName === 'errors') {
         throw new Error(`Invalid Hook: ${join(...hookPointer)}. The 'errors' fieldName is reserver for the router.`);
     }
@@ -430,9 +441,6 @@ function getExecutableFromHook(hook: HookDef, hookPointer: string[], nestLevel: 
         src: hook,
         selfPointer: hookPointer,
     };
-    // todo review if this is required
-    delete (executable as any).hook;
-    hooksByFieldName.set(hookName, executable);
     return executable;
 }
 
@@ -441,7 +449,7 @@ function getExecutableFromRoute(route: Route, routePointer: string[], nestLevel:
     const existing = routesByPath.get(routePath);
     if (existing) return existing as RouteExecutable<Handler>;
     const executable = _getExecutableFromRoute(route, routePointer, nestLevel, routePath);
-    // todo review if this is required
+    // this delete is not required at the moment but it will be if we want to add the ability to extend Routes or Hook definition objects
     delete (executable as any).route;
     routesByPath.set(routePath, executable);
     return executable;

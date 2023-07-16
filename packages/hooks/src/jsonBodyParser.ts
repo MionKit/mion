@@ -42,7 +42,7 @@ export const DEFAULT_BODY_PARSER_OPTIONS = addDefaultGlobalOptions<BodyParserOpt
  */
 export const mionParseJsonRequestBodyHook = {
     isInternal: true,
-    hook(app, context: Context<any> | undefined) {
+    hook: (app, context: Context<any> | undefined) => {
         const {request, rawCallContext} = context || getCallContext();
         const {bodyParser} = getGlobalOptions<BodyParserOptions>();
         // body could be empty if there are no parameters sent to the router
@@ -76,12 +76,12 @@ export const mionParseJsonRequestBodyHook = {
             });
         }
     },
-} satisfies HookDef;
+};
 
 /** Stringifies Json response. */
 export const mionStringifyJsonResponseBodyHook = {
     isInternal: true,
-    hook(app, context: Context<any> | undefined) {
+    hook: (app, context: Context<any> | undefined) => {
         const {response} = context || getCallContext();
         const {bodyParser, defaultResponseContentType} = getGlobalOptions<BodyParserOptions>();
         const respBody: Obj = response.body;
@@ -107,4 +107,4 @@ export const mionStringifyJsonResponseBodyHook = {
             response.headers['content-length'] = response.json.length;
         }
     },
-} satisfies HookDef;
+};

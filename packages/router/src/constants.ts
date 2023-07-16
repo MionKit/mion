@@ -5,7 +5,6 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {mion404Handler} from '@mionkit/hooks';
 import {RouteDef, RouterOptions, SerializationOptions} from './types';
 import {RawRequest} from '@mionkit/core/';
 

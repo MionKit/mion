@@ -15,9 +15,10 @@ export const mionHooks = {
     mionStringifyJsonResponseBodyHook,
     mionHttpConnectionHook,
     mionHttpCloseConnectionHook,
+    mion404Hook: {
+        isInternal: true,
+        hook: () => {
+            return new RouteError({statusCode: StatusCodes.NOT_FOUND, publicMessage: `Route not found`});
+        },
+    },
 } satisfies HooksCollection;
-
-/** mion 404 handler  */
-export function mion404Handler() {
-    return new RouteError({statusCode: StatusCodes.NOT_FOUND, publicMessage: `Route not found`});
-}

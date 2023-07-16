@@ -27,6 +27,36 @@ This library include common hooks required for mion router and apps.
 - All existing hooks are indirectly tested by the libraries using them so there are no unit test for them.
 - runtime reflection is enabled for this package so hooks are compiled with run types metadata
 
-* ---
+### Issues
+
+Seems like methods are not generating runtime types, so only arrow function and functions supported
+
+**Invalid Hook definition:** seems that deepkit is not correctly generating the types when using methods.
+
+```ts
+const sayHello = {
+  hook(app, ctx, name: string) {
+    return `hello ${name}`;
+  },
+};
+```
+
+**Valid Hook definition:** using arrow functions or regular functions work
+
+```ts
+const sayHello = {
+  hook: (app, ctx, name: string) => {
+    return `hello ${name}`;
+  },
+};
+
+const sayHello2 = {
+  hook: function (app, ctx, name: string) {
+    return `hello ${name}`;
+  },
+};
+```
+
+- ***
 
 [MIT LICENSE](../../LICENSE)

@@ -15,7 +15,8 @@
     "deepkit-install": "deepkit-type-install",
     "auto-readme": "embedme README.md",
     "npm-publish": "lerna publish from-package --no-private",
-    "prepare": "husky install"
+    "prepare": "husky install",
+    "im-done": "nx reset && npm run im-done --workspaces && rimraf ./node_modules"
   },
   "lint-staged": {
     "*.ts": "eslint"

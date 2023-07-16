@@ -43,7 +43,7 @@ export const DEFAULT_HTTP_CONNECTION_OPTIONS = addDefaultGlobalOptions<HttpConne
 /** Handles http connection, and fills the raw request body */
 export const mionHttpConnectionHook = {
     isInternal: true,
-    hook(app, context: HttpCallContext<any> | undefined) {
+    hook: (app, context: HttpCallContext<any> | undefined) => {
         const {rawCallContext} = context || getCallContext();
         const httpReq = rawCallContext.rawRequest as HttpRequest;
         const httpResponse = rawCallContext.rawResponse as ServerResponse;
@@ -105,7 +105,7 @@ export const mionHttpConnectionHook = {
 /** Ends the http connection and sends data to client.  */
 export const mionHttpCloseConnectionHook = {
     isInternal: true,
-    hook(app, context: HttpCallContext<any> | undefined) {
+    hook: (app, context: HttpCallContext<any> | undefined) => {
         const {rawCallContext, response} = context || getCallContext();
         const httpResponse: ServerResponse = rawCallContext.rawResponse as any;
         const {defaultResponseHeaders} = getGlobalOptions<HttpConnectionOptions>();
