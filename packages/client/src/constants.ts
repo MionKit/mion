@@ -12,6 +12,7 @@ import {ClientOptions} from './types';
 declare global {
     interface Window {
         location: any;
+        fetch: (...params: any[]) => Promise<any>;
     }
 
     const window: Window;

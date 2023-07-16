@@ -7,5 +7,5 @@
   "reflection": false,
   "include": ["."],
   "exclude": ["node_modules", "**/*.spec.ts", "examples", ".dist"],
-  "references": [{"path": "../router"}]
+  "references": [{"path": "../router"}, {"path": "../hooks"}, {"path": "../core"}]
 }

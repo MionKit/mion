@@ -5,25 +5,49 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {getRouterOptions} from './router';
-import {getCallContext} from './dispatch';
-import {RouteError} from './errors';
-import {StatusCodes} from './status-codes';
-import type {Context, HooksCollection, Mutable, Obj} from './types';
+import {
+    Context,
+    Mutable,
+    Obj,
+    RouteError,
+    StatusCodes,
+    addDefaultGlobalOptions,
+    getCallContext,
+    getGlobalOptions,
+    getPublicErrorFromRouteError,
+} from '@mionkit/core';
+
+export type Parser = {
+    parse: (text: string) => any;
+    stringify: (js) => string;
+};
+
+export type BodyParserOptions = {
+    /** Custom JSON parser, defaults to Native js JSON */
+    bodyParser: Parser;
+    /** Default response content type */
+    defaultResponseContentType: string;
+};
+
+export const DEFAULT_BODY_PARSER_OPTIONS = addDefaultGlobalOptions<BodyParserOptions>({
+    /** Body parser, defaults to Native js JSON */
+    bodyParser: JSON,
+    defaultResponseContentType: 'application/json; charset=utf-8',
+});
 
 /*
  * TODO: Ideally these should be extracted into the hooks package but we run into circular dependency problems.
  * being here means we are not compiling the runtime types for these hooks, and we have to
- * implement things getFakeInternalHookReflection so the router still works properly.
+ * implement thing getFakeInternalHookReflection so the router still works properly.
  */
 
-export function parseRequestBody(app, context: Context<any>) {
-    const routerOptions = getRouterOptions();
+export function parseJsonRequestBody(app, context: Context<any> | undefined) {
     const {request, rawCallContext} = context || getCallContext();
+    const {bodyParser} = getGlobalOptions<BodyParserOptions>();
     if (!rawCallContext.rawRequest?.body) return;
     if (typeof rawCallContext.rawRequest.body === 'string') {
         try {
-            const parsedBody = routerOptions.bodyParser.parse(rawCallContext.rawRequest.body);
+            const parsedBody = bodyParser.parse(rawCallContext.rawRequest.body);
             if (typeof parsedBody !== 'object')
                 return new RouteError({
                     statusCode: StatusCodes.BAD_REQUEST,
@@ -51,34 +75,26 @@ export function parseRequestBody(app, context: Context<any>) {
     }
 }
 
-export function stringifyResponseBody(app, context: Context<any>) {
-    const routerOptions = getRouterOptions();
-    const {response} = context || getCallContext();
+export function stringifyJsonResponseBody(app, context: Context<any> | undefined) {
+    const {response, rawCallContext} = context || getCallContext();
+    const {bodyParser, defaultResponseContentType} = getGlobalOptions<BodyParserOptions>();
     const respBody: Obj = response?.body;
+    rawCallContext.rawResponse.setHeader('content-type', defaultResponseContentType);
     try {
-        if (response?.publicErrors?.length) {
+        if (response.publicErrors.length) {
             respBody.errors = response.publicErrors;
-            (response.json as Mutable<string>) = routerOptions.bodyParser.stringify(response.publicErrors);
+            (response.json as Mutable<string>) = bodyParser.stringify(response.publicErrors);
         } else if (respBody) {
-            (response.json as Mutable<string>) = routerOptions.bodyParser.stringify(respBody);
+            (response.json as Mutable<string>) = bodyParser.stringify(respBody);
         }
     } catch (err: any) {
-        return new RouteError({
+        const routeError = new RouteError({
             statusCode: StatusCodes.INTERNAL_SERVER_ERROR,
             name: 'Stringify Response Body',
             publicMessage: `Invalid response body: ${err?.message || 'unknown parsing error.'}`,
             originalError: err,
         });
+        (response.json as Mutable<string>) = bodyParser.stringify([getPublicErrorFromRouteError(routeError)]);
+        return routeError;
     }
 }
-
-export const routerHooks = {
-    parseRequestBody: {
-        isInternal: true,
-        hook: parseRequestBody,
-    },
-    stringifyResponseBody: {
-        isInternal: true,
-        hook: stringifyResponseBody,
-    },
-} satisfies HooksCollection;

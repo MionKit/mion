@@ -4,14 +4,13 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
-import {registerRoutes, resetRouter} from '@mionkit/router';
+import {registerRoutes} from '@mionkit/router';
 import fetch from 'node-fetch'; // must be node-fetch v2 as v3 is a node module non compatible whit current setup
-import {initHttpRouter, resetHttpRouter, startHttpServer} from './mionHttp';
-import type {Context, Route} from '@mionkit/router';
+import {initHttpRouter, startHttpServer} from './mionHttp';
+import type {Route} from '@mionkit/router';
+import {Context} from '@mionkit/core';
 
 describe('serverless router should', () => {
-    resetRouter();
-    resetHttpRouter();
     type SimpleUser = {name: string; surname: string};
     type DataPoint = {date: Date};
     type MyApp = typeof app;

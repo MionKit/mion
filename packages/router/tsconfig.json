@@ -3,8 +3,8 @@
   "compilerOptions": {
     "outDir": ".dist/cjs"
   },
-  "include": ["."],
+  "include": [".", "../hooks/src/errors.ts", "../hooks/src/status-codes.ts", "../hooks/src/hooks.spec.ts"],
   "exclude": ["examples", ".dist"],
-  "references": [{"path": "../runtype"}],
+  "references": [{"path": "../runtype"}, {"path": "../hooks"}, {"path": "../core"}],
   "reflection": true
 }

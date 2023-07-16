@@ -5,20 +5,19 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {initRouter, getRouterOptions, dispatchRoute, generateRouteResponseFromOutsideError} from '@mionkit/router';
-import type {Obj, SharedDataFactory, RouterOptions, PublicError, Response} from '@mionkit/router';
+import {initRouter, dispatchRoute, generateRouteResponseFromOutsideError} from '@mionkit/router';
+import {Response, SharedDataFactory, getGlobalOptions, Obj} from '@mionkit/core';
+import {BodyParserOptions} from '@mionkit/hooks';
+import type {FullRouterOptions, RouterOptions} from '@mionkit/router';
 import type {Context as AwsContext, APIGatewayProxyResult, APIGatewayEvent} from 'aws-lambda';
 import type {AwsRawServerContext} from './types';
-
-let defaultResponseContentType: string;
 
 export const initAwsLambdaRouter = <App extends Obj, SharedData extends Obj>(
     app: App,
     sharedDataFactory?: SharedDataFactory<SharedData>,
-    routerOptions?: Partial<RouterOptions<AwsRawServerContext>>
+    routerOptions?: Partial<FullRouterOptions<AwsRawServerContext>>
 ) => {
     initRouter<App, SharedData, AwsRawServerContext>(app, sharedDataFactory, routerOptions);
-    defaultResponseContentType = getRouterOptions().responseContentType;
 };
 
 export const lambdaHandler = async (req: APIGatewayEvent, awsContext: AwsContext): Promise<APIGatewayProxyResult> => {
@@ -33,6 +32,7 @@ export const lambdaHandler = async (req: APIGatewayEvent, awsContext: AwsContext
 };
 
 const reply = (routeResponse: Response) => {
+    const {defaultResponseContentType} = getGlobalOptions<BodyParserOptions>();
     return {
         statusCode: routeResponse.statusCode,
         headers: {

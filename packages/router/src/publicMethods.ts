@@ -16,18 +16,18 @@ import {
 } from './router';
 import {
     Executable,
-    Handler,
     isHookDef,
     isRoute,
-    Obj,
     PublicMethods,
     PublicHandler,
     PublicHook,
     PublicRoute,
     Routes,
-    isPuplicExecutable,
+    isPublicExecutable,
 } from './types';
 import {getSerializedFunctionTypes} from '@mionkit/runtype';
+import {Handler} from '@mionkit/hooks';
+import {Obj} from '@mionkit/core';
 
 /**
  * Returns a data structure containing all public information and types of the routes.
@@ -77,7 +77,7 @@ const getPublicRouteFromExecutable = <H extends Handler>(executable: Executable,
         params: executable.reflection.handlerType.parameters.map((tp) => tp.name).slice(getRouteDefaultParams().length),
         publicExecutionPathPointers:
             getRouteExecutionPath(executable.path)
-                ?.filter((exec) => isPuplicExecutable(exec))
+                ?.filter((exec) => isPublicExecutable(exec))
                 .map((exec) => exec.selfPointer) || [],
     };
 };

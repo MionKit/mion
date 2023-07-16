@@ -88,23 +88,22 @@ The reason for this naming is to future proof the router to be able to accept mu
 import {setRouterOptions, registerRoutes} from '@mionkit/router';
 
 const sayHello = (app, ctx, name: string): string => {
-    return `Hello ${name}.`;
+  return `Hello ${name}.`;
 };
 
 const sayHello2 = {
-    route(app, ctx, name1: string, name2: string): string {
-        return `Hello ${name1} and ${name2}.`;
-    },
+  route(app, ctx, name1: string, name2: string): string {
+    return `Hello ${name1} and ${name2}.`;
+  },
 };
 
 const routes = {
-    sayHello, // api/sayHello
-    sayHello2, // api/sayHello2
+  sayHello, // api/sayHello
+  sayHello2, // api/sayHello2
 };
 
 setRouterOptions({prefix: 'api/'});
 export const apiSpec = registerRoutes(routes);
-
 ```
 
 ## `Automatic Serialization & Validation`
@@ -130,18 +129,17 @@ import {registerRoutes, initRouter} from '@mionkit/router';
 import type {User} from 'MyModels';
 
 const getUser = async (app, ctx, entity: {id: number}): Promise<User> => {
-    const user = await ctx.db.getUserById(entity.id);
-    return user;
+  const user = await ctx.db.getUserById(entity.id);
+  return user;
 };
 
 const routes = {
-    users: {
-        getUser, // api/users/getUser
-    },
+  users: {
+    getUser, // api/users/getUser
+  },
 };
 
 export const apiSpec = registerRoutes(routes);
-
 ```
 
 </td>
@@ -254,6 +252,15 @@ npx nx run @mionkit/router:build
 ## compiles typescript in all packages (NX will build only whats required)
 npx lerna run build
 ```
+
+#### Adding new packages
+
+Follow bellow steps to add a new package:
+
+- Copy an existing package into a new folder, so all ts config, scripts etc are working
+- Update pacakge.json to the new name ie: `@mionkit/mypacakge`
+- Add the new package to the workspaces config in the root package.json ie: `"workspaces": ["packages/mypacakge" ....]`
+- If your package depends on another ones, viceversa (another one depends on your package) add it to `package.json.dependencies` and `tsconfig.json.references` remember to update the 3 tsconfig files: `tsconfig.json`, `tsconfig.build.json`, `tsconfig.build-esm.json`
 
 ### ESLint and Prettier
 

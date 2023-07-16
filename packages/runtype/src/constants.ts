@@ -6,9 +6,10 @@
  * ######## */
 
 import {ReflectionOptions} from './types';
+import {addDefaultGlobalOptions} from '@mionkit/core';
 
 /** Reflection and Deepkit Serialization-Validation options */
-export const DEFAULT_REFLECTION_OPTIONS: Readonly<ReflectionOptions> = {
+export const DEFAULT_REFLECTION_OPTIONS = addDefaultGlobalOptions<ReflectionOptions>({
     /**
      * Deepkit Serialization Options
      * loosely defaults to false, Soft conversion disabled.
@@ -29,4 +30,4 @@ export const DEFAULT_REFLECTION_OPTIONS: Readonly<ReflectionOptions> = {
      * @link https://docs.deepkit.io/english/serialization.html#_naming_strategy
      * */
     serializerNamingStrategy: undefined,
-};
+});

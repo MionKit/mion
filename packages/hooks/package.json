@@ -1,0 +1,62 @@
+{
+  "name": "@mionkit/hooks",
+  "version": "0.4.2-alpha.0",
+  "description": "Core hooks required for mion router",
+  "keywords": [
+    "typescript",
+    "API",
+    "RPC",
+    "json",
+    "schema",
+    "generate",
+    "server",
+    "serverless",
+    "framework",
+    "node",
+    "runtime types",
+    "deepkit"
+  ],
+  "author": "ma jerez <jerez.m82@gmail.com>",
+  "homepage": "https://github.com/MionKit/mion/tree/main/packages/client#readme",
+  "license": "MIT",
+  "main": "./.dist/cjs/index.js",
+  "module": "./.dist/esm/index.js",
+  "types": "./.dist/cjs/index.d.ts",
+  "exports": {
+    ".": {
+      "require": "./.dist/cjs/index.js",
+      "default": "./.dist/esm/index.js"
+    }
+  },
+  "directories": {
+    "lib": ".dist"
+  },
+  "files": [
+    ".dist"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MionKit/mion.git"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "test": "jest",
+    "dev": "rimraf .dist && tsc --build tsconfig.build.json --watch",
+    "dev:test": "jest --watch",
+    "lint": "eslint src --ext .ts",
+    "format": "prettier --write src/**/*.ts",
+    "build:csj": "rimraf .dist/csj && tsc --project tsconfig.build.json",
+    "build:esm": "rimraf .dist/esm && tsc --project tsconfig.build-esm.json",
+    "build": "npm run build:csj && npm run build:esm",
+    "auto-readme": "embedme **/*.md && prettier --write **/*.md",
+    "clean": "rimraf .dist & rimraf .coverage"
+  },
+  "bugs": {
+    "url": "https://github.com/MionKit/mion/issues"
+  },
+  "dependencies": {
+    "@mionkit/core": "^0.4.2-alpha.0"
+  }
+}

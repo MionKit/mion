@@ -6,11 +6,9 @@
  * ######## */
 
 import {join} from 'path';
-import {DEFAULT_ROUTE, DEFAULT_ROUTE_OPTIONS, MAX_ROUTE_NESTING, ROUTE_PATH_ROOT} from './constants';
+import {DEFAULT_ROUTE, MAX_ROUTE_NESTING, ROUTE_PATH_ROOT} from './constants';
 import {
     Executable,
-    Handler,
-    HookDef,
     isExecutable,
     isHandler,
     isHookDef,
@@ -20,18 +18,27 @@ import {
     RouteDef,
     RouterOptions,
     Routes,
-    Obj,
-    SharedDataFactory,
-    RawServerCallContext,
     RouteExecutable,
     HookExecutable,
     PublicMethods,
     ExecutableMicroTask,
-    HooksCollection,
+    FullRouterOptions,
 } from './types';
 import {FunctionReflection, getFunctionReflectionMethods} from '@mionkit/runtype';
-import {setAutoGenerateErrorId} from './errors';
-import {routerHooks} from './hooks';
+import {
+    Obj,
+    RawServerCallContext,
+    SharedDataFactory,
+    Response,
+    StatusCodes,
+    RouteError,
+    getPublicErrorFromRouteError,
+    updateGlobalOptions,
+    getGlobalOptions,
+    resetGlobalOptions,
+    CoreOptions,
+} from '@mionkit/core';
+import {BodyParserOptions, Handler, HookDef, HooksCollection, mionHooks} from '@mionkit/hooks';
 
 type RouterKeyEntryList = [string, Routes | HookDef | Route][];
 type RouteEntryProperties = ReturnType<typeof getRouteEntryProperties>;
@@ -50,9 +57,6 @@ const routeNames: Map<string, boolean> = new Map();
 let complexity = 0;
 let app: Obj | undefined;
 let sharedDataFactoryFunction: SharedDataFactory<any> | undefined;
-let routerOptions: RouterOptions = {
-    ...DEFAULT_ROUTE_OPTIONS,
-};
 
 /** Global hooks to be run before any other hooks or routes set using `registerRoutes` */
 let startHooks: Executable[] = [];
@@ -71,7 +75,6 @@ export const getRouteExecutable = (path: string) => routesByPath.get(path);
 export const getHookExecutable = (fieldName: string) => hooksByFieldName.get(fieldName);
 export const geHooksSize = () => hooksByFieldName.size;
 export const getComplexity = () => complexity;
-export const getRouterOptions = (): Readonly<RouterOptions> => routerOptions;
 export const getSharedDataFactory = () => sharedDataFactoryFunction;
 export const getApp = (): Readonly<typeof app> => app;
 
@@ -85,12 +88,12 @@ export const getApp = (): Readonly<typeof app> => app;
 export async function initRouter<App extends Obj, SharedData, RawContext extends RawServerCallContext = RawServerCallContext>(
     application: App,
     sharedDataFactory?: SharedDataFactory<SharedData>,
-    routerOptions?: Partial<RouterOptions<RawContext>>
+    routerOptions?: Partial<FullRouterOptions<RawContext>>
 ) {
     if (app) throw new Error('Router already initialized');
     app = application;
     sharedDataFactoryFunction = sharedDataFactory;
-    setRouterOptions(routerOptions);
+    updateGlobalOptions(routerOptions);
     loadRouterHooks();
 }
 
@@ -98,23 +101,12 @@ export function registerRoutes<R extends Routes>(routes: R): PublicMethods<R> {
     if (!app) throw new Error('Router has not been initialized yet');
     recursiveFlatRoutes(routes);
     // we only want to get information about the routes when creating api spec
-    if (routerOptions.getPublicRoutesData || process.env.GENERATE_ROUTER_SPEC === 'true') {
+    if (getGlobalOptions<RouterOptions>().getPublicRoutesData || process.env.GENERATE_ROUTER_SPEC === 'true') {
         // eslint-disable-next-line @typescript-eslint/no-var-requires
         const {getPublicRoutes} = require('./publicMethods');
         return getPublicRoutes(routes) as PublicMethods<R>;
     }
     return {} as PublicMethods<R>;
-}
-
-export function setRouterOptions<ServerContext extends RawServerCallContext = RawServerCallContext>(
-    routerOptions_?: Partial<RouterOptions<ServerContext>>
-) {
-    routerOptions = {
-        ...routerOptions,
-        ...(routerOptions_ as Partial<RouterOptions>),
-    };
-
-    setAutoGenerateErrorId(routerOptions.autoGenerateErrorId);
 }
 
 export function resetRouter() {
@@ -126,10 +118,7 @@ export function resetRouter() {
     complexity = 0;
     app = undefined;
     sharedDataFactoryFunction = undefined;
-    // contextType = undefined;
-    routerOptions = {
-        ...DEFAULT_ROUTE_OPTIONS,
-    };
+    resetGlobalOptions();
 }
 
 export function getRouteExecutionPath(path: string) {
@@ -141,6 +130,7 @@ export function getRoutePathFromPointer(route: Route, pointer: string[]) {
 }
 
 export function getRoutePath(route: Route, path: string) {
+    const routerOptions = getGlobalOptions<RouterOptions>();
     const routePath = join(ROUTE_PATH_ROOT, routerOptions.prefix, (route as RouteDef)?.path || path);
     return routerOptions.suffix ? routePath + routerOptions.suffix : routePath;
 }
@@ -150,12 +140,14 @@ export function getHookFieldName(item: HookDef, key: string) {
 }
 
 export function getRouteDefaultParams(): string[] {
+    const routerOptions = getGlobalOptions<CoreOptions>();
     if (!routerOptions.useAsyncCallContext) {
         return ['app', 'context'];
     }
     return [];
 }
 
+/** Add hooks at the start af the execution path, adds them before any other existing start hooks by default */
 export function addStartHooks(hooksDef: HooksCollection, appendAfterExisting = false) {
     if (flatRouter.size) throw new Error('Can not add start hooks after the router has been initialized');
     const hooks = Object.entries(hooksDef).map(([key, hook]) => getExecutableFromHook(hook, [key], 0, key));
@@ -166,6 +158,7 @@ export function addStartHooks(hooksDef: HooksCollection, appendAfterExisting = f
     startHooks = [...startHooks, ...hooks];
 }
 
+/** Add hooks at the end af the execution path, adds them after any other existing end hooks by default */
 export function addEndHooks(hooksDef: HooksCollection, prependAfterExisting = false) {
     if (flatRouter.size) throw new Error('Can not add end hooks after the router has been initialized');
     const hooks = Object.entries(hooksDef).map(([key, hook]) => getExecutableFromHook(hook, [key], 0, key));
@@ -193,6 +186,35 @@ export function addPostExecutableMicroTasks(microTasks: ExecutableMicroTask[], p
     }
     postExecutableMicroTasks = [...microTasks, ...postExecutableMicroTasks];
 }
+
+/**
+ * This is a function to be called from outside the router.
+ * Whenever there is an error outside the router, this function should be called.
+ * So error keep the same format as when they were generated inside the router.
+ * This also stringifies public errors into response.json.
+ * @param routeResponse
+ * @param originalError
+ */
+export const generateRouteResponseFromOutsideError = (
+    originalError: any,
+    statusCode: StatusCodes = StatusCodes.INTERNAL_SERVER_ERROR,
+    publicMessage = 'Internal Error'
+): Response => {
+    const routerOptions = getGlobalOptions<BodyParserOptions>();
+    const error = new RouteError({
+        statusCode,
+        publicMessage,
+        originalError,
+    });
+    const publicErrors = [getPublicErrorFromRouteError(error)];
+    return {
+        statusCode,
+        publicErrors,
+        headers: {},
+        body: {},
+        json: routerOptions.bodyParser.stringify(publicErrors),
+    };
+};
 
 // ############# PRIVATE METHODS #############
 
@@ -338,6 +360,7 @@ function getHandler(entry: HookDef | Route, pathPointer: string[]): Handler {
 }
 
 function getExecutableFromHook(hook: HookDef, hookPointer: string[], nestLevel: number, key: string): HookExecutable<Handler> {
+    const routerOptions = getGlobalOptions<FullRouterOptions>();
     const hookName = getHookFieldName(hook, key);
     const existing = hooksByFieldName.get(hookName);
     if (existing) return existing as HookExecutable<Handler>;
@@ -360,12 +383,7 @@ function getExecutableFromHook(hook: HookDef, hookPointer: string[], nestLevel: 
     const inHeader = hook.isInternal ? false : !!hook.inHeader;
     const reflection = hook.isInternal
         ? getFakeInternalHookReflection()
-        : getFunctionReflectionMethods(
-              handler,
-              routerOptions.reflectionOptions,
-              getRouteDefaultParams().length,
-              routerOptions.lazyLoadReflection
-          );
+        : getFunctionReflectionMethods(handler, routerOptions, getRouteDefaultParams().length, routerOptions.lazyLoadReflection);
 
     const executable: HookExecutable<Handler> = {
         path: hookName,
@@ -388,6 +406,7 @@ function getExecutableFromHook(hook: HookDef, hookPointer: string[], nestLevel: 
 }
 
 function getExecutableFromRoute(route: Route, routePointer: string[], nestLevel: number): RouteExecutable<Handler> {
+    const routerOptions = getGlobalOptions<FullRouterOptions>();
     const routePath = getRoutePathFromPointer(route, routePointer);
     const existing = routesByPath.get(routePath);
     if (existing) return existing as RouteExecutable<Handler>;
@@ -404,7 +423,7 @@ function getExecutableFromRoute(route: Route, routePointer: string[], nestLevel:
         handler,
         reflection: getFunctionReflectionMethods(
             handler,
-            routerOptions.reflectionOptions,
+            routerOptions,
             getRouteDefaultParams().length,
             routerOptions.lazyLoadReflection
         ),
@@ -465,8 +484,8 @@ let hooksLoaded = false;
 function loadRouterHooks() {
     if (hooksLoaded) return;
     hooksLoaded = true;
-    const routerStartHooks = {parseRequestBody: routerHooks.parseRequestBody};
-    const routerEndHooks = {stringifyResponseBody: routerHooks.stringifyResponseBody};
+    const routerStartHooks = {parseRequestBody: mionHooks.parseJsonRequestBody};
+    const routerEndHooks = {stringifyResponseBody: mionHooks.stringifyJsonResponseBody};
     addStartHooks(routerStartHooks);
     addEndHooks(routerEndHooks);
 }

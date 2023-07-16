@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import type {Context, Obj} from '@mionkit/router';
+import type {Context, Obj} from '@mionkit/core';
 import type {Context as AwsContext, APIGatewayEvent} from 'aws-lambda';
 
 export type AwsRawServerContext = {

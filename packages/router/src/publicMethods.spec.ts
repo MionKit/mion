@@ -5,10 +5,11 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {DEFAULT_ROUTE_OPTIONS, DEFAULT_HOOK} from './constants';
+import {DEFAULT_HOOK, DEFAULT_HOOKS_OPTIONS} from '@mionkit/hooks';
+import {DEFAULT_ROUTE_OPTIONS} from './constants';
 import {getPublicRoutes} from './publicMethods';
 import {registerRoutes, initRouter, resetRouter, getRouteDefaultParams} from './router';
-import {getFunctionReflectionMethods} from '@mionkit/runtype';
+import {DEFAULT_REFLECTION_OPTIONS, getFunctionReflectionMethods} from '@mionkit/runtype';
 
 describe('Public Mothods should', () => {
     type SimpleUser = {name: string; surname: string};
@@ -76,8 +77,8 @@ describe('Public Mothods should', () => {
                 canReturnData: DEFAULT_HOOK.canReturnData,
                 inHeader: DEFAULT_HOOK.inHeader,
                 fieldName: 'hook',
-                enableValidation: DEFAULT_ROUTE_OPTIONS.enableValidation,
-                enableSerialization: DEFAULT_ROUTE_OPTIONS.enableSerialization,
+                enableValidation: DEFAULT_HOOKS_OPTIONS.enableValidation,
+                enableSerialization: DEFAULT_HOOKS_OPTIONS.enableSerialization,
             }),
             routes: {
                 route1: expect.objectContaining({
@@ -86,8 +87,8 @@ describe('Public Mothods should', () => {
                     canReturnData: true,
                     path: '/routes/route1',
                     inHeader: false,
-                    enableValidation: DEFAULT_ROUTE_OPTIONS.enableValidation,
-                    enableSerialization: DEFAULT_ROUTE_OPTIONS.enableSerialization,
+                    enableValidation: DEFAULT_HOOKS_OPTIONS.enableValidation,
+                    enableSerialization: DEFAULT_HOOKS_OPTIONS.enableSerialization,
                 }),
             },
         });
@@ -101,7 +102,7 @@ describe('Public Mothods should', () => {
         const api = registerRoutes(testR);
         const reflection = getFunctionReflectionMethods(
             testR.addMilliseconds,
-            DEFAULT_ROUTE_OPTIONS.reflectionOptions,
+            DEFAULT_REFLECTION_OPTIONS,
             getRouteDefaultParams().length
         );
         const date = new Date('2022-12-19T00:24:00.00');

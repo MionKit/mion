@@ -14,12 +14,13 @@ import {
     getRouteExecutionPath,
     getRouteExecutable,
     resetRouter,
-    setRouterOptions,
     initRouter,
     addStartHooks,
     addEndHooks,
 } from './router';
-import {Handler, HookDef, RouteDef, Routes} from './types';
+import type {Handler, HookDef} from '@mionkit/hooks';
+import type {RouteDef, Routes} from './types';
+import {updateGlobalOptions} from '@mionkit/core';
 
 describe('Create routes should', () => {
     const hook: HookDef = {hook(): void {}};
@@ -216,7 +217,7 @@ describe('Create routes should', () => {
 
     it('add prefix & suffix to routes', () => {
         initRouter({}, () => {});
-        setRouterOptions({prefix: 'api/v1', suffix: '.json'});
+        updateGlobalOptions({prefix: 'api/v1', suffix: '.json'});
         registerRoutes(routes);
 
         expect(geRoutesSize()).toEqual(5);
@@ -263,7 +264,7 @@ describe('Create routes should', () => {
 
     it('customize route paths', () => {
         initRouter({}, () => {});
-        setRouterOptions({prefix: 'api/v1'});
+        updateGlobalOptions({prefix: 'api/v1'});
 
         const routes: Routes = {
             u: {

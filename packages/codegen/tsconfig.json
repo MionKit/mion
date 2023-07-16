@@ -6,5 +6,5 @@
   "reflection": true,
   "include": [".", "src/test/.spec/result-spec-api.ts"],
   "exclude": ["examples", ".dist", "src/test/.spec"],
-  "references": [{"path": "../router"}, {"path": "../client"}]
+  "references": [{"path": "../router"}, {"path": "../client"}, {"path": "../core"}]
 }

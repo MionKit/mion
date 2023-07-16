@@ -5,8 +5,6 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {ClientContext} from 'aws-lambda';
-import fetch from 'node-fetch';
 import {DEFAULT_PREFILL_OPTIONS} from './constants';
 import {RemoteHandler, ClientOptions, RemoteCall, RequestData, ResponseData} from './types';
 
@@ -40,7 +38,7 @@ export const remote = <REQ extends RequestData, RESP extends ResponseData>(
             const headers = getHeaders(requestData, null);
             const body = getBody(requestData, null);
             // TODO split data in headers
-            const response = await fetch(clientOptions.apiURL, {
+            const response = await window.fetch(clientOptions.apiURL, {
                 headers: {
                     'Content-Type': 'application/json',
                     ...headers,

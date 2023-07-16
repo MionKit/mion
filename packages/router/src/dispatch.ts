@@ -5,17 +5,23 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {Executable, Context, Obj, Response, RawServerCallContext, Mutable, Request, RouterOptions, SimpleHandler} from './types';
-import {StatusCodes} from './status-codes';
-import {RouteError, PublicError} from './errors';
-import {getApp, getRouteExecutionPath, getRouterOptions, getSharedDataFactory} from './router';
-import {AsyncLocalStorage} from 'node:async_hooks';
-
-const asyncLocalStorage = new AsyncLocalStorage();
-
-export function getCallContext<R extends Context<any, RawServerCallContext>>(): R {
-    return asyncLocalStorage.getStore() as R;
-}
+import {Executable, FullRouterOptions, RouterOptions} from './types';
+import {getApp, getRouteExecutionPath, getSharedDataFactory} from './router';
+import {
+    Context,
+    Mutable,
+    Obj,
+    PublicError,
+    RawServerCallContext,
+    Request,
+    Response,
+    RouteError,
+    StatusCodes,
+    getAsyncLocalStorage,
+    getGlobalOptions,
+    getPublicErrorFromRouteError,
+} from '@mionkit/core';
+import {SimpleHandler} from '@mionkit/hooks';
 
 type CallBack = (err: any, response: Response | undefined) => void;
 
@@ -51,7 +57,7 @@ function _dispatchRoute<RawCallContext extends RawServerCallContext>(
     cb: CallBack
 ): Promise<Response> | void {
     try {
-        const opts = getRouterOptions();
+        const opts = getGlobalOptions<FullRouterOptions>();
         const transformedPath = opts.pathTransform ? opts.pathTransform(rawCallContext.rawRequest, path) : path;
         const sharedFactory = getSharedDataFactory();
         const context: Context<any, RawCallContext> = {
@@ -92,7 +98,7 @@ function runExecutionPath(
     step: number,
     context: Context<any, RawServerCallContext>,
     executionPath: Executable[],
-    opts: RouterOptions,
+    opts: FullRouterOptions,
     end: () => void
 ) {
     const executable = executionPath[step];
@@ -126,9 +132,10 @@ function runHandler(
     handlerParams: any[],
     context: Context<any, RawServerCallContext>,
     executable: Executable,
-    opts: RouterOptions,
+    opts: FullRouterOptions,
     cb: CallBack
 ) {
+    const asyncLocalStorage = getAsyncLocalStorage();
     const resp = !opts.useAsyncCallContext
         ? executable.handler(getApp(), context, ...handlerParams)
         : asyncLocalStorage.run(context, () => {
@@ -147,7 +154,7 @@ function runHandler(
 
 // ############# PRIVATE METHODS #############
 
-const deserializeAndValidateParameters = (request: Request, executable: Executable, routerOptions: RouterOptions): any[] => {
+const deserializeAndValidateParameters = (request: Request, executable: Executable, routerOptions: FullRouterOptions): any[] => {
     const fieldName = executable.fieldName;
     let params;
 
@@ -210,7 +217,7 @@ const deserializeAndValidateParameters = (request: Request, executable: Executab
     return params;
 };
 
-const serializeResponse = (response: Response, executable: Executable, result: any, routerOptions: RouterOptions) => {
+const serializeResponse = (response: Response, executable: Executable, result: any, routerOptions: FullRouterOptions) => {
     if (!executable.canReturnData || result === undefined) return;
     const serialized = routerOptions.enableSerialization ? executable.reflection.serializeReturn(result) : result;
     if (executable.inHeader) response.headers[executable.fieldName] = serialized;
@@ -231,45 +238,4 @@ const handleRouteErrors = (request: Request, response: Response, err: any, execu
     const publicError = getPublicErrorFromRouteError(routeError);
     (response.publicErrors as Mutable<PublicError[]>).push(publicError);
     (request.internalErrors as Mutable<RouteError[]>).push(routeError);
-};
-
-/**
- * This is a function to be called from outside the router.
- * Whenever there is an error outside the router, this function should be called.
- * So error keep the same format as when they were generated inside the router.
- * This also stringifies public errors into response.json.
- * @param routeResponse
- * @param originalError
- */
-export const generateRouteResponseFromOutsideError = (
-    originalError: any,
-    statusCode: StatusCodes = StatusCodes.INTERNAL_SERVER_ERROR,
-    publicMessage = 'Internal Error'
-): Response => {
-    const routerOptions = getRouterOptions();
-    const error = new RouteError({
-        statusCode,
-        publicMessage,
-        originalError,
-    });
-    const publicErrors = [getPublicErrorFromRouteError(error)];
-    return {
-        statusCode,
-        publicErrors,
-        headers: {},
-        body: {},
-        json: routerOptions.bodyParser.stringify(publicErrors),
-    };
-};
-
-export const getPublicErrorFromRouteError = (routeError: RouteError): PublicError => {
-    // creating a new public error object to avoid exposing the original error
-    const publicError: PublicError = {
-        name: routeError.name,
-        statusCode: routeError.statusCode,
-        message: routeError.publicMessage,
-    };
-    if (routeError.id) publicError.id = routeError.id;
-    if (routeError.publicData) publicError.errorData = routeError.publicData;
-    return publicError;
 };
