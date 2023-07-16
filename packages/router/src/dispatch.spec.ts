@@ -167,6 +167,23 @@ describe('Dispatch routes', () => {
             expect(contextAfter as any).not.toBeDefined();
             expect(response.body[path]).toEqual(4);
         });
+
+        it('support async handlers', async () => {
+            initRouter(myApp, getSharedData);
+            registerRoutes({
+                sumTwo: async (app, ctx, val: number) => {
+                    return new Promise((resolve) => {
+                        setTimeout(() => {
+                            resolve(val + 2);
+                        }, 500);
+                    });
+                },
+            });
+            const path = '/sumTwo';
+            const request = getDefaultRequest(path, [2]);
+            const response = await dispatchRoute(path, {rawRequest: request});
+            expect(response.body[path]).toEqual(4);
+        });
     });
 
     describe('fail path should', () => {
