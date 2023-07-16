@@ -30,6 +30,8 @@ import {
     ExecutableMicroTask,
     FullRouterOptions,
     SerializationOptions,
+    InternalHookExecutable,
+    isInternalHook,
 } from './types';
 import {FunctionReflection, getFunctionReflectionMethods} from '@mionkit/runtype';
 import {
@@ -46,7 +48,7 @@ import {
     CoreOptions,
     addDefaultGlobalOptions,
 } from '@mionkit/core';
-import {BodyParserOptions, Handler, HookDef, HooksCollection, mionHooks} from '@mionkit/hooks';
+import {BodyParserOptions, Handler, HookDef, InternalHookDef, InternalHooksCollection, mionHooks} from '@mionkit/hooks';
 
 type RouterKeyEntryList = [string, Routes | HookDef | Route][];
 type RouteEntryProperties = ReturnType<typeof getRouteEntryProperties>;
@@ -67,10 +69,10 @@ let app: Obj | undefined;
 let sharedDataFactoryFunction: SharedDataFactory<any> | undefined;
 /** Global hooks to be run before any other hooks or routes set using `registerRoutes` */
 let startHooks: Executable[] = [];
-let startHooksDef: HooksCollection = {};
+let startHooksDef: InternalHooksCollection = {};
 /** Global hooks to be run after any other hooks or routes set using `registerRoutes` */
 let endHooks: Executable[] = [];
-let endHooksDef: HooksCollection = {};
+let endHooksDef: InternalHooksCollection = {};
 /** functions to be run before every executable. i.e: validation, serialization. */
 let preExecutableMicroTasks: ExecutableMicroTask[] = [];
 let postExecutableMicroTasks: ExecutableMicroTask[] = [];
@@ -113,7 +115,7 @@ export async function initRouter<App extends Obj, SharedData, RawContext extends
 
 export function registerRoutes<R extends Routes>(routes: R): PublicMethods<R> {
     if (!app) throw new Error('Router has not been initialized yet');
-    setStartAndEndExecutables();
+    setStartAndEndInternalExecutables();
     recursiveFlatRoutes(routes);
     // we only want to get information about the routes when creating api spec
     const {getPublicRoutesData} = getGlobalOptions<RouterOptions>();
@@ -149,7 +151,7 @@ export function getRouteExecutionPath(path: string) {
 export function getNotFoundExecutionPath(): Executable[] {
     if (notFoundExecutionPath) return notFoundExecutionPath;
     const hookName = 'mion404NotfoundHook';
-    const notFoundHandlerExecutable = _getExecutableFromHook(mionHooks.mion404Hook, [hookName], 0, hookName);
+    const notFoundHandlerExecutable = getExecutableFromHook(mionHooks.mion404Hook, [hookName], 0, hookName);
     notFoundExecutionPath = [...startHooks, notFoundHandlerExecutable, ...endHooks];
     return notFoundExecutionPath;
 }
@@ -177,9 +179,8 @@ export function getRouteDefaultParams(): string[] {
 }
 
 /** Add hooks at the start af the execution path, adds them before any other existing start hooks by default */
-export function addStartHooks(hooksDef: HooksCollection, appendBeforeExisting = true) {
+export function addStartHooks(hooksDef: InternalHooksCollection, appendBeforeExisting = true) {
     if (flatRouter.size) throw new Error('Can not add start hooks after the router has been initialized');
-    const hooks = Object.entries(hooksDef).map(([key, hook]) => getExecutableFromHook(hook, [key], 0, key));
     if (appendBeforeExisting) {
         startHooksDef = {...hooksDef, ...startHooksDef};
         return;
@@ -188,9 +189,8 @@ export function addStartHooks(hooksDef: HooksCollection, appendBeforeExisting = 
 }
 
 /** Add hooks at the end af the execution path, adds them after any other existing end hooks by default */
-export function addEndHooks(hooksDef: HooksCollection, prependAfterExisting = true) {
+export function addEndHooks(hooksDef: InternalHooksCollection, prependAfterExisting = true) {
     if (flatRouter.size) throw new Error('Can not add end hooks after the router has been initialized');
-
     if (prependAfterExisting) {
         endHooksDef = {...endHooksDef, ...hooksDef};
         return;
@@ -389,11 +389,18 @@ function getHandler(entry: HookDef | Route, pathPointer: string[]): Handler {
     return handler;
 }
 
-function getExecutableFromHook(hook: HookDef, hookPointer: string[], nestLevel: number, key: string): HookExecutable<Handler> {
-    const hookName = getHookFieldName(hook, key);
+function getExecutableFromHook(
+    hook: HookDef | InternalHookDef,
+    hookPointer: string[],
+    nestLevel: number,
+    key: string
+): HookExecutable<Handler> | InternalHookExecutable {
+    const hookName = isInternalHook(hook) ? key : getHookFieldName(hook, key);
     const existing = hooksByFieldName.get(hookName);
     if (existing) return existing as HookExecutable<Handler>;
-    const executable = _getExecutableFromHook(hook, hookPointer, nestLevel, hookName);
+    const executable = isInternalHook(hook)
+        ? _getExecutableFromInternalHook(hook, hookPointer, nestLevel, hookName)
+        : _getExecutableFromHook(hook, hookPointer, nestLevel, hookName);
     // this delete is not required at the moment but it will be if we want to add the ability to extend Routes or Hook definition objects
     delete (executable as any).hook;
     hooksByFieldName.set(hookName, executable);
@@ -417,27 +424,52 @@ function _getExecutableFromHook(
         throw new Error(`Invalid Hook: ${join(...hookPointer)}. The 'errors' fieldName is reserver for the router.`);
     }
 
-    const enableValidation = hook.isInternal ? false : hook.enableValidation ?? routerOptions.enableValidation;
-    const enableSerialization = hook.isInternal ? false : hook.enableSerialization ?? routerOptions.enableSerialization;
-    const forceRunOnError = hook.isInternal ? true : !!hook.forceRunOnError;
-    const canReturnData = hook.isInternal ? false : !!hook.canReturnData;
-    const inHeader = hook.isInternal ? false : !!hook.inHeader;
-    const reflection = hook.isInternal
-        ? getFakeInternalHookReflection()
-        : getFunctionReflectionMethods(handler, routerOptions, getRouteDefaultParams().length, routerOptions.lazyLoadReflection);
-
     const executable: HookExecutable<Handler> = {
         path: hookName,
-        forceRunOnError,
-        canReturnData,
-        inHeader,
+        forceRunOnError: !!hook.forceRunOnError,
+        canReturnData: !!hook.canReturnData,
+        inHeader: !!hook.inHeader,
         nestLevel,
         fieldName: hookName,
         isRoute: false,
+        isInternal: false,
         handler,
-        reflection,
-        enableValidation,
-        enableSerialization,
+        reflection: getFunctionReflectionMethods(
+            handler,
+            routerOptions,
+            getRouteDefaultParams().length,
+            routerOptions.lazyLoadReflection
+        ),
+        enableValidation: hook.enableValidation ?? routerOptions.enableValidation,
+        enableSerialization: hook.enableSerialization ?? routerOptions.enableSerialization,
+        src: hook,
+        selfPointer: hookPointer,
+    };
+    return executable;
+}
+
+function _getExecutableFromInternalHook(
+    hook: InternalHookDef,
+    hookPointer: string[],
+    nestLevel: number,
+    hookName: string
+): InternalHookExecutable {
+    const routerOptions = getGlobalOptions<FullRouterOptions>();
+    const handler = hook.internalHook;
+
+    const executable: InternalHookExecutable = {
+        path: hookName,
+        forceRunOnError: true,
+        canReturnData: false,
+        inHeader: false,
+        nestLevel,
+        fieldName: hookName,
+        isRoute: false,
+        isInternal: true,
+        handler,
+        reflection: getFakeInternalHookReflection(),
+        enableValidation: false,
+        enableSerialization: false,
         src: hook,
         selfPointer: hookPointer,
     };
@@ -471,6 +503,7 @@ function _getExecutableFromRoute(
         inHeader: false,
         fieldName: routerOptions.routeFieldName ? routerOptions.routeFieldName : routePath,
         isRoute: true,
+        isInternal: false,
         nestLevel,
         handler,
         reflection: getFunctionReflectionMethods(
@@ -530,7 +563,7 @@ function getRouteEntryProperties(
     };
 }
 
-function setStartAndEndExecutables() {
+function setStartAndEndInternalExecutables() {
     startHooks = Object.entries(startHooksDef).map(([key, hook]) => getExecutableFromHook(hook, [key], 0, key));
     endHooks = Object.entries(endHooksDef).map(([key, hook]) => getExecutableFromHook(hook, [key], 0, key));
 }

@@ -13,9 +13,9 @@ import {mionHooks} from '.';
 
 describe('hooks should', () => {
     it('export hooks with the internal flags', () => {
-        expect(mionHooks.mionHttpConnectionHook.isInternal).toBeTruthy();
-        expect(mionHooks.mionHttpCloseConnectionHook.isInternal).toBeTruthy();
-        expect(mionHooks.mionParseJsonRequestBodyHook.isInternal).toBeTruthy();
-        expect(mionHooks.mionStringifyJsonResponseBodyHook.isInternal).toBeTruthy();
+        expect(mionHooks.mionHttpConnectionHook).toBeTruthy();
+        expect(mionHooks.mionHttpCloseConnectionHook).toBeTruthy();
+        expect(mionHooks.mionParseJsonRequestBodyHook).toBeTruthy();
+        expect(mionHooks.mionStringifyJsonResponseBodyHook).toBeTruthy();
     });
 });

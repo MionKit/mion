@@ -5,9 +5,14 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import type {Context} from '@mionkit/core';
+import type {Context, RouteError} from '@mionkit/core';
 
 // ####### Hooks #######
+
+export type InternalHookHandler<CallContext extends Context<any> = Context<any>> = (
+    ctx: CallContext,
+    cb: (err?: Error | RouteError) => void
+) => void;
 
 export type SimpleHandler<Ret = any> = (
     /** Remote Call parameters */
@@ -22,11 +27,6 @@ export type Handler<App = any, CallContext extends Context<any> = Context<any>, 
     context: CallContext,
     /** Remote Call parameters */
     ...parameters: any
-) => Ret | Promise<Ret>;
-
-export type InternalHook<CallContext extends Context<any> = Context<any>, Ret = any> = (
-    app: any,
-    context: CallContext
 ) => Ret | Promise<Ret>;
 
 /** Hook definition, a function that hooks into the execution path */
@@ -46,23 +46,25 @@ export type HookDef<App = any, CallContext extends Context<any> = Context<any>, 
     enableValidation?: boolean;
     /** Enables serialization/deserialization */
     enableSerialization?: boolean;
-    /** Used for internal hooks that are required for processing the request/response.
-     * It is equivalent to:
-     *  - forceRunOnError: true
-     *  - canReturnData: false
-     *  - inHeader: false
-     *  - enableValidation: false
-     *  - enableSerialization: false
-     * These hooks should only modify the call context and net get any remote parameters or return any data.
-     */
-    isInternal?: boolean;
     /** Hook handler */
     hook: Handler<App, CallContext, Ret> | SimpleHandler<Ret>;
 };
 
-export type HooksCollection = {
-    [key: string]: HookDef;
+/** Internal hook
+ * It is equivalent to:
+ *  - forceRunOnError: true
+ *  - canReturnData: false
+ *  - inHeader: false
+ *  - enableValidation: false
+ *  - enableSerialization: false
+ * These hooks should only modify the call context and net get any remote parameters or return any data.
+ */
+export type InternalHookDef<CallContext extends Context<any> = Context<any>> = {
+    internalHook: InternalHookHandler<CallContext>;
+};
+
+export type InternalHooksCollection = {
+    [key: string]: InternalHookDef<any>;
 };
 
 // ####### Options #######
-

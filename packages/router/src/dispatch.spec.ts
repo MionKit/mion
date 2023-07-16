@@ -149,7 +149,6 @@ describe('Dispatch routes', () => {
 
             // note that when using async local context the app and context parameters are not passed to the handler
             const sumTwo = (val: number) => {
-                console.log('sumTwo');
                 appFromModule = getApp();
                 asyncCallContext = getCallContext();
                 return val + 2;

@@ -7,7 +7,7 @@
 
 import {mionParseJsonRequestBodyHook, mionStringifyJsonResponseBodyHook} from './jsonBodyParser';
 import {mionHttpCloseConnectionHook, mionHttpConnectionHook} from './httpConnection';
-import {HooksCollection} from './types';
+import {InternalHooksCollection} from './types';
 import {RouteError, StatusCodes} from '@mionkit/core';
 
 export const mionHooks = {
@@ -16,9 +16,8 @@ export const mionHooks = {
     mionHttpConnectionHook,
     mionHttpCloseConnectionHook,
     mion404Hook: {
-        isInternal: true,
-        hook: () => {
-            return new RouteError({statusCode: StatusCodes.NOT_FOUND, publicMessage: `Route not found`});
+        internalHook: (ctx, cb) => {
+            cb(new RouteError({statusCode: StatusCodes.NOT_FOUND, publicMessage: `Route not found`}));
         },
     },
-} satisfies HooksCollection;
+} satisfies InternalHooksCollection;

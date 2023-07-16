@@ -18,7 +18,7 @@ import {
     statusCodeToReasonPhrase,
 } from '@mionkit/core';
 import {IncomingMessage, ServerResponse} from 'http';
-import {HookDef} from './types';
+import {HookDef, InternalHookDef} from './types';
 
 export type HttpRequest = IncomingMessage & {body: string};
 export type HttpRawServerContext = RawServerCallContext<HttpRequest, ServerResponse>;
@@ -42,8 +42,7 @@ export const DEFAULT_HTTP_CONNECTION_OPTIONS = addDefaultGlobalOptions<HttpConne
 
 /** Handles http connection, and fills the raw request body */
 export const mionHttpConnectionHook = {
-    isInternal: true,
-    hook: (app, context: HttpCallContext<any> | undefined) => {
+    internalHook: (context, cb) => {
         const {rawCallContext} = context || getCallContext();
         const httpReq = rawCallContext.rawRequest as HttpRequest;
         const httpResponse = rawCallContext.rawResponse as ServerResponse;
@@ -53,59 +52,56 @@ export const mionHttpConnectionHook = {
         const bodyChunks: any[] = [];
         const {maxBodySize} = getGlobalOptions<HttpConnectionOptions>();
 
-        return new Promise<void>((resolve, reject) => {
-            httpReq.on('data', (data) => {
-                bodyChunks.push(data);
-                const chunkLength = bodyChunks[bodyChunks.length - 1].length;
-                size += chunkLength;
-                if (size > maxBodySize) {
-                    hasError = true;
-                    reject(
-                        new RouteError({
-                            statusCode: StatusCodes.REQUEST_TOO_LONG,
-                            publicMessage: 'Request Payload Too Large',
-                        })
-                    );
-                }
-            });
-
-            httpReq.on('error', (e) => {
+        httpReq.on('data', (data) => {
+            bodyChunks.push(data);
+            const chunkLength = bodyChunks[bodyChunks.length - 1].length;
+            size += chunkLength;
+            if (size > maxBodySize) {
                 hasError = true;
-                reject(
+                cb(
                     new RouteError({
-                        statusCode: StatusCodes.BAD_REQUEST,
-                        publicMessage: 'Request Connection Error',
-                        originalError: e,
+                        statusCode: StatusCodes.REQUEST_TOO_LONG,
+                        publicMessage: 'Request Payload Too Large',
                     })
                 );
-            });
+            }
+        });
 
-            httpReq.on('end', () => {
-                if (hasError) return;
-                // monkey patching IncomingMessage to add required body used by the router
-                const body = Buffer.concat(bodyChunks).toString();
-                httpReq.body = body;
-                resolve();
-            });
+        httpReq.on('error', (e) => {
+            hasError = true;
+            cb(
+                new RouteError({
+                    statusCode: StatusCodes.BAD_REQUEST,
+                    publicMessage: 'Request Connection Error',
+                    originalError: e,
+                })
+            );
+        });
 
-            httpResponse.on('error', (e) => {
-                hasError = true;
-                reject(
-                    new RouteError({
-                        statusCode: StatusCodes.BAD_REQUEST,
-                        publicMessage: 'Error responding to client',
-                        originalError: e,
-                    })
-                );
-            });
+        httpReq.on('end', () => {
+            if (hasError) return;
+            // monkey patching IncomingMessage to add required body used by the router
+            const body = Buffer.concat(bodyChunks).toString();
+            httpReq.body = body;
+            cb();
+        });
+
+        httpResponse.on('error', (e) => {
+            hasError = true;
+            cb(
+                new RouteError({
+                    statusCode: StatusCodes.BAD_REQUEST,
+                    publicMessage: 'Error responding to client',
+                    originalError: e,
+                })
+            );
         });
     },
-} satisfies HookDef;
+} satisfies InternalHookDef<HttpCallContext<any>>;
 
 /** Ends the http connection and sends data to client.  */
 export const mionHttpCloseConnectionHook = {
-    isInternal: true,
-    hook: (app, context: HttpCallContext<any> | undefined) => {
+    internalHook: (context, cb) => {
         const {rawCallContext, response} = context || getCallContext();
         const httpResponse: ServerResponse = rawCallContext.rawResponse as any;
         const {defaultResponseHeaders} = getGlobalOptions<HttpConnectionOptions>();
@@ -117,8 +113,9 @@ export const mionHttpCloseConnectionHook = {
         httpResponse.statusCode = response.statusCode;
         httpResponse.setHeader('content-length', response.json.length);
         httpResponse.end(response.json);
+        cb();
     },
-} satisfies HookDef;
+} satisfies InternalHookDef<HttpCallContext<any>>;
 
 function addDefaultResponseHeaders(httpResponse: ServerResponse, headers: Headers) {
     Object.entries(headers).forEach(([key, value]) => httpResponse.setHeader(key, `${value}`));

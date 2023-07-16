@@ -233,13 +233,13 @@ describe('Create routes should', () => {
     it('add start and end global hooks', () => {
         initRouter({}, () => {});
         const prependHooks = {
-            p1: {hook: () => null},
-            p2: {hook: () => null},
+            p1: {internalHook: (ctx, cb) => cb()},
+            p2: {internalHook: (ctx, cb) => cb()},
         };
 
         const appendHooks = {
-            a1: {hook: () => null},
-            a2: {hook: () => null},
+            a1: {internalHook: (ctx, cb) => cb()},
+            a2: {internalHook: (ctx, cb) => cb()},
         };
         addStartHooks(prependHooks, false);
         addEndHooks(appendHooks, false);

@@ -130,6 +130,10 @@ function runHandler(
     opts: FullRouterOptions,
     cb: CallBack
 ) {
+    if (executable.isInternal) {
+        executable.handler(context, cb);
+        return;
+    }
     const asyncLocalStorage = getAsyncLocalStorage();
     const resp = !opts.useAsyncCallContext
         ? executable.handler(getApp(), context, ...handlerParams)

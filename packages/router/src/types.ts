@@ -7,7 +7,7 @@
 
 import {FunctionReflection, ReflectionOptions, SerializedTypes} from '@mionkit/runtype';
 import type {Context, CoreOptions, RawServerCallContext} from '@mionkit/core';
-import type {Handler, HookDef, SimpleHandler, BodyParserOptions} from '@mionkit/hooks';
+import type {Handler, HookDef, SimpleHandler, BodyParserOptions, InternalHookHandler, InternalHookDef} from '@mionkit/hooks';
 
 // #######  Routes #######
 
@@ -90,9 +90,10 @@ export type Executable = {
     inHeader: boolean;
     fieldName: string;
     isRoute: boolean;
-    handler: Handler | SimpleHandler;
+    isInternal: boolean;
+    handler: Handler | SimpleHandler | InternalHookHandler;
     reflection: FunctionReflection;
-    src: RouteDef | HookDef;
+    src: RouteDef | HookDef | InternalHookDef;
     enableValidation: boolean;
     enableSerialization: boolean;
     selfPointer: string[];
@@ -102,12 +103,20 @@ export type RouteExecutable<H extends Handler | SimpleHandler> = Executable & {
     isRoute: true;
     canReturnData: true;
     forceRunOnError: false;
+    isInternal: false;
     handler: H;
 };
 
 export type HookExecutable<H extends Handler | SimpleHandler> = Executable & {
     isRoute: false;
+    isInternal: false;
     handler: H;
+};
+
+export type InternalHookExecutable = Executable & {
+    isRoute: false;
+    isInternal: true;
+    handler: InternalHookHandler;
 };
 
 // ####### Public Facing Types #######
@@ -193,6 +202,10 @@ export function isExecutable(entry: Executable | {pathPointer: string[]}): entry
         typeof (entry as Executable)?.path === 'string' &&
         ((entry as any).routes === 'undefined' || typeof (entry as Executable).handler === 'function')
     );
+}
+/** Type guard: isInternalHook */
+export function isInternalHook(entry: HookDef | InternalHookDef): entry is InternalHookDef {
+    return typeof (entry as InternalHookDef).internalHook === 'function';
 }
 
 export function isPublicExecutable(entry: Executable): entry is Executable {

@@ -12,11 +12,10 @@ import {
     RouteError,
     StatusCodes,
     addDefaultGlobalOptions,
-    getCallContext,
     getGlobalOptions,
     getPublicErrorFromRouteError,
 } from '@mionkit/core';
-import {HookDef} from './types';
+import {InternalHookDef} from './types';
 
 export type Parser = {
     parse: (text: string) => any;
@@ -41,24 +40,29 @@ export const DEFAULT_BODY_PARSER_OPTIONS = addDefaultGlobalOptions<BodyParserOpt
  * TODO: accept url params as well
  */
 export const mionParseJsonRequestBodyHook = {
-    isInternal: true,
-    hook: (app, context: Context<any> | undefined) => {
-        const {request, rawCallContext} = context || getCallContext();
+    internalHook: (context, cb) => {
+        const {request, rawCallContext} = context;
         const {bodyParser} = getGlobalOptions<BodyParserOptions>();
         // body could be empty if there are no parameters sent to the router
-        if (!rawCallContext.rawRequest?.body) return;
+        let error: RouteError | undefined;
+        if (!rawCallContext.rawRequest?.body) {
+            cb();
+            return;
+        }
         if (typeof rawCallContext.rawRequest.body === 'string') {
             try {
                 const parsedBody = bodyParser.parse(rawCallContext.rawRequest.body);
-                if (typeof parsedBody !== 'object')
-                    return new RouteError({
+                if (typeof parsedBody !== 'object') {
+                    error = new RouteError({
                         statusCode: StatusCodes.BAD_REQUEST,
                         name: 'Invalid Request Body',
                         publicMessage: 'Wrong request body. Expecting an json body containing the route name and parameters.',
                     });
-                (request as Mutable<Obj>).body = parsedBody;
+                } else {
+                    (request as Mutable<Obj>).body = parsedBody;
+                }
             } catch (err: any) {
-                return new RouteError({
+                error = new RouteError({
                     statusCode: StatusCodes.UNPROCESSABLE_ENTITY,
                     name: 'Parsing Request Body',
                     publicMessage: `Invalid request body: ${err?.message || 'unknown parsing error.'}`,
@@ -69,20 +73,20 @@ export const mionParseJsonRequestBodyHook = {
             // lets assume the body has been already parsed, TODO: investigate possible security issues
             (request as Mutable<Obj>).body = rawCallContext.rawRequest.body;
         } else {
-            return new RouteError({
+            error = new RouteError({
                 statusCode: StatusCodes.BAD_REQUEST,
                 name: 'Invalid Request Body',
                 publicMessage: 'Wrong request body, expecting a json string.',
             });
         }
+        cb(error);
     },
-};
+} satisfies InternalHookDef<Context<any>>;
 
 /** Stringifies Json response. */
 export const mionStringifyJsonResponseBodyHook = {
-    isInternal: true,
-    hook: (app, context: Context<any> | undefined) => {
-        const {response} = context || getCallContext();
+    internalHook: (context, cb) => {
+        const {response} = context;
         const {bodyParser, defaultResponseContentType} = getGlobalOptions<BodyParserOptions>();
         const respBody: Obj = response.body;
 
@@ -101,10 +105,10 @@ export const mionStringifyJsonResponseBodyHook = {
                 originalError: err,
             });
             (response.json as Mutable<string>) = bodyParser.stringify([getPublicErrorFromRouteError(routeError)]);
-            return routeError;
         } finally {
             response.headers['content-type'] = defaultResponseContentType;
             response.headers['content-length'] = response.json.length;
+            cb();
         }
     },
-};
+} satisfies InternalHookDef<Context<any>>;
