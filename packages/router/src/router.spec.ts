@@ -52,16 +52,16 @@ describe('Create routes should', () => {
 
     const defaultRouterExecutables = {
         parseRequestBody: {
-            path: 'parseRequestBody',
-            fieldName: 'parseRequestBody',
+            path: 'mionParseJsonRequestBodyHook',
+            fieldName: 'mionParseJsonRequestBodyHook',
             isRoute: false,
-            selfPointer: ['parseRequestBody'],
+            selfPointer: ['mionParseJsonRequestBodyHook'],
         },
         stringifyResponseBody: {
-            path: 'stringifyResponseBody',
-            fieldName: 'stringifyResponseBody',
+            path: 'mionStringifyJsonResponseBodyHook',
+            fieldName: 'mionStringifyJsonResponseBodyHook',
             isRoute: false,
-            selfPointer: ['stringifyResponseBody'],
+            selfPointer: ['mionStringifyJsonResponseBodyHook'],
         },
     };
 
@@ -221,7 +221,7 @@ describe('Create routes should', () => {
         registerRoutes(routes);
 
         expect(geRoutesSize()).toEqual(5);
-        expect(geHooksSize()).toEqual(5);
+        expect(geHooksSize()).toEqual(7);
 
         expect(getRouteExecutionPath('/api/v1/users/getUser.json')).toBeTruthy();
         expect(getRouteExecutionPath('/api/v1/users/setUser.json')).toBeTruthy();
@@ -241,8 +241,8 @@ describe('Create routes should', () => {
             a1: {hook: () => null},
             a2: {hook: () => null},
         };
-        addStartHooks(prependHooks);
-        addEndHooks(appendHooks);
+        addStartHooks(prependHooks, false);
+        addEndHooks(appendHooks, false);
         registerRoutes(routes);
 
         const expectedExecutionPath = [
@@ -293,8 +293,8 @@ describe('Create routes should', () => {
         const invalidValues = {sayHello: {total: 2}};
         const numericNames = {directory: {2: route1}};
 
-        expect(() => registerRoutes(empty)).toThrow('Invalid route: *. Can Not define empty routes');
-        expect(() => registerRoutes(emptySub)).toThrow('Invalid route: sayHello. Can Not define empty routes');
+        expect(() => registerRoutes(empty)).toThrow('Invalid route: *. Can Notregister empty routes');
+        expect(() => registerRoutes(emptySub)).toThrow('Invalid route: sayHello. Can Notregister empty routes');
         expect(() => registerRoutes(invalidValues as any)).toThrow(
             'Invalid route: sayHello/total. Type <number> is not a valid route.'
         );

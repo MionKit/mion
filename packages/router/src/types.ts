@@ -7,7 +7,7 @@
 
 import {FunctionReflection, ReflectionOptions, SerializedTypes} from '@mionkit/runtype';
 import type {Context, CoreOptions, RawServerCallContext} from '@mionkit/core';
-import type {Handler, HookDef, HookOptions, SimpleHandler, BodyParserOptions} from '@mionkit/hooks';
+import type {Handler, HookDef, SimpleHandler, BodyParserOptions} from '@mionkit/hooks';
 
 // #######  Routes #######
 
@@ -51,6 +51,13 @@ export type Routes<App = any, CallContext extends Context<any, any> = any> = {
 
 // ####### Router Options #######
 
+export type SerializationOptions = {
+    /** enable automatic parameter validation, defaults to true */
+    enableValidation: boolean;
+    /** Enables serialization/deserialization */
+    enableSerialization: boolean;
+};
+
 /** Global Router Options */
 export type RouterOptions<RawContext extends RawServerCallContext = RawServerCallContext> = {
     /** prefix for all routes, i.e: api/v1.
@@ -70,7 +77,7 @@ export type RouterOptions<RawContext extends RawServerCallContext = RawServerCal
 };
 
 export type FullRouterOptions<RawContext extends RawServerCallContext = RawServerCallContext> =
-    RouterOptions<RawServerCallContext> & CoreOptions & HookOptions & BodyParserOptions & ReflectionOptions;
+    RouterOptions<RawServerCallContext> & CoreOptions & SerializationOptions & BodyParserOptions & ReflectionOptions;
 
 // ####### Execution Path #######
 

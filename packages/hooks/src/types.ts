@@ -66,9 +66,3 @@ export type HooksCollection = {
 
 // ####### Options #######
 
-export type HookOptions = {
-    /** enable automatic parameter validation, defaults to true */
-    enableValidation: boolean;
-    /** Enables serialization/deserialization */
-    enableSerialization: boolean;
-};

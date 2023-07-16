@@ -142,17 +142,12 @@ describe('serverless router should', () => {
         expect(headers['x-something']).toEqual('true');
     });
 
-    it('get an error when body size is too large, get default headers and call allowExceedMaxBodySize', async () => {
+    it('get an error when body size is too large and get default headers', async () => {
         const smallPort = port + 1;
-        let isCalled = false;
         const httpOptions = {
             port: smallPort,
             maxBodySize: 1,
             defaultResponseHeaders: {'x-app-name': 'MyApp', 'x-instance-id': '3089'},
-            allowExceedMaxBodySize: () => {
-                isCalled = true;
-                return false;
-            },
         };
         const smallServer = await startHttpServer(httpOptions);
         const closeSmallServer = () => {
@@ -185,7 +180,6 @@ describe('serverless router should', () => {
             expect(headers['content-type']).toEqual('application/json; charset=utf-8');
             expect(headers['content-length']).toEqual('93');
             expect(headers['server']).toEqual('@mionkit/http');
-            expect(isCalled).toEqual(true);
         } catch (e) {
             err = e;
         }

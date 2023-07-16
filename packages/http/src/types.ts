@@ -22,8 +22,4 @@ export type HttpOptions = {
 export type FullHttpOptions<RawContext extends RawServerCallContext = RawServerCallContext> = HttpOptions &
     FullRouterOptions<RawContext>;
 
-export type HttpRequest = IncomingMessage & {body: string};
 
-export type HttpRawServerContext = RawServerCallContext<HttpRequest, ServerResponse>;
-
-export type HttpCallContext<SharedData extends Obj> = Context<SharedData, HttpRawServerContext>;

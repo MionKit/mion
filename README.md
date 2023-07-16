@@ -253,6 +253,11 @@ npx nx run @mionkit/router:build
 npx lerna run build
 ```
 
+#### Types issues while developing
+
+- Updates in one packages are not reflected in another one: typescript module resolution will use your compiled code first and the look for source code. So just run `npm run clean` to remove all built artifacts so typescript reads src code instead built one.
+- Issues with lerna or NX: run `npx nx reset` or `.
+
 #### Adding new packages
 
 Follow bellow steps to add a new package:
@@ -261,6 +266,7 @@ Follow bellow steps to add a new package:
 - Update pacakge.json to the new name ie: `@mionkit/mypacakge`
 - Add the new package to the workspaces config in the root package.json ie: `"workspaces": ["packages/mypacakge" ....]`
 - If your package depends on another ones, viceversa (another one depends on your package) add it to `package.json.dependencies` and `tsconfig.json.references` remember to update the 3 tsconfig files: `tsconfig.json`, `tsconfig.build.json`, `tsconfig.build-esm.json`
+- run `npm i` so npm creates the simlink in node_modules
 
 ### ESLint and Prettier
 

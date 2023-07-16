@@ -8,11 +8,14 @@
 import {initRouter, dispatchRoute, dispatchRouteCallback, addStartHooks, addEndHooks} from '@mionkit/router';
 import {createServer as createHttp} from 'http';
 import {createServer as createHttps} from 'https';
-import type {FullHttpOptions, HttpOptions, HttpRawServerContext} from './types';
+import type {FullHttpOptions, HttpOptions} from './types';
 import type {IncomingMessage, Server as HttpServer, ServerResponse} from 'http';
 import type {Server as HttpsServer} from 'https';
-import {Obj, RawRequest, SharedDataFactory, getGlobalOptions, updateGlobalOptions} from '@mionkit/core';
-import {mionHooks} from '@mionkit/hooks';
+import {Obj, SharedDataFactory, addDefaultGlobalOptions, getGlobalOptions, updateGlobalOptions} from '@mionkit/core';
+import {HttpRawServerContext, HttpRequest, mionHooks} from '@mionkit/hooks';
+import {DEFAULT_SERVER_OPTIONS} from './constants';
+
+addDefaultGlobalOptions<HttpOptions>(DEFAULT_SERVER_OPTIONS);
 
 export function initHttpRouter<App extends Obj, SharedData extends Obj>(
     app: App,
@@ -20,11 +23,12 @@ export function initHttpRouter<App extends Obj, SharedData extends Obj>(
     routerOptions?: Partial<FullHttpOptions<HttpRawServerContext>>
 ) {
     initRouter(app, sharedDataFactory, routerOptions);
-    loadHttpHooks();
+    addStartHooks({httpConnectionHandler: mionHooks.mionHttpConnectionHook});
+    addEndHooks({httpCloseConnection: mionHooks.mionHttpCloseConnectionHook});
 }
 
 export async function startHttpServer(httpOptions_: Partial<HttpOptions> = {}): Promise<HttpServer | HttpsServer> {
-    const httpOptions = updateGlobalOptions(httpOptions_);
+    const httpOptions = updateGlobalOptions<HttpOptions>(httpOptions_);
 
     const port = httpOptions.port !== 80 ? `:${httpOptions.port}` : '';
     const url = `${httpOptions.protocol}://localhost${port}`;
@@ -55,10 +59,10 @@ export async function startHttpServer(httpOptions_: Partial<HttpOptions> = {}): 
 function httpRequestHandler(httpReq: IncomingMessage, httpResponse: ServerResponse): void {
     const httpOptions = getGlobalOptions<HttpOptions>();
     const path = httpReq.url || '/';
-
     httpResponse.setHeader('server', '@mionkit/http');
 
-    const rawCallContext = {rawRequest: httpReq as any as RawRequest, rawResponse: httpResponse};
+    // missing httpReq.body will be monkey patched by the httpConnectionHandler hook
+    const rawCallContext: HttpRawServerContext = {rawRequest: httpReq as HttpRequest, rawResponse: httpResponse};
     if (httpOptions.useCallbacks) {
         dispatchRouteCallback(path, rawCallContext, (e, routeResponse) => {
             if (!httpResponse.writableEnded) httpResponse.end();
@@ -68,14 +72,4 @@ function httpRequestHandler(httpReq: IncomingMessage, httpResponse: ServerRespon
             if (!httpResponse.writableEnded) httpResponse.end();
         });
     }
-}
-
-let hooksLoaded = false;
-function loadHttpHooks() {
-    if (hooksLoaded) return;
-    hooksLoaded = true;
-    const routerStartHooks = {parseRequestBody: mionHooks.httpConnectionHandler};
-    const routerEndHooks = {stringifyResponseBody: mionHooks.httpCloseConnection};
-    addStartHooks(routerStartHooks);
-    addEndHooks(routerEndHooks);
 }

@@ -6,7 +6,7 @@
  * ######## */
 
 import {Executable, FullRouterOptions, RouterOptions} from './types';
-import {getApp, getRouteExecutionPath, getSharedDataFactory} from './router';
+import {getApp, getNotFoundExecutionPath, getRouteExecutionPath, getSharedDataFactory} from './router';
 import {
     Context,
     Mutable,
@@ -25,7 +25,7 @@ import {SimpleHandler} from '@mionkit/hooks';
 
 type CallBack = (err: any, response: Response | undefined) => void;
 
-export function dispatchRoute<RawCallContext extends RawServerCallContext>(
+export async function dispatchRoute<RawCallContext extends RawServerCallContext>(
     path: string,
     rawCallContext: RawCallContext
 ): Promise<Response> {
@@ -65,8 +65,8 @@ function _dispatchRoute<RawCallContext extends RawServerCallContext>(
             path: transformedPath,
             request: {
                 headers: rawCallContext.rawRequest.headers || {},
-                body: {},
                 internalErrors: [],
+                body: {},
             },
             response: {
                 statusCode: StatusCodes.OK,
@@ -78,17 +78,12 @@ function _dispatchRoute<RawCallContext extends RawServerCallContext>(
             shared: sharedFactory ? sharedFactory() : {},
         };
 
-        const executionPath = getRouteExecutionPath(transformedPath) || [];
+        // gets the execution path for the route or the not found exucution path
+        const executionPath = getRouteExecutionPath(transformedPath) || getNotFoundExecutionPath();
         const end = () => cb(undefined, context.response);
 
-        if (!executionPath.length) {
-            const notFound = new RouteError({statusCode: StatusCodes.NOT_FOUND, publicMessage: 'Route not found'});
-            handleRouteErrors(context.request, context.response, notFound, 'findRoute');
-            end();
-        } else {
-            // ### runs execution path
-            runExecutionPath(0, context, executionPath, opts, end);
-        }
+        // ### runs execution path
+        runExecutionPath(0, context, executionPath, opts, end);
     } catch (err: any | RouteError | Error) {
         cb(err, undefined);
     }

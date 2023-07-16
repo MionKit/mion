@@ -31,13 +31,10 @@ export const lambdaHandler = async (req: APIGatewayEvent, awsContext: AwsContext
         });
 };
 
-const reply = (routeResponse: Response) => {
-    const {defaultResponseContentType} = getGlobalOptions<BodyParserOptions>();
+const reply = (routeResponse: Response): APIGatewayProxyResult => {
     return {
         statusCode: routeResponse.statusCode,
         headers: {
-            'content-type': defaultResponseContentType,
-            'content-length': routeResponse.json.length,
             server: '@mionkit/serverless',
             ...routeResponse.headers,
         },

@@ -21,6 +21,7 @@ export function getAsyncLocalStorage() {
 const options: Obj = {};
 const defaultOptions: Obj = {};
 
+/** Adds default global options, that will be restored after options get reset. */
 export function addDefaultGlobalOptions<Opts extends Obj>(newOptions: Opts): Readonly<Opts> {
     // if newOptions has a kay already existing on defaultOptions, then throw an error, the error should contain the conflicting keys
     let lastKey;
@@ -34,6 +35,7 @@ export function addDefaultGlobalOptions<Opts extends Obj>(newOptions: Opts): Rea
     return newOptions as Readonly<Opts>;
 }
 
+/** Updates global options, returns the new options */
 export function updateGlobalOptions<Opts extends Obj>(newOptions?: Partial<Opts>): Readonly<Opts> {
     if (!newOptions) return options as Readonly<Opts>;
     Object.assign(options, newOptions);

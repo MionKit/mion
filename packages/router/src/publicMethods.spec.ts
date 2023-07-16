@@ -5,13 +5,13 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {DEFAULT_HOOK, DEFAULT_HOOKS_OPTIONS} from '@mionkit/hooks';
-import {DEFAULT_ROUTE_OPTIONS} from './constants';
+import {DEFAULT_HOOK} from '@mionkit/hooks';
 import {getPublicRoutes} from './publicMethods';
 import {registerRoutes, initRouter, resetRouter, getRouteDefaultParams} from './router';
 import {DEFAULT_REFLECTION_OPTIONS, getFunctionReflectionMethods} from '@mionkit/runtype';
+import {DEFAULT_SERIALIZATION_OPTIONS} from './constants';
 
-describe('Public Mothods should', () => {
+describe('Public Methods should', () => {
     type SimpleUser = {name: string; surname: string};
     const hook = {hook(): void {}};
     const route1 = () => 'route1';
@@ -77,8 +77,8 @@ describe('Public Mothods should', () => {
                 canReturnData: DEFAULT_HOOK.canReturnData,
                 inHeader: DEFAULT_HOOK.inHeader,
                 fieldName: 'hook',
-                enableValidation: DEFAULT_HOOKS_OPTIONS.enableValidation,
-                enableSerialization: DEFAULT_HOOKS_OPTIONS.enableSerialization,
+                enableValidation: DEFAULT_SERIALIZATION_OPTIONS.enableValidation,
+                enableSerialization: DEFAULT_SERIALIZATION_OPTIONS.enableSerialization,
             }),
             routes: {
                 route1: expect.objectContaining({
@@ -87,8 +87,8 @@ describe('Public Mothods should', () => {
                     canReturnData: true,
                     path: '/routes/route1',
                     inHeader: false,
-                    enableValidation: DEFAULT_HOOKS_OPTIONS.enableValidation,
-                    enableSerialization: DEFAULT_HOOKS_OPTIONS.enableSerialization,
+                    enableValidation: DEFAULT_SERIALIZATION_OPTIONS.enableValidation,
+                    enableSerialization: DEFAULT_SERIALIZATION_OPTIONS.enableSerialization,
                 }),
             },
         });

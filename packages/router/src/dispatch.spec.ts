@@ -5,10 +5,10 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {registerRoutes, resetRouter, initRouter, getApp} from './router';
+import {registerRoutes, resetRouter, initRouter, getApp, getRouteEntries} from './router';
 import {dispatchRoute} from './dispatch';
 import {Route} from './types';
-import {Context, PublicError, RawRequest, StatusCodes, getCallContext} from '@mionkit/core';
+import {Context, PublicError, RawRequest, RouteError, StatusCodes, getCallContext, getGlobalOptions} from '@mionkit/core';
 
 describe('Dispatch routes', () => {
     type SimpleUser = {
@@ -194,11 +194,13 @@ describe('Dispatch routes', () => {
             const request = getDefaultRequest('/abcd', [{name: 'Leo', surname: 'Tungsten'}]);
 
             const response = await dispatchRoute('/abcd', {rawRequest: request});
+            const expectedError = [{name: 'Not Found', statusCode: 404, message: 'Route not found'}];
             expect(response.publicErrors[0]).toEqual({
                 statusCode: 404,
                 name: 'Not Found',
                 message: 'Route not found',
             });
+            expect(response.json).toEqual(JSON.stringify(expectedError));
         });
 
         it('return an error if data is missing from header', async () => {

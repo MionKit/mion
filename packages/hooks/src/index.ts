@@ -5,25 +5,19 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {parseJsonRequestBody, stringifyJsonResponseBody} from './jsonBodyParser';
-import {httpCloseConnection, httpConnectionHandler} from './httpConnection';
+import {mionParseJsonRequestBodyHook, mionStringifyJsonResponseBodyHook} from './jsonBodyParser';
+import {mionHttpCloseConnectionHook, mionHttpConnectionHook} from './httpConnection';
 import {HooksCollection} from './types';
+import {RouteError, StatusCodes} from '@mionkit/core';
 
 export const mionHooks = {
-    parseJsonRequestBody: {
-        isInternal: true,
-        hook: parseJsonRequestBody,
-    },
-    stringifyJsonResponseBody: {
-        isInternal: true,
-        hook: stringifyJsonResponseBody,
-    },
-    httpConnectionHandler: {
-        isInternal: true,
-        hook: httpConnectionHandler,
-    },
-    httpCloseConnection: {
-        isInternal: true,
-        hook: httpCloseConnection,
-    },
+    mionParseJsonRequestBodyHook,
+    mionStringifyJsonResponseBodyHook,
+    mionHttpConnectionHook,
+    mionHttpCloseConnectionHook,
 } satisfies HooksCollection;
+
+/** mion 404 handler  */
+export function mion404Handler() {
+    return new RouteError({statusCode: StatusCodes.NOT_FOUND, publicMessage: `Route not found`});
+}

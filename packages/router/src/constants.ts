@@ -5,8 +5,9 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {RouteDef, RouterOptions} from './types';
-import {RawRequest, addDefaultGlobalOptions} from '@mionkit/core/';
+import {mion404Handler} from '@mionkit/hooks';
+import {RouteDef, RouterOptions, SerializationOptions} from './types';
+import {RawRequest} from '@mionkit/core/';
 
 export const ROUTE_PATH_ROOT = '/';
 
@@ -25,7 +26,7 @@ export const DEFAULT_REQUEST: Readonly<Required<RawRequest>> = {
 
 export const IS_TEST_ENV = process.env.JEST_WORKER_ID !== undefined || process.env.NODE_ENV === 'test';
 
-export const DEFAULT_ROUTE_OPTIONS: Readonly<RouterOptions> = addDefaultGlobalOptions<RouterOptions>({
+export const DEFAULT_ROUTE_OPTIONS: Readonly<RouterOptions> = {
     /** Prefix for all routes, i.e: api/v1.
      * path separator is added between the prefix and the route */
     prefix: '',
@@ -48,7 +49,14 @@ export const DEFAULT_ROUTE_OPTIONS: Readonly<RouterOptions> = addDefaultGlobalOp
 
     /** Lazy load reflection.  */
     lazyLoadReflection: true,
-});
+};
+
+export const DEFAULT_SERIALIZATION_OPTIONS: Readonly<SerializationOptions> = {
+    /** enable automatic parameter validation, defaults to true */
+    enableValidation: true,
+    /** Enables serialization/deserialization */
+    enableSerialization: true,
+};
 
 export const ROUTE_KEYS = Object.keys(DEFAULT_ROUTE);
 export const MAX_ROUTE_NESTING = 10;

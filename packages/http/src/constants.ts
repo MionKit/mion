@@ -5,10 +5,9 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {addDefaultGlobalOptions} from '@mionkit/core';
 import {HttpOptions} from './types';
 
-export const DEFAULT_HTTP_OPTIONS = addDefaultGlobalOptions<HttpOptions>({
+export const DEFAULT_SERVER_OPTIONS: Readonly<HttpOptions> = {
     protocol: 'http',
     port: 80,
     options: {
@@ -16,4 +15,4 @@ export const DEFAULT_HTTP_OPTIONS = addDefaultGlobalOptions<HttpOptions>({
         maxHeaderSize: 8192,
     },
     useCallbacks: false,
-});
+};

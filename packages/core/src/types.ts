@@ -32,7 +32,7 @@ export type Response = {
     json: Readonly<string>;
 };
 
-export type RawServerCallContext<RawServerRequest extends RawRequest = RawRequest, RawServerResponse = any> = {
+export type RawServerCallContext<RawServerRequest extends RawRequest = RawRequest, RawServerResponse = Obj> = {
     /** Original Server request
      * i.e: '@types/aws-lambda/APIGatewayEvent'
      * or http/IncomingMessage */
@@ -45,6 +45,7 @@ export type RawServerCallContext<RawServerRequest extends RawRequest = RawReques
 /** Any request Object used by the router must follow this interface */
 export type RawRequest = {
     headers: {[header: string]: string | undefined | string[]} | undefined;
+    /** json encoded body */
     body: string | null | undefined | {}; // eslint-disable-line @typescript-eslint/ban-types
 };
 

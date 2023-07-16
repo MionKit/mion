@@ -6,7 +6,13 @@
  * ######## */
 
 import {join} from 'path';
-import {DEFAULT_ROUTE, MAX_ROUTE_NESTING, ROUTE_PATH_ROOT} from './constants';
+import {
+    DEFAULT_ROUTE,
+    DEFAULT_ROUTE_OPTIONS,
+    DEFAULT_SERIALIZATION_OPTIONS,
+    MAX_ROUTE_NESTING,
+    ROUTE_PATH_ROOT,
+} from './constants';
 import {
     Executable,
     isExecutable,
@@ -23,6 +29,7 @@ import {
     PublicMethods,
     ExecutableMicroTask,
     FullRouterOptions,
+    SerializationOptions,
 } from './types';
 import {FunctionReflection, getFunctionReflectionMethods} from '@mionkit/runtype';
 import {
@@ -37,8 +44,9 @@ import {
     getGlobalOptions,
     resetGlobalOptions,
     CoreOptions,
+    addDefaultGlobalOptions,
 } from '@mionkit/core';
-import {BodyParserOptions, Handler, HookDef, HooksCollection, mionHooks} from '@mionkit/hooks';
+import {BodyParserOptions, Handler, HookDef, HooksCollection, mionHooks, mion404Handler} from '@mionkit/hooks';
 
 type RouterKeyEntryList = [string, Routes | HookDef | Route][];
 type RouteEntryProperties = ReturnType<typeof getRouteEntryProperties>;
@@ -57,15 +65,20 @@ const routeNames: Map<string, boolean> = new Map();
 let complexity = 0;
 let app: Obj | undefined;
 let sharedDataFactoryFunction: SharedDataFactory<any> | undefined;
-
 /** Global hooks to be run before any other hooks or routes set using `registerRoutes` */
 let startHooks: Executable[] = [];
+let startHooksDef: HooksCollection = {};
 /** Global hooks to be run after any other hooks or routes set using `registerRoutes` */
 let endHooks: Executable[] = [];
-
+let endHooksDef: HooksCollection = {};
 /** functions to be run before every executable. i.e: validation, serialization. */
 let preExecutableMicroTasks: ExecutableMicroTask[] = [];
 let postExecutableMicroTasks: ExecutableMicroTask[] = [];
+
+let notFoundExecutionPath: Executable[] | undefined;
+
+addDefaultGlobalOptions<RouterOptions>(DEFAULT_ROUTE_OPTIONS);
+addDefaultGlobalOptions<SerializationOptions>(DEFAULT_SERIALIZATION_OPTIONS);
 
 // ############# PUBLIC METHODS #############
 
@@ -93,15 +106,18 @@ export async function initRouter<App extends Obj, SharedData, RawContext extends
     if (app) throw new Error('Router already initialized');
     app = application;
     sharedDataFactoryFunction = sharedDataFactory;
-    updateGlobalOptions(routerOptions);
-    loadRouterHooks();
+    updateGlobalOptions<FullRouterOptions>(routerOptions);
+    addStartHooks({mionParseJsonRequestBodyHook: mionHooks.mionParseJsonRequestBodyHook});
+    addEndHooks({mionStringifyJsonResponseBodyHook: mionHooks.mionStringifyJsonResponseBodyHook});
 }
 
 export function registerRoutes<R extends Routes>(routes: R): PublicMethods<R> {
     if (!app) throw new Error('Router has not been initialized yet');
+    setStartAndEndExecutables();
     recursiveFlatRoutes(routes);
     // we only want to get information about the routes when creating api spec
-    if (getGlobalOptions<RouterOptions>().getPublicRoutesData || process.env.GENERATE_ROUTER_SPEC === 'true') {
+    const {getPublicRoutesData} = getGlobalOptions<RouterOptions>();
+    if (getPublicRoutesData || process.env.GENERATE_ROUTER_SPEC === 'true') {
         // eslint-disable-next-line @typescript-eslint/no-var-requires
         const {getPublicRoutes} = require('./publicMethods');
         return getPublicRoutes(routes) as PublicMethods<R>;
@@ -109,6 +125,7 @@ export function registerRoutes<R extends Routes>(routes: R): PublicMethods<R> {
     return {} as PublicMethods<R>;
 }
 
+/** reset utility, mainly used for testing, should not be used in prod  */
 export function resetRouter() {
     flatRouter.clear();
     hooksByFieldName.clear();
@@ -117,12 +134,24 @@ export function resetRouter() {
     routeNames.clear();
     complexity = 0;
     app = undefined;
+    startHooks = [];
+    endHooks = [];
+    startHooksDef = {};
+    endHooksDef = {};
     sharedDataFactoryFunction = undefined;
     resetGlobalOptions();
 }
 
 export function getRouteExecutionPath(path: string) {
     return flatRouter.get(path);
+}
+
+export function getNotFoundExecutionPath(): Executable[] {
+    if (notFoundExecutionPath) return notFoundExecutionPath;
+    const routePath = 'mion404Handler';
+    const notFoundHandlerExecutable = _getExecutableFromRoute(mion404Handler, [routePath], 0, routePath);
+    notFoundExecutionPath = [...startHooks, notFoundHandlerExecutable, ...endHooks];
+    return notFoundExecutionPath;
 }
 
 export function getRoutePathFromPointer(route: Route, pointer: string[]) {
@@ -148,25 +177,25 @@ export function getRouteDefaultParams(): string[] {
 }
 
 /** Add hooks at the start af the execution path, adds them before any other existing start hooks by default */
-export function addStartHooks(hooksDef: HooksCollection, appendAfterExisting = false) {
+export function addStartHooks(hooksDef: HooksCollection, appendBeforeExisting = true) {
     if (flatRouter.size) throw new Error('Can not add start hooks after the router has been initialized');
     const hooks = Object.entries(hooksDef).map(([key, hook]) => getExecutableFromHook(hook, [key], 0, key));
-    if (appendAfterExisting) {
-        startHooks = [...hooks, ...startHooks];
+    if (appendBeforeExisting) {
+        startHooksDef = {...hooksDef, ...startHooksDef};
         return;
     }
-    startHooks = [...startHooks, ...hooks];
+    startHooksDef = {...startHooksDef, ...hooksDef};
 }
 
 /** Add hooks at the end af the execution path, adds them after any other existing end hooks by default */
-export function addEndHooks(hooksDef: HooksCollection, prependAfterExisting = false) {
+export function addEndHooks(hooksDef: HooksCollection, prependAfterExisting = true) {
     if (flatRouter.size) throw new Error('Can not add end hooks after the router has been initialized');
-    const hooks = Object.entries(hooksDef).map(([key, hook]) => getExecutableFromHook(hook, [key], 0, key));
+
     if (prependAfterExisting) {
-        endHooks = [...endHooks, ...hooks];
+        endHooksDef = {...endHooksDef, ...hooksDef};
         return;
     }
-    endHooks = [...hooks, ...endHooks];
+    endHooksDef = {...hooksDef, ...endHooksDef};
 }
 
 export function addPreExecutableMicroTasks(microTasks: ExecutableMicroTask[], appendBeforeExisting = false) {
@@ -239,8 +268,9 @@ function recursiveFlatRoutes(
         throw new Error('Too many nested routes, you can only nest routes ${MAX_ROUTE_NESTING} levels');
 
     const entries = Object.entries(routes);
+    // by default there will be at least one entry, the 404 route
     if (entries.length === 0)
-        throw new Error(`Invalid route: ${currentPointer.length ? join(...currentPointer) : '*'}. Can Not define empty routes`);
+        throw new Error(`Invalid route: ${currentPointer.length ? join(...currentPointer) : '*'}. Can Notregister empty routes`);
 
     let previousRouteProperties: RouteEntryProperties | null = null;
     entries.forEach(([key, item], index, array) => {
@@ -400,16 +430,30 @@ function getExecutableFromHook(hook: HookDef, hookPointer: string[], nestLevel: 
         src: hook,
         selfPointer: hookPointer,
     };
+    // todo review if this is required
     delete (executable as any).hook;
     hooksByFieldName.set(hookName, executable);
     return executable;
 }
 
 function getExecutableFromRoute(route: Route, routePointer: string[], nestLevel: number): RouteExecutable<Handler> {
-    const routerOptions = getGlobalOptions<FullRouterOptions>();
     const routePath = getRoutePathFromPointer(route, routePointer);
     const existing = routesByPath.get(routePath);
     if (existing) return existing as RouteExecutable<Handler>;
+    const executable = _getExecutableFromRoute(route, routePointer, nestLevel, routePath);
+    // todo review if this is required
+    delete (executable as any).route;
+    routesByPath.set(routePath, executable);
+    return executable;
+}
+
+function _getExecutableFromRoute(
+    route: Route,
+    routePointer: string[],
+    nestLevel: number,
+    routePath: string
+): RouteExecutable<Handler> {
+    const routerOptions = getGlobalOptions<FullRouterOptions>();
     const handler = getHandler(route, routePointer);
     const routeObj = isHandler(route) ? {...DEFAULT_ROUTE} : {...DEFAULT_ROUTE, ...route};
     const executable: RouteExecutable<Handler> = {
@@ -432,8 +476,6 @@ function getExecutableFromRoute(route: Route, routePointer: string[], nestLevel:
         src: routeObj,
         selfPointer: routePointer,
     };
-    delete (executable as any).route;
-    routesByPath.set(routePath, executable);
     return executable;
 }
 
@@ -480,12 +522,7 @@ function getRouteEntryProperties(
     };
 }
 
-let hooksLoaded = false;
-function loadRouterHooks() {
-    if (hooksLoaded) return;
-    hooksLoaded = true;
-    const routerStartHooks = {parseRequestBody: mionHooks.parseJsonRequestBody};
-    const routerEndHooks = {stringifyResponseBody: mionHooks.stringifyJsonResponseBody};
-    addStartHooks(routerStartHooks);
-    addEndHooks(routerEndHooks);
+function setStartAndEndExecutables() {
+    startHooks = Object.entries(startHooksDef).map(([key, hook]) => getExecutableFromHook(hook, [key], 0, key));
+    endHooks = Object.entries(endHooksDef).map(([key, hook]) => getExecutableFromHook(hook, [key], 0, key));
 }
