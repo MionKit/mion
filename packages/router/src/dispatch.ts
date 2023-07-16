@@ -101,13 +101,49 @@ function _dispatchRoute<RawContext extends RawServerContext>(
         } else {
             parseRequestBody(context.rawContext, context.request, context.response, opts);
             // ### runs execution path
-            for (let i = 0; i < executionPath.length; i++) {
-                execute(context, executionPath[i], opts, i, end);
-            }
+            // for (let i = 0; i < executionPath.length; i++) {
+            //     execute(context, executionPath[i], opts, i, end);
+            // }
+            // ### runs execution path
+            runExecutionPath(0, context, executionPath, opts, end);
         }
     } catch (err: any | RouteError | Error) {
         // todo create response and send error
         cb(err, undefined);
+    }
+}
+
+function runExecutionPath(
+    step: number,
+    context: Context<any>,
+    executionPath: Executable[],
+    opts: RouterOptions,
+    end: (index: number) => void
+) {
+    const executable = executionPath[step];
+    if (!executable) return end(step);
+    const next = () => runExecutionPath(step + 1, context, executionPath, opts, end);
+    const {response, request} = context;
+    if (response.publicErrors.length && !executable.forceRunOnError) {
+        return next();
+    }
+
+    try {
+        const handlerParams = deserializeAndValidateParameters(request, executable, opts);
+        if (executable.inHeader) request.headers[executable.fieldName] = handlerParams;
+        else request.body[executable.fieldName] = handlerParams;
+
+        runHandler(handlerParams, context, executable, opts, (err, result) => {
+            if (err) {
+                handleRouteErrors(request, response, err, step);
+            } else {
+                serializeResponse(response, executable, result, opts);
+            }
+            next();
+        });
+    } catch (err: any | RouteError | Error) {
+        handleRouteErrors(request, response, err, step);
+        next();
     }
 }
 
