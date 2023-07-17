@@ -17,7 +17,7 @@ import {
 import {createServer as createHttp} from 'http';
 import {createServer as createHttps} from 'https';
 import {DEFAULT_HTTP_OPTIONS} from './constants';
-import type {HttpOptions, HttpRawServerContext} from './types';
+import type {HttpOptions, HttpRequest} from './types';
 import type {IncomingMessage, Server as HttpServer, ServerResponse} from 'http';
 import type {Server as HttpsServer} from 'https';
 import type {Obj, Headers, RawRequest, RouterOptions, SharedDataFactory, Response} from '@mionkit/router';
@@ -41,7 +41,7 @@ export function resetHttpRouter() {
 
 export function initHttpRouter<SharedData extends Obj>(
     sharedDataFactory?: SharedDataFactory<SharedData>,
-    routerOptions?: Partial<RouterOptions<HttpRawServerContext>>
+    routerOptions?: Partial<RouterOptions<HttpRequest>>
 ) {
     initRouter(sharedDataFactory, routerOptions);
     defaultResponseContentType = getRouterOptions().responseContentType;
@@ -127,15 +127,14 @@ function httpRequestHandler(httpReq: IncomingMessage, httpResponse: ServerRespon
         const body = Buffer.concat(bodyChunks).toString();
         (httpReq as any).body = body;
 
-        const rawContext = {rawRequest: httpReq as any as RawRequest, rawResponse: httpResponse};
         if (httpOptions.useCallbacks) {
-            dispatchRouteCallback(path, rawContext, (e, routeResponse) => {
+            dispatchRouteCallback(path, httpReq as any as RawRequest, httpResponse, (e, routeResponse) => {
                 if (e) fail(e);
                 else if (routeResponse) success(routeResponse);
                 else fail(undefined, StatusCodes.INTERNAL_SERVER_ERROR, 'No response from Router');
             });
         } else {
-            dispatchRoute(path, rawContext)
+            dispatchRoute(path, httpReq as any as RawRequest, httpResponse)
                 .then((routeResponse) => success(routeResponse))
                 .catch((e) => fail(e));
         }

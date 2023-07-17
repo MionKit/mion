@@ -111,7 +111,7 @@ Hooks can use `context.shared` to share data with other routes and hooks. The re
 ```ts
 // examples/hooks-definition.routes.ts
 
-import {Context, Routes, registerRoutes} from '@mionkit/router';
+import {CallContext, Routes, registerRoutes} from '@mionkit/router';
 import {getAuthUser, isAuthorized} from 'MyAuth';
 import type {Pet} from 'MyModels';
 import {myApp} from './myApp';
@@ -134,7 +134,7 @@ const getPet = async (ctx, petId: number): Promise<Pet> => {
 
 const logs = {
   forceRunOnError: true,
-  async hook(ctx: Context<any>): Promise<void> {
+  async hook(ctx: CallContext): Promise<void> {
     if (ctx.request) await myApp.cloudLogs.error(ctx.path, ctx.request.internalErrors);
     else myApp.cloudLogs.log(ctx.path, ctx.shared.me.name);
   },
@@ -156,19 +156,22 @@ export const apiSpec = registerRoutes(routes);
 The order in which `routes` and `hooks` are added to the router is important as they will be executed in the same order they are defined (Top Down order). An execution path is generated for every route.
 
 ```ts
-// examples/correct-definition-order.routes.ts#L12-L26
+// examples/valid-definition-order.routes.ts
 
+import {Routes, registerRoutes} from '@mionkit/router';
+
+// prettier-ignore
 const routes = {
-  authorizationHook, // hook
-  users: {
-    userOnlyHook, // hook
-    getUser, // route: users/getUser
-  },
-  pets: {
-    getPet, // route: users/getUser
-  },
-  errorHandlerHook, // hook,
-  loggingHook, // hook,
+    authorizationHook: {hook(): void {}}, // hook
+    users: {
+        userOnlyHook: {hook(): void {}}, // hook
+        getUser: (): null => null, // route: users/getUser
+    },
+    pets: {
+        getPet: (): null => null, // route: users/getUser
+    },
+    errorHandlerHook: {hook(): void {}}, // hook,
+    loggingHook: {hook(): void {}}, // hook,
 } satisfies Routes;
 
 export const myValidApi = registerRoutes(routes);
@@ -192,18 +195,24 @@ graph LR;
 An error will thrown when adding routes with `Router.addRoutes`. More info about order of properties in javascript objects [here](https://stackoverflow.com/questions/5525795/does-javascript-guarantee-object-property-order) and [here](https://www.stefanjudis.com/today-i-learned/property-order-is-predictable-in-javascript-objects-since-es2015/).
 
 ```ts
-// examples/correct-definition-order.routes.ts#L27-L40
+// examples/invalid-definition-order.routes.ts
 
+import {Routes, registerRoutes} from '@mionkit/router';
+
+// prettier-ignore
 const invalidRoutes = {
-  authorizationHook, // hook
-  1: {
-    // invalid (this would execute before the authorizationHook)
-    getFoo, // route
-  },
-  '2': {
-    // invalid (this would execute before the authorizationHook)
-    getBar, // route
-  },
+    authorizationHook: {hook(): void {}}, // hook
+    1: {
+        // invalid (this would execute before the authorizationHook)
+        userOnlyHook: {hook(): void {}}, // hook
+        getUser: (): null => null, // route: users/getUser
+    },
+    '2': {
+        // invalid (this would execute before the authorizationHook)
+        getPet: (): null => null, // route: users/getUser
+    },
+    errorHandlerHook: {hook(): void {}}, // hook,
+    loggingHook: {hook(): void {}}, // hook,
 } satisfies Routes;
 
 export const myInvalidApi = registerRoutes(invalidRoutes); // throws an error
@@ -269,18 +278,18 @@ export const alwaysError = (): void => {
 <td>
 
 ```ts
-// src/types.ts#L18-L44
+// src/types.ts#L18-L38
 
 /** Route or Hook Handler, the remote function  */
-export type Handler<CallContext extends Context<any, any> = any, Ret = any> = (
+export type Handler<Context extends CallContext = CallContext, Ret = any> = (
   /** Call Context */
-  context: CallContext,
+  context: Context,
   /** Remote Call parameters */
   ...parameters: any
 ) => Ret | Promise<Ret>;
 
 /** Route definition */
-export type RouteDef<CallContext extends Context<any, any> = any, Ret = any> = {
+export type RouteDef<Context extends CallContext = CallContext, Ret = any> = {
   /** overrides route's path and fieldName in request/response body */
   path?: string;
   /** description of the route, mostly for documentation purposes */
@@ -290,23 +299,18 @@ export type RouteDef<CallContext extends Context<any, any> = any, Ret = any> = {
   /** Enables serialization/deserialization */
   enableSerialization?: boolean;
   /** Route Handler */
-  route: Handler<CallContext, Ret>;
+  route: Handler<Context, Ret>;
 };
-
-/** A route can be a full route definition or just the handler */
-export type Route<CallContext extends Context<any, any> = any, Ret = any> =
-  | RouteDef<CallContext, Ret>
-  | Handler<CallContext, Ret>;
 ```
 
 </td>
 <td>
 
 ```ts
-// src/types.ts#L45-L65
+// src/types.ts#L40-L59
 
 /** Hook definition, a function that hooks into the execution path */
-export type HookDef<CallContext extends Context<any, any> = any, Ret = any> = {
+export type HookDef<Context extends CallContext = CallContext, Ret = any> = {
   /** Executes the hook even if an error was thrown previously */
   forceRunOnError?: boolean;
   /** Enables returning data in the responseBody,
@@ -323,7 +327,7 @@ export type HookDef<CallContext extends Context<any, any> = any, Ret = any> = {
   /** Enables serialization/deserialization */
   enableSerialization?: boolean;
   /** Hook handler */
-  hook: Handler<CallContext, Ret> | SimpleHandler<Ret>;
+  hook: Handler<Context, Ret> | SimpleHandler<Ret>;
 };
 ```
 
@@ -367,23 +371,26 @@ const someHook: MyHook = {
 };
 ```
 
-## `App & Call Context`
+## `Call Context`
 
-The `App` contains all static data and libs from your application, i.e: db access, third party libs etc, and is always passed as first parameter to the routes/hooks handlers.
+The `CallContext` contains all the data related to the ongoing call. Most of the data within the `Context` is marked as read only, this is because it is not recommended modifying the context manually just the `shared` object. It is still possible to modify it (the context is not a real Immutable js object). The context is always passed as the second parameter to the routes/hooks handlers.
 
-The `Context` or `Call Context` contains all the data related to the ongoing call. Most of the data within the `Context` is marked as read only, this is because it is not recommended modifying the context manually just the `shared` object. It is still possible to modify it (the context is not a real Immutable js object). The context is always passed as the second parameter to the routes/hooks handlers.
-
-#### Context Type
+#### Call Context Type
 
 ```ts
-// src/types.ts#L141-L154
+// src/types.ts#L139-L156
 
 /** The call Context object passed as first parameter to any hook or route */
-export type Context<SharedData, RawContext extends RawServerContext = any> = Readonly<{
+export type CallContext<SharedData = any, RawReq extends RawRequest = any, RawResp = any> = Readonly<{
   /** Route's path */
   path: Readonly<string>;
-  /** Raw Server call context, contains the raw request and response */
-  rawContext: Readonly<RawContext>;
+  /** Original Server request
+   * i.e: '@types/aws-lambda/APIGatewayEvent'
+   * or http/IncomingMessage */
+  rawRequest: RawReq;
+  /** Original Server response
+   * i.e: http/ServerResponse */
+  rawResponse?: RawResp;
   /** Router's own request object */
   request: Readonly<Request>;
   /** Router's own response object */
@@ -393,7 +400,7 @@ export type Context<SharedData, RawContext extends RawServerContext = any> = Rea
 }>;
 ```
 
-#### Declaring the app and context types
+#### Declaring the context type of your application
 
 ```ts
 // examples/using-context.routes.ts
@@ -401,7 +408,7 @@ export type Context<SharedData, RawContext extends RawServerContext = any> = Rea
 import {registerRoutes, initRouter} from '@mionkit/router';
 import {someDbDriver} from 'someDbDriver';
 import {cloudLogs} from 'MyCloudLogLs';
-import type {Context, Routes} from '@mionkit/router';
+import type {CallContext, Routes} from '@mionkit/router';
 import type {APIGatewayEvent} from 'aws-lambda';
 import type {Pet} from 'MyModels';
 
@@ -410,10 +417,9 @@ const shared = {auth: {me: null}};
 const getSharedData = (): typeof shared => shared;
 
 type SharedData = ReturnType<typeof getSharedData>;
-type ServerlessContext = {rawRequest: APIGatewayEvent; rawResponse?: null};
-type CallContext = Context<SharedData, ServerlessContext>;
+type Context = CallContext<SharedData, APIGatewayEvent>;
 
-const getMyPet = async (ctx: CallContext): Promise<Pet> => {
+const getMyPet = async (ctx: Context): Promise<Pet> => {
   // use of ctx inside handlers
   const user = ctx.shared.auth.me;
   const pet = myApp.db.getPetFromUser(user);
@@ -428,30 +434,32 @@ export const apiSpec = registerRoutes(routes);
 
 #### Async Call Context
 
-It is also possible to configure the router to NOT pass the `App` and `CallContext` as function parameters. When `RouterOptions.useAsyncCallContext` is enabled it is possible to use `getCallContext()` from any function within the handler's call stack.
+It is also possible to configure the router to NOT pass the `CallContext` as first function parameter. When `RouterOptions.useAsyncCallContext` is enabled it is possible to use `getCallContext()` from any function within the handler's call stack.
 
 **This is a really nice to have feature** as it is not necessary to propagate the context down the call stack. Unfortunately there is an small drop in performance so it is up to the user to decide if enabling/disabling this feature is justified. This feature is based on node's [AsyncLocalStorage](https://nodejs.org/api/async_context.html#class-asynclocalstorage).
 
 ```ts
 // examples/routes-definition-async-call-context.routes.ts
 
-import {setRouterOptions, registerRoutes, getCallContext, Routes} from '@mionkit/router';
+import {setRouterOptions, registerRoutes, getCallContext, Routes, CallContext} from '@mionkit/router';
 
 type SharedData = {
   myCompanyName: string;
 };
 
-// Note the app and context are not passed as function parameters.
+type Context = CallContext<SharedData>;
+
+// Note the context is not passed as first function
 const sayHello = (name: string): string => {
-  const {myCompanyName} = getCallContext<SharedData>();
-  return `Hello ${name}. From ${myCompanyName}.`;
+  const {shared} = getCallContext<Context>();
+  return `Hello ${name}. From ${shared.myCompanyName}.`;
 };
 
 const sayHello2 = {
-  // Note the app and context are not passed as function parameters.
+  // Note the context is not passed as first function.
   route(name1: string, name2: string): string {
-    const {myCompanyName} = getCallContext<SharedData>();
-    return `Hello ${name1} and ${name2}. From ${myCompanyName}.`;
+    const {shared} = getCallContext<Context>();
+    return `Hello ${name1} and ${name2}. From ${shared.myCompanyName}.`;
   },
 };
 
@@ -659,7 +667,7 @@ export const DEFAULT_REFLECTION_OPTIONS: Readonly<ReflectionOptions> = {
 // examples/full-example.routes.ts
 
 import {registerRoutes, initRouter, StatusCodes, Route} from '@mionkit/router';
-import type {Context, HookDef, RouteError, Routes} from '@mionkit/router';
+import type {CallContext, HookDef, RouteError, Routes} from '@mionkit/router';
 import type {APIGatewayEvent} from 'aws-lambda';
 
 interface User {
@@ -708,21 +716,20 @@ const shared = {
 const getSharedData = (): typeof shared => shared;
 
 type SharedData = ReturnType<typeof getSharedData>;
-type ServerlessContext = {rawRequest: APIGatewayEvent; rawResponse?: null};
-type CallContext = Context<SharedData, ServerlessContext>;
+type Context = CallContext<SharedData, APIGatewayEvent>;
 
-const getUser: Route = (ctx: CallContext, id) => {
+const getUser: Route = (ctx: Context, id) => {
   const user = myApp.db.getUser(id);
   if (!user) throw {statusCode: 200, message: 'user not found'};
   return user;
 };
-const createUser = (ctx: CallContext, newUser: NewUser): User => myApp.db.createUser(newUser);
-const updateUser = (ctx: CallContext, user: User): User => {
+const createUser = (ctx: Context, newUser: NewUser): User => myApp.db.createUser(newUser);
+const updateUser = (ctx: Context, user: User): User => {
   const updated = myApp.db.updateUser(user);
   if (!updated) throw {statusCode: 200, message: 'user not found, can not be updated'};
   return updated;
 };
-const deleteUser = (ctx: CallContext, id: number): User => {
+const deleteUser = (ctx: Context, id: number): User => {
   const deleted = myApp.db.deleteUser(id);
   if (!deleted) throw {statusCode: 200, message: 'user not found, can not be deleted'};
   return deleted;
@@ -732,7 +739,7 @@ const auth = {
   inHeader: true,
   fieldName: 'Authorization',
   canReturnData: false,
-  hook: (ctx: CallContext, token: string): void => {
+  hook: (ctx: Context, token: string): void => {
     if (!myApp.auth.isAuthorized(token)) throw {statusCode: StatusCodes.FORBIDDEN, message: 'Not Authorized'} as RouteError;
     ctx.shared.me = myApp.auth.getIdentity(token) as User;
   },
