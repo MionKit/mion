@@ -1,5 +1,5 @@
 import {registerRoutes, initRouter, StatusCodes, Route} from '@mionkit/router';
-import type {Context, HookDef, RouteError, Routes} from '@mionkit/router';
+import type {CallContext, HookDef, RouteError, Routes} from '@mionkit/router';
 import type {APIGatewayEvent} from 'aws-lambda';
 
 interface User {
@@ -48,21 +48,20 @@ const shared = {
 const getSharedData = (): typeof shared => shared;
 
 type SharedData = ReturnType<typeof getSharedData>;
-type ServerlessContext = {rawRequest: APIGatewayEvent; rawResponse?: null};
-type CallContext = Context<SharedData, ServerlessContext>;
+type Context = CallContext<SharedData, APIGatewayEvent>;
 
-const getUser: Route = (ctx: CallContext, id) => {
+const getUser: Route = (ctx: Context, id) => {
     const user = myApp.db.getUser(id);
     if (!user) throw {statusCode: 200, message: 'user not found'};
     return user;
 };
-const createUser = (ctx: CallContext, newUser: NewUser): User => myApp.db.createUser(newUser);
-const updateUser = (ctx: CallContext, user: User): User => {
+const createUser = (ctx: Context, newUser: NewUser): User => myApp.db.createUser(newUser);
+const updateUser = (ctx: Context, user: User): User => {
     const updated = myApp.db.updateUser(user);
     if (!updated) throw {statusCode: 200, message: 'user not found, can not be updated'};
     return updated;
 };
-const deleteUser = (ctx: CallContext, id: number): User => {
+const deleteUser = (ctx: Context, id: number): User => {
     const deleted = myApp.db.deleteUser(id);
     if (!deleted) throw {statusCode: 200, message: 'user not found, can not be deleted'};
     return deleted;
@@ -72,7 +71,7 @@ const auth = {
     inHeader: true,
     fieldName: 'Authorization',
     canReturnData: false,
-    hook: (ctx: CallContext, token: string): void => {
+    hook: (ctx: Context, token: string): void => {
         if (!myApp.auth.isAuthorized(token)) throw {statusCode: StatusCodes.FORBIDDEN, message: 'Not Authorized'} as RouteError;
         ctx.shared.me = myApp.auth.getIdentity(token) as User;
     },

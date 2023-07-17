@@ -7,7 +7,7 @@
 import {registerRoutes, resetRouter} from '@mionkit/router';
 import fetch from 'node-fetch'; // must be node-fetch v2 as v3 is a node module non compatible whit current setup
 import {initHttpRouter, resetHttpRouter, startHttpServer} from './mionHttp';
-import type {Context, Route} from '@mionkit/router';
+import type {CallContext, Route} from '@mionkit/router';
 
 describe('serverless router should', () => {
     resetRouter();
@@ -15,7 +15,7 @@ describe('serverless router should', () => {
     type SimpleUser = {name: string; surname: string};
     type DataPoint = {date: Date};
     type MySharedData = ReturnType<typeof getSharedData>;
-    type CallContext = Context<MySharedData>;
+    type Context = CallContext<MySharedData>;
 
     const myApp = {
         cloudLogs: {
@@ -30,15 +30,15 @@ describe('serverless router should', () => {
 
     initHttpRouter(getSharedData, {prefix: 'api/'});
 
-    const changeUserName: Route = (context: CallContext, user: SimpleUser) => {
+    const changeUserName: Route = (context: Context, user: SimpleUser) => {
         return myApp.db.changeUserName(user);
     };
 
-    const getDate: Route = (context: CallContext, dataPoint?: DataPoint): DataPoint => {
+    const getDate: Route = (context: Context, dataPoint?: DataPoint): DataPoint => {
         return dataPoint || {date: new Date('2022-04-22T00:17:00.000Z')};
     };
 
-    const updateHeaders: Route = (context: CallContext): void => {
+    const updateHeaders: Route = (context: Context): void => {
         context.response.headers['x-something'] = true;
         context.response.headers['server'] = 'my-server';
     };

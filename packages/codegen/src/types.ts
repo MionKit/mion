@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {Executable, PublicHook, PublicMethod, PublicMethods, PublicRoute} from '@mionkit/router';
+import {PublicHook, PublicMethod, PublicMethods, PublicRoute} from '@mionkit/router';
 import {Options as PrettierOptions} from 'prettier';
 
 export type CodegenOptions = {

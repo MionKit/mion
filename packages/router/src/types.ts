@@ -16,15 +16,15 @@ export type SimpleHandler<Ret = any> = (
 ) => Ret | Promise<Ret>;
 
 /** Route or Hook Handler, the remote function  */
-export type Handler<CallContext extends Context<any, any> = any, Ret = any> = (
+export type Handler<Context extends CallContext = CallContext, Ret = any> = (
     /** Call Context */
-    context: CallContext,
+    context: Context,
     /** Remote Call parameters */
     ...parameters: any
 ) => Ret | Promise<Ret>;
 
 /** Route definition */
-export type RouteDef<CallContext extends Context<any, any> = any, Ret = any> = {
+export type RouteDef<Context extends CallContext = CallContext, Ret = any> = {
     /** overrides route's path and fieldName in request/response body */
     path?: string;
     /** description of the route, mostly for documentation purposes */
@@ -34,16 +34,11 @@ export type RouteDef<CallContext extends Context<any, any> = any, Ret = any> = {
     /** Enables serialization/deserialization */
     enableSerialization?: boolean;
     /** Route Handler */
-    route: Handler<CallContext, Ret>;
+    route: Handler<Context, Ret>;
 };
 
-/** A route can be a full route definition or just the handler */
-export type Route<CallContext extends Context<any, any> = any, Ret = any> =
-    | RouteDef<CallContext, Ret>
-    | Handler<CallContext, Ret>;
-
 /** Hook definition, a function that hooks into the execution path */
-export type HookDef<CallContext extends Context<any, any> = any, Ret = any> = {
+export type HookDef<Context extends CallContext = CallContext, Ret = any> = {
     /** Executes the hook even if an error was thrown previously */
     forceRunOnError?: boolean;
     /** Enables returning data in the responseBody,
@@ -60,18 +55,21 @@ export type HookDef<CallContext extends Context<any, any> = any, Ret = any> = {
     /** Enables serialization/deserialization */
     enableSerialization?: boolean;
     /** Hook handler */
-    hook: Handler<CallContext, Ret> | SimpleHandler<Ret>;
+    hook: Handler<Context, Ret> | SimpleHandler<Ret>;
 };
 
+/** A route can be a full route definition or just the handler */
+export type Route<Context extends CallContext = CallContext, Ret = any> = RouteDef<Context, Ret> | Handler<Context, Ret>;
+
 /** Data structure to define all the routes, each entry is a route a hook or sub-routes */
-export type Routes<CallContext extends Context<any, any> = any> = {
-    [key: string]: HookDef<CallContext> | Route<CallContext> | Routes<CallContext>;
+export type Routes<Context extends CallContext = CallContext> = {
+    [key: string]: HookDef<Context> | Route<Context> | Routes<Context>;
 };
 
 // ####### Router Options #######
 
 /** Global Router Options */
-export type RouterOptions<RawContext extends RawServerContext = RawServerContext> = {
+export type RouterOptions<Req extends RawRequest = RawRequest> = {
     /** prefix for all routes, i.e: api/v1.
      * path separator is added between the prefix and the route */
     prefix: string;
@@ -79,7 +77,7 @@ export type RouterOptions<RawContext extends RawServerContext = RawServerContext
      * Not path separators is added between the route and the suffix */
     suffix: string;
     /** Transform the path before finding a route */
-    pathTransform?: (request: RawContext['rawRequest'], path: string) => string;
+    pathTransform?: (request: Req, path: string) => string;
     /** configures the fieldName in the request/response body used for a route's params/response */
     routeFieldName?: string;
     /** enable automatic parameter validation, defaults to true */
@@ -136,20 +134,35 @@ export type HookExecutable<H extends Handler | SimpleHandler> = Executable & {
     handler: H;
 };
 
-// ####### Context #######
+// ####### Call Context #######
 
 /** The call Context object passed as first parameter to any hook or route */
-export type Context<SharedData, RawContext extends RawServerContext = any> = Readonly<{
+export type CallContext<SharedData = any, RawReq extends RawRequest = any, RawResp = any> = Readonly<{
     /** Route's path */
     path: Readonly<string>;
-    /** Raw Server call context, contains the raw request and response */
-    rawContext: Readonly<RawContext>;
+    /** Original Server request
+     * i.e: '@types/aws-lambda/APIGatewayEvent'
+     * or http/IncomingMessage */
+    rawRequest: RawReq;
+    /** Original Server response
+     * i.e: http/ServerResponse */
+    rawResponse?: RawResp;
     /** Router's own request object */
     request: Readonly<Request>;
     /** Router's own response object */
     response: Readonly<Response>;
     /** shared data between handlers (route/hooks) and that is not returned in the response. */
     shared: SharedData;
+}>;
+
+export type RawCallContext<RawReq extends RawRequest = RawRequest, RawResp = any> = Readonly<{
+    /** Original Server request
+     * i.e: '@types/aws-lambda/APIGatewayEvent'
+     * or http/IncomingMessage */
+    rawRequest: RawReq;
+    /** Original Server response
+     * i.e: http/ServerResponse */
+    rawResponse?: RawResp;
 }>;
 
 // ####### REQUEST & RESPONSE #######
@@ -175,16 +188,6 @@ export type Response = {
     body: Readonly<Obj>;
     /** json encoded response, contains data and errors if there are any. */
     json: Readonly<string>;
-};
-
-export type RawServerContext<RawServerRequest extends RawRequest = RawRequest, RawServerResponse = any> = {
-    /** Original Server request
-     * i.e: '@types/aws-lambda/APIGatewayEvent'
-     * or http/IncomingMessage */
-    rawRequest: RawServerRequest;
-    /** Original Server response
-     * i.e: http/ServerResponse */
-    rawResponse?: RawServerResponse;
 };
 
 /** Any request Object used by the router must follow this interface */
@@ -248,7 +251,7 @@ export type PublicMethods<Type extends Routes> = {
 
 // prettier-ignore
 export type PublicHandler<H extends Handler | SimpleHandler> = 
-    H extends (ctx: Context<any, any>, ...rest: infer Req) => infer Resp
+    H extends (ctx: CallContext, ...rest: infer Req) => infer Resp
     ? (...rest: Req) => Promise<Awaited<Resp>>
     :  H extends (...rest: infer Req) => infer Resp
     ? (...rest: Req) => Promise<Awaited<Resp>>

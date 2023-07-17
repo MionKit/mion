@@ -7,15 +7,15 @@
 
 import {
     Executable,
-    Context,
+    CallContext,
     Obj,
     Response,
-    RawServerContext,
     Mutable,
     PublicError,
     Request,
     RouterOptions,
     SimpleHandler,
+    RawRequest,
 } from './types';
 import {StatusCodes} from './status-codes';
 import {RouteError} from './errors';
@@ -25,7 +25,7 @@ import {isPromise} from 'node:util/types';
 
 const asyncLocalStorage = new AsyncLocalStorage();
 
-export function getCallContext<R extends Context<any, RawServerContext>>(): R {
+export function getCallContext<R extends CallContext>(): R {
     return asyncLocalStorage.getStore() as R;
 }
 
@@ -40,40 +40,46 @@ type CallBack = (err: any, response: Response | undefined) => void;
  * - dispatchRouteCallback seems to be more slow but use less memory in some scenarios.
  */
 
-export function dispatchRoute<RawContext extends RawServerContext>(path: string, serverContext: RawContext): Promise<Response> {
+export function dispatchRoute<Req extends RawRequest, Resp>(
+    path: string,
+    rawRequest: Req,
+    rawResponse?: Resp
+): Promise<Response> {
     return new Promise<Response>((resolve, reject) => {
         // Enqueue execution and DO NOT BLOCK THE LOOP
         setImmediate(() =>
-            _dispatchRoute(path, serverContext)
+            _dispatchRoute(path, rawRequest, rawResponse)
                 .then((result) => resolve(result))
                 .catch((err) => reject(err))
         );
     });
 }
 
-export function dispatchRouteCallback<RawContext extends RawServerContext>(
+export function dispatchRouteCallback<Req extends RawRequest, Resp>(
     path: string,
-    serverContext: RawContext,
+    rawRequest: Req,
+    rawResponse: Resp | undefined,
     cb: CallBack
 ): void {
     // Enqueue execution and DO NOT BLOCK THE LOOP
     setImmediate(() =>
-        _dispatchRoute(path, serverContext)
+        _dispatchRoute(path, rawRequest, rawResponse)
             .then((result) => cb(undefined, result))
             .catch((err) => cb(err, undefined))
     );
 }
 
-async function _dispatchRoute<RawContext extends RawServerContext>(path: string, serverContext: RawContext): Promise<Response> {
+async function _dispatchRoute(path: string, rawRequest: RawRequest, rawResponse?: unknown): Promise<Response> {
     try {
         const opts = getRouterOptions();
-        const transformedPath = opts.pathTransform ? opts.pathTransform(serverContext.rawRequest, path) : path;
+        const transformedPath = opts.pathTransform ? opts.pathTransform(rawRequest, path) : path;
         const sharedFactory = getSharedDataFactory();
-        const context: Context<any, RawContext> = {
-            rawContext: serverContext,
+        const context: CallContext<any, RawRequest, any> = {
             path: transformedPath,
+            rawRequest,
+            rawResponse,
             request: {
-                headers: serverContext.rawRequest.headers || {},
+                headers: rawRequest.headers || {},
                 body: {},
                 internalErrors: [],
             },
@@ -93,7 +99,7 @@ async function _dispatchRoute<RawContext extends RawServerContext>(path: string,
             const notFound = new RouteError({statusCode: StatusCodes.NOT_FOUND, publicMessage: 'Route not found'});
             handleRouteErrors(context.request, context.response, notFound, 0);
         } else {
-            parseRequestBody(context.rawContext, context.request, context.response, opts);
+            parseRequestBody(rawRequest, context.request, context.response, opts);
             await runExecutionPath(context, executionPath, opts);
         }
         stringifyResponseBody(context, opts);
@@ -103,7 +109,7 @@ async function _dispatchRoute<RawContext extends RawServerContext>(path: string,
     }
 }
 
-async function runExecutionPath(context: Context<any>, executables: Executable[], opts: RouterOptions): Promise<Response> {
+async function runExecutionPath(context: CallContext, executables: Executable[], opts: RouterOptions): Promise<Response> {
     const {response, request} = context;
 
     for (let i = 0; i < executables.length; i++) {
@@ -125,12 +131,7 @@ async function runExecutionPath(context: Context<any>, executables: Executable[]
     return context.response;
 }
 
-async function runHandler(
-    handlerParams: any[],
-    context: Context<any, RawServerContext>,
-    executable: Executable,
-    opts: RouterOptions
-): Promise<any> {
+async function runHandler(handlerParams: any[], context: CallContext, executable: Executable, opts: RouterOptions): Promise<any> {
     const resp = !opts.useAsyncCallContext
         ? executable.handler(context, ...handlerParams)
         : asyncLocalStorage.run(context, () => {
@@ -149,16 +150,11 @@ async function runHandler(
 
 // ############# PRIVATE METHODS #############
 
-const parseRequestBody = (
-    serverContext: RawServerContext<any, any>,
-    request: Request,
-    response: Response,
-    routerOptions: RouterOptions
-) => {
-    if (!serverContext.rawRequest.body) return;
+const parseRequestBody = (rawRequest: RawRequest, request: Request, response: Response, routerOptions: RouterOptions) => {
+    if (!rawRequest.body) return;
     try {
-        if (typeof serverContext.rawRequest.body === 'string') {
-            const parsedBody = routerOptions.bodyParser.parse(serverContext.rawRequest.body);
+        if (typeof rawRequest.body === 'string') {
+            const parsedBody = routerOptions.bodyParser.parse(rawRequest.body);
             if (typeof parsedBody !== 'object')
                 throw new RouteError({
                     statusCode: StatusCodes.BAD_REQUEST,
@@ -166,9 +162,9 @@ const parseRequestBody = (
                     publicMessage: 'Wrong request body. Expecting an json body containing the route name and parameters.',
                 });
             (request as Mutable<Obj>).body = parsedBody;
-        } else if (typeof serverContext.rawRequest.body === 'object') {
+        } else if (typeof rawRequest.body === 'object') {
             // lets assume the body has been already parsed, TODO: investigate possible security issues
-            (request as Mutable<Obj>).body = serverContext.rawRequest.body;
+            (request as Mutable<Obj>).body = rawRequest.body;
         } else {
             throw new RouteError({
                 statusCode: StatusCodes.BAD_REQUEST,
@@ -193,7 +189,7 @@ const parseRequestBody = (
     }
 };
 
-function stringifyResponseBody({response}: Context<any, RawServerContext>, opts: RouterOptions): void {
+function stringifyResponseBody({response}: CallContext, opts: RouterOptions): void {
     const respBody: Obj = response.body;
     if (response.publicErrors.length) {
         respBody.errors = response.publicErrors;
@@ -311,7 +307,7 @@ export const generateRouteResponseFromOutsideError = (
     });
     const publicErrors = [getPublicErrorFromRouteError(error)];
     const context = {
-        rawContext: undefined as any,
+        rawRequest: undefined as any,
         path: undefined as any,
         request: undefined as any,
         shared: undefined as any,
@@ -322,7 +318,7 @@ export const generateRouteResponseFromOutsideError = (
             body: {},
             json: '',
         },
-    } as Context<any, RawServerContext>;
+    } as CallContext;
 
     stringifyResponseBody(context, routerOptions);
     return context.response;

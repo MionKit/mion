@@ -20,12 +20,13 @@ import {
     RouteDef,
     RouterOptions,
     Routes,
-    Obj,
     SharedDataFactory,
-    RawServerContext,
     RouteExecutable,
     HookExecutable,
     PublicMethods,
+    CallContext,
+    RawCallContext,
+    RawRequest,
 } from './types';
 import {getFunctionReflectionMethods} from '@mionkit/runtype';
 
@@ -70,9 +71,7 @@ export const geHooksSize = () => hooksByFieldName.size;
 export const getComplexity = () => complexity;
 export const getRouterOptions = (): Readonly<RouterOptions> => routerOptions;
 export const getSharedDataFactory = () => sharedDataFactoryFunction;
-export const setRouterOptions = <ServerContext extends RawServerContext = RawServerContext>(
-    routerOptions_?: Partial<RouterOptions<ServerContext>>
-) => {
+export const setRouterOptions = <Req extends RawRequest = RawRequest>(routerOptions_?: Partial<RouterOptions<Req>>) => {
     routerOptions = {
         ...routerOptions,
         ...(routerOptions_ as Partial<RouterOptions>),
@@ -100,9 +99,9 @@ export const resetRouter = () => {
  * @param routerOptions
  * @returns
  */
-export const initRouter = async <SharedData, RawContext extends RawServerContext = RawServerContext>(
+export const initRouter = async <SharedData, Req extends RawRequest = RawRequest>(
     sharedDataFactory?: SharedDataFactory<SharedData>,
-    routerOptions?: Partial<RouterOptions<RawContext>>
+    routerOptions?: Partial<RouterOptions<Req>>
 ) => {
     sharedDataFactoryFunction = sharedDataFactory;
     setRouterOptions(routerOptions);
