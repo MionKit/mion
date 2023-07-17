@@ -17,7 +17,7 @@ import {DEFAULT_REFLECTION_OPTIONS} from './constants';
 import {getHandlerType} from './types';
 
 describe('Deepkit serialization should', () => {
-    const skip = 2; // skipping app and ctx
+    const skip = 1; // skipping ctx
     type User = {
         id: number;
         name: string;
@@ -31,11 +31,11 @@ describe('Deepkit serialization should', () => {
     const date1 = new Date('2021-12-19T00:24:00.000');
     const date1Serialized = '2021-12-19T00:24:00.000Z';
 
-    const addDate = (app, ctx, data: DatePoint): DatePoint => {
+    const addDate = (ctx, data: DatePoint): DatePoint => {
         return data;
     };
 
-    const updateUser = (app, ctx, user: User): User => {
+    const updateUser = (ctx, user: User): User => {
         const updated = {
             ...user,
             lastUpdate: new Date('2023-12-19T00:24:00.000'),

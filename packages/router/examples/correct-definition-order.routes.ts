@@ -20,7 +20,7 @@ const routes = {
     },
     errorHandlerHook, // hook,
     loggingHook, // hook,
-};
+} satisfies Routes;
 
 export const myValidApi = registerRoutes(routes);
 
@@ -34,6 +34,6 @@ const invalidRoutes = {
         // invalid (this would execute before the authorizationHook)
         getBar, // route
     },
-};
+} satisfies Routes;
 
 export const myInvalidApi = registerRoutes(invalidRoutes); // throws an error

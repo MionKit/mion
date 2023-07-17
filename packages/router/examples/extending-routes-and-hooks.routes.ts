@@ -1,11 +1,12 @@
 import {Route, HookDef} from '@mionkit/router';
+import {myApp} from './myApp';
 
 type MyRoute = Route & {doNotFail: boolean};
 type MyHook = HookDef & {shouldLog: boolean};
 
 const someRoute: MyRoute = {
     doNotFail: true,
-    route: (app, ctx): void => {
+    route: (): void => {
         if (someRoute.doNotFail) {
             // do something
         } else {
@@ -16,9 +17,9 @@ const someRoute: MyRoute = {
 
 const someHook: MyHook = {
     shouldLog: false,
-    hook: (app, ctx): void => {
+    hook: (): void => {
         if (someHook.shouldLog) {
-            app.cloudLogs.log('hello');
+            myApp.cloudLogs.log('hello');
         } else {
             // do something else
         }

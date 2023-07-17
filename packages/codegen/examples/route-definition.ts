@@ -6,6 +6,7 @@
  * ######## */
 
 import {MkSpec, RemoteHandler, RemoteParams, RemotePrefill, RemoteReturn} from '@mionkit/client';
+import {Routes} from '@mionkit/router';
 
 // ##### Generated Spec Input #####
 
@@ -37,7 +38,7 @@ export const myAppRoutes = {
         route: async (c, s: string, n: number): Promise<number> => n,
     },
     last: {hook(): void {}},
-};
+} satisfies Routes;
 
 export type MyAppRoutes = typeof myAppRoutes;
 

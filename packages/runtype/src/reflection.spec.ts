@@ -11,12 +11,12 @@ import {getFunctionReflectionMethods} from './reflection';
 import {ParamsValidationResponse, ReturnValidationResponse} from './types';
 
 describe('Deepkit reflection should', () => {
-    const skip = 2; // skipping app and ctx
+    const skip = 1; // skipping  ctx
     type Message = {
         message: string;
     };
 
-    const printSum = (app, ctx, a: number, b: number, date: Date, c?: {message: string}, d?: Message) =>
+    const printSum = (ctx, a: number, b: number, date: Date, c?: {message: string}, d?: Message) =>
         `${c?.message || d?.message || 'sum'} => ${a + b} at ${date.toISOString}`;
 
     function setup(lazy = false) {
