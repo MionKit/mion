@@ -1,9 +1,10 @@
 import {RouteError, StatusCodes} from '@mionkit/router';
-import type {Pet} from 'MyModels';
+import type {Pet} from './myModels';
+import {myApp} from './myApp';
 
-export const getPet = (app, ctx, id: string): Promise<Pet> => {
+export const getPet = (ctx, id: string): Promise<Pet> => {
     try {
-        const pet = app.db.getPet(id);
+        const pet = myApp.db.getPet(id);
         if (!pet) {
             // Only statusCode and publicMessage will be returned in the response.body
             const statusCode = StatusCodes.BAD_REQUEST;

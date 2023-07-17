@@ -39,12 +39,11 @@ export function resetHttpRouter() {
     defaultResponseHeaders = [];
 }
 
-export function initHttpRouter<App extends Obj, SharedData extends Obj>(
-    app: App,
+export function initHttpRouter<SharedData extends Obj>(
     sharedDataFactory?: SharedDataFactory<SharedData>,
     routerOptions?: Partial<RouterOptions<HttpRawServerContext>>
 ) {
-    initRouter(app, sharedDataFactory, routerOptions);
+    initRouter(sharedDataFactory, routerOptions);
     defaultResponseContentType = getRouterOptions().responseContentType;
 }
 

@@ -47,25 +47,26 @@ The reason for this weird naming is to future proof the router to be able to acc
 ```js
 // ../router/examples/routes-definition.routes.ts
 
-import {setRouterOptions, registerRoutes} from '@mionkit/router';
+import {setRouterOptions, registerRoutes, Routes} from '@mionkit/router';
 
-const sayHello = (app, ctx, name: string): string => {
-  return `Hello ${name}.`;
+const sayHello = (ctx, name: string): string => {
+    return `Hello ${name}.`;
 };
 
 const sayHello2 = {
-  route(app, ctx, name1: string, name2: string): string {
-    return `Hello ${name1} and ${name2}.`;
-  },
+    route(ctx, name1: string, name2: string): string {
+        return `Hello ${name1} and ${name2}.`;
+    },
 };
 
 const routes = {
-  sayHello, // api/sayHello
-  sayHello2, // api/sayHello2
-};
+    sayHello, // api/sayHello
+    sayHello2, // api/sayHello2
+} satisfies Routes;
 
 setRouterOptions({prefix: 'api/'});
 export const apiSpec = registerRoutes(routes);
+
 ```
 
 ### Write a fully validated Serverless API in 5 mins 🚀

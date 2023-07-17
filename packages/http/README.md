@@ -49,25 +49,26 @@ The reason for this weird naming is to future proof the router to be able to acc
 ```js
 // ../router/examples/routes-definition.routes.ts
 
-import {setRouterOptions, registerRoutes} from '@mionkit/router';
+import {setRouterOptions, registerRoutes, Routes} from '@mionkit/router';
 
-const sayHello = (app, ctx, name: string): string => {
-  return `Hello ${name}.`;
+const sayHello = (ctx, name: string): string => {
+    return `Hello ${name}.`;
 };
 
 const sayHello2 = {
-  route(app, ctx, name1: string, name2: string): string {
-    return `Hello ${name1} and ${name2}.`;
-  },
+    route(ctx, name1: string, name2: string): string {
+        return `Hello ${name1} and ${name2}.`;
+    },
 };
 
 const routes = {
-  sayHello, // api/sayHello
-  sayHello2, // api/sayHello2
-};
+    sayHello, // api/sayHello
+    sayHello2, // api/sayHello2
+} satisfies Routes;
 
 setRouterOptions({prefix: 'api/'});
 export const apiSpec = registerRoutes(routes);
+
 ```
 
 ---
@@ -78,7 +79,7 @@ export const apiSpec = registerRoutes(routes);
 // examples/full-example.routes.ts
 
 import {initHttpRouter, startHttpServer} from '@mionkit/http';
-import {registerRoutes} from '@mionkit/router';
+import {Routes, registerRoutes} from '@mionkit/router';
 
 // #### App ####
 
@@ -87,24 +88,24 @@ type DataPoint = {date: Date};
 type SharedData = {auth: {me: any}};
 
 const dbChangeUserName = (user: SimpleUser): SimpleUser => ({name: 'NewName', surname: user.surname});
-const app = {db: {changeUserName: dbChangeUserName}};
+const myApp = {db: {changeUserName: dbChangeUserName}};
 const sharedDataFactory = (): SharedData => ({auth: {me: null}});
 
 // #### Routes ####
 
-const changeUserName = (app, ctx, user: SimpleUser): SimpleUser => {
-  return ctx.app.db.changeUserName(user);
+const changeUserName = (ctx, user: SimpleUser): SimpleUser => {
+  return myApp.db.changeUserName(user);
 };
 
-const getDate = (app, ctx, dataPoint?: DataPoint): DataPoint => {
+const getDate = (ctx, dataPoint?: DataPoint): DataPoint => {
   return dataPoint || {date: new Date('December 17, 2020 03:24:00')};
 };
 
 // #### Init server ####
 
 const routerOpts = {prefix: 'api/'};
-const routes = {changeUserName, getDate};
-initHttpRouter(app, sharedDataFactory, routerOpts);
+const routes = {changeUserName, getDate} satisfies Routes;
+initHttpRouter(sharedDataFactory, routerOpts);
 registerRoutes(routes);
 startHttpServer({port: 8080});
 ```

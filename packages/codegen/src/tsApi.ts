@@ -65,10 +65,9 @@ const getPublicRoutesTypeId = (options: CodegenOptions) => {
     // !!Important this can change depending on the retunr type of router.registerRoutes()!!
     const publicRoutesFileSample = `
         import {initRouter, registerRoutes} from '@mionkit/router';
-        const myApp = {};
         const getShared = () => ({});
         const api = {};
-        initRouter(myApp, getShared);
+        initRouter(getShared);
         export const PUBLIC_ROUTES = registerRoutes(api);
     `;
     const publicRoutesExportedName = 'PUBLIC_ROUTES';
@@ -84,7 +83,7 @@ const getPublicRoutesTypeId = (options: CodegenOptions) => {
     return samplePublicRoutesTypeText.replace('<{}>', '');
 };
 
-/** Return the required JS code to run the App and generate the router spec. */
+/** Return the required JS code to run the router and generate the router spec. */
 export const getGenerateSpecJsCode = (options: CodegenOptions, exportedPublicRoutesNames: string[]): OutputFile => {
     if (!project) throw new Error('TS Project has not been initialized!');
     const entryTsName = basename(options.entryFileName);

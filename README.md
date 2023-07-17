@@ -85,14 +85,14 @@ The reason for this naming is to future proof the router to be able to accept mu
 ```js
 // packages/router/examples/routes-definition.routes.ts
 
-import {setRouterOptions, registerRoutes} from '@mionkit/router';
+import {setRouterOptions, registerRoutes, Routes} from '@mionkit/router';
 
-const sayHello = (app, ctx, name: string): string => {
+const sayHello = (ctx, name: string): string => {
     return `Hello ${name}.`;
 };
 
 const sayHello2 = {
-    route(app, ctx, name1: string, name2: string): string {
+    route(ctx, name1: string, name2: string): string {
         return `Hello ${name1} and ${name2}.`;
     },
 };
@@ -100,7 +100,7 @@ const sayHello2 = {
 const routes = {
     sayHello, // api/sayHello
     sayHello2, // api/sayHello2
-};
+} satisfies Routes;
 
 setRouterOptions({prefix: 'api/'});
 export const apiSpec = registerRoutes(routes);
@@ -126,10 +126,10 @@ Runtime types allow for a completely new set of capabilities. Please check Deepk
 ```ts
 // packages/router/examples/get-user-request.routes.ts
 
-import {registerRoutes, initRouter} from '@mionkit/router';
+import {Routes, registerRoutes} from '@mionkit/router';
 import type {User} from 'MyModels';
 
-const getUser = async (app, ctx, entity: {id: number}): Promise<User> => {
+const getUser = async (ctx, entity: {id: number}): Promise<User> => {
     const user = await ctx.db.getUserById(entity.id);
     return user;
 };
@@ -138,7 +138,7 @@ const routes = {
     users: {
         getUser, // api/users/getUser
     },
-};
+} satisfies Routes;
 
 export const apiSpec = registerRoutes(routes);
 
