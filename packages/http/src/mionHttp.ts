@@ -20,9 +20,8 @@ import {DEFAULT_HTTP_OPTIONS} from './constants';
 import type {HttpOptions, HttpRawServerContext} from './types';
 import type {IncomingMessage, Server as HttpServer, ServerResponse} from 'http';
 import type {Server as HttpsServer} from 'https';
-import type {Obj, Headers, RawRequest, RouterOptions, SharedDataFactory} from '@mionkit/router';
+import type {Obj, Headers, RawRequest, RouterOptions, SharedDataFactory, Response} from '@mionkit/router';
 
-type Logger = typeof console | undefined;
 type HeadersEntries = [string, string | boolean | number][];
 
 let httpOptions: HttpOptions = {
@@ -30,6 +29,7 @@ let httpOptions: HttpOptions = {
 };
 let defaultResponseContentType: string;
 let defaultResponseHeaders: HeadersEntries = [];
+const isTest = process.env.NODE_ENV === 'test';
 
 export function resetHttpRouter() {
     httpOptions = {
@@ -55,11 +55,9 @@ export async function startHttpServer(httpOptions_: Partial<HttpOptions> = {}): 
 
     defaultResponseHeaders = Object.entries(httpOptions.defaultResponseHeaders);
 
-    const logger = httpOptions_.logger;
-
     const port = httpOptions.port !== 80 ? `:${httpOptions.port}` : '';
     const url = `${httpOptions.protocol}://localhost${port}`;
-    logger?.log(`mion server running on ${url}`);
+    if (!isTest) console.log(`mion server running on ${url}`);
 
     return new Promise<HttpServer | HttpsServer>((resolve, reject) => {
         const server =
@@ -75,7 +73,7 @@ export async function startHttpServer(httpOptions_: Partial<HttpOptions> = {}): 
         });
 
         process.on('SIGINT', function () {
-            logger?.log(`Shutting down mion server on ${url}`);
+            if (!isTest) console.log(`Shutting down mion server on ${url}`);
             server.close(() => {
                 process.exit(0);
             });
@@ -84,17 +82,30 @@ export async function startHttpServer(httpOptions_: Partial<HttpOptions> = {}): 
 }
 
 function httpRequestHandler(httpReq: IncomingMessage, httpResponse: ServerResponse): void {
-    let hasError = false;
+    let replied = false;
     const path = httpReq.url || '/';
-    const logger = httpOptions.logger;
     let size = 0;
     const bodyChunks: any[] = [];
 
     httpResponse.setHeader('server', '@mionkit/http');
-    httpResponse.setHeader('content-type', defaultResponseContentType);
     // here we could check that the client accepts application/json as response and abort
     // but this is gonna be true 99.999% of the time so is better to continue without checking it
     addResponseHeaderEntries(httpResponse, defaultResponseHeaders);
+
+    const success = (routeResponse: Response) => {
+        if (replied || httpResponse.writableEnded) return;
+        replied = true;
+        addResponseHeaders(httpResponse, routeResponse.headers);
+        reply(httpResponse, routeResponse.json, routeResponse.statusCode);
+    };
+
+    const fail = (e?: Error, statusCode?: StatusCodes, message?: string) => {
+        if (replied || httpResponse.writableEnded) return;
+        replied = true;
+        const routeResponse = generateRouteResponseFromOutsideError(e, statusCode, message);
+        addResponseHeaders(httpResponse, routeResponse.headers);
+        reply(httpResponse, routeResponse.json, routeResponse.statusCode);
+    };
 
     httpReq.on('data', (data) => {
         bodyChunks.push(data);
@@ -102,77 +113,40 @@ function httpRequestHandler(httpReq: IncomingMessage, httpResponse: ServerRespon
         size += chunkLength;
         if (size > httpOptions.maxBodySize) {
             if (httpOptions.allowExceedMaxBodySize && httpOptions.allowExceedMaxBodySize(size, httpReq, httpResponse)) return;
-            hasError = true;
-            const routeResponse = generateRouteResponseFromOutsideError(
-                undefined,
-                StatusCodes.REQUEST_TOO_LONG,
-                'Request Payload Too Large'
-            );
-            reply(httpResponse, logger, routeResponse.json, routeResponse.statusCode);
+            fail(undefined, StatusCodes.REQUEST_TOO_LONG, 'Request Payload Too Large');
         }
     });
 
     httpReq.on('error', (e) => {
-        hasError = true;
-        const routeResponse = generateRouteResponseFromOutsideError(e, StatusCodes.BAD_REQUEST, 'Request Connection Error');
-        reply(httpResponse, logger, routeResponse.json, routeResponse.statusCode);
+        fail(e, StatusCodes.BAD_REQUEST, 'Request Connection Error');
     });
 
     httpReq.on('end', () => {
-        if (hasError) return;
+        if (replied) return;
         // monkey patching IncomingMessage to add required body once transfer has ended
         const body = Buffer.concat(bodyChunks).toString();
         (httpReq as any).body = body;
 
         const rawContext = {rawRequest: httpReq as any as RawRequest, rawResponse: httpResponse};
-        const success = (routeResponse) => {
-            if (hasError) return;
-            addResponseHeaders(httpResponse, routeResponse.headers);
-            reply(httpResponse, logger, routeResponse.json, routeResponse.statusCode);
-        };
-        const fail = (e) => {
-            if (hasError) return;
-            hasError = true;
-            const routeResponse = generateRouteResponseFromOutsideError(e);
-            reply(httpResponse, logger, routeResponse.json, routeResponse.statusCode);
-        };
         if (httpOptions.useCallbacks) {
             dispatchRouteCallback(path, rawContext, (e, routeResponse) => {
-                if (e) {
-                    fail(e);
-                } else {
-                    success(routeResponse);
-                }
-                if (!httpResponse.writableEnded) httpResponse.end();
+                if (e) fail(e);
+                else if (routeResponse) success(routeResponse);
+                else fail(undefined, StatusCodes.INTERNAL_SERVER_ERROR, 'No response from Router');
             });
         } else {
             dispatchRoute(path, rawContext)
                 .then((routeResponse) => success(routeResponse))
-                .catch((e) => fail(e))
-                .finally(() => {
-                    if (!httpResponse.writableEnded) httpResponse.end();
-                });
+                .catch((e) => fail(e));
         }
     });
 
     httpResponse.on('error', (e) => {
-        hasError = true;
-        logger?.error({statusCode: 0, message: 'error responding to client'}, e);
+        fail(e, StatusCodes.INTERNAL_SERVER_ERROR, 'Response Connection Error');
     });
 }
 
-function reply(httpResponse: ServerResponse, logger: Logger, json: string, statusCode: number, statusMessage?: string) {
-    if (httpResponse.writableEnded) {
-        if (logger) {
-            logger.error(
-                new RouteError({
-                    statusCode,
-                    publicMessage: 'response has ended but server is still trying to reply',
-                })
-            );
-        }
-        return;
-    }
+function reply(httpResponse: ServerResponse, json: string, statusCode: number, statusMessage?: string) {
     if (statusMessage) httpResponse.statusMessage = statusMessage;
     httpResponse.statusCode = statusCode;
     httpResponse.setHeader('content-length', json.length);

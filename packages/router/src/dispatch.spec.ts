@@ -7,7 +7,7 @@
 
 import {registerRoutes, resetRouter, initRouter} from './router';
 import {dispatchRoute, getCallContext} from './dispatch';
-import {PublicError, RawRequest, Route} from './types';
+import {Context, PublicError, RawRequest, Route, Routes} from './types';
 import {StatusCodes} from './status-codes';
 
 describe('Dispatch routes', () => {
@@ -162,21 +162,32 @@ describe('Dispatch routes', () => {
             expect(response.body[path]).toEqual(4);
         });
 
-        it('support async handlers', async () => {
+        // TODO: need an unit test that guarantees that if one routes has a dependency on the output of another hook it wil work
+        it('support async handlers and ensure execution in order', async () => {
             initRouter(getSharedData);
-            registerRoutes({
-                sumTwo: async (ctx, val: number) => {
+            const pathSum = '/sumTwo';
+            const routes = {
+                sumTwo: async (ctx, val: number): Promise<number> => {
                     return new Promise((resolve) => {
                         setTimeout(() => {
                             resolve(val + 2);
                         }, 500);
                     });
                 },
-            });
-            const path = '/sumTwo';
-            const request = getDefaultRequest(path, [2]);
-            const response = await dispatchRoute(path, {rawRequest: request});
-            expect(response.body[path]).toEqual(4);
+                totals: {
+                    canReturnData: true,
+                    hook: (ctx: Context<any>): string => {
+                        // is sumTwo is not executed in order then `ctx.response.body.sumTwo` would be undefined here
+                        return `the total is ${ctx.response.body[pathSum]}`;
+                    },
+                },
+            } satisfies Routes;
+            registerRoutes(routes);
+
+            const request = getDefaultRequest(pathSum, [2]);
+            const response = await dispatchRoute(pathSum, {rawRequest: request});
+            expect(response.body[pathSum]).toEqual(4);
+            expect(response.body['totals']).toEqual('the total is 4');
         });
     });
 

@@ -68,6 +68,7 @@ describe('serverless router should', () => {
             method: 'POST',
             body: JSON.stringify(requestData),
         });
+
         const reply = await response.json();
         const headers = Object.fromEntries(response.headers.entries());
 
