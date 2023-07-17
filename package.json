@@ -11,9 +11,9 @@
     "lint": "lerna run lint",
     "lint-pre-commit": "CI=true lerna run lint -- --quiet",
     "build": "lerna run build",
-    "clean": "lerna run clean  && nx reset",
+    "clean": "lerna run clean  && nx reset && jest --clearCache",
     "deepkit-install": "deepkit-type-install",
-    "auto-readme": "embedme README.md",
+    "auto-readme": "embedme README.md && lerna run auto-readme",
     "npm-publish": "lerna publish from-package --no-private",
     "prepare": "husky install"
   },

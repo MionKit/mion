@@ -1,4 +1,4 @@
-import {Context, Routes, registerRoutes} from '@mionkit/router';
+import {CallContext, Routes, registerRoutes} from '@mionkit/router';
 import {getAuthUser, isAuthorized} from 'MyAuth';
 import type {Pet} from 'MyModels';
 import {myApp} from './myApp';
@@ -21,7 +21,7 @@ const getPet = async (ctx, petId: number): Promise<Pet> => {
 
 const logs = {
     forceRunOnError: true,
-    async hook(ctx: Context<any>): Promise<void> {
+    async hook(ctx: CallContext): Promise<void> {
         if (ctx.request) await myApp.cloudLogs.error(ctx.path, ctx.request.internalErrors);
         else myApp.cloudLogs.log(ctx.path, ctx.shared.me.name);
     },

@@ -8,21 +8,19 @@
 import {initRouter, getRouterOptions, dispatchRoute, generateRouteResponseFromOutsideError} from '@mionkit/router';
 import type {Obj, SharedDataFactory, RouterOptions, PublicError, Response} from '@mionkit/router';
 import type {Context as AwsContext, APIGatewayProxyResult, APIGatewayEvent} from 'aws-lambda';
-import type {AwsRawServerContext} from './types';
 
 let defaultResponseContentType: string;
 
 export const initAwsLambdaRouter = <SharedData extends Obj>(
     sharedDataFactory?: SharedDataFactory<SharedData>,
-    routerOptions?: Partial<RouterOptions<AwsRawServerContext>>
+    routerOptions?: Partial<RouterOptions<APIGatewayEvent>>
 ) => {
-    initRouter<SharedData, AwsRawServerContext>(sharedDataFactory, routerOptions);
+    initRouter<SharedData, APIGatewayEvent>(sharedDataFactory, routerOptions);
     defaultResponseContentType = getRouterOptions().responseContentType;
 };
 
-export const lambdaHandler = async (req: APIGatewayEvent, awsContext: AwsContext): Promise<APIGatewayProxyResult> => {
-    const serverContext: AwsRawServerContext = {rawRequest: req, awsContext};
-    return dispatchRoute(req.path, serverContext)
+export const lambdaHandler = async (rawRequest: APIGatewayEvent, awsContext: AwsContext): Promise<APIGatewayProxyResult> => {
+    return dispatchRoute(rawRequest.path, rawRequest, awsContext)
         .then((routeResponse) => {
             return reply(routeResponse);
         })

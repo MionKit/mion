@@ -1,5 +1,5 @@
 import {initAwsLambdaRouter, lambdaHandler} from '@mionkit/serverless';
-import {Context, registerRoutes, Route} from '@mionkit/router';
+import {CallContext, registerRoutes, Route} from '@mionkit/router';
 import {AwsRawServerContext} from '../src/types';
 
 // #### App ####
@@ -8,7 +8,7 @@ type SimpleUser = {name: string; surname: string};
 type DataPoint = {date: Date};
 type SharedData = {auth: {me: any}};
 type App = typeof myApp;
-type CallContext = Context<SharedData, AwsRawServerContext>;
+type CallContext = CallContext<SharedData, AwsRawServerContext>;
 
 const dbChangeUserName = (user: SimpleUser): SimpleUser => ({name: 'NewName', surname: user.surname});
 const myApp = {db: {changeUserName: dbChangeUserName}};
