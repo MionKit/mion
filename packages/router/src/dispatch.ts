@@ -21,6 +21,7 @@ import {StatusCodes} from './status-codes';
 import {RouteError} from './errors';
 import {getRouteExecutionPath, getRouterOptions, getSharedDataFactory} from './router';
 import {AsyncLocalStorage} from 'node:async_hooks';
+import {isPromise} from 'node:util/types';
 
 const asyncLocalStorage = new AsyncLocalStorage();
 
@@ -30,17 +31,23 @@ export function getCallContext<R extends Context<any, RawServerContext>>(): R {
 
 type CallBack = (err: any, response: Response | undefined) => void;
 
+/*
+ * NOTE:
+ * different options has been tested to improve performance but were discarded due to worst or no noticeable improvements
+ * - using promisify(setImmediate): worst or no improvement
+ * - using queueMicrotask instead of setImmediate: definitely worst
+ * - using internal _dispatchRoute with callbacks instead promises: no difference, maybe worst in terms of memory usage
+ * - dispatchRouteCallback seems to be more slow but use less memory in some scenarios.
+ */
+
 export function dispatchRoute<RawContext extends RawServerContext>(path: string, serverContext: RawContext): Promise<Response> {
     return new Promise<Response>((resolve, reject) => {
-        const callBack = (err: any, response: Response | undefined) => {
-            if (response) {
-                resolve(response);
-            } else {
-                reject(err);
-            }
-        };
-        // Enqueue route execution
-        setImmediate(() => _dispatchRoute(path, serverContext, callBack));
+        // Enqueue execution and DO NOT BLOCK THE LOOP
+        setImmediate(() =>
+            _dispatchRoute(path, serverContext)
+                .then((result) => resolve(result))
+                .catch((err) => reject(err))
+        );
     });
 }
 
@@ -49,15 +56,15 @@ export function dispatchRouteCallback<RawContext extends RawServerContext>(
     serverContext: RawContext,
     cb: CallBack
 ): void {
-    // Enqueue route execution
-    setImmediate(() => _dispatchRoute(path, serverContext, cb));
+    // Enqueue execution and DO NOT BLOCK THE LOOP
+    setImmediate(() =>
+        _dispatchRoute(path, serverContext)
+            .then((result) => cb(undefined, result))
+            .catch((err) => cb(err, undefined))
+    );
 }
 
-function _dispatchRoute<RawContext extends RawServerContext>(
-    path: string,
-    serverContext: RawContext,
-    cb: CallBack
-): Promise<Response> | void {
+async function _dispatchRoute<RawContext extends RawServerContext>(path: string, serverContext: RawContext): Promise<Response> {
     try {
         const opts = getRouterOptions();
         const transformedPath = opts.pathTransform ? opts.pathTransform(serverContext.rawRequest, path) : path;
@@ -81,74 +88,49 @@ function _dispatchRoute<RawContext extends RawServerContext>(
         };
 
         const executionPath = getRouteExecutionPath(transformedPath) || [];
-        const lastStep = executionPath.length - 1;
-        const end = (executionStep: number): void => {
-            if (executionStep < lastStep) return;
-            const respBody: Obj = context.response.body;
-            if (context.response.publicErrors.length) {
-                respBody.errors = context.response.publicErrors;
-                (context.response.json as Mutable<string>) = opts.bodyParser.stringify(context.response.publicErrors);
-            } else {
-                (context.response.json as Mutable<string>) = opts.bodyParser.stringify(respBody);
-            }
-            cb(undefined, context.response);
-        };
 
         if (!executionPath.length) {
             const notFound = new RouteError({statusCode: StatusCodes.NOT_FOUND, publicMessage: 'Route not found'});
             handleRouteErrors(context.request, context.response, notFound, 0);
-            end(0);
         } else {
             parseRequestBody(context.rawContext, context.request, context.response, opts);
-            runExecutionPath(0, context, executionPath, opts, end);
+            await runExecutionPath(context, executionPath, opts);
         }
+        stringifyResponseBody(context, opts);
+        return context.response;
     } catch (err: any | RouteError | Error) {
-        // todo create response and send error
-        cb(err, undefined);
+        return Promise.reject(err);
     }
 }
 
-function runExecutionPath(
-    step: number,
-    context: Context<any>,
-    executionPath: Executable[],
-    opts: RouterOptions,
-    end: (index: number) => void
-) {
-    const executable = executionPath[step];
-    if (!executable) return end(step);
-    const next = () => runExecutionPath(step + 1, context, executionPath, opts, end);
+async function runExecutionPath(context: Context<any>, executables: Executable[], opts: RouterOptions): Promise<Response> {
     const {response, request} = context;
-    if (response.publicErrors.length && !executable.forceRunOnError) {
-        return next();
+
+    for (let i = 0; i < executables.length; i++) {
+        const executable = executables[i];
+        if (response.publicErrors.length && !executable.forceRunOnError) continue;
+
+        try {
+            const handlerParams = deserializeAndValidateParameters(request, executable, opts);
+            if (executable.inHeader) request.headers[executable.fieldName] = handlerParams;
+            else request.body[executable.fieldName] = handlerParams;
+
+            const result = await runHandler(handlerParams, context, executable, opts);
+            serializeResponse(response, executable, result, opts);
+        } catch (err: any | RouteError | Error) {
+            handleRouteErrors(request, response, err, i);
+        }
     }
 
-    try {
-        const handlerParams = deserializeAndValidateParameters(request, executable, opts);
-        if (executable.inHeader) request.headers[executable.fieldName] = handlerParams;
-        else request.body[executable.fieldName] = handlerParams;
-
-        runHandler(handlerParams, context, executable, opts, (err, result) => {
-            if (err) {
-                handleRouteErrors(request, response, err, step);
-            } else {
-                serializeResponse(response, executable, result, opts);
-            }
-            next();
-        });
-    } catch (err: any | RouteError | Error) {
-        handleRouteErrors(request, response, err, step);
-        next();
-    }
+    return context.response;
 }
 
-function runHandler(
+async function runHandler(
     handlerParams: any[],
     context: Context<any, RawServerContext>,
     executable: Executable,
-    opts: RouterOptions,
-    cb: CallBack
-) {
+    opts: RouterOptions
+): Promise<any> {
     const resp = !opts.useAsyncCallContext
         ? executable.handler(context, ...handlerParams)
         : asyncLocalStorage.run(context, () => {
@@ -156,12 +138,12 @@ function runHandler(
               return simpleHandler(...handlerParams);
           });
 
-    if (typeof resp?.then === 'function') {
-        resp.then((result) => cb(undefined, result)).catch((err) => cb(err, undefined));
+    if (isPromise(resp)) {
+        return resp as Promise<any>;
     } else if (resp instanceof Error || resp instanceof RouteError) {
-        cb(resp, undefined);
+        return Promise.reject(resp);
     } else {
-        cb(undefined, resp);
+        return Promise.resolve(resp);
     }
 }
 
@@ -210,6 +192,17 @@ const parseRequestBody = (
         handleRouteErrors(request, response, err, 0);
     }
 };
+
+function stringifyResponseBody({response}: Context<any, RawServerContext>, opts: RouterOptions): void {
+    const respBody: Obj = response.body;
+    if (response.publicErrors.length) {
+        respBody.errors = response.publicErrors;
+        (response.json as Mutable<string>) = opts.bodyParser.stringify(response.publicErrors);
+    } else {
+        (response.json as Mutable<string>) = opts.bodyParser.stringify(respBody);
+    }
+    response.headers['Content-Type'] = opts.responseContentType;
+}
 
 const deserializeAndValidateParameters = (request: Request, executable: Executable, routerOptions: RouterOptions): any[] => {
     const fieldName = executable.fieldName;
@@ -317,13 +310,22 @@ export const generateRouteResponseFromOutsideError = (
         originalError,
     });
     const publicErrors = [getPublicErrorFromRouteError(error)];
-    return {
-        statusCode,
-        publicErrors,
-        headers: {},
-        body: {},
-        json: routerOptions.bodyParser.stringify(publicErrors),
-    };
+    const context = {
+        rawContext: undefined as any,
+        path: undefined as any,
+        request: undefined as any,
+        shared: undefined as any,
+        response: {
+            statusCode,
+            publicErrors,
+            headers: {},
+            body: {},
+            json: '',
+        },
+    } as Context<any, RawServerContext>;
+
+    stringifyResponseBody(context, routerOptions);
+    return context.response;
 };
 
 export const getPublicErrorFromRouteError = (routeError: RouteError): PublicError => {

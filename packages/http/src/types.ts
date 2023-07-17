@@ -27,8 +27,6 @@ export type HttpOptions = {
      * the allowExceedMaxBodySize will be called on every new chunk of data received.
      */
     allowExceedMaxBodySize?: (currentSize: number, httpReq: IncomingMessage, httpResponse: ServerResponse) => boolean;
-    logger?: typeof console;
-
     /** use callback instead promises for handling the requests */
     useCallbacks?: boolean;
 };
