@@ -43,7 +43,6 @@ const routesByPath: Map<string, Executable> = new Map();
 const hookNames: Map<string, boolean> = new Map();
 const routeNames: Map<string, boolean> = new Map();
 let complexity = 0;
-let app: Obj | undefined;
 let sharedDataFactoryFunction: SharedDataFactory<any> | undefined;
 let routerOptions: RouterOptions = {
     ...DEFAULT_ROUTE_OPTIONS,
@@ -52,7 +51,6 @@ let routerOptions: RouterOptions = {
 // ############# PUBLIC METHODS #############
 
 export const registerRoutes = <R extends Routes>(routes: R): PublicMethods<R> => {
-    if (!app) throw new Error('Router has not been initialized yet');
     recursiveFlatRoutes(routes);
     // we only want to get information about the routes when creating api spec
     if (routerOptions.getPublicRoutesData || process.env.GENERATE_ROUTER_SPEC === 'true') {
@@ -72,7 +70,6 @@ export const geHooksSize = () => hooksByFieldName.size;
 export const getComplexity = () => complexity;
 export const getRouterOptions = (): Readonly<RouterOptions> => routerOptions;
 export const getSharedDataFactory = () => sharedDataFactoryFunction;
-export const getApp = (): Readonly<typeof app> => app;
 export const setRouterOptions = <ServerContext extends RawServerContext = RawServerContext>(
     routerOptions_?: Partial<RouterOptions<ServerContext>>
 ) => {
@@ -89,7 +86,6 @@ export const resetRouter = () => {
     hookNames.clear();
     routeNames.clear();
     complexity = 0;
-    app = undefined;
     sharedDataFactoryFunction = undefined;
     // contextType = undefined;
     routerOptions = {
@@ -104,13 +100,10 @@ export const resetRouter = () => {
  * @param routerOptions
  * @returns
  */
-export const initRouter = async <App extends Obj, SharedData, RawContext extends RawServerContext = RawServerContext>(
-    application: App,
+export const initRouter = async <SharedData, RawContext extends RawServerContext = RawServerContext>(
     sharedDataFactory?: SharedDataFactory<SharedData>,
     routerOptions?: Partial<RouterOptions<RawContext>>
 ) => {
-    if (app) throw new Error('Router already initialized');
-    app = application;
     sharedDataFactoryFunction = sharedDataFactory;
     setRouterOptions(routerOptions);
 };
@@ -128,7 +121,7 @@ export const getHookFieldName = (item: HookDef, key: string) => {
 
 export function getRouteDefaultParams(): string[] {
     if (!routerOptions.useAsyncCallContext) {
-        return ['app', 'context'];
+        return ['context'];
     }
     return [];
 }
@@ -272,7 +265,7 @@ const getExecutableFromHook = (hook: HookDef, hookPointer: string[], nestLevel: 
 
     if (!!hook.inHeader && handler.length > getRouteDefaultParams().length + 1) {
         throw new Error(
-            `Invalid Hook: ${join(...hookPointer)}. In header hooks can only have a single parameter besides App and Context.`
+            `Invalid Hook: ${join(...hookPointer)}. In header hooks can only have a single parameter remote parameter.`
         );
     }
 

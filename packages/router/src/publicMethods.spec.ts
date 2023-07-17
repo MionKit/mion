@@ -11,7 +11,6 @@ import {registerRoutes, initRouter, resetRouter, getRouteDefaultParams} from './
 import {getFunctionReflectionMethods} from '@mionkit/runtype';
 
 describe('Public Mothods should', () => {
-    type SimpleUser = {name: string; surname: string};
     const hook = {hook(): void {}};
     const route1 = () => 'route1';
     const route2 = {
@@ -38,29 +37,20 @@ describe('Public Mothods should', () => {
         last: hook,
     };
 
-    const app = {
-        cloudLogs: {
-            log: (): null => null,
-            error: (): null => null,
-        },
-        db: {
-            changeUserName: (user: SimpleUser): SimpleUser => ({name: 'LOREM', surname: user.surname}),
-        },
-    };
     const shared = {auth: {me: null as any}};
     const getSharedData = (): typeof shared => shared;
 
     beforeEach(() => resetRouter());
 
     it('not generate public data when  generateSpec = false', () => {
-        initRouter(app, getSharedData, {getPublicRoutesData: false});
+        initRouter(getSharedData, {getPublicRoutesData: false});
         const publicExecutables = registerRoutes(routes);
 
         expect(publicExecutables).toEqual({});
     });
 
     it('generate all the required public fields for hook and route', () => {
-        initRouter(app, getSharedData, {getPublicRoutesData: true});
+        initRouter(getSharedData, {getPublicRoutesData: true});
         const testR = {
             hook,
             routes: {
@@ -94,9 +84,9 @@ describe('Public Mothods should', () => {
     });
 
     it('be able to convert serialized handler types to json, deserialize and use them for validation', () => {
-        initRouter(app, getSharedData, {getPublicRoutesData: true});
+        initRouter(getSharedData, {getPublicRoutesData: true});
         const testR = {
-            addMilliseconds: (app, ctx, ms: number, date: Date) => date.setMilliseconds(date.getMilliseconds() + ms),
+            addMilliseconds: (ctx, ms: number, date: Date) => date.setMilliseconds(date.getMilliseconds() + ms),
         };
         const api = registerRoutes(testR);
         const reflection = getFunctionReflectionMethods(
@@ -132,7 +122,7 @@ describe('Public Mothods should', () => {
     });
 
     it('generate public data when suing prefix and suffix', () => {
-        initRouter(app, getSharedData, {getPublicRoutesData: true, prefix: 'v1', suffix: '.json'});
+        initRouter(getSharedData, {getPublicRoutesData: true, prefix: 'v1', suffix: '.json'});
         const testR = {
             hook,
             route1,
@@ -156,7 +146,7 @@ describe('Public Mothods should', () => {
     });
 
     it('generate public data from some routes', () => {
-        initRouter(app, getSharedData, {getPublicRoutesData: true});
+        initRouter(getSharedData, {getPublicRoutesData: true});
         const publicExecutables = registerRoutes(routes);
 
         expect(publicExecutables).toEqual({

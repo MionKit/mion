@@ -21,7 +21,6 @@ describe('serverless router should', () => {
     type DataPoint = {
         date: Date;
     };
-    type MyApp = typeof myApp;
     type MySharedData = ReturnType<typeof getSharedData>;
     type CallContext = AwsCallContext<MySharedData>;
 
@@ -36,17 +35,17 @@ describe('serverless router should', () => {
     };
     const getSharedData = () => ({auth: {me: null as any}});
 
-    initAwsLambdaRouter(myApp, getSharedData, {prefix: 'api/'});
+    initAwsLambdaRouter(getSharedData, {prefix: 'api/'});
 
-    const changeUserName: Route = (app: MyApp, ctx: CallContext, user: SimpleUser) => {
-        return app.db.changeUserName(user);
+    const changeUserName: Route = (ctx: CallContext, user: SimpleUser) => {
+        return myApp.db.changeUserName(user);
     };
 
-    const getDate: Route = (app: MyApp, ctx: CallContext, dataPoint?: DataPoint): DataPoint => {
+    const getDate: Route = (ctx: CallContext, dataPoint?: DataPoint): DataPoint => {
         return dataPoint || {date: new Date('2022-04-10T02:13:00.000Z')};
     };
 
-    const updateHeaders: Route = (app: MyApp, context: CallContext): void => {
+    const updateHeaders: Route = (context: CallContext): void => {
         context.response.headers['x-something'] = true;
         context.response.headers['server'] = 'my-server';
         context.rawContext.awsContext;

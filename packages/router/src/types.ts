@@ -16,9 +16,7 @@ export type SimpleHandler<Ret = any> = (
 ) => Ret | Promise<Ret>;
 
 /** Route or Hook Handler, the remote function  */
-export type Handler<App = any, CallContext extends Context<any, any> = any, Ret = any> = (
-    /** Static Data: main App, db driver, libraries, etc... */
-    app: App,
+export type Handler<CallContext extends Context<any, any> = any, Ret = any> = (
     /** Call Context */
     context: CallContext,
     /** Remote Call parameters */
@@ -26,7 +24,7 @@ export type Handler<App = any, CallContext extends Context<any, any> = any, Ret 
 ) => Ret | Promise<Ret>;
 
 /** Route definition */
-export type RouteDef<App = any, CallContext extends Context<any, any> = any, Ret = any> = {
+export type RouteDef<CallContext extends Context<any, any> = any, Ret = any> = {
     /** overrides route's path and fieldName in request/response body */
     path?: string;
     /** description of the route, mostly for documentation purposes */
@@ -36,16 +34,16 @@ export type RouteDef<App = any, CallContext extends Context<any, any> = any, Ret
     /** Enables serialization/deserialization */
     enableSerialization?: boolean;
     /** Route Handler */
-    route: Handler<App, CallContext, Ret>;
+    route: Handler<CallContext, Ret>;
 };
 
 /** A route can be a full route definition or just the handler */
-export type Route<App = any, CallContext extends Context<any, any> = any, Ret = any> =
-    | RouteDef<App, CallContext, Ret>
-    | Handler<App, CallContext, Ret>;
+export type Route<CallContext extends Context<any, any> = any, Ret = any> =
+    | RouteDef<CallContext, Ret>
+    | Handler<CallContext, Ret>;
 
 /** Hook definition, a function that hooks into the execution path */
-export type HookDef<App = any, CallContext extends Context<any, any> = any, Ret = any> = {
+export type HookDef<CallContext extends Context<any, any> = any, Ret = any> = {
     /** Executes the hook even if an error was thrown previously */
     forceRunOnError?: boolean;
     /** Enables returning data in the responseBody,
@@ -62,12 +60,12 @@ export type HookDef<App = any, CallContext extends Context<any, any> = any, Ret 
     /** Enables serialization/deserialization */
     enableSerialization?: boolean;
     /** Hook handler */
-    hook: Handler<App, CallContext, Ret> | SimpleHandler<Ret>;
+    hook: Handler<CallContext, Ret> | SimpleHandler<Ret>;
 };
 
 /** Data structure to define all the routes, each entry is a route a hook or sub-routes */
-export type Routes<App = any, CallContext extends Context<any, any> = any> = {
-    [key: string]: HookDef<App, CallContext> | Route<App, CallContext> | Routes<App, CallContext>;
+export type Routes<CallContext extends Context<any, any> = any> = {
+    [key: string]: HookDef<CallContext> | Route<CallContext> | Routes<CallContext>;
 };
 
 // ####### Router Options #######
@@ -250,7 +248,7 @@ export type PublicMethods<Type extends Routes> = {
 
 // prettier-ignore
 export type PublicHandler<H extends Handler | SimpleHandler> = 
-    H extends (app: any, ctx: Context<any, any>, ...rest: infer Req) => infer Resp
+    H extends (ctx: Context<any, any>, ...rest: infer Req) => infer Resp
     ? (...rest: Req) => Promise<Awaited<Resp>>
     :  H extends (...rest: infer Req) => infer Resp
     ? (...rest: Req) => Promise<Awaited<Resp>>

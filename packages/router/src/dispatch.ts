@@ -19,7 +19,7 @@ import {
 } from './types';
 import {StatusCodes} from './status-codes';
 import {RouteError} from './errors';
-import {getApp, getRouteExecutionPath, getRouterOptions, getSharedDataFactory} from './router';
+import {getRouteExecutionPath, getRouterOptions, getSharedDataFactory} from './router';
 import {AsyncLocalStorage} from 'node:async_hooks';
 
 const asyncLocalStorage = new AsyncLocalStorage();
@@ -100,11 +100,6 @@ function _dispatchRoute<RawContext extends RawServerContext>(
             end(0);
         } else {
             parseRequestBody(context.rawContext, context.request, context.response, opts);
-            // ### runs execution path
-            // for (let i = 0; i < executionPath.length; i++) {
-            //     execute(context, executionPath[i], opts, i, end);
-            // }
-            // ### runs execution path
             runExecutionPath(0, context, executionPath, opts, end);
         }
     } catch (err: any | RouteError | Error) {
@@ -147,36 +142,6 @@ function runExecutionPath(
     }
 }
 
-function execute(
-    context: Context<any, RawServerContext>,
-    executable: Executable,
-    opts: RouterOptions,
-    executionStep: number,
-    end: (executionStep: number) => void
-) {
-    if (context.response.publicErrors.length && !executable.forceRunOnError) {
-        return end(executionStep);
-    }
-
-    try {
-        const handlerParams = deserializeAndValidateParameters(context.request, executable, opts);
-        if (executable.inHeader) context.request.headers[executable.fieldName] = handlerParams;
-        else context.request.body[executable.fieldName] = handlerParams;
-
-        runHandler(handlerParams, context, executable, opts, (err, result) => {
-            if (err) {
-                handleRouteErrors(context.request, context.response, err, executionStep);
-            } else {
-                serializeResponse(context.response, executable, result, opts);
-            }
-            end(executionStep);
-        });
-    } catch (err: any | RouteError | Error) {
-        handleRouteErrors(context.request, context.response, err, executionStep);
-        end(executionStep);
-    }
-}
-
 function runHandler(
     handlerParams: any[],
     context: Context<any, RawServerContext>,
@@ -185,7 +150,7 @@ function runHandler(
     cb: CallBack
 ) {
     const resp = !opts.useAsyncCallContext
-        ? executable.handler(getApp(), context, ...handlerParams)
+        ? executable.handler(context, ...handlerParams)
         : asyncLocalStorage.run(context, () => {
               const simpleHandler = executable.handler as SimpleHandler;
               return simpleHandler(...handlerParams);

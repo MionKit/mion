@@ -1,28 +1,29 @@
-import {Context, registerRoutes} from '@mionkit/router';
+import {Context, Routes, registerRoutes} from '@mionkit/router';
 import {getAuthUser, isAuthorized} from 'MyAuth';
 import type {Pet} from 'MyModels';
+import {myApp} from './myApp';
 
 const authorizationHook = {
     fieldName: 'Authorization',
     inHeader: true,
-    async hook(app, ctx, token: string): Promise<void> {
+    async hook(ctx, token: string): Promise<void> {
         const me = await getAuthUser(token);
         if (!isAuthorized(me)) throw {code: 401, message: 'user is not authorized'};
         ctx.shared.auth = {me}; // user is added to ctx to shared with other routes/hooks
     },
 };
 
-const getPet = async (app, ctx, petId: number): Promise<Pet> => {
-    const pet = app.deb.getPet(petId);
+const getPet = async (ctx, petId: number): Promise<Pet> => {
+    const pet = myApp.deb.getPet(petId);
     // ...
     return pet;
 };
 
 const logs = {
     forceRunOnError: true,
-    async hook(app, ctx: Context<any>): Promise<void> {
-        if (ctx.request) await app.cloudLogs.error(ctx.path, ctx.request.internalErrors);
-        else app.cloudLogs.log(ctx.path, ctx.shared.me.name);
+    async hook(ctx: Context<any>): Promise<void> {
+        if (ctx.request) await myApp.cloudLogs.error(ctx.path, ctx.request.internalErrors);
+        else myApp.cloudLogs.log(ctx.path, ctx.shared.me.name);
     },
 };
 
@@ -32,6 +33,6 @@ const routes = {
         getPet,
     },
     logs,
-};
+} satisfies Routes;
 
 export const apiSpec = registerRoutes(routes);
