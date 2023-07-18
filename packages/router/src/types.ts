@@ -63,8 +63,11 @@ export type Route<Context extends CallContext = CallContext, Ret = any> = RouteD
 
 /** Data structure to define all the routes, each entry is a route a hook or sub-routes */
 export type Routes<Context extends CallContext = CallContext> = {
-    [key: string]: HookDef<Context> | Route<Context> | Routes<Context>;
+    [key: string]: RouterItem<Context>;
 };
+
+/** A route entry can be a route, a hook or sub-routes */
+export type RouterItem<Context extends CallContext = CallContext> = HookDef<Context> | Route<Context> | Routes<Context>;
 
 // ####### Router Options #######
 
@@ -137,57 +140,57 @@ export type HookExecutable<H extends Handler | SimpleHandler> = Executable & {
 // ####### Call Context #######
 
 /** The call Context object passed as first parameter to any hook or route */
-export type CallContext<SharedData = any, RawReq extends RawRequest = any, RawResp = any> = Readonly<{
+export type CallContext<SharedData = any, RawReq extends RawRequest = any, RawResp = any> = {
     /** Route's path */
-    path: Readonly<string>;
+    readonly path: string;
     /** Original Server request
      * i.e: '@types/aws-lambda/APIGatewayEvent'
      * or http/IncomingMessage */
-    rawRequest: RawReq;
+    readonly rawRequest: Readonly<RawReq>;
     /** Original Server response
      * i.e: http/ServerResponse */
-    rawResponse?: RawResp;
+    readonly rawResponse?: Readonly<RawResp>;
     /** Router's own request object */
-    request: Readonly<Request>;
+    readonly request: Request;
     /** Router's own response object */
-    response: Readonly<Response>;
+    readonly response: Response;
     /** shared data between handlers (route/hooks) and that is not returned in the response. */
     shared: SharedData;
-}>;
+};
 
-export type RawCallContext<RawReq extends RawRequest = RawRequest, RawResp = any> = Readonly<{
+export type RawCallContext<RawReq extends RawRequest = RawRequest, RawResp = any> = {
     /** Original Server request
      * i.e: '@types/aws-lambda/APIGatewayEvent'
      * or http/IncomingMessage */
-    rawRequest: RawReq;
+    readonly rawRequest: Readonly<RawReq>;
     /** Original Server response
      * i.e: http/ServerResponse */
-    rawResponse?: RawResp;
-}>;
+    readonly rawResponse?: Readonly<RawResp>;
+};
 
 // ####### REQUEST & RESPONSE #######
 
 /** Router own request object */
 export type Request = {
     /** parsed and headers */
-    headers: Obj;
+    readonly headers: Readonly<Obj>;
     /** parsed body */
-    body: Obj;
+    readonly body: Readonly<Obj>;
     /** All errors thrown during the call are stored here so they can bee logged or handler by a some error handler hook */
-    internalErrors: Readonly<RouteError[]>;
+    readonly internalErrors: Readonly<RouteError[]>;
 };
 
 /** Router own response object */
 export type Response = {
-    statusCode: Readonly<number>;
+    readonly statusCode: number;
     /** response errors: empty if there were no errors during execution */
-    publicErrors: Readonly<PublicError[]>;
+    readonly publicErrors: Readonly<PublicError[]>;
     /** response headers */
-    headers: Headers;
+    readonly headers: Readonly<Headers>;
     /** the router response data, JS object */
-    body: Readonly<Obj>;
+    readonly body: Readonly<Obj>;
     /** json encoded response, contains data and errors if there are any. */
-    json: Readonly<string>;
+    readonly json: string;
 };
 
 /** Any request Object used by the router must follow this interface */
@@ -209,28 +212,28 @@ export type RouteErrorParams = {
     /** id of the error. */
     id?: number | string;
     /** response status code */
-    statusCode: Readonly<number>;
+    statusCode: number;
     /** the message that will be returned in the response */
-    publicMessage: Readonly<string>;
+    publicMessage: string;
     /**
      * the error message, it is private and wont be returned in the response.
      * If not defined, it is assigned from originalError.message or publicMessage.
      */
-    message?: Readonly<string>;
+    message?: string;
     /** options data related to the error, ie validation data */
-    publicData?: Readonly<unknown>;
+    publicData?: unknown;
     /** original error used to create the RouteError */
-    originalError?: Readonly<Error>;
+    originalError?: Error;
     /** name of the error, if not defined it is assigned from status code */
-    name?: Readonly<string>;
+    name?: string;
 };
 
 export type PublicError = {
     id?: number | string;
-    name: Readonly<string>;
-    statusCode: Readonly<number>;
-    message: Readonly<string>;
-    errorData?: Readonly<unknown>;
+    readonly name: string;
+    readonly statusCode: number;
+    readonly message: string;
+    readonly errorData?: Readonly<unknown>;
 };
 
 // ####### Public Facing Types #######
