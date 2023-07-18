@@ -27,6 +27,7 @@ import {parseRequestBody, stringifyResponseBody} from './jsonBodyParser';
 type CallBack = (err: any, response: Response | undefined) => void;
 
 // ############# Async Call Context #############
+
 const asyncLocalStorage = new AsyncLocalStorage();
 export function getCallContext<R extends CallContext>(): R {
     return asyncLocalStorage.getStore() as R;

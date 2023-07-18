@@ -29,15 +29,19 @@ import {
 } from './types';
 import {getSerializedFunctionTypes} from '@mionkit/runtype';
 
+// ############# PUBLIC METHODS #############
+
 /**
  * Returns a data structure containing all public information and types of the routes.
  * This data and types can be used to generate router clients, etc...
  */
-export const getPublicRoutes = <R extends Routes>(routes: R): PublicMethods<R> => {
+export function getPublicRoutes<R extends Routes>(routes: R): PublicMethods<R> {
     return recursiveGetPublicRoutes(routes) as PublicMethods<R>;
-};
+}
 
-const recursiveGetPublicRoutes = <R extends Routes>(routes: R, currentPointer: string[] = [], publicData: Obj = {}): Obj => {
+// ############# PRIVATE METHODS #############
+
+function recursiveGetPublicRoutes<R extends Routes>(routes: R, currentPointer: string[] = [], publicData: Obj = {}): Obj {
     const entries = Object.entries(routes);
     entries.forEach(([key, item]) => {
         const newPointer = [...currentPointer, key];
@@ -61,9 +65,9 @@ const recursiveGetPublicRoutes = <R extends Routes>(routes: R, currentPointer: s
     });
 
     return publicData;
-};
+}
 
-const getPublicRouteFromExecutable = <H extends Handler>(executable: Executable, propertyPonter: string): PublicRoute<H> => {
+function getPublicRouteFromExecutable<H extends Handler>(executable: Executable, propertyPonter: string): PublicRoute<H> {
     return {
         isRoute: true,
         canReturnData: true,
@@ -80,9 +84,9 @@ const getPublicRouteFromExecutable = <H extends Handler>(executable: Executable,
                 ?.filter((exec) => isPuplicExecutable(exec))
                 .map((exec) => exec.selfPointer) || [],
     };
-};
+}
 
-const getPublicHookFromExecutable = <H extends Handler>(executable: Executable, propertyPonter: string): PublicHook<H> => {
+function getPublicHookFromExecutable<H extends Handler>(executable: Executable, propertyPonter: string): PublicHook<H> {
     return {
         isRoute: false,
         canReturnData: executable.canReturnData,
@@ -95,4 +99,4 @@ const getPublicHookFromExecutable = <H extends Handler>(executable: Executable, 
         enableSerialization: executable.enableSerialization,
         params: executable.reflection.handlerType.parameters.map((tp) => tp.name).slice(getRouteDefaultParams().length),
     };
-};
+}

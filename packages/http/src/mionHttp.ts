@@ -13,6 +13,7 @@ import {
     RouteError,
     getResponseFromError,
     dispatchRouteCallback,
+    resetRouter,
 } from '@mionkit/router';
 import {createServer as createHttp} from 'http';
 import {createServer as createHttps} from 'https';
@@ -24,19 +25,20 @@ import type {Obj, Headers, RawRequest, RouterOptions, SharedDataFactory, Respons
 
 type HeadersEntries = [string, string | boolean | number][];
 
-let httpOptions: HttpOptions = {
-    ...DEFAULT_HTTP_OPTIONS,
-};
+// ############# PRIVATE STATE #############
+
+let httpOptions: HttpOptions = {...DEFAULT_HTTP_OPTIONS};
 let defaultResponseContentType: string;
 let defaultResponseHeaders: HeadersEntries = [];
 const isTest = process.env.NODE_ENV === 'test';
 
+// ############# PUBLIC METHODS #############
+
 export function resetHttpRouter() {
-    httpOptions = {
-        ...DEFAULT_HTTP_OPTIONS,
-    };
+    httpOptions = {...DEFAULT_HTTP_OPTIONS};
     defaultResponseContentType = '';
     defaultResponseHeaders = [];
+    resetRouter();
 }
 
 export function initHttpRouter<SharedData extends Obj>(
@@ -80,6 +82,8 @@ export async function startHttpServer(httpOptions_: Partial<HttpOptions> = {}): 
         });
     });
 }
+
+// ############# PRIVATE METHODS #############
 
 function httpRequestHandler(httpReq: IncomingMessage, httpResponse: ServerResponse): void {
     let replied = false;
