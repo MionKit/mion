@@ -8,7 +8,7 @@
 import {randomUUID} from 'crypto';
 import {getRouterOptions} from './router';
 import {StatusCodes, statusCodeToReasonPhrase} from './status-codes';
-import {Obj, PublicError, Response, RouteErrorParams} from './types';
+import {Mutable, Obj, PublicError, Response, RouteErrorParams} from './types';
 import {stringifyResponseBody} from './jsonBodyParser';
 
 export class RouteError extends Error {
@@ -19,7 +19,7 @@ export class RouteError extends Error {
     /** the message that will be returned in the response */
     public readonly publicMessage: string;
     /** options data related to the error, ie validation data */
-    public readonly publicData?: Obj;
+    public readonly publicData?: unknown;
 
     constructor({statusCode, message, publicMessage, originalError, publicData, name, id}: RouteErrorParams) {
         super(message || originalError?.message || publicMessage);
@@ -69,7 +69,7 @@ export function getResponseFromError(
 
 export function getPublicErrorFromRouteError(routeError: RouteError): PublicError {
     // creating a new public error object to avoid exposing the original error
-    const publicError: PublicError = {
+    const publicError: Mutable<PublicError> = {
         name: routeError.name,
         statusCode: routeError.statusCode,
         message: routeError.publicMessage,
