@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {initRouter, getRouterOptions, dispatchRoute, generateRouteResponseFromOutsideError} from '@mionkit/router';
+import {initRouter, getRouterOptions, dispatchRoute, getResponseFromError} from '@mionkit/router';
 import type {Obj, SharedDataFactory, RouterOptions, PublicError, Response} from '@mionkit/router';
 import type {Context as AwsContext, APIGatewayProxyResult, APIGatewayEvent} from 'aws-lambda';
 
@@ -25,7 +25,7 @@ export const lambdaHandler = async (rawRequest: APIGatewayEvent, awsContext: Aws
             return reply(routeResponse);
         })
         .catch((e) => {
-            return reply(generateRouteResponseFromOutsideError(e));
+            return reply(getResponseFromError(e));
         });
 };
 
