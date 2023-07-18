@@ -18,18 +18,21 @@ import {
     RawRequest,
 } from './types';
 import {StatusCodes} from './status-codes';
-import {RouteError} from './errors';
+import {RouteError, getPublicErrorFromRouteError} from './errors';
 import {getRouteExecutionPath, getRouterOptions, getSharedDataFactory} from './router';
 import {AsyncLocalStorage} from 'node:async_hooks';
 import {isPromise} from 'node:util/types';
+import {parseRequestBody, stringifyResponseBody} from './jsonBodyParser';
 
+type CallBack = (err: any, response: Response | undefined) => void;
+
+// ############# Async Call Context #############
 const asyncLocalStorage = new AsyncLocalStorage();
-
 export function getCallContext<R extends CallContext>(): R {
     return asyncLocalStorage.getStore() as R;
 }
 
-type CallBack = (err: any, response: Response | undefined) => void;
+// ############# PUBLIC METHODS #############
 
 /*
  * NOTE:
@@ -69,6 +72,8 @@ export function dispatchRouteCallback<Req extends RawRequest, Resp>(
     );
 }
 
+// ############# PRIVATE METHODS #############
+
 async function _dispatchRoute(path: string, rawRequest: RawRequest, rawResponse?: unknown): Promise<Response> {
     try {
         const opts = getRouterOptions();
@@ -102,7 +107,7 @@ async function _dispatchRoute(path: string, rawRequest: RawRequest, rawResponse?
             parseRequestBody(rawRequest, context.request, context.response, opts);
             await runExecutionPath(context, executionPath, opts);
         }
-        stringifyResponseBody(context, opts);
+        stringifyResponseBody(context.response, opts);
         return context.response;
     } catch (err: any | RouteError | Error) {
         return Promise.reject(err);
@@ -148,59 +153,7 @@ async function runHandler(handlerParams: any[], context: CallContext, executable
     }
 }
 
-// ############# PRIVATE METHODS #############
-
-const parseRequestBody = (rawRequest: RawRequest, request: Request, response: Response, routerOptions: RouterOptions) => {
-    if (!rawRequest.body) return;
-    try {
-        if (typeof rawRequest.body === 'string') {
-            const parsedBody = routerOptions.bodyParser.parse(rawRequest.body);
-            if (typeof parsedBody !== 'object')
-                throw new RouteError({
-                    statusCode: StatusCodes.BAD_REQUEST,
-                    name: 'Invalid Request Body',
-                    publicMessage: 'Wrong request body. Expecting an json body containing the route name and parameters.',
-                });
-            (request as Mutable<Obj>).body = parsedBody;
-        } else if (typeof rawRequest.body === 'object') {
-            // lets assume the body has been already parsed, TODO: investigate possible security issues
-            (request as Mutable<Obj>).body = rawRequest.body;
-        } else {
-            throw new RouteError({
-                statusCode: StatusCodes.BAD_REQUEST,
-                name: 'Invalid Request Body',
-                publicMessage: 'Wrong request body, expecting a json string.',
-            });
-        }
-    } catch (err: any) {
-        if (!(err instanceof RouteError)) {
-            handleRouteErrors(
-                request,
-                response,
-                new RouteError({
-                    statusCode: StatusCodes.UNPROCESSABLE_ENTITY,
-                    name: 'Parsing Request Body Error',
-                    publicMessage: `Invalid request body: ${err?.message || 'unknown parsing error.'}`,
-                }),
-                0
-            );
-        }
-        handleRouteErrors(request, response, err, 0);
-    }
-};
-
-function stringifyResponseBody({response}: CallContext, opts: RouterOptions): void {
-    const respBody: Obj = response.body;
-    if (response.publicErrors.length) {
-        respBody.errors = response.publicErrors;
-        (response.json as Mutable<string>) = opts.bodyParser.stringify(response.publicErrors);
-    } else {
-        (response.json as Mutable<string>) = opts.bodyParser.stringify(respBody);
-    }
-    response.headers['Content-Type'] = opts.responseContentType;
-}
-
-const deserializeAndValidateParameters = (request: Request, executable: Executable, routerOptions: RouterOptions): any[] => {
+function deserializeAndValidateParameters(request: Request, executable: Executable, routerOptions: RouterOptions): any[] {
     const fieldName = executable.fieldName;
     let params;
 
@@ -261,16 +214,16 @@ const deserializeAndValidateParameters = (request: Request, executable: Executab
     }
 
     return params;
-};
+}
 
-const serializeResponse = (response: Response, executable: Executable, result: any, routerOptions: RouterOptions) => {
+function serializeResponse(response: Response, executable: Executable, result: any, routerOptions: RouterOptions) {
     if (!executable.canReturnData || result === undefined) return;
     const serialized = routerOptions.enableSerialization ? executable.reflection.serializeReturn(result) : result;
     if (executable.inHeader) response.headers[executable.fieldName] = serialized;
     else (response as Mutable<Obj>).body[executable.fieldName] = serialized;
-};
+}
 
-const handleRouteErrors = (request: Request, response: Response, err: any, step: number) => {
+export function handleRouteErrors(request: Request, response: Response, err: any, step: number) {
     const routeError =
         err instanceof RouteError
             ? err
@@ -284,54 +237,4 @@ const handleRouteErrors = (request: Request, response: Response, err: any, step:
     const publicError = getPublicErrorFromRouteError(routeError);
     (response.publicErrors as Mutable<PublicError[]>).push(publicError);
     (request.internalErrors as Mutable<RouteError[]>).push(routeError);
-};
-
-/**
- * This is a function to be called from outside the router.
- * Whenever there is an error outside the router, this function should be called.
- * So error keep the same format as when they were generated inside the router.
- * This also stringifies public errors into response.json.
- * @param routeResponse
- * @param originalError
- */
-export const generateRouteResponseFromOutsideError = (
-    originalError: any,
-    statusCode: StatusCodes = StatusCodes.INTERNAL_SERVER_ERROR,
-    publicMessage = 'Internal Error'
-): Response => {
-    const routerOptions = getRouterOptions();
-    const error = new RouteError({
-        statusCode,
-        publicMessage,
-        originalError,
-    });
-    const publicErrors = [getPublicErrorFromRouteError(error)];
-    const context = {
-        rawRequest: undefined as any,
-        path: undefined as any,
-        request: undefined as any,
-        shared: undefined as any,
-        response: {
-            statusCode,
-            publicErrors,
-            headers: {},
-            body: {},
-            json: '',
-        },
-    } as CallContext;
-
-    stringifyResponseBody(context, routerOptions);
-    return context.response;
-};
-
-export const getPublicErrorFromRouteError = (routeError: RouteError): PublicError => {
-    // creating a new public error object to avoid exposing the original error
-    const publicError: PublicError = {
-        name: routeError.name,
-        statusCode: routeError.statusCode,
-        message: routeError.publicMessage,
-    };
-    if (routeError.id) publicError.id = routeError.id;
-    if (routeError.publicData) publicError.errorData = routeError.publicData;
-    return publicError;
-};
+}

@@ -11,7 +11,7 @@ import {
     getRouterOptions,
     dispatchRoute,
     RouteError,
-    generateRouteResponseFromOutsideError,
+    getResponseFromError,
     dispatchRouteCallback,
 } from '@mionkit/router';
 import {createServer as createHttp} from 'http';
@@ -102,7 +102,7 @@ function httpRequestHandler(httpReq: IncomingMessage, httpResponse: ServerRespon
     const fail = (e?: Error, statusCode?: StatusCodes, message?: string) => {
         if (replied || httpResponse.writableEnded) return;
         replied = true;
-        const routeResponse = generateRouteResponseFromOutsideError(e, statusCode, message);
+        const routeResponse = getResponseFromError(e, statusCode, message);
         addResponseHeaders(httpResponse, routeResponse.headers);
         reply(httpResponse, routeResponse.json, routeResponse.statusCode);
     };

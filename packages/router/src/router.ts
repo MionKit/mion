@@ -24,8 +24,6 @@ import {
     RouteExecutable,
     HookExecutable,
     PublicMethods,
-    CallContext,
-    RawCallContext,
     RawRequest,
 } from './types';
 import {getFunctionReflectionMethods} from '@mionkit/runtype';
