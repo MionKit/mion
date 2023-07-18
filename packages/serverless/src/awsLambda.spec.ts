@@ -8,7 +8,7 @@
 import {registerRoutes} from '@mionkit/router';
 import {initAwsLambdaRouter, lambdaHandler} from './awsLambda';
 import createEvent from '@serverless/event-mocks';
-import type {Route} from '@mionkit/router';
+import type {Headers, Mutable, Route} from '@mionkit/router';
 import type {APIGatewayProxyEventHeaders} from 'aws-lambda';
 import type {AwsCallContext} from './types';
 
@@ -46,8 +46,8 @@ describe('serverless router should', () => {
     };
 
     const updateHeaders: Route = (context: Context): void => {
-        context.response.headers['x-something'] = true;
-        context.response.headers['server'] = 'my-server';
+        (context.response.headers as Mutable<Headers>)['x-something'] = true;
+        (context.response.headers as Mutable<Headers>)['server'] = 'my-server';
     };
 
     registerRoutes({changeUserName, getDate, updateHeaders});
