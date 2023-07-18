@@ -5,18 +5,18 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {Obj, Response, Mutable, Request, RouterOptions, RawRequest, CallContext} from './types';
+import {Obj, Response, Mutable, Request, RouterOptions, RawRequest} from './types';
 import {StatusCodes} from './status-codes';
-import {RouteError} from './errors';
+import {RouteError, getPublicErrorFromRouteError} from './errors';
 import {handleRouteErrors} from './dispatch';
 
 // ############# PUBLIC METHODS #############
 
-export function parseRequestBody(rawRequest: RawRequest, request: Request, response: Response, routerOptions: RouterOptions) {
+export function parseRequestBody(rawRequest: RawRequest, request: Request, response: Response, opts: RouterOptions) {
     if (!rawRequest.body) return;
     try {
         if (typeof rawRequest.body === 'string') {
-            const parsedBody = routerOptions.bodyParser.parse(rawRequest.body);
+            const parsedBody = opts.bodyParser.parse(rawRequest.body);
             if (typeof parsedBody !== 'object')
                 throw new RouteError({
                     statusCode: StatusCodes.BAD_REQUEST,
@@ -53,11 +53,22 @@ export function parseRequestBody(rawRequest: RawRequest, request: Request, respo
 
 export function stringifyResponseBody(response: Response, opts: RouterOptions): void {
     const respBody: Obj = response.body;
-    if (response.publicErrors.length) {
-        respBody.errors = response.publicErrors;
-        (response.json as Mutable<string>) = opts.bodyParser.stringify(response.publicErrors);
-    } else {
-        (response.json as Mutable<string>) = opts.bodyParser.stringify(respBody);
+    try {
+        if (response.publicErrors.length) {
+            respBody.errors = response.publicErrors;
+            (response.json as Mutable<string>) = opts.bodyParser.stringify(response.publicErrors);
+        } else {
+            (response.json as Mutable<string>) = opts.bodyParser.stringify(respBody);
+        }
+    } catch (err: any) {
+        const routeError = new RouteError({
+            statusCode: StatusCodes.INTERNAL_SERVER_ERROR,
+            name: 'Stringify Response Body',
+            publicMessage: `Invalid response body: ${err?.message || 'unknown parsing error.'}`,
+            originalError: err,
+        });
+        (response.json as Mutable<string>) = opts.bodyParser.stringify([getPublicErrorFromRouteError(routeError)]);
+    } finally {
+        response.headers['Content-Type'] = opts.responseContentType;
     }
-    response.headers['Content-Type'] = opts.responseContentType;
 }

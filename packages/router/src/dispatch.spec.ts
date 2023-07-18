@@ -261,8 +261,12 @@ describe('Dispatch routes', () => {
             const response = await dispatchRoute('/changeUserName', request, {});
             expect(response.publicErrors[0]).toEqual({
                 statusCode: 400,
-                name: 'Invalid Params Length',
-                message: `Invalid params '/changeUserName', missing or invalid number of input parameters`,
+                name: `Validation Error`,
+                message: `Invalid params in '/changeUserName', validation failed.`,
+                errorData: expect.objectContaining({
+                    hasErrors: true,
+                    totalErrors: 1,
+                }),
             });
         });
 
