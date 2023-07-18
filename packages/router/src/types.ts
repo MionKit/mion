@@ -114,9 +114,10 @@ export type Executable = {
     inHeader: boolean;
     fieldName: string;
     isRoute: boolean;
-    handler: Handler | SimpleHandler;
+    isInternal: boolean;
+    handler: Handler | SimpleHandler | InternalHookHandler;
     reflection: FunctionReflection;
-    src: RouteDef | HookDef;
+    src: RouteDef | HookDef | InternalHookDef;
     enableValidation: boolean;
     enableSerialization: boolean;
     selfPointer: string[];
@@ -124,6 +125,7 @@ export type Executable = {
 
 export type RouteExecutable<H extends Handler | SimpleHandler> = Executable & {
     isRoute: true;
+    isInternal: false;
     canReturnData: true;
     forceRunOnError: false;
     handler: H;
@@ -131,7 +133,14 @@ export type RouteExecutable<H extends Handler | SimpleHandler> = Executable & {
 
 export type HookExecutable<H extends Handler | SimpleHandler> = Executable & {
     isRoute: false;
+    isInternal: false;
     handler: H;
+};
+
+export type InternalHookExecutable = Executable & {
+    isRoute: false;
+    isInternal: true;
+    handler: InternalHookHandler;
 };
 
 // ####### Call Context #######
@@ -233,6 +242,32 @@ export type PublicError = {
     errorData?: Readonly<unknown>;
 };
 
+// ####### Internal Hooks #######
+
+export type InternalHookHandler<
+    Context extends CallContext = CallContext,
+    Opts extends RouterOptions = RouterOptions,
+    Ret = any
+> = (ctx: Context, opts: Opts) => Ret | Promise<Ret>;
+
+/**
+ * Internal hook, used only to modify the call context.
+ * Does not have serialization or validation enabled.
+ * It is equivalent to:
+ *  - forceRunOnError: true
+ *  - canReturnData: false
+ *  - inHeader: false
+ *  - enableValidation: false
+ *  - enableSerialization: false
+ */
+export type InternalHookDef<Context extends CallContext = CallContext> = {
+    internalHook: InternalHookHandler<Context>;
+};
+
+export type InternalHooksCollection = {
+    [key: string]: InternalHookDef<any>;
+};
+
 // ####### Public Facing Types #######
 
 //TODO: some hooks could have no public params and not return any data so they should not be in the public spec
@@ -290,33 +325,39 @@ export type PublicMethod<H extends Handler = any> = PublicRoute<H> | PublicHook<
 
 // #######  type guards #######
 
-/** Type guard: isHandler */
 export const isHandler = (entry: HookDef | Route | Routes): entry is Handler => {
     return typeof entry === 'function';
 };
-/** Type guard: isRouteDef */
 export const isRouteDef = (entry: HookDef | Route | Routes): entry is RouteDef => {
     return typeof (entry as RouteDef).route === 'function';
 };
-/** Type guard: isHook */
 export const isHookDef = (entry: HookDef | Route | Routes): entry is HookDef => {
     return typeof (entry as HookDef).hook === 'function';
 };
-/** Type guard: isRoute */
 export const isRoute = (entry: HookDef | Route | Routes): entry is Route => {
     return typeof entry === 'function' || typeof (entry as RouteDef).route === 'function';
 };
-/** Type guard: isRoutes */
 export const isRoutes = (entry: any): entry is Route => {
     return typeof entry === 'object';
 };
-/** Type guard: isExecutable */
 export const isExecutable = (entry: Executable | {pathPointer: string[]}): entry is Executable => {
     return (
         typeof (entry as Executable)?.path === 'string' &&
         ((entry as any).routes === 'undefined' || typeof (entry as Executable).handler === 'function')
     );
 };
+export function isInternalHook(entry: HookDef | InternalHookDef): entry is InternalHookDef {
+    return typeof (entry as InternalHookDef).internalHook === 'function';
+}
+export function isRouteExecutable(entry: Executable): entry is InternalHookExecutable {
+    return !entry.isInternal && entry.isRoute;
+}
+export function isHookExecutable(entry: Executable): entry is InternalHookExecutable {
+    return !entry.isInternal && !entry.isRoute;
+}
+export function isInternalExecutable(entry: Executable): entry is InternalHookExecutable {
+    return entry.isInternal;
+}
 
 export const isPuplicExecutable = (entry: Executable): entry is Executable => {
     return entry.canReturnData || !!entry.reflection.paramsLength;

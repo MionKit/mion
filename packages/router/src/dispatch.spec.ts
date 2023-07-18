@@ -180,7 +180,7 @@ describe('Dispatch routes', () => {
                 totals: {
                     canReturnData: true,
                     hook: (ctx: CallContext): string => {
-                        // is sumTwo is not executed in order then `ctx.response.body.sumTwo` would be undefined here
+                        // if sumTwo is not executed in order then `ctx.response.body.sumTwo` would be undefined here
                         return `the total is ${ctx.response.body[pathSum]}`;
                     },
                 },
@@ -261,8 +261,9 @@ describe('Dispatch routes', () => {
             const response = await dispatchRoute('/changeUserName', request, {});
             expect(response.publicErrors[0]).toEqual({
                 statusCode: 400,
-                name: 'Invalid Params Length',
-                message: `Invalid params '/changeUserName', missing or invalid number of input parameters`,
+                name: 'Validation Error',
+                message: `Invalid params in '/changeUserName', validation failed.`,
+                errorData: expect.objectContaining({hasErrors: true, totalErrors: 1}),
             });
         });
 
@@ -335,7 +336,7 @@ describe('Dispatch routes', () => {
             expect(response.publicErrors[0]).toEqual({
                 statusCode: 500,
                 name: 'Unknown Error',
-                message: 'Unknown error in step 0 of route execution path.',
+                message: 'Unknown error in step 1 of route execution path.',
             });
         });
 

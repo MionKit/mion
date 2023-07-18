@@ -11,17 +11,19 @@ import {
     Obj,
     Response,
     Mutable,
-    PublicError,
     Request,
     RouterOptions,
     SimpleHandler,
     RawRequest,
+    isInternalExecutable,
+    RouteExecutable,
 } from './types';
 import {StatusCodes} from './status-codes';
-import {RouteError} from './errors';
-import {getRouteExecutionPath, getRouterOptions, getSharedDataFactory} from './router';
+import {RouteError, addErrorToCallContext} from './errors';
+import {getNotFoundExecutionPath, getRouteExecutionPath, getRouterOptions, getSharedDataFactory} from './router';
 import {AsyncLocalStorage} from 'node:async_hooks';
 import {isPromise} from 'node:util/types';
+import {Handler} from '@mionkit/runtype';
 
 const asyncLocalStorage = new AsyncLocalStorage();
 
@@ -93,16 +95,10 @@ async function _dispatchRoute(path: string, rawRequest: RawRequest, rawResponse?
             shared: sharedFactory ? sharedFactory() : {},
         };
 
-        const executionPath = getRouteExecutionPath(transformedPath) || [];
+        // gets the execution path for the route or the not found exucution path
+        const executionPath = getRouteExecutionPath(transformedPath) || getNotFoundExecutionPath();
 
-        if (!executionPath.length) {
-            const notFound = new RouteError({statusCode: StatusCodes.NOT_FOUND, publicMessage: 'Route not found'});
-            handleRouteErrors(context.request, context.response, notFound, 0);
-        } else {
-            parseRequestBody(rawRequest, context.request, context.response, opts);
-            await runExecutionPath(context, executionPath, opts);
-        }
-        stringifyResponseBody(context, opts);
+        await runExecutionPath(context, executionPath, opts);
         return context.response;
     } catch (err: any | RouteError | Error) {
         return Promise.reject(err);
@@ -117,14 +113,16 @@ async function runExecutionPath(context: CallContext, executables: Executable[],
         if (response.publicErrors.length && !executable.forceRunOnError) continue;
 
         try {
-            const handlerParams = deserializeAndValidateParameters(request, executable, opts);
+            const deserializedParams = deserializeParameters(request, executable);
+            const handlerParams = validateParameters(deserializedParams, executable);
             if (executable.inHeader) request.headers[executable.fieldName] = handlerParams;
             else request.body[executable.fieldName] = handlerParams;
 
             const result = await runHandler(handlerParams, context, executable, opts);
-            serializeResponse(response, executable, result, opts);
+            // todo: should we also validate handler output?
+            serializeResponse(response, executable, result);
         } catch (err: any | RouteError | Error) {
-            handleRouteErrors(request, response, err, i);
+            addErrorToCallContext(context, err, i);
         }
     }
 
@@ -132,13 +130,7 @@ async function runExecutionPath(context: CallContext, executables: Executable[],
 }
 
 async function runHandler(handlerParams: any[], context: CallContext, executable: Executable, opts: RouterOptions): Promise<any> {
-    const resp = !opts.useAsyncCallContext
-        ? executable.handler(context, ...handlerParams)
-        : asyncLocalStorage.run(context, () => {
-              const simpleHandler = executable.handler as SimpleHandler;
-              return simpleHandler(...handlerParams);
-          });
-
+    const resp = getHandlerResponse(handlerParams, context, executable, opts);
     if (isPromise(resp)) {
         return resp as Promise<any>;
     } else if (resp instanceof Error || resp instanceof RouteError) {
@@ -148,61 +140,24 @@ async function runHandler(handlerParams: any[], context: CallContext, executable
     }
 }
 
-// ############# PRIVATE METHODS #############
-
-const parseRequestBody = (rawRequest: RawRequest, request: Request, response: Response, routerOptions: RouterOptions) => {
-    if (!rawRequest.body) return;
-    try {
-        if (typeof rawRequest.body === 'string') {
-            const parsedBody = routerOptions.bodyParser.parse(rawRequest.body);
-            if (typeof parsedBody !== 'object')
-                throw new RouteError({
-                    statusCode: StatusCodes.BAD_REQUEST,
-                    name: 'Invalid Request Body',
-                    publicMessage: 'Wrong request body. Expecting an json body containing the route name and parameters.',
-                });
-            (request as Mutable<Obj>).body = parsedBody;
-        } else if (typeof rawRequest.body === 'object') {
-            // lets assume the body has been already parsed, TODO: investigate possible security issues
-            (request as Mutable<Obj>).body = rawRequest.body;
-        } else {
-            throw new RouteError({
-                statusCode: StatusCodes.BAD_REQUEST,
-                name: 'Invalid Request Body',
-                publicMessage: 'Wrong request body, expecting a json string.',
-            });
-        }
-    } catch (err: any) {
-        if (!(err instanceof RouteError)) {
-            handleRouteErrors(
-                request,
-                response,
-                new RouteError({
-                    statusCode: StatusCodes.UNPROCESSABLE_ENTITY,
-                    name: 'Parsing Request Body Error',
-                    publicMessage: `Invalid request body: ${err?.message || 'unknown parsing error.'}`,
-                }),
-                0
-            );
-        }
-        handleRouteErrors(request, response, err, 0);
+function getHandlerResponse(handlerParams: any[], context: CallContext, executable: Executable, opts: RouterOptions): any {
+    if (isInternalExecutable(executable)) {
+        return executable.handler(context, opts);
     }
-};
-
-function stringifyResponseBody({response}: CallContext, opts: RouterOptions): void {
-    const respBody: Obj = response.body;
-    if (response.publicErrors.length) {
-        respBody.errors = response.publicErrors;
-        (response.json as Mutable<string>) = opts.bodyParser.stringify(response.publicErrors);
-    } else {
-        (response.json as Mutable<string>) = opts.bodyParser.stringify(respBody);
+    if (opts.useAsyncCallContext) {
+        return asyncLocalStorage.run(context, () => {
+            return (executable as RouteExecutable<SimpleHandler>).handler(...handlerParams);
+        });
     }
-    response.headers['Content-Type'] = opts.responseContentType;
+
+    return (executable as RouteExecutable<Handler>).handler(context, ...handlerParams);
 }
 
-const deserializeAndValidateParameters = (request: Request, executable: Executable, routerOptions: RouterOptions): any[] => {
+// ############# PRIVATE METHODS #############
+
+function deserializeParameters(request: Request, executable: Executable): any[] {
     const fieldName = executable.fieldName;
-    let params;
+    let params: any[];
 
     if (executable.inHeader) {
         params = request.headers[fieldName];
@@ -226,17 +181,7 @@ const deserializeAndValidateParameters = (request: Request, executable: Executab
             publicMessage: `Invalid params '${fieldName}'. input parameters can only be sent in an array.`,
         });
 
-    // if there are no params input field can be omitted
-    if (!params.length && !executable.reflection.paramsLength) return params;
-
-    if (params.length !== executable.reflection.paramsLength)
-        throw new RouteError({
-            statusCode: StatusCodes.BAD_REQUEST,
-            name: 'Invalid Params Length',
-            publicMessage: `Invalid params '${fieldName}', missing or invalid number of input parameters`,
-        });
-
-    if (routerOptions.enableSerialization) {
+    if (params.length && executable.enableSerialization) {
         try {
             params = executable.reflection.deserializeParams(params);
         } catch (e) {
@@ -247,8 +192,12 @@ const deserializeAndValidateParameters = (request: Request, executable: Executab
             });
         }
     }
+    return params;
+}
 
-    if (routerOptions.enableValidation) {
+function validateParameters(params: any[], executable: Executable): any[] {
+    const fieldName = executable.fieldName;
+    if (executable.enableValidation) {
         const validationResponse = executable.reflection.validateParams(params);
         if (validationResponse.hasErrors) {
             throw new RouteError({
@@ -261,77 +210,11 @@ const deserializeAndValidateParameters = (request: Request, executable: Executab
     }
 
     return params;
-};
+}
 
-const serializeResponse = (response: Response, executable: Executable, result: any, routerOptions: RouterOptions) => {
-    if (!executable.canReturnData || result === undefined) return;
-    const serialized = routerOptions.enableSerialization ? executable.reflection.serializeReturn(result) : result;
+function serializeResponse(response: Response, executable: Executable, result: any) {
+    if (!executable.canReturnData || result === undefined) return; // bes sure we not serialize undefined values
+    const serialized = executable.enableSerialization ? executable.reflection.serializeReturn(result) : result;
     if (executable.inHeader) response.headers[executable.fieldName] = serialized;
     else (response as Mutable<Obj>).body[executable.fieldName] = serialized;
-};
-
-const handleRouteErrors = (request: Request, response: Response, err: any, step: number) => {
-    const routeError =
-        err instanceof RouteError
-            ? err
-            : new RouteError({
-                  statusCode: StatusCodes.INTERNAL_SERVER_ERROR,
-                  publicMessage: `Unknown error in step ${step} of route execution path.`,
-                  originalError: err,
-                  name: 'Unknown Error',
-              });
-
-    const publicError = getPublicErrorFromRouteError(routeError);
-    (response.publicErrors as Mutable<PublicError[]>).push(publicError);
-    (request.internalErrors as Mutable<RouteError[]>).push(routeError);
-};
-
-/**
- * This is a function to be called from outside the router.
- * Whenever there is an error outside the router, this function should be called.
- * So error keep the same format as when they were generated inside the router.
- * This also stringifies public errors into response.json.
- * @param routeResponse
- * @param originalError
- */
-export const generateRouteResponseFromOutsideError = (
-    originalError: any,
-    statusCode: StatusCodes = StatusCodes.INTERNAL_SERVER_ERROR,
-    publicMessage = 'Internal Error'
-): Response => {
-    const routerOptions = getRouterOptions();
-    const error = new RouteError({
-        statusCode,
-        publicMessage,
-        originalError,
-    });
-    const publicErrors = [getPublicErrorFromRouteError(error)];
-    const context = {
-        rawRequest: undefined as any,
-        path: undefined as any,
-        request: undefined as any,
-        shared: undefined as any,
-        response: {
-            statusCode,
-            publicErrors,
-            headers: {},
-            body: {},
-            json: '',
-        },
-    } as CallContext;
-
-    stringifyResponseBody(context, routerOptions);
-    return context.response;
-};
-
-export const getPublicErrorFromRouteError = (routeError: RouteError): PublicError => {
-    // creating a new public error object to avoid exposing the original error
-    const publicError: PublicError = {
-        name: routeError.name,
-        statusCode: routeError.statusCode,
-        message: routeError.publicMessage,
-    };
-    if (routeError.id) publicError.id = routeError.id;
-    if (routeError.publicData) publicError.errorData = routeError.publicData;
-    return publicError;
-};
+}
