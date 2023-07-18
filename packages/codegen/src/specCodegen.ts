@@ -16,8 +16,8 @@ import {randomUUID} from 'crypto';
 
 // TODO: we could use https://ts-morph.com/manipulation/ instead string based code generation but better done than perfect!
 
-/** Resturns the TS Spec Source Code */
-export const getSpecFile = (options: CodegenOptions, exportedRoutes: ExportedRoutesMap) => {
+/** Returns the TS Spec Source Code */
+export function getSpecFile(options: CodegenOptions, exportedRoutes: ExportedRoutesMap) {
     const routesList = Object.values(exportedRoutes);
     const exportNames = Object.keys(exportedRoutes);
     const {publicMethods, routes} = getPublicMethodsAndRoutes(routesList, exportNames);
@@ -29,16 +29,16 @@ export const getSpecFile = (options: CodegenOptions, exportedRoutes: ExportedRou
         `function fakeHandler(){throw new Error('handlers can not be called directly from the spec file!')}\n`;
     const specFileContent = jsonStringsToCode(`${serializePublicMethods(publicMethods)}\n` + `${serializeRoutes(routes)}\n`);
     return specFileHeader + specFileContent;
-};
+}
 
-export const getRelativeImport = (entryFileName: string, outputFileName: string) => {
+export function getRelativeImport(entryFileName: string, outputFileName: string) {
     const entryTsName = parse(entryFileName).name;
     const relativePath = './' + relative(dirname(outputFileName), dirname(entryFileName));
     const relativeimport = relativePath.endsWith('/') ? `${relativePath}${entryTsName}` : `${relativePath}/${entryTsName}`;
     return relativeimport;
-};
+}
 
-const getPublicMethodsAndRoutes = (routesList: PublicMethods<any>[], exportNames: string[]) => {
+function getPublicMethodsAndRoutes(routesList: PublicMethods<any>[], exportNames: string[]) {
     const publicMethods: PublicMethodsSpec = {};
     const routes: RoutesSpec = {};
     exportNames.forEach((name, i) => {
@@ -48,14 +48,14 @@ const getPublicMethodsAndRoutes = (routesList: PublicMethods<any>[], exportNames
         routes[name] = routeSpec;
     });
     return {publicMethods, routes};
-};
+}
 
-const recursiveSetHandlerTypeAndCreateRouteExecutables = (
+function recursiveSetHandlerTypeAndCreateRouteExecutables(
     methods: PublicMethods<any>,
     exportName: string,
     currentPointer: string[],
     routeExecutables: Obj
-): PublicMethods<any> => {
+): PublicMethods<any> {
     const newRoutes: PublicMethods<any> = {};
     Object.entries(methods).forEach(([key, item]) => {
         const newPointer = [...currentPointer, key];
@@ -74,24 +74,31 @@ const recursiveSetHandlerTypeAndCreateRouteExecutables = (
         }
     });
     return newRoutes;
-};
+}
 
-const serializePublicMethods = (publicMethods: PublicMethodsSpec) =>
-    `\n// public methods specification (hooks and routes)\n` +
-    `export const ${PUBLIC_METHODS_SPEC_EXPORT_NAME} = ${JSON.stringify(publicMethods)};`;
+function serializePublicMethods(publicMethods: PublicMethodsSpec) {
+    return (
+        `\n// public methods specification (hooks and routes)\n` +
+        `export const ${PUBLIC_METHODS_SPEC_EXPORT_NAME} = ${JSON.stringify(publicMethods)};`
+    );
+}
 
-const serializeRoutes = (routes: RoutesSpec) =>
-    `\n// routes specification, each route is a list of public methods that gets executed in order\n` +
-    ` export const ${ROUTES_SPEC_EXPORT_NAME} = ${JSON.stringify(routes, null, 2)};`; // indentation added so routes can be read more easily
+function serializeRoutes(routes: RoutesSpec) {
+    // indentation added so routes can be read more easily
+    return (
+        `\n// routes specification, each route is a list of public methods that gets executed in order\n` +
+        ` export const ${ROUTES_SPEC_EXPORT_NAME} = ${JSON.stringify(routes, null, 2)};`
+    );
+}
 
-const setRouteExecutables = (route: PublicRoute<any>, currentPointer: string[], exportName: string, routeExecutables: Obj) => {
+function setRouteExecutables(route: PublicRoute<any>, currentPointer: string[], exportName: string, routeExecutables: Obj) {
     const MethodPointers = route.publicExecutionPathPointers?.map((pointer) =>
         setCodeAsJsonString(`${PUBLIC_METHODS_SPEC_EXPORT_NAME}.${exportName}.${pointer.join('.')}`)
     );
     assignProperty(routeExecutables, currentPointer, MethodPointers);
-};
+}
 
-const assignProperty = (obj: Obj, pointer: string[], value: any) => {
+function assignProperty(obj: Obj, pointer: string[], value: any) {
     let current = obj;
     pointer.forEach((key, i) => {
         if (i === pointer.length - 1) {
@@ -101,7 +108,7 @@ const assignProperty = (obj: Obj, pointer: string[], value: any) => {
         }
         current = current[key];
     });
-};
+}
 
 // This does not support src code containing scaped double quotes, multiple lines etc, very simple statements only;
 const codeWrapper = `##@@==>${randomUUID()}<==@@##`;
@@ -109,9 +116,9 @@ const setCodeAsJsonString = (code: string) => `${codeWrapper}${code}${codeWrappe
 const jsonStringsToCode = (srcFile: string) => srcFile.replaceAll(`"${codeWrapper}`, '').replaceAll(`${codeWrapper}"`, '');
 
 /** Runs a js program in node */
-export const runChildNode = (jsCode: string, cwd: string) => {
+export function runChildNode(jsCode: string, cwd: string) {
     spawn.sync('node', ['-e', jsCode], {cwd, stdio: 'inherit'});
-};
+}
 
 /**
  * Formats src code using prettier
@@ -119,10 +126,10 @@ export const runChildNode = (jsCode: string, cwd: string) => {
  * @param opts
  * @returns
  */
-export const formatCode = (srcCode: string, opts?: PrettierOptions) => {
+export function formatCode(srcCode: string, opts?: PrettierOptions) {
     const prettierOpts = {
         ...DEFAULT_PRETTIER_OPTIONS,
         ...opts,
     };
     return format(srcCode, prettierOpts);
-};
+}

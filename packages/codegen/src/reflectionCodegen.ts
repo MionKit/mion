@@ -12,7 +12,7 @@ import {isFunctionType} from '@mionkit/runtype';
 // type references, would need to imported into the generated spec (Not used as for now)
 const requiredTypes: Map<string, Type> = new Map();
 
-export const parametersToSrcCode = (path: string, handler: (...args: any[]) => any, type?: Type): {[key: string]: string} => {
+export function parametersToSrcCode(path: string, handler: (...args: any[]) => any, type?: Type): {[key: string]: string} {
     const handlerType = type || reflect(handler);
     if (!isFunctionType(handlerType)) throw new Error('Invalid handler type must be a function');
     const paramNames: {[key: string]: string} = {};
@@ -21,15 +21,15 @@ export const parametersToSrcCode = (path: string, handler: (...args: any[]) => a
         paramNames[pt.name] = validateAndGetType(pt.type, `${path}.${pt.name}`, false);
     });
     return paramNames;
-};
+}
 
-export const returnToSrcCode = (path: string, handler: (...args: any[]) => any, type?: Type): string => {
+export function returnToSrcCode(path: string, handler: (...args: any[]) => any, type?: Type): string {
     const handlerType = type || reflect(handler);
     if (!isFunctionType(handlerType)) throw new Error('Invalid handler type must be a function');
     return validateAndGetType(handlerType.return, path, true);
-};
+}
 
-const validateAndGetType = (t: Type, path: string, isReturn: boolean): string => {
+function validateAndGetType(t: Type, path: string, isReturn: boolean): string {
     // console.log(path+t., t.kind, getReflectionKindName(t.kind));
     // console.log(inspect(t, false, 5, true));
     const typeName = t.typeName;
@@ -115,18 +115,18 @@ const validateAndGetType = (t: Type, path: string, isReturn: boolean): string =>
             requiredTypes.set(typeName, t);
             return typeName + typeArguments;
     }
-};
+}
 
-const resolveTypeArguments = (path: string, isReturn: boolean, typeArguments?: Type[]) => {
+function resolveTypeArguments(path: string, isReturn: boolean, typeArguments?: Type[]) {
     if (!typeArguments?.length) return '';
     return '<' + typeArguments.map((argT) => validateAndGetType(argT, path, isReturn)).join(' , ') + '>';
-};
+}
 
-const getReflectionKindName = (enumValue: number): string => {
+function getReflectionKindName(enumValue: number): string {
     const keys = Object.keys(ReflectionKind).filter((x) => ReflectionKind[x] == enumValue);
     return keys.length > 0 ? keys[0] : '';
-};
+}
 
-const sanitizePropertyName = (propertyName: string) => {
+function sanitizePropertyName(propertyName: string) {
     return propertyName.match(/[\W]+/g) ? JSON.stringify(propertyName) : propertyName;
-};
+}

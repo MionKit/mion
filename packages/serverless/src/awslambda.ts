@@ -11,15 +11,17 @@ import type {Context as AwsContext, APIGatewayProxyResult, APIGatewayEvent} from
 
 let defaultResponseContentType: string;
 
-export const initAwsLambdaRouter = <SharedData extends Obj>(
+// ############# PUBLIC METHODS #############
+
+export function initAwsLambdaRouter<SharedData extends Obj>(
     sharedDataFactory?: SharedDataFactory<SharedData>,
     routerOptions?: Partial<RouterOptions<APIGatewayEvent>>
-) => {
+) {
     initRouter<SharedData, APIGatewayEvent>(sharedDataFactory, routerOptions);
     defaultResponseContentType = getRouterOptions().responseContentType;
-};
+}
 
-export const lambdaHandler = async (rawRequest: APIGatewayEvent, awsContext: AwsContext): Promise<APIGatewayProxyResult> => {
+export async function lambdaHandler(rawRequest: APIGatewayEvent, awsContext: AwsContext): Promise<APIGatewayProxyResult> {
     return dispatchRoute(rawRequest.path, rawRequest, awsContext)
         .then((routeResponse) => {
             return reply(routeResponse);
@@ -27,9 +29,11 @@ export const lambdaHandler = async (rawRequest: APIGatewayEvent, awsContext: Aws
         .catch((e) => {
             return reply(getResponseFromError(e));
         });
-};
+}
 
-const reply = (routeResponse: Response) => {
+// ############# PRIVATE METHODS #############
+
+function reply(routeResponse: Response) {
     return {
         statusCode: routeResponse.statusCode,
         headers: {
@@ -40,4 +44,4 @@ const reply = (routeResponse: Response) => {
         },
         body: routeResponse.json,
     };
-};
+}
