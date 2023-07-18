@@ -373,7 +373,50 @@ const someHook: MyHook = {
 
 ## `Call Context`
 
-The `CallContext` contains all the data related to the ongoing call. Most of the data within the `Context` is marked as read only, this is because it is not recommended modifying the context manually just the `shared` object. It is still possible to modify it (the context is not a real Immutable js object). The context is always passed as the second parameter to the routes/hooks handlers.
+The `CallContext` contains all the data related to the ongoing call. Most of the data within the `CallContext` is marked as read only, this is because it is not recommended modifying the context manually just the `shared` object. Instead route/hook handlers should just return a value or throw an error.
+
+It is still possible to modify it (the context is not a real Immutable js object). It is always passed as the first parameter to the routes/hooks handlers.
+
+This is an obvious statement but to avoid memory issues you should never store a reference to the context or any of it's properties, the context is passed to every handler so there is no reason to do so.
+
+```ts
+// examples/don-not-store-context.ts
+
+import {Routes, registerRoutes} from '@mionkit/router';
+import {getAuthUser, isAuthorized} from 'MyAuth';
+
+let currentSharedData: any = null;
+
+const authorizationHook = {
+  fieldName: 'Authorization',
+  inHeader: true,
+  async hook(ctx, token: string): Promise<void> {
+    const me = await getAuthUser(token);
+    if (!isAuthorized(me)) throw {code: 401, message: 'user is not authorized'};
+    ctx.shared.auth = {me}; // user is added to ctx to shared with other routes/hooks
+
+    // THIS IS WRONG! DO NOT STORE THE CONTEXT!
+    currentSharedData = ctx.shared;
+  },
+};
+
+const wrongSayHello = (ctx): string => {
+  // this is wrong! besides currentContext might have changed, it might be also causing memory problems
+  return `hello ${currentSharedData?.shared?.auth}`;
+};
+
+const sayHello = (ctx): string => {
+  return `hello ${ctx.shared.auth}`;
+};
+
+const routes = {
+  authorizationHook, // header: Authorization (defined using fieldName)
+  wrongSayHello,
+  sayHello,
+} satisfies Routes;
+
+export const apiSpec = registerRoutes(routes);
+```
 
 #### Call Context Type
 
@@ -640,8 +683,8 @@ export const DEFAULT_ROUTE_OPTIONS: Readonly<RouterOptions> = {
 export const DEFAULT_REFLECTION_OPTIONS: Readonly<ReflectionOptions> = {
   /**
    * Deepkit Serialization Options
-   * loosely defaults to false, Soft conversion disabled.
-   * !! We Don't recommend to enable soft conversion as validation might fail
+   * Deepkit Soft conversion disabled. (will fail if extra parameters found when validating an object)
+   * !! We Don't recommend to enable soft conversion as validation is more relaxed and not tested
    * */
   serializationOptions: {
     loosely: false,

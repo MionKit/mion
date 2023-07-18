@@ -10,7 +10,6 @@ import {
     initRouter,
     getRouterOptions,
     dispatchRoute,
-    RouteError,
     getResponseFromError,
     dispatchRouteCallback,
     resetRouter,

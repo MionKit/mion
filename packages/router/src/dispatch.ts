@@ -79,7 +79,11 @@ async function _dispatchRoute(path: string, rawRequest: RawRequest, rawResponse?
     try {
         const opts = getRouterOptions();
         const transformedPath = opts.pathTransform ? opts.pathTransform(rawRequest, path) : path;
+        const executionPath = getRouteExecutionPath(transformedPath);
         const sharedFactory = getSharedDataFactory();
+
+        // this is the call context that will be passed to all handlers
+        // we should keep it as small as possible
         const context: CallContext<any, RawRequest, any> = {
             path: transformedPath,
             rawRequest,
@@ -99,9 +103,7 @@ async function _dispatchRoute(path: string, rawRequest: RawRequest, rawResponse?
             shared: sharedFactory ? sharedFactory() : {},
         };
 
-        const executionPath = getRouteExecutionPath(transformedPath) || [];
-
-        if (!executionPath.length) {
+        if (!executionPath) {
             const notFound = new RouteError({statusCode: StatusCodes.NOT_FOUND, publicMessage: 'Route not found'});
             handleRouteErrors(context.request, context.response, notFound, 0);
         } else {
@@ -123,12 +125,14 @@ async function runExecutionPath(context: CallContext, executables: Executable[],
         if (response.publicErrors.length && !executable.forceRunOnError) continue;
 
         try {
-            const handlerParams = deserializeAndValidateParameters(request, executable, opts);
-            if (executable.inHeader) request.headers[executable.fieldName] = handlerParams;
-            else request.body[executable.fieldName] = handlerParams;
+            const deserializedParams = deserializeParameters(request, executable);
+            const validatedParams = validateParameters(deserializedParams, executable);
+            if (executable.inHeader) request.headers[executable.fieldName] = validatedParams;
+            else request.body[executable.fieldName] = validatedParams;
 
-            const result = await runHandler(handlerParams, context, executable, opts);
-            serializeResponse(response, executable, result, opts);
+            const result = await runHandler(validatedParams, context, executable, opts);
+            // TODO: should we also validate the handler result? think just forcing declaring the return type with a linter is enough.
+            serializeResponse(response, executable, result);
         } catch (err: any | RouteError | Error) {
             handleRouteErrors(request, response, err, i);
         }
@@ -154,7 +158,7 @@ async function runHandler(handlerParams: any[], context: CallContext, executable
     }
 }
 
-function deserializeAndValidateParameters(request: Request, executable: Executable, routerOptions: RouterOptions): any[] {
+function deserializeParameters(request: Request, executable: Executable): any[] {
     const fieldName = executable.fieldName;
     let params;
 
@@ -180,17 +184,7 @@ function deserializeAndValidateParameters(request: Request, executable: Executab
             publicMessage: `Invalid params '${fieldName}'. input parameters can only be sent in an array.`,
         });
 
-    // if there are no params input field can be omitted
-    if (!params.length && !executable.reflection.paramsLength) return params;
-
-    if (params.length !== executable.reflection.paramsLength)
-        throw new RouteError({
-            statusCode: StatusCodes.BAD_REQUEST,
-            name: 'Invalid Params Length',
-            publicMessage: `Invalid params '${fieldName}', missing or invalid number of input parameters`,
-        });
-
-    if (routerOptions.enableSerialization) {
+    if (params.length && executable.enableSerialization) {
         try {
             params = executable.reflection.deserializeParams(params);
         } catch (e) {
@@ -201,25 +195,27 @@ function deserializeAndValidateParameters(request: Request, executable: Executab
             });
         }
     }
+    return params;
+}
 
-    if (routerOptions.enableValidation) {
+function validateParameters(params: any[], executable: Executable): any[] {
+    if (executable.enableValidation) {
         const validationResponse = executable.reflection.validateParams(params);
         if (validationResponse.hasErrors) {
             throw new RouteError({
                 statusCode: StatusCodes.BAD_REQUEST,
                 name: 'Validation Error',
-                publicMessage: `Invalid params in '${fieldName}', validation failed.`,
+                publicMessage: `Invalid params in '${executable.fieldName}', validation failed.`,
                 publicData: validationResponse,
             });
         }
     }
-
     return params;
 }
 
-function serializeResponse(response: Response, executable: Executable, result: any, routerOptions: RouterOptions) {
+function serializeResponse(response: Response, executable: Executable, result: any) {
     if (!executable.canReturnData || result === undefined) return;
-    const serialized = routerOptions.enableSerialization ? executable.reflection.serializeReturn(result) : result;
+    const serialized = executable.enableSerialization ? executable.reflection.serializeReturn(result) : result;
     if (executable.inHeader) response.headers[executable.fieldName] = serialized;
     else (response as Mutable<Obj>).body[executable.fieldName] = serialized;
 }
