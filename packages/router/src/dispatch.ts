@@ -75,7 +75,7 @@ export function dispatchRouteCallback<Req extends RawRequest, Resp>(
 
 // ############# PRIVATE METHODS #############
 
-async function _dispatchRoute(path: string, rawRequest: RawRequest, rawResponse?: unknown): Promise<Response> {
+async function _dispatchRoute(path: string, rawRequest: RawRequest, rawResponse?: any): Promise<Response> {
     try {
         const opts = getRouterOptions();
         const transformedPath = opts.pathTransform ? opts.pathTransform(rawRequest, path) : path;
@@ -84,7 +84,7 @@ async function _dispatchRoute(path: string, rawRequest: RawRequest, rawResponse?
 
         // this is the call context that will be passed to all handlers
         // we should keep it as small as possible
-        const context: CallContext<any, RawRequest, any> = {
+        const context: CallContext<any, RawRequest, unknown> = {
             path: transformedPath,
             rawRequest,
             rawResponse,
@@ -119,7 +119,6 @@ async function _dispatchRoute(path: string, rawRequest: RawRequest, rawResponse?
 
 async function runExecutionPath(context: CallContext, executables: Executable[], opts: RouterOptions): Promise<Response> {
     const {response, request} = context;
-
     for (let i = 0; i < executables.length; i++) {
         const executable = executables[i];
         if (response.publicErrors.length && !executable.forceRunOnError) continue;
@@ -127,8 +126,8 @@ async function runExecutionPath(context: CallContext, executables: Executable[],
         try {
             const deserializedParams = deserializeParameters(request, executable);
             const validatedParams = validateParameters(deserializedParams, executable);
-            if (executable.inHeader) request.headers[executable.fieldName] = validatedParams;
-            else request.body[executable.fieldName] = validatedParams;
+            if (executable.inHeader) (request.headers as Mutable<Request['headers']>)[executable.fieldName] = validatedParams;
+            else (request.body as Mutable<Request['body']>)[executable.fieldName] = validatedParams;
 
             const result = await runHandler(validatedParams, context, executable, opts);
             // TODO: should we also validate the handler result? think just forcing declaring the return type with a linter is enough.
@@ -216,7 +215,7 @@ function validateParameters(params: any[], executable: Executable): any[] {
 function serializeResponse(response: Response, executable: Executable, result: any) {
     if (!executable.canReturnData || result === undefined) return;
     const serialized = executable.enableSerialization ? executable.reflection.serializeReturn(result) : result;
-    if (executable.inHeader) response.headers[executable.fieldName] = serialized;
+    if (executable.inHeader) (response.headers as Mutable<Response['headers']>)[executable.fieldName] = serialized;
     else (response as Mutable<Obj>).body[executable.fieldName] = serialized;
 }
 
