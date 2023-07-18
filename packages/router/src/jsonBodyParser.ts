@@ -11,6 +11,7 @@ import {RouteError} from './errors';
 import {handleRouteErrors} from './dispatch';
 
 // ############# PUBLIC METHODS #############
+
 export function parseRequestBody(rawRequest: RawRequest, request: Request, response: Response, routerOptions: RouterOptions) {
     if (!rawRequest.body) return;
     try {

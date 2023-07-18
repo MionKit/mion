@@ -12,13 +12,13 @@ import {CodegenOptions} from './types';
 
 let project: Project | null = null;
 
-export const initTsProject = (tsConfigFilePath: string) => {
+export function initTsProject(tsConfigFilePath: string) {
     if (project) throw new Error('TS Project already initialized!');
     project = new Project({
         tsConfigFilePath: tsConfigFilePath,
         skipAddingFilesFromTsConfig: true,
     });
-};
+}
 
 /**
  * Returns a list of names of the exported variables in entryFileName that are of the PublicRoutes type.
@@ -59,7 +59,7 @@ export function getExportedRoutesVarNames(options: CodegenOptions): string[] {
  *  I.e. type<PublicRoutes>.getText() returns:  import("/node_modules/@mionkit/packages/router/src/types").PublicRoutes<{}> | null
  *  The id part is:                             import("/node_modules/@mionkit/packages/router/src/types").PublicRoutes
  *  */
-const getPublicRoutesTypeId = (options: CodegenOptions) => {
+function getPublicRoutesTypeId(options: CodegenOptions) {
     if (!project) throw new Error('TS Project has not been initialized!');
     // we create a new file beside the entryFile and extract the import path (id) from type.getText() result.
     // !!Important this can change depending on the retunr type of router.registerRoutes()!!
@@ -81,10 +81,10 @@ const getPublicRoutesTypeId = (options: CodegenOptions) => {
     // this is expected to be something like: import("/node_modules/@mionkit/packages/router/src/types").PublicRoutes<{}> | null
     const samplePublicRoutesTypeText = sampleExportsDeclaration[0].getType().getText();
     return samplePublicRoutesTypeText.replace('<{}>', '');
-};
+}
 
 /** Return the required JS code to run the router and generate the router spec. */
-export const getGenerateSpecJsCode = (options: CodegenOptions, exportedPublicRoutesNames: string[]): OutputFile => {
+export function getGenerateSpecJsCode(options: CodegenOptions, exportedPublicRoutesNames: string[]): OutputFile {
     if (!project) throw new Error('TS Project has not been initialized!');
     const entryTsName = basename(options.entryFileName);
     const runAppAndGenerateSpec = `
@@ -105,4 +105,4 @@ export const getGenerateSpecJsCode = (options: CodegenOptions, exportedPublicRou
         .find((file) => file.getFilePath().endsWith('.js') || file.getFilePath().endsWith('.mjs'));
     if (!jsFile) throw new Error('There was an unknow problem compiling typescript.');
     return jsFile;
-};
+}
