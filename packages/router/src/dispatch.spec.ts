@@ -339,7 +339,7 @@ describe('Dispatch routes', () => {
             expect(response.publicErrors[0]).toEqual({
                 statusCode: 500,
                 name: 'Unknown Error',
-                message: 'Unknown error in step 0 of route execution path.',
+                message: 'Unknown error in step 1 of route execution path.',
             });
         });
 
