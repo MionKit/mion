@@ -86,8 +86,6 @@ async function _dispatchRoute(path: string, rawRequest: RawRequest, rawResponse?
         // we should keep it as small as possible
         const context: CallContext<any, RawRequest, unknown> = {
             path: transformedPath,
-            rawRequest,
-            rawResponse,
             request: {
                 headers: rawRequest.headers || {},
                 body: {},
@@ -106,14 +104,20 @@ async function _dispatchRoute(path: string, rawRequest: RawRequest, rawResponse?
         // gets the execution path for the route or the not found exucution path
         const executionPath = getRouteExecutionPath(transformedPath) || getNotFoundExecutionPath();
 
-        await runExecutionPath(context, executionPath, opts);
+        await runExecutionPath(context, rawRequest, rawResponse, executionPath, opts);
         return context.response;
     } catch (err: any | RouteError | Error) {
         return Promise.reject(err);
     }
 }
 
-async function runExecutionPath(context: CallContext, executables: Executable[], opts: RouterOptions): Promise<Response> {
+async function runExecutionPath(
+    context: CallContext,
+    rawRequest: RawRequest,
+    rawResponse: any,
+    executables: Executable[],
+    opts: RouterOptions
+): Promise<Response> {
     const {response, request} = context;
     for (let i = 0; i < executables.length; i++) {
         const executable = executables[i];
@@ -125,7 +129,7 @@ async function runExecutionPath(context: CallContext, executables: Executable[],
             if (executable.inHeader) (request.headers as Mutable<Request['headers']>)[executable.fieldName] = validatedParams;
             else (request.body as Mutable<Request['body']>)[executable.fieldName] = validatedParams;
 
-            const result = await runHandler(validatedParams, context, executable, opts);
+            const result = await runHandler(validatedParams, context, rawRequest, rawResponse, executable, opts);
             // TODO: should we also validate the handler result? think just forcing declaring the return type with a linter is enough.
             serializeResponse(response, executable, result);
         } catch (err: any | RouteError | Error) {
@@ -136,8 +140,15 @@ async function runExecutionPath(context: CallContext, executables: Executable[],
     return context.response;
 }
 
-async function runHandler(handlerParams: any[], context: CallContext, executable: Executable, opts: RouterOptions): Promise<any> {
-    const resp = getHandlerResponse(handlerParams, context, executable, opts);
+async function runHandler(
+    handlerParams: any[],
+    context: CallContext,
+    rawRequest: RawRequest,
+    rawResponse: any,
+    executable: Executable,
+    opts: RouterOptions
+): Promise<any> {
+    const resp = getHandlerResponse(handlerParams, context, rawRequest, rawResponse, executable, opts);
     if (isPromise(resp)) {
         return resp as Promise<any>;
     } else if (resp instanceof Error || resp instanceof RouteError) {
@@ -147,9 +158,16 @@ async function runHandler(handlerParams: any[], context: CallContext, executable
     }
 }
 
-function getHandlerResponse(handlerParams: any[], context: CallContext, executable: Executable, opts: RouterOptions): any {
+function getHandlerResponse(
+    handlerParams: any[],
+    context: CallContext,
+    rawRequest: RawRequest,
+    rawResponse: any,
+    executable: Executable,
+    opts: RouterOptions
+): any {
     if (isRawExecutable(executable)) {
-        return executable.handler(context, context.rawRequest, context.rawResponse, opts);
+        return executable.handler(context, rawRequest, rawResponse, opts);
     }
     if (executable.useAsyncCallContext) {
         return asyncLocalStorage.run(context, () => {
@@ -167,8 +185,8 @@ function deserializeParameters(request: Request, executable: Executable): any[] 
 
     if (executable.inHeader) {
         params = request.headers[fieldName];
-        if (typeof params === 'string') return [params];
-        else if (Array.isArray(params)) return [params.join(',')]; // node http headers could be an array of strings
+        if (typeof params === 'string') params = [params];
+        else if (Array.isArray(params)) params = [params.join(',')]; // node http headers could be an array of strings
         else
             throw new RouteError({
                 statusCode: StatusCodes.BAD_REQUEST,
@@ -178,7 +196,7 @@ function deserializeParameters(request: Request, executable: Executable): any[] 
     }
 
     // defaults to an empty array if required field is omitted from body
-    params = request.body[fieldName] ?? [];
+    params = params || (request.body[fieldName] ?? []);
 
     if (!Array.isArray(params))
         throw new RouteError({
