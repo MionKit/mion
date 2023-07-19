@@ -7,7 +7,9 @@
 
 import {ReflectionOptions} from './types';
 
-/** Reflection and Deepkit Serialization-Validation options */
+/** These are copied from router package so we dont do circular dependencies
+ * Mostly used for unit testing on this package
+ */
 export const DEFAULT_REFLECTION_OPTIONS: Readonly<ReflectionOptions> = {
     /**
      * Deepkit Serialization Options

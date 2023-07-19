@@ -6,7 +6,6 @@
  * ######## */
 
 import {HookDef, RawRequest, RouteDef, RouterOptions} from './types';
-import {DEFAULT_REFLECTION_OPTIONS} from '@mionkit/runtype';
 
 export const ROUTE_PATH_ROOT = '/';
 
@@ -65,7 +64,28 @@ export const DEFAULT_ROUTE_OPTIONS: Readonly<RouterOptions> = {
     disableAllReflection: false,
 
     /** Reflection and Deepkit Serialization-Validation options */
-    reflectionOptions: DEFAULT_REFLECTION_OPTIONS,
+    reflectionOptions: {
+        /**
+         * Deepkit Serialization Options
+         * loosely defaults to false, Soft conversion disabled.
+         * !! We Don't recommend to enable soft conversion as validation might fail
+         * */
+        serializationOptions: {
+            loosely: false,
+        },
+
+        /**
+         * Deepkit custom serializer
+         * @link https://docs.deepkit.io/english/serialization.html#serialisation-custom-serialiser
+         * */
+        customSerializer: undefined,
+
+        /**
+         * Deepkit Serialization Options
+         * @link https://docs.deepkit.io/english/serialization.html#_naming_strategy
+         * */
+        serializerNamingStrategy: undefined,
+    },
 
     /** Custom body parser, defaults to Native JSON */
     bodyParser: JSON,

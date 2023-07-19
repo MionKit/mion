@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {SerializedTypes} from '@deepkit/type';
+import type {SerializedTypes} from '@deepkit/type';
 import type {Executable, Route, HookDef, Handler, CallContext} from '@mionkit/router';
 
 export type ClientOptions = {
