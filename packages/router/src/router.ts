@@ -25,8 +25,15 @@ import {
     HookExecutable,
     PublicMethods,
     RawRequest,
+    RawHookDef,
+    RawExecutable,
+    isRawHookDef,
+    RawHooksCollection,
 } from './types';
 import {getFunctionReflectionMethods} from '@mionkit/runtype';
+import {RouteError} from './errors';
+import {StatusCodes} from './status-codes';
+import {bodyParserHooks} from './jsonBodyParser';
 
 type RouterKeyEntryList = [string, Routes | HookDef | Route][];
 type RoutesWithId = {
@@ -37,36 +44,51 @@ type RoutesWithId = {
 // ############# PRIVATE STATE #############
 
 const flatRouter: Map<string, Executable[]> = new Map(); // Main Router
-const hooksByFieldName: Map<string, Executable> = new Map();
-const routesByPath: Map<string, Executable> = new Map();
+const hooksById: Map<string, HookExecutable> = new Map();
+const routesById: Map<string, RouteExecutable> = new Map();
+const rawHooksById: Map<string, RawExecutable> = new Map();
 const hookNames: Map<string, boolean> = new Map();
 const routeNames: Map<string, boolean> = new Map();
 let complexity = 0;
 let sharedDataFactoryFunction: SharedDataFactory<any> | undefined;
 let routerOptions: RouterOptions = {...DEFAULT_ROUTE_OPTIONS};
+let isRouterInitialized = false;
+
+/** Global hooks to be run before and after any other hooks or routes set using `registerRoutes` */
+const defaultStartHooks = {mionJsonParseRequestBody: bodyParserHooks.parseJsonRequestBody};
+const defaultEndHooks = {mionJsonStringifyResponseBody: bodyParserHooks.stringifyJsonResponseBody};
+let startHooksDef: RawHooksCollection = {...defaultStartHooks};
+let endHooksDef: RawHooksCollection = {...defaultEndHooks};
+let startHooks: Executable[] = [];
+let endHooks: Executable[] = [];
 
 // ############# PUBLIC METHODS #############
 
 export const getRouteExecutionPath = (path: string) => flatRouter.get(path);
 export const getRouteEntries = () => flatRouter.entries();
 export const geRoutesSize = () => flatRouter.size;
-export const getRouteExecutable = (path: string) => routesByPath.get(path);
-export const getHookExecutable = (fieldName: string) => hooksByFieldName.get(fieldName);
-export const geHooksSize = () => hooksByFieldName.size;
+export const getRouteExecutable = (path: string) => routesById.get(path);
+export const getHookExecutable = (fieldName: string) => hooksById.get(fieldName);
+export const geHooksSize = () => hooksById.size;
 export const getComplexity = () => complexity;
 export const getRouterOptions = (): Readonly<RouterOptions> => routerOptions;
 export const getSharedDataFactory = () => sharedDataFactoryFunction;
 
 export const resetRouter = () => {
     flatRouter.clear();
-    hooksByFieldName.clear();
-    routesByPath.clear();
+    hooksById.clear();
+    routesById.clear();
+    rawHooksById.clear();
     hookNames.clear();
     routeNames.clear();
     complexity = 0;
     sharedDataFactoryFunction = undefined;
-    // contextType = undefined;
     routerOptions = {...DEFAULT_ROUTE_OPTIONS};
+    startHooksDef = {...defaultStartHooks};
+    endHooksDef = {...defaultEndHooks};
+    startHooks = [];
+    endHooks = [];
+    isRouterInitialized = false;
 };
 
 /**
@@ -80,11 +102,16 @@ export async function initRouter<SharedData, Req extends RawRequest = RawRequest
     sharedDataFactory?: SharedDataFactory<SharedData>,
     routerOptions?: Partial<RouterOptions<Req>>
 ) {
+    if (isRouterInitialized) throw new Error('Router has already been initialized');
     sharedDataFactoryFunction = sharedDataFactory;
     setRouterOptions(routerOptions);
+    isRouterInitialized = true;
 }
 
 export function registerRoutes<R extends Routes>(routes: R): PublicMethods<R> {
+    if (!isRouterInitialized) throw new Error('initRouter should be called first');
+    startHooks = getExecutablesFromRawHooks(startHooksDef);
+    endHooks = getExecutablesFromRawHooks(endHooksDef);
     recursiveFlatRoutes(routes);
     // we only want to get information about the routes when creating api spec
     if (routerOptions.getPublicRoutesData || process.env.GENERATE_ROUTER_SPEC === 'true') {
@@ -112,8 +139,8 @@ export function getRoutePath(route: Route, path: string) {
     return routerOptions.suffix ? routePath + routerOptions.suffix : routePath;
 }
 
-export function getHookFieldName(item: HookDef, key: string) {
-    return item?.fieldName || key;
+export function getHookFieldName(item: HookDef | RawHookDef, key: string) {
+    return (item as HookDef)?.fieldName || key;
 }
 
 export function getRouteDefaultParams(): string[] {
@@ -121,6 +148,40 @@ export function getRouteDefaultParams(): string[] {
         return ['context'];
     }
     return [];
+}
+
+/** Add hooks at the start af the execution path, adds them before any other existing start hooks by default */
+export function addStartHooks(hooksDef: RawHooksCollection, appendBeforeExisting = true) {
+    if (isRouterInitialized) throw new Error('Can not add start hooks after the router has been initialized');
+    if (appendBeforeExisting) {
+        startHooksDef = {...hooksDef, ...startHooksDef};
+        return;
+    }
+    startHooksDef = {...startHooksDef, ...hooksDef};
+}
+
+/** Add hooks at the end af the execution path, adds them after any other existing end hooks by default */
+export function addEndHooks(hooksDef: RawHooksCollection, prependAfterExisting = true) {
+    if (isRouterInitialized) throw new Error('Can not add end hooks after the router has been initialized');
+    if (prependAfterExisting) {
+        endHooksDef = {...endHooksDef, ...hooksDef};
+        return;
+    }
+    endHooksDef = {...hooksDef, ...endHooksDef};
+}
+
+let notFoundExecutionPath: Executable[] | undefined;
+export function getNotFoundExecutionPath(): Executable[] {
+    if (notFoundExecutionPath) return notFoundExecutionPath;
+    const hookName = 'mion404NotfoundHook';
+    const notFoundHook = {
+        rawRequestHandler: () => {
+            return new RouteError({statusCode: StatusCodes.NOT_FOUND, publicMessage: `Route not found`});
+        },
+    } satisfies RawHookDef;
+    const notFoundHandlerExecutable = getExecutableFromRawHook(notFoundHook, [hookName], 0, hookName);
+    notFoundExecutionPath = [...startHooks, notFoundHandlerExecutable, ...endHooks];
+    return notFoundExecutionPath;
 }
 
 // ############# PRIVATE METHODS #############
@@ -237,7 +298,7 @@ function recursiveCreateExecutionPath(
 
     if (isExec && props.isRoute) {
         const routeExecutionPath = [...preHooks, ...props.preLevelHooks, routeEntry, ...props.postLevelHooks, ...postHooks];
-        flatRouter.set(routeEntry.path, routeExecutionPath);
+        flatRouter.set(routeEntry.path, getFullExecutionPath(routeExecutionPath));
     } else if (!isExec) {
         recursiveFlatRoutes(
             routeEntry.routes,
@@ -251,16 +312,21 @@ function recursiveCreateExecutionPath(
     return props;
 }
 
+/** returns an execution path with start and end hooks added to the start and end of the execution path respectively */
+function getFullExecutionPath(executionPath: Executable[]): Executable[] {
+    return [...startHooks, ...executionPath, ...endHooks];
+}
+
 function getHandler(entry: HookDef | Route, pathPointer: string[]): Handler {
     const handler = isHandler(entry) ? entry : (entry as HookDef).hook || (entry as RouteDef).route;
     if (!isHandler(handler)) throw new Error(`Invalid route: ${join(...pathPointer)}. Missing route handler`);
     return handler;
 }
 
-function getExecutableFromHook(hook: HookDef, hookPointer: string[], nestLevel: number, key: string): HookExecutable<Handler> {
+function getExecutableFromHook(hook: HookDef, hookPointer: string[], nestLevel: number, key: string): HookExecutable {
     const hookName = getHookFieldName(hook, key);
-    const existing = hooksByFieldName.get(hookName);
-    if (existing) return existing as HookExecutable<Handler>;
+    const existing = hooksById.get(hookName);
+    if (existing) return existing as HookExecutable;
     const handler = getHandler(hook, hookPointer);
 
     if (!!hook.inHeader && handler.length > getRouteDefaultParams().length + 1) {
@@ -273,7 +339,7 @@ function getExecutableFromHook(hook: HookDef, hookPointer: string[], nestLevel: 
         throw new Error(`Invalid Hook: ${join(...hookPointer)}. The 'errors' fieldName is reserver for the router.`);
     }
 
-    const executable: HookExecutable<Handler> = {
+    const executable: HookExecutable = {
         path: hookName,
         forceRunOnError: !!hook.forceRunOnError,
         canReturnData: !!hook.canReturnData,
@@ -281,6 +347,7 @@ function getExecutableFromHook(hook: HookDef, hookPointer: string[], nestLevel: 
         nestLevel,
         fieldName: hookName,
         isRoute: false,
+        isRawExecutable: false,
         handler,
         reflection: getFunctionReflectionMethods(
             handler,
@@ -290,27 +357,58 @@ function getExecutableFromHook(hook: HookDef, hookPointer: string[], nestLevel: 
         ),
         enableValidation: hook.enableValidation ?? routerOptions.enableValidation,
         enableSerialization: hook.enableSerialization ?? routerOptions.enableSerialization,
-        src: hook,
+        useAsyncCallContext: hook.useAsyncCallContext ?? routerOptions.useAsyncCallContext,
+        // src: hook,
         selfPointer: hookPointer,
     };
-    delete (executable as any).hook;
-    hooksByFieldName.set(hookName, executable);
+    hooksById.set(hookName, executable);
     return executable;
 }
 
-function getExecutableFromRoute(route: Route, routePointer: string[], nestLevel: number): RouteExecutable<Handler> {
+function getExecutableFromRawHook(hook: RawHookDef, hookPointer: string[], nestLevel: number, key: string): RawExecutable {
+    const hookName = key;
+    const existing = rawHooksById.get(hookName);
+    if (existing) return existing as RawExecutable;
+
+    if (hookName === 'errors') {
+        throw new Error(`Invalid Hook: ${join(...hookPointer)}. The 'errors' fieldName is reserver for the router.`);
+    }
+
+    const executable: RawExecutable = {
+        path: hookName,
+        forceRunOnError: true,
+        canReturnData: false,
+        inHeader: false,
+        nestLevel,
+        fieldName: hookName,
+        isRoute: false,
+        isRawExecutable: true,
+        handler: hook.rawRequestHandler,
+        reflection: null,
+        enableValidation: false,
+        enableSerialization: false,
+        useAsyncCallContext: false,
+        // src: hook,
+        selfPointer: hookPointer,
+    };
+    rawHooksById.set(hookName, executable);
+    return executable;
+}
+
+function getExecutableFromRoute(route: Route, routePointer: string[], nestLevel: number): RouteExecutable {
     const routePath = getRoutePathFromPointer(route, routePointer);
-    const existing = routesByPath.get(routePath);
-    if (existing) return existing as RouteExecutable<Handler>;
+    const existing = routesById.get(routePath);
+    if (existing) return existing as RouteExecutable;
     const handler = getHandler(route, routePointer);
-    const routeObj = isHandler(route) ? {...DEFAULT_ROUTE} : {...DEFAULT_ROUTE, ...route};
-    const executable: RouteExecutable<Handler> = {
+    // const routeObj = isHandler(route) ? {...DEFAULT_ROUTE} : {...DEFAULT_ROUTE, ...route};
+    const executable: RouteExecutable = {
         path: routePath,
         forceRunOnError: false,
         canReturnData: true,
         inHeader: false,
         fieldName: routerOptions.routeFieldName ? routerOptions.routeFieldName : routePath,
         isRoute: true,
+        isRawExecutable: false,
         nestLevel,
         handler,
         reflection: getFunctionReflectionMethods(
@@ -321,11 +419,12 @@ function getExecutableFromRoute(route: Route, routePointer: string[], nestLevel:
         ),
         enableValidation: (route as RouteDef).enableValidation ?? routerOptions.enableValidation,
         enableSerialization: (route as RouteDef).enableSerialization ?? routerOptions.enableSerialization,
-        src: routeObj,
+        useAsyncCallContext: (route as RouteDef).useAsyncCallContext ?? routerOptions.useAsyncCallContext,
+        // src: routeObj,
         selfPointer: routePointer,
     };
     delete (executable as any).route;
-    routesByPath.set(routePath, executable);
+    routesById.set(routePath, executable);
     return executable;
 }
 
@@ -351,4 +450,8 @@ function getRouteEntryProperties(
         preLevelHooks: [] as Executable[],
         postLevelHooks: [] as Executable[],
     };
+}
+
+function getExecutablesFromRawHooks(hooksDef: RawHooksCollection): RawExecutable[] {
+    return Object.entries(hooksDef).map(([key, hook]) => getExecutableFromRawHook(hook, [key], 0, key));
 }

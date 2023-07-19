@@ -19,8 +19,6 @@ import {ReflectionKind, isType, reflect} from '@deepkit/type';
 
 export {SerializedTypes} from '@deepkit/type';
 
-export type Handler<Ret = any> = (...params: any[]) => Ret | Promise<Ret>;
-
 // ####### Router Options #######
 
 /** Reflection and Deepkit Serialization-Validation options */
@@ -105,6 +103,9 @@ export const isUnknownType = (t: Type) => t.kind === ReflectionKind.any || t.kin
 // const GeneratorFunction = function* () {}.constructor;
 // const isAsyncFunction = (handler: Handler) =>
 //     handler instanceof AsyncFunction && AsyncFunction !== Function && AsyncFunction !== GeneratorFunction;
+
+// this is equivalent to SimpleHandler in the router but we don't want circular dependencies so redefined here
+type Handler<Ret = any> = (...params: any[]) => Ret | Promise<Ret>;
 
 /**
  * Checks whether a handler returns a promise.

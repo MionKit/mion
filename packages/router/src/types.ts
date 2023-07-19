@@ -29,10 +29,12 @@ export type RouteDef<Context extends CallContext = CallContext, Ret = any> = {
     path?: string;
     /** description of the route, mostly for documentation purposes */
     description?: string;
-    /** enable automatic parameter validation, defaults to true */
+    /** Overrides global enableValidation */
     enableValidation?: boolean;
-    /** Enables serialization/deserialization */
+    /** Overrides global enableSerialization */
     enableSerialization?: boolean;
+    /** Overrides global useAsyncCallContext */
+    useAsyncCallContext?: boolean;
     /** Route Handler */
     route: Handler<Context, Ret>;
 };
@@ -50,10 +52,12 @@ export type HookDef<Context extends CallContext = CallContext, Ret = any> = {
     fieldName?: string;
     /** Description of the route, mostly for documentation purposes */
     description?: string;
-    /** enable automatic parameter validation, defaults to true */
+    /** Overrides global enableValidation */
     enableValidation?: boolean;
-    /** Enables serialization/deserialization */
+    /** Overrides global enableSerialization */
     enableSerialization?: boolean;
+    /** Overrides global useAsyncCallContext */
+    useAsyncCallContext?: boolean;
     /** Hook handler */
     hook: Handler<Context, Ret> | SimpleHandler<Ret>;
 };
@@ -117,25 +121,31 @@ export type Executable = {
     inHeader: boolean;
     fieldName: string;
     isRoute: boolean;
-    handler: Handler | SimpleHandler;
-    reflection: FunctionReflection;
-    src: RouteDef | HookDef;
+    isRawExecutable: boolean;
+    handler: Handler | SimpleHandler | RawRequestHandler;
+    reflection: FunctionReflection | null;
+    // src: RouteDef | HookDef | RawHookDef;
     enableValidation: boolean;
     enableSerialization: boolean;
+    useAsyncCallContext: boolean;
     selfPointer: string[];
 };
 
-export type RouteExecutable<H extends Handler | SimpleHandler> = Executable & {
+export interface RouteExecutable extends Executable {
     isRoute: true;
+    isRawExecutable: false;
     canReturnData: true;
     forceRunOnError: false;
-    handler: H;
-};
+    handler: Handler | SimpleHandler;
+    reflection: FunctionReflection;
+}
 
-export type HookExecutable<H extends Handler | SimpleHandler> = Executable & {
+export interface HookExecutable extends Executable {
     isRoute: false;
-    handler: H;
-};
+    isRawExecutable: false;
+    handler: Handler | SimpleHandler;
+    reflection: FunctionReflection;
+}
 
 // ####### Call Context #######
 
@@ -156,16 +166,6 @@ export type CallContext<SharedData = any, RawReq extends RawRequest = any, RawRe
     readonly response: Response;
     /** shared data between handlers (route/hooks) and that is not returned in the response. */
     shared: SharedData;
-};
-
-export type RawCallContext<RawReq extends RawRequest = RawRequest, RawResp = any> = {
-    /** Original Server request
-     * i.e: '@types/aws-lambda/APIGatewayEvent'
-     * or http/IncomingMessage */
-    readonly rawRequest: Readonly<RawReq>;
-    /** Original Server response
-     * i.e: http/ServerResponse */
-    readonly rawResponse?: Readonly<RawResp>;
 };
 
 // ####### REQUEST & RESPONSE #######
@@ -236,6 +236,52 @@ export type PublicError = {
     readonly errorData?: Readonly<unknown>;
 };
 
+// ####### Internal Hooks #######
+
+export type ErrorReturn = void | RouteError | Promise<RouteError | void>;
+
+export type RawRequestHandler<
+    Context extends CallContext = CallContext,
+    RawReq extends RawRequest = any,
+    RawResp = any,
+    Opts extends RouterOptions = RouterOptions
+> = (ctx: Context, request: RawReq, response: RawResp, opts: Opts) => ErrorReturn;
+
+/**
+ * Internal hook, used only to modify the call context.
+ * Does not have serialization or validation enabled.
+ * It is equivalent to:
+ *  - forceRunOnError: true
+ *  - canReturnData: false
+ *  - inHeader: false
+ *  - enableValidation: false
+ *  - enableSerialization: false
+ */
+export type RawHookDef<
+    Context extends CallContext = CallContext,
+    RawReq extends RawRequest = any,
+    RawResp = any,
+    Opts extends RouterOptions = RouterOptions
+> = {
+    rawRequestHandler: RawRequestHandler<Context, RawReq, RawResp, Opts>;
+};
+
+export type RawHooksCollection<
+    Context extends CallContext = CallContext,
+    RawReq extends RawRequest = any,
+    RawResp = any,
+    Opts extends RouterOptions = RouterOptions
+> = {
+    [key: string]: RawHookDef<Context, RawReq, RawResp, Opts>;
+};
+
+export interface RawExecutable extends Executable {
+    isRoute: false;
+    isRawExecutable: true;
+    handler: RawRequestHandler;
+    reflection: null;
+}
+
 // ####### Public Facing Types #######
 
 //TODO: some hooks could have no public params and not return any data so they should not be in the public spec
@@ -245,6 +291,8 @@ export type PublicMethods<Type extends Routes> = {
         ? PublicHook<Type[Property]['hook']>
         : Type[Property] extends RouteDef
         ? PublicRoute<Type[Property]['route']>
+        : Type[Property] extends RawHookDef
+        ? null
         : Type[Property] extends Handler
         ? PublicRoute<Type[Property]>
         : Type[Property] extends Routes
@@ -293,41 +341,47 @@ export type PublicMethod<H extends Handler = any> = PublicRoute<H> | PublicHook<
 
 // #######  type guards #######
 
-/** Type guard: isHandler */
-export const isHandler = (entry: HookDef | Route | Routes): entry is Handler => {
+export function isHandler(entry: HookDef | Route | Routes): entry is Handler {
     return typeof entry === 'function';
-};
-/** Type guard: isRouteDef */
-export const isRouteDef = (entry: HookDef | Route | Routes): entry is RouteDef => {
+}
+
+export function isRouteDef(entry: HookDef | Route | Routes): entry is RouteDef {
     return typeof (entry as RouteDef).route === 'function';
-};
-/** Type guard: isHook */
-export const isHookDef = (entry: HookDef | Route | Routes): entry is HookDef => {
+}
+
+export function isHookDef(entry: HookDef | Route | Routes): entry is HookDef {
     return typeof (entry as HookDef).hook === 'function';
-};
-/** Type guard: isRoute */
-export const isRoute = (entry: HookDef | Route | Routes): entry is Route => {
+}
+
+export function isRawHookDef(entry: HookDef | Route | Routes | RawHookDef): entry is RawHookDef {
+    return typeof (entry as RawHookDef).rawRequestHandler === 'function';
+}
+
+export function isRoute(entry: HookDef | Route | Routes): entry is Route {
     return typeof entry === 'function' || typeof (entry as RouteDef).route === 'function';
-};
-/** Type guard: isRoutes */
-export const isRoutes = (entry: any): entry is Route => {
+}
+
+export function isRoutes(entry: any): entry is Route {
     return typeof entry === 'object';
-};
-/** Type guard: isExecutable */
-export const isExecutable = (entry: Executable | {pathPointer: string[]}): entry is Executable => {
+}
+
+export function isExecutable(entry: Executable | {pathPointer: string[]}): entry is Executable {
     return (
         typeof (entry as Executable)?.path === 'string' &&
         ((entry as any).routes === 'undefined' || typeof (entry as Executable).handler === 'function')
     );
-};
+}
+export function isRawExecutable(entry: Executable): entry is RawExecutable {
+    return entry.isRawExecutable;
+}
 
-export const isPuplicExecutable = (entry: Executable): entry is Executable => {
-    return entry.canReturnData || !!entry.reflection.paramsLength;
-};
+export function isPublicExecutable(entry: Executable): entry is Executable {
+    return entry.canReturnData || !!entry.reflection?.paramsLength;
+}
 
-export const isPuplicMethod = (entry: PublicRoute<any> | PublicHook<any>): entry is PublicMethod<any> => {
+export function isPublicMethod(entry: PublicRoute<any> | PublicHook<any>): entry is PublicMethod<any> {
     return entry.canReturnData || !!entry.params.length;
-};
+}
 
 // #######  Others #######
 

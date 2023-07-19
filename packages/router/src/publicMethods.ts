@@ -25,7 +25,12 @@ import {
     PublicHook,
     PublicRoute,
     Routes,
-    isPuplicExecutable,
+    isPublicExecutable,
+    RouteExecutable,
+    HookExecutable,
+    isRawHookDef,
+    RawExecutable,
+    isRawExecutable,
 } from './types';
 import {getSerializedFunctionTypes} from '@mionkit/runtype';
 
@@ -46,7 +51,9 @@ function recursiveGetPublicRoutes<R extends Routes>(routes: R, currentPointer: s
     entries.forEach(([key, item]) => {
         const newPointer = [...currentPointer, key];
         const newPointerAsString = newPointer.join('.');
-        if (isHookDef(item)) {
+        if (isRawHookDef(item)) {
+            publicData[key] = null;
+        } else if (isHookDef(item)) {
             const fieldName = getHookFieldName(item, key);
             const executable = getHookExecutable(fieldName);
             if (!executable)
@@ -67,7 +74,7 @@ function recursiveGetPublicRoutes<R extends Routes>(routes: R, currentPointer: s
     return publicData;
 }
 
-function getPublicRouteFromExecutable<H extends Handler>(executable: Executable, propertyPonter: string): PublicRoute<H> {
+function getPublicRouteFromExecutable<H extends Handler>(executable: RouteExecutable, propertyPonter: string): PublicRoute<H> {
     return {
         isRoute: true,
         canReturnData: true,
@@ -81,12 +88,12 @@ function getPublicRouteFromExecutable<H extends Handler>(executable: Executable,
         params: executable.reflection.handlerType.parameters.map((tp) => tp.name).slice(getRouteDefaultParams().length),
         publicExecutionPathPointers:
             getRouteExecutionPath(executable.path)
-                ?.filter((exec) => isPuplicExecutable(exec))
+                ?.filter((exec) => isPublicExecutable(exec))
                 .map((exec) => exec.selfPointer) || [],
     };
 }
 
-function getPublicHookFromExecutable<H extends Handler>(executable: Executable, propertyPonter: string): PublicHook<H> {
+function getPublicHookFromExecutable<H extends Handler>(executable: HookExecutable, propertyPonter: string): PublicHook<H> {
     return {
         isRoute: false,
         canReturnData: executable.canReturnData,

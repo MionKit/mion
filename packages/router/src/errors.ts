@@ -8,7 +8,7 @@
 import {randomUUID} from 'crypto';
 import {getRouterOptions} from './router';
 import {StatusCodes, statusCodeToReasonPhrase} from './status-codes';
-import {Mutable, Obj, PublicError, Response, RouteErrorParams} from './types';
+import {CallContext, Mutable, Obj, PublicError, Response, RouteErrorParams} from './types';
 import {stringifyResponseBody} from './jsonBodyParser';
 
 export class RouteError extends Error {
@@ -55,16 +55,18 @@ export function getResponseFromError(
         originalError,
     });
     const publicErrors = [getPublicErrorFromRouteError(error)];
-    const response = {
-        statusCode,
-        publicErrors,
-        headers: {},
-        body: {},
-        json: '',
-    } as Response;
-
-    stringifyResponseBody(response, routerOptions);
-    return response;
+    const context = {
+        response: {
+            statusCode,
+            publicErrors,
+            headers: {},
+            body: {},
+            json: '',
+        },
+    } as any as CallContext;
+    // stringify does not uses rawRequest or raw response atm but that can change
+    stringifyResponseBody(context, null as any, null as any, routerOptions);
+    return context.response;
 }
 
 export function getPublicErrorFromRouteError(routeError: RouteError): PublicError {

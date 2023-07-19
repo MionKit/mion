@@ -1,5 +1,5 @@
 import {registerRoutes, initRouter, StatusCodes, Route} from '@mionkit/router';
-import type {CallContext, HookDef, RouteError, Routes} from '@mionkit/router';
+import type {CallContext, HookDef, RawHookDef, RouteError, Routes} from '@mionkit/router';
 import type {APIGatewayEvent} from 'aws-lambda';
 
 interface User {
@@ -77,6 +77,10 @@ const auth = {
     },
 } satisfies HookDef;
 
+const log: RawHookDef = {
+    rawRequestHandler: (context) => console.log('rawRequestHandler', context.path),
+};
+
 const routes = {
     private: {hook: (): null => null},
     auth,
@@ -86,7 +90,9 @@ const routes = {
         update: updateUser, // api/v1/users/update
         delete: deleteUser, // api/v1/users/delete
     },
+    log,
 } satisfies Routes;
 
 initRouter(getSharedData, {prefix: 'api/v1'});
 export const apiSpec = registerRoutes(routes);
+type ApiSpec = typeof apiSpec;

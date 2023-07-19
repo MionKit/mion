@@ -16,13 +16,14 @@ import {
     RouterOptions,
     SimpleHandler,
     RawRequest,
+    isRawExecutable,
+    Handler,
 } from './types';
 import {StatusCodes} from './status-codes';
 import {RouteError, getPublicErrorFromRouteError} from './errors';
-import {getRouteExecutionPath, getRouterOptions, getSharedDataFactory} from './router';
+import {getNotFoundExecutionPath, getRouteExecutionPath, getRouterOptions, getSharedDataFactory} from './router';
 import {AsyncLocalStorage} from 'node:async_hooks';
 import {isPromise} from 'node:util/types';
-import {parseRequestBody, stringifyResponseBody} from './jsonBodyParser';
 
 type CallBack = (err: any, response: Response | undefined) => void;
 
@@ -79,7 +80,6 @@ async function _dispatchRoute(path: string, rawRequest: RawRequest, rawResponse?
     try {
         const opts = getRouterOptions();
         const transformedPath = opts.pathTransform ? opts.pathTransform(rawRequest, path) : path;
-        const executionPath = getRouteExecutionPath(transformedPath);
         const sharedFactory = getSharedDataFactory();
 
         // this is the call context that will be passed to all handlers
@@ -103,14 +103,10 @@ async function _dispatchRoute(path: string, rawRequest: RawRequest, rawResponse?
             shared: sharedFactory ? sharedFactory() : {},
         };
 
-        if (!executionPath) {
-            const notFound = new RouteError({statusCode: StatusCodes.NOT_FOUND, publicMessage: 'Route not found'});
-            handleRouteErrors(context.request, context.response, notFound, 0);
-        } else {
-            parseRequestBody(rawRequest, context.request, context.response, opts);
-            await runExecutionPath(context, executionPath, opts);
-        }
-        stringifyResponseBody(context.response, opts);
+        // gets the execution path for the route or the not found exucution path
+        const executionPath = getRouteExecutionPath(transformedPath) || getNotFoundExecutionPath();
+
+        await runExecutionPath(context, executionPath, opts);
         return context.response;
     } catch (err: any | RouteError | Error) {
         return Promise.reject(err);
@@ -141,13 +137,7 @@ async function runExecutionPath(context: CallContext, executables: Executable[],
 }
 
 async function runHandler(handlerParams: any[], context: CallContext, executable: Executable, opts: RouterOptions): Promise<any> {
-    const resp = !opts.useAsyncCallContext
-        ? executable.handler(context, ...handlerParams)
-        : asyncLocalStorage.run(context, () => {
-              const simpleHandler = executable.handler as SimpleHandler;
-              return simpleHandler(...handlerParams);
-          });
-
+    const resp = getHandlerResponse(handlerParams, context, executable, opts);
     if (isPromise(resp)) {
         return resp as Promise<any>;
     } else if (resp instanceof Error || resp instanceof RouteError) {
@@ -157,7 +147,21 @@ async function runHandler(handlerParams: any[], context: CallContext, executable
     }
 }
 
+function getHandlerResponse(handlerParams: any[], context: CallContext, executable: Executable, opts: RouterOptions): any {
+    if (isRawExecutable(executable)) {
+        return executable.handler(context, context.rawRequest, context.rawResponse, opts);
+    }
+    if (executable.useAsyncCallContext) {
+        return asyncLocalStorage.run(context, () => {
+            return (executable.handler as SimpleHandler)(...handlerParams);
+        });
+    }
+
+    return (executable.handler as Handler)(context, ...handlerParams);
+}
+
 function deserializeParameters(request: Request, executable: Executable): any[] {
+    if (!executable.reflection) return [];
     const fieldName = executable.fieldName;
     let params;
 
@@ -198,6 +202,7 @@ function deserializeParameters(request: Request, executable: Executable): any[] 
 }
 
 function validateParameters(params: any[], executable: Executable): any[] {
+    if (!executable.reflection) return [];
     if (executable.enableValidation) {
         const validationResponse = executable.reflection.validateParams(params);
         if (validationResponse.hasErrors) {
@@ -213,7 +218,7 @@ function validateParameters(params: any[], executable: Executable): any[] {
 }
 
 function serializeResponse(response: Response, executable: Executable, result: any) {
-    if (!executable.canReturnData || result === undefined) return;
+    if (!executable.canReturnData || result === undefined || !executable.reflection) return;
     const serialized = executable.enableSerialization ? executable.reflection.serializeReturn(result) : result;
     if (executable.inHeader) (response.headers as Mutable<Response['headers']>)[executable.fieldName] = serialized;
     else (response as Mutable<Obj>).body[executable.fieldName] = serialized;
