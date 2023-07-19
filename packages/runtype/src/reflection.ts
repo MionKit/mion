@@ -8,7 +8,6 @@
 import {JSONPartial, SerializedTypes, Type, TypeFunction, reflect, serializeType} from '@deepkit/type';
 import {
     FunctionReflection,
-    Handler,
     ParamsValidationResponse,
     ReflectionOptions,
     ReturnValidationResponse,
@@ -29,6 +28,9 @@ import {
     getFunctionReturnSerializer,
     serializeFunctionParams,
 } from './serialization';
+
+// this is equivalent to SimpleHandler in the router but we don't want circular dependencies so redefined here
+type Handler<Ret = any> = (...params: any[]) => Ret | Promise<Ret>;
 
 function getFunctionParamsLength(handlerType: TypeFunction, skipInitialParams: number): number {
     const length = handlerType.parameters.length;
