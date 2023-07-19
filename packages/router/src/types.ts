@@ -153,13 +153,6 @@ export interface HookExecutable extends Executable {
 export type CallContext<SharedData = any, RawReq extends RawRequest = any, RawResp = any> = {
     /** Route's path */
     readonly path: string;
-    /** Original Server request
-     * i.e: '@types/aws-lambda/APIGatewayEvent'
-     * or http/IncomingMessage */
-    readonly rawRequest: Readonly<RawReq>;
-    /** Original Server response
-     * i.e: http/ServerResponse */
-    readonly rawResponse?: Readonly<RawResp>;
     /** Router's own request object */
     readonly request: Request;
     /** Router's own response object */
