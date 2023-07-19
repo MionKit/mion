@@ -163,4 +163,6 @@ export function getFunctionReflectionMethods(
 }
 
 /** Gets a data structure that can be serialized in json and transmitted over the wire  */
-export const getSerializedFunctionTypes = (handler: Handler): SerializedTypes => serializeType(reflect(handler));
+export function getSerializedFunctionTypes(handler: Handler): SerializedTypes {
+    return serializeType(reflect(handler));
+}

@@ -29,18 +29,21 @@ import {
     RouteExecutable,
     HookExecutable,
     isRawHookDef,
-    RawExecutable,
-    isRawExecutable,
 } from './types';
-import {getSerializedFunctionTypes} from '@mionkit/runtype';
+
+type GetSerializedTypes = typeof import('@mionkit/runtype').getSerializedFunctionTypes;
+let getSerializedFunctionTypes: GetSerializedTypes | undefined;
 
 // ############# PUBLIC METHODS #############
-
 /**
  * Returns a data structure containing all public information and types of the routes.
  * This data and types can be used to generate router clients, etc...
  */
-export function getPublicRoutes<R extends Routes>(routes: R): PublicMethods<R> {
+export function getPublicRoutes<R extends Routes>(
+    getSerializedTypes: GetSerializedTypes | undefined,
+    routes: R
+): PublicMethods<R> {
+    getSerializedFunctionTypes = getSerializedTypes;
     return recursiveGetPublicRoutes(routes) as PublicMethods<R>;
 }
 
@@ -82,10 +85,10 @@ function getPublicRouteFromExecutable<H extends Handler>(executable: RouteExecut
         inHeader: executable.inHeader,
         // handler is included just for static typing purposes and shouldn't be called directly
         _handler: propertyPonter as any as PublicHandler<H>,
-        handlerSerializedType: getSerializedFunctionTypes(executable.handler),
+        handlerSerializedType: getSerializedFunctionTypes ? getSerializedFunctionTypes(executable.handler) : null,
         enableValidation: executable.enableValidation,
         enableSerialization: executable.enableSerialization,
-        params: executable.reflection.handlerType.parameters.map((tp) => tp.name).slice(getRouteDefaultParams().length),
+        params: executable?.reflection?.handlerType.parameters.map((tp) => tp.name).slice(getRouteDefaultParams().length) || [],
         publicExecutionPathPointers:
             getRouteExecutionPath(executable.path)
                 ?.filter((exec) => isPublicExecutable(exec))
@@ -101,9 +104,9 @@ function getPublicHookFromExecutable<H extends Handler>(executable: HookExecutab
         fieldName: executable.fieldName,
         // handler is included just for static typing purposes and shouldn't be called directly
         _handler: propertyPonter as any as PublicHandler<H>,
-        handlerSerializedType: getSerializedFunctionTypes(executable.handler),
+        handlerSerializedType: getSerializedFunctionTypes ? getSerializedFunctionTypes(executable.handler) : null,
         enableValidation: executable.enableValidation,
         enableSerialization: executable.enableSerialization,
-        params: executable.reflection.handlerType.parameters.map((tp) => tp.name).slice(getRouteDefaultParams().length),
+        params: executable?.reflection?.handlerType.parameters.map((tp) => tp.name).slice(getRouteDefaultParams().length) || [],
     };
 }

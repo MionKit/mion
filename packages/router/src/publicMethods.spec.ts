@@ -8,7 +8,7 @@
 import {DEFAULT_ROUTE_OPTIONS, DEFAULT_HOOK} from './constants';
 import {getPublicRoutes} from './publicMethods';
 import {registerRoutes, initRouter, resetRouter, getRouteDefaultParams} from './router';
-import {getFunctionReflectionMethods} from '@mionkit/runtype';
+import {getFunctionReflectionMethods, getSerializedFunctionTypes} from '@mionkit/runtype';
 
 describe('Public Mothods should', () => {
     const hook = {hook(): void {}};
@@ -195,13 +195,13 @@ describe('Public Mothods should', () => {
         });
     });
 
-    it('should throw an error when route pr hook is not already created in the router', () => {
+    it('should throw an error when route pr hook is not already created in the router', async () => {
         const testR1 = {route1};
         const testR2 = {hook};
-        expect(() => getPublicRoutes(testR1)).toThrow(
+        expect(() => getPublicRoutes(getSerializedFunctionTypes, testR1)).toThrow(
             `Route '/route1' not found in router. Please check you have called router.addRoutes first!`
         );
-        expect(() => getPublicRoutes(testR2)).toThrow(
+        expect(() => getPublicRoutes(getSerializedFunctionTypes, testR2)).toThrow(
             `Hook 'hook' not found in router. Please check you have called router.addRoutes first!`
         );
     });

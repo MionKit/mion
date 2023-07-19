@@ -26,28 +26,22 @@ describe('serverless router should', () => {
         },
     };
     const getSharedData = () => ({auth: {me: null as any}});
-
-    initHttpRouter(getSharedData, {prefix: 'api/'});
-
     const changeUserName: Route = (context: Context, user: SimpleUser) => {
         return myApp.db.changeUserName(user);
     };
-
     const getDate: Route = (context: Context, dataPoint?: DataPoint): DataPoint => {
         return dataPoint || {date: new Date('2022-04-22T00:17:00.000Z')};
     };
-
     const updateHeaders: Route = (context: Context): void => {
         (context.response.headers as Mutable<Headers>)['x-something'] = true;
         (context.response.headers as Mutable<Headers>)['server'] = 'my-server';
     };
-
     let server;
-
-    registerRoutes({changeUserName, getDate, updateHeaders});
 
     const port = 8075;
     beforeAll(async () => {
+        await initHttpRouter(getSharedData, {prefix: 'api/'});
+        registerRoutes({changeUserName, getDate, updateHeaders});
         server = await startHttpServer({port});
     });
 

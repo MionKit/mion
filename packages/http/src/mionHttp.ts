@@ -40,11 +40,11 @@ export function resetHttpRouter() {
     resetRouter();
 }
 
-export function initHttpRouter<SharedData extends Obj>(
+export async function initHttpRouter<SharedData extends Obj>(
     sharedDataFactory?: SharedDataFactory<SharedData>,
     routerOptions?: Partial<RouterOptions<HttpRequest>>
 ) {
-    initRouter(sharedDataFactory, routerOptions);
+    await initRouter(sharedDataFactory, routerOptions);
     defaultResponseContentType = getRouterOptions().responseContentType;
 }
 

@@ -61,6 +61,9 @@ export const DEFAULT_ROUTE_OPTIONS: Readonly<RouterOptions> = {
     /** Enables automatic serialization/deserialization */
     enableSerialization: true,
 
+    /** uses deepkit for validation and serialization, if disabled it completely avoid using deepkit */
+    disableAllReflection: false,
+
     /** Reflection and Deepkit Serialization-Validation options */
     reflectionOptions: DEFAULT_REFLECTION_OPTIONS,
 

@@ -9,6 +9,7 @@ import {registerRoutes, resetRouter, initRouter} from './router';
 import {dispatchRoute, getCallContext} from './dispatch';
 import {CallContext, PublicError, RawRequest, Route, Routes} from './types';
 import {StatusCodes} from './status-codes';
+import {isDate} from 'util/types';
 
 describe('Dispatch routes', () => {
     type SimpleUser = {
@@ -165,7 +166,6 @@ describe('Dispatch routes', () => {
             expect(response.body[path]).toEqual(4);
         });
 
-        // TODO: need an unit test that guarantees that if one routes has a dependency on the output of another hook it wil work
         it('support async handlers and ensure execution in order', async () => {
             initRouter(getSharedData);
             const pathSum = '/sumTwo';
@@ -191,6 +191,26 @@ describe('Dispatch routes', () => {
             const response = await dispatchRoute(pathSum, request, {});
             expect(response.body[pathSum]).toEqual(4);
             expect(response.body['totals']).toEqual('the total is 4');
+        });
+
+        it('disable validation and serialization completely', async () => {
+            initRouter(getSharedData, {disableAllReflection: true});
+            const pathSomeDate = '/someDate';
+            let received;
+            const routes = {
+                someDate: (ctx, date: Date): void => {
+                    received = date;
+                },
+            } satisfies Routes;
+            registerRoutes(routes);
+
+            const request = getDefaultRequest(pathSomeDate, ['2022-12-19T00:24:00.00']);
+            await dispatchRoute(pathSomeDate, request, {});
+            expect(received).toEqual('2022-12-19T00:24:00.00'); // note date has not been deserialized
+
+            const request2 = getDefaultRequest(pathSomeDate, [2]);
+            await dispatchRoute(pathSomeDate, request2, {});
+            expect(received).toEqual(2); // note param has not been validated
         });
     });
 

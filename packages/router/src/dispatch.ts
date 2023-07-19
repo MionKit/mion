@@ -179,7 +179,8 @@ function getHandlerResponse(
 }
 
 function deserializeParameters(request: Request, executable: Executable): any[] {
-    if (!executable.reflection) return [];
+    if (executable.isRawExecutable) return [];
+
     const fieldName = executable.fieldName;
     let params;
 
@@ -205,7 +206,7 @@ function deserializeParameters(request: Request, executable: Executable): any[] 
             publicMessage: `Invalid params '${fieldName}'. input parameters can only be sent in an array.`,
         });
 
-    if (params.length && executable.enableSerialization) {
+    if (params.length && executable.enableSerialization && executable.reflection) {
         try {
             params = executable.reflection.deserializeParams(params);
         } catch (e) {
@@ -220,8 +221,7 @@ function deserializeParameters(request: Request, executable: Executable): any[] 
 }
 
 function validateParameters(params: any[], executable: Executable): any[] {
-    if (!executable.reflection) return [];
-    if (executable.enableValidation) {
+    if (executable.reflection && executable.enableValidation) {
         const validationResponse = executable.reflection.validateParams(params);
         if (validationResponse.hasErrors) {
             throw new RouteError({
@@ -236,8 +236,9 @@ function validateParameters(params: any[], executable: Executable): any[] {
 }
 
 function serializeResponse(response: Response, executable: Executable, result: any) {
-    if (!executable.canReturnData || result === undefined || !executable.reflection) return;
-    const serialized = executable.enableSerialization ? executable.reflection.serializeReturn(result) : result;
+    if (!executable.canReturnData || result === undefined) return;
+    const serialized =
+        executable.enableSerialization && executable.reflection ? executable.reflection.serializeReturn(result) : result;
     if (executable.inHeader) (response.headers as Mutable<Response['headers']>)[executable.fieldName] = serialized;
     else (response as Mutable<Obj>).body[executable.fieldName] = serialized;
 }

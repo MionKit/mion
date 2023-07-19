@@ -27,13 +27,13 @@ import {
     RawRequest,
     RawHookDef,
     RawExecutable,
-    isRawHookDef,
     RawHooksCollection,
 } from './types';
-import {getFunctionReflectionMethods} from '@mionkit/runtype';
 import {RouteError} from './errors';
 import {StatusCodes} from './status-codes';
 import {bodyParserHooks} from './jsonBodyParser';
+import {importFunctionReflectionMethods, importSerializedFunctionTypes} from './runTypeImport';
+import {getPublicRoutes} from './publicMethods';
 
 type RouterKeyEntryList = [string, Routes | HookDef | Route][];
 type RoutesWithId = {
@@ -53,7 +53,8 @@ let complexity = 0;
 let sharedDataFactoryFunction: SharedDataFactory<any> | undefined;
 let routerOptions: RouterOptions = {...DEFAULT_ROUTE_OPTIONS};
 let isRouterInitialized = false;
-
+let getFunctionReflectionMethods: Awaited<typeof import('@mionkit/runtype').getFunctionReflectionMethods> | undefined;
+let getSerializedFunctionTypes: Awaited<typeof import('@mionkit/runtype').getSerializedFunctionTypes> | undefined;
 /** Global hooks to be run before and after any other hooks or routes set using `registerRoutes` */
 const defaultStartHooks = {mionJsonParseRequestBody: bodyParserHooks.parseJsonRequestBody};
 const defaultEndHooks = {mionJsonStringifyResponseBody: bodyParserHooks.stringifyJsonResponseBody};
@@ -100,11 +101,15 @@ export const resetRouter = () => {
  */
 export async function initRouter<SharedData, Req extends RawRequest = RawRequest>(
     sharedDataFactory?: SharedDataFactory<SharedData>,
-    routerOptions?: Partial<RouterOptions<Req>>
+    opts?: Partial<RouterOptions<Req>>
 ) {
     if (isRouterInitialized) throw new Error('Router has already been initialized');
     sharedDataFactoryFunction = sharedDataFactory;
-    setRouterOptions(routerOptions);
+    setRouterOptions(opts);
+    if (!routerOptions.disableAllReflection) {
+        getFunctionReflectionMethods = importFunctionReflectionMethods();
+        getSerializedFunctionTypes = importSerializedFunctionTypes();
+    }
     isRouterInitialized = true;
 }
 
@@ -116,8 +121,7 @@ export function registerRoutes<R extends Routes>(routes: R): PublicMethods<R> {
     // we only want to get information about the routes when creating api spec
     if (routerOptions.getPublicRoutesData || process.env.GENERATE_ROUTER_SPEC === 'true') {
         // eslint-disable-next-line @typescript-eslint/no-var-requires
-        const {getPublicRoutes} = require('./publicMethods');
-        return getPublicRoutes(routes) as PublicMethods<R>;
+        return getPublicRoutes(getSerializedFunctionTypes, routes) as PublicMethods<R>;
     }
 
     return {} as PublicMethods<R>;
@@ -339,6 +343,18 @@ function getExecutableFromHook(hook: HookDef, hookPointer: string[], nestLevel: 
         throw new Error(`Invalid Hook: ${join(...hookPointer)}. The 'errors' fieldName is reserver for the router.`);
     }
 
+    const reflection = getFunctionReflectionMethods
+        ? getFunctionReflectionMethods(
+              handler,
+              routerOptions.reflectionOptions,
+              getRouteDefaultParams().length,
+              routerOptions.lazyLoadReflection
+          )
+        : null;
+    const enableValidation = (hook.enableValidation ?? routerOptions.enableValidation) && !routerOptions.disableAllReflection;
+    const enableSerialization =
+        (hook.enableSerialization ?? routerOptions.enableSerialization) && !routerOptions.disableAllReflection;
+
     const executable: HookExecutable = {
         path: hookName,
         forceRunOnError: !!hook.forceRunOnError,
@@ -349,14 +365,9 @@ function getExecutableFromHook(hook: HookDef, hookPointer: string[], nestLevel: 
         isRoute: false,
         isRawExecutable: false,
         handler,
-        reflection: getFunctionReflectionMethods(
-            handler,
-            routerOptions.reflectionOptions,
-            getRouteDefaultParams().length,
-            routerOptions.lazyLoadReflection
-        ),
-        enableValidation: hook.enableValidation ?? routerOptions.enableValidation,
-        enableSerialization: hook.enableSerialization ?? routerOptions.enableSerialization,
+        reflection,
+        enableValidation,
+        enableSerialization,
         useAsyncCallContext: hook.useAsyncCallContext ?? routerOptions.useAsyncCallContext,
         // src: hook,
         selfPointer: hookPointer,
@@ -373,7 +384,6 @@ function getExecutableFromRawHook(hook: RawHookDef, hookPointer: string[], nestL
     if (hookName === 'errors') {
         throw new Error(`Invalid Hook: ${join(...hookPointer)}. The 'errors' fieldName is reserver for the router.`);
     }
-
     const executable: RawExecutable = {
         path: hookName,
         forceRunOnError: true,
@@ -400,7 +410,20 @@ function getExecutableFromRoute(route: Route, routePointer: string[], nestLevel:
     const existing = routesById.get(routePath);
     if (existing) return existing as RouteExecutable;
     const handler = getHandler(route, routePointer);
-    // const routeObj = isHandler(route) ? {...DEFAULT_ROUTE} : {...DEFAULT_ROUTE, ...route};
+
+    const reflection = getFunctionReflectionMethods
+        ? getFunctionReflectionMethods(
+              handler,
+              routerOptions.reflectionOptions,
+              getRouteDefaultParams().length,
+              routerOptions.lazyLoadReflection
+          )
+        : null;
+    const enableValidation =
+        ((route as RouteDef).enableValidation ?? routerOptions.enableValidation) && !routerOptions.disableAllReflection;
+    const enableSerialization =
+        ((route as RouteDef).enableSerialization ?? routerOptions.enableSerialization) && !routerOptions.disableAllReflection;
+
     const executable: RouteExecutable = {
         path: routePath,
         forceRunOnError: false,
@@ -411,14 +434,9 @@ function getExecutableFromRoute(route: Route, routePointer: string[], nestLevel:
         isRawExecutable: false,
         nestLevel,
         handler,
-        reflection: getFunctionReflectionMethods(
-            handler,
-            routerOptions.reflectionOptions,
-            getRouteDefaultParams().length,
-            routerOptions.lazyLoadReflection
-        ),
-        enableValidation: (route as RouteDef).enableValidation ?? routerOptions.enableValidation,
-        enableSerialization: (route as RouteDef).enableSerialization ?? routerOptions.enableSerialization,
+        reflection,
+        enableValidation,
+        enableSerialization,
         useAsyncCallContext: (route as RouteDef).useAsyncCallContext ?? routerOptions.useAsyncCallContext,
         // src: routeObj,
         selfPointer: routePointer,

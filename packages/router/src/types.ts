@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {ReflectionOptions, FunctionReflection, SerializedTypes} from '@mionkit/runtype';
+import type {ReflectionOptions, FunctionReflection, SerializedTypes} from '@mionkit/runtype';
 import {RouteError} from './errors';
 
 // #######  Routes #######
@@ -91,6 +91,8 @@ export type RouterOptions<Req extends RawRequest = RawRequest> = {
     enableValidation: boolean;
     /** Enables serialization/deserialization */
     enableSerialization: boolean;
+    /** If true disables serialization and validation completely by skipping importing deepkit completely */
+    disableAllReflection: boolean;
     /** Reflection and Deepkit Serialization-Validation options */
     reflectionOptions: ReflectionOptions;
     /** Custom JSON parser, defaults to Native js JSON */
@@ -137,14 +139,12 @@ export interface RouteExecutable extends Executable {
     canReturnData: true;
     forceRunOnError: false;
     handler: Handler | SimpleHandler;
-    reflection: FunctionReflection;
 }
 
 export interface HookExecutable extends Executable {
     isRoute: false;
     isRawExecutable: false;
     handler: Handler | SimpleHandler;
-    reflection: FunctionReflection;
 }
 
 // ####### Call Context #######
@@ -305,7 +305,7 @@ export type PublicRoute<H extends Handler> = {
     /** Type reference to the route handler, its value is actually null or void function ans should never be called. */
     _handler: PublicHandler<H>;
     /** Json serializable structure so the Type information can be transmitted over the wire */
-    handlerSerializedType: SerializedTypes;
+    handlerSerializedType: SerializedTypes | null;
     isRoute: true;
     canReturnData: true;
     path: string;
@@ -320,7 +320,7 @@ export type PublicHook<H extends Handler> = {
     /** Type reference to the route handler, its value is actually null or void function ans should never be called. */
     _handler: PublicHandler<H>;
     /** Json serializable structure so the Type information can be transmitted over the wire */
-    handlerSerializedType: SerializedTypes;
+    handlerSerializedType: SerializedTypes | null;
     isRoute: false;
     canReturnData: boolean;
     inHeader: boolean;

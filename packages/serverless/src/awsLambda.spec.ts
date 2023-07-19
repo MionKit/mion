@@ -35,8 +35,6 @@ describe('serverless router should', () => {
     };
     const getSharedData = () => ({auth: {me: null as any}});
 
-    initAwsLambdaRouter(getSharedData, {prefix: 'api/'});
-
     const changeUserName: Route = (ctx: Context, user: SimpleUser) => {
         return myApp.db.changeUserName(user);
     };
@@ -49,8 +47,6 @@ describe('serverless router should', () => {
         (context.response.headers as Mutable<Headers>)['x-something'] = true;
         (context.response.headers as Mutable<Headers>)['server'] = 'my-server';
     };
-
-    registerRoutes({changeUserName, getDate, updateHeaders});
 
     const getDefaultGatewayEvent = (
         body: string,
@@ -76,6 +72,11 @@ describe('serverless router should', () => {
         });
         return {context, event};
     };
+
+    beforeAll(() => {
+        initAwsLambdaRouter(getSharedData, {prefix: 'api/'});
+        registerRoutes({changeUserName, getDate, updateHeaders});
+    });
 
     it('should get an ok response from a route', async () => {
         const requestData = {'/api/getDate': [{date: new Date('2022-04-10T02:13:00.000Z')}]};
