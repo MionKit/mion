@@ -5,35 +5,24 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {randomUUID} from 'crypto';
-import {CallContext, Response} from './types';
+import {RawRequest, Response} from './types';
 import {stringifyResponseBody} from './jsonBodyParser';
 import {getRouterOptions} from './router';
 import {Mutable, PublicError, RouteError, StatusCodes} from '@mionkit/core';
+import {getEmptyCallContext, handleRouteErrors} from './dispatch';
 
 export function getResponseFromError(
-    originalError: any,
-    statusCode: StatusCodes = StatusCodes.INTERNAL_SERVER_ERROR,
-    publicMessage = 'Internal Error'
+    routePath: string,
+    step: string,
+    rawRequest: RawRequest,
+    rawResponse: any,
+    error: RouteError = new RouteError({statusCode: StatusCodes.INTERNAL_SERVER_ERROR, publicMessage: 'Internal Error'})
 ): Response {
     const routerOptions = getRouterOptions();
-    const error = new RouteError({
-        statusCode,
-        publicMessage,
-        originalError,
-    });
-    const publicErrors = [getPublicErrorFromRouteError(error)];
-    const context = {
-        response: {
-            statusCode,
-            publicErrors,
-            headers: {},
-            body: {},
-            json: '',
-        },
-    } as any as CallContext;
+    const context = getEmptyCallContext(routePath, routerOptions, rawRequest);
+    handleRouteErrors(routePath, context.request, context.response, error, step);
     // stringify does not uses rawRequest or raw response atm but that can change
-    stringifyResponseBody(context, null as any, null as any, routerOptions);
+    stringifyResponseBody(context, rawRequest, rawResponse, routerOptions);
     return context.response;
 }
 

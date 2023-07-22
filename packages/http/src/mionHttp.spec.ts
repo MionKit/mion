@@ -70,10 +70,10 @@ describe('serverless router should', () => {
         const reply = await response.json();
         const headers = Object.fromEntries(response.headers.entries());
 
-        expect(reply).toEqual({'/api/getDate': {date: '2022-04-22T00:17:00.000Z'}});
+        expect(reply).toEqual({'/api/getDate': [{date: '2022-04-22T00:17:00.000Z'}]});
         expect(headers['connection']).toEqual('close');
         expect(headers['content-type']).toEqual('application/json; charset=utf-8');
-        expect(headers['content-length']).toEqual('52');
+        expect(headers['content-length']).toEqual('54');
         expect(headers['server']).toEqual('@mionkit/http');
     });
 
@@ -92,10 +92,10 @@ describe('serverless router should', () => {
         const reply = await response.json();
         const headers = Object.fromEntries(response.headers.entries());
 
-        expect(reply).toEqual({'/api/getDate': {date: '2022-04-22T00:17:00.000Z'}});
+        expect(reply).toEqual({'/api/getDate': [{date: '2022-04-22T00:17:00.000Z'}]});
         expect(headers['connection']).toEqual('close');
         expect(headers['content-type']).toEqual('application/json; charset=utf-8');
-        expect(headers['content-length']).toEqual('52');
+        expect(headers['content-length']).toEqual('54');
         expect(headers['server']).toEqual('@mionkit/http');
 
         const closeCallbacksServer = () => {
@@ -123,10 +123,10 @@ describe('serverless router should', () => {
             name: 'Serialization Error',
             statusCode: 400,
         };
-        expect(reply).toEqual([expectedError]);
+        expect(reply).toEqual({'/api/getDate': [null, expectedError]});
         expect(headers['connection']).toEqual('close');
         expect(headers['content-type']).toEqual('application/json; charset=utf-8');
-        expect(headers['content-length']).toEqual('152');
+        expect(headers['content-length']).toEqual('174');
         expect(headers['server']).toEqual('@mionkit/http');
     });
 
@@ -186,12 +186,12 @@ describe('serverless router should', () => {
                 statusCode: 413,
                 name: 'Request Payload Too Large',
             };
-            expect(reply).toEqual([expectedError]);
+            expect(reply).toEqual({httpRequest: [null, expectedError]});
             expect(headers['x-app-name']).toEqual('MyApp');
             expect(headers['x-instance-id']).toEqual('3089');
             expect(headers['connection']).toEqual('close');
             expect(headers['content-type']).toEqual('application/json; charset=utf-8');
-            expect(headers['content-length']).toEqual('93');
+            expect(headers['content-length']).toEqual('114');
             expect(headers['server']).toEqual('@mionkit/http');
             expect(isCalled).toEqual(true);
         } catch (e) {

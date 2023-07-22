@@ -5,6 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
+import {RouteError} from '@mionkit/core';
 import {initRouter, dispatchRoute, getResponseFromError} from '@mionkit/router';
 import type {RouterOptions, Response} from '@mionkit/router';
 import type {Context as AwsContext, APIGatewayProxyResult, APIGatewayEvent} from 'aws-lambda';
@@ -21,7 +22,8 @@ export async function lambdaHandler(rawRequest: APIGatewayEvent, awsContext: Aws
             return reply(routeResponse);
         })
         .catch((e) => {
-            return reply(getResponseFromError(e));
+            const error = new RouteError({statusCode: 500, publicMessage: 'Internal Error', originalError: e});
+            return reply(getResponseFromError(rawRequest.path, 'dispatchRoute', rawRequest, awsContext, error));
         });
 }
 
