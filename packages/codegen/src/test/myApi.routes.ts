@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {initRouter, Obj, registerRoutes, RouterOptions, Routes} from '@mionkit/router';
+import {initRouter, registerRoutes, RouterOptions, Routes} from '@mionkit/router';
 import {Item, Pet, User} from './myApi.types';
 
 export const myApiRoutes = {
@@ -46,7 +46,7 @@ export const publicEndpoints = {
     },
 } satisfies Routes;
 
-export const getSharedData = (): Obj => ({});
+export const getSharedData = (): any => ({});
 export const options: Partial<RouterOptions> = {prefix: 'v1', getPublicRoutesData: true};
 
 initRouter(options);

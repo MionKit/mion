@@ -18,7 +18,6 @@ import {
     Handler,
     isHookDef,
     isRoute,
-    Obj,
     PublicMethods,
     PublicHandler,
     PublicHook,
@@ -30,6 +29,7 @@ import {
     isRawHookDef,
 } from './types';
 import {getSerializedFunctionTypes} from '@mionkit/runtype';
+import {Obj} from '@mionkit/core';
 
 // ############# PUBLIC METHODS #############
 

@@ -9,10 +9,10 @@ import {initRouter, dispatchRoute, getResponseFromError, dispatchRouteCallback, 
 import {createServer as createHttp} from 'http';
 import {createServer as createHttps} from 'https';
 import {DEFAULT_HTTP_OPTIONS} from './constants';
-import type {HttpOptions, HttpRequest} from './types';
+import type {HttpOptions} from './types';
 import type {IncomingMessage, Server as HttpServer, ServerResponse} from 'http';
 import type {Server as HttpsServer} from 'https';
-import type {Obj, Headers, RawRequest, RouterOptions, SharedDataFactory, Response, CallContext} from '@mionkit/router';
+import type {Headers, RawRequest, Response} from '@mionkit/router';
 import {StatusCodes} from '@mionkit/core';
 
 type HeadersEntries = [string, string | boolean | number][];
