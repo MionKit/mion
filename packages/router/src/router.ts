@@ -6,7 +6,7 @@
  * ######## */
 
 import {join} from 'path';
-import {DEFAULT_ROUTE, DEFAULT_ROUTE_OPTIONS, MAX_ROUTE_NESTING, ROUTE_PATH_ROOT} from './constants';
+import {DEFAULT_ROUTE_OPTIONS, MAX_ROUTE_NESTING, ROUTE_PATH_ROOT} from './constants';
 import {
     Executable,
     Handler,
@@ -20,20 +20,16 @@ import {
     RouteDef,
     RouterOptions,
     Routes,
-    SharedDataFactory,
     RouteExecutable,
     HookExecutable,
     PublicMethods,
-    RawRequest,
     RawHookDef,
     RawExecutable,
-    isRawHookDef,
     RawHooksCollection,
 } from './types';
 import {getFunctionReflectionMethods} from '@mionkit/runtype';
-import {RouteError} from './errors';
-import {StatusCodes} from './status-codes';
 import {bodyParserHooks} from './jsonBodyParser';
+import {RouteError, StatusCodes, setErrorOptions} from '@mionkit/core';
 
 type RouterKeyEntryList = [string, Routes | HookDef | Route][];
 type RoutesWithId = {
@@ -99,6 +95,7 @@ export function initRouter<Opts extends RouterOptions>(opts?: Partial<Opts>): Re
     if (isRouterInitialized) throw new Error('Router has already been initialized');
     routerOptions = {...routerOptions, ...opts};
     Object.freeze(routerOptions);
+    setErrorOptions(routerOptions);
     isRouterInitialized = true;
     return routerOptions as Opts;
 }

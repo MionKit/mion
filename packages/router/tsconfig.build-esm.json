@@ -6,6 +6,6 @@
   },
   "include": ["."],
   "exclude": ["node_modules", "**/*.spec.ts", "examples", ".dist"],
-  "references": [{"path": "../runtype"}],
+  "references": [{"path": "../core"}, {"path": "../runtype"}],
   "reflection": false
 }

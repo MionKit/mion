@@ -1,7 +1,7 @@
 {
-  "name": "@mionkit/router",
+  "name": "@mionkit/core",
   "version": "0.4.2",
-  "description": "Typescript RPC Like router with automatic Validation and Serialization",
+  "description": "Core functionality required across multiple mion packages",
   "keywords": [
     "typescript",
     "API",
@@ -12,10 +12,12 @@
     "server",
     "serverless",
     "framework",
-    "node"
+    "node",
+    "runtime types",
+    "deepkit"
   ],
   "author": "ma jerez <jerez.m82@gmail.com>",
-  "homepage": "https://github.com/MionKit/mion/tree/main/packages/router#readme",
+  "homepage": "https://github.com/MionKit/mion/tree/main/packages/client#readme",
   "license": "MIT",
   "main": "./.dist/cjs/index.js",
   "module": "./.dist/esm/index.js",
@@ -49,14 +51,11 @@
     "build:esm": "rimraf .dist/esm && tsc --project tsconfig.build-esm.json",
     "build": "npm run build:csj && npm run build:esm",
     "auto-readme": "embedme **/*.md && prettier --write **/*.md",
-    "clean": "rimraf .dist & rimraf .coverage"
+    "clean": "rimraf .dist & rimraf .coverage",
+    "im-done": "rimraf .dist & rimraf .coverage && rimraf ./node_modules"
   },
   "bugs": {
     "url": "https://github.com/MionKit/mion/issues"
   },
-  "dependencies": {
-    "@mionkit/core": "^0.4.2",
-    "@mionkit/runtype": "^0.4.2"
-  },
-  "gitHead": "2efdcd77c572e64f2b9621b4921ffd2f5e83bc0a"
+  "dependencies": {}
 }

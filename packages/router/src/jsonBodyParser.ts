@@ -6,8 +6,8 @@
  * ######## */
 
 import {Obj, Response, Mutable, Request, RouterOptions, RawRequest, RawHooksCollection, CallContext, ErrorReturn} from './types';
-import {StatusCodes} from './status-codes';
-import {RouteError, getPublicErrorFromRouteError} from './errors';
+import {getPublicErrorFromRouteError} from './errors';
+import {RouteError, StatusCodes} from '@mionkit/core';
 
 // ############# PUBLIC METHODS #############
 

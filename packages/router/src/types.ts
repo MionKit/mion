@@ -6,7 +6,7 @@
  * ######## */
 
 import {ReflectionOptions, FunctionReflection, SerializedTypes} from '@mionkit/runtype';
-import {RouteError} from './errors';
+import {CoreOptions, PublicError, RouteError} from '@mionkit/core';
 
 // #######  Routes #######
 
@@ -76,7 +76,7 @@ export type RouterItem<Context extends CallContext = CallContext> = HookDef<Cont
 // ####### Router Options #######
 
 /** Global Router Options */
-export type RouterOptions<Req extends RawRequest = any, SharedData = any> = {
+export interface RouterOptions<Req extends RawRequest = any, SharedData = any> extends CoreOptions {
     /** prefix for all routes, i.e: api/v1.
      * path separator is added between the prefix and the route */
     prefix: string;
@@ -108,7 +108,7 @@ export type RouterOptions<Req extends RawRequest = any, SharedData = any> = {
      * instead passing the context as a parameter to the route handler.
      */
     useAsyncCallContext: boolean;
-};
+}
 
 // ####### Execution Path #######
 
@@ -198,36 +198,6 @@ export type Headers = {[key: string]: string | boolean | number};
 export type SharedDataFactory<SharedData> = () => SharedData;
 
 // #######  Errors #######
-
-// TODO: the interface for Public Errors is a bit confusing, maybe this should be called PublicError, review the way params are passed etc.
-/** Any error triggered by hooks or routes must follow this interface, returned errors in the body also follows this interface */
-export type RouteErrorParams = {
-    /** id of the error. */
-    id?: number | string;
-    /** response status code */
-    statusCode: number;
-    /** the message that will be returned in the response */
-    publicMessage: string;
-    /**
-     * the error message, it is private and wont be returned in the response.
-     * If not defined, it is assigned from originalError.message or publicMessage.
-     */
-    message?: string;
-    /** options data related to the error, ie validation data */
-    publicData?: unknown;
-    /** original error used to create the RouteError */
-    originalError?: Error;
-    /** name of the error, if not defined it is assigned from status code */
-    name?: string;
-};
-
-export type PublicError = {
-    id?: number | string;
-    readonly name: string;
-    readonly statusCode: number;
-    readonly message: string;
-    readonly errorData?: Readonly<unknown>;
-};
 
 // ####### Internal Hooks #######
 

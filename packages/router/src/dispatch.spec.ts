@@ -7,8 +7,8 @@
 
 import {registerRoutes, resetRouter, initRouter} from './router';
 import {dispatchRoute, getCallContext} from './dispatch';
-import {CallContext, PublicError, RawRequest, Route, Routes} from './types';
-import {StatusCodes} from './status-codes';
+import {CallContext, RawRequest, Route, Routes} from './types';
+import {PublicError, StatusCodes} from '@mionkit/core';
 
 describe('Dispatch routes', () => {
     type SimpleUser = {
