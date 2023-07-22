@@ -7,7 +7,8 @@
 import {registerRoutes} from '@mionkit/router';
 import fetch from 'node-fetch'; // must be node-fetch v2 as v3 is a node module non compatible whit current setup
 import {initHttpRouter, resetHttpRouter, startHttpServer} from './mionHttp';
-import type {CallContext, Headers, Mutable, Route} from '@mionkit/router';
+import type {CallContext, Headers, Route} from '@mionkit/router';
+import {Mutable} from '@mionkit/core';
 
 describe('serverless router should', () => {
     resetHttpRouter();

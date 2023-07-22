@@ -6,10 +6,10 @@
  * ######## */
 
 import {randomUUID} from 'crypto';
-import {CallContext, Mutable, Obj, Response} from './types';
+import {CallContext, Response} from './types';
 import {stringifyResponseBody} from './jsonBodyParser';
 import {getRouterOptions} from './router';
-import {PublicError, RouteError, StatusCodes} from '@mionkit/core';
+import {Mutable, PublicError, RouteError, StatusCodes} from '@mionkit/core';
 
 export function getResponseFromError(
     originalError: any,

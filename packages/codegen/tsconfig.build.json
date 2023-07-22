@@ -6,5 +6,5 @@
   "reflection": true,
   "include": ["."],
   "exclude": ["node_modules", "**/*.spec.ts", "examples", ".dist", "src/test"],
-  "references": [{"path": "../router"}]
+  "references": [{"path": "../core"}, {"path": "../router"}]
 }

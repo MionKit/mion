@@ -50,11 +50,6 @@ export type Obj = {
     [key: string]: any;
 };
 
-export type JsonParser = {
-    parse: (text: string) => any;
-    stringify: (js) => string;
-};
-
 export type Mutable<T> = {
     -readonly [P in keyof T]: T[P];
 };

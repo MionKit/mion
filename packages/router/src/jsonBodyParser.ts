@@ -5,9 +5,9 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {Obj, Response, Mutable, Request, RouterOptions, RawRequest, RawHooksCollection, CallContext, ErrorReturn} from './types';
+import {Response, Request, RouterOptions, RawRequest, RawHooksCollection, CallContext, ErrorReturn} from './types';
 import {getPublicErrorFromRouteError} from './errors';
-import {RouteError, StatusCodes} from '@mionkit/core';
+import {RouteError, StatusCodes, Obj, Mutable} from '@mionkit/core';
 
 // ############# PUBLIC METHODS #############
 
