@@ -8,8 +8,9 @@
 import {registerRoutes} from '@mionkit/router';
 import {initAwsLambdaRouter, lambdaHandler} from './awsLambda';
 import createEvent from '@serverless/event-mocks';
-import type {CallContext, Headers, Mutable, Route} from '@mionkit/router';
+import type {CallContext, Headers, Route} from '@mionkit/router';
 import type {APIGatewayProxyEventHeaders} from 'aws-lambda';
+import {Mutable} from '@mionkit/core';
 
 describe('serverless router should', () => {
     // Router.forceConsoleLogs();

@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {PublicMethods, PublicRoute, Obj, isPublicMethod} from '@mionkit/router';
+import {PublicMethods, PublicRoute, isPublicMethod} from '@mionkit/router';
 import {dirname, parse, relative} from 'path';
 import {hasChildRoutes, type CodegenOptions, type ExportedRoutesMap, type PublicMethodsSpec, type RoutesSpec} from './types';
 import {DEFAULT_PRETTIER_OPTIONS, PUBLIC_METHODS_SPEC_EXPORT_NAME, ROUTES_SPEC_EXPORT_NAME} from './constants';
@@ -13,6 +13,7 @@ import {format, Options as PrettierOptions} from 'prettier';
 // @ypes/cross-spawn is not updated,, once it gets updated we could use normal es6 import
 import * as spawn from 'cross-spawn';
 import {randomUUID} from 'crypto';
+import {Obj} from '@mionkit/core';
 
 // TODO: we could use https://ts-morph.com/manipulation/ instead string based code generation but better done than perfect!
 

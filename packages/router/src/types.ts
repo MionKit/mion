@@ -6,7 +6,7 @@
  * ######## */
 
 import {ReflectionOptions, FunctionReflection, SerializedTypes} from '@mionkit/runtype';
-import {CoreOptions, PublicError, RouteError} from '@mionkit/core';
+import {CoreOptions, Obj, PublicError, RouteError} from '@mionkit/core';
 
 // #######  Routes #######
 
@@ -354,15 +354,7 @@ export function isPublicMethod(entry: PublicRoute<any> | PublicHook<any>): entry
 
 // #######  Others #######
 
-export type Obj = {
-    [key: string]: any;
-};
-
 export type JsonParser = {
     parse: (text: string) => any;
     stringify: (js) => string;
-};
-
-export type Mutable<T> = {
-    -readonly [P in keyof T]: T[P];
 };
