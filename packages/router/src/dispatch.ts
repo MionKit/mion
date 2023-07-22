@@ -15,12 +15,17 @@ import {
     RawRequest,
     isRawExecutable,
     Handler,
+    SuccessRouteResponse,
+    FailsRouteResponse,
+    PublicResponse,
+    SharedDataFactory,
+    isNotFoundExecutable,
 } from './types';
 import {getPublicErrorFromRouteError} from './errors';
 import {getNotFoundExecutionPath, getRouteExecutionPath, getRouterOptions} from './router';
 import {AsyncLocalStorage} from 'node:async_hooks';
 import {isPromise} from 'node:util/types';
-import {Mutable, Obj, PublicError, RouteError, StatusCodes} from '@mionkit/core';
+import {Mutable, RouteError, StatusCodes} from '@mionkit/core';
 
 type CallBack = (err: any, response: Response | undefined) => void;
 
@@ -76,29 +81,12 @@ export function dispatchRouteCallback<Req extends RawRequest, Resp>(
 async function _dispatchRoute(path: string, rawRequest: RawRequest, rawResponse?: any): Promise<Response> {
     try {
         const opts = getRouterOptions();
-        const transformedPath = opts.pathTransform ? opts.pathTransform(rawRequest, path) : path;
-
         // this is the call context that will be passed to all handlers
         // we should keep it as small as possible
-        const context: CallContext = {
-            path: transformedPath,
-            request: {
-                headers: rawRequest.headers || {},
-                body: {},
-                internalErrors: [],
-            },
-            response: {
-                statusCode: StatusCodes.OK,
-                publicErrors: [],
-                headers: {},
-                body: {},
-                json: '',
-            },
-            shared: opts.sharedDataFactory ? opts.sharedDataFactory() : {},
-        };
+        const context = getEmptyCallContext(path, opts, rawRequest);
 
         // gets the execution path for the route or the not found exucution path
-        const executionPath = getRouteExecutionPath(transformedPath) || getNotFoundExecutionPath();
+        const executionPath = getRouteExecutionPath(context.path) || getNotFoundExecutionPath();
 
         await runExecutionPath(context, rawRequest, rawResponse, executionPath, opts);
         return context.response;
@@ -117,7 +105,7 @@ async function runExecutionPath(
     const {response, request} = context;
     for (let i = 0; i < executables.length; i++) {
         const executable = executables[i];
-        if (response.publicErrors.length && !executable.forceRunOnError) continue;
+        if (response.hasErrors && !executable.forceRunOnError) continue;
 
         try {
             const deserializedParams = deserializeParameters(request, executable);
@@ -127,9 +115,10 @@ async function runExecutionPath(
 
             const result = await runHandler(validatedParams, context, rawRequest, rawResponse, executable, opts);
             // TODO: should we also validate the handler result? think just forcing declaring the return type with a linter is enough.
-            serializeResponse(response, executable, result);
+            serializeResponse(executable, response, result);
         } catch (err: any | RouteError | Error) {
-            handleRouteErrors(request, response, err, i);
+            const fieldName = isNotFoundExecutable(executable) ? context.path : executable.fieldName;
+            handleRouteErrors(fieldName, request, response, err, i);
         }
     }
 
@@ -231,14 +220,22 @@ function validateParameters(params: any[], executable: Executable): any[] {
     return params;
 }
 
-function serializeResponse(response: Response, executable: Executable, result: any) {
+function serializeResponse(executable: Executable, response: Response, result: any) {
     if (!executable.canReturnData || result === undefined || !executable.reflection) return;
     const serialized = executable.enableSerialization ? executable.reflection.serializeReturn(result) : result;
     if (executable.inHeader) (response.headers as Mutable<Response['headers']>)[executable.fieldName] = serialized;
-    else (response as Mutable<Obj>).body[executable.fieldName] = serialized;
+    else (response.body as Mutable<PublicResponse>)[executable.fieldName] = [serialized] as SuccessRouteResponse<any>;
 }
 
-export function handleRouteErrors(request: Request, response: Response, err: any, step: number) {
+// ############# PUBLIC METHODS USED FOR ERRORS #############
+
+export function handleRouteErrors(
+    fieldName: string,
+    request: Request,
+    response: Mutable<Response>,
+    err: any,
+    step: number | string
+) {
     const routeError =
         err instanceof RouteError
             ? err
@@ -250,6 +247,28 @@ export function handleRouteErrors(request: Request, response: Response, err: any
               });
 
     const publicError = getPublicErrorFromRouteError(routeError);
-    (response.publicErrors as Mutable<PublicError[]>).push(publicError);
+    response.statusCode = routeError.statusCode;
+    response.hasErrors = true;
+    (response.body as Mutable<PublicResponse>)[fieldName] = [null, publicError] as FailsRouteResponse<any>;
     (request.internalErrors as Mutable<RouteError[]>).push(routeError);
+}
+
+export function getEmptyCallContext(originalPath: string, opts: RouterOptions, rawRequest: RawRequest): CallContext {
+    const transformedPath = opts.pathTransform ? opts.pathTransform(rawRequest, originalPath) : originalPath;
+    return {
+        path: transformedPath,
+        request: {
+            headers: rawRequest.headers || {},
+            body: {},
+            internalErrors: [],
+        },
+        response: {
+            statusCode: StatusCodes.OK,
+            hasErrors: false,
+            headers: {},
+            body: {},
+            json: '',
+        },
+        shared: opts.sharedDataFactory ? opts.sharedDataFactory() : {},
+    };
 }

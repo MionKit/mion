@@ -8,6 +8,7 @@
 import {Response, Request, RouterOptions, RawRequest, RawHooksCollection, CallContext, ErrorReturn} from './types';
 import {getPublicErrorFromRouteError} from './errors';
 import {RouteError, StatusCodes, Obj, Mutable} from '@mionkit/core';
+import {handleRouteErrors} from './dispatch';
 
 // ############# PUBLIC METHODS #############
 
@@ -51,19 +52,14 @@ export function parseRequestBody(
 export function stringifyResponseBody(
     context: CallContext,
     rawRequest: RawRequest,
-    rawResponse: any,
+    rawResponse: unknown,
     opts: RouterOptions
 ): ErrorReturn {
     const response = context.response as Mutable<Response>;
     const respBody: Obj = response.body;
     (response.headers as Mutable<Response['headers']>)['content-type'] = 'application/json; charset=utf-8';
     try {
-        if (response.publicErrors.length) {
-            respBody.errors = response.publicErrors;
-            response.json = opts.bodyParser.stringify(response.publicErrors);
-        } else {
-            response.json = opts.bodyParser.stringify(respBody);
-        }
+        response.json = opts.bodyParser.stringify(respBody);
     } catch (err: any) {
         const routeError = new RouteError({
             statusCode: StatusCodes.INTERNAL_SERVER_ERROR,
@@ -71,7 +67,9 @@ export function stringifyResponseBody(
             publicMessage: `Invalid response body: ${err?.message || 'unknown parsing error.'}`,
             originalError: err,
         });
-        response.json = opts.bodyParser.stringify([getPublicErrorFromRouteError(routeError)]);
+        response.body = {}; // reset the body as it was not possible to stringify it
+        handleRouteErrors(context.path, context.request, context.response, routeError, 'stringifyResponseBody');
+        response.json = opts.bodyParser.stringify(response.body);
         return routeError;
     }
 }
