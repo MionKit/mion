@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {CallContext, Headers, Obj, RouterOptions} from '@mionkit/router';
+import {Headers, RouterOptions} from '@mionkit/router';
 import {IncomingMessage, ServerResponse} from 'http';
 import {ServerOptions} from 'https';
 
