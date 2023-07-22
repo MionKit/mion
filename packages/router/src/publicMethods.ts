@@ -15,7 +15,6 @@ import {
     getRoutePath,
 } from './router';
 import {
-    Executable,
     Handler,
     isHookDef,
     isRoute,
@@ -29,8 +28,6 @@ import {
     RouteExecutable,
     HookExecutable,
     isRawHookDef,
-    RawExecutable,
-    isRawExecutable,
 } from './types';
 import {getSerializedFunctionTypes} from '@mionkit/runtype';
 
