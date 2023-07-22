@@ -147,11 +147,15 @@ export interface HookExecutable extends Executable {
     reflection: FunctionReflection;
 }
 
+export interface NotFoundExecutable extends Executable {
+    is404: true;
+}
+
 // ####### Call Context #######
 
 /** The call Context object passed as first parameter to any hook or route */
 export type CallContext<SharedData = any> = {
-    /** Route's path */
+    /** Route's path after internal transformation*/
     readonly path: string;
     /** Router's own request object */
     readonly request: Request;
@@ -177,11 +181,11 @@ export type Request = {
 export type Response = {
     readonly statusCode: number;
     /** response errors: empty if there were no errors during execution */
-    readonly publicErrors: Readonly<PublicError[]>;
+    readonly hasErrors: boolean;
     /** response headers */
     readonly headers: Readonly<Headers>;
     /** the router response data, JS object */
-    readonly body: Readonly<Obj>;
+    readonly body: Readonly<PublicResponse>;
     /** json encoded response, contains data and errors if there are any. */
     readonly json: string;
 };
@@ -205,8 +209,8 @@ export type ErrorReturn = void | RouteError | Promise<RouteError | void>;
 
 export type RawRequestHandler<
     Context extends CallContext = CallContext,
-    RawReq extends RawRequest = any,
-    RawResp = any,
+    RawReq extends RawRequest = RawRequest,
+    RawResp = unknown,
     Opts extends RouterOptions<RawReq> = RouterOptions<RawReq>
 > = (ctx: Context, request: RawReq, response: RawResp, opts: Opts) => ErrorReturn;
 
@@ -222,8 +226,8 @@ export type RawRequestHandler<
  */
 export type RawHookDef<
     Context extends CallContext = CallContext,
-    RawReq extends RawRequest = any,
-    RawResp = any,
+    RawReq extends RawRequest = RawRequest,
+    RawResp = unknown,
     Opts extends RouterOptions<RawReq> = RouterOptions<RawReq>
 > = {
     rawRequestHandler: RawRequestHandler<Context, RawReq, RawResp, Opts>;
@@ -231,8 +235,8 @@ export type RawHookDef<
 
 export type RawHooksCollection<
     Context extends CallContext = CallContext,
-    RawReq extends RawRequest = any,
-    RawResp = any,
+    RawReq extends RawRequest = RawRequest,
+    RawResp = unknown,
     Opts extends RouterOptions<RawReq> = RouterOptions<RawReq>
 > = {
     [key: string]: RawHookDef<Context, RawReq, RawResp, Opts>;
@@ -302,11 +306,12 @@ export type PublicHook<H extends Handler> = {
 
 export type PublicMethod<H extends Handler = any> = PublicRoute<H> | PublicHook<H>;
 
+export type PublicRouteResponse<Ret, Err extends RouteError> = [Ret | undefined, Err | undefined];
+export type SuccessRouteResponse<Ret> = [Ret];
+export type FailsRouteResponse<Err extends PublicError> = [null, Err];
 export type PublicResponse = {
-    [key: string]: SuccessRouteResponse<any, any> | FailsRouteResponse<any, any>;
+    [key: string]: SuccessRouteResponse<any> | FailsRouteResponse<any>;
 };
-export type SuccessRouteResponse<Ret, Err extends RouteError> = [Ret, undefined];
-export type FailsRouteResponse<Ret, Err extends RouteError> = [undefined, Err];
 
 // #######  type guards #######
 
@@ -346,6 +351,10 @@ export function isRawExecutable(entry: Executable): entry is RawExecutable {
 
 export function isPublicExecutable(entry: Executable): entry is Executable {
     return entry.canReturnData || !!entry.reflection?.paramsLength;
+}
+
+export function isNotFoundExecutable(entry: Executable): entry is NotFoundExecutable {
+    return (entry as NotFoundExecutable).is404;
 }
 
 export function isPublicMethod(entry: PublicRoute<any> | PublicHook<any>): entry is PublicMethod<any> {

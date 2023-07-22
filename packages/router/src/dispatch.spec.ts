@@ -64,7 +64,7 @@ describe('Dispatch routes', () => {
             const request = getDefaultRequest(path, [{name: 'Leo', surname: 'Tungsten'}]);
 
             const response = await dispatchRoute('/changeUserName', request, {});
-            expect(response.body[path]).toEqual({name: 'LOREM', surname: 'Tungsten'});
+            expect(response.body[path][0]).toEqual({name: 'LOREM', surname: 'Tungsten'});
         });
 
         it('read data from header & hook', async () => {
@@ -78,8 +78,8 @@ describe('Dispatch routes', () => {
 
             const path = '/changeUserName';
             const response = await dispatchRoute(path, request, {});
-            expect(response.publicErrors.length).toEqual(0);
-            expect(response.body).toEqual({[path]: {name: 'LOREM', surname: 'Tungsten'}});
+            expect(response.hasErrors).toBeFalsy();
+            expect(response.body).toEqual({[path]: [{name: 'LOREM', surname: 'Tungsten'}]});
         });
 
         it('if there are no params input field can be omitted', async () => {
@@ -95,9 +95,9 @@ describe('Dispatch routes', () => {
             const response2 = await dispatchRoute('/sayHello', request2, {});
             const response3 = await dispatchRoute('/sayHello', request3, {});
 
-            expect(response1.body[path]).toEqual('hello');
-            expect(response2.body[path]).toEqual('hello');
-            expect(response3.body[path]).toEqual('hello');
+            expect(response1.body[path][0]).toEqual('hello');
+            expect(response2.body[path][0]).toEqual('hello');
+            expect(response3.body[path][0]).toEqual('hello');
         });
 
         it('customize the routeFieldName', async () => {
@@ -107,7 +107,7 @@ describe('Dispatch routes', () => {
             const request = getDefaultRequest('apiData', [{name: 'Leo', surname: 'Tungsten'}]);
 
             const response = await dispatchRoute('/changeUserName', request, {});
-            expect(response.body.apiData).toEqual({name: 'LOREM', surname: 'Tungsten'});
+            expect(response.body.apiData[0]).toEqual({name: 'LOREM', surname: 'Tungsten'});
         });
 
         it('transform the path before finding a route', async () => {
@@ -136,7 +136,7 @@ describe('Dispatch routes', () => {
             });
 
             const response = await dispatchRoute(publicPath, request, {});
-            expect(response.body[routePath]).toEqual('hello');
+            expect(response.body[routePath][0]).toEqual('hello');
         });
 
         it('use async local context', async () => {
@@ -162,7 +162,7 @@ describe('Dispatch routes', () => {
             // when call context is called from outside the context it should be undefined
             expect(contextBefore as any).not.toBeDefined();
             expect(contextAfter as any).not.toBeDefined();
-            expect(response.body[path]).toEqual(4);
+            expect(response.body[path][0]).toEqual(4);
         });
 
         // TODO: need an unit test that guarantees that if one routes has a dependency on the output of another hook it wil work
@@ -181,7 +181,7 @@ describe('Dispatch routes', () => {
                     canReturnData: true,
                     hook: (ctx: CallContext): string => {
                         // is sumTwo is not executed in order then `ctx.response.body.sumTwo` would be undefined here
-                        return `the total is ${ctx.response.body[pathSum]}`;
+                        return `the total is ${ctx.response.body[pathSum][0]}`;
                     },
                 },
             } satisfies Routes;
@@ -189,8 +189,8 @@ describe('Dispatch routes', () => {
 
             const request = getDefaultRequest(pathSum, [2]);
             const response = await dispatchRoute(pathSum, request, {});
-            expect(response.body[pathSum]).toEqual(4);
-            expect(response.body['totals']).toEqual('the total is 4');
+            expect(response.body[pathSum][0]).toEqual(4);
+            expect(response.body['totals'][0]).toEqual('the total is 4');
         });
     });
 
@@ -202,7 +202,8 @@ describe('Dispatch routes', () => {
             const request = getDefaultRequest('/abcd', [{name: 'Leo', surname: 'Tungsten'}]);
 
             const response = await dispatchRoute('/abcd', request, {});
-            expect(response.publicErrors[0]).toEqual({
+            const error = response.body['/abcd'][1];
+            expect(error).toEqual({
                 statusCode: 404,
                 name: 'Not Found',
                 message: 'Route not found',
@@ -216,7 +217,8 @@ describe('Dispatch routes', () => {
             const request = getDefaultRequest('/changeUserName', [{name: 'Leo', surname: 'Tungsten'}]);
 
             const response = await dispatchRoute('/changeUserName', request, {});
-            expect(response.publicErrors[0]).toEqual({
+            const error = response.body.Authorization[1];
+            expect(error).toEqual({
                 statusCode: 400,
                 name: 'Invalid Header',
                 message: `Invalid header 'Authorization'. No header found with that name.`,
@@ -233,7 +235,8 @@ describe('Dispatch routes', () => {
             };
 
             const response = await dispatchRoute('/changeUserName', request, {});
-            expect(response.publicErrors[0]).toEqual({
+            const error = response.body.parseJsonRequestBody[1];
+            expect(error).toEqual({
                 statusCode: 400,
                 name: 'Invalid Request Body',
                 message: 'Wrong request body. Expecting an json body containing the route name and parameters.',
@@ -245,7 +248,8 @@ describe('Dispatch routes', () => {
             };
 
             const response2 = await dispatchRoute('/changeUserName', request2, {});
-            expect(response2.publicErrors[0]).toEqual({
+            const errorResp = response2.body.parseJsonRequestBody[1];
+            expect(errorResp).toEqual({
                 statusCode: 422,
                 name: 'Parsing Request Body Error',
                 message: 'Invalid request body: Unexpected number in JSON at position 1',
@@ -259,7 +263,8 @@ describe('Dispatch routes', () => {
             const request = getDefaultRequest('/changeUserName', []);
 
             const response = await dispatchRoute('/changeUserName', request, {});
-            expect(response.publicErrors[0]).toEqual({
+            const error = response.body['/changeUserName'][1];
+            expect(error).toEqual({
                 statusCode: 400,
                 name: `Validation Error`,
                 message: `Invalid params in '/changeUserName', validation failed.`,
@@ -277,7 +282,8 @@ describe('Dispatch routes', () => {
             const request = getDefaultRequest('/getSameDate', [1234]);
 
             const response = await dispatchRoute('/getSameDate', request, {});
-            expect(response.publicErrors[0]).toEqual({
+            const error = response.body['/getSameDate'][1];
+            expect(error).toEqual({
                 statusCode: 400,
                 name: 'Serialization Error',
                 message: `Invalid params '/getSameDate', can not deserialize. Parameters might be of the wrong type.`,
@@ -292,7 +298,7 @@ describe('Dispatch routes', () => {
             const request = getDefaultRequest('/changeUserName', [wrongSimpleUser]);
 
             const response = await dispatchRoute('/changeUserName', request, {});
-            const error: PublicError = {
+            const expected: PublicError = {
                 name: 'Validation Error',
                 statusCode: 400,
                 message: `Invalid params in '/changeUserName', validation failed.`,
@@ -302,7 +308,8 @@ describe('Dispatch routes', () => {
                     errors: expect.any(Array),
                 }),
             };
-            expect(response.publicErrors[0]).toEqual(error);
+            const error = response.body['/changeUserName'][1];
+            expect(error).toEqual(expected);
         });
 
         it('return an error if validation fails, empty type', async () => {
@@ -312,7 +319,7 @@ describe('Dispatch routes', () => {
             const request = getDefaultRequest('/changeUserName', [{}]);
 
             const response = await dispatchRoute('/changeUserName', request, {});
-            const error: PublicError = {
+            const expected: PublicError = {
                 name: 'Validation Error',
                 statusCode: 400,
                 message: `Invalid params in '/changeUserName', validation failed.`,
@@ -322,7 +329,8 @@ describe('Dispatch routes', () => {
                     errors: expect.any(Array),
                 }),
             };
-            expect(response.publicErrors[0]).toEqual(error);
+            const error = response.body['/changeUserName'][1];
+            expect(error).toEqual(expected);
         });
 
         it('return an unknown error if a route fails with a generic error', async () => {
@@ -336,7 +344,8 @@ describe('Dispatch routes', () => {
             const request = getDefaultRequest('/routeFail', []);
 
             const response = await dispatchRoute('/routeFail', request, {});
-            expect(response.publicErrors[0]).toEqual({
+            const error = response.body['/routeFail'][1];
+            expect(error).toEqual({
                 statusCode: 500,
                 name: 'Unknown Error',
                 message: 'Unknown error in step 1 of route execution path.',
@@ -352,7 +361,8 @@ describe('Dispatch routes', () => {
             const request = getDefaultRequest('/getSameDate', [1234]);
 
             const response = await dispatchRoute('/getSameDate', request, {});
-            expect(response.publicErrors[0]).toEqual({
+            const error = response.body['/getSameDate'][1];
+            expect(error).toEqual({
                 statusCode: 400,
                 message: `Invalid params '/getSameDate', can not validate parameters.`,
             });

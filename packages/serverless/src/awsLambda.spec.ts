@@ -86,9 +86,9 @@ describe('serverless router should', () => {
         const parsedResponse = JSON.parse(awsResponse.body);
         const headers = awsResponse.headers || {};
 
-        expect(parsedResponse).toEqual({'/api/getDate': {date: '2022-04-10T02:13:00.000Z'}});
+        expect(parsedResponse).toEqual({'/api/getDate': [{date: '2022-04-10T02:13:00.000Z'}]});
         expect(headers['content-type']).toEqual('application/json; charset=utf-8');
-        expect(headers['content-length']).toEqual(52);
+        expect(headers['content-length']).toEqual(54);
         expect(headers['server']).toEqual('@mionkit/serverless');
     });
 
@@ -105,9 +105,9 @@ describe('serverless router should', () => {
             statusCode: 400,
             name: 'Serialization Error',
         };
-        expect(parsedResponse).toEqual([expectedError]);
+        expect(parsedResponse).toEqual({'/api/getDate': [null, expectedError]});
         expect(headers['content-type']).toEqual('application/json; charset=utf-8');
-        expect(headers['content-length']).toEqual(152);
+        expect(headers['content-length']).toEqual(174);
         expect(headers['server']).toEqual('@mionkit/serverless');
     });
 

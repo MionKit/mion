@@ -103,27 +103,27 @@ describe('Create routes should', () => {
     };
 
     const defaultExecutables = {
-        mionJsonParseRequestBody: {
+        parseJsonRequestBody: {
             isRoute: false,
             isRawExecutable: true,
-            path: 'mionJsonParseRequestBody',
-            fieldName: 'mionJsonParseRequestBody',
-            selfPointer: ['mionJsonParseRequestBody'],
+            path: 'parseJsonRequestBody',
+            fieldName: 'parseJsonRequestBody',
+            selfPointer: ['parseJsonRequestBody'],
         },
-        mionJsonStringifyResponseBody: {
+        stringifyJsonResponseBody: {
             isRoute: false,
             isRawExecutable: true,
-            path: 'mionJsonStringifyResponseBody',
-            fieldName: 'mionJsonStringifyResponseBody',
-            selfPointer: ['mionJsonStringifyResponseBody'],
+            path: 'stringifyJsonResponseBody',
+            fieldName: 'stringifyJsonResponseBody',
+            selfPointer: ['stringifyJsonResponseBody'],
         },
     };
 
     function addDefaultExecutables(exec: any[]) {
         return [
-            expect.objectContaining({...defaultExecutables.mionJsonParseRequestBody}),
+            expect.objectContaining({...defaultExecutables.parseJsonRequestBody}),
             ...exec,
-            expect.objectContaining({...defaultExecutables.mionJsonStringifyResponseBody}),
+            expect.objectContaining({...defaultExecutables.stringifyJsonResponseBody}),
         ];
     }
 

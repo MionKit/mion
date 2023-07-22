@@ -26,6 +26,7 @@ import {
     RawHookDef,
     RawExecutable,
     RawHooksCollection,
+    NotFoundExecutable,
 } from './types';
 import {getFunctionReflectionMethods} from '@mionkit/runtype';
 import {bodyParserHooks} from './jsonBodyParser';
@@ -50,8 +51,8 @@ let routerOptions: RouterOptions = {...DEFAULT_ROUTE_OPTIONS};
 let isRouterInitialized = false;
 
 /** Global hooks to be run before and after any other hooks or routes set using `registerRoutes` */
-const defaultStartHooks = {mionJsonParseRequestBody: bodyParserHooks.parseJsonRequestBody};
-const defaultEndHooks = {mionJsonStringifyResponseBody: bodyParserHooks.stringifyJsonResponseBody};
+const defaultStartHooks = {parseJsonRequestBody: bodyParserHooks.parseJsonRequestBody};
+const defaultEndHooks = {stringifyJsonResponseBody: bodyParserHooks.stringifyJsonResponseBody};
 let startHooksDef: RawHooksCollection = {...defaultStartHooks};
 let endHooksDef: RawHooksCollection = {...defaultEndHooks};
 let startHooks: Executable[] = [];
@@ -158,13 +159,14 @@ export function addEndHooks(hooksDef: RawHooksCollection, prependAfterExisting =
 let notFoundExecutionPath: Executable[] | undefined;
 export function getNotFoundExecutionPath(): Executable[] {
     if (notFoundExecutionPath) return notFoundExecutionPath;
-    const hookName = 'mion404NotfoundHook';
+    const hookName = '_mion404NotfoundHook_';
     const notFoundHook = {
         rawRequestHandler: () => {
             return new RouteError({statusCode: StatusCodes.NOT_FOUND, publicMessage: `Route not found`});
         },
     } satisfies RawHookDef;
     const notFoundHandlerExecutable = getExecutableFromRawHook(notFoundHook, [hookName], 0, hookName);
+    (notFoundHandlerExecutable as NotFoundExecutable).is404 = true;
     notFoundExecutionPath = [...startHooks, notFoundHandlerExecutable, ...endHooks];
     return notFoundExecutionPath;
 }

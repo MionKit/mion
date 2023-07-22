@@ -9,11 +9,11 @@ import {initRouter, dispatchRoute, getResponseFromError, dispatchRouteCallback, 
 import {createServer as createHttp} from 'http';
 import {createServer as createHttps} from 'https';
 import {DEFAULT_HTTP_OPTIONS} from './constants';
-import type {HttpOptions} from './types';
+import type {HttpOptions, HttpRequest} from './types';
 import type {IncomingMessage, Server as HttpServer, ServerResponse} from 'http';
 import type {Server as HttpsServer} from 'https';
 import type {Headers, RawRequest, Response} from '@mionkit/router';
-import {StatusCodes} from '@mionkit/core';
+import {RouteError, StatusCodes} from '@mionkit/core';
 
 type HeadersEntries = [string, string | boolean | number][];
 
@@ -87,10 +87,12 @@ function httpRequestHandler(httpReq: IncomingMessage, httpResponse: ServerRespon
         reply(httpResponse, routeResponse.json, routeResponse.statusCode);
     };
 
-    const fail = (e?: Error, statusCode?: StatusCodes, message?: string) => {
+    // only called whe there is an htt error or weird unhandled route errors
+    const fail = (e?: Error, statusCode: StatusCodes = StatusCodes.INTERNAL_SERVER_ERROR, message = 'Unknown Error') => {
         if (replied || httpResponse.writableEnded) return;
         replied = true;
-        const routeResponse = getResponseFromError(e, statusCode, message);
+        const error = new RouteError({statusCode, publicMessage: message, originalError: e});
+        const routeResponse = getResponseFromError('httpRequest', 'dispatch', httpReq as HttpRequest, httpResponse, error);
         addResponseHeaders(httpResponse, routeResponse.headers);
         reply(httpResponse, routeResponse.json, routeResponse.statusCode);
     };
