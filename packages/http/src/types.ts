@@ -32,4 +32,3 @@ export type HttpOptions = {
 } & Partial<RouterOptions<HttpRequest>>;
 
 export type HttpRequest = IncomingMessage & {body: string};
-export type HttpCallContext<SharedData extends Obj> = CallContext<SharedData, HttpRequest, ServerResponse>;

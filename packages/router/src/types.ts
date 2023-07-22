@@ -150,7 +150,7 @@ export interface HookExecutable extends Executable {
 // ####### Call Context #######
 
 /** The call Context object passed as first parameter to any hook or route */
-export type CallContext<SharedData = any, RawReq extends RawRequest = any, RawResp = any> = {
+export type CallContext<SharedData = any> = {
     /** Route's path */
     readonly path: string;
     /** Router's own request object */

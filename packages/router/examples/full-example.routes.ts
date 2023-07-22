@@ -48,7 +48,7 @@ const shared = {
 const getSharedData = (): typeof shared => shared;
 
 type SharedData = ReturnType<typeof getSharedData>;
-type Context = CallContext<SharedData, APIGatewayEvent>;
+type Context = CallContext<SharedData>;
 
 const getUser: Route = (ctx: Context, id) => {
     const user = myApp.db.getUser(id);

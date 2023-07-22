@@ -8,9 +8,8 @@
 import {registerRoutes} from '@mionkit/router';
 import {initAwsLambdaRouter, lambdaHandler} from './awsLambda';
 import createEvent from '@serverless/event-mocks';
-import type {Headers, Mutable, Route} from '@mionkit/router';
+import type {CallContext, Headers, Mutable, Route} from '@mionkit/router';
 import type {APIGatewayProxyEventHeaders} from 'aws-lambda';
-import type {AwsCallContext} from './types';
 
 describe('serverless router should', () => {
     // Router.forceConsoleLogs();
@@ -22,7 +21,7 @@ describe('serverless router should', () => {
         date: Date;
     };
     type MySharedData = ReturnType<typeof getSharedData>;
-    type Context = AwsCallContext<MySharedData>;
+    type Context = CallContext<MySharedData>;
 
     const myApp = {
         cloudLogs: {

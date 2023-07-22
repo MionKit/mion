@@ -83,7 +83,7 @@ async function _dispatchRoute(path: string, rawRequest: RawRequest, rawResponse?
 
         // this is the call context that will be passed to all handlers
         // we should keep it as small as possible
-        const context: CallContext<any, RawRequest, unknown> = {
+        const context: CallContext = {
             path: transformedPath,
             request: {
                 headers: rawRequest.headers || {},
