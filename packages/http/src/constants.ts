@@ -7,7 +7,7 @@
 
 import {HttpOptions} from './types';
 
-export const CONTENT_TYPE_HEADER_NAME = 'Content-Type';
+export const CONTENT_TYPE_HEADER_NAME = 'content-type';
 export const ACCEPT_JSON = 'application/json';
 export const JSON_CONTENT_TYPE = 'application/json; charset=utf-8';
 export const ALLOWED_HTTP_METHODS = ['POST', 'OPTIONS'];

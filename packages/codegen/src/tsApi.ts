@@ -65,9 +65,8 @@ function getPublicRoutesTypeId(options: CodegenOptions) {
     // !!Important this can change depending on the retunr type of router.registerRoutes()!!
     const publicRoutesFileSample = `
         import {initRouter, registerRoutes} from '@mionkit/router';
-        const getShared = () => ({});
         const api = {};
-        initRouter(getShared);
+        initRouter();
         export const PUBLIC_ROUTES = registerRoutes(api);
     `;
     const publicRoutesExportedName = 'PUBLIC_ROUTES';

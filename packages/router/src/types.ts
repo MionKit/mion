@@ -76,7 +76,7 @@ export type RouterItem<Context extends CallContext = CallContext> = HookDef<Cont
 // ####### Router Options #######
 
 /** Global Router Options */
-export type RouterOptions<Req extends RawRequest = RawRequest> = {
+export type RouterOptions<Req extends RawRequest = any, SharedData = any> = {
     /** prefix for all routes, i.e: api/v1.
      * path separator is added between the prefix and the route */
     prefix: string;
@@ -85,6 +85,8 @@ export type RouterOptions<Req extends RawRequest = RawRequest> = {
     suffix: string;
     /** Transform the path before finding a route */
     pathTransform?: (request: Req, path: string) => string;
+    /** factory function to initialize shared call context data */
+    sharedDataFactory?: SharedDataFactory<SharedData>;
     /** configures the fieldName in the request/response body used for a route's params/response */
     routeFieldName?: string;
     /** enable automatic parameter validation, defaults to true */
@@ -95,8 +97,6 @@ export type RouterOptions<Req extends RawRequest = RawRequest> = {
     reflectionOptions: ReflectionOptions;
     /** Custom JSON parser, defaults to Native js JSON */
     bodyParser: JsonParser;
-    /** response content type, @default "application/json; charset=utf-8" */
-    responseContentType: string;
     /** Used to return public data when adding routes */
     getPublicRoutesData: boolean;
     /** lazy load function reflection, should improve cold start performance */
@@ -237,7 +237,7 @@ export type RawRequestHandler<
     Context extends CallContext = CallContext,
     RawReq extends RawRequest = any,
     RawResp = any,
-    Opts extends RouterOptions = RouterOptions
+    Opts extends RouterOptions<RawReq> = RouterOptions<RawReq>
 > = (ctx: Context, request: RawReq, response: RawResp, opts: Opts) => ErrorReturn;
 
 /**
@@ -254,7 +254,7 @@ export type RawHookDef<
     Context extends CallContext = CallContext,
     RawReq extends RawRequest = any,
     RawResp = any,
-    Opts extends RouterOptions = RouterOptions
+    Opts extends RouterOptions<RawReq> = RouterOptions<RawReq>
 > = {
     rawRequestHandler: RawRequestHandler<Context, RawReq, RawResp, Opts>;
 };
@@ -263,7 +263,7 @@ export type RawHooksCollection<
     Context extends CallContext = CallContext,
     RawReq extends RawRequest = any,
     RawResp = any,
-    Opts extends RouterOptions = RouterOptions
+    Opts extends RouterOptions<RawReq> = RouterOptions<RawReq>
 > = {
     [key: string]: RawHookDef<Context, RawReq, RawResp, Opts>;
 };

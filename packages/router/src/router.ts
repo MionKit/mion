@@ -50,7 +50,6 @@ const rawHooksById: Map<string, RawExecutable> = new Map();
 const hookNames: Map<string, boolean> = new Map();
 const routeNames: Map<string, boolean> = new Map();
 let complexity = 0;
-let sharedDataFactoryFunction: SharedDataFactory<any> | undefined;
 let routerOptions: RouterOptions = {...DEFAULT_ROUTE_OPTIONS};
 let isRouterInitialized = false;
 
@@ -71,8 +70,7 @@ export const getRouteExecutable = (path: string) => routesById.get(path);
 export const getHookExecutable = (fieldName: string) => hooksById.get(fieldName);
 export const geHooksSize = () => hooksById.size;
 export const getComplexity = () => complexity;
-export const getRouterOptions = (): Readonly<RouterOptions> => routerOptions;
-export const getSharedDataFactory = () => sharedDataFactoryFunction;
+export const getRouterOptions = <Opts extends RouterOptions>(): Readonly<Opts> => routerOptions as Opts;
 
 export const resetRouter = () => {
     flatRouter.clear();
@@ -82,7 +80,6 @@ export const resetRouter = () => {
     hookNames.clear();
     routeNames.clear();
     complexity = 0;
-    sharedDataFactoryFunction = undefined;
     routerOptions = {...DEFAULT_ROUTE_OPTIONS};
     startHooksDef = {...defaultStartHooks};
     endHooksDef = {...defaultEndHooks};
@@ -98,14 +95,11 @@ export const resetRouter = () => {
  * @param routerOptions
  * @returns
  */
-export async function initRouter<SharedData, Req extends RawRequest = RawRequest>(
-    sharedDataFactory?: SharedDataFactory<SharedData>,
-    routerOptions?: Partial<RouterOptions<Req>>
-) {
+export function initRouter<Opts extends RouterOptions>(opts?: Partial<Opts>) {
     if (isRouterInitialized) throw new Error('Router has already been initialized');
-    sharedDataFactoryFunction = sharedDataFactory;
-    setRouterOptions(routerOptions);
+    routerOptions = {...routerOptions, ...opts};
     isRouterInitialized = true;
+    return getRouterOptions<Opts>();
 }
 
 export function registerRoutes<R extends Routes>(routes: R): PublicMethods<R> {
@@ -121,13 +115,6 @@ export function registerRoutes<R extends Routes>(routes: R): PublicMethods<R> {
     }
 
     return {} as PublicMethods<R>;
-}
-
-export function setRouterOptions<Req extends RawRequest = RawRequest>(routerOptions_?: Partial<RouterOptions<Req>>) {
-    routerOptions = {
-        ...routerOptions,
-        ...(routerOptions_ as Partial<RouterOptions>),
-    };
 }
 
 export function getRoutePathFromPointer(route: Route, pointer: string[]) {

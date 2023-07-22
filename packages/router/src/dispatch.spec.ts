@@ -31,7 +31,6 @@ describe('Dispatch routes', () => {
     const getSharedData = (): typeof shared => shared;
 
     type Req = ReturnType<typeof getDefaultRequest>;
-    type RawServerContext = {rawRequest: Req};
 
     const changeUserName = (ctx, user: SimpleUser) => {
         return myApp.db.changeUserName(user);
@@ -58,7 +57,7 @@ describe('Dispatch routes', () => {
 
     describe('success path should', () => {
         it('read data from body & route', async () => {
-            initRouter(getSharedData);
+            initRouter({sharedDataFactory: getSharedData});
             registerRoutes({changeUserName});
 
             const path = '/changeUserName';
@@ -69,7 +68,7 @@ describe('Dispatch routes', () => {
         });
 
         it('read data from header & hook', async () => {
-            initRouter(getSharedData);
+            initRouter({sharedDataFactory: getSharedData});
             registerRoutes({auth, changeUserName});
 
             const request: RawRequest = {
@@ -84,7 +83,7 @@ describe('Dispatch routes', () => {
         });
 
         it('if there are no params input field can be omitted', async () => {
-            initRouter(getSharedData);
+            initRouter({sharedDataFactory: getSharedData});
             registerRoutes({sayHello: () => 'hello'});
 
             const path = '/sayHello';
@@ -102,7 +101,7 @@ describe('Dispatch routes', () => {
         });
 
         it('customize the routeFieldName', async () => {
-            initRouter(getSharedData, {routeFieldName: 'apiData'});
+            initRouter({sharedDataFactory: getSharedData, routeFieldName: 'apiData'});
             registerRoutes({changeUserName});
 
             const request = getDefaultRequest('apiData', [{name: 'Leo', surname: 'Tungsten'}]);
@@ -120,6 +119,7 @@ describe('Dispatch routes', () => {
                 ...getDefaultRequest(routePath, []),
             };
             const options = {
+                sharedDataFactory: getSharedData,
                 pathTransform: (req, path: string): string => {
                     // publicPath = api/v1/sayHello
                     // routePath = api/v1/GET/sayHello
@@ -128,7 +128,7 @@ describe('Dispatch routes', () => {
                 },
                 prefix: 'api/v1',
             };
-            initRouter(getSharedData, options);
+            initRouter(options);
             registerRoutes({
                 GET: {
                     sayHello: () => 'hello', // api/v1/GET/sayHello
@@ -140,7 +140,7 @@ describe('Dispatch routes', () => {
         });
 
         it('use async local context', async () => {
-            initRouter(getSharedData, {useAsyncCallContext: true});
+            initRouter({sharedDataFactory: getSharedData, useAsyncCallContext: true});
             let asyncCallContext;
             const contextBefore = getCallContext();
 
@@ -167,7 +167,7 @@ describe('Dispatch routes', () => {
 
         // TODO: need an unit test that guarantees that if one routes has a dependency on the output of another hook it wil work
         it('support async handlers and ensure execution in order', async () => {
-            initRouter(getSharedData);
+            initRouter({sharedDataFactory: getSharedData});
             const pathSum = '/sumTwo';
             const routes = {
                 sumTwo: async (ctx, val: number): Promise<number> => {
@@ -196,7 +196,7 @@ describe('Dispatch routes', () => {
 
     describe('fail path should', () => {
         it('return an error if no route is found', async () => {
-            initRouter(getSharedData);
+            initRouter({sharedDataFactory: getSharedData});
             registerRoutes({changeUserName});
 
             const request = getDefaultRequest('/abcd', [{name: 'Leo', surname: 'Tungsten'}]);
@@ -210,7 +210,7 @@ describe('Dispatch routes', () => {
         });
 
         it('return an error if data is missing from header', async () => {
-            initRouter(getSharedData);
+            initRouter({sharedDataFactory: getSharedData});
             registerRoutes({auth, changeUserName});
 
             const request = getDefaultRequest('/changeUserName', [{name: 'Leo', surname: 'Tungsten'}]);
@@ -224,7 +224,7 @@ describe('Dispatch routes', () => {
         });
 
         it('return an error if body is not the correct type', async () => {
-            initRouter(getSharedData);
+            initRouter({sharedDataFactory: getSharedData});
             registerRoutes({changeUserName});
 
             const request: RawRequest = {
@@ -253,7 +253,7 @@ describe('Dispatch routes', () => {
         });
 
         it('return an error if data is missing from body', async () => {
-            initRouter(getSharedData);
+            initRouter({sharedDataFactory: getSharedData});
             registerRoutes({changeUserName});
 
             const request = getDefaultRequest('/changeUserName', []);
@@ -271,7 +271,7 @@ describe('Dispatch routes', () => {
         });
 
         it("return an error if can't deserialize", async () => {
-            initRouter(getSharedData);
+            initRouter({sharedDataFactory: getSharedData});
             registerRoutes({getSameDate});
 
             const request = getDefaultRequest('/getSameDate', [1234]);
@@ -285,7 +285,7 @@ describe('Dispatch routes', () => {
         });
 
         it('return an error if validation fails, incorrect type', async () => {
-            initRouter(getSharedData);
+            initRouter({sharedDataFactory: getSharedData});
             registerRoutes({changeUserName});
 
             const wrongSimpleUser: SimpleUser = {name: true, surname: 'Smith'} as any;
@@ -306,7 +306,7 @@ describe('Dispatch routes', () => {
         });
 
         it('return an error if validation fails, empty type', async () => {
-            initRouter(getSharedData);
+            initRouter({sharedDataFactory: getSharedData});
             registerRoutes({changeUserName});
 
             const request = getDefaultRequest('/changeUserName', [{}]);
@@ -326,7 +326,7 @@ describe('Dispatch routes', () => {
         });
 
         it('return an unknown error if a route fails with a generic error', async () => {
-            initRouter(getSharedData);
+            initRouter({sharedDataFactory: getSharedData});
 
             const routeFail: Route = () => {
                 throw new Error('this is a generic error');
@@ -346,7 +346,7 @@ describe('Dispatch routes', () => {
         // TODO: not sure how to make serialization/validation throw an error
         // eslint-disable-next-line jest/no-disabled-tests
         it.skip("return an error if can't validate", async () => {
-            initRouter(getSharedData);
+            initRouter({sharedDataFactory: getSharedData});
             registerRoutes({getSameDate});
 
             const request = getDefaultRequest('/getSameDate', [1234]);

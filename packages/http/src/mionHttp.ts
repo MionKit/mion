@@ -20,14 +20,13 @@ import {DEFAULT_HTTP_OPTIONS} from './constants';
 import type {HttpOptions, HttpRequest} from './types';
 import type {IncomingMessage, Server as HttpServer, ServerResponse} from 'http';
 import type {Server as HttpsServer} from 'https';
-import type {Obj, Headers, RawRequest, RouterOptions, SharedDataFactory, Response} from '@mionkit/router';
+import type {Obj, Headers, RawRequest, RouterOptions, SharedDataFactory, Response, CallContext} from '@mionkit/router';
 
 type HeadersEntries = [string, string | boolean | number][];
 
 // ############# PRIVATE STATE #############
 
-let httpOptions: HttpOptions = {...DEFAULT_HTTP_OPTIONS};
-let defaultResponseContentType: string;
+let httpOptions: Readonly<HttpOptions> = {...DEFAULT_HTTP_OPTIONS};
 let defaultResponseHeaders: HeadersEntries = [];
 const isTest = process.env.NODE_ENV === 'test';
 
@@ -35,25 +34,18 @@ const isTest = process.env.NODE_ENV === 'test';
 
 export function resetHttpRouter() {
     httpOptions = {...DEFAULT_HTTP_OPTIONS};
-    defaultResponseContentType = '';
     defaultResponseHeaders = [];
     resetRouter();
 }
 
-export function initHttpRouter<SharedData extends Obj>(
-    sharedDataFactory?: SharedDataFactory<SharedData>,
-    routerOptions?: Partial<RouterOptions<HttpRequest>>
-) {
-    initRouter(sharedDataFactory, routerOptions);
-    defaultResponseContentType = getRouterOptions().responseContentType;
+export function initHttpRouter<Opts extends Partial<HttpOptions>>(options?: Opts) {
+    httpOptions = initRouter({
+        ...httpOptions,
+        ...options,
+    });
 }
 
-export async function startHttpServer(httpOptions_: Partial<HttpOptions> = {}): Promise<HttpServer | HttpsServer> {
-    httpOptions = {
-        ...httpOptions,
-        ...httpOptions_,
-    };
-
+export async function startHttpServer(): Promise<HttpServer | HttpsServer> {
     defaultResponseHeaders = Object.entries(httpOptions.defaultResponseHeaders);
 
     const port = httpOptions.port !== 80 ? `:${httpOptions.port}` : '';

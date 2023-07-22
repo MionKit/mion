@@ -14,7 +14,6 @@ import {
     getRouteExecutionPath,
     getRouteExecutable,
     resetRouter,
-    setRouterOptions,
     initRouter,
     addStartHooks,
     addEndHooks,
@@ -131,7 +130,7 @@ describe('Create routes should', () => {
     beforeEach(() => resetRouter());
 
     it('create a flat routes Map', () => {
-        initRouter(() => {});
+        initRouter();
         registerRoutes(routes);
 
         expect(geRoutesSize()).toEqual(5);
@@ -168,7 +167,7 @@ describe('Create routes should', () => {
     });
 
     it('should support methods', () => {
-        initRouter(() => {});
+        initRouter();
         function hello(): void {}
         const routes = {
             hello,
@@ -189,7 +188,7 @@ describe('Create routes should', () => {
     });
 
     it('add default values to hooks', () => {
-        initRouter(() => {});
+        initRouter();
         const defaultHookValues = {first: {hook: (): null => null}};
         registerRoutes(defaultHookValues);
 
@@ -207,7 +206,7 @@ describe('Create routes should', () => {
     });
 
     it('add default values to routes', () => {
-        initRouter(() => {});
+        initRouter();
         const defaultRouteValues = {sayHello: {route: (): null => null}};
         registerRoutes(defaultRouteValues);
 
@@ -225,8 +224,7 @@ describe('Create routes should', () => {
     });
 
     it('add prefix & suffix to routes', () => {
-        initRouter(() => {});
-        setRouterOptions({prefix: 'api/v1', suffix: '.json'});
+        initRouter({prefix: 'api/v1', suffix: '.json'});
         registerRoutes(routes);
 
         expect(geRoutesSize()).toEqual(5);
@@ -240,8 +238,7 @@ describe('Create routes should', () => {
     });
 
     it('customize route paths', () => {
-        initRouter(() => {});
-        setRouterOptions({prefix: 'api/v1'});
+        initRouter({prefix: 'api/v1'});
 
         const routes: Routes = {
             u: {
@@ -264,7 +261,7 @@ describe('Create routes should', () => {
     });
 
     it('throw an error when a routes are invalid', () => {
-        initRouter(() => {});
+        initRouter();
         const empty = {};
         const emptySub = {sayHello: {}};
         const invalidValues = {sayHello: {total: 2}};
@@ -279,7 +276,7 @@ describe('Create routes should', () => {
     });
 
     it('throw an error when there are naming collisions', () => {
-        initRouter(() => {});
+        initRouter();
         const fieldCollision = {
             preProcess: {
                 fieldName: 'process',
@@ -307,7 +304,7 @@ describe('Create routes should', () => {
     });
 
     it('optimize parsing routes (complexity) when there are multiple routes in a row', () => {
-        initRouter(() => {});
+        initRouter();
         const bestCase = {
             first: hook,
             route1: route1,
@@ -355,7 +352,7 @@ describe('Create routes should', () => {
         registerRoutes(bestCase);
         const bestCaseComplexity = getComplexity();
         resetRouter();
-        initRouter(() => {});
+        initRouter();
         registerRoutes(worstCase);
         const worstCaseComplexity = getComplexity();
 
@@ -363,7 +360,7 @@ describe('Create routes should', () => {
     });
 
     it('differentiate async vs non async routes', () => {
-        initRouter(() => {});
+        initRouter();
         // !! Important return types must always be declared as deepkit doe not infers the type
         const defaultRouteValues = {
             sayHello: (): null => null,
@@ -398,7 +395,7 @@ describe('Create routes should', () => {
         addStartHooks(prependHooks, false);
         addEndHooks(appendHooks, false);
 
-        initRouter(() => {});
+        initRouter();
         registerRoutes(routes);
 
         const expectedExecutionPath = addDefaultExecutables([
@@ -444,7 +441,7 @@ describe('Lazy loading', () => {
     it('should load router faster when using lazy load reflection methods', () => {
         // no lazy load
         const loadingTimeNo = process.hrtime.bigint();
-        initRouter(() => {}, {lazyLoadReflection: false});
+        initRouter({lazyLoadReflection: false});
         registerRoutes(routes);
         const endTimeNo = process.hrtime.bigint();
 
@@ -452,7 +449,7 @@ describe('Lazy loading', () => {
 
         // lazy load
         const loadingTimeLazy = process.hrtime.bigint();
-        initRouter(() => {}, {lazyLoadReflection: true});
+        initRouter({lazyLoadReflection: true});
         registerRoutes(routes);
         const endTimeLazy = process.hrtime.bigint();
 

@@ -21,7 +21,7 @@ import {
 } from './types';
 import {StatusCodes} from './status-codes';
 import {RouteError, getPublicErrorFromRouteError} from './errors';
-import {getNotFoundExecutionPath, getRouteExecutionPath, getRouterOptions, getSharedDataFactory} from './router';
+import {getNotFoundExecutionPath, getRouteExecutionPath, getRouterOptions} from './router';
 import {AsyncLocalStorage} from 'node:async_hooks';
 import {isPromise} from 'node:util/types';
 
@@ -80,7 +80,6 @@ async function _dispatchRoute(path: string, rawRequest: RawRequest, rawResponse?
     try {
         const opts = getRouterOptions();
         const transformedPath = opts.pathTransform ? opts.pathTransform(rawRequest, path) : path;
-        const sharedFactory = getSharedDataFactory();
 
         // this is the call context that will be passed to all handlers
         // we should keep it as small as possible
@@ -98,7 +97,7 @@ async function _dispatchRoute(path: string, rawRequest: RawRequest, rawResponse?
                 body: {},
                 json: '',
             },
-            shared: sharedFactory ? sharedFactory() : {},
+            shared: opts.sharedDataFactory ? opts.sharedDataFactory() : {},
         };
 
         // gets the execution path for the route or the not found exucution path

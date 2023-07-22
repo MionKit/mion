@@ -93,6 +93,6 @@ const routes = {
     log,
 } satisfies Routes;
 
-initRouter(getSharedData, {prefix: 'api/v1'});
+initRouter({sharedDataFactory: getSharedData, prefix: 'api/v1'});
 export const apiSpec = registerRoutes(routes);
 type ApiSpec = typeof apiSpec;

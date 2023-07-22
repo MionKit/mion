@@ -56,7 +56,7 @@ export function stringifyResponseBody(
 ): ErrorReturn {
     const response = context.response as Mutable<Response>;
     const respBody: Obj = response.body;
-    (response.headers as Mutable<Response['headers']>)['Content-Type'] = opts.responseContentType;
+    (response.headers as Mutable<Response['headers']>)['content-type'] = 'application/json; charset=utf-8';
     try {
         if (response.publicErrors.length) {
             respBody.errors = response.publicErrors;

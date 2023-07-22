@@ -49,6 +49,6 @@ export const publicEndpoints = {
 export const getSharedData = (): Obj => ({});
 export const options: Partial<RouterOptions> = {prefix: 'v1', getPublicRoutesData: true};
 
-initRouter(getSharedData, options);
+initRouter(options);
 export const myApi = registerRoutes(myApiRoutes);
 export const authApi = registerRoutes(publicEndpoints);

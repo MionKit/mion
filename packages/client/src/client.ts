@@ -42,7 +42,7 @@ export const remote = <REQ extends RequestData, RESP extends ResponseData>(
             // TODO split data in headers
             const response = await fetch(clientOptions.apiURL, {
                 headers: {
-                    'Content-Type': 'application/json',
+                    'content-type': 'application/json',
                     ...headers,
                 },
                 body: Object.keys(body).length ? JSON.stringify(body) : '',
