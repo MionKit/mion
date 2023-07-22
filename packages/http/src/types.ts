@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {CallContext, Headers, Obj} from '@mionkit/router';
+import {CallContext, Headers, Obj, RouterOptions} from '@mionkit/router';
 import {IncomingMessage, ServerResponse} from 'http';
 import {ServerOptions} from 'https';
 
@@ -29,7 +29,7 @@ export type HttpOptions = {
     allowExceedMaxBodySize?: (currentSize: number, httpReq: IncomingMessage, httpResponse: ServerResponse) => boolean;
     /** use callback instead promises for handling the requests */
     useCallbacks?: boolean;
-};
+} & Partial<RouterOptions<HttpRequest>>;
 
 export type HttpRequest = IncomingMessage & {body: string};
 export type HttpCallContext<SharedData extends Obj> = CallContext<SharedData, HttpRequest, ServerResponse>;

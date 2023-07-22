@@ -67,10 +67,6 @@ export const DEFAULT_ROUTE_OPTIONS: Readonly<RouterOptions> = {
     /** Custom body parser, defaults to Native JSON */
     bodyParser: JSON,
 
-    /** Response content type.
-     * Might need to get updated if the @field bodyParser returns anything else than json  */
-    responseContentType: 'application/json; charset=utf-8',
-
     /** set to true to generate router spec for clients.  */
     getPublicRoutesData: process.env.GENERATE_ROUTER_SPEC === 'true',
 

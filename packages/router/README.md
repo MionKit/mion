@@ -471,7 +471,7 @@ const getMyPet = async (ctx: Context): Promise<Pet> => {
 };
 
 const routes = {getMyPet} satisfies Routes;
-initRouter(getSharedData);
+initRouter({sharedDataFactory: getSharedData});
 export const apiSpec = registerRoutes(routes);
 ```
 

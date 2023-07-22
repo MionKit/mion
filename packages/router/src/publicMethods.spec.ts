@@ -43,14 +43,14 @@ describe('Public Mothods should', () => {
     beforeEach(() => resetRouter());
 
     it('not generate public data when  generateSpec = false', () => {
-        initRouter(getSharedData, {getPublicRoutesData: false});
+        initRouter({sharedDataFactory: getSharedData, getPublicRoutesData: false});
         const publicExecutables = registerRoutes(routes);
 
         expect(publicExecutables).toEqual({});
     });
 
     it('generate all the required public fields for hook and route', () => {
-        initRouter(getSharedData, {getPublicRoutesData: true});
+        initRouter({sharedDataFactory: getSharedData, getPublicRoutesData: true});
         const testR = {
             hook,
             routes: {
@@ -84,7 +84,7 @@ describe('Public Mothods should', () => {
     });
 
     it('be able to convert serialized handler types to json, deserialize and use them for validation', () => {
-        initRouter(getSharedData, {getPublicRoutesData: true});
+        initRouter({sharedDataFactory: getSharedData, getPublicRoutesData: true});
         const testR = {
             addMilliseconds: (ctx, ms: number, date: Date) => date.setMilliseconds(date.getMilliseconds() + ms),
         };
@@ -122,7 +122,7 @@ describe('Public Mothods should', () => {
     });
 
     it('generate public data when suing prefix and suffix', () => {
-        initRouter(getSharedData, {getPublicRoutesData: true, prefix: 'v1', suffix: '.json'});
+        initRouter({sharedDataFactory: getSharedData, getPublicRoutesData: true, prefix: 'v1', suffix: '.json'});
         const testR = {
             hook,
             route1,
@@ -146,7 +146,7 @@ describe('Public Mothods should', () => {
     });
 
     it('generate public data from some routes', () => {
-        initRouter(getSharedData, {getPublicRoutesData: true});
+        initRouter({sharedDataFactory: getSharedData, getPublicRoutesData: true});
         const publicExecutables = registerRoutes(routes);
 
         expect(publicExecutables).toEqual({

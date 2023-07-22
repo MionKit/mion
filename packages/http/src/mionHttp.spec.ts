@@ -27,8 +27,6 @@ describe('serverless router should', () => {
     };
     const getSharedData = () => ({auth: {me: null as any}});
 
-    initHttpRouter(getSharedData, {prefix: 'api/'});
-
     const changeUserName: Route = (context: Context, user: SimpleUser) => {
         return myApp.db.changeUserName(user);
     };
@@ -44,11 +42,11 @@ describe('serverless router should', () => {
 
     let server;
 
-    registerRoutes({changeUserName, getDate, updateHeaders});
-
     const port = 8075;
     beforeAll(async () => {
-        server = await startHttpServer({port});
+        initHttpRouter({sharedDataFactory: getSharedData, prefix: 'api/', port});
+        registerRoutes({changeUserName, getDate, updateHeaders});
+        server = await startHttpServer();
     });
 
     afterAll(
@@ -80,7 +78,11 @@ describe('serverless router should', () => {
 
     it('get an ok response from a route using callback', async () => {
         const portCallback = 8076;
-        const callbacksServer = await startHttpServer({port: portCallback, useCallbacks: true});
+        resetHttpRouter();
+        initHttpRouter({sharedDataFactory: getSharedData, prefix: 'api/', port: portCallback, useCallbacks: true});
+        registerRoutes({changeUserName, getDate, updateHeaders});
+        const callbacksServer = await startHttpServer();
+
         const requestData = {'/api/getDate': [{date: new Date('2022-04-22T00:17:00.000Z')}]};
         const response = await fetch(`http://127.0.0.1:${portCallback}/api/getDate`, {
             method: 'POST',
@@ -146,6 +148,8 @@ describe('serverless router should', () => {
         const smallPort = port + 1;
         let isCalled = false;
         const httpOptions = {
+            sharedDataFactory: getSharedData,
+            prefix: 'api/',
             port: smallPort,
             maxBodySize: 1,
             defaultResponseHeaders: {'x-app-name': 'MyApp', 'x-instance-id': '3089'},
@@ -154,7 +158,10 @@ describe('serverless router should', () => {
                 return false;
             },
         };
-        const smallServer = await startHttpServer(httpOptions);
+        resetHttpRouter();
+        initHttpRouter(httpOptions);
+        registerRoutes({changeUserName, getDate, updateHeaders});
+        const smallServer = await startHttpServer();
         const closeSmallServer = () => {
             return new Promise<void>((resolve, reject) => {
                 smallServer.close((err) => {

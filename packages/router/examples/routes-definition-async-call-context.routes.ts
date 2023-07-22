@@ -1,4 +1,4 @@
-import {setRouterOptions, registerRoutes, getCallContext, Routes, CallContext} from '@mionkit/router';
+import {registerRoutes, getCallContext, Routes, CallContext, initRouter} from '@mionkit/router';
 
 type SharedData = {
     myCompanyName: string;
@@ -25,5 +25,5 @@ const routes = {
     sayHello2, // api/sayHello2
 } satisfies Routes;
 
-setRouterOptions({prefix: 'api/', useAsyncCallContext: true});
+initRouter({prefix: 'api/', useAsyncCallContext: true});
 export const apiSpec = registerRoutes(routes);

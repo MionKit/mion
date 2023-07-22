@@ -35,8 +35,6 @@ describe('serverless router should', () => {
     };
     const getSharedData = () => ({auth: {me: null as any}});
 
-    initAwsLambdaRouter(getSharedData, {prefix: 'api/'});
-
     const changeUserName: Route = (ctx: Context, user: SimpleUser) => {
         return myApp.db.changeUserName(user);
     };
@@ -50,7 +48,10 @@ describe('serverless router should', () => {
         (context.response.headers as Mutable<Headers>)['server'] = 'my-server';
     };
 
-    registerRoutes({changeUserName, getDate, updateHeaders});
+    beforeAll(async () => {
+        initAwsLambdaRouter({sharedDataFactory: getSharedData, prefix: 'api/'});
+        registerRoutes({changeUserName, getDate, updateHeaders});
+    });
 
     const getDefaultGatewayEvent = (
         body: string,
