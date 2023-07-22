@@ -95,11 +95,12 @@ export const resetRouter = () => {
  * @param routerOptions
  * @returns
  */
-export function initRouter<Opts extends RouterOptions>(opts?: Partial<Opts>) {
+export function initRouter<Opts extends RouterOptions>(opts?: Partial<Opts>): Readonly<Opts> {
     if (isRouterInitialized) throw new Error('Router has already been initialized');
     routerOptions = {...routerOptions, ...opts};
+    Object.freeze(routerOptions);
     isRouterInitialized = true;
-    return getRouterOptions<Opts>();
+    return routerOptions as Opts;
 }
 
 export function registerRoutes<R extends Routes>(routes: R): PublicMethods<R> {
