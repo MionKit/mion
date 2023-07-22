@@ -332,6 +332,12 @@ export type PublicHook<H extends Handler> = {
 
 export type PublicMethod<H extends Handler = any> = PublicRoute<H> | PublicHook<H>;
 
+export type PublicResponse = {
+    [key: string]: SuccessRouteResponse<any, any> | FailsRouteResponse<any, any>;
+};
+export type SuccessRouteResponse<Ret, Err extends RouteError> = [Ret, undefined];
+export type FailsRouteResponse<Ret, Err extends RouteError> = [undefined, Err];
+
 // #######  type guards #######
 
 export function isHandler(entry: HookDef | Route | Routes): entry is Handler {
