@@ -13,7 +13,7 @@ export const JSON_CONTENT_TYPE = 'application/json; charset=utf-8';
 export const ALLOWED_HTTP_METHODS = ['POST', 'OPTIONS'];
 export const JSON_TYPE_HEADER = {CONTENT_TYPE_HEADER_NAME: JSON_CONTENT_TYPE};
 
-export const DEFAULT_HTTP_OPTIONS: HttpOptions = {
+export const DEFAULT_HTTP_OPTIONS: Partial<HttpOptions> = {
     protocol: 'http',
     port: 80,
     options: {

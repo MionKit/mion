@@ -150,7 +150,7 @@ export interface HookExecutable extends Executable {
 // ####### Call Context #######
 
 /** The call Context object passed as first parameter to any hook or route */
-export type CallContext<SharedData = any, RawReq extends RawRequest = any, RawResp = any> = {
+export type CallContext<SharedData = any> = {
     /** Route's path */
     readonly path: string;
     /** Router's own request object */
@@ -234,10 +234,10 @@ export type PublicError = {
 export type ErrorReturn = void | RouteError | Promise<RouteError | void>;
 
 export type RawRequestHandler<
-    Context extends CallContext = CallContext,
     RawReq extends RawRequest = any,
     RawResp = any,
-    Opts extends RouterOptions<RawReq> = RouterOptions<RawReq>
+    Context extends CallContext<any> = any,
+    Opts extends RouterOptions<RawReq> = any
 > = (ctx: Context, request: RawReq, response: RawResp, opts: Opts) => ErrorReturn;
 
 /**
@@ -251,21 +251,21 @@ export type RawRequestHandler<
  *  - enableSerialization: false
  */
 export type RawHookDef<
-    Context extends CallContext = CallContext,
     RawReq extends RawRequest = any,
     RawResp = any,
-    Opts extends RouterOptions<RawReq> = RouterOptions<RawReq>
+    Context extends CallContext<any> = any,
+    Opts extends RouterOptions<RawReq> = any
 > = {
-    rawRequestHandler: RawRequestHandler<Context, RawReq, RawResp, Opts>;
+    rawRequestHandler: RawRequestHandler<RawReq, RawResp, Context, Opts>;
 };
 
 export type RawHooksCollection<
-    Context extends CallContext = CallContext,
     RawReq extends RawRequest = any,
     RawResp = any,
-    Opts extends RouterOptions<RawReq> = RouterOptions<RawReq>
+    Opts extends RouterOptions<RawReq> = any,
+    Context extends CallContext<any> = any
 > = {
-    [key: string]: RawHookDef<Context, RawReq, RawResp, Opts>;
+    [key: string]: RawHookDef<RawReq, RawResp, Context, Opts>;
 };
 
 export interface RawExecutable extends Executable {
@@ -284,7 +284,7 @@ export type PublicMethods<Type extends Routes> = {
         ? PublicHook<Type[Property]['hook']>
         : Type[Property] extends RouteDef
         ? PublicRoute<Type[Property]['route']>
-        : Type[Property] extends RawHookDef
+        : Type[Property] extends RawHookDef<any, any>
         ? null
         : Type[Property] extends Handler
         ? PublicRoute<Type[Property]>
@@ -346,8 +346,8 @@ export function isHookDef(entry: HookDef | Route | Routes): entry is HookDef {
     return typeof (entry as HookDef).hook === 'function';
 }
 
-export function isRawHookDef(entry: HookDef | Route | Routes | RawHookDef): entry is RawHookDef {
-    return typeof (entry as RawHookDef).rawRequestHandler === 'function';
+export function isRawHookDef(entry: HookDef | Route | Routes | RawHookDef<any, any>): entry is RawHookDef<any, any> {
+    return typeof (entry as RawHookDef<any, any>).rawRequestHandler === 'function';
 }
 
 export function isRoute(entry: HookDef | Route | Routes): entry is Route {

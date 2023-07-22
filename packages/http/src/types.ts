@@ -9,7 +9,7 @@ import {CallContext, Headers, Obj, RouterOptions} from '@mionkit/router';
 import {IncomingMessage, ServerResponse} from 'http';
 import {ServerOptions} from 'https';
 
-export type HttpOptions = {
+export interface HttpOptions extends RouterOptions<HttpRequest> {
     protocol: 'http' | 'https';
     port: number;
     /** ServerOptions.maxHeaderSize defaults to 8KB, same as default value in new node versions */
@@ -29,7 +29,8 @@ export type HttpOptions = {
     allowExceedMaxBodySize?: (currentSize: number, httpReq: IncomingMessage, httpResponse: ServerResponse) => boolean;
     /** use callback instead promises for handling the requests */
     useCallbacks?: boolean;
-} & Partial<RouterOptions<HttpRequest>>;
+}
 
-export type HttpRequest = IncomingMessage & {body: string};
-export type HttpCallContext<SharedData extends Obj> = CallContext<SharedData, HttpRequest, ServerResponse>;
+export interface HttpRequest extends IncomingMessage {
+    body: string;
+}

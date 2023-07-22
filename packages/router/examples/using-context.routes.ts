@@ -10,7 +10,7 @@ const shared = {auth: {me: null}};
 const getSharedData = (): typeof shared => shared;
 
 type SharedData = ReturnType<typeof getSharedData>;
-type Context = CallContext<SharedData, APIGatewayEvent>;
+type Context = CallContext<SharedData>;
 
 const getMyPet = async (ctx: Context): Promise<Pet> => {
     // use of ctx inside handlers
