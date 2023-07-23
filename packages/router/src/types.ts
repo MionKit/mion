@@ -308,7 +308,7 @@ export type PublicHook<H extends Handler> = {
 
 export type PublicMethod<H extends Handler = any> = PublicRoute<H> | PublicHook<H>;
 
-export type PublicRouteResponse<Ret> = [Ret | undefined, RouteError | undefined];
+export type PublicRouteResponse<Ret> = SuccessRouteResponse<any> | FailsRouteResponse;
 export type SuccessRouteResponse<Ret> = [Ret];
 export type FailsRouteResponse = [null, RouteError];
 export type PublicResponse = {
