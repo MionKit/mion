@@ -49,7 +49,7 @@ The reason for this weird naming is to future proof the router to be able to acc
 ```js
 // ../router/examples/routes-definition.routes.ts
 
-import {setRouterOptions, registerRoutes, Routes} from '@mionkit/router';
+import {registerRoutes, Routes, initRouter} from '@mionkit/router';
 
 const sayHello = (ctx, name: string): string => {
     return `Hello ${name}.`;
@@ -66,7 +66,7 @@ const routes = {
     sayHello2, // api/sayHello2
 } satisfies Routes;
 
-setRouterOptions({prefix: 'api/'});
+initRouter({prefix: 'api/'});
 export const apiSpec = registerRoutes(routes);
 
 ```
