@@ -96,3 +96,5 @@ const routes = {
 initRouter({sharedDataFactory: getSharedData, prefix: 'api/v1'});
 export const apiSpec = registerRoutes(routes);
 type ApiSpec = typeof apiSpec;
+type Auth = ApiSpec['auth'];
+type AuthRet = ReturnType<Auth['_handler']>;

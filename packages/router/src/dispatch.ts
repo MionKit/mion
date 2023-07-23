@@ -249,7 +249,7 @@ export function handleRouteErrors(
     const publicError = getPublicErrorFromRouteError(routeError);
     response.statusCode = routeError.statusCode;
     response.hasErrors = true;
-    (response.body as Mutable<PublicResponse>)[fieldName] = [null, publicError] as FailsRouteResponse<any>;
+    (response.body as Mutable<PublicResponse>)[fieldName] = [null, publicError] as FailsRouteResponse;
     (request.internalErrors as Mutable<RouteError[]>).push(routeError);
 }
 

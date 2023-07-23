@@ -267,12 +267,14 @@ export type PublicMethods<Type extends Routes> = {
         : never;
 };
 
+export type TypedPromise<Resp> = Promise<Awaited<SuccessRouteResponse<Resp> | FailsRouteResponse>>;
+
 // prettier-ignore
 export type PublicHandler<H extends Handler | SimpleHandler> = 
     H extends (ctx: CallContext, ...rest: infer Req) => infer Resp
-    ? (...rest: Req) => Promise<Awaited<Resp>>
+    ? (...rest: Req) => TypedPromise<Resp>
     :  H extends (...rest: infer Req) => infer Resp
-    ? (...rest: Req) => Promise<Awaited<Resp>>
+    ? (...rest: Req) => TypedPromise<Resp>
     : never;
 
 export type PublicRoute<H extends Handler> = {
@@ -306,11 +308,11 @@ export type PublicHook<H extends Handler> = {
 
 export type PublicMethod<H extends Handler = any> = PublicRoute<H> | PublicHook<H>;
 
-export type PublicRouteResponse<Ret, Err extends RouteError> = [Ret | undefined, Err | undefined];
+export type PublicRouteResponse<Ret> = [Ret | undefined, RouteError | undefined];
 export type SuccessRouteResponse<Ret> = [Ret];
-export type FailsRouteResponse<Err extends PublicError> = [null, Err];
+export type FailsRouteResponse = [null, RouteError];
 export type PublicResponse = {
-    [key: string]: SuccessRouteResponse<any> | FailsRouteResponse<any>;
+    [key: string]: SuccessRouteResponse<any> | FailsRouteResponse;
 };
 
 // #######  type guards #######
