@@ -2,14 +2,15 @@ import {RouteError, StatusCodes} from '@mionkit/router';
 import type {Pet} from './myModels';
 import {myApp} from './myApp';
 
-export const getPet = (ctx, id: string): Promise<Pet> => {
+export const getPet = async (ctx, id: string): Promise<Pet | RouteError> => {
     try {
-        const pet = myApp.db.getPet(id);
+        const pet = await myApp.db.getPet(id);
         if (!pet) {
             // Only statusCode and publicMessage will be returned in the response.body
             const statusCode = StatusCodes.BAD_REQUEST;
             const publicMessage = `Pet with id ${id} can't be found`;
-            throw new RouteError({statusCode, publicMessage});
+            // either return or throw are allowed
+            return new RouteError({statusCode, publicMessage});
         }
         return pet;
     } catch (dbError) {
@@ -21,7 +22,7 @@ export const getPet = (ctx, id: string): Promise<Pet> => {
          * Full RouteError containing dbError message and stacktrace will be added
          * to ctx.request.internalErrors, so it can be logged or managed after
          */
-        throw new RouteError({statusCode, publicMessage, originalError: dbError as Error});
+        return new RouteError({statusCode, publicMessage, originalError: dbError as Error});
     }
 };
 
