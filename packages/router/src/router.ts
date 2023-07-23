@@ -27,8 +27,9 @@ import {
     RawExecutable,
     RawHooksCollection,
     NotFoundExecutable,
+    ParamLocation,
 } from './types';
-import {getFunctionReflectionMethods} from '@mionkit/runtype';
+import {ReflectionOptions, getFunctionReflectionMethods} from '@mionkit/runtype';
 import {bodyParserHooks} from './jsonBodyParser';
 import {RouteError, StatusCodes, setErrorOptions} from '@mionkit/core';
 
@@ -49,6 +50,7 @@ const routeNames: Map<string, boolean> = new Map();
 let complexity = 0;
 let routerOptions: RouterOptions = {...DEFAULT_ROUTE_OPTIONS};
 let isRouterInitialized = false;
+let looselyReflectionOptions: ReflectionOptions | undefined;
 
 /** Global hooks to be run before and after any other hooks or routes set using `registerRoutes` */
 const defaultStartHooks = {parseJsonRequestBody: bodyParserHooks.parseJsonRequestBody};
@@ -83,6 +85,7 @@ export const resetRouter = () => {
     startHooks = [];
     endHooks = [];
     isRouterInitialized = false;
+    looselyReflectionOptions = undefined;
 };
 
 /**
@@ -316,7 +319,7 @@ function getExecutableFromHook(hook: HookDef, hookPointer: string[], nestLevel: 
     if (existing) return existing as HookExecutable;
     const handler = getHandler(hook, hookPointer);
 
-    if (!!hook.inHeader && handler.length > getRouteDefaultParams().length + 1) {
+    if (hook.paramsLocation === ParamLocation.Header && handler.length > getRouteDefaultParams().length + 1) {
         throw new Error(
             `Invalid Hook: ${join(...hookPointer)}. In header hooks can only have a single parameter remote parameter.`
         );
@@ -330,7 +333,7 @@ function getExecutableFromHook(hook: HookDef, hookPointer: string[], nestLevel: 
         path: hookName,
         forceRunOnError: !!hook.forceRunOnError,
         canReturnData: !!hook.canReturnData,
-        inHeader: !!hook.inHeader,
+        paramsLocation: hook.paramsLocation || routerOptions.paramsLocation,
         nestLevel,
         fieldName: hookName,
         isRoute: false,
@@ -338,7 +341,7 @@ function getExecutableFromHook(hook: HookDef, hookPointer: string[], nestLevel: 
         handler,
         reflection: getFunctionReflectionMethods(
             handler,
-            routerOptions.reflectionOptions,
+            getReflectionOptions(hook),
             getRouteDefaultParams().length,
             routerOptions.lazyLoadReflection
         ),
@@ -365,7 +368,7 @@ function getExecutableFromRawHook(hook: RawHookDef, hookPointer: string[], nestL
         path: hookName,
         forceRunOnError: true,
         canReturnData: false,
-        inHeader: false,
+        paramsLocation: ParamLocation.Body, // it doesn't matter for raw hooks they do not receive params
         nestLevel,
         fieldName: hookName,
         isRoute: false,
@@ -392,7 +395,7 @@ function getExecutableFromRoute(route: Route, routePointer: string[], nestLevel:
         path: routePath,
         forceRunOnError: false,
         canReturnData: true,
-        inHeader: false,
+        paramsLocation: (route as RouteDef).paramsLocation || routerOptions.paramsLocation,
         fieldName: routerOptions.routeFieldName ? routerOptions.routeFieldName : routePath,
         isRoute: true,
         isRawExecutable: false,
@@ -400,7 +403,7 @@ function getExecutableFromRoute(route: Route, routePointer: string[], nestLevel:
         handler,
         reflection: getFunctionReflectionMethods(
             handler,
-            routerOptions.reflectionOptions,
+            getReflectionOptions(route),
             getRouteDefaultParams().length,
             routerOptions.lazyLoadReflection
         ),
@@ -413,6 +416,12 @@ function getExecutableFromRoute(route: Route, routePointer: string[], nestLevel:
     delete (executable as any).route;
     routesById.set(routePath, executable);
     return executable;
+}
+
+function getReflectionOptions(routeOrHook: Route | HookDef) {
+    return (routeOrHook as RouteDef | HookDef).paramsLocation === ParamLocation.Query
+        ? getReflectionOptionsWithLooselySerialization(routerOptions.reflectionOptions)
+        : routerOptions.reflectionOptions;
 }
 
 function getEntry(index, keyEntryList: RouterKeyEntryList) {
@@ -441,4 +450,12 @@ function getRouteEntryProperties(
 
 function getExecutablesFromRawHooks(hooksDef: RawHooksCollection): RawExecutable[] {
     return Object.entries(hooksDef).map(([key, hook]) => getExecutableFromRawHook(hook, [key], 0, key));
+}
+
+function getReflectionOptionsWithLooselySerialization(reflectionOptions: ReflectionOptions): ReflectionOptions {
+    if (looselyReflectionOptions) return looselyReflectionOptions;
+    const newReflectionOptions = {...reflectionOptions};
+    newReflectionOptions.serializationOptions = {...newReflectionOptions.serializationOptions, loosely: true};
+    looselyReflectionOptions = newReflectionOptions;
+    return looselyReflectionOptions;
 }

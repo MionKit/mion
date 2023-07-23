@@ -20,12 +20,15 @@ import {
     PublicResponse,
     SharedDataFactory,
     isNotFoundExecutable,
+    ParamLocation,
+    RawHeaders,
+    RawStringValue,
 } from './types';
 import {getPublicErrorFromRouteError} from './errors';
 import {getNotFoundExecutionPath, getRouteExecutionPath, getRouterOptions} from './router';
 import {AsyncLocalStorage} from 'node:async_hooks';
 import {isPromise} from 'node:util/types';
-import {Mutable, RouteError, StatusCodes} from '@mionkit/core';
+import {Mutable, Obj, RouteError, StatusCodes} from '@mionkit/core';
 
 type CallBack = (err: any, response: Response | undefined) => void;
 
@@ -108,10 +111,21 @@ async function runExecutionPath(
         if (response.hasErrors && !executable.forceRunOnError) continue;
 
         try {
-            const deserializedParams = deserializeParameters(request, executable);
+            const deserializedParams = deserializeParameters(rawRequest, request, executable);
             const validatedParams = validateParameters(deserializedParams, executable);
-            if (executable.inHeader) (request.headers as Mutable<Request['headers']>)[executable.fieldName] = validatedParams;
-            else (request.body as Mutable<Request['body']>)[executable.fieldName] = validatedParams;
+
+            // reassign deserialized an validated params
+            switch (executable.paramsLocation) {
+                case ParamLocation.Header:
+                    (request.headers as Mutable<Obj>)[executable.fieldName] = validatedParams;
+                    break;
+                case ParamLocation.Query:
+                    (request.queryParams as Mutable<Obj>)[executable.fieldName] = validatedParams;
+                    break;
+                case ParamLocation.Body:
+                    (request.body as Mutable<Request['body']>)[executable.fieldName] = validatedParams;
+                    break;
+            }
 
             const result = await runHandler(validatedParams, context, rawRequest, rawResponse, executable, opts);
             // TODO: should we also validate the handler result? think just forcing declaring the return type with a linter is enough.
@@ -168,29 +182,26 @@ function deserializeParameters(request: Request, executable: Executable): any[] 
     const fieldName = executable.fieldName;
     let params;
 
-    if (executable.inHeader) {
-        params = request.headers[fieldName];
-        if (typeof params === 'string') params = [params];
-        else if (Array.isArray(params)) params = [params.join(',')]; // node http headers could be an array of strings
-        else
-            throw new RouteError({
-                statusCode: StatusCodes.BAD_REQUEST,
-                name: 'Invalid Header',
-                publicMessage: `Invalid header '${fieldName}'. No header found with that name.`,
-            });
+    switch (executable.paramsLocation) {
+        case ParamLocation.Header:
+            params = [request.headers[fieldName]];
+            break;
+        case ParamLocation.Query:
+            params = request.queryParams[fieldName];
+            break;
+        case ParamLocation.Body:
+            params = request.body[fieldName];
+            break;
     }
-
-    // defaults to an empty array if required field is omitted from body
-    params = params || (request.body[fieldName] ?? []);
 
     if (!Array.isArray(params))
         throw new RouteError({
             statusCode: StatusCodes.BAD_REQUEST,
-            name: 'Invalid Params Array',
-            publicMessage: `Invalid params '${fieldName}'. input parameters can only be sent in an array.`,
+            name: 'Invalid Params',
+            publicMessage: `Invalid params '${fieldName}'. input parameters must be ordered in an array.`,
         });
 
-    if (params.length && executable.enableSerialization) {
+    if (executable.enableSerialization) {
         try {
             params = executable.reflection.deserializeParams(params);
         } catch (e) {
@@ -259,6 +270,7 @@ export function getEmptyCallContext(originalPath: string, opts: RouterOptions, r
         path: transformedPath,
         request: {
             headers: rawRequest.headers || {},
+            query: rawRequest.query || {},
             body: {},
             internalErrors: [],
         },

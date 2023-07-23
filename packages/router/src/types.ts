@@ -10,6 +10,14 @@ import {CoreOptions, Obj, PublicError, RouteError} from '@mionkit/core';
 
 // #######  Routes #######
 
+/** Possible params location */
+
+export enum ParamLocation {
+    Header = 'H',
+    Body = 'B',
+    Query = 'Q',
+}
+
 export type SimpleHandler<Ret = any> = (
     /** Remote Call parameters */
     ...parameters: any
@@ -35,6 +43,8 @@ export type RouteDef<Context extends CallContext = CallContext, Ret = any> = {
     enableSerialization?: boolean;
     /** Overrides global useAsyncCallContext */
     useAsyncCallContext?: boolean;
+    /** Possible handler params location for a route */
+    paramsLocation?: ParamLocation.Body | ParamLocation.Query;
     /** Route Handler */
     route: Handler<Context, Ret>;
 };
@@ -46,8 +56,6 @@ export type HookDef<Context extends CallContext = CallContext, Ret = any> = {
     /** Enables returning data in the responseBody,
      * hooks must explicitly enable returning data */
     canReturnData?: boolean;
-    /** Sets the value in a heather rather than the body */
-    inHeader?: boolean;
     /** The fieldName in the request/response body */
     fieldName?: string;
     /** Description of the route, mostly for documentation purposes */
@@ -58,6 +66,8 @@ export type HookDef<Context extends CallContext = CallContext, Ret = any> = {
     enableSerialization?: boolean;
     /** Overrides global useAsyncCallContext */
     useAsyncCallContext?: boolean;
+    /** Possible handler params location for a hook */
+    paramsLocation?: ParamLocation;
     /** Hook handler */
     hook: Handler<Context, Ret> | SimpleHandler<Ret>;
 };
@@ -98,6 +108,8 @@ export interface RouterOptions<Req extends RawRequest = any, SharedData = any> e
     enableSerialization: boolean;
     /** Reflection and Deepkit Serialization-Validation options */
     reflectionOptions: ReflectionOptions;
+    /** default params location for routes and hooks */
+    paramsLocation: ParamLocation.Body | ParamLocation.Query;
     /** Custom JSON parser, defaults to Native js JSON */
     bodyParser: JsonParser;
     /** Used to return public data when adding routes */
@@ -121,7 +133,7 @@ export type Executable = {
     path: string;
     forceRunOnError: boolean;
     canReturnData: boolean;
-    inHeader: boolean;
+    paramsLocation: ParamLocation;
     fieldName: string;
     isRoute: boolean;
     isRawExecutable: boolean;
@@ -136,6 +148,7 @@ export type Executable = {
 
 export interface RouteExecutable extends Executable {
     isRoute: true;
+    paramsLocation: ParamLocation.Body | ParamLocation.Query;
     isRawExecutable: false;
     canReturnData: true;
     forceRunOnError: false;
@@ -170,10 +183,14 @@ export type CallContext<SharedData = any> = {
 
 // ####### REQUEST & RESPONSE #######
 
+// export type Headers = {[header: string]: string | undefined | string[]} | undefined
+
 /** Router own request object */
 export type Request = {
     /** parsed and headers */
     readonly headers: Readonly<Obj>;
+    /** parsed and headers */
+    readonly queryParams: Readonly<Obj>;
     /** parsed body */
     readonly body: Readonly<Obj>;
     /** All errors thrown during the call are stored here so they can bee logged or handler by a some error handler hook */
@@ -186,7 +203,7 @@ export type Response = {
     /** response errors: empty if there were no errors during execution */
     readonly hasErrors: boolean;
     /** response headers */
-    readonly headers: Readonly<Headers>;
+    readonly headers: Readonly<ParsedHeaders>;
     /** the router response data, JS object */
     readonly body: Readonly<PublicResponse>;
     /** json encoded response, contains data and errors if there are any. */
@@ -195,11 +212,23 @@ export type Response = {
 
 /** Any request Object used by the router must follow this interface */
 export type RawRequest = {
-    headers: {[header: string]: string | undefined | string[]} | undefined;
+    headers: RawHeaders; // Raw header get parsed into => Request.headers
+    queryParams: RawQueryParams; // Raw query params get parsed into => Request.queryParams
     body: string | null | undefined | {}; // eslint-disable-line @typescript-eslint/ban-types
 };
 
-export type Headers = {[key: string]: string | boolean | number};
+/*
+ * Any value that could be serialized into a header or query param.
+ * once an RawStringValue get parsed it becomes an SingleValue
+ * this could include booleans as string 'true' | 'false' | '1' | '0', numbers as string, etc.
+ * later this single string would be deserialized to it's expected type
+ */
+export type RawStringValue = string | undefined | string[] | boolean | number;
+export type StringValue = string;
+export type RawHeaders = {[header: string]: RawStringValue} | undefined;
+export type RawQueryParams = {[header: string]: RawStringValue} | undefined;
+export type ParsedHeaders = {[key: string]: StringValue};
+export type ParsedQueryParams = {[key: string]: StringValue};
 
 /** Function used to create the shared data object on each route call  */
 export type SharedDataFactory<SharedData> = () => SharedData;

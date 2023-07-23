@@ -12,7 +12,7 @@ import {DEFAULT_HTTP_OPTIONS} from './constants';
 import type {HttpOptions, HttpRequest} from './types';
 import type {IncomingMessage, Server as HttpServer, ServerResponse} from 'http';
 import type {Server as HttpsServer} from 'https';
-import type {Headers, RawRequest, Response} from '@mionkit/router';
+import type {ParsedHeaders, RawRequest, Response} from '@mionkit/router';
 import {RouteError, StatusCodes} from '@mionkit/core';
 
 type HeadersEntries = [string, string | boolean | number][];
@@ -142,7 +142,7 @@ function reply(httpResponse: ServerResponse, json: string, statusCode: number, s
     httpResponse.end(json);
 }
 
-function addResponseHeaders(httpResponse: ServerResponse, headers: Headers) {
+function addResponseHeaders(httpResponse: ServerResponse, headers: ParsedHeaders) {
     Object.entries(headers).forEach(([key, value]) => httpResponse.setHeader(key, `${value}`));
 }
 

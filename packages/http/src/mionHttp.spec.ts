@@ -7,7 +7,7 @@
 import {registerRoutes} from '@mionkit/router';
 import fetch from 'node-fetch'; // must be node-fetch v2 as v3 is a node module non compatible whit current setup
 import {initHttpRouter, resetHttpRouter, startHttpServer} from './mionHttp';
-import type {CallContext, Headers, Route} from '@mionkit/router';
+import type {CallContext, ParsedHeaders, Route} from '@mionkit/router';
 import {Mutable} from '@mionkit/core';
 
 describe('serverless router should', () => {
@@ -37,8 +37,8 @@ describe('serverless router should', () => {
     };
 
     const updateHeaders: Route = (context: Context): void => {
-        (context.response.headers as Mutable<Headers>)['x-something'] = true;
-        (context.response.headers as Mutable<Headers>)['server'] = 'my-server';
+        (context.response.headers as Mutable<ParsedHeaders>)['x-something'] = true;
+        (context.response.headers as Mutable<ParsedHeaders>)['server'] = 'my-server';
     };
 
     let server;

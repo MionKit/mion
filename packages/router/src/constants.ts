@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {HookDef, RawRequest, RouteDef, RouterOptions} from './types';
+import {HookDef, ParamLocation, RawRequest, RouteDef, RouterOptions} from './types';
 import {DEFAULT_REFLECTION_OPTIONS} from '@mionkit/runtype';
 
 export const ROUTE_PATH_ROOT = '/';
@@ -16,12 +16,13 @@ export const DEFAULT_ROUTE: Readonly<Required<RouteDef>> = {
     enableValidation: true,
     enableSerialization: true,
     useAsyncCallContext: false,
+    paramsLocation: ParamLocation.Body,
     route: () => null,
 };
 export const DEFAULT_HOOK: Readonly<Required<HookDef>> = {
     forceRunOnError: false,
     canReturnData: false,
-    inHeader: false,
+    paramsLocation: ParamLocation.Body,
     fieldName: '',
     description: '',
     enableValidation: true,
@@ -60,6 +61,9 @@ export const DEFAULT_ROUTE_OPTIONS: Readonly<RouterOptions> = {
 
     /** Enables automatic serialization/deserialization */
     enableSerialization: true,
+
+    /** parameters for all routes and hooks are sent in the body by default */
+    paramsLocation: ParamLocation.Body,
 
     /** Reflection and Deepkit Serialization-Validation options */
     reflectionOptions: DEFAULT_REFLECTION_OPTIONS,
