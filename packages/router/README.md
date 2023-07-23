@@ -315,10 +315,10 @@ We recommend return errors instead throwing them as this forces to declare retur
 
 For every error thrown/returned within the Routes/Hooks Two types of errors are generated, a Public and a Private error.
 
-- Public errors: Are returned in the `context.response.publicErrors` and only contain a generic message and a status code, these errors are returned in the response body.
+- Public errors: Are returned in the `context.response.body[routeName]` or `context.response.body[hookName]` and only contain a generic message and a status code.
 - Private errors: are stored in the `context.request.internalErrors` to be managed by any logger hook or similar. These errors also contains the stack trace and the rest of properties of any regular js Error.
 
-Throwing a `RouteError` generates a public error with defined status code and message. Throwing any other error will generate a public 500 error with generic message.
+Throwing a `RouteError` generates a public error with defined status code and public message. Throwing any other error will generate a public 500 error with generic message.
 
 ```ts
 // examples/error-handling.routes.ts
@@ -358,7 +358,7 @@ export const alwaysError = (): void => {
    * Full RouteError containing dbError message and stacktrace will be added
    * to ctx.request.internalErrors, so it can be logged or managed after
    */
-  throw new Error('This error will generate a public 500 error with no message');
+  throw new Error('This error will generate a public 500 error with a generic message');
 };
 ```
 
