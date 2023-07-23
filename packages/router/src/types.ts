@@ -62,6 +62,9 @@ export type HookDef<Context extends CallContext = CallContext, Ret = any> = {
     hook: Handler<Context, Ret> | SimpleHandler<Ret>;
 };
 
+// TODO Simple handlers type are excluded and not working at the moment https://github.com/MionKit/mion/issues/51
+// If we include the simpler handler then declaring routes with no CallContext is not highLighted as error by TS
+
 /** A route can be a full route definition or just the handler */
 export type Route<Context extends CallContext = CallContext, Ret = any> = RouteDef<Context, Ret> | Handler<Context, Ret>;
 

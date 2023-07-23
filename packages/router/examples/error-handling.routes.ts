@@ -33,5 +33,5 @@ export const alwaysError = (): void => {
      * Full RouteError containing dbError message and stacktrace will be added
      * to ctx.request.internalErrors, so it can be logged or managed after
      */
-    throw new Error('This error will generate a public 500 error with no message');
+    throw new Error('This error will generate a public 500 error with a generic message');
 };
