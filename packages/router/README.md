@@ -21,18 +21,17 @@
 
 Thanks to it's RPC routing style is quite performant as there is no need to parse parameters or match regular expressions when finding a route. Just a direct mapping from url to the route handler.
 
-mion Router uses a **Remote Procedure Call** style routing, unlike traditional routers it does not use `GET`, `PUT`, `POST`, or any other method, in fact the Http method is completely ignored.
+mion Router uses a **Remote Procedure Call** style routing, unlike traditional routers it does not use `GET`, `PUT`, `POST`, or any other http method to to identify the route. As well as this rpc style routing, it only supports sending/receiving data as json or in http headers. (TODO: url params might be beneficial as well)
 
-As well as this rpc style restriction, it only supports sending/receiving data as json or in http headers. (TODO: url params might be beneficial as well)
-
-This limitations make it suitable for modern APIs and grants better performant than a more relaxed architectures where many options are allowed.
+These limitations make it suitable for modern APIs and grants some advantages over other routers that need to support many more features.
 
 ### Rpc Like VS Rest
 
-We mention explicitly RPC **like** as the router is designed to work over http, but still providing some advantages that are not possible with REST apis.
+We explicitly mention **RPC like** as the router is designed to work over Http, but still providing some advantages that are not possible with REST apis.
 
 - Type Safety
 - Less complexity
+- Better integration between client and server
 - Better developer experience
 
 Please have a look to this great Presentation for more info about each different type of API and the pros and cons of each one:  
@@ -87,59 +86,14 @@ const routes = {
 export const apiSpec = registerRoutes(routes);
 ```
 
-#### Request & Response
-
-`Route parameters` are passed as an Array in the request body, in a field with the same name as the route. Elements in the array must have the same order as the function parameters.
-
-`Route response` is send back in the body in a field with the same name as the route.
-
-The reason for this weird naming is to future proof the router to be able to accept multiple routes on a single request. However this can be changed setting the `routeFieldName` in the router options.
-
-| POST REQUEST     | Request Body                           | Response Body                                 |
-| ---------------- | -------------------------------------- | --------------------------------------------- |
-| `/api/sayHello`  | `{"/api/sayHello": ["John"] }`         | `{"/api/sayHello": ["Hello John."]}`          |
-| `/api/sayHello2` | `{"/api/sayHello2": ["Adan", "Eve"] }` | `{"/api/sayHello2": ["Hello Adan and Eve."]}` |
-
-#### `Successful & Failed Responses`
-
-The `response.body` can contain responses for any hook or route that has been executed, each individual response can be successful or failed, and follows next format:
-
-```js
-{
-  <routeName>: [routeResponse, RouteError],
-  <hookName>: [hookResponse, RouteError],
-}
-```
-
-- Returned Value = `response.body[<routeName>][0]`
-- Returned Error = `response.body[<routeName>][1]`
-
-When the hook/route is successful then `RouteError` is `undefined` and when the hook/route fails then `routeResponse` is `null` and `RouteError` is defined.
-
-Ie: calling the route `sayHello` with an invalid json body would return bellow `response.body`:
-
-```json
-{
-  "parseJsonRequestBody": [
-    null,
-    {
-      "statusCode": 400,
-      "name": "Invalid Request Body",
-      "message": "Wrong request body. Expecting an json body containing the route name and parameters."
-    }
-  ]
-}
-```
-
-As we can see the route never got to execute and has not returned anything so is not present in the `response.body`. Remember: each hook/route is always sending returning data in a field with the hook's or route's name!
-
 ## `Hooks`
 
-A route might require some extra data like authorization, preconditions, logging, or some processing like body parsing, etc... Hooks are just auxiliary functions that get executed in order before or after a route.
+Hooks are simply auxiliary functions that get executed before or after a route gets executed. We call them hooks because they are functions that get hooked into the execution path of a route.
 
-Hooks can require remote parameters or just acts as a middleware with no params, mion has no concept of middleware, plugin or anything similar, so there is no distinction. A hooks is just a function that gets 'hooked' into the execution path. Multiple Hooks can be executed on but only a single Route will be executed per remote call.
+Hooks are useful when a route might require some extra data like authorization, preconditions, logging, or some processing like body parsing, etc...  
+Multiple Hooks can be executed on but only a single Route will be executed per remote call.
 
-Hooks can use `context.shared` to share data with other routes and hooks. The return value will be ignored unless `canReturnData` is set to true, in that case the returned value will be serialized in and sent back in the response body.
+Hooks can use `context.shared` to share data with other routes and hooks. The return value from a hook will be ignored unless `canReturnData` is set to true, in that case the returned value will be serialized in and sent back in the response body.
 
 ```ts
 // examples/hooks-definition.routes.ts
@@ -184,12 +138,15 @@ const routes = {
 export const apiSpec = registerRoutes(routes);
 ```
 
-## `Raw Request Hooks`
+#### Raw Hooks
 
-In cases where it is required to access the raw request and response it is possible to use a `Raw Request hook handler`. this are functions that receive the Call Context + raw request and response, and cant return any data, can only return or throw errors.
-The router internally uses `Raw request hooks` to parse and stringify the json response into the context.
+In cases where it is required to access the raw underlying request and response it is possible to use a `Raw Hook`. These are functions that receive the `CallContext` + `RawRequest` + `RawResponse` and `RouterOptions`, but can't receive extra parameters, they can only modify the CallContext and return or throw errors. This could be considered equivalent to a @middleware in some other frameworks.
 
-Using these hooks is equivalent to use a normal hook with:
+Raw Hooks are useful to extends the router functionality.
+
+i.e: The router [internally uses](./packages/router/src/jsonBodyParser.ts) `Raw Hooks` to parse and stringify the json request and response.
+
+Using these hooks would be the equivalent to use a normal hook with:
 
 - forceRunOnError: true
 - canReturnData: false
@@ -240,9 +197,86 @@ const routes = {
 export const apiSpec = registerRoutes(routes);
 ```
 
-## `Execution Order`
+## Request & Response
 
-The order in which `routes` and `hooks` are added to the router is important as they will be executed in the same order they are defined (Top Down order). An execution path is generated for every route.
+`Route parameters` are passed as an Array in the request body or possibly a header, in a field with the same name as the route/hook. Elements in the array must have the same order as the function parameters.
+
+`Route response` is send back in the response body in a field with the same name as the route/hook and contains a tuple [`routeResponse`, `RouteError`].
+
+| POST REQUEST     | Request Body                           | Response Body                                 |
+| ---------------- | -------------------------------------- | --------------------------------------------- |
+| `/api/sayHello`  | `{"/api/sayHello": ["John"] }`         | `{"/api/sayHello": ["Hello John."]}`          |
+| `/api/sayHello2` | `{"/api/sayHello2": ["Adan", "Eve"] }` | `{"/api/sayHello2": ["Hello Adan and Eve."]}` |
+
+The reason for this request/response formats is to directly match each executed function in the server with it's input parameters and response values. This architecture will allow combining multiple request on a single one for future version of the router.
+
+#### Response format
+
+The `response.body` contain responses for any hook or route that has been executed, each individual response can be successful or failed, and follows next format:
+
+```js
+{
+  <routeName>: [routeResponse, RouteError],
+  <hookName>: [hookResponse, RouteError],
+}
+```
+
+- Returned Value = `response.body[<routeName>][0]`
+- Returned Error = `response.body[<routeName>][1]`
+
+When the hook/route is successful then `RouteError` is `undefined` and when the hook/route fails then `routeResponse` is `null` and `RouteError` is defined.
+
+Ie: calling the route `sayHello` with an invalid json body would return bellow `response.body`:
+
+```json
+{
+  "parseJsonRequestBody": [
+    null,
+    {
+      "statusCode": 400,
+      "name": "Invalid Request Body",
+      "message": "Wrong request body. Expecting an json body containing the route name and parameters."
+    }
+  ]
+}
+```
+
+As we can see the route never got to execute and has not returned anything so is not present in the `response.body`. Remember: each hook/route is always sending returning data in a field with the hook's or route's name!
+
+#### Request & Response types
+
+the request and response are available within the Call Context explained bellow.
+
+```ts
+// src/types.ts#L173-L194
+
+/** Router own request object */
+export type Request = {
+  /** parsed and headers */
+  readonly headers: Readonly<Obj>;
+  /** parsed body */
+  readonly body: Readonly<Obj>;
+  /** All errors thrown during the call are stored here so they can bee logged or handler by a some error handler hook */
+  readonly internalErrors: Readonly<RouteError[]>;
+};
+
+/** Router own response object */
+export type Response = {
+  readonly statusCode: number;
+  /** response errors: empty if there were no errors during execution */
+  readonly hasErrors: boolean;
+  /** response headers */
+  readonly headers: Readonly<Headers>;
+  /** the router response data, JS object */
+  readonly body: Readonly<PublicResponse>;
+  /** json encoded response, contains data and errors if there are any. */
+  readonly json: string;
+};
+```
+
+## `Execution Path`
+
+The order in which `routes` and `hooks` are added to the router is important as they will be executed in the same order they are defined (Top Down order). An `execution path` is generated for every route.
 
 ```ts
 // examples/valid-definition-order.routes.ts
@@ -311,14 +345,18 @@ export const myInvalidApi = registerRoutes(invalidRoutes); // throws an error
 
 All errors thrown within Routes/Hooks will be catch and handled, as there is no concept of logger within the router, errors are not automatically logged.
 
-We recommend return errors instead throwing them as this forces to declare returned error type and Error type can be inferred by the clients.
+> We recommend returning errors instead throwing them as the returned error type can be inferred by the clients.
 
-For every error thrown/returned within the Routes/Hooks Two types of errors are generated, a Public and a Private error.
+For every error thrown/returned within the Routes/Hooks two types of errors are generated, a Public and a Private error.
 
-- Public errors: Are returned in the `context.response.body[routeName]` or `context.response.body[hookName]` and only contain a generic message and a status code.
-- Private errors: are stored in the `context.request.internalErrors` to be managed by any logger hook or similar. These errors also contains the stack trace and the rest of properties of any regular js Error.
+- Public errors: Are returned in the `context.response.body[routeName]` or `context.response.body[hookName]` and only contain a generic message and a status code (information that can be safely accessed by the clients).
+- Private errors: are stored in the `context.request.internalErrors`These errors also contains the stack trace and the rest of properties of any regular js Error. These errors should be managed by any logger hook or similar to be persisted.
 
-Throwing a `RouteError` generates a public error with defined status code and public message. Throwing any other error will generate a public 500 error with generic message.
+#### `RouteError`
+
+A mion `RouteError` class is provided to help with the creation of errors, response status code etc... It also automatically generates a shared uuid when `RouterOptions.autoGenerateErrorId = true` so same error can be traced between returned public error and internal error that contains all stack trace an any sensitive information.
+
+Throwing any generic `Error` will generate an `HTTP 500 Internal Server Error` response.
 
 ```ts
 // examples/error-handling.routes.ts
@@ -519,20 +557,20 @@ export const apiSpec = registerRoutes(routes);
 ```ts
 // src/types.ts#L156-L166
 
+
+// ####### Call Context #######
+
 /** The call Context object passed as first parameter to any hook or route */
 export type CallContext<SharedData = any> = {
-  /** Route's path after internal transformation*/
-  readonly path: string;
-  /** Router's own request object */
-  readonly request: Request;
-  /** Router's own response object */
-  readonly response: Response;
-  /** shared data between handlers (route/hooks) and that is not returned in the response. */
-  shared: SharedData;
-};
+    /** Route's path after internal transformation*/
+    readonly path: string;
+    /** Router's own request object */
+    readonly request: Request;
+    /** Router's own response object */
+    readonly response: Response;
 ```
 
-#### Declaring the context type of your application
+#### Extending the CallContext
 
 ```ts
 // examples/using-context.routes.ts
@@ -859,6 +897,8 @@ const routes = {
 initRouter({sharedDataFactory: getSharedData, prefix: 'api/v1'});
 export const apiSpec = registerRoutes(routes);
 type ApiSpec = typeof apiSpec;
+type Auth = ApiSpec['auth'];
+type AuthRet = ReturnType<Auth['_handler']>;
 ```
 
 ## &nbsp;
