@@ -172,7 +172,7 @@ export type CallContext<SharedData = any> = {
 
 /** Router own request object */
 export type Request = {
-    /** parsed and headers */
+    /** parsed headers */
     readonly headers: Readonly<Obj>;
     /** parsed body */
     readonly body: Readonly<Obj>;
