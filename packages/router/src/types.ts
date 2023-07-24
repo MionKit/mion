@@ -190,7 +190,7 @@ export type Request = {
     /** parsed and headers */
     readonly headers: Readonly<Obj>;
     /** parsed and headers */
-    readonly queryParams: Readonly<Obj>;
+    readonly query: Readonly<Obj>;
     /** parsed body */
     readonly body: Readonly<Obj>;
     /** All errors thrown during the call are stored here so they can bee logged or handler by a some error handler hook */
@@ -213,7 +213,7 @@ export type Response = {
 /** Any request Object used by the router must follow this interface */
 export type RawRequest = {
     headers: RawHeaders; // Raw header get parsed into => Request.headers
-    queryParams: RawQueryParams; // Raw query params get parsed into => Request.queryParams
+    query: RawQueryParams | URLSearchParams; // Raw query params get parsed into => Request.queryParams
     body: string | null | undefined | {}; // eslint-disable-line @typescript-eslint/ban-types
 };
 

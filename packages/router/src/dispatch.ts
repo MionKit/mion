@@ -23,6 +23,7 @@ import {
     ParamLocation,
     RawHeaders,
     RawStringValue,
+    RawQueryParams,
 } from './types';
 import {getPublicErrorFromRouteError} from './errors';
 import {getNotFoundExecutionPath, getRouteExecutionPath, getRouterOptions} from './router';
@@ -111,7 +112,7 @@ async function runExecutionPath(
         if (response.hasErrors && !executable.forceRunOnError) continue;
 
         try {
-            const deserializedParams = deserializeParameters(rawRequest, request, executable);
+            const deserializedParams = deserializeParameters(request, executable);
             const validatedParams = validateParameters(deserializedParams, executable);
 
             // reassign deserialized an validated params
@@ -120,10 +121,10 @@ async function runExecutionPath(
                     (request.headers as Mutable<Obj>)[executable.fieldName] = validatedParams;
                     break;
                 case ParamLocation.Query:
-                    (request.queryParams as Mutable<Obj>)[executable.fieldName] = validatedParams;
+                    (request.query as Mutable<Obj>)[executable.fieldName] = validatedParams;
                     break;
                 case ParamLocation.Body:
-                    (request.body as Mutable<Request['body']>)[executable.fieldName] = validatedParams;
+                    (request.body as Mutable<Obj>)[executable.fieldName] = validatedParams;
                     break;
             }
 
@@ -180,14 +181,16 @@ function getHandlerResponse(
 function deserializeParameters(request: Request, executable: Executable): any[] {
     if (!executable.reflection) return [];
     const fieldName = executable.fieldName;
+    const headers = request.headers as RawHeaders;
+    const query = request.query as RawQueryParams;
     let params;
 
     switch (executable.paramsLocation) {
         case ParamLocation.Header:
-            params = [request.headers[fieldName]];
+            params = Array.isArray(headers?.[fieldName]) ? headers?.[fieldName] : [headers?.[fieldName]];
             break;
         case ParamLocation.Query:
-            params = request.queryParams[fieldName];
+            params = query?.[fieldName];
             break;
         case ParamLocation.Body:
             params = request.body[fieldName];
@@ -198,7 +201,7 @@ function deserializeParameters(request: Request, executable: Executable): any[] 
         throw new RouteError({
             statusCode: StatusCodes.BAD_REQUEST,
             name: 'Invalid Params',
-            publicMessage: `Invalid params '${fieldName}'. input parameters must be ordered in an array.`,
+            publicMessage: `Invalid params '${fieldName}'. input parameters must be an array.`,
         });
 
     if (executable.enableSerialization) {
@@ -234,7 +237,8 @@ function validateParameters(params: any[], executable: Executable): any[] {
 function serializeResponse(executable: Executable, response: Response, result: any) {
     if (!executable.canReturnData || result === undefined || !executable.reflection) return;
     const serialized = executable.enableSerialization ? executable.reflection.serializeReturn(result) : result;
-    if (executable.inHeader) (response.headers as Mutable<Response['headers']>)[executable.fieldName] = serialized;
+    if (executable.paramsLocation === ParamLocation.Header)
+        (response.headers as Mutable<Response['headers']>)[executable.fieldName] = serialized;
     else (response.body as Mutable<PublicResponse>)[executable.fieldName] = [serialized] as SuccessRouteResponse<any>;
 }
 
