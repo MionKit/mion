@@ -78,7 +78,7 @@ const auth = {
 } satisfies HookDef;
 
 const log: RawHookDef = {
-    rawRequestHandler: (context) => console.log('rawRequestHandler', context.path),
+    rawHook: (context) => console.log('rawHook', context.path),
 };
 
 const routes = {

@@ -125,7 +125,7 @@ export type Executable = {
     fieldName: string;
     isRoute: boolean;
     isRawExecutable: boolean;
-    handler: Handler | SimpleHandler | RawRequestHandler;
+    handler: Handler | SimpleHandler | RawHookHandler;
     reflection: FunctionReflection | null;
     // src: RouteDef | HookDef | RawHookDef;
     enableValidation: boolean;
@@ -210,7 +210,7 @@ export type SharedDataFactory<SharedData> = () => SharedData;
 
 export type ErrorReturn = void | RouteError | Promise<RouteError | void>;
 
-export type RawRequestHandler<
+export type RawHookHandler<
     Context extends CallContext = CallContext,
     RawReq extends RawRequest = RawRequest,
     RawResp = unknown,
@@ -233,7 +233,7 @@ export type RawHookDef<
     RawResp = unknown,
     Opts extends RouterOptions<RawReq> = RouterOptions<RawReq>
 > = {
-    rawRequestHandler: RawRequestHandler<Context, RawReq, RawResp, Opts>;
+    rawHook: RawHookHandler<Context, RawReq, RawResp, Opts>;
 };
 
 export type RawHooksCollection<
@@ -248,7 +248,7 @@ export type RawHooksCollection<
 export interface RawExecutable extends Executable {
     isRoute: false;
     isRawExecutable: true;
-    handler: RawRequestHandler;
+    handler: RawHookHandler;
     reflection: null;
 }
 
@@ -333,7 +333,7 @@ export function isHookDef(entry: HookDef | Route | Routes): entry is HookDef {
 }
 
 export function isRawHookDef(entry: HookDef | Route | Routes | RawHookDef): entry is RawHookDef {
-    return typeof (entry as RawHookDef).rawRequestHandler === 'function';
+    return typeof (entry as RawHookDef).rawHook === 'function';
 }
 
 export function isRoute(entry: HookDef | Route | Routes): entry is Route {

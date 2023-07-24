@@ -164,7 +164,7 @@ import {IncomingMessage, ServerResponse} from 'http';
 
 // client must support write stream
 const fakeProgress = {
-  rawRequestHandler: async (ctx: CallContext, request, req: IncomingMessage, resp: ServerResponse): Promise<void> => {
+  rawHook: async (ctx: CallContext, request, req: IncomingMessage, resp: ServerResponse): Promise<void> => {
     return new Promise((resolve) => {
       const maxTime = 1000;
       const increment = 10;
@@ -879,7 +879,7 @@ const auth = {
 } satisfies HookDef;
 
 const log: RawHookDef = {
-  rawRequestHandler: (context) => console.log('rawRequestHandler', context.path),
+  rawHook: (context) => console.log('rawHook', context.path),
 };
 
 const routes = {
