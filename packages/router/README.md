@@ -252,7 +252,7 @@ the request and response are available within the Call Context explained bellow.
 
 /** Router own request object */
 export type Request = {
-  /** parsed and headers */
+  /** parsed headers */
   readonly headers: Readonly<Obj>;
   /** parsed body */
   readonly body: Readonly<Obj>;
@@ -555,19 +555,19 @@ export const apiSpec = registerRoutes(routes);
 #### Call Context Type
 
 ```ts
-// src/types.ts#L156-L166
-
-
-// ####### Call Context #######
+// src/types.ts#L159-L169
 
 /** The call Context object passed as first parameter to any hook or route */
 export type CallContext<SharedData = any> = {
-    /** Route's path after internal transformation*/
-    readonly path: string;
-    /** Router's own request object */
-    readonly request: Request;
-    /** Router's own response object */
-    readonly response: Response;
+  /** Route's path after internal transformation*/
+  readonly path: string;
+  /** Router's own request object */
+  readonly request: Request;
+  /** Router's own response object */
+  readonly response: Response;
+  /** shared data between handlers (route/hooks) and that is not returned in the response. */
+  shared: SharedData;
+};
 ```
 
 #### Extending the CallContext
@@ -751,17 +751,50 @@ module.exports = {
 ## `Router Options`
 
 ```ts
-// src/constants.ts#L78-L111
+// src/constants.ts#L40-L81
 
+export const DEFAULT_ROUTE_OPTIONS: Readonly<RouterOptions> = {
+  /** Prefix for all routes, i.e: api/v1.
+   * path separator is added between the prefix and the route */
+  prefix: '',
 
-    /** Set true to get the call context using `getCallContext` function instead a router's parameter.  */
-    useAsyncCallContext: false,
+  /** Suffix for all routes, i.e: .json.
+   * No path separator is added between the route and the suffix */
+  suffix: '',
+
+  /** Function that transforms the path before finding a route */
+  pathTransform: undefined,
+
+  /**
+   * Configures the fieldName in the request/response body
+   * used to send/receive route's params/response
+   * */
+  routeFieldName: undefined,
+
+  /** Enables automatic parameter validation */
+  enableValidation: true,
+
+  /** Enables automatic serialization/deserialization */
+  enableSerialization: true,
+
+  /** Reflection and Deepkit Serialization-Validation options */
+  reflectionOptions: DEFAULT_REFLECTION_OPTIONS,
+
+  /** Custom body parser, defaults to Native JSON */
+  bodyParser: JSON,
+
+  /** set to true to generate router spec for clients.  */
+  getPublicRoutesData: process.env.GENERATE_ROUTER_SPEC === 'true',
+
+  /** Lazy load reflection.  */
+  lazyLoadReflection: true,
+
+  /** Set true to automatically generate and id for every error.  */
+  autoGenerateErrorId: false,
+
+  /** Set true to get the call context using `getCallContext` function instead a router's parameter.  */
+  useAsyncCallContext: false,
 };
-
-export const ROUTE_KEYS = Object.keys(DEFAULT_ROUTE);
-export const HOOK_KEYS = Object.keys(DEFAULT_HOOK);
-export const MAX_ROUTE_NESTING = 10;
-
 ```
 
 #### Reflection Options
