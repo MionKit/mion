@@ -6,7 +6,6 @@
  * ######## */
 
 import {ClientContext} from 'aws-lambda';
-import fetch from 'node-fetch';
 import {DEFAULT_PREFILL_OPTIONS} from './constants';
 import {RemoteHandler, ClientOptions, RemoteCall, RequestData, ResponseData} from './types';
 
