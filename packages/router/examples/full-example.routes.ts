@@ -1,5 +1,6 @@
-import {registerRoutes, initRouter, StatusCodes, Route} from '@mionkit/router';
-import type {CallContext, HookDef, RawHookDef, RouteError, Routes} from '@mionkit/router';
+import {RouteError, StatusCodes} from '@mionkit/core';
+import {registerRoutes, initRouter, Route} from '@mionkit/router';
+import type {CallContext, HookDef, RawHookDef, Routes} from '@mionkit/router';
 import type {APIGatewayEvent} from 'aws-lambda';
 
 interface User {

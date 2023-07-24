@@ -1,4 +1,4 @@
-import {RouteError, StatusCodes} from '@mionkit/router';
+import {RouteError, StatusCodes} from '@mionkit/core';
 import type {Pet} from './myModels';
 import {myApp} from './myApp';
 
