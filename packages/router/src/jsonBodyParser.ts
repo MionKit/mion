@@ -6,7 +6,6 @@
  * ######## */
 
 import {Response, Request, RouterOptions, RawRequest, RawHooksCollection, CallContext, ErrorReturn} from './types';
-import {getPublicErrorFromRouteError} from './errors';
 import {RouteError, StatusCodes, Obj, Mutable} from '@mionkit/core';
 import {handleRouteErrors} from './dispatch';
 
@@ -76,9 +75,9 @@ export function stringifyResponseBody(
 
 export const bodyParserHooks = {
     parseJsonRequestBody: {
-        rawRequestHandler: parseRequestBody,
+        rawHook: parseRequestBody,
     },
     stringifyJsonResponseBody: {
-        rawRequestHandler: stringifyResponseBody,
+        rawHook: stringifyResponseBody,
     },
 } satisfies RawHooksCollection;

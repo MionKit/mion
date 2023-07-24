@@ -161,7 +161,7 @@ export function getNotFoundExecutionPath(): Executable[] {
     if (notFoundExecutionPath) return notFoundExecutionPath;
     const hookName = '_mion404NotfoundHook_';
     const notFoundHook = {
-        rawRequestHandler: () => {
+        rawHook: () => {
             return new RouteError({statusCode: StatusCodes.NOT_FOUND, publicMessage: `Route not found`});
         },
     } satisfies RawHookDef;
@@ -370,7 +370,7 @@ function getExecutableFromRawHook(hook: RawHookDef, hookPointer: string[], nestL
         fieldName: hookName,
         isRoute: false,
         isRawExecutable: true,
-        handler: hook.rawRequestHandler,
+        handler: hook.rawHook,
         reflection: null,
         enableValidation: false,
         enableSerialization: false,

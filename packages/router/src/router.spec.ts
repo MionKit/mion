@@ -384,13 +384,13 @@ describe('Create routes should', () => {
 
     it('add start and end global hooks', () => {
         const prependHooks = {
-            p1: {rawRequestHandler: (ctx, cb) => cb()},
-            p2: {rawRequestHandler: (ctx, cb) => cb()},
+            p1: {rawHook: (ctx, cb) => cb()},
+            p2: {rawHook: (ctx, cb) => cb()},
         };
 
         const appendHooks = {
-            a1: {rawRequestHandler: (ctx, cb) => cb()},
-            a2: {rawRequestHandler: (ctx, cb) => cb()},
+            a1: {rawHook: (ctx, cb) => cb()},
+            a2: {rawHook: (ctx, cb) => cb()},
         };
         addStartHooks(prependHooks, false);
         addEndHooks(appendHooks, false);
