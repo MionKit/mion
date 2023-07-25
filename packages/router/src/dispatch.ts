@@ -194,11 +194,13 @@ function deserializeParameters(request: Request, executable: Executable): any[] 
     if (params.length && executable.enableSerialization) {
         try {
             params = executable.reflection.deserializeParams(params);
-        } catch (e) {
+        } catch (e: any) {
             throw new RouteError({
                 statusCode: StatusCodes.BAD_REQUEST,
                 name: 'Serialization Error',
                 publicMessage: `Invalid params '${fieldName}', can not deserialize. Parameters might be of the wrong type.`,
+                originalError: e,
+                publicData: e?.errors,
             });
         }
     }
