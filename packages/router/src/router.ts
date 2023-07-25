@@ -35,7 +35,7 @@ import {
     isRouteDef,
     isAnyHookDef,
 } from './types';
-import {getFunctionReflectionMethods} from '@mionkit/runtype';
+import {ReflectionOptions, getFunctionReflectionMethods} from '@mionkit/runtype';
 import {bodyParserHooks} from './jsonBodyParser';
 import {RouteError, StatusCodes, setErrorOptions} from '@mionkit/core';
 
@@ -56,6 +56,7 @@ const routeNames: Map<string, boolean> = new Map();
 let complexity = 0;
 let routerOptions: RouterOptions = {...DEFAULT_ROUTE_OPTIONS};
 let isRouterInitialized = false;
+let looselyReflectionOptions: ReflectionOptions | undefined;
 
 /** Global hooks to be run before and after any other hooks or routes set using `registerRoutes` */
 const defaultStartHooks = {parseJsonRequestBody: bodyParserHooks.parseJsonRequestBody};
@@ -90,6 +91,7 @@ export const resetRouter = () => {
     startHooks = [];
     endHooks = [];
     isRouterInitialized = false;
+    looselyReflectionOptions = undefined;
 };
 
 /**
@@ -354,7 +356,7 @@ function getExecutableFromHook(
         handler,
         reflection: getFunctionReflectionMethods(
             handler,
-            routerOptions.reflectionOptions,
+            getReflectionOptions(hook),
             getRouteDefaultParams().length,
             routerOptions.lazyLoadReflection
         ),
@@ -415,7 +417,7 @@ function getExecutableFromRoute(route: Route, routePointer: string[], nestLevel:
         handler,
         reflection: getFunctionReflectionMethods(
             handler,
-            routerOptions.reflectionOptions,
+            getReflectionOptions(route),
             getRouteDefaultParams().length,
             routerOptions.lazyLoadReflection
         ),
@@ -456,4 +458,17 @@ function getRouteEntryProperties(
 
 function getExecutablesFromRawHooks(hooksDef: RawHooksCollection): RawExecutable[] {
     return Object.entries(hooksDef).map(([key, hook]) => getExecutableFromRawHook(hook, [key], 0, key));
+}
+
+function getReflectionOptions(entry: RouterEntry): ReflectionOptions {
+    if (isHeaderHookDef(entry)) return getReflectionOptionsWithLooselySerialization();
+    return routerOptions.reflectionOptions;
+}
+
+function getReflectionOptionsWithLooselySerialization(): ReflectionOptions {
+    if (looselyReflectionOptions) return looselyReflectionOptions;
+    const newReflectionOptions = {...routerOptions.reflectionOptions};
+    newReflectionOptions.serializationOptions = {...newReflectionOptions.serializationOptions, loosely: true};
+    looselyReflectionOptions = newReflectionOptions;
+    return looselyReflectionOptions;
 }

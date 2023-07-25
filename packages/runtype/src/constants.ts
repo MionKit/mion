@@ -11,11 +11,12 @@ import {ReflectionOptions} from './types';
 export const DEFAULT_REFLECTION_OPTIONS: Readonly<ReflectionOptions> = {
     /**
      * Deepkit Serialization Options
-     * loosely defaults to false, Soft conversion disabled.
-     * !! We Don't recommend to enable soft conversion as validation might fail
+     * !! We Don't recommend to enable soft conversion as json is used to send and receive data and already have support for basic javascript types
+     * Soft conversion is only useful when parameters are sent only as strings like url query params or http headers
+     * @link https://docs.deepkit.io/english/serialization.html#serialisation-options
      * */
     serializationOptions: {
-        loosely: false,
+        loosely: false, // Soft conversion disabled by default
     },
 
     /**

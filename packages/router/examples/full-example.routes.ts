@@ -69,7 +69,7 @@ const deleteUser = (ctx: Context, id: number): User => {
 };
 
 const auth = {
-    fieldName: 'Authorization',
+    headerName: 'Authorization',
     canReturnData: false,
     headerHook: (ctx: Context, token: string): void => {
         if (!myApp.auth.isAuthorized(token)) throw {statusCode: StatusCodes.FORBIDDEN, message: 'Not Authorized'} as RouteError;

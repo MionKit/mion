@@ -81,6 +81,25 @@ describe('Dispatch routes', () => {
             expect(response.body).toEqual({[path]: [{name: 'LOREM', surname: 'Tungsten'}]});
         });
 
+        it('use soft serialization for header params', async () => {
+            initRouter({sharedDataFactory: getSharedData});
+            const isTrue = {
+                canReturnData: true,
+                headerHook: (ctx, isBoolean: boolean) => isBoolean,
+            };
+            registerRoutes({isTrue, changeUserName});
+
+            const request: RawRequest = {
+                headers: {isTrue: 'false'},
+                body: JSON.stringify({['/changeUserName']: [{name: 'Leo', surname: 'Tungsten'}]}),
+            };
+
+            const path = '/changeUserName';
+            const response = await dispatchRoute(path, request, {});
+            expect(response.hasErrors).toBeFalsy();
+            expect(response.headers.isTrue).toEqual(false);
+        });
+
         it('if there are no params input field can be omitted', async () => {
             initRouter({sharedDataFactory: getSharedData});
             registerRoutes({sayHello: () => 'hello'});
@@ -286,6 +305,7 @@ describe('Dispatch routes', () => {
                 statusCode: 400,
                 name: 'Serialization Error',
                 message: `Invalid params '/getSameDate', can not deserialize. Parameters might be of the wrong type.`,
+                errorData: expect.anything(),
             });
         });
 
