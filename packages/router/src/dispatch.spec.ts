@@ -238,8 +238,9 @@ describe('Dispatch routes', () => {
             const error = response.body?.Authorization?.[1];
             expect(error).toEqual({
                 statusCode: 400,
-                name: 'Invalid Header',
-                message: `Invalid header 'Authorization'. No header found with that name.`,
+                name: 'Validation Error',
+                message: `Invalid params in 'Authorization', validation failed.`,
+                errorData: expect.anything(),
             });
         });
 
