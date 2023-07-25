@@ -104,9 +104,8 @@ import type {Pet} from 'MyModels';
 import {myApp} from './myApp';
 
 const authorizationHook = {
-  fieldName: 'Authorization',
-  inHeader: true,
-  async hook(ctx, token: string): Promise<void> {
+  headerName: 'Authorization',
+  async headerHook(ctx, token: string): Promise<void> {
     const me = await getAuthUser(token);
     if (!isAuthorized(me)) throw {code: 401, message: 'user is not authorized'};
     ctx.shared.auth = {me}; // user is added to ctx to shared with other routes/hooks
@@ -137,6 +136,11 @@ const routes = {
 
 export const apiSpec = registerRoutes(routes);
 ```
+
+#### Header Hooks
+
+In cases were the data is sent in the header a 'Header Hook' can be used. this kind of hooks are limited to one parameter besides the context and must be `string`, `number` or `boolean` as no other kind of data is allowed in headers. When using a header hook [soft type conversion](Soft Type Conversion) is used, thats means if declared parameter type is boolean then '1' , '0', 'true', 'false'
+will al be correctly converted to boolean, a '5' will be converted to a number and so on.
 
 #### Raw Hooks
 
@@ -248,9 +252,9 @@ As we can see the route never got to execute and has not returned anything so is
 the request and response are available within the Call Context explained bellow.
 
 ```ts
-// src/types.ts#L173-L194
+// src/types.ts#L244-L265
 
-/** Router own request object */
+/** Router's own request object */
 export type Request = {
   /** parsed headers */
   readonly headers: Readonly<Obj>;
@@ -260,14 +264,14 @@ export type Request = {
   readonly internalErrors: Readonly<RouteError[]>;
 };
 
-/** Router own response object */
+/** Router's own response object */
 export type Response = {
   readonly statusCode: number;
   /** response errors: empty if there were no errors during execution */
   readonly hasErrors: boolean;
   /** response headers */
-  readonly headers: Readonly<Headers>;
-  /** the router response data, JS object */
+  readonly headers: Headers;
+  /** the router response data, body should not be modified manually so marked as Read Only */
   readonly body: Readonly<PublicResponse>;
   /** json encoded response, contains data and errors if there are any. */
   readonly json: string;
@@ -361,7 +365,7 @@ Throwing any generic `Error` will generate an `HTTP 500 Internal Server Error` r
 ```ts
 // examples/error-handling.routes.ts
 
-import {RouteError, StatusCodes} from '@mionkit/router';
+import {RouteError, StatusCodes} from '@mionkit/core';
 import type {Pet} from './myModels';
 import {myApp} from './myApp';
 
@@ -402,24 +406,13 @@ export const alwaysError = (): void => {
 
 ## `Routes & Hooks Config`
 
-<table>
-<tr><th>Routes</th><th>Hooks</th></tr>
-<tr>
-<td>
+#### Routes Configuration
 
 ```ts
-// src/types.ts#L18-L40
-
-/** Route or Hook Handler, the remote function  */
-export type Handler<Context extends CallContext = CallContext, Ret = any> = (
-  /** Call Context */
-  context: Context,
-  /** Remote Call parameters */
-  ...parameters: any
-) => Ret | Promise<Ret>;
+// src/types.ts#L48-L62
 
 /** Route definition */
-export type RouteDef<Context extends CallContext = CallContext, Ret = any> = {
+export interface RouteDef<Context extends CallContext = CallContext, Ret = any> {
   /** overrides route's path and fieldName in request/response body */
   path?: string;
   /** description of the route, mostly for documentation purposes */
@@ -432,24 +425,21 @@ export type RouteDef<Context extends CallContext = CallContext, Ret = any> = {
   useAsyncCallContext?: boolean;
   /** Route Handler */
   route: Handler<Context, Ret>;
-};
+}
 ```
 
-</td>
-<td>
+#### Hooks Configuration
 
 ```ts
-// src/types.ts#L42-L63
+// src/types.ts#L64-L107
 
 /** Hook definition, a function that hooks into the execution path */
-export type HookDef<Context extends CallContext = CallContext, Ret = any> = {
+export interface HookDef<Context extends CallContext = CallContext, Ret = any> {
   /** Executes the hook even if an error was thrown previously */
   forceRunOnError?: boolean;
   /** Enables returning data in the responseBody,
    * hooks must explicitly enable returning data */
   canReturnData?: boolean;
-  /** Sets the value in a heather rather than the body */
-  inHeader?: boolean;
   /** The fieldName in the request/response body */
   fieldName?: string;
   /** Description of the route, mostly for documentation purposes */
@@ -461,13 +451,33 @@ export type HookDef<Context extends CallContext = CallContext, Ret = any> = {
   /** Overrides global useAsyncCallContext */
   useAsyncCallContext?: boolean;
   /** Hook handler */
-  hook: Handler<Context, Ret> | SimpleHandler<Ret>;
-};
-```
+  hook: Handler<Context, Ret>;
+}
 
-</td>
-</tr>
-</table>
+export interface HeaderHookDef<Context extends CallContext = CallContext, Ret = any>
+  extends Omit<HookDef<Context, Ret>, 'hook' | 'fieldName'> {
+  headerName?: string;
+  headerHook: HeaderHandler<Context, Ret>;
+}
+
+/**
+ * Raw hook, used only to access raw request, response and modify the call context.
+ * Does not have serialization or validation enabled.
+ * It is equivalent to:
+ *  - forceRunOnError: true
+ *  - canReturnData: false
+ *  - enableValidation: false
+ *  - enableSerialization: false
+ */
+export interface RawHookDef<
+  Context extends CallContext = CallContext,
+  RawReq extends RawRequest = RawRequest,
+  RawResp = unknown,
+  Opts extends RouterOptions<RawReq> = RouterOptions<RawReq>
+> {
+  rawHook: RawHookHandler<Context, RawReq, RawResp, Opts>;
+}
+```
 
 #### Extending Route and Hook Types
 
@@ -523,8 +533,7 @@ let currentSharedData: any = null;
 
 const authorizationHook = {
   fieldName: 'Authorization',
-  inHeader: true,
-  async hook(ctx, token: string): Promise<void> {
+  async headerHook(ctx, token: string): Promise<void> {
     const me = await getAuthUser(token);
     if (!isAuthorized(me)) throw {code: 401, message: 'user is not authorized'};
     ctx.shared.auth = {me}; // user is added to ctx to shared with other routes/hooks
@@ -555,7 +564,7 @@ export const apiSpec = registerRoutes(routes);
 #### Call Context Type
 
 ```ts
-// src/types.ts#L159-L169
+// src/types.ts#L227-L237
 
 /** The call Context object passed as first parameter to any hook or route */
 export type CallContext<SharedData = any> = {
@@ -611,7 +620,7 @@ It is also possible to configure the router to NOT pass the `CallContext` as fir
 ```ts
 // examples/routes-definition-async-call-context.routes.ts
 
-import {registerRoutes, getCallContext, Routes, CallContext, initRouter} from '@mionkit/router';
+import {registerRoutes, getCallContext, Routes, CallContext, initRouter, PureRoutes} from '@mionkit/router';
 
 type SharedData = {
   myCompanyName: string;
@@ -636,7 +645,7 @@ const sayHello2 = {
 const routes = {
   sayHello, // api/sayHello
   sayHello2, // api/sayHello2
-} satisfies Routes;
+} satisfies PureRoutes;
 
 initRouter({prefix: 'api/', useAsyncCallContext: true});
 export const apiSpec = registerRoutes(routes);
@@ -751,7 +760,7 @@ module.exports = {
 ## `Router Options`
 
 ```ts
-// src/constants.ts#L40-L81
+// src/constants.ts#L39-L80
 
 export const DEFAULT_ROUTE_OPTIONS: Readonly<RouterOptions> = {
   /** Prefix for all routes, i.e: api/v1.
@@ -800,17 +809,18 @@ export const DEFAULT_ROUTE_OPTIONS: Readonly<RouterOptions> = {
 #### Reflection Options
 
 ```ts
-// ../runtype/src/constants.ts#L10-L32
+// ../runtype/src/constants.ts#L10-L33
 
 /** Reflection and Deepkit Serialization-Validation options */
 export const DEFAULT_REFLECTION_OPTIONS: Readonly<ReflectionOptions> = {
   /**
    * Deepkit Serialization Options
-   * loosely defaults to false, Soft conversion disabled.
-   * !! We Don't recommend to enable soft conversion as validation might fail
+   * !! We Don't recommend to enable soft conversion as json is used to send and receive data and already have support for basic javascript types
+   * Soft conversion is only useful when parameters are sent only as strings like url query params or http headers
+   * @link https://docs.deepkit.io/english/serialization.html#serialisation-options
    * */
   serializationOptions: {
-    loosely: false,
+    loosely: false, // Soft conversion disabled by default
   },
 
   /**
@@ -832,8 +842,9 @@ export const DEFAULT_REFLECTION_OPTIONS: Readonly<ReflectionOptions> = {
 ```ts
 // examples/full-example.routes.ts
 
-import {registerRoutes, initRouter, StatusCodes, Route} from '@mionkit/router';
-import type {CallContext, HookDef, RawHookDef, RouteError, Routes} from '@mionkit/router';
+import {RouteError, StatusCodes} from '@mionkit/core';
+import {registerRoutes, initRouter, Route} from '@mionkit/router';
+import type {CallContext, HeaderHookDef, HookDef, RawHookDef, Routes} from '@mionkit/router';
 import type {APIGatewayEvent} from 'aws-lambda';
 
 interface User {
@@ -902,14 +913,13 @@ const deleteUser = (ctx: Context, id: number): User => {
 };
 
 const auth = {
-  inHeader: true,
-  fieldName: 'Authorization',
+  headerName: 'Authorization',
   canReturnData: false,
-  hook: (ctx: Context, token: string): void => {
+  headerHook: (ctx: Context, token: string): void => {
     if (!myApp.auth.isAuthorized(token)) throw {statusCode: StatusCodes.FORBIDDEN, message: 'Not Authorized'} as RouteError;
     ctx.shared.me = myApp.auth.getIdentity(token) as User;
   },
-} satisfies HookDef;
+} satisfies HeaderHookDef;
 
 const log: RawHookDef = {
   rawHook: (context) => console.log('rawHook', context.path),

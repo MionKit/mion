@@ -19,7 +19,7 @@ export type Handler<Context extends CallContext = CallContext, Ret = any> = (
 ) => Ret | Promise<Ret>;
 
 /** Header Hook Handler, hook handler for when params are sent in the header  */
-export type HeaderHandler<Context extends CallContext = CallContext, Ret = any, HValue extends ParsedHeader = string> = (
+export type HeaderHandler<Context extends CallContext = CallContext, Ret = any, HValue extends ParsedHeader = any> = (
     /** Call Context */
     context: Context,
     /** Remote Call parameters */
@@ -29,7 +29,7 @@ export type HeaderHandler<Context extends CallContext = CallContext, Ret = any, 
 /** Route or Hook Handler to us when RouterOptions.useAsyncCallContext is enabled */
 export type PureHandler<Ret = any> = (/** Remote Call parameters */ ...parameters: any) => Ret | Promise<Ret>;
 /** Header Hook Handler to us when RouterOptions.useAsyncCallContext is enabled */
-export type PureHeaderHandler<Ret = any, HValue extends ParsedHeader = string> = (
+export type PureHeaderHandler<Ret = any, HValue extends ParsedHeader = any> = (
     /** Remote Call parameters */ headerValue: HValue
 ) => Ret | Promise<Ret>;
 
@@ -241,7 +241,7 @@ export type CallContext<SharedData = any> = {
 // TODO: Study Using a Common Interface getting setting headers and body
 // this way router can use that interface for reading and writing headers and body instead to the context therefore saving memory and cpu
 
-/** Router own request object */
+/** Router's own request object */
 export type Request = {
     /** parsed headers */
     readonly headers: Readonly<Obj>;
@@ -251,7 +251,7 @@ export type Request = {
     readonly internalErrors: Readonly<RouteError[]>;
 };
 
-/** Router own response object */
+/** Router's own response object */
 export type Response = {
     readonly statusCode: number;
     /** response errors: empty if there were no errors during execution */

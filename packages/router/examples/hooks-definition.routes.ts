@@ -4,8 +4,8 @@ import type {Pet} from 'MyModels';
 import {myApp} from './myApp';
 
 const authorizationHook = {
-    fieldName: 'Authorization',
-    async headerHook(ctx, token: Date): Promise<void> {
+    headerName: 'Authorization',
+    async headerHook(ctx, token: string): Promise<void> {
         const me = await getAuthUser(token);
         if (!isAuthorized(me)) throw {code: 401, message: 'user is not authorized'};
         ctx.shared.auth = {me}; // user is added to ctx to shared with other routes/hooks
