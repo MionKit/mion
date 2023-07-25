@@ -1,6 +1,6 @@
 import {RouteError, StatusCodes} from '@mionkit/core';
 import {registerRoutes, initRouter, Route} from '@mionkit/router';
-import type {CallContext, HookDef, RawHookDef, Routes} from '@mionkit/router';
+import type {CallContext, HeaderHookDef, HookDef, RawHookDef, Routes} from '@mionkit/router';
 import type {APIGatewayEvent} from 'aws-lambda';
 
 interface User {
@@ -69,14 +69,13 @@ const deleteUser = (ctx: Context, id: number): User => {
 };
 
 const auth = {
-    inHeader: true,
     fieldName: 'Authorization',
     canReturnData: false,
-    hook: (ctx: Context, token: string): void => {
+    headerHook: (ctx: Context, token: string): void => {
         if (!myApp.auth.isAuthorized(token)) throw {statusCode: StatusCodes.FORBIDDEN, message: 'Not Authorized'} as RouteError;
         ctx.shared.me = myApp.auth.getIdentity(token) as User;
     },
-} satisfies HookDef;
+} satisfies HeaderHookDef;
 
 const log: RawHookDef = {
     rawHook: (context) => console.log('rawHook', context.path),

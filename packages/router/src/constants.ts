@@ -21,7 +21,6 @@ export const DEFAULT_ROUTE: Readonly<Required<RouteDef>> = {
 export const DEFAULT_HOOK: Readonly<Required<HookDef>> = {
     forceRunOnError: false,
     canReturnData: false,
-    inHeader: false,
     fieldName: '',
     description: '',
     enableValidation: true,

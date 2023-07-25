@@ -8,14 +8,9 @@
 import {ReflectionOptions, FunctionReflection, SerializedTypes} from '@mionkit/runtype';
 import {CoreOptions, Obj, PublicError, RouteError} from '@mionkit/core';
 
-// #######  Routes #######
+// #######  Route Handlers #######
 
-export type SimpleHandler<Ret = any> = (
-    /** Remote Call parameters */
-    ...parameters: any
-) => Ret | Promise<Ret>;
-
-/** Route or Hook Handler, the remote function  */
+/** Route or Hook Handler  */
 export type Handler<Context extends CallContext = CallContext, Ret = any> = (
     /** Call Context */
     context: Context,
@@ -23,8 +18,35 @@ export type Handler<Context extends CallContext = CallContext, Ret = any> = (
     ...parameters: any
 ) => Ret | Promise<Ret>;
 
+/** Header Hook Handler, hook handler for when params are sent in the header  */
+export type HeaderHandler<Context extends CallContext = CallContext, Ret = any, HValue extends ParsedHeader = string> = (
+    /** Call Context */
+    context: Context,
+    /** Remote Call parameters */
+    headerValue: HValue
+) => Ret | Promise<Ret>;
+
+/** Route or Hook Handler to us when RouterOptions.useAsyncCallContext is enabled */
+export type PureHandler<Ret = any> = (/** Remote Call parameters */ ...parameters: any) => Ret | Promise<Ret>;
+/** Header Hook Handler to us when RouterOptions.useAsyncCallContext is enabled */
+export type PureHeaderHandler<Ret = any, HValue extends ParsedHeader = string> = (
+    /** Remote Call parameters */ headerValue: HValue
+) => Ret | Promise<Ret>;
+
+/** Handler to use with raw hooks to get access to raw request and response */
+export type RawHookHandler<
+    Context extends CallContext = CallContext,
+    RawReq extends RawRequest = RawRequest,
+    RawResp = unknown,
+    Opts extends RouterOptions<RawReq> = RouterOptions<RawReq>
+> = (ctx: Context, request: RawReq, response: RawResp, opts: Opts) => ErrorReturn;
+
+export type AnyHandler = (...parameters: any) => any | Promise<any>;
+
+// #######  Routes Definitions #######
+
 /** Route definition */
-export type RouteDef<Context extends CallContext = CallContext, Ret = any> = {
+export interface RouteDef<Context extends CallContext = CallContext, Ret = any> {
     /** overrides route's path and fieldName in request/response body */
     path?: string;
     /** description of the route, mostly for documentation purposes */
@@ -37,17 +59,15 @@ export type RouteDef<Context extends CallContext = CallContext, Ret = any> = {
     useAsyncCallContext?: boolean;
     /** Route Handler */
     route: Handler<Context, Ret>;
-};
+}
 
 /** Hook definition, a function that hooks into the execution path */
-export type HookDef<Context extends CallContext = CallContext, Ret = any> = {
+export interface HookDef<Context extends CallContext = CallContext, Ret = any> {
     /** Executes the hook even if an error was thrown previously */
     forceRunOnError?: boolean;
     /** Enables returning data in the responseBody,
      * hooks must explicitly enable returning data */
     canReturnData?: boolean;
-    /** Sets the value in a heather rather than the body */
-    inHeader?: boolean;
     /** The fieldName in the request/response body */
     fieldName?: string;
     /** Description of the route, mostly for documentation purposes */
@@ -59,22 +79,63 @@ export type HookDef<Context extends CallContext = CallContext, Ret = any> = {
     /** Overrides global useAsyncCallContext */
     useAsyncCallContext?: boolean;
     /** Hook handler */
-    hook: Handler<Context, Ret> | SimpleHandler<Ret>;
-};
+    hook: Handler<Context, Ret>;
+}
 
-// TODO Simple handlers type are excluded and not working at the moment https://github.com/MionKit/mion/issues/51
-// If we include the simpler handler then declaring routes with no CallContext is not highLighted as error by TS
+export interface HeaderHookDef<Context extends CallContext = CallContext, Ret = any>
+    extends Omit<HookDef<Context, Ret>, 'hook' | 'fieldName'> {
+    headerName?: string;
+    headerHook: HeaderHandler<Context, Ret>;
+}
+
+/**
+ * Raw hook, used only to access raw request, response and modify the call context.
+ * Does not have serialization or validation enabled.
+ * It is equivalent to:
+ *  - forceRunOnError: true
+ *  - canReturnData: false
+ *  - enableValidation: false
+ *  - enableSerialization: false
+ */
+export interface RawHookDef<
+    Context extends CallContext = CallContext,
+    RawReq extends RawRequest = RawRequest,
+    RawResp = unknown,
+    Opts extends RouterOptions<RawReq> = RouterOptions<RawReq>
+> {
+    rawHook: RawHookHandler<Context, RawReq, RawResp, Opts>;
+}
+
+// #######  Router Object #######
 
 /** A route can be a full route definition or just the handler */
 export type Route<Context extends CallContext = CallContext, Ret = any> = RouteDef<Context, Ret> | Handler<Context, Ret>;
 
-/** Data structure to define all the routes, each entry is a route a hook or sub-routes */
-export type Routes<Context extends CallContext = CallContext> = {
-    [key: string]: RouterItem<Context>;
-};
-
 /** A route entry can be a route, a hook or sub-routes */
-export type RouterItem<Context extends CallContext = CallContext> = HookDef<Context> | Route<Context> | Routes<Context>;
+export type RouterEntry = HookDef | Route | Routes | RawHookDef | HeaderHookDef;
+
+/** Data structure to define all the routes, each entry is a route a hook or sub-routes */
+export interface Routes {
+    [key: string]: RouterEntry;
+}
+
+// #######  Async Context Routes #######
+// RouterOptions.useAsyncCallContext must be enabled when using these types
+
+export interface PureRouteDef<Ret = any> extends RouteDef<any, Ret> {
+    pureRoute: PureHandler<Ret>;
+}
+export interface PureHookDef<Ret = any> extends HookDef {
+    hook: PureHandler<Ret>;
+}
+export interface PureHeaderHookDef<Ret = any> extends HeaderHookDef<any, Ret> {
+    headerHook: PureHeaderHandler<Ret>;
+}
+export type PureRoute<Ret = any> = PureRouteDef<Ret> | PureHandler<Ret>;
+export type PureRouterEntry = PureHookDef | PureHeaderHookDef | PureRoute | PureRoutes | RawHookDef;
+export interface PureRoutes {
+    [key: string]: PureRouterEntry;
+}
 
 // ####### Router Options #######
 
@@ -125,7 +186,7 @@ export type Executable = {
     fieldName: string;
     isRoute: boolean;
     isRawExecutable: boolean;
-    handler: Handler | SimpleHandler | RawHookHandler;
+    handler: AnyHandler;
     reflection: FunctionReflection | null;
     // src: RouteDef | HookDef | RawHookDef;
     enableValidation: boolean;
@@ -139,15 +200,22 @@ export interface RouteExecutable extends Executable {
     isRawExecutable: false;
     canReturnData: true;
     forceRunOnError: false;
-    handler: Handler | SimpleHandler;
+    handler: Handler | PureHandler;
     reflection: FunctionReflection;
 }
 
 export interface HookExecutable extends Executable {
     isRoute: false;
     isRawExecutable: false;
-    handler: Handler | SimpleHandler;
+    handler: Handler | PureHandler | HeaderHandler | PureHeaderHandler;
     reflection: FunctionReflection;
+}
+
+export interface RawExecutable extends Executable {
+    isRoute: false;
+    isRawExecutable: true;
+    handler: RawHookHandler;
+    reflection: null;
 }
 
 export interface NotFoundExecutable extends Executable {
@@ -170,6 +238,9 @@ export type CallContext<SharedData = any> = {
 
 // ####### REQUEST & RESPONSE #######
 
+// TODO: Study Using a Common Interface getting setting headers and body
+// this way router can use that interface for reading and writing headers and body instead to the context therefore saving memory and cpu
+
 /** Router own request object */
 export type Request = {
     /** parsed headers */
@@ -186,8 +257,8 @@ export type Response = {
     /** response errors: empty if there were no errors during execution */
     readonly hasErrors: boolean;
     /** response headers */
-    readonly headers: Readonly<Headers>;
-    /** the router response data, JS object */
+    readonly headers: Headers;
+    /** the router response data, body should not be modified manually so marked as Read Only */
     readonly body: Readonly<PublicResponse>;
     /** json encoded response, contains data and errors if there are any. */
     readonly json: string;
@@ -199,42 +270,16 @@ export type RawRequest = {
     body: string | null | undefined | {}; // eslint-disable-line @typescript-eslint/ban-types
 };
 
+export type ParsedHeader = string | number | boolean | (string | number | boolean)[];
+export type RawHeader = string | number | boolean | undefined | null | (string | number | boolean | undefined | null)[];
 export type Headers = {[key: string]: string | boolean | number};
 
 /** Function used to create the shared data object on each route call  */
 export type SharedDataFactory<SharedData> = () => SharedData;
 
-// #######  Errors #######
-
-// ####### Internal Hooks #######
+// ####### Raw Hooks #######
 
 export type ErrorReturn = void | RouteError | Promise<RouteError | void>;
-
-export type RawHookHandler<
-    Context extends CallContext = CallContext,
-    RawReq extends RawRequest = RawRequest,
-    RawResp = unknown,
-    Opts extends RouterOptions<RawReq> = RouterOptions<RawReq>
-> = (ctx: Context, request: RawReq, response: RawResp, opts: Opts) => ErrorReturn;
-
-/**
- * Internal hook, used only to modify the call context.
- * Does not have serialization or validation enabled.
- * It is equivalent to:
- *  - forceRunOnError: true
- *  - canReturnData: false
- *  - inHeader: false
- *  - enableValidation: false
- *  - enableSerialization: false
- */
-export type RawHookDef<
-    Context extends CallContext = CallContext,
-    RawReq extends RawRequest = RawRequest,
-    RawResp = unknown,
-    Opts extends RouterOptions<RawReq> = RouterOptions<RawReq>
-> = {
-    rawHook: RawHookHandler<Context, RawReq, RawResp, Opts>;
-};
 
 export type RawHooksCollection<
     Context extends CallContext = CallContext,
@@ -245,13 +290,6 @@ export type RawHooksCollection<
     [key: string]: RawHookDef<Context, RawReq, RawResp, Opts>;
 };
 
-export interface RawExecutable extends Executable {
-    isRoute: false;
-    isRawExecutable: true;
-    handler: RawHookHandler;
-    reflection: null;
-}
-
 // ####### Public Facing Types #######
 
 //TODO: some hooks could have no public params and not return any data so they should not be in the public spec
@@ -259,10 +297,12 @@ export interface RawExecutable extends Executable {
 export type PublicMethods<Type extends Routes> = {
     [Property in keyof Type]: Type[Property] extends HookDef
         ? PublicHook<Type[Property]['hook']>
-        : Type[Property] extends RouteDef
-        ? PublicRoute<Type[Property]['route']>
+        : Type[Property] extends HeaderHookDef
+        ? PublicRoute<Type[Property]['headerHook']>
         : Type[Property] extends RawHookDef
         ? null
+        : Type[Property] extends RouteDef
+        ? PublicRoute<Type[Property]['route']>
         : Type[Property] extends Handler
         ? PublicRoute<Type[Property]>
         : Type[Property] extends Routes
@@ -273,7 +313,7 @@ export type PublicMethods<Type extends Routes> = {
 export type TypedPromise<Resp> = Promise<Awaited<SuccessRouteResponse<Resp> | FailsRouteResponse>>;
 
 // prettier-ignore
-export type PublicHandler<H extends Handler | SimpleHandler> = 
+export type PublicHandler<H extends Handler | PureHandler> = 
     H extends (ctx: CallContext, ...rest: infer Req) => infer Resp
     ? (...rest: Req) => TypedPromise<Resp>
     :  H extends (...rest: infer Req) => infer Resp
@@ -320,27 +360,35 @@ export type PublicResponse = {
 
 // #######  type guards #######
 
-export function isHandler(entry: HookDef | Route | Routes): entry is Handler {
+export function isHandler(entry: RouterEntry): entry is Handler {
     return typeof entry === 'function';
 }
 
-export function isRouteDef(entry: HookDef | Route | Routes): entry is RouteDef {
+export function isRouteDef(entry: RouterEntry): entry is RouteDef {
     return typeof (entry as RouteDef).route === 'function';
 }
 
-export function isHookDef(entry: HookDef | Route | Routes): entry is HookDef {
+export function isHookDef(entry: RouterEntry): entry is HookDef {
     return typeof (entry as HookDef).hook === 'function';
 }
 
-export function isRawHookDef(entry: HookDef | Route | Routes | RawHookDef): entry is RawHookDef {
+export function isRawHookDef(entry: RouterEntry): entry is RawHookDef {
     return typeof (entry as RawHookDef).rawHook === 'function';
 }
 
-export function isRoute(entry: HookDef | Route | Routes): entry is Route {
+export function isHeaderHookDef(entry: RouterEntry): entry is HeaderHookDef {
+    return typeof (entry as HeaderHookDef).headerHook === 'function';
+}
+
+export function isAnyHookDef(entry: RouterEntry): entry is HeaderHookDef | HookDef | RawHookDef {
+    return isHookDef(entry) || isRawHookDef(entry) || isHeaderHookDef(entry);
+}
+
+export function isRoute(entry: RouterEntry): entry is Route {
     return typeof entry === 'function' || typeof (entry as RouteDef).route === 'function';
 }
 
-export function isRoutes(entry: any): entry is Route {
+export function isRoutes(entry: RouterEntry | Routes): entry is Route {
     return typeof entry === 'object';
 }
 
