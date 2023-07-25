@@ -34,6 +34,7 @@ import {
     RouterEntry,
     isRouteDef,
     isAnyHookDef,
+    PureRoutes,
 } from './types';
 import {ReflectionOptions, getFunctionReflectionMethods} from '@mionkit/runtype';
 import {bodyParserHooks} from './jsonBodyParser';
@@ -110,7 +111,7 @@ export function initRouter<Opts extends RouterOptions>(opts?: Partial<Opts>): Re
     return routerOptions as Opts;
 }
 
-export function registerRoutes<R extends Routes>(routes: R): PublicMethods<R> {
+export function registerRoutes<R extends Routes | PureRoutes>(routes: R): PublicMethods<R> {
     if (!isRouterInitialized) throw new Error('initRouter should be called first');
     startHooks = getExecutablesFromRawHooks(startHooksDef);
     endHooks = getExecutablesFromRawHooks(endHooksDef);

@@ -18,7 +18,6 @@ import {
     SuccessRouteResponse,
     FailsRouteResponse,
     PublicResponse,
-    SharedDataFactory,
     isNotFoundExecutable,
 } from './types';
 import {getPublicErrorFromRouteError} from './errors';
@@ -85,10 +84,9 @@ async function _dispatchRoute(path: string, rawRequest: RawRequest, rawResponse?
         // we should keep it as small as possible
         const context = getEmptyCallContext(path, opts, rawRequest);
 
-        // gets the execution path for the route or the not found exucution path
         const executionPath = getRouteExecutionPath(context.path) || getNotFoundExecutionPath();
-
         await runExecutionPath(context, rawRequest, rawResponse, executionPath, opts);
+
         return context.response;
     } catch (err: any | RouteError | Error) {
         return Promise.reject(err);
@@ -170,26 +168,20 @@ function deserializeParameters(request: Request, executable: Executable): any[] 
     let params;
 
     if (executable.inHeader) {
-        params = request.headers[fieldName];
-        if (typeof params === 'string') params = [params];
-        else if (Array.isArray(params)) params = [params.join(',')]; // node http headers could be an array of strings
-        else
+        params = request.headers[fieldName] || [];
+        // headers could be arrays in some cases bust mostly individual values
+        // so we need to normalize to an array
+        if (!Array.isArray(params)) params = [params];
+    } else {
+        params = request.body[fieldName] || [];
+        // params sent in body can only be sent in an array
+        if (!Array.isArray(params))
             throw new RouteError({
                 statusCode: StatusCodes.BAD_REQUEST,
-                name: 'Invalid Header',
-                publicMessage: `Invalid header '${fieldName}'. No header found with that name.`,
+                name: 'Invalid Params Array',
+                publicMessage: `Invalid params '${fieldName}'. input parameters can only be sent in an array.`,
             });
     }
-
-    // defaults to an empty array if required field is omitted from body
-    params = params || (request.body[fieldName] ?? []);
-
-    if (!Array.isArray(params))
-        throw new RouteError({
-            statusCode: StatusCodes.BAD_REQUEST,
-            name: 'Invalid Params Array',
-            publicMessage: `Invalid params '${fieldName}'. input parameters can only be sent in an array.`,
-        });
 
     if (params.length && executable.enableSerialization) {
         try {
@@ -208,7 +200,7 @@ function deserializeParameters(request: Request, executable: Executable): any[] 
 }
 
 function validateParameters(params: any[], executable: Executable): any[] {
-    if (!executable.reflection) return [];
+    if (!executable.reflection) return params;
     if (executable.enableValidation) {
         const validationResponse = executable.reflection.validateParams(params);
         if (validationResponse.hasErrors) {

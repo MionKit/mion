@@ -61,15 +61,12 @@ export interface RouteDef<Context extends CallContext = CallContext, Ret = any> 
     route: Handler<Context, Ret>;
 }
 
-/** Hook definition, a function that hooks into the execution path */
-export interface HookDef<Context extends CallContext = CallContext, Ret = any> {
+interface HookBase {
     /** Executes the hook even if an error was thrown previously */
     forceRunOnError?: boolean;
     /** Enables returning data in the responseBody,
      * hooks must explicitly enable returning data */
     canReturnData?: boolean;
-    /** The fieldName in the request/response body */
-    fieldName?: string;
     /** Description of the route, mostly for documentation purposes */
     description?: string;
     /** Overrides global enableValidation */
@@ -78,24 +75,26 @@ export interface HookDef<Context extends CallContext = CallContext, Ret = any> {
     enableSerialization?: boolean;
     /** Overrides global useAsyncCallContext */
     useAsyncCallContext?: boolean;
+}
+
+/** Hook definition, a function that hooks into the execution path */
+export interface HookDef<Context extends CallContext = CallContext, Ret = any> extends HookBase {
+    /** The fieldName in the request/response body */
+    fieldName?: string;
     /** Hook handler */
     hook: Handler<Context, Ret>;
 }
 
-export interface HeaderHookDef<Context extends CallContext = CallContext, Ret = any>
-    extends Omit<HookDef<Context, Ret>, 'hook' | 'fieldName'> {
+/** Header Hook definition, used to handle header params */
+export interface HeaderHookDef<Context extends CallContext = CallContext, Ret = any> extends HookBase {
+    /** the name of the header in the request/response */
     headerName?: string;
     headerHook: HeaderHandler<Context, Ret>;
 }
 
 /**
- * Raw hook, used only to access raw request, response and modify the call context.
- * Does not have serialization or validation enabled.
- * It is equivalent to:
- *  - forceRunOnError: true
- *  - canReturnData: false
- *  - enableValidation: false
- *  - enableSerialization: false
+ * Raw hook, used only to access raw request/response and modify the call context.
+ * Can not declare extra parameters.
  */
 export interface RawHookDef<
     Context extends CallContext = CallContext,
@@ -123,7 +122,7 @@ export interface Routes {
 // RouterOptions.useAsyncCallContext must be enabled when using these types
 
 export interface PureRouteDef<Ret = any> extends RouteDef<any, Ret> {
-    pureRoute: PureHandler<Ret>;
+    route: PureHandler<Ret>;
 }
 export interface PureHookDef<Ret = any> extends HookDef {
     hook: PureHandler<Ret>;
@@ -241,7 +240,7 @@ export type CallContext<SharedData = any> = {
 // TODO: Study Using a Common Interface getting setting headers and body
 // this way router can use that interface for reading and writing headers and body instead to the context therefore saving memory and cpu
 
-/** Router's own request object */
+/** Router's own request object, do not confuse with the underlying raw request */
 export type Request = {
     /** parsed headers */
     readonly headers: Readonly<Obj>;
@@ -251,7 +250,13 @@ export type Request = {
     readonly internalErrors: Readonly<RouteError[]>;
 };
 
-/** Router's own response object */
+/** Any request used by the router must follow this interface */
+export type RawRequest = {
+    headers: {[header: string]: string | undefined | string[]} | undefined;
+    body: string | null | undefined | {}; // eslint-disable-line @typescript-eslint/ban-types
+};
+
+/** Router's own response object, do not confuse with the underlying raw response */
 export type Response = {
     readonly statusCode: number;
     /** response errors: empty if there were no errors during execution */
@@ -262,12 +267,6 @@ export type Response = {
     readonly body: Readonly<PublicResponse>;
     /** json encoded response, contains data and errors if there are any. */
     readonly json: string;
-};
-
-/** Any request Object used by the router must follow this interface */
-export type RawRequest = {
-    headers: {[header: string]: string | undefined | string[]} | undefined;
-    body: string | null | undefined | {}; // eslint-disable-line @typescript-eslint/ban-types
 };
 
 export type ParsedHeader = string | number | boolean | (string | number | boolean)[];

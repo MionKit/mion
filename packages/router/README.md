@@ -19,29 +19,30 @@
 
 🚀 Lightweight and fast HTTP router with automatic validation and serialization out of the box.
 
-Thanks to it's RPC routing style is quite performant as there is no need to parse parameters or match regular expressions when finding a route. Just a direct mapping from url to the route handler.
+Thanks to it's RPC routing style is quite performant as there is no need to parse URLs or match regular expressions when finding a route. Just a direct mapping from url to the route handler.
 
-mion Router uses a **Remote Procedure Call** style routing, unlike traditional routers it does not use `GET`, `PUT`, `POST`, or any other http method to to identify the route. As well as this rpc style routing, it only supports sending/receiving data as json or in http headers. (TODO: url params might be beneficial as well)
+mion Router uses a **Remote Procedure Call** style routing, unlike traditional routers it does not rely on `GET`, `PUT`, `POST`, or any other http method to to identify the route. The router only supports sending/receiving data as json in the body or in http headers. No query params support or any other xml or data formats other than json.
 
-These limitations make it suitable for modern APIs and grants some advantages over other routers that need to support many more features.
+These architectural limitations make it suitable for modern APIs and grants some advantages over other routers that need to support many more features.
 
 ### Rpc Like VS Rest
 
-We explicitly mention **RPC like** as the router is designed to work over Http, but still providing some advantages that are not possible with REST apis.
+We explicitly mention **RPC like** as the router is still designed to work over Http while providing some advantages that are not possible when using REST apis.
 
 - Type Safety
 - Less complexity
 - Better integration between client and server
 - Better developer experience
 
-Please have a look to this great Presentation for more info about each different type of API and the pros and cons of each one:  
-[Nate Barbettini – API Throwdown: RPC vs REST vs GraphQL, Iterate 2018](https://www.youtube.com/watch?v=IvsANO0qZEg)
+Please have a look to bellow great Presentation for more info about each different type of API and the pros and cons of each one: [Nate Barbettini – API Throwdown: RPC vs REST vs GraphQL](https://www.youtube.com/watch?v=IvsANO0qZEg)
 
 ## `Routes`
 
-A route is just a function, the first parameter is always the `call context`, the rest of parameters are extracted from the request body or headers. Route names are defined using a plain javascript object, where every property of the object is the route's name. Adding types is recommended when defining a route so typescript can statically check parameters.
+Routes are just regular functions, the first parameter is always the `call context`, the rest of parameters are sent from remote clients. Route names are defined using a plain javascript object, where every property of the object is the route's name.
 
-mion only cares about the `path`, and completely ignores the http method, so in theory request could be made using `POST` or `PUT`, or the router could be used in any event driven environment where the concept of method does not exist.
+Params are automatically serialized and validated from typescript, no other extra steps required or need to declare schemas or any other validation library. **Types are your schema!**
+
+mion only cares about the `url.path`, and completely ignores the http method, so in theory request could be made using `POST`, `PUT`, `GET`, or the router could be used in any event driven environment where the concept of method does not exist.
 
 ```ts
 // examples/routes-definition.routes.ts
@@ -91,84 +92,79 @@ export const apiSpec = registerRoutes(routes);
 Hooks are simply auxiliary functions that get executed before or after a route gets executed. We call them hooks because they are functions that get hooked into the execution path of a route.
 
 Hooks are useful when a route might require some extra data like authorization, preconditions, logging, or some processing like body parsing, etc...  
-Multiple Hooks can be executed on but only a single Route will be executed per remote call.
+Multiple Hooks can be executed but only a single Route will be executed per remote call.
 
 Hooks can use `context.shared` to share data with other routes and hooks. The return value from a hook will be ignored unless `canReturnData` is set to true, in that case the returned value will be serialized in and sent back in the response body.
 
 ```ts
 // examples/hooks-definition.routes.ts
 
-import {CallContext, Routes, registerRoutes} from '@mionkit/router';
-import {getAuthUser, isAuthorized} from 'MyAuth';
-import type {Pet} from 'MyModels';
+import {CallContext, HookDef, registerRoutes} from '@mionkit/router';
 import {myApp} from './myApp';
 
-const authorizationHook = {
-  headerName: 'Authorization',
-  async headerHook(ctx, token: string): Promise<void> {
-    const me = await getAuthUser(token);
-    if (!isAuthorized(me)) throw {code: 401, message: 'user is not authorized'};
-    ctx.shared.auth = {me}; // user is added to ctx to shared with other routes/hooks
-  },
-};
-
-const getPet = async (ctx, petId: number): Promise<Pet> => {
-  const pet = myApp.deb.getPet(petId);
-  // ...
-  return pet;
-};
-
-const logs = {
+const logger = {
+  // ensures logger is executed even if there are errors in the route or other hooks
   forceRunOnError: true,
-  async hook(ctx: CallContext): Promise<void> {
-    if (ctx.request) await myApp.cloudLogs.error(ctx.path, ctx.request.internalErrors);
+  hook: async (ctx: CallContext): Promise<void> => {
+    const hasErrors = ctx.request.internalErrors.length > 0;
+    if (hasErrors) await myApp.cloudLogs.error(ctx.path, ctx.request.internalErrors);
     else myApp.cloudLogs.log(ctx.path, ctx.shared.me.name);
   },
-};
+} satisfies HookDef;
 
-const routes = {
-  authorizationHook, // header: Authorization (defined using fieldName)
-  users: {
-    getPet,
-  },
-  logs,
-} satisfies Routes;
-
-export const apiSpec = registerRoutes(routes);
+registerRoutes({
+  // ... other routes and hooks
+  logger, // logs things after all other hooks and routes are executed
+});
 ```
 
 #### Header Hooks
 
-In cases were the data is sent in the header a 'Header Hook' can be used. this kind of hooks are limited to one parameter besides the context and must be `string`, `number` or `boolean` as no other kind of data is allowed in headers. When using a header hook [soft type conversion](Soft Type Conversion) is used, thats means if declared parameter type is boolean then '1' , '0', 'true', 'false'
-will al be correctly converted to boolean, a '5' will be converted to a number and so on.
+In cases were the data is received/sent in the headers a 'Header Hook' can be used. this kind of hooks are limited to one parameter besides the context and must be `string`, `number` or `boolean` as no other kind of data is allowed in headers.
+
+When using a header hook [Soft Type Conversion](https://docs.deepkit.io/english/serialization.html#serialisation-loosely-convertion) is used, this means strings like '1' , '0', 'true', 'false'
+will be converted to `boolean` and numeric strings like '5' , '100' will be converted to a `number`.
+
+```ts
+// examples/hooks-header-definition.routes.ts
+
+import {HeaderHookDef, registerRoutes} from '@mionkit/router';
+import {getAuthUser, isAuthorized} from 'MyAuth';
+
+const auth = {
+  /* headerName is optional,
+   * if not declared would use the name of the variable when registering routes
+   * in this case it would be 'auth' */
+  headerName: 'Authorization',
+  headerHook: async (ctx, token: string): Promise<void> => {
+    const me = await getAuthUser(token);
+    if (!isAuthorized(me)) throw {code: 401, message: 'user is not authorized'};
+    ctx.shared.auth = {me}; // user is added to ctx to shared with other routes/hooks
+  },
+} satisfies HeaderHookDef;
+
+registerRoutes({
+  auth,
+  // ... other routes and hooks. If auth fails they wont get executed
+});
+```
 
 #### Raw Hooks
 
-In cases where it is required to access the raw underlying request and response it is possible to use a `Raw Hook`. These are functions that receive the `CallContext` + `RawRequest` + `RawResponse` and `RouterOptions`, but can't receive extra parameters, they can only modify the CallContext and return or throw errors. This could be considered equivalent to a @middleware in some other frameworks.
+In cases where it is required to access the raw underlying request and response it is possible to use a `Raw Hook`. These are functions that receive the `CallContext` , `RawRequest` , `RawResponse` and `RouterOptions`, but can't receive extra parameters or return any data, they can only modify the CallContext and return or throw errors. This could be considered equivalent to a @middleware in some other frameworks.
 
-Raw Hooks are useful to extends the router functionality.
-
-i.e: The router [internally uses](./packages/router/src/jsonBodyParser.ts) `Raw Hooks` to parse and stringify the json request and response.
-
-Using these hooks would be the equivalent to use a normal hook with:
-
-- forceRunOnError: true
-- canReturnData: false
-- inHeader: false
-- enableValidation: false
-- enableSerialization: false
+Raw Hooks are useful to extend the router functionality. I.e: The router [internally uses](./packages/router/src/jsonBodyParser.ts) `Raw Hooks` to parse and stringify the json request and response.
 
 ```ts
-// examples/raw-request-hook-handler.routes.ts
+// examples/hooks-raw-definition.routes.ts
 
-import {CallContext, Routes, registerRoutes} from '@mionkit/router';
-import type {Pet} from 'MyModels';
-import {myApp} from './myApp';
+import {CallContext, RawHookDef, registerRoutes} from '@mionkit/router';
 import {IncomingMessage, ServerResponse} from 'http';
+type HttpRequest = IncomingMessage & {body: any};
 
-// client must support write stream
-const fakeProgress = {
-  rawHook: async (ctx: CallContext, request, req: IncomingMessage, resp: ServerResponse): Promise<void> => {
+// sends a fake progress to the client
+const progress = {
+  rawHook: async (ctx: CallContext, rawRequest: HttpRequest, rawResponse: ServerResponse): Promise<void> => {
     return new Promise((resolve) => {
       const maxTime = 1000;
       const increment = 10;
@@ -179,26 +175,16 @@ const fakeProgress = {
           resolve();
         }
         total += increment;
-        resp.write(`\n${total}%`);
+        rawResponse.write(`\n${total}%`);
       }, increment);
     });
   },
-};
+} satisfies RawHookDef<any, HttpRequest, ServerResponse>;
 
-const getPet = async (ctx, petId: number): Promise<Pet> => {
-  const pet = myApp.deb.getPet(petId);
-  // ...
-  return pet;
-};
-
-const routes = {
-  fakeProgress, // header: Authorization (defined using fieldName)
-  users: {
-    getPet,
-  },
-} satisfies Routes;
-
-export const apiSpec = registerRoutes(routes);
+registerRoutes({
+  progress,
+  // ... other routes and hooks
+});
 ```
 
 ## Request & Response
@@ -207,12 +193,34 @@ export const apiSpec = registerRoutes(routes);
 
 `Route response` is send back in the response body in a field with the same name as the route/hook and contains a tuple [`routeResponse`, `RouteError`].
 
-| POST REQUEST     | Request Body                           | Response Body                                 |
+| Request URL      | Request Body                           | Response Body                                 |
 | ---------------- | -------------------------------------- | --------------------------------------------- |
 | `/api/sayHello`  | `{"/api/sayHello": ["John"] }`         | `{"/api/sayHello": ["Hello John."]}`          |
 | `/api/sayHello2` | `{"/api/sayHello2": ["Adan", "Eve"] }` | `{"/api/sayHello2": ["Hello Adan and Eve."]}` |
 
 The reason for this request/response formats is to directly match each executed function in the server with it's input parameters and response values. This architecture will allow combining multiple request on a single one for future version of the router.
+
+#### Request type
+
+```ts
+// src/types.ts#L243-L257
+
+/** Router's own request object, do not confuse with the underlying raw request */
+export type Request = {
+  /** parsed headers */
+  readonly headers: Readonly<Obj>;
+  /** parsed body */
+  readonly body: Readonly<Obj>;
+  /** All errors thrown during the call are stored here so they can bee logged or handler by a some error handler hook */
+  readonly internalErrors: Readonly<RouteError[]>;
+};
+
+/** Any request used by the router must follow this interface */
+export type RawRequest = {
+  headers: {[header: string]: string | undefined | string[]} | undefined;
+  body: string | null | undefined | {}; // eslint-disable-line @typescript-eslint/ban-types
+};
+```
 
 #### Response format
 
@@ -225,46 +233,32 @@ The `response.body` contain responses for any hook or route that has been execut
 }
 ```
 
-- Returned Value = `response.body[<routeName>][0]`
-- Returned Error = `response.body[<routeName>][1]`
+- `ReturnValue = response.body[<routeName>][0]`
+- `ReturnError = response.body[<routeName>][1]`
 
-When the hook/route is successful then `RouteError` is `undefined` and when the hook/route fails then `routeResponse` is `null` and `RouteError` is defined.
+Ie: calling the route `/api/sayHello` with an invalid json body would return bellow response 👇
 
-Ie: calling the route `sayHello` with an invalid json body would return bellow `response.body`:
+`HTTP 400 Invalid Request`
 
 ```json
 {
+  // parseJsonRequestBody is the name of the json parser Raw Hook used internally by mion router
   "parseJsonRequestBody": [
-    null,
-    {
-      "statusCode": 400,
-      "name": "Invalid Request Body",
-      "message": "Wrong request body. Expecting an json body containing the route name and parameters."
-    }
+    null, // return value is null
+    {"statusCode": 400, "name": "Invalid Request", "message": "Wrong request body ..."}
   ]
+  // node there is no field `/api/sayHello` in the response as the route never got executed
 }
 ```
 
-As we can see the route never got to execute and has not returned anything so is not present in the `response.body`. Remember: each hook/route is always sending returning data in a field with the hook's or route's name!
+Remember: each hook/route is always send/returned in a field with the `hook` or `route` name!
 
-#### Request & Response types
-
-the request and response are available within the Call Context explained bellow.
+#### Response type
 
 ```ts
-// src/types.ts#L244-L265
+// src/types.ts#L259-L270
 
-/** Router's own request object */
-export type Request = {
-  /** parsed headers */
-  readonly headers: Readonly<Obj>;
-  /** parsed body */
-  readonly body: Readonly<Obj>;
-  /** All errors thrown during the call are stored here so they can bee logged or handler by a some error handler hook */
-  readonly internalErrors: Readonly<RouteError[]>;
-};
-
-/** Router's own response object */
+/** Router's own response object, do not confuse with the underlying raw response */
 export type Response = {
   readonly statusCode: number;
   /** response errors: empty if there were no errors during execution */
@@ -431,17 +425,14 @@ export interface RouteDef<Context extends CallContext = CallContext, Ret = any> 
 #### Hooks Configuration
 
 ```ts
-// src/types.ts#L64-L107
+// src/types.ts#L64-L93
 
-/** Hook definition, a function that hooks into the execution path */
-export interface HookDef<Context extends CallContext = CallContext, Ret = any> {
+interface HookBase {
   /** Executes the hook even if an error was thrown previously */
   forceRunOnError?: boolean;
   /** Enables returning data in the responseBody,
    * hooks must explicitly enable returning data */
   canReturnData?: boolean;
-  /** The fieldName in the request/response body */
-  fieldName?: string;
   /** Description of the route, mostly for documentation purposes */
   description?: string;
   /** Overrides global enableValidation */
@@ -450,24 +441,32 @@ export interface HookDef<Context extends CallContext = CallContext, Ret = any> {
   enableSerialization?: boolean;
   /** Overrides global useAsyncCallContext */
   useAsyncCallContext?: boolean;
+}
+
+/** Hook definition, a function that hooks into the execution path */
+export interface HookDef<Context extends CallContext = CallContext, Ret = any> extends HookBase {
+  /** The fieldName in the request/response body */
+  fieldName?: string;
   /** Hook handler */
   hook: Handler<Context, Ret>;
 }
 
-export interface HeaderHookDef<Context extends CallContext = CallContext, Ret = any>
-  extends Omit<HookDef<Context, Ret>, 'hook' | 'fieldName'> {
+/** Header Hook definition, used to handle header params */
+export interface HeaderHookDef<Context extends CallContext = CallContext, Ret = any> extends HookBase {
+  /** the name of the header in the request/response */
   headerName?: string;
   headerHook: HeaderHandler<Context, Ret>;
 }
+```
+
+#### Raw Hook Configuration
+
+```ts
+// src/types.ts#L95-L106
 
 /**
- * Raw hook, used only to access raw request, response and modify the call context.
- * Does not have serialization or validation enabled.
- * It is equivalent to:
- *  - forceRunOnError: true
- *  - canReturnData: false
- *  - enableValidation: false
- *  - enableSerialization: false
+ * Raw hook, used only to access raw request/response and modify the call context.
+ * Can not declare extra parameters.
  */
 export interface RawHookDef<
   Context extends CallContext = CallContext,
@@ -521,18 +520,18 @@ The `CallContext` contains all the data related to the ongoing call. Most of the
 
 It is still possible to modify it (the context is not a real Immutable js object). It is always passed as the first parameter to the routes/hooks handlers.
 
-This is an obvious statement but to avoid memory issues you should never store a reference to the context or any of it's properties, the context is passed to every handler so there is no reason to do so.
+This is an obvious statement but to avoid memory issues you should never store a reference to the context or any of it's properties, the context is passed to every handler so there should be no reason to do so.
 
 ```ts
 // examples/don-not-store-context.ts
 
-import {Routes, registerRoutes} from '@mionkit/router';
+import {HeaderHookDef, Routes, registerRoutes} from '@mionkit/router';
 import {getAuthUser, isAuthorized} from 'MyAuth';
 
 let currentSharedData: any = null;
 
 const authorizationHook = {
-  fieldName: 'Authorization',
+  headerName: 'Authorization',
   async headerHook(ctx, token: string): Promise<void> {
     const me = await getAuthUser(token);
     if (!isAuthorized(me)) throw {code: 401, message: 'user is not authorized'};
@@ -541,7 +540,7 @@ const authorizationHook = {
     // THIS IS WRONG! DO NOT STORE THE CONTEXT!
     currentSharedData = ctx.shared;
   },
-};
+} satisfies HeaderHookDef;
 
 const wrongSayHello = (ctx): string => {
   // this is wrong! besides currentContext might have changed, it might be also causing memory problems
@@ -564,7 +563,7 @@ export const apiSpec = registerRoutes(routes);
 #### Call Context Type
 
 ```ts
-// src/types.ts#L227-L237
+// src/types.ts#L226-L236
 
 /** The call Context object passed as first parameter to any hook or route */
 export type CallContext<SharedData = any> = {
@@ -617,10 +616,12 @@ It is also possible to configure the router to NOT pass the `CallContext` as fir
 
 **This is a really nice to have feature** as it is not necessary to propagate the context down the call stack. Unfortunately there is an small drop in performance so it is up to the user to decide if enabling/disabling this feature is justified. This feature is based on node's [AsyncLocalStorage](https://nodejs.org/api/async_context.html#class-asynclocalstorage).
 
-```ts
-// examples/routes-definition-async-call-context.routes.ts
+\*!! Please note that when using async call context you should use the Types `PureRouteDef`, `PureRoutes`, `PureHookDef` etc... so typescript does not highlight errors when the first parameters is not the `CallContext`.
 
-import {registerRoutes, getCallContext, Routes, CallContext, initRouter, PureRoutes} from '@mionkit/router';
+```ts
+// examples/async-call-context.routes.ts
+
+import {registerRoutes, getCallContext, Routes, CallContext, initRouter, PureRoutes, PureRouteDef} from '@mionkit/router';
 
 type SharedData = {
   myCompanyName: string;
@@ -640,12 +641,12 @@ const sayHello2 = {
     const {shared} = getCallContext<Context>();
     return `Hello ${name1} and ${name2}. From ${shared.myCompanyName}.`;
   },
-};
+} satisfies PureRouteDef; // note we are using the PureRouteDef type instead of RouteDef
 
 const routes = {
   sayHello, // api/sayHello
   sayHello2, // api/sayHello2
-} satisfies PureRoutes;
+} satisfies PureRoutes; // note we are using the PureRoutes type instead of Routes
 
 initRouter({prefix: 'api/', useAsyncCallContext: true});
 export const apiSpec = registerRoutes(routes);
@@ -839,75 +840,91 @@ export const DEFAULT_REFLECTION_OPTIONS: Readonly<ReflectionOptions> = {
 
 ## `Full Working Example`
 
+Application
+
 ```ts
-// examples/full-example.routes.ts
+// examples/full-example.app.ts
 
 import {RouteError, StatusCodes} from '@mionkit/core';
 import {registerRoutes, initRouter, Route} from '@mionkit/router';
 import type {CallContext, HeaderHookDef, HookDef, RawHookDef, Routes} from '@mionkit/router';
 import type {APIGatewayEvent} from 'aws-lambda';
 
-interface User {
+export interface User {
   id: number;
   name: string;
   surname: string;
 }
 
-type NewUser = Omit<User, 'id'>;
+export type NewUser = Omit<User, 'id'>;
 
-const myDBService = {
+export const memoryStoreService = {
   usersStore: new Map<number, User>(),
   createUser: (user: NewUser): User => {
-    const id = myDBService.usersStore.size + 1;
+    const id = memoryStoreService.usersStore.size + 1;
     const newUser: User = {id, ...user};
-    myDBService.usersStore.set(id, newUser);
+    memoryStoreService.usersStore.set(id, newUser);
     return newUser;
   },
-  getUser: (id: number): User | undefined => myDBService.usersStore.get(id),
+  getUser: (id: number): User | undefined => memoryStoreService.usersStore.get(id),
   updateUser: (user: User): User | null => {
-    if (!myDBService.usersStore.has(user.id)) return null;
-    myDBService.usersStore.set(user.id, user);
+    if (!memoryStoreService.usersStore.has(user.id)) return null;
+    memoryStoreService.usersStore.set(user.id, user);
     return user;
   },
   deleteUser: (id: number): User | null => {
-    const user = myDBService.usersStore.get(id);
+    const user = memoryStoreService.usersStore.get(id);
     if (!user) return null;
-    myDBService.usersStore.delete(id);
+    memoryStoreService.usersStore.delete(id);
     return user;
   },
 };
 
 // user is authorized if token === 'ABCD'
-const myAuthService = {
+export const myAuthService = {
   isAuthorized: (token: string): boolean => token === 'ABCD',
   getIdentity: (token: string): User | null => (token === 'ABCD' ? ({id: 0, name: 'admin', surname: 'admin'} as User) : null),
 };
-
-const myApp = {
-  db: myDBService,
+export const myApp = {
+  store: memoryStoreService,
   auth: myAuthService,
 };
-const shared = {
+export const shared = {
   me: null as any as User,
 };
-const getSharedData = (): typeof shared => shared;
+export const getSharedData = (): typeof shared => shared;
 
-type SharedData = ReturnType<typeof getSharedData>;
-type Context = CallContext<SharedData>;
+export type SharedData = ReturnType<typeof getSharedData>;
+export type Context = CallContext<SharedData>;
+```
 
-const getUser: Route = (ctx: Context, id) => {
-  const user = myApp.db.getUser(id);
+Routes
+
+```ts
+// examples/full-example.routes.ts
+
+import {RouteError, StatusCodes} from '@mionkit/core';
+import {registerRoutes, initRouter} from '@mionkit/router';
+import type {HeaderHookDef, RawHookDef, Routes} from '@mionkit/router';
+import {Context, NewUser, getSharedData, myApp} from './full-example.app';
+import {User} from '@mionkit/codegen/src/test/myApi.types';
+
+const getUser = (ctx: Context, id: number): User => {
+  const user = myApp.store.getUser(id);
   if (!user) throw {statusCode: 200, message: 'user not found'};
   return user;
 };
-const createUser = (ctx: Context, newUser: NewUser): User => myApp.db.createUser(newUser);
+
+const createUser = (ctx: Context, newUser: NewUser): User => myApp.store.createUser(newUser);
+
 const updateUser = (ctx: Context, user: User): User => {
-  const updated = myApp.db.updateUser(user);
+  const updated = myApp.store.updateUser(user);
   if (!updated) throw {statusCode: 200, message: 'user not found, can not be updated'};
   return updated;
 };
+
 const deleteUser = (ctx: Context, id: number): User => {
-  const deleted = myApp.db.deleteUser(id);
+  const deleted = myApp.store.deleteUser(id);
   if (!deleted) throw {statusCode: 200, message: 'user not found, can not be deleted'};
   return deleted;
 };
@@ -921,9 +938,9 @@ const auth = {
   },
 } satisfies HeaderHookDef;
 
-const log: RawHookDef = {
-  rawHook: (context) => console.log('rawHook', context.path),
-};
+const log = {
+  rawHook: (context): void => console.log('rawHook', context.path),
+} satisfies RawHookDef;
 
 const routes = {
   private: {hook: (): null => null},
@@ -939,9 +956,7 @@ const routes = {
 
 initRouter({sharedDataFactory: getSharedData, prefix: 'api/v1'});
 export const apiSpec = registerRoutes(routes);
-type ApiSpec = typeof apiSpec;
-type Auth = ApiSpec['auth'];
-type AuthRet = ReturnType<Auth['_handler']>;
+export type ApiSpec = typeof apiSpec;
 ```
 
 ## &nbsp;
