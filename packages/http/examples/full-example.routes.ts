@@ -23,8 +23,8 @@ const getDate = (ctx, dataPoint?: DataPoint): DataPoint => {
 
 // #### Init server ####
 
-const routerOpts = {prefix: 'api/'};
+const routerOpts = {sharedDataFactory, prefix: 'api/', port: 8080};
 const routes = {changeUserName, getDate} satisfies Routes;
-initHttpRouter(sharedDataFactory, routerOpts);
+initHttpRouter(routerOpts);
 registerRoutes(routes);
-startHttpServer({port: 8080});
+startHttpServer();

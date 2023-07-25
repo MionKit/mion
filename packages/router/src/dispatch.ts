@@ -11,7 +11,7 @@ import {
     Response,
     Request,
     RouterOptions,
-    SimpleHandler,
+    PureHandler,
     RawRequest,
     isRawExecutable,
     Handler,
@@ -103,6 +103,7 @@ async function runExecutionPath(
     opts: RouterOptions
 ): Promise<Response> {
     const {response, request} = context;
+
     for (let i = 0; i < executables.length; i++) {
         const executable = executables[i];
         if (response.hasErrors && !executable.forceRunOnError) continue;
@@ -156,7 +157,7 @@ function getHandlerResponse(
     }
     if (executable.useAsyncCallContext) {
         return asyncLocalStorage.run(context, () => {
-            return (executable.handler as SimpleHandler)(...handlerParams);
+            return (executable.handler as PureHandler)(...handlerParams);
         });
     }
 
@@ -223,7 +224,7 @@ function validateParameters(params: any[], executable: Executable): any[] {
 function serializeResponse(executable: Executable, response: Response, result: any) {
     if (!executable.canReturnData || result === undefined || !executable.reflection) return;
     const serialized = executable.enableSerialization ? executable.reflection.serializeReturn(result) : result;
-    if (executable.inHeader) (response.headers as Mutable<Response['headers']>)[executable.fieldName] = serialized;
+    if (executable.inHeader) response.headers[executable.fieldName] = serialized;
     else (response.body as Mutable<PublicResponse>)[executable.fieldName] = [serialized] as SuccessRouteResponse<any>;
 }
 

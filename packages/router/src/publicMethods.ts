@@ -27,6 +27,8 @@ import {
     RouteExecutable,
     HookExecutable,
     isRawHookDef,
+    isAnyHookDef,
+    isHeaderHookDef,
 } from './types';
 import {getSerializedFunctionTypes} from '@mionkit/runtype';
 import {Obj} from '@mionkit/core';
@@ -50,7 +52,7 @@ function recursiveGetPublicRoutes<R extends Routes>(routes: R, currentPointer: s
         const newPointerAsString = newPointer.join('.');
         if (isRawHookDef(item)) {
             publicData[key] = null;
-        } else if (isHookDef(item)) {
+        } else if (isHookDef(item) || isHeaderHookDef(item)) {
             const fieldName = getHookFieldName(item, key);
             const executable = getHookExecutable(fieldName);
             if (!executable)
