@@ -41,9 +41,8 @@ describe('Dispatch routes', () => {
     };
 
     const auth = {
-        fieldName: 'Authorization',
-        inHeader: true,
-        hook: (ctx, token: string) => {
+        headerName: 'Authorization',
+        headerHook: (ctx, token: string) => {
             if (token !== '1234') throw {statusCode: StatusCodes.FORBIDDEN, message: 'invalid auth token'};
         },
     };
@@ -217,7 +216,7 @@ describe('Dispatch routes', () => {
             const request = getDefaultRequest('/changeUserName', [{name: 'Leo', surname: 'Tungsten'}]);
 
             const response = await dispatchRoute('/changeUserName', request, {});
-            const error = response.body.Authorization[1];
+            const error = response.body?.Authorization?.[1];
             expect(error).toEqual({
                 statusCode: 400,
                 name: 'Invalid Header',

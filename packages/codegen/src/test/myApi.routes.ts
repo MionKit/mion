@@ -5,45 +5,48 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {initRouter, registerRoutes, RouterOptions, Routes} from '@mionkit/router';
+import {CallContext, initRouter, registerRoutes, RouterOptions, Routes} from '@mionkit/router';
 import {Item, Pet, User} from './myApi.types';
+import {Mutable, Obj} from '@mionkit/core';
+
+const auth = (ctx, token: string): void => {};
+const getUser = async (ctx, id: number): Promise<User> => ({id, name: 'John', surname: 'Smith'});
+const setUser = async (ctx, user: {id: number; name: string; surname: string}, user2?: User): Promise<User> => user2 || user;
+const totalUsers = (): number => 3;
+
+const getPet = async (ctx, id: number): Promise<Pet> => ({id, race: 'Dog', name: 'Lassie'});
+const setPet = async (ctx, pet: Pet): Promise<Pet> => pet;
+
+const getNumber = async (ctx, s: string, n: number): Promise<number> => n;
+const getItem = (ctx, item: Item<User>): Item<User> => ({item: {id: 3, name: 'John', surname: 'Smith'}});
+const getPetOrUser = (ctx, item: Pet | User): Pet | User => item;
+const logErrors = (ctx: CallContext): void => console.log(ctx.request.internalErrors);
+
+const login = (ctx: CallContext, email: string, pass: string): void => {
+    ctx.response.headers.auth = 'AUTH-TOKEN-XWZ';
+};
 
 export const myApiRoutes = {
-    auth: {
-        inHeader: true,
-        hook: (ctx, token: string): void => {},
-    },
+    auth: {headerHook: auth},
     users: {
-        getUser: async (ctx, id: number): Promise<User> => ({id, name: 'John', surname: 'Smith'}),
-        setUser: {
-            // user param is a type Literal, returned user is the a Type Symbol
-            route: async (ctx, user: {id: number; name: string; surname: string}, user2?: User): Promise<User> => user2 || user,
-        },
-        totalUsers: {
-            canReturnData: true,
-            hook(): number {
-                return 3;
-            },
-        },
+        getUser,
+        setUser: setUser,
+        // will return total users count in response body as canReturnData = true
+        totalUsers: {canReturnData: true, hook: totalUsers},
     },
-    pets: {
-        getPet: async (ctx, id: number): Promise<Pet> => ({id, race: 'Dog', name: 'Lassie'}),
-        setPet: async (ctx, pet: Pet): Promise<Pet> => pet,
-    },
+    pets: {getPet, setPet},
     getNumber: {
+        // will use http://myApi.com/utils/getNumber instead http://myApi.com/getNumber
         path: 'utils/getNumber',
-        route: async (ctx, s: string, n: number): Promise<number> => n,
+        route: getNumber,
     },
-    getItem: (ctx, item: Item<User>): Item<User> => ({item: {id: 3, name: 'John', surname: 'Smith'}}),
-    getPetOrUser: (ctx, item: Pet | User): Pet | User => item,
-    last: {hook(): void {}},
+    getItem,
+    getPetOrUser,
+    logErrors: {hook: logErrors},
 } satisfies Routes;
 
 export const publicEndpoints = {
-    login: {
-        inHeader: true,
-        route: (ctx, email: string, pass: string): string => 'AUTH-TOKEN-XWZ',
-    },
+    login,
 } satisfies Routes;
 
 export const getSharedData = (): any => ({});

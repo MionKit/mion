@@ -5,8 +5,7 @@ import {myApp} from './myApp';
 
 const authorizationHook = {
     fieldName: 'Authorization',
-    inHeader: true,
-    async hook(ctx, token: string): Promise<void> {
+    async headerHook(ctx, token: Date): Promise<void> {
         const me = await getAuthUser(token);
         if (!isAuthorized(me)) throw {code: 401, message: 'user is not authorized'};
         ctx.shared.auth = {me}; // user is added to ctx to shared with other routes/hooks

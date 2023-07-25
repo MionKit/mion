@@ -27,12 +27,19 @@ import {
     RawExecutable,
     RawHooksCollection,
     NotFoundExecutable,
+    isRawHookDef,
+    isHeaderHookDef,
+    HeaderHookDef,
+    AnyHandler,
+    RouterEntry,
+    isRouteDef,
+    isAnyHookDef,
 } from './types';
 import {getFunctionReflectionMethods} from '@mionkit/runtype';
 import {bodyParserHooks} from './jsonBodyParser';
 import {RouteError, StatusCodes, setErrorOptions} from '@mionkit/core';
 
-type RouterKeyEntryList = [string, Routes | HookDef | Route][];
+type RouterKeyEntryList = [string, RouterEntry][];
 type RoutesWithId = {
     pathPointer: string[];
     routes: Routes;
@@ -125,7 +132,8 @@ export function getRoutePath(route: Route, path: string) {
     return routerOptions.suffix ? routePath + routerOptions.suffix : routePath;
 }
 
-export function getHookFieldName(item: HookDef | RawHookDef, key: string) {
+export function getHookFieldName(item: HookDef | RawHookDef | HeaderHookDef, key: string): string {
+    if (isHeaderHookDef(item)) return item.headerName || key;
     return (item as HookDef)?.fieldName || key;
 }
 
@@ -204,8 +212,8 @@ function recursiveFlatRoutes(
             throw new Error(`Invalid route: ${join(...newPointer)}. Numeric route names are not allowed`);
 
         // generates a hook
-        if (isHookDef(item)) {
-            routeEntry = getExecutableFromHook(item, newPointer, nestLevel, key);
+        if (isAnyHookDef(item)) {
+            routeEntry = getExecutableFromAnyHook(item, newPointer, nestLevel, key);
             const fieldName = routeEntry.fieldName;
             if (hookNames.has(fieldName))
                 throw new Error(
@@ -274,9 +282,9 @@ function recursiveCreateExecutionPath(
     } else {
         routeKeyedEntries.forEach(([k, entry], i) => {
             complexity++;
-            if (!isHookDef(entry)) return;
+            if (!isAnyHookDef(entry)) return;
             const newPointer = [...currentPointer.slice(0, -1), k];
-            const executable = getExecutableFromHook(entry, newPointer, nestLevel, k);
+            const executable = getExecutableFromAnyHook(entry, newPointer, nestLevel, k);
             if (i < index) return props.preLevelHooks.push(executable);
             if (i > index) return props.postLevelHooks.push(executable);
         });
@@ -304,33 +312,41 @@ function getFullExecutionPath(executionPath: Executable[]): Executable[] {
     return [...startHooks, ...executionPath, ...endHooks];
 }
 
-function getHandler(entry: HookDef | Route, pathPointer: string[]): Handler {
-    const handler = isHandler(entry) ? entry : (entry as HookDef).hook || (entry as RouteDef).route;
-    if (!isHandler(handler)) throw new Error(`Invalid route: ${join(...pathPointer)}. Missing route handler`);
-    return handler;
+function getHandler(entry: RouterEntry, pathPointer: string[]): AnyHandler {
+    if (isHandler(entry)) return entry;
+    if (isRouteDef(entry)) return entry.route;
+    if (isHookDef(entry)) return entry.hook;
+    if (isHeaderHookDef(entry)) return entry.headerHook;
+    if (isRawHookDef(entry)) return entry.rawHook;
+
+    throw new Error(`Invalid route: ${join(...pathPointer)}. Missing route handler`);
 }
 
-function getExecutableFromHook(hook: HookDef, hookPointer: string[], nestLevel: number, key: string): HookExecutable {
+function getExecutableFromAnyHook(
+    hook: HookDef | HeaderHookDef | RawHookDef,
+    hookPointer: string[],
+    nestLevel: number,
+    key: string
+) {
+    if (isRawHookDef(hook)) return getExecutableFromRawHook(hook, hookPointer, nestLevel, key);
+    return getExecutableFromHook(hook, hookPointer, nestLevel, key);
+}
+
+function getExecutableFromHook(
+    hook: HookDef | HeaderHookDef,
+    hookPointer: string[],
+    nestLevel: number,
+    key: string
+): HookExecutable {
     const hookName = getHookFieldName(hook, key);
     const existing = hooksById.get(hookName);
     if (existing) return existing as HookExecutable;
     const handler = getHandler(hook, hookPointer);
-
-    if (!!hook.inHeader && handler.length > getRouteDefaultParams().length + 1) {
-        throw new Error(
-            `Invalid Hook: ${join(...hookPointer)}. In header hooks can only have a single parameter remote parameter.`
-        );
-    }
-
-    if (hookName === 'errors') {
-        throw new Error(`Invalid Hook: ${join(...hookPointer)}. The 'errors' fieldName is reserver for the router.`);
-    }
-
     const executable: HookExecutable = {
         path: hookName,
         forceRunOnError: !!hook.forceRunOnError,
         canReturnData: !!hook.canReturnData,
-        inHeader: !!hook.inHeader,
+        inHeader: isHeaderHookDef(hook),
         nestLevel,
         fieldName: hookName,
         isRoute: false,
@@ -360,7 +376,6 @@ function getExecutableFromRawHook(hook: RawHookDef, hookPointer: string[], nestL
     if (hookName === 'errors') {
         throw new Error(`Invalid Hook: ${join(...hookPointer)}. The 'errors' fieldName is reserver for the router.`);
     }
-
     const executable: RawExecutable = {
         path: hookName,
         forceRunOnError: true,
@@ -420,9 +435,9 @@ function getEntry(index, keyEntryList: RouterKeyEntryList) {
 }
 
 function getRouteEntryProperties(
-    minus1: Routes | HookDef | Route | undefined,
+    minus1: RouterEntry | undefined,
     zero: Executable | RoutesWithId,
-    plus1: Routes | HookDef | Route | undefined
+    plus1: RouterEntry | undefined
 ) {
     const minus1IsRoute = minus1 && isRoute(minus1);
     const zeroIsRoute = !!(zero as Executable).isRoute;
