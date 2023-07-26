@@ -2,7 +2,7 @@
   "compilerOptions": {
     "baseUrl": ".",
     "module": "commonjs",
-    "moduleResolution": "Node",
+    "moduleResolution": "node16",
     "noImplicitAny": false,
     "removeComments": true,
     "noLib": false,
