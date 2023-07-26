@@ -5,10 +5,9 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 import {registerRoutes} from '@mionkit/router';
-import fetch from 'node-fetch'; // must be node-fetch v2 as v3 is a node module non compatible whit current setup
+import fetch from 'node-fetch'; // must be node-fetch v2 as v3 is an ES6 module non compatible whit current setup
 import {initHttpRouter, resetHttpRouter, startHttpServer} from './mionHttp';
-import type {CallContext, Headers, Route} from '@mionkit/router';
-import {Mutable} from '@mionkit/core';
+import type {CallContext, Route} from '@mionkit/router';
 
 describe('serverless router should', () => {
     resetHttpRouter();

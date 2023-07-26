@@ -20,4 +20,26 @@ Browser client for mion Apis
 
 ## Work in progress 🛠️
 
+initializing
+
+```ts
+import type {MyApiSpec} from 'MyApi';
+import {User} from 'models';
+import {ApiOptions} from 'MyApi'; // we need a way to include prefix, suffix and possibly some other stuff
+import {MionErrors} from '@mionkit/core';
+import {initMionClient} from '@mionkit/client';
+
+client = initMionClient<MyApiSpec>();
+
+const userId = 56;
+client.getUser
+  .call(userId)
+  .then((user: User) => {
+    console.log(`Hello ${user.firstName} how you doing today?`);
+  })
+  .catch((error: RouteError) => {
+    if (error.name === MionErrors.NOT_FOUND) console.log('error not found');
+  });
+```
+
 _[MIT](../../LICENSE) LICENSE_

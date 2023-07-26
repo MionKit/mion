@@ -130,18 +130,17 @@ import {Routes, registerRoutes} from '@mionkit/router';
 import type {User} from 'MyModels';
 
 const getUser = async (ctx, entity: {id: number}): Promise<User> => {
-    const user = await ctx.db.getUserById(entity.id);
-    return user;
+  const user = await ctx.db.getUserById(entity.id);
+  return user;
 };
 
 const routes = {
-    users: {
-        getUser, // api/users/getUser
-    },
+  users: {
+    getUser, // api/users/getUser
+  },
 } satisfies Routes;
 
 export const apiSpec = registerRoutes(routes);
-
 ```
 
 </td>
@@ -207,7 +206,7 @@ Reflection must be enabled in _tsconfig.json_
   "compilerOptions": {
     "module": "CommonJS",
     "target": "es6",
-    "moduleResolution": "node",
+    "moduleResolution": "node16",
     "experimentalDecorators": true
   },
   "reflection": true

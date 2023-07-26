@@ -7,8 +7,7 @@
 
 import {ClientContext} from 'aws-lambda';
 import {DEFAULT_PREFILL_OPTIONS} from './constants';
-import {RemoteHandler, ClientOptions, RemoteCall, RequestData, ResponseData} from './types';
-import fetch from 'node-fetch'; // TODO: change to isomorphic-fetch
+import {ClientOptions, RemoteCall, RequestData, ResponseData} from './types';
 
 let clientOptions: ClientOptions = {
     ...DEFAULT_PREFILL_OPTIONS,
