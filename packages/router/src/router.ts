@@ -34,13 +34,12 @@ import {
     RouterEntry,
     isRouteDef,
     isAnyHookDef,
-    PureRoutes,
-    PublicPureMethods,
+    PrivateHookDef,
 } from './types';
 import {ReflectionOptions, getFunctionReflectionMethods} from '@mionkit/runtype';
 import {bodyParserHooks} from './jsonBodyParser';
 import {RouteError, StatusCodes, setErrorOptions} from '@mionkit/core';
-import {getPublicPureRoutes, getPublicRoutes} from './publicMethods';
+import {getPublicRoutes} from './publicMethods';
 
 type RouterKeyEntryList = [string, RouterEntry][];
 type RoutesWithId = {
@@ -113,16 +112,16 @@ export function initRouter<Opts extends RouterOptions>(opts?: Partial<Opts>): Re
     return routerOptions as Opts;
 }
 
-export function registerRoutes<R extends Routes | PureRoutes>(routes: R) {
+export function registerRoutes<R extends Routes>(routes: R): PublicMethods<R> {
     if (!isRouterInitialized) throw new Error('initRouter should be called first');
     startHooks = getExecutablesFromRawHooks(startHooksDef);
     endHooks = getExecutablesFromRawHooks(endHooksDef);
     recursiveFlatRoutes(routes);
     // we only want to get information about the routes when creating api spec
     if (routerOptions.getPublicRoutesData || process.env.GENERATE_ROUTER_SPEC === 'true') {
-        return routerOptions.useAsyncCallContext ? getPublicPureRoutes(routes as PureRoutes) : getPublicRoutes(routes);
+        return getPublicRoutes(routes);
     }
-    return routerOptions.useAsyncCallContext ? ({} as PublicPureMethods<R>) : ({} as PublicMethods<R>);
+    return {} as PublicMethods<R>;
 }
 
 export function getRoutePathFromPointer(route: Route, pointer: string[]) {
@@ -140,10 +139,7 @@ export function getHookFieldName(item: HookDef | RawHookDef | HeaderHookDef, key
 }
 
 export function getRouteDefaultParams(): string[] {
-    if (!routerOptions.useAsyncCallContext) {
-        return ['context'];
-    }
-    return [];
+    return ['context'];
 }
 
 /** Add hooks at the start af the execution path, adds them before any other existing start hooks by default */
@@ -179,6 +175,19 @@ export function getNotFoundExecutionPath(): Executable[] {
     (notFoundHandlerExecutable as NotFoundExecutable).is404 = true;
     notFoundExecutionPath = [...startHooks, notFoundHandlerExecutable, ...endHooks];
     return notFoundExecutionPath;
+}
+
+export function isPrivateHookDef(entry: RouterEntry): entry is PrivateHookDef {
+    if (isRoute(entry)) return false;
+    if (isRawHookDef(entry)) return true;
+    try {
+        const handler = getHandler(entry, []);
+        const hasPublicParams = handler.length > getRouteDefaultParams().length;
+        return !hasPublicParams && !(entry as HookDef).canReturnData;
+    } catch {
+        // error thrown because entry is a Routes object and does not have any handler
+        return false;
+    }
 }
 
 // ############# PRIVATE METHODS #############
@@ -362,7 +371,6 @@ function getExecutableFromHook(
         ),
         enableValidation: hook.enableValidation ?? routerOptions.enableValidation,
         enableSerialization: hook.enableSerialization ?? routerOptions.enableSerialization,
-        useAsyncCallContext: hook.useAsyncCallContext ?? routerOptions.useAsyncCallContext,
         // src: hook,
         selfPointer: hookPointer,
     };
@@ -391,7 +399,6 @@ function getExecutableFromRawHook(hook: RawHookDef, hookPointer: string[], nestL
         reflection: null,
         enableValidation: false,
         enableSerialization: false,
-        useAsyncCallContext: false,
         // src: hook,
         selfPointer: hookPointer,
     };
@@ -423,7 +430,6 @@ function getExecutableFromRoute(route: Route, routePointer: string[], nestLevel:
         ),
         enableValidation: (route as RouteDef).enableValidation ?? routerOptions.enableValidation,
         enableSerialization: (route as RouteDef).enableSerialization ?? routerOptions.enableSerialization,
-        useAsyncCallContext: (route as RouteDef).useAsyncCallContext ?? routerOptions.useAsyncCallContext,
         // src: routeObj,
         selfPointer: routePointer,
     };

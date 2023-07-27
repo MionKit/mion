@@ -610,48 +610,6 @@ initRouter({sharedDataFactory: getSharedData});
 export const apiSpec = registerRoutes(routes);
 ```
 
-#### Async Call Context
-
-It is also possible to configure the router to NOT pass the `CallContext` as first function parameter. When `RouterOptions.useAsyncCallContext` is enabled it is possible to use `getCallContext()` from any function within the handler's call stack.
-
-**This is a really nice to have feature** as it is not necessary to propagate the context down the call stack. Unfortunately there is an small drop in performance so it is up to the user to decide if enabling/disabling this feature is justified. This feature is based on node's [AsyncLocalStorage](https://nodejs.org/api/async_context.html#class-asynclocalstorage).
-
-\*!! Please note that when using async call context you should use the Types `PureRouteDef`, `PureRoutes`, `PureHookDef` etc... so typescript does not highlight errors when the first parameters is not the `CallContext`.
-
-```ts
-// examples/async-call-context.routes.ts
-
-import {registerRoutes, getCallContext, Routes, CallContext, initRouter, PureRoutes, PureRouteDef} from '@mionkit/router';
-
-type SharedData = {
-  myCompanyName: string;
-};
-
-type Context = CallContext<SharedData>;
-
-// Note the context is not passed as first function
-const sayHello = (name: string): string => {
-  const {shared} = getCallContext<Context>();
-  return `Hello ${name}. From ${shared.myCompanyName}.`;
-};
-
-const sayHello2 = {
-  // Note the context is not passed as first function.
-  route(name1: string, name2: string): string {
-    const {shared} = getCallContext<Context>();
-    return `Hello ${name1} and ${name2}. From ${shared.myCompanyName}.`;
-  },
-} satisfies PureRouteDef; // note we are using the PureRouteDef type instead of RouteDef
-
-const routes = {
-  sayHello, // api/sayHello
-  sayHello2, // api/sayHello2
-} satisfies PureRoutes; // note we are using the PureRoutes type instead of Routes
-
-initRouter({prefix: 'api/', useAsyncCallContext: true});
-export const apiSpec = registerRoutes(routes);
-```
-
 ## `Automatic Serialization and Validation`
 
 mion uses [Deepkit's runtime types](https://deepkit.io/) to automatically [validate](https://docs.deepkit.io/english/validation.html) request params and [serialize/deserialize](https://docs.deepkit.io/english/serialization.html) request/response data.

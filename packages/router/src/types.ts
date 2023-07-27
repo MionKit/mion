@@ -6,8 +6,7 @@
  * ######## */
 
 import {ReflectionOptions, FunctionReflection, SerializedTypes} from '@mionkit/runtype';
-import {CoreOptions, Obj, PublicError, RouteError} from '@mionkit/core';
-import {registerRoutes} from '..';
+import {CoreOptions, Obj, RouteError} from '@mionkit/core';
 
 // #######  Route Handlers #######
 
@@ -25,13 +24,6 @@ export type HeaderHandler<Context extends CallContext = CallContext, Ret = any, 
     context: Context,
     /** Remote Call parameters */
     headerValue: HValue
-) => Ret | Promise<Ret>;
-
-/** Route or Hook Handler to us when RouterOptions.useAsyncCallContext is enabled */
-export type PureHandler<Ret = any> = (/** Remote Call parameters */ ...parameters: any) => Ret | Promise<Ret>;
-/** Header Hook Handler to us when RouterOptions.useAsyncCallContext is enabled */
-export type PureHeaderHandler<Ret = any, HValue extends ParsedHeader = any> = (
-    /** Remote Call parameters */ headerValue: HValue
 ) => Ret | Promise<Ret>;
 
 /** Handler to use with raw hooks to get access to raw request and response */
@@ -119,24 +111,6 @@ export interface Routes {
     [key: string]: RouterEntry;
 }
 
-// #######  Async Context Routes #######
-// RouterOptions.useAsyncCallContext must be enabled when using these types
-
-export interface PureRouteDef<Ret = any> extends RouteDef<any, Ret> {
-    route: PureHandler<Ret>;
-}
-export interface PureHookDef<Ret = any> extends HookDef {
-    hook: PureHandler<Ret>;
-}
-export interface PureHeaderHookDef<Ret = any> extends HeaderHookDef<any, Ret> {
-    headerHook: PureHeaderHandler<Ret>;
-}
-export type PureRoute<Ret = any> = PureRouteDef<Ret> | PureHandler<Ret>;
-export type PureRouterEntry = PureHookDef | PureHeaderHookDef | PureRoute | PureRoutes | RawHookDef;
-export interface PureRoutes {
-    [key: string]: PureRouterEntry;
-}
-
 // ####### Router Options #######
 
 /** Global Router Options */
@@ -167,11 +141,6 @@ export interface RouterOptions<Req extends RawRequest = any, SharedData = any> e
     lazyLoadReflection: boolean;
     /** automatically generate and uuid */
     autoGenerateErrorId: boolean;
-    /** Use AsyncLocalStorage to pass context to route handlers.
-     * When enabled the route callContext can be obtained using the `getCallContext` function
-     * instead passing the context as a parameter to the route handler.
-     */
-    useAsyncCallContext: boolean;
 }
 
 // ####### Execution Path #######
@@ -191,7 +160,6 @@ export type Executable = {
     // src: RouteDef | HookDef | RawHookDef;
     enableValidation: boolean;
     enableSerialization: boolean;
-    useAsyncCallContext: boolean;
     selfPointer: string[];
 };
 
@@ -200,14 +168,14 @@ export interface RouteExecutable extends Executable {
     isRawExecutable: false;
     canReturnData: true;
     forceRunOnError: false;
-    handler: Handler | PureHandler;
+    handler: Handler;
     reflection: FunctionReflection;
 }
 
 export interface HookExecutable extends Executable {
     isRoute: false;
     isRawExecutable: false;
-    handler: Handler | PureHandler | HeaderHandler | PureHeaderHandler;
+    handler: Handler | HeaderHandler;
     reflection: FunctionReflection;
 }
 
@@ -302,16 +270,6 @@ export interface PrivateHeaderHookDef extends HeaderHookDef {
     headerHook: (ctx?: any) => any;
 }
 
-export interface PrivatePureHookDef extends PureHookDef {
-    canReturnData?: false | undefined;
-    hook: () => any;
-}
-
-export interface PrivatePureHeaderHookDef extends PureHeaderHookDef {
-    canReturnData?: false | undefined;
-    headerHook: () => any;
-}
-
 export interface PrivateRawHookDef extends RawHookDef {
     rawHook: (ctx?: any, req?: any, resp?: any, opts?: any) => any;
 }
@@ -344,36 +302,10 @@ export type PublicMethods<Type extends Routes> = {
         : never;
 };
 
-// prettier-ignore
-/** Data structure containing all public data an types of pure routes & hooks. */
-export type PublicPureMethods<Type extends PureRoutes> = {
-    [Property in keyof Type]: 
-        // any private hook maps to null
-        Type[Property] extends  
-        | PrivatePureHookDef
-        | PrivatePureHeaderHookDef
-        | PrivateRawHookDef
-        ? null
-        // Pure Hooks
-        : Type[Property] extends PureHookDef
-        ? PublicHook<Type[Property]['hook']>
-        : Type[Property] extends PureHeaderHookDef
-        ? PublicHook<Type[Property]['headerHook']>
-        : Type[Property] extends PureRouteDef
-        // Pure Routes
-        ? PublicRoute<Type[Property]['route']>
-        : Type[Property] extends PureHandler
-        ? PublicRoute<Type[Property]>
-        // PureRoutes (recursion)
-        : Type[Property] extends PureRoutes
-        ? PublicMethods<Type[Property]>
-        : never;
-};
-
 export type TypedPromise<Resp> = Promise<Awaited<SuccessRouteResponse<Resp> | FailRouteResponse>>;
 
 // prettier-ignore
-export type PublicHandler<H extends Handler | PureHandler> = 
+export type PublicHandler<H extends Handler> = 
     H extends (ctx: CallContext, ...rest: infer Req) => infer Resp
     ? (...rest: Req) => TypedPromise<Resp>
     :  H extends (...rest: infer Req) => infer Resp
@@ -381,7 +313,7 @@ export type PublicHandler<H extends Handler | PureHandler> =
     : never;
 
 /** Public map from Routes, _handler type is the same as router's handler but does not include the context  */
-export type PublicRoute<H extends Handler | PureHandler> = {
+export type PublicRoute<H extends Handler> = {
     /** Type reference to the route handler, its value is actually null or void function ans should never be called. */
     _handler: PublicHandler<H>;
     /** Json serializable structure so the Type information can be transmitted over the wire */
@@ -397,7 +329,7 @@ export type PublicRoute<H extends Handler | PureHandler> = {
 };
 
 /** Public map from Hooks, _handler type is the same as hooks's handler but does not include the context  */
-export type PublicHook<H extends Handler | PureHandler> = {
+export type PublicHook<H extends Handler> = {
     /** Type reference to the route handler, its value is actually null or void function ans should never be called. */
     _handler: PublicHandler<H>;
     /** Json serializable structure so the Type information can be transmitted over the wire */
@@ -446,15 +378,11 @@ export function isAnyHookDef(entry: RouterEntry): entry is HeaderHookDef | HookD
     return isHookDef(entry) || isRawHookDef(entry) || isHeaderHookDef(entry);
 }
 
-export function isPrivateHookDef(entry: RouterEntry): entry is PrivateHookDef {
-    return isRawHookDef(entry) || !!(entry as HookDef).canReturnData;
-}
-
 export function isRoute(entry: RouterEntry): entry is Route {
     return typeof entry === 'function' || typeof (entry as RouteDef).route === 'function';
 }
 
-export function isRoutes(entry: RouterEntry | Routes | PureRoutes): entry is Route {
+export function isRoutes(entry: RouterEntry | Routes): entry is Route {
     return typeof entry === 'object';
 }
 
