@@ -49,6 +49,7 @@ describe('generate api spec should', () => {
         const result = importFromStringSync(compiledSpec.getText());
 
         //tests results
+        // console.log(result?.PUBLIC_METHODS);
         expect(result?.PUBLIC_METHODS).toEqual(PUBLIC_METHODS);
         expect(result?.ROUTES).toEqual(ROUTES);
     });

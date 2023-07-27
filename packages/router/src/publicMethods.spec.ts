@@ -66,7 +66,6 @@ describe('Public Mothods should', () => {
             auth: expect.objectContaining({
                 _handler: 'auth',
                 isRoute: false,
-                canReturnData: DEFAULT_HOOK.canReturnData,
                 fieldName: 'auth',
                 enableValidation: DEFAULT_ROUTE_OPTIONS.enableValidation,
                 enableSerialization: DEFAULT_ROUTE_OPTIONS.enableSerialization,
@@ -75,7 +74,6 @@ describe('Public Mothods should', () => {
                 route1: expect.objectContaining({
                     _handler: 'routes.route1',
                     isRoute: true,
-                    canReturnData: true,
                     path: '/routes/route1',
                     enableValidation: DEFAULT_ROUTE_OPTIONS.enableValidation,
                     enableSerialization: DEFAULT_ROUTE_OPTIONS.enableSerialization,
@@ -133,13 +131,11 @@ describe('Public Mothods should', () => {
         expect(api).toEqual({
             auth: expect.objectContaining({
                 isRoute: false,
-                canReturnData: DEFAULT_HOOK.canReturnData,
                 inHeader: false,
                 fieldName: 'auth',
             }),
             route1: expect.objectContaining({
                 isRoute: true,
-                canReturnData: true,
                 path: '/v1/route1.json',
                 inHeader: false,
             }),
