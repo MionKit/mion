@@ -317,7 +317,6 @@ export type PublicRoute<H extends Handler> = {
     /** Json serializable structure so the Type information can be transmitted over the wire */
     handlerSerializedType: SerializedTypes;
     isRoute: true;
-    canReturnData: true;
     path: string;
     inHeader: boolean;
     enableValidation: boolean;
@@ -333,7 +332,6 @@ export type PublicHook<H extends Handler> = {
     /** Json serializable structure so the Type information can be transmitted over the wire */
     handlerSerializedType: SerializedTypes;
     isRoute: false;
-    canReturnData: boolean;
     inHeader: boolean;
     fieldName: string;
     enableValidation: boolean;
@@ -400,10 +398,6 @@ export function isPublicExecutable(entry: Executable): entry is Executable {
 
 export function isNotFoundExecutable(entry: Executable): entry is NotFoundExecutable {
     return (entry as NotFoundExecutable).is404;
-}
-
-export function isPublicMethod(entry: PublicRoute<any> | PublicHook<any>): entry is PublicMethod<any> {
-    return entry.canReturnData || !!entry.params.length;
 }
 
 // #######  Others #######

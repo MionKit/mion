@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {PublicMethods, PublicRoute, isPublicMethod} from '@mionkit/router';
+import {PublicMethods, PublicRoute} from '@mionkit/router';
 import {dirname, parse, relative} from 'path';
 import {hasChildRoutes, type CodegenOptions, type ExportedRoutesMap, type PublicMethodsSpec, type RoutesSpec} from './types';
 import {DEFAULT_PRETTIER_OPTIONS, PUBLIC_METHODS_SPEC_EXPORT_NAME, ROUTES_SPEC_EXPORT_NAME} from './constants';
@@ -63,7 +63,7 @@ function recursiveSetHandlerTypeAndCreateRouteExecutables(
         const newPointer = [...currentPointer, key];
         if (hasChildRoutes(item)) {
             newRoutes[key] = recursiveSetHandlerTypeAndCreateRouteExecutables(item, exportName, newPointer, routeExecutables);
-        } else if (isPublicMethod(item)) {
+        } else {
             if (item.isRoute) {
                 setRouteExecutables(item, newPointer, exportName, routeExecutables);
                 delete item.publicExecutionPathPointers;

@@ -36,6 +36,9 @@ export type RoutesSpec = {
 
 // #######  guards #######
 
-export const hasChildRoutes = (entry: PublicMethods<any> | PublicRoute<any> | PublicHook<any>): entry is PublicMethods<any> => {
+export const hasChildRoutes = (
+    entry: PublicMethods<any> | PublicRoute<any> | PublicHook<any> | null
+): entry is PublicMethods<any> => {
+    if (!entry) return false;
     return typeof entry._handler !== 'function' && typeof entry._handler !== 'string'; // string is the real value
 };
