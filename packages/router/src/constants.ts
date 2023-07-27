@@ -69,9 +69,6 @@ export const DEFAULT_ROUTE_OPTIONS: Readonly<RouterOptions> = {
     /** set to true to generate router spec for clients.  */
     getPublicRoutesData: process.env.GENERATE_ROUTER_SPEC === 'true',
 
-    /** Lazy load reflection.  */
-    lazyLoadReflection: true,
-
     /** Set true to automatically generate and id for every error.  */
     autoGenerateErrorId: false,
 };
