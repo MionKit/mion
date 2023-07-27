@@ -113,35 +113,6 @@ class LazyFunctionReflection implements FunctionReflection {
     }
 }
 
-function _getFunctionReflectionMethods(
-    handlerOrType: Handler | Type,
-    reflectionOptions: ReflectionOptions,
-    skipInitialParams: number
-): FunctionReflection {
-    const handlerType: Type = getHandlerType(handlerOrType);
-
-    const paramsValidators = getFunctionParamValidators(handlerType, reflectionOptions, skipInitialParams);
-    const paramsSerializers = getFunctionParamsSerializer(handlerType, reflectionOptions, skipInitialParams);
-    const paramsDeSerializers = getFunctionParamsDeserializer(handlerType, reflectionOptions, skipInitialParams);
-
-    const returnValidator = getFunctionReturnValidator(handlerType, reflectionOptions);
-    const returnSerializer = getFunctionReturnSerializer(handlerType, reflectionOptions);
-    const returnDeSerializer = getFunctionReturnDeserializer(handlerType, reflectionOptions);
-
-    // prettier-ignore
-    return {
-        handlerType: handlerType,
-        paramsLength:  getFunctionParamsLength(handlerType, skipInitialParams),
-        isAsync: isAsyncHandler(handlerType),
-        validateParams: (params: any[]) => validateFunctionParams(paramsValidators, params),
-        serializeParams: (params: any[]) => serializeFunctionParams(paramsSerializers, params),
-        deserializeParams: (serializedParams: JSONPartial<any>) => deserializeFunctionParams(paramsDeSerializers, serializedParams),
-        validateReturn: (returnValue: any) => validateFunctionReturnType(returnValidator, returnValue),
-        serializeReturn: (returnValue: any) => returnSerializer(returnValue),
-        deserializeReturn: (serializedReturnValue: any) => returnDeSerializer(serializedReturnValue),
-    };
-}
-
 /**
  * Gets an object with all the functions required to, serialize, deserialize and validate a function.
  * @param handlerOrType
@@ -152,14 +123,9 @@ function _getFunctionReflectionMethods(
 export function getFunctionReflectionMethods(
     handlerOrType: Handler | Type,
     reflectionOptions: ReflectionOptions,
-    skipInitialParams: number,
-    useLazyReflection = true
+    skipInitialParams: number
 ): FunctionReflection {
-    if (useLazyReflection) {
-        return new LazyFunctionReflection(handlerOrType, reflectionOptions, skipInitialParams);
-    } else {
-        return _getFunctionReflectionMethods(handlerOrType, reflectionOptions, skipInitialParams);
-    }
+    return new LazyFunctionReflection(handlerOrType, reflectionOptions, skipInitialParams);
 }
 
 /** Gets a data structure that can be serialized in json and transmitted over the wire  */
