@@ -363,12 +363,7 @@ function getExecutableFromHook(
         isRoute: false,
         isRawExecutable: false,
         handler,
-        reflection: getFunctionReflectionMethods(
-            handler,
-            getReflectionOptions(hook),
-            getRouteDefaultParams().length,
-            routerOptions.lazyLoadReflection
-        ),
+        reflection: getFunctionReflectionMethods(handler, getReflectionOptions(hook), getRouteDefaultParams().length),
         enableValidation: hook.enableValidation ?? routerOptions.enableValidation,
         enableSerialization: hook.enableSerialization ?? routerOptions.enableSerialization,
         // src: hook,
@@ -422,12 +417,7 @@ function getExecutableFromRoute(route: Route, routePointer: string[], nestLevel:
         isRawExecutable: false,
         nestLevel,
         handler,
-        reflection: getFunctionReflectionMethods(
-            handler,
-            getReflectionOptions(route),
-            getRouteDefaultParams().length,
-            routerOptions.lazyLoadReflection
-        ),
+        reflection: getFunctionReflectionMethods(handler, getReflectionOptions(route), getRouteDefaultParams().length),
         enableValidation: (route as RouteDef).enableValidation ?? routerOptions.enableValidation,
         enableSerialization: (route as RouteDef).enableSerialization ?? routerOptions.enableSerialization,
         // src: routeObj,

@@ -137,8 +137,6 @@ export interface RouterOptions<Req extends RawRequest = any, SharedData = any> e
     bodyParser: JsonParser;
     /** Used to return public data when adding routes */
     getPublicRoutesData: boolean;
-    /** lazy load function reflection, should improve cold start performance */
-    lazyLoadReflection: boolean;
     /** automatically generate and uuid */
     autoGenerateErrorId: boolean;
 }
