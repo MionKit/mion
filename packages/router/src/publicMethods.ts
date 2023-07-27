@@ -51,8 +51,7 @@ function recursiveGetPublicRoutes<R extends Routes>(routes: R, currentPointer: s
         const newPointer = [...currentPointer, key];
         const newPointerAsString = newPointer.join('.');
 
-        const isPrivate = isPrivateHookDef(item);
-        if (isPrivate) {
+        if (isPrivateHookDef(item)) {
             publicData[key] = null;
         } else if (isHookDef(item) || isHeaderHookDef(item)) {
             const fieldName = getHookFieldName(item, key);
@@ -78,7 +77,6 @@ function recursiveGetPublicRoutes<R extends Routes>(routes: R, currentPointer: s
 function getPublicRouteFromExecutable<H extends Handler>(executable: RouteExecutable, fieldName: string): PublicRoute<H> {
     return {
         isRoute: true,
-        canReturnData: true,
         path: executable.path,
         inHeader: executable.inHeader,
         // handler is included just for static typing purposes and shouldn't be called directly
@@ -97,7 +95,6 @@ function getPublicRouteFromExecutable<H extends Handler>(executable: RouteExecut
 function getPublicHookFromExecutable<H extends Handler>(executable: HookExecutable, fieldName: string): PublicHook<H> {
     return {
         isRoute: false,
-        canReturnData: executable.canReturnData,
         inHeader: executable.inHeader,
         fieldName: executable.fieldName,
         // handler is included just for static typing purposes and shouldn't be called directly
