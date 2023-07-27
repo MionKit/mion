@@ -74,9 +74,6 @@ export const DEFAULT_ROUTE_OPTIONS: Readonly<RouterOptions> = {
 
     /** Set true to automatically generate and id for every error.  */
     autoGenerateErrorId: false,
-
-    /** Set true to get the call context using `getCallContext` function instead a router's parameter.  */
-    useAsyncCallContext: false,
 };
 
 export const ROUTE_KEYS = Object.keys(DEFAULT_ROUTE);

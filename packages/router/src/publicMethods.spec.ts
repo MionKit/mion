@@ -12,7 +12,8 @@ import {getFunctionReflectionMethods} from '@mionkit/runtype';
 import {Routes} from './types';
 
 describe('Public Mothods should', () => {
-    const hook1 = (ctx, s: string): void => undefined;
+    const privateHook = (ctx): void => undefined;
+    const paramsHook = (ctx, s: string): void => undefined;
     const route1 = () => 'route1';
     const route2 = {
         route() {
@@ -21,27 +22,22 @@ describe('Public Mothods should', () => {
     };
 
     const routes = {
-        first: {
-            canReturnData: true,
-            hook: hook1,
-        },
-        parse: {
-            rawHook: (ctx, req, resp, opts): void => undefined,
-        },
+        first: {hook: paramsHook}, // is public as has params
+        parse: {rawHook: (ctx, req, resp, opts): void => undefined}, // private
         users: {
-            userBefore: {hook: hook1},
-            getUser: route1,
-            setUser: route2,
+            userBefore: {hook: privateHook}, // private
+            getUser: route1, // public
+            setUser: route2, // public
             pets: {
-                getUserPet: route2,
+                getUserPet: route2, // public
             },
-            userAfter: {hook: hook1},
+            userAfter: {hook: privateHook}, // private
         },
         pets: {
-            getPet: route1,
-            setPet: route2,
+            getPet: route1, // public
+            setPet: route2, // public
         },
-        last: {hook: hook1},
+        last: {hook: privateHook, canReturnData: true}, // public as canReturnData
     } satisfies Routes;
 
     const shared = {auth: {me: null as any}};
@@ -59,7 +55,7 @@ describe('Public Mothods should', () => {
     it('generate all the required public fields for hook and route', () => {
         initRouter({sharedDataFactory: getSharedData, getPublicRoutesData: true});
         const testR = {
-            auth: {hook: hook1},
+            auth: {hook: paramsHook},
             routes: {
                 route1,
             },
@@ -68,10 +64,10 @@ describe('Public Mothods should', () => {
 
         expect(api).toEqual({
             auth: expect.objectContaining({
-                _handler: 'hook',
+                _handler: 'auth',
                 isRoute: false,
                 canReturnData: DEFAULT_HOOK.canReturnData,
-                fieldName: 'hook',
+                fieldName: 'auth',
                 enableValidation: DEFAULT_ROUTE_OPTIONS.enableValidation,
                 enableSerialization: DEFAULT_ROUTE_OPTIONS.enableSerialization,
             }),
@@ -129,17 +125,17 @@ describe('Public Mothods should', () => {
     it('generate public data when suing prefix and suffix', () => {
         initRouter({sharedDataFactory: getSharedData, getPublicRoutesData: true, prefix: 'v1', suffix: '.json'});
         const testR = {
-            hook,
+            auth: {hook: paramsHook},
             route1,
         };
         const api = registerRoutes(testR);
 
         expect(api).toEqual({
-            hook: expect.objectContaining({
+            auth: expect.objectContaining({
                 isRoute: false,
                 canReturnData: DEFAULT_HOOK.canReturnData,
                 inHeader: false,
-                fieldName: 'hook',
+                fieldName: 'auth',
             }),
             route1: expect.objectContaining({
                 isRoute: true,
@@ -150,7 +146,7 @@ describe('Public Mothods should', () => {
         });
     });
 
-    it('generate public data from some routes', () => {
+    it('generate public data for pulbic routes only', () => {
         initRouter({sharedDataFactory: getSharedData, getPublicRoutesData: true});
         const publicExecutables = registerRoutes(routes);
 
@@ -159,11 +155,9 @@ describe('Public Mothods should', () => {
                 fieldName: 'first',
                 isRoute: false,
             }),
+            parse: null,
             users: {
-                userBefore: expect.objectContaining({
-                    fieldName: 'userBefore',
-                    isRoute: false,
-                }),
+                userBefore: null,
                 getUser: expect.objectContaining({
                     path: '/users/getUser',
                     isRoute: true,
@@ -178,10 +172,7 @@ describe('Public Mothods should', () => {
                         isRoute: true,
                     }),
                 },
-                userAfter: expect.objectContaining({
-                    fieldName: 'userAfter',
-                    isRoute: false,
-                }),
+                userAfter: null,
             },
             pets: {
                 getPet: expect.objectContaining({
@@ -202,12 +193,12 @@ describe('Public Mothods should', () => {
 
     it('should throw an error when route pr hook is not already created in the router', () => {
         const testR1 = {route1};
-        const testR2 = {hook};
+        const testR2 = {hook1: {hook: paramsHook}};
         expect(() => getPublicRoutes(testR1)).toThrow(
             `Route '/route1' not found in router. Please check you have called router.addRoutes first!`
         );
         expect(() => getPublicRoutes(testR2)).toThrow(
-            `Hook 'hook' not found in router. Please check you have called router.addRoutes first!`
+            `Hook 'hook1' not found in router. Please check you have called router.addRoutes first!`
         );
     });
 });
