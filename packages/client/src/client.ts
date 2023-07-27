@@ -20,6 +20,8 @@ export const setClientOptions = (prefillOptions_: Partial<ClientOptions> = {}) =
     };
 };
 
+export function initClient<R>() {}
+
 export const remote = <REQ extends RequestData, RESP extends ResponseData>(
     path: string,
     ...args: any[]
