@@ -26,9 +26,12 @@ import {
     isPublicExecutable,
     RouteExecutable,
     HookExecutable,
-    isRawHookDef,
-    isAnyHookDef,
     isHeaderHookDef,
+    PureRoutes,
+    isPrivateHookDef,
+    RouterEntry,
+    PureRouterEntry,
+    PublicPureMethods,
 } from './types';
 import {getSerializedFunctionTypes} from '@mionkit/runtype';
 import {Obj} from '@mionkit/core';
@@ -43,14 +46,22 @@ export function getPublicRoutes<R extends Routes>(routes: R): PublicMethods<R> {
     return recursiveGetPublicRoutes(routes) as PublicMethods<R>;
 }
 
+export function getPublicPureRoutes<R extends PureRoutes>(routes: R): PublicPureMethods<R> {
+    return recursiveGetPublicRoutes(routes) as PublicPureMethods<R>;
+}
+
 // ############# PRIVATE METHODS #############
 
-function recursiveGetPublicRoutes<R extends Routes>(routes: R, currentPointer: string[] = [], publicData: Obj = {}): Obj {
+function recursiveGetPublicRoutes<R extends Routes | PureRoutes>(
+    routes: R,
+    currentPointer: string[] = [],
+    publicData: Obj = {}
+): Obj {
     const entries = Object.entries(routes);
-    entries.forEach(([key, item]) => {
+    entries.forEach(([key, item]: [string, RouterEntry | PureRouterEntry]) => {
         const newPointer = [...currentPointer, key];
         const newPointerAsString = newPointer.join('.');
-        if (isRawHookDef(item)) {
+        if (isPrivateHookDef(item)) {
             publicData[key] = null;
         } else if (isHookDef(item) || isHeaderHookDef(item)) {
             const fieldName = getHookFieldName(item, key);

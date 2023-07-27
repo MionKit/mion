@@ -9,9 +9,10 @@ import {DEFAULT_ROUTE_OPTIONS, DEFAULT_HOOK} from './constants';
 import {getPublicRoutes} from './publicMethods';
 import {registerRoutes, initRouter, resetRouter, getRouteDefaultParams} from './router';
 import {getFunctionReflectionMethods} from '@mionkit/runtype';
+import {Routes} from './types';
 
 describe('Public Mothods should', () => {
-    const hook = {hook(): void {}};
+    const hook1 = (ctx, s: string): void => undefined;
     const route1 = () => 'route1';
     const route2 = {
         route() {
@@ -20,22 +21,28 @@ describe('Public Mothods should', () => {
     };
 
     const routes = {
-        first: hook,
+        first: {
+            canReturnData: true,
+            hook: hook1,
+        },
+        parse: {
+            rawHook: (ctx, req, resp, opts): void => undefined,
+        },
         users: {
-            userBefore: hook,
+            userBefore: {hook: hook1},
             getUser: route1,
             setUser: route2,
             pets: {
                 getUserPet: route2,
             },
-            userAfter: hook,
+            userAfter: {hook: hook1},
         },
         pets: {
             getPet: route1,
             setPet: route2,
         },
-        last: hook,
-    };
+        last: {hook: hook1},
+    } satisfies Routes;
 
     const shared = {auth: {me: null as any}};
     const getSharedData = (): typeof shared => shared;
@@ -52,7 +59,7 @@ describe('Public Mothods should', () => {
     it('generate all the required public fields for hook and route', () => {
         initRouter({sharedDataFactory: getSharedData, getPublicRoutesData: true});
         const testR = {
-            hook,
+            auth: {hook: hook1},
             routes: {
                 route1,
             },
@@ -60,7 +67,7 @@ describe('Public Mothods should', () => {
         const api = registerRoutes(testR);
 
         expect(api).toEqual({
-            hook: expect.objectContaining({
+            auth: expect.objectContaining({
                 _handler: 'hook',
                 isRoute: false,
                 canReturnData: DEFAULT_HOOK.canReturnData,
