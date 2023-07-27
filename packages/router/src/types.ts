@@ -7,6 +7,7 @@
 
 import {ReflectionOptions, FunctionReflection, SerializedTypes} from '@mionkit/runtype';
 import {CoreOptions, Obj, PublicError, RouteError} from '@mionkit/core';
+import {registerRoutes} from '..';
 
 // #######  Route Handlers #######
 
@@ -99,7 +100,7 @@ export interface HeaderHookDef<Context extends CallContext = CallContext, Ret = 
 export interface RawHookDef<
     Context extends CallContext = CallContext,
     RawReq extends RawRequest = RawRequest,
-    RawResp = unknown,
+    RawResp = any,
     Opts extends RouterOptions<RawReq> = RouterOptions<RawReq>
 > {
     rawHook: RawHookHandler<Context, RawReq, RawResp, Opts>;
@@ -289,27 +290,87 @@ export type RawHooksCollection<
     [key: string]: RawHookDef<Context, RawReq, RawResp, Opts>;
 };
 
+// ####### Private Hooks #######
+
+export interface PrivateHookDef extends HookDef {
+    canReturnData?: false | undefined;
+    hook: (ctx?: any) => any;
+}
+
+export interface PrivateHeaderHookDef extends HeaderHookDef {
+    canReturnData?: false | undefined;
+    headerHook: (ctx?: any) => any;
+}
+
+export interface PrivatePureHookDef extends PureHookDef {
+    canReturnData?: false | undefined;
+    hook: () => any;
+}
+
+export interface PrivatePureHeaderHookDef extends PureHeaderHookDef {
+    canReturnData?: false | undefined;
+    headerHook: () => any;
+}
+
+export interface PrivateRawHookDef extends RawHookDef {
+    rawHook: (ctx?: any, req?: any, resp?: any, opts?: any) => any;
+}
+
 // ####### Public Facing Types #######
 
-//TODO: some hooks could have no public params and not return any data so they should not be in the public spec
-/** Data structure containing all public data an types of the routes. */
+// prettier-ignore
+/** Data structure containing all public data an types of routes & hooks. */
 export type PublicMethods<Type extends Routes> = {
-    [Property in keyof Type]: Type[Property] extends HookDef
+    [Property in keyof Type]: 
+        // any private hook maps to null
+        Type[Property] extends  
+        | PrivateHookDef
+        | PrivateHeaderHookDef
+        | PrivateRawHookDef
+        ? null
+        // Hooks
+        : Type[Property] extends HookDef
         ? PublicHook<Type[Property]['hook']>
         : Type[Property] extends HeaderHookDef
-        ? PublicRoute<Type[Property]['headerHook']>
-        : Type[Property] extends RawHookDef
-        ? null
+        ? PublicHook<Type[Property]['headerHook']>
+        // Routes
         : Type[Property] extends RouteDef
         ? PublicRoute<Type[Property]['route']>
         : Type[Property] extends Handler
         ? PublicRoute<Type[Property]>
+        // Routes & PureRoutes (recursion)
         : Type[Property] extends Routes
         ? PublicMethods<Type[Property]>
         : never;
 };
 
-export type TypedPromise<Resp> = Promise<Awaited<SuccessRouteResponse<Resp> | FailsRouteResponse>>;
+// prettier-ignore
+/** Data structure containing all public data an types of pure routes & hooks. */
+export type PublicPureMethods<Type extends PureRoutes> = {
+    [Property in keyof Type]: 
+        // any private hook maps to null
+        Type[Property] extends  
+        | PrivatePureHookDef
+        | PrivatePureHeaderHookDef
+        | PrivateRawHookDef
+        ? null
+        // Pure Hooks
+        : Type[Property] extends PureHookDef
+        ? PublicHook<Type[Property]['hook']>
+        : Type[Property] extends PureHeaderHookDef
+        ? PublicHook<Type[Property]['headerHook']>
+        : Type[Property] extends PureRouteDef
+        // Pure Routes
+        ? PublicRoute<Type[Property]['route']>
+        : Type[Property] extends PureHandler
+        ? PublicRoute<Type[Property]>
+        // PureRoutes (recursion)
+        : Type[Property] extends PureRoutes
+        ? PublicMethods<Type[Property]>
+        : never;
+};
+
+export type TypedPromise<Resp> = Promise<Awaited<SuccessRouteResponse<Resp> | FailRouteResponse>>;
 
 // prettier-ignore
 export type PublicHandler<H extends Handler | PureHandler> = 
@@ -319,7 +380,8 @@ export type PublicHandler<H extends Handler | PureHandler> =
     ? (...rest: Req) => TypedPromise<Resp>
     : never;
 
-export type PublicRoute<H extends Handler> = {
+/** Public map from Routes, _handler type is the same as router's handler but does not include the context  */
+export type PublicRoute<H extends Handler | PureHandler> = {
     /** Type reference to the route handler, its value is actually null or void function ans should never be called. */
     _handler: PublicHandler<H>;
     /** Json serializable structure so the Type information can be transmitted over the wire */
@@ -334,7 +396,8 @@ export type PublicRoute<H extends Handler> = {
     publicExecutionPathPointers?: string[][];
 };
 
-export type PublicHook<H extends Handler> = {
+/** Public map from Hooks, _handler type is the same as hooks's handler but does not include the context  */
+export type PublicHook<H extends Handler | PureHandler> = {
     /** Type reference to the route handler, its value is actually null or void function ans should never be called. */
     _handler: PublicHandler<H>;
     /** Json serializable structure so the Type information can be transmitted over the wire */
@@ -350,11 +413,11 @@ export type PublicHook<H extends Handler> = {
 
 export type PublicMethod<H extends Handler = any> = PublicRoute<H> | PublicHook<H>;
 
-export type PublicRouteResponse<Ret> = SuccessRouteResponse<any> | FailsRouteResponse;
+export type PublicRouteResponse<Ret> = SuccessRouteResponse<any> | FailRouteResponse;
 export type SuccessRouteResponse<Ret> = [Ret];
-export type FailsRouteResponse = [null, RouteError];
+export type FailRouteResponse = [null, RouteError];
 export type PublicResponse = {
-    [key: string]: SuccessRouteResponse<any> | FailsRouteResponse;
+    [key: string]: SuccessRouteResponse<any> | FailRouteResponse;
 };
 
 // #######  type guards #######
@@ -383,11 +446,15 @@ export function isAnyHookDef(entry: RouterEntry): entry is HeaderHookDef | HookD
     return isHookDef(entry) || isRawHookDef(entry) || isHeaderHookDef(entry);
 }
 
+export function isPrivateHookDef(entry: RouterEntry): entry is PrivateHookDef {
+    return isRawHookDef(entry) || !!(entry as HookDef).canReturnData;
+}
+
 export function isRoute(entry: RouterEntry): entry is Route {
     return typeof entry === 'function' || typeof (entry as RouteDef).route === 'function';
 }
 
-export function isRoutes(entry: RouterEntry | Routes): entry is Route {
+export function isRoutes(entry: RouterEntry | Routes | PureRoutes): entry is Route {
     return typeof entry === 'object';
 }
 

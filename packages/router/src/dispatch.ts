@@ -16,7 +16,7 @@ import {
     isRawExecutable,
     Handler,
     SuccessRouteResponse,
-    FailsRouteResponse,
+    FailRouteResponse,
     PublicResponse,
     isNotFoundExecutable,
 } from './types';
@@ -244,7 +244,7 @@ export function handleRouteErrors(
     const publicError = getPublicErrorFromRouteError(routeError);
     response.statusCode = routeError.statusCode;
     response.hasErrors = true;
-    (response.body as Mutable<PublicResponse>)[fieldName] = [null, publicError] as FailsRouteResponse;
+    (response.body as Mutable<PublicResponse>)[fieldName] = [null, publicError] as FailRouteResponse;
     (request.internalErrors as Mutable<RouteError[]>).push(routeError);
 }
 
