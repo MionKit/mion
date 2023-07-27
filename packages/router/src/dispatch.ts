@@ -11,7 +11,6 @@ import {
     Response,
     Request,
     RouterOptions,
-    PureHandler,
     RawRequest,
     isRawExecutable,
     Handler,
@@ -22,18 +21,10 @@ import {
 } from './types';
 import {getPublicErrorFromRouteError} from './errors';
 import {getNotFoundExecutionPath, getRouteExecutionPath, getRouterOptions} from './router';
-import {AsyncLocalStorage} from 'node:async_hooks';
 import {isPromise} from 'node:util/types';
 import {Mutable, RouteError, StatusCodes} from '@mionkit/core';
 
 type CallBack = (err: any, response: Response | undefined) => void;
-
-// ############# Async Call Context #############
-
-const asyncLocalStorage = new AsyncLocalStorage();
-export function getCallContext<R extends CallContext>(): R {
-    return asyncLocalStorage.getStore() as R;
-}
 
 // ############# PUBLIC METHODS #############
 
@@ -152,11 +143,6 @@ function getHandlerResponse(
 ): any {
     if (isRawExecutable(executable)) {
         return executable.handler(context, rawRequest, rawResponse, opts);
-    }
-    if (executable.useAsyncCallContext) {
-        return asyncLocalStorage.run(context, () => {
-            return (executable.handler as PureHandler)(...handlerParams);
-        });
     }
 
     return (executable.handler as Handler)(context, ...handlerParams);

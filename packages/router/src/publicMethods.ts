@@ -13,6 +13,7 @@ import {
     getRouteExecutable,
     getRouteExecutionPath,
     getRoutePath,
+    isPrivateHookDef,
 } from './router';
 import {
     Handler,
@@ -27,11 +28,7 @@ import {
     RouteExecutable,
     HookExecutable,
     isHeaderHookDef,
-    PureRoutes,
-    isPrivateHookDef,
     RouterEntry,
-    PureRouterEntry,
-    PublicPureMethods,
 } from './types';
 import {getSerializedFunctionTypes} from '@mionkit/runtype';
 import {Obj} from '@mionkit/core';
@@ -46,22 +43,16 @@ export function getPublicRoutes<R extends Routes>(routes: R): PublicMethods<R> {
     return recursiveGetPublicRoutes(routes) as PublicMethods<R>;
 }
 
-export function getPublicPureRoutes<R extends PureRoutes>(routes: R): PublicPureMethods<R> {
-    return recursiveGetPublicRoutes(routes) as PublicPureMethods<R>;
-}
-
 // ############# PRIVATE METHODS #############
 
-function recursiveGetPublicRoutes<R extends Routes | PureRoutes>(
-    routes: R,
-    currentPointer: string[] = [],
-    publicData: Obj = {}
-): Obj {
+function recursiveGetPublicRoutes<R extends Routes>(routes: R, currentPointer: string[] = [], publicData: Obj = {}): Obj {
     const entries = Object.entries(routes);
-    entries.forEach(([key, item]: [string, RouterEntry | PureRouterEntry]) => {
+    entries.forEach(([key, item]: [string, RouterEntry]) => {
         const newPointer = [...currentPointer, key];
         const newPointerAsString = newPointer.join('.');
-        if (isPrivateHookDef(item)) {
+
+        const isPrivate = isPrivateHookDef(item);
+        if (isPrivate) {
             publicData[key] = null;
         } else if (isHookDef(item) || isHeaderHookDef(item)) {
             const fieldName = getHookFieldName(item, key);
@@ -84,14 +75,14 @@ function recursiveGetPublicRoutes<R extends Routes | PureRoutes>(
     return publicData;
 }
 
-function getPublicRouteFromExecutable<H extends Handler>(executable: RouteExecutable, propertyPonter: string): PublicRoute<H> {
+function getPublicRouteFromExecutable<H extends Handler>(executable: RouteExecutable, fieldName: string): PublicRoute<H> {
     return {
         isRoute: true,
         canReturnData: true,
         path: executable.path,
         inHeader: executable.inHeader,
         // handler is included just for static typing purposes and shouldn't be called directly
-        _handler: propertyPonter as any as PublicHandler<H>,
+        _handler: fieldName as any as PublicHandler<H>,
         handlerSerializedType: getSerializedFunctionTypes(executable.handler),
         enableValidation: executable.enableValidation,
         enableSerialization: executable.enableSerialization,
@@ -103,14 +94,14 @@ function getPublicRouteFromExecutable<H extends Handler>(executable: RouteExecut
     };
 }
 
-function getPublicHookFromExecutable<H extends Handler>(executable: HookExecutable, propertyPonter: string): PublicHook<H> {
+function getPublicHookFromExecutable<H extends Handler>(executable: HookExecutable, fieldName: string): PublicHook<H> {
     return {
         isRoute: false,
         canReturnData: executable.canReturnData,
         inHeader: executable.inHeader,
         fieldName: executable.fieldName,
         // handler is included just for static typing purposes and shouldn't be called directly
-        _handler: propertyPonter as any as PublicHandler<H>,
+        _handler: fieldName as any as PublicHandler<H>,
         handlerSerializedType: getSerializedFunctionTypes(executable.handler),
         enableValidation: executable.enableValidation,
         enableSerialization: executable.enableSerialization,

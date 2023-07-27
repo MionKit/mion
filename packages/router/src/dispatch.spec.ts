@@ -6,7 +6,7 @@
  * ######## */
 
 import {registerRoutes, resetRouter, initRouter} from './router';
-import {dispatchRoute, getCallContext} from './dispatch';
+import {dispatchRoute} from './dispatch';
 import {CallContext, RawRequest, Route, Routes} from './types';
 import {PublicError, StatusCodes} from '@mionkit/core';
 
@@ -155,32 +155,6 @@ describe('Dispatch routes', () => {
 
             const response = await dispatchRoute(publicPath, request, {});
             expect(response.body[routePath][0]).toEqual('hello');
-        });
-
-        it('use async local context', async () => {
-            initRouter({sharedDataFactory: getSharedData, useAsyncCallContext: true});
-            let asyncCallContext;
-            const contextBefore = getCallContext();
-
-            // note that when using async local context the context parameter is not passed to the handler
-            const sumTwo = (val: number) => {
-                asyncCallContext = getCallContext();
-                return val + 2;
-            };
-            // TODO handlers without context as first parameter reported as wrong type
-            // we could add simple handler to route but in that case it wouldn't report an error when first parameter is not context
-            // we could also use reflection to decide at runtipe if first parameter should be context or not
-            registerRoutes({sumTwo} as any);
-            const path = '/sumTwo';
-            const request = getDefaultRequest(path, [2]);
-            const response = await dispatchRoute(path, request, {});
-            const contextAfter = getCallContext();
-
-            expect(asyncCallContext.shared).toEqual(shared);
-            // when call context is called from outside the context it should be undefined
-            expect(contextBefore as any).not.toBeDefined();
-            expect(contextAfter as any).not.toBeDefined();
-            expect(response.body[path][0]).toEqual(4);
         });
 
         // TODO: need an unit test that guarantees that if one routes has a dependency on the output of another hook it wil work
