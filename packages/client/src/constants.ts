@@ -9,5 +9,6 @@ import {ClientOptions} from './types';
 
 export const DEFAULT_PREFILL_OPTIONS: ClientOptions = {
     apiURL: window.location.origin,
-    prefillStorage: 'localStorage',
+    storage: 'localStorage',
+    localStorageKey: 'mionkit:client',
 };

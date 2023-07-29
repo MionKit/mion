@@ -2,7 +2,7 @@
 
 module.exports = {
   preset: 'ts-jest',
-  testEnvironment: 'node',
+  testEnvironment: 'jsdom',
   collectCoverage: true,
   coverageDirectory: '.coverage',
   collectCoverageFrom: ['src/**'],
