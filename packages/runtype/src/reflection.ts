@@ -5,7 +5,16 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {JSONPartial, SerializedTypes, Type, TypeFunction, reflect, serializeType} from '@deepkit/type';
+import {
+    JSONPartial,
+    ReflectionKind,
+    SerializedTypes,
+    Type,
+    TypeFunction,
+    deserializeType,
+    reflect,
+    serializeType,
+} from '@deepkit/type';
 import {
     FunctionReflection,
     ParamsValidationResponse,
@@ -129,4 +138,11 @@ export function getFunctionReflectionMethods(
 }
 
 /** Gets a data structure that can be serialized in json and transmitted over the wire  */
-export const getSerializedFunctionTypes = (handler: Handler): SerializedTypes => serializeType(reflect(handler));
+export const getSerializedFunctionType = (handler: Handler): SerializedTypes => serializeType(reflect(handler));
+
+/** Gets a Type from a serializedTypes */
+export const getDeserializedFunctionType = (serializedTypes: SerializedTypes): TypeFunction => {
+    const type = deserializeType(serializedTypes);
+    if (type.kind !== ReflectionKind.function) throw new Error('Invalid serialized type is not from a function');
+    return type;
+};

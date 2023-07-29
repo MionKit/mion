@@ -1,4 +1,4 @@
-import {Obj} from '@mionkit/core';
+import {Obj, RouteError} from '@mionkit/core';
 import {registerRoutes, Routes, CallContext} from '@mionkit/router';
 import {IncomingMessage} from 'http';
 
@@ -11,6 +11,8 @@ const routes = {
     sayHello2: {route: (c, name: string): string => 'hello' + name},
     sayHello3: (): string => 'hello',
     sayHello4: {route: (): string => 'hello'},
+    sayHelloError: {route: (): RouteError => new RouteError({statusCode: 400, publicMessage: 'error'})},
+    maybeError: {route: (): string | RouteError => 'hello'},
 } satisfies Routes;
 
 const hooks = {
@@ -29,6 +31,9 @@ type SayHello = RoutesSpec['sayHello']; // type should be PublicRoute
 type SayHello2 = RoutesSpec['sayHello2']; // type should be PublicRoute
 type SayHello3 = RoutesSpec['sayHello3']; // type should be PublicRoute
 type SayHello4 = RoutesSpec['sayHello4']; // type should be PublicRoute
+type SayHelloReturn = ReturnType<RoutesSpec['sayHello']['_handler']>; // should be [string]
+type SayHelloErrorReturn = ReturnType<RoutesSpec['sayHelloError']['_handler']>; // should be [null, PublicError]
+type maybeErrorReturn = ReturnType<RoutesSpec['maybeError']['_handler']>; // should be [string | null, PublicError]
 
 const hooksSpec = registerRoutes(hooks);
 type HookSpec = typeof hooksSpec;

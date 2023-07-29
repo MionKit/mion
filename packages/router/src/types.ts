@@ -6,7 +6,7 @@
  * ######## */
 
 import {ReflectionOptions, FunctionReflection, SerializedTypes} from '@mionkit/runtype';
-import {CoreOptions, Obj, RouteError} from '@mionkit/core';
+import {CoreOptions, Obj, PublicError, RouteError} from '@mionkit/core';
 
 // #######  Route Handlers #######
 
@@ -231,7 +231,7 @@ export type Response = {
     /** response headers */
     readonly headers: Headers;
     /** the router response data, body should not be modified manually so marked as Read Only */
-    readonly body: Readonly<PublicResponse>;
+    readonly body: Readonly<PublicResponses>;
     /** json encoded response, contains data and errors if there are any. */
     readonly json: string;
 };
@@ -274,6 +274,8 @@ export interface PrivateRawHookDef extends RawHookDef {
 
 // ####### Public Facing Types #######
 
+export type PublicMethod<H extends Handler = any> = PublicRoute<H> | PublicHook<H>;
+
 // prettier-ignore
 /** Data structure containing all public data an types of routes & hooks. */
 export type PublicMethods<Type extends Routes> = {
@@ -300,14 +302,13 @@ export type PublicMethods<Type extends Routes> = {
         : never;
 };
 
-export type TypedPromise<Resp> = Promise<Awaited<SuccessRouteResponse<Resp> | FailRouteResponse>>;
+export type OnlySuccess<Resp> = Exclude<Resp, RouteError | Error>;
+export type PublicHandlerResponse<Resp> = Promise<[OnlySuccess<Awaited<Resp>> | null, PublicError | undefined]>;
 
 // prettier-ignore
 export type PublicHandler<H extends Handler> = 
     H extends (ctx: CallContext, ...rest: infer Req) => infer Resp
-    ? (...rest: Req) => TypedPromise<Resp>
-    :  H extends (...rest: infer Req) => infer Resp
-    ? (...rest: Req) => TypedPromise<Resp>
+    ? (...rest: Req) => Promise<[OnlySuccess<Awaited<Resp>> | null, PublicError | undefined]>
     : never;
 
 /** Public map from Routes, _handler type is the same as router's handler but does not include the context  */
@@ -339,13 +340,10 @@ export type PublicHook<H extends Handler> = {
     params: string[];
 };
 
-export type PublicMethod<H extends Handler = any> = PublicRoute<H> | PublicHook<H>;
-
-export type PublicRouteResponse<Ret> = SuccessRouteResponse<any> | FailRouteResponse;
-export type SuccessRouteResponse<Ret> = [Ret];
-export type FailRouteResponse = [null, RouteError];
-export type PublicResponse = {
-    [key: string]: SuccessRouteResponse<any> | FailRouteResponse;
+export type SuccessResponse<R> = [R];
+export type FailResponse = [null, PublicError];
+export type PublicResponses = {
+    [key: string]: SuccessResponse<any> | FailResponse;
 };
 
 // #######  type guards #######
