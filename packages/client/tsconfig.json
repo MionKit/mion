@@ -7,5 +7,5 @@
   "reflection": true,
   "include": ["."],
   "exclude": ["examples", ".dist"],
-  "references": [{"path": "../core"}, {"path": "../router"}]
+  "references": [{"path": "../core"}, {"path": "../router"}, {"path": "../runtype"}]
 }

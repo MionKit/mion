@@ -14,15 +14,14 @@ import {
     RawRequest,
     isRawExecutable,
     Handler,
-    SuccessRouteResponse,
-    FailRouteResponse,
-    PublicResponse,
     isNotFoundExecutable,
+    SuccessResponse,
+    FailResponse,
 } from './types';
 import {getPublicErrorFromRouteError} from './errors';
 import {getNotFoundExecutionPath, getRouteExecutionPath, getRouterOptions} from './router';
 import {isPromise} from 'node:util/types';
-import {Mutable, RouteError, StatusCodes} from '@mionkit/core';
+import {Mutable, Obj, RouteError, StatusCodes} from '@mionkit/core';
 
 type CallBack = (err: any, response: Response | undefined) => void;
 
@@ -205,7 +204,7 @@ function serializeResponse(executable: Executable, response: Response, result: a
     if (!executable.canReturnData || result === undefined || !executable.reflection) return;
     const serialized = executable.enableSerialization ? executable.reflection.serializeReturn(result) : result;
     if (executable.inHeader) response.headers[executable.fieldName] = serialized;
-    else (response.body as Mutable<PublicResponse>)[executable.fieldName] = [serialized] as SuccessRouteResponse<any>;
+    else (response.body as Mutable<Obj>)[executable.fieldName] = [serialized] as SuccessResponse<any>;
 }
 
 // ############# PUBLIC METHODS USED FOR ERRORS #############
@@ -230,7 +229,7 @@ export function handleRouteErrors(
     const publicError = getPublicErrorFromRouteError(routeError);
     response.statusCode = routeError.statusCode;
     response.hasErrors = true;
-    (response.body as Mutable<PublicResponse>)[fieldName] = [null, publicError] as FailRouteResponse;
+    (response.body as Mutable<Obj>)[fieldName] = [null, publicError] as FailResponse;
     (request.internalErrors as Mutable<RouteError[]>).push(routeError);
 }
 

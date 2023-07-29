@@ -11,3 +11,6 @@ export const DEFAULT_CORE_OPTIONS: CoreOptions = {
     /** automatically generate and uuid */
     autoGenerateErrorId: false,
 };
+
+export const GET_PUBLIC_METHODS_NAME = 'mionGetPublicMethodsInfo';
+export const GET_PUBLIC_METHODS_PATH = '/mionGetPublicMethodsInfo';

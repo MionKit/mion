@@ -30,7 +30,7 @@ import {
     isHeaderHookDef,
     RouterEntry,
 } from './types';
-import {getSerializedFunctionTypes} from '@mionkit/runtype';
+import {getSerializedFunctionType} from '@mionkit/runtype';
 import {Obj} from '@mionkit/core';
 
 // ############# PUBLIC METHODS #############
@@ -81,7 +81,7 @@ function getPublicRouteFromExecutable<H extends Handler>(executable: RouteExecut
         inHeader: executable.inHeader,
         // handler is included just for static typing purposes and shouldn't be called directly
         _handler: fieldName as any as PublicHandler<H>,
-        handlerSerializedType: getSerializedFunctionTypes(executable.handler),
+        handlerSerializedType: getSerializedFunctionType(executable.handler),
         enableValidation: executable.enableValidation,
         enableSerialization: executable.enableSerialization,
         params: executable.reflection.handlerType.parameters.map((tp) => tp.name).slice(getRouteDefaultParams().length),
@@ -99,7 +99,7 @@ function getPublicHookFromExecutable<H extends Handler>(executable: HookExecutab
         fieldName: executable.fieldName,
         // handler is included just for static typing purposes and shouldn't be called directly
         _handler: fieldName as any as PublicHandler<H>,
-        handlerSerializedType: getSerializedFunctionTypes(executable.handler),
+        handlerSerializedType: getSerializedFunctionType(executable.handler),
         enableValidation: executable.enableValidation,
         enableSerialization: executable.enableSerialization,
         params: executable.reflection.handlerType.parameters.map((tp) => tp.name).slice(getRouteDefaultParams().length),
