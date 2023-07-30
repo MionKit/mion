@@ -230,31 +230,55 @@ npm install mion
 
 The software is provided as it is without guarantees. If you want something done you are welcome to open issues and pull request! 👍 🎊 🎉
 
-### Monorepo
+#### Monorepo
 
 This project is a monorepo managed using npm [workspaces](https://docs.npmjs.com/cli/v7/using-npm/workspaces). (`npm >= 7` required), [NX](https://nx.dev/) and [Lerna](https://lerna.js.org/)
 
-**_!! ALL Dev Dependencies mus be installed in root package !!_**
+**_!! ALL Dev Dependencies should be installed in root package !!_**
 
 Each package within this monorepo is compiled using and tested individually using typescript and [jest](https://jestjs.io/).
 To run an npm command in a workspace, `npx nx run <package>:<npm-script>`, i.e: `npx nx run @mionkit/router:build`
 
 ```sh
-## run jest tests in @mionkit/router
+# run jest tests in @mionkit/router
 npx nx run @mionkit/router:test
 
-## run jest in all packages
+# run jest in all packages
 npx lerna run test
 
-## compiles typescript in @mionkit/router
-## Please note that the build is only building the project's files if there are any dependencies they should be build before
+# compiles typescript in @mionkit/router
+# Please note that the build is only building the project's files if there are any dependencies they should be build before
 npx nx run @mionkit/router:build
 
-## compiles typescript in all packages (NX will build only whats required)
+# compiles typescript in all packages (NX will build only whats required)
 npx lerna run build
 ```
 
-### ESLint and Prettier
+#### building & testing
+
+As mentioned before lerna and NX are used to build the project. this is so project packages are build in order.
+
+```sh
+# build all packages
+npm run build
+
+# test all packages
+npm run build
+
+# testing individual files
+npx jest myFile
+# previous command will run test on any file that contains myFile in the path
+```
+
+When testing the `@mionkit/client` package manually it is required first to move to the client directory.
+this is so jest uses the `jest.config.com` from that package instead the global one.
+
+```sh
+cd packages/client
+npx jest client
+```
+
+#### ESLint and Prettier
 
 All pull request must pass ESLint and [Prettier](https://github.com/prettier/prettier) before being merged.  
 Run bellow command to automatically format all typescript files and check Lint errors.
@@ -263,7 +287,7 @@ Run bellow command to automatically format all typescript files and check Lint e
 npm run format && npm run lint
 ```
 
-### Powered by:
+#### Powered by:
 
 - [Typescript](https://www.typescriptlang.org/)
 - [Deepkit](https://deepkit.io/)
