@@ -5,6 +5,5 @@
   },
   "reflection": true,
   "include": ["."],
-  "exclude": [".dist"],
-  "references": []
+  "exclude": ["node_modules", ".dist"]
 }

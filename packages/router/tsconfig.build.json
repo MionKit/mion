@@ -3,7 +3,7 @@
   "compilerOptions": {
     "outDir": ".dist/cjs"
   },
+  "reflection": false,
   "include": ["."],
-  "exclude": ["node_modules", "**/*.spec.ts", "examples", ".dist"],
-  "reflection": false
+  "exclude": ["node_modules", "**/*.spec.ts", "examples", ".dist"]
 }

@@ -15,20 +15,12 @@
     "composite": false,
     "declaration": false,
     "declarationMap": false,
+    "incremental": true,
     "sourceMap": true,
     "paths": {
       "@mionkit/*": ["packages/*"]
     }
   },
   "exclude": ["node_modules", ".dist"],
-  "references": [
-    {"path": "packages/core"},
-    {"path": "packages/runtype"},
-    {"path": "packages/router"},
-    {"path": "packages/http"},
-    {"path": "packages/serverless"},
-    {"path": "packages/codegen"},
-    {"path": "packages/client"}
-  ],
   "reflection": true
 }

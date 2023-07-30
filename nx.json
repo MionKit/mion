@@ -23,8 +23,12 @@
       "dependsOn": ["lint", "test", "^build:esm"],
       "outputs": ["{workspaceRoot}/.dist/esm"]
     },
+    "build:types": {
+      "dependsOn": ["lint", "test", "^build:types"],
+      "outputs": ["{workspaceRoot}/.dist/types"]
+    },
     "build": {
-      "dependsOn": ["lint", "test", "build:cjs", "build:esm"],
+      "dependsOn": ["lint", "test", "^build"],
       "outputs": ["{workspaceRoot}/.dist"]
     },
     "auto-readme": {
