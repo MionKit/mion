@@ -18,7 +18,6 @@ import {
     SuccessResponse,
     FailResponse,
 } from './types';
-import {getPublicErrorFromRouteError} from './errors';
 import {getNotFoundExecutionPath, getRouteExecutionPath, getRouterOptions} from './router';
 import {isPromise} from 'node:util/types';
 import {Mutable, Obj, RouteError, StatusCodes} from '@mionkit/core';
@@ -213,7 +212,7 @@ export function handleRouteErrors(
     fieldName: string,
     request: Request,
     response: Mutable<Response>,
-    err: any,
+    err: any | RouteError,
     step: number | string
 ) {
     const routeError =
@@ -226,7 +225,7 @@ export function handleRouteErrors(
                   name: 'Unknown Error',
               });
 
-    const publicError = getPublicErrorFromRouteError(routeError);
+    const publicError = routeError.toPublicError();
     response.statusCode = routeError.statusCode;
     response.hasErrors = true;
     (response.body as Mutable<Obj>)[fieldName] = [null, publicError] as FailResponse;
