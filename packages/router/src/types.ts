@@ -40,8 +40,6 @@ export type AnyHandler = (...parameters: any) => any | Promise<any>;
 
 /** Route definition */
 export interface RouteDef<Context extends CallContext = CallContext, Ret = any> {
-    /** overrides route's path and fieldName in request/response body */
-    path?: string;
     /** description of the route, mostly for documentation purposes */
     description?: string;
     /** Overrides global enableValidation */
@@ -72,8 +70,6 @@ interface HookBase {
 
 /** Hook definition, a function that hooks into the execution path */
 export interface HookDef<Context extends CallContext = CallContext, Ret = any> extends HookBase {
-    /** The fieldName in the request/response body */
-    fieldName?: string;
     /** Hook handler */
     hook: Handler<Context, Ret>;
 }
@@ -81,7 +77,7 @@ export interface HookDef<Context extends CallContext = CallContext, Ret = any> e
 /** Header Hook definition, used to handle header params */
 export interface HeaderHookDef<Context extends CallContext = CallContext, Ret = any> extends HookBase {
     /** the name of the header in the request/response */
-    headerName?: string;
+    headerName: string;
     headerHook: HeaderHandler<Context, Ret>;
 }
 
@@ -125,8 +121,6 @@ export interface RouterOptions<Req extends RawRequest = any, SharedData = any> e
     pathTransform?: (request: Req, path: string) => string;
     /** factory function to initialize shared call context data */
     sharedDataFactory?: SharedDataFactory<SharedData>;
-    /** configures the fieldName in the request/response body used for a route's params/response */
-    routeFieldName?: string;
     /** enable automatic parameter validation, defaults to true */
     enableValidation: boolean;
     /** Enables serialization/deserialization */
@@ -150,7 +144,6 @@ export type Executable = {
     forceRunOnError: boolean;
     canReturnData: boolean;
     inHeader: boolean;
-    fieldName: string;
     isRoute: boolean;
     isRawExecutable: boolean;
     handler: AnyHandler;
@@ -158,7 +151,6 @@ export type Executable = {
     // src: RouteDef | HookDef | RawHookDef;
     enableValidation: boolean;
     enableSerialization: boolean;
-    selfPointer: string[];
 };
 
 export interface RouteExecutable extends Executable {
@@ -302,13 +294,10 @@ export type PublicMethods<Type extends Routes> = {
         : never;
 };
 
-export type OnlySuccess<Resp> = Exclude<Resp, RouteError | Error>;
-export type PublicHandlerResponse<Resp> = Promise<[OnlySuccess<Awaited<Resp>> | null, PublicError | undefined]>;
-
 // prettier-ignore
 export type PublicHandler<H extends Handler> = 
     H extends (ctx: CallContext, ...rest: infer Req) => infer Resp
-    ? (...rest: Req) => Promise<[OnlySuccess<Awaited<Resp>> | null, PublicError | undefined]>
+    ? (...rest: Req) => PublicResponse<Resp>
     : never;
 
 /** Public map from Routes, _handler type is the same as router's handler but does not include the context  */
@@ -323,7 +312,7 @@ export type PublicRoute<H extends Handler> = {
     enableValidation: boolean;
     enableSerialization: boolean;
     params: string[];
-    publicExecutionPathPointers?: string[][];
+    executionPathNames?: string[];
 };
 
 /** Public map from Hooks, _handler type is the same as hooks's handler but does not include the context  */
@@ -334,16 +323,21 @@ export type PublicHook<H extends Handler> = {
     handlerSerializedType: SerializedTypes;
     isRoute: false;
     inHeader: boolean;
-    fieldName: string;
+    path: string;
     enableValidation: boolean;
     enableSerialization: boolean;
     params: string[];
 };
 
-export type SuccessResponse<R> = [R];
-export type FailResponse = [null, PublicError];
+export type PublicResponse<Resp> = Promise<Awaited<Resp> | RouteError>;
+export type ResolvedPublicResponse<Resp> = Awaited<Resp> | RouteError;
+
 export type PublicResponses = {
-    [key: string]: SuccessResponse<any> | FailResponse;
+    [key: string]: PublicResponse<any>;
+};
+
+export type ResolvedPublicResponses = {
+    [key: string]: ResolvedPublicResponse<any>;
 };
 
 // #######  type guards #######

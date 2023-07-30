@@ -50,55 +50,39 @@ describe('Create routes should', () => {
 
     const hookExecutables = {
         first: {
-            path: 'first',
-            fieldName: 'first',
+            path: '/first',
             isRoute: false,
-            selfPointer: ['first'],
         },
         userBefore: {
-            path: 'userBefore',
-            fieldName: 'userBefore',
+            path: '/users/userBefore',
             isRoute: false,
-            selfPointer: ['users', 'userBefore'],
         },
         userAfter: {
-            path: 'userAfter',
-            fieldName: 'userAfter',
+            path: '/users/userAfter',
             isRoute: false,
-            selfPointer: ['users', 'userAfter'],
         },
         userPetsAfter: {
-            path: 'userPetsAfter',
-            fieldName: 'userPetsAfter',
+            path: '/users/pets/userPetsAfter',
             isRoute: false,
-            selfPointer: ['users', 'pets', 'userPetsAfter'],
         },
         last: {
-            path: 'last',
-            fieldName: 'last',
+            path: '/last',
             isRoute: false,
-            selfPointer: ['last'],
         },
     };
 
     const routeExecutables = {
         usersGetUser: {
             path: '/users/getUser',
-            fieldName: '/users/getUser',
             isRoute: true,
-            selfPointer: ['users', 'getUser'],
         },
         usersPetsGetUserPet: {
             path: '/users/pets/getUserPet',
-            fieldName: '/users/pets/getUserPet',
             isRoute: true,
-            selfPointer: ['users', 'pets', 'getUserPet'],
         },
         petsGetPet: {
             path: '/pets/getPet',
-            fieldName: '/pets/getPet',
             isRoute: true,
-            selfPointer: ['pets', 'getPet'],
         },
     };
 
@@ -106,16 +90,12 @@ describe('Create routes should', () => {
         parseJsonRequestBody: {
             isRoute: false,
             isRawExecutable: true,
-            path: 'parseJsonRequestBody',
-            fieldName: 'parseJsonRequestBody',
-            selfPointer: ['parseJsonRequestBody'],
+            path: '/parseJsonRequestBody',
         },
         stringifyJsonResponseBody: {
             isRoute: false,
             isRawExecutable: true,
-            path: 'stringifyJsonResponseBody',
-            fieldName: 'stringifyJsonResponseBody',
-            selfPointer: ['stringifyJsonResponseBody'],
+            path: '/stringifyJsonResponseBody',
         },
     };
 
@@ -181,7 +161,6 @@ describe('Create routes should', () => {
                 forceRunOnError: false,
                 canReturnData: true,
                 inHeader: false,
-                fieldName: '/hello',
                 isRoute: true,
             })
         );
@@ -192,14 +171,13 @@ describe('Create routes should', () => {
         const defaultHookValues = {first: {hook: (): null => null}};
         registerRoutes(defaultHookValues);
 
-        expect(getHookExecutable('first')).toEqual(
+        expect(getHookExecutable('/first')).toEqual(
             expect.objectContaining({
-                path: 'first',
+                path: '/first',
                 nestLevel: 0,
                 forceRunOnError: false,
                 canReturnData: false,
                 inHeader: false,
-                fieldName: 'first',
                 isRoute: false,
             })
         );
@@ -217,7 +195,6 @@ describe('Create routes should', () => {
                 forceRunOnError: false,
                 canReturnData: true,
                 inHeader: false,
-                fieldName: '/sayHello',
                 isRoute: true,
             })
         );
@@ -237,29 +214,6 @@ describe('Create routes should', () => {
         expect(getRouteExecutionPath('/api/v1/pets/setPet.json')).toBeTruthy();
     });
 
-    it('customize route paths', () => {
-        initRouter({prefix: 'api/v1'});
-
-        const routes: Routes = {
-            u: {
-                c: {
-                    path: 'users/create',
-                    route: () => null,
-                },
-                d: {
-                    path: '/users/delete',
-                    route: () => null,
-                },
-            },
-        };
-        registerRoutes(routes);
-
-        expect(geRoutesSize()).toEqual(2);
-
-        expect(getRouteExecutionPath('/api/v1/users/create')).toBeTruthy();
-        expect(getRouteExecutionPath('/api/v1/users/delete')).toBeTruthy();
-    });
-
     it('throw an error when a routes are invalid', () => {
         initRouter();
         const empty = {};
@@ -273,34 +227,6 @@ describe('Create routes should', () => {
             'Invalid route: sayHello/total. Type <number> is not a valid route.'
         );
         expect(() => registerRoutes(numericNames)).toThrow('Invalid route: directory/2. Numeric route names are not allowed');
-    });
-
-    it('throw an error when there are naming collisions', () => {
-        initRouter();
-        const fieldCollision = {
-            preProcess: {
-                fieldName: 'process',
-                hook: (): null => null,
-            },
-            postProcess: {
-                fieldName: 'process',
-                hook: (): null => null,
-            },
-        };
-        const pathCollision = {
-            sayHello1: {
-                path: 'sayHello',
-                route: (): null => null,
-            },
-            sayHello2: {
-                path: 'sayHello',
-                route: (): null => null,
-            },
-        };
-        expect(() => registerRoutes(fieldCollision)).toThrow(
-            `Invalid hook: postProcess. Naming collision, the fieldName 'process' has been used in more than one hook/route.`
-        );
-        expect(() => registerRoutes(pathCollision)).toThrow('Invalid route: sayHello2. Naming collision, duplicated route');
     });
 
     it('optimize parsing routes (complexity) when there are multiple routes in a row', () => {
@@ -399,13 +325,13 @@ describe('Create routes should', () => {
         registerRoutes(routes);
 
         const expectedExecutionPath = addDefaultExecutables([
-            expect.objectContaining({fieldName: 'p1', isRoute: false}),
-            expect.objectContaining({fieldName: 'p2', isRoute: false}),
-            expect.objectContaining({fieldName: 'first', isRoute: false}),
+            expect.objectContaining({path: '/p1', isRoute: false}),
+            expect.objectContaining({path: '/p2', isRoute: false}),
+            expect.objectContaining({path: '/first', isRoute: false}),
             expect.objectContaining({path: '/pets/getPet', isRoute: true}),
-            expect.objectContaining({fieldName: 'last', isRoute: false}),
-            expect.objectContaining({fieldName: 'a1', isRoute: false}),
-            expect.objectContaining({fieldName: 'a2', isRoute: false}),
+            expect.objectContaining({path: '/last', isRoute: false}),
+            expect.objectContaining({path: '/a1', isRoute: false}),
+            expect.objectContaining({path: '/a2', isRoute: false}),
         ]);
 
         expect(getRouteExecutionPath('/pets/getPet')).toEqual(expectedExecutionPath);

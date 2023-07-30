@@ -25,7 +25,7 @@ const sayHello = (ctx): string => {
 };
 
 const routes = {
-    authorizationHook, // header: Authorization (defined using fieldName)
+    authorizationHook, // header: Authorization
     wrongSayHello,
     sayHello,
 } satisfies Routes;

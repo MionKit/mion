@@ -5,24 +5,16 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {getDeserializedFunctionType} from '@mionkit/runtype';
-import {DEFAULT_PREFILL_OPTIONS} from './constants';
-import {
-    ClientMethods,
-    ClientOptions,
-    RemoteHandlerResponse,
-    RemoteHook,
-    RemoteMethod,
-    RemoteMethods,
-    RemoteResponses,
-    RemoteRoute,
-    RequestBody,
-} from './types';
-import {GET_PUBLIC_METHODS_PATH, RouteError, StatusCodes} from '@mionkit/core';
+import {FunctionReflection, SerializedTypes, getDeserializedFunctionType, getFunctionReflectionMethods} from '@mionkit/runtype';
+import {DEFAULT_PREFILL_OPTIONS, STORAGE_KEY} from './constants';
+import {ClientMethods, ClientOptions, RequestBody} from './types';
+import {GET_PUBLIC_METHODS_PATH, PublicError, RouteError, StatusCodes, isPublicError} from '@mionkit/core';
+import {PublicMethod, PublicMethods, PublicResponses, ResolvedPublicResponse, ResolvedPublicResponses} from '@mionkit/router';
 
 // ############# PRIVATE STATE #############
 
-const remoteMethodsByPath: Map<string, RemoteMethod> = new Map();
+const remoteMethodsByPath: Map<string, PublicMethod> = new Map();
+const reflectionByPath: Map<string, FunctionReflection> = new Map();
 
 let clientOptions: ClientOptions = {
     ...DEFAULT_PREFILL_OPTIONS,
@@ -45,7 +37,7 @@ const requestMethods = {
 
 const requestMethodsKeys = Object.keys(requestMethods);
 
-export function initClient<R extends RemoteMethods<any>>(): ClientMethods<R> {
+export function initClient<R extends PublicMethods<any>>(): ClientMethods<R> {
     const target = {};
 
     const handler = {
@@ -74,7 +66,7 @@ function addToRequest(requestBody: RequestBody, path: string, params: any[]) {
     requestBody[path] = params;
 }
 
-async function doFetch(request: RequestBody, path: string, skipSerialize = false): Promise<RemoteResponses> {
+async function doFetch(request: RequestBody, path: string, skipSerialize = false): Promise<PublicResponses> {
     const requestRemoteMethods = Object.keys(request);
     const missingMethods = requestRemoteMethods.filter((path) => !remoteMethodsByPath.has(path));
     await fetchRemoteMethodsInfo(missingMethods);
@@ -85,14 +77,14 @@ async function doFetch(request: RequestBody, path: string, skipSerialize = false
     }
 
     try {
-        const response = await fetch(`${clientOptions.apiURL}${path}`, {
+        const response = await fetch(`${clientOptions.baseURL}${path}`, {
             method: 'PUT',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify(request),
         });
         const respObj = await response.json();
-        if (!skipSerialize) return deserializeResponseBody(respObj as RemoteResponses);
-        return respObj as RemoteResponses;
+        if (!skipSerialize) return deserializeResponseBody(respObj as PublicResponses);
+        return respObj as PublicResponses;
     } catch (error: any) {
         throw new RouteError({
             statusCode: StatusCodes.BAD_REQUEST,
@@ -103,8 +95,8 @@ async function doFetch(request: RequestBody, path: string, skipSerialize = false
     }
 }
 
-function serializeAndValidateRequestBody(request: RequestBody): {hasErrors: boolean; errors: RemoteResponses} {
-    const errors: RemoteResponses = {};
+function serializeAndValidateRequestBody(request: RequestBody): {hasErrors: boolean; errors: ResolvedPublicResponses} {
+    const errors: ResolvedPublicResponses = {};
     let hasErrors = false;
     Object.entries(request).forEach(([key, params]) => {
         try {
@@ -125,13 +117,13 @@ function serializeAndValidateRequestBody(request: RequestBody): {hasErrors: bool
                           originalError: error,
                       });
 
-            errors[key] = [null, routeError];
+            errors[key] = routeError;
         }
     });
     return {hasErrors, errors};
 }
 
-function deserializeResponseBody(responseBody: RemoteResponses): RemoteResponses {
+function deserializeResponseBody(responseBody: ResolvedPublicResponses): ResolvedPublicResponses {
     const deSerializedBody = responseBody;
     Object.entries(deSerializedBody).forEach(([key, remoteHandlerResponse]) => {
         try {
@@ -164,20 +156,19 @@ async function fetchRemoteMethodsInfo(paths: string[]) {
         [GET_PUBLIC_METHODS_PATH]: [missingAfterLocal],
     };
     try {
-        const response = await fetch(`${clientOptions.apiURL}${GET_PUBLIC_METHODS_PATH}`, {
+        const response = await fetch(`${clientOptions.baseURL}${GET_PUBLIC_METHODS_PATH}`, {
             method: 'PUT',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify(body),
         });
         const respObj = await response.json();
-        const [remoteMethods, err] = respObj[GET_PUBLIC_METHODS_PATH] as RemoteHandlerResponse<RemoteMethods<any>>;
+        const resp = respObj[GET_PUBLIC_METHODS_PATH] as ResolvedPublicResponse<{[key: string]: PublicMethod}>;
         // TODO: convert Public error into a class that extends error and throw as an error
-        if (err) throw new Error(`${err.name}: ${err.message}`);
-        if (!remoteMethods) throw new Error('No remote methods found in response');
+        if (isPublicError(resp)) throw new PublicError(resp);
+        if (!resp) throw new Error('No remote methods found in response');
 
-        Object.entries(remoteMethods).forEach(([path, remoteMethod]) => {
-            remoteMethodsByPath.set(path, remoteMethod);
-            localStorage.setItem(getLocalStorageKeyForRemoteMethod(path), JSON.stringify(remoteMethod));
+        Object.entries(resp).forEach(([path, remoteMethod]: [string, PublicMethod]) => {
+            setRemoteMethodMetadata(path, remoteMethod);
         });
     } catch (error: any) {
         throw new Error(`Error fetching validation and serialization metadata: ${error?.message}`);
@@ -186,12 +177,12 @@ async function fetchRemoteMethodsInfo(paths: string[]) {
 
 function restoreRemoteMethodsFromLocalStorage(paths: string[]) {
     return paths.map((path) => {
-        const storageKey = getLocalStorageKeyForRemoteMethod(path);
+        const storageKey = getLocalStorageKey(path);
         const remoteMethodJson = localStorage.getItem(storageKey);
         if (!remoteMethodJson) return;
         try {
             const remoteMethod = JSON.parse(remoteMethodJson);
-            remoteMethodsByPath.set(path, remoteMethod);
+            setRemoteMethodMetadata(path, remoteMethod, false);
         } catch (e) {
             localStorage.removeItem(storageKey);
             return;
@@ -199,15 +190,16 @@ function restoreRemoteMethodsFromLocalStorage(paths: string[]) {
     });
 }
 
-function getLocalStorageKeyForRemoteMethod(path: string) {
-    return `${clientOptions.localStorageKey}:remote-methods:${path}`;
+function getLocalStorageKey(path: string) {
+    return `${STORAGE_KEY}:remote-methods:${path}`;
 }
 
-function serializeParameters(params: any[], method: RemoteMethod): any[] {
-    if (!method.reflection) return params;
+function serializeParameters(params: any[], method: PublicMethod): any[] {
+    const reflection = reflectionByPath.get(method.path);
+    if (!reflection) return params;
     if (params.length && method.enableSerialization) {
         try {
-            params = method.reflection.serializeParams(params);
+            params = reflection.serializeParams(params);
         } catch (e: any) {
             throw new RouteError({
                 statusCode: StatusCodes.BAD_REQUEST,
@@ -221,10 +213,11 @@ function serializeParameters(params: any[], method: RemoteMethod): any[] {
     return params;
 }
 
-function validateParameters(params: any[], method: RemoteMethod): any[] {
-    if (!method.reflection) return params;
+function validateParameters(params: any[], method: PublicMethod): any[] {
+    const reflection = reflectionByPath.get(method.path);
+    if (!reflection) return params;
     if (method.enableValidation) {
-        const validationResponse = method.reflection.validateParams(params);
+        const validationResponse = reflection.validateParams(params);
         if (validationResponse.hasErrors) {
             throw new RouteError({
                 statusCode: StatusCodes.BAD_REQUEST,
@@ -237,12 +230,16 @@ function validateParameters(params: any[], method: RemoteMethod): any[] {
     return params;
 }
 
-function deSerializeReturn(remoteHandlerResponse: RemoteHandlerResponse<any>, method: RemoteMethod): RemoteHandlerResponse<any> {
-    if (!method.reflection || !method.enableSerialization) return remoteHandlerResponse;
+function deSerializeReturn(
+    remoteHandlerResponse: ResolvedPublicResponse<any>,
+    method: PublicMethod
+): ResolvedPublicResponse<any> {
+    const reflection = reflectionByPath.get(method.path);
+    if (!reflection || !method.enableSerialization) return remoteHandlerResponse;
     const result = remoteHandlerResponse[0];
     if (!result) return remoteHandlerResponse;
     try {
-        const serialized = method.reflection.deserializeReturn(result);
+        const serialized = reflection.deserializeReturn(result);
         return [serialized, remoteHandlerResponse[1]];
     } catch (e: any) {
         throw new RouteError({
@@ -253,4 +250,15 @@ function deSerializeReturn(remoteHandlerResponse: RemoteHandlerResponse<any>, me
             publicData: e?.errors,
         });
     }
+}
+
+function setRemoteMethodMetadata(path: string, method: PublicMethod, store = true) {
+    remoteMethodsByPath.set(path, method);
+    reflectionByPath.set(path, getFunctionReflection(method.handlerSerializedType));
+    if (store) localStorage.setItem(getLocalStorageKey(path), JSON.stringify(method));
+}
+
+function getFunctionReflection(serializedTypes: SerializedTypes): FunctionReflection {
+    const type = getDeserializedFunctionType(serializedTypes);
+    return getFunctionReflectionMethods(type, clientOptions.routerOptions.reflectionOptions, 0);
 }

@@ -15,8 +15,6 @@ import {
     isRawExecutable,
     Handler,
     isNotFoundExecutable,
-    SuccessResponse,
-    FailResponse,
 } from './types';
 import {getNotFoundExecutionPath, getRouteExecutionPath, getRouterOptions} from './router';
 import {isPromise} from 'node:util/types';
@@ -98,15 +96,15 @@ async function runExecutionPath(
         try {
             const deserializedParams = deserializeParameters(request, executable);
             const validatedParams = validateParameters(deserializedParams, executable);
-            if (executable.inHeader) (request.headers as Mutable<Request['headers']>)[executable.fieldName] = validatedParams;
-            else (request.body as Mutable<Request['body']>)[executable.fieldName] = validatedParams;
+            if (executable.inHeader) (request.headers as Mutable<Request['headers']>)[executable.path] = validatedParams;
+            else (request.body as Mutable<Request['body']>)[executable.path] = validatedParams;
 
             const result = await runHandler(validatedParams, context, rawRequest, rawResponse, executable, opts);
             // TODO: should we also validate the handler result? think just forcing declaring the return type with a linter is enough.
             serializeResponse(executable, response, result);
         } catch (err: any | RouteError | Error) {
-            const fieldName = isNotFoundExecutable(executable) ? context.path : executable.fieldName;
-            handleRouteErrors(fieldName, request, response, err, i);
+            const path = isNotFoundExecutable(executable) ? context.path : executable.path;
+            handleRouteErrors(path, request, response, err, i);
         }
     }
 
@@ -148,22 +146,22 @@ function getHandlerResponse(
 
 function deserializeParameters(request: Request, executable: Executable): any[] {
     if (!executable.reflection) return [];
-    const fieldName = executable.fieldName;
+    const path = executable.path;
     let params;
 
     if (executable.inHeader) {
-        params = request.headers[fieldName] || [];
+        params = request.headers[path] || [];
         // headers could be arrays in some cases bust mostly individual values
         // so we need to normalize to an array
         if (!Array.isArray(params)) params = [params];
     } else {
-        params = request.body[fieldName] || [];
+        params = request.body[path] || [];
         // params sent in body can only be sent in an array
         if (!Array.isArray(params))
             throw new RouteError({
                 statusCode: StatusCodes.BAD_REQUEST,
                 name: 'Invalid Params Array',
-                publicMessage: `Invalid params '${fieldName}'. input parameters can only be sent in an array.`,
+                publicMessage: `Invalid params '${path}'. input parameters can only be sent in an array.`,
             });
     }
 
@@ -174,7 +172,7 @@ function deserializeParameters(request: Request, executable: Executable): any[] 
             throw new RouteError({
                 statusCode: StatusCodes.BAD_REQUEST,
                 name: 'Serialization Error',
-                publicMessage: `Invalid params '${fieldName}', can not deserialize. Parameters might be of the wrong type.`,
+                publicMessage: `Invalid params '${path}', can not deserialize. Parameters might be of the wrong type.`,
                 originalError: e,
                 publicData: e?.errors,
             });
@@ -191,7 +189,7 @@ function validateParameters(params: any[], executable: Executable): any[] {
             throw new RouteError({
                 statusCode: StatusCodes.BAD_REQUEST,
                 name: 'Validation Error',
-                publicMessage: `Invalid params in '${executable.fieldName}', validation failed.`,
+                publicMessage: `Invalid params in '${executable.path}', validation failed.`,
                 publicData: validationResponse,
             });
         }
@@ -202,14 +200,14 @@ function validateParameters(params: any[], executable: Executable): any[] {
 function serializeResponse(executable: Executable, response: Response, result: any) {
     if (!executable.canReturnData || result === undefined || !executable.reflection) return;
     const serialized = executable.enableSerialization ? executable.reflection.serializeReturn(result) : result;
-    if (executable.inHeader) response.headers[executable.fieldName] = serialized;
-    else (response.body as Mutable<Obj>)[executable.fieldName] = [serialized] as SuccessResponse<any>;
+    if (executable.inHeader) response.headers[executable.path] = serialized;
+    else (response.body as Mutable<Obj>)[executable.path] = serialized;
 }
 
 // ############# PUBLIC METHODS USED FOR ERRORS #############
 
 export function handleRouteErrors(
-    fieldName: string,
+    path: string,
     request: Request,
     response: Mutable<Response>,
     err: any | RouteError,
@@ -228,7 +226,7 @@ export function handleRouteErrors(
     const publicError = routeError.toPublicError();
     response.statusCode = routeError.statusCode;
     response.hasErrors = true;
-    (response.body as Mutable<Obj>)[fieldName] = [null, publicError] as FailResponse;
+    (response.body as Mutable<Obj>)[path] = publicError;
     (request.internalErrors as Mutable<RouteError[]>).push(routeError);
 }
 

@@ -4,8 +4,8 @@ export const PUBLIC_METHODS = {
     myApi: {
         auth: {
             isRoute: false,
+            path: 'Authorization',
             inHeader: true,
-            fieldName: 'auth',
             _handler: expect.any(Function),
             handlerSerializedType: expect.any(Object),
             enableValidation: true,
@@ -35,8 +35,8 @@ export const PUBLIC_METHODS = {
             },
             totalUsers: {
                 isRoute: false,
+                path: '/v1/users/totalUsers',
                 inHeader: false,
-                fieldName: 'totalUsers',
                 _handler: expect.any(Function),
                 handlerSerializedType: expect.any(Object),
                 enableValidation: true,
@@ -66,15 +66,17 @@ export const PUBLIC_METHODS = {
                 params: ['pet'],
             },
         },
-        getNumber: {
-            isRoute: true,
-            path: '/v1/utils/getNumber',
-            inHeader: false,
-            _handler: expect.any(Function),
-            handlerSerializedType: expect.any(Object),
-            enableValidation: true,
-            enableSerialization: true,
-            params: ['s', 'n'],
+        utils: {
+            getNumber: {
+                isRoute: true,
+                path: '/v1/utils/getNumber',
+                inHeader: false,
+                _handler: expect.any(Function),
+                handlerSerializedType: expect.any(Object),
+                enableValidation: true,
+                enableSerialization: true,
+                params: ['s', 'n'],
+            },
         },
         getItem: {
             isRoute: true,
@@ -121,7 +123,9 @@ export const ROUTES = {
             getPet: [PUBLIC_METHODS.myApi.auth, PUBLIC_METHODS.myApi.pets.getPet],
             setPet: [PUBLIC_METHODS.myApi.auth, PUBLIC_METHODS.myApi.pets.setPet],
         },
-        getNumber: [PUBLIC_METHODS.myApi.auth, PUBLIC_METHODS.myApi.getNumber],
+        utils: {
+            getNumber: [PUBLIC_METHODS.myApi.auth, PUBLIC_METHODS.myApi.utils.getNumber],
+        },
         getItem: [PUBLIC_METHODS.myApi.auth, PUBLIC_METHODS.myApi.getItem],
         getPetOrUser: [PUBLIC_METHODS.myApi.auth, PUBLIC_METHODS.myApi.getPetOrUser],
     },

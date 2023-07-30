@@ -40,7 +40,10 @@ export type RouteErrorParams = {
 // #######  Type Guards #######
 
 export function isPublicError(error: any): error is PublicError {
-    return error && typeof error.statusCode === 'number' && typeof error.message === 'string' && typeof error.name === 'string';
+    if (error instanceof PublicError) return true;
+    return (
+        error && typeof error?.statusCode === 'number' && typeof error?.message === 'string' && typeof error?.name === 'string'
+    );
 }
 
 // #######  Others #######

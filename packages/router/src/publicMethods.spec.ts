@@ -64,15 +64,15 @@ describe('Public Mothods should', () => {
 
         expect(api).toEqual({
             auth: expect.objectContaining({
-                _handler: 'auth',
+                _handler: 'auth', // to be used by codegen so need to be a valid js syntax
                 isRoute: false,
-                fieldName: 'auth',
+                path: '/auth',
                 enableValidation: DEFAULT_ROUTE_OPTIONS.enableValidation,
                 enableSerialization: DEFAULT_ROUTE_OPTIONS.enableSerialization,
             }),
             routes: {
                 route1: expect.objectContaining({
-                    _handler: 'routes.route1',
+                    _handler: 'routes.route1', // to be used by codegen so need to be a valid js syntax
                     isRoute: true,
                     path: '/routes/route1',
                     enableValidation: DEFAULT_ROUTE_OPTIONS.enableValidation,
@@ -132,7 +132,7 @@ describe('Public Mothods should', () => {
             auth: expect.objectContaining({
                 isRoute: false,
                 inHeader: false,
-                fieldName: 'auth',
+                path: '/v1/auth.json',
             }),
             route1: expect.objectContaining({
                 isRoute: true,
@@ -148,7 +148,7 @@ describe('Public Mothods should', () => {
 
         expect(publicExecutables).toEqual({
             first: expect.objectContaining({
-                fieldName: 'first',
+                path: '/first',
                 isRoute: false,
             }),
             parse: null,
@@ -181,7 +181,7 @@ describe('Public Mothods should', () => {
                 }),
             },
             last: expect.objectContaining({
-                fieldName: 'last',
+                path: '/last',
                 isRoute: false,
             }),
         });
@@ -194,7 +194,7 @@ describe('Public Mothods should', () => {
             `Route '/route1' not found in router. Please check you have called router.addRoutes first!`
         );
         expect(() => getPublicRoutes(testR2)).toThrow(
-            `Hook 'hook1' not found in router. Please check you have called router.addRoutes first!`
+            `Hook '/hook1' not found in router. Please check you have called router.addRoutes first!`
         );
     });
 });
