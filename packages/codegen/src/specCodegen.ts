@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {PublicMethods, PublicRoute} from '@mionkit/router';
+import {PublicMethods, PublicRoute, getSrcPointer} from '@mionkit/router';
 import {dirname, parse, relative} from 'path';
 import {hasChildRoutes, type CodegenOptions, type ExportedRoutesMap, type PublicMethodsSpec, type RoutesSpec} from './types';
 import {DEFAULT_PRETTIER_OPTIONS, PUBLIC_METHODS_SPEC_EXPORT_NAME, ROUTES_SPEC_EXPORT_NAME} from './constants';
@@ -66,7 +66,7 @@ function recursiveSetHandlerTypeAndCreateRouteExecutables(
         } else {
             if (item.isRoute) {
                 setRouteExecutables(item, newPointer, exportName, routeExecutables);
-                delete item.publicExecutionPathPointers;
+                delete item.executionPathNames;
             }
             newRoutes[key] = {
                 ...item,
@@ -94,8 +94,8 @@ function serializeRoutes(routes: RoutesSpec) {
 }
 
 function setRouteExecutables(route: PublicRoute<any>, currentPointer: string[], exportName: string, routeExecutables: Obj) {
-    const MethodPointers = route.publicExecutionPathPointers?.map((pointer) =>
-        setCodeAsJsonString(`${PUBLIC_METHODS_SPEC_EXPORT_NAME}.${exportName}.${pointer.join('.')}`)
+    const MethodPointers = route.executionPathNames?.map((path) =>
+        setCodeAsJsonString(`${PUBLIC_METHODS_SPEC_EXPORT_NAME}.${exportName}.${getSrcPointer(path).join('.')}`)
     );
     assignProperty(routeExecutables, currentPointer, MethodPointers);
 }

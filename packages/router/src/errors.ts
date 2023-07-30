@@ -8,7 +8,7 @@
 import {RawRequest, Response} from './types';
 import {stringifyResponseBody} from './jsonBodyParser';
 import {getRouterOptions} from './router';
-import {Mutable, PublicError, RouteError, StatusCodes} from '@mionkit/core';
+import {RouteError, StatusCodes} from '@mionkit/core';
 import {getEmptyCallContext, handleRouteErrors} from './dispatch';
 
 export function getResponseFromError(

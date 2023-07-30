@@ -203,7 +203,7 @@ The reason for this request/response formats is to directly match each executed 
 #### Request type
 
 ```ts
-// src/types.ts#L243-L257
+// src/types.ts#L202-L216
 
 /** Router's own request object, do not confuse with the underlying raw request */
 export type Request = {
@@ -256,7 +256,7 @@ Remember: each hook/route is always send/returned in a field with the `hook` or 
 #### Response type
 
 ```ts
-// src/types.ts#L259-L270
+// src/types.ts#L218-L229
 
 /** Router's own response object, do not confuse with the underlying raw response */
 export type Response = {
@@ -266,7 +266,7 @@ export type Response = {
   /** response headers */
   readonly headers: Headers;
   /** the router response data, body should not be modified manually so marked as Read Only */
-  readonly body: Readonly<PublicResponse>;
+  readonly body: Readonly<PublicResponses>;
   /** json encoded response, contains data and errors if there are any. */
   readonly json: string;
 };
@@ -404,12 +404,10 @@ export const alwaysError = (): void => {
 #### Routes Configuration
 
 ```ts
-// src/types.ts#L48-L62
+// src/types.ts#L41-L53
 
 /** Route definition */
 export interface RouteDef<Context extends CallContext = CallContext, Ret = any> {
-  /** overrides route's path and fieldName in request/response body */
-  path?: string;
   /** description of the route, mostly for documentation purposes */
   description?: string;
   /** Overrides global enableValidation */
@@ -426,7 +424,7 @@ export interface RouteDef<Context extends CallContext = CallContext, Ret = any> 
 #### Hooks Configuration
 
 ```ts
-// src/types.ts#L64-L93
+// src/types.ts#L55-L82
 
 interface HookBase {
   /** Executes the hook even if an error was thrown previously */
@@ -446,8 +444,6 @@ interface HookBase {
 
 /** Hook definition, a function that hooks into the execution path */
 export interface HookDef<Context extends CallContext = CallContext, Ret = any> extends HookBase {
-  /** The fieldName in the request/response body */
-  fieldName?: string;
   /** Hook handler */
   hook: Handler<Context, Ret>;
 }
@@ -455,7 +451,7 @@ export interface HookDef<Context extends CallContext = CallContext, Ret = any> e
 /** Header Hook definition, used to handle header params */
 export interface HeaderHookDef<Context extends CallContext = CallContext, Ret = any> extends HookBase {
   /** the name of the header in the request/response */
-  headerName?: string;
+  headerName: string;
   headerHook: HeaderHandler<Context, Ret>;
 }
 ```
@@ -463,7 +459,7 @@ export interface HeaderHookDef<Context extends CallContext = CallContext, Ret = 
 #### Raw Hook Configuration
 
 ```ts
-// src/types.ts#L95-L106
+// src/types.ts#L84-L95
 
 /**
  * Raw hook, used only to access raw request/response and modify the call context.
@@ -472,7 +468,7 @@ export interface HeaderHookDef<Context extends CallContext = CallContext, Ret = 
 export interface RawHookDef<
   Context extends CallContext = CallContext,
   RawReq extends RawRequest = RawRequest,
-  RawResp = unknown,
+  RawResp = any,
   Opts extends RouterOptions<RawReq> = RouterOptions<RawReq>
 > {
   rawHook: RawHookHandler<Context, RawReq, RawResp, Opts>;
@@ -553,7 +549,7 @@ const sayHello = (ctx): string => {
 };
 
 const routes = {
-  authorizationHook, // header: Authorization (defined using fieldName)
+  authorizationHook, // header: Authorization
   wrongSayHello,
   sayHello,
 } satisfies Routes;
@@ -564,7 +560,7 @@ export const apiSpec = registerRoutes(routes);
 #### Call Context Type
 
 ```ts
-// src/types.ts#L226-L236
+// src/types.ts#L185-L195
 
 /** The call Context object passed as first parameter to any hook or route */
 export type CallContext<SharedData = any> = {
@@ -720,7 +716,7 @@ module.exports = {
 ## `Router Options`
 
 ```ts
-// src/constants.ts#L39-L80
+// src/constants.ts#L37-L66
 
 export const DEFAULT_ROUTE_OPTIONS: Readonly<RouterOptions> = {
   /** Prefix for all routes, i.e: api/v1.
@@ -733,12 +729,6 @@ export const DEFAULT_ROUTE_OPTIONS: Readonly<RouterOptions> = {
 
   /** Function that transforms the path before finding a route */
   pathTransform: undefined,
-
-  /**
-   * Configures the fieldName in the request/response body
-   * used to send/receive route's params/response
-   * */
-  routeFieldName: undefined,
 
   /** Enables automatic parameter validation */
   enableValidation: true,
@@ -755,14 +745,8 @@ export const DEFAULT_ROUTE_OPTIONS: Readonly<RouterOptions> = {
   /** set to true to generate router spec for clients.  */
   getPublicRoutesData: process.env.GENERATE_ROUTER_SPEC === 'true',
 
-  /** Lazy load reflection.  */
-  lazyLoadReflection: true,
-
   /** Set true to automatically generate and id for every error.  */
   autoGenerateErrorId: false,
-
-  /** Set true to get the call context using `getCallContext` function instead a router's parameter.  */
-  useAsyncCallContext: false,
 };
 ```
 

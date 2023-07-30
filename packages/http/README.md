@@ -42,7 +42,7 @@ Thanks to it's RPC style there is no need to parse parameters or regular express
 
 `Route response` is send back in the body in a field with the same name as the route.
 
-The reason for this weird naming is to future proof the router to be able to accept multiple routes on a single request. However this can be changed setting the `routeFieldName` in the router options.
+The reason for this weird naming is to future proof the router to be able to accept multiple routes on a single request.
 
 ### 📋 [Please read full router documentation here!](./packages/router/README.md)
 
