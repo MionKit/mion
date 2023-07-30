@@ -12,9 +12,9 @@
     "target": "es2020",
     "lib": ["es6", "ES2021"],
     "outDir": ".dist",
-    "composite": true,
-    "declaration": true,
-    "declarationMap": true,
+    "composite": false,
+    "declaration": false,
+    "declarationMap": false,
     "sourceMap": true,
     "paths": {
       "@mionkit/*": ["packages/*"]
@@ -22,7 +22,6 @@
   },
   "exclude": ["node_modules", ".dist"],
   "references": [
-    {"path": "packages/core"},
     {"path": "packages/core"},
     {"path": "packages/runtype"},
     {"path": "packages/router"},
