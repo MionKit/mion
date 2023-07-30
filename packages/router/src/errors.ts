@@ -25,15 +25,3 @@ export function getResponseFromError(
     stringifyResponseBody(context, rawRequest, rawResponse, routerOptions);
     return context.response;
 }
-
-export function getPublicErrorFromRouteError(routeError: RouteError): PublicError {
-    // creating a new public error object to avoid exposing the original error
-    const publicError: Mutable<PublicError> = {
-        name: routeError.name,
-        statusCode: routeError.statusCode,
-        message: routeError.publicMessage,
-    };
-    if (routeError.id) publicError.id = routeError.id;
-    if (routeError.publicData) publicError.errorData = routeError.publicData;
-    return publicError;
-}

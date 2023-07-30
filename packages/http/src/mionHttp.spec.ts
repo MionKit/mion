@@ -8,6 +8,7 @@ import {registerRoutes} from '@mionkit/router';
 import fetch from 'node-fetch'; // must be node-fetch v2 as v3 is an ES6 module non compatible whit current setup
 import {initHttpRouter, resetHttpRouter, startHttpServer} from './mionHttp';
 import type {CallContext, Route} from '@mionkit/router';
+import {PublicError} from '@mionkit/core';
 
 describe('serverless router should', () => {
     resetHttpRouter();
@@ -117,7 +118,7 @@ describe('serverless router should', () => {
         const reply = await response.json();
         const headers = Object.fromEntries(response.headers.entries());
 
-        const expectedError = {
+        const expectedError: PublicError = {
             message: `Invalid params '/api/getDate', can not deserialize. Parameters might be of the wrong type.`,
             name: 'Serialization Error',
             statusCode: 400,
@@ -181,7 +182,7 @@ describe('serverless router should', () => {
             const headers = Object.fromEntries(response.headers.entries());
             const reply = await response.json();
 
-            const expectedError = {
+            const expectedError: PublicError = {
                 message: `Request Payload Too Large`,
                 statusCode: 413,
                 name: 'Request Payload Too Large',

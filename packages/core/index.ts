@@ -6,6 +6,6 @@
  * ######## */
 
 export * from './src/types';
-export * from './src/routeError';
+export * from './src/errors';
 export * from './src/status-codes';
 export * from './src/constants';

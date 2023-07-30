@@ -195,11 +195,13 @@ describe('Dispatch routes', () => {
 
             const response = await dispatchRoute('/abcd', request, {});
             const error = response.body['/abcd'][1];
-            expect(error).toEqual({
-                statusCode: 404,
-                name: 'Not Found',
-                message: 'Route not found',
-            });
+            expect(error).toEqual(
+                new PublicError({
+                    statusCode: 404,
+                    name: 'Not Found',
+                    message: 'Route not found',
+                })
+            );
         });
 
         it('return an error if data is missing from header', async () => {
@@ -210,12 +212,14 @@ describe('Dispatch routes', () => {
 
             const response = await dispatchRoute('/changeUserName', request, {});
             const error = response.body?.Authorization?.[1];
-            expect(error).toEqual({
-                statusCode: 400,
-                name: 'Validation Error',
-                message: `Invalid params in 'Authorization', validation failed.`,
-                errorData: expect.anything(),
-            });
+            expect(error).toEqual(
+                new PublicError({
+                    statusCode: 400,
+                    name: 'Validation Error',
+                    message: `Invalid params in 'Authorization', validation failed.`,
+                    errorData: expect.anything(),
+                })
+            );
         });
 
         it('return an error if body is not the correct type', async () => {
@@ -229,11 +233,13 @@ describe('Dispatch routes', () => {
 
             const response = await dispatchRoute('/changeUserName', request, {});
             const error = response.body.parseJsonRequestBody[1];
-            expect(error).toEqual({
-                statusCode: 400,
-                name: 'Invalid Request Body',
-                message: 'Wrong request body. Expecting an json body containing the route name and parameters.',
-            });
+            expect(error).toEqual(
+                new PublicError({
+                    statusCode: 400,
+                    name: 'Invalid Request Body',
+                    message: 'Wrong request body. Expecting an json body containing the route name and parameters.',
+                })
+            );
 
             const request2: RawRequest = {
                 headers: {},
@@ -242,11 +248,13 @@ describe('Dispatch routes', () => {
 
             const response2 = await dispatchRoute('/changeUserName', request2, {});
             const errorResp = response2.body.parseJsonRequestBody[1];
-            expect(errorResp).toEqual({
-                statusCode: 422,
-                name: 'Parsing Request Body Error',
-                message: 'Invalid request body: Unexpected number in JSON at position 1',
-            });
+            expect(errorResp).toEqual(
+                new PublicError({
+                    statusCode: 422,
+                    name: 'Parsing Request Body Error',
+                    message: 'Invalid request body: Unexpected number in JSON at position 1',
+                })
+            );
         });
 
         it('return an error if data is missing from body', async () => {
@@ -257,15 +265,17 @@ describe('Dispatch routes', () => {
 
             const response = await dispatchRoute('/changeUserName', request, {});
             const error = response.body['/changeUserName'][1];
-            expect(error).toEqual({
-                statusCode: 400,
-                name: `Validation Error`,
-                message: `Invalid params in '/changeUserName', validation failed.`,
-                errorData: expect.objectContaining({
-                    hasErrors: true,
-                    totalErrors: 1,
-                }),
-            });
+            expect(error).toEqual(
+                new PublicError({
+                    statusCode: 400,
+                    name: `Validation Error`,
+                    message: `Invalid params in '/changeUserName', validation failed.`,
+                    errorData: expect.objectContaining({
+                        hasErrors: true,
+                        totalErrors: 1,
+                    }),
+                })
+            );
         });
 
         it("return an error if can't deserialize", async () => {
@@ -276,12 +286,14 @@ describe('Dispatch routes', () => {
 
             const response = await dispatchRoute('/getSameDate', request, {});
             const error = response.body['/getSameDate'][1];
-            expect(error).toEqual({
-                statusCode: 400,
-                name: 'Serialization Error',
-                message: `Invalid params '/getSameDate', can not deserialize. Parameters might be of the wrong type.`,
-                errorData: expect.anything(),
-            });
+            expect(error).toEqual(
+                new PublicError({
+                    statusCode: 400,
+                    name: 'Serialization Error',
+                    message: `Invalid params '/getSameDate', can not deserialize. Parameters might be of the wrong type.`,
+                    errorData: expect.anything(),
+                })
+            );
         });
 
         it('return an error if validation fails, incorrect type', async () => {
@@ -292,7 +304,7 @@ describe('Dispatch routes', () => {
             const request = getDefaultRequest('/changeUserName', [wrongSimpleUser]);
 
             const response = await dispatchRoute('/changeUserName', request, {});
-            const expected: PublicError = {
+            const expected = new PublicError({
                 name: 'Validation Error',
                 statusCode: 400,
                 message: `Invalid params in '/changeUserName', validation failed.`,
@@ -301,7 +313,7 @@ describe('Dispatch routes', () => {
                     totalErrors: 1,
                     errors: expect.any(Array),
                 }),
-            };
+            });
             const error = response.body['/changeUserName'][1];
             expect(error).toEqual(expected);
         });
@@ -313,7 +325,7 @@ describe('Dispatch routes', () => {
             const request = getDefaultRequest('/changeUserName', [{}]);
 
             const response = await dispatchRoute('/changeUserName', request, {});
-            const expected: PublicError = {
+            const expected = new PublicError({
                 name: 'Validation Error',
                 statusCode: 400,
                 message: `Invalid params in '/changeUserName', validation failed.`,
@@ -322,7 +334,7 @@ describe('Dispatch routes', () => {
                     totalErrors: 2,
                     errors: expect.any(Array),
                 }),
-            };
+            });
             const error = response.body['/changeUserName'][1];
             expect(error).toEqual(expected);
         });
@@ -339,11 +351,13 @@ describe('Dispatch routes', () => {
 
             const response = await dispatchRoute('/routeFail', request, {});
             const error = response.body['/routeFail'][1];
-            expect(error).toEqual({
-                statusCode: 500,
-                name: 'Unknown Error',
-                message: 'Unknown error in step 1 of route execution path.',
-            });
+            expect(error).toEqual(
+                new PublicError({
+                    statusCode: 500,
+                    name: 'Unknown Error',
+                    message: 'Unknown error in step 1 of route execution path.',
+                })
+            );
         });
 
         // TODO: not sure how to make serialization/validation throw an error
@@ -356,10 +370,13 @@ describe('Dispatch routes', () => {
 
             const response = await dispatchRoute('/getSameDate', request, {});
             const error = response.body['/getSameDate'][1];
-            expect(error).toEqual({
-                statusCode: 400,
-                message: `Invalid params '/getSameDate', can not validate parameters.`,
-            });
+            expect(error).toEqual(
+                new PublicError({
+                    statusCode: 400,
+                    message: `Invalid params '/getSameDate', can not validate parameters.`,
+                    name: 'Validation Error',
+                })
+            );
         });
     });
 });
