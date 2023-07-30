@@ -347,12 +347,13 @@ All errors thrown within Routes/Hooks will be catch and handled, as there is no 
 
 For every error thrown/returned within the Routes/Hooks two types of errors are generated, a Public and a Private error.
 
-- Public errors: Are returned in the `context.response.body[routeName]` or `context.response.body[hookName]` and only contain a generic message and a status code (information that can be safely accessed by the clients).
-- Private errors: are stored in the `context.request.internalErrors`These errors also contains the stack trace and the rest of properties of any regular js Error. These errors should be managed by any logger hook or similar to be persisted.
+- Public errors (`PublicError`): Are returned in the `context.response.body[routeName]` or `context.response.body[hookName]` and only contain a generic message and a status code (information that can be safely accessed by the clients).
+- Private errors (`RouteError`): are stored in the `context.request.internalErrors`These errors also contains the stack trace and the rest of properties of any regular js Error. These errors should be managed by any logger hook or similar to be persisted.
+- Both `PublicError` & `RouteError` can be serialized, and unlike regulars error in JS preserve the `message` property when stringified using JSON.
 
 #### `RouteError`
 
-A mion `RouteError` class is provided to help with the creation of errors, response status code etc... It also automatically generates a shared uuid when `RouterOptions.autoGenerateErrorId = true` so same error can be traced between returned public error and internal error that contains all stack trace an any sensitive information.
+mion provides the `RouteError` class to help with the creation and serialization of errors, response status code etc... It also automatically generates a shared uuid when `RouterOptions.autoGenerateErrorId = true` so same error can be traced between returned public error and internal error that contains all stack trace an any sensitive information.
 
 Throwing any generic `Error` will generate an `HTTP 500 Internal Server Error` response.
 
