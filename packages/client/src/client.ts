@@ -18,7 +18,7 @@ import {
     RemoteRoute,
     RequestBody,
 } from './types';
-import {GET_PUBLIC_METHODS_PATH, PublicError, RouteError, StatusCodes, isPublicError} from '@mionkit/core';
+import {GET_PUBLIC_METHODS_PATH, RouteError, StatusCodes} from '@mionkit/core';
 
 // ############# PRIVATE STATE #############
 
