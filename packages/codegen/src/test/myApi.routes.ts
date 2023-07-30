@@ -27,7 +27,7 @@ const login = (ctx: CallContext, email: string, pass: string): void => {
 };
 
 export const myApiRoutes = {
-    auth: {headerHook: auth},
+    auth: {headerName: 'Authorization', headerHook: auth},
     users: {
         getUser,
         setUser: setUser,
@@ -35,11 +35,7 @@ export const myApiRoutes = {
         totalUsers: {canReturnData: true, hook: totalUsers},
     },
     pets: {getPet, setPet},
-    getNumber: {
-        // will use http://myApi.com/utils/getNumber instead http://myApi.com/getNumber
-        path: 'utils/getNumber',
-        route: getNumber,
-    },
+    utils: {getNumber},
     getItem,
     getPetOrUser,
     logErrors: {hook: logErrors},

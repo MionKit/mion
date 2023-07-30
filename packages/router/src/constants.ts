@@ -11,7 +11,6 @@ import {DEFAULT_REFLECTION_OPTIONS} from '@mionkit/runtype';
 export const ROUTE_PATH_ROOT = '/';
 
 export const DEFAULT_ROUTE: Readonly<Required<RouteDef>> = {
-    path: '',
     description: '',
     enableValidation: true,
     enableSerialization: true,
@@ -21,7 +20,6 @@ export const DEFAULT_ROUTE: Readonly<Required<RouteDef>> = {
 export const DEFAULT_HOOK: Readonly<Required<HookDef>> = {
     forceRunOnError: false,
     canReturnData: false,
-    fieldName: '',
     description: '',
     enableValidation: true,
     enableSerialization: true,
@@ -47,12 +45,6 @@ export const DEFAULT_ROUTE_OPTIONS: Readonly<RouterOptions> = {
 
     /** Function that transforms the path before finding a route */
     pathTransform: undefined,
-
-    /**
-     * Configures the fieldName in the request/response body
-     * used to send/receive route's params/response
-     * */
-    routeFieldName: undefined,
 
     /** Enables automatic parameter validation */
     enableValidation: true,
