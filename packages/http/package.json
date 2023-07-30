@@ -41,13 +41,13 @@
   },
   "scripts": {
     "test": "jest",
-    "dev": "rimraf .dist && tsc --build tsconfig.build.json --watch",
+    "dev": "rimraf .dist && tsc --build tsconfig.json --watch",
     "dev:test": "jest --watch",
     "lint": "eslint src --ext .ts",
     "format": "prettier --write src/**/*.ts",
-    "build:csj": "rimraf .dist/csj && tsc --project tsconfig.build.json",
+    "build:cjs": "rimraf .dist/cjs && tsc --project tsconfig.build.json",
     "build:esm": "rimraf .dist/esm && tsc --project tsconfig.build-esm.json",
-    "build": "npm run build:csj && npm run build:esm",
+    "build": "npm run build:cjs && npm run build:esm",
     "auto-readme": "embedme **/*.md && prettier --write **/*.md",
     "clean": "rimraf .dist & rimraf .coverage"
   },
