@@ -5,14 +5,12 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {join} from 'path';
 import {
     getHookExecutable,
+    getPathFromPointer,
     getRouteDefaultParams,
     getRouteExecutable,
     getRouteExecutionPath,
-    getRoutePath,
-    getSrcPointer,
     isPrivateHookDef,
 } from './router';
 import {
@@ -29,9 +27,10 @@ import {
     HookExecutable,
     isHeaderHookDef,
     RouterEntry,
+    Executable,
 } from './types';
 import {getSerializedFunctionType} from '@mionkit/runtype';
-import {Obj} from '@mionkit/core';
+import {Obj, getRouterItemId} from '@mionkit/core';
 
 // ############# PUBLIC METHODS #############
 
@@ -48,26 +47,26 @@ export function getPublicRoutes<R extends Routes>(routes: R): PublicMethods<R> {
 function recursiveGetPublicRoutes<R extends Routes>(routes: R, currentPointer: string[] = [], publicData: Obj = {}): Obj {
     const entries = Object.entries(routes);
     entries.forEach(([key, item]: [string, RouterEntry]) => {
-        const newPointer = [...currentPointer, key];
+        const itemPointer = [...currentPointer, key];
 
         const isHeaderHook = isHeaderHookDef(item);
         if (isPrivateHookDef(item)) {
             publicData[key] = null;
         } else if (isHookDef(item) || isHeaderHook) {
-            const path = isHeaderHook ? item.headerName : getRoutePath(join(...newPointer));
-            const executable = getHookExecutable(path);
+            const id = isHeaderHook ? item.headerName : getRouterItemId(itemPointer);
+            const executable = getHookExecutable(id);
             if (!executable)
-                throw new Error(`Hook '${path}' not found in router. Please check you have called router.addRoutes first!`);
+                throw new Error(`Hook '${id}' not found in router. Please check you have called router.addRoutes first!`);
             publicData[key] = getPublicHookFromExecutable(executable);
         } else if (isRoute(item)) {
-            const path = getRoutePath(join(...newPointer));
-            const executable = getRouteExecutable(path);
+            const id = getRouterItemId(itemPointer);
+            const executable = getRouteExecutable(id);
             if (!executable)
-                throw new Error(`Route '${path}' not found in router. Please check you have called router.addRoutes first!`);
+                throw new Error(`Route '${id}' not found in router. Please check you have called router.addRoutes first!`);
             publicData[key] = getPublicRouteFromExecutable(executable);
         } else {
             const subRoutes: Routes = routes[key] as Routes;
-            publicData[key] = recursiveGetPublicRoutes(subRoutes, newPointer);
+            publicData[key] = recursiveGetPublicRoutes(subRoutes, itemPointer);
         }
     });
 
@@ -75,20 +74,21 @@ function recursiveGetPublicRoutes<R extends Routes>(routes: R, currentPointer: s
 }
 
 function getPublicRouteFromExecutable<H extends Handler>(executable: RouteExecutable): PublicRoute<H> {
+    const path = getPathFromPointer(executable.pointer);
+    const executionPathPointers = getRouteExecutionPath(path)
+        ?.filter((exec) => isPublicExecutable(exec))
+        .map((exec) => exec.pointer);
     return {
         isRoute: true,
-        path: executable.path,
+        id: executable.id,
         inHeader: executable.inHeader,
         // handler is included just for static typing purposes and shouldn't be called directly
-        _handler: getHandlerPointer(executable.path) as any as PublicHandler<H>,
+        _handler: getHandlerSrcCodePointer(executable) as any as PublicHandler<H>,
         handlerSerializedType: getSerializedFunctionType(executable.handler),
         enableValidation: executable.enableValidation,
         enableSerialization: executable.enableSerialization,
         params: executable.reflection.handlerType.parameters.map((tp) => tp.name).slice(getRouteDefaultParams().length),
-        executionPathNames:
-            getRouteExecutionPath(executable.path)
-                ?.filter((exec) => isPublicExecutable(exec))
-                .map((exec) => exec.path) || [],
+        executionPathPointers,
     };
 }
 
@@ -96,9 +96,9 @@ function getPublicHookFromExecutable<H extends Handler>(executable: HookExecutab
     return {
         isRoute: false,
         inHeader: executable.inHeader,
-        path: executable.path,
+        id: executable.id,
         // handler is included just for static typing purposes and shouldn't be called directly
-        _handler: getHandlerPointer(executable.path) as any as PublicHandler<H>,
+        _handler: getHandlerSrcCodePointer(executable) as any as PublicHandler<H>,
         handlerSerializedType: getSerializedFunctionType(executable.handler),
         enableValidation: executable.enableValidation,
         enableSerialization: executable.enableSerialization,
@@ -106,7 +106,7 @@ function getPublicHookFromExecutable<H extends Handler>(executable: HookExecutab
     };
 }
 
-/** Returns the original route/hook paths as a string to eb used in codegen, ie: path= /api/v1/users/getUser => 'users.getUser'  */
-function getHandlerPointer(path: string) {
-    return getSrcPointer(path).join('.');
+/** Returns the original route/hook paths as a string to eb used in codegen, ie: path= users/getUser => 'users.getUser'  */
+function getHandlerSrcCodePointer(executable: Executable) {
+    return executable.pointer.join('.');
 }

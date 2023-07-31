@@ -79,21 +79,21 @@ describe('serverless router should', () => {
     };
 
     it('should get an ok response from a route', async () => {
-        const requestData = {'/api/getDate': [{date: new Date('2022-04-10T02:13:00.000Z')}]};
+        const requestData = {getDate: [{date: new Date('2022-04-10T02:13:00.000Z')}]};
         const {event, context} = getDefaultGatewayEvent(JSON.stringify(requestData), '/api/getDate');
 
         const awsResponse = await lambdaHandler(event, context);
         const parsedResponse = JSON.parse(awsResponse.body);
         const headers = awsResponse.headers || {};
 
-        expect(parsedResponse).toEqual({'/api/getDate': {date: '2022-04-10T02:13:00.000Z'}});
+        expect(parsedResponse).toEqual({getDate: {date: '2022-04-10T02:13:00.000Z'}});
         expect(headers['content-type']).toEqual('application/json; charset=utf-8');
-        expect(headers['content-length']).toEqual(52);
+        expect(headers['content-length']).toEqual(47);
         expect(headers['server']).toEqual('@mionkit/serverless');
     });
 
     it('should get an error when sending invalid parameters', async () => {
-        const requestData = {'/api/getDate': ['NOT A DATE POINT']};
+        const requestData = {getDate: ['NOT A DATE POINT']};
         const {event, context} = getDefaultGatewayEvent(JSON.stringify(requestData), '/api/getDate');
 
         const awsResponse = await lambdaHandler(event, context);
@@ -101,14 +101,14 @@ describe('serverless router should', () => {
         const headers = awsResponse.headers || {};
 
         const expectedError: PublicError = {
-            message: `Invalid params '/api/getDate', can not deserialize. Parameters might be of the wrong type.`,
+            message: `Invalid params 'getDate', can not deserialize. Parameters might be of the wrong type.`,
             statusCode: 400,
             name: 'Serialization Error',
             errorData: expect.anything(),
         };
-        expect(parsedResponse).toEqual({'/api/getDate': expectedError});
+        expect(parsedResponse).toEqual({getDate: expectedError});
         expect(headers['content-type']).toEqual('application/json; charset=utf-8');
-        expect(headers['content-length']).toEqual(264);
+        expect(headers['content-length']).toEqual(254);
         expect(headers['server']).toEqual('@mionkit/serverless');
     });
 

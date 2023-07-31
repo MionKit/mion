@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {PublicMethods, PublicRoute, getSrcPointer} from '@mionkit/router';
+import {PublicMethods, PublicRoute} from '@mionkit/router';
 import {dirname, parse, relative} from 'path';
 import {hasChildRoutes, type CodegenOptions, type ExportedRoutesMap, type PublicMethodsSpec, type RoutesSpec} from './types';
 import {DEFAULT_PRETTIER_OPTIONS, PUBLIC_METHODS_SPEC_EXPORT_NAME, ROUTES_SPEC_EXPORT_NAME} from './constants';
@@ -66,7 +66,7 @@ function recursiveSetHandlerTypeAndCreateRouteExecutables(
         } else {
             if (item.isRoute) {
                 setRouteExecutables(item, newPointer, exportName, routeExecutables);
-                delete item.executionPathNames;
+                delete item.executionPathPointers;
             }
             newRoutes[key] = {
                 ...item,
@@ -94,10 +94,14 @@ function serializeRoutes(routes: RoutesSpec) {
 }
 
 function setRouteExecutables(route: PublicRoute<any>, currentPointer: string[], exportName: string, routeExecutables: Obj) {
-    const MethodPointers = route.executionPathNames?.map((path) =>
-        setCodeAsJsonString(`${PUBLIC_METHODS_SPEC_EXPORT_NAME}.${exportName}.${getSrcPointer(path).join('.')}`)
+    const MethodPointers = route.executionPathPointers?.map((pointer) =>
+        setCodeAsJsonString(`${PUBLIC_METHODS_SPEC_EXPORT_NAME}.${exportName}.${getHandlerSrcCodePointer(pointer)}`)
     );
     assignProperty(routeExecutables, currentPointer, MethodPointers);
+}
+
+function getHandlerSrcCodePointer(pointer: string[]) {
+    return pointer.join('.');
 }
 
 function assignProperty(obj: Obj, pointer: string[], value: any) {
