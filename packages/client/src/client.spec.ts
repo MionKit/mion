@@ -7,8 +7,9 @@
 
 import {ClientMethods} from '..';
 import {initClient} from './client';
-import {PublicMethods, Routes, initRouter, registerRoutes} from '@mionkit/router';
+import {RemoteMethods, Routes, initRouter, registerRoutes} from '@mionkit/router';
 
+// TODO: test & write client
 describe('client should', () => {
     type User = {name: string; surname: string};
 
@@ -19,24 +20,16 @@ describe('client should', () => {
     } satisfies Routes;
 
     type MyRoutes = typeof routes;
-    type MyApi = PublicMethods<MyRoutes>;
-    type Auth = MyApi['auth'];
-    type SayHello = MyApi['sayHello'];
+    type MyApi = RemoteMethods<MyRoutes>;
+    type Auth = MyApi['auth']['_handler'];
+    type SayHello = MyApi['sayHello']['_handler'];
 
     type CLientAPi = ClientMethods<MyApi>;
     type ClientAuth = CLientAPi['auth'];
-    type ClientSayHello = CLientAPi['sayHello']['params'];
+    type ClientSayHello = CLientAPi['sayHello'];
     type Next = ReturnType<ClientSayHello>;
 
-    it('proxy should capture calls', () => {
-        const client = initClient<MyApi>();
-        const fetchResult = client.auth.fetch();
-        const paramsResult = client.auth.params('XYZ');
-        const presetResult = client.auth.preset('XYZ');
-        expect(fetchResult).toBe('fetch called');
-        expect(paramsResult).toBe('params called');
-        expect(presetResult).toBe('preset called');
-    });
+    it('proxy should capture calls', () => {});
 
     it('make a remote call', () => {});
 

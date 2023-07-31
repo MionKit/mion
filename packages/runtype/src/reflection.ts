@@ -137,6 +137,7 @@ export function getFunctionReflectionMethods(
     return new LazyFunctionReflection(handlerOrType, reflectionOptions, skipInitialParams);
 }
 
+// TODO: serialized types is including the context which we don't want to send over the wire
 /** Gets a data structure that can be serialized in json and transmitted over the wire  */
 export const getSerializedFunctionType = (handler: Handler): SerializedTypes => serializeType(reflect(handler));
 
