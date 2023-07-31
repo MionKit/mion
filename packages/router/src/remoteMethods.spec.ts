@@ -9,7 +9,7 @@ import {DEFAULT_ROUTE_OPTIONS, DEFAULT_HOOK} from './constants';
 import {getRemoteMethods} from './remoteMethods';
 import {registerRoutes, initRouter, resetRouter, getRouteDefaultParams} from './router';
 import {getFunctionReflectionMethods} from '@mionkit/runtype';
-import {Routes} from './types';
+import {CallContext, Routes} from './types';
 
 describe('Public Mothods should', () => {
     const privateHook = (ctx): void => undefined;
@@ -196,5 +196,15 @@ describe('Public Mothods should', () => {
         expect(() => getRemoteMethods(testR2)).toThrow(
             `Hook 'hook1' not found in router. Please check you have called router.addRoutes first!`
         );
+    });
+
+    it('should serialize type skipping the context parameter', () => {
+        initRouter({sharedDataFactory: getSharedData, getPublicRoutesData: true});
+        const routes = {
+            sayHello: (ctx: CallContext, name: string): string => `Hello ${name}`,
+        };
+        const api = registerRoutes(routes);
+        const serializedFunction: any = api.sayHello.handlerSerializedType[0]; // SerializedTypeFunction);
+        expect(serializedFunction?.parameters?.length).toEqual(1);
     });
 });
