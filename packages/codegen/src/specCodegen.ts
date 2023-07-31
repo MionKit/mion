@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {PublicMethods, PublicRoute} from '@mionkit/router';
+import {RemoteMethods, RemoteMethod} from '@mionkit/router';
 import {dirname, parse, relative} from 'path';
 import {hasChildRoutes, type CodegenOptions, type ExportedRoutesMap, type PublicMethodsSpec, type RoutesSpec} from './types';
 import {DEFAULT_PRETTIER_OPTIONS, PUBLIC_METHODS_SPEC_EXPORT_NAME, ROUTES_SPEC_EXPORT_NAME} from './constants';
@@ -39,7 +39,7 @@ export function getRelativeImport(entryFileName: string, outputFileName: string)
     return relativeimport;
 }
 
-function getPublicMethodsAndRoutes(routesList: PublicMethods<any>[], exportNames: string[]) {
+function getPublicMethodsAndRoutes(routesList: RemoteMethods<any>[], exportNames: string[]) {
     const publicMethods: PublicMethodsSpec = {};
     const routes: RoutesSpec = {};
     exportNames.forEach((name, i) => {
@@ -52,12 +52,12 @@ function getPublicMethodsAndRoutes(routesList: PublicMethods<any>[], exportNames
 }
 
 function recursiveSetHandlerTypeAndCreateRouteExecutables(
-    methods: PublicMethods<any>,
+    methods: RemoteMethods<any>,
     exportName: string,
     currentPointer: string[],
     routeExecutables: Obj
-): PublicMethods<any> {
-    const newRoutes: PublicMethods<any> = {};
+): RemoteMethods<any> {
+    const newRoutes: RemoteMethods<any> = {};
     Object.entries(methods).forEach(([key, item]) => {
         if (!item) return;
         const newPointer = [...currentPointer, key];
@@ -65,7 +65,7 @@ function recursiveSetHandlerTypeAndCreateRouteExecutables(
             newRoutes[key] = recursiveSetHandlerTypeAndCreateRouteExecutables(item, exportName, newPointer, routeExecutables);
         } else {
             if (item.isRoute) {
-                setRouteExecutables(item, newPointer, exportName, routeExecutables);
+                setRemoteMethods(item, newPointer, exportName, routeExecutables);
                 delete item.executionPathPointers;
             }
             newRoutes[key] = {
@@ -93,8 +93,8 @@ function serializeRoutes(routes: RoutesSpec) {
     );
 }
 
-function setRouteExecutables(route: PublicRoute<any>, currentPointer: string[], exportName: string, routeExecutables: Obj) {
-    const MethodPointers = route.executionPathPointers?.map((pointer) =>
+function setRemoteMethods(method: RemoteMethod, currentPointer: string[], exportName: string, routeExecutables: Obj) {
+    const MethodPointers = method.executionPathPointers?.map((pointer) =>
         setCodeAsJsonString(`${PUBLIC_METHODS_SPEC_EXPORT_NAME}.${exportName}.${getHandlerSrcCodePointer(pointer)}`)
     );
     assignProperty(routeExecutables, currentPointer, MethodPointers);
@@ -117,7 +117,7 @@ function assignProperty(obj: Obj, pointer: string[], value: any) {
 }
 
 // This does not support src code containing scaped double quotes, multiple lines etc, very simple statements only;
-const codeWrapper = `##@@==>${randomUUID()}<==@@##`;
+const codeWrapper = `#@>${randomUUID()}<@#`;
 const setCodeAsJsonString = (code: string) => `${codeWrapper}${code}${codeWrapper}`;
 const jsonStringsToCode = (srcFile: string) => srcFile.replaceAll(`"${codeWrapper}`, '').replaceAll(`${codeWrapper}"`, '');
 
