@@ -139,7 +139,17 @@ export function getFunctionReflectionMethods(
 
 // TODO: serialized types is including the context which we don't want to send over the wire
 /** Gets a data structure that can be serialized in json and transmitted over the wire  */
-export const getSerializedFunctionType = (handler: Handler): SerializedTypes => serializeType(reflect(handler));
+export const getSerializedFunctionType = (handlerOrType: Handler, skipInitialParams = 0): SerializedTypes => {
+    const handlerType = getHandlerType(handlerOrType);
+    // THIS IS NOT OFFICIALLY SUPPORTED BY DEEPKIT MIGHT BREAK IN THE FUTURE
+    // TODO investigate if this is not braking anything
+    const originalParams = handlerType.parameters;
+    handlerType.parameters = handlerType.parameters.slice(skipInitialParams);
+    const serializedTypes = serializeType(handlerType);
+    // restore original params in case the type is being cached
+    handlerType.parameters = originalParams;
+    return serializedTypes;
+};
 
 /** Gets a Type from a serializedTypes */
 export const getDeserializedFunctionType = (serializedTypes: SerializedTypes): TypeFunction => {

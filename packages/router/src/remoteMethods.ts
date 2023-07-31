@@ -86,7 +86,7 @@ function getRemoteMethodFromExecutable<H extends Handler>(executable: RouteExecu
         inHeader: executable.inHeader,
         // handler is included just for static typing purposes and shouldn't be called directly
         _handler: getHandlerSrcCodePointer(executable) as any as RemoteHandler<H>,
-        handlerSerializedType: getSerializedFunctionType(executable.handler),
+        handlerSerializedType: getSerializedFunctionType(executable.handler, getRouteDefaultParams().length),
         enableValidation: executable.enableValidation,
         enableSerialization: executable.enableSerialization,
         params: executable.reflection.handlerType.parameters.map((tp) => tp.name).slice(getRouteDefaultParams().length),
