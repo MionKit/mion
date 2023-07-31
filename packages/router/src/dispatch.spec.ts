@@ -59,11 +59,11 @@ describe('Dispatch routes', () => {
             initRouter({sharedDataFactory: getSharedData});
             registerRoutes({changeUserName});
 
-            const path = '/changeUserName';
-            const request = getDefaultRequest(path, [{name: 'Leo', surname: 'Tungsten'}]);
+            const id = 'changeUserName';
+            const request = getDefaultRequest(id, [{name: 'Leo', surname: 'Tungsten'}]);
 
             const response = await dispatchRoute('/changeUserName', request, {});
-            expect(response.body[path]).toEqual({name: 'LOREM', surname: 'Tungsten'});
+            expect(response.body[id]).toEqual({name: 'LOREM', surname: 'Tungsten'});
         });
 
         it('read data from header & hook', async () => {
@@ -72,13 +72,12 @@ describe('Dispatch routes', () => {
 
             const request: RawRequest = {
                 headers: {Authorization: '1234'},
-                body: JSON.stringify({['/changeUserName']: [{name: 'Leo', surname: 'Tungsten'}]}),
+                body: JSON.stringify({['changeUserName']: [{name: 'Leo', surname: 'Tungsten'}]}),
             };
 
-            const path = '/changeUserName';
-            const response = await dispatchRoute(path, request, {});
+            const response = await dispatchRoute('/changeUserName', request, {});
             expect(response.hasErrors).toBeFalsy();
-            expect(response.body).toEqual({[path]: {name: 'LOREM', surname: 'Tungsten'}});
+            expect(response.body).toEqual({['changeUserName']: {name: 'LOREM', surname: 'Tungsten'}});
         });
 
         it('use soft serialization for header params', async () => {
@@ -92,11 +91,10 @@ describe('Dispatch routes', () => {
 
             const request: RawRequest = {
                 headers: {isTrue: 'false'},
-                body: JSON.stringify({['/changeUserName']: [{name: 'Leo', surname: 'Tungsten'}]}),
+                body: JSON.stringify({['changeUserName']: [{name: 'Leo', surname: 'Tungsten'}]}),
             };
 
-            const path = '/changeUserName';
-            const response = await dispatchRoute(path, request, {});
+            const response = await dispatchRoute('/changeUserName', request, {});
             expect(response.hasErrors).toBeFalsy();
             expect(response.headers.isTrue).toEqual(false);
         });
@@ -106,51 +104,51 @@ describe('Dispatch routes', () => {
             registerRoutes({sayHello: () => 'hello'});
 
             const path = '/sayHello';
+            const id = 'sayHello';
             const request1: RawRequest = {headers: {}, body: ''};
             const request2: RawRequest = {headers: {}, body: '{}'};
-            const request3: RawRequest = {headers: {}, body: '{"/sayHello": null}'};
+            const request3: RawRequest = {headers: {}, body: '{"sayHello": null}'};
 
-            const response1 = await dispatchRoute('/sayHello', request1, {});
-            const response2 = await dispatchRoute('/sayHello', request2, {});
-            const response3 = await dispatchRoute('/sayHello', request3, {});
+            const response1 = await dispatchRoute(path, request1, {});
+            const response2 = await dispatchRoute(path, request2, {});
+            const response3 = await dispatchRoute(path, request3, {});
 
-            expect(response1.body[path]).toEqual('hello');
-            expect(response2.body[path]).toEqual('hello');
-            expect(response3.body[path]).toEqual('hello');
+            expect(response1.body[id]).toEqual('hello');
+            expect(response2.body[id]).toEqual('hello');
+            expect(response3.body[id]).toEqual('hello');
         });
 
         it('transform the path before finding a route', async () => {
-            const publicPath = '/api/v1/sayHello';
-            const routePath = '/api/v1/GET/sayHello';
+            const publicPath = '/api/v1/Hello';
+            const method = 'GET';
+            const routeId = 'getHello';
             const request = {
-                method: 'GET',
-                ...getDefaultRequest(routePath, []),
+                method,
+                ...getDefaultRequest(routeId, []),
             };
             const options = {
                 sharedDataFactory: getSharedData,
                 pathTransform: (req, path: string): string => {
                     // publicPath = api/v1/sayHello
-                    // routePath = api/v1/GET/sayHello
-                    const rPath = path.replace(options.prefix, `${options.prefix}/${req.method}`);
+                    // routePath = api/v1/getHello
+                    const rPath = path.replace(`${options.prefix}/`, `${options.prefix}/${req.method.toLowerCase()}`);
                     return rPath;
                 },
                 prefix: 'api/v1',
             };
             initRouter(options);
             registerRoutes({
-                GET: {
-                    sayHello: () => 'hello', // api/v1/GET/sayHello
-                },
+                getHello: () => 'hello', // GET api/v1/Hello
             });
 
             const response = await dispatchRoute(publicPath, request, {});
-            expect(response.body[routePath]).toEqual('hello');
+            expect(response.body[routeId]).toEqual('hello');
         });
 
         // TODO: need an unit test that guarantees that if one routes has a dependency on the output of another hook it wil work
         it('support async handlers and ensure execution in order', async () => {
             initRouter({sharedDataFactory: getSharedData});
-            const pathSum = '/sumTwo';
+            const id = 'sumTwo';
             const routes = {
                 sumTwo: async (ctx, val: number): Promise<number> => {
                     return new Promise((resolve) => {
@@ -163,16 +161,16 @@ describe('Dispatch routes', () => {
                     canReturnData: true,
                     hook: (ctx: CallContext): string => {
                         // is sumTwo is not executed in order then `ctx.response.body.sumTwo` would be undefined here
-                        return `the total is ${ctx.response.body[pathSum]}`;
+                        return `the total is ${ctx.response.body[id]}`;
                     },
                 },
             } satisfies Routes;
             registerRoutes(routes);
 
-            const request = getDefaultRequest(pathSum, [2]);
-            const response = await dispatchRoute(pathSum, request, {});
-            expect(response.body[pathSum]).toEqual(4);
-            expect(response.body['/totals']).toEqual('the total is 4');
+            const request = getDefaultRequest(id, [2]);
+            const response = await dispatchRoute('/sumTwo', request, {});
+            expect(response.body[id]).toEqual(4);
+            expect(response.body['totals']).toEqual('the total is 4');
         });
     });
 
@@ -181,9 +179,10 @@ describe('Dispatch routes', () => {
             initRouter({sharedDataFactory: getSharedData});
             registerRoutes({changeUserName});
 
-            const request = getDefaultRequest('/abcd', [{name: 'Leo', surname: 'Tungsten'}]);
+            const request = getDefaultRequest('abcd', [{name: 'Leo', surname: 'Tungsten'}]);
 
             const response = await dispatchRoute('/abcd', request, {});
+            // not found returns a different element in body as regular hooks or routes
             const error = response.body['/abcd'];
             expect(error).toEqual(
                 new PublicError({
@@ -198,7 +197,7 @@ describe('Dispatch routes', () => {
             initRouter({sharedDataFactory: getSharedData});
             registerRoutes({auth, changeUserName});
 
-            const request = getDefaultRequest('/changeUserName', [{name: 'Leo', surname: 'Tungsten'}]);
+            const request = getDefaultRequest('changeUserName', [{name: 'Leo', surname: 'Tungsten'}]);
 
             const response = await dispatchRoute('/changeUserName', request, {});
             const error = response.body?.Authorization;
@@ -222,7 +221,7 @@ describe('Dispatch routes', () => {
             };
 
             const response = await dispatchRoute('/changeUserName', request, {});
-            const error = response.body['/parseJsonRequestBody'];
+            const error = response.body['parseJsonRequestBody'];
             expect(error).toEqual(
                 new PublicError({
                     statusCode: 400,
@@ -237,7 +236,7 @@ describe('Dispatch routes', () => {
             };
 
             const response2 = await dispatchRoute('/changeUserName', request2, {});
-            const errorResp = response2.body['/parseJsonRequestBody'];
+            const errorResp = response2.body['parseJsonRequestBody'];
             expect(errorResp).toEqual(
                 new PublicError({
                     statusCode: 422,
@@ -251,15 +250,15 @@ describe('Dispatch routes', () => {
             initRouter({sharedDataFactory: getSharedData});
             registerRoutes({changeUserName});
 
-            const request = getDefaultRequest('/changeUserName', []);
+            const request = getDefaultRequest('changeUserName', []);
 
             const response = await dispatchRoute('/changeUserName', request, {});
-            const error = response.body['/changeUserName'];
+            const error = response.body['changeUserName'];
             expect(error).toEqual(
                 new PublicError({
                     statusCode: 400,
                     name: `Validation Error`,
-                    message: `Invalid params in '/changeUserName', validation failed.`,
+                    message: `Invalid params in 'changeUserName', validation failed.`,
                     errorData: expect.objectContaining({
                         hasErrors: true,
                         totalErrors: 1,
@@ -272,15 +271,15 @@ describe('Dispatch routes', () => {
             initRouter({sharedDataFactory: getSharedData});
             registerRoutes({getSameDate});
 
-            const request = getDefaultRequest('/getSameDate', [1234]);
+            const request = getDefaultRequest('getSameDate', [1234]);
 
             const response = await dispatchRoute('/getSameDate', request, {});
-            const error = response.body['/getSameDate'];
+            const error = response.body['getSameDate'];
             expect(error).toEqual(
                 new PublicError({
                     statusCode: 400,
                     name: 'Serialization Error',
-                    message: `Invalid params '/getSameDate', can not deserialize. Parameters might be of the wrong type.`,
+                    message: `Invalid params 'getSameDate', can not deserialize. Parameters might be of the wrong type.`,
                     errorData: expect.anything(),
                 })
             );
@@ -291,20 +290,20 @@ describe('Dispatch routes', () => {
             registerRoutes({changeUserName});
 
             const wrongSimpleUser: SimpleUser = {name: true, surname: 'Smith'} as any;
-            const request = getDefaultRequest('/changeUserName', [wrongSimpleUser]);
+            const request = getDefaultRequest('changeUserName', [wrongSimpleUser]);
 
             const response = await dispatchRoute('/changeUserName', request, {});
             const expected = new PublicError({
                 name: 'Validation Error',
                 statusCode: 400,
-                message: `Invalid params in '/changeUserName', validation failed.`,
+                message: `Invalid params in 'changeUserName', validation failed.`,
                 errorData: expect.objectContaining({
                     hasErrors: true,
                     totalErrors: 1,
                     errors: expect.any(Array),
                 }),
             });
-            const error = response.body['/changeUserName'];
+            const error = response.body['changeUserName'];
             expect(error).toEqual(expected);
         });
 
@@ -312,20 +311,20 @@ describe('Dispatch routes', () => {
             initRouter({sharedDataFactory: getSharedData});
             registerRoutes({changeUserName});
 
-            const request = getDefaultRequest('/changeUserName', [{}]);
+            const request = getDefaultRequest('changeUserName', [{}]);
 
             const response = await dispatchRoute('/changeUserName', request, {});
             const expected = new PublicError({
                 name: 'Validation Error',
                 statusCode: 400,
-                message: `Invalid params in '/changeUserName', validation failed.`,
+                message: `Invalid params in 'changeUserName', validation failed.`,
                 errorData: expect.objectContaining({
                     hasErrors: true,
                     totalErrors: 2,
                     errors: expect.any(Array),
                 }),
             });
-            const error = response.body['/changeUserName'];
+            const error = response.body['changeUserName'];
             expect(error).toEqual(expected);
         });
 
@@ -337,10 +336,10 @@ describe('Dispatch routes', () => {
             };
             registerRoutes({routeFail});
 
-            const request = getDefaultRequest('/routeFail', []);
+            const request = getDefaultRequest('routeFail', []);
 
             const response = await dispatchRoute('/routeFail', request, {});
-            const error = response.body['/routeFail'];
+            const error = response.body['routeFail'];
             expect(error).toEqual(
                 new PublicError({
                     statusCode: 500,
@@ -356,14 +355,14 @@ describe('Dispatch routes', () => {
             initRouter({sharedDataFactory: getSharedData});
             registerRoutes({getSameDate});
 
-            const request = getDefaultRequest('/getSameDate', [1234]);
+            const request = getDefaultRequest('getSameDate', [1234]);
 
             const response = await dispatchRoute('/getSameDate', request, {});
-            const error = response.body['/getSameDate'];
+            const error = response.body['getSameDate'];
             expect(error).toEqual(
                 new PublicError({
                     statusCode: 400,
-                    message: `Invalid params '/getSameDate', can not validate parameters.`,
+                    message: `Invalid params 'getSameDate', can not validate parameters.`,
                     name: 'Validation Error',
                 })
             );

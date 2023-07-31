@@ -4,7 +4,7 @@ export const PUBLIC_METHODS = {
     myApi: {
         auth: {
             isRoute: false,
-            path: 'Authorization',
+            id: 'Authorization',
             inHeader: true,
             _handler: expect.any(Function),
             handlerSerializedType: expect.any(Object),
@@ -15,7 +15,7 @@ export const PUBLIC_METHODS = {
         users: {
             getUser: {
                 isRoute: true,
-                path: '/v1/users/getUser',
+                id: 'users-getUser',
                 inHeader: false,
                 _handler: expect.any(Function),
                 handlerSerializedType: expect.any(Object),
@@ -25,7 +25,7 @@ export const PUBLIC_METHODS = {
             },
             setUser: {
                 isRoute: true,
-                path: '/v1/users/setUser',
+                id: 'users-setUser',
                 inHeader: false,
                 _handler: expect.any(Function),
                 handlerSerializedType: expect.any(Object),
@@ -35,7 +35,7 @@ export const PUBLIC_METHODS = {
             },
             totalUsers: {
                 isRoute: false,
-                path: '/v1/users/totalUsers',
+                id: 'users-totalUsers',
                 inHeader: false,
                 _handler: expect.any(Function),
                 handlerSerializedType: expect.any(Object),
@@ -47,7 +47,7 @@ export const PUBLIC_METHODS = {
         pets: {
             getPet: {
                 isRoute: true,
-                path: '/v1/pets/getPet',
+                id: 'pets-getPet',
                 inHeader: false,
                 _handler: expect.any(Function),
                 handlerSerializedType: expect.any(Object),
@@ -57,7 +57,7 @@ export const PUBLIC_METHODS = {
             },
             setPet: {
                 isRoute: true,
-                path: '/v1/pets/setPet',
+                id: 'pets-setPet',
                 inHeader: false,
                 _handler: expect.any(Function),
                 handlerSerializedType: expect.any(Object),
@@ -69,7 +69,7 @@ export const PUBLIC_METHODS = {
         utils: {
             getNumber: {
                 isRoute: true,
-                path: '/v1/utils/getNumber',
+                id: 'utils-getNumber',
                 inHeader: false,
                 _handler: expect.any(Function),
                 handlerSerializedType: expect.any(Object),
@@ -80,7 +80,7 @@ export const PUBLIC_METHODS = {
         },
         getItem: {
             isRoute: true,
-            path: '/v1/getItem',
+            id: 'getItem',
             inHeader: false,
             _handler: expect.any(Function),
             handlerSerializedType: expect.any(Object),
@@ -90,7 +90,7 @@ export const PUBLIC_METHODS = {
         },
         getPetOrUser: {
             isRoute: true,
-            path: '/v1/getPetOrUser',
+            id: 'getPetOrUser',
             inHeader: false,
             _handler: expect.any(Function),
             handlerSerializedType: expect.any(Object),
@@ -102,7 +102,7 @@ export const PUBLIC_METHODS = {
     authApi: {
         login: {
             isRoute: true,
-            path: '/v1/login',
+            id: 'login',
             inHeader: false,
             _handler: expect.any(Function),
             handlerSerializedType: expect.any(Object),
