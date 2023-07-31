@@ -61,7 +61,7 @@ describe('serverless router should', () => {
     );
 
     it('get an ok response from a route', async () => {
-        const requestData = {'/api/getDate': [{date: new Date('2022-04-22T00:17:00.000Z')}]};
+        const requestData = {getDate: [{date: new Date('2022-04-22T00:17:00.000Z')}]};
         const response = await fetch(`http://127.0.0.1:${port}/api/getDate`, {
             method: 'POST',
             body: JSON.stringify(requestData),
@@ -70,10 +70,10 @@ describe('serverless router should', () => {
         const reply = await response.json();
         const headers = Object.fromEntries(response.headers.entries());
 
-        expect(reply).toEqual({'/api/getDate': {date: '2022-04-22T00:17:00.000Z'}});
+        expect(reply).toEqual({getDate: {date: '2022-04-22T00:17:00.000Z'}});
         expect(headers['connection']).toEqual('close');
         expect(headers['content-type']).toEqual('application/json; charset=utf-8');
-        expect(headers['content-length']).toEqual('52');
+        expect(headers['content-length']).toEqual('47');
         expect(headers['server']).toEqual('@mionkit/http');
     });
 
@@ -84,7 +84,7 @@ describe('serverless router should', () => {
         registerRoutes({changeUserName, getDate, updateHeaders});
         const callbacksServer = await startHttpServer();
 
-        const requestData = {'/api/getDate': [{date: new Date('2022-04-22T00:17:00.000Z')}]};
+        const requestData = {getDate: [{date: new Date('2022-04-22T00:17:00.000Z')}]};
         const response = await fetch(`http://127.0.0.1:${portCallback}/api/getDate`, {
             method: 'POST',
             body: JSON.stringify(requestData),
@@ -92,10 +92,10 @@ describe('serverless router should', () => {
         const reply = await response.json();
         const headers = Object.fromEntries(response.headers.entries());
 
-        expect(reply).toEqual({'/api/getDate': {date: '2022-04-22T00:17:00.000Z'}});
+        expect(reply).toEqual({getDate: {date: '2022-04-22T00:17:00.000Z'}});
         expect(headers['connection']).toEqual('close');
         expect(headers['content-type']).toEqual('application/json; charset=utf-8');
-        expect(headers['content-length']).toEqual('52');
+        expect(headers['content-length']).toEqual('47');
         expect(headers['server']).toEqual('@mionkit/http');
 
         const closeCallbacksServer = () => {
@@ -110,7 +110,7 @@ describe('serverless router should', () => {
     });
 
     it('get an error when sending invalid parameters', async () => {
-        const requestData = {'/api/getDate': ['NOT A DATE POINT']};
+        const requestData = {getDate: ['NOT A DATE POINT']};
         const response = await fetch(`http://127.0.0.1:${port}/api/getDate`, {
             method: 'POST',
             body: JSON.stringify(requestData),
@@ -119,15 +119,15 @@ describe('serverless router should', () => {
         const headers = Object.fromEntries(response.headers.entries());
 
         const expectedError: PublicError = {
-            message: `Invalid params '/api/getDate', can not deserialize. Parameters might be of the wrong type.`,
+            message: `Invalid params 'getDate', can not deserialize. Parameters might be of the wrong type.`,
             name: 'Serialization Error',
             statusCode: 400,
             errorData: expect.anything(),
         };
-        expect(reply).toEqual({'/api/getDate': expectedError});
+        expect(reply).toEqual({getDate: expectedError});
         expect(headers['connection']).toEqual('close');
         expect(headers['content-type']).toEqual('application/json; charset=utf-8');
-        expect(headers['content-length']).toEqual('264');
+        expect(headers['content-length']).toEqual('254');
         expect(headers['server']).toEqual('@mionkit/http');
     });
 
@@ -174,7 +174,7 @@ describe('serverless router should', () => {
         };
         let err;
         try {
-            const requestData = {'/api/getDate': [{date: new Date('2022-04-22T00:17:00.000Z')}]};
+            const requestData = {getDate: [{date: new Date('2022-04-22T00:17:00.000Z')}]};
             const response = await fetch(`http://127.0.0.1:${smallPort}/api/getDate`, {
                 method: 'POST',
                 body: JSON.stringify(requestData),

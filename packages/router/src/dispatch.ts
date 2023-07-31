@@ -96,14 +96,14 @@ async function runExecutionPath(
         try {
             const deserializedParams = deserializeParameters(request, executable);
             const validatedParams = validateParameters(deserializedParams, executable);
-            if (executable.inHeader) (request.headers as Mutable<Request['headers']>)[executable.path] = validatedParams;
-            else (request.body as Mutable<Request['body']>)[executable.path] = validatedParams;
+            if (executable.inHeader) (request.headers as Mutable<Request['headers']>)[executable.id] = validatedParams;
+            else (request.body as Mutable<Request['body']>)[executable.id] = validatedParams;
 
             const result = await runHandler(validatedParams, context, rawRequest, rawResponse, executable, opts);
             // TODO: should we also validate the handler result? think just forcing declaring the return type with a linter is enough.
             serializeResponse(executable, response, result);
         } catch (err: any | RouteError | Error) {
-            const path = isNotFoundExecutable(executable) ? context.path : executable.path;
+            const path = isNotFoundExecutable(executable) ? context.path : executable.id;
             handleRouteErrors(path, request, response, err, i);
         }
     }
@@ -146,7 +146,7 @@ function getHandlerResponse(
 
 function deserializeParameters(request: Request, executable: Executable): any[] {
     if (!executable.reflection) return [];
-    const path = executable.path;
+    const path = executable.id;
     let params;
 
     if (executable.inHeader) {
@@ -189,7 +189,7 @@ function validateParameters(params: any[], executable: Executable): any[] {
             throw new RouteError({
                 statusCode: StatusCodes.BAD_REQUEST,
                 name: 'Validation Error',
-                publicMessage: `Invalid params in '${executable.path}', validation failed.`,
+                publicMessage: `Invalid params in '${executable.id}', validation failed.`,
                 publicData: validationResponse,
             });
         }
@@ -200,8 +200,8 @@ function validateParameters(params: any[], executable: Executable): any[] {
 function serializeResponse(executable: Executable, response: Response, result: any) {
     if (!executable.canReturnData || result === undefined || !executable.reflection) return;
     const serialized = executable.enableSerialization ? executable.reflection.serializeReturn(result) : result;
-    if (executable.inHeader) response.headers[executable.path] = serialized;
-    else (response.body as Mutable<Obj>)[executable.path] = serialized;
+    if (executable.inHeader) response.headers[executable.id] = serialized;
+    else (response.body as Mutable<Obj>)[executable.id] = serialized;
 }
 
 // ############# PUBLIC METHODS USED FOR ERRORS #############

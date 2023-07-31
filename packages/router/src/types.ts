@@ -140,7 +140,7 @@ export interface RouterOptions<Req extends RawRequest = any, SharedData = any> e
 /** Contains the data of each hook or route, Used to generate the execution path for each route. */
 export type Executable = {
     nestLevel: number;
-    path: string;
+    id: string;
     forceRunOnError: boolean;
     canReturnData: boolean;
     inHeader: boolean;
@@ -151,6 +151,11 @@ export type Executable = {
     // src: RouteDef | HookDef | RawHookDef;
     enableValidation: boolean;
     enableSerialization: boolean;
+    /**
+     * The pointer to the src Hook or Route definition within the original Routers object
+     * ie: ['users','getUser']
+     */
+    pointer: string[];
 };
 
 export interface RouteExecutable extends Executable {
@@ -307,12 +312,12 @@ export type PublicRoute<H extends Handler> = {
     /** Json serializable structure so the Type information can be transmitted over the wire */
     handlerSerializedType: SerializedTypes;
     isRoute: true;
-    path: string;
+    id: string;
     inHeader: boolean;
     enableValidation: boolean;
     enableSerialization: boolean;
     params: string[];
-    executionPathNames?: string[];
+    executionPathPointers?: string[][];
 };
 
 /** Public map from Hooks, _handler type is the same as hooks's handler but does not include the context  */
@@ -323,7 +328,7 @@ export type PublicHook<H extends Handler> = {
     handlerSerializedType: SerializedTypes;
     isRoute: false;
     inHeader: boolean;
-    path: string;
+    id: string;
     enableValidation: boolean;
     enableSerialization: boolean;
     params: string[];
@@ -376,7 +381,7 @@ export function isRoutes(entry: RouterEntry | Routes): entry is Route {
 
 export function isExecutable(entry: Executable | {pathPointer: string[]}): entry is Executable {
     return (
-        typeof (entry as Executable)?.path === 'string' &&
+        typeof (entry as Executable)?.id === 'string' &&
         ((entry as any).routes === 'undefined' || typeof (entry as Executable).handler === 'function')
     );
 }

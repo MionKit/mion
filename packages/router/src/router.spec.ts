@@ -50,38 +50,38 @@ describe('Create routes should', () => {
 
     const hookExecutables = {
         first: {
-            path: '/first',
+            id: 'first',
             isRoute: false,
         },
         userBefore: {
-            path: '/users/userBefore',
+            id: 'users-userBefore',
             isRoute: false,
         },
         userAfter: {
-            path: '/users/userAfter',
+            id: 'users-userAfter',
             isRoute: false,
         },
         userPetsAfter: {
-            path: '/users/pets/userPetsAfter',
+            id: 'users-pets-userPetsAfter',
             isRoute: false,
         },
         last: {
-            path: '/last',
+            id: 'last',
             isRoute: false,
         },
     };
 
     const routeExecutables = {
         usersGetUser: {
-            path: '/users/getUser',
+            id: 'users-getUser',
             isRoute: true,
         },
         usersPetsGetUserPet: {
-            path: '/users/pets/getUserPet',
+            id: 'users-pets-getUserPet',
             isRoute: true,
         },
         petsGetPet: {
-            path: '/pets/getPet',
+            id: 'pets-getPet',
             isRoute: true,
         },
     };
@@ -90,12 +90,12 @@ describe('Create routes should', () => {
         parseJsonRequestBody: {
             isRoute: false,
             isRawExecutable: true,
-            path: '/parseJsonRequestBody',
+            id: 'parseJsonRequestBody',
         },
         stringifyJsonResponseBody: {
             isRoute: false,
             isRawExecutable: true,
-            path: '/stringifyJsonResponseBody',
+            id: 'stringifyJsonResponseBody',
         },
     };
 
@@ -154,9 +154,9 @@ describe('Create routes should', () => {
         };
         registerRoutes(routes);
 
-        expect(getRouteExecutable('/hello')).toEqual(
+        expect(getRouteExecutable('hello')).toEqual(
             expect.objectContaining({
-                path: '/hello',
+                id: 'hello',
                 nestLevel: 0,
                 forceRunOnError: false,
                 canReturnData: true,
@@ -171,9 +171,9 @@ describe('Create routes should', () => {
         const defaultHookValues = {first: {hook: (): null => null}};
         registerRoutes(defaultHookValues);
 
-        expect(getHookExecutable('/first')).toEqual(
+        expect(getHookExecutable('first')).toEqual(
             expect.objectContaining({
-                path: '/first',
+                id: 'first',
                 nestLevel: 0,
                 forceRunOnError: false,
                 canReturnData: false,
@@ -188,9 +188,9 @@ describe('Create routes should', () => {
         const defaultRouteValues = {sayHello: {route: (): null => null}};
         registerRoutes(defaultRouteValues);
 
-        expect(getRouteExecutable('/sayHello')).toEqual(
+        expect(getRouteExecutable('sayHello')).toEqual(
             expect.objectContaining({
-                path: '/sayHello',
+                id: 'sayHello',
                 nestLevel: 0,
                 forceRunOnError: false,
                 canReturnData: true,
@@ -300,12 +300,12 @@ describe('Create routes should', () => {
         };
         registerRoutes(defaultRouteValues);
 
-        expect(getRouteExecutable('/sayHello')?.reflection.isAsync).toEqual(false);
-        expect(getRouteExecutable('/asyncSayHello')?.reflection.isAsync).toEqual(true);
+        expect(getRouteExecutable('sayHello')?.reflection.isAsync).toEqual(false);
+        expect(getRouteExecutable('asyncSayHello')?.reflection.isAsync).toEqual(true);
 
         // when there is no return type we asume the function is async.
         // this is done so await is enforced in case we don't know the return type
-        expect(getRouteExecutable('/noReturnType')?.reflection.isAsync).toEqual(true);
+        expect(getRouteExecutable('noReturnType')?.reflection.isAsync).toEqual(true);
     });
 
     it('add start and end global hooks', () => {
@@ -325,13 +325,13 @@ describe('Create routes should', () => {
         registerRoutes(routes);
 
         const expectedExecutionPath = addDefaultExecutables([
-            expect.objectContaining({path: '/p1', isRoute: false}),
-            expect.objectContaining({path: '/p2', isRoute: false}),
-            expect.objectContaining({path: '/first', isRoute: false}),
-            expect.objectContaining({path: '/pets/getPet', isRoute: true}),
-            expect.objectContaining({path: '/last', isRoute: false}),
-            expect.objectContaining({path: '/a1', isRoute: false}),
-            expect.objectContaining({path: '/a2', isRoute: false}),
+            expect.objectContaining({id: 'p1', isRoute: false}),
+            expect.objectContaining({id: 'p2', isRoute: false}),
+            expect.objectContaining({id: 'first', isRoute: false}),
+            expect.objectContaining({id: 'pets-getPet', isRoute: true}),
+            expect.objectContaining({id: 'last', isRoute: false}),
+            expect.objectContaining({id: 'a1', isRoute: false}),
+            expect.objectContaining({id: 'a2', isRoute: false}),
         ]);
 
         expect(getRouteExecutionPath('/pets/getPet')).toEqual(expectedExecutionPath);

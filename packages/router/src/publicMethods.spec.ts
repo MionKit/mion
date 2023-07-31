@@ -66,7 +66,7 @@ describe('Public Mothods should', () => {
             auth: expect.objectContaining({
                 _handler: 'auth', // to be used by codegen so need to be a valid js syntax
                 isRoute: false,
-                path: '/auth',
+                id: 'auth',
                 enableValidation: DEFAULT_ROUTE_OPTIONS.enableValidation,
                 enableSerialization: DEFAULT_ROUTE_OPTIONS.enableSerialization,
             }),
@@ -74,7 +74,7 @@ describe('Public Mothods should', () => {
                 route1: expect.objectContaining({
                     _handler: 'routes.route1', // to be used by codegen so need to be a valid js syntax
                     isRoute: true,
-                    path: '/routes/route1',
+                    id: 'routes-route1',
                     enableValidation: DEFAULT_ROUTE_OPTIONS.enableValidation,
                     enableSerialization: DEFAULT_ROUTE_OPTIONS.enableSerialization,
                 }),
@@ -132,11 +132,11 @@ describe('Public Mothods should', () => {
             auth: expect.objectContaining({
                 isRoute: false,
                 inHeader: false,
-                path: '/v1/auth.json',
+                id: 'auth',
             }),
             route1: expect.objectContaining({
                 isRoute: true,
-                path: '/v1/route1.json',
+                id: 'route1',
                 inHeader: false,
             }),
         });
@@ -148,23 +148,23 @@ describe('Public Mothods should', () => {
 
         expect(publicExecutables).toEqual({
             first: expect.objectContaining({
-                path: '/first',
+                id: 'first',
                 isRoute: false,
             }),
             parse: null,
             users: {
                 userBefore: null,
                 getUser: expect.objectContaining({
-                    path: '/users/getUser',
+                    id: 'users-getUser',
                     isRoute: true,
                 }),
                 setUser: expect.objectContaining({
-                    path: '/users/setUser',
+                    id: 'users-setUser',
                     isRoute: true,
                 }),
                 pets: {
                     getUserPet: expect.objectContaining({
-                        path: '/users/pets/getUserPet',
+                        id: 'users-pets-getUserPet',
                         isRoute: true,
                     }),
                 },
@@ -172,16 +172,16 @@ describe('Public Mothods should', () => {
             },
             pets: {
                 getPet: expect.objectContaining({
-                    path: '/pets/getPet',
+                    id: 'pets-getPet',
                     isRoute: true,
                 }),
                 setPet: expect.objectContaining({
-                    path: '/pets/setPet',
+                    id: 'pets-setPet',
                     isRoute: true,
                 }),
             },
             last: expect.objectContaining({
-                path: '/last',
+                id: 'last',
                 isRoute: false,
             }),
         });
@@ -191,10 +191,10 @@ describe('Public Mothods should', () => {
         const testR1 = {route1};
         const testR2 = {hook1: {hook: paramsHook}};
         expect(() => getPublicRoutes(testR1)).toThrow(
-            `Route '/route1' not found in router. Please check you have called router.addRoutes first!`
+            `Route 'route1' not found in router. Please check you have called router.addRoutes first!`
         );
         expect(() => getPublicRoutes(testR2)).toThrow(
-            `Hook '/hook1' not found in router. Please check you have called router.addRoutes first!`
+            `Hook 'hook1' not found in router. Please check you have called router.addRoutes first!`
         );
     });
 });
