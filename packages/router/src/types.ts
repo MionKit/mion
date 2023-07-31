@@ -271,11 +271,9 @@ export interface PrivateRawHookDef extends RawHookDef {
 
 // ####### Public Facing Types #######
 
-export type PublicMethod<H extends Handler = any> = PublicRoute<H> | PublicHook<H>;
-
 // prettier-ignore
 /** Data structure containing all public data an types of routes & hooks. */
-export type PublicMethods<Type extends Routes> = {
+export type RemoteMethods<Type extends Routes> = {
     [Property in keyof Type]: 
         // any private hook maps to null
         Type[Property] extends  
@@ -285,64 +283,66 @@ export type PublicMethods<Type extends Routes> = {
         ? null
         // Hooks
         : Type[Property] extends HookDef
-        ? PublicHook<Type[Property]['hook']>
+        ? RemoteHook<Type[Property]['hook']>
         : Type[Property] extends HeaderHookDef
-        ? PublicHook<Type[Property]['headerHook']>
+        ? RemoteHeaderHook<Type[Property]['headerHook']>
         // Routes
         : Type[Property] extends RouteDef
-        ? PublicRoute<Type[Property]['route']>
+        ? RemoteRoute<Type[Property]['route']>
         : Type[Property] extends Handler
-        ? PublicRoute<Type[Property]>
+        ? RemoteRoute<Type[Property]>
         // Routes & PureRoutes (recursion)
         : Type[Property] extends Routes
-        ? PublicMethods<Type[Property]>
+        ? RemoteMethods<Type[Property]>
         : never;
 };
 
 // prettier-ignore
-export type PublicHandler<H extends Handler> = 
+export type RemoteHandler<H extends Handler> = 
     H extends (ctx: CallContext, ...rest: infer Req) => infer Resp
-    ? (...rest: Req) => PublicResponse<Resp>
+    ? (...rest: Req) => RemoteResponse<Resp>
     : never;
 
-/** Public map from Routes, _handler type is the same as router's handler but does not include the context  */
-export type PublicRoute<H extends Handler> = {
+export interface RemoteMethod<H extends Handler = any> {
     /** Type reference to the route handler, its value is actually null or void function ans should never be called. */
-    _handler: PublicHandler<H>;
+    _handler: RemoteHandler<H>;
     /** Json serializable structure so the Type information can be transmitted over the wire */
     handlerSerializedType: SerializedTypes;
-    isRoute: true;
+    isRoute: boolean;
     id: string;
     inHeader: boolean;
     enableValidation: boolean;
     enableSerialization: boolean;
     params: string[];
     executionPathPointers?: string[][];
-};
+}
+
+/** Public map from Routes, _handler type is the same as router's handler but does not include the context  */
+export interface RemoteRoute<H extends Handler = any> extends RemoteMethod<H> {
+    isRoute: true;
+    inHeader: false;
+}
 
 /** Public map from Hooks, _handler type is the same as hooks's handler but does not include the context  */
-export type PublicHook<H extends Handler> = {
-    /** Type reference to the route handler, its value is actually null or void function ans should never be called. */
-    _handler: PublicHandler<H>;
-    /** Json serializable structure so the Type information can be transmitted over the wire */
-    handlerSerializedType: SerializedTypes;
+export interface RemoteHook<H extends Handler = any> extends RemoteMethod<H> {
     isRoute: false;
-    inHeader: boolean;
-    id: string;
-    enableValidation: boolean;
-    enableSerialization: boolean;
-    params: string[];
-};
+    inHeader: false;
+}
 
-export type PublicResponse<Resp> = Promise<Awaited<Resp> | RouteError>;
-export type ResolvedPublicResponse<Resp> = Awaited<Resp> | RouteError;
+export interface RemoteHeaderHook<H extends Handler = any> extends RemoteMethod<H> {
+    isRoute: false;
+    inHeader: true;
+}
+
+export type RemoteResponse<Resp> = Promise<Awaited<Resp> | RouteError>;
+export type ResolvedResponse<Resp> = Awaited<Resp> | RouteError;
 
 export type PublicResponses = {
-    [key: string]: PublicResponse<any>;
+    [key: string]: RemoteResponse<any>;
 };
 
 export type ResolvedPublicResponses = {
-    [key: string]: ResolvedPublicResponse<any>;
+    [key: string]: ResolvedResponse<any>;
 };
 
 // #######  type guards #######

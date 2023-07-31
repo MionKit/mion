@@ -7,13 +7,15 @@
 
 import {FunctionReflection, SerializedTypes, getDeserializedFunctionType, getFunctionReflectionMethods} from '@mionkit/runtype';
 import {DEFAULT_PREFILL_OPTIONS, STORAGE_KEY} from './constants';
-import {ClientMethods, ClientOptions, RequestBody} from './types';
+import {ClientMethods, ClientOptions, InitOptions, RequestBody} from './types';
 import {GET_PUBLIC_METHODS_ID, PublicError, RouteError, StatusCodes, isPublicError} from '@mionkit/core';
-import {PublicMethod, PublicMethods, PublicResponses, ResolvedPublicResponse, ResolvedPublicResponses} from '@mionkit/router';
+import {RemoteMethod, RemoteMethods, PublicResponses, ResolvedResponse, ResolvedPublicResponses} from '@mionkit/router';
+
+// TODO: test & write client
 
 // ############# PRIVATE STATE #############
 
-const remoteMethodsById: Map<string, PublicMethod> = new Map();
+const remoteMethodsById: Map<string, RemoteMethod> = new Map();
 const reflectionByPath: Map<string, FunctionReflection> = new Map();
 
 let clientOptions: ClientOptions = {
@@ -27,31 +29,26 @@ export const setClientOptions = (prefillOptions_: Partial<ClientOptions> = {}) =
     };
 };
 
-type Chainable = (chain: Chainable[], proxy: typeof Proxy, params: any[]) => any;
+export class MionClient<RM extends RemoteMethods<any>> {
+    clientOptions = {
+        ...DEFAULT_PREFILL_OPTIONS,
+    };
+    constructor(options: InitOptions) {
+        this.clientOptions = {
+            ...this.clientOptions,
+            ...options,
+        };
+    }
+}
 
-const requestMethods = {
-    preset: (...params: any[] | any) => 'preset called',
-    params: (...params: any[] | any) => 'params called',
-    fetch: () => 'fetch called',
-};
-
-const requestMethodsKeys = Object.keys(requestMethods);
-
-export function initClient<R extends PublicMethods<any>>(): ClientMethods<R> {
+export function initClient<R extends RemoteMethods<any>>(): ClientMethods<R> {
     const target = {};
 
     const handler = {
+        apply(target: any, thisArg: any, argArray?: any): any {},
         get(target, prop, receiver) {
-            switch (prop) {
-                case 'preset':
-                    return requestMethods.preset;
-                case 'params':
-                    return requestMethods.params;
-                case 'fetch':
-                    return requestMethods.fetch;
-                default:
-                    return proxy;
-            }
+            console.log('get', prop);
+            return proxy;
         },
     };
 
@@ -164,12 +161,12 @@ async function fetchRemoteMethodsInfo(paths: string[]) {
             body: JSON.stringify(body),
         });
         const respObj = await response.json();
-        const resp = respObj[GET_PUBLIC_METHODS_ID] as ResolvedPublicResponse<{[key: string]: PublicMethod}>;
+        const resp = respObj[GET_PUBLIC_METHODS_ID] as ResolvedResponse<{[key: string]: RemoteMethod}>;
         // TODO: convert Public error into a class that extends error and throw as an error
         if (isPublicError(resp)) throw new PublicError(resp);
         if (!resp) throw new Error('No remote methods found in response');
 
-        Object.entries(resp).forEach(([path, remoteMethod]: [string, PublicMethod]) => {
+        Object.entries(resp).forEach(([path, remoteMethod]: [string, RemoteMethod]) => {
             setRemoteMethodMetadata(path, remoteMethod);
         });
     } catch (error: any) {
@@ -196,7 +193,7 @@ function getLocalStorageKey(id: string) {
     return `${STORAGE_KEY}:remote-methods:${id}`;
 }
 
-function serializeParameters(params: any[], method: PublicMethod): any[] {
+function serializeParameters(params: any[], method: RemoteMethod): any[] {
     const reflection = reflectionByPath.get(method.id);
     if (!reflection) return params;
     if (params.length && method.enableSerialization) {
@@ -215,7 +212,7 @@ function serializeParameters(params: any[], method: PublicMethod): any[] {
     return params;
 }
 
-function validateParameters(params: any[], method: PublicMethod): any[] {
+function validateParameters(params: any[], method: RemoteMethod): any[] {
     const reflection = reflectionByPath.get(method.id);
     if (!reflection) return params;
     if (method.enableValidation) {
@@ -232,10 +229,7 @@ function validateParameters(params: any[], method: PublicMethod): any[] {
     return params;
 }
 
-function deSerializeReturn(
-    remoteHandlerResponse: ResolvedPublicResponse<any>,
-    method: PublicMethod
-): ResolvedPublicResponse<any> {
+function deSerializeReturn(remoteHandlerResponse: ResolvedResponse<any>, method: RemoteMethod): ResolvedResponse<any> {
     const reflection = reflectionByPath.get(method.id);
     if (!reflection || !method.enableSerialization) return remoteHandlerResponse;
     const result = remoteHandlerResponse[0];
@@ -254,7 +248,7 @@ function deSerializeReturn(
     }
 }
 
-function setRemoteMethodMetadata(id: string, method: PublicMethod, store = true) {
+function setRemoteMethodMetadata(id: string, method: RemoteMethod, store = true) {
     remoteMethodsById.set(id, method);
     reflectionByPath.set(id, getFunctionReflection(method.handlerSerializedType));
     if (store) localStorage.setItem(getLocalStorageKey(id), JSON.stringify(method));
@@ -262,5 +256,5 @@ function setRemoteMethodMetadata(id: string, method: PublicMethod, store = true)
 
 function getFunctionReflection(serializedTypes: SerializedTypes): FunctionReflection {
     const type = getDeserializedFunctionType(serializedTypes);
-    return getFunctionReflectionMethods(type, clientOptions.routerOptions.reflectionOptions, 0);
+    return getFunctionReflectionMethods(type, clientOptions.reflectionOptions, 0);
 }

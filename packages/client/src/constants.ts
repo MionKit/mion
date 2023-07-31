@@ -9,33 +9,31 @@ import {DEFAULT_REFLECTION_OPTIONS} from '@mionkit/runtype';
 import {ClientOptions} from './types';
 
 export const DEFAULT_PREFILL_OPTIONS: ClientOptions = {
-    baseURL: window.location.origin,
+    baseURL: '',
     storage: 'localStorage',
 
-    routerOptions: {
-        /** Prefix for all routes, i.e: api/v1.
-         * path separator is added between the prefix and the route */
-        prefix: '',
+    /** Prefix for all routes, i.e: api/v1.
+     * path separator is added between the prefix and the route */
+    prefix: '',
 
-        /** Suffix for all routes, i.e: .json.
-         * No path separator is added between the route and the suffix */
-        suffix: '',
+    /** Suffix for all routes, i.e: .json.
+     * No path separator is added between the route and the suffix */
+    suffix: '',
 
-        /** Enables automatic parameter validation */
-        enableValidation: true,
+    /** Enables automatic parameter validation */
+    enableValidation: true,
 
-        /** Enables automatic serialization/deserialization */
-        enableSerialization: true,
+    /** Enables automatic serialization/deserialization */
+    enableSerialization: true,
 
-        /** Reflection and Deepkit Serialization-Validation options */
-        reflectionOptions: DEFAULT_REFLECTION_OPTIONS,
+    /** Reflection and Deepkit Serialization-Validation options */
+    reflectionOptions: DEFAULT_REFLECTION_OPTIONS,
 
-        /** Custom body parser, defaults to Native JSON */
-        bodyParser: JSON,
+    /** Custom body parser, defaults to Native JSON */
+    bodyParser: JSON,
 
-        /** Set true to automatically generate and id for every error.  */
-        autoGenerateErrorId: false,
-    },
+    /** Set true to automatically generate and id for every error.  */
+    autoGenerateErrorId: false,
 };
 
 export const STORAGE_KEY = 'mionkit:client';

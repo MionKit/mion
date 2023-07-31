@@ -6,32 +6,35 @@
  * ######## */
 
 import {PublicError, RouteError} from '@mionkit/core';
-import {JsonParser, PublicMethod, PublicMethods} from '@mionkit/router';
+import {JsonParser, RemoteHeaderHook, RemoteHook, RemoteMethod, RemoteMethods, RemoteRoute} from '@mionkit/router';
 import {FunctionReflection, ReflectionOptions} from '@mionkit/runtype';
 
 export type ClientOptions = {
     baseURL: string;
     storage: 'localStorage' | 'sessionStorage' | 'none';
 
-    /** this options must match the api router options */
-    routerOptions: {
-        /** prefix for all routes, i.e: api/v1.
-         * path separator is added between the prefix and the route */
-        prefix: string;
-        /** suffix for all routes, i.e: .json.
-         * Not path separators is added between the route and the suffix */
-        suffix: string;
-        /** enable automatic parameter validation, defaults to true */
-        enableValidation: boolean;
-        /** Enables serialization/deserialization */
-        enableSerialization: boolean;
-        /** Reflection and Deepkit Serialization-Validation options */
-        reflectionOptions: ReflectionOptions;
-        /** automatically generate and uuid */
-        autoGenerateErrorId: boolean;
-        /** Custom JSON parser, defaults to Native js JSON */
-        bodyParser: JsonParser;
-    };
+    // ############# ROUTER OPTIONS (should match router options) #############
+
+    /** prefix for all routes, i.e: api/v1.
+     * path separator is added between the prefix and the route */
+    prefix: string;
+    /** suffix for all routes, i.e: .json.
+     * Not path separators is added between the route and the suffix */
+    suffix: string;
+    /** enable automatic parameter validation, defaults to true */
+    enableValidation: boolean;
+    /** Enables serialization/deserialization */
+    enableSerialization: boolean;
+    /** Reflection and Deepkit Serialization-Validation options */
+    reflectionOptions: ReflectionOptions;
+    /** automatically generate and uuid */
+    autoGenerateErrorId: boolean;
+    /** Custom JSON parser, defaults to Native js JSON */
+    bodyParser: JsonParser;
+};
+
+export type InitOptions = Partial<ClientOptions> & {
+    baseURL: string;
 };
 
 // ####### Public Route Types #######
@@ -44,12 +47,12 @@ export type PublicMethodReflection = {
     reflection: FunctionReflection;
 };
 
-export interface ClientMethod<Parent, M extends PublicMethod> {
-    preset: (...params: Parameters<M['_handler']>) => Parent;
-    params: (...params: Parameters<M['_handler']>) => Parent;
-    fetch: () => ReturnType<M['_handler']>;
-}
+type ClientFetch<Parent, RH extends RemoteMethod> = Parent & {
+    fetch: () => ReturnType<RH['_handler']>;
+};
 
-export type ClientMethods<Type extends PublicMethods<any>> = {
-    [Property in keyof Type]: Type[Property] extends PublicMethod ? ClientMethod<ClientMethods<Type>, Type[Property]> : never;
+export type ClientMethods<Type extends RemoteMethods<any>> = {
+    [Property in keyof Type]: Type[Property] extends RemoteRoute | RemoteHook | RemoteHeaderHook
+        ? (...params: Parameters<Type[Property]['_handler']>) => ClientFetch<ClientMethods<Type>, Type[Property]>
+        : never;
 };
