@@ -8,6 +8,7 @@ import {registerRoutes} from '@mionkit/router';
 import {initHttpRouter, resetHttpRouter, startHttpServer} from './mionHttp';
 import type {CallContext, Route} from '@mionkit/router';
 import {PublicError} from '@mionkit/core';
+import fetch from 'node-fetch';
 
 describe('serverless router should', () => {
     resetHttpRouter();
