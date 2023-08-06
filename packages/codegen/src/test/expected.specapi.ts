@@ -4,13 +4,14 @@ export const PUBLIC_METHODS = {
     myApi: {
         auth: {
             isRoute: false,
-            id: 'Authorization',
+            id: 'auth',
             inHeader: true,
             _handler: expect.any(Function),
             handlerSerializedType: expect.any(Object),
             enableValidation: true,
             enableSerialization: true,
             params: ['token'],
+            headerName: 'Authorization',
         },
         users: {
             getUser: {
@@ -22,6 +23,7 @@ export const PUBLIC_METHODS = {
                 enableValidation: true,
                 enableSerialization: true,
                 params: ['id'],
+                executionPathPointers: [['auth'], ['users', 'getUser'], ['users', 'totalUsers']],
             },
             setUser: {
                 isRoute: true,
@@ -32,6 +34,7 @@ export const PUBLIC_METHODS = {
                 enableValidation: true,
                 enableSerialization: true,
                 params: ['user', 'user2'],
+                executionPathPointers: [['auth'], ['users', 'setUser'], ['users', 'totalUsers']],
             },
             totalUsers: {
                 isRoute: false,
@@ -54,6 +57,7 @@ export const PUBLIC_METHODS = {
                 enableValidation: true,
                 enableSerialization: true,
                 params: ['id'],
+                executionPathPointers: [['auth'], ['pets', 'getPet']],
             },
             setPet: {
                 isRoute: true,
@@ -64,6 +68,7 @@ export const PUBLIC_METHODS = {
                 enableValidation: true,
                 enableSerialization: true,
                 params: ['pet'],
+                executionPathPointers: [['auth'], ['pets', 'setPet']],
             },
         },
         utils: {
@@ -76,6 +81,7 @@ export const PUBLIC_METHODS = {
                 enableValidation: true,
                 enableSerialization: true,
                 params: ['s', 'n'],
+                executionPathPointers: [['auth'], ['utils', 'getNumber']],
             },
         },
         getItem: {
@@ -87,6 +93,7 @@ export const PUBLIC_METHODS = {
             enableValidation: true,
             enableSerialization: true,
             params: ['item'],
+            executionPathPointers: [['auth'], ['getItem']],
         },
         getPetOrUser: {
             isRoute: true,
@@ -97,6 +104,7 @@ export const PUBLIC_METHODS = {
             enableValidation: true,
             enableSerialization: true,
             params: ['item'],
+            executionPathPointers: [['auth'], ['getPetOrUser']],
         },
     },
     authApi: {
@@ -109,6 +117,7 @@ export const PUBLIC_METHODS = {
             enableValidation: true,
             enableSerialization: true,
             params: ['email', 'pass'],
+            executionPathPointers: [['login']],
         },
     },
 };

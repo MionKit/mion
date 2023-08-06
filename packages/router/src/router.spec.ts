@@ -17,6 +17,7 @@ import {
     initRouter,
     addStartHooks,
     addEndHooks,
+    getRouteEntries,
 } from './router';
 import {Handler, HookDef, RouteDef, Routes} from './types';
 
@@ -116,7 +117,7 @@ describe('Create routes should', () => {
         expect(geRoutesSize()).toEqual(5);
         expect(geHooksSize()).toEqual(5);
 
-        expect(getRouteExecutionPath('/users/getUser')).toEqual(
+        expect(getRouteExecutionPath('/users-getUser')).toEqual(
             addDefaultExecutables([
                 expect.objectContaining({...hookExecutables.first}),
                 expect.objectContaining({...hookExecutables.userBefore}),
@@ -125,8 +126,8 @@ describe('Create routes should', () => {
                 expect.objectContaining({...hookExecutables.last}),
             ])
         );
-        expect(getRouteExecutionPath('/users/setUser')).toBeTruthy();
-        expect(getRouteExecutionPath('/users/pets/getUserPet')).toEqual(
+        expect(getRouteExecutionPath('/users-setUser')).toBeTruthy();
+        expect(getRouteExecutionPath('/users-pets-getUserPet')).toEqual(
             addDefaultExecutables([
                 expect.objectContaining({...hookExecutables.first}),
                 expect.objectContaining({...hookExecutables.userBefore}),
@@ -136,14 +137,14 @@ describe('Create routes should', () => {
                 expect.objectContaining({...hookExecutables.last}),
             ])
         );
-        expect(getRouteExecutionPath('/pets/getPet')).toEqual(
+        expect(getRouteExecutionPath('/pets-getPet')).toEqual(
             addDefaultExecutables([
                 expect.objectContaining({...hookExecutables.first}),
                 expect.objectContaining({...routeExecutables.petsGetPet}),
                 expect.objectContaining({...hookExecutables.last}),
             ])
         );
-        expect(getRouteExecutionPath('/pets/setPet')).toBeTruthy();
+        expect(getRouteExecutionPath('/pets-setPet')).toBeTruthy();
     });
 
     it('should support methods', () => {
@@ -207,11 +208,11 @@ describe('Create routes should', () => {
         expect(geRoutesSize()).toEqual(5);
         expect(geHooksSize()).toEqual(5);
 
-        expect(getRouteExecutionPath('/api/v1/users/getUser.json')).toBeTruthy();
-        expect(getRouteExecutionPath('/api/v1/users/setUser.json')).toBeTruthy();
-        expect(getRouteExecutionPath('/api/v1/users/pets/getUserPet.json')).toBeTruthy();
-        expect(getRouteExecutionPath('/api/v1/pets/getPet.json')).toBeTruthy();
-        expect(getRouteExecutionPath('/api/v1/pets/setPet.json')).toBeTruthy();
+        expect(getRouteExecutionPath('/api/v1/users-getUser.json')).toBeTruthy();
+        expect(getRouteExecutionPath('/api/v1/users-setUser.json')).toBeTruthy();
+        expect(getRouteExecutionPath('/api/v1/users-pets-getUserPet.json')).toBeTruthy();
+        expect(getRouteExecutionPath('/api/v1/pets-getPet.json')).toBeTruthy();
+        expect(getRouteExecutionPath('/api/v1/pets-setPet.json')).toBeTruthy();
     });
 
     it('throw an error when a routes are invalid', () => {
@@ -334,7 +335,7 @@ describe('Create routes should', () => {
             expect.objectContaining({id: 'a2', isRoute: false}),
         ]);
 
-        expect(getRouteExecutionPath('/pets/getPet')).toEqual(expectedExecutionPath);
+        expect(getRouteExecutionPath('/pets-getPet')).toEqual(expectedExecutionPath);
         expect(() => addStartHooks(prependHooks)).toThrow('Can not add start hooks after the router has been initialized');
         expect(() => addEndHooks(appendHooks)).toThrow('Can not add end hooks after the router has been initialized');
     });

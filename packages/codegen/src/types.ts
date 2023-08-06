@@ -27,7 +27,7 @@ export type ExportedRoutesMap = {
 };
 
 export type PublicMethodsSpec = {
-    [key: string]: PublicMethodsSpec | RemoteMethod | null;
+    [key: string]: PublicMethodsSpec | RemoteMethods<any> | null;
 };
 
 export type RoutesSpec = {

@@ -200,12 +200,12 @@ describe('Dispatch routes', () => {
             const request = getDefaultRequest('changeUserName', [{name: 'Leo', surname: 'Tungsten'}]);
 
             const response = await dispatchRoute('/changeUserName', request, {});
-            const error = response.body?.Authorization;
+            const error = response.body?.auth;
             expect(error).toEqual(
                 new PublicError({
                     statusCode: 400,
                     name: 'Validation Error',
-                    message: `Invalid params in 'Authorization', validation failed.`,
+                    message: `Invalid params in 'auth', validation failed.`,
                     errorData: expect.anything(),
                 })
             );

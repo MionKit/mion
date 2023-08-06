@@ -5,8 +5,6 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {PublicError} from '..';
-
 // ####### Options #######
 
 export type CoreOptions = {
@@ -36,15 +34,6 @@ export type RouteErrorParams = {
     /** name of the error, if not defined it is assigned from status code */
     name?: string;
 };
-
-// #######  Type Guards #######
-
-export function isPublicError(error: any): error is PublicError {
-    if (error instanceof PublicError) return true;
-    return (
-        error && typeof error?.statusCode === 'number' && typeof error?.message === 'string' && typeof error?.name === 'string'
-    );
-}
 
 // #######  Others #######
 

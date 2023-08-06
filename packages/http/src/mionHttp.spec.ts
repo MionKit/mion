@@ -5,7 +5,6 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 import {registerRoutes} from '@mionkit/router';
-import fetch from 'node-fetch'; // must be node-fetch v2 as v3 is an ES6 module non compatible whit current setup
 import {initHttpRouter, resetHttpRouter, startHttpServer} from './mionHttp';
 import type {CallContext, Route} from '@mionkit/router';
 import {PublicError} from '@mionkit/core';
