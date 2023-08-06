@@ -69,3 +69,30 @@ export class PublicError extends Error {
         Object.defineProperty(this, 'message', {enumerable: true});
     }
 }
+
+// #######  Error Type Guards #######
+
+const hasUnknownKeys = (knownKeys, error) => {
+    if (typeof error !== 'object') return true;
+    const unknownKeys = Object.keys(error);
+    return unknownKeys.some((ukn) => !knownKeys.includes(ukn));
+};
+
+/** Returns true if the error is a PublicError or has the same structure. */
+export function isPublicError(error: any): error is PublicError {
+    if (!error) return false;
+    if (error instanceof PublicError) return true;
+    return (
+        error &&
+        typeof error?.statusCode === 'number' &&
+        typeof error?.message === 'string' &&
+        typeof error?.name === 'string' &&
+        (typeof error?.id === 'string' || typeof error?.id === 'number' || error?.id === undefined) &&
+        !hasUnknownKeys(['id', 'statusCode', 'message', 'name', 'errorData'], error)
+    );
+}
+
+export function deserializeIfIsPublicError(value: any): PublicError | any {
+    if (!isPublicError(value) || value instanceof PublicError) return value;
+    return new PublicError(value);
+}

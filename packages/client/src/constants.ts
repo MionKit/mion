@@ -12,6 +12,11 @@ export const DEFAULT_PREFILL_OPTIONS: ClientOptions = {
     baseURL: '',
     storage: 'localStorage',
 
+    fetchOptions: {
+        method: 'PUT',
+        headers: {'Content-Type': 'application/json'},
+    },
+
     /** Prefix for all routes, i.e: api/v1.
      * path separator is added between the prefix and the route */
     prefix: '',

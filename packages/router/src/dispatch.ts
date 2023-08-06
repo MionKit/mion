@@ -15,10 +15,11 @@ import {
     isRawExecutable,
     Handler,
     isNotFoundExecutable,
+    isHeaderExecutable,
 } from './types';
 import {getNotFoundExecutionPath, getRouteExecutionPath, getRouterOptions} from './router';
 import {isPromise} from 'node:util/types';
-import {Mutable, Obj, RouteError, StatusCodes} from '@mionkit/core';
+import {Mutable, Obj, PublicError, RouteError, StatusCodes} from '@mionkit/core';
 
 type CallBack = (err: any, response: Response | undefined) => void;
 
@@ -149,8 +150,8 @@ function deserializeParameters(request: Request, executable: Executable): any[] 
     const path = executable.id;
     let params;
 
-    if (executable.inHeader) {
-        params = request.headers[path] || [];
+    if (isHeaderExecutable(executable)) {
+        params = request.headers[executable.headerName] || [];
         // headers could be arrays in some cases bust mostly individual values
         // so we need to normalize to an array
         if (!Array.isArray(params)) params = [params];
@@ -200,8 +201,11 @@ function validateParameters(params: any[], executable: Executable): any[] {
 function serializeResponse(executable: Executable, response: Response, result: any) {
     if (!executable.canReturnData || result === undefined || !executable.reflection) return;
     const serialized = executable.enableSerialization ? executable.reflection.serializeReturn(result) : result;
-    if (executable.inHeader) response.headers[executable.id] = serialized;
-    else (response.body as Mutable<Obj>)[executable.id] = serialized;
+    if (isHeaderExecutable(executable)) {
+        const isError = result instanceof PublicError || result instanceof Error || result instanceof RouteError;
+        if (isError) (response.body as Mutable<Obj>)[executable.headerName] = serialized;
+        else response.headers[executable.headerName] = serialized;
+    } else (response.body as Mutable<Obj>)[executable.id] = serialized;
 }
 
 // ############# PUBLIC METHODS USED FOR ERRORS #############

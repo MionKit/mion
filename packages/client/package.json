@@ -62,6 +62,7 @@
   },
   "gitHead": "2efdcd77c572e64f2b9621b4921ffd2f5e83bc0a",
   "devDependencies": {
+    "@mionkit/http": "^0.4.2",
     "@mionkit/router": "^0.4.2"
   }
 }
