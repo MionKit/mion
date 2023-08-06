@@ -8,6 +8,9 @@ import {registerRoutes} from '@mionkit/router';
 import {initHttpRouter, resetHttpRouter, startHttpServer} from './mionHttp';
 import type {CallContext, Route} from '@mionkit/router';
 import {PublicError} from '@mionkit/core';
+// In theory node 18 supports fetch but not working fine with jest, we should update to jest 29
+// update to jest 29 gonna take some changes as all globals must be imported from @jest/globals
+// also the types for fetch are not available in node 18, fix here: https://stackoverflow.com/questions/71294230/how-can-i-use-native-fetch-with-node-in-typescript-node-v17-6#answer-75676044
 import fetch from 'node-fetch';
 
 describe('serverless router should', () => {
