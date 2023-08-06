@@ -8,8 +8,6 @@
 import {HookDef, RawRequest, RouteDef, RouterOptions} from './types';
 import {DEFAULT_REFLECTION_OPTIONS} from '@mionkit/runtype';
 
-export const ROUTE_PATH_ROOT = '/';
-
 export const DEFAULT_ROUTE: Readonly<Required<RouteDef>> = {
     description: '',
     enableValidation: true,

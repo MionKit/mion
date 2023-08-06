@@ -7,10 +7,10 @@
 
 import {
     getHookExecutable,
-    getPathFromPointer,
     getRouteDefaultParams,
     getRouteExecutable,
     getRouteExecutionPath,
+    getRouterOptions,
     isPrivateHookDef,
 } from './router';
 import {
@@ -29,7 +29,7 @@ import {
     RemoteMethod,
 } from './types';
 import {getSerializedFunctionType} from '@mionkit/runtype';
-import {Obj, getRouterItemId} from '@mionkit/core';
+import {Obj, getRoutePath, getRouterItemId} from '@mionkit/core';
 
 // ############# PUBLIC METHODS #############
 
@@ -52,7 +52,7 @@ function recursiveGetRemoteMethods<R extends Routes>(routes: R, currentPointer: 
         if (isPrivateHookDef(item)) {
             publicData[key] = null; // hooks that don't receive or return data are not public
         } else if (isHookDef(item) || isHeaderHook) {
-            const id = isHeaderHook ? item.headerName : getRouterItemId(itemPointer);
+            const id = getRouterItemId(itemPointer);
             const executable = getHookExecutable(id);
             if (!executable)
                 throw new Error(`Hook '${id}' not found in router. Please check you have called router.addRoutes first!`);
@@ -75,7 +75,7 @@ function recursiveGetRemoteMethods<R extends Routes>(routes: R, currentPointer: 
 function getRemoteMethodFromExecutable<H extends Handler>(executable: RouteExecutable | HookExecutable): RemoteMethod<H> {
     let executionPathPointers;
     if (executable.isRoute) {
-        const path = getPathFromPointer(executable.pointer);
+        const path = getRoutePath(executable.pointer, getRouterOptions());
         executionPathPointers = getRouteExecutionPath(path)
             ?.filter((exec) => isPublicExecutable(exec))
             .map((exec) => exec.pointer);
@@ -91,6 +91,7 @@ function getRemoteMethodFromExecutable<H extends Handler>(executable: RouteExecu
         enableSerialization: executable.enableSerialization,
         params: executable.reflection.handlerType.parameters.map((tp) => tp.name).slice(getRouteDefaultParams().length),
         executionPathPointers,
+        headerName: executable.headerName,
     };
 }
 

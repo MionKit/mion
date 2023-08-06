@@ -156,6 +156,7 @@ export type Executable = {
      * ie: ['users','getUser']
      */
     pointer: string[];
+    headerName?: string;
 };
 
 export interface RouteExecutable extends Executable {
@@ -172,6 +173,11 @@ export interface HookExecutable extends Executable {
     isRawExecutable: false;
     handler: Handler | HeaderHandler;
     reflection: FunctionReflection;
+}
+
+export interface HookHeaderExecutable extends HookExecutable {
+    inHeader: true;
+    headerName: string;
 }
 
 export interface RawExecutable extends Executable {
@@ -228,7 +234,7 @@ export type Response = {
     /** response headers */
     readonly headers: Headers;
     /** the router response data, body should not be modified manually so marked as Read Only */
-    readonly body: Readonly<PublicResponses>;
+    readonly body: Readonly<ResolvedPublicResponses>;
     /** json encoded response, contains data and errors if there are any. */
     readonly json: string;
 };
@@ -280,7 +286,7 @@ export type RemoteMethods<Type extends Routes> = {
         | PrivateHookDef
         | PrivateHeaderHookDef
         | PrivateRawHookDef
-        ? null
+        ? undefined
         // Hooks
         : Type[Property] extends HookDef
         ? RemoteHook<Type[Property]['hook']>
@@ -315,27 +321,37 @@ export interface RemoteMethod<H extends Handler = any> {
     enableSerialization: boolean;
     params: string[];
     executionPathPointers?: string[][];
+    headerName?: string;
 }
 
 /** Public map from Routes, _handler type is the same as router's handler but does not include the context  */
 export interface RemoteRoute<H extends Handler = any> extends RemoteMethod<H> {
     isRoute: true;
     inHeader: false;
+    executionPathPointers: string[][];
 }
 
 /** Public map from Hooks, _handler type is the same as hooks's handler but does not include the context  */
 export interface RemoteHook<H extends Handler = any> extends RemoteMethod<H> {
     isRoute: false;
     inHeader: false;
+    executionPathPointers: undefined;
 }
 
 export interface RemoteHeaderHook<H extends Handler = any> extends RemoteMethod<H> {
     isRoute: false;
     inHeader: true;
+    headerName: string;
 }
 
-export type RemoteResponse<Resp> = Promise<Awaited<Resp> | RouteError>;
-export type ResolvedResponse<Resp> = Awaited<Resp> | RouteError;
+export type RemoteHandlers<RMS extends RemoteMethods<any>> = {
+    [Property in keyof RMS]: RMS[Property] extends RemoteRoute | RemoteHook | RemoteHeaderHook
+        ? RMS[Property]['_handler']
+        : never;
+};
+
+export type RemoteResponse<Resp> = Promise<Exclude<Awaited<Resp>, RouteError> | PublicError>;
+export type ResolvedResponse<Resp> = Awaited<Resp> | PublicError;
 
 export type PublicResponses = {
     [key: string]: RemoteResponse<any>;
@@ -395,6 +411,10 @@ export function isPublicExecutable(entry: Executable): entry is Executable {
 
 export function isNotFoundExecutable(entry: Executable): entry is NotFoundExecutable {
     return (entry as NotFoundExecutable).is404;
+}
+
+export function isHeaderExecutable(entry: Executable): entry is HookHeaderExecutable {
+    return entry.inHeader;
 }
 
 // #######  Others #######

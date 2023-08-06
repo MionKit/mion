@@ -66,7 +66,6 @@ function recursiveSetHandlerTypeAndCreateRouteExecutables(
         } else {
             if (item.isRoute) {
                 setRemoteMethods(item, newPointer, exportName, routeExecutables);
-                delete item.executionPathPointers;
             }
             newRoutes[key] = {
                 ...item,

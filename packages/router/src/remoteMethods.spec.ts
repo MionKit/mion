@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {DEFAULT_ROUTE_OPTIONS, DEFAULT_HOOK} from './constants';
+import {DEFAULT_ROUTE_OPTIONS} from './constants';
 import {getRemoteMethods} from './remoteMethods';
 import {registerRoutes, initRouter, resetRouter, getRouteDefaultParams} from './router';
 import {getFunctionReflectionMethods} from '@mionkit/runtype';
@@ -198,7 +198,7 @@ describe('Public Mothods should', () => {
         );
     });
 
-    it('should serialize type skipping the context parameter', () => {
+    it('should serialize remote method type skipping the context parameter', () => {
         initRouter({sharedDataFactory: getSharedData, getPublicRoutesData: true});
         const routes = {
             sayHello: (ctx: CallContext, name: string): string => `Hello ${name}`,

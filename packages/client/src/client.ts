@@ -1,260 +1,86 @@
 /* ########
- * 2022 mion
+ * 2023 mion
  * Author: Ma-jerez
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {FunctionReflection, SerializedTypes, getDeserializedFunctionType, getFunctionReflectionMethods} from '@mionkit/runtype';
-import {DEFAULT_PREFILL_OPTIONS, STORAGE_KEY} from './constants';
-import {ClientMethods, ClientOptions, InitOptions, RequestBody} from './types';
-import {GET_PUBLIC_METHODS_ID, PublicError, RouteError, StatusCodes, isPublicError} from '@mionkit/core';
-import {RemoteMethod, RemoteMethods, PublicResponses, ResolvedResponse, ResolvedPublicResponses} from '@mionkit/router';
+import {DEFAULT_PREFILL_OPTIONS} from './constants';
+import {
+    ClientMethods,
+    ClientOptions,
+    HookRequest,
+    InitOptions,
+    ReflectionById,
+    RemoteMethodsById,
+    RouteRequest,
+    RemoteCallResponse,
+} from './types';
+import {RemoteHandlers, RemoteMethod, RemoteMethods, RemoteResponse} from '@mionkit/router';
+import {getRouterItemId} from '@mionkit/core';
+import {MionRequest} from './request';
 
-// TODO: test & write client
-
-// ############# PRIVATE STATE #############
-
-const remoteMethodsById: Map<string, RemoteMethod> = new Map();
-const reflectionByPath: Map<string, FunctionReflection> = new Map();
-
-let clientOptions: ClientOptions = {
-    ...DEFAULT_PREFILL_OPTIONS,
-};
-
-export const setClientOptions = (prefillOptions_: Partial<ClientOptions> = {}) => {
-    clientOptions = {
-        ...clientOptions,
-        ...prefillOptions_,
-    };
-};
-
-export class MionClient<RM extends RemoteMethods<any>> {
-    clientOptions = {
+export function initMionClient<RM extends RemoteMethods<any>>(
+    options: InitOptions
+): {client: MionClient; methods: ClientMethods<RM>} {
+    const clientOptions = {
         ...DEFAULT_PREFILL_OPTIONS,
+        ...options,
     };
-    constructor(options: InitOptions) {
-        this.clientOptions = {
-            ...this.clientOptions,
-            ...options,
-        };
+    const client = new MionClient(clientOptions);
+    const rootProxy = new MethodProxy([], client, clientOptions);
+    return {client, methods: rootProxy.proxy as ClientMethods<RM>};
+}
+
+// ############# STATE   #############
+// state is managed inside a class in case multiple clients are required (using multiple apis)
+class MionClient {
+    private remoteMethodsById: RemoteMethodsById = new Map();
+    private reflectionByPath: ReflectionById = new Map();
+
+    constructor(private clientOptions: ClientOptions) {}
+
+    async callRoute<RR extends RouteRequest<any>, RHList extends HookRequest<any>[]>(
+        route: RR,
+        ...hooks: RHList
+    ): Promise<RemoteCallResponse<RR, RHList>> {
+        const request = new MionRequest(route, hooks, this.clientOptions, this.remoteMethodsById, this.reflectionByPath);
+        return request.runRoute();
     }
 }
 
-export function initClient<R extends RemoteMethods<any>>(): ClientMethods<R> {
-    const target = {};
-
-    const handler = {
-        apply(target: any, thisArg: any, argArray?: any): any {},
-        get(target, prop, receiver) {
-            console.log('get', prop);
-            return proxy;
+class MethodProxy {
+    propsProxies = {};
+    handler = {
+        apply: (target: any, thisArg: any, argArray?: any): RouteRequest<any> & HookRequest<any> => {
+            const methodRequestProxy = {
+                pointer: [...this.parentProps],
+                id: getRouterItemId(this.parentProps),
+                isResolved: false,
+                params: argArray,
+                persist: (storage = this.clientOptions.storage) => {
+                    // todo persist values to storage
+                },
+                call: (...hooks: HookRequest<any>[]): Promise<RemoteCallResponse<any, HookRequest<any>[]>> => {
+                    return this.client.callRoute(methodRequestProxy, ...hooks);
+                },
+            } as RouteRequest<any> & HookRequest<any>;
+            return methodRequestProxy;
+        },
+        get: (target, prop, receiver): typeof Proxy => {
+            const existing = this.propsProxies[prop];
+            if (existing) return existing.proxy;
+            const newMethodProxy = new MethodProxy([...this.parentProps, prop], this.client, this.clientOptions);
+            this.propsProxies[prop] = newMethodProxy;
+            return newMethodProxy.proxy;
         },
     };
 
-    const proxy = new Proxy(target, handler);
-    return proxy;
-}
+    proxy: typeof Proxy;
 
-function addToRequest(requestBody: RequestBody, id: string, params: any[]) {
-    if (requestBody[id]) throw new Error(`Remote call to ${id} already exists in the request`);
-    const remoteMethod = remoteMethodsById.get(id);
-    if (!remoteMethod) throw new Error(`Remote call to ${id} not found in router`);
-    requestBody[id] = params;
-}
-
-async function doFetch(request: RequestBody, path: string, skipSerialize = false): Promise<PublicResponses> {
-    const requestRemoteMethods = Object.keys(request);
-    const missingMethods = requestRemoteMethods.filter((id) => !remoteMethodsById.has(id));
-    await fetchRemoteMethodsInfo(missingMethods);
-
-    if (!skipSerialize) {
-        const {hasErrors, errors} = serializeAndValidateRequestBody(request);
-        if (hasErrors) return errors;
+    constructor(public parentProps: string[], private client: MionClient, private clientOptions: ClientOptions) {
+        // the target must be a function so the handler can trap calls using apply
+        const target = () => null;
+        this.proxy = new Proxy(target, this.handler);
     }
-
-    try {
-        const url = new URL(path, clientOptions.baseURL);
-        const response = await fetch(url, {
-            method: 'PUT',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify(request),
-        });
-        const respObj = await response.json();
-        if (!skipSerialize) return deserializeResponseBody(respObj as PublicResponses);
-        return respObj as PublicResponses;
-    } catch (error: any) {
-        throw new RouteError({
-            statusCode: StatusCodes.BAD_REQUEST,
-            name: 'Request Error',
-            publicMessage: error?.message || 'Unknown error',
-            originalError: error,
-        });
-    }
-}
-
-function serializeAndValidateRequestBody(request: RequestBody): {hasErrors: boolean; errors: ResolvedPublicResponses} {
-    const errors: ResolvedPublicResponses = {};
-    let hasErrors = false;
-    Object.entries(request).forEach(([key, params]) => {
-        try {
-            const remoteMethod = remoteMethodsById.get(key);
-            if (!remoteMethod) throw new Error(`Metadata for remote method ${key} not found.`);
-            const validated = validateParameters(params, remoteMethod);
-            const serialized = serializeParameters(validated, remoteMethod);
-            request[key] = serialized;
-        } catch (error: any | RouteError | Error) {
-            hasErrors = true;
-            const routeError =
-                error instanceof RouteError
-                    ? error
-                    : new RouteError({
-                          statusCode: StatusCodes.BAD_REQUEST,
-                          name: 'Serialization Error',
-                          publicMessage: `Invalid params '${key}', can not serialize.`,
-                          originalError: error,
-                      });
-
-            errors[key] = routeError;
-        }
-    });
-    return {hasErrors, errors};
-}
-
-function deserializeResponseBody(responseBody: ResolvedPublicResponses): ResolvedPublicResponses {
-    const deSerializedBody = responseBody;
-    Object.entries(deSerializedBody).forEach(([key, remoteHandlerResponse]) => {
-        try {
-            const remoteMethod = remoteMethodsById.get(key);
-            if (!remoteMethod) throw new Error(`Metadata for remote method ${key} not found.`);
-            const deSerialized = deSerializeReturn(remoteHandlerResponse, remoteMethod);
-            deSerializedBody[key] = deSerialized;
-        } catch (error: any | RouteError | Error) {
-            const routeError =
-                error instanceof RouteError
-                    ? error
-                    : new RouteError({
-                          statusCode: StatusCodes.BAD_REQUEST,
-                          name: 'Serialization Error',
-                          publicMessage: `Invalid params '${key}', can not serialize.`,
-                          originalError: error,
-                      });
-
-            deSerializedBody[key] = [null, routeError];
-        }
-    });
-    return deSerializedBody;
-}
-
-async function fetchRemoteMethodsInfo(paths: string[]) {
-    restoreRemoteMethodsFromLocalStorage(paths);
-    const missingAfterLocal = paths.filter((path) => !remoteMethodsById.has(path));
-    if (!missingAfterLocal.length) return;
-    const body: RequestBody = {
-        [GET_PUBLIC_METHODS_ID]: [missingAfterLocal],
-    };
-    try {
-        const url = new URL(GET_PUBLIC_METHODS_ID, clientOptions.baseURL);
-        const response = await fetch(url, {
-            method: 'PUT',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify(body),
-        });
-        const respObj = await response.json();
-        const resp = respObj[GET_PUBLIC_METHODS_ID] as ResolvedResponse<{[key: string]: RemoteMethod}>;
-        // TODO: convert Public error into a class that extends error and throw as an error
-        if (isPublicError(resp)) throw new PublicError(resp);
-        if (!resp) throw new Error('No remote methods found in response');
-
-        Object.entries(resp).forEach(([path, remoteMethod]: [string, RemoteMethod]) => {
-            setRemoteMethodMetadata(path, remoteMethod);
-        });
-    } catch (error: any) {
-        throw new Error(`Error fetching validation and serialization metadata: ${error?.message}`);
-    }
-}
-
-function restoreRemoteMethodsFromLocalStorage(paths: string[]) {
-    return paths.map((path) => {
-        const storageKey = getLocalStorageKey(path);
-        const remoteMethodJson = localStorage.getItem(storageKey);
-        if (!remoteMethodJson) return;
-        try {
-            const remoteMethod = JSON.parse(remoteMethodJson);
-            setRemoteMethodMetadata(path, remoteMethod, false);
-        } catch (e) {
-            localStorage.removeItem(storageKey);
-            return;
-        }
-    });
-}
-
-function getLocalStorageKey(id: string) {
-    return `${STORAGE_KEY}:remote-methods:${id}`;
-}
-
-function serializeParameters(params: any[], method: RemoteMethod): any[] {
-    const reflection = reflectionByPath.get(method.id);
-    if (!reflection) return params;
-    if (params.length && method.enableSerialization) {
-        try {
-            params = reflection.serializeParams(params);
-        } catch (e: any) {
-            throw new RouteError({
-                statusCode: StatusCodes.BAD_REQUEST,
-                name: 'Serialization Error',
-                publicMessage: `Invalid params '${method.id}', can not serialize. Parameters might be of the wrong type.`,
-                originalError: e,
-                publicData: e?.errors,
-            });
-        }
-    }
-    return params;
-}
-
-function validateParameters(params: any[], method: RemoteMethod): any[] {
-    const reflection = reflectionByPath.get(method.id);
-    if (!reflection) return params;
-    if (method.enableValidation) {
-        const validationResponse = reflection.validateParams(params);
-        if (validationResponse.hasErrors) {
-            throw new RouteError({
-                statusCode: StatusCodes.BAD_REQUEST,
-                name: 'Validation Error',
-                publicMessage: `Invalid params in '${method.id}', validation failed.`,
-                publicData: validationResponse,
-            });
-        }
-    }
-    return params;
-}
-
-function deSerializeReturn(remoteHandlerResponse: ResolvedResponse<any>, method: RemoteMethod): ResolvedResponse<any> {
-    const reflection = reflectionByPath.get(method.id);
-    if (!reflection || !method.enableSerialization) return remoteHandlerResponse;
-    const result = remoteHandlerResponse[0];
-    if (!result) return remoteHandlerResponse;
-    try {
-        const serialized = reflection.deserializeReturn(result);
-        return [serialized, remoteHandlerResponse[1]];
-    } catch (e: any) {
-        throw new RouteError({
-            statusCode: StatusCodes.BAD_REQUEST,
-            name: 'Serialization Error',
-            publicMessage: `Invalid params '${method.id}', can not serialize. Parameters might be of the wrong type.`,
-            originalError: e,
-            publicData: e?.errors,
-        });
-    }
-}
-
-function setRemoteMethodMetadata(id: string, method: RemoteMethod, store = true) {
-    remoteMethodsById.set(id, method);
-    reflectionByPath.set(id, getFunctionReflection(method.handlerSerializedType));
-    if (store) localStorage.setItem(getLocalStorageKey(id), JSON.stringify(method));
-}
-
-function getFunctionReflection(serializedTypes: SerializedTypes): FunctionReflection {
-    const type = getDeserializedFunctionType(serializedTypes);
-    return getFunctionReflectionMethods(type, clientOptions.reflectionOptions, 0);
 }

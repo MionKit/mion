@@ -6,7 +6,7 @@
  * ######## */
 
 import {join} from 'path';
-import {DEFAULT_ROUTE_OPTIONS, MAX_ROUTE_NESTING, ROUTE_PATH_ROOT} from './constants';
+import {DEFAULT_ROUTE_OPTIONS, MAX_ROUTE_NESTING} from './constants';
 import {
     Executable,
     HookDef,
@@ -37,7 +37,7 @@ import {
 } from './types';
 import {ReflectionOptions, getFunctionReflectionMethods} from '@mionkit/runtype';
 import {bodyParserHooks} from './jsonBodyParser';
-import {RouteError, StatusCodes, getRouterItemId, setErrorOptions} from '@mionkit/core';
+import {RouteError, StatusCodes, getRouterItemId, setErrorOptions, getRoutePath} from '@mionkit/core';
 import {getRemoteMethods} from './remoteMethods';
 
 type RouterKeyEntryList = [string, RouterEntry][];
@@ -175,10 +175,6 @@ export function isPrivateHookDef(entry: RouterEntry): entry is PrivateHookDef {
     }
 }
 
-export function getPathFromPointer(pointer: string[]) {
-    return getRoutePath(join(...pointer));
-}
-
 // ############# PRIVATE METHODS #############
 
 /**
@@ -288,7 +284,7 @@ function recursiveCreateExecutionPath(
 
     if (isExec && props.isRoute) {
         const routeExecutionPath = [...preHooks, ...props.preLevelHooks, routeEntry, ...props.postLevelHooks, ...postHooks];
-        const path = getPathFromPointer(routeEntry.pointer);
+        const path = getRoutePath(routeEntry.pointer, routerOptions);
         flatRouter.set(path, getFullExecutionPath(routeExecutionPath));
     } else if (!isExec) {
         recursiveFlatRoutes(
@@ -308,11 +304,6 @@ function getFullExecutionPath(executionPath: Executable[]): Executable[] {
     return [...startHooks, ...executionPath, ...endHooks];
 }
 
-function getRoutePath(path: string) {
-    const routePath = join(ROUTE_PATH_ROOT, routerOptions.prefix, path);
-    return routerOptions.suffix ? routePath + routerOptions.suffix : routePath;
-}
-
 function getHandler(entry: RouterEntry, pathPointer: string[]): AnyHandler {
     if (isHandler(entry)) return entry;
     if (isRouteDef(entry)) return entry.route;
@@ -330,7 +321,8 @@ function getExecutableFromAnyHook(hook: HookDef | HeaderHookDef | RawHookDef, ho
 
 function getExecutableFromHook(hook: HookDef | HeaderHookDef, hookPointer: string[], nestLevel: number): HookExecutable {
     const inHeader = isHeaderHookDef(hook);
-    const hookId = inHeader ? hook.headerName : getRouterItemId(hookPointer);
+    // todo fix header id should be same as any other one and then maybe map from id to header name
+    const hookId = getRouterItemId(hookPointer);
     const existing = hooksById.get(hookId);
     if (existing) return existing as HookExecutable;
     const handler = getHandler(hook, hookPointer);
@@ -348,6 +340,7 @@ function getExecutableFromHook(hook: HookDef | HeaderHookDef, hookPointer: strin
         enableValidation: hook.enableValidation ?? routerOptions.enableValidation,
         enableSerialization: hook.enableSerialization ?? routerOptions.enableSerialization,
         pointer: hookPointer,
+        headerName: inHeader ? (hook as HeaderHookDef).headerName : undefined,
     };
     hooksById.set(hookId, executable);
     return executable;
