@@ -35,6 +35,9 @@ import {Obj, getRoutePath, getRouterItemId} from '@mionkit/core';
 const remoteMethodsById: Map<string, RemoteMethod> = new Map();
 
 // ############# PUBLIC METHODS #############
+export function resetRemoteMethods() {
+    remoteMethodsById.clear();
+}
 
 /**
  * Returns a data structure containing all public information and types of the routes.
