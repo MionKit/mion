@@ -26,7 +26,7 @@ describe('Route errors should', () => {
             statusCode: 400,
             publicMessage: 'this is a public message',
             message: 'this is a private message',
-            publicData: {data: 'data'},
+            errorData: {data: 'data'},
         });
         const publicError = error.toPublicError();
 
@@ -42,7 +42,7 @@ describe('Route errors should', () => {
             statusCode: 400,
             publicMessage: 'this is a message',
             message: 'this is a message',
-            publicData: {data: 'data'},
+            errorData: {data: 'data'},
         });
         const publicErrorWithSameMessage = errorWithSameMessage.toPublicError();
 

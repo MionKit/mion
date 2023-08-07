@@ -24,9 +24,9 @@ export class RouteError extends Error {
     /** the message that will be returned in the response */
     public readonly publicMessage: string;
     /** options data related to the error, ie validation data */
-    public readonly publicData?: Readonly<unknown>;
+    public readonly errorData?: Readonly<unknown>;
 
-    constructor({statusCode, message, publicMessage, originalError, publicData, name, id}: RouteErrorParams) {
+    constructor({statusCode, message, publicMessage, originalError, errorData, name, id}: RouteErrorParams) {
         super(message || originalError?.message || publicMessage);
         super.name = name || statusCodeToReasonPhrase[statusCode] || 'UnknownError';
         if (originalError?.stack) super.stack = originalError?.stack;
@@ -34,7 +34,7 @@ export class RouteError extends Error {
         this.id = id || autoGenerateErrorId ? `${new Date().toISOString()}@${randomUUID()}` : undefined;
         this.statusCode = statusCode;
         this.publicMessage = publicMessage;
-        this.publicData = publicData as Readonly<unknown>;
+        this.errorData = errorData as Readonly<unknown>;
         Object.setPrototypeOf(this, RouteError.prototype);
         // sets proper json serialization
         if (message !== publicMessage) Object.defineProperty(this, 'message', {enumerable: true});
@@ -46,7 +46,7 @@ export class RouteError extends Error {
             statusCode: this.statusCode,
             message: this.publicMessage,
             id: this.id,
-            errorData: this.publicData,
+            errorData: this.errorData,
         });
     }
 }
