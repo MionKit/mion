@@ -19,7 +19,15 @@ import {
     JSONPartial,
     SerializeFunction,
     TypeFunction,
+    typeOf,
+    TypeClass,
+    serialize,
+    ReflectionKind,
+    TypeUnion,
+    isSameType,
+    Type,
 } from '@deepkit/type';
+import {PublicError, RouteError} from '@mionkit/core';
 
 /**
  * Returns an Array of functions to Deserialize route handler parameters.
@@ -104,19 +112,25 @@ export function getFunctionReturnSerializer(
 function getReturnSD(
     handlerType: TypeFunction,
     reflectionOptions: ReflectionOptions,
-    deserialize: boolean
+    isDeserialize: boolean
 ): FunctionReturnSerializer | FunctionReturnDeSerializer {
-    const sFunctionCreate = deserialize ? deserializeFunction : serializeFunction;
+    if (hasUnionErrorTypes(handlerType))
+        return deserializeReturnWithUnionErrorHack(handlerType, reflectionOptions, isDeserialize);
+
+    const sFunctionCreate = isDeserialize ? deserializeFunction : serializeFunction;
 
     const opts: SerializationOptions = {
         ...reflectionOptions.serializationOptions,
     };
+
+    // const returnFix = (handlerType.return as any)?.types?.[0] || handlerType.return;
     const sFunction = sFunctionCreate(
         reflectionOptions.serializationOptions,
         reflectionOptions.customSerializer,
         reflectionOptions.serializerNamingStrategy,
         handlerType.return
     );
+
     return createSingleParamSerializeFunction(sFunction, opts);
 }
 
@@ -125,16 +139,16 @@ function getReturnSD(
  * @param handlerOrType
  * @param reflectionOptions
  * @param skipInitialParams
- * @param deserialize
+ * @param isDeserialize
  * @returns
  */
 function getParamsSD(
     handlerType: TypeFunction,
     reflectionOptions: ReflectionOptions,
     skipInitialParams: number,
-    deserialize: boolean
+    isDeserialize: boolean
 ): FunctionParamDeserializer[] | FunctionParamSerializer[] {
-    const sFunctionCreate = deserialize ? deserializeFunction : serializeFunction;
+    const sFunctionCreate = isDeserialize ? deserializeFunction : serializeFunction;
 
     const opts: SerializationOptions = {
         ...reflectionOptions.serializationOptions,
@@ -157,7 +171,75 @@ function getParamsSD(
     return paramSD.slice(skipInitialParams);
 }
 
+// TODO, review if this is still required
 // DeepKit serializeFunction and deserializeFunction are not keeping the options when calling the function, so this fixes it
 function createSingleParamSerializeFunction(sFunction: SerializeFunction, opts: SerializationOptions) {
     return (p: JSONPartial<unknown> | unknown) => sFunction(p, opts);
+}
+
+// ###### HACK TO FIX THE ISSUE WITH RETURNED UNION TYPES ######
+// TODO: FOR SOME REASON ROUTES RETURNING AN UNION (Value | PublicError) ARE NOT BEING VALIDATED/SERIALIZED CORRECTLY
+
+const publicErrorType = typeOf<PublicError>() as TypeClass;
+const routeErrorType = typeOf<RouteError>() as TypeClass;
+const errorType = typeOf<Error>() as TypeClass;
+
+function serializeError(error: Error | PublicError | RouteError): JSONPartial<any> {
+    if (error instanceof PublicError) return serialize<PublicError>(error);
+    if (error instanceof RouteError) return serialize<RouteError>(error);
+    if (error instanceof Error) return serialize<Error>(error);
+    throw new Error('Invalid error type. can only serialize Error, PublicError or RouteError');
+}
+
+function hasUnionErrorTypes(handlerType: TypeFunction): boolean {
+    if (handlerType.return.kind !== ReflectionKind.union) return false;
+    const returnTypes = (handlerType.return as TypeUnion).types;
+    return returnTypes.some((t) => isErrorType(t));
+}
+
+function isErrorType(t: Type): boolean {
+    return isSameType(t, publicErrorType) || isSameType(t, routeErrorType) || isSameType(t, errorType);
+}
+
+function getHandlerReturnUnionTypeWithoutErrors(handlerType: TypeFunction): Type {
+    if (handlerType.return.kind !== ReflectionKind.union)
+        throw new Error('Invalid handler type, only union types should be used');
+    const returnTypes = (handlerType.return as TypeUnion).types;
+    const typesWithoutErrors = returnTypes.filter((t) => !isErrorType(t));
+    const newReturnType: Type =
+        typesWithoutErrors.length === 1
+            ? typesWithoutErrors[0]
+            : {
+                  ...handlerType.return,
+                  types: typesWithoutErrors,
+              };
+    return newReturnType;
+}
+
+function deserializeReturnWithUnionErrorHack(
+    handlerType: TypeFunction,
+    reflectionOptions: ReflectionOptions,
+    isDeserialize: boolean
+): FunctionReturnSerializer | FunctionReturnDeSerializer {
+    const sFunctionCreate = isDeserialize ? deserializeFunction : serializeFunction;
+    const opts: SerializationOptions = {
+        ...reflectionOptions.serializationOptions,
+    };
+    const returnTypeWithoutErrors = getHandlerReturnUnionTypeWithoutErrors(handlerType);
+    const sFunction = sFunctionCreate(
+        reflectionOptions.serializationOptions,
+        reflectionOptions.customSerializer,
+        reflectionOptions.serializerNamingStrategy,
+        returnTypeWithoutErrors
+    );
+
+    const serializeValue = createSingleParamSerializeFunction(sFunction, opts);
+
+    return (p: JSONPartial<unknown> | unknown) => {
+        if (p instanceof PublicError || p instanceof RouteError || p instanceof Error) return serializeError(p);
+        const result = serializeValue(p);
+        // do not fail silently if serialization returns undefined and the value is defined
+        if (!!p && !result) throw new Error(`Serialization Error, can't serialize return value.`);
+        return serializeValue(p);
+    };
 }

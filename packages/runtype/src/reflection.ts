@@ -5,16 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {
-    JSONPartial,
-    ReflectionKind,
-    SerializedTypes,
-    Type,
-    TypeFunction,
-    deserializeType,
-    reflect,
-    serializeType,
-} from '@deepkit/type';
+import {JSONPartial, ReflectionKind, SerializedTypes, Type, TypeFunction, deserializeType, serializeType} from '@deepkit/type';
 import {
     FunctionReflection,
     ParamsValidationResponse,
@@ -139,7 +130,7 @@ export function getFunctionReflectionMethods(
 
 // TODO: serialized types is including the context which we don't want to send over the wire
 /** Gets a data structure that can be serialized in json and transmitted over the wire  */
-export const getSerializedFunctionType = (handlerOrType: Handler, skipInitialParams = 0): SerializedTypes => {
+export function getSerializedFunctionType(handlerOrType: Handler, skipInitialParams = 0): SerializedTypes {
     const handlerType = getHandlerType(handlerOrType);
     // THIS IS NOT OFFICIALLY SUPPORTED BY DEEPKIT MIGHT BREAK IN THE FUTURE
     // TODO investigate if this is not braking anything
@@ -149,11 +140,11 @@ export const getSerializedFunctionType = (handlerOrType: Handler, skipInitialPar
     // restore original params in case the type is being cached
     handlerType.parameters = originalParams;
     return serializedTypes;
-};
+}
 
 /** Gets a Type from a serializedTypes */
-export const getDeserializedFunctionType = (serializedTypes: SerializedTypes): TypeFunction => {
+export function getDeserializedFunctionType(serializedTypes: SerializedTypes): TypeFunction {
     const type = deserializeType(serializedTypes);
     if (type.kind !== ReflectionKind.function) throw new Error('Invalid serialized type is not from a function');
     return type;
-};
+}
