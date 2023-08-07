@@ -217,7 +217,7 @@ export type Request = {
     /** parsed body */
     readonly body: Readonly<Obj>;
     /** All errors thrown during the call are stored here so they can bee logged or handler by a some error handler hook */
-    readonly internalErrors: Readonly<RouteError[]>;
+    readonly internalErrors: Readonly<(RouteError | PublicError)[]>;
 };
 
 /** Any request used by the router must follow this interface */

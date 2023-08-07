@@ -28,7 +28,7 @@ export type RouteErrorParams = {
      */
     message?: string;
     /** options data related to the error, ie validation data */
-    publicData?: unknown;
+    errorData?: unknown;
     /** original error used to create the RouteError */
     originalError?: Error;
     /** name of the error, if not defined it is assigned from status code */
