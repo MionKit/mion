@@ -31,6 +31,9 @@ import {
 import {getSerializedFunctionType} from '@mionkit/runtype';
 import {Obj, getRoutePath, getRouterItemId} from '@mionkit/core';
 
+// ############# PRIVATE STATE #############
+const remoteMethodsById: Map<string, RemoteMethod> = new Map();
+
 // ############# PUBLIC METHODS #############
 
 /**
@@ -48,20 +51,12 @@ function recursiveGetRemoteMethods<R extends Routes>(routes: R, currentPointer: 
     entries.forEach(([key, item]: [string, RouterEntry]) => {
         const itemPointer = [...currentPointer, key];
 
-        const isHeaderHook = isHeaderHookDef(item);
         if (isPrivateHookDef(item)) {
             publicData[key] = null; // hooks that don't receive or return data are not public
-        } else if (isHookDef(item) || isHeaderHook) {
+        } else if (isHookDef(item) || isHeaderHookDef(item) || isRoute(item)) {
             const id = getRouterItemId(itemPointer);
-            const executable = getHookExecutable(id);
-            if (!executable)
-                throw new Error(`Hook '${id}' not found in router. Please check you have called router.addRoutes first!`);
-            publicData[key] = getRemoteMethodFromExecutable(executable);
-        } else if (isRoute(item)) {
-            const id = getRouterItemId(itemPointer);
-            const executable = getRouteExecutable(id);
-            if (!executable)
-                throw new Error(`Route '${id}' not found in router. Please check you have called router.addRoutes first!`);
+            const executable = getHookExecutable(id) || getRouteExecutable(id);
+            if (!executable) throw new Error(`Executable ${id}' not found.`);
             publicData[key] = getRemoteMethodFromExecutable(executable);
         } else {
             const subRoutes: Routes = routes[key] as Routes;
@@ -72,7 +67,9 @@ function recursiveGetRemoteMethods<R extends Routes>(routes: R, currentPointer: 
     return publicData;
 }
 
-function getRemoteMethodFromExecutable<H extends Handler>(executable: RouteExecutable | HookExecutable): RemoteMethod<H> {
+export function getRemoteMethodFromExecutable<H extends Handler>(executable: RouteExecutable | HookExecutable): RemoteMethod<H> {
+    const existing = remoteMethodsById.get(executable.id);
+    if (existing) return existing as RemoteMethod<H>;
     let executionPathPointers;
     if (executable.isRoute) {
         const path = getRoutePath(executable.pointer, getRouterOptions());
@@ -80,7 +77,7 @@ function getRemoteMethodFromExecutable<H extends Handler>(executable: RouteExecu
             ?.filter((exec) => isPublicExecutable(exec))
             .map((exec) => exec.pointer);
     }
-    return {
+    const newRemoteMethod = {
         isRoute: executable.isRoute,
         id: executable.id,
         inHeader: executable.inHeader,
@@ -93,6 +90,8 @@ function getRemoteMethodFromExecutable<H extends Handler>(executable: RouteExecu
         executionPathPointers,
         headerName: executable.headerName,
     };
+    remoteMethodsById.set(executable.id, newRemoteMethod);
+    return newRemoteMethod as RemoteMethod<H>;
 }
 
 /** Returns the original route/hook paths as a string to eb used in codegen, ie: path= users/getUser => 'users.getUser'  */

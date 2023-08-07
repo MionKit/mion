@@ -221,7 +221,7 @@ describe('Dispatch routes', () => {
             };
 
             const response = await dispatchRoute('/changeUserName', request, {});
-            const error = response.body['parseJsonRequestBody'];
+            const error = response.body['mionParseJsonRequestBody'];
             expect(error).toEqual(
                 new PublicError({
                     statusCode: 400,
@@ -236,7 +236,7 @@ describe('Dispatch routes', () => {
             };
 
             const response2 = await dispatchRoute('/changeUserName', request2, {});
-            const errorResp = response2.body['parseJsonRequestBody'];
+            const errorResp = response2.body['mionParseJsonRequestBody'];
             expect(errorResp).toEqual(
                 new PublicError({
                     statusCode: 422,
