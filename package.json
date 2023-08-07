@@ -66,6 +66,7 @@
   },
   "workspaces": [
     "packages/core",
+    "packages/common",
     "packages/runtype",
     "packages/router",
     "packages/http",

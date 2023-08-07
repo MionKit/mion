@@ -39,7 +39,7 @@ import {
 import {ReflectionOptions, getFunctionReflectionMethods} from '@mionkit/runtype';
 import {bodyParserHooks} from './jsonBodyParser';
 import {RouteError, StatusCodes, getRouterItemId, setErrorOptions, getRoutePath} from '@mionkit/core';
-import {getRemoteMethods} from './remoteMethods';
+import {getRemoteMethods, resetRemoteMethods} from './remoteMethods';
 
 type RouterKeyEntryList = [string, RouterEntry][];
 type RoutesWithId = {
@@ -94,6 +94,7 @@ export const resetRouter = () => {
     endHooks = [];
     isRouterInitialized = false;
     looselyReflectionOptions = undefined;
+    resetRemoteMethods();
 };
 
 /**
