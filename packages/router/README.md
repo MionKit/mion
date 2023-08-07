@@ -242,8 +242,8 @@ Ie: calling the route `/api/sayHello` with an invalid json body would return bel
 
 ```json
 {
-  // parseJsonRequestBody is the name of the json parser Raw Hook used internally by mion router
-  "parseJsonRequestBody": [
+  // mionParseJsonRequestBody is the name of the json parser Raw Hook used internally by mion router
+  "mionParseJsonRequestBody": [
     null, // return value is null
     {"statusCode": 400, "name": "Invalid Request", "message": "Wrong request body ..."}
   ]

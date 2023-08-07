@@ -24,7 +24,6 @@ import {
     RemoteMethods,
     RawHookDef,
     RawExecutable,
-    RawHooksCollection,
     NotFoundExecutable,
     isRawHookDef,
     isHeaderHookDef,
@@ -34,6 +33,8 @@ import {
     isRouteDef,
     isAnyHookDef,
     PrivateHookDef,
+    HooksCollection,
+    HookHeaderExecutable,
 } from './types';
 import {ReflectionOptions, getFunctionReflectionMethods} from '@mionkit/runtype';
 import {bodyParserHooks} from './jsonBodyParser';
@@ -60,10 +61,10 @@ let isRouterInitialized = false;
 let looselyReflectionOptions: ReflectionOptions | undefined;
 
 /** Global hooks to be run before and after any other hooks or routes set using `registerRoutes` */
-const defaultStartHooks = {parseJsonRequestBody: bodyParserHooks.parseJsonRequestBody};
-const defaultEndHooks = {stringifyJsonResponseBody: bodyParserHooks.stringifyJsonResponseBody};
-let startHooksDef: RawHooksCollection = {...defaultStartHooks};
-let endHooksDef: RawHooksCollection = {...defaultEndHooks};
+const defaultStartHooks = {mionParseJsonRequestBody: bodyParserHooks.mionParseJsonRequestBody};
+const defaultEndHooks = {mionStringifyJsonResponseBody: bodyParserHooks.mionStringifyJsonResponseBody};
+let startHooksDef: HooksCollection = {...defaultStartHooks};
+let endHooksDef: HooksCollection = {...defaultEndHooks};
 let startHooks: Executable[] = [];
 let endHooks: Executable[] = [];
 
@@ -113,8 +114,8 @@ export function initRouter<Opts extends RouterOptions>(opts?: Partial<Opts>): Re
 
 export function registerRoutes<R extends Routes>(routes: R): RemoteMethods<R> {
     if (!isRouterInitialized) throw new Error('initRouter should be called first');
-    startHooks = getExecutablesFromRawHooks(startHooksDef);
-    endHooks = getExecutablesFromRawHooks(endHooksDef);
+    startHooks = getExecutablesFromHooksCollection(startHooksDef);
+    endHooks = getExecutablesFromHooksCollection(endHooksDef);
     recursiveFlatRoutes(routes);
     // we only want to get information about the routes when creating api spec
     if (routerOptions.getPublicRoutesData || process.env.GENERATE_ROUTER_SPEC === 'true') {
@@ -128,7 +129,7 @@ export function getRouteDefaultParams(): string[] {
 }
 
 /** Add hooks at the start af the execution path, adds them before any other existing start hooks by default */
-export function addStartHooks(hooksDef: RawHooksCollection, appendBeforeExisting = true) {
+export function addStartHooks(hooksDef: HooksCollection, appendBeforeExisting = true) {
     if (isRouterInitialized) throw new Error('Can not add start hooks after the router has been initialized');
     if (appendBeforeExisting) {
         startHooksDef = {...hooksDef, ...startHooksDef};
@@ -138,7 +139,7 @@ export function addStartHooks(hooksDef: RawHooksCollection, appendBeforeExisting
 }
 
 /** Add hooks at the end af the execution path, adds them after any other existing end hooks by default */
-export function addEndHooks(hooksDef: RawHooksCollection, prependAfterExisting = true) {
+export function addEndHooks(hooksDef: HooksCollection, prependAfterExisting = true) {
     if (isRouterInitialized) throw new Error('Can not add end hooks after the router has been initialized');
     if (prependAfterExisting) {
         endHooksDef = {...endHooksDef, ...hooksDef};
@@ -173,6 +174,13 @@ export function isPrivateHookDef(entry: RouterEntry): entry is PrivateHookDef {
         // error thrown because entry is a Routes object and does not have any handler
         return false;
     }
+}
+
+export function isPrivateExecutable(executable: Executable): boolean {
+    if (executable.isRawExecutable) return true;
+    if (executable.isRoute) return false;
+    const hasPublicParams = executable.handler.length > getRouteDefaultParams().length;
+    return !hasPublicParams && !executable.canReturnData;
 }
 
 // ############# PRIVATE METHODS #############
@@ -418,8 +426,12 @@ function getRouteEntryProperties(
     };
 }
 
-function getExecutablesFromRawHooks(hooksDef: RawHooksCollection): RawExecutable[] {
-    return Object.entries(hooksDef).map(([key, hook]) => getExecutableFromRawHook(hook, [key], 0));
+function getExecutablesFromHooksCollection(hooksDef: HooksCollection): (RawExecutable | HookExecutable | HookHeaderExecutable)[] {
+    return Object.entries(hooksDef).map(([key, hook]) => {
+        if (isRawHookDef(hook)) return getExecutableFromRawHook(hook, [key], 0);
+        if (isHeaderHookDef(hook) || isHookDef(hook)) return getExecutableFromHook(hook, [key], 0);
+        throw new Error(`Invalid hook: ${key}. Invalid hook definition`);
+    });
 }
 
 function getReflectionOptions(entry: RouterEntry): ReflectionOptions {

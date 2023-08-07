@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {Response, Request, RouterOptions, RawRequest, RawHooksCollection, CallContext, ErrorReturn} from './types';
+import {Response, Request, RouterOptions, RawRequest, HooksCollection, CallContext, ErrorReturn} from './types';
 import {RouteError, StatusCodes, Obj, Mutable} from '@mionkit/core';
 import {handleRouteErrors} from './dispatch';
 
@@ -74,10 +74,10 @@ export function stringifyResponseBody(
 }
 
 export const bodyParserHooks = {
-    parseJsonRequestBody: {
+    mionParseJsonRequestBody: {
         rawHook: parseRequestBody,
     },
-    stringifyJsonResponseBody: {
+    mionStringifyJsonResponseBody: {
         rawHook: stringifyResponseBody,
     },
-} satisfies RawHooksCollection;
+} satisfies HooksCollection;

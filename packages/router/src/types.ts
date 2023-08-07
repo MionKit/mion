@@ -250,13 +250,13 @@ export type SharedDataFactory<SharedData> = () => SharedData;
 
 export type ErrorReturn = void | RouteError | Promise<RouteError | void>;
 
-export type RawHooksCollection<
+export type HooksCollection<
     Context extends CallContext = CallContext,
     RawReq extends RawRequest = RawRequest,
     RawResp = unknown,
     Opts extends RouterOptions<RawReq> = RouterOptions<RawReq>
 > = {
-    [key: string]: RawHookDef<Context, RawReq, RawResp, Opts>;
+    [key: string]: RawHookDef<Context, RawReq, RawResp, Opts> | HookDef<Context> | HeaderHookDef<Context>;
 };
 
 // ####### Private Hooks #######
