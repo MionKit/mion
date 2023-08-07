@@ -103,7 +103,7 @@ async function runExecutionPath(
             const result = await runHandler(validatedParams, context, rawRequest, rawResponse, executable, opts);
             // TODO: should we also validate the handler result? think just forcing declaring the return type with a linter is enough.
             serializeResponse(executable, response, result);
-        } catch (err: any | RouteError | Error) {
+        } catch (err: any | RouteError | PublicError | Error) {
             const path = isNotFoundExecutable(executable) ? context.path : executable.id;
             handleRouteErrors(path, request, response, err, i);
         }
@@ -123,7 +123,7 @@ async function runHandler(
     const resp = getHandlerResponse(handlerParams, context, rawRequest, rawResponse, executable, opts);
     if (isPromise(resp)) {
         return resp as Promise<any>;
-    } else if (resp instanceof Error || resp instanceof RouteError) {
+    } else if (resp instanceof Error || resp instanceof RouteError || resp instanceof PublicError) {
         return Promise.reject(resp);
     } else {
         return Promise.resolve(resp);
@@ -175,7 +175,7 @@ function deserializeParameters(request: Request, executable: Executable): any[] 
                 name: 'Serialization Error',
                 publicMessage: `Invalid params '${path}', can not deserialize. Parameters might be of the wrong type.`,
                 originalError: e,
-                publicData: e?.errors,
+                errorData: e?.errors,
             });
         }
     }
@@ -191,7 +191,7 @@ function validateParameters(params: any[], executable: Executable): any[] {
                 statusCode: StatusCodes.BAD_REQUEST,
                 name: 'Validation Error',
                 publicMessage: `Invalid params in '${executable.id}', validation failed.`,
-                publicData: validationResponse,
+                errorData: validationResponse,
             });
         }
     }
@@ -201,11 +201,8 @@ function validateParameters(params: any[], executable: Executable): any[] {
 function serializeResponse(executable: Executable, response: Response, result: any) {
     if (!executable.canReturnData || result === undefined || !executable.reflection) return;
     const serialized = executable.enableSerialization ? executable.reflection.serializeReturn(result) : result;
-    if (isHeaderExecutable(executable)) {
-        const isError = result instanceof PublicError || result instanceof Error || result instanceof RouteError;
-        if (isError) (response.body as Mutable<Obj>)[executable.headerName] = serialized;
-        else response.headers[executable.headerName] = serialized;
-    } else (response.body as Mutable<Obj>)[executable.id] = serialized;
+    if (isHeaderExecutable(executable)) response.headers[executable.headerName] = serialized;
+    else (response.body as Mutable<Obj>)[executable.id] = serialized;
 }
 
 // ############# PUBLIC METHODS USED FOR ERRORS #############
@@ -214,11 +211,11 @@ export function handleRouteErrors(
     path: string,
     request: Request,
     response: Mutable<Response>,
-    err: any | RouteError,
+    err: any | RouteError | PublicError | Error,
     step: number | string
 ) {
     const routeError =
-        err instanceof RouteError
+        err instanceof RouteError || err instanceof PublicError
             ? err
             : new RouteError({
                   statusCode: StatusCodes.INTERNAL_SERVER_ERROR,
@@ -227,11 +224,11 @@ export function handleRouteErrors(
                   name: 'Unknown Error',
               });
 
-    const publicError = routeError.toPublicError();
+    const publicError: PublicError = routeError instanceof RouteError ? routeError.toPublicError() : err;
     response.statusCode = routeError.statusCode;
     response.hasErrors = true;
     (response.body as Mutable<Obj>)[path] = publicError;
-    (request.internalErrors as Mutable<RouteError[]>).push(routeError);
+    (request.internalErrors as Mutable<any[]>).push(routeError);
 }
 
 export function getEmptyCallContext(originalPath: string, opts: RouterOptions, rawRequest: RawRequest): CallContext {
