@@ -65,7 +65,7 @@ export function getFunctionParamsSerializer(
  * @returns
  */
 export function serializeFunctionParams<T = any>(serializers: FunctionParamSerializer[], params: any[]): JSONPartial<T>[] {
-    if (params.length !== serializers.length) throw new Error('Invalid number of parameters');
+    if (params.length > serializers.length) throw new Error('Invalid number of parameters');
     return serializers.map((serializer, index) => serializer(params[index]));
 }
 
@@ -77,7 +77,7 @@ export function serializeFunctionParams<T = any>(serializers: FunctionParamSeria
  * @returns
  */
 export function deserializeFunctionParams<T = any>(deSerializers: FunctionParamDeserializer[], params: JSONPartial<T>[]): any[] {
-    if (params.length !== deSerializers.length) throw new Error('Invalid number of parameters');
+    if (params.length > deSerializers.length) throw new Error('Invalid number of parameters');
     return deSerializers.map((deserializer, index) => deserializer(params[index]));
 }
 

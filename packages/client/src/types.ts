@@ -120,7 +120,7 @@ export interface MethodRequest<RM extends RemoteMethod> {
  * Note routePointer is using as differentiating key from hookPointer in HookInfo, so types can't overlap.
  */
 export interface RouteRequest<RR extends RemoteRoute> extends MethodRequest<RR> {
-    call: <RHList extends HookRequest<any>[]>(...hooks: RHList) => Promise<RemoteCallResponse<RR, RHList>>;
+    call: <RHList extends HookRequest<any>[]>(...hooks: RHList) => ReturnType<RR['_handler']>;
 }
 
 /** structure returned from the proxy, containing info of the remote hook to execute

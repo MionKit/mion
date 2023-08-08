@@ -59,7 +59,8 @@ function recursiveGetRemoteMethods<R extends Routes>(routes: R, currentPointer: 
         } else if (isHookDef(item) || isHeaderHookDef(item) || isRoute(item)) {
             const id = getRouterItemId(itemPointer);
             const executable = getHookExecutable(id) || getRouteExecutable(id);
-            if (!executable) throw new Error(`Executable ${id}' not found.`);
+            if (!executable)
+                throw new Error(`Route or Hook ${id} not found. Please check you have called router.registerRoutes first.`);
             publicData[key] = getRemoteMethodFromExecutable(executable);
         } else {
             const subRoutes: Routes = routes[key] as Routes;
@@ -84,7 +85,7 @@ export function getRemoteMethodFromExecutable<H extends Handler>(executable: Rou
         isRoute: executable.isRoute,
         id: executable.id,
         inHeader: executable.inHeader,
-        // handler is included just for static typing purposes and shouldn't be called directly
+        // handler is included just for static typing purposes and should never be called directly
         _handler: getHandlerSrcCodePointer(executable) as any as RemoteHandler<H>,
         handlerSerializedType: getSerializedFunctionType(executable.handler, getRouteDefaultParams().length),
         enableValidation: executable.enableValidation,

@@ -7,7 +7,7 @@
 
 import {registerRoutes, initRouter, resetRouter, Routes, dispatchRoute, RawRequest} from '@mionkit/router';
 import {clientRoutes} from './client.routes';
-import {PublicError} from '@mionkit/core';
+import {GET_REMOTE_METHODS_BY_ID, GET_REMOTE_METHODS_BY_PATH, PublicError, getRoutePath} from '@mionkit/core';
 
 describe('Client Routes should', () => {
     const privateHook = (ctx): void => undefined;
@@ -42,62 +42,91 @@ describe('Client Routes should', () => {
     const getSharedData = (): typeof shared => shared;
 
     const remoteMethods = {
-        auth: {
-            isRoute: false,
-            id: 'auth',
-            inHeader: false,
-            enableValidation: true,
-            enableSerialization: true,
-            params: ['token'],
-            executionPathPointers: null,
-            headerName: null,
-        },
         'users-getUser': {
             isRoute: true,
             id: 'users-getUser',
             inHeader: false,
+            _handler: 'users.getUser',
+            handlerSerializedType: [{kind: 17, parameters: [], return: 1}, {kind: 1}],
             enableValidation: true,
             enableSerialization: true,
             params: [],
             executionPathPointers: [['auth'], ['users', 'getUser'], ['last']],
-            headerName: null,
         },
         'users-setUser': {
             isRoute: true,
             id: 'users-setUser',
             inHeader: false,
+            _handler: 'users.setUser',
+            handlerSerializedType: [{kind: 17, parameters: [], return: 1}, {kind: 1}],
             enableValidation: true,
             enableSerialization: true,
             params: [],
             executionPathPointers: [['auth'], ['users', 'setUser'], ['last']],
-            headerName: null,
         },
         'users-pets-getUserPet': {
             isRoute: true,
             id: 'users-pets-getUserPet',
             inHeader: false,
+            _handler: 'users.pets.getUserPet',
+            handlerSerializedType: [{kind: 17, parameters: [], return: 1}, {kind: 1}],
             enableValidation: true,
             enableSerialization: true,
             params: [],
             executionPathPointers: [['auth'], ['users', 'pets', 'getUserPet'], ['last']],
-            headerName: null,
+        },
+        'pets-getPet': {
+            isRoute: true,
+            id: 'pets-getPet',
+            inHeader: false,
+            _handler: 'pets.getPet',
+            handlerSerializedType: [{kind: 17, parameters: [], return: 1}, {kind: 1}],
+            enableValidation: true,
+            enableSerialization: true,
+            params: [],
+            executionPathPointers: [['auth'], ['pets', 'getPet'], ['last']],
+        },
+        'pets-setPet': {
+            isRoute: true,
+            id: 'pets-setPet',
+            inHeader: false,
+            _handler: 'pets.setPet',
+            handlerSerializedType: [{kind: 17, parameters: [], return: 1}, {kind: 1}],
+            enableValidation: true,
+            enableSerialization: true,
+            params: [],
+            executionPathPointers: [['auth'], ['pets', 'setPet'], ['last']],
+        },
+        auth: {
+            isRoute: false,
+            id: 'auth',
+            inHeader: false,
+            _handler: 'auth',
+            handlerSerializedType: [
+                {kind: 17, parameters: [{kind: 18, name: 'token', type: 1}], return: 2},
+                {kind: 5},
+                {kind: 3},
+            ],
+            enableValidation: true,
+            enableSerialization: true,
+            params: ['token'],
         },
         last: {
             isRoute: false,
             id: 'last',
             inHeader: false,
+            _handler: 'last',
+            handlerSerializedType: [{kind: 17, parameters: [], return: 1}, {kind: 3}],
             enableValidation: true,
             enableSerialization: true,
             params: [],
-            executionPathPointers: null,
-            headerName: null,
         },
     };
 
-    const methodsPath = '/mionRemoteMethods';
-    const methodsId = 'mionRemoteMethods';
-    const routeMethodsPath = '/mionGetRouteRemoteMethods';
-    const routeMethodsId = 'mionGetRouteRemoteMethods';
+    const methodsId = GET_REMOTE_METHODS_BY_ID;
+    const routeMethodsId = GET_REMOTE_METHODS_BY_PATH;
+    const methodsPath = getRoutePath([methodsId], {prefix: '', suffix: ''});
+    const routeMethodsPath = getRoutePath([routeMethodsId], {prefix: '', suffix: ''});
 
     afterEach(() => resetRouter());
 
@@ -114,9 +143,32 @@ describe('Client Routes should', () => {
                 [methodsId]: [methodIdList],
             }),
         };
-
         const response = await dispatchRoute(methodsPath, request, {});
+        const expectedResponse = {
+            auth: remoteMethods.auth,
+            'users-getUser': remoteMethods['users-getUser'],
+            'users-setUser': remoteMethods['users-setUser'],
+            'users-pets-getUserPet': remoteMethods['users-pets-getUserPet'],
+            last: remoteMethods['last'],
+        };
+        expect(response.body[methodsId]).toEqual(expectedResponse);
+    });
 
+    it('get All Remote Methods info when getAllRemoteMethods is true', async () => {
+        initRouter({sharedDataFactory: getSharedData});
+        registerRoutes(routes);
+        registerRoutes(clientRoutes);
+
+        const methodIdList = ['auth']; // all public methods
+        const getAllRemoteMethods = true;
+        const request: RawRequest = {
+            headers: {},
+            body: JSON.stringify({
+                auth: ['token'], // hook is required
+                [methodsId]: [methodIdList, getAllRemoteMethods],
+            }),
+        };
+        const response = await dispatchRoute(methodsPath, request, {});
         const expectedResponse = remoteMethods;
         expect(response.body[methodsId]).toEqual(expectedResponse);
     });
@@ -133,7 +185,6 @@ describe('Client Routes should', () => {
                 [routeMethodsId]: ['/users-getUser'],
             }),
         };
-
         const response = await dispatchRoute(routeMethodsPath, request, {});
         const expectedResponse = {
             auth: remoteMethods.auth,
@@ -156,9 +207,7 @@ describe('Client Routes should', () => {
                 [methodsId]: [methodIdList],
             }),
         };
-
         const response = await dispatchRoute(methodsPath, request, {});
-
         const expectedResponse = new PublicError({
             message: 'RemoteMethods not found',
             statusCode: 404,
@@ -169,7 +218,6 @@ describe('Client Routes should', () => {
                 'users-userBefore': 'Remote Method users-userBefore not found',
             },
         });
-
         expect(response.body[methodsId]).toEqual(expectedResponse);
     });
 
@@ -185,7 +233,6 @@ describe('Client Routes should', () => {
                 [routeMethodsId]: ['/abcd'],
             }),
         };
-
         const response = await dispatchRoute(routeMethodsPath, request, {});
         const expectedResponse = new PublicError({
             message: 'Route /abcd not found',
