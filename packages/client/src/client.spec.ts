@@ -94,7 +94,8 @@ describe('client', () => {
         expect((methods as any).abcd(1, 'a')).toEqual(expectedUntyped);
     });
 
-    it('fetch a route', async () => {
+    // TODO: jest upgrade required to include nadive node fetch types without using jsdom
+    it.skip('fetch a route', async () => {
         // TODO: implement the get public method info route in the router
         const {client, methods} = initMionClient<MyApi>({baseURL: 'http://localhost:3000'});
 
