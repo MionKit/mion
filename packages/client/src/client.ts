@@ -16,8 +16,8 @@ import {
     RouteRequest,
     RemoteCallResponse,
 } from './types';
-import {RemoteHandlers, RemoteMethod, RemoteMethods, RemoteResponse} from '@mionkit/router';
-import {getRouterItemId} from '@mionkit/core';
+import {RemoteMethods} from '@mionkit/router';
+import {PublicError, getRouterItemId} from '@mionkit/core';
 import {MionRequest} from './request';
 
 export function initMionClient<RM extends RemoteMethods<any>>(
@@ -61,8 +61,11 @@ class MethodProxy {
                 persist: (storage = this.clientOptions.storage) => {
                     // todo persist values to storage
                 },
-                call: (...hooks: HookRequest<any>[]): Promise<RemoteCallResponse<any, HookRequest<any>[]>> => {
-                    return this.client.callRoute(methodRequestProxy, ...hooks);
+                call: async (...hooks: HookRequest<any>[]): Promise<any | PublicError> => {
+                    return this.client.callRoute(methodRequestProxy, ...hooks).then((resp) => {
+                        if (resp.hasErrors) throw resp;
+                        return resp.routeResponse;
+                    });
                 },
             } as RouteRequest<any> & HookRequest<any>;
             return methodRequestProxy;

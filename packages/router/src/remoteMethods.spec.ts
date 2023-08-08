@@ -187,14 +187,14 @@ describe('Public Mothods should', () => {
         });
     });
 
-    it('should throw an error when route pr hook is not already created in the router', () => {
+    it('should throw an error when route or hook is not already created in the router', () => {
         const testR1 = {route1};
         const testR2 = {hook1: {hook: paramsHook}};
         expect(() => getRemoteMethods(testR1)).toThrow(
-            `Route 'route1' not found in router. Please check you have called router.addRoutes first!`
+            `Route or Hook route1 not found. Please check you have called router.registerRoutes first.`
         );
         expect(() => getRemoteMethods(testR2)).toThrow(
-            `Hook 'hook1' not found in router. Please check you have called router.addRoutes first!`
+            `Route or Hook hook1 not found. Please check you have called router.registerRoutes first.`
         );
     });
 

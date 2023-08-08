@@ -78,6 +78,7 @@ export const getHookExecutable = (id: string) => hooksById.get(id);
 export const geHooksSize = () => hooksById.size;
 export const getComplexity = () => complexity;
 export const getRouterOptions = <Opts extends RouterOptions>(): Readonly<Opts> => routerOptions as Opts;
+export const getAnyExecutable = (id: string) => routesById.get(id) || hooksById.get(id) || rawHooksById.get(id);
 
 export const resetRouter = () => {
     flatRouter.clear();
@@ -182,6 +183,14 @@ export function isPrivateExecutable(executable: Executable): boolean {
     if (executable.isRoute) return false;
     const hasPublicParams = executable.handler.length > getRouteDefaultParams().length;
     return !hasPublicParams && !executable.canReturnData;
+}
+
+export function getTotalExecutables(): number {
+    return routesById.size + hooksById.size + rawHooksById.size;
+}
+
+export function getAllExecutablesIds(): string[] {
+    return [...routesById.keys(), ...hooksById.keys(), ...rawHooksById.keys()];
 }
 
 // ############# PRIVATE METHODS #############

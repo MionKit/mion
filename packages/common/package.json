@@ -59,6 +59,7 @@
     "url": "https://github.com/MionKit/mion/issues"
   },
   "dependencies": {
+    "@mionkit/core": "^0.4.2",
     "@mionkit/router": "^0.4.2"
   }
 }
