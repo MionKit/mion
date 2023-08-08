@@ -24,10 +24,10 @@ describe('generate api spec should', () => {
 
     // this is almost an E2E test, generates spec files, compiles to js and dynamically evaluates to test generated data.
     // this test might take few more seconds than normal
-    it('generate ts spec file and file must compile correctly to js', () => {
+    it('generate ts spec file and file must compile correctly to js', async () => {
         // generates and format ts spec file
         const tsSpec = getSpecFile(generateOptions, {myApi, authApi});
-        const formatedTsSpec = formatCode(tsSpec);
+        const formatedTsSpec = await formatCode(tsSpec);
         writeFileSync(generateOptions.outputFileName, formatedTsSpec);
 
         // compiles to js

@@ -469,7 +469,7 @@ export interface RawHookDef<
   Context extends CallContext = CallContext,
   RawReq extends RawRequest = RawRequest,
   RawResp = any,
-  Opts extends RouterOptions<RawReq> = RouterOptions<RawReq>
+  Opts extends RouterOptions<RawReq> = RouterOptions<RawReq>,
 > {
   rawHook: RawHookHandler<Context, RawReq, RawResp, Opts>;
 }

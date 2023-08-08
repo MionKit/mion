@@ -131,7 +131,7 @@ export function runChildNode(jsCode: string, cwd: string) {
  * @param opts
  * @returns
  */
-export function formatCode(srcCode: string, opts?: PrettierOptions) {
+export async function formatCode(srcCode: string, opts?: PrettierOptions) {
     const prettierOpts = {
         ...DEFAULT_PRETTIER_OPTIONS,
         ...opts,

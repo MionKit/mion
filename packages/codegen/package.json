@@ -57,16 +57,16 @@
   },
   "dependencies": {
     "@deepkit/type": "^1.0.1-alpha.97",
-    "@mionkit/core": "^0.4.2",
     "@mionkit/client": "^0.4.2",
+    "@mionkit/core": "^0.4.2",
     "@mionkit/router": "^0.4.2",
     "cross-spawn": "^7.0.3",
-    "prettier": "^2.7.1",
     "ts-morph": "^17.0.1"
   },
   "devDependencies": {
-    "@types/prettier": "^2.7.2",
-    "module-from-string": "^3.3.0"
+    "@types/prettier": "^2.7.1",
+    "module-from-string": "^3.3.0",
+    "prettier": "^2.7.1"
   },
   "gitHead": "2efdcd77c572e64f2b9621b4921ffd2f5e83bc0a"
 }
