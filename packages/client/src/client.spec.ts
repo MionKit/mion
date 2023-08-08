@@ -7,7 +7,7 @@
 
 import {RemoteMethods, Routes, registerRoutes} from '@mionkit/router';
 import {initMionClient} from './client';
-import {HookRequest, RemoteCallResponse, RouteRequest} from './types';
+import {HookRequest, RouteRequest} from './types';
 import {initHttpRouter, startHttpServer} from '@mionkit/http';
 import {Server} from 'http';
 
@@ -94,13 +94,13 @@ describe('client', () => {
         expect((methods as any).abcd(1, 'a')).toEqual(expectedUntyped);
     });
 
-    it.skip('fetch a route', async () => {
+    it('fetch a route', async () => {
         // TODO: implement the get public method info route in the router
         const {client, methods} = initMionClient<MyApi>({baseURL: 'http://localhost:3000'});
 
         const response = await methods.sayHello(someUser).call(methods.auth('token'));
 
-        expect(response).toBeDefined();
+        expect(response).toEqual(`Hello John Doe`);
     });
 
     it('fail if a remote call fails', () => {});

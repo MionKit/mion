@@ -15,6 +15,7 @@ export const DEFAULT_CORE_OPTIONS: CoreOptions = {
 export const PATH_SEPARATOR = '/';
 export const ROUTE_PATH_ROOT = PATH_SEPARATOR;
 
-export const GET_PUBLIC_METHODS_ID = 'mionGetPublicMethodsInfo';
+export const GET_REMOTE_METHODS_BY_ID = 'mionGetRemoteMethodsInfoById';
+export const GET_REMOTE_METHODS_BY_PATH = 'mionGetRemoteMethodsInfoByPath';
 
 export const ROUTER_ITEM_SEPARATOR_CHAR = '-';

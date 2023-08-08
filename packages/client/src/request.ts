@@ -18,7 +18,7 @@ import {
 } from './types';
 import {FunctionReflection, SerializedTypes, getDeserializedFunctionType, getFunctionReflectionMethods} from '@mionkit/runtype';
 import {
-    GET_PUBLIC_METHODS_ID,
+    GET_REMOTE_METHODS_BY_ID,
     PublicError,
     StatusCodes,
     getRoutePath,
@@ -215,28 +215,30 @@ export class MionRequest<RR extends RouteRequest<any>, RHList extends HookReques
         return deSerializedBody;
     }
 
+    // manually calls mionGetRemoteMethodsInfoById to get RemoteMethods Metadata
     async fetchRemoteMethodsInfo(paths: string[]) {
         this.restoreRemoteMethodsFromLocalStorage(paths);
         const missingAfterLocal = paths.filter((path) => !this.remoteMethodsById.has(path));
         if (!missingAfterLocal.length) return;
+        const shouldReturnAllMethods = true;
         const body: RequestBody = {
-            [GET_PUBLIC_METHODS_ID]: [missingAfterLocal],
+            [GET_REMOTE_METHODS_BY_ID]: [missingAfterLocal, shouldReturnAllMethods],
         };
         try {
-            const url = new URL(GET_PUBLIC_METHODS_ID, this.options.baseURL);
+            const url = new URL(GET_REMOTE_METHODS_BY_ID, this.options.baseURL);
             const response = await fetch(url, {
                 method: 'PUT',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify(body),
             });
             const respObj = await response.json();
-            const resp = respObj[GET_PUBLIC_METHODS_ID] as ResolvedResponse<{[key: string]: RemoteMethod}>;
+            const resp = respObj[GET_REMOTE_METHODS_BY_ID] as ResolvedResponse<{[key: string]: RemoteMethod}>;
             // TODO: convert Public error into a class that extends error and throw as an error
             if (isPublicError(resp)) throw new PublicError(resp);
             if (!resp) throw new Error('No remote methods found in response');
 
-            Object.entries(resp).forEach(([path, remoteMethod]: [string, RemoteMethod]) => {
-                this.setRemoteMethodMetadata(path, remoteMethod);
+            Object.entries(resp).forEach(([id, remoteMethod]: [string, RemoteMethod]) => {
+                this.setRemoteMethodMetadata(id, remoteMethod);
             });
         } catch (error: any) {
             throw new Error(`Error fetching validation and serialization metadata: ${error?.message}`);
