@@ -60,6 +60,7 @@ class MethodProxy {
                 params: argArray,
                 persist: (storage = this.clientOptions.storage) => {
                     // todo persist values to storage
+                    console.log('storage', storage);
                 },
                 call: async (...hooks: HookRequest<any>[]): Promise<any | PublicError> => {
                     return this.client.callRoute(methodRequestProxy, ...hooks).then((resp) => {
@@ -70,7 +71,7 @@ class MethodProxy {
             } as RouteRequest<any> & HookRequest<any>;
             return methodRequestProxy;
         },
-        get: (target, prop, receiver): typeof Proxy => {
+        get: (target, prop): typeof Proxy => {
             const existing = this.propsProxies[prop];
             if (existing) return existing.proxy;
             const newMethodProxy = new MethodProxy([...this.parentProps, prop], this.client, this.clientOptions);
