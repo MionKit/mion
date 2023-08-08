@@ -17,12 +17,15 @@ module.exports = {
       files: ['**/*.routes.ts'],
       rules: {
         '@typescript-eslint/explicit-function-return-type': 'error',
+        '@typescript-eslint/no-unused-vars': ['warn', {args: 'none'}],
+        'no-unused-vars': ['warn', {args: 'none'}],
       },
     },
     {
       files: ['**/*.spec.ts'],
       rules: {
-        '@typescript-eslint/no-unused-var': 'off',
+        '@typescript-eslint/no-unused-vars': ['warn', {args: 'none'}],
+        'no-unused-vars': ['warn', {args: 'none'}],
       },
     },
   ],
