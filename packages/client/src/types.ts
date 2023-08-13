@@ -50,7 +50,7 @@ export type SuccessResponse<MR extends SubRequest<any>> = Required<MR>['return']
 export type SuccessResponses<List extends SubRequest<any>[]> = {[P in keyof List]: SuccessResponse<List[P]>};
 export type FailResponse<MR extends SubRequest<any>> = Required<MR>['error'];
 export type FailResponses<List extends SubRequest<any>[]> = {[P in keyof List]: FailResponse<List[P]>};
-export type SerializeErrors = {[key: string]: PublicError};
+export type SubRequestErrors = Map<string, PublicError>;
 
 // ############# Remote Methods Request #############
 
@@ -81,7 +81,8 @@ export interface RouteSubRequest<RR extends RemoteRoute> extends SubRequest<RR> 
  */
 export interface HookSubRequest<RH extends RemoteHook | RemoteHeaderHook> extends SubRequest<RH> {
     validate: () => Promise<ParamsValidationResponse>;
-    persist: (storage?: StorageType) => void;
+    prefill: () => void;
+    removePrefill: () => void | PublicError;
 }
 
 export interface SuccessSubRequest<RM extends RemoteMethod> extends SubRequest<RM> {
