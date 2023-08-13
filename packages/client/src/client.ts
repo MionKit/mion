@@ -23,7 +23,7 @@ import {getRouterItemId, isPublicError} from '@mionkit/core';
 import {MionRequest} from './request';
 import {ParamsValidationResponse} from '@mionkit/runtype';
 
-export function initMionClient<RM extends RemoteMethods<any>>(
+export function initClient<RM extends RemoteMethods<any>>(
     options: InitOptions
 ): {client: MionClient; methods: ClientMethods<RM>} {
     const clientOptions = {
