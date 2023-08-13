@@ -1,4 +1,4 @@
-/** @type {import('ts-jest/dist/types').InitialOptionsTsJest} */
+/** @type {import('jest').Config} */
 
 module.exports = {
   preset: 'ts-jest',
@@ -6,4 +6,6 @@ module.exports = {
   collectCoverage: true,
   coverageDirectory: '.coverage',
   collectCoverageFrom: ['src/**'],
+  testMatch: ['**/?(*.)+(spec|test).ts?(x)'],
+  moduleNameMapper: {'^@mionkit/(.*)$': '<rootDir>/../$1'},
 };

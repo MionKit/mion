@@ -5,277 +5,229 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {RemoteMethod, ResolvedPublicResponses, ResolvedResponse} from '@mionkit/router';
+import type {ResolvedPublicResponses} from '@mionkit/router';
 import {
     ClientOptions,
-    HookRequest,
-    MethodRequest,
+    HookSubRequest,
+    SubRequest,
     ReflectionById,
-    RemoteCallResponse,
     RemoteMethodsById,
     RequestBody,
-    RouteRequest,
+    RequestHeaders,
+    RouteSubRequest,
+    SerializeErrors,
 } from './types';
-import {FunctionReflection, SerializedTypes, getDeserializedFunctionType, getFunctionReflectionMethods} from '@mionkit/runtype';
-import {
-    GET_REMOTE_METHODS_BY_ID,
-    PublicError,
-    StatusCodes,
-    getRoutePath,
-    isPublicError,
-    getRouterItemId,
-    deserializeIfIsPublicError,
-} from '@mionkit/core';
+import {ParamsValidationResponse} from '@mionkit/runtype';
+import {PublicError, StatusCodes, getRoutePath, isPublicError} from '@mionkit/core';
 import {STORAGE_KEY} from './constants';
-import {deSerializeReturn, serializeParameters, validateParameters} from './reflection';
+import {fetchRemoteMethodsInfo} from './remoteMethodsInfo';
+import {deserializeResponseBody, serializeSubRequests, validateSubRequests} from './reflection';
 
-export class MionRequest<RR extends RouteRequest<any>, RHList extends HookRequest<any>[]> {
-    requestBody: RequestBody = {};
-    routeId = '';
-    path = '';
+export class MionRequest<RR extends RouteSubRequest<any>, HookRequestsList extends HookSubRequest<any>[]> {
+    readonly path: string;
+    readonly requestId: string;
+    readonly subRequests: {[key: string]: SubRequest<any>} = {};
+    response: Response | undefined;
+    rawResponseBody: ResolvedPublicResponses | undefined;
     constructor(
-        private route: RR,
-        private hooks: RHList,
-        private options: ClientOptions,
-        private remoteMethodsById: RemoteMethodsById,
-        private reflectionById: ReflectionById
+        public readonly options: ClientOptions,
+        public readonly remoteMethodsById: RemoteMethodsById,
+        public readonly reflectionById: ReflectionById,
+        public readonly route?: RR,
+        public readonly hooks?: HookRequestsList
     ) {
-        this.routeId = route.id;
-        this.path = getRoutePath(route.pointer, this.options);
-        this.addRequestParams(route);
-        hooks.forEach((hook) => this.addRequestParams(hook));
+        this.path = route ? getRoutePath(route.pointer, this.options) : 'no-route';
+        this.requestId = route ? route.id : 'no-route';
+        if (route) this.addSubRequest(route);
+        if (hooks) hooks.forEach((hook) => this.addSubRequest(hook));
     }
 
-    addRequestParams(methodRequest: MethodRequest<any>) {
-        if (methodRequest.isResolved) throw new Error(`Request ${methodRequest.id} is already resolved`);
-        if (this.requestBody[methodRequest.id]) throw new Error(`Params for ${methodRequest.id} already exists in the request`);
-        this.requestBody[methodRequest.id] = methodRequest.params;
+    async run(): Promise<ResolvedPublicResponses> {
+        await this.prepareRequest();
+        await this.executeRequest();
+        return this.parseResponse();
     }
 
-    async runRoute(skipChecks = false): Promise<RemoteCallResponse<any, any>> {
-        const remoteMethodIds = Object.keys(this.requestBody);
-        const missingMethods = remoteMethodIds.filter((id) => !this.remoteMethodsById.has(id));
-        if (!skipChecks) await this.fetchRemoteMethodsInfo(missingMethods);
-        const missingPersistedIds = this.addMissingPersistedHookParams();
-
-        const remoteCallResponse: RemoteCallResponse<any, any> = {
-            routeResponse: null,
-            hooksResponses: [],
-            persistedHooksResponses: {},
-            otherResponses: {},
-            hasRouteError: false,
-            hasHookErrors: false,
-            hasOtherErrors: false,
-            hasPersistedErrors: false,
-            hasErrors: false,
-        };
-
-        if (!skipChecks) {
-            this.validateAndSerialize(remoteCallResponse);
-            if (remoteCallResponse.hasErrors) return remoteCallResponse;
-        }
-
+    async validateParams(subRequests?: SubRequest<any>[]): Promise<ParamsValidationResponse[]> {
+        if (subRequests) subRequests.forEach((subRequest) => this.addSubRequest(subRequest));
         try {
+            const subRequestIds = Object.keys(this.subRequests);
+            await fetchRemoteMethodsInfo(subRequestIds, this.options, this.remoteMethodsById, this.reflectionById);
+            const validateErrors = validateSubRequests(subRequestIds, this, {}, false);
+            if (Object.keys(validateErrors).length) return Promise.reject(validateErrors);
+            return Object.values(this.subRequests).map((subRequest) => subRequest.validationResponse as ParamsValidationResponse);
+        } catch (error: any) {
+            return this.rejectRequest(error, 'Error preparing request');
+        }
+    }
+
+    async persist(subRequests?: SubRequest<any>[]): Promise<void> {
+        if (subRequests) subRequests.forEach((subRequest) => this.addSubRequest(subRequest));
+        try {
+            const subRequestIds = Object.keys(this.subRequests);
+            await fetchRemoteMethodsInfo(subRequestIds, this.options, this.remoteMethodsById, this.reflectionById);
+            const validateErrors = validateSubRequests(subRequestIds, this, {}, false);
+            if (Object.keys(validateErrors).length) return Promise.reject(validateErrors);
+            const persistErrors = this.persistedSubRequest();
+            if (Object.keys(persistErrors).length) return Promise.reject(persistErrors);
+            return;
+        } catch (error: any) {
+            return this.rejectRequest(error, 'Error preparing request');
+        }
+    }
+
+    addSubRequest(subRequest: SubRequest<any>) {
+        if (subRequest.isResolved) throw new Error(`SubRequest ${subRequest.id} is already resolved`);
+        this.subRequests[subRequest.id] = subRequest;
+    }
+
+    // ############# PRIVATE METHODS REQUEST #############
+
+    private async prepareRequest(): Promise<never | void> {
+        try {
+            const subRequestIds = Object.keys(this.subRequests);
+            await fetchRemoteMethodsInfo(subRequestIds, this.options, this.remoteMethodsById, this.reflectionById);
+            this.restorePersistedSubRequest();
+
+            const validateErrors = validateSubRequests(subRequestIds, this);
+            if (Object.keys(validateErrors).length) return Promise.reject(validateErrors);
+            const serializeErrors = serializeSubRequests(subRequestIds, this);
+            if (Object.keys(serializeErrors).length) return Promise.reject(serializeErrors);
+        } catch (error: any) {
+            return this.rejectRequest(error, 'Error preparing request');
+        }
+    }
+
+    private async executeRequest(): Promise<never | void> {
+        try {
+            const {headers, body} = this.getRequestData();
             const url = new URL(this.path, this.options.baseURL);
             const fetchOptions: RequestInit = {
                 ...this.options.fetchOptions,
                 headers: {
                     ...this.options.fetchOptions.headers,
+                    ...headers,
                     // TODO: set headers from hook headers
                 },
-                body: JSON.stringify(this.requestBody),
+                body: JSON.stringify(body),
             };
-            const response = await fetch(url, fetchOptions);
-            let respObj = await response.json();
-            if (!skipChecks) respObj = this.deserializeResponseBody(respObj as ResolvedPublicResponses);
-            this.assignResponses(remoteCallResponse, respObj, response.headers, missingPersistedIds);
+            this.response = await fetch(url, fetchOptions);
+            this.rawResponseBody = await this.response.json();
         } catch (error: any) {
-            remoteCallResponse.otherResponses['request-error'] = new PublicError({
+            return this.rejectRequest(error, 'Error executing request');
+        }
+    }
+
+    private parseResponse(): Promise<never> | ResolvedPublicResponses {
+        try {
+            let hasErrors = false;
+            const deserialized = deserializeResponseBody(this.rawResponseBody as ResolvedPublicResponses, this);
+            Object.entries(this.subRequests).forEach(([id, remoteMethod]) => {
+                const resp = this.getResponseValueFromBodyOrHeader(id, deserialized, (this.response as Response).headers);
+                remoteMethod.isResolved = true;
+                if (isPublicError(resp)) {
+                    remoteMethod.error = resp;
+                    hasErrors = true;
+                } else {
+                    remoteMethod.return = resp;
+                }
+            });
+
+            if (hasErrors) return Promise.reject(deserialized);
+            return deserialized;
+        } catch (error) {
+            return this.rejectRequest(error, 'Error parsing response');
+        }
+    }
+
+    private rejectRequest(error: any, stageMessage: string) {
+        const message = error?.message ? `${stageMessage}: ${error.message}` : `${stageMessage}: Unknown Error`;
+        return Promise.reject({
+            [this.requestId]: new PublicError({
                 statusCode: StatusCodes.BAD_REQUEST,
                 name: 'Request Error',
-                message: error?.message || 'Unknown error',
-            });
-            remoteCallResponse.hasErrors = true;
-        }
-
-        return remoteCallResponse;
-    }
-
-    validateAndSerialize(remoteCallResponse: RemoteCallResponse<any, any>): void {
-        this.validateRequestBody(remoteCallResponse);
-        this.serializeRequestBody(remoteCallResponse);
-        remoteCallResponse.hasRouteError = isPublicError(remoteCallResponse.routeResponse);
-        remoteCallResponse.hasHookErrors = remoteCallResponse.hooksResponses.some((hookResp) => isPublicError(hookResp));
-        remoteCallResponse.hasErrors = remoteCallResponse.hasRouteError || remoteCallResponse.hasHookErrors;
-    }
-
-    assignResponses(
-        remoteCallResponse: RemoteCallResponse<any, any>,
-        respBody: ResolvedPublicResponses,
-        headers: Headers,
-        missingPersistedIds: string[]
-    ) {
-        const processedIds: string[] = [];
-        // assign route
-        remoteCallResponse.routeResponse = deserializeIfIsPublicError(respBody[this.routeId]);
-        remoteCallResponse.hasRouteError = isPublicError(remoteCallResponse.routeResponse);
-        this.route.isResolved = true;
-        this.route.return = remoteCallResponse.routeResponse;
-        processedIds.push(this.routeId);
-
-        // assign hooks
-        this.hooks.forEach((hook) => {
-            const remoteMethod = this.remoteMethodsById.get(hook.id);
-            const inHeader = remoteMethod?.inHeader;
-            const headerName = remoteMethod?.headerName || '';
-            // header hooks can return errors in body.
-            const value = inHeader ? headers.get(headerName) || respBody[headerName] : respBody[hook.id];
-            hook.return = deserializeIfIsPublicError(value);
-            remoteCallResponse.hooksResponses.push(hook.return);
-            remoteCallResponse.hasHookErrors = remoteCallResponse.hasHookErrors || isPublicError(hook.return);
-            hook.isResolved = true;
-            processedIds.push(hook.id);
+                message,
+            }),
         });
-        // assign others
-        missingPersistedIds.forEach((id) => {
-            if (respBody[id]) {
-                const respValue = deserializeIfIsPublicError(respBody[id]);
-                remoteCallResponse.persistedHooksResponses[id] = respValue;
-                remoteCallResponse.hasPersistedErrors = remoteCallResponse.hasPersistedErrors || isPublicError(respValue);
-                processedIds.push(id);
+    }
+
+    private getRequestData() {
+        const headers: RequestHeaders = {};
+        const body: RequestBody = {};
+        Object.values(this.subRequests).forEach((subRequest) => {
+            const remoteMethod = this.remoteMethodsById.get(subRequest.id);
+            if (!subRequest.serializedParams) throw new Error(`SubRequest ${subRequest.id} is not serialized.`);
+            if (!remoteMethod) throw new Error(`Metadata for remote method ${subRequest.id} not found.`);
+            if (remoteMethod.inHeader && remoteMethod.headerName) {
+                const value = subRequest.serializedParams[0];
+                // TODO: we might need to use the native Header object instead JSON.stringify
+                headers[remoteMethod.headerName] = JSON.stringify(value);
+            } else {
+                body[subRequest.id] = subRequest.serializedParams;
             }
         });
-
-        const extraResponseIds = Object.keys(respBody).filter((x) => !processedIds.includes(x));
-        extraResponseIds.forEach((id) => {
-            const respValue = deserializeIfIsPublicError(respBody[id]);
-            remoteCallResponse.otherResponses[id] = respValue;
-            remoteCallResponse.hasOtherErrors = remoteCallResponse.hasOtherErrors || isPublicError(respValue);
-        });
-        remoteCallResponse.hasErrors =
-            remoteCallResponse.hasRouteError ||
-            remoteCallResponse.hasHookErrors ||
-            remoteCallResponse.hasOtherErrors ||
-            remoteCallResponse.hasPersistedErrors;
+        return {headers, body};
     }
 
-    addMissingPersistedHookParams(): string[] {
-        const remoteRoute = this.remoteMethodsById.get(this.routeId);
-        if (!remoteRoute) throw new Error(`Remote route ${this.routeId} not found.`);
-        const hookPointerIds = remoteRoute.executionPathIds.filter((id) => !!id && this.routeId !== id);
+    private getResponseValueFromBodyOrHeader(id: string, respBody: ResolvedPublicResponses, headers: Headers): any {
+        const remoteMethod = this.remoteMethodsById.get(id);
+        if (remoteMethod && remoteMethod.inHeader && remoteMethod.headerName) {
+            return headers.get(remoteMethod.headerName);
+        }
+        return respBody[id];
+    }
 
-        const missingPersistedIds: string[] = [];
-
-        hookPointerIds.forEach((id) => {
-            const currentParams = this.requestBody[id];
-            if (currentParams) return;
-            const storageKey = this.getLocalStorageKey(id);
-            const persistedParams = localStorage.getItem(storageKey);
-            if (!persistedParams) return;
+    private restorePersistedSubRequest() {
+        const remoteRoute = this.remoteMethodsById.get(this.requestId);
+        if (!remoteRoute) throw new Error(`Remote route ${this.requestId} not found.`);
+        const missingIds = remoteRoute.hookIds?.filter((id) => !!id && this.requestId !== id) || [];
+        missingIds.forEach((id) => {
+            const subRequest = this.subRequests[id];
+            if (subRequest) return;
+            const storageKey = this.getSubRequestStorageKey(id);
+            const persistedValue = localStorage.getItem(storageKey);
+            if (!persistedValue) return;
             try {
-                const params = JSON.parse(persistedParams);
-                this.requestBody[id] = params;
+                const restoredSubRequest = JSON.parse(persistedValue);
+                this.addSubRequest(restoredSubRequest);
             } catch (e) {
                 localStorage.removeItem(storageKey);
-            } finally {
-                missingPersistedIds.push(id);
+                throw new Error(`Error reading persisted request ${id}.`);
             }
         });
-
-        return missingPersistedIds;
     }
 
-    serializeRequestBody(response: RemoteCallResponse<any, any>): void {
-        if (!this.options.enableSerialization) return;
-        Object.entries(this.requestBody).forEach(([key, params]) => {
-            const remoteMethod = this.remoteMethodsById.get(key);
-            if (!remoteMethod) throw new Error(`Metadata for remote method ${key} not found.`);
-            const serialized = serializeParameters(params, remoteMethod, this.reflectionById.get(remoteMethod.id));
-            response[key] = serialized;
-        });
-    }
-
-    validateRequestBody(response: RemoteCallResponse<any, any>): void {
-        if (!this.options.enableValidation) return;
-        Object.entries(this.requestBody).forEach(([key, params]) => {
-            const remoteMethod = this.remoteMethodsById.get(key);
-            if (!remoteMethod) throw new Error(`Metadata for remote method ${key} not found.`);
-            response[key] = validateParameters(params, remoteMethod, this.reflectionById.get(remoteMethod.id));
-        });
-    }
-
-    deserializeResponseBody(responseBody: ResolvedPublicResponses): ResolvedPublicResponses {
-        const deSerializedBody = responseBody;
-        Object.entries(deSerializedBody).forEach(([key, remoteHandlerResponse]) => {
-            const remoteMethod = this.remoteMethodsById.get(key);
-            if (!remoteMethod) throw new Error(`Metadata for remote method ${key} not found.`);
-            const deSerialized = deSerializeReturn(remoteHandlerResponse, remoteMethod, this.reflectionById.get(remoteMethod.id));
-            deSerializedBody[key] = deSerialized;
-        });
-        return deSerializedBody;
-    }
-
-    // manually calls mionGetRemoteMethodsInfoById to get RemoteMethods Metadata
-    async fetchRemoteMethodsInfo(paths: string[]) {
-        this.restoreRemoteMethodsFromLocalStorage(paths);
-        const missingAfterLocal = paths.filter((path) => !this.remoteMethodsById.has(path));
-        if (!missingAfterLocal.length) return;
-        const shouldReturnAllMethods = true;
-        const body: RequestBody = {
-            [GET_REMOTE_METHODS_BY_ID]: [missingAfterLocal, shouldReturnAllMethods],
-        };
-        try {
-            const url = new URL(GET_REMOTE_METHODS_BY_ID, this.options.baseURL);
-            const response = await fetch(url, {
-                method: 'PUT',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify(body),
-            });
-            const respObj = await response.json();
-            const resp = respObj[GET_REMOTE_METHODS_BY_ID] as ResolvedResponse<{[key: string]: RemoteMethod}>;
-            // TODO: convert Public error into a class that extends error and throw as an error
-            if (isPublicError(resp)) throw new PublicError(resp);
-            if (!resp) throw new Error('No remote methods found in response');
-
-            Object.entries(resp).forEach(([id, remoteMethod]: [string, RemoteMethod]) => {
-                this.setRemoteMethodMetadata(id, remoteMethod);
-            });
-        } catch (error: any) {
-            throw new Error(`Error fetching validation and serialization metadata: ${error?.message}`);
-        }
-    }
-
-    restoreRemoteMethodsFromLocalStorage(paths: string[]) {
-        return paths.map((path) => {
-            const storageKey = this.getLocalStorageKey(path);
-            const remoteMethodJson = localStorage.getItem(storageKey);
-            if (!remoteMethodJson) return;
-            try {
-                const remoteMethod = JSON.parse(remoteMethodJson);
-                this.setRemoteMethodMetadata(path, remoteMethod, false);
-            } catch (e) {
-                localStorage.removeItem(storageKey);
+    private persistedSubRequest(): SerializeErrors {
+        const errors: SerializeErrors = {};
+        Object.keys(this.subRequests).forEach((id) => {
+            const subRequest = this.subRequests[id];
+            const remoteMethod = this.remoteMethodsById.get(id);
+            if (!remoteMethod) throw new Error(`Remote method ${id} not found.`);
+            if (remoteMethod.isRoute) {
+                errors[id] = new PublicError({
+                    statusCode: StatusCodes.BAD_REQUEST,
+                    name: 'Persist Error',
+                    message: `Remote method ${id} is a route and can't be persisted.`,
+                });
                 return;
             }
+            const storageKey = this.getSubRequestStorageKey(id);
+            try {
+                const jsonSubRequest = JSON.stringify(subRequest);
+                localStorage.setItem(storageKey, jsonSubRequest);
+            } catch (e) {
+                localStorage.removeItem(storageKey);
+                errors[id] = new PublicError({
+                    statusCode: StatusCodes.BAD_REQUEST,
+                    name: 'Persist Error',
+                    message: `Error persisting request ${id}.`,
+                });
+            }
         });
+        return errors;
     }
 
-    getLocalStorageKey(id: string) {
-        return `${STORAGE_KEY}:remote-methods:${id}`;
-    }
-
-    setRemoteMethodMetadata(id: string, method: RemoteMethod, store = true) {
-        const methodWithPathIds = {
-            ...method,
-            executionPathIds: method.executionPathPointers?.map((pointer) => getRouterItemId(pointer)) || [],
-        };
-        this.remoteMethodsById.set(id, methodWithPathIds);
-        this.reflectionById.set(id, this.getFunctionReflection(method.handlerSerializedType));
-        if (store) localStorage.setItem(this.getLocalStorageKey(id), JSON.stringify(method));
-    }
-
-    getFunctionReflection(serializedTypes: SerializedTypes): FunctionReflection {
-        const type = getDeserializedFunctionType(serializedTypes);
-        return getFunctionReflectionMethods(type, this.options.reflectionOptions, 0);
+    private getSubRequestStorageKey(id: string) {
+        return `${STORAGE_KEY}:remote-request-preset:${this.options.baseURL}:x${id}`;
     }
 }

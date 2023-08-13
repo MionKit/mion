@@ -74,14 +74,8 @@ function recursiveGetRemoteMethods<R extends Routes>(routes: R, currentPointer: 
 export function getRemoteMethodFromExecutable<H extends Handler>(executable: RouteExecutable | HookExecutable): RemoteMethod<H> {
     const existing = remoteMethodsById.get(executable.id);
     if (existing) return existing as RemoteMethod<H>;
-    let executionPathPointers;
-    if (executable.isRoute) {
-        const path = getRoutePath(executable.pointer, getRouterOptions());
-        executionPathPointers = getRouteExecutionPath(path)
-            ?.filter((exec) => isPublicExecutable(exec))
-            .map((exec) => exec.pointer);
-    }
-    const newRemoteMethod = {
+
+    const newRemoteMethod: RemoteMethod = {
         isRoute: executable.isRoute,
         id: executable.id,
         inHeader: executable.inHeader,
@@ -91,9 +85,22 @@ export function getRemoteMethodFromExecutable<H extends Handler>(executable: Rou
         enableValidation: executable.enableValidation,
         enableSerialization: executable.enableSerialization,
         params: executable.reflection.handlerType.parameters.map((tp) => tp.name).slice(getRouteDefaultParams().length),
-        executionPathPointers,
         headerName: executable.headerName,
     };
+
+    if (executable.isRoute) {
+        const path = getRoutePath(executable.pointer, getRouterOptions());
+        newRemoteMethod.executionPathPointers =
+            getRouteExecutionPath(path)
+                ?.filter((exec) => isPublicExecutable(exec))
+                .map((exec) => exec.pointer) || [];
+        newRemoteMethod.hookIds = newRemoteMethod.executionPathPointers
+            .map((pointer) => getRouterItemId(pointer))
+            .filter((id) => {
+                const exec = getHookExecutable(id);
+                return exec && isPublicExecutable(exec);
+            });
+    }
     remoteMethodsById.set(executable.id, newRemoteMethod);
     return newRemoteMethod as RemoteMethod<H>;
 }

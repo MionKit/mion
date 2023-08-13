@@ -56,13 +56,14 @@ export class PublicError extends Error {
     readonly statusCode: number;
     readonly message: string;
     readonly errorData?: Readonly<unknown>;
+    readonly name: string;
 
     constructor({name, statusCode, message, errorData, id}: PublicError) {
         super(message);
         this.id = id;
         this.statusCode = statusCode;
         this.message = message;
-        if (name) super.name = name;
+        this.name = name;
         if (errorData) this.errorData = errorData;
         Object.setPrototypeOf(this, PublicError.prototype);
         // sets proper json serialization
@@ -90,9 +91,4 @@ export function isPublicError(error: any): error is PublicError {
         (typeof error?.id === 'string' || typeof error?.id === 'number' || error?.id === undefined) &&
         !hasUnknownKeys(['id', 'statusCode', 'message', 'name', 'errorData'], error)
     );
-}
-
-export function deserializeIfIsPublicError(value: any): PublicError | any {
-    if (!isPublicError(value) || value instanceof PublicError) return value;
-    return new PublicError(value);
 }
