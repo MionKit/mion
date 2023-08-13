@@ -16,6 +16,7 @@ import {
     Handler,
     isNotFoundExecutable,
     isHeaderExecutable,
+    HookHeaderExecutable,
 } from './types';
 import {getNotFoundExecutionPath, getRouteExecutionPath, getRouterOptions} from './router';
 import {isPromise} from 'node:util/types';
@@ -151,7 +152,7 @@ function deserializeParameters(request: Request, executable: Executable): any[] 
     let params;
 
     if (isHeaderExecutable(executable)) {
-        params = request.headers[executable.headerName] || [];
+        params = getParamFromStandardHeaders(request, executable) || [];
         // headers could be arrays in some cases bust mostly individual values
         // so we need to normalize to an array
         if (!Array.isArray(params)) params = [params];
@@ -203,6 +204,23 @@ function serializeResponse(executable: Executable, response: Response, result: a
     const serialized = executable.enableSerialization ? executable.reflection.serializeReturn(result) : result;
     if (isHeaderExecutable(executable)) response.headers[executable.headerName] = serialized;
     else (response.body as Mutable<Obj>)[executable.id] = serialized;
+}
+
+/** Returns a header parameter whether headers are case sensitive.
+ * AWS uses case sensitive headers, while http use lowercase headers */
+function getParamFromStandardHeaders(request: Request, executable: HookHeaderExecutable): any {
+    const headers: Mutable<Obj> = request.headers;
+    const param = request.headers[executable.headerName];
+    if (param || headers.areHeadersTransformedToLowerCase) return param;
+    const lowerCaseHeaders = {};
+    Object.entries(headers).forEach(([key, value]) => {
+        lowerCaseHeaders[key.toLowerCase()] = value;
+    });
+    (request as Mutable<Obj>).headers = {
+        ...headers,
+        ...lowerCaseHeaders,
+    };
+    return lowerCaseHeaders[executable.headerName];
 }
 
 // ############# PUBLIC METHODS USED FOR ERRORS #############

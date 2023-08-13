@@ -31,7 +31,7 @@ export type RawHookHandler<
     Context extends CallContext = CallContext,
     RawReq extends RawRequest = RawRequest,
     RawResp = unknown,
-    Opts extends RouterOptions<RawReq> = RouterOptions<RawReq>
+    Opts extends RouterOptions<RawReq> = RouterOptions<RawReq>,
 > = (ctx: Context, request: RawReq, response: RawResp, opts: Opts) => ErrorReturn;
 
 export type AnyHandler = (...parameters: any) => any | Promise<any>;
@@ -89,7 +89,7 @@ export interface RawHookDef<
     Context extends CallContext = CallContext,
     RawReq extends RawRequest = RawRequest,
     RawResp = any,
-    Opts extends RouterOptions<RawReq> = RouterOptions<RawReq>
+    Opts extends RouterOptions<RawReq> = RouterOptions<RawReq>,
 > {
     rawHook: RawHookHandler<Context, RawReq, RawResp, Opts>;
 }
@@ -254,7 +254,7 @@ export type HooksCollection<
     Context extends CallContext = CallContext,
     RawReq extends RawRequest = RawRequest,
     RawResp = unknown,
-    Opts extends RouterOptions<RawReq> = RouterOptions<RawReq>
+    Opts extends RouterOptions<RawReq> = RouterOptions<RawReq>,
 > = {
     [key: string]: RawHookDef<Context, RawReq, RawResp, Opts> | HookDef<Context> | HeaderHookDef<Context>;
 };
@@ -306,7 +306,7 @@ export type RemoteMethods<Type extends Routes> = {
 // prettier-ignore
 export type RemoteHandler<H extends Handler> = 
     H extends (ctx: CallContext, ...rest: infer Req) => infer Resp
-    ? (...rest: Req) => RemoteResponse<Resp>
+    ? (...rest: Req) => Promise<Exclude<Awaited<Resp>, RouteError | Error> | PublicError>
     : never;
 
 export interface RemoteMethod<H extends Handler = any> {
@@ -320,6 +320,7 @@ export interface RemoteMethod<H extends Handler = any> {
     enableValidation: boolean;
     enableSerialization: boolean;
     params: string[];
+    hookIds?: string[];
     executionPathPointers?: string[][];
     headerName?: string;
 }
@@ -329,6 +330,8 @@ export interface RemoteRoute<H extends Handler = any> extends RemoteMethod<H> {
     isRoute: true;
     inHeader: false;
     executionPathPointers: string[][];
+    hookIds: string[];
+    headerName: undefined;
 }
 
 /** Public map from Hooks, _handler type is the same as hooks's handler but does not include the context  */
@@ -350,15 +353,8 @@ export type RemoteHandlers<RMS extends RemoteMethods<any>> = {
         : never;
 };
 
-export type RemoteResponse<Resp> = Promise<Exclude<Awaited<Resp>, RouteError> | PublicError>;
-export type ResolvedResponse<Resp> = Awaited<Resp> | PublicError;
-
-export type PublicResponses = {
-    [key: string]: RemoteResponse<any>;
-};
-
 export type ResolvedPublicResponses = {
-    [key: string]: ResolvedResponse<any>;
+    [key: string]: any | PublicError;
 };
 
 // #######  type guards #######
@@ -415,6 +411,10 @@ export function isNotFoundExecutable(entry: Executable): entry is NotFoundExecut
 
 export function isHeaderExecutable(entry: Executable): entry is HookHeaderExecutable {
     return entry.inHeader;
+}
+
+export function isRouteExecutable(entry: Executable): entry is RouteExecutable {
+    return entry.isRoute;
 }
 
 // #######  Others #######

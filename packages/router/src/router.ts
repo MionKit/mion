@@ -59,6 +59,7 @@ let complexity = 0;
 let routerOptions: RouterOptions = {...DEFAULT_ROUTE_OPTIONS};
 let isRouterInitialized = false;
 let looselyReflectionOptions: ReflectionOptions | undefined;
+let allExecutablesIds: string[] | undefined;
 
 /** Global hooks to be run before and after any other hooks or routes set using `registerRoutes` */
 const defaultStartHooks = {mionParseJsonRequestBody: bodyParserHooks.mionParseJsonRequestBody};
@@ -95,6 +96,7 @@ export const resetRouter = () => {
     endHooks = [];
     isRouterInitialized = false;
     looselyReflectionOptions = undefined;
+    allExecutablesIds = undefined;
     resetRemoteMethods();
 };
 
@@ -190,7 +192,9 @@ export function getTotalExecutables(): number {
 }
 
 export function getAllExecutablesIds(): string[] {
-    return [...routesById.keys(), ...hooksById.keys(), ...rawHooksById.keys()];
+    if (allExecutablesIds) return allExecutablesIds;
+    allExecutablesIds = [...routesById.keys(), ...hooksById.keys(), ...rawHooksById.keys()];
+    return allExecutablesIds;
 }
 
 // ############# PRIVATE METHODS #############
@@ -358,7 +362,7 @@ function getExecutableFromHook(hook: HookDef | HeaderHookDef, hookPointer: strin
         enableValidation: hook.enableValidation ?? routerOptions.enableValidation,
         enableSerialization: hook.enableSerialization ?? routerOptions.enableSerialization,
         pointer: hookPointer,
-        headerName: inHeader ? (hook as HeaderHookDef).headerName : undefined,
+        headerName: inHeader ? (hook as HeaderHookDef).headerName?.toLowerCase() : undefined,
     };
     hooksById.set(hookId, executable);
     return executable;
