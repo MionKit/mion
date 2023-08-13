@@ -15,9 +15,10 @@ import {
     RemoteMethodsById,
     RouteSubRequest,
     SubRequest,
+    SubRequestErrors,
     SuccessClientResponse,
 } from './types';
-import type {RemoteMethods, ResolvedPublicResponses} from '@mionkit/router';
+import type {RemoteMethods} from '@mionkit/router';
 import {getRouterItemId, isPublicError} from '@mionkit/core';
 import {MionRequest} from './request';
 import {ParamsValidationResponse} from '@mionkit/runtype';
@@ -43,7 +44,7 @@ class MionClient {
     constructor(private clientOptions: ClientOptions) {}
 
     // todo return strong typed response
-    callRoute<RR extends RouteSubRequest<any>, RHList extends HookSubRequest<any>[]>(
+    call<RR extends RouteSubRequest<any>, RHList extends HookSubRequest<any>[]>(
         routeSubRequest: RR,
         ...hookSubRequests: RHList
     ): Promise<SuccessClientResponse<RR, RHList>> {
@@ -55,14 +56,15 @@ class MionClient {
             hookSubRequests
         );
         return request
-            .run()
+            .call()
             .then(
                 () => [routeSubRequest.return, ...hookSubRequests.map((hook) => hook.return)] as SuccessClientResponse<RR, RHList>
             )
-            .catch((resp: ResolvedPublicResponses) => {
+            .catch((resp: SubRequestErrors) => {
                 if (routeSubRequest.error) return Promise.reject(routeSubRequest.error);
-                // any other error returned by the server
-                return Promise.reject(Object.values(resp).find((r) => isPublicError(r)));
+                // any other error returned by the server (returns firs one found)
+                const error = Array.from(resp.values()).find((r) => isPublicError(r));
+                return Promise.reject(error);
             });
     }
 
@@ -71,9 +73,14 @@ class MionClient {
         return request.validateParams(subRequest);
     }
 
-    persist<List extends HookSubRequest<any>[]>(...subRequest: List): Promise<void> {
+    prefill<List extends HookSubRequest<any>[]>(...subRequest: List): Promise<void> {
         const request = new MionRequest(this.clientOptions, this.remoteMethodsById, this.reflectionById);
-        return request.persist(subRequest);
+        return request.prefill(subRequest);
+    }
+
+    removePrefill<List extends HookSubRequest<any>[]>(...subRequest: List): SubRequestErrors {
+        const request = new MionRequest(this.clientOptions, this.remoteMethodsById, this.reflectionById);
+        return request.removePrefill(subRequest);
     }
 }
 
@@ -90,14 +97,21 @@ class MethodProxy {
                 params: argArray,
                 return: undefined, // resolved once request gets resolved
                 error: undefined, // resolved once request gets resolved
-                persist: () => {
-                    this.client.persist(subRequest);
+                prefill: () => {
+                    this.client.prefill(subRequest);
+                },
+                removePrefill: () => {
+                    const resp = this.client.removePrefill(subRequest);
+                    return resp[subRequest.id];
                 },
                 call: (...hooks: HookSubRequest<any>[]): Promise<any> => {
-                    return this.client.callRoute(subRequest, ...hooks).then(() => subRequest.return);
+                    return this.client.call(subRequest, ...hooks).then(() => subRequest.return);
                 },
                 validate: (): Promise<ParamsValidationResponse> => {
-                    return this.client.validate(subRequest).then((responses) => responses[0]);
+                    return this.client
+                        .validate(subRequest)
+                        .then((responses) => responses[0])
+                        .catch((err: SubRequestErrors) => Promise.reject(err.get(subRequest.id)));
                 },
             };
             return subRequest;

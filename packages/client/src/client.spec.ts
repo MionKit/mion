@@ -34,7 +34,12 @@ describe('client', () => {
         utils: {
             sumTwo: (ctx, a: number): number => a + 2,
         },
-        log: {hook: (ctx): any => 'Logger.log(....)'},
+        log: {
+            forceRunOnError: true,
+            hook: (ctx): any => {
+                // console.log(ctx.path, ctx.request.headers, ctx.request.body);
+            },
+        },
     } satisfies Routes;
 
     const someUser = {name: 'John', surname: 'Doe'};
@@ -42,6 +47,7 @@ describe('client', () => {
     type MyApi = typeof myApi;
 
     const port = 8076;
+    const baseURL = `http://localhost:${port}`;
     let server: Server;
     beforeAll(async () => {
         initHttpRouter({sharedDataFactory: () => {}, port});
@@ -61,33 +67,42 @@ describe('client', () => {
     );
 
     it('proxy to trap remote methods calls and return MethodRequest data', () => {
-        const {client, methods} = initMionClient<MyApi>({baseURL: `http://localhost:${port}`});
+        const {client, methods} = initMionClient<MyApi>({baseURL});
 
-        const expectedAuthSubRequest = {
+        const expectedAuthSubRequest: RouteSubRequest<any> & HookSubRequest<any> = {
             pointer: ['auth'],
             id: 'auth',
             isResolved: false,
-            params: ['token'],
-            persist: expect.any(Function),
+            params: ['XWYZ-TOKEN'],
+            call: expect.any(Function),
+            prefill: expect.any(Function),
+            removePrefill: expect.any(Function),
+            validate: expect.any(Function),
         };
 
-        const expectedSayHelloSubRequest = {
+        const expectedSayHelloSubRequest: RouteSubRequest<any> & HookSubRequest<any> = {
             pointer: ['sayHello'],
             id: 'sayHello',
             isResolved: false,
             params: [someUser],
             call: expect.any(Function),
+            prefill: expect.any(Function),
+            removePrefill: expect.any(Function),
+            validate: expect.any(Function),
         };
 
-        const expectedSumTwoSubRequest = {
+        const expectedSumTwoSubRequest: RouteSubRequest<any> & HookSubRequest<any> = {
             pointer: ['utils', 'sumTwo'],
             id: 'utils-sumTwo',
             isResolved: false,
             params: [2],
-            persist: expect.any(Function),
+            call: expect.any(Function),
+            prefill: expect.any(Function),
+            removePrefill: expect.any(Function),
+            validate: expect.any(Function),
         };
 
-        expect(methods.auth('token')).toEqual(expect.objectContaining(expectedAuthSubRequest));
+        expect(methods.auth('XWYZ-TOKEN')).toEqual(expect.objectContaining(expectedAuthSubRequest));
         expect(methods.sayHello(someUser)).toEqual(expect.objectContaining(expectedSayHelloSubRequest));
         expect(methods.utils.sumTwo(2)).toEqual(expect.objectContaining(expectedSumTwoSubRequest));
 
@@ -99,24 +114,22 @@ describe('client', () => {
             isResolved: false,
             params: [1, 'a'],
             call: expect.any(Function),
-            persist: expect.any(Function),
+            prefill: expect.any(Function),
+            removePrefill: expect.any(Function),
             validate: expect.any(Function),
         };
         expect((methods as any).abcd(1, 'a')).toEqual(expectedUnknownSubRequest);
     });
 
-    // TODO: jest upgrade required to include nadive node fetch types without using jsdom
     it('make a route call and get a valid response', async () => {
-        // TODO: implement the get public method info route in the router
-        const {methods} = initMionClient<MyApi>({baseURL: `http://localhost:${port}`});
+        const {methods} = initMionClient<MyApi>({baseURL});
 
-        const response = await methods.sayHello(someUser).call(methods.auth('token'));
+        const response = await methods.sayHello(someUser).call(methods.auth('XWYZ-TOKEN'));
         expect(response).toEqual(`Hello John Doe`);
     });
 
     it('throw error if a route call fails', async () => {
-        // TODO: implement the get public method info route in the router
-        const {client, methods} = initMionClient<MyApi>({baseURL: `http://localhost:${port}`});
+        const {client, methods} = initMionClient<MyApi>({baseURL});
 
         let error;
         const expectedError = new PublicError({
@@ -126,7 +139,7 @@ describe('client', () => {
         });
 
         try {
-            await methods.alwaysFails(someUser).call(methods.auth('token'));
+            await methods.alwaysFails(someUser).call(methods.auth('XWYZ-TOKEN'));
         } catch (e) {
             error = e;
         }
@@ -136,8 +149,76 @@ describe('client', () => {
     });
 
     it('throw error if a route is missing hook data', async () => {
-        // TODO: implement the get public method info route in the router
-        const {client, methods} = initMionClient<MyApi>({baseURL: `http://localhost:${port}`});
+        const {client, methods} = initMionClient<MyApi>({baseURL});
+
+        let error;
+        const expectedError = new PublicError({
+            message: `Invalid params for Route or Hook 'auth', validation failed.`,
+            name: 'Validation Error',
+            statusCode: 400,
+        });
+
+        try {
+            const resp = await methods.sayHello(someUser).call();
+        } catch (e) {
+            error = e;
+        }
+
+        expect(error).toEqual(expectedError);
+        expect(error.statusCode).toEqual(expectedError.statusCode);
+    });
+
+    it('validate parameters', async () => {
+        const {client, methods} = initMionClient<MyApi>({baseURL});
+
+        const responseOk = await methods.sayHello(someUser).validate();
+
+        expect(responseOk).toEqual({
+            errors: [[]],
+            hasErrors: false,
+            totalErrors: 0,
+        });
+
+        let error;
+        const expectedError = new PublicError({
+            message: `Invalid params for Route or Hook 'sayHello', validation failed.`,
+            name: 'Validation Error',
+            statusCode: 400,
+            errorData: {
+                errors: [[{code: 'type', message: 'Not an object', path: ''}]],
+                hasErrors: true,
+                totalErrors: 1,
+            },
+        });
+
+        try {
+            const resp = await methods.sayHello('invalid-param' as any).validate();
+        } catch (e) {
+            error = e;
+        }
+
+        expect(error).toEqual(expectedError);
+        expect(error.errorData).toEqual(expectedError.errorData);
+    });
+
+    it('prefill and remove prefill from a request', async () => {
+        const {client, methods} = initMionClient<MyApi>({baseURL});
+
+        const request = methods.auth('ABYWZ-TOKEN');
+        await request.prefill();
+        // note auth has been prefilled and is not required to be sent in the call
+
+        let response;
+        try {
+            response = await methods.sayHello(someUser).call();
+        } catch (e) {
+            console.trace(e);
+        }
+        expect(response).toEqual(`Hello John Doe`);
+
+        // same call should fail after removing the prefill
+
+        request.removePrefill();
 
         let error;
         const expectedError = new PublicError({
@@ -151,7 +232,6 @@ describe('client', () => {
         } catch (e) {
             error = e;
         }
-
         expect(error).toEqual(expectedError);
         expect(error.statusCode).toEqual(expectedError.statusCode);
     });
