@@ -6,7 +6,7 @@
  * ######## */
 
 import {RemoteMethods, Routes, registerRoutes} from '@mionkit/router';
-import {initMionClient} from './client';
+import {initClient} from './client';
 import {HookSubRequest, RouteSubRequest} from './types';
 import {initHttpRouter, startHttpServer} from '@mionkit/http';
 import {clientRoutes} from '@mionkit/common';
@@ -67,7 +67,7 @@ describe('client', () => {
     );
 
     it('proxy to trap remote methods calls and return MethodRequest data', () => {
-        const {client, methods} = initMionClient<MyApi>({baseURL});
+        const {client, methods} = initClient<MyApi>({baseURL});
 
         const expectedAuthSubRequest: RouteSubRequest<any> & HookSubRequest<any> = {
             pointer: ['auth'],
@@ -122,14 +122,14 @@ describe('client', () => {
     });
 
     it('make a route call and get a valid response', async () => {
-        const {methods} = initMionClient<MyApi>({baseURL});
+        const {methods} = initClient<MyApi>({baseURL});
 
         const response = await methods.sayHello(someUser).call(methods.auth('XWYZ-TOKEN'));
         expect(response).toEqual(`Hello John Doe`);
     });
 
     it('throw error if a route call fails', async () => {
-        const {client, methods} = initMionClient<MyApi>({baseURL});
+        const {client, methods} = initClient<MyApi>({baseURL});
 
         let error;
         const expectedError = new PublicError({
@@ -149,7 +149,7 @@ describe('client', () => {
     });
 
     it('throw error if a route is missing hook data', async () => {
-        const {client, methods} = initMionClient<MyApi>({baseURL});
+        const {client, methods} = initClient<MyApi>({baseURL});
 
         let error;
         const expectedError = new PublicError({
@@ -169,7 +169,7 @@ describe('client', () => {
     });
 
     it('validate parameters', async () => {
-        const {client, methods} = initMionClient<MyApi>({baseURL});
+        const {client, methods} = initClient<MyApi>({baseURL});
 
         const responseOk = await methods.sayHello(someUser).validate();
 
@@ -202,7 +202,7 @@ describe('client', () => {
     });
 
     it('prefill and remove prefill from a request', async () => {
-        const {client, methods} = initMionClient<MyApi>({baseURL});
+        const {client, methods} = initClient<MyApi>({baseURL});
 
         const request = methods.auth('ABYWZ-TOKEN');
         await request.prefill();
