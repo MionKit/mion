@@ -8,7 +8,7 @@
 import type {RemoteMethod, ResolvedPublicResponses} from '@mionkit/router';
 import {FunctionReflection, ParamsValidationResponse} from '@mionkit/runtype';
 import {PublicError, StatusCodes, isPublicError} from '@mionkit/core';
-import {SerializeErrors, SubRequest, ValidationRequest} from './types';
+import {SubRequestErrors, SubRequest, ValidationRequest} from './types';
 
 // ############# VALIDATION SERIALIZATION #############
 
@@ -19,15 +19,16 @@ import {SerializeErrors, SubRequest, ValidationRequest} from './types';
 export function validateSubRequests(
     subRequestIds: string[],
     req: ValidationRequest,
-    errors: SerializeErrors = {},
+    errors: SubRequestErrors = new Map(),
     validateRouteHooks = true
-): SerializeErrors {
+): SubRequestErrors {
     if (!req.options.enableValidation) return errors;
     subRequestIds.forEach((id) => {
         validateSubRequest(id, req, errors);
         const remoteMethod = req.remoteMethodsById.get(id);
-        if (validateRouteHooks && remoteMethod?.hookIds?.length)
+        if (validateRouteHooks && remoteMethod?.hookIds?.length) {
             validateSubRequests(remoteMethod.hookIds, req, errors, validateRouteHooks);
+        }
     });
     return errors;
 }
@@ -36,7 +37,7 @@ export function validateSubRequests(
  * Validate subRequest locally using existing RemoteMethods metadata.
  * If there is an error then subRequest is marked as resolved and error is added as subRequest response.
  */
-export function validateSubRequest(id: string, req: ValidationRequest, errors: SerializeErrors = {}): SerializeErrors {
+export function validateSubRequest(id: string, req: ValidationRequest, errors: SubRequestErrors = new Map()): SubRequestErrors {
     if (!req.options.enableSerialization) return errors;
     // subRequest might be undefined if does not require to send parameters or are optional
     const {remoteMethod, subRequest} = getSerializationRequiredData(id, req);
@@ -44,10 +45,10 @@ export function validateSubRequest(id: string, req: ValidationRequest, errors: S
 
     const params = subRequest?.params || [];
     const validationResponse = validateParameters(params, remoteMethod, req.reflectionById.get(id));
-    if (!validationResponse) return errors; // validation is disabled for this method
+    if (!validationResponse) return errors; // if validation is void then validation is disabled for this method
     if (isPublicError(validationResponse)) {
         const error = validationResponse;
-        errors[id] = error;
+        errors.set(id, error);
         // if errors then mark subRequest as resolved
         if (subRequest) {
             subRequest.error = error;
@@ -64,8 +65,8 @@ export function validateSubRequest(id: string, req: ValidationRequest, errors: S
 export function serializeSubRequests(
     subRequestIds: string[],
     req: ValidationRequest,
-    errors: SerializeErrors = {}
-): SerializeErrors {
+    errors: SubRequestErrors = new Map()
+): SubRequestErrors {
     if (!req.options.enableSerialization) return errors;
     subRequestIds.forEach((id) => {
         serializeSubRequest(id, req, errors);
@@ -76,17 +77,17 @@ export function serializeSubRequests(
 }
 
 /** Serialize a single subRequest. If there are is an error subRequest is marked as resolved. */
-export function serializeSubRequest(id: string, req: ValidationRequest, errors: SerializeErrors = {}): SerializeErrors {
+export function serializeSubRequest(id: string, req: ValidationRequest, errors: SubRequestErrors = new Map()): SubRequestErrors {
     if (!req.options.enableSerialization) return errors;
     const {remoteMethod, subRequest} = getSerializationRequiredData(id, req);
     // at this point subRequest might been validated so if not defined then is not required
     if (!subRequest) return errors;
-    if (subRequest.serializedParams || subRequest.isResolved) return errors;
+    if (subRequest.serializedParams) return errors;
 
     const params = subRequest?.params || [];
     const serializedParams = serializeParameters(params, remoteMethod, req.reflectionById.get(id));
     if (isPublicError(serializedParams)) {
-        errors[id] = serializedParams;
+        errors.set(id, serializedParams);
         // if errors then mark subRequest as resolved
         subRequest.error = serializedParams;
         subRequest.isResolved = true;
