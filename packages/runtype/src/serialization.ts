@@ -114,7 +114,8 @@ function getReturnSD(
     reflectionOptions: ReflectionOptions,
     isDeserialize: boolean
 ): FunctionReturnSerializer | FunctionReturnDeSerializer {
-    if (hasUnionErrorTypes(handlerType))
+    // the union hack should be only applied when serializing
+    if (!isDeserialize && hasUnionErrorTypes(handlerType))
         return deserializeReturnWithUnionErrorHack(handlerType, reflectionOptions, isDeserialize);
 
     const sFunctionCreate = isDeserialize ? deserializeFunction : serializeFunction;

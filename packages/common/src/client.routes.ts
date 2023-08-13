@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {GET_REMOTE_METHODS_BY_ID, GET_REMOTE_METHODS_BY_PATH, PublicError} from '@mionkit/core';
+import {GET_REMOTE_METHODS_BY_ID, GET_REMOTE_METHODS_BY_PATH, Obj, PublicError} from '@mionkit/core';
 import {
     RemoteMethod,
     getHookExecutable,
@@ -20,6 +20,7 @@ import {
     getAllExecutablesIds,
     getAnyExecutable,
     Executable,
+    isRouteExecutable,
 } from '@mionkit/router';
 
 export type RemoteMethodsDictionary = {[key: string]: RemoteMethod};
@@ -31,6 +32,19 @@ export const defaultClientRouteOptions = {
     getAllRemoteMethodsMaxNumber: 100,
 };
 
+function addRequiredRemoteMethodsToResponse(id: string, resp: RemoteMethodsDictionary, errorData: Obj): void {
+    if (resp[id]) return;
+    const executable = getHookExecutable(id) || getRouteExecutable(id);
+    if (!executable) {
+        errorData[id] = `Remote Method ${id} not found`;
+        return;
+    }
+    if (isPrivateExecutable(executable)) return;
+
+    resp[id] = getRemoteMethodFromExecutable(executable);
+    resp[id].hookIds?.forEach((hookId) => addRequiredRemoteMethodsToResponse(hookId, resp, errorData));
+}
+
 export const getRemoteMethods = (
     ctx,
     methodsIds: string[],
@@ -38,7 +52,6 @@ export const getRemoteMethods = (
 ): RemoteMethodsDictionary | PublicError => {
     const resp: RemoteMethodsDictionary = {};
     const errorData = {};
-    let hasErrors = false;
     const maxMethods =
         getRouterOptions<ClientRouteOptions>().getAllRemoteMethodsMaxNumber ||
         defaultClientRouteOptions.getAllRemoteMethodsMaxNumber;
@@ -51,17 +64,9 @@ export const getRemoteMethods = (
                   !isPrivateExecutable(getAnyExecutable(id) as Executable)
           )
         : methodsIds;
-    idsToReturn.forEach((id) => {
-        const executable = getHookExecutable(id) || getRouteExecutable(id);
-        if (!executable || isPrivateExecutable(executable)) {
-            errorData[id] = `Remote Method ${id} not found`;
-            hasErrors = true;
-            return;
-        }
-        resp[id] = getRemoteMethodFromExecutable(executable);
-    });
+    idsToReturn.forEach((id) => addRequiredRemoteMethodsToResponse(id, resp, errorData));
 
-    if (hasErrors)
+    if (Object.keys(errorData).length)
         return new PublicError({
             statusCode: 404,
             name: 'Invalid RemoteMethods Request',
