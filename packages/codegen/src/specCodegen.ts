@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {RemoteMethods, RemoteMethodMetadata} from '@mionkit/router';
+import {RemoteApi, RemoteMethodMetadata} from '@mionkit/router';
 import {dirname, parse, relative} from 'path';
 import {hasChildRoutes, type CodegenOptions, type ExportedRoutesMap, type PublicMethodsSpec, type RoutesSpec} from './types';
 import {DEFAULT_PRETTIER_OPTIONS, PUBLIC_METHODS_SPEC_EXPORT_NAME, ROUTES_SPEC_EXPORT_NAME} from './constants';
@@ -39,7 +39,7 @@ export function getRelativeImport(entryFileName: string, outputFileName: string)
     return relativeimport;
 }
 
-function getPublicMethodsAndRoutes(routesList: RemoteMethods<any>[], exportNames: string[]) {
+function getPublicMethodsAndRoutes(routesList: RemoteApi<any>[], exportNames: string[]) {
     const publicMethods: PublicMethodsSpec = {};
     const routes: RoutesSpec = {};
     exportNames.forEach((name, i) => {
@@ -52,12 +52,12 @@ function getPublicMethodsAndRoutes(routesList: RemoteMethods<any>[], exportNames
 }
 
 function recursiveSetHandlerTypeAndCreateRouteExecutables(
-    methods: RemoteMethods<any>,
+    methods: RemoteApi<any>,
     exportName: string,
     currentPointer: string[],
     routeExecutables: Obj
-): RemoteMethods<any> {
-    const newRoutes: RemoteMethods<any> = {};
+): RemoteApi<any> {
+    const newRoutes: RemoteApi<any> = {};
     Object.entries(methods).forEach(([key, item]) => {
         if (!item) return;
         const newPointer = [...currentPointer, key];

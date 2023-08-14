@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {RemoteMethodMetadata, RemoteMethods} from '@mionkit/router';
+import {RemoteMethodMetadata, RemoteApi} from '@mionkit/router';
 import {Options as PrettierOptions} from 'prettier';
 
 export type CodegenOptions = {
@@ -23,11 +23,11 @@ export type CodegenOptions = {
 
 /** A directory of routes exported into the specs file.  */
 export type ExportedRoutesMap = {
-    [key: string]: RemoteMethods<any>;
+    [key: string]: RemoteApi<any>;
 };
 
 export type PublicMethodsSpec = {
-    [key: string]: PublicMethodsSpec | RemoteMethods<any> | null;
+    [key: string]: PublicMethodsSpec | RemoteApi<any> | null;
 };
 
 export type RoutesSpec = {
@@ -36,7 +36,7 @@ export type RoutesSpec = {
 
 // #######  guards #######
 
-export const hasChildRoutes = (entry: RemoteMethodMetadata | RemoteMethods<any> | null): entry is RemoteMethods<any> => {
+export const hasChildRoutes = (entry: RemoteMethodMetadata | RemoteApi<any> | null): entry is RemoteApi<any> => {
     if (!entry) return false;
     return typeof entry._handler !== 'function' && typeof entry._handler !== 'string'; // string is the real value
 };

@@ -10,4 +10,4 @@ export * from './src/constants';
 export * from './src/router';
 export * from './src/dispatch';
 export * from './src/errors';
-export * from './src/remoteMethods';
+export * from './src/remoteMethodsMetadata';

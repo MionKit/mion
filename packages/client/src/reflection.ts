@@ -13,7 +13,7 @@ import {SubRequestErrors, SubRequest, ValidationRequest} from './types';
 // ############# VALIDATION SERIALIZATION #############
 
 /**
- * Validate subRequests locally using existing RemoteMethods metadata.
+ * Validate subRequests locally using existing RemoteApi metadata.
  * If there are errors subRequest is marked as resolved and error is added to the errors  are added as subRequest responses.
  */
 export function validateSubRequests(
@@ -34,7 +34,7 @@ export function validateSubRequests(
 }
 
 /**
- * Validate subRequest locally using existing RemoteMethods metadata.
+ * Validate subRequest locally using existing RemoteApi metadata.
  * If there is an error then subRequest is marked as resolved and error is added as subRequest response.
  */
 export function validateSubRequest(id: string, req: ValidationRequest, errors: SubRequestErrors = new Map()): SubRequestErrors {

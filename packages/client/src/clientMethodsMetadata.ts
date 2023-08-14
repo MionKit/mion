@@ -11,7 +11,7 @@ import {RemoteMethodMetadata} from '@mionkit/router';
 import {FunctionReflection, SerializedTypes, getDeserializedFunctionType, getFunctionReflectionMethods} from '@mionkit/runtype';
 import {STORAGE_KEY} from './constants';
 
-/**  Manually calls mionGetRemoteMethodsInfoById to get RemoteMethods Metadata */
+/**  Manually calls mionGetRemoteMethodsInfoById to get Remote Api Metadata */
 export async function fetchRemoteMethodsMetadata(
     methodIds: string[],
     options: ClientOptions,
