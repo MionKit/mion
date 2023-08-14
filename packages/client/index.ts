@@ -8,6 +8,6 @@
 export * from './src/types';
 export * from './src/constants';
 export * from './src/reflection';
-export * from './src/remoteMethodsInfo';
+export * from './src/clientMethodsMetadata';
 export * from './src/request';
 export * from './src/client';

@@ -39,7 +39,7 @@ import {
 import {ReflectionOptions, getFunctionReflectionMethods} from '@mionkit/runtype';
 import {bodyParserHooks} from './jsonBodyParser';
 import {RouteError, StatusCodes, getRouterItemId, setErrorOptions, getRoutePath} from '@mionkit/core';
-import {getRemoteMethodsMetadata, resetRemoteMethodsMetadata} from './remoteMethods';
+import {getRemoteMethodsMetadata, resetRemoteMethodsMetadata} from './remoteMethodsMetadata';
 
 type RouterKeyEntryList = [string, RouterEntry][];
 type RoutesWithId = {
