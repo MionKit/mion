@@ -69,8 +69,8 @@ export const getRemoteMethods = (
     if (Object.keys(errorData).length)
         return new PublicError({
             statusCode: 404,
-            name: 'Invalid RemoteMethods Request',
-            message: 'RemoteMethods not found',
+            name: 'Invalid Metadata Request',
+            message: 'Errors getting Remote Methods Metadata',
             errorData,
         });
     return resp;
@@ -83,7 +83,11 @@ export const getRouteRemoteMethods = (
 ): RemoteMethodsDictionary | PublicError => {
     const executables = getRouteExecutionPath(path);
     if (!executables)
-        return new PublicError({statusCode: 404, name: 'Invalid RemoteMethods Request', message: `Route ${path} not found`});
+        return new PublicError({
+            statusCode: 404,
+            name: 'Invalid Metadata Request',
+            message: `Route ${path} not found`,
+        });
     const privateExecutables = executables.filter((e) => !isPrivateExecutable(e));
     return getRemoteMethods(
         ctx,

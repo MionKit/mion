@@ -20,7 +20,7 @@ import {
 import {ParamsValidationResponse} from '@mionkit/runtype';
 import {PublicError, StatusCodes, getRoutePath, isPublicError} from '@mionkit/core';
 import {STORAGE_KEY} from './constants';
-import {fetchRemoteMethodsMetadata} from './remoteMethodsInfo';
+import {fetchRemoteMethodsMetadata} from './clientMethodsMetadata';
 import {deserializeResponseBody, serializeSubRequests, validateSubRequests} from './reflection';
 
 export class MionRequest<RR extends RouteSubRequest<any>, HookRequestsList extends HookSubRequest<any>[]> {

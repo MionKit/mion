@@ -224,9 +224,9 @@ describe('Client Routes should', () => {
         };
         const response = await dispatchRoute(methodsPath, request, {});
         const expectedResponse = new PublicError({
-            message: 'RemoteMethods not found',
             statusCode: 404,
-            name: 'Invalid RemoteMethods Request',
+            name: 'Invalid Metadata Request',
+            message: 'Errors getting Remote Methods Metadata',
             errorData: {
                 parse: 'Remote Method parse not found',
                 helloWorld: 'Remote Method helloWorld not found',
@@ -250,9 +250,9 @@ describe('Client Routes should', () => {
         };
         const response = await dispatchRoute(routeMethodsPath, request, {});
         const expectedResponse = new PublicError({
-            message: 'Route /abcd not found',
             statusCode: 404,
-            name: 'Invalid RemoteMethods Request',
+            name: 'Invalid Metadata Request',
+            message: 'Route /abcd not found',
         });
         expect(response.body[routeMethodsId]).toEqual(expectedResponse);
     });

@@ -6,7 +6,7 @@
  * ######## */
 
 import {DEFAULT_ROUTE_OPTIONS} from './constants';
-import {getRemoteMethodsMetadata} from './remoteMethods';
+import {getRemoteMethodsMetadata} from './remoteMethodsMetadata';
 import {registerRoutes, initRouter, resetRouter, getRouteDefaultParams} from './router';
 import {getFunctionReflectionMethods} from '@mionkit/runtype';
 import {CallContext, Routes} from './types';
