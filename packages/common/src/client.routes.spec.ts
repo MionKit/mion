@@ -51,7 +51,7 @@ describe('Client Routes should', () => {
             enableValidation: true,
             enableSerialization: true,
             params: [],
-            executionPathPointers: [['auth'], ['users', 'getUser'], ['last']],
+            hookIds: ['auth', 'last'],
         },
         'users-setUser': {
             isRoute: true,
@@ -62,7 +62,7 @@ describe('Client Routes should', () => {
             enableValidation: true,
             enableSerialization: true,
             params: [],
-            executionPathPointers: [['auth'], ['users', 'setUser'], ['last']],
+            hookIds: ['auth', 'last'],
         },
         'users-pets-getUserPet': {
             isRoute: true,
@@ -73,7 +73,7 @@ describe('Client Routes should', () => {
             enableValidation: true,
             enableSerialization: true,
             params: [],
-            executionPathPointers: [['auth'], ['users', 'pets', 'getUserPet'], ['last']],
+            hookIds: ['auth', 'last'],
         },
         'pets-getPet': {
             isRoute: true,
@@ -84,7 +84,7 @@ describe('Client Routes should', () => {
             enableValidation: true,
             enableSerialization: true,
             params: [],
-            executionPathPointers: [['auth'], ['pets', 'getPet'], ['last']],
+            hookIds: ['auth', 'last'],
         },
         'pets-setPet': {
             isRoute: true,
@@ -95,7 +95,7 @@ describe('Client Routes should', () => {
             enableValidation: true,
             enableSerialization: true,
             params: [],
-            executionPathPointers: [['auth'], ['pets', 'setPet'], ['last']],
+            hookIds: ['auth', 'last'],
         },
         auth: {
             isRoute: false,
@@ -130,12 +130,12 @@ describe('Client Routes should', () => {
 
     afterEach(() => resetRouter());
 
-    it('get Remote Methods info from id', async () => {
+    it('get Remote Hooks Only info from id', async () => {
         initRouter({sharedDataFactory: getSharedData});
         registerRoutes(routes);
         registerRoutes(clientRoutes);
 
-        const methodIdList = ['auth', 'users-getUser', 'users-setUser', 'users-pets-getUserPet', 'last']; // all public methods
+        const methodIdList = ['auth', 'last']; // all public hooks
         const request: RawRequest = {
             headers: {},
             body: JSON.stringify({
@@ -146,9 +146,28 @@ describe('Client Routes should', () => {
         const response = await dispatchRoute(methodsPath, request, {});
         const expectedResponse = {
             auth: remoteMethods.auth,
+            last: remoteMethods['last'],
+        };
+        expect(response.body[methodsId]).toEqual(expectedResponse);
+    });
+
+    it('get Remote Route info from id, it should also return the hooks from the execution path', async () => {
+        initRouter({sharedDataFactory: getSharedData});
+        registerRoutes(routes);
+        registerRoutes(clientRoutes);
+
+        const methodIdList = ['users-getUser']; // all public methods
+        const request: RawRequest = {
+            headers: {},
+            body: JSON.stringify({
+                auth: ['token'], // hook is required (request should be authenticated)
+                [methodsId]: [methodIdList],
+            }),
+        };
+        const response = await dispatchRoute(methodsPath, request, {});
+        const expectedResponse = {
+            auth: remoteMethods.auth,
             'users-getUser': remoteMethods['users-getUser'],
-            'users-setUser': remoteMethods['users-setUser'],
-            'users-pets-getUserPet': remoteMethods['users-pets-getUserPet'],
             last: remoteMethods['last'],
         };
         expect(response.body[methodsId]).toEqual(expectedResponse);

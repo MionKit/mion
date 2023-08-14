@@ -11,7 +11,7 @@ export const PUBLIC_METHODS = {
             enableValidation: true,
             enableSerialization: true,
             params: ['token'],
-            headerName: 'Authorization',
+            headerName: 'authorization',
         },
         users: {
             getUser: {
@@ -24,6 +24,7 @@ export const PUBLIC_METHODS = {
                 enableSerialization: true,
                 params: ['id'],
                 executionPathPointers: [['auth'], ['users', 'getUser'], ['users', 'totalUsers']],
+                hookIds: ['auth', 'users-totalUsers'],
             },
             setUser: {
                 isRoute: true,
@@ -35,6 +36,7 @@ export const PUBLIC_METHODS = {
                 enableSerialization: true,
                 params: ['user', 'user2'],
                 executionPathPointers: [['auth'], ['users', 'setUser'], ['users', 'totalUsers']],
+                hookIds: ['auth', 'users-totalUsers'],
             },
             totalUsers: {
                 isRoute: false,
@@ -58,6 +60,7 @@ export const PUBLIC_METHODS = {
                 enableSerialization: true,
                 params: ['id'],
                 executionPathPointers: [['auth'], ['pets', 'getPet']],
+                hookIds: ['auth'],
             },
             setPet: {
                 isRoute: true,
@@ -69,6 +72,7 @@ export const PUBLIC_METHODS = {
                 enableSerialization: true,
                 params: ['pet'],
                 executionPathPointers: [['auth'], ['pets', 'setPet']],
+                hookIds: ['auth'],
             },
         },
         utils: {
@@ -82,6 +86,7 @@ export const PUBLIC_METHODS = {
                 enableSerialization: true,
                 params: ['s', 'n'],
                 executionPathPointers: [['auth'], ['utils', 'getNumber']],
+                hookIds: ['auth'],
             },
         },
         getItem: {
@@ -94,6 +99,7 @@ export const PUBLIC_METHODS = {
             enableSerialization: true,
             params: ['item'],
             executionPathPointers: [['auth'], ['getItem']],
+            hookIds: ['auth'],
         },
         getPetOrUser: {
             isRoute: true,
@@ -105,6 +111,7 @@ export const PUBLIC_METHODS = {
             enableSerialization: true,
             params: ['item'],
             executionPathPointers: [['auth'], ['getPetOrUser']],
+            hookIds: ['auth'],
         },
     },
     authApi: {
@@ -118,6 +125,7 @@ export const PUBLIC_METHODS = {
             enableSerialization: true,
             params: ['email', 'pass'],
             executionPathPointers: [['login']],
+            hookIds: [],
         },
     },
 };

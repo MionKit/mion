@@ -15,7 +15,7 @@
   <img src="https://img.shields.io/badge/license-MIT-97ca00.svg?style=flat-square&maxAge=99999999" alt="npm"  style="max-width:100%;">
 </p>
 
-# `@mion/router`
+# `@mionkit/router`
 
 🚀 Lightweight and fast HTTP router with automatic validation and serialization out of the box.
 
@@ -35,6 +35,18 @@ We explicitly mention **RPC like** as the router is still designed to work over 
 - Better developer experience
 
 Please have a look to bellow great Presentation for more info about each different type of API and the pros and cons of each one: [Nate Barbettini – API Throwdown: RPC vs REST vs GraphQL](https://www.youtube.com/watch?v=IvsANO0qZEg)
+
+#### `@mionkit/client`
+
+The [client package](https://www.npmjs.com/package/@mionkit/client) can be used as a fully typed client for mion Apis, it does not requires any compilation step or api schema generation (your api is your schema).
+
+Supports multiple features:
+
+- Fully typed Apis with autocompletion and type checking for all methods, parameters and return values.
+- Automattic validation and serialization out of the box.
+- Local validation in the client (no need to query the server), useful for form validation, etc...
+- Prefill parameters across multiple calls, useful for authorization, session and a replacement for cookies.
+- Runtime types.
 
 ## `Routes`
 
@@ -125,6 +137,8 @@ In cases were the data is received/sent in the headers a 'Header Hook' can be us
 When using a header hook [Soft Type Conversion](https://docs.deepkit.io/english/serialization.html#serialisation-loosely-convertion) is used, this means strings like '1' , '0', 'true', 'false'
 will be converted to `boolean` and numeric strings like '5' , '100' will be converted to a `number`.
 
+**! Note header hames are case insensitive !**
+
 ```ts
 // examples/hooks-header-definition.routes.ts
 
@@ -189,21 +203,21 @@ registerRoutes({
 
 ## Request & Response
 
-`Route parameters` are passed as an Array in the request body or possibly a header, in a field with the same name as the route/hook. Elements in the array must have the same order as the function parameters.
+`Route parameters` are passed as an Array in the request body or headers, field with the same name (id) as the route/hook. Elements in the array must have the same order as the method's parameters.
 
-`Route response` is send back in the response body in a field with the same name as the route/hook and contains a tuple [`routeResponse`, `RouteError`].
+`Route response` is send back in the response body in a field with the same name (id) as the route/hook.
 
-| Request URL      | Request Body                           | Response Body                                 |
-| ---------------- | -------------------------------------- | --------------------------------------------- |
-| `/api/sayHello`  | `{"/api/sayHello": ["John"] }`         | `{"/api/sayHello": ["Hello John."]}`          |
-| `/api/sayHello2` | `{"/api/sayHello2": ["Adan", "Eve"] }` | `{"/api/sayHello2": ["Hello Adan and Eve."]}` |
+| Request Path     | Request Body                      | Response Body                          |
+| ---------------- | --------------------------------- | -------------------------------------- |
+| `/api/sayHello`  | `{"sayHello": ["John"] }`         | `{"sayHello": "Hello John."}`          |
+| `/api/sayHello2` | `{"sayHello2": ["Adan", "Eve"] }` | `{"sayHello2": "Hello Adan and Eve."}` |
 
-The reason for this request/response formats is to directly match each executed function in the server with it's input parameters and response values. This architecture will allow combining multiple request on a single one for future version of the router.
+The reason for this format is to directly identify each method that is receiving/returning data in the Api within a request independently of which route (Request Path) has been called. This architecture will allow combining multiple request on a single one for future version of the router.
 
 #### Request type
 
 ```ts
-// src/types.ts#L202-L216
+// src/types.ts#L213-L227
 
 /** Router's own request object, do not confuse with the underlying raw request */
 export type Request = {
@@ -212,7 +226,7 @@ export type Request = {
   /** parsed body */
   readonly body: Readonly<Obj>;
   /** All errors thrown during the call are stored here so they can bee logged or handler by a some error handler hook */
-  readonly internalErrors: Readonly<RouteError[]>;
+  readonly internalErrors: Readonly<(RouteError | PublicError)[]>;
 };
 
 /** Any request used by the router must follow this interface */
@@ -222,41 +236,10 @@ export type RawRequest = {
 };
 ```
 
-#### Response format
-
-The `response.body` contain responses for any hook or route that has been executed, each individual response can be successful or failed, and follows next format:
-
-```js
-{
-  <routeName>: [routeResponse, RouteError],
-  <hookName>: [hookResponse, RouteError],
-}
-```
-
-- `ReturnValue = response.body[<routeName>][0]`
-- `ReturnError = response.body[<routeName>][1]`
-
-Ie: calling the route `/api/sayHello` with an invalid json body would return bellow response 👇
-
-`HTTP 400 Invalid Request`
-
-```json
-{
-  // mionParseJsonRequestBody is the name of the json parser Raw Hook used internally by mion router
-  "mionParseJsonRequestBody": [
-    null, // return value is null
-    {"statusCode": 400, "name": "Invalid Request", "message": "Wrong request body ..."}
-  ]
-  // node there is no field `/api/sayHello` in the response as the route never got executed
-}
-```
-
-Remember: each hook/route is always send/returned in a field with the `hook` or `route` name!
-
 #### Response type
 
 ```ts
-// src/types.ts#L218-L229
+// src/types.ts#L229-L244
 
 /** Router's own response object, do not confuse with the underlying raw response */
 export type Response = {
@@ -266,10 +249,14 @@ export type Response = {
   /** response headers */
   readonly headers: Headers;
   /** the router response data, body should not be modified manually so marked as Read Only */
-  readonly body: Readonly<PublicResponses>;
+  readonly body: Readonly<ResolvedPublicResponses>;
   /** json encoded response, contains data and errors if there are any. */
   readonly json: string;
 };
+
+export type ParsedHeader = string | number | boolean | (string | number | boolean)[];
+export type RawHeader = string | number | boolean | undefined | null | (string | number | boolean | undefined | null)[];
+export type Headers = {[key: string]: string | boolean | number};
 ```
 
 ## `Execution Path`
@@ -560,7 +547,7 @@ export const apiSpec = registerRoutes(routes);
 #### Call Context Type
 
 ```ts
-// src/types.ts#L185-L195
+// src/types.ts#L196-L206
 
 /** The call Context object passed as first parameter to any hook or route */
 export type CallContext<SharedData = any> = {
@@ -716,7 +703,7 @@ module.exports = {
 ## `Router Options`
 
 ```ts
-// src/constants.ts#L37-L66
+// src/constants.ts#L35-L64
 
 export const DEFAULT_ROUTE_OPTIONS: Readonly<RouterOptions> = {
   /** Prefix for all routes, i.e: api/v1.
