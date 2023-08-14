@@ -122,9 +122,7 @@ export function registerRoutes<R extends Routes>(routes: R): RemoteMethods<R> {
     endHooks = getExecutablesFromHooksCollection(endHooksDef);
     recursiveFlatRoutes(routes);
     // we only want to get information about the routes when creating api spec
-    if (routerOptions.getPublicRoutesData || process.env.GENERATE_ROUTER_SPEC === 'true') {
-        return getRemoteMethods(routes);
-    }
+    if (shouldFullGenerateSpec()) return getRemoteMethods(routes);
     return {} as RemoteMethods<R>;
 }
 
@@ -195,6 +193,10 @@ export function getAllExecutablesIds(): string[] {
     if (allExecutablesIds) return allExecutablesIds;
     allExecutablesIds = [...routesById.keys(), ...hooksById.keys(), ...rawHooksById.keys()];
     return allExecutablesIds;
+}
+
+export function shouldFullGenerateSpec(): boolean {
+    return routerOptions.getPublicRoutesData || process.env.GENERATE_ROUTER_SPEC === 'true';
 }
 
 // ############# PRIVATE METHODS #############

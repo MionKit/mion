@@ -13,6 +13,7 @@ import {clientRoutes} from '@mionkit/common';
 import {Server} from 'http';
 import {PublicError} from '@mionkit/core';
 
+// TODO move this into global jest config file if it is required by more tests
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const Storage = require('dom-storage');
 global.localStorage = new Storage(null, {strict: true});
