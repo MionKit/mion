@@ -8,7 +8,7 @@
 import type {RemoteMethodMetadata, ResolvedPublicResponses} from '@mionkit/router';
 import {FunctionReflection, ParamsValidationResponse} from '@mionkit/runtype';
 import {PublicError, StatusCodes, isPublicError} from '@mionkit/core';
-import {SubRequestErrors, SubRequest, ValidationRequest} from './types';
+import {RequestErrors, SubRequest, ValidationRequest} from './types';
 
 // ############# VALIDATION SERIALIZATION #############
 
@@ -19,10 +19,10 @@ import {SubRequestErrors, SubRequest, ValidationRequest} from './types';
 export function validateSubRequests(
     subRequestIds: string[],
     req: ValidationRequest,
-    errors: SubRequestErrors = new Map(),
+    errors: RequestErrors,
     validateRouteHooks = true
-): SubRequestErrors {
-    if (!req.options.enableValidation) return errors;
+): void {
+    if (!req.options.enableValidation) return;
     subRequestIds.forEach((id) => {
         validateSubRequest(id, req, errors);
         const methodMeta = req.metadataById.get(id);
@@ -30,22 +30,22 @@ export function validateSubRequests(
             validateSubRequests(methodMeta.hookIds, req, errors, validateRouteHooks);
         }
     });
-    return errors;
+    return;
 }
 
 /**
  * Validate subRequest locally using existing RemoteApi metadata.
  * If there is an error then subRequest is marked as resolved and error is added as subRequest response.
  */
-export function validateSubRequest(id: string, req: ValidationRequest, errors: SubRequestErrors = new Map()): SubRequestErrors {
-    if (!req.options.enableSerialization) return errors;
+export function validateSubRequest(id: string, req: ValidationRequest, errors: RequestErrors): void {
+    if (!req.options.enableSerialization) return;
     // subRequest might be undefined if does not require to send parameters or are optional
     const {methodMeta, subRequest} = getSerializationRequiredData(id, req);
-    if (subRequest?.validationResponse || subRequest?.isResolved) return errors;
+    if (subRequest?.validationResponse || subRequest?.isResolved) return;
 
     const params = subRequest?.params || [];
     const validationResponse = validateParameters(params, methodMeta, req.reflectionById.get(id));
-    if (!validationResponse) return errors; // if validation is void then validation is disabled for this method
+    if (!validationResponse) return; // if validation is void then validation is disabled for this method
     if (isPublicError(validationResponse)) {
         const error = validationResponse;
         errors.set(id, error);
@@ -58,31 +58,27 @@ export function validateSubRequest(id: string, req: ValidationRequest, errors: S
     } else if (subRequest) {
         subRequest.validationResponse = validationResponse;
     }
-    return errors;
+    return;
 }
 
 /** Serialize subRequests. If there are any errors subRequests are marked as resolved. */
-export function serializeSubRequests(
-    subRequestIds: string[],
-    req: ValidationRequest,
-    errors: SubRequestErrors = new Map()
-): SubRequestErrors {
-    if (!req.options.enableSerialization) return errors;
+export function serializeSubRequests(subRequestIds: string[], req: ValidationRequest, errors: RequestErrors): void {
+    if (!req.options.enableSerialization) return;
     subRequestIds.forEach((id) => {
         serializeSubRequest(id, req, errors);
         const methodMeta = req.metadataById.get(id);
         if (methodMeta?.hookIds?.length) serializeSubRequests(methodMeta.hookIds, req, errors);
     });
-    return errors;
+    return;
 }
 
 /** Serialize a single subRequest. If there are is an error subRequest is marked as resolved. */
-export function serializeSubRequest(id: string, req: ValidationRequest, errors: SubRequestErrors = new Map()): SubRequestErrors {
-    if (!req.options.enableSerialization) return errors;
+export function serializeSubRequest(id: string, req: ValidationRequest, errors: RequestErrors): void {
+    if (!req.options.enableSerialization) return;
     const {methodMeta, subRequest} = getSerializationRequiredData(id, req);
     // at this point subRequest might been validated so if not defined then is not required
-    if (!subRequest) return errors;
-    if (subRequest.serializedParams) return errors;
+    if (!subRequest) return;
+    if (subRequest.serializedParams) return;
 
     const params = subRequest?.params || [];
     const serializedParams = serializeParameters(params, methodMeta, req.reflectionById.get(id));
@@ -94,9 +90,10 @@ export function serializeSubRequest(id: string, req: ValidationRequest, errors: 
     } else {
         subRequest.serializedParams = serializedParams;
     }
-    return errors;
+    return;
 }
 
+// if there is any error it will be inserted in the body as a route return error
 export function deserializeResponseBody(responseBody: ResolvedPublicResponses, req: ValidationRequest): ResolvedPublicResponses {
     const deSerializedBody = responseBody;
     Object.entries(deSerializedBody).forEach(([key, remoteHandlerResponse]) => {

@@ -15,7 +15,7 @@ import {
     RequestBody,
     RequestHeaders,
     RouteSubRequest,
-    SubRequestErrors,
+    RequestErrors,
 } from './types';
 import {ParamsValidationResponse} from '@mionkit/runtype';
 import {PublicError, StatusCodes, getRoutePath, isPublicError} from '@mionkit/core';
@@ -42,81 +42,26 @@ export class MionRequest<RR extends RouteSubRequest<any>, HookRequestsList exten
         if (hooks) hooks.forEach((hook) => this.addSubRequest(hook));
     }
 
+    /**  Calls a remote route. If anythings fails or remote route returns an error then throws a RequestErrors Map */
     async call(): Promise<ResolvedPublicResponses> {
-        await this.prepareRequest();
-        await this.executeRequest();
-        return this.parseResponse();
-    }
-
-    async validateParams(subReqList?: SubRequest<any>[]): Promise<ParamsValidationResponse[]> {
-        if (subReqList) subReqList.forEach((subRequest) => this.addSubRequest(subRequest));
+        const errors: RequestErrors = new Map();
         try {
             const subRequestIds = Object.keys(this.subRequests);
             await fetchRemoteMethodsMetadata(subRequestIds, this.options, this.metadataById, this.reflectionById);
 
-            const validateErrors = validateSubRequests(subRequestIds, this, new Map(), false);
-            if (validateErrors.size) return Promise.reject(validateErrors);
-            return Object.values(this.subRequests).map((subRequest) => subRequest.validationResponse as ParamsValidationResponse);
+            this.restorePersistedSubRequest(errors);
+            if (errors.size) return Promise.reject(errors);
+
+            validateSubRequests(subRequestIds, this, errors);
+            if (errors.size) return Promise.reject(errors);
+
+            serializeSubRequests(subRequestIds, this, errors);
+            if (errors.size) return Promise.reject(errors);
         } catch (error: any) {
-            return Promise.reject(this.routeError(error, 'Error preparing request'));
+            this.routeError(error, 'Error preparing request', errors);
+            return Promise.reject(errors);
         }
-    }
 
-    async prefill(subReqList?: SubRequest<any>[]): Promise<void> {
-        if (subReqList) subReqList.forEach((subRequest) => this.addSubRequest(subRequest));
-        try {
-            const subRequestIds = Object.keys(this.subRequests);
-            await fetchRemoteMethodsMetadata(subRequestIds, this.options, this.metadataById, this.reflectionById);
-
-            const validateErrors = validateSubRequests(subRequestIds, this, new Map(), false);
-            if (validateErrors.size) return Promise.reject(validateErrors);
-
-            const serializeErrors = serializeSubRequests(subRequestIds, this);
-            if (serializeErrors.size) return Promise.reject(serializeErrors);
-
-            const persistErrors = this.persistedSubRequest();
-            if (persistErrors.size) return Promise.reject(persistErrors);
-            return;
-        } catch (error: any) {
-            return Promise.reject(this.routeError(error, 'Error preparing request'));
-        }
-    }
-
-    removePrefill(subRequests?: SubRequest<any>[]): SubRequestErrors {
-        if (subRequests) subRequests.forEach((subRequest) => this.addSubRequest(subRequest));
-        return this.removePersistedSubRequest();
-    }
-
-    addSubRequest(subRequest: SubRequest<any>) {
-        if (subRequest.isResolved) {
-            throw new Error(`SubRequest ${subRequest.id} is already resolved`);
-        }
-        this.subRequests[subRequest.id] = subRequest;
-    }
-
-    // ############# PRIVATE METHODS REQUEST #############
-
-    private async prepareRequest(): Promise<void> {
-        try {
-            const subRequestIds = Object.keys(this.subRequests);
-            await fetchRemoteMethodsMetadata(subRequestIds, this.options, this.metadataById, this.reflectionById);
-
-            const persistErrors = this.restorePersistedSubRequest();
-            if (persistErrors.size) return Promise.reject(persistErrors);
-
-            const validateErrors = validateSubRequests(subRequestIds, this);
-            if (validateErrors.size) {
-                return Promise.reject(validateErrors);
-            }
-
-            const serializeErrors = serializeSubRequests(subRequestIds, this);
-            if (serializeErrors.size) return Promise.reject(serializeErrors);
-        } catch (error: any) {
-            return Promise.reject(this.routeError(error, 'Error preparing request'));
-        }
-    }
-
-    private async executeRequest(): Promise<void> {
         try {
             const {headers, body} = this.getRequestData();
             const url = new URL(this.path, this.options.baseURL);
@@ -132,44 +77,103 @@ export class MionRequest<RR extends RouteSubRequest<any>, HookRequestsList exten
             this.response = await fetch(url, fetchOptions);
             this.rawResponseBody = await this.response.json();
         } catch (error: any) {
-            return Promise.reject(this.routeError(error, 'Error executing request'));
+            this.routeError(error, 'Error executing request', errors);
+            return Promise.reject(errors);
         }
-    }
 
-    private parseResponse(): Promise<never> | ResolvedPublicResponses {
         try {
-            let hasErrors = false;
+            // if there are any errors they are part of the deserialized body
             const deserialized = deserializeResponseBody(this.rawResponseBody as ResolvedPublicResponses, this);
             Object.entries(this.subRequests).forEach(([id, methodMeta]) => {
                 const resp = this.getResponseValueFromBodyOrHeader(id, deserialized, (this.response as Response).headers);
                 methodMeta.isResolved = true;
                 if (isPublicError(resp)) {
                     methodMeta.error = resp;
-                    hasErrors = true;
+                    errors.set(id, resp);
                 } else {
                     methodMeta.return = resp;
                 }
             });
 
-            if (hasErrors) return Promise.reject(deserialized);
+            if (errors.size) return Promise.reject(errors);
             return deserialized;
         } catch (error) {
-            return Promise.reject(this.routeError(error, 'Error parsing response'));
+            this.routeError(error, 'Error parsing response', errors);
+            return Promise.reject(errors);
         }
     }
 
-    private routeError(error: any, stageMessage: string): SubRequestErrors {
+    /**  Validate params. If can't run validation then throws a RequestErrors Map */
+    async validateParams(subReqList?: SubRequest<any>[]): Promise<ParamsValidationResponse[]> {
+        if (subReqList) subReqList.forEach((subRequest) => this.addSubRequest(subRequest));
+        const errors: RequestErrors = new Map();
+        try {
+            const subRequestIds = Object.keys(this.subRequests);
+            await fetchRemoteMethodsMetadata(subRequestIds, this.options, this.metadataById, this.reflectionById);
+
+            validateSubRequests(subRequestIds, this, errors, false);
+            if (errors.size) return Promise.reject(errors);
+
+            return Object.values(this.subRequests).map((subRequest) => subRequest.validationResponse as ParamsValidationResponse);
+        } catch (error: any) {
+            this.routeError(error, 'Error preparing request', errors);
+            return Promise.reject(errors);
+        }
+    }
+
+    /**  Prefills and stores SubRequest. If validation, serialization or cant store then throws a RequestErrors Map */
+    async prefill(subReqList?: SubRequest<any>[]): Promise<void> {
+        if (subReqList) subReqList.forEach((subRequest) => this.addSubRequest(subRequest));
+        const errors: RequestErrors = new Map();
+        try {
+            const subRequestIds = Object.keys(this.subRequests);
+            await fetchRemoteMethodsMetadata(subRequestIds, this.options, this.metadataById, this.reflectionById);
+
+            validateSubRequests(subRequestIds, this, errors, false);
+            if (errors.size) return Promise.reject(errors);
+
+            serializeSubRequests(subRequestIds, this, errors);
+            if (errors.size) return Promise.reject(errors);
+
+            this.persistedSubRequest(errors);
+            if (errors.size) return Promise.reject(errors);
+
+            return;
+        } catch (error: any) {
+            this.routeError(error, 'Error preparing request', errors);
+            return Promise.reject(errors);
+        }
+    }
+
+    // this method does not need to be async, is only so it has the same signature as the rest of methods
+    /**  Removes Prefills and stores SubRequest. If there is an error the throws RequestErrors Map */
+    async removePrefill(subRequests?: SubRequest<any>[]): Promise<void> {
+        if (subRequests) subRequests.forEach((subRequest) => this.addSubRequest(subRequest));
+
+        const errors: RequestErrors = new Map();
+        this.removePersistedSubRequest(errors);
+        if (errors.size) return Promise.reject(errors);
+    }
+
+    addSubRequest(subRequest: SubRequest<any>) {
+        if (subRequest.isResolved) {
+            throw new Error(`SubRequest ${subRequest.id} is already resolved`);
+        }
+        this.subRequests[subRequest.id] = subRequest;
+    }
+
+    // ############# PRIVATE METHODS #############
+
+    private routeError(error: any, stageMessage: string, errors: RequestErrors): void {
         const message = error?.message ? `${stageMessage}: ${error.message}` : `${stageMessage}: Unknown Error`;
-        const errors = new Map();
         errors.set(
             this.requestId,
             new PublicError({
                 statusCode: StatusCodes.BAD_REQUEST,
-                name: 'Request Error',
+                name: error.name || 'Unknown Error',
                 message,
             })
         );
-        return errors;
     }
 
     private getRequestData() {
@@ -198,8 +202,7 @@ export class MionRequest<RR extends RouteSubRequest<any>, HookRequestsList exten
     }
 
     // subRequests must be already validated and serialized (so only valid requests are stored)
-    private restorePersistedSubRequest(): SubRequestErrors {
-        const errors: SubRequestErrors = new Map();
+    private restorePersistedSubRequest(errors: RequestErrors): void {
         const remoteRoute = this.metadataById.get(this.requestId);
         if (!remoteRoute) {
             errors.set(
@@ -210,7 +213,7 @@ export class MionRequest<RR extends RouteSubRequest<any>, HookRequestsList exten
                     message: `Metadata for Route '${this.requestId} not found.'.`,
                 })
             );
-            return errors;
+            return;
         }
         const missingIds = remoteRoute.hookIds?.filter((id) => !!id && this.requestId !== id) || [];
         missingIds.forEach((id) => {
@@ -234,11 +237,10 @@ export class MionRequest<RR extends RouteSubRequest<any>, HookRequestsList exten
                 );
             }
         });
-        return errors;
+        return;
     }
 
-    private persistedSubRequest(): SubRequestErrors {
-        const errors: SubRequestErrors = new Map();
+    private persistedSubRequest(errors: RequestErrors): void {
         Object.keys(this.subRequests).forEach((id) => {
             const subRequest = this.subRequests[id];
             const methodMeta = this.metadataById.get(id);
@@ -267,11 +269,10 @@ export class MionRequest<RR extends RouteSubRequest<any>, HookRequestsList exten
                 );
             }
         });
-        return errors;
+        return;
     }
 
-    private removePersistedSubRequest(): SubRequestErrors {
-        const errors: SubRequestErrors = new Map();
+    private removePersistedSubRequest(errors: RequestErrors): void {
         Object.keys(this.subRequests).forEach((id) => {
             try {
                 const storageKey = this.getSubRequestStorageKey(id);
@@ -287,7 +288,7 @@ export class MionRequest<RR extends RouteSubRequest<any>, HookRequestsList exten
                 );
             }
         });
-        return errors;
+        return;
     }
 
     private getSubRequestStorageKey(id: string) {

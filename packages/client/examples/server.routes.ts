@@ -3,21 +3,28 @@ import {Routes, registerRoutes} from '@mionkit/router';
 import {clientRoutes} from '@mionkit/common';
 import {Logger} from 'Logger';
 
-export type User = {name: string; surname: string};
+export type User = {id: string; name: string; surname: string};
+export type Order = {id: string; date: Date; userId: string; totalUSD: number};
 const routes = {
     auth: {
-        headerName: 'Authorization',
-        canReturnData: true,
-        headerHook: (ctx, token: string): User | PublicError => {
-            if (token === 'myToken-XYZ') return {name: 'My', surname: 'user'};
-            return new PublicError({statusCode: 401, message: 'Unauthorized', name: 'Unauthorized'});
+        headerName: 'authorization',
+        headerHook: (ctx, token: string): void | PublicError => {
+            if (!token) return new PublicError({statusCode: 401, message: 'Not Authorized', name: ' Not Authorized'});
         },
     },
-    sayHello: {route: (ctx, user: User): string | PublicError => `Hello ${user.name} ${user.surname}`},
-    alwaysFails: (ctx, user: User): User | PublicError =>
-        new PublicError({statusCode: 500, message: 'Something fails', name: 'UnknownError'}),
+    users: {
+        getById: (ctx, id: string): User | PublicError => ({id, name: 'John', surname: 'Smith'}),
+        delete: (ctx, id: string): string | PublicError => id,
+        create: (ctx, user: Omit<User, 'id'>): User | PublicError => ({id: 'USER-123', ...user}),
+    },
+    orders: {
+        getById: (ctx, id: string): Order | PublicError => ({id, date: new Date(), userId: 'USER-123', totalUSD: 120}),
+        delete: (ctx, id: string): string | PublicError => id,
+        create: (ctx, order: Omit<Order, 'id'>): Order | PublicError => ({id: 'ORDER-123', ...order}),
+    },
     utils: {
-        sumTwo: (ctx, a: number): number => a + 2,
+        sum: (ctx, a: number, b: number): number => a + b,
+        sayHello: (ctx, user: User): string => `Hello ${user.name} ${user.surname}`,
     },
     log: {
         forceRunOnError: true,
