@@ -6,7 +6,7 @@
  * ######## */
 
 import {DEFAULT_ROUTE_OPTIONS} from './constants';
-import {getRemoteMethods} from './remoteMethods';
+import {getRemoteMethodsMetadata} from './remoteMethods';
 import {registerRoutes, initRouter, resetRouter, getRouteDefaultParams} from './router';
 import {getFunctionReflectionMethods} from '@mionkit/runtype';
 import {CallContext, Routes} from './types';
@@ -190,10 +190,10 @@ describe('Public Mothods should', () => {
     it('should throw an error when route or hook is not already created in the router', () => {
         const testR1 = {route1};
         const testR2 = {hook1: {hook: paramsHook}};
-        expect(() => getRemoteMethods(testR1)).toThrow(
+        expect(() => getRemoteMethodsMetadata(testR1)).toThrow(
             `Route or Hook route1 not found. Please check you have called router.registerRoutes first.`
         );
-        expect(() => getRemoteMethods(testR2)).toThrow(
+        expect(() => getRemoteMethodsMetadata(testR2)).toThrow(
             `Route or Hook hook1 not found. Please check you have called router.registerRoutes first.`
         );
     });
@@ -204,7 +204,7 @@ describe('Public Mothods should', () => {
             sayHello: (ctx: CallContext, name: string): string => `Hello ${name}`,
         };
         const api = registerRoutes(routes);
-        const serializedFunction: any = api.sayHello.handlerSerializedType[0]; // SerializedTypeFunction);
+        const serializedFunction: any = api.sayHello.serializedTypes[0]; // SerializedTypeFunction);
         expect(serializedFunction?.parameters?.length).toEqual(1);
     });
 });

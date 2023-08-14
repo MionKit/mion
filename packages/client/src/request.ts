@@ -11,7 +11,7 @@ import {
     HookSubRequest,
     SubRequest,
     ReflectionById,
-    RemoteMethodsById,
+    MetadataById,
     RequestBody,
     RequestHeaders,
     RouteSubRequest,
@@ -20,7 +20,7 @@ import {
 import {ParamsValidationResponse} from '@mionkit/runtype';
 import {PublicError, StatusCodes, getRoutePath, isPublicError} from '@mionkit/core';
 import {STORAGE_KEY} from './constants';
-import {fetchRemoteMethodsInfo} from './remoteMethodsInfo';
+import {fetchRemoteMethodsMetadata} from './remoteMethodsInfo';
 import {deserializeResponseBody, serializeSubRequests, validateSubRequests} from './reflection';
 
 export class MionRequest<RR extends RouteSubRequest<any>, HookRequestsList extends HookSubRequest<any>[]> {
@@ -31,7 +31,7 @@ export class MionRequest<RR extends RouteSubRequest<any>, HookRequestsList exten
     rawResponseBody: ResolvedPublicResponses | undefined;
     constructor(
         public readonly options: ClientOptions,
-        public readonly remoteMethodsById: RemoteMethodsById,
+        public readonly metadataById: MetadataById,
         public readonly reflectionById: ReflectionById,
         public readonly route?: RR,
         public readonly hooks?: HookRequestsList
@@ -52,7 +52,7 @@ export class MionRequest<RR extends RouteSubRequest<any>, HookRequestsList exten
         if (subReqList) subReqList.forEach((subRequest) => this.addSubRequest(subRequest));
         try {
             const subRequestIds = Object.keys(this.subRequests);
-            await fetchRemoteMethodsInfo(subRequestIds, this.options, this.remoteMethodsById, this.reflectionById);
+            await fetchRemoteMethodsMetadata(subRequestIds, this.options, this.metadataById, this.reflectionById);
 
             const validateErrors = validateSubRequests(subRequestIds, this, new Map(), false);
             if (validateErrors.size) return Promise.reject(validateErrors);
@@ -66,7 +66,7 @@ export class MionRequest<RR extends RouteSubRequest<any>, HookRequestsList exten
         if (subReqList) subReqList.forEach((subRequest) => this.addSubRequest(subRequest));
         try {
             const subRequestIds = Object.keys(this.subRequests);
-            await fetchRemoteMethodsInfo(subRequestIds, this.options, this.remoteMethodsById, this.reflectionById);
+            await fetchRemoteMethodsMetadata(subRequestIds, this.options, this.metadataById, this.reflectionById);
 
             const validateErrors = validateSubRequests(subRequestIds, this, new Map(), false);
             if (validateErrors.size) return Promise.reject(validateErrors);
@@ -99,7 +99,7 @@ export class MionRequest<RR extends RouteSubRequest<any>, HookRequestsList exten
     private async prepareRequest(): Promise<void> {
         try {
             const subRequestIds = Object.keys(this.subRequests);
-            await fetchRemoteMethodsInfo(subRequestIds, this.options, this.remoteMethodsById, this.reflectionById);
+            await fetchRemoteMethodsMetadata(subRequestIds, this.options, this.metadataById, this.reflectionById);
 
             const persistErrors = this.restorePersistedSubRequest();
             if (persistErrors.size) return Promise.reject(persistErrors);
@@ -140,14 +140,14 @@ export class MionRequest<RR extends RouteSubRequest<any>, HookRequestsList exten
         try {
             let hasErrors = false;
             const deserialized = deserializeResponseBody(this.rawResponseBody as ResolvedPublicResponses, this);
-            Object.entries(this.subRequests).forEach(([id, remoteMethod]) => {
+            Object.entries(this.subRequests).forEach(([id, methodMeta]) => {
                 const resp = this.getResponseValueFromBodyOrHeader(id, deserialized, (this.response as Response).headers);
-                remoteMethod.isResolved = true;
+                methodMeta.isResolved = true;
                 if (isPublicError(resp)) {
-                    remoteMethod.error = resp;
+                    methodMeta.error = resp;
                     hasErrors = true;
                 } else {
-                    remoteMethod.return = resp;
+                    methodMeta.return = resp;
                 }
             });
 
@@ -176,12 +176,12 @@ export class MionRequest<RR extends RouteSubRequest<any>, HookRequestsList exten
         const headers: RequestHeaders = {};
         const body: RequestBody = {};
         Object.values(this.subRequests).forEach((subRequest) => {
-            const remoteMethod = this.remoteMethodsById.get(subRequest.id);
+            const methodMeta = this.metadataById.get(subRequest.id);
             if (!subRequest.serializedParams) throw new Error(`SubRequest ${subRequest.id} is not serialized.`);
-            if (!remoteMethod) throw new Error(`Metadata for remote method ${subRequest.id} not found.`);
-            if (remoteMethod.inHeader && remoteMethod.headerName) {
+            if (!methodMeta) throw new Error(`Metadata for remote method ${subRequest.id} not found.`);
+            if (methodMeta.inHeader && methodMeta.headerName) {
                 // TODO: check if we using soft serialization in the client
-                headers[remoteMethod.headerName] = subRequest.serializedParams[0];
+                headers[methodMeta.headerName] = subRequest.serializedParams[0];
             } else {
                 body[subRequest.id] = subRequest.serializedParams;
             }
@@ -190,9 +190,9 @@ export class MionRequest<RR extends RouteSubRequest<any>, HookRequestsList exten
     }
 
     private getResponseValueFromBodyOrHeader(id: string, respBody: ResolvedPublicResponses, headers: Headers): any {
-        const remoteMethod = this.remoteMethodsById.get(id);
-        if (remoteMethod && remoteMethod.inHeader && remoteMethod.headerName) {
-            return headers.get(remoteMethod.headerName);
+        const methodMeta = this.metadataById.get(id);
+        if (methodMeta && methodMeta.inHeader && methodMeta.headerName) {
+            return headers.get(methodMeta.headerName);
         }
         return respBody[id];
     }
@@ -200,7 +200,7 @@ export class MionRequest<RR extends RouteSubRequest<any>, HookRequestsList exten
     // subRequests must be already validated and serialized (so only valid requests are stored)
     private restorePersistedSubRequest(): SubRequestErrors {
         const errors: SubRequestErrors = new Map();
-        const remoteRoute = this.remoteMethodsById.get(this.requestId);
+        const remoteRoute = this.metadataById.get(this.requestId);
         if (!remoteRoute) {
             errors.set(
                 this.requestId,
@@ -241,9 +241,9 @@ export class MionRequest<RR extends RouteSubRequest<any>, HookRequestsList exten
         const errors: SubRequestErrors = new Map();
         Object.keys(this.subRequests).forEach((id) => {
             const subRequest = this.subRequests[id];
-            const remoteMethod = this.remoteMethodsById.get(id);
-            if (!remoteMethod) throw new Error(`Remote method ${id} not found.`);
-            if (remoteMethod.isRoute) {
+            const methodMeta = this.metadataById.get(id);
+            if (!methodMeta) throw new Error(`Remote method ${id} not found.`);
+            if (methodMeta.isRoute) {
                 errors[id] = new PublicError({
                     statusCode: StatusCodes.BAD_REQUEST,
                     name: 'Persist Error',

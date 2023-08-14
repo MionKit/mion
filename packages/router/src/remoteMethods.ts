@@ -18,7 +18,7 @@ import {
     Handler,
     isHookDef,
     isRoute,
-    RemoteMethods,
+    RemoteApi,
     RemoteHandler,
     Routes,
     isPublicExecutable,
@@ -27,30 +27,30 @@ import {
     isHeaderHookDef,
     RouterEntry,
     Executable,
-    RemoteMethod,
+    RemoteMethodMetadata,
 } from './types';
 import {getSerializedFunctionType} from '@mionkit/runtype';
 import {Obj, getRoutePath, getRouterItemId} from '@mionkit/core';
 
 // ############# PRIVATE STATE #############
-const remoteMethodsById: Map<string, RemoteMethod> = new Map();
+const metadataById: Map<string, RemoteMethodMetadata> = new Map();
 
 // ############# PUBLIC METHODS #############
-export function resetRemoteMethods() {
-    remoteMethodsById.clear();
+export function resetRemoteMethodsMetadata() {
+    metadataById.clear();
 }
 
 /**
  * Returns a data structure containing all public information and types of the routes.
  * This data and types can be used to generate router clients, etc...
  */
-export function getRemoteMethods<R extends Routes>(routes: R): RemoteMethods<R> {
-    return recursiveGetRemoteMethods(routes) as RemoteMethods<R>;
+export function getRemoteMethodsMetadata<R extends Routes>(routes: R): RemoteApi<R> {
+    return recursiveGetMethodsMetadata(routes) as RemoteApi<R>;
 }
 
 // ############# PRIVATE METHODS #############
 
-function recursiveGetRemoteMethods<R extends Routes>(routes: R, currentPointer: string[] = [], publicData: Obj = {}): Obj {
+function recursiveGetMethodsMetadata<R extends Routes>(routes: R, currentPointer: string[] = [], publicData: Obj = {}): Obj {
     const entries = Object.entries(routes);
     entries.forEach(([key, item]: [string, RouterEntry]) => {
         const itemPointer = [...currentPointer, key];
@@ -62,27 +62,29 @@ function recursiveGetRemoteMethods<R extends Routes>(routes: R, currentPointer: 
             const executable = getHookExecutable(id) || getRouteExecutable(id);
             if (!executable)
                 throw new Error(`Route or Hook ${id} not found. Please check you have called router.registerRoutes first.`);
-            publicData[key] = getRemoteMethodFromExecutable(executable);
+            publicData[key] = getMethodmetadataFromExecutable(executable);
         } else {
             const subRoutes: Routes = routes[key] as Routes;
-            publicData[key] = recursiveGetRemoteMethods(subRoutes, itemPointer);
+            publicData[key] = recursiveGetMethodsMetadata(subRoutes, itemPointer);
         }
     });
 
     return publicData;
 }
 
-export function getRemoteMethodFromExecutable<H extends Handler>(executable: RouteExecutable | HookExecutable): RemoteMethod<H> {
-    const existing = remoteMethodsById.get(executable.id);
-    if (existing) return existing as RemoteMethod<H>;
+export function getMethodmetadataFromExecutable<H extends Handler>(
+    executable: RouteExecutable | HookExecutable
+): RemoteMethodMetadata<H> {
+    const existing = metadataById.get(executable.id);
+    if (existing) return existing as RemoteMethodMetadata<H>;
 
-    const newRemoteMethod: RemoteMethod = {
+    const newRemoteMethod: RemoteMethodMetadata = {
         isRoute: executable.isRoute,
         id: executable.id,
         inHeader: executable.inHeader,
         // handler is included just for static typing purposes and should never be called directly
         _handler: getHandlerSrcCodePointer(executable) as any as RemoteHandler<H>,
-        handlerSerializedType: getSerializedFunctionType(executable.handler, getRouteDefaultParams().length),
+        serializedTypes: getSerializedFunctionType(executable.handler, getRouteDefaultParams().length),
         enableValidation: executable.enableValidation,
         enableSerialization: executable.enableSerialization,
         params: executable.reflection.handlerType.parameters.map((tp) => tp.name).slice(getRouteDefaultParams().length),
@@ -92,21 +94,21 @@ export function getRemoteMethodFromExecutable<H extends Handler>(executable: Rou
 
     if (executable.isRoute) {
         const path = getRoutePath(executable.pointer, getRouterOptions());
-        const executionPathPointers =
+        const pathPointers =
             getRouteExecutionPath(path)
                 ?.filter((exec) => isPublicExecutable(exec))
                 .map((exec) => exec.pointer) || [];
-        newRemoteMethod.hookIds = executionPathPointers
+        newRemoteMethod.hookIds = pathPointers
             .map((pointer) => getRouterItemId(pointer))
             .filter((id) => {
                 const exec = getHookExecutable(id);
                 return exec && isPublicExecutable(exec);
             });
-        // executionPathPointers only required for codegen
-        if (shouldFullGenerateSpec()) newRemoteMethod.executionPathPointers = executionPathPointers;
+        // pathPointers only required for codegen
+        if (shouldFullGenerateSpec()) newRemoteMethod.pathPointers = pathPointers;
     }
-    remoteMethodsById.set(executable.id, newRemoteMethod);
-    return newRemoteMethod as RemoteMethod<H>;
+    metadataById.set(executable.id, newRemoteMethod);
+    return newRemoteMethod as RemoteMethodMetadata<H>;
 }
 
 /** Returns the original route/hook paths as a string to eb used in codegen, ie: path= users/getUser => 'users.getUser'  */
