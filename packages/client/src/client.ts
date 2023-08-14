@@ -15,11 +15,11 @@ import {
     MetadataById,
     RouteSubRequest,
     SubRequest,
-    SubRequestErrors,
+    RequestErrors,
     SuccessClientResponse,
 } from './types';
 import type {RemoteApi} from '@mionkit/router';
-import {getRouterItemId, isPublicError} from '@mionkit/core';
+import {PublicError, getRouterItemId} from '@mionkit/core';
 import {MionRequest} from './request';
 import {ParamsValidationResponse} from '@mionkit/runtype';
 
@@ -57,13 +57,7 @@ class MionClient {
             .call()
             .then(
                 () => [routeSubRequest.return, ...hookSubRequests.map((hook) => hook.return)] as SuccessClientResponse<RR, RHList>
-            )
-            .catch((resp: SubRequestErrors) => {
-                if (routeSubRequest.error) return Promise.reject(routeSubRequest.error);
-                // any other error returned by the server (returns firs one found)
-                const error = Array.from(resp.values()).find((r) => isPublicError(r));
-                return Promise.reject(error);
-            });
+            );
     }
 
     validate<List extends SubRequest<any>[]>(...subRequest: List): Promise<ParamsValidationResponse[]> {
@@ -76,7 +70,7 @@ class MionClient {
         return request.prefill(subRequest);
     }
 
-    removePrefill<List extends HookSubRequest<any>[]>(...subRequest: List): SubRequestErrors {
+    removePrefill<List extends HookSubRequest<any>[]>(...subRequest: List): Promise<void> {
         const request = new MionRequest(this.clientOptions, this.metadataById, this.reflectionById);
         return request.removePrefill(subRequest);
     }
@@ -95,21 +89,23 @@ class MethodProxy {
                 params: argArray,
                 return: undefined, // resolved once request gets resolved
                 error: undefined, // resolved once request gets resolved
-                prefill: () => {
-                    this.client.prefill(subRequest);
+                prefill: (): Promise<void> => {
+                    return this.client.prefill(subRequest).catch((errors) => Promise.reject(findError(subRequest, errors)));
                 },
-                removePrefill: () => {
-                    const resp = this.client.removePrefill(subRequest);
-                    return resp[subRequest.id];
+                removePrefill: (): Promise<void> => {
+                    return this.client.removePrefill(subRequest).catch((errors) => Promise.reject(findError(subRequest, errors)));
                 },
                 call: (...hooks: HookSubRequest<any>[]): Promise<any> => {
-                    return this.client.call(subRequest, ...hooks).then(() => subRequest.return);
+                    return this.client
+                        .call(subRequest, ...hooks)
+                        .then(() => subRequest.return)
+                        .catch((errors) => Promise.reject(findError(subRequest, errors)));
                 },
                 validate: (): Promise<ParamsValidationResponse> => {
                     return this.client
                         .validate(subRequest)
                         .then((responses) => responses[0])
-                        .catch((err: SubRequestErrors) => Promise.reject(err.get(subRequest.id)));
+                        .catch((errors) => Promise.reject(findError(subRequest, errors)));
                 },
             };
             return subRequest;
@@ -134,4 +130,8 @@ class MethodProxy {
         const target = () => null;
         this.proxy = new Proxy(target, this.handler);
     }
+}
+
+function findError(req: SubRequest<any>, errors: RequestErrors): PublicError {
+    return errors.get(req.id) || errors.values().next().value;
 }

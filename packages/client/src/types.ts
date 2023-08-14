@@ -60,7 +60,7 @@ export type SuccessResponse<MR extends SubRequest<any>> = Required<MR>['return']
 export type SuccessResponses<List extends SubRequest<any>[]> = {[P in keyof List]: SuccessResponse<List[P]>};
 export type FailResponse<MR extends SubRequest<any>> = Required<MR>['error'];
 export type FailResponses<List extends SubRequest<any>[]> = {[P in keyof List]: FailResponse<List[P]>};
-export type SubRequestErrors = Map<string, PublicError>;
+export type RequestErrors = Map<string, PublicError>;
 
 // ############# Remote Methods Request #############
 
@@ -82,7 +82,18 @@ export interface SubRequest<RM extends RemoteMethodMetadata> {
  * Note routePointer is using as differentiating key from hookPointer in HookInfo, so types can't overlap.
  */
 export interface RouteSubRequest<RR extends RemoteRouteMetadata> extends SubRequest<RR> {
+    /**
+     * Validates Route's parameters. Throws PublicError if validation fails.
+     * @returns {hasErrors: false, totalErrors: 0, errors: []}
+     */
     validate: () => Promise<ParamsValidationResponse>;
+    /**
+     * Calls a remote route.
+     * Validates route and required hooks request parameters locally before calling the remote route.
+     * Throws PublicError if anything fails during the call (including validation or serialization) or if the remote route returns an error.
+     * @param hooks HookSubRequests requires by the route
+     * @returns
+     */
     call: <RHList extends HookSubRequest<any>[]>(...hooks: RHList) => Promise<HandlerSuccessResponse<RR>>;
 }
 
@@ -90,9 +101,25 @@ export interface RouteSubRequest<RR extends RemoteRouteMetadata> extends SubRequ
  * Note hookPointer is using as differentiating key from routePointer in RouteInfo, so types can't overlap.
  */
 export interface HookSubRequest<RH extends RemoteHookMetadata | RemoteHeaderHookMetadata> extends SubRequest<RH> {
+    /**
+     * Validates Hooks's parameters. Throws PublicError if validation fails.
+     * @returns {hasErrors: false, totalErrors: 0, errors: []}
+     */
     validate: () => Promise<ParamsValidationResponse>;
-    prefill: () => void;
-    removePrefill: () => void | PublicError;
+    /**
+     * Prefills Hook's parameters for any future request. Parameters are also persisted in local storage for future requests.
+     * Validates and Serializes parameters before storing in local storage.
+     * Throws PublicError if validation or serialization fail or if the parameters can't be persisted.
+     * @returns Promise<void>
+     */
+    prefill: () => Promise<void>;
+
+    /**
+     * Removes prefilled value.
+     * Throws PublicError if something fails removing the prefilled parameters
+     * @returns Promise<void>
+     */
+    removePrefill: () => Promise<void>;
 }
 
 export interface SuccessSubRequest<RM extends RemoteMethodMetadata> extends SubRequest<RM> {

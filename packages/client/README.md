@@ -39,21 +39,28 @@ import {Routes, registerRoutes} from '@mionkit/router';
 import {clientRoutes} from '@mionkit/common';
 import {Logger} from 'Logger';
 
-export type User = {name: string; surname: string};
+export type User = {id: string; name: string; surname: string};
+export type Order = {id: string; date: Date; userId: string; totalUSD: number};
 const routes = {
   auth: {
-    headerName: 'Authorization',
-    canReturnData: true,
-    headerHook: (ctx, token: string): User | PublicError => {
-      if (token === 'myToken-XYZ') return {name: 'My', surname: 'user'};
-      return new PublicError({statusCode: 401, message: 'Unauthorized', name: 'Unauthorized'});
+    headerName: 'authorization',
+    headerHook: (ctx, token: string): void | PublicError => {
+      if (!token) return new PublicError({statusCode: 401, message: 'Not Authorized', name: ' Not Authorized'});
     },
   },
-  sayHello: {route: (ctx, user: User): string | PublicError => `Hello ${user.name} ${user.surname}`},
-  alwaysFails: (ctx, user: User): User | PublicError =>
-    new PublicError({statusCode: 500, message: 'Something fails', name: 'UnknownError'}),
+  users: {
+    getById: (ctx, id: string): User | PublicError => ({id, name: 'John', surname: 'Smith'}),
+    delete: (ctx, id: string): string | PublicError => id,
+    create: (ctx, user: Omit<User, 'id'>): User | PublicError => ({id: 'USER-123', ...user}),
+  },
+  orders: {
+    getById: (ctx, id: string): Order | PublicError => ({id, date: new Date(), userId: 'USER-123', totalUSD: 120}),
+    delete: (ctx, id: string): string | PublicError => id,
+    create: (ctx, order: Omit<Order, 'id'>): Order | PublicError => ({id: 'ORDER-123', ...order}),
+  },
   utils: {
-    sumTwo: (ctx, a: number): number => a + 2,
+    sum: (ctx, a: number, b: number): number => a + b,
+    sayHello: (ctx, user: User): string => `Hello ${user.name} ${user.surname}`,
   },
   log: {
     forceRunOnError: true,
@@ -79,7 +86,7 @@ registerRoutes(clientRoutes);
 
 To use the client we just need to import the **type** of the registered routes, and initialize the client.
 
-The `methods` returning when initializing the client is a fully typed object that contains all the remote methods with parameter types and return values.
+The `methods` object returned when initializing the client is a fully typed `RemoteApi`` object that contains all the remote methods with parameter types and return values.
 
 ```ts
 // examples/client.ts
@@ -92,31 +99,71 @@ import {ParamsValidationResponse} from '@mionkit/runtype';
 
 const port = 8076;
 const baseURL = `http://localhost:${port}`;
-
 const {methods, client} = initClient<MyApi>({baseURL});
 
 // prefills the token for any future requests, value is stored in localStorage
-methods.auth('myToken-XYZ').prefill();
+await methods.auth('myToken-XYZ').prefill();
 
 // calls sayHello route in the server
-const sayHello = await methods.sayHello({name: 'John', surname: 'Doe'}).call();
+const sayHello = await methods.utils.sayHello({id: '123', name: 'John', surname: 'Doe'}).call();
 console.log(sayHello); // Hello John Doe
 
 // calls sumTwo route in the server
-const sumTwoResp = await methods.utils.sumTwo(5).call();
-console.log(sumTwoResp * 3); // 21
+const sumTwoResp = await methods.utils.sum(5, 2).call();
+console.log(sumTwoResp); // 7
 
 // validate parameters locally without calling the server
-const validationResp: ParamsValidationResponse = await methods.sayHello({name: 'John', surname: 'Doe'}).validate();
+const validationResp: ParamsValidationResponse = await methods.utils
+  .sayHello({id: '123', name: 'John', surname: 'Doe'})
+  .validate();
 console.log(validationResp); // {hasErrors: false, totalErrors: 0, errors: []}
 ```
 
-#### Remote methods autocomplete
+#### Fully Typed Client
 
-![methods autocomplete](./assets/methods-autocomplete.gif)
+![autocomplete](./assets/autocomplete.gif)
 
-#### Remote params autocomplete
+## Handling Errors
 
-![param autocomplete](./assets/paramter-autocomplete.gif)
+When a remote route call fails, it always throws a `PublicError` this can be the error from the route or any other error thrown from the route's hooks.
+
+All the `methods` operations: `call`, `validate`, `prefill`, `removePrefill` are async and throw a `PublicError` if something fails including validation and serialization.
+
+As catch blocks are always of type `any`, the Type guard `isPublicError` can be used to check the correct type of the error.
+
+```ts
+// examples/handling-errors.ts
+
+import {initClient} from '@mionkit/client';
+
+// importing type only from server
+import type {MyApi} from './server.routes';
+import {isPublicError, PublicError} from '@mionkit/core';
+
+const port = 8076;
+const baseURL = `http://localhost:${port}`;
+const {methods, client} = initClient<MyApi>({baseURL});
+
+try {
+  // calls sayHello route in the server
+  const sayHello = await methods.utils.sayHello({id: '123', name: 'John', surname: 'Doe'}).call();
+  console.log(sayHello); // Hello John Doe
+} catch (error: PublicError | any) {
+  // in this case the request has failed because the authorization hook is missing
+  console.log(error); // {statusCode: 400, name: 'Validation Error', message: `Invalid params for Route or Hook 'auth'.`}
+
+  if (isPublicError(error)) {
+    // ... handle the error as required
+  }
+}
+
+try {
+  // Validation throws an error when validation fails
+  const sayHello = await methods.utils.sayHello(null as any).validate();
+  console.log(sayHello); // Hello John Doe
+} catch (error: PublicError | any) {
+  console.log(error); // { statusCode: 400, name: 'Validation Error', message: `Invalid params ...`, errorData : {...}}
+}
+```
 
 _[MIT](../../LICENSE) LICENSE_
