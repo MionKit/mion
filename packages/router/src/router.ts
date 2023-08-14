@@ -21,7 +21,7 @@ import {
     Routes,
     RouteExecutable,
     HookExecutable,
-    RemoteMethods,
+    RemoteApi,
     RawHookDef,
     RawExecutable,
     NotFoundExecutable,
@@ -39,7 +39,7 @@ import {
 import {ReflectionOptions, getFunctionReflectionMethods} from '@mionkit/runtype';
 import {bodyParserHooks} from './jsonBodyParser';
 import {RouteError, StatusCodes, getRouterItemId, setErrorOptions, getRoutePath} from '@mionkit/core';
-import {getRemoteMethods, resetRemoteMethods} from './remoteMethods';
+import {getRemoteMethodsMetadata, resetRemoteMethodsMetadata} from './remoteMethods';
 
 type RouterKeyEntryList = [string, RouterEntry][];
 type RoutesWithId = {
@@ -97,7 +97,7 @@ export const resetRouter = () => {
     isRouterInitialized = false;
     looselyReflectionOptions = undefined;
     allExecutablesIds = undefined;
-    resetRemoteMethods();
+    resetRemoteMethodsMetadata();
 };
 
 /**
@@ -116,14 +116,14 @@ export function initRouter<Opts extends RouterOptions>(opts?: Partial<Opts>): Re
     return routerOptions as Opts;
 }
 
-export function registerRoutes<R extends Routes>(routes: R): RemoteMethods<R> {
+export function registerRoutes<R extends Routes>(routes: R): RemoteApi<R> {
     if (!isRouterInitialized) throw new Error('initRouter should be called first');
     startHooks = getExecutablesFromHooksCollection(startHooksDef);
     endHooks = getExecutablesFromHooksCollection(endHooksDef);
     recursiveFlatRoutes(routes);
     // we only want to get information about the routes when creating api spec
-    if (shouldFullGenerateSpec()) return getRemoteMethods(routes);
-    return {} as RemoteMethods<R>;
+    if (shouldFullGenerateSpec()) return getRemoteMethodsMetadata(routes);
+    return {} as RemoteApi<R>;
 }
 
 export function getRouteDefaultParams(): string[] {

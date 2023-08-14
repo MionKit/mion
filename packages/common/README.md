@@ -18,7 +18,7 @@
 
 mion standard hooks and routes.
 
-- client: serve metadata about existing routes and public hooks (remoteMethods)
+- client: serve metadata about existing routes and public hooks (remoteMethodsMetadata)
 
 todo:
 

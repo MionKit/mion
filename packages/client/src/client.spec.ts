@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {RemoteMethods, Routes, registerRoutes} from '@mionkit/router';
+import {RemoteApi, Routes, registerRoutes} from '@mionkit/router';
 import {initClient} from './client';
 import {HookSubRequest, RouteSubRequest} from './types';
 import {initHttpRouter, startHttpServer} from '@mionkit/http';
@@ -44,7 +44,7 @@ describe('client', () => {
     } satisfies Routes;
 
     const someUser = {name: 'John', surname: 'Doe'};
-    let myApi: RemoteMethods<typeof routes>;
+    let myApi: RemoteApi<typeof routes>;
     type MyApi = typeof myApi;
 
     const port = 8076;

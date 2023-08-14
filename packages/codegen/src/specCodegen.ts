@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {RemoteMethods, RemoteMethod} from '@mionkit/router';
+import {RemoteMethods, RemoteMethodMetadata} from '@mionkit/router';
 import {dirname, parse, relative} from 'path';
 import {hasChildRoutes, type CodegenOptions, type ExportedRoutesMap, type PublicMethodsSpec, type RoutesSpec} from './types';
 import {DEFAULT_PRETTIER_OPTIONS, PUBLIC_METHODS_SPEC_EXPORT_NAME, ROUTES_SPEC_EXPORT_NAME} from './constants';
@@ -92,8 +92,8 @@ function serializeRoutes(routes: RoutesSpec) {
     );
 }
 
-function setRemoteMethods(method: RemoteMethod, currentPointer: string[], exportName: string, routeExecutables: Obj) {
-    const MethodPointers = method.executionPathPointers?.map((pointer) =>
+function setRemoteMethods(method: RemoteMethodMetadata, currentPointer: string[], exportName: string, routeExecutables: Obj) {
+    const MethodPointers = method.pathPointers?.map((pointer) =>
         setCodeAsJsonString(`${PUBLIC_METHODS_SPEC_EXPORT_NAME}.${exportName}.${getHandlerSrcCodePointer(pointer)}`)
     );
     assignProperty(routeExecutables, currentPointer, MethodPointers);
