@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import type {RemoteMethod, ResolvedPublicResponses} from '@mionkit/router';
+import type {RemoteMethodMetadata, ResolvedPublicResponses} from '@mionkit/router';
 import {FunctionReflection, ParamsValidationResponse} from '@mionkit/runtype';
 import {PublicError, StatusCodes, isPublicError} from '@mionkit/core';
 import {SubRequestErrors, SubRequest, ValidationRequest} from './types';
@@ -25,9 +25,9 @@ export function validateSubRequests(
     if (!req.options.enableValidation) return errors;
     subRequestIds.forEach((id) => {
         validateSubRequest(id, req, errors);
-        const remoteMethod = req.remoteMethodsById.get(id);
-        if (validateRouteHooks && remoteMethod?.hookIds?.length) {
-            validateSubRequests(remoteMethod.hookIds, req, errors, validateRouteHooks);
+        const methodMeta = req.metadataById.get(id);
+        if (validateRouteHooks && methodMeta?.hookIds?.length) {
+            validateSubRequests(methodMeta.hookIds, req, errors, validateRouteHooks);
         }
     });
     return errors;
@@ -40,11 +40,11 @@ export function validateSubRequests(
 export function validateSubRequest(id: string, req: ValidationRequest, errors: SubRequestErrors = new Map()): SubRequestErrors {
     if (!req.options.enableSerialization) return errors;
     // subRequest might be undefined if does not require to send parameters or are optional
-    const {remoteMethod, subRequest} = getSerializationRequiredData(id, req);
+    const {methodMeta, subRequest} = getSerializationRequiredData(id, req);
     if (subRequest?.validationResponse || subRequest?.isResolved) return errors;
 
     const params = subRequest?.params || [];
-    const validationResponse = validateParameters(params, remoteMethod, req.reflectionById.get(id));
+    const validationResponse = validateParameters(params, methodMeta, req.reflectionById.get(id));
     if (!validationResponse) return errors; // if validation is void then validation is disabled for this method
     if (isPublicError(validationResponse)) {
         const error = validationResponse;
@@ -70,8 +70,8 @@ export function serializeSubRequests(
     if (!req.options.enableSerialization) return errors;
     subRequestIds.forEach((id) => {
         serializeSubRequest(id, req, errors);
-        const remoteMethod = req.remoteMethodsById.get(id);
-        if (remoteMethod?.hookIds?.length) serializeSubRequests(remoteMethod.hookIds, req, errors);
+        const methodMeta = req.metadataById.get(id);
+        if (methodMeta?.hookIds?.length) serializeSubRequests(methodMeta.hookIds, req, errors);
     });
     return errors;
 }
@@ -79,13 +79,13 @@ export function serializeSubRequests(
 /** Serialize a single subRequest. If there are is an error subRequest is marked as resolved. */
 export function serializeSubRequest(id: string, req: ValidationRequest, errors: SubRequestErrors = new Map()): SubRequestErrors {
     if (!req.options.enableSerialization) return errors;
-    const {remoteMethod, subRequest} = getSerializationRequiredData(id, req);
+    const {methodMeta, subRequest} = getSerializationRequiredData(id, req);
     // at this point subRequest might been validated so if not defined then is not required
     if (!subRequest) return errors;
     if (subRequest.serializedParams) return errors;
 
     const params = subRequest?.params || [];
-    const serializedParams = serializeParameters(params, remoteMethod, req.reflectionById.get(id));
+    const serializedParams = serializeParameters(params, methodMeta, req.reflectionById.get(id));
     if (isPublicError(serializedParams)) {
         errors.set(id, serializedParams);
         // if errors then mark subRequest as resolved
@@ -100,9 +100,9 @@ export function serializeSubRequest(id: string, req: ValidationRequest, errors: 
 export function deserializeResponseBody(responseBody: ResolvedPublicResponses, req: ValidationRequest): ResolvedPublicResponses {
     const deSerializedBody = responseBody;
     Object.entries(deSerializedBody).forEach(([key, remoteHandlerResponse]) => {
-        const remoteMethod = req.remoteMethodsById.get(key);
-        if (!remoteMethod) throw new Error(`Metadata for remote method ${key} not found.`);
-        const deSerialized = deSerializeReturn(remoteHandlerResponse, remoteMethod, req.reflectionById.get(remoteMethod.id));
+        const methodMeta = req.metadataById.get(key);
+        if (!methodMeta) throw new Error(`Metadata for remote method ${key} not found.`);
+        const deSerialized = deSerializeReturn(remoteHandlerResponse, methodMeta, req.reflectionById.get(methodMeta.id));
         deSerializedBody[key] = deSerialized;
     });
     return deSerializedBody;
@@ -113,14 +113,14 @@ export function deserializeResponseBody(responseBody: ResolvedPublicResponses, r
 function getSerializationRequiredData(
     id: string,
     req: ValidationRequest
-): {remoteMethod: RemoteMethod; subRequest?: SubRequest<any>} {
-    const remoteMethod = req.remoteMethodsById.get(id);
+): {methodMeta: RemoteMethodMetadata; subRequest?: SubRequest<any>} {
+    const methodMeta = req.metadataById.get(id);
     const subRequest = req.subRequests[id];
-    if (!remoteMethod) throw new Error(`Metadata for remote method ${id} not found.`);
-    return {remoteMethod, subRequest};
+    if (!methodMeta) throw new Error(`Metadata for remote method ${id} not found.`);
+    return {methodMeta, subRequest};
 }
 
-function serializeParameters(params: any[], method: RemoteMethod, reflection?: FunctionReflection): any[] | PublicError {
+function serializeParameters(params: any[], method: RemoteMethodMetadata, reflection?: FunctionReflection): any[] | PublicError {
     if (!reflection) return params;
     if (params.length && method.enableSerialization) {
         try {
@@ -139,7 +139,7 @@ function serializeParameters(params: any[], method: RemoteMethod, reflection?: F
 
 function validateParameters(
     params: any[],
-    method: RemoteMethod,
+    method: RemoteMethodMetadata,
     reflection?: FunctionReflection
 ): void | ParamsValidationResponse | PublicError {
     if (!reflection || !method.enableValidation) return;
@@ -165,7 +165,7 @@ function validateParameters(
 
 function deSerializeReturn(
     remoteHandlerResponse: any | PublicError,
-    method: RemoteMethod,
+    method: RemoteMethodMetadata,
     reflection?: FunctionReflection
 ): any | PublicError {
     if (!reflection || !method.enableSerialization || !remoteHandlerResponse) return remoteHandlerResponse;

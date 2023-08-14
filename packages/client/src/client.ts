@@ -12,20 +12,18 @@ import {
     HookSubRequest,
     InitOptions,
     ReflectionById,
-    RemoteMethodsById,
+    MetadataById,
     RouteSubRequest,
     SubRequest,
     SubRequestErrors,
     SuccessClientResponse,
 } from './types';
-import type {RemoteMethods} from '@mionkit/router';
+import type {RemoteApi} from '@mionkit/router';
 import {getRouterItemId, isPublicError} from '@mionkit/core';
 import {MionRequest} from './request';
 import {ParamsValidationResponse} from '@mionkit/runtype';
 
-export function initClient<RM extends RemoteMethods<any>>(
-    options: InitOptions
-): {client: MionClient; methods: ClientMethods<RM>} {
+export function initClient<RM extends RemoteApi<any>>(options: InitOptions): {client: MionClient; methods: ClientMethods<RM>} {
     const clientOptions = {
         ...DEFAULT_PREFILL_OPTIONS,
         ...options,
@@ -38,7 +36,7 @@ export function initClient<RM extends RemoteMethods<any>>(
 // ############# Client   #############
 // state is managed inside a class in case multiple clients are required (using multiple apis)
 class MionClient {
-    private remoteMethodsById: RemoteMethodsById = new Map();
+    private metadataById: MetadataById = new Map();
     private reflectionById: ReflectionById = new Map();
 
     constructor(private clientOptions: ClientOptions) {}
@@ -50,7 +48,7 @@ class MionClient {
     ): Promise<SuccessClientResponse<RR, RHList>> {
         const request = new MionRequest(
             this.clientOptions,
-            this.remoteMethodsById,
+            this.metadataById,
             this.reflectionById,
             routeSubRequest,
             hookSubRequests
@@ -69,17 +67,17 @@ class MionClient {
     }
 
     validate<List extends SubRequest<any>[]>(...subRequest: List): Promise<ParamsValidationResponse[]> {
-        const request = new MionRequest(this.clientOptions, this.remoteMethodsById, this.reflectionById);
+        const request = new MionRequest(this.clientOptions, this.metadataById, this.reflectionById);
         return request.validateParams(subRequest);
     }
 
     prefill<List extends HookSubRequest<any>[]>(...subRequest: List): Promise<void> {
-        const request = new MionRequest(this.clientOptions, this.remoteMethodsById, this.reflectionById);
+        const request = new MionRequest(this.clientOptions, this.metadataById, this.reflectionById);
         return request.prefill(subRequest);
     }
 
     removePrefill<List extends HookSubRequest<any>[]>(...subRequest: List): SubRequestErrors {
-        const request = new MionRequest(this.clientOptions, this.remoteMethodsById, this.reflectionById);
+        const request = new MionRequest(this.clientOptions, this.metadataById, this.reflectionById);
         return request.removePrefill(subRequest);
     }
 }

@@ -41,13 +41,13 @@ describe('Client Routes should', () => {
     const shared = {auth: {me: null as any}};
     const getSharedData = (): typeof shared => shared;
 
-    const remoteMethods = {
+    const methodsMetadata = {
         'users-getUser': {
             isRoute: true,
             id: 'users-getUser',
             inHeader: false,
             _handler: 'users.getUser',
-            handlerSerializedType: [{kind: 17, parameters: [], return: 1}, {kind: 1}],
+            serializedTypes: [{kind: 17, parameters: [], return: 1}, {kind: 1}],
             enableValidation: true,
             enableSerialization: true,
             params: [],
@@ -58,7 +58,7 @@ describe('Client Routes should', () => {
             id: 'users-setUser',
             inHeader: false,
             _handler: 'users.setUser',
-            handlerSerializedType: [{kind: 17, parameters: [], return: 1}, {kind: 1}],
+            serializedTypes: [{kind: 17, parameters: [], return: 1}, {kind: 1}],
             enableValidation: true,
             enableSerialization: true,
             params: [],
@@ -69,7 +69,7 @@ describe('Client Routes should', () => {
             id: 'users-pets-getUserPet',
             inHeader: false,
             _handler: 'users.pets.getUserPet',
-            handlerSerializedType: [{kind: 17, parameters: [], return: 1}, {kind: 1}],
+            serializedTypes: [{kind: 17, parameters: [], return: 1}, {kind: 1}],
             enableValidation: true,
             enableSerialization: true,
             params: [],
@@ -80,7 +80,7 @@ describe('Client Routes should', () => {
             id: 'pets-getPet',
             inHeader: false,
             _handler: 'pets.getPet',
-            handlerSerializedType: [{kind: 17, parameters: [], return: 1}, {kind: 1}],
+            serializedTypes: [{kind: 17, parameters: [], return: 1}, {kind: 1}],
             enableValidation: true,
             enableSerialization: true,
             params: [],
@@ -91,7 +91,7 @@ describe('Client Routes should', () => {
             id: 'pets-setPet',
             inHeader: false,
             _handler: 'pets.setPet',
-            handlerSerializedType: [{kind: 17, parameters: [], return: 1}, {kind: 1}],
+            serializedTypes: [{kind: 17, parameters: [], return: 1}, {kind: 1}],
             enableValidation: true,
             enableSerialization: true,
             params: [],
@@ -102,11 +102,7 @@ describe('Client Routes should', () => {
             id: 'auth',
             inHeader: false,
             _handler: 'auth',
-            handlerSerializedType: [
-                {kind: 17, parameters: [{kind: 18, name: 'token', type: 1}], return: 2},
-                {kind: 5},
-                {kind: 3},
-            ],
+            serializedTypes: [{kind: 17, parameters: [{kind: 18, name: 'token', type: 1}], return: 2}, {kind: 5}, {kind: 3}],
             enableValidation: true,
             enableSerialization: true,
             params: ['token'],
@@ -116,7 +112,7 @@ describe('Client Routes should', () => {
             id: 'last',
             inHeader: false,
             _handler: 'last',
-            handlerSerializedType: [{kind: 17, parameters: [], return: 1}, {kind: 3}],
+            serializedTypes: [{kind: 17, parameters: [], return: 1}, {kind: 3}],
             enableValidation: true,
             enableSerialization: true,
             params: [],
@@ -145,8 +141,8 @@ describe('Client Routes should', () => {
         };
         const response = await dispatchRoute(methodsPath, request, {});
         const expectedResponse = {
-            auth: remoteMethods.auth,
-            last: remoteMethods['last'],
+            auth: methodsMetadata.auth,
+            last: methodsMetadata['last'],
         };
         expect(response.body[methodsId]).toEqual(expectedResponse);
     });
@@ -166,9 +162,9 @@ describe('Client Routes should', () => {
         };
         const response = await dispatchRoute(methodsPath, request, {});
         const expectedResponse = {
-            auth: remoteMethods.auth,
-            'users-getUser': remoteMethods['users-getUser'],
-            last: remoteMethods['last'],
+            auth: methodsMetadata.auth,
+            'users-getUser': methodsMetadata['users-getUser'],
+            last: methodsMetadata['last'],
         };
         expect(response.body[methodsId]).toEqual(expectedResponse);
     });
@@ -188,7 +184,7 @@ describe('Client Routes should', () => {
             }),
         };
         const response = await dispatchRoute(methodsPath, request, {});
-        const expectedResponse = remoteMethods;
+        const expectedResponse = methodsMetadata;
         expect(response.body[methodsId]).toEqual(expectedResponse);
     });
 
@@ -206,9 +202,9 @@ describe('Client Routes should', () => {
         };
         const response = await dispatchRoute(routeMethodsPath, request, {});
         const expectedResponse = {
-            auth: remoteMethods.auth,
-            'users-getUser': remoteMethods['users-getUser'],
-            last: remoteMethods.last,
+            auth: methodsMetadata.auth,
+            'users-getUser': methodsMetadata['users-getUser'],
+            last: methodsMetadata.last,
         };
         expect(response.body[routeMethodsId]).toEqual(expectedResponse);
     });

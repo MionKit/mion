@@ -275,31 +275,31 @@ export interface PrivateRawHookDef extends RawHookDef {
     rawHook: (ctx?: any, req?: any, resp?: any, opts?: any) => any;
 }
 
-// ####### Public Facing Types #######
+// ####### Remote Methods Metadata #######
 
 // prettier-ignore
 /** Data structure containing all public data an types of routes & hooks. */
-export type RemoteMethods<Type extends Routes> = {
+export type RemoteApi<Type extends Routes> = {
     [Property in keyof Type]: 
         // any private hook maps to null
         Type[Property] extends  
         | PrivateHookDef
         | PrivateHeaderHookDef
         | PrivateRawHookDef
-        ? undefined
+        ? never
         // Hooks
         : Type[Property] extends HookDef
-        ? RemoteHook<Type[Property]['hook']>
+        ? RemoteHookMetadata<Type[Property]['hook']>
         : Type[Property] extends HeaderHookDef
-        ? RemoteHeaderHook<Type[Property]['headerHook']>
+        ? RemoteHeaderHookMetadata<Type[Property]['headerHook']>
         // Routes
         : Type[Property] extends RouteDef
-        ? RemoteRoute<Type[Property]['route']>
+        ? RemoteRouteMetadata<Type[Property]['route']>
         : Type[Property] extends Handler
-        ? RemoteRoute<Type[Property]>
+        ? RemoteRouteMetadata<Type[Property]>
         // Routes & PureRoutes (recursion)
         : Type[Property] extends Routes
-        ? RemoteMethods<Type[Property]>
+        ? RemoteApi<Type[Property]>
         : never;
 };
 
@@ -309,11 +309,11 @@ export type RemoteHandler<H extends Handler> =
     ? (...rest: Req) => Promise<Exclude<Awaited<Resp>, RouteError | Error> | PublicError>
     : never;
 
-export interface RemoteMethod<H extends Handler = any> {
+export interface RemoteMethodMetadata<H extends Handler = any> {
     /** Type reference to the route handler, its value is actually null or void function ans should never be called. */
     _handler: RemoteHandler<H>;
     /** Json serializable structure so the Type information can be transmitted over the wire */
-    handlerSerializedType: SerializedTypes;
+    serializedTypes: SerializedTypes;
     isRoute: boolean;
     id: string;
     inHeader: boolean;
@@ -321,12 +321,12 @@ export interface RemoteMethod<H extends Handler = any> {
     enableSerialization: boolean;
     params: string[];
     hookIds?: string[];
-    executionPathPointers?: string[][];
+    pathPointers?: string[][];
     headerName?: string;
 }
 
 /** Public map from Routes, _handler type is the same as router's handler but does not include the context  */
-export interface RemoteRoute<H extends Handler = any> extends RemoteMethod<H> {
+export interface RemoteRouteMetadata<H extends Handler = any> extends RemoteMethodMetadata<H> {
     isRoute: true;
     inHeader: false;
     hookIds: string[];
@@ -334,20 +334,20 @@ export interface RemoteRoute<H extends Handler = any> extends RemoteMethod<H> {
 }
 
 /** Public map from Hooks, _handler type is the same as hooks's handler but does not include the context  */
-export interface RemoteHook<H extends Handler = any> extends RemoteMethod<H> {
+export interface RemoteHookMetadata<H extends Handler = any> extends RemoteMethodMetadata<H> {
     isRoute: false;
     inHeader: false;
-    executionPathPointers: undefined;
+    pathPointers: undefined;
 }
 
-export interface RemoteHeaderHook<H extends Handler = any> extends RemoteMethod<H> {
+export interface RemoteHeaderHookMetadata<H extends Handler = any> extends RemoteMethodMetadata<H> {
     isRoute: false;
     inHeader: true;
     headerName: string;
 }
 
-export type RemoteHandlers<RMS extends RemoteMethods<any>> = {
-    [Property in keyof RMS]: RMS[Property] extends RemoteRoute | RemoteHook | RemoteHeaderHook
+export type RemoteHandlers<RMS extends RemoteApi<any>> = {
+    [Property in keyof RMS]: RMS[Property] extends RemoteRouteMetadata | RemoteHookMetadata | RemoteHeaderHookMetadata
         ? RMS[Property]['_handler']
         : never;
 };

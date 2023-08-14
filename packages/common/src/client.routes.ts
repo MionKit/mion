@@ -7,11 +7,11 @@
 
 import {GET_REMOTE_METHODS_BY_ID, GET_REMOTE_METHODS_BY_PATH, Obj, PublicError} from '@mionkit/core';
 import {
-    RemoteMethod,
+    RemoteMethodMetadata,
     getHookExecutable,
     getRouteExecutable,
     isPrivateExecutable,
-    getRemoteMethodFromExecutable,
+    getMethodmetadataFromExecutable,
     getRouteExecutionPath,
     Routes,
     getRouterOptions,
@@ -23,7 +23,7 @@ import {
     isRouteExecutable,
 } from '@mionkit/router';
 
-export type RemoteMethodsDictionary = {[key: string]: RemoteMethod};
+export type RemoteMethodsDictionary = {[key: string]: RemoteMethodMetadata};
 export interface ClientRouteOptions extends RouterOptions {
     getAllRemoteMethodsMaxNumber?: number;
 }
@@ -41,7 +41,7 @@ function addRequiredRemoteMethodsToResponse(id: string, resp: RemoteMethodsDicti
     }
     if (isPrivateExecutable(executable)) return;
 
-    resp[id] = getRemoteMethodFromExecutable(executable);
+    resp[id] = getMethodmetadataFromExecutable(executable);
     resp[id].hookIds?.forEach((hookId) => addRequiredRemoteMethodsToResponse(hookId, resp, errorData));
 }
 
@@ -94,13 +94,13 @@ export const getRouteRemoteMethods = (
 
 export const clientRoutes = {
     [GET_REMOTE_METHODS_BY_ID]: {
-        // disable serialization as deserializer seems ti ignore handlerSerializedType
+        // disable serialization as deserializer seems ti ignore serializedTypes
         enableSerialization: false,
         route: getRemoteMethods,
     },
     [GET_REMOTE_METHODS_BY_PATH]: {
         enableSerialization: false,
-        // disable serialization as deserializer seems ti ignore handlerSerializedType
+        // disable serialization as deserializer seems ti ignore serializedTypes
         route: getRouteRemoteMethods,
     },
 } satisfies Routes;
