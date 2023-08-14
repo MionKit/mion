@@ -96,7 +96,26 @@ describe('Dispatch routes', () => {
 
             const response = await dispatchRoute('/changeUserName', request, {});
             expect(response.hasErrors).toBeFalsy();
-            expect(response.headers.isTrue).toEqual(false);
+            expect(response.headers['istrue']).toEqual(false);
+        });
+
+        it('headers are case insensitive, returned headers alway lowercase', async () => {
+            initRouter({sharedDataFactory: getSharedData});
+            const auth = {
+                canReturnData: true,
+                headerName: 'Authorization',
+                headerHook: (ctx, token: string): string => (token === '1234' ? 'MyUser' : 'Unknown'),
+            };
+            registerRoutes({auth, changeUserName});
+
+            const request: RawRequest = {
+                headers: {AuThoriZatioN: '1234'},
+                body: JSON.stringify({['changeUserName']: [{name: 'Leo', surname: 'Tungsten'}]}),
+            };
+
+            const response = await dispatchRoute('/changeUserName', request, {});
+            expect(response.hasErrors).toBeFalsy();
+            expect(response.headers.authorization).toEqual('MyUser');
         });
 
         it('if there are no params input field can be omitted', async () => {

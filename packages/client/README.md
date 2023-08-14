@@ -6,7 +6,7 @@
   </picture>
 </p>
 <p align="center">
-  <strong>Browser client for mion Apps.
+  <strong>Fully typed client for mion Apis
   </strong>
 </p>
 <p align=center>

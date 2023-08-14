@@ -329,7 +329,6 @@ export interface RemoteMethod<H extends Handler = any> {
 export interface RemoteRoute<H extends Handler = any> extends RemoteMethod<H> {
     isRoute: true;
     inHeader: false;
-    executionPathPointers: string[][];
     hookIds: string[];
     headerName: undefined;
 }

@@ -12,6 +12,7 @@ import {
     getRouteExecutionPath,
     getRouterOptions,
     isPrivateHookDef,
+    shouldFullGenerateSpec,
 } from './router';
 import {
     Handler,
@@ -85,21 +86,24 @@ export function getRemoteMethodFromExecutable<H extends Handler>(executable: Rou
         enableValidation: executable.enableValidation,
         enableSerialization: executable.enableSerialization,
         params: executable.reflection.handlerType.parameters.map((tp) => tp.name).slice(getRouteDefaultParams().length),
-        headerName: executable.headerName,
     };
+
+    if (executable.headerName) newRemoteMethod.headerName = executable.headerName;
 
     if (executable.isRoute) {
         const path = getRoutePath(executable.pointer, getRouterOptions());
-        newRemoteMethod.executionPathPointers =
+        const executionPathPointers =
             getRouteExecutionPath(path)
                 ?.filter((exec) => isPublicExecutable(exec))
                 .map((exec) => exec.pointer) || [];
-        newRemoteMethod.hookIds = newRemoteMethod.executionPathPointers
+        newRemoteMethod.hookIds = executionPathPointers
             .map((pointer) => getRouterItemId(pointer))
             .filter((id) => {
                 const exec = getHookExecutable(id);
                 return exec && isPublicExecutable(exec);
             });
+        // executionPathPointers only required for codegen
+        if (shouldFullGenerateSpec()) newRemoteMethod.executionPathPointers = executionPathPointers;
     }
     remoteMethodsById.set(executable.id, newRemoteMethod);
     return newRemoteMethod as RemoteMethod<H>;
