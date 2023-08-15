@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {DEFAULT_REFLECTION_OPTIONS} from '@mionkit/runtype';
+import {DEFAULT_REFLECTION_OPTIONS} from '@mionkit/reflection';
 import {ClientOptions} from './types';
 
 export const DEFAULT_PREFILL_OPTIONS: ClientOptions = {

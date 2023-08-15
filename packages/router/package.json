@@ -45,9 +45,9 @@
     "dev:test": "jest --watch",
     "lint": "eslint src --ext .ts",
     "format": "prettier --write src/**/*.ts",
-    "build:cjs": "rimraf .dist/cjs && tsc --project tsconfig.build.json",
-    "build:esm": "rimraf .dist/esm && tsc --project tsconfig.build.json --module ES2020 --outDir .dist/esm",
-    "build:types": "rimraf .dist/types && tsc --project tsconfig.build.json --outDir .dist/types --emitDeclarationOnly --declaration true --declarationMap true",
+    "build:cjs": "tsc --project tsconfig.build.json",
+    "build:esm": "tsc --project tsconfig.build.json --module ES2020 --outDir .dist/esm",
+    "build:types": "tsc --project tsconfig.build.json --outDir .dist/types --emitDeclarationOnly --declaration true --declarationMap true",
     "build": "npm run build:cjs && npm run build:esm && npm run build:types",
     "auto-readme": "embedme **/*.md && prettier --write **/*.md",
     "clean": "rimraf .dist & rimraf .coverage"
@@ -57,7 +57,7 @@
   },
   "dependencies": {
     "@mionkit/core": "^0.4.2",
-    "@mionkit/runtype": "^0.4.2"
+    "@mionkit/reflection": "^0.4.2"
   },
   "gitHead": "2efdcd77c572e64f2b9621b4921ffd2f5e83bc0a"
 }

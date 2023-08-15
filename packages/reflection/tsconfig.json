@@ -5,5 +5,5 @@
   },
   "reflection": true,
   "include": ["."],
-  "exclude": ["node_modules", "**/*.spec.ts", "examples", ".dist"]
+  "exclude": ["node_modules", ".dist"]
 }

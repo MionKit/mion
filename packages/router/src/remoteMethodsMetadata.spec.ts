@@ -8,7 +8,7 @@
 import {DEFAULT_ROUTE_OPTIONS} from './constants';
 import {getRemoteMethodsMetadata} from './remoteMethodsMetadata';
 import {registerRoutes, initRouter, resetRouter, getRouteDefaultParams} from './router';
-import {getFunctionReflectionMethods} from '@mionkit/runtype';
+import {getFunctionReflectionMethods} from '@mionkit/reflection';
 import {CallContext, Routes} from './types';
 
 describe('Public Mothods should', () => {

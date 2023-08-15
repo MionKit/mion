@@ -40,7 +40,7 @@
     "access": "public"
   },
   "scripts": {
-    "test": "jest",
+    "test": "rimraf .dist/ && jest",
     "dev": "rimraf .dist && tsc --build tsconfig.build.json --watch",
     "dev:test": "jest --watch",
     "lint": "eslint src --ext .ts",

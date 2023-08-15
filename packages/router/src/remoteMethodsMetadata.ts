@@ -29,7 +29,7 @@ import {
     Executable,
     RemoteMethodMetadata,
 } from './types';
-import {getSerializedFunctionType} from '@mionkit/runtype';
+import {getSerializedFunctionType} from '@mionkit/reflection';
 import {Obj, getRoutePath, getRouterItemId} from '@mionkit/core';
 
 // ############# PRIVATE STATE #############

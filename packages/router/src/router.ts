@@ -36,7 +36,7 @@ import {
     HooksCollection,
     HookHeaderExecutable,
 } from './types';
-import {ReflectionOptions, getFunctionReflectionMethods} from '@mionkit/runtype';
+import {ReflectionOptions, getFunctionReflectionMethods} from '@mionkit/reflection';
 import {bodyParserHooks} from './jsonBodyParser';
 import {RpcError, StatusCodes, getRouterItemId, setErrorOptions, getRoutePath} from '@mionkit/core';
 import {getRemoteMethodsMetadata, resetRemoteMethodsMetadata} from './remoteMethodsMetadata';

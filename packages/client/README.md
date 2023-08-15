@@ -95,7 +95,7 @@ import {initClient} from '@mionkit/client';
 
 // importing type only from server
 import type {MyApi} from './server.routes';
-import {ParamsValidationResponse} from '@mionkit/runtype';
+import {ParamsValidationResponse} from '@mionkit/reflection';
 
 const port = 8076;
 const baseURL = `http://localhost:${port}`;
