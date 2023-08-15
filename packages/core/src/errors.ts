@@ -7,7 +7,7 @@
 
 import {randomUUID} from 'crypto';
 import {statusCodeToReasonPhrase} from './status-codes';
-import {CoreOptions, RouteErrorParams} from './types';
+import {CoreOptions, AnyErrorParams, AnonymRpcError} from './types';
 import {DEFAULT_CORE_OPTIONS} from './constants';
 
 let options: CoreOptions = {...DEFAULT_CORE_OPTIONS};
@@ -16,7 +16,7 @@ export function setErrorOptions(opts: CoreOptions) {
     options = opts;
 }
 
-export class RouteError extends Error {
+export class RpcError extends Error {
     /** id of the error, if RouterOptions.autoGenerateErrorId is set to true and id with timestamp+uuid will be generated */
     public readonly id?: number | string;
     /** response status code */
@@ -26,48 +26,30 @@ export class RouteError extends Error {
     /** options data related to the error, ie validation data */
     public readonly errorData?: Readonly<unknown>;
 
-    constructor({statusCode, message, publicMessage, originalError, errorData, name, id}: RouteErrorParams) {
+    constructor({statusCode, message, publicMessage, originalError, errorData, name, id}: AnyErrorParams) {
         super(message || originalError?.message || publicMessage);
         super.name = name || statusCodeToReasonPhrase[statusCode] || 'UnknownError';
         if (originalError?.stack) super.stack = originalError?.stack;
         const {autoGenerateErrorId} = options;
         this.id = id || autoGenerateErrorId ? `${new Date().toISOString()}@${randomUUID()}` : undefined;
         this.statusCode = statusCode;
-        this.publicMessage = publicMessage;
+        this.publicMessage = publicMessage || '';
         this.errorData = errorData as Readonly<unknown>;
-        Object.setPrototypeOf(this, RouteError.prototype);
-        // sets proper json serialization
-        if (message !== publicMessage) Object.defineProperty(this, 'message', {enumerable: true});
+        Object.setPrototypeOf(this, RpcError.prototype);
+        // sets proper json serialization for message
+        Object.defineProperty(this, 'message', {enumerable: true});
     }
 
-    toPublicError(): PublicError {
-        return new PublicError({
+    /** returns an error without stack trace an massage is swapped by public message */
+    toAnonymizedError(): AnonymRpcError {
+        const err: AnonymRpcError = {
             name: this.name,
             statusCode: this.statusCode,
             message: this.publicMessage,
-            id: this.id,
-            errorData: this.errorData,
-        });
-    }
-}
-
-export class PublicError extends Error {
-    readonly id?: number | string;
-    readonly statusCode: number;
-    readonly message: string;
-    readonly errorData?: Readonly<unknown>;
-    readonly name: string;
-
-    constructor({name, statusCode, message, errorData, id}: PublicError) {
-        super(message);
-        this.id = id;
-        this.statusCode = statusCode;
-        this.message = message;
-        this.name = name;
-        if (errorData) this.errorData = errorData;
-        Object.setPrototypeOf(this, PublicError.prototype);
-        // sets proper json serialization
-        Object.defineProperty(this, 'message', {enumerable: true});
+        };
+        if (this.errorData) err.errorData = this.errorData;
+        if (this.id) err.id = this.id;
+        return err;
     }
 }
 
@@ -79,16 +61,16 @@ const hasUnknownKeys = (knownKeys, error) => {
     return unknownKeys.some((ukn) => !knownKeys.includes(ukn));
 };
 
-/** Returns true if the error is a PublicError or has the same structure. */
-export function isPublicError(error: any): error is PublicError {
+/** Returns true if the error is a RpcError or has the same structure. */
+export function isRpcError(error: any): error is RpcError {
     if (!error) return false;
-    if (error instanceof PublicError) return true;
+    if (error instanceof RpcError) return true;
     return (
         error &&
-        typeof error?.statusCode === 'number' &&
-        typeof error?.message === 'string' &&
-        typeof error?.name === 'string' &&
-        (typeof error?.id === 'string' || typeof error?.id === 'number' || error?.id === undefined) &&
-        !hasUnknownKeys(['id', 'statusCode', 'message', 'name', 'errorData'], error)
+        typeof error.statusCode === 'number' &&
+        typeof error.name === 'string' &&
+        (typeof error.message === 'string' || typeof error.publicMessage === 'string') &&
+        (typeof error.id === 'string' || typeof error.id === 'number' || error.id === undefined) &&
+        !hasUnknownKeys(['id', 'statusCode', 'message', 'publicMessage', 'name', 'errorData'], error)
     );
 }

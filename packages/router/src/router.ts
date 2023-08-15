@@ -38,7 +38,7 @@ import {
 } from './types';
 import {ReflectionOptions, getFunctionReflectionMethods} from '@mionkit/runtype';
 import {bodyParserHooks} from './jsonBodyParser';
-import {RouteError, StatusCodes, getRouterItemId, setErrorOptions, getRoutePath} from '@mionkit/core';
+import {RpcError, StatusCodes, getRouterItemId, setErrorOptions, getRoutePath} from '@mionkit/core';
 import {getRemoteMethodsMetadata, resetRemoteMethodsMetadata} from './remoteMethodsMetadata';
 
 type RouterKeyEntryList = [string, RouterEntry][];
@@ -156,7 +156,7 @@ export function getNotFoundExecutionPath(): Executable[] {
     const hookName = '_mion404NotfoundHook_';
     const notFoundHook = {
         rawHook: () => {
-            return new RouteError({statusCode: StatusCodes.NOT_FOUND, publicMessage: `Route not found`});
+            return new RpcError({statusCode: StatusCodes.NOT_FOUND, publicMessage: `Route not found`});
         },
     } satisfies RawHookDef;
     const notFoundHandlerExecutable = getExecutableFromRawHook(notFoundHook, [hookName], 0);

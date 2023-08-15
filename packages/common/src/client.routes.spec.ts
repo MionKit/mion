@@ -7,7 +7,7 @@
 
 import {registerRoutes, initRouter, resetRouter, Routes, dispatchRoute, RawRequest} from '@mionkit/router';
 import {clientRoutes} from './client.routes';
-import {GET_REMOTE_METHODS_BY_ID, GET_REMOTE_METHODS_BY_PATH, PublicError, getRoutePath} from '@mionkit/core';
+import {GET_REMOTE_METHODS_BY_ID, GET_REMOTE_METHODS_BY_PATH, RpcError, getRoutePath} from '@mionkit/core';
 
 describe('Client Routes should', () => {
     const privateHook = (ctx): void => undefined;
@@ -214,7 +214,7 @@ describe('Client Routes should', () => {
         registerRoutes(routes);
         registerRoutes(clientRoutes);
 
-        const methodIdList = ['parse', 'helloWorld', 'users-userBefore']; // all public methods
+        const methodIdList = ['parse', 'helloWorld']; // all public methods
         const request: RawRequest = {
             headers: {},
             body: JSON.stringify({
@@ -223,16 +223,15 @@ describe('Client Routes should', () => {
             }),
         };
         const response = await dispatchRoute(methodsPath, request, {});
-        const expectedResponse = new PublicError({
+        const expectedResponse = {
             statusCode: 404,
             name: 'Invalid Metadata Request',
             message: 'Errors getting Remote Methods Metadata',
             errorData: {
                 parse: 'Remote Method parse not found',
                 helloWorld: 'Remote Method helloWorld not found',
-                'users-userBefore': 'Remote Method users-userBefore not found',
             },
-        });
+        };
         expect(response.body[methodsId]).toEqual(expectedResponse);
     });
 
@@ -249,11 +248,11 @@ describe('Client Routes should', () => {
             }),
         };
         const response = await dispatchRoute(routeMethodsPath, request, {});
-        const expectedResponse = new PublicError({
+        const expectedResponse = {
             statusCode: 404,
             name: 'Invalid Metadata Request',
             message: 'Route /abcd not found',
-        });
+        };
         expect(response.body[routeMethodsId]).toEqual(expectedResponse);
     });
 });

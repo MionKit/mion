@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {GET_REMOTE_METHODS_BY_ID, PublicError, isPublicError} from '@mionkit/core';
+import {GET_REMOTE_METHODS_BY_ID, RpcError, isRpcError} from '@mionkit/core';
 import {ClientOptions, RequestBody} from './types';
 import {RemoteMethodMetadata} from '@mionkit/router';
 import {FunctionReflection, SerializedTypes, getDeserializedFunctionType, getFunctionReflectionMethods} from '@mionkit/runtype';
@@ -34,9 +34,9 @@ export async function fetchRemoteMethodsMetadata(
             body: JSON.stringify(body),
         });
         const respObj = await response.json();
-        const resp = respObj[GET_REMOTE_METHODS_BY_ID] as {[key: string]: RemoteMethodMetadata} | PublicError;
+        const resp = respObj[GET_REMOTE_METHODS_BY_ID] as {[key: string]: RemoteMethodMetadata} | RpcError;
         // TODO: convert Public error into a class that extends error and throw as an error
-        if (isPublicError(resp)) throw new PublicError(resp);
+        if (isRpcError(resp)) throw new RpcError(resp);
         if (!resp) throw new Error('No remote methods found in response');
 
         Object.entries(resp).forEach(([id, methodMeta]: [string, RemoteMethodMetadata]) => {

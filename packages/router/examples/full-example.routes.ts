@@ -1,4 +1,4 @@
-import {RouteError, StatusCodes} from '@mionkit/core';
+import {RpcError, StatusCodes} from '@mionkit/core';
 import {registerRoutes, initRouter} from '@mionkit/router';
 import type {HeaderHookDef, RawHookDef, Routes} from '@mionkit/router';
 import {Context, NewUser, getSharedData, myApp} from './full-example.app';
@@ -28,7 +28,7 @@ const auth = {
     headerName: 'Authorization',
     canReturnData: false,
     headerHook: (ctx: Context, token: string): void => {
-        if (!myApp.auth.isAuthorized(token)) throw {statusCode: StatusCodes.FORBIDDEN, message: 'Not Authorized'} as RouteError;
+        if (!myApp.auth.isAuthorized(token)) throw {statusCode: StatusCodes.FORBIDDEN, message: 'Not Authorized'} as RpcError;
         ctx.shared.me = myApp.auth.getIdentity(token) as User;
     },
 } satisfies HeaderHookDef;

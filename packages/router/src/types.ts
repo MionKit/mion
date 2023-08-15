@@ -6,7 +6,7 @@
  * ######## */
 
 import {ReflectionOptions, FunctionReflection, SerializedTypes} from '@mionkit/runtype';
-import {CoreOptions, Obj, PublicError, RouteError} from '@mionkit/core';
+import {CoreOptions, Obj, RpcError} from '@mionkit/core';
 
 // #######  Route Handlers #######
 
@@ -217,7 +217,7 @@ export type Request = {
     /** parsed body */
     readonly body: Readonly<Obj>;
     /** All errors thrown during the call are stored here so they can bee logged or handler by a some error handler hook */
-    readonly internalErrors: Readonly<(RouteError | PublicError)[]>;
+    readonly internalErrors: Readonly<RpcError[]>;
 };
 
 /** Any request used by the router must follow this interface */
@@ -248,7 +248,7 @@ export type SharedDataFactory<SharedData> = () => SharedData;
 
 // ####### Raw Hooks #######
 
-export type ErrorReturn = void | RouteError | Promise<RouteError | void>;
+export type ErrorReturn = void | RpcError | Promise<RpcError | void>;
 
 export type HooksCollection<
     Context extends CallContext = CallContext,
@@ -306,7 +306,7 @@ export type RemoteApi<Type extends Routes> = {
 // prettier-ignore
 export type RemoteHandler<H extends Handler> = 
     H extends (ctx: CallContext, ...rest: infer Req) => infer Resp
-    ? (...rest: Req) => Promise<Exclude<Awaited<Resp>, RouteError | Error> | PublicError>
+    ? (...rest: Req) => Promise<Exclude<Awaited<Resp>, RpcError | Error> | RpcError>
     : never;
 
 export interface RemoteMethodMetadata<H extends Handler = any> {
@@ -353,7 +353,7 @@ export type RemoteHandlers<RMS extends RemoteApi<any>> = {
 };
 
 export type ResolvedPublicResponses = {
-    [key: string]: any | PublicError;
+    [key: string]: any | RpcError;
 };
 
 // #######  type guards #######

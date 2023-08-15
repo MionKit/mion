@@ -19,7 +19,7 @@ import {
     SuccessClientResponse,
 } from './types';
 import type {RemoteApi} from '@mionkit/router';
-import {PublicError, getRouterItemId} from '@mionkit/core';
+import {RpcError, getRouterItemId} from '@mionkit/core';
 import {MionRequest} from './request';
 import {ParamsValidationResponse} from '@mionkit/runtype';
 
@@ -132,6 +132,6 @@ class MethodProxy {
     }
 }
 
-function findError(req: SubRequest<any>, errors: RequestErrors): PublicError {
+function findError(req: SubRequest<any>, errors: RequestErrors): RpcError {
     return errors.get(req.id) || errors.values().next().value;
 }

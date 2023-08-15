@@ -20,7 +20,7 @@ import {
 } from './types';
 import {getNotFoundExecutionPath, getRouteExecutionPath, getRouterOptions} from './router';
 import {isPromise} from 'node:util/types';
-import {Mutable, Obj, PublicError, RouteError, StatusCodes} from '@mionkit/core';
+import {Mutable, Obj, RpcError, StatusCodes} from '@mionkit/core';
 
 type CallBack = (err: any, response: Response | undefined) => void;
 
@@ -77,7 +77,7 @@ async function _dispatchRoute(path: string, rawRequest: RawRequest, rawResponse?
         await runExecutionPath(context, rawRequest, rawResponse, executionPath, opts);
 
         return context.response;
-    } catch (err: any | RouteError | Error) {
+    } catch (err: any | RpcError | Error) {
         return Promise.reject(err);
     }
 }
@@ -104,9 +104,9 @@ async function runExecutionPath(
             const result = await runHandler(validatedParams, context, rawRequest, rawResponse, executable, opts);
             // TODO: should we also validate the handler result? think just forcing declaring the return type with a linter is enough.
             serializeResponse(executable, response, result);
-        } catch (err: any | RouteError | PublicError | Error) {
+        } catch (err: any | RpcError | Error) {
             const path = isNotFoundExecutable(executable) ? context.path : executable.id;
-            handleRouteErrors(path, request, response, err, i);
+            handleRpcErrors(path, request, response, err, i);
         }
     }
 
@@ -124,7 +124,7 @@ async function runHandler(
     const resp = getHandlerResponse(handlerParams, context, rawRequest, rawResponse, executable, opts);
     if (isPromise(resp)) {
         return resp as Promise<any>;
-    } else if (resp instanceof Error || resp instanceof RouteError || resp instanceof PublicError) {
+    } else if (resp instanceof Error || resp instanceof RpcError) {
         return Promise.reject(resp);
     } else {
         return Promise.resolve(resp);
@@ -160,7 +160,7 @@ function deserializeParameters(request: Request, executable: Executable): any[] 
         params = request.body[path] || [];
         // params sent in body can only be sent in an array
         if (!Array.isArray(params))
-            throw new RouteError({
+            throw new RpcError({
                 statusCode: StatusCodes.BAD_REQUEST,
                 name: 'Invalid Params Array',
                 publicMessage: `Invalid params '${path}'. input parameters can only be sent in an array.`,
@@ -171,7 +171,7 @@ function deserializeParameters(request: Request, executable: Executable): any[] 
         try {
             params = executable.reflection.deserializeParams(params);
         } catch (e: any) {
-            throw new RouteError({
+            throw new RpcError({
                 statusCode: StatusCodes.BAD_REQUEST,
                 name: 'Serialization Error',
                 publicMessage: `Invalid params '${path}', can not deserialize. Parameters might be of the wrong type.`,
@@ -188,7 +188,7 @@ function validateParameters(params: any[], executable: Executable): any[] {
     if (executable.enableValidation) {
         const validationResponse = executable.reflection.validateParams(params);
         if (validationResponse.hasErrors) {
-            throw new RouteError({
+            throw new RpcError({
                 statusCode: StatusCodes.BAD_REQUEST,
                 name: 'Validation Error',
                 publicMessage: `Invalid params in '${executable.id}', validation failed.`,
@@ -225,28 +225,27 @@ function getParamFromStandardHeaders(request: Request, executable: HookHeaderExe
 
 // ############# PUBLIC METHODS USED FOR ERRORS #############
 
-export function handleRouteErrors(
+export function handleRpcErrors(
     path: string,
     request: Request,
     response: Mutable<Response>,
-    err: any | RouteError | PublicError | Error,
+    err: any | RpcError | Error,
     step: number | string
 ) {
-    const routeError =
-        err instanceof RouteError || err instanceof PublicError
+    const rpcError =
+        err instanceof RpcError
             ? err
-            : new RouteError({
+            : new RpcError({
                   statusCode: StatusCodes.INTERNAL_SERVER_ERROR,
                   publicMessage: `Unknown error in step ${step} of route execution path.`,
                   originalError: err,
                   name: 'Unknown Error',
               });
 
-    const publicError: PublicError = routeError instanceof RouteError ? routeError.toPublicError() : err;
-    response.statusCode = routeError.statusCode;
+    response.statusCode = rpcError.statusCode;
     response.hasErrors = true;
-    (response.body as Mutable<Obj>)[path] = publicError;
-    (request.internalErrors as Mutable<any[]>).push(routeError);
+    (response.body as Mutable<Obj>)[path] = rpcError.toAnonymizedError();
+    (request.internalErrors as Mutable<any[]>).push(rpcError);
 }
 
 export function getEmptyCallContext(originalPath: string, opts: RouterOptions, rawRequest: RawRequest): CallContext {

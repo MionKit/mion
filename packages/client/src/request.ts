@@ -18,7 +18,7 @@ import {
     RequestErrors,
 } from './types';
 import {ParamsValidationResponse} from '@mionkit/runtype';
-import {PublicError, StatusCodes, getRoutePath, isPublicError} from '@mionkit/core';
+import {RpcError, StatusCodes, getRoutePath, isRpcError} from '@mionkit/core';
 import {STORAGE_KEY} from './constants';
 import {fetchRemoteMethodsMetadata} from './clientMethodsMetadata';
 import {deserializeResponseBody, serializeSubRequests, validateSubRequests} from './reflection';
@@ -58,7 +58,7 @@ export class MionRequest<RR extends RouteSubRequest<any>, HookRequestsList exten
             serializeSubRequests(subRequestIds, this, errors);
             if (errors.size) return Promise.reject(errors);
         } catch (error: any) {
-            this.routeError(error, 'Error preparing request', errors);
+            this.rpcError(error, 'Error preparing request', errors);
             return Promise.reject(errors);
         }
 
@@ -77,7 +77,7 @@ export class MionRequest<RR extends RouteSubRequest<any>, HookRequestsList exten
             this.response = await fetch(url, fetchOptions);
             this.rawResponseBody = await this.response.json();
         } catch (error: any) {
-            this.routeError(error, 'Error executing request', errors);
+            this.rpcError(error, 'Error executing request', errors);
             return Promise.reject(errors);
         }
 
@@ -87,7 +87,7 @@ export class MionRequest<RR extends RouteSubRequest<any>, HookRequestsList exten
             Object.entries(this.subRequests).forEach(([id, methodMeta]) => {
                 const resp = this.getResponseValueFromBodyOrHeader(id, deserialized, (this.response as Response).headers);
                 methodMeta.isResolved = true;
-                if (isPublicError(resp)) {
+                if (isRpcError(resp)) {
                     methodMeta.error = resp;
                     errors.set(id, resp);
                 } else {
@@ -98,7 +98,7 @@ export class MionRequest<RR extends RouteSubRequest<any>, HookRequestsList exten
             if (errors.size) return Promise.reject(errors);
             return deserialized;
         } catch (error) {
-            this.routeError(error, 'Error parsing response', errors);
+            this.rpcError(error, 'Error parsing response', errors);
             return Promise.reject(errors);
         }
     }
@@ -116,7 +116,7 @@ export class MionRequest<RR extends RouteSubRequest<any>, HookRequestsList exten
 
             return Object.values(this.subRequests).map((subRequest) => subRequest.validationResponse as ParamsValidationResponse);
         } catch (error: any) {
-            this.routeError(error, 'Error preparing request', errors);
+            this.rpcError(error, 'Error preparing request', errors);
             return Promise.reject(errors);
         }
     }
@@ -140,7 +140,7 @@ export class MionRequest<RR extends RouteSubRequest<any>, HookRequestsList exten
 
             return;
         } catch (error: any) {
-            this.routeError(error, 'Error preparing request', errors);
+            this.rpcError(error, 'Error preparing request', errors);
             return Promise.reject(errors);
         }
     }
@@ -164,11 +164,11 @@ export class MionRequest<RR extends RouteSubRequest<any>, HookRequestsList exten
 
     // ############# PRIVATE METHODS #############
 
-    private routeError(error: any, stageMessage: string, errors: RequestErrors): void {
+    private rpcError(error: any, stageMessage: string, errors: RequestErrors): void {
         const message = error?.message ? `${stageMessage}: ${error.message}` : `${stageMessage}: Unknown Error`;
         errors.set(
             this.requestId,
-            new PublicError({
+            new RpcError({
                 statusCode: StatusCodes.BAD_REQUEST,
                 name: error.name || 'Unknown Error',
                 message,
@@ -207,7 +207,7 @@ export class MionRequest<RR extends RouteSubRequest<any>, HookRequestsList exten
         if (!remoteRoute) {
             errors.set(
                 this.requestId,
-                new PublicError({
+                new RpcError({
                     statusCode: StatusCodes.BAD_REQUEST,
                     name: 'Request Error',
                     message: `Metadata for Route '${this.requestId} not found.'.`,
@@ -229,7 +229,7 @@ export class MionRequest<RR extends RouteSubRequest<any>, HookRequestsList exten
                 localStorage.removeItem(storageKey);
                 errors.set(
                     id,
-                    new PublicError({
+                    new RpcError({
                         statusCode: StatusCodes.BAD_REQUEST,
                         name: 'Persist Error',
                         message: `Error reading persisted request ${id}: ${err?.message}`,
@@ -246,7 +246,7 @@ export class MionRequest<RR extends RouteSubRequest<any>, HookRequestsList exten
             const methodMeta = this.metadataById.get(id);
             if (!methodMeta) throw new Error(`Remote method ${id} not found.`);
             if (methodMeta.isRoute) {
-                errors[id] = new PublicError({
+                errors[id] = new RpcError({
                     statusCode: StatusCodes.BAD_REQUEST,
                     name: 'Persist Error',
                     message: `Remote method ${id} is a route and can't be persisted.`,
@@ -261,7 +261,7 @@ export class MionRequest<RR extends RouteSubRequest<any>, HookRequestsList exten
                 localStorage.removeItem(storageKey);
                 errors.set(
                     id,
-                    new PublicError({
+                    new RpcError({
                         statusCode: StatusCodes.BAD_REQUEST,
                         name: 'Persist Error',
                         message: `Error persisting request ${id}.`,
@@ -280,7 +280,7 @@ export class MionRequest<RR extends RouteSubRequest<any>, HookRequestsList exten
             } catch (e) {
                 errors.set(
                     id,
-                    new PublicError({
+                    new RpcError({
                         statusCode: StatusCodes.BAD_REQUEST,
                         name: 'Persist Error',
                         message: `Error removing persisted request ${id}.`,

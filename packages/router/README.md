@@ -36,17 +36,18 @@ We explicitly mention **RPC like** as the router is still designed to work over 
 
 Please have a look to bellow great Presentation for more info about each different type of API and the pros and cons of each one: [Nate Barbettini – API Throwdown: RPC vs REST vs GraphQL](https://www.youtube.com/watch?v=IvsANO0qZEg)
 
-#### `@mionkit/client`
+### `@mionkit/client`
 
-The [client package](https://www.npmjs.com/package/@mionkit/client) can be used as a fully typed client for mion Apis, it does not requires any compilation step or api schema generation (your api is your schema).
+The [client package](https://www.npmjs.com/package/@mionkit/client) can be used as a Fully Typed client for mion Apis!
 
-Supports multiple features:
-
-- Fully typed Apis with autocompletion and type checking for all methods, parameters and return values.
+- Fully typed Apis with autocompletion and type checking (your code is your schema).
 - Automattic validation and serialization out of the box.
+- No compilation needed.
 - Local validation in the client (no need to query the server), useful for form validation, etc...
-- Prefill parameters across multiple calls, useful for authorization, session and a replacement for cookies.
+- Prefill and persist parameters across multiple calls, useful for authorization, session and a replacement for cookies.
 - Runtime types.
+
+![autocomplete](./assets/autocomplete.gif)
 
 ## `Routes`
 
@@ -54,7 +55,7 @@ Routes are just regular functions, the first parameter is always the `call conte
 
 Params are automatically serialized and validated from typescript, no other extra steps required or need to declare schemas or any other validation library. **Types are your schema!**
 
-mion only cares about the `url.path`, and completely ignores the http method, so in theory request could be made using `POST`, `PUT`, `GET`, or the router could be used in any event driven environment where the concept of method does not exist.
+mion only cares about the `url.path`, and completely ignores the http method, so in theory request could be made using `POST`, `PUT`, `GET`, or the router could be used in any event driven environment where the concept of HTTP method does not exist.
 
 ```ts
 // examples/routes-definition.routes.ts
@@ -101,7 +102,7 @@ export const apiSpec = registerRoutes(routes);
 
 ## `Hooks`
 
-Hooks are simply auxiliary functions that get executed before or after a route gets executed. We call them hooks because they are functions that get hooked into the execution path of a route.
+Hooks are simply auxiliary methods that are executed before or after a route gets executed. We call them hooks because they are methods that get hooked into the execution path of a route.
 
 Hooks are useful when a route might require some extra data like authorization, preconditions, logging, or some processing like body parsing, etc...  
 Multiple Hooks can be executed but only a single Route will be executed per remote call.
@@ -137,7 +138,7 @@ In cases were the data is received/sent in the headers a 'Header Hook' can be us
 When using a header hook [Soft Type Conversion](https://docs.deepkit.io/english/serialization.html#serialisation-loosely-convertion) is used, this means strings like '1' , '0', 'true', 'false'
 will be converted to `boolean` and numeric strings like '5' , '100' will be converted to a `number`.
 
-**! Note header hames are case insensitive !**
+**! Note header names are case insensitive !**
 
 ```ts
 // examples/hooks-header-definition.routes.ts
@@ -226,7 +227,7 @@ export type Request = {
   /** parsed body */
   readonly body: Readonly<Obj>;
   /** All errors thrown during the call are stored here so they can bee logged or handler by a some error handler hook */
-  readonly internalErrors: Readonly<(RouteError | PublicError)[]>;
+  readonly internalErrors: Readonly<RpcError[]>;
 };
 
 /** Any request used by the router must follow this interface */
@@ -328,30 +329,26 @@ export const myInvalidApi = registerRoutes(invalidRoutes); // throws an error
 
 ## `Handling errors`
 
-All errors thrown within Routes/Hooks will be catch and handled, as there is no concept of logger within the router, errors are not automatically logged.
+All errors thrown within Routes/Hooks will be catch and handled.
 
-> We recommend returning errors instead throwing them as the returned error type can be inferred by the clients.
+Routes and Hooks should throw/return and `RpcError` specifying status code, error name, and publicMessage in case we want to return a message to the client. if a generic `Error` is thrown/returned a generic `500, Unknown Error` will be returned to the client.
 
-For every error thrown/returned within the Routes/Hooks two types of errors are generated, a Public and a Private error.
+`RpcError` can be serialized, and unlike regulars error in JS preserve the `message` property when stringified using JSON.
 
-- Public errors (`PublicError`): Are returned in the `context.response.body[routeName]` or `context.response.body[hookName]` and only contain a generic message and a status code (information that can be safely accessed by the clients).
-- Private errors (`RouteError`): are stored in the `context.request.internalErrors`These errors also contains the stack trace and the rest of properties of any regular js Error. These errors should be managed by any logger hook or similar to be persisted.
-- Both `PublicError` & `RouteError` can be serialized, and unlike regulars error in JS preserve the `message` property when stringified using JSON.
+> We recommend returning errors instead throwing as the returned error type is explicitly declared as return type and type can be inferred by the client.
 
-#### `RouteError`
+#### `RpcError`
 
-mion provides the `RouteError` class to help with the creation and serialization of errors, response status code etc... It also automatically generates a shared uuid when `RouterOptions.autoGenerateErrorId = true` so same error can be traced between returned public error and internal error that contains all stack trace an any sensitive information.
-
-Throwing any generic `Error` will generate an `HTTP 500 Internal Server Error` response.
+mion provides the `RpcError` class to help with the creation and serialization of errors, response status code etc... It also automatically generates a shared uuid when `RouterOptions.autoGenerateErrorId = true` so same error can be traced between returned public error and internal error that contains all stack trace an any sensitive information.
 
 ```ts
 // examples/error-handling.routes.ts
 
-import {RouteError, StatusCodes} from '@mionkit/core';
+import {RpcError, StatusCodes} from '@mionkit/core';
 import type {Pet} from './myModels';
 import {myApp} from './myApp';
 
-export const getPet = async (ctx, id: string): Promise<Pet | RouteError> => {
+export const getPet = async (ctx, id: string): Promise<Pet | RpcError> => {
   try {
     const pet = await myApp.db.getPet(id);
     if (!pet) {
@@ -359,7 +356,7 @@ export const getPet = async (ctx, id: string): Promise<Pet | RouteError> => {
       const statusCode = StatusCodes.BAD_REQUEST;
       const publicMessage = `Pet with id ${id} can't be found`;
       // either return or throw are allowed
-      return new RouteError({statusCode, publicMessage});
+      return new RpcError({statusCode, publicMessage});
     }
     return pet;
   } catch (dbError) {
@@ -368,10 +365,10 @@ export const getPet = async (ctx, id: string): Promise<Pet | RouteError> => {
     /*
      * Only statusCode and publicMessage will be returned in the response.body.
      *
-     * Full RouteError containing dbError message and stacktrace will be added
+     * Full RpcError containing dbError message and stacktrace will be added
      * to ctx.request.internalErrors, so it can be logged or managed after
      */
-    return new RouteError({statusCode, publicMessage, originalError: dbError as Error});
+    return new RpcError({statusCode, publicMessage, originalError: dbError as Error});
   }
 };
 
@@ -379,7 +376,7 @@ export const alwaysError = (): void => {
   /*
    * this will generate a public 500 error with an 'Unknown Error' message.
    *
-   * Full RouteError containing dbError message and stacktrace will be added
+   * Full RpcError containing dbError message and stacktrace will be added
    * to ctx.request.internalErrors, so it can be logged or managed after
    */
   throw new Error('This error will generate a public 500 error with a generic message');
@@ -635,16 +632,16 @@ export const apiSpec = registerRoutes(routes);
 
 ```yml
 # VALID REQUEST BODY
-{ "/users/getUser": [ {"id" : 1} ]}
+{ "users-getUser": [ {"id" : 1} ]}
 
 # INVALID REQUEST BODY (user.id is not a number)
-{"/users/getUser": [ {"id" : "1"} ]}
+{"users-getUser": [ {"id" : "1"} ]}
 
 # INVALID REQUEST BODY (missing parameter user.id)
-{"/users/getUser": [ {"ID" : 1} ]}
+{"users-getUser": [ {"ID" : 1} ]}
 
 # INVALID REQUEST BODY (missing parameters)
-{"/users/getUser": []}
+{"users-getUser": []}
 ```
 
 </td>
@@ -653,7 +650,7 @@ export const apiSpec = registerRoutes(routes);
 
 #### !!! IMPORTANT !!!
 
-Deepkit does not support [Type Inference](https://www.typescriptlang.org/docs/handbook/type-inference.html), `parameter types` and more importantly `return types` must be explicitly defined, so they are correctly validated/serialized.
+Deepkit does not support [Type Inference](https://www.typescriptlang.org/docs/handbook/type-inference.html), `parameter types` and `return types` must be explicitly defined, so they are correctly validated/serialized.
 
 🚫 Invalid route definitions!
 
@@ -775,7 +772,7 @@ Application
 ```ts
 // examples/full-example.app.ts
 
-import {RouteError, StatusCodes} from '@mionkit/core';
+import {RpcError, StatusCodes} from '@mionkit/core';
 import {registerRoutes, initRouter, Route} from '@mionkit/router';
 import type {CallContext, HeaderHookDef, HookDef, RawHookDef, Routes} from '@mionkit/router';
 import type {APIGatewayEvent} from 'aws-lambda';
@@ -833,7 +830,7 @@ Routes
 ```ts
 // examples/full-example.routes.ts
 
-import {RouteError, StatusCodes} from '@mionkit/core';
+import {RpcError, StatusCodes} from '@mionkit/core';
 import {registerRoutes, initRouter} from '@mionkit/router';
 import type {HeaderHookDef, RawHookDef, Routes} from '@mionkit/router';
 import {Context, NewUser, getSharedData, myApp} from './full-example.app';
@@ -863,7 +860,7 @@ const auth = {
   headerName: 'Authorization',
   canReturnData: false,
   headerHook: (ctx: Context, token: string): void => {
-    if (!myApp.auth.isAuthorized(token)) throw {statusCode: StatusCodes.FORBIDDEN, message: 'Not Authorized'} as RouteError;
+    if (!myApp.auth.isAuthorized(token)) throw {statusCode: StatusCodes.FORBIDDEN, message: 'Not Authorized'} as RpcError;
     ctx.shared.me = myApp.auth.getIdentity(token) as User;
   },
 } satisfies HeaderHookDef;

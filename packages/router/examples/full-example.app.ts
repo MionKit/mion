@@ -1,4 +1,4 @@
-import {RouteError, StatusCodes} from '@mionkit/core';
+import {RpcError, StatusCodes} from '@mionkit/core';
 import {registerRoutes, initRouter, Route} from '@mionkit/router';
 import type {CallContext, HeaderHookDef, HookDef, RawHookDef, Routes} from '@mionkit/router';
 import type {APIGatewayEvent} from 'aws-lambda';

@@ -1,4 +1,4 @@
-import {Obj, RouteError} from '@mionkit/core';
+import {Obj, RpcError} from '@mionkit/core';
 import {registerRoutes, Routes, CallContext} from '@mionkit/router';
 import {IncomingMessage} from 'http';
 
@@ -11,8 +11,8 @@ const routes = {
     sayHello2: {route: (c, name: string): string => 'hello' + name},
     sayHello3: (): string => 'hello',
     sayHello4: {route: (): string => 'hello'},
-    sayHelloError: {route: (): RouteError => new RouteError({statusCode: 400, publicMessage: 'error'})},
-    maybeError: {route: (): string | RouteError => 'hello'},
+    sayHelloError: {route: (): RpcError => new RpcError({statusCode: 400, publicMessage: 'error'})},
+    maybeError: {route: (): string | RpcError => 'hello'},
 } satisfies Routes;
 
 const hooks = {
