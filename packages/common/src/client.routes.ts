@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {GET_REMOTE_METHODS_BY_ID, GET_REMOTE_METHODS_BY_PATH, Obj, PublicError} from '@mionkit/core';
+import {GET_REMOTE_METHODS_BY_ID, GET_REMOTE_METHODS_BY_PATH, Obj, RpcError} from '@mionkit/core';
 import {
     RemoteMethodMetadata,
     getHookExecutable,
@@ -20,7 +20,6 @@ import {
     getAllExecutablesIds,
     getAnyExecutable,
     Executable,
-    isRouteExecutable,
 } from '@mionkit/router';
 
 export type RemoteMethodsDictionary = {[key: string]: RemoteMethodMetadata};
@@ -49,7 +48,7 @@ export const getRemoteMethods = (
     ctx,
     methodsIds: string[],
     getAllRemoteMethods?: boolean
-): RemoteMethodsDictionary | PublicError => {
+): RemoteMethodsDictionary | RpcError => {
     const resp: RemoteMethodsDictionary = {};
     const errorData = {};
     const maxMethods =
@@ -67,26 +66,22 @@ export const getRemoteMethods = (
     idsToReturn.forEach((id) => addRequiredRemoteMethodsToResponse(id, resp, errorData));
 
     if (Object.keys(errorData).length)
-        return new PublicError({
+        return new RpcError({
             statusCode: 404,
             name: 'Invalid Metadata Request',
-            message: 'Errors getting Remote Methods Metadata',
+            publicMessage: 'Errors getting Remote Methods Metadata',
             errorData,
         });
     return resp;
 };
 
-export const getRouteRemoteMethods = (
-    ctx,
-    path: string,
-    getAllRemoteMethods?: boolean
-): RemoteMethodsDictionary | PublicError => {
+export const getRouteRemoteMethods = (ctx, path: string, getAllRemoteMethods?: boolean): RemoteMethodsDictionary | RpcError => {
     const executables = getRouteExecutionPath(path);
     if (!executables)
-        return new PublicError({
+        return new RpcError({
             statusCode: 404,
             name: 'Invalid Metadata Request',
-            message: `Route ${path} not found`,
+            publicMessage: `Route ${path} not found`,
         });
     const privateExecutables = executables.filter((e) => !isPrivateExecutable(e));
     return getRemoteMethods(

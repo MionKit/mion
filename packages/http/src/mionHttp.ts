@@ -13,7 +13,7 @@ import type {HttpOptions, HttpRequest} from './types';
 import type {IncomingMessage, Server as HttpServer, ServerResponse} from 'http';
 import type {Server as HttpsServer} from 'https';
 import type {Headers, RawRequest, Response} from '@mionkit/router';
-import {RouteError, StatusCodes} from '@mionkit/core';
+import {RpcError, StatusCodes} from '@mionkit/core';
 
 type HeadersEntries = [string, string | boolean | number][];
 
@@ -91,7 +91,7 @@ function httpRequestHandler(httpReq: IncomingMessage, httpResponse: ServerRespon
     const fail = (e?: Error, statusCode: StatusCodes = StatusCodes.INTERNAL_SERVER_ERROR, message = 'Unknown Error') => {
         if (replied || httpResponse.writableEnded) return;
         replied = true;
-        const error = new RouteError({statusCode, publicMessage: message, originalError: e});
+        const error = new RpcError({statusCode, publicMessage: message, originalError: e});
         const routeResponse = getResponseFromError('httpRequest', 'dispatch', httpReq as HttpRequest, httpResponse, error);
         addResponseHeaders(httpResponse, routeResponse.headers);
         reply(httpResponse, routeResponse.json, routeResponse.statusCode);

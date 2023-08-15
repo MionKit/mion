@@ -27,7 +27,7 @@ import {
     isSameType,
     Type,
 } from '@deepkit/type';
-import {PublicError, RouteError} from '@mionkit/core';
+import {RpcError} from '@mionkit/core';
 
 /**
  * Returns an Array of functions to Deserialize route handler parameters.
@@ -179,17 +179,15 @@ function createSingleParamSerializeFunction(sFunction: SerializeFunction, opts: 
 }
 
 // ###### HACK TO FIX THE ISSUE WITH RETURNED UNION TYPES ######
-// TODO: FOR SOME REASON ROUTES RETURNING AN UNION (Value | PublicError) ARE NOT BEING VALIDATED/SERIALIZED CORRECTLY
+// TODO: FOR SOME REASON ROUTES RETURNING AN UNION (Value | RpcError) ARE NOT BEING VALIDATED/SERIALIZED CORRECTLY
 
-const publicErrorType = typeOf<PublicError>() as TypeClass;
-const routeErrorType = typeOf<RouteError>() as TypeClass;
+const rpcErrorType = typeOf<RpcError>() as TypeClass;
 const errorType = typeOf<Error>() as TypeClass;
 
-function serializeError(error: Error | PublicError | RouteError): JSONPartial<any> {
-    if (error instanceof PublicError) return serialize<PublicError>(error);
-    if (error instanceof RouteError) return serialize<RouteError>(error);
+function serializeError(error: Error | RpcError): JSONPartial<any> {
+    if (error instanceof RpcError) return serialize<RpcError>(error);
     if (error instanceof Error) return serialize<Error>(error);
-    throw new Error('Invalid error type. can only serialize Error, PublicError or RouteError');
+    throw new Error('Invalid error type. can only serialize Error or RpcError');
 }
 
 function hasUnionErrorTypes(handlerType: TypeFunction): boolean {
@@ -199,7 +197,7 @@ function hasUnionErrorTypes(handlerType: TypeFunction): boolean {
 }
 
 function isErrorType(t: Type): boolean {
-    return isSameType(t, publicErrorType) || isSameType(t, routeErrorType) || isSameType(t, errorType);
+    return isSameType(t, rpcErrorType) || isSameType(t, errorType);
 }
 
 function getHandlerReturnUnionTypeWithoutErrors(handlerType: TypeFunction): Type {
@@ -237,7 +235,7 @@ function deserializeReturnWithUnionErrorHack(
     const serializeValue = createSingleParamSerializeFunction(sFunction, opts);
 
     return (p: JSONPartial<unknown> | unknown) => {
-        if (p instanceof PublicError || p instanceof RouteError || p instanceof Error) return serializeError(p);
+        if (p instanceof RpcError || p instanceof Error) return serializeError(p);
         const result = serializeValue(p);
         // do not fail silently if serialization returns undefined and the value is defined
         if (!!p && !result) throw new Error(`Serialization Error, can't serialize return value.`);

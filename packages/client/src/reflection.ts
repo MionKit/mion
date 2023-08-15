@@ -7,7 +7,7 @@
 
 import type {RemoteMethodMetadata, ResolvedPublicResponses} from '@mionkit/router';
 import {FunctionReflection, ParamsValidationResponse} from '@mionkit/runtype';
-import {PublicError, StatusCodes, isPublicError} from '@mionkit/core';
+import {RpcError, StatusCodes, isRpcError} from '@mionkit/core';
 import {RequestErrors, SubRequest, ValidationRequest} from './types';
 
 // ############# VALIDATION SERIALIZATION #############
@@ -46,7 +46,7 @@ export function validateSubRequest(id: string, req: ValidationRequest, errors: R
     const params = subRequest?.params || [];
     const validationResponse = validateParameters(params, methodMeta, req.reflectionById.get(id));
     if (!validationResponse) return; // if validation is void then validation is disabled for this method
-    if (isPublicError(validationResponse)) {
+    if (isRpcError(validationResponse)) {
         const error = validationResponse;
         errors.set(id, error);
         // if errors then mark subRequest as resolved
@@ -82,7 +82,7 @@ export function serializeSubRequest(id: string, req: ValidationRequest, errors: 
 
     const params = subRequest?.params || [];
     const serializedParams = serializeParameters(params, methodMeta, req.reflectionById.get(id));
-    if (isPublicError(serializedParams)) {
+    if (isRpcError(serializedParams)) {
         errors.set(id, serializedParams);
         // if errors then mark subRequest as resolved
         subRequest.error = serializedParams;
@@ -117,13 +117,13 @@ function getSerializationRequiredData(
     return {methodMeta, subRequest};
 }
 
-function serializeParameters(params: any[], method: RemoteMethodMetadata, reflection?: FunctionReflection): any[] | PublicError {
+function serializeParameters(params: any[], method: RemoteMethodMetadata, reflection?: FunctionReflection): any[] | RpcError {
     if (!reflection) return params;
     if (params.length && method.enableSerialization) {
         try {
             params = reflection.serializeParams(params);
         } catch (e: any | Error) {
-            return new PublicError({
+            return new RpcError({
                 statusCode: StatusCodes.BAD_REQUEST,
                 name: 'Serialization Error',
                 message: `Invalid params for Route or Hook '${method.id}', can not serialize params: ${e.message} `,
@@ -138,12 +138,12 @@ function validateParameters(
     params: any[],
     method: RemoteMethodMetadata,
     reflection?: FunctionReflection
-): void | ParamsValidationResponse | PublicError {
+): void | ParamsValidationResponse | RpcError {
     if (!reflection || !method.enableValidation) return;
     try {
         const validationsResponse = reflection.validateParams(params);
         if (validationsResponse.hasErrors) {
-            return new PublicError({
+            return new RpcError({
                 statusCode: StatusCodes.BAD_REQUEST,
                 name: 'Validation Error',
                 message: `Invalid params for Route or Hook '${method.id}', validation failed.`,
@@ -152,7 +152,7 @@ function validateParameters(
         }
         return validationsResponse;
     } catch (e: any | Error) {
-        return new PublicError({
+        return new RpcError({
             statusCode: StatusCodes.BAD_REQUEST,
             name: 'Validation Error',
             message: `Could not validate params for Route or Hook '${method.id}': ${e.message} `,
@@ -161,17 +161,18 @@ function validateParameters(
 }
 
 function deSerializeReturn(
-    remoteHandlerResponse: any | PublicError,
+    response: any | RpcError,
     method: RemoteMethodMetadata,
     reflection?: FunctionReflection
-): any | PublicError {
-    if (!reflection || !method.enableSerialization || !remoteHandlerResponse) return remoteHandlerResponse;
+): any | RpcError {
+    if (!reflection || !method.enableSerialization || !response) return response;
     try {
-        const ret = reflection.deserializeReturn(remoteHandlerResponse);
-        if (isPublicError(ret) && !(ret instanceof PublicError)) return new PublicError(ret);
+        if (response instanceof RpcError) return response;
+        if (isRpcError(response)) return new RpcError(response);
+        const ret = reflection.deserializeReturn(response);
         return ret;
     } catch (e: any) {
-        return new PublicError({
+        return new RpcError({
             statusCode: StatusCodes.BAD_REQUEST,
             name: 'Serialization Error',
             message: `Invalid response from Route or Hook '${method.id}', can not deserialize return value: ${e.message}`,

@@ -15,13 +15,13 @@ export type CoreOptions = {
 // #######  Errors #######
 
 /** Any error triggered by hooks or routes must follow this interface, returned errors in the body also follows this interface */
-export type RouteErrorParams = {
+export interface RpcErrorParams {
     /** id of the error. */
     id?: number | string;
     /** response status code */
     statusCode: number;
     /** the message that will be returned in the response */
-    publicMessage: string;
+    publicMessage?: string;
     /**
      * the error message, it is private and wont be returned in the response.
      * If not defined, it is assigned from originalError.message or publicMessage.
@@ -29,11 +29,27 @@ export type RouteErrorParams = {
     message?: string;
     /** options data related to the error, ie validation data */
     errorData?: unknown;
-    /** original error used to create the RouteError */
+    /** original error used to create the RpcError */
     originalError?: Error;
     /** name of the error, if not defined it is assigned from status code */
     name?: string;
-};
+}
+
+export interface PublicRpcError extends RpcErrorParams {
+    publicMessage: string;
+}
+
+export interface PrivateRpcError extends RpcErrorParams {
+    message: string;
+}
+
+export interface AnonymRpcError extends RpcErrorParams {
+    message: string;
+    publicMessage?: undefined;
+    name: string;
+}
+
+export type AnyErrorParams = PublicRpcError | PrivateRpcError;
 
 // #######  Others #######
 

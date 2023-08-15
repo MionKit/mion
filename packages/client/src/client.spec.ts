@@ -11,7 +11,7 @@ import {HookSubRequest, RouteSubRequest} from './types';
 import {initHttpRouter, startHttpServer} from '@mionkit/http';
 import {clientRoutes} from '@mionkit/common';
 import {Server} from 'http';
-import {PublicError} from '@mionkit/core';
+import {RpcError} from '@mionkit/core';
 
 // TODO move this into global jest config file if it is required by more tests
 // eslint-disable-next-line @typescript-eslint/no-var-requires
@@ -29,16 +29,16 @@ describe('client', () => {
             canReturnData: true,
             headerHook: (ctx, token: string): User => ({name: 'John', surname: 'Doe'}),
         },
-        sayHello: {route: (ctx, user: User): string | PublicError => `Hello ${user.name} ${user.surname}`},
-        alwaysFails: (ctx, user: User): User | PublicError =>
-            new PublicError({statusCode: 500, message: 'Something fails', name: 'UnknownError'}),
+        sayHello: {route: (ctx, user: User): string | RpcError => `Hello ${user.name} ${user.surname}`},
+        alwaysFails: (ctx, user: User): User | RpcError =>
+            new RpcError({statusCode: 500, publicMessage: 'Something fails', name: 'UnknownError'}),
         utils: {
             sumTwo: (ctx, a: number): number => a + 2,
         },
         log: {
             forceRunOnError: true,
             hook: (ctx): any => {
-                // console.log(ctx.path, ctx.request.headers, ctx.request.body);
+                // console.log(ctx.path, ctx.response.body);
             },
         },
     } satisfies Routes;
@@ -133,7 +133,7 @@ describe('client', () => {
         const {client, methods} = initClient<MyApi>({baseURL});
 
         let error;
-        const expectedError = new PublicError({
+        const expectedError = new RpcError({
             message: 'Something fails',
             name: 'UnknownError',
             statusCode: 500,
@@ -153,7 +153,7 @@ describe('client', () => {
         const {client, methods} = initClient<MyApi>({baseURL});
 
         let error;
-        const expectedError = new PublicError({
+        const expectedError = new RpcError({
             message: `Invalid params for Route or Hook 'auth', validation failed.`,
             name: 'Validation Error',
             statusCode: 400,
@@ -181,7 +181,7 @@ describe('client', () => {
         });
 
         let error;
-        const expectedError = new PublicError({
+        const expectedError = new RpcError({
             message: `Invalid params for Route or Hook 'sayHello', validation failed.`,
             name: 'Validation Error',
             statusCode: 400,
@@ -222,7 +222,7 @@ describe('client', () => {
         request.removePrefill();
 
         let error;
-        const expectedError = new PublicError({
+        const expectedError = new RpcError({
             message: `Invalid params for Route or Hook 'auth', validation failed.`,
             name: 'Validation Error',
             statusCode: 400,
