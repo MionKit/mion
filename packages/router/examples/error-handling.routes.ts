@@ -1,8 +1,8 @@
-import {RouteError, StatusCodes} from '@mionkit/core';
+import {RpcError, StatusCodes} from '@mionkit/core';
 import type {Pet} from './myModels';
 import {myApp} from './myApp';
 
-export const getPet = async (ctx, id: string): Promise<Pet | RouteError> => {
+export const getPet = async (ctx, id: string): Promise<Pet | RpcError> => {
     try {
         const pet = await myApp.db.getPet(id);
         if (!pet) {
@@ -10,7 +10,7 @@ export const getPet = async (ctx, id: string): Promise<Pet | RouteError> => {
             const statusCode = StatusCodes.BAD_REQUEST;
             const publicMessage = `Pet with id ${id} can't be found`;
             // either return or throw are allowed
-            return new RouteError({statusCode, publicMessage});
+            return new RpcError({statusCode, publicMessage});
         }
         return pet;
     } catch (dbError) {
@@ -19,10 +19,10 @@ export const getPet = async (ctx, id: string): Promise<Pet | RouteError> => {
         /*
          * Only statusCode and publicMessage will be returned in the response.body.
          *
-         * Full RouteError containing dbError message and stacktrace will be added
+         * Full RpcError containing dbError message and stacktrace will be added
          * to ctx.request.internalErrors, so it can be logged or managed after
          */
-        return new RouteError({statusCode, publicMessage, originalError: dbError as Error});
+        return new RpcError({statusCode, publicMessage, originalError: dbError as Error});
     }
 };
 
@@ -30,7 +30,7 @@ export const alwaysError = (): void => {
     /*
      * this will generate a public 500 error with an 'Unknown Error' message.
      *
-     * Full RouteError containing dbError message and stacktrace will be added
+     * Full RpcError containing dbError message and stacktrace will be added
      * to ctx.request.internalErrors, so it can be logged or managed after
      */
     throw new Error('This error will generate a public 500 error with a generic message');

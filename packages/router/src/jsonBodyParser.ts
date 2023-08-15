@@ -6,8 +6,8 @@
  * ######## */
 
 import {Response, Request, RouterOptions, RawRequest, HooksCollection, CallContext, ErrorReturn} from './types';
-import {RouteError, StatusCodes, Obj, Mutable} from '@mionkit/core';
-import {handleRouteErrors} from './dispatch';
+import {RpcError, StatusCodes, Obj, Mutable} from '@mionkit/core';
+import {handleRpcErrors} from './dispatch';
 
 // ############# PUBLIC METHODS #############
 
@@ -23,14 +23,14 @@ export function parseRequestBody(
         try {
             const parsedBody = opts.bodyParser.parse(rawRequest.body);
             if (typeof parsedBody !== 'object')
-                return new RouteError({
+                return new RpcError({
                     statusCode: StatusCodes.BAD_REQUEST,
                     name: 'Invalid Request Body',
                     publicMessage: 'Wrong request body. Expecting an json body containing the route name and parameters.',
                 });
             request.body = parsedBody;
         } catch (err: any) {
-            return new RouteError({
+            return new RpcError({
                 statusCode: StatusCodes.UNPROCESSABLE_ENTITY,
                 name: 'Parsing Request Body Error',
                 publicMessage: `Invalid request body: ${err?.message || 'unknown parsing error.'}`,
@@ -40,7 +40,7 @@ export function parseRequestBody(
         // lets assume the body has been already parsed, TODO: investigate possible security issues
         request.body = rawRequest.body;
     } else {
-        return new RouteError({
+        return new RpcError({
             statusCode: StatusCodes.BAD_REQUEST,
             name: 'Invalid Request Body',
             publicMessage: 'Wrong request body, expecting a json string.',
@@ -60,16 +60,16 @@ export function stringifyResponseBody(
     try {
         response.json = opts.bodyParser.stringify(respBody);
     } catch (err: any) {
-        const routeError = new RouteError({
+        const rpcError = new RpcError({
             statusCode: StatusCodes.INTERNAL_SERVER_ERROR,
             name: 'Stringify Response Body',
             publicMessage: `Invalid response body: ${err?.message || 'unknown parsing error.'}`,
             originalError: err,
         });
         response.body = {}; // reset the body as it was not possible to stringify it
-        handleRouteErrors(context.path, context.request, context.response, routeError, 'stringifyResponseBody');
+        handleRpcErrors(context.path, context.request, context.response, rpcError, 'stringifyResponseBody');
         response.json = opts.bodyParser.stringify(response.body);
-        return routeError;
+        return rpcError;
     }
 }
 

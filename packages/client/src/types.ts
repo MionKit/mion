@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {PublicError, RouteError} from '@mionkit/core';
+import {RpcError} from '@mionkit/core';
 import {FunctionReflection, ParamsValidationResponse, ReflectionOptions} from '@mionkit/runtype';
 import type {
     JsonParser,
@@ -51,16 +51,13 @@ export type RequestHeaders = {[key: string]: string};
 export type RequestBody = {[key: string]: any[]};
 export type PublicMethodReflection = {reflection: FunctionReflection};
 export type HandlerResponse<RM extends RemoteMethodMetadata> = Awaited<ReturnType<RM['_handler']>>;
-export type HandlerSuccessResponse<RM extends RemoteMethodMetadata> = Exclude<
-    HandlerResponse<RM>,
-    PublicError | RouteError | Error
->;
-export type HandlerFailResponse<RM extends RemoteMethodMetadata> = Extract<HandlerResponse<RM>, PublicError | RouteError | Error>;
+export type HandlerSuccessResponse<RM extends RemoteMethodMetadata> = Exclude<HandlerResponse<RM>, RpcError | Error>;
+export type HandlerFailResponse<RM extends RemoteMethodMetadata> = Extract<HandlerResponse<RM>, RpcError | Error>;
 export type SuccessResponse<MR extends SubRequest<any>> = Required<MR>['return'];
 export type SuccessResponses<List extends SubRequest<any>[]> = {[P in keyof List]: SuccessResponse<List[P]>};
 export type FailResponse<MR extends SubRequest<any>> = Required<MR>['error'];
 export type FailResponses<List extends SubRequest<any>[]> = {[P in keyof List]: FailResponse<List[P]>};
-export type RequestErrors = Map<string, PublicError>;
+export type RequestErrors = Map<string, RpcError>;
 
 // ############# Remote Methods Request #############
 
@@ -83,14 +80,14 @@ export interface SubRequest<RM extends RemoteMethodMetadata> {
  */
 export interface RouteSubRequest<RR extends RemoteRouteMetadata> extends SubRequest<RR> {
     /**
-     * Validates Route's parameters. Throws PublicError if validation fails.
+     * Validates Route's parameters. Throws RpcError if validation fails.
      * @returns {hasErrors: false, totalErrors: 0, errors: []}
      */
     validate: () => Promise<ParamsValidationResponse>;
     /**
      * Calls a remote route.
      * Validates route and required hooks request parameters locally before calling the remote route.
-     * Throws PublicError if anything fails during the call (including validation or serialization) or if the remote route returns an error.
+     * Throws RpcError if anything fails during the call (including validation or serialization) or if the remote route returns an error.
      * @param hooks HookSubRequests requires by the route
      * @returns
      */
@@ -102,21 +99,21 @@ export interface RouteSubRequest<RR extends RemoteRouteMetadata> extends SubRequ
  */
 export interface HookSubRequest<RH extends RemoteHookMetadata | RemoteHeaderHookMetadata> extends SubRequest<RH> {
     /**
-     * Validates Hooks's parameters. Throws PublicError if validation fails.
+     * Validates Hooks's parameters. Throws RpcError if validation fails.
      * @returns {hasErrors: false, totalErrors: 0, errors: []}
      */
     validate: () => Promise<ParamsValidationResponse>;
     /**
      * Prefills Hook's parameters for any future request. Parameters are also persisted in local storage for future requests.
      * Validates and Serializes parameters before storing in local storage.
-     * Throws PublicError if validation or serialization fail or if the parameters can't be persisted.
+     * Throws RpcError if validation or serialization fail or if the parameters can't be persisted.
      * @returns Promise<void>
      */
     prefill: () => Promise<void>;
 
     /**
      * Removes prefilled value.
-     * Throws PublicError if something fails removing the prefilled parameters
+     * Throws RpcError if something fails removing the prefilled parameters
      * @returns Promise<void>
      */
     removePrefill: () => Promise<void>;

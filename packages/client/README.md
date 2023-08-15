@@ -34,7 +34,7 @@ It is also required to export the **type** of the registered routes in the serve
 ```ts
 // examples/server.routes.ts
 
-import {PublicError} from '@mionkit/core';
+import {RpcError} from '@mionkit/core';
 import {Routes, registerRoutes} from '@mionkit/router';
 import {clientRoutes} from '@mionkit/common';
 import {Logger} from 'Logger';
@@ -44,19 +44,19 @@ export type Order = {id: string; date: Date; userId: string; totalUSD: number};
 const routes = {
   auth: {
     headerName: 'authorization',
-    headerHook: (ctx, token: string): void | PublicError => {
-      if (!token) return new PublicError({statusCode: 401, message: 'Not Authorized', name: ' Not Authorized'});
+    headerHook: (ctx, token: string): void | RpcError => {
+      if (!token) return new RpcError({statusCode: 401, message: 'Not Authorized', name: ' Not Authorized'});
     },
   },
   users: {
-    getById: (ctx, id: string): User | PublicError => ({id, name: 'John', surname: 'Smith'}),
-    delete: (ctx, id: string): string | PublicError => id,
-    create: (ctx, user: Omit<User, 'id'>): User | PublicError => ({id: 'USER-123', ...user}),
+    getById: (ctx, id: string): User | RpcError => ({id, name: 'John', surname: 'Smith'}),
+    delete: (ctx, id: string): string | RpcError => id,
+    create: (ctx, user: Omit<User, 'id'>): User | RpcError => ({id: 'USER-123', ...user}),
   },
   orders: {
-    getById: (ctx, id: string): Order | PublicError => ({id, date: new Date(), userId: 'USER-123', totalUSD: 120}),
-    delete: (ctx, id: string): string | PublicError => id,
-    create: (ctx, order: Omit<Order, 'id'>): Order | PublicError => ({id: 'ORDER-123', ...order}),
+    getById: (ctx, id: string): Order | RpcError => ({id, date: new Date(), userId: 'USER-123', totalUSD: 120}),
+    delete: (ctx, id: string): string | RpcError => id,
+    create: (ctx, order: Omit<Order, 'id'>): Order | RpcError => ({id: 'ORDER-123', ...order}),
   },
   utils: {
     sum: (ctx, a: number, b: number): number => a + b,
@@ -125,11 +125,11 @@ console.log(validationResp); // {hasErrors: false, totalErrors: 0, errors: []}
 
 ## Handling Errors
 
-When a remote route call fails, it always throws a `PublicError` this can be the error from the route or any other error thrown from the route's hooks.
+When a remote route call fails, it always throws a `RpcError` this can be the error from the route or any other error thrown from the route's hooks.
 
-All the `methods` operations: `call`, `validate`, `prefill`, `removePrefill` are async and throw a `PublicError` if something fails including validation and serialization.
+All the `methods` operations: `call`, `validate`, `prefill`, `removePrefill` are async and throw a `RpcError` if something fails including validation and serialization.
 
-As catch blocks are always of type `any`, the Type guard `isPublicError` can be used to check the correct type of the error.
+As catch blocks are always of type `any`, the Type guard `isRpcError` can be used to check the correct type of the error.
 
 ```ts
 // examples/handling-errors.ts
@@ -138,7 +138,7 @@ import {initClient} from '@mionkit/client';
 
 // importing type only from server
 import type {MyApi} from './server.routes';
-import {isPublicError, PublicError} from '@mionkit/core';
+import {isRpcError, RpcError} from '@mionkit/core';
 
 const port = 8076;
 const baseURL = `http://localhost:${port}`;
@@ -148,11 +148,11 @@ try {
   // calls sayHello route in the server
   const sayHello = await methods.utils.sayHello({id: '123', name: 'John', surname: 'Doe'}).call();
   console.log(sayHello); // Hello John Doe
-} catch (error: PublicError | any) {
+} catch (error: RpcError | any) {
   // in this case the request has failed because the authorization hook is missing
   console.log(error); // {statusCode: 400, name: 'Validation Error', message: `Invalid params for Route or Hook 'auth'.`}
 
-  if (isPublicError(error)) {
+  if (isRpcError(error)) {
     // ... handle the error as required
   }
 }
@@ -161,7 +161,7 @@ try {
   // Validation throws an error when validation fails
   const sayHello = await methods.utils.sayHello(null as any).validate();
   console.log(sayHello); // Hello John Doe
-} catch (error: PublicError | any) {
+} catch (error: RpcError | any) {
   console.log(error); // { statusCode: 400, name: 'Validation Error', message: `Invalid params ...`, errorData : {...}}
 }
 ```
