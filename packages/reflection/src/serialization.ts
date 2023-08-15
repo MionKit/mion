@@ -19,8 +19,6 @@ import {
     JSONPartial,
     SerializeFunction,
     TypeFunction,
-    typeOf,
-    TypeClass,
     serialize,
     ReflectionKind,
     TypeUnion,
@@ -28,6 +26,7 @@ import {
     Type,
 } from '@deepkit/type';
 import {RpcError} from '@mionkit/core';
+import {ERROR_TYPE, RPC_ERROR_TYPE} from '@mionkit/runtype';
 
 /**
  * Returns an Array of functions to Deserialize route handler parameters.
@@ -181,9 +180,6 @@ function createSingleParamSerializeFunction(sFunction: SerializeFunction, opts: 
 // ###### HACK TO FIX THE ISSUE WITH RETURNED UNION TYPES ######
 // TODO: FOR SOME REASON ROUTES RETURNING AN UNION (Value | RpcError) ARE NOT BEING VALIDATED/SERIALIZED CORRECTLY
 
-const rpcErrorType = typeOf<RpcError>() as TypeClass;
-const errorType = typeOf<Error>() as TypeClass;
-
 function serializeError(error: Error | RpcError): JSONPartial<any> {
     if (error instanceof RpcError) return serialize<RpcError>(error);
     if (error instanceof Error) return serialize<Error>(error);
@@ -197,7 +193,7 @@ function hasUnionErrorTypes(handlerType: TypeFunction): boolean {
 }
 
 function isErrorType(t: Type): boolean {
-    return isSameType(t, rpcErrorType) || isSameType(t, errorType);
+    return isSameType(t, RPC_ERROR_TYPE) || isSameType(t, ERROR_TYPE);
 }
 
 function getHandlerReturnUnionTypeWithoutErrors(handlerType: TypeFunction): Type {

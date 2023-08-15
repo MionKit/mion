@@ -21,7 +21,7 @@ import {
 import type {RemoteApi} from '@mionkit/router';
 import {RpcError, getRouterItemId} from '@mionkit/core';
 import {MionRequest} from './request';
-import {ParamsValidationResponse} from '@mionkit/runtype';
+import {ParamsValidationResponse} from '@mionkit/reflection';
 
 export function initClient<RM extends RemoteApi<any>>(options: InitOptions): {client: MionClient; methods: ClientMethods<RM>} {
     const clientOptions = {

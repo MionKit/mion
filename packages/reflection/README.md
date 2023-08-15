@@ -6,7 +6,7 @@
   </picture>
 </p>
 <p align="center">
-  <strong>Common RunTypes.
+  <strong>Browser client for mion Apps.
   </strong>
 </p>
 <p align=center>
@@ -14,18 +14,14 @@
   <img src="https://img.shields.io/badge/license-MIT-97ca00.svg?style=flat-square&maxAge=99999999" alt="npm"  style="max-width:100%;">
 </p>
 
-# `@mionkit/runtype`
+# `@mionkit/reflections`
 
-Runtime Types support for mion apps!
+Reflection for mion Routes and Hooks!
 
-## Description
+### Features
 
-This library provides support for runtime types based on [@deepkit/type].  
-Having runtime types enables a full new set of features when using typescript/javascript.
-
-### Common types
-
-// TODO ...
+- Validation, Serialization & Deserialization of function parameters
+- Validation, Serialization & Deserialization of function return values
 
 ---
 

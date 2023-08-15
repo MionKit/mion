@@ -47,9 +47,9 @@
     "dev:test": "jest --watch",
     "lint": "eslint src --ext .ts",
     "format": "prettier --write src/**/*.ts",
-    "build:cjs": "rimraf .dist/cjs && tsc --project tsconfig.build.json",
-    "build:esm": "rimraf .dist/esm && tsc --project tsconfig.build.json --module ES2020 --outDir .dist/esm",
-    "build:types": "rimraf .dist/types && tsc --project tsconfig.build.json --outDir .dist/types --emitDeclarationOnly --declaration true --declarationMap true",
+    "build:cjs": "tsc --project tsconfig.build.json",
+    "build:esm": "tsc --project tsconfig.build.json --module ES2020 --outDir .dist/esm",
+    "build:types": "tsc --project tsconfig.build.json --outDir .dist/types --emitDeclarationOnly --declaration true --declarationMap true",
     "build": "npm run build:cjs && npm run build:esm && npm run build:types",
     "auto-readme": "embedme **/*.md && prettier --write **/*.md",
     "clean": "rimraf .dist & rimraf .coverage"
@@ -58,6 +58,7 @@
     "url": "https://github.com/MionKit/mion/issues"
   },
   "dependencies": {
+    "@deepkit/core": "1.0.1-alpha.97",
     "@deepkit/type": "1.0.1-alpha.97",
     "@mionkit/core": "0.4.2"
   },

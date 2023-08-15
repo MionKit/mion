@@ -6,7 +6,7 @@
  * ######## */
 
 import {HookDef, RawRequest, RouteDef, RouterOptions} from './types';
-import {DEFAULT_REFLECTION_OPTIONS} from '@mionkit/runtype';
+import {DEFAULT_REFLECTION_OPTIONS} from '@mionkit/reflection';
 
 export const DEFAULT_ROUTE: Readonly<Required<RouteDef>> = {
     description: '',

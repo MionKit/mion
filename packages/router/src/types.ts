@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {ReflectionOptions, FunctionReflection, SerializedTypes} from '@mionkit/runtype';
+import {ReflectionOptions, FunctionReflection, SerializedTypes} from '@mionkit/reflection';
 import {CoreOptions, Obj, RpcError} from '@mionkit/core';
 
 // #######  Route Handlers #######

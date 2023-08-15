@@ -6,7 +6,7 @@
  * ######## */
 
 import {RpcError} from '@mionkit/core';
-import {FunctionReflection, ParamsValidationResponse, ReflectionOptions} from '@mionkit/runtype';
+import {FunctionReflection, ParamsValidationResponse, ReflectionOptions} from '@mionkit/reflection';
 import type {
     JsonParser,
     RemoteHeaderHookMetadata,

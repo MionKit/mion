@@ -6,7 +6,7 @@
  * ######## */
 
 import type {RemoteMethodMetadata, ResolvedPublicResponses} from '@mionkit/router';
-import {FunctionReflection, ParamsValidationResponse} from '@mionkit/runtype';
+import {FunctionReflection, ParamsValidationResponse} from '@mionkit/reflection';
 import {RpcError, StatusCodes, isRpcError} from '@mionkit/core';
 import {RequestErrors, SubRequest, ValidationRequest} from './types';
 

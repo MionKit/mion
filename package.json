@@ -68,6 +68,7 @@
     "packages/core",
     "packages/common",
     "packages/runtype",
+    "packages/reflection",
     "packages/router",
     "packages/http",
     "packages/serverless",

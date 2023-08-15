@@ -8,7 +8,12 @@
 import {GET_REMOTE_METHODS_BY_ID, RpcError, isRpcError} from '@mionkit/core';
 import {ClientOptions, RequestBody} from './types';
 import {RemoteMethodMetadata} from '@mionkit/router';
-import {FunctionReflection, SerializedTypes, getDeserializedFunctionType, getFunctionReflectionMethods} from '@mionkit/runtype';
+import {
+    FunctionReflection,
+    SerializedTypes,
+    getDeserializedFunctionType,
+    getFunctionReflectionMethods,
+} from '@mionkit/reflection';
 import {STORAGE_KEY} from './constants';
 
 /**  Manually calls mionGetRemoteMethodsInfoById to get Remote Api Metadata */

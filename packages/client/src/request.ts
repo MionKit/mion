@@ -17,7 +17,7 @@ import {
     RouteSubRequest,
     RequestErrors,
 } from './types';
-import {ParamsValidationResponse} from '@mionkit/runtype';
+import {ParamsValidationResponse} from '@mionkit/reflection';
 import {RpcError, StatusCodes, getRoutePath, isRpcError} from '@mionkit/core';
 import {STORAGE_KEY} from './constants';
 import {fetchRemoteMethodsMetadata} from './clientMethodsMetadata';
