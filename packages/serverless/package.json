@@ -1,6 +1,6 @@
 {
   "name": "@mionkit/serverless",
-  "version": "0.6.1",
+  "version": "0.6.2",
   "description": "mion Serverless Router for quick Api development.",
   "keywords": [
     "typescript",
@@ -56,7 +56,7 @@
     "url": "https://github.com/MionKit/mion/issues"
   },
   "dependencies": {
-    "@mionkit/router": "^0.6.1"
+    "@mionkit/router": "^0.6.2"
   },
   "devDependencies": {
     "@mionkit/core": "^0.6.0",

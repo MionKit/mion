@@ -1,6 +1,6 @@
 {
   "name": "@mionkit/client",
-  "version": "0.6.1",
+  "version": "0.6.2",
   "description": "Browser client for mion Apps.",
   "keywords": [
     "typescript",
@@ -62,8 +62,8 @@
   },
   "gitHead": "2efdcd77c572e64f2b9621b4921ffd2f5e83bc0a",
   "devDependencies": {
-    "@mionkit/http": "^0.6.1",
-    "@mionkit/router": "^0.6.1",
+    "@mionkit/http": "^0.6.2",
+    "@mionkit/router": "^0.6.2",
     "dom-storage": "^2.1.0",
     "jest-environment-jsdom": "^29.6.2"
   }
