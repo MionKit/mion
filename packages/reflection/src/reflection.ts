@@ -49,7 +49,11 @@ class LazyFunctionReflection implements FunctionReflection {
     private _serializeReturn: null | ((returnValue: any) => JSONPartial<any>) = null;
     private _deserializeReturn: null | ((serializedReturnValue: JSONPartial<any>) => any) = null;
 
-    constructor(handlerOrType: Handler | Type, private reflectionOptions: ReflectionOptions, private skipInitialParams: number) {
+    constructor(
+        handlerOrType: Handler | Type,
+        private reflectionOptions: ReflectionOptions,
+        private skipInitialParams: number
+    ) {
         this.handlerType = getHandlerType(handlerOrType);
         this.paramsLength = getFunctionParamsLength(this.handlerType, skipInitialParams);
         this.isAsync = isAsyncHandler(this.handlerType);
