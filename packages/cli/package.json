@@ -1,6 +1,6 @@
 {
   "name": "@mionkit/cli",
-  "version": "0.1.0",
+  "version": "0.6.0",
   "private": true,
   "description": "mion command line tool",
   "keywords": [
@@ -25,9 +25,7 @@
     "type": "git",
     "url": "git+https://github.com/MionKit/mion.git"
   },
-  "scripts": {
-
-  },
+  "scripts": {},
   "bugs": {
     "url": "https://github.com/MionKit/mion/issues"
   },
