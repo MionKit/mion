@@ -6,7 +6,7 @@
  * ######## */
 
 import {registerRoutes} from '@mionkit/router';
-import {initAwsLambdaRouter, lambdaHandler} from './aws_Lambda';
+import {initAwsLambdaRouter, lambdaHandler} from './awsLambda';
 import createEvent from '@serverless/event-mocks';
 import type {CallContext, Route} from '@mionkit/router';
 import type {APIGatewayProxyEventHeaders} from 'aws-lambda';
