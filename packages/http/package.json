@@ -1,6 +1,6 @@
 {
   "name": "@mionkit/http",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "description": "mion HTTP Server for quick Api development.",
   "keywords": [
     "typescript",
@@ -57,7 +57,7 @@
   },
   "dependencies": {
     "@mionkit/core": "^0.6.0",
-    "@mionkit/router": "^0.6.0"
+    "@mionkit/router": "^0.6.1"
   },
   "gitHead": "2efdcd77c572e64f2b9621b4921ffd2f5e83bc0a"
 }
