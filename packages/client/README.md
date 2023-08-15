@@ -44,19 +44,19 @@ export type Order = {id: string; date: Date; userId: string; totalUSD: number};
 const routes = {
   auth: {
     headerName: 'authorization',
-    headerHook: (ctx, token: string): void | RpcError => {
-      if (!token) return new RpcError({statusCode: 401, message: 'Not Authorized', name: ' Not Authorized'});
+    headerHook: (ctx, token: string): void => {
+      if (!token) throw new RpcError({statusCode: 401, message: 'Not Authorized', name: ' Not Authorized'});
     },
   },
   users: {
-    getById: (ctx, id: string): User | RpcError => ({id, name: 'John', surname: 'Smith'}),
-    delete: (ctx, id: string): string | RpcError => id,
-    create: (ctx, user: Omit<User, 'id'>): User | RpcError => ({id: 'USER-123', ...user}),
+    getById: (ctx, id: string): User => ({id, name: 'John', surname: 'Smith'}),
+    delete: (ctx, id: string): string => id,
+    create: (ctx, user: Omit<User, 'id'>): User => ({id: 'USER-123', ...user}),
   },
   orders: {
-    getById: (ctx, id: string): Order | RpcError => ({id, date: new Date(), userId: 'USER-123', totalUSD: 120}),
-    delete: (ctx, id: string): string | RpcError => id,
-    create: (ctx, order: Omit<Order, 'id'>): Order | RpcError => ({id: 'ORDER-123', ...order}),
+    getById: (ctx, id: string): Order => ({id, date: new Date(), userId: 'USER-123', totalUSD: 120}),
+    delete: (ctx, id: string): string => id,
+    create: (ctx, order: Omit<Order, 'id'>): Order => ({id: 'ORDER-123', ...order}),
   },
   utils: {
     sum: (ctx, a: number, b: number): number => a + b,
@@ -121,7 +121,7 @@ console.log(validationResp); // {hasErrors: false, totalErrors: 0, errors: []}
 
 #### Fully Typed Client
 
-![autocomplete](./assets/autocomplete.gif)
+![autocomplete](https://raw.githubusercontent.com/MionKit/mion/master/assets/piblic/autocomplete.gif)
 
 ## Handling Errors
 

@@ -47,7 +47,7 @@ The [client package](https://www.npmjs.com/package/@mionkit/client) can be used 
 - Prefill and persist parameters across multiple calls, useful for authorization, session and a replacement for cookies.
 - Runtime types.
 
-![autocomplete](./assets/autocomplete.gif)
+![autocomplete](https://raw.githubusercontent.com/MionKit/mion/master/assets/piblic/autocomplete.gif)
 
 ## `Routes`
 
@@ -331,11 +331,9 @@ export const myInvalidApi = registerRoutes(invalidRoutes); // throws an error
 
 All errors thrown within Routes/Hooks will be catch and handled.
 
-Routes and Hooks should throw/return and `RpcError` specifying status code, error name, and publicMessage in case we want to return a message to the client. if a generic `Error` is thrown/returned a generic `500, Unknown Error` will be returned to the client.
+Routes and Hooks should throw/return and `RpcError` specifying status code, error name, and publicMessage in case we want to return a message to the client. if a generic `Error` is thrown/returned a generic `500, Unknown RpcError` will be returned to the client.
 
 `RpcError` can be serialized, and unlike regulars error in JS preserve the `message` property when stringified using JSON.
-
-> We recommend returning errors instead throwing as the returned error type is explicitly declared as return type and type can be inferred by the client.
 
 #### `RpcError`
 
@@ -737,7 +735,7 @@ export const DEFAULT_ROUTE_OPTIONS: Readonly<RouterOptions> = {
 #### Reflection Options
 
 ```ts
-// ../runtype/src/constants.ts#L10-L33
+// ../reflection/src/constants.ts#L10-L33
 
 /** Reflection and Deepkit Serialization-Validation options */
 export const DEFAULT_REFLECTION_OPTIONS: Readonly<ReflectionOptions> = {
