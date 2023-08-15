@@ -1,6 +1,6 @@
 {
   "name": "@mionkit/router",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "description": "Typescript RPC Like router with automatic Validation and Serialization",
   "keywords": [
     "typescript",

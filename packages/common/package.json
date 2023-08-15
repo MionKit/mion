@@ -1,6 +1,6 @@
 {
   "name": "@mionkit/common",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "description": "mion standard hooks and routes",
   "keywords": [
     "typescript",
@@ -60,6 +60,6 @@
   },
   "dependencies": {
     "@mionkit/core": "^0.6.0",
-    "@mionkit/router": "^0.6.0"
+    "@mionkit/router": "^0.6.1"
   }
 }
