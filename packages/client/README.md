@@ -37,10 +37,12 @@ It is also required to export the **type** of the registered routes in the serve
 import {RpcError} from '@mionkit/core';
 import {Routes, registerRoutes} from '@mionkit/router';
 import {clientRoutes} from '@mionkit/common';
+import {initAwsLambdaRouter} from '@mionkit/serverless';
 import {Logger} from 'Logger';
 
 export type User = {id: string; name: string; surname: string};
 export type Order = {id: string; date: Date; userId: string; totalUSD: number};
+
 const routes = {
   auth: {
     headerName: 'authorization',
@@ -70,15 +72,16 @@ const routes = {
   },
 } satisfies Routes;
 
-// init server or serverless router
-// initHttpRouter(...);
-// initAwsLambdaRouter(...);
+// init serverless router
+initAwsLambdaRouter();
+// use initHttpRouter(...); for regular nodejs serve
 
 // register routes and exporting the type of the Api to be used by client
 const myApi = registerRoutes(routes);
 export type MyApi = typeof myApi;
 
-// register routes required by client, (these routes serve metadata, for validation and serialization)
+// register routes required by client
+// these routes serve metadata, for validation and serialization on the client
 registerRoutes(clientRoutes);
 ```
 
