@@ -17,8 +17,8 @@ mion is a lightweight TypeScript-based framework designed for building serverles
 
 ## Why Another Framework?
 
-Serverless applications have different requirements compared to conventional server apps.
-There are not many frameworks that offer type-safe APIs with automatic validation and serialization by default.
+Serverless applications have different requirements compared to conventional server apps and there are not many frameworks that offer type-safe APIs with automatic validation and serialization by default.
+
 mion addresses these challenges by offering a lightweight and opinionated framework focused on simplicity and developer experience.
 
 ## Features
@@ -32,9 +32,13 @@ mion addresses these challenges by offering a lightweight and opinionated framew
 | ✅     | HTTP Server                 | Includes an HTTP server module for handling API requests      |
 | ✅     | Automatic TypeScript Client | Fully typed client without need of compilation                |
 
-## Opinionated Approach
+## Opinionated Approach (Aka: RPC Like)
 
-mion is designed for RPC style APIs that work exclusively with JSON. The framework prioritizes quick development, fast startups, and minimal abstractions. It follows a convention-over-configuration approach and focuses on performance and developer experience.
+mion is designed with a Remote Procedure Call (RPC) style and works exclusively with JSON data. The framework prioritizes quick development, fast startups, and minimal abstractions. It follows a convention-over-configuration approach and focuses on performance and developer experience.
+
+## Fast
+
+We have prioritized and tracked performance during the development of the framework, we even have many discarded features and experiments when there was a performance degradation compared to previous versions. Our goal is to have similar performance to fastify which we consider the gold standard in node.js frameworks!
 
 For full benchmarks and comparison against other frameworks please visit the benchmarks repo. 📈
 
@@ -44,7 +48,7 @@ For full benchmarks and comparison against other frameworks please visit the ben
 
 ## Routing
 
-mion's router is lightweight and fast. Unlike traditional routers, it uses a Remote Procedure Call (RPC) style of routing. The HTTP method is not relevant, and data is sent and received in JSON format via the request body or headers. mion's router leverages a simple in-memory map for route lookup, making it extremely fast.
+mion's router is lightweight and fast. Unlike traditional routers, it uses a Remote Procedure Call (RPC) style of routing. The Http method is not relevant, there are no parameters in the Url and data is sent and received in JSON format via the request body or headers. mion's router leverages a simple in-memory map for route lookup, making it extremely fast.
 
 Apis are composed of Routes and Hooks. Routes are methods that can be called remotely from the client and have an specific url, while hooks are auxiliary methods that get's executed before or after a route.
 
@@ -54,13 +58,14 @@ To learn more about the router, refer to the [Router Documentation](./packages/r
 
 mion utilizes [Deepkit's runtime types](https://deepkit.io/) for automatic validation and serialization. Deepkit's magic enables type information to be available at runtime, allowing for automatic validation and serialization of data.
 
-By leveraging runtime types, mion offers advanced capabilities such as request validation and response/request serialization that topically involves using more than one framework. Please consult Deepkit's documentation for installation instructions and more information on these features.
+By leveraging runtime types, mion offers advanced capabilities such as request validation and response/request serialization that typically involves using multiple framework and loads of code or boilerplate to be manually written by developers.
 
 ## Type Safe Apis
 
 ![type safes apis](https://raw.githubusercontent.com/MionKit/mion/master/assets/public/type-safe-apis.gif)
 
-Thats it 👆, thats all you need to write a Fully Type Safe Api and Client &nbsp; 🚀
+Thats it 👆, thats all you need to write a Fully Type Safe Api and Client &nbsp; 🚀  
+All parameters and return values will also be automatically validated and serialized without any extra code required.
 
 ## Quick Start
 
@@ -93,53 +98,53 @@ Write your Api:
 import {RpcError} from '@mionkit/core';
 import {Routes, registerRoutes} from '@mionkit/router';
 import {clientRoutes} from '@mionkit/common';
-import {initAwsLambdaRouter} from '@mionkit/serverless';
+import {initAwsLambdaRouter, lambdaHandler} from '@mionkit/serverless';
 import {Logger} from 'Logger';
 
 export type User = {id: string; name: string; surname: string};
 export type Order = {id: string; date: Date; userId: string; totalUSD: number};
 
 const routes = {
-    auth: {
-        headerName: 'authorization',
-        headerHook: (ctx, token: string): void => {
-            if (!token) throw new RpcError({statusCode: 401, message: 'Not Authorized', name: ' Not Authorized'});
-        },
+  auth: {
+    headerName: 'authorization',
+    headerHook: (ctx, token: string): void => {
+      if (!token) throw new RpcError({statusCode: 401, message: 'Not Authorized', name: ' Not Authorized'});
     },
-    users: {
-        getById: (ctx, id: string): User => ({id, name: 'John', surname: 'Smith'}),
-        delete: (ctx, id: string): string => id,
-        create: (ctx, user: Omit<User, 'id'>): User => ({id: 'USER-123', ...user}),
+  },
+  users: {
+    getById: (ctx, id: string): User => ({id, name: 'John', surname: 'Smith'}),
+    delete: (ctx, id: string): string => id,
+    create: (ctx, user: Omit<User, 'id'>): User => ({id: 'USER-123', ...user}),
+  },
+  orders: {
+    getById: (ctx, id: string): Order => ({id, date: new Date(), userId: 'USER-123', totalUSD: 120}),
+    delete: (ctx, id: string): string => id,
+    create: (ctx, order: Omit<Order, 'id'>): Order => ({id: 'ORDER-123', ...order}),
+  },
+  utils: {
+    sum: (ctx, a: number, b: number): number => a + b,
+    sayHello: (ctx, user: User): string => `Hello ${user.name} ${user.surname}`,
+  },
+  log: {
+    forceRunOnError: true,
+    hook: (ctx): any => {
+      Logger.log(ctx.path, ctx.request.headers, ctx.request.body);
     },
-    orders: {
-        getById: (ctx, id: string): Order => ({id, date: new Date(), userId: 'USER-123', totalUSD: 120}),
-        delete: (ctx, id: string): string => id,
-        create: (ctx, order: Omit<Order, 'id'>): Order => ({id: 'ORDER-123', ...order}),
-    },
-    utils: {
-        sum: (ctx, a: number, b: number): number => a + b,
-        sayHello: (ctx, user: User): string => `Hello ${user.name} ${user.surname}`,
-    },
-    log: {
-        forceRunOnError: true,
-        hook: (ctx): any => {
-            Logger.log(ctx.path, ctx.request.headers, ctx.request.body);
-        },
-    },
+  },
 } satisfies Routes;
 
-// init serverless router
+// init serverless router and export handler
 initAwsLambdaRouter();
-// use initHttpRouter(...); for regular nodejs serve
+export const handler = lambdaHandler;
+// use initHttpRouter(...); for regular nodejs server
 
 // register routes and exporting the type of the Api to be used by client
 const myApi = registerRoutes(routes);
 export type MyApi = typeof myApi;
 
 // register routes required by client
-// these routes serve metadata, for validation and serialization on the client
+// these routes serve metadata required for validation and serialization on the client
 registerRoutes(clientRoutes);
-
 ```
 
 #### Client Side
@@ -178,10 +183,9 @@ console.log(sumTwoResp); // 7
 
 // validate parameters locally without calling the server
 const validationResp: ParamsValidationResponse = await methods.utils
-    .sayHello({id: '123', name: 'John', surname: 'Doe'})
-    .validate();
+  .sayHello({id: '123', name: 'John', surname: 'Doe'})
+  .validate();
 console.log(validationResp); // {hasErrors: false, totalErrors: 0, errors: []}
-
 ```
 
 <!--
@@ -193,7 +197,7 @@ You can also use the mion base project as a starting point by running `npx degit
 
 Contributors and maintainers are welcome 👍
 
-Mion's philosophy is simplicity, so we don't want to add many features or abstractions, as an open source project we want to keep tha features we have to maintain to a minimum, that said contributions to mion are encouraged! Please open issues and submit pull requests for any improvements or bug fixes.
+Mion's philosophy is simplicity, so we don't want to add many features! As an small open source project we want to keep it simple and keep features to maintain at a minimum, that said contributions to mion are encouraged! Please open issues and submit pull requests for any improvements or bug fixes.
 
 The project is organized as a monorepo using npm workspaces, NX, and Lerna. Each package within the monorepo is compiled and tested individually using TypeScript and Jest.
 
@@ -201,6 +205,7 @@ The project is organized as a monorepo using npm workspaces, NX, and Lerna. Each
 
 - [Typescript](https://www.typescriptlang.org/)
 - [Deepkit](https://deepkit.io/)
+- [@MaJerez](https://github.com/M-jerez)
   <!-- - [Serverless Framework](https://www.serverless.com/)  -->
   <!-- - [AWS Cognito](https://aws.amazon.com/cognito/) -->
   <!-- - [Postgres.js](https://github.com/porsager/postgres) -->
