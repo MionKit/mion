@@ -121,7 +121,7 @@ console.log(validationResp); // {hasErrors: false, totalErrors: 0, errors: []}
 
 #### Fully Typed Client
 
-![autocomplete](https://raw.githubusercontent.com/MionKit/mion/master/assets/public/autocomplete.gif)
+![fully typed clint](https://raw.githubusercontent.com/MionKit/mion/master/assets/public/type-safe-apis.gif)
 
 ## Handling Errors
 
