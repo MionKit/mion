@@ -11,3 +11,9 @@ dist
 tmp
 .coverage
 coverage
+
+
+########################
+# Documentation
+########################
+docs

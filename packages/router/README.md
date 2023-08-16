@@ -47,7 +47,7 @@ The [client package](https://www.npmjs.com/package/@mionkit/client) can be used 
 - Prefill and persist parameters across multiple calls, useful for authorization, session and a replacement for cookies.
 - Runtime types.
 
-![autocomplete](https://raw.githubusercontent.com/MionKit/mion/master/assets/public/autocomplete.gif)
+![fully typed clint](https://raw.githubusercontent.com/MionKit/mion/master/assets/public/type-safe-apis.gif)
 
 ## `Routes`
 

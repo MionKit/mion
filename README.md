@@ -7,7 +7,7 @@
 </p>
 
 <p align="center">
-  <strong>Typescript Apis at the speed of light 🚀</strong><br/>
+  <strong>mion : Typescript Apis at the speed of light 🚀</strong><br/>
 </p>
 
 <p align=center>
@@ -15,280 +15,91 @@
   <img src="https://img.shields.io/badge/license-MIT-97ca00.svg?style=flat-square&maxAge=99999999" alt="npm"  style="max-width:100%;">
 </p>
 
-## `Why another framework`
+mion is a lightweight TypeScript-based framework designed for building serverless APIs. It aims to provide a great developer experience and is optimized for serverless environments. With mion, you can quickly build APIs that are type-safe, with automatic validation and serialization out of the box.
 
-1. Serverless applications have different requirements than conventional server apps.
-2. There are not yet many frameworks that offers type safe apis with automatic validation and serialization out of the box.
+## Why Another Framework?
 
-With that in mind **mion is designed to quickly build lightweight Apis**. It is a very opinionated and lightweight framework with simplicity, and developer experience in mind.
+Serverless applications have different requirements compared to conventional server apps.
+There are not many frameworks that offer type-safe APIs with automatic validation and serialization by default.
+mion addresses these challenges by offering a lightweight and opinionated framework focused on simplicity and developer experience.
 
-## `Features`
+## Features
 
-<!-- 1. [AWS & Serverless framework](https://www.serverless.com/) for cloud infrastructure
-1. [AWS Cognito](https://aws.amazon.com/cognito/) for Authentication, sign up emails, password reset, etc -->
+| Status | Name                        | Description                                                   |
+| ------ | --------------------------- | ------------------------------------------------------------- |
+| ✅     | RPC-like Router             | Provides an RPC-style router for handling API requests        |
+| ✅     | Automatic Validation        | Automatically validates data received by the API              |
+| ✅     | Automatic Serialization     | Automatically serializes data sent by the API                 |
+| ✅     | AWS Lambda Handler          | Seamless integration with AWS Lambda for serverless execution |
+| ✅     | HTTP Server                 | Includes an HTTP server module for handling API requests      |
+| ✅     | Automatic TypeScript Client | Fully typed client without need of compilation                |
 
-- ✅ RPC Like [Router](packages/router/README.md)
-- ✅ Automatic Validation and Serialization
-<!-- - 🛠️ [Postgres.js](https://github.com/porsager/postgres) for quick DataBase access with great support for types, (No DataBase access abstraction).
-- 🛠️ Base Models with CRUD & Filters operations
-- 🛠️ Access Control List _<sup>(linux-like)</sup>_ -->
-- ✅ AWS Lambda [Handler](packages/serverless/README.md)
-- ✅ Http [Server](packages/http/README.md)
-- 🛠️ Automatic Typescript client generation.
+## Opinionated Approach
 
-## `Opinionated`
+mion is designed for a specific scenario—APIs that work exclusively with JSON data. The framework prioritizes quick development, lightweight execution, and minimal abstractions. It follows a convention-over-configuration approach and focuses on performance and developer experience.
 
-**mion is oriented towards** a very specific scenario, that is **Apis that works with json data only**. mion architecture might not always be the best or suit every scenario, but are always taken with quick development, lightweight execution and minimum abstractions in mind. **_!Simplicity can be the best pattern!_**
+## Routing
 
-- Convention over configuration.
-- Prioritizes developer experience and performance over existing conventions.
-- Lightweight by design. [Some benchmarks here!](https://github.com/MionKit/benchmarks) 🚀
-<!-- - Tightly Integration between Routing + Data (Aka the mion way). -->
+mion's router is lightweight and fast. Unlike traditional routers, it uses a Remote Procedure Call (RPC) style of routing. All requests are transmitted using the HTTP POST method, and data is sent and received in JSON format via the request body and headers. mion's router leverages a simple in-memory map for route lookup, making it extremely fast.
 
-#### !! mion is currently under heavy development
+Apis are composed of Routes and Hooks. Routes are methods that can be called remotely from the client and have an specific url, while hooks are auxiliary methods that get's executed before or after a route.
 
-<!-- ### Automatic Validation and Serialization
+To learn more about the router, refer to the [Router Documentation](./packages/router/).
 
-mion uses `@deepkit/type` library from [Deepkit](https://deepkit.io/) to bring types to the runtime world. This opens a new world of possibilities. Please check Deepkit's documentation for installation, validation and serialization instructions. -->
+## Automatic Serialization & Validation
 
-## `RPC like`
+mion utilizes [Deepkit's runtime types](https://deepkit.io/) for automatic validation and serialization. Deepkit's magic enables type information to be available at runtime, allowing for automatic validation and serialization of data.
 
-Here is where mion starts to deviate from traditional frameworks. [The router](./packages/router/README.md) uses a **Remote Procedure Call** style routing, unlike traditional routers it does not use `GET`, `PUT`, `POST` and `DELETE` methods, everything is transmitted using `HTTP POST` method and all data is sent/received in the request/response `body` and `headers`.
+By leveraging runtime types, mion offers advanced capabilities such as request validation and response/request serialization that topically involves using more than one framework. Please consult Deepkit's documentation for installation instructions and more information on these features.
 
-### Requests & Responses
+## Type Safe Apis
 
-- Requests are made using only `HTTP POST` method.
-- Data is sent and received only in the `body` and `headers`.
-- Data is sent and received only in `JSON` format.
+![type safes apis](https://raw.githubusercontent.com/MionKit/mion/master/assets/public/type-safe-apis.gif)
 
-### Rpc VS Rest
+## Quick Start
 
-Please have a look to this great Presentation for more info about each different type of API and the pros and cons of each one:  
-[Nate Barbettini – API Throwdown: RPC vs REST vs GraphQL, Iterate 2018](https://www.youtube.com/watch?v=IvsANO0qZEg)
+#### Server
 
-## `Routing`
+Install dependencies:
 
-🚀 Lightweight and fast router.
-
-Thanks to it's RPC style there is no need to parse parameters or regular expressions when finding a route. Just a simple [Map](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Map) in memory containing all the routes. Can't get faster than that.
-
-`Route parameters` are passed as an array in the request body, in a field with the same name as the route. Elements in the array must have the same order as the function parameters.
-
-`Route response` is send back in the body in a field with the same name as the route.
-
-The reason for this naming is to future proof the router to be able to accept multiple routes on a single request.
-
-[Please read full router documentation here! 📗](./packages/router/README.md)
-
-### Example:
-
-```js
-// packages/router/examples/routes-definition.routes.ts
-
-import {registerRoutes, Routes, initRouter} from '@mionkit/router';
-
-const sayHello = (ctx, name: string): string => {
-    return `Hello ${name}.`;
-};
-
-const sayHello2 = {
-    route(ctx, name1: string, name2: string): string {
-        return `Hello ${name1} and ${name2}.`;
-    },
-};
-
-const routes = {
-    sayHello, // api/sayHello
-    sayHello2, // api/sayHello2
-} satisfies Routes;
-
-initRouter({prefix: 'api/'});
-export const apiSpec = registerRoutes(routes);
-
+```bash
+npm install --save-dev @deepkit/type-compiler
+npm install @mionkit/router
 ```
 
-## `Automatic Serialization & Validation`
+Depending if you using the server or serverless version
 
-mion uses [Deepkit's runtime types](https://deepkit.io/) for automatic [validation](https://docs.deepkit.io/english/validation.html) and [serialization/deserialization](https://docs.deepkit.io/english/serialization.html). Thanks to Deepkit's magic the type information is available at runtime and the data can be auto-magically Validated and Serialized.
+```bash
+# http server
+npm install @mionkit/http
 
-Runtime types allow for a completely new set of capabilities. Please check Deepkit's documentation for install instructions and more information:
-
-- Request [Validation](https://docs.deepkit.io/english/validation.html)
-- Response/Request [Serialization/Deserialization](https://docs.deepkit.io/english/serialization.html)
-
-#### Request Validation examples
-
-<table>
-<tr><th>Code</th><th>POST Request <code>/users/getUser</code></th></tr>
-<tr>
-<td>
-
-```ts
-// packages/router/examples/get-user-request.routes.ts
-
-import {Routes, registerRoutes} from '@mionkit/router';
-import type {User} from 'MyModels';
-
-const getUser = async (ctx, entity: {id: number}): Promise<User> => {
-    const user = await ctx.db.getUserById(entity.id);
-    return user;
-};
-
-const routes = {
-    users: {
-        getUser, // api/users/getUser
-    },
-} satisfies Routes;
-
-export const apiSpec = registerRoutes(routes);
-
+# serverless
+npm install @mionkit/serverless
 ```
 
-</td>
-<td>
+Set up Deepkit runtime types by enabling reflection in your tsconfig.json file. For detailed instructions, refer to the [Deepkit Runtime Types Installation](https://docs.deepkit.io/english/runtime-types.html#runtime-types-installation) guide.
 
-```yaml
-# VALID REQUEST BODY
-{ "/users/getUser": [ {"id" : 1} ]}
+#### Client
 
-# INVALID REQUEST BODY (user.id is not a number)
-{"/users/getUser": [ {"id" : "1"} ]}
+Install dependencies:
 
-# INVALID REQUEST BODY (missing parameter user.id)
-{"/users/getUser": [ {"ID" : 1} ]}
-
-# INVALID REQUEST BODY (missing parameters)
-{"/users/getUser": []}
+```bash
+npm install @mionkit/client
 ```
 
-</td>
-</tr>
-</table>
+#### Base Project
 
-#### !!! IMPORTANT !!!
+You can also use the mion base project as a starting point by running `npx degit https://github.com/MionKit/mion-base``.
 
-[Type Inference](https://www.typescriptlang.org/docs/handbook/type-inference.html) is not supported, `parameter types` and `return types` must be explicitly defined, so they are correctly validated/serialized.
+## Contributing
 
-🚫 Invalid route definitions!
+Contributors and maintainers are welcome 👍
 
-```ts
-const myRoute1 = () => {};
-const myRoute2 = () => null;
-const sayHello = (context, name) => `Hello ${name}`;
-const getYser = async (context, userId) => context.db.getUserById(userId);
-```
+Mion's philosophy is simplicity, so we don't want to add many features or abstractions, as an open source project we want to keep tha features we have to maintain to a minimum, that said contributions to mion are encouraged! Please open issues and submit pull requests for any improvements or bug fixes.
 
-✅ Valid route definitions!
+The project is organized as a monorepo using npm workspaces, NX, and Lerna. Each package within the monorepo is compiled and tested individually using TypeScript and Jest.
 
-```ts
-const myRoute1 = (): void {};
-const myRoute2 = (): null => null;
-const sayHello = (context: Context, name:string): string => `Hello ${name}`;
-const getYser = async (context: Context, userId:number): Promise<User> => context.db.getUserById(userId);
-```
-
-## `Quick start`
-
-#### You can use mion base project.
-
-<!--
-```sh
-npx degit https://github.com/MionKit/mion-base
-```
-
-#### Or manually intall in your own project -->
-
-Some steps are required to be able to use deepkit runtime types, [docs here](https://docs.deepkit.io/english/runtime-types.html#runtime-types-installation).
-
-Reflection must be enabled in _tsconfig.json_
-
-```json
-{
-  "compilerOptions": {
-    "module": "CommonJS",
-    "target": "es6",
-    "moduleResolution": "node16",
-    "experimentalDecorators": true
-  },
-  "reflection": true
-}
-```
-
-Install deepkit required packages
-
-```sh
-npm install --save @deepkit/type
-npm install --save-dev @deepkit/type-compiler @deepkit/core
-```
-
-<!-- Install mion CLI.
-
-```sh
-npm install mion
-``` -->
-
-## `Contributing`
-
-The software is provided as it is without guarantees. If you want something done you are welcome to open issues and pull request! 👍 🎊 🎉
-
-#### Monorepo
-
-This project is a monorepo managed using npm [workspaces](https://docs.npmjs.com/cli/v7/using-npm/workspaces). (`npm >= 7` required), [NX](https://nx.dev/) and [Lerna](https://lerna.js.org/)
-
-**_!! ALL Dev Dependencies should be installed in root package !!_**
-
-Each package within this monorepo is compiled using and tested individually using typescript and [jest](https://jestjs.io/).
-To run an npm command in a workspace, `npx nx run <package>:<npm-script>`, i.e: `npx nx run @mionkit/router:build`
-
-```sh
-# run jest tests in @mionkit/router
-npx nx run @mionkit/router:test
-
-# run jest in all packages
-npx lerna run test
-
-# compiles typescript in @mionkit/router
-# Please note that the build is only building the project's files if there are any dependencies they should be build before
-npx nx run @mionkit/router:build
-
-# compiles typescript in all packages (NX will build only whats required)
-npx lerna run build
-```
-
-#### building & testing
-
-As mentioned before lerna and NX are used to build the project. this is so project packages are build in order.
-
-```sh
-# build all packages
-npm run build
-
-# test all packages
-npm run build
-
-# testing individual files
-npx jest myFile
-# previous command will run test on any file that contains myFile in the path
-```
-
-When testing the `@mionkit/client` package manually it is required first to move to the client directory.
-this is so jest uses the `jest.config.com` from that package instead the global one.
-
-```sh
-cd packages/client
-npx jest client
-```
-
-#### ESLint and Prettier
-
-All pull request must pass ESLint and [Prettier](https://github.com/prettier/prettier) before being merged.  
-Run bellow command to automatically format all typescript files and check Lint errors.
-
-```sh
-npm run format && npm run lint
-```
-
-#### Powered by:
+## Powered by:
 
 - [Typescript](https://www.typescriptlang.org/)
 - [Deepkit](https://deepkit.io/)
