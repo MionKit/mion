@@ -40,11 +40,12 @@ mion is designed with a Remote Procedure Call (RPC) style and works exclusively 
 
 We have prioritized and tracked performance during the development of the framework, we even have many discarded features and experiments when there was a performance degradation compared to previous versions. Our goal is to have similar performance to fastify which we consider the gold standard in node.js frameworks!
 
-For full benchmarks and comparison against other frameworks please visit the benchmarks repo. 📈
+For full benchmarks and comparison against other frameworks please visit the [benchmarks repo](https://github.com/MionKit/Benchmarks).  
+We know! benchmarks are just benchmarks, but if you don't keep performance in mind you end up like express 😅
 
-- [benchmarks](https://github.com/MionKit/Benchmarks)
-- [cold starts](https://github.com/MionKit/Benchmarks/blob/master/COLD-STARTS.md)
-- [mion options](https://github.com/MionKit/Benchmarks/blob/master/MION-OPTIONS.md)
+- [Performance and Memory](https://github.com/MionKit/Benchmarks)
+- [Cold starts](https://github.com/MionKit/Benchmarks/blob/master/COLD-STARTS.md)
+- [Mion options](https://github.com/MionKit/Benchmarks/blob/master/MION-OPTIONS.md)
 
 ## Routing
 
