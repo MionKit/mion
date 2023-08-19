@@ -8,11 +8,11 @@ export default defineAppConfig({
       twitter: '@Ma_jrz',
     },
     github: {
-      dir: 'docs/content',
+      dir: 'docs/site',
       branch: 'main',
       repo: 'mion',
       owner: 'MionKit',
-      edit: true
+      edit: false
     },
     aside: {
       level: 0,
@@ -21,7 +21,7 @@ export default defineAppConfig({
     },
     main: {
       padded: true,
-      fluid: true
+      fluid: false
     },
     header: {
       padded: true,
