@@ -1,25 +1,21 @@
-import {registerRoutes, initRouter} from '@mionkit/router';
-import {someDbDriver} from 'someDbDriver';
-import {cloudLogs} from 'MyCloudLogLs';
-import type {CallContext, Routes} from '@mionkit/router';
-import type {APIGatewayEvent} from 'aws-lambda';
-import type {Pet} from 'MyModels';
+import { registerRoutes, initRouter } from '@mionkit/router';
+import { myApp } from './myApp';
+import type { CallContext, Routes } from '@mionkit/router';
+import type { Pet, User } from './myModels';
 
-const myApp = {cloudLogs, db: someDbDriver};
-const shared = {auth: {me: null}};
-const getSharedData = (): typeof shared => shared;
+interface SharedData {
+    myUser: User | null
+    // ... other shared data properties
+}
+const initSharedData = (): SharedData => ({ myUser: null });
 
-type SharedData = ReturnType<typeof getSharedData>;
-type Context = CallContext<SharedData>;
-
-const getMyPet = async (ctx: Context): Promise<Pet> => {
-    // use of ctx inside handlers
-    const user = ctx.shared.auth.me;
+type MyContext = CallContext<SharedData>;
+const getMyPet = async (ctx: MyContext): Promise<Pet> => {
+    const user = ctx.shared.myUser;
     const pet = myApp.db.getPetFromUser(user);
-    myApp.cloudLogs.log('pet from user retrieved');
     return pet;
 };
 
-const routes = {getMyPet} satisfies Routes;
-initRouter({sharedDataFactory: getSharedData});
+const routes = { getMyPet } satisfies Routes;
+initRouter({ sharedDataFactory: initSharedData });
 export const apiSpec = registerRoutes(routes);

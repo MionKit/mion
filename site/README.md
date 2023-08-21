@@ -4,7 +4,12 @@ Mion documentation site is based on:
 
 *  [nuxt-content](https://content.nuxtjs.org/)
 *  [docus](https://docus.dev/)
+*  [embedme](https://www.npmjs.com/package/embedme)
 
+Some source code is embeded into the documentation using [embedme](https://www.npmjs.com/package/embedme).
+Run `npm run auto-readme` to automatically embed source code into docs after updating any mion package.
+
+Be sure to disable Prettier in markdown files as it is not compatible with [Nuxt MDC syntax](https://content.nuxtjs.org/guide/writing/mdc#attributes).
 ## Setup
 
 Install dependencies:
