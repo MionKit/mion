@@ -21,7 +21,7 @@ const getDate = (ctx, dataPoint?: DataPoint): DataPoint => {
     return dataPoint || {date: new Date('December 17, 2020 03:24:00')};
 };
 
-// #### Init server ####
+// #### Init Http Server ####
 
 const routerOpts = {sharedDataFactory, prefix: 'api/', port: 8080};
 const routes = {changeUserName, getDate} satisfies Routes;
