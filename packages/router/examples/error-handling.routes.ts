@@ -24,14 +24,8 @@ export const getPet = async (ctx, id: string): Promise<Pet | RpcError> => {
          */
         return new RpcError({statusCode, publicMessage, originalError: dbError as Error});
     }
-};
+}; // satisfies Route
 
 export const alwaysError = (): void => {
-    /*
-     * this will generate a public 500 error with an 'Unknown Error' message.
-     *
-     * Full RpcError containing dbError message and stacktrace will be added
-     * to ctx.request.internalErrors, so it can be logged or managed after
-     */
-    throw new Error('This error will generate a public 500 error with a generic message');
-};
+    throw new Error('will generate a 500 error with an "Unknown Error" message');
+}; // satisfies Route

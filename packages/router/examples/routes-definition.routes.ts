@@ -1,14 +1,15 @@
-import { RouteDef, Routes } from '@mionkit/router';
+import {RouteDef, Routes} from '@mionkit/router';
 
-// Defining a route as Handler
+// Defining a route as simple function
 const sayHello = (ctx, name: string): string => {
     return `Hello ${name}.`;
-};
+}; // Satisfies Route
 
-// Using a RouteDef object
+// Using a Route Definition object
 const sayHello2 = {
     enableSerialization: false,
     enableValidation: false,
+    // route handler
     route(ctx, name1: string, name2: string): string {
         return `Hello ${name1} and ${name2}.`;
     },

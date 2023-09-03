@@ -44,8 +44,9 @@ export interface PrivateRpcError extends RpcErrorParams {
 }
 
 export interface AnonymRpcError extends RpcErrorParams {
+    // when a RpcError gets anonymized the publicMessage becomes the message.
     message: string;
-    publicMessage?: undefined;
+    statusCode: number;
     name: string;
 }
 
