@@ -1,7 +1,7 @@
 export default defineAppConfig({
   docus: {
     title: 'Mion',
-    description: 'Typescript Apis at the speed of light 🚀',
+    description: 'Type Safe APIs at the speed of light 🚀',
     image: 'https://raw.githubusercontent.com/MionKit/mion/9c0fcf2cd03aa373833ca071a6befc5643a718df/assets/public/logo-dark.svg',
     socials: {
       github: 'MionKit/mion',

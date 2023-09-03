@@ -11,7 +11,7 @@
   <img src="https://img.shields.io/badge/license-MIT-97ca00.svg?style=flat-square&maxAge=99999999" alt="npm"  style="max-width:100%;">
 </p>
 
-# mion : Typescript Apis at the speed of light 🚀
+# mion : Type Safe APIs at the speed of light 🚀
 
 mion is a lightweight TypeScript-based framework designed for building serverless APIs. It aims to provide a great developer experience and is optimized for serverless environments. With mion, you can quickly build APIs that are type-safe, with automatic validation and serialization out of the box.
 
