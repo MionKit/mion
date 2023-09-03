@@ -8,13 +8,9 @@
     xmlns:xlink="http://www.w3.org/1999/xlink"
     xml:space="preserve"
     xmlns:serif="http://www.serif.com/"
-    style="
-      fill-rule: evenodd;
-      clip-rule: evenodd;
-      stroke-linejoin: round;
-      stroke-miterlimit: 2;
-    "
-    role="img" aria-describedby="mion-logo-title"
+    style="fill-rule: evenodd; clip-rule: evenodd; stroke-linejoin: round; stroke-miterlimit: 2"
+    role="img"
+    aria-describedby="mion-logo-title"
   >
     <title id="mion-logo-title">mion nodejs framework, type safe APIs at the speed of light</title>
     <g transform="matrix(7.913,0,0,7.96869,-159.526,2002.47)">
