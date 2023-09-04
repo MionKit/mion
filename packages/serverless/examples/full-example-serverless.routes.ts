@@ -1,4 +1,4 @@
-import {initAwsLambdaRouter, lambdaHandler} from '@mionkit/serverless';
+import {initAwsLambdaRouter, awsLambdaHandler} from '@mionkit/serverless';
 import {CallContext, registerRoutes, Route} from '@mionkit/router';
 
 // #### App ####
@@ -28,4 +28,4 @@ initAwsLambdaRouter(routerOpts);
 export const myApi = registerRoutes(routes);
 
 // Aws Lambda Handler
-export const handler = lambdaHandler;
+export const handler = awsLambdaHandler;

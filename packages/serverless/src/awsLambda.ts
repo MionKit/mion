@@ -16,7 +16,7 @@ export function initAwsLambdaRouter(routerOptions?: Partial<RouterOptions<APIGat
     initRouter(routerOptions);
 }
 
-export async function lambdaHandler(rawRequest: APIGatewayEvent, awsContext: AwsContext): Promise<APIGatewayProxyResult> {
+export async function awsLambdaHandler(rawRequest: APIGatewayEvent, awsContext: AwsContext): Promise<APIGatewayProxyResult> {
     return dispatchRoute(rawRequest.path, rawRequest, awsContext)
         .then((routeResponse) => {
             return reply(routeResponse);

@@ -6,7 +6,7 @@
  * ######## */
 
 import {registerRoutes} from '@mionkit/router';
-import {initAwsLambdaRouter, lambdaHandler} from './awsLambda';
+import {initAwsLambdaRouter, awsLambdaHandler} from './awsLambda';
 import createEvent from '@serverless/event-mocks';
 import type {CallContext, Route} from '@mionkit/router';
 import type {APIGatewayProxyEventHeaders} from 'aws-lambda';
@@ -82,7 +82,7 @@ describe('serverless router should', () => {
         const requestData = {getDate: [{date: new Date('2022-04-10T02:13:00.000Z')}]};
         const {event, context} = getDefaultGatewayEvent(JSON.stringify(requestData), '/api/getDate');
 
-        const awsResponse = await lambdaHandler(event, context);
+        const awsResponse = await awsLambdaHandler(event, context);
         const parsedResponse = JSON.parse(awsResponse.body);
         const headers = awsResponse.headers || {};
 
@@ -96,7 +96,7 @@ describe('serverless router should', () => {
         const requestData = {getDate: ['NOT A DATE POINT']};
         const {event, context} = getDefaultGatewayEvent(JSON.stringify(requestData), '/api/getDate');
 
-        const awsResponse = await lambdaHandler(event, context);
+        const awsResponse = await awsLambdaHandler(event, context);
         const parsedResponse = JSON.parse(awsResponse.body);
         const headers = awsResponse.headers || {};
 
@@ -116,7 +116,7 @@ describe('serverless router should', () => {
         const requestData = {};
         const {event, context} = getDefaultGatewayEvent(JSON.stringify(requestData), '/api/updateHeaders');
 
-        const awsResponse = await lambdaHandler(event, context);
+        const awsResponse = await awsLambdaHandler(event, context);
         const parsedResponse = JSON.parse(awsResponse.body);
         const headers = awsResponse.headers || {};
 

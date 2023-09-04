@@ -310,7 +310,7 @@ export type RemoteHandler<H extends Handler> =
     : never;
 
 export interface RemoteMethodMetadata<H extends Handler = any> {
-    /** Type reference to the route handler, its value is actually null or void function ans should never be called. */
+    /** Type reference to the route handler, it's runtime value is actually null, just used statically by typescript. */
     _handler: RemoteHandler<H>;
     /** Json serializable structure so the Type information can be transmitted over the wire */
     serializedTypes: SerializedTypes;
