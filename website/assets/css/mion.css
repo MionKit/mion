@@ -2,8 +2,12 @@
   color: red;
 }
 
-body .app-layout > header {
+.dark .app-layout > header {
   background-color: #15131acc;
+}
+
+.light .app-layout > header {
+  background-color: #FFFFFF00;
 }
 
 
@@ -16,8 +20,13 @@ body .table-wrapper {
   background-color: var(--prose-code-block-backgroundColor);
 }
 
-body .table-wrapper th {
+.dark .table-wrapper th {
   background-color: rgba(255, 255, 255, 0.03);
+  color: var(--color-primary-500);
+}
+
+.light .table-wrapper th {
+  background-color: rgba(255, 255, 255, 0.5);
   color: var(--color-primary-500);
 }
 
@@ -32,8 +41,12 @@ body .table-wrapper tbody td:last-child {
   padding-right: 0.5rem;
 }
 
-body .table-wrapper tbody tr:nth-child(even)  {
+.dark .table-wrapper tbody tr:nth-child(even)  {
   background-color: rgba(255, 255, 255, 0.025);
+}
+
+.light .table-wrapper tbody tr:nth-child(even)  {
+  background-color: rgba(255, 255, 255, 0.5);
 }
 
 body .table-wrapper thead th,
@@ -41,8 +54,12 @@ body .table-wrapper tbody td {
   padding: 0.5rem;
 }
 
-body .table-wrapper tbody td strong {
+.dark .table-wrapper tbody td strong {
   color: var(--color-primary-300);
+}
+
+.light .table-wrapper tbody td strong {
+  color: var(--color-primary-600);
 }
 
 body .card .title a {
