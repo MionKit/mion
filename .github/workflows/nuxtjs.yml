@@ -59,7 +59,7 @@ jobs:
       - name: Install dependencies
         working-directory: website
         run: npm ci
-      - name: Static HTML export with Nuxt
+      - name: Generate Static Nuxt site
         working-directory: website
         run: npm run generate
       - name: Upload artifact
