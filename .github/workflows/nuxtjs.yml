@@ -26,7 +26,7 @@ concurrency:
 
 jobs:
   # Build job
-  setup:
+  build:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -36,24 +36,14 @@ jobs:
         with:
           node-version: '18'
           cache: npm
-      - name: list dirs
-        run: ls -l
-
-  build:
-    runs-on: ubuntu-latest
-    needs: setup
-    defaults:
-      run:
-        working-directory: website
-    steps:
       - name: Restore cache node modules
         id: cache-npm
         uses: actions/cache@v3
         env:
           cache-name: cache-node-modules
         with:
-          path: ./node_modules
-          key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ hashFiles('**/package-lock.json') }}
+          path: ./website/node_modules
+          key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ hashFiles('**/website/package-lock.json') }}
           restore-keys: |
             ${{ runner.os }}-build-${{ env.cache-name }}-
             ${{ runner.os }}-build-
@@ -62,18 +52,20 @@ jobs:
         uses: actions/cache@v3
         with:
           path: |
-            ./.output
-          key: ${{ runner.os }}-nuxt-build-${{ hashFiles('./.output') }}
+            ./website/.output
+          key: ${{ runner.os }}-nuxt-build-${{ hashFiles('./website/.output') }}
           restore-keys: |
             ${{ runner.os }}-nuxt-build-
       - name: Install dependencies
+        working-directory: website
         run: npm ci
       - name: Static HTML export with Nuxt
+        working-directory: website
         run: npm run generate
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v2
         with:
-          path: .output/public
+          path: website/.output/public
 
   # Deployment job
   deploy:
