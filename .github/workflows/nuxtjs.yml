@@ -39,9 +39,10 @@ jobs:
 
   build:
     runs-on: ubuntu-latest
+    needs: install
     defaults:
       run:
-        working-directory: ./website
+        working-directory: website
     steps:
       - name: Restore cache node modules
         id: cache-npm
@@ -76,7 +77,7 @@ jobs:
   deploy:
     defaults:
       run:
-        working-directory: ./website
+        working-directory: website
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
