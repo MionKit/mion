@@ -1,0 +1,60 @@
+.akjshdd {
+  color: red;
+}
+
+body .app-layout > header {
+  background-color: #15131acc;
+}
+
+
+body .table-wrapper {
+  border-radius: var(--radii-md);
+  border-width: var(--prose-code-block-border-width);
+  border-style: var(--prose-code-block-border-style);
+  border-color: var(--prose-code-block-border-color);
+  color: var(--prose-code-block-color);
+  background-color: var(--prose-code-block-backgroundColor);
+}
+
+body .table-wrapper th {
+  background-color: rgba(255, 255, 255, 0.03);
+  color: var(--color-primary-500);
+}
+
+body .table-wrapper th:first-child,
+body .table-wrapper tbody td:first-child {
+  padding-left: 0.5rem;
+  padding-inline-start: 0.5rem;
+}
+
+body .table-wrapper th:last-child,
+body .table-wrapper tbody td:last-child {
+  padding-right: 0.5rem;
+}
+
+body .table-wrapper tbody tr:nth-child(even)  {
+  background-color: rgba(255, 255, 255, 0.025);
+}
+
+body .table-wrapper thead th,
+body .table-wrapper tbody td {
+  padding: 0.5rem;
+}
+
+body .table-wrapper tbody td strong {
+  color: var(--color-primary-300);
+}
+
+body .card .title a {
+  text-decoration: none;
+  border-color: transparent;
+  border-bottom-width: 2px;
+}
+
+body .card .title a:hover {
+  border-color: var(--color-primary-400);
+}
+
+body .card .icon {
+  color: var(--color-primary-500);
+}
