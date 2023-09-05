@@ -26,7 +26,7 @@ concurrency:
 
 jobs:
   # Build job
-  install:
+  setup:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -36,10 +36,12 @@ jobs:
         with:
           node-version: '18'
           cache: npm
+      - name: list dirs
+        run: ls -l
 
   build:
     runs-on: ubuntu-latest
-    needs: install
+    needs: setup
     defaults:
       run:
         working-directory: website
