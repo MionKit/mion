@@ -7,7 +7,7 @@ name: Deploy Nuxt site to Pages
 on:
   # Runs on pushes targeting the default branch
   push:
-    branches: ["master"]
+    branches: ['master']
 
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
@@ -21,46 +21,63 @@ permissions:
 # Allow only one concurrent deployment, skipping runs queued between the run in-progress and latest queued.
 # However, do NOT cancel in-progress runs as we want to allow these production deployments to complete.
 concurrency:
-  group: "pages"
+  group: 'pages'
   cancel-in-progress: false
 
 jobs:
   # Build job
-  build:
+  install:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
+     - name: Checkout
         uses: actions/checkout@v3
-      - name: Setup Node
+
+      - name: Setup node
         uses: actions/setup-node@v3
         with:
           node-version: "18"
-      - name: Setup Pages
-        uses: actions/configure-pages@v3
-      - name: Restore cache
+          cache: npm
+
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./website
+    steps:
+      - name: Restore cache node modules
+        id: cache-npm
+        uses: actions/cache@v3
+        env:
+          cache-name: cache-node-modules
+        with:
+          path: ./node_modules
+          key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-build-${{ env.cache-name }}-
+            ${{ runner.os }}-build-
+            ${{ runner.os }}-
+      - name: Restore Nuxt cache
         uses: actions/cache@v3
         with:
           path: |
-            site/node_modules
-            site/.output
-          key: ${{ runner.os }}-nuxt-build-${{ hashFiles('site/.output') }}
+            ./.output
+          key: ${{ runner.os }}-nuxt-build-${{ hashFiles('./.output') }}
           restore-keys: |
             ${{ runner.os }}-nuxt-build-
-      - name: Website Directory
-        run: cd website
       - name: Install dependencies
         run: npm ci
       - name: Static HTML export with Nuxt
         run: npm run generate
-      - name: Root Directory
-        run: cd ..
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v2
         with:
-          path: site/.output/public
+          path: .output/public
 
   # Deployment job
   deploy:
+    defaults:
+      run:
+        working-directory: ./website
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
