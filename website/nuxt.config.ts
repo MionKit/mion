@@ -5,7 +5,7 @@ export default defineNuxtConfig({
     css: ['~/assets/css/mion.css'],
 
     app: {
-        baseURL: '/mion/', // working with github pages mionkit.github.io/mion/ - Remove when moving to mion.io
+        // baseURL: '/mion/', // working with github pages mionkit.github.io/mion/ - Remove when using mion.io
         buildAssetsDir: 'assets', // don't use "_" at the begining of the folder name to avoids nojkill conflict
     },
 
