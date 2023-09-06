@@ -25,29 +25,11 @@ mion Router uses a **Remote Procedure Call** style routing, unlike traditional r
 
 These architectural limitations make it suitable for modern APIs and grants some advantages over other routers that need to support many more features.
 
-### Rpc Like VS Rest
+## Check Website And Documentation
 
-We explicitly mention **RPC like** as the router is still designed to work over Http while providing some advantages that are not possible when using REST apis.
+[![mion-website-banner](https://raw.githubusercontent.com/MionKit/mion/master/assets/public/mion-website-banner.png)](http://mion.io)
 
-- Type Safety
-- Less complexity
-- Better integration between client and server
-- Better developer experience
-
-Please have a look to bellow great Presentation for more info about each different type of API and the pros and cons of each one: [Nate Barbettini – API Throwdown: RPC vs REST vs GraphQL](https://www.youtube.com/watch?v=IvsANO0qZEg)
-
-### `@mionkit/client`
-
-The [client package](https://www.npmjs.com/package/@mionkit/client) can be used as a Fully Typed client for mion Apis!
-
-- Fully typed Apis with autocompletion and type checking (your code is your schema).
-- Automattic validation and serialization out of the box.
-- No compilation needed.
-- Local validation in the client (no need to query the server), useful for form validation, etc...
-- Prefill and persist parameters across multiple calls, useful for authorization, session and a replacement for cookies.
-- Runtime types.
-
-![fully typed clint](https://raw.githubusercontent.com/MionKit/mion/master/assets/public/type-safe-apis.gif)
+---
 
 ## `Routes`
 
