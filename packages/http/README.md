@@ -22,6 +22,12 @@
 
 This is a limited http server, only supports `application/json` content type, does not support multipart/form-data, no websocket or streams and no file upload neither. There are better alternatives for those scenarios (like S3 file upload, etc).
 
+## Check Website And Documentation
+
+[![mion-website-banner](https://raw.githubusercontent.com/MionKit/mion/master/assets/public/mion-website-banner.png)](http://mion.io)
+
+---
+
 ## `RPC like router`
 
 mion router uses a **Remote Procedure Call** style routing, unlike traditional routers it does not use `GET`, `PUT`, `POST` and `DELETE` methods, everything is transmitted using `HTTP POST` method and all data is sent/received in the request/response `body` and `headers`.
@@ -43,8 +49,6 @@ Thanks to it's RPC style there is no need to parse parameters or regular express
 `Route response` is send back in the body in a field with the same name as the route.
 
 The reason for this weird naming is to future proof the router to be able to accept multiple routes on a single request.
-
-### 📋 [Please read full router documentation here!](./packages/router/README.md)
 
 ```js
 // ../router/examples/routes-definition.routes.ts

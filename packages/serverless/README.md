@@ -20,9 +20,11 @@
 
 This package contains a collection bindings for different serverless environments.
 
-## `RPC like router`
+## Check Website And Documentation
 
-mion router uses a **Remote Procedure Call** style routing, unlike traditional routers it does not use `GET`, `PUT`, `POST` and `DELETE` methods, everything is transmitted using `HTTP POST` method and all data is sent/received in the request/response `body` and `headers`.
+[![mion-website-banner](https://raw.githubusercontent.com/MionKit/mion/master/assets/public/mion-website-banner.png)](http://mion.io)
+
+---
 
 ### Requests & Responses
 
