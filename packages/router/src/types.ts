@@ -6,7 +6,7 @@
  * ######## */
 
 import {ReflectionOptions, FunctionReflection, SerializedTypes} from '@mionkit/reflection';
-import {CoreOptions, Obj, RpcError} from '@mionkit/core';
+import {CoreOptions, AnyObject, RpcError} from '@mionkit/core';
 
 // #######  Route Handlers #######
 
@@ -213,9 +213,9 @@ export type CallContext<SharedData = any> = {
 /** Router's own request object, do not confuse with the underlying raw request */
 export type Request = {
     /** parsed headers */
-    readonly headers: Readonly<Obj>;
+    readonly headers: Readonly<AnyObject>;
     /** parsed body */
-    readonly body: Readonly<Obj>;
+    readonly body: Readonly<AnyObject>;
     /** All errors thrown during the call are stored here so they can bee logged or handler by a some error handler hook */
     readonly internalErrors: Readonly<RpcError[]>;
 };
@@ -223,7 +223,7 @@ export type Request = {
 /** Any request used by the router must follow this interface */
 export type RawRequest = {
     headers: {[header: string]: string | undefined | string[]} | undefined;
-    body: string | null | undefined | {}; // eslint-disable-line @typescript-eslint/ban-types
+    body: string | null | undefined | AnyObject;
 };
 
 /** Router's own response object, do not confuse with the underlying raw response */

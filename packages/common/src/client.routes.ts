@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {GET_REMOTE_METHODS_BY_ID, GET_REMOTE_METHODS_BY_PATH, Obj, RpcError} from '@mionkit/core';
+import {GET_REMOTE_METHODS_BY_ID, GET_REMOTE_METHODS_BY_PATH, UnknownObject, RpcError} from '@mionkit/core';
 import {
     RemoteMethodMetadata,
     getHookExecutable,
@@ -31,7 +31,7 @@ export const defaultClientRouteOptions = {
     getAllRemoteMethodsMaxNumber: 100,
 };
 
-function addRequiredRemoteMethodsToResponse(id: string, resp: RemoteMethodsDictionary, errorData: Obj): void {
+function addRequiredRemoteMethodsToResponse(id: string, resp: RemoteMethodsDictionary, errorData: UnknownObject): void {
     if (resp[id]) return;
     const executable = getHookExecutable(id) || getRouteExecutable(id);
     if (!executable) {

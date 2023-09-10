@@ -42,25 +42,27 @@ mion only cares about the `url.path`, and completely ignores the http method, so
 ```ts
 // examples/routes-definition.routes.ts
 
-import {registerRoutes, Routes, initRouter} from '@mionkit/router';
+import {RouteDef, Routes} from '@mionkit/router';
 
+// Defining a route as simple function
 const sayHello = (ctx, name: string): string => {
   return `Hello ${name}.`;
-};
+}; // Satisfies Route
 
+// Using a Route Definition object
 const sayHello2 = {
+  enableSerialization: false,
+  enableValidation: false,
+  // route handler
   route(ctx, name1: string, name2: string): string {
     return `Hello ${name1} and ${name2}.`;
   },
-};
+} satisfies RouteDef;
 
 const routes = {
-  sayHello, // api/sayHello
-  sayHello2, // api/sayHello2
+  sayHello,
+  sayHello2,
 } satisfies Routes;
-
-initRouter({prefix: 'api/'});
-export const apiSpec = registerRoutes(routes);
 ```
 
 Using javascript names helps keeping route names simple, it is not recommended to use the array notation to define route names. no url decoding is done when finding the route
@@ -75,8 +77,8 @@ const sayHello = (ctx, name: string): string => {
 };
 
 const routes = {
-  'say-Hello': sayHello, // api/say-Hello  !! NOT Recommended
-  'say Hello': sayHello, // api/say%20Hello  !! ROUTE WONT BE FOUND
+  'say-Hello': sayHello, // path = /say-Hello  !! NOT Recommended
+  'say Hello': sayHello, // path = /say%20Hello  !! ROUTE WONT BE FOUND
 } satisfies Routes;
 
 export const apiSpec = registerRoutes(routes);
@@ -129,10 +131,8 @@ import {HeaderHookDef, registerRoutes} from '@mionkit/router';
 import {getAuthUser, isAuthorized} from 'MyAuth';
 
 const auth = {
-  /* headerName is optional,
-   * if not declared would use the name of the variable when registering routes
-   * in this case it would be 'auth' */
-  headerName: 'Authorization',
+  // headerName is required when defining a HeaderHook
+  headerName: 'authorization',
   headerHook: async (ctx, token: string): Promise<void> => {
     const me = await getAuthUser(token);
     if (!isAuthorized(me)) throw {code: 401, message: 'user is not authorized'};
@@ -205,9 +205,9 @@ The reason for this format is to directly identify each method that is receiving
 /** Router's own request object, do not confuse with the underlying raw request */
 export type Request = {
   /** parsed headers */
-  readonly headers: Readonly<Obj>;
+  readonly headers: Readonly<AnyObject>;
   /** parsed body */
-  readonly body: Readonly<Obj>;
+  readonly body: Readonly<AnyObject>;
   /** All errors thrown during the call are stored here so they can bee logged or handler by a some error handler hook */
   readonly internalErrors: Readonly<RpcError[]>;
 };
@@ -215,7 +215,7 @@ export type Request = {
 /** Any request used by the router must follow this interface */
 export type RawRequest = {
   headers: {[header: string]: string | undefined | string[]} | undefined;
-  body: string | null | undefined | {}; // eslint-disable-line @typescript-eslint/ban-types
+  body: string | null | undefined | AnyObject;
 };
 ```
 
@@ -251,18 +251,19 @@ The order in which `routes` and `hooks` are added to the router is important as 
 
 import {Routes, registerRoutes} from '@mionkit/router';
 
-// prettier-ignore
 const routes = {
-    authorizationHook: {hook(): void {}}, // hook
-    users: {
-        userOnlyHook: {hook(): void {}}, // hook
-        getUser: (): null => null, // route: users/getUser
-    },
-    pets: {
-        getPet: (): null => null, // route: users/getUser
-    },
-    errorHandlerHook: {hook(): void {}}, // hook,
-    loggingHook: {hook(): void {}}, // hook,
+  authorizationHook: {hook(): void {}}, // hook
+  users: {
+    userOnlyHook: {hook(): void {}}, // scoped hook
+    getUser: (): null => null, // route
+    setUser: (): null => null, // route
+  },
+  pets: {
+    getPet: (): null => null, // route
+    setPet: (): null => null, // route
+  },
+  errorHandlerHook: {hook(): void {}}, // hook
+  loggingHook: {hook(): void {}}, // hook
 } satisfies Routes;
 
 export const myValidApi = registerRoutes(routes);
@@ -290,23 +291,23 @@ An error will thrown when adding routes with `Router.addRoutes`. More info about
 
 import {Routes, registerRoutes} from '@mionkit/router';
 
-// prettier-ignore
 const invalidRoutes = {
-    authorizationHook: {hook(): void {}}, // hook
-    1: {
-        // invalid (this would execute before the authorizationHook)
-        userOnlyHook: {hook(): void {}}, // hook
-        getUser: (): null => null, // route: users/getUser
-    },
-    '2': {
-        // invalid (this would execute before the authorizationHook)
-        getPet: (): null => null, // route: users/getUser
-    },
-    errorHandlerHook: {hook(): void {}}, // hook,
-    loggingHook: {hook(): void {}}, // hook,
+  authorizationHook: {hook(): void {}}, // hook
+  1: {
+    // Invalid naming !!!
+    userOnlyHook: {hook(): void {}}, // hook
+    getUser: (): null => null, // route
+  },
+  '2': {
+    // Invalid naming !!!
+    getPet: (): null => null, // route
+  },
+  errorHandlerHook: {hook(): void {}}, // hook
+  loggingHook: {hook(): void {}}, // hook
 } satisfies Routes;
 
-export const myInvalidApi = registerRoutes(invalidRoutes); // throws an error
+// Throws an error as there are invalid route names
+export const myInvalidApi = registerRoutes(invalidRoutes);
 ```
 
 ## `Handling errors`
@@ -350,17 +351,11 @@ export const getPet = async (ctx, id: string): Promise<Pet | RpcError> => {
      */
     return new RpcError({statusCode, publicMessage, originalError: dbError as Error});
   }
-};
+}; // satisfies Route
 
 export const alwaysError = (): void => {
-  /*
-   * this will generate a public 500 error with an 'Unknown Error' message.
-   *
-   * Full RpcError containing dbError message and stacktrace will be added
-   * to ctx.request.internalErrors, so it can be logged or managed after
-   */
-  throw new Error('This error will generate a public 500 error with a generic message');
-};
+  throw new Error('will generate a 500 error with an "Unknown Error" message');
+}; // satisfies Route
 ```
 
 ## `Routes & Hooks Config`
@@ -545,29 +540,25 @@ export type CallContext<SharedData = any> = {
 // examples/using-context.routes.ts
 
 import {registerRoutes, initRouter} from '@mionkit/router';
-import {someDbDriver} from 'someDbDriver';
-import {cloudLogs} from 'MyCloudLogLs';
+import {myApp} from './myApp';
 import type {CallContext, Routes} from '@mionkit/router';
-import type {APIGatewayEvent} from 'aws-lambda';
-import type {Pet} from 'MyModels';
+import type {Pet, User} from './myModels';
 
-const myApp = {cloudLogs, db: someDbDriver};
-const shared = {auth: {me: null}};
-const getSharedData = (): typeof shared => shared;
+interface SharedData {
+  myUser: User | null;
+  // ... other shared data properties
+}
+const initSharedData = (): SharedData => ({myUser: null});
 
-type SharedData = ReturnType<typeof getSharedData>;
-type Context = CallContext<SharedData>;
-
-const getMyPet = async (ctx: Context): Promise<Pet> => {
-  // use of ctx inside handlers
-  const user = ctx.shared.auth.me;
+type MyContext = CallContext<SharedData>;
+const getMyPet = async (ctx: MyContext): Promise<Pet> => {
+  const user = ctx.shared.myUser;
   const pet = myApp.db.getPetFromUser(user);
-  myApp.cloudLogs.log('pet from user retrieved');
   return pet;
 };
 
 const routes = {getMyPet} satisfies Routes;
-initRouter({sharedDataFactory: getSharedData});
+initRouter({sharedDataFactory: initSharedData});
 export const apiSpec = registerRoutes(routes);
 ```
 

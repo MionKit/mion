@@ -53,25 +53,27 @@ The reason for this weird naming is to future proof the router to be able to acc
 ```js
 // ../router/examples/routes-definition.routes.ts
 
-import {registerRoutes, Routes, initRouter} from '@mionkit/router';
+import {RouteDef, Routes} from '@mionkit/router';
 
+// Defining a route as simple function
 const sayHello = (ctx, name: string): string => {
     return `Hello ${name}.`;
-};
+}; // Satisfies Route
 
+// Using a Route Definition object
 const sayHello2 = {
+    enableSerialization: false,
+    enableValidation: false,
+    // route handler
     route(ctx, name1: string, name2: string): string {
         return `Hello ${name1} and ${name2}.`;
     },
-};
+} satisfies RouteDef;
 
 const routes = {
-    sayHello, // api/sayHello
-    sayHello2, // api/sayHello2
+    sayHello,
+    sayHello2,
 } satisfies Routes;
-
-initRouter({prefix: 'api/'});
-export const apiSpec = registerRoutes(routes);
 
 ```
 
@@ -105,7 +107,7 @@ const getDate = (ctx, dataPoint?: DataPoint): DataPoint => {
   return dataPoint || {date: new Date('December 17, 2020 03:24:00')};
 };
 
-// #### Init server ####
+// #### Init Http Server ####
 
 const routerOpts = {sharedDataFactory, prefix: 'api/', port: 8080};
 const routes = {changeUserName, getDate} satisfies Routes;

@@ -7,7 +7,6 @@
 
 import {CallContext, initRouter, registerRoutes, RouterOptions, Routes} from '@mionkit/router';
 import {Item, Pet, User} from './myApi.types';
-import {Mutable, Obj} from '@mionkit/core';
 
 const auth = (ctx, token: string): void => {};
 const getUser = async (ctx, id: number): Promise<User> => ({id, name: 'John', surname: 'Smith'});

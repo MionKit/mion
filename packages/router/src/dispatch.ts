@@ -20,7 +20,7 @@ import {
 } from './types';
 import {getNotFoundExecutionPath, getRouteExecutionPath, getRouterOptions} from './router';
 import {isPromise} from 'node:util/types';
-import {Mutable, Obj, RpcError, StatusCodes} from '@mionkit/core';
+import {Mutable, AnyObject, RpcError, StatusCodes} from '@mionkit/core';
 
 type CallBack = (err: any, response: Response | undefined) => void;
 
@@ -203,20 +203,20 @@ function serializeResponse(executable: Executable, response: Response, result: a
     if (!executable.canReturnData || result === undefined || !executable.reflection) return;
     const serialized = executable.enableSerialization ? executable.reflection.serializeReturn(result) : result;
     if (isHeaderExecutable(executable)) response.headers[executable.headerName] = serialized;
-    else (response.body as Mutable<Obj>)[executable.id] = serialized;
+    else (response.body as Mutable<AnyObject>)[executable.id] = serialized;
 }
 
 /** Returns a header parameter whether headers are case sensitive.
  * AWS uses case sensitive headers, while http use lowercase headers */
 function getParamFromStandardHeaders(request: Request, executable: HookHeaderExecutable): any {
-    const headers: Mutable<Obj> = request.headers;
+    const headers: Mutable<AnyObject> = request.headers;
     const param = request.headers[executable.headerName];
     if (param || headers.areHeadersTransformedToLowerCase) return param;
     const lowerCaseHeaders = {};
     Object.entries(headers).forEach(([key, value]) => {
         lowerCaseHeaders[key.toLowerCase()] = value;
     });
-    (request as Mutable<Obj>).headers = {
+    (request as Mutable<AnyObject>).headers = {
         ...headers,
         ...lowerCaseHeaders,
     };
@@ -244,7 +244,7 @@ export function handleRpcErrors(
 
     response.statusCode = rpcError.statusCode;
     response.hasErrors = true;
-    (response.body as Mutable<Obj>)[path] = rpcError.toAnonymizedError();
+    (response.body as Mutable<AnyObject>)[path] = rpcError.toAnonymizedError();
     (request.internalErrors as Mutable<any[]>).push(rpcError);
 }
 

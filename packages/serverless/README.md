@@ -49,25 +49,27 @@ The reason for this weird naming is to future proof the router to be able to acc
 ```js
 // ../router/examples/routes-definition.routes.ts
 
-import {registerRoutes, Routes, initRouter} from '@mionkit/router';
+import {RouteDef, Routes} from '@mionkit/router';
 
+// Defining a route as simple function
 const sayHello = (ctx, name: string): string => {
     return `Hello ${name}.`;
-};
+}; // Satisfies Route
 
+// Using a Route Definition object
 const sayHello2 = {
+    enableSerialization: false,
+    enableValidation: false,
+    // route handler
     route(ctx, name1: string, name2: string): string {
         return `Hello ${name1} and ${name2}.`;
     },
-};
+} satisfies RouteDef;
 
 const routes = {
-    sayHello, // api/sayHello
-    sayHello2, // api/sayHello2
+    sayHello,
+    sayHello2,
 } satisfies Routes;
-
-initRouter({prefix: 'api/'});
-export const apiSpec = registerRoutes(routes);
 
 ```
 
@@ -76,7 +78,7 @@ export const apiSpec = registerRoutes(routes);
 ```ts
 // examples/full-example-serverless.routes.ts
 
-import {initAwsLambdaRouter, lambdaHandler} from '@mionkit/serverless';
+import {initAwsLambdaRouter, awsLambdaHandler} from '@mionkit/serverless';
 import {CallContext, registerRoutes, Route} from '@mionkit/router';
 
 // #### App ####
@@ -106,7 +108,7 @@ initAwsLambdaRouter(routerOpts);
 export const myApi = registerRoutes(routes);
 
 // Aws Lambda Handler
-export const handler = lambdaHandler;
+export const handler = awsLambdaHandler;
 ```
 
 ---

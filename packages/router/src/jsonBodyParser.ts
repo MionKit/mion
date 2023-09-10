@@ -6,7 +6,7 @@
  * ######## */
 
 import {Response, Request, RouterOptions, RawRequest, HooksCollection, CallContext, ErrorReturn} from './types';
-import {RpcError, StatusCodes, Obj, Mutable} from '@mionkit/core';
+import {RpcError, StatusCodes, AnyObject, Mutable} from '@mionkit/core';
 import {handleRpcErrors} from './dispatch';
 
 // ############# PUBLIC METHODS #############
@@ -55,7 +55,7 @@ export function stringifyResponseBody(
     opts: RouterOptions
 ): ErrorReturn {
     const response = context.response as Mutable<Response>;
-    const respBody: Obj = response.body;
+    const respBody: AnyObject = response.body;
     response.headers['content-type'] = 'application/json; charset=utf-8';
     try {
         response.json = opts.bodyParser.stringify(respBody);
