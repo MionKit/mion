@@ -5,8 +5,8 @@ const sayHello = (ctx, name: string): string => {
 };
 
 const routes = {
-    'say-Hello': sayHello, // api/say-Hello  !! NOT Recommended
-    'say Hello': sayHello, // api/say%20Hello  !! ROUTE WONT BE FOUND
+    'say-Hello': sayHello, // path = /say-Hello  !! NOT Recommended
+    'say Hello': sayHello, // path = /say%20Hello  !! ROUTE WONT BE FOUND
 } satisfies Routes;
 
 export const apiSpec = registerRoutes(routes);
