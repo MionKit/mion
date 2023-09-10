@@ -9,6 +9,10 @@ export default defineNuxtConfig({
         buildAssetsDir: '_assets', // don't use "_" at the begining of the folder name to avoids nojkill conflict
     },
 
+    colorMode: {
+        preference: 'dark'
+    },
+
     modules: [
         // https://github.com/nuxt-modules/plausible
         '@nuxtjs/plausible',
