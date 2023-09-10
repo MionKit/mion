@@ -13,7 +13,7 @@ import {format, Options as PrettierOptions} from 'prettier';
 // @ypes/cross-spawn is not updated,, once it gets updated we could use normal es6 import
 import * as spawn from 'cross-spawn';
 import {randomUUID} from 'crypto';
-import {Obj} from '@mionkit/core';
+import {AnyObject} from '@mionkit/core';
 
 // TODO: we could use https://ts-morph.com/manipulation/ instead string based code generation but better done than perfect!
 
@@ -55,7 +55,7 @@ function recursiveSetHandlerTypeAndCreateRouteExecutables(
     methods: RemoteApi<any>,
     exportName: string,
     currentPointer: string[],
-    routeExecutables: Obj
+    routeExecutables: AnyObject
 ): RemoteApi<any> {
     const newRoutes: RemoteApi<any> = {};
     Object.entries(methods).forEach(([key, item]) => {
@@ -92,7 +92,12 @@ function serializeRoutes(routes: RoutesSpec) {
     );
 }
 
-function setRemoteMethods(method: RemoteMethodMetadata, currentPointer: string[], exportName: string, routeExecutables: Obj) {
+function setRemoteMethods(
+    method: RemoteMethodMetadata,
+    currentPointer: string[],
+    exportName: string,
+    routeExecutables: AnyObject
+) {
     const MethodPointers = method.pathPointers?.map((pointer) =>
         setCodeAsJsonString(`${PUBLIC_METHODS_SPEC_EXPORT_NAME}.${exportName}.${getHandlerSrcCodePointer(pointer)}`)
     );
@@ -103,7 +108,7 @@ function getHandlerSrcCodePointer(pointer: string[]) {
     return pointer.join('.');
 }
 
-function assignProperty(obj: Obj, pointer: string[], value: any) {
+function assignProperty(obj: AnyObject, pointer: string[], value: any) {
     let current = obj;
     pointer.forEach((key, i) => {
         if (i === pointer.length - 1) {
@@ -111,7 +116,7 @@ function assignProperty(obj: Obj, pointer: string[], value: any) {
         } else if (!current[key]) {
             current[key] = {};
         }
-        current = current[key];
+        current = current[key] as AnyObject;
     });
 }
 

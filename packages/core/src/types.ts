@@ -54,8 +54,8 @@ export type AnyErrorParams = PublicRpcError | PrivateRpcError;
 
 // #######  Others #######
 
-export type Obj = {
-    [key: string]: any;
+export type AnyObject = {
+    [key: string]: unknown;
 };
 
 export type Mutable<T> = {

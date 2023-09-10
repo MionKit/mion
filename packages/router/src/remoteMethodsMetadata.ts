@@ -30,7 +30,7 @@ import {
     RemoteMethodMetadata,
 } from './types';
 import {getSerializedFunctionType} from '@mionkit/reflection';
-import {Obj, getRoutePath, getRouterItemId} from '@mionkit/core';
+import {AnyObject, getRoutePath, getRouterItemId} from '@mionkit/core';
 
 // ############# PRIVATE STATE #############
 const metadataById: Map<string, RemoteMethodMetadata> = new Map();
@@ -50,7 +50,11 @@ export function getRemoteMethodsMetadata<R extends Routes>(routes: R): RemoteApi
 
 // ############# PRIVATE METHODS #############
 
-function recursiveGetMethodsMetadata<R extends Routes>(routes: R, currentPointer: string[] = [], publicData: Obj = {}): Obj {
+function recursiveGetMethodsMetadata<R extends Routes>(
+    routes: R,
+    currentPointer: string[] = [],
+    publicData: AnyObject = {}
+): AnyObject {
     const entries = Object.entries(routes);
     entries.forEach(([key, item]: [string, RouterEntry]) => {
         const itemPointer = [...currentPointer, key];
