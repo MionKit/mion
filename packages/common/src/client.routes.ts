@@ -5,13 +5,13 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {GET_REMOTE_METHODS_BY_ID, GET_REMOTE_METHODS_BY_PATH, UnknownObject, RpcError} from '@mionkit/core';
+import {GET_REMOTE_METHODS_BY_ID, GET_REMOTE_METHODS_BY_PATH, AnyObject, RpcError} from '@mionkit/core';
 import {
     RemoteMethodMetadata,
     getHookExecutable,
     getRouteExecutable,
     isPrivateExecutable,
-    getMethodmetadataFromExecutable,
+    getMethodMetadataFromExecutable,
     getRouteExecutionPath,
     Routes,
     getRouterOptions,
@@ -31,7 +31,7 @@ export const defaultClientRouteOptions = {
     getAllRemoteMethodsMaxNumber: 100,
 };
 
-function addRequiredRemoteMethodsToResponse(id: string, resp: RemoteMethodsDictionary, errorData: UnknownObject): void {
+function addRequiredRemoteMethodsToResponse(id: string, resp: RemoteMethodsDictionary, errorData: AnyObject): void {
     if (resp[id]) return;
     const executable = getHookExecutable(id) || getRouteExecutable(id);
     if (!executable) {
@@ -40,7 +40,7 @@ function addRequiredRemoteMethodsToResponse(id: string, resp: RemoteMethodsDicti
     }
     if (isPrivateExecutable(executable)) return;
 
-    resp[id] = getMethodmetadataFromExecutable(executable);
+    resp[id] = getMethodMetadataFromExecutable(executable);
     resp[id].hookIds?.forEach((hookId) => addRequiredRemoteMethodsToResponse(hookId, resp, errorData));
 }
 
