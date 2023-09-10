@@ -66,7 +66,7 @@ function recursiveGetMethodsMetadata<R extends Routes>(
             const executable = getHookExecutable(id) || getRouteExecutable(id);
             if (!executable)
                 throw new Error(`Route or Hook ${id} not found. Please check you have called router.registerRoutes first.`);
-            publicData[key] = getMethodmetadataFromExecutable(executable);
+            publicData[key] = getMethodMetadataFromExecutable(executable);
         } else {
             const subRoutes: Routes = routes[key] as Routes;
             publicData[key] = recursiveGetMethodsMetadata(subRoutes, itemPointer);
@@ -76,7 +76,7 @@ function recursiveGetMethodsMetadata<R extends Routes>(
     return publicData;
 }
 
-export function getMethodmetadataFromExecutable<H extends Handler>(
+export function getMethodMetadataFromExecutable<H extends Handler>(
     executable: RouteExecutable | HookExecutable
 ): RemoteMethodMetadata<H> {
     const existing = metadataById.get(executable.id);
