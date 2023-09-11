@@ -1,7 +1,7 @@
 export default defineAppConfig({
   docus: {
-    title: 'mion',
-    description: 'Type Safe APIs at the speed of light 🚀',
+    title: 'Type Safe APIs at the speed of light 🚀',
+    description: 'Speed up API development and say hello to a smoother development experience.',
     image: 'https://mion.io/banners/mion-website-banner-1-2.png',
     socials: {
       github: 'MionKit/mion',
