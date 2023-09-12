@@ -46,8 +46,6 @@ export interface RouteDef<Context extends CallContext = CallContext, Ret = any> 
     enableValidation?: boolean;
     /** Overrides global enableSerialization */
     enableSerialization?: boolean;
-    /** Overrides global useAsyncCallContext */
-    useAsyncCallContext?: boolean;
     /** Route Handler */
     route: Handler<Context, Ret>;
 }
@@ -64,8 +62,6 @@ interface HookBase {
     enableValidation?: boolean;
     /** Overrides global enableSerialization */
     enableSerialization?: boolean;
-    /** Overrides global useAsyncCallContext */
-    useAsyncCallContext?: boolean;
 }
 
 /** Hook definition, a function that hooks into the execution path */
@@ -78,7 +74,7 @@ export interface HookDef<Context extends CallContext = CallContext, Ret = any> e
 export interface HeaderHookDef<Context extends CallContext = CallContext, Ret = any> extends HookBase {
     /** the name of the header in the request/response */
     headerName: string;
-    headerHook: HeaderHandler<Context, Ret>;
+    hook: HeaderHandler<Context, Ret>;
 }
 
 /**
@@ -91,7 +87,8 @@ export interface RawHookDef<
     RawResp = any,
     Opts extends RouterOptions<RawReq> = RouterOptions<RawReq>,
 > {
-    rawHook: RawHookHandler<Context, RawReq, RawResp, Opts>;
+    isRawHook: true;
+    hook: RawHookHandler<Context, RawReq, RawResp, Opts>;
 }
 
 // #######  Router Object #######
@@ -268,11 +265,11 @@ export interface PrivateHookDef extends HookDef {
 
 export interface PrivateHeaderHookDef extends HeaderHookDef {
     canReturnData?: false | undefined;
-    headerHook: (ctx?: any) => any;
+    hook: (ctx?: any) => any;
 }
 
 export interface PrivateRawHookDef extends RawHookDef {
-    rawHook: (ctx?: any, req?: any, resp?: any, opts?: any) => any;
+    hook: (ctx?: any, req?: any, resp?: any, opts?: any) => any;
 }
 
 // ####### Remote Methods Metadata #######
@@ -291,7 +288,7 @@ export type RemoteApi<Type extends Routes> = {
         : Type[Property] extends HookDef
         ? RemoteHookMetadata<Type[Property]['hook']>
         : Type[Property] extends HeaderHookDef
-        ? RemoteHeaderHookMetadata<Type[Property]['headerHook']>
+        ? RemoteHeaderHookMetadata<Type[Property]['hook']>
         // Routes
         : Type[Property] extends RouteDef
         ? RemoteRouteMetadata<Type[Property]['route']>
@@ -371,11 +368,11 @@ export function isHookDef(entry: RouterEntry): entry is HookDef {
 }
 
 export function isRawHookDef(entry: RouterEntry): entry is RawHookDef {
-    return typeof (entry as RawHookDef).rawHook === 'function';
+    return typeof (entry as RawHookDef).hook === 'function' && (entry as RawHookDef).isRawHook;
 }
 
 export function isHeaderHookDef(entry: RouterEntry): entry is HeaderHookDef {
-    return typeof (entry as HeaderHookDef).headerHook === 'function';
+    return typeof (entry as HeaderHookDef).hook === 'function' && typeof (entry as HeaderHookDef).headerName !== 'undefined';
 }
 
 export function isAnyHookDef(entry: RouterEntry): entry is HeaderHookDef | HookDef | RawHookDef {

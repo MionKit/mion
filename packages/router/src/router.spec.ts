@@ -311,13 +311,13 @@ describe('Create routes should', () => {
 
     it('add start and end global hooks', () => {
         const prependHooks = {
-            p1: {rawHook: (ctx, cb) => cb()},
-            p2: {rawHook: (ctx, cb) => cb()},
+            p1: {isRawHook: true, hook: (ctx, cb) => cb()},
+            p2: {isRawHook: true, hook: (ctx, cb) => cb()},
         };
 
         const appendHooks = {
-            a1: {rawHook: (ctx, cb) => cb()},
-            a2: {rawHook: (ctx, cb) => cb()},
+            a1: {isRawHook: true, hook: (ctx, cb) => cb()},
+            a2: {isRawHook: true, hook: (ctx, cb) => cb()},
         };
         addStartHooks(prependHooks, false);
         addEndHooks(appendHooks, false);

@@ -26,7 +26,7 @@ const login = (ctx: CallContext, email: string, pass: string): void => {
 };
 
 export const myApiRoutes = {
-    auth: {headerName: 'Authorization', headerHook: auth},
+    auth: {headerName: 'Authorization', hook: auth},
     users: {
         getUser,
         setUser: setUser,

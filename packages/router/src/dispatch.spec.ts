@@ -42,7 +42,7 @@ describe('Dispatch routes', () => {
 
     const auth = {
         headerName: 'Authorization',
-        headerHook: (ctx, token: string) => {
+        hook: (ctx, token: string) => {
             if (token !== '1234') throw {statusCode: StatusCodes.FORBIDDEN, message: 'invalid auth token'};
         },
     };
@@ -85,7 +85,7 @@ describe('Dispatch routes', () => {
             const isTrue = {
                 canReturnData: true,
                 headerName: 'isTrue',
-                headerHook: (ctx, isBoolean: boolean) => isBoolean,
+                hook: (ctx, isBoolean: boolean) => isBoolean,
             };
             registerRoutes({isTrue, changeUserName});
 
@@ -104,7 +104,7 @@ describe('Dispatch routes', () => {
             const auth = {
                 canReturnData: true,
                 headerName: 'Authorization',
-                headerHook: (ctx, token: string): string => (token === '1234' ? 'MyUser' : 'Unknown'),
+                hook: (ctx, token: string): string => (token === '1234' ? 'MyUser' : 'Unknown'),
             };
             registerRoutes({auth, changeUserName});
 
