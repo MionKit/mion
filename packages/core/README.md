@@ -23,7 +23,7 @@ This library contains core functionality shared between other mion packages.
 
 All items in this library should be isomorphic, this mean should used both in the browser or node server.
 
-## Check Website And Documentation
+## Check Out The [Website And Documentation](http://mion.io) 📚
 
 [![mion-website-banner](https://raw.githubusercontent.com/MionKit/mion/master/assets/public/mion-website-banner.png)](http://mion.io)
 

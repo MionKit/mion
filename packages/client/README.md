@@ -6,7 +6,7 @@
   </picture>
 </p>
 <p align="center">
-  <strong>Fully typed client for mion Apis
+  <strong>Fully typed client for mion APIs
   </strong>
 </p>
 <p align=center>
@@ -16,7 +16,7 @@
 
 # `@mionkit/client`
 
-Modern client for mion Apis:
+Modern client for mion APIs:
 
 - Strongly typed apis with autocompletion ans static type checking.
 - Fully typed list of remote methods with it's parameters and return values.
@@ -25,7 +25,7 @@ Modern client for mion Apis:
 - Prefill request data to persist across multiple calls.
 - No compilation needed
 
-## Check Website And Documentation
+## Check Out The [Website And Documentation](http://mion.io) 📚
 
 [![mion-website-banner](https://raw.githubusercontent.com/MionKit/mion/master/assets/public/mion-website-banner.png)](http://mion.io)
 
