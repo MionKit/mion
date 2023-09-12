@@ -4,7 +4,9 @@ type HttpRequest = IncomingMessage & {body: any};
 
 // sends a fake progress to the client
 const progress = {
-    rawHook: async (ctx: CallContext, rawRequest: HttpRequest, rawResponse: ServerResponse): Promise<void> => {
+    // isRawHook = true, required when defining a RawHook
+    isRawHook: true,
+    hook: async (ctx: CallContext, rawRequest: HttpRequest, rawResponse: ServerResponse): Promise<void> => {
         return new Promise((resolve) => {
             const maxTime = 1000;
             const increment = 10;

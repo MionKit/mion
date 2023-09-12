@@ -155,7 +155,8 @@ export function getNotFoundExecutionPath(): Executable[] {
     if (notFoundExecutionPath) return notFoundExecutionPath;
     const hookName = '_mion404NotfoundHook_';
     const notFoundHook = {
-        rawHook: () => {
+        isRawHook: true,
+        hook: () => {
             return new RpcError({statusCode: StatusCodes.NOT_FOUND, publicMessage: `Route not found`});
         },
     } satisfies RawHookDef;
@@ -332,8 +333,8 @@ function getHandler(entry: RouterEntry, pathPointer: string[]): AnyHandler {
     if (isHandler(entry)) return entry;
     if (isRouteDef(entry)) return entry.route;
     if (isHookDef(entry)) return entry.hook;
-    if (isHeaderHookDef(entry)) return entry.headerHook;
-    if (isRawHookDef(entry)) return entry.rawHook;
+    if (isHeaderHookDef(entry)) return entry.hook;
+    if (isRawHookDef(entry)) return entry.hook;
 
     throw new Error(`Invalid route: ${join(...pathPointer)}. Missing route handler`);
 }
@@ -383,7 +384,7 @@ function getExecutableFromRawHook(hook: RawHookDef, hookPointer: string[], nestL
         nestLevel,
         isRoute: false,
         isRawExecutable: true,
-        handler: hook.rawHook,
+        handler: hook.hook,
         reflection: null,
         enableValidation: false,
         enableSerialization: false,

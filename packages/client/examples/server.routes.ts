@@ -1,7 +1,7 @@
 import {RpcError} from '@mionkit/core';
 import {Routes, registerRoutes} from '@mionkit/router';
 import {clientRoutes} from '@mionkit/common';
-import {initAwsLambdaRouter, lambdaHandler} from '@mionkit/serverless';
+import {initAwsLambdaRouter, awsLambdaHandler} from '@mionkit/serverless';
 import {Logger} from 'Logger';
 
 export type User = {id: string; name: string; surname: string};
@@ -10,7 +10,7 @@ export type Order = {id: string; date: Date; userId: string; totalUSD: number};
 const routes = {
     auth: {
         headerName: 'authorization',
-        headerHook: (ctx, token: string): void => {
+        hook: (ctx, token: string): void => {
             if (!token) throw new RpcError({statusCode: 401, message: 'Not Authorized', name: ' Not Authorized'});
         },
     },
@@ -38,7 +38,7 @@ const routes = {
 
 // init serverless router and export handler
 initAwsLambdaRouter();
-export const handler = lambdaHandler;
+export const handler = awsLambdaHandler;
 // use initHttpRouter(...); for regular nodejs server
 
 // register routes and exporting the type of the Api to be used by client

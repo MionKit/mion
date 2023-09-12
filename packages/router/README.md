@@ -133,7 +133,7 @@ import {getAuthUser, isAuthorized} from 'MyAuth';
 const auth = {
   // headerName is required when defining a HeaderHook
   headerName: 'authorization',
-  headerHook: async (ctx, token: string): Promise<void> => {
+  hook: async (ctx, token: string): Promise<void> => {
     const me = await getAuthUser(token);
     if (!isAuthorized(me)) throw {code: 401, message: 'user is not authorized'};
     ctx.shared.auth = {me}; // user is added to ctx to shared with other routes/hooks
@@ -373,8 +373,6 @@ export interface RouteDef<Context extends CallContext = CallContext, Ret = any> 
   enableValidation?: boolean;
   /** Overrides global enableSerialization */
   enableSerialization?: boolean;
-  /** Overrides global useAsyncCallContext */
-  useAsyncCallContext?: boolean;
   /** Route Handler */
   route: Handler<Context, Ret>;
 }
@@ -397,8 +395,6 @@ interface HookBase {
   enableValidation?: boolean;
   /** Overrides global enableSerialization */
   enableSerialization?: boolean;
-  /** Overrides global useAsyncCallContext */
-  useAsyncCallContext?: boolean;
 }
 
 /** Hook definition, a function that hooks into the execution path */
@@ -411,7 +407,7 @@ export interface HookDef<Context extends CallContext = CallContext, Ret = any> e
 export interface HeaderHookDef<Context extends CallContext = CallContext, Ret = any> extends HookBase {
   /** the name of the header in the request/response */
   headerName: string;
-  headerHook: HeaderHandler<Context, Ret>;
+  hook: HeaderHandler<Context, Ret>;
 }
 ```
 
@@ -430,6 +426,7 @@ export interface RawHookDef<
   RawResp = any,
   Opts extends RouterOptions<RawReq> = RouterOptions<RawReq>,
 > {
+  isRawHook: true;
   rawHook: RawHookHandler<Context, RawReq, RawResp, Opts>;
 }
 ```
@@ -488,7 +485,7 @@ let currentSharedData: any = null;
 
 const authorizationHook = {
   headerName: 'Authorization',
-  async headerHook(ctx, token: string): Promise<void> {
+  async hook(ctx, token: string): Promise<void> {
     const me = await getAuthUser(token);
     if (!isAuthorized(me)) throw {code: 401, message: 'user is not authorized'};
     ctx.shared.auth = {me}; // user is added to ctx to shared with other routes/hooks
@@ -830,7 +827,7 @@ const deleteUser = (ctx: Context, id: number): User => {
 const auth = {
   headerName: 'Authorization',
   canReturnData: false,
-  headerHook: (ctx: Context, token: string): void => {
+  hook: (ctx: Context, token: string): void => {
     if (!myApp.auth.isAuthorized(token)) throw {statusCode: StatusCodes.FORBIDDEN, message: 'Not Authorized'} as RpcError;
     ctx.shared.me = myApp.auth.getIdentity(token) as User;
   },

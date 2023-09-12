@@ -16,9 +16,9 @@ const routes = {
 } satisfies Routes;
 
 const hooks = {
-    auth: {headerHook: (c: Context, token: string): null => null},
-    parser: {rawHook: (c: Context, req: HttpRequest, resp, opts): void => undefined},
-    parser2: {rawHook: (): void => undefined},
+    auth: {headerName: 'Authorization', hook: (c: Context, token: string): null => null},
+    parser: {isRawHook: true, hook: (c: Context, req: HttpRequest, resp, opts): void => undefined},
+    parser2: {isRawHook: true, hook: (): void => undefined},
     hookNoCtx: {hook: (): void => undefined},
     hookParams: {hook: (c: Context, name: string): void => undefined},
     hookCanReturn: {canReturnData: true, hook: (c: Context): string => 'hello'},
