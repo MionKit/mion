@@ -15,6 +15,10 @@
 
 mion is a lightweight TypeScript-based framework designed for building serverless APIs. It aims to provide a great developer experience and is optimized for serverless environments. With mion, you can quickly build APIs that are type-safe, with automatic validation and serialization out of the box.
 
+## Check Out The [Website And Documentation](http://mion.io) 📚
+
+[![mion-website-banner](https://raw.githubusercontent.com/MionKit/mion/master/assets/public/mion-website-banner.png)](http://mion.io)
+
 ## Why Another Framework?
 
 Serverless applications have different requirements compared to conventional server apps and there are not many frameworks that offer type-safe APIs with automatic validation and serialization by default.
@@ -67,10 +71,6 @@ By leveraging runtime types, mion offers advanced capabilities such as request v
 
 Thats it 👆, thats all you need to write a Fully Type Safe Api and Client &nbsp; 🚀  
 All parameters and return values will also be automatically validated and serialized without any extra code required.
-
-## Check Website And Documentation
-
-[![mion-website-banner](https://raw.githubusercontent.com/MionKit/mion/master/assets/public/mion-website-banner.png)](http://mion.io)
 
 ## Contributing
 
