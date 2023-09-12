@@ -27,14 +27,15 @@ const deleteUser = (ctx: Context, id: number): User => {
 const auth = {
     headerName: 'Authorization',
     canReturnData: false,
-    headerHook: (ctx: Context, token: string): void => {
+    hook: (ctx: Context, token: string): void => {
         if (!myApp.auth.isAuthorized(token)) throw {statusCode: StatusCodes.FORBIDDEN, message: 'Not Authorized'} as RpcError;
         ctx.shared.me = myApp.auth.getIdentity(token) as User;
     },
 } satisfies HeaderHookDef;
 
 const log = {
-    rawHook: (context): void => console.log('rawHook', context.path),
+    isRawHook: true,
+    hook: (context): void => console.log('rawHook', context.path),
 } satisfies RawHookDef;
 
 const routes = {

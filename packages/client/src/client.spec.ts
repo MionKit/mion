@@ -27,7 +27,7 @@ describe('client', () => {
         auth: {
             headerName: 'Authorization',
             canReturnData: true,
-            headerHook: (ctx, token: string): User => ({name: 'John', surname: 'Doe'}),
+            hook: (ctx, token: string): User => ({name: 'John', surname: 'Doe'}),
         },
         sayHello: {route: (ctx, user: User): string | RpcError => `Hello ${user.name} ${user.surname}`},
         alwaysFails: (ctx, user: User): User | RpcError =>

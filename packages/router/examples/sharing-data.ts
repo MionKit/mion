@@ -4,7 +4,7 @@ import {getAuthUser, isAuthorized} from 'MyAuth';
 
 const authorizationHook = {
     headerName: 'authorization',
-    async headerHook(context, token: string): Promise<void> {
+    async hook(context, token: string): Promise<void> {
         const me = await getAuthUser(token);
         if (!isAuthorized(me)) {
             throw new RpcError({statusCode: 401, publicMessage: 'user is not authorized'});

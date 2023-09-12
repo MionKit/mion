@@ -21,7 +21,7 @@ describe('Client Routes should', () => {
 
     const routes = {
         auth: {hook: auth}, // is public as has params
-        parse: {rawHook: (ctx, req, resp, opts): void => undefined}, // private
+        parse: {isRawHook: true, hook: (ctx, req, resp, opts): void => undefined}, // private
         users: {
             userBefore: {hook: privateHook}, // private
             getUser: route1, // public

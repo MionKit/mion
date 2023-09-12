@@ -12,7 +12,6 @@ export const DEFAULT_ROUTE: Readonly<Required<RouteDef>> = {
     description: '',
     enableValidation: true,
     enableSerialization: true,
-    useAsyncCallContext: false,
     route: () => null,
 };
 export const DEFAULT_HOOK: Readonly<Required<HookDef>> = {
@@ -21,7 +20,6 @@ export const DEFAULT_HOOK: Readonly<Required<HookDef>> = {
     description: '',
     enableValidation: true,
     enableSerialization: true,
-    useAsyncCallContext: false,
     hook: () => null,
 };
 
