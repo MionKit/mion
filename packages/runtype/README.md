@@ -23,7 +23,7 @@ Runtime Types support for mion apps!
 This library provides support for runtime types based on [@deepkit/type].  
 Having runtime types enables a full new set of features when using typescript/javascript.
 
-## Check Website And Documentation
+## Check Out The [Website And Documentation](http://mion.io) 📚
 
 [![mion-website-banner](https://raw.githubusercontent.com/MionKit/mion/master/assets/public/mion-website-banner.png)](http://mion.io)
 
