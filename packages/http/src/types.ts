@@ -6,10 +6,10 @@
  * ######## */
 
 import {Headers, RouterOptions} from '@mionkit/router';
-import {IncomingMessage, ServerResponse} from 'http';
+import {IncomingMessage} from 'http';
 import {ServerOptions} from 'https';
 
-export type HttpOptions = {
+export interface HttpOptions extends Partial<RouterOptions<HttpRequest>> {
     protocol: 'http' | 'https';
     port: number;
     /** ServerOptions.maxHeaderSize defaults to 8KB, same as default value in new node versions */
@@ -21,23 +21,16 @@ export type HttpOptions = {
      * @link https://docs.aws.amazon.com/lambda/latest/operatorguide/payload.html
      * */
     maxBodySize: number; // default 256KB
-    /**
-     * We recommend leaving maxBodySize to an small number.
-     * Instead if you have a special route or an specific use case using a large payload
-     * the allowExceedMaxBodySize will be called on every new chunk of data received.
-     */
-    allowExceedMaxBodySize?: (currentSize: number, httpReq: IncomingMessage, httpResponse: ServerResponse) => boolean;
-    /** use callback instead promises for handling the requests */
-    useCallbacks?: boolean;
-} & Partial<RouterOptions<HttpRequest>>;
+}
 
-export type HttpRequest = IncomingMessage & {body: string};
+export interface HttpRequest extends IncomingMessage {
+    body: string;
+}
 
 // // fix for missing fetch types in node 18
 // // @see https://stackoverflow.com/questions/71294230/how-can-i-use-native-fetch-with-node-in-typescript-node-v17-6
 // declare global {
 //     export const {fetch, FormData, Headers, Request, Response}: typeof import('undici');
-
 //     type FormData = undici_types.FormData;
 //     type Headers = undici_types.Headers;
 //     type HeadersInit = undici_types.HeadersInit;
