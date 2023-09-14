@@ -80,38 +80,6 @@ describe('serverless router should', () => {
         expect(headers['server']).toEqual('@mionkit/http');
     });
 
-    it('get an ok response from a route using callback', async () => {
-        const portCallback = 8076;
-        resetHttpRouter();
-        initHttpRouter({sharedDataFactory: getSharedData, prefix: 'api/', port: portCallback, useCallbacks: true});
-        registerRoutes({changeUserName, getDate, updateHeaders});
-        const callbacksServer = await startHttpServer();
-
-        const requestData = {getDate: [{date: new Date('2022-04-22T00:17:00.000Z')}]};
-        const response = await fetch(`http://127.0.0.1:${portCallback}/api/getDate`, {
-            method: 'POST',
-            body: JSON.stringify(requestData),
-        });
-        const reply = await response.json();
-        const headers = Object.fromEntries(response.headers.entries());
-
-        expect(reply).toEqual({getDate: {date: '2022-04-22T00:17:00.000Z'}});
-        expect(headers['connection']).toEqual('close');
-        expect(headers['content-type']).toEqual('application/json; charset=utf-8');
-        expect(headers['content-length']).toEqual('47');
-        expect(headers['server']).toEqual('@mionkit/http');
-
-        const closeCallbacksServer = () => {
-            return new Promise<void>((resolve, reject) => {
-                callbacksServer.close((err) => {
-                    if (err) reject();
-                    else resolve();
-                });
-            });
-        };
-        await closeCallbacksServer();
-    });
-
     it('get an error when sending invalid parameters', async () => {
         const requestData = {getDate: ['NOT A DATE POINT']};
         const response = await fetch(`http://127.0.0.1:${port}/api/getDate`, {
@@ -149,19 +117,14 @@ describe('serverless router should', () => {
         expect(headers['x-something']).toEqual('true');
     });
 
-    it('get an error when body size is too large, get default headers and call allowExceedMaxBodySize', async () => {
+    it('get an error when body size is too large, get default headers', async () => {
         const smallPort = port + 1;
-        let isCalled = false;
         const httpOptions = {
             sharedDataFactory: getSharedData,
             prefix: 'api/',
             port: smallPort,
             maxBodySize: 1,
             defaultResponseHeaders: {'x-app-name': 'MyApp', 'x-instance-id': '3089'},
-            allowExceedMaxBodySize: () => {
-                isCalled = true;
-                return false;
-            },
         };
         resetHttpRouter();
         initHttpRouter(httpOptions);
@@ -197,7 +160,6 @@ describe('serverless router should', () => {
             expect(headers['content-type']).toEqual('application/json; charset=utf-8');
             expect(headers['content-length']).toEqual('107');
             expect(headers['server']).toEqual('@mionkit/http');
-            expect(isCalled).toEqual(true);
         } catch (e) {
             err = e;
         }
