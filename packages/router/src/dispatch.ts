@@ -22,8 +22,6 @@ import {getNotFoundExecutionPath, getRouteExecutionPath, getRouterOptions} from 
 import {isPromise} from 'node:util/types';
 import {Mutable, AnyObject, RpcError, StatusCodes} from '@mionkit/core';
 
-type CallBack = (err: any, response: Response | undefined) => void;
-
 // ############# PUBLIC METHODS #############
 
 /*
@@ -32,7 +30,7 @@ type CallBack = (err: any, response: Response | undefined) => void;
  * - using promisify(setImmediate): worst or no improvement
  * - using queueMicrotask instead of setImmediate: definitely worst
  * - using internal _dispatchRoute with callbacks instead promises: no difference, maybe worst in terms of memory usage
- * - dispatchRouteCallback seems to be more slow but use less memory in some scenarios.
+ * - using callback instead promises: seems to be more slow but use less memory in some scenarios.
  */
 
 export function dispatchRoute<Req extends RawRequest, Resp>(
@@ -48,20 +46,6 @@ export function dispatchRoute<Req extends RawRequest, Resp>(
                 .catch((err) => reject(err))
         );
     });
-}
-
-export function dispatchRouteCallback<Req extends RawRequest, Resp>(
-    path: string,
-    rawRequest: Req,
-    rawResponse: Resp | undefined,
-    cb: CallBack
-): void {
-    // Enqueue execution and DO NOT BLOCK THE LOOP
-    setImmediate(() =>
-        _dispatchRoute(path, rawRequest, rawResponse)
-            .then((result) => cb(undefined, result))
-            .catch((err) => cb(err, undefined))
-    );
 }
 
 // ############# PRIVATE METHODS #############

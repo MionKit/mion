@@ -26,8 +26,6 @@ export const DEFAULT_HTTP_OPTIONS: HttpOptions = {
      * @link https://docs.aws.amazon.com/lambda/latest/operatorguide/payload.html
      * */
     maxBodySize: 256000, // 256KB
-    allowExceedMaxBodySize: undefined,
-    useCallbacks: false,
 };
 
 export const isMethodAllowed = (method: string) => !!ALLOWED_HTTP_METHODS.find((allowed) => allowed === method);

@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {initRouter, dispatchRoute, getResponseFromError, dispatchRouteCallback, resetRouter} from '@mionkit/router';
+import {initRouter, dispatchRoute, getResponseFromError, resetRouter} from '@mionkit/router';
 import {createServer as createHttp} from 'http';
 import {createServer as createHttps} from 'https';
 import {DEFAULT_HTTP_OPTIONS} from './constants';
@@ -76,11 +76,9 @@ function httpRequestHandler(httpReq: IncomingMessage, httpResponse: ServerRespon
     const bodyChunks: any[] = [];
 
     httpResponse.setHeader('server', '@mionkit/http');
-    // here we could check that the client accepts application/json as response and abort
-    // but this is gonna be true 99.999% of the time so is better to continue without checking it
     addResponseHeaderEntries(httpResponse, defaultResponseHeaders);
 
-    const success = (routeResponse: Response) => {
+    const dispatchReply = (routeResponse: Response) => {
         if (replied || httpResponse.writableEnded) return;
         replied = true;
         addResponseHeaders(httpResponse, routeResponse.headers);
@@ -102,7 +100,6 @@ function httpRequestHandler(httpReq: IncomingMessage, httpResponse: ServerRespon
         const chunkLength = bodyChunks[bodyChunks.length - 1].length;
         size += chunkLength;
         if (size > httpOptions.maxBodySize) {
-            if (httpOptions.allowExceedMaxBodySize && httpOptions.allowExceedMaxBodySize(size, httpReq, httpResponse)) return;
             fail(undefined, StatusCodes.REQUEST_TOO_LONG, 'Request Payload Too Large');
         }
     });
@@ -117,17 +114,9 @@ function httpRequestHandler(httpReq: IncomingMessage, httpResponse: ServerRespon
         const body = Buffer.concat(bodyChunks).toString();
         (httpReq as any).body = body;
 
-        if (httpOptions.useCallbacks) {
-            dispatchRouteCallback(path, httpReq as any as RawRequest, httpResponse, (e, routeResponse) => {
-                if (e) fail(e);
-                else if (routeResponse) success(routeResponse);
-                else fail(undefined, StatusCodes.INTERNAL_SERVER_ERROR, 'No response from Router');
-            });
-        } else {
-            dispatchRoute(path, httpReq as any as RawRequest, httpResponse)
-                .then((routeResponse) => success(routeResponse))
-                .catch((e) => fail(e));
-        }
+        dispatchRoute(path, httpReq as any as RawRequest, httpResponse)
+            .then((routeResponse) => dispatchReply(routeResponse))
+            .catch((e) => fail(e));
     });
 
     httpResponse.on('error', (e) => {
