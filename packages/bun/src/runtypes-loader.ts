@@ -5,101 +5,63 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {GET_REMOTE_METHODS_BY_ID, GET_REMOTE_METHODS_BY_PATH, AnyObject, RpcError} from '@mionkit/core';
-import {
-    RemoteMethodMetadata,
-    getHookExecutable,
-    getRouteExecutable,
-    isPrivateExecutable,
-    getMethodMetadataFromExecutable,
-    getRouteExecutionPath,
-    Routes,
-    getRouterOptions,
-    RouterOptions,
-    getTotalExecutables,
-    getAllExecutablesIds,
-    getAnyExecutable,
-    Executable,
-} from '@mionkit/router';
+import {BunPlugin, plugin} from 'bun';
+import {readFileSync} from 'fs';
+import ts from 'typescript';
+import {declarationTransformer, transformer} from '@deepkit/type-compiler';
+import {cwd} from 'process';
 
-export type RemoteMethodsDictionary = {[key: string]: RemoteMethodMetadata};
-export interface ClientRouteOptions extends RouterOptions {
-    getAllRemoteMethodsMaxNumber?: number;
+export interface Options {
+    include?: string;
+    exclude?: string;
+    tsConfig?: string;
+    transformers?: ts.CustomTransformers;
+    compilerOptions?: ts.CompilerOptions;
 }
 
-export const defaultClientRouteOptions = {
-    getAllRemoteMethodsMaxNumber: 100,
-};
+// TODO: check if we can actually pass the options object
+function transform(code: string, fileName: string, options: Options = {}) {
+    const transformers = options.transformers || {
+        before: [transformer],
+        after: [declarationTransformer],
+    };
+    const transformed = ts.transpileModule(code, {
+        compilerOptions: Object.assign(
+            {
+                target: ts.ScriptTarget.ESNext,
+                module: ts.ModuleKind.ESNext,
+                configFilePath: options.tsConfig || cwd() + '/tsconfig.json',
+            },
+            options.compilerOptions || {}
+        ),
+        fileName,
+        transformers,
+    });
 
-function addRequiredRemoteMethodsToResponse(id: string, resp: RemoteMethodsDictionary, errorData: AnyObject): void {
-    if (resp[id]) return;
-    const executable = getHookExecutable(id) || getRouteExecutable(id);
-    if (!executable) {
-        errorData[id] = `Remote Method ${id} not found`;
-        return;
-    }
-    if (isPrivateExecutable(executable)) return;
+    // console.log(transformed.outputText);
 
-    resp[id] = getMethodMetadataFromExecutable(executable);
-    resp[id].hookIds?.forEach((hookId) => addRequiredRemoteMethodsToResponse(hookId, resp, errorData));
+    return {
+        code: transformed.outputText,
+        map: transformed.sourceMapText,
+    };
 }
 
-export const getRemoteMethods = (
-    ctx,
-    methodsIds: string[],
-    getAllRemoteMethods?: boolean
-): RemoteMethodsDictionary | RpcError => {
-    const resp: RemoteMethodsDictionary = {};
-    const errorData = {};
-    const maxMethods =
-        getRouterOptions<ClientRouteOptions>().getAllRemoteMethodsMaxNumber ||
-        defaultClientRouteOptions.getAllRemoteMethodsMaxNumber;
-    const shouldReturnAll = getAllRemoteMethods && getTotalExecutables() <= maxMethods;
-    const idsToReturn = shouldReturnAll
-        ? getAllExecutablesIds().filter(
-              (id) =>
-                  id !== GET_REMOTE_METHODS_BY_ID &&
-                  id !== GET_REMOTE_METHODS_BY_PATH &&
-                  !isPrivateExecutable(getAnyExecutable(id) as Executable)
-          )
-        : methodsIds;
-    idsToReturn.forEach((id) => addRequiredRemoteMethodsToResponse(id, resp, errorData));
+function RunTypesPlugin(): BunPlugin {
+    return {
+        name: 'bun-plugin-run-types',
+        setup(builder) {
+            builder.onLoad({filter: /\.(ts|tsx|tsr)$/}, (args) => {
+                console.log(cwd());
+                const code = readFileSync(args.path, 'utf8');
+                const contents = transform(code, args.path).code;
+                // TODO: not sure how to set the source map, think is not properly supported by bun
+                return {
+                    contents,
+                    loader: 'js',
+                };
+            });
+        },
+    };
+}
 
-    if (Object.keys(errorData).length)
-        return new RpcError({
-            statusCode: 404,
-            name: 'Invalid Metadata Request',
-            publicMessage: 'Errors getting Remote Methods Metadata',
-            errorData,
-        });
-    return resp;
-};
-
-export const getRouteRemoteMethods = (ctx, path: string, getAllRemoteMethods?: boolean): RemoteMethodsDictionary | RpcError => {
-    const executables = getRouteExecutionPath(path);
-    if (!executables)
-        return new RpcError({
-            statusCode: 404,
-            name: 'Invalid Metadata Request',
-            publicMessage: `Route ${path} not found`,
-        });
-    const privateExecutables = executables.filter((e) => !isPrivateExecutable(e));
-    return getRemoteMethods(
-        ctx,
-        privateExecutables.map((e) => e.id),
-        getAllRemoteMethods
-    );
-};
-
-export const clientRoutes = {
-    [GET_REMOTE_METHODS_BY_ID]: {
-        // disable serialization as deserializer seems ti ignore serializedTypes
-        enableSerialization: false,
-        route: getRemoteMethods,
-    },
-    [GET_REMOTE_METHODS_BY_PATH]: {
-        enableSerialization: false,
-        // disable serialization as deserializer seems ti ignore serializedTypes
-        route: getRouteRemoteMethods,
-    },
-} satisfies Routes;
+plugin(RunTypesPlugin());

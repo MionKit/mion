@@ -1,0 +1,4 @@
+preload = ["./src/runtypes-loader.ts"]
+
+[test]
+preload = ["./src/runtypes-loader.ts"]
