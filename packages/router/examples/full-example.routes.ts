@@ -26,7 +26,6 @@ const deleteUser = (ctx: Context, id: number): User => {
 
 const auth = {
     headerName: 'Authorization',
-    canReturnData: false,
     hook: (ctx: Context, token: string): void => {
         if (!myApp.auth.isAuthorized(token)) throw {statusCode: StatusCodes.FORBIDDEN, message: 'Not Authorized'} as RpcError;
         ctx.shared.me = myApp.auth.getIdentity(token) as User;

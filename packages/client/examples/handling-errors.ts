@@ -6,11 +6,11 @@ import {isRpcError, RpcError} from '@mionkit/core';
 
 const port = 8076;
 const baseURL = `http://localhost:${port}`;
-const {methods, client} = initClient<MyApi>({baseURL});
+const {routes} = initClient<MyApi>({baseURL});
 
 try {
     // calls sayHello route in the server
-    const sayHello = await methods.utils.sayHello({id: '123', name: 'John', surname: 'Doe'}).call();
+    const sayHello = await routes.utils.sayHello({id: '123', name: 'John', surname: 'Doe'}).call();
     console.log(sayHello); // Hello John Doe
 } catch (error: RpcError | any) {
     // in this case the request has failed because the authorization hook is missing
@@ -23,7 +23,7 @@ try {
 
 try {
     // Validation throws an error when validation fails
-    const sayHello = await methods.utils.sayHello(null as any).validate();
+    const sayHello = await routes.utils.sayHello(null as any).validate();
     console.log(sayHello); // Hello John Doe
 } catch (error: RpcError | any) {
     console.log(error); // { statusCode: 400, name: 'Validation Error', message: `Invalid params ...`, errorData : {...}}

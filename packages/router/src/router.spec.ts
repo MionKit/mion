@@ -169,7 +169,10 @@ describe('Create routes should', () => {
 
     it('add default values to hooks', () => {
         initRouter();
-        const defaultHookValues = {first: {hook: (): null => null}};
+        const defaultHookValues = {
+            first: {hook: (): void => {}},
+            second: {hook: (): null => null},
+        };
         registerRoutes(defaultHookValues);
 
         expect(getHookExecutable('first')).toEqual(
@@ -178,6 +181,17 @@ describe('Create routes should', () => {
                 nestLevel: 0,
                 forceRunOnError: false,
                 canReturnData: false,
+                inHeader: false,
+                isRoute: false,
+            })
+        );
+
+        expect(getHookExecutable('second')).toEqual(
+            expect.objectContaining({
+                id: 'second',
+                nestLevel: 0,
+                forceRunOnError: false,
+                canReturnData: true,
                 inHeader: false,
                 isRoute: false,
             })

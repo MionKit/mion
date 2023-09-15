@@ -7,7 +7,6 @@
 
 import {DEFAULT_PREFILL_OPTIONS} from './constants';
 import {
-    ClientMethods,
     ClientOptions,
     HookSubRequest,
     InitOptions,
@@ -17,20 +16,28 @@ import {
     SubRequest,
     RequestErrors,
     SuccessClientResponse,
+    ClientRoutes,
+    ClientHooks,
 } from './types';
 import type {RemoteApi} from '@mionkit/router';
 import {RpcError, getRouterItemId} from '@mionkit/core';
 import {MionRequest} from './request';
 import {ParamsValidationResponse} from '@mionkit/reflection';
 
-export function initClient<RM extends RemoteApi<any>>(options: InitOptions): {client: MionClient; methods: ClientMethods<RM>} {
+export function initClient<RM extends RemoteApi<any>>(
+    options: InitOptions
+): {client: MionClient; routes: ClientRoutes<RM>; hooks: ClientHooks<RM>} {
     const clientOptions = {
         ...DEFAULT_PREFILL_OPTIONS,
         ...options,
     };
     const client = new MionClient(clientOptions);
     const rootProxy = new MethodProxy([], client, clientOptions);
-    return {client, methods: rootProxy.proxy as ClientMethods<RM>};
+    return {
+        client,
+        routes: rootProxy.proxy as ClientRoutes<RM>,
+        hooks: rootProxy.proxy as ClientHooks<RM>,
+    };
 }
 
 // ############# Client   #############

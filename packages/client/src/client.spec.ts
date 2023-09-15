@@ -26,7 +26,6 @@ describe('client', () => {
     const routes = {
         auth: {
             headerName: 'Authorization',
-            canReturnData: true,
             hook: (ctx, token: string): User => ({name: 'John', surname: 'Doe'}),
         },
         sayHello: {route: (ctx, user: User): string | RpcError => `Hello ${user.name} ${user.surname}`},
@@ -68,7 +67,7 @@ describe('client', () => {
     );
 
     it('proxy to trap remote methods calls and return MethodRequest data', () => {
-        const {client, methods} = initClient<MyApi>({baseURL});
+        const {routes, hooks} = initClient<MyApi>({baseURL});
 
         const expectedAuthSubRequest: RouteSubRequest<any> & HookSubRequest<any> = {
             pointer: ['auth'],
@@ -103,9 +102,9 @@ describe('client', () => {
             validate: expect.any(Function),
         };
 
-        expect(methods.auth('XWYZ-TOKEN')).toEqual(expect.objectContaining(expectedAuthSubRequest));
-        expect(methods.sayHello(someUser)).toEqual(expect.objectContaining(expectedSayHelloSubRequest));
-        expect(methods.utils.sumTwo(2)).toEqual(expect.objectContaining(expectedSumTwoSubRequest));
+        expect(hooks.auth('XWYZ-TOKEN')).toEqual(expect.objectContaining(expectedAuthSubRequest));
+        expect(routes.sayHello(someUser)).toEqual(expect.objectContaining(expectedSayHelloSubRequest));
+        expect(routes.utils.sumTwo(2)).toEqual(expect.objectContaining(expectedSumTwoSubRequest));
 
         // is a proxy so actually could trap any call even if does not exists in methods and is not strongly typed
         // note bellow code should not be used when using the client
@@ -119,18 +118,19 @@ describe('client', () => {
             removePrefill: expect.any(Function),
             validate: expect.any(Function),
         };
-        expect((methods as any).abcd(1, 'a')).toEqual(expectedUnknownSubRequest);
+        expect((routes as any).abcd(1, 'a')).toEqual(expectedUnknownSubRequest);
+        expect((hooks as any).abcd(1, 'a')).toEqual(expectedUnknownSubRequest);
     });
 
     it('make a route call and get a valid response', async () => {
-        const {methods} = initClient<MyApi>({baseURL});
+        const {routes, hooks} = initClient<MyApi>({baseURL});
 
-        const response = await methods.sayHello(someUser).call(methods.auth('XWYZ-TOKEN'));
+        const response = await routes.sayHello(someUser).call(hooks.auth('XWYZ-TOKEN'));
         expect(response).toEqual(`Hello John Doe`);
     });
 
     it('throw error if a route call fails', async () => {
-        const {client, methods} = initClient<MyApi>({baseURL});
+        const {routes, hooks} = initClient<MyApi>({baseURL});
 
         let error;
         const expectedError = new RpcError({
@@ -140,7 +140,7 @@ describe('client', () => {
         });
 
         try {
-            await methods.alwaysFails(someUser).call(methods.auth('XWYZ-TOKEN'));
+            await routes.alwaysFails(someUser).call(hooks.auth('XWYZ-TOKEN'));
         } catch (e) {
             error = e;
         }
@@ -150,7 +150,7 @@ describe('client', () => {
     });
 
     it('throw error if a route is missing hook data', async () => {
-        const {client, methods} = initClient<MyApi>({baseURL});
+        const {routes, hooks} = initClient<MyApi>({baseURL});
 
         let error;
         const expectedError = new RpcError({
@@ -160,7 +160,7 @@ describe('client', () => {
         });
 
         try {
-            const resp = await methods.sayHello(someUser).call();
+            const resp = await routes.sayHello(someUser).call();
         } catch (e) {
             error = e;
         }
@@ -170,9 +170,9 @@ describe('client', () => {
     });
 
     it('validate parameters', async () => {
-        const {client, methods} = initClient<MyApi>({baseURL});
+        const {routes, hooks} = initClient<MyApi>({baseURL});
 
-        const responseOk = await methods.sayHello(someUser).validate();
+        const responseOk = await routes.sayHello(someUser).validate();
 
         expect(responseOk).toEqual({
             errors: [[]],
@@ -193,7 +193,7 @@ describe('client', () => {
         });
 
         try {
-            const resp = await methods.sayHello('invalid-param' as any).validate();
+            const resp = await routes.sayHello('invalid-param' as any).validate();
         } catch (e) {
             error = e;
         }
@@ -203,15 +203,15 @@ describe('client', () => {
     });
 
     it('prefill and remove prefill from a request', async () => {
-        const {client, methods} = initClient<MyApi>({baseURL});
+        const {routes, hooks} = initClient<MyApi>({baseURL});
 
-        const request = methods.auth('ABYWZ-TOKEN');
+        const request = hooks.auth('ABYWZ-TOKEN');
         await request.prefill();
         // note auth has been prefilled and is not required to be sent in the call
 
         let response;
         try {
-            response = await methods.sayHello(someUser).call();
+            response = await routes.sayHello(someUser).call();
         } catch (e) {
             console.trace(e);
         }
@@ -229,7 +229,7 @@ describe('client', () => {
         });
 
         try {
-            await methods.sayHello(someUser).call();
+            await routes.sayHello(someUser).call();
         } catch (e) {
             error = e;
         }
