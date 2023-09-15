@@ -1,0 +1,65 @@
+{
+  "name": "@mionkit/bun",
+  "version": "0.6.2",
+  "description": "mion standard hooks and routes",
+  "keywords": [
+    "typescript",
+    "API",
+    "RPC",
+    "json",
+    "schema",
+    "generate",
+    "server",
+    "serverless",
+    "framework",
+    "node",
+    "runtime types",
+    "deepkit"
+  ],
+  "author": "ma jerez <jerez.m82@gmail.com>",
+  "homepage": "https://github.com/MionKit/mion/tree/main/packages/client#readme",
+  "license": "MIT",
+  "main": ".dist/cjs/index.js",
+  "module": ".dist/esm/index.js",
+  "types": ".dist/types/index.d.ts",
+  "exports": {
+    ".": {
+      "require": "./.dist/cjs/index.js",
+      "default": "./.dist/esm/index.js"
+    }
+  },
+  "directories": {
+    "lib": ".dist"
+  },
+  "files": [
+    ".dist"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MionKit/mion.git"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "test": "jest",
+    "dev": "rimraf .dist && tsc --build tsconfig.json --watch",
+    "dev:test": "jest --watch",
+    "lint": "eslint src --ext .ts",
+    "format": "prettier --write src/**/*.ts",
+    "build:cjs": "tsc --project tsconfig.build.json",
+    "build:esm": "tsc --project tsconfig.build.json --module ES2020 --outDir .dist/esm",
+    "build:types": "tsc --project tsconfig.build.json --outDir .dist/types --emitDeclarationOnly --declaration true --declarationMap true",
+    "build": "npm run build:cjs && npm run build:esm && npm run build:types",
+    "auto-readme": "embedme **/*.md && prettier --write **/*.md",
+    "clean": "rimraf .dist & rimraf .coverage",
+    "im-done": "rimraf .dist & rimraf .coverage && rimraf ./node_modules"
+  },
+  "bugs": {
+    "url": "https://github.com/MionKit/mion/issues"
+  },
+  "dependencies": {
+    "@mionkit/core": "^0.6.0",
+    "@mionkit/router": "^0.6.2"
+  }
+}
