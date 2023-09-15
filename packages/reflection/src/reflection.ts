@@ -38,6 +38,7 @@ function getFunctionParamsLength(handlerType: TypeFunction, skipInitialParams: n
 }
 
 function hasReturnType(handlerType: TypeFunction): boolean {
+    // these kinds match what is considered a void return for private hooks: PrivateHookDef & PrivateHeaderHookDef
     return (
         handlerType?.return?.kind !== ReflectionKind.void &&
         handlerType?.return?.kind !== ReflectionKind.never &&
