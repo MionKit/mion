@@ -29,28 +29,14 @@ import {Mutable, AnyObject, RpcError, StatusCodes} from '@mionkit/core';
  * different options has been tested to improve performance but were discarded due to worst or no noticeable improvements
  * - using promisify(setImmediate): worst or no improvement
  * - using queueMicrotask instead of setImmediate: definitely worst
- * - using internal _dispatchRoute with callbacks instead promises: no difference, maybe worst in terms of memory usage
  * - using callback instead promises: seems to be more slow but use less memory in some scenarios.
  */
 
-export function dispatchRoute<Req extends RawRequest, Resp>(
+export async function dispatchRoute<Req extends RawRequest, Resp>(
     path: string,
     rawRequest: Req,
     rawResponse?: Resp
 ): Promise<Response> {
-    return new Promise<Response>((resolve, reject) => {
-        // Enqueue execution and DO NOT BLOCK THE LOOP
-        setImmediate(() =>
-            _dispatchRoute(path, rawRequest, rawResponse)
-                .then((result) => resolve(result))
-                .catch((err) => reject(err))
-        );
-    });
-}
-
-// ############# PRIVATE METHODS #############
-
-async function _dispatchRoute(path: string, rawRequest: RawRequest, rawResponse?: any): Promise<Response> {
     try {
         const opts = getRouterOptions();
         // this is the call context that will be passed to all handlers
@@ -66,6 +52,7 @@ async function _dispatchRoute(path: string, rawRequest: RawRequest, rawResponse?
     }
 }
 
+// ############# PRIVATE METHODS #############
 async function runExecutionPath(
     context: CallContext,
     rawRequest: RawRequest,
