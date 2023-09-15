@@ -16,7 +16,16 @@
 
 # `@mionkit/bun`
 
-mion http server for bun.
+- Loader for support for @deepkit/type-compiler in bum
+- mion's http server for bun
+
+## runtime types WIP
+
+- Loader for @deepkit/type-compiler in `src/ryntypes-loader`
+- requires setting the loader in `bunfig.toml` (both for run and test files)
+- no option to pass tsConfig path
+- there is no way to pas source Maps from ts transpilation, Maybe inlined source Maps?
+- the test files are themselves are not transformed using the Loader so any code that emits type metadata must be outside the test file
 
 ## Check Out The [Website And Documentation](http://mion.io) 📚
 
