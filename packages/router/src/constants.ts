@@ -16,7 +16,6 @@ export const DEFAULT_ROUTE: Readonly<Required<RouteDef>> = {
 };
 export const DEFAULT_HOOK: Readonly<Required<HookDef>> = {
     forceRunOnError: false,
-    canReturnData: false,
     description: '',
     enableValidation: true,
     enableSerialization: true,

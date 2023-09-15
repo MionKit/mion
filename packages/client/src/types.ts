@@ -130,8 +130,30 @@ export type HookCall<RH extends RemoteHookMetadata | RemoteHeaderHookMetadata> =
 export type RouteCall<RR extends RemoteRouteMetadata> = (...params: Parameters<RR['_handler']>) => RouteSubRequest<RR>;
 
 export type ClientMethods<RMS extends RemoteApi<any>> = {
-    [Property in keyof RMS]: RMS[Property] extends RemoteRouteMetadata
+    [Property in keyof RMS]: RMS[Property] extends never
+        ? never
+        : RMS[Property] extends RemoteRouteMetadata
         ? RouteCall<RMS[Property]>
+        : RMS[Property] extends RemoteHookMetadata | RemoteHeaderHookMetadata
+        ? HookCall<RMS[Property]>
+        : RMS[Property] extends RemoteApi<any>
+        ? ClientMethods<RMS[Property]>
+        : never;
+};
+
+export type ClientRoutes<RMS extends RemoteApi<any>> = {
+    [Property in keyof RMS]: RMS[Property] extends never | RemoteHookMetadata | RemoteHeaderHookMetadata
+        ? never
+        : RMS[Property] extends RemoteRouteMetadata
+        ? RouteCall<RMS[Property]>
+        : RMS[Property] extends RemoteApi<any>
+        ? ClientMethods<RMS[Property]>
+        : never;
+};
+
+export type ClientHooks<RMS extends RemoteApi<any>> = {
+    [Property in keyof RMS]: RMS[Property] extends never | RemoteRouteMetadata
+        ? never
         : RMS[Property] extends RemoteHookMetadata | RemoteHeaderHookMetadata
         ? HookCall<RMS[Property]>
         : RMS[Property] extends RemoteApi<any>

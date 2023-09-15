@@ -11,6 +11,7 @@ import {GET_REMOTE_METHODS_BY_ID, GET_REMOTE_METHODS_BY_PATH, RpcError, getRoute
 
 describe('Client Routes should', () => {
     const privateHook = (ctx): void => undefined;
+    const publicHook = (ctx): null => null;
     const auth = (ctx, token: string): void => undefined;
     const route1 = () => 'route1';
     const route2 = {
@@ -35,7 +36,7 @@ describe('Client Routes should', () => {
             getPet: route1, // public
             setPet: route2, // public
         },
-        last: {hook: privateHook, canReturnData: true}, // public as canReturnData
+        last: {hook: publicHook}, // public Hook
     } satisfies Routes;
 
     const shared = {auth: {me: null as any}};
@@ -112,7 +113,7 @@ describe('Client Routes should', () => {
             id: 'last',
             inHeader: false,
             _handler: 'last',
-            serializedTypes: [{kind: 17, parameters: [], return: 1}, {kind: 3}],
+            serializedTypes: [{kind: 17, parameters: [], return: 1}, {kind: 10}],
             enableValidation: true,
             enableSerialization: true,
             params: [],

@@ -37,11 +37,20 @@ function getFunctionParamsLength(handlerType: TypeFunction, skipInitialParams: n
     return length <= skipInitialParams ? 0 : length - skipInitialParams;
 }
 
+function hasReturnType(handlerType: TypeFunction): boolean {
+    return (
+        handlerType?.return?.kind !== ReflectionKind.void &&
+        handlerType?.return?.kind !== ReflectionKind.never &&
+        handlerType?.return?.kind !== ReflectionKind.unknown // by default if type is unknown we assume is private
+    );
+}
+
 // implement a lazy function reflection class that implements the FunctionReflection interface but is using getters to lazy load the properties
 class LazyFunctionReflection implements FunctionReflection {
     public readonly handlerType: TypeFunction;
     public readonly paramsLength: number;
     public readonly isAsync: boolean;
+    public readonly canReturnData: boolean;
     private _validateParams: null | ((params: any[]) => ParamsValidationResponse) = null;
     private _serializeParams: null | ((params: any[]) => JSONPartial<any>[]) = null;
     private _deserializeParams: null | ((serializedParams: JSONPartial<any>[]) => any[]) = null;
@@ -57,6 +66,7 @@ class LazyFunctionReflection implements FunctionReflection {
         this.handlerType = getHandlerType(handlerOrType);
         this.paramsLength = getFunctionParamsLength(this.handlerType, skipInitialParams);
         this.isAsync = isAsyncHandler(this.handlerType);
+        this.canReturnData = hasReturnType(this.handlerType);
     }
 
     get validateParams(): (params: any[]) => ParamsValidationResponse {
