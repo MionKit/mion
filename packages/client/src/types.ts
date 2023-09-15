@@ -129,36 +129,30 @@ export type HookCall<RH extends RemoteHookMetadata | RemoteHeaderHookMetadata> =
 ) => HookSubRequest<RH>;
 export type RouteCall<RR extends RemoteRouteMetadata> = (...params: Parameters<RR['_handler']>) => RouteSubRequest<RR>;
 
-export type ClientMethods<RMS extends RemoteApi<any>> = {
-    [Property in keyof RMS]: RMS[Property] extends never
-        ? never
-        : RMS[Property] extends RemoteRouteMetadata
-        ? RouteCall<RMS[Property]>
-        : RMS[Property] extends RemoteHookMetadata | RemoteHeaderHookMetadata
-        ? HookCall<RMS[Property]>
-        : RMS[Property] extends RemoteApi<any>
-        ? ClientMethods<RMS[Property]>
-        : never;
-};
+export type NonClientRoute = never | RemoteHookMetadata | RemoteHeaderHookMetadata;
 
 export type ClientRoutes<RMS extends RemoteApi<any>> = {
-    [Property in keyof RMS]: RMS[Property] extends never | RemoteHookMetadata | RemoteHeaderHookMetadata
-        ? never
-        : RMS[Property] extends RemoteRouteMetadata
+    [Property in keyof RMS as RMS[Property] extends NonClientRoute ? never : Property]: RMS[Property] extends RemoteRouteMetadata
         ? RouteCall<RMS[Property]>
         : RMS[Property] extends RemoteApi<any>
-        ? ClientMethods<RMS[Property]>
+        ? ClientRoutes<RMS[Property]>
         : never;
 };
 
+export type NonClientHook = never | RemoteRouteMetadata | {[key: string]: RemoteRouteMetadata};
+
 export type ClientHooks<RMS extends RemoteApi<any>> = {
-    [Property in keyof RMS]: RMS[Property] extends never | RemoteRouteMetadata
-        ? never
-        : RMS[Property] extends RemoteHookMetadata | RemoteHeaderHookMetadata
+    [Property in keyof RMS as RMS[Property] extends NonClientHook ? never : Property]: RMS[Property] extends
+        | RemoteHookMetadata
+        | RemoteHeaderHookMetadata
         ? HookCall<RMS[Property]>
         : RMS[Property] extends RemoteApi<any>
-        ? ClientMethods<RMS[Property]>
+        ? ClientHooks<RMS[Property]>
         : never;
+};
+
+export type Cleaned<RMS extends RemoteApi<any>> = {
+    [Property in keyof RMS as RMS[Property] extends never ? never : Property]: RMS[Property];
 };
 
 export type SuccessClientResponse<RR extends RouteSubRequest<any>, RHList extends HookSubRequest<any>[]> = [
