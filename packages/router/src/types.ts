@@ -257,11 +257,11 @@ export type HooksCollection<
 // ####### Private Hooks #######
 
 export interface PrivateHookDef extends HookDef {
-    hook: (ctx?: any) => void;
+    hook: (ctx?: any) => void | never | undefined;
 }
 
 export interface PrivateHeaderHookDef extends HeaderHookDef {
-    hook: (ctx?: any) => void;
+    hook: (ctx?: any) => void | never | undefined;
 }
 
 export interface PrivateRawHookDef extends RawHookDef {
