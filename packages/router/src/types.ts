@@ -268,30 +268,22 @@ export interface PrivateRawHookDef extends RawHookDef {
     hook: (ctx?: any, req?: any, resp?: any, opts?: any) => any;
 }
 
-// ####### Remote Methods Metadata #######
+export type PrivateHook = PrivateHookDef | PrivateHeaderHookDef | PrivateRawHookDef;
 
-// prettier-ignore
+// ####### Remote Methods Metadata #######
 /** Data structure containing all public data an types of routes & hooks. */
 export type RemoteApi<Type extends Routes> = {
-    [Property in keyof Type]: 
-        // any private hook maps to null
-        Type[Property] extends  
-        | PrivateHookDef
-        | PrivateHeaderHookDef
-        | PrivateRawHookDef
-        ? never
-        // Hooks
-        : Type[Property] extends HookDef
+    [Property in keyof Type as Type[Property] extends PrivateHook ? never : Property]: Type[Property] extends HookDef
         ? RemoteHookMetadata<Type[Property]['hook']>
         : Type[Property] extends HeaderHookDef
         ? RemoteHeaderHookMetadata<Type[Property]['hook']>
-        // Routes
-        : Type[Property] extends RouteDef
+        : // Routes
+        Type[Property] extends RouteDef
         ? RemoteRouteMetadata<Type[Property]['route']>
         : Type[Property] extends Handler
         ? RemoteRouteMetadata<Type[Property]>
-        // Routes & PureRoutes (recursion)
-        : Type[Property] extends Routes
+        : // Routes & PureRoutes (recursion)
+        Type[Property] extends Routes
         ? RemoteApi<Type[Property]>
         : never;
 };

@@ -3,6 +3,7 @@ import {Routes, registerRoutes} from '@mionkit/router';
 import {clientRoutes} from '@mionkit/common';
 import {initAwsLambdaRouter, awsLambdaHandler} from '@mionkit/serverless';
 import {Logger} from 'Logger';
+import {Cleaned, ClientHooks, ClientRoutes} from '../src/types';
 
 export type User = {id: string; name: string; surname: string};
 export type Order = {id: string; date: Date; userId: string; totalUSD: number};
