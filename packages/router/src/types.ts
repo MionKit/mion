@@ -53,9 +53,6 @@ export interface RouteDef<Context extends CallContext = CallContext, Ret = any> 
 interface HookBase {
     /** Executes the hook even if an error was thrown previously */
     forceRunOnError?: boolean;
-    /** Enables returning data in the responseBody,
-     * hooks must explicitly enable returning data */
-    canReturnData?: boolean;
     /** Description of the route, mostly for documentation purposes */
     description?: string;
     /** Overrides global enableValidation */
@@ -159,8 +156,8 @@ export type Executable = {
 export interface RouteExecutable extends Executable {
     isRoute: true;
     isRawExecutable: false;
-    canReturnData: true;
     forceRunOnError: false;
+    canReturnData: true;
     handler: Handler;
     reflection: FunctionReflection;
 }
@@ -180,6 +177,7 @@ export interface HookHeaderExecutable extends HookExecutable {
 export interface RawExecutable extends Executable {
     isRoute: false;
     isRawExecutable: true;
+    canReturnData: false;
     handler: RawHookHandler;
     reflection: null;
 }
@@ -259,13 +257,11 @@ export type HooksCollection<
 // ####### Private Hooks #######
 
 export interface PrivateHookDef extends HookDef {
-    canReturnData?: false | undefined;
-    hook: (ctx?: any) => any;
+    hook: (ctx?: any) => void;
 }
 
 export interface PrivateHeaderHookDef extends HeaderHookDef {
-    canReturnData?: false | undefined;
-    hook: (ctx?: any) => any;
+    hook: (ctx?: any) => void;
 }
 
 export interface PrivateRawHookDef extends RawHookDef {
@@ -398,7 +394,7 @@ export function isRawExecutable(entry: Executable): entry is RawExecutable {
 }
 
 export function isPublicExecutable(entry: Executable): entry is Executable {
-    return entry.canReturnData || !!entry.reflection?.paramsLength;
+    return entry.reflection?.canReturnData || !!entry.reflection?.paramsLength;
 }
 
 export function isNotFoundExecutable(entry: Executable): entry is NotFoundExecutable {

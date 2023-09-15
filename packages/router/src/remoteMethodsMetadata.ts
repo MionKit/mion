@@ -58,11 +58,11 @@ function recursiveGetMethodsMetadata<R extends Routes>(
     const entries = Object.entries(routes);
     entries.forEach(([key, item]: [string, RouterEntry]) => {
         const itemPointer = [...currentPointer, key];
+        const id = getRouterItemId(itemPointer);
 
-        if (isPrivateHookDef(item)) {
+        if (isPrivateHookDef(item, id)) {
             publicData[key] = null; // hooks that don't receive or return data are not public
         } else if (isHookDef(item) || isHeaderHookDef(item) || isRoute(item)) {
-            const id = getRouterItemId(itemPointer);
             const executable = getHookExecutable(id) || getRouteExecutable(id);
             if (!executable)
                 throw new Error(`Route or Hook ${id} not found. Please check you have called router.registerRoutes first.`);

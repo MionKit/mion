@@ -83,9 +83,8 @@ describe('Dispatch routes', () => {
         it('use soft serialization for header params', async () => {
             initRouter({sharedDataFactory: getSharedData});
             const isTrue = {
-                canReturnData: true,
                 headerName: 'isTrue',
-                hook: (ctx, isBoolean: boolean) => isBoolean,
+                hook: (ctx, isBoolean: boolean): boolean => isBoolean,
             };
             registerRoutes({isTrue, changeUserName});
 
@@ -102,7 +101,6 @@ describe('Dispatch routes', () => {
         it('headers are case insensitive, returned headers alway lowercase', async () => {
             initRouter({sharedDataFactory: getSharedData});
             const auth = {
-                canReturnData: true,
                 headerName: 'Authorization',
                 hook: (ctx, token: string): string => (token === '1234' ? 'MyUser' : 'Unknown'),
             };
@@ -177,7 +175,6 @@ describe('Dispatch routes', () => {
                     });
                 },
                 totals: {
-                    canReturnData: true,
                     hook: (ctx: CallContext): string => {
                         // is sumTwo is not executed in order then `ctx.response.body.sumTwo` would be undefined here
                         return `the total is ${ctx.response.body[id]}`;

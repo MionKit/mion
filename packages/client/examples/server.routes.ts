@@ -30,7 +30,7 @@ const routes = {
     },
     log: {
         forceRunOnError: true,
-        hook: (ctx): any => {
+        hook: (ctx): void => {
             Logger.log(ctx.path, ctx.request.headers, ctx.request.body);
         },
     },

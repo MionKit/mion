@@ -11,8 +11,9 @@ import {registerRoutes, initRouter, resetRouter, getRouteDefaultParams} from './
 import {getFunctionReflectionMethods} from '@mionkit/reflection';
 import {CallContext, Routes} from './types';
 
-describe('Public Mothods should', () => {
+describe('Public Methods should', () => {
     const privateHook = (ctx): void => undefined;
+    const publicHook = (ctx): null => null;
     const paramsHook = (ctx, s: string): void => undefined;
     const route1 = () => 'route1';
     const route2 = {
@@ -37,7 +38,7 @@ describe('Public Mothods should', () => {
             getPet: route1, // public
             setPet: route2, // public
         },
-        last: {hook: privateHook, canReturnData: true}, // public as canReturnData
+        last: {hook: publicHook}, // public Hook
     } satisfies Routes;
 
     const shared = {auth: {me: null as any}};
@@ -142,7 +143,7 @@ describe('Public Mothods should', () => {
         });
     });
 
-    it('generate public data for pulbic routes only', () => {
+    it('generate public data for public routes only', () => {
         initRouter({sharedDataFactory: getSharedData, getPublicRoutesData: true});
         const publicExecutables = registerRoutes(routes);
 

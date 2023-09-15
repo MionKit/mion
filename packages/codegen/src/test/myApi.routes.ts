@@ -30,8 +30,7 @@ export const myApiRoutes = {
     users: {
         getUser,
         setUser: setUser,
-        // will return total users count in response body as canReturnData = true
-        totalUsers: {canReturnData: true, hook: totalUsers},
+        totalUsers: {hook: totalUsers},
     },
     pets: {getPet, setPet},
     utils: {getNumber},

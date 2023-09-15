@@ -166,13 +166,14 @@ export function getNotFoundExecutionPath(): Executable[] {
     return notFoundExecutionPath;
 }
 
-export function isPrivateHookDef(entry: RouterEntry): entry is PrivateHookDef {
+export function isPrivateHookDef(entry: RouterEntry, id: string): entry is PrivateHookDef {
     if (isRoute(entry)) return false;
     if (isRawHookDef(entry)) return true;
     try {
         const handler = getHandler(entry, []);
+        const executable = getHookExecutable(id) || getRouteExecutable(id);
         const hasPublicParams = handler.length > getRouteDefaultParams().length;
-        return !hasPublicParams && !(entry as HookDef).canReturnData;
+        return !hasPublicParams && !executable?.canReturnData;
     } catch {
         // error thrown because entry is a Routes object and does not have any handler
         return false;
@@ -351,17 +352,17 @@ function getExecutableFromHook(hook: HookDef | HeaderHookDef, hookPointer: strin
     const existing = hooksById.get(hookId);
     if (existing) return existing as HookExecutable;
     const handler = getHandler(hook, hookPointer);
-
+    const reflection = getFunctionReflectionMethods(handler, getReflectionOptions(hook), getRouteDefaultParams().length);
     const executable: HookExecutable = {
         id: hookId,
         forceRunOnError: !!hook.forceRunOnError,
-        canReturnData: !!hook.canReturnData,
+        canReturnData: reflection.canReturnData,
         inHeader,
         nestLevel,
         isRoute: false,
         isRawExecutable: false,
         handler,
-        reflection: getFunctionReflectionMethods(handler, getReflectionOptions(hook), getRouteDefaultParams().length),
+        reflection,
         enableValidation: hook.enableValidation ?? routerOptions.enableValidation,
         enableSerialization: hook.enableSerialization ?? routerOptions.enableSerialization,
         pointer: hookPointer,

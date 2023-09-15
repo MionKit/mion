@@ -23,7 +23,6 @@ export const myAppRoutes = {
             route: async (ctx, user: User): Promise<User> => user,
         },
         totalUsers: {
-            canReturnData: true,
             hook(): number {
                 return 3;
             },
@@ -34,7 +33,6 @@ export const myAppRoutes = {
         setPet: async (ctx, pet: Pet): Promise<Pet> => pet,
     },
     getNumber: {
-        path: 'utils/getNumber',
         route: async (c, s: string, n: number): Promise<number> => n,
     },
     last: {hook(): void {}},

@@ -21,7 +21,7 @@ const hooks = {
     parser2: {isRawHook: true, hook: (): void => undefined},
     hookNoCtx: {hook: (): void => undefined},
     hookParams: {hook: (c: Context, name: string): void => undefined},
-    hookCanReturn: {canReturnData: true, hook: (c: Context): string => 'hello'},
+    hookCanReturn: {hook: (c: Context): string => 'hello'},
     log: {hook: (c: Context): void => undefined},
 } satisfies Routes;
 
