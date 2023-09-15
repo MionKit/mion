@@ -41,7 +41,7 @@ function hasReturnType(handlerType: TypeFunction): boolean {
     return (
         handlerType?.return?.kind !== ReflectionKind.void &&
         handlerType?.return?.kind !== ReflectionKind.never &&
-        handlerType?.return?.kind !== ReflectionKind.unknown // by default if type is unknown we assume is private
+        handlerType?.return?.kind !== ReflectionKind.undefined
     );
 }
 
