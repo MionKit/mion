@@ -49,4 +49,4 @@ export const options: Partial<RouterOptions> = {prefix: 'v1', getPublicRoutesDat
 initRouter(options);
 export const myApi = registerRoutes(myApiRoutes);
 export const authApi = registerRoutes(publicEndpoints);
-type TotalUsers = typeof myApi.users.totalUsers;
+// type TotalUsers = typeof myApi.users.totalUsers;
