@@ -1,12 +1,8 @@
 {
+  "extends": "../../tsconfig.json",
   "compilerOptions": {
     "outDir": ".dist/cjs",
-    "types": ["bun-types"],
-    "moduleResolution": "NodeNext",
-    "esModuleInterop": true,
-    "skipLibCheck": true,
-    "module": "NodeNext",
-    "inlineSourceMap": true
+    "types": ["bun-types"]
   },
   "reflection": true,
   "include": ["."],

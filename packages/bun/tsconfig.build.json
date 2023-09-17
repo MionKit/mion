@@ -1,7 +1,9 @@
 {
   "extends": "../../tsconfig.json",
   "compilerOptions": {
-    "outDir": ".dist/cjs"
+    "outDir": ".dist/cjs",
+    "types": ["bun-types"],
+    "esModuleInterop": true
   },
   "reflection": false,
   "include": ["."],

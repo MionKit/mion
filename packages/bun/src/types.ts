@@ -1,0 +1,29 @@
+/* ########
+ * 2022 mion
+ * Author: Ma-jerez
+ * License: MIT
+ * The software is provided "as is", without warranty of any kind.
+ * ######## */
+
+import {RouterOptions, Headers as MionHeaders} from '@mionkit/router';
+import {Serve} from 'bun';
+
+export type BunServerOptions = Omit<Serve, 'fetch' | 'error'>;
+
+export interface BunHttpOptions extends Partial<RouterOptions<MionRequest>> {
+    port: number;
+    /** Bun Server Options */
+    options: BunServerOptions;
+    /** Set of default response header to add to every response*/
+    defaultResponseHeaders: MionHeaders;
+    /**
+     * 256KB by default, same as lambda payload
+     * @link https://docs.aws.amazon.com/lambda/latest/operatorguide/payload.html
+     * */
+    maxBodySize: number; // default 256KB
+}
+
+export interface MionRequest extends Omit<Request, 'body' | 'headers'> {
+    body: string;
+    headers: Record<string, string>;
+}

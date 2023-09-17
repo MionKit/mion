@@ -42,9 +42,9 @@
     "access": "public"
   },
   "scripts": {
-    "test": "jest",
+    "test": "bun test",
     "dev": "rimraf .dist && tsc --build tsconfig.json --watch",
-    "dev:test": "jest --watch",
+    "dev:test": "bun test --watch",
     "lint": "eslint src --ext .ts",
     "format": "prettier --write src/**/*.ts",
     "build:cjs": "tsc --project tsconfig.build.json",
@@ -64,7 +64,6 @@
     "@mionkit/core": "^0.6.0",
     "@mionkit/router": "^0.6.2"
   },
-  "type": "module",
   "devDependencies": {
     "@deepkit/type-compiler": "^1.0.1-alpha.97",
     "bun-types": "latest"
