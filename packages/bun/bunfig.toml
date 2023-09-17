@@ -1,4 +1,4 @@
-preload = ["./src/runtypes-loader.ts"]
+preload = ["./bun-preload.ts"]
 
 [test]
-preload = ["./src/runtypes-loader.ts"]
+preload = ["./bun-preload.ts"]
