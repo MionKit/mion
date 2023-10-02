@@ -17,7 +17,6 @@ import {
     initRouter,
     addStartHooks,
     addEndHooks,
-    getRouteEntries,
 } from './router';
 import {Handler, HookDef, RouteDef, Routes} from './types';
 

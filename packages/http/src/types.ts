@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {Headers, RouterOptions} from '@mionkit/router';
+import {RouterOptions} from '@mionkit/router';
 import {IncomingMessage} from 'http';
 import {ServerOptions} from 'https';
 
@@ -15,7 +15,7 @@ export interface HttpOptions extends Partial<RouterOptions<HttpRequest>> {
     /** ServerOptions.maxHeaderSize defaults to 8KB, same as default value in new node versions */
     options: ServerOptions;
     /** Set of default response header to add to every response*/
-    defaultResponseHeaders: Headers;
+    defaultResponseHeaders: Record<string, string>;
     /**
      * 256KB by default, same as lambda payload
      * @link https://docs.aws.amazon.com/lambda/latest/operatorguide/payload.html

@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import type {RemoteMethodMetadata, ResolvedPublicResponses} from '@mionkit/router';
+import type {RemoteMethodMetadata, RemoteMethodResponses} from '@mionkit/router';
 import {FunctionReflection, ParamsValidationResponse} from '@mionkit/reflection';
 import {RpcError, StatusCodes, isRpcError} from '@mionkit/core';
 import {RequestErrors, SubRequest, ValidationRequest} from './types';
@@ -94,7 +94,7 @@ export function serializeSubRequest(id: string, req: ValidationRequest, errors: 
 }
 
 // if there is any error it will be inserted in the body as a route return error
-export function deserializeResponseBody(responseBody: ResolvedPublicResponses, req: ValidationRequest): ResolvedPublicResponses {
+export function deserializeResponseBody(responseBody: RemoteMethodResponses, req: ValidationRequest): RemoteMethodResponses {
     const deSerializedBody = responseBody;
     Object.entries(deSerializedBody).forEach(([key, remoteHandlerResponse]) => {
         const methodMeta = req.metadataById.get(key);

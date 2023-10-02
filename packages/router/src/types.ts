@@ -19,7 +19,7 @@ export type Handler<Context extends CallContext = CallContext, Ret = any> = (
 ) => Ret | Promise<Ret>;
 
 /** Header Hook Handler, hook handler for when params are sent in the header  */
-export type HeaderHandler<Context extends CallContext = CallContext, Ret = any, HValue extends ParsedHeader = any> = (
+export type HeaderHandler<Context extends CallContext = CallContext, Ret = any, HValue extends HeaderValue = any> = (
     /** Call Context */
     context: Context,
     /** Remote Call parameters */
@@ -29,7 +29,7 @@ export type HeaderHandler<Context extends CallContext = CallContext, Ret = any, 
 /** Handler to use with raw hooks to get access to raw request and response */
 export type RawHookHandler<
     Context extends CallContext = CallContext,
-    RawReq extends RawRequest = RawRequest,
+    RawReq = unknown,
     RawResp = unknown,
     Opts extends RouterOptions<RawReq> = RouterOptions<RawReq>,
 > = (ctx: Context, request: RawReq, response: RawResp, opts: Opts) => ErrorReturn;
@@ -80,8 +80,8 @@ export interface HeaderHookDef<Context extends CallContext = CallContext, Ret = 
  */
 export interface RawHookDef<
     Context extends CallContext = CallContext,
-    RawReq extends RawRequest = RawRequest,
-    RawResp = any,
+    RawReq = unknown,
+    RawResp = unknown,
     Opts extends RouterOptions<RawReq> = RouterOptions<RawReq>,
 > {
     isRawHook: true;
@@ -104,7 +104,7 @@ export interface Routes {
 // ####### Router Options #######
 
 /** Global Router Options */
-export interface RouterOptions<Req extends RawRequest = any, SharedData = any> extends CoreOptions {
+export interface RouterOptions<Req = any, SharedData = any> extends CoreOptions {
     /** prefix for all routes, i.e: api/v1.
      * path separator is added between the prefix and the route */
     prefix: string;
@@ -193,9 +193,9 @@ export type CallContext<SharedData = any> = {
     /** Route's path after internal transformation*/
     readonly path: string;
     /** Router's own request object */
-    readonly request: Request;
+    readonly request: MionRequest;
     /** Router's own response object */
-    readonly response: Response;
+    readonly response: MionResponse;
     /** shared data between handlers (route/hooks) and that is not returned in the response. */
     shared: SharedData;
 };
@@ -206,37 +206,48 @@ export type CallContext<SharedData = any> = {
 // this way router can use that interface for reading and writing headers and body instead to the context therefore saving memory and cpu
 
 /** Router's own request object, do not confuse with the underlying raw request */
-export type Request = {
+export interface MionRequest {
     /** parsed headers */
-    readonly headers: Readonly<AnyObject>;
-    /** parsed body */
+    readonly headers: MionReadonlyHeaders;
+    /** json encoded request body. */
+    readonly rawBody: string;
+    /** parsed request body */
     readonly body: Readonly<AnyObject>;
     /** All errors thrown during the call are stored here so they can bee logged or handler by a some error handler hook */
     readonly internalErrors: Readonly<RpcError[]>;
-};
-
-/** Any request used by the router must follow this interface */
-export type RawRequest = {
-    headers: {[header: string]: string | undefined | string[]} | undefined;
-    body: string | null | undefined | AnyObject;
-};
+}
 
 /** Router's own response object, do not confuse with the underlying raw response */
-export type Response = {
+export interface MionResponse {
+    /** response http status code */
     readonly statusCode: number;
+    /** response headers */
+    readonly headers: MionHeaders;
+    /** json encoded response body, filled only after all routes/hook has ben finalized. */
+    readonly rawBody: string;
+    /** the router response data, body should not be modified manually so marked as Read Only */
+    readonly body: Readonly<RemoteMethodResponses>;
     /** response errors: empty if there were no errors during execution */
     readonly hasErrors: boolean;
-    /** response headers */
-    readonly headers: Headers;
-    /** the router response data, body should not be modified manually so marked as Read Only */
-    readonly body: Readonly<ResolvedPublicResponses>;
-    /** json encoded response, contains data and errors if there are any. */
-    readonly json: string;
-};
+}
 
-export type ParsedHeader = string | number | boolean | (string | number | boolean)[];
-export type RawHeader = string | number | boolean | undefined | null | (string | number | boolean | undefined | null)[];
-export type Headers = {[key: string]: string | boolean | number};
+export type HeaderSingleValue = string;
+export type HeaderValue = HeaderSingleValue | HeaderSingleValue[];
+export type MionReadonlyHeaders = Omit<MionHeaders, 'append' | 'delete' | 'set'>;
+/** Similar to Fetch API Headers https://developer.mozilla.org/en-US/docs/Web/API/Headers
+ * Headers names must be case insensitive.
+ * When a header has multiple values it returns an array instead a coma separated string;
+ */
+export interface MionHeaders {
+    append(name: string, value: HeaderValue): void;
+    delete(name: string): void;
+    set(name: string, value: HeaderValue): void;
+    get(name: string): HeaderValue | undefined | null;
+    has(name: string): boolean;
+    entries(): IterableIterator<[string, HeaderValue]>;
+    keys(): IterableIterator<string>;
+    values(): IterableIterator<HeaderValue>;
+}
 
 /** Function used to create the shared data object on each route call  */
 export type SharedDataFactory<SharedData> = () => SharedData;
@@ -247,7 +258,7 @@ export type ErrorReturn = void | RpcError | Promise<RpcError | void>;
 
 export type HooksCollection<
     Context extends CallContext = CallContext,
-    RawReq extends RawRequest = RawRequest,
+    RawReq = unknown,
     RawResp = unknown,
     Opts extends RouterOptions<RawReq> = RouterOptions<RawReq>,
 > = {
@@ -337,8 +348,8 @@ export type RemoteHandlers<RMS extends RemoteApi<any>> = {
         : never;
 };
 
-export type ResolvedPublicResponses = {
-    [key: string]: any | RpcError;
+export type RemoteMethodResponses = {
+    [key: string]: unknown | RpcError;
 };
 
 // #######  type guards #######
@@ -399,6 +410,10 @@ export function isHeaderExecutable(entry: Executable): entry is HookHeaderExecut
 
 export function isRouteExecutable(entry: Executable): entry is RouteExecutable {
     return entry.isRoute;
+}
+
+export function isSingleValueHeader(value: HeaderValue): value is HeaderSingleValue {
+    return !Array.isArray(value);
 }
 
 // #######  Others #######

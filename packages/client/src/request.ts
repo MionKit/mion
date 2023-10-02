@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import type {ResolvedPublicResponses} from '@mionkit/router';
+import type {RemoteMethodResponses} from '@mionkit/router';
 import {
     ClientOptions,
     HookSubRequest,
@@ -28,7 +28,7 @@ export class MionRequest<RR extends RouteSubRequest<any>, HookRequestsList exten
     readonly requestId: string;
     readonly subRequests: {[key: string]: SubRequest<any>} = {};
     response: Response | undefined;
-    rawResponseBody: ResolvedPublicResponses | undefined;
+    rawResponseBody: RemoteMethodResponses | undefined;
     constructor(
         public readonly options: ClientOptions,
         public readonly metadataById: MetadataById,
@@ -43,7 +43,7 @@ export class MionRequest<RR extends RouteSubRequest<any>, HookRequestsList exten
     }
 
     /**  Calls a remote route. If anythings fails or remote route returns an error then throws a RequestErrors Map */
-    async call(): Promise<ResolvedPublicResponses> {
+    async call(): Promise<RemoteMethodResponses> {
         const errors: RequestErrors = new Map();
         try {
             const subRequestIds = Object.keys(this.subRequests);
@@ -83,7 +83,7 @@ export class MionRequest<RR extends RouteSubRequest<any>, HookRequestsList exten
 
         try {
             // if there are any errors they are part of the deserialized body
-            const deserialized = deserializeResponseBody(this.rawResponseBody as ResolvedPublicResponses, this);
+            const deserialized = deserializeResponseBody(this.rawResponseBody as RemoteMethodResponses, this);
             Object.entries(this.subRequests).forEach(([id, methodMeta]) => {
                 const resp = this.getResponseValueFromBodyOrHeader(id, deserialized, (this.response as Response).headers);
                 methodMeta.isResolved = true;
@@ -193,7 +193,7 @@ export class MionRequest<RR extends RouteSubRequest<any>, HookRequestsList exten
         return {headers, body};
     }
 
-    private getResponseValueFromBodyOrHeader(id: string, respBody: ResolvedPublicResponses, headers: Headers): any {
+    private getResponseValueFromBodyOrHeader(id: string, respBody: RemoteMethodResponses, headers: Headers): any {
         const methodMeta = this.metadataById.get(id);
         if (methodMeta && methodMeta.inHeader && methodMeta.headerName) {
             return headers.get(methodMeta.headerName);
