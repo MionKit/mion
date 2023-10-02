@@ -1,8 +1,9 @@
 {
   "compilerOptions": {
     "baseUrl": ".",
-    "module": "commonjs",
+    "module": "Node16",
     "moduleResolution": "Node16",
+    "esModuleInterop": true,
     "noImplicitAny": false,
     "removeComments": true,
     "noLib": false,
