@@ -10,8 +10,8 @@ import {
     dispatchRoute,
     getResponseFromError,
     resetRouter,
-    RawRequest,
-    Response as MionResponse,
+    MionResponse as MionResponse,
+    MionReadonlyHeaders,
 } from '@mionkit/router';
 import {DEFAULT_BUN_HTTP_OPTIONS} from './constants';
 import type {BunHttpOptions} from './types';
@@ -42,19 +42,28 @@ export function startBunHttpServer(): Server {
 
     const server = Bun.serve({
         maxRequestBodySize: httpOptions.maxBodySize,
+        port: httpOptions.port,
         ...httpOptions.options,
         async fetch(req) {
             const path = req.url || '/';
-            // monkey patching Bun Request to fit mion's RawRequest
-            (req as any).body = req.body ? await Bun.readableStreamToText(req.body) : '';
-            (req as any).headers = req.headers.toJSON();
 
-            return dispatchRoute(path, req as any as RawRequest)
-                .then((routeResp) => reply(routeResp))
-                .catch((e) => fail(req as any as RawRequest, e));
+            const jsonBody = req.body ? await Bun.readableStreamToText(req.body) : '';
+            const responseHeaders = new Headers({
+                server: '@mionkit/http',
+                ...httpOptions.defaultResponseHeaders,
+            });
+
+            return dispatchRoute(path, jsonBody, req, undefined, req.headers as MionReadonlyHeaders, responseHeaders)
+                .then((routeResp) => reply(routeResp, responseHeaders))
+                .catch((e) => fail(req, responseHeaders, e));
         },
         error(errReq) {
-            return fail({headers: {}, body: ''}, errReq, errReq.errno);
+            console.log('Bun error ====> ', errReq);
+            const responseHeaders = new Headers({
+                server: '@mionkit/http',
+                ...httpOptions.defaultResponseHeaders,
+            });
+            return fail({headers: {}, body: ''}, responseHeaders, errReq, errReq.errno);
         },
     });
 
@@ -64,28 +73,27 @@ export function startBunHttpServer(): Server {
         process.exit(0);
     });
 
+    console.log('server', server);
+
     return server;
 }
 
 // only called whe there is an htt error or weird unhandled route errors
 const fail = (
-    httpReq: RawRequest,
+    httpReq: unknown,
+    responseHeaders: Headers,
     e?: Error,
     statusCode: StatusCodes = StatusCodes.INTERNAL_SERVER_ERROR,
     message = 'Unknown Error'
 ): Response => {
     const error = new RpcError({statusCode, publicMessage: message, originalError: e});
-    const routeResponse = getResponseFromError('httpRequest', 'dispatch', httpReq, undefined, error);
-    return reply(routeResponse);
+    const routeResponse = getResponseFromError('httpRequest', 'dispatch', '', httpReq, undefined, error);
+    return reply(routeResponse, responseHeaders);
 };
 
-function reply(routeResp: MionResponse): Response {
-    return new Response(routeResp.json, {
+function reply(routeResp: MionResponse, responseHeaders: Headers): Response {
+    return new Response(routeResp.rawBody, {
         status: routeResp.statusCode,
-        headers: {
-            server: '@mionkit/http',
-            ...httpOptions.defaultResponseHeaders,
-            ...routeResp.headers,
-        },
+        headers: responseHeaders,
     });
 }

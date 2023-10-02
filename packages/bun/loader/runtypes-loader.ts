@@ -11,7 +11,7 @@ import ts from 'typescript';
 import {declarationTransformer, transformer} from '@deepkit/type-compiler';
 import {cwd} from 'process';
 
-interface Options {
+interface LoaderOptions {
     include?: string;
     exclude?: string;
     tsConfig?: string;
@@ -30,8 +30,9 @@ function transform(code: string, fileName: string, options) {
             module: ts.ModuleKind.ESNext,
             configFilePath: options.tsConfig || cwd() + '/tsconfig.json',
             // neither sourcemaps or inlined source maps working correctly so no point on emitting them
-            inlineSourceMap: false,
+            inlineSourceMap: true,
             sourceMap: false,
+            skipLibCheck: true,
         },
         options.compilerOptions || {}
     );
@@ -41,6 +42,9 @@ function transform(code: string, fileName: string, options) {
         fileName,
         transformers,
     });
+
+    // console.log('transformed:', fileName);
+    // console.log(transformed.outputText);
 
     return {
         code: transformed.outputText,
@@ -55,7 +59,7 @@ function transform(code: string, fileName: string, options) {
  * @param options
  * @returns
  */
-export function runTypesLoader(options: Options = {}): BunPlugin {
+export function runTypesLoader(options: LoaderOptions = {}): BunPlugin {
     return {
         name: 'bun-plugin-run-types',
         setup(builder) {

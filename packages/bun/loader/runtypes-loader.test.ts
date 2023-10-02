@@ -8,7 +8,7 @@
 import {expect, test} from 'bun:test';
 import {validate, reflect, serialize, deserialize, ReflectionKind, TypeFunction} from '@deepkit/type';
 
-export interface User {
+interface User {
     id: number;
     username: string;
     createdAt?: Date;
