@@ -8,19 +8,20 @@
 import {
     Executable,
     CallContext,
-    Response,
-    Request,
+    MionResponse,
+    MionRequest,
     RouterOptions,
-    RawRequest,
     isRawExecutable,
     Handler,
     isNotFoundExecutable,
     isHeaderExecutable,
-    HookHeaderExecutable,
+    MionHeaders,
+    MionReadonlyHeaders,
 } from './types';
 import {getNotFoundExecutionPath, getRouteExecutionPath, getRouterOptions} from './router';
 import {isPromise} from 'node:util/types';
 import {Mutable, AnyObject, RpcError, StatusCodes} from '@mionkit/core';
+import { headersFromRecord, readOnlyHeadersFromRecord } from './headers';
 
 // ############# PUBLIC METHODS #############
 
@@ -32,16 +33,19 @@ import {Mutable, AnyObject, RpcError, StatusCodes} from '@mionkit/core';
  * - using callback instead promises: seems to be more slow but use less memory in some scenarios.
  */
 
-export async function dispatchRoute<Req extends RawRequest, Resp>(
+export async function dispatchRoute<Req, Resp>(
     path: string,
+    reqRawBody: string,
     rawRequest: Req,
-    rawResponse?: Resp
-): Promise<Response> {
+    rawResponse?: Resp,
+    reqHeaders?: MionReadonlyHeaders,
+    respHeaders?: MionHeaders,
+): Promise<MionResponse> {
     try {
         const opts = getRouterOptions();
         // this is the call context that will be passed to all handlers
         // we should keep it as small as possible
-        const context = getEmptyCallContext(path, opts, rawRequest);
+        const context = getEmptyCallContext(path, opts, reqRawBody, rawRequest, reqHeaders, respHeaders);
 
         const executionPath = getRouteExecutionPath(context.path) || getNotFoundExecutionPath();
         await runExecutionPath(context, rawRequest, rawResponse, executionPath, opts);
@@ -55,11 +59,11 @@ export async function dispatchRoute<Req extends RawRequest, Resp>(
 // ############# PRIVATE METHODS #############
 async function runExecutionPath(
     context: CallContext,
-    rawRequest: RawRequest,
-    rawResponse: any,
+    rawRequest: unknown,
+    rawResponse: unknown,
     executables: Executable[],
     opts: RouterOptions
-): Promise<Response> {
+): Promise<MionResponse> {
     const {response, request} = context;
 
     for (let i = 0; i < executables.length; i++) {
@@ -69,8 +73,8 @@ async function runExecutionPath(
         try {
             const deserializedParams = deserializeParameters(request, executable);
             const validatedParams = validateParameters(deserializedParams, executable);
-            if (executable.inHeader) (request.headers as Mutable<Request['headers']>)[executable.id] = validatedParams;
-            else (request.body as Mutable<Request['body']>)[executable.id] = validatedParams;
+            if (executable.inHeader) (request.headers as Mutable<MionRequest['headers']>)[executable.id] = validatedParams;
+            else (request.body as Mutable<MionRequest['body']>)[executable.id] = validatedParams;
 
             const result = await runHandler(validatedParams, context, rawRequest, rawResponse, executable, opts);
             // TODO: should we also validate the handler result? think just forcing declaring the return type with a linter is enough.
@@ -87,8 +91,8 @@ async function runExecutionPath(
 async function runHandler(
     handlerParams: any[],
     context: CallContext,
-    rawRequest: RawRequest,
-    rawResponse: any,
+    rawRequest: unknown,
+    rawResponse: unknown,
     executable: Executable,
     opts: RouterOptions
 ): Promise<any> {
@@ -105,8 +109,8 @@ async function runHandler(
 function getHandlerResponse(
     handlerParams: any[],
     context: CallContext,
-    rawRequest: RawRequest,
-    rawResponse: any,
+    rawRequest: unknown,
+    rawResponse: unknown,
     executable: Executable,
     opts: RouterOptions
 ): any {
@@ -117,15 +121,14 @@ function getHandlerResponse(
     return (executable.handler as Handler)(context, ...handlerParams);
 }
 
-function deserializeParameters(request: Request, executable: Executable): any[] {
+function deserializeParameters(request: MionRequest, executable: Executable): any[] {
     if (!executable.reflection) return [];
     const path = executable.id;
     let params;
 
     if (isHeaderExecutable(executable)) {
-        params = getParamFromStandardHeaders(request, executable) || [];
-        // headers could be arrays in some cases bust mostly individual values
-        // so we need to normalize to an array
+        params = request.headers.get(executable.headerName) || [];
+        // headers could be arrays or individual values, so we need to normalize to an array
         if (!Array.isArray(params)) params = [params];
     } else {
         params = request.body[path] || [];
@@ -170,36 +173,19 @@ function validateParameters(params: any[], executable: Executable): any[] {
     return params;
 }
 
-function serializeResponse(executable: Executable, response: Response, result: any) {
+function serializeResponse(executable: Executable, response: MionResponse, result: any) {
     if (!executable.canReturnData || result === undefined || !executable.reflection) return;
     const serialized = executable.enableSerialization ? executable.reflection.serializeReturn(result) : result;
     if (isHeaderExecutable(executable)) response.headers[executable.headerName] = serialized;
     else (response.body as Mutable<AnyObject>)[executable.id] = serialized;
 }
 
-/** Returns a header parameter whether headers are case sensitive.
- * AWS uses case sensitive headers, while http use lowercase headers */
-function getParamFromStandardHeaders(request: Request, executable: HookHeaderExecutable): any {
-    const headers: Mutable<AnyObject> = request.headers;
-    const param = request.headers[executable.headerName];
-    if (param || headers.areHeadersTransformedToLowerCase) return param;
-    const lowerCaseHeaders = {};
-    Object.entries(headers).forEach(([key, value]) => {
-        lowerCaseHeaders[key.toLowerCase()] = value;
-    });
-    (request as Mutable<AnyObject>).headers = {
-        ...headers,
-        ...lowerCaseHeaders,
-    };
-    return lowerCaseHeaders[executable.headerName];
-}
-
 // ############# PUBLIC METHODS USED FOR ERRORS #############
 
 export function handleRpcErrors(
     path: string,
-    request: Request,
-    response: Mutable<Response>,
+    request: MionRequest,
+    response: Mutable<MionResponse>,
     err: any | RpcError | Error,
     step: number | string
 ) {
@@ -219,21 +205,29 @@ export function handleRpcErrors(
     (request.internalErrors as Mutable<any[]>).push(rpcError);
 }
 
-export function getEmptyCallContext(originalPath: string, opts: RouterOptions, rawRequest: RawRequest): CallContext {
+export function getEmptyCallContext(
+    originalPath: string,
+    opts: RouterOptions,
+    reqRawBody: string,
+    rawRequest: unknown,
+    reqHeaders?: MionReadonlyHeaders,
+    respHeaders?: MionHeaders,
+): CallContext {
     const transformedPath = opts.pathTransform ? opts.pathTransform(rawRequest, originalPath) : originalPath;
     return {
         path: transformedPath,
         request: {
-            headers: rawRequest.headers || {},
+            headers: reqHeaders || readOnlyHeadersFromRecord(),
+            rawBody: reqRawBody,
             body: {},
             internalErrors: [],
         },
         response: {
             statusCode: StatusCodes.OK,
             hasErrors: false,
-            headers: {},
+            headers: respHeaders || headersFromRecord(),
             body: {},
-            json: '',
+            rawBody: '',
         },
         shared: opts.sharedDataFactory ? opts.sharedDataFactory() : {},
     };

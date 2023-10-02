@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {HookDef, RawRequest, RouteDef, RouterOptions} from './types';
+import {HookDef, RouteDef, RouterOptions} from './types';
 import {DEFAULT_REFLECTION_OPTIONS} from '@mionkit/reflection';
 
 export const DEFAULT_ROUTE: Readonly<Required<RouteDef>> = {
@@ -20,11 +20,6 @@ export const DEFAULT_HOOK: Readonly<Required<HookDef>> = {
     enableValidation: true,
     enableSerialization: true,
     hook: () => null,
-};
-
-export const DEFAULT_REQUEST: Readonly<Required<RawRequest>> = {
-    headers: {},
-    body: '{}',
 };
 
 export const IS_TEST_ENV = process.env.JEST_WORKER_ID !== undefined || process.env.NODE_ENV === 'test';

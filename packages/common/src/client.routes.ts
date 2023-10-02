@@ -93,13 +93,13 @@ export const getRouteRemoteMethods = (ctx, path: string, getAllRemoteMethods?: b
 
 export const clientRoutes = {
     [GET_REMOTE_METHODS_BY_ID]: {
-        // disable serialization as deserializer seems ti ignore serializedTypes
+        // disable serialization as deserializer seems t0 ignore serializedTypes
         enableSerialization: false,
         route: getRemoteMethods,
     },
     [GET_REMOTE_METHODS_BY_PATH]: {
         enableSerialization: false,
-        // disable serialization as deserializer seems ti ignore serializedTypes
+        // disable serialization as deserializer seems to ignore serializedTypes
         route: getRouteRemoteMethods,
     },
 } satisfies Routes;

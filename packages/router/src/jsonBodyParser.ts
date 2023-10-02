@@ -5,23 +5,25 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {Response, Request, RouterOptions, RawRequest, HooksCollection, CallContext, ErrorReturn, RawHookDef} from './types';
+import {MionResponse, MionRequest, RouterOptions, HooksCollection, CallContext, ErrorReturn, RawHookDef} from './types';
 import {RpcError, StatusCodes, AnyObject, Mutable} from '@mionkit/core';
 import {handleRpcErrors} from './dispatch';
 
 // ############# PUBLIC METHODS #############
 
+// TODO: rename to body parser as this should be configurable from options
+
 export function parseRequestBody(
     context: CallContext,
-    rawRequest: RawRequest,
-    rawResponse: any,
+    rawRequest: unknown,
+    rawResponse: unknown,
     opts: RouterOptions
 ): ErrorReturn {
-    if (!rawRequest.body) return;
-    const request = context.request as Mutable<Request>;
-    if (typeof rawRequest.body === 'string') {
+    if (!context.request.rawBody) return;
+    const request = context.request as Mutable<MionRequest>;
+    if (typeof context.request.rawBody === 'string') {
         try {
-            const parsedBody = opts.bodyParser.parse(rawRequest.body);
+            const parsedBody = opts.bodyParser.parse(context.request.rawBody);
             if (typeof parsedBody !== 'object')
                 return new RpcError({
                     statusCode: StatusCodes.BAD_REQUEST,
@@ -36,9 +38,6 @@ export function parseRequestBody(
                 publicMessage: `Invalid request body: ${err?.message || 'unknown parsing error.'}`,
             });
         }
-    } else if (typeof rawRequest.body === 'object') {
-        // lets assume the body has been already parsed, TODO: investigate possible security issues
-        request.body = rawRequest.body;
     } else {
         return new RpcError({
             statusCode: StatusCodes.BAD_REQUEST,
@@ -50,15 +49,15 @@ export function parseRequestBody(
 
 export function stringifyResponseBody(
     context: CallContext,
-    rawRequest: RawRequest,
+    rawRequest: unknown,
     rawResponse: unknown,
     opts: RouterOptions
 ): ErrorReturn {
-    const response = context.response as Mutable<Response>;
+    const response = context.response as Mutable<MionResponse>;
     const respBody: AnyObject = response.body;
-    response.headers['content-type'] = 'application/json; charset=utf-8';
+    response.headers.set('content-type', 'application/json; charset=utf-8');
     try {
-        response.json = opts.bodyParser.stringify(respBody);
+        response.rawBody = opts.bodyParser.stringify(respBody);
     } catch (err: any) {
         const rpcError = new RpcError({
             statusCode: StatusCodes.INTERNAL_SERVER_ERROR,
@@ -68,7 +67,7 @@ export function stringifyResponseBody(
         });
         response.body = {}; // reset the body as it was not possible to stringify it
         handleRpcErrors(context.path, context.request, context.response, rpcError, 'stringifyResponseBody');
-        response.json = opts.bodyParser.stringify(response.body);
+        response.rawBody = opts.bodyParser.stringify(response.body);
         return rpcError;
     }
 }

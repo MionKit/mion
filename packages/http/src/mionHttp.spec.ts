@@ -40,8 +40,8 @@ describe('serverless router should', () => {
     };
 
     const updateHeaders: Route = (context: Context): void => {
-        context.response.headers['x-something'] = true;
-        context.response.headers['server'] = 'my-server';
+        context.response.headers.set('x-something', 'true');
+        context.response.headers.set('server', 'my-server');
     };
 
     let server;
