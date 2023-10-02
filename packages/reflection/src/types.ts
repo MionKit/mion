@@ -16,8 +16,9 @@ import type {
     TypeFunction,
 } from '@deepkit/type';
 import {ReflectionKind, isType, reflect} from '@deepkit/type';
-
-export {SerializedTypes} from '@deepkit/type';
+import {SerializedTypes} from '@deepkit/type';
+export type {SerializedTypes};
+// export type {SerializedTypes} from '@deepkit/type'; // does not work in bun https://github.com/oven-sh/bun/issues/74
 
 // ####### Router Options #######
 

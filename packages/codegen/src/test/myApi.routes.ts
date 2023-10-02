@@ -22,7 +22,7 @@ const getPetOrUser = (ctx, item: Pet | User): Pet | User => item;
 const logErrors = (ctx: CallContext): void => console.log(ctx.request.internalErrors);
 
 const login = (ctx: CallContext, email: string, pass: string): void => {
-    ctx.response.headers.auth = 'AUTH-TOKEN-XWZ';
+    ctx.response.headers.set('auth', 'AUTH-TOKEN-XWZ');
 };
 
 export const myApiRoutes = {

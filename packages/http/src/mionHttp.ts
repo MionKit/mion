@@ -12,10 +12,10 @@ import {DEFAULT_HTTP_OPTIONS} from './constants';
 import type {HttpOptions, HttpRequest} from './types';
 import type {IncomingMessage, Server as HttpServer, ServerResponse} from 'http';
 import type {Server as HttpsServer} from 'https';
-import type {Headers, RawRequest, Response} from '@mionkit/router';
+import type {HeaderValue, MionHeaders, MionReadonlyHeaders, MionResponse} from '@mionkit/router';
 import {RpcError, StatusCodes} from '@mionkit/core';
 
-type HeadersEntries = [string, string | boolean | number][];
+type HeadersEntries = [string, string][];
 
 // ############# PRIVATE STATE #############
 
@@ -76,13 +76,14 @@ function httpRequestHandler(httpReq: IncomingMessage, httpResponse: ServerRespon
     const bodyChunks: any[] = [];
 
     httpResponse.setHeader('server', '@mionkit/http');
-    addResponseHeaderEntries(httpResponse, defaultResponseHeaders);
+    addHeaderEntries(httpResponse, defaultResponseHeaders);
+    const reqHeaders = getRequestHeaders(httpReq);
+    const respHeaders = getResponseHeaders(httpResponse);
 
-    const dispatchReply = (routeResponse: Response) => {
+    const dispatchReply = (routeResponse: MionResponse) => {
         if (replied || httpResponse.writableEnded) return;
         replied = true;
-        addResponseHeaders(httpResponse, routeResponse.headers);
-        reply(httpResponse, routeResponse.json, routeResponse.statusCode);
+        reply(httpResponse, routeResponse.rawBody, routeResponse.statusCode);
     };
 
     // only called whe there is an htt error or weird unhandled route errors
@@ -90,9 +91,17 @@ function httpRequestHandler(httpReq: IncomingMessage, httpResponse: ServerRespon
         if (replied || httpResponse.writableEnded) return;
         replied = true;
         const error = new RpcError({statusCode, publicMessage: message, originalError: e});
-        const routeResponse = getResponseFromError('httpRequest', 'dispatch', httpReq as HttpRequest, httpResponse, error);
-        addResponseHeaders(httpResponse, routeResponse.headers);
-        reply(httpResponse, routeResponse.json, routeResponse.statusCode);
+        const routeResponse = getResponseFromError(
+            'httpRequest',
+            'dispatch',
+            '',
+            httpReq as HttpRequest,
+            httpResponse,
+            error,
+            reqHeaders,
+            respHeaders
+        );
+        reply(httpResponse, routeResponse.rawBody, routeResponse.statusCode);
     };
 
     httpReq.on('data', (data) => {
@@ -110,11 +119,9 @@ function httpRequestHandler(httpReq: IncomingMessage, httpResponse: ServerRespon
 
     httpReq.on('end', () => {
         if (replied) return;
-        // monkey patching IncomingMessage to add required body once transfer has ended
-        const body = Buffer.concat(bodyChunks).toString();
-        (httpReq as any).body = body;
+        const reqRawBody = Buffer.concat(bodyChunks).toString();
 
-        dispatchRoute(path, httpReq as any as RawRequest, httpResponse)
+        dispatchRoute(path, reqRawBody, httpReq, httpResponse, reqHeaders, respHeaders)
             .then((routeResponse) => dispatchReply(routeResponse))
             .catch((e) => fail(e));
     });
@@ -124,18 +131,37 @@ function httpRequestHandler(httpReq: IncomingMessage, httpResponse: ServerRespon
     });
 }
 
-function reply(httpResponse: ServerResponse, json: string, statusCode: number, statusMessage?: string) {
+function getResponseHeaders(resp: ServerResponse): MionHeaders {
+    return {
+        append: (name: string, value: HeaderValue) => resp.appendHeader(name.toLowerCase(), value as any as string | string[]),
+        delete: (name: string) => resp.removeHeader(name.toLowerCase()),
+        get: (name: string) => resp.getHeader(name.toLowerCase()) as HeaderValue,
+        has: (name: string) => resp.hasHeader(name.toLowerCase()),
+        set: (name: string, value: HeaderValue) => resp.setHeader(name.toLowerCase(), value),
+        entries: () => new Map(Object.entries(resp.getHeaders() as Record<string, HeaderValue>)).entries(),
+        keys: () => new Set(resp.getHeaderNames()).values(),
+        values: () => new Set(Object.values(resp.getHeaders() as Record<string, HeaderValue>)).values(),
+    };
+}
+
+function getRequestHeaders(req: IncomingMessage): MionReadonlyHeaders {
+    return {
+        get: (name: string) => req.headers[name.toLowerCase()],
+        has: (name: string) => !!req.headers[name.toLowerCase()],
+        entries: () => new Map(Object.entries(req.headers as Record<string, HeaderValue>)).entries(),
+        keys: () => new Set(Object.keys(req.headers as Record<string, HeaderValue>)).values(),
+        values: () => new Set(Object.values(req.headers as Record<string, HeaderValue>)).values(),
+    };
+}
+
+function reply(httpResponse: ServerResponse, rawBody: string, statusCode: number, statusMessage?: string) {
     if (statusMessage) httpResponse.statusMessage = statusMessage;
     httpResponse.statusCode = statusCode;
-    httpResponse.setHeader('content-length', json.length);
-    httpResponse.end(json);
+    httpResponse.setHeader('content-length', rawBody.length);
+    httpResponse.end(rawBody);
 }
 
-function addResponseHeaders(httpResponse: ServerResponse, headers: Headers) {
-    Object.entries(headers).forEach(([key, value]) => httpResponse.setHeader(key, `${value}`));
-}
-
-function addResponseHeaderEntries(httpResponse: ServerResponse, headerEntries: HeadersEntries) {
+function addHeaderEntries(httpResponse: ServerResponse, headerEntries: HeadersEntries) {
     if (!headerEntries.length) return;
-    headerEntries.forEach(([key, value]) => httpResponse.setHeader(key, `${value}`));
+    headerEntries.forEach(([key, value]) => httpResponse.setHeader(key, value));
 }
