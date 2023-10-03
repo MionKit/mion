@@ -7,6 +7,6 @@
 
 import {AwsLambdaOptions} from './types';
 
-export const DEFAULT_HTTP_OPTIONS: AwsLambdaOptions = {
+export const DEFAULT_AWS_LAMBDA_OPTIONS: AwsLambdaOptions = {
     defaultResponseHeaders: {},
 };
