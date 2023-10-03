@@ -5,20 +5,12 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {
-    registerRoutes,
-    initRouter,
-    resetRouter,
-    Routes,
-    dispatchRoute,
-    MionReadonlyHeaders,
-    readOnlyHeadersFromRecord,
-} from '@mionkit/router';
+import {registerRoutes, initRouter, resetRouter, Routes, dispatchRoute, MionHeaders, headersFromRecord} from '@mionkit/router';
 import {clientRoutes} from './client.routes';
 import {GET_REMOTE_METHODS_BY_ID, GET_REMOTE_METHODS_BY_PATH, RpcError, getRoutePath} from '@mionkit/core';
 
 type RawRequest = {
-    headers: MionReadonlyHeaders;
+    headers: MionHeaders;
     body: string;
 };
 
@@ -147,7 +139,7 @@ describe('Client Routes should', () => {
 
         const methodIdList = ['auth', 'last']; // all public hooks
         const request: RawRequest = {
-            headers: readOnlyHeadersFromRecord(),
+            headers: headersFromRecord(),
             body: JSON.stringify({
                 auth: ['token'], // hook is required
                 [methodsId]: [methodIdList],
@@ -168,7 +160,7 @@ describe('Client Routes should', () => {
 
         const methodIdList = ['users-getUser']; // all public methods
         const request: RawRequest = {
-            headers: readOnlyHeadersFromRecord(),
+            headers: headersFromRecord(),
             body: JSON.stringify({
                 auth: ['token'], // hook is required (request should be authenticated)
                 [methodsId]: [methodIdList],
@@ -191,7 +183,7 @@ describe('Client Routes should', () => {
         const methodIdList = ['auth']; // all public methods
         const getAllRemoteMethods = true;
         const request: RawRequest = {
-            headers: readOnlyHeadersFromRecord(),
+            headers: headersFromRecord(),
             body: JSON.stringify({
                 auth: ['token'], // hook is required
                 [methodsId]: [methodIdList, getAllRemoteMethods],
@@ -208,7 +200,7 @@ describe('Client Routes should', () => {
         registerRoutes(clientRoutes);
 
         const request: RawRequest = {
-            headers: readOnlyHeadersFromRecord(),
+            headers: headersFromRecord(),
             body: JSON.stringify({
                 auth: ['token'], // hook is required
                 [routeMethodsId]: ['/users-getUser'],
@@ -230,7 +222,7 @@ describe('Client Routes should', () => {
 
         const methodIdList = ['parse', 'helloWorld']; // all public methods
         const request: RawRequest = {
-            headers: readOnlyHeadersFromRecord(),
+            headers: headersFromRecord(),
             body: JSON.stringify({
                 auth: ['token'], // hook is required
                 [methodsId]: [methodIdList],
@@ -255,7 +247,7 @@ describe('Client Routes should', () => {
         registerRoutes(clientRoutes);
 
         const request: RawRequest = {
-            headers: readOnlyHeadersFromRecord(),
+            headers: headersFromRecord(),
             body: JSON.stringify({
                 auth: ['token'], // hook is required
                 [routeMethodsId]: ['/abcd'],

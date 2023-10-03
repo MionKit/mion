@@ -311,7 +311,8 @@ function recursiveCreateExecutionPath(
     if (isExec && props.isRoute) {
         const routeExecutionPath = [...preHooks, ...props.preLevelHooks, routeEntry, ...props.postLevelHooks, ...postHooks];
         const path = getRoutePath(routeEntry.pointer, routerOptions);
-        flatRouter.set(path, getFullExecutionPath(routeExecutionPath));
+        const execPath = getFullExecutionPath(routeExecutionPath);
+        flatRouter.set(path, execPath);
     } else if (!isExec) {
         recursiveFlatRoutes(
             routeEntry.routes,

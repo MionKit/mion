@@ -7,12 +7,12 @@
 
 import {registerRoutes, resetRouter, initRouter} from './router';
 import {dispatchRoute} from './dispatch';
-import {CallContext, MionReadonlyHeaders, Route, Routes} from './types';
-import {AnonymRpcError, RpcError, StatusCodes} from '@mionkit/core';
-import {readOnlyHeadersFromRecord} from '..';
+import {CallContext, MionHeaders, Route, Routes} from './types';
+import {AnonymRpcError, StatusCodes} from '@mionkit/core';
+import {headersFromRecord} from '..';
 
 type RawRequest = {
-    headers: MionReadonlyHeaders;
+    headers: MionHeaders;
     body: string;
 };
 
@@ -54,7 +54,7 @@ describe('Dispatch routes', () => {
     };
 
     const getDefaultRequest = (path: string, params?): RawRequest => ({
-        headers: readOnlyHeadersFromRecord(),
+        headers: headersFromRecord(),
         body: JSON.stringify({[path]: params}),
     });
 
@@ -77,31 +77,14 @@ describe('Dispatch routes', () => {
             registerRoutes({auth, changeUserName});
 
             const request: RawRequest = {
-                headers: readOnlyHeadersFromRecord({Authorization: '1234'}),
+                headers: headersFromRecord({Authorization: '1234'}),
                 body: JSON.stringify({['changeUserName']: [{name: 'Leo', surname: 'Tungsten'}]}),
             };
 
             const response = await dispatchRoute('/changeUserName', request.body, request, {}, request.headers);
+            console.log('response.body', response.body);
             expect(response.hasErrors).toBeFalsy();
             expect(response.body).toEqual({['changeUserName']: {name: 'LOREM', surname: 'Tungsten'}});
-        });
-
-        it('use soft serialization for header params', async () => {
-            initRouter({sharedDataFactory: getSharedData});
-            const isTrue = {
-                headerName: 'isTrue',
-                hook: (ctx, isBoolean: boolean): boolean => isBoolean,
-            };
-            registerRoutes({isTrue, changeUserName});
-
-            const request: RawRequest = {
-                headers: readOnlyHeadersFromRecord({isTrue: 'false'}),
-                body: JSON.stringify({['changeUserName']: [{name: 'Leo', surname: 'Tungsten'}]}),
-            };
-
-            const response = await dispatchRoute('/changeUserName', request.body, request, {}, request.headers);
-            expect(response.hasErrors).toBeFalsy();
-            expect(response.headers['istrue']).toEqual(false);
         });
 
         it('headers are case insensitive, returned headers alway lowercase', async () => {
@@ -113,7 +96,7 @@ describe('Dispatch routes', () => {
             registerRoutes({auth, changeUserName});
 
             const request: RawRequest = {
-                headers: readOnlyHeadersFromRecord({AuThoriZatioN: '1234'}),
+                headers: headersFromRecord({AuThoriZatioN: '1234'}),
                 body: JSON.stringify({['changeUserName']: [{name: 'Leo', surname: 'Tungsten'}]}),
             };
 
@@ -128,9 +111,9 @@ describe('Dispatch routes', () => {
 
             const path = '/sayHello';
             const id = 'sayHello';
-            const request1: RawRequest = {headers: readOnlyHeadersFromRecord(), body: ''};
-            const request2: RawRequest = {headers: readOnlyHeadersFromRecord(), body: '{}'};
-            const request3: RawRequest = {headers: readOnlyHeadersFromRecord(), body: '{"sayHello": null}'};
+            const request1: RawRequest = {headers: headersFromRecord(), body: ''};
+            const request2: RawRequest = {headers: headersFromRecord(), body: '{}'};
+            const request3: RawRequest = {headers: headersFromRecord(), body: '{"sayHello": null}'};
 
             const response1 = await dispatchRoute(path, request1.body, request1, {}, request1.headers);
             const response2 = await dispatchRoute(path, request2.body, request2, {}, request2.headers);
@@ -151,9 +134,8 @@ describe('Dispatch routes', () => {
             };
             const options = {
                 sharedDataFactory: getSharedData,
-                pathTransform: (req, path: string): string => {
-                    // publicPath = api/v1/sayHello
-                    // routePath = api/v1/getHello
+                pathTransform: (req, pathOrUrl: string | URL): string => {
+                    const path = typeof pathOrUrl === 'string' ? pathOrUrl : pathOrUrl.pathname;
                     const rPath = path.replace(`${options.prefix}/`, `${options.prefix}/${req.method.toLowerCase()}`);
                     return rPath;
                 },
@@ -234,7 +216,7 @@ describe('Dispatch routes', () => {
             registerRoutes({changeUserName});
 
             const request: RawRequest = {
-                headers: readOnlyHeadersFromRecord(),
+                headers: headersFromRecord(),
                 body: '1234',
             };
 
@@ -247,11 +229,11 @@ describe('Dispatch routes', () => {
             });
 
             const request2: RawRequest = {
-                headers: readOnlyHeadersFromRecord(),
+                headers: headersFromRecord(),
                 body: '{-12',
             };
 
-            const response2 = await dispatchRoute('/changeUserName', request.body, request2, {}, request.headers);
+            const response2 = await dispatchRoute('/changeUserName', request2.body, request2, {}, request2.headers);
             const errorResp = response2.body['mionParseJsonRequestBody'];
             expect(errorResp).toEqual({
                 statusCode: 422,

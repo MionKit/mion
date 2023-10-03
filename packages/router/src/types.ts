@@ -19,12 +19,16 @@ export type Handler<Context extends CallContext = CallContext, Ret = any> = (
 ) => Ret | Promise<Ret>;
 
 /** Header Hook Handler, hook handler for when params are sent in the header  */
-export type HeaderHandler<Context extends CallContext = CallContext, Ret = any, HValue extends HeaderValue = any> = (
+export type HeaderHandler<
+    Context extends CallContext = CallContext,
+    HReqValue extends HeaderValue = any,
+    HRespValue extends HeaderValue = any,
+> = (
     /** Call Context */
     context: Context,
     /** Remote Call parameters */
-    headerValue: HValue
-) => Ret | Promise<Ret>;
+    headerValue: HReqValue
+) => HRespValue | Promise<HRespValue>;
 
 /** Handler to use with raw hooks to get access to raw request and response */
 export type RawHookHandler<
@@ -68,10 +72,14 @@ export interface HookDef<Context extends CallContext = CallContext, Ret = any> e
 }
 
 /** Header Hook definition, used to handle header params */
-export interface HeaderHookDef<Context extends CallContext = CallContext, Ret = any> extends HookBase {
+export interface HeaderHookDef<
+    Context extends CallContext = CallContext,
+    HReqValue extends HeaderValue = any,
+    HRespValue extends HeaderValue = any,
+> extends HookBase {
     /** the name of the header in the request/response */
     headerName: string;
-    hook: HeaderHandler<Context, Ret>;
+    hook: HeaderHandler<Context, HReqValue, HRespValue>;
 }
 
 /**
@@ -112,7 +120,7 @@ export interface RouterOptions<Req = any, SharedData = any> extends CoreOptions 
      * Not path separators is added between the route and the suffix */
     suffix: string;
     /** Transform the path before finding a route */
-    pathTransform?: (request: Req, path: string) => string;
+    pathTransform?: (request: Req, pathOrUrl: string | URL) => string;
     /** factory function to initialize shared call context data */
     sharedDataFactory?: SharedDataFactory<SharedData>;
     /** enable automatic parameter validation, defaults to true */
@@ -190,7 +198,9 @@ export interface NotFoundExecutable extends Executable {
 
 /** The call Context object passed as first parameter to any hook or route */
 export type CallContext<SharedData = any> = {
-    /** Route's path after internal transformation*/
+    /** parsed request URL */
+    url?: URL;
+    /** Route's path after internal transformation */
     readonly path: string;
     /** Router's own request object */
     readonly request: MionRequest;
@@ -208,7 +218,7 @@ export type CallContext<SharedData = any> = {
 /** Router's own request object, do not confuse with the underlying raw request */
 export interface MionRequest {
     /** parsed headers */
-    readonly headers: MionReadonlyHeaders;
+    readonly headers: Readonly<MionHeaders>;
     /** json encoded request body. */
     readonly rawBody: string;
     /** parsed request body */
@@ -222,7 +232,7 @@ export interface MionResponse {
     /** response http status code */
     readonly statusCode: number;
     /** response headers */
-    readonly headers: MionHeaders;
+    readonly headers: Readonly<MionHeaders>;
     /** json encoded response body, filled only after all routes/hook has ben finalized. */
     readonly rawBody: string;
     /** the router response data, body should not be modified manually so marked as Read Only */
@@ -231,9 +241,6 @@ export interface MionResponse {
     readonly hasErrors: boolean;
 }
 
-export type HeaderSingleValue = string;
-export type HeaderValue = HeaderSingleValue | HeaderSingleValue[];
-export type MionReadonlyHeaders = Omit<MionHeaders, 'append' | 'delete' | 'set'>;
 /** Similar to Fetch API Headers https://developer.mozilla.org/en-US/docs/Web/API/Headers
  * Headers names must be case insensitive.
  * When a header has multiple values it returns an array instead a coma separated string;
@@ -248,6 +255,8 @@ export interface MionHeaders {
     keys(): IterableIterator<string>;
     values(): IterableIterator<HeaderValue>;
 }
+export type HeaderSingleValue = string;
+export type HeaderValue = HeaderSingleValue | HeaderSingleValue[];
 
 /** Function used to create the shared data object on each route call  */
 export type SharedDataFactory<SharedData> = () => SharedData;
