@@ -5,14 +5,14 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {initRouter, dispatchRoute, getResponseFromError, resetRouter} from '@mionkit/router';
+import {initRouter, dispatchRoute, getResponseFromError, resetRouter, headersFromRecord} from '@mionkit/router';
 import {createServer as createHttp} from 'http';
 import {createServer as createHttps} from 'https';
 import {DEFAULT_HTTP_OPTIONS} from './constants';
 import type {HttpOptions, HttpRequest} from './types';
 import type {IncomingMessage, Server as HttpServer, ServerResponse} from 'http';
 import type {Server as HttpsServer} from 'https';
-import type {HeaderValue, MionHeaders, MionReadonlyHeaders, MionResponse} from '@mionkit/router';
+import type {HeaderValue, MionHeaders, MionResponse} from '@mionkit/router';
 import {RpcError, StatusCodes} from '@mionkit/core';
 
 type HeadersEntries = [string, string][];
@@ -77,7 +77,7 @@ function httpRequestHandler(httpReq: IncomingMessage, httpResponse: ServerRespon
 
     httpResponse.setHeader('server', '@mionkit/http');
     addHeaderEntries(httpResponse, defaultResponseHeaders);
-    const reqHeaders = getRequestHeaders(httpReq);
+    const reqHeaders = getRequestHeader(httpReq);
     const respHeaders = getResponseHeaders(httpResponse);
 
     const dispatchReply = (routeResponse: MionResponse) => {
@@ -144,14 +144,10 @@ function getResponseHeaders(resp: ServerResponse): MionHeaders {
     };
 }
 
-function getRequestHeaders(req: IncomingMessage): MionReadonlyHeaders {
-    return {
-        get: (name: string) => req.headers[name.toLowerCase()],
-        has: (name: string) => !!req.headers[name.toLowerCase()],
-        entries: () => new Map(Object.entries(req.headers as Record<string, HeaderValue>)).entries(),
-        keys: () => new Set(Object.keys(req.headers as Record<string, HeaderValue>)).values(),
-        values: () => new Set(Object.values(req.headers as Record<string, HeaderValue>)).values(),
-    };
+function getRequestHeader(httpReq: IncomingMessage) {
+    // node headers already in lowercase
+    const toLowerCase = false;
+    return headersFromRecord(httpReq.headers as Record<string, HeaderValue>, toLowerCase);
 }
 
 function reply(httpResponse: ServerResponse, rawBody: string, statusCode: number, statusMessage?: string) {

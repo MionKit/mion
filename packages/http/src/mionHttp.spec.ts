@@ -98,6 +98,9 @@ describe('serverless router should', () => {
         expect(reply).toEqual({getDate: expectedError});
         expect(headers['connection']).toEqual('close');
         expect(headers['content-type']).toEqual('application/json; charset=utf-8');
+        // TODO: seems that deepkit error type are slightly different when running on bun and node so length is different
+        // bun: getDate.errorData.message = 'Cannot convert NOT A DATE POINT to UnknownTypeName:() => __\\u{3a9}DataPoint'
+        // node: getDate.errorData.message = 'Cannot convert NOT A DATE POINT to DataPoint'
         expect(headers['content-length']).toEqual('254');
         expect(headers['server']).toEqual('@mionkit/http');
     });

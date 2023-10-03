@@ -44,8 +44,8 @@ describe('serverless router should', () => {
     };
 
     const updateHeaders: Route = (context: Context): void => {
-        context.response.headers['x-something'] = true;
-        context.response.headers['server'] = 'my-server';
+        context.response.headers.set('x-something', 'true');
+        context.response.headers.set('server', 'my-server');
     };
 
     beforeAll(async () => {
@@ -88,7 +88,7 @@ describe('serverless router should', () => {
 
         expect(parsedResponse).toEqual({getDate: {date: '2022-04-10T02:13:00.000Z'}});
         expect(headers['content-type']).toEqual('application/json; charset=utf-8');
-        expect(headers['content-length']).toEqual(47);
+        expect(headers['content-length']).toEqual('47');
         expect(headers['server']).toEqual('@mionkit/serverless');
     });
 
@@ -108,7 +108,7 @@ describe('serverless router should', () => {
         };
         expect(parsedResponse).toEqual({getDate: expectedError});
         expect(headers['content-type']).toEqual('application/json; charset=utf-8');
-        expect(headers['content-length']).toEqual(254);
+        expect(headers['content-length']).toEqual('254');
         expect(headers['server']).toEqual('@mionkit/serverless');
     });
 
@@ -122,8 +122,8 @@ describe('serverless router should', () => {
 
         expect(parsedResponse).toEqual({});
         expect(headers['content-type']).toEqual('application/json; charset=utf-8');
-        expect(headers['content-length']).toEqual(2);
+        expect(headers['content-length']).toEqual('2');
         expect(headers['server']).toEqual('my-server');
-        expect(headers['x-something']).toEqual(true);
+        expect(headers['x-something']).toEqual('true');
     });
 });

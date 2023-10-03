@@ -5,41 +5,39 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {HeaderValue, MionHeaders, MionReadonlyHeaders, isSingleValueHeader} from '..';
+import {HeaderValue, MionHeaders, isSingleValueHeader} from '..';
 
-export function headersFromRecord(headers: Record<string, HeaderValue> = {}): MionHeaders {
-    return {
+export function headersFromRecord(headers: Record<string, HeaderValue> = {}, toLowerCase = true): MionHeaders {
+    const mionHeaders = {
+        items: headerKeysToLowerCase(headers, toLowerCase),
         append: (name: string, value: HeaderValue) => {
             const lowerName = name.toLowerCase();
-            const currentValue = headers[lowerName];
+            const currentValue = mionHeaders.items[lowerName];
             const isCurrentArray = !isSingleValueHeader(currentValue);
             const isValueArray = !isSingleValueHeader(value);
             if (isCurrentArray && isValueArray) {
-                headers[lowerName] = [...currentValue, ...value];
+                mionHeaders.items[lowerName] = [...currentValue, ...value];
             } else if (isCurrentArray && !isValueArray) {
-                headers[lowerName] = [...currentValue, value];
+                mionHeaders.items[lowerName] = [...currentValue, value];
             } else if (!isCurrentArray && isValueArray) {
-                headers[lowerName] = `${currentValue}, ${value.join(', ')}`;
+                mionHeaders.items[lowerName] = `${currentValue}, ${value.join(', ')}`;
             } else {
-                headers[lowerName] = `${currentValue}, ${value}`;
+                mionHeaders.items[lowerName] = `${currentValue}, ${value}`;
             }
         },
-        delete: (name: string) => delete headers[name.toLowerCase()],
-        get: (name: string) => headers[name.toLowerCase()],
-        has: (name: string) => !!headers[name.toLowerCase()],
-        set: (name: string, value: HeaderValue) => (headers[name.toLowerCase()] = value),
-        entries: () => new Map(Object.entries(headers)).entries(),
-        keys: () => new Set(Object.keys(headers)).values(),
-        values: () => new Set(Object.values(headers)).values(),
+        delete: (name: string) => delete mionHeaders.items[name.toLowerCase()],
+        get: (name: string) => mionHeaders.items[name.toLowerCase()],
+        set: (name: string, value: HeaderValue) => (mionHeaders.items[name.toLowerCase()] = value),
+        has: (name: string) => !!mionHeaders.items[name.toLowerCase()],
+        entries: () => new Map(Object.entries(mionHeaders.items)).entries(),
+        keys: () => new Set(Object.keys(mionHeaders.items)).values(),
+        values: () => new Set(Object.values(mionHeaders.items)).values(),
     };
+    return mionHeaders;
 }
 
-export function readOnlyHeadersFromRecord(headers: Record<string, HeaderValue> = {}): MionReadonlyHeaders {
-    return {
-        get: (name: string) => headers.headers[name.toLowerCase()],
-        has: (name: string) => !!headers.headers[name.toLowerCase()],
-        entries: () => new Map(Object.entries(headers)).entries(),
-        keys: () => new Set(Object.keys(headers)).values(),
-        values: () => new Set(Object.values(headers)).values(),
-    };
+function headerKeysToLowerCase(headers: Record<string, HeaderValue>, toLowerCase = true): Record<string, HeaderValue> {
+    if (!toLowerCase) return headers;
+    const entries = Object.entries(headers).map(([name, value]) => [name.toLowerCase(), value]);
+    return Object.fromEntries(entries);
 }
