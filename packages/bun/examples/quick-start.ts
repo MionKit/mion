@@ -28,7 +28,7 @@ const getDate: Route = (context: Context, dataPoint?: DataPoint): DataPoint => {
 };
 
 const updateHeaders: Route = (context: Context): void => {
-    context.response.headers.set('x-something', true);
+    context.response.headers.set('x-something', 'true');
     context.response.headers.set('server', 'my-server');
 };
 const port = 8079;
