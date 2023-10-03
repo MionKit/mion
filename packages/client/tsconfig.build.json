@@ -6,5 +6,5 @@
   },
   "reflection": false,
   "include": ["."],
-  "exclude": ["node_modules", "**/*.spec.ts", "examples", ".dist"]
+  "exclude": ["node_modules", "**/*.spec.ts", "**/*.test.ts", "examples", ".dist"]
 }
