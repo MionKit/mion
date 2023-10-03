@@ -6,3 +6,5 @@
  * ######## */
 
 export * from './src/awsLambda';
+export * from './src/constants';
+export * from './src/types';

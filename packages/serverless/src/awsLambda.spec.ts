@@ -6,7 +6,7 @@
  * ######## */
 
 import {registerRoutes} from '@mionkit/router';
-import {initAwsLambdaRouter, awsLambdaHandler} from './awsLambda';
+import {initAwsLambdaRouter, awsLambdaHandler, resetAwsLambdaRouter} from './awsLambda';
 import createEvent from '@serverless/event-mocks';
 import type {CallContext, Route} from '@mionkit/router';
 import type {APIGatewayProxyEventHeaders} from 'aws-lambda';
@@ -49,6 +49,7 @@ describe('serverless router should', () => {
     };
 
     beforeAll(async () => {
+        resetAwsLambdaRouter();
         initAwsLambdaRouter({sharedDataFactory: getSharedData, prefix: 'api/'});
         registerRoutes({changeUserName, getDate, updateHeaders});
     });
@@ -125,5 +126,29 @@ describe('serverless router should', () => {
         expect(headers['content-length']).toEqual('2');
         expect(headers['server']).toEqual('my-server');
         expect(headers['x-something']).toEqual('true');
+    });
+
+    it('get default headers', async () => {
+        const httpOptions = {
+            sharedDataFactory: getSharedData,
+            prefix: 'api/',
+            defaultResponseHeaders: {'x-app-name': 'MyApp', 'x-instance-id': '3089'},
+        };
+        resetAwsLambdaRouter();
+        initAwsLambdaRouter(httpOptions);
+        registerRoutes({changeUserName, getDate, updateHeaders});
+        const requestData = {getDate: [{date: new Date('2022-04-10T02:13:00.000Z')}]};
+        const {event, context} = getDefaultGatewayEvent(JSON.stringify(requestData), '/api/getDate');
+
+        const awsResponse = await awsLambdaHandler(event, context);
+        const parsedResponse = JSON.parse(awsResponse.body);
+        const headers = awsResponse.headers || {};
+
+        expect(parsedResponse).toEqual({getDate: {date: '2022-04-10T02:13:00.000Z'}});
+        expect(headers['x-app-name']).toEqual('MyApp');
+        expect(headers['x-instance-id']).toEqual('3089');
+        expect(headers['content-type']).toEqual('application/json; charset=utf-8');
+        expect(headers['content-length']).toEqual('47');
+        expect(headers['server']).toEqual('@mionkit/serverless');
     });
 });
