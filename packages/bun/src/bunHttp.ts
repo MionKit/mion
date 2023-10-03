@@ -5,14 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {
-    initRouter,
-    dispatchRoute,
-    getResponseFromError,
-    resetRouter,
-    MionResponse as MionResponse,
-    MionReadonlyHeaders,
-} from '@mionkit/router';
+import {initRouter, dispatchRoute, getResponseFromError, resetRouter, MionResponse as MionResponse} from '@mionkit/router';
 import {DEFAULT_BUN_HTTP_OPTIONS} from './constants';
 import type {BunHttpOptions} from './types';
 import {RpcError, StatusCodes} from '@mionkit/core';
@@ -45,20 +38,19 @@ export function startBunHttpServer(): Server {
         port: httpOptions.port,
         ...httpOptions.options,
         async fetch(req) {
-            const path = req.url || '/';
-
+            const url = new URL(req.url);
             const jsonBody = req.body ? await Bun.readableStreamToText(req.body) : '';
             const responseHeaders = new Headers({
                 server: '@mionkit/http',
                 ...httpOptions.defaultResponseHeaders,
             });
 
-            return dispatchRoute(path, jsonBody, req, undefined, req.headers as MionReadonlyHeaders, responseHeaders)
+            return dispatchRoute(url, jsonBody, req, undefined, req.headers, responseHeaders)
                 .then((routeResp) => reply(routeResp, responseHeaders))
                 .catch((e) => fail(req, responseHeaders, e));
         },
         error(errReq) {
-            console.log('Bun error ====> ', errReq);
+            console.log('bun error =>', errReq);
             const responseHeaders = new Headers({
                 server: '@mionkit/http',
                 ...httpOptions.defaultResponseHeaders,
@@ -72,8 +64,6 @@ export function startBunHttpServer(): Server {
         server.stop(true);
         process.exit(0);
     });
-
-    console.log('server', server);
 
     return server;
 }

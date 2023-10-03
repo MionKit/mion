@@ -16,12 +16,11 @@ import {
     isNotFoundExecutable,
     isHeaderExecutable,
     MionHeaders,
-    MionReadonlyHeaders,
 } from './types';
 import {getNotFoundExecutionPath, getRouteExecutionPath, getRouterOptions} from './router';
 import {isPromise} from 'node:util/types';
 import {Mutable, AnyObject, RpcError, StatusCodes} from '@mionkit/core';
-import { headersFromRecord, readOnlyHeadersFromRecord } from './headers';
+import {headersFromRecord} from './headers';
 
 // ############# PUBLIC METHODS #############
 
@@ -34,18 +33,18 @@ import { headersFromRecord, readOnlyHeadersFromRecord } from './headers';
  */
 
 export async function dispatchRoute<Req, Resp>(
-    path: string,
+    pathOrUrl: string | URL,
     reqRawBody: string,
     rawRequest: Req,
     rawResponse?: Resp,
-    reqHeaders?: MionReadonlyHeaders,
-    respHeaders?: MionHeaders,
+    reqHeaders?: MionHeaders,
+    respHeaders?: MionHeaders
 ): Promise<MionResponse> {
     try {
         const opts = getRouterOptions();
         // this is the call context that will be passed to all handlers
         // we should keep it as small as possible
-        const context = getEmptyCallContext(path, opts, reqRawBody, rawRequest, reqHeaders, respHeaders);
+        const context = getEmptyCallContext(pathOrUrl, opts, reqRawBody, rawRequest, reqHeaders, respHeaders);
 
         const executionPath = getRouteExecutionPath(context.path) || getNotFoundExecutionPath();
         await runExecutionPath(context, rawRequest, rawResponse, executionPath, opts);
@@ -73,7 +72,7 @@ async function runExecutionPath(
         try {
             const deserializedParams = deserializeParameters(request, executable);
             const validatedParams = validateParameters(deserializedParams, executable);
-            if (executable.inHeader) (request.headers as Mutable<MionRequest['headers']>)[executable.id] = validatedParams;
+            if (executable.inHeader) request.headers.set(executable.id, validatedParams);
             else (request.body as Mutable<MionRequest['body']>)[executable.id] = validatedParams;
 
             const result = await runHandler(validatedParams, context, rawRequest, rawResponse, executable, opts);
@@ -176,7 +175,7 @@ function validateParameters(params: any[], executable: Executable): any[] {
 function serializeResponse(executable: Executable, response: MionResponse, result: any) {
     if (!executable.canReturnData || result === undefined || !executable.reflection) return;
     const serialized = executable.enableSerialization ? executable.reflection.serializeReturn(result) : result;
-    if (isHeaderExecutable(executable)) response.headers[executable.headerName] = serialized;
+    if (isHeaderExecutable(executable)) response.headers.set(executable.headerName, serialized);
     else (response.body as Mutable<AnyObject>)[executable.id] = serialized;
 }
 
@@ -206,18 +205,20 @@ export function handleRpcErrors(
 }
 
 export function getEmptyCallContext(
-    originalPath: string,
+    pathOrUrl: string | URL,
     opts: RouterOptions,
     reqRawBody: string,
     rawRequest: unknown,
-    reqHeaders?: MionReadonlyHeaders,
-    respHeaders?: MionHeaders,
+    reqHeaders?: MionHeaders,
+    respHeaders?: MionHeaders
 ): CallContext {
-    const transformedPath = opts.pathTransform ? opts.pathTransform(rawRequest, originalPath) : originalPath;
-    return {
+    const isUrl = typeof pathOrUrl !== 'string';
+    const path = isUrl ? pathOrUrl.pathname : pathOrUrl;
+    const transformedPath = opts.pathTransform ? opts.pathTransform(rawRequest, pathOrUrl) : path;
+    const context: CallContext = {
         path: transformedPath,
         request: {
-            headers: reqHeaders || readOnlyHeadersFromRecord(),
+            headers: reqHeaders || headersFromRecord(),
             rawBody: reqRawBody,
             body: {},
             internalErrors: [],
@@ -231,4 +232,6 @@ export function getEmptyCallContext(
         },
         shared: opts.sharedDataFactory ? opts.sharedDataFactory() : {},
     };
+    if (isUrl) context.url = pathOrUrl;
+    return context;
 }

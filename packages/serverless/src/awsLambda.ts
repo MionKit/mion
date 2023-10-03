@@ -6,8 +6,8 @@
  * ######## */
 
 import {RpcError} from '@mionkit/core';
-import {initRouter, dispatchRoute, getResponseFromError, readOnlyHeadersFromRecord, headersFromRecord} from '@mionkit/router';
-import type {RouterOptions, MionResponse, HeaderValue} from '@mionkit/router';
+import {initRouter, dispatchRoute, getResponseFromError, headersFromRecord} from '@mionkit/router';
+import type {RouterOptions, MionResponse, HeaderValue, MionHeaders} from '@mionkit/router';
 import type {Context as AwsContext, APIGatewayProxyResult, APIGatewayEvent} from 'aws-lambda';
 
 // ############# PUBLIC METHODS #############
@@ -19,14 +19,12 @@ export function initAwsLambdaRouter(routerOptions?: Partial<RouterOptions<APIGat
 
 export async function awsLambdaHandler(rawRequest: APIGatewayEvent, awsContext: AwsContext): Promise<APIGatewayProxyResult> {
     const rawBody = rawRequest.body || '';
-    const reqHeaders = readOnlyHeadersFromRecord(rawRequest.headers as Record<string, string>);
+    const reqHeaders = headersFromRecord(rawRequest.headers as Record<string, string>);
     const rawRespHeaders: Record<string, HeaderValue> = {server: '@mionkit/serverless'};
     const respHeaders = headersFromRecord(rawRespHeaders);
 
     return dispatchRoute(rawRequest.path, rawBody, rawRequest, awsContext, reqHeaders, respHeaders)
-        .then((routeResponse) => {
-            return reply(routeResponse, rawRespHeaders);
-        })
+        .then((routeResponse) => reply(routeResponse, respHeaders))
         .catch((e) => {
             const error = new RpcError({statusCode: 500, publicMessage: 'Internal Error', originalError: e});
             return reply(
@@ -40,18 +38,19 @@ export async function awsLambdaHandler(rawRequest: APIGatewayEvent, awsContext: 
                     reqHeaders,
                     respHeaders
                 ),
-                rawRespHeaders
+                respHeaders
             );
         });
 }
 
 // ############# PRIVATE METHODS #############
 
-function reply(routeResponse: MionResponse, headers: Record<string, HeaderValue>): APIGatewayProxyResult {
+function reply(routeResponse: MionResponse, headers: MionHeaders): APIGatewayProxyResult {
+    headers.set('content-length', `${routeResponse.rawBody.length}`);
     const singleHeaders: Record<string, string> = {};
     const multiHeaders: Record<string, string[]> = {};
     let multiHeaderCount = 0;
-    Object.entries(headers).forEach(([name, value]) => {
+    Array.from(headers.entries()).forEach(([name, value]) => {
         if (Array.isArray(value)) {
             multiHeaders[name] = value;
             multiHeaderCount++;
