@@ -1,7 +1,7 @@
 {
   "name": "@mionkit/bun",
   "version": "0.6.2",
-  "description": "mion standard hooks and routes",
+  "description": "mion server for bun runtime",
   "keywords": [
     "typescript",
     "API",
@@ -17,7 +17,7 @@
     "deepkit"
   ],
   "author": "ma jerez <jerez.m82@gmail.com>",
-  "homepage": "https://github.com/MionKit/mion/tree/main/packages/client#readme",
+  "homepage": "https://github.com/MionKit/mion/tree/main/packages/bun#readme",
   "license": "MIT",
   "main": ".dist/cjs/index.js",
   "module": ".dist/esm/index.js",

@@ -43,7 +43,7 @@ export async function startHttpServer(): Promise<HttpServer | HttpsServer> {
 
     const port = httpOptions.port !== 80 ? `:${httpOptions.port}` : '';
     const url = `${httpOptions.protocol}://localhost${port}`;
-    if (!isTest) console.log(`mion server running on ${url}`);
+    if (!isTest) console.log(`mion node server running on ${url}`);
 
     return new Promise<HttpServer | HttpsServer>((resolve, reject) => {
         const server =

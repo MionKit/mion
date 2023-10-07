@@ -31,26 +31,27 @@ const isTest = process.env.NODE_ENV === 'test';
 export function startBunHttpServer(): Server {
     const port = httpOptions.port !== 80 ? `:${httpOptions.port}` : '';
     const url = `http://localhost${port}`;
-    if (!isTest) console.log(`mion server running on ${url}`);
+    if (!isTest) console.log(`mion bun server running on ${url}`);
 
     const server = Bun.serve({
         maxRequestBodySize: httpOptions.maxBodySize,
         port: httpOptions.port,
         ...httpOptions.options,
         async fetch(req) {
-            const url = new URL(req.url);
-            const jsonBody = req.body ? await Bun.readableStreamToText(req.body) : '';
+            const pathIndex = req.url.indexOf('/', 12);
+            const queryIndex = req.url.indexOf('?', pathIndex + 1);
+            const path = queryIndex === -1 ? req.url.substring(pathIndex) : req.url.substring(pathIndex, queryIndex);
+            const rawBody = req.body ? await Bun.readableStreamToText(req.body) : '';
             const responseHeaders = new Headers({
                 server: '@mionkit/http',
                 ...httpOptions.defaultResponseHeaders,
             });
 
-            return dispatchRoute(url, jsonBody, req, undefined, req.headers, responseHeaders)
+            return dispatchRoute(path, rawBody, req, undefined, req.headers, responseHeaders)
                 .then((routeResp) => reply(routeResp, responseHeaders))
                 .catch((e) => fail(req, responseHeaders, e));
         },
         error(errReq) {
-            console.log('bun error =>', errReq);
             const responseHeaders = new Headers({
                 server: '@mionkit/http',
                 ...httpOptions.defaultResponseHeaders,

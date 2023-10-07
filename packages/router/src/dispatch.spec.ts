@@ -134,8 +134,7 @@ describe('Dispatch routes', () => {
             };
             const options = {
                 sharedDataFactory: getSharedData,
-                pathTransform: (req, pathOrUrl: string | URL): string => {
-                    const path = typeof pathOrUrl === 'string' ? pathOrUrl : pathOrUrl.pathname;
+                pathTransform: (req, path: string): string => {
                     const rPath = path.replace(`${options.prefix}/`, `${options.prefix}/${req.method.toLowerCase()}`);
                     return rPath;
                 },
