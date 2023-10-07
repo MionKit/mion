@@ -33,7 +33,7 @@ import {headersFromRecord} from './headers';
  */
 
 export async function dispatchRoute<Req, Resp>(
-    pathOrUrl: string | URL,
+    path: string,
     reqRawBody: string,
     rawRequest: Req,
     rawResponse?: Resp,
@@ -44,7 +44,7 @@ export async function dispatchRoute<Req, Resp>(
         const opts = getRouterOptions();
         // this is the call context that will be passed to all handlers
         // we should keep it as small as possible
-        const context = getEmptyCallContext(pathOrUrl, opts, reqRawBody, rawRequest, reqHeaders, respHeaders);
+        const context = getEmptyCallContext(path, opts, reqRawBody, rawRequest, reqHeaders, respHeaders);
 
         const executionPath = getRouteExecutionPath(context.path) || getNotFoundExecutionPath();
         await runExecutionPath(context, rawRequest, rawResponse, executionPath, opts);
@@ -205,17 +205,15 @@ export function handleRpcErrors(
 }
 
 export function getEmptyCallContext(
-    pathOrUrl: string | URL,
+    path: string,
     opts: RouterOptions,
     reqRawBody: string,
     rawRequest: unknown,
     reqHeaders?: MionHeaders,
     respHeaders?: MionHeaders
 ): CallContext {
-    const isUrl = typeof pathOrUrl !== 'string';
-    const path = isUrl ? pathOrUrl.pathname : pathOrUrl;
-    const transformedPath = opts.pathTransform ? opts.pathTransform(rawRequest, pathOrUrl) : path;
-    const context: CallContext = {
+    const transformedPath = opts.pathTransform ? opts.pathTransform(rawRequest, path) : path;
+    return {
         path: transformedPath,
         request: {
             headers: reqHeaders || headersFromRecord(),
@@ -232,6 +230,4 @@ export function getEmptyCallContext(
         },
         shared: opts.sharedDataFactory ? opts.sharedDataFactory() : {},
     };
-    if (isUrl) context.url = pathOrUrl;
-    return context;
 }
