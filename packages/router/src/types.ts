@@ -120,7 +120,7 @@ export interface RouterOptions<Req = any, SharedData = any> extends CoreOptions 
      * Not path separators is added between the route and the suffix */
     suffix: string;
     /** Transform the path before finding a route */
-    pathTransform?: (request: Req, pathOrUrl: string | URL) => string;
+    pathTransform?: (request: Req, path: string) => string;
     /** factory function to initialize shared call context data */
     sharedDataFactory?: SharedDataFactory<SharedData>;
     /** enable automatic parameter validation, defaults to true */
@@ -198,8 +198,6 @@ export interface NotFoundExecutable extends Executable {
 
 /** The call Context object passed as first parameter to any hook or route */
 export type CallContext<SharedData = any> = {
-    /** parsed request URL */
-    url?: URL;
     /** Route's path after internal transformation */
     readonly path: string;
     /** Router's own request object */
