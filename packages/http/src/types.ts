@@ -9,7 +9,7 @@ import {RouterOptions} from '@mionkit/router';
 import {IncomingMessage} from 'http';
 import {ServerOptions} from 'https';
 
-export interface HttpOptions extends Partial<RouterOptions<HttpRequest>> {
+export interface NodeHttpOptions extends Partial<RouterOptions<IncomingMessage>> {
     protocol: 'http' | 'https';
     port: number;
     /** ServerOptions.maxHeaderSize defaults to 8KB, same as default value in new node versions */
@@ -21,10 +21,6 @@ export interface HttpOptions extends Partial<RouterOptions<HttpRequest>> {
      * @link https://docs.aws.amazon.com/lambda/latest/operatorguide/payload.html
      * */
     maxBodySize: number; // default 256KB
-}
-
-export interface HttpRequest extends IncomingMessage {
-    body: string;
 }
 
 // // fix for missing fetch types in node 18
