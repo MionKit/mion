@@ -48,14 +48,15 @@ jobs:
             ${{ runner.os }}-build-${{ env.cache-name }}-
             ${{ runner.os }}-build-
             ${{ runner.os }}-
-      - name: Restore Nuxt cache
-        uses: actions/cache@v3
-        with:
-          path: |
-            ./website/.output
-          key: ${{ runner.os }}-nuxt-build-${{ hashFiles('./website/.output') }}
-          restore-keys: |
-            ${{ runner.os }}-nuxt-build-
+      # disable cache temp (build failing when removing pages)
+      # - name: Restore Nuxt cache
+      #   uses: actions/cache@v3
+      #   with:
+      #     path: |
+      #       ./website/.output
+      #     key: ${{ runner.os }}-nuxt-build-${{ hashFiles('./website/.output') }}
+      #     restore-keys: |
+      #       ${{ runner.os }}-nuxt-build-
       - name: Install dependencies
         working-directory: website
         run: npm ci
