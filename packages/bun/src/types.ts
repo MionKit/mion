@@ -10,7 +10,7 @@ import {Serve} from 'bun';
 
 export type BunServerOptions = Omit<Serve, 'fetch' | 'error'>;
 
-export interface BunHttpOptions extends Partial<RouterOptions<MionRequest>> {
+export interface BunHttpOptions extends Partial<RouterOptions<Request>> {
     port: number;
     /** Bun Server Options */
     options: BunServerOptions;
@@ -21,9 +21,4 @@ export interface BunHttpOptions extends Partial<RouterOptions<MionRequest>> {
      * @link https://docs.aws.amazon.com/lambda/latest/operatorguide/payload.html
      * */
     maxBodySize: number; // default 256KB
-}
-
-export interface MionRequest extends Omit<Request, 'body' | 'headers'> {
-    body: string;
-    headers: Record<string, string>;
 }

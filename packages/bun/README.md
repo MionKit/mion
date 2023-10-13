@@ -6,7 +6,7 @@
   </picture>
 </p>
 <p align="center">
-  <strong>mion http server for bun.
+  <strong>mion Bun HTTP Server.
   </strong>
 </p>
 <p align=center>
@@ -16,17 +16,9 @@
 
 # `@mionkit/bun`
 
-- Loader for support for @deepkit/type-compiler in bum
-- mion's http server for bun
+**mion is an RPC like router oriented for quick Api development,** it is agnostic about the environment it is used on. It could be used on [serverless environments](../serverless/README.md), or as an standalone http server. it offers quick development, fast execution and a Lightweight router. [Benchmarks here!](https://github.com/MionKit/benchmarks) 🚀
 
-## runtime types WIP
-
-- Loader for @deepkit/type-compiler in `src/ryntypes-loader`
-- requires setting the loader in `bunfig.toml` (both for run and test files)
-- the preload config seems to only accept relative paths
-- no option to pass tsConfig path
-- there is no way to pas source Maps from ts transpilation, Maybe inlined source Maps?
-- the test files are themselves are not transformed using the Loader so any code that emits type metadata must be outside the test file
+This is the [bun](https://bun.sh/) http server for mion, only supports `json` content type, does not support `multipart/form-data`, no websocket or streams and no file upload neither. There are better alternatives for those scenarios (like S3 file upload, etc).
 
 ## Check Out The [Website And Documentation](http://mion.io) 📚
 
@@ -34,4 +26,4 @@
 
 ---
 
-[MIT LICENSE](../../LICENSE)
+_[MIT](../../LICENSE) LICENSE_

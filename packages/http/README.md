@@ -6,7 +6,7 @@
   </picture>
 </p>
 <p align="center">
-  <strong>mion HTTP Server for quick Api development.
+  <strong>mion Node.js HTTP server.
   </strong>
 </p>
 <p align=center>
@@ -16,11 +16,9 @@
 
 # `@mionkit/http`
 
-**mion router is an RPC like router oriented for quick Api development,** it is agnostic about the environment it is used on. It could be used on [serverless environments](../serverless/README.md), or as an standalone http server.
+**mion is an RPC like router oriented for quick Api development,** it is agnostic about the environment it is used on. It could be used on [serverless environments](../serverless/README.md), or as an standalone http server. it offers quick development, fast execution and a Lightweight router. [Benchmarks here!](https://github.com/MionKit/benchmarks) 🚀
 
-**mion Server is well suited a very specific scenario, that is Apis that works with json data only**. In return it offers quick development, fast execution and a Lightweight router. [Benchmarks here!](https://github.com/MionKit/benchmarks) 🚀
-
-This is a limited http server, only supports `application/json` content type, does not support multipart/form-data, no websocket or streams and no file upload neither. There are better alternatives for those scenarios (like S3 file upload, etc).
+This is the [Node.js](https://nodejs.org/en) http server for mion, only supports `json` content type, does not support `multipart/form-data`, no websocket or streams and no file upload neither. There are better alternatives for those scenarios (like S3 file upload, etc).
 
 ## Check Out The [Website And Documentation](http://mion.io) 📚
 
