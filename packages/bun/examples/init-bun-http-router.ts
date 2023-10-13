@@ -1,4 +1,4 @@
-import {initHttpRouter, startHttpServer} from '@mionkit/http';
+import {initBunHttpRouter, startBunHttpServer} from '@mionkit/bun';
 import {Routes, registerRoutes} from '@mionkit/router';
 import {authHook, authDataFactory} from './auth.routes.ts';
 import {logHook} from './log.routes.ts';
@@ -16,9 +16,9 @@ const sharedDataFactory = () => ({
     ...authDataFactory(),
 });
 
-// #### Init Node Http Server ####
+// #### Init Bun Http Server ####
 const routerOptions = {sharedDataFactory, prefix: 'api/'};
 const httpOptions = {...routerOptions, port: 8080};
-initHttpRouter(httpOptions);
+initBunHttpRouter(httpOptions);
 registerRoutes(routes);
-startHttpServer();
+startBunHttpServer();

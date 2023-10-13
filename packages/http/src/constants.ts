@@ -5,14 +5,14 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {HttpOptions} from './types';
+import {NodeHttpOptions} from './types';
 
 export const CONTENT_TYPE_HEADER_NAME = 'content-type';
 export const ACCEPT_JSON = 'application/json';
 export const JSON_CONTENT_TYPE = 'application/json; charset=utf-8';
 export const JSON_TYPE_HEADER = {CONTENT_TYPE_HEADER_NAME: JSON_CONTENT_TYPE};
 
-export const DEFAULT_HTTP_OPTIONS: HttpOptions = {
+export const DEFAULT_HTTP_OPTIONS: NodeHttpOptions = {
     protocol: 'http',
     port: 80,
     options: {

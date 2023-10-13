@@ -9,7 +9,7 @@ import {initRouter, dispatchRoute, getResponseFromError, resetRouter, headersFro
 import {createServer as createHttp} from 'http';
 import {createServer as createHttps} from 'https';
 import {DEFAULT_HTTP_OPTIONS} from './constants';
-import type {HttpOptions, HttpRequest} from './types';
+import type {NodeHttpOptions} from './types';
 import type {IncomingMessage, Server as HttpServer, ServerResponse} from 'http';
 import type {Server as HttpsServer} from 'https';
 import type {HeaderValue, MionHeaders, MionResponse} from '@mionkit/router';
@@ -19,7 +19,7 @@ type HeadersEntries = [string, string][];
 
 // ############# PRIVATE STATE #############
 
-let httpOptions: Readonly<HttpOptions> = {...DEFAULT_HTTP_OPTIONS};
+let httpOptions: Readonly<NodeHttpOptions> = {...DEFAULT_HTTP_OPTIONS};
 let defaultResponseHeaders: HeadersEntries = [];
 const isTest = process.env.NODE_ENV === 'test';
 
@@ -31,7 +31,7 @@ export function resetHttpRouter() {
     resetRouter();
 }
 
-export function initHttpRouter<Opts extends Partial<HttpOptions>>(options?: Opts) {
+export function initHttpRouter<Opts extends Partial<NodeHttpOptions>>(options?: Opts) {
     httpOptions = initRouter({
         ...httpOptions,
         ...options,
@@ -71,7 +71,9 @@ export async function startHttpServer(): Promise<HttpServer | HttpsServer> {
 
 function httpRequestHandler(httpReq: IncomingMessage, httpResponse: ServerResponse): void {
     let replied = false;
-    const path = httpReq.url || '/';
+    const nodeUrl = httpReq.url || '/';
+    const queryIndex = nodeUrl.indexOf('?');
+    const path = queryIndex === -1 ? nodeUrl : nodeUrl.substring(0, queryIndex);
     let size = 0;
     const bodyChunks: any[] = [];
 
@@ -95,7 +97,7 @@ function httpRequestHandler(httpReq: IncomingMessage, httpResponse: ServerRespon
             'httpRequest',
             'dispatch',
             '',
-            httpReq as HttpRequest,
+            httpReq,
             httpResponse,
             error,
             reqHeaders,
