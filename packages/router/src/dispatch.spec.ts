@@ -237,7 +237,7 @@ describe('Dispatch routes', () => {
             expect(errorResp).toEqual({
                 statusCode: 422,
                 name: 'Parsing Request Body Error',
-                message: 'Invalid request body: Unexpected number in JSON at position 1',
+                message: expect.stringContaining('Invalid request body:'), // Nodejs error is slightly different depending on node version
             } satisfies AnonymRpcError);
         });
 
