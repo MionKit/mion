@@ -8,34 +8,31 @@
 import {join} from 'path';
 import {DEFAULT_ROUTE_OPTIONS, MAX_ROUTE_NESTING} from './constants';
 import {
-    Executable,
-    HookDef,
+    isRawHookDef,
+    isHeaderHookDef,
     isExecutable,
     isHandler,
     isHookDef,
     isRoute,
     isRoutes,
+    isRouteDef,
+    isAnyHookDef,
+} from './types/guards';
+import type {
+    Executable,
     Route,
-    RouteDef,
     RouterOptions,
     Routes,
     RouteExecutable,
     HookExecutable,
-    RemoteApi,
-    RawHookDef,
     RawExecutable,
     NotFoundExecutable,
-    isRawHookDef,
-    isHeaderHookDef,
-    HeaderHookDef,
-    AnyHandler,
     RouterEntry,
-    isRouteDef,
-    isAnyHookDef,
-    PrivateHookDef,
-    HooksCollection,
     HookHeaderExecutable,
-} from './types';
+} from './types/general';
+import type {RemoteApi, PrivateHookDef, HooksCollection} from './types/remote';
+import type {HeaderHookDef, HookDef, RouteDef, RawHookDef} from './types/definitions';
+import type {AnyHandler} from './types/handlers';
 import {ReflectionOptions, getFunctionReflectionMethods} from '@mionkit/reflection';
 import {bodyParserHooks} from './jsonBodyParser';
 import {RpcError, StatusCodes, getRouterItemId, setErrorOptions, getRoutePath} from '@mionkit/core';

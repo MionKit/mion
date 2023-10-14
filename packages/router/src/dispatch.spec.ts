@@ -7,7 +7,8 @@
 
 import {registerRoutes, resetRouter, initRouter} from './router';
 import {dispatchRoute} from './dispatch';
-import {CallContext, MionHeaders, Route, Routes} from './types';
+import {CallContext, MionHeaders} from './types/context';
+import {Route, Routes} from './types/general';
 import {AnonymRpcError, StatusCodes} from '@mionkit/core';
 import {headersFromRecord} from '..';
 
