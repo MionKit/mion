@@ -5,7 +5,10 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {MionResponse, MionRequest, RouterOptions, HooksCollection, CallContext, ErrorReturn, RawHookDef} from './types';
+import type {MionResponse, MionRequest, CallContext} from './types/context';
+import type {RouterOptions} from './types/general';
+import type {HooksCollection, ErrorReturn} from './types/remote';
+import type {RawHookDef} from './types/definitions';
 import {RpcError, StatusCodes, AnyObject, Mutable} from '@mionkit/core';
 import {handleRpcErrors} from './dispatch';
 

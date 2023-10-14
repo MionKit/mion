@@ -1,9 +1,9 @@
-import {Obj, RpcError} from '@mionkit/core';
+import {AnyObject, RpcError} from '@mionkit/core';
 import {registerRoutes, Routes, CallContext} from '@mionkit/router';
 import {IncomingMessage} from 'http';
 
 export type HttpRequest = IncomingMessage & {body: string};
-export type Shared = () => Obj;
+export type Shared = () => AnyObject;
 export type Context = CallContext<Shared>;
 
 const routes = {

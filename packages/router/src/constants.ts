@@ -5,8 +5,9 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {HookDef, RouteDef, RouterOptions} from './types';
 import {DEFAULT_REFLECTION_OPTIONS} from '@mionkit/reflection';
+import {RouteDef, HookDef} from './types/definitions';
+import {RouterOptions} from './types/general';
 
 export const DEFAULT_ROUTE: Readonly<Required<RouteDef>> = {
     description: '',

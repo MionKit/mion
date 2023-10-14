@@ -5,7 +5,8 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {HeaderValue, MionHeaders, isSingleValueHeader} from '..';
+import type {HeaderValue, MionHeaders} from './types/context';
+import {isSingleValueHeader} from './types/guards';
 
 export function headersFromRecord(headers: Record<string, HeaderValue> = {}, toLowerCase = true): MionHeaders {
     const mionHeaders = {

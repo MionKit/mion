@@ -5,6 +5,9 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
+import type {Routes} from './types/general';
+import type {HookDef, RouteDef} from './types/definitions';
+import type {Handler} from './types/handlers';
 import {
     registerRoutes,
     geHooksSize,
@@ -18,7 +21,6 @@ import {
     addStartHooks,
     addEndHooks,
 } from './router';
-import {Handler, HookDef, RouteDef, Routes} from './types';
 
 describe('Create routes should', () => {
     const hook: HookDef = {hook(): void {}};

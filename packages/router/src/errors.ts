@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {MionHeaders, MionResponse} from './types';
+import {MionHeaders, MionResponse} from './types/context';
 import {stringifyResponseBody} from './jsonBodyParser';
 import {getRouterOptions} from './router';
 import {RpcError, StatusCodes} from '@mionkit/core';
