@@ -5,8 +5,8 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 import {expect, test, beforeAll, afterAll, describe} from 'bun:test';
-import {registerRoutes} from '@mionkit/router';
-import {initBunHttpRouter, resetBunHttpRouter, startBunHttpServer} from './bunHttp';
+import {initRouter, registerRoutes} from '@mionkit/router';
+import {setBunHttpOpts, resetBunHttpOpts, startBunServer} from './bunHttp';
 import type {CallContext} from '@mionkit/router';
 import {AnonymRpcError} from '@mionkit/core';
 // In theory node 18 supports fetch but not working fine with jest, we should update to jest 29
@@ -16,7 +16,7 @@ import fetch from 'node-fetch';
 import {Server} from 'bun';
 
 describe('serverless router should', () => {
-    resetBunHttpRouter();
+    resetBunHttpOpts();
     type SimpleUser = {name: string; surname: string};
     type DataPoint = {date: Date};
     type MySharedData = ReturnType<typeof getSharedData>;
@@ -50,9 +50,10 @@ describe('serverless router should', () => {
 
     const port = 8079;
     beforeAll(() => {
-        initBunHttpRouter({sharedDataFactory: getSharedData, prefix: 'api/', port});
+        initRouter({sharedDataFactory: getSharedData, prefix: 'api/'});
         registerRoutes({changeUserName, getDate, updateHeaders});
-        server = startBunHttpServer();
+        setBunHttpOpts({port});
+        server = startBunServer();
     });
 
     afterAll(() => {
@@ -119,17 +120,20 @@ describe('serverless router should', () => {
     // TODO: maxBodySize not working correctly in bun: https://github.com/oven-sh/bun/issues/6031
     test('get an error when body size is too large and get default headers', async () => {
         const smallPort = port + 1;
-        const httpOptions = {
+        const routerOpts = {
             sharedDataFactory: getSharedData,
             prefix: 'api/',
+        };
+        const bunOpts = {
             port: smallPort,
             // maxBodySize: 10,
             defaultResponseHeaders: {'x-app-name': 'MyApp', 'x-instance-id': '3089'},
         };
-        resetBunHttpRouter();
-        initBunHttpRouter(httpOptions);
+        resetBunHttpOpts();
+        initRouter(routerOpts);
+        setBunHttpOpts(bunOpts);
         registerRoutes({changeUserName, getDate, updateHeaders});
-        const smallServer = await startBunHttpServer();
+        const smallServer = await startBunServer();
         let err;
         try {
             const requestData = {getDate: [{date: new Date('2022-04-22T00:17:00.000Z')}]};

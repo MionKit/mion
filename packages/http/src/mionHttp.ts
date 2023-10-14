@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {initRouter, dispatchRoute, getResponseFromError, resetRouter, headersFromRecord} from '@mionkit/router';
+import {dispatchRoute, getResponseFromError, resetRouter, headersFromRecord} from '@mionkit/router';
 import {createServer as createHttp} from 'http';
 import {createServer as createHttps} from 'https';
 import {DEFAULT_HTTP_OPTIONS} from './constants';
@@ -25,20 +25,22 @@ const isTest = process.env.NODE_ENV === 'test';
 
 // ############# PUBLIC METHODS #############
 
-export function resetHttpRouter() {
+export function resetNodeHttpOpts() {
     httpOptions = {...DEFAULT_HTTP_OPTIONS};
     defaultResponseHeaders = [];
     resetRouter();
 }
 
-export function initHttpRouter<Opts extends Partial<NodeHttpOptions>>(options?: Opts) {
-    httpOptions = initRouter({
+export function setNodeHttpOpts(options?: Partial<NodeHttpOptions>) {
+    httpOptions = {
         ...httpOptions,
         ...options,
-    });
+    };
+
+    return httpOptions;
 }
 
-export async function startHttpServer(): Promise<HttpServer | HttpsServer> {
+export async function startNodeServer(): Promise<HttpServer | HttpsServer> {
     defaultResponseHeaders = Object.entries(httpOptions.defaultResponseHeaders);
 
     const port = httpOptions.port !== 80 ? `:${httpOptions.port}` : '';

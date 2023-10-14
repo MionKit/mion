@@ -1,5 +1,5 @@
-import {initAwsLambdaRouter, awsLambdaHandler} from '@mionkit/serverless';
-import {CallContext, registerRoutes, Route} from '@mionkit/router';
+import {awsLambdaHandler} from '@mionkit/serverless';
+import {CallContext, initRouter, registerRoutes, Route} from '@mionkit/router';
 
 // #### App ####
 
@@ -24,7 +24,7 @@ const getDate: Route = (ctx: CallContext, dataPoint?: DataPoint): DataPoint => {
 // #### Init App ####
 const routerOpts = {sharedDataFactory, prefix: 'api/'};
 const routes = {changeUserName, getDate};
-initAwsLambdaRouter(routerOpts);
+initRouter(routerOpts);
 export const myApi = registerRoutes(routes);
 
 // Aws Lambda Handler

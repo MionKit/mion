@@ -5,11 +5,9 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {RouterOptions} from '@mionkit/router';
-import {IncomingMessage} from 'http';
 import {ServerOptions} from 'https';
 
-export interface NodeHttpOptions extends Partial<RouterOptions<IncomingMessage>> {
+export interface NodeHttpOptions {
     protocol: 'http' | 'https';
     port: number;
     /** ServerOptions.maxHeaderSize defaults to 8KB, same as default value in new node versions */

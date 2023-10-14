@@ -5,9 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {RouterOptions} from '@mionkit/router';
-
-export interface AwsLambdaOptions extends Partial<RouterOptions> {
+export interface AwsLambdaOptions {
     /** Set of default response header to add to every response*/
     defaultResponseHeaders: Record<string, string>;
 }
