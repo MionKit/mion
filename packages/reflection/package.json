@@ -1,6 +1,6 @@
 {
   "name": "@mionkit/reflection",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "description": "reflection for mion routes and hooks, based on @deepkit/type",
   "keywords": [
     "typescript",
@@ -60,8 +60,8 @@
   "dependencies": {
     "@deepkit/core": "1.0.1-alpha.97",
     "@deepkit/type": "1.0.1-alpha.97",
-    "@mionkit/core": "^0.6.0",
-    "@mionkit/runtype": "^0.6.0"
+    "@mionkit/core": "^0.7.0",
+    "@mionkit/runtype": "^0.7.0"
   },
   "gitHead": "2efdcd77c572e64f2b9621b4921ffd2f5e83bc0a"
 }
