@@ -11,7 +11,7 @@
     "api"
   ],
   "author": "ma jerez <jerez.m82@gmail.com>",
-  "homepage": "https://github.com/MionKit/mion/tree/main/packages/cli#readme",
+  "homepage": "https://mion.io/",
   "license": "MIT",
   "main": ".dist/cli.js",
   "types": ".dist/cli.d.ts",
