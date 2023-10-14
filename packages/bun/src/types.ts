@@ -5,15 +5,12 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {RouterOptions} from '@mionkit/router';
 import {Serve} from 'bun';
 
-export type BunServerOptions = Omit<Serve, 'fetch' | 'error'>;
-
-export interface BunHttpOptions extends Partial<RouterOptions<Request>> {
+export interface BunHttpOptions {
     port: number;
     /** Bun Server Options */
-    options: BunServerOptions;
+    options: Omit<Serve, 'fetch' | 'error'>;
     /** Set of default response header to add to every response*/
     defaultResponseHeaders: Record<string, string>;
     /**

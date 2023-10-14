@@ -5,8 +5,8 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {registerRoutes} from '@mionkit/router';
-import {initAwsLambdaRouter, awsLambdaHandler, resetAwsLambdaRouter} from './awsLambda';
+import {initRouter, registerRoutes} from '@mionkit/router';
+import {awsLambdaHandler, resetAwsLambdaOpts, setAwsLambdaOpts} from './awsLambda';
 import createEvent from '@serverless/event-mocks';
 import type {CallContext, Route} from '@mionkit/router';
 import type {APIGatewayProxyEventHeaders} from 'aws-lambda';
@@ -49,8 +49,8 @@ describe('serverless router should', () => {
     };
 
     beforeAll(async () => {
-        resetAwsLambdaRouter();
-        initAwsLambdaRouter({sharedDataFactory: getSharedData, prefix: 'api/'});
+        resetAwsLambdaOpts();
+        initRouter({sharedDataFactory: getSharedData, prefix: 'api/'});
         registerRoutes({changeUserName, getDate, updateHeaders});
     });
 
@@ -129,13 +129,19 @@ describe('serverless router should', () => {
     });
 
     it('get default headers', async () => {
-        const httpOptions = {
+        const routerOpts = {
             sharedDataFactory: getSharedData,
             prefix: 'api/',
-            defaultResponseHeaders: {'x-app-name': 'MyApp', 'x-instance-id': '3089'},
         };
-        resetAwsLambdaRouter();
-        initAwsLambdaRouter(httpOptions);
+        const awsOpts = {
+            defaultResponseHeaders: {
+                'x-app-name': 'MyApp',
+                'x-instance-id': '3089',
+            },
+        };
+        resetAwsLambdaOpts();
+        setAwsLambdaOpts(awsOpts);
+        initRouter(routerOpts);
         registerRoutes({changeUserName, getDate, updateHeaders});
         const requestData = {getDate: [{date: new Date('2022-04-10T02:13:00.000Z')}]};
         const {event, context} = getDefaultGatewayEvent(JSON.stringify(requestData), '/api/getDate');

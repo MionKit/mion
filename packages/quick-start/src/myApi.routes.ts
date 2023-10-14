@@ -1,7 +1,6 @@
 import {RpcError} from '@mionkit/core';
 import {Routes, RouterOptions, initRouter, registerRoutes} from '@mionkit/router';
-import {clientRoutes} from '@mionkit/client';
-import {Logger} from 'Logger';
+import {clientRoutes} from '@mionkit/common';
 
 export type User = {id: string; name: string; surname: string};
 export type Order = {id: string; date: Date; userId: string; totalUSD: number};
@@ -30,14 +29,15 @@ export const routes = {
     log: {
         forceRunOnError: true,
         hook: (ctx): void => {
-            Logger.log(ctx.path, ctx.response.statusCode);
-            if (ctx.request.internalErrors.length) Logger.error(ctx.path, ctx.request.internalErrors);
+            const now = Date.now();
+            console.log(now, ctx.path, ctx.response.statusCode);
+            if (ctx.request.internalErrors.length) console.error(now, ctx.path, ctx.request.internalErrors);
         },
     },
 } satisfies Routes;
 
 // set options and init router
-export const routerOptions: RouterOptions = {prefix: 'api/v1'};
+export const routerOptions: Partial<RouterOptions> = {prefix: 'api/v1'};
 initRouter(routerOptions);
 
 // register routes and exporting the type of the Api (used by the client)

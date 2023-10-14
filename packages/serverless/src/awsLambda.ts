@@ -6,30 +6,29 @@
  * ######## */
 
 import {RpcError} from '@mionkit/core';
-import {initRouter, dispatchRoute, getResponseFromError, headersFromRecord, resetRouter} from '@mionkit/router';
-import type {RouterOptions, MionResponse, HeaderValue, MionHeaders} from '@mionkit/router';
+import {dispatchRoute, getResponseFromError, headersFromRecord, resetRouter} from '@mionkit/router';
+import type {MionResponse, HeaderValue, MionHeaders} from '@mionkit/router';
 import type {Context as AwsContext, APIGatewayProxyResult, APIGatewayEvent} from 'aws-lambda';
 import {DEFAULT_AWS_LAMBDA_OPTIONS} from './constants';
 import {AwsLambdaOptions} from '..';
 
-// ############# PUBLIC METHODS #############
+// ############# STATE #############
 
 let lambdaOptions: Readonly<AwsLambdaOptions> = {...DEFAULT_AWS_LAMBDA_OPTIONS};
-const isTest = process.env.NODE_ENV === 'test';
 
 // ############# PUBLIC METHODS #############
 
-export function resetAwsLambdaRouter() {
+export function resetAwsLambdaOpts() {
     lambdaOptions = {...DEFAULT_AWS_LAMBDA_OPTIONS};
     resetRouter();
 }
 
-export function initAwsLambdaRouter(routerOptions?: Partial<RouterOptions<APIGatewayEvent>>) {
-    if (!isTest) console.log(`mion aws serverless router running.`);
-    lambdaOptions = initRouter({
+export function setAwsLambdaOpts(routerOptions?: Partial<AwsLambdaOptions>) {
+    lambdaOptions = {
         ...lambdaOptions,
         ...routerOptions,
-    });
+    };
+    return lambdaOptions;
 }
 
 export async function awsLambdaHandler(rawRequest: APIGatewayEvent, awsContext: AwsContext): Promise<APIGatewayProxyResult> {
