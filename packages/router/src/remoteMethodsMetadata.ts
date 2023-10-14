@@ -5,6 +5,10 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
+import type {Handler} from './types/handlers';
+import type {Executable, HookExecutable, RouteExecutable, RouterEntry, Routes} from './types/general';
+import type {RemoteApi, RemoteHandler, RemoteMethodMetadata} from './types/remote';
+import {isRoute, isHeaderHookDef, isHookDef, isPublicExecutable} from './types/guards';
 import {
     getHookExecutable,
     getRouteDefaultParams,
@@ -14,21 +18,6 @@ import {
     isPrivateHookDef,
     shouldFullGenerateSpec,
 } from './router';
-import {
-    Handler,
-    isHookDef,
-    isRoute,
-    RemoteApi,
-    RemoteHandler,
-    Routes,
-    isPublicExecutable,
-    RouteExecutable,
-    HookExecutable,
-    isHeaderHookDef,
-    RouterEntry,
-    Executable,
-    RemoteMethodMetadata,
-} from './types';
 import {getSerializedFunctionType} from '@mionkit/reflection';
 import {AnyObject, getRoutePath, getRouterItemId} from '@mionkit/core';
 

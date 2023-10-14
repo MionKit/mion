@@ -9,7 +9,8 @@ import {DEFAULT_ROUTE_OPTIONS} from './constants';
 import {getRemoteMethodsMetadata} from './remoteMethodsMetadata';
 import {registerRoutes, initRouter, resetRouter, getRouteDefaultParams} from './router';
 import {getFunctionReflectionMethods} from '@mionkit/reflection';
-import {CallContext, Routes} from './types';
+import {CallContext} from './types/context';
+import {Routes} from './types/general';
 
 describe('Public Methods should', () => {
     const privateHook = (ctx): void => undefined;

@@ -5,18 +5,10 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {
-    Executable,
-    CallContext,
-    MionResponse,
-    MionRequest,
-    RouterOptions,
-    isRawExecutable,
-    Handler,
-    isNotFoundExecutable,
-    isHeaderExecutable,
-    MionHeaders,
-} from './types';
+import type {CallContext, MionResponse, MionRequest, MionHeaders} from './types/context';
+import type {Executable, RouterOptions} from './types/general';
+import type {Handler} from './types/handlers';
+import {isHeaderExecutable, isNotFoundExecutable, isRawExecutable} from './types/guards';
 import {getNotFoundExecutionPath, getRouteExecutionPath, getRouterOptions} from './router';
 import {isPromise} from 'node:util/types';
 import {Mutable, AnyObject, RpcError, StatusCodes} from '@mionkit/core';
