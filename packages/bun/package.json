@@ -1,6 +1,6 @@
 {
   "name": "@mionkit/bun",
-  "version": "0.6.2",
+  "version": "0.7.0",
   "description": "mion server for bun runtime",
   "keywords": [
     "typescript",
@@ -61,8 +61,8 @@
   "dependencies": {
     "@deepkit/core": "1.0.1-alpha.97",
     "@deepkit/type": "1.0.1-alpha.97",
-    "@mionkit/core": "^0.6.0",
-    "@mionkit/router": "^0.6.2"
+    "@mionkit/core": "^0.7.0",
+    "@mionkit/router": "^0.7.0"
   },
   "devDependencies": {
     "@deepkit/type-compiler": "^1.0.1-alpha.97",
