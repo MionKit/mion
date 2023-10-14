@@ -6,7 +6,7 @@
   </picture>
 </p>
 <p align="center">
-  <strong>mion standard hooks and routes.
+  <strong>mion quick start example
   </strong>
 </p>
 <p align=center>
@@ -14,11 +14,26 @@
   <img src="https://img.shields.io/badge/license-MIT-97ca00.svg?style=flat-square&maxAge=99999999" alt="npm"  style="max-width:100%;">
 </p>
 
-# `@mionkit/common`
+# mion quick start example app.
 
-mion standard hooks and routes:
+install
 
-- client routes: serve metadata about existing routes and public hooks (remoteMethodsMetadata)
+```bash
+npm i
+```
+
+build & run using node
+
+```bash
+npm run build
+node .dist/csj/src/serve-node.js
+```
+
+run using bun (bun compiles ts on the fly)
+
+```bash
+bun src/serve-bun.ts
+```
 
 ## Check Out The [Website And Documentation](http://mion.io) 📚
 
@@ -26,4 +41,4 @@ mion standard hooks and routes:
 
 ---
 
-[MIT LICENSE](../../LICENSE)
+_[MIT](../../LICENSE) LICENSE_
