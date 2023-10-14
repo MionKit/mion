@@ -107,13 +107,13 @@ export const resetRouter = () => {
  * @param routerOptions
  * @returns
  */
-export function initRouter<Opts extends RouterOptions>(opts?: Partial<Opts>): Readonly<Opts> {
+export function initRouter(opts?: Partial<RouterOptions>): Readonly<RouterOptions> {
     if (isRouterInitialized) throw new Error('Router has already been initialized');
     routerOptions = {...routerOptions, ...opts};
     Object.freeze(routerOptions);
     setErrorOptions(routerOptions);
     isRouterInitialized = true;
-    return routerOptions as Opts;
+    return routerOptions;
 }
 
 export function registerRoutes<R extends Routes>(routes: R): RemoteApi<R> {

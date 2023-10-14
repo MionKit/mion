@@ -4,8 +4,8 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
-import {registerRoutes} from '@mionkit/router';
-import {initHttpRouter, resetHttpRouter, startHttpServer} from './mionHttp';
+import {initRouter, registerRoutes} from '@mionkit/router';
+import {setNodeHttpOpts, resetNodeHttpOpts, startNodeServer} from './mionHttp';
 import type {CallContext, Route} from '@mionkit/router';
 import {AnonymRpcError} from '@mionkit/core';
 // In theory node 18 supports fetch but not working fine with jest, we should update to jest 29
@@ -14,7 +14,7 @@ import {AnonymRpcError} from '@mionkit/core';
 import fetch from 'node-fetch';
 
 describe('serverless router should', () => {
-    resetHttpRouter();
+    resetNodeHttpOpts();
     type SimpleUser = {name: string; surname: string};
     type DataPoint = {date: Date};
     type MySharedData = ReturnType<typeof getSharedData>;
@@ -48,9 +48,10 @@ describe('serverless router should', () => {
 
     const port = 8075;
     beforeAll(async () => {
-        initHttpRouter({sharedDataFactory: getSharedData, prefix: 'api/', port});
+        initRouter({sharedDataFactory: getSharedData, prefix: 'api/'});
         registerRoutes({changeUserName, getDate, updateHeaders});
-        server = await startHttpServer();
+        setNodeHttpOpts({port});
+        server = await startNodeServer();
     });
 
     afterAll(
@@ -122,17 +123,20 @@ describe('serverless router should', () => {
 
     it('get an error when body size is too large, get default headers', async () => {
         const smallPort = port + 1;
-        const httpOptions = {
+        const routerOpts = {
             sharedDataFactory: getSharedData,
             prefix: 'api/',
+        };
+        const httpOpts = {
             port: smallPort,
             maxBodySize: 1,
             defaultResponseHeaders: {'x-app-name': 'MyApp', 'x-instance-id': '3089'},
         };
-        resetHttpRouter();
-        initHttpRouter(httpOptions);
+        resetNodeHttpOpts();
+        setNodeHttpOpts(httpOpts);
+        initRouter(routerOpts);
         registerRoutes({changeUserName, getDate, updateHeaders});
-        const smallServer = await startHttpServer();
+        const smallServer = await startNodeServer();
         const closeSmallServer = () => {
             return new Promise<void>((resolve, reject) => {
                 smallServer.close((err) => {

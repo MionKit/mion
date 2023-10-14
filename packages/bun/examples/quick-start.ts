@@ -1,5 +1,5 @@
-import {registerRoutes} from '@mionkit/router';
-import {initBunHttpRouter, startBunHttpServer} from '../src/bunHttp';
+import {initRouter, registerRoutes} from '@mionkit/router';
+import {setBunHttpOpts, startBunHttpServer} from '../src/bunHttp';
 import type {CallContext, Route} from '@mionkit/router';
 // import {AnonymRpcError} from '@mionkit/core';
 
@@ -31,8 +31,9 @@ const updateHeaders: Route = (context: Context): void => {
     context.response.headers.set('x-something', 'true');
     context.response.headers.set('server', 'my-server');
 };
-const port = 8079;
-initBunHttpRouter({sharedDataFactory: getSharedData, prefix: 'api/', port});
+
+initRouter({sharedDataFactory: getSharedData, prefix: 'api/'});
 registerRoutes({changeUserName, getDate, updateHeaders});
+setBunHttpOpts({port: 8079});
 const server = startBunHttpServer();
 console.log('server', server);

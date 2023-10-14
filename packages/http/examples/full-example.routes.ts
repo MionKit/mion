@@ -1,5 +1,5 @@
-import {initHttpRouter, startHttpServer} from '@mionkit/http';
-import {Routes, registerRoutes} from '@mionkit/router';
+import {startNodeServer} from '@mionkit/http';
+import {Routes, initRouter, registerRoutes} from '@mionkit/router';
 
 // #### App ####
 
@@ -25,6 +25,6 @@ const getDate = (ctx, dataPoint?: DataPoint): DataPoint => {
 
 const routerOpts = {sharedDataFactory, prefix: 'api/', port: 8080};
 const routes = {changeUserName, getDate} satisfies Routes;
-initHttpRouter(routerOpts);
+initRouter(routerOpts);
 registerRoutes(routes);
-startHttpServer();
+startNodeServer();

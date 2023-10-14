@@ -1,26 +1,9 @@
 {
+  "extends": "../../tsconfig.json",
   "compilerOptions": {
-    "baseUrl": ".",
-    "module": "commonjs",
-    "moduleResolution": "Node16",
-    "esModuleInterop": true,
-    "noImplicitAny": false,
-    "removeComments": true,
-    "noLib": false,
-    "strict": true,
-    "emitDecoratorMetadata": true,
-    "experimentalDecorators": true,
-    "target": "es2020",
-    "lib": ["es6", "ES2021"],
-    "outDir": ".dist",
-    "composite": false,
-    "declaration": false,
-    "declarationMap": false,
-    "incremental": true,
-    "sourceMap": true,
-    "paths": {
-      "@mionkit/*": ["packages/*"]
-    }
+    "outDir": ".dist/cjs"
   },
-  "include": ["./src"]
+  "reflection": true,
+  "include": ["."],
+  "exclude": ["node_modules", "examples", ".dist"]
 }

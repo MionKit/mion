@@ -5,22 +5,23 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {initRouter, dispatchRoute, getResponseFromError, resetRouter, MionResponse as MionResponse} from '@mionkit/router';
+import {dispatchRoute, getResponseFromError, resetRouter, MionResponse as MionResponse} from '@mionkit/router';
 import {DEFAULT_BUN_HTTP_OPTIONS} from './constants';
 import type {BunHttpOptions} from './types';
 import {RpcError, StatusCodes} from '@mionkit/core';
 import {Server} from 'bun';
 
-export function resetBunHttpRouter() {
+export function resetBunHttpOpts() {
     httpOptions = {...DEFAULT_BUN_HTTP_OPTIONS};
     resetRouter();
 }
 
-export function initBunHttpRouter<Opts extends Partial<BunHttpOptions>>(options?: Opts) {
-    httpOptions = initRouter({
+export function setBunHttpOpts(options?: Partial<BunHttpOptions>) {
+    httpOptions = {
         ...httpOptions,
         ...options,
-    });
+    };
+    return httpOptions;
 }
 
 // ############# PRIVATE STATE #############
@@ -28,7 +29,7 @@ export function initBunHttpRouter<Opts extends Partial<BunHttpOptions>>(options?
 let httpOptions: Readonly<BunHttpOptions> = {...DEFAULT_BUN_HTTP_OPTIONS};
 const isTest = process.env.NODE_ENV === 'test';
 
-export function startBunHttpServer(): Server {
+export function startBunServer(): Server {
     const port = httpOptions.port !== 80 ? `:${httpOptions.port}` : '';
     const url = `http://localhost${port}`;
     if (!isTest) console.log(`mion bun server running on ${url}`);
