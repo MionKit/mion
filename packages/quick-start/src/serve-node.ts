@@ -1,8 +1,8 @@
-import {setNodeHttpOpts, startNodeServer} from '@mionkit/http';
+import {NodeHttpOptions, setNodeHttpOpts, startNodeServer} from '@mionkit/http';
 import './myApi.routes';
 
 // set options specific for node
-const nodeOptions = {port: 8080};
+const nodeOptions: Partial<NodeHttpOptions> = {port: 8080};
 setNodeHttpOpts(nodeOptions);
 
 // init node server
