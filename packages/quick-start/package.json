@@ -1,0 +1,61 @@
+{
+  "name": "@mionkit/quick-start",
+  "version": "0.6.0",
+  "private": true,
+  "description": "mion quick start node example",
+  "keywords": [
+    "cli",
+    "mion",
+    "fastify",
+    "rest",
+    "api"
+  ],
+  "author": "ma jerez <jerez.m82@gmail.com>",
+  "homepage": "https://mion.io/",
+  "license": "MIT",
+  "main": ".dist/cli.js",
+  "types": ".dist/cli.d.ts",
+  "directories": {
+    "lib": ".dist"
+  },
+  "files": [
+    ".dist"
+  ],
+  "engines": {
+    "node": ">= 18.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MionKit/mion.git"
+  },
+  "scripts": {
+    "dev": "rimraf .dist && tsc --build tsconfig.json --watch",
+    "lint": "eslint src --ext .ts",
+    "format": "prettier --write src/**/*.ts",
+    "build:cjs": "tsc --project tsconfig.build.json",
+    "build:esm": "tsc --project tsconfig.build.json --module ES2020 --outDir .dist/esm",
+    "build:types": "tsc --project tsconfig.build.json --outDir .dist/types --emitDeclarationOnly --declaration true --declarationMap true",
+    "build": "npm run build:cjs && npm run build:esm && npm run build:types"
+  },
+  "bugs": {
+    "url": "https://github.com/MionKit/mion/issues"
+  },
+  "dependencies": {
+    "@mionkit/bun": "^0.7.0",
+    "@mionkit/core": "^0.7.0",
+    "@mionkit/http": "^0.7.0",
+    "@mionkit/router": "^0.7.0",
+    "@mionkit/serverless": "^0.7.0"    
+  },
+  "devDependencies": {
+    "@deepkit/core": "^1.0.1-alpha.97",
+    "@deepkit/type-compiler": "^1.0.1-alpha.97",
+    "@types/aws-lambda": "^8.10.108",
+    "@types/node": "^18.17.0",
+    "@typescript-eslint/eslint-plugin": "^6.3.0",
+    "@typescript-eslint/parser": "^6.3.0",
+    "bun-types": "latest",
+    "eslint": "^8.46.0",
+    "typescript": "4.9.5"
+  }
+}

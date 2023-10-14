@@ -131,7 +131,7 @@ export interface RouterOptions<Req = any, SharedData = any> extends CoreOptions 
     reflectionOptions: ReflectionOptions;
     /** Custom JSON parser, defaults to Native js JSON */
     bodyParser: JsonParser;
-    /** Used to return public data when adding routes */
+    /** Used to return public data structure when adding routes */
     getPublicRoutesData: boolean;
     /** automatically generate and uuid */
     autoGenerateErrorId: boolean;
