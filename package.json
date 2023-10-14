@@ -68,6 +68,7 @@
     "packages/bun",
     "packages/core",
     "packages/common",
+    "packages/quick-start",
     "packages/runtype",
     "packages/reflection",
     "packages/router",
