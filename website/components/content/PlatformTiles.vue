@@ -37,4 +37,11 @@
     flex-wrap: wrap;
   }
 }
+
+@media screen and (max-width: 400px) {
+  .tile {
+    width: 150px;
+    padding: 1rem;
+  }
+}
 </style>
