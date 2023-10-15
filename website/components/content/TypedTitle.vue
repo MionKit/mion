@@ -1,6 +1,6 @@
 <script setup>
 import VueWriter from 'vue-writer';
-const titles = ['At The Speed Of Light ⚡', 'Safe To Refactor', 'Serverless Ready', 'Developer Friendly'];
+const titles = ['At The Speed Of Light ⚡', 'Are Safe To Refactor', 'Are Serverless Ready', 'Are Developer Friendly'];
 </script>
 
 <template>
