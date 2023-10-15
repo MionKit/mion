@@ -1,5 +1,9 @@
-.akjshdd {
-  color: red;
+:root.dark {
+  --elements-text-secondary-color-static: var(--color-gray-300);
+}
+
+:root.light {
+  --elements-text-secondary-color-static: var(--color-gray-600);
 }
 
 .dark .app-layout > header {
@@ -10,6 +14,9 @@
   background-color: #FFFFFF00;
 }
 
+.light .aside-nav .docs-aside-tree .link {
+  color: var(--color-gray-600);
+}
 
 body .table-wrapper {
   border-radius: var(--radii-md);
@@ -74,4 +81,25 @@ body .card .title a:hover {
 
 body .card .icon {
   color: var(--color-primary-500);
+}
+
+body .platforms-section a {
+  color: var(--color-primary-500);
+  text-decoration: none;
+  border-color: transparent;
+}
+
+body .home-hero h2 {
+  font-size: 1.2rem;
+}
+
+@media screen and (max-width: 600px) {
+  body .block-hero .content h1.title {
+    padding-left: 0.5rem !important;
+    padding-right: 0.5rem !important;
+  }
+
+  body .home-hero h2 {
+    font-size: 1rem;
+  }
 }

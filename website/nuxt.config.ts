@@ -19,4 +19,6 @@ export default defineNuxtConfig({
         // https://github.com/nuxt/devtools
         '@nuxt/devtools',
     ],
+
+    // plugins: ['@/plugins/vue-typed'],
 });
