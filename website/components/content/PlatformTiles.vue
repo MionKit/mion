@@ -40,8 +40,8 @@
 
 @media screen and (max-width: 400px) {
   .tile {
-    width: 150px;
-    padding: 1rem;
+    width: 120px;
+    padding: 0.5rem;
   }
 }
 </style>

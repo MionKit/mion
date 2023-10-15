@@ -9,7 +9,7 @@ import {Serve} from 'bun';
 
 export interface BunHttpOptions {
     port: number;
-    /** Bun Server Options */
+    /** Bun's native Server Options */
     options: Omit<Serve, 'fetch' | 'error'>;
     /** Set of default response header to add to every response*/
     defaultResponseHeaders: Record<string, string>;
