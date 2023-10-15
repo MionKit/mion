@@ -99,6 +99,7 @@ body .block-hero .content h1.title {
 
 @media screen and (max-width: 600px) {
   body .block-hero .content h1.title {
+    min-height: 6rem;
     padding-left: 0.5rem !important;
     padding-right: 0.5rem !important;
   }
