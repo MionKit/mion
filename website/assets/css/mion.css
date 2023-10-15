@@ -93,6 +93,10 @@ body .home-hero h2 {
   font-size: 1.2rem;
 }
 
+body .block-hero .content h1.title {
+  min-height: 8rem;
+}
+
 @media screen and (max-width: 600px) {
   body .block-hero .content h1.title {
     padding-left: 0.5rem !important;
