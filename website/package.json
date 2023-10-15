@@ -21,6 +21,8 @@
     "nuxt": "^3.6.2"
   },
   "dependencies": {
-    "mermaid": "^10.3.1"
+    "mermaid": "^10.3.1",
+    "vue-typed-js": "^0.1.2",
+    "vue-writer": "^1.2.0"
   }
 }
