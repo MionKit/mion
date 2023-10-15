@@ -1,15 +1,19 @@
 <script setup>
 import VueWriter from 'vue-writer';
-const titles = ['At The Speed Of Light ⚡', 'Safe To Refactor', 'Serverless Ready ☁️', 'Developer Friendly 😃'];
+const titles = ['At The Speed Of Light ⚡', 'Safe To Refactor', 'Serverless Ready', 'Developer Friendly'];
 </script>
 
 <template>
   <span class="typed-title">
-    <VueWriter :array="titles" :delay="3000" caret="underscore" />
+    <VueWriter :array="titles" :delay="4000" :erase-speed="20" :type-speed="50" caret="underscore" />
   </span>
 </template>
 
 <style>
+.typed-title {
+  min-height: 3.2rem;
+  min-width: 1rem;
+}
 .is-typed {
   display: inline;
 }
