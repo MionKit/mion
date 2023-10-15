@@ -97,7 +97,7 @@ body .block-hero .content h1.title {
   min-height: 8rem;
 }
 
-@media screen and (max-width: 600px) {
+@media screen and (max-width: 639px) {
   body .block-hero .content h1.title {
     min-height: 6rem;
     padding-left: 0.5rem !important;
@@ -106,5 +106,20 @@ body .block-hero .content h1.title {
 
   body .home-hero h2 {
     font-size: 1rem;
+  }
+
+  body .docs-prev-next {
+    flex-direction: row !important;
+    flex-wrap: wrap;
+  }
+
+  body .docs-prev-next a .title {
+    font-size: 14px;
+  }
+}
+
+@media (max-width: 1023px) {
+  body .toc {
+    display: none !important;
   }
 }
