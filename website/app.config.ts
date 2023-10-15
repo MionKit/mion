@@ -29,6 +29,9 @@ export default defineAppConfig({
       showLinkIcon: true,
       exclude: [],
       fluid: false
+    },
+    footer: {
+      credits: false,
     }
   }
 })
