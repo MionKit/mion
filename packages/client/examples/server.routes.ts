@@ -1,7 +1,7 @@
 import {RpcError} from '@mionkit/core';
 import {Routes, registerRoutes} from '@mionkit/router';
 import {clientRoutes} from '@mionkit/common';
-import {initAwsLambdaRouter, awsLambdaHandler} from '@mionkit/serverless';
+import {initAwsLambdaRouter, awsLambdaHandler} from '@mionkit/aws';
 import {Logger} from 'Logger';
 import {Cleaned, ClientHooks, ClientRoutes} from '../src/types';
 
