@@ -124,7 +124,7 @@ function httpRequestHandler(httpReq: IncomingMessage, httpResponse: ServerRespon
         if (replied) return;
         const reqRawBody = Buffer.concat(bodyChunks).toString();
 
-        dispatchRoute(path, reqRawBody, httpReq, httpResponse, reqHeaders, respHeaders)
+        dispatchRoute(path, reqRawBody, reqHeaders, respHeaders, httpReq, httpResponse)
             .then((routeResponse) => dispatchReply(routeResponse))
             .catch((e) => fail(e));
     });

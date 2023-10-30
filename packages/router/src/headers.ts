@@ -11,7 +11,7 @@ import {isSingleValueHeader} from './types/guards';
 
 // ############# PUBLIC METHODS #############
 
-export function headersFromRecord(headers: Record<string, HeaderValue> = {}, initToLowercase = true): MionHeaders {
+export function headersFromRecord(headers: Record<string, HeaderValue>, initToLowercase = true): MionHeaders {
     const mionHeaders = {
         items: headerKeysToLowerCase(headers, initToLowercase),
         append: (name: string, value: HeaderValue) => {
@@ -46,8 +46,8 @@ export function headersFromIncomingMessage(rawRequest: IncomingMessage): MionHea
     return headersFromRecord(rawRequest.headers as Record<string, HeaderValue>, initToLowercase);
 }
 
-export function headersFromServerResponse(resp: ServerResponse, initialHeaders: Record<string, HeaderValue> = {}): MionHeaders {
-    Object.entries(initialHeaders).forEach(([name, value]) => resp.setHeader(name, value));
+export function headersFromServerResponse(resp: ServerResponse, initialHeaders: Record<string, HeaderValue> | null): MionHeaders {
+    if (initialHeaders) Object.entries(initialHeaders).forEach(([name, value]) => resp.setHeader(name, value));
     return {
         append: (name: string, value: HeaderValue) => resp.appendHeader(name.toLowerCase(), value as any as string | string[]),
         delete: (name: string) => resp.removeHeader(name.toLowerCase()),

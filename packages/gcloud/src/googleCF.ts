@@ -46,7 +46,7 @@ export async function googleCFHandler(rawRequest: Request, rawResponse: Response
     const respHeaders = headersFromServerResponse(rawResponse, googleCFOptions.defaultResponseHeaders);
 
     try {
-        const routeResponse = await dispatchRoute(rawRequest.path, rawBody, rawRequest, rawResponse, reqHeaders, respHeaders);
+        const routeResponse = await dispatchRoute(rawRequest.path, rawBody, reqHeaders, respHeaders, rawRequest, rawResponse);
         reply(routeResponse, rawResponse);
     } catch (err) {
         const error = new RpcError({statusCode: 500, publicMessage: 'Internal Error', originalError: err as Error});
