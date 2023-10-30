@@ -35,15 +35,15 @@ export async function awsLambdaHandler(rawRequest: APIGatewayEvent, awsContext: 
     const rawBody = rawRequest.body || '';
     const reqHeaders = headersFromRecord(rawRequest.headers as Record<string, string>);
     const rawRespHeaders: Record<string, HeaderValue> = {
-        server: '@mionkit/serverless',
+        server: '@mionkit/aws',
         ...lambdaOptions.defaultResponseHeaders,
     };
     const respHeaders = headersFromRecord(rawRespHeaders);
 
     return dispatchRoute(rawRequest.path, rawBody, rawRequest, awsContext, reqHeaders, respHeaders)
         .then((routeResponse) => reply(routeResponse, respHeaders))
-        .catch((e) => {
-            const error = new RpcError({statusCode: 500, publicMessage: 'Internal Error', originalError: e});
+        .catch((err) => {
+            const error = new RpcError({statusCode: 500, publicMessage: 'Internal Error', originalError: err});
             return reply(
                 getResponseFromError(
                     rawRequest.path,

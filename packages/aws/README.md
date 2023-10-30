@@ -14,7 +14,15 @@
   <img src="https://img.shields.io/badge/license-MIT-97ca00.svg?style=flat-square&maxAge=99999999" alt="npm"  style="max-width:100%;">
 </p>
 
-# DEPRECATED
+# `@mionkit/aws`
+
+**_[mion Router](../router/README.md) is an RPC like router oriented for quick Api development,_** &nbsp; it is agnostic about the server or serverless environment it is used on. It could be used on aws lambda, azure functions, Google cloud functions, or any event based environment.
+
+This package contains bindings for AWS lambda.
+
+## Check Out The [Website And Documentation](http://mion.io) 📚
+
+[![mion-website-banner](https://raw.githubusercontent.com/MionKit/mion/master/assets/public/mion-website-banner.png)](http://mion.io)
 
 ---
 

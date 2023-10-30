@@ -1,7 +1,7 @@
 {
-  "name": "@mionkit/serverless",
+  "name": "@mionkit/aws",
   "version": "0.7.0",
-  "description": "mion Serverless Router for quick Api development.",
+  "description": "AWS Lambda wrapper for mion router.",
   "keywords": [
     "typescript",
     "API",
@@ -40,27 +40,26 @@
     "access": "public"
   },
   "scripts": {
-    "test": "",
-    "dev": "",
-    "dev:test": "",
-    "lint": "",
-    "format": "",
-    "build:cjs": "",
-    "build:esm": "",
-    "build:types": "",
-    "build": "",
-    "auto-readme": "",
-    "clean": ""
+    "test": "jest",
+    "dev": "rimraf .dist && tsc --build tsconfig.json --watch",
+    "dev:test": "jest --watch",
+    "lint": "eslint src --ext .ts",
+    "format": "prettier --write src/**/*.ts",
+    "build:cjs": "tsc --project tsconfig.build.json",
+    "build:esm": "tsc --project tsconfig.build.json --module ES2020 --outDir .dist/esm",
+    "build:types": "tsc --project tsconfig.build.json --outDir .dist/types --emitDeclarationOnly --declaration true --declarationMap true",
+    "build": "npm run build:cjs && npm run build:esm && npm run build:types",
+    "auto-readme": "embedme **/*.md && prettier --write **/*.md",
+    "clean": "rimraf .dist & rimraf .coverage"
   },
   "bugs": {
     "url": "https://github.com/MionKit/mion/issues"
   },
   "dependencies": {
+    "@mionkit/core": "^0.7.0",
     "@mionkit/router": "^0.7.0"
   },
   "devDependencies": {
-    "@mionkit/core": "^0.7.0",
     "@serverless/event-mocks": "^1.1.1"
-  },
-  "gitHead": "2efdcd77c572e64f2b9621b4921ffd2f5e83bc0a"
+  }
 }
