@@ -5,29 +5,31 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {dispatchRoute, getResponseFromError, resetRouter, headersFromRecord} from '@mionkit/router';
+import {
+    dispatchRoute,
+    getResponseFromError,
+    headersFromIncomingMessage,
+    headersFromServerResponse,
+    resetRouter,
+} from '@mionkit/router';
 import {createServer as createHttp} from 'http';
 import {createServer as createHttps} from 'https';
 import {DEFAULT_HTTP_OPTIONS} from './constants';
 import type {NodeHttpOptions} from './types';
 import type {IncomingMessage, Server as HttpServer, ServerResponse} from 'http';
 import type {Server as HttpsServer} from 'https';
-import type {HeaderValue, MionHeaders, MionResponse} from '@mionkit/router';
+import type {MionResponse} from '@mionkit/router';
 import {RpcError, StatusCodes} from '@mionkit/core';
-
-type HeadersEntries = [string, string][];
 
 // ############# PRIVATE STATE #############
 
 let httpOptions: Readonly<NodeHttpOptions> = {...DEFAULT_HTTP_OPTIONS};
-let defaultResponseHeaders: HeadersEntries = [];
 const isTest = process.env.NODE_ENV === 'test';
 
 // ############# PUBLIC METHODS #############
 
 export function resetNodeHttpOpts() {
     httpOptions = {...DEFAULT_HTTP_OPTIONS};
-    defaultResponseHeaders = [];
     resetRouter();
 }
 
@@ -41,8 +43,6 @@ export function setNodeHttpOpts(options?: Partial<NodeHttpOptions>) {
 }
 
 export async function startNodeServer(): Promise<HttpServer | HttpsServer> {
-    defaultResponseHeaders = Object.entries(httpOptions.defaultResponseHeaders);
-
     const port = httpOptions.port !== 80 ? `:${httpOptions.port}` : '';
     const url = `${httpOptions.protocol}://localhost${port}`;
     if (!isTest) console.log(`mion node server running on ${url}`);
@@ -80,9 +80,8 @@ function httpRequestHandler(httpReq: IncomingMessage, httpResponse: ServerRespon
     const bodyChunks: any[] = [];
 
     httpResponse.setHeader('server', '@mionkit/http');
-    addHeaderEntries(httpResponse, defaultResponseHeaders);
-    const reqHeaders = getRequestHeader(httpReq);
-    const respHeaders = getResponseHeaders(httpResponse);
+    const reqHeaders = headersFromIncomingMessage(httpReq);
+    const respHeaders = headersFromServerResponse(httpResponse, httpOptions.defaultResponseHeaders);
 
     const dispatchReply = (routeResponse: MionResponse) => {
         if (replied || httpResponse.writableEnded) return;
@@ -135,33 +134,9 @@ function httpRequestHandler(httpReq: IncomingMessage, httpResponse: ServerRespon
     });
 }
 
-function getResponseHeaders(resp: ServerResponse): MionHeaders {
-    return {
-        append: (name: string, value: HeaderValue) => resp.appendHeader(name.toLowerCase(), value as any as string | string[]),
-        delete: (name: string) => resp.removeHeader(name.toLowerCase()),
-        get: (name: string) => resp.getHeader(name.toLowerCase()) as HeaderValue,
-        has: (name: string) => resp.hasHeader(name.toLowerCase()),
-        set: (name: string, value: HeaderValue) => resp.setHeader(name.toLowerCase(), value),
-        entries: () => new Map(Object.entries(resp.getHeaders() as Record<string, HeaderValue>)).entries(),
-        keys: () => new Set(resp.getHeaderNames()).values(),
-        values: () => new Set(Object.values(resp.getHeaders() as Record<string, HeaderValue>)).values(),
-    };
-}
-
-function getRequestHeader(httpReq: IncomingMessage) {
-    // node headers already in lowercase
-    const toLowerCase = false;
-    return headersFromRecord(httpReq.headers as Record<string, HeaderValue>, toLowerCase);
-}
-
 function reply(httpResponse: ServerResponse, rawBody: string, statusCode: number, statusMessage?: string) {
     if (statusMessage) httpResponse.statusMessage = statusMessage;
     httpResponse.statusCode = statusCode;
     httpResponse.setHeader('content-length', rawBody.length);
     httpResponse.end(rawBody);
-}
-
-function addHeaderEntries(httpResponse: ServerResponse, headerEntries: HeadersEntries) {
-    if (!headerEntries.length) return;
-    headerEntries.forEach(([key, value]) => httpResponse.setHeader(key, value));
 }
