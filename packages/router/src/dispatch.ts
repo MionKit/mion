@@ -12,7 +12,6 @@ import {isHeaderExecutable, isNotFoundExecutable, isRawExecutable} from './types
 import {getNotFoundExecutionPath, getRouteExecutionPath, getRouterOptions} from './router';
 import {isPromise} from 'node:util/types';
 import {Mutable, AnyObject, RpcError, StatusCodes} from '@mionkit/core';
-import {headersFromRecord} from './headers';
 
 // ############# PUBLIC METHODS #############
 
@@ -27,10 +26,10 @@ import {headersFromRecord} from './headers';
 export async function dispatchRoute<Req, Resp>(
     path: string,
     reqRawBody: string,
+    reqHeaders: MionHeaders,
+    respHeaders: MionHeaders,
     rawRequest: Req,
-    rawResponse?: Resp,
-    reqHeaders?: MionHeaders,
-    respHeaders?: MionHeaders
+    rawResponse?: Resp
 ): Promise<MionResponse> {
     try {
         const opts = getRouterOptions();
@@ -201,14 +200,14 @@ export function getEmptyCallContext(
     opts: RouterOptions,
     reqRawBody: string,
     rawRequest: unknown,
-    reqHeaders?: MionHeaders,
-    respHeaders?: MionHeaders
+    reqHeaders: MionHeaders,
+    respHeaders: MionHeaders
 ): CallContext {
     const transformedPath = opts.pathTransform ? opts.pathTransform(rawRequest, path) : path;
     return {
         path: transformedPath,
         request: {
-            headers: reqHeaders || headersFromRecord(),
+            headers: reqHeaders,
             rawBody: reqRawBody,
             body: {},
             internalErrors: [],
@@ -216,7 +215,7 @@ export function getEmptyCallContext(
         response: {
             statusCode: StatusCodes.OK,
             hasErrors: false,
-            headers: respHeaders || headersFromRecord(),
+            headers: respHeaders,
             body: {},
             rawBody: '',
         },

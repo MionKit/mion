@@ -48,16 +48,16 @@ export function startBunServer(): Server {
                 ...httpOptions.defaultResponseHeaders,
             });
 
-            return dispatchRoute(path, rawBody, req, undefined, req.headers, responseHeaders)
+            return dispatchRoute(path, rawBody, req.headers, responseHeaders, req, undefined)
                 .then((routeResp) => reply(routeResp, responseHeaders))
-                .catch((e) => fail(req, responseHeaders, e));
+                .catch((e) => fail(req, responseHeaders, req.headers, e));
         },
         error(errReq) {
             const responseHeaders = new Headers({
                 server: '@mionkit/http',
                 ...httpOptions.defaultResponseHeaders,
             });
-            return fail({headers: {}, body: ''}, responseHeaders, errReq, errReq.errno);
+            return fail({headers: {}, body: ''}, responseHeaders, undefined, errReq, errReq.errno);
         },
     });
 
@@ -74,12 +74,22 @@ export function startBunServer(): Server {
 const fail = (
     httpReq: unknown,
     responseHeaders: Headers,
+    requestHeaders: Headers = new Headers(),
     e?: Error,
     statusCode: StatusCodes = StatusCodes.INTERNAL_SERVER_ERROR,
     message = 'Unknown Error'
 ): Response => {
     const error = new RpcError({statusCode, publicMessage: message, originalError: e});
-    const routeResponse = getResponseFromError('httpRequest', 'dispatch', '', httpReq, undefined, error);
+    const routeResponse = getResponseFromError(
+        'httpRequest',
+        'dispatch',
+        '',
+        httpReq,
+        undefined,
+        error,
+        requestHeaders,
+        responseHeaders
+    );
     return reply(routeResponse, responseHeaders);
 };
 

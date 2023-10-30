@@ -55,7 +55,7 @@ describe('Dispatch routes', () => {
     };
 
     const getDefaultRequest = (path: string, params?): RawRequest => ({
-        headers: headersFromRecord(),
+        headers: headersFromRecord({}),
         body: JSON.stringify({[path]: params}),
     });
 
@@ -69,7 +69,14 @@ describe('Dispatch routes', () => {
             const id = 'changeUserName';
             const request = getDefaultRequest(id, [{name: 'Leo', surname: 'Tungsten'}]);
 
-            const response = await dispatchRoute('/changeUserName', request.body, request, {}, request.headers);
+            const response = await dispatchRoute(
+                '/changeUserName',
+                request.body,
+                request.headers,
+                headersFromRecord({}),
+                request,
+                {}
+            );
             expect(response.body[id]).toEqual({name: 'LOREM', surname: 'Tungsten'});
         });
 
@@ -82,7 +89,14 @@ describe('Dispatch routes', () => {
                 body: JSON.stringify({['changeUserName']: [{name: 'Leo', surname: 'Tungsten'}]}),
             };
 
-            const response = await dispatchRoute('/changeUserName', request.body, request, {}, request.headers);
+            const response = await dispatchRoute(
+                '/changeUserName',
+                request.body,
+                request.headers,
+                headersFromRecord({}),
+                request,
+                {}
+            );
             console.log('response.body', response.body);
             expect(response.hasErrors).toBeFalsy();
             expect(response.body).toEqual({['changeUserName']: {name: 'LOREM', surname: 'Tungsten'}});
@@ -101,7 +115,14 @@ describe('Dispatch routes', () => {
                 body: JSON.stringify({['changeUserName']: [{name: 'Leo', surname: 'Tungsten'}]}),
             };
 
-            const response = await dispatchRoute('/changeUserName', request.body, request, {}, request.headers);
+            const response = await dispatchRoute(
+                '/changeUserName',
+                request.body,
+                request.headers,
+                headersFromRecord({}),
+                request,
+                {}
+            );
             expect(response.hasErrors).toBeFalsy();
             expect(response.headers.get('authorization')).toEqual('MyUser');
         });
@@ -112,13 +133,13 @@ describe('Dispatch routes', () => {
 
             const path = '/sayHello';
             const id = 'sayHello';
-            const request1: RawRequest = {headers: headersFromRecord(), body: ''};
-            const request2: RawRequest = {headers: headersFromRecord(), body: '{}'};
-            const request3: RawRequest = {headers: headersFromRecord(), body: '{"sayHello": null}'};
+            const request1: RawRequest = {headers: headersFromRecord({}), body: ''};
+            const request2: RawRequest = {headers: headersFromRecord({}), body: '{}'};
+            const request3: RawRequest = {headers: headersFromRecord({}), body: '{"sayHello": null}'};
 
-            const response1 = await dispatchRoute(path, request1.body, request1, {}, request1.headers);
-            const response2 = await dispatchRoute(path, request2.body, request2, {}, request2.headers);
-            const response3 = await dispatchRoute(path, request3.body, request3, {}, request3.headers);
+            const response1 = await dispatchRoute(path, request1.body, request1.headers, headersFromRecord({}), request1, {});
+            const response2 = await dispatchRoute(path, request2.body, request2.headers, headersFromRecord({}), request2, {});
+            const response3 = await dispatchRoute(path, request3.body, request3.headers, headersFromRecord({}), request3, {});
 
             expect(response1.body[id]).toEqual('hello');
             expect(response2.body[id]).toEqual('hello');
@@ -146,7 +167,7 @@ describe('Dispatch routes', () => {
                 getHello: () => 'hello', // GET api/v1/Hello
             });
 
-            const response = await dispatchRoute(publicPath, request.body, request, {}, request.headers);
+            const response = await dispatchRoute(publicPath, request.body, request.headers, headersFromRecord({}), request, {});
             expect(response.body[routeId]).toEqual('hello');
         });
 
@@ -172,7 +193,7 @@ describe('Dispatch routes', () => {
             registerRoutes(routes);
 
             const request = getDefaultRequest(id, [2]);
-            const response = await dispatchRoute('/sumTwo', request.body, request, {}, request.headers);
+            const response = await dispatchRoute('/sumTwo', request.body, request.headers, headersFromRecord({}), request, {});
             expect(response.body[id]).toEqual(4);
             expect(response.body['totals']).toEqual('the total is 4');
         });
@@ -185,7 +206,7 @@ describe('Dispatch routes', () => {
 
             const request = getDefaultRequest('abcd', [{name: 'Leo', surname: 'Tungsten'}]);
 
-            const response = await dispatchRoute('/abcd', request.body, request, {}, request.headers);
+            const response = await dispatchRoute('/abcd', request.body, request.headers, headersFromRecord({}), request, {});
             // not found returns a different element in body as regular hooks or routes
             const error = response.body['/abcd'];
             expect(error).toEqual({
@@ -201,7 +222,14 @@ describe('Dispatch routes', () => {
 
             const request = getDefaultRequest('changeUserName', [{name: 'Leo', surname: 'Tungsten'}]);
 
-            const response = await dispatchRoute('/changeUserName', request.body, request, {}, request.headers);
+            const response = await dispatchRoute(
+                '/changeUserName',
+                request.body,
+                request.headers,
+                headersFromRecord({}),
+                request,
+                {}
+            );
             const error = response.body?.auth;
             expect(error).toEqual({
                 statusCode: 400,
@@ -216,11 +244,18 @@ describe('Dispatch routes', () => {
             registerRoutes({changeUserName});
 
             const request: RawRequest = {
-                headers: headersFromRecord(),
+                headers: headersFromRecord({}),
                 body: '1234',
             };
 
-            const response = await dispatchRoute('/changeUserName', request.body, request, {}, request.headers);
+            const response = await dispatchRoute(
+                '/changeUserName',
+                request.body,
+                request.headers,
+                headersFromRecord({}),
+                request,
+                {}
+            );
             const error = response.body['mionParseJsonRequestBody'];
             expect(error).toEqual({
                 statusCode: 400,
@@ -229,11 +264,18 @@ describe('Dispatch routes', () => {
             });
 
             const request2: RawRequest = {
-                headers: headersFromRecord(),
+                headers: headersFromRecord({}),
                 body: '{-12',
             };
 
-            const response2 = await dispatchRoute('/changeUserName', request2.body, request2, {}, request2.headers);
+            const response2 = await dispatchRoute(
+                '/changeUserName',
+                request2.body,
+                request2.headers,
+                headersFromRecord({}),
+                request2,
+                {}
+            );
             const errorResp = response2.body['mionParseJsonRequestBody'];
             expect(errorResp).toEqual({
                 statusCode: 422,
@@ -248,7 +290,14 @@ describe('Dispatch routes', () => {
 
             const request = getDefaultRequest('changeUserName', []);
 
-            const response = await dispatchRoute('/changeUserName', request.body, request, {}, request.headers);
+            const response = await dispatchRoute(
+                '/changeUserName',
+                request.body,
+                request.headers,
+                headersFromRecord({}),
+                request,
+                {}
+            );
             const error = response.body['changeUserName'];
             expect(error).toEqual({
                 statusCode: 400,
@@ -267,7 +316,14 @@ describe('Dispatch routes', () => {
 
             const request = getDefaultRequest('getSameDate', [1234]);
 
-            const response = await dispatchRoute('/getSameDate', request.body, request, {}, request.headers);
+            const response = await dispatchRoute(
+                '/getSameDate',
+                request.body,
+                request.headers,
+                headersFromRecord({}),
+                request,
+                {}
+            );
             const error = response.body['getSameDate'];
             expect(error).toEqual({
                 statusCode: 400,
@@ -284,7 +340,14 @@ describe('Dispatch routes', () => {
             const wrongSimpleUser: SimpleUser = {name: true, surname: 'Smith'} as any;
             const request = getDefaultRequest('changeUserName', [wrongSimpleUser]);
 
-            const response = await dispatchRoute('/changeUserName', request.body, request, {}, request.headers);
+            const response = await dispatchRoute(
+                '/changeUserName',
+                request.body,
+                request.headers,
+                headersFromRecord({}),
+                request,
+                {}
+            );
             const expected: AnonymRpcError = {
                 name: 'Validation Error',
                 statusCode: 400,
@@ -305,7 +368,14 @@ describe('Dispatch routes', () => {
 
             const request = getDefaultRequest('changeUserName', [{}]);
 
-            const response = await dispatchRoute('/changeUserName', request.body, request, {}, request.headers);
+            const response = await dispatchRoute(
+                '/changeUserName',
+                request.body,
+                request.headers,
+                headersFromRecord({}),
+                request,
+                {}
+            );
             const expected: AnonymRpcError = {
                 name: 'Validation Error',
                 statusCode: 400,
@@ -330,7 +400,7 @@ describe('Dispatch routes', () => {
 
             const request = getDefaultRequest('routeFail', []);
 
-            const response = await dispatchRoute('/routeFail', request.body, request, {}, request.headers);
+            const response = await dispatchRoute('/routeFail', request.body, request.headers, headersFromRecord({}), request, {});
             const error = response.body['routeFail'];
             expect(error).toEqual({
                 statusCode: 500,
@@ -347,7 +417,14 @@ describe('Dispatch routes', () => {
 
             const request = getDefaultRequest('getSameDate', [1234]);
 
-            const response = await dispatchRoute('/getSameDate', request.body, request, {}, request.headers);
+            const response = await dispatchRoute(
+                '/getSameDate',
+                request.body,
+                request.headers,
+                headersFromRecord({}),
+                request,
+                {}
+            );
             const error = response.body['getSameDate'];
             expect(error).toEqual({
                 statusCode: 400,

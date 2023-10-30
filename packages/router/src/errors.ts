@@ -18,8 +18,8 @@ export function getResponseFromError(
     rawRequest: unknown,
     rawResponse: any,
     error = new RpcError({statusCode: StatusCodes.INTERNAL_SERVER_ERROR, publicMessage: 'Internal Error'}),
-    reqHeaders?: MionHeaders,
-    respHeaders?: MionHeaders
+    reqHeaders: MionHeaders,
+    respHeaders: MionHeaders
 ): MionResponse {
     const routerOptions = getRouterOptions();
     const context = getEmptyCallContext(routePath, routerOptions, reqRawBody, rawRequest, reqHeaders, respHeaders);
