@@ -13,7 +13,7 @@ import {AnonymRpcError} from '@mionkit/core';
 // also the types for fetch are not available in node 18, fix here: https://stackoverflow.com/questions/71294230/how-can-i-use-native-fetch-with-node-in-typescript-node-v17-6#answer-75676044
 import fetch from 'node-fetch';
 
-describe('serverless router should', () => {
+describe('node http router should', () => {
     resetNodeHttpOpts();
     type SimpleUser = {name: string; surname: string};
     type DataPoint = {date: Date};

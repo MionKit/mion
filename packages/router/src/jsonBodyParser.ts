@@ -24,7 +24,11 @@ export function parseRequestBody(
 ): ErrorReturn {
     if (!context.request.rawBody) return;
     const request = context.request as Mutable<MionRequest>;
-    if (typeof context.request.rawBody === 'string') {
+    const type = typeof context.request.rawBody;
+    if (type === 'object') {
+        // assumes that the body is already parsed
+        request.body = context.request.rawBody as any as AnyObject;
+    } else if (type === 'string') {
         try {
             const parsedBody = opts.bodyParser.parse(context.request.rawBody);
             if (typeof parsedBody !== 'object')
