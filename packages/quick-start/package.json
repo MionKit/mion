@@ -41,11 +41,11 @@
     "url": "https://github.com/MionKit/mion/issues"
   },
   "dependencies": {
+    "@mionkit/aws": "^0.7.0",
     "@mionkit/bun": "^0.7.0",
     "@mionkit/core": "^0.7.0",
     "@mionkit/http": "^0.7.0",
-    "@mionkit/router": "^0.7.0",
-    "@mionkit/serverless": "^0.7.0"    
+    "@mionkit/router": "^0.7.0"   
   },
   "devDependencies": {
     "@deepkit/core": "^1.0.1-alpha.97",

@@ -1,4 +1,4 @@
-import {AwsLambdaOptions, awsLambdaHandler, setAwsLambdaOpts} from '@mionkit/serverless';
+import {AwsLambdaOptions, awsLambdaHandler, setAwsLambdaOpts} from '@mionkit/aws';
 import './myApi.routes';
 
 // set options specific for aws lambda
