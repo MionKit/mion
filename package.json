@@ -65,6 +65,8 @@
     "typescript": "4.9.5"
   },
   "workspaces": [
+    "packages/aws",
+    "packages/gcloud",
     "packages/bun",
     "packages/core",
     "packages/common",
