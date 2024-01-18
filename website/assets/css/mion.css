@@ -97,6 +97,10 @@ body .block-hero .content h1.title {
   min-height: 8rem;
 }
 
+body .app-layout .page-body h1:not(.not-prose):first-child {
+  font-size: 2.5rem;
+}
+
 @media screen and (max-width: 639px) {
   body .block-hero .content h1.title {
     min-height: 6rem;
@@ -116,6 +120,10 @@ body .block-hero .content h1.title {
   body .docs-prev-next a .title {
     font-size: 14px;
   }
+
+  body .app-layout .page-body h1:not(.not-prose):first-child {
+    font-size: 2.5rem;
+  }
 }
 
 @media (max-width: 1023px) {
@@ -123,3 +131,5 @@ body .block-hero .content h1.title {
     display: none !important;
   }
 }
+
+
