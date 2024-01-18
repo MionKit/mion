@@ -11,9 +11,9 @@
     <div class="tile">
       <nuxt-img src="/platforms/aws-lambda-logo.svg" class="platform-img" loading="lazy" />
     </div>
-    <div class="tile">
+    <!-- <div class="tile">
       <nuxt-img src="/platforms/azure-functions-logo.svg" class="platform-img" loading="lazy" />
-    </div>
+    </div> -->
     <div class="tile">
       <nuxt-img src="/platforms/google-cloud-functions-logo.svg" class="platform-img" loading="lazy" />
     </div>
