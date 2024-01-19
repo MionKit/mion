@@ -6,7 +6,7 @@
   </picture>
 </p>
 <p align="center">
-  <strong>mion Serverless Router for quick Api development.
+  <strong>Type Safe APIs at the speed of light 🚀
   </strong>
 </p>
 <p align=center>
@@ -16,9 +16,7 @@
 
 # `@mionkit/aws`
 
-**_[mion Router](../router/README.md) is an RPC like router oriented for quick Api development,_** &nbsp; it is agnostic about the server or serverless environment it is used on. It could be used on aws lambda, azure functions, Google cloud functions, or any event based environment.
-
-This package contains bindings for AWS lambda.
+This package contains handler functions to run mion on AWS Lambda.
 
 ## Check Out The [Website And Documentation](http://mion.io) 📚
 

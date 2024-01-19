@@ -6,7 +6,7 @@
   </picture>
 </p>
 <p align="center">
-  <strong>mion Serverless Router for quick Api development.
+  <strong>Type Safe APIs at the speed of light 🚀
   </strong>
 </p>
 <p align=center>
