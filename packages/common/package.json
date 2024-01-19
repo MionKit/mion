@@ -1,6 +1,6 @@
 {
   "name": "@mionkit/common",
-  "version": "0.7.0",
+  "version": "0.7.1",
   "description": "mion standard hooks and routes",
   "keywords": [
     "typescript",
@@ -59,7 +59,7 @@
     "url": "https://github.com/MionKit/mion/issues"
   },
   "dependencies": {
-    "@mionkit/core": "^0.7.0",
-    "@mionkit/router": "^0.7.0"
+    "@mionkit/core": "^0.7.1",
+    "@mionkit/router": "^0.7.1"
   }
 }
