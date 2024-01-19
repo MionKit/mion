@@ -1,6 +1,6 @@
 {
   "name": "@mionkit/gcloud",
-  "version": "0.7.1",
+  "version": "0.7.2",
   "description": "Google Cloud functions wrapper for mion router.",
   "keywords": [
     "typescript",
@@ -57,8 +57,8 @@
   },
   "dependencies": {
     "@google-cloud/functions-framework": "^3.3.0",
-    "@mionkit/core": "^0.7.1",
-    "@mionkit/router": "^0.7.1"
+    "@mionkit/core": "^0.7.2",
+    "@mionkit/router": "^0.7.2"
   },
   "devDependencies": {
     "@types/express": "^4.17.20"

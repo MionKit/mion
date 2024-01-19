@@ -1,6 +1,6 @@
 {
   "name": "@mionkit/serverless",
-  "version": "0.7.1",
+  "version": "0.7.2",
   "description": "mion Serverless Router for quick Api development.",
   "keywords": [
     "typescript",
@@ -56,10 +56,10 @@
     "url": "https://github.com/MionKit/mion/issues"
   },
   "dependencies": {
-    "@mionkit/router": "^0.7.1"
+    "@mionkit/router": "^0.7.2"
   },
   "devDependencies": {
-    "@mionkit/core": "^0.7.1",
+    "@mionkit/core": "^0.7.2",
     "@serverless/event-mocks": "^1.1.1"
   },
   "gitHead": "2efdcd77c572e64f2b9621b4921ffd2f5e83bc0a"
