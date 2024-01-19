@@ -80,6 +80,16 @@ Mion's philosophy is simplicity, so we don't want to add many features! As an sm
 
 The project is organized as a monorepo using npm workspaces, NX, and Lerna. Each package within the monorepo is compiled and tested individually using TypeScript and Jest.
 
+### Publishing
+
+To publish packages we need to make sure the packages are built first.
+
+```sh
+npm run build
+npx lerna version --no-private
+npx lerna publish from-package --no-private
+```
+
 ## Powered by:
 
 - [Typescript](https://www.typescriptlang.org/)
