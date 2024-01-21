@@ -235,6 +235,6 @@ function deserializeReturnWithUnionErrorHack(
         const result = serializeValue(p);
         // do not fail silently if serialization returns undefined and the value is defined
         if (!!p && !result) throw new Error(`Serialization Error, can't serialize return value.`);
-        return serializeValue(p);
+        return result;
     };
 }
