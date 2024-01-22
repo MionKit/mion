@@ -8,4 +8,5 @@ export default defineNuxtPlugin((nuxtApp) => {
             if (closeBtn) closeBtn.click();
         }, 100)
     })
-  })
+  });
+  

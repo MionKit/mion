@@ -101,6 +101,15 @@ body .app-layout .page-body h1:not(.not-prose):first-child {
   font-size: 2.5rem;
 }
 
+.dark  .bb path {
+  stroke: var(--color-gray-300);
+}
+
+.dark  .bb text {
+  fill: var(--color-gray-400);
+  font-size: 12px;
+}
+
 @media screen and (max-width: 639px) {
   body .block-hero .content h1.title {
     min-height: 6rem;

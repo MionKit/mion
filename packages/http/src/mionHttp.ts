@@ -42,7 +42,8 @@ export function setNodeHttpOpts(options?: Partial<NodeHttpOptions>) {
     return httpOptions;
 }
 
-export async function startNodeServer(): Promise<HttpServer | HttpsServer> {
+export async function startNodeServer(options?: Partial<NodeHttpOptions>): Promise<HttpServer | HttpsServer> {
+    if (options) setNodeHttpOpts(options);
     const port = httpOptions.port !== 80 ? `:${httpOptions.port}` : '';
     const url = `${httpOptions.protocol}://localhost${port}`;
     if (!isTest) console.log(`mion node server running on ${url}`);

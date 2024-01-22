@@ -2,7 +2,7 @@ export default defineNuxtConfig({
     // https://github.com/nuxt-themes/docus
     extends: '@nuxt-themes/docus',
 
-    css: ['~/assets/css/mion.css'],
+    css: ['~/assets/css/mion.css', '~/node_modules/billboard.js/dist/billboard.css'],
 
     app: {
         // baseURL: '/mion/', // working with github pages mionkit.github.io/mion/ - Remove when using mion.io
