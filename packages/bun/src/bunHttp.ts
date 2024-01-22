@@ -29,7 +29,8 @@ export function setBunHttpOpts(options?: Partial<BunHttpOptions>) {
 let httpOptions: Readonly<BunHttpOptions> = {...DEFAULT_BUN_HTTP_OPTIONS};
 const isTest = process.env.NODE_ENV === 'test';
 
-export function startBunServer(): Server {
+export function startBunServer(options?: Partial<BunHttpOptions>): Server {
+    if (options) setBunHttpOpts(options);
     const port = httpOptions.port !== 80 ? `:${httpOptions.port}` : '';
     const url = `http://localhost${port}`;
     if (!isTest) console.log(`mion bun server running on ${url}`);
