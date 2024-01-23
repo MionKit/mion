@@ -31,7 +31,18 @@ export default defineAppConfig({
       fluid: false
     },
     footer: {
-      credits: false,
+      textLinks: [
+        {
+          text: 'Developed by Ma_jrz & Contributors',
+          href: 'https://github.com/M-jerez',
+          target: '_blank'
+        },
+      ],
+      credits: {
+        icon: 'icon-park-outline:copyright',
+        text: `MIT license - Copyright ${new Date().getFullYear()} Mion`,
+        href: 'https://github.com/MionKit/mion/blob/master/LICENSE',
+      },
     }
   }
 })
