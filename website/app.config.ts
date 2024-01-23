@@ -33,7 +33,7 @@ export default defineAppConfig({
     footer: {
       textLinks: [
         {
-          text: 'Developed by Ma_jrz & Contributors',
+          text: 'Developed by Ma Jerez & Contributors',
           href: 'https://github.com/M-jerez',
           target: '_blank'
         },
