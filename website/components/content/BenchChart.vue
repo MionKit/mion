@@ -27,8 +27,7 @@ const chartList = {
 </script>
 
 <script setup>
-import {onMounted} from 'vue';
-import {nextTick} from 'process';
+import {onMounted, nextTick} from 'vue';
 
 const props = defineProps({
   id: {
