@@ -37,6 +37,7 @@ import {ReflectionOptions, getFunctionReflectionMethods} from '@mionkit/reflecti
 import {bodyParserHooks} from './jsonBodyParser';
 import {RpcError, StatusCodes, getRouterItemId, setErrorOptions, getRoutePath} from '@mionkit/core';
 import {getRemoteMethodsMetadata, resetRemoteMethodsMetadata} from './remoteMethodsMetadata';
+import {clientRoutes} from './client.routes';
 
 type RouterKeyEntryList = [string, RouterEntry][];
 type RoutesWithId = {
@@ -97,6 +98,17 @@ export const resetRouter = () => {
     resetRemoteMethodsMetadata();
 };
 
+// simpler router initialization
+export function initMionRouter<R extends Routes>(
+    routes: R,
+    opts?: Partial<RouterOptions>,
+    skipClientRoutes?: boolean
+): RemoteApi<R> {
+    initRouter(opts);
+    if (!skipClientRoutes) registerClientRoutes();
+    return registerRoutes(routes);
+}
+
 /**
  * Initializes the Router.
  * @param application
@@ -121,6 +133,10 @@ export function registerRoutes<R extends Routes>(routes: R): RemoteApi<R> {
     // we only want to get information about the routes when creating api spec
     if (shouldFullGenerateSpec()) return getRemoteMethodsMetadata(routes);
     return {} as RemoteApi<R>;
+}
+
+export function registerClientRoutes(): RemoteApi<typeof clientRoutes> {
+    return registerRoutes(clientRoutes);
 }
 
 export function getRouteDefaultParams(): string[] {
