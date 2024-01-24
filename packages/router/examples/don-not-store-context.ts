@@ -1,4 +1,4 @@
-import {HeaderHookDef, Routes, registerRoutes} from '@mionkit/router';
+import {HeaderHookDef, Routes, initMionRouter} from '@mionkit/router';
 import {getAuthUser, isAuthorized} from 'MyAuth';
 
 let currentSharedData: any = null;
@@ -30,4 +30,4 @@ const routes = {
     sayHello,
 } satisfies Routes;
 
-export const apiSpec = registerRoutes(routes);
+export const apiSpec = initMionRouter(routes);

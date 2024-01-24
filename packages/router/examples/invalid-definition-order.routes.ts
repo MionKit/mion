@@ -1,4 +1,4 @@
-import {Routes, registerRoutes} from '@mionkit/router';
+import {Routes, initMionRouter} from '@mionkit/router';
 
 const invalidRoutes = {
     authorizationHook: {hook(): void {}}, // hook
@@ -16,4 +16,4 @@ const invalidRoutes = {
 } satisfies Routes;
 
 // Throws an error as there are invalid route names
-export const myInvalidApi = registerRoutes(invalidRoutes);
+export const myInvalidApi = initMionRouter(invalidRoutes);

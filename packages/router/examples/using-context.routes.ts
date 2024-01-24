@@ -1,4 +1,4 @@
-import {registerRoutes, initRouter} from '@mionkit/router';
+import {initMionRouter, initRouter} from '@mionkit/router';
 import {myApp} from './myApp';
 import type {CallContext, Routes} from '@mionkit/router';
 import type {Pet, User} from './myModels';
@@ -18,4 +18,4 @@ const getMyPet = async (ctx: MyContext): Promise<Pet> => {
 
 const routes = {getMyPet} satisfies Routes;
 initRouter({sharedDataFactory: initSharedData});
-export const apiSpec = registerRoutes(routes);
+export const apiSpec = initMionRouter(routes);

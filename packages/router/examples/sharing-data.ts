@@ -1,5 +1,5 @@
 import {RpcError} from '@mionkit/core';
-import {HeaderHookDef, Routes, registerRoutes} from '@mionkit/router';
+import {HeaderHookDef, Routes, initMionRouter} from '@mionkit/router';
 import {getAuthUser, isAuthorized} from 'MyAuth';
 
 const authorizationHook = {
@@ -22,4 +22,4 @@ const routes = {
     sayMyName,
 } satisfies Routes;
 
-export const apiSpec = registerRoutes(routes);
+export const apiSpec = initMionRouter(routes);

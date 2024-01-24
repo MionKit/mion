@@ -1,6 +1,5 @@
 import {RpcError} from '@mionkit/core';
-import {Routes, registerRoutes} from '@mionkit/router';
-import {clientRoutes} from '@mionkit/common';
+import {Routes, initMionRouter} from '@mionkit/router';
 
 const routes = {
     auth: {
@@ -18,13 +17,8 @@ const routes = {
     },
 } satisfies Routes;
 
-// init server or serverless router
-// initHttpRouter(...);
-// initAwsLambdaRouter(...);
+// init & register routes (this automatically registers client routes)
+const myApi = initMionRouter(routes);
 
-// register routes and exporting the type of the Api to be used by client
-const myApi = registerRoutes(routes);
+// Export the type of the Api (used by the client)
 export type MyApi = typeof myApi;
-
-// register routes required by client, (these routes serve metadata, for validation and serialization)
-registerRoutes(clientRoutes);

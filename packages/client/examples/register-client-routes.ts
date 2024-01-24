@@ -1,21 +1,11 @@
-import {Routes, registerRoutes} from '@mionkit/router';
-import {clientRoutes} from '@mionkit/common';
-import {initAwsLambdaRouter, awsLambdaHandler} from '@mionkit/aws';
+import {Routes, initMionRouter} from '@mionkit/router';
 
 const routes = {
     // ... my Application Routes
 } satisfies Routes;
 
-// init & register routes
-initAwsLambdaRouter();
-const myApi = registerRoutes(routes);
-
-// register client routes
-// these routes serve metadata required for validation and serialization on the client
-registerRoutes(clientRoutes);
+// init & register routes (this automatically registers client routes)
+const myApi = initMionRouter(routes);
 
 // Export Routes type  (to be used by the client)
 export type MyApi = typeof myApi;
-
-// export aws lambda handler
-export const handler = awsLambdaHandler;

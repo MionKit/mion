@@ -1,4 +1,4 @@
-import {CallContext, HookDef, registerRoutes} from '@mionkit/router';
+import {CallContext, HookDef, initMionRouter} from '@mionkit/router';
 import {myApp} from './myApp';
 
 const logger = {
@@ -11,7 +11,7 @@ const logger = {
     },
 } satisfies HookDef;
 
-registerRoutes({
+initMionRouter({
     // ... other routes and hooks
     logger, // logs things after all other hooks and routes are executed
 });
