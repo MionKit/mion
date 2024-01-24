@@ -5,11 +5,10 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {RemoteApi, Routes, initRouter, registerRoutes} from '@mionkit/router';
+import {RemoteApi, Routes, initRouter, registerRoutes, registerClientRoutes} from '@mionkit/router';
 import {initClient} from './client';
 import {HookSubRequest, RouteSubRequest} from './types';
 import {setNodeHttpOpts, startNodeServer} from '@mionkit/http';
-import {clientRoutes} from '@mionkit/common';
 import {Server} from 'http';
 import {RpcError} from '@mionkit/core';
 
@@ -52,7 +51,7 @@ describe('client', () => {
     beforeAll(async () => {
         initRouter({sharedDataFactory: () => {}});
         myApi = registerRoutes(routes);
-        registerRoutes(clientRoutes);
+        registerClientRoutes();
         setNodeHttpOpts({port});
         server = await startNodeServer();
     });
