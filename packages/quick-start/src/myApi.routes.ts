@@ -21,16 +21,10 @@ export const routes = {
         delete: (ctx, id: string): string => id,
         create: (ctx, newOrder: Omit<Order, 'id'>): Order => ({id: 'ORDER-123', ...newOrder}),
     },
-    utils: {
-        sum: (ctx, a: number, b: number): number => a + b,
-        sayHello: (ctx, user: User): string => `Hello ${user.name} ${user.surname}`,
-    },
     log: {
         forceRunOnError: true,
         hook: (ctx): void => {
-            const now = Date.now();
-            console.log(now, ctx.path, ctx.response.statusCode);
-            if (ctx.request.internalErrors.length) console.error(now, ctx.path, ctx.request.internalErrors);
+            console.log(Date.now(), ctx.path, ctx.response.statusCode);
         },
     },
 } satisfies Routes;
