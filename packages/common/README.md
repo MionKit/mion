@@ -18,7 +18,7 @@
 
 mion standard hooks and routes:
 
-- client routes: serve metadata about existing routes and public hooks (remoteMethodsMetadata)
+TODO: Add common hooks and routes
 
 ## Check Out The [Website And Documentation](http://mion.io) 📚
 

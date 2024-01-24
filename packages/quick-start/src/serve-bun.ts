@@ -1,9 +1,6 @@
-import {BunHttpOptions, setBunHttpOpts, startBunServer} from '@mionkit/bun';
+import {BunHttpOptions, startBunServer} from '@mionkit/bun';
 import './myApi.routes';
 
-// set options specific for bun
-const bunOptions: Partial<BunHttpOptions> = {port: 8080};
-setBunHttpOpts(bunOptions);
-
-// init bun server
-startBunServer();
+// init a bun server with options specific for bun
+const bunOptions: Partial<BunHttpOptions> = {port: 3000};
+startBunServer(bunOptions);
