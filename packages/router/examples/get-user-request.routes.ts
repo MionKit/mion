@@ -1,4 +1,4 @@
-import {Routes, registerRoutes} from '@mionkit/router';
+import {Routes, initMionRouter} from '@mionkit/router';
 import type {User} from 'MyModels';
 
 const getUser = async (ctx, entity: {id: number}): Promise<User> => {
@@ -12,4 +12,4 @@ const routes = {
     },
 } satisfies Routes;
 
-export const apiSpec = registerRoutes(routes);
+export const apiSpec = initMionRouter(routes);

@@ -1,4 +1,4 @@
-import {Routes, registerRoutes} from '@mionkit/router';
+import {Routes, initMionRouter} from '@mionkit/router';
 
 const routes = {
     authorizationHook: {hook(): void {}}, // hook
@@ -15,4 +15,4 @@ const routes = {
     loggingHook: {hook(): void {}}, // hook
 } satisfies Routes;
 
-export const myValidApi = registerRoutes(routes);
+export const myValidApi = initMionRouter(routes);

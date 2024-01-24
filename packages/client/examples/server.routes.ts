@@ -1,7 +1,5 @@
 import {RpcError} from '@mionkit/core';
-import {Routes, registerRoutes} from '@mionkit/router';
-import {clientRoutes} from '@mionkit/common';
-import {initAwsLambdaRouter, awsLambdaHandler} from '@mionkit/aws';
+import {Routes, initMionRouter} from '@mionkit/router';
 import {Logger} from 'Logger';
 import {Cleaned, ClientHooks, ClientRoutes} from '../src/types';
 
@@ -37,15 +35,8 @@ const routes = {
     },
 } satisfies Routes;
 
-// init serverless router and export handler
-initAwsLambdaRouter();
-export const handler = awsLambdaHandler;
-// use initHttpRouter(...); for regular nodejs server
+// init & register routes (this automatically registers client routes)
+const myApi = initMionRouter(routes);
 
-// register routes and exporting the type of the Api to be used by client
-const myApi = registerRoutes(routes);
+// Export the type of the Api (used by the client)
 export type MyApi = typeof myApi;
-
-// register routes required by client
-// these routes serve metadata required for validation and serialization on the client
-registerRoutes(clientRoutes);

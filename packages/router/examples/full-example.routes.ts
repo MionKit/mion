@@ -1,5 +1,5 @@
 import {RpcError, StatusCodes} from '@mionkit/core';
-import {registerRoutes, initRouter} from '@mionkit/router';
+import {initMionRouter} from '@mionkit/router';
 import type {HeaderHookDef, RawHookDef, Routes} from '@mionkit/router';
 import {Context, NewUser, getSharedData, myApp} from './full-example.app';
 import {User} from '@mionkit/codegen/src/test/myApi.types';
@@ -49,6 +49,8 @@ const routes = {
     log,
 } satisfies Routes;
 
-initRouter({sharedDataFactory: getSharedData, prefix: 'api/v1'});
-export const apiSpec = registerRoutes(routes);
+export const apiSpec = initMionRouter(routes, {
+    sharedDataFactory: getSharedData,
+    prefix: 'api/v1',
+});
 export type ApiSpec = typeof apiSpec;

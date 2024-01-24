@@ -1,5 +1,5 @@
 import {AnyObject, RpcError} from '@mionkit/core';
-import {registerRoutes, Routes, CallContext} from '@mionkit/router';
+import {initMionRouter, Routes, CallContext} from '@mionkit/router';
 import {IncomingMessage} from 'http';
 
 export type HttpRequest = IncomingMessage & {body: string};
@@ -25,4 +25,4 @@ const hooks = {
     log: {hook: (c: Context): void => undefined},
 } satisfies Routes;
 
-export const routesSpec = registerRoutes(routes);
+export const routesSpec = initMionRouter(routes);

@@ -1,4 +1,4 @@
-import {CallContext, RawHookDef, registerRoutes} from '@mionkit/router';
+import {CallContext, RawHookDef, initMionRouter} from '@mionkit/router';
 import {IncomingMessage, ServerResponse} from 'http';
 type HttpRequest = IncomingMessage & {body: any};
 
@@ -23,7 +23,7 @@ const progress = {
     },
 } satisfies RawHookDef<any, HttpRequest, ServerResponse>;
 
-registerRoutes({
+initMionRouter({
     progress,
     // ... other routes and hooks
 });

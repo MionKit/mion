@@ -1,4 +1,4 @@
-import {HeaderHookDef, registerRoutes} from '@mionkit/router';
+import {HeaderHookDef, initMionRouter} from '@mionkit/router';
 import {getAuthUser, isAuthorized} from 'MyAuth';
 
 const auth = {
@@ -11,7 +11,7 @@ const auth = {
     },
 } satisfies HeaderHookDef;
 
-registerRoutes({
+initMionRouter({
     auth,
     // ... other routes and hooks. If auth fails they wont get executed
 });
