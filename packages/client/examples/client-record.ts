@@ -3,9 +3,7 @@ import {initClient} from '@mionkit/client';
 // importing type only from server
 import type {MyApi} from './server-record.routes';
 
-const port = 8076;
-const baseURL = `http://localhost:${port}`;
-const {routes, hooks} = initClient<MyApi>({baseURL});
+const {routes, hooks} = initClient<MyApi>({baseURL: 'http://localhost:3000'});
 
 // lets prefill auth token
 await hooks.auth('myToken123').prefill();

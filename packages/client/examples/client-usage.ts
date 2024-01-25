@@ -4,9 +4,7 @@ import {initClient} from '@mionkit/client';
 import type {MyApi} from './server.routes';
 import {ParamsValidationResponse} from '@mionkit/reflection';
 
-const port = 8076;
-const baseURL = `http://localhost:${port}`;
-const {routes, hooks} = initClient<MyApi>({baseURL});
+const {routes, hooks} = initClient<MyApi>({baseURL: 'http://localhost:3000'});
 
 // calls sumTwo route in the server
 const authSubRequest = hooks.auth('myToken-XYZ');
@@ -20,7 +18,7 @@ const sumTwoResponse = await routes.utils.sum(5, 2).call();
 console.log(sumTwoResponse); // 7
 
 // validate parameters locally without calling the server
-const validationResp: ParamsValidationResponse = await routes.utils
+const validationResp: ParamsValidationResponse = await routes.users
     .sayHello({id: '123', name: 'John', surname: 'Doe'})
     .validate();
 console.log(validationResp); // {hasErrors: false, totalErrors: 0, errors: []}
