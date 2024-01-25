@@ -1,7 +1,6 @@
 import {RpcError} from '@mionkit/core';
 import {Routes, initMionRouter} from '@mionkit/router';
 import {Logger} from 'Logger';
-import {Cleaned, ClientHooks, ClientRoutes} from '../src/types';
 
 export type User = {id: string; name: string; surname: string};
 export type Order = {id: string; date: Date; userId: string; totalUSD: number};
@@ -17,6 +16,7 @@ const routes = {
         getById: (ctx, id: string): User => ({id, name: 'John', surname: 'Smith'}),
         delete: (ctx, id: string): string => id,
         create: (ctx, user: Omit<User, 'id'>): User => ({id: 'USER-123', ...user}),
+        sayHello: (ctx, user: User): string => `Hello ${user.name} ${user.surname}`,
     },
     orders: {
         getById: (ctx, id: string): Order => ({id, date: new Date(), userId: 'USER-123', totalUSD: 120}),
@@ -25,7 +25,6 @@ const routes = {
     },
     utils: {
         sum: (ctx, a: number, b: number): number => a + b,
-        sayHello: (ctx, user: User): string => `Hello ${user.name} ${user.surname}`,
     },
     log: {
         forceRunOnError: true,
