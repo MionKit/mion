@@ -15,7 +15,7 @@ import {AnonymRpcError} from '@mionkit/core';
 import fetch from 'node-fetch';
 import {Server} from 'bun';
 
-describe('serverless router should', () => {
+describe('bun router should', () => {
     resetBunHttpOpts();
     type SimpleUser = {name: string; surname: string};
     type DataPoint = {date: Date};
@@ -95,10 +95,10 @@ describe('serverless router should', () => {
 
         expect(reply).toEqual({getDate: expectedError});
         expect(headers['content-type']).toEqual('application/json; charset=utf-8');
-        // TODO: seems that deepkit error type are slightly different when running on bun and node so length is different
+        // In the past deepkit returned slightly different when running on bun and node so length was different
         // bun: getDate.errorData.message = 'Cannot convert NOT A DATE POINT to UnknownTypeName:() => __\\u{3a9}DataPoint'
         // node: getDate.errorData.message = 'Cannot convert NOT A DATE POINT to DataPoint'
-        expect(headers['content-length']).toEqual('286');
+        expect(headers['content-length']).toEqual('254');
         expect(headers['server']).toEqual('@mionkit/http');
     });
 
