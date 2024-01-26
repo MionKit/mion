@@ -125,7 +125,6 @@ function getReturnSD(
 
     // const returnFix = (handlerType.return as any)?.types?.[0] || handlerType.return;
     const sFunction = sFunctionCreate(
-        reflectionOptions.serializationOptions,
         reflectionOptions.customSerializer,
         reflectionOptions.serializerNamingStrategy,
         handlerType.return
@@ -158,7 +157,6 @@ function getParamsSD(
         return shouldCreateSerializer
             ? createSingleParamSerializeFunction(
                   sFunctionCreate(
-                      reflectionOptions.serializationOptions,
                       reflectionOptions.customSerializer,
                       reflectionOptions.serializerNamingStrategy,
                       paramType
@@ -222,7 +220,6 @@ function deserializeReturnWithUnionErrorHack(
     };
     const returnTypeWithoutErrors = getHandlerReturnUnionTypeWithoutErrors(handlerType);
     const sFunction = sFunctionCreate(
-        reflectionOptions.serializationOptions,
         reflectionOptions.customSerializer,
         reflectionOptions.serializerNamingStrategy,
         returnTypeWithoutErrors

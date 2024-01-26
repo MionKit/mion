@@ -58,8 +58,8 @@
     "url": "https://github.com/MionKit/mion/issues"
   },
   "dependencies": {
-    "@deepkit/core": "1.0.1-alpha.97",
-    "@deepkit/type": "1.0.1-alpha.97",
+    "@deepkit/core": "1.0.1-alpha.114",
+    "@deepkit/type": "1.0.1-alpha.114",
     "@mionkit/core": "^0.7.2",
     "@mionkit/runtype": "^0.7.2"
   },
