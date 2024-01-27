@@ -18,19 +18,19 @@ import {ProcedureType} from './procedures';
 // #######  type guards #######
 
 export function isRouteDef(entry: RouterEntry): entry is RouteDef {
-    return typeof (entry as RouteDef).route === 'function';
+    return entry.type === ProcedureType.route;
 }
 
 export function isHookDef(entry: RouterEntry): entry is HookDef {
-    return typeof (entry as HookDef).hook === 'function';
+    return entry.type === ProcedureType.hook;
 }
 
 export function isRawHookDef(entry: RouterEntry): entry is RawHookDef {
-    return typeof (entry as RawHookDef).hook === 'function' && (entry as RawHookDef).isRawHook;
+    return entry.type === ProcedureType.rawHook;
 }
 
 export function isHeaderHookDef(entry: RouterEntry): entry is HeaderHookDef {
-    return typeof (entry as HeaderHookDef).hook === 'function' && typeof (entry as HeaderHookDef).headerName !== 'undefined';
+    return entry.type === ProcedureType.headerHook;
 }
 
 export function isAnyHookDef(entry: RouterEntry): entry is HeaderHookDef | HookDef | RawHookDef {
@@ -38,7 +38,7 @@ export function isAnyHookDef(entry: RouterEntry): entry is HeaderHookDef | HookD
 }
 
 export function isRoute(entry: RouterEntry): entry is Route {
-    return typeof entry === 'function' || typeof (entry as RouteDef).route === 'function';
+    return entry.type === ProcedureType.route;
 }
 
 export function isRoutes(entry: RouterEntry | Routes): entry is Route {

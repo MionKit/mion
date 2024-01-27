@@ -7,22 +7,21 @@
 
 import {GET_REMOTE_METHODS_BY_ID, GET_REMOTE_METHODS_BY_PATH, AnyObject, RpcError} from '@mionkit/core';
 import {
-    PublicProcedure,
     getHookExecutable,
     getRouteExecutable,
     isPrivateExecutable,
-    getMethodMetadataFromExecutable,
     getRouteExecutionPath,
-    Routes,
     getRouterOptions,
-    RouterOptions,
     getTotalExecutables,
     getAllExecutablesIds,
     getAnyExecutable,
-    Procedure,
-} from '@mionkit/router';
+} from './router';
 // TODO: investigate why compilation fails if route gets imported from @mionkit/router rather that relative import
 import {route} from './initFunctions';
+import {PublicProcedure} from './types/publicProcedures';
+import {RouterOptions, Routes} from './types/general';
+import {getMethodMetadataFromExecutable} from './remoteMethodsMetadata';
+import {Procedure} from './types/procedures';
 
 export type RemoteMethodsDictionary = {[key: string]: PublicProcedure};
 export interface ClientRouteOptions extends RouterOptions {
