@@ -8,9 +8,10 @@
 import {registerRoutes, resetRouter, initRouter} from './router';
 import {dispatchRoute} from './dispatch';
 import {CallContext, MionHeaders} from './types/context';
-import {Route, Routes} from './types/general';
+import {Routes} from './types/general';
 import {AnonymRpcError, StatusCodes} from '@mionkit/core';
-import {headersFromRecord, headersHook, hook, route} from '..';
+import {headersHook, hook, route} from './initFunctions';
+import {headersFromRecord} from './headers';
 
 type RawRequest = {
     headers: MionHeaders;

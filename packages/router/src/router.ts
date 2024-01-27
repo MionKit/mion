@@ -7,16 +7,7 @@
 
 import {join} from 'path';
 import {DEFAULT_ROUTE_OPTIONS, MAX_ROUTE_NESTING} from './constants';
-import {
-    isRawHookDef,
-    isHeaderHookDef,
-    isExecutable,
-    isHookDef,
-    isRoute,
-    isRoutes,
-    isRouteDef,
-    isAnyHookDef,
-} from './types/guards';
+import {isRawHookDef, isHeaderHookDef, isExecutable, isHookDef, isRoute, isRoutes, isAnyHookDef} from './types/guards';
 import type {Route, RouterOptions, Routes, RouterEntry} from './types/general';
 import type {NotFoundProcedure} from './types/procedures';
 import type {RawProcedure} from './types/procedures';
@@ -25,9 +16,8 @@ import type {HookProcedure} from './types/procedures';
 import type {RouteProcedure} from './types/procedures';
 import type {Procedure} from './types/procedures';
 import {ProcedureType} from './types/procedures';
-import type {PublicApi, PrivateHookDef, HooksCollection} from './types/publicProcedures';
-import type {HeaderHookDef, HookDef, RouteDef, RawHookDef} from './types/definitions';
-import type {AnyHandler} from './types/handlers';
+import type {PublicApi, PrivateDef, HooksCollection} from './types/publicProcedures';
+import type {HeaderHookDef, HookDef, RawHookDef} from './types/definitions';
 import {ReflectionOptions, getFunctionReflectionMethods} from '@mionkit/reflection';
 import {bodyParserHooks} from './jsonBodyParser';
 import {RpcError, StatusCodes, getRouterItemId, setErrorOptions, getRoutePath} from '@mionkit/core';
@@ -151,26 +141,28 @@ export function addEndHooks(hooksDef: HooksCollection, prependAfterExisting = tr
 }
 
 let notFoundExecutionPath: Procedure[] | undefined;
+const notFoundHook = {
+    type: ProcedureType.rawHook,
+    handler: () => new RpcError({statusCode: StatusCodes.NOT_FOUND, publicMessage: `Route not found`}),
+    canReturnData: false,
+    forceRunOnError: true,
+    enableValidation: false,
+    enableSerialization: false,
+} satisfies RawHookDef;
 export function getNotFoundExecutionPath(): Procedure[] {
     if (notFoundExecutionPath) return notFoundExecutionPath;
     const hookName = '_mion404NotfoundHook_';
-    const notFoundHook = {
-        isRawHook: true,
-        hook: () => {
-            return new RpcError({statusCode: StatusCodes.NOT_FOUND, publicMessage: `Route not found`});
-        },
-    } satisfies RawHookDef;
     const notFoundHandlerExecutable = getExecutableFromRawHook(notFoundHook, [hookName], 0);
     (notFoundHandlerExecutable as NotFoundProcedure).is404 = true;
     notFoundExecutionPath = [...startHooks, notFoundHandlerExecutable, ...endHooks];
     return notFoundExecutionPath;
 }
 
-export function isPrivateHookDef(entry: RouterEntry, id: string): entry is PrivateHookDef {
+export function isPrivateProcedure(entry: RouterEntry, id: string): entry is PrivateDef {
     if (isRoute(entry)) return false;
     if (isRawHookDef(entry)) return true;
     try {
-        const handler = getHandler(entry, []);
+        const handler = entry.handler;
         const executable = getHookExecutable(id) || getRouteExecutable(id);
         const hasPublicParams = handler.length > getRouteDefaultParams().length;
         return !hasPublicParams && !executable?.canReturnData;
@@ -331,15 +323,6 @@ function getFullExecutionPath(executionPath: Procedure[]): Procedure[] {
     return [...startHooks, ...executionPath, ...endHooks];
 }
 
-function getHandler(entry: RouterEntry, pathPointer: string[]): AnyHandler {
-    if (isRouteDef(entry)) return entry.route;
-    if (isHookDef(entry)) return entry.hook;
-    if (isHeaderHookDef(entry)) return entry.hook;
-    if (isRawHookDef(entry)) return entry.hook;
-
-    throw new Error(`Invalid route: ${join(...pathPointer)}. Missing route handler`);
-}
-
 function getExecutableFromAnyHook(hook: HookDef | HeaderHookDef | RawHookDef, hookPointer: string[], nestLevel: number) {
     if (isRawHookDef(hook)) return getExecutableFromRawHook(hook, hookPointer, nestLevel);
     return getExecutableFromHook(hook, hookPointer, nestLevel);
@@ -355,7 +338,7 @@ function getExecutableFromHook(
     const hookId = getRouterItemId(hookPointer);
     const existing = hooksById.get(hookId);
     if (existing) return existing as HookProcedure;
-    const handler = getHandler(hook, hookPointer);
+    const handler = hook.handler;
     const reflection = getFunctionReflectionMethods(handler, getReflectionOptions(hook), getRouteDefaultParams().length);
 
     type MixedExecutable = (Omit<HookProcedure, 'type'> | Omit<HeaderProcedure, 'type'>) & {
@@ -370,8 +353,8 @@ function getExecutableFromHook(
         nestLevel,
         handler,
         reflection,
-        enableValidation: hook.enableValidation ?? routerOptions.enableValidation,
-        enableSerialization: hook.enableSerialization ?? routerOptions.enableSerialization,
+        enableValidation: (hook as any).enableValidation ?? routerOptions.enableValidation,
+        enableSerialization: (hook as any).enableSerialization ?? routerOptions.enableSerialization,
         pointer: hookPointer,
         headerName: inHeader ? (hook as HeaderHookDef).headerName?.toLowerCase() : undefined,
     };
@@ -390,7 +373,7 @@ function getExecutableFromRawHook(hook: RawHookDef, hookPointer: string[], nestL
         forceRunOnError: true,
         canReturnData: false,
         nestLevel,
-        handler: hook.hook,
+        handler: hook.handler,
         reflection: null,
         enableValidation: false,
         enableSerialization: false,
@@ -404,7 +387,7 @@ function getExecutableFromRoute(route: Route, routePointer: string[], nestLevel:
     const routeId = getRouterItemId(routePointer);
     const existing = routesById.get(routeId);
     if (existing) return existing as RouteProcedure;
-    const handler = getHandler(route, routePointer);
+    const handler = route.handler;
     // const routeObj = isHandler(route) ? {...DEFAULT_ROUTE} : {...DEFAULT_ROUTE, ...route};
     const executable: RouteProcedure = {
         type: ProcedureType.route,
@@ -414,8 +397,8 @@ function getExecutableFromRoute(route: Route, routePointer: string[], nestLevel:
         nestLevel,
         handler,
         reflection: getFunctionReflectionMethods(handler, getReflectionOptions(route), getRouteDefaultParams().length),
-        enableValidation: (route as RouteDef).enableValidation ?? routerOptions.enableValidation,
-        enableSerialization: (route as RouteDef).enableSerialization ?? routerOptions.enableSerialization,
+        enableValidation: (route as any).enableValidation ?? routerOptions.enableValidation,
+        enableSerialization: (route as any).enableSerialization ?? routerOptions.enableSerialization,
         pointer: routePointer,
     };
     delete (executable as any).route;

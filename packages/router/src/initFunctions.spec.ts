@@ -11,6 +11,7 @@ import {dispatchRoute} from './dispatch';
 import {route, headersHook, hook, rawHook} from './initFunctions';
 import {MionHeaders} from './types/context';
 import {headersFromRecord} from './headers';
+import {ProcedureType} from './types/procedures';
 
 describe('route & hooks init functions', () => {
     type RawRequest = {
@@ -27,27 +28,48 @@ describe('route & hooks init functions', () => {
 
     it('should initialize a header hook object', () => {
         expect(routes.auth).toEqual({
+            type: ProcedureType.headerHook,
             headerName: 'Authorization',
-            hook: expect.any(Function),
+            handler: expect.any(Function),
+            description: undefined,
+            enableSerialization: true,
+            enableValidation: true,
+            forceRunOnError: false,
         });
     });
 
     it('should initialize a hook object', () => {
         expect(routes.timestamp).toEqual({
-            hook: expect.any(Function),
+            type: ProcedureType.hook,
+            handler: expect.any(Function),
+            description: undefined,
+            enableSerialization: true,
+            enableValidation: true,
+            forceRunOnError: false,
         });
     });
 
     it('should initialize a rawHook object', () => {
         expect(routes.nothing).toEqual({
-            isRawHook: true,
-            hook: expect.any(Function),
+            type: ProcedureType.rawHook,
+            handler: expect.any(Function),
+            canReturnData: false,
+            enableSerialization: false,
+            enableValidation: false,
+            forceRunOnError: false,
+            description: undefined,
         });
     });
 
     it('should initialize a route object', () => {
         expect(routes.print).toEqual({
-            route: expect.any(Function),
+            type: ProcedureType.route,
+            handler: expect.any(Function),
+            canReturnData: true,
+            forceRunOnError: false,
+            description: undefined,
+            enableSerialization: true,
+            enableValidation: true,
         });
     });
 

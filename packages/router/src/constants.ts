@@ -6,23 +6,7 @@
  * ######## */
 
 import {DEFAULT_REFLECTION_OPTIONS} from '@mionkit/reflection';
-import {RouteDef, HookDef} from './types/definitions';
 import {RouterOptions} from './types/general';
-
-export const DEFAULT_ROUTE = {
-    description: '',
-    enableValidation: true,
-    enableSerialization: true,
-    route: () => null,
-} satisfies Readonly<Required<RouteDef>>;
-
-export const DEFAULT_HOOK = {
-    forceRunOnError: false,
-    description: '',
-    enableValidation: true,
-    enableSerialization: true,
-    hook: () => null,
-} satisfies Readonly<Required<HookDef>>;
 
 export const IS_TEST_ENV = process.env.JEST_WORKER_ID !== undefined || process.env.NODE_ENV === 'test';
 
@@ -60,6 +44,4 @@ export const DEFAULT_ROUTE_OPTIONS = {
     skipClientRoutes: false || IS_TEST_ENV,
 } satisfies Readonly<RouterOptions>;
 
-export const ROUTE_KEYS = Object.keys(DEFAULT_ROUTE);
-export const HOOK_KEYS = Object.keys(DEFAULT_HOOK);
 export const MAX_ROUTE_NESTING = 10;

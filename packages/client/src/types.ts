@@ -10,7 +10,7 @@ import {FunctionReflection, ParamsValidationResponse, ReflectionOptions} from '@
 import type {
     JsonParser,
     PublicHeaderProcedure,
-    PublicHookExecutable,
+    PublicHookProcedure,
     PublicProcedure,
     PublicApi,
     PublicRouteProcedure,
@@ -97,7 +97,7 @@ export interface RouteSubRequest<RR extends PublicRouteProcedure> extends SubReq
 /** structure returned from the proxy, containing info of the remote hook to execute
  * Note hookPointer is using as differentiating key from routePointer in RouteInfo, so types can't overlap.
  */
-export interface HookSubRequest<RH extends PublicHookExecutable | PublicHeaderProcedure> extends SubRequest<RH> {
+export interface HookSubRequest<RH extends PublicHookProcedure | PublicHeaderProcedure> extends SubRequest<RH> {
     /**
      * Validates Hooks's parameters. Throws RpcError if validation fails.
      * @returns {hasErrors: false, totalErrors: 0, errors: []}
@@ -124,12 +124,12 @@ export interface SuccessSubRequest<RM extends PublicProcedure> extends SubReques
     error: undefined;
 }
 
-export type HookCall<RH extends PublicHookExecutable | PublicHeaderProcedure> = (
+export type HookCall<RH extends PublicHookProcedure | PublicHeaderProcedure> = (
     ...params: Parameters<RH['handler']>
 ) => HookSubRequest<RH>;
 export type RouteCall<RR extends PublicRouteProcedure> = (...params: Parameters<RR['handler']>) => RouteSubRequest<RR>;
 
-export type NonClientRoute = never | PublicHookExecutable | PublicHeaderProcedure;
+export type NonClientRoute = never | PublicHookProcedure | PublicHeaderProcedure;
 
 export type ClientRoutes<RMS extends PublicApi<any>> = {
     [Property in keyof RMS as RMS[Property] extends NonClientRoute ? never : Property]: RMS[Property] extends PublicRouteProcedure
@@ -143,7 +143,7 @@ export type NonClientHook = never | PublicRouteProcedure | {[key: string]: Publi
 
 export type ClientHooks<RMS extends PublicApi<any>> = {
     [Property in keyof RMS as RMS[Property] extends NonClientHook ? never : Property]: RMS[Property] extends
-        | PublicHookExecutable
+        | PublicHookProcedure
         | PublicHeaderProcedure
         ? HookCall<RMS[Property]>
         : RMS[Property] extends PublicApi<any>

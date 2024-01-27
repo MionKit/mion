@@ -8,9 +8,9 @@
 import type {MionResponse, MionRequest, CallContext} from './types/context';
 import type {RouterOptions} from './types/general';
 import type {HooksCollection, ErrorReturn} from './types/publicProcedures';
-import type {RawHookDef} from './types/definitions';
 import {RpcError, StatusCodes, AnyObject, Mutable} from '@mionkit/core';
 import {handleRpcErrors} from './dispatch';
+import {rawHook} from './initFunctions';
 
 // ############# PUBLIC METHODS #############
 
@@ -80,12 +80,6 @@ export function stringifyResponseBody(
 }
 
 export const bodyParserHooks = {
-    mionParseJsonRequestBody: {
-        isRawHook: true,
-        hook: parseRequestBody,
-    } satisfies RawHookDef,
-    mionStringifyJsonResponseBody: {
-        isRawHook: true,
-        hook: stringifyResponseBody,
-    } satisfies RawHookDef,
+    mionParseJsonRequestBody: rawHook(parseRequestBody),
+    mionStringifyJsonResponseBody: rawHook(stringifyResponseBody),
 } satisfies HooksCollection;

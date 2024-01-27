@@ -17,7 +17,7 @@ import {
     getRouteExecutable,
     getRouteExecutionPath,
     getRouterOptions,
-    isPrivateHookDef,
+    isPrivateProcedure,
     shouldFullGenerateSpec,
 } from './router';
 import {getSerializedFunctionType} from '@mionkit/reflection';
@@ -51,7 +51,7 @@ function recursiveGetMethodsMetadata<R extends Routes>(
         const itemPointer = [...currentPointer, key];
         const id = getRouterItemId(itemPointer);
 
-        if (isPrivateHookDef(item, id)) {
+        if (isPrivateProcedure(item, id)) {
             publicData[key] = null; // hooks that don't receive or return data are not public
         } else if (isHookDef(item) || isHeaderHookDef(item) || isRoute(item)) {
             const executable = getHookExecutable(id) || getRouteExecutable(id);

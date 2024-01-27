@@ -18,7 +18,9 @@ import {
     addStartHooks,
     addEndHooks,
 } from './router';
-import {type Routes, hook, route, rawHook, ProcedureType} from '..';
+import {type Routes} from './types/general';
+import {hook, route, rawHook} from './initFunctions';
+import {ProcedureType} from './types/procedures';
 
 describe('Create routes should', () => {
     const hook1 = hook((): void => undefined);
