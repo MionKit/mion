@@ -50,7 +50,7 @@ export type ReflectionById = Map<string, FunctionReflection>;
 export type RequestHeaders = {[key: string]: string};
 export type RequestBody = {[key: string]: any[]};
 export type PublicMethodReflection = {reflection: FunctionReflection};
-export type HandlerResponse<RM extends PublicProcedure> = Awaited<ReturnType<RM['_handler']>>;
+export type HandlerResponse<RM extends PublicProcedure> = Awaited<ReturnType<RM['handler']>>;
 export type HandlerSuccessResponse<RM extends PublicProcedure> = Exclude<HandlerResponse<RM>, RpcError | Error>;
 export type HandlerFailResponse<RM extends PublicProcedure> = Extract<HandlerResponse<RM>, RpcError | Error>;
 export type SuccessResponse<MR extends SubRequest<any>> = Required<MR>['return'];
@@ -67,7 +67,7 @@ export interface SubRequest<RM extends PublicProcedure> {
     pointer: string[];
     id: RM['id'];
     isResolved: boolean;
-    params: Parameters<RM['_handler']>;
+    params: Parameters<RM['handler']>;
     return?: HandlerSuccessResponse<RM>;
     error?: HandlerFailResponse<RM>;
     validationResponse?: ParamsValidationResponse;
@@ -125,9 +125,9 @@ export interface SuccessSubRequest<RM extends PublicProcedure> extends SubReques
 }
 
 export type HookCall<RH extends PublicHookExecutable | PublicHeaderProcedure> = (
-    ...params: Parameters<RH['_handler']>
+    ...params: Parameters<RH['handler']>
 ) => HookSubRequest<RH>;
-export type RouteCall<RR extends PublicRouteProcedure> = (...params: Parameters<RR['_handler']>) => RouteSubRequest<RR>;
+export type RouteCall<RR extends PublicRouteProcedure> = (...params: Parameters<RR['handler']>) => RouteSubRequest<RR>;
 
 export type NonClientRoute = never | PublicHookExecutable | PublicHeaderProcedure;
 
