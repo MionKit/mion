@@ -19,12 +19,12 @@ import {
     ClientRoutes,
     ClientHooks,
 } from './types';
-import type {RemoteApi} from '@mionkit/router';
+import type {PublicApi} from '@mionkit/router';
 import {RpcError, getRouterItemId} from '@mionkit/core';
 import {MionRequest} from './request';
 import {ParamsValidationResponse} from '@mionkit/reflection';
 
-export function initClient<RM extends RemoteApi<any>>(
+export function initClient<RM extends PublicApi<any>>(
     options: InitOptions
 ): {client: MionClient; routes: ClientRoutes<RM>; hooks: ClientHooks<RM>} {
     const clientOptions = {

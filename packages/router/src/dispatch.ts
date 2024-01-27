@@ -6,7 +6,9 @@
  * ######## */
 
 import type {CallContext, MionResponse, MionRequest, MionHeaders} from './types/context';
-import {ExecutableType, type Executable, type RouterOptions} from './types/general';
+import {type RouterOptions} from './types/general';
+import {type Procedure} from './types/procedures';
+import {ProcedureType} from './types/procedures';
 import type {Handler} from './types/handlers';
 import {isHeaderExecutable, isNotFoundExecutable, isRawExecutable} from './types/guards';
 import {getNotFoundExecutionPath, getRouteExecutionPath, getRouterOptions} from './router';
@@ -51,7 +53,7 @@ async function runExecutionPath(
     context: CallContext,
     rawRequest: unknown,
     rawResponse: unknown,
-    executables: Executable[],
+    executables: Procedure[],
     opts: RouterOptions
 ): Promise<MionResponse> {
     const {response, request} = context;
@@ -63,7 +65,7 @@ async function runExecutionPath(
         try {
             const deserializedParams = deserializeParameters(request, executable);
             const validatedParams = validateParameters(deserializedParams, executable);
-            if (executable.type === ExecutableType.headerHook) request.headers.set(executable.id, validatedParams);
+            if (executable.type === ProcedureType.headerHook) request.headers.set(executable.id, validatedParams);
             else (request.body as Mutable<MionRequest['body']>)[executable.id] = validatedParams;
 
             const result = await runHandler(validatedParams, context, rawRequest, rawResponse, executable, opts);
@@ -83,7 +85,7 @@ async function runHandler(
     context: CallContext,
     rawRequest: unknown,
     rawResponse: unknown,
-    executable: Executable,
+    executable: Procedure,
     opts: RouterOptions
 ): Promise<any> {
     const resp = getHandlerResponse(handlerParams, context, rawRequest, rawResponse, executable, opts);
@@ -101,7 +103,7 @@ function getHandlerResponse(
     context: CallContext,
     rawRequest: unknown,
     rawResponse: unknown,
-    executable: Executable,
+    executable: Procedure,
     opts: RouterOptions
 ): any {
     if (isRawExecutable(executable)) {
@@ -111,7 +113,7 @@ function getHandlerResponse(
     return (executable.handler as Handler)(context, ...handlerParams);
 }
 
-function deserializeParameters(request: MionRequest, executable: Executable): any[] {
+function deserializeParameters(request: MionRequest, executable: Procedure): any[] {
     if (!executable.reflection) return [];
     const path = executable.id;
     let params;
@@ -147,7 +149,7 @@ function deserializeParameters(request: MionRequest, executable: Executable): an
     return params;
 }
 
-function validateParameters(params: any[], executable: Executable): any[] {
+function validateParameters(params: any[], executable: Procedure): any[] {
     if (!executable.reflection) return params;
     if (executable.enableValidation) {
         const validationResponse = executable.reflection.validateParams(params);
@@ -163,7 +165,7 @@ function validateParameters(params: any[], executable: Executable): any[] {
     return params;
 }
 
-function serializeResponse(executable: Executable, response: MionResponse, result: any) {
+function serializeResponse(executable: Procedure, response: MionResponse, result: any) {
     if (!executable.canReturnData || result === undefined || !executable.reflection) return;
     const serialized = executable.enableSerialization ? executable.reflection.serializeReturn(result) : result;
     if (isHeaderExecutable(executable)) response.headers.set(executable.headerName, serialized);

@@ -6,7 +6,7 @@
  * ######## */
 
 import {AnyObject, RpcError} from '@mionkit/core';
-import {RemoteMethodResponses} from './remote';
+import {PublicResponses} from './publicProcedures';
 
 // ####### Call Context #######
 
@@ -48,7 +48,7 @@ export interface MionResponse {
     /** json encoded response body, filled only after all routes/hook has ben finalized. */
     readonly rawBody: string;
     /** the router response data, body should not be modified manually so marked as Read Only */
-    readonly body: Readonly<RemoteMethodResponses>;
+    readonly body: Readonly<PublicResponses>;
     /** response errors: empty if there were no errors during execution */
     readonly hasErrors: boolean;
 }

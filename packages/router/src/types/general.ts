@@ -8,8 +8,7 @@
 import {CoreOptions} from '@mionkit/core';
 import {CallContext, SharedDataFactory} from './context';
 import {HeaderHookDef, HookDef, RawHookDef, RouteDef} from './definitions';
-import {AnyHandler, Handler, HeaderHandler, RawHookHandler} from './handlers';
-import {FunctionReflection, ReflectionOptions} from '@mionkit/reflection';
+import {ReflectionOptions} from '@mionkit/reflection';
 
 // #######  Router Object #######
 
@@ -52,69 +51,6 @@ export interface RouterOptions<Req = any, SharedData = any> extends CoreOptions 
     autoGenerateErrorId: boolean;
     /** client routes are initialized by default */
     skipClientRoutes: boolean;
-}
-
-// ####### Executables #######
-
-export enum ExecutableType {
-    route = 1,
-    hook = 2,
-    headerHook = 3,
-    rawHook = 4,
-}
-
-/** Contains the data of each hook or route, Used to generate the execution path for each route. */
-
-export interface UnknownExecutable {
-    type: ExecutableType;
-    handler: AnyHandler;
-    reflection: FunctionReflection | null;
-    forceRunOnError: boolean;
-    canReturnData: boolean;
-    enableValidation: boolean;
-    enableSerialization: boolean;
-    headerName?: string;
-}
-export interface Executable extends UnknownExecutable {
-    id: string;
-    /**
-     * The pointer to the src Hook or Route definition within the original Routers object
-     * ie: ['users','getUser']
-     */
-    pointer: string[];
-    nestLevel: number;
-}
-
-export interface RouteExecutable extends Executable {
-    type: ExecutableType.route;
-    handler: Handler;
-    reflection: FunctionReflection;
-    forceRunOnError: false;
-    canReturnData: true;
-}
-
-export interface HookExecutable extends Executable {
-    type: ExecutableType.hook;
-    handler: Handler;
-    reflection: FunctionReflection;
-}
-
-export interface HeaderExecutable extends Executable {
-    type: ExecutableType.headerHook;
-    handler: HeaderHandler;
-    headerName: string;
-    reflection: FunctionReflection;
-}
-
-export interface RawExecutable extends Executable {
-    type: ExecutableType.rawHook;
-    canReturnData: false;
-    handler: RawHookHandler;
-    reflection: null;
-}
-
-export interface NotFoundExecutable extends Executable {
-    is404: true;
 }
 
 // #######  Others #######

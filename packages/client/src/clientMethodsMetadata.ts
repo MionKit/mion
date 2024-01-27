@@ -7,7 +7,7 @@
 
 import {GET_REMOTE_METHODS_BY_ID, RpcError, isRpcError} from '@mionkit/core';
 import {ClientOptions, RequestBody} from './types';
-import {RemoteMethodMetadata} from '@mionkit/router';
+import {PublicProcedure} from '@mionkit/router';
 import {
     FunctionReflection,
     SerializedTypes,
@@ -20,7 +20,7 @@ import {STORAGE_KEY} from './constants';
 export async function fetchRemoteMethodsMetadata(
     methodIds: string[],
     options: ClientOptions,
-    metadataById: Map<string, RemoteMethodMetadata>,
+    metadataById: Map<string, PublicProcedure>,
     reflectionById: Map<string, FunctionReflection>
 ) {
     restoreMetadataFromLocalStorage(methodIds, options, metadataById, reflectionById);
@@ -39,12 +39,12 @@ export async function fetchRemoteMethodsMetadata(
             body: JSON.stringify(body),
         });
         const respObj = await response.json();
-        const resp = respObj[GET_REMOTE_METHODS_BY_ID] as {[key: string]: RemoteMethodMetadata} | RpcError;
+        const resp = respObj[GET_REMOTE_METHODS_BY_ID] as {[key: string]: PublicProcedure} | RpcError;
         // TODO: convert Public error into a class that extends error and throw as an error
         if (isRpcError(resp)) throw new RpcError(resp);
         if (!resp) throw new Error('No remote methods found in response');
 
-        Object.entries(resp).forEach(([id, methodMeta]: [string, RemoteMethodMetadata]) => {
+        Object.entries(resp).forEach(([id, methodMeta]: [string, PublicProcedure]) => {
             setRemoteMethodMetadata(id, methodMeta, options, metadataById, reflectionById);
         });
     } catch (error: any) {
@@ -57,7 +57,7 @@ export async function fetchRemoteMethodsMetadata(
 function restoreMetadataFromLocalStorage(
     methodIds: string[],
     options: ClientOptions,
-    metadataById: Map<string, RemoteMethodMetadata>,
+    metadataById: Map<string, PublicProcedure>,
     reflectionById: Map<string, FunctionReflection>
 ) {
     methodIds.map((id) => {
@@ -66,7 +66,7 @@ function restoreMetadataFromLocalStorage(
         const methodMetaJson = localStorage.getItem(storageKey);
         if (!methodMetaJson) return;
         try {
-            const methodMeta: RemoteMethodMetadata = JSON.parse(methodMetaJson);
+            const methodMeta: PublicProcedure = JSON.parse(methodMetaJson);
             setRemoteMethodMetadata(id, methodMeta, options, metadataById, reflectionById, false);
             if (methodMeta.hookIds?.length)
                 restoreMetadataFromLocalStorage(methodMeta.hookIds, options, metadataById, reflectionById);
@@ -79,9 +79,9 @@ function restoreMetadataFromLocalStorage(
 
 function setRemoteMethodMetadata(
     id: string,
-    method: RemoteMethodMetadata,
+    method: PublicProcedure,
     options: ClientOptions,
-    metadataById: Map<string, RemoteMethodMetadata>,
+    metadataById: Map<string, PublicProcedure>,
     reflectionById: Map<string, FunctionReflection>,
     store = true
 ) {

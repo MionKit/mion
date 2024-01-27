@@ -6,8 +6,10 @@
  * ######## */
 
 import type {Handler} from './types/handlers';
-import {ExecutableType, type Executable, type RouterEntry, type Routes} from './types/general';
-import type {RemoteApi, RemoteHandler, RemoteMethodMetadata} from './types/remote';
+import {type RouterEntry, type Routes} from './types/general';
+import {type Procedure} from './types/procedures';
+import {ProcedureType} from './types/procedures';
+import type {PublicApi, PublicHandler, PublicProcedure} from './types/publicProcedures';
 import {isRoute, isHeaderHookDef, isHookDef, isPublicExecutable} from './types/guards';
 import {
     getHookExecutable,
@@ -22,7 +24,7 @@ import {getSerializedFunctionType} from '@mionkit/reflection';
 import {AnyObject, getRoutePath, getRouterItemId} from '@mionkit/core';
 
 // ############# PRIVATE STATE #############
-const metadataById: Map<string, RemoteMethodMetadata> = new Map();
+const metadataById: Map<string, PublicProcedure> = new Map();
 
 // ############# PUBLIC METHODS #############
 export function resetRemoteMethodsMetadata() {
@@ -33,8 +35,8 @@ export function resetRemoteMethodsMetadata() {
  * Returns a data structure containing all public information and types of the routes.
  * This data and types can be used to generate router clients, etc...
  */
-export function getRemoteMethodsMetadata<R extends Routes>(routes: R): RemoteApi<R> {
-    return recursiveGetMethodsMetadata(routes) as RemoteApi<R>;
+export function getRemoteMethodsMetadata<R extends Routes>(routes: R): PublicApi<R> {
+    return recursiveGetMethodsMetadata(routes) as PublicApi<R>;
 }
 
 // ############# PRIVATE METHODS #############
@@ -65,15 +67,15 @@ function recursiveGetMethodsMetadata<R extends Routes>(
     return publicData;
 }
 
-export function getMethodMetadataFromExecutable<H extends Handler>(executable: Executable): RemoteMethodMetadata<H> {
+export function getMethodMetadataFromExecutable<H extends Handler>(executable: Procedure): PublicProcedure<H> {
     const existing = metadataById.get(executable.id);
-    if (existing) return existing as RemoteMethodMetadata<H>;
+    if (existing) return existing as PublicProcedure<H>;
 
-    const newRemoteMethod: RemoteMethodMetadata = {
+    const newRemoteMethod: PublicProcedure = {
         type: executable.type,
         id: executable.id,
         // handler is included just for static typing purposes and should never be called directly
-        _handler: getHandlerSrcCodePointer(executable) as any as RemoteHandler<H>,
+        handler: getHandlerSrcCodePointer(executable) as any as PublicHandler<H>,
         serializedTypes: getSerializedFunctionType(executable.handler, getRouteDefaultParams().length),
         enableValidation: executable.enableValidation,
         enableSerialization: executable.enableSerialization,
@@ -83,7 +85,7 @@ export function getMethodMetadataFromExecutable<H extends Handler>(executable: E
     // initialized separately so the property `headerName` is not included in the object in case is undefined
     if (executable.headerName) newRemoteMethod.headerName = executable.headerName;
 
-    if (executable.type === ExecutableType.route) {
+    if (executable.type === ProcedureType.route) {
         const path = getRoutePath(executable.pointer, getRouterOptions());
         const pathPointers =
             getRouteExecutionPath(path)
@@ -99,10 +101,10 @@ export function getMethodMetadataFromExecutable<H extends Handler>(executable: E
         if (shouldFullGenerateSpec()) newRemoteMethod.pathPointers = pathPointers;
     }
     metadataById.set(executable.id, newRemoteMethod);
-    return newRemoteMethod as RemoteMethodMetadata<H>;
+    return newRemoteMethod as PublicProcedure<H>;
 }
 
 /** Returns the original route/hook paths as a string to eb used in codegen, ie: path= users/getUser => 'users.getUser'  */
-function getHandlerSrcCodePointer(executable: Executable) {
+function getHandlerSrcCodePointer(executable: Procedure) {
     return executable.pointer.join('.');
 }

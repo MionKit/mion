@@ -7,10 +7,11 @@
 
 export * from './src/types/context';
 export * from './src/types/definitions';
+export * from './src/types/procedures';
 export * from './src/types/general';
 export * from './src/types/guards';
 export * from './src/types/handlers';
-export * from './src/types/remote';
+export * from './src/types/publicProcedures';
 export * from './src/constants';
 export * from './src/router';
 export * from './src/dispatch';
