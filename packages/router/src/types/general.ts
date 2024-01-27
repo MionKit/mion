@@ -54,54 +54,60 @@ export interface RouterOptions<Req = any, SharedData = any> extends CoreOptions 
     skipClientRoutes: boolean;
 }
 
-// ####### Execution Path #######
+// ####### Executables #######
+
+export enum ExecutableType {
+    route = 1,
+    hook = 2,
+    headerHook = 3,
+    rawHook = 4,
+}
 
 /** Contains the data of each hook or route, Used to generate the execution path for each route. */
-export type Executable = {
-    nestLevel: number;
-    id: string;
-    forceRunOnError: boolean;
-    canReturnData: boolean;
-    inHeader: boolean;
-    isRoute: boolean;
-    isRawExecutable: boolean;
+
+export interface UnknownExecutable {
+    type: ExecutableType;
     handler: AnyHandler;
     reflection: FunctionReflection | null;
-    // src: RouteDef | HookDef | RawHookDef;
+    forceRunOnError: boolean;
+    canReturnData: boolean;
     enableValidation: boolean;
     enableSerialization: boolean;
+    headerName?: string;
+}
+export interface Executable extends UnknownExecutable {
+    id: string;
     /**
      * The pointer to the src Hook or Route definition within the original Routers object
      * ie: ['users','getUser']
      */
     pointer: string[];
-    headerName?: string;
-};
+    nestLevel: number;
+}
 
 export interface RouteExecutable extends Executable {
-    isRoute: true;
-    isRawExecutable: false;
+    type: ExecutableType.route;
+    handler: Handler;
+    reflection: FunctionReflection;
     forceRunOnError: false;
     canReturnData: true;
+}
+
+export interface HookExecutable extends Executable {
+    type: ExecutableType.hook;
     handler: Handler;
     reflection: FunctionReflection;
 }
 
-export interface HookExecutable extends Executable {
-    isRoute: false;
-    isRawExecutable: false;
-    handler: Handler | HeaderHandler;
+export interface HeaderExecutable extends Executable {
+    type: ExecutableType.headerHook;
+    handler: HeaderHandler;
+    headerName: string;
     reflection: FunctionReflection;
 }
 
-export interface HookHeaderExecutable extends HookExecutable {
-    inHeader: true;
-    headerName: string;
-}
-
 export interface RawExecutable extends Executable {
-    isRoute: false;
-    isRawExecutable: true;
+    type: ExecutableType.rawHook;
     canReturnData: false;
     handler: RawHookHandler;
     reflection: null;

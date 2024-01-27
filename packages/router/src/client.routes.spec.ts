@@ -17,6 +17,7 @@ import {
     clientRoutes,
     route,
     rawHook,
+    ExecutableType,
 } from '@mionkit/router';
 import {GET_REMOTE_METHODS_BY_ID, GET_REMOTE_METHODS_BY_PATH, getRoutePath} from '@mionkit/core';
 
@@ -56,9 +57,8 @@ describe('Client Routes should', () => {
 
     const methodsMetadata = {
         'users-getUser': {
-            isRoute: true,
+            type: ExecutableType.route,
             id: 'users-getUser',
-            inHeader: false,
             _handler: 'users.getUser',
             serializedTypes: [{kind: 17, parameters: [], return: 1}, {kind: 1}],
             enableValidation: true,
@@ -67,9 +67,8 @@ describe('Client Routes should', () => {
             hookIds: ['auth', 'last'],
         },
         'users-setUser': {
-            isRoute: true,
+            type: ExecutableType.route,
             id: 'users-setUser',
-            inHeader: false,
             _handler: 'users.setUser',
             serializedTypes: [{kind: 17, parameters: [], return: 1}, {kind: 1}],
             enableValidation: true,
@@ -78,9 +77,8 @@ describe('Client Routes should', () => {
             hookIds: ['auth', 'last'],
         },
         'users-pets-getUserPet': {
-            isRoute: true,
+            type: ExecutableType.route,
             id: 'users-pets-getUserPet',
-            inHeader: false,
             _handler: 'users.pets.getUserPet',
             serializedTypes: [{kind: 17, parameters: [], return: 1}, {kind: 1}],
             enableValidation: true,
@@ -89,9 +87,8 @@ describe('Client Routes should', () => {
             hookIds: ['auth', 'last'],
         },
         'pets-getPet': {
-            isRoute: true,
+            type: ExecutableType.route,
             id: 'pets-getPet',
-            inHeader: false,
             _handler: 'pets.getPet',
             serializedTypes: [{kind: 17, parameters: [], return: 1}, {kind: 1}],
             enableValidation: true,
@@ -100,9 +97,8 @@ describe('Client Routes should', () => {
             hookIds: ['auth', 'last'],
         },
         'pets-setPet': {
-            isRoute: true,
+            type: ExecutableType.route,
             id: 'pets-setPet',
-            inHeader: false,
             _handler: 'pets.setPet',
             serializedTypes: [{kind: 17, parameters: [], return: 1}, {kind: 1}],
             enableValidation: true,
@@ -111,9 +107,8 @@ describe('Client Routes should', () => {
             hookIds: ['auth', 'last'],
         },
         auth: {
-            isRoute: false,
+            type: ExecutableType.hook,
             id: 'auth',
-            inHeader: false,
             _handler: 'auth',
             serializedTypes: [{kind: 17, parameters: [{kind: 18, name: 'token', type: 1}], return: 2}, {kind: 5}, {kind: 3}],
             enableValidation: true,
@@ -121,9 +116,8 @@ describe('Client Routes should', () => {
             params: ['token'],
         },
         last: {
-            isRoute: false,
+            type: ExecutableType.hook,
             id: 'last',
-            inHeader: false,
             _handler: 'last',
             serializedTypes: [{kind: 17, parameters: [], return: 1}, {kind: 10}],
             enableValidation: true,
