@@ -7,7 +7,7 @@ export const PUBLIC_METHODS = {
         auth: {
             type: ProcedureType.headerHook,
             id: 'auth',
-            _handler: expect.any(Function),
+            handler: expect.any(Function),
             serializedTypes: expect.any(Object),
             enableValidation: true,
             enableSerialization: true,
@@ -18,7 +18,7 @@ export const PUBLIC_METHODS = {
             getUser: {
                 type: ProcedureType.route,
                 id: 'users-getUser',
-                _handler: expect.any(Function),
+                handler: expect.any(Function),
                 serializedTypes: expect.any(Object),
                 enableValidation: true,
                 enableSerialization: true,
@@ -29,7 +29,7 @@ export const PUBLIC_METHODS = {
             setUser: {
                 type: ProcedureType.route,
                 id: 'users-setUser',
-                _handler: expect.any(Function),
+                handler: expect.any(Function),
                 serializedTypes: expect.any(Object),
                 enableValidation: true,
                 enableSerialization: true,
@@ -40,7 +40,7 @@ export const PUBLIC_METHODS = {
             totalUsers: {
                 type: ProcedureType.hook,
                 id: 'users-totalUsers',
-                _handler: expect.any(Function),
+                handler: expect.any(Function),
                 serializedTypes: expect.any(Object),
                 enableValidation: true,
                 enableSerialization: true,
@@ -51,7 +51,7 @@ export const PUBLIC_METHODS = {
             getPet: {
                 type: ProcedureType.route,
                 id: 'pets-getPet',
-                _handler: expect.any(Function),
+                handler: expect.any(Function),
                 serializedTypes: expect.any(Object),
                 enableValidation: true,
                 enableSerialization: true,
@@ -62,7 +62,7 @@ export const PUBLIC_METHODS = {
             setPet: {
                 type: ProcedureType.route,
                 id: 'pets-setPet',
-                _handler: expect.any(Function),
+                handler: expect.any(Function),
                 serializedTypes: expect.any(Object),
                 enableValidation: true,
                 enableSerialization: true,
@@ -75,7 +75,7 @@ export const PUBLIC_METHODS = {
             getNumber: {
                 type: ProcedureType.route,
                 id: 'utils-getNumber',
-                _handler: expect.any(Function),
+                handler: expect.any(Function),
                 serializedTypes: expect.any(Object),
                 enableValidation: true,
                 enableSerialization: true,
@@ -87,7 +87,7 @@ export const PUBLIC_METHODS = {
         getItem: {
             type: ProcedureType.route,
             id: 'getItem',
-            _handler: expect.any(Function),
+            handler: expect.any(Function),
             serializedTypes: expect.any(Object),
             enableValidation: true,
             enableSerialization: true,
@@ -98,7 +98,7 @@ export const PUBLIC_METHODS = {
         getPetOrUser: {
             type: ProcedureType.route,
             id: 'getPetOrUser',
-            _handler: expect.any(Function),
+            handler: expect.any(Function),
             serializedTypes: expect.any(Object),
             enableValidation: true,
             enableSerialization: true,
@@ -111,7 +111,7 @@ export const PUBLIC_METHODS = {
         login: {
             type: ProcedureType.route,
             id: 'login',
-            _handler: expect.any(Function),
+            handler: expect.any(Function),
             serializedTypes: expect.any(Object),
             enableValidation: true,
             enableSerialization: true,
