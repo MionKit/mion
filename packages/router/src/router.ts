@@ -11,7 +11,6 @@ import {
     isRawHookDef,
     isHeaderHookDef,
     isExecutable,
-    isHandler,
     isHookDef,
     isRoute,
     isRoutes,
@@ -337,7 +336,6 @@ function getFullExecutionPath(executionPath: Executable[]): Executable[] {
 }
 
 function getHandler(entry: RouterEntry, pathPointer: string[]): AnyHandler {
-    if (isHandler(entry)) return entry;
     if (isRouteDef(entry)) return entry.route;
     if (isHookDef(entry)) return entry.hook;
     if (isHeaderHookDef(entry)) return entry.hook;
@@ -439,7 +437,7 @@ function getRouteEntryProperties(
     const zeroIsRoute = !!(zero as Executable).isRoute;
     const plus1IsRoute = plus1 && isRoute(plus1);
 
-    const isExec = isHandler((zero as Executable).handler);
+    const isExec = !!(zero as Executable).handler;
 
     return {
         isBetweenRoutes: minus1IsRoute && zeroIsRoute && plus1IsRoute,

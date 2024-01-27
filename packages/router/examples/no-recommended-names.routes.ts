@@ -1,8 +1,8 @@
-import {Routes} from '@mionkit/router';
+import {Routes, route} from '@mionkit/router';
 
-const sayHello = (ctx, name: string): string => {
+const sayHello = route((ctx, name: string): string => {
     return `Hello ${name}.`;
-};
+});
 
 const routes = {
     'say-Hello': sayHello, // path = /say-Hello  !! NOT Recommended
