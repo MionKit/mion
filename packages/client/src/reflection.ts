@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import type {RemoteMethodMetadata, RemoteMethodResponses} from '@mionkit/router';
+import type {PublicProcedure, PublicResponses} from '@mionkit/router';
 import {FunctionReflection, ParamsValidationResponse} from '@mionkit/reflection';
 import {RpcError, StatusCodes, isRpcError} from '@mionkit/core';
 import {RequestErrors, SubRequest, ValidationRequest} from './types';
@@ -94,7 +94,7 @@ export function serializeSubRequest(id: string, req: ValidationRequest, errors: 
 }
 
 // if there is any error it will be inserted in the body as a route return error
-export function deserializeResponseBody(responseBody: RemoteMethodResponses, req: ValidationRequest): RemoteMethodResponses {
+export function deserializeResponseBody(responseBody: PublicResponses, req: ValidationRequest): PublicResponses {
     const deSerializedBody = responseBody;
     Object.entries(deSerializedBody).forEach(([key, remoteHandlerResponse]) => {
         const methodMeta = req.metadataById.get(key);
@@ -110,14 +110,14 @@ export function deserializeResponseBody(responseBody: RemoteMethodResponses, req
 function getSerializationRequiredData(
     id: string,
     req: ValidationRequest
-): {methodMeta: RemoteMethodMetadata; subRequest?: SubRequest<any>} {
+): {methodMeta: PublicProcedure; subRequest?: SubRequest<any>} {
     const methodMeta = req.metadataById.get(id);
     const subRequest = req.subRequests[id];
     if (!methodMeta) throw new Error(`Metadata for remote method ${id} not found.`);
     return {methodMeta, subRequest};
 }
 
-function serializeParameters(params: any[], method: RemoteMethodMetadata, reflection?: FunctionReflection): any[] | RpcError {
+function serializeParameters(params: any[], method: PublicProcedure, reflection?: FunctionReflection): any[] | RpcError {
     if (!reflection) return params;
     if (params.length && method.enableSerialization) {
         try {
@@ -136,7 +136,7 @@ function serializeParameters(params: any[], method: RemoteMethodMetadata, reflec
 
 function validateParameters(
     params: any[],
-    method: RemoteMethodMetadata,
+    method: PublicProcedure,
     reflection?: FunctionReflection
 ): void | ParamsValidationResponse | RpcError {
     if (!reflection || !method.enableValidation) return;
@@ -160,11 +160,7 @@ function validateParameters(
     }
 }
 
-function deSerializeReturn(
-    response: any | RpcError,
-    method: RemoteMethodMetadata,
-    reflection?: FunctionReflection
-): any | RpcError {
+function deSerializeReturn(response: any | RpcError, method: PublicProcedure, reflection?: FunctionReflection): any | RpcError {
     if (!reflection || !method.enableSerialization || !response) return response;
     try {
         if (response instanceof RpcError) return response;

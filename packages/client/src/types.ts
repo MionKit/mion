@@ -9,11 +9,11 @@ import {RpcError} from '@mionkit/core';
 import {FunctionReflection, ParamsValidationResponse, ReflectionOptions} from '@mionkit/reflection';
 import type {
     JsonParser,
-    RemoteHeaderHookMetadata,
-    RemoteHookMetadata,
-    RemoteMethodMetadata,
-    RemoteApi,
-    RemoteRouteMetadata,
+    PublicHeaderProcedure,
+    PublicHookExecutable,
+    PublicProcedure,
+    PublicApi,
+    PublicRouteProcedure,
 } from '@mionkit/router';
 import type {MionRequest} from './request';
 
@@ -45,14 +45,14 @@ export type ClientOptions = {
 };
 
 export type InitOptions = Partial<ClientOptions> & {baseURL: string};
-export type MetadataById = Map<string, RemoteMethodMetadata>;
+export type MetadataById = Map<string, PublicProcedure>;
 export type ReflectionById = Map<string, FunctionReflection>;
 export type RequestHeaders = {[key: string]: string};
 export type RequestBody = {[key: string]: any[]};
 export type PublicMethodReflection = {reflection: FunctionReflection};
-export type HandlerResponse<RM extends RemoteMethodMetadata> = Awaited<ReturnType<RM['_handler']>>;
-export type HandlerSuccessResponse<RM extends RemoteMethodMetadata> = Exclude<HandlerResponse<RM>, RpcError | Error>;
-export type HandlerFailResponse<RM extends RemoteMethodMetadata> = Extract<HandlerResponse<RM>, RpcError | Error>;
+export type HandlerResponse<RM extends PublicProcedure> = Awaited<ReturnType<RM['_handler']>>;
+export type HandlerSuccessResponse<RM extends PublicProcedure> = Exclude<HandlerResponse<RM>, RpcError | Error>;
+export type HandlerFailResponse<RM extends PublicProcedure> = Extract<HandlerResponse<RM>, RpcError | Error>;
 export type SuccessResponse<MR extends SubRequest<any>> = Required<MR>['return'];
 export type SuccessResponses<List extends SubRequest<any>[]> = {[P in keyof List]: SuccessResponse<List[P]>};
 export type FailResponse<MR extends SubRequest<any>> = Required<MR>['error'];
@@ -63,7 +63,7 @@ export type RequestErrors = Map<string, RpcError>;
 
 /** Represents a remote method (sub request).
  * A route request can contains multiple subRequest to the route itself and any required hook*/
-export interface SubRequest<RM extends RemoteMethodMetadata> {
+export interface SubRequest<RM extends PublicProcedure> {
     pointer: string[];
     id: RM['id'];
     isResolved: boolean;
@@ -78,7 +78,7 @@ export interface SubRequest<RM extends RemoteMethodMetadata> {
 /** structure returned from the proxy, containing info of the remote route to execute
  * Note routePointer is using as differentiating key from hookPointer in HookInfo, so types can't overlap.
  */
-export interface RouteSubRequest<RR extends RemoteRouteMetadata> extends SubRequest<RR> {
+export interface RouteSubRequest<RR extends PublicRouteProcedure> extends SubRequest<RR> {
     /**
      * Validates Route's parameters. Throws RpcError if validation fails.
      * @returns {hasErrors: false, totalErrors: 0, errors: []}
@@ -97,7 +97,7 @@ export interface RouteSubRequest<RR extends RemoteRouteMetadata> extends SubRequ
 /** structure returned from the proxy, containing info of the remote hook to execute
  * Note hookPointer is using as differentiating key from routePointer in RouteInfo, so types can't overlap.
  */
-export interface HookSubRequest<RH extends RemoteHookMetadata | RemoteHeaderHookMetadata> extends SubRequest<RH> {
+export interface HookSubRequest<RH extends PublicHookExecutable | PublicHeaderProcedure> extends SubRequest<RH> {
     /**
      * Validates Hooks's parameters. Throws RpcError if validation fails.
      * @returns {hasErrors: false, totalErrors: 0, errors: []}
@@ -119,39 +119,39 @@ export interface HookSubRequest<RH extends RemoteHookMetadata | RemoteHeaderHook
     removePrefill: () => Promise<void>;
 }
 
-export interface SuccessSubRequest<RM extends RemoteMethodMetadata> extends SubRequest<RM> {
+export interface SuccessSubRequest<RM extends PublicProcedure> extends SubRequest<RM> {
     return: HandlerSuccessResponse<RM>;
     error: undefined;
 }
 
-export type HookCall<RH extends RemoteHookMetadata | RemoteHeaderHookMetadata> = (
+export type HookCall<RH extends PublicHookExecutable | PublicHeaderProcedure> = (
     ...params: Parameters<RH['_handler']>
 ) => HookSubRequest<RH>;
-export type RouteCall<RR extends RemoteRouteMetadata> = (...params: Parameters<RR['_handler']>) => RouteSubRequest<RR>;
+export type RouteCall<RR extends PublicRouteProcedure> = (...params: Parameters<RR['_handler']>) => RouteSubRequest<RR>;
 
-export type NonClientRoute = never | RemoteHookMetadata | RemoteHeaderHookMetadata;
+export type NonClientRoute = never | PublicHookExecutable | PublicHeaderProcedure;
 
-export type ClientRoutes<RMS extends RemoteApi<any>> = {
-    [Property in keyof RMS as RMS[Property] extends NonClientRoute ? never : Property]: RMS[Property] extends RemoteRouteMetadata
+export type ClientRoutes<RMS extends PublicApi<any>> = {
+    [Property in keyof RMS as RMS[Property] extends NonClientRoute ? never : Property]: RMS[Property] extends PublicRouteProcedure
         ? RouteCall<RMS[Property]>
-        : RMS[Property] extends RemoteApi<any>
-        ? ClientRoutes<RMS[Property]>
-        : never;
+        : RMS[Property] extends PublicApi<any>
+          ? ClientRoutes<RMS[Property]>
+          : never;
 };
 
-export type NonClientHook = never | RemoteRouteMetadata | {[key: string]: RemoteRouteMetadata};
+export type NonClientHook = never | PublicRouteProcedure | {[key: string]: PublicRouteProcedure};
 
-export type ClientHooks<RMS extends RemoteApi<any>> = {
+export type ClientHooks<RMS extends PublicApi<any>> = {
     [Property in keyof RMS as RMS[Property] extends NonClientHook ? never : Property]: RMS[Property] extends
-        | RemoteHookMetadata
-        | RemoteHeaderHookMetadata
+        | PublicHookExecutable
+        | PublicHeaderProcedure
         ? HookCall<RMS[Property]>
-        : RMS[Property] extends RemoteApi<any>
-        ? ClientHooks<RMS[Property]>
-        : never;
+        : RMS[Property] extends PublicApi<any>
+          ? ClientHooks<RMS[Property]>
+          : never;
 };
 
-export type Cleaned<RMS extends RemoteApi<any>> = {
+export type Cleaned<RMS extends PublicApi<any>> = {
     [Property in keyof RMS as RMS[Property] extends never ? never : Property]: RMS[Property];
 };
 

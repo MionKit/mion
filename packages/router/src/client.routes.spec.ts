@@ -17,7 +17,7 @@ import {
     clientRoutes,
     route,
     rawHook,
-    ExecutableType,
+    ProcedureType,
 } from '@mionkit/router';
 import {GET_REMOTE_METHODS_BY_ID, GET_REMOTE_METHODS_BY_PATH, getRoutePath} from '@mionkit/core';
 
@@ -57,7 +57,7 @@ describe('Client Routes should', () => {
 
     const methodsMetadata = {
         'users-getUser': {
-            type: ExecutableType.route,
+            type: ProcedureType.route,
             id: 'users-getUser',
             _handler: 'users.getUser',
             serializedTypes: [{kind: 17, parameters: [], return: 1}, {kind: 1}],
@@ -67,7 +67,7 @@ describe('Client Routes should', () => {
             hookIds: ['auth', 'last'],
         },
         'users-setUser': {
-            type: ExecutableType.route,
+            type: ProcedureType.route,
             id: 'users-setUser',
             _handler: 'users.setUser',
             serializedTypes: [{kind: 17, parameters: [], return: 1}, {kind: 1}],
@@ -77,7 +77,7 @@ describe('Client Routes should', () => {
             hookIds: ['auth', 'last'],
         },
         'users-pets-getUserPet': {
-            type: ExecutableType.route,
+            type: ProcedureType.route,
             id: 'users-pets-getUserPet',
             _handler: 'users.pets.getUserPet',
             serializedTypes: [{kind: 17, parameters: [], return: 1}, {kind: 1}],
@@ -87,7 +87,7 @@ describe('Client Routes should', () => {
             hookIds: ['auth', 'last'],
         },
         'pets-getPet': {
-            type: ExecutableType.route,
+            type: ProcedureType.route,
             id: 'pets-getPet',
             _handler: 'pets.getPet',
             serializedTypes: [{kind: 17, parameters: [], return: 1}, {kind: 1}],
@@ -97,7 +97,7 @@ describe('Client Routes should', () => {
             hookIds: ['auth', 'last'],
         },
         'pets-setPet': {
-            type: ExecutableType.route,
+            type: ProcedureType.route,
             id: 'pets-setPet',
             _handler: 'pets.setPet',
             serializedTypes: [{kind: 17, parameters: [], return: 1}, {kind: 1}],
@@ -107,7 +107,7 @@ describe('Client Routes should', () => {
             hookIds: ['auth', 'last'],
         },
         auth: {
-            type: ExecutableType.hook,
+            type: ProcedureType.hook,
             id: 'auth',
             _handler: 'auth',
             serializedTypes: [{kind: 17, parameters: [{kind: 18, name: 'token', type: 1}], return: 2}, {kind: 5}, {kind: 3}],
@@ -116,7 +116,7 @@ describe('Client Routes should', () => {
             params: ['token'],
         },
         last: {
-            type: ExecutableType.hook,
+            type: ProcedureType.hook,
             id: 'last',
             _handler: 'last',
             serializedTypes: [{kind: 17, parameters: [], return: 1}, {kind: 10}],

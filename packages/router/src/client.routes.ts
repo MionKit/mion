@@ -7,7 +7,7 @@
 
 import {GET_REMOTE_METHODS_BY_ID, GET_REMOTE_METHODS_BY_PATH, AnyObject, RpcError} from '@mionkit/core';
 import {
-    RemoteMethodMetadata,
+    PublicProcedure,
     getHookExecutable,
     getRouteExecutable,
     isPrivateExecutable,
@@ -19,12 +19,12 @@ import {
     getTotalExecutables,
     getAllExecutablesIds,
     getAnyExecutable,
-    Executable,
+    Procedure,
 } from '@mionkit/router';
 // TODO: investigate why compilation fails if route gets imported from @mionkit/router rather that relative import
 import {route} from './initFunctions';
 
-export type RemoteMethodsDictionary = {[key: string]: RemoteMethodMetadata};
+export type RemoteMethodsDictionary = {[key: string]: PublicProcedure};
 export interface ClientRouteOptions extends RouterOptions {
     getAllRemoteMethodsMaxNumber?: number;
 }
@@ -62,7 +62,7 @@ export const getRemoteMethods = (
               (id) =>
                   id !== GET_REMOTE_METHODS_BY_ID &&
                   id !== GET_REMOTE_METHODS_BY_PATH &&
-                  !isPrivateExecutable(getAnyExecutable(id) as Executable)
+                  !isPrivateExecutable(getAnyExecutable(id) as Procedure)
           )
         : methodsIds;
     idsToReturn.forEach((id) => addRequiredRemoteMethodsToResponse(id, resp, errorData));
