@@ -21,6 +21,8 @@ import {
     getAnyExecutable,
     Executable,
 } from '@mionkit/router';
+// TODO: investigate why compilation fails if route gets imported from @mionkit/router rather that relative import
+import {route} from './initFunctions';
 
 export type RemoteMethodsDictionary = {[key: string]: RemoteMethodMetadata};
 export interface ClientRouteOptions extends RouterOptions {
@@ -91,15 +93,9 @@ export const getRouteRemoteMethods = (ctx, path: string, getAllRemoteMethods?: b
     );
 };
 
+// disable serialization as deserializer seems to ignore serializedTypes
+const routerOpts = {enableSerialization: false};
 export const clientRoutes = {
-    [GET_REMOTE_METHODS_BY_ID]: {
-        // disable serialization as deserializer seems t0 ignore serializedTypes
-        enableSerialization: false,
-        route: getRemoteMethods,
-    },
-    [GET_REMOTE_METHODS_BY_PATH]: {
-        enableSerialization: false,
-        // disable serialization as deserializer seems to ignore serializedTypes
-        route: getRouteRemoteMethods,
-    },
+    [GET_REMOTE_METHODS_BY_ID]: route(getRemoteMethods, routerOpts),
+    [GET_REMOTE_METHODS_BY_PATH]: route(getRouteRemoteMethods, routerOpts),
 } satisfies Routes;

@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {initRouter, registerRoutes} from '@mionkit/router';
+import {initRouter, registerRoutes, route} from '@mionkit/router';
 import {awsLambdaHandler, resetAwsLambdaOpts, setAwsLambdaOpts} from './awsLambda';
 import createEvent from '@serverless/event-mocks';
 import type {CallContext, Route} from '@mionkit/router';
@@ -35,18 +35,18 @@ describe('serverless router should', () => {
     };
     const getSharedData = () => ({auth: {me: null as any}});
 
-    const changeUserName: Route = (ctx: Context, user: SimpleUser) => {
+    const changeUserName: Route = route((ctx: Context, user: SimpleUser) => {
         return myApp.db.changeUserName(user);
-    };
+    });
 
-    const getDate: Route = (ctx: Context, dataPoint?: DataPoint): DataPoint => {
+    const getDate: Route = route((ctx: Context, dataPoint?: DataPoint): DataPoint => {
         return dataPoint || {date: new Date('2022-04-10T02:13:00.000Z')};
-    };
+    });
 
-    const updateHeaders: Route = (context: Context): void => {
+    const updateHeaders: Route = route((context: Context): void => {
         context.response.headers.set('x-something', 'true');
         context.response.headers.set('server', 'my-server');
-    };
+    });
 
     beforeAll(async () => {
         resetAwsLambdaOpts();

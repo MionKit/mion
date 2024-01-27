@@ -1,10 +1,11 @@
-import {Routes, initMionRouter} from '@mionkit/router';
+import {Routes, initMionRouter, route} from '@mionkit/router';
+import {userRepository} from 'MyModels';
 import type {User} from 'MyModels';
 
-const getUser = async (ctx, entity: {id: number}): Promise<User> => {
-    const user = await ctx.db.getUserById(entity.id);
+const getUser = route(async (ctx, entity: {id: number}): Promise<User> => {
+    const user = await userRepository.getUserById(entity.id);
     return user;
-};
+});
 
 const routes = {
     users: {

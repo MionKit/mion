@@ -1,8 +1,9 @@
 import {RpcError, StatusCodes} from '@mionkit/core';
+import {Route, route} from '@mionkit/router';
 import type {Pet} from './myModels';
 import {myApp} from './myApp';
 
-export const getPet = async (ctx, id: string): Promise<Pet | RpcError> => {
+export const getPet = route(async (ctx, id: string): Promise<Pet | RpcError> => {
     try {
         const pet = await myApp.db.getPet(id);
         if (!pet) {
@@ -24,8 +25,8 @@ export const getPet = async (ctx, id: string): Promise<Pet | RpcError> => {
          */
         return new RpcError({statusCode, publicMessage, originalError: dbError as Error});
     }
-}; // satisfies Route
+}) satisfies Route;
 
-export const alwaysError = (): void => {
+export const alwaysError = route((): void => {
     throw new Error('will generate a 500 error with an "Unknown Error" message');
-}; // satisfies Route
+}) satisfies Route;

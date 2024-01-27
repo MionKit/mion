@@ -1,20 +1,17 @@
 import {RpcError} from '@mionkit/core';
-import {Routes, initMionRouter} from '@mionkit/router';
+import {Routes, headersHook, hook, initMionRouter, route} from '@mionkit/router';
 
 const routes = {
-    auth: {
-        hook: (ctx, token: string): void => {
-            if (!token) throw new RpcError({statusCode: 401, message: 'Not Authorized', name: ' Not Authorized'});
-        },
-    },
+    auth: headersHook('Authorization', (ctx, token: string): void => {
+        if (!token) throw new RpcError({statusCode: 401, message: 'Not Authorized', name: ' Not Authorized'});
+    }),
     utils: {
-        sum5: (ctx, a: number): number => a + 5,
-        sayHello: (ctx, message: string): string => `Hello ${message}`,
+        sum5: route((ctx, a: number): number => a + 5),
+        sayHello: route((ctx, message: string): string => `Hello ${message}`),
     },
-    log: {
+    log: hook((ctx): void => console.log(ctx.path, ctx.request.headers, ctx.request.body), {
         forceRunOnError: true,
-        hook: (ctx): void => console.log(ctx.path, ctx.request.headers, ctx.request.body),
-    },
+    }),
 } satisfies Routes;
 
 // init & register routes (this automatically registers client routes)
