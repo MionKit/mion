@@ -4,11 +4,11 @@ const routes = {
     authorizationHook: hook((): void => undefined), // hook
     users: {
         userOnlyHook: hook((): void => undefined), // scoped hook
-        getUser: (): null => null, // route
+        getUser: route((): null => null), // route
         setUser: route((): null => null), // route
     },
     pets: {
-        getPet: (): null => null, // route
+        getPet: route((): null => null), // route
         setPet: route((): null => null), // route
     },
     errorHandlerHook: hook((): void => undefined), // hook

@@ -17,13 +17,8 @@ import {
     RouterEntry,
     Routes,
 } from './general';
-import {Handler} from './handlers';
 
 // #######  type guards #######
-
-export function isHandler(entry: RouterEntry): entry is Handler {
-    return typeof entry === 'function';
-}
 
 export function isRouteDef(entry: RouterEntry): entry is RouteDef {
     return typeof (entry as RouteDef).route === 'function';
