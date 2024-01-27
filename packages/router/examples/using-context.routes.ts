@@ -1,4 +1,4 @@
-import {initMionRouter,  route} from '@mionkit/router';
+import {initMionRouter, route} from '@mionkit/router';
 import {myApp} from './myApp';
 import type {CallContext, Routes} from '@mionkit/router';
 import type {Pet, User} from './myModels';
@@ -14,7 +14,7 @@ type MyContext = CallContext<SharedData>;
 const routes = {
     getMyPet: route(async (ctx: MyContext): Promise<Pet> => {
         const user = ctx.shared.myUser;
-        const pet = myApp.db.getPetFromUser(user);
+        const pet = await myApp.db.getPetFromUser(user);
         return pet;
     }),
 } satisfies Routes;

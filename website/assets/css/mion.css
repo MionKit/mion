@@ -110,6 +110,10 @@ body .app-layout .page-body h1:not(.not-prose):first-child {
   font-size: 12px;
 }
 
+body .video-player > img {
+  width: 100%;
+}
+
 @media screen and (max-width: 639px) {
   body .block-hero .content h1.title {
     min-height: 6rem;
