@@ -27,8 +27,9 @@ import type {
     RawExecutable,
     NotFoundExecutable,
     RouterEntry,
-    HookHeaderExecutable,
+    HeaderExecutable,
 } from './types/general';
+import {ExecutableType} from './types/general';
 import type {RemoteApi, PrivateHookDef, HooksCollection} from './types/remote';
 import type {HeaderHookDef, HookDef, RouteDef, RawHookDef} from './types/definitions';
 import type {AnyHandler} from './types/handlers';
@@ -47,7 +48,7 @@ type RoutesWithId = {
 // ############# PRIVATE STATE #############
 
 const flatRouter: Map<string, Executable[]> = new Map(); // Main Router
-const hooksById: Map<string, HookExecutable> = new Map();
+const hooksById: Map<string, HookExecutable | HeaderExecutable | RawExecutable> = new Map();
 const routesById: Map<string, RouteExecutable> = new Map();
 const rawHooksById: Map<string, RawExecutable> = new Map();
 const hookNames: Map<string, boolean> = new Map();
@@ -185,8 +186,8 @@ export function isPrivateHookDef(entry: RouterEntry, id: string): entry is Priva
 }
 
 export function isPrivateExecutable(executable: Executable): boolean {
-    if (executable.isRawExecutable) return true;
-    if (executable.isRoute) return false;
+    if (executable.type === ExecutableType.rawHook) return true;
+    if (executable.type === ExecutableType.route) return false;
     const hasPublicParams = executable.handler.length > getRouteDefaultParams().length;
     return !hasPublicParams && !executable.canReturnData;
 }
@@ -349,7 +350,11 @@ function getExecutableFromAnyHook(hook: HookDef | HeaderHookDef | RawHookDef, ho
     return getExecutableFromHook(hook, hookPointer, nestLevel);
 }
 
-function getExecutableFromHook(hook: HookDef | HeaderHookDef, hookPointer: string[], nestLevel: number): HookExecutable {
+function getExecutableFromHook(
+    hook: HookDef | HeaderHookDef,
+    hookPointer: string[],
+    nestLevel: number
+): HookExecutable | HeaderExecutable {
     const inHeader = isHeaderHookDef(hook);
     // todo fix header id should be same as any other one and then maybe map from id to header name
     const hookId = getRouterItemId(hookPointer);
@@ -357,14 +362,17 @@ function getExecutableFromHook(hook: HookDef | HeaderHookDef, hookPointer: strin
     if (existing) return existing as HookExecutable;
     const handler = getHandler(hook, hookPointer);
     const reflection = getFunctionReflectionMethods(handler, getReflectionOptions(hook), getRouteDefaultParams().length);
-    const executable: HookExecutable = {
+
+    type MixedExecutable = (Omit<HookExecutable, 'type'> | Omit<HeaderExecutable, 'type'>) & {
+        type: ExecutableType.hook | ExecutableType.headerHook;
+    };
+
+    const executable: MixedExecutable = {
         id: hookId,
+        type: inHeader ? ExecutableType.headerHook : ExecutableType.hook,
         forceRunOnError: !!hook.forceRunOnError,
         canReturnData: reflection.canReturnData,
-        inHeader,
         nestLevel,
-        isRoute: false,
-        isRawExecutable: false,
         handler,
         reflection,
         enableValidation: hook.enableValidation ?? routerOptions.enableValidation,
@@ -372,8 +380,8 @@ function getExecutableFromHook(hook: HookDef | HeaderHookDef, hookPointer: strin
         pointer: hookPointer,
         headerName: inHeader ? (hook as HeaderHookDef).headerName?.toLowerCase() : undefined,
     };
-    hooksById.set(hookId, executable);
-    return executable;
+    hooksById.set(hookId, executable as any);
+    return executable as any;
 }
 
 function getExecutableFromRawHook(hook: RawHookDef, hookPointer: string[], nestLevel: number): RawExecutable {
@@ -382,13 +390,11 @@ function getExecutableFromRawHook(hook: RawHookDef, hookPointer: string[], nestL
     if (existing) return existing as RawExecutable;
 
     const executable: RawExecutable = {
+        type: ExecutableType.rawHook,
         id: hookId,
         forceRunOnError: true,
         canReturnData: false,
-        inHeader: false,
         nestLevel,
-        isRoute: false,
-        isRawExecutable: true,
         handler: hook.hook,
         reflection: null,
         enableValidation: false,
@@ -406,12 +412,10 @@ function getExecutableFromRoute(route: Route, routePointer: string[], nestLevel:
     const handler = getHandler(route, routePointer);
     // const routeObj = isHandler(route) ? {...DEFAULT_ROUTE} : {...DEFAULT_ROUTE, ...route};
     const executable: RouteExecutable = {
+        type: ExecutableType.route,
         id: routeId,
         forceRunOnError: false,
         canReturnData: true,
-        inHeader: false,
-        isRoute: true,
-        isRawExecutable: false,
         nestLevel,
         handler,
         reflection: getFunctionReflectionMethods(handler, getReflectionOptions(route), getRouteDefaultParams().length),
@@ -434,7 +438,7 @@ function getRouteEntryProperties(
     plus1: RouterEntry | undefined
 ) {
     const minus1IsRoute = minus1 && isRoute(minus1);
-    const zeroIsRoute = !!(zero as Executable).isRoute;
+    const zeroIsRoute = (zero as Executable).type === ExecutableType.route;
     const plus1IsRoute = plus1 && isRoute(plus1);
 
     const isExec = !!(zero as Executable).handler;
@@ -448,7 +452,7 @@ function getRouteEntryProperties(
     };
 }
 
-function getExecutablesFromHooksCollection(hooksDef: HooksCollection): (RawExecutable | HookExecutable | HookHeaderExecutable)[] {
+function getExecutablesFromHooksCollection(hooksDef: HooksCollection): (RawExecutable | HookExecutable | HeaderExecutable)[] {
     return Object.entries(hooksDef).map(([key, hook]) => {
         if (isRawHookDef(hook)) return getExecutableFromRawHook(hook, [key], 0);
         if (isHeaderHookDef(hook) || isHookDef(hook)) return getExecutableFromHook(hook, [key], 0);

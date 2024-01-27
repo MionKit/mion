@@ -1,11 +1,12 @@
 /* ######## EXPECTED GENERATED API from ./myApi.routes.ts ######## */
 
+import {ExecutableType} from '@mionkit/router';
+
 export const PUBLIC_METHODS = {
     myApi: {
         auth: {
-            isRoute: false,
+            type: ExecutableType.headerHook,
             id: 'auth',
-            inHeader: true,
             _handler: expect.any(Function),
             serializedTypes: expect.any(Object),
             enableValidation: true,
@@ -15,9 +16,8 @@ export const PUBLIC_METHODS = {
         },
         users: {
             getUser: {
-                isRoute: true,
+                type: ExecutableType.route,
                 id: 'users-getUser',
-                inHeader: false,
                 _handler: expect.any(Function),
                 serializedTypes: expect.any(Object),
                 enableValidation: true,
@@ -27,9 +27,8 @@ export const PUBLIC_METHODS = {
                 hookIds: ['auth', 'users-totalUsers'],
             },
             setUser: {
-                isRoute: true,
+                type: ExecutableType.route,
                 id: 'users-setUser',
-                inHeader: false,
                 _handler: expect.any(Function),
                 serializedTypes: expect.any(Object),
                 enableValidation: true,
@@ -39,9 +38,8 @@ export const PUBLIC_METHODS = {
                 hookIds: ['auth', 'users-totalUsers'],
             },
             totalUsers: {
-                isRoute: false,
+                type: ExecutableType.hook,
                 id: 'users-totalUsers',
-                inHeader: false,
                 _handler: expect.any(Function),
                 serializedTypes: expect.any(Object),
                 enableValidation: true,
@@ -51,9 +49,8 @@ export const PUBLIC_METHODS = {
         },
         pets: {
             getPet: {
-                isRoute: true,
+                type: ExecutableType.route,
                 id: 'pets-getPet',
-                inHeader: false,
                 _handler: expect.any(Function),
                 serializedTypes: expect.any(Object),
                 enableValidation: true,
@@ -63,9 +60,8 @@ export const PUBLIC_METHODS = {
                 hookIds: ['auth'],
             },
             setPet: {
-                isRoute: true,
+                type: ExecutableType.route,
                 id: 'pets-setPet',
-                inHeader: false,
                 _handler: expect.any(Function),
                 serializedTypes: expect.any(Object),
                 enableValidation: true,
@@ -77,9 +73,8 @@ export const PUBLIC_METHODS = {
         },
         utils: {
             getNumber: {
-                isRoute: true,
+                type: ExecutableType.route,
                 id: 'utils-getNumber',
-                inHeader: false,
                 _handler: expect.any(Function),
                 serializedTypes: expect.any(Object),
                 enableValidation: true,
@@ -90,9 +85,8 @@ export const PUBLIC_METHODS = {
             },
         },
         getItem: {
-            isRoute: true,
+            type: ExecutableType.route,
             id: 'getItem',
-            inHeader: false,
             _handler: expect.any(Function),
             serializedTypes: expect.any(Object),
             enableValidation: true,
@@ -102,9 +96,8 @@ export const PUBLIC_METHODS = {
             hookIds: ['auth'],
         },
         getPetOrUser: {
-            isRoute: true,
+            type: ExecutableType.route,
             id: 'getPetOrUser',
-            inHeader: false,
             _handler: expect.any(Function),
             serializedTypes: expect.any(Object),
             enableValidation: true,
@@ -116,9 +109,8 @@ export const PUBLIC_METHODS = {
     },
     authApi: {
         login: {
-            isRoute: true,
+            type: ExecutableType.route,
             id: 'login',
-            inHeader: false,
             _handler: expect.any(Function),
             serializedTypes: expect.any(Object),
             enableValidation: true,

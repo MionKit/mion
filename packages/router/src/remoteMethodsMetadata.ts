@@ -6,7 +6,7 @@
  * ######## */
 
 import type {Handler} from './types/handlers';
-import type {Executable, HookExecutable, RouteExecutable, RouterEntry, Routes} from './types/general';
+import {ExecutableType, type Executable, type RouterEntry, type Routes} from './types/general';
 import type {RemoteApi, RemoteHandler, RemoteMethodMetadata} from './types/remote';
 import {isRoute, isHeaderHookDef, isHookDef, isPublicExecutable} from './types/guards';
 import {
@@ -65,27 +65,25 @@ function recursiveGetMethodsMetadata<R extends Routes>(
     return publicData;
 }
 
-export function getMethodMetadataFromExecutable<H extends Handler>(
-    executable: RouteExecutable | HookExecutable
-): RemoteMethodMetadata<H> {
+export function getMethodMetadataFromExecutable<H extends Handler>(executable: Executable): RemoteMethodMetadata<H> {
     const existing = metadataById.get(executable.id);
     if (existing) return existing as RemoteMethodMetadata<H>;
 
     const newRemoteMethod: RemoteMethodMetadata = {
-        isRoute: executable.isRoute,
+        type: executable.type,
         id: executable.id,
-        inHeader: executable.inHeader,
         // handler is included just for static typing purposes and should never be called directly
         _handler: getHandlerSrcCodePointer(executable) as any as RemoteHandler<H>,
         serializedTypes: getSerializedFunctionType(executable.handler, getRouteDefaultParams().length),
         enableValidation: executable.enableValidation,
         enableSerialization: executable.enableSerialization,
-        params: executable.reflection.handlerType.parameters.map((tp) => tp.name).slice(getRouteDefaultParams().length),
+        params: executable.reflection?.handlerType.parameters.map((tp) => tp.name).slice(getRouteDefaultParams().length) || [],
     };
 
+    // initialized separately so the property `headerName` is not included in the object in case is undefined
     if (executable.headerName) newRemoteMethod.headerName = executable.headerName;
 
-    if (executable.isRoute) {
+    if (executable.type === ExecutableType.route) {
         const path = getRoutePath(executable.pointer, getRouterOptions());
         const pathPointers =
             getRouteExecutionPath(path)

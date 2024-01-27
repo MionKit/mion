@@ -18,7 +18,7 @@ import {
     addStartHooks,
     addEndHooks,
 } from './router';
-import {type Routes, hook, route, rawHook} from '..';
+import {type Routes, hook, route, rawHook, ExecutableType} from '..';
 
 describe('Create routes should', () => {
     const hook1 = hook((): void => undefined);
@@ -47,51 +47,49 @@ describe('Create routes should', () => {
     const hookExecutables = {
         first: {
             id: 'first',
-            isRoute: false,
+            type: ExecutableType.hook,
         },
         userBefore: {
             id: 'users-userBefore',
-            isRoute: false,
+            type: ExecutableType.hook,
         },
         userAfter: {
             id: 'users-userAfter',
-            isRoute: false,
+            type: ExecutableType.hook,
         },
         userPetsAfter: {
             id: 'users-pets-userPetsAfter',
-            isRoute: false,
+            type: ExecutableType.hook,
         },
         last: {
             id: 'last',
-            isRoute: false,
+            type: ExecutableType.hook,
         },
     };
 
     const routeExecutables = {
         usersGetUser: {
             id: 'users-getUser',
-            isRoute: true,
+            type: ExecutableType.route,
         },
         usersPetsGetUserPet: {
             id: 'users-pets-getUserPet',
-            isRoute: true,
+            type: ExecutableType.route,
         },
         petsGetPet: {
             id: 'pets-getPet',
-            isRoute: true,
+            type: ExecutableType.route,
         },
     };
 
     const defaultExecutables = {
         mionParseJsonRequestBody: {
-            isRoute: false,
-            isRawExecutable: true,
             id: 'mionParseJsonRequestBody',
+            type: ExecutableType.rawHook,
         },
         mionStringifyJsonResponseBody: {
-            isRoute: false,
-            isRawExecutable: true,
             id: 'mionStringifyJsonResponseBody',
+            type: ExecutableType.rawHook,
         },
     };
 
@@ -156,8 +154,7 @@ describe('Create routes should', () => {
                 nestLevel: 0,
                 forceRunOnError: false,
                 canReturnData: false,
-                inHeader: false,
-                isRoute: false,
+                type: ExecutableType.hook,
             })
         );
 
@@ -167,8 +164,7 @@ describe('Create routes should', () => {
                 nestLevel: 0,
                 forceRunOnError: false,
                 canReturnData: true,
-                inHeader: false,
-                isRoute: false,
+                type: ExecutableType.hook,
             })
         );
     });
@@ -184,8 +180,7 @@ describe('Create routes should', () => {
                 nestLevel: 0,
                 forceRunOnError: false,
                 canReturnData: true,
-                inHeader: false,
-                isRoute: true,
+                type: ExecutableType.route,
             })
         );
     });
@@ -315,13 +310,13 @@ describe('Create routes should', () => {
         registerRoutes(routes);
 
         const expectedExecutionPath = addDefaultExecutables([
-            expect.objectContaining({id: 'p1', isRoute: false}),
-            expect.objectContaining({id: 'p2', isRoute: false}),
-            expect.objectContaining({id: 'first', isRoute: false}),
-            expect.objectContaining({id: 'pets-getPet', isRoute: true}),
-            expect.objectContaining({id: 'last', isRoute: false}),
-            expect.objectContaining({id: 'a1', isRoute: false}),
-            expect.objectContaining({id: 'a2', isRoute: false}),
+            expect.objectContaining({id: 'p1', type: ExecutableType.rawHook}),
+            expect.objectContaining({id: 'p2', type: ExecutableType.rawHook}),
+            expect.objectContaining({id: 'first', type: ExecutableType.hook}),
+            expect.objectContaining({id: 'pets-getPet', type: ExecutableType.route}),
+            expect.objectContaining({id: 'last', type: ExecutableType.hook}),
+            expect.objectContaining({id: 'a1', type: ExecutableType.rawHook}),
+            expect.objectContaining({id: 'a2', type: ExecutableType.rawHook}),
         ]);
 
         expect(getRouteExecutionPath('/pets-getPet')).toEqual(expectedExecutionPath);

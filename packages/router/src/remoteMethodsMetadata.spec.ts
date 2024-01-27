@@ -10,7 +10,7 @@ import {getRemoteMethodsMetadata} from './remoteMethodsMetadata';
 import {registerRoutes, initRouter, resetRouter, getRouteDefaultParams} from './router';
 import {getFunctionReflectionMethods} from '@mionkit/reflection';
 import {CallContext} from './types/context';
-import {Routes} from './types/general';
+import {ExecutableType, Routes} from './types/general';
 import {hook, rawHook, route} from '..';
 
 describe('Public Methods should', () => {
@@ -63,16 +63,16 @@ describe('Public Methods should', () => {
 
         expect(api).toEqual({
             auth: expect.objectContaining({
+                type: ExecutableType.hook,
                 _handler: 'auth', // to be used by codegen so need to be a valid js syntax
-                isRoute: false,
                 id: 'auth',
                 enableValidation: DEFAULT_ROUTE_OPTIONS.enableValidation,
                 enableSerialization: DEFAULT_ROUTE_OPTIONS.enableSerialization,
             }),
             routes: {
                 route1: expect.objectContaining({
+                    type: ExecutableType.route,
                     _handler: 'routes.route1', // to be used by codegen so need to be a valid js syntax
-                    isRoute: true,
                     id: 'routes-route1',
                     enableValidation: DEFAULT_ROUTE_OPTIONS.enableValidation,
                     enableSerialization: DEFAULT_ROUTE_OPTIONS.enableSerialization,
@@ -129,14 +129,12 @@ describe('Public Methods should', () => {
 
         expect(api).toEqual({
             auth: expect.objectContaining({
-                isRoute: false,
-                inHeader: false,
+                type: ExecutableType.hook,
                 id: 'auth',
             }),
             route1: expect.objectContaining({
-                isRoute: true,
+                type: ExecutableType.route,
                 id: 'route1',
-                inHeader: false,
             }),
         });
     });
@@ -147,41 +145,41 @@ describe('Public Methods should', () => {
 
         expect(publicExecutables).toEqual({
             first: expect.objectContaining({
+                type: ExecutableType.hook,
                 id: 'first',
-                isRoute: false,
             }),
             parse: null,
             users: {
                 userBefore: null,
                 getUser: expect.objectContaining({
+                    type: ExecutableType.route,
                     id: 'users-getUser',
-                    isRoute: true,
                 }),
                 setUser: expect.objectContaining({
+                    type: ExecutableType.route,
                     id: 'users-setUser',
-                    isRoute: true,
                 }),
                 pets: {
                     getUserPet: expect.objectContaining({
+                        type: ExecutableType.route,
                         id: 'users-pets-getUserPet',
-                        isRoute: true,
                     }),
                 },
                 userAfter: null,
             },
             pets: {
                 getPet: expect.objectContaining({
+                    type: ExecutableType.route,
                     id: 'pets-getPet',
-                    isRoute: true,
                 }),
                 setPet: expect.objectContaining({
+                    type: ExecutableType.route,
                     id: 'pets-setPet',
-                    isRoute: true,
                 }),
             },
             last: expect.objectContaining({
+                type: ExecutableType.hook,
                 id: 'last',
-                isRoute: false,
             }),
         });
     });
