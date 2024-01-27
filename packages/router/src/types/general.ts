@@ -14,7 +14,7 @@ import {FunctionReflection, ReflectionOptions} from '@mionkit/reflection';
 // #######  Router Object #######
 
 /** A route can be a full route definition or just the handler */
-export type Route<Context extends CallContext = CallContext, Ret = any> = RouteDef<Context, Ret> | Handler<Context, Ret>;
+export type Route<Context extends CallContext = CallContext, Ret = any> = RouteDef<Context, Ret>;
 
 /** A route entry can be a route, a hook or sub-routes */
 export type RouterEntry = HookDef | Route | Routes | RawHookDef | HeaderHookDef;

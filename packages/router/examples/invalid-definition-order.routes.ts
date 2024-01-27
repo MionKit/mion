@@ -1,15 +1,15 @@
-import {Routes, initMionRouter, hook} from '@mionkit/router';
+import {Routes, initMionRouter, hook, route} from '@mionkit/router';
 
 const invalidRoutes = {
     authorizationHook: hook((): void => undefined), // hook
     1: {
         // Invalid naming !!!
         userOnlyHook: hook((): void => undefined), // hook
-        getUser: (): null => null, // route
+        getUser: route((): null => null), // route
     },
     '2': {
         // Invalid naming !!!
-        getPet: (): null => null, // route
+        getPet: route((): null => null), // route
     },
     errorHandlerHook: hook((): void => undefined), // hook
     loggingHook: hook((): void => undefined), // hook
