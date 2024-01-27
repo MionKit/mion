@@ -8,7 +8,7 @@
 import {RpcError} from '@mionkit/core';
 import {SerializedTypes} from '@mionkit/reflection';
 import {CallContext} from './context';
-import {RouterOptions, Routes} from './general';
+import {ExecutableType, RouterOptions, Routes} from './general';
 import {HeaderHookDef, HookDef, RawHookDef, RouteDef} from './definitions';
 import {Handler} from './handlers';
 
@@ -47,16 +47,16 @@ export type RemoteApi<Type extends Routes> = {
     [Property in keyof Type as Type[Property] extends PrivateHook ? never : Property]: Type[Property] extends HookDef
         ? RemoteHookMetadata<Type[Property]['hook']>
         : Type[Property] extends HeaderHookDef
-        ? RemoteHeaderHookMetadata<Type[Property]['hook']>
-        : // Routes
-        Type[Property] extends RouteDef
-        ? RemoteRouteMetadata<Type[Property]['route']>
-        : Type[Property] extends Handler
-        ? RemoteRouteMetadata<Type[Property]>
-        : // Routes & PureRoutes (recursion)
-        Type[Property] extends Routes
-        ? RemoteApi<Type[Property]>
-        : never;
+          ? RemoteHeaderHookMetadata<Type[Property]['hook']>
+          : // Routes
+            Type[Property] extends RouteDef
+            ? RemoteRouteMetadata<Type[Property]['route']>
+            : Type[Property] extends Handler
+              ? RemoteRouteMetadata<Type[Property]>
+              : // Routes & PureRoutes (recursion)
+                Type[Property] extends Routes
+                ? RemoteApi<Type[Property]>
+                : never;
 };
 
 // prettier-ignore
@@ -66,13 +66,12 @@ export type RemoteHandler<H extends Handler> =
     : never;
 
 export interface RemoteMethodMetadata<H extends Handler = any> {
+    type: ExecutableType;
     /** Type reference to the route handler, it's runtime value is actually null, just used statically by typescript. */
     _handler: RemoteHandler<H>;
     /** Json serializable structure so the Type information can be transmitted over the wire */
     serializedTypes: SerializedTypes;
-    isRoute: boolean;
     id: string;
-    inHeader: boolean;
     enableValidation: boolean;
     enableSerialization: boolean;
     params: string[];
@@ -83,22 +82,19 @@ export interface RemoteMethodMetadata<H extends Handler = any> {
 
 /** Public map from Routes, _handler type is the same as router's handler but does not include the context  */
 export interface RemoteRouteMetadata<H extends Handler = any> extends RemoteMethodMetadata<H> {
-    isRoute: true;
-    inHeader: false;
+    type: ExecutableType.route;
     hookIds: string[];
     headerName: undefined;
 }
 
 /** Public map from Hooks, _handler type is the same as hooks's handler but does not include the context  */
 export interface RemoteHookMetadata<H extends Handler = any> extends RemoteMethodMetadata<H> {
-    isRoute: false;
-    inHeader: false;
+    type: ExecutableType.hook;
     pathPointers: undefined;
 }
 
 export interface RemoteHeaderHookMetadata<H extends Handler = any> extends RemoteMethodMetadata<H> {
-    isRoute: false;
-    inHeader: true;
+    type: ExecutableType.headerHook;
     headerName: string;
 }
 

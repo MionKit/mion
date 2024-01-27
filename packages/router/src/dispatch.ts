@@ -6,7 +6,7 @@
  * ######## */
 
 import type {CallContext, MionResponse, MionRequest, MionHeaders} from './types/context';
-import type {Executable, RouterOptions} from './types/general';
+import {ExecutableType, type Executable, type RouterOptions} from './types/general';
 import type {Handler} from './types/handlers';
 import {isHeaderExecutable, isNotFoundExecutable, isRawExecutable} from './types/guards';
 import {getNotFoundExecutionPath, getRouteExecutionPath, getRouterOptions} from './router';
@@ -63,7 +63,7 @@ async function runExecutionPath(
         try {
             const deserializedParams = deserializeParameters(request, executable);
             const validatedParams = validateParameters(deserializedParams, executable);
-            if (executable.inHeader) request.headers.set(executable.id, validatedParams);
+            if (executable.type === ExecutableType.headerHook) request.headers.set(executable.id, validatedParams);
             else (request.body as Mutable<MionRequest['body']>)[executable.id] = validatedParams;
 
             const result = await runHandler(validatedParams, context, rawRequest, rawResponse, executable, opts);

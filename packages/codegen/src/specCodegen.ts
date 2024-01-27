@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {RemoteApi, RemoteMethodMetadata} from '@mionkit/router';
+import {ExecutableType, RemoteApi, RemoteMethodMetadata} from '@mionkit/router';
 import {dirname, parse, relative} from 'path';
 import {hasChildRoutes, type CodegenOptions, type ExportedRoutesMap, type PublicMethodsSpec, type RoutesSpec} from './types';
 import {DEFAULT_PRETTIER_OPTIONS, PUBLIC_METHODS_SPEC_EXPORT_NAME, ROUTES_SPEC_EXPORT_NAME} from './constants';
@@ -64,7 +64,7 @@ function recursiveSetHandlerTypeAndCreateRouteExecutables(
         if (hasChildRoutes(item)) {
             newRoutes[key] = recursiveSetHandlerTypeAndCreateRouteExecutables(item, exportName, newPointer, routeExecutables);
         } else {
-            if (item.isRoute) {
+            if (item.type === ExecutableType.route) {
                 setRemoteMethods(item, newPointer, exportName, routeExecutables);
             }
             newRoutes[key] = {

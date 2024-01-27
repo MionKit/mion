@@ -9,7 +9,8 @@ import {HeaderSingleValue, HeaderValue} from './context';
 import {HeaderHookDef, HookDef, RawHookDef, RouteDef} from './definitions';
 import {
     Executable,
-    HookHeaderExecutable,
+    ExecutableType,
+    HeaderExecutable,
     NotFoundExecutable,
     RawExecutable,
     Route,
@@ -55,7 +56,7 @@ export function isExecutable(entry: Executable | {pathPointer: string[]}): entry
     );
 }
 export function isRawExecutable(entry: Executable): entry is RawExecutable {
-    return entry.isRawExecutable;
+    return entry.type === ExecutableType.rawHook;
 }
 
 export function isPublicExecutable(entry: Executable): entry is Executable {
@@ -66,12 +67,12 @@ export function isNotFoundExecutable(entry: Executable): entry is NotFoundExecut
     return (entry as NotFoundExecutable).is404;
 }
 
-export function isHeaderExecutable(entry: Executable): entry is HookHeaderExecutable {
-    return entry.inHeader;
+export function isHeaderExecutable(entry: Executable): entry is HeaderExecutable {
+    return entry.type === ExecutableType.headerHook;
 }
 
 export function isRouteExecutable(entry: Executable): entry is RouteExecutable {
-    return entry.isRoute;
+    return entry.type === ExecutableType.route;
 }
 
 export function isSingleValueHeader(value: HeaderValue): value is HeaderSingleValue {
