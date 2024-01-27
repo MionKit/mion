@@ -12,7 +12,7 @@ import {getFunctionReflectionMethods} from '@mionkit/reflection';
 import {CallContext} from './types/context';
 import {Routes} from './types/general';
 import {ProcedureType} from './types/procedures';
-import {hook, rawHook, route} from '..';
+import {hook, rawHook, route} from './initFunctions';
 
 describe('Public Methods should', () => {
     const privateHook = hook((ctx): void => undefined);
@@ -89,7 +89,7 @@ describe('Public Methods should', () => {
         };
         const api = registerRoutes(testR);
         const reflection = getFunctionReflectionMethods(
-            testR.addMilliseconds.route,
+            testR.addMilliseconds.handler,
             DEFAULT_ROUTE_OPTIONS.reflectionOptions,
             getRouteDefaultParams().length
         );

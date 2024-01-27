@@ -8,56 +8,56 @@
 import {RpcError} from '@mionkit/core';
 import {SerializedTypes} from '@mionkit/reflection';
 import {CallContext} from './context';
-import {RouterOptions, Routes} from './general';
+import {Routes} from './general';
 import {ProcedureType} from './procedures';
-import {HeaderHookDef, HookDef, RawHookDef, RouteDef} from './definitions';
 import {Handler} from './handlers';
+import {HeaderHookDef, HookDef, RawHookDef, RouteDef} from './definitions';
 
 // ####### Raw Hooks #######
 
 export type ErrorReturn = void | RpcError | Promise<RpcError | void>;
 
-export type HooksCollection<
-    Context extends CallContext = CallContext,
-    RawReq = unknown,
-    RawResp = unknown,
-    Opts extends RouterOptions<RawReq> = RouterOptions<RawReq>,
-> = {
-    [key: string]: RawHookDef<Context, RawReq, RawResp, Opts> | HookDef<Context> | HeaderHookDef<Context>;
+export type HooksCollection = {
+    [key: string]: HookDef | HeaderHookDef | RawHookDef;
 };
 
 // ####### Private Hooks #######
 
 export interface PrivateHookDef extends HookDef {
-    hook: (ctx?: any) => void | never | undefined;
+    handler: (ctx?: any) => void | never | undefined;
 }
 
-export interface PrivateHeaderHookDef extends HeaderHookDef {
-    hook: (ctx?: any) => void | never | undefined;
+export interface PrivateHeaderDef extends HeaderHookDef {
+    handler: (ctx?: any) => void | never | undefined;
 }
 
-export interface PrivateRawHookDef extends RawHookDef {
-    hook: (ctx?: any, req?: any, resp?: any, opts?: any) => any;
+export interface PrivateRawDef extends RawHookDef {
+    handler: (ctx?: any, req?: any, resp?: any, opts?: any) => any;
 }
 
-export type PrivateHook = PrivateHookDef | PrivateHeaderHookDef | PrivateRawHookDef;
+export type PrivateDef = PrivateHookDef | PrivateHeaderDef | PrivateRawDef;
 
 // ####### Remote Methods Metadata #######
 /** Data structure containing all public data an types of routes & hooks. */
+// prettier-ignore
 export type PublicApi<Type extends Routes> = {
-    [Property in keyof Type as Type[Property] extends PrivateHook ? never : Property]: Type[Property] extends HookDef
-        ? PublicHookExecutable<Type[Property]['hook']>
-        : Type[Property] extends HeaderHookDef
-          ? PublicHeaderProcedure<Type[Property]['hook']>
-          : // Routes
-            Type[Property] extends RouteDef
-            ? PublicRouteProcedure<Type[Property]['route']>
-            : Type[Property] extends Handler
-              ? PublicRouteProcedure<Type[Property]>
-              : // Routes & PureRoutes (recursion)
-                Type[Property] extends Routes
-                ? PublicApi<Type[Property]>
-                : never;
+    [Property in keyof Type as Type[Property] extends PrivateDef ? never : Property]
+    : Type[Property] extends HookDef
+    ? PublicHookProcedure<Type[Property]['handler']>
+    : Type[Property] extends HeaderHookDef
+    ? PublicHeaderProcedure<Type[Property]['handler']>
+    : Type[Property] extends RouteDef // Routes
+    ? PublicRouteProcedure<Type[Property]['handler']>
+        : Type[Property] extends Routes // Routes & PureRoutes (recursion)
+        ? PublicApi<Type[Property]>
+        : never;
+
+    // [Property in keyof Type as Type[Property] extends PrivateDef ? never : Property]
+    //     : Type[Property] extends Procedure 
+    //     ? Procedure<Type[Property]['handler']>
+    //         : Type[Property] extends Routes // Routes (recursion)
+    //         ? PublicApi<Type[Property]>
+    //         : never;
 };
 
 // quite similar to Executable but omits some server only properties
@@ -84,7 +84,7 @@ export interface PublicRouteProcedure<H extends Handler = any> extends PublicPro
 }
 
 /** Public map from Hooks, handler type is the same as hooks's handler but does not include the context  */
-export interface PublicHookExecutable<H extends Handler = any> extends PublicProcedure<H> {
+export interface PublicHookProcedure<H extends Handler = any> extends PublicProcedure<H> {
     type: ProcedureType.hook;
     pathPointers: undefined;
 }
@@ -101,7 +101,7 @@ export type PublicHandler<H extends Handler> =
     : never;
 
 export type PublicHandlers<RMS extends PublicApi<any>> = {
-    [Property in keyof RMS]: RMS[Property] extends PublicRouteProcedure | PublicHookExecutable | PublicHeaderProcedure
+    [Property in keyof RMS]: RMS[Property] extends PublicRouteProcedure | PublicHookProcedure | PublicHeaderProcedure
         ? RMS[Property]['handler']
         : never;
 };
