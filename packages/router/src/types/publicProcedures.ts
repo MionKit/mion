@@ -8,7 +8,8 @@
 import {RpcError} from '@mionkit/core';
 import {SerializedTypes} from '@mionkit/reflection';
 import {CallContext} from './context';
-import {ExecutableType, RouterOptions, Routes} from './general';
+import {RouterOptions, Routes} from './general';
+import {ProcedureType} from './procedures';
 import {HeaderHookDef, HookDef, RawHookDef, RouteDef} from './definitions';
 import {Handler} from './handlers';
 
@@ -43,32 +44,27 @@ export type PrivateHook = PrivateHookDef | PrivateHeaderHookDef | PrivateRawHook
 
 // ####### Remote Methods Metadata #######
 /** Data structure containing all public data an types of routes & hooks. */
-export type RemoteApi<Type extends Routes> = {
+export type PublicApi<Type extends Routes> = {
     [Property in keyof Type as Type[Property] extends PrivateHook ? never : Property]: Type[Property] extends HookDef
-        ? RemoteHookMetadata<Type[Property]['hook']>
+        ? PublicHookExecutable<Type[Property]['hook']>
         : Type[Property] extends HeaderHookDef
-          ? RemoteHeaderHookMetadata<Type[Property]['hook']>
+          ? PublicHeaderProcedure<Type[Property]['hook']>
           : // Routes
             Type[Property] extends RouteDef
-            ? RemoteRouteMetadata<Type[Property]['route']>
+            ? PublicRouteProcedure<Type[Property]['route']>
             : Type[Property] extends Handler
-              ? RemoteRouteMetadata<Type[Property]>
+              ? PublicRouteProcedure<Type[Property]>
               : // Routes & PureRoutes (recursion)
                 Type[Property] extends Routes
-                ? RemoteApi<Type[Property]>
+                ? PublicApi<Type[Property]>
                 : never;
 };
 
-// prettier-ignore
-export type RemoteHandler<H extends Handler> = 
-    H extends (ctx: CallContext, ...rest: infer Req) => infer Resp
-    ? (...rest: Req) => Promise<Exclude<Awaited<Resp>, RpcError | Error> | RpcError>
-    : never;
-
-export interface RemoteMethodMetadata<H extends Handler = any> {
-    type: ExecutableType;
+// quite similar to Executable but omits some server only properties
+export interface PublicProcedure<H extends Handler = any> {
+    type: ProcedureType;
     /** Type reference to the route handler, it's runtime value is actually null, just used statically by typescript. */
-    _handler: RemoteHandler<H>;
+    handler: PublicHandler<H>;
     /** Json serializable structure so the Type information can be transmitted over the wire */
     serializedTypes: SerializedTypes;
     id: string;
@@ -81,29 +77,35 @@ export interface RemoteMethodMetadata<H extends Handler = any> {
 }
 
 /** Public map from Routes, _handler type is the same as router's handler but does not include the context  */
-export interface RemoteRouteMetadata<H extends Handler = any> extends RemoteMethodMetadata<H> {
-    type: ExecutableType.route;
+export interface PublicRouteProcedure<H extends Handler = any> extends PublicProcedure<H> {
+    type: ProcedureType.route;
     hookIds: string[];
     headerName: undefined;
 }
 
 /** Public map from Hooks, _handler type is the same as hooks's handler but does not include the context  */
-export interface RemoteHookMetadata<H extends Handler = any> extends RemoteMethodMetadata<H> {
-    type: ExecutableType.hook;
+export interface PublicHookExecutable<H extends Handler = any> extends PublicProcedure<H> {
+    type: ProcedureType.hook;
     pathPointers: undefined;
 }
 
-export interface RemoteHeaderHookMetadata<H extends Handler = any> extends RemoteMethodMetadata<H> {
-    type: ExecutableType.headerHook;
+export interface PublicHeaderProcedure<H extends Handler = any> extends PublicProcedure<H> {
+    type: ProcedureType.headerHook;
     headerName: string;
 }
 
-export type RemoteHandlers<RMS extends RemoteApi<any>> = {
-    [Property in keyof RMS]: RMS[Property] extends RemoteRouteMetadata | RemoteHookMetadata | RemoteHeaderHookMetadata
-        ? RMS[Property]['_handler']
+// prettier-ignore
+export type PublicHandler<H extends Handler> = 
+    H extends (ctx: CallContext, ...rest: infer Req) => infer Resp
+    ? (...rest: Req) => Promise<Exclude<Awaited<Resp>, RpcError | Error> | RpcError>
+    : never;
+
+export type PublicHandlers<RMS extends PublicApi<any>> = {
+    [Property in keyof RMS]: RMS[Property] extends PublicRouteProcedure | PublicHookExecutable | PublicHeaderProcedure
+        ? RMS[Property]['handler']
         : never;
 };
 
-export type RemoteMethodResponses = {
+export type PublicResponses = {
     [key: string]: unknown | RpcError;
 };

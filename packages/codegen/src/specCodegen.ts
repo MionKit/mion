@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {ExecutableType, RemoteApi, RemoteMethodMetadata} from '@mionkit/router';
+import {ProcedureType, PublicApi, PublicProcedure} from '@mionkit/router';
 import {dirname, parse, relative} from 'path';
 import {hasChildRoutes, type CodegenOptions, type ExportedRoutesMap, type PublicMethodsSpec, type RoutesSpec} from './types';
 import {DEFAULT_PRETTIER_OPTIONS, PUBLIC_METHODS_SPEC_EXPORT_NAME, ROUTES_SPEC_EXPORT_NAME} from './constants';
@@ -39,7 +39,7 @@ export function getRelativeImport(entryFileName: string, outputFileName: string)
     return relativeimport;
 }
 
-function getPublicMethodsAndRoutes(routesList: RemoteApi<any>[], exportNames: string[]) {
+function getPublicMethodsAndRoutes(routesList: PublicApi<any>[], exportNames: string[]) {
     const publicMethods: PublicMethodsSpec = {};
     const routes: RoutesSpec = {};
     exportNames.forEach((name, i) => {
@@ -52,25 +52,25 @@ function getPublicMethodsAndRoutes(routesList: RemoteApi<any>[], exportNames: st
 }
 
 function recursiveSetHandlerTypeAndCreateRouteExecutables(
-    methods: RemoteApi<any>,
+    methods: PublicApi<any>,
     exportName: string,
     currentPointer: string[],
     routeExecutables: AnyObject
-): RemoteApi<any> {
-    const newRoutes: RemoteApi<any> = {};
+): PublicApi<any> {
+    const newRoutes: PublicApi<any> = {};
     Object.entries(methods).forEach(([key, item]) => {
         if (!item) return;
         const newPointer = [...currentPointer, key];
         if (hasChildRoutes(item)) {
             newRoutes[key] = recursiveSetHandlerTypeAndCreateRouteExecutables(item, exportName, newPointer, routeExecutables);
         } else {
-            if (item.type === ExecutableType.route) {
+            if (item.type === ProcedureType.route) {
                 setRemoteMethods(item, newPointer, exportName, routeExecutables);
             }
             newRoutes[key] = {
                 ...item,
                 //this is a string
-                _handler: setCodeAsJsonString(`fakeHandler as any as typeof ${exportName}.${item._handler}._handler`) as any,
+                handler: setCodeAsJsonString(`fakeHandler as any as typeof ${exportName}.${item.handler}._handler`) as any,
             };
         }
     });
@@ -92,12 +92,7 @@ function serializeRoutes(routes: RoutesSpec) {
     );
 }
 
-function setRemoteMethods(
-    method: RemoteMethodMetadata,
-    currentPointer: string[],
-    exportName: string,
-    routeExecutables: AnyObject
-) {
+function setRemoteMethods(method: PublicProcedure, currentPointer: string[], exportName: string, routeExecutables: AnyObject) {
     const MethodPointers = method.pathPointers?.map((pointer) =>
         setCodeAsJsonString(`${PUBLIC_METHODS_SPEC_EXPORT_NAME}.${exportName}.${getHandlerSrcCodePointer(pointer)}`)
     );

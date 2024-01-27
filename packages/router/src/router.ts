@@ -17,20 +17,15 @@ import {
     isRouteDef,
     isAnyHookDef,
 } from './types/guards';
-import type {
-    Executable,
-    Route,
-    RouterOptions,
-    Routes,
-    RouteExecutable,
-    HookExecutable,
-    RawExecutable,
-    NotFoundExecutable,
-    RouterEntry,
-    HeaderExecutable,
-} from './types/general';
-import {ExecutableType} from './types/general';
-import type {RemoteApi, PrivateHookDef, HooksCollection} from './types/remote';
+import type {Route, RouterOptions, Routes, RouterEntry} from './types/general';
+import type {NotFoundProcedure} from './types/procedures';
+import type {RawProcedure} from './types/procedures';
+import type {HeaderProcedure} from './types/procedures';
+import type {HookProcedure} from './types/procedures';
+import type {RouteProcedure} from './types/procedures';
+import type {Procedure} from './types/procedures';
+import {ProcedureType} from './types/procedures';
+import type {PublicApi, PrivateHookDef, HooksCollection} from './types/publicProcedures';
 import type {HeaderHookDef, HookDef, RouteDef, RawHookDef} from './types/definitions';
 import type {AnyHandler} from './types/handlers';
 import {ReflectionOptions, getFunctionReflectionMethods} from '@mionkit/reflection';
@@ -47,10 +42,10 @@ type RoutesWithId = {
 
 // ############# PRIVATE STATE #############
 
-const flatRouter: Map<string, Executable[]> = new Map(); // Main Router
-const hooksById: Map<string, HookExecutable | HeaderExecutable | RawExecutable> = new Map();
-const routesById: Map<string, RouteExecutable> = new Map();
-const rawHooksById: Map<string, RawExecutable> = new Map();
+const flatRouter: Map<string, Procedure[]> = new Map(); // Main Router
+const hooksById: Map<string, HookProcedure | HeaderProcedure | RawProcedure> = new Map();
+const routesById: Map<string, RouteProcedure> = new Map();
+const rawHooksById: Map<string, RawProcedure> = new Map();
 const hookNames: Map<string, boolean> = new Map();
 const routeNames: Map<string, boolean> = new Map();
 let complexity = 0;
@@ -64,8 +59,8 @@ const defaultStartHooks = {mionParseJsonRequestBody: bodyParserHooks.mionParseJs
 const defaultEndHooks = {mionStringifyJsonResponseBody: bodyParserHooks.mionStringifyJsonResponseBody};
 let startHooksDef: HooksCollection = {...defaultStartHooks};
 let endHooksDef: HooksCollection = {...defaultEndHooks};
-let startHooks: Executable[] = [];
-let endHooks: Executable[] = [];
+let startHooks: Procedure[] = [];
+let endHooks: Procedure[] = [];
 
 // ############# PUBLIC METHODS #############
 
@@ -99,7 +94,7 @@ export const resetRouter = () => {
 };
 
 // simpler router initialization
-export function initMionRouter<R extends Routes>(routes: R, opts?: Partial<RouterOptions>): RemoteApi<R> {
+export function initMionRouter<R extends Routes>(routes: R, opts?: Partial<RouterOptions>): PublicApi<R> {
     initRouter(opts);
     return registerRoutes(routes);
 }
@@ -121,14 +116,14 @@ export function initRouter(opts?: Partial<RouterOptions>): Readonly<RouterOption
     return routerOptions;
 }
 
-export function registerRoutes<R extends Routes>(routes: R): RemoteApi<R> {
+export function registerRoutes<R extends Routes>(routes: R): PublicApi<R> {
     if (!isRouterInitialized) throw new Error('initRouter should be called first');
     startHooks = getExecutablesFromHooksCollection(startHooksDef);
     endHooks = getExecutablesFromHooksCollection(endHooksDef);
     recursiveFlatRoutes(routes);
     // we only want to get information about the routes when creating api spec
     if (shouldFullGenerateSpec()) return getRemoteMethodsMetadata(routes);
-    return {} as RemoteApi<R>;
+    return {} as PublicApi<R>;
 }
 
 export function getRouteDefaultParams(): string[] {
@@ -155,8 +150,8 @@ export function addEndHooks(hooksDef: HooksCollection, prependAfterExisting = tr
     endHooksDef = {...hooksDef, ...endHooksDef};
 }
 
-let notFoundExecutionPath: Executable[] | undefined;
-export function getNotFoundExecutionPath(): Executable[] {
+let notFoundExecutionPath: Procedure[] | undefined;
+export function getNotFoundExecutionPath(): Procedure[] {
     if (notFoundExecutionPath) return notFoundExecutionPath;
     const hookName = '_mion404NotfoundHook_';
     const notFoundHook = {
@@ -166,7 +161,7 @@ export function getNotFoundExecutionPath(): Executable[] {
         },
     } satisfies RawHookDef;
     const notFoundHandlerExecutable = getExecutableFromRawHook(notFoundHook, [hookName], 0);
-    (notFoundHandlerExecutable as NotFoundExecutable).is404 = true;
+    (notFoundHandlerExecutable as NotFoundProcedure).is404 = true;
     notFoundExecutionPath = [...startHooks, notFoundHandlerExecutable, ...endHooks];
     return notFoundExecutionPath;
 }
@@ -185,9 +180,9 @@ export function isPrivateHookDef(entry: RouterEntry, id: string): entry is Priva
     }
 }
 
-export function isPrivateExecutable(executable: Executable): boolean {
-    if (executable.type === ExecutableType.rawHook) return true;
-    if (executable.type === ExecutableType.route) return false;
+export function isPrivateExecutable(executable: Procedure): boolean {
+    if (executable.type === ProcedureType.rawHook) return true;
+    if (executable.type === ProcedureType.route) return false;
     const hasPublicParams = executable.handler.length > getRouteDefaultParams().length;
     return !hasPublicParams && !executable.canReturnData;
 }
@@ -219,8 +214,8 @@ export function shouldFullGenerateSpec(): boolean {
 function recursiveFlatRoutes(
     routes: Routes,
     currentPointer: string[] = [],
-    preHooks: Executable[] = [],
-    postHooks: Executable[] = [],
+    preHooks: Procedure[] = [],
+    postHooks: Procedure[] = [],
     nestLevel = 0
 ) {
     if (nestLevel > MAX_ROUTE_NESTING)
@@ -234,7 +229,7 @@ function recursiveFlatRoutes(
     entries.forEach(([key, item], index, array) => {
         // create the executable items
         const newPointer = [...currentPointer, key];
-        let routeEntry: Executable | RoutesWithId;
+        let routeEntry: Procedure | RoutesWithId;
         if (typeof key !== 'string' || !isNaN(key as any))
             throw new Error(`Invalid route: ${join(...newPointer)}. Numeric route names are not allowed`);
 
@@ -285,10 +280,10 @@ function recursiveFlatRoutes(
 }
 
 function recursiveCreateExecutionPath(
-    routeEntry: Executable | RoutesWithId,
+    routeEntry: Procedure | RoutesWithId,
     currentPointer: string[],
-    preHooks: Executable[],
-    postHooks: Executable[],
+    preHooks: Procedure[],
+    postHooks: Procedure[],
     nestLevel: number,
     index: number,
     routeKeyedEntries: RouterKeyEntryList,
@@ -332,7 +327,7 @@ function recursiveCreateExecutionPath(
 }
 
 /** returns an execution path with start and end hooks added to the start and end of the execution path respectively */
-function getFullExecutionPath(executionPath: Executable[]): Executable[] {
+function getFullExecutionPath(executionPath: Procedure[]): Procedure[] {
     return [...startHooks, ...executionPath, ...endHooks];
 }
 
@@ -354,22 +349,22 @@ function getExecutableFromHook(
     hook: HookDef | HeaderHookDef,
     hookPointer: string[],
     nestLevel: number
-): HookExecutable | HeaderExecutable {
+): HookProcedure | HeaderProcedure {
     const inHeader = isHeaderHookDef(hook);
     // todo fix header id should be same as any other one and then maybe map from id to header name
     const hookId = getRouterItemId(hookPointer);
     const existing = hooksById.get(hookId);
-    if (existing) return existing as HookExecutable;
+    if (existing) return existing as HookProcedure;
     const handler = getHandler(hook, hookPointer);
     const reflection = getFunctionReflectionMethods(handler, getReflectionOptions(hook), getRouteDefaultParams().length);
 
-    type MixedExecutable = (Omit<HookExecutable, 'type'> | Omit<HeaderExecutable, 'type'>) & {
-        type: ExecutableType.hook | ExecutableType.headerHook;
+    type MixedExecutable = (Omit<HookProcedure, 'type'> | Omit<HeaderProcedure, 'type'>) & {
+        type: ProcedureType.hook | ProcedureType.headerHook;
     };
 
     const executable: MixedExecutable = {
         id: hookId,
-        type: inHeader ? ExecutableType.headerHook : ExecutableType.hook,
+        type: inHeader ? ProcedureType.headerHook : ProcedureType.hook,
         forceRunOnError: !!hook.forceRunOnError,
         canReturnData: reflection.canReturnData,
         nestLevel,
@@ -384,13 +379,13 @@ function getExecutableFromHook(
     return executable as any;
 }
 
-function getExecutableFromRawHook(hook: RawHookDef, hookPointer: string[], nestLevel: number): RawExecutable {
+function getExecutableFromRawHook(hook: RawHookDef, hookPointer: string[], nestLevel: number): RawProcedure {
     const hookId = getRouterItemId(hookPointer);
     const existing = rawHooksById.get(hookId);
-    if (existing) return existing as RawExecutable;
+    if (existing) return existing as RawProcedure;
 
-    const executable: RawExecutable = {
-        type: ExecutableType.rawHook,
+    const executable: RawProcedure = {
+        type: ProcedureType.rawHook,
         id: hookId,
         forceRunOnError: true,
         canReturnData: false,
@@ -405,14 +400,14 @@ function getExecutableFromRawHook(hook: RawHookDef, hookPointer: string[], nestL
     return executable;
 }
 
-function getExecutableFromRoute(route: Route, routePointer: string[], nestLevel: number): RouteExecutable {
+function getExecutableFromRoute(route: Route, routePointer: string[], nestLevel: number): RouteProcedure {
     const routeId = getRouterItemId(routePointer);
     const existing = routesById.get(routeId);
-    if (existing) return existing as RouteExecutable;
+    if (existing) return existing as RouteProcedure;
     const handler = getHandler(route, routePointer);
     // const routeObj = isHandler(route) ? {...DEFAULT_ROUTE} : {...DEFAULT_ROUTE, ...route};
-    const executable: RouteExecutable = {
-        type: ExecutableType.route,
+    const executable: RouteProcedure = {
+        type: ProcedureType.route,
         id: routeId,
         forceRunOnError: false,
         canReturnData: true,
@@ -434,25 +429,25 @@ function getEntry(index, keyEntryList: RouterKeyEntryList) {
 
 function getRouteEntryProperties(
     minus1: RouterEntry | undefined,
-    zero: Executable | RoutesWithId,
+    zero: Procedure | RoutesWithId,
     plus1: RouterEntry | undefined
 ) {
     const minus1IsRoute = minus1 && isRoute(minus1);
-    const zeroIsRoute = (zero as Executable).type === ExecutableType.route;
+    const zeroIsRoute = (zero as Procedure).type === ProcedureType.route;
     const plus1IsRoute = plus1 && isRoute(plus1);
 
-    const isExec = !!(zero as Executable).handler;
+    const isExec = !!(zero as Procedure).handler;
 
     return {
         isBetweenRoutes: minus1IsRoute && zeroIsRoute && plus1IsRoute,
         isExecutable: isExec,
         isRoute: zeroIsRoute,
-        preLevelHooks: [] as Executable[],
-        postLevelHooks: [] as Executable[],
+        preLevelHooks: [] as Procedure[],
+        postLevelHooks: [] as Procedure[],
     };
 }
 
-function getExecutablesFromHooksCollection(hooksDef: HooksCollection): (RawExecutable | HookExecutable | HeaderExecutable)[] {
+function getExecutablesFromHooksCollection(hooksDef: HooksCollection): (RawProcedure | HookProcedure | HeaderProcedure)[] {
     return Object.entries(hooksDef).map(([key, hook]) => {
         if (isRawHookDef(hook)) return getExecutableFromRawHook(hook, [key], 0);
         if (isHeaderHookDef(hook) || isHookDef(hook)) return getExecutableFromHook(hook, [key], 0);

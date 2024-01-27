@@ -7,17 +7,13 @@
 
 import {HeaderSingleValue, HeaderValue} from './context';
 import {HeaderHookDef, HookDef, RawHookDef, RouteDef} from './definitions';
-import {
-    Executable,
-    ExecutableType,
-    HeaderExecutable,
-    NotFoundExecutable,
-    RawExecutable,
-    Route,
-    RouteExecutable,
-    RouterEntry,
-    Routes,
-} from './general';
+import {Route, RouterEntry, Routes} from './general';
+import {NotFoundProcedure} from './procedures';
+import {RawProcedure} from './procedures';
+import {HeaderProcedure} from './procedures';
+import {RouteProcedure} from './procedures';
+import {Procedure} from './procedures';
+import {ProcedureType} from './procedures';
 
 // #######  type guards #######
 
@@ -49,30 +45,30 @@ export function isRoutes(entry: RouterEntry | Routes): entry is Route {
     return typeof entry === 'object';
 }
 
-export function isExecutable(entry: Executable | {pathPointer: string[]}): entry is Executable {
+export function isExecutable(entry: Procedure | {pathPointer: string[]}): entry is Procedure {
     return (
-        typeof (entry as Executable)?.id === 'string' &&
-        ((entry as any).routes === 'undefined' || typeof (entry as Executable).handler === 'function')
+        typeof (entry as Procedure)?.id === 'string' &&
+        ((entry as any).routes === 'undefined' || typeof (entry as Procedure).handler === 'function')
     );
 }
-export function isRawExecutable(entry: Executable): entry is RawExecutable {
-    return entry.type === ExecutableType.rawHook;
+export function isRawExecutable(entry: Procedure): entry is RawProcedure {
+    return entry.type === ProcedureType.rawHook;
 }
 
-export function isPublicExecutable(entry: Executable): entry is Executable {
+export function isPublicExecutable(entry: Procedure): entry is Procedure {
     return entry.reflection?.canReturnData || !!entry.reflection?.paramsLength;
 }
 
-export function isNotFoundExecutable(entry: Executable): entry is NotFoundExecutable {
-    return (entry as NotFoundExecutable).is404;
+export function isNotFoundExecutable(entry: Procedure): entry is NotFoundProcedure {
+    return (entry as NotFoundProcedure).is404;
 }
 
-export function isHeaderExecutable(entry: Executable): entry is HeaderExecutable {
-    return entry.type === ExecutableType.headerHook;
+export function isHeaderExecutable(entry: Procedure): entry is HeaderProcedure {
+    return entry.type === ProcedureType.headerHook;
 }
 
-export function isRouteExecutable(entry: Executable): entry is RouteExecutable {
-    return entry.type === ExecutableType.route;
+export function isRouteExecutable(entry: Procedure): entry is RouteProcedure {
+    return entry.type === ProcedureType.route;
 }
 
 export function isSingleValueHeader(value: HeaderValue): value is HeaderSingleValue {

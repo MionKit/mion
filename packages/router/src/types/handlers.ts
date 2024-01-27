@@ -7,7 +7,7 @@
 
 import {CallContext, HeaderValue} from './context';
 import {RouterOptions} from './general';
-import {ErrorReturn} from './remote';
+import {ErrorReturn} from './publicProcedures';
 
 // #######  Route Handlers #######
 
