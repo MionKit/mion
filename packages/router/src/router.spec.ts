@@ -5,9 +5,6 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import type {Routes} from './types/general';
-import type {HookDef, RouteDef} from './types/definitions';
-import type {Handler} from './types/handlers';
 import {
     registerRoutes,
     geHooksSize,
@@ -21,34 +18,31 @@ import {
     addStartHooks,
     addEndHooks,
 } from './router';
+import {type Routes, hook, route, rawHook} from '..';
 
 describe('Create routes should', () => {
-    const hook: HookDef = {hook(): void {}};
-    const route1: Handler = () => 'route1';
-    const route2: RouteDef = {
-        route() {
-            return 'route2';
-        },
-    };
+    const hook1 = hook((): void => undefined);
+    const route1 = route(() => 'route1');
+    const route2 = route(() => 'route2');
 
-    const routes: Routes = {
-        first: hook,
+    const routes = {
+        first: hook1,
         users: {
-            userBefore: hook,
+            userBefore: hook1,
             getUser: route1,
             setUser: route2,
             pets: {
                 getUserPet: route2,
-                userPetsAfter: hook,
+                userPetsAfter: hook1,
             },
-            userAfter: hook,
+            userAfter: hook1,
         },
         pets: {
             getPet: route1,
             setPet: route2,
         },
-        last: hook,
-    };
+        last: hook1,
+    } satisfies Routes;
 
     const hookExecutables = {
         first: {
@@ -148,31 +142,11 @@ describe('Create routes should', () => {
         expect(getRouteExecutionPath('/pets-setPet')).toBeTruthy();
     });
 
-    it('should support methods', () => {
-        initRouter();
-        function hello(): void {}
-        const routes = {
-            hello,
-        };
-        registerRoutes(routes);
-
-        expect(getRouteExecutable('hello')).toEqual(
-            expect.objectContaining({
-                id: 'hello',
-                nestLevel: 0,
-                forceRunOnError: false,
-                canReturnData: true,
-                inHeader: false,
-                isRoute: true,
-            })
-        );
-    });
-
     it('add default values to hooks', () => {
         initRouter();
         const defaultHookValues = {
-            first: {hook: (): void => {}},
-            second: {hook: (): null => null},
+            first: hook((): void => undefined),
+            second: hook((): null => null),
         };
         registerRoutes(defaultHookValues);
 
@@ -201,7 +175,7 @@ describe('Create routes should', () => {
 
     it('add default values to routes', () => {
         initRouter();
-        const defaultRouteValues = {sayHello: {route: (): null => null}};
+        const defaultRouteValues = {sayHello: route((): null => null)};
         registerRoutes(defaultRouteValues);
 
         expect(getRouteExecutable('sayHello')).toEqual(
@@ -248,7 +222,7 @@ describe('Create routes should', () => {
     it('optimize parsing routes (complexity) when there are multiple routes in a row', () => {
         initRouter();
         const bestCase = {
-            first: hook,
+            first: hook1,
             route1: route1,
             route2: route2,
             route3: route1,
@@ -260,7 +234,7 @@ describe('Create routes should', () => {
             route9: route1,
             route10: route2,
             pets: {
-                petsFirst: hook,
+                petsFirst: hook1,
                 route1: route1,
                 route2: route2,
                 route3: route1,
@@ -271,21 +245,21 @@ describe('Create routes should', () => {
                 route8: route2,
                 route9: route1,
                 route10: route2,
-                petsLast: hook,
+                petsLast: hook1,
             },
-            last: hook,
+            last: hook1,
         };
         const worstCase = {
-            first: hook,
+            first: hook1,
             route1: route1,
             route12: route2,
             pets: {
-                petsFirst: hook,
+                petsFirst: hook1,
                 route1: route1,
                 route12: route2,
-                petsLast: hook,
+                petsLast: hook1,
             },
-            last: hook,
+            last: hook1,
         };
         const bestCaseTotalRoutes = 20;
         const worstCaseTotalRoutes = 4;
@@ -305,14 +279,14 @@ describe('Create routes should', () => {
         initRouter();
         // !! Important return types must always be declared as deepkit doe not infers the type
         const defaultRouteValues = {
-            sayHello: (): null => null,
-            asyncSayHello: async (): Promise<string> => {
+            sayHello: route((): null => null),
+            asyncSayHello: route(async (): Promise<string> => {
                 const hello = await new Promise<string>((res) => {
                     setTimeout(() => res('hello'), 50);
                 });
                 return hello;
-            },
-            noReturnType: () => null,
+            }),
+            noReturnType: route(() => null),
         };
         registerRoutes(defaultRouteValues);
 
@@ -326,13 +300,13 @@ describe('Create routes should', () => {
 
     it('add start and end global hooks', () => {
         const prependHooks = {
-            p1: {isRawHook: true, hook: (ctx, cb) => cb()},
-            p2: {isRawHook: true, hook: (ctx, cb) => cb()},
+            p1: rawHook((ctx, cb) => cb()),
+            p2: rawHook((ctx, cb) => cb()),
         };
 
         const appendHooks = {
-            a1: {isRawHook: true, hook: (ctx, cb) => cb()},
-            a2: {isRawHook: true, hook: (ctx, cb) => cb()},
+            a1: rawHook((ctx, cb) => cb()),
+            a2: rawHook((ctx, cb) => cb()),
         };
         addStartHooks(prependHooks, false);
         addEndHooks(appendHooks, false);

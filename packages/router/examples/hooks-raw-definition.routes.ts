@@ -1,12 +1,10 @@
-import {CallContext, RawHookDef, initMionRouter} from '@mionkit/router';
+import {rawHook, Routes} from '@mionkit/router';
 import {IncomingMessage, ServerResponse} from 'http';
 type HttpRequest = IncomingMessage & {body: any};
 
-// sends a fake progress to the client
-const progress = {
-    // isRawHook = true, required when defining a RawHook
-    isRawHook: true,
-    hook: async (ctx: CallContext, rawRequest: HttpRequest, rawResponse: ServerResponse): Promise<void> => {
+const routes = {
+    // using the rawHook function to define a hook
+    progress: rawHook(async (ctx, rawRequest: HttpRequest, rawResponse: ServerResponse): Promise<void> => {
         return new Promise((resolve) => {
             const maxTime = 1000;
             const increment = 10;
@@ -20,10 +18,6 @@ const progress = {
                 rawResponse.write(`\n${total}%`);
             }, increment);
         });
-    },
-} satisfies RawHookDef<any, HttpRequest, ServerResponse>;
-
-initMionRouter({
-    progress,
+    }),
     // ... other routes and hooks
-});
+} satisfies Routes;

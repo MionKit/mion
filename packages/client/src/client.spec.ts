@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {RemoteApi, Routes, initRouter, registerRoutes, registerClientRoutes} from '@mionkit/router';
+import {RemoteApi, Routes, initRouter, registerRoutes, route, headersHook, hook} from '@mionkit/router';
 import {initClient} from './client';
 import {HookSubRequest, RouteSubRequest} from './types';
 import {setNodeHttpOpts, startNodeServer} from '@mionkit/http';
@@ -23,22 +23,15 @@ describe('client', () => {
     type User = {name: string; surname: string};
 
     const routes = {
-        auth: {
-            headerName: 'Authorization',
-            hook: (ctx, token: string): User => ({name: 'John', surname: 'Doe'}),
-        },
-        sayHello: {route: (ctx, user: User): string | RpcError => `Hello ${user.name} ${user.surname}`},
-        alwaysFails: (ctx, user: User): User | RpcError =>
-            new RpcError({statusCode: 500, publicMessage: 'Something fails', name: 'UnknownError'}),
+        auth: headersHook('Authorization', (ctx, token: string): User => ({name: 'John', surname: 'Doe'})),
+        sayHello: route((ctx, user: User): string | RpcError => `Hello ${user.name} ${user.surname}`),
+        alwaysFails: route((ctx, user: User): User | RpcError => {
+            return new RpcError({statusCode: 500, publicMessage: 'Something fails', name: 'UnknownError'});
+        }),
         utils: {
-            sumTwo: (ctx, a: number): number => a + 2,
+            sumTwo: route((ctx, a: number): number => a + 2),
         },
-        log: {
-            forceRunOnError: true,
-            hook: (ctx): any => {
-                // console.log(ctx.path, ctx.response.body);
-            },
-        },
+        log: hook((ctx): void => undefined, {forceRunOnError: true}),
     } satisfies Routes;
 
     const someUser = {name: 'John', surname: 'Doe'};
@@ -49,9 +42,8 @@ describe('client', () => {
     const baseURL = `http://localhost:${port}`;
     let server: Server;
     beforeAll(async () => {
-        initRouter({sharedDataFactory: () => {}});
+        initRouter({sharedDataFactory: () => {}, skipClientRoutes: false});
         myApi = registerRoutes(routes);
-        registerClientRoutes();
         setNodeHttpOpts({port});
         server = await startNodeServer();
     });

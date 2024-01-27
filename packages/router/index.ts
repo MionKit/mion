@@ -17,3 +17,5 @@ export * from './src/dispatch';
 export * from './src/errors';
 export * from './src/headers';
 export * from './src/remoteMethodsMetadata';
+export * from './src/client.routes';
+export * from './src/initFunctions';

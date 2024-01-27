@@ -124,6 +124,7 @@ export const isAsyncHandler = (handlerOrType: Handler | Type): boolean => {
 
 export const getHandlerType = (handlerOrType: Handler | Type): TypeFunction => {
     const handlerType: Type = isType(handlerOrType) ? handlerOrType : reflect(handlerOrType);
+    // console.log('handlerType', handlerType);
     if (!isFunctionType(handlerType)) throw new Error('Invalid handler type must be a function');
     return handlerType;
 };

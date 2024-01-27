@@ -12,18 +12,18 @@ import {ErrorReturn} from './remote';
 // #######  Route Handlers #######
 
 /** Route or Hook Handler  */
-export type Handler<Context extends CallContext = CallContext, Ret = any> = (
+export type Handler<Context extends CallContext = CallContext, Ret = any, Params extends any[] = any> = (
     /** Call Context */
     context: Context,
     /** Remote Call parameters */
-    ...parameters: any
+    ...parameters: Params
 ) => Ret | Promise<Ret>;
 
 /** Header Hook Handler, hook handler for when params are sent in the header  */
 export type HeaderHandler<
     Context extends CallContext = CallContext,
     HReqValue extends HeaderValue = any,
-    HRespValue extends HeaderValue = any,
+    HRespValue extends HeaderValue | undefined = any,
 > = (
     /** Call Context */
     context: Context,
@@ -34,8 +34,8 @@ export type HeaderHandler<
 /** Handler to use with raw hooks to get access to raw request and response */
 export type RawHookHandler<
     Context extends CallContext = CallContext,
-    RawReq = unknown,
-    RawResp = unknown,
+    RawReq = any,
+    RawResp = any,
     Opts extends RouterOptions<RawReq> = RouterOptions<RawReq>,
 > = (ctx: Context, request: RawReq, response: RawResp, opts: Opts) => ErrorReturn;
 

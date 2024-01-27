@@ -5,8 +5,19 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {registerRoutes, initRouter, resetRouter, Routes, dispatchRoute, MionHeaders, headersFromRecord} from '@mionkit/router';
-import {clientRoutes} from './client.routes';
+import {
+    registerRoutes,
+    initRouter,
+    resetRouter,
+    Routes,
+    dispatchRoute,
+    MionHeaders,
+    headersFromRecord,
+    hook,
+    clientRoutes,
+    route,
+    rawHook,
+} from '@mionkit/router';
 import {GET_REMOTE_METHODS_BY_ID, GET_REMOTE_METHODS_BY_PATH, getRoutePath} from '@mionkit/core';
 
 type RawRequest = {
@@ -15,33 +26,29 @@ type RawRequest = {
 };
 
 describe('Client Routes should', () => {
-    const privateHook = (ctx): void => undefined;
-    const publicHook = (ctx): null => null;
-    const auth = (ctx, token: string): void => undefined;
-    const route1 = () => 'route1';
-    const route2 = {
-        route() {
-            return 'route2';
-        },
-    };
+    const privateHook = hook((ctx): void => undefined);
+    const publicHook = hook((ctx): null => null);
+    const auth = hook((ctx, token: string): void => undefined);
+    const route1 = route(() => 'route1');
+    const route2 = route(() => 'route2');
 
     const routes = {
-        auth: {hook: auth}, // is public as has params
-        parse: {isRawHook: true, hook: (ctx, req, resp, opts): void => undefined}, // private
+        auth: auth, // is public as has params
+        parse: rawHook((ctx, req, resp, opts): void => undefined), // private
         users: {
-            userBefore: {hook: privateHook}, // private
+            userBefore: privateHook, // private
             getUser: route1, // public
             setUser: route2, // public
             pets: {
                 getUserPet: route2, // public
             },
-            userAfter: {hook: privateHook}, // private
+            userAfter: privateHook, // private
         },
         pets: {
             getPet: route1, // public
             setPet: route2, // public
         },
-        last: {hook: publicHook}, // public Hook
+        last: publicHook, // public Hook
     } satisfies Routes;
 
     const shared = {auth: {me: null as any}};
