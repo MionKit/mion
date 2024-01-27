@@ -76,14 +76,14 @@ export interface PublicProcedure<H extends Handler = any> {
     headerName?: string;
 }
 
-/** Public map from Routes, _handler type is the same as router's handler but does not include the context  */
+/** Public map from Routes, handler type is the same as router's handler but does not include the context  */
 export interface PublicRouteProcedure<H extends Handler = any> extends PublicProcedure<H> {
     type: ProcedureType.route;
     hookIds: string[];
     headerName: undefined;
 }
 
-/** Public map from Hooks, _handler type is the same as hooks's handler but does not include the context  */
+/** Public map from Hooks, handler type is the same as hooks's handler but does not include the context  */
 export interface PublicHookExecutable<H extends Handler = any> extends PublicProcedure<H> {
     type: ProcedureType.hook;
     pathPointers: undefined;

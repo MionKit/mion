@@ -70,7 +70,7 @@ function recursiveSetHandlerTypeAndCreateRouteExecutables(
             newRoutes[key] = {
                 ...item,
                 //this is a string
-                handler: setCodeAsJsonString(`fakeHandler as any as typeof ${exportName}.${item.handler}._handler`) as any,
+                handler: setCodeAsJsonString(`fakeHandler as any as typeof ${exportName}.${item.handler}.handler`) as any,
             };
         }
     });

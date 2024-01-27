@@ -59,7 +59,7 @@ describe('Client Routes should', () => {
         'users-getUser': {
             type: ProcedureType.route,
             id: 'users-getUser',
-            _handler: 'users.getUser',
+            handler: 'users.getUser',
             serializedTypes: [{kind: 17, parameters: [], return: 1}, {kind: 1}],
             enableValidation: true,
             enableSerialization: true,
@@ -69,7 +69,7 @@ describe('Client Routes should', () => {
         'users-setUser': {
             type: ProcedureType.route,
             id: 'users-setUser',
-            _handler: 'users.setUser',
+            handler: 'users.setUser',
             serializedTypes: [{kind: 17, parameters: [], return: 1}, {kind: 1}],
             enableValidation: true,
             enableSerialization: true,
@@ -79,7 +79,7 @@ describe('Client Routes should', () => {
         'users-pets-getUserPet': {
             type: ProcedureType.route,
             id: 'users-pets-getUserPet',
-            _handler: 'users.pets.getUserPet',
+            handler: 'users.pets.getUserPet',
             serializedTypes: [{kind: 17, parameters: [], return: 1}, {kind: 1}],
             enableValidation: true,
             enableSerialization: true,
@@ -89,7 +89,7 @@ describe('Client Routes should', () => {
         'pets-getPet': {
             type: ProcedureType.route,
             id: 'pets-getPet',
-            _handler: 'pets.getPet',
+            handler: 'pets.getPet',
             serializedTypes: [{kind: 17, parameters: [], return: 1}, {kind: 1}],
             enableValidation: true,
             enableSerialization: true,
@@ -99,7 +99,7 @@ describe('Client Routes should', () => {
         'pets-setPet': {
             type: ProcedureType.route,
             id: 'pets-setPet',
-            _handler: 'pets.setPet',
+            handler: 'pets.setPet',
             serializedTypes: [{kind: 17, parameters: [], return: 1}, {kind: 1}],
             enableValidation: true,
             enableSerialization: true,
@@ -109,7 +109,7 @@ describe('Client Routes should', () => {
         auth: {
             type: ProcedureType.hook,
             id: 'auth',
-            _handler: 'auth',
+            handler: 'auth',
             serializedTypes: [{kind: 17, parameters: [{kind: 18, name: 'token', type: 1}], return: 2}, {kind: 5}, {kind: 3}],
             enableValidation: true,
             enableSerialization: true,
@@ -118,7 +118,7 @@ describe('Client Routes should', () => {
         last: {
             type: ProcedureType.hook,
             id: 'last',
-            _handler: 'last',
+            handler: 'last',
             serializedTypes: [{kind: 17, parameters: [], return: 1}, {kind: 10}],
             enableValidation: true,
             enableSerialization: true,
