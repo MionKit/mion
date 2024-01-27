@@ -10,7 +10,7 @@ import {dispatchRoute} from './dispatch';
 import {CallContext, MionHeaders} from './types/context';
 import {Route, Routes} from './types/general';
 import {AnonymRpcError, StatusCodes} from '@mionkit/core';
-import {headersFromRecord} from '..';
+import {headersFromRecord, headersHook, hook, route} from '..';
 
 type RawRequest = {
     headers: MionHeaders;
@@ -39,20 +39,17 @@ describe('Dispatch routes', () => {
 
     type Req = ReturnType<typeof getDefaultRequest>;
 
-    const changeUserName = (ctx, user: SimpleUser) => {
+    const changeUserName = route((ctx, user: SimpleUser) => {
         return myApp.db.changeUserName(user);
-    };
+    });
 
-    const getSameDate = (ctx, data: DataPoint): DataPoint => {
+    const getSameDate = route((ctx, data: DataPoint): DataPoint => {
         return data;
-    };
+    });
 
-    const auth = {
-        headerName: 'Authorization',
-        hook: (ctx, token: string) => {
-            if (token !== '1234') throw {statusCode: StatusCodes.FORBIDDEN, message: 'invalid auth token'};
-        },
-    };
+    const auth = headersHook('Authorization', (ctx, token: string) => {
+        if (token !== '1234') throw {statusCode: StatusCodes.FORBIDDEN, message: 'invalid auth token'};
+    });
 
     const getDefaultRequest = (path: string, params?): RawRequest => ({
         headers: headersFromRecord({}),
@@ -97,17 +94,13 @@ describe('Dispatch routes', () => {
                 request,
                 {}
             );
-            console.log('response.body', response.body);
             expect(response.hasErrors).toBeFalsy();
             expect(response.body).toEqual({['changeUserName']: {name: 'LOREM', surname: 'Tungsten'}});
         });
 
         it('headers are case insensitive, returned headers alway lowercase', async () => {
             initRouter({sharedDataFactory: getSharedData});
-            const auth = {
-                headerName: 'Authorization',
-                hook: (ctx, token: string): string => (token === '1234' ? 'MyUser' : 'Unknown'),
-            };
+            const auth = headersHook('Authorization', (ctx, token: string): string => (token === '1234' ? 'MyUser' : 'Unknown'));
             registerRoutes({auth, changeUserName});
 
             const request: RawRequest = {
@@ -129,7 +122,7 @@ describe('Dispatch routes', () => {
 
         it('if there are no params input field can be omitted', async () => {
             initRouter({sharedDataFactory: getSharedData});
-            registerRoutes({sayHello: () => 'hello'});
+            registerRoutes({sayHello: route(() => 'hello')});
 
             const path = '/sayHello';
             const id = 'sayHello';
@@ -164,7 +157,7 @@ describe('Dispatch routes', () => {
             };
             initRouter(options);
             registerRoutes({
-                getHello: () => 'hello', // GET api/v1/Hello
+                getHello: route(() => 'hello'), // GET api/v1/Hello
             });
 
             const response = await dispatchRoute(publicPath, request.body, request.headers, headersFromRecord({}), request, {});
@@ -176,19 +169,17 @@ describe('Dispatch routes', () => {
             initRouter({sharedDataFactory: getSharedData});
             const id = 'sumTwo';
             const routes = {
-                sumTwo: async (ctx, val: number): Promise<number> => {
+                sumTwo: route(async (ctx, val: number): Promise<number> => {
                     return new Promise((resolve) => {
                         setTimeout(() => {
                             resolve(val + 2);
                         }, 500);
                     });
-                },
-                totals: {
-                    hook: (ctx: CallContext): string => {
-                        // is sumTwo is not executed in order then `ctx.response.body.sumTwo` would be undefined here
-                        return `the total is ${ctx.response.body[id]}`;
-                    },
-                },
+                }),
+                totals: hook((ctx: CallContext): string => {
+                    // is sumTwo is not executed in order then `ctx.response.body.sumTwo` would be undefined here
+                    return `the total is ${ctx.response.body[id]}`;
+                }),
             } satisfies Routes;
             registerRoutes(routes);
 
@@ -393,9 +384,9 @@ describe('Dispatch routes', () => {
         it('return an unknown error if a route fails with a generic error', async () => {
             initRouter({sharedDataFactory: getSharedData});
 
-            const routeFail: Route = () => {
+            const routeFail = route(() => {
                 throw new Error('this is a generic error');
-            };
+            });
             registerRoutes({routeFail});
 
             const request = getDefaultRequest('routeFail', []);

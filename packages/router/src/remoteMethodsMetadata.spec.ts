@@ -11,35 +11,32 @@ import {registerRoutes, initRouter, resetRouter, getRouteDefaultParams} from './
 import {getFunctionReflectionMethods} from '@mionkit/reflection';
 import {CallContext} from './types/context';
 import {Routes} from './types/general';
+import {hook, rawHook, route} from '..';
 
 describe('Public Methods should', () => {
-    const privateHook = (ctx): void => undefined;
-    const publicHook = (ctx): null => null;
-    const paramsHook = (ctx, s: string): void => undefined;
-    const route1 = () => 'route1';
-    const route2 = {
-        route() {
-            return 'route2';
-        },
-    };
+    const privateHook = hook((ctx): void => undefined);
+    const publicHook = hook((ctx): null => null);
+    const paramsHook = hook((ctx, s: string): void => undefined);
+    const route1 = route(() => 'route1');
+    const route2 = route(() => 'route2');
 
     const routes = {
-        first: {hook: paramsHook}, // is public as has params
-        parse: {isRawHook: true, hook: (ctx, req, resp, opts): void => undefined}, // private
+        first: paramsHook, // is public as has params
+        parse: rawHook((ctx, req, resp, opts): void => undefined), // private
         users: {
-            userBefore: {hook: privateHook}, // private
+            userBefore: privateHook, // private
             getUser: route1, // public
             setUser: route2, // public
             pets: {
                 getUserPet: route2, // public
             },
-            userAfter: {hook: privateHook}, // private
+            userAfter: privateHook, // private
         },
         pets: {
             getPet: route1, // public
             setPet: route2, // public
         },
-        last: {hook: publicHook}, // public Hook
+        last: publicHook, // public Hook
     } satisfies Routes;
 
     const shared = {auth: {me: null as any}};
@@ -57,7 +54,7 @@ describe('Public Methods should', () => {
     it('generate all the required public fields for hook and route', () => {
         initRouter({sharedDataFactory: getSharedData, getPublicRoutesData: true});
         const testR = {
-            auth: {hook: paramsHook},
+            auth: paramsHook,
             routes: {
                 route1,
             },
@@ -87,11 +84,11 @@ describe('Public Methods should', () => {
     it('be able to convert serialized handler types to json, deserialize and use them for validation', () => {
         initRouter({sharedDataFactory: getSharedData, getPublicRoutesData: true});
         const testR = {
-            addMilliseconds: (ctx, ms: number, date: Date) => date.setMilliseconds(date.getMilliseconds() + ms),
+            addMilliseconds: route((ctx, ms: number, date: Date) => date.setMilliseconds(date.getMilliseconds() + ms)),
         };
         const api = registerRoutes(testR);
         const reflection = getFunctionReflectionMethods(
-            testR.addMilliseconds,
+            testR.addMilliseconds.route,
             DEFAULT_ROUTE_OPTIONS.reflectionOptions,
             getRouteDefaultParams().length
         );
@@ -125,7 +122,7 @@ describe('Public Methods should', () => {
     it('generate public data when suing prefix and suffix', () => {
         initRouter({sharedDataFactory: getSharedData, getPublicRoutesData: true, prefix: 'v1', suffix: '.json'});
         const testR = {
-            auth: {hook: paramsHook},
+            auth: paramsHook,
             route1,
         };
         const api = registerRoutes(testR);
@@ -191,7 +188,7 @@ describe('Public Methods should', () => {
 
     it('should throw an error when route or hook is not already created in the router', () => {
         const testR1 = {route1};
-        const testR2 = {hook1: {hook: paramsHook}};
+        const testR2 = {hook1: paramsHook};
         expect(() => getRemoteMethodsMetadata(testR1)).toThrow(
             `Route or Hook route1 not found. Please check you have called router.registerRoutes first.`
         );
@@ -203,7 +200,7 @@ describe('Public Methods should', () => {
     it('should serialize remote method type skipping the context parameter', () => {
         initRouter({sharedDataFactory: getSharedData, getPublicRoutesData: true});
         const routes = {
-            sayHello: (ctx: CallContext, name: string): string => `Hello ${name}`,
+            sayHello: route((ctx: CallContext, name: string): string => `Hello ${name}`),
         };
         const api = registerRoutes(routes);
         const serializedFunction: any = api.sayHello.serializedTypes[0]; // SerializedTypeFunction);

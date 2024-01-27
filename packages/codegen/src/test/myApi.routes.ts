@@ -5,38 +5,40 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {CallContext, initRouter, registerRoutes, RouterOptions, Routes} from '@mionkit/router';
+import {CallContext, headersHook, hook, initRouter, registerRoutes, route, RouterOptions, Routes} from '@mionkit/router';
 import {Item, Pet, User} from './myApi.types';
 
-const auth = (ctx, token: string): void => {};
-const getUser = async (ctx, id: number): Promise<User> => ({id, name: 'John', surname: 'Smith'});
-const setUser = async (ctx, user: {id: number; name: string; surname: string}, user2?: User): Promise<User> => user2 || user;
-const totalUsers = (): number => 3;
+const auth = headersHook('Authorization', (ctx, token: string): void => {});
+const getUser = route(async (ctx, id: number): Promise<User> => ({id, name: 'John', surname: 'Smith'}));
+const setUser = route(
+    async (ctx, user: {id: number; name: string; surname: string}, user2?: User): Promise<User> => user2 || user
+);
+const totalUsers = hook((): number => 3);
 
-const getPet = async (ctx, id: number): Promise<Pet> => ({id, race: 'Dog', name: 'Lassie'});
-const setPet = async (ctx, pet: Pet): Promise<Pet> => pet;
+const getPet = route(async (ctx, id: number): Promise<Pet> => ({id, race: 'Dog', name: 'Lassie'}));
+const setPet = route(async (ctx, pet: Pet): Promise<Pet> => pet);
 
-const getNumber = async (ctx, s: string, n: number): Promise<number> => n;
-const getItem = (ctx, item: Item<User>): Item<User> => ({item: {id: 3, name: 'John', surname: 'Smith'}});
-const getPetOrUser = (ctx, item: Pet | User): Pet | User => item;
-const logErrors = (ctx: CallContext): void => console.log(ctx.request.internalErrors);
+const getNumber = route(async (ctx, s: string, n: number): Promise<number> => n);
+const getItem = route((ctx, item: Item<User>): Item<User> => ({item: {id: 3, name: 'John', surname: 'Smith'}}));
+const getPetOrUser = route((ctx, item: Pet | User): Pet | User => item);
+const logErrors = hook((ctx: CallContext): void => console.log(ctx.request.internalErrors));
 
-const login = (ctx: CallContext, email: string, pass: string): void => {
+const login = route((ctx: CallContext, email: string, pass: string): void => {
     ctx.response.headers.set('auth', 'AUTH-TOKEN-XWZ');
-};
+});
 
 export const myApiRoutes = {
-    auth: {headerName: 'Authorization', hook: auth},
+    auth: auth,
     users: {
         getUser,
         setUser: setUser,
-        totalUsers: {hook: totalUsers},
+        totalUsers: totalUsers,
     },
     pets: {getPet, setPet},
     utils: {getNumber},
     getItem,
     getPetOrUser,
-    logErrors: {hook: logErrors},
+    logErrors: logErrors,
 } satisfies Routes;
 
 export const publicEndpoints = {

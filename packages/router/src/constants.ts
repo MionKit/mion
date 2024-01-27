@@ -9,23 +9,24 @@ import {DEFAULT_REFLECTION_OPTIONS} from '@mionkit/reflection';
 import {RouteDef, HookDef} from './types/definitions';
 import {RouterOptions} from './types/general';
 
-export const DEFAULT_ROUTE: Readonly<Required<RouteDef>> = {
+export const DEFAULT_ROUTE = {
     description: '',
     enableValidation: true,
     enableSerialization: true,
     route: () => null,
-};
-export const DEFAULT_HOOK: Readonly<Required<HookDef>> = {
+} satisfies Readonly<Required<RouteDef>>;
+
+export const DEFAULT_HOOK = {
     forceRunOnError: false,
     description: '',
     enableValidation: true,
     enableSerialization: true,
     hook: () => null,
-};
+} satisfies Readonly<Required<HookDef>>;
 
 export const IS_TEST_ENV = process.env.JEST_WORKER_ID !== undefined || process.env.NODE_ENV === 'test';
 
-export const DEFAULT_ROUTE_OPTIONS: Readonly<RouterOptions> = {
+export const DEFAULT_ROUTE_OPTIONS = {
     /** Prefix for all routes, i.e: api/v1.
      * path separator is added between the prefix and the route */
     prefix: '',
@@ -54,7 +55,10 @@ export const DEFAULT_ROUTE_OPTIONS: Readonly<RouterOptions> = {
 
     /** Set true to automatically generate and id for every error.  */
     autoGenerateErrorId: false,
-};
+
+    /** client routes are initialized by default */
+    skipClientRoutes: false || IS_TEST_ENV,
+} satisfies Readonly<RouterOptions>;
 
 export const ROUTE_KEYS = Object.keys(DEFAULT_ROUTE);
 export const HOOK_KEYS = Object.keys(DEFAULT_HOOK);

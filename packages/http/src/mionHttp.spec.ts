@@ -4,7 +4,7 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
-import {initRouter, registerRoutes} from '@mionkit/router';
+import {initRouter, registerRoutes, route} from '@mionkit/router';
 import {setNodeHttpOpts, resetNodeHttpOpts, startNodeServer} from './mionHttp';
 import type {CallContext, Route} from '@mionkit/router';
 import {AnonymRpcError} from '@mionkit/core';
@@ -31,18 +31,18 @@ describe('node http router should', () => {
     };
     const getSharedData = () => ({auth: {me: null as any}});
 
-    const changeUserName: Route = (context: Context, user: SimpleUser) => {
+    const changeUserName: Route = route((context: Context, user: SimpleUser) => {
         return myApp.db.changeUserName(user);
-    };
+    });
 
-    const getDate: Route = (context: Context, dataPoint?: DataPoint): DataPoint => {
+    const getDate: Route = route((context: Context, dataPoint?: DataPoint): DataPoint => {
         return dataPoint || {date: new Date('2022-04-22T00:17:00.000Z')};
-    };
+    });
 
-    const updateHeaders: Route = (context: Context): void => {
+    const updateHeaders: Route = route((context: Context): void => {
         context.response.headers.set('x-something', 'true');
         context.response.headers.set('server', 'my-server');
-    };
+    });
 
     let server;
 

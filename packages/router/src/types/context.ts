@@ -11,7 +11,7 @@ import {RemoteMethodResponses} from './remote';
 // ####### Call Context #######
 
 /** The call Context object passed as first parameter to any hook or route */
-export type CallContext<SharedData = any> = {
+export interface CallContext<SharedData extends Record<string, any> = any> {
     /** Route's path after internal transformation */
     readonly path: string;
     /** Router's own request object */
@@ -20,7 +20,7 @@ export type CallContext<SharedData = any> = {
     readonly response: MionResponse;
     /** shared data between handlers (route/hooks) and that is not returned in the response. */
     shared: SharedData;
-};
+}
 
 // ####### REQUEST & RESPONSE #######
 

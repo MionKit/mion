@@ -50,6 +50,8 @@ export interface RouterOptions<Req = any, SharedData = any> extends CoreOptions 
     getPublicRoutesData: boolean;
     /** automatically generate and uuid */
     autoGenerateErrorId: boolean;
+    /** client routes are initialized by default */
+    skipClientRoutes: boolean;
 }
 
 // ####### Execution Path #######

@@ -10,7 +10,7 @@ import {getFunctionParamValidators, validateFunctionParams} from './validation';
 import {DEFAULT_REFLECTION_OPTIONS} from './constants';
 
 describe('Deepkit validation should', () => {
-    const skip = 2; // skipping app and ctx
+    const paramsToSkip = 2; // skipping app and ctx
     type Message = {
         message: string;
     };
@@ -48,10 +48,14 @@ describe('Deepkit validation should', () => {
     const noSkipParams = getHandlerType((a: number, b: string) => null);
 
     it('validate parameters of a route, success', () => {
-        const paramValidatorsUser = getFunctionParamValidators(updateUserType, DEFAULT_REFLECTION_OPTIONS, skip);
-        const paramValidatorsPrintSum = getFunctionParamValidators(printSumType, DEFAULT_REFLECTION_OPTIONS, skip);
-        const paramValidatorsIgnoreAppRelated = getFunctionParamValidators(appContextType, DEFAULT_REFLECTION_OPTIONS, skip);
-        const noParamValidators = getFunctionParamValidators(noParamsType, DEFAULT_REFLECTION_OPTIONS, skip);
+        const paramValidatorsUser = getFunctionParamValidators(updateUserType, DEFAULT_REFLECTION_OPTIONS, paramsToSkip);
+        const paramValidatorsPrintSum = getFunctionParamValidators(printSumType, DEFAULT_REFLECTION_OPTIONS, paramsToSkip);
+        const paramValidatorsIgnoreAppRelated = getFunctionParamValidators(
+            appContextType,
+            DEFAULT_REFLECTION_OPTIONS,
+            paramsToSkip
+        );
+        const noParamValidators = getFunctionParamValidators(noParamsType, DEFAULT_REFLECTION_OPTIONS, paramsToSkip);
 
         expect(paramValidatorsUser.length).toEqual(2);
         expect(paramValidatorsPrintSum.length).toEqual(4);
@@ -76,7 +80,7 @@ describe('Deepkit validation should', () => {
         const paramValidatorsUser: FunctionParamValidator[] = getFunctionParamValidators(
             updateUserType,
             DEFAULT_REFLECTION_OPTIONS,
-            skip
+            paramsToSkip
         );
 
         const resp1 = validateFunctionParams(paramValidatorsUser, [{abcdef: 'hello'}]);
@@ -89,7 +93,7 @@ describe('Deepkit validation should', () => {
     });
 
     it('should accept a shorter parameters array if some parameters are undefined', () => {
-        const paramValidatorsUser = getFunctionParamValidators(updateUserType, DEFAULT_REFLECTION_OPTIONS, skip);
+        const paramValidatorsUser = getFunctionParamValidators(updateUserType, DEFAULT_REFLECTION_OPTIONS, paramsToSkip);
 
         const updateUserResponse = validateFunctionParams(paramValidatorsUser, [paramUser]);
         expect(updateUserResponse).toEqual({hasErrors: false, totalErrors: 0, errors: [[], []]});

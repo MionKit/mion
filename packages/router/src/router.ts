@@ -99,13 +99,8 @@ export const resetRouter = () => {
 };
 
 // simpler router initialization
-export function initMionRouter<R extends Routes>(
-    routes: R,
-    opts?: Partial<RouterOptions>,
-    skipClientRoutes?: boolean
-): RemoteApi<R> {
+export function initMionRouter<R extends Routes>(routes: R, opts?: Partial<RouterOptions>): RemoteApi<R> {
     initRouter(opts);
-    if (!skipClientRoutes) registerClientRoutes();
     return registerRoutes(routes);
 }
 
@@ -122,6 +117,7 @@ export function initRouter(opts?: Partial<RouterOptions>): Readonly<RouterOption
     Object.freeze(routerOptions);
     setErrorOptions(routerOptions);
     isRouterInitialized = true;
+    if (!routerOptions.skipClientRoutes) registerRoutes(clientRoutes);
     return routerOptions;
 }
 
@@ -133,10 +129,6 @@ export function registerRoutes<R extends Routes>(routes: R): RemoteApi<R> {
     // we only want to get information about the routes when creating api spec
     if (shouldFullGenerateSpec()) return getRemoteMethodsMetadata(routes);
     return {} as RemoteApi<R>;
-}
-
-export function registerClientRoutes(): RemoteApi<typeof clientRoutes> {
-    return registerRoutes(clientRoutes);
 }
 
 export function getRouteDefaultParams(): string[] {

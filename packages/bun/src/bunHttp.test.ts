@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 import {expect, test, beforeAll, afterAll, describe} from 'bun:test';
-import {initRouter, registerRoutes} from '@mionkit/router';
+import {initRouter, registerRoutes, route} from '@mionkit/router';
 import {setBunHttpOpts, resetBunHttpOpts, startBunServer} from './bunHttp';
 import type {CallContext} from '@mionkit/router';
 import {AnonymRpcError} from '@mionkit/core';
@@ -33,18 +33,18 @@ describe('bun router should', () => {
     };
     const getSharedData = () => ({auth: {me: null as any}});
 
-    const changeUserName = (context: Context, user: SimpleUser) => {
+    const changeUserName = route((context: Context, user: SimpleUser) => {
         return myApp.db.changeUserName(user);
-    }; // satisfies Route
+    }); // satisfies Route
 
-    const getDate = (context: Context, dataPoint?: DataPoint): DataPoint => {
+    const getDate = route((context: Context, dataPoint?: DataPoint): DataPoint => {
         return dataPoint || {date: new Date('2022-04-22T00:17:00.000Z')};
-    }; // satisfies Route
+    }); // satisfies Route
 
-    const updateHeaders = (context: Context): void => {
+    const updateHeaders = route((context: Context): void => {
         context.response.headers.set('x-something', 'true');
         context.response.headers.set('server', 'my-server');
-    }; // satisfies Route
+    }); // satisfies Route
 
     let server: Server;
 
