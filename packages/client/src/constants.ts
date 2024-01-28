@@ -26,10 +26,10 @@ export const DEFAULT_PREFILL_OPTIONS: ClientOptions = {
     suffix: '',
 
     /** Enables automatic parameter validation */
-    enableValidation: true,
+    useValidation: true,
 
     /** Enables automatic serialization/deserialization */
-    enableSerialization: true,
+    useSerialization: true,
 
     /** Reflection and Deepkit Serialization-Validation options */
     reflectionOptions: DEFAULT_REFLECTION_OPTIONS,

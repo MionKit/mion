@@ -23,10 +23,10 @@ export const DEFAULT_ROUTE_OPTIONS = {
     pathTransform: undefined,
 
     /** Enables automatic parameter validation */
-    enableValidation: true,
+    useValidation: true,
 
     /** Enables automatic serialization/deserialization */
-    enableSerialization: true,
+    useSerialization: true,
 
     /** Reflection and Deepkit Serialization-Validation options */
     reflectionOptions: DEFAULT_REFLECTION_OPTIONS,

@@ -67,16 +67,16 @@ describe('Public Methods should', () => {
                 type: ProcedureType.hook,
                 handler: 'auth', // to be used by codegen so need to be a valid js syntax
                 id: 'auth',
-                enableValidation: DEFAULT_ROUTE_OPTIONS.enableValidation,
-                enableSerialization: DEFAULT_ROUTE_OPTIONS.enableSerialization,
+                useValidation: DEFAULT_ROUTE_OPTIONS.useValidation,
+                useSerialization: DEFAULT_ROUTE_OPTIONS.useSerialization,
             }),
             routes: {
                 route1: expect.objectContaining({
                     type: ProcedureType.route,
                     handler: 'routes.route1', // to be used by codegen so need to be a valid js syntax
                     id: 'routes-route1',
-                    enableValidation: DEFAULT_ROUTE_OPTIONS.enableValidation,
-                    enableSerialization: DEFAULT_ROUTE_OPTIONS.enableSerialization,
+                    useValidation: DEFAULT_ROUTE_OPTIONS.useValidation,
+                    useSerialization: DEFAULT_ROUTE_OPTIONS.useSerialization,
                 }),
             },
         });

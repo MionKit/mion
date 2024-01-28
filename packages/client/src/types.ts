@@ -33,9 +33,9 @@ export type ClientOptions = {
      * Not path separators is added between the route and the suffix */
     suffix: string;
     /** enable automatic parameter validation, defaults to true */
-    enableValidation: boolean;
+    useValidation: boolean;
     /** Enables serialization/deserialization */
-    enableSerialization: boolean;
+    useSerialization: boolean;
     /** Reflection and Deepkit Serialization-Validation options */
     reflectionOptions: ReflectionOptions;
     /** automatically generate and uuid */
