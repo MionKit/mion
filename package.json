@@ -61,8 +61,7 @@
     "lerna": "7.1.5",
     "nx": ">=16.5.1 < 17",
     "prettier": "^3.0.1",
-    "ts-jest": "^29.1.1",
-    "typescript": "^4.9.5"
+    "ts-jest": "^29.1.1"
   },
   "workspaces": [
     "packages/aws",
@@ -78,5 +77,8 @@
     "packages/serverless",
     "packages/client",
     "packages/codegen"
-  ]
+  ],
+  "dependencies": {
+    "typescript": "^5.3.3"
+  }
 }
