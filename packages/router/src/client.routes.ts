@@ -45,11 +45,7 @@ function addRequiredRemoteMethodsToResponse(id: string, resp: RemoteMethodsDicti
     resp[id].hookIds?.forEach((hookId) => addRequiredRemoteMethodsToResponse(hookId, resp, errorData));
 }
 
-const getRemoteMethods = (
-    ctx,
-    methodsIds: string[],
-    getAllRemoteMethods?: boolean
-): RemoteMethodsDictionary | RpcError => {
+const getRemoteMethods = (ctx, methodsIds: string[], getAllRemoteMethods?: boolean): RemoteMethodsDictionary | RpcError => {
     const resp: RemoteMethodsDictionary = {};
     const errorData = {};
     const maxMethods =
