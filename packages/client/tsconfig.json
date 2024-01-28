@@ -2,9 +2,9 @@
   "extends": "../../tsconfig.json",
   "compilerOptions": {
     "outDir": ".dist/cjs",
-    "lib": ["es6", "ES2021", "DOM"]
+    "lib": ["es6", "ES2021", "DOM"],
   },
   "reflection": true,
   "include": ["."],
-  "exclude": ["node_modules", "examples", ".dist"]
+  "exclude": ["node_modules", "examples", ".dist"],
 }
