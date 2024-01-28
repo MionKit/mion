@@ -12,7 +12,7 @@ import {HeaderHookDef, HookDef, RawHookDef, RouteDef} from './types/definitions'
 // ############# Route & Hooks initialization #############
 // these functions are just helpers to initialize the route & hooks objects and keep route definitions clean
 
-export function route<const H extends Handler, const Opts extends RouteOptions | undefined>(handler: H, opts?: Opts) {
+export function route<H extends Handler, Opts extends RouteOptions | undefined>(handler: H, opts?: Opts) {
     const procedure = {
         type: ProcedureType.route,
         handler,
@@ -28,7 +28,7 @@ export function route<const H extends Handler, const Opts extends RouteOptions |
     return procedure;
 }
 
-export function hook<const H extends Handler, const Opts extends HookOptions | undefined>(handler: H, opts?: Opts) {
+export function hook<H extends Handler, Opts extends HookOptions | undefined>(handler: H, opts?: Opts) {
     const procedure = {
         type: ProcedureType.hook,
         handler,
@@ -43,11 +43,11 @@ export function hook<const H extends Handler, const Opts extends HookOptions | u
     return procedure;
 }
 
-export function headersHook<
-    const S extends string,
-    const H extends HeaderHandler,
-    const Opts extends HeaderHookOptions | undefined,
->(headerName: S, handler: H, opts?: Opts) {
+export function headersHook<S extends string, H extends HeaderHandler, Opts extends HeaderHookOptions | undefined>(
+    headerName: S,
+    handler: H,
+    opts?: Opts
+) {
     const procedure = {
         type: ProcedureType.headerHook,
         headerName,
@@ -63,7 +63,7 @@ export function headersHook<
     return procedure;
 }
 
-export function rawHook<const H extends RawHookHandler, const Opts extends RawHookOptions | undefined>(handler: H, opts?: Opts) {
+export function rawHook<H extends RawHookHandler, Opts extends RawHookOptions | undefined>(handler: H, opts?: Opts) {
     const procedure = {
         type: ProcedureType.rawHook,
         handler,
