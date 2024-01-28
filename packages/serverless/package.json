@@ -23,8 +23,8 @@
   "types": ".dist/index.d.ts",
   "exports": {
     ".": {
-      "require": "./.dist/cjs/index.js",
-      "default": "./.dist/esm/index.js"
+      "require": "./.dist/index.js",
+      "default": "./.dist/index.js"
     }
   },
   "directories": {
