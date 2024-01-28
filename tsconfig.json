@@ -1,8 +1,7 @@
 {
   "compilerOptions": {
     "baseUrl": ".",
-    "module": "commonjs",
-    "moduleResolution": "Node16",
+    "module": "NodeNext",
     "esModuleInterop": true,
     "noImplicitAny": false,
     "removeComments": true,
@@ -14,14 +13,14 @@
     "lib": ["es6", "ES2021"],
     "outDir": ".dist",
     "composite": false,
-    "declaration": false,
-    "declarationMap": false,
+    "declaration": true,
+    "declarationMap": true,
     "incremental": true,
     "sourceMap": true,
     "paths": {
-      "@mionkit/*": ["packages/*"]
-    }
+      "@mionkit/*": ["packages/*"],
+    },
   },
   "exclude": ["node_modules", ".dist"],
-  "reflection": true
+  "reflection": true,
 }

@@ -1,7 +1,8 @@
 {
   "extends": "../../tsconfig.json",
   "compilerOptions": {
-    "outDir": ".dist/cjs"
+    "outDir": ".dist/cjs",
+    "skipLibCheck": true // some deepkip type is failing so disbaling it for now
   },
   "reflection": true,
   "include": ["."],
