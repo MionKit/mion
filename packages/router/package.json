@@ -17,13 +17,13 @@
   "author": "ma jerez <jerez.m82@gmail.com>",
   "homepage": "https://mion.io/",
   "license": "MIT",
-  "main": ".dist/index.js",
-  "module": ".dist/index.js",
-  "types": ".dist/index.d.ts",
+  "main": ".dist/cjs/index.js",
+  "module": ".dist/esm/index.js",
+  "types": ".dist/types/index.d.ts",
   "exports": {
     ".": {
-      "require": "./.dist/index.js",
-      "default": "./.dist/index.js"
+      "require": "./.dist/cjs/index.js",
+      "default": "./.dist/esm/index.js"
     }
   },
   "directories": {
@@ -45,7 +45,10 @@
     "dev:test": "jest --watch",
     "lint": "eslint src --ext .ts",
     "format": "prettier --write src/**/*.ts",
-    "build": "tsc --project tsconfig.build.json --module NodeNext --outDir .dist",
+    "build:cjs": "tsc --project tsconfig.build.json --module CommonJS --outDir .dist/cjs",
+    "build:esm": "tsc --project tsconfig.build.json --module NodeNext --outDir .dist/esm",
+    "build:types": "tsc --project tsconfig.build.json --emitDeclarationOnly --declaration --outDir .dist/types",
+    "build": "npm run build:cjs && npm run build:esm && npm run build:types",
     "auto-readme": "embedme **/*.md && prettier --write **/*.md",
     "clean": "rimraf .dist & rimraf .coverage"
   },
@@ -53,6 +56,7 @@
     "url": "https://github.com/MionKit/mion/issues"
   },
   "dependencies": {
+    "@mionkit/common": "^0.7.2",
     "@mionkit/core": "^0.7.2",
     "@mionkit/reflection": "^0.7.2"
   },

@@ -18,13 +18,13 @@
   "author": "ma jerez <jerez.m82@gmail.com>",
   "homepage": "https://mion.io/",
   "license": "MIT",
-  "main": ".dist/index.js",
-  "module": ".dist/index.js",
-  "types": ".dist/index.d.ts",
+  "main": ".dist/cjs/index.js",
+  "module": ".dist/esm/index.js",
+  "types": ".dist/types/index.d.ts",
   "exports": {
     ".": {
-      "require": "./.dist/index.js",
-      "default": "./.dist/index.js"
+      "require": "./.dist/cjs/index.js",
+      "default": "./.dist/esm/index.js"
     }
   },
   "directories": {
