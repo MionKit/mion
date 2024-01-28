@@ -10,7 +10,7 @@ const routes = {
         if (!token) throw new RpcError({statusCode: 401, message: 'Not Authorized', name: ' Not Authorized'});
     }),
     users: {
-        getById: route((ctx, id: string): User => ({id, name: 'John', surname: 'Smith'}))),
+        getById: route((ctx, id: string): User => ({id, name: 'John', surname: 'Smith'})),
         delete: route((ctx, id: string): string => id),
         create: route((ctx, user: Omit<User, 'id'>): User => ({id: 'USER-123', ...user})),
         sayHello: route((ctx, user: User): string => `Hello ${user.name} ${user.surname}`),
