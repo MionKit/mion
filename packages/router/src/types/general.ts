@@ -39,9 +39,9 @@ export interface RouterOptions<Req = any, SharedData = any> extends CoreOptions 
     /** factory function to initialize shared call context data */
     sharedDataFactory?: SharedDataFactory<SharedData>;
     /** enable automatic parameter validation, defaults to true */
-    enableValidation: boolean;
+    useValidation: boolean;
     /** Enables serialization/deserialization */
-    enableSerialization: boolean;
+    useSerialization: boolean;
     /** Reflection and Deepkit Serialization-Validation options */
     reflectionOptions: ReflectionOptions;
     /** Custom JSON parser, defaults to Native js JSON */

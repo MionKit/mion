@@ -32,9 +32,9 @@ describe('route & hooks init functions', () => {
             headerName: 'Authorization',
             handler: expect.any(Function),
             description: undefined,
-            enableSerialization: true,
-            enableValidation: true,
-            forceRunOnError: false,
+            useSerialization: true,
+            useValidation: true,
+            runOnError: false,
         });
     });
 
@@ -43,9 +43,9 @@ describe('route & hooks init functions', () => {
             type: ProcedureType.hook,
             handler: expect.any(Function),
             description: undefined,
-            enableSerialization: true,
-            enableValidation: true,
-            forceRunOnError: false,
+            useSerialization: true,
+            useValidation: true,
+            runOnError: false,
         });
     });
 
@@ -54,9 +54,9 @@ describe('route & hooks init functions', () => {
             type: ProcedureType.rawHook,
             handler: expect.any(Function),
             canReturnData: false,
-            enableSerialization: false,
-            enableValidation: false,
-            forceRunOnError: false,
+            useSerialization: false,
+            useValidation: false,
+            runOnError: false,
             description: undefined,
         });
     });
@@ -66,10 +66,10 @@ describe('route & hooks init functions', () => {
             type: ProcedureType.route,
             handler: expect.any(Function),
             canReturnData: true,
-            forceRunOnError: false,
+            runOnError: false,
             description: undefined,
-            enableSerialization: true,
-            enableValidation: true,
+            useSerialization: true,
+            useValidation: true,
         });
     });
 

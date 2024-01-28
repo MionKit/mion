@@ -145,9 +145,9 @@ const notFoundHook = {
     type: ProcedureType.rawHook,
     handler: () => new RpcError({statusCode: StatusCodes.NOT_FOUND, publicMessage: `Route not found`}),
     canReturnData: false,
-    forceRunOnError: true,
-    enableValidation: false,
-    enableSerialization: false,
+    runOnError: true,
+    useValidation: false,
+    useSerialization: false,
 } satisfies RawHookDef;
 export function getNotFoundExecutionPath(): Procedure[] {
     if (notFoundExecutionPath) return notFoundExecutionPath;
@@ -348,13 +348,13 @@ function getExecutableFromHook(
     const executable: MixedExecutable = {
         id: hookId,
         type: inHeader ? ProcedureType.headerHook : ProcedureType.hook,
-        forceRunOnError: !!hook.forceRunOnError,
+        runOnError: !!hook.runOnError,
         canReturnData: reflection.canReturnData,
         nestLevel,
         handler,
         reflection,
-        enableValidation: (hook as any).enableValidation ?? routerOptions.enableValidation,
-        enableSerialization: (hook as any).enableSerialization ?? routerOptions.enableSerialization,
+        useValidation: (hook as any).useValidation ?? routerOptions.useValidation,
+        useSerialization: (hook as any).useSerialization ?? routerOptions.useSerialization,
         pointer: hookPointer,
         headerName: inHeader ? (hook as HeaderHookDef).headerName?.toLowerCase() : undefined,
     };
@@ -370,13 +370,13 @@ function getExecutableFromRawHook(hook: RawHookDef, hookPointer: string[], nestL
     const executable: RawProcedure = {
         type: ProcedureType.rawHook,
         id: hookId,
-        forceRunOnError: true,
+        runOnError: true,
         canReturnData: false,
         nestLevel,
         handler: hook.handler,
         reflection: null,
-        enableValidation: false,
-        enableSerialization: false,
+        useValidation: false,
+        useSerialization: false,
         pointer: hookPointer,
     };
     rawHooksById.set(hookId, executable);
@@ -392,13 +392,13 @@ function getExecutableFromRoute(route: Route, routePointer: string[], nestLevel:
     const executable: RouteProcedure = {
         type: ProcedureType.route,
         id: routeId,
-        forceRunOnError: false,
+        runOnError: false,
         canReturnData: true,
         nestLevel,
         handler,
         reflection: getFunctionReflectionMethods(handler, getReflectionOptions(route), getRouteDefaultParams().length),
-        enableValidation: (route as any).enableValidation ?? routerOptions.enableValidation,
-        enableSerialization: (route as any).enableSerialization ?? routerOptions.enableSerialization,
+        useValidation: (route as any).useValidation ?? routerOptions.useValidation,
+        useSerialization: (route as any).useSerialization ?? routerOptions.useSerialization,
         pointer: routePointer,
     };
     delete (executable as any).route;

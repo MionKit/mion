@@ -31,7 +31,7 @@ describe('client', () => {
         utils: {
             sumTwo: route((ctx, a: number): number => a + 2),
         },
-        log: hook((ctx): void => undefined, {forceRunOnError: true}),
+        log: hook((ctx): void => undefined, {runOnError: true}),
     } satisfies Routes;
 
     const someUser = {name: 'John', surname: 'Doe'};
