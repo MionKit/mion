@@ -45,7 +45,7 @@ function addRequiredRemoteMethodsToResponse(id: string, resp: RemoteMethodsDicti
     resp[id].hookIds?.forEach((hookId) => addRequiredRemoteMethodsToResponse(hookId, resp, errorData));
 }
 
-export const getRemoteMethods = (
+const getRemoteMethods = (
     ctx,
     methodsIds: string[],
     getAllRemoteMethods?: boolean
@@ -76,7 +76,7 @@ export const getRemoteMethods = (
     return resp;
 };
 
-export const getRouteRemoteMethods = (ctx, path: string, getAllRemoteMethods?: boolean): RemoteMethodsDictionary | RpcError => {
+const getRouteRemoteMethods = (ctx, path: string, getAllRemoteMethods?: boolean): RemoteMethodsDictionary | RpcError => {
     const executables = getRouteExecutionPath(path);
     if (!executables)
         return new RpcError({

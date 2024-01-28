@@ -1,7 +1,7 @@
 {
   "compilerOptions": {
     "baseUrl": ".",
-    "module": "NodeNext",
+    "module": "CommonJS",
     "esModuleInterop": true,
     "noImplicitAny": false,
     "removeComments": true,
@@ -11,16 +11,16 @@
     "experimentalDecorators": true,
     "target": "es2020",
     "lib": ["es6", "ES2021"],
-    "outDir": ".dist",
+    "outDir": ".dist/cjs",
     "composite": false,
-    "declaration": true,
-    "declarationMap": true,
+    "declaration": false,
+    "declarationMap": false,
     "incremental": true,
     "sourceMap": true,
     "paths": {
       "@mionkit/*": ["packages/*"],
-    }
+    },
   },
   "exclude": ["node_modules", ".dist"],
-  "reflection": true
+  "reflection": true,
 }

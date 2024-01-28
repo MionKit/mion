@@ -31,7 +31,8 @@
   "scripts": {
     "dev": "rimraf .dist && tsc --build tsconfig.json --watch",
     "lint": "eslint src --ext .ts",
-    "format": "prettier --write src/**/*.ts",    "build": "tsc --project tsconfig.build.json --module NodeNext --outDir .dist"
+    "format": "prettier --write src/**/*.ts",
+    "build": "echo 'quick-start not meant to be built'"
   },
   "bugs": {
     "url": "https://github.com/MionKit/mion/issues"
