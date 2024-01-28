@@ -156,11 +156,7 @@ function getParamsSD(
         const shouldCreateSerializer = index >= skipInitialParams;
         return shouldCreateSerializer
             ? createSingleParamSerializeFunction(
-                  sFunctionCreate(
-                      reflectionOptions.customSerializer,
-                      reflectionOptions.serializerNamingStrategy,
-                      paramType
-                  ),
+                  sFunctionCreate(reflectionOptions.customSerializer, reflectionOptions.serializerNamingStrategy, paramType),
                   opts
               )
             : (null as any as SerializeFunction);
