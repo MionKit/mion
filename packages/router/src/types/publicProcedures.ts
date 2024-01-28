@@ -68,8 +68,8 @@ export interface PublicProcedure<H extends Handler = any> {
     /** Json serializable structure so the Type information can be transmitted over the wire */
     serializedTypes: SerializedTypes;
     id: string;
-    enableValidation: boolean;
-    enableSerialization: boolean;
+    useValidation: boolean;
+    useSerialization: boolean;
     params: string[];
     hookIds?: string[];
     pathPointers?: string[][];

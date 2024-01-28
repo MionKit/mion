@@ -23,7 +23,7 @@ const routes = {
     utils: {
         sum: route((ctx, a: number, b: number): number => a + b),
     },
-    log: hook((ctx): void => Logger.log(ctx.path, ctx.request.headers, ctx.request.body), {forceRunOnError: true}),
+    log: hook((ctx): void => Logger.log(ctx.path, ctx.request.headers, ctx.request.body), {runOnError: true}),
 } satisfies Routes;
 
 // init & register routes (this automatically registers client routes)

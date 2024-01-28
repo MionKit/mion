@@ -60,7 +60,7 @@ async function runExecutionPath(
 
     for (let i = 0; i < executables.length; i++) {
         const executable = executables[i];
-        if (response.hasErrors && !executable.forceRunOnError) continue;
+        if (response.hasErrors && !executable.runOnError) continue;
 
         try {
             const deserializedParams = deserializeParameters(request, executable);
@@ -133,7 +133,7 @@ function deserializeParameters(request: MionRequest, executable: Procedure): any
             });
     }
 
-    if (params.length && executable.enableSerialization) {
+    if (params.length && executable.useSerialization) {
         try {
             params = executable.reflection.deserializeParams(params);
         } catch (e: any) {
@@ -151,7 +151,7 @@ function deserializeParameters(request: MionRequest, executable: Procedure): any
 
 function validateParameters(params: any[], executable: Procedure): any[] {
     if (!executable.reflection) return params;
-    if (executable.enableValidation) {
+    if (executable.useValidation) {
         const validationResponse = executable.reflection.validateParams(params);
         if (validationResponse.hasErrors) {
             throw new RpcError({
@@ -167,7 +167,7 @@ function validateParameters(params: any[], executable: Procedure): any[] {
 
 function serializeResponse(executable: Procedure, response: MionResponse, result: any) {
     if (!executable.canReturnData || result === undefined || !executable.reflection) return;
-    const serialized = executable.enableSerialization ? executable.reflection.serializeReturn(result) : result;
+    const serialized = executable.useSerialization ? executable.reflection.serializeReturn(result) : result;
     if (isHeaderExecutable(executable)) response.headers.set(executable.headerName, serialized);
     else (response.body as Mutable<AnyObject>)[executable.id] = serialized;
 }

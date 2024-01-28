@@ -10,7 +10,7 @@ const routes = {
             else myApp.cloudLogs.log(ctx.path, ctx.shared.me.name);
         },
         // ensures logger is executed even if there are errors in the route or other hooks
-        {forceRunOnError: true}
+        {runOnError: true}
     ),
     // ... other routes and hooks
 } satisfies Routes;

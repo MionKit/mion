@@ -19,10 +19,10 @@ export interface Procedure<H extends AnyHandler = any> {
     nestLevel: number;
     handler: H;
     reflection: FunctionReflection | null;
-    forceRunOnError: boolean;
+    runOnError: boolean;
     canReturnData: boolean;
-    enableValidation: boolean;
-    enableSerialization: boolean;
+    useValidation: boolean;
+    useSerialization: boolean;
     headerName?: string;
     description?: string;
 }
@@ -30,7 +30,7 @@ export interface RouteProcedure<H extends Handler = any> extends Procedure<H> {
     type: ProcedureType.route;
     handler: H;
     reflection: FunctionReflection;
-    forceRunOnError: false;
+    runOnError: false;
     canReturnData: true;
 }
 export interface HookProcedure<H extends Handler = any> extends Procedure<H> {
@@ -49,18 +49,16 @@ export interface RawProcedure<H extends RawHookHandler = any> extends Procedure<
     canReturnData: false;
     handler: H;
     reflection: null;
-    enableValidation: false;
-    enableSerialization: false;
+    useValidation: false;
+    useSerialization: false;
 }
 export interface NotFoundProcedure extends Procedure {
     is404: true;
 }
 
-export type RouteProcedureOptions = Partial<Pick<RouteProcedure, 'description' | 'enableValidation' | 'enableSerialization'>>;
-export type HookProcedureOptions = Partial<
-    Pick<HookProcedure, 'description' | 'enableValidation' | 'enableSerialization' | 'forceRunOnError'>
+export type RouteOptions = Partial<Pick<RouteProcedure, 'description' | 'useValidation' | 'useSerialization'>>;
+export type HookOptions = Partial<Pick<HookProcedure, 'description' | 'useValidation' | 'useSerialization' | 'runOnError'>>;
+export type HeaderHookOptions = Partial<
+    Pick<HeaderProcedure, 'description' | 'useValidation' | 'useSerialization' | 'runOnError'>
 >;
-export type HeaderProcedureOptions = Partial<
-    Pick<HeaderProcedure, 'description' | 'enableValidation' | 'enableSerialization' | 'forceRunOnError'>
->;
-export type RawProcedureOptions = Partial<Pick<HeaderProcedure, 'description' | 'forceRunOnError'>>;
+export type RawHookOptions = Partial<Pick<HeaderProcedure, 'description' | 'runOnError'>>;

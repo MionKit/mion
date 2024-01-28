@@ -14,7 +14,7 @@ export const myApi = initMionRouter(
         users: {
             sayHello: route((ctx, user: User): string => `Hello ${user.name} ${user.surname}`),
         },
-        log: hook((ctx): void => console.log(Date.now(), ctx.path, ctx.response.statusCode), {forceRunOnError: true}),
+        log: hook((ctx): void => console.log(Date.now(), ctx.path, ctx.response.statusCode), {runOnError: true}),
     },
     routerOptions
 );

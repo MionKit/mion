@@ -154,7 +154,7 @@ describe('Create routes should', () => {
             expect.objectContaining({
                 id: 'first',
                 nestLevel: 0,
-                forceRunOnError: false,
+                runOnError: false,
                 canReturnData: false,
                 type: ProcedureType.hook,
             })
@@ -164,7 +164,7 @@ describe('Create routes should', () => {
             expect.objectContaining({
                 id: 'second',
                 nestLevel: 0,
-                forceRunOnError: false,
+                runOnError: false,
                 canReturnData: true,
                 type: ProcedureType.hook,
             })
@@ -180,7 +180,7 @@ describe('Create routes should', () => {
             expect.objectContaining({
                 id: 'sayHello',
                 nestLevel: 0,
-                forceRunOnError: false,
+                runOnError: false,
                 canReturnData: true,
                 type: ProcedureType.route,
             })

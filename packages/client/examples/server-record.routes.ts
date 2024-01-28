@@ -10,7 +10,7 @@ const routes = {
         sayHello: route((ctx, message: string): string => `Hello ${message}`),
     },
     log: hook((ctx): void => console.log(ctx.path, ctx.request.headers, ctx.request.body), {
-        forceRunOnError: true,
+        runOnError: true,
     }),
 } satisfies Routes;
 

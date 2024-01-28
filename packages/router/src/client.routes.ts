@@ -93,7 +93,7 @@ export const getRouteRemoteMethods = (ctx, path: string, getAllRemoteMethods?: b
 };
 
 // disable serialization as deserializer seems to ignore serializedTypes
-const routerOpts = {enableSerialization: false};
+const routerOpts = {useSerialization: false};
 export const clientRoutes = {
     [GET_REMOTE_METHODS_BY_ID]: route(getRemoteMethods, routerOpts),
     [GET_REMOTE_METHODS_BY_PATH]: route(getRouteRemoteMethods, routerOpts),
