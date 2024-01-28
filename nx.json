@@ -15,18 +15,6 @@
       "dependsOn": [],
       "outputs": ["{workspaceRoot}/.coverage"]
     },
-    "build:cjs": {
-      "dependsOn": ["lint", "test", "^build:cjs"],
-      "outputs": ["{workspaceRoot}/.dist/cjs"]
-    },
-    "build:esm": {
-      "dependsOn": ["lint", "test", "^build:esm"],
-      "outputs": ["{workspaceRoot}/.dist/esm"]
-    },
-    "build:types": {
-      "dependsOn": ["lint", "test", "^build:types"],
-      "outputs": ["{workspaceRoot}/.dist/types"]
-    },
     "build": {
       "dependsOn": ["lint", "test", "^build"],
       "outputs": ["{workspaceRoot}/.dist"]
