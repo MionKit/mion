@@ -42,7 +42,7 @@
     "url": "https://github.com/MionKit/issues"
   },
   "engines": {
-    "node": ">= 18.0.0"
+    "node": ">= 20.0.0"
   },
   "devDependencies": {
     "@deepkit/core": "^1.0.1-alpha.114",
