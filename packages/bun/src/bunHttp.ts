@@ -50,8 +50,8 @@ export function startBunServer(options?: Partial<BunHttpOptions>): Server {
             });
 
             return dispatchRoute(path, rawBody, req.headers, responseHeaders, req, undefined)
-                .then((routeResp) => reply(routeResp, responseHeaders))
-                .catch((e) => fail(req, responseHeaders, req.headers, e));
+                .then((routeResp: MionResponse) => reply(routeResp, responseHeaders))
+                .catch((e: Error) => fail(req, responseHeaders, req.headers, e));
         },
         error(errReq) {
             const responseHeaders = new Headers({
@@ -74,8 +74,11 @@ export function startBunServer(options?: Partial<BunHttpOptions>): Server {
 // only called whe there is an htt error or weird unhandled route errors
 const fail = (
     httpReq: unknown,
-    responseHeaders: Headers,
-    requestHeaders: Headers = new Headers(),
+    // TODO: fic issue with Native Bun Headers type messing with Node Headers type
+    // requestHeaders: Headers = new Headers(),
+    // responseHeaders: Headers,
+    responseHeaders: any,
+    requestHeaders: any = new Headers(),
     e?: Error,
     statusCode: StatusCodes = StatusCodes.INTERNAL_SERVER_ERROR,
     message = 'Unknown Error'
@@ -94,7 +97,12 @@ const fail = (
     return reply(routeResponse, responseHeaders);
 };
 
-function reply(routeResp: MionResponse, responseHeaders: Headers): Response {
+function reply(
+    routeResp: MionResponse,
+    // TODO: fic issue with Native Bun Headers type messing with Node Headers type
+    // responseHeaders: Headers,
+    responseHeaders: any
+): Response {
     return new Response(routeResp.rawBody, {
         status: routeResp.statusCode,
         headers: responseHeaders,

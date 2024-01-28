@@ -2,10 +2,12 @@
   "extends": "../../tsconfig.json",
   "compilerOptions": {
     "skipLibCheck": true,
+    "lib": [],
     "outDir": ".dist/cjs",
-    "types": ["bun-types"]
+    "types": ["bun-types"],
+    "module": "ESNext",
   },
   "reflection": true,
   "include": ["."],
-  "exclude": ["node_modules", "examples", "loader", ".dist"]
+  "exclude": ["node_modules", "examples", "loader", ".dist"],
 }
