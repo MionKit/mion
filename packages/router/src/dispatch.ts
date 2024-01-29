@@ -167,7 +167,8 @@ function validateParameters(params: any[], executable: Procedure): any[] {
 function serializeResponse(executable: Procedure, response: MionResponse, result: any) {
     if (!executable.options.canReturnData || result === undefined || !executable.reflection) return;
     const serialized = executable.options.useSerialization ? executable.reflection.serializeReturn(result) : result;
-    if (executable.type) response.headers.set((executable as HeaderProcedure).headerName, serialized);
+    if (executable.type === ProcedureType.headerHook)
+        response.headers.set((executable as HeaderProcedure).headerName, serialized);
     else (response.body as Mutable<AnyObject>)[executable.id] = serialized;
 }
 
