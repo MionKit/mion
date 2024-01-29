@@ -60,5 +60,8 @@
     "@mionkit/core": "^0.7.2",
     "@mionkit/reflection": "^0.7.2"
   },
+  "peerDependencies": {
+    "@deepkit/type-compiler": "1.0.1-alpha.117"
+  },
   "gitHead": "2efdcd77c572e64f2b9621b4921ffd2f5e83bc0a"
 }
