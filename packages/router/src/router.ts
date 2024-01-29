@@ -19,7 +19,7 @@ import {ProcedureType} from './types/procedures';
 import type {PublicApi, PrivateDef, HooksCollection} from './types/publicProcedures';
 import type {HeaderHookDef, HookDef, RawHookDef} from './types/definitions';
 import {ReflectionOptions, getFunctionReflectionMethods} from '@mionkit/reflection';
-import {bodyParserHooks} from './jsonBodyParser';
+import {bodyParserHooks} from './jsonBodyParser.routes';
 import {RpcError, StatusCodes, getRouterItemId, setErrorOptions, getRoutePath} from '@mionkit/core';
 import {getRemoteMethodsMetadata, resetRemoteMethodsMetadata} from './remoteMethodsMetadata';
 import {clientRoutes} from './client.routes';
@@ -144,10 +144,12 @@ let notFoundExecutionPath: Procedure[] | undefined;
 const notFoundHook = {
     type: ProcedureType.rawHook,
     handler: () => new RpcError({statusCode: StatusCodes.NOT_FOUND, publicMessage: `Route not found`}),
-    canReturnData: false,
-    runOnError: true,
-    useValidation: false,
-    useSerialization: false,
+    options: {
+        canReturnData: false,
+        runOnError: true,
+        useValidation: false,
+        useSerialization: false,
+    },
 } satisfies RawHookDef;
 export function getNotFoundExecutionPath(): Procedure[] {
     if (notFoundExecutionPath) return notFoundExecutionPath;
@@ -165,7 +167,7 @@ export function isPrivateProcedure(entry: RouterEntry, id: string): entry is Pri
         const handler = entry.handler;
         const executable = getHookExecutable(id) || getRouteExecutable(id);
         const hasPublicParams = handler.length > getRouteDefaultParams().length;
-        return !hasPublicParams && !executable?.canReturnData;
+        return !hasPublicParams && !executable?.options.canReturnData;
     } catch {
         // error thrown because entry is a Routes object and does not have any handler
         return false;
@@ -176,7 +178,7 @@ export function isPrivateExecutable(executable: Procedure): boolean {
     if (executable.type === ProcedureType.rawHook) return true;
     if (executable.type === ProcedureType.route) return false;
     const hasPublicParams = executable.handler.length > getRouteDefaultParams().length;
-    return !hasPublicParams && !executable.canReturnData;
+    return !hasPublicParams && !executable.options.canReturnData;
 }
 
 export function getTotalExecutables(): number {
@@ -338,8 +340,6 @@ function getExecutableFromHook(
     const hookId = getRouterItemId(hookPointer);
     const existing = hooksById.get(hookId);
     if (existing) return existing as HookProcedure;
-    const handler = hook.handler;
-    const reflection = getFunctionReflectionMethods(handler, getReflectionOptions(hook), getRouteDefaultParams().length);
 
     type MixedExecutable = (Omit<HookProcedure, 'type'> | Omit<HeaderProcedure, 'type'>) & {
         type: ProcedureType.hook | ProcedureType.headerHook;
@@ -348,16 +348,14 @@ function getExecutableFromHook(
     const executable: MixedExecutable = {
         id: hookId,
         type: inHeader ? ProcedureType.headerHook : ProcedureType.hook,
-        runOnError: !!hook.runOnError,
-        canReturnData: reflection.canReturnData,
         nestLevel,
-        handler,
-        reflection,
-        useValidation: (hook as any).useValidation ?? routerOptions.useValidation,
-        useSerialization: (hook as any).useSerialization ?? routerOptions.useSerialization,
+        handler: hook.handler,
+        reflection: getFunctionReflectionMethods(hook.handler, getReflectionOptions(hook), getRouteDefaultParams().length),
         pointer: hookPointer,
         headerName: inHeader ? (hook as HeaderHookDef).headerName?.toLowerCase() : undefined,
+        options: hook.options,
     };
+    executable.options.canReturnData = executable.reflection.hasReturnData;
     hooksById.set(hookId, executable as any);
     return executable as any;
 }
@@ -370,15 +368,13 @@ function getExecutableFromRawHook(hook: RawHookDef, hookPointer: string[], nestL
     const executable: RawProcedure = {
         type: ProcedureType.rawHook,
         id: hookId,
-        runOnError: true,
-        canReturnData: false,
         nestLevel,
         handler: hook.handler,
         reflection: null,
-        useValidation: false,
-        useSerialization: false,
         pointer: hookPointer,
+        options: hook.options,
     };
+    executable.options.canReturnData = false;
     rawHooksById.set(hookId, executable);
     return executable;
 }
@@ -387,19 +383,14 @@ function getExecutableFromRoute(route: Route, routePointer: string[], nestLevel:
     const routeId = getRouterItemId(routePointer);
     const existing = routesById.get(routeId);
     if (existing) return existing as RouteProcedure;
-    const handler = route.handler;
-    // const routeObj = isHandler(route) ? {...DEFAULT_ROUTE} : {...DEFAULT_ROUTE, ...route};
     const executable: RouteProcedure = {
         type: ProcedureType.route,
         id: routeId,
-        runOnError: false,
-        canReturnData: true,
         nestLevel,
-        handler,
-        reflection: getFunctionReflectionMethods(handler, getReflectionOptions(route), getRouteDefaultParams().length),
-        useValidation: (route as any).useValidation ?? routerOptions.useValidation,
-        useSerialization: (route as any).useSerialization ?? routerOptions.useSerialization,
+        handler: route.handler,
+        reflection: getFunctionReflectionMethods(route.handler, getReflectionOptions(route), getRouteDefaultParams().length),
         pointer: routePointer,
+        options: route.options,
     };
     delete (executable as any).route;
     routesById.set(routeId, executable);

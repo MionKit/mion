@@ -11,22 +11,19 @@ import {HeaderProcedure, HookProcedure, RawProcedure, RouteProcedure} from './pr
 // #######  Routes Definitions #######
 
 /** Route definition */
-export type RouteDef<H extends Handler = any> = Pick<RouteProcedure<H>, 'type' | 'handler' | 'canReturnData' | 'runOnError'>;
+export type RouteDef<H extends Handler = any> = Pick<RouteProcedure<H>, 'type' | 'handler' | 'options'>;
 
 /** Hook definition, a function that hooks into the execution path */
-export type HookDef<H extends Handler = any> = Pick<HookProcedure<H>, 'type' | 'handler' | 'runOnError'>;
+export type HookDef<H extends Handler = any> = Pick<HookProcedure<H>, 'type' | 'handler' | 'options'>;
 
 /** Header Hook definition, used to handle header params */
 export type HeaderHookDef<H extends HeaderHandler = any> = Pick<
     HeaderProcedure<H>,
-    'type' | 'handler' | 'runOnError' | 'headerName'
+    'type' | 'handler' | 'options' | 'headerName'
 >;
 
 /**
  * Raw hook, used only to access raw request/response and modify the call context.
  * Can not declare extra parameters.
  */
-export type RawHookDef<H extends RawHookHandler = any> = Pick<
-    RawProcedure<H>,
-    'type' | 'handler' | 'runOnError' | 'canReturnData' | 'useSerialization' | 'useValidation'
->;
+export type RawHookDef<H extends RawHookHandler = any> = Pick<RawProcedure<H>, 'type' | 'handler' | 'options'>;
