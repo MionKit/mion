@@ -8,7 +8,7 @@
     "types": ["bun-types"],
     "module": "CommonJS"
   },
-  "reflection": false,
+  "reflection": ["src/**/*.routes.ts"],
   "include": ["."],
   "exclude": ["node_modules", "examples", "loader", "**/*.spec.ts", "**/*.test.ts", ".dist"]
 }
