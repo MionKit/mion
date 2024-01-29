@@ -45,8 +45,6 @@
     "@mionkit/router": "^0.7.0"   
   },
   "devDependencies": {
-    "@deepkit/core": "^1.0.1-alpha.114",
-    "@deepkit/type-compiler": "^1.0.1-alpha.114",
     "@types/aws-lambda": "^8.10.108",
     "@types/node": "^18.17.0",
     "@typescript-eslint/eslint-plugin": "^6.3.0",
