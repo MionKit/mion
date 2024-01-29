@@ -4,7 +4,7 @@
     "outDir": ".dist/cjs",
     "module": "NodeNext"
   },
-  "reflection": false,
+  "reflection": ["src/**/*.routes.ts"],
   "include": ["."],
   "exclude": ["node_modules", "**/*.spec.ts", "**/*.test.ts", "examples", ".dist"]
 }

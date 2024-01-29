@@ -12,30 +12,32 @@ import {isSingleValueHeader} from './types/guards';
 // ############# PUBLIC METHODS #############
 
 export function headersFromRecord(headers: Record<string, HeaderValue>, initToLowercase = true): MionHeaders {
+    let sanitizedHeaders: Record<string, HeaderValue> | undefined;
+    const getHeaders = (): Record<string, HeaderValue> =>
+        sanitizedHeaders || (sanitizedHeaders = headerKeysToLowerCase(headers, initToLowercase));
     const mionHeaders = {
-        items: headerKeysToLowerCase(headers, initToLowercase),
         append: (name: string, value: HeaderValue) => {
             const lowerName = name.toLowerCase();
-            const currentValue = mionHeaders.items[lowerName];
+            const currentValue = getHeaders[lowerName];
             const isCurrentArray = !isSingleValueHeader(currentValue);
             const isValueArray = !isSingleValueHeader(value);
             if (isCurrentArray && isValueArray) {
-                mionHeaders.items[lowerName] = [...currentValue, ...value];
+                getHeaders[lowerName] = [...currentValue, ...value];
             } else if (isCurrentArray && !isValueArray) {
-                mionHeaders.items[lowerName] = [...currentValue, value];
+                getHeaders[lowerName] = [...currentValue, value];
             } else if (!isCurrentArray && isValueArray) {
-                mionHeaders.items[lowerName] = `${currentValue}, ${value.join(', ')}`;
+                getHeaders[lowerName] = `${currentValue}, ${value.join(', ')}`;
             } else {
-                mionHeaders.items[lowerName] = `${currentValue}, ${value}`;
+                getHeaders[lowerName] = `${currentValue}, ${value}`;
             }
         },
-        delete: (name: string) => delete mionHeaders.items[name.toLowerCase()],
-        get: (name: string) => mionHeaders.items[name.toLowerCase()],
-        set: (name: string, value: HeaderValue) => (mionHeaders.items[name.toLowerCase()] = value),
-        has: (name: string) => !!mionHeaders.items[name.toLowerCase()],
-        entries: () => new Map(Object.entries(mionHeaders.items)).entries(),
-        keys: () => new Set(Object.keys(mionHeaders.items)).values(),
-        values: () => new Set(Object.values(mionHeaders.items)).values(),
+        delete: (name: string) => delete getHeaders[name.toLowerCase()],
+        get: (name: string) => getHeaders[name.toLowerCase()],
+        set: (name: string, value: HeaderValue) => (getHeaders[name.toLowerCase()] = value),
+        has: (name: string) => !!getHeaders[name.toLowerCase()],
+        entries: () => new Map(Object.entries(getHeaders)).entries(),
+        keys: () => new Set(Object.keys(getHeaders)).values(),
+        values: () => new Set(Object.values(getHeaders)).values(),
     };
     return mionHeaders;
 }
