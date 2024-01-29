@@ -154,9 +154,11 @@ describe('Create routes should', () => {
             expect.objectContaining({
                 id: 'first',
                 nestLevel: 0,
-                runOnError: false,
-                canReturnData: false,
                 type: ProcedureType.hook,
+                options: expect.objectContaining({
+                    runOnError: false,
+                    canReturnData: false,
+                }),
             })
         );
 
@@ -164,9 +166,11 @@ describe('Create routes should', () => {
             expect.objectContaining({
                 id: 'second',
                 nestLevel: 0,
-                runOnError: false,
-                canReturnData: true,
                 type: ProcedureType.hook,
+                options: expect.objectContaining({
+                    runOnError: false,
+                    canReturnData: true,
+                }),
             })
         );
     });
@@ -180,9 +184,11 @@ describe('Create routes should', () => {
             expect.objectContaining({
                 id: 'sayHello',
                 nestLevel: 0,
-                runOnError: false,
-                canReturnData: true,
                 type: ProcedureType.route,
+                options: expect.objectContaining({
+                    runOnError: false,
+                    canReturnData: true,
+                }),
             })
         );
     });

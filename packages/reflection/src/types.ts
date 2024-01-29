@@ -48,7 +48,7 @@ export type FunctionReflection = {
     /** runtime types of the function */
     handlerType: TypeFunction;
     /** wether or not the functions return a value */
-    canReturnData: boolean;
+    hasReturnData: boolean;
     /** validates the parameters of the reflected function */
     validateParams: (params: any[]) => ParamsValidationResponse;
     /** serializes the parameters of the reflected function */

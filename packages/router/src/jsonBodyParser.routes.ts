@@ -80,6 +80,6 @@ export function stringifyResponseBody(
 }
 
 export const bodyParserHooks = {
-    mionParseJsonRequestBody: rawHook(parseRequestBody),
-    mionStringifyJsonResponseBody: rawHook(stringifyResponseBody),
+    mionParseJsonRequestBody: rawHook(parseRequestBody, {runOnError: true}),
+    mionStringifyJsonResponseBody: rawHook(stringifyResponseBody, {runOnError: true}),
 } satisfies HooksCollection;

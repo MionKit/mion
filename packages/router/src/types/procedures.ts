@@ -19,19 +19,26 @@ export interface Procedure<H extends AnyHandler = any> {
     nestLevel: number;
     handler: H;
     reflection: FunctionReflection | null;
-    runOnError: boolean;
-    canReturnData: boolean;
-    useValidation: boolean;
-    useSerialization: boolean;
     headerName?: string;
-    description?: string;
+    options: {
+        runOnError?: boolean;
+        canReturnData?: boolean;
+        useValidation?: boolean;
+        useSerialization?: boolean;
+        description?: string;
+    };
 }
 export interface RouteProcedure<H extends Handler = any> extends Procedure<H> {
     type: ProcedureType.route;
     handler: H;
     reflection: FunctionReflection;
-    runOnError: false;
-    canReturnData: true;
+    options: {
+        runOnError: false;
+        canReturnData: true;
+        useValidation?: boolean;
+        useSerialization?: boolean;
+        description?: string;
+    };
 }
 export interface HookProcedure<H extends Handler = any> extends Procedure<H> {
     type: ProcedureType.hook;
@@ -46,19 +53,25 @@ export interface HeaderProcedure<H extends HeaderHandler = any> extends Procedur
 }
 export interface RawProcedure<H extends RawHookHandler = any> extends Procedure<H> {
     type: ProcedureType.rawHook;
-    canReturnData: false;
     handler: H;
     reflection: null;
-    useValidation: false;
-    useSerialization: false;
+    options: {
+        runOnError?: boolean;
+        canReturnData: false;
+        useValidation: false;
+        useSerialization: false;
+        description?: string;
+    };
 }
 export interface NotFoundProcedure extends Procedure {
     is404: true;
 }
 
-export type RouteOptions = Partial<Pick<RouteProcedure, 'description' | 'useValidation' | 'useSerialization'>>;
-export type HookOptions = Partial<Pick<HookProcedure, 'description' | 'useValidation' | 'useSerialization' | 'runOnError'>>;
-export type HeaderHookOptions = Partial<
-    Pick<HeaderProcedure, 'description' | 'useValidation' | 'useSerialization' | 'runOnError'>
+export type RouteOptions = Partial<Pick<RouteProcedure['options'], 'description' | 'useValidation' | 'useSerialization'>>;
+export type HookOptions = Partial<
+    Pick<HookProcedure['options'], 'description' | 'useValidation' | 'useSerialization' | 'runOnError'>
 >;
-export type RawHookOptions = Partial<Pick<HeaderProcedure, 'description' | 'runOnError'>>;
+export type HeaderHookOptions = Partial<
+    Pick<HeaderProcedure['options'], 'description' | 'useValidation' | 'useSerialization' | 'runOnError'>
+>;
+export type RawHookOptions = Partial<Pick<HeaderProcedure['options'], 'description' | 'runOnError'>>;
