@@ -3,7 +3,7 @@
   "compilerOptions": {
     "outDir": ".dist/cjs"
   },
-  "reflection": ["src/client.routes.ts"],
+  "reflection": ["src/**/*.routes.ts"],
   "include": ["."],
   "exclude": ["node_modules", "**/*.spec.ts", "**/*.test.ts", "examples", ".dist"]
 }

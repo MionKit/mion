@@ -77,8 +77,8 @@ export function getMethodMetadataFromExecutable<H extends Handler>(executable: P
         // handler is included just for static typing purposes and should never be called directly
         handler: getHandlerSrcCodePointer(executable) as any as PublicHandler<H>,
         serializedTypes: getSerializedFunctionType(executable.handler, getRouteDefaultParams().length),
-        useValidation: executable.useValidation,
-        useSerialization: executable.useSerialization,
+        useValidation: !!executable.options.useValidation,
+        useSerialization: !!executable.options.useSerialization,
         params: executable.reflection?.handlerType.parameters.map((tp) => tp.name).slice(getRouteDefaultParams().length) || [],
     };
 

@@ -6,7 +6,7 @@
  * ######## */
 
 import {MionHeaders, MionResponse} from './types/context';
-import {stringifyResponseBody} from './jsonBodyParser';
+import {stringifyResponseBody} from './jsonBodyParser.routes';
 import {getRouterOptions} from './router';
 import {RpcError, StatusCodes} from '@mionkit/core';
 import {getEmptyCallContext, handleRpcErrors} from './dispatch';

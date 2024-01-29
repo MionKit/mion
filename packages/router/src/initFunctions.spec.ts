@@ -31,10 +31,12 @@ describe('route & hooks init functions', () => {
             type: ProcedureType.headerHook,
             headerName: 'Authorization',
             handler: expect.any(Function),
-            description: undefined,
-            useSerialization: true,
-            useValidation: true,
-            runOnError: false,
+            options: {
+                runOnError: false,
+                useValidation: true,
+                useSerialization: true,
+                description: undefined,
+            },
         });
     });
 
@@ -42,10 +44,12 @@ describe('route & hooks init functions', () => {
         expect(routes.timestamp).toEqual({
             type: ProcedureType.hook,
             handler: expect.any(Function),
-            description: undefined,
-            useSerialization: true,
-            useValidation: true,
-            runOnError: false,
+            options: {
+                runOnError: false,
+                useValidation: true,
+                useSerialization: true,
+                description: undefined,
+            },
         });
     });
 
@@ -53,11 +57,13 @@ describe('route & hooks init functions', () => {
         expect(routes.nothing).toEqual({
             type: ProcedureType.rawHook,
             handler: expect.any(Function),
-            canReturnData: false,
-            useSerialization: false,
-            useValidation: false,
-            runOnError: false,
-            description: undefined,
+            options: {
+                runOnError: false,
+                canReturnData: false,
+                useValidation: false,
+                useSerialization: false,
+                description: undefined,
+            },
         });
     });
 
@@ -65,11 +71,13 @@ describe('route & hooks init functions', () => {
         expect(routes.print).toEqual({
             type: ProcedureType.route,
             handler: expect.any(Function),
-            canReturnData: true,
-            runOnError: false,
-            description: undefined,
-            useSerialization: true,
-            useValidation: true,
+            options: {
+                runOnError: false,
+                canReturnData: true,
+                useValidation: true,
+                useSerialization: true,
+                description: undefined,
+            },
         });
     });
 

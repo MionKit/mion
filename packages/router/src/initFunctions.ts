@@ -16,14 +16,14 @@ export function route<H extends Handler, Opts extends RouteOptions | undefined>(
     const procedure = {
         type: ProcedureType.route,
         handler,
-        runOnError: false,
-        canReturnData: true,
         //  hack to init properties and not pollute type
-        ...({
+        options: {
+            canReturnData: true,
+            runOnError: false,
             useValidation: opts?.useValidation ?? true,
             useSerialization: opts?.useSerialization ?? true,
             description: opts?.description,
-        } as any as {}), // eslint-disable-line @typescript-eslint/ban-types
+        },
     } satisfies RouteDef<H>;
     return procedure;
 }
@@ -32,13 +32,12 @@ export function hook<H extends Handler, Opts extends HookOptions | undefined>(ha
     const procedure = {
         type: ProcedureType.hook,
         handler,
-        runOnError: opts?.runOnError ?? false,
-        //  hack to init properties and not pollute type
-        ...({
+        options: {
+            runOnError: opts?.runOnError ?? false,
             useValidation: opts?.useValidation ?? true,
             useSerialization: opts?.useSerialization ?? true,
             description: opts?.description,
-        } as any as {}), // eslint-disable-line @typescript-eslint/ban-types
+        },
     } satisfies HookDef<H>;
     return procedure;
 }
@@ -52,13 +51,12 @@ export function headersHook<S extends string, H extends HeaderHandler, Opts exte
         type: ProcedureType.headerHook,
         headerName,
         handler,
-        runOnError: opts?.runOnError ?? false,
-        //  hack to init properties and not pollute type
-        ...({
+        options: {
+            runOnError: opts?.runOnError ?? false,
             useValidation: opts?.useValidation ?? true,
             useSerialization: opts?.useSerialization ?? true,
             description: opts?.description,
-        } as any as {}), // eslint-disable-line @typescript-eslint/ban-types
+        },
     } satisfies HeaderHookDef<H>;
     return procedure;
 }
@@ -67,13 +65,13 @@ export function rawHook<H extends RawHookHandler, Opts extends RawHookOptions | 
     const procedure = {
         type: ProcedureType.rawHook,
         handler,
-        runOnError: opts?.runOnError ?? false,
-        useValidation: false,
-        useSerialization: false,
-        canReturnData: false,
-        ...({
+        options: {
+            runOnError: opts?.runOnError ?? false,
+            useValidation: false,
+            useSerialization: false,
+            canReturnData: false,
             description: opts?.description,
-        } as any as {}), // eslint-disable-line @typescript-eslint/ban-types
+        },
     } satisfies RawHookDef<H>;
     return procedure;
 }

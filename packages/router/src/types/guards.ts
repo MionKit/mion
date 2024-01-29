@@ -56,7 +56,7 @@ export function isRawExecutable(entry: Procedure): entry is RawProcedure {
 }
 
 export function isPublicExecutable(entry: Procedure): entry is Procedure {
-    return entry.reflection?.canReturnData || !!entry.reflection?.paramsLength;
+    return entry.reflection?.hasReturnData || !!entry.reflection?.paramsLength;
 }
 
 export function isNotFoundExecutable(entry: Procedure): entry is NotFoundProcedure {

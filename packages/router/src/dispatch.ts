@@ -60,7 +60,7 @@ async function runExecutionPath(
 
     for (let i = 0; i < executables.length; i++) {
         const executable = executables[i];
-        if (response.hasErrors && !executable.runOnError) continue;
+        if (response.hasErrors && !executable.options.runOnError) continue;
 
         try {
             const deserializedParams = deserializeParameters(request, executable);
@@ -76,7 +76,6 @@ async function runExecutionPath(
             handleRpcErrors(path, request, response, err, i);
         }
     }
-
     return context.response;
 }
 
@@ -133,7 +132,7 @@ function deserializeParameters(request: MionRequest, executable: Procedure): any
             });
     }
 
-    if (params.length && executable.useSerialization) {
+    if (params.length && executable.options.useSerialization) {
         try {
             params = executable.reflection.deserializeParams(params);
         } catch (e: any) {
@@ -151,7 +150,7 @@ function deserializeParameters(request: MionRequest, executable: Procedure): any
 
 function validateParameters(params: any[], executable: Procedure): any[] {
     if (!executable.reflection) return params;
-    if (executable.useValidation) {
+    if (executable.options.useValidation) {
         const validationResponse = executable.reflection.validateParams(params);
         if (validationResponse.hasErrors) {
             throw new RpcError({
@@ -166,8 +165,8 @@ function validateParameters(params: any[], executable: Procedure): any[] {
 }
 
 function serializeResponse(executable: Procedure, response: MionResponse, result: any) {
-    if (!executable.canReturnData || result === undefined || !executable.reflection) return;
-    const serialized = executable.useSerialization ? executable.reflection.serializeReturn(result) : result;
+    if (!executable.options.canReturnData || result === undefined || !executable.reflection) return;
+    const serialized = executable.options.useSerialization ? executable.reflection.serializeReturn(result) : result;
     if (isHeaderExecutable(executable)) response.headers.set(executable.headerName, serialized);
     else (response.body as Mutable<AnyObject>)[executable.id] = serialized;
 }
