@@ -5,11 +5,11 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {MionHeaders, MionResponse} from './types/context';
+import {MionHeaders, MionRequest, MionResponse} from './types/context';
 import {stringifyResponseBody} from './jsonBodyParser.routes';
 import {getRouterOptions} from './router';
-import {RpcError, StatusCodes} from '@mionkit/core';
-import {getEmptyCallContext, handleRpcErrors} from './dispatch';
+import {AnyObject, Mutable, RpcError, StatusCodes} from '@mionkit/core';
+import {getEmptyCallContext} from './dispatch';
 
 export function getResponseFromError(
     routePath: string,
@@ -27,4 +27,28 @@ export function getResponseFromError(
     // stringify does not uses rawRequest or raw response atm but that can change
     stringifyResponseBody(context, rawRequest, rawResponse, routerOptions);
     return context.response;
+}
+// ############# PUBLIC METHODS USED FOR ERRORS #############
+
+export function handleRpcErrors(
+    path: string,
+    request: MionRequest,
+    response: Mutable<MionResponse>,
+    err: any | RpcError | Error,
+    step: number | string
+) {
+    const rpcError =
+        err instanceof RpcError
+            ? err
+            : new RpcError({
+                  statusCode: StatusCodes.INTERNAL_SERVER_ERROR,
+                  publicMessage: `Unknown error in step ${step} of route execution path.`,
+                  originalError: err,
+                  name: 'Unknown Error',
+              });
+
+    response.statusCode = rpcError.statusCode;
+    response.hasErrors = true;
+    (response.body as Mutable<AnyObject>)[path] = rpcError.toAnonymizedError();
+    (request.internalErrors as Mutable<any[]>).push(rpcError);
 }
