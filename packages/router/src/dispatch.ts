@@ -7,10 +7,10 @@
 
 import type {CallContext, MionResponse, MionRequest, MionHeaders} from './types/context';
 import {type RouterOptions} from './types/general';
-import {type Procedure} from './types/procedures';
+import {HeaderProcedure, type Procedure} from './types/procedures';
 import {ProcedureType} from './types/procedures';
 import type {Handler} from './types/handlers';
-import {isHeaderExecutable, isNotFoundExecutable, isRawExecutable} from './types/guards';
+import {isNotFoundExecutable} from './types/guards';
 import {getNotFoundExecutionPath, getRouteExecutionPath, getRouterOptions} from './router';
 import {isPromise} from 'node:util/types';
 import {Mutable, AnyObject, RpcError, StatusCodes} from '@mionkit/core';
@@ -105,7 +105,7 @@ function getHandlerResponse(
     executable: Procedure,
     opts: RouterOptions
 ): any {
-    if (isRawExecutable(executable)) {
+    if (executable.type === ProcedureType.rawHook) {
         return executable.handler(context, rawRequest, rawResponse, opts);
     }
 
@@ -117,8 +117,8 @@ function deserializeParameters(request: MionRequest, executable: Procedure): any
     const path = executable.id;
     let params;
 
-    if (isHeaderExecutable(executable)) {
-        params = request.headers.get(executable.headerName) || [];
+    if (executable.type === ProcedureType.headerHook) {
+        params = request.headers.get((executable as HeaderProcedure).headerName) || [];
         // headers could be arrays or individual values, so we need to normalize to an array
         if (!Array.isArray(params)) params = [params];
     } else {
@@ -167,7 +167,7 @@ function validateParameters(params: any[], executable: Procedure): any[] {
 function serializeResponse(executable: Procedure, response: MionResponse, result: any) {
     if (!executable.options.canReturnData || result === undefined || !executable.reflection) return;
     const serialized = executable.options.useSerialization ? executable.reflection.serializeReturn(result) : result;
-    if (isHeaderExecutable(executable)) response.headers.set(executable.headerName, serialized);
+    if (executable.type) response.headers.set((executable as HeaderProcedure).headerName, serialized);
     else (response.body as Mutable<AnyObject>)[executable.id] = serialized;
 }
 

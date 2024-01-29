@@ -9,15 +9,14 @@ import {CoreOptions} from '@mionkit/core';
 import {SharedDataFactory} from './context';
 import {HeaderHookDef, HookDef, RawHookDef, RouteDef} from './definitions';
 import {ReflectionOptions} from '@mionkit/reflection';
-import {Handler} from 'aws-lambda';
 
 // #######  Router Object #######
 
 /** A route can be a full route definition or just the handler */
-export type Route<H extends Handler = any> = RouteDef<H>;
+export type Route = RouteDef;
 
 /** A route entry can be a route, a hook or sub-routes */
-export type RouterEntry = Routes | HookDef | Route | RawHookDef | HeaderHookDef;
+export type RouterEntry = Routes | HookDef | RouteDef | RawHookDef | HeaderHookDef;
 
 /** Data structure to define all the routes, each entry is a route a hook or sub-routes */
 export interface Routes {
