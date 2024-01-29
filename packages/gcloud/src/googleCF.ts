@@ -6,17 +6,12 @@
  * ######## */
 
 import {RpcError} from '@mionkit/core';
-import {
-    dispatchRoute,
-    getResponseFromError,
-    headersFromIncomingMessage,
-    headersFromServerResponse,
-    resetRouter,
-} from '@mionkit/router';
+import {dispatchRoute, getResponseFromError, resetRouter} from '@mionkit/router';
 import type {MionResponse} from '@mionkit/router';
 import {Request, Response} from 'express';
 import {DEFAULT_GOOGLE_CF_OPTIONS} from './constants';
-import {GoogleCFOptions} from '..';
+import {GoogleCFOptions} from './types';
+import {headersFromIncomingMessage, headersFromServerResponse} from './headers';
 
 // ############# STATE #############
 

@@ -9,7 +9,7 @@ import type {MionResponse, MionRequest, CallContext} from './types/context';
 import type {RouterOptions} from './types/general';
 import type {HooksCollection, ErrorReturn} from './types/publicProcedures';
 import {RpcError, StatusCodes, AnyObject, Mutable} from '@mionkit/core';
-import {handleRpcErrors} from './dispatch';
+import {handleRpcErrors} from './errors';
 import {rawHook} from './initFunctions';
 
 // ############# PUBLIC METHODS #############
