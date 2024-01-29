@@ -14,6 +14,8 @@ import {isNotFoundExecutable} from './types/guards';
 import {getNotFoundExecutionPath, getRouteExecutionPath, getRouterOptions} from './router';
 import {isPromise} from 'node:util/types';
 import {Mutable, AnyObject, RpcError, StatusCodes} from '@mionkit/core';
+import {FunctionReflection} from '@mionkit/reflection';
+import {handleRpcErrors} from './errors';
 
 // ############# PUBLIC METHODS #############
 
@@ -117,11 +119,7 @@ function deserializeParameters(request: MionRequest, executable: Procedure): any
     const path = executable.id;
     let params;
 
-    if (executable.type === ProcedureType.headerHook) {
-        params = request.headers.get((executable as HeaderProcedure).headerName) || [];
-        // headers could be arrays or individual values, so we need to normalize to an array
-        if (!Array.isArray(params)) params = [params];
-    } else {
+    if (executable.type !== ProcedureType.headerHook) {
         params = request.body[path] || [];
         // params sent in body can only be sent in an array
         if (!Array.isArray(params))
@@ -130,6 +128,10 @@ function deserializeParameters(request: MionRequest, executable: Procedure): any
                 name: 'Invalid Params Array',
                 publicMessage: `Invalid params '${path}'. input parameters can only be sent in an array.`,
             });
+    } else {
+        params = request.headers.get((executable as HeaderProcedure).headerName) || [];
+        // headers could be arrays or individual values, so we need to normalize to an array
+        if (!Array.isArray(params)) params = [params];
     }
 
     if (params.length && executable.options.useSerialization) {
@@ -165,36 +167,12 @@ function validateParameters(params: any[], executable: Procedure): any[] {
 }
 
 function serializeResponse(executable: Procedure, response: MionResponse, result: any) {
-    if (!executable.options.canReturnData || result === undefined || !executable.reflection) return;
-    const serialized = executable.options.useSerialization ? executable.reflection.serializeReturn(result) : result;
-    if (executable.type === ProcedureType.headerHook)
-        response.headers.set((executable as HeaderProcedure).headerName, serialized);
-    else (response.body as Mutable<AnyObject>)[executable.id] = serialized;
-}
-
-// ############# PUBLIC METHODS USED FOR ERRORS #############
-
-export function handleRpcErrors(
-    path: string,
-    request: MionRequest,
-    response: Mutable<MionResponse>,
-    err: any | RpcError | Error,
-    step: number | string
-) {
-    const rpcError =
-        err instanceof RpcError
-            ? err
-            : new RpcError({
-                  statusCode: StatusCodes.INTERNAL_SERVER_ERROR,
-                  publicMessage: `Unknown error in step ${step} of route execution path.`,
-                  originalError: err,
-                  name: 'Unknown Error',
-              });
-
-    response.statusCode = rpcError.statusCode;
-    response.hasErrors = true;
-    (response.body as Mutable<AnyObject>)[path] = rpcError.toAnonymizedError();
-    (request.internalErrors as Mutable<any[]>).push(rpcError);
+    if (!executable.options.canReturnData || result === undefined) return;
+    const serialized = executable.options.useSerialization
+        ? (executable.reflection as FunctionReflection).serializeReturn(result)
+        : result;
+    if (executable.type !== ProcedureType.headerHook) (response.body as Mutable<AnyObject>)[executable.id] = serialized;
+    else response.headers.set((executable as HeaderProcedure).headerName, serialized);
 }
 
 export function getEmptyCallContext(
