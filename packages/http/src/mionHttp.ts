@@ -5,13 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {
-    dispatchRoute,
-    getResponseFromError,
-    headersFromIncomingMessage,
-    headersFromServerResponse,
-    resetRouter,
-} from '@mionkit/router';
+import {dispatchRoute, getResponseFromError, resetRouter} from '@mionkit/router';
 import {createServer as createHttp} from 'http';
 import {createServer as createHttps} from 'https';
 import {DEFAULT_HTTP_OPTIONS} from './constants';
@@ -20,6 +14,7 @@ import type {IncomingMessage, Server as HttpServer, ServerResponse} from 'http';
 import type {Server as HttpsServer} from 'https';
 import type {MionResponse} from '@mionkit/router';
 import {RpcError, StatusCodes} from '@mionkit/core';
+import {headersFromIncomingMessage, headersFromServerResponse} from './headers';
 
 // ############# PRIVATE STATE #############
 
