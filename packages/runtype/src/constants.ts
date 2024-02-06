@@ -1,10 +1,11 @@
+
 /* ########
- * 2021 mion
+ * 2024 mion
  * Author: Ma-jerez
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-describe('runtype should', () => {
-    it('test something', () => {});
-});
+import { TypeClass, typeOf } from '@deepkit/type';
+
+export const ERROR_TYPE = typeOf<Error>() as TypeClass;
