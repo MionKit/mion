@@ -18,6 +18,10 @@ import {resolveTypeParameter} from './runtypes/typeParameter';
 import {resolveClassToTypeBox} from './runtypes/class';
 import {resolveParameter} from './runtypes/parameter';
 import {resolveProperty} from './runtypes/property';
+import {resolveEnum} from './runtypes/enum';
+import {resolveTuple, resolveTupleMember} from './runtypes/tuple';
+import {resolveUnion} from './runtypes/union';
+import {resolveIntersection} from './runtypes/intersection';
 
 export function typeBox<T>(opts?: SchemaOptions, type?: ReceiveType<T>): TSchema {
     type = resolveReceiveType(type);
@@ -27,6 +31,8 @@ export function typeBox<T>(opts?: SchemaOptions, type?: ReceiveType<T>): TSchema
 // Map Deepkit Type to TypeBox Type
 function mapDeepkitTypeToTypeBox(deepkitType, opts: SchemaOptions, mapper: DeepkitVisitor = mapDeepkitTypeToTypeBox): TSchema {
     let typeBoxType: TSchema;
+
+    // console.log(deepkitType);
 
     switch (deepkitType.kind) {
         case ReflectionKind.never:
@@ -99,31 +105,25 @@ function mapDeepkitTypeToTypeBox(deepkitType, opts: SchemaOptions, mapper: Deepk
             typeBoxType = resolveTypeParameter(deepkitType, opts, mapper);
             break;
         case ReflectionKind.enum:
-            console.error('not implemented', deepkitType);
-            throw new Error('not implemented');
+            typeBoxType = resolveEnum(deepkitType, opts);
             break;
         case ReflectionKind.union:
-            console.error('not implemented', deepkitType);
-            throw new Error('not implemented');
+            typeBoxType = resolveUnion(deepkitType, opts, mapper);
             break;
         case ReflectionKind.intersection:
-            console.error('not implemented', deepkitType);
-            throw new Error('not implemented');
+            typeBoxType = resolveIntersection(deepkitType, opts, mapper);
             break;
         case ReflectionKind.array:
             typeBoxType = resolveArray(deepkitType, opts, mapper);
             break;
         case ReflectionKind.tuple:
-            console.error('not implemented', deepkitType);
-            throw new Error('not implemented');
+            typeBoxType = resolveTuple(deepkitType, opts, mapper);
             break;
         case ReflectionKind.tupleMember:
-            console.error('not implemented', deepkitType);
-            throw new Error('not implemented');
+            typeBoxType = resolveTupleMember(deepkitType, opts, mapper);
             break;
         case ReflectionKind.enumMember:
-            console.error('not implemented', deepkitType);
-            throw new Error('not implemented');
+            throw new Error('Enum Members can not be resolved individually, call resolveEnum instead.');
             break;
         case ReflectionKind.rest:
             console.error('not implemented', deepkitType);
