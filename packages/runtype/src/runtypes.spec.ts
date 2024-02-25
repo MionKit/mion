@@ -60,11 +60,6 @@ describe('native runtypes', () => {
         expect(boxType).toEqual(Type.Null());
     });
     it('undefined', () => {
-        type T = any;
-        const boxType = typeBox<T>();
-        expect(boxType).toEqual(Type.Any());
-    });
-    it('regexp', () => {
         type T = undefined;
         const boxType = typeBox<T>();
         expect(boxType).toEqual(Type.Undefined());
@@ -84,6 +79,21 @@ describe('native runtypes', () => {
         const boxType = typeBox<T>();
         expect(boxType).toEqual(Type.Literal(true));
     });
+    it('literal regexp', () => {
+        // Typebox does not support literal regexp so they are transformed to Regexp directly
+        const reg = /abc/i;
+        const boxType = typeBox<typeof reg>();
+        expect(boxType).toEqual(Type.RegExp(reg));
+    });
+
+    it('template literal gets resolved to literal', () => {
+        const a = 3;
+        const b = `${a}hello`; // this should be resolved
+        type T = typeof b;
+        const boxType = typeBox<T>();
+        expect(boxType).toEqual(Type.Literal('3hello'));
+    });
+
     it('function', () => {
         function abc(a: string): string {
             return a;

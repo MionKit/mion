@@ -1,3 +1,4 @@
+/* eslint-disable no-case-declarations */
 /* ########
  * 2024 mion
  * Author: Ma-jerez
@@ -6,7 +7,7 @@
  * ######## */
 
 import {SchemaOptions, TSchema, Type as TypeBox} from '@sinclair/typebox';
-import {ReflectionKind, resolveReceiveType, ReceiveType} from '@deepkit/type';
+import {ReflectionKind, resolveReceiveType, ReceiveType, reflectOrUndefined, TypeObjectLiteral} from '@deepkit/type';
 import {DeepkitVisitor} from './types';
 import {resolveObject} from './runtypes/object';
 import {resolveArray} from './runtypes/array';
@@ -22,11 +23,22 @@ import {resolveEnum} from './runtypes/enum';
 import {resolveTuple, resolveTupleMember} from './runtypes/tuple';
 import {resolveUnion} from './runtypes/union';
 import {resolveIntersection} from './runtypes/intersection';
+import {resolvePromise} from './runtypes/promise';
+import {resolveAsyncIterator, resolveIterator} from './runtypes/nativeObjectLiterals';
 
 export function typeBox<T>(opts?: SchemaOptions, type?: ReceiveType<T>): TSchema {
     type = resolveReceiveType(type);
     return mapDeepkitTypeToTypeBox(type, {...opts});
 }
+
+export function reflectBox(objany, opts?: SchemaOptions): TSchema | undefined {
+    const type = reflectOrUndefined(objany);
+    console.log('reflectBox', type);
+    if (!type) return undefined;
+    return mapDeepkitTypeToTypeBox(type, {...opts});
+}
+
+const nativeTypeNamesFromObjectLiterals = ['AsyncIterator', 'Iterator'];
 
 // Map Deepkit Type to TypeBox Type
 function mapDeepkitTypeToTypeBox(deepkitType, opts: SchemaOptions, mapper: DeepkitVisitor = mapDeepkitTypeToTypeBox): TSchema {
@@ -72,15 +84,21 @@ function mapDeepkitTypeToTypeBox(deepkitType, opts: SchemaOptions, mapper: Deepk
             typeBoxType = TypeBox.Undefined(opts);
             break;
         case ReflectionKind.regexp:
-            // TODO , think we will have to Map The Deepkit Pattern Annotation to a TypeBox RegExp
-            console.log('RegExp not supported yet', deepkitType);
-            throw new Error('RegExp not supported yet');
+            /* this scenario only catched type x = Regexp, that would be equivalent to define an empty Regexp
+             * the other cases were regexp are defined as literals x = /foo/i
+             * or x = new Regexp('foo', 'i') are handled by the literal case */
+            typeBoxType = TypeBox.RegExp(new RegExp(''), opts);
+            break;
         case ReflectionKind.literal:
             typeBoxType = resolveLiteral(deepkitType, opts);
             break;
         case ReflectionKind.templateLiteral:
-            console.error('not implemented', deepkitType);
-            throw new Error('not implemented');
+            // deepkit automatically resolves template literals unions to literals
+            // this is only called when you define the type of a template literal i.e: type T = `foo${string}`;
+            // this is not expected to be validated or serialized so not supported
+            throw new Error(
+                'Template Literals are resolved by the compiler to Literals, template literal types are not supported. ie type TL = `${string}World`'
+            );
             break;
         case ReflectionKind.property:
             typeBoxType = resolveProperty(deepkitType, opts, mapper);
@@ -95,11 +113,16 @@ function mapDeepkitTypeToTypeBox(deepkitType, opts: SchemaOptions, mapper: Deepk
             typeBoxType = resolveParameter(deepkitType, opts, mapper);
             break;
         case ReflectionKind.promise:
-            console.error('not implemented', deepkitType);
-            throw new Error('not implemented');
+            typeBoxType = resolvePromise(deepkitType, opts, mapper);
             break;
         case ReflectionKind.class:
-            typeBoxType = resolveClassToTypeBox(deepkitType, opts, mapper);
+            if (deepkitType.classType === Uint8Array) {
+                typeBoxType = TypeBox.Uint8Array(opts);
+            } else if (deepkitType.classType === Date) {
+                typeBoxType = TypeBox.Date(opts);
+            } else {
+                typeBoxType = resolveClassToTypeBox(deepkitType, opts, mapper);
+            }
             break;
         case ReflectionKind.typeParameter:
             typeBoxType = resolveTypeParameter(deepkitType, opts, mapper);
@@ -126,16 +149,22 @@ function mapDeepkitTypeToTypeBox(deepkitType, opts: SchemaOptions, mapper: Deepk
             throw new Error('Enum Members can not be resolved individually, call resolveEnum instead.');
             break;
         case ReflectionKind.rest:
-            console.error('not implemented', deepkitType);
-            throw new Error('not implemented');
+            throw new Error('Typebox does not support rest parameters i.e. function foo(...args: number[]) {}');
             break;
         case ReflectionKind.objectLiteral:
-            typeBoxType = resolveObjectLiteral(deepkitType, opts, mapper);
+            const typeNative = deepkitType as TypeObjectLiteral;
+            const originTypeName = typeNative.originTypes?.[0].typeName;
+            const isNativeType = originTypeName && nativeTypeNamesFromObjectLiterals.includes(originTypeName);
+            if (isNativeType) {
+                typeBoxType = resolveNativeTypeFromObjectLiteral(typeNative, opts, mapper, originTypeName);
+            } else {
+                typeBoxType = resolveObjectLiteral(typeNative, opts, mapper);
+            }
             break;
         case ReflectionKind.indexSignature:
             // TODO: Implement support for call and index signatures
             throw new Error(
-                `Typebox does not support indexSignatures i.e. interface ModernConstants{ pi: 3.14159; [key: string]: string; } https://www.typescriptlang.org/glossary#index-signatures`
+                `Typebox does not support indexSignatures i.e. interface SomethingWithPi{ pi: 3.14159; [key: string]: string; } https://www.typescriptlang.org/glossary#index-signatures`
             );
         case ReflectionKind.propertySignature:
             typeBoxType = resolvePropertySignature(deepkitType, opts, mapper);
@@ -158,4 +187,20 @@ function mapDeepkitTypeToTypeBox(deepkitType, opts: SchemaOptions, mapper: Deepk
     if (typeBoxType.description) typeBoxType.description = deepkitType.description;
 
     return typeBoxType;
+}
+
+function resolveNativeTypeFromObjectLiteral(
+    deepkitType: TypeObjectLiteral,
+    opts: SchemaOptions,
+    resolveTypeBox: DeepkitVisitor,
+    nativeName: string
+): TSchema {
+    switch (nativeName) {
+        case 'Iterator':
+            return resolveIterator(deepkitType, opts, resolveTypeBox);
+        case 'AsyncIterator':
+            return resolveAsyncIterator(deepkitType, opts, resolveTypeBox);
+        default:
+            throw new Error(`Type is not an Native Type`);
+    }
 }
