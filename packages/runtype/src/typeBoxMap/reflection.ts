@@ -8,23 +8,23 @@
 
 import {SchemaOptions, TSchema, Type as TypeBox} from '@sinclair/typebox';
 import {ReflectionKind, resolveReceiveType, ReceiveType, reflectOrUndefined, TypeObjectLiteral} from '@deepkit/type';
-import {DeepkitVisitor} from './types';
-import {resolveObject} from './runtypes/object';
-import {resolveArray} from './runtypes/array';
-import {resolveObjectLiteral} from './runtypes/objectLiteral';
-import {resolveLiteral} from './runtypes/literal';
-import {resolvePropertySignature} from './runtypes/propertySignature';
-import {resolveMethod, resolveCallSignature, resolveMethodSignature, resolveFunction} from './runtypes/functions';
-import {resolveTypeParameter} from './runtypes/typeParameter';
-import {resolveClassToTypeBox} from './runtypes/class';
-import {resolveParameter} from './runtypes/parameter';
-import {resolveProperty} from './runtypes/property';
-import {resolveEnum} from './runtypes/enum';
-import {resolveTuple, resolveTupleMember} from './runtypes/tuple';
-import {resolveUnion} from './runtypes/union';
-import {resolveIntersection} from './runtypes/intersection';
-import {resolvePromise} from './runtypes/promise';
-import {resolveAsyncIterator, resolveIterator} from './runtypes/nativeObjectLiterals';
+import {DeepkitVisitor, TRunType} from '../types';
+import {resolveObject} from './object';
+import {resolveArray} from './array';
+import {resolveObjectLiteral} from './objectLiteral';
+import {resolveLiteral} from './literal';
+import {resolvePropertySignature} from './propertySignature';
+import {resolveMethod, resolveCallSignature, resolveMethodSignature, resolveFunction} from './functions';
+import {resolveTypeParameter} from './typeParameter';
+import {resolveClassToTypeBox} from './class';
+import {resolveParameter} from './parameter';
+import {resolveProperty} from './property';
+import {resolveEnum} from './enum';
+import {resolveTuple, resolveTupleMember} from './tuple';
+import {resolveUnion} from './union';
+import {resolveIntersection} from './intersection';
+import {resolvePromise} from './promise';
+import {resolveAsyncIterator, resolveIterator} from './nativeObjectLiterals';
 
 export function typeBox<T>(opts?: SchemaOptions, type?: ReceiveType<T>): TSchema {
     type = resolveReceiveType(type);
@@ -41,8 +41,8 @@ export function reflectBox(objany, opts?: SchemaOptions): TSchema | undefined {
 const nativeTypeNamesFromObjectLiterals = ['AsyncIterator', 'Iterator'];
 
 // Map Deepkit Type to TypeBox Type
-function mapDeepkitTypeToTypeBox(deepkitType, opts: SchemaOptions, mapper: DeepkitVisitor = mapDeepkitTypeToTypeBox): TSchema {
-    let typeBoxType: TSchema;
+function mapDeepkitTypeToTypeBox(deepkitType, opts: SchemaOptions, mapper: DeepkitVisitor = mapDeepkitTypeToTypeBox): TRunType {
+    let typeBoxType: TRunType;
 
     // console.log(deepkitType);
 
@@ -120,6 +120,10 @@ function mapDeepkitTypeToTypeBox(deepkitType, opts: SchemaOptions, mapper: Deepk
                 typeBoxType = TypeBox.Uint8Array(opts);
             } else if (deepkitType.classType === Date) {
                 typeBoxType = TypeBox.Date(opts);
+                typeBoxType.jsonTransformer = TypeBox.Transform(TypeBox.Number())
+                    .Decode((value) => new Date(value))
+                    .Encode((value) => value.getTime());
+                console.log('Date', typeBoxType);
             } else {
                 typeBoxType = resolveClassToTypeBox(deepkitType, opts, mapper);
             }
@@ -194,7 +198,7 @@ function resolveNativeTypeFromObjectLiteral(
     opts: SchemaOptions,
     resolveTypeBox: DeepkitVisitor,
     nativeName: string
-): TSchema {
+): TRunType {
     switch (nativeName) {
         case 'Iterator':
             return resolveIterator(deepkitType, opts, resolveTypeBox);

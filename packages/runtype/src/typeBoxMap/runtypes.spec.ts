@@ -342,9 +342,12 @@ describe('native runtypes', () => {
             c: string;
             d: null;
             f: undefined;
+            x: Date;
         }
-        const boxTypeT = typeBox<T>();
+
+        type TList = T[];
+        const boxTypeT = typeBox<TList>();
         const compiled = TypeCompiler.Compile(boxTypeT);
-        // console.log(compiled);
+        console.log(compiled);
     });
 });

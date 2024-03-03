@@ -7,6 +7,7 @@
 
 import {Type} from '@sinclair/typebox';
 import {typeBox} from './reflection';
+import {TypeCompiler} from '@sinclair/typebox/compiler';
 
 describe('native types', () => {
     it('new RegExp', () => {
