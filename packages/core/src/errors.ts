@@ -43,12 +43,12 @@ export class RpcError extends Error {
     /** returns an error without stack trace an massage is swapped by public message */
     toAnonymizedError(): AnonymRpcError {
         const err: AnonymRpcError = {
+            ...(this.id ? {id: this.id} : {}),
             name: this.name,
             statusCode: this.statusCode,
             message: this.publicMessage,
+            ...(this.errorData ? {errorData: this.errorData} : {}),
         };
-        if (this.errorData) err.errorData = this.errorData;
-        if (this.id) err.id = this.id;
         return err;
     }
 }
