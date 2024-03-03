@@ -5,4 +5,6 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-export * from './src/reflection';
+export * from './src/types';
+export * from './src/jitRunner';
+export * from './src/runType';
