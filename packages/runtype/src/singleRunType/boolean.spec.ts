@@ -11,7 +11,7 @@ import {
     getValidateJitFunction,
     getJitValidateWithErrorsFn,
     getJitMockFn,
-} from '../jitRunner';
+} from '../jitCompiler';
 
 const rt = runType<boolean>();
 

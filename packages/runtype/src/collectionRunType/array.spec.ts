@@ -11,7 +11,7 @@ import {
     getValidateJitFunction,
     getJitValidateWithErrorsFn,
     getJitMockFn,
-} from '../jitRunner';
+} from '../jitCompiler';
 
 describe('ArrayType', () => {
     const rt = runType<string[]>();

@@ -6,5 +6,5 @@
  * ######## */
 
 export * from './src/types';
-export * from './src/jitRunner';
+export * from './src/jitCompiler';
 export * from './src/runType';
