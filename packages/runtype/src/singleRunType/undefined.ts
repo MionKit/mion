@@ -14,13 +14,14 @@ export class UndefinedRunType implements RunType<TypeUndefined> {
     constructor(
         public readonly src: TypeUndefined,
         public readonly visitor: RunTypeVisitor,
-        public readonly path: RunTypeAccessor
+        public readonly path: RunTypeAccessor,
+        public readonly nestLevel: number
     ) {}
     getValidateCode(varName: string): string {
         return `typeof ${varName} === 'undefined'`;
     }
-    getValidateCodeWithErrors(varName: string, errorsName: string, path = this.path): string {
-        return `if (typeof ${varName} !== 'undefined') ${errorsName}.push({path: ${path || "'.'"}, message: 'Expected to be undefined'})`;
+    getValidateCodeWithErrors(varName: string, errorsName: string, itemPath: string): string {
+        return `if (typeof ${varName} !== 'undefined') ${errorsName}.push({path: ${itemPath}, message: 'Expected to be undefined'})`;
     }
     getJsonEncodeCode(): string {
         return `null`;

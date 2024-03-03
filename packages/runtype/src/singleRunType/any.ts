@@ -14,7 +14,8 @@ export class AnyRunType implements RunType<TypeAny | TypeUnknown> {
     constructor(
         public readonly src: TypeAny | TypeUnknown,
         public readonly visitor: RunTypeVisitor,
-        public readonly path: RunTypeAccessor
+        public readonly path: RunTypeAccessor,
+        public readonly nestLevel: number
     ) {}
     getValidateCode(): string {
         return `true`;

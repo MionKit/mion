@@ -6,17 +6,17 @@
  * ######## */
 import {runType} from '../runType';
 import {
-    getJsonEncodeFunction,
-    getJsonDecodeFunction,
-    getValidateFunction,
-    getValidateWithErrorsFunction,
-    getMockFunction,
+    getJitJsonEncodeFn,
+    getJitJsonDecodeFn,
+    getValidateJitFunction,
+    getJitValidateWithErrorsFn,
+    getJitMockFn,
 } from '../jitRunner';
 
 const rt = runType<void>();
 
 it('validate void', () => {
-    const validate = getValidateFunction(rt);
+    const validate = getValidateJitFunction(rt);
     function vd() {}
     expect(validate(undefined)).toBe(true);
     expect(validate(vd())).toBe(true);
@@ -26,22 +26,24 @@ it('validate void', () => {
 });
 
 it('validate void + errors', () => {
-    const valWithErrors = getValidateWithErrorsFunction(rt);
+    const valWithErrors = getJitValidateWithErrorsFn(rt);
     expect(valWithErrors(undefined)).toEqual([]);
-    expect(valWithErrors(null)).toEqual([{path: '.', message: 'Expected to be void'}]);
-    expect(valWithErrors(42)).toEqual([{path: '.', message: 'Expected to be void'}]);
-    expect(valWithErrors('hello')).toEqual([{path: '.', message: 'Expected to be void'}]);
+    expect(valWithErrors(null)).toEqual([{path: '', message: 'Expected to be void'}]);
+    expect(valWithErrors(42)).toEqual([{path: '', message: 'Expected to be void'}]);
+    expect(valWithErrors('hello')).toEqual([{path: '', message: 'Expected to be void'}]);
 });
 
 it('encode to json should throw an error', () => {
-    expect(() => getJsonEncodeFunction(rt)).toThrow('void can not be encoded to json.');
+    expect(() => getJitJsonEncodeFn(rt)).toThrow('void can not be encoded to json.');
 });
 
 it('decode from json should throw an error', () => {
-    expect(() => getJsonDecodeFunction(rt)).toThrow('void can not be decoded from json.');
+    expect(() => getJitJsonDecodeFn(rt)).toThrow('void can not be decoded from json.');
 });
 
 it('mock', () => {
-    const mock = getMockFunction(rt);
+    const mock = getJitMockFn(rt);
     expect(mock()).toBeUndefined();
+    const validate = getValidateJitFunction(rt);
+    expect(validate(mock())).toBe(true);
 });

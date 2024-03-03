@@ -6,17 +6,17 @@
  * ######## */
 import {runType} from '../runType';
 import {
-    getJsonEncodeFunction,
-    getJsonDecodeFunction,
-    getValidateFunction,
-    getValidateWithErrorsFunction,
-    getMockFunction,
+    getJitJsonEncodeFn,
+    getJitJsonDecodeFn,
+    getValidateJitFunction,
+    getJitValidateWithErrorsFn,
+    getJitMockFn,
 } from '../jitRunner';
 
 const rt = runType<any>();
 
 it('validate any', () => {
-    const validate = getValidateFunction(rt);
+    const validate = getValidateJitFunction(rt);
     expect(validate(null)).toBe(true);
     expect(validate(undefined)).toBe(true);
     expect(validate(42)).toBe(true);
@@ -24,7 +24,7 @@ it('validate any', () => {
 });
 
 it('validate any + errors', () => {
-    const valWithErrors = getValidateWithErrorsFunction(rt);
+    const valWithErrors = getJitValidateWithErrorsFn(rt);
     expect(valWithErrors(null)).toEqual([]);
     expect(valWithErrors(undefined)).toEqual([]);
     expect(valWithErrors(42)).toEqual([]);
@@ -32,19 +32,21 @@ it('validate any + errors', () => {
 });
 
 it('encode to json', () => {
-    const toJson = getJsonEncodeFunction(rt);
+    const toJson = getJitJsonEncodeFn(rt);
     const typeValue = null;
     expect(toJson(typeValue)).toEqual(typeValue);
 });
 
 it('decode from json', () => {
-    const fromJson = getJsonDecodeFunction(rt);
+    const fromJson = getJitJsonDecodeFn(rt);
     const typeValue = null;
     const jsonValue = JSON.parse(JSON.stringify(typeValue));
     expect(fromJson(jsonValue)).toEqual(typeValue);
 });
 
 it('mock', () => {
-    const mock = getMockFunction(rt);
+    const mock = getJitMockFn(rt);
     expect(typeof mock).toBe('function');
+    const validate = getValidateJitFunction(rt);
+    expect(validate(mock())).toBe(true);
 });

@@ -14,13 +14,14 @@ export class SymbolRunType implements RunType<TypeSymbol> {
     constructor(
         public readonly src: TypeSymbol,
         public readonly visitor: RunTypeVisitor,
-        public readonly path: RunTypeAccessor
+        public readonly path: RunTypeAccessor,
+        public readonly nestLevel: number
     ) {}
     getValidateCode(varName: string): string {
         return `typeof ${varName} === 'symbol'`;
     }
-    getValidateCodeWithErrors(varName: string, errorsName: string, path = this.path): string {
-        return `if (typeof ${varName} !== 'symbol') ${errorsName}.push({path: ${path || "'.'"}, message: 'Expected to be a symbol'})`;
+    getValidateCodeWithErrors(varName: string, errorsName: string, itemPath: string): string {
+        return `if (typeof ${varName} !== 'symbol') ${errorsName}.push({path: ${itemPath}, message: 'Expected to be a Symbol'})`;
     }
     getJsonEncodeCode(): string {
         throw new Error('Symbol encode to json not supported.');
