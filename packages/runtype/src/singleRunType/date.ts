@@ -14,13 +14,14 @@ export class DateRunType implements RunType<TypeClass> {
     constructor(
         public readonly src: TypeClass,
         public readonly visitor: RunTypeVisitor,
-        public readonly path: RunTypeAccessor
+        public readonly path: RunTypeAccessor,
+        public readonly nestLevel: number
     ) {}
     getValidateCode(varName: string): string {
         return `${varName} instanceof Date && !isNaN(${varName}.getTime())`;
     }
-    getValidateCodeWithErrors(varName: string, errorsName: string, path = this.path): string {
-        return `if (!(${this.getValidateCode(varName)})) ${errorsName}.push({path: ${path || "'.'"}, message: 'Expected to be a valid Date'})`;
+    getValidateCodeWithErrors(varName: string, errorsName: string, itemPath: string): string {
+        return `if (!(${this.getValidateCode(varName)})) ${errorsName}.push({path: ${itemPath}, message: 'Expected to be a valid Date'})`;
     }
     getJsonEncodeCode(varName: string): string {
         return `${varName}`;

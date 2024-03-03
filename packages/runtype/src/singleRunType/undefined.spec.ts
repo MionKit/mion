@@ -6,17 +6,17 @@
  * ######## */
 import {runType} from '../runType';
 import {
-    getJsonEncodeFunction,
-    getJsonDecodeFunction,
-    getValidateFunction,
-    getValidateWithErrorsFunction,
-    getMockFunction,
+    getJitJsonEncodeFn,
+    getJitJsonDecodeFn,
+    getValidateJitFunction,
+    getJitValidateWithErrorsFn,
+    getJitMockFn,
 } from '../jitRunner';
 
 const rt = runType<undefined>();
 
 it('validate undefined', () => {
-    const validate = getValidateFunction(rt);
+    const validate = getValidateJitFunction(rt);
     expect(validate(undefined)).toBe(true);
     expect(validate(null)).toBe(false);
     expect(validate(42)).toBe(false);
@@ -24,26 +24,28 @@ it('validate undefined', () => {
 });
 
 it('validate undefined + errors', () => {
-    const valWithErrors = getValidateWithErrorsFunction(rt);
+    const valWithErrors = getJitValidateWithErrorsFn(rt);
     expect(valWithErrors(undefined)).toEqual([]);
-    expect(valWithErrors(null)).toEqual([{path: '.', message: 'Expected to be undefined'}]);
-    expect(valWithErrors(42)).toEqual([{path: '.', message: 'Expected to be undefined'}]);
-    expect(valWithErrors('hello')).toEqual([{path: '.', message: 'Expected to be undefined'}]);
+    expect(valWithErrors(null)).toEqual([{path: '', message: 'Expected to be undefined'}]);
+    expect(valWithErrors(42)).toEqual([{path: '', message: 'Expected to be undefined'}]);
+    expect(valWithErrors('hello')).toEqual([{path: '', message: 'Expected to be undefined'}]);
 });
 
 it('encode to json', () => {
-    const toJson = getJsonEncodeFunction(rt);
+    const toJson = getJitJsonEncodeFn(rt);
     const typeValue = undefined;
     expect(toJson(typeValue)).toEqual(null);
 });
 
 it('decode from json', () => {
-    const fromJson = getJsonDecodeFunction(rt);
+    const fromJson = getJitJsonDecodeFn(rt);
     const typeValue = null;
     expect(fromJson(typeValue)).toEqual(undefined);
 });
 
 it('mock', () => {
-    const mock = getMockFunction(rt);
+    const mock = getJitMockFn(rt);
     expect(mock()).toBeUndefined();
+    const validate = getValidateJitFunction(rt);
+    expect(validate(mock())).toBe(true);
 });

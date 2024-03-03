@@ -14,13 +14,14 @@ export class BooleanRunType implements RunType<TypeBoolean> {
     constructor(
         public readonly src: TypeBoolean,
         public readonly visitor: RunTypeVisitor,
-        public readonly path: RunTypeAccessor
+        public readonly path: RunTypeAccessor,
+        public readonly nestLevel: number
     ) {}
     getValidateCode(varName: string): string {
         return `typeof ${varName} === 'boolean'`;
     }
-    getValidateCodeWithErrors(varName: string, errorsName: string, path = this.path): string {
-        return `if (typeof ${varName} !== 'boolean') ${errorsName}.push({path: ${path || "'.'"}, message: 'Expected to be a boolean'})`;
+    getValidateCodeWithErrors(varName: string, errorsName: string, itemPath: string): string {
+        return `if (typeof ${varName} !== 'boolean') ${errorsName}.push({path: ${itemPath}, message: 'Expected to be a Boolean'})`;
     }
     getJsonEncodeCode(varName: string): string {
         return `${varName}`;

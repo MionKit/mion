@@ -14,13 +14,14 @@ export class VoidRunType implements RunType<TypeVoid> {
     constructor(
         public readonly src: TypeVoid,
         public readonly visitor: RunTypeVisitor,
-        public readonly path: RunTypeAccessor
+        public readonly path: RunTypeAccessor,
+        public readonly nestLevel: number
     ) {}
     getValidateCode(varName: string): string {
         return `${varName} === undefined`;
     }
-    getValidateCodeWithErrors(varName: string, errorsName: string, path = this.path): string {
-        return `if (${varName} !== undefined) ${errorsName}.push({path: ${path || "'.'"}, message: 'Expected to be void'})`;
+    getValidateCodeWithErrors(varName: string, errorsName: string, itemPath: string): string {
+        return `if (${varName} !== undefined) ${errorsName}.push({path: ${itemPath}, message: 'Expected to be void'})`;
     }
     getJsonEncodeCode(): string {
         throw new Error('void can not be encoded to json.');

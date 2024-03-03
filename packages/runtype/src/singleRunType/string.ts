@@ -14,13 +14,14 @@ export class StringRunType implements RunType<TypeString> {
     constructor(
         public readonly src: TypeString,
         public readonly visitor: RunTypeVisitor,
-        public readonly path: RunTypeAccessor
+        public readonly path: RunTypeAccessor,
+        public readonly nestLevel: number
     ) {}
     getValidateCode(varName: string): string {
         return `typeof ${varName} === 'string'`;
     }
-    getValidateCodeWithErrors(varName: string, errorsName: string, path = this.path): string {
-        return `if (typeof ${varName} !== 'string') ${errorsName}.push({path: ${path || "'.'"}, message: 'Expected to be a string'})`;
+    getValidateCodeWithErrors(varName: string, errorsName: string, itemPath: string): string {
+        return `if (typeof ${varName} !== 'string') ${errorsName}.push({path: ${itemPath}, message: 'Expected to be a String'})`;
     }
     getJsonEncodeCode(varName: string): string {
         return `${varName}`;

@@ -6,17 +6,17 @@
  * ######## */
 import {runType} from '../runType';
 import {
-    getJsonEncodeFunction,
-    getJsonDecodeFunction,
-    getValidateFunction,
-    getValidateWithErrorsFunction,
-    getMockFunction,
+    getJitJsonEncodeFn,
+    getJitJsonDecodeFn,
+    getValidateJitFunction,
+    getJitValidateWithErrorsFn,
+    getJitMockFn,
 } from '../jitRunner';
 
 const rt = runType<null>();
 
 it('validate null', () => {
-    const validate = getValidateFunction(rt);
+    const validate = getValidateJitFunction(rt);
     expect(validate(null)).toBe(true);
     expect(validate(undefined)).toBe(false);
     expect(validate(42)).toBe(false);
@@ -24,27 +24,29 @@ it('validate null', () => {
 });
 
 it('validate null + errors', () => {
-    const valWithErrors = getValidateWithErrorsFunction(rt);
+    const valWithErrors = getJitValidateWithErrorsFn(rt);
     expect(valWithErrors(null)).toEqual([]);
-    expect(valWithErrors(undefined)).toEqual([{path: '.', message: 'Expected to be null'}]);
-    expect(valWithErrors(42)).toEqual([{path: '.', message: 'Expected to be null'}]);
-    expect(valWithErrors('hello')).toEqual([{path: '.', message: 'Expected to be null'}]);
+    expect(valWithErrors(undefined)).toEqual([{path: '', message: 'Expected to be null'}]);
+    expect(valWithErrors(42)).toEqual([{path: '', message: 'Expected to be null'}]);
+    expect(valWithErrors('hello')).toEqual([{path: '', message: 'Expected to be null'}]);
 });
 
 it('encode to json', () => {
-    const toJson = getJsonEncodeFunction(rt);
+    const toJson = getJitJsonEncodeFn(rt);
     const typeValue = null;
     expect(toJson(typeValue)).toEqual(typeValue);
 });
 
 it('decode from json', () => {
-    const fromJson = getJsonDecodeFunction(rt);
+    const fromJson = getJitJsonDecodeFn(rt);
     const typeValue = null;
     const jsonValue = JSON.parse(JSON.stringify(typeValue));
     expect(fromJson(jsonValue)).toEqual(typeValue);
 });
 
 it('mock', () => {
-    const mock = getMockFunction(rt);
+    const mock = getJitMockFn(rt);
     expect(mock()).toBeNull();
+    const validate = getValidateJitFunction(rt);
+    expect(validate(mock())).toBe(true);
 });

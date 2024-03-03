@@ -17,7 +17,7 @@ export type TRunType = TSchema & {jsonTransformer?: TTransform<any, any>};
 
 export type JSONValue = string | number | boolean | null | {[key: string]: JSONValue} | Array<JSONValue>;
 
-export type RunTypeVisitor = (deepkitType: Type, path: RunTypeAccessor) => RunType;
+export type RunTypeVisitor = (deepkitType: Type, path: RunTypeAccessor, nestLevel: number) => RunType;
 
 export type RunTypeAccessor = string | number;
 
@@ -32,6 +32,7 @@ export interface RunTypeValidationError {
 }
 
 export interface RunType<T extends Type = Type> {
+    readonly nestLevel: number;
     readonly path: RunTypeAccessor;
     readonly src: T;
     readonly visitor: RunTypeVisitor;
@@ -49,9 +50,9 @@ export interface RunType<T extends Type = Type> {
      * Validation + error info
      * Similar to validation code but instead of returning a boolean it should assign an error message to the errorsName
      * This is an executable code block and can contain multiple lines or semicolons
-     * ie:  validateCodeWithErrors = () => `if (typeof vλluε !== 'string') ${errorsName} = 'Expected to be a string';`
+     * ie:  validateCodeWithErrors = () => `if (typeof vλluε !== 'string') ${errorsName} = 'Expected to be a String';`
      */
-    getValidateCodeWithErrors: (varName: string, errorsName: string, path?: RunTypeAccessor) => string;
+    getValidateCodeWithErrors: (varName: string, errorsName: string, itemPath: string) => string;
     /**
      * Code to transform from type to a json type so type can be serialized to json
      * this code should not use return statements, it should be a single line of code that evaluates to a json compatible type.

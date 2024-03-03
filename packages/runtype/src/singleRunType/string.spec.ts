@@ -6,38 +6,40 @@
  * ######## */
 import {runType} from '../runType';
 import {
-    getJsonEncodeFunction,
-    getJsonDecodeFunction,
-    getValidateFunction,
-    getValidateWithErrorsFunction,
-    getMockFunction,
+    getJitJsonEncodeFn,
+    getJitJsonDecodeFn,
+    getValidateJitFunction,
+    getJitValidateWithErrorsFn,
+    getJitMockFn,
 } from '../jitRunner';
 
 const rt = runType<string>();
 
 it('validate string', () => {
-    const validate = getValidateFunction(rt);
+    const validate = getValidateJitFunction(rt);
     expect(validate('hello')).toBe(true);
     expect(validate(2)).toBe(false);
 });
 
 it('validate string + errors', () => {
-    const valWithErrors = getValidateWithErrorsFunction(rt);
+    const valWithErrors = getJitValidateWithErrorsFn(rt);
     expect(valWithErrors('hello')).toEqual([]);
-    expect(valWithErrors(2)).toEqual([{path: '.', message: 'Expected to be a string'}]);
+    expect(valWithErrors(2)).toEqual([{path: '', message: 'Expected to be a String'}]);
 });
 
 it('encode to json', () => {
-    const toJson = getJsonEncodeFunction(rt);
+    const toJson = getJitJsonEncodeFn(rt);
     expect(toJson('hello')).toBe('hello');
 });
 
 it('decode from json', () => {
-    const fromJson = getJsonDecodeFunction(rt);
+    const fromJson = getJitJsonDecodeFn(rt);
     expect(fromJson('hello')).toBe('hello');
 });
 
 it('mock', () => {
-    const mock = getMockFunction(rt);
+    const mock = getJitMockFn(rt);
     expect(typeof mock()).toBe('string');
+    const validate = getValidateJitFunction(rt);
+    expect(validate(mock())).toBe(true);
 });

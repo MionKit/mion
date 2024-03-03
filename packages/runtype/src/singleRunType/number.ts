@@ -14,13 +14,14 @@ export class NumberRunType implements RunType<TypeNumber> {
     constructor(
         public readonly src: TypeNumber,
         public readonly visitor: RunTypeVisitor,
-        public readonly path: RunTypeAccessor
+        public readonly path: RunTypeAccessor,
+        public readonly nestLevel: number
     ) {}
     getValidateCode(varName: string): string {
         return `typeof ${varName} === 'number' && Number.isFinite(${varName})`;
     }
-    getValidateCodeWithErrors(varName: string, errorsName: string, path = this.path): string {
-        return `if(!(${this.getValidateCode(varName)})) ${errorsName}.push({path: ${path || "'.'"}, message: 'Expected to be a valid number'})`;
+    getValidateCodeWithErrors(varName: string, errorsName: string, itemPath: string): string {
+        return `if(!(${this.getValidateCode(varName)})) ${errorsName}.push({path: ${itemPath}, message: 'Expected to be a valid Number'})`;
     }
     getJsonEncodeCode(varName: string): string {
         return `${varName}`;
