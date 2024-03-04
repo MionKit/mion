@@ -32,12 +32,17 @@ it('validate symbol + errors', () => {
     expect(valWithErrors('hello')).toEqual([{path: '', message: 'Expected to be a Symbol'}]);
 });
 
-it('encode to json should throw an error', () => {
-    expect(() => getJitJsonEncodeFn(rt)).toThrow('Symbol encode to json not supported.');
+it('encode to json', () => {
+    const toJson = getJitJsonEncodeFn(rt);
+    const typeValue = Symbol('foo');
+    expect(toJson(typeValue)).toEqual('Symbol:foo');
 });
 
-it('decode from json should throw an error', () => {
-    expect(() => getJitJsonDecodeFn(rt)).toThrow('Symbol decode from json supported.');
+it('decode from json', () => {
+    const fromJson = getJitJsonDecodeFn(rt);
+    const typeValue = Symbol('foo');
+    const jsonValue = 'Symbol:foo';
+    expect(fromJson(jsonValue).toString()).toEqual(typeValue.toString());
 });
 
 it('mock', () => {

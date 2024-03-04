@@ -6,7 +6,7 @@
  * ######## */
 
 import {TypeClass} from '@deepkit/type';
-import {RunType, RunTypeAccessor, RunTypeVisitor} from '../types';
+import {JitJsonEncoder, RunType, RunTypeAccessor, RunTypeVisitor} from '../types';
 
 export class DateRunType implements RunType<TypeClass> {
     public readonly shouldEncodeJson = false;
@@ -24,12 +24,21 @@ export class DateRunType implements RunType<TypeClass> {
         return `if (!(${this.getValidateCode(varName)})) ${errorsName}.push({path: ${itemPath}, message: 'Expected to be a valid Date'})`;
     }
     getJsonEncodeCode(varName: string): string {
-        return `${varName}`;
+        return DateJitJsonENcoder.encodeToJson(varName);
     }
     getJsonDecodeCode(varName: string): string {
-        return `new Date(${varName})`;
+        return DateJitJsonENcoder.decodeFromJson(varName);
     }
     getMockCode(varName: string): string {
         return `${varName} = new Date(+(new Date()) - Math.floor(Math.random() * 10000000000))`;
     }
 }
+
+export const DateJitJsonENcoder: JitJsonEncoder = {
+    decodeFromJson(varName: string): string {
+        return `new Date(${varName})`;
+    },
+    encodeToJson(varName: string): string {
+        return `${varName}`;
+    },
+};

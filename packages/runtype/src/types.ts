@@ -21,6 +21,11 @@ export type RunTypeVisitor = (deepkitType: Type, path: RunTypeAccessor, nestLeve
 
 export type RunTypeAccessor = string | number;
 
+export interface JitJsonEncoder {
+    decodeFromJson: (varName: string) => string;
+    encodeToJson: (varName: string) => string;
+}
+
 export interface RunTypeValidationError {
     /**
      * Path the the property that failed validation if the validated item was an object class, etc..
