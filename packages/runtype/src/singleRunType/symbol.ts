@@ -6,11 +6,11 @@
  * ######## */
 
 import {TypeSymbol} from '@deepkit/type';
-import {RunType, RunTypeAccessor, RunTypeVisitor} from '../types';
+import {RunType, RunTypeAccessor, RunTypeVisitor, JitJsonEncoder} from '../types';
 
 export class SymbolRunType implements RunType<TypeSymbol> {
-    public readonly shouldEncodeJson = false;
-    public readonly shouldDecodeJson = false;
+    public readonly shouldEncodeJson = true;
+    public readonly shouldDecodeJson = true;
     constructor(
         public readonly src: TypeSymbol,
         public readonly visitor: RunTypeVisitor,
@@ -23,11 +23,11 @@ export class SymbolRunType implements RunType<TypeSymbol> {
     getValidateCodeWithErrors(varName: string, errorsName: string, itemPath: string): string {
         return `if (typeof ${varName} !== 'symbol') ${errorsName}.push({path: ${itemPath}, message: 'Expected to be a Symbol'})`;
     }
-    getJsonEncodeCode(): string {
-        throw new Error('Symbol encode to json not supported.');
+    getJsonEncodeCode(varName: string): string {
+        return SymbolJitJsonENcoder.encodeToJson(varName);
     }
-    getJsonDecodeCode(): string {
-        throw new Error('Symbol decode from json supported.');
+    getJsonDecodeCode(varName: string): string {
+        return SymbolJitJsonENcoder.decodeFromJson(varName);
     }
     getMockCode(varName: string): string {
         return (
@@ -37,3 +37,12 @@ export class SymbolRunType implements RunType<TypeSymbol> {
         );
     }
 }
+
+export const SymbolJitJsonENcoder: JitJsonEncoder = {
+    decodeFromJson(varName: string): string {
+        return `Symbol(${varName}.substring(7))`;
+    },
+    encodeToJson(varName: string): string {
+        return `'Symbol:' + (${varName}.description || '')`;
+    },
+};

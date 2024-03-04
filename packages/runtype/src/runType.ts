@@ -20,6 +20,8 @@ import {UndefinedRunType} from './singleRunType/undefined';
 import {UnknownRunType} from './singleRunType/unknown';
 import {VoidRunType} from './singleRunType/void';
 import {ArrayRunType} from './collectionRunType/array';
+import {LiteralRunType} from './singleRunType/literal';
+import {RegexpRunType} from './singleRunType/regexp';
 // import {resolveAsyncIterator, resolveIterator} from './typeBoxMap/nativeObjectLiterals';
 
 export function runType<T>(type?: ReceiveType<T>): RunType {
@@ -82,8 +84,7 @@ function visitor(deepkitType, path: RunTypeAccessor, nestLevel: number): RunType
             // rType = resolveIntersection(deepkitType, opts, mapper);
             break;
         case ReflectionKind.literal:
-            // rType = resolveLiteral(deepkitType, opts);
-            throw new Error('not implemented');
+            rt = new LiteralRunType(deepkitType, visitor, path, nestLevel);
             break;
         case ReflectionKind.method:
             throw new Error('not implemented');
@@ -130,11 +131,7 @@ function visitor(deepkitType, path: RunTypeAccessor, nestLevel: number): RunType
             // rType = resolvePropertySignature(deepkitType, opts, mapper);
             break;
         case ReflectionKind.regexp:
-            /* this scenario only catched type x = Regexp, that would be equivalent to define an empty Regexp
-             * the other cases were regexp are defined as literals x = /foo/i
-             * or x = new Regexp('foo', 'i') are handled by the literal case */
-            // rType = TypeBox.RegExp(new RegExp(''), opts);
-            throw new Error('not implemented');
+            rt = new RegexpRunType(deepkitType, visitor, path, nestLevel);
             break;
         case ReflectionKind.rest:
             throw new Error('Typebox does not support rest parameters i.e. function foo(...args: number[]) {}');

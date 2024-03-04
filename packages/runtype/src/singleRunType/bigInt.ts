@@ -6,7 +6,7 @@
  * ######## */
 
 import {TypeBigInt} from '@deepkit/type';
-import {RunType, RunTypeAccessor, RunTypeVisitor} from '../types';
+import {JitJsonEncoder, RunType, RunTypeAccessor, RunTypeVisitor} from '../types';
 
 export class BigIntRunType implements RunType<TypeBigInt> {
     public readonly shouldEncodeJson = true;
@@ -24,12 +24,21 @@ export class BigIntRunType implements RunType<TypeBigInt> {
         return `if (typeof ${varName} !== 'bigint') ${errorsName}.push({path: ${itemPath}, message:'Expected to be a valid Bigint'})`;
     }
     getJsonEncodeCode(varName: string): string {
-        return `${varName}.toString()`;
+        return BigIntJitJsonENcoder.encodeToJson(varName);
     }
     getJsonDecodeCode(varName: string): string {
-        return `BigInt(${varName})`;
+        return BigIntJitJsonENcoder.decodeFromJson(varName);
     }
     getMockCode(varName: string): string {
         return `${varName} = BigInt(Math.floor(Math.random() * 1000000))`;
     }
 }
+
+export const BigIntJitJsonENcoder: JitJsonEncoder = {
+    decodeFromJson(varName: string): string {
+        return `BigInt(${varName}.substring(0, ${varName}.length - 1))`;
+    },
+    encodeToJson(varName: string): string {
+        return `${varName}.toString() + 'n'`;
+    },
+};
