@@ -5,23 +5,24 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {TypeString} from '@deepkit/type';
+import {TypeEnum} from '@deepkit/type';
 import {RunType, RunTypeVisitor} from '../types';
+import {scapeQ, toLiteral} from '../utils';
 
-export class StringRunType implements RunType<TypeString> {
-    public readonly name = 'string';
+export class EnumRunType implements RunType<TypeEnum> {
+    public readonly name = 'enum';
     public readonly shouldEncodeJson = false;
     public readonly shouldDecodeJson = false;
     constructor(
-        public readonly src: TypeString,
+        public readonly src: TypeEnum,
         public readonly visitor: RunTypeVisitor,
         public readonly nestLevel: number
     ) {}
     getValidateCode(varName: string): string {
-        return `typeof ${varName} === 'string'`;
+        return this.src.values.map((v) => `${varName} === ${toLiteral(v)}`).join(' || ');
     }
     getValidateCodeWithErrors(varName: string, errorsName: string, itemPath: string): string {
-        return `if (typeof ${varName} !== 'string') ${errorsName}.push({path: ${itemPath}, message: 'Expected to be a String'})`;
+        return `if (!(${this.getValidateCode(varName)})) ${errorsName}.push({path: ${itemPath}, message: 'Expected to be one of: ${scapeQ(this.src.values.join(', '))}'})`;
     }
     getJsonEncodeCode(varName: string): string {
         return varName;
@@ -30,12 +31,10 @@ export class StringRunType implements RunType<TypeString> {
         return varName;
     }
     getMockCode(varName: string): string {
-        const alpha = `alpha${this.nestLevel}`;
-        const length = `length${this.nestLevel}`;
+        const enumList = `εnumList${this.nestLevel}`;
         return (
-            `const ${alpha} = 'abcdefghijklmnopqrstuvwxyz 1234567890';` +
-            `const ${length} = Math.floor(Math.random() * 20);` +
-            `${varName} = Array.from({length: ${length}}, () => ${alpha}[Math.floor(Math.random() * ${alpha}.length)]).join('')`
+            `const ${enumList} = [${this.src.values.map((v) => toLiteral(v)).join(', ')}];` +
+            `${varName} = ${enumList}[Math.floor(Math.random() * ${enumList}.length)]`
         );
     }
 }

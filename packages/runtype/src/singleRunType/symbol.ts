@@ -6,15 +6,15 @@
  * ######## */
 
 import {TypeSymbol} from '@deepkit/type';
-import {RunType, RunTypeAccessor, RunTypeVisitor, JitJsonEncoder} from '../types';
+import {RunType, RunTypeVisitor, JitJsonEncoder} from '../types';
 
 export class SymbolRunType implements RunType<TypeSymbol> {
+    public readonly name = 'symbol';
     public readonly shouldEncodeJson = true;
     public readonly shouldDecodeJson = true;
     constructor(
         public readonly src: TypeSymbol,
         public readonly visitor: RunTypeVisitor,
-        public readonly path: RunTypeAccessor,
         public readonly nestLevel: number
     ) {}
     getValidateCode(varName: string): string {
@@ -30,10 +30,10 @@ export class SymbolRunType implements RunType<TypeSymbol> {
         return SymbolJitJsonENcoder.decodeFromJson(varName);
     }
     getMockCode(varName: string): string {
+        const alpha = `alpha${this.nestLevel}`;
         return (
-            `const ALPHABET = 'abcdefghijklmnopqrstuvwxyz1234567890';` +
-            `const index = Math.floor(Math.random() * ALPHABET.length);` +
-            `${varName} = Symbol(ALPHABET[index])`
+            `const ${alpha} = 'abcdefghijklmnopqrstuvwxyz1234567890';` +
+            `${varName} = Symbol(${alpha}[Math.floor(Math.random() * ${alpha}.length)])`
         );
     }
 }

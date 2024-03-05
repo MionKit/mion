@@ -6,15 +6,15 @@
  * ######## */
 
 import {TypeBigInt} from '@deepkit/type';
-import {JitJsonEncoder, RunType, RunTypeAccessor, RunTypeVisitor} from '../types';
+import {JitJsonEncoder, RunType, RunTypeVisitor} from '../types';
 
 export class BigIntRunType implements RunType<TypeBigInt> {
+    public readonly name = 'bigint';
     public readonly shouldEncodeJson = true;
     public readonly shouldDecodeJson = true;
     constructor(
         public readonly src: TypeBigInt,
         public readonly visitor: RunTypeVisitor,
-        public readonly path: RunTypeAccessor,
         public readonly nestLevel: number
     ) {}
     getValidateCode(varName: string): string {

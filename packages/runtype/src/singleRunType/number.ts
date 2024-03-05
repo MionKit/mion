@@ -6,15 +6,15 @@
  * ######## */
 
 import {TypeNumber} from '@deepkit/type';
-import {RunType, RunTypeAccessor, RunTypeVisitor} from '../types';
+import {RunType, RunTypeVisitor} from '../types';
 
 export class NumberRunType implements RunType<TypeNumber> {
+    public readonly name = 'number';
     public readonly shouldEncodeJson = false;
     public readonly shouldDecodeJson = false;
     constructor(
         public readonly src: TypeNumber,
         public readonly visitor: RunTypeVisitor,
-        public readonly path: RunTypeAccessor,
         public readonly nestLevel: number
     ) {}
     getValidateCode(varName: string): string {
@@ -24,10 +24,10 @@ export class NumberRunType implements RunType<TypeNumber> {
         return `if(!(${this.getValidateCode(varName)})) ${errorsName}.push({path: ${itemPath}, message: 'Expected to be a valid Number'})`;
     }
     getJsonEncodeCode(varName: string): string {
-        return `${varName}`;
+        return varName;
     }
     getJsonDecodeCode(varName: string): string {
-        return `${varName}`;
+        return varName;
     }
     getMockCode(varName: string): string {
         return `${varName} = Math.floor(Math.random() * 10000)`;

@@ -6,10 +6,11 @@
  * ######## */
 
 import {TypeLiteral} from '@deepkit/type';
-import {JitJsonEncoder, RunType, RunTypeAccessor, RunTypeVisitor} from '../types';
+import {JitJsonEncoder, RunType, RunTypeVisitor} from '../types';
 import {SymbolJitJsonENcoder} from './symbol';
 import {BigIntJitJsonENcoder} from './bigInt';
 import {RegexpJitJsonEncoder} from './regexp';
+import {scapeQ, toLiteral} from '../utils';
 
 const noEncoder: JitJsonEncoder = {
     decodeFromJson(varName: string) {
@@ -21,13 +22,13 @@ const noEncoder: JitJsonEncoder = {
 };
 
 export class LiteralRunType implements RunType<TypeLiteral> {
+    public readonly name: string;
     public readonly shouldEncodeJson: boolean;
     public readonly shouldDecodeJson: boolean;
     public readonly jitJsonEncoder: JitJsonEncoder;
     constructor(
         public readonly src: TypeLiteral,
         public readonly visitor: RunTypeVisitor,
-        public readonly path: RunTypeAccessor,
         public readonly nestLevel: number
     ) {
         switch (true) {
@@ -35,26 +36,31 @@ export class LiteralRunType implements RunType<TypeLiteral> {
                 this.jitJsonEncoder = BigIntJitJsonENcoder;
                 this.shouldEncodeJson = true;
                 this.shouldDecodeJson = true;
+                this.name = 'bigint';
                 break;
             case typeof src.literal === 'symbol':
                 this.jitJsonEncoder = SymbolJitJsonENcoder;
                 this.shouldEncodeJson = true;
                 this.shouldDecodeJson = true;
+                this.name = 'symbol';
                 break;
             case typeof src.literal === 'string':
                 this.jitJsonEncoder = noEncoder;
                 this.shouldEncodeJson = false;
                 this.shouldDecodeJson = false;
+                this.name = 'string';
                 break;
             case src.literal instanceof RegExp:
                 this.jitJsonEncoder = RegexpJitJsonEncoder;
                 this.shouldEncodeJson = true;
                 this.shouldDecodeJson = true;
+                this.name = 'RegExp';
                 break;
             default:
                 this.jitJsonEncoder = noEncoder;
                 this.shouldEncodeJson = false;
                 this.shouldDecodeJson = false;
+                this.name = typeof src.literal;
         }
     }
     getValidateCode(varName: string): string {
@@ -80,49 +86,45 @@ export class LiteralRunType implements RunType<TypeLiteral> {
     }
     getMockCode(varName: string): string {
         if (typeof this.src.literal === 'symbol') return `${varName} = Symbol('${this.src.literal.description}')`;
-        else if (typeof this.src.literal === 'bigint') return `${varName} = ${this.src.literal.toString()}n`;
-        else if (typeof this.src.literal === 'string') return `${varName} = '${this.src.literal}'`;
-        return `${varName} = ${this.src.literal}`;
+        return `${varName} = ${toLiteral(this.src.literal)}`;
     }
 }
 
 function validateBigInt(varName: string, lit: bigint): string {
-    return `${varName} === ${lit.toString()}n`;
+    return `${varName} === ${toLiteral(lit)}`;
 }
 
 function validateSymbol(varName: string, sbl: symbol): string {
-    return `typeof ${varName} === 'symbol' && ${varName}.description === '${sbl.description}'`;
+    return `typeof ${varName} === 'symbol' && ${varName}.description === ${toLiteral(sbl.description)}`;
 }
 
 function validateRegExp(varName: string, regexp: RegExp): string {
     return `String(${varName}) === String(${regexp})`;
 }
 
-function validateLiteral(varName: string, literal: Omit<TypeLiteral['literal'], 'symbol'>): string {
-    const lit = typeof literal === 'string' ? `'${literal}'` : literal;
-    return `${varName} === ${lit}`;
+function validateLiteral(varName: string, literal: Exclude<TypeLiteral['literal'], symbol>): string {
+    return `${varName} === ${toLiteral(literal)}`;
 }
 
 function validateBigIntWithErrors(varName: string, errorsName: string, itemPath: string, lit: bigint): string {
-    return `if (${varName} !== ${lit.toString()}n) ${errorsName}.push({path: ${itemPath}, message: 'Expected to be a literal: ${lit.toString()}n'})`;
+    return `if (${varName} !== ${toLiteral(lit)}) ${errorsName}.push({path: ${itemPath}, message: 'Expected to be a bigint: ${lit.toString()}n'})`;
 }
 
 function validateSymbolWithErrors(varName: string, errorsName: string, itemPath: string, sbl: symbol): string {
-    return `if (typeof ${varName} !== 'symbol' || ${varName}.description !== '${sbl.description}') {
-        ${errorsName}.push({path: ${itemPath}, message: 'Expected to be a literal: ${sbl.toString()}'})
+    return `if (typeof ${varName} !== 'symbol' || ${varName}.description !== ${toLiteral(sbl.description)}) {
+        ${errorsName}.push({path: ${itemPath}, message: 'Expected to be a symbol: ${sbl.toString()}'})
     }`;
 }
 
 function validateRegExpWithErrors(varName: string, errorsName: string, itemPath: string, regexp: RegExp): string {
-    return `if (String(${varName}) !== String(${regexp})) ${errorsName}.push({path: ${itemPath}, message: 'Expected to be a literal: ${regexp}'})`;
+    return `if (String(${varName}) !== String(${regexp})) ${errorsName}.push({path: ${itemPath}, message: 'Expected to be a RegExp: ${scapeQ(regexp)}'})`;
 }
 
 function validateLiteralWithErrors(
     varName: string,
     errorsName: string,
     itemPath: string,
-    literal: Omit<TypeLiteral['literal'], 'symbol'>
+    literal: Exclude<TypeLiteral['literal'], symbol>
 ): string {
-    const lit = typeof literal === 'string' ? `'${literal}'` : literal;
-    return `if (${varName} !== ${lit}) ${errorsName}.push({path: ${itemPath}, message: 'Expected to be a literal: ${literal}'})`;
+    return `if (${varName} !== ${toLiteral(literal)}) ${errorsName}.push({path: ${itemPath}, message: 'Expected to be ${scapeQ(literal)}'})`;
 }

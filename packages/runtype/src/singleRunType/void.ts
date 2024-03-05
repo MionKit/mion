@@ -6,15 +6,15 @@
  * ######## */
 
 import {TypeVoid} from '@deepkit/type';
-import {RunType, RunTypeAccessor, RunTypeVisitor} from '../types';
+import {RunType, RunTypeVisitor} from '../types';
 
 export class VoidRunType implements RunType<TypeVoid> {
+    public readonly name = 'void';
     public readonly shouldEncodeJson = false;
     public readonly shouldDecodeJson = false;
     constructor(
         public readonly src: TypeVoid,
         public readonly visitor: RunTypeVisitor,
-        public readonly path: RunTypeAccessor,
         public readonly nestLevel: number
     ) {}
     getValidateCode(varName: string): string {

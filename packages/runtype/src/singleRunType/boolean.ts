@@ -6,15 +6,15 @@
  * ######## */
 
 import {TypeBoolean} from '@deepkit/type';
-import {RunType, RunTypeAccessor, RunTypeVisitor} from '../types';
+import {RunType, RunTypeVisitor} from '../types';
 
 export class BooleanRunType implements RunType<TypeBoolean> {
+    public readonly name = 'boolean';
     public readonly shouldEncodeJson = false;
     public readonly shouldDecodeJson = false;
     constructor(
         public readonly src: TypeBoolean,
         public readonly visitor: RunTypeVisitor,
-        public readonly path: RunTypeAccessor,
         public readonly nestLevel: number
     ) {}
     getValidateCode(varName: string): string {
@@ -24,10 +24,10 @@ export class BooleanRunType implements RunType<TypeBoolean> {
         return `if (typeof ${varName} !== 'boolean') ${errorsName}.push({path: ${itemPath}, message: 'Expected to be a Boolean'})`;
     }
     getJsonEncodeCode(varName: string): string {
-        return `${varName}`;
+        return varName;
     }
     getJsonDecodeCode(varName: string): string {
-        return `${varName}`;
+        return varName;
     }
     getMockCode(varName: string): string {
         return `${varName} = Math.random() < 0.5`;

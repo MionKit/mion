@@ -6,6 +6,7 @@
  * ######## */
 
 import {JSONValue, RunType, RunTypeValidationError} from './types';
+import {toLiteral} from './utils';
 
 export function getValidateJitFunction(runType: RunType, varName = 'vλluε'): (vλluε: any) => boolean {
     const varNameNest = `${varName}${runType.nestLevel}`;
@@ -16,10 +17,10 @@ export function getValidateJitFunction(runType: RunType, varName = 'vλluε'): (
 export function getJitValidateWithErrorsFn(
     runType: RunType,
     varName = 'vλluε',
-    errorsName = 'εrrΦrs'
+    errorsName = 'εrrΦrs',
+    rootPath = ''
 ): (vλluε: any) => RunTypeValidationError[] {
-    const itemPath = `'${runType.path}'`;
-    const code = runType.getValidateCodeWithErrors(varName, errorsName, itemPath);
+    const code = runType.getValidateCodeWithErrors(varName, errorsName, toLiteral(rootPath));
     return new Function(varName, `const ${errorsName} = []; ${code}; return ${errorsName};`) as (
         vλluε: any
     ) => RunTypeValidationError[];
