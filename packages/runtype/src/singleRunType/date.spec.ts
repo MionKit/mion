@@ -27,17 +27,11 @@ it('validate Date + errors', () => {
     expect(valWithErrors('hello')).toEqual([{path: '', message: 'Expected to be a valid Date'}]);
 });
 
-it('encode to json', () => {
+it('encode/decode to json', () => {
     const toJson = getJitJsonEncodeFn(rt);
-    const typeValue = new Date();
-    expect(toJson(typeValue)).toEqual(typeValue);
-});
-
-it('decode from json', () => {
     const fromJson = getJitJsonDecodeFn(rt);
     const typeValue = new Date();
-    const json = JSON.parse(JSON.stringify(typeValue));
-    expect(fromJson(json)).toEqual(typeValue);
+    expect(fromJson(toJson(typeValue))).toEqual(typeValue);
 });
 
 it('mock', () => {

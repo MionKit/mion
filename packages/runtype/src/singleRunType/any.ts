@@ -6,7 +6,7 @@
  * ######## */
 
 import {TypeAny, TypeUnknown} from '@deepkit/type';
-import {RunType, RunTypeAccessor, RunTypeVisitor} from '../types';
+import {RunType, RunTypeVisitor} from '../types';
 
 export class AnyRunType implements RunType<TypeAny | TypeUnknown> {
     public readonly shouldEncodeJson = false;
@@ -14,8 +14,8 @@ export class AnyRunType implements RunType<TypeAny | TypeUnknown> {
     constructor(
         public readonly src: TypeAny | TypeUnknown,
         public readonly visitor: RunTypeVisitor,
-        public readonly path: RunTypeAccessor,
-        public readonly nestLevel: number
+        public readonly nestLevel: number,
+        public readonly name = 'any'
     ) {}
     getValidateCode(): string {
         return `true`;
@@ -24,15 +24,16 @@ export class AnyRunType implements RunType<TypeAny | TypeUnknown> {
         return ``;
     }
     getJsonEncodeCode(varName: string): string {
-        return `${varName}`;
+        return varName;
     }
     getJsonDecodeCode(varName: string): string {
-        return `${varName}`;
+        return varName;
     }
     getMockCode(varName: string): string {
+        const valuesList = `anyVal${this.nestLevel}`;
         return (
-            `const anyValue = [{}, {hello: 'world'}, [], [1, 3, 'hello'], 'hello', 1234, BigInt(1), true, false, null, undefined, Symbol('hello'), -124, 0, 124, 0.1, -0.1, Infinity, NaN, new Date()];` +
-            `${varName} = anyValue[Math.floor(Math.random() * anyValue.length)]`
+            `const ${valuesList} = [{}, {hello: 'world'}, [], [1, 3, 'hello'], 'hello', 1234, BigInt(1), true, false, null, undefined, Symbol('hello'), -124, 0, 124, 0.1, -0.1, Infinity, NaN, new Date()];` +
+            `${varName} =  ${valuesList}[Math.floor(Math.random() *  ${valuesList}.length)]`
         );
     }
 }

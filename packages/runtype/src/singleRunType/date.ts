@@ -6,15 +6,15 @@
  * ######## */
 
 import {TypeClass} from '@deepkit/type';
-import {JitJsonEncoder, RunType, RunTypeAccessor, RunTypeVisitor} from '../types';
+import {JitJsonEncoder, RunType, RunTypeVisitor} from '../types';
 
 export class DateRunType implements RunType<TypeClass> {
+    public readonly name = 'Date';
     public readonly shouldEncodeJson = false;
     public readonly shouldDecodeJson = true;
     constructor(
         public readonly src: TypeClass,
         public readonly visitor: RunTypeVisitor,
-        public readonly path: RunTypeAccessor,
         public readonly nestLevel: number
     ) {}
     getValidateCode(varName: string): string {

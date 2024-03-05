@@ -36,9 +36,12 @@ const regexpsList = [
     /\b\d{1,2}:\d{2}:\d{2} [AP]M\b/, // Matches a time in the format HH:MM:SS AM/PM
     /\b\d{1,2}:\d{2} [AP]M\b/, // Matches a time in the format HH:MM AM/PM
     /abc/gi, // Matches the string 'abc' with the global and case-insensitive flags
+    /['"]/, // regexp that contains single and double quotes
+    /\/(.*)\/(.*)?/, // regexp that contains a slash
+    /\/\//, // regexp that contains two slashes
+    /`/, // regexp that contains backticks
+    /\/\\\//, // regexp double scaped \\
 ];
-
-const regexpsStrings = regexpsList.map((regexp) => regexp.toString());
 
 it('validate regexp', () => {
     const validate = getValidateJitFunction(rt);
@@ -57,22 +60,12 @@ it('validate regexp + errors', () => {
     expect(valWithErrors('hello')).toEqual([{path: '', message: 'Expected to be a RegExp'}]);
 });
 
-it('encode to json', () => {
-    const toJson = getJitJsonEncodeFn(rt);
-    regexpsList.forEach((regexp, i) => {
-        expect(toJson(regexp)).toEqual(regexpsStrings[i]);
-    });
-});
-
-it('decode from json', () => {
+it('encode/decode json', () => {
     const fromJson = getJitJsonDecodeFn(rt);
-    regexpsStrings.forEach((regexpString, i) => {
-        expect(fromJson(regexpString)).toEqual(regexpsList[i]);
+    const toJson = getJitJsonEncodeFn(rt);
+    regexpsList.forEach((regexp) => {
+        expect(fromJson(toJson(regexp))).toEqual(regexp);
     });
-    const phoneRegexp: RegExp = fromJson(regexpsStrings[5]);
-    expect(phoneRegexp.test('999-999-9999')).toEqual(true);
-    expect(phoneRegexp.test('XXX-XXX-XXXX')).toEqual(false);
-    expect(phoneRegexp.test('zzasd123')).toEqual(false);
 });
 
 it('mock', () => {

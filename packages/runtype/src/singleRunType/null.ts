@@ -6,15 +6,15 @@
  * ######## */
 
 import {TypeNull} from '@deepkit/type';
-import {RunType, RunTypeAccessor, RunTypeVisitor} from '../types';
+import {RunType, RunTypeVisitor} from '../types';
 
 export class NullRunType implements RunType<TypeNull> {
+    public readonly name = 'null';
     public readonly shouldEncodeJson = false;
     public readonly shouldDecodeJson = false;
     constructor(
         public readonly src: TypeNull,
         public readonly visitor: RunTypeVisitor,
-        public readonly path: RunTypeAccessor,
         public readonly nestLevel: number
     ) {}
     getValidateCode(varName: string): string {
@@ -24,10 +24,10 @@ export class NullRunType implements RunType<TypeNull> {
         return `if (${varName} !== null) ${errorsName}.push({path: ${itemPath}, message: 'Expected to be null'})`;
     }
     getJsonEncodeCode(varName: string): string {
-        return `${varName}`;
+        return varName;
     }
     getJsonDecodeCode(varName: string): string {
-        return `${varName}`;
+        return varName;
     }
     getMockCode(varName: string): string {
         return `${varName} = null`;

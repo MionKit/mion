@@ -14,10 +14,12 @@ import {
 } from '../jitCompiler';
 
 const reg = /abc/i;
+const reg2 = /['"]\/\\\//; // regexp with characters that can be problematic in jit code if not correctly scaped
 const sym = Symbol('hello');
 const rt2 = runType<2>();
 const rtA = runType<'a'>();
 const rtReg = runType<typeof reg>();
+const rtReg2 = runType<typeof reg2>();
 const rtTrue = runType<true>();
 const rtBig = runType<1n>();
 const rtSym = runType<typeof sym>();
@@ -26,6 +28,7 @@ it('validate literal', () => {
     const validate2 = getValidateJitFunction(rt2);
     const validateA = getValidateJitFunction(rtA);
     const validateReg = getValidateJitFunction(rtReg);
+    const validateReg2 = getValidateJitFunction(rtReg2);
     const validateTrue = getValidateJitFunction(rtTrue);
     const validateBig = getValidateJitFunction(rtBig);
     const validateSym = getValidateJitFunction(rtSym);
@@ -33,7 +36,8 @@ it('validate literal', () => {
     // success
     expect(validate2(2)).toBe(true);
     expect(validateA('a')).toBe(true);
-    expect(validateReg(/abc/i)).toEqual(true);
+    expect(validateReg(reg)).toEqual(true);
+    expect(validateReg2(reg2)).toEqual(true);
     expect(validateTrue(true)).toBe(true);
     expect(validateBig(1n)).toBe(true);
     expect(validateSym(sym)).toBe(true);
@@ -51,6 +55,7 @@ it('validate literal + errors', () => {
     const valWithErrors2 = getJitValidateWithErrorsFn(rt2);
     const valWithErrorsA = getJitValidateWithErrorsFn(rtA);
     const valWithErrorsReg = getJitValidateWithErrorsFn(rtReg);
+    const valWithErrorsReg2 = getJitValidateWithErrorsFn(rtReg2);
     const valWithErrorsTrue = getJitValidateWithErrorsFn(rtTrue);
     const valWithErrorsBig = getJitValidateWithErrorsFn(rtBig);
     const valWithErrorsSym = getJitValidateWithErrorsFn(rtSym);
@@ -64,12 +69,13 @@ it('validate literal + errors', () => {
     expect(valWithErrorsSym(sym)).toEqual([]);
 
     // fail
-    expect(valWithErrors2(4)).toEqual([{path: '', message: 'Expected to be a literal: 2'}]);
-    expect(valWithErrorsA('b')).toEqual([{path: '', message: 'Expected to be a literal: a'}]);
-    expect(valWithErrorsReg(/asdf/i)).toEqual([{path: '', message: 'Expected to be a literal: /abc/i'}]);
-    expect(valWithErrorsTrue(false)).toEqual([{path: '', message: 'Expected to be a literal: true'}]);
-    expect(valWithErrorsBig(2n)).toEqual([{path: '', message: 'Expected to be a literal: 1n'}]);
-    expect(valWithErrorsSym(Symbol('nice'))).toEqual([{path: '', message: 'Expected to be a literal: Symbol(hello)'}]);
+    expect(valWithErrors2(4)).toEqual([{path: '', message: 'Expected to be 2'}]);
+    expect(valWithErrorsA('b')).toEqual([{path: '', message: 'Expected to be a'}]);
+    expect(valWithErrorsReg(/hello/i)).toEqual([{path: '', message: 'Expected to be a RegExp: /abc/i'}]);
+    expect(valWithErrorsReg2(/hello/i)).toEqual([{path: '', message: 'Expected to be a RegExp: /[\'"]/\\//'}]);
+    expect(valWithErrorsTrue(false)).toEqual([{path: '', message: 'Expected to be true'}]);
+    expect(valWithErrorsBig(2n)).toEqual([{path: '', message: 'Expected to be a bigint: 1n'}]);
+    expect(valWithErrorsSym(Symbol('nice'))).toEqual([{path: '', message: 'Expected to be a symbol: Symbol(hello)'}]);
 });
 
 it('encode to json', () => {

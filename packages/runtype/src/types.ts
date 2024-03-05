@@ -17,9 +17,7 @@ export type TRunType = TSchema & {jsonTransformer?: TTransform<any, any>};
 
 export type JSONValue = string | number | boolean | null | {[key: string]: JSONValue} | Array<JSONValue>;
 
-export type RunTypeVisitor = (deepkitType: Type, path: RunTypeAccessor, nestLevel: number) => RunType;
-
-export type RunTypeAccessor = string | number;
+export type RunTypeVisitor = (deepkitType: Type, nestLevel: number) => RunType;
 
 export interface JitJsonEncoder {
     decodeFromJson: (varName: string) => string;
@@ -31,18 +29,19 @@ export interface RunTypeValidationError {
      * Path the the property that failed validation if the validated item was an object class, etc..
      * Index if item that failed validation was in an array.
      * null if validated item was a single property */
-    accessor: RunTypeAccessor;
+    path: string;
     /** error message */
     message: string;
 }
 
 export interface RunType<T extends Type = Type> {
+    readonly name: string;
     readonly nestLevel: number;
-    readonly path: RunTypeAccessor;
     readonly src: T;
     readonly visitor: RunTypeVisitor;
     readonly shouldEncodeJson: boolean;
     readonly shouldDecodeJson: boolean;
+
     /**
      * validation code
      * should not include anything that is purely the validation of the type, ie function wrappers.

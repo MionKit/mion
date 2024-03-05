@@ -6,15 +6,15 @@
  * ######## */
 
 import {TypeUndefined} from '@deepkit/type';
-import {RunType, RunTypeAccessor, RunTypeVisitor} from '../types';
+import {RunType, RunTypeVisitor} from '../types';
 
 export class UndefinedRunType implements RunType<TypeUndefined> {
+    public readonly name = 'undefined';
     public readonly shouldEncodeJson = true;
     public readonly shouldDecodeJson = true;
     constructor(
         public readonly src: TypeUndefined,
         public readonly visitor: RunTypeVisitor,
-        public readonly path: RunTypeAccessor,
         public readonly nestLevel: number
     ) {}
     getValidateCode(varName: string): string {

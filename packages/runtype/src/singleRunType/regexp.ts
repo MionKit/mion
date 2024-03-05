@@ -6,15 +6,15 @@
  * ######## */
 
 import {TypeRegexp} from '@deepkit/type';
-import {RunType, RunTypeAccessor, RunTypeVisitor, JitJsonEncoder} from '../types';
+import {RunType, RunTypeVisitor, JitJsonEncoder} from '../types';
 
 export class RegexpRunType implements RunType<TypeRegexp> {
+    public readonly name = 'RegExp';
     public readonly shouldEncodeJson = true;
     public readonly shouldDecodeJson = true;
     constructor(
         public readonly src: TypeRegexp,
         public readonly visitor: RunTypeVisitor,
-        public readonly path: RunTypeAccessor,
         public readonly nestLevel: number
     ) {}
     getValidateCode(varName: string): string {
@@ -30,9 +30,10 @@ export class RegexpRunType implements RunType<TypeRegexp> {
         return RegexpJitJsonEncoder.decodeFromJson(varName);
     }
     getMockCode(varName: string): string {
+        const regExpList = `regExpList${this.nestLevel}`;
         return (
-            `const regexps = [/example/, /abc/, /^a-zA-Z0-9/, /abc/i, /hello[0-9]/];` +
-            `${varName} = regexps[Math.floor(Math.random() * regexps.length)]`
+            `const ${regExpList} = [/example/, /abc/, /^a-zA-Z0-9/, /abc/i, /hello[0-9]/];` +
+            `${varName} = ${regExpList}[Math.floor(Math.random() * ${regExpList}.length)]`
         );
     }
 }

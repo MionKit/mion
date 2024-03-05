@@ -6,16 +6,15 @@
  * ######## */
 
 import {TypeUnknown} from '@deepkit/type';
-import {RunType, RunTypeAccessor, RunTypeVisitor} from '../types';
+import {RunType, RunTypeVisitor} from '../types';
 import {AnyRunType} from './any';
 
 export class UnknownRunType extends AnyRunType implements RunType<TypeUnknown> {
     constructor(
         public readonly src: TypeUnknown,
         public readonly visitor: RunTypeVisitor,
-        public readonly path: RunTypeAccessor,
         public readonly nestLevel: number
     ) {
-        super(src, visitor, path, nestLevel);
+        super(src, visitor, nestLevel, 'unknown');
     }
 }
