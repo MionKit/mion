@@ -28,8 +28,8 @@ describe('ArrayType', () => {
     it('validate string[] + errors', () => {
         const valWithErrors = getJitValidateWithErrorsFn(rt);
         expect(valWithErrors(['hello', 'world'])).toEqual([]);
-        expect(valWithErrors('hello')).toEqual([{path: '', message: 'Expected to be an Array<string>'}]);
-        expect(valWithErrors(['hello', 123])).toEqual([{path: '/1', message: 'Expected to be a String'}]);
+        expect(valWithErrors('hello')).toEqual([{path: '', expected: 'array<string>'}]);
+        expect(valWithErrors(['hello', 123])).toEqual([{path: '/1', expected: 'string'}]);
     });
 
     it('encode to json', () => {
@@ -94,12 +94,12 @@ describe('ArrayType recursion', () => {
                 ['a', 'b'],
             ])
         ).toEqual([]);
-        expect(valWithErrors([['hello', 2]])).toEqual([{path: '/0/1', message: 'Expected to be a String'}]);
-        expect(valWithErrors(['hello'])).toEqual([{path: '/0', message: 'Expected to be an Array<string>'}]);
-        expect(valWithErrors('hello')).toEqual([{path: '', message: 'Expected to be an Array<Array<string>>'}]);
+        expect(valWithErrors([['hello', 2]])).toEqual([{path: '/0/1', expected: 'string'}]);
+        expect(valWithErrors(['hello'])).toEqual([{path: '/0', expected: 'array<string>'}]);
+        expect(valWithErrors('hello')).toEqual([{path: '', expected: 'array<array<string>>'}]);
         expect(valWithErrors(['hello', 'world'])).toEqual([
-            {path: '/0', message: 'Expected to be an Array<string>'},
-            {path: '/1', message: 'Expected to be an Array<string>'},
+            {path: '/0', expected: 'array<string>'},
+            {path: '/1', expected: 'array<string>'},
         ]);
     });
 

@@ -27,8 +27,8 @@ it('validate boolean + errors', () => {
     const valWithErrors = getJitValidateWithErrorsFn(rt);
     expect(valWithErrors(true)).toEqual([]);
     expect(valWithErrors(false)).toEqual([]);
-    expect(valWithErrors(42)).toEqual([{path: '', message: 'Expected to be a Boolean'}]);
-    expect(valWithErrors('hello')).toEqual([{path: '', message: 'Expected to be a Boolean'}]);
+    expect(valWithErrors(42)).toEqual([{path: '', expected: 'boolean'}]);
+    expect(valWithErrors('hello')).toEqual([{path: '', expected: 'boolean'}]);
 });
 
 it('encode to json', () => {

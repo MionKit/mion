@@ -26,7 +26,7 @@ it('validate number', () => {
 it('validate number + errors', () => {
     const valWithErrors = getJitValidateWithErrorsFn(rt);
     expect(valWithErrors(42)).toEqual([]);
-    expect(valWithErrors('hello')).toEqual([{path: '', message: 'Expected to be a valid Number'}]);
+    expect(valWithErrors('hello')).toEqual([{path: '', expected: 'number'}]);
 });
 
 it('encode to json', () => {

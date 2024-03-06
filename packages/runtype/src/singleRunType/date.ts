@@ -7,9 +7,10 @@
 
 import {TypeClass} from '@deepkit/type';
 import {JitJsonEncoder, RunType, RunTypeVisitor} from '../types';
+import {toLiteral} from '../utils';
 
 export class DateRunType implements RunType<TypeClass> {
-    public readonly name = 'Date';
+    public readonly name = 'date';
     public readonly shouldEncodeJson = false;
     public readonly shouldDecodeJson = true;
     constructor(
@@ -21,7 +22,7 @@ export class DateRunType implements RunType<TypeClass> {
         return `${varName} instanceof Date && !isNaN(${varName}.getTime())`;
     }
     getValidateCodeWithErrors(varName: string, errorsName: string, pathChain: string): string {
-        return `if (!(${this.getValidateCode(varName)})) ${errorsName}.push({path: ${pathChain}, message: 'Expected to be a valid Date'})`;
+        return `if (!(${this.getValidateCode(varName)})) ${errorsName}.push({path: ${pathChain}, expected: ${toLiteral(this.name)}})`;
     }
     getJsonEncodeCode(varName: string): string {
         return DateJitJsonENcoder.encodeToJson(varName);

@@ -7,6 +7,7 @@
 
 import {TypeBoolean} from '@deepkit/type';
 import {RunType, RunTypeVisitor} from '../types';
+import {toLiteral} from '../utils';
 
 export class BooleanRunType implements RunType<TypeBoolean> {
     public readonly name = 'boolean';
@@ -21,7 +22,7 @@ export class BooleanRunType implements RunType<TypeBoolean> {
         return `typeof ${varName} === 'boolean'`;
     }
     getValidateCodeWithErrors(varName: string, errorsName: string, pathChain: string): string {
-        return `if (typeof ${varName} !== 'boolean') ${errorsName}.push({path: ${pathChain}, message: 'Expected to be a Boolean'})`;
+        return `if (typeof ${varName} !== 'boolean') ${errorsName}.push({path: ${pathChain}, expected: ${toLiteral(this.name)}})`;
     }
     getJsonEncodeCode(varName: string): string {
         return varName;

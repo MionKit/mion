@@ -35,12 +35,8 @@ it('validate union + errors', () => {
     expect(valWithErrors('hello')).toEqual([]);
     expect(valWithErrors(null)).toEqual([]);
     expect(valWithErrors(['a', 'b', 'c'])).toEqual([]);
-    expect(valWithErrors({})).toEqual([
-        {path: '', message: 'Expected to be Union<Date | number | string | null | Array<string>>'},
-    ]);
-    expect(valWithErrors(true)).toEqual([
-        {path: '', message: 'Expected to be Union<Date | number | string | null | Array<string>>'},
-    ]);
+    expect(valWithErrors({})).toEqual([{path: '', expected: 'union<date | number | string | null | array<string>>'}]);
+    expect(valWithErrors(true)).toEqual([{path: '', expected: 'union<date | number | string | null | array<string>>'}]);
 });
 
 it('encode/decode to json', () => {

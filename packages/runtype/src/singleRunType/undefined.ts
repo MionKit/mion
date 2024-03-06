@@ -7,6 +7,7 @@
 
 import {TypeUndefined} from '@deepkit/type';
 import {RunType, RunTypeVisitor} from '../types';
+import {toLiteral} from '../utils';
 
 export class UndefinedRunType implements RunType<TypeUndefined> {
     public readonly name = 'undefined';
@@ -21,7 +22,7 @@ export class UndefinedRunType implements RunType<TypeUndefined> {
         return `typeof ${varName} === 'undefined'`;
     }
     getValidateCodeWithErrors(varName: string, errorsName: string, pathChain: string): string {
-        return `if (typeof ${varName} !== 'undefined') ${errorsName}.push({path: ${pathChain}, message: 'Expected to be undefined'})`;
+        return `if (typeof ${varName} !== 'undefined') ${errorsName}.push({path: ${pathChain}, expected: ${toLiteral(this.name)}})`;
     }
     getJsonEncodeCode(): string {
         return `null`;

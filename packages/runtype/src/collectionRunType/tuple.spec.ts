@@ -36,38 +36,36 @@ it('validate tuple + errors', () => {
     expect(valWithErrors([new Date(), 123, 'hello', null, ['a', 'b', 'c'], BigInt(123)])).toEqual([]);
     expect(valWithErrors([new Date(), 123, 'hello', null, [], BigInt(123)])).toEqual([]);
     expect(valWithErrors([new Date(), 123, 'hello', null])).toEqual([
-        {path: '/4', message: 'Expected to be an Array<string>'},
-        {path: '/5', message: 'Expected to be a valid Bigint'},
+        {path: '/4', expected: 'array<string>'},
+        {path: '/5', expected: 'bigint'},
     ]);
     expect(valWithErrors([new Date(), 123, 'hello'])).toEqual([
-        {path: '/3', message: 'Expected to be null'},
-        {path: '/4', message: 'Expected to be an Array<string>'},
-        {path: '/5', message: 'Expected to be a valid Bigint'},
+        {path: '/3', expected: 'null'},
+        {path: '/4', expected: 'array<string>'},
+        {path: '/5', expected: 'bigint'},
     ]);
     expect(valWithErrors([new Date(), 123])).toEqual([
-        {path: '/2', message: 'Expected to be a String'},
-        {path: '/3', message: 'Expected to be null'},
-        {path: '/4', message: 'Expected to be an Array<string>'},
-        {path: '/5', message: 'Expected to be a valid Bigint'},
+        {path: '/2', expected: 'string'},
+        {path: '/3', expected: 'null'},
+        {path: '/4', expected: 'array<string>'},
+        {path: '/5', expected: 'bigint'},
     ]);
     expect(valWithErrors([new Date()])).toEqual([
-        {path: '/1', message: 'Expected to be a valid Number'},
-        {path: '/2', message: 'Expected to be a String'},
-        {path: '/3', message: 'Expected to be null'},
-        {path: '/4', message: 'Expected to be an Array<string>'},
-        {path: '/5', message: 'Expected to be a valid Bigint'},
+        {path: '/1', expected: 'number'},
+        {path: '/2', expected: 'string'},
+        {path: '/3', expected: 'null'},
+        {path: '/4', expected: 'array<string>'},
+        {path: '/5', expected: 'bigint'},
     ]);
     expect(valWithErrors([])).toEqual([
-        {path: '/0', message: 'Expected to be a valid Date'},
-        {path: '/1', message: 'Expected to be a valid Number'},
-        {path: '/2', message: 'Expected to be a String'},
-        {path: '/3', message: 'Expected to be null'},
-        {path: '/4', message: 'Expected to be an Array<string>'},
-        {path: '/5', message: 'Expected to be a valid Bigint'},
+        {path: '/0', expected: 'date'},
+        {path: '/1', expected: 'number'},
+        {path: '/2', expected: 'string'},
+        {path: '/3', expected: 'null'},
+        {path: '/4', expected: 'array<string>'},
+        {path: '/5', expected: 'bigint'},
     ]);
-    expect(valWithErrors({})).toEqual([
-        {path: '', message: 'Expected to be a Tuple<Date, number, string, null, Array<string>, bigint>'},
-    ]);
+    expect(valWithErrors({})).toEqual([{path: '', expected: 'tuple<date, number, string, null, array<string>, bigint>'}]);
 });
 
 it('encode/decode to json', () => {

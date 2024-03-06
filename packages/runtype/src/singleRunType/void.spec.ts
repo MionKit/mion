@@ -28,9 +28,9 @@ it('validate void', () => {
 it('validate void + errors', () => {
     const valWithErrors = getJitValidateWithErrorsFn(rt);
     expect(valWithErrors(undefined)).toEqual([]);
-    expect(valWithErrors(null)).toEqual([{path: '', message: 'Expected to be void'}]);
-    expect(valWithErrors(42)).toEqual([{path: '', message: 'Expected to be void'}]);
-    expect(valWithErrors('hello')).toEqual([{path: '', message: 'Expected to be void'}]);
+    expect(valWithErrors(null)).toEqual([{path: '', expected: 'void'}]);
+    expect(valWithErrors(42)).toEqual([{path: '', expected: 'void'}]);
+    expect(valWithErrors('hello')).toEqual([{path: '', expected: 'void'}]);
 });
 
 it('encode to json should throw an error', () => {
