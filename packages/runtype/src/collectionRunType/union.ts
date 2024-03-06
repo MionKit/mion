@@ -59,12 +59,7 @@ export class UnionRunType implements RunType<TypeUnion> {
     }
     getMockCode(varName: string): string {
         const arrayName = `unionList${this.nestLevel}`;
-        const mockCodes = this.runTypes
-            .map((rt, i) => {
-                const itemName = `unIτεm${this.nestLevel}${i}`;
-                return `let ${itemName}; ${rt.getMockCode(itemName)}; ${arrayName}[${i}] = ${itemName};`;
-            })
-            .join('');
+        const mockCodes = this.runTypes.map((rt, i) => `${rt.getMockCode(`${arrayName}[${i}]`)};`).join('');
         return `const ${arrayName} = []; ${mockCodes} ${varName} = ${arrayName}[Math.floor(Math.random() * ${arrayName}.length)]`;
     }
 }

@@ -73,8 +73,6 @@ it('validate tuple + errors', () => {
 it('encode/decode to json', () => {
     const toJson = getJitJsonEncodeFn(rt);
     const fromJson = getJitJsonDecodeFn(rt);
-    console.log(toJson.toString());
-    console.log(fromJson.toString());
     const typeValue = [new Date(), 123, 'hello', null, ['a', 'b', 'c'], BigInt(123)];
     expect(rt.shouldDecodeJson).toBe(true);
     expect(rt.shouldEncodeJson).toBe(true);
