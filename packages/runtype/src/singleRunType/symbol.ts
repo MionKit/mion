@@ -20,8 +20,8 @@ export class SymbolRunType implements RunType<TypeSymbol> {
     getValidateCode(varName: string): string {
         return `typeof ${varName} === 'symbol'`;
     }
-    getValidateCodeWithErrors(varName: string, errorsName: string, itemPath: string): string {
-        return `if (typeof ${varName} !== 'symbol') ${errorsName}.push({path: ${itemPath}, message: 'Expected to be a Symbol'})`;
+    getValidateCodeWithErrors(varName: string, errorsName: string, pathChain: string): string {
+        return `if (typeof ${varName} !== 'symbol') ${errorsName}.push({path: ${pathChain}, message: 'Expected to be a Symbol'})`;
     }
     getJsonEncodeCode(varName: string): string {
         return SymbolJitJsonENcoder.encodeToJson(varName);

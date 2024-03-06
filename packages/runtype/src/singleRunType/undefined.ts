@@ -20,8 +20,8 @@ export class UndefinedRunType implements RunType<TypeUndefined> {
     getValidateCode(varName: string): string {
         return `typeof ${varName} === 'undefined'`;
     }
-    getValidateCodeWithErrors(varName: string, errorsName: string, itemPath: string): string {
-        return `if (typeof ${varName} !== 'undefined') ${errorsName}.push({path: ${itemPath}, message: 'Expected to be undefined'})`;
+    getValidateCodeWithErrors(varName: string, errorsName: string, pathChain: string): string {
+        return `if (typeof ${varName} !== 'undefined') ${errorsName}.push({path: ${pathChain}, message: 'Expected to be undefined'})`;
     }
     getJsonEncodeCode(): string {
         return `null`;

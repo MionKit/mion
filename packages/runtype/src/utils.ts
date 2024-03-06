@@ -39,3 +39,7 @@ export function scapeQ(value: number | string | boolean | undefined | null | big
     if (typeof value === 'symbol') return scapeQ(value.toString());
     return `${value}`;
 }
+
+export function addToPathChain(pathChain: string, property: string | number, isLiteral = true): string {
+    return `${pathChain} + '/' + ${isLiteral ? toLiteral(property) : property}`;
+}

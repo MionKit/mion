@@ -20,8 +20,8 @@ export class NullRunType implements RunType<TypeNull> {
     getValidateCode(varName: string): string {
         return `${varName} === null`;
     }
-    getValidateCodeWithErrors(varName: string, errorsName: string, itemPath: string): string {
-        return `if (${varName} !== null) ${errorsName}.push({path: ${itemPath}, message: 'Expected to be null'})`;
+    getValidateCodeWithErrors(varName: string, errorsName: string, pathChain: string): string {
+        return `if (${varName} !== null) ${errorsName}.push({path: ${pathChain}, message: 'Expected to be null'})`;
     }
     getJsonEncodeCode(varName: string): string {
         return varName;

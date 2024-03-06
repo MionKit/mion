@@ -20,8 +20,8 @@ export class BigIntRunType implements RunType<TypeBigInt> {
     getValidateCode(varName: string): string {
         return `typeof ${varName} === 'bigint'`;
     }
-    getValidateCodeWithErrors(varName: string, errorsName: string, itemPath: string): string {
-        return `if (typeof ${varName} !== 'bigint') ${errorsName}.push({path: ${itemPath}, message:'Expected to be a valid Bigint'})`;
+    getValidateCodeWithErrors(varName: string, errorsName: string, pathChain: string): string {
+        return `if (typeof ${varName} !== 'bigint') ${errorsName}.push({path: ${pathChain}, message:'Expected to be a valid Bigint'})`;
     }
     getJsonEncodeCode(varName: string): string {
         return BigIntJitJsonENcoder.encodeToJson(varName);

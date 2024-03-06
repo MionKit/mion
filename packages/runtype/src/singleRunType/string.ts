@@ -20,8 +20,8 @@ export class StringRunType implements RunType<TypeString> {
     getValidateCode(varName: string): string {
         return `typeof ${varName} === 'string'`;
     }
-    getValidateCodeWithErrors(varName: string, errorsName: string, itemPath: string): string {
-        return `if (typeof ${varName} !== 'string') ${errorsName}.push({path: ${itemPath}, message: 'Expected to be a String'})`;
+    getValidateCodeWithErrors(varName: string, errorsName: string, pathChain: string): string {
+        return `if (typeof ${varName} !== 'string') ${errorsName}.push({path: ${pathChain}, message: 'Expected to be a String'})`;
     }
     getJsonEncodeCode(varName: string): string {
         return varName;

@@ -9,8 +9,6 @@ import {TypeUnion} from '@deepkit/type';
 import {RunType, RunTypeVisitor} from '../types';
 import {scapeQ} from '../utils';
 
-// TODO: throw an error when two data types are encoded to the same json type and can't be distinguished or maybe create some format to encode the type
-
 export class UnionRunType implements RunType<TypeUnion> {
     public readonly name: string;
     public readonly shouldEncodeJson: boolean;
@@ -30,8 +28,8 @@ export class UnionRunType implements RunType<TypeUnion> {
     getValidateCode(varName: string): string {
         return this.runTypes.map((rt) => `(${rt.getValidateCode(varName)})`).join(' || ');
     }
-    getValidateCodeWithErrors(varName: string, errorsName: string, itemPath: string): string {
-        return `if (!(${this.getValidateCode(varName)})) ${errorsName}.push({path: ${itemPath}, message: 'Expected to be ${scapeQ(this.name)}'})`;
+    getValidateCodeWithErrors(varName: string, errorsName: string, pathChain: string): string {
+        return `if (!(${this.getValidateCode(varName)})) ${errorsName}.push({path: ${pathChain}, message: 'Expected to be ${scapeQ(this.name)}'})`;
     }
     /**
      * Unions get encoded into an array where arr[0] is the discriminator and arr[1] is the value.
@@ -67,8 +65,6 @@ export class UnionRunType implements RunType<TypeUnion> {
                 return `let ${itemName}; ${rt.getMockCode(itemName)}; ${arrayName}[${i}] = ${itemName};`;
             })
             .join('');
-        return (
-            `const ${arrayName} = [];` + mockCodes + `${varName} = ${arrayName}[Math.floor(Math.random() * ${arrayName}.length)]`
-        );
+        return `const ${arrayName} = []; ${mockCodes} ${varName} = ${arrayName}[Math.floor(Math.random() * ${arrayName}.length)]`;
     }
 }
