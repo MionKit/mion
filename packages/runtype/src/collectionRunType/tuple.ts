@@ -48,12 +48,7 @@ export class TupleRunType implements RunType<TypeTuple> {
     }
     getMockCode(varName: string): string {
         const arrayName = `tupleList${this.nestLevel}`;
-        const mockCodes = this.runTypes
-            .map((rt, i) => {
-                const itemName = `tupleIτεm${this.nestLevel}${i}`;
-                return `let ${itemName}; ${rt.getMockCode(itemName)}; ${arrayName}[${i}] = ${itemName};`;
-            })
-            .join('');
+        const mockCodes = this.runTypes.map((rt, i) => `${rt.getMockCode(`${arrayName}[${i}]`)};`).join('');
         return `const ${arrayName} = []; ${mockCodes} ${varName} = ${arrayName};`;
     }
 }
