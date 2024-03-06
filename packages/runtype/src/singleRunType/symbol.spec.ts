@@ -27,9 +27,9 @@ it('validate symbol', () => {
 it('validate symbol + errors', () => {
     const valWithErrors = getJitValidateWithErrorsFn(rt);
     expect(valWithErrors(Symbol())).toEqual([]);
-    expect(valWithErrors(undefined)).toEqual([{path: '', message: 'Expected to be a Symbol'}]);
-    expect(valWithErrors(42)).toEqual([{path: '', message: 'Expected to be a Symbol'}]);
-    expect(valWithErrors('hello')).toEqual([{path: '', message: 'Expected to be a Symbol'}]);
+    expect(valWithErrors(undefined)).toEqual([{path: '', expected: 'symbol'}]);
+    expect(valWithErrors(42)).toEqual([{path: '', expected: 'symbol'}]);
+    expect(valWithErrors('hello')).toEqual([{path: '', expected: 'symbol'}]);
 });
 
 it('encode to json', () => {

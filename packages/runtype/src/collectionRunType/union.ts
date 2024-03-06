@@ -7,7 +7,7 @@
 
 import {TypeUnion} from '@deepkit/type';
 import {RunType, RunTypeVisitor} from '../types';
-import {scapeQ} from '../utils';
+import {toLiteral} from '../utils';
 
 export class UnionRunType implements RunType<TypeUnion> {
     public readonly name: string;
@@ -20,7 +20,7 @@ export class UnionRunType implements RunType<TypeUnion> {
         public readonly nestLevel: number
     ) {
         this.runTypes = src.types.map((t) => visitor(t, nestLevel));
-        this.name = `Union<${this.runTypes.map((rt) => rt.name).join(' | ')}>`;
+        this.name = `union<${this.runTypes.map((rt) => rt.name).join(' | ')}>`;
         const shouldEnCodeDecode = this.runTypes.some((rt) => rt.shouldEncodeJson || rt.shouldDecodeJson);
         this.shouldEncodeJson = shouldEnCodeDecode;
         this.shouldDecodeJson = shouldEnCodeDecode;
@@ -29,7 +29,7 @@ export class UnionRunType implements RunType<TypeUnion> {
         return this.runTypes.map((rt) => `(${rt.getValidateCode(varName)})`).join(' || ');
     }
     getValidateCodeWithErrors(varName: string, errorsName: string, pathChain: string): string {
-        return `if (!(${this.getValidateCode(varName)})) ${errorsName}.push({path: ${pathChain}, message: 'Expected to be ${scapeQ(this.name)}'})`;
+        return `if (!(${this.getValidateCode(varName)})) ${errorsName}.push({path: ${pathChain}, expected: ${toLiteral(this.name)}})`;
     }
     /**
      * Unions get encoded into an array where arr[0] is the discriminator and arr[1] is the value.

@@ -24,7 +24,7 @@ it('validate Date', () => {
 it('validate Date + errors', () => {
     const valWithErrors = getJitValidateWithErrorsFn(rt);
     expect(valWithErrors(new Date())).toEqual([]);
-    expect(valWithErrors('hello')).toEqual([{path: '', message: 'Expected to be a valid Date'}]);
+    expect(valWithErrors('hello')).toEqual([{path: '', expected: 'date'}]);
 });
 
 it('encode/decode to json', () => {

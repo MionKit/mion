@@ -7,6 +7,7 @@
 
 import {TypeVoid} from '@deepkit/type';
 import {RunType, RunTypeVisitor} from '../types';
+import {toLiteral} from '../utils';
 
 export class VoidRunType implements RunType<TypeVoid> {
     public readonly name = 'void';
@@ -21,7 +22,7 @@ export class VoidRunType implements RunType<TypeVoid> {
         return `${varName} === undefined`;
     }
     getValidateCodeWithErrors(varName: string, errorsName: string, pathChain: string): string {
-        return `if (${varName} !== undefined) ${errorsName}.push({path: ${pathChain}, message: 'Expected to be void'})`;
+        return `if (${varName} !== undefined) ${errorsName}.push({path: ${pathChain}, expected: ${toLiteral(this.name)}})`;
     }
     getJsonEncodeCode(): string {
         throw new Error('void can not be encoded to json.');

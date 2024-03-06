@@ -30,8 +30,8 @@ export interface RunTypeValidationError {
      * Index if item that failed validation was in an array.
      * null if validated item was a single property */
     path: string;
-    /** error message */
-    message: string;
+    /** the type of the expected data */
+    expected: string;
 }
 
 export interface RunType<T extends Type = Type> {

@@ -55,9 +55,9 @@ it('validate regexp', () => {
 it('validate regexp + errors', () => {
     const valWithErrors = getJitValidateWithErrorsFn(rt);
     expect(valWithErrors(/abc/)).toEqual([]);
-    expect(valWithErrors(undefined)).toEqual([{path: '', message: 'Expected to be a RegExp'}]);
-    expect(valWithErrors(42)).toEqual([{path: '', message: 'Expected to be a RegExp'}]);
-    expect(valWithErrors('hello')).toEqual([{path: '', message: 'Expected to be a RegExp'}]);
+    expect(valWithErrors(undefined)).toEqual([{path: '', expected: 'regexp'}]);
+    expect(valWithErrors(42)).toEqual([{path: '', expected: 'regexp'}]);
+    expect(valWithErrors('hello')).toEqual([{path: '', expected: 'regexp'}]);
 });
 
 it('encode/decode json', () => {

@@ -7,22 +7,24 @@
 
 import {TypeEnum} from '@deepkit/type';
 import {RunType, RunTypeVisitor} from '../types';
-import {scapeQ, toLiteral} from '../utils';
+import {toLiteral} from '../utils';
 
 export class EnumRunType implements RunType<TypeEnum> {
-    public readonly name = 'enum';
+    public readonly name: string;
     public readonly shouldEncodeJson = false;
     public readonly shouldDecodeJson = false;
     constructor(
         public readonly src: TypeEnum,
         public readonly visitor: RunTypeVisitor,
         public readonly nestLevel: number
-    ) {}
+    ) {
+        this.name = `enum<${src.values.map((v) => v).join(', ')}>`;
+    }
     getValidateCode(varName: string): string {
         return this.src.values.map((v) => `${varName} === ${toLiteral(v)}`).join(' || ');
     }
     getValidateCodeWithErrors(varName: string, errorsName: string, pathChain: string): string {
-        return `if (!(${this.getValidateCode(varName)})) ${errorsName}.push({path: ${pathChain}, message: 'Expected to be one of: ${scapeQ(this.src.values.join(', '))}'})`;
+        return `if (!(${this.getValidateCode(varName)})) ${errorsName}.push({path: ${pathChain}, expected: ${toLiteral(this.name)}})`;
     }
     getJsonEncodeCode(varName: string): string {
         return varName;

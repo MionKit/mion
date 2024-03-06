@@ -7,9 +7,10 @@
 
 import {TypeRegexp} from '@deepkit/type';
 import {RunType, RunTypeVisitor, JitJsonEncoder} from '../types';
+import {toLiteral} from '../utils';
 
 export class RegexpRunType implements RunType<TypeRegexp> {
-    public readonly name = 'RegExp';
+    public readonly name = 'regexp';
     public readonly shouldEncodeJson = true;
     public readonly shouldDecodeJson = true;
     constructor(
@@ -21,7 +22,7 @@ export class RegexpRunType implements RunType<TypeRegexp> {
         return `(${varName} instanceof RegExp)`;
     }
     getValidateCodeWithErrors(varName: string, errorsName: string, pathChain: string): string {
-        return `if (!(${varName} instanceof RegExp)) ${errorsName}.push({path: ${pathChain}, message: 'Expected to be a RegExp'})`;
+        return `if (!(${varName} instanceof RegExp)) ${errorsName}.push({path: ${pathChain}, expected: ${toLiteral(this.name)}})`;
     }
     getJsonEncodeCode(varName: string): string {
         return RegexpJitJsonEncoder.encodeToJson(varName);

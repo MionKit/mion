@@ -7,7 +7,7 @@
 
 import {TypeArray} from '@deepkit/type';
 import {RunType, RunTypeVisitor} from '../types';
-import {addToPathChain, scapeQ} from '../utils';
+import {addToPathChain, toLiteral} from '../utils';
 
 export class ArrayRunType implements RunType<TypeArray> {
     public readonly name: string;
@@ -22,7 +22,7 @@ export class ArrayRunType implements RunType<TypeArray> {
         this.itemsRunType = visitor(src.type, nestLevel);
         this.shouldEncodeJson = this.itemsRunType.shouldEncodeJson;
         this.shouldDecodeJson = this.itemsRunType.shouldDecodeJson;
-        this.name = `Array<${this.itemsRunType.name}>`;
+        this.name = `array<${this.itemsRunType.name}>`;
     }
     getValidateCode(varName: string): string {
         const itemName = `iτεm${this.nestLevel}`;
@@ -34,7 +34,7 @@ export class ArrayRunType implements RunType<TypeArray> {
         const listItemPath = addToPathChain(pathLiteral, indexName, false);
 
         return (
-            `if (!Array.isArray(${varName})) ${errorsName}.push({path: ${pathLiteral}, message: 'Expected to be an ${scapeQ(this.name)}'});` +
+            `if (!Array.isArray(${varName})) ${errorsName}.push({path: ${pathLiteral}, expected: ${toLiteral(this.name)}});` +
             `else ${varName}.forEach((${itemName}, ${indexName}) => {${this.itemsRunType.getValidateCodeWithErrors(itemName, errorsName, listItemPath)}})`
         );
     }

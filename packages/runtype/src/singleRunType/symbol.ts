@@ -7,6 +7,7 @@
 
 import {TypeSymbol} from '@deepkit/type';
 import {RunType, RunTypeVisitor, JitJsonEncoder} from '../types';
+import {toLiteral} from '../utils';
 
 export class SymbolRunType implements RunType<TypeSymbol> {
     public readonly name = 'symbol';
@@ -21,7 +22,7 @@ export class SymbolRunType implements RunType<TypeSymbol> {
         return `typeof ${varName} === 'symbol'`;
     }
     getValidateCodeWithErrors(varName: string, errorsName: string, pathChain: string): string {
-        return `if (typeof ${varName} !== 'symbol') ${errorsName}.push({path: ${pathChain}, message: 'Expected to be a Symbol'})`;
+        return `if (typeof ${varName} !== 'symbol') ${errorsName}.push({path: ${pathChain}, expected: ${toLiteral(this.name)}})`;
     }
     getJsonEncodeCode(varName: string): string {
         return SymbolJitJsonENcoder.encodeToJson(varName);

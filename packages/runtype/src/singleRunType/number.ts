@@ -7,6 +7,7 @@
 
 import {TypeNumber} from '@deepkit/type';
 import {RunType, RunTypeVisitor} from '../types';
+import {toLiteral} from '../utils';
 
 export class NumberRunType implements RunType<TypeNumber> {
     public readonly name = 'number';
@@ -21,7 +22,7 @@ export class NumberRunType implements RunType<TypeNumber> {
         return `typeof ${varName} === 'number' && Number.isFinite(${varName})`;
     }
     getValidateCodeWithErrors(varName: string, errorsName: string, pathChain: string): string {
-        return `if(!(${this.getValidateCode(varName)})) ${errorsName}.push({path: ${pathChain}, message: 'Expected to be a valid Number'})`;
+        return `if(!(${this.getValidateCode(varName)})) ${errorsName}.push({path: ${pathChain}, expected: ${toLiteral(this.name)}})`;
     }
     getJsonEncodeCode(varName: string): string {
         return varName;

@@ -7,7 +7,7 @@
 
 import {TypeTuple} from '@deepkit/type';
 import {RunType, RunTypeVisitor} from '../types';
-import {addToPathChain, scapeQ} from '../utils';
+import {addToPathChain, toLiteral} from '../utils';
 
 export class TupleRunType implements RunType<TypeTuple> {
     public readonly name: string;
@@ -20,7 +20,7 @@ export class TupleRunType implements RunType<TypeTuple> {
         public readonly nestLevel: number
     ) {
         this.runTypes = src.types.map((t) => visitor(t, nestLevel));
-        this.name = `Tuple<${this.runTypes.map((rt) => rt.name).join(', ')}>`;
+        this.name = `tuple<${this.runTypes.map((rt) => rt.name).join(', ')}>`;
         this.shouldEncodeJson = this.runTypes.some((rt) => rt.shouldEncodeJson);
         this.shouldDecodeJson = this.runTypes.some((rt) => rt.shouldDecodeJson);
     }
@@ -32,7 +32,7 @@ export class TupleRunType implements RunType<TypeTuple> {
             .map((rt, i) => rt.getValidateCodeWithErrors(`${varName}[${i}]`, errorsName, addToPathChain(pathChain, i)))
             .join(';');
         return (
-            `if (!Array.isArray(${varName})) ${errorsName}.push({path: ${pathChain}, message: 'Expected to be a ${scapeQ(this.name)}'});` +
+            `if (!Array.isArray(${varName})) ${errorsName}.push({path: ${pathChain}, expected: ${toLiteral(this.name)}});` +
             `else {${itemsCode}}`
         );
     }

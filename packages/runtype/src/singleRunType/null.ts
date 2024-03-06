@@ -7,6 +7,7 @@
 
 import {TypeNull} from '@deepkit/type';
 import {RunType, RunTypeVisitor} from '../types';
+import {toLiteral} from '../utils';
 
 export class NullRunType implements RunType<TypeNull> {
     public readonly name = 'null';
@@ -21,7 +22,7 @@ export class NullRunType implements RunType<TypeNull> {
         return `${varName} === null`;
     }
     getValidateCodeWithErrors(varName: string, errorsName: string, pathChain: string): string {
-        return `if (${varName} !== null) ${errorsName}.push({path: ${pathChain}, message: 'Expected to be null'})`;
+        return `if (${varName} !== null) ${errorsName}.push({path: ${pathChain}, expected: ${toLiteral(this.name)}})`;
     }
     getJsonEncodeCode(varName: string): string {
         return varName;
