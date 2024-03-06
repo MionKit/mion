@@ -20,8 +20,8 @@ export class VoidRunType implements RunType<TypeVoid> {
     getValidateCode(varName: string): string {
         return `${varName} === undefined`;
     }
-    getValidateCodeWithErrors(varName: string, errorsName: string, itemPath: string): string {
-        return `if (${varName} !== undefined) ${errorsName}.push({path: ${itemPath}, message: 'Expected to be void'})`;
+    getValidateCodeWithErrors(varName: string, errorsName: string, pathChain: string): string {
+        return `if (${varName} !== undefined) ${errorsName}.push({path: ${pathChain}, message: 'Expected to be void'})`;
     }
     getJsonEncodeCode(): string {
         throw new Error('void can not be encoded to json.');

@@ -20,8 +20,8 @@ export class NumberRunType implements RunType<TypeNumber> {
     getValidateCode(varName: string): string {
         return `typeof ${varName} === 'number' && Number.isFinite(${varName})`;
     }
-    getValidateCodeWithErrors(varName: string, errorsName: string, itemPath: string): string {
-        return `if(!(${this.getValidateCode(varName)})) ${errorsName}.push({path: ${itemPath}, message: 'Expected to be a valid Number'})`;
+    getValidateCodeWithErrors(varName: string, errorsName: string, pathChain: string): string {
+        return `if(!(${this.getValidateCode(varName)})) ${errorsName}.push({path: ${pathChain}, message: 'Expected to be a valid Number'})`;
     }
     getJsonEncodeCode(varName: string): string {
         return varName;

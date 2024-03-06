@@ -21,8 +21,8 @@ export class EnumRunType implements RunType<TypeEnum> {
     getValidateCode(varName: string): string {
         return this.src.values.map((v) => `${varName} === ${toLiteral(v)}`).join(' || ');
     }
-    getValidateCodeWithErrors(varName: string, errorsName: string, itemPath: string): string {
-        return `if (!(${this.getValidateCode(varName)})) ${errorsName}.push({path: ${itemPath}, message: 'Expected to be one of: ${scapeQ(this.src.values.join(', '))}'})`;
+    getValidateCodeWithErrors(varName: string, errorsName: string, pathChain: string): string {
+        return `if (!(${this.getValidateCode(varName)})) ${errorsName}.push({path: ${pathChain}, message: 'Expected to be one of: ${scapeQ(this.src.values.join(', '))}'})`;
     }
     getJsonEncodeCode(varName: string): string {
         return varName;

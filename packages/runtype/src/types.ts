@@ -55,8 +55,10 @@ export interface RunType<T extends Type = Type> {
      * Similar to validation code but instead of returning a boolean it should assign an error message to the errorsName
      * This is an executable code block and can contain multiple lines or semicolons
      * ie:  validateCodeWithErrors = () => `if (typeof vλluε !== 'string') ${errorsName} = 'Expected to be a String';`
+     * pathChain is a string that represents the path to the property being validated.
+     * pathChain is calculated at runtime so is an expresion like 'path1' + '/' + 'path2' + '/' + 'path3'
      */
-    getValidateCodeWithErrors: (varName: string, errorsName: string, itemPath: string) => string;
+    getValidateCodeWithErrors: (varName: string, errorsName: string, pathChain: string) => string;
     /**
      * Code to transform from type to a json type so type can be serialized to json
      * this code should not use return statements, it should be a single line of code that evaluates to a json compatible type.

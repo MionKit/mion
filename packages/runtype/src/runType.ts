@@ -26,6 +26,8 @@ import {NeverRunType} from './singleRunType/never';
 import {EnumRunType} from './singleRunType/enum';
 import {EnumMemberRunType} from './singleRunType/enumMember';
 import {UnionRunType} from './collectionRunType/union';
+import {TupleRunType} from './collectionRunType/tuple';
+import {ProxyRunType} from './singleRunType/proxy';
 // import {resolveAsyncIterator, resolveIterator} from './typeBoxMap/nativeObjectLiterals';
 
 const MaxNestLevel = 100;
@@ -71,6 +73,7 @@ function visitor(deepkitType, nestLevel: number): RunType {
             rt = new EnumRunType(deepkitType, visitor, nestLevel);
             break;
         case ReflectionKind.enumMember:
+            // enum members are resolved by the enum type, so this is not expected to be called
             rt = new EnumMemberRunType(deepkitType, visitor, nestLevel);
             break;
         case ReflectionKind.function:
@@ -158,12 +161,10 @@ function visitor(deepkitType, nestLevel: number): RunType {
             );
             break;
         case ReflectionKind.tuple:
-            throw new Error('not implemented');
-            // rType = resolveTuple(deepkitType, opts, mapper);
+            rt = new TupleRunType(deepkitType, visitor, nestLevel);
             break;
         case ReflectionKind.tupleMember:
-            throw new Error('not implemented');
-            // rType = resolveTupleMember(deepkitType, opts, mapper);
+            rt = new ProxyRunType(deepkitType, visitor, nestLevel);
             break;
         case ReflectionKind.typeParameter:
             throw new Error('not implemented');

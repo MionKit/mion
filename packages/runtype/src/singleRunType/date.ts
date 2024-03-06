@@ -20,8 +20,8 @@ export class DateRunType implements RunType<TypeClass> {
     getValidateCode(varName: string): string {
         return `${varName} instanceof Date && !isNaN(${varName}.getTime())`;
     }
-    getValidateCodeWithErrors(varName: string, errorsName: string, itemPath: string): string {
-        return `if (!(${this.getValidateCode(varName)})) ${errorsName}.push({path: ${itemPath}, message: 'Expected to be a valid Date'})`;
+    getValidateCodeWithErrors(varName: string, errorsName: string, pathChain: string): string {
+        return `if (!(${this.getValidateCode(varName)})) ${errorsName}.push({path: ${pathChain}, message: 'Expected to be a valid Date'})`;
     }
     getJsonEncodeCode(varName: string): string {
         return DateJitJsonENcoder.encodeToJson(varName);

@@ -20,8 +20,8 @@ export class RegexpRunType implements RunType<TypeRegexp> {
     getValidateCode(varName: string): string {
         return `(${varName} instanceof RegExp)`;
     }
-    getValidateCodeWithErrors(varName: string, errorsName: string, itemPath: string): string {
-        return `if (!(${varName} instanceof RegExp)) ${errorsName}.push({path: ${itemPath}, message: 'Expected to be a RegExp'})`;
+    getValidateCodeWithErrors(varName: string, errorsName: string, pathChain: string): string {
+        return `if (!(${varName} instanceof RegExp)) ${errorsName}.push({path: ${pathChain}, message: 'Expected to be a RegExp'})`;
     }
     getJsonEncodeCode(varName: string): string {
         return RegexpJitJsonEncoder.encodeToJson(varName);

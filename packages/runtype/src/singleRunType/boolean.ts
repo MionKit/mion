@@ -20,8 +20,8 @@ export class BooleanRunType implements RunType<TypeBoolean> {
     getValidateCode(varName: string): string {
         return `typeof ${varName} === 'boolean'`;
     }
-    getValidateCodeWithErrors(varName: string, errorsName: string, itemPath: string): string {
-        return `if (typeof ${varName} !== 'boolean') ${errorsName}.push({path: ${itemPath}, message: 'Expected to be a Boolean'})`;
+    getValidateCodeWithErrors(varName: string, errorsName: string, pathChain: string): string {
+        return `if (typeof ${varName} !== 'boolean') ${errorsName}.push({path: ${pathChain}, message: 'Expected to be a Boolean'})`;
     }
     getJsonEncodeCode(varName: string): string {
         return varName;
