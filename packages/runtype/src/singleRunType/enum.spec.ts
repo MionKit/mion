@@ -5,13 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 import {runType} from '../runType';
-import {
-    getJitJsonEncodeFn,
-    getJitJsonDecodeFn,
-    getValidateJitFunction,
-    getJitValidateWithErrorsFn,
-    getJitMockFn,
-} from '../jitCompiler';
+import {buildJsonEncodeJITFn, buildJsonDecodeJITFn, buildIsTypeJITFn, buildTypeErrorsJITFn, buildMockJITFn} from '../jitCompiler';
 
 enum Color {
     Red,
@@ -22,7 +16,7 @@ enum Color {
 const rt = runType<Color>();
 
 it('validate enum', () => {
-    const validate = getValidateJitFunction(rt);
+    const validate = buildIsTypeJITFn(rt);
     expect(validate(Color.Red)).toBe(true);
     expect(validate(Color.Green)).toBe(true);
     expect(validate(Color.Blue)).toBe(true);
@@ -35,7 +29,7 @@ it('validate enum', () => {
 });
 
 it('validate enum + errors', () => {
-    const valWithErrors = getJitValidateWithErrorsFn(rt);
+    const valWithErrors = buildTypeErrorsJITFn(rt);
     expect(valWithErrors(Color.Red)).toEqual([]);
     expect(valWithErrors(Color.Green)).toEqual([]);
     expect(valWithErrors(Color.Blue)).toEqual([]);
@@ -48,16 +42,16 @@ it('validate enum + errors', () => {
 });
 
 it('encode/decode to json', () => {
-    const toJson = getJitJsonEncodeFn(rt);
-    const fromJson = getJitJsonDecodeFn(rt);
+    const toJson = buildJsonEncodeJITFn(rt);
+    const fromJson = buildJsonDecodeJITFn(rt);
     const typeValue = Color.Red;
     expect(fromJson(toJson(typeValue))).toEqual(typeValue);
 });
 
 it('mock', () => {
-    const mock = getJitMockFn(rt);
+    const mock = buildMockJITFn(rt);
     const mocked = mock();
     expect(mocked === 0 || mocked === 'green' || mocked === 2).toBe(true);
-    const validate = getValidateJitFunction(rt);
+    const validate = buildIsTypeJITFn(rt);
     expect(validate(mock())).toBe(true);
 });

@@ -5,38 +5,32 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 import {runType} from '../runType';
-import {
-    getJitJsonEncodeFn,
-    getJitJsonDecodeFn,
-    getValidateJitFunction,
-    getJitValidateWithErrorsFn,
-    getJitMockFn,
-} from '../jitCompiler';
+import {buildJsonEncodeJITFn, buildJsonDecodeJITFn, buildIsTypeJITFn, buildTypeErrorsJITFn, buildMockJITFn} from '../jitCompiler';
 
 const rt = runType<Date>();
 
 it('validate Date', () => {
-    const validate = getValidateJitFunction(rt);
+    const validate = buildIsTypeJITFn(rt);
     expect(validate(new Date())).toBe(true);
     expect(validate('hello')).toBe(false);
 });
 
 it('validate Date + errors', () => {
-    const valWithErrors = getJitValidateWithErrorsFn(rt);
+    const valWithErrors = buildTypeErrorsJITFn(rt);
     expect(valWithErrors(new Date())).toEqual([]);
     expect(valWithErrors('hello')).toEqual([{path: '', expected: 'date'}]);
 });
 
 it('encode/decode to json', () => {
-    const toJson = getJitJsonEncodeFn(rt);
-    const fromJson = getJitJsonDecodeFn(rt);
+    const toJson = buildJsonEncodeJITFn(rt);
+    const fromJson = buildJsonDecodeJITFn(rt);
     const typeValue = new Date();
     expect(fromJson(toJson(typeValue))).toEqual(typeValue);
 });
 
 it('mock', () => {
-    const mock = getJitMockFn(rt);
+    const mock = buildMockJITFn(rt);
     expect(mock() instanceof Date).toBe(true);
-    const validate = getValidateJitFunction(rt);
+    const validate = buildIsTypeJITFn(rt);
     expect(validate(mock())).toBe(true);
 });

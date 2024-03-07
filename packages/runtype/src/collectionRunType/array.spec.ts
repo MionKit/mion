@@ -5,20 +5,14 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 import {runType} from '../runType';
-import {
-    getJitJsonEncodeFn,
-    getJitJsonDecodeFn,
-    getValidateJitFunction,
-    getJitValidateWithErrorsFn,
-    getJitMockFn,
-} from '../jitCompiler';
+import {buildJsonEncodeJITFn, buildJsonDecodeJITFn, buildIsTypeJITFn, buildTypeErrorsJITFn, buildMockJITFn} from '../jitCompiler';
 
 describe('ArrayType', () => {
     const rt = runType<string[]>();
     const rD = runType<Date[]>();
 
     it('validate string[]', () => {
-        const validate = getValidateJitFunction(rt);
+        const validate = buildIsTypeJITFn(rt);
         expect(validate([])).toBe(true);
         expect(validate(['hello', 'world'])).toBe(true);
         expect(validate(['hello', 2])).toBe(false);
@@ -26,42 +20,42 @@ describe('ArrayType', () => {
     });
 
     it('validate string[] + errors', () => {
-        const valWithErrors = getJitValidateWithErrorsFn(rt);
+        const valWithErrors = buildTypeErrorsJITFn(rt);
         expect(valWithErrors(['hello', 'world'])).toEqual([]);
         expect(valWithErrors('hello')).toEqual([{path: '', expected: 'array<string>'}]);
         expect(valWithErrors(['hello', 123])).toEqual([{path: '/1', expected: 'string'}]);
     });
 
     it('encode to json', () => {
-        const toJson = getJitJsonEncodeFn(rt);
+        const toJson = buildJsonEncodeJITFn(rt);
         const typeValue = ['hello', 'world'];
         expect(toJson(typeValue)).toEqual(typeValue);
     });
 
     it('decode from json', () => {
-        const fromJson = getJitJsonDecodeFn(rt);
+        const fromJson = buildJsonDecodeJITFn(rt);
         const typeValue = ['hello', 'world'];
         const json = JSON.parse(JSON.stringify(typeValue));
         expect(fromJson(json)).toEqual(typeValue);
     });
 
     it('encode to json date', () => {
-        const toJson = getJitJsonEncodeFn(rD);
+        const toJson = buildJsonEncodeJITFn(rD);
         const typeValue = [new Date(), new Date()];
         expect(toJson(typeValue)).toBe(typeValue);
     });
 
     it('decode from json date', () => {
-        const fromJson = getJitJsonDecodeFn(rD);
+        const fromJson = buildJsonDecodeJITFn(rD);
         const typeValue = [new Date(), new Date()];
         const json = JSON.parse(JSON.stringify(typeValue));
         expect(fromJson(json)).toEqual(typeValue);
     });
 
     it('mock', () => {
-        const mock = getJitMockFn(rt);
+        const mock = buildMockJITFn(rt);
         expect(mock() instanceof Array).toBe(true);
-        const validate = getValidateJitFunction(rt);
+        const validate = buildIsTypeJITFn(rt);
         expect(validate(mock())).toBe(true);
     });
 });
@@ -70,7 +64,7 @@ describe('ArrayType recursion', () => {
     const rt = runType<string[][]>();
 
     it('validate string[][]', () => {
-        const validate = getValidateJitFunction(rt);
+        const validate = buildIsTypeJITFn(rt);
         expect(validate([])).toBe(true);
         expect(validate([[]])).toBe(true);
         expect(
@@ -85,7 +79,7 @@ describe('ArrayType recursion', () => {
     });
 
     it('validate string[][] + errors', () => {
-        const valWithErrors = getJitValidateWithErrorsFn(rt);
+        const valWithErrors = buildTypeErrorsJITFn(rt);
         expect(valWithErrors([])).toEqual([]);
         expect(valWithErrors([[]])).toEqual([]);
         expect(
@@ -104,21 +98,21 @@ describe('ArrayType recursion', () => {
     });
 
     it('encode to json', () => {
-        const toJson = getJitJsonEncodeFn(rt);
+        const toJson = buildJsonEncodeJITFn(rt);
         const typeValue = ['hello', 'world'];
         expect(toJson(typeValue)).toEqual(typeValue);
     });
 
     it('decode from json', () => {
-        const fromJson = getJitJsonDecodeFn(rt);
+        const fromJson = buildJsonDecodeJITFn(rt);
         const typeValue = ['hello', 'world'];
         const json = JSON.parse(JSON.stringify(typeValue));
         expect(fromJson(json)).toEqual(typeValue);
     });
 
     it('mock', () => {
-        const mock = getJitMockFn(rt);
-        const validate = getValidateJitFunction(rt);
+        const mock = buildMockJITFn(rt);
+        const validate = buildIsTypeJITFn(rt);
         expect(mock() instanceof Array).toBe(true);
         expect(validate(mock())).toBe(true);
     });

@@ -5,18 +5,12 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 import {runType} from '../runType';
-import {
-    getJitJsonEncodeFn,
-    getJitJsonDecodeFn,
-    getValidateJitFunction,
-    getJitValidateWithErrorsFn,
-    getJitMockFn,
-} from '../jitCompiler';
+import {buildJsonEncodeJITFn, buildJsonDecodeJITFn, buildIsTypeJITFn, buildTypeErrorsJITFn, buildMockJITFn} from '../jitCompiler';
 
 const rt = runType<null>();
 
 it('validate null', () => {
-    const validate = getValidateJitFunction(rt);
+    const validate = buildIsTypeJITFn(rt);
     expect(validate(null)).toBe(true);
     expect(validate(undefined)).toBe(false);
     expect(validate(42)).toBe(false);
@@ -24,7 +18,7 @@ it('validate null', () => {
 });
 
 it('validate null + errors', () => {
-    const valWithErrors = getJitValidateWithErrorsFn(rt);
+    const valWithErrors = buildTypeErrorsJITFn(rt);
     expect(valWithErrors(null)).toEqual([]);
     expect(valWithErrors(undefined)).toEqual([{path: '', expected: 'null'}]);
     expect(valWithErrors(42)).toEqual([{path: '', expected: 'null'}]);
@@ -32,21 +26,21 @@ it('validate null + errors', () => {
 });
 
 it('encode to json', () => {
-    const toJson = getJitJsonEncodeFn(rt);
+    const toJson = buildJsonEncodeJITFn(rt);
     const typeValue = null;
     expect(toJson(typeValue)).toEqual(typeValue);
 });
 
 it('decode from json', () => {
-    const fromJson = getJitJsonDecodeFn(rt);
+    const fromJson = buildJsonDecodeJITFn(rt);
     const typeValue = null;
     const jsonValue = JSON.parse(JSON.stringify(typeValue));
     expect(fromJson(jsonValue)).toEqual(typeValue);
 });
 
 it('mock', () => {
-    const mock = getJitMockFn(rt);
+    const mock = buildMockJITFn(rt);
     expect(mock()).toBeNull();
-    const validate = getValidateJitFunction(rt);
+    const validate = buildIsTypeJITFn(rt);
     expect(validate(mock())).toBe(true);
 });
