@@ -17,19 +17,19 @@ export class NeverRunType implements RunType<TypeNever> {
         public readonly visitor: RunTypeVisitor,
         public readonly nestLevel: number
     ) {}
-    getValidateCode(): string {
+    isTypeJIT(): string {
         throw new Error('Never type cannot exist at runtime.');
     }
-    getValidateCodeWithErrors(): string {
+    typeErrorsJIT(): string {
         throw new Error('Never type cannot exist at runtime.');
     }
-    getJsonEncodeCode(): string {
+    jsonEncodeJIT(): string {
         throw new Error('Never type cannot be encoded to JSON.');
     }
-    getJsonDecodeCode(): string {
+    jsonDecodeJIT(): string {
         throw new Error('Never type cannot be decoded from JSON.');
     }
-    getMockCode(): string {
+    mockJIT(): string {
         throw new Error('Never type cannot be mocked.');
     }
 }

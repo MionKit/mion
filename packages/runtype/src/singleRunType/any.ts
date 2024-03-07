@@ -17,19 +17,19 @@ export class AnyRunType implements RunType<TypeAny | TypeUnknown> {
         public readonly nestLevel: number,
         public readonly name = 'any'
     ) {}
-    getValidateCode(): string {
+    isTypeJIT(): string {
         return `true`;
     }
-    getValidateCodeWithErrors(): string {
+    typeErrorsJIT(): string {
         return ``;
     }
-    getJsonEncodeCode(varName: string): string {
+    jsonEncodeJIT(varName: string): string {
         return varName;
     }
-    getJsonDecodeCode(varName: string): string {
+    jsonDecodeJIT(varName: string): string {
         return varName;
     }
-    getMockCode(varName: string): string {
+    mockJIT(varName: string): string {
         const valuesList = `anyVal${this.nestLevel}`;
         return (
             `const ${valuesList} = [{}, {hello: 'world'}, [], [1, 3, 'hello'], 'hello', 1234, BigInt(1), true, false, null, undefined, Symbol('hello'), -124, 0, 124, 0.1, -0.1, Infinity, NaN, new Date()];` +

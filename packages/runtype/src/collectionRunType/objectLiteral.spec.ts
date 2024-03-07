@@ -114,8 +114,6 @@ it('validate object + errors', () => {
 it('encode/decode to json', () => {
     const toJson = getJitJsonEncodeFn(rt);
     const fromJson = getJitJsonDecodeFn(rt);
-    console.log(toJson.toString());
-    console.log(fromJson.toString());
     const date = new Date();
     const typeValue = {
         date,

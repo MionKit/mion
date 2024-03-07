@@ -32,40 +32,40 @@ export class PropertySignatureRunType implements RunType<TypePropertySignature> 
         this.propName = typeof src.name === 'symbol' ? src.name.toString() : `${src.name}`;
         this.isSymbol = typeof src.name === 'symbol';
     }
-    getValidateCode(varName: string): string {
+    isTypeJIT(varName: string): string {
         if (this.isSymbol) return '';
         const pVarName = `${varName}.${this.propName}`;
         if (this.isOptional) {
-            return `${varName}.${this.propName} === undefined || (${this.memberType.getValidateCode(pVarName)})`;
+            return `${varName}.${this.propName} === undefined || (${this.memberType.isTypeJIT(pVarName)})`;
         }
-        return this.memberType.getValidateCode(pVarName);
+        return this.memberType.isTypeJIT(pVarName);
     }
-    getValidateCodeWithErrors(varName: string, errorsName: string, pathChain: string): string {
+    typeErrorsJIT(varName: string, errorsName: string, pathChain: string): string {
         if (this.isSymbol) return '';
         const pVarName = `${varName}.${this.propName}`;
         if (this.isOptional) {
-            return `if (${pVarName} !== undefined) {${this.memberType.getValidateCodeWithErrors(
+            return `if (${pVarName} !== undefined) {${this.memberType.typeErrorsJIT(
                 pVarName,
                 errorsName,
                 addToPathChain(pathChain, this.propName)
             )}}`;
         }
-        return this.memberType.getValidateCodeWithErrors(pVarName, errorsName, addToPathChain(pathChain, this.propName));
+        return this.memberType.typeErrorsJIT(pVarName, errorsName, addToPathChain(pathChain, this.propName));
     }
-    getJsonEncodeCode(varName: string): string {
+    jsonEncodeJIT(varName: string): string {
         if (this.isSymbol) return '';
-        const valCode = this.memberType.getJsonEncodeCode(`${varName}.${this.propName}`);
+        const valCode = this.memberType.jsonEncodeJIT(`${varName}.${this.propName}`);
         return `${this.propName}: ${valCode}`;
     }
-    getJsonDecodeCode(varName: string): string {
+    jsonDecodeJIT(varName: string): string {
         if (this.isSymbol) return '';
-        const valCode = this.memberType.getJsonDecodeCode(`${varName}.${this.propName}`);
+        const valCode = this.memberType.jsonDecodeJIT(`${varName}.${this.propName}`);
         return `${this.propName}: ${valCode}`;
     }
-    getMockCode(varName: string): string {
+    mockJIT(varName: string): string {
         if (this.isSymbol) return '';
         const pVarName = `${varName}.${this.propName}`;
-        const propMockCode = this.memberType.getMockCode(pVarName);
+        const propMockCode = this.memberType.mockJIT(pVarName);
         if (this.isOptional) return `if (Math.random() < 0.2) ${pVarName} = undefined; else {${propMockCode}}`;
         return propMockCode;
     }

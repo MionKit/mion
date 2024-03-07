@@ -18,19 +18,19 @@ export class BigIntRunType implements RunType<TypeBigInt> {
         public readonly visitor: RunTypeVisitor,
         public readonly nestLevel: number
     ) {}
-    getValidateCode(varName: string): string {
+    isTypeJIT(varName: string): string {
         return `typeof ${varName} === 'bigint'`;
     }
-    getValidateCodeWithErrors(varName: string, errorsName: string, pathChain: string): string {
+    typeErrorsJIT(varName: string, errorsName: string, pathChain: string): string {
         return `if (typeof ${varName} !== 'bigint') ${errorsName}.push({path: ${pathChain}, expected: ${toLiteral(this.name)}})`;
     }
-    getJsonEncodeCode(varName: string): string {
+    jsonEncodeJIT(varName: string): string {
         return BigIntJitJsonENcoder.encodeToJson(varName);
     }
-    getJsonDecodeCode(varName: string): string {
+    jsonDecodeJIT(varName: string): string {
         return BigIntJitJsonENcoder.decodeFromJson(varName);
     }
-    getMockCode(varName: string): string {
+    mockJIT(varName: string): string {
         return `${varName} = BigInt(Math.floor(Math.random() * 1000000))`;
     }
 }

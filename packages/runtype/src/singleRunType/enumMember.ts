@@ -17,19 +17,19 @@ export class EnumMemberRunType implements RunType<TypeEnum> {
         public readonly visitor: RunTypeVisitor,
         public readonly nestLevel: number
     ) {}
-    getValidateCode(): string {
+    isTypeJIT(): string {
         throw new Error('Enum member operations are not supported');
     }
-    getValidateCodeWithErrors(): string {
+    typeErrorsJIT(): string {
         throw new Error('Enum member operations are not supported');
     }
-    getJsonEncodeCode(): string {
+    jsonEncodeJIT(): string {
         throw new Error('Enum member operations are not supported');
     }
-    getJsonDecodeCode(): string {
+    jsonDecodeJIT(): string {
         throw new Error('Enum member operations are not supported');
     }
-    getMockCode(): string {
+    mockJIT(): string {
         throw new Error('Enum member operations are not supported');
     }
 }

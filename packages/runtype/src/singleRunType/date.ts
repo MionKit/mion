@@ -18,19 +18,19 @@ export class DateRunType implements RunType<TypeClass> {
         public readonly visitor: RunTypeVisitor,
         public readonly nestLevel: number
     ) {}
-    getValidateCode(varName: string): string {
+    isTypeJIT(varName: string): string {
         return `${varName} instanceof Date && !isNaN(${varName}.getTime())`;
     }
-    getValidateCodeWithErrors(varName: string, errorsName: string, pathChain: string): string {
-        return `if (!(${this.getValidateCode(varName)})) ${errorsName}.push({path: ${pathChain}, expected: ${toLiteral(this.name)}})`;
+    typeErrorsJIT(varName: string, errorsName: string, pathChain: string): string {
+        return `if (!(${this.isTypeJIT(varName)})) ${errorsName}.push({path: ${pathChain}, expected: ${toLiteral(this.name)}})`;
     }
-    getJsonEncodeCode(varName: string): string {
+    jsonEncodeJIT(varName: string): string {
         return DateJitJsonENcoder.encodeToJson(varName);
     }
-    getJsonDecodeCode(varName: string): string {
+    jsonDecodeJIT(varName: string): string {
         return DateJitJsonENcoder.decodeFromJson(varName);
     }
-    getMockCode(varName: string): string {
+    mockJIT(varName: string): string {
         return `${varName} = new Date(+(new Date()) - Math.floor(Math.random() * 10000000000))`;
     }
 }

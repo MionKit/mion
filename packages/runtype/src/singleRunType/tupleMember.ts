@@ -23,19 +23,19 @@ export class TupleMemberRunType implements RunType<TypeTupleMember> {
         this.shouldDecodeJson = this.memberType.shouldDecodeJson;
         this.name = this.memberType.name;
     }
-    getValidateCode(varName: string): string {
-        return this.memberType.getValidateCode(varName);
+    isTypeJIT(varName: string): string {
+        return this.memberType.isTypeJIT(varName);
     }
-    getValidateCodeWithErrors(varName: string, errorsName: string, pathChain: string): string {
-        return this.memberType.getValidateCodeWithErrors(varName, errorsName, pathChain);
+    typeErrorsJIT(varName: string, errorsName: string, pathChain: string): string {
+        return this.memberType.typeErrorsJIT(varName, errorsName, pathChain);
     }
-    getJsonEncodeCode(varName: string): string {
-        return this.memberType.getJsonEncodeCode(varName);
+    jsonEncodeJIT(varName: string): string {
+        return this.memberType.jsonEncodeJIT(varName);
     }
-    getJsonDecodeCode(varName: string): string {
-        return this.memberType.getJsonDecodeCode(varName);
+    jsonDecodeJIT(varName: string): string {
+        return this.memberType.jsonDecodeJIT(varName);
     }
-    getMockCode(varName: string): string {
-        return this.memberType.getMockCode(varName);
+    mockJIT(varName: string): string {
+        return this.memberType.mockJIT(varName);
     }
 }

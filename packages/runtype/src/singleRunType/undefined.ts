@@ -18,19 +18,19 @@ export class UndefinedRunType implements RunType<TypeUndefined> {
         public readonly visitor: RunTypeVisitor,
         public readonly nestLevel: number
     ) {}
-    getValidateCode(varName: string): string {
+    isTypeJIT(varName: string): string {
         return `typeof ${varName} === 'undefined'`;
     }
-    getValidateCodeWithErrors(varName: string, errorsName: string, pathChain: string): string {
+    typeErrorsJIT(varName: string, errorsName: string, pathChain: string): string {
         return `if (typeof ${varName} !== 'undefined') ${errorsName}.push({path: ${pathChain}, expected: ${toLiteral(this.name)}})`;
     }
-    getJsonEncodeCode(): string {
+    jsonEncodeJIT(): string {
         return `null`;
     }
-    getJsonDecodeCode(): string {
+    jsonDecodeJIT(): string {
         return `undefined`;
     }
-    getMockCode(varName: string): string {
+    mockJIT(varName: string): string {
         return `${varName} = undefined`;
     }
 }

@@ -18,19 +18,19 @@ export class VoidRunType implements RunType<TypeVoid> {
         public readonly visitor: RunTypeVisitor,
         public readonly nestLevel: number
     ) {}
-    getValidateCode(varName: string): string {
+    isTypeJIT(varName: string): string {
         return `${varName} === undefined`;
     }
-    getValidateCodeWithErrors(varName: string, errorsName: string, pathChain: string): string {
+    typeErrorsJIT(varName: string, errorsName: string, pathChain: string): string {
         return `if (${varName} !== undefined) ${errorsName}.push({path: ${pathChain}, expected: ${toLiteral(this.name)}})`;
     }
-    getJsonEncodeCode(): string {
+    jsonEncodeJIT(): string {
         throw new Error('void can not be encoded to json.');
     }
-    getJsonDecodeCode(): string {
+    jsonDecodeJIT(): string {
         throw new Error('void can not be decoded from json.');
     }
-    getMockCode(): string {
+    mockJIT(): string {
         return `void 0`;
     }
 }

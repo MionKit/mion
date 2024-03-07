@@ -32,57 +32,57 @@ export class FunctionRunType<T extends TypeMethodSignature | TypeCallSignature |
         this.shouldDecodeParamsJson = this.parameterTypes.some((p) => p.shouldDecodeJson);
         this.name = `${callType}<${this.parameterTypes.map((p) => p.name).join(', ')} => ${this.returnType.name}>`;
     }
-    getValidateCode(): string {
+    isTypeJIT(): string {
         return ''; // functions are ignored when generating validation code
     }
-    getValidateCodeWithErrors(): string {
+    typeErrorsJIT(): string {
         return ''; // functions are ignored when generating validation cod
     }
-    getJsonEncodeCode(): string {
+    jsonEncodeJIT(): string {
         return ''; // functions are ignored when generating json encode code
     }
-    getJsonDecodeCode(): string {
+    jsonDecodeJIT(): string {
         return ''; // functions are ignored when generating json decode code
     }
-    getMockCode(): string {
+    mockJIT(): string {
         return ''; // functions are ignored when generating mock code
     }
-    paramsGetValidateCode(varName: string): string {
-        return this.parameterTypes.map((p, i) => `(${p.getValidateCode(`${varName}[${i}]`)})`).join(' && ');
+    paramsIsTypeJIT(varName: string): string {
+        return this.parameterTypes.map((p, i) => `(${p.isTypeJIT(`${varName}[${i}]`)})`).join(' && ');
     }
-    paramsGetValidateCodeWithErrors(varName: string, errorsName: string, pathChain: string): string {
-        return this.parameterTypes.map((p, i) => p.getValidateCodeWithErrors(`${varName}[${i}]`, errorsName, pathChain)).join('');
+    paramsTypeErrorsJIT(varName: string, errorsName: string, pathChain: string): string {
+        return this.parameterTypes.map((p, i) => p.typeErrorsJIT(`${varName}[${i}]`, errorsName, pathChain)).join('');
     }
-    paramsGetJsonEncodeCode(varName: string): string {
+    paramsJsonEncodeJIT(varName: string): string {
         if (!this.shouldEncodeParamsJson) return '[]';
-        const paramsCode = this.parameterTypes.map((p, i) => p.getJsonEncodeCode(`${varName}[${i}]`)).join(', ');
+        const paramsCode = this.parameterTypes.map((p, i) => p.jsonEncodeJIT(`${varName}[${i}]`)).join(', ');
         return `[${paramsCode}]`;
     }
-    paramsGetJsonDecodeCode(varName: string): string {
+    paramsJsonDecodeJIT(varName: string): string {
         if (!this.shouldDecodeParamsJson) return '[]';
-        const paramsCode = this.parameterTypes.map((p, i) => p.getJsonDecodeCode(`${varName}[${i}]`)).join(', ');
+        const paramsCode = this.parameterTypes.map((p, i) => p.jsonDecodeJIT(`${varName}[${i}]`)).join(', ');
         return `[${paramsCode}]`;
     }
-    paramsGetMockCode(varName: string): string {
+    paramsMockJIT(varName: string): string {
         const arrayName = `paramList${this.nestLevel}`;
-        const mockCodes = this.parameterTypes.map((rt, i) => `${rt.getMockCode(`${arrayName}[${i}]`)};`).join('');
+        const mockCodes = this.parameterTypes.map((rt, i) => `${rt.mockJIT(`${arrayName}[${i}]`)};`).join('');
         return `const ${arrayName} = []; ${mockCodes} ${varName} = ${arrayName}[Math.floor(Math.random() * ${arrayName}.length)]`;
     }
-    returnGetValidateCode(varName: string): string {
-        return this.returnType.getValidateCode(varName);
+    returnIsTypeJIT(varName: string): string {
+        return this.returnType.isTypeJIT(varName);
     }
-    returnGetValidateCodeWithErrors(varName: string, errorsName: string, pathChain: string): string {
-        return this.returnType.getValidateCodeWithErrors(varName, errorsName, pathChain);
+    returnTypeErrorsJIT(varName: string, errorsName: string, pathChain: string): string {
+        return this.returnType.typeErrorsJIT(varName, errorsName, pathChain);
     }
-    returnGetJsonEncodeCode(varName: string): string {
+    returnJsonEncodeJIT(varName: string): string {
         if (!this.shouldEncodeReturnJson) return varName;
-        return this.returnType.getJsonEncodeCode(varName);
+        return this.returnType.jsonEncodeJIT(varName);
     }
-    returnGetJsonDecodeCode(varName: string): string {
+    returnJsonDecodeJIT(varName: string): string {
         if (!this.shouldDecodeReturnJson) return varName;
-        return this.returnType.getJsonDecodeCode(varName);
+        return this.returnType.jsonDecodeJIT(varName);
     }
-    returnGetMockCode(varName: string): string {
-        return this.returnType.getMockCode(varName);
+    returnMockJIT(varName: string): string {
+        return this.returnType.mockJIT(varName);
     }
 }

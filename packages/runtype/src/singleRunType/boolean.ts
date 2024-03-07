@@ -18,19 +18,19 @@ export class BooleanRunType implements RunType<TypeBoolean> {
         public readonly visitor: RunTypeVisitor,
         public readonly nestLevel: number
     ) {}
-    getValidateCode(varName: string): string {
+    isTypeJIT(varName: string): string {
         return `typeof ${varName} === 'boolean'`;
     }
-    getValidateCodeWithErrors(varName: string, errorsName: string, pathChain: string): string {
+    typeErrorsJIT(varName: string, errorsName: string, pathChain: string): string {
         return `if (typeof ${varName} !== 'boolean') ${errorsName}.push({path: ${pathChain}, expected: ${toLiteral(this.name)}})`;
     }
-    getJsonEncodeCode(varName: string): string {
+    jsonEncodeJIT(varName: string): string {
         return varName;
     }
-    getJsonDecodeCode(varName: string): string {
+    jsonDecodeJIT(varName: string): string {
         return varName;
     }
-    getMockCode(varName: string): string {
+    mockJIT(varName: string): string {
         return `${varName} = Math.random() < 0.5`;
     }
 }
