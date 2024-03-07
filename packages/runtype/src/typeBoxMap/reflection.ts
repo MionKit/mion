@@ -8,7 +8,7 @@
 
 import {SchemaOptions, TSchema, Type as TypeBox} from '@sinclair/typebox';
 import {ReflectionKind, resolveReceiveType, ReceiveType, reflectOrUndefined, TypeObjectLiteral} from '@deepkit/type';
-import {DeepkitVisitor, TRunType} from '../types';
+import {DeepkitVisitor, TRunType} from '../typeBoxTypes';
 import {resolveObject} from './object';
 import {resolveArray} from './array';
 import {resolveObjectLiteral} from './objectLiteral';

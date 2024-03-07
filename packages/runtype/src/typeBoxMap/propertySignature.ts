@@ -7,7 +7,7 @@
 
 import {SchemaOptions, TSchema, Type as TypeBox} from '@sinclair/typebox';
 import {TypePropertySignature} from '@deepkit/type';
-import {DeepkitVisitor} from '../types';
+import {DeepkitVisitor} from '../typeBoxTypes';
 
 export function resolvePropertySignature(
     deepkitType: TypePropertySignature,

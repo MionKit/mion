@@ -7,7 +7,7 @@
 
 import {SchemaOptions, TAsyncIterator, TIterator, Type as TypeBox} from '@sinclair/typebox';
 import {TypeObjectLiteral} from '@deepkit/type';
-import {DeepkitVisitor} from '../types';
+import {DeepkitVisitor} from '../typeBoxTypes';
 
 export function resolveIterator(deepkitType: TypeObjectLiteral, opts: SchemaOptions, resolveTypeBox: DeepkitVisitor): TIterator {
     const origin = deepkitType.originTypes?.[0];

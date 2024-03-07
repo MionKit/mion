@@ -7,7 +7,7 @@
 
 import {SchemaOptions, TFunction, Type as TypeBox} from '@sinclair/typebox';
 import {TypeCallSignature, TypeFunction, TypeMethod, TypeMethodSignature} from '@deepkit/type';
-import {DeepkitVisitor} from '../types';
+import {DeepkitVisitor} from '../typeBoxTypes';
 
 export function resolveFunction(
     deepkitType: TypeMethod | TypeMethodSignature | TypeFunction | TypeCallSignature,

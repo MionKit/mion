@@ -6,14 +6,6 @@
  * ######## */
 
 import {Type} from '@deepkit/type';
-import {SchemaOptions, TSchema, TTransform} from '@sinclair/typebox';
-
-// Visitor function type definition
-export type DeepkitVisitor = (deepkitType: Type, opts: SchemaOptions) => any;
-
-export type TypeSer = TSchema & {jsonTransformer?: TTransform<any, any>};
-
-export type TRunType = TSchema & {jsonTransformer?: TTransform<any, any>};
 
 export type JSONValue = string | number | boolean | null | {[key: string]: JSONValue} | Array<JSONValue>;
 
