@@ -7,7 +7,7 @@
 
 import {SchemaOptions, TSchema, TTuple, Type as TypeBox} from '@sinclair/typebox';
 import {TypeTuple, TypeTupleMember} from '@deepkit/type';
-import {DeepkitVisitor} from '../types';
+import {DeepkitVisitor} from '../typeBoxTypes';
 
 export function resolveTuple(deepkitType: TypeTuple, opts: SchemaOptions, resolveTypeBox: DeepkitVisitor): TTuple {
     const itemTypes: TSchema[] = deepkitType.types.map((member) => resolveTypeBox(member, {}));

@@ -6,8 +6,8 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {ReflectionKind, resolveReceiveType, ReceiveType} from '@deepkit/type';
-import {RunType} from './types';
+import {ReflectionKind, resolveReceiveType, ReceiveType, TypeObjectLiteral} from '@deepkit/type';
+import {RunType, RunTypeVisitor} from './types';
 import {StringRunType} from './singleRunType/string';
 import {DateRunType} from './singleRunType/date';
 import {NumberRunType} from './singleRunType/number';
@@ -27,7 +27,13 @@ import {EnumRunType} from './singleRunType/enum';
 import {EnumMemberRunType} from './singleRunType/enumMember';
 import {UnionRunType} from './collectionRunType/union';
 import {TupleRunType} from './collectionRunType/tuple';
-import {ProxyRunType} from './singleRunType/proxy';
+import {TupleMemberRunType} from './singleRunType/tupleMember';
+import {ObjectLiteralRunType} from './collectionRunType/objectLiteral';
+import {PropertySignatureRunType} from './singleRunType/property';
+import {IndexSignatureRunType} from './collectionRunType';
+import {MethodSignatureRunType} from './functionRunType/method';
+import {CallSignatureRunType} from './functionRunType/call';
+import {FunctionRunType} from './functionRunType/function';
 // import {resolveAsyncIterator, resolveIterator} from './typeBoxMap/nativeObjectLiterals';
 
 const MaxNestLevel = 100;
@@ -59,8 +65,7 @@ function visitor(deepkitType, nestLevel: number): RunType {
             rt = new BooleanRunType(deepkitType, visitor, nestLevel);
             break;
         case ReflectionKind.callSignature:
-            throw new Error('not implemented');
-            // rType = resolveCallSignature(deepkitType, opts, mapper);
+            rt = new CallSignatureRunType(deepkitType, visitor, nestLevel);
             break;
         case ReflectionKind.class:
             if (deepkitType.classType === Date) {
@@ -77,17 +82,14 @@ function visitor(deepkitType, nestLevel: number): RunType {
             rt = new EnumMemberRunType(deepkitType, visitor, nestLevel);
             break;
         case ReflectionKind.function:
-            throw new Error('not implemented');
-            // rType = resolveFunction(deepkitType, opts, mapper);
+            rt = new FunctionRunType(deepkitType, visitor, nestLevel);
             break;
         case ReflectionKind.indexSignature:
-            // TODO: Implement support for call and index signatures
-            throw new Error(
-                `Typebox does not support indexSignatures i.e. interface SomethingWithPi{ pi: 3.14159; [key: string]: string; } https://www.typescriptlang.org/glossary#index-signatures`
-            );
+            rt = new IndexSignatureRunType(deepkitType, visitor, nestLevel);
+            break;
         case ReflectionKind.infer:
             throw new Error(
-                'Typebox does not support conditional types, ie: type typeBoxType =Type<T> = T extends (...args: any[]) => infer R ? R : any; https://www.typescriptlang.org/docs/handbook/2/conditional-types.html'
+                'Infer type not supported, ie: type typeBoxType =Type<T> = T extends (...args: any[]) => infer R ? R : any; https://www.typescriptlang.org/docs/handbook/2/conditional-types.html'
             );
         case ReflectionKind.intersection:
             throw new Error('not implemented');
@@ -101,8 +103,7 @@ function visitor(deepkitType, nestLevel: number): RunType {
             // rType = resolveMethod(deepkitType, opts, mapper);
             break;
         case ReflectionKind.methodSignature:
-            throw new Error('not implemented');
-            // rType = resolveMethodSignature(deepkitType, opts, mapper);
+            rt = new MethodSignatureRunType(deepkitType, visitor, nestLevel);
             break;
         case ReflectionKind.null:
             rt = new NullRunType(deepkitType, visitor, nestLevel);
@@ -114,15 +115,14 @@ function visitor(deepkitType, nestLevel: number): RunType {
             throw new Error('not implemented');
             break;
         case ReflectionKind.objectLiteral:
-            throw new Error('not implemented');
-            // const typeNative = deepkitType as TypeObjectLiteral;
-            // const originTypeName = typeNative.originTypes?.[0].typeName;
-            // const isNativeType = originTypeName && nativeTypeNamesFromObjectLiterals.includes(originTypeName);
-            // if (isNativeType) {
-            //     rType = resolveNativeTypeFromObjectLiteral(typeNative, opts, mapper, originTypeName);
-            // } else {
-            //     rType = resolveObjectLiteral(typeNative, opts, mapper);
-            // }
+            const objLiteral = deepkitType as TypeObjectLiteral;
+            const originTypeName = objLiteral.originTypes?.[0].typeName;
+            const isNativeType = originTypeName && nativeTypeNamesFromObjectLiterals.includes(originTypeName);
+            if (isNativeType) {
+                rt = resolveNativeTypeFromObjectLiteral(objLiteral, originTypeName, objLiteral, visitor, nestLevel);
+            } else {
+                rt = new ObjectLiteralRunType(objLiteral, visitor, nestLevel);
+            }
             break;
         case ReflectionKind.parameter:
             throw new Error('not implemented');
@@ -137,8 +137,7 @@ function visitor(deepkitType, nestLevel: number): RunType {
             throw new Error('not implemented');
             break;
         case ReflectionKind.propertySignature:
-            throw new Error('not implemented');
-            // rType = resolvePropertySignature(deepkitType, opts, mapper);
+            rt = new PropertySignatureRunType(deepkitType, visitor, nestLevel);
             break;
         case ReflectionKind.regexp:
             rt = new RegexpRunType(deepkitType, visitor, nestLevel);
@@ -164,7 +163,7 @@ function visitor(deepkitType, nestLevel: number): RunType {
             rt = new TupleRunType(deepkitType, visitor, nestLevel);
             break;
         case ReflectionKind.tupleMember:
-            rt = new ProxyRunType(deepkitType, visitor, nestLevel);
+            rt = new TupleMemberRunType(deepkitType, visitor, nestLevel);
             break;
         case ReflectionKind.typeParameter:
             throw new Error('not implemented');
@@ -193,20 +192,24 @@ function visitor(deepkitType, nestLevel: number): RunType {
     return rt;
 }
 
-// const nativeTypeNamesFromObjectLiterals = ['AsyncIterator', 'Iterator'];
+const nativeTypeNamesFromObjectLiterals = ['AsyncIterator', 'Iterator'];
 
-// function resolveNativeTypeFromObjectLiteral(
-//     deepkitType: TypeObjectLiteral,
-//     opts: SchemaOptions,
-//     resolveTypeBox: DeepkitVisitor,
-//     nativeName: string
-// ): TRunType {
-//     switch (nativeName) {
-//         case 'Iterator':
-//             return resolveIterator(deepkitType, opts, resolveTypeBox);
-//         case 'AsyncIterator':
-//             return resolveAsyncIterator(deepkitType, opts, resolveTypeBox);
-//         default:
-//             throw new Error(`Type is not an Native Type`);
-//     }
-// }
+function resolveNativeTypeFromObjectLiteral(
+    deepkitType: TypeObjectLiteral,
+    nativeName: string,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    src: TypeObjectLiteral,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    visitor: RunTypeVisitor,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    nestLevel: number
+): RunType {
+    switch (nativeName) {
+        case 'Iterator':
+            throw new Error('Iterator not implemented');
+        case 'AsyncIterator':
+            throw new Error('AsyncIterator not implemented');
+        default:
+            throw new Error(`Type is not an Native Type`);
+    }
+}

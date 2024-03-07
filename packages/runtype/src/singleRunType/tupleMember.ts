@@ -8,13 +8,13 @@
 import {TypeTupleMember} from '@deepkit/type';
 import {RunType, RunTypeVisitor} from '../types';
 
-export class ProxyRunType<T extends TypeTupleMember> implements RunType<T> {
+export class TupleMemberRunType implements RunType<TypeTupleMember> {
     public readonly shouldEncodeJson: boolean;
     public readonly shouldDecodeJson: boolean;
     public readonly memberType: RunType;
     public readonly name: string;
     constructor(
-        public readonly src: T,
+        public readonly src: TypeTupleMember,
         public readonly visitor: RunTypeVisitor,
         public readonly nestLevel: number
     ) {

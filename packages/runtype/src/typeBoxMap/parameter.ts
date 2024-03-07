@@ -7,7 +7,7 @@
 
 import {SchemaOptions, TSchema, Type as TypeBox} from '@sinclair/typebox';
 import {TypeParameter} from '@deepkit/type';
-import {DeepkitVisitor} from '../types';
+import {DeepkitVisitor} from '../typeBoxTypes';
 
 export function resolveParameter(deepkitType: TypeParameter, opts: SchemaOptions, resolveTypeBox: DeepkitVisitor): TSchema {
     // we ignore the visibility of the type parameter as private parameters in the Constructor are still required to be passed
