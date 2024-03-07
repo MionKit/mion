@@ -5,18 +5,12 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 import {runType} from '../runType';
-import {
-    getJitJsonEncodeFn,
-    getJitJsonDecodeFn,
-    getValidateJitFunction,
-    getJitValidateWithErrorsFn,
-    getJitMockFn,
-} from '../jitCompiler';
+import {buildJsonEncodeJITFn, buildJsonDecodeJITFn, buildIsTypeJITFn, buildTypeErrorsJITFn, buildMockJITFn} from '../jitCompiler';
 
 const rt = runType<void>();
 
 it('validate void', () => {
-    const validate = getValidateJitFunction(rt);
+    const validate = buildIsTypeJITFn(rt);
     function vd() {}
     expect(validate(undefined)).toBe(true);
     expect(validate(vd())).toBe(true);
@@ -26,7 +20,7 @@ it('validate void', () => {
 });
 
 it('validate void + errors', () => {
-    const valWithErrors = getJitValidateWithErrorsFn(rt);
+    const valWithErrors = buildTypeErrorsJITFn(rt);
     expect(valWithErrors(undefined)).toEqual([]);
     expect(valWithErrors(null)).toEqual([{path: '', expected: 'void'}]);
     expect(valWithErrors(42)).toEqual([{path: '', expected: 'void'}]);
@@ -34,16 +28,16 @@ it('validate void + errors', () => {
 });
 
 it('encode to json should throw an error', () => {
-    expect(() => getJitJsonEncodeFn(rt)).toThrow('void can not be encoded to json.');
+    expect(() => buildJsonEncodeJITFn(rt)).toThrow('void can not be encoded to json.');
 });
 
 it('decode from json should throw an error', () => {
-    expect(() => getJitJsonDecodeFn(rt)).toThrow('void can not be decoded from json.');
+    expect(() => buildJsonDecodeJITFn(rt)).toThrow('void can not be decoded from json.');
 });
 
 it('mock', () => {
-    const mock = getJitMockFn(rt);
+    const mock = buildMockJITFn(rt);
     expect(mock()).toBeUndefined();
-    const validate = getValidateJitFunction(rt);
+    const validate = buildIsTypeJITFn(rt);
     expect(validate(mock())).toBe(true);
 });

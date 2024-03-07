@@ -5,18 +5,12 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 import {runType} from '../runType';
-import {
-    getJitJsonEncodeFn,
-    getJitJsonDecodeFn,
-    getValidateJitFunction,
-    getJitValidateWithErrorsFn,
-    getJitMockFn,
-} from '../jitCompiler';
+import {buildJsonEncodeJITFn, buildJsonDecodeJITFn, buildIsTypeJITFn, buildTypeErrorsJITFn, buildMockJITFn} from '../jitCompiler';
 
 const rt = runType<bigint>();
 
 it('validate bigint', () => {
-    const validate = getValidateJitFunction(rt);
+    const validate = buildIsTypeJITFn(rt);
     expect(validate(1n)).toBe(true);
     expect(validate(42)).toBe(false);
     expect(validate(Infinity)).toBe(false);
@@ -25,29 +19,29 @@ it('validate bigint', () => {
 });
 
 it('validate bigint + errors', () => {
-    const valWithErrors = getJitValidateWithErrorsFn(rt);
+    const valWithErrors = buildTypeErrorsJITFn(rt);
     expect(valWithErrors(1n)).toEqual([]);
     expect(valWithErrors(BigInt(42))).toEqual([]);
     expect(valWithErrors('hello')).toEqual([{path: '', expected: 'bigint'}]);
 });
 
 it('encode to json', () => {
-    const toJson = getJitJsonEncodeFn(rt);
+    const toJson = buildJsonEncodeJITFn(rt);
     expect(toJson(1n)).toEqual('1n');
     expect(toJson(BigInt(42))).toEqual('42n');
     expect(toJson(90071992547409999n)).toEqual('90071992547409999n');
 });
 
 it('decode from json', () => {
-    const fromJson = getJitJsonDecodeFn(rt);
+    const fromJson = buildJsonDecodeJITFn(rt);
     expect(fromJson('1n')).toEqual(1n);
     expect(fromJson('42n')).toEqual(BigInt(42));
     expect(fromJson('90071992547409999n')).toEqual(90071992547409999n);
 });
 
 it('mock', () => {
-    const mock = getJitMockFn(rt);
+    const mock = buildMockJITFn(rt);
     expect(typeof mock()).toBe('bigint');
-    const validate = getValidateJitFunction(rt);
+    const validate = buildIsTypeJITFn(rt);
     expect(validate(mock())).toBe(true);
 });

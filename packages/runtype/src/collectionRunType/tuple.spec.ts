@@ -5,20 +5,14 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 import {runType} from '../runType';
-import {
-    getJitJsonEncodeFn,
-    getJitJsonDecodeFn,
-    getValidateJitFunction,
-    getJitValidateWithErrorsFn,
-    getJitMockFn,
-} from '../jitCompiler';
+import {buildJsonEncodeJITFn, buildJsonDecodeJITFn, buildIsTypeJITFn, buildTypeErrorsJITFn, buildMockJITFn} from '../jitCompiler';
 
 type TupleType = [Date, number, string, null, string[], bigint];
 
 const rt = runType<TupleType>();
 
 it('validate tuple', () => {
-    const validate = getValidateJitFunction(rt);
+    const validate = buildIsTypeJITFn(rt);
     expect(validate([new Date(), 123, 'hello', null, ['a', 'b', 'c'], BigInt(123)])).toBe(true);
     expect(validate([new Date(), 123, 'hello', null, [], BigInt(123)])).toBe(true);
     expect(validate([new Date(), 123, 'hello', null, ['a', 'b', 'c']])).toBe(false);
@@ -32,7 +26,7 @@ it('validate tuple', () => {
 });
 
 it('validate tuple + errors', () => {
-    const valWithErrors = getJitValidateWithErrorsFn(rt);
+    const valWithErrors = buildTypeErrorsJITFn(rt);
     expect(valWithErrors([new Date(), 123, 'hello', null, ['a', 'b', 'c'], BigInt(123)])).toEqual([]);
     expect(valWithErrors([new Date(), 123, 'hello', null, [], BigInt(123)])).toEqual([]);
     expect(valWithErrors([new Date(), 123, 'hello', null])).toEqual([
@@ -69,8 +63,8 @@ it('validate tuple + errors', () => {
 });
 
 it('encode/decode to json', () => {
-    const toJson = getJitJsonEncodeFn(rt);
-    const fromJson = getJitJsonDecodeFn(rt);
+    const toJson = buildJsonEncodeJITFn(rt);
+    const fromJson = buildJsonDecodeJITFn(rt);
     const typeValue = [new Date(), 123, 'hello', null, ['a', 'b', 'c'], BigInt(123)];
     expect(rt.shouldDecodeJson).toBe(true);
     expect(rt.shouldEncodeJson).toBe(true);
@@ -78,7 +72,7 @@ it('encode/decode to json', () => {
 });
 
 it('mock', () => {
-    const mock = getJitMockFn(rt);
+    const mock = buildMockJITFn(rt);
     const mocked = mock();
     expect(mocked).toHaveLength(6);
     expect(mocked[0]).toBeInstanceOf(Date);
@@ -87,6 +81,6 @@ it('mock', () => {
     expect(mocked[3]).toBeNull();
     expect(Array.isArray(mocked[4])).toBe(true);
     expect(typeof mocked[5]).toBe('bigint');
-    const validate = getValidateJitFunction(rt);
+    const validate = buildIsTypeJITFn(rt);
     expect(validate(mock())).toBe(true);
 });

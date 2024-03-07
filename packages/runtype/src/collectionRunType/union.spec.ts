@@ -5,20 +5,14 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 import {runType} from '../runType';
-import {
-    getJitJsonEncodeFn,
-    getJitJsonDecodeFn,
-    getValidateJitFunction,
-    getJitValidateWithErrorsFn,
-    getJitMockFn,
-} from '../jitCompiler';
+import {buildJsonEncodeJITFn, buildJsonDecodeJITFn, buildIsTypeJITFn, buildTypeErrorsJITFn, buildMockJITFn} from '../jitCompiler';
 
 type UnionType = Date | number | string | null | string[];
 
 const rt = runType<UnionType>();
 
 it('validate union', () => {
-    const validate = getValidateJitFunction(rt);
+    const validate = buildIsTypeJITFn(rt);
     expect(validate(new Date())).toBe(true);
     expect(validate(123)).toBe(true);
     expect(validate('hello')).toBe(true);
@@ -29,7 +23,7 @@ it('validate union', () => {
 });
 
 it('validate union + errors', () => {
-    const valWithErrors = getJitValidateWithErrorsFn(rt);
+    const valWithErrors = buildTypeErrorsJITFn(rt);
     expect(valWithErrors(new Date())).toEqual([]);
     expect(valWithErrors(123)).toEqual([]);
     expect(valWithErrors('hello')).toEqual([]);
@@ -40,8 +34,8 @@ it('validate union + errors', () => {
 });
 
 it('encode/decode to json', () => {
-    const toJson = getJitJsonEncodeFn(rt);
-    const fromJson = getJitJsonDecodeFn(rt);
+    const toJson = buildJsonEncodeJITFn(rt);
+    const fromJson = buildJsonDecodeJITFn(rt);
     const typeValue = new Date();
     expect(rt.shouldDecodeJson).toBe(true);
     expect(rt.shouldEncodeJson).toBe(true);
@@ -59,8 +53,8 @@ it('encode/decode to json', () => {
 it('no encode/decode require to json', () => {
     type UnionType = string | string[];
     const rtu = runType<UnionType>();
-    const toJson = getJitJsonEncodeFn(rtu);
-    const fromJson = getJitJsonDecodeFn(rtu);
+    const toJson = buildJsonEncodeJITFn(rtu);
+    const fromJson = buildJsonDecodeJITFn(rtu);
     expect(rtu.shouldDecodeJson).toBe(false);
     expect(rtu.shouldEncodeJson).toBe(false);
     const typeValue = 'hello';
@@ -73,7 +67,7 @@ it('no encode/decode require to json', () => {
 });
 
 it('mock', () => {
-    const mock = getJitMockFn(rt);
+    const mock = buildMockJITFn(rt);
     const mocked = mock();
     expect(
         typeof mocked === 'string' ||
@@ -82,6 +76,6 @@ it('mock', () => {
             mocked === null ||
             Array.isArray(mocked)
     ).toBe(true);
-    const validate = getValidateJitFunction(rt);
+    const validate = buildIsTypeJITFn(rt);
     expect(validate(mock())).toBe(true);
 });

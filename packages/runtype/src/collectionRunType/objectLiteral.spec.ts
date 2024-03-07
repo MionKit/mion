@@ -5,13 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 import {runType} from '../runType';
-import {
-    getJitJsonEncodeFn,
-    getJitJsonDecodeFn,
-    getValidateJitFunction,
-    getJitValidateWithErrorsFn,
-    getJitMockFn,
-} from '../jitCompiler';
+import {buildJsonEncodeJITFn, buildJsonDecodeJITFn, buildIsTypeJITFn, buildTypeErrorsJITFn, buildMockJITFn} from '../jitCompiler';
 
 type ObjectType = {
     date: Date;
@@ -39,7 +33,7 @@ const x: ObjectType = {
 const rt = runType<ObjectType>();
 
 it('validate object', () => {
-    const validate = getValidateJitFunction(rt);
+    const validate = buildIsTypeJITFn(rt);
     expect(
         validate({
             date: new Date(),
@@ -76,7 +70,7 @@ it('validate object', () => {
 });
 
 it('validate object + errors', () => {
-    const valWithErrors = getJitValidateWithErrorsFn(rt);
+    const valWithErrors = buildTypeErrorsJITFn(rt);
     expect(
         valWithErrors({
             date: new Date(),
@@ -112,8 +106,8 @@ it('validate object + errors', () => {
 });
 
 it('encode/decode to json', () => {
-    const toJson = getJitJsonEncodeFn(rt);
-    const fromJson = getJitJsonDecodeFn(rt);
+    const toJson = buildJsonEncodeJITFn(rt);
+    const fromJson = buildJsonDecodeJITFn(rt);
     const date = new Date();
     const typeValue = {
         date,
@@ -129,7 +123,7 @@ it('encode/decode to json', () => {
 });
 
 it('mock', () => {
-    const mock = getJitMockFn(rt);
+    const mock = buildMockJITFn(rt);
     const mocked = mock();
     expect(mocked).toHaveProperty('date');
     expect(mocked).toHaveProperty('number');
@@ -137,6 +131,6 @@ it('mock', () => {
     expect(mocked).toHaveProperty('nullValue');
     expect(mocked).toHaveProperty('stringArray');
     expect(mocked).toHaveProperty('bigInt');
-    const validate = getValidateJitFunction(rt);
+    const validate = buildIsTypeJITFn(rt);
     expect(validate(mock())).toBe(true);
 });

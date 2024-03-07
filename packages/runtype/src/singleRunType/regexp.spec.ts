@@ -5,13 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 import {runType} from '../runType';
-import {
-    getJitJsonEncodeFn,
-    getJitJsonDecodeFn,
-    getValidateJitFunction,
-    getJitValidateWithErrorsFn,
-    getJitMockFn,
-} from '../jitCompiler';
+import {buildJsonEncodeJITFn, buildJsonDecodeJITFn, buildIsTypeJITFn, buildTypeErrorsJITFn, buildMockJITFn} from '../jitCompiler';
 
 const rt = runType<RegExp>();
 
@@ -44,7 +38,7 @@ const regexpsList = [
 ];
 
 it('validate regexp', () => {
-    const validate = getValidateJitFunction(rt);
+    const validate = buildIsTypeJITFn(rt);
     expect(validate(/abc/)).toBe(true);
     expect(validate(new RegExp('abc'))).toBe(true);
     expect(validate(undefined)).toBe(false);
@@ -53,7 +47,7 @@ it('validate regexp', () => {
 });
 
 it('validate regexp + errors', () => {
-    const valWithErrors = getJitValidateWithErrorsFn(rt);
+    const valWithErrors = buildTypeErrorsJITFn(rt);
     expect(valWithErrors(/abc/)).toEqual([]);
     expect(valWithErrors(undefined)).toEqual([{path: '', expected: 'regexp'}]);
     expect(valWithErrors(42)).toEqual([{path: '', expected: 'regexp'}]);
@@ -61,16 +55,16 @@ it('validate regexp + errors', () => {
 });
 
 it('encode/decode json', () => {
-    const fromJson = getJitJsonDecodeFn(rt);
-    const toJson = getJitJsonEncodeFn(rt);
+    const fromJson = buildJsonDecodeJITFn(rt);
+    const toJson = buildJsonEncodeJITFn(rt);
     regexpsList.forEach((regexp) => {
         expect(fromJson(toJson(regexp))).toEqual(regexp);
     });
 });
 
 it('mock', () => {
-    const mock = getJitMockFn(rt);
+    const mock = buildMockJITFn(rt);
     expect(mock() instanceof RegExp).toBe(true);
-    const validate = getValidateJitFunction(rt);
+    const validate = buildIsTypeJITFn(rt);
     expect(validate(mock())).toBe(true);
 });
