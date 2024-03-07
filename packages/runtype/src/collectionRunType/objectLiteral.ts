@@ -25,30 +25,30 @@ export class ObjectLiteralRunType implements RunType<TypeObjectLiteral> {
         this.shouldEncodeJson = this.allProps.some((prop) => prop.shouldEncodeJson);
         this.name = `object<${this.allProps.map((prop) => prop.name).join(' & ')}>`;
     }
-    getValidateCode(varName: string): string {
-        const propsCode = this.allProps.map((prop) => `(${prop.getValidateCode(varName)})`).join(' &&');
+    isTypeJIT(varName: string): string {
+        const propsCode = this.allProps.map((prop) => `(${prop.isTypeJIT(varName)})`).join(' &&');
         return `typeof ${varName} === 'object' && ${propsCode}`;
     }
-    getValidateCodeWithErrors(varName: string, errorsName: string, pathLiteral: string): string {
-        const propsCode = this.allProps.map((prop) => prop.getValidateCodeWithErrors(varName, errorsName, pathLiteral)).join(';');
+    typeErrorsJIT(varName: string, errorsName: string, pathLiteral: string): string {
+        const propsCode = this.allProps.map((prop) => prop.typeErrorsJIT(varName, errorsName, pathLiteral)).join(';');
         return (
             `if (typeof ${varName} !== 'object') ${errorsName}.push({path: ${pathLiteral}, expected: ${toLiteral(this.name)}});` +
             `else {${propsCode}}`
         );
     }
-    getJsonEncodeCode(varName: string): string {
+    jsonEncodeJIT(varName: string): string {
         if (!this.shouldEncodeJson) return `${varName}`;
-        const propsCode = this.allProps.map((prop) => prop.getJsonEncodeCode(varName)).join(',');
+        const propsCode = this.allProps.map((prop) => prop.jsonEncodeJIT(varName)).join(',');
         return `{${propsCode}}`;
     }
-    getJsonDecodeCode(varName: string): string {
+    jsonDecodeJIT(varName: string): string {
         if (!this.shouldDecodeJson) return `${varName}`;
-        const propsCode = this.allProps.map((prop) => prop.getJsonDecodeCode(varName)).join(',');
+        const propsCode = this.allProps.map((prop) => prop.jsonDecodeJIT(varName)).join(',');
         return `{${propsCode}}`;
     }
-    getMockCode(varName: string): string {
+    mockJIT(varName: string): string {
         const objectName = `objετ${this.nestLevel}`;
-        const propsCode = this.allProps.map((prop) => prop.getMockCode(objectName)).join(';');
+        const propsCode = this.allProps.map((prop) => prop.mockJIT(objectName)).join(';');
         return `const ${objectName} = {}; ${propsCode}; ${varName} = ${objectName}`;
     }
 }

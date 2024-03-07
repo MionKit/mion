@@ -39,9 +39,9 @@ export interface RunType<T extends Type = Type> {
      * should not include anything that is purely the validation of the type, ie function wrappers.
      * this code should not use return statements, it should be a single line of code that evaluates to a boolean
      * this code should not contain any sentence breaks or semicolons.
-     * ie: getValidateCode = () => `typeof vλluε === 'string'`
+     * ie: isTypeJIT = () => `typeof vλluε === 'string'`
      */
-    getValidateCode: (varName: string) => string;
+    isTypeJIT: (varName: string) => string;
     /**
      * Validation + error info
      * Similar to validation code but instead of returning a boolean it should assign an error message to the errorsName
@@ -50,26 +50,26 @@ export interface RunType<T extends Type = Type> {
      * pathChain is a string that represents the path to the property being validated.
      * pathChain is calculated at runtime so is an expresion like 'path1' + '/' + 'path2' + '/' + 'path3'
      */
-    getValidateCodeWithErrors: (varName: string, errorsName: string, pathChain: string) => string;
+    typeErrorsJIT: (varName: string, errorsName: string, pathChain: string) => string;
     /**
      * Code to transform from type to a json type so type can be serialized to json
      * this code should not use return statements, it should be a single line of code that evaluates to a json compatible type.
      * this code should not contain any sentence breaks or semicolons.
-     * ie for bigIng: getJsonEncodeCode = () => `vλluε.toString()`
+     * ie for bigIng: jsonEncodeJIT = () => `vλluε.toString()`
      * */
-    getJsonEncodeCode: (varName: string) => string;
+    jsonEncodeJIT: (varName: string) => string;
     /**
      * Code to transform from json to type so type can be deserialized from json
      * this code should not use return statements, it should be a single line that recieves a json compatible type and returns a deserialized value.
      * this code should not contain any sentence breaks or semicolons.
-     * ie for bigIng: getJsonDecodeCode = () => `BigInt(vλluε)`
+     * ie for bigIng: jsonDecodeJIT = () => `BigInt(vλluε)`
      * */
-    getJsonDecodeCode: (varName: string, newVarName?: string) => string;
+    jsonDecodeJIT: (varName: string, newVarName?: string) => string;
     /**
      * Code that returns a mocked value, should be random when possible
      * this code should not use return statements, this can be a code block and can contain multiple lines or semicolons.
      * the mocked value should be assigned to the varName
-     * ie for number: getMockCode = () => `vλluε = Math.floor(Math.random() * 100)`
+     * ie for number: mockJIT = () => `vλluε = Math.floor(Math.random() * 100)`
      * */
-    getMockCode: (varName) => any;
+    mockJIT: (varName) => any;
 }

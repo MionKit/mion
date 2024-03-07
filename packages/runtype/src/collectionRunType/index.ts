@@ -24,12 +24,12 @@ export class IndexSignatureRunType implements RunType<TypeIndexSignature> {
         this.shouldDecodeJson = this.propertiesRunType.shouldDecodeJson;
         this.name = `index<${this.propertiesRunType.name}>`;
     }
-    getValidateCode(varName: string): string {
+    isTypeJIT(varName: string): string {
         const keyName = `kεy${this.nestLevel}`;
         const valueName = `valuε${this.nestLevel}`;
-        return `typeof ${varName} === 'object' && Object.entries(${varName}).every(([${keyName}, ${valueName}]) => (${this.propertiesRunType.getValidateCode(valueName)}))`;
+        return `typeof ${varName} === 'object' && Object.entries(${varName}).every(([${keyName}, ${valueName}]) => (${this.propertiesRunType.isTypeJIT(valueName)}))`;
     }
-    getValidateCodeWithErrors(varName: string, errorsName: string, pathLiteral: string): string {
+    typeErrorsJIT(varName: string, errorsName: string, pathLiteral: string): string {
         const keyName = `kεy${this.nestLevel}`;
         const valueName = `valuε${this.nestLevel}`;
         const propertyName = `propεrty${this.nestLevel}`;
@@ -37,33 +37,33 @@ export class IndexSignatureRunType implements RunType<TypeIndexSignature> {
 
         return (
             `if (typeof ${varName} !== 'object') ${errorsName}.push({path: ${pathLiteral}, expected: ${toLiteral(this.name)}});` +
-            `else Object.entries(${varName}).forEach(([${keyName}, ${valueName}]) => {${this.propertiesRunType.getValidateCodeWithErrors(valueName, errorsName, propertyPath)}})`
+            `else Object.entries(${varName}).forEach(([${keyName}, ${valueName}]) => {${this.propertiesRunType.typeErrorsJIT(valueName, errorsName, propertyPath)}})`
         );
     }
-    getJsonEncodeCode(varName: string): string {
+    jsonEncodeJIT(varName: string): string {
         if (!this.shouldEncodeJson) return `${varName}`;
         const keyName = `kεy${this.nestLevel}`;
         const valueName = `valuε${this.nestLevel}`;
         return `Object.entries(${varName}).reduce((acc, [${keyName}, ${valueName}]) => {
-            acc[${keyName}] = ${this.propertiesRunType.getJsonEncodeCode(valueName)};
+            acc[${keyName}] = ${this.propertiesRunType.jsonEncodeJIT(valueName)};
             return acc;
         }, {})`;
     }
-    getJsonDecodeCode(varName: string): string {
+    jsonDecodeJIT(varName: string): string {
         if (!this.shouldDecodeJson) return `${varName}`;
         const keyName = `kεy${this.nestLevel}`;
         const valueName = `valuε${this.nestLevel}`;
         return `Object.entries(${varName}).reduce((acc, [${keyName}, ${valueName}]) => {
-            acc[${keyName}] = ${this.propertiesRunType.getJsonDecodeCode(valueName)};
+            acc[${keyName}] = ${this.propertiesRunType.jsonDecodeJIT(valueName)};
             return acc;
         }, {})`;
     }
-    getMockCode(varName: string): string {
+    mockJIT(varName: string): string {
         const keyName = `kεy${this.nestLevel}`;
         const valueName = `valuε${this.nestLevel}`;
         return `${varName} = Object.entries(${varName}).reduce((acc, [${keyName}, ${valueName}]) => {
             let ${valueName};
-            ${this.propertiesRunType.getMockCode(valueName)}
+            ${this.propertiesRunType.mockJIT(valueName)}
             acc[${keyName}] = ${valueName};
             return acc;
         }, {})`;

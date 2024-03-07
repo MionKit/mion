@@ -18,19 +18,19 @@ export class NumberRunType implements RunType<TypeNumber> {
         public readonly visitor: RunTypeVisitor,
         public readonly nestLevel: number
     ) {}
-    getValidateCode(varName: string): string {
+    isTypeJIT(varName: string): string {
         return `typeof ${varName} === 'number' && Number.isFinite(${varName})`;
     }
-    getValidateCodeWithErrors(varName: string, errorsName: string, pathChain: string): string {
-        return `if(!(${this.getValidateCode(varName)})) ${errorsName}.push({path: ${pathChain}, expected: ${toLiteral(this.name)}})`;
+    typeErrorsJIT(varName: string, errorsName: string, pathChain: string): string {
+        return `if(!(${this.isTypeJIT(varName)})) ${errorsName}.push({path: ${pathChain}, expected: ${toLiteral(this.name)}})`;
     }
-    getJsonEncodeCode(varName: string): string {
+    jsonEncodeJIT(varName: string): string {
         return varName;
     }
-    getJsonDecodeCode(varName: string): string {
+    jsonDecodeJIT(varName: string): string {
         return varName;
     }
-    getMockCode(varName: string): string {
+    mockJIT(varName: string): string {
         return `${varName} = Math.floor(Math.random() * 10000)`;
     }
 }

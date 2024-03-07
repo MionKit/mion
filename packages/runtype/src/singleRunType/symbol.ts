@@ -18,19 +18,19 @@ export class SymbolRunType implements RunType<TypeSymbol> {
         public readonly visitor: RunTypeVisitor,
         public readonly nestLevel: number
     ) {}
-    getValidateCode(varName: string): string {
+    isTypeJIT(varName: string): string {
         return `typeof ${varName} === 'symbol'`;
     }
-    getValidateCodeWithErrors(varName: string, errorsName: string, pathChain: string): string {
+    typeErrorsJIT(varName: string, errorsName: string, pathChain: string): string {
         return `if (typeof ${varName} !== 'symbol') ${errorsName}.push({path: ${pathChain}, expected: ${toLiteral(this.name)}})`;
     }
-    getJsonEncodeCode(varName: string): string {
+    jsonEncodeJIT(varName: string): string {
         return SymbolJitJsonENcoder.encodeToJson(varName);
     }
-    getJsonDecodeCode(varName: string): string {
+    jsonDecodeJIT(varName: string): string {
         return SymbolJitJsonENcoder.decodeFromJson(varName);
     }
-    getMockCode(varName: string): string {
+    mockJIT(varName: string): string {
         const alpha = `alpha${this.nestLevel}`;
         return (
             `const ${alpha} = 'abcdefghijklmnopqrstuvwxyz1234567890';` +

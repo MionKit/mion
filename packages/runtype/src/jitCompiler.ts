@@ -10,7 +10,7 @@ import {toLiteral} from './utils';
 
 export function getValidateJitFunction(runType: RunType, varName = 'vλluε'): (vλluε: any) => boolean {
     const varNameNest = `${varName}${runType.nestLevel}`;
-    const code = runType.getValidateCode(varNameNest);
+    const code = runType.isTypeJIT(varNameNest);
     // console.log(code);
     return new Function(varNameNest, `return ${code}`) as (vλluε: any) => boolean;
 }
@@ -21,7 +21,7 @@ export function getJitValidateWithErrorsFn(
     errorsName = 'εrrΦrs',
     rootPath = ''
 ): (vλluε: any) => RunTypeValidationError[] {
-    const code = runType.getValidateCodeWithErrors(varName, errorsName, toLiteral(rootPath));
+    const code = runType.typeErrorsJIT(varName, errorsName, toLiteral(rootPath));
     // console.log(code);
     return new Function(varName, `const ${errorsName} = []; ${code}; return ${errorsName};`) as (
         vλluε: any
@@ -29,19 +29,19 @@ export function getJitValidateWithErrorsFn(
 }
 
 export function getJitJsonEncodeFn(runType: RunType, varName = 'vλluε'): (vλluε: any) => JSONValue {
-    const code = runType.getJsonEncodeCode(varName);
+    const code = runType.jsonEncodeJIT(varName);
     // console.log(code);
     return new Function(varName, `return ${code};`) as (vλluε: any) => JSONValue;
 }
 
 export function getJitJsonDecodeFn(runType: RunType, varName = 'vλluε'): (vλluε: JSONValue) => any {
-    const code = runType.getJsonDecodeCode(varName);
+    const code = runType.jsonDecodeJIT(varName);
     // console.log(code);
     return new Function(varName, `return ${code};`) as (vλluε: JSONValue) => any;
 }
 
 export function getJitMockFn(runType: RunType, varName = 'vλluε'): () => any {
-    const code = runType.getMockCode(varName);
+    const code = runType.mockJIT(varName);
     // console.log(code);
     return new Function(varName, `${code}; return ${varName};`) as () => any;
 }

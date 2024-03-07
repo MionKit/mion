@@ -24,31 +24,31 @@ export class TupleRunType implements RunType<TypeTuple> {
         this.shouldEncodeJson = this.runTypes.some((rt) => rt.shouldEncodeJson);
         this.shouldDecodeJson = this.runTypes.some((rt) => rt.shouldDecodeJson);
     }
-    getValidateCode(varName: string): string {
-        return this.runTypes.map((rt, i) => `(${rt.getValidateCode(`${varName}[${i}]`)})`).join(' && ');
+    isTypeJIT(varName: string): string {
+        return this.runTypes.map((rt, i) => `(${rt.isTypeJIT(`${varName}[${i}]`)})`).join(' && ');
     }
-    getValidateCodeWithErrors(varName: string, errorsName: string, pathChain: string): string {
+    typeErrorsJIT(varName: string, errorsName: string, pathChain: string): string {
         const itemsCode = this.runTypes
-            .map((rt, i) => rt.getValidateCodeWithErrors(`${varName}[${i}]`, errorsName, addToPathChain(pathChain, i)))
+            .map((rt, i) => rt.typeErrorsJIT(`${varName}[${i}]`, errorsName, addToPathChain(pathChain, i)))
             .join(';');
         return (
             `if (!Array.isArray(${varName})) ${errorsName}.push({path: ${pathChain}, expected: ${toLiteral(this.name)}});` +
             `else {${itemsCode}}`
         );
     }
-    getJsonEncodeCode(varName: string): string {
+    jsonEncodeJIT(varName: string): string {
         if (!this.shouldEncodeJson) return varName;
-        const encodeCodes = this.runTypes.map((rt, i) => rt.getJsonEncodeCode(`${varName}[${i}]`));
+        const encodeCodes = this.runTypes.map((rt, i) => rt.jsonEncodeJIT(`${varName}[${i}]`));
         return `[${encodeCodes.join(', ')}]`;
     }
-    getJsonDecodeCode(varName: string): string {
+    jsonDecodeJIT(varName: string): string {
         if (!this.shouldDecodeJson) return varName;
-        const decodeCodes = this.runTypes.map((rt, i) => rt.getJsonDecodeCode(`${varName}[${i}]`));
+        const decodeCodes = this.runTypes.map((rt, i) => rt.jsonDecodeJIT(`${varName}[${i}]`));
         return `[${decodeCodes.join(', ')}]`;
     }
-    getMockCode(varName: string): string {
+    mockJIT(varName: string): string {
         const arrayName = `tupleList${this.nestLevel}`;
-        const mockCodes = this.runTypes.map((rt, i) => `${rt.getMockCode(`${arrayName}[${i}]`)};`).join('');
+        const mockCodes = this.runTypes.map((rt, i) => `${rt.mockJIT(`${arrayName}[${i}]`)};`).join('');
         return `const ${arrayName} = []; ${mockCodes} ${varName} = ${arrayName};`;
     }
 }

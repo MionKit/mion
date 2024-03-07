@@ -59,26 +59,26 @@ export class LiteralRunType implements RunType<TypeLiteral> {
         }
         this.name = `literal<${toLiteral(src.literal)}>`;
     }
-    getValidateCode(varName: string): string {
+    isTypeJIT(varName: string): string {
         if (typeof this.src.literal === 'symbol') return validateSymbol(varName, this.src.literal);
         else if (this.src.literal instanceof RegExp) return validateRegExp(varName, this.src.literal);
         else if (typeof this.src.literal === 'bigint') return validateBigInt(varName, this.src.literal);
         else return validateLiteral(varName, this.src.literal);
     }
-    getValidateCodeWithErrors(varName: string, errorsName: string, pathChain: string): string {
+    typeErrorsJIT(varName: string, errorsName: string, pathChain: string): string {
         if (typeof this.src.literal === 'symbol')
             return validateSymbolWithErrors(varName, errorsName, pathChain, this.src.literal, this.name);
         else if (this.src.literal instanceof RegExp)
             return validateRegExpWithErrors(varName, errorsName, pathChain, this.src.literal, this.name);
         return validateLiteralWithErrors(varName, errorsName, pathChain, this.src.literal, this.name);
     }
-    getJsonEncodeCode(varName: string): string {
+    jsonEncodeJIT(varName: string): string {
         return this.jitJsonEncoder.encodeToJson(varName);
     }
-    getJsonDecodeCode(varName: string): string {
+    jsonDecodeJIT(varName: string): string {
         return this.jitJsonEncoder.decodeFromJson(varName);
     }
-    getMockCode(varName: string): string {
+    mockJIT(varName: string): string {
         if (typeof this.src.literal === 'symbol') return `${varName} = Symbol('${this.src.literal.description}')`;
         return `${varName} = ${toLiteral(this.src.literal)}`;
     }

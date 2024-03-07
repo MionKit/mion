@@ -24,35 +24,35 @@ export class ArrayRunType implements RunType<TypeArray> {
         this.shouldDecodeJson = this.itemsRunType.shouldDecodeJson;
         this.name = `array<${this.itemsRunType.name}>`;
     }
-    getValidateCode(varName: string): string {
+    isTypeJIT(varName: string): string {
         const itemName = `iτεm${this.nestLevel}`;
-        return `Array.isArray(${varName}) && ${varName}.every((${itemName}) => (${this.itemsRunType.getValidateCode(itemName)}))`;
+        return `Array.isArray(${varName}) && ${varName}.every((${itemName}) => (${this.itemsRunType.isTypeJIT(itemName)}))`;
     }
-    getValidateCodeWithErrors(varName: string, errorsName: string, pathLiteral: string): string {
+    typeErrorsJIT(varName: string, errorsName: string, pathLiteral: string): string {
         const itemName = `iτεm${this.nestLevel}`;
         const indexName = `indεx${this.nestLevel}`;
         const listItemPath = addToPathChain(pathLiteral, indexName, false);
 
         return (
             `if (!Array.isArray(${varName})) ${errorsName}.push({path: ${pathLiteral}, expected: ${toLiteral(this.name)}});` +
-            `else ${varName}.forEach((${itemName}, ${indexName}) => {${this.itemsRunType.getValidateCodeWithErrors(itemName, errorsName, listItemPath)}})`
+            `else ${varName}.forEach((${itemName}, ${indexName}) => {${this.itemsRunType.typeErrorsJIT(itemName, errorsName, listItemPath)}})`
         );
     }
-    getJsonEncodeCode(varName: string): string {
+    jsonEncodeJIT(varName: string): string {
         if (!this.shouldEncodeJson) return `${varName}`;
         const itemName = `iτεm${this.nestLevel}`;
-        return `${varName}.map((${itemName}) => ${this.itemsRunType.getJsonEncodeCode(itemName)})`;
+        return `${varName}.map((${itemName}) => ${this.itemsRunType.jsonEncodeJIT(itemName)})`;
     }
-    getJsonDecodeCode(varName: string): string {
+    jsonDecodeJIT(varName: string): string {
         if (!this.shouldDecodeJson) return `${varName}`;
         const itemName = `iτεm${this.nestLevel}`;
-        return `${varName}.map((${itemName}) => ${this.itemsRunType.getJsonDecodeCode(itemName)})`;
+        return `${varName}.map((${itemName}) => ${this.itemsRunType.jsonDecodeJIT(itemName)})`;
     }
-    getMockCode(varName: string): string {
+    mockJIT(varName: string): string {
         const itemName = `iτεm${this.nestLevel}`;
         return `${varName} = Array.from({length: Math.floor(Math.random() * 10)}, () => {
             let ${itemName};
-            ${this.itemsRunType.getMockCode(itemName)}
+            ${this.itemsRunType.mockJIT(itemName)}
             return ${itemName};
         })`;
     }

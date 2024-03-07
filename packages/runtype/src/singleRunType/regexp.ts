@@ -18,19 +18,19 @@ export class RegexpRunType implements RunType<TypeRegexp> {
         public readonly visitor: RunTypeVisitor,
         public readonly nestLevel: number
     ) {}
-    getValidateCode(varName: string): string {
+    isTypeJIT(varName: string): string {
         return `(${varName} instanceof RegExp)`;
     }
-    getValidateCodeWithErrors(varName: string, errorsName: string, pathChain: string): string {
+    typeErrorsJIT(varName: string, errorsName: string, pathChain: string): string {
         return `if (!(${varName} instanceof RegExp)) ${errorsName}.push({path: ${pathChain}, expected: ${toLiteral(this.name)}})`;
     }
-    getJsonEncodeCode(varName: string): string {
+    jsonEncodeJIT(varName: string): string {
         return RegexpJitJsonEncoder.encodeToJson(varName);
     }
-    getJsonDecodeCode(varName: string): string {
+    jsonDecodeJIT(varName: string): string {
         return RegexpJitJsonEncoder.decodeFromJson(varName);
     }
-    getMockCode(varName: string): string {
+    mockJIT(varName: string): string {
         const regExpList = `regExpList${this.nestLevel}`;
         return (
             `const ${regExpList} = [/example/, /abc/, /^a-zA-Z0-9/, /abc/i, /hello[0-9]/];` +
