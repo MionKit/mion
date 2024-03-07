@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {TypeEnum} from '@deepkit/type';
+import {ReflectionKind, TypeEnum} from '@deepkit/type';
 import {RunType, RunTypeVisitor} from '../types';
 import {toLiteral} from '../utils';
 
@@ -28,6 +28,10 @@ export class EnumRunType implements RunType<TypeEnum> {
     }
     jsonEncodeJIT(varName: string): string {
         return varName;
+    }
+    jsonStringifyJIT(varName: string): string {
+        if (this.src.indexType.kind === ReflectionKind.number) return varName;
+        return `JSON.stringify(${varName})`;
     }
     jsonDecodeJIT(varName: string): string {
         return varName;

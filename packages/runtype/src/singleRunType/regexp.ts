@@ -27,6 +27,9 @@ export class RegexpRunType implements RunType<TypeRegexp> {
     jsonEncodeJIT(varName: string): string {
         return RegexpJitJsonEncoder.encodeToJson(varName);
     }
+    jsonStringifyJIT(varName: string): string {
+        return RegexpJitJsonEncoder.stringify(varName);
+    }
     jsonDecodeJIT(varName: string): string {
         return RegexpJitJsonEncoder.decodeFromJson(varName);
     }
@@ -48,5 +51,8 @@ export const RegexpJitJsonEncoder: JitJsonEncoder = {
     },
     encodeToJson(varName: string): string {
         return `(${varName}.toString())`;
+    },
+    stringify(varName: string): string {
+        return `JSON.stringify(${varName}.toString())`;
     },
 };

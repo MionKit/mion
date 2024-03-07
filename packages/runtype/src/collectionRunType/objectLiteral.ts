@@ -41,6 +41,10 @@ export class ObjectLiteralRunType implements RunType<TypeObjectLiteral> {
         const propsCode = this.allProps.map((prop) => prop.jsonEncodeJIT(varName)).join(',');
         return `{${propsCode}}`;
     }
+    jsonStringifyJIT(varName: string): string {
+        const propsCode = this.allProps.map((prop) => prop.jsonStringifyJIT(varName)).join(',');
+        return `{${propsCode}}`;
+    }
     jsonDecodeJIT(varName: string): string {
         if (!this.shouldDecodeJson) return `${varName}`;
         const propsCode = this.allProps.map((prop) => prop.jsonDecodeJIT(varName)).join(',');

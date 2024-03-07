@@ -45,6 +45,12 @@ export class UnionRunType implements RunType<TypeUnion> {
             .join(';');
         return `(() => {${encode}})()`;
     }
+    jsonStringifyJIT(varName: string): string {
+        const encode = this.runTypes
+            .map((rt, i) => `if (${rt.isTypeJIT(varName)}) return '[${i}, ${rt.jsonStringifyJIT(varName)}]'`)
+            .join(';');
+        return `(() => {${encode}})()`;
+    }
     jsonDecodeJIT(varName: string): string {
         if (!this.shouldDecodeJson) return varName;
         const itemsThatNeedDecode = this.runTypes.filter((rt) => rt.shouldDecodeJson).map((rt, i) => ({rt, i}));

@@ -27,6 +27,9 @@ export class DateRunType implements RunType<TypeClass> {
     jsonEncodeJIT(varName: string): string {
         return DateJitJsonENcoder.encodeToJson(varName);
     }
+    jsonStringifyJIT(varName: string): string {
+        return DateJitJsonENcoder.stringify(varName);
+    }
     jsonDecodeJIT(varName: string): string {
         return DateJitJsonENcoder.decodeFromJson(varName);
     }
@@ -41,5 +44,8 @@ export const DateJitJsonENcoder: JitJsonEncoder = {
     },
     encodeToJson(varName: string): string {
         return `${varName}`;
+    },
+    stringify(varName: string): string {
+        return `'"' + ${varName}.toString() + '"'`;
     },
 };

@@ -27,6 +27,9 @@ export class UndefinedRunType implements RunType<TypeUndefined> {
     jsonEncodeJIT(): string {
         return `null`;
     }
+    jsonStringifyJIT(): string {
+        return `null`;
+    }
     jsonDecodeJIT(): string {
         return `undefined`;
     }

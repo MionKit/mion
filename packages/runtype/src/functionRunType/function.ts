@@ -41,6 +41,9 @@ export class FunctionRunType<T extends TypeMethodSignature | TypeCallSignature |
     jsonEncodeJIT(): string {
         return ''; // functions are ignored when generating json encode code
     }
+    jsonStringifyJIT(): string {
+        return ''; // functions are ignored when generating json stringify code
+    }
     jsonDecodeJIT(): string {
         return ''; // functions are ignored when generating json decode code
     }
@@ -54,12 +57,16 @@ export class FunctionRunType<T extends TypeMethodSignature | TypeCallSignature |
         return this.parameterTypes.map((p, i) => p.typeErrorsJIT(`${varName}[${i}]`, errorsName, pathChain)).join('');
     }
     paramsJsonEncodeJIT(varName: string): string {
-        if (!this.shouldEncodeParamsJson) return '[]';
+        if (!this.shouldEncodeParamsJson) return varName;
         const paramsCode = this.parameterTypes.map((p, i) => p.jsonEncodeJIT(`${varName}[${i}]`)).join(', ');
         return `[${paramsCode}]`;
     }
+    paramsStringifyJIT(varName: string): string {
+        const paramsCode = this.parameterTypes.map((p, i) => p.jsonStringifyJIT(`${varName}[${i}]`)).join(', ');
+        return `[${paramsCode}]`;
+    }
     paramsJsonDecodeJIT(varName: string): string {
-        if (!this.shouldDecodeParamsJson) return '[]';
+        if (!this.shouldDecodeParamsJson) return varName;
         const paramsCode = this.parameterTypes.map((p, i) => p.jsonDecodeJIT(`${varName}[${i}]`)).join(', ');
         return `[${paramsCode}]`;
     }
@@ -77,6 +84,9 @@ export class FunctionRunType<T extends TypeMethodSignature | TypeCallSignature |
     returnJsonEncodeJIT(varName: string): string {
         if (!this.shouldEncodeReturnJson) return varName;
         return this.returnType.jsonEncodeJIT(varName);
+    }
+    returnStringifyJIT(varName: string): string {
+        return this.returnType.jsonStringifyJIT(varName);
     }
     returnJsonDecodeJIT(varName: string): string {
         if (!this.shouldDecodeReturnJson) return varName;

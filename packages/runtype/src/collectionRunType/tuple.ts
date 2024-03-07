@@ -41,6 +41,10 @@ export class TupleRunType implements RunType<TypeTuple> {
         const encodeCodes = this.runTypes.map((rt, i) => rt.jsonEncodeJIT(`${varName}[${i}]`));
         return `[${encodeCodes.join(', ')}]`;
     }
+    jsonStringifyJIT(varName: string): string {
+        const encodeCodes = this.runTypes.map((rt, i) => rt.jsonStringifyJIT(`${varName}[${i}]`));
+        return `[${encodeCodes.join(', ')}]`;
+    }
     jsonDecodeJIT(varName: string): string {
         if (!this.shouldDecodeJson) return varName;
         const decodeCodes = this.runTypes.map((rt, i) => rt.jsonDecodeJIT(`${varName}[${i}]`));

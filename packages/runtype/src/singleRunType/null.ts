@@ -27,6 +27,9 @@ export class NullRunType implements RunType<TypeNull> {
     jsonEncodeJIT(varName: string): string {
         return varName;
     }
+    jsonStringifyJIT(varName: string): string {
+        return varName;
+    }
     jsonDecodeJIT(varName: string): string {
         return varName;
     }
