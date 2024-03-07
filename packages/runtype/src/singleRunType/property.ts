@@ -57,6 +57,12 @@ export class PropertySignatureRunType implements RunType<TypePropertySignature> 
         const valCode = this.memberType.jsonEncodeJIT(`${varName}.${this.propName}`);
         return `${this.propName}: ${valCode}`;
     }
+    jsonStringifyJIT(varName: string): string {
+        if (this.isSymbol) return '';
+        const valCode = this.memberType.jsonStringifyJIT(`${varName}.${this.propName}`);
+        const proNameJSon = JSON.stringify(this.propName);
+        return `${proNameJSon} + ':' + ${valCode}`;
+    }
     jsonDecodeJIT(varName: string): string {
         if (this.isSymbol) return '';
         const valCode = this.memberType.jsonDecodeJIT(`${varName}.${this.propName}`);

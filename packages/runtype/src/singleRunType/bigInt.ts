@@ -27,6 +27,9 @@ export class BigIntRunType implements RunType<TypeBigInt> {
     jsonEncodeJIT(varName: string): string {
         return BigIntJitJsonENcoder.encodeToJson(varName);
     }
+    jsonStringifyJIT(varName: string): string {
+        return BigIntJitJsonENcoder.stringify(varName);
+    }
     jsonDecodeJIT(varName: string): string {
         return BigIntJitJsonENcoder.decodeFromJson(varName);
     }
@@ -41,5 +44,8 @@ export const BigIntJitJsonENcoder: JitJsonEncoder = {
     },
     encodeToJson(varName: string): string {
         return `${varName}.toString() + 'n'`;
+    },
+    stringify(varName: string): string {
+        return `JSON.stringify(${varName}.toString() + 'n')`;
     },
 };

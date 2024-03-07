@@ -27,8 +27,11 @@ export class SymbolRunType implements RunType<TypeSymbol> {
     jsonEncodeJIT(varName: string): string {
         return SymbolJitJsonENcoder.encodeToJson(varName);
     }
+    jsonStringifyJIT(varName: string): string {
+        return SymbolJitJsonENcoder.encodeToJson(varName);
+    }
     jsonDecodeJIT(varName: string): string {
-        return SymbolJitJsonENcoder.decodeFromJson(varName);
+        return SymbolJitJsonENcoder.stringify(varName);
     }
     mockJIT(varName: string): string {
         const alpha = `alpha${this.nestLevel}`;
@@ -45,5 +48,8 @@ export const SymbolJitJsonENcoder: JitJsonEncoder = {
     },
     encodeToJson(varName: string): string {
         return `'Symbol:' + (${varName}.description || '')`;
+    },
+    stringify(varName: string): string {
+        return `JSON.stringify('Symbol:' + (${varName}.description || ''))`;
     },
 };

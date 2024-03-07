@@ -27,6 +27,9 @@ export class BooleanRunType implements RunType<TypeBoolean> {
     jsonEncodeJIT(varName: string): string {
         return varName;
     }
+    jsonStringifyJIT(varName: string): string {
+        return varName;
+    }
     jsonDecodeJIT(varName: string): string {
         return varName;
     }

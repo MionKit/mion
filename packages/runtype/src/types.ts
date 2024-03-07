@@ -14,6 +14,7 @@ export type RunTypeVisitor = (deepkitType: Type, nestLevel: number) => RunType;
 export interface JitJsonEncoder {
     decodeFromJson: (varName: string) => string;
     encodeToJson: (varName: string) => string;
+    stringify: (varName: string) => string;
 }
 
 export interface RunTypeValidationError {
@@ -35,7 +36,7 @@ export interface RunType<T extends Type = Type> {
     readonly shouldDecodeJson: boolean;
 
     /**
-     * validation code
+     * JIT code validation code
      * should not include anything that is purely the validation of the type, ie function wrappers.
      * this code should not use return statements, it should be a single line of code that evaluates to a boolean
      * this code should not contain any sentence breaks or semicolons.
@@ -43,7 +44,7 @@ export interface RunType<T extends Type = Type> {
      */
     isTypeJIT: (varName: string) => string;
     /**
-     * Validation + error info
+     * JIT code Validation + error info
      * Similar to validation code but instead of returning a boolean it should assign an error message to the errorsName
      * This is an executable code block and can contain multiple lines or semicolons
      * ie:  validateCodeWithErrors = () => `if (typeof vλluε !== 'string') ${errorsName} = 'Expected to be a String';`
@@ -52,19 +53,27 @@ export interface RunType<T extends Type = Type> {
      */
     typeErrorsJIT: (varName: string, errorsName: string, pathChain: string) => string;
     /**
-     * Code to transform from type to a json type so type can be serialized to json
+     * JIT code to transform from type to an object that can be serialized using json
      * this code should not use return statements, it should be a single line of code that evaluates to a json compatible type.
      * this code should not contain any sentence breaks or semicolons.
      * ie for bigIng: jsonEncodeJIT = () => `vλluε.toString()`
      * */
     jsonEncodeJIT: (varName: string) => string;
     /**
-     * Code to transform from json to type so type can be deserialized from json
+     * JIT code to transform a type directly into s json string.
+     * when serializing to json normally we need first to prepare the object using jsonEncodeJIT and then JSON.stringify().
+     * this code directly outputs the json string and saves traversing the type twice
+     * @param varName
+     * @returns
+     */
+    jsonStringifyJIT: (varName: string) => string;
+    /**
+     * JIT code to transform from json to type so type can be deserialized from json
      * this code should not use return statements, it should be a single line that recieves a json compatible type and returns a deserialized value.
      * this code should not contain any sentence breaks or semicolons.
      * ie for bigIng: jsonDecodeJIT = () => `BigInt(vλluε)`
      * */
-    jsonDecodeJIT: (varName: string, newVarName?: string) => string;
+    jsonDecodeJIT: (varName: string) => string;
     /**
      * Code that returns a mocked value, should be random when possible
      * this code should not use return statements, this can be a code block and can contain multiple lines or semicolons.
