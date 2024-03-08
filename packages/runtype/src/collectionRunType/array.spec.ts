@@ -5,7 +5,14 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 import {runType} from '../runType';
-import {buildJsonEncodeJITFn, buildJsonDecodeJITFn, buildIsTypeJITFn, buildTypeErrorsJITFn, buildMockJITFn} from '../jitCompiler';
+import {
+    buildJsonEncodeJITFn,
+    buildJsonDecodeJITFn,
+    buildIsTypeJITFn,
+    buildTypeErrorsJITFn,
+    buildMockJITFn,
+    buildJsonStringifyJITFn,
+} from '../jitCompiler';
 
 describe('ArrayType', () => {
     const rt = runType<string[]>();
@@ -50,6 +57,18 @@ describe('ArrayType', () => {
         const typeValue = [new Date(), new Date()];
         const json = JSON.parse(JSON.stringify(typeValue));
         expect(fromJson(json)).toEqual(typeValue);
+    });
+
+    it('json stringify', () => {
+        const jsonStringify = buildJsonStringifyJITFn(rt);
+        const fromJson = buildJsonDecodeJITFn(rt);
+        const typeValue = ['hello', 'world'];
+        const roundTrip = fromJson(JSON.parse(jsonStringify(typeValue)));
+        expect(roundTrip).toEqual(typeValue);
+
+        const typeValue2 = [];
+        const roundTrip2 = fromJson(JSON.parse(jsonStringify(typeValue2)));
+        expect(roundTrip2).toEqual(typeValue2);
     });
 
     it('mock', () => {
@@ -99,15 +118,27 @@ describe('ArrayType recursion', () => {
 
     it('encode to json', () => {
         const toJson = buildJsonEncodeJITFn(rt);
-        const typeValue = ['hello', 'world'];
+        const typeValue = [['hello', 'world'], ['a', 'b'], []];
         expect(toJson(typeValue)).toEqual(typeValue);
     });
 
     it('decode from json', () => {
         const fromJson = buildJsonDecodeJITFn(rt);
-        const typeValue = ['hello', 'world'];
+        const typeValue = [['hello', 'world'], ['a', 'b'], []];
         const json = JSON.parse(JSON.stringify(typeValue));
         expect(fromJson(json)).toEqual(typeValue);
+    });
+
+    it('json stringify', () => {
+        const jsonStringify = buildJsonStringifyJITFn(rt);
+        const fromJson = buildJsonDecodeJITFn(rt);
+        const typeValue = [['hello', 'world'], ['a', 'b'], []];
+        const roundTrip = fromJson(JSON.parse(jsonStringify(typeValue)));
+        expect(roundTrip).toEqual(typeValue);
+
+        const typeValue2 = [];
+        const roundTrip2 = fromJson(JSON.parse(jsonStringify(typeValue2)));
+        expect(roundTrip2).toEqual(typeValue2);
     });
 
     it('mock', () => {

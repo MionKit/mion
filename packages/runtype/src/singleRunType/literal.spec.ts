@@ -5,7 +5,14 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 import {runType} from '../runType';
-import {buildJsonEncodeJITFn, buildJsonDecodeJITFn, buildIsTypeJITFn, buildTypeErrorsJITFn, buildMockJITFn} from '../jitCompiler';
+import {
+    buildJsonEncodeJITFn,
+    buildJsonDecodeJITFn,
+    buildIsTypeJITFn,
+    buildTypeErrorsJITFn,
+    buildMockJITFn,
+    buildJsonStringifyJITFn,
+} from '../jitCompiler';
 
 const reg = /abc/i;
 const reg2 = /['"]\/\\\//; // regexp with characters that can be problematic in jit code if not correctly scaped
@@ -102,6 +109,41 @@ it('decode from json', () => {
     expect(fromJsonTrue(true)).toEqual(true);
     expect(fromJsonBig('1n')).toEqual(1n);
     expect(fromJsonSym('Symbol:hello').toString()).toEqual(sym.toString());
+});
+
+it('json stringify', () => {
+    const jsonStringify2 = buildJsonStringifyJITFn(rt2);
+    const jsonStringifyA = buildJsonStringifyJITFn(rtA);
+    const jsonStringifyReg = buildJsonStringifyJITFn(rtReg);
+    const jsonStringifyTrue = buildJsonStringifyJITFn(rtTrue);
+    const jsonStringifyBig = buildJsonStringifyJITFn(rtBig);
+    const jsonStringifySym = buildJsonStringifyJITFn(rtSym);
+
+    const fromJson2 = buildJsonDecodeJITFn(rt2);
+    const fromJsonA = buildJsonDecodeJITFn(rtA);
+    const fromJsonReg = buildJsonDecodeJITFn(rtReg);
+    const fromJsonTrue = buildJsonDecodeJITFn(rtTrue);
+    const fromJsonBig = buildJsonDecodeJITFn(rtBig);
+    const fromJsonSym = buildJsonDecodeJITFn(rtSym);
+
+    const typeValue2 = null;
+    const roundTrip2 = fromJson2(JSON.parse(jsonStringify2(typeValue2)));
+    expect(roundTrip2).toEqual(typeValue2);
+    const typeValueA = 'a';
+    const roundTripA = fromJsonA(JSON.parse(jsonStringifyA(typeValueA)));
+    expect(roundTripA).toEqual(typeValueA);
+    const typeValueReg = /abc/i;
+    const roundTripReg = fromJsonReg(JSON.parse(jsonStringifyReg(typeValueReg)));
+    expect(roundTripReg).toEqual(typeValueReg);
+    const typeValueTrue = true;
+    const roundTripTrue = fromJsonTrue(JSON.parse(jsonStringifyTrue(typeValueTrue)));
+    expect(roundTripTrue).toEqual(typeValueTrue);
+    const typeValueBig = 1n;
+    const roundTripBig = fromJsonBig(JSON.parse(jsonStringifyBig(typeValueBig)));
+    expect(roundTripBig).toEqual(typeValueBig);
+    const typeValueSym = sym;
+    const roundTripSym = fromJsonSym(JSON.parse(jsonStringifySym(typeValueSym)));
+    expect(roundTripSym.toString()).toEqual(typeValueSym.toString());
 });
 
 it('mock', () => {

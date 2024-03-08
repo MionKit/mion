@@ -46,10 +46,18 @@ export class UnionRunType implements RunType<TypeUnion> {
         return `(() => {${encode}})()`;
     }
     jsonStringifyJIT(varName: string): string {
+        const errorCode = `throw new Error('Can not stringify union: expected ${this.name} but got ' + ${varName}?.constructor?.name || typeof ${varName})`;
+        if (!this.shouldEncodeJson) {
+            const encode = this.runTypes
+                .map((rt) => `if (${rt.isTypeJIT(varName)}) return ${rt.jsonStringifyJIT(varName)}`)
+                .join(';');
+            return `(() => {${encode}; ${errorCode}})()`;
+        }
+
         const encode = this.runTypes
-            .map((rt, i) => `if (${rt.isTypeJIT(varName)}) return '[${i}, ${rt.jsonStringifyJIT(varName)}]'`)
+            .map((rt, i) => `if (${rt.isTypeJIT(varName)}) return ('[' + ${i} + ',' + ${rt.jsonStringifyJIT(varName)} + ']')`)
             .join(';');
-        return `(() => {${encode}})()`;
+        return `(() => {${encode}; ${errorCode}})()`;
     }
     jsonDecodeJIT(varName: string): string {
         if (!this.shouldDecodeJson) return varName;

@@ -5,7 +5,14 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 import {runType} from '../runType';
-import {buildJsonEncodeJITFn, buildJsonDecodeJITFn, buildIsTypeJITFn, buildTypeErrorsJITFn, buildMockJITFn} from '../jitCompiler';
+import {
+    buildJsonEncodeJITFn,
+    buildJsonDecodeJITFn,
+    buildIsTypeJITFn,
+    buildTypeErrorsJITFn,
+    buildMockJITFn,
+    buildJsonStringifyJITFn,
+} from '../jitCompiler';
 
 const rt = runType<RegExp>();
 
@@ -59,6 +66,16 @@ it('encode/decode json', () => {
     const toJson = buildJsonEncodeJITFn(rt);
     regexpsList.forEach((regexp) => {
         expect(fromJson(toJson(regexp))).toEqual(regexp);
+    });
+});
+
+it('json stringify', () => {
+    const jsonStringify = buildJsonStringifyJITFn(rt);
+    const fromJson = buildJsonDecodeJITFn(rt);
+    regexpsList.forEach((regexp) => {
+        const typeValue = regexp;
+        const roundTrip = fromJson(JSON.parse(jsonStringify(typeValue)));
+        expect(roundTrip).toEqual(typeValue);
     });
 });
 

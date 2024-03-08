@@ -19,6 +19,9 @@ const noEncoder: JitJsonEncoder = {
     encodeToJson(varName: string) {
         return `${varName}`;
     },
+    stringify(varName: string) {
+        return `JSON.stringify(${varName})`;
+    },
 };
 
 export class LiteralRunType implements RunType<TypeLiteral> {

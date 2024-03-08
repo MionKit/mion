@@ -27,7 +27,7 @@ export class NeverRunType implements RunType<TypeNever> {
         throw new Error('Never type cannot be encoded to JSON.');
     }
     jsonStringifyJIT(): string {
-        throw new Error('Never type cannot be encoded to JSON.');
+        throw new Error('Never type cannot be stringified.');
     }
     jsonDecodeJIT(): string {
         throw new Error('Never type cannot be decoded from JSON.');

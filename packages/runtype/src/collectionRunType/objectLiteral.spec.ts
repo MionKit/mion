@@ -5,7 +5,14 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 import {runType} from '../runType';
-import {buildJsonEncodeJITFn, buildJsonDecodeJITFn, buildIsTypeJITFn, buildTypeErrorsJITFn, buildMockJITFn} from '../jitCompiler';
+import {
+    buildJsonEncodeJITFn,
+    buildJsonDecodeJITFn,
+    buildIsTypeJITFn,
+    buildTypeErrorsJITFn,
+    buildMockJITFn,
+    buildJsonStringifyJITFn,
+} from '../jitCompiler';
 
 type ObjectType = {
     date: Date;
@@ -108,9 +115,8 @@ it('validate object + errors', () => {
 it('encode/decode to json', () => {
     const toJson = buildJsonEncodeJITFn(rt);
     const fromJson = buildJsonDecodeJITFn(rt);
-    const date = new Date();
     const typeValue = {
-        date,
+        date: new Date(),
         number: 123,
         string: 'hello',
         nullValue: null,
@@ -120,6 +126,33 @@ it('encode/decode to json', () => {
     expect(rt.shouldDecodeJson).toBe(true);
     expect(rt.shouldEncodeJson).toBe(true);
     expect(fromJson(toJson(typeValue))).toEqual(typeValue);
+});
+
+it('json stringify', () => {
+    const jsonStringify = buildJsonStringifyJITFn(rt);
+    const fromJson = buildJsonDecodeJITFn(rt);
+    const typeValue = {
+        date: new Date(),
+        number: 123,
+        string: 'hello',
+        nullValue: null,
+        stringArray: ['a', 'b', 'c'],
+        bigInt: BigInt(123),
+    };
+    const roundTrip = fromJson(JSON.parse(jsonStringify(typeValue)));
+    expect(roundTrip).toEqual(typeValue);
+
+    const typeValue2 = {
+        date: new Date(),
+        number: 123,
+        string: 'hello',
+        nullValue: null,
+        stringArray: ['a', 'b', 'c'],
+        bigInt: BigInt(123),
+        optionalString: 'hello',
+    };
+    const roundTrip2 = fromJson(JSON.parse(jsonStringify(typeValue2)));
+    expect(roundTrip2).toEqual(typeValue2);
 });
 
 it('mock', () => {

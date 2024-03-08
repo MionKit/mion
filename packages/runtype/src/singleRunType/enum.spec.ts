@@ -5,7 +5,14 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 import {runType} from '../runType';
-import {buildJsonEncodeJITFn, buildJsonDecodeJITFn, buildIsTypeJITFn, buildTypeErrorsJITFn, buildMockJITFn} from '../jitCompiler';
+import {
+    buildJsonEncodeJITFn,
+    buildJsonDecodeJITFn,
+    buildIsTypeJITFn,
+    buildTypeErrorsJITFn,
+    buildMockJITFn,
+    buildJsonStringifyJITFn,
+} from '../jitCompiler';
 
 enum Color {
     Red,
@@ -46,6 +53,18 @@ it('encode/decode to json', () => {
     const fromJson = buildJsonDecodeJITFn(rt);
     const typeValue = Color.Red;
     expect(fromJson(toJson(typeValue))).toEqual(typeValue);
+});
+
+it('json stringify', () => {
+    const jsonStringify = buildJsonStringifyJITFn(rt);
+    const fromJson = buildJsonDecodeJITFn(rt);
+    const typeValue = Color.Red;
+    const roundTrip = fromJson(JSON.parse(jsonStringify(typeValue)));
+    expect(roundTrip).toEqual(typeValue);
+
+    const typeValueG = Color.Green;
+    const roundTripG = fromJson(JSON.parse(jsonStringify(typeValueG)));
+    expect(roundTripG).toEqual(typeValueG);
 });
 
 it('mock', () => {

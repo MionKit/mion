@@ -46,6 +46,6 @@ export const DateJitJsonENcoder: JitJsonEncoder = {
         return `${varName}`;
     },
     stringify(varName: string): string {
-        return `'"' + ${varName}.toString() + '"'`;
+        return `'"'+${varName}.toJSON()+'"'`;
     },
 };
