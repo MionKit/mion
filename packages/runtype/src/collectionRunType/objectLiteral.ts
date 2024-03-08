@@ -41,9 +41,11 @@ export class ObjectLiteralRunType implements RunType<TypeObjectLiteral> {
         const propsCode = this.allProps.map((prop) => prop.jsonEncodeJIT(varName)).join(',');
         return `{${propsCode}}`;
     }
+    // unlike the other JIT methods the separator is added within the PropertySignatureRunType
+    // this is because optional properties can't emit any strings at runtime
     jsonStringifyJIT(varName: string): string {
-        const propsCode = this.allProps.map((prop) => prop.jsonStringifyJIT(varName)).join(',');
-        return `{${propsCode}}`;
+        const propsCode = this.allProps.map((prop, i) => prop.jsonStringifyJIT(varName, i === 0)).join('');
+        return `'{'+${propsCode}+'}'`;
     }
     jsonDecodeJIT(varName: string): string {
         if (!this.shouldDecodeJson) return `${varName}`;

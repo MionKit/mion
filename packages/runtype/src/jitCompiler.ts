@@ -34,16 +34,16 @@ export function buildJsonEncodeJITFn(runType: RunType, varName = 'vλluε'): (v�
     return new Function(varName, `return ${code};`) as (vλluε: any) => JSONValue;
 }
 
-export function buildJsonStringifyJITFn(runType: RunType, varName = 'vλluε'): (vλluε: any) => JSONValue {
-    const code = runType.jsonStringifyJIT(varName);
-    // console.log(code);
-    return new Function(varName, `return ${code};`) as (vλluε: any) => JSONValue;
-}
-
 export function buildJsonDecodeJITFn(runType: RunType, varName = 'vλluε'): (vλluε: JSONValue) => any {
     const code = runType.jsonDecodeJIT(varName);
     // console.log(code);
     return new Function(varName, `return ${code};`) as (vλluε: JSONValue) => any;
+}
+
+export function buildJsonStringifyJITFn(runType: RunType, varName = 'vλluε'): (vλluε: any) => string {
+    const code = runType.jsonStringifyJIT(varName);
+    // console.log(code);
+    return new Function(varName, `return ${code};`) as (vλluε: any) => string;
 }
 
 export function buildMockJITFn(runType: RunType, varName = 'vλluε'): () => any {

@@ -5,7 +5,14 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 import {runType} from '../runType';
-import {buildJsonEncodeJITFn, buildJsonDecodeJITFn, buildIsTypeJITFn, buildTypeErrorsJITFn, buildMockJITFn} from '../jitCompiler';
+import {
+    buildJsonEncodeJITFn,
+    buildJsonDecodeJITFn,
+    buildIsTypeJITFn,
+    buildTypeErrorsJITFn,
+    buildMockJITFn,
+    buildJsonStringifyJITFn,
+} from '../jitCompiler';
 
 type UnionType = Date | number | string | null | string[];
 
@@ -64,6 +71,44 @@ it('no encode/decode require to json', () => {
 
     // objects are the same after round trip
     expect(fromJson(toJson(typeValue))).toBe(typeValue);
+});
+
+it('json stringify with discriminator', () => {
+    // this should be serialized as [discriminatorIndex, value]
+    const jsonStringify = buildJsonStringifyJITFn(rt);
+    const fromJson = buildJsonDecodeJITFn(rt);
+    const typeValue = 'hello';
+    const roundTrip = fromJson(JSON.parse(jsonStringify(typeValue)));
+    expect(roundTrip).toEqual(typeValue);
+
+    const typeValue2 = ['a', 'b', 'c'];
+    const roundTrip2 = fromJson(JSON.parse(jsonStringify(typeValue2)));
+    expect(roundTrip2).toEqual(typeValue2);
+});
+
+it('json stringify', () => {
+    // this should be serialized directly as value instead [discriminatorIndex, value]
+    type UT = string | string[];
+    const rtU = runType<UT>();
+    const jsonStringify = buildJsonStringifyJITFn(rtU);
+    const fromJson = buildJsonDecodeJITFn(rtU);
+    const typeValue = 'hello';
+    const roundTrip = fromJson(JSON.parse(jsonStringify(typeValue)));
+    expect(roundTrip).toEqual(typeValue);
+
+    const typeValue2 = ['a', 'b', 'c'];
+    const roundTrip2 = fromJson(JSON.parse(jsonStringify(typeValue2)));
+    expect(roundTrip2).toEqual(typeValue2);
+});
+
+it('json stringify, passing value that does not belongs to the union', () => {
+    type UT = string | string[];
+    const rtU = runType<UT>();
+    const jsonStringify = buildJsonStringifyJITFn(rtU);
+
+    expect(() => jsonStringify(new Date())).toThrow(
+        'Can not stringify union: expected union<string | array<string>> but got Date'
+    );
 });
 
 it('mock', () => {

@@ -5,7 +5,14 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 import {runType} from '../runType';
-import {buildJsonEncodeJITFn, buildJsonDecodeJITFn, buildIsTypeJITFn, buildTypeErrorsJITFn, buildMockJITFn} from '../jitCompiler';
+import {
+    buildJsonEncodeJITFn,
+    buildJsonDecodeJITFn,
+    buildIsTypeJITFn,
+    buildTypeErrorsJITFn,
+    buildMockJITFn,
+    buildJsonStringifyJITFn,
+} from '../jitCompiler';
 
 const rt = runType<Date>();
 
@@ -26,6 +33,14 @@ it('encode/decode to json', () => {
     const fromJson = buildJsonDecodeJITFn(rt);
     const typeValue = new Date();
     expect(fromJson(toJson(typeValue))).toEqual(typeValue);
+});
+
+it('json stringify', () => {
+    const jsonStringify = buildJsonStringifyJITFn(rt);
+    const fromJson = buildJsonDecodeJITFn(rt);
+    const typeValue = new Date();
+    const roundTrip = fromJson(JSON.parse(jsonStringify(typeValue)));
+    expect(roundTrip).toEqual(typeValue);
 });
 
 it('mock', () => {

@@ -45,8 +45,8 @@ export class ArrayRunType implements RunType<TypeArray> {
     }
     jsonStringifyJIT(varName: string): string {
         const itemName = `iτεm${this.nestLevel}`;
-        const itemsCode = `${varName}.map((${itemName}) => ${this.itemsRunType.jsonStringifyJIT(itemName)}).join(',')`;
-        return `[${itemsCode}]`;
+        const itemsCode = `${varName}.map((${itemName}) => ${this.itemsRunType.jsonStringifyJIT(itemName)}).join(",")`;
+        return `'[' + ${itemsCode} + ']'`;
     }
     jsonDecodeJIT(varName: string): string {
         if (!this.shouldDecodeJson) return `${varName}`;

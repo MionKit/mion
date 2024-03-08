@@ -5,7 +5,14 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 import {runType} from '../runType';
-import {buildJsonEncodeJITFn, buildJsonDecodeJITFn, buildIsTypeJITFn, buildTypeErrorsJITFn, buildMockJITFn} from '../jitCompiler';
+import {
+    buildJsonEncodeJITFn,
+    buildJsonDecodeJITFn,
+    buildIsTypeJITFn,
+    buildTypeErrorsJITFn,
+    buildMockJITFn,
+    buildJsonStringifyJITFn,
+} from '../jitCompiler';
 
 const rt = runType<never>();
 
@@ -23,6 +30,10 @@ it('encode to json should throw an error', () => {
 
 it('decode from json should throw an error', () => {
     expect(() => buildJsonDecodeJITFn(rt)).toThrow('Never type cannot be decoded from JSON.');
+});
+
+it('json stringify', () => {
+    expect(() => buildJsonStringifyJITFn(rt)).toThrow('Never type cannot be stringified.');
 });
 
 it('mock', () => {
