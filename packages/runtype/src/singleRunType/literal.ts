@@ -26,8 +26,8 @@ const noEncoder: JitJsonEncoder = {
 
 export class LiteralRunType implements RunType<TypeLiteral> {
     public readonly name: string;
-    public readonly shouldEncodeJson: boolean;
-    public readonly shouldDecodeJson: boolean;
+    public readonly isJsonEncodeRequired: boolean;
+    public readonly isJsonDecodeRequired: boolean;
     public readonly jitJsonEncoder: JitJsonEncoder;
     constructor(
         public readonly src: TypeLiteral,
@@ -37,28 +37,28 @@ export class LiteralRunType implements RunType<TypeLiteral> {
         switch (true) {
             case typeof src.literal === 'bigint':
                 this.jitJsonEncoder = BigIntJitJsonENcoder;
-                this.shouldEncodeJson = true;
-                this.shouldDecodeJson = true;
+                this.isJsonEncodeRequired = true;
+                this.isJsonDecodeRequired = true;
                 break;
             case typeof src.literal === 'symbol':
                 this.jitJsonEncoder = SymbolJitJsonENcoder;
-                this.shouldEncodeJson = true;
-                this.shouldDecodeJson = true;
+                this.isJsonEncodeRequired = true;
+                this.isJsonDecodeRequired = true;
                 break;
             case typeof src.literal === 'string':
                 this.jitJsonEncoder = noEncoder;
-                this.shouldEncodeJson = false;
-                this.shouldDecodeJson = false;
+                this.isJsonEncodeRequired = false;
+                this.isJsonDecodeRequired = false;
                 break;
             case src.literal instanceof RegExp:
                 this.jitJsonEncoder = RegexpJitJsonEncoder;
-                this.shouldEncodeJson = true;
-                this.shouldDecodeJson = true;
+                this.isJsonEncodeRequired = true;
+                this.isJsonDecodeRequired = true;
                 break;
             default:
                 this.jitJsonEncoder = noEncoder;
-                this.shouldEncodeJson = false;
-                this.shouldDecodeJson = false;
+                this.isJsonEncodeRequired = false;
+                this.isJsonDecodeRequired = false;
         }
         this.name = `literal<${toLiteral(src.literal)}>`;
     }

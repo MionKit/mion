@@ -32,8 +32,8 @@ export interface RunType<T extends Type = Type> {
     readonly nestLevel: number;
     readonly src: T;
     readonly visitor: RunTypeVisitor;
-    readonly shouldEncodeJson: boolean;
-    readonly shouldDecodeJson: boolean;
+    readonly isJsonEncodeRequired: boolean;
+    readonly isJsonDecodeRequired: boolean;
 
     /**
      * JIT code validation code
@@ -58,11 +58,12 @@ export interface RunType<T extends Type = Type> {
      * this code should not contain any sentence breaks or semicolons.
      * ie for bigIng: jsonEncodeJIT = () => `vλluε.toString()`
      * */
-    jsonEncodeJIT: (varName: string) => string;
+    jsonEncodeJIT: (varName: string, isStrict?: boolean) => string;
     /**
      * JIT code to transform a type directly into s json string.
      * when serializing to json normally we need first to prepare the object using jsonEncodeJIT and then JSON.stringify().
      * this code directly outputs the json string and saves traversing the type twice
+     * stringify is allways strict
      * @param varName
      * @returns
      */
@@ -76,7 +77,7 @@ export interface RunType<T extends Type = Type> {
      * For security reason decoding ignores any properties that are not defined in the type.
      * So is your type is {name: string} and the json is {name: string, age: number} the age property will be ignored.
      * */
-    jsonDecodeJIT: (varName: string) => string;
+    jsonDecodeJIT: (varName: string, isStrict?: boolean) => string;
     /**
      * returns a mocked value, should be random when possible
      * */

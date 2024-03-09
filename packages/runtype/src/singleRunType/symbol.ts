@@ -12,8 +12,8 @@ import {mockSymbol} from '../mock';
 
 export class SymbolRunType implements RunType<TypeSymbol> {
     public readonly name = 'symbol';
-    public readonly shouldEncodeJson = true;
-    public readonly shouldDecodeJson = true;
+    public readonly isJsonEncodeRequired = true;
+    public readonly isJsonDecodeRequired = true;
     constructor(
         public readonly src: TypeSymbol,
         public readonly visitor: RunTypeVisitor,

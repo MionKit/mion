@@ -12,8 +12,8 @@ import {random} from '../mock';
 
 export class EnumRunType implements RunType<TypeEnum> {
     public readonly name: string;
-    public readonly shouldEncodeJson = false;
-    public readonly shouldDecodeJson = false;
+    public readonly isJsonEncodeRequired = false;
+    public readonly isJsonDecodeRequired = false;
     constructor(
         public readonly src: TypeEnum,
         public readonly visitor: RunTypeVisitor,

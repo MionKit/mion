@@ -11,8 +11,8 @@ import {addToPathChain, toLiteral} from '../utils';
 
 export class IndexSignatureRunType implements RunType<TypeIndexSignature> {
     public readonly name: string;
-    public readonly shouldEncodeJson;
-    public readonly shouldDecodeJson;
+    public readonly isJsonEncodeRequired;
+    public readonly isJsonDecodeRequired;
     public readonly propertiesRunType: RunType;
     constructor(
         public readonly src: TypeIndexSignature,
@@ -20,8 +20,8 @@ export class IndexSignatureRunType implements RunType<TypeIndexSignature> {
         public readonly nestLevel: number
     ) {
         this.propertiesRunType = visitor(src.type, nestLevel);
-        this.shouldEncodeJson = this.propertiesRunType.shouldEncodeJson;
-        this.shouldDecodeJson = this.propertiesRunType.shouldDecodeJson;
+        this.isJsonEncodeRequired = this.propertiesRunType.isJsonEncodeRequired;
+        this.isJsonDecodeRequired = this.propertiesRunType.isJsonDecodeRequired;
         this.name = `index<${this.propertiesRunType.name}>`;
     }
     isTypeJIT(varName: string): string {
@@ -41,7 +41,7 @@ export class IndexSignatureRunType implements RunType<TypeIndexSignature> {
         );
     }
     jsonEncodeJIT(varName: string): string {
-        if (!this.shouldEncodeJson) return `${varName}`;
+        if (!this.isJsonEncodeRequired) return `${varName}`;
         const keyName = `kεy${this.nestLevel}`;
         const valueName = `valuε${this.nestLevel}`;
         return `Object.entries(${varName}).reduce((acc, [${keyName}, ${valueName}]) => {

@@ -12,8 +12,8 @@ import {mockBoolean} from '../mock';
 
 export class BooleanRunType implements RunType<TypeBoolean> {
     public readonly name = 'boolean';
-    public readonly shouldEncodeJson = false;
-    public readonly shouldDecodeJson = false;
+    public readonly isJsonEncodeRequired = false;
+    public readonly isJsonDecodeRequired = false;
     constructor(
         public readonly src: TypeBoolean,
         public readonly visitor: RunTypeVisitor,

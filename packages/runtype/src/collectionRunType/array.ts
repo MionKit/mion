@@ -12,8 +12,8 @@ import {random} from '../mock';
 
 export class ArrayRunType implements RunType<TypeArray> {
     public readonly name: string;
-    public readonly shouldEncodeJson;
-    public readonly shouldDecodeJson;
+    public readonly isJsonEncodeRequired;
+    public readonly isJsonDecodeRequired;
     public readonly itemsRunType: RunType;
     constructor(
         public readonly src: TypeArray,
@@ -21,8 +21,8 @@ export class ArrayRunType implements RunType<TypeArray> {
         public readonly nestLevel: number
     ) {
         this.itemsRunType = visitor(src.type, nestLevel);
-        this.shouldEncodeJson = this.itemsRunType.shouldEncodeJson;
-        this.shouldDecodeJson = this.itemsRunType.shouldDecodeJson;
+        this.isJsonEncodeRequired = this.itemsRunType.isJsonEncodeRequired;
+        this.isJsonDecodeRequired = this.itemsRunType.isJsonDecodeRequired;
         this.name = `array<${this.itemsRunType.name}>`;
     }
     isTypeJIT(varName: string): string {
@@ -39,19 +39,20 @@ export class ArrayRunType implements RunType<TypeArray> {
             `else ${varName}.forEach((${itemName}, ${indexName}) => {${this.itemsRunType.typeErrorsJIT(itemName, errorsName, listItemPath)}})`
         );
     }
-    jsonEncodeJIT(varName: string): string {
-        if (!this.shouldEncodeJson) return `${varName}`;
+    jsonEncodeJIT(varName: string, isStrict?: boolean): string {
+        if (!isStrict && !this.isJsonEncodeRequired) return varName;
         const itemName = `iτεm${this.nestLevel}`;
-        return `${varName}.map((${itemName}) => ${this.itemsRunType.jsonEncodeJIT(itemName)})`;
+        return `${varName}.map((${itemName}) => ${this.itemsRunType.jsonEncodeJIT(itemName, isStrict)})`;
     }
     jsonStringifyJIT(varName: string): string {
         const itemName = `iτεm${this.nestLevel}`;
         const itemsCode = `${varName}.map((${itemName}) => ${this.itemsRunType.jsonStringifyJIT(itemName)}).join(",")`;
         return `'[' + ${itemsCode} + ']'`;
     }
-    jsonDecodeJIT(varName: string): string {
+    jsonDecodeJIT(varName: string, isStrict?: boolean): string {
+        if (!isStrict && !this.isJsonDecodeRequired) return varName;
         const itemName = `iτεm${this.nestLevel}`;
-        return `${varName}.map((${itemName}) => ${this.itemsRunType.jsonDecodeJIT(itemName)})`;
+        return `${varName}.map((${itemName}) => ${this.itemsRunType.jsonDecodeJIT(itemName, isStrict)})`;
     }
     mock(length = random(0, 30), ...args: any[]): any[] {
         return Array.from({length}, () => this.itemsRunType.mock(...args));

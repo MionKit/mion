@@ -43,8 +43,8 @@ it('encode/decode to json', () => {
     const toJson = buildJsonEncodeJITFn(rt);
     const fromJson = buildJsonDecodeJITFn(rt);
     const typeValue = new Date();
-    expect(rt.shouldDecodeJson).toBe(true);
-    expect(rt.shouldEncodeJson).toBe(true);
+    expect(rt.isJsonDecodeRequired).toBe(true);
+    expect(rt.isJsonEncodeRequired).toBe(true);
     expect(fromJson(toJson(typeValue))).toEqual(typeValue);
     expect(fromJson(toJson(123))).toEqual(123);
     expect(fromJson(toJson('hello'))).toEqual('hello');
@@ -61,8 +61,8 @@ it('no encode/decode require to json', () => {
     const rtu = runType<UnionType>();
     const toJson = buildJsonEncodeJITFn(rtu);
     const fromJson = buildJsonDecodeJITFn(rtu);
-    expect(rtu.shouldDecodeJson).toBe(false);
-    expect(rtu.shouldEncodeJson).toBe(false);
+    expect(rtu.isJsonDecodeRequired).toBe(false);
+    expect(rtu.isJsonEncodeRequired).toBe(false);
     const typeValue = 'hello';
     expect(fromJson(toJson(typeValue))).toEqual(typeValue);
     const typeValue2 = ['a', 'b', 'c'];

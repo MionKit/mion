@@ -12,8 +12,8 @@ import {mockDate} from '../mock';
 
 export class DateRunType implements RunType<TypeClass> {
     public readonly name = 'date';
-    public readonly shouldEncodeJson = false;
-    public readonly shouldDecodeJson = true;
+    public readonly isJsonEncodeRequired = false;
+    public readonly isJsonDecodeRequired = true;
     constructor(
         public readonly src: TypeClass,
         public readonly visitor: RunTypeVisitor,

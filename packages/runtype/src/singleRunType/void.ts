@@ -11,8 +11,8 @@ import {toLiteral} from '../utils';
 
 export class VoidRunType implements RunType<TypeVoid> {
     public readonly name = 'void';
-    public readonly shouldEncodeJson = false;
-    public readonly shouldDecodeJson = false;
+    public readonly isJsonEncodeRequired = false;
+    public readonly isJsonDecodeRequired = false;
     constructor(
         public readonly src: TypeVoid,
         public readonly visitor: RunTypeVisitor,

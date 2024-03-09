@@ -10,8 +10,8 @@ import {RunType, RunTypeVisitor} from '../types';
 import {mockAny} from '../mock';
 
 export class AnyRunType implements RunType<TypeAny | TypeUnknown> {
-    public readonly shouldEncodeJson = false;
-    public readonly shouldDecodeJson = false;
+    public readonly isJsonEncodeRequired = false;
+    public readonly isJsonDecodeRequired = false;
     constructor(
         public readonly src: TypeAny | TypeUnknown,
         public readonly visitor: RunTypeVisitor,

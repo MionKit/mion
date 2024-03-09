@@ -10,8 +10,8 @@ import {RunType, RunTypeVisitor} from '../types';
 
 export class NeverRunType implements RunType<TypeNever> {
     public readonly name = 'never';
-    public readonly shouldEncodeJson = false;
-    public readonly shouldDecodeJson = false;
+    public readonly isJsonEncodeRequired = false;
+    public readonly isJsonDecodeRequired = false;
     constructor(
         public readonly src: TypeNever,
         public readonly visitor: RunTypeVisitor,
