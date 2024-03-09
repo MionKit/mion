@@ -7,7 +7,7 @@
 
 import {SchemaOptions, TSchema} from '@sinclair/typebox';
 import {TypeTypeParameter} from '@deepkit/type';
-import {DeepkitVisitor} from '../typeBoxTypes';
+import {DeepkitVisitor} from './typeBoxTypes';
 
 // returns property options rather than values
 export function resolveTypeParameter(

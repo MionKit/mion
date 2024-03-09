@@ -11,8 +11,8 @@ import {toLiteral} from '../utils';
 
 export class NullRunType implements RunType<TypeNull> {
     public readonly name = 'null';
-    public readonly shouldEncodeJson = false;
-    public readonly shouldDecodeJson = false;
+    public readonly isJsonEncodeRequired = false;
+    public readonly isJsonDecodeRequired = false;
     constructor(
         public readonly src: TypeNull,
         public readonly visitor: RunTypeVisitor,

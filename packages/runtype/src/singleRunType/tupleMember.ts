@@ -9,8 +9,8 @@ import {TypeTupleMember} from '@deepkit/type';
 import {RunType, RunTypeVisitor} from '../types';
 
 export class TupleMemberRunType implements RunType<TypeTupleMember> {
-    public readonly shouldEncodeJson: boolean;
-    public readonly shouldDecodeJson: boolean;
+    public readonly isJsonEncodeRequired: boolean;
+    public readonly isJsonDecodeRequired: boolean;
     public readonly memberType: RunType;
     public readonly name: string;
     constructor(
@@ -19,8 +19,8 @@ export class TupleMemberRunType implements RunType<TypeTupleMember> {
         public readonly nestLevel: number
     ) {
         this.memberType = visitor(src.type, nestLevel);
-        this.shouldEncodeJson = this.memberType.shouldEncodeJson;
-        this.shouldDecodeJson = this.memberType.shouldDecodeJson;
+        this.isJsonEncodeRequired = this.memberType.isJsonEncodeRequired;
+        this.isJsonDecodeRequired = this.memberType.isJsonDecodeRequired;
         this.name = this.memberType.name;
     }
     isTypeJIT(varName: string): string {
@@ -29,14 +29,14 @@ export class TupleMemberRunType implements RunType<TypeTupleMember> {
     typeErrorsJIT(varName: string, errorsName: string, pathChain: string): string {
         return this.memberType.typeErrorsJIT(varName, errorsName, pathChain);
     }
-    jsonEncodeJIT(varName: string): string {
-        return this.memberType.jsonEncodeJIT(varName);
+    jsonEncodeJIT(varName: string, isStrict?: boolean): string {
+        return this.memberType.jsonEncodeJIT(varName, isStrict);
     }
     jsonStringifyJIT(varName: string): string {
         return this.memberType.jsonStringifyJIT(varName);
     }
-    jsonDecodeJIT(varName: string): string {
-        return this.memberType.jsonDecodeJIT(varName);
+    jsonDecodeJIT(varName: string, isStrict?: boolean): string {
+        return this.memberType.jsonDecodeJIT(varName, isStrict);
     }
     mock(...args: any[]): any {
         return this.memberType.mock(...args);

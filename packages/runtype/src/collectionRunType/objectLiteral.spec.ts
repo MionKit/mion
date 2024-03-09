@@ -118,8 +118,8 @@ it('encode/decode to json', () => {
         bigInt: BigInt(123),
         "weird prop name \n?>'\\\t\r": 'hello2',
     };
-    expect(rt.shouldDecodeJson).toBe(true);
-    expect(rt.shouldEncodeJson).toBe(true);
+    expect(rt.isJsonDecodeRequired).toBe(true);
+    expect(rt.isJsonEncodeRequired).toBe(true);
     expect(fromJson(toJson(typeValue))).toEqual(typeValue);
 });
 

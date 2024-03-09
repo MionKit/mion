@@ -12,8 +12,8 @@ import {mockBigInt} from '../mock';
 
 export class BigIntRunType implements RunType<TypeBigInt> {
     public readonly name = 'bigint';
-    public readonly shouldEncodeJson = true;
-    public readonly shouldDecodeJson = true;
+    public readonly isJsonEncodeRequired = true;
+    public readonly isJsonDecodeRequired = true;
     constructor(
         public readonly src: TypeBigInt,
         public readonly visitor: RunTypeVisitor,

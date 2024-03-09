@@ -8,8 +8,8 @@ import {TypeCallSignature, TypeFunction, TypeMethodSignature} from '@deepkit/typ
 import {RunType, RunTypeVisitor} from '../types';
 
 export class FunctionRunType<T extends TypeMethodSignature | TypeCallSignature | TypeFunction> implements RunType<T> {
-    public readonly shouldEncodeJson = false;
-    public readonly shouldDecodeJson = false;
+    public readonly isJsonEncodeRequired = false;
+    public readonly isJsonDecodeRequired = false;
     public readonly shouldEncodeReturnJson: boolean;
     public readonly shouldDecodeReturnJson: boolean;
     public readonly shouldEncodeParamsJson: boolean;
@@ -26,10 +26,10 @@ export class FunctionRunType<T extends TypeMethodSignature | TypeCallSignature |
     ) {
         this.returnType = visitor(src.return, nestLevel);
         this.parameterTypes = src.parameters.map((p) => visitor(p, nestLevel));
-        this.shouldEncodeReturnJson = this.returnType.shouldEncodeJson;
-        this.shouldDecodeReturnJson = this.returnType.shouldDecodeJson;
-        this.shouldEncodeParamsJson = this.parameterTypes.some((p) => p.shouldEncodeJson);
-        this.shouldDecodeParamsJson = this.parameterTypes.some((p) => p.shouldDecodeJson);
+        this.shouldEncodeReturnJson = this.returnType.isJsonEncodeRequired;
+        this.shouldDecodeReturnJson = this.returnType.isJsonDecodeRequired;
+        this.shouldEncodeParamsJson = this.parameterTypes.some((p) => p.isJsonEncodeRequired);
+        this.shouldDecodeParamsJson = this.parameterTypes.some((p) => p.isJsonDecodeRequired);
         this.name = `${callType}<${this.parameterTypes.map((p) => p.name).join(', ')} => ${this.returnType.name}>`;
     }
     isTypeJIT(): string {

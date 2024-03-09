@@ -10,8 +10,8 @@ import {RunType, RunTypeVisitor} from '../types';
 
 export class EnumMemberRunType implements RunType<TypeEnum> {
     public readonly name = 'enumMember';
-    public readonly shouldEncodeJson = false;
-    public readonly shouldDecodeJson = false;
+    public readonly isJsonEncodeRequired = false;
+    public readonly isJsonDecodeRequired = false;
     constructor(
         public readonly src: TypeEnum,
         public readonly visitor: RunTypeVisitor,

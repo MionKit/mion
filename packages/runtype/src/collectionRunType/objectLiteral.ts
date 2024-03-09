@@ -12,8 +12,8 @@ import {PropertySignatureRunType} from '../singleRunType/property';
 
 export class ObjectLiteralRunType implements RunType<TypeObjectLiteral> {
     public readonly name: string;
-    public readonly shouldEncodeJson: boolean;
-    public readonly shouldDecodeJson: boolean;
+    public readonly isJsonEncodeRequired: boolean;
+    public readonly isJsonDecodeRequired: boolean;
     public readonly props: PropertySignatureRunType[];
     public readonly enumerableProps: PropertySignatureRunType[];
     constructor(
@@ -23,8 +23,8 @@ export class ObjectLiteralRunType implements RunType<TypeObjectLiteral> {
     ) {
         this.props = src.types.map((type) => visitor(type, nestLevel) as PropertySignatureRunType);
         this.enumerableProps = this.props.filter((prop) => !prop.isSymbol);
-        this.shouldDecodeJson = this.props.some((prop) => prop.shouldDecodeJson);
-        this.shouldEncodeJson = this.props.some((prop) => prop.shouldEncodeJson);
+        this.isJsonDecodeRequired = this.props.some((prop) => prop.isJsonDecodeRequired);
+        this.isJsonEncodeRequired = this.props.some((prop) => prop.isJsonEncodeRequired);
         this.name = `object<${this.props.map((prop) => prop.name).join(' & ')}>`;
     }
     isTypeJIT(varName: string): string {
@@ -38,8 +38,9 @@ export class ObjectLiteralRunType implements RunType<TypeObjectLiteral> {
             `else {${propsCode}}`
         );
     }
-    jsonEncodeJIT(varName: string): string {
-        const propsCode = this.enumerableProps.map((prop) => prop.jsonEncodeJIT(varName)).join(',');
+    jsonEncodeJIT(varName: string, isStrict?: boolean): string {
+        if (!isStrict && !this.isJsonEncodeRequired) return varName;
+        const propsCode = this.enumerableProps.map((prop) => prop.jsonEncodeJIT(varName, isStrict)).join(',');
         return `{${propsCode}}`;
     }
     // unlike the other JIT methods the separator is added within the PropertySignatureRunType
@@ -48,16 +49,21 @@ export class ObjectLiteralRunType implements RunType<TypeObjectLiteral> {
         const propsCode = this.enumerableProps.map((prop, i) => prop.jsonStringifyJIT(varName, i === 0)).join('');
         return `'{'+${propsCode}+'}'`;
     }
-    jsonDecodeJIT(varName: string): string {
-        const propsCode = this.enumerableProps.map((prop) => prop.jsonDecodeJIT(varName)).join(',');
+    jsonDecodeJIT(varName: string, isStrict?: boolean): string {
+        if (!isStrict && !this.isJsonDecodeRequired) return varName;
+        const propsCode = this.enumerableProps.map((prop) => prop.jsonDecodeJIT(varName, isStrict)).join(',');
         return `{${propsCode}}`;
     }
-    mock(objArgs: Record<string | number, any[]>): Record<string | number, any> {
+    mock(
+        optionalParamsProbability: Record<string | number, number>,
+        objArgs: Record<string | number, any[]>
+    ): Record<string | number, any> {
         const obj: Record<string | number, any> = {};
         this.enumerableProps.forEach((prop) => {
             const name: string | number = prop.src.name as any;
+            const optionalProbability: number | undefined = optionalParamsProbability?.[name];
             const propArgs: any[] = objArgs?.[name] || [];
-            obj[name] = prop.mock(...propArgs);
+            obj[name] = prop.mock(optionalProbability, ...propArgs);
         });
         return obj;
     }

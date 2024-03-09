@@ -12,8 +12,8 @@ import {mockRegExp} from '../mock';
 
 export class RegexpRunType implements RunType<TypeRegexp> {
     public readonly name = 'regexp';
-    public readonly shouldEncodeJson = true;
-    public readonly shouldDecodeJson = true;
+    public readonly isJsonEncodeRequired = true;
+    public readonly isJsonDecodeRequired = true;
     constructor(
         public readonly src: TypeRegexp,
         public readonly visitor: RunTypeVisitor,

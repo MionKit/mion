@@ -12,8 +12,8 @@ import {mockNumber} from '../mock';
 
 export class NumberRunType implements RunType<TypeNumber> {
     public readonly name = 'number';
-    public readonly shouldEncodeJson = false;
-    public readonly shouldDecodeJson = false;
+    public readonly isJsonEncodeRequired = false;
+    public readonly isJsonDecodeRequired = false;
     constructor(
         public readonly src: TypeNumber,
         public readonly visitor: RunTypeVisitor,

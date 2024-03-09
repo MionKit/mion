@@ -11,8 +11,8 @@ import {toLiteral} from '../utils';
 
 export class UndefinedRunType implements RunType<TypeUndefined> {
     public readonly name = 'undefined';
-    public readonly shouldEncodeJson = true;
-    public readonly shouldDecodeJson = true;
+    public readonly isJsonEncodeRequired = true;
+    public readonly isJsonDecodeRequired = true;
     constructor(
         public readonly src: TypeUndefined,
         public readonly visitor: RunTypeVisitor,

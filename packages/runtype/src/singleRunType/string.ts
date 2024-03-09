@@ -12,8 +12,8 @@ import {mockString} from '../mock';
 
 export class StringRunType implements RunType<TypeString> {
     public readonly name = 'string';
-    public readonly shouldEncodeJson = false;
-    public readonly shouldDecodeJson = false;
+    public readonly isJsonEncodeRequired = false;
+    public readonly isJsonDecodeRequired = false;
     constructor(
         public readonly src: TypeString,
         public readonly visitor: RunTypeVisitor,

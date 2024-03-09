@@ -7,7 +7,7 @@
 
 import {SchemaOptions, TSchema, TUnion, Type as TypeBox} from '@sinclair/typebox';
 import {TypeUnion} from '@deepkit/type';
-import {DeepkitVisitor} from '../typeBoxTypes';
+import {DeepkitVisitor} from './typeBoxTypes';
 
 // mapArray function: Maps a Deepkit TypeArray to a TypeBox TArray<T>
 export function resolveUnion(deepkitType: TypeUnion, opts: SchemaOptions, resolveTypeBox: DeepkitVisitor): TUnion {

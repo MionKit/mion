@@ -72,8 +72,8 @@ it('encode/decode to json', () => {
     const toJson = buildJsonEncodeJITFn(rt);
     const fromJson = buildJsonDecodeJITFn(rt);
     const typeValue = [new Date(), 123, 'hello', null, ['a', 'b', 'c'], BigInt(123)];
-    expect(rt.shouldDecodeJson).toBe(true);
-    expect(rt.shouldEncodeJson).toBe(true);
+    expect(rt.isJsonDecodeRequired).toBe(true);
+    expect(rt.isJsonEncodeRequired).toBe(true);
     expect(fromJson(toJson(typeValue))).toEqual(typeValue);
 });
 
