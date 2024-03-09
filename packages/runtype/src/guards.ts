@@ -34,6 +34,8 @@ import {IndexSignatureRunType} from './collectionRunType';
 import {MethodSignatureRunType} from './functionRunType/method';
 import {CallSignatureRunType} from './functionRunType/call';
 import {FunctionRunType} from './functionRunType/function';
+import {ParameterRunType} from './singleRunType/param';
+import {PromiseRunType} from './singleRunType/promise';
 
 export function isAnyRunType(rt: RunType | Type): rt is AnyRunType {
     const kind: ReflectionKind = (rt as Type).kind || (rt as RunType).src.kind;
