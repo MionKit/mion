@@ -10,7 +10,6 @@ import {
     buildJsonDecodeJITFn,
     buildIsTypeJITFn,
     buildTypeErrorsJITFn,
-    buildMockJITFn,
     buildJsonStringifyJITFn,
 } from '../jitCompiler';
 
@@ -37,5 +36,5 @@ it('json stringify', () => {
 });
 
 it('mock', () => {
-    expect(() => buildMockJITFn(rt)).toThrow('Never type cannot be mocked.');
+    expect(() => rt.mock()).toThrow('Never type cannot be mocked.');
 });

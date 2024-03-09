@@ -84,9 +84,8 @@ export class LiteralRunType implements RunType<TypeLiteral> {
     jsonDecodeJIT(varName: string): string {
         return this.jitJsonEncoder.decodeFromJson(varName);
     }
-    mockJIT(varName: string): string {
-        if (typeof this.src.literal === 'symbol') return `${varName} = Symbol('${this.src.literal.description}')`;
-        return `${varName} = ${toLiteral(this.src.literal)}`;
+    mock(): symbol | string | number | boolean | bigint | RegExp {
+        return this.src.literal;
     }
 }
 

@@ -8,6 +8,7 @@
 import {TypeBoolean} from '@deepkit/type';
 import {RunType, RunTypeVisitor} from '../types';
 import {toLiteral} from '../utils';
+import {mockBoolean} from '../mock';
 
 export class BooleanRunType implements RunType<TypeBoolean> {
     public readonly name = 'boolean';
@@ -33,7 +34,7 @@ export class BooleanRunType implements RunType<TypeBoolean> {
     jsonDecodeJIT(varName: string): string {
         return varName;
     }
-    mockJIT(varName: string): string {
-        return `${varName} = Math.random() < 0.5`;
+    mock(): boolean {
+        return mockBoolean();
     }
 }

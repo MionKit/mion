@@ -10,12 +10,11 @@ import {
     buildJsonDecodeJITFn,
     buildIsTypeJITFn,
     buildTypeErrorsJITFn,
-    buildMockJITFn,
     buildJsonStringifyJITFn,
 } from '../jitCompiler';
 
 const reg = /abc/i;
-const reg2 = /['"]\/\\\//; // regexp with characters that can be problematic in jit code if not correctly scaped
+const reg2 = /['"]\/ \\ \//; // regexp with characters that can be problematic in jit code if not correctly scaped
 const sym = Symbol('hello');
 const rt2 = runType<2>();
 const rtA = runType<'a'>();
@@ -71,12 +70,12 @@ it('validate literal + errors', () => {
 
     // fail
     expect(valWithErrors2(4)).toEqual([{path: '', expected: 'literal<2>'}]);
-    expect(valWithErrorsA('b')).toEqual([{path: '', expected: "literal<'a'>"}]);
+    expect(valWithErrorsA('b')).toEqual([{path: '', expected: `literal<"a">`}]);
     expect(valWithErrorsReg(/hello/i)).toEqual([{path: '', expected: 'literal</abc/i>'}]);
-    expect(valWithErrorsReg2(/hello/i)).toEqual([{path: '', expected: 'literal</[\'"]/\\//>'}]);
+    expect(valWithErrorsReg2(/hello/i)).toEqual([{path: '', expected: 'literal</[\'"]\\/ \\\\ \\//>'}]);
     expect(valWithErrorsTrue(false)).toEqual([{path: '', expected: 'literal<true>'}]);
     expect(valWithErrorsBig(2n)).toEqual([{path: '', expected: 'literal<1n>'}]);
-    expect(valWithErrorsSym(Symbol('nice'))).toEqual([{path: '', expected: `literal<Symbol('hello')>`}]);
+    expect(valWithErrorsSym(Symbol('nice'))).toEqual([{path: '', expected: `literal<Symbol("hello")>`}]);
 });
 
 it('encode to json', () => {
@@ -147,17 +146,10 @@ it('json stringify', () => {
 });
 
 it('mock', () => {
-    const mock2 = buildMockJITFn(rt2);
-    const mockA = buildMockJITFn(rtA);
-    const mockReg = buildMockJITFn(rtReg);
-    const mockTrue = buildMockJITFn(rtTrue);
-    const mockBig = buildMockJITFn(rtBig);
-    const mockSym = buildMockJITFn(rtSym);
-
-    expect(mock2()).toEqual(2);
-    expect(mockA()).toEqual('a');
-    expect(mockReg()).toEqual(/abc/i);
-    expect(mockTrue()).toEqual(true);
-    expect(mockBig()).toEqual(1n);
-    expect(mockSym().toString()).toEqual(sym.toString());
+    expect(rt2.mock()).toEqual(2);
+    expect(rtA.mock()).toEqual('a');
+    expect(rtReg.mock()).toEqual(/abc/i);
+    expect(rtTrue.mock()).toEqual(true);
+    expect(rtBig.mock()).toEqual(1n);
+    expect(rtSym.mock().toString()).toEqual(sym.toString());
 });

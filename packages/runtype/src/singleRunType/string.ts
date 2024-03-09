@@ -8,6 +8,7 @@
 import {TypeString} from '@deepkit/type';
 import {RunType, RunTypeVisitor} from '../types';
 import {toLiteral} from '../utils';
+import {mockString} from '../mock';
 
 export class StringRunType implements RunType<TypeString> {
     public readonly name = 'string';
@@ -33,13 +34,7 @@ export class StringRunType implements RunType<TypeString> {
     jsonDecodeJIT(varName: string): string {
         return varName;
     }
-    mockJIT(varName: string): string {
-        const alpha = `alpha${this.nestLevel}`;
-        const length = `length${this.nestLevel}`;
-        return (
-            `const ${alpha} = 'abcdefghijklmnopqrstuvwxyz 1234567890';` +
-            `const ${length} = Math.floor(Math.random() * 20);` +
-            `${varName} = Array.from({length: ${length}}, () => ${alpha}[Math.floor(Math.random() * ${alpha}.length)]).join('')`
-        );
+    mock(length: number, charSet: string): string {
+        return mockString(length, charSet);
     }
 }

@@ -10,7 +10,7 @@ export function toLiteral(value: number | string | boolean | undefined | null | 
         case 'number':
             return `${value}`;
         case 'string':
-            return `'${scapeQ(value)}'`;
+            return JSON.stringify(value);
         case 'boolean':
             return value ? 'true' : 'false';
         case 'undefined':
@@ -26,18 +26,6 @@ export function toLiteral(value: number | string | boolean | undefined | null | 
         default:
             throw new Error(`Unsupported literal type ${value}`);
     }
-}
-
-// export function scapeBackticks(value: string): string {
-//     return value.replace(/`/g, '\\`');
-// }
-
-/** return an string scaping quotes */
-export function scapeQ(value: number | string | boolean | undefined | null | bigint | RegExp | symbol): string {
-    if (value instanceof RegExp) return scapeQ(value.toString());
-    if (typeof value === 'string') return value.replace(/'/g, "\\'");
-    if (typeof value === 'symbol') return scapeQ(value.toString());
-    return `${value}`;
 }
 
 export function addToPathChain(pathChain: string, property: string | number, isLiteral = true): string {

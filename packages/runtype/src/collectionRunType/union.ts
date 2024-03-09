@@ -8,6 +8,7 @@
 import {TypeUnion} from '@deepkit/type';
 import {RunType, RunTypeVisitor} from '../types';
 import {toLiteral} from '../utils';
+import {random} from '../mock';
 
 export class UnionRunType implements RunType<TypeUnion> {
     public readonly name: string;
@@ -39,11 +40,17 @@ export class UnionRunType implements RunType<TypeUnion> {
      * So [0, "123n"] is interpreted as a string and [1, "123n"] is interpreted as a bigint.
      * */
     jsonEncodeJIT(varName: string): string {
-        if (!this.shouldEncodeJson) return varName;
+        const errorCode = `throw new Error('Can not encode json to union: expected ${this.name} but got ' + ${varName}?.constructor?.name || typeof ${varName})`;
+        if (!this.shouldEncodeJson) {
+            const encode = this.runTypes
+                .map((rt) => `if (${rt.isTypeJIT(varName)}) return ${rt.jsonEncodeJIT(varName)}`)
+                .join(';');
+            return `(() => {${encode}; ${errorCode}})()`;
+        }
         const encode = this.runTypes
             .map((rt, i) => `if (${rt.isTypeJIT(varName)}) return [${i}, ${rt.jsonEncodeJIT(varName)}]`)
             .join(';');
-        return `(() => {${encode}})()`;
+        return `(() => {${encode}; ${errorCode}})()`;
     }
     jsonStringifyJIT(varName: string): string {
         const errorCode = `throw new Error('Can not stringify union: expected ${this.name} but got ' + ${varName}?.constructor?.name || typeof ${varName})`;
@@ -53,27 +60,26 @@ export class UnionRunType implements RunType<TypeUnion> {
                 .join(';');
             return `(() => {${encode}; ${errorCode}})()`;
         }
-
         const encode = this.runTypes
             .map((rt, i) => `if (${rt.isTypeJIT(varName)}) return ('[' + ${i} + ',' + ${rt.jsonStringifyJIT(varName)} + ']')`)
             .join(';');
         return `(() => {${encode}; ${errorCode}})()`;
     }
     jsonDecodeJIT(varName: string): string {
-        if (!this.shouldDecodeJson) return varName;
-        const itemsThatNeedDecode = this.runTypes.filter((rt) => rt.shouldDecodeJson).map((rt, i) => ({rt, i}));
-        const decode = itemsThatNeedDecode
-            .map((item) => {
-                const itemCode = item.rt.jsonDecodeJIT(`${varName}[1]`);
-                return `if ( ${varName}[0] === ${item.i}) return ${itemCode};`;
-            })
-            .join('');
-        const othersCode = itemsThatNeedDecode.length !== this.runTypes.length ? `return ${varName}[1]` : '';
-        return `(() => {${decode} ${othersCode}})()`;
+        const errorCode = `throw new Error('Can not decode json from union: expected ${this.name} but got ' + ${varName}?.constructor?.name || typeof ${varName})`;
+        if (!this.shouldDecodeJson) {
+            const decode = this.runTypes
+                .map((rt) => `if (${rt.isTypeJIT(varName)}) return ${rt.jsonDecodeJIT(varName)}`)
+                .join(';');
+            return `(() => {${decode}; ${errorCode}})()`;
+        }
+        const decode = this.runTypes
+            .map((rt, i) => `if ( ${varName}[0] === ${i}) return ${rt.jsonDecodeJIT(`${varName}[1]`)}`)
+            .join(';');
+        return `(() => {${decode}; ${errorCode}})()`;
     }
-    mockJIT(varName: string): string {
-        const arrayName = `unionList${this.nestLevel}`;
-        const mockCodes = this.runTypes.map((rt, i) => `${rt.mockJIT(`${arrayName}[${i}]`)};`).join('');
-        return `const ${arrayName} = []; ${mockCodes} ${varName} = ${arrayName}[Math.floor(Math.random() * ${arrayName}.length)]`;
+    mock(...unionArgs: any[][]): string {
+        const unionMock = this.runTypes.map((rt, i) => rt.mock(...(unionArgs?.[i] || [])));
+        return unionMock[random(0, unionMock.length - 1)];
     }
 }

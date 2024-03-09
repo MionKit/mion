@@ -33,7 +33,7 @@ export class UndefinedRunType implements RunType<TypeUndefined> {
     jsonDecodeJIT(): string {
         return `undefined`;
     }
-    mockJIT(varName: string): string {
-        return `${varName} = undefined`;
+    mock(): undefined {
+        return undefined;
     }
 }

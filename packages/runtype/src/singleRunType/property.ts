@@ -7,7 +7,9 @@
 
 import {TypePropertySignature} from '@deepkit/type';
 import {RunType, RunTypeVisitor} from '../types';
-import {addToPathChain} from '../utils';
+import {addToPathChain, toLiteral} from '../utils';
+
+export const validPropertyName = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
 
 export class PropertySignatureRunType implements RunType<TypePropertySignature> {
     public readonly shouldEncodeJson: boolean;
@@ -16,8 +18,10 @@ export class PropertySignatureRunType implements RunType<TypePropertySignature> 
     public readonly name: string;
     public readonly isOptional: boolean;
     public readonly isReadonly: boolean;
-    public readonly propName: string;
+    public readonly propName: string | number;
+    public readonly propRef: string;
     public readonly isSymbol: boolean;
+    public readonly isSafe: boolean;
     constructor(
         public readonly src: TypePropertySignature,
         public readonly visitor: RunTypeVisitor,
@@ -29,20 +33,29 @@ export class PropertySignatureRunType implements RunType<TypePropertySignature> 
         this.name = this.memberType.name;
         this.isOptional = !!src.optional;
         this.isReadonly = !!src.readonly;
-        this.propName = typeof src.name === 'symbol' ? src.name.toString() : `${src.name}`;
-        this.isSymbol = typeof src.name === 'symbol';
+        if (typeof src.name === 'symbol') {
+            this.isSymbol = true;
+            this.propName = src.name.toString();
+            this.propRef = ``;
+            this.isSafe = true;
+        } else {
+            this.isSymbol = false;
+            this.isSafe = (typeof src.name === 'string' && validPropertyName.test(src.name)) || typeof src.name === 'number';
+            this.propName = src.name;
+            this.propRef = this.isSafe ? `.${src.name}` : `[${toLiteral(src.name)}]`;
+        }
     }
     isTypeJIT(varName: string): string {
         if (this.isSymbol) return '';
-        const pVarName = `${varName}.${this.propName}`;
+        const pVarName = `${varName}${this.propRef}`;
         if (this.isOptional) {
-            return `${varName}.${this.propName} === undefined || (${this.memberType.isTypeJIT(pVarName)})`;
+            return `${varName}${this.propRef} === undefined || (${this.memberType.isTypeJIT(pVarName)})`;
         }
         return this.memberType.isTypeJIT(pVarName);
     }
     typeErrorsJIT(varName: string, errorsName: string, pathChain: string): string {
         if (this.isSymbol) return '';
-        const pVarName = `${varName}.${this.propName}`;
+        const pVarName = `${varName}${this.propRef}`;
         if (this.isOptional) {
             return `if (${pVarName} !== undefined) {${this.memberType.typeErrorsJIT(
                 pVarName,
@@ -54,28 +67,27 @@ export class PropertySignatureRunType implements RunType<TypePropertySignature> 
     }
     jsonEncodeJIT(varName: string): string {
         if (this.isSymbol) return '';
-        const valCode = this.memberType.jsonEncodeJIT(`${varName}.${this.propName}`);
-        return `${this.propName}: ${valCode}`;
+        const valCode = this.memberType.jsonEncodeJIT(`${varName}${this.propRef}`);
+        const jsName = this.isSafe ? this.propName : toLiteral(this.propName);
+        return `${jsName}: ${valCode}`;
     }
     jsonStringifyJIT(varName: string, isFirst = false): string {
         if (this.isSymbol) return '';
-        const valCode = this.memberType.jsonStringifyJIT(`${varName}.${this.propName}`);
-        const proNameJSon = JSON.stringify(this.propName);
+        const valCode = this.memberType.jsonStringifyJIT(`${varName}${this.propRef}`);
+        // firs stringify sanitizes string, second is the actual json
+        const proNameJSon = JSON.stringify(JSON.stringify(this.propName));
         if (this.isOptional) {
-            return `${isFirst ? '' : '+'}(${varName}.${this.propName} === undefined ?'':${isFirst ? '' : `(','+`}'${proNameJSon}:'+${valCode}))`;
+            return `${isFirst ? '' : '+'}(${varName}${this.propRef} === undefined ?'':${isFirst ? '' : `(','+`}${proNameJSon}+':'+${valCode}))`;
         }
-        return `${isFirst ? '' : `+','+`}'${proNameJSon}:'+${valCode}`;
+        return `${isFirst ? '' : `+','+`}${proNameJSon}+':'+${valCode}`;
     }
     jsonDecodeJIT(varName: string): string {
         if (this.isSymbol) return '';
-        const valCode = this.memberType.jsonDecodeJIT(`${varName}.${this.propName}`);
-        return `${this.propName}: ${valCode}`;
+        const valCode = this.memberType.jsonDecodeJIT(`${varName}${this.propRef}`);
+        const jsName = this.isSafe ? this.propName : toLiteral(this.propName);
+        return `${jsName}: ${valCode}`;
     }
-    mockJIT(varName: string): string {
-        if (this.isSymbol) return '';
-        const pVarName = `${varName}.${this.propName}`;
-        const propMockCode = this.memberType.mockJIT(pVarName);
-        if (this.isOptional) return `if (Math.random() < 0.2) ${pVarName} = undefined; else {${propMockCode}}`;
-        return propMockCode;
+    mock(...args: any[]): any {
+        return this.memberType.mock(...args);
     }
 }

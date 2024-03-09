@@ -33,7 +33,7 @@ export class NullRunType implements RunType<TypeNull> {
     jsonDecodeJIT(varName: string): string {
         return varName;
     }
-    mockJIT(varName: string): string {
-        return `${varName} = null`;
+    mock(): null {
+        return null;
     }
 }

@@ -33,7 +33,5 @@ export class VoidRunType implements RunType<TypeVoid> {
     jsonDecodeJIT(): string {
         throw new Error('void can not be decoded from json.');
     }
-    mockJIT(): string {
-        return `void 0`;
-    }
+    mock(): void {}
 }

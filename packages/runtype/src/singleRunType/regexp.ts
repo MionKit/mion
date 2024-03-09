@@ -8,6 +8,7 @@
 import {TypeRegexp} from '@deepkit/type';
 import {RunType, RunTypeVisitor, JitJsonEncoder} from '../types';
 import {toLiteral} from '../utils';
+import {mockRegExp} from '../mock';
 
 export class RegexpRunType implements RunType<TypeRegexp> {
     public readonly name = 'regexp';
@@ -33,17 +34,12 @@ export class RegexpRunType implements RunType<TypeRegexp> {
     jsonDecodeJIT(varName: string): string {
         return RegexpJitJsonEncoder.decodeFromJson(varName);
     }
-    mockJIT(varName: string): string {
-        const regExpList = `regExpList${this.nestLevel}`;
-        return (
-            `const ${regExpList} = [/example/, /abc/, /^a-zA-Z0-9/, /abc/i, /hello[0-9]/];` +
-            `${varName} = ${regExpList}[Math.floor(Math.random() * ${regExpList}.length)]`
-        );
+    mock(list?: RegExp[]): RegExp {
+        return mockRegExp(list);
     }
 }
 
-export const matchRegExp = /\/(.*)\/(.*)?/;
-export const matchRegExpString = '/\\/(.*)\\/(.*)?/';
+const matchRegExpString = '/\\/(.*)\\/(.*)?/';
 
 export const RegexpJitJsonEncoder: JitJsonEncoder = {
     decodeFromJson(varName: string): string {

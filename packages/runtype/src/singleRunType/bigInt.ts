@@ -8,6 +8,7 @@
 import {TypeBigInt} from '@deepkit/type';
 import {JitJsonEncoder, RunType, RunTypeVisitor} from '../types';
 import {toLiteral} from '../utils';
+import {mockBigInt} from '../mock';
 
 export class BigIntRunType implements RunType<TypeBigInt> {
     public readonly name = 'bigint';
@@ -33,8 +34,8 @@ export class BigIntRunType implements RunType<TypeBigInt> {
     jsonDecodeJIT(varName: string): string {
         return BigIntJitJsonENcoder.decodeFromJson(varName);
     }
-    mockJIT(varName: string): string {
-        return `${varName} = BigInt(Math.floor(Math.random() * 1000000))`;
+    mock(min?: number, max?: number): bigint {
+        return mockBigInt(min, max);
     }
 }
 

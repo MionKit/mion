@@ -58,7 +58,6 @@ export class IndexSignatureRunType implements RunType<TypeIndexSignature> {
         }, {})`;
     }
     jsonDecodeJIT(varName: string): string {
-        if (!this.shouldDecodeJson) return `${varName}`;
         const keyName = `kεy${this.nestLevel}`;
         const valueName = `valuε${this.nestLevel}`;
         return `Object.entries(${varName}).reduce((acc, [${keyName}, ${valueName}]) => {
@@ -66,12 +65,12 @@ export class IndexSignatureRunType implements RunType<TypeIndexSignature> {
             return acc;
         }, {})`;
     }
-    mockJIT(varName: string): string {
+    mock(varName: string): string {
         const keyName = `kεy${this.nestLevel}`;
         const valueName = `valuε${this.nestLevel}`;
         return `${varName} = Object.entries(${varName}).reduce((acc, [${keyName}, ${valueName}]) => {
             let ${valueName};
-            ${this.propertiesRunType.mockJIT(valueName)}
+            ${this.propertiesRunType.mock(valueName)}
             acc[${keyName}] = ${valueName};
             return acc;
         }, {})`;

@@ -8,6 +8,7 @@
 import {TypeClass} from '@deepkit/type';
 import {JitJsonEncoder, RunType, RunTypeVisitor} from '../types';
 import {toLiteral} from '../utils';
+import {mockDate} from '../mock';
 
 export class DateRunType implements RunType<TypeClass> {
     public readonly name = 'date';
@@ -33,8 +34,8 @@ export class DateRunType implements RunType<TypeClass> {
     jsonDecodeJIT(varName: string): string {
         return DateJitJsonENcoder.decodeFromJson(varName);
     }
-    mockJIT(varName: string): string {
-        return `${varName} = new Date(+(new Date()) - Math.floor(Math.random() * 10000000000))`;
+    mock(minDate?: Date, maxDate?: Date): Date {
+        return mockDate(minDate, maxDate);
     }
 }
 

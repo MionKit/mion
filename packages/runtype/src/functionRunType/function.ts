@@ -47,7 +47,7 @@ export class FunctionRunType<T extends TypeMethodSignature | TypeCallSignature |
     jsonDecodeJIT(): string {
         return ''; // functions are ignored when generating json decode code
     }
-    mockJIT(): string {
+    mock(): string {
         return ''; // functions are ignored when generating mock code
     }
     paramsIsTypeJIT(varName: string): string {
@@ -72,7 +72,7 @@ export class FunctionRunType<T extends TypeMethodSignature | TypeCallSignature |
     }
     paramsMockJIT(varName: string): string {
         const arrayName = `paramList${this.nestLevel}`;
-        const mockCodes = this.parameterTypes.map((rt, i) => `${rt.mockJIT(`${arrayName}[${i}]`)};`).join('');
+        const mockCodes = this.parameterTypes.map((rt, i) => `${rt.mock(`${arrayName}[${i}]`)};`).join('');
         return `const ${arrayName} = []; ${mockCodes} ${varName} = ${arrayName}[Math.floor(Math.random() * ${arrayName}.length)]`;
     }
     returnIsTypeJIT(varName: string): string {
@@ -93,6 +93,6 @@ export class FunctionRunType<T extends TypeMethodSignature | TypeCallSignature |
         return this.returnType.jsonDecodeJIT(varName);
     }
     returnMockJIT(varName: string): string {
-        return this.returnType.mockJIT(varName);
+        return this.returnType.mock(varName);
     }
 }

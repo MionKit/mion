@@ -72,13 +72,13 @@ export interface RunType<T extends Type = Type> {
      * this code should not use return statements, it should be a single line that recieves a json compatible type and returns a deserialized value.
      * this code should not contain any sentence breaks or semicolons.
      * ie for bigIng: jsonDecodeJIT = () => `BigInt(vλluε)`
+     *
+     * For security reason decoding ignores any properties that are not defined in the type.
+     * So is your type is {name: string} and the json is {name: string, age: number} the age property will be ignored.
      * */
     jsonDecodeJIT: (varName: string) => string;
     /**
-     * Code that returns a mocked value, should be random when possible
-     * this code should not use return statements, this can be a code block and can contain multiple lines or semicolons.
-     * the mocked value should be assigned to the varName
-     * ie for number: mockJIT = () => `vλluε = Math.floor(Math.random() * 100)`
+     * returns a mocked value, should be random when possible
      * */
-    mockJIT: (varName) => any;
+    mock: (...args: any[]) => any;
 }

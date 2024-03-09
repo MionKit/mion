@@ -32,7 +32,7 @@ export class EnumMemberRunType implements RunType<TypeEnum> {
     jsonDecodeJIT(): string {
         throw new Error('Enum member operations are not supported');
     }
-    mockJIT(): string {
+    mock() {
         throw new Error('Enum member operations are not supported');
     }
 }
