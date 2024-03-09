@@ -10,7 +10,6 @@ import {
     buildJsonDecodeJITFn,
     buildIsTypeJITFn,
     buildTypeErrorsJITFn,
-    buildMockJITFn,
     buildJsonStringifyJITFn,
 } from '../jitCompiler';
 
@@ -87,8 +86,7 @@ it('json stringify', () => {
 });
 
 it('mock', () => {
-    const mock = buildMockJITFn(rt);
-    const mocked = mock();
+    const mocked = rt.mock();
     expect(mocked).toHaveLength(6);
     expect(mocked[0]).toBeInstanceOf(Date);
     expect(typeof mocked[1]).toBe('number');
@@ -97,5 +95,5 @@ it('mock', () => {
     expect(Array.isArray(mocked[4])).toBe(true);
     expect(typeof mocked[5]).toBe('bigint');
     const validate = buildIsTypeJITFn(rt);
-    expect(validate(mock())).toBe(true);
+    expect(validate(rt.mock())).toBe(true);
 });

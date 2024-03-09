@@ -8,6 +8,7 @@
 import {TypeNumber} from '@deepkit/type';
 import {RunType, RunTypeVisitor} from '../types';
 import {toLiteral} from '../utils';
+import {mockNumber} from '../mock';
 
 export class NumberRunType implements RunType<TypeNumber> {
     public readonly name = 'number';
@@ -33,7 +34,7 @@ export class NumberRunType implements RunType<TypeNumber> {
     jsonDecodeJIT(varName: string): string {
         return varName;
     }
-    mockJIT(varName: string): string {
-        return `${varName} = Math.floor(Math.random() * 10000)`;
+    mock(min?: number, max?: number): number {
+        return mockNumber(min, max);
     }
 }

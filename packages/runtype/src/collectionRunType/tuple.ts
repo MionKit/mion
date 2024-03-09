@@ -46,13 +46,10 @@ export class TupleRunType implements RunType<TypeTuple> {
         return `'[' + ${encodeCodes.join(` + ',' + `)} + ']'`;
     }
     jsonDecodeJIT(varName: string): string {
-        if (!this.shouldDecodeJson) return varName;
         const decodeCodes = this.runTypes.map((rt, i) => rt.jsonDecodeJIT(`${varName}[${i}]`));
         return `[${decodeCodes.join(', ')}]`;
     }
-    mockJIT(varName: string): string {
-        const arrayName = `tupleList${this.nestLevel}`;
-        const mockCodes = this.runTypes.map((rt, i) => `${rt.mockJIT(`${arrayName}[${i}]`)};`).join('');
-        return `const ${arrayName} = []; ${mockCodes} ${varName} = ${arrayName};`;
+    mock(...tupleArgs: any[][]): any[] {
+        return this.runTypes.map((rt, i) => rt.mock(...(tupleArgs?.[i] || [])));
     }
 }

@@ -10,7 +10,6 @@ import {
     buildJsonDecodeJITFn,
     buildIsTypeJITFn,
     buildTypeErrorsJITFn,
-    buildMockJITFn,
     buildJsonStringifyJITFn,
 } from '../jitCompiler';
 
@@ -52,7 +51,7 @@ it('encode/decode to json', () => {
     expect(fromJson(toJson(null))).toEqual(null);
     expect(fromJson(toJson(['a', 'b', 'c']))).toEqual(['a', 'b', 'c']);
 
-    // objects are not the same after round trip
+    // objects are not the same same object in memory after round trip
     expect(fromJson(toJson(typeValue))).not.toBe(typeValue);
 });
 
@@ -69,7 +68,7 @@ it('no encode/decode require to json', () => {
     const typeValue2 = ['a', 'b', 'c'];
     expect(fromJson(toJson(typeValue2))).toEqual(typeValue2);
 
-    // objects are the same after round trip
+    // objects are the same same object in after round trip
     expect(fromJson(toJson(typeValue))).toBe(typeValue);
 });
 
@@ -101,19 +100,23 @@ it('json stringify', () => {
     expect(roundTrip2).toEqual(typeValue2);
 });
 
-it('json stringify, passing value that does not belongs to the union', () => {
+it('throw errors whe serializing deserializing object not belonging to the union', () => {
     type UT = string | string[];
     const rtU = runType<UT>();
     const jsonStringify = buildJsonStringifyJITFn(rtU);
+    const fromJson = buildJsonDecodeJITFn(rtU);
+    const toJson = buildJsonEncodeJITFn(rtU);
+    const typeValue = new Date();
 
-    expect(() => jsonStringify(new Date())).toThrow(
+    expect(() => jsonStringify(typeValue)).toThrow(
         'Can not stringify union: expected union<string | array<string>> but got Date'
     );
+    expect(() => fromJson(123)).toThrow('Can not decode json from union: expected union<string | array<string>> but got Number');
+    expect(() => toJson(typeValue)).toThrow('Can not encode json to union: expected union<string | array<string>> but got Date');
 });
 
 it('mock', () => {
-    const mock = buildMockJITFn(rt);
-    const mocked = mock();
+    const mocked = rt.mock();
     expect(
         typeof mocked === 'string' ||
             typeof mocked === 'number' ||
@@ -122,5 +125,5 @@ it('mock', () => {
             Array.isArray(mocked)
     ).toBe(true);
     const validate = buildIsTypeJITFn(rt);
-    expect(validate(mock())).toBe(true);
+    expect(validate(rt.mock())).toBe(true);
 });

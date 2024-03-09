@@ -8,6 +8,7 @@
 import {TypeArray} from '@deepkit/type';
 import {RunType, RunTypeVisitor} from '../types';
 import {addToPathChain, toLiteral} from '../utils';
+import {random} from '../mock';
 
 export class ArrayRunType implements RunType<TypeArray> {
     public readonly name: string;
@@ -49,16 +50,10 @@ export class ArrayRunType implements RunType<TypeArray> {
         return `'[' + ${itemsCode} + ']'`;
     }
     jsonDecodeJIT(varName: string): string {
-        if (!this.shouldDecodeJson) return `${varName}`;
         const itemName = `iτεm${this.nestLevel}`;
         return `${varName}.map((${itemName}) => ${this.itemsRunType.jsonDecodeJIT(itemName)})`;
     }
-    mockJIT(varName: string): string {
-        const itemName = `iτεm${this.nestLevel}`;
-        return `${varName} = Array.from({length: Math.floor(Math.random() * 10)}, () => {
-            let ${itemName};
-            ${this.itemsRunType.mockJIT(itemName)}
-            return ${itemName};
-        })`;
+    mock(length = random(0, 30), ...args: any[]): any[] {
+        return Array.from({length}, () => this.itemsRunType.mock(...args));
     }
 }

@@ -10,7 +10,6 @@ import {
     buildJsonDecodeJITFn,
     buildIsTypeJITFn,
     buildTypeErrorsJITFn,
-    buildMockJITFn,
     buildJsonStringifyJITFn,
 } from '../jitCompiler';
 
@@ -22,19 +21,9 @@ type ObjectType = {
     stringArray: string[];
     bigInt: bigint;
     optionalString?: string;
+    "weird prop name \n?>'\\\t\r": string;
     // [key: symbol]: string;
     // [key: number]: number;
-};
-
-const x: ObjectType = {
-    date: new Date(),
-    number: 123,
-    string: 'hello',
-    nullValue: null,
-    stringArray: ['a', 'b', 'c'],
-    bigInt: BigInt(123),
-    // [Symbol('test')]: 'hello',
-    // 3: 3,
 };
 
 const rt = runType<ObjectType>();
@@ -49,6 +38,7 @@ it('validate object', () => {
             nullValue: null,
             stringArray: ['a', 'b', 'c'],
             bigInt: BigInt(123),
+            "weird prop name \n?>'\\\t\r": 'hello2',
             // note optionalString is missing
         })
     ).toBe(true);
@@ -60,6 +50,7 @@ it('validate object', () => {
             nullValue: null,
             stringArray: ['a', 'b', 'c'],
             bigInt: BigInt(123),
+            "weird prop name \n?>'\\\t\r": 'hello2',
             optionalString: 3, // wrong type
         })
     ).toBe(false);
@@ -86,6 +77,7 @@ it('validate object + errors', () => {
             nullValue: null,
             stringArray: ['a', 'b', 'c'],
             bigInt: BigInt(123),
+            "weird prop name \n?>'\\\t\r": 'hello2',
         })
     ).toEqual([]);
     expect(
@@ -98,6 +90,7 @@ it('validate object + errors', () => {
         {path: '/nullValue', expected: 'null'},
         {path: '/stringArray', expected: 'array<string>'},
         {path: '/bigInt', expected: 'bigint'},
+        {path: `/weird prop name \n?>'\\\t\r`, expected: 'string'},
     ]);
     expect(valWithErrors({})).toEqual([
         {path: '/date', expected: 'date'},
@@ -106,9 +99,10 @@ it('validate object + errors', () => {
         {path: '/nullValue', expected: 'null'},
         {path: '/stringArray', expected: 'array<string>'},
         {path: '/bigInt', expected: 'bigint'},
+        {path: `/weird prop name \n?>'\\\t\r`, expected: 'string'},
     ]);
     expect(valWithErrors('hello')).toEqual([
-        {path: '', expected: 'object<date & number & string & null & array<string> & bigint & string>'},
+        {path: '', expected: 'object<date & number & string & null & array<string> & bigint & string & string>'},
     ]);
 });
 
@@ -122,6 +116,7 @@ it('encode/decode to json', () => {
         nullValue: null,
         stringArray: ['a', 'b', 'c'],
         bigInt: BigInt(123),
+        "weird prop name \n?>'\\\t\r": 'hello2',
     };
     expect(rt.shouldDecodeJson).toBe(true);
     expect(rt.shouldEncodeJson).toBe(true);
@@ -138,6 +133,7 @@ it('json stringify', () => {
         nullValue: null,
         stringArray: ['a', 'b', 'c'],
         bigInt: BigInt(123),
+        "weird prop name \n?>'\\\t\r": 'hello2',
     };
     const roundTrip = fromJson(JSON.parse(jsonStringify(typeValue)));
     expect(roundTrip).toEqual(typeValue);
@@ -149,21 +145,23 @@ it('json stringify', () => {
         nullValue: null,
         stringArray: ['a', 'b', 'c'],
         bigInt: BigInt(123),
+        "weird prop name \n?>'\\\t\r": 'hello2',
         optionalString: 'hello',
     };
     const roundTrip2 = fromJson(JSON.parse(jsonStringify(typeValue2)));
     expect(roundTrip2).toEqual(typeValue2);
 });
 
+// todo: when there are reaped proterty types the function names collide see commented function
 it('mock', () => {
-    const mock = buildMockJITFn(rt);
-    const mocked = mock();
+    const mocked = rt.mock();
     expect(mocked).toHaveProperty('date');
     expect(mocked).toHaveProperty('number');
     expect(mocked).toHaveProperty('string');
     expect(mocked).toHaveProperty('nullValue');
     expect(mocked).toHaveProperty('stringArray');
     expect(mocked).toHaveProperty('bigInt');
+    expect(mocked).toHaveProperty("weird prop name \n?>'\\\t\r");
     const validate = buildIsTypeJITFn(rt);
-    expect(validate(mock())).toBe(true);
+    expect(validate(rt.mock())).toBe(true);
 });

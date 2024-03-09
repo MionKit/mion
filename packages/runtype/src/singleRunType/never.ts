@@ -32,7 +32,7 @@ export class NeverRunType implements RunType<TypeNever> {
     jsonDecodeJIT(): string {
         throw new Error('Never type cannot be decoded from JSON.');
     }
-    mockJIT(): string {
+    mock() {
         throw new Error('Never type cannot be mocked.');
     }
 }

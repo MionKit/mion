@@ -45,9 +45,3 @@ export function buildJsonStringifyJITFn(runType: RunType, varName = 'vλluε'): 
     // console.log(code);
     return new Function(varName, `return ${code};`) as (vλluε: any) => string;
 }
-
-export function buildMockJITFn(runType: RunType, varName = 'vλluε'): () => any {
-    const code = runType.mockJIT(varName);
-    // console.log(code);
-    return new Function(varName, `${code}; return ${varName};`) as () => any;
-}

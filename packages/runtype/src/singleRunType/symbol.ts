@@ -8,6 +8,7 @@
 import {TypeSymbol} from '@deepkit/type';
 import {RunType, RunTypeVisitor, JitJsonEncoder} from '../types';
 import {toLiteral} from '../utils';
+import {mockSymbol} from '../mock';
 
 export class SymbolRunType implements RunType<TypeSymbol> {
     public readonly name = 'symbol';
@@ -33,12 +34,8 @@ export class SymbolRunType implements RunType<TypeSymbol> {
     jsonDecodeJIT(varName: string): string {
         return SymbolJitJsonENcoder.decodeFromJson(varName);
     }
-    mockJIT(varName: string): string {
-        const alpha = `alpha${this.nestLevel}`;
-        return (
-            `const ${alpha} = 'abcdefghijklmnopqrstuvwxyz1234567890';` +
-            `${varName} = Symbol(${alpha}[Math.floor(Math.random() * ${alpha}.length)])`
-        );
+    mock(name?: string, length?: number, charsSet?: string): symbol {
+        return mockSymbol(name, length, charsSet);
     }
 }
 

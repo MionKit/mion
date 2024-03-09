@@ -8,6 +8,7 @@
 import {ReflectionKind, TypeEnum} from '@deepkit/type';
 import {RunType, RunTypeVisitor} from '../types';
 import {toLiteral} from '../utils';
+import {random} from '../mock';
 
 export class EnumRunType implements RunType<TypeEnum> {
     public readonly name: string;
@@ -36,11 +37,8 @@ export class EnumRunType implements RunType<TypeEnum> {
     jsonDecodeJIT(varName: string): string {
         return varName;
     }
-    mockJIT(varName: string): string {
-        const enumList = `εnumList${this.nestLevel}`;
-        return (
-            `const ${enumList} = [${this.src.values.map((v) => toLiteral(v)).join(', ')}];` +
-            `${varName} = ${enumList}[Math.floor(Math.random() * ${enumList}.length)]`
-        );
+    mock(index?: number): string | number | undefined | null {
+        const i = index || random(0, this.src.values.length - 1);
+        return this.src.values[i];
     }
 }

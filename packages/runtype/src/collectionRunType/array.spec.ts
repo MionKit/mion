@@ -10,7 +10,6 @@ import {
     buildJsonDecodeJITFn,
     buildIsTypeJITFn,
     buildTypeErrorsJITFn,
-    buildMockJITFn,
     buildJsonStringifyJITFn,
 } from '../jitCompiler';
 
@@ -72,10 +71,9 @@ describe('ArrayType', () => {
     });
 
     it('mock', () => {
-        const mock = buildMockJITFn(rt);
-        expect(mock() instanceof Array).toBe(true);
+        expect(rt.mock() instanceof Array).toBe(true);
         const validate = buildIsTypeJITFn(rt);
-        expect(validate(mock())).toBe(true);
+        expect(validate(rt.mock())).toBe(true);
     });
 });
 
@@ -142,9 +140,8 @@ describe('ArrayType recursion', () => {
     });
 
     it('mock', () => {
-        const mock = buildMockJITFn(rt);
         const validate = buildIsTypeJITFn(rt);
-        expect(mock() instanceof Array).toBe(true);
-        expect(validate(mock())).toBe(true);
+        expect(rt.mock() instanceof Array).toBe(true);
+        expect(validate(rt.mock())).toBe(true);
     });
 });

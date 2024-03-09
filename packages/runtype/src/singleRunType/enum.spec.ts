@@ -10,7 +10,6 @@ import {
     buildJsonDecodeJITFn,
     buildIsTypeJITFn,
     buildTypeErrorsJITFn,
-    buildMockJITFn,
     buildJsonStringifyJITFn,
 } from '../jitCompiler';
 
@@ -68,9 +67,8 @@ it('json stringify', () => {
 });
 
 it('mock', () => {
-    const mock = buildMockJITFn(rt);
-    const mocked = mock();
+    const mocked = rt.mock();
     expect(mocked === 0 || mocked === 'green' || mocked === 2).toBe(true);
     const validate = buildIsTypeJITFn(rt);
-    expect(validate(mock())).toBe(true);
+    expect(validate(rt.mock())).toBe(true);
 });
