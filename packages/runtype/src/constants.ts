@@ -5,6 +5,8 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
+export const validPropertyNameRegExp = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
+
 export const mockRegExpsList = [
     /abc/, // Matches the string 'abc'
     /def/, // Matches the string 'def'
