@@ -22,11 +22,25 @@ type ObjectType = {
     bigInt: bigint;
     optionalString?: string;
     "weird prop name \n?>'\\\t\r": string;
-    // [key: symbol]: string;
-    // [key: number]: number;
+    // TODO: index
+};
+
+type objectSkipProps = {
+    name: string;
+    methodProp: () => any;
+};
+
+type objectIndexedProps = {
+    someProp: 2;
+    otherProp: 'hello';
+    [key: symbol]: string;
+    [key: number]: number;
 };
 
 const rt = runType<ObjectType>();
+const rtSkip = runType<objectSkipProps>();
+// TODO: implement indexed properties
+const rtIndexed = runType<objectIndexedProps>();
 
 it('validate object', () => {
     const validate = buildIsTypeJITFn(rt);
@@ -121,6 +135,17 @@ it('encode/decode to json', () => {
     expect(rt.isJsonDecodeRequired).toBe(true);
     expect(rt.isJsonEncodeRequired).toBe(true);
     expect(fromJson(toJson(typeValue))).toEqual(typeValue);
+});
+
+it('skip props when encode/decode to json', () => {
+    const toJson = buildJsonEncodeJITFn(rtSkip);
+    const fromJson = buildJsonDecodeJITFn(rtSkip);
+    const typeValue = {
+        name: 'hello',
+        methodProp: () => 'hello',
+        [Symbol('test')]: 'hello',
+    };
+    expect(fromJson(toJson(typeValue))).toEqual({name: 'hello'});
 });
 
 it('json stringify', () => {

@@ -8,8 +8,8 @@ import {TypeCallSignature, TypeFunction, TypeMethodSignature} from '@deepkit/typ
 import {RunType, RunTypeVisitor} from '../types';
 
 export class FunctionRunType<T extends TypeMethodSignature | TypeCallSignature | TypeFunction> implements RunType<T> {
-    public readonly isJsonEncodeRequired = false;
-    public readonly isJsonDecodeRequired = false;
+    public readonly isJsonEncodeRequired = true; // triggers custom json encode so functions get skipped
+    public readonly isJsonDecodeRequired = true; // triggers custom json encode so functions get skipped
     public readonly shouldEncodeReturnJson: boolean;
     public readonly shouldDecodeReturnJson: boolean;
     public readonly shouldEncodeParamsJson: boolean;
