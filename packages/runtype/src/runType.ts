@@ -34,6 +34,7 @@ import {IndexSignatureRunType} from './collectionRunType';
 import {MethodSignatureRunType} from './functionRunType/method';
 import {CallSignatureRunType} from './functionRunType/call';
 import {FunctionRunType} from './functionRunType/function';
+import {PromiseRunType} from './singleRunType/promise';
 // import {resolveAsyncIterator, resolveIterator} from './typeBoxMap/nativeObjectLiterals';
 
 const MaxNestLevel = 100;
@@ -129,8 +130,7 @@ function visitor(deepkitType, nestLevel: number): RunType {
             // rType = resolveParameter(deepkitType, opts, mapper);
             break;
         case ReflectionKind.promise:
-            throw new Error('not implemented');
-            // rType = resolvePromise(deepkitType, opts, mapper);
+            rt = new PromiseRunType(deepkitType, visitor, nestLevel);
             break;
         case ReflectionKind.property:
             // rType = resolveProperty(deepkitType, opts, mapper);
