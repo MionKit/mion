@@ -25,10 +25,10 @@ type ObjectType = {
     // TODO: index
 };
 
-type objectSkipProps = {
+interface objectSkipProps {
     name: string;
     methodProp: () => any;
-};
+}
 
 type objectIndexedProps = {
     someProp: 2;

@@ -28,7 +28,7 @@ import {EnumMemberRunType} from './singleRunType/enumMember';
 import {UnionRunType} from './collectionRunType/union';
 import {TupleRunType} from './collectionRunType/tuple';
 import {TupleMemberRunType} from './singleRunType/tupleMember';
-import {ObjectLiteralRunType} from './collectionRunType/objectLiteral';
+import {InterfaceRunType} from './collectionRunType/interface';
 import {PropertySignatureRunType} from './singleRunType/property';
 import {IndexSignatureRunType} from './collectionRunType';
 import {MethodSignatureRunType} from './functionRunType/method';
@@ -108,7 +108,7 @@ export function isNumberRunType(rt: RunType | Type): rt is NumberRunType {
     return kind === ReflectionKind.number;
 }
 
-export function isObjectLiteralRunType(rt: RunType | Type): rt is ObjectLiteralRunType {
+export function isInterfaceRunType(rt: RunType | Type): rt is InterfaceRunType {
     const kind: ReflectionKind = (rt as Type).kind || (rt as RunType).src.kind;
     return kind === ReflectionKind.objectLiteral;
 }
