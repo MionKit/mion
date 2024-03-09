@@ -28,13 +28,14 @@ import {EnumMemberRunType} from './singleRunType/enumMember';
 import {UnionRunType} from './collectionRunType/union';
 import {TupleRunType} from './collectionRunType/tuple';
 import {TupleMemberRunType} from './singleRunType/tupleMember';
-import {ObjectLiteralRunType} from './collectionRunType/objectLiteral';
+import {InterfaceRunType} from './collectionRunType/interface';
 import {PropertySignatureRunType} from './singleRunType/property';
 import {IndexSignatureRunType} from './collectionRunType';
 import {MethodSignatureRunType} from './functionRunType/method';
 import {CallSignatureRunType} from './functionRunType/call';
 import {FunctionRunType} from './functionRunType/function';
 import {PromiseRunType} from './singleRunType/promise';
+import {ObjectRunType} from './singleRunType/object';
 // import {resolveAsyncIterator, resolveIterator} from './typeBoxMap/nativeObjectLiterals';
 
 const MaxNestLevel = 100;
@@ -113,7 +114,7 @@ function visitor(deepkitType, nestLevel: number): RunType {
             rt = new NumberRunType(deepkitType, visitor, nestLevel);
             break;
         case ReflectionKind.object:
-            throw new Error('not implemented');
+            rt = new ObjectRunType(deepkitType, visitor, nestLevel);
             break;
         case ReflectionKind.objectLiteral:
             const objLiteral = deepkitType as TypeObjectLiteral;
@@ -122,7 +123,7 @@ function visitor(deepkitType, nestLevel: number): RunType {
             if (isNativeType) {
                 rt = resolveNativeTypeFromObjectLiteral(objLiteral, originTypeName, objLiteral, visitor, nestLevel);
             } else {
-                rt = new ObjectLiteralRunType(objLiteral, visitor, nestLevel);
+                rt = new InterfaceRunType(objLiteral, visitor, nestLevel);
             }
             break;
         case ReflectionKind.parameter:

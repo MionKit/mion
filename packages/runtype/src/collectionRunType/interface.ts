@@ -10,7 +10,7 @@ import {PropertySignatureRunType} from '../singleRunType/property';
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-export class ObjectLiteralRunType implements RunType<TypeObjectLiteral> {
+export class InterfaceRunType implements RunType<TypeObjectLiteral> {
     public readonly name: string;
     public readonly isJsonEncodeRequired: boolean;
     public readonly isJsonDecodeRequired: boolean;
