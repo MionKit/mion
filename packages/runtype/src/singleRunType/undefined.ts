@@ -6,32 +6,27 @@
  * ######## */
 
 import {TypeUndefined} from '../_deepkit/src/reflection/type';
-import {RunType, RunTypeOptions, RunTypeVisitor} from '../types';
+import {BaseRunType} from '../baseRunType';
 import {toLiteral} from '../utils';
 
-export class UndefinedRunType implements RunType<TypeUndefined> {
+export class UndefinedRunType extends BaseRunType<TypeUndefined> {
     public readonly name = 'undefined';
     public readonly isJsonEncodeRequired = true;
     public readonly isJsonDecodeRequired = true;
-    constructor(
-        visitor: RunTypeVisitor,
-        public readonly src: TypeUndefined,
-        public readonly nestLevel: number,
-        public readonly opts: RunTypeOptions
-    ) {}
-    isTypeJIT(varName: string): string {
+
+    JIT_isType(varName: string): string {
         return `typeof ${varName} === 'undefined'`;
     }
-    typeErrorsJIT(varName: string, errorsName: string, pathChain: string): string {
+    JIT_typeErrors(varName: string, errorsName: string, pathChain: string): string {
         return `if (typeof ${varName} !== 'undefined') ${errorsName}.push({path: ${pathChain}, expected: ${toLiteral(this.name)}})`;
     }
-    jsonEncodeJIT(): string {
+    JIT_jsonEncode(): string {
         return `null`;
     }
-    jsonDecodeJIT(): string {
+    JIT_jsonDecode(): string {
         return `undefined`;
     }
-    jsonStringifyJIT(): string {
+    JIT_jsonStringify(): string {
         return `null`;
     }
     mock(): undefined {

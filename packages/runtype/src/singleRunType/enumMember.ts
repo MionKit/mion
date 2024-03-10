@@ -6,31 +6,26 @@
  * ######## */
 
 import {TypeEnum} from '../_deepkit/src/reflection/type';
-import {RunType, RunTypeOptions, RunTypeVisitor} from '../types';
+import {BaseRunType} from '../baseRunType';
 
-export class EnumMemberRunType implements RunType<TypeEnum> {
+export class EnumMemberRunType extends BaseRunType<TypeEnum> {
     public readonly name = 'enumMember';
     public readonly isJsonEncodeRequired = false;
     public readonly isJsonDecodeRequired = false;
-    constructor(
-        visitor: RunTypeVisitor,
-        public readonly src: TypeEnum,
-        public readonly nestLevel: number,
-        public readonly opts: RunTypeOptions
-    ) {}
-    isTypeJIT(): string {
+
+    JIT_isType(): string {
         throw new Error('Enum member operations are not supported');
     }
-    typeErrorsJIT(): string {
+    JIT_typeErrors(): string {
         throw new Error('Enum member operations are not supported');
     }
-    jsonEncodeJIT(): string {
+    JIT_jsonEncode(): string {
         throw new Error('Enum member operations are not supported');
     }
-    jsonDecodeJIT(): string {
+    JIT_jsonDecode(): string {
         throw new Error('Enum member operations are not supported');
     }
-    jsonStringifyJIT(): string {
+    JIT_jsonStringify(): string {
         throw new Error('Enum member operations are not supported');
     }
     mock() {

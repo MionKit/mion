@@ -1,4 +1,5 @@
 import {TypeIndexSignature} from '../_deepkit/src/reflection/type';
+import {BaseRunType} from '../baseRunType';
 import {RunType, RunTypeOptions, RunTypeVisitor} from '../types';
 import {addToPathChain, toLiteral} from '../utils';
 
@@ -9,7 +10,7 @@ import {addToPathChain, toLiteral} from '../utils';
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-export class IndexSignatureRunType implements RunType<TypeIndexSignature> {
+export class IndexSignatureRunType extends BaseRunType<TypeIndexSignature> {
     public readonly name: string;
     public readonly isJsonEncodeRequired;
     public readonly isJsonDecodeRequired;
@@ -20,17 +21,18 @@ export class IndexSignatureRunType implements RunType<TypeIndexSignature> {
         public readonly nestLevel: number,
         public readonly opts: RunTypeOptions
     ) {
+        super(visitor, src, nestLevel, opts);
         this.propertiesRunType = visitor(src.type, nestLevel, opts);
         this.isJsonEncodeRequired = this.propertiesRunType.isJsonEncodeRequired;
         this.isJsonDecodeRequired = this.propertiesRunType.isJsonDecodeRequired;
         this.name = `index<${this.propertiesRunType.name}>`;
     }
-    isTypeJIT(varName: string): string {
+    JIT_isType(varName: string): string {
         const keyName = `kεy${this.nestLevel}`;
         const valueName = `valuε${this.nestLevel}`;
-        return `typeof ${varName} === 'object' && Object.entries(${varName}).every(([${keyName}, ${valueName}]) => (${this.propertiesRunType.isTypeJIT(valueName)}))`;
+        return `typeof ${varName} === 'object' && Object.entries(${varName}).every(([${keyName}, ${valueName}]) => (${this.propertiesRunType.JIT_isType(valueName)}))`;
     }
-    typeErrorsJIT(varName: string, errorsName: string, pathLiteral: string): string {
+    JIT_typeErrors(varName: string, errorsName: string, pathLiteral: string): string {
         const keyName = `kεy${this.nestLevel}`;
         const valueName = `valuε${this.nestLevel}`;
         const propertyName = `propεrty${this.nestLevel}`;
@@ -38,31 +40,31 @@ export class IndexSignatureRunType implements RunType<TypeIndexSignature> {
 
         return (
             `if (typeof ${varName} !== 'object') ${errorsName}.push({path: ${pathLiteral}, expected: ${toLiteral(this.name)}});` +
-            `else Object.entries(${varName}).forEach(([${keyName}, ${valueName}]) => {${this.propertiesRunType.typeErrorsJIT(valueName, errorsName, propertyPath)}})`
+            `else Object.entries(${varName}).forEach(([${keyName}, ${valueName}]) => {${this.propertiesRunType.JIT_typeErrors(valueName, errorsName, propertyPath)}})`
         );
     }
-    jsonEncodeJIT(varName: string): string {
+    JIT_jsonEncode(varName: string): string {
         if (!this.isJsonEncodeRequired) return `${varName}`;
         const keyName = `kεy${this.nestLevel}`;
         const valueName = `valuε${this.nestLevel}`;
         return `Object.entries(${varName}).reduce((acc, [${keyName}, ${valueName}]) => {
-            acc[${keyName}] = ${this.propertiesRunType.jsonEncodeJIT(valueName)};
+            acc[${keyName}] = ${this.propertiesRunType.JIT_jsonEncode(valueName)};
             return acc;
         }, {})`;
     }
-    jsonDecodeJIT(varName: string): string {
+    JIT_jsonDecode(varName: string): string {
         const keyName = `kεy${this.nestLevel}`;
         const valueName = `valuε${this.nestLevel}`;
         return `Object.entries(${varName}).reduce((acc, [${keyName}, ${valueName}]) => {
-            acc[${keyName}] = ${this.propertiesRunType.jsonDecodeJIT(valueName)};
+            acc[${keyName}] = ${this.propertiesRunType.JIT_jsonDecode(valueName)};
             return acc;
         }, {})`;
     }
-    jsonStringifyJIT(varName: string): string {
+    JIT_jsonStringify(varName: string): string {
         const keyName = `kεy${this.nestLevel}`;
         const valueName = `valuε${this.nestLevel}`;
         return `Object.entries(${varName}).reduce((acc, [${keyName}, ${valueName}]) => {
-            acc[${keyName}] = ${this.propertiesRunType.jsonStringifyJIT(valueName)};
+            acc[${keyName}] = ${this.propertiesRunType.JIT_jsonStringify(valueName)};
             return acc;
         }, {})`;
     }

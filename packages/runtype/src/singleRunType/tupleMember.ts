@@ -6,9 +6,10 @@
  * ######## */
 
 import {TypeTupleMember} from '../_deepkit/src/reflection/type';
+import {BaseRunType} from '../baseRunType';
 import {RunType, RunTypeOptions, RunTypeVisitor} from '../types';
 
-export class TupleMemberRunType implements RunType<TypeTupleMember> {
+export class TupleMemberRunType extends BaseRunType<TypeTupleMember> {
     public readonly isJsonEncodeRequired: boolean;
     public readonly isJsonDecodeRequired: boolean;
     public readonly memberType: RunType;
@@ -19,25 +20,26 @@ export class TupleMemberRunType implements RunType<TypeTupleMember> {
         public readonly nestLevel: number,
         public readonly opts: RunTypeOptions
     ) {
+        super(visitor, src, nestLevel, opts);
         this.memberType = visitor(src.type, nestLevel, opts);
         this.isJsonEncodeRequired = this.memberType.isJsonEncodeRequired;
         this.isJsonDecodeRequired = this.memberType.isJsonDecodeRequired;
         this.name = this.memberType.name;
     }
-    isTypeJIT(varName: string): string {
-        return this.memberType.isTypeJIT(varName);
+    JIT_isType(varName: string): string {
+        return this.memberType.JIT_isType(varName);
     }
-    typeErrorsJIT(varName: string, errorsName: string, pathChain: string): string {
-        return this.memberType.typeErrorsJIT(varName, errorsName, pathChain);
+    JIT_typeErrors(varName: string, errorsName: string, pathChain: string): string {
+        return this.memberType.JIT_typeErrors(varName, errorsName, pathChain);
     }
-    jsonEncodeJIT(varName: string): string {
-        return this.memberType.jsonEncodeJIT(varName);
+    JIT_jsonEncode(varName: string): string {
+        return this.memberType.JIT_jsonEncode(varName);
     }
-    jsonDecodeJIT(varName: string): string {
-        return this.memberType.jsonDecodeJIT(varName);
+    JIT_jsonDecode(varName: string): string {
+        return this.memberType.JIT_jsonDecode(varName);
     }
-    jsonStringifyJIT(varName: string): string {
-        return this.memberType.jsonStringifyJIT(varName);
+    JIT_jsonStringify(varName: string): string {
+        return this.memberType.JIT_jsonStringify(varName);
     }
     mock(...args: any[]): any {
         return this.memberType.mock(...args);

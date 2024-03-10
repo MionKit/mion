@@ -9,8 +9,9 @@ import {ReflectionKind, TypePropertySignature} from '../_deepkit/src/reflection/
 import {RunType, RunTypeOptions, RunTypeVisitor} from '../types';
 import {addToPathChain, skipJsonDecode, skipJsonEncode, toLiteral} from '../utils';
 import {validPropertyNameRegExp} from '../constants';
+import {BaseRunType} from '../baseRunType';
 
-export class PropertySignatureRunType implements RunType<TypePropertySignature> {
+export class PropertySignatureRunType extends BaseRunType<TypePropertySignature> {
     public readonly isJsonEncodeRequired: boolean;
     public readonly isJsonDecodeRequired: boolean;
     public readonly memberType: RunType;
@@ -27,6 +28,7 @@ export class PropertySignatureRunType implements RunType<TypePropertySignature> 
         public readonly nestLevel: number,
         public readonly opts: RunTypeOptions
     ) {
+        super(visitor, src, nestLevel, opts);
         this.memberType = visitor(src.type, nestLevel, opts);
         this.name = this.memberType.name;
         this.isOptional = !!src.optional;
@@ -52,54 +54,54 @@ export class PropertySignatureRunType implements RunType<TypePropertySignature> 
             this.propRef = this.isSafePropName ? `.${src.name}` : `[${toLiteral(src.name)}]`;
         }
     }
-    isTypeJIT(varName: string): string {
+    JIT_isType(varName: string): string {
         if (this.skipSerialize) return '';
         const accessor = `${varName}${this.propRef}`;
         if (this.isOptional) {
-            return `${accessor} === undefined || (${this.memberType.isTypeJIT(accessor)})`;
+            return `${accessor} === undefined || (${this.memberType.JIT_isType(accessor)})`;
         }
-        return this.memberType.isTypeJIT(accessor);
+        return this.memberType.JIT_isType(accessor);
     }
-    typeErrorsJIT(varName: string, errorsName: string, pathChain: string): string {
+    JIT_typeErrors(varName: string, errorsName: string, pathChain: string): string {
         if (this.skipSerialize) return '';
         const accessor = `${varName}${this.propRef}`;
         if (this.isOptional) {
-            return `if (${accessor} !== undefined) {${this.memberType.typeErrorsJIT(
+            return `if (${accessor} !== undefined) {${this.memberType.JIT_typeErrors(
                 accessor,
                 errorsName,
                 addToPathChain(pathChain, this.propName)
             )}}`;
         }
-        return this.memberType.typeErrorsJIT(accessor, errorsName, addToPathChain(pathChain, this.propName));
+        return this.memberType.JIT_typeErrors(accessor, errorsName, addToPathChain(pathChain, this.propName));
     }
-    jsonEncodeJIT(varName: string): string {
+    JIT_jsonEncode(varName: string): string {
         if (this.skipSerialize) return '';
         const jsName = this.isSafePropName ? this.propName : toLiteral(this.propName);
         const accessor = `${varName}${this.propRef}`;
         const useNative = skipJsonEncode(this);
-        const valCode = useNative ? accessor : this.memberType.jsonEncodeJIT(accessor);
+        const valCode = useNative ? accessor : this.memberType.JIT_jsonEncode(accessor);
         if (this.isOptional) {
             return `...(${accessor} === undefined ? {} : {${jsName}:${valCode}})`;
         }
         return `${jsName}:${valCode}`;
     }
-    jsonDecodeJIT(varName: string): string {
+    JIT_jsonDecode(varName: string): string {
         if (this.skipSerialize) return '';
         const jsName = this.isSafePropName ? this.propName : toLiteral(this.propName);
         const accessor = `${varName}${this.propRef}`;
         const useNative = skipJsonDecode(this);
-        const valCode = useNative ? accessor : this.memberType.jsonDecodeJIT(accessor);
+        const valCode = useNative ? accessor : this.memberType.JIT_jsonDecode(accessor);
         if (this.isOptional) {
             return `...(${accessor} === undefined ? {} : {${jsName}:${valCode}})`;
         }
         return `${jsName}:${valCode}`;
     }
-    jsonStringifyJIT(varName: string, isFirst = false): string {
+    JIT_jsonStringify(varName: string, isFirst = false): string {
         if (this.skipSerialize) return '';
         // firs stringify sanitizes string, second is the actual json
         const proNameJSon = JSON.stringify(JSON.stringify(this.propName));
         const accessor = `${varName}${this.propRef}`;
-        const valCode = this.memberType.jsonStringifyJIT(accessor);
+        const valCode = this.memberType.JIT_jsonStringify(accessor);
         if (this.isOptional) {
             return `${isFirst ? '' : '+'}(${accessor} === undefined ?'':${isFirst ? '' : `(','+`}${proNameJSon}+':'+${valCode}))`;
         }

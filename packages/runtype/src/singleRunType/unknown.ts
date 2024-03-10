@@ -10,6 +10,7 @@ import {RunType, RunTypeOptions, RunTypeVisitor} from '../types';
 import {AnyRunType} from './any';
 
 export class UnknownRunType extends AnyRunType implements RunType<TypeUnknown> {
+    public readonly name = 'unknown';
     constructor(
         visitor: RunTypeVisitor,
         public readonly src: TypeUnknown,

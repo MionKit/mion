@@ -6,31 +6,26 @@
  * ######## */
 
 import {TypeNever} from '../_deepkit/src/reflection/type';
-import {RunType, RunTypeOptions, RunTypeVisitor} from '../types';
+import {BaseRunType} from '../baseRunType';
 
-export class NeverRunType implements RunType<TypeNever> {
+export class NeverRunType extends BaseRunType<TypeNever> {
     public readonly name = 'never';
     public readonly isJsonEncodeRequired = false;
     public readonly isJsonDecodeRequired = false;
-    constructor(
-        visitor: RunTypeVisitor,
-        public readonly src: TypeNever,
-        public readonly nestLevel: number,
-        public readonly opts: RunTypeOptions
-    ) {}
-    isTypeJIT(): string {
+
+    JIT_isType(): string {
         throw new Error('Never type cannot exist at runtime.');
     }
-    typeErrorsJIT(): string {
+    JIT_typeErrors(): string {
         throw new Error('Never type cannot exist at runtime.');
     }
-    jsonEncodeJIT(): string {
+    JIT_jsonEncode(): string {
         throw new Error('Never type cannot be encoded to JSON.');
     }
-    jsonDecodeJIT(): string {
+    JIT_jsonDecode(): string {
         throw new Error('Never type cannot be decoded from JSON.');
     }
-    jsonStringifyJIT(): string {
+    JIT_jsonStringify(): string {
         throw new Error('Never type cannot be stringified.');
     }
     mock() {

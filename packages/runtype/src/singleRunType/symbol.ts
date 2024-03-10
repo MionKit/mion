@@ -6,33 +6,29 @@
  * ######## */
 
 import {TypeSymbol} from '../_deepkit/src/reflection/type';
-import {RunType, RunTypeVisitor, JitJsonEncoder, RunTypeOptions} from '../types';
+import {JitJsonEncoder} from '../types';
 import {toLiteral} from '../utils';
 import {mockSymbol} from '../mock';
+import {BaseRunType} from '../baseRunType';
 
-export class SymbolRunType implements RunType<TypeSymbol> {
+export class SymbolRunType extends BaseRunType<TypeSymbol> {
     public readonly name = 'symbol';
     public readonly isJsonEncodeRequired = true;
     public readonly isJsonDecodeRequired = true;
-    constructor(
-        visitor: RunTypeVisitor,
-        public readonly src: TypeSymbol,
-        public readonly nestLevel: number,
-        public readonly opts: RunTypeOptions
-    ) {}
-    isTypeJIT(varName: string): string {
+
+    JIT_isType(varName: string): string {
         return `typeof ${varName} === 'symbol'`;
     }
-    typeErrorsJIT(varName: string, errorsName: string, pathChain: string): string {
+    JIT_typeErrors(varName: string, errorsName: string, pathChain: string): string {
         return `if (typeof ${varName} !== 'symbol') ${errorsName}.push({path: ${pathChain}, expected: ${toLiteral(this.name)}})`;
     }
-    jsonEncodeJIT(varName: string): string {
+    JIT_jsonEncode(varName: string): string {
         return SymbolJitJsonENcoder.encodeToJson(varName);
     }
-    jsonDecodeJIT(varName: string): string {
+    JIT_jsonDecode(varName: string): string {
         return SymbolJitJsonENcoder.decodeFromJson(varName);
     }
-    jsonStringifyJIT(varName: string): string {
+    JIT_jsonStringify(varName: string): string {
         return SymbolJitJsonENcoder.stringify(varName);
     }
     mock(name?: string, length?: number, charsSet?: string): symbol {

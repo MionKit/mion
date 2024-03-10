@@ -6,10 +6,11 @@
  * ######## */
 
 import {TypeAny, TypeUnknown} from '../_deepkit/src/reflection/type';
-import {RunType, RunTypeOptions, RunTypeVisitor} from '../types';
+import {RunTypeOptions, RunTypeVisitor} from '../types';
 import {mockAny} from '../mock';
+import {BaseRunType} from '../baseRunType';
 
-export class AnyRunType implements RunType<TypeAny | TypeUnknown> {
+export class AnyRunType extends BaseRunType<TypeAny | TypeUnknown> {
     public readonly isJsonEncodeRequired = false;
     public readonly isJsonDecodeRequired = false;
     constructor(
@@ -18,20 +19,22 @@ export class AnyRunType implements RunType<TypeAny | TypeUnknown> {
         public readonly nestLevel: number,
         public readonly opts: RunTypeOptions,
         public readonly name = 'any'
-    ) {}
-    isTypeJIT(): string {
+    ) {
+        super(visitor, src, nestLevel, opts);
+    }
+    JIT_isType(): string {
         return `true`;
     }
-    typeErrorsJIT(): string {
+    JIT_typeErrors(): string {
         return ``;
     }
-    jsonEncodeJIT(varName: string): string {
+    JIT_jsonEncode(varName: string): string {
         return varName;
     }
-    jsonDecodeJIT(varName: string): string {
+    JIT_jsonDecode(varName: string): string {
         return varName;
     }
-    jsonStringifyJIT(varName: string): string {
+    JIT_jsonStringify(varName: string): string {
         return `JSON.stringify(${varName})`;
     }
     mock(anyValuesLis?: any[]): string {

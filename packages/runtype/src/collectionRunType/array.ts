@@ -9,8 +9,9 @@ import {TypeArray} from '../_deepkit/src/reflection/type';
 import {RunType, RunTypeOptions, RunTypeVisitor} from '../types';
 import {addToPathChain, skipJsonDecode, skipJsonEncode, toLiteral} from '../utils';
 import {random} from '../mock';
+import {BaseRunType} from '../baseRunType';
 
-export class ArrayRunType implements RunType<TypeArray> {
+export class ArrayRunType extends BaseRunType<TypeArray> {
     public readonly name: string;
     public readonly isJsonEncodeRequired;
     public readonly isJsonDecodeRequired;
@@ -21,38 +22,39 @@ export class ArrayRunType implements RunType<TypeArray> {
         public readonly nestLevel: number,
         public readonly opts: RunTypeOptions
     ) {
+        super(visitor, src, nestLevel, opts);
         this.itemsRunType = visitor(src.type, nestLevel, opts);
         this.isJsonEncodeRequired = this.itemsRunType.isJsonEncodeRequired;
         this.isJsonDecodeRequired = this.itemsRunType.isJsonDecodeRequired;
         this.name = `array<${this.itemsRunType.name}>`;
     }
-    isTypeJIT(varName: string): string {
+    JIT_isType(varName: string): string {
         const itemName = `iτεm${this.nestLevel}`;
-        return `Array.isArray(${varName}) && ${varName}.every((${itemName}) => (${this.itemsRunType.isTypeJIT(itemName)}))`;
+        return `Array.isArray(${varName}) && ${varName}.every((${itemName}) => (${this.itemsRunType.JIT_isType(itemName)}))`;
     }
-    typeErrorsJIT(varName: string, errorsName: string, pathLiteral: string): string {
+    JIT_typeErrors(varName: string, errorsName: string, pathLiteral: string): string {
         const itemName = `iτεm${this.nestLevel}`;
         const indexName = `indεx${this.nestLevel}`;
         const listItemPath = addToPathChain(pathLiteral, indexName, false);
 
         return (
             `if (!Array.isArray(${varName})) ${errorsName}.push({path: ${pathLiteral}, expected: ${toLiteral(this.name)}});` +
-            `else ${varName}.forEach((${itemName}, ${indexName}) => {${this.itemsRunType.typeErrorsJIT(itemName, errorsName, listItemPath)}})`
+            `else ${varName}.forEach((${itemName}, ${indexName}) => {${this.itemsRunType.JIT_typeErrors(itemName, errorsName, listItemPath)}})`
         );
     }
-    jsonEncodeJIT(varName: string): string {
+    JIT_jsonEncode(varName: string): string {
         if (skipJsonEncode(this)) return varName;
         const itemName = `iτεm${this.nestLevel}`;
-        return `${varName}.map((${itemName}) => ${this.itemsRunType.jsonEncodeJIT(itemName)})`;
+        return `${varName}.map((${itemName}) => ${this.itemsRunType.JIT_jsonEncode(itemName)})`;
     }
-    jsonDecodeJIT(varName: string): string {
+    JIT_jsonDecode(varName: string): string {
         if (skipJsonDecode(this)) return varName;
         const itemName = `iτεm${this.nestLevel}`;
-        return `${varName}.map((${itemName}) => ${this.itemsRunType.jsonDecodeJIT(itemName)})`;
+        return `${varName}.map((${itemName}) => ${this.itemsRunType.JIT_jsonDecode(itemName)})`;
     }
-    jsonStringifyJIT(varName: string): string {
+    JIT_jsonStringify(varName: string): string {
         const itemName = `iτεm${this.nestLevel}`;
-        const itemsCode = `${varName}.map((${itemName}) => ${this.itemsRunType.jsonStringifyJIT(itemName)}).join(",")`;
+        const itemsCode = `${varName}.map((${itemName}) => ${this.itemsRunType.JIT_jsonStringify(itemName)}).join(",")`;
         return `'[' + ${itemsCode} + ']'`;
     }
     mock(length = random(0, 30), ...args: any[]): any[] {

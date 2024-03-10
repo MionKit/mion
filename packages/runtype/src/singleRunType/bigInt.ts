@@ -6,33 +6,29 @@
  * ######## */
 
 import {TypeBigInt} from '../_deepkit/src/reflection/type';
-import {JitJsonEncoder, RunType, RunTypeOptions, RunTypeVisitor} from '../types';
+import {JitJsonEncoder} from '../types';
 import {toLiteral} from '../utils';
 import {mockBigInt} from '../mock';
+import {BaseRunType} from '../baseRunType';
 
-export class BigIntRunType implements RunType<TypeBigInt> {
+export class BigIntRunType extends BaseRunType<TypeBigInt> {
     public readonly name = 'bigint';
     public readonly isJsonEncodeRequired = true;
     public readonly isJsonDecodeRequired = true;
-    constructor(
-        visitor: RunTypeVisitor,
-        public readonly src: TypeBigInt,
-        public readonly nestLevel: number,
-        public readonly opts: RunTypeOptions
-    ) {}
-    isTypeJIT(varName: string): string {
+
+    JIT_isType(varName: string): string {
         return `typeof ${varName} === 'bigint'`;
     }
-    typeErrorsJIT(varName: string, errorsName: string, pathChain: string): string {
+    JIT_typeErrors(varName: string, errorsName: string, pathChain: string): string {
         return `if (typeof ${varName} !== 'bigint') ${errorsName}.push({path: ${pathChain}, expected: ${toLiteral(this.name)}})`;
     }
-    jsonEncodeJIT(varName: string): string {
+    JIT_jsonEncode(varName: string): string {
         return BigIntJitJsonENcoder.encodeToJson(varName);
     }
-    jsonDecodeJIT(varName: string): string {
+    JIT_jsonDecode(varName: string): string {
         return BigIntJitJsonENcoder.decodeFromJson(varName);
     }
-    jsonStringifyJIT(varName: string): string {
+    JIT_jsonStringify(varName: string): string {
         return BigIntJitJsonENcoder.stringify(varName);
     }
     mock(min?: number, max?: number): bigint {
