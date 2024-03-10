@@ -1,4 +1,4 @@
-import {TypeIndexSignature} from '@deepkit/type';
+import { TypeIndexSignature } from '../_deepkit/src/reflection/type';
 import {RunType, RunTypeVisitor} from '../types';
 import {addToPathChain, toLiteral} from '../utils';
 

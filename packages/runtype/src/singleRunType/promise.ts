@@ -1,4 +1,4 @@
-import {TypePromise} from '@deepkit/type';
+import {TypePromise} from '../_deepkit/src/reflection/type';
 import {RunType, RunTypeVisitor} from '../types';
 import {toLiteral} from '../utils';
 

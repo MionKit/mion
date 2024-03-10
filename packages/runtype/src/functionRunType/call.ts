@@ -4,7 +4,7 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
-import {TypeCallSignature} from '@deepkit/type';
+import {TypeCallSignature} from '../_deepkit/src/reflection/type';
 import {RunTypeVisitor} from '../types';
 import {FunctionRunType} from './function';
 

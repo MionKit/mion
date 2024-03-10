@@ -6,7 +6,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {ReflectionKind, Type, TypeClass} from '@deepkit/type';
+import {ReflectionKind, Type, TypeClass} from './_deepkit/src/reflection/type';
 import {RunType} from './types';
 import {StringRunType} from './singleRunType/string';
 import {DateRunType} from './singleRunType/date';
@@ -36,6 +36,7 @@ import {CallSignatureRunType} from './functionRunType/call';
 import {FunctionRunType} from './functionRunType/function';
 import {ParameterRunType} from './singleRunType/param';
 import {PromiseRunType} from './singleRunType/promise';
+import { ObjectRunType } from './singleRunType/object';
 
 export function isAnyRunType(rt: RunType | Type): rt is AnyRunType {
     const kind: ReflectionKind = (rt as Type).kind || (rt as RunType).src.kind;

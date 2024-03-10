@@ -6,7 +6,8 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {ReflectionKind, resolveReceiveType, ReceiveType, TypeObjectLiteral} from '@deepkit/type';
+import {ReflectionKind,  TypeObjectLiteral} from './_deepkit/src/reflection/type';
+import {resolveReceiveType, ReceiveType} from './_deepkit/src/reflection/reflection';
 import {RunType, RunTypeVisitor} from './types';
 import {StringRunType} from './singleRunType/string';
 import {DateRunType} from './singleRunType/date';

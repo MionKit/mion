@@ -6,7 +6,7 @@
  * ######## */
 
 import {SchemaOptions, TPromise, TSchema, Type as TypeBox} from '@sinclair/typebox';
-import {TypePromise} from '@deepkit/type';
+import {TypePromise} from '../_deepkit/src/reflection/type';
 import {DeepkitVisitor} from './typeBoxTypes';
 
 export function resolvePromise(deepkitType: TypePromise, opts: SchemaOptions, resolveTypeBox: DeepkitVisitor): TPromise {

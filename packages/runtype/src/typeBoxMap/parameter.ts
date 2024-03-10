@@ -6,7 +6,7 @@
  * ######## */
 
 import {SchemaOptions, TSchema, Type as TypeBox} from '@sinclair/typebox';
-import {TypeParameter} from '@deepkit/type';
+import {TypeParameter} from '../_deepkit/src/reflection/type';
 import {DeepkitVisitor} from './typeBoxTypes';
 
 export function resolveParameter(deepkitType: TypeParameter, opts: SchemaOptions, resolveTypeBox: DeepkitVisitor): TSchema {

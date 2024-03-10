@@ -6,7 +6,7 @@
  * ######## */
 
 import {SchemaOptions, TArray, Type as TypeBox} from '@sinclair/typebox';
-import {TypeArray} from '@deepkit/type';
+import {TypeArray} from '../_deepkit/src/reflection/type';
 import {DeepkitVisitor} from './typeBoxTypes';
 
 // mapArray function: Maps a Deepkit TypeArray to a TypeBox TArray<T>
