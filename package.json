@@ -45,8 +45,8 @@
     "node": ">= 20.0.0"
   },
   "devDependencies": {
-    "@deepkit/core": "1.0.1-alpha.114",
-    "@deepkit/type-compiler": "1.0.1-alpha.117",
+    "@deepkit/core": "1.0.1-alpha.124",
+    "@deepkit/type-compiler": "1.0.1-alpha.142",
     "@types/aws-lambda": "^8.10.108",
     "@types/jest": "^29.5.3",
     "@types/node": "^18.17.0",
