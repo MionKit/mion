@@ -30,14 +30,14 @@ export class TupleMemberRunType implements RunType<TypeTupleMember> {
     typeErrorsJIT(varName: string, errorsName: string, pathChain: string): string {
         return this.memberType.typeErrorsJIT(varName, errorsName, pathChain);
     }
-    jsonEncodeJIT(varName: string, isStrict?: boolean): string {
-        return this.memberType.jsonEncodeJIT(varName, isStrict);
+    jsonEncodeJIT(varName: string): string {
+        return this.memberType.jsonEncodeJIT(varName);
     }
     jsonStringifyJIT(varName: string): string {
         return this.memberType.jsonStringifyJIT(varName);
     }
-    jsonDecodeJIT(varName: string, isStrict?: boolean): string {
-        return this.memberType.jsonDecodeJIT(varName, isStrict);
+    jsonDecodeJIT(varName: string): string {
+        return this.memberType.jsonDecodeJIT(varName);
     }
     mock(...args: any[]): any {
         return this.memberType.mock(...args);

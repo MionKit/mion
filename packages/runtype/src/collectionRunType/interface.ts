@@ -6,7 +6,7 @@
  * ######## */
 import {TypeObjectLiteral} from '../_deepkit/src/reflection/type';
 import {RunType, RunTypeOptions, RunTypeVisitor} from '../types';
-import {toLiteral} from '../utils';
+import {skipJsonDecode, skipJsonEncode, toLiteral} from '../utils';
 import {PropertySignatureRunType} from '../singleRunType/property';
 
 export class InterfaceRunType implements RunType<TypeObjectLiteral> {
@@ -38,9 +38,9 @@ export class InterfaceRunType implements RunType<TypeObjectLiteral> {
             `else {${propsCode}}`
         );
     }
-    jsonEncodeJIT(varName: string, isStrict?: boolean): string {
-        if (!isStrict && !this.isJsonEncodeRequired) return varName;
-        const propsCode = this.serializableProps.map((prop) => prop.jsonEncodeJIT(varName, isStrict)).join(',');
+    jsonEncodeJIT(varName: string): string {
+        if (skipJsonEncode(this)) return varName;
+        const propsCode = this.serializableProps.map((prop) => prop.jsonEncodeJIT(varName)).join(',');
         return `{${propsCode}}`;
     }
     // unlike the other JIT methods the separator is added within the PropertySignatureRunType
@@ -49,9 +49,9 @@ export class InterfaceRunType implements RunType<TypeObjectLiteral> {
         const propsCode = this.serializableProps.map((prop, i) => prop.jsonStringifyJIT(varName, i === 0)).join('');
         return `'{'+${propsCode}+'}'`;
     }
-    jsonDecodeJIT(varName: string, isStrict?: boolean): string {
-        if (!isStrict && !this.isJsonDecodeRequired) return varName;
-        const propsCode = this.serializableProps.map((prop) => prop.jsonDecodeJIT(varName, isStrict)).join(',');
+    jsonDecodeJIT(varName: string): string {
+        if (skipJsonDecode(this)) return varName;
+        const propsCode = this.serializableProps.map((prop) => prop.jsonDecodeJIT(varName)).join(',');
         return `{${propsCode}}`;
     }
     mock(

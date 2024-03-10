@@ -42,7 +42,7 @@ export interface RunType<T extends Type = Type, Opts extends RunTypeOptions = Ru
      * this code should not contain any sentence breaks or semicolons.
      * ie for bigIng: jsonEncodeJIT = () => `vλluε.toString()`
      * */
-    jsonEncodeJIT: (varName: string, isStrict?: boolean) => string;
+    jsonEncodeJIT: (varName: string) => string;
     /**
      * JIT code to transform a type directly into s json string.
      * when serializing to json normally we need first to prepare the object using jsonEncodeJIT and then JSON.stringify().
@@ -61,7 +61,7 @@ export interface RunType<T extends Type = Type, Opts extends RunTypeOptions = Ru
      * For security reason decoding ignores any properties that are not defined in the type.
      * So is your type is {name: string} and the json is {name: string, age: number} the age property will be ignored.
      * */
-    jsonDecodeJIT: (varName: string, isStrict?: boolean) => string;
+    jsonDecodeJIT: (varName: string) => string;
     /**
      * returns a mocked value, should be random when possible
      * */

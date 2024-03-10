@@ -7,7 +7,7 @@
 
 import {TypeArray} from '../_deepkit/src/reflection/type';
 import {RunType, RunTypeOptions, RunTypeVisitor} from '../types';
-import {addToPathChain, toLiteral} from '../utils';
+import {addToPathChain, skipJsonDecode, skipJsonEncode, toLiteral} from '../utils';
 import {random} from '../mock';
 
 export class ArrayRunType implements RunType<TypeArray> {
@@ -40,20 +40,20 @@ export class ArrayRunType implements RunType<TypeArray> {
             `else ${varName}.forEach((${itemName}, ${indexName}) => {${this.itemsRunType.typeErrorsJIT(itemName, errorsName, listItemPath)}})`
         );
     }
-    jsonEncodeJIT(varName: string, isStrict?: boolean): string {
-        if (!isStrict && !this.isJsonEncodeRequired) return varName;
+    jsonEncodeJIT(varName: string): string {
+        if (skipJsonEncode(this)) return varName;
         const itemName = `iτεm${this.nestLevel}`;
-        return `${varName}.map((${itemName}) => ${this.itemsRunType.jsonEncodeJIT(itemName, isStrict)})`;
+        return `${varName}.map((${itemName}) => ${this.itemsRunType.jsonEncodeJIT(itemName)})`;
     }
     jsonStringifyJIT(varName: string): string {
         const itemName = `iτεm${this.nestLevel}`;
         const itemsCode = `${varName}.map((${itemName}) => ${this.itemsRunType.jsonStringifyJIT(itemName)}).join(",")`;
         return `'[' + ${itemsCode} + ']'`;
     }
-    jsonDecodeJIT(varName: string, isStrict?: boolean): string {
-        if (!isStrict && !this.isJsonDecodeRequired) return varName;
+    jsonDecodeJIT(varName: string): string {
+        if (skipJsonDecode(this)) return varName;
         const itemName = `iτεm${this.nestLevel}`;
-        return `${varName}.map((${itemName}) => ${this.itemsRunType.jsonDecodeJIT(itemName, isStrict)})`;
+        return `${varName}.map((${itemName}) => ${this.itemsRunType.jsonDecodeJIT(itemName)})`;
     }
     mock(length = random(0, 30), ...args: any[]): any[] {
         return Array.from({length}, () => this.itemsRunType.mock(...args));
