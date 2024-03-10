@@ -36,6 +36,7 @@ import {CallSignatureRunType} from './functionRunType/call';
 import {FunctionRunType} from './functionRunType/function';
 import {PromiseRunType} from './singleRunType/promise';
 import {ObjectRunType} from './singleRunType/object';
+import {IntersectionRunType} from './collectionRunType/intersection';
 // import {resolveAsyncIterator, resolveIterator} from './typeBoxMap/nativeObjectLiterals';
 
 const MaxNestLevel = 100;
@@ -47,7 +48,7 @@ export function runType<T>(type?: ReceiveType<T>): RunType {
 
 // Map Deepkit Type to TypeBox Type
 function visitor(deepkitType, nestLevel: number): RunType {
-    // console.log(deepkitType);
+    // console.log('deepkitType', deepkitType);
 
     nestLevel += 1;
     if (nestLevel > MaxNestLevel) throw new Error('MaxNestLevel exceeded while resolving run type');
@@ -94,8 +95,7 @@ function visitor(deepkitType, nestLevel: number): RunType {
                 'Infer type not supported, ie: type typeBoxType =Type<T> = T extends (...args: any[]) => infer R ? R : any; https://www.typescriptlang.org/docs/handbook/2/conditional-types.html'
             );
         case ReflectionKind.intersection:
-            throw new Error('not implemented');
-            // rType = resolveIntersection(deepkitType, opts, mapper);
+            rt = new IntersectionRunType(deepkitType, visitor, nestLevel);
             break;
         case ReflectionKind.literal:
             rt = new LiteralRunType(deepkitType, visitor, nestLevel);
