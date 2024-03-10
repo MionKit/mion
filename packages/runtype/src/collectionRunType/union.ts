@@ -40,13 +40,13 @@ export class UnionRunType implements RunType<TypeUnion> {
      * to solve this issue the index of the type is used as a discriminator.
      * So [0, "123n"] is interpreted as a string and [1, "123n"] is interpreted as a bigint.
      * */
-    jsonEncodeJIT(varName: string, isStrict?: boolean): string {
+    jsonEncodeJIT(varName: string): string {
         const errorCode = `throw new Error('Can not encode json to union: expected ${this.name} but got ' + ${varName}?.constructor?.name || typeof ${varName})`;
         if (!this.isJsonEncodeRequired) {
             const encode = this.runTypes
                 .map((rt) => {
-                    const useNative = rt.isJsonEncodeRequired && !isStrict;
-                    const itemCode = useNative ? varName : rt.jsonEncodeJIT(varName, isStrict);
+                    const useNative = rt.isJsonEncodeRequired && !this.opts?.strictJSON;
+                    const itemCode = useNative ? varName : rt.jsonEncodeJIT(varName);
                     return `if (${rt.isTypeJIT(varName)}) return ${itemCode}`;
                 })
                 .join(';');
@@ -54,8 +54,8 @@ export class UnionRunType implements RunType<TypeUnion> {
         }
         const encode = this.runTypes
             .map((rt, i) => {
-                const useNative = !isStrict && !(rt.isJsonEncodeRequired || rt.isJsonDecodeRequired);
-                const itemCode = useNative ? varName : rt.jsonEncodeJIT(varName, isStrict);
+                const useNative = !this.opts?.strictJSON && !(rt.isJsonEncodeRequired || rt.isJsonDecodeRequired);
+                const itemCode = useNative ? varName : rt.jsonEncodeJIT(varName);
                 return `if (${rt.isTypeJIT(varName)}) return [${i}, ${itemCode}]`;
             })
             .join(';');
@@ -74,13 +74,13 @@ export class UnionRunType implements RunType<TypeUnion> {
             .join(';');
         return `(() => {${encode}; ${errorCode}})()`;
     }
-    jsonDecodeJIT(varName: string, isStrict?: boolean): string {
+    jsonDecodeJIT(varName: string): string {
         const errorCode = `throw new Error('Can not decode json from union: expected ${this.name} but got ' + ${varName}?.constructor?.name || typeof ${varName})`;
-        if (!this.isJsonDecodeRequired && !isStrict) {
+        if (!this.isJsonDecodeRequired && !this.opts?.strictJSON) {
             const decode = this.runTypes
                 .map((rt) => {
-                    const useNative = rt.isJsonDecodeRequired && !isStrict;
-                    const itemCode = useNative ? varName : rt.jsonDecodeJIT(varName, isStrict);
+                    const useNative = rt.isJsonDecodeRequired && !this.opts?.strictJSON;
+                    const itemCode = useNative ? varName : rt.jsonDecodeJIT(varName);
                     return `if (${rt.isTypeJIT(varName)}) return ${itemCode}`;
                 })
                 .join(';');
@@ -88,8 +88,8 @@ export class UnionRunType implements RunType<TypeUnion> {
         }
         const decode = this.runTypes
             .map((rt, i) => {
-                const useNative = !isStrict && !(rt.isJsonEncodeRequired || rt.isJsonDecodeRequired);
-                const itemCode = useNative ? `${varName}[1]` : rt.jsonDecodeJIT(`${varName}[1]`, isStrict);
+                const useNative = !this.opts?.strictJSON && !(rt.isJsonEncodeRequired || rt.isJsonDecodeRequired);
+                const itemCode = useNative ? `${varName}[1]` : rt.jsonDecodeJIT(`${varName}[1]`);
                 return `if ( ${varName}[0] === ${i}) return ${itemCode}`;
             })
             .join(';');

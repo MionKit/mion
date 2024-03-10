@@ -1,6 +1,6 @@
 import {TypeParameter} from '../_deepkit/src/reflection/type';
 import {RunType, RunTypeOptions, RunTypeVisitor} from '../types';
-import {addToPathChain} from '../utils';
+import {addToPathChain, skipJsonDecode, skipJsonEncode} from '../utils';
 
 /* ########
  * 2024 mion
@@ -46,9 +46,9 @@ export class ParameterRunType implements RunType<TypeParameter> {
             )}}`;
         return this.memberType.typeErrorsJIT(varName, errorsName, addToPathChain(pathChain, this.paramName));
     }
-    jsonEncodeJIT(varName: string, isStrict?: boolean): string {
-        if (!isStrict && !this.isJsonEncodeRequired) return varName;
-        return this.memberType.jsonEncodeJIT(varName, isStrict);
+    jsonEncodeJIT(varName: string): string {
+        if (skipJsonEncode(this)) return varName;
+        return this.memberType.jsonEncodeJIT(varName);
     }
     jsonStringifyJIT(varName: string, isFirst = false): string {
         const valCode = this.memberType.jsonStringifyJIT(varName);
@@ -57,9 +57,9 @@ export class ParameterRunType implements RunType<TypeParameter> {
         }
         return `${isFirst ? '' : `+','+`}${valCode}`;
     }
-    jsonDecodeJIT(varName: string, isStrict?: boolean): string {
-        if (!isStrict && !this.isJsonDecodeRequired) return varName;
-        return this.memberType.jsonDecodeJIT(varName, isStrict);
+    jsonDecodeJIT(varName: string): string {
+        if (skipJsonDecode(this)) return varName;
+        return this.memberType.jsonDecodeJIT(varName);
     }
     mock(...args: any[]): any {
         return this.memberType.mock(...args);

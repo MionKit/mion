@@ -5,6 +5,8 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
+import {RunType} from './types';
+
 export function toLiteral(value: number | string | boolean | undefined | null | bigint | RegExp | symbol): string {
     switch (typeof value) {
         case 'number':
@@ -30,4 +32,12 @@ export function toLiteral(value: number | string | boolean | undefined | null | 
 
 export function addToPathChain(pathChain: string, property: string | number, isLiteral = true): string {
     return `${pathChain} + '/' + ${isLiteral ? toLiteral(property) : property}`;
+}
+
+export function skipJsonEncode(rt: RunType): boolean {
+    return !rt.opts?.strictJSON && !rt.isJsonEncodeRequired;
+}
+
+export function skipJsonDecode(rt: RunType): boolean {
+    return !rt.opts?.strictJSON && !rt.isJsonDecodeRequired;
 }

@@ -37,11 +37,11 @@ export class TupleRunType implements RunType<TypeTuple> {
             `else {${itemsCode}}`
         );
     }
-    jsonEncodeJIT(varName: string, isStrict?: boolean): string {
+    jsonEncodeJIT(varName: string): string {
         if (!this.isJsonEncodeRequired) return varName;
         const encodeCodes = this.runTypes.map((rt, i) => {
-            const useNative = !isStrict && !rt.isJsonEncodeRequired;
-            return useNative ? `${varName}[${i}]` : rt.jsonEncodeJIT(`${varName}[${i}]`, isStrict);
+            const useNative = !this.opts?.strictJSON && !rt.isJsonEncodeRequired;
+            return useNative ? `${varName}[${i}]` : rt.jsonEncodeJIT(`${varName}[${i}]`);
         });
         return `[${encodeCodes.join(',')}]`;
     }
@@ -49,10 +49,10 @@ export class TupleRunType implements RunType<TypeTuple> {
         const encodeCodes = this.runTypes.map((rt, i) => rt.jsonStringifyJIT(`${varName}[${i}]`));
         return `'['+${encodeCodes.join(`+','+`)}+']'`;
     }
-    jsonDecodeJIT(varName: string, isStrict?: boolean): string {
+    jsonDecodeJIT(varName: string): string {
         const decodeCodes = this.runTypes.map((rt, i) => {
-            const useNative = !isStrict && !rt.isJsonDecodeRequired;
-            return useNative ? `${varName}[${i}]` : rt.jsonDecodeJIT(`${varName}[${i}]`, isStrict);
+            const useNative = !this.opts?.strictJSON && !rt.isJsonDecodeRequired;
+            return useNative ? `${varName}[${i}]` : rt.jsonDecodeJIT(`${varName}[${i}]`);
         });
         return `[${decodeCodes.join(',')}]`;
     }
