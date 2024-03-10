@@ -43,16 +43,16 @@ export class InterfaceRunType implements RunType<TypeObjectLiteral> {
         const propsCode = this.serializableProps.map((prop) => prop.jsonEncodeJIT(varName)).join(',');
         return `{${propsCode}}`;
     }
+    jsonDecodeJIT(varName: string): string {
+        if (skipJsonDecode(this)) return varName;
+        const propsCode = this.serializableProps.map((prop) => prop.jsonDecodeJIT(varName)).join(',');
+        return `{${propsCode}}`;
+    }
     // unlike the other JIT methods the separator is added within the PropertySignatureRunType
     // this is because optional properties can't emit any strings at runtime
     jsonStringifyJIT(varName: string): string {
         const propsCode = this.serializableProps.map((prop, i) => prop.jsonStringifyJIT(varName, i === 0)).join('');
         return `'{'+${propsCode}+'}'`;
-    }
-    jsonDecodeJIT(varName: string): string {
-        if (skipJsonDecode(this)) return varName;
-        const propsCode = this.serializableProps.map((prop) => prop.jsonDecodeJIT(varName)).join(',');
-        return `{${propsCode}}`;
     }
     mock(
         optionalParamsProbability: Record<string | number, number>,

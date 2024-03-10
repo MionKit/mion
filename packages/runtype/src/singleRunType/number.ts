@@ -29,10 +29,10 @@ export class NumberRunType implements RunType<TypeNumber> {
     jsonEncodeJIT(varName: string): string {
         return varName;
     }
-    jsonStringifyJIT(varName: string): string {
+    jsonDecodeJIT(varName: string): string {
         return varName;
     }
-    jsonDecodeJIT(varName: string): string {
+    jsonStringifyJIT(varName: string): string {
         return varName;
     }
     mock(min?: number, max?: number): number {

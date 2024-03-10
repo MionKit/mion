@@ -67,11 +67,11 @@ export class LiteralRunType implements RunType<TypeLiteral> {
     jsonEncodeJIT(varName: string): string {
         return this.jitJsonEncoder.encodeToJson(varName);
     }
-    jsonStringifyJIT(varName: string): string {
-        return this.jitJsonEncoder.stringify(varName);
-    }
     jsonDecodeJIT(varName: string): string {
         return this.jitJsonEncoder.decodeFromJson(varName);
+    }
+    jsonStringifyJIT(varName: string): string {
+        return this.jitJsonEncoder.stringify(varName);
     }
     mock(): symbol | string | number | boolean | bigint | RegExp {
         return this.src.literal;

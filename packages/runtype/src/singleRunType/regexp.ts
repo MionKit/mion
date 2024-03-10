@@ -29,11 +29,11 @@ export class RegexpRunType implements RunType<TypeRegexp> {
     jsonEncodeJIT(varName: string): string {
         return RegexpJitJsonEncoder.encodeToJson(varName);
     }
-    jsonStringifyJIT(varName: string): string {
-        return RegexpJitJsonEncoder.stringify(varName);
-    }
     jsonDecodeJIT(varName: string): string {
         return RegexpJitJsonEncoder.decodeFromJson(varName);
+    }
+    jsonStringifyJIT(varName: string): string {
+        return RegexpJitJsonEncoder.stringify(varName);
     }
     mock(list?: RegExp[]): RegExp {
         return mockRegExp(list);

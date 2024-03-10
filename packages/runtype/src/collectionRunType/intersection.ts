@@ -41,10 +41,10 @@ export class IntersectionRunType implements RunType<TypeIntersection> {
     jsonEncodeJIT(): string {
         throw new Error('Intersection serialization not supported, should be resolve to other RunTypes');
     }
-    jsonStringifyJIT(): string {
+    jsonDecodeJIT(): string {
         throw new Error('Intersection serialization not supported, should be resolve to other RunTypes');
     }
-    jsonDecodeJIT(): string {
+    jsonStringifyJIT(): string {
         throw new Error('Intersection serialization not supported, should be resolve to other RunTypes');
     }
     mock(

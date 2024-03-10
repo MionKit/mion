@@ -28,11 +28,11 @@ export class VoidRunType implements RunType<TypeVoid> {
     jsonEncodeJIT(): string {
         throw new Error('void can not be encoded to json.');
     }
-    jsonStringifyJIT(): string {
-        throw new Error('void can not be stringified.');
-    }
     jsonDecodeJIT(): string {
         throw new Error('void can not be decoded from json.');
+    }
+    jsonStringifyJIT(): string {
+        throw new Error('void can not be stringified.');
     }
     mock(): void {}
 }

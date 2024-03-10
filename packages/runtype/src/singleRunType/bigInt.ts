@@ -29,11 +29,11 @@ export class BigIntRunType implements RunType<TypeBigInt> {
     jsonEncodeJIT(varName: string): string {
         return BigIntJitJsonENcoder.encodeToJson(varName);
     }
-    jsonStringifyJIT(varName: string): string {
-        return BigIntJitJsonENcoder.stringify(varName);
-    }
     jsonDecodeJIT(varName: string): string {
         return BigIntJitJsonENcoder.decodeFromJson(varName);
+    }
+    jsonStringifyJIT(varName: string): string {
+        return BigIntJitJsonENcoder.stringify(varName);
     }
     mock(min?: number, max?: number): bigint {
         return mockBigInt(min, max);

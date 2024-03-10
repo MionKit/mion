@@ -27,10 +27,10 @@ export class EnumMemberRunType implements RunType<TypeEnum> {
     jsonEncodeJIT(): string {
         throw new Error('Enum member operations are not supported');
     }
-    jsonStringifyJIT(): string {
+    jsonDecodeJIT(): string {
         throw new Error('Enum member operations are not supported');
     }
-    jsonDecodeJIT(): string {
+    jsonStringifyJIT(): string {
         throw new Error('Enum member operations are not supported');
     }
     mock() {

@@ -29,11 +29,11 @@ export class SymbolRunType implements RunType<TypeSymbol> {
     jsonEncodeJIT(varName: string): string {
         return SymbolJitJsonENcoder.encodeToJson(varName);
     }
-    jsonStringifyJIT(varName: string): string {
-        return SymbolJitJsonENcoder.stringify(varName);
-    }
     jsonDecodeJIT(varName: string): string {
         return SymbolJitJsonENcoder.decodeFromJson(varName);
+    }
+    jsonStringifyJIT(varName: string): string {
+        return SymbolJitJsonENcoder.stringify(varName);
     }
     mock(name?: string, length?: number, charsSet?: string): symbol {
         return mockSymbol(name, length, charsSet);

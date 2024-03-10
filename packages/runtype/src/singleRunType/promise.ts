@@ -38,11 +38,11 @@ export class PromiseRunType implements RunType<TypePromise> {
     jsonEncodeJIT(): string {
         throw new Error(`${this.name} can not be encoded to json.`);
     }
-    jsonStringifyJIT(): string {
-        throw new Error(`${this.name} can not be stringified.`);
-    }
     jsonDecodeJIT(): string {
         throw new Error(`${this.name} can not be decoded from json.`);
+    }
+    jsonStringifyJIT(): string {
+        throw new Error(`${this.name} can not be stringified.`);
     }
     mock(timeOut = 1, rejectError: string): Promise<any> {
         return new Promise((resolve, reject) => {

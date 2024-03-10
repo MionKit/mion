@@ -30,11 +30,11 @@ export class ObjectRunType implements RunType<TypeAny | TypeUnknown> {
     jsonEncodeJIT(varName: string): string {
         return varName;
     }
-    jsonStringifyJIT(varName: string): string {
-        return `JSON.stringify(${varName})`;
-    }
     jsonDecodeJIT(varName: string): string {
         return varName;
+    }
+    jsonStringifyJIT(varName: string): string {
+        return `JSON.stringify(${varName})`;
     }
     mock(objectLis: object[] = mockObjectList): object {
         return objectLis[random(0, objectLis.length - 1)];

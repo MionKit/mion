@@ -50,19 +50,19 @@ export class IndexSignatureRunType implements RunType<TypeIndexSignature> {
             return acc;
         }, {})`;
     }
-    jsonStringifyJIT(varName: string): string {
-        const keyName = `kεy${this.nestLevel}`;
-        const valueName = `valuε${this.nestLevel}`;
-        return `Object.entries(${varName}).reduce((acc, [${keyName}, ${valueName}]) => {
-            acc[${keyName}] = ${this.propertiesRunType.jsonStringifyJIT(valueName)};
-            return acc;
-        }, {})`;
-    }
     jsonDecodeJIT(varName: string): string {
         const keyName = `kεy${this.nestLevel}`;
         const valueName = `valuε${this.nestLevel}`;
         return `Object.entries(${varName}).reduce((acc, [${keyName}, ${valueName}]) => {
             acc[${keyName}] = ${this.propertiesRunType.jsonDecodeJIT(valueName)};
+            return acc;
+        }, {})`;
+    }
+    jsonStringifyJIT(varName: string): string {
+        const keyName = `kεy${this.nestLevel}`;
+        const valueName = `valuε${this.nestLevel}`;
+        return `Object.entries(${varName}).reduce((acc, [${keyName}, ${valueName}]) => {
+            acc[${keyName}] = ${this.propertiesRunType.jsonStringifyJIT(valueName)};
             return acc;
         }, {})`;
     }
