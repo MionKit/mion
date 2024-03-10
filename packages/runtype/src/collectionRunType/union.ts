@@ -61,19 +61,6 @@ export class UnionRunType implements RunType<TypeUnion> {
             .join(';');
         return `(() => {${encode}; ${errorCode}})()`;
     }
-    jsonStringifyJIT(varName: string): string {
-        const errorCode = `throw new Error('Can not stringify union: expected ${this.name} but got ' + ${varName}?.constructor?.name || typeof ${varName})`;
-        if (!this.isJsonEncodeRequired) {
-            const encode = this.runTypes
-                .map((rt) => `if (${rt.isTypeJIT(varName)}) return ${rt.jsonStringifyJIT(varName)}`)
-                .join(';');
-            return `(() => {${encode}; ${errorCode}})()`;
-        }
-        const encode = this.runTypes
-            .map((rt, i) => `if (${rt.isTypeJIT(varName)}) return ('[' + ${i} + ',' + ${rt.jsonStringifyJIT(varName)} + ']')`)
-            .join(';');
-        return `(() => {${encode}; ${errorCode}})()`;
-    }
     jsonDecodeJIT(varName: string): string {
         const errorCode = `throw new Error('Can not decode json from union: expected ${this.name} but got ' + ${varName}?.constructor?.name || typeof ${varName})`;
         if (!this.isJsonDecodeRequired && !this.opts?.strictJSON) {
@@ -94,6 +81,19 @@ export class UnionRunType implements RunType<TypeUnion> {
             })
             .join(';');
         return `(() => {${decode}; ${errorCode}})()`;
+    }
+    jsonStringifyJIT(varName: string): string {
+        const errorCode = `throw new Error('Can not stringify union: expected ${this.name} but got ' + ${varName}?.constructor?.name || typeof ${varName})`;
+        if (!this.isJsonEncodeRequired) {
+            const encode = this.runTypes
+                .map((rt) => `if (${rt.isTypeJIT(varName)}) return ${rt.jsonStringifyJIT(varName)}`)
+                .join(';');
+            return `(() => {${encode}; ${errorCode}})()`;
+        }
+        const encode = this.runTypes
+            .map((rt, i) => `if (${rt.isTypeJIT(varName)}) return ('[' + ${i} + ',' + ${rt.jsonStringifyJIT(varName)} + ']')`)
+            .join(';');
+        return `(() => {${encode}; ${errorCode}})()`;
     }
     mock(...unionArgs: any[][]): string {
         const unionMock = this.runTypes.map((rt, i) => rt.mock(...(unionArgs?.[i] || [])));

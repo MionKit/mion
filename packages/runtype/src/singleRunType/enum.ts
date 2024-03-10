@@ -31,12 +31,12 @@ export class EnumRunType implements RunType<TypeEnum> {
     jsonEncodeJIT(varName: string): string {
         return varName;
     }
+    jsonDecodeJIT(varName: string): string {
+        return varName;
+    }
     jsonStringifyJIT(varName: string): string {
         if (this.src.indexType.kind === ReflectionKind.number) return varName;
         return `JSON.stringify(${varName})`;
-    }
-    jsonDecodeJIT(varName: string): string {
-        return varName;
     }
     mock(index?: number): string | number | undefined | null {
         const i = index || random(0, this.src.values.length - 1);

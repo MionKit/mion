@@ -33,11 +33,11 @@ export class TupleMemberRunType implements RunType<TypeTupleMember> {
     jsonEncodeJIT(varName: string): string {
         return this.memberType.jsonEncodeJIT(varName);
     }
-    jsonStringifyJIT(varName: string): string {
-        return this.memberType.jsonStringifyJIT(varName);
-    }
     jsonDecodeJIT(varName: string): string {
         return this.memberType.jsonDecodeJIT(varName);
+    }
+    jsonStringifyJIT(varName: string): string {
+        return this.memberType.jsonStringifyJIT(varName);
     }
     mock(...args: any[]): any {
         return this.memberType.mock(...args);

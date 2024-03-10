@@ -7,7 +7,7 @@
 
 import {TypeTuple} from '../_deepkit/src/reflection/type';
 import {RunType, RunTypeOptions, RunTypeVisitor} from '../types';
-import {addToPathChain, toLiteral} from '../utils';
+import {addToPathChain, skipJsonDecode, skipJsonEncode, toLiteral} from '../utils';
 
 export class TupleRunType implements RunType<TypeTuple> {
     public readonly name: string;
@@ -38,23 +38,24 @@ export class TupleRunType implements RunType<TypeTuple> {
         );
     }
     jsonEncodeJIT(varName: string): string {
-        if (!this.isJsonEncodeRequired) return varName;
+        if (skipJsonEncode(this)) return varName;
         const encodeCodes = this.runTypes.map((rt, i) => {
             const useNative = !this.opts?.strictJSON && !rt.isJsonEncodeRequired;
             return useNative ? `${varName}[${i}]` : rt.jsonEncodeJIT(`${varName}[${i}]`);
         });
         return `[${encodeCodes.join(',')}]`;
     }
-    jsonStringifyJIT(varName: string): string {
-        const encodeCodes = this.runTypes.map((rt, i) => rt.jsonStringifyJIT(`${varName}[${i}]`));
-        return `'['+${encodeCodes.join(`+','+`)}+']'`;
-    }
     jsonDecodeJIT(varName: string): string {
+        if (skipJsonDecode(this)) return varName;
         const decodeCodes = this.runTypes.map((rt, i) => {
             const useNative = !this.opts?.strictJSON && !rt.isJsonDecodeRequired;
             return useNative ? `${varName}[${i}]` : rt.jsonDecodeJIT(`${varName}[${i}]`);
         });
         return `[${decodeCodes.join(',')}]`;
+    }
+    jsonStringifyJIT(varName: string): string {
+        const encodeCodes = this.runTypes.map((rt, i) => rt.jsonStringifyJIT(`${varName}[${i}]`));
+        return `'['+${encodeCodes.join(`+','+`)}+']'`;
     }
     mock(...tupleArgs: any[][]): any[] {
         return this.runTypes.map((rt, i) => rt.mock(...(tupleArgs?.[i] || [])));

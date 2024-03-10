@@ -83,17 +83,6 @@ export class PropertySignatureRunType implements RunType<TypePropertySignature> 
         }
         return `${jsName}:${valCode}`;
     }
-    jsonStringifyJIT(varName: string, isFirst = false): string {
-        if (this.skipSerialize) return '';
-        // firs stringify sanitizes string, second is the actual json
-        const proNameJSon = JSON.stringify(JSON.stringify(this.propName));
-        const accessor = `${varName}${this.propRef}`;
-        const valCode = this.memberType.jsonStringifyJIT(accessor);
-        if (this.isOptional) {
-            return `${isFirst ? '' : '+'}(${accessor} === undefined ?'':${isFirst ? '' : `(','+`}${proNameJSon}+':'+${valCode}))`;
-        }
-        return `${isFirst ? '' : `+','+`}${proNameJSon}+':'+${valCode}`;
-    }
     jsonDecodeJIT(varName: string): string {
         if (this.skipSerialize) return '';
         const jsName = this.isSafePropName ? this.propName : toLiteral(this.propName);
@@ -104,6 +93,17 @@ export class PropertySignatureRunType implements RunType<TypePropertySignature> 
             return `...(${accessor} === undefined ? {} : {${jsName}:${valCode}})`;
         }
         return `${jsName}:${valCode}`;
+    }
+    jsonStringifyJIT(varName: string, isFirst = false): string {
+        if (this.skipSerialize) return '';
+        // firs stringify sanitizes string, second is the actual json
+        const proNameJSon = JSON.stringify(JSON.stringify(this.propName));
+        const accessor = `${varName}${this.propRef}`;
+        const valCode = this.memberType.jsonStringifyJIT(accessor);
+        if (this.isOptional) {
+            return `${isFirst ? '' : '+'}(${accessor} === undefined ?'':${isFirst ? '' : `(','+`}${proNameJSon}+':'+${valCode}))`;
+        }
+        return `${isFirst ? '' : `+','+`}${proNameJSon}+':'+${valCode}`;
     }
     mock(optionalProbability = 0.2, ...args: any[]): any {
         if (optionalProbability < 0 || optionalProbability > 1) throw new Error('optionalProbability must be between 0 and 1');

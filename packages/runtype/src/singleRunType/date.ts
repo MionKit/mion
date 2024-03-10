@@ -29,11 +29,11 @@ export class DateRunType implements RunType<TypeClass> {
     jsonEncodeJIT(varName: string): string {
         return DateJitJsonENcoder.encodeToJson(varName);
     }
-    jsonStringifyJIT(varName: string): string {
-        return DateJitJsonENcoder.stringify(varName);
-    }
     jsonDecodeJIT(varName: string): string {
         return DateJitJsonENcoder.decodeFromJson(varName);
+    }
+    jsonStringifyJIT(varName: string): string {
+        return DateJitJsonENcoder.stringify(varName);
     }
     mock(minDate?: Date, maxDate?: Date): Date {
         return mockDate(minDate, maxDate);

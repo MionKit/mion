@@ -29,11 +29,11 @@ export class StringRunType implements RunType<TypeString> {
     jsonEncodeJIT(varName: string): string {
         return varName;
     }
-    jsonStringifyJIT(varName: string): string {
-        return `JSON.stringify(${varName})`;
-    }
     jsonDecodeJIT(varName: string): string {
         return varName;
+    }
+    jsonStringifyJIT(varName: string): string {
+        return `JSON.stringify(${varName})`;
     }
     mock(length: number, charSet: string): string {
         return mockString(length, charSet);
