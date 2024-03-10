@@ -6,7 +6,7 @@
  * ######## */
 
 import {ReflectionKind, TypeEnum} from '../_deepkit/src/reflection/type';
-import {RunType, RunTypeVisitor} from '../types';
+import {RunType, RunTypeOptions, RunTypeVisitor} from '../types';
 import {toLiteral} from '../utils';
 import {random} from '../mock';
 
@@ -17,7 +17,8 @@ export class EnumRunType implements RunType<TypeEnum> {
     constructor(
         visitor: RunTypeVisitor,
         public readonly src: TypeEnum,
-        public readonly nestLevel: number
+        public readonly nestLevel: number,
+        public readonly opts: RunTypeOptions
     ) {
         this.name = `enum<${src.values.map((v) => v).join(', ')}>`;
     }

@@ -6,7 +6,7 @@
  * ######## */
 
 import {TypeAny, TypeUnknown} from '../_deepkit/src/reflection/type';
-import {RunType, RunTypeVisitor} from '../types';
+import {RunType, RunTypeOptions, RunTypeVisitor} from '../types';
 import {mockAny} from '../mock';
 
 export class AnyRunType implements RunType<TypeAny | TypeUnknown> {
@@ -16,6 +16,7 @@ export class AnyRunType implements RunType<TypeAny | TypeUnknown> {
         visitor: RunTypeVisitor,
         public readonly src: TypeAny | TypeUnknown,
         public readonly nestLevel: number,
+        public readonly opts: RunTypeOptions,
         public readonly name = 'any'
     ) {}
     isTypeJIT(): string {

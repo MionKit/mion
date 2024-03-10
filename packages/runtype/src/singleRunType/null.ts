@@ -6,7 +6,7 @@
  * ######## */
 
 import {TypeNull} from '../_deepkit/src/reflection/type';
-import {RunType, RunTypeVisitor} from '../types';
+import {RunType, RunTypeOptions, RunTypeVisitor} from '../types';
 import {toLiteral} from '../utils';
 
 export class NullRunType implements RunType<TypeNull> {
@@ -16,7 +16,8 @@ export class NullRunType implements RunType<TypeNull> {
     constructor(
         visitor: RunTypeVisitor,
         public readonly src: TypeNull,
-        public readonly nestLevel: number
+        public readonly nestLevel: number,
+        public readonly opts: RunTypeOptions
     ) {}
     isTypeJIT(varName: string): string {
         return `${varName} === null`;

@@ -1,5 +1,5 @@
 import {TypeParameter} from '../_deepkit/src/reflection/type';
-import {RunType, RunTypeVisitor} from '../types';
+import {RunType, RunTypeOptions, RunTypeVisitor} from '../types';
 import {addToPathChain} from '../utils';
 
 /* ########
@@ -22,9 +22,10 @@ export class ParameterRunType implements RunType<TypeParameter> {
     constructor(
         visitor: RunTypeVisitor,
         public readonly src: TypeParameter,
-        public readonly nestLevel: number
+        public readonly nestLevel: number,
+        public readonly opts: RunTypeOptions
     ) {
-        this.memberType = visitor(src.type, nestLevel);
+        this.memberType = visitor(src.type, nestLevel, opts);
         this.isJsonEncodeRequired = this.memberType.isJsonEncodeRequired;
         this.isJsonDecodeRequired = this.memberType.isJsonDecodeRequired;
         this.name = this.memberType.name;

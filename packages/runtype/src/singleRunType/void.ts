@@ -6,7 +6,7 @@
  * ######## */
 
 import {TypeVoid} from '../_deepkit/src/reflection/type';
-import {RunType, RunTypeVisitor} from '../types';
+import {RunType, RunTypeOptions, RunTypeVisitor} from '../types';
 import {toLiteral} from '../utils';
 
 export class VoidRunType implements RunType<TypeVoid> {
@@ -16,7 +16,8 @@ export class VoidRunType implements RunType<TypeVoid> {
     constructor(
         visitor: RunTypeVisitor,
         public readonly src: TypeVoid,
-        public readonly nestLevel: number
+        public readonly nestLevel: number,
+        public readonly opts: RunTypeOptions
     ) {}
     isTypeJIT(varName: string): string {
         return `${varName} === undefined`;

@@ -6,7 +6,7 @@
  * ######## */
 
 import {TypeClass} from '../_deepkit/src/reflection/type';
-import {JitJsonEncoder, RunType, RunTypeVisitor} from '../types';
+import {JitJsonEncoder, RunType, RunTypeOptions, RunTypeVisitor} from '../types';
 import {toLiteral} from '../utils';
 import {mockDate} from '../mock';
 
@@ -17,7 +17,8 @@ export class DateRunType implements RunType<TypeClass> {
     constructor(
         visitor: RunTypeVisitor,
         public readonly src: TypeClass,
-        public readonly nestLevel: number
+        public readonly nestLevel: number,
+        public readonly opts: RunTypeOptions
     ) {}
     isTypeJIT(varName: string): string {
         return `${varName} instanceof Date && !isNaN(${varName}.getTime())`;

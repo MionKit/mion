@@ -6,7 +6,7 @@
  * ######## */
 
 import {TypeUndefined} from '../_deepkit/src/reflection/type';
-import {RunType, RunTypeVisitor} from '../types';
+import {RunType, RunTypeOptions, RunTypeVisitor} from '../types';
 import {toLiteral} from '../utils';
 
 export class UndefinedRunType implements RunType<TypeUndefined> {
@@ -16,7 +16,8 @@ export class UndefinedRunType implements RunType<TypeUndefined> {
     constructor(
         visitor: RunTypeVisitor,
         public readonly src: TypeUndefined,
-        public readonly nestLevel: number
+        public readonly nestLevel: number,
+        public readonly opts: RunTypeOptions
     ) {}
     isTypeJIT(varName: string): string {
         return `typeof ${varName} === 'undefined'`;

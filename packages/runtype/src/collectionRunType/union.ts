@@ -6,7 +6,7 @@
  * ######## */
 
 import {TypeUnion} from '../_deepkit/src/reflection/type';
-import {RunType, RunTypeVisitor} from '../types';
+import {RunType, RunTypeOptions, RunTypeVisitor} from '../types';
 import {toLiteral} from '../utils';
 import {random} from '../mock';
 
@@ -18,9 +18,10 @@ export class UnionRunType implements RunType<TypeUnion> {
     constructor(
         visitor: RunTypeVisitor,
         public readonly src: TypeUnion,
-        public readonly nestLevel: number
+        public readonly nestLevel: number,
+        public readonly opts: RunTypeOptions
     ) {
-        this.runTypes = src.types.map((t) => visitor(t, nestLevel));
+        this.runTypes = src.types.map((t) => visitor(t, nestLevel, opts));
         this.name = `union<${this.runTypes.map((rt) => rt.name).join(' | ')}>`;
         const shouldEnCodeDecode = this.runTypes.some((rt) => rt.isJsonEncodeRequired || rt.isJsonDecodeRequired);
         this.isJsonEncodeRequired = shouldEnCodeDecode;

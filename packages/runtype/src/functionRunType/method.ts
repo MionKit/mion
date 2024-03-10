@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 import {TypeMethodSignature} from '../_deepkit/src/reflection/type';
-import {RunTypeVisitor} from '../types';
+import {RunTypeOptions, RunTypeVisitor} from '../types';
 import {FunctionRunType} from './function';
 
 export class MethodSignatureRunType extends FunctionRunType<TypeMethodSignature> {
@@ -13,8 +13,9 @@ export class MethodSignatureRunType extends FunctionRunType<TypeMethodSignature>
         visitor: RunTypeVisitor,
         public readonly src: TypeMethodSignature,
         public readonly nestLevel: number,
+        public readonly opts: RunTypeOptions,
         callType = 'method'
     ) {
-        super(visitor, src, nestLevel, callType);
+        super(visitor, src, nestLevel, opts, callType);
     }
 }

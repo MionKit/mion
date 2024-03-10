@@ -6,7 +6,7 @@
  * ######## */
 
 import {TypeNumber} from '../_deepkit/src/reflection/type';
-import {RunType, RunTypeVisitor} from '../types';
+import {RunType, RunTypeOptions, RunTypeVisitor} from '../types';
 import {toLiteral} from '../utils';
 import {mockNumber} from '../mock';
 
@@ -17,7 +17,8 @@ export class NumberRunType implements RunType<TypeNumber> {
     constructor(
         visitor: RunTypeVisitor,
         public readonly src: TypeNumber,
-        public readonly nestLevel: number
+        public readonly nestLevel: number,
+        public readonly opts: RunTypeOptions
     ) {}
     isTypeJIT(varName: string): string {
         return `typeof ${varName} === 'number' && Number.isFinite(${varName})`;

@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 import {TypeObjectLiteral} from '../_deepkit/src/reflection/type';
-import {RunType, RunTypeVisitor} from '../types';
+import {RunType, RunTypeOptions, RunTypeVisitor} from '../types';
 import {toLiteral} from '../utils';
 import {PropertySignatureRunType} from '../singleRunType/property';
 
@@ -18,9 +18,10 @@ export class InterfaceRunType implements RunType<TypeObjectLiteral> {
     constructor(
         visitor: RunTypeVisitor,
         public readonly src: TypeObjectLiteral,
-        public readonly nestLevel: number
+        public readonly nestLevel: number,
+        public readonly opts: RunTypeOptions
     ) {
-        this.props = src.types.map((type) => visitor(type, nestLevel) as PropertySignatureRunType);
+        this.props = src.types.map((type) => visitor(type, nestLevel, opts) as PropertySignatureRunType);
         this.isJsonDecodeRequired = this.props.some((prop) => prop.isJsonDecodeRequired);
         this.isJsonEncodeRequired = this.props.some((prop) => prop.isJsonEncodeRequired);
         this.serializableProps = this.props.filter((prop) => !prop.skipSerialize);

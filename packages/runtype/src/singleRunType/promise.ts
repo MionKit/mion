@@ -1,5 +1,5 @@
 import {TypePromise} from '../_deepkit/src/reflection/type';
-import {RunType, RunTypeVisitor} from '../types';
+import {RunType, RunTypeOptions, RunTypeVisitor} from '../types';
 import {toLiteral} from '../utils';
 
 /* ########
@@ -17,9 +17,10 @@ export class PromiseRunType implements RunType<TypePromise> {
     constructor(
         visitor: RunTypeVisitor,
         public readonly src: TypePromise,
-        public readonly nestLevel: number
+        public readonly nestLevel: number,
+        public readonly opts: RunTypeOptions
     ) {
-        this.resolvedType = visitor(src.type, nestLevel);
+        this.resolvedType = visitor(src.type, nestLevel, opts);
         this.name = `promise<${this.resolvedType.name}>`;
     }
     isTypeJIT(varName: string): string {

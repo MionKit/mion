@@ -6,7 +6,7 @@
  * ######## */
 
 import {TypeSymbol} from '../_deepkit/src/reflection/type';
-import {RunType, RunTypeVisitor, JitJsonEncoder} from '../types';
+import {RunType, RunTypeVisitor, JitJsonEncoder, RunTypeOptions} from '../types';
 import {toLiteral} from '../utils';
 import {mockSymbol} from '../mock';
 
@@ -17,7 +17,8 @@ export class SymbolRunType implements RunType<TypeSymbol> {
     constructor(
         visitor: RunTypeVisitor,
         public readonly src: TypeSymbol,
-        public readonly nestLevel: number
+        public readonly nestLevel: number,
+        public readonly opts: RunTypeOptions
     ) {}
     isTypeJIT(varName: string): string {
         return `typeof ${varName} === 'symbol'`;
