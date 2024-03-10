@@ -5,19 +5,25 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {TypeObjectLiteral} from '@deepkit/type';
+import {TypeIntersection} from '@deepkit/type';
 import {RunType, RunTypeVisitor} from '../types';
 import {toLiteral} from '../utils';
 import {PropertySignatureRunType} from '../singleRunType/property';
 
-export class InterfaceRunType implements RunType<TypeObjectLiteral> {
+
+/** IMPORTANT:
+ * Intersection are already resolved by deepkit so seems like this runtype wont ever be called
+ * ie: type A = {a: string} & {b: number} will be resolved to ObjectLiteral {a: string, b: number}
+ * ie: type NeVer = string & number will be resolved to never
+ * */ 
+export class IntersectionRunType implements RunType<TypeIntersection> {
     public readonly name: string;
     public readonly isJsonEncodeRequired: boolean;
     public readonly isJsonDecodeRequired: boolean;
     public readonly props: PropertySignatureRunType[];
     public readonly serializableProps: PropertySignatureRunType[];
     constructor(
-        public readonly src: TypeObjectLiteral,
+        public readonly src: TypeIntersection,
         public readonly visitor: RunTypeVisitor,
         public readonly nestLevel: number
     ) {
@@ -25,7 +31,8 @@ export class InterfaceRunType implements RunType<TypeObjectLiteral> {
         this.isJsonDecodeRequired = this.props.some((prop) => prop.isJsonDecodeRequired);
         this.isJsonEncodeRequired = this.props.some((prop) => prop.isJsonEncodeRequired);
         this.serializableProps = this.props.filter((prop) => !prop.skipSerialize);
-        this.name = `object<${this.serializableProps.map((prop) => prop.name).join(' & ')}>`;
+        this.name = `intersection<${this.serializableProps.map((prop) => prop.name).join(' & ')}>`;
+        console.log('IntersectionRunType', this);
     }
     isTypeJIT(varName: string): string {
         const propsCode = this.serializableProps.map((prop) => `(${prop.isTypeJIT(varName)})`).join(' &&');
