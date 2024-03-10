@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {ReflectionKind, TypePropertySignature} from '@deepkit/type';
+import {ReflectionKind, TypePropertySignature} from '../_deepkit/src/reflection/type';
 import {RunType, RunTypeVisitor} from '../types';
 import {addToPathChain, toLiteral} from '../utils';
 import {validPropertyNameRegExp} from '../constants';

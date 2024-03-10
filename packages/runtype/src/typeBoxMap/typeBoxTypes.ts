@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {Type} from '@deepkit/type';
+import {Type} from '../_deepkit/src/reflection/type';
 import {SchemaOptions, TSchema, TTransform} from '@sinclair/typebox';
 
 export type DeepkitVisitor = (deepkitType: Type, opts: SchemaOptions) => any;

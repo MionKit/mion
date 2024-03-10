@@ -6,7 +6,7 @@
  * ######## */
 
 import {SchemaOptions, TFunction, Type as TypeBox} from '@sinclair/typebox';
-import {TypeCallSignature, TypeFunction, TypeMethod, TypeMethodSignature} from '@deepkit/type';
+import {TypeCallSignature, TypeFunction, TypeMethod, TypeMethodSignature} from '../_deepkit/src/reflection/type';
 import {DeepkitVisitor} from './typeBoxTypes';
 
 export function resolveFunction(

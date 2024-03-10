@@ -6,7 +6,7 @@
  * ######## */
 
 import {SchemaOptions, TIntersect, TSchema, Type as TypeBox} from '@sinclair/typebox';
-import {TypeIntersection} from '@deepkit/type';
+import {TypeIntersection} from '../_deepkit/src/reflection/type';
 import {DeepkitVisitor} from './typeBoxTypes';
 
 // mapArray function: Maps a Deepkit TypeArray to a TypeBox TArray<T>

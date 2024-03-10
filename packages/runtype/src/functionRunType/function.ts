@@ -4,7 +4,7 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
-import {TypeCallSignature, TypeFunction, TypeMethodSignature} from '@deepkit/type';
+import {TypeCallSignature, TypeFunction, TypeMethodSignature} from '../_deepkit/src/reflection/type';
 import {RunType, RunTypeVisitor} from '../types';
 
 export class FunctionRunType<T extends TypeMethodSignature | TypeCallSignature | TypeFunction> implements RunType<T> {

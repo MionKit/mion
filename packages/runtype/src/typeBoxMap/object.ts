@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {TypeObject} from '@deepkit/type';
+import {TypeObject} from '../_deepkit/src/reflection/type';
 import {SchemaOptions, TObject, TProperties, Type as TypeBox} from '@sinclair/typebox';
 
 export function resolveObject(deepkitType: TypeObject, opts: SchemaOptions): TObject {

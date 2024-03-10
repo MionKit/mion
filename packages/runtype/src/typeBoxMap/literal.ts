@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {TypeLiteral} from '@deepkit/type';
+import {TypeLiteral} from '../_deepkit/src/reflection/type';
 import {SchemaOptions, TBigInt, TLiteral, TRegExp, TSymbol, Type as TypeBox} from '@sinclair/typebox';
 
 export function resolveLiteral(deepkitType: TypeLiteral, opts: SchemaOptions): TLiteral | TRegExp | TBigInt | TSymbol {

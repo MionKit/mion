@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {TypeBigInt} from '@deepkit/type';
+import {TypeBigInt} from '../_deepkit/src/reflection/type';
 import {JitJsonEncoder, RunType, RunTypeVisitor} from '../types';
 import {toLiteral} from '../utils';
 import {mockBigInt} from '../mock';

@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {TypeString} from '@deepkit/type';
+import {TypeString} from '../_deepkit/src/reflection/type';
 import {RunType, RunTypeVisitor} from '../types';
 import {toLiteral} from '../utils';
 import {mockString} from '../mock';

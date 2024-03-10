@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {TypeTuple} from '@deepkit/type';
+import {TypeTuple} from '../_deepkit/src/reflection/type';
 import {RunType, RunTypeVisitor} from '../types';
 import {addToPathChain, toLiteral} from '../utils';
 

@@ -6,7 +6,7 @@
  * ######## */
 
 import {SchemaOptions, TObject, TProperties, Type as TypeBox} from '@sinclair/typebox';
-import {ReflectionKind, TypeObjectLiteral} from '@deepkit/type';
+import {ReflectionKind, TypeObjectLiteral} from '../_deepkit/src/reflection/type';
 import {DeepkitVisitor} from './typeBoxTypes';
 
 export function resolveObjectLiteral(

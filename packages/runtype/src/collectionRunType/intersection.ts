@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {TypeIntersection} from '@deepkit/type';
+import {TypeIntersection} from '../_deepkit/src/reflection/type';
 import {RunType, RunTypeVisitor} from '../types';
 import {PropertySignatureRunType} from '../singleRunType/property';
 

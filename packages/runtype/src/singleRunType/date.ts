@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {TypeClass} from '@deepkit/type';
+import {TypeClass} from '../_deepkit/src/reflection/type';
 import {JitJsonEncoder, RunType, RunTypeVisitor} from '../types';
 import {toLiteral} from '../utils';
 import {mockDate} from '../mock';

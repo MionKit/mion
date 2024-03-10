@@ -1,4 +1,4 @@
-import {TypeParameter} from '@deepkit/type';
+import {TypeParameter} from '../_deepkit/src/reflection/type';
 import {RunType, RunTypeVisitor} from '../types';
 import {addToPathChain} from '../utils';
 

@@ -6,7 +6,7 @@
  * ######## */
 
 import {SchemaOptions, TObject, TProperties, Type as TypeBox} from '@sinclair/typebox';
-import {ReflectionKind, TypeClass, TypeMethod} from '@deepkit/type';
+import {ReflectionKind, TypeClass, TypeMethod} from '../_deepkit/src/reflection/type';
 import {DeepkitVisitor} from './typeBoxTypes';
 
 // TODO: seems that constructor represents type T = new(...args: [string, number]) => boolean; rather than a class constructor

@@ -6,7 +6,7 @@
  * ######## */
 
 import {SchemaOptions, TEnum, Type as TypeBox} from '@sinclair/typebox';
-import {TypeEnum} from '@deepkit/type';
+import {TypeEnum} from '../_deepkit/src/reflection/type';
 
 // mapArray function: Maps a Deepkit TypeArray to a TypeBox TArray<T>
 export function resolveEnum(deepkitType: TypeEnum, opts: SchemaOptions): TEnum {

@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {TypeTupleMember} from '@deepkit/type';
+import {TypeTupleMember} from '../_deepkit/src/reflection/type';
 import {RunType, RunTypeVisitor} from '../types';
 
 export class TupleMemberRunType implements RunType<TypeTupleMember> {
