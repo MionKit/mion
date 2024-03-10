@@ -22,8 +22,8 @@ export class PropertySignatureRunType implements RunType<TypePropertySignature> 
     public readonly isSafePropName: boolean;
     public readonly skipSerialize: boolean;
     constructor(
+        visitor: RunTypeVisitor,
         public readonly src: TypePropertySignature,
-        public readonly visitor: RunTypeVisitor,
         public readonly nestLevel: number
     ) {
         this.memberType = visitor(src.type, nestLevel);

@@ -16,8 +16,8 @@ export class ArrayRunType implements RunType<TypeArray> {
     public readonly isJsonDecodeRequired;
     public readonly itemsRunType: RunType;
     constructor(
+        visitor: RunTypeVisitor,
         public readonly src: TypeArray,
-        public readonly visitor: RunTypeVisitor,
         public readonly nestLevel: number
     ) {
         this.itemsRunType = visitor(src.type, nestLevel);

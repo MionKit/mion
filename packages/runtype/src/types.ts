@@ -31,7 +31,6 @@ export interface RunType<T extends Type = Type> {
     readonly name: string;
     readonly nestLevel: number;
     readonly src: T;
-    readonly visitor: RunTypeVisitor;
     readonly isJsonEncodeRequired: boolean;
     readonly isJsonDecodeRequired: boolean;
 

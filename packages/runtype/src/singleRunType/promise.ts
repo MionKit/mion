@@ -15,8 +15,8 @@ export class PromiseRunType implements RunType<TypePromise> {
     public readonly isJsonDecodeRequired = true;
     public readonly resolvedType: RunType;
     constructor(
+        visitor: RunTypeVisitor,
         public readonly src: TypePromise,
-        public readonly visitor: RunTypeVisitor,
         public readonly nestLevel: number
     ) {
         this.resolvedType = visitor(src.type, nestLevel);

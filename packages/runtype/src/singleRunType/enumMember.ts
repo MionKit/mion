@@ -13,8 +13,8 @@ export class EnumMemberRunType implements RunType<TypeEnum> {
     public readonly isJsonEncodeRequired = false;
     public readonly isJsonDecodeRequired = false;
     constructor(
+        visitor: RunTypeVisitor,
         public readonly src: TypeEnum,
-        public readonly visitor: RunTypeVisitor,
         public readonly nestLevel: number
     ) {}
     isTypeJIT(): string {

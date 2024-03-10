@@ -14,8 +14,8 @@ export class TupleMemberRunType implements RunType<TypeTupleMember> {
     public readonly memberType: RunType;
     public readonly name: string;
     constructor(
+        visitor: RunTypeVisitor,
         public readonly src: TypeTupleMember,
-        public readonly visitor: RunTypeVisitor,
         public readonly nestLevel: number
     ) {
         this.memberType = visitor(src.type, nestLevel);

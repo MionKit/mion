@@ -14,8 +14,8 @@ export class UndefinedRunType implements RunType<TypeUndefined> {
     public readonly isJsonEncodeRequired = true;
     public readonly isJsonDecodeRequired = true;
     constructor(
+        visitor: RunTypeVisitor,
         public readonly src: TypeUndefined,
-        public readonly visitor: RunTypeVisitor,
         public readonly nestLevel: number
     ) {}
     isTypeJIT(varName: string): string {

@@ -14,8 +14,8 @@ export class NullRunType implements RunType<TypeNull> {
     public readonly isJsonEncodeRequired = false;
     public readonly isJsonDecodeRequired = false;
     constructor(
+        visitor: RunTypeVisitor,
         public readonly src: TypeNull,
-        public readonly visitor: RunTypeVisitor,
         public readonly nestLevel: number
     ) {}
     isTypeJIT(varName: string): string {

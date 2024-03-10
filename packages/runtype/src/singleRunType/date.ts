@@ -15,8 +15,8 @@ export class DateRunType implements RunType<TypeClass> {
     public readonly isJsonEncodeRequired = false;
     public readonly isJsonDecodeRequired = true;
     constructor(
+        visitor: RunTypeVisitor,
         public readonly src: TypeClass,
-        public readonly visitor: RunTypeVisitor,
         public readonly nestLevel: number
     ) {}
     isTypeJIT(varName: string): string {

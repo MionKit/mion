@@ -12,26 +12,14 @@ import {BigIntJitJsonENcoder} from './bigInt';
 import {RegexpJitJsonEncoder} from './regexp';
 import {toLiteral} from '../utils';
 
-const noEncoder: JitJsonEncoder = {
-    decodeFromJson(varName: string) {
-        return `${varName}`;
-    },
-    encodeToJson(varName: string) {
-        return `${varName}`;
-    },
-    stringify(varName: string) {
-        return `JSON.stringify(${varName})`;
-    },
-};
-
 export class LiteralRunType implements RunType<TypeLiteral> {
     public readonly name: string;
     public readonly isJsonEncodeRequired: boolean;
     public readonly isJsonDecodeRequired: boolean;
     public readonly jitJsonEncoder: JitJsonEncoder;
     constructor(
+        visitor: RunTypeVisitor,
         public readonly src: TypeLiteral,
-        public readonly visitor: RunTypeVisitor,
         public readonly nestLevel: number
     ) {
         switch (true) {
@@ -88,6 +76,18 @@ export class LiteralRunType implements RunType<TypeLiteral> {
         return this.src.literal;
     }
 }
+
+const noEncoder: JitJsonEncoder = {
+    decodeFromJson(varName: string) {
+        return `${varName}`;
+    },
+    encodeToJson(varName: string) {
+        return `${varName}`;
+    },
+    stringify(varName: string) {
+        return `JSON.stringify(${varName})`;
+    },
+};
 
 function validateBigInt(varName: string, lit: bigint): string {
     return `${varName} === ${toLiteral(lit)}`;

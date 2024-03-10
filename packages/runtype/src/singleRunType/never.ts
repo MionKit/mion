@@ -13,8 +13,8 @@ export class NeverRunType implements RunType<TypeNever> {
     public readonly isJsonEncodeRequired = false;
     public readonly isJsonDecodeRequired = false;
     constructor(
+        visitor: RunTypeVisitor,
         public readonly src: TypeNever,
-        public readonly visitor: RunTypeVisitor,
         public readonly nestLevel: number
     ) {}
     isTypeJIT(): string {

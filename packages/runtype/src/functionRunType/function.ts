@@ -19,8 +19,8 @@ export class FunctionRunType<T extends TypeMethodSignature | TypeCallSignature |
     public readonly name: string;
     public readonly shouldSerialize = false;
     constructor(
+        visitor: RunTypeVisitor,
         public readonly src: T,
-        public readonly visitor: RunTypeVisitor,
         public readonly nestLevel: number,
         callType = 'function'
     ) {

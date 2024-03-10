@@ -13,8 +13,8 @@ export class AnyRunType implements RunType<TypeAny | TypeUnknown> {
     public readonly isJsonEncodeRequired = false;
     public readonly isJsonDecodeRequired = false;
     constructor(
+        visitor: RunTypeVisitor,
         public readonly src: TypeAny | TypeUnknown,
-        public readonly visitor: RunTypeVisitor,
         public readonly nestLevel: number,
         public readonly name = 'any'
     ) {}

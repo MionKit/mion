@@ -15,8 +15,8 @@ export class EnumRunType implements RunType<TypeEnum> {
     public readonly isJsonEncodeRequired = false;
     public readonly isJsonDecodeRequired = false;
     constructor(
+        visitor: RunTypeVisitor,
         public readonly src: TypeEnum,
-        public readonly visitor: RunTypeVisitor,
         public readonly nestLevel: number
     ) {
         this.name = `enum<${src.values.map((v) => v).join(', ')}>`;
