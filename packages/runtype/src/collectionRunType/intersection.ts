@@ -6,7 +6,7 @@
  * ######## */
 
 import {TypeIntersection} from '../_deepkit/src/reflection/type';
-import {RunType, RunTypeVisitor} from '../types';
+import {RunType, RunTypeOptions, RunTypeVisitor} from '../types';
 import {PropertySignatureRunType} from '../singleRunType/property';
 
 /** IMPORTANT:
@@ -23,9 +23,10 @@ export class IntersectionRunType implements RunType<TypeIntersection> {
     constructor(
         visitor: RunTypeVisitor,
         public readonly src: TypeIntersection,
-        public readonly nestLevel: number
+        public readonly nestLevel: number,
+        public readonly opts: RunTypeOptions
     ) {
-        this.props = src.types.map((type) => visitor(type, nestLevel) as PropertySignatureRunType);
+        this.props = src.types.map((type) => visitor(type, nestLevel, opts) as PropertySignatureRunType);
         this.isJsonDecodeRequired = this.props.some((prop) => prop.isJsonDecodeRequired);
         this.isJsonEncodeRequired = this.props.some((prop) => prop.isJsonEncodeRequired);
         this.serializableProps = this.props.filter((prop) => !prop.skipSerialize);

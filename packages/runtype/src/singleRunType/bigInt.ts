@@ -6,7 +6,7 @@
  * ######## */
 
 import {TypeBigInt} from '../_deepkit/src/reflection/type';
-import {JitJsonEncoder, RunType, RunTypeVisitor} from '../types';
+import {JitJsonEncoder, RunType, RunTypeOptions, RunTypeVisitor} from '../types';
 import {toLiteral} from '../utils';
 import {mockBigInt} from '../mock';
 
@@ -17,7 +17,8 @@ export class BigIntRunType implements RunType<TypeBigInt> {
     constructor(
         visitor: RunTypeVisitor,
         public readonly src: TypeBigInt,
-        public readonly nestLevel: number
+        public readonly nestLevel: number,
+        public readonly opts: RunTypeOptions
     ) {}
     isTypeJIT(varName: string): string {
         return `typeof ${varName} === 'bigint'`;

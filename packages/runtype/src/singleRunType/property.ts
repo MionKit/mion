@@ -6,7 +6,7 @@
  * ######## */
 
 import {ReflectionKind, TypePropertySignature} from '../_deepkit/src/reflection/type';
-import {RunType, RunTypeVisitor} from '../types';
+import {RunType, RunTypeOptions, RunTypeVisitor} from '../types';
 import {addToPathChain, toLiteral} from '../utils';
 import {validPropertyNameRegExp} from '../constants';
 
@@ -24,9 +24,10 @@ export class PropertySignatureRunType implements RunType<TypePropertySignature> 
     constructor(
         visitor: RunTypeVisitor,
         public readonly src: TypePropertySignature,
-        public readonly nestLevel: number
+        public readonly nestLevel: number,
+        public readonly opts: RunTypeOptions
     ) {
-        this.memberType = visitor(src.type, nestLevel);
+        this.memberType = visitor(src.type, nestLevel, opts);
         this.name = this.memberType.name;
         this.isOptional = !!src.optional;
         this.isReadonly = !!src.readonly;

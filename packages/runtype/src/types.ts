@@ -9,30 +9,15 @@ import {Type} from './_deepkit/src/reflection/type';
 
 export type JSONValue = string | number | boolean | null | {[key: string]: JSONValue} | Array<JSONValue>;
 
-export type RunTypeVisitor = (deepkitType: Type, nestLevel: number) => RunType;
+export type RunTypeVisitor = (deepkitType: Type, nestLevel: number, opts: RunTypeOptions) => RunType;
 
-export interface JitJsonEncoder {
-    decodeFromJson: (varName: string) => string;
-    encodeToJson: (varName: string) => string;
-    stringify: (varName: string) => string;
-}
-
-export interface RunTypeValidationError {
-    /**
-     * Path the the property that failed validation if the validated item was an object class, etc..
-     * Index if item that failed validation was in an array.
-     * null if validated item was a single property */
-    path: string;
-    /** the type of the expected data */
-    expected: string;
-}
-
-export interface RunType<T extends Type = Type> {
+export interface RunType<T extends Type = Type, Opts extends RunTypeOptions = RunTypeOptions> {
     readonly name: string;
     readonly nestLevel: number;
     readonly src: T;
     readonly isJsonEncodeRequired: boolean;
     readonly isJsonDecodeRequired: boolean;
+    readonly opts: Opts;
 
     /**
      * JIT code validation code
@@ -81,4 +66,28 @@ export interface RunType<T extends Type = Type> {
      * returns a mocked value, should be random when possible
      * */
     mock: (...args: any[]) => any;
+}
+
+export interface RunTypeOptions {
+    /**
+     * Json encoding/decoding will eliminate unknown properties
+     * ie: if your type is {name: string} and the json is {name: string, age: number} the age property will be removed en encoding/decoding.
+     */
+    strictJSON?: boolean;
+}
+
+export interface JitJsonEncoder {
+    decodeFromJson: (varName: string) => string;
+    encodeToJson: (varName: string) => string;
+    stringify: (varName: string) => string;
+}
+
+export interface RunTypeValidationError {
+    /**
+     * Path the the property that failed validation if the validated item was an object class, etc..
+     * Index if item that failed validation was in an array.
+     * null if validated item was a single property */
+    path: string;
+    /** the type of the expected data */
+    expected: string;
 }

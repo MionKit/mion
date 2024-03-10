@@ -6,7 +6,7 @@
  * ######## */
 
 import {TypeTuple} from '../_deepkit/src/reflection/type';
-import {RunType, RunTypeVisitor} from '../types';
+import {RunType, RunTypeOptions, RunTypeVisitor} from '../types';
 import {addToPathChain, toLiteral} from '../utils';
 
 export class TupleRunType implements RunType<TypeTuple> {
@@ -17,9 +17,10 @@ export class TupleRunType implements RunType<TypeTuple> {
     constructor(
         visitor: RunTypeVisitor,
         public readonly src: TypeTuple,
-        public readonly nestLevel: number
+        public readonly nestLevel: number,
+        public readonly opts: RunTypeOptions
     ) {
-        this.runTypes = src.types.map((t) => visitor(t, nestLevel));
+        this.runTypes = src.types.map((t) => visitor(t, nestLevel, opts));
         this.name = `tuple<${this.runTypes.map((rt) => rt.name).join(', ')}>`;
         this.isJsonEncodeRequired = this.runTypes.some((rt) => rt.isJsonEncodeRequired);
         this.isJsonDecodeRequired = this.runTypes.some((rt) => rt.isJsonDecodeRequired);

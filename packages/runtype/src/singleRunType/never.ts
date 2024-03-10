@@ -6,7 +6,7 @@
  * ######## */
 
 import {TypeNever} from '../_deepkit/src/reflection/type';
-import {RunType, RunTypeVisitor} from '../types';
+import {RunType, RunTypeOptions, RunTypeVisitor} from '../types';
 
 export class NeverRunType implements RunType<TypeNever> {
     public readonly name = 'never';
@@ -15,7 +15,8 @@ export class NeverRunType implements RunType<TypeNever> {
     constructor(
         visitor: RunTypeVisitor,
         public readonly src: TypeNever,
-        public readonly nestLevel: number
+        public readonly nestLevel: number,
+        public readonly opts: RunTypeOptions
     ) {}
     isTypeJIT(): string {
         throw new Error('Never type cannot exist at runtime.');

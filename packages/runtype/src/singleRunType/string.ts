@@ -6,7 +6,7 @@
  * ######## */
 
 import {TypeString} from '../_deepkit/src/reflection/type';
-import {RunType, RunTypeVisitor} from '../types';
+import {RunType, RunTypeOptions, RunTypeVisitor} from '../types';
 import {toLiteral} from '../utils';
 import {mockString} from '../mock';
 
@@ -17,7 +17,8 @@ export class StringRunType implements RunType<TypeString> {
     constructor(
         visitor: RunTypeVisitor,
         public readonly src: TypeString,
-        public readonly nestLevel: number
+        public readonly nestLevel: number,
+        public readonly opts: RunTypeOptions
     ) {}
     isTypeJIT(varName: string): string {
         return `typeof ${varName} === 'string'`;

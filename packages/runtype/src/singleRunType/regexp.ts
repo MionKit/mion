@@ -6,7 +6,7 @@
  * ######## */
 
 import {TypeRegexp} from '../_deepkit/src/reflection/type';
-import {RunType, RunTypeVisitor, JitJsonEncoder} from '../types';
+import {RunType, RunTypeVisitor, JitJsonEncoder, RunTypeOptions} from '../types';
 import {toLiteral} from '../utils';
 import {mockRegExp} from '../mock';
 
@@ -17,7 +17,8 @@ export class RegexpRunType implements RunType<TypeRegexp> {
     constructor(
         visitor: RunTypeVisitor,
         public readonly src: TypeRegexp,
-        public readonly nestLevel: number
+        public readonly nestLevel: number,
+        public readonly opts: RunTypeOptions
     ) {}
     isTypeJIT(varName: string): string {
         return `(${varName} instanceof RegExp)`;

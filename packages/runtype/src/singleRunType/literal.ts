@@ -6,7 +6,7 @@
  * ######## */
 
 import {TypeLiteral} from '../_deepkit/src/reflection/type';
-import {JitJsonEncoder, RunType, RunTypeVisitor} from '../types';
+import {JitJsonEncoder, RunType, RunTypeOptions, RunTypeVisitor} from '../types';
 import {SymbolJitJsonENcoder} from './symbol';
 import {BigIntJitJsonENcoder} from './bigInt';
 import {RegexpJitJsonEncoder} from './regexp';
@@ -20,7 +20,8 @@ export class LiteralRunType implements RunType<TypeLiteral> {
     constructor(
         visitor: RunTypeVisitor,
         public readonly src: TypeLiteral,
-        public readonly nestLevel: number
+        public readonly nestLevel: number,
+        public readonly opts: RunTypeOptions
     ) {
         switch (true) {
             case typeof src.literal === 'bigint':

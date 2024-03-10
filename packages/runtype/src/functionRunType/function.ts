@@ -5,9 +5,16 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 import {TypeCallSignature, TypeFunction, TypeMethodSignature} from '../_deepkit/src/reflection/type';
-import {RunType, RunTypeVisitor} from '../types';
+import {RunType, RunTypeOptions, RunTypeVisitor} from '../types';
 
-export class FunctionRunType<T extends TypeMethodSignature | TypeCallSignature | TypeFunction> implements RunType<T> {
+export interface FnRunTypeOptions extends RunTypeOptions {
+    /** skip parameters parsing from the beginning of the function */
+    slice?: {start?: number; end?: number};
+}
+
+export class FunctionRunType<T extends TypeMethodSignature | TypeCallSignature | TypeFunction>
+    implements RunType<T, FnRunTypeOptions>
+{
     public readonly isJsonEncodeRequired = true; // triggers custom json encode so functions get skipped
     public readonly isJsonDecodeRequired = true; // triggers custom json encode so functions get skipped
     public readonly shouldEncodeReturnJson: boolean;
@@ -22,10 +29,13 @@ export class FunctionRunType<T extends TypeMethodSignature | TypeCallSignature |
         visitor: RunTypeVisitor,
         public readonly src: T,
         public readonly nestLevel: number,
+        public readonly opts: FnRunTypeOptions,
         callType = 'function'
     ) {
-        this.returnType = visitor(src.return, nestLevel);
-        this.parameterTypes = src.parameters.map((p) => visitor(p, nestLevel));
+        const start = opts?.slice?.start;
+        const end = opts?.slice?.end;
+        this.returnType = visitor(src.return, nestLevel, opts);
+        this.parameterTypes = src.parameters.slice(start, end).map((p) => visitor(p, nestLevel, opts));
         this.shouldEncodeReturnJson = this.returnType.isJsonEncodeRequired;
         this.shouldDecodeReturnJson = this.returnType.isJsonDecodeRequired;
         this.shouldEncodeParamsJson = this.parameterTypes.some((p) => p.isJsonEncodeRequired);

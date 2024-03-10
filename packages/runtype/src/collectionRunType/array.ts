@@ -6,7 +6,7 @@
  * ######## */
 
 import {TypeArray} from '../_deepkit/src/reflection/type';
-import {RunType, RunTypeVisitor} from '../types';
+import {RunType, RunTypeOptions, RunTypeVisitor} from '../types';
 import {addToPathChain, toLiteral} from '../utils';
 import {random} from '../mock';
 
@@ -18,9 +18,10 @@ export class ArrayRunType implements RunType<TypeArray> {
     constructor(
         visitor: RunTypeVisitor,
         public readonly src: TypeArray,
-        public readonly nestLevel: number
+        public readonly nestLevel: number,
+        public readonly opts: RunTypeOptions
     ) {
-        this.itemsRunType = visitor(src.type, nestLevel);
+        this.itemsRunType = visitor(src.type, nestLevel, opts);
         this.isJsonEncodeRequired = this.itemsRunType.isJsonEncodeRequired;
         this.isJsonDecodeRequired = this.itemsRunType.isJsonDecodeRequired;
         this.name = `array<${this.itemsRunType.name}>`;
