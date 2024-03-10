@@ -38,7 +38,6 @@ import {FnRunTypeOptions, FunctionRunType} from './functionRunType/function';
 import {PromiseRunType} from './singleRunType/promise';
 import {ObjectRunType} from './singleRunType/object';
 import {IntersectionRunType} from './collectionRunType/intersection';
-// import {resolveAsyncIterator, resolveIterator} from './typeBoxMap/nativeObjectLiterals';
 
 const MaxNestLevel = 100;
 
@@ -52,7 +51,6 @@ export function reflectFunction<Fn extends (...args: any[]) => any>(fn: Fn, opts
     return visitor(type, -1, opts);
 }
 
-// Map Deepkit Type to TypeBox Type
 function visitor(deepkitType, nestLevel: number, opts: RunTypeOptions): RunType {
     // console.log('deepkitType', deepkitType);
 
