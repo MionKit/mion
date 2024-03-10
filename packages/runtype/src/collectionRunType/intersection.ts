@@ -7,7 +7,6 @@
 
 import {TypeIntersection} from '@deepkit/type';
 import {RunType, RunTypeVisitor} from '../types';
-import {toLiteral} from '../utils';
 import {PropertySignatureRunType} from '../singleRunType/property';
 
 
@@ -33,18 +32,11 @@ export class IntersectionRunType implements RunType<TypeIntersection> {
         this.serializableProps = this.props.filter((prop) => !prop.skipSerialize);
         this.name = `intersection<${this.serializableProps.map((prop) => prop.name).join(' & ')}>`;
     }
-    // this method is enabled but think it should never be called as intersection should resolve to other types
-    isTypeJIT(varName: string): string {
-        const propsCode = this.serializableProps.map((prop) => `(${prop.isTypeJIT(varName)})`).join(' &&');
-        return `typeof ${varName} === 'object' && ${propsCode}`;
+    isTypeJIT(): string {
+        throw new Error('Intersection validation not supported, should be resolve to other RunTypes');
     }
-    // this method is enabled but think it should never be called as intersection should resolve to other types
-    typeErrorsJIT(varName: string, errorsName: string, pathLiteral: string): string {
-        const propsCode = this.serializableProps.map((prop) => prop.typeErrorsJIT(varName, errorsName, pathLiteral)).join(';');
-        return (
-            `if (typeof ${varName} !== 'object') ${errorsName}.push({path: ${pathLiteral}, expected: ${toLiteral(this.name)}});` +
-            `else {${propsCode}}`
-        );
+    typeErrorsJIT(): string {
+        throw new Error('Intersection validation not supported, should be resolve to other RunTypes');
     }
     jsonEncodeJIT(): string {
         throw new Error('Intersection serialization not supported, should be resolve to other RunTypes');
