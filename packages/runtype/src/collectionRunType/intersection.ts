@@ -32,12 +32,13 @@ export class IntersectionRunType implements RunType<TypeIntersection> {
         this.isJsonEncodeRequired = this.props.some((prop) => prop.isJsonEncodeRequired);
         this.serializableProps = this.props.filter((prop) => !prop.skipSerialize);
         this.name = `intersection<${this.serializableProps.map((prop) => prop.name).join(' & ')}>`;
-        console.log('IntersectionRunType', this);
     }
+    // this method is enabled but think it should never be called as intersection should resolve to other types
     isTypeJIT(varName: string): string {
         const propsCode = this.serializableProps.map((prop) => `(${prop.isTypeJIT(varName)})`).join(' &&');
         return `typeof ${varName} === 'object' && ${propsCode}`;
     }
+    // this method is enabled but think it should never be called as intersection should resolve to other types
     typeErrorsJIT(varName: string, errorsName: string, pathLiteral: string): string {
         const propsCode = this.serializableProps.map((prop) => prop.typeErrorsJIT(varName, errorsName, pathLiteral)).join(';');
         return (
@@ -45,21 +46,14 @@ export class IntersectionRunType implements RunType<TypeIntersection> {
             `else {${propsCode}}`
         );
     }
-    jsonEncodeJIT(varName: string, isStrict?: boolean): string {
-        if (!isStrict && !this.isJsonEncodeRequired) return varName;
-        const propsCode = this.serializableProps.map((prop) => prop.jsonEncodeJIT(varName, isStrict)).join(',');
-        return `{${propsCode}}`;
+    jsonEncodeJIT(): string {
+        throw new Error('Intersection serialization not supported, should be resolve to other RunTypes');
     }
-    // unlike the other JIT methods the separator is added within the PropertySignatureRunType
-    // this is because optional properties can't emit any strings at runtime
-    jsonStringifyJIT(varName: string): string {
-        const propsCode = this.serializableProps.map((prop, i) => prop.jsonStringifyJIT(varName, i === 0)).join('');
-        return `'{'+${propsCode}+'}'`;
+    jsonStringifyJIT(): string {
+        throw new Error('Intersection serialization not supported, should be resolve to other RunTypes');
     }
-    jsonDecodeJIT(varName: string, isStrict?: boolean): string {
-        if (!isStrict && !this.isJsonDecodeRequired) return varName;
-        const propsCode = this.serializableProps.map((prop) => prop.jsonDecodeJIT(varName, isStrict)).join(',');
-        return `{${propsCode}}`;
+    jsonDecodeJIT(): string {
+        throw new Error('Intersection serialization not supported, should be resolve to other RunTypes');
     }
     mock(
         optionalParamsProbability: Record<string | number, number>,
