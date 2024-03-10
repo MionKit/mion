@@ -6,32 +6,27 @@
  * ######## */
 
 import {TypeNull} from '../_deepkit/src/reflection/type';
-import {RunType, RunTypeOptions, RunTypeVisitor} from '../types';
+import {BaseRunType} from '../baseRunType';
 import {toLiteral} from '../utils';
 
-export class NullRunType implements RunType<TypeNull> {
+export class NullRunType extends BaseRunType<TypeNull> {
     public readonly name = 'null';
     public readonly isJsonEncodeRequired = false;
     public readonly isJsonDecodeRequired = false;
-    constructor(
-        visitor: RunTypeVisitor,
-        public readonly src: TypeNull,
-        public readonly nestLevel: number,
-        public readonly opts: RunTypeOptions
-    ) {}
-    isTypeJIT(varName: string): string {
+
+    JIT_isType(varName: string): string {
         return `${varName} === null`;
     }
-    typeErrorsJIT(varName: string, errorsName: string, pathChain: string): string {
+    JIT_typeErrors(varName: string, errorsName: string, pathChain: string): string {
         return `if (${varName} !== null) ${errorsName}.push({path: ${pathChain}, expected: ${toLiteral(this.name)}})`;
     }
-    jsonEncodeJIT(varName: string): string {
+    JIT_jsonEncode(varName: string): string {
         return varName;
     }
-    jsonDecodeJIT(varName: string): string {
+    JIT_jsonDecode(varName: string): string {
         return varName;
     }
-    jsonStringifyJIT(varName: string): string {
+    JIT_jsonStringify(varName: string): string {
         return varName;
     }
     mock(): null {

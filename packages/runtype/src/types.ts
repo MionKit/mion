@@ -18,15 +18,15 @@ export interface RunType<T extends Type = Type, Opts extends RunTypeOptions = Ru
     readonly isJsonEncodeRequired: boolean;
     readonly isJsonDecodeRequired: boolean;
     readonly opts: Opts;
-
+    readonly compiled: CompiledFunctions;
     /**
      * JIT code validation code
      * should not include anything that is purely the validation of the type, ie function wrappers.
      * this code should not use return statements, it should be a single line of code that evaluates to a boolean
      * this code should not contain any sentence breaks or semicolons.
-     * ie: isTypeJIT = () => `typeof vλluε === 'string'`
+     * ie: JIT_isType = () => `typeof vλluε === 'string'`
      */
-    isTypeJIT: (varName: string) => string;
+    JIT_isType: (varName: string) => string;
     /**
      * JIT code Validation + error info
      * Similar to validation code but instead of returning a boolean it should assign an error message to the errorsName
@@ -35,33 +35,33 @@ export interface RunType<T extends Type = Type, Opts extends RunTypeOptions = Ru
      * pathChain is a string that represents the path to the property being validated.
      * pathChain is calculated at runtime so is an expresion like 'path1' + '/' + 'path2' + '/' + 'path3'
      */
-    typeErrorsJIT: (varName: string, errorsName: string, pathChain: string) => string;
+    JIT_typeErrors: (varName: string, errorsName: string, pathChain: string) => string;
     /**
      * JIT code to transform from type to an object that can be serialized using json
      * this code should not use return statements, it should be a single line of code that evaluates to a json compatible type.
      * this code should not contain any sentence breaks or semicolons.
-     * ie for bigIng: jsonEncodeJIT = () => `vλluε.toString()`
+     * ie for bigIng: JIT_jsonEncode = () => `vλluε.toString()`
      * */
-    jsonEncodeJIT: (varName: string) => string;
+    JIT_jsonEncode: (varName: string) => string;
     /**
      * JIT code to transform a type directly into s json string.
-     * when serializing to json normally we need first to prepare the object using jsonEncodeJIT and then JSON.stringify().
+     * when serializing to json normally we need first to prepare the object using JIT_jsonEncode and then JSON.stringify().
      * this code directly outputs the json string and saves traversing the type twice
      * stringify is allways strict
      * @param varName
      * @returns
      */
-    jsonStringifyJIT: (varName: string) => string;
+    JIT_jsonStringify: (varName: string) => string;
     /**
      * JIT code to transform from json to type so type can be deserialized from json
      * this code should not use return statements, it should be a single line that recieves a json compatible type and returns a deserialized value.
      * this code should not contain any sentence breaks or semicolons.
-     * ie for bigIng: jsonDecodeJIT = () => `BigInt(vλluε)`
+     * ie for bigIng: JIT_jsonDecode = () => `BigInt(vλluε)`
      *
      * For security reason decoding ignores any properties that are not defined in the type.
      * So is your type is {name: string} and the json is {name: string, age: number} the age property will be ignored.
      * */
-    jsonDecodeJIT: (varName: string) => string;
+    JIT_jsonDecode: (varName: string) => string;
     /**
      * returns a mocked value, should be random when possible
      * */
@@ -90,4 +90,12 @@ export interface RunTypeValidationError {
     path: string;
     /** the type of the expected data */
     expected: string;
+}
+
+export interface CompiledFunctions {
+    isType: (vλluε: any) => boolean;
+    typeErrors: (vλluε: any) => RunTypeValidationError[];
+    jsonDecode: (vλluε: JSONValue) => any;
+    jsonEncode: (vλluε: any) => JSONValue;
+    jsonStringify: (vλluε: any) => string;
 }

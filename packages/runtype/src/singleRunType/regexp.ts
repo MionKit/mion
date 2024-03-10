@@ -6,33 +6,29 @@
  * ######## */
 
 import {TypeRegexp} from '../_deepkit/src/reflection/type';
-import {RunType, RunTypeVisitor, JitJsonEncoder, RunTypeOptions} from '../types';
+import {JitJsonEncoder} from '../types';
 import {toLiteral} from '../utils';
 import {mockRegExp} from '../mock';
+import {BaseRunType} from '../baseRunType';
 
-export class RegexpRunType implements RunType<TypeRegexp> {
+export class RegexpRunType extends BaseRunType<TypeRegexp> {
     public readonly name = 'regexp';
     public readonly isJsonEncodeRequired = true;
     public readonly isJsonDecodeRequired = true;
-    constructor(
-        visitor: RunTypeVisitor,
-        public readonly src: TypeRegexp,
-        public readonly nestLevel: number,
-        public readonly opts: RunTypeOptions
-    ) {}
-    isTypeJIT(varName: string): string {
+
+    JIT_isType(varName: string): string {
         return `(${varName} instanceof RegExp)`;
     }
-    typeErrorsJIT(varName: string, errorsName: string, pathChain: string): string {
+    JIT_typeErrors(varName: string, errorsName: string, pathChain: string): string {
         return `if (!(${varName} instanceof RegExp)) ${errorsName}.push({path: ${pathChain}, expected: ${toLiteral(this.name)}})`;
     }
-    jsonEncodeJIT(varName: string): string {
+    JIT_jsonEncode(varName: string): string {
         return RegexpJitJsonEncoder.encodeToJson(varName);
     }
-    jsonDecodeJIT(varName: string): string {
+    JIT_jsonDecode(varName: string): string {
         return RegexpJitJsonEncoder.decodeFromJson(varName);
     }
-    jsonStringifyJIT(varName: string): string {
+    JIT_jsonStringify(varName: string): string {
         return RegexpJitJsonEncoder.stringify(varName);
     }
     mock(list?: RegExp[]): RegExp {

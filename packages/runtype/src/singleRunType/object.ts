@@ -6,34 +6,29 @@
  * ######## */
 
 import {TypeAny, TypeUnknown} from '../_deepkit/src/reflection/type';
-import {RunType, RunTypeOptions, RunTypeVisitor} from '../types';
 import {random} from '../mock';
 import {toLiteral} from '../utils';
 import {mockObjectList} from '../constants';
+import {BaseRunType} from '../baseRunType';
 
-export class ObjectRunType implements RunType<TypeAny | TypeUnknown> {
+export class ObjectRunType extends BaseRunType<TypeAny | TypeUnknown> {
+    public readonly name = 'object';
     public readonly isJsonEncodeRequired = false;
     public readonly isJsonDecodeRequired = false;
-    constructor(
-        visitor: RunTypeVisitor,
-        public readonly src: TypeAny | TypeUnknown,
-        public readonly nestLevel: number,
-        public readonly opts: RunTypeOptions,
-        public readonly name = 'object'
-    ) {}
-    isTypeJIT(varName: string): string {
+
+    JIT_isType(varName: string): string {
         return `typeof ${varName} === 'object' && ${varName} !== null`;
     }
-    typeErrorsJIT(varName: string, errorsName: string, pathChain: string): string {
-        return `if (!(${this.isTypeJIT(varName)})) ${errorsName}.push({path: ${pathChain}, expected: ${toLiteral(this.name)}})`;
+    JIT_typeErrors(varName: string, errorsName: string, pathChain: string): string {
+        return `if (!(${this.JIT_isType(varName)})) ${errorsName}.push({path: ${pathChain}, expected: ${toLiteral(this.name)}})`;
     }
-    jsonEncodeJIT(varName: string): string {
+    JIT_jsonEncode(varName: string): string {
         return varName;
     }
-    jsonDecodeJIT(varName: string): string {
+    JIT_jsonDecode(varName: string): string {
         return varName;
     }
-    jsonStringifyJIT(varName: string): string {
+    JIT_jsonStringify(varName: string): string {
         return `JSON.stringify(${varName})`;
     }
     mock(objectLis: object[] = mockObjectList): object {

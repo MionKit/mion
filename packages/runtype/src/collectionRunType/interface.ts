@@ -5,11 +5,12 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 import {TypeObjectLiteral} from '../_deepkit/src/reflection/type';
-import {RunType, RunTypeOptions, RunTypeVisitor} from '../types';
+import {RunTypeOptions, RunTypeVisitor} from '../types';
 import {skipJsonDecode, skipJsonEncode, toLiteral} from '../utils';
 import {PropertySignatureRunType} from '../singleRunType/property';
+import {BaseRunType} from '../baseRunType';
 
-export class InterfaceRunType implements RunType<TypeObjectLiteral> {
+export class InterfaceRunType extends BaseRunType<TypeObjectLiteral> {
     public readonly name: string;
     public readonly isJsonEncodeRequired: boolean;
     public readonly isJsonDecodeRequired: boolean;
@@ -21,37 +22,38 @@ export class InterfaceRunType implements RunType<TypeObjectLiteral> {
         public readonly nestLevel: number,
         public readonly opts: RunTypeOptions
     ) {
+        super(visitor, src, nestLevel, opts);
         this.props = src.types.map((type) => visitor(type, nestLevel, opts) as PropertySignatureRunType);
         this.isJsonDecodeRequired = this.props.some((prop) => prop.isJsonDecodeRequired);
         this.isJsonEncodeRequired = this.props.some((prop) => prop.isJsonEncodeRequired);
         this.serializableProps = this.props.filter((prop) => !prop.skipSerialize);
         this.name = `object<${this.serializableProps.map((prop) => prop.name).join(' & ')}>`;
     }
-    isTypeJIT(varName: string): string {
-        const propsCode = this.serializableProps.map((prop) => `(${prop.isTypeJIT(varName)})`).join(' &&');
+    JIT_isType(varName: string): string {
+        const propsCode = this.serializableProps.map((prop) => `(${prop.JIT_isType(varName)})`).join(' &&');
         return `typeof ${varName} === 'object' && ${propsCode}`;
     }
-    typeErrorsJIT(varName: string, errorsName: string, pathLiteral: string): string {
-        const propsCode = this.serializableProps.map((prop) => prop.typeErrorsJIT(varName, errorsName, pathLiteral)).join(';');
+    JIT_typeErrors(varName: string, errorsName: string, pathLiteral: string): string {
+        const propsCode = this.serializableProps.map((prop) => prop.JIT_typeErrors(varName, errorsName, pathLiteral)).join(';');
         return (
             `if (typeof ${varName} !== 'object') ${errorsName}.push({path: ${pathLiteral}, expected: ${toLiteral(this.name)}});` +
             `else {${propsCode}}`
         );
     }
-    jsonEncodeJIT(varName: string): string {
+    JIT_jsonEncode(varName: string): string {
         if (skipJsonEncode(this)) return varName;
-        const propsCode = this.serializableProps.map((prop) => prop.jsonEncodeJIT(varName)).join(',');
+        const propsCode = this.serializableProps.map((prop) => prop.JIT_jsonEncode(varName)).join(',');
         return `{${propsCode}}`;
     }
-    jsonDecodeJIT(varName: string): string {
+    JIT_jsonDecode(varName: string): string {
         if (skipJsonDecode(this)) return varName;
-        const propsCode = this.serializableProps.map((prop) => prop.jsonDecodeJIT(varName)).join(',');
+        const propsCode = this.serializableProps.map((prop) => prop.JIT_jsonDecode(varName)).join(',');
         return `{${propsCode}}`;
     }
     // unlike the other JIT methods the separator is added within the PropertySignatureRunType
     // this is because optional properties can't emit any strings at runtime
-    jsonStringifyJIT(varName: string): string {
-        const propsCode = this.serializableProps.map((prop, i) => prop.jsonStringifyJIT(varName, i === 0)).join('');
+    JIT_jsonStringify(varName: string): string {
+        const propsCode = this.serializableProps.map((prop, i) => prop.JIT_jsonStringify(varName, i === 0)).join('');
         return `'{'+${propsCode}+'}'`;
     }
     mock(

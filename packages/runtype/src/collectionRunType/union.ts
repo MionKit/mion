@@ -9,8 +9,9 @@ import {TypeUnion} from '../_deepkit/src/reflection/type';
 import {RunType, RunTypeOptions, RunTypeVisitor} from '../types';
 import {skipJsonDecode, skipJsonEncode, toLiteral} from '../utils';
 import {random} from '../mock';
+import {BaseRunType} from '../baseRunType';
 
-export class UnionRunType implements RunType<TypeUnion> {
+export class UnionRunType extends BaseRunType<TypeUnion> {
     public readonly name: string;
     public readonly isJsonEncodeRequired: boolean;
     public readonly isJsonDecodeRequired: boolean;
@@ -29,6 +30,7 @@ export class UnionRunType implements RunType<TypeUnion> {
         public readonly nestLevel: number,
         public readonly opts: RunTypeOptions
     ) {
+        super(visitor, src, nestLevel, opts);
         this.runTypes = src.types.map((t) => visitor(t, nestLevel, opts));
         this.name = `union<${this.runTypes.map((rt) => rt.name).join(' | ')}>`;
         // TODO: this could be optimized if every run type would have a jsonType and we could check they do not collide.
@@ -37,44 +39,44 @@ export class UnionRunType implements RunType<TypeUnion> {
         this.isJsonEncodeRequired = this.needDiscriminatorIndex;
         this.isJsonDecodeRequired = this.needDiscriminatorIndex;
     }
-    isTypeJIT(varName: string): string {
-        return this.runTypes.map((rt) => `(${rt.isTypeJIT(varName)})`).join(' || ');
+    JIT_isType(varName: string): string {
+        return this.runTypes.map((rt) => `(${rt.JIT_isType(varName)})`).join(' || ');
     }
-    typeErrorsJIT(varName: string, errorsName: string, pathChain: string): string {
-        return `if (!(${this.isTypeJIT(varName)})) ${errorsName}.push({path: ${pathChain}, expected: ${toLiteral(this.name)}})`;
+    JIT_typeErrors(varName: string, errorsName: string, pathChain: string): string {
+        return `if (!(${this.JIT_isType(varName)})) ${errorsName}.push({path: ${pathChain}, expected: ${toLiteral(this.name)}})`;
     }
-    jsonEncodeJIT(varName: string): string {
+    JIT_jsonEncode(varName: string): string {
         const errorCode = `throw new Error('Can not encode json to union: expected ${this.name} but got ' + ${varName}?.constructor?.name || typeof ${varName})`;
         const encode = this.runTypes
             .map((rt, i) => {
-                const checkCode = rt.isTypeJIT(varName);
-                const itemCode = skipJsonEncode(rt) ? varName : rt.jsonEncodeJIT(varName);
+                const checkCode = rt.JIT_isType(varName);
+                const itemCode = skipJsonEncode(rt) ? varName : rt.JIT_jsonEncode(varName);
                 const returnCode = !this.needDiscriminatorIndex ? itemCode : `[${i}, ${itemCode}]`;
                 return `if (${checkCode}) return ${returnCode}`;
             })
             .join(';');
         return `(() => {${encode}; ${errorCode}})()`;
     }
-    jsonDecodeJIT(varName: string): string {
+    JIT_jsonDecode(varName: string): string {
         const errorCode = `throw new Error('Can not decode json from union: expected ${this.name} but got ' + ${varName}?.constructor?.name || typeof ${varName})`;
         const decode = this.runTypes
             .map((rt, i) => {
                 const valueName = !this.needDiscriminatorIndex ? varName : `${varName}[1]`;
-                const checkCode = !this.needDiscriminatorIndex ? rt.isTypeJIT(varName) : `${varName}[0] === ${i}`;
-                const returnCode = skipJsonDecode(rt) ? valueName : rt.jsonDecodeJIT(valueName);
+                const checkCode = !this.needDiscriminatorIndex ? rt.JIT_isType(varName) : `${varName}[0] === ${i}`;
+                const returnCode = skipJsonDecode(rt) ? valueName : rt.JIT_jsonDecode(valueName);
                 return `if (${checkCode}) return ${returnCode}`;
             })
             .join(';');
         return `(() => {${decode}; ${errorCode}})()`;
     }
-    jsonStringifyJIT(varName: string): string {
+    JIT_jsonStringify(varName: string): string {
         const errorCode = `throw new Error('Can not stringify union: expected ${this.name} but got ' + ${varName}?.constructor?.name || typeof ${varName})`;
         const encode = this.runTypes
             .map((rt, i) => {
-                const checkCode = rt.isTypeJIT(varName);
+                const checkCode = rt.JIT_isType(varName);
                 const returnCode = !this.needDiscriminatorIndex
-                    ? rt.jsonStringifyJIT(varName)
-                    : `('[' + ${i} + ',' + ${rt.jsonStringifyJIT(varName)} + ']')`;
+                    ? rt.JIT_jsonStringify(varName)
+                    : `('[' + ${i} + ',' + ${rt.JIT_jsonStringify(varName)} + ']')`;
                 return `if (${checkCode}) return ${returnCode}`;
             })
             .join(';');

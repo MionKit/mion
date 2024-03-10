@@ -5,6 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 import {TypeCallSignature, TypeFunction, TypeMethodSignature} from '../_deepkit/src/reflection/type';
+import {BaseRunType} from '../baseRunType';
 import {RunType, RunTypeOptions, RunTypeVisitor} from '../types';
 
 export interface FnRunTypeOptions extends RunTypeOptions {
@@ -12,9 +13,10 @@ export interface FnRunTypeOptions extends RunTypeOptions {
     slice?: {start?: number; end?: number};
 }
 
-export class FunctionRunType<T extends TypeMethodSignature | TypeCallSignature | TypeFunction>
-    implements RunType<T, FnRunTypeOptions>
-{
+export class FunctionRunType<CallType extends TypeMethodSignature | TypeCallSignature | TypeFunction> extends BaseRunType<
+    CallType,
+    FnRunTypeOptions
+> {
     public readonly isJsonEncodeRequired = true; // triggers custom json encode so functions get skipped
     public readonly isJsonDecodeRequired = true; // triggers custom json encode so functions get skipped
     public readonly shouldEncodeReturnJson: boolean;
@@ -27,11 +29,12 @@ export class FunctionRunType<T extends TypeMethodSignature | TypeCallSignature |
     public readonly shouldSerialize = false;
     constructor(
         visitor: RunTypeVisitor,
-        public readonly src: T,
+        public readonly src: CallType,
         public readonly nestLevel: number,
         public readonly opts: FnRunTypeOptions,
         callType = 'function'
     ) {
+        super(visitor, src, nestLevel, opts);
         const start = opts?.slice?.start;
         const end = opts?.slice?.end;
         this.returnType = visitor(src.return, nestLevel, opts);
@@ -42,42 +45,42 @@ export class FunctionRunType<T extends TypeMethodSignature | TypeCallSignature |
         this.shouldDecodeParamsJson = this.parameterTypes.some((p) => p.isJsonDecodeRequired);
         this.name = `${callType}<${this.parameterTypes.map((p) => p.name).join(', ')} => ${this.returnType.name}>`;
     }
-    isTypeJIT(): string {
+    JIT_isType(): string {
         return ''; // functions are ignored when generating validation code
     }
-    typeErrorsJIT(): string {
+    JIT_typeErrors(): string {
         return ''; // functions are ignored when generating validation cod
     }
-    jsonEncodeJIT(): string {
+    JIT_jsonEncode(): string {
         return ''; // functions are ignored when generating json encode code
     }
-    jsonDecodeJIT(): string {
+    JIT_jsonDecode(): string {
         return ''; // functions are ignored when generating json decode code
     }
-    jsonStringifyJIT(): string {
+    JIT_jsonStringify(): string {
         return ''; // functions are ignored when generating json stringify code
     }
     mock(): string {
         return ''; // functions are ignored when generating mock code
     }
     paramsIsTypeJIT(varName: string): string {
-        return this.parameterTypes.map((p, i) => `(${p.isTypeJIT(`${varName}[${i}]`)})`).join(' && ');
+        return this.parameterTypes.map((p, i) => `(${p.JIT_isType(`${varName}[${i}]`)})`).join(' && ');
     }
     paramsTypeErrorsJIT(varName: string, errorsName: string, pathChain: string): string {
-        return this.parameterTypes.map((p, i) => p.typeErrorsJIT(`${varName}[${i}]`, errorsName, pathChain)).join('');
+        return this.parameterTypes.map((p, i) => p.JIT_typeErrors(`${varName}[${i}]`, errorsName, pathChain)).join('');
     }
     paramsJsonEncodeJIT(varName: string): string {
         if (!this.shouldEncodeParamsJson) return varName;
-        const paramsCode = this.parameterTypes.map((p, i) => p.jsonEncodeJIT(`${varName}[${i}]`)).join(', ');
+        const paramsCode = this.parameterTypes.map((p, i) => p.JIT_jsonEncode(`${varName}[${i}]`)).join(', ');
         return `[${paramsCode}]`;
     }
     paramsJsonDecodeJIT(varName: string): string {
         if (!this.shouldDecodeParamsJson) return varName;
-        const paramsCode = this.parameterTypes.map((p, i) => p.jsonDecodeJIT(`${varName}[${i}]`)).join(', ');
+        const paramsCode = this.parameterTypes.map((p, i) => p.JIT_jsonDecode(`${varName}[${i}]`)).join(', ');
         return `[${paramsCode}]`;
     }
     paramsStringifyJIT(varName: string): string {
-        const paramsCode = this.parameterTypes.map((p, i) => p.jsonStringifyJIT(`${varName}[${i}]`)).join(', ');
+        const paramsCode = this.parameterTypes.map((p, i) => p.JIT_jsonStringify(`${varName}[${i}]`)).join(', ');
         return `[${paramsCode}]`;
     }
     paramsMockJIT(varName: string): string {
@@ -86,21 +89,21 @@ export class FunctionRunType<T extends TypeMethodSignature | TypeCallSignature |
         return `const ${arrayName} = []; ${mockCodes} ${varName} = ${arrayName}[Math.floor(Math.random() * ${arrayName}.length)]`;
     }
     returnIsTypeJIT(varName: string): string {
-        return this.returnType.isTypeJIT(varName);
+        return this.returnType.JIT_isType(varName);
     }
     returnTypeErrorsJIT(varName: string, errorsName: string, pathChain: string): string {
-        return this.returnType.typeErrorsJIT(varName, errorsName, pathChain);
+        return this.returnType.JIT_typeErrors(varName, errorsName, pathChain);
     }
     returnJsonEncodeJIT(varName: string): string {
         if (!this.shouldEncodeReturnJson) return varName;
-        return this.returnType.jsonEncodeJIT(varName);
+        return this.returnType.JIT_jsonEncode(varName);
     }
     returnStringifyJIT(varName: string): string {
-        return this.returnType.jsonStringifyJIT(varName);
+        return this.returnType.JIT_jsonStringify(varName);
     }
     returnJsonDecodeJIT(varName: string): string {
         if (!this.shouldDecodeReturnJson) return varName;
-        return this.returnType.jsonDecodeJIT(varName);
+        return this.returnType.JIT_jsonDecode(varName);
     }
     returnMockJIT(varName: string): string {
         return this.returnType.mock(varName);

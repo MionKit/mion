@@ -6,11 +6,12 @@
  * ######## */
 
 import {ReflectionKind, TypeEnum} from '../_deepkit/src/reflection/type';
-import {RunType, RunTypeOptions, RunTypeVisitor} from '../types';
+import {RunTypeOptions, RunTypeVisitor} from '../types';
 import {toLiteral} from '../utils';
 import {random} from '../mock';
+import {BaseRunType} from '../baseRunType';
 
-export class EnumRunType implements RunType<TypeEnum> {
+export class EnumRunType extends BaseRunType<TypeEnum> {
     public readonly name: string;
     public readonly isJsonEncodeRequired = false;
     public readonly isJsonDecodeRequired = false;
@@ -20,21 +21,22 @@ export class EnumRunType implements RunType<TypeEnum> {
         public readonly nestLevel: number,
         public readonly opts: RunTypeOptions
     ) {
+        super(visitor, src, nestLevel, opts);
         this.name = `enum<${src.values.map((v) => v).join(', ')}>`;
     }
-    isTypeJIT(varName: string): string {
+    JIT_isType(varName: string): string {
         return this.src.values.map((v) => `${varName} === ${toLiteral(v)}`).join(' || ');
     }
-    typeErrorsJIT(varName: string, errorsName: string, pathChain: string): string {
-        return `if (!(${this.isTypeJIT(varName)})) ${errorsName}.push({path: ${pathChain}, expected: ${toLiteral(this.name)}})`;
+    JIT_typeErrors(varName: string, errorsName: string, pathChain: string): string {
+        return `if (!(${this.JIT_isType(varName)})) ${errorsName}.push({path: ${pathChain}, expected: ${toLiteral(this.name)}})`;
     }
-    jsonEncodeJIT(varName: string): string {
+    JIT_jsonEncode(varName: string): string {
         return varName;
     }
-    jsonDecodeJIT(varName: string): string {
+    JIT_jsonDecode(varName: string): string {
         return varName;
     }
-    jsonStringifyJIT(varName: string): string {
+    JIT_jsonStringify(varName: string): string {
         if (this.src.indexType.kind === ReflectionKind.number) return varName;
         return `JSON.stringify(${varName})`;
     }

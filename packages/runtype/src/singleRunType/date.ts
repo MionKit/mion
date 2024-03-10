@@ -6,33 +6,29 @@
  * ######## */
 
 import {TypeClass} from '../_deepkit/src/reflection/type';
-import {JitJsonEncoder, RunType, RunTypeOptions, RunTypeVisitor} from '../types';
+import {JitJsonEncoder} from '../types';
 import {toLiteral} from '../utils';
 import {mockDate} from '../mock';
+import {BaseRunType} from '../baseRunType';
 
-export class DateRunType implements RunType<TypeClass> {
+export class DateRunType extends BaseRunType<TypeClass> {
     public readonly name = 'date';
     public readonly isJsonEncodeRequired = false;
     public readonly isJsonDecodeRequired = true;
-    constructor(
-        visitor: RunTypeVisitor,
-        public readonly src: TypeClass,
-        public readonly nestLevel: number,
-        public readonly opts: RunTypeOptions
-    ) {}
-    isTypeJIT(varName: string): string {
+
+    JIT_isType(varName: string): string {
         return `${varName} instanceof Date && !isNaN(${varName}.getTime())`;
     }
-    typeErrorsJIT(varName: string, errorsName: string, pathChain: string): string {
-        return `if (!(${this.isTypeJIT(varName)})) ${errorsName}.push({path: ${pathChain}, expected: ${toLiteral(this.name)}})`;
+    JIT_typeErrors(varName: string, errorsName: string, pathChain: string): string {
+        return `if (!(${this.JIT_isType(varName)})) ${errorsName}.push({path: ${pathChain}, expected: ${toLiteral(this.name)}})`;
     }
-    jsonEncodeJIT(varName: string): string {
+    JIT_jsonEncode(varName: string): string {
         return DateJitJsonENcoder.encodeToJson(varName);
     }
-    jsonDecodeJIT(varName: string): string {
+    JIT_jsonDecode(varName: string): string {
         return DateJitJsonENcoder.decodeFromJson(varName);
     }
-    jsonStringifyJIT(varName: string): string {
+    JIT_jsonStringify(varName: string): string {
         return DateJitJsonENcoder.stringify(varName);
     }
     mock(minDate?: Date, maxDate?: Date): Date {

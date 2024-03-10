@@ -1,4 +1,5 @@
 import {TypeParameter} from '../_deepkit/src/reflection/type';
+import {BaseRunType} from '../baseRunType';
 import {RunType, RunTypeOptions, RunTypeVisitor} from '../types';
 import {addToPathChain, skipJsonDecode, skipJsonEncode} from '../utils';
 
@@ -9,7 +10,7 @@ import {addToPathChain, skipJsonDecode, skipJsonEncode} from '../utils';
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-export class ParameterRunType implements RunType<TypeParameter> {
+export class ParameterRunType extends BaseRunType<TypeParameter> {
     public readonly isJsonEncodeRequired: boolean;
     public readonly isJsonDecodeRequired: boolean;
     public readonly memberType: RunType;
@@ -25,6 +26,7 @@ export class ParameterRunType implements RunType<TypeParameter> {
         public readonly nestLevel: number,
         public readonly opts: RunTypeOptions
     ) {
+        super(visitor, src, nestLevel, opts);
         this.memberType = visitor(src.type, nestLevel, opts);
         this.isJsonEncodeRequired = this.memberType.isJsonEncodeRequired;
         this.isJsonDecodeRequired = this.memberType.isJsonDecodeRequired;
@@ -33,33 +35,33 @@ export class ParameterRunType implements RunType<TypeParameter> {
         this.isReadonly = !!src.readonly;
         this.paramName = src.name;
     }
-    isTypeJIT(varName: string): string {
-        if (this.isOptional) return `${varName} === undefined || (${this.memberType.isTypeJIT(varName)})`;
-        return this.memberType.isTypeJIT(varName);
+    JIT_isType(varName: string): string {
+        if (this.isOptional) return `${varName} === undefined || (${this.memberType.JIT_isType(varName)})`;
+        return this.memberType.JIT_isType(varName);
     }
-    typeErrorsJIT(varName: string, errorsName: string, pathChain: string): string {
+    JIT_typeErrors(varName: string, errorsName: string, pathChain: string): string {
         if (this.isOptional)
-            return `if (${varName} !== undefined) {${this.memberType.typeErrorsJIT(
+            return `if (${varName} !== undefined) {${this.memberType.JIT_typeErrors(
                 varName,
                 errorsName,
                 addToPathChain(pathChain, this.paramName)
             )}}`;
-        return this.memberType.typeErrorsJIT(varName, errorsName, addToPathChain(pathChain, this.paramName));
+        return this.memberType.JIT_typeErrors(varName, errorsName, addToPathChain(pathChain, this.paramName));
     }
-    jsonEncodeJIT(varName: string): string {
+    JIT_jsonEncode(varName: string): string {
         if (skipJsonEncode(this)) return varName;
-        return this.memberType.jsonEncodeJIT(varName);
+        return this.memberType.JIT_jsonEncode(varName);
     }
-    jsonStringifyJIT(varName: string, isFirst = false): string {
-        const valCode = this.memberType.jsonStringifyJIT(varName);
+    JIT_jsonStringify(varName: string, isFirst = false): string {
+        const valCode = this.memberType.JIT_jsonStringify(varName);
         if (this.isOptional) {
             return `${isFirst ? '' : '+'}(${varName} === undefined ?'':${isFirst ? '' : `(','+`}${valCode}))`;
         }
         return `${isFirst ? '' : `+','+`}${valCode}`;
     }
-    jsonDecodeJIT(varName: string): string {
+    JIT_jsonDecode(varName: string): string {
         if (skipJsonDecode(this)) return varName;
-        return this.memberType.jsonDecodeJIT(varName);
+        return this.memberType.JIT_jsonDecode(varName);
     }
     mock(...args: any[]): any {
         return this.memberType.mock(...args);
