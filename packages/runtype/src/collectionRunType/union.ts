@@ -31,8 +31,8 @@ export class UnionRunType implements RunType<TypeUnion> {
     ) {
         this.runTypes = src.types.map((t) => visitor(t, nestLevel, opts));
         this.name = `union<${this.runTypes.map((rt) => rt.name).join(' | ')}>`;
-        // TODO: this could be optimized if every runtype would have a jsonType and we could check they do not collide.
-        // but int the other hand the discriminator is more efficient so maybe we should not optimize at all 😹
+        // TODO: this could be optimized if every run type would have a jsonType and we could check they do not collide.
+        // On the other hand the discriminator encode is more efficient so maybe we should not optimize at all 😅
         this.needDiscriminatorIndex = this.runTypes.some((rt) => rt.isJsonEncodeRequired || rt.isJsonDecodeRequired);
         this.isJsonEncodeRequired = this.needDiscriminatorIndex;
         this.isJsonDecodeRequired = this.needDiscriminatorIndex;
