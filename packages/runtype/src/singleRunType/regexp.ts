@@ -15,8 +15,8 @@ export class RegexpRunType implements RunType<TypeRegexp> {
     public readonly isJsonEncodeRequired = true;
     public readonly isJsonDecodeRequired = true;
     constructor(
+        visitor: RunTypeVisitor,
         public readonly src: TypeRegexp,
-        public readonly visitor: RunTypeVisitor,
         public readonly nestLevel: number
     ) {}
     isTypeJIT(varName: string): string {

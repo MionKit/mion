@@ -20,8 +20,8 @@ export class ParameterRunType implements RunType<TypeParameter> {
     public readonly default: any;
 
     constructor(
+        visitor: RunTypeVisitor,
         public readonly src: TypeParameter,
-        public readonly visitor: RunTypeVisitor,
         public readonly nestLevel: number
     ) {
         this.memberType = visitor(src.type, nestLevel);

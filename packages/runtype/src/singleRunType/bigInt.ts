@@ -15,8 +15,8 @@ export class BigIntRunType implements RunType<TypeBigInt> {
     public readonly isJsonEncodeRequired = true;
     public readonly isJsonDecodeRequired = true;
     constructor(
+        visitor: RunTypeVisitor,
         public readonly src: TypeBigInt,
-        public readonly visitor: RunTypeVisitor,
         public readonly nestLevel: number
     ) {}
     isTypeJIT(varName: string): string {

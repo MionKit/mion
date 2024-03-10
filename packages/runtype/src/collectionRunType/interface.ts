@@ -4,7 +4,7 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
-import { TypeObjectLiteral } from '../_deepkit/src/reflection/type';
+import {TypeObjectLiteral} from '../_deepkit/src/reflection/type';
 import {RunType, RunTypeVisitor} from '../types';
 import {toLiteral} from '../utils';
 import {PropertySignatureRunType} from '../singleRunType/property';
@@ -16,8 +16,8 @@ export class InterfaceRunType implements RunType<TypeObjectLiteral> {
     public readonly props: PropertySignatureRunType[];
     public readonly serializableProps: PropertySignatureRunType[];
     constructor(
+        visitor: RunTypeVisitor,
         public readonly src: TypeObjectLiteral,
-        public readonly visitor: RunTypeVisitor,
         public readonly nestLevel: number
     ) {
         this.props = src.types.map((type) => visitor(type, nestLevel) as PropertySignatureRunType);

@@ -9,12 +9,11 @@ import {TypeIntersection} from '../_deepkit/src/reflection/type';
 import {RunType, RunTypeVisitor} from '../types';
 import {PropertySignatureRunType} from '../singleRunType/property';
 
-
 /** IMPORTANT:
  * Intersection are already resolved by deepkit so seems like this runtype wont ever be called
  * ie: type A = {a: string} & {b: number} will be resolved to ObjectLiteral {a: string, b: number}
  * ie: type NeVer = string & number will be resolved to never
- * */ 
+ * */
 export class IntersectionRunType implements RunType<TypeIntersection> {
     public readonly name: string;
     public readonly isJsonEncodeRequired: boolean;
@@ -22,8 +21,8 @@ export class IntersectionRunType implements RunType<TypeIntersection> {
     public readonly props: PropertySignatureRunType[];
     public readonly serializableProps: PropertySignatureRunType[];
     constructor(
+        visitor: RunTypeVisitor,
         public readonly src: TypeIntersection,
-        public readonly visitor: RunTypeVisitor,
         public readonly nestLevel: number
     ) {
         this.props = src.types.map((type) => visitor(type, nestLevel) as PropertySignatureRunType);

@@ -10,11 +10,11 @@ import {FunctionRunType} from './function';
 
 export class CallSignatureRunType extends FunctionRunType<TypeCallSignature> {
     constructor(
+        visitor: RunTypeVisitor,
         public readonly src: TypeCallSignature,
-        public readonly visitor: RunTypeVisitor,
         public readonly nestLevel: number,
         callType = 'call'
     ) {
-        super(src, visitor, nestLevel, callType);
+        super(visitor, src, nestLevel, callType);
     }
 }

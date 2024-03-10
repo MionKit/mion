@@ -1,4 +1,4 @@
-import { TypeIndexSignature } from '../_deepkit/src/reflection/type';
+import {TypeIndexSignature} from '../_deepkit/src/reflection/type';
 import {RunType, RunTypeVisitor} from '../types';
 import {addToPathChain, toLiteral} from '../utils';
 
@@ -15,8 +15,8 @@ export class IndexSignatureRunType implements RunType<TypeIndexSignature> {
     public readonly isJsonDecodeRequired;
     public readonly propertiesRunType: RunType;
     constructor(
+        visitor: RunTypeVisitor,
         public readonly src: TypeIndexSignature,
-        public readonly visitor: RunTypeVisitor,
         public readonly nestLevel: number
     ) {
         this.propertiesRunType = visitor(src.type, nestLevel);

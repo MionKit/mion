@@ -6,7 +6,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {ReflectionKind,  TypeObjectLiteral} from './_deepkit/src/reflection/type';
+import {ReflectionKind, TypeObjectLiteral} from './_deepkit/src/reflection/type';
 import {resolveReceiveType, ReceiveType} from './_deepkit/src/reflection/reflection';
 import {RunType, RunTypeVisitor} from './types';
 import {StringRunType} from './singleRunType/string';
@@ -57,74 +57,74 @@ function visitor(deepkitType, nestLevel: number): RunType {
 
     switch (deepkitType.kind) {
         case ReflectionKind.any:
-            rt = new AnyRunType(deepkitType, visitor, nestLevel);
+            rt = new AnyRunType(visitor, deepkitType, nestLevel);
             break;
         case ReflectionKind.array:
-            rt = new ArrayRunType(deepkitType, visitor, nestLevel);
+            rt = new ArrayRunType(visitor, deepkitType, nestLevel);
             break;
         case ReflectionKind.bigint:
-            rt = new BigIntRunType(deepkitType, visitor, nestLevel);
+            rt = new BigIntRunType(visitor, deepkitType, nestLevel);
             break;
         case ReflectionKind.boolean:
-            rt = new BooleanRunType(deepkitType, visitor, nestLevel);
+            rt = new BooleanRunType(visitor, deepkitType, nestLevel);
             break;
         case ReflectionKind.callSignature:
-            rt = new CallSignatureRunType(deepkitType, visitor, nestLevel);
+            rt = new CallSignatureRunType(visitor, deepkitType, nestLevel);
             break;
         case ReflectionKind.class:
             if (deepkitType.classType === Date) {
-                rt = new DateRunType(deepkitType, visitor, nestLevel);
+                rt = new DateRunType(visitor, deepkitType, nestLevel);
             } else {
                 throw new Error('not implemented');
             }
             break;
         case ReflectionKind.enum:
-            rt = new EnumRunType(deepkitType, visitor, nestLevel);
+            rt = new EnumRunType(visitor, deepkitType, nestLevel);
             break;
         case ReflectionKind.enumMember:
             // enum members are resolved by the enum type, so this is not expected to be called
-            rt = new EnumMemberRunType(deepkitType, visitor, nestLevel);
+            rt = new EnumMemberRunType(visitor, deepkitType, nestLevel);
             break;
         case ReflectionKind.function:
-            rt = new FunctionRunType(deepkitType, visitor, nestLevel);
+            rt = new FunctionRunType(visitor, deepkitType, nestLevel);
             break;
         case ReflectionKind.indexSignature:
-            rt = new IndexSignatureRunType(deepkitType, visitor, nestLevel);
+            rt = new IndexSignatureRunType(visitor, deepkitType, nestLevel);
             break;
         case ReflectionKind.infer:
             throw new Error(
                 'Infer type not supported, ie: type typeBoxType =Type<T> = T extends (...args: any[]) => infer R ? R : any; https://www.typescriptlang.org/docs/handbook/2/conditional-types.html'
             );
         case ReflectionKind.intersection:
-            rt = new IntersectionRunType(deepkitType, visitor, nestLevel);
+            rt = new IntersectionRunType(visitor, deepkitType, nestLevel);
             break;
         case ReflectionKind.literal:
-            rt = new LiteralRunType(deepkitType, visitor, nestLevel);
+            rt = new LiteralRunType(visitor, deepkitType, nestLevel);
             break;
         case ReflectionKind.method:
             throw new Error('not implemented');
             // rType = resolveMethod(deepkitType, opts, mapper);
             break;
         case ReflectionKind.methodSignature:
-            rt = new MethodSignatureRunType(deepkitType, visitor, nestLevel);
+            rt = new MethodSignatureRunType(visitor, deepkitType, nestLevel);
             break;
         case ReflectionKind.null:
-            rt = new NullRunType(deepkitType, visitor, nestLevel);
+            rt = new NullRunType(visitor, deepkitType, nestLevel);
             break;
         case ReflectionKind.number:
-            rt = new NumberRunType(deepkitType, visitor, nestLevel);
+            rt = new NumberRunType(visitor, deepkitType, nestLevel);
             break;
         case ReflectionKind.object:
-            rt = new ObjectRunType(deepkitType, visitor, nestLevel);
+            rt = new ObjectRunType(visitor, deepkitType, nestLevel);
             break;
         case ReflectionKind.objectLiteral:
             const objLiteral = deepkitType as TypeObjectLiteral;
             const originTypeName = objLiteral.originTypes?.[0].typeName;
             const isNativeType = originTypeName && nativeTypeNamesFromObjectLiterals.includes(originTypeName);
             if (isNativeType) {
-                rt = resolveNativeTypeFromObjectLiteral(objLiteral, originTypeName, objLiteral, visitor, nestLevel);
+                rt = resolveNativeTypeFromObjectLiteral(visitor, objLiteral, nestLevel, objLiteral, originTypeName);
             } else {
-                rt = new InterfaceRunType(objLiteral, visitor, nestLevel);
+                rt = new InterfaceRunType(visitor, objLiteral, nestLevel);
             }
             break;
         case ReflectionKind.parameter:
@@ -132,26 +132,26 @@ function visitor(deepkitType, nestLevel: number): RunType {
             // rType = resolveParameter(deepkitType, opts, mapper);
             break;
         case ReflectionKind.promise:
-            rt = new PromiseRunType(deepkitType, visitor, nestLevel);
+            rt = new PromiseRunType(visitor, deepkitType, nestLevel);
             break;
         case ReflectionKind.property:
             // rType = resolveProperty(deepkitType, opts, mapper);
             throw new Error('not implemented');
             break;
         case ReflectionKind.propertySignature:
-            rt = new PropertySignatureRunType(deepkitType, visitor, nestLevel);
+            rt = new PropertySignatureRunType(visitor, deepkitType, nestLevel);
             break;
         case ReflectionKind.regexp:
-            rt = new RegexpRunType(deepkitType, visitor, nestLevel);
+            rt = new RegexpRunType(visitor, deepkitType, nestLevel);
             break;
         case ReflectionKind.rest:
             throw new Error('Typebox does not support rest parameters i.e. function foo(...args: number[]) {}');
             break;
         case ReflectionKind.string:
-            rt = new StringRunType(deepkitType, visitor, nestLevel);
+            rt = new StringRunType(visitor, deepkitType, nestLevel);
             break;
         case ReflectionKind.symbol:
-            rt = new SymbolRunType(deepkitType, visitor, nestLevel);
+            rt = new SymbolRunType(visitor, deepkitType, nestLevel);
             break;
         case ReflectionKind.templateLiteral:
             // deepkit automatically resolves template literals unions to literals
@@ -162,32 +162,32 @@ function visitor(deepkitType, nestLevel: number): RunType {
             );
             break;
         case ReflectionKind.tuple:
-            rt = new TupleRunType(deepkitType, visitor, nestLevel);
+            rt = new TupleRunType(visitor, deepkitType, nestLevel);
             break;
         case ReflectionKind.tupleMember:
-            rt = new TupleMemberRunType(deepkitType, visitor, nestLevel);
+            rt = new TupleMemberRunType(visitor, deepkitType, nestLevel);
             break;
         case ReflectionKind.typeParameter:
             throw new Error('not implemented');
             // rType = resolveTypeParameter(deepkitType, opts, mapper);
             break;
         case ReflectionKind.undefined:
-            rt = new UndefinedRunType(deepkitType, visitor, nestLevel);
+            rt = new UndefinedRunType(visitor, deepkitType, nestLevel);
             break;
         case ReflectionKind.union:
-            rt = new UnionRunType(deepkitType, visitor, nestLevel);
+            rt = new UnionRunType(visitor, deepkitType, nestLevel);
             break;
         case ReflectionKind.unknown:
-            rt = new UnknownRunType(deepkitType, visitor, nestLevel);
+            rt = new UnknownRunType(visitor, deepkitType, nestLevel);
             break;
         case ReflectionKind.void:
-            rt = new VoidRunType(deepkitType, visitor, nestLevel);
+            rt = new VoidRunType(visitor, deepkitType, nestLevel);
             break;
         case ReflectionKind.never:
-            rt = new NeverRunType(deepkitType, visitor, nestLevel);
+            rt = new NeverRunType(visitor, deepkitType, nestLevel);
             break;
         default:
-            rt = new AnyRunType(deepkitType, visitor, nestLevel);
+            rt = new AnyRunType(visitor, deepkitType, nestLevel);
             break;
     }
 
@@ -197,14 +197,14 @@ function visitor(deepkitType, nestLevel: number): RunType {
 const nativeTypeNamesFromObjectLiterals = ['AsyncIterator', 'Iterator'];
 
 function resolveNativeTypeFromObjectLiteral(
-    deepkitType: TypeObjectLiteral,
-    nativeName: string,
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    src: TypeObjectLiteral,
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     visitor: RunTypeVisitor,
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    nestLevel: number
+    src: TypeObjectLiteral,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    nestLevel: number,
+    deepkitType: TypeObjectLiteral,
+    nativeName: string
 ): RunType {
     switch (nativeName) {
         case 'Iterator':

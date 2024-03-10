@@ -15,8 +15,8 @@ export class TupleRunType implements RunType<TypeTuple> {
     public readonly isJsonDecodeRequired: boolean;
     public readonly runTypes: RunType[];
     constructor(
+        visitor: RunTypeVisitor,
         public readonly src: TypeTuple,
-        public readonly visitor: RunTypeVisitor,
         public readonly nestLevel: number
     ) {
         this.runTypes = src.types.map((t) => visitor(t, nestLevel));

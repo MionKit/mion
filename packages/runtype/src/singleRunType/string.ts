@@ -15,8 +15,8 @@ export class StringRunType implements RunType<TypeString> {
     public readonly isJsonEncodeRequired = false;
     public readonly isJsonDecodeRequired = false;
     constructor(
+        visitor: RunTypeVisitor,
         public readonly src: TypeString,
-        public readonly visitor: RunTypeVisitor,
         public readonly nestLevel: number
     ) {}
     isTypeJIT(varName: string): string {

@@ -15,8 +15,8 @@ export class BooleanRunType implements RunType<TypeBoolean> {
     public readonly isJsonEncodeRequired = false;
     public readonly isJsonDecodeRequired = false;
     constructor(
+        visitor: RunTypeVisitor,
         public readonly src: TypeBoolean,
-        public readonly visitor: RunTypeVisitor,
         public readonly nestLevel: number
     ) {}
     isTypeJIT(varName: string): string {

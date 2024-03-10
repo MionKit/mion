@@ -11,10 +11,10 @@ import {AnyRunType} from './any';
 
 export class UnknownRunType extends AnyRunType implements RunType<TypeUnknown> {
     constructor(
+        visitor: RunTypeVisitor,
         public readonly src: TypeUnknown,
-        public readonly visitor: RunTypeVisitor,
         public readonly nestLevel: number
     ) {
-        super(src, visitor, nestLevel, 'unknown');
+        super(visitor, src, nestLevel, 'unknown');
     }
 }
