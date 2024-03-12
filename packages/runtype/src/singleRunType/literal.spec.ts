@@ -90,7 +90,7 @@ it('encode to json', () => {
     expect(toJsonA('a')).toEqual('a');
     expect(toJsonReg(/abc/i)).toEqual('/abc/i');
     expect(toJsonTrue(true)).toEqual(true);
-    expect(toJsonBig(1n)).toEqual('1n');
+    expect(toJsonBig(1n)).toEqual('1');
     expect(toJsonSym(sym)).toEqual('Symbol:hello');
 });
 
@@ -106,7 +106,7 @@ it('decode from json', () => {
     expect(fromJsonA('a')).toEqual('a');
     expect(fromJsonReg('/abc/i')).toEqual(/abc/i);
     expect(fromJsonTrue(true)).toEqual(true);
-    expect(fromJsonBig('1n')).toEqual(1n);
+    expect(fromJsonBig('1')).toEqual(1n);
     expect(fromJsonSym('Symbol:hello').toString()).toEqual(sym.toString());
 });
 
