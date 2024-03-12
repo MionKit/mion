@@ -33,16 +33,16 @@ it('validate bigint + errors', () => {
 
 it('encode to json', () => {
     const toJson = buildJsonEncodeJITFn(rt);
-    expect(toJson(1n)).toEqual('1n');
-    expect(toJson(BigInt(42))).toEqual('42n');
-    expect(toJson(90071992547409999n)).toEqual('90071992547409999n');
+    expect(toJson(1n)).toEqual('1');
+    expect(toJson(BigInt(42))).toEqual('42');
+    expect(toJson(90071992547409999n)).toEqual('90071992547409999');
 });
 
 it('decode from json', () => {
     const fromJson = buildJsonDecodeJITFn(rt);
-    expect(fromJson('1n')).toEqual(1n);
-    expect(fromJson('42n')).toEqual(BigInt(42));
-    expect(fromJson('90071992547409999n')).toEqual(90071992547409999n);
+    expect(fromJson('1')).toEqual(1n);
+    expect(fromJson('42')).toEqual(BigInt(42));
+    expect(fromJson('90071992547409999')).toEqual(90071992547409999n);
 });
 
 it('json stringify', () => {

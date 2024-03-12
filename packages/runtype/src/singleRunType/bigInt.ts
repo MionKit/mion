@@ -38,12 +38,12 @@ export class BigIntRunType extends BaseRunType<TypeBigInt> {
 
 export const BigIntJitJsonENcoder: JitJsonEncoder = {
     decodeFromJson(varName: string): string {
-        return `BigInt(${varName}.substring(0, ${varName}.length - 1))`;
+        return `BigInt(${varName})`;
     },
     encodeToJson(varName: string): string {
-        return `${varName}.toString() + 'n'`;
+        return `${varName}.toString()`;
     },
     stringify(varName: string): string {
-        return `JSON.stringify(${varName}.toString() + 'n')`;
+        return `'"'+${varName}.toString()+'"'`;
     },
 };
