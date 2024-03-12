@@ -16,7 +16,7 @@ import {
 const rt = runType<void>();
 
 it('validate void', () => {
-    const validate = buildIsTypeJITFn(rt);
+    const validate = buildIsTypeJITFn(rt).fn;
     function vd() {}
     expect(validate(undefined)).toBe(true);
     expect(validate(vd())).toBe(true);
@@ -26,7 +26,7 @@ it('validate void', () => {
 });
 
 it('validate void + errors', () => {
-    const valWithErrors = buildTypeErrorsJITFn(rt);
+    const valWithErrors = buildTypeErrorsJITFn(rt).fn;
     expect(valWithErrors(undefined)).toEqual([]);
     expect(valWithErrors(null)).toEqual([{path: '', expected: 'void'}]);
     expect(valWithErrors(42)).toEqual([{path: '', expected: 'void'}]);
@@ -47,6 +47,6 @@ it('json stringify', () => {
 
 it('mock', () => {
     expect(rt.mock()).toBeUndefined();
-    const validate = buildIsTypeJITFn(rt);
+    const validate = buildIsTypeJITFn(rt).fn;
     expect(validate(rt.mock())).toBe(true);
 });

@@ -16,14 +16,14 @@ import {
 const rt = runType<Promise<string>>();
 
 it('validate promise<string>', () => {
-    const validate = buildIsTypeJITFn(rt);
+    const validate = buildIsTypeJITFn(rt).fn;
     const prom = new Promise<string>(() => {});
     expect(validate(prom)).toBe(true);
     expect(validate('hello')).toBe(false);
 });
 
 it('validate promise<string> + errors', () => {
-    const valWithErrors = buildTypeErrorsJITFn(rt);
+    const valWithErrors = buildTypeErrorsJITFn(rt).fn;
     const prom = new Promise<string>(() => {});
     expect(valWithErrors(prom)).toEqual([]);
     expect(valWithErrors('hello')).toEqual([{path: '', expected: 'promise<string>'}]);
@@ -47,7 +47,7 @@ it('mock', async () => {
     expect(mock instanceof Promise).toBe(true);
     expect(typeof result).toBe('string');
 
-    const validate = buildIsTypeJITFn(rt);
+    const validate = buildIsTypeJITFn(rt).fn;
     expect(validate(rt.mock())).toBe(true);
 });
 

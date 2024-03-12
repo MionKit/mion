@@ -8,6 +8,7 @@
 import {Type} from './_deepkit/src/reflection/type';
 
 export type JSONValue = string | number | boolean | null | {[key: string]: JSONValue} | Array<JSONValue>;
+export type JSONString = string;
 
 export type RunTypeVisitor = (deepkitType: Type, nestLevel: number, opts: RunTypeOptions) => RunType;
 
@@ -82,6 +83,12 @@ export interface JitJsonEncoder {
     stringify: (varName: string) => string;
 }
 
+export interface JitFn<Fn extends (args: any[]) => any> {
+    varName: string;
+    code: string;
+    fn: Fn;
+}
+
 export interface RunTypeValidationError {
     /**
      * Path the the property that failed validation if the validated item was an object class, etc..
@@ -93,9 +100,9 @@ export interface RunTypeValidationError {
 }
 
 export interface CompiledFunctions {
-    isType: (vλluε: any) => boolean;
-    typeErrors: (vλluε: any) => RunTypeValidationError[];
-    jsonDecode: (vλluε: JSONValue) => any;
-    jsonEncode: (vλluε: any) => JSONValue;
-    jsonStringify: (vλluε: any) => string;
+    isType: JitFn<(vλluε: any) => boolean>;
+    typeErrors: JitFn<(vλluε: any) => RunTypeValidationError[]>;
+    jsonEncode: JitFn<(vλluε: any) => JSONValue>;
+    jsonDecode: JitFn<(vλluε: JSONValue) => any>;
+    jsonStringify: JitFn<(vλluε: any) => JSONString>;
 }

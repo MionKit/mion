@@ -6,7 +6,6 @@
  * ######## */
 
 import {CompiledFunctions, JSONValue, RunType, RunTypeValidationError} from './types';
-import {toLiteral} from './utils';
 
 export class JITCompiler implements CompiledFunctions {
     public readonly isType: CompiledFunctions['isType'];
@@ -23,40 +22,43 @@ export class JITCompiler implements CompiledFunctions {
     }
 }
 
-export function buildIsTypeJITFn(runType: RunType, varName = 'vλluε'): (vλluε: any) => boolean {
-    const varNameNest = `${varName}${runType.nestLevel}`;
-    const code = runType.JIT_isType(varNameNest);
+export function buildIsTypeJITFn(runType: RunType): CompiledFunctions['isType'] {
+    const varName = `vλluε${runType.nestLevel}`;
+    const code = `return ${runType.JIT_isType(varName)};`;
     // console.log(code);
-    return new Function(varNameNest, `return ${code}`) as (vλluε: any) => boolean;
+    const fn = new Function(varName, code) as (vλluε: any) => boolean;
+    return {varName, code, fn};
 }
 
-export function buildTypeErrorsJITFn(
-    runType: RunType,
-    varName = 'vλluε',
-    errorsName = 'εrrΦrs',
-    rootPath = ''
-): (vλluε: any) => RunTypeValidationError[] {
-    const code = runType.JIT_typeErrors(varName, errorsName, toLiteral(rootPath));
+export function buildTypeErrorsJITFn(runType: RunType): CompiledFunctions['typeErrors'] {
+    const varName = `vλluε${runType.nestLevel}`;
+    const errorsName = `εrrΦrs${runType.nestLevel}`;
+    const code = `const ${errorsName} = []; ${runType.JIT_typeErrors(varName, errorsName, `''`)}; return ${errorsName};`;
     // console.log(code);
-    return new Function(varName, `const ${errorsName} = []; ${code}; return ${errorsName};`) as (
-        vλluε: any
-    ) => RunTypeValidationError[];
+    const fn = new Function(varName, code) as (vλluε: any) => RunTypeValidationError[];
+    return {varName, code, fn};
 }
 
-export function buildJsonEncodeJITFn(runType: RunType, varName = 'vλluε'): (vλluε: any) => JSONValue {
-    const code = runType.JIT_jsonEncode(varName);
+export function buildJsonEncodeJITFn(runType: RunType): CompiledFunctions['jsonEncode'] {
+    const varName = `vλluε${runType.nestLevel}`;
+    const code = `return ${runType.JIT_jsonEncode(varName)};`;
     // console.log(code);
-    return new Function(varName, `return ${code};`) as (vλluε: any) => JSONValue;
+    const fn = new Function(varName, code) as (vλluε: any) => JSONValue;
+    return {varName, code, fn};
 }
 
-export function buildJsonDecodeJITFn(runType: RunType, varName = 'vλluε'): (vλluε: JSONValue) => any {
-    const code = runType.JIT_jsonDecode(varName);
+export function buildJsonDecodeJITFn(runType: RunType): CompiledFunctions['jsonDecode'] {
+    const varName = `vλluε${runType.nestLevel}`;
+    const code = `return ${runType.JIT_jsonDecode(varName)};`;
     // console.log(code);
-    return new Function(varName, `return ${code};`) as (vλluε: JSONValue) => any;
+    const fn = new Function(varName, code) as (vλluε: JSONValue) => any;
+    return {varName, code, fn};
 }
 
-export function buildJsonStringifyJITFn(runType: RunType, varName = 'vλluε'): (vλluε: any) => string {
-    const code = runType.JIT_jsonStringify(varName);
+export function buildJsonStringifyJITFn(runType: RunType): CompiledFunctions['jsonStringify'] {
+    const varName = `vλluε${runType.nestLevel}`;
+    const code = `return ${runType.JIT_jsonStringify(varName)};`;
     // console.log(code);
-    return new Function(varName, `return ${code};`) as (vλluε: any) => string;
+    const fn = new Function(varName, code) as (vλluε: any) => string;
+    return {varName, code, fn};
 }

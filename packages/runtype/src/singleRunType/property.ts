@@ -19,7 +19,7 @@ export class PropertySignatureRunType extends BaseRunType<TypePropertySignature>
     public readonly isOptional: boolean;
     public readonly isReadonly: boolean;
     public readonly propName: string | number;
-    public readonly propRef: string;
+    public readonly safeAccessor: string;
     public readonly isSafePropName: boolean;
     public readonly skipSerialize: boolean;
     constructor(
@@ -40,7 +40,7 @@ export class PropertySignatureRunType extends BaseRunType<TypePropertySignature>
             // either symbol is not present or should be ignored using this.opts?.strictJSON
             this.isJsonDecodeRequired = false;
             this.propName = src.name.toString();
-            this.propRef = ``;
+            this.safeAccessor = ``;
             this.isSafePropName = true;
         } else {
             this.skipSerialize = shouldSkipPropertySerialization(src.kind);
@@ -51,12 +51,12 @@ export class PropertySignatureRunType extends BaseRunType<TypePropertySignature>
             this.isSafePropName =
                 (typeof src.name === 'string' && validPropertyNameRegExp.test(src.name)) || typeof src.name === 'number';
             this.propName = src.name;
-            this.propRef = this.isSafePropName ? `.${src.name}` : `[${toLiteral(src.name)}]`;
+            this.safeAccessor = this.isSafePropName ? `.${src.name}` : `[${toLiteral(src.name)}]`;
         }
     }
     JIT_isType(varName: string): string {
         if (this.skipSerialize) return '';
-        const accessor = `${varName}${this.propRef}`;
+        const accessor = `${varName}${this.safeAccessor}`;
         if (this.isOptional) {
             return `${accessor} === undefined || (${this.memberType.JIT_isType(accessor)})`;
         }
@@ -64,7 +64,7 @@ export class PropertySignatureRunType extends BaseRunType<TypePropertySignature>
     }
     JIT_typeErrors(varName: string, errorsName: string, pathChain: string): string {
         if (this.skipSerialize) return '';
-        const accessor = `${varName}${this.propRef}`;
+        const accessor = `${varName}${this.safeAccessor}`;
         if (this.isOptional) {
             return `if (${accessor} !== undefined) {${this.memberType.JIT_typeErrors(
                 accessor,
@@ -77,7 +77,7 @@ export class PropertySignatureRunType extends BaseRunType<TypePropertySignature>
     JIT_jsonEncode(varName: string): string {
         if (this.skipSerialize) return '';
         const jsName = this.isSafePropName ? this.propName : toLiteral(this.propName);
-        const accessor = `${varName}${this.propRef}`;
+        const accessor = `${varName}${this.safeAccessor}`;
         const useNative = skipJsonEncode(this);
         const valCode = useNative ? accessor : this.memberType.JIT_jsonEncode(accessor);
         if (this.isOptional) {
@@ -88,7 +88,7 @@ export class PropertySignatureRunType extends BaseRunType<TypePropertySignature>
     JIT_jsonDecode(varName: string): string {
         if (this.skipSerialize) return '';
         const jsName = this.isSafePropName ? this.propName : toLiteral(this.propName);
-        const accessor = `${varName}${this.propRef}`;
+        const accessor = `${varName}${this.safeAccessor}`;
         const useNative = skipJsonDecode(this);
         const valCode = useNative ? accessor : this.memberType.JIT_jsonDecode(accessor);
         if (this.isOptional) {
@@ -100,7 +100,7 @@ export class PropertySignatureRunType extends BaseRunType<TypePropertySignature>
         if (this.skipSerialize) return '';
         // firs stringify sanitizes string, second is the actual json
         const proNameJSon = JSON.stringify(JSON.stringify(this.propName));
-        const accessor = `${varName}${this.propRef}`;
+        const accessor = `${varName}${this.safeAccessor}`;
         const valCode = this.memberType.JIT_jsonStringify(accessor);
         if (this.isOptional) {
             return `${isFirst ? '' : '+'}(${accessor} === undefined ?'':${isFirst ? '' : `(','+`}${proNameJSon}+':'+${valCode}))`;

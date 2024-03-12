@@ -4,7 +4,7 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
-import {TypeCallSignature, TypeFunction, TypeMethodSignature} from '../_deepkit/src/reflection/type';
+import {ReflectionKind, TypeCallSignature, TypeFunction, TypeMethodSignature} from '../_deepkit/src/reflection/type';
 import {BaseRunType} from '../baseRunType';
 import {RunType, RunTypeOptions, RunTypeVisitor} from '../types';
 
@@ -13,10 +13,9 @@ export interface FnRunTypeOptions extends RunTypeOptions {
     slice?: {start?: number; end?: number};
 }
 
-export class FunctionRunType<CallType extends TypeMethodSignature | TypeCallSignature | TypeFunction> extends BaseRunType<
-    CallType,
-    FnRunTypeOptions
-> {
+export class FunctionRunType<
+    CallType extends TypeMethodSignature | TypeCallSignature | TypeFunction = TypeFunction,
+> extends BaseRunType<CallType, FnRunTypeOptions> {
     public readonly isJsonEncodeRequired = true; // triggers custom json encode so functions get skipped
     public readonly isJsonDecodeRequired = true; // triggers custom json encode so functions get skipped
     public readonly shouldEncodeReturnJson: boolean;
@@ -63,6 +62,9 @@ export class FunctionRunType<CallType extends TypeMethodSignature | TypeCallSign
     mock(): string {
         return ''; // functions are ignored when generating mock code
     }
+
+    // ####### params #######
+
     paramsIsTypeJIT(varName: string): string {
         return this.parameterTypes.map((p, i) => `(${p.JIT_isType(`${varName}[${i}]`)})`).join(' && ');
     }
@@ -88,6 +90,9 @@ export class FunctionRunType<CallType extends TypeMethodSignature | TypeCallSign
         const mockCodes = this.parameterTypes.map((rt, i) => `${rt.mock(`${arrayName}[${i}]`)};`).join('');
         return `const ${arrayName} = []; ${mockCodes} ${varName} = ${arrayName}[Math.floor(Math.random() * ${arrayName}.length)]`;
     }
+
+    // ####### return #######
+
     returnIsTypeJIT(varName: string): string {
         return this.returnType.JIT_isType(varName);
     }
@@ -107,5 +112,21 @@ export class FunctionRunType<CallType extends TypeMethodSignature | TypeCallSign
     }
     returnMockJIT(varName: string): string {
         return this.returnType.mock(varName);
+    }
+
+    hasRerun(): boolean {
+        return (
+            this.returnType.src.kind !== ReflectionKind.void &&
+            this.returnType.src.kind !== ReflectionKind.never &&
+            this.returnType.src.kind !== ReflectionKind.undefined
+        );
+    }
+
+    isAsync(): boolean {
+        return (
+            this.returnType.src.kind === ReflectionKind.promise ||
+            this.returnType.src.kind === ReflectionKind.any ||
+            this.returnType.src.kind === ReflectionKind.unknown
+        );
     }
 }
