@@ -43,7 +43,7 @@ const rtSkip = runType<objectSkipProps>();
 const rtIndexed = runType<objectIndexedProps>();
 
 it('validate object', () => {
-    const validate = buildIsTypeJITFn(rt);
+    const validate = buildIsTypeJITFn(rt).fn;
     expect(
         validate({
             date: new Date(),
@@ -82,7 +82,7 @@ it('validate object', () => {
 });
 
 it('validate object + errors', () => {
-    const valWithErrors = buildTypeErrorsJITFn(rt);
+    const valWithErrors = buildTypeErrorsJITFn(rt).fn;
     expect(
         valWithErrors({
             date: new Date(),
@@ -121,8 +121,8 @@ it('validate object + errors', () => {
 });
 
 it('encode/decode to json', () => {
-    const toJson = buildJsonEncodeJITFn(rt);
-    const fromJson = buildJsonDecodeJITFn(rt);
+    const toJson = buildJsonEncodeJITFn(rt).fn;
+    const fromJson = buildJsonDecodeJITFn(rt).fn;
     const typeValue = {
         date: new Date(),
         number: 123,
@@ -138,8 +138,8 @@ it('encode/decode to json', () => {
 });
 
 it('skip props when encode/decode to json', () => {
-    const toJson = buildJsonEncodeJITFn(rtSkip);
-    const fromJson = buildJsonDecodeJITFn(rtSkip);
+    const toJson = buildJsonEncodeJITFn(rtSkip).fn;
+    const fromJson = buildJsonDecodeJITFn(rtSkip).fn;
     const typeValue = {
         name: 'hello',
         methodProp: () => 'hello',
@@ -149,8 +149,8 @@ it('skip props when encode/decode to json', () => {
 });
 
 it('json stringify', () => {
-    const jsonStringify = buildJsonStringifyJITFn(rt);
-    const fromJson = buildJsonDecodeJITFn(rt);
+    const jsonStringify = buildJsonStringifyJITFn(rt).fn;
+    const fromJson = buildJsonDecodeJITFn(rt).fn;
     const typeValue = {
         date: new Date(),
         number: 123,
@@ -187,6 +187,6 @@ it('mock', () => {
     expect(mocked).toHaveProperty('stringArray');
     expect(mocked).toHaveProperty('bigInt');
     expect(mocked).toHaveProperty("weird prop name \n?>'\\\t\r");
-    const validate = buildIsTypeJITFn(rt);
+    const validate = buildIsTypeJITFn(rt).fn;
     expect(validate(rt.mock())).toBe(true);
 });

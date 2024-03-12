@@ -18,7 +18,7 @@ type UnionType = Date | number | string | null | string[];
 const rt = runType<UnionType>();
 
 it('validate union', () => {
-    const validate = buildIsTypeJITFn(rt);
+    const validate = buildIsTypeJITFn(rt).fn;
     expect(validate(new Date())).toBe(true);
     expect(validate(123)).toBe(true);
     expect(validate('hello')).toBe(true);
@@ -29,7 +29,7 @@ it('validate union', () => {
 });
 
 it('validate union + errors', () => {
-    const valWithErrors = buildTypeErrorsJITFn(rt);
+    const valWithErrors = buildTypeErrorsJITFn(rt).fn;
     expect(valWithErrors(new Date())).toEqual([]);
     expect(valWithErrors(123)).toEqual([]);
     expect(valWithErrors('hello')).toEqual([]);
@@ -40,8 +40,8 @@ it('validate union + errors', () => {
 });
 
 it('encode/decode to json', () => {
-    const toJson = buildJsonEncodeJITFn(rt);
-    const fromJson = buildJsonDecodeJITFn(rt);
+    const toJson = buildJsonEncodeJITFn(rt).fn;
+    const fromJson = buildJsonDecodeJITFn(rt).fn;
     const typeValue = new Date();
     expect(rt.isJsonDecodeRequired).toBe(true);
     expect(rt.isJsonEncodeRequired).toBe(true);
@@ -59,8 +59,8 @@ it('encode/decode to json', () => {
 it('no encode/decode require to json', () => {
     type UnionType = string | string[];
     const rtu = runType<UnionType>();
-    const toJson = buildJsonEncodeJITFn(rtu);
-    const fromJson = buildJsonDecodeJITFn(rtu);
+    const toJson = buildJsonEncodeJITFn(rtu).fn;
+    const fromJson = buildJsonDecodeJITFn(rtu).fn;
     expect(rtu.isJsonDecodeRequired).toBe(false);
     expect(rtu.isJsonEncodeRequired).toBe(false);
     const typeValue = 'hello';
@@ -74,8 +74,8 @@ it('no encode/decode require to json', () => {
 
 it('json stringify with discriminator', () => {
     // this should be serialized as [discriminatorIndex, value]
-    const jsonStringify = buildJsonStringifyJITFn(rt);
-    const fromJson = buildJsonDecodeJITFn(rt);
+    const jsonStringify = buildJsonStringifyJITFn(rt).fn;
+    const fromJson = buildJsonDecodeJITFn(rt).fn;
     const typeValue = 'hello';
     const roundTrip = fromJson(JSON.parse(jsonStringify(typeValue)));
     expect(roundTrip).toEqual(typeValue);
@@ -89,8 +89,8 @@ it('json stringify', () => {
     // this should be serialized directly as value instead [discriminatorIndex, value]
     type UT = string | string[];
     const rtU = runType<UT>();
-    const jsonStringify = buildJsonStringifyJITFn(rtU);
-    const fromJson = buildJsonDecodeJITFn(rtU);
+    const jsonStringify = buildJsonStringifyJITFn(rtU).fn;
+    const fromJson = buildJsonDecodeJITFn(rtU).fn;
     const typeValue = 'hello';
     const roundTrip = fromJson(JSON.parse(jsonStringify(typeValue)));
     expect(roundTrip).toEqual(typeValue);
@@ -103,9 +103,9 @@ it('json stringify', () => {
 it('throw errors whe serializing deserializing object not belonging to the union', () => {
     type UT = string | string[];
     const rtU = runType<UT>();
-    const jsonStringify = buildJsonStringifyJITFn(rtU);
-    const fromJson = buildJsonDecodeJITFn(rtU);
-    const toJson = buildJsonEncodeJITFn(rtU);
+    const jsonStringify = buildJsonStringifyJITFn(rtU).fn;
+    const fromJson = buildJsonDecodeJITFn(rtU).fn;
+    const toJson = buildJsonEncodeJITFn(rtU).fn;
     const typeValue = new Date();
 
     expect(() => jsonStringify(typeValue)).toThrow(
@@ -124,6 +124,6 @@ it('mock', () => {
             mocked === null ||
             Array.isArray(mocked)
     ).toBe(true);
-    const validate = buildIsTypeJITFn(rt);
+    const validate = buildIsTypeJITFn(rt).fn;
     expect(validate(rt.mock())).toBe(true);
 });

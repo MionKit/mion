@@ -22,7 +22,7 @@ enum Color {
 const rt = runType<Color>();
 
 it('validate enum', () => {
-    const validate = buildIsTypeJITFn(rt);
+    const validate = buildIsTypeJITFn(rt).fn;
     expect(validate(Color.Red)).toBe(true);
     expect(validate(Color.Green)).toBe(true);
     expect(validate(Color.Blue)).toBe(true);
@@ -35,7 +35,7 @@ it('validate enum', () => {
 });
 
 it('validate enum + errors', () => {
-    const valWithErrors = buildTypeErrorsJITFn(rt);
+    const valWithErrors = buildTypeErrorsJITFn(rt).fn;
     expect(valWithErrors(Color.Red)).toEqual([]);
     expect(valWithErrors(Color.Green)).toEqual([]);
     expect(valWithErrors(Color.Blue)).toEqual([]);
@@ -48,15 +48,15 @@ it('validate enum + errors', () => {
 });
 
 it('encode/decode to json', () => {
-    const toJson = buildJsonEncodeJITFn(rt);
-    const fromJson = buildJsonDecodeJITFn(rt);
+    const toJson = buildJsonEncodeJITFn(rt).fn;
+    const fromJson = buildJsonDecodeJITFn(rt).fn;
     const typeValue = Color.Red;
     expect(fromJson(toJson(typeValue))).toEqual(typeValue);
 });
 
 it('json stringify', () => {
-    const jsonStringify = buildJsonStringifyJITFn(rt);
-    const fromJson = buildJsonDecodeJITFn(rt);
+    const jsonStringify = buildJsonStringifyJITFn(rt).fn;
+    const fromJson = buildJsonDecodeJITFn(rt).fn;
     const typeValue = Color.Red;
     const roundTrip = fromJson(JSON.parse(jsonStringify(typeValue)));
     expect(roundTrip).toEqual(typeValue);
@@ -69,6 +69,6 @@ it('json stringify', () => {
 it('mock', () => {
     const mocked = rt.mock();
     expect(mocked === 0 || mocked === 'green' || mocked === 2).toBe(true);
-    const validate = buildIsTypeJITFn(rt);
+    const validate = buildIsTypeJITFn(rt).fn;
     expect(validate(rt.mock())).toBe(true);
 });

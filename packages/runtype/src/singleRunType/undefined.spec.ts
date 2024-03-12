@@ -16,7 +16,7 @@ import {
 const rt = runType<undefined>();
 
 it('validate undefined', () => {
-    const validate = buildIsTypeJITFn(rt);
+    const validate = buildIsTypeJITFn(rt).fn;
     expect(validate(undefined)).toBe(true);
     expect(validate(null)).toBe(false);
     expect(validate(42)).toBe(false);
@@ -24,7 +24,7 @@ it('validate undefined', () => {
 });
 
 it('validate undefined + errors', () => {
-    const valWithErrors = buildTypeErrorsJITFn(rt);
+    const valWithErrors = buildTypeErrorsJITFn(rt).fn;
     expect(valWithErrors(undefined)).toEqual([]);
     expect(valWithErrors(null)).toEqual([{path: '', expected: 'undefined'}]);
     expect(valWithErrors(42)).toEqual([{path: '', expected: 'undefined'}]);
@@ -32,20 +32,20 @@ it('validate undefined + errors', () => {
 });
 
 it('encode to json', () => {
-    const toJson = buildJsonEncodeJITFn(rt);
+    const toJson = buildJsonEncodeJITFn(rt).fn;
     const typeValue = undefined;
     expect(toJson(typeValue)).toEqual(null);
 });
 
 it('decode from json', () => {
-    const fromJson = buildJsonDecodeJITFn(rt);
+    const fromJson = buildJsonDecodeJITFn(rt).fn;
     const typeValue = null;
     expect(fromJson(typeValue)).toEqual(undefined);
 });
 
 it('json stringify', () => {
-    const jsonStringify = buildJsonStringifyJITFn(rt);
-    const fromJson = buildJsonDecodeJITFn(rt);
+    const jsonStringify = buildJsonStringifyJITFn(rt).fn;
+    const fromJson = buildJsonDecodeJITFn(rt).fn;
     const typeValue = undefined;
     const roundTrip = fromJson(JSON.parse(jsonStringify(typeValue)));
     expect(roundTrip).toEqual(typeValue);
@@ -53,6 +53,6 @@ it('json stringify', () => {
 
 it('mock', () => {
     expect(rt.mock()).toBeUndefined();
-    const validate = buildIsTypeJITFn(rt);
+    const validate = buildIsTypeJITFn(rt).fn;
     expect(validate(rt.mock())).toBe(true);
 });

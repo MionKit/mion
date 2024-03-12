@@ -18,7 +18,7 @@ type TupleType = [Date, number, string, null, string[], bigint];
 const rt = runType<TupleType>();
 
 it('validate tuple', () => {
-    const validate = buildIsTypeJITFn(rt);
+    const validate = buildIsTypeJITFn(rt).fn;
     expect(validate([new Date(), 123, 'hello', null, ['a', 'b', 'c'], BigInt(123)])).toBe(true);
     expect(validate([new Date(), 123, 'hello', null, [], BigInt(123)])).toBe(true);
     expect(validate([new Date(), 123, 'hello', null, ['a', 'b', 'c']])).toBe(false);
@@ -32,7 +32,7 @@ it('validate tuple', () => {
 });
 
 it('validate tuple + errors', () => {
-    const valWithErrors = buildTypeErrorsJITFn(rt);
+    const valWithErrors = buildTypeErrorsJITFn(rt).fn;
     expect(valWithErrors([new Date(), 123, 'hello', null, ['a', 'b', 'c'], BigInt(123)])).toEqual([]);
     expect(valWithErrors([new Date(), 123, 'hello', null, [], BigInt(123)])).toEqual([]);
     expect(valWithErrors([new Date(), 123, 'hello', null])).toEqual([
@@ -69,8 +69,8 @@ it('validate tuple + errors', () => {
 });
 
 it('encode/decode to json', () => {
-    const toJson = buildJsonEncodeJITFn(rt);
-    const fromJson = buildJsonDecodeJITFn(rt);
+    const toJson = buildJsonEncodeJITFn(rt).fn;
+    const fromJson = buildJsonDecodeJITFn(rt).fn;
     const typeValue = [new Date(), 123, 'hello', null, ['a', 'b', 'c'], BigInt(123)];
     expect(rt.isJsonDecodeRequired).toBe(true);
     expect(rt.isJsonEncodeRequired).toBe(true);
@@ -78,8 +78,8 @@ it('encode/decode to json', () => {
 });
 
 it('json stringify', () => {
-    const jsonStringify = buildJsonStringifyJITFn(rt);
-    const fromJson = buildJsonDecodeJITFn(rt);
+    const jsonStringify = buildJsonStringifyJITFn(rt).fn;
+    const fromJson = buildJsonDecodeJITFn(rt).fn;
     const typeValue = [new Date(), 123, 'hello', null, ['a', 'b', 'c'], BigInt(123)];
     const roundTrip = fromJson(JSON.parse(jsonStringify(typeValue)));
     expect(roundTrip).toEqual(typeValue);
@@ -94,6 +94,6 @@ it('mock', () => {
     expect(mocked[3]).toBeNull();
     expect(Array.isArray(mocked[4])).toBe(true);
     expect(typeof mocked[5]).toBe('bigint');
-    const validate = buildIsTypeJITFn(rt);
+    const validate = buildIsTypeJITFn(rt).fn;
     expect(validate(rt.mock())).toBe(true);
 });

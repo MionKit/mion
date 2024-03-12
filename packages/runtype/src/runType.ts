@@ -46,9 +46,9 @@ export function runType<T>(opts: FnRunTypeOptions = {}, type?: ReceiveType<T>): 
     return visitor(type, -1, opts);
 }
 
-export function reflectFunction<Fn extends (...args: any[]) => any>(fn: Fn, opts: FnRunTypeOptions = {}): RunType {
+export function reflectFunction<Fn extends (...args: any[]) => any>(fn: Fn, opts: FnRunTypeOptions = {}): FunctionRunType {
     const type = reflect(fn);
-    return visitor(type, -1, opts);
+    return visitor(type, -1, opts) as FunctionRunType;
 }
 
 function visitor(deepkitType, nestLevel: number, opts: RunTypeOptions): RunType {
