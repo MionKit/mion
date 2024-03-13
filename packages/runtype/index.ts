@@ -25,7 +25,7 @@ export * from './src/singleRunType/never';
 export * from './src/singleRunType/null';
 export * from './src/singleRunType/number';
 export * from './src/singleRunType/object';
-export * from './src/singleRunType/param';
+export * from './src/functionRunType/param';
 export * from './src/singleRunType/string';
 export * from './src/singleRunType/undefined';
 export * from './src/singleRunType/unknown';
@@ -43,5 +43,5 @@ export * from './src/collectionRunType/union';
 export * from './src/collectionRunType/tuple';
 
 export * from './src/functionRunType/call';
-export * from './src/functionRunType/method';
+export * from './src/functionRunType/methodSignature';
 export * from './src/functionRunType/function';

@@ -106,3 +106,11 @@ export interface CompiledFunctions {
     jsonDecode: JitFn<(vλluε: JSONValue) => any>;
     jsonStringify: JitFn<(vλluε: any) => JSONString>;
 }
+
+export interface JitFunctions {
+    isType: (varName: string) => string;
+    typeErrors: (varName: string, errorsName: string, pathChain: string) => string;
+    jsonEncode: (varName: string) => string;
+    jsonDecode: (varName: string) => string;
+    jsonStringify: (varName: string) => string;
+}
