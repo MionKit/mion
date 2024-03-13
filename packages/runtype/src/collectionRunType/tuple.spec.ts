@@ -29,6 +29,8 @@ it('validate tuple', () => {
     expect(validate([])).toBe(false);
     expect(validate({})).toBe(false);
     expect(validate('hello')).toBe(false);
+    // extra elements in the tuple
+    expect(validate([new Date(), 123, 'hello', null, ['a', 'b', 'c'], BigInt(123), 34])).toBe(false);
 });
 
 it('validate tuple + errors', () => {
@@ -66,6 +68,10 @@ it('validate tuple + errors', () => {
         {path: '/5', expected: 'bigint'},
     ]);
     expect(valWithErrors({})).toEqual([{path: '', expected: 'tuple<date, number, string, null, array<string>, bigint>'}]);
+    // extra elements in the tuple
+    expect(valWithErrors([new Date(), 123, 'hello', null, ['a', 'b', 'c'], BigInt(123), 34])).toEqual([
+        {path: '', expected: 'tuple<date, number, string, null, array<string>, bigint>'},
+    ]);
 });
 
 it('encode/decode to json', () => {

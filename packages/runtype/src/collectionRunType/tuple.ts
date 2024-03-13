@@ -28,14 +28,15 @@ export class TupleRunType extends BaseRunType<TypeTuple> {
         this.isJsonDecodeRequired = this.runTypes.some((rt) => rt.isJsonDecodeRequired);
     }
     JIT_isType(varName: string): string {
-        return this.runTypes.map((rt, i) => `(${rt.JIT_isType(`${varName}[${i}]`)})`).join(' && ');
+        const itemsCode = this.runTypes.map((rt, i) => `(${rt.JIT_isType(`${varName}[${i}]`)})`).join(' && ');
+        return `${varName}.length <= ${this.runTypes.length} && ${itemsCode}`;
     }
     JIT_typeErrors(varName: string, errorsName: string, pathChain: string): string {
         const itemsCode = this.runTypes
             .map((rt, i) => rt.JIT_typeErrors(`${varName}[${i}]`, errorsName, addToPathChain(pathChain, i)))
             .join(';');
         return (
-            `if (!Array.isArray(${varName})) ${errorsName}.push({path: ${pathChain}, expected: ${toLiteral(this.name)}});` +
+            `if (!Array.isArray(${varName}) || ${varName}.length > ${this.runTypes.length}) ${errorsName}.push({path: ${pathChain}, expected: ${toLiteral(this.name)}});` +
             `else {${itemsCode}}`
         );
     }
