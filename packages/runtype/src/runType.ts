@@ -32,12 +32,14 @@ import {TupleMemberRunType} from './singleRunType/tupleMember';
 import {InterfaceRunType} from './collectionRunType/interface';
 import {PropertySignatureRunType} from './singleRunType/property';
 import {IndexSignatureRunType} from './collectionRunType';
-import {MethodSignatureRunType} from './functionRunType/method';
+import {MethodSignatureRunType} from './functionRunType/methodSignature';
 import {CallSignatureRunType} from './functionRunType/call';
 import {FnRunTypeOptions, FunctionRunType} from './functionRunType/function';
 import {PromiseRunType} from './singleRunType/promise';
 import {ObjectRunType} from './singleRunType/object';
 import {IntersectionRunType} from './collectionRunType/intersection';
+import {ParameterRunType} from './functionRunType/param';
+import {MethodRunType} from './functionRunType/method';
 
 const MaxNestLevel = 100;
 
@@ -105,8 +107,7 @@ function visitor(deepkitType, nestLevel: number, opts: RunTypeOptions): RunType 
             rt = new LiteralRunType(visitor, deepkitType, nestLevel, opts);
             break;
         case ReflectionKind.method:
-            throw new Error('not implemented');
-            // rType = resolveMethod(deepkitType, opts, mapper);
+            rt = new MethodRunType(visitor, deepkitType, nestLevel, opts);
             break;
         case ReflectionKind.methodSignature:
             rt = new MethodSignatureRunType(visitor, deepkitType, nestLevel, opts);
@@ -131,13 +132,13 @@ function visitor(deepkitType, nestLevel: number, opts: RunTypeOptions): RunType 
             }
             break;
         case ReflectionKind.parameter:
-            throw new Error('not implemented');
-            // rType = resolveParameter(deepkitType, opts, mapper);
+            rt = new ParameterRunType(visitor, deepkitType, nestLevel, opts);
             break;
         case ReflectionKind.promise:
             rt = new PromiseRunType(visitor, deepkitType, nestLevel, opts);
             break;
         case ReflectionKind.property:
+            // a property is a member of a class, instead a propertySignature is a member of an object/interface
             // rType = resolveProperty(deepkitType, opts, mapper);
             throw new Error('not implemented');
             break;

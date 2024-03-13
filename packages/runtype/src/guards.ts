@@ -31,12 +31,12 @@ import {TupleMemberRunType} from './singleRunType/tupleMember';
 import {InterfaceRunType} from './collectionRunType/interface';
 import {PropertySignatureRunType} from './singleRunType/property';
 import {IndexSignatureRunType} from './collectionRunType';
-import {MethodSignatureRunType} from './functionRunType/method';
+import {MethodSignatureRunType} from './functionRunType/methodSignature';
 import {CallSignatureRunType} from './functionRunType/call';
 import {FunctionRunType} from './functionRunType/function';
-import {ParameterRunType} from './singleRunType/param';
+import {ParameterRunType} from './functionRunType/param';
 import {PromiseRunType} from './singleRunType/promise';
-import { ObjectRunType } from './singleRunType/object';
+import {ObjectRunType} from './singleRunType/object';
 
 export function isAnyRunType(rt: RunType | Type): rt is AnyRunType {
     const kind: ReflectionKind = (rt as Type).kind || (rt as RunType).src.kind;

@@ -30,10 +30,10 @@ export class ParameterRunType extends BaseRunType<TypeParameter> {
         this.memberType = visitor(src.type, nestLevel, opts);
         this.isJsonEncodeRequired = this.memberType.isJsonEncodeRequired;
         this.isJsonDecodeRequired = this.memberType.isJsonDecodeRequired;
-        this.name = this.memberType.name;
         this.isOptional = !!src.optional;
         this.isReadonly = !!src.readonly;
         this.paramName = src.name;
+        this.name = `${src.name}${this.isOptional ? '?' : ''}:${this.memberType.name}`;
     }
     JIT_isType(varName: string): string {
         if (this.isOptional) return `${varName} === undefined || (${this.memberType.JIT_isType(varName)})`;
