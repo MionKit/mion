@@ -15,8 +15,10 @@ import {
 import {FunctionRunType} from './function';
 
 type FunctionType = (a: number, b: boolean, c?: string) => Date;
+type FunctionType2 = (a: Date, b?: boolean) => bigint; // requires encode/decode
 
 const rt = runType<FunctionType>() as FunctionRunType;
+const rt2 = runType<FunctionType2>() as FunctionRunType;
 
 it('return empty strings when calling regular jit functions', () => {
     expect(() => buildIsTypeJITFn(rt)).toThrow(
@@ -77,11 +79,35 @@ it('encode/decode to json parameters', () => {
     expect(fromJson(toJson(typeValue2))).toEqual(typeValue2);
 });
 
+it('required encode/decode to json parameters', () => {
+    const toJson = rt2.compiledParams.jsonEncode.fn;
+    const fromJson = rt2.compiledParams.jsonDecode.fn;
+    const d = new Date();
+    const typeValue = [d, true];
+    const typeValue2 = [d];
+    expect(rt2.isParamsJsonEncodedRequired).toBe(false);
+    expect(rt2.isParamsJsonDecodedRequired).toBe(true);
+    expect(fromJson(toJson(typeValue))).toEqual(typeValue);
+    expect(fromJson(toJson(typeValue2))).toEqual(typeValue2);
+});
+
 it('json stringify parameters', () => {
     const jsonStringify = rt.compiledParams.jsonStringify.fn;
     const fromJson = rt.compiledParams.jsonDecode.fn;
     const typeValue = [3, true, 'hello'];
     const typeValue2 = [3, true];
+    const roundTrip = fromJson(JSON.parse(jsonStringify(typeValue)));
+    const roundTrip2 = fromJson(JSON.parse(jsonStringify(typeValue2)));
+    expect(roundTrip).toEqual(typeValue);
+    expect(roundTrip2).toEqual(typeValue2);
+});
+
+it('json stringify required parameters', () => {
+    const jsonStringify = rt2.compiledParams.jsonStringify.fn;
+    const fromJson = rt2.compiledParams.jsonDecode.fn;
+    const d = new Date();
+    const typeValue = [d, true];
+    const typeValue2 = [d];
     const roundTrip = fromJson(JSON.parse(jsonStringify(typeValue)));
     const roundTrip2 = fromJson(JSON.parse(jsonStringify(typeValue2)));
     expect(roundTrip).toEqual(typeValue);
@@ -117,10 +143,27 @@ it('encode/decode function return to json', () => {
     expect(fromJson(toJson(returnValue))).toEqual(returnValue);
 });
 
+it('required encode/decode function return to json', () => {
+    const toJson = rt2.compiledReturn.jsonEncode.fn;
+    const fromJson = rt2.compiledReturn.jsonDecode.fn;
+    const returnValue = 1n;
+    expect(rt.isReturnJsonEncodedRequired).toBe(false);
+    expect(rt.isReturnJsonDecodedRequired).toBe(true);
+    expect(fromJson(toJson(returnValue))).toEqual(returnValue);
+});
+
 it('json stringify function return', () => {
     const jsonStringify = rt.compiledReturn.jsonStringify.fn;
     const fromJson = rt.compiledReturn.jsonDecode.fn;
     const returnValue = new Date();
+    const roundTrip = fromJson(JSON.parse(jsonStringify(returnValue)));
+    expect(roundTrip).toEqual(returnValue);
+});
+
+it('json stringify required function return', () => {
+    const jsonStringify = rt2.compiledReturn.jsonStringify.fn;
+    const fromJson = rt2.compiledReturn.jsonDecode.fn;
+    const returnValue = 1n;
     const roundTrip = fromJson(JSON.parse(jsonStringify(returnValue)));
     expect(roundTrip).toEqual(returnValue);
 });
