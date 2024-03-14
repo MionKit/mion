@@ -5,6 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
+import {ReflectionKind} from './_deepkit/src/reflection/type';
 import {RunType} from './types';
 
 export function toLiteral(value: number | string | boolean | undefined | null | bigint | RegExp | symbol): string {
@@ -40,4 +41,14 @@ export function skipJsonEncode(rt: RunType): boolean {
 
 export function skipJsonDecode(rt: RunType): boolean {
     return !rt.opts?.strictJSON && !rt.isJsonDecodeRequired;
+}
+
+export function isFunctionKind(kind: ReflectionKind): boolean {
+    return (
+        kind === ReflectionKind.callSignature ||
+        kind === ReflectionKind.method ||
+        kind === ReflectionKind.function ||
+        kind === ReflectionKind.methodSignature ||
+        kind === ReflectionKind.indexSignature
+    );
 }

@@ -14,9 +14,9 @@ import {
 } from '../jitCompiler';
 
 type ObjectType = {
-    date: Date;
-    number: number;
-    string: string;
+    startDate: Date;
+    quantity: number;
+    name: string;
     nullValue: null;
     stringArray: string[];
     bigInt: bigint;
@@ -46,9 +46,9 @@ it('validate object', () => {
     const validate = buildIsTypeJITFn(rt).fn;
     expect(
         validate({
-            date: new Date(),
-            number: 123,
-            string: 'hello',
+            startDate: new Date(),
+            quantity: 123,
+            name: 'hello',
             nullValue: null,
             stringArray: ['a', 'b', 'c'],
             bigInt: BigInt(123),
@@ -58,9 +58,9 @@ it('validate object', () => {
     ).toBe(true);
     expect(
         validate({
-            date: new Date(),
-            number: 123,
-            string: 'hello',
+            startDate: new Date(),
+            quantity: 123,
+            name: 'hello',
             nullValue: null,
             stringArray: ['a', 'b', 'c'],
             bigInt: BigInt(123),
@@ -71,9 +71,9 @@ it('validate object', () => {
     // missing props
     expect(
         validate({
-            date: new Date(),
-            number: 123,
-            string: 'hello',
+            startDate: new Date(),
+            quantity: 123,
+            name: 'hello',
             nullValue: null,
         })
     ).toBe(false);
@@ -85,9 +85,9 @@ it('validate object + errors', () => {
     const valWithErrors = buildTypeErrorsJITFn(rt).fn;
     expect(
         valWithErrors({
-            date: new Date(),
-            number: 123,
-            string: 'hello',
+            startDate: new Date(),
+            quantity: 123,
+            name: 'hello',
             nullValue: null,
             stringArray: ['a', 'b', 'c'],
             bigInt: BigInt(123),
@@ -96,9 +96,9 @@ it('validate object + errors', () => {
     ).toEqual([]);
     expect(
         valWithErrors({
-            date: new Date(),
-            number: 123,
-            string: 'hello',
+            startDate: new Date(),
+            quantity: 123,
+            name: 'hello',
         })
     ).toEqual([
         {path: '/nullValue', expected: 'null'},
@@ -107,16 +107,19 @@ it('validate object + errors', () => {
         {path: `/weird prop name \n?>'\\\t\r`, expected: 'string'},
     ]);
     expect(valWithErrors({})).toEqual([
-        {path: '/date', expected: 'date'},
-        {path: '/number', expected: 'number'},
-        {path: '/string', expected: 'string'},
+        {path: '/startDate', expected: 'date'},
+        {path: '/quantity', expected: 'number'},
+        {path: '/name', expected: 'string'},
         {path: '/nullValue', expected: 'null'},
         {path: '/stringArray', expected: 'array<string>'},
         {path: '/bigInt', expected: 'bigint'},
         {path: `/weird prop name \n?>'\\\t\r`, expected: 'string'},
     ]);
     expect(valWithErrors('hello')).toEqual([
-        {path: '', expected: 'object<date & number & string & null & array<string> & bigint & string & string>'},
+        {
+            path: '',
+            expected: `object<startDate:date, quantity:number, name:string, nullValue:null, stringArray:array<string>, bigInt:bigint, optionalString?:string, weird prop name \n?>'\\\t\r:string>`,
+        },
     ]);
 });
 
@@ -124,9 +127,9 @@ it('encode/decode to json', () => {
     const toJson = buildJsonEncodeJITFn(rt).fn;
     const fromJson = buildJsonDecodeJITFn(rt).fn;
     const typeValue = {
-        date: new Date(),
-        number: 123,
-        string: 'hello',
+        startDate: new Date(),
+        quantity: 123,
+        name: 'hello',
         nullValue: null,
         stringArray: ['a', 'b', 'c'],
         bigInt: BigInt(123),
@@ -152,9 +155,9 @@ it('json stringify', () => {
     const jsonStringify = buildJsonStringifyJITFn(rt).fn;
     const fromJson = buildJsonDecodeJITFn(rt).fn;
     const typeValue = {
-        date: new Date(),
-        number: 123,
-        string: 'hello',
+        startDate: new Date(),
+        quantity: 123,
+        name: 'hello',
         nullValue: null,
         stringArray: ['a', 'b', 'c'],
         bigInt: BigInt(123),
@@ -164,9 +167,9 @@ it('json stringify', () => {
     expect(roundTrip).toEqual(typeValue);
 
     const typeValue2 = {
-        date: new Date(),
-        number: 123,
-        string: 'hello',
+        startDate: new Date(),
+        quantity: 123,
+        name: 'hello',
         nullValue: null,
         stringArray: ['a', 'b', 'c'],
         bigInt: BigInt(123),
@@ -177,12 +180,37 @@ it('json stringify', () => {
     expect(roundTrip2).toEqual(typeValue2);
 });
 
-// todo: when there are reaped proterty types the function names collide see commented function
+it('object with repeated property types', () => {
+    interface I {
+        name: string;
+        surname: string;
+        startDate?: Date;
+        bigN?: bigint;
+        dates?: Date[];
+    }
+
+    const rtI = runType<I>();
+    const validate = buildIsTypeJITFn(rtI).fn;
+    expect(validate({name: 'John', surname: 'Doe'})).toBe(true);
+
+    const valWithErrors = buildTypeErrorsJITFn(rtI).fn;
+    expect(valWithErrors({name: 'John', surname: 'Doe'})).toEqual([]);
+
+    const toJson = buildJsonEncodeJITFn(rtI).fn;
+    const fromJson = buildJsonDecodeJITFn(rtI).fn;
+    const typeValue = {name: 'John', surname: 'Doe'};
+    expect(fromJson(toJson(typeValue))).toEqual(typeValue);
+
+    const jsonStringify = buildJsonStringifyJITFn(rtI).fn;
+    const roundTrip = fromJson(JSON.parse(jsonStringify(typeValue)));
+    expect(roundTrip).toEqual(typeValue);
+});
+
 it('mock', () => {
     const mocked = rt.mock();
-    expect(mocked).toHaveProperty('date');
-    expect(mocked).toHaveProperty('number');
-    expect(mocked).toHaveProperty('string');
+    expect(mocked).toHaveProperty('startDate');
+    expect(mocked).toHaveProperty('quantity');
+    expect(mocked).toHaveProperty('name');
     expect(mocked).toHaveProperty('nullValue');
     expect(mocked).toHaveProperty('stringArray');
     expect(mocked).toHaveProperty('bigInt');

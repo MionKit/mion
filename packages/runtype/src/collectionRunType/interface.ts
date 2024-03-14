@@ -7,14 +7,16 @@
 import {TypeObjectLiteral} from '../_deepkit/src/reflection/type';
 import {RunTypeOptions, RunTypeVisitor} from '../types';
 import {skipJsonDecode, skipJsonEncode, toLiteral} from '../utils';
-import {PropertySignatureRunType} from '../singleRunType/property';
+import {PropertySignatureRunType} from './property';
 import {BaseRunType} from '../baseRunType';
+import {MethodSignatureRunType} from '../functionRunType/methodSignature';
+import {CallSignatureRunType} from '../functionRunType/call';
 
 export class InterfaceRunType extends BaseRunType<TypeObjectLiteral> {
     public readonly name: string;
     public readonly isJsonEncodeRequired: boolean;
     public readonly isJsonDecodeRequired: boolean;
-    public readonly props: PropertySignatureRunType[];
+    public readonly entries: (PropertySignatureRunType | MethodSignatureRunType | CallSignatureRunType)[];
     public readonly serializableProps: PropertySignatureRunType[];
     constructor(
         visitor: RunTypeVisitor,
@@ -23,11 +25,11 @@ export class InterfaceRunType extends BaseRunType<TypeObjectLiteral> {
         public readonly opts: RunTypeOptions
     ) {
         super(visitor, src, nestLevel, opts);
-        this.props = src.types.map((type) => visitor(type, nestLevel, opts) as PropertySignatureRunType);
-        this.isJsonDecodeRequired = this.props.some((prop) => prop.isJsonDecodeRequired);
-        this.isJsonEncodeRequired = this.props.some((prop) => prop.isJsonEncodeRequired);
-        this.serializableProps = this.props.filter((prop) => !prop.skipSerialize);
-        this.name = `object<${this.serializableProps.map((prop) => prop.name).join(' & ')}>`;
+        this.entries = src.types.map((type) => visitor(type, nestLevel, opts)) as typeof this.entries;
+        this.isJsonDecodeRequired = this.entries.some((prop) => prop.isJsonDecodeRequired);
+        this.isJsonEncodeRequired = this.entries.some((prop) => prop.isJsonEncodeRequired);
+        this.serializableProps = this.entries.filter((prop) => prop.shouldSerialize) as typeof this.serializableProps;
+        this.name = `object<${this.serializableProps.map((prop) => prop.name).join(', ')}>`;
     }
     JIT_isType(varName: string): string {
         const propsCode = this.serializableProps.map((prop) => `(${prop.JIT_isType(varName)})`).join(' &&');
