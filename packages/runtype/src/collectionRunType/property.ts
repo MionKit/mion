@@ -5,9 +5,9 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {ReflectionKind, TypePropertySignature} from '../_deepkit/src/reflection/type';
+import {TypePropertySignature} from '../_deepkit/src/reflection/type';
 import {RunType, RunTypeOptions, RunTypeVisitor} from '../types';
-import {addToPathChain, skipJsonDecode, skipJsonEncode, toLiteral} from '../utils';
+import {addToPathChain, isFunctionKind, skipJsonDecode, skipJsonEncode, toLiteral} from '../utils';
 import {validPropertyNameRegExp} from '../constants';
 import {BaseRunType} from '../baseRunType';
 
@@ -21,7 +21,7 @@ export class PropertySignatureRunType extends BaseRunType<TypePropertySignature>
     public readonly propName: string | number;
     public readonly safeAccessor: string;
     public readonly isSafePropName: boolean;
-    public readonly skipSerialize: boolean;
+    public readonly shouldSerialize: boolean;
     constructor(
         visitor: RunTypeVisitor,
         public readonly src: TypePropertySignature,
@@ -30,11 +30,11 @@ export class PropertySignatureRunType extends BaseRunType<TypePropertySignature>
     ) {
         super(visitor, src, nestLevel, opts);
         this.memberType = visitor(src.type, nestLevel, opts);
-        this.name = this.memberType.name;
+
         this.isOptional = !!src.optional;
         this.isReadonly = !!src.readonly;
         if (typeof src.name === 'symbol') {
-            this.skipSerialize = true;
+            this.shouldSerialize = false;
             // forces encode & ignore the symbol
             this.isJsonEncodeRequired = true;
             // either symbol is not present or should be ignored using this.opts?.strictJSON
@@ -43,9 +43,9 @@ export class PropertySignatureRunType extends BaseRunType<TypePropertySignature>
             this.safeAccessor = ``;
             this.isSafePropName = true;
         } else {
-            this.skipSerialize = shouldSkipPropertySerialization(src.kind);
+            this.shouldSerialize = !isFunctionKind(src.kind);
             // forces encode & ignore the symbol
-            this.isJsonEncodeRequired = this.memberType.isJsonEncodeRequired && !this.skipSerialize;
+            this.isJsonEncodeRequired = this.memberType.isJsonEncodeRequired && this.shouldSerialize;
             // either symbol is not present or should be ignored using this.opts?.strictJSON
             this.isJsonDecodeRequired = this.memberType.isJsonDecodeRequired;
             this.isSafePropName =
@@ -53,9 +53,11 @@ export class PropertySignatureRunType extends BaseRunType<TypePropertySignature>
             this.propName = src.name;
             this.safeAccessor = this.isSafePropName ? `.${src.name}` : `[${toLiteral(src.name)}]`;
         }
+
+        this.name = `${this.propName}${this.isOptional ? '?' : ''}:${this.memberType.name}`;
     }
     JIT_isType(varName: string): string {
-        if (this.skipSerialize) return '';
+        if (!this.shouldSerialize) return '';
         const accessor = `${varName}${this.safeAccessor}`;
         if (this.isOptional) {
             return `${accessor} === undefined || (${this.memberType.JIT_isType(accessor)})`;
@@ -63,7 +65,7 @@ export class PropertySignatureRunType extends BaseRunType<TypePropertySignature>
         return this.memberType.JIT_isType(accessor);
     }
     JIT_typeErrors(varName: string, errorsName: string, pathChain: string): string {
-        if (this.skipSerialize) return '';
+        if (!this.shouldSerialize) return '';
         const accessor = `${varName}${this.safeAccessor}`;
         if (this.isOptional) {
             return `if (${accessor} !== undefined) {${this.memberType.JIT_typeErrors(
@@ -75,7 +77,7 @@ export class PropertySignatureRunType extends BaseRunType<TypePropertySignature>
         return this.memberType.JIT_typeErrors(accessor, errorsName, addToPathChain(pathChain, this.propName));
     }
     JIT_jsonEncode(varName: string): string {
-        if (this.skipSerialize) return '';
+        if (!this.shouldSerialize) return '';
         const jsName = this.isSafePropName ? this.propName : toLiteral(this.propName);
         const accessor = `${varName}${this.safeAccessor}`;
         const useNative = skipJsonEncode(this);
@@ -86,7 +88,7 @@ export class PropertySignatureRunType extends BaseRunType<TypePropertySignature>
         return `${jsName}:${valCode}`;
     }
     JIT_jsonDecode(varName: string): string {
-        if (this.skipSerialize) return '';
+        if (!this.shouldSerialize) return '';
         const jsName = this.isSafePropName ? this.propName : toLiteral(this.propName);
         const accessor = `${varName}${this.safeAccessor}`;
         const useNative = skipJsonDecode(this);
@@ -97,7 +99,7 @@ export class PropertySignatureRunType extends BaseRunType<TypePropertySignature>
         return `${jsName}:${valCode}`;
     }
     JIT_jsonStringify(varName: string, isFirst = false): string {
-        if (this.skipSerialize) return '';
+        if (!this.shouldSerialize) return '';
         // firs stringify sanitizes string, second is the actual json
         const proNameJSon = JSON.stringify(JSON.stringify(this.propName));
         const accessor = `${varName}${this.safeAccessor}`;
@@ -112,14 +114,4 @@ export class PropertySignatureRunType extends BaseRunType<TypePropertySignature>
         if (this.isOptional && Math.random() < optionalProbability) return undefined;
         return this.memberType.mock(...args);
     }
-}
-
-export function shouldSkipPropertySerialization(kind: ReflectionKind): boolean {
-    return (
-        kind === ReflectionKind.callSignature ||
-        kind === ReflectionKind.method ||
-        kind === ReflectionKind.function ||
-        kind === ReflectionKind.methodSignature ||
-        kind === ReflectionKind.indexSignature
-    );
 }

@@ -29,7 +29,7 @@ import {UnionRunType} from './collectionRunType/union';
 import {TupleRunType} from './collectionRunType/tuple';
 import {TupleMemberRunType} from './singleRunType/tupleMember';
 import {InterfaceRunType} from './collectionRunType/interface';
-import {PropertySignatureRunType} from './singleRunType/property';
+import {PropertySignatureRunType} from './collectionRunType/property';
 import {IndexSignatureRunType} from './collectionRunType';
 import {MethodSignatureRunType} from './functionRunType/methodSignature';
 import {CallSignatureRunType} from './functionRunType/call';

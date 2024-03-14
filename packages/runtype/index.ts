@@ -34,7 +34,7 @@ export * from './src/singleRunType/symbol';
 export * from './src/singleRunType/regexp';
 export * from './src/singleRunType/promise';
 export * from './src/singleRunType/tupleMember';
-export * from './src/singleRunType/property';
+export * from './src/collectionRunType/property';
 
 export * from './src/collectionRunType/array';
 export * from './src/collectionRunType/intersection';
