@@ -17,7 +17,7 @@ export class ParameterRunType extends BaseRunType<TypeParameter> {
     public readonly name: string;
     public readonly isOptional: boolean;
     public readonly isReadonly: boolean;
-    public readonly paramName: string | number;
+    public readonly paramName: string;
     public readonly default: any;
 
     constructor(
