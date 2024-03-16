@@ -7,8 +7,7 @@
 
 import {DEFAULT_ROUTE_OPTIONS} from './constants';
 import {getRemoteMethodsMetadata} from './remoteMethodsMetadata';
-import {registerRoutes, initRouter, resetRouter, getRouteDefaultParams} from './router';
-import {getFunctionReflectionMethods} from '@mionkit/reflection';
+import {registerRoutes, initRouter, resetRouter} from './router';
 import {CallContext} from './types/context';
 import {Routes} from './types/general';
 import {ProcedureType} from './types/procedures';
@@ -88,35 +87,33 @@ describe('Public Methods should', () => {
             addMilliseconds: route((ctx, ms: number, date: Date) => date.setMilliseconds(date.getMilliseconds() + ms)),
         };
         const api = registerRoutes(testR);
-        const reflection = getFunctionReflectionMethods(
-            testR.addMilliseconds.handler,
-            DEFAULT_ROUTE_OPTIONS.reflectionOptions,
-            getRouteDefaultParams().length
-        );
+        const serializedFnParams = api.addMilliseconds.serializedFnParams;
+        const isType = new Function(serializedFnParams.isType.varName, serializedFnParams.isType.code);
+        const jsonDecode = new Function(serializedFnParams.jsonDecode.varName, serializedFnParams.jsonDecode.code);
+        const jsonEncode = new Function(serializedFnParams.jsonEncode.varName, serializedFnParams.jsonEncode.code);
         const date = new Date('2022-12-19T00:24:00.00');
 
         // ###### Validation ######
         // Dates does not trow an error when validating, TODO: investigate if is an error in deepkit
         const notaNumber = {code: 'type', message: 'Not a number', path: ''};
-        const expectedValidationError = [[notaNumber], []];
-        expect(reflection.validateParams([123, date]).errors).toEqual([[], []]);
-        expect(reflection.validateParams([123, date]).errors).toEqual([[], []]);
-        expect(reflection.validateParams(['noNumber', new Date('noDate')]).errors).toEqual(expectedValidationError);
-        expect(reflection.validateParams(['noNumber', new Date('noDate')]).errors).toEqual(expectedValidationError);
+        expect(isType([123, date])).toEqual(true);
+        expect(isType([123, date])).toEqual(true);
+        expect(isType(['noNumber', new Date('noDate')])).toEqual(false);
+        expect(isType(['noNumber', new Date('noDate')])).toEqual(false);
 
         // ###### Serialization ######
-        const deserialized = reflection.deserializeParams([123, '2022-12-19T00:24:00.00']);
-        const deserializedFromRestored = reflection.deserializeParams([123, '2022-12-19T00:24:00.00']);
+        const deserialized = jsonDecode([123, '2022-12-19T00:24:00.00']);
+        const deserializedFromRestored = jsonDecode([123, '2022-12-19T00:24:00.00']);
         expect(deserialized).toEqual([123, date]);
         expect(deserializedFromRestored).toEqual([123, date]);
 
         // Dates does not trow an error when serializing, TODO: investigate if is an error in deepkit
         const expectedThrownError = 'Validation error:\n(type): Cannot convert noNumber to number';
         expect(() => {
-            reflection.deserializeParams(['noNumber', 'noDate']);
+            jsonEncode(['noNumber', 'noDate']);
         }).toThrow(expectedThrownError);
         expect(() => {
-            reflection.deserializeParams(['noNumber', 'noDate']);
+            jsonEncode(['noNumber', 'noDate']);
         }).toThrow(expectedThrownError);
     });
 
@@ -202,7 +199,6 @@ describe('Public Methods should', () => {
             sayHello: route((ctx: CallContext, name: string): string => `Hello ${name}`),
         };
         const api = registerRoutes(routes);
-        const serializedFunction: any = api.sayHello.serializedTypes[0]; // SerializedTypeFunction);
-        expect(serializedFunction?.parameters?.length).toEqual(1);
+        expect(api.sayHello.params.length).toEqual(1);
     });
 });

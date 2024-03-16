@@ -293,12 +293,12 @@ describe('Create routes should', () => {
         };
         registerRoutes(defaultRouteValues);
 
-        expect(getRouteExecutable('sayHello')?.reflection.isAsync).toEqual(false);
-        expect(getRouteExecutable('asyncSayHello')?.reflection.isAsync).toEqual(true);
+        expect(getRouteExecutable('sayHello')?.handlerRunType.isAsync).toEqual(false);
+        expect(getRouteExecutable('asyncSayHello')?.handlerRunType.isAsync).toEqual(true);
 
         // when there is no return type we asume the function is async.
         // this is done so await is enforced in case we don't know the return type
-        expect(getRouteExecutable('noReturnType')?.reflection.isAsync).toEqual(true);
+        expect(getRouteExecutable('noReturnType')?.handlerRunType.isAsync).toEqual(true);
     });
 
     it('add start and end global hooks', () => {

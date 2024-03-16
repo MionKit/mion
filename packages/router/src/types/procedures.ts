@@ -1,6 +1,6 @@
 // ####### Executables #######
 
-import {FunctionReflection} from '@mionkit/reflection';
+import {FunctionRunType} from '@mionkit/runtype';
 import {AnyHandler, Handler, HeaderHandler, RawHookHandler} from './handlers';
 
 export enum ProcedureType {
@@ -18,7 +18,7 @@ export interface Procedure<H extends AnyHandler = any> {
     pointer: string[];
     nestLevel: number;
     handler: H;
-    reflection: FunctionReflection | null;
+    handlerRunType: FunctionRunType | null;
     headerName?: string;
     options: {
         runOnError?: boolean;
@@ -31,7 +31,7 @@ export interface Procedure<H extends AnyHandler = any> {
 export interface RouteProcedure<H extends Handler = any> extends Procedure<H> {
     type: ProcedureType.route;
     handler: H;
-    reflection: FunctionReflection;
+    handlerRunType: FunctionRunType;
     options: {
         runOnError: false;
         canReturnData: true;
@@ -43,18 +43,18 @@ export interface RouteProcedure<H extends Handler = any> extends Procedure<H> {
 export interface HookProcedure<H extends Handler = any> extends Procedure<H> {
     type: ProcedureType.hook;
     handler: H;
-    reflection: FunctionReflection;
+    handlerRunType: FunctionRunType;
 }
 export interface HeaderProcedure<H extends HeaderHandler = any> extends Procedure<H> {
     type: ProcedureType.headerHook;
     handler: H;
     headerName: string;
-    reflection: FunctionReflection;
+    handlerRunType: FunctionRunType;
 }
 export interface RawProcedure<H extends RawHookHandler = any> extends Procedure<H> {
     type: ProcedureType.rawHook;
     handler: H;
-    reflection: null;
+    handlerRunType: null;
     options: {
         runOnError?: boolean;
         canReturnData: false;

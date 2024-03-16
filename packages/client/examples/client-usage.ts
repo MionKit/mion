@@ -2,7 +2,7 @@ import {initClient} from '@mionkit/client';
 
 // importing only the RemoteApi type from server
 import type {MyApi} from './server.routes';
-import {ParamsValidationResponse} from '@mionkit/reflection';
+import type {RunTypeValidationError} from '@mionkit/runtype';
 
 const {routes, hooks} = initClient<MyApi>({baseURL: 'http://localhost:3000'});
 
@@ -18,7 +18,5 @@ const sumTwoResponse = await routes.utils.sum(5, 2).call();
 console.log(sumTwoResponse); // 7
 
 // validate parameters locally without calling the server
-const validationResp: ParamsValidationResponse = await routes.users
-    .sayHello({id: '123', name: 'John', surname: 'Doe'})
-    .validate();
+const validationResp: RunTypeValidationError = await routes.users.sayHello({id: '123', name: 'John', surname: 'Doe'}).validate();
 console.log(validationResp); // {hasErrors: false, totalErrors: 0, errors: []}

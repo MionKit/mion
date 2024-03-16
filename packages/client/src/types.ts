@@ -6,7 +6,7 @@
  * ######## */
 
 import {RpcError} from '@mionkit/core';
-import {FunctionReflection, ParamsValidationResponse, ReflectionOptions} from '@mionkit/reflection';
+import type {CompiledFunctions, RunTypeValidationError} from '@mionkit/runtype';
 import type {
     JsonParser,
     PublicHeaderProcedure,
@@ -36,8 +36,6 @@ export type ClientOptions = {
     useValidation: boolean;
     /** Enables serialization/deserialization */
     useSerialization: boolean;
-    /** Reflection and Deepkit Serialization-Validation options */
-    reflectionOptions: ReflectionOptions;
     /** automatically generate and uuid */
     autoGenerateErrorId: boolean;
     /** Custom JSON parser, defaults to Native js JSON */
@@ -46,10 +44,10 @@ export type ClientOptions = {
 
 export type InitOptions = Partial<ClientOptions> & {baseURL: string};
 export type MetadataById = Map<string, PublicProcedure>;
-export type ReflectionById = Map<string, FunctionReflection>;
+export type JitCompiledFnById = Map<string, CompiledFunctions>;
 export type RequestHeaders = {[key: string]: string};
 export type RequestBody = {[key: string]: any[]};
-export type PublicMethodReflection = {reflection: FunctionReflection};
+export type PublicMethodReflection = {paramsJit: CompiledFunctions};
 export type HandlerResponse<RM extends PublicProcedure> = Awaited<ReturnType<RM['handler']>>;
 export type HandlerSuccessResponse<RM extends PublicProcedure> = Exclude<HandlerResponse<RM>, RpcError | Error>;
 export type HandlerFailResponse<RM extends PublicProcedure> = Extract<HandlerResponse<RM>, RpcError | Error>;
@@ -70,7 +68,7 @@ export interface SubRequest<RM extends PublicProcedure> {
     params: Parameters<RM['handler']>;
     return?: HandlerSuccessResponse<RM>;
     error?: HandlerFailResponse<RM>;
-    validationResponse?: ParamsValidationResponse;
+    validationResponse?: RunTypeValidationError;
     serializedParams?: any[];
     // note this type can't contain functions, so it can be stored/restored from localStorage
 }
@@ -83,7 +81,7 @@ export interface RouteSubRequest<RR extends PublicRouteProcedure> extends SubReq
      * Validates Route's parameters. Throws RpcError if validation fails.
      * @returns {hasErrors: false, totalErrors: 0, errors: []}
      */
-    validate: () => Promise<ParamsValidationResponse>;
+    validate: () => Promise<RunTypeValidationError>;
     /**
      * Calls a remote route.
      * Validates route and required hooks request parameters locally before calling the remote route.
@@ -102,7 +100,7 @@ export interface HookSubRequest<RH extends PublicHookProcedure | PublicHeaderPro
      * Validates Hooks's parameters. Throws RpcError if validation fails.
      * @returns {hasErrors: false, totalErrors: 0, errors: []}
      */
-    validate: () => Promise<ParamsValidationResponse>;
+    validate: () => Promise<RunTypeValidationError>;
     /**
      * Prefills Hook's parameters for any future request. Parameters are also persisted in local storage for future requests.
      * Validates and Serializes parameters before storing in local storage.
@@ -160,7 +158,7 @@ export type SuccessClientResponse<RR extends RouteSubRequest<any>, RHList extend
     ...SuccessResponses<RHList>,
 ];
 
-export type ValidationRequest = Pick<MionRequest<any, any>, 'metadataById' | 'reflectionById' | 'options' | 'subRequests'>;
+export type ValidationRequest = Pick<MionRequest<any, any>, 'metadataById' | 'paramsJitById' | 'options' | 'subRequests'>;
 
 // ############# STRONG PROMISE  (reject error is strongly typed) #############
 // TODO: typescript complains async function only can return a Promise Type
