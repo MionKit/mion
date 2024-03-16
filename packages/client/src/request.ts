@@ -10,7 +10,7 @@ import {
     ClientOptions,
     HookSubRequest,
     SubRequest,
-    JitCompiledFnById,
+    JitFunctionsById,
     MetadataById,
     RequestBody,
     RequestHeaders,
@@ -40,7 +40,7 @@ export class MionRequest<RR extends RouteSubRequest<any>, HookRequestsList exten
     constructor(
         public readonly options: ClientOptions,
         public readonly metadataById: MetadataById,
-        public readonly paramsJitById: JitCompiledFnById,
+        public readonly jitFunctionsById: JitFunctionsById,
         public readonly route?: RR,
         public readonly hooks?: HookRequestsList
     ) {
@@ -55,7 +55,7 @@ export class MionRequest<RR extends RouteSubRequest<any>, HookRequestsList exten
         const errors: RequestErrors = new Map();
         try {
             const subRequestIds = Object.keys(this.subRequests);
-            await fetchRemoteMethodsMetadata(subRequestIds, this.options, this.metadataById, this.paramsJitById);
+            await fetchRemoteMethodsMetadata(subRequestIds, this.options, this.metadataById, this.jitFunctionsById);
 
             this.restorePersistedSubRequest(errors);
             if (errors.size) return Promise.reject(errors);
@@ -112,17 +112,17 @@ export class MionRequest<RR extends RouteSubRequest<any>, HookRequestsList exten
     }
 
     /**  Validate params. If can't run validation then throws a RequestErrors Map */
-    async validateParams(subReqList?: SubRequest<any>[]): Promise<RunTypeValidationError[]> {
+    async validateParams(subReqList?: SubRequest<any>[]): Promise<RunTypeValidationError[][]> {
         if (subReqList) subReqList.forEach((subRequest) => this.addSubRequest(subRequest));
         const errors: RequestErrors = new Map();
         try {
             const subRequestIds = Object.keys(this.subRequests);
-            await fetchRemoteMethodsMetadata(subRequestIds, this.options, this.metadataById, this.paramsJitById);
+            await fetchRemoteMethodsMetadata(subRequestIds, this.options, this.metadataById, this.jitFunctionsById);
 
             validateSubRequests(subRequestIds, this, errors, false);
             if (errors.size) return Promise.reject(errors);
 
-            return Object.values(this.subRequests).map((subRequest) => subRequest.validationResponse as RunTypeValidationError);
+            return Object.values(this.subRequests).map((subRequest) => subRequest.error?.errorData || []);
         } catch (error: any) {
             this.rpcError(error, 'Error preparing request', errors);
             return Promise.reject(errors);
@@ -135,7 +135,7 @@ export class MionRequest<RR extends RouteSubRequest<any>, HookRequestsList exten
         const errors: RequestErrors = new Map();
         try {
             const subRequestIds = Object.keys(this.subRequests);
-            await fetchRemoteMethodsMetadata(subRequestIds, this.options, this.metadataById, this.paramsJitById);
+            await fetchRemoteMethodsMetadata(subRequestIds, this.options, this.metadataById, this.jitFunctionsById);
 
             validateSubRequests(subRequestIds, this, errors, false);
             if (errors.size) return Promise.reject(errors);
