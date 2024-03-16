@@ -14,18 +14,9 @@
   <img src="https://img.shields.io/badge/license-MIT-97ca00.svg?style=flat-square&maxAge=99999999" alt="npm"  style="max-width:100%;">
 </p>
 
-# `@mionkit/reflection`
+# DEPRECATED
 
-Reflection for mion Routes and Hooks!
-
-### Features
-
-- Validation, Serialization & Deserialization of function parameters
-- Validation, Serialization & Deserialization of function return values
-
-## Check Out The [Website And Documentation](http://mion.io) 📚
-
-[![mion-website-banner](https://raw.githubusercontent.com/MionKit/mion/master/assets/public/mion-website-banner.png)](http://mion.io)
+Use [`@mionkit/runtype`](https://www.npmjs.com/package/@mionkit/runtype) instead!!
 
 ---
 
