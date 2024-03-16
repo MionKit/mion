@@ -11,14 +11,9 @@ import {CompiledFunctions, JitFunctions, RunType, RunTypeOptions, RunTypeVisitor
 import {toLiteral} from '../utils';
 import {ParameterRunType} from './param';
 
-export interface FnRunTypeOptions extends RunTypeOptions {
-    /** skip parameters parsing from the beginning of the function */
-    slice?: {start?: number; end?: number};
-}
+type AnyFunction = TypeMethodSignature | TypeCallSignature | TypeFunction | TypeMethod;
 
-export class FunctionRunType<
-    CallType extends TypeMethodSignature | TypeCallSignature | TypeFunction | TypeMethod = TypeFunction,
-> extends BaseRunType<CallType, FnRunTypeOptions> {
+export class FunctionRunType<CallType extends AnyFunction = TypeFunction> extends BaseRunType<CallType> {
     public readonly isJsonEncodeRequired = true; // triggers custom json encode so functions get skipped
     public readonly isJsonDecodeRequired = true; // triggers custom json encode so functions get skipped
     public readonly isReturnJsonEncodedRequired: boolean;
@@ -31,25 +26,31 @@ export class FunctionRunType<
     public readonly returnName: string;
     public readonly name: string;
     public readonly shouldSerialize = false;
+    public readonly hasReturnData: boolean;
+    public readonly hasOptionalParameters: boolean;
+    public readonly isAsync: boolean;
     constructor(
         visitor: RunTypeVisitor,
         public readonly src: CallType,
         public readonly nestLevel: number,
-        public readonly opts: FnRunTypeOptions,
+        public readonly opts: RunTypeOptions,
         callType = 'function'
     ) {
         super(visitor, src, nestLevel, opts);
-        const start = opts?.slice?.start;
-        const end = opts?.slice?.end;
+        const start = opts?.paramsSlice?.start;
+        const end = opts?.paramsSlice?.end;
         this.returnType = visitor(src.return, nestLevel, opts);
         this.parameterTypes = src.parameters.slice(start, end).map((p) => visitor(p, nestLevel, opts)) as ParameterRunType[];
         this.isReturnJsonEncodedRequired = this.returnType.isJsonEncodeRequired;
         this.isReturnJsonDecodedRequired = this.returnType.isJsonDecodeRequired;
         this.isParamsJsonEncodedRequired = this.parameterTypes.some((p) => p.isJsonEncodeRequired);
         this.isParamsJsonDecodedRequired = this.parameterTypes.some((p) => p.isJsonDecodeRequired);
+        this.hasOptionalParameters = this.parameterTypes.some((p) => p.isOptional);
         this.paramsName = `[${this.parameterTypes.map((p) => p.name).join(', ')}]`;
         this.returnName = this.returnType.name;
         this.name = `${callType}<${this.paramsName}, ${this.returnName}>`;
+        this.hasReturnData = this._hasReturnData();
+        this.isAsync = this._isAsync();
     }
     JIT_isType(): string {
         throw new Error(`${this.name} validation is not supported, instead validate parameters or return type separately.`);
@@ -80,15 +81,18 @@ export class FunctionRunType<
 
     private paramsJitFunctions: JitFunctions = {
         isType: (varName: string) => {
+            if (this.parameterTypes.length === 0) return `${varName}.length === 0`;
             const paramsCode = this.parameterTypes.map((p, i) => `(${p.JIT_isType(`${varName}[${i}]`)})`).join(' && ');
-            return `${varName}.length <= ${this.parameterTypes.length} && ${paramsCode}`;
+            const comparison = this.hasOptionalParameters ? '<=' : '===';
+            return `${varName}.length ${comparison} ${this.parameterTypes.length} && ${paramsCode}`;
         },
         typeErrors: (varName: string, errorsName: string, pathChain: string) => {
+            const comparison = this.hasOptionalParameters ? '>' : '!==';
             const paramsCode = this.parameterTypes
                 .map((p, i) => p.JIT_typeErrors(`${varName}[${i}]`, errorsName, pathChain))
                 .join(';');
             return (
-                `if (!Array.isArray(${varName}) || ${varName}.length > ${this.parameterTypes.length}) ${errorsName}.push({path: ${pathChain}, expected: ${toLiteral(this.paramsName)}});` +
+                `if (!Array.isArray(${varName}) || ${varName}.length ${comparison} ${this.parameterTypes.length}) ${errorsName}.push({path: ${pathChain}, expected: ${toLiteral(this.paramsName)}});` +
                 `else {${paramsCode}}`
             );
         },
@@ -103,8 +107,9 @@ export class FunctionRunType<
             return `[${paramsCode}]`;
         },
         jsonStringify: (varName: string) => {
+            if (this.parameterTypes.length === 0) return `[]`;
             const paramsCode = this.parameterTypes.map((p, i) => p.JIT_jsonStringify(`${varName}[${i}]`, i === 0)).join('');
-            return `"["+${paramsCode}+"]"`;
+            return `'['+${paramsCode}+']'`;
         },
     };
 
@@ -142,7 +147,7 @@ export class FunctionRunType<
         return this.returnType.mock();
     }
 
-    hasRerun(): boolean {
+    private _hasReturnData(): boolean {
         return (
             this.returnType.src.kind !== ReflectionKind.void &&
             this.returnType.src.kind !== ReflectionKind.never &&
@@ -150,7 +155,7 @@ export class FunctionRunType<
         );
     }
 
-    isAsync(): boolean {
+    private _isAsync(): boolean {
         return (
             this.returnType.src.kind === ReflectionKind.promise ||
             this.returnType.src.kind === ReflectionKind.any ||

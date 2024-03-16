@@ -4,7 +4,7 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
-import {runType} from '../runType';
+import {reflectFunction, runType} from '../runType';
 import {
     buildJsonEncodeJITFn,
     buildJsonDecodeJITFn,
@@ -173,4 +173,32 @@ it('mock function return', () => {
     expect(mocked instanceof Date).toBe(true);
     const validate = rt.compiledReturn.isType.fn;
     expect(validate(rt.returnMock())).toBe(true);
+});
+
+it('should get runType from a function using reflectFunction', () => {
+    const fn = (a: number, b: boolean, c?: string): Date => new Date();
+    const reflectedType = reflectFunction(fn);
+    expect(reflectedType instanceof FunctionRunType).toBe(true);
+
+    const validate = reflectedType.compiledParams.isType.fn;
+    const typeErrors = reflectedType.compiledParams.typeErrors.fn;
+    const toJson = reflectedType.compiledParams.jsonEncode.fn;
+    const fromJson = reflectedType.compiledParams.jsonDecode.fn;
+    const jsonStringify = reflectedType.compiledParams.jsonStringify.fn;
+    const paramsValues = [3, true, 'hello'];
+    expect(validate(paramsValues)).toBe(true);
+    expect(typeErrors(paramsValues)).toEqual([]);
+    expect(fromJson(toJson(paramsValues))).toBe(paramsValues);
+    expect(fromJson(JSON.parse(jsonStringify(paramsValues)))).toEqual(paramsValues);
+
+    const validateReturn = reflectedType.compiledReturn.isType.fn;
+    const typeErrorsReturn = reflectedType.compiledReturn.typeErrors.fn;
+    const toJsonReturn = reflectedType.compiledReturn.jsonEncode.fn;
+    const fromJsonReturn = reflectedType.compiledReturn.jsonDecode.fn;
+    const jsonStringifyReturn = reflectedType.compiledReturn.jsonStringify.fn;
+    const returnValue = new Date();
+    expect(validateReturn(returnValue)).toBe(true);
+    expect(typeErrorsReturn(returnValue)).toEqual([]);
+    expect(fromJsonReturn(toJsonReturn(returnValue))).toEqual(returnValue);
+    expect(fromJsonReturn(JSON.parse(jsonStringifyReturn(returnValue)))).toEqual(returnValue);
 });

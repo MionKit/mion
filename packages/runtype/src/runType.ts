@@ -34,7 +34,7 @@ import {PropertySignatureRunType} from './collectionRunType/property';
 import {IndexSignatureRunType} from './collectionRunType';
 import {MethodSignatureRunType} from './functionRunType/methodSignature';
 import {CallSignatureRunType} from './functionRunType/call';
-import {FnRunTypeOptions, FunctionRunType} from './functionRunType/function';
+import {FunctionRunType} from './functionRunType/function';
 import {PromiseRunType} from './singleRunType/promise';
 import {ObjectRunType} from './singleRunType/object';
 import {IntersectionRunType} from './collectionRunType/intersection';
@@ -43,12 +43,12 @@ import {MethodRunType} from './functionRunType/method';
 
 const MaxNestLevel = 100;
 
-export function runType<T>(opts: FnRunTypeOptions = {}, type?: ReceiveType<T>): RunType {
+export function runType<T>(opts: RunTypeOptions = {}, type?: ReceiveType<T>): RunType {
     type = resolveReceiveType(type);
     return visitor(type, -1, opts);
 }
 
-export function reflectFunction<Fn extends (...args: any[]) => any>(fn: Fn, opts: FnRunTypeOptions = {}): FunctionRunType {
+export function reflectFunction<Fn extends (...args: any[]) => any>(fn: Fn, opts: RunTypeOptions = {}): FunctionRunType {
     const type = reflect(fn);
     return visitor(type, -1, opts) as FunctionRunType;
 }

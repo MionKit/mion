@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {CompiledFunctions, JSONValue, JitFunctions, RunType, RunTypeValidationError} from './types';
+import {CompiledFunctions, JSONValue, JitFunctions, RunType, RunTypeValidationError, SerializableFunctions} from './types';
 
 export class JITCompiler implements CompiledFunctions {
     public readonly isType: CompiledFunctions['isType'];
@@ -87,4 +87,14 @@ export function buildJsonStringifyJITFn(runType: RunType, jitFunctions?: JitFunc
         const fnCode = ` Code:\nfunction anonymous(){${code}}`;
         throw new Error(`Error building jsonStringify JIT function for ${runType.name}: ${e?.message}.${fnCode}`);
     }
+}
+
+export function getSerializableJitCompiler(compiled: CompiledFunctions): SerializableFunctions {
+    return {
+        isType: {varName: compiled.isType.varName, code: compiled.isType.code},
+        typeErrors: {varName: compiled.typeErrors.varName, code: compiled.typeErrors.code},
+        jsonEncode: {varName: compiled.jsonEncode.varName, code: compiled.jsonEncode.code},
+        jsonDecode: {varName: compiled.jsonDecode.varName, code: compiled.jsonDecode.code},
+        jsonStringify: {varName: compiled.jsonStringify.varName, code: compiled.jsonStringify.code},
+    };
 }

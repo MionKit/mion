@@ -75,6 +75,9 @@ export interface RunTypeOptions {
      * ie: if your type is {name: string} and the json is {name: string, age: number} the age property will be removed en encoding/decoding.
      */
     strictJSON?: boolean;
+
+    /** slice parameters when parsing functions */
+    paramsSlice?: {start?: number; end?: number};
 }
 
 export interface JitJsonEncoder {
@@ -88,6 +91,8 @@ export interface JitFn<Fn extends (args: any[]) => any> {
     code: string;
     fn: Fn;
 }
+
+export type SerializableJitFn<Fn extends (args: any[]) => any> = Omit<JitFn<Fn>, 'fn'>;
 
 export interface RunTypeValidationError {
     /**
@@ -105,6 +110,14 @@ export interface CompiledFunctions {
     jsonEncode: JitFn<(vλluε: any) => JSONValue>;
     jsonDecode: JitFn<(vλluε: JSONValue) => any>;
     jsonStringify: JitFn<(vλluε: any) => JSONString>;
+}
+
+export interface SerializableFunctions {
+    isType: SerializableJitFn<(vλluε: any) => boolean>;
+    typeErrors: SerializableJitFn<(vλluε: any) => RunTypeValidationError[]>;
+    jsonEncode: SerializableJitFn<(vλluε: any) => JSONValue>;
+    jsonDecode: SerializableJitFn<(vλluε: JSONValue) => any>;
+    jsonStringify: SerializableJitFn<(vλluε: any) => JSONString>;
 }
 
 export interface JitFunctions {
