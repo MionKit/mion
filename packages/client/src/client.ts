@@ -10,7 +10,7 @@ import {
     ClientOptions,
     HookSubRequest,
     InitOptions,
-    JitCompiledFnById,
+    JitFunctionsById,
     MetadataById,
     RouteSubRequest,
     SubRequest,
@@ -44,7 +44,7 @@ export function initClient<RM extends PublicApi<any>>(
 // state is managed inside a class in case multiple clients are required (using multiple apis)
 class MionClient {
     private metadataById: MetadataById = new Map();
-    private paramsJitById: JitCompiledFnById = new Map();
+    private jitFunctionsById: JitFunctionsById = new Map();
 
     constructor(private clientOptions: ClientOptions) {}
 
@@ -56,7 +56,7 @@ class MionClient {
         const request = new MionRequest(
             this.clientOptions,
             this.metadataById,
-            this.paramsJitById,
+            this.jitFunctionsById,
             routeSubRequest,
             hookSubRequests
         );
@@ -67,18 +67,18 @@ class MionClient {
             );
     }
 
-    validate<List extends SubRequest<any>[]>(...subRequest: List): Promise<RunTypeValidationError[]> {
-        const request = new MionRequest(this.clientOptions, this.metadataById, this.paramsJitById);
+    validate<List extends SubRequest<any>[]>(...subRequest: List): Promise<RunTypeValidationError[][]> {
+        const request = new MionRequest(this.clientOptions, this.metadataById, this.jitFunctionsById);
         return request.validateParams(subRequest);
     }
 
     prefill<List extends HookSubRequest<any>[]>(...subRequest: List): Promise<void> {
-        const request = new MionRequest(this.clientOptions, this.metadataById, this.paramsJitById);
+        const request = new MionRequest(this.clientOptions, this.metadataById, this.jitFunctionsById);
         return request.prefill(subRequest);
     }
 
     removePrefill<List extends HookSubRequest<any>[]>(...subRequest: List): Promise<void> {
-        const request = new MionRequest(this.clientOptions, this.metadataById, this.paramsJitById);
+        const request = new MionRequest(this.clientOptions, this.metadataById, this.jitFunctionsById);
         return request.removePrefill(subRequest);
     }
 }
@@ -108,7 +108,7 @@ class MethodProxy {
                         .then(() => subRequest.return)
                         .catch((errors) => Promise.reject(findError(subRequest, errors)));
                 },
-                validate: (): Promise<RunTypeValidationError> => {
+                validate: (): Promise<RunTypeValidationError[]> => {
                     return this.client
                         .validate(subRequest)
                         .then((responses) => responses[0])

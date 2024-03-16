@@ -6,9 +6,9 @@
  * ######## */
 
 import {GET_REMOTE_METHODS_BY_ID, RpcError, isRpcError} from '@mionkit/core';
-import {ClientOptions, RequestBody} from './types';
+import {ClientOptions, JitFunctionsById, RemoteMethodJIT, RequestBody} from './types';
 import {PublicProcedure} from '@mionkit/router';
-import type {CompiledFunctions, JitFn, SerializableFunctions, SerializableJitFn} from '@mionkit/runtype';
+import type {JitFn, SerializableFunctions, SerializableJitFn} from '@mionkit/runtype';
 import {STORAGE_KEY} from './constants';
 
 /**  Manually calls mionGetRemoteMethodsInfoById to get Remote Api Metadata */
@@ -16,9 +16,9 @@ export async function fetchRemoteMethodsMetadata(
     methodIds: string[],
     options: ClientOptions,
     metadataById: Map<string, PublicProcedure>,
-    paramsJitById: Map<string, CompiledFunctions>
+    jitFunctionsById: JitFunctionsById
 ) {
-    restoreMetadataFromLocalStorage(methodIds, options, metadataById, paramsJitById);
+    restoreMetadataFromLocalStorage(methodIds, options, metadataById, jitFunctionsById);
     const missingAfterLocal = methodIds.filter((path) => !metadataById.has(path));
     if (!missingAfterLocal.length) return;
     // TODO change for a configurable name
@@ -40,7 +40,7 @@ export async function fetchRemoteMethodsMetadata(
         if (!resp) throw new Error('No remote methods found in response');
 
         Object.entries(resp).forEach(([id, methodMeta]: [string, PublicProcedure]) => {
-            setRemoteMethodMetadata(id, methodMeta, options, metadataById, paramsJitById);
+            setRemoteMethodMetadata(id, methodMeta, options, metadataById, jitFunctionsById);
         });
     } catch (error: any) {
         throw new Error(`Error fetching validation and serialization metadata: ${error?.message}`);
@@ -53,7 +53,7 @@ function restoreMetadataFromLocalStorage(
     methodIds: string[],
     options: ClientOptions,
     metadataById: Map<string, PublicProcedure>,
-    paramsJitById: Map<string, CompiledFunctions>
+    jitFunctionsById: JitFunctionsById
 ) {
     methodIds.map((id) => {
         if (metadataById.has(id)) return;
@@ -62,9 +62,9 @@ function restoreMetadataFromLocalStorage(
         if (!methodMetaJson) return;
         try {
             const methodMeta: PublicProcedure = JSON.parse(methodMetaJson);
-            setRemoteMethodMetadata(id, methodMeta, options, metadataById, paramsJitById, false);
+            setRemoteMethodMetadata(id, methodMeta, options, metadataById, jitFunctionsById, false);
             if (methodMeta.hookIds?.length)
-                restoreMetadataFromLocalStorage(methodMeta.hookIds, options, metadataById, paramsJitById);
+                restoreMetadataFromLocalStorage(methodMeta.hookIds, options, metadataById, jitFunctionsById);
         } catch (e) {
             localStorage.removeItem(storageKey);
             return;
@@ -77,25 +77,35 @@ function setRemoteMethodMetadata(
     method: PublicProcedure,
     options: ClientOptions,
     metadataById: Map<string, PublicProcedure>,
-    paramsJitById: Map<string, CompiledFunctions>,
+    jitFunctionsById: JitFunctionsById,
     store = true
 ) {
     metadataById.set(id, method);
-    paramsJitById.set(id, getFunctionReflection(method.serializedFnParams));
+    jitFunctionsById.set(id, getFunctionReflection(method.serializedFnParams, method.serializedFnReturn));
     if (store) {
         localStorage.setItem(getRemoteMethodLocalStorageKey(id, options), JSON.stringify(method));
     }
 }
 
-function getFunctionReflection(serializedFns: SerializableFunctions): CompiledFunctions {
-    const jitFunctions = {
-        isType: restoreJitFunction(serializedFns.isType),
-        typeErrors: restoreJitFunction(serializedFns.typeErrors),
-        jsonEncode: restoreJitFunction(serializedFns.jsonEncode),
-        jsonDecode: restoreJitFunction(serializedFns.jsonDecode),
-        jsonStringify: restoreJitFunction(serializedFns.jsonStringify),
+function getFunctionReflection(paramsFns: SerializableFunctions, responseFns: SerializableFunctions): RemoteMethodJIT {
+    const jitParams = {
+        isType: restoreJitFunction(paramsFns.isType),
+        typeErrors: restoreJitFunction(paramsFns.typeErrors),
+        jsonEncode: restoreJitFunction(paramsFns.jsonEncode),
+        jsonDecode: restoreJitFunction(paramsFns.jsonDecode),
+        jsonStringify: restoreJitFunction(paramsFns.jsonStringify),
     };
-    return jitFunctions as CompiledFunctions;
+    const jitResponse = {
+        isType: restoreJitFunction(responseFns.isType),
+        typeErrors: restoreJitFunction(responseFns.typeErrors),
+        jsonEncode: restoreJitFunction(responseFns.jsonEncode),
+        jsonDecode: restoreJitFunction(responseFns.jsonDecode),
+        jsonStringify: restoreJitFunction(responseFns.jsonStringify),
+    };
+    return {
+        params: jitParams,
+        return: jitResponse,
+    };
 }
 
 function restoreJitFunction<Fn extends (args: any[]) => any>(serializedFn: SerializableJitFn<Fn>): JitFn<Fn> {

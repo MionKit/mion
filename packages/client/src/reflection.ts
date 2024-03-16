@@ -6,7 +6,7 @@
  * ######## */
 
 import type {PublicProcedure, PublicResponses} from '@mionkit/router';
-import type {CompiledFunctions, JSONValue, RunTypeValidationError} from '@mionkit/runtype';
+import type {CompiledFunctions, JSONValue} from '@mionkit/runtype';
 import {RpcError, StatusCodes, isRpcError} from '@mionkit/core';
 import {RequestErrors, SubRequest, ValidationRequest} from './types';
 
@@ -41,22 +41,17 @@ export function validateSubRequest(id: string, req: ValidationRequest, errors: R
     if (!req.options.useSerialization) return;
     // subRequest might be undefined if does not require to send parameters or are optional
     const {methodMeta, subRequest} = getSerializationRequiredData(id, req);
-    if (subRequest?.validationResponse || subRequest?.isResolved) return;
+    if (subRequest?.error || subRequest?.isResolved) return;
 
     const params = subRequest?.params || [];
-    const validationResponse = validateParameters(params, methodMeta, req.paramsJitById.get(id));
+    const validationResponse = validateParameters(params, methodMeta, req.jitFunctionsById.get(id)?.params);
     if (!validationResponse) return; // if validation is void then validation is disabled for this method
-    if (isRpcError(validationResponse)) {
-        const error = validationResponse;
-        errors.set(id, error);
-        // if errors then mark subRequest as resolved
-        if (subRequest) {
-            subRequest.error = error;
-            subRequest.isResolved = true;
-            subRequest.validationResponse = validationResponse.errorData as RunTypeValidationError;
-        }
-    } else if (subRequest) {
-        subRequest.validationResponse = validationResponse;
+    const error = validationResponse;
+    errors.set(id, error);
+    // if errors then mark subRequest as resolved
+    if (subRequest) {
+        subRequest.error = error;
+        subRequest.isResolved = true;
     }
     return;
 }
@@ -81,7 +76,7 @@ export function serializeSubRequest(id: string, req: ValidationRequest, errors: 
     if (subRequest.serializedParams) return;
 
     const params = subRequest?.params || [];
-    const serializedParams = serializeParameters(params, methodMeta, req.paramsJitById.get(id));
+    const serializedParams = serializeParameters(params, methodMeta, req.jitFunctionsById.get(id)?.params);
     if (isRpcError(serializedParams)) {
         errors.set(id, serializedParams);
         // if errors then mark subRequest as resolved
@@ -99,7 +94,11 @@ export function deserializeResponseBody(responseBody: PublicResponses, req: Vali
     Object.entries(deSerializedBody).forEach(([key, remoteHandlerResponse]) => {
         const methodMeta = req.metadataById.get(key);
         if (!methodMeta) throw new Error(`Metadata for remote method ${key} not found.`);
-        const deSerialized = deSerializeReturn(remoteHandlerResponse, methodMeta, req.paramsJitById.get(methodMeta.id));
+        const deSerialized = deSerializeReturn(
+            remoteHandlerResponse,
+            methodMeta,
+            req.jitFunctionsById.get(methodMeta.id)?.return
+        );
         deSerializedBody[key] = deSerialized;
     });
     return deSerializedBody;
@@ -134,11 +133,7 @@ function serializeParameters(params: any[], method: PublicProcedure, paramsJit?:
     return params;
 }
 
-function validateParameters(
-    params: any[],
-    method: PublicProcedure,
-    paramsJit?: CompiledFunctions
-): void | RunTypeValidationError[] | RpcError {
+function validateParameters(params: any[], method: PublicProcedure, paramsJit?: CompiledFunctions): void | RpcError {
     if (!paramsJit || !method.useValidation) return;
     try {
         const validationsResponse = paramsJit.typeErrors.fn(params);
@@ -150,7 +145,6 @@ function validateParameters(
                 errorData: validationsResponse,
             });
         }
-        return validationsResponse;
     } catch (e: any | Error) {
         return new RpcError({
             statusCode: StatusCodes.BAD_REQUEST,
@@ -160,12 +154,12 @@ function validateParameters(
     }
 }
 
-function deSerializeReturn(response: any | RpcError, method: PublicProcedure, paramsJit?: CompiledFunctions): any | RpcError {
-    if (!paramsJit || !method.useSerialization || !response) return response;
+function deSerializeReturn(response: any | RpcError, method: PublicProcedure, returnJit?: CompiledFunctions): any | RpcError {
+    if (!returnJit || !method.useSerialization || !response) return response;
     try {
         if (response instanceof RpcError) return response;
         if (isRpcError(response)) return new RpcError(response);
-        const ret = paramsJit.deserializeReturn(response);
+        const ret = returnJit.jsonDecode.fn(response);
         return ret;
     } catch (e: any) {
         return new RpcError({
