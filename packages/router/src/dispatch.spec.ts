@@ -40,7 +40,7 @@ describe('Dispatch routes', () => {
 
     type Req = ReturnType<typeof getDefaultRequest>;
 
-    const changeUserName = route((ctx, user: SimpleUser) => {
+    const changeUserName = route((ctx, user: SimpleUser): SimpleUser => {
         return myApp.db.changeUserName(user);
     });
 
@@ -295,10 +295,7 @@ describe('Dispatch routes', () => {
                 statusCode: 400,
                 name: `Validation Error`,
                 message: `Invalid params in 'changeUserName', validation failed.`,
-                errorData: expect.objectContaining({
-                    hasErrors: true,
-                    totalErrors: 1,
-                }),
+                errorData: [{expected: '[user:object<name:string, surname:string>]', path: ''}],
             } satisfies AnonymRpcError);
         });
 
@@ -306,7 +303,7 @@ describe('Dispatch routes', () => {
             initRouter({sharedDataFactory: getSharedData});
             registerRoutes({getSameDate});
 
-            const request = getDefaultRequest('getSameDate', [1234]);
+            const request = getDefaultRequest('getSameDate', []);
 
             const response = await dispatchRoute(
                 '/getSameDate',
@@ -321,7 +318,7 @@ describe('Dispatch routes', () => {
                 statusCode: 400,
                 name: 'Serialization Error',
                 message: `Invalid params 'getSameDate', can not deserialize. Parameters might be of the wrong type.`,
-                errorData: expect.anything(),
+                errorData: {deserializeError: `Cannot read properties of undefined (reading 'date')`},
             } satisfies AnonymRpcError);
         });
 
@@ -344,11 +341,7 @@ describe('Dispatch routes', () => {
                 name: 'Validation Error',
                 statusCode: 400,
                 message: `Invalid params in 'changeUserName', validation failed.`,
-                errorData: expect.objectContaining({
-                    hasErrors: true,
-                    totalErrors: 1,
-                    errors: expect.any(Array),
-                }),
+                errorData: [{expected: 'string', path: '/user/name'}],
             };
             const error = response.body['changeUserName'];
             expect(error).toEqual(expected);
@@ -372,11 +365,10 @@ describe('Dispatch routes', () => {
                 name: 'Validation Error',
                 statusCode: 400,
                 message: `Invalid params in 'changeUserName', validation failed.`,
-                errorData: expect.objectContaining({
-                    hasErrors: true,
-                    totalErrors: 2,
-                    errors: expect.any(Array),
-                }),
+                errorData: [
+                    {expected: 'string', path: '/user/name'},
+                    {expected: 'string', path: '/user/surname'},
+                ],
             };
             const error = response.body['changeUserName'];
             expect(error).toEqual(expected);

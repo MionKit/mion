@@ -2,7 +2,7 @@ import {initClient} from '@mionkit/client';
 
 // importing type only from server
 import type {MyApi} from './server.routes';
-import {isRpcError, RpcError} from '@mionkit/core';
+import {RpcError, isRpcError} from '@mionkit/core';
 
 const {routes} = initClient<MyApi>({baseURL: 'http://localhost:3000'});
 

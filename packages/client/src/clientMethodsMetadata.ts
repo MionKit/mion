@@ -8,12 +8,7 @@
 import {GET_REMOTE_METHODS_BY_ID, RpcError, isRpcError} from '@mionkit/core';
 import {ClientOptions, RequestBody} from './types';
 import {PublicProcedure} from '@mionkit/router';
-import {
-    FunctionReflection,
-    SerializedTypes,
-    getDeserializedFunctionType,
-    getFunctionReflectionMethods,
-} from '@mionkit/reflection';
+import type {CompiledFunctions, JitFn, SerializableFunctions, SerializableJitFn} from '@mionkit/runtype';
 import {STORAGE_KEY} from './constants';
 
 /**  Manually calls mionGetRemoteMethodsInfoById to get Remote Api Metadata */
@@ -21,9 +16,9 @@ export async function fetchRemoteMethodsMetadata(
     methodIds: string[],
     options: ClientOptions,
     metadataById: Map<string, PublicProcedure>,
-    reflectionById: Map<string, FunctionReflection>
+    paramsJitById: Map<string, CompiledFunctions>
 ) {
-    restoreMetadataFromLocalStorage(methodIds, options, metadataById, reflectionById);
+    restoreMetadataFromLocalStorage(methodIds, options, metadataById, paramsJitById);
     const missingAfterLocal = methodIds.filter((path) => !metadataById.has(path));
     if (!missingAfterLocal.length) return;
     // TODO change for a configurable name
@@ -45,7 +40,7 @@ export async function fetchRemoteMethodsMetadata(
         if (!resp) throw new Error('No remote methods found in response');
 
         Object.entries(resp).forEach(([id, methodMeta]: [string, PublicProcedure]) => {
-            setRemoteMethodMetadata(id, methodMeta, options, metadataById, reflectionById);
+            setRemoteMethodMetadata(id, methodMeta, options, metadataById, paramsJitById);
         });
     } catch (error: any) {
         throw new Error(`Error fetching validation and serialization metadata: ${error?.message}`);
@@ -58,7 +53,7 @@ function restoreMetadataFromLocalStorage(
     methodIds: string[],
     options: ClientOptions,
     metadataById: Map<string, PublicProcedure>,
-    reflectionById: Map<string, FunctionReflection>
+    paramsJitById: Map<string, CompiledFunctions>
 ) {
     methodIds.map((id) => {
         if (metadataById.has(id)) return;
@@ -67,9 +62,9 @@ function restoreMetadataFromLocalStorage(
         if (!methodMetaJson) return;
         try {
             const methodMeta: PublicProcedure = JSON.parse(methodMetaJson);
-            setRemoteMethodMetadata(id, methodMeta, options, metadataById, reflectionById, false);
+            setRemoteMethodMetadata(id, methodMeta, options, metadataById, paramsJitById, false);
             if (methodMeta.hookIds?.length)
-                restoreMetadataFromLocalStorage(methodMeta.hookIds, options, metadataById, reflectionById);
+                restoreMetadataFromLocalStorage(methodMeta.hookIds, options, metadataById, paramsJitById);
         } catch (e) {
             localStorage.removeItem(storageKey);
             return;
@@ -82,19 +77,33 @@ function setRemoteMethodMetadata(
     method: PublicProcedure,
     options: ClientOptions,
     metadataById: Map<string, PublicProcedure>,
-    reflectionById: Map<string, FunctionReflection>,
+    paramsJitById: Map<string, CompiledFunctions>,
     store = true
 ) {
     metadataById.set(id, method);
-    reflectionById.set(id, getFunctionReflection(method.serializedTypes, options));
+    paramsJitById.set(id, getFunctionReflection(method.serializedFnParams));
     if (store) {
         localStorage.setItem(getRemoteMethodLocalStorageKey(id, options), JSON.stringify(method));
     }
 }
 
-function getFunctionReflection(serializedTypes: SerializedTypes, options: ClientOptions): FunctionReflection {
-    const type = getDeserializedFunctionType(serializedTypes);
-    return getFunctionReflectionMethods(type, options.reflectionOptions, 0);
+function getFunctionReflection(serializedFns: SerializableFunctions): CompiledFunctions {
+    const jitFunctions = {
+        isType: restoreJitFunction(serializedFns.isType),
+        typeErrors: restoreJitFunction(serializedFns.typeErrors),
+        jsonEncode: restoreJitFunction(serializedFns.jsonEncode),
+        jsonDecode: restoreJitFunction(serializedFns.jsonDecode),
+        jsonStringify: restoreJitFunction(serializedFns.jsonStringify),
+    };
+    return jitFunctions as CompiledFunctions;
+}
+
+function restoreJitFunction<Fn extends (args: any[]) => any>(serializedFn: SerializableJitFn<Fn>): JitFn<Fn> {
+    return {
+        varName: serializedFn.varName,
+        code: serializedFn.code,
+        fn: new Function(serializedFn.varName, serializedFn.code) as Fn,
+    };
 }
 
 function getRemoteMethodLocalStorageKey(id: string, options: ClientOptions) {

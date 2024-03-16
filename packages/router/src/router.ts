@@ -18,7 +18,7 @@ import type {Procedure} from './types/procedures';
 import {ProcedureType} from './types/procedures';
 import type {PublicApi, PrivateDef, HooksCollection} from './types/publicProcedures';
 import type {HeaderHookDef, HookDef, RawHookDef} from './types/definitions';
-import {ReflectionOptions, getFunctionReflectionMethods} from '@mionkit/reflection';
+import {reflectFunction} from '@mionkit/runtype';
 import {bodyParserHooks} from './jsonBodyParser.routes';
 import {RpcError, StatusCodes, getRouterItemId, setErrorOptions, getRoutePath} from '@mionkit/core';
 import {getRemoteMethodsMetadata, resetRemoteMethodsMetadata} from './remoteMethodsMetadata';
@@ -41,7 +41,6 @@ const routeNames: Map<string, boolean> = new Map();
 let complexity = 0;
 let routerOptions: RouterOptions = {...DEFAULT_ROUTE_OPTIONS};
 let isRouterInitialized = false;
-let looselyReflectionOptions: ReflectionOptions | undefined;
 let allExecutablesIds: string[] | undefined;
 
 /** Global hooks to be run before and after any other hooks or routes set using `registerRoutes` */
@@ -78,7 +77,6 @@ export const resetRouter = () => {
     startHooks = [];
     endHooks = [];
     isRouterInitialized = false;
-    looselyReflectionOptions = undefined;
     allExecutablesIds = undefined;
     resetRemoteMethodsMetadata();
 };
@@ -114,10 +112,6 @@ export function registerRoutes<R extends Routes>(routes: R): PublicApi<R> {
     // we only want to get information about the routes when creating api spec
     if (shouldFullGenerateSpec()) return getRemoteMethodsMetadata(routes);
     return {} as PublicApi<R>;
-}
-
-export function getRouteDefaultParams(): string[] {
-    return ['context'];
 }
 
 /** Add hooks at the start af the execution path, adds them before any other existing start hooks by default */
@@ -166,7 +160,7 @@ export function isPrivateProcedure(entry: RouterEntry, id: string): entry is Pri
     try {
         const handler = entry.handler;
         const executable = getHookExecutable(id) || getRouteExecutable(id);
-        const hasPublicParams = handler.length > getRouteDefaultParams().length;
+        const hasPublicParams = !!handler.length;
         return !hasPublicParams && !executable?.options.canReturnData;
     } catch {
         // error thrown because entry is a Routes object and does not have any handler
@@ -177,7 +171,7 @@ export function isPrivateProcedure(entry: RouterEntry, id: string): entry is Pri
 export function isPrivateExecutable(executable: Procedure): boolean {
     if (executable.type === ProcedureType.rawHook) return true;
     if (executable.type === ProcedureType.route) return false;
-    const hasPublicParams = executable.handler.length > getRouteDefaultParams().length;
+    const hasPublicParams = !!executable.handler.length;
     return !hasPublicParams && !executable.options.canReturnData;
 }
 
@@ -350,12 +344,12 @@ function getExecutableFromHook(
         type: inHeader ? ProcedureType.headerHook : ProcedureType.hook,
         nestLevel,
         handler: hook.handler,
-        reflection: getFunctionReflectionMethods(hook.handler, getReflectionOptions(hook), getRouteDefaultParams().length),
+        handlerRunType: reflectFunction(hook.handler, DEFAULT_ROUTE_OPTIONS.runTypeOptions),
         pointer: hookPointer,
         headerName: inHeader ? (hook as HeaderHookDef).headerName?.toLowerCase() : undefined,
         options: hook.options,
     };
-    executable.options.canReturnData = executable.reflection.hasReturnData;
+    executable.options.canReturnData = executable.handlerRunType.hasReturnData;
     hooksById.set(hookId, executable as any);
     return executable as any;
 }
@@ -370,7 +364,7 @@ function getExecutableFromRawHook(hook: RawHookDef, hookPointer: string[], nestL
         id: hookId,
         nestLevel,
         handler: hook.handler,
-        reflection: null,
+        handlerRunType: null,
         pointer: hookPointer,
         options: hook.options,
     };
@@ -388,7 +382,7 @@ function getExecutableFromRoute(route: Route, routePointer: string[], nestLevel:
         id: routeId,
         nestLevel,
         handler: route.handler,
-        reflection: getFunctionReflectionMethods(route.handler, getReflectionOptions(route), getRouteDefaultParams().length),
+        handlerRunType: reflectFunction(route.handler, DEFAULT_ROUTE_OPTIONS.runTypeOptions),
         pointer: routePointer,
         options: route.options,
     };
@@ -427,17 +421,4 @@ function getExecutablesFromHooksCollection(hooksDef: HooksCollection): (RawProce
         if (isHeaderHookDef(hook) || isHookDef(hook)) return getExecutableFromHook(hook, [key], 0);
         throw new Error(`Invalid hook: ${key}. Invalid hook definition`);
     });
-}
-
-function getReflectionOptions(entry: RouterEntry): ReflectionOptions {
-    if (isHeaderHookDef(entry)) return getReflectionOptionsWithLooselySerialization();
-    return routerOptions.reflectionOptions;
-}
-
-function getReflectionOptionsWithLooselySerialization(): ReflectionOptions {
-    if (looselyReflectionOptions) return looselyReflectionOptions;
-    const newReflectionOptions = {...routerOptions.reflectionOptions};
-    newReflectionOptions.serializationOptions = {...newReflectionOptions.serializationOptions, loosely: true};
-    looselyReflectionOptions = newReflectionOptions;
-    return looselyReflectionOptions;
 }

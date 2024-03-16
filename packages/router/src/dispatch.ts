@@ -14,7 +14,6 @@ import {isNotFoundExecutable} from './types/guards';
 import {getNotFoundExecutionPath, getRouteExecutionPath, getRouterOptions} from './router';
 import {isPromise} from 'node:util/types';
 import {Mutable, AnyObject, RpcError, StatusCodes} from '@mionkit/core';
-import {FunctionReflection} from '@mionkit/reflection';
 import {handleRpcErrors} from './errors';
 
 // ############# PUBLIC METHODS #############
@@ -115,35 +114,28 @@ function getHandlerResponse(
 }
 
 function deserializeParameters(request: MionRequest, executable: Procedure): any[] {
-    if (!executable.reflection) return [];
+    if (!executable.handlerRunType) return [];
     const path = executable.id;
     let params;
 
     if (executable.type !== ProcedureType.headerHook) {
         params = request.body[path] || [];
-        // params sent in body can only be sent in an array
-        if (!Array.isArray(params))
-            throw new RpcError({
-                statusCode: StatusCodes.BAD_REQUEST,
-                name: 'Invalid Params Array',
-                publicMessage: `Invalid params '${path}'. input parameters can only be sent in an array.`,
-            });
     } else {
         params = request.headers.get((executable as HeaderProcedure).headerName) || [];
         // headers could be arrays or individual values, so we need to normalize to an array
         if (!Array.isArray(params)) params = [params];
     }
 
-    if (params.length && executable.options.useSerialization) {
+    if (executable.options.useSerialization) {
         try {
-            params = executable.reflection.deserializeParams(params);
+            params = executable.handlerRunType.compiledParams.jsonDecode.fn(params);
         } catch (e: any) {
             throw new RpcError({
                 statusCode: StatusCodes.BAD_REQUEST,
                 name: 'Serialization Error',
                 publicMessage: `Invalid params '${path}', can not deserialize. Parameters might be of the wrong type.`,
                 originalError: e,
-                errorData: e?.errors,
+                errorData: {deserializeError: e.message},
             });
         }
     }
@@ -151,15 +143,15 @@ function deserializeParameters(request: MionRequest, executable: Procedure): any
 }
 
 function validateParameters(params: any[], executable: Procedure): any[] {
-    if (!executable.reflection) return params;
+    if (!executable.handlerRunType) return params;
     if (executable.options.useValidation) {
-        const validationResponse = executable.reflection.validateParams(params);
-        if (validationResponse.hasErrors) {
+        const areParamsValid = executable.handlerRunType.compiledParams.isType.fn(params);
+        if (!areParamsValid) {
             throw new RpcError({
                 statusCode: StatusCodes.BAD_REQUEST,
                 name: 'Validation Error',
                 publicMessage: `Invalid params in '${executable.id}', validation failed.`,
-                errorData: validationResponse,
+                errorData: executable.handlerRunType.compiledParams.typeErrors.fn(params),
             });
         }
     }
@@ -169,7 +161,7 @@ function validateParameters(params: any[], executable: Procedure): any[] {
 function serializeResponse(executable: Procedure, response: MionResponse, result: any) {
     if (!executable.options.canReturnData || result === undefined) return;
     const serialized = executable.options.useSerialization
-        ? (executable.reflection as FunctionReflection).serializeReturn(result)
+        ? executable.handlerRunType?.compiledParams.jsonEncode.fn(result)
         : result;
     if (executable.type !== ProcedureType.headerHook) (response.body as Mutable<AnyObject>)[executable.id] = serialized;
     else response.headers.set((executable as HeaderProcedure).headerName, serialized);

@@ -8,7 +8,7 @@
 import {CoreOptions} from '@mionkit/core';
 import {SharedDataFactory} from './context';
 import {HeaderHookDef, HookDef, RawHookDef, RouteDef} from './definitions';
-import {ReflectionOptions} from '@mionkit/reflection';
+import {RunTypeOptions} from '@mionkit/runtype';
 
 // #######  Router Object #######
 
@@ -41,8 +41,8 @@ export interface RouterOptions<Req = any, SharedData = any> extends CoreOptions 
     useValidation: boolean;
     /** Enables serialization/deserialization */
     useSerialization: boolean;
-    /** Reflection and Deepkit Serialization-Validation options */
-    reflectionOptions: ReflectionOptions;
+    /** run type compiler options for hooks and routes */
+    runTypeOptions: RunTypeOptions;
     /** Custom JSON parser, defaults to Native js JSON */
     bodyParser: JsonParser;
     /** Used to return public data structure when adding routes */

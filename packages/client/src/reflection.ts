@@ -6,7 +6,7 @@
  * ######## */
 
 import type {PublicProcedure, PublicResponses} from '@mionkit/router';
-import {FunctionReflection, ParamsValidationResponse} from '@mionkit/reflection';
+import type {CompiledFunctions, JSONValue, RunTypeValidationError} from '@mionkit/runtype';
 import {RpcError, StatusCodes, isRpcError} from '@mionkit/core';
 import {RequestErrors, SubRequest, ValidationRequest} from './types';
 
@@ -44,7 +44,7 @@ export function validateSubRequest(id: string, req: ValidationRequest, errors: R
     if (subRequest?.validationResponse || subRequest?.isResolved) return;
 
     const params = subRequest?.params || [];
-    const validationResponse = validateParameters(params, methodMeta, req.reflectionById.get(id));
+    const validationResponse = validateParameters(params, methodMeta, req.paramsJitById.get(id));
     if (!validationResponse) return; // if validation is void then validation is disabled for this method
     if (isRpcError(validationResponse)) {
         const error = validationResponse;
@@ -53,7 +53,7 @@ export function validateSubRequest(id: string, req: ValidationRequest, errors: R
         if (subRequest) {
             subRequest.error = error;
             subRequest.isResolved = true;
-            subRequest.validationResponse = validationResponse.errorData as ParamsValidationResponse;
+            subRequest.validationResponse = validationResponse.errorData as RunTypeValidationError;
         }
     } else if (subRequest) {
         subRequest.validationResponse = validationResponse;
@@ -81,7 +81,7 @@ export function serializeSubRequest(id: string, req: ValidationRequest, errors: 
     if (subRequest.serializedParams) return;
 
     const params = subRequest?.params || [];
-    const serializedParams = serializeParameters(params, methodMeta, req.reflectionById.get(id));
+    const serializedParams = serializeParameters(params, methodMeta, req.paramsJitById.get(id));
     if (isRpcError(serializedParams)) {
         errors.set(id, serializedParams);
         // if errors then mark subRequest as resolved
@@ -99,7 +99,7 @@ export function deserializeResponseBody(responseBody: PublicResponses, req: Vali
     Object.entries(deSerializedBody).forEach(([key, remoteHandlerResponse]) => {
         const methodMeta = req.metadataById.get(key);
         if (!methodMeta) throw new Error(`Metadata for remote method ${key} not found.`);
-        const deSerialized = deSerializeReturn(remoteHandlerResponse, methodMeta, req.reflectionById.get(methodMeta.id));
+        const deSerialized = deSerializeReturn(remoteHandlerResponse, methodMeta, req.paramsJitById.get(methodMeta.id));
         deSerializedBody[key] = deSerialized;
     });
     return deSerializedBody;
@@ -117,17 +117,17 @@ function getSerializationRequiredData(
     return {methodMeta, subRequest};
 }
 
-function serializeParameters(params: any[], method: PublicProcedure, reflection?: FunctionReflection): any[] | RpcError {
-    if (!reflection) return params;
+function serializeParameters(params: any[], method: PublicProcedure, paramsJit?: CompiledFunctions): any[] | RpcError {
+    if (!paramsJit) return params;
     if (params.length && method.useSerialization) {
         try {
-            params = reflection.serializeParams(params);
+            params = paramsJit.jsonEncode.fn(params) as JSONValue[];
         } catch (e: any | Error) {
             return new RpcError({
                 statusCode: StatusCodes.BAD_REQUEST,
                 name: 'Serialization Error',
                 message: `Invalid params for Route or Hook '${method.id}', can not serialize params: ${e.message} `,
-                errorData: e?.errors,
+                errorData: {deserializeError: e.message},
             });
         }
     }
@@ -137,12 +137,12 @@ function serializeParameters(params: any[], method: PublicProcedure, reflection?
 function validateParameters(
     params: any[],
     method: PublicProcedure,
-    reflection?: FunctionReflection
-): void | ParamsValidationResponse | RpcError {
-    if (!reflection || !method.useValidation) return;
+    paramsJit?: CompiledFunctions
+): void | RunTypeValidationError[] | RpcError {
+    if (!paramsJit || !method.useValidation) return;
     try {
-        const validationsResponse = reflection.validateParams(params);
-        if (validationsResponse.hasErrors) {
+        const validationsResponse = paramsJit.typeErrors.fn(params);
+        if (validationsResponse.length) {
             return new RpcError({
                 statusCode: StatusCodes.BAD_REQUEST,
                 name: 'Validation Error',
@@ -160,12 +160,12 @@ function validateParameters(
     }
 }
 
-function deSerializeReturn(response: any | RpcError, method: PublicProcedure, reflection?: FunctionReflection): any | RpcError {
-    if (!reflection || !method.useSerialization || !response) return response;
+function deSerializeReturn(response: any | RpcError, method: PublicProcedure, paramsJit?: CompiledFunctions): any | RpcError {
+    if (!paramsJit || !method.useSerialization || !response) return response;
     try {
         if (response instanceof RpcError) return response;
         if (isRpcError(response)) return new RpcError(response);
-        const ret = reflection.deserializeReturn(response);
+        const ret = paramsJit.deserializeReturn(response);
         return ret;
     } catch (e: any) {
         return new RpcError({

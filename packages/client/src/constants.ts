@@ -5,7 +5,6 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {DEFAULT_REFLECTION_OPTIONS} from '@mionkit/reflection';
 import {ClientOptions} from './types';
 
 export const DEFAULT_PREFILL_OPTIONS: ClientOptions = {
@@ -30,9 +29,6 @@ export const DEFAULT_PREFILL_OPTIONS: ClientOptions = {
 
     /** Enables automatic serialization/deserialization */
     useSerialization: true,
-
-    /** Reflection and Deepkit Serialization-Validation options */
-    reflectionOptions: DEFAULT_REFLECTION_OPTIONS,
 
     /** Custom body parser, defaults to Native JSON */
     bodyParser: JSON,

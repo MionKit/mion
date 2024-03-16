@@ -13,14 +13,13 @@ import type {PublicApi, PublicHandler, PublicProcedure} from './types/publicProc
 import {isRoute, isHeaderHookDef, isHookDef, isPublicExecutable} from './types/guards';
 import {
     getHookExecutable,
-    getRouteDefaultParams,
     getRouteExecutable,
     getRouteExecutionPath,
     getRouterOptions,
     isPrivateProcedure,
     shouldFullGenerateSpec,
 } from './router';
-import {getSerializedFunctionType} from '@mionkit/reflection';
+import {getSerializableJitCompiler} from '@mionkit/runtype';
 import {AnyObject, getRoutePath, getRouterItemId} from '@mionkit/core';
 
 // ############# PRIVATE STATE #############
@@ -71,15 +70,18 @@ export function getMethodMetadataFromExecutable<H extends Handler>(executable: P
     const existing = metadataById.get(executable.id);
     if (existing) return existing as PublicProcedure<H>;
 
+    if (!executable.handlerRunType) throw new Error(`Handler run type not found for ${executable.id}`);
+
     const newRemoteMethod: PublicProcedure = {
         type: executable.type,
         id: executable.id,
         // handler is included just for static typing purposes and should never be called directly
         handler: getHandlerSrcCodePointer(executable) as any as PublicHandler<H>,
-        serializedTypes: getSerializedFunctionType(executable.handler, getRouteDefaultParams().length),
+        serializedFnParams: getSerializableJitCompiler(executable.handlerRunType?.compiledParams),
+        serializedFnReturn: getSerializableJitCompiler(executable.handlerRunType?.compiledReturn),
         useValidation: !!executable.options.useValidation,
         useSerialization: !!executable.options.useSerialization,
-        params: executable.reflection?.handlerType.parameters.map((tp) => tp.name).slice(getRouteDefaultParams().length) || [],
+        params: executable.handlerRunType.parameterTypes.map((p) => p.paramName),
     };
 
     // initialized separately so the property `headerName` is not included in the object in case is undefined

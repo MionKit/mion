@@ -5,10 +5,11 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {DEFAULT_REFLECTION_OPTIONS} from '@mionkit/reflection';
 import {RouterOptions} from './types/general';
 
 export const IS_TEST_ENV = process.env.JEST_WORKER_ID !== undefined || process.env.NODE_ENV === 'test';
+
+export const ROUTE_DEFAULT_PARAMS = ['context'];
 
 export const DEFAULT_ROUTE_OPTIONS = {
     /** Prefix for all routes, i.e: api/v1.
@@ -28,8 +29,14 @@ export const DEFAULT_ROUTE_OPTIONS = {
     /** Enables automatic serialization/deserialization */
     useSerialization: true,
 
-    /** Reflection and Deepkit Serialization-Validation options */
-    reflectionOptions: DEFAULT_REFLECTION_OPTIONS,
+    /** Default run type compiling options for routes and hooks, can't be configured by the user as would break functionality  */
+    runTypeOptions: {
+        /** Removes unknown properties when parsing parameters from json */
+        strictJSON: false,
+
+        /** skip first parameter (Context) from route/hook handlers */
+        paramsSlice: {start: ROUTE_DEFAULT_PARAMS.length},
+    },
 
     /** Custom body parser, defaults to Native JSON */
     bodyParser: JSON,

@@ -10,7 +10,7 @@ import {
     ClientOptions,
     HookSubRequest,
     InitOptions,
-    ReflectionById,
+    JitCompiledFnById,
     MetadataById,
     RouteSubRequest,
     SubRequest,
@@ -22,7 +22,7 @@ import {
 import type {PublicApi} from '@mionkit/router';
 import {RpcError, getRouterItemId} from '@mionkit/core';
 import {MionRequest} from './request';
-import {ParamsValidationResponse} from '@mionkit/reflection';
+import type {RunTypeValidationError} from '@mionkit/runtype';
 
 export function initClient<RM extends PublicApi<any>>(
     options: InitOptions
@@ -44,7 +44,7 @@ export function initClient<RM extends PublicApi<any>>(
 // state is managed inside a class in case multiple clients are required (using multiple apis)
 class MionClient {
     private metadataById: MetadataById = new Map();
-    private reflectionById: ReflectionById = new Map();
+    private paramsJitById: JitCompiledFnById = new Map();
 
     constructor(private clientOptions: ClientOptions) {}
 
@@ -56,7 +56,7 @@ class MionClient {
         const request = new MionRequest(
             this.clientOptions,
             this.metadataById,
-            this.reflectionById,
+            this.paramsJitById,
             routeSubRequest,
             hookSubRequests
         );
@@ -67,18 +67,18 @@ class MionClient {
             );
     }
 
-    validate<List extends SubRequest<any>[]>(...subRequest: List): Promise<ParamsValidationResponse[]> {
-        const request = new MionRequest(this.clientOptions, this.metadataById, this.reflectionById);
+    validate<List extends SubRequest<any>[]>(...subRequest: List): Promise<RunTypeValidationError[]> {
+        const request = new MionRequest(this.clientOptions, this.metadataById, this.paramsJitById);
         return request.validateParams(subRequest);
     }
 
     prefill<List extends HookSubRequest<any>[]>(...subRequest: List): Promise<void> {
-        const request = new MionRequest(this.clientOptions, this.metadataById, this.reflectionById);
+        const request = new MionRequest(this.clientOptions, this.metadataById, this.paramsJitById);
         return request.prefill(subRequest);
     }
 
     removePrefill<List extends HookSubRequest<any>[]>(...subRequest: List): Promise<void> {
-        const request = new MionRequest(this.clientOptions, this.metadataById, this.reflectionById);
+        const request = new MionRequest(this.clientOptions, this.metadataById, this.paramsJitById);
         return request.removePrefill(subRequest);
     }
 }
@@ -108,7 +108,7 @@ class MethodProxy {
                         .then(() => subRequest.return)
                         .catch((errors) => Promise.reject(findError(subRequest, errors)));
                 },
-                validate: (): Promise<ParamsValidationResponse> => {
+                validate: (): Promise<RunTypeValidationError> => {
                     return this.client
                         .validate(subRequest)
                         .then((responses) => responses[0])
