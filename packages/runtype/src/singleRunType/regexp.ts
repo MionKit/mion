@@ -40,10 +40,10 @@ const matchRegExpString = '/\\/(.*)\\/(.*)?/';
 
 export const RegexpJitJsonEncoder: JitJsonEncoder = {
     decodeFromJson(varName: string): string {
-        return `(function(){const parts = ${varName}.match(${matchRegExpString}) ;return new RegExp(parts[1], parts[2] || '')})()`;
+        return `${varName} = (function(){const parts = ${varName}.match(${matchRegExpString}) ;return new RegExp(parts[1], parts[2] || '')})()`;
     },
     encodeToJson(varName: string): string {
-        return `(${varName}.toString())`;
+        return `${varName} = (${varName}.toString())`;
     },
     stringify(varName: string): string {
         return `JSON.stringify(${varName}.toString())`;

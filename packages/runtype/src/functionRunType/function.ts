@@ -100,14 +100,18 @@ export class FunctionRunType<CallType extends AnyFunction = TypeFunction> extend
             );
         },
         jsonEncode: (varName: string) => {
-            if (!this.opts?.strictJSON && !this.isParamsJsonEncodedRequired) return varName;
-            const paramsCode = this.parameterTypes.map((p, i) => p.JIT_jsonEncode(`${varName}[${i}]`)).join(', ');
-            return `[${paramsCode}]`;
+            if (!this.opts?.strictJSON && !this.isParamsJsonEncodedRequired) return '';
+            return this.parameterTypes
+                .map((p, i) => p.JIT_jsonEncode(`${varName}[${i}]`))
+                .filter((code) => !!code)
+                .join(';');
         },
         jsonDecode: (varName: string) => {
-            if (!this.opts?.strictJSON && !this.isParamsJsonDecodedRequired) return varName;
-            const paramsCode = this.parameterTypes.map((p, i) => p.JIT_jsonDecode(`${varName}[${i}]`)).join(', ');
-            return `[${paramsCode}]`;
+            if (!this.opts?.strictJSON && !this.isParamsJsonDecodedRequired) return '';
+            return this.parameterTypes
+                .map((p, i) => p.JIT_jsonDecode(`${varName}[${i}]`))
+                .filter((code) => !!code)
+                .join(';');
         },
         jsonStringify: (varName: string) => {
             if (this.parameterTypes.length === 0) return `[]`;
@@ -136,11 +140,11 @@ export class FunctionRunType<CallType extends AnyFunction = TypeFunction> extend
             return this.returnType.JIT_typeErrors(varName, errorsName, pathChain);
         },
         jsonEncode: (varName: string) => {
-            if (!this.opts?.strictJSON && !this.isReturnJsonEncodedRequired) return varName;
+            if (!this.opts?.strictJSON && !this.isReturnJsonEncodedRequired) return '';
             return this.returnType.JIT_jsonEncode(varName);
         },
         jsonDecode: (varName: string) => {
-            if (!this.opts?.strictJSON && !this.isReturnJsonDecodedRequired) return varName;
+            if (!this.opts?.strictJSON && !this.isReturnJsonDecodedRequired) return '';
             return this.returnType.JIT_jsonDecode(varName);
         },
         jsonStringify: (varName: string) => this.returnType.JIT_jsonStringify(varName),

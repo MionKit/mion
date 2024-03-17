@@ -22,11 +22,11 @@ export class ObjectRunType extends BaseRunType<TypeAny | TypeUnknown> {
     JIT_typeErrors(varName: string, errorsName: string, pathChain: string): string {
         return `if (!(${this.JIT_isType(varName)})) ${errorsName}.push({path: ${pathChain}, expected: ${toLiteral(this.name)}})`;
     }
-    JIT_jsonEncode(varName: string): string {
-        return varName;
+    JIT_jsonEncode(): string {
+        return '';
     }
-    JIT_jsonDecode(varName: string): string {
-        return varName;
+    JIT_jsonDecode(): string {
+        return '';
     }
     JIT_jsonStringify(varName: string): string {
         return `JSON.stringify(${varName})`;

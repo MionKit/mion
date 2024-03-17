@@ -29,31 +29,39 @@ export class ArrayRunType extends BaseRunType<TypeArray> {
         this.name = `array<${this.itemsRunType.name}>`;
     }
     JIT_isType(varName: string): string {
-        const itemName = `iτεm${this.nestLevel}`;
-        return `Array.isArray(${varName}) && ${varName}.every((${itemName}) => (${this.itemsRunType.JIT_isType(itemName)}))`;
+        const indexName = `indεx${this.nestLevel}`;
+        const itemAccessor = `${varName}[${indexName}]`;
+        const itemCode = this.itemsRunType.JIT_isType(itemAccessor);
+        const forLoop = `for (let ${indexName} = 0; ${indexName} < ${varName}.length; ${indexName}++) {if (!(${itemCode})) return false;}`;
+        return `Array.isArray(${varName}) && (function() {${forLoop}return true})()`;
     }
     JIT_typeErrors(varName: string, errorsName: string, pathLiteral: string): string {
-        const itemName = `iτεm${this.nestLevel}`;
         const indexName = `indεx${this.nestLevel}`;
         const listItemPath = addToPathChain(pathLiteral, indexName, false);
-
-        return (
-            `if (!Array.isArray(${varName})) ${errorsName}.push({path: ${pathLiteral}, expected: ${toLiteral(this.name)}});` +
-            `else ${varName}.forEach((${itemName}, ${indexName}) => {${this.itemsRunType.JIT_typeErrors(itemName, errorsName, listItemPath)}})`
-        );
+        const itemAccessor = `${varName}[${indexName}]`;
+        const itemCode = this.itemsRunType.JIT_typeErrors(itemAccessor, errorsName, listItemPath);
+        const arrayCode = `if (!Array.isArray(${varName})) ${errorsName}.push({path: ${pathLiteral}, expected: ${toLiteral(this.name)}});`;
+        return arrayCode + `else { for (let ${indexName} = 0; ${indexName} < ${varName}.length; ${indexName}++) {${itemCode}} }`;
     }
     JIT_jsonEncode(varName: string): string {
-        if (skipJsonEncode(this)) return varName;
-        const itemName = `iτεm${this.nestLevel}`;
-        return `${varName}.map((${itemName}) => ${this.itemsRunType.JIT_jsonEncode(itemName)})`;
+        if (skipJsonEncode(this)) return '';
+        const indexName = `indεx${this.nestLevel}`;
+        const itemAccessor = `${varName}[${indexName}]`;
+        const itemCode = this.itemsRunType.JIT_jsonEncode(itemAccessor);
+        if (!itemCode) return '';
+        return `for (let ${indexName} = 0; ${indexName} < ${varName}.length; ${indexName}++) {${itemCode}}`;
     }
     JIT_jsonDecode(varName: string): string {
-        if (skipJsonDecode(this)) return varName;
-        const itemName = `iτεm${this.nestLevel}`;
-        return `${varName}.map((${itemName}) => ${this.itemsRunType.JIT_jsonDecode(itemName)})`;
+        if (skipJsonDecode(this)) return '';
+        const indexName = `indεx${this.nestLevel}`;
+        const itemAccessor = `${varName}[${indexName}]`;
+        const itemCode = this.itemsRunType.JIT_jsonDecode(itemAccessor);
+        if (!itemCode) return '';
+        return `for (let ${indexName} = 0; ${indexName} < ${varName}.length; ${indexName}++) {${itemCode}}`;
     }
     JIT_jsonStringify(varName: string): string {
         const itemName = `iτεm${this.nestLevel}`;
+        // TODO: can be optimized using a for loop
         const itemsCode = `${varName}.map((${itemName}) => ${this.itemsRunType.JIT_jsonStringify(itemName)}).join(",")`;
         return `'[' + ${itemsCode} + ']'`;
     }

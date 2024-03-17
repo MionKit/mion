@@ -140,7 +140,8 @@ it('encode/decode to json', () => {
     expect(fromJson(toJson(typeValue))).toEqual(typeValue);
 });
 
-it('skip props when encode/decode to json', () => {
+// TODO: disabled for now. JSON strict will be moved to an extra validation step instead when serializing/deserializing
+it.skip('skip props when encode/decode to json', () => {
     const toJson = buildJsonEncodeJITFn(rtSkip).fn;
     const fromJson = buildJsonDecodeJITFn(rtSkip).fn;
     const typeValue = {

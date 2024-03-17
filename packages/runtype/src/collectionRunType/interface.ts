@@ -43,14 +43,18 @@ export class InterfaceRunType extends BaseRunType<TypeObjectLiteral> {
         );
     }
     JIT_jsonEncode(varName: string): string {
-        if (skipJsonEncode(this)) return varName;
-        const propsCode = this.serializableProps.map((prop) => prop.JIT_jsonEncode(varName)).join(',');
-        return `{${propsCode}}`;
+        if (skipJsonEncode(this)) return '';
+        return this.serializableProps
+            .map((prop) => prop.JIT_jsonEncode(varName))
+            .filter((code) => !!code)
+            .join(';');
     }
     JIT_jsonDecode(varName: string): string {
-        if (skipJsonDecode(this)) return varName;
-        const propsCode = this.serializableProps.map((prop) => prop.JIT_jsonDecode(varName)).join(',');
-        return `{${propsCode}}`;
+        if (skipJsonDecode(this)) return '';
+        return this.serializableProps
+            .map((prop) => prop.JIT_jsonDecode(varName))
+            .filter((code) => !!code)
+            .join(';');
     }
     // unlike the other JIT methods the separator is added within the PropertySignatureRunType
     // this is because optional properties can't emit any strings at runtime

@@ -81,11 +81,11 @@ export class LiteralRunType extends BaseRunType<TypeLiteral> {
 }
 
 const noEncoder: JitJsonEncoder = {
-    decodeFromJson(varName: string) {
-        return `${varName}`;
+    decodeFromJson() {
+        return ``;
     },
-    encodeToJson(varName: string) {
-        return `${varName}`;
+    encodeToJson() {
+        return ``;
     },
     stringify(varName: string) {
         return `JSON.stringify(${varName})`;

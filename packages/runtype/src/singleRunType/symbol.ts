@@ -38,10 +38,10 @@ export class SymbolRunType extends BaseRunType<TypeSymbol> {
 
 export const SymbolJitJsonENcoder: JitJsonEncoder = {
     decodeFromJson(varName: string): string {
-        return `Symbol(${varName}.substring(7))`;
+        return `${varName} = Symbol(${varName}.substring(7))`;
     },
     encodeToJson(varName: string): string {
-        return `'Symbol:' + (${varName}.description || '')`;
+        return `${varName} =  'Symbol:' + (${varName}.description || '')`;
     },
     stringify(varName: string): string {
         return `JSON.stringify('Symbol:' + (${varName}.description || ''))`;

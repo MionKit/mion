@@ -11,19 +11,18 @@ import {skipJsonDecode, skipJsonEncode, toLiteral} from '../utils';
 import {random} from '../mock';
 import {BaseRunType} from '../baseRunType';
 
+/**
+ * Unions get encoded into an array where arr[0] is the discriminator and arr[1] is the value.
+ * this is because some times we can't distinguish the type of an union.
+ * ie: bigint gets encoded into an string, so if we have an union 'type U = string | bigint' we can't distinguish between the when encoding/decoding the json.
+ * to solve this issue the index of the type is used as a discriminator.
+ * So [0, "123n"] is interpreted as a string and [1, "123n"] is interpreted as a bigint.
+ * */
 export class UnionRunType extends BaseRunType<TypeUnion> {
     public readonly name: string;
-    public readonly isJsonEncodeRequired: boolean;
-    public readonly isJsonDecodeRequired: boolean;
+    public readonly isJsonEncodeRequired = true;
+    public readonly isJsonDecodeRequired = true;
     public readonly runTypes: RunType[];
-    /**
-     * Some unions get encoded into an array where arr[0] is the discriminator and arr[1] is the value.
-     * this is because some times we can't distinguish the type of an union.
-     * ie: bigint gets encoded into an string, so if we have an union 'type U = string | bigint' we can't distinguish between the when encoding/decoding the json.
-     * to solve this issue the index of the type is used as a discriminator.
-     * So [0, "123n"] is interpreted as a string and [1, "123n"] is interpreted as a bigint.
-     * */
-    public readonly needDiscriminatorIndex: boolean;
     constructor(
         visitor: RunTypeVisitor,
         public readonly src: TypeUnion,
@@ -33,11 +32,6 @@ export class UnionRunType extends BaseRunType<TypeUnion> {
         super(visitor, src, nestLevel, opts);
         this.runTypes = src.types.map((t) => visitor(t, nestLevel, opts));
         this.name = `union<${this.runTypes.map((rt) => rt.name).join(' | ')}>`;
-        // TODO: this could be optimized if every run type would have a jsonType and we could check they do not collide.
-        // On the other hand the discriminator encode is more efficient so maybe we should not optimize at all 😅
-        this.needDiscriminatorIndex = this.runTypes.some((rt) => rt.isJsonEncodeRequired || rt.isJsonDecodeRequired);
-        this.isJsonEncodeRequired = this.needDiscriminatorIndex;
-        this.isJsonDecodeRequired = this.needDiscriminatorIndex;
     }
     JIT_isType(varName: string): string {
         return this.runTypes.map((rt) => `(${rt.JIT_isType(varName)})`).join(' || ');
@@ -46,37 +40,37 @@ export class UnionRunType extends BaseRunType<TypeUnion> {
         return `if (!(${this.JIT_isType(varName)})) ${errorsName}.push({path: ${pathChain}, expected: ${toLiteral(this.name)}})`;
     }
     JIT_jsonEncode(varName: string): string {
-        const errorCode = `throw new Error('Can not encode json to union: expected ${this.name} but got ' + ${varName}?.constructor?.name || typeof ${varName})`;
+        const errorCode = `else { throw new Error('Can not encode json to union: expected ${this.name} but got ' + ${varName}?.constructor?.name || typeof ${varName}) }`;
         const encode = this.runTypes
             .map((rt, i) => {
                 const checkCode = rt.JIT_isType(varName);
-                const itemCode = skipJsonEncode(rt) ? varName : rt.JIT_jsonEncode(varName);
-                const returnCode = !this.needDiscriminatorIndex ? itemCode : `[${i}, ${itemCode}]`;
-                return `if (${checkCode}) return ${returnCode}`;
+                const accessor = `${varName}[1]`;
+                const itemCode = skipJsonEncode(rt) ? '' : rt.JIT_jsonEncode(accessor);
+                const discriminatorCode = `{${varName} = [${i}, ${varName}]; ${itemCode}}`;
+                return `${i === 0 ? 'if' : 'else if'} (${checkCode}) ${discriminatorCode}`;
             })
-            .join(';');
-        return `(() => {${encode}; ${errorCode}})()`;
+            .join('\n');
+        return `${encode}\n${errorCode}`;
     }
     JIT_jsonDecode(varName: string): string {
-        const errorCode = `throw new Error('Can not decode json from union: expected ${this.name} but got ' + ${varName}?.constructor?.name || typeof ${varName})`;
+        const errorCode = `else { throw new Error('Can not decode json from union: expected ${this.name} but got ' + ${varName}?.constructor?.name || typeof ${varName}) }`;
         const decode = this.runTypes
             .map((rt, i) => {
-                const valueName = !this.needDiscriminatorIndex ? varName : `${varName}[1]`;
-                const checkCode = !this.needDiscriminatorIndex ? rt.JIT_isType(varName) : `${varName}[0] === ${i}`;
-                const returnCode = skipJsonDecode(rt) ? valueName : rt.JIT_jsonDecode(valueName);
-                return `if (${checkCode}) return ${returnCode}`;
+                const checkCode = `${varName}[0] === ${i}`;
+                const accessor = `${varName}[1]`;
+                const itemCode = skipJsonDecode(rt) ? '' : rt.JIT_jsonDecode(varName);
+                const discriminatorCode = `{${varName} = ${accessor}; ${itemCode}}`;
+                return `${i === 0 ? 'if' : 'else if'} (${checkCode})  ${discriminatorCode}`;
             })
-            .join(';');
-        return `(() => {${decode}; ${errorCode}})()`;
+            .join('\n');
+        return `${decode}\n${errorCode}`;
     }
     JIT_jsonStringify(varName: string): string {
         const errorCode = `throw new Error('Can not stringify union: expected ${this.name} but got ' + ${varName}?.constructor?.name || typeof ${varName})`;
         const encode = this.runTypes
             .map((rt, i) => {
                 const checkCode = rt.JIT_isType(varName);
-                const returnCode = !this.needDiscriminatorIndex
-                    ? rt.JIT_jsonStringify(varName)
-                    : `('[' + ${i} + ',' + ${rt.JIT_jsonStringify(varName)} + ']')`;
+                const returnCode = `('[' + ${i} + ',' + ${rt.JIT_jsonStringify(varName)} + ']')`;
                 return `if (${checkCode}) return ${returnCode}`;
             })
             .join(';');

@@ -20,11 +20,11 @@ export class NullRunType extends BaseRunType<TypeNull> {
     JIT_typeErrors(varName: string, errorsName: string, pathChain: string): string {
         return `if (${varName} !== null) ${errorsName}.push({path: ${pathChain}, expected: ${toLiteral(this.name)}})`;
     }
-    JIT_jsonEncode(varName: string): string {
-        return varName;
+    JIT_jsonEncode(): string {
+        return '';
     }
-    JIT_jsonDecode(varName: string): string {
-        return varName;
+    JIT_jsonDecode(): string {
+        return '';
     }
     JIT_jsonStringify(varName: string): string {
         return varName;

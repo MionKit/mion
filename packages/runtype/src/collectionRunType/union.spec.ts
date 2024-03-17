@@ -55,42 +55,10 @@ it('encode/decode to json', () => {
     expect(fromJson(toJson(typeValue))).not.toBe(typeValue);
 });
 
-// test case for an union that does not require encoding/decoding ie string | string[]
-it('no encode/decode require to json', () => {
-    type UnionType = string | string[];
-    const rtu = runType<UnionType>();
-    const toJson = buildJsonEncodeJITFn(rtu).fn;
-    const fromJson = buildJsonDecodeJITFn(rtu).fn;
-    expect(rtu.isJsonDecodeRequired).toBe(false);
-    expect(rtu.isJsonEncodeRequired).toBe(false);
-    const typeValue = 'hello';
-    expect(fromJson(toJson(typeValue))).toEqual(typeValue);
-    const typeValue2 = ['a', 'b', 'c'];
-    expect(fromJson(toJson(typeValue2))).toEqual(typeValue2);
-
-    // objects are the same same object in after round trip
-    expect(fromJson(toJson(typeValue))).toBe(typeValue);
-});
-
 it('json stringify with discriminator', () => {
     // this should be serialized as [discriminatorIndex, value]
     const jsonStringify = buildJsonStringifyJITFn(rt).fn;
     const fromJson = buildJsonDecodeJITFn(rt).fn;
-    const typeValue = 'hello';
-    const roundTrip = fromJson(JSON.parse(jsonStringify(typeValue)));
-    expect(roundTrip).toEqual(typeValue);
-
-    const typeValue2 = ['a', 'b', 'c'];
-    const roundTrip2 = fromJson(JSON.parse(jsonStringify(typeValue2)));
-    expect(roundTrip2).toEqual(typeValue2);
-});
-
-it('json stringify', () => {
-    // this should be serialized directly as value instead [discriminatorIndex, value]
-    type UT = string | string[];
-    const rtU = runType<UT>();
-    const jsonStringify = buildJsonStringifyJITFn(rtU).fn;
-    const fromJson = buildJsonDecodeJITFn(rtU).fn;
     const typeValue = 'hello';
     const roundTrip = fromJson(JSON.parse(jsonStringify(typeValue)));
     expect(roundTrip).toEqual(typeValue);

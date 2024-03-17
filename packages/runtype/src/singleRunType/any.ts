@@ -28,11 +28,11 @@ export class AnyRunType extends BaseRunType<TypeAny | TypeUnknown> {
     JIT_typeErrors(): string {
         return ``;
     }
-    JIT_jsonEncode(varName: string): string {
-        return varName;
+    JIT_jsonEncode(): string {
+        return '';
     }
-    JIT_jsonDecode(varName: string): string {
-        return varName;
+    JIT_jsonDecode(): string {
+        return '';
     }
     JIT_jsonStringify(varName: string): string {
         return `JSON.stringify(${varName})`;
