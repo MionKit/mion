@@ -40,8 +40,9 @@ export class FunctionRunType<CallType extends AnyFunction = TypeFunction> extend
         super(visitor, src, nestLevel, opts);
         const start = opts?.paramsSlice?.start;
         const end = opts?.paramsSlice?.end;
-        const returnType = visitor(src.return, nestLevel, opts);
-        this.returnType = isPromiseRunType(returnType) ? returnType.resolvedType : returnType;
+        const maybePromiseReturn = visitor(src.return, nestLevel, opts);
+        const isPromise = isPromiseRunType(maybePromiseReturn);
+        this.returnType = isPromise ? maybePromiseReturn.resolvedType : maybePromiseReturn;
         this.parameterTypes = src.parameters.slice(start, end).map((p) => visitor(p, nestLevel, opts)) as ParameterRunType[];
         this.isReturnJsonEncodedRequired = this.returnType.isJsonEncodeRequired;
         this.isReturnJsonDecodedRequired = this.returnType.isJsonDecodeRequired;
@@ -52,7 +53,7 @@ export class FunctionRunType<CallType extends AnyFunction = TypeFunction> extend
         this.returnName = this.returnType.name;
         this.name = `${callType}<${this.paramsName}, ${this.returnName}>`;
         this.hasReturnData = this._hasReturnData();
-        this.isAsync = this._isAsync();
+        this.isAsync = isPromise || this._isAsync(maybePromiseReturn);
     }
     JIT_isType(): string {
         throw new Error(`${this.name} validation is not supported, instead validate parameters or return type separately.`);
@@ -157,11 +158,11 @@ export class FunctionRunType<CallType extends AnyFunction = TypeFunction> extend
         );
     }
 
-    private _isAsync(): boolean {
+    private _isAsync(returnType): boolean {
         return (
-            this.returnType.src.kind === ReflectionKind.promise ||
-            this.returnType.src.kind === ReflectionKind.any ||
-            this.returnType.src.kind === ReflectionKind.unknown
+            returnType.src.kind === ReflectionKind.promise ||
+            returnType.src.kind === ReflectionKind.any ||
+            returnType.src.kind === ReflectionKind.unknown
         );
     }
 }
