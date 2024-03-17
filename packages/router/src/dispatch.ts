@@ -11,7 +11,8 @@ import {HeaderProcedure, type Procedure} from './types/procedures';
 import {ProcedureType} from './types/procedures';
 import type {Handler} from './types/handlers';
 import {isNotFoundExecutable} from './types/guards';
-import {getNotFoundExecutionPath, getRouteExecutionPath, getRouterOptions} from './router';
+import {getRouteExecutionPath, getRouterOptions} from './router';
+import {getNotFoundExecutionPath} from './notFound';
 import {isPromise} from 'node:util/types';
 import {Mutable, AnyObject, RpcError, StatusCodes} from '@mionkit/core';
 import {handleRpcErrors} from './errors';
@@ -64,14 +65,17 @@ async function runExecutionPath(
         if (response.hasErrors && !executable.options.runOnError) continue;
 
         try {
-            const deserializedParams = deserializeParameters(request, executable);
-            const validatedParams = validateParameters(deserializedParams, executable);
-            if (executable.type === ProcedureType.headerHook) request.headers.set(executable.id, validatedParams);
-            else (request.body as Mutable<MionRequest['body']>)[executable.id] = validatedParams;
+            const params = deserializeParameters(request, executable);
+            validateParametersOrThrow(params, executable);
 
-            const result = await runHandler(validatedParams, context, rawRequest, rawResponse, executable, opts);
-            // TODO: should we also validate the handler result? think just forcing declaring the return type with a linter is enough.
-            serializeResponse(executable, response, result);
+            if (executable.options.isSync) {
+                const result = getHandlerResponse(params, context, rawRequest, rawResponse, executable, opts);
+                if (result instanceof Error || result instanceof RpcError) throw result;
+                else serializeResponse(executable, response, result);
+            } else {
+                const result = await runAsyncHandler(params, context, rawRequest, rawResponse, executable, opts);
+                serializeResponse(executable, response, result);
+            }
         } catch (err: any | RpcError | Error) {
             const path = isNotFoundExecutable(executable) ? context.path : executable.id;
             handleRpcErrors(path, request, response, err, i);
@@ -80,7 +84,7 @@ async function runExecutionPath(
     return context.response;
 }
 
-async function runHandler(
+async function runAsyncHandler(
     handlerParams: any[],
     context: CallContext,
     rawRequest: unknown,
@@ -116,19 +120,22 @@ function getHandlerResponse(
 function deserializeParameters(request: MionRequest, executable: Procedure): any[] {
     if (!executable.handlerRunType) return [];
     const path = executable.id;
-    let params;
 
     if (executable.type !== ProcedureType.headerHook) {
-        params = request.body[path] || [];
-    } else {
-        params = request.headers.get((executable as HeaderProcedure).headerName) || [];
-        // headers could be arrays or individual values, so we need to normalize to an array
-        if (!Array.isArray(params)) params = [params];
+        (request.body as Mutable<MionRequest['body']>)[path] = _deserializeParameters(request.body[path] || [], executable, path);
+        return request.body[path] as any[];
     }
 
-    if (executable.options.useSerialization) {
+    const headerParams = request.headers.get((executable as HeaderProcedure).headerName) || [];
+    const params = _deserializeParameters(Array.isArray(headerParams) ? headerParams : [headerParams], executable, path);
+    request.headers.set(executable.id, params);
+    return params;
+}
+
+function _deserializeParameters(params: any, executable: Procedure, path: string): any[] {
+    if (executable.options.useSerialization && executable?.handlerRunType?.isParamsJsonDecodedRequired) {
         try {
-            params = executable.handlerRunType.compiledParams.jsonDecode.fn(params);
+            return executable.handlerRunType.compiledParams.jsonDecode.fn(params as any[]);
         } catch (e: any) {
             throw new RpcError({
                 statusCode: StatusCodes.BAD_REQUEST,
@@ -142,27 +149,25 @@ function deserializeParameters(request: MionRequest, executable: Procedure): any
     return params;
 }
 
-function validateParameters(params: any[], executable: Procedure): any[] {
-    if (!executable.handlerRunType) return params;
-    if (executable.options.useValidation) {
-        const areParamsValid = executable.handlerRunType.compiledParams.isType.fn(params);
-        if (!areParamsValid) {
-            throw new RpcError({
-                statusCode: StatusCodes.BAD_REQUEST,
-                name: 'Validation Error',
-                publicMessage: `Invalid params in '${executable.id}', validation failed.`,
-                errorData: executable.handlerRunType.compiledParams.typeErrors.fn(params),
-            });
-        }
+function validateParametersOrThrow(params: any[], executable: Procedure): void {
+    if (!executable.handlerRunType || !executable.options.useValidation) return;
+    const areParamsValid = executable.handlerRunType.compiledParams.isType.fn(params);
+    if (!areParamsValid) {
+        throw new RpcError({
+            statusCode: StatusCodes.BAD_REQUEST,
+            name: 'Validation Error',
+            publicMessage: `Invalid params in '${executable.id}', validation failed.`,
+            errorData: executable.handlerRunType.compiledParams.typeErrors.fn(params),
+        });
     }
-    return params;
 }
 
 function serializeResponse(executable: Procedure, response: MionResponse, result: any) {
     if (!executable.options.canReturnData || result === undefined) return;
-    const serialized = executable.options.useSerialization
-        ? executable.handlerRunType?.compiledParams.jsonEncode.fn(result)
-        : result;
+    const serialized =
+        executable.options.useSerialization && executable.handlerRunType?.isReturnJsonEncodedRequired
+            ? executable.handlerRunType?.compiledReturn.jsonEncode.fn(result)
+            : result;
     if (executable.type !== ProcedureType.headerHook) (response.body as Mutable<AnyObject>)[executable.id] = serialized;
     else response.headers.set((executable as HeaderProcedure).headerName, serialized);
 }

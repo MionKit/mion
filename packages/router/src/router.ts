@@ -9,7 +9,6 @@ import {join} from 'path';
 import {DEFAULT_ROUTE_OPTIONS, MAX_ROUTE_NESTING} from './constants';
 import {isRawHookDef, isHeaderHookDef, isExecutable, isHookDef, isRoute, isRoutes, isAnyHookDef} from './types/guards';
 import type {Route, RouterOptions, Routes, RouterEntry} from './types/general';
-import type {NotFoundProcedure} from './types/procedures';
 import type {RawProcedure} from './types/procedures';
 import type {HeaderProcedure} from './types/procedures';
 import type {HookProcedure} from './types/procedures';
@@ -20,7 +19,7 @@ import type {PublicApi, PrivateDef, HooksCollection} from './types/publicProcedu
 import type {HeaderHookDef, HookDef, RawHookDef} from './types/definitions';
 import {reflectFunction} from '@mionkit/runtype';
 import {bodyParserHooks} from './jsonBodyParser.routes';
-import {RpcError, StatusCodes, getRouterItemId, setErrorOptions, getRoutePath} from '@mionkit/core';
+import {getRouterItemId, setErrorOptions, getRoutePath} from '@mionkit/core';
 import {getRemoteMethodsMetadata, resetRemoteMethodsMetadata} from './remoteMethodsMetadata';
 import {clientRoutes} from './client.routes';
 
@@ -48,8 +47,8 @@ const defaultStartHooks = {mionParseJsonRequestBody: bodyParserHooks.mionParseJs
 const defaultEndHooks = {mionStringifyJsonResponseBody: bodyParserHooks.mionStringifyJsonResponseBody};
 let startHooksDef: HooksCollection = {...defaultStartHooks};
 let endHooksDef: HooksCollection = {...defaultEndHooks};
-let startHooks: Procedure[] = [];
-let endHooks: Procedure[] = [];
+export let startHooks: Procedure[] = [];
+export let endHooks: Procedure[] = [];
 
 // ############# PUBLIC METHODS #############
 
@@ -132,26 +131,6 @@ export function addEndHooks(hooksDef: HooksCollection, prependAfterExisting = tr
         return;
     }
     endHooksDef = {...hooksDef, ...endHooksDef};
-}
-
-let notFoundExecutionPath: Procedure[] | undefined;
-const notFoundHook = {
-    type: ProcedureType.rawHook,
-    handler: () => new RpcError({statusCode: StatusCodes.NOT_FOUND, publicMessage: `Route not found`}),
-    options: {
-        canReturnData: false,
-        runOnError: true,
-        useValidation: false,
-        useSerialization: false,
-    },
-} satisfies RawHookDef;
-export function getNotFoundExecutionPath(): Procedure[] {
-    if (notFoundExecutionPath) return notFoundExecutionPath;
-    const hookName = '_mion404NotfoundHook_';
-    const notFoundHandlerExecutable = getExecutableFromRawHook(notFoundHook, [hookName], 0);
-    (notFoundHandlerExecutable as NotFoundProcedure).is404 = true;
-    notFoundExecutionPath = [...startHooks, notFoundHandlerExecutable, ...endHooks];
-    return notFoundExecutionPath;
 }
 
 export function isPrivateProcedure(entry: RouterEntry, id: string): entry is PrivateDef {
@@ -354,7 +333,7 @@ function getExecutableFromHook(
     return executable as any;
 }
 
-function getExecutableFromRawHook(hook: RawHookDef, hookPointer: string[], nestLevel: number): RawProcedure {
+export function getExecutableFromRawHook(hook: RawHookDef, hookPointer: string[], nestLevel: number): RawProcedure {
     const hookId = getRouterItemId(hookPointer);
     const existing = rawHooksById.get(hookId);
     if (existing) return existing as RawProcedure;
