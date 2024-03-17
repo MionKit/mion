@@ -53,7 +53,8 @@ export function buildTypeErrorsJITFn(runType: RunType, jitFunctions?: JitFunctio
 export function buildJsonEncodeJITFn(runType: RunType, jitFunctions?: JitFunctions): CompiledFunctions['jsonEncode'] {
     const varName = `vλluε${runType.nestLevel}`;
     const jitCode = jitFunctions?.jsonEncode ? jitFunctions.jsonEncode(varName) : runType.JIT_jsonEncode(varName);
-    const code = `return ${jitCode};`;
+    const hasJitCode = !!jitCode;
+    const code = `${jitCode} ${hasJitCode ? ';' : ''} return ${varName}`;
     try {
         const fn = new Function(varName, code) as (vλluε: any) => JSONValue;
         return {varName, code, fn};
@@ -66,7 +67,8 @@ export function buildJsonEncodeJITFn(runType: RunType, jitFunctions?: JitFunctio
 export function buildJsonDecodeJITFn(runType: RunType, jitFunctions?: JitFunctions): CompiledFunctions['jsonDecode'] {
     const varName = `vλluε${runType.nestLevel}`;
     const jitCode = jitFunctions?.jsonDecode ? jitFunctions.jsonDecode(varName) : runType.JIT_jsonDecode(varName);
-    const code = `return ${jitCode};`;
+    const hasJitCode = !!jitCode;
+    const code = `${jitCode} ${hasJitCode ? ';' : ''} return ${varName}`;
     try {
         const fn = new Function(varName, code) as (vλluε: JSONValue) => any;
         return {varName, code, fn};

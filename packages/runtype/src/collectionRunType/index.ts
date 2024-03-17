@@ -44,21 +44,20 @@ export class IndexSignatureRunType extends BaseRunType<TypeIndexSignature> {
         );
     }
     JIT_jsonEncode(varName: string): string {
-        if (!this.isJsonEncodeRequired) return `${varName}`;
+        if (!this.isJsonEncodeRequired) return ``;
         const keyName = `kεy${this.nestLevel}`;
-        const valueName = `valuε${this.nestLevel}`;
-        return `Object.entries(${varName}).reduce((acc, [${keyName}, ${valueName}]) => {
-            acc[${keyName}] = ${this.propertiesRunType.JIT_jsonEncode(valueName)};
-            return acc;
-        }, {})`;
+        const itemAccessor = `${varName}[${keyName}]`;
+        const itemCode = this.propertiesRunType.JIT_jsonEncode(itemAccessor);
+        if (!itemCode) return ``;
+        return `Object.keys(${varName}).forEach((${keyName}) => {${itemCode}})`;
     }
     JIT_jsonDecode(varName: string): string {
+        if (!this.isJsonDecodeRequired) return ``;
         const keyName = `kεy${this.nestLevel}`;
-        const valueName = `valuε${this.nestLevel}`;
-        return `Object.entries(${varName}).reduce((acc, [${keyName}, ${valueName}]) => {
-            acc[${keyName}] = ${this.propertiesRunType.JIT_jsonDecode(valueName)};
-            return acc;
-        }, {})`;
+        const itemAccessor = `${varName}[${keyName}]`;
+        const itemCode = this.propertiesRunType.JIT_jsonDecode(itemAccessor);
+        if (!itemCode) return ``;
+        return `Object.keys(${varName}).forEach((${keyName}) => {${itemCode}})`;
     }
     JIT_jsonStringify(varName: string): string {
         const keyName = `kεy${this.nestLevel}`;

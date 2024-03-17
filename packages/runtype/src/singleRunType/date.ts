@@ -38,10 +38,10 @@ export class DateRunType extends BaseRunType<TypeClass> {
 
 export const DateJitJsonENcoder: JitJsonEncoder = {
     decodeFromJson(varName: string): string {
-        return `new Date(${varName})`;
+        return `${varName} = new Date(${varName})`;
     },
-    encodeToJson(varName: string): string {
-        return `${varName}`;
+    encodeToJson(): string {
+        return ``;
     },
     stringify(varName: string): string {
         return `'"'+${varName}.toJSON()+'"'`;

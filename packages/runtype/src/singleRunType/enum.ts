@@ -30,11 +30,11 @@ export class EnumRunType extends BaseRunType<TypeEnum> {
     JIT_typeErrors(varName: string, errorsName: string, pathChain: string): string {
         return `if (!(${this.JIT_isType(varName)})) ${errorsName}.push({path: ${pathChain}, expected: ${toLiteral(this.name)}})`;
     }
-    JIT_jsonEncode(varName: string): string {
-        return varName;
+    JIT_jsonEncode(): string {
+        return '';
     }
-    JIT_jsonDecode(varName: string): string {
-        return varName;
+    JIT_jsonDecode(): string {
+        return '';
     }
     JIT_jsonStringify(varName: string): string {
         if (this.src.indexType.kind === ReflectionKind.number) return varName;

@@ -20,11 +20,11 @@ export class UndefinedRunType extends BaseRunType<TypeUndefined> {
     JIT_typeErrors(varName: string, errorsName: string, pathChain: string): string {
         return `if (typeof ${varName} !== 'undefined') ${errorsName}.push({path: ${pathChain}, expected: ${toLiteral(this.name)}})`;
     }
-    JIT_jsonEncode(): string {
-        return `null`;
+    JIT_jsonEncode(varName: string): string {
+        return `${varName} = null`;
     }
-    JIT_jsonDecode(): string {
-        return `undefined`;
+    JIT_jsonDecode(varName: string): string {
+        return `${varName} = undefined`;
     }
     JIT_jsonStringify(): string {
         return `null`;

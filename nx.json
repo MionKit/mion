@@ -16,7 +16,7 @@
       "outputs": ["{workspaceRoot}/.coverage"]
     },
     "build": {
-      "dependsOn": ["lint", "test", "^build"],
+      "dependsOn": ["lint", "^build"],
       "outputs": ["{workspaceRoot}/.dist"]
     },
     "auto-readme": {

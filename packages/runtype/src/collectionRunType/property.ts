@@ -78,36 +78,36 @@ export class PropertySignatureRunType extends BaseRunType<TypePropertySignature>
     }
     JIT_jsonEncode(varName: string): string {
         if (!this.shouldSerialize) return '';
-        const jsName = this.isSafePropName ? this.propName : toLiteral(this.propName);
         const accessor = `${varName}${this.safeAccessor}`;
         const useNative = skipJsonEncode(this);
-        const valCode = useNative ? accessor : this.memberType.JIT_jsonEncode(accessor);
+        const propCode = useNative ? '' : this.memberType.JIT_jsonEncode(accessor);
+        if (!propCode) return '';
         if (this.isOptional) {
-            return `...(${accessor} === undefined ? {} : {${jsName}:${valCode}})`;
+            return `if (${accessor} !== undefined) ${propCode}`;
         }
-        return `${jsName}:${valCode}`;
+        return propCode;
     }
     JIT_jsonDecode(varName: string): string {
         if (!this.shouldSerialize) return '';
-        const jsName = this.isSafePropName ? this.propName : toLiteral(this.propName);
         const accessor = `${varName}${this.safeAccessor}`;
         const useNative = skipJsonDecode(this);
-        const valCode = useNative ? accessor : this.memberType.JIT_jsonDecode(accessor);
+        const propCode = useNative ? '' : this.memberType.JIT_jsonDecode(accessor);
+        if (!propCode) return '';
         if (this.isOptional) {
-            return `...(${accessor} === undefined ? {} : {${jsName}:${valCode}})`;
+            return `if (${accessor} !== undefined) ${propCode}`;
         }
-        return `${jsName}:${valCode}`;
+        return propCode;
     }
     JIT_jsonStringify(varName: string, isFirst = false): string {
         if (!this.shouldSerialize) return '';
         // firs stringify sanitizes string, second is the actual json
         const proNameJSon = JSON.stringify(JSON.stringify(this.propName));
         const accessor = `${varName}${this.safeAccessor}`;
-        const valCode = this.memberType.JIT_jsonStringify(accessor);
+        const propCode = this.memberType.JIT_jsonStringify(accessor);
         if (this.isOptional) {
-            return `${isFirst ? '' : '+'}(${accessor} === undefined ?'':${isFirst ? '' : `(','+`}${proNameJSon}+':'+${valCode}))`;
+            return `${isFirst ? '' : '+'}(${accessor} === undefined ?'':${isFirst ? '' : `(','+`}${proNameJSon}+':'+${propCode}))`;
         }
-        return `${isFirst ? '' : `+','+`}${proNameJSon}+':'+${valCode}`;
+        return `${isFirst ? '' : `+','+`}${proNameJSon}+':'+${propCode}`;
     }
     mock(optionalProbability = 0.2, ...args: any[]): any {
         if (optionalProbability < 0 || optionalProbability > 1) throw new Error('optionalProbability must be between 0 and 1');

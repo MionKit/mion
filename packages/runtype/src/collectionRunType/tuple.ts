@@ -41,20 +41,22 @@ export class TupleRunType extends BaseRunType<TypeTuple> {
         );
     }
     JIT_jsonEncode(varName: string): string {
-        if (skipJsonEncode(this)) return varName;
+        if (skipJsonEncode(this)) return '';
         const encodeCodes = this.runTypes.map((rt, i) => {
             const useNative = !this.opts?.strictJSON && !rt.isJsonEncodeRequired;
-            return useNative ? `${varName}[${i}]` : rt.JIT_jsonEncode(`${varName}[${i}]`);
+            const accessor = `${varName}[${i}]`;
+            return useNative ? `` : `${accessor} = ${rt.JIT_jsonEncode(accessor)}`;
         });
-        return `[${encodeCodes.join(',')}]`;
+        return encodeCodes.filter((code) => !!code).join(';');
     }
     JIT_jsonDecode(varName: string): string {
         if (skipJsonDecode(this)) return varName;
         const decodeCodes = this.runTypes.map((rt, i) => {
             const useNative = !this.opts?.strictJSON && !rt.isJsonDecodeRequired;
-            return useNative ? `${varName}[${i}]` : rt.JIT_jsonDecode(`${varName}[${i}]`);
+            const accessor = `${varName}[${i}]`;
+            return useNative ? `` : `${accessor} = ${rt.JIT_jsonDecode(accessor)}`;
         });
-        return `[${decodeCodes.join(',')}]`;
+        return decodeCodes.filter((code) => !!code).join(';');
     }
     JIT_jsonStringify(varName: string): string {
         const encodeCodes = this.runTypes.map((rt, i) => rt.JIT_jsonStringify(`${varName}[${i}]`));
