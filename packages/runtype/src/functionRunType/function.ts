@@ -6,6 +6,7 @@
  * ######## */
 import {ReflectionKind, TypeCallSignature, TypeFunction, TypeMethod, TypeMethodSignature} from '../_deepkit/src/reflection/type';
 import {BaseRunType} from '../baseRunType';
+import {isPromiseRunType} from '../guards';
 import {JITCompiler} from '../jitCompiler';
 import {CompiledFunctions, JitFunctions, RunType, RunTypeOptions, RunTypeVisitor} from '../types';
 import {toLiteral} from '../utils';
@@ -39,7 +40,8 @@ export class FunctionRunType<CallType extends AnyFunction = TypeFunction> extend
         super(visitor, src, nestLevel, opts);
         const start = opts?.paramsSlice?.start;
         const end = opts?.paramsSlice?.end;
-        this.returnType = visitor(src.return, nestLevel, opts);
+        const returnType = visitor(src.return, nestLevel, opts);
+        this.returnType = isPromiseRunType(returnType) ? returnType.resolvedType : returnType;
         this.parameterTypes = src.parameters.slice(start, end).map((p) => visitor(p, nestLevel, opts)) as ParameterRunType[];
         this.isReturnJsonEncodedRequired = this.returnType.isJsonEncodeRequired;
         this.isReturnJsonDecodedRequired = this.returnType.isJsonDecodeRequired;
