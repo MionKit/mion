@@ -24,32 +24,20 @@ export function parseRequestBody(
 ): ErrorReturn {
     if (!context.request.rawBody) return;
     const request = context.request as Mutable<MionRequest>;
-    const type = typeof context.request.rawBody;
-    if (type === 'object') {
-        // assumes that the body is already parsed
-        request.body = context.request.rawBody as any as AnyObject;
-    } else if (type === 'string') {
-        try {
-            const parsedBody = opts.bodyParser.parse(context.request.rawBody);
-            if (typeof parsedBody !== 'object')
-                return new RpcError({
-                    statusCode: StatusCodes.BAD_REQUEST,
-                    name: 'Invalid Request Body',
-                    publicMessage: 'Wrong request body. Expecting an json body containing the route name and parameters.',
-                });
-            request.body = parsedBody;
-        } catch (err: any) {
+    try {
+        const parsedBody = opts.bodyParser.parse(context.request.rawBody);
+        if (typeof parsedBody !== 'object')
             return new RpcError({
-                statusCode: StatusCodes.UNPROCESSABLE_ENTITY,
-                name: 'Parsing Request Body Error',
-                publicMessage: `Invalid request body: ${err?.message || 'unknown parsing error.'}`,
+                statusCode: StatusCodes.BAD_REQUEST,
+                name: 'Invalid Request Body',
+                publicMessage: 'Wrong request body. Expecting an json body containing the route name and parameters.',
             });
-        }
-    } else {
+        request.body = parsedBody;
+    } catch (err: any) {
         return new RpcError({
-            statusCode: StatusCodes.BAD_REQUEST,
-            name: 'Invalid Request Body',
-            publicMessage: 'Wrong request body, expecting a json string.',
+            statusCode: StatusCodes.UNPROCESSABLE_ENTITY,
+            name: 'Parsing Request Body Error',
+            publicMessage: `Invalid request body: ${err?.message || 'unknown parsing error.'}`,
         });
     }
 }
@@ -80,6 +68,6 @@ export function stringifyResponseBody(
 }
 
 export const bodyParserHooks = {
-    mionParseJsonRequestBody: rawHook(parseRequestBody, {runOnError: true}),
-    mionStringifyJsonResponseBody: rawHook(stringifyResponseBody, {runOnError: true}),
+    mionParseJsonRequestBody: rawHook(parseRequestBody, {runOnError: true, isSync: true}),
+    mionStringifyJsonResponseBody: rawHook(stringifyResponseBody, {runOnError: true, isSync: true}),
 } satisfies HooksCollection;
