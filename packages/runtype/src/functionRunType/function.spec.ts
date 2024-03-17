@@ -202,3 +202,21 @@ it('should get runType from a function using reflectFunction', () => {
     expect(fromJsonReturn(toJsonReturn(returnValue))).toEqual(returnValue);
     expect(fromJsonReturn(JSON.parse(jsonStringifyReturn(returnValue)))).toEqual(returnValue);
 });
+
+it(`if function's return type is a promise then return type should be the promise's resolvedType`, () => {
+    const fn = (a: number, b: boolean, c?: string): Promise<Date> => Promise.resolve(new Date());
+    const reflectedType = reflectFunction(fn);
+    expect(reflectedType instanceof FunctionRunType).toBe(true);
+    expect(reflectedType.returnType.name).toBe('date');
+
+    const validateReturn = reflectedType.compiledReturn.isType.fn;
+    const typeErrorsReturn = reflectedType.compiledReturn.typeErrors.fn;
+    const toJsonReturn = reflectedType.compiledReturn.jsonEncode.fn;
+    const fromJsonReturn = reflectedType.compiledReturn.jsonDecode.fn;
+    const jsonStringifyReturn = reflectedType.compiledReturn.jsonStringify.fn;
+    const returnValue = new Date();
+    expect(validateReturn(returnValue)).toBe(true);
+    expect(typeErrorsReturn(returnValue)).toEqual([]);
+    expect(fromJsonReturn(toJsonReturn(returnValue))).toEqual(returnValue);
+    expect(fromJsonReturn(JSON.parse(jsonStringifyReturn(returnValue)))).toEqual(returnValue);
+});
