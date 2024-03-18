@@ -8,7 +8,7 @@ import {ReflectionKind, TypeCallSignature, TypeFunction, TypeMethod, TypeMethodS
 import {BaseRunType} from '../baseRunType';
 import {isPromiseRunType} from '../guards';
 import {JITCompiler} from '../jitCompiler';
-import {CompiledFunctions, JitFunctions, RunType, RunTypeOptions, RunTypeVisitor} from '../types';
+import {JITFunctions, JitFunctions, RunType, RunTypeOptions, RunTypeVisitor} from '../types';
 import {toLiteral} from '../utils';
 import {ParameterRunType} from './param';
 
@@ -76,13 +76,13 @@ export class FunctionRunType<CallType extends AnyFunction = TypeFunction> extend
 
     // ####### params #######
 
-    private _compiledParams: CompiledFunctions | undefined;
-    get compiledParams(): CompiledFunctions {
-        if (this._compiledParams) return this._compiledParams;
-        return (this._compiledParams = new JITCompiler(this, this.paramsJitFunctions));
+    private _jitParamsFns: JITFunctions | undefined;
+    get jitParamsFns(): JITFunctions {
+        if (this._jitParamsFns) return this._jitParamsFns;
+        return (this._jitParamsFns = new JITCompiler(this, this._paramsJitFunctions));
     }
 
-    private paramsJitFunctions: JitFunctions = {
+    private _paramsJitFunctions: JitFunctions = {
         isType: (varName: string) => {
             if (this.parameterTypes.length === 0) return `${varName}.length === 0`;
             const paramsCode = this.parameterTypes.map((p, i) => `(${p.JIT_isType(`${varName}[${i}]`)})`).join(' && ');
@@ -126,13 +126,13 @@ export class FunctionRunType<CallType extends AnyFunction = TypeFunction> extend
 
     // ####### return #######
 
-    private _compiledReturn: CompiledFunctions | undefined;
-    get compiledReturn(): CompiledFunctions {
-        if (this._compiledReturn) return this._compiledReturn;
-        return (this._compiledReturn = new JITCompiler(this, this.returnJitFunctions));
+    private _jitReturnFns: JITFunctions | undefined;
+    get jitReturnFns(): JITFunctions {
+        if (this._jitReturnFns) return this._jitReturnFns;
+        return (this._jitReturnFns = new JITCompiler(this, this._returnJitFunctions));
     }
 
-    private returnJitFunctions: JitFunctions = {
+    private _returnJitFunctions: JitFunctions = {
         isType: (varName) => {
             return this.returnType.JIT_isType(varName);
         },

@@ -12,6 +12,7 @@ import {
     buildTypeErrorsJITFn,
     buildJsonStringifyJITFn,
 } from '../jitCompiler';
+import {asJSONString} from '../utils';
 
 type ObjectType = {
     startDate: Date;

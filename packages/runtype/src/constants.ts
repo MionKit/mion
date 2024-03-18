@@ -62,3 +62,5 @@ export const anyValuesList = [
 ];
 
 export const mockObjectList = [{}, {a: 1}, {b: 2}, {a: 1, b: 'hello'}, {a: 1, b: 2, c: 3}, {a: 'hello', b: 2, c: 'wold', d: 4}];
+
+export const asJSONStringVarname = 'λsJSΦNStr1nς0';

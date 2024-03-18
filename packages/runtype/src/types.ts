@@ -19,7 +19,7 @@ export interface RunType<T extends Type = Type, Opts extends RunTypeOptions = Ru
     readonly isJsonEncodeRequired: boolean;
     readonly isJsonDecodeRequired: boolean;
     readonly opts: Opts;
-    readonly compiled: CompiledFunctions;
+    readonly jitFunctions: JITFunctions;
     /**
      * JIT code validation code
      * should not include anything that is purely the validation of the type, ie function wrappers.
@@ -86,13 +86,13 @@ export interface JitJsonEncoder {
     stringify: (varName: string) => string;
 }
 
-export interface JitFn<Fn extends (args: any[]) => any> {
+export interface JitFn<Fn extends (...args: any[]) => any> {
     varName: string;
     code: string;
     fn: Fn;
 }
 
-export type SerializableJitFn<Fn extends (args: any[]) => any> = Omit<JitFn<Fn>, 'fn'>;
+export type SerializableJitFn<Fn extends (...args: any[]) => any> = Omit<JitFn<Fn>, 'fn'>;
 
 export interface RunTypeValidationError {
     /**
@@ -104,7 +104,7 @@ export interface RunTypeValidationError {
     expected: string;
 }
 
-export interface CompiledFunctions {
+export interface JITFunctions {
     isType: JitFn<(vλluε: any) => boolean>;
     typeErrors: JitFn<(vλluε: any) => RunTypeValidationError[]>;
     jsonEncode: JitFn<(vλluε: any) => JSONValue>;
@@ -112,7 +112,7 @@ export interface CompiledFunctions {
     jsonStringify: JitFn<(vλluε: any) => JSONString>;
 }
 
-export interface SerializableFunctions {
+export interface SerializableJITFunctions {
     isType: SerializableJitFn<(vλluε: any) => boolean>;
     typeErrors: SerializableJitFn<(vλluε: any) => RunTypeValidationError[]>;
     jsonEncode: SerializableJitFn<(vλluε: any) => JSONValue>;
