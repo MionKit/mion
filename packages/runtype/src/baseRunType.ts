@@ -7,7 +7,7 @@
 
 import {Type} from './_deepkit/src/reflection/type';
 import {JITCompiler} from './jitCompiler';
-import {CompiledFunctions, RunType, RunTypeOptions, RunTypeVisitor} from './types';
+import {JITFunctions, RunType, RunTypeOptions, RunTypeVisitor} from './types';
 
 export abstract class BaseRunType<T extends Type, Opts extends RunTypeOptions = RunTypeOptions> implements RunType<T, Opts> {
     public abstract readonly name: string;
@@ -28,8 +28,8 @@ export abstract class BaseRunType<T extends Type, Opts extends RunTypeOptions = 
     abstract JIT_jsonStringify(varName: string): string;
     abstract mock(...args: any[]): any;
 
-    private _compiled: CompiledFunctions | undefined;
-    get compiled(): CompiledFunctions {
+    private _compiled: JITFunctions | undefined;
+    get jitFunctions(): JITFunctions {
         if (this._compiled) return this._compiled;
         return (this._compiled = new JITCompiler(this));
     }

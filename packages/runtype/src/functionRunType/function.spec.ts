@@ -44,7 +44,7 @@ it('return empty strings when calling regular jit functions', () => {
 });
 
 it('validate function parameters', () => {
-    const validate = rt.compiledParams.isType.fn;
+    const validate = rt.jitParamsFns.isType.fn;
     expect(validate([3, true, 'hello'])).toBe(true);
     // optional parameter
     expect(validate([3, false])).toBe(true);
@@ -55,7 +55,7 @@ it('validate function parameters', () => {
 });
 
 it('validate function + errors parameters', () => {
-    const validate = rt.compiledParams.typeErrors.fn;
+    const validate = rt.jitParamsFns.typeErrors.fn;
     expect(validate([3, true, 'hello'])).toEqual([]);
     // optional parameter
     expect(validate([3, false])).toEqual([]);
@@ -69,8 +69,8 @@ it('validate function + errors parameters', () => {
 });
 
 it('encode/decode to json parameters', () => {
-    const toJson = rt.compiledParams.jsonEncode.fn;
-    const fromJson = rt.compiledParams.jsonDecode.fn;
+    const toJson = rt.jitParamsFns.jsonEncode.fn;
+    const fromJson = rt.jitParamsFns.jsonDecode.fn;
     const typeValue = [3, true, 'hello'];
     const typeValue2 = [3, true];
     expect(rt.isParamsJsonEncodedRequired).toBe(false);
@@ -80,8 +80,8 @@ it('encode/decode to json parameters', () => {
 });
 
 it('required encode/decode to json parameters', () => {
-    const toJson = rt2.compiledParams.jsonEncode.fn;
-    const fromJson = rt2.compiledParams.jsonDecode.fn;
+    const toJson = rt2.jitParamsFns.jsonEncode.fn;
+    const fromJson = rt2.jitParamsFns.jsonDecode.fn;
     const d = new Date();
     const typeValue = [d, true];
     const typeValue2 = [d];
@@ -92,8 +92,8 @@ it('required encode/decode to json parameters', () => {
 });
 
 it('json stringify parameters', () => {
-    const jsonStringify = rt.compiledParams.jsonStringify.fn;
-    const fromJson = rt.compiledParams.jsonDecode.fn;
+    const jsonStringify = rt.jitParamsFns.jsonStringify.fn;
+    const fromJson = rt.jitParamsFns.jsonDecode.fn;
     const typeValue = [3, true, 'hello'];
     const typeValue2 = [3, true];
     const roundTrip = fromJson(JSON.parse(jsonStringify(typeValue)));
@@ -103,8 +103,8 @@ it('json stringify parameters', () => {
 });
 
 it('json stringify required parameters', () => {
-    const jsonStringify = rt2.compiledParams.jsonStringify.fn;
-    const fromJson = rt2.compiledParams.jsonDecode.fn;
+    const jsonStringify = rt2.jitParamsFns.jsonStringify.fn;
+    const fromJson = rt2.jitParamsFns.jsonDecode.fn;
     const d = new Date();
     const typeValue = [d, true];
     const typeValue2 = [d];
@@ -118,25 +118,25 @@ it('mock parameters', () => {
     const mocked = rt.paramsMock();
     expect(Array.isArray(mocked)).toBe(true);
     expect(mocked.length >= 2 && mocked.length <= 3).toBe(true);
-    const validate = rt.compiledParams.isType.fn;
+    const validate = rt.jitParamsFns.isType.fn;
     expect(validate(rt.paramsMock())).toBe(true);
 });
 
 it('validate function return', () => {
-    const validate = rt.compiledReturn.isType.fn;
+    const validate = rt.jitReturnFns.isType.fn;
     expect(validate(new Date())).toBe(true);
     expect(validate(123)).toBe(false);
 });
 
 it('validate function return + errors', () => {
-    const validate = rt.compiledReturn.typeErrors.fn;
+    const validate = rt.jitReturnFns.typeErrors.fn;
     expect(validate(new Date())).toEqual([]);
     expect(validate(123)).toEqual([{expected: 'date', path: ''}]);
 });
 
 it('encode/decode function return to json', () => {
-    const toJson = rt.compiledReturn.jsonEncode.fn;
-    const fromJson = rt.compiledReturn.jsonDecode.fn;
+    const toJson = rt.jitReturnFns.jsonEncode.fn;
+    const fromJson = rt.jitReturnFns.jsonDecode.fn;
     const returnValue = new Date();
     expect(rt.isReturnJsonEncodedRequired).toBe(false);
     expect(rt.isReturnJsonDecodedRequired).toBe(true);
@@ -144,8 +144,8 @@ it('encode/decode function return to json', () => {
 });
 
 it('required encode/decode function return to json', () => {
-    const toJson = rt2.compiledReturn.jsonEncode.fn;
-    const fromJson = rt2.compiledReturn.jsonDecode.fn;
+    const toJson = rt2.jitReturnFns.jsonEncode.fn;
+    const fromJson = rt2.jitReturnFns.jsonDecode.fn;
     const returnValue = 1n;
     expect(rt.isReturnJsonEncodedRequired).toBe(false);
     expect(rt.isReturnJsonDecodedRequired).toBe(true);
@@ -153,16 +153,16 @@ it('required encode/decode function return to json', () => {
 });
 
 it('json stringify function return', () => {
-    const jsonStringify = rt.compiledReturn.jsonStringify.fn;
-    const fromJson = rt.compiledReturn.jsonDecode.fn;
+    const jsonStringify = rt.jitReturnFns.jsonStringify.fn;
+    const fromJson = rt.jitReturnFns.jsonDecode.fn;
     const returnValue = new Date();
     const roundTrip = fromJson(JSON.parse(jsonStringify(returnValue)));
     expect(roundTrip).toEqual(returnValue);
 });
 
 it('json stringify required function return', () => {
-    const jsonStringify = rt2.compiledReturn.jsonStringify.fn;
-    const fromJson = rt2.compiledReturn.jsonDecode.fn;
+    const jsonStringify = rt2.jitReturnFns.jsonStringify.fn;
+    const fromJson = rt2.jitReturnFns.jsonDecode.fn;
     const returnValue = 1n;
     const roundTrip = fromJson(JSON.parse(jsonStringify(returnValue)));
     expect(roundTrip).toEqual(returnValue);
@@ -171,7 +171,7 @@ it('json stringify required function return', () => {
 it('mock function return', () => {
     const mocked = rt.returnMock();
     expect(mocked instanceof Date).toBe(true);
-    const validate = rt.compiledReturn.isType.fn;
+    const validate = rt.jitReturnFns.isType.fn;
     expect(validate(rt.returnMock())).toBe(true);
 });
 
@@ -180,22 +180,22 @@ it('should get runType from a function using reflectFunction', () => {
     const reflectedType = reflectFunction(fn);
     expect(reflectedType instanceof FunctionRunType).toBe(true);
 
-    const validate = reflectedType.compiledParams.isType.fn;
-    const typeErrors = reflectedType.compiledParams.typeErrors.fn;
-    const toJson = reflectedType.compiledParams.jsonEncode.fn;
-    const fromJson = reflectedType.compiledParams.jsonDecode.fn;
-    const jsonStringify = reflectedType.compiledParams.jsonStringify.fn;
+    const validate = reflectedType.jitParamsFns.isType.fn;
+    const typeErrors = reflectedType.jitParamsFns.typeErrors.fn;
+    const toJson = reflectedType.jitParamsFns.jsonEncode.fn;
+    const fromJson = reflectedType.jitParamsFns.jsonDecode.fn;
+    const jsonStringify = reflectedType.jitParamsFns.jsonStringify.fn;
     const paramsValues = [3, true, 'hello'];
     expect(validate(paramsValues)).toBe(true);
     expect(typeErrors(paramsValues)).toEqual([]);
     expect(fromJson(toJson(paramsValues))).toBe(paramsValues);
     expect(fromJson(JSON.parse(jsonStringify(paramsValues)))).toEqual(paramsValues);
 
-    const validateReturn = reflectedType.compiledReturn.isType.fn;
-    const typeErrorsReturn = reflectedType.compiledReturn.typeErrors.fn;
-    const toJsonReturn = reflectedType.compiledReturn.jsonEncode.fn;
-    const fromJsonReturn = reflectedType.compiledReturn.jsonDecode.fn;
-    const jsonStringifyReturn = reflectedType.compiledReturn.jsonStringify.fn;
+    const validateReturn = reflectedType.jitReturnFns.isType.fn;
+    const typeErrorsReturn = reflectedType.jitReturnFns.typeErrors.fn;
+    const toJsonReturn = reflectedType.jitReturnFns.jsonEncode.fn;
+    const fromJsonReturn = reflectedType.jitReturnFns.jsonDecode.fn;
+    const jsonStringifyReturn = reflectedType.jitReturnFns.jsonStringify.fn;
     const returnValue = new Date();
     expect(validateReturn(returnValue)).toBe(true);
     expect(typeErrorsReturn(returnValue)).toEqual([]);
@@ -209,11 +209,11 @@ it(`if function's return type is a promise then return type should be the promis
     expect(reflectedType instanceof FunctionRunType).toBe(true);
     expect(reflectedType.returnType.name).toBe('date');
 
-    const validateReturn = reflectedType.compiledReturn.isType.fn;
-    const typeErrorsReturn = reflectedType.compiledReturn.typeErrors.fn;
-    const toJsonReturn = reflectedType.compiledReturn.jsonEncode.fn;
-    const fromJsonReturn = reflectedType.compiledReturn.jsonDecode.fn;
-    const jsonStringifyReturn = reflectedType.compiledReturn.jsonStringify.fn;
+    const validateReturn = reflectedType.jitReturnFns.isType.fn;
+    const typeErrorsReturn = reflectedType.jitReturnFns.typeErrors.fn;
+    const toJsonReturn = reflectedType.jitReturnFns.jsonEncode.fn;
+    const fromJsonReturn = reflectedType.jitReturnFns.jsonDecode.fn;
+    const jsonStringifyReturn = reflectedType.jitReturnFns.jsonStringify.fn;
     const returnValue = new Date();
     expect(validateReturn(returnValue)).toBe(true);
     expect(typeErrorsReturn(returnValue)).toEqual([]);

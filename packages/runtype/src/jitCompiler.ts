@@ -5,14 +5,16 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {CompiledFunctions, JSONValue, JitFunctions, RunType, RunTypeValidationError, SerializableFunctions} from './types';
+import {asJSONStringVarname} from './constants';
+import {JITFunctions, JSONValue, JitFunctions, RunType, RunTypeValidationError, SerializableJITFunctions} from './types';
+import {asJSONString} from './utils';
 
-export class JITCompiler implements CompiledFunctions {
-    public readonly isType: CompiledFunctions['isType'];
-    public readonly typeErrors: CompiledFunctions['typeErrors'];
-    public readonly jsonEncode: CompiledFunctions['jsonEncode'];
-    public readonly jsonDecode: CompiledFunctions['jsonDecode'];
-    public readonly jsonStringify: CompiledFunctions['jsonStringify'];
+export class JITCompiler implements JITFunctions {
+    public readonly isType: JITFunctions['isType'];
+    public readonly typeErrors: JITFunctions['typeErrors'];
+    public readonly jsonEncode: JITFunctions['jsonEncode'];
+    public readonly jsonDecode: JITFunctions['jsonDecode'];
+    public readonly jsonStringify: JITFunctions['jsonStringify'];
     constructor(runType: RunType, jitFunctions?: JitFunctions) {
         this.isType = buildIsTypeJITFn(runType, jitFunctions);
         this.typeErrors = buildTypeErrorsJITFn(runType, jitFunctions);
@@ -22,7 +24,7 @@ export class JITCompiler implements CompiledFunctions {
     }
 }
 
-export function buildIsTypeJITFn(runType: RunType, jitFunctions?: JitFunctions): CompiledFunctions['isType'] {
+export function buildIsTypeJITFn(runType: RunType, jitFunctions?: JitFunctions): JITFunctions['isType'] {
     const varName = `vλluε${runType.nestLevel}`;
     const jitCode = jitFunctions?.isType ? jitFunctions.isType(varName) : runType.JIT_isType(varName);
     const code = `return ${jitCode};`;
@@ -34,7 +36,7 @@ export function buildIsTypeJITFn(runType: RunType, jitFunctions?: JitFunctions):
     }
 }
 
-export function buildTypeErrorsJITFn(runType: RunType, jitFunctions?: JitFunctions): CompiledFunctions['typeErrors'] {
+export function buildTypeErrorsJITFn(runType: RunType, jitFunctions?: JitFunctions): JITFunctions['typeErrors'] {
     const varName = `vλluε${runType.nestLevel}`;
     const errorsName = `εrrΦrs${runType.nestLevel}`;
     const jitCode = jitFunctions?.typeErrors
@@ -50,7 +52,7 @@ export function buildTypeErrorsJITFn(runType: RunType, jitFunctions?: JitFunctio
     }
 }
 
-export function buildJsonEncodeJITFn(runType: RunType, jitFunctions?: JitFunctions): CompiledFunctions['jsonEncode'] {
+export function buildJsonEncodeJITFn(runType: RunType, jitFunctions?: JitFunctions): JITFunctions['jsonEncode'] {
     const varName = `vλluε${runType.nestLevel}`;
     const jitCode = jitFunctions?.jsonEncode ? jitFunctions.jsonEncode(varName) : runType.JIT_jsonEncode(varName);
     const hasJitCode = !!jitCode;
@@ -64,13 +66,13 @@ export function buildJsonEncodeJITFn(runType: RunType, jitFunctions?: JitFunctio
     }
 }
 
-export function buildJsonDecodeJITFn(runType: RunType, jitFunctions?: JitFunctions): CompiledFunctions['jsonDecode'] {
+export function buildJsonDecodeJITFn(runType: RunType, jitFunctions?: JitFunctions): JITFunctions['jsonDecode'] {
     const varName = `vλluε${runType.nestLevel}`;
     const jitCode = jitFunctions?.jsonDecode ? jitFunctions.jsonDecode(varName) : runType.JIT_jsonDecode(varName);
     const hasJitCode = !!jitCode;
     const code = `${jitCode} ${hasJitCode ? ';' : ''} return ${varName}`;
     try {
-        const fn = new Function(varName, code) as (vλluε: JSONValue) => any;
+        const fn = new Function(varName, asJSONStringVarname, code) as (vλluε: JSONValue) => any;
         return {varName, code, fn};
     } catch (e: any) {
         const fnCode = ` Code:\nfunction anonymous(){${code}}`;
@@ -78,12 +80,13 @@ export function buildJsonDecodeJITFn(runType: RunType, jitFunctions?: JitFunctio
     }
 }
 
-export function buildJsonStringifyJITFn(runType: RunType, jitFunctions?: JitFunctions): CompiledFunctions['jsonStringify'] {
+export function buildJsonStringifyJITFn(runType: RunType, jitFunctions?: JitFunctions): JITFunctions['jsonStringify'] {
     const varName = `vλluε${runType.nestLevel}`;
     const jitCode = jitFunctions?.jsonStringify ? jitFunctions.jsonStringify(varName) : runType.JIT_jsonStringify(varName);
     const code = `return ${jitCode};`;
     try {
-        const fn = new Function(varName, code) as (vλluε: any) => string;
+        const newFn = new Function(varName, asJSONStringVarname, code) as (vλluε: JSONValue, asJson: (string) => string) => any;
+        const fn = (vλluε: any) => newFn(vλluε, asJSONString);
         return {varName, code, fn};
     } catch (e: any) {
         const fnCode = ` Code:\nfunction anonymous(){${code}}`;
@@ -91,7 +94,7 @@ export function buildJsonStringifyJITFn(runType: RunType, jitFunctions?: JitFunc
     }
 }
 
-export function getSerializableJitCompiler(compiled: CompiledFunctions): SerializableFunctions {
+export function getSerializableJitCompiler(compiled: JITFunctions): SerializableJITFunctions {
     return {
         isType: {varName: compiled.isType.varName, code: compiled.isType.code},
         typeErrors: {varName: compiled.typeErrors.varName, code: compiled.typeErrors.code},

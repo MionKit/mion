@@ -7,7 +7,7 @@
 
 import {TypePropertySignature} from '../_deepkit/src/reflection/type';
 import {RunType, RunTypeOptions, RunTypeVisitor} from '../types';
-import {addToPathChain, isFunctionKind, skipJsonDecode, skipJsonEncode, toLiteral} from '../utils';
+import {addToPathChain, asJSONString, isFunctionKind, skipJsonDecode, skipJsonEncode, toLiteral} from '../utils';
 import {validPropertyNameRegExp} from '../constants';
 import {BaseRunType} from '../baseRunType';
 
@@ -100,8 +100,8 @@ export class PropertySignatureRunType extends BaseRunType<TypePropertySignature>
     }
     JIT_jsonStringify(varName: string, isFirst = false): string {
         if (!this.shouldSerialize) return '';
-        // firs stringify sanitizes string, second is the actual json
-        const proNameJSon = JSON.stringify(JSON.stringify(this.propName));
+        // when is not safe firs stringify sanitizes string, second output double quoted scaped json string
+        const proNameJSon = this.isSafePropName ? `'${toLiteral(this.propName)}'` : asJSONString(toLiteral(this.propName));
         const accessor = `${varName}${this.safeAccessor}`;
         const propCode = this.memberType.JIT_jsonStringify(accessor);
         if (this.isOptional) {

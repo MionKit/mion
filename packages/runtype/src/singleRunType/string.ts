@@ -9,6 +9,7 @@ import {TypeString} from '../_deepkit/src/reflection/type';
 import {toLiteral} from '../utils';
 import {mockString} from '../mock';
 import {BaseRunType} from '../baseRunType';
+import {asJSONStringVarname} from '../constants';
 
 export class StringRunType extends BaseRunType<TypeString> {
     public readonly name = 'string';
@@ -28,7 +29,7 @@ export class StringRunType extends BaseRunType<TypeString> {
         return '';
     }
     JIT_jsonStringify(varName: string): string {
-        return `JSON.stringify(${varName})`;
+        return `${asJSONStringVarname}(${varName})`;
     }
     mock(length: number, charSet: string): string {
         return mockString(length, charSet);
