@@ -6,7 +6,7 @@
  * ######## */
 
 import {RpcError} from '@mionkit/core';
-import type {CompiledFunctions, RunTypeValidationError} from '@mionkit/runtype';
+import type {JITFunctions, RunTypeValidationError} from '@mionkit/runtype';
 import type {
     JsonParser,
     PublicHeaderProcedure,
@@ -47,7 +47,7 @@ export type MetadataById = Map<string, PublicProcedure>;
 export type JitFunctionsById = Map<string, RemoteMethodJIT>;
 export type RequestHeaders = {[key: string]: string};
 export type RequestBody = {[key: string]: any[]};
-export type PublicMethodReflection = {paramsJit: CompiledFunctions};
+export type PublicMethodReflection = {paramsJit: JITFunctions};
 export type HandlerResponse<RM extends PublicProcedure> = Awaited<ReturnType<RM['handler']>>;
 export type HandlerSuccessResponse<RM extends PublicProcedure> = Exclude<HandlerResponse<RM>, RpcError | Error>;
 export type HandlerFailResponse<RM extends PublicProcedure> = Extract<HandlerResponse<RM>, RpcError | Error>;

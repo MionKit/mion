@@ -35,22 +35,25 @@ export interface RpcErrorParams {
     name?: string;
 }
 
-export interface PublicRpcError extends RpcErrorParams {
+export interface RpcErrorWithPublic extends RpcErrorParams {
     publicMessage: string;
 }
 
-export interface PrivateRpcError extends RpcErrorParams {
+export interface RpcErrorWithPrivate extends RpcErrorParams {
     message: string;
 }
 
-export interface AnonymRpcError extends RpcErrorParams {
-    // when a RpcError gets anonymized the publicMessage becomes the message.
+export interface AnonymRpcError extends Omit<RpcErrorParams, 'publicMessage' | 'originalError'> {
+    /**
+     * When a RpcError gets anonymized the publicMessage becomes the message.
+     * RpcError.publicMessage => AnonymRpcError.message
+     * */
     message: string;
     statusCode: number;
     name: string;
 }
 
-export type AnyErrorParams = PublicRpcError | PrivateRpcError;
+export type AnyErrorParams = RpcErrorWithPublic | RpcErrorWithPrivate;
 
 // #######  Others #######
 

@@ -29,6 +29,10 @@ export interface Procedure<H extends AnyHandler = any> {
         isSync?: boolean;
     };
 }
+
+export interface NonRawProcedure<H extends Handler = any> extends Procedure<H> {
+    handlerRunType: FunctionRunType;
+}
 export interface RouteProcedure<H extends Handler = any> extends Procedure<H> {
     type: ProcedureType.route;
     handler: H;

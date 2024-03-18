@@ -4,6 +4,7 @@ import {ProcedureType} from './types/procedures';
 import type {RawHookDef} from './types/definitions';
 import {RpcError, StatusCodes} from '@mionkit/core';
 import {getExecutableFromRawHook, startHooks, endHooks} from './router';
+import {NOT_FOUND_HOOK_NAME} from './constants';
 
 let notFoundExecutionPath: Procedure[] | undefined;
 
@@ -21,8 +22,7 @@ const notFoundHook = {
 
 export function getNotFoundExecutionPath(): Procedure[] {
     if (notFoundExecutionPath) return notFoundExecutionPath;
-    const hookName = '_mion404NotfoundHook_';
-    const notFoundHandlerExecutable = getExecutableFromRawHook(notFoundHook, [hookName], 0);
+    const notFoundHandlerExecutable = getExecutableFromRawHook(notFoundHook, [NOT_FOUND_HOOK_NAME], 0);
     (notFoundHandlerExecutable as NotFoundProcedure).is404 = true;
     notFoundExecutionPath = [...startHooks, notFoundHandlerExecutable, ...endHooks];
     return notFoundExecutionPath;

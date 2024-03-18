@@ -35,8 +35,8 @@ const flatRouter: Map<string, Procedure[]> = new Map(); // Main Router
 const hooksById: Map<string, HookProcedure | HeaderProcedure | RawProcedure> = new Map();
 const routesById: Map<string, RouteProcedure> = new Map();
 const rawHooksById: Map<string, RawProcedure> = new Map();
-const hookNames: Map<string, boolean> = new Map();
-const routeNames: Map<string, boolean> = new Map();
+const hookNames: Set<string> = new Set();
+const routeNames: Set<string> = new Set();
 let complexity = 0;
 let routerOptions: RouterOptions = {...DEFAULT_ROUTE_OPTIONS};
 let isRouterInitialized = false;
@@ -205,7 +205,7 @@ function recursiveFlatRoutes(
             routeEntry = getExecutableFromAnyHook(item, newPointer, nestLevel);
             if (hookNames.has(routeEntry.id))
                 throw new Error(`Invalid hook: ${join(...newPointer)}. Naming collision, Naming collision, duplicated hook.`);
-            hookNames.set(routeEntry.id, true);
+            hookNames.add(routeEntry.id);
         }
 
         // generates a route
@@ -213,7 +213,7 @@ function recursiveFlatRoutes(
             routeEntry = getExecutableFromRoute(item, newPointer, nestLevel);
             if (routeNames.has(routeEntry.id))
                 throw new Error(`Invalid route: ${join(...newPointer)}. Naming collision, duplicated route`);
-            routeNames.set(routeEntry.id, true);
+            routeNames.add(routeEntry.id);
         }
 
         // generates structure required to go one level down

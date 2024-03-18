@@ -41,10 +41,13 @@ export interface RouterOptions<Req = any, SharedData = any> extends CoreOptions 
     useValidation: boolean;
     /** Enables serialization/deserialization */
     useSerialization: boolean;
+    /** Enables json stringify using runTypes jit stringify function instead JSON.stringify */
+    useJitStringify: boolean;
     /** run type compiler options for hooks and routes */
     runTypeOptions: RunTypeOptions;
     /** Custom JSON parser, defaults to Native js JSON */
     bodyParser: JsonParser;
+
     /** Used to return public data structure when adding routes */
     getPublicRoutesData: boolean;
     /** automatically generate and uuid */

@@ -36,6 +36,7 @@ describe('route & hooks init functions', () => {
                 useValidation: true,
                 useSerialization: true,
                 description: undefined,
+                isSync: false,
             },
         });
     });
@@ -49,6 +50,7 @@ describe('route & hooks init functions', () => {
                 useValidation: true,
                 useSerialization: true,
                 description: undefined,
+                isSync: false,
             },
         });
     });
@@ -63,6 +65,7 @@ describe('route & hooks init functions', () => {
                 useValidation: false,
                 useSerialization: false,
                 description: undefined,
+                isSync: false,
             },
         });
     });
@@ -77,6 +80,7 @@ describe('route & hooks init functions', () => {
                 useValidation: true,
                 useSerialization: true,
                 description: undefined,
+                isSync: false,
             },
         });
     });

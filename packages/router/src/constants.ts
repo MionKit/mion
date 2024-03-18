@@ -29,6 +29,9 @@ export const DEFAULT_ROUTE_OPTIONS = {
     /** Enables automatic serialization/deserialization */
     useSerialization: true,
 
+    /** using runTypes jit stringify by default */
+    useJitStringify: true,
+
     /** Default run type compiling options for routes and hooks, can't be configured by the user as would break functionality  */
     runTypeOptions: {
         /** Removes unknown properties when parsing parameters from json */
@@ -52,3 +55,5 @@ export const DEFAULT_ROUTE_OPTIONS = {
 } satisfies Readonly<RouterOptions>;
 
 export const MAX_ROUTE_NESTING = 10;
+
+export const NOT_FOUND_HOOK_NAME = '_miΦn404NΦtfΦundHΦΦk_';
