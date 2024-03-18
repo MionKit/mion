@@ -160,8 +160,8 @@ export type SuccessClientResponse<RR extends RouteSubRequest<any>, RHList extend
 export type ValidationRequest = Pick<MionRequest<any, any>, 'metadataById' | 'jitFunctionsById' | 'options' | 'subRequests'>;
 
 export type RemoteMethodJIT = {
-    return: CompiledFunctions;
-    params: CompiledFunctions;
+    return: JITFunctions;
+    params: JITFunctions;
 };
 
 // ############# STRONG PROMISE  (reject error is strongly typed) #############

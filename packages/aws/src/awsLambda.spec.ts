@@ -10,7 +10,7 @@ import {awsLambdaHandler, resetAwsLambdaOpts, setAwsLambdaOpts} from './awsLambd
 import createEvent from '@serverless/event-mocks';
 import type {CallContext, Route} from '@mionkit/router';
 import type {APIGatewayProxyEventHeaders} from 'aws-lambda';
-import {AnonymRpcError} from '@mionkit/core';
+import {PublicRpcError} from '@mionkit/core';
 
 describe('serverless router should', () => {
     // Router.forceConsoleLogs();
@@ -101,7 +101,7 @@ describe('serverless router should', () => {
         const parsedResponse = JSON.parse(awsResponse.body);
         const headers = awsResponse.headers || {};
 
-        const expectedError: AnonymRpcError = {
+        const expectedError: PublicRpcError = {
             message: `Invalid params 'getDate', can not deserialize. Parameters might be of the wrong type.`,
             statusCode: 400,
             name: 'Serialization Error',

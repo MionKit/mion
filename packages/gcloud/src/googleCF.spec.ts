@@ -8,7 +8,7 @@
 import {initRouter, registerRoutes, route} from '@mionkit/router';
 import {googleCFHandler, resetGoogleCFOpts, setGoogleCFOpts} from './googleCF';
 import type {CallContext, Route} from '@mionkit/router';
-import {AnonymRpcError} from '@mionkit/core';
+import {PublicRpcError} from '@mionkit/core';
 import {Server} from 'http';
 import {getTestServer} from '@google-cloud/functions-framework/testing';
 import * as functions from '@google-cloud/functions-framework';
@@ -121,7 +121,7 @@ describe('serverless router should', () => {
         const reply = await response.json();
         const headers = Object.fromEntries(response.headers.entries());
 
-        const expectedError: AnonymRpcError = {
+        const expectedError: PublicRpcError = {
             message: `Invalid params 'getDate', can not deserialize. Parameters might be of the wrong type.`,
             name: 'Serialization Error',
             statusCode: 400,
