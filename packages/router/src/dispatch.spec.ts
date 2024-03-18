@@ -9,7 +9,7 @@ import {registerRoutes, resetRouter, initRouter} from './router';
 import {dispatchRoute} from './dispatch';
 import {CallContext, MionHeaders} from './types/context';
 import {Routes} from './types/general';
-import {AnonymRpcError, StatusCodes} from '@mionkit/core';
+import {PublicRpcError, StatusCodes} from '@mionkit/core';
 import {headersHook, hook, route} from './initFunctions';
 import {headersFromRecord} from './headers';
 
@@ -205,7 +205,7 @@ describe('Dispatch routes', () => {
                 statusCode: 404,
                 name: 'Not Found',
                 message: 'Route not found',
-            } satisfies AnonymRpcError);
+            } satisfies PublicRpcError);
         });
 
         it('return an error if data is missing from header', async () => {
@@ -228,7 +228,7 @@ describe('Dispatch routes', () => {
                 name: 'Validation Error',
                 message: `Invalid params in 'auth', validation failed.`,
                 errorData: expect.anything(),
-            } satisfies AnonymRpcError);
+            } satisfies PublicRpcError);
         });
 
         it('return an error if body is not the correct type', async () => {
@@ -273,7 +273,7 @@ describe('Dispatch routes', () => {
                 statusCode: 422,
                 name: 'Parsing Request Body Error',
                 message: expect.stringContaining('Invalid request body:'), // Nodejs error is slightly different depending on node version
-            } satisfies AnonymRpcError);
+            } satisfies PublicRpcError);
         });
 
         it('return an error if data is missing from body', async () => {
@@ -296,7 +296,7 @@ describe('Dispatch routes', () => {
                 name: `Validation Error`,
                 message: `Invalid params in 'changeUserName', validation failed.`,
                 errorData: [{expected: '[user:object<name:string, surname:string>]', path: ''}],
-            } satisfies AnonymRpcError);
+            } satisfies PublicRpcError);
         });
 
         it("return an error if can't deserialize", async () => {
@@ -319,7 +319,7 @@ describe('Dispatch routes', () => {
                 name: 'Serialization Error',
                 message: `Invalid params 'getSameDate', can not deserialize. Parameters might be of the wrong type.`,
                 errorData: {deserializeError: `Cannot read properties of undefined (reading 'date')`},
-            } satisfies AnonymRpcError);
+            } satisfies PublicRpcError);
         });
 
         it('return an error if validation fails, incorrect type', async () => {
@@ -337,7 +337,7 @@ describe('Dispatch routes', () => {
                 request,
                 {}
             );
-            const expected: AnonymRpcError = {
+            const expected: PublicRpcError = {
                 name: 'Validation Error',
                 statusCode: 400,
                 message: `Invalid params in 'changeUserName', validation failed.`,
@@ -361,7 +361,7 @@ describe('Dispatch routes', () => {
                 request,
                 {}
             );
-            const expected: AnonymRpcError = {
+            const expected: PublicRpcError = {
                 name: 'Validation Error',
                 statusCode: 400,
                 message: `Invalid params in 'changeUserName', validation failed.`,
@@ -390,7 +390,7 @@ describe('Dispatch routes', () => {
                 statusCode: 500,
                 name: 'Unknown Error',
                 message: 'Unknown error in step 1 of route execution path.',
-            } satisfies AnonymRpcError);
+            } satisfies PublicRpcError);
         });
 
         // TODO: not sure how to make serialization/validation throw an error
@@ -414,7 +414,7 @@ describe('Dispatch routes', () => {
                 statusCode: 400,
                 message: `Invalid params 'getSameDate', can not validate parameters.`,
                 name: 'Validation Error',
-            } satisfies AnonymRpcError);
+            } satisfies PublicRpcError);
         });
     });
 });

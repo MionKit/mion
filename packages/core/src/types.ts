@@ -43,10 +43,11 @@ export interface RpcErrorWithPrivate extends RpcErrorParams {
     message: string;
 }
 
-export interface AnonymRpcError extends Omit<RpcErrorParams, 'publicMessage' | 'originalError'> {
+/** Error data returned to the clients  */
+export interface PublicRpcError extends Omit<RpcErrorParams, 'publicMessage' | 'originalError'> {
     /**
      * When a RpcError gets anonymized the publicMessage becomes the message.
-     * RpcError.publicMessage => AnonymRpcError.message
+     * RpcError.publicMessage => PublicRpcError.message
      * */
     message: string;
     statusCode: number;

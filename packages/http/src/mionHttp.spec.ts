@@ -7,7 +7,7 @@
 import {initRouter, registerRoutes, route} from '@mionkit/router';
 import {setNodeHttpOpts, resetNodeHttpOpts, startNodeServer} from './mionHttp';
 import type {CallContext, Route} from '@mionkit/router';
-import {AnonymRpcError} from '@mionkit/core';
+import {PublicRpcError} from '@mionkit/core';
 // In theory node 18 supports fetch but not working fine with jest, we should update to jest 29
 // update to jest 29 gonna take some changes as all globals must be imported from @jest/globals
 // also the types for fetch are not available in node 18, fix here: https://stackoverflow.com/questions/71294230/how-can-i-use-native-fetch-with-node-in-typescript-node-v17-6#answer-75676044
@@ -90,7 +90,7 @@ describe('node http router should', () => {
         const reply = await response.json();
         const headers = Object.fromEntries(response.headers.entries());
 
-        const expectedError: AnonymRpcError = {
+        const expectedError: PublicRpcError = {
             message: `Invalid params 'getDate', can not deserialize. Parameters might be of the wrong type.`,
             name: 'Serialization Error',
             statusCode: 400,
@@ -155,7 +155,7 @@ describe('node http router should', () => {
             const headers = Object.fromEntries(response.headers.entries());
             const reply = await response.json();
 
-            const expectedError: AnonymRpcError = {
+            const expectedError: PublicRpcError = {
                 message: `Request Payload Too Large`,
                 statusCode: 413,
                 name: 'Request Payload Too Large',

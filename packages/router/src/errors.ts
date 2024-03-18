@@ -49,6 +49,6 @@ export function handleRpcErrors(
 
     response.statusCode = rpcError.statusCode;
     response.hasErrors = true;
-    (response.body as Mutable<AnyObject>)[path] = rpcError.toAnonymizedError();
+    (response.body as Mutable<AnyObject>)[path] = rpcError.toPublicError();
     (request.internalErrors as Mutable<any[]>).push(rpcError);
 }

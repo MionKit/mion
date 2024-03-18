@@ -7,7 +7,7 @@
 
 import {randomUUID} from 'crypto';
 import {statusCodeToReasonPhrase} from './status-codes';
-import {CoreOptions, AnyErrorParams, AnonymRpcError} from './types';
+import {CoreOptions, AnyErrorParams, PublicRpcError} from './types';
 import {DEFAULT_CORE_OPTIONS} from './constants';
 
 let options: CoreOptions = {...DEFAULT_CORE_OPTIONS};
@@ -41,8 +41,8 @@ export class RpcError extends Error {
     }
 
     /** returns an error without stack trace an massage is swapped by public message */
-    toAnonymizedError(): AnonymRpcError {
-        const err: AnonymRpcError = {
+    toPublicError(): PublicRpcError {
+        const err: PublicRpcError = {
             ...(this.id ? {id: this.id} : {}),
             name: this.name,
             statusCode: this.statusCode,
