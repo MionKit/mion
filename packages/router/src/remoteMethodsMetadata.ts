@@ -75,10 +75,11 @@ export function getMethodMetadataFromExecutable<H extends Handler>(executable: P
     const newRemoteMethod: PublicProcedure = {
         type: executable.type,
         id: executable.id,
-        // handler is included just for static typing purposes and should never be called directly
+        // handler is included just for static typing purposes and should never be called directly.
+        // It's value during run type is a string with the pointer to the handler
         handler: getHandlerSrcCodePointer(executable) as any as PublicHandler<H>,
-        serializedFnParams: getSerializableJitCompiler(executable.handlerRunType?.compiledParams),
-        serializedFnReturn: getSerializableJitCompiler(executable.handlerRunType?.compiledReturn),
+        serializedFnParams: getSerializableJitCompiler(executable.handlerRunType?.jitParamsFns),
+        serializedFnReturn: getSerializableJitCompiler(executable.handlerRunType?.jitReturnFns),
         useValidation: !!executable.options.useValidation,
         useSerialization: !!executable.options.useSerialization,
         params: executable.handlerRunType.parameterTypes.map((p) => p.paramName),

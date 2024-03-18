@@ -6,7 +6,7 @@
  * ######## */
 
 import {RpcError} from '@mionkit/core';
-import {SerializableFunctions} from '@mionkit/runtype';
+import {SerializableJITFunctions} from '@mionkit/runtype';
 import {CallContext} from './context';
 import {Routes} from './general';
 import {ProcedureType} from './procedures';
@@ -66,9 +66,9 @@ export interface PublicProcedure<H extends Handler = any> {
     /** Type reference to the route handler, it's runtime value is actually null, just used statically by typescript. */
     handler: PublicHandler<H>;
     /** data and code required to build the functions to serialize and validate handler parameters  */
-    serializedFnParams: SerializableFunctions;
+    serializedFnParams: SerializableJITFunctions;
     /** data and code required to build the functions to serialize and validate handler return  */
-    serializedFnReturn: SerializableFunctions;
+    serializedFnReturn: SerializableJITFunctions;
     id: string;
     useValidation: boolean;
     useSerialization: boolean;

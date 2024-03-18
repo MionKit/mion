@@ -6,7 +6,7 @@
  * ######## */
 
 import type {PublicProcedure, PublicResponses} from '@mionkit/router';
-import type {CompiledFunctions, JSONValue} from '@mionkit/runtype';
+import type {JITFunctions, JSONValue} from '@mionkit/runtype';
 import {RpcError, StatusCodes, isRpcError} from '@mionkit/core';
 import {RequestErrors, SubRequest, ValidationRequest} from './types';
 
@@ -116,7 +116,7 @@ function getSerializationRequiredData(
     return {methodMeta, subRequest};
 }
 
-function serializeParameters(params: any[], method: PublicProcedure, paramsJit?: CompiledFunctions): any[] | RpcError {
+function serializeParameters(params: any[], method: PublicProcedure, paramsJit?: JITFunctions): any[] | RpcError {
     if (!paramsJit) return params;
     if (params.length && method.useSerialization) {
         try {
@@ -133,7 +133,7 @@ function serializeParameters(params: any[], method: PublicProcedure, paramsJit?:
     return params;
 }
 
-function validateParameters(params: any[], method: PublicProcedure, paramsJit?: CompiledFunctions): void | RpcError {
+function validateParameters(params: any[], method: PublicProcedure, paramsJit?: JITFunctions): void | RpcError {
     if (!paramsJit || !method.useValidation) return;
     try {
         const validationsResponse = paramsJit.typeErrors.fn(params);
@@ -154,7 +154,7 @@ function validateParameters(params: any[], method: PublicProcedure, paramsJit?: 
     }
 }
 
-function deSerializeReturn(response: any | RpcError, method: PublicProcedure, returnJit?: CompiledFunctions): any | RpcError {
+function deSerializeReturn(response: any | RpcError, method: PublicProcedure, returnJit?: JITFunctions): any | RpcError {
     if (!returnJit || !method.useSerialization || !response) return response;
     try {
         if (response instanceof RpcError) return response;
