@@ -60,9 +60,13 @@ export class ArrayRunType extends BaseRunType<TypeArray> {
         return `for (let ${indexName} = 0; ${indexName} < ${varName}.length; ${indexName}++) {${itemCode}}`;
     }
     JIT_jsonStringify(varName: string): string {
-        const itemName = `iτεm${this.nestLevel}`;
+        const arrName = `rεsultλrr${this.nestLevel}`;
+        const indexName = `indεx${this.nestLevel}`;
+        const itemAccessor = `${varName}[${indexName}]`;
+        const itemCode = this.itemsRunType.JIT_jsonStringify(itemAccessor);
         // TODO: can be optimized using a for loop
-        const itemsCode = `${varName}.map((${itemName}) => ${this.itemsRunType.JIT_jsonStringify(itemName)}).join(",")`;
+        const forLoop = `const ${arrName} = []; for (let ${indexName} = 0; ${indexName} < ${varName}.length; ${indexName}++) {${arrName}.push(${itemCode})}`;
+        const itemsCode = `(function(){${forLoop}; return ${arrName}.join(',')})()`;
         return `'[' + ${itemsCode} + ']'`;
     }
     mock(length = random(0, 30), ...args: any[]): any[] {
