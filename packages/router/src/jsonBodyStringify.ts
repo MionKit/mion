@@ -11,11 +11,7 @@ import {getRouteExecutionPath} from './router';
 import {getNotFoundExecutionPath} from './notFound';
 import {NOT_FOUND_HOOK_NAME} from './constants';
 
-interface JitBodyFn {
-    varNames: string[];
-    code: string;
-    fn: StringifyBodyFn;
-}
+type JitBodyFn = JitFn<StringifyBodyFn>;
 type ExecutionPathStringifyFns = Record<string, JitFn<(args: any) => JSONString>>;
 type StringifyBodyFn = (body: Record<string, any>, bodyStrFns: ExecutionPathStringifyFns) => JSONString;
 
@@ -59,7 +55,6 @@ function _getExecutionPathStringifyFn(path: string, executionPath: Procedure[]):
     jitFnsByPath.set(path, bodyStringify);
     return bodyStringify;
 }
-
 
 /**
  * Creates the JIT code to stringify an object (record) where all it's values are already json stringified strings
