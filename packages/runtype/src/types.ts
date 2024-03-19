@@ -87,7 +87,7 @@ export interface JitJsonEncoder {
 }
 
 export interface JitFn<Fn extends (...args: any[]) => any> {
-    varName: string;
+    varNames: string[];
     code: string;
     fn: Fn;
 }

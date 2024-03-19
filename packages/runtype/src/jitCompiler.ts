@@ -30,7 +30,7 @@ export function buildIsTypeJITFn(runType: RunType, jitFunctions?: JitFunctions):
     const code = `return ${jitCode};`;
     try {
         const fn = new Function(varName, code) as (vλluε: any) => boolean;
-        return {varName, code, fn};
+        return {varNames: [varName], code, fn};
     } catch (e: any) {
         throw new Error(`Error building isType JIT function for ${runType.name}: ${e?.message}.\nCode: ${code}`);
     }
@@ -45,7 +45,7 @@ export function buildTypeErrorsJITFn(runType: RunType, jitFunctions?: JitFunctio
     const code = `const ${errorsName} = []; ${jitCode}; return ${errorsName};`;
     try {
         const fn = new Function(varName, code) as (vλluε: any) => RunTypeValidationError[];
-        return {varName, code, fn};
+        return {varNames: [varName], code, fn};
     } catch (e: any) {
         const fnCode = ` Code:\nfunction anonymous(){${code}}`;
         throw new Error(`Error building typeErrors JIT function for ${runType.name}: ${e?.message}.${fnCode}`);
@@ -59,7 +59,7 @@ export function buildJsonEncodeJITFn(runType: RunType, jitFunctions?: JitFunctio
     const code = `${jitCode} ${hasJitCode ? ';' : ''} return ${varName}`;
     try {
         const fn = new Function(varName, code) as (vλluε: any) => JSONValue;
-        return {varName, code, fn};
+        return {varNames: [varName], code, fn};
     } catch (e: any) {
         const fnCode = ` Code:\nfunction anonymous(){${code}}`;
         throw new Error(`Error building jsonEncode JIT function for ${runType.name}: ${e?.message}.${fnCode}`);
@@ -73,7 +73,7 @@ export function buildJsonDecodeJITFn(runType: RunType, jitFunctions?: JitFunctio
     const code = `${jitCode} ${hasJitCode ? ';' : ''} return ${varName}`;
     try {
         const fn = new Function(varName, asJSONStringVarname, code) as (vλluε: JSONValue) => any;
-        return {varName, code, fn};
+        return {varNames: [varName], code, fn};
     } catch (e: any) {
         const fnCode = ` Code:\nfunction anonymous(){${code}}`;
         throw new Error(`Error building jsonDecode JIT function for ${runType.name}: ${e?.message}.${fnCode}`);
@@ -87,7 +87,7 @@ export function buildJsonStringifyJITFn(runType: RunType, jitFunctions?: JitFunc
     try {
         const newFn = new Function(varName, asJSONStringVarname, code) as (vλluε: JSONValue, asJson: (string) => string) => any;
         const fn = (vλluε: any) => newFn(vλluε, asJSONString);
-        return {varName, code, fn};
+        return {varNames: [varName], code, fn};
     } catch (e: any) {
         const fnCode = ` Code:\nfunction anonymous(){${code}}`;
         throw new Error(`Error building jsonStringify JIT function for ${runType.name}: ${e?.message}.${fnCode}`);
@@ -96,10 +96,10 @@ export function buildJsonStringifyJITFn(runType: RunType, jitFunctions?: JitFunc
 
 export function getSerializableJitCompiler(compiled: JITFunctions): SerializableJITFunctions {
     return {
-        isType: {varName: compiled.isType.varName, code: compiled.isType.code},
-        typeErrors: {varName: compiled.typeErrors.varName, code: compiled.typeErrors.code},
-        jsonEncode: {varName: compiled.jsonEncode.varName, code: compiled.jsonEncode.code},
-        jsonDecode: {varName: compiled.jsonDecode.varName, code: compiled.jsonDecode.code},
-        jsonStringify: {varName: compiled.jsonStringify.varName, code: compiled.jsonStringify.code},
+        isType: {varNames: compiled.isType.varNames, code: compiled.isType.code},
+        typeErrors: {varNames: compiled.typeErrors.varNames, code: compiled.typeErrors.code},
+        jsonEncode: {varNames: compiled.jsonEncode.varNames, code: compiled.jsonEncode.code},
+        jsonDecode: {varNames: compiled.jsonDecode.varNames, code: compiled.jsonDecode.code},
+        jsonStringify: {varNames: compiled.jsonStringify.varNames, code: compiled.jsonStringify.code},
     };
 }

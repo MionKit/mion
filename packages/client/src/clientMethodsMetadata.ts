@@ -110,9 +110,9 @@ function getFunctionReflection(paramsFns: SerializableJITFunctions, responseFns:
 
 function restoreJitFunction<Fn extends (args: any[]) => any>(serializedFn: SerializableJitFn<Fn>): JitFn<Fn> {
     return {
-        varName: serializedFn.varName,
+        varNames: serializedFn.varNames,
         code: serializedFn.code,
-        fn: new Function(serializedFn.varName, serializedFn.code) as Fn,
+        fn: new Function(...serializedFn.varNames, serializedFn.code) as Fn,
     };
 }
 
