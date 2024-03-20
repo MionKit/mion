@@ -30,7 +30,7 @@ export type HookDef<H extends Handler = any> = Pick<HookProcedure<H>, 'type' | '
 };
 
 /** Header Hook definition, used to handle header params */
-export type HeaderHookDef<H extends HeaderHandler = any> = Pick<HeaderProcedure<H>, 'type' | 'handler' | 'headerName'> & {
+export type HeaderHookDef<H extends HeaderHandler = any> = Pick<HeaderProcedure<H>, 'type' | 'handler' | 'headerNames'> & {
     options?: HeaderHookOptions;
 };
 

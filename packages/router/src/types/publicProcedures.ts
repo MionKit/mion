@@ -72,7 +72,7 @@ export interface PublicProcedure<H extends Handler = any> {
     returnJitFns: SerializableJITFunctions;
     hookIds?: string[];
     pathPointers?: string[][];
-    headerName?: string;
+    headerNames?: string[];
     paramNames: string[];
 }
 
@@ -80,7 +80,7 @@ export interface PublicProcedure<H extends Handler = any> {
 export interface PublicRouteProcedure<H extends Handler = any> extends PublicProcedure<H> {
     type: ProcedureType.route;
     hookIds: string[];
-    headerName: undefined;
+    headerNames: undefined;
 }
 
 /** Public map from Hooks, handler type is the same as hooks's handler but does not include the context  */
@@ -91,7 +91,7 @@ export interface PublicHookProcedure<H extends Handler = any> extends PublicProc
 
 export interface PublicHeaderProcedure<H extends Handler = any> extends PublicProcedure<H> {
     type: ProcedureType.headerHook;
-    headerName: string;
+    headerNames: string[];
 }
 
 // prettier-ignore

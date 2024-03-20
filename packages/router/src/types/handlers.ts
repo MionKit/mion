@@ -22,14 +22,14 @@ export type Handler<Context extends CallContext = any, Ret = any, Params extends
 /** Header Hook Handler, hook handler for when params are sent in the header  */
 export type HeaderHandler<
     Context extends CallContext = any,
-    HReqValue extends HeaderValue = any,
-    HRespValue extends HeaderValue | undefined = any,
+    HReqValues extends HeaderValue[] = any,
+    HRespValues extends HeaderValue[] | undefined = any,
 > = (
     /** Call Context */
     context: Context,
     /** Remote Call parameters */
-    headerValue: HReqValue
-) => HRespValue | Promise<HRespValue>;
+    ...headerValues: HReqValues
+) => HRespValues | Promise<HRespValues>;
 
 /** Handler to use with raw hooks to get access to raw request and response */
 export type RawHookHandler<

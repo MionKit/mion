@@ -102,8 +102,8 @@ async function runExecutionPath(
             } else {
                 const params =
                     executable.type === ProcedureType.headerHook
-                        ? deserializeHeaderParameters(request, executable as NonRawProcedure)
-                        : deserializeBodyParameters(request, executable as NonRawProcedure);
+                        ? deserializeHeaderParams(request, executable as HeaderProcedure)
+                        : deserializeBodyParams(request, executable as NonRawProcedure);
                 if (executable.options.validateParams) validateParametersOrThrow(params, executable as NonRawProcedure);
                 let result;
                 const resp = (executable.handler as Handler)(context, ...(params as any[]));
@@ -112,7 +112,7 @@ async function runExecutionPath(
                 else result = resp;
                 const hasResponse = executable.options.hasReturnData && result !== undefined;
                 if (hasResponse && executable.type === ProcedureType.headerHook) {
-                    serializeHeaderResponse(executable as NonRawProcedure, response, result, opts);
+                    serializeHeaderResponse(executable as HeaderProcedure, response, result, opts);
                 } else if (hasResponse) {
                     serializeBodyResponse(executable as NonRawProcedure, response, result, opts);
                 }
@@ -125,19 +125,19 @@ async function runExecutionPath(
     return context.response;
 }
 
-function deserializeHeaderParameters(request: MionRequest, executable: NonRawProcedure): any[] {
-    const path = executable.id;
-    const headerParams = request.headers.get((executable as HeaderProcedure).headerName) || [];
-    const params = _deserializeParameters(Array.isArray(headerParams) ? headerParams : [headerParams], executable, path);
-    request.headers.set(executable.id, params);
+function deserializeHeaderParams(request: MionRequest, executable: HeaderProcedure): any[] {
+    const headerParams = executable.headerNames.map((name) => request.headers.get(name));
+    const params = _deserializeParameters(headerParams, executable, executable.id);
     return params;
 }
 
-function deserializeBodyParameters(request: MionRequest, executable: NonRawProcedure): any[] {
-    const path = executable.id;
-
-    (request.body as Mutable<MionRequest['body']>)[path] = _deserializeParameters(request.body[path] || [], executable, path);
-    return request.body[path] as any[];
+function deserializeBodyParams(request: MionRequest, executable: NonRawProcedure): any[] {
+    (request.body as Mutable<MionRequest['body']>)[executable.id] = _deserializeParameters(
+        request.body[executable.id] || [],
+        executable,
+        executable.id
+    );
+    return request.body[executable.id] as any[];
 }
 
 function _deserializeParameters(params: any, executable: NonRawProcedure, path: string): any[] {
@@ -169,10 +169,10 @@ function validateParametersOrThrow(params: any[], executable: NonRawProcedure): 
     }
 }
 
-function serializeHeaderResponse(executable: NonRawProcedure, response: MionResponse, result: any, opts: RouterOptions) {
+function serializeHeaderResponse(executable: HeaderProcedure, response: MionResponse, result: any, opts: RouterOptions) {
     const shouldEncode = !opts.useJitStringify && executable.options.deserializeParams;
     const serialized = shouldEncode ? executable.returnJitFns.jsonEncode.fn(result) : result;
-    response.headers.set((executable as HeaderProcedure).headerName, serialized);
+    executable.headerNames.forEach((name) => response.headers.set(name, serialized));
 }
 
 function serializeBodyResponse(executable: NonRawProcedure, response: MionResponse, result: any, opts: RouterOptions) {
