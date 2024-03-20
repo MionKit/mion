@@ -102,7 +102,7 @@ export type HeaderHookOptions = Partial<
 >;
 export type RawHookOptions = Partial<Pick<RawProcedure['options'], 'description' | 'runOnError' | 'isAsync'>>;
 
-export interface ProcedureExecutionPath {
+export interface ProceduresExecutionList {
     routeIndex: number;
     procedures: Procedure[];
 }

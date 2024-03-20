@@ -88,7 +88,7 @@ export function getMethodMetadataFromExecutable<H extends Handler>(executable: N
         const path = getRoutePath(executable.pointer, getRouterOptions());
         const pathPointers =
             getRouteExecutionPath(path)
-                ?.filter((exec) => isPublicExecutable(exec))
+                ?.procedures.filter((exec) => isPublicExecutable(exec))
                 .map((exec) => exec.pointer) || [];
         newRemoteMethod.hookIds = pathPointers
             .map((pointer) => getRouterItemId(pointer))

@@ -35,8 +35,8 @@ export function jitStringify(body: any, path: string): JSONString {
 const NOT_FOUND_PATH = `/nΦt-fΦund:${NOT_FOUND_HOOK_NAME}`;
 export function getStringifyFnForExecutionPath(path: string): BodyStringify {
     const executionPath = getRouteExecutionPath(path);
-    if (!executionPath) return _getExecutionPathStringifyFn(NOT_FOUND_PATH, getNotFoundExecutionPath());
-    return _getExecutionPathStringifyFn(path, executionPath);
+    if (!executionPath) return _getExecutionPathStringifyFn(NOT_FOUND_PATH, getNotFoundExecutionPath().procedures);
+    return _getExecutionPathStringifyFn(path, executionPath.procedures);
 }
 
 // ############# PRIVATE METHODS #############

@@ -42,7 +42,7 @@ export async function dispatchRoute<Req, Resp>(
         const context = getEmptyCallContext(path, opts, reqRawBody, rawRequest, reqHeaders, respHeaders);
 
         const executionPath = getRouteExecutionPath(context.path) || getNotFoundExecutionPath();
-        await runExecutionPath(context, rawRequest, rawResponse, executionPath, opts);
+        await runExecutionPath(context, rawRequest, rawResponse, executionPath.procedures , opts);
 
         return context.response;
     } catch (err: any | RpcError | Error) {

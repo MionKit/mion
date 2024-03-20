@@ -99,6 +99,29 @@ describe('Dispatch routes', () => {
             expect(response.body).toEqual({['changeUserName']: {name: 'LOREM', surname: 'Tungsten'}});
         });
 
+        // when the body is an array we assume it's a single route call and we have to reconstruct the body
+        // http://my-api.com/route1 [p1, p2, p3] => {route1: [p1, p2, p3]}
+        it('read data from body & route, when the body is a single array we should reconstruct full body request', async () => {
+            initRouter({sharedDataFactory: getSharedData});
+            registerRoutes({changeUserName});
+
+            const id = 'changeUserName';
+            const request = {
+                headers: headersFromRecord({}),
+                body: JSON.stringify([{name: 'Leo', surname: 'Tungsten'}]),
+            };
+
+            const response = await dispatchRoute(
+                '/changeUserName',
+                request.body,
+                request.headers,
+                headersFromRecord({}),
+                request,
+                {}
+            );
+            expect(response.body[id]).toEqual({name: 'LOREM', surname: 'Tungsten'});
+        });
+
         it('headers are case insensitive, returned headers alway lowercase', async () => {
             initRouter({sharedDataFactory: getSharedData});
             const auth = headersHook('Authorization', (ctx, token: string): string => (token === '1234' ? 'MyUser' : 'Unknown'));

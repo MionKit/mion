@@ -80,7 +80,7 @@ const getRouteRemoteMethods = (ctx, path: string, getAllRemoteMethods?: boolean)
             name: 'Invalid Metadata Request',
             publicMessage: `Route ${path} not found`,
         });
-    const privateExecutables = executables.filter((e) => !isPrivateExecutable(e));
+    const privateExecutables = executables.procedures.filter((e) => !isPrivateExecutable(e));
     return getRemoteMethods(
         ctx,
         privateExecutables.map((e) => e.id),

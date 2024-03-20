@@ -12,6 +12,7 @@ import {RpcError, StatusCodes, AnyObject, Mutable} from '@mionkit/core';
 import {handleRpcErrors} from './errors';
 import {rawHook} from './initFunctions';
 import {jitStringify} from './jsonBodyStringify';
+import {getRouteExecutableFromPath} from './router';
 
 // ############# PUBLIC METHODS #############
 
@@ -27,6 +28,12 @@ export function parseRequestBody(
     const request = context.request as Mutable<MionRequest>;
     try {
         const parsedBody = opts.bodyParser.parse(context.request.rawBody);
+        if (Array.isArray(parsedBody)) {
+            // when the body is an array we assume it's a single route call and we have to reconstruct the body
+            // http://my-api.com/route1 [p1, p2, p3] => {route1: [p1, p2, p3]}
+            request.body = {[getRouteExecutableFromPath(context.path).id]: parsedBody};
+            return;
+        }
         if (typeof parsedBody !== 'object')
             return new RpcError({
                 statusCode: StatusCodes.BAD_REQUEST,
