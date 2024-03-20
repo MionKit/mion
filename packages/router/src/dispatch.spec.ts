@@ -48,7 +48,7 @@ describe('Dispatch routes', () => {
         return data;
     });
 
-    const auth = headersHook('Authorization', (ctx, token: string) => {
+    const auth = headersHook(['Authorization'], (ctx, token: string) => {
         if (token !== '1234') throw {statusCode: StatusCodes.FORBIDDEN, message: 'invalid auth token'};
     });
 
@@ -124,7 +124,9 @@ describe('Dispatch routes', () => {
 
         it('headers are case insensitive, returned headers alway lowercase', async () => {
             initRouter({sharedDataFactory: getSharedData});
-            const auth = headersHook('Authorization', (ctx, token: string): string => (token === '1234' ? 'MyUser' : 'Unknown'));
+            const auth = headersHook(['Authorization'], (ctx, token: string): string =>
+                token === '1234' ? 'MyUser' : 'Unknown'
+            );
             registerRoutes({auth, changeUserName});
 
             const request: RawRequest = {

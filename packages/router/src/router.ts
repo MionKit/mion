@@ -333,7 +333,7 @@ export function getExecutableFromHook(
         returnJitFns,
         paramNames,
         pointer: hookPointer,
-        headerName: inHeader ? (hook as HeaderHookDef).headerName?.toLowerCase() : undefined,
+        headerNames: inHeader ? (hook as HeaderHookDef).headerNames.map((name) => name.toLowerCase()) : undefined,
         options: {
             runOnError: !!hook.options?.runOnError,
             hasReturnData: handlerRunType.hasReturnData,

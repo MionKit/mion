@@ -32,7 +32,7 @@ export interface Procedure<H extends AnyHandler = any> {
     paramsJitFns?: JITFunctions;
     returnJitFns?: JITFunctions;
     paramNames?: string[];
-    headerName?: string;
+    headerNames?: string[];
     options: ProcedureOptions;
 }
 
@@ -59,7 +59,7 @@ export interface HookProcedure<H extends Handler = any> extends Procedure<H> {
 export interface HeaderProcedure<H extends HeaderHandler = any> extends Procedure<H> {
     type: ProcedureType.headerHook;
     handler: H;
-    headerName: string;
+    headerNames: string[];
     paramsJitFns: JITFunctions;
     returnJitFns: JITFunctions;
     paramNames: string[];
