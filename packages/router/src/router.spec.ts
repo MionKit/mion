@@ -24,8 +24,8 @@ import {ProcedureType} from './types/procedures';
 
 describe('Create routes should', () => {
     const hook1 = hook((): void => undefined);
-    const route1 = route(() => 'route1');
-    const route2 = route(() => 'route2');
+    const route1 = route((): string => 'route1');
+    const route2 = route((): string => 'route2');
 
     const routes = {
         first: hook1,
@@ -157,7 +157,7 @@ describe('Create routes should', () => {
                 type: ProcedureType.hook,
                 options: expect.objectContaining({
                     runOnError: false,
-                    canReturnData: false,
+                    hasReturnData: false,
                 }),
             })
         );
@@ -169,7 +169,7 @@ describe('Create routes should', () => {
                 type: ProcedureType.hook,
                 options: expect.objectContaining({
                     runOnError: false,
-                    canReturnData: true,
+                    hasReturnData: true,
                 }),
             })
         );
@@ -187,7 +187,7 @@ describe('Create routes should', () => {
                 type: ProcedureType.route,
                 options: expect.objectContaining({
                     runOnError: false,
-                    canReturnData: true,
+                    hasReturnData: true,
                 }),
             })
         );
@@ -293,12 +293,12 @@ describe('Create routes should', () => {
         };
         registerRoutes(defaultRouteValues);
 
-        expect(getRouteExecutable('sayHello')?.handlerRunType.isAsync).toEqual(false);
-        expect(getRouteExecutable('asyncSayHello')?.handlerRunType.isAsync).toEqual(true);
+        expect(getRouteExecutable('sayHello')?.options.isAsync).toEqual(false);
+        expect(getRouteExecutable('asyncSayHello')?.options.isAsync).toEqual(true);
 
         // when there is no return type we asume the function is async.
         // this is done so await is enforced in case we don't know the return type
-        expect(getRouteExecutable('noReturnType')?.handlerRunType.isAsync).toEqual(true);
+        expect(getRouteExecutable('noReturnType')?.options.isAsync).toEqual(true);
     });
 
     it('add start and end global hooks', () => {

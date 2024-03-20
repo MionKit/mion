@@ -52,8 +52,8 @@ export class FunctionRunType<CallType extends AnyFunction = TypeFunction> extend
         this.paramsName = `[${this.parameterTypes.map((p) => p.name).join(', ')}]`;
         this.returnName = this.returnType.name;
         this.name = `${callType}<${this.paramsName}, ${this.returnName}>`;
-        this.hasReturnData = this._hasReturnData();
-        this.isAsync = isPromise || this._isAsync(maybePromiseReturn);
+        this.hasReturnData = this._hasReturnData(this.returnType.src.kind);
+        this.isAsync = isPromise || this._isAsync(this.returnType.src.kind);
     }
     JIT_isType(): string {
         throw new Error(`${this.name} validation is not supported, instead validate parameters or return type separately.`);
@@ -154,19 +154,15 @@ export class FunctionRunType<CallType extends AnyFunction = TypeFunction> extend
         return this.returnType.mock();
     }
 
-    private _hasReturnData(): boolean {
+    private _hasReturnData(returnKind: ReflectionKind): boolean {
         return (
-            this.returnType.src.kind !== ReflectionKind.void &&
-            this.returnType.src.kind !== ReflectionKind.never &&
-            this.returnType.src.kind !== ReflectionKind.undefined
+            returnKind !== ReflectionKind.void && returnKind !== ReflectionKind.never && returnKind !== ReflectionKind.undefined
         );
     }
 
-    private _isAsync(returnType): boolean {
+    private _isAsync(returnKind: ReflectionKind): boolean {
         return (
-            returnType.src.kind === ReflectionKind.promise ||
-            returnType.src.kind === ReflectionKind.any ||
-            returnType.src.kind === ReflectionKind.unknown
+            returnKind === ReflectionKind.promise || returnKind === ReflectionKind.any || returnKind === ReflectionKind.unknown
         );
     }
 }

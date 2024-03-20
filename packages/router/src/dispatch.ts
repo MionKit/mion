@@ -101,10 +101,10 @@ function deserializeParameters(request: MionRequest, executable: NonRawProcedure
     return params;
 }
 
-function _deserializeParameters(params: any, executable: Procedure, path: string): any[] {
-    if (executable.options.useSerialization && executable?.handlerRunType?.isParamsJsonDecodedRequired) {
+function _deserializeParameters(params: any, executable: NonRawProcedure, path: string): any[] {
+    if (executable.options.deserializeParams) {
         try {
-            return executable.handlerRunType?.jitParamsFns.jsonDecode.fn(params);
+            return executable.paramsJitFns.jsonDecode.fn(params);
         } catch (e: any) {
             throw new RpcError({
                 statusCode: StatusCodes.BAD_REQUEST,
@@ -119,23 +119,22 @@ function _deserializeParameters(params: any, executable: Procedure, path: string
 }
 
 function validateParametersOrThrow(params: any[], executable: NonRawProcedure): void {
-    if (!executable.options.useValidation) return;
-    const areParamsValid = executable.handlerRunType.jitParamsFns.isType.fn(params);
+    if (!executable.options.validateParams) return;
+    const areParamsValid = executable.paramsJitFns.isType.fn(params);
     if (!areParamsValid) {
         throw new RpcError({
             statusCode: StatusCodes.BAD_REQUEST,
             name: 'Validation Error',
             publicMessage: `Invalid params in '${executable.id}', validation failed.`,
-            errorData: executable.handlerRunType.jitParamsFns.typeErrors.fn(params),
+            errorData: executable.paramsJitFns.typeErrors.fn(params),
         });
     }
 }
 
 function serializeResponse(executable: NonRawProcedure, response: MionResponse, result: any, opts: RouterOptions) {
-    if (!executable.options.canReturnData || result === undefined) return;
-    const shouldEncode =
-        !opts.useJitStringify && executable.options.useSerialization && executable.handlerRunType?.isReturnJsonEncodedRequired;
-    const serialized = shouldEncode ? executable.handlerRunType?.jitReturnFns.jsonEncode.fn(result) : result;
+    if (!executable.options.hasReturnData || result === undefined) return;
+    const shouldEncode = !opts.useJitStringify && executable.options.deserializeParams;
+    const serialized = shouldEncode ? executable.returnJitFns.jsonEncode.fn(result) : result;
     if (executable.type !== ProcedureType.headerHook) (response.body as Mutable<AnyObject>)[executable.id] = serialized;
     else response.headers.set((executable as HeaderProcedure).headerName, serialized);
 }

@@ -56,7 +56,7 @@ export function isRawExecutable(entry: Procedure): entry is RawProcedure {
 }
 
 export function isPublicExecutable(entry: Procedure): entry is Procedure {
-    return entry.handlerRunType?.hasReturnData || !!entry.handlerRunType?.parameterTypes.length;
+    return entry.options.hasReturnData || entry.type === ProcedureType.route || !!entry.paramNames?.length;
 }
 
 export function isNotFoundExecutable(entry: Procedure): entry is NotFoundProcedure {

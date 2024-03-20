@@ -21,7 +21,7 @@ import {route} from './initFunctions';
 import {PublicProcedure} from './types/publicProcedures';
 import {RouterOptions, Routes} from './types/general';
 import {getMethodMetadataFromExecutable} from './remoteMethodsMetadata';
-import {Procedure} from './types/procedures';
+import {NonRawProcedure, Procedure} from './types/procedures';
 
 export type RemoteMethodsDictionary = {[key: string]: PublicProcedure};
 export interface ClientRouteOptions extends RouterOptions {
@@ -41,7 +41,7 @@ function addRequiredRemoteMethodsToResponse(id: string, resp: RemoteMethodsDicti
     }
     if (isPrivateExecutable(executable)) return;
 
-    resp[id] = getMethodMetadataFromExecutable(executable);
+    resp[id] = getMethodMetadataFromExecutable(executable as NonRawProcedure);
     resp[id].hookIds?.forEach((hookId) => addRequiredRemoteMethodsToResponse(hookId, resp, errorData));
 }
 
@@ -89,7 +89,7 @@ const getRouteRemoteMethods = (ctx, path: string, getAllRemoteMethods?: boolean)
 };
 
 // disable serialization as deserializer seems to ignore serializedTypes
-const routerOpts = {useSerialization: false};
+const routerOpts = {deserializeParams: false};
 export const clientRoutes = {
     [GET_REMOTE_METHODS_BY_ID]: route(getRemoteMethods, routerOpts),
     [GET_REMOTE_METHODS_BY_PATH]: route(getRouteRemoteMethods, routerOpts),

@@ -25,10 +25,10 @@ export const DEFAULT_PREFILL_OPTIONS: ClientOptions = {
     suffix: '',
 
     /** Enables automatic parameter validation */
-    useValidation: true,
+    validateParams: true,
 
     /** Enables automatic serialization/deserialization */
-    useSerialization: true,
+    deserializeParams: true,
 
     /** Custom body parser, defaults to Native JSON */
     bodyParser: JSON,

@@ -31,13 +31,6 @@ describe('route & hooks init functions', () => {
             type: ProcedureType.headerHook,
             headerName: 'Authorization',
             handler: expect.any(Function),
-            options: {
-                runOnError: false,
-                useValidation: true,
-                useSerialization: true,
-                description: undefined,
-                isSync: false,
-            },
         });
     });
 
@@ -45,13 +38,6 @@ describe('route & hooks init functions', () => {
         expect(routes.timestamp).toEqual({
             type: ProcedureType.hook,
             handler: expect.any(Function),
-            options: {
-                runOnError: false,
-                useValidation: true,
-                useSerialization: true,
-                description: undefined,
-                isSync: false,
-            },
         });
     });
 
@@ -59,14 +45,6 @@ describe('route & hooks init functions', () => {
         expect(routes.nothing).toEqual({
             type: ProcedureType.rawHook,
             handler: expect.any(Function),
-            options: {
-                runOnError: false,
-                canReturnData: false,
-                useValidation: false,
-                useSerialization: false,
-                description: undefined,
-                isSync: false,
-            },
         });
     });
 
@@ -74,14 +52,6 @@ describe('route & hooks init functions', () => {
         expect(routes.print).toEqual({
             type: ProcedureType.route,
             handler: expect.any(Function),
-            options: {
-                runOnError: false,
-                canReturnData: true,
-                useValidation: true,
-                useSerialization: true,
-                description: undefined,
-                isSync: false,
-            },
         });
     });
 

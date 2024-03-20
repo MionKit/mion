@@ -66,16 +66,42 @@ describe('Public Methods should', () => {
                 type: ProcedureType.hook,
                 handler: 'auth', // to be used by codegen so need to be a valid js syntax
                 id: 'auth',
-                useValidation: DEFAULT_ROUTE_OPTIONS.useValidation,
-                useSerialization: DEFAULT_ROUTE_OPTIONS.useSerialization,
+                paramsJitFns: {
+                    isType: {varNames: expect.any(Array), code: expect.any(String)},
+                    typeErrors: {varNames: expect.any(Array), code: expect.any(String)},
+                    jsonDecode: {varNames: expect.any(Array), code: expect.any(String)},
+                    jsonEncode: {varNames: expect.any(Array), code: expect.any(String)},
+                    jsonStringify: {varNames: expect.any(Array), code: expect.any(String)},
+                },
+                returnJitFns: {
+                    isType: {varNames: expect.any(Array), code: expect.any(String)},
+                    typeErrors: {varNames: expect.any(Array), code: expect.any(String)},
+                    jsonDecode: {varNames: expect.any(Array), code: expect.any(String)},
+                    jsonEncode: {varNames: expect.any(Array), code: expect.any(String)},
+                    jsonStringify: {varNames: expect.any(Array), code: expect.any(String)},
+                },
+                paramNames: ['s'],
             }),
             routes: {
                 route1: expect.objectContaining({
                     type: ProcedureType.route,
                     handler: 'routes.route1', // to be used by codegen so need to be a valid js syntax
                     id: 'routes-route1',
-                    useValidation: DEFAULT_ROUTE_OPTIONS.useValidation,
-                    useSerialization: DEFAULT_ROUTE_OPTIONS.useSerialization,
+                    paramsJitFns: {
+                        isType: {varNames: expect.any(Array), code: expect.any(String)},
+                        typeErrors: {varNames: expect.any(Array), code: expect.any(String)},
+                        jsonDecode: {varNames: expect.any(Array), code: expect.any(String)},
+                        jsonEncode: {varNames: expect.any(Array), code: expect.any(String)},
+                        jsonStringify: {varNames: expect.any(Array), code: expect.any(String)},
+                    },
+                    returnJitFns: {
+                        isType: {varNames: expect.any(Array), code: expect.any(String)},
+                        typeErrors: {varNames: expect.any(Array), code: expect.any(String)},
+                        jsonDecode: {varNames: expect.any(Array), code: expect.any(String)},
+                        jsonEncode: {varNames: expect.any(Array), code: expect.any(String)},
+                        jsonStringify: {varNames: expect.any(Array), code: expect.any(String)},
+                    },
+                    paramNames: [],
                 }),
             },
         });
@@ -87,15 +113,13 @@ describe('Public Methods should', () => {
             addMilliseconds: route((ctx, ms: number, date: Date) => date.setMilliseconds(date.getMilliseconds() + ms)),
         };
         const api = registerRoutes(testR);
-        const serializedFnParams = api.addMilliseconds.serializedFnParams;
-        const isType = new Function(serializedFnParams.isType.varNames, serializedFnParams.isType.code);
-        const jsonDecode = new Function(serializedFnParams.jsonDecode.varNames, serializedFnParams.jsonDecode.code);
-        const jsonEncode = new Function(serializedFnParams.jsonEncode.varNames, serializedFnParams.jsonEncode.code);
+        const serializedFnParams = api.addMilliseconds.paramsJitFns;
+        const isType = new Function(...serializedFnParams.isType.varNames, serializedFnParams.isType.code);
+        const jsonDecode = new Function(...serializedFnParams.jsonDecode.varNames, serializedFnParams.jsonDecode.code);
+        const jsonEncode = new Function(...serializedFnParams.jsonEncode.varNames, serializedFnParams.jsonEncode.code);
         const date = new Date('2022-12-19T00:24:00.00');
 
         // ###### Validation ######
-        // Dates does not trow an error when validating, TODO: investigate if is an error in deepkit
-        const notaNumber = {code: 'type', message: 'Not a number', path: ''};
         expect(isType([123, date])).toEqual(true);
         expect(isType([123, date])).toEqual(true);
         expect(isType(['noNumber', new Date('noDate')])).toEqual(false);
@@ -103,18 +127,11 @@ describe('Public Methods should', () => {
 
         // ###### Serialization ######
         const deserialized = jsonDecode([123, '2022-12-19T00:24:00.00']);
-        const deserializedFromRestored = jsonDecode([123, '2022-12-19T00:24:00.00']);
         expect(deserialized).toEqual([123, date]);
-        expect(deserializedFromRestored).toEqual([123, date]);
 
-        // Dates does not trow an error when serializing, TODO: investigate if is an error in deepkit
-        const expectedThrownError = 'Validation error:\n(type): Cannot convert noNumber to number';
-        expect(() => {
-            jsonEncode(['noNumber', 'noDate']);
-        }).toThrow(expectedThrownError);
-        expect(() => {
-            jsonEncode(['noNumber', 'noDate']);
-        }).toThrow(expectedThrownError);
+        // ###### Deserialization ######
+        const serialized = jsonEncode([123, date]);
+        expect(serialized).toEqual([123, date]);
     });
 
     it('generate public data when suing prefix and suffix', () => {
@@ -199,6 +216,6 @@ describe('Public Methods should', () => {
             sayHello: route((ctx: CallContext, name: string): string => `Hello ${name}`),
         };
         const api = registerRoutes(routes);
-        expect(api.sayHello.params.length).toEqual(1);
+        expect(api.sayHello.paramNames.length).toEqual(1);
     });
 });

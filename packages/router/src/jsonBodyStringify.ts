@@ -47,10 +47,10 @@ function _getExecutionPathStringifyFn(path: string, executionPath: Procedure[]):
     const jitFn = jitFnsByPath.get(path);
     if (jitFn) return jitFn;
     const bodyExecutables = executionPath?.filter(
-        (e) => e.options.canReturnData && e.type !== ProcedureType.headerHook
+        (e) => e.options.hasReturnData && e.type !== ProcedureType.headerHook
     ) as NonRawProcedure[];
     const execPathStringifyFns: ExecutionPathStringifyFns = {};
-    bodyExecutables.forEach((e) => (execPathStringifyFns[e.id] = e.handlerRunType.jitReturnFns.jsonStringify));
+    bodyExecutables.forEach((e) => (execPathStringifyFns[e.id] = e.returnJitFns.jsonStringify));
     const bodyStringify = new BodyStringify(JIT_jsonStringifyFromObject(execPathStringifyFns), execPathStringifyFns);
     jitFnsByPath.set(path, bodyStringify);
     return bodyStringify;

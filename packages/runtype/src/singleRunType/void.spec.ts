@@ -33,16 +33,19 @@ it('validate void + errors', () => {
     expect(valWithErrors('hello')).toEqual([{path: '', expected: 'void'}]);
 });
 
-it('encode to json should throw an error', () => {
-    expect(() => buildJsonEncodeJITFn(rt)).toThrow('void can not be encoded to json.');
+it('encode to json should return undefined', () => {
+    const encode = buildJsonEncodeJITFn(rt).fn;
+    expect(encode(undefined)).toBe(undefined);
 });
 
-it('decode from json should throw an error', () => {
-    expect(() => buildJsonDecodeJITFn(rt)).toThrow('void can not be decoded from json.');
+it('decode from json should return undefined', () => {
+    const decode = buildJsonDecodeJITFn(rt).fn;
+    expect(decode('')).toBe(undefined);
 });
 
-it('json stringify', () => {
-    expect(() => buildJsonStringifyJITFn(rt)).toThrow('void can not be stringified.');
+it('json stringify should return undefined', () => {
+    const stringify = buildJsonStringifyJITFn(rt).fn;
+    expect(stringify(undefined)).toBe(undefined);
 });
 
 it('mock', () => {

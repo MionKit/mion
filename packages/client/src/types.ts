@@ -33,9 +33,9 @@ export type ClientOptions = {
      * Not path separators is added between the route and the suffix */
     suffix: string;
     /** enable automatic parameter validation, defaults to true */
-    useValidation: boolean;
+    validateParams: boolean;
     /** Enables serialization/deserialization */
-    useSerialization: boolean;
+    deserializeParams: boolean;
     /** automatically generate and uuid */
     autoGenerateErrorId: boolean;
     /** Custom JSON parser, defaults to Native js JSON */

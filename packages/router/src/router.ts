@@ -17,11 +17,12 @@ import type {Procedure} from './types/procedures';
 import {ProcedureType} from './types/procedures';
 import type {PublicApi, PrivateDef, HooksCollection} from './types/publicProcedures';
 import type {HeaderHookDef, HookDef, RawHookDef} from './types/definitions';
-import {reflectFunction} from '@mionkit/runtype';
+import {FunctionRunType, JITFunctions, reflectFunction} from '@mionkit/runtype';
 import {bodyParserHooks} from './jsonBodyParser.routes';
 import {getRouterItemId, setErrorOptions, getRoutePath} from '@mionkit/core';
 import {getRemoteMethodsMetadata, resetRemoteMethodsMetadata} from './remoteMethodsMetadata';
 import {clientRoutes} from './client.routes';
+import {Handler} from './types/handlers';
 
 type RouterKeyEntryList = [string, RouterEntry][];
 type RoutesWithId = {
@@ -133,14 +134,14 @@ export function addEndHooks(hooksDef: HooksCollection, prependAfterExisting = tr
     endHooksDef = {...hooksDef, ...endHooksDef};
 }
 
-export function isPrivateProcedure(entry: RouterEntry, id: string): entry is PrivateDef {
+export function isPrivateDefinition(entry: RouterEntry, id: string): entry is PrivateDef {
     if (isRoute(entry)) return false;
     if (isRawHookDef(entry)) return true;
     try {
-        const handler = entry.handler;
         const executable = getHookExecutable(id) || getRouteExecutable(id);
-        const hasPublicParams = !!handler.length;
-        return !hasPublicParams && !executable?.options.canReturnData;
+        if (!executable)
+            throw new Error(`Route or Hook ${id} not found. Please check you have called router.registerRoutes first.`);
+        return isPrivateExecutable(executable);
     } catch {
         // error thrown because entry is a Routes object and does not have any handler
         return false;
@@ -150,8 +151,8 @@ export function isPrivateProcedure(entry: RouterEntry, id: string): entry is Pri
 export function isPrivateExecutable(executable: Procedure): boolean {
     if (executable.type === ProcedureType.rawHook) return true;
     if (executable.type === ProcedureType.route) return false;
-    const hasPublicParams = !!executable.handler.length;
-    return !hasPublicParams && !executable.options.canReturnData;
+    const hasPublicParams = !!executable.paramNames?.length;
+    return !hasPublicParams && !executable.options.hasReturnData;
 }
 
 export function getTotalExecutables(): number {
@@ -303,7 +304,7 @@ function getExecutableFromAnyHook(hook: HookDef | HeaderHookDef | RawHookDef, ho
     return getExecutableFromHook(hook, hookPointer, nestLevel);
 }
 
-function getExecutableFromHook(
+export function getExecutableFromHook(
     hook: HookDef | HeaderHookDef,
     hookPointer: string[],
     nestLevel: number
@@ -317,18 +318,28 @@ function getExecutableFromHook(
     type MixedExecutable = (Omit<HookProcedure, 'type'> | Omit<HeaderProcedure, 'type'>) & {
         type: ProcedureType.hook | ProcedureType.headerHook;
     };
-
+    const {handlerRunType, paramsJitFns, returnJitFns, paramNames} = getHandlerReflection(hook.handler, hookId);
     const executable: MixedExecutable = {
         id: hookId,
         type: inHeader ? ProcedureType.headerHook : ProcedureType.hook,
         nestLevel,
         handler: hook.handler,
-        handlerRunType: reflectFunction(hook.handler, DEFAULT_ROUTE_OPTIONS.runTypeOptions),
+        paramsJitFns,
+        returnJitFns,
+        paramNames,
         pointer: hookPointer,
         headerName: inHeader ? (hook as HeaderHookDef).headerName?.toLowerCase() : undefined,
-        options: hook.options,
+        options: {
+            runOnError: !!hook.options?.runOnError,
+            hasReturnData: handlerRunType.hasReturnData,
+            validateParams: hook.options?.validateParams ?? true,
+            deserializeParams: (hook.options?.deserializeParams ?? true) && handlerRunType.isParamsJsonDecodedRequired,
+            validateReturn: hook.options?.validateReturn ?? false,
+            serializeReturn: (hook.options?.serializeReturn ?? true) && handlerRunType.isReturnJsonEncodedRequired,
+            description: hook.options?.description,
+            isAsync: !!hook.options?.isAsync || handlerRunType.isAsync,
+        },
     };
-    executable.options.canReturnData = executable.handlerRunType.hasReturnData;
     hooksById.set(hookId, executable as any);
     return executable as any;
 }
@@ -343,27 +354,49 @@ export function getExecutableFromRawHook(hook: RawHookDef, hookPointer: string[]
         id: hookId,
         nestLevel,
         handler: hook.handler,
-        handlerRunType: null,
+        paramsJitFns: undefined,
+        returnJitFns: undefined,
+        paramNames: undefined,
         pointer: hookPointer,
-        options: hook.options,
+        options: {
+            runOnError: !!hook.options?.runOnError,
+            hasReturnData: false,
+            validateParams: false,
+            deserializeParams: false,
+            validateReturn: false,
+            serializeReturn: false,
+            description: hook.options?.description,
+            isAsync: !!hook.options?.isAsync,
+        },
     };
-    executable.options.canReturnData = false;
     rawHooksById.set(hookId, executable);
     return executable;
 }
 
-function getExecutableFromRoute(route: Route, routePointer: string[], nestLevel: number): RouteProcedure {
+export function getExecutableFromRoute(route: Route, routePointer: string[], nestLevel: number): RouteProcedure {
     const routeId = getRouterItemId(routePointer);
     const existing = routesById.get(routeId);
     if (existing) return existing as RouteProcedure;
+    const {handlerRunType, paramsJitFns, returnJitFns, paramNames} = getHandlerReflection(route.handler, routeId);
     const executable: RouteProcedure = {
         type: ProcedureType.route,
         id: routeId,
         nestLevel,
         handler: route.handler,
-        handlerRunType: reflectFunction(route.handler, DEFAULT_ROUTE_OPTIONS.runTypeOptions),
+        paramsJitFns,
+        returnJitFns,
+        paramNames,
         pointer: routePointer,
-        options: route.options,
+        options: {
+            runOnError: false,
+            hasReturnData: handlerRunType.hasReturnData,
+            validateParams: route.options?.validateParams ?? true,
+            deserializeParams: (route.options?.deserializeParams ?? true) && handlerRunType.isParamsJsonDecodedRequired,
+            validateReturn: route.options?.validateReturn ?? false,
+            serializeReturn: (route.options?.serializeReturn ?? true) && handlerRunType.isReturnJsonEncodedRequired,
+            description: route.options?.description,
+            isAsync: !!route.options?.isAsync || handlerRunType.isAsync,
+        },
     };
     delete (executable as any).route;
     routesById.set(routeId, executable);
@@ -400,4 +433,39 @@ function getExecutablesFromHooksCollection(hooksDef: HooksCollection): (RawProce
         if (isHeaderHookDef(hook) || isHookDef(hook)) return getExecutableFromHook(hook, [key], 0);
         throw new Error(`Invalid hook: ${key}. Invalid hook definition`);
     });
+}
+
+interface ProcedureReflectionItems {
+    handlerRunType: FunctionRunType;
+    paramsJitFns: JITFunctions;
+    returnJitFns: JITFunctions;
+    paramNames: string[];
+}
+
+function getHandlerReflection(handler: Handler, routeId: string): ProcedureReflectionItems {
+    const reflectionItems: Partial<ProcedureReflectionItems> = {};
+    let handlerRunType: FunctionRunType;
+    try {
+        handlerRunType = reflectFunction(handler, routerOptions.runTypeOptions);
+        reflectionItems.handlerRunType = handlerRunType;
+    } catch (error: any) {
+        throw new Error(`Can not get RunType of handler for route/hook ${routeId}. Error: ${error?.message}`);
+    }
+
+    try {
+        // paramsJitFns is a  get prop accessor that compiles the when the property is first accessed
+        reflectionItems.paramsJitFns = handlerRunType.jitParamsFns;
+        reflectionItems.paramNames = handlerRunType.parameterTypes.map((p) => p.paramName);
+    } catch (error: any) {
+        throw new Error(`Can not compile Jit Functions for Parameters of route/hook ${routeId}. Error: ${error?.message}`);
+    }
+
+    try {
+        // returnJitFns is a  get prop accessor that compiles the when the property is first accessed
+        reflectionItems.returnJitFns = handlerRunType.jitReturnFns;
+    } catch (error: any) {
+        throw new Error(`Can not get Jit Functions for Return of route/hook ${routeId}. Error: ${error?.message}`);
+    }
+
+    return reflectionItems as ProcedureReflectionItems;
 }
