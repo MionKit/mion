@@ -7,7 +7,7 @@
 
 import type {Handler} from './types/handlers';
 import {type RouterEntry, type Routes} from './types/general';
-import {type Procedure} from './types/procedures';
+import {NonRawProcedure, type Procedure} from './types/procedures';
 import {ProcedureType} from './types/procedures';
 import type {PublicApi, PublicHandler, PublicProcedure} from './types/publicProcedures';
 import {isRoute, isHeaderHookDef, isHookDef, isPublicExecutable} from './types/guards';
@@ -16,7 +16,7 @@ import {
     getRouteExecutable,
     getRouteExecutionPath,
     getRouterOptions,
-    isPrivateProcedure,
+    isPrivateDefinition,
     shouldFullGenerateSpec,
 } from './router';
 import {getSerializableJitCompiler} from '@mionkit/runtype';
@@ -50,13 +50,13 @@ function recursiveGetMethodsMetadata<R extends Routes>(
         const itemPointer = [...currentPointer, key];
         const id = getRouterItemId(itemPointer);
 
-        if (isPrivateProcedure(item, id)) {
+        if (isPrivateDefinition(item, id)) {
             publicData[key] = null; // hooks that don't receive or return data are not public
         } else if (isHookDef(item) || isHeaderHookDef(item) || isRoute(item)) {
             const executable = getHookExecutable(id) || getRouteExecutable(id);
             if (!executable)
                 throw new Error(`Route or Hook ${id} not found. Please check you have called router.registerRoutes first.`);
-            publicData[key] = getMethodMetadataFromExecutable(executable);
+            publicData[key] = getMethodMetadataFromExecutable(executable as NonRawProcedure);
         } else {
             const subRoutes: Routes = routes[key] as Routes;
             publicData[key] = recursiveGetMethodsMetadata(subRoutes, itemPointer);
@@ -66,11 +66,9 @@ function recursiveGetMethodsMetadata<R extends Routes>(
     return publicData;
 }
 
-export function getMethodMetadataFromExecutable<H extends Handler>(executable: Procedure): PublicProcedure<H> {
+export function getMethodMetadataFromExecutable<H extends Handler>(executable: NonRawProcedure): PublicProcedure<H> {
     const existing = metadataById.get(executable.id);
     if (existing) return existing as PublicProcedure<H>;
-
-    if (!executable.handlerRunType) throw new Error(`Handler run type not found for ${executable.id}`);
 
     const newRemoteMethod: PublicProcedure = {
         type: executable.type,
@@ -78,11 +76,9 @@ export function getMethodMetadataFromExecutable<H extends Handler>(executable: P
         // handler is included just for static typing purposes and should never be called directly.
         // It's value during run type is a string with the pointer to the handler
         handler: getHandlerSrcCodePointer(executable) as any as PublicHandler<H>,
-        serializedFnParams: getSerializableJitCompiler(executable.handlerRunType?.jitParamsFns),
-        serializedFnReturn: getSerializableJitCompiler(executable.handlerRunType?.jitReturnFns),
-        useValidation: !!executable.options.useValidation,
-        useSerialization: !!executable.options.useSerialization,
-        params: executable.handlerRunType.parameterTypes.map((p) => p.paramName),
+        paramsJitFns: getSerializableJitCompiler(executable.paramsJitFns),
+        returnJitFns: getSerializableJitCompiler(executable.returnJitFns),
+        paramNames: executable.paramNames,
     };
 
     // initialized separately so the property `headerName` is not included in the object in case is undefined

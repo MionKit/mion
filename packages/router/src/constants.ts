@@ -23,12 +23,6 @@ export const DEFAULT_ROUTE_OPTIONS = {
     /** Function that transforms the path before finding a route */
     pathTransform: undefined,
 
-    /** Enables automatic parameter validation */
-    useValidation: true,
-
-    /** Enables automatic serialization/deserialization */
-    useSerialization: true,
-
     /** using runTypes jit stringify by default */
     useJitStringify: true,
 

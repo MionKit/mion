@@ -22,7 +22,7 @@ export function validateSubRequests(
     errors: RequestErrors,
     validateRouteHooks = true
 ): void {
-    if (!req.options.useValidation) return;
+    if (!req.options.validateParams) return;
     subRequestIds.forEach((id) => {
         validateSubRequest(id, req, errors);
         const methodMeta = req.metadataById.get(id);
@@ -38,7 +38,7 @@ export function validateSubRequests(
  * If there is an error then subRequest is marked as resolved and error is added as subRequest response.
  */
 export function validateSubRequest(id: string, req: ValidationRequest, errors: RequestErrors): void {
-    if (!req.options.useSerialization) return;
+    if (!req.options.deserializeParams) return;
     // subRequest might be undefined if does not require to send parameters or are optional
     const {methodMeta, subRequest} = getSerializationRequiredData(id, req);
     if (subRequest?.error || subRequest?.isResolved) return;
@@ -58,7 +58,7 @@ export function validateSubRequest(id: string, req: ValidationRequest, errors: R
 
 /** Serialize subRequests. If there are any errors subRequests are marked as resolved. */
 export function serializeSubRequests(subRequestIds: string[], req: ValidationRequest, errors: RequestErrors): void {
-    if (!req.options.useSerialization) return;
+    if (!req.options.deserializeParams) return;
     subRequestIds.forEach((id) => {
         serializeSubRequest(id, req, errors);
         const methodMeta = req.metadataById.get(id);
@@ -69,7 +69,7 @@ export function serializeSubRequests(subRequestIds: string[], req: ValidationReq
 
 /** Serialize a single subRequest. If there are is an error subRequest is marked as resolved. */
 export function serializeSubRequest(id: string, req: ValidationRequest, errors: RequestErrors): void {
-    if (!req.options.useSerialization) return;
+    if (!req.options.deserializeParams) return;
     const {methodMeta, subRequest} = getSerializationRequiredData(id, req);
     // at this point subRequest might been validated so if not defined then is not required
     if (!subRequest) return;
@@ -118,7 +118,7 @@ function getSerializationRequiredData(
 
 function serializeParameters(params: any[], method: PublicProcedure, paramsJit?: JITFunctions): any[] | RpcError {
     if (!paramsJit) return params;
-    if (params.length && method.useSerialization) {
+    if (params.length && method.deserializeParams) {
         try {
             params = paramsJit.jsonEncode.fn(params) as JSONValue[];
         } catch (e: any | Error) {
@@ -134,7 +134,7 @@ function serializeParameters(params: any[], method: PublicProcedure, paramsJit?:
 }
 
 function validateParameters(params: any[], method: PublicProcedure, paramsJit?: JITFunctions): void | RpcError {
-    if (!paramsJit || !method.useValidation) return;
+    if (!paramsJit || !method.validateParams) return;
     try {
         const validationsResponse = paramsJit.typeErrors.fn(params);
         if (validationsResponse.length) {
@@ -155,7 +155,7 @@ function validateParameters(params: any[], method: PublicProcedure, paramsJit?: 
 }
 
 function deSerializeReturn(response: any | RpcError, method: PublicProcedure, returnJit?: JITFunctions): any | RpcError {
-    if (!returnJit || !method.useSerialization || !response) return response;
+    if (!returnJit || !method.deserializeParams || !response) return response;
     try {
         if (response instanceof RpcError) return response;
         if (isRpcError(response)) return new RpcError(response);

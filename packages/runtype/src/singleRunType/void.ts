@@ -20,14 +20,14 @@ export class VoidRunType extends BaseRunType<TypeVoid> {
     JIT_typeErrors(varName: string, errorsName: string, pathChain: string): string {
         return `if (${varName} !== undefined) ${errorsName}.push({path: ${pathChain}, expected: ${toLiteral(this.name)}})`;
     }
-    JIT_jsonEncode(): string {
-        throw new Error('void can not be encoded to json.');
+    JIT_jsonEncode(varName: string): string {
+        return `${varName} = undefined`;
     }
-    JIT_jsonDecode(): string {
-        throw new Error('void can not be decoded from json.');
+    JIT_jsonDecode(varName: string): string {
+        return `${varName} = undefined`;
     }
     JIT_jsonStringify(): string {
-        throw new Error('void can not be stringified.');
+        return 'undefined';
     }
     mock(): void {}
 }

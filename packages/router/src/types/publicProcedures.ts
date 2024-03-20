@@ -62,20 +62,18 @@ export type PublicApi<Type extends Routes> = {
 
 // quite similar to Executable but omits some server only properties
 export interface PublicProcedure<H extends Handler = any> {
+    id: string;
     type: ProcedureType;
     /** Type reference to the route handler, it's runtime value is actually null, just used statically by typescript. */
     handler: PublicHandler<H>;
     /** data and code required to build the functions to serialize and validate handler parameters  */
-    serializedFnParams: SerializableJITFunctions;
+    paramsJitFns: SerializableJITFunctions;
     /** data and code required to build the functions to serialize and validate handler return  */
-    serializedFnReturn: SerializableJITFunctions;
-    id: string;
-    useValidation: boolean;
-    useSerialization: boolean;
-    params: string[];
+    returnJitFns: SerializableJITFunctions;
     hookIds?: string[];
     pathPointers?: string[][];
     headerName?: string;
+    paramNames: string[];
 }
 
 /** Public map from Routes, handler type is the same as router's handler but does not include the context  */

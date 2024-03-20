@@ -1,28 +1,22 @@
 import type {NotFoundProcedure} from './types/procedures';
 import type {Procedure} from './types/procedures';
 import {ProcedureType} from './types/procedures';
-import type {RawHookDef} from './types/definitions';
+import type {RouteDef} from './types/definitions';
 import {RpcError, StatusCodes} from '@mionkit/core';
-import {getExecutableFromRawHook, startHooks, endHooks} from './router';
+import {startHooks, endHooks, getExecutableFromRoute} from './router';
 import {NOT_FOUND_HOOK_NAME} from './constants';
 
 let notFoundExecutionPath: Procedure[] | undefined;
 
 // TODO: make this configurable so uses can override behavior
-const notFoundHook = {
-    type: ProcedureType.rawHook,
+const notFoundRoute = {
+    type: ProcedureType.route,
     handler: () => new RpcError({statusCode: StatusCodes.NOT_FOUND, publicMessage: `Route not found`}),
-    options: {
-        canReturnData: false,
-        runOnError: true,
-        useValidation: false,
-        useSerialization: false,
-    },
-} satisfies RawHookDef;
+} satisfies RouteDef;
 
 export function getNotFoundExecutionPath(): Procedure[] {
     if (notFoundExecutionPath) return notFoundExecutionPath;
-    const notFoundHandlerExecutable = getExecutableFromRawHook(notFoundHook, [NOT_FOUND_HOOK_NAME], 0);
+    const notFoundHandlerExecutable = getExecutableFromRoute(notFoundRoute, [NOT_FOUND_HOOK_NAME], 0);
     (notFoundHandlerExecutable as NotFoundProcedure).is404 = true;
     notFoundExecutionPath = [...startHooks, notFoundHandlerExecutable, ...endHooks];
     return notFoundExecutionPath;
