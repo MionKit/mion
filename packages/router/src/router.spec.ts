@@ -112,7 +112,7 @@ describe('Create routes should', () => {
         expect(geRoutesSize()).toEqual(5);
         expect(geHooksSize()).toEqual(5);
 
-        expect(getRouteExecutionPath('/users-getUser')).toEqual(
+        expect(getRouteExecutionPath('/users-getUser')?.procedures).toEqual(
             addDefaultExecutables([
                 expect.objectContaining({...hookExecutables.first}),
                 expect.objectContaining({...hookExecutables.userBefore}),
@@ -122,7 +122,7 @@ describe('Create routes should', () => {
             ])
         );
         expect(getRouteExecutionPath('/users-setUser')).toBeTruthy();
-        expect(getRouteExecutionPath('/users-pets-getUserPet')).toEqual(
+        expect(getRouteExecutionPath('/users-pets-getUserPet')?.procedures).toEqual(
             addDefaultExecutables([
                 expect.objectContaining({...hookExecutables.first}),
                 expect.objectContaining({...hookExecutables.userBefore}),
@@ -132,7 +132,7 @@ describe('Create routes should', () => {
                 expect.objectContaining({...hookExecutables.last}),
             ])
         );
-        expect(getRouteExecutionPath('/pets-getPet')).toEqual(
+        expect(getRouteExecutionPath('/pets-getPet')?.procedures).toEqual(
             addDefaultExecutables([
                 expect.objectContaining({...hookExecutables.first}),
                 expect.objectContaining({...routeExecutables.petsGetPet}),
@@ -327,7 +327,7 @@ describe('Create routes should', () => {
             expect.objectContaining({id: 'a2', type: ProcedureType.rawHook}),
         ]);
 
-        expect(getRouteExecutionPath('/pets-getPet')).toEqual(expectedExecutionPath);
+        expect(getRouteExecutionPath('/pets-getPet')?.procedures).toEqual(expectedExecutionPath);
         expect(() => addStartHooks(prependHooks)).toThrow('Can not add start hooks after the router has been initialized');
         expect(() => addEndHooks(appendHooks)).toThrow('Can not add end hooks after the router has been initialized');
     });

@@ -7,7 +7,7 @@
 
 import {headersHook, hook, route} from './initFunctions';
 import {getStringifyFnForExecutionPath} from './jsonBodyStringify';
-import {getRouteEntries, initMionRouter, resetRouter} from './router';
+import {initMionRouter, resetRouter} from './router';
 import {Routes} from './types/general';
 describe('getStringifyFnForExecutionPath', () => {
     const lastActivity = new Date();

@@ -9,7 +9,7 @@ import {join} from 'path';
 import {DEFAULT_ROUTE_OPTIONS, MAX_ROUTE_NESTING} from './constants';
 import {isRawHookDef, isHeaderHookDef, isExecutable, isHookDef, isRoute, isRoutes, isAnyHookDef} from './types/guards';
 import type {Route, RouterOptions, Routes, RouterEntry} from './types/general';
-import type {RawProcedure} from './types/procedures';
+import type {ProceduresExecutionList, RawProcedure} from './types/procedures';
 import type {HeaderProcedure} from './types/procedures';
 import type {HookProcedure} from './types/procedures';
 import type {RouteProcedure} from './types/procedures';
@@ -23,6 +23,7 @@ import {getRouterItemId, setErrorOptions, getRoutePath} from '@mionkit/core';
 import {getRemoteMethodsMetadata, resetRemoteMethodsMetadata} from './remoteMethodsMetadata';
 import {clientRoutes} from './client.routes';
 import {Handler} from './types/handlers';
+import {getNotFoundExecutionPath} from './notFound';
 
 type RouterKeyEntryList = [string, RouterEntry][];
 type RoutesWithId = {
@@ -32,7 +33,7 @@ type RoutesWithId = {
 
 // ############# PRIVATE STATE #############
 
-const flatRouter: Map<string, Procedure[]> = new Map(); // Main Router
+const flatRouter: Map<string, ProceduresExecutionList> = new Map(); // Main Router
 const hooksById: Map<string, HookProcedure | HeaderProcedure | RawProcedure> = new Map();
 const routesById: Map<string, RouteProcedure> = new Map();
 const rawHooksById: Map<string, RawProcedure> = new Map();
@@ -169,6 +170,11 @@ export function shouldFullGenerateSpec(): boolean {
     return routerOptions.getPublicRoutesData || process.env.GENERATE_ROUTER_SPEC === 'true';
 }
 
+export function getRouteExecutableFromPath(path: string): RouteProcedure {
+    const executionPath = flatRouter.get(path) || getNotFoundExecutionPath();
+    return executionPath.procedures[executionPath.routeIndex] as RouteProcedure;
+}
+
 // ############# PRIVATE METHODS #############
 
 /**
@@ -277,10 +283,14 @@ function recursiveCreateExecutionPath(
     const isExec = isExecutable(routeEntry);
 
     if (isExec && props.isRoute) {
-        const routeExecutionPath = [...preHooks, ...props.preLevelHooks, routeEntry, ...props.postLevelHooks, ...postHooks];
         const path = getRoutePath(routeEntry.pointer, routerOptions);
-        const execPath = getFullExecutionPath(routeExecutionPath);
-        flatRouter.set(path, execPath);
+        const levelProcedures = [...preHooks, ...props.preLevelHooks, routeEntry, ...props.postLevelHooks, ...postHooks];
+        const procedures = [...startHooks, ...levelProcedures, ...endHooks];
+        const executionPath: ProceduresExecutionList = {
+            routeIndex: startHooks.length + preHooks.length + props.preLevelHooks.length,
+            procedures,
+        };
+        flatRouter.set(path, executionPath);
     } else if (!isExec) {
         recursiveFlatRoutes(
             routeEntry.routes,
@@ -292,11 +302,6 @@ function recursiveCreateExecutionPath(
     }
 
     return props;
-}
-
-/** returns an execution path with start and end hooks added to the start and end of the execution path respectively */
-function getFullExecutionPath(executionPath: Procedure[]): Procedure[] {
-    return [...startHooks, ...executionPath, ...endHooks];
 }
 
 function getExecutableFromAnyHook(hook: HookDef | HeaderHookDef | RawHookDef, hookPointer: string[], nestLevel: number) {
