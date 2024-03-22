@@ -323,24 +323,28 @@ export function getExecutableFromHook(
     type MixedExecutable = (Omit<HookProcedure, 'type'> | Omit<HeaderProcedure, 'type'>) & {
         type: ProcedureType.hook | ProcedureType.headerHook;
     };
+    const type = inHeader ? ProcedureType.headerHook : ProcedureType.hook;
     const {handlerRunType, paramsJitFns, returnJitFns, paramNames} = getHandlerReflection(hook.handler, hookId);
+    const stringify = type === ProcedureType.hook && routerOptions.useJitStringify;
     const executable: MixedExecutable = {
         id: hookId,
-        type: inHeader ? ProcedureType.headerHook : ProcedureType.hook,
+        type,
         nestLevel,
         handler: hook.handler,
         paramsJitFns,
         returnJitFns,
         paramNames,
+        headerNames: inHeader
+            ? parseHeaderNamesFromOptions(hook.options as HeaderHookDef['options'], paramNames, hookId)
+            : undefined,
         pointer: hookPointer,
-        headerNames: inHeader ? (hook as HeaderHookDef).headerNames.map((name) => name.toLowerCase()) : undefined,
         options: {
             runOnError: !!hook.options?.runOnError,
             hasReturnData: handlerRunType.hasReturnData,
             validateParams: hook.options?.validateParams ?? true,
             deserializeParams: (hook.options?.deserializeParams ?? true) && handlerRunType.isParamsJsonDecodedRequired,
             validateReturn: hook.options?.validateReturn ?? false,
-            serializeReturn: (hook.options?.serializeReturn ?? true) && handlerRunType.isReturnJsonEncodedRequired,
+            serializeReturn: ((hook.options?.serializeReturn ?? true) && handlerRunType.isReturnJsonEncodedRequired) || stringify,
             description: hook.options?.description,
             isAsync: !!hook.options?.isAsync || handlerRunType.isAsync,
         },
@@ -383,6 +387,7 @@ export function getExecutableFromRoute(route: Route, routePointer: string[], nes
     const existing = routesById.get(routeId);
     if (existing) return existing as RouteProcedure;
     const {handlerRunType, paramsJitFns, returnJitFns, paramNames} = getHandlerReflection(route.handler, routeId);
+    const stringify = routerOptions.useJitStringify;
     const executable: RouteProcedure = {
         type: ProcedureType.route,
         id: routeId,
@@ -398,7 +403,8 @@ export function getExecutableFromRoute(route: Route, routePointer: string[], nes
             validateParams: route.options?.validateParams ?? true,
             deserializeParams: (route.options?.deserializeParams ?? true) && handlerRunType.isParamsJsonDecodedRequired,
             validateReturn: route.options?.validateReturn ?? false,
-            serializeReturn: (route.options?.serializeReturn ?? true) && handlerRunType.isReturnJsonEncodedRequired,
+            serializeReturn:
+                ((route.options?.serializeReturn ?? true) && handlerRunType.isReturnJsonEncodedRequired) || stringify,
             description: route.options?.description,
             isAsync: !!route.options?.isAsync || handlerRunType.isAsync,
         },
@@ -438,6 +444,23 @@ function getExecutablesFromHooksCollection(hooksDef: HooksCollection): (RawProce
         if (isHeaderHookDef(hook) || isHookDef(hook)) return getExecutableFromHook(hook, [key], 0);
         throw new Error(`Invalid hook: ${key}. Invalid hook definition`);
     });
+}
+
+function parseHeaderNamesFromOptions(options: HeaderHookDef['options'], paramNames: string[], hookId: string): string[] {
+    const headerNames = options?.headerNames;
+    const lowerParamNames = paramNames.map((name) => name.toLowerCase());
+    if (!headerNames) return lowerParamNames;
+    const headerNamesMap: Record<string, string> = {};
+    for (const [paramName, mappedHeaderName] of Object.entries(headerNames)) {
+        const lowerParamName = paramName.toLowerCase();
+        if (!lowerParamNames.includes(lowerParamName))
+            throw new Error(
+                `Invalid mapped header name for HeaderHook ${hookId} and pair: {${paramName}: ${mappedHeaderName}}.` +
+                    `Parameter name ${paramName} does not match any of the parameter of the function: [${paramNames.join(', ')}].`
+            );
+        headerNamesMap[lowerParamName] = mappedHeaderName;
+    }
+    return paramNames.map((name) => headerNamesMap[name] || name.toLowerCase());
 }
 
 interface ProcedureReflectionItems {

@@ -2,6 +2,7 @@
 
 import {JITFunctions} from '@mionkit/runtype';
 import {AnyHandler, Handler, HeaderHandler, RawHookHandler} from './handlers';
+import {Prettify} from './general';
 
 export enum ProcedureType {
     route = 1,
@@ -59,10 +60,13 @@ export interface HookProcedure<H extends Handler = any> extends Procedure<H> {
 export interface HeaderProcedure<H extends HeaderHandler = any> extends Procedure<H> {
     type: ProcedureType.headerHook;
     handler: H;
-    headerNames: string[];
     paramsJitFns: JITFunctions;
     returnJitFns: JITFunctions;
     paramNames: string[];
+    headerNames: string[];
+    options: ProcedureOptions & {
+        headerNames: {[key: string]: string};
+    };
 }
 export interface RawProcedure<H extends RawHookHandler = any> extends Procedure<H> {
     type: ProcedureType.rawHook;
@@ -82,25 +86,44 @@ export interface NotFoundProcedure extends Procedure {
     is404: true;
 }
 
-export type RouteOptions = Partial<
-    Pick<
-        RouteProcedure['options'],
-        'description' | 'validateParams' | 'deserializeParams' | 'validateReturn' | 'serializeReturn' | 'isAsync'
+export type RouteOptions = Prettify<
+    Partial<
+        Pick<
+            RouteProcedure['options'],
+            'description' | 'validateParams' | 'deserializeParams' | 'validateReturn' | 'serializeReturn' | 'isAsync'
+        >
     >
 >;
-export type HookOptions = Partial<
-    Pick<
-        HookProcedure['options'],
-        'description' | 'validateParams' | 'deserializeParams' | 'validateReturn' | 'serializeReturn' | 'runOnError' | 'isAsync'
+export type HookOptions = Prettify<
+    Partial<
+        Pick<
+            HookProcedure['options'],
+            | 'description'
+            | 'validateParams'
+            | 'deserializeParams'
+            | 'validateReturn'
+            | 'serializeReturn'
+            | 'runOnError'
+            | 'isAsync'
+        >
     >
 >;
-export type HeaderHookOptions = Partial<
-    Pick<
-        HeaderProcedure['options'],
-        'description' | 'validateParams' | 'deserializeParams' | 'runOnError' | 'validateReturn' | 'serializeReturn' | 'isAsync'
+export type HeaderHookOptions = Prettify<
+    Partial<
+        Pick<
+            HeaderProcedure['options'],
+            | 'description'
+            | 'validateParams'
+            | 'deserializeParams'
+            | 'runOnError'
+            | 'validateReturn'
+            | 'serializeReturn'
+            | 'headerNames'
+            | 'isAsync'
+        >
     >
 >;
-export type RawHookOptions = Partial<Pick<RawProcedure['options'], 'description' | 'runOnError' | 'isAsync'>>;
+export type RawHookOptions = Prettify<Partial<Pick<RawProcedure['options'], 'description' | 'runOnError' | 'isAsync'>>>;
 
 export interface ProceduresExecutionList {
     routeIndex: number;

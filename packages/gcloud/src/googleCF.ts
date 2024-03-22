@@ -11,7 +11,6 @@ import type {MionResponse} from '@mionkit/router';
 import {Request, Response} from 'express';
 import {DEFAULT_GOOGLE_CF_OPTIONS} from './constants';
 import {GoogleCFOptions} from './types';
-import {headersFromIncomingMessage, headersFromServerResponse} from './headers';
 
 // ############# STATE #############
 
@@ -38,10 +37,11 @@ export async function googleCFHandler(rawRequest: Request, rawResponse: Response
     // TODO use its own express headers wrapper instead headers from record
     rawResponse.setHeader('server', '@mionkit/gcf');
     const reqHeaders = headersFromIncomingMessage(rawRequest);
-    const respHeaders = headersFromServerResponse(rawResponse, googleCFOptions.defaultResponseHeaders);
+    const respHeaders = new Headers(googleCFOptions.defaultResponseHeaders);
 
     try {
         const routeResponse = await dispatchRoute(rawRequest.path, rawBody, reqHeaders, respHeaders, rawRequest, rawResponse);
+        respHeaders.forEach((value, name) => rawResponse.setHeader(name, value));
         reply(routeResponse, rawResponse);
     } catch (err) {
         const error = new RpcError({statusCode: 500, publicMessage: 'Internal Error', originalError: err as Error});
@@ -55,6 +55,7 @@ export async function googleCFHandler(rawRequest: Request, rawResponse: Response
             reqHeaders,
             respHeaders
         );
+        respHeaders.forEach((value, name) => rawResponse.setHeader(name, value));
         reply(routeResponse, rawResponse);
     }
 }
@@ -64,4 +65,24 @@ export async function googleCFHandler(rawRequest: Request, rawResponse: Response
 function reply(routeResponse: MionResponse, resp: Response): void {
     resp.set('content-length', `${routeResponse.rawBody.length}`);
     resp.status(routeResponse.statusCode).end(routeResponse.rawBody);
+}
+
+function headersFromIncomingMessage(request: Request): Headers {
+    const reqHeaders = new Headers();
+
+    // Iterate over each header in the Express.js request object
+    for (const [name, value] of Object.entries(request.headers)) {
+        if (!value) continue;
+        // If the header is an array, iterate over its values
+        if (Array.isArray(value)) {
+            for (const val of value) {
+                reqHeaders.append(name, val);
+            }
+        } else {
+            // If it's not an array, assume it's a string
+            reqHeaders.append(name, value);
+        }
+    }
+
+    return reqHeaders;
 }

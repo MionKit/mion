@@ -2,8 +2,8 @@ import {RpcError} from '@mionkit/core';
 import {Routes, headersHook, hook, initMionRouter, route} from '@mionkit/router';
 
 const routes = {
-    auth: headersHook('Authorization', (ctx, token: string): void => {
-        if (!token) throw new RpcError({statusCode: 401, message: 'Not Authorized', name: ' Not Authorized'});
+    auth: headersHook((ctx, Authorization: string): void => {
+        if (!Authorization) throw new RpcError({statusCode: 401, message: 'Not Authorized', name: ' Not Authorized'});
     }),
     utils: {
         sum5: route((ctx, a: number): number => a + 5),

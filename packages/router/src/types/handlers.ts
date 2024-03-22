@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {CallContext, HeaderValue} from './context';
+import {CallContext, HeadersRecord, SingleHeader} from './context';
 import {RouterOptions} from './general';
 import {ErrorReturn} from './publicProcedures';
 
@@ -20,16 +20,12 @@ export type Handler<Context extends CallContext = any, Ret = any, Params extends
 ) => Ret | Promise<Ret>;
 
 /** Header Hook Handler, hook handler for when params are sent in the header  */
-export type HeaderHandler<
-    Context extends CallContext = any,
-    HReqValues extends HeaderValue[] = any,
-    HRespValues extends HeaderValue[] | undefined = any,
-> = (
+export type HeaderHandler<Context extends CallContext = any> = (
     /** Call Context */
     context: Context,
     /** Remote Call parameters */
-    ...headerValues: HReqValues
-) => HRespValues | Promise<HRespValues>;
+    ...headerValues: SingleHeader[]
+) => HeadersRecord | Promise<HeadersRecord> | Promise<void> | void;
 
 /** Handler to use with raw hooks to get access to raw request and response */
 export type RawHookHandler<

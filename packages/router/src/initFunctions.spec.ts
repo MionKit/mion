@@ -9,18 +9,16 @@ import {Routes} from './types/general';
 import {registerRoutes, initRouter} from './router';
 import {dispatchRoute} from './dispatch';
 import {route, headersHook, hook, rawHook} from './initFunctions';
-import {MionHeaders} from './types/context';
-import {headersFromRecord} from './headers';
 import {ProcedureType} from './types/procedures';
 
 describe('route & hooks init functions', () => {
     type RawRequest = {
-        headers: MionHeaders;
+        headers: Headers;
         body: string;
     };
 
     const routes = {
-        auth: headersHook('Authorization', (ctx, auth: string): string => `auth: ${auth}`),
+        auth: headersHook((ctx, Authorization: string) => ({Authorization: `auth: ${Authorization}`})),
         timestamp: hook((ctx, time: number): string => `time: ${time}`),
         nothing: rawHook((ctx, req, resp): void => undefined),
         print: route((ctx, name: string): string => `name: ${name}`),
@@ -29,7 +27,6 @@ describe('route & hooks init functions', () => {
     it('should initialize a header hook object', () => {
         expect(routes.auth).toEqual({
             type: ProcedureType.headerHook,
-            headerName: 'Authorization',
             handler: expect.any(Function),
         });
     });
@@ -61,20 +58,20 @@ describe('route & hooks init functions', () => {
 
         // send all correct parameters
         const request: RawRequest = {
-            headers: headersFromRecord({Authorization: 'Bearer 123'}),
+            headers: new Headers({Authorization: 'Bearer 123'}),
             body: JSON.stringify({
                 timestamp: [123],
                 print: ['John'],
             }),
         };
 
-        const response = await dispatchRoute('/print', request.body, request.headers, headersFromRecord({}), request, {});
+        const response = await dispatchRoute('/print', request.body, request.headers, new Headers({}), request, {});
         expect(response.body).toEqual({timestamp: 'time: 123', print: 'name: John'});
         expect(response.headers.get('Authorization')).toEqual('auth: Bearer 123');
 
         // send all incorrect parameters and all of them should fail
         const wrongRequest: RawRequest = {
-            headers: headersFromRecord({Authorization: null as any}),
+            headers: new Headers({}),
             body: JSON.stringify({
                 timestamp: ['hello'],
                 print: [123],
@@ -85,11 +82,11 @@ describe('route & hooks init functions', () => {
             '/print',
             wrongRequest.body,
             wrongRequest.headers,
-            headersFromRecord({}),
+            new Headers({}),
             wrongRequest,
             {}
         );
         expect(wrongResponse.body.auth).toEqual(expect.objectContaining({name: 'Validation Error', statusCode: 400}));
-        expect(wrongResponse.headers.get('Authorization')).toEqual(undefined);
+        expect(wrongResponse.headers.get('Authorization')).toEqual(null);
     });
 });

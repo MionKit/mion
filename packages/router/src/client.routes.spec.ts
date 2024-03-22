@@ -5,18 +5,16 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {MionHeaders} from './types/context';
 import {registerRoutes, initRouter, resetRouter} from './router';
 import {GET_REMOTE_METHODS_BY_ID, GET_REMOTE_METHODS_BY_PATH, getRoutePath} from '@mionkit/core';
 import {hook, rawHook, route} from './initFunctions';
 import {Routes} from './types/general';
 import {ProcedureType} from './types/procedures';
 import {clientRoutes} from './client.routes';
-import {headersFromRecord} from './headers';
 import {dispatchRoute} from './dispatch';
 
 type RawRequest = {
-    headers: MionHeaders;
+    headers: Headers;
     body: string;
 };
 
@@ -134,13 +132,13 @@ describe('Client Routes should', () => {
 
         const methodIdList = ['auth', 'last']; // all public hooks
         const request: RawRequest = {
-            headers: headersFromRecord({}),
+            headers: new Headers({}),
             body: JSON.stringify({
                 auth: ['token'], // hook is required
                 [methodsId]: [methodIdList],
             }),
         };
-        const response = await dispatchRoute(methodsPath, request.body, request.headers, headersFromRecord({}), request, {});
+        const response = await dispatchRoute(methodsPath, request.body, request.headers, new Headers({}), request, {});
         const expectedResponse = {
             auth: methodsMetadata.auth,
             last: methodsMetadata['last'],
@@ -155,13 +153,13 @@ describe('Client Routes should', () => {
 
         const methodIdList = ['users-getUser']; // all public methods
         const request: RawRequest = {
-            headers: headersFromRecord({}),
+            headers: new Headers({}),
             body: JSON.stringify({
                 auth: ['token'], // hook is required (request should be authenticated)
                 [methodsId]: [methodIdList],
             }),
         };
-        const response = await dispatchRoute(methodsPath, request.body, request.headers, headersFromRecord({}), request, {});
+        const response = await dispatchRoute(methodsPath, request.body, request.headers, new Headers({}), request, {});
         const expectedResponse = {
             auth: methodsMetadata.auth,
             'users-getUser': methodsMetadata['users-getUser'],
@@ -178,13 +176,13 @@ describe('Client Routes should', () => {
         const methodIdList = ['auth']; // all public methods
         const getAllRemoteMethods = true;
         const request: RawRequest = {
-            headers: headersFromRecord({}),
+            headers: new Headers({}),
             body: JSON.stringify({
                 auth: ['token'], // hook is required
                 [methodsId]: [methodIdList, getAllRemoteMethods],
             }),
         };
-        const response = await dispatchRoute(methodsPath, request.body, request.headers, headersFromRecord({}), request, {});
+        const response = await dispatchRoute(methodsPath, request.body, request.headers, new Headers({}), request, {});
         const expectedResponse = methodsMetadata;
         expect(response.body[methodsId]).toEqual(expectedResponse);
     });
@@ -195,13 +193,13 @@ describe('Client Routes should', () => {
         registerRoutes(clientRoutes);
 
         const request: RawRequest = {
-            headers: headersFromRecord({}),
+            headers: new Headers({}),
             body: JSON.stringify({
                 auth: ['token'], // hook is required
                 [routeMethodsId]: ['/users-getUser'],
             }),
         };
-        const response = await dispatchRoute(routeMethodsPath, request.body, request.headers, headersFromRecord({}), request, {});
+        const response = await dispatchRoute(routeMethodsPath, request.body, request.headers, new Headers({}), request, {});
         const expectedResponse = {
             auth: methodsMetadata.auth,
             'users-getUser': methodsMetadata['users-getUser'],
@@ -217,13 +215,13 @@ describe('Client Routes should', () => {
 
         const methodIdList = ['parse', 'helloWorld']; // all public methods
         const request: RawRequest = {
-            headers: headersFromRecord({}),
+            headers: new Headers({}),
             body: JSON.stringify({
                 auth: ['token'], // hook is required
                 [methodsId]: [methodIdList],
             }),
         };
-        const response = await dispatchRoute(methodsPath, request.body, request.headers, headersFromRecord({}), request, {});
+        const response = await dispatchRoute(methodsPath, request.body, request.headers, new Headers({}), request, {});
         const expectedResponse = {
             statusCode: 404,
             name: 'Invalid Metadata Request',
@@ -242,13 +240,13 @@ describe('Client Routes should', () => {
         registerRoutes(clientRoutes);
 
         const request: RawRequest = {
-            headers: headersFromRecord({}),
+            headers: new Headers({}),
             body: JSON.stringify({
                 auth: ['token'], // hook is required
                 [routeMethodsId]: ['/abcd'],
             }),
         };
-        const response = await dispatchRoute(routeMethodsPath, request.body, request.headers, headersFromRecord({}), request, {});
+        const response = await dispatchRoute(routeMethodsPath, request.body, request.headers, new Headers({}), request, {});
         const expectedResponse = {
             statusCode: 404,
             name: 'Invalid Metadata Request',

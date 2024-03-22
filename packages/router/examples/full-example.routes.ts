@@ -24,9 +24,9 @@ const deleteUser = route((ctx: Context, id: number): User => {
     return deleted;
 });
 
-const auth = headersHook('Authorization', (ctx: Context, token: string): void => {
-    if (!myApp.auth.isAuthorized(token)) throw {statusCode: StatusCodes.FORBIDDEN, message: 'Not Authorized'} as RpcError;
-    ctx.shared.me = myApp.auth.getIdentity(token) as User;
+const auth = headersHook((ctx: Context, Authorization: string): void => {
+    if (!myApp.auth.isAuthorized(Authorization)) throw {statusCode: StatusCodes.FORBIDDEN, message: 'Not Authorized'} as RpcError;
+    ctx.shared.me = myApp.auth.getIdentity(Authorization) as User;
 });
 
 const log = rawHook((context): void => console.log('rawHook', context.path));

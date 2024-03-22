@@ -16,7 +16,7 @@ const routes = {
 } satisfies Routes;
 
 const hooks = {
-    auth: headersHook('Authorization', (c: Context, token: string): null => null),
+    auth: headersHook((c: Context, Authorization: string) => {}),
     parser: rawHook((c: Context, req: HttpRequest, resp, opts): void => undefined),
     parser2: rawHook((): void => undefined),
     hookNoCtx: hook((): void => undefined),

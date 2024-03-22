@@ -82,7 +82,7 @@ export function getMethodMetadataFromExecutable<H extends Handler>(executable: N
     };
 
     // initialized separately so the property `headerName` is not included in the object in case is undefined
-    if (executable.headerNames) newRemoteMethod.headerNames = executable.headerNames;
+    if (executable.type === ProcedureType.headerHook) newRemoteMethod.headerNames = executable.headerNames;
 
     if (executable.type === ProcedureType.route) {
         const path = getRoutePath(executable.pointer, getRouterOptions());

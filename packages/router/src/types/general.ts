@@ -39,6 +39,8 @@ export interface RouterOptions<Req = any, SharedData = any> extends CoreOptions 
     sharedDataFactory?: SharedDataFactory<SharedData>;
     /** Enables json stringify using runTypes jit stringify function instead JSON.stringify */
     useJitStringify: boolean;
+    /** Enable jit compilation of dispatch route */
+    useJitDispatch: boolean;
     /** run type compiler options for hooks and routes */
     runTypeOptions: RunTypeOptions;
     /** Custom JSON parser, defaults to Native js JSON */
@@ -57,3 +59,8 @@ export type JsonParser = {
     parse: (text: string) => any;
     stringify: (js) => string;
 };
+
+export type Prettify<T> = {
+    [K in keyof T]: T[K];
+    // eslint-disable-next-line @typescript-eslint/ban-types
+} & {};

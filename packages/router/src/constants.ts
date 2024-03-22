@@ -26,6 +26,9 @@ export const DEFAULT_ROUTE_OPTIONS = {
     /** using runTypes jit stringify by default */
     useJitStringify: true,
 
+    /** Enable jit compilation of dispatch route by default */
+    useJitDispatch: false,
+
     /** Default run type compiling options for routes and hooks, can't be configured by the user as would break functionality  */
     runTypeOptions: {
         /** Removes unknown properties when parsing parameters from json */

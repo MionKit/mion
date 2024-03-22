@@ -14,7 +14,6 @@ import type {IncomingMessage, Server as HttpServer, ServerResponse} from 'http';
 import type {Server as HttpsServer} from 'https';
 import type {MionResponse} from '@mionkit/router';
 import {RpcError, StatusCodes} from '@mionkit/core';
-import {headersFromIncomingMessage, headersFromServerResponse} from './headers';
 
 // ############# PRIVATE STATE #############
 
@@ -77,7 +76,7 @@ function httpRequestHandler(httpReq: IncomingMessage, httpResponse: ServerRespon
 
     httpResponse.setHeader('server', '@mionkit/http');
     const reqHeaders = headersFromIncomingMessage(httpReq);
-    const respHeaders = headersFromServerResponse(httpResponse, httpOptions.defaultResponseHeaders);
+    const respHeaders = new Headers(httpOptions.defaultResponseHeaders);
 
     const dispatchReply = (routeResponse: MionResponse) => {
         if (replied || httpResponse.writableEnded) return;
@@ -121,8 +120,14 @@ function httpRequestHandler(httpReq: IncomingMessage, httpResponse: ServerRespon
         const reqRawBody = Buffer.concat(bodyChunks).toString();
 
         dispatchRoute(path, reqRawBody, reqHeaders, respHeaders, httpReq, httpResponse)
-            .then((routeResponse) => dispatchReply(routeResponse))
-            .catch((e) => fail(e));
+            .then((routeResponse) => {
+                respHeaders.forEach((value, name) => httpResponse.setHeader(name, value));
+                dispatchReply(routeResponse);
+            })
+            .catch((e) => {
+                respHeaders.forEach((value, name) => httpResponse.setHeader(name, value));
+                fail(e);
+            });
     });
 
     httpResponse.on('error', (e) => {
@@ -135,4 +140,24 @@ function reply(httpResponse: ServerResponse, rawBody: string, statusCode: number
     httpResponse.statusCode = statusCode;
     httpResponse.setHeader('content-length', rawBody.length);
     httpResponse.end(rawBody);
+}
+
+function headersFromIncomingMessage(rawRequest: IncomingMessage): Headers {
+    const header = new Headers();
+
+    // Iterate over each header in the Node.js headers object
+    for (const [name, value] of Object.entries(rawRequest.headers)) {
+        if (!value) continue;
+        // If the header is an array, iterate over its values
+        if (Array.isArray(value)) {
+            for (const val of value) {
+                header.append(name, val);
+            }
+        } else {
+            // If it's not an array, assume it's a string
+            header.append(name, value);
+        }
+    }
+
+    return header;
 }

@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {AnyObject, RpcError} from '@mionkit/core';
+import {RpcError} from '@mionkit/core';
 import {PublicResponses} from './publicProcedures';
 
 // ####### Call Context #######
@@ -30,11 +30,11 @@ export interface CallContext<SharedData extends Record<string, any> = any> {
 /** Router's own request object, do not confuse with the underlying raw request */
 export interface MionRequest {
     /** parsed headers */
-    readonly headers: Readonly<MionHeaders>;
+    readonly headers: Readonly<Headers>;
     /** json encoded request body. */
     readonly rawBody: string;
-    /** parsed request body */
-    readonly body: Readonly<AnyObject>;
+    /** parsed request body  */
+    readonly body: Readonly<Record<string, any[]>>;
     /** All errors thrown during the call are stored here so they can bee logged or handler by a some error handler hook */
     readonly internalErrors: Readonly<RpcError[]>;
 }
@@ -44,7 +44,7 @@ export interface MionResponse {
     /** response http status code */
     readonly statusCode: number;
     /** response headers */
-    readonly headers: Readonly<MionHeaders>;
+    readonly headers: Readonly<Headers>;
     /** json encoded response body, filled only after all routes/hook has ben finalized. */
     readonly rawBody: string;
     /** the router response data, body should not be modified manually so marked as Read Only */
@@ -53,22 +53,9 @@ export interface MionResponse {
     readonly hasErrors: boolean;
 }
 
-/** Similar to Fetch API Headers https://developer.mozilla.org/en-US/docs/Web/API/Headers
- * Headers names must be case insensitive.
- * When a header has multiple values it returns an array instead a coma separated string;
- */
-export interface MionHeaders {
-    append(name: string, value: HeaderValue): void;
-    delete(name: string): void;
-    set(name: string, value: HeaderValue): void;
-    get(name: string): HeaderValue | undefined | null;
-    has(name: string): boolean;
-    entries(): IterableIterator<[string, HeaderValue]>;
-    keys(): IterableIterator<string>;
-    values(): IterableIterator<HeaderValue>;
-}
-export type HeaderSingleValue = string;
-export type HeaderValue = HeaderSingleValue | HeaderSingleValue[];
+export type SingleHeader = string;
+export type MultiHeader = SingleHeader | SingleHeader[];
+export type HeadersRecord = Record<string, MultiHeader>;
 
 /** Function used to create the shared data object on each route call  */
 export type SharedDataFactory<SharedData> = () => SharedData;

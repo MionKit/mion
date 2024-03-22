@@ -5,6 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
+import {Prettify} from './general';
 import {Handler, HeaderHandler, RawHookHandler} from './handlers';
 import {
     HeaderHookOptions,
@@ -20,24 +21,32 @@ import {
 // #######  Routes Definitions #######
 
 /** Route definition */
-export type RouteDef<H extends Handler = any> = Pick<RouteProcedure<H>, 'type' | 'handler'> & {
-    options?: RouteOptions;
-};
+export type RouteDef<H extends Handler = any> = Prettify<
+    Pick<RouteProcedure<H>, 'type' | 'handler'> & {
+        options?: RouteOptions;
+    }
+>;
 
 /** Hook definition, a function that hooks into the execution path */
-export type HookDef<H extends Handler = any> = Pick<HookProcedure<H>, 'type' | 'handler'> & {
-    options?: HookOptions;
-};
+export type HookDef<H extends Handler = any> = Prettify<
+    Pick<HookProcedure<H>, 'type' | 'handler'> & {
+        options?: HookOptions;
+    }
+>;
 
 /** Header Hook definition, used to handle header params */
-export type HeaderHookDef<H extends HeaderHandler = any> = Pick<HeaderProcedure<H>, 'type' | 'handler' | 'headerNames'> & {
-    options?: HeaderHookOptions;
-};
+export type HeaderHookDef<H extends HeaderHandler = any> = Prettify<
+    Pick<HeaderProcedure<H>, 'type' | 'handler'> & {
+        options?: HeaderHookOptions;
+    }
+>;
 
 /**
  * Raw hook, used only to access raw request/response and modify the call context.
  * Can not declare extra parameters.
  */
-export type RawHookDef<H extends RawHookHandler = any> = Pick<RawProcedure<H>, 'type' | 'handler'> & {
-    options?: RawHookOptions;
-};
+export type RawHookDef<H extends RawHookHandler = any> = Prettify<
+    Pick<RawProcedure<H>, 'type' | 'handler'> & {
+        options?: RawHookOptions;
+    }
+>;

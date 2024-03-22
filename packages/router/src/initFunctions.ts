@@ -30,12 +30,9 @@ export function hook<H extends Handler>(handler: H, opts?: HookOptions) {
     return procedure;
 }
 
-export function headersHook<S extends string[], H extends HeaderHandler>(headerNames: S, handler: H, opts?: HeaderHookOptions) {
-    if (headerNames.length !== handler.length - 1)
-        throw new Error('Header Names must match the number of handler parameters minus the context parameter.');
+export function headersHook<H extends HeaderHandler>(handler: H, opts?: HeaderHookOptions) {
     const procedure = {
         type: ProcedureType.headerHook,
-        headerNames,
         handler,
         options: opts,
     } satisfies HeaderHookDef<H>;

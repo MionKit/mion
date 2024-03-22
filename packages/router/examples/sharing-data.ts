@@ -2,8 +2,8 @@ import {RpcError} from '@mionkit/core';
 import {Routes, initMionRouter, headersHook, route} from '@mionkit/router';
 import {getAuthUser, isAuthorized} from 'MyAuth';
 
-const authorizationHook = headersHook('authorization', async (context, token: string): Promise<void> => {
-    const me = await getAuthUser(token);
+const authorizationHook = headersHook(async (context, authorization: string): Promise<void> => {
+    const me = await getAuthUser(authorization);
     if (!isAuthorized(me)) {
         throw new RpcError({statusCode: 401, publicMessage: 'user is not authorized'});
     }

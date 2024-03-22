@@ -3,8 +3,8 @@ import {getAuthUser, isAuthorized} from 'MyAuth';
 
 let currentSharedData: any = null;
 
-const authorizationHook = headersHook('Authorization', async (ctx, token: string): Promise<void> => {
-    const me = await getAuthUser(token);
+const authorizationHook = headersHook(async (ctx, Authorization: string) => {
+    const me = await getAuthUser(Authorization);
     if (!isAuthorized(me)) throw {code: 401, message: 'user is not authorized'};
     ctx.shared.auth = {me}; // user is added to ctx to shared with other routes/hooks
 

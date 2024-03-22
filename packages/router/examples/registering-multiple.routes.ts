@@ -12,7 +12,7 @@ const authRoutes = {
 } satisfies Routes;
 
 const routes = {
-    auth: headersHook('Authorization', (c: Context, token: string): null => null),
+    auth: headersHook((c: Context, Authorization: string) => {}),
     sayHello: route((c, name: string): string => 'hello' + name),
     sayHello2: route((c, name: string): string => 'hello' + name),
 } satisfies Routes;

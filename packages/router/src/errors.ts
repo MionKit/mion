@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {MionHeaders, MionRequest, MionResponse} from './types/context';
+import {MionRequest, MionResponse} from './types/context';
 import {stringifyResponseBody} from './jsonBodyParser.routes';
 import {getRouterOptions} from './router';
 import {AnyObject, Mutable, RpcError, StatusCodes} from '@mionkit/core';
@@ -18,8 +18,8 @@ export function getResponseFromError(
     rawRequest: unknown,
     rawResponse: any,
     error = new RpcError({statusCode: StatusCodes.INTERNAL_SERVER_ERROR, publicMessage: 'Internal Error'}),
-    reqHeaders: MionHeaders,
-    respHeaders: MionHeaders
+    reqHeaders: Headers,
+    respHeaders: Headers
 ): MionResponse {
     const routerOptions = getRouterOptions();
     const context = getEmptyCallContext(routePath, routerOptions, reqRawBody, rawRequest, reqHeaders, respHeaders);

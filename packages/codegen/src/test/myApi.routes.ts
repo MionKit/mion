@@ -8,7 +8,7 @@
 import {CallContext, headersHook, hook, initRouter, registerRoutes, route, RouterOptions, Routes} from '@mionkit/router';
 import {Item, Pet, User} from './myApi.types';
 
-const auth = headersHook('Authorization', (ctx, token: string): void => {});
+const auth = headersHook((ctx, Authorization: string): void => {});
 const getUser = route(async (ctx, id: number): Promise<User> => ({id, name: 'John', surname: 'Smith'}));
 const setUser = route(
     async (ctx, user: {id: number; name: string; surname: string}, user2?: User): Promise<User> => user2 || user
