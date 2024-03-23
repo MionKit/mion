@@ -124,8 +124,8 @@ describe('Dispatch routes', () => {
 
         it('headers are case insensitive, returned headers alway lowercase', async () => {
             initRouter({sharedDataFactory: getSharedData});
-            const auth = headersHook(['Authorization'], (ctx, token: string): string =>
-                token === '1234' ? 'MyUser' : 'Unknown'
+            const auth = headersHook(['Authorization'], (ctx, token: string): string[] =>
+                token === '1234' ? ['MyUser'] : ['Unknown']
             );
             registerRoutes({auth, changeUserName});
 

@@ -23,7 +23,7 @@ describe('client', () => {
     type User = {name: string; surname: string};
 
     const routes = {
-        auth: headersHook('Authorization', (ctx, token: string): User => ({name: 'John', surname: 'Doe'})),
+        auth: headersHook(['Authorization'], (ctx, token: string): User => ({name: 'John', surname: 'Doe'})),
         sayHello: route((ctx, user: User): string | RpcError => `Hello ${user.name} ${user.surname}`),
         alwaysFails: route((ctx, user: User): User | RpcError => {
             return new RpcError({statusCode: 500, publicMessage: 'Something fails', name: 'UnknownError'});

@@ -58,17 +58,21 @@ export interface MionResponse {
  * When a header has multiple values it returns an array instead a coma separated string;
  */
 export interface MionHeaders {
-    append(name: string, value: HeaderValue): void;
+    append(name: string, value: MultiHeaderValue): void;
     delete(name: string): void;
-    set(name: string, value: HeaderValue): void;
-    get(name: string): HeaderValue | undefined | null;
+    set(name: string, value: MultiHeaderValue): void;
+    get(name: string): SingleHeaderValue | undefined | null;
     has(name: string): boolean;
-    entries(): IterableIterator<[string, HeaderValue]>;
+    entries(): IterableIterator<[string, SingleHeaderValue]>;
     keys(): IterableIterator<string>;
-    values(): IterableIterator<HeaderValue>;
+    values(): IterableIterator<SingleHeaderValue>;
 }
-export type HeaderSingleValue = string;
-export type HeaderValue = HeaderSingleValue | HeaderSingleValue[];
+
+/** Header string value, it can be a coma separated list of headers */
+export type SingleHeaderValue = string;
+
+/** Multi Header value, this is used when multiple headers are sent in the http response with the same header name (Mostly Set-Cookie) */
+export type MultiHeaderValue = SingleHeaderValue | SingleHeaderValue[];
 
 /** Function used to create the shared data object on each route call  */
 export type SharedDataFactory<SharedData> = () => SharedData;

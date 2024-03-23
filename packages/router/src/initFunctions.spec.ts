@@ -20,7 +20,7 @@ describe('route & hooks init functions', () => {
     };
 
     const routes = {
-        auth: headersHook('Authorization', (ctx, auth: string): string => `auth: ${auth}`),
+        auth: headersHook(['Authorization'], (ctx, auth: string): string[] => [`auth: ${auth}`]),
         timestamp: hook((ctx, time: number): string => `time: ${time}`),
         nothing: rawHook((ctx, req, resp): void => undefined),
         print: route((ctx, name: string): string => `name: ${name}`),
@@ -29,7 +29,7 @@ describe('route & hooks init functions', () => {
     it('should initialize a header hook object', () => {
         expect(routes.auth).toEqual({
             type: ProcedureType.headerHook,
-            headerName: 'Authorization',
+            headerNames: ['Authorization'],
             handler: expect.any(Function),
         });
     });
