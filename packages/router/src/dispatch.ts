@@ -42,24 +42,25 @@ export async function dispatchRoute<Req, Resp>(
         const context = getEmptyCallContext(path, opts, reqRawBody, rawRequest, reqHeaders, respHeaders);
 
         const executionPath = getRouteExecutionPath(context.path) || getNotFoundExecutionPath();
-        if (opts.useJitDispatch) {
-            const compiledRun = getCompiledExecutionPath(context.path, executionPath.procedures);
-            console.log(compiledRun.fn.toString());
-            await compiledRun.fn(
-                context,
-                rawRequest,
-                rawResponse,
-                executionPath.procedures,
-                opts,
-                handleProcedureError,
-                validateParametersOrThrow,
-                deserializeParameters,
-                ProcedureType,
-                RpcError
-            );
-        } else {
-            await runExecutionPath(context, rawRequest, rawResponse, executionPath.procedures, opts);
-        }
+        await runExecutionPath(context, rawRequest, rawResponse, executionPath.procedures, opts);
+        // if (opts.useJitDispatch) {
+        //     const compiledRun = getCompiledExecutionPath(context.path, executionPath.procedures);
+        //     console.log(compiledRun.fn.toString());
+        //     await compiledRun.fn(
+        //         context,
+        //         rawRequest,
+        //         rawResponse,
+        //         executionPath.procedures,
+        //         opts,
+        //         handleProcedureError,
+        //         validateParametersOrThrow,
+        //         deserializeParameters,
+        //         ProcedureType,
+        //         RpcError
+        //     );
+        // } else {
+        //     await runExecutionPath(context, rawRequest, rawResponse, executionPath.procedures, opts);
+        // }
 
         return context.response;
     } catch (err: any | RpcError | Error) {
@@ -209,11 +210,11 @@ function serializeBodyResponse(executable: NonRawProcedure, response: MionRespon
 
 // ############# JIT DISPATCH COMPILATION #############
 
-function handleProcedureError(step: number, context: CallContext, executable: Procedure, err: any | RpcError | Error) {
-    console.log('Error in step', step, 'of', context.path, 'error:', err);
-    const path = isNotFoundExecutable(executable) ? context.path : executable.id;
-    handleRpcErrors(path, context.request, context.response, err, step);
-}
+// function handleProcedureError(step: number, context: CallContext, executable: Procedure, err: any | RpcError | Error) {
+//     console.log('Error in step', step, 'of', context.path, 'error:', err);
+//     const path = isNotFoundExecutable(executable) ? context.path : executable.id;
+//     handleRpcErrors(path, context.request, context.response, err, step);
+// }
 
 function jitDeserializeHeaderParams(step: number, paramsVarName: string, execName: string, executable: HeaderProcedure): string {
     const headerVarName = `headerParams${step}`;

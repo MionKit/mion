@@ -81,7 +81,7 @@ function setRemoteMethodMetadata(
     store = true
 ) {
     metadataById.set(id, method);
-    jitFunctionsById.set(id, getFunctionReflection(method.serializedFnParams, method.serializedFnReturn));
+    jitFunctionsById.set(id, getFunctionReflection(method.paramsJitFns, method.returnJitFns));
     if (store) {
         localStorage.setItem(getRemoteMethodLocalStorageKey(id, options), JSON.stringify(method));
     }
