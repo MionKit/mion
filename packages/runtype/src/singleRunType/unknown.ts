@@ -6,14 +6,14 @@
  * ######## */
 
 import {TypeUnknown} from '../_deepkit/src/reflection/type';
-import {RunType, RunTypeOptions, RunTypeVisitor} from '../types';
+import {RunTypeOptions, RunTypeVisitor} from '../types';
 import {AnyRunType} from './any';
 
-export class UnknownRunType extends AnyRunType implements RunType<TypeUnknown> {
+export class UnknownRunType extends AnyRunType {
     public readonly name = 'unknown';
     constructor(
         visitor: RunTypeVisitor,
-        public readonly src: TypeUnknown,
+        src: TypeUnknown,
         public readonly nestLevel: number,
         public readonly opts: RunTypeOptions
     ) {

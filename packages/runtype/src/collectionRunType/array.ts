@@ -18,7 +18,7 @@ export class ArrayRunType extends BaseRunType<TypeArray> {
     public readonly itemsRunType: RunType;
     constructor(
         visitor: RunTypeVisitor,
-        public readonly src: TypeArray,
+        src: TypeArray,
         public readonly nestLevel: number,
         public readonly opts: RunTypeOptions
     ) {

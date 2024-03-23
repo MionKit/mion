@@ -20,7 +20,7 @@ export class InterfaceRunType extends BaseRunType<TypeObjectLiteral> {
     public readonly serializableProps: PropertySignatureRunType[];
     constructor(
         visitor: RunTypeVisitor,
-        public readonly src: TypeObjectLiteral,
+        src: TypeObjectLiteral,
         public readonly nestLevel: number,
         public readonly opts: RunTypeOptions
     ) {
@@ -68,7 +68,7 @@ export class InterfaceRunType extends BaseRunType<TypeObjectLiteral> {
     ): Record<string | number, any> {
         const obj: Record<string | number, any> = {};
         this.serializableProps.forEach((prop) => {
-            const name: string | number = prop.src.name as any;
+            const name: string | number = prop.propName as any;
             const optionalProbability: number | undefined = optionalParamsProbability?.[name];
             const propArgs: any[] = objArgs?.[name] || [];
             obj[name] = prop.mock(optionalProbability, ...propArgs);

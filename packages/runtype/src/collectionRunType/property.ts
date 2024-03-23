@@ -24,7 +24,7 @@ export class PropertySignatureRunType extends BaseRunType<TypePropertySignature>
     public readonly shouldSerialize: boolean;
     constructor(
         visitor: RunTypeVisitor,
-        public readonly src: TypePropertySignature,
+        src: TypePropertySignature,
         public readonly nestLevel: number,
         public readonly opts: RunTypeOptions
     ) {

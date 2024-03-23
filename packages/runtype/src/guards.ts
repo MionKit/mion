@@ -6,7 +6,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {ReflectionKind, Type, TypeClass} from './_deepkit/src/reflection/type';
+import {ReflectionKind} from './_deepkit/src/reflection/type';
 import {RunType} from './types';
 import {StringRunType} from './singleRunType/string';
 import {DateRunType} from './singleRunType/date';
@@ -38,148 +38,118 @@ import {ParameterRunType} from './functionRunType/param';
 import {PromiseRunType} from './singleRunType/promise';
 import {ObjectRunType} from './singleRunType/object';
 
-export function isAnyRunType(rt: RunType | Type): rt is AnyRunType {
-    const kind: ReflectionKind = (rt as Type).kind || (rt as RunType).src.kind;
-    return kind === ReflectionKind.any;
+export function isAnyRunType(rt: RunType): rt is AnyRunType {
+    return rt.kind === ReflectionKind.any;
 }
 
-export function isArrayRunType(rt: RunType | Type): rt is ArrayRunType {
-    const kind: ReflectionKind = (rt as Type).kind || (rt as RunType).src.kind;
-    return kind === ReflectionKind.array;
+export function isArrayRunType(rt: RunType): rt is ArrayRunType {
+    return rt.kind === ReflectionKind.array;
 }
 
-export function isBigIntRunType(rt: RunType | Type): rt is BigIntRunType {
-    const kind: ReflectionKind = (rt as Type).kind || (rt as RunType).src.kind;
-    return kind === ReflectionKind.bigint;
+export function isBigIntRunType(rt: RunType): rt is BigIntRunType {
+    return rt.kind === ReflectionKind.bigint;
 }
 
-export function isBooleanRunType(rt: RunType | Type): rt is BooleanRunType {
-    const kind: ReflectionKind = (rt as Type).kind || (rt as RunType).src.kind;
-    return kind === ReflectionKind.boolean;
+export function isBooleanRunType(rt: RunType): rt is BooleanRunType {
+    return rt.kind === ReflectionKind.boolean;
 }
 
-export function isCallSignatureRunType(rt: RunType | Type): rt is CallSignatureRunType {
-    const kind: ReflectionKind = (rt as Type).kind || (rt as RunType).src.kind;
-    return kind === ReflectionKind.callSignature;
+export function isCallSignatureRunType(rt: RunType): rt is CallSignatureRunType {
+    return rt.kind === ReflectionKind.callSignature;
 }
 
-export function isDateRunType(rt: RunType | Type): rt is DateRunType {
-    const src: TypeClass = typeof (rt as Type).kind === 'undefined' ? ((rt as RunType).src as TypeClass) : (rt as TypeClass);
-    const kind: ReflectionKind = (rt as Type).kind || (rt as RunType).src.kind;
-    return kind === ReflectionKind.class && src.classType === Date;
+export function isDateRunType(rt: RunType): rt is DateRunType {
+    return rt.kind === ReflectionKind.class && rt.name === 'date';
 }
 
-export function isEnumRunType(rt: RunType | Type): rt is EnumRunType {
-    const kind: ReflectionKind = (rt as Type).kind || (rt as RunType).src.kind;
-    return kind === ReflectionKind.enum;
+export function isEnumRunType(rt: RunType): rt is EnumRunType {
+    return rt.kind === ReflectionKind.enum;
 }
 
-export function isEnumMemberRunType(rt: RunType | Type): rt is EnumMemberRunType {
-    const kind: ReflectionKind = (rt as Type).kind || (rt as RunType).src.kind;
-    return kind === ReflectionKind.enumMember;
+export function isEnumMemberRunType(rt: RunType): rt is EnumMemberRunType {
+    return rt.kind === ReflectionKind.enumMember;
 }
 
-export function isFunctionRunType(rt: RunType | Type): rt is FunctionRunType<any> {
-    const kind: ReflectionKind = (rt as Type).kind || (rt as RunType).src.kind;
-    return kind === ReflectionKind.function;
+export function isFunctionRunType(rt: RunType): rt is FunctionRunType<any> {
+    return rt.kind === ReflectionKind.function;
 }
 
-export function isIndexSignatureRunType(rt: RunType | Type): rt is IndexSignatureRunType {
-    const kind: ReflectionKind = (rt as Type).kind || (rt as RunType).src.kind;
-    return kind === ReflectionKind.indexSignature;
+export function isIndexSignatureRunType(rt: RunType): rt is IndexSignatureRunType {
+    return rt.kind === ReflectionKind.indexSignature;
 }
 
-export function isLiteralRunType(rt: RunType | Type): rt is LiteralRunType {
-    const kind: ReflectionKind = (rt as Type).kind || (rt as RunType).src.kind;
-    return kind === ReflectionKind.literal;
+export function isLiteralRunType(rt: RunType): rt is LiteralRunType {
+    return rt.kind === ReflectionKind.literal;
 }
 
-export function isMethodSignatureRunType(rt: RunType | Type): rt is MethodSignatureRunType {
-    const kind: ReflectionKind = (rt as Type).kind || (rt as RunType).src.kind;
-    return kind === ReflectionKind.methodSignature;
+export function isMethodSignatureRunType(rt: RunType): rt is MethodSignatureRunType {
+    return rt.kind === ReflectionKind.methodSignature;
 }
 
-export function isNullRunType(rt: RunType | Type): rt is NullRunType {
-    const kind: ReflectionKind = (rt as Type).kind || (rt as RunType).src.kind;
-    return kind === ReflectionKind.null;
+export function isNullRunType(rt: RunType): rt is NullRunType {
+    return rt.kind === ReflectionKind.null;
 }
 
-export function isNumberRunType(rt: RunType | Type): rt is NumberRunType {
-    const kind: ReflectionKind = (rt as Type).kind || (rt as RunType).src.kind;
-    return kind === ReflectionKind.number;
+export function isNumberRunType(rt: RunType): rt is NumberRunType {
+    return rt.kind === ReflectionKind.number;
 }
 
-export function isInterfaceRunType(rt: RunType | Type): rt is InterfaceRunType {
-    const kind: ReflectionKind = (rt as Type).kind || (rt as RunType).src.kind;
-    return kind === ReflectionKind.objectLiteral;
+export function isInterfaceRunType(rt: RunType): rt is InterfaceRunType {
+    return rt.kind === ReflectionKind.objectLiteral;
 }
 
-export function isPropertySignatureRunType(rt: RunType | Type): rt is PropertySignatureRunType {
-    const kind: ReflectionKind = (rt as Type).kind || (rt as RunType).src.kind;
-    return kind === ReflectionKind.propertySignature;
+export function isPropertySignatureRunType(rt: RunType): rt is PropertySignatureRunType {
+    return rt.kind === ReflectionKind.propertySignature;
 }
 
-export function isRegexpRunType(rt: RunType | Type): rt is RegexpRunType {
-    const kind: ReflectionKind = (rt as Type).kind || (rt as RunType).src.kind;
-    return kind === ReflectionKind.regexp;
+export function isRegexpRunType(rt: RunType): rt is RegexpRunType {
+    return rt.kind === ReflectionKind.regexp;
 }
 
-export function isStringRunType(rt: RunType | Type): rt is StringRunType {
-    const kind: ReflectionKind = (rt as Type).kind || (rt as RunType).src.kind;
-    return kind === ReflectionKind.string;
+export function isStringRunType(rt: RunType): rt is StringRunType {
+    return rt.kind === ReflectionKind.string;
 }
 
-export function isSymbolRunType(rt: RunType | Type): rt is SymbolRunType {
-    const kind: ReflectionKind = (rt as Type).kind || (rt as RunType).src.kind;
-    return kind === ReflectionKind.symbol;
+export function isSymbolRunType(rt: RunType): rt is SymbolRunType {
+    return rt.kind === ReflectionKind.symbol;
 }
 
-export function isTupleRunType(rt: RunType | Type): rt is TupleRunType {
-    const kind: ReflectionKind = (rt as Type).kind || (rt as RunType).src.kind;
-    return kind === ReflectionKind.tuple;
+export function isTupleRunType(rt: RunType): rt is TupleRunType {
+    return rt.kind === ReflectionKind.tuple;
 }
 
-export function isTupleMemberRunType(rt: RunType | Type): rt is TupleMemberRunType {
-    const kind: ReflectionKind = (rt as Type).kind || (rt as RunType).src.kind;
-    return kind === ReflectionKind.tupleMember;
+export function isTupleMemberRunType(rt: RunType): rt is TupleMemberRunType {
+    return rt.kind === ReflectionKind.tupleMember;
 }
 
-export function isUndefinedRunType(rt: RunType | Type): rt is UndefinedRunType {
-    const kind: ReflectionKind = (rt as Type).kind || (rt as RunType).src.kind;
-    return kind === ReflectionKind.undefined;
+export function isUndefinedRunType(rt: RunType): rt is UndefinedRunType {
+    return rt.kind === ReflectionKind.undefined;
 }
 
-export function isUnionRunType(rt: RunType | Type): rt is UnionRunType {
-    const kind: ReflectionKind = (rt as Type).kind || (rt as RunType).src.kind;
-    return kind === ReflectionKind.union;
+export function isUnionRunType(rt: RunType): rt is UnionRunType {
+    return rt.kind === ReflectionKind.union;
 }
 
-export function isUnknownRunType(rt: RunType | Type): rt is UnknownRunType {
-    const kind: ReflectionKind = (rt as Type).kind || (rt as RunType).src.kind;
-    return kind === ReflectionKind.unknown;
+export function isUnknownRunType(rt: RunType): rt is UnknownRunType {
+    return rt.kind === ReflectionKind.unknown;
 }
 
-export function isVoidRunType(rt: RunType | Type): rt is VoidRunType {
-    const kind: ReflectionKind = (rt as Type).kind || (rt as RunType).src.kind;
-    return kind === ReflectionKind.void;
+export function isVoidRunType(rt: RunType): rt is VoidRunType {
+    return rt.kind === ReflectionKind.void;
 }
 
-export function isNeverRunType(rt: RunType | Type): rt is NeverRunType {
-    const kind: ReflectionKind = (rt as Type).kind || (rt as RunType).src.kind;
-    return kind === ReflectionKind.never;
+export function isNeverRunType(rt: RunType): rt is NeverRunType {
+    return rt.kind === ReflectionKind.never;
 }
 
-export function isObjectRunType(rt: RunType | Type): rt is ObjectRunType {
-    const kind: ReflectionKind = (rt as Type).kind || (rt as RunType).src.kind;
-    return kind === ReflectionKind.object;
+export function isObjectRunType(rt: RunType): rt is ObjectRunType {
+    return rt.kind === ReflectionKind.object;
 }
 
-export function isParameterRunType(rt: RunType | Type): rt is ParameterRunType {
-    const kind: ReflectionKind = (rt as Type).kind || (rt as RunType).src.kind;
-    return kind === ReflectionKind.parameter;
+export function isParameterRunType(rt: RunType): rt is ParameterRunType {
+    return rt.kind === ReflectionKind.parameter;
 }
 
-export function isPromiseRunType(rt: RunType | Type): rt is PromiseRunType {
-    const kind: ReflectionKind = (rt as Type).kind || (rt as RunType).src.kind;
-    return kind === ReflectionKind.promise;
+export function isPromiseRunType(rt: RunType): rt is PromiseRunType {
+    return rt.kind === ReflectionKind.promise;
 }

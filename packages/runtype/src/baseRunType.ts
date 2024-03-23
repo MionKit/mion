@@ -5,21 +5,24 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {Type} from './_deepkit/src/reflection/type';
+import {ReflectionKind, Type} from './_deepkit/src/reflection/type';
 import {JITCompiler} from './jitCompiler';
 import {JITFunctions, RunType, RunTypeOptions, RunTypeVisitor} from './types';
 
-export abstract class BaseRunType<T extends Type, Opts extends RunTypeOptions = RunTypeOptions> implements RunType<T, Opts> {
+export abstract class BaseRunType<T extends Type, Opts extends RunTypeOptions = RunTypeOptions> implements RunType<Opts> {
     public abstract readonly name: string;
     public abstract readonly isJsonEncodeRequired: boolean;
     public abstract readonly isJsonDecodeRequired: boolean;
+    public readonly kind: ReflectionKind;
 
     constructor(
         visitor: RunTypeVisitor,
-        public readonly src: T,
+        src: T,
         public readonly nestLevel: number,
         public readonly opts: Opts
-    ) {}
+    ) {
+        this.kind = src.kind;
+    }
 
     abstract JIT_isType(varName: string): string;
     abstract JIT_typeErrors(varName: string, errorsName: string, pathChain: string): string;
