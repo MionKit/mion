@@ -34,6 +34,7 @@ export interface Procedure<H extends AnyHandler = any> {
     paramNames?: string[];
     headerNames?: string[];
     options: ProcedureOptions;
+    procedureCaller?: (...args: any[]) => void;
 }
 
 export interface NonRawProcedure<H extends Handler = any> extends Procedure<H> {

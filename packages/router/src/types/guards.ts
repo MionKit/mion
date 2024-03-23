@@ -5,7 +5,6 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {HeaderSingleValue, HeaderValue} from './context';
 import {HeaderHookDef, HookDef, RawHookDef, RouteDef} from './definitions';
 import {Route, RouterEntry, Routes} from './general';
 import {NotFoundProcedure} from './procedures';
@@ -69,8 +68,4 @@ export function isHeaderExecutable(entry: Procedure): entry is HeaderProcedure {
 
 export function isRouteExecutable(entry: Procedure): entry is RouteProcedure {
     return entry.type === ProcedureType.route;
-}
-
-export function isSingleValueHeader(value: HeaderValue): value is HeaderSingleValue {
-    return !Array.isArray(value);
 }

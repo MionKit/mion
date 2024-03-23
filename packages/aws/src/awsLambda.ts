@@ -7,7 +7,7 @@
 
 import {RpcError} from '@mionkit/core';
 import {dispatchRoute, getResponseFromError, headersFromRecord, resetRouter} from '@mionkit/router';
-import type {MionResponse, HeaderValue, MionHeaders} from '@mionkit/router';
+import type {MionResponse, MionHeaders, SingleHeaderValue} from '@mionkit/router';
 import type {Context as AwsContext, APIGatewayProxyResult, APIGatewayEvent} from 'aws-lambda';
 import {DEFAULT_AWS_LAMBDA_OPTIONS} from './constants';
 import {AwsLambdaOptions} from '..';
@@ -34,11 +34,11 @@ export function setAwsLambdaOpts(routerOptions?: Partial<AwsLambdaOptions>) {
 export async function awsLambdaHandler(rawRequest: APIGatewayEvent, awsContext: AwsContext): Promise<APIGatewayProxyResult> {
     const rawBody = rawRequest.body || '';
     const reqHeaders = headersFromRecord(rawRequest.headers as Record<string, string>);
-    const rawRespHeaders: Record<string, HeaderValue> = {
+    const rawRespHeaders: Record<string, SingleHeaderValue> = {
         server: '@mionkit/aws',
         ...lambdaOptions.defaultResponseHeaders,
     };
-    const respHeaders = headersFromRecord(rawRespHeaders);
+    const respHeaders = headersFromRecord(rawRespHeaders, true);
 
     return dispatchRoute(rawRequest.path, rawBody, reqHeaders, respHeaders, rawRequest, awsContext)
         .then((routeResponse) => reply(routeResponse, respHeaders))

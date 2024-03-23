@@ -340,7 +340,10 @@ export function getExecutableFromHook(
             validateParams: hook.options?.validateParams ?? true,
             deserializeParams: (hook.options?.deserializeParams ?? true) && handlerRunType.isParamsJsonDecodedRequired,
             validateReturn: hook.options?.validateReturn ?? false,
-            serializeReturn: (hook.options?.serializeReturn ?? true) && handlerRunType.isReturnJsonEncodedRequired,
+            serializeReturn:
+                (hook.options?.serializeReturn ?? true) &&
+                handlerRunType.isReturnJsonEncodedRequired &&
+                !routerOptions.useJitStringify, // if we are using jit stringify we skip serialization as encoding is done inside stringify function
             description: hook.options?.description,
             isAsync: !!hook.options?.isAsync || handlerRunType.isAsync,
         },
@@ -398,7 +401,10 @@ export function getExecutableFromRoute(route: Route, routePointer: string[], nes
             validateParams: route.options?.validateParams ?? true,
             deserializeParams: (route.options?.deserializeParams ?? true) && handlerRunType.isParamsJsonDecodedRequired,
             validateReturn: route.options?.validateReturn ?? false,
-            serializeReturn: (route.options?.serializeReturn ?? true) && handlerRunType.isReturnJsonEncodedRequired,
+            serializeReturn:
+                (route.options?.serializeReturn ?? true) &&
+                handlerRunType.isReturnJsonEncodedRequired &&
+                !routerOptions.useJitStringify, // if we are using jit stringify we skip serialization as encoding is done inside stringify function
             description: route.options?.description,
             isAsync: !!route.options?.isAsync || handlerRunType.isAsync,
         },
