@@ -5,17 +5,18 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {Type} from './_deepkit/src/reflection/type';
+import {ReflectionKind, Type} from './_deepkit/src/reflection/type';
 
 export type JSONValue = string | number | boolean | null | {[key: string]: JSONValue} | Array<JSONValue>;
 export type JSONString = string;
 
 export type RunTypeVisitor = (deepkitType: Type, nestLevel: number, opts: RunTypeOptions) => RunType;
 
-export interface RunType<T extends Type = Type, Opts extends RunTypeOptions = RunTypeOptions> {
+export interface RunType<Opts extends RunTypeOptions = RunTypeOptions> {
     readonly name: string;
     readonly nestLevel: number;
-    readonly src: T;
+    // readonly src: T; // deepkit src, removing it from the type but still required in the constructor
+    readonly kind: ReflectionKind;
     readonly isJsonEncodeRequired: boolean;
     readonly isJsonDecodeRequired: boolean;
     readonly opts: Opts;

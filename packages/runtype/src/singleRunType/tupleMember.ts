@@ -16,7 +16,7 @@ export class TupleMemberRunType extends BaseRunType<TypeTupleMember> {
     public readonly name: string;
     constructor(
         visitor: RunTypeVisitor,
-        public readonly src: TypeTupleMember,
+        src: TypeTupleMember,
         public readonly nestLevel: number,
         public readonly opts: RunTypeOptions
     ) {

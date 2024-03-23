@@ -15,17 +15,21 @@ export class EnumRunType extends BaseRunType<TypeEnum> {
     public readonly name: string;
     public readonly isJsonEncodeRequired = false;
     public readonly isJsonDecodeRequired = false;
+    public readonly values: (string | number | undefined | null)[];
+    public readonly indexKind: ReflectionKind;
     constructor(
         visitor: RunTypeVisitor,
-        public readonly src: TypeEnum,
+        src: TypeEnum,
         public readonly nestLevel: number,
         public readonly opts: RunTypeOptions
     ) {
         super(visitor, src, nestLevel, opts);
+        this.values = src.values;
+        this.indexKind = src.indexType.kind;
         this.name = `enum<${src.values.map((v) => v).join(', ')}>`;
     }
     JIT_isType(varName: string): string {
-        return this.src.values.map((v) => `${varName} === ${toLiteral(v)}`).join(' || ');
+        return this.values.map((v) => `${varName} === ${toLiteral(v)}`).join(' || ');
     }
     JIT_typeErrors(varName: string, errorsName: string, pathChain: string): string {
         return `if (!(${this.JIT_isType(varName)})) ${errorsName}.push({path: ${pathChain}, expected: ${toLiteral(this.name)}})`;
@@ -37,11 +41,11 @@ export class EnumRunType extends BaseRunType<TypeEnum> {
         return '';
     }
     JIT_jsonStringify(varName: string): string {
-        if (this.src.indexType.kind === ReflectionKind.number) return varName;
+        if (this.indexKind === ReflectionKind.number) return varName;
         return `JSON.stringify(${varName})`;
     }
     mock(index?: number): string | number | undefined | null {
-        const i = index || random(0, this.src.values.length - 1);
-        return this.src.values[i];
+        const i = index || random(0, this.values.length - 1);
+        return this.values[i];
     }
 }

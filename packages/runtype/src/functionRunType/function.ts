@@ -32,7 +32,7 @@ export class FunctionRunType<CallType extends AnyFunction = TypeFunction> extend
     public readonly isAsync: boolean;
     constructor(
         visitor: RunTypeVisitor,
-        public readonly src: CallType,
+        src: CallType,
         public readonly nestLevel: number,
         public readonly opts: RunTypeOptions,
         callType = 'function'
@@ -52,8 +52,8 @@ export class FunctionRunType<CallType extends AnyFunction = TypeFunction> extend
         this.paramsName = `[${this.parameterTypes.map((p) => p.name).join(', ')}]`;
         this.returnName = this.returnType.name;
         this.name = `${callType}<${this.paramsName}, ${this.returnName}>`;
-        this.hasReturnData = this._hasReturnData(this.returnType.src.kind);
-        this.isAsync = isPromise || this._isAsync(this.returnType.src.kind);
+        this.hasReturnData = this._hasReturnData(this.returnType.kind);
+        this.isAsync = isPromise || this._isAsync(this.returnType.kind);
     }
     JIT_isType(): string {
         throw new Error(`${this.name} validation is not supported, instead validate parameters or return type separately.`);

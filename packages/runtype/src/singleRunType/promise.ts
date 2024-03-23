@@ -17,7 +17,7 @@ export class PromiseRunType extends BaseRunType<TypePromise> {
     public readonly resolvedType: RunType;
     constructor(
         visitor: RunTypeVisitor,
-        public readonly src: TypePromise,
+        src: TypePromise,
         public readonly nestLevel: number,
         public readonly opts: RunTypeOptions
     ) {

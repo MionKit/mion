@@ -23,7 +23,7 @@ export class IntersectionRunType extends BaseRunType<TypeIntersection> {
     public readonly serializableProps: PropertySignatureRunType[];
     constructor(
         visitor: RunTypeVisitor,
-        public readonly src: TypeIntersection,
+        src: TypeIntersection,
         public readonly nestLevel: number,
         public readonly opts: RunTypeOptions
     ) {
@@ -55,7 +55,7 @@ export class IntersectionRunType extends BaseRunType<TypeIntersection> {
     ): Record<string | number, any> {
         const obj: Record<string | number, any> = {};
         this.serializableProps.forEach((prop) => {
-            const name: string | number = prop.src.name as any;
+            const name: string | number = prop.propName as any;
             const optionalProbability: number | undefined = optionalParamsProbability?.[name];
             const propArgs: any[] = objArgs?.[name] || [];
             obj[name] = prop.mock(optionalProbability, ...propArgs);

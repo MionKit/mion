@@ -17,7 +17,7 @@ export class TupleRunType extends BaseRunType<TypeTuple> {
     public readonly runTypes: RunType[];
     constructor(
         visitor: RunTypeVisitor,
-        public readonly src: TypeTuple,
+        src: TypeTuple,
         public readonly nestLevel: number,
         public readonly opts: RunTypeOptions
     ) {

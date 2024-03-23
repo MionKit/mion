@@ -11,7 +11,7 @@ import {FunctionRunType} from './function';
 export class CallSignatureRunType extends FunctionRunType<TypeCallSignature> {
     constructor(
         visitor: RunTypeVisitor,
-        public readonly src: TypeCallSignature,
+        src: TypeCallSignature,
         public readonly nestLevel: number,
         public readonly opts: RunTypeOptions,
         callType = 'call'

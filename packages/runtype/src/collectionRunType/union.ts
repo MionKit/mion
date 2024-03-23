@@ -25,7 +25,7 @@ export class UnionRunType extends BaseRunType<TypeUnion> {
     public readonly runTypes: RunType[];
     constructor(
         visitor: RunTypeVisitor,
-        public readonly src: TypeUnion,
+        src: TypeUnion,
         public readonly nestLevel: number,
         public readonly opts: RunTypeOptions
     ) {

@@ -11,7 +11,7 @@ import {FunctionRunType} from './function';
 export class MethodRunType extends FunctionRunType<TypeMethod> {
     constructor(
         visitor: RunTypeVisitor,
-        public readonly src: TypeMethod,
+        src: TypeMethod,
         public readonly nestLevel: number,
         public readonly opts: RunTypeOptions,
         callType = 'method'
