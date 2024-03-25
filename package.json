@@ -64,14 +64,14 @@
     "ts-jest": "^29.1.1"
   },
   "workspaces": [
+    "packages/core",
+    "packages/runtype",
+    "packages/router",
     "packages/aws",
     "packages/gcloud",
     "packages/bun",
-    "packages/core",
     "packages/common",
-    "packages/quick-start",
-    "packages/runtype",
-    "packages/router",
+    "packages/quick-start", 
     "packages/http",
     "packages/client",
     "packages/codegen"

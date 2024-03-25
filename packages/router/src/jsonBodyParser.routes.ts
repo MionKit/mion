@@ -11,7 +11,7 @@ import type {HooksCollection, ErrorReturn} from './types/publicProcedures';
 import {RpcError, StatusCodes, AnyObject, Mutable} from '@mionkit/core';
 import {handleRpcErrors} from './errors';
 import {rawHook} from './initFunctions';
-import {jitStringify} from './jsonBodyStringify';
+import {jitBodyStringify} from './jsonBodyStringify';
 import {getRouteExecutableFromPath} from './router';
 
 // ############# PUBLIC METHODS #############
@@ -64,7 +64,7 @@ export function stringifyResponseBody(
         // especially when we support multiple route call at once or if the route declare the error type as return type
         response.rawBody =
             opts.useJitStringify && !context.response.hasErrors
-                ? jitStringify(respBody, context.path)
+                ? jitBodyStringify(respBody, context.path)
                 : opts.bodyParser.stringify(respBody);
     } catch (err: any) {
         const rpcError = new RpcError({

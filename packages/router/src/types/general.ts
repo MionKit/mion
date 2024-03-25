@@ -8,7 +8,7 @@
 import {CoreOptions} from '@mionkit/core';
 import {SharedDataFactory} from './context';
 import {HeaderHookDef, HookDef, RawHookDef, RouteDef} from './definitions';
-import {RunTypeOptions} from '@mionkit/runtype';
+import type {RunTypeOptions} from '@mionkit/runtype';
 
 // #######  Router Object #######
 

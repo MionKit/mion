@@ -1,7 +1,7 @@
 // ####### Executables #######
 
-import {JITFunctions} from '@mionkit/runtype';
-import {AnyHandler, Handler, HeaderHandler, RawHookHandler} from './handlers';
+import type {JITFunctions, SerializableJITFunctions} from '@mionkit/runtype';
+import type {AnyHandler, Handler, HeaderHandler, RawHookHandler} from './handlers';
 
 export enum ProcedureType {
     route = 1,
@@ -83,6 +83,11 @@ export interface NotFoundProcedure extends Procedure {
     is404: true;
 }
 
+export type SerializableProcedure = Omit<Procedure, 'handler' | 'paramsJitFns' | 'returnJitFns' | 'procedureCaller'> & {
+    paramsJitFns: SerializableJITFunctions;
+    returnJitFns: SerializableJITFunctions;
+};
+
 export type RouteOptions = Partial<
     Pick<
         RouteProcedure['options'],
@@ -106,4 +111,5 @@ export type RawHookOptions = Partial<Pick<RawProcedure['options'], 'description'
 export interface ProceduresExecutionList {
     routeIndex: number;
     procedures: Procedure[];
+    bodyStringify?: (body: any) => string;
 }

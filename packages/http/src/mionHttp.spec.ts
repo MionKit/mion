@@ -12,6 +12,7 @@ import {PublicRpcError} from '@mionkit/core';
 // update to jest 29 gonna take some changes as all globals must be imported from @jest/globals
 // also the types for fetch are not available in node 18, fix here: https://stackoverflow.com/questions/71294230/how-can-i-use-native-fetch-with-node-in-typescript-node-v17-6#answer-75676044
 import fetch from 'node-fetch';
+import type {Server} from 'http';
 
 describe('node http router should', () => {
     resetNodeHttpOpts();
@@ -63,6 +64,15 @@ describe('node http router should', () => {
                 });
             })
     );
+
+    const closeServer = (s: Server) => {
+        return new Promise<void>((resolve, reject) => {
+            s.close((err) => {
+                if (err) reject();
+                else resolve();
+            });
+        });
+    };
 
     it('get an ok response from a route', async () => {
         const requestData = {getDate: [{date: new Date('2022-04-22T00:17:00.000Z')}]};
@@ -137,14 +147,8 @@ describe('node http router should', () => {
         initRouter(routerOpts);
         registerRoutes({changeUserName, getDate, updateHeaders});
         const smallServer = await startNodeServer();
-        const closeSmallServer = () => {
-            return new Promise<void>((resolve, reject) => {
-                smallServer.close((err) => {
-                    if (err) reject();
-                    else resolve();
-                });
-            });
-        };
+        expect(smallServer.listening).toBe(true);
+
         let err;
         try {
             const requestData = {getDate: [{date: new Date('2022-04-22T00:17:00.000Z')}]};
@@ -171,7 +175,27 @@ describe('node http router should', () => {
             err = e;
         }
 
-        await closeSmallServer();
+        await closeServer(smallServer);
         if (err) throw err;
+    });
+
+    it('compile routes metadata and skip server initialization', async () => {
+        process.env.MION_COMPILE = 'true';
+        const routerOpts = {
+            sharedDataFactory: getSharedData,
+            prefix: 'api/',
+        };
+        const httpOpts = {
+            port: 8080,
+            maxBodySize: 1,
+            defaultResponseHeaders: {'x-app-name': 'MyApp', 'x-instance-id': '3089'},
+        };
+        resetNodeHttpOpts();
+        setNodeHttpOpts(httpOpts);
+        initRouter(routerOpts);
+        registerRoutes({changeUserName, getDate, updateHeaders});
+        const smallServer = await startNodeServer();
+        expect(smallServer.listening).toBe(false);
+        await closeServer(smallServer);
     });
 });
