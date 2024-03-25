@@ -9,11 +9,9 @@ import type {CallContext, MionResponse, MionRequest, MionHeaders} from './types/
 import {type RouterOptions} from './types/general';
 import {HeaderProcedure, NonRawProcedure, RawProcedure, type Procedure} from './types/procedures';
 import {ProcedureType} from './types/procedures';
-import type {Handler} from './types/handlers';
 import {isNotFoundExecutable} from './types/guards';
 import {getRouteExecutionPath, getRouterOptions} from './router';
 import {getNotFoundExecutionPath} from './notFound';
-import {isPromise} from 'node:util/types';
 import {Mutable, AnyObject, RpcError, StatusCodes} from '@mionkit/core';
 import {handleRpcErrors} from './errors';
 
@@ -46,6 +44,7 @@ export async function dispatchRoute<Req, Resp>(
 
         return context.response;
     } catch (err: any | RpcError | Error) {
+        // this should never happen, exceptions should be handled inside runExecutionPath
         return Promise.reject(err);
     }
 }
@@ -116,10 +115,7 @@ export async function runRawHook(
     rawRequest: unknown,
     rawResponse: unknown
 ) {
-    let result;
-    const resp = executable.handler(context, rawRequest, rawResponse, opts);
-    if (isPromise(resp)) result = await resp;
-    else result = resp;
+    const result = await executable.handler(context, rawRequest, rawResponse, opts);
     if (result instanceof Error || result instanceof RpcError) throw result;
 }
 
@@ -132,11 +128,7 @@ export async function runHeaderHook(
     const params = (executable as HeaderProcedure).headerNames.map((name) => request.headers.get(name));
     if (executable.options.validateParams) validateParametersOrThrow(params, executable as HeaderProcedure);
 
-    // only awaits if procedure response response is a promise
-    let result;
-    const resp = executable.handler(context, ...(params as string[]));
-    if (isPromise(resp)) result = await resp;
-    else result = resp;
+    const result = await executable.handler(context, ...params);
     if (result instanceof Error || result instanceof RpcError) throw result;
 
     if (result !== undefined) {
@@ -156,11 +148,7 @@ export async function runRouteOrHook(
     const params = deserializeBodyParams(request, executable as NonRawProcedure);
     if (executable.options.validateParams) validateParametersOrThrow(params, executable as NonRawProcedure);
 
-    // only awaits if procedure response response is a promise
-    let result;
-    const resp = (executable.handler as Handler)(context, ...params);
-    if (isPromise(resp)) result = await resp;
-    else result = resp;
+    const result = await executable.handler(context, ...params);
     if (result instanceof Error || result instanceof RpcError) throw result;
 
     if (executable.options.hasReturnData && result !== undefined) {

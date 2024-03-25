@@ -162,4 +162,23 @@ describe('bun router should', () => {
         smallServer.stop(true);
         if (err) throw err;
     });
+
+    test('compile routes metadata and skip server initialization', async () => {
+        process.env.MION_COMPILE = 'true';
+        const routerOpts = {
+            sharedDataFactory: getSharedData,
+            prefix: 'api/',
+        };
+        const httpOpts = {
+            port: 8080,
+            maxBodySize: 1,
+            defaultResponseHeaders: {'x-app-name': 'MyApp', 'x-instance-id': '3089'},
+        };
+        resetBunHttpOpts();
+        setBunHttpOpts(httpOpts);
+        initRouter(routerOpts);
+        registerRoutes({changeUserName, getDate, updateHeaders});
+        const smallServer = await startBunServer();
+        expect(smallServer).toBeUndefined();
+    });
 });

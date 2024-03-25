@@ -10,6 +10,7 @@ import {DEFAULT_BUN_HTTP_OPTIONS} from './constants';
 import type {BunHttpOptions} from './types';
 import {RpcError, StatusCodes} from '@mionkit/core';
 import {Server} from 'bun';
+import {compileRouter} from '@mionkit/router/index';
 
 export function resetBunHttpOpts() {
     httpOptions = {...DEFAULT_BUN_HTTP_OPTIONS};
@@ -27,18 +28,27 @@ export function setBunHttpOpts(options?: Partial<BunHttpOptions>) {
 // ############# PRIVATE STATE #############
 
 let httpOptions: Readonly<BunHttpOptions> = {...DEFAULT_BUN_HTTP_OPTIONS};
-const isTest = process.env.NODE_ENV === 'test';
 
-export function startBunServer(options?: Partial<BunHttpOptions>): Server {
+export async function startBunServer(options?: Partial<BunHttpOptions>): Promise<Server> {
+    const isTest = process.env.NODE_ENV === 'test';
+    const isCompiling = process.env.MION_COMPILE === 'true';
+
     if (options) setBunHttpOpts(options);
+
+    if (isCompiling) {
+        console.log('Compiling routes metadata and skipping mion server initialization...');
+        compileRouter();
+        return undefined as any;
+    }
+
     const port = httpOptions.port !== 80 ? `:${httpOptions.port}` : '';
     const url = `http://localhost${port}`;
-    if (!isTest) console.log(`mion bun server running on ${url}`);
-
+    if (!isTest && !isCompiling) console.log(`mion bun server running on ${url}`);
     const server = Bun.serve({
         maxRequestBodySize: httpOptions.maxBodySize,
         port: httpOptions.port,
         ...httpOptions.options,
+
         async fetch(req) {
             const pathIndex = req.url.indexOf('/', 12);
             const queryIndex = req.url.indexOf('?', pathIndex + 1);

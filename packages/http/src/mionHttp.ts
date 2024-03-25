@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {dispatchRoute, getResponseFromError, resetRouter} from '@mionkit/router';
+import {compileRouter, dispatchRoute, getResponseFromError, resetRouter} from '@mionkit/router';
 import {createServer as createHttp} from 'http';
 import {createServer as createHttps} from 'https';
 import {DEFAULT_HTTP_OPTIONS} from './constants';
@@ -19,7 +19,6 @@ import {headersFromIncomingMessage, headersFromServerResponse} from './headers';
 // ############# PRIVATE STATE #############
 
 let httpOptions: Readonly<NodeHttpOptions> = {...DEFAULT_HTTP_OPTIONS};
-const isTest = process.env.NODE_ENV === 'test';
 
 // ############# PUBLIC METHODS #############
 
@@ -38,16 +37,26 @@ export function setNodeHttpOpts(options?: Partial<NodeHttpOptions>) {
 }
 
 export async function startNodeServer(options?: Partial<NodeHttpOptions>): Promise<HttpServer | HttpsServer> {
+    const isTest = process.env.NODE_ENV === 'test';
+    const isCompiling = process.env.MION_COMPILE === 'true';
+
     if (options) setNodeHttpOpts(options);
     const port = httpOptions.port !== 80 ? `:${httpOptions.port}` : '';
     const url = `${httpOptions.protocol}://localhost${port}`;
-    if (!isTest) console.log(`mion node server running on ${url}`);
+    if (!isTest && !isCompiling) console.log(`mion node server running on ${url}`);
 
     return new Promise<HttpServer | HttpsServer>((resolve, reject) => {
         const server =
             httpOptions.protocol === 'https'
                 ? createHttps(httpOptions.options, httpRequestHandler)
                 : createHttp(httpOptions.options, httpRequestHandler);
+
+        if (isCompiling) {
+            console.log('Compiling routes metadata and skipping mion server initialization...');
+            compileRouter();
+            return resolve(server);
+        }
+
         server.on('error', (e) => {
             reject(e);
         });

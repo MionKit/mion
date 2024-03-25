@@ -24,6 +24,7 @@ import {getRemoteMethodsMetadata, resetRemoteMethodsMetadata} from './remoteMeth
 import {clientRoutes} from './client.routes';
 import {Handler} from './types/handlers';
 import {getNotFoundExecutionPath} from './notFound';
+import {compileProcedure, getCompiledProcedure, writeCompiledProcedures} from './compiler';
 
 type RouterKeyEntryList = [string, RouterEntry][];
 type RoutesWithId = {
@@ -175,6 +176,10 @@ export function getRouteExecutableFromPath(path: string): RouteProcedure {
     return executionPath.procedures[executionPath.routeIndex] as RouteProcedure;
 }
 
+export function compileRouter() {
+    writeCompiledProcedures();
+}
+
 // ############# PRIVATE METHODS #############
 
 /**
@@ -323,32 +328,41 @@ export function getExecutableFromHook(
     type MixedExecutable = (Omit<HookProcedure, 'type'> | Omit<HeaderProcedure, 'type'>) & {
         type: ProcedureType.hook | ProcedureType.headerHook;
     };
-    const {handlerRunType, paramsJitFns, returnJitFns, paramNames} = getHandlerReflection(hook.handler, hookId);
-    const executable: MixedExecutable = {
-        id: hookId,
-        type: inHeader ? ProcedureType.headerHook : ProcedureType.hook,
-        nestLevel,
-        handler: hook.handler,
-        paramsJitFns,
-        returnJitFns,
-        paramNames,
-        pointer: hookPointer,
-        headerNames: inHeader ? (hook as HeaderHookDef).headerNames.map((name) => name.toLowerCase()) : undefined,
-        options: {
-            runOnError: !!hook.options?.runOnError,
-            hasReturnData: handlerRunType.hasReturnData,
-            validateParams: hook.options?.validateParams ?? true,
-            deserializeParams: (hook.options?.deserializeParams ?? true) && handlerRunType.isParamsJsonDecodedRequired,
-            validateReturn: hook.options?.validateReturn ?? false,
-            serializeReturn:
-                (hook.options?.serializeReturn ?? true) &&
-                handlerRunType.isReturnJsonEncodedRequired &&
-                !routerOptions.useJitStringify, // if we are using jit stringify we skip serialization as encoding is done inside stringify function
-            description: hook.options?.description,
-            isAsync: !!hook.options?.isAsync || handlerRunType.isAsync,
-        },
-    };
+
+    const compiledProcedure = getCompiledProcedure(hookId, hook.handler);
+    let executable: MixedExecutable;
+    if (compiledProcedure) {
+        executable = compiledProcedure as MixedExecutable;
+    } else {
+        const {handlerRunType, paramsJitFns, returnJitFns, paramNames} = getHandlerReflection(hook.handler, hookId);
+        executable = {
+            id: hookId,
+            type: inHeader ? ProcedureType.headerHook : ProcedureType.hook,
+            nestLevel,
+            handler: hook.handler,
+            paramsJitFns,
+            returnJitFns,
+            paramNames,
+            pointer: hookPointer,
+            headerNames: inHeader ? (hook as HeaderHookDef).headerNames.map((name) => name.toLowerCase()) : undefined,
+            options: {
+                runOnError: !!hook.options?.runOnError,
+                hasReturnData: handlerRunType.hasReturnData,
+                validateParams: hook.options?.validateParams ?? true,
+                deserializeParams: (hook.options?.deserializeParams ?? true) && handlerRunType.isParamsJsonDecodedRequired,
+                validateReturn: hook.options?.validateReturn ?? false,
+                serializeReturn:
+                    (hook.options?.serializeReturn ?? true) &&
+                    handlerRunType.isReturnJsonEncodedRequired &&
+                    !routerOptions.useJitStringify, // if we are using jit stringify we skip serialization as encoding is done inside stringify function
+                description: hook.options?.description,
+                isAsync: !!hook.options?.isAsync || handlerRunType.isAsync,
+            },
+        };
+    }
+
     hooksById.set(hookId, executable as any);
+    compileProcedure(hookId, executable);
     return executable as any;
 }
 
@@ -385,32 +399,39 @@ export function getExecutableFromRoute(route: Route, routePointer: string[], nes
     const routeId = getRouterItemId(routePointer);
     const existing = routesById.get(routeId);
     if (existing) return existing as RouteProcedure;
-    const {handlerRunType, paramsJitFns, returnJitFns, paramNames} = getHandlerReflection(route.handler, routeId);
-    const executable: RouteProcedure = {
-        type: ProcedureType.route,
-        id: routeId,
-        nestLevel,
-        handler: route.handler,
-        paramsJitFns,
-        returnJitFns,
-        paramNames,
-        pointer: routePointer,
-        options: {
-            runOnError: false,
-            hasReturnData: handlerRunType.hasReturnData,
-            validateParams: route.options?.validateParams ?? true,
-            deserializeParams: (route.options?.deserializeParams ?? true) && handlerRunType.isParamsJsonDecodedRequired,
-            validateReturn: route.options?.validateReturn ?? false,
-            serializeReturn:
-                (route.options?.serializeReturn ?? true) &&
-                handlerRunType.isReturnJsonEncodedRequired &&
-                !routerOptions.useJitStringify, // if we are using jit stringify we skip serialization as encoding is done inside stringify function
-            description: route.options?.description,
-            isAsync: !!route.options?.isAsync || handlerRunType.isAsync,
-        },
-    };
-    delete (executable as any).route;
+
+    const compiledProcedure = getCompiledProcedure(routeId, route.handler);
+    let executable: RouteProcedure;
+    if (compiledProcedure) {
+        executable = compiledProcedure as RouteProcedure;
+    } else {
+        const {handlerRunType, paramsJitFns, returnJitFns, paramNames} = getHandlerReflection(route.handler, routeId);
+        executable = {
+            type: ProcedureType.route,
+            id: routeId,
+            nestLevel,
+            handler: route.handler,
+            paramsJitFns,
+            returnJitFns,
+            paramNames,
+            pointer: routePointer,
+            options: {
+                runOnError: false,
+                hasReturnData: handlerRunType.hasReturnData,
+                validateParams: route.options?.validateParams ?? true,
+                deserializeParams: (route.options?.deserializeParams ?? true) && handlerRunType.isParamsJsonDecodedRequired,
+                validateReturn: route.options?.validateReturn ?? false,
+                serializeReturn:
+                    (route.options?.serializeReturn ?? true) &&
+                    handlerRunType.isReturnJsonEncodedRequired &&
+                    !routerOptions.useJitStringify, // if we are using jit stringify we skip serialization as encoding is done inside stringify function
+                description: route.options?.description,
+                isAsync: !!route.options?.isAsync || handlerRunType.isAsync,
+            },
+        };
+    }
     routesById.set(routeId, executable);
+    compileProcedure(routeId, executable);
     return executable;
 }
 

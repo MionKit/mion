@@ -31,6 +31,10 @@ export function toLiteral(value: number | string | boolean | undefined | null | 
     }
 }
 
+export function toLiteralArray(value: any[]): string {
+    return `[${value.map((v) => toLiteral(v)).join(', ')}]`;
+}
+
 export function addToPathChain(pathChain: string, property: string | number, isLiteral = true): string {
     return `${pathChain} + '/' + ${isLiteral ? toLiteral(property) : property}`;
 }

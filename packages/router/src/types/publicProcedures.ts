@@ -5,13 +5,13 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {RpcError} from '@mionkit/core';
-import {SerializableJITFunctions} from '@mionkit/runtype';
-import {CallContext} from './context';
-import {Routes} from './general';
-import {ProcedureType} from './procedures';
-import {Handler} from './handlers';
-import {HeaderHookDef, HookDef, RawHookDef, RouteDef} from './definitions';
+import type {RpcError} from '@mionkit/core';
+import type {SerializableJITFunctions} from '@mionkit/runtype';
+import type {CallContext} from './context';
+import type {Routes} from './general';
+import type {ProcedureType} from './procedures';
+import type {Handler} from './handlers';
+import type {HeaderHookDef, HookDef, RawHookDef, RouteDef} from './definitions';
 
 // ####### Raw Hooks #######
 
