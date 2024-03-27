@@ -30,7 +30,7 @@ import {TupleRunType} from './collectionRunType/tuple';
 import {TupleMemberRunType} from './singleRunType/tupleMember';
 import {InterfaceRunType} from './collectionRunType/interface';
 import {PropertySignatureRunType} from './collectionRunType/property';
-import {IndexSignatureRunType} from './collectionRunType';
+import {IndexSignatureRunType} from './collectionRunType/indexProperty';
 import {MethodSignatureRunType} from './functionRunType/methodSignature';
 import {CallSignatureRunType} from './functionRunType/call';
 import {FunctionRunType} from './functionRunType/function';

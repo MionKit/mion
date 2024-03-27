@@ -12,7 +12,6 @@ import {
     buildTypeErrorsJITFn,
     buildJsonStringifyJITFn,
 } from '../jitCompiler';
-import {asJSONString} from '../utils';
 
 type ObjectType = {
     startDate: Date;
@@ -38,10 +37,14 @@ type objectIndexedProps = {
     [key: number]: number;
 };
 
+type ObjectAllOptional = {
+    a?: string;
+    b?: number;
+};
+
 const rt = runType<ObjectType>();
 const rtSkip = runType<objectSkipProps>();
-// TODO: implement indexed properties
-const rtIndexed = runType<objectIndexedProps>();
+const rtOpt = runType<ObjectAllOptional>();
 
 it('validate object', () => {
     const validate = buildIsTypeJITFn(rt).fn;
@@ -80,6 +83,11 @@ it('validate object', () => {
     ).toBe(false);
     expect(validate({})).toBe(false);
     expect(validate('hello')).toBe(false);
+});
+
+it('validate empty object for ObjectAllOptional type', () => {
+    const validate = buildIsTypeJITFn(rtOpt).fn;
+    expect(validate({})).toBe(true);
 });
 
 it('validate object + errors', () => {

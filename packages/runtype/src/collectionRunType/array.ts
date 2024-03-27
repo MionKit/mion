@@ -64,7 +64,6 @@ export class ArrayRunType extends BaseRunType<TypeArray> {
         const indexName = `indεx${this.nestLevel}`;
         const itemAccessor = `${varName}[${indexName}]`;
         const itemCode = this.itemsRunType.JIT_jsonStringify(itemAccessor);
-        // TODO: can be optimized using a for loop
         const forLoop = `const ${arrName} = []; for (let ${indexName} = 0; ${indexName} < ${varName}.length; ${indexName}++) {${arrName}.push(${itemCode})}`;
         const itemsCode = `(function(){${forLoop}; return ${arrName}.join(',')})()`;
         return `'[' + ${itemsCode} + ']'`;

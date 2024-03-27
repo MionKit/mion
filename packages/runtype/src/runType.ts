@@ -31,7 +31,7 @@ import {TupleRunType} from './collectionRunType/tuple';
 import {TupleMemberRunType} from './singleRunType/tupleMember';
 import {InterfaceRunType} from './collectionRunType/interface';
 import {PropertySignatureRunType} from './collectionRunType/property';
-import {IndexSignatureRunType} from './collectionRunType';
+import {IndexSignatureRunType} from './collectionRunType/indexProperty';
 import {MethodSignatureRunType} from './functionRunType/methodSignature';
 import {CallSignatureRunType} from './functionRunType/call';
 import {FunctionRunType} from './functionRunType/function';
@@ -98,7 +98,7 @@ function visitor(deepkitType, nestLevel: number, opts: RunTypeOptions): RunType 
             break;
         case ReflectionKind.infer:
             throw new Error(
-                'Infer type not supported, ie: type typeBoxType =Type<T> = T extends (...args: any[]) => infer R ? R : any; https://www.typescriptlang.org/docs/handbook/2/conditional-types.html'
+                'Infer type not supported, ie: type MyType =Type<T> = T extends (...args: any[]) => infer R ? R : any; https://www.typescriptlang.org/docs/handbook/2/conditional-types.html'
             );
         case ReflectionKind.intersection:
             rt = new IntersectionRunType(visitor, deepkitType, nestLevel, opts);
