@@ -115,7 +115,7 @@ export class FunctionRunType<CallType extends AnyFunction = TypeFunction> extend
         },
         jsonStringify: (varName: string) => {
             if (this.parameterTypes.length === 0) return `[]`;
-            const paramsCode = this.parameterTypes.map((p, i) => p.JIT_jsonStringify(`${varName}[${i}]`, i === 0)).join('');
+            const paramsCode = this.parameterTypes.map((p, i) => p.JIT_jsonStringify(`${varName}[${i}]`, i === 0)).join('+');
             return `'['+${paramsCode}+']'`;
         },
     };
