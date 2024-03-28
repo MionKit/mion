@@ -96,7 +96,7 @@ export class InterfaceRunType extends BaseRunType<TypeObjectLiteral> {
 
         // unlike the other JIT methods the separator is added within the PropertySignatureRunType
         // this is because optional properties can't emit any strings at runtime
-        const propsCode = this.serializableProps.map((prop, i) => prop.JIT_jsonStringify(varName, i === 0)).join('');
+        const propsCode = this.serializableProps.map((prop, i) => prop.JIT_jsonStringify(varName, i === 0)).join('+');
         return `'{'+${propsCode}+'}'`;
     }
     mock(
