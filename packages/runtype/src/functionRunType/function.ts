@@ -30,6 +30,8 @@ export class FunctionRunType<CallType extends AnyFunction = TypeFunction> extend
     public readonly hasReturnData: boolean;
     public readonly hasOptionalParameters: boolean;
     public readonly isAsync: boolean;
+    public readonly totalRequiredParams: number;
+    public readonly hasRestParameter: boolean;
     constructor(
         visitor: RunTypeVisitor,
         src: CallType,
@@ -44,11 +46,13 @@ export class FunctionRunType<CallType extends AnyFunction = TypeFunction> extend
         const isPromise = isPromiseRunType(maybePromiseReturn);
         this.returnType = isPromise ? maybePromiseReturn.resolvedType : maybePromiseReturn;
         this.parameterTypes = src.parameters.slice(start, end).map((p) => visitor(p, nestLevel, opts)) as ParameterRunType[];
+        this.totalRequiredParams = this.parameterTypes.reduce((acc, p) => acc + (p.isOptional ? 0 : 1), 0);
         this.isReturnJsonEncodedRequired = this.returnType.isJsonEncodeRequired;
         this.isReturnJsonDecodedRequired = this.returnType.isJsonDecodeRequired;
         this.isParamsJsonEncodedRequired = this.parameterTypes.some((p) => p.isJsonEncodeRequired);
         this.isParamsJsonDecodedRequired = this.parameterTypes.some((p) => p.isJsonDecodeRequired);
-        this.hasOptionalParameters = this.parameterTypes.some((p) => p.isOptional);
+        this.hasOptionalParameters = this.totalRequiredParams < this.parameterTypes.length;
+        this.hasRestParameter = !!this.parameterTypes.length && this.parameterTypes[this.parameterTypes.length - 1].isRest;
         this.paramsName = `[${this.parameterTypes.map((p) => p.name).join(', ')}]`;
         this.returnName = this.returnType.name;
         this.name = `${callType}<${this.paramsName}, ${this.returnName}>`;
@@ -85,37 +89,37 @@ export class FunctionRunType<CallType extends AnyFunction = TypeFunction> extend
     private _paramsJitFunctions: JitFunctions = {
         isType: (varName: string) => {
             if (this.parameterTypes.length === 0) return `${varName}.length === 0`;
-            const paramsCode = this.parameterTypes.map((p, i) => `(${p.JIT_isType(`${varName}[${i}]`)})`).join(' && ');
-            const comparison = this.hasOptionalParameters ? '<=' : '===';
-            return `${varName}.length ${comparison} ${this.parameterTypes.length} && ${paramsCode}`;
+            const paramsCode = this.parameterTypes.map((p, i) => `(${p.JIT_isType(varName, i)})`).join(' && ');
+            const maxLength = !this.hasRestParameter ? `&& ${varName}.length <= ${this.parameterTypes.length}` : '';
+            const checkLength = `${varName}.length >= ${this.totalRequiredParams} ${maxLength}`;
+            return `${checkLength} && ${paramsCode}`;
         },
         typeErrors: (varName: string, errorsName: string, pathChain: string) => {
-            const comparison = this.hasOptionalParameters ? '>' : '!==';
-            const paramsCode = this.parameterTypes
-                .map((p, i) => p.JIT_typeErrors(`${varName}[${i}]`, errorsName, pathChain))
-                .join(';');
+            const maxLength = !this.hasRestParameter ? `|| ${varName}.length > ${this.parameterTypes.length}` : '';
+            const checkLength = `(${varName}.length < ${this.totalRequiredParams} ${maxLength})`;
+            const paramsCode = this.parameterTypes.map((p, i) => p.JIT_typeErrors(varName, errorsName, pathChain, i)).join(';');
             return (
-                `if (!Array.isArray(${varName}) || ${varName}.length ${comparison} ${this.parameterTypes.length}) ${errorsName}.push({path: ${pathChain}, expected: ${toLiteral(this.paramsName)}});` +
+                `if (!Array.isArray(${varName}) || ${checkLength}) ${errorsName}.push({path: ${pathChain}, expected: ${toLiteral(this.paramsName)}});` +
                 `else {${paramsCode}}`
             );
         },
         jsonEncode: (varName: string) => {
             if (!this.opts?.strictJSON && !this.isParamsJsonEncodedRequired) return '';
             return this.parameterTypes
-                .map((p, i) => p.JIT_jsonEncode(`${varName}[${i}]`))
+                .map((p, i) => p.JIT_jsonEncode(varName, i))
                 .filter((code) => !!code)
                 .join(';');
         },
         jsonDecode: (varName: string) => {
             if (!this.opts?.strictJSON && !this.isParamsJsonDecodedRequired) return '';
             return this.parameterTypes
-                .map((p, i) => p.JIT_jsonDecode(`${varName}[${i}]`))
+                .map((p, i) => p.JIT_jsonDecode(varName, i))
                 .filter((code) => !!code)
                 .join(';');
         },
         jsonStringify: (varName: string) => {
             if (this.parameterTypes.length === 0) return `[]`;
-            const paramsCode = this.parameterTypes.map((p, i) => p.JIT_jsonStringify(`${varName}[${i}]`, i === 0)).join('+');
+            const paramsCode = this.parameterTypes.map((p, i) => p.JIT_jsonStringify(varName, i)).join('+');
             return `'['+${paramsCode}+']'`;
         },
     };

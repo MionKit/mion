@@ -16,9 +16,13 @@ import {FunctionRunType} from './function';
 
 type FunctionType = (a: number, b: boolean, c?: string) => Date;
 type FunctionType2 = (a: Date, b?: boolean) => bigint; // requires encode/decode
+type RestFunctionType = (a: number, b: boolean, ...c: Date[]) => Date;
+type Rest2FunctionType = (...a: number[]) => Date;
 
 const rt = runType<FunctionType>() as FunctionRunType;
 const rt2 = runType<FunctionType2>() as FunctionRunType;
+const rtRest = runType<RestFunctionType>() as FunctionRunType;
+const rtRest2 = runType<Rest2FunctionType>() as FunctionRunType;
 
 it('return empty strings when calling regular jit functions', () => {
     expect(() => buildIsTypeJITFn(rt)).toThrow(
@@ -61,8 +65,8 @@ it('validate function + errors parameters', () => {
     expect(validate([3, false])).toEqual([]);
     // wrong type
     expect(validate([3, 3, 3])).toEqual([
-        {expected: 'boolean', path: '/b'},
-        {expected: 'string', path: '/c'},
+        {expected: 'boolean', path: '/1'},
+        {expected: 'string', path: '/2'},
     ]);
     // more parameters than expected
     expect(validate([3, true, 'hello', 7])).toEqual([{expected: '[a:number, b:boolean, c?:string]', path: ''}]);
@@ -219,4 +223,72 @@ it(`if function's return type is a promise then return type should be the promis
     expect(typeErrorsReturn(returnValue)).toEqual([]);
     expect(fromJsonReturn(toJsonReturn(returnValue))).toEqual(returnValue);
     expect(fromJsonReturn(JSON.parse(jsonStringifyReturn(returnValue)))).toEqual(returnValue);
+});
+
+// test a function with rest parameters
+
+it('validate function with rest parameters', () => {
+    const validate = rtRest.jitParamsFns.isType.fn;
+    const date1 = new Date();
+    const date2 = new Date();
+    expect(validate([3, true, date1, date2])).toBe(true);
+    // optional parameter
+    expect(validate([3, false])).toBe(true);
+    // wrong type
+    expect(validate([3, 3, 3])).toBe(false);
+    // more parameters than expected
+    expect(validate([3, true, new Date(), 7])).toBe(false);
+});
+
+it('validate + errors parameters function with rest parameters', () => {
+    const validate = rtRest.jitParamsFns.typeErrors.fn;
+    expect(validate([3, true, new Date(), new Date()])).toEqual([]);
+    // optional parameter
+    expect(validate([3, false])).toEqual([]);
+    // wrong type
+    expect(validate([3, 3, 3])).toEqual([
+        {expected: 'boolean', path: '/1'},
+        {expected: 'date', path: '/2'},
+    ]);
+    // wrong rest params
+    expect(validate([3, true, new Date(), 7, true])).toEqual([
+        {expected: 'date', path: '/3'},
+        {expected: 'date', path: '/4'},
+    ]);
+});
+
+it('encode/decode to json function with rest parameters', () => {
+    const toJson = rtRest.jitParamsFns.jsonEncode.fn;
+    const fromJson = rtRest.jitParamsFns.jsonDecode.fn;
+    expect(rtRest.isParamsJsonEncodedRequired).toBe(false);
+    expect(rtRest.isParamsJsonDecodedRequired).toBe(true);
+
+    const typeValue = [3, true, new Date(), new Date()];
+    const typeValue2 = [3, true];
+    const roundTrip = fromJson(JSON.parse(JSON.stringify(toJson(typeValue))));
+    const roundTrip2 = fromJson(JSON.parse(JSON.stringify(toJson(typeValue2))));
+    expect(roundTrip).toEqual(typeValue);
+    expect(roundTrip2).toEqual(typeValue2);
+});
+
+it('stringify function with rest parameters', () => {
+    const jsonStringify = rtRest.jitParamsFns.jsonStringify.fn;
+    const fromJson = rtRest.jitParamsFns.jsonDecode.fn;
+    const typeValue = [3, true, new Date(), new Date()];
+    const typeValue2 = [3, true];
+    const roundTrip = fromJson(JSON.parse(jsonStringify(typeValue)));
+    const roundTrip2 = fromJson(JSON.parse(jsonStringify(typeValue2)));
+    expect(roundTrip).toEqual(typeValue);
+    expect(roundTrip2).toEqual(typeValue2);
+});
+
+it('stringify function with only rest parameters', () => {
+    const jsonStringify = rtRest2.jitParamsFns.jsonStringify.fn;
+    const fromJson = rtRest2.jitParamsFns.jsonDecode.fn;
+    const typeValue = [3, 2, 1];
+    const typeValue2: number[] = [];
+    const roundTrip = fromJson(JSON.parse(jsonStringify(typeValue)));
+    const roundTrip3 = fromJson(JSON.parse(jsonStringify(typeValue2)));
+    expect(roundTrip).toEqual(typeValue);
+    expect(roundTrip3).toEqual(typeValue2);
 });

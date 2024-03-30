@@ -40,6 +40,7 @@ import {ObjectRunType} from './singleRunType/object';
 import {IntersectionRunType} from './collectionRunType/intersection';
 import {ParameterRunType} from './functionRunType/param';
 import {MethodRunType} from './functionRunType/method';
+import {RestParamsRunType} from './functionRunType/restParams';
 
 const MaxNestLevel = 100;
 
@@ -149,7 +150,7 @@ function visitor(deepkitType, nestLevel: number, opts: RunTypeOptions): RunType 
             rt = new RegexpRunType(visitor, deepkitType, nestLevel, opts);
             break;
         case ReflectionKind.rest:
-            throw new Error('Typebox does not support rest parameters i.e. function foo(...args: number[]) {}');
+            rt = new RestParamsRunType(visitor, deepkitType, nestLevel, opts);
             break;
         case ReflectionKind.string:
             rt = new StringRunType(visitor, deepkitType, nestLevel, opts);
@@ -214,7 +215,7 @@ function resolveNativeTypeFromObjectLiteral(
         case 'Iterator':
             throw new Error('Iterator not implemented');
         case 'AsyncIterator':
-            throw new Error('AsyncIterator not implemented');
+            throw new Error('AsyncIterator RunTypes are not supported');
         default:
             throw new Error(`Type is not an Native Type`);
     }
