@@ -86,9 +86,6 @@ export class InterfaceRunType<T extends TypeObjectLiteral | TypeClass = TypeObje
             const indexPropsCode = this.indexProps[0].JIT_jsonStringify(varName);
             return `'{'+${indexPropsCode}+'}'`;
         }
-
-        // unlike the other JIT methods the separator is added within the PropertySignatureRunType
-        // this is because optional properties can't emit any strings at runtime
         const propsCode = this.serializableProps.map((prop, i) => prop.JIT_jsonStringify(varName, i === 0)).join('+');
         return `'{'+${propsCode}+'}'`;
     }

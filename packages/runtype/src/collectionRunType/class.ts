@@ -6,7 +6,7 @@
  * ######## */
 import {TypeClass} from '../_deepkit/src/reflection/type';
 import {RunTypeOptions, RunTypeVisitor} from '../types';
-import {skipJsonDecode} from '../utils';
+import {skipJsonDecode, skipJsonEncode} from '../utils';
 import {InterfaceRunType} from './interface';
 import {IndexSignatureRunType} from './indexProperty';
 
@@ -20,7 +20,16 @@ export class ClassRunType extends InterfaceRunType<TypeClass> {
         super(visitor, src, nestLevel, opts);
         console.log('ClassRunType', src);
     }
-    // we need to restore the class without using the constructor
+    JIT_jsonEncode(varName: string): string {
+        if (skipJsonEncode(this)) return '';
+        if (this.indexProps.length) {
+            return this.indexProps[0].JIT_jsonEncode(varName);
+        }
+        return this.serializableProps
+            .map((prop) => prop.JIT_jsonEncode(varName))
+            .filter((code) => !!code)
+            .join(';');
+    }
     JIT_jsonDecode(varName: string): string {
         if (skipJsonDecode(this)) return '';
         if (this.indexProps.length) {
@@ -30,6 +39,14 @@ export class ClassRunType extends InterfaceRunType<TypeClass> {
             .map((prop) => prop.JIT_jsonDecode(varName))
             .filter((code) => !!code)
             .join(';');
+    }
+    JIT_jsonStringify(varName: string): string {
+        if (this.indexProps.length) {
+            const indexPropsCode = this.indexProps[0].JIT_jsonStringify(varName);
+            return `'{'+${indexPropsCode}+'}'`;
+        }
+        const propsCode = this.serializableProps.map((prop, i) => prop.JIT_jsonStringify(varName, i === 0)).join('+');
+        return `'{'+${propsCode}+'}'`;
     }
     mock(
         optionalParamsProbability: Record<string | number, number>,

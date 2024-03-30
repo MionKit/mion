@@ -63,4 +63,7 @@ export const anyValuesList = [
 
 export const mockObjectList = [{}, {a: 1}, {b: 2}, {a: 1, b: 'hello'}, {a: 1, b: 2, c: 3}, {a: 'hello', b: 2, c: 'wold', d: 4}];
 
-export const asJSONStringVarname = 'λsJSΦNStr1nς0';
+export const jitUtilsVarname = 'j1tUt1l5';
+export const jitUtilsAsJson = 'j1tUt1l5.asJSONString';
+export const jitUtilsAddClass = 'j1tUt1l5.addSerializableClass';
+export const jitUtilsGetClass = 'j1tUt1l5.getSerializableClass';

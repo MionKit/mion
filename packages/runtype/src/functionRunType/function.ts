@@ -8,7 +8,7 @@ import {ReflectionKind, TypeCallSignature, TypeFunction, TypeMethod, TypeMethodS
 import {BaseRunType} from '../baseRunType';
 import {isPromiseRunType} from '../guards';
 import {JITCompiler} from '../jitCompiler';
-import {JITFunctions, JitFunctions, RunType, RunTypeOptions, RunTypeVisitor} from '../types';
+import {JITFunctions, RunTypeJitFunctions, RunType, RunTypeOptions, RunTypeVisitor} from '../types';
 import {toLiteral} from '../utils';
 import {ParameterRunType} from './param';
 
@@ -86,7 +86,7 @@ export class FunctionRunType<CallType extends AnyFunction = TypeFunction> extend
         return (this._jitParamsFns = new JITCompiler(this, this._paramsJitFunctions));
     }
 
-    private _paramsJitFunctions: JitFunctions = {
+    private _paramsJitFunctions: RunTypeJitFunctions = {
         isType: (varName: string) => {
             if (this.parameterTypes.length === 0) return `${varName}.length === 0`;
             const paramsCode = this.parameterTypes.map((p, i) => `(${p.JIT_isType(varName, i)})`).join(' && ');
@@ -136,7 +136,7 @@ export class FunctionRunType<CallType extends AnyFunction = TypeFunction> extend
         return (this._jitReturnFns = new JITCompiler(this, this._returnJitFunctions));
     }
 
-    private _returnJitFunctions: JitFunctions = {
+    private _returnJitFunctions: RunTypeJitFunctions = {
         isType: (varName) => {
             return this.returnType.JIT_isType(varName);
         },
