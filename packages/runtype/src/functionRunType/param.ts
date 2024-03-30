@@ -2,6 +2,7 @@ import {TypeParameter} from '../_deepkit/src/reflection/type';
 import {BaseRunType} from '../baseRunType';
 import {RunType, RunTypeOptions, RunTypeVisitor} from '../types';
 import {addToPathChain, skipJsonDecode, skipJsonEncode} from '../utils';
+import {RestParamsRunType} from './restParams';
 
 /* ########
  * 2024 mion
@@ -13,12 +14,13 @@ import {addToPathChain, skipJsonDecode, skipJsonEncode} from '../utils';
 export class ParameterRunType extends BaseRunType<TypeParameter> {
     public readonly isJsonEncodeRequired: boolean;
     public readonly isJsonDecodeRequired: boolean;
-    public readonly memberRunType: RunType;
+    public readonly argRunType: RunType | RestParamsRunType;
     public readonly name: string;
     public readonly isOptional: boolean;
     public readonly isReadonly: boolean;
     public readonly paramName: string;
     public readonly default: any;
+    public readonly isRest: boolean;
 
     constructor(
         visitor: RunTypeVisitor,
@@ -27,44 +29,55 @@ export class ParameterRunType extends BaseRunType<TypeParameter> {
         public readonly opts: RunTypeOptions
     ) {
         super(visitor, src, nestLevel, opts);
-        this.memberRunType = visitor(src.type, nestLevel, opts);
-        this.isJsonEncodeRequired = this.memberRunType.isJsonEncodeRequired;
-        this.isJsonDecodeRequired = this.memberRunType.isJsonDecodeRequired;
-        this.isOptional = !!src.optional;
-        this.isReadonly = !!src.readonly;
+        this.argRunType = visitor(src.type, nestLevel, opts);
+        this.isJsonEncodeRequired = this.argRunType.isJsonEncodeRequired;
+        this.isJsonDecodeRequired = this.argRunType.isJsonDecodeRequired;
+        this.isRest = this.argRunType instanceof RestParamsRunType;
+        this.isOptional = !!src.optional || this.isRest;
+        this.isReadonly = !!src.readonly && !this.isRest;
         this.paramName = src.name;
-        this.name = `${src.name}${this.isOptional ? '?' : ''}:${this.memberRunType.name}`;
+        this.name = `${this.isRest ? '...' : ''}${src.name}${this.isOptional ? '?' : ''}:${this.argRunType.name}`;
     }
-    JIT_isType(varName: string): string {
-        if (this.isOptional) return `${varName} === undefined || (${this.memberRunType.JIT_isType(varName)})`;
-        return this.memberRunType.JIT_isType(varName);
+    JIT_isType(varName: string, itemIndex = 0): string {
+        if (this.isRest) return this.argRunType.JIT_isType(varName, itemIndex);
+        const argAccessor = `${varName}[${itemIndex}]`;
+        if (this.isOptional) return `${argAccessor} === undefined || (${this.argRunType.JIT_isType(argAccessor)})`;
+        return this.argRunType.JIT_isType(argAccessor);
     }
-    JIT_typeErrors(varName: string, errorsName: string, pathChain: string): string {
+    JIT_typeErrors(varName: string, errorsName: string, pathChain: string, itemIndex = 0): string {
+        if (this.isRest) return this.argRunType.JIT_typeErrors(varName, errorsName, pathChain, itemIndex);
+        const argAccessor = `${varName}[${itemIndex}]`;
         if (this.isOptional)
-            return `if (${varName} !== undefined) {${this.memberRunType.JIT_typeErrors(
-                varName,
+            return `if (${argAccessor} !== undefined) {${this.argRunType.JIT_typeErrors(
+                argAccessor,
                 errorsName,
-                addToPathChain(pathChain, this.paramName)
+                addToPathChain(pathChain, itemIndex)
             )}}`;
-        return this.memberRunType.JIT_typeErrors(varName, errorsName, addToPathChain(pathChain, this.paramName));
+        return this.argRunType.JIT_typeErrors(argAccessor, errorsName, addToPathChain(pathChain, itemIndex));
     }
-    JIT_jsonEncode(varName: string): string {
-        if (skipJsonEncode(this)) return varName;
-        return this.memberRunType.JIT_jsonEncode(varName);
+    JIT_jsonEncode(varName: string, itemIndex = 0): string {
+        if (this.isRest) return this.argRunType.JIT_jsonEncode(varName, itemIndex);
+        const argAccessor = `${varName}[${itemIndex}]`;
+        if (skipJsonEncode(this)) return argAccessor;
+        return this.argRunType.JIT_jsonEncode(argAccessor);
     }
-    JIT_jsonStringify(varName: string, isFirst = false): string {
-        const argCode = this.memberRunType.JIT_jsonStringify(varName);
-        const sep = isFirst ? '' : `','+`;
+    JIT_jsonDecode(varName: string, itemIndex = 0): string {
+        if (this.isRest) return this.argRunType.JIT_jsonDecode(varName, itemIndex);
+        const argAccessor = `${varName}[${itemIndex}]`;
+        if (skipJsonDecode(this)) return argAccessor;
+        return this.argRunType.JIT_jsonDecode(argAccessor);
+    }
+    JIT_jsonStringify(varName: string, itemIndex = 0): string {
+        if (this.isRest) return this.argRunType.JIT_jsonStringify(varName, itemIndex);
+        const argAccessor = `${varName}[${itemIndex}]`;
+        const argCode = this.argRunType.JIT_jsonStringify(argAccessor);
+        const sep = itemIndex === 0 ? '' : `','+`;
         if (this.isOptional) {
-            return `(${varName} === undefined ? '': ${sep}${argCode})`;
+            return `(${argAccessor} === undefined ? '': ${sep}${argCode})`;
         }
         return `${sep}${argCode}`;
     }
-    JIT_jsonDecode(varName: string): string {
-        if (skipJsonDecode(this)) return varName;
-        return this.memberRunType.JIT_jsonDecode(varName);
-    }
     mock(...args: any[]): any {
-        return this.memberRunType.mock(...args);
+        return this.argRunType.mock(...args);
     }
 }
