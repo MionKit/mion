@@ -2,7 +2,7 @@ import {ReflectionKind, TypeIndexSignature} from '../_deepkit/src/reflection/typ
 import {BaseRunType} from '../baseRunType';
 import {RunType, RunTypeOptions, RunTypeVisitor} from '../types';
 import {addToPathChain, isFunctionKind, skipJsonDecode, skipJsonEncode} from '../utils';
-import {asJSONStringVarname} from '../constants';
+import {jitUtilsAsJson} from '../constants';
 import {NumberRunType} from '../singleRunType/number';
 import {StringRunType} from '../singleRunType/string';
 import {SymbolRunType} from '../singleRunType/symbol';
@@ -74,7 +74,7 @@ export class IndexSignatureRunType extends BaseRunType<TypeIndexSignature> {
         const indexName = `prΦp${this.nestLevel}`;
         const itemAccessor = `${varName}[${indexName}]`;
         const itemCode = this.indexType.JIT_jsonStringify(itemAccessor);
-        const forLoop = `const ${arrName} = []; for (const ${indexName} in ${varName}) {if (${itemAccessor} !== undefined) ${arrName}.push(${asJSONStringVarname}(${indexName}) + ':' + ${itemCode})}`;
+        const forLoop = `const ${arrName} = []; for (const ${indexName} in ${varName}) {if (${itemAccessor} !== undefined) ${arrName}.push(${jitUtilsAsJson}(${indexName}) + ':' + ${itemCode})}`;
         const itemsCode = `(function(){${forLoop}; return ${arrName}.join(',')})()`;
         return itemsCode;
     }

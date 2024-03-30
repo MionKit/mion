@@ -7,9 +7,10 @@
 
 import {TypePropertySignature} from '../_deepkit/src/reflection/type';
 import {RunType, RunTypeOptions, RunTypeVisitor} from '../types';
-import {addToPathChain, asJSONString, isFunctionKind, skipJsonDecode, skipJsonEncode, toLiteral} from '../utils';
+import {addToPathChain, isFunctionKind, skipJsonDecode, skipJsonEncode, toLiteral} from '../utils';
 import {validPropertyNameRegExp} from '../constants';
 import {BaseRunType} from '../baseRunType';
+import {jitUtils} from '../jitUtils';
 
 export class PropertySignatureRunType extends BaseRunType<TypePropertySignature> {
     public readonly isJsonEncodeRequired: boolean;
@@ -101,7 +102,9 @@ export class PropertySignatureRunType extends BaseRunType<TypePropertySignature>
     JIT_jsonStringify(varName: string, isFisrt = false): string {
         if (!this.shouldSerialize) return '';
         // when is not safe firs stringify sanitizes string, second output double quoted scaped json string
-        const proNameJSon = this.isSafePropName ? `'${toLiteral(this.propName)}'` : asJSONString(toLiteral(this.propName));
+        const proNameJSon = this.isSafePropName
+            ? `'${toLiteral(this.propName)}'`
+            : jitUtils.asJSONString(toLiteral(this.propName));
         const accessor = `${varName}${this.safeAccessor}`;
         const propCode = this.memberRunType.JIT_jsonStringify(accessor);
         const sep = isFisrt ? '' : `','+`;
