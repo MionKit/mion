@@ -23,7 +23,7 @@ export class IntersectionRunType extends BaseRunType<TypeIntersection> {
     public readonly serializableProps: PropertySignatureRunType[];
     constructor(
         visitor: RunTypeVisitor,
-        src: TypeIntersection,
+        public readonly src: TypeIntersection,
         public readonly nestLevel: number,
         public readonly opts: RunTypeOptions
     ) {

@@ -5,13 +5,6 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 import {runType} from '../runType';
-import {
-    buildJsonEncodeJITFn,
-    buildJsonDecodeJITFn,
-    buildIsTypeJITFn,
-    buildTypeErrorsJITFn,
-    buildJsonStringifyJITFn,
-} from '../jitCompiler';
 import {InterfaceRunType} from './interface';
 import {NeverRunType} from '../singleRunType/never';
 
@@ -57,7 +50,7 @@ inter.prop5 = ['a', 'b', 'c'];
 it('Intersections generate already resolved types', () => {
     expect(rt instanceof InterfaceRunType).toBe(true);
     expect(rtNever1 instanceof NeverRunType).toBe(true);
-    expect(rt.name).toBe('object<prop1:date, prop2:number, prop3:string, prop4:null, prop5:array<string>>');
+    expect(rt.name).toBe('interface<prop1:date, prop2:number, prop3:string, prop4:null, prop5:array<string>>');
     expect(rtNever1.name).toBe('never');
 });
 

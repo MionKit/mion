@@ -22,7 +22,7 @@ export class RestParamsRunType extends BaseRunType<TypeRest> {
 
     constructor(
         visitor: RunTypeVisitor,
-        src: TypeRest,
+        public readonly src: TypeRest,
         public readonly nestLevel: number,
         public readonly opts: RunTypeOptions
     ) {

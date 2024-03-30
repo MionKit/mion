@@ -13,7 +13,7 @@ export class UnknownRunType extends AnyRunType {
     public readonly name = 'unknown';
     constructor(
         visitor: RunTypeVisitor,
-        src: TypeUnknown,
+        public readonly src: TypeUnknown,
         public readonly nestLevel: number,
         public readonly opts: RunTypeOptions
     ) {
