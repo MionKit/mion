@@ -17,7 +17,7 @@ export abstract class BaseRunType<T extends Type, Opts extends RunTypeOptions = 
 
     constructor(
         visitor: RunTypeVisitor,
-        src: T,
+        public readonly src: T,
         public readonly nestLevel: number,
         public readonly opts: Opts
     ) {

@@ -24,7 +24,7 @@ export class ParameterRunType extends BaseRunType<TypeParameter> {
 
     constructor(
         visitor: RunTypeVisitor,
-        src: TypeParameter,
+        public readonly src: TypeParameter,
         public readonly nestLevel: number,
         public readonly opts: RunTypeOptions
     ) {

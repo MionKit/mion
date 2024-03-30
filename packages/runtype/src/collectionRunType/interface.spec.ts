@@ -127,7 +127,7 @@ it('validate object + errors', () => {
     expect(valWithErrors('hello')).toEqual([
         {
             path: '',
-            expected: `object<startDate:date, quantity:number, name:string, nullValue:null, stringArray:array<string>, bigInt:bigint, optionalString?:string, weird prop name \n?>'\\\t\r:string>`,
+            expected: `interface<startDate:date, quantity:number, name:string, nullValue:null, stringArray:array<string>, bigInt:bigint, optionalString?:string, weird prop name \n?>'\\\t\r:string>`,
         },
     ]);
 });

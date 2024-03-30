@@ -19,7 +19,7 @@ export class EnumRunType extends BaseRunType<TypeEnum> {
     public readonly indexKind: ReflectionKind;
     constructor(
         visitor: RunTypeVisitor,
-        src: TypeEnum,
+        public readonly src: TypeEnum,
         public readonly nestLevel: number,
         public readonly opts: RunTypeOptions
     ) {

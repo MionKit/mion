@@ -34,7 +34,7 @@ export class FunctionRunType<CallType extends AnyFunction = TypeFunction> extend
     public readonly hasRestParameter: boolean;
     constructor(
         visitor: RunTypeVisitor,
-        src: CallType,
+        public readonly src: CallType,
         public readonly nestLevel: number,
         public readonly opts: RunTypeOptions,
         callType = 'function'

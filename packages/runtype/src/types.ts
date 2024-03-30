@@ -15,7 +15,7 @@ export type RunTypeVisitor = (deepkitType: Type, nestLevel: number, opts: RunTyp
 export interface RunType<Opts extends RunTypeOptions = RunTypeOptions> {
     readonly name: string;
     readonly nestLevel: number;
-    // readonly src: T; // deepkit src, removing it from the type but still required in the constructor
+    // readonly public readonly src: T; // deepkit src, removing it from the type but still required in the constructor
     readonly kind: ReflectionKind;
     readonly isJsonEncodeRequired: boolean;
     readonly isJsonDecodeRequired: boolean;

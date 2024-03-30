@@ -24,7 +24,7 @@ export class IndexSignatureRunType extends BaseRunType<TypeIndexSignature> {
     public readonly shouldSerialize: boolean;
     constructor(
         visitor: RunTypeVisitor,
-        src: TypeIndexSignature,
+        public readonly src: TypeIndexSignature,
         public readonly nestLevel: number,
         public readonly opts: RunTypeOptions
     ) {

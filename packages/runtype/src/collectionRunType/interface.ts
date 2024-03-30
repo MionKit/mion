@@ -4,7 +4,7 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
-import {TypeObjectLiteral} from '../_deepkit/src/reflection/type';
+import {TypeObjectLiteral, TypeClass} from '../_deepkit/src/reflection/type';
 import {RunTypeOptions, RunTypeVisitor} from '../types';
 import {skipJsonDecode, skipJsonEncode, toLiteral} from '../utils';
 import {PropertySignatureRunType} from './property';
@@ -13,9 +13,7 @@ import {MethodSignatureRunType} from '../functionRunType/methodSignature';
 import {CallSignatureRunType} from '../functionRunType/call';
 import {IndexSignatureRunType} from './indexProperty';
 
-const indexMessage = `ie supported: interface {[key: string]: string, [key: number]: string} | ie not supported: interface {[key: string]: string, [key: number]: number}`;
-
-export class InterfaceRunType extends BaseRunType<TypeObjectLiteral> {
+export class InterfaceRunType<T extends TypeObjectLiteral | TypeClass = TypeObjectLiteral> extends BaseRunType<T> {
     public readonly name: string;
     public readonly isJsonEncodeRequired: boolean;
     public readonly isJsonDecodeRequired: boolean;
@@ -24,9 +22,10 @@ export class InterfaceRunType extends BaseRunType<TypeObjectLiteral> {
     public readonly indexProps: IndexSignatureRunType[];
     constructor(
         visitor: RunTypeVisitor,
-        src: TypeObjectLiteral,
+        public readonly src: T,
         public readonly nestLevel: number,
-        public readonly opts: RunTypeOptions
+        public readonly opts: RunTypeOptions,
+        runTypeName = 'interface'
     ) {
         super(visitor, src, nestLevel, opts);
         this.entries = src.types.map((type) => visitor(type, nestLevel, opts)) as typeof this.entries;
@@ -41,13 +40,7 @@ export class InterfaceRunType extends BaseRunType<TypeObjectLiteral> {
         this.indexProps = this.entries.filter(
             (prop) => prop.shouldSerialize && prop instanceof IndexSignatureRunType
         ) as IndexSignatureRunType[];
-        const areIndexPropsValid =
-            this.indexProps.length <= 1 || (this.indexProps.length === 2 && this.indexProps[0].name === this.indexProps[1].name);
-        this.name = `object<${[...this.serializableProps, ...this.indexProps].map((prop) => prop.name).join(', ')}>`;
-        if (!areIndexPropsValid)
-            throw new Error(
-                `Interface RunType with index properties of different types are not supported in ${this.name}.\n${indexMessage}`
-            );
+        this.name = `${runTypeName}<${[...this.serializableProps, ...this.indexProps].map((prop) => prop.name).join(', ')}>`;
     }
     JIT_isType(varName: string): string {
         const propsCode = this.serializableProps.length

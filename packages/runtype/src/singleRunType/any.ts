@@ -15,7 +15,7 @@ export class AnyRunType extends BaseRunType<TypeAny | TypeUnknown> {
     public readonly isJsonDecodeRequired = false;
     constructor(
         visitor: RunTypeVisitor,
-        src: TypeAny | TypeUnknown,
+        public readonly src: TypeAny | TypeUnknown,
         public readonly nestLevel: number,
         public readonly opts: RunTypeOptions,
         public readonly name = 'any'

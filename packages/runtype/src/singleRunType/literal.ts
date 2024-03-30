@@ -21,7 +21,7 @@ export class LiteralRunType extends BaseRunType<TypeLiteral> {
     public readonly literal: symbol | string | number | boolean | bigint | RegExp;
     constructor(
         visitor: RunTypeVisitor,
-        src: TypeLiteral,
+        public readonly src: TypeLiteral,
         public readonly nestLevel: number,
         public readonly opts: RunTypeOptions
     ) {
