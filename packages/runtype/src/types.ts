@@ -12,8 +12,10 @@ export type JSONValue = string | number | boolean | null | {[key: string]: JSONV
 export type JSONString = string;
 
 export type RunTypeVisitor = (deepkitType: Type, nestLevel: number, opts: RunTypeOptions) => RunType;
+export type SrcType = Type & {_runType?: RunType};
 
 export interface RunType<Opts extends RunTypeOptions = RunTypeOptions> {
+    /** Unique name of the run type, if two run type has the same name they are considered to be equal */
     readonly name: string;
     readonly nestLevel: number;
     // readonly public readonly src: T; // deepkit src, removing it from the type but still required in the constructor

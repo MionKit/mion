@@ -8,7 +8,7 @@
 
 import {ReflectionKind, TypeObjectLiteral} from './_deepkit/src/reflection/type';
 import {resolveReceiveType, ReceiveType, reflect} from './_deepkit/src/reflection/reflection';
-import {RunType, RunTypeOptions, RunTypeVisitor} from './types';
+import {RunType, RunTypeOptions, RunTypeVisitor, SrcType} from './types';
 import {StringRunType} from './singleRunType/string';
 import {DateRunType} from './singleRunType/date';
 import {NumberRunType} from './singleRunType/number';
@@ -46,12 +46,16 @@ import {ClassRunType} from './collectionRunType/class';
 const MaxNestLevel = 100;
 
 export function runType<T>(opts: RunTypeOptions = {}, type?: ReceiveType<T>): RunType {
-    type = resolveReceiveType(type);
+    type = resolveReceiveType(type) as SrcType;
+    const embeddedRunType: RunType | undefined = (type as SrcType)._runType;
+    if (embeddedRunType) return embeddedRunType;
     return visitor(type, -1, opts);
 }
 
 export function reflectFunction<Fn extends (...args: any[]) => any>(fn: Fn, opts: RunTypeOptions = {}): FunctionRunType {
     const type = reflect(fn);
+    const embeddedRunType: RunType | undefined = (type as SrcType)._runType;
+    if (embeddedRunType) return embeddedRunType as FunctionRunType;
     return visitor(type, -1, opts) as FunctionRunType;
 }
 
@@ -164,7 +168,7 @@ function visitor(deepkitType, nestLevel: number, opts: RunTypeOptions): RunType 
             // this is only called when you define the type of a template literal i.e: type T = `foo${string}`;
             // this is not expected to be validated or serialized so not supported
             throw new Error(
-                'Template Literals are resolved by the compiler to Literals, template literal types are not supported. ie type TL = `${string}World`'
+                'Template Literals are resolved by the compiler to Literals ie: const tl = `${string}World`. Template literal types are not supported. ie type TL = `${string}World`'
             );
             break;
         case ReflectionKind.tuple:
@@ -197,6 +201,7 @@ function visitor(deepkitType, nestLevel: number, opts: RunTypeOptions): RunType 
             break;
     }
 
+    (deepkitType as SrcType)._runType = rt;
     return rt;
 }
 
