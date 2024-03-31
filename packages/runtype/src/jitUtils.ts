@@ -5,11 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-/** Serializable classes
- * Must have constructor with no arguments  */
-interface SerializableClass<T = any> {
-    new (): T;
-}
+import {AnyClass, SerializableClass} from './types';
 
 const classesMap = new Map<string, SerializableClass>();
 
@@ -59,20 +55,34 @@ export const jitUtils: JITUtils = {
         }
     },
 
-    addSerializableClass: (name, cls) => {
-        if (cls.constructor === undefined) throw new Error('Serializable classes must have a constructor');
-        if (cls.constructor.length !== 0) throw new Error('Serializable classes must have a constructor with no arguments');
-        classesMap.set(name, cls);
+    getSerializableClass: (name: string) => {
+        return classesMap.get(name);
     },
 
-    getSerializableClass: (name) => {
-        return classesMap.get(name);
+    getClassName: (cls: AnyClass) => {
+        if (!isClass(cls)) throw new Error('Cant get a class name from a non-class object');
+        return cls.name;
     },
 };
 
 // !!! DO NOT MODIFY NAMES OF PROPERTY OR METHODS AS THESE ARE HARDCODED IN THE JIT GENERATED CODE !!!
 export type JITUtils = {
     asJSONString: (str: string) => string;
-    addSerializableClass: (name: string, cls: SerializableClass) => void;
-    getSerializableClass: (name: string) => any;
+    getSerializableClass: (name: string) => SerializableClass | undefined;
+    getClassName: (cls: AnyClass) => string;
 };
+
+export function registerSerializableClass(cls: SerializableClass) {
+    if (!isClass(cls)) throw new Error('Only classes can be registered as for deserialization');
+    classesMap.set(cls.name, cls);
+}
+
+export function isClass(cls: AnyClass | any): cls is AnyClass {
+    return (
+        typeof cls === 'function' &&
+        cls.prototype &&
+        cls.prototype.constructor === cls &&
+        cls.prototype.constructor.name &&
+        cls.toString().startsWith('class')
+    );
+}

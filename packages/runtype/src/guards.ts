@@ -29,7 +29,7 @@ import {UnionRunType} from './collectionRunType/union';
 import {TupleRunType} from './collectionRunType/tuple';
 import {TupleMemberRunType} from './singleRunType/tupleMember';
 import {InterfaceRunType} from './collectionRunType/interface';
-import {PropertySignatureRunType} from './collectionRunType/property';
+import {PropertyRunType} from './collectionRunType/property';
 import {IndexSignatureRunType} from './collectionRunType/indexProperty';
 import {MethodSignatureRunType} from './functionRunType/methodSignature';
 import {CallSignatureRunType} from './functionRunType/call';
@@ -98,7 +98,7 @@ export function isInterfaceRunType(rt: RunType): rt is InterfaceRunType {
     return rt.kind === ReflectionKind.objectLiteral;
 }
 
-export function isPropertySignatureRunType(rt: RunType): rt is PropertySignatureRunType {
+export function isPropertySignatureRunType(rt: RunType): rt is PropertyRunType {
     return rt.kind === ReflectionKind.propertySignature;
 }
 
