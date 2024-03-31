@@ -7,7 +7,7 @@
 import {TypeObjectLiteral, TypeClass} from '../_deepkit/src/reflection/type';
 import {RunTypeOptions, RunTypeVisitor} from '../types';
 import {skipJsonDecode, skipJsonEncode, toLiteral} from '../utils';
-import {PropertySignatureRunType} from './property';
+import {PropertyRunType} from './property';
 import {BaseRunType} from '../baseRunType';
 import {MethodSignatureRunType} from '../functionRunType/methodSignature';
 import {CallSignatureRunType} from '../functionRunType/call';
@@ -17,23 +17,25 @@ export class InterfaceRunType<T extends TypeObjectLiteral | TypeClass = TypeObje
     public readonly name: string;
     public readonly isJsonEncodeRequired: boolean;
     public readonly isJsonDecodeRequired: boolean;
-    public readonly entries: (PropertySignatureRunType | MethodSignatureRunType | CallSignatureRunType | IndexSignatureRunType)[];
-    public readonly serializableProps: PropertySignatureRunType[];
+    public readonly entries: (PropertyRunType | MethodSignatureRunType | CallSignatureRunType | IndexSignatureRunType)[];
+    public readonly serializableProps: PropertyRunType[];
     public readonly indexProps: IndexSignatureRunType[];
     constructor(
         visitor: RunTypeVisitor,
         public readonly src: T,
         public readonly nestLevel: number,
         public readonly opts: RunTypeOptions,
-        runTypeName = 'interface'
+        runTypeName = 'interface',
+        isJsonDecodeRequired = false,
+        isJsonEncodeRequired = false
     ) {
         super(visitor, src, nestLevel, opts);
         this.entries = src.types.map((type) => visitor(type, nestLevel, opts)) as typeof this.entries;
-        this.isJsonDecodeRequired = this.entries.some((prop) => prop.isJsonDecodeRequired);
-        this.isJsonEncodeRequired = this.entries.some((prop) => prop.isJsonEncodeRequired);
+        this.isJsonDecodeRequired = isJsonDecodeRequired || this.entries.some((prop) => prop.isJsonDecodeRequired);
+        this.isJsonEncodeRequired = isJsonEncodeRequired || this.entries.some((prop) => prop.isJsonEncodeRequired);
         this.serializableProps = this.entries.filter(
             (prop) => prop.shouldSerialize && !(prop instanceof IndexSignatureRunType)
-        ) as PropertySignatureRunType[];
+        ) as PropertyRunType[];
 
         // ### index props ###
         // with symbol not being serializable index can only be string or number (max length 2)

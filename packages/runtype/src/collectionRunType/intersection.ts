@@ -7,7 +7,7 @@
 
 import {TypeIntersection} from '../_deepkit/src/reflection/type';
 import {RunTypeOptions, RunTypeVisitor} from '../types';
-import {PropertySignatureRunType} from './property';
+import {PropertyRunType} from './property';
 import {BaseRunType} from '../baseRunType';
 
 /** IMPORTANT:
@@ -19,8 +19,8 @@ export class IntersectionRunType extends BaseRunType<TypeIntersection> {
     public readonly name: string;
     public readonly isJsonEncodeRequired: boolean;
     public readonly isJsonDecodeRequired: boolean;
-    public readonly props: PropertySignatureRunType[];
-    public readonly serializableProps: PropertySignatureRunType[];
+    public readonly props: PropertyRunType[];
+    public readonly serializableProps: PropertyRunType[];
     constructor(
         visitor: RunTypeVisitor,
         public readonly src: TypeIntersection,
@@ -28,7 +28,7 @@ export class IntersectionRunType extends BaseRunType<TypeIntersection> {
         public readonly opts: RunTypeOptions
     ) {
         super(visitor, src, nestLevel, opts);
-        this.props = src.types.map((type) => visitor(type, nestLevel, opts) as PropertySignatureRunType);
+        this.props = src.types.map((type) => visitor(type, nestLevel, opts) as PropertyRunType);
         this.isJsonDecodeRequired = this.props.some((prop) => prop.isJsonDecodeRequired);
         this.isJsonEncodeRequired = this.props.some((prop) => prop.isJsonEncodeRequired);
         this.serializableProps = this.props.filter((prop) => !prop.shouldSerialize);

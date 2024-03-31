@@ -148,3 +148,14 @@ export interface RunTypeJitFunctions {
     jsonDecode: (varName: string) => string;
     jsonStringify: (varName: string) => string;
 }
+
+/** Serializable classes
+ * Must have constructor with no arguments  */
+export interface SerializableClass<T = any> {
+    new (): T;
+}
+
+/** Any Class */
+export interface AnyClass<T = any> {
+    new (...args: any[]): T;
+}

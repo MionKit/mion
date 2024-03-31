@@ -5,48 +5,36 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 import {TypeClass} from '../_deepkit/src/reflection/type';
-import {RunTypeOptions, RunTypeVisitor} from '../types';
-import {skipJsonDecode, skipJsonEncode} from '../utils';
+import {RunTypeOptions, RunTypeVisitor, SerializableClass} from '../types';
+import {toLiteral} from '../utils';
 import {InterfaceRunType} from './interface';
 import {IndexSignatureRunType} from './indexProperty';
+import {jitUtils} from '../jitUtils';
+import {jitUtilsGetClass} from '../constants';
 
 export class ClassRunType extends InterfaceRunType<TypeClass> {
+    public readonly className: string;
+    public readonly serializableClass: SerializableClass | undefined;
     constructor(
         visitor: RunTypeVisitor,
         public readonly src: TypeClass,
         public readonly nestLevel: number,
         public readonly opts: RunTypeOptions
     ) {
-        super(visitor, src, nestLevel, opts);
-        console.log('ClassRunType', src);
-    }
-    JIT_jsonEncode(varName: string): string {
-        if (skipJsonEncode(this)) return '';
-        if (this.indexProps.length) {
-            return this.indexProps[0].JIT_jsonEncode(varName);
-        }
-        return this.serializableProps
-            .map((prop) => prop.JIT_jsonEncode(varName))
-            .filter((code) => !!code)
-            .join(';');
+        super(visitor, src, nestLevel, opts, 'class', true, true);
+        this.className = jitUtils.getClassName(src.classType);
+        this.serializableClass = jitUtils.getSerializableClass(this.className);
     }
     JIT_jsonDecode(varName: string): string {
-        if (skipJsonDecode(this)) return '';
-        if (this.indexProps.length) {
-            return this.indexProps[0].JIT_jsonDecode(varName);
-        }
-        return this.serializableProps
-            .map((prop) => prop.JIT_jsonDecode(varName))
-            .filter((code) => !!code)
-            .join(';');
-    }
-    JIT_jsonStringify(varName: string): string {
-        if (this.indexProps.length) {
-            const indexPropsCode = this.indexProps[0].JIT_jsonStringify(varName);
-            return `'{'+${indexPropsCode}+'}'`;
-        }
-        const propsCode = this.serializableProps.map((prop, i) => prop.JIT_jsonStringify(varName, i === 0)).join('+');
-        return `'{'+${propsCode}+'}'`;
+        if (!this.serializableClass)
+            throw new Error(
+                `Class ${this.className} can't be serialized. Make sure to register it using registerSerializableClass()`
+            );
+        const decodeParams = super.JIT_jsonDecode(varName);
+        const decode = decodeParams ? `${decodeParams}; ` : '';
+        const classVarname = `clλss${this.nestLevel}`;
+        // todo create a new class
+        return `${decode}; const ${classVarname} = ${jitUtilsGetClass}(${toLiteral(this.className)}); ${varName} = Object.assign(new ${classVarname}, ${varName});`;
     }
     mock(
         optionalParamsProbability: Record<string | number, number>,

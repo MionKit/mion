@@ -5,14 +5,14 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {TypePropertySignature} from '../_deepkit/src/reflection/type';
+import {TypeProperty, TypePropertySignature} from '../_deepkit/src/reflection/type';
 import {RunType, RunTypeOptions, RunTypeVisitor} from '../types';
 import {addToPathChain, isFunctionKind, skipJsonDecode, skipJsonEncode, toLiteral} from '../utils';
 import {validPropertyNameRegExp} from '../constants';
 import {BaseRunType} from '../baseRunType';
 import {jitUtils} from '../jitUtils';
 
-export class PropertySignatureRunType extends BaseRunType<TypePropertySignature> {
+export class PropertyRunType extends BaseRunType<TypePropertySignature | TypeProperty> {
     public readonly isJsonEncodeRequired: boolean;
     public readonly isJsonDecodeRequired: boolean;
     public readonly memberRunType: RunType;

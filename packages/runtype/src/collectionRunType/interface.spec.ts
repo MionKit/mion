@@ -30,13 +30,6 @@ interface objectSkipProps {
     methodProp: () => any;
 }
 
-type objectIndexedProps = {
-    someProp: 2;
-    otherProp: 'hello';
-    [key: symbol]: string;
-    [key: number]: number;
-};
-
 type ObjectAllOptional = {
     a?: string;
     b?: number;
