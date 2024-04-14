@@ -7,7 +7,7 @@
 
 import {ReflectionKind, Type} from './_deepkit/src/reflection/type';
 import {JITCompiler} from './jitCompiler';
-import {JITFunctions, RunType, RunTypeOptions, RunTypeVisitor} from './types';
+import {JITFunctions, RunType, RunTypeOptions, RunTypeVisitor, SrcType} from './types';
 
 export abstract class BaseRunType<T extends Type, Opts extends RunTypeOptions = RunTypeOptions> implements RunType<Opts> {
     public abstract readonly name: string;
@@ -22,6 +22,7 @@ export abstract class BaseRunType<T extends Type, Opts extends RunTypeOptions = 
         public readonly opts: Opts
     ) {
         this.kind = src.kind;
+        (src as SrcType)._runType = this; // prevents infinite recursion when types have circular references
     }
 
     abstract JIT_isType(varName: string): string;

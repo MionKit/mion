@@ -10,12 +10,14 @@ import {RunType, RunTypeOptions, RunTypeVisitor} from '../types';
 import {addToPathChain, skipJsonDecode, skipJsonEncode, toLiteral} from '../utils';
 import {random} from '../mock';
 import {BaseRunType} from '../baseRunType';
+import {hasCircularReference} from '../_deepkit/src/reflection/reflection';
 
 export class ArrayRunType extends BaseRunType<TypeArray> {
     public readonly name: string;
     public readonly isJsonEncodeRequired;
     public readonly isJsonDecodeRequired;
     public readonly itemsRunType: RunType;
+    public readonly hasCircularReference: boolean;
     constructor(
         visitor: RunTypeVisitor,
         public readonly src: TypeArray,
@@ -24,6 +26,7 @@ export class ArrayRunType extends BaseRunType<TypeArray> {
     ) {
         super(visitor, src, nestLevel, opts);
         this.itemsRunType = visitor(src.type, nestLevel, opts);
+        this.hasCircularReference = hasCircularReference(src);
         this.isJsonEncodeRequired = this.itemsRunType.isJsonEncodeRequired;
         this.isJsonDecodeRequired = this.itemsRunType.isJsonDecodeRequired;
         this.name = `array<${this.itemsRunType.name}>`;

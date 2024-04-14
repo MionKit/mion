@@ -46,21 +46,20 @@ import {ClassRunType} from './collectionRunType/class';
 const MaxNestLevel = 100;
 
 export function runType<T>(opts: RunTypeOptions = {}, type?: ReceiveType<T>): RunType {
-    type = resolveReceiveType(type) as SrcType;
-    const embeddedRunType: RunType | undefined = (type as SrcType)._runType;
-    if (embeddedRunType) return embeddedRunType;
+    type = resolveReceiveType(type);
     return visitor(type, -1, opts);
 }
 
 export function reflectFunction<Fn extends (...args: any[]) => any>(fn: Fn, opts: RunTypeOptions = {}): FunctionRunType {
     const type = reflect(fn);
-    const embeddedRunType: RunType | undefined = (type as SrcType)._runType;
-    if (embeddedRunType) return embeddedRunType as FunctionRunType;
     return visitor(type, -1, opts) as FunctionRunType;
 }
 
 function visitor(deepkitType, nestLevel: number, opts: RunTypeOptions): RunType {
     // console.log('deepkitType', deepkitType);
+
+    const embeddedRunType: RunType | undefined = (deepkitType as SrcType)._runType;
+    if (embeddedRunType) return embeddedRunType;
 
     nestLevel += 1;
     if (nestLevel > MaxNestLevel) throw new Error('MaxNestLevel exceeded while resolving run type');

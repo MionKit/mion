@@ -12,6 +12,7 @@ import {BaseRunType} from '../baseRunType';
 import {MethodSignatureRunType} from '../functionRunType/methodSignature';
 import {CallSignatureRunType} from '../functionRunType/call';
 import {IndexSignatureRunType} from './indexProperty';
+import {hasCircularReference} from '../_deepkit/src/reflection/reflection';
 
 export class InterfaceRunType<T extends TypeObjectLiteral | TypeClass = TypeObjectLiteral> extends BaseRunType<T> {
     public readonly name: string;
@@ -20,6 +21,7 @@ export class InterfaceRunType<T extends TypeObjectLiteral | TypeClass = TypeObje
     public readonly entries: (PropertyRunType | MethodSignatureRunType | CallSignatureRunType | IndexSignatureRunType)[];
     public readonly serializableProps: PropertyRunType[];
     public readonly indexProps: IndexSignatureRunType[];
+    public readonly hasCircularReference: boolean;
     constructor(
         visitor: RunTypeVisitor,
         public readonly src: T,
@@ -33,6 +35,7 @@ export class InterfaceRunType<T extends TypeObjectLiteral | TypeClass = TypeObje
         this.entries = src.types.map((type) => visitor(type, nestLevel, opts)) as typeof this.entries;
         this.isJsonDecodeRequired = isJsonDecodeRequired || this.entries.some((prop) => prop.isJsonDecodeRequired);
         this.isJsonEncodeRequired = isJsonEncodeRequired || this.entries.some((prop) => prop.isJsonEncodeRequired);
+        this.hasCircularReference = hasCircularReference(src);
         this.serializableProps = this.entries.filter(
             (prop) => prop.shouldSerialize && !(prop instanceof IndexSignatureRunType)
         ) as PropertyRunType[];
@@ -43,6 +46,7 @@ export class InterfaceRunType<T extends TypeObjectLiteral | TypeClass = TypeObje
             (prop) => prop.shouldSerialize && prop instanceof IndexSignatureRunType
         ) as IndexSignatureRunType[];
         this.name = `${runTypeName}<${[...this.serializableProps, ...this.indexProps].map((prop) => prop.name).join(', ')}>`;
+        console.log('InterfaceRunType', this.name, this.hasCircularReference);
     }
     JIT_isType(varName: string): string {
         const propsCode = this.serializableProps.length
@@ -84,6 +88,7 @@ export class InterfaceRunType<T extends TypeObjectLiteral | TypeClass = TypeObje
             .join(';');
     }
     JIT_jsonStringify(varName: string): string {
+        if (this.hasCircularReference) return `(function(){return JSON.stringify(${varName})})()`;
         if (this.indexProps.length) {
             const indexPropsCode = this.indexProps[0].JIT_jsonStringify(varName);
             return `'{'+${indexPropsCode}+'}'`;
