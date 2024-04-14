@@ -1,5 +1,6 @@
 {
   "name": "root",
+  "version": "1.0.1-alpha.121",
   "repository": "https://github.com/deepkit/deepkit-framework",
   "author": "Marc J. Schmidt <marc@marcjschmidt.de>",
   "license": "MIT",
