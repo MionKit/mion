@@ -55,51 +55,53 @@ export class InterfaceRunType<T extends TypeObjectLiteral | TypeClass = TypeObje
         ) as IndexSignatureRunType[];
         this.slug = `${runTypeName}<${[...this.serializableProps, ...this.indexProps].map((prop) => prop.slug).join(', ')}>`;
     }
-    JIT_isType(varName: string): string {
+    compileIsType(varName: string): string {
         const propsCode = this.serializableProps.length
-            ? this.serializableProps.map((prop) => `(${prop.JIT_isType(varName)})`).join(' &&')
+            ? this.serializableProps.map((prop) => `(${prop.compileIsType(varName)})`).join(' &&')
             : '';
-        const indexPropsCode = this.indexProps.length ? this.indexProps[0].JIT_isType(varName) : '';
+        const indexPropsCode = this.indexProps.length ? this.indexProps[0].compileIsType(varName) : '';
         const code = [propsCode, indexPropsCode].filter((code) => !!code).join(' && ');
         return `typeof ${varName} === 'object' ${code ? `&& (${code})` : ''}`;
     }
-    JIT_typeErrors(varName: string, errorsName: string, pathLiteral: string): string {
+    compileTypeErrors(varName: string, errorsName: string, pathLiteral: string): string {
         const propsCode = this.serializableProps.length
-            ? this.serializableProps.map((prop) => prop.JIT_typeErrors(varName, errorsName, pathLiteral)).join(';')
+            ? this.serializableProps.map((prop) => prop.compileTypeErrors(varName, errorsName, pathLiteral)).join(';')
             : '';
-        const indexPropsCode = this.indexProps.length ? this.indexProps[0].JIT_typeErrors(varName, errorsName, pathLiteral) : '';
+        const indexPropsCode = this.indexProps.length
+            ? this.indexProps[0].compileTypeErrors(varName, errorsName, pathLiteral)
+            : '';
         const code = [propsCode, indexPropsCode].filter((code) => !!code).join('; ');
         return (
             `if (typeof ${varName} !== 'object') ${errorsName}.push({path: ${pathLiteral}, expected: ${toLiteral(this.slug)}});` +
             `else {${code}}`
         );
     }
-    JIT_jsonEncode(varName: string): string {
+    compileJsonEncode(varName: string): string {
         if (skipJsonEncode(this)) return '';
         if (this.indexProps.length) {
-            return this.indexProps[0].JIT_jsonEncode(varName);
+            return this.indexProps[0].compileJsonEncode(varName);
         }
         return this.serializableProps
-            .map((prop) => prop.JIT_jsonEncode(varName))
+            .map((prop) => prop.compileJsonEncode(varName))
             .filter((code) => !!code)
             .join(';');
     }
-    JIT_jsonDecode(varName: string): string {
+    compileJsonDecode(varName: string): string {
         if (skipJsonDecode(this)) return '';
         if (this.indexProps.length) {
-            return this.indexProps[0].JIT_jsonDecode(varName);
+            return this.indexProps[0].compileJsonDecode(varName);
         }
         return this.serializableProps
-            .map((prop) => prop.JIT_jsonDecode(varName))
+            .map((prop) => prop.compileJsonDecode(varName))
             .filter((code) => !!code)
             .join(';');
     }
-    JIT_jsonStringify(varName: string): string {
+    compileJsonStringify(varName: string): string {
         if (this.indexProps.length) {
-            const indexPropsCode = this.indexProps[0].JIT_jsonStringify(varName);
+            const indexPropsCode = this.indexProps[0].compileJsonStringify(varName);
             return `'{'+${indexPropsCode}+'}'`;
         }
-        const propsCode = this.serializableProps.map((prop, i) => prop.JIT_jsonStringify(varName, i === 0)).join('+');
+        const propsCode = this.serializableProps.map((prop, i) => prop.compileJsonStringify(varName, i === 0)).join('+');
         return `'{'+${propsCode}+'}'`;
     }
     mock(

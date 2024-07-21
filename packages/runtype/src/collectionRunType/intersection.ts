@@ -37,19 +37,19 @@ export class IntersectionRunType extends BaseRunType<TypeIntersection> {
         this.slug = `intersection<${this.serializableProps.map((prop) => prop.slug).join(' & ')}>`;
         this.hasCircular = this.serializableProps.some((prop) => prop.hasCircular);
     }
-    JIT_isType(): string {
+    compileIsType(): string {
         throw new Error('Intersection validation not supported, should be resolve to other RunTypes');
     }
-    JIT_typeErrors(): string {
+    compileTypeErrors(): string {
         throw new Error('Intersection validation not supported, should be resolve to other RunTypes');
     }
-    JIT_jsonEncode(): string {
+    compileJsonEncode(): string {
         throw new Error('Intersection serialization not supported, should be resolve to other RunTypes');
     }
-    JIT_jsonDecode(): string {
+    compileJsonDecode(): string {
         throw new Error('Intersection serialization not supported, should be resolve to other RunTypes');
     }
-    JIT_jsonStringify(): string {
+    compileJsonStringify(): string {
         throw new Error('Intersection serialization not supported, should be resolve to other RunTypes');
     }
     mock(

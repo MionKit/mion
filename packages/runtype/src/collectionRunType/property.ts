@@ -59,56 +59,56 @@ export class PropertyRunType extends BaseRunType<TypePropertySignature | TypePro
         this.slug = `${this.propName}${this.isOptional ? '?' : ''}:${this.memberRunType.slug}`;
         this.hasCircular = this.memberRunType.hasCircular || hasCircularRunType(this.memberRunType, parents);
     }
-    JIT_isType(varName: string): string {
+    compileIsType(varName: string): string {
         if (!this.shouldSerialize) return '';
         const accessor = `${varName}${this.safeAccessor}`;
         if (this.isOptional) {
-            return `${accessor} === undefined || (${this.memberRunType.JIT_isType(accessor)})`;
+            return `${accessor} === undefined || (${this.memberRunType.compileIsType(accessor)})`;
         }
-        return this.memberRunType.JIT_isType(accessor);
+        return this.memberRunType.compileIsType(accessor);
     }
-    JIT_typeErrors(varName: string, errorsName: string, pathChain: string): string {
+    compileTypeErrors(varName: string, errorsName: string, pathChain: string): string {
         if (!this.shouldSerialize) return '';
         const accessor = `${varName}${this.safeAccessor}`;
         if (this.isOptional) {
-            return `if (${accessor} !== undefined) {${this.memberRunType.JIT_typeErrors(
+            return `if (${accessor} !== undefined) {${this.memberRunType.compileTypeErrors(
                 accessor,
                 errorsName,
                 addToPathChain(pathChain, this.propName)
             )}}`;
         }
-        return this.memberRunType.JIT_typeErrors(accessor, errorsName, addToPathChain(pathChain, this.propName));
+        return this.memberRunType.compileTypeErrors(accessor, errorsName, addToPathChain(pathChain, this.propName));
     }
-    JIT_jsonEncode(varName: string): string {
+    compileJsonEncode(varName: string): string {
         if (!this.shouldSerialize) return '';
         const accessor = `${varName}${this.safeAccessor}`;
         const useNative = skipJsonEncode(this);
-        const propCode = useNative ? '' : this.memberRunType.JIT_jsonEncode(accessor);
+        const propCode = useNative ? '' : this.memberRunType.compileJsonEncode(accessor);
         if (!propCode) return '';
         if (this.isOptional) {
             return `if (${accessor} !== undefined) ${propCode}`;
         }
         return propCode;
     }
-    JIT_jsonDecode(varName: string): string {
+    compileJsonDecode(varName: string): string {
         if (!this.shouldSerialize) return '';
         const accessor = `${varName}${this.safeAccessor}`;
         const useNative = skipJsonDecode(this);
-        const propCode = useNative ? '' : this.memberRunType.JIT_jsonDecode(accessor);
+        const propCode = useNative ? '' : this.memberRunType.compileJsonDecode(accessor);
         if (!propCode) return '';
         if (this.isOptional) {
             return `if (${accessor} !== undefined) ${propCode}`;
         }
         return propCode;
     }
-    JIT_jsonStringify(varName: string, isFisrt = false): string {
+    compileJsonStringify(varName: string, isFisrt = false): string {
         if (!this.shouldSerialize) return '';
         // when is not safe firs stringify sanitizes string, second output double quoted scaped json string
         const proNameJSon = this.isSafePropName
             ? `'${toLiteral(this.propName)}'`
             : jitUtils.asJSONString(toLiteral(this.propName));
         const accessor = `${varName}${this.safeAccessor}`;
-        const propCode = this.memberRunType.JIT_jsonStringify(accessor);
+        const propCode = this.memberRunType.compileJsonStringify(accessor);
         const sep = isFisrt ? '' : `','+`;
         if (this.isOptional) {
             return `(${accessor} === undefined ? '' : ${sep}${proNameJSon}+':'+${propCode})`;

@@ -26,12 +26,12 @@ export class ClassRunType extends InterfaceRunType<TypeClass> {
         this.canDeserialize = this.entries.every((prop) => !isConstructor(prop) || prop.parameterTypes.length === 0);
         if (this.canDeserialize) jitUtils.registerSerializableClass(src.classType);
     }
-    JIT_jsonDecode(varName: string): string {
+    compileJsonDecode(varName: string): string {
         if (!this.canDeserialize)
             throw new Error(
                 `Class ${this.className} can't be deserialized. Oly classes with and empty constructor can be deserialized.`
             );
-        const decodeParams = super.JIT_jsonDecode(varName);
+        const decodeParams = super.compileJsonDecode(varName);
         const decode = decodeParams ? `${decodeParams}; ` : '';
         const classVarname = `clλss${this.nestLevel}`;
         // todo create a new class

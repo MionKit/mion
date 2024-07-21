@@ -28,19 +28,19 @@ export class EnumRunType extends SingleRunType<TypeEnum> {
         this.indexKind = src.indexType.kind;
         this.slug = `enum<${src.values.map((v) => v).join(', ')}>`;
     }
-    JIT_isType(varName: string): string {
+    compileIsType(varName: string): string {
         return this.values.map((v) => `${varName} === ${toLiteral(v)}`).join(' || ');
     }
-    JIT_typeErrors(varName: string, errorsName: string, pathChain: string): string {
-        return `if (!(${this.JIT_isType(varName)})) ${errorsName}.push({path: ${pathChain}, expected: ${toLiteral(this.slug)}})`;
+    compileTypeErrors(varName: string, errorsName: string, pathChain: string): string {
+        return `if (!(${this.compileIsType(varName)})) ${errorsName}.push({path: ${pathChain}, expected: ${toLiteral(this.slug)}})`;
     }
-    JIT_jsonEncode(): string {
+    compileJsonEncode(): string {
         return '';
     }
-    JIT_jsonDecode(): string {
+    compileJsonDecode(): string {
         return '';
     }
-    JIT_jsonStringify(varName: string): string {
+    compileJsonStringify(varName: string): string {
         if (this.indexKind === ReflectionKind.number) return varName;
         return `JSON.stringify(${varName})`;
     }

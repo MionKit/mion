@@ -15,19 +15,19 @@ export class BooleanRunType extends SingleRunType<TypeBoolean> {
     public readonly isJsonEncodeRequired = false;
     public readonly isJsonDecodeRequired = false;
 
-    JIT_isType(varName: string): string {
+    compileIsType(varName: string): string {
         return `typeof ${varName} === 'boolean'`;
     }
-    JIT_typeErrors(varName: string, errorsName: string, pathChain: string): string {
+    compileTypeErrors(varName: string, errorsName: string, pathChain: string): string {
         return `if (typeof ${varName} !== 'boolean') ${errorsName}.push({path: ${pathChain}, expected: ${toLiteral(this.slug)}})`;
     }
-    JIT_jsonEncode(): string {
+    compileJsonEncode(): string {
         return '';
     }
-    JIT_jsonDecode(): string {
+    compileJsonDecode(): string {
         return '';
     }
-    JIT_jsonStringify(varName: string): string {
+    compileJsonStringify(varName: string): string {
         return varName;
     }
     mock(): boolean {

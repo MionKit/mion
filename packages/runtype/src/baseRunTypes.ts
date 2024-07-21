@@ -6,8 +6,8 @@
  * ######## */
 
 import {ReflectionKind, Type} from './_deepkit/src/reflection/type';
-import {JITCompiler} from './jitCompiler';
-import {JITFunctions, RunType, RunTypeOptions, RunTypeVisitor, SrcType} from './types';
+import {buildJITFunctions} from './jitCompiler';
+import {JITFunctionsData, RunType, RunTypeOptions, RunTypeVisitor, SrcType} from './types';
 
 export abstract class BaseRunType<T extends Type, Opts extends RunTypeOptions = RunTypeOptions> implements RunType<Opts> {
     public abstract readonly slug: string;
@@ -29,17 +29,17 @@ export abstract class BaseRunType<T extends Type, Opts extends RunTypeOptions = 
         (src as SrcType)._runType = this;
     }
 
-    abstract JIT_isType(varName: string): string;
-    abstract JIT_typeErrors(varName: string, errorsName: string, pathChain: string): string;
-    abstract JIT_jsonEncode(varName: string): string;
-    abstract JIT_jsonDecode(varName: string): string;
-    abstract JIT_jsonStringify(varName: string): string;
+    abstract compileIsType(varName: string): string;
+    abstract compileTypeErrors(varName: string, errorsName: string, pathChain: string): string;
+    abstract compileJsonEncode(varName: string): string;
+    abstract compileJsonDecode(varName: string): string;
+    abstract compileJsonStringify(varName: string): string;
     abstract mock(...args: any[]): any;
 
-    private _compiled: JITFunctions | undefined;
-    get jitFunctions(): JITFunctions {
+    private _compiled: JITFunctionsData | undefined;
+    get jitFunctions(): JITFunctionsData {
         if (this._compiled) return this._compiled;
-        return (this._compiled = new JITCompiler(this));
+        return (this._compiled = buildJITFunctions(this));
     }
 }
 

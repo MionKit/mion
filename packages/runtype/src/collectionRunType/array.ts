@@ -30,42 +30,42 @@ export class ArrayRunType extends BaseRunType<TypeArray> {
         this.slug = `array<${this.itemsRunType.slug}>`;
         this.hasCircular = this.itemsRunType.hasCircular || hasCircularRunType(this.itemsRunType, parents);
     }
-    JIT_isType(varName: string): string {
+    compileIsType(varName: string): string {
         const indexName = `indεx${this.nestLevel}`;
         const itemAccessor = `${varName}[${indexName}]`;
-        const itemCode = this.itemsRunType.JIT_isType(itemAccessor);
+        const itemCode = this.itemsRunType.compileIsType(itemAccessor);
         const forLoop = `for (let ${indexName} = 0; ${indexName} < ${varName}.length; ${indexName}++) {if (!(${itemCode})) return false;}`;
         return `Array.isArray(${varName}) && (function() {${forLoop}return true})()`;
     }
-    JIT_typeErrors(varName: string, errorsName: string, pathLiteral: string): string {
+    compileTypeErrors(varName: string, errorsName: string, pathLiteral: string): string {
         const indexName = `indεx${this.nestLevel}`;
         const listItemPath = addToPathChain(pathLiteral, indexName, false);
         const itemAccessor = `${varName}[${indexName}]`;
-        const itemCode = this.itemsRunType.JIT_typeErrors(itemAccessor, errorsName, listItemPath);
+        const itemCode = this.itemsRunType.compileTypeErrors(itemAccessor, errorsName, listItemPath);
         const arrayCode = `if (!Array.isArray(${varName})) ${errorsName}.push({path: ${pathLiteral}, expected: ${toLiteral(this.slug)}});`;
         return arrayCode + `else { for (let ${indexName} = 0; ${indexName} < ${varName}.length; ${indexName}++) {${itemCode}} }`;
     }
-    JIT_jsonEncode(varName: string): string {
+    compileJsonEncode(varName: string): string {
         if (skipJsonEncode(this)) return '';
         const indexName = `indεx${this.nestLevel}`;
         const itemAccessor = `${varName}[${indexName}]`;
-        const itemCode = this.itemsRunType.JIT_jsonEncode(itemAccessor);
+        const itemCode = this.itemsRunType.compileJsonEncode(itemAccessor);
         if (!itemCode) return '';
         return `for (let ${indexName} = 0; ${indexName} < ${varName}.length; ${indexName}++) {${itemCode}}`;
     }
-    JIT_jsonDecode(varName: string): string {
+    compileJsonDecode(varName: string): string {
         if (skipJsonDecode(this)) return '';
         const indexName = `indεx${this.nestLevel}`;
         const itemAccessor = `${varName}[${indexName}]`;
-        const itemCode = this.itemsRunType.JIT_jsonDecode(itemAccessor);
+        const itemCode = this.itemsRunType.compileJsonDecode(itemAccessor);
         if (!itemCode) return '';
         return `for (let ${indexName} = 0; ${indexName} < ${varName}.length; ${indexName}++) {${itemCode}}`;
     }
-    JIT_jsonStringify(varName: string): string {
+    compileJsonStringify(varName: string): string {
         const arrName = `rεsultλrr${this.nestLevel}`;
         const indexName = `indεx${this.nestLevel}`;
         const itemAccessor = `${varName}[${indexName}]`;
-        const itemCode = this.itemsRunType.JIT_jsonStringify(itemAccessor);
+        const itemCode = this.itemsRunType.compileJsonStringify(itemAccessor);
         const forLoop = `const ${arrName} = []; for (let ${indexName} = 0; ${indexName} < ${varName}.length; ${indexName}++) {${arrName}.push(${itemCode})}`;
         const itemsCode = `(function(){${forLoop}; return ${arrName}.join(',')})()`;
         return `'[' + ${itemsCode} + ']'`;

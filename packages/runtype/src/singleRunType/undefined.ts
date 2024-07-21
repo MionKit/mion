@@ -14,19 +14,19 @@ export class UndefinedRunType extends SingleRunType<TypeUndefined> {
     public readonly isJsonEncodeRequired = true;
     public readonly isJsonDecodeRequired = true;
 
-    JIT_isType(varName: string): string {
+    compileIsType(varName: string): string {
         return `typeof ${varName} === 'undefined'`;
     }
-    JIT_typeErrors(varName: string, errorsName: string, pathChain: string): string {
+    compileTypeErrors(varName: string, errorsName: string, pathChain: string): string {
         return `if (typeof ${varName} !== 'undefined') ${errorsName}.push({path: ${pathChain}, expected: ${toLiteral(this.slug)}})`;
     }
-    JIT_jsonEncode(varName: string): string {
+    compileJsonEncode(varName: string): string {
         return `${varName} = null`;
     }
-    JIT_jsonDecode(varName: string): string {
+    compileJsonDecode(varName: string): string {
         return `${varName} = undefined`;
     }
-    JIT_jsonStringify(): string {
+    compileJsonStringify(): string {
         return `null`;
     }
     mock(): undefined {

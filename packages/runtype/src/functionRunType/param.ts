@@ -40,39 +40,39 @@ export class ParameterRunType extends BaseRunType<TypeParameter> {
         this.paramName = src.name;
         this.slug = `${this.isRest ? '...' : ''}${src.name}${this.isOptional ? '?' : ''}:${this.argRunType.slug}`;
     }
-    JIT_isType(varName: string, itemIndex = 0): string {
-        if (this.isRest) return this.argRunType.JIT_isType(varName, itemIndex);
+    compileIsType(varName: string, itemIndex = 0): string {
+        if (this.isRest) return this.argRunType.compileIsType(varName, itemIndex);
         const argAccessor = `${varName}[${itemIndex}]`;
-        if (this.isOptional) return `${argAccessor} === undefined || (${this.argRunType.JIT_isType(argAccessor)})`;
-        return this.argRunType.JIT_isType(argAccessor);
+        if (this.isOptional) return `${argAccessor} === undefined || (${this.argRunType.compileIsType(argAccessor)})`;
+        return this.argRunType.compileIsType(argAccessor);
     }
-    JIT_typeErrors(varName: string, errorsName: string, pathChain: string, itemIndex = 0): string {
-        if (this.isRest) return this.argRunType.JIT_typeErrors(varName, errorsName, pathChain, itemIndex);
+    compileTypeErrors(varName: string, errorsName: string, pathChain: string, itemIndex = 0): string {
+        if (this.isRest) return this.argRunType.compileTypeErrors(varName, errorsName, pathChain, itemIndex);
         const argAccessor = `${varName}[${itemIndex}]`;
         if (this.isOptional)
-            return `if (${argAccessor} !== undefined) {${this.argRunType.JIT_typeErrors(
+            return `if (${argAccessor} !== undefined) {${this.argRunType.compileTypeErrors(
                 argAccessor,
                 errorsName,
                 addToPathChain(pathChain, itemIndex)
             )}}`;
-        return this.argRunType.JIT_typeErrors(argAccessor, errorsName, addToPathChain(pathChain, itemIndex));
+        return this.argRunType.compileTypeErrors(argAccessor, errorsName, addToPathChain(pathChain, itemIndex));
     }
-    JIT_jsonEncode(varName: string, itemIndex = 0): string {
-        if (this.isRest) return this.argRunType.JIT_jsonEncode(varName, itemIndex);
+    compileJsonEncode(varName: string, itemIndex = 0): string {
+        if (this.isRest) return this.argRunType.compileJsonEncode(varName, itemIndex);
         const argAccessor = `${varName}[${itemIndex}]`;
         if (skipJsonEncode(this)) return argAccessor;
-        return this.argRunType.JIT_jsonEncode(argAccessor);
+        return this.argRunType.compileJsonEncode(argAccessor);
     }
-    JIT_jsonDecode(varName: string, itemIndex = 0): string {
-        if (this.isRest) return this.argRunType.JIT_jsonDecode(varName, itemIndex);
+    compileJsonDecode(varName: string, itemIndex = 0): string {
+        if (this.isRest) return this.argRunType.compileJsonDecode(varName, itemIndex);
         const argAccessor = `${varName}[${itemIndex}]`;
         if (skipJsonDecode(this)) return argAccessor;
-        return this.argRunType.JIT_jsonDecode(argAccessor);
+        return this.argRunType.compileJsonDecode(argAccessor);
     }
-    JIT_jsonStringify(varName: string, itemIndex = 0): string {
-        if (this.isRest) return this.argRunType.JIT_jsonStringify(varName, itemIndex);
+    compileJsonStringify(varName: string, itemIndex = 0): string {
+        if (this.isRest) return this.argRunType.compileJsonStringify(varName, itemIndex);
         const argAccessor = `${varName}[${itemIndex}]`;
-        const argCode = this.argRunType.JIT_jsonStringify(argAccessor);
+        const argCode = this.argRunType.compileJsonStringify(argAccessor);
         const sep = itemIndex === 0 ? '' : `','+`;
         if (this.isOptional) {
             return `(${argAccessor} === undefined ? '': ${sep}${argCode})`;

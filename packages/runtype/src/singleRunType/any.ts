@@ -22,19 +22,19 @@ export class AnyRunType extends SingleRunType<TypeAny | TypeUnknown> {
     ) {
         super(visitor, src, parents, opts);
     }
-    JIT_isType(): string {
+    compileIsType(): string {
         return `true`;
     }
-    JIT_typeErrors(): string {
+    compileTypeErrors(): string {
         return ``;
     }
-    JIT_jsonEncode(): string {
+    compileJsonEncode(): string {
         return '';
     }
-    JIT_jsonDecode(): string {
+    compileJsonDecode(): string {
         return '';
     }
-    JIT_jsonStringify(varName: string): string {
+    compileJsonStringify(varName: string): string {
         return `JSON.stringify(${varName})`;
     }
     mock(anyValuesLis?: any[]): string {

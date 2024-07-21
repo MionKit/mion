@@ -14,19 +14,19 @@ export class NullRunType extends SingleRunType<TypeNull> {
     public readonly isJsonEncodeRequired = false;
     public readonly isJsonDecodeRequired = false;
 
-    JIT_isType(varName: string): string {
+    compileIsType(varName: string): string {
         return `${varName} === null`;
     }
-    JIT_typeErrors(varName: string, errorsName: string, pathChain: string): string {
+    compileTypeErrors(varName: string, errorsName: string, pathChain: string): string {
         return `if (${varName} !== null) ${errorsName}.push({path: ${pathChain}, expected: ${toLiteral(this.slug)}})`;
     }
-    JIT_jsonEncode(): string {
+    compileJsonEncode(): string {
         return '';
     }
-    JIT_jsonDecode(): string {
+    compileJsonDecode(): string {
         return '';
     }
-    JIT_jsonStringify(varName: string): string {
+    compileJsonStringify(varName: string): string {
         return varName;
     }
     mock(): null {

@@ -40,43 +40,43 @@ export class IndexSignatureRunType extends BaseRunType<TypeIndexSignature> {
         this.slug = `index<${this.indexType.slug}>`;
         this.hasCircular = this.indexType.hasCircular || hasCircularRunType(this.indexType, parents);
     }
-    JIT_isType(varName: string): string {
+    compileIsType(varName: string): string {
         if (!this.shouldSerialize) return '';
         const indexName = `prΦp${this.nestLevel}`;
         const itemAccessor = `${varName}[${indexName}]`;
-        const itemCode = this.indexType.JIT_isType(itemAccessor);
+        const itemCode = this.indexType.compileIsType(itemAccessor);
         const forLoop = `for (const ${indexName} in ${varName}) {if (!(${itemCode})) return false;}`;
         return `(function() {${forLoop}return true})()`;
     }
-    JIT_typeErrors(varName: string, errorsName: string, pathLiteral: string): string {
+    compileTypeErrors(varName: string, errorsName: string, pathLiteral: string): string {
         if (!this.shouldSerialize) return '';
         const indexName = `prΦp${this.nestLevel}`;
         const listItemPath = addToPathChain(pathLiteral, indexName, false);
         const itemAccessor = `${varName}[${indexName}]`;
-        const itemCode = this.indexType.JIT_typeErrors(itemAccessor, errorsName, listItemPath);
+        const itemCode = this.indexType.compileTypeErrors(itemAccessor, errorsName, listItemPath);
         return `for (const ${indexName} in ${varName}) {${itemCode}}`;
     }
-    JIT_jsonEncode(varName: string): string {
+    compileJsonEncode(varName: string): string {
         if (skipJsonEncode(this) || !this.shouldSerialize) return '';
         const indexName = `prΦp${this.nestLevel}`;
         const itemAccessor = `${varName}[${indexName}]`;
-        const itemCode = this.indexType.JIT_jsonEncode(itemAccessor);
+        const itemCode = this.indexType.compileJsonEncode(itemAccessor);
         if (!itemCode) return '';
         return `for (const ${indexName} in ${varName}) {${itemCode}}`;
     }
-    JIT_jsonDecode(varName: string): string {
+    compileJsonDecode(varName: string): string {
         if (skipJsonDecode(this) || !this.shouldSerialize) return '';
         const indexName = `prΦp${this.nestLevel}`;
         const itemAccessor = `${varName}[${indexName}]`;
-        const itemCode = this.indexType.JIT_jsonDecode(itemAccessor);
+        const itemCode = this.indexType.compileJsonDecode(itemAccessor);
         if (!itemCode) return '';
         return `for (const ${indexName} in ${varName}) {${itemCode}}`;
     }
-    JIT_jsonStringify(varName: string): string {
+    compileJsonStringify(varName: string): string {
         const arrName = `prΦpsλrr${this.nestLevel}`;
         const indexName = `prΦp${this.nestLevel}`;
         const itemAccessor = `${varName}[${indexName}]`;
-        const itemCode = this.indexType.JIT_jsonStringify(itemAccessor);
+        const itemCode = this.indexType.compileJsonStringify(itemAccessor);
         const forLoop = `const ${arrName} = []; for (const ${indexName} in ${varName}) {if (${itemAccessor} !== undefined) ${arrName}.push(${jitUtilsVarNames.asJSONString}(${indexName}) + ':' + ${itemCode})}`;
         const itemsCode = `(function(){${forLoop}; return ${arrName}.join(',')})()`;
         return itemsCode;

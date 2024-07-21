@@ -16,19 +16,19 @@ export class ObjectRunType extends SingleRunType<TypeAny | TypeUnknown> {
     public readonly isJsonEncodeRequired = false;
     public readonly isJsonDecodeRequired = false;
 
-    JIT_isType(varName: string): string {
+    compileIsType(varName: string): string {
         return `typeof ${varName} === 'object' && ${varName} !== null`;
     }
-    JIT_typeErrors(varName: string, errorsName: string, pathChain: string): string {
-        return `if (!(${this.JIT_isType(varName)})) ${errorsName}.push({path: ${pathChain}, expected: ${toLiteral(this.slug)}})`;
+    compileTypeErrors(varName: string, errorsName: string, pathChain: string): string {
+        return `if (!(${this.compileIsType(varName)})) ${errorsName}.push({path: ${pathChain}, expected: ${toLiteral(this.slug)}})`;
     }
-    JIT_jsonEncode(): string {
+    compileJsonEncode(): string {
         return '';
     }
-    JIT_jsonDecode(): string {
+    compileJsonDecode(): string {
         return '';
     }
-    JIT_jsonStringify(varName: string): string {
+    compileJsonStringify(varName: string): string {
         return `JSON.stringify(${varName})`;
     }
     mock(objectLis: object[] = mockObjectList): object {
