@@ -6,11 +6,11 @@
  * ######## */
 
 import {TypeVoid} from '../_deepkit/src/reflection/type';
-import {BaseRunType} from '../baseRunType';
+import {SingleRunType} from '../baseRunTypes';
 import {toLiteral} from '../utils';
 
-export class VoidRunType extends BaseRunType<TypeVoid> {
-    public readonly name = 'void';
+export class VoidRunType extends SingleRunType<TypeVoid> {
+    public readonly slug = 'void';
     public readonly isJsonEncodeRequired = false;
     public readonly isJsonDecodeRequired = false;
 
@@ -18,7 +18,7 @@ export class VoidRunType extends BaseRunType<TypeVoid> {
         return `${varName} === undefined`;
     }
     JIT_typeErrors(varName: string, errorsName: string, pathChain: string): string {
-        return `if (${varName} !== undefined) ${errorsName}.push({path: ${pathChain}, expected: ${toLiteral(this.name)}})`;
+        return `if (${varName} !== undefined) ${errorsName}.push({path: ${pathChain}, expected: ${toLiteral(this.slug)}})`;
     }
     JIT_jsonEncode(varName: string): string {
         return `${varName} = undefined`;

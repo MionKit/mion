@@ -6,21 +6,21 @@
  * ######## */
 
 import {TypeAny, TypeUnknown} from '../_deepkit/src/reflection/type';
-import {RunTypeOptions, RunTypeVisitor} from '../types';
+import {RunType, RunTypeOptions, RunTypeVisitor} from '../types';
 import {mockAny} from '../mock';
-import {BaseRunType} from '../baseRunType';
+import {SingleRunType} from '../baseRunTypes';
 
-export class AnyRunType extends BaseRunType<TypeAny | TypeUnknown> {
+export class AnyRunType extends SingleRunType<TypeAny | TypeUnknown> {
     public readonly isJsonEncodeRequired = false;
     public readonly isJsonDecodeRequired = false;
     constructor(
         visitor: RunTypeVisitor,
         public readonly src: TypeAny | TypeUnknown,
-        public readonly nestLevel: number,
+        public readonly parents: RunType[],
         public readonly opts: RunTypeOptions,
-        public readonly name = 'any'
+        public readonly slug = 'any'
     ) {
-        super(visitor, src, nestLevel, opts);
+        super(visitor, src, parents, opts);
     }
     JIT_isType(): string {
         return `true`;

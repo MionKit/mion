@@ -10,19 +10,23 @@ import {JITCompiler} from './jitCompiler';
 import {JITFunctions, RunType, RunTypeOptions, RunTypeVisitor, SrcType} from './types';
 
 export abstract class BaseRunType<T extends Type, Opts extends RunTypeOptions = RunTypeOptions> implements RunType<Opts> {
-    public abstract readonly name: string;
+    public abstract readonly slug: string;
     public abstract readonly isJsonEncodeRequired: boolean;
     public abstract readonly isJsonDecodeRequired: boolean;
+    public abstract hasCircular: boolean;
     public readonly kind: ReflectionKind;
+    public readonly nestLevel: number;
 
     constructor(
         visitor: RunTypeVisitor,
         public readonly src: T,
-        public readonly nestLevel: number,
-        public readonly opts: Opts
+        readonly parents: RunType[],
+        readonly opts: Opts
     ) {
         this.kind = src.kind;
-        (src as SrcType)._runType = this; // prevents infinite recursion when types have circular references
+        this.nestLevel = parents.length;
+        // prevents infinite recursion when types have circular references, this should be assigned before any property type is resolved
+        (src as SrcType)._runType = this;
     }
 
     abstract JIT_isType(varName: string): string;
@@ -37,4 +41,9 @@ export abstract class BaseRunType<T extends Type, Opts extends RunTypeOptions = 
         if (this._compiled) return this._compiled;
         return (this._compiled = new JITCompiler(this));
     }
+}
+
+export abstract class SingleRunType<T extends Type, Opts extends RunTypeOptions = RunTypeOptions> extends BaseRunType<T, Opts> {
+    public isSingle = true;
+    public hasCircular = false;
 }

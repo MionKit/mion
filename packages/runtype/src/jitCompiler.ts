@@ -5,8 +5,8 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {jitUtilsVarname} from './constants';
-import {jitUtils} from './jitUtils';
+import {} from './constants';
+import {jitUtils, jitUtilsVarNames} from './jitUtils';
 import {
     JITFunctions,
     JSONValue,
@@ -44,9 +44,10 @@ export function buildIsTypeJITFn(runType: RunType, jitFunctions?: RunTypeJitFunc
     const code = `return ${jitCode};`;
     try {
         const fn = new Function(varName, code) as (vλluε: any) => boolean;
+        // console.log('isType', fn.toString());
         return {varNames: [varName], code, fn};
     } catch (e: any) {
-        throw new Error(`Error building isType JIT function for ${runType.name}: ${e?.message}.\nCode: ${code}`);
+        throw new Error(`Error building isType JIT function for ${runType.slug}: ${e?.message}.\nCode: ${code}`);
     }
 }
 
@@ -59,10 +60,11 @@ export function buildTypeErrorsJITFn(runType: RunType, jitFunctions?: RunTypeJit
     const code = `const ${errorsName} = []; ${jitCode}; return ${errorsName};`;
     try {
         const fn = new Function(varName, code) as (vλluε: any) => RunTypeValidationError[];
+        // console.log('typeErrors', fn.toString());
         return {varNames: [varName], code, fn};
     } catch (e: any) {
         const fnCode = ` Code:\nfunction anonymous(){${code}}`;
-        throw new Error(`Error building typeErrors JIT function for ${runType.name}: ${e?.message}.${fnCode}`);
+        throw new Error(`Error building typeErrors JIT function for ${runType.slug}: ${e?.message}.${fnCode}`);
     }
 }
 
@@ -72,13 +74,14 @@ export function buildJsonEncodeJITFn(runType: RunType, jitFunctions?: RunTypeJit
     const hasJitCode = !!jitCode;
     const code = `${jitCode} ${hasJitCode ? ';' : ''} return ${varName}`;
     try {
-        const varNames = [jitUtilsVarname, varName];
+        const varNames = [jitUtilsVarNames.root, varName];
         const encodeFn = new Function(...varNames, code);
         const wrapper: jsonDecodeFn = (value: any) => encodeFn(jitUtils, value);
+        // console.log('jsonEncode', encodeFn.toString());
         return {varNames, code, fn: wrapper};
     } catch (e: any) {
         const fnCode = ` Code:\nfunction anonymous(){${code}}`;
-        throw new Error(`Error building jsonEncode JIT function for ${runType.name}: ${e?.message}.${fnCode}`);
+        throw new Error(`Error building jsonEncode JIT function for ${runType.slug}: ${e?.message}.${fnCode}`);
     }
 }
 
@@ -88,13 +91,14 @@ export function buildJsonDecodeJITFn(runType: RunType, jitFunctions?: RunTypeJit
     const hasJitCode = !!jitCode;
     const code = `${jitCode} ${hasJitCode ? ';' : ''} return ${varName}`;
     try {
-        const varNames = [jitUtilsVarname, varName];
+        const varNames = [jitUtilsVarNames.root, varName];
         const decodeFn = new Function(...varNames, code);
         const wrapper: jsonDecodeFn = (value: JSONValue) => decodeFn(jitUtils, value);
+        // console.log('jsonDecode', decodeFn.toString());
         return {varNames, code, fn: wrapper};
     } catch (e: any) {
         const fnCode = ` Code:\nfunction anonymous(){${code}}`;
-        throw new Error(`Error building jsonDecode JIT function for ${runType.name}: ${e?.message}.${fnCode}`);
+        throw new Error(`Error building jsonDecode JIT function for ${runType.slug}: ${e?.message}.${fnCode}`);
     }
 }
 
@@ -103,13 +107,14 @@ export function buildJsonStringifyJITFn(runType: RunType, jitFunctions?: RunType
     const jitCode = jitFunctions?.jsonStringify ? jitFunctions.jsonStringify(varName) : runType.JIT_jsonStringify(varName);
     const code = `return ${jitCode};`;
     try {
-        const varNames = [jitUtilsVarname, varName];
+        const varNames = [jitUtilsVarNames.root, varName];
         const stringifyFn = new Function(...varNames, code);
         const wrapper: jsonStringifyFn = (value: any) => stringifyFn(jitUtils, value);
+        // console.log('jsonStringify', stringifyFn.toString());
         return {varNames, code, fn: wrapper};
     } catch (e: any) {
         const fnCode = ` Code:\nfunction anonymous(){${code}}`;
-        throw new Error(`Error building jsonStringify JIT function for ${runType.name}: ${e?.message}.${fnCode}`);
+        throw new Error(`Error building jsonStringify JIT function for ${runType.slug}: ${e?.message}.${fnCode}`);
     }
 }
 
@@ -149,8 +154,8 @@ export function restoreJitFunctions(serializable: SerializableJITFunctions): JIT
     const decode = new Function(...restored.jsonDecode.varNames, restored.jsonDecode.code);
     restored.jsonDecode.fn = (vλluε: any) => decode(...restored.jsonDecode.varNames, vλluε);
 
-    const stringify = new Function(jitUtilsVarname, restored.jsonStringify.varNames[0], restored.jsonStringify.code);
-    const stringifyFn = (vλluε: any) => stringify(jitUtilsVarname, vλluε);
+    const stringify = new Function(jitUtilsVarNames.root, restored.jsonStringify.varNames[0], restored.jsonStringify.code);
+    const stringifyFn = (vλluε: any) => stringify(jitUtilsVarNames.root, vλluε);
     restored.jsonStringify.fn = stringifyFn;
 
     return serializable as JITFunctions;

@@ -50,14 +50,14 @@ inter.prop5 = ['a', 'b', 'c'];
 it('Intersections generate already resolved types', () => {
     expect(rt instanceof InterfaceRunType).toBe(true);
     expect(rtNever1 instanceof NeverRunType).toBe(true);
-    expect(rt.name).toBe('interface<prop1:date, prop2:number, prop3:string, prop4:null, prop5:array<string>>');
-    expect(rtNever1.name).toBe('never');
+    expect(rt.slug).toBe('interface<prop1:date, prop2:number, prop3:string, prop4:null, prop5:array<string>>');
+    expect(rtNever1.slug).toBe('never');
 });
 
 // TODO, this is a but in DeepKit, it should resolve to never
 it.skip('property literal + incorrect type in second object should resolve to never', () => {
     expect(rtNever2 instanceof NeverRunType).toBe(true);
-    expect(rtNever2.name).toBe('never');
+    expect(rtNever2.slug).toBe('never');
 });
 
 // TODO: there might be some scenarios where intersection is called but can't reproduce them

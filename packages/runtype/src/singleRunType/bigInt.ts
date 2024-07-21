@@ -9,10 +9,10 @@ import {TypeBigInt} from '../_deepkit/src/reflection/type';
 import {JitJsonEncoder} from '../types';
 import {toLiteral} from '../utils';
 import {mockBigInt} from '../mock';
-import {BaseRunType} from '../baseRunType';
+import {SingleRunType} from '../baseRunTypes';
 
-export class BigIntRunType extends BaseRunType<TypeBigInt> {
-    public readonly name = 'bigint';
+export class BigIntRunType extends SingleRunType<TypeBigInt> {
+    public readonly slug = 'bigint';
     public readonly isJsonEncodeRequired = true;
     public readonly isJsonDecodeRequired = true;
 
@@ -20,7 +20,7 @@ export class BigIntRunType extends BaseRunType<TypeBigInt> {
         return `typeof ${varName} === 'bigint'`;
     }
     JIT_typeErrors(varName: string, errorsName: string, pathChain: string): string {
-        return `if (typeof ${varName} !== 'bigint') ${errorsName}.push({path: ${pathChain}, expected: ${toLiteral(this.name)}})`;
+        return `if (typeof ${varName} !== 'bigint') ${errorsName}.push({path: ${pathChain}, expected: ${toLiteral(this.slug)}})`;
     }
     JIT_jsonEncode(varName: string): string {
         return BigIntJitJsonENcoder.encodeToJson(varName);

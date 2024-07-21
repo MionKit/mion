@@ -5,36 +5,37 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 import {TypeClass} from '../_deepkit/src/reflection/type';
-import {RunTypeOptions, RunTypeVisitor, SerializableClass} from '../types';
+import {RunType, RunTypeOptions, RunTypeVisitor} from '../types';
 import {toLiteral} from '../utils';
 import {InterfaceRunType} from './interface';
 import {IndexSignatureRunType} from './indexProperty';
-import {jitUtils} from '../jitUtils';
-import {jitUtilsGetClass} from '../constants';
+import {jitUtils, jitUtilsVarNames} from '../jitUtils';
+import {isConstructor} from '../guards';
 
 export class ClassRunType extends InterfaceRunType<TypeClass> {
     public readonly className: string;
-    public readonly serializableClass: SerializableClass | undefined;
+    public readonly canDeserialize: boolean;
     constructor(
         visitor: RunTypeVisitor,
         public readonly src: TypeClass,
-        public readonly nestLevel: number,
+        public readonly parents: RunType[],
         public readonly opts: RunTypeOptions
     ) {
-        super(visitor, src, nestLevel, opts, 'class', true, true);
-        this.className = jitUtils.getClassName(src.classType);
-        this.serializableClass = jitUtils.getSerializableClass(this.className);
+        super(visitor, src, parents, opts, 'class', true, true);
+        this.className = src.classType.name;
+        this.canDeserialize = this.entries.every((prop) => !isConstructor(prop) || prop.parameterTypes.length === 0);
+        if (this.canDeserialize) jitUtils.registerSerializableClass(src.classType);
     }
     JIT_jsonDecode(varName: string): string {
-        if (!this.serializableClass)
+        if (!this.canDeserialize)
             throw new Error(
-                `Class ${this.className} can't be serialized. Make sure to register it using registerSerializableClass()`
+                `Class ${this.className} can't be deserialized. Oly classes with and empty constructor can be deserialized.`
             );
         const decodeParams = super.JIT_jsonDecode(varName);
         const decode = decodeParams ? `${decodeParams}; ` : '';
         const classVarname = `clλss${this.nestLevel}`;
         // todo create a new class
-        return `${decode}; const ${classVarname} = ${jitUtilsGetClass}(${toLiteral(this.className)}); ${varName} = Object.assign(new ${classVarname}, ${varName});`;
+        return `${decode}; const ${classVarname} = ${jitUtilsVarNames.getSerializableClass}(${toLiteral(this.className)}); ${varName} = Object.assign(new ${classVarname}, ${varName});`;
     }
     mock(
         optionalParamsProbability: Record<string | number, number>,

@@ -8,10 +8,10 @@
 import {TypeNumber} from '../_deepkit/src/reflection/type';
 import {toLiteral} from '../utils';
 import {mockNumber} from '../mock';
-import {BaseRunType} from '../baseRunType';
+import {SingleRunType} from '../baseRunTypes';
 
-export class NumberRunType extends BaseRunType<TypeNumber> {
-    public readonly name = 'number';
+export class NumberRunType extends SingleRunType<TypeNumber> {
+    public readonly slug = 'number';
     public readonly isJsonEncodeRequired = false;
     public readonly isJsonDecodeRequired = false;
 
@@ -19,7 +19,7 @@ export class NumberRunType extends BaseRunType<TypeNumber> {
         return `typeof ${varName} === 'number' && Number.isFinite(${varName})`;
     }
     JIT_typeErrors(varName: string, errorsName: string, pathChain: string): string {
-        return `if(!(${this.JIT_isType(varName)})) ${errorsName}.push({path: ${pathChain}, expected: ${toLiteral(this.name)}})`;
+        return `if(!(${this.JIT_isType(varName)})) ${errorsName}.push({path: ${pathChain}, expected: ${toLiteral(this.slug)}})`;
     }
     JIT_jsonEncode(): string {
         return '';

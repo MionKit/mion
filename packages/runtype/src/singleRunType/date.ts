@@ -9,10 +9,10 @@ import {TypeClass} from '../_deepkit/src/reflection/type';
 import {JitJsonEncoder} from '../types';
 import {toLiteral} from '../utils';
 import {mockDate} from '../mock';
-import {BaseRunType} from '../baseRunType';
+import {SingleRunType} from '../baseRunTypes';
 
-export class DateRunType extends BaseRunType<TypeClass> {
-    public readonly name = 'date';
+export class DateRunType extends SingleRunType<TypeClass> {
+    public readonly slug = 'date';
     public readonly isJsonEncodeRequired = false;
     public readonly isJsonDecodeRequired = true;
 
@@ -20,7 +20,7 @@ export class DateRunType extends BaseRunType<TypeClass> {
         return `${varName} instanceof Date && !isNaN(${varName}.getTime())`;
     }
     JIT_typeErrors(varName: string, errorsName: string, pathChain: string): string {
-        return `if (!(${this.JIT_isType(varName)})) ${errorsName}.push({path: ${pathChain}, expected: ${toLiteral(this.name)}})`;
+        return `if (!(${this.JIT_isType(varName)})) ${errorsName}.push({path: ${pathChain}, expected: ${toLiteral(this.slug)}})`;
     }
     JIT_jsonEncode(varName: string): string {
         return DateJitJsonENcoder.encodeToJson(varName);
