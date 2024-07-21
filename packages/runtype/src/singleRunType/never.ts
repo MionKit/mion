@@ -13,19 +13,19 @@ export class NeverRunType extends SingleRunType<TypeNever> {
     public readonly isJsonEncodeRequired = false;
     public readonly isJsonDecodeRequired = false;
 
-    JIT_isType(): string {
+    compileIsType(): string {
         throw new Error('Never type cannot exist at runtime.');
     }
-    JIT_typeErrors(): string {
+    compileTypeErrors(): string {
         throw new Error('Never type cannot exist at runtime.');
     }
-    JIT_jsonEncode(): string {
+    compileJsonEncode(): string {
         throw new Error('Never type cannot be encoded to JSON.');
     }
-    JIT_jsonDecode(): string {
+    compileJsonDecode(): string {
         throw new Error('Never type cannot be decoded from JSON.');
     }
-    JIT_jsonStringify(): string {
+    compileJsonStringify(): string {
         throw new Error('Never type cannot be stringified.');
     }
     mock() {

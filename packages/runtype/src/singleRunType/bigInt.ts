@@ -16,19 +16,19 @@ export class BigIntRunType extends SingleRunType<TypeBigInt> {
     public readonly isJsonEncodeRequired = true;
     public readonly isJsonDecodeRequired = true;
 
-    JIT_isType(varName: string): string {
+    compileIsType(varName: string): string {
         return `typeof ${varName} === 'bigint'`;
     }
-    JIT_typeErrors(varName: string, errorsName: string, pathChain: string): string {
+    compileTypeErrors(varName: string, errorsName: string, pathChain: string): string {
         return `if (typeof ${varName} !== 'bigint') ${errorsName}.push({path: ${pathChain}, expected: ${toLiteral(this.slug)}})`;
     }
-    JIT_jsonEncode(varName: string): string {
+    compileJsonEncode(varName: string): string {
         return BigIntJitJsonENcoder.encodeToJson(varName);
     }
-    JIT_jsonDecode(varName: string): string {
+    compileJsonDecode(varName: string): string {
         return BigIntJitJsonENcoder.decodeFromJson(varName);
     }
-    JIT_jsonStringify(varName: string): string {
+    compileJsonStringify(varName: string): string {
         return BigIntJitJsonENcoder.stringify(varName);
     }
     mock(min?: number, max?: number): bigint {

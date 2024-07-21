@@ -29,20 +29,20 @@ export class TupleMemberRunType extends BaseRunType<TypeTupleMember> {
         this.slug = this.memberRunType.slug;
         this.hasCircular = this.memberRunType.hasCircular || hasCircularRunType(this.memberRunType, parents);
     }
-    JIT_isType(varName: string): string {
-        return this.memberRunType.JIT_isType(varName);
+    compileIsType(varName: string): string {
+        return this.memberRunType.compileIsType(varName);
     }
-    JIT_typeErrors(varName: string, errorsName: string, pathChain: string): string {
-        return this.memberRunType.JIT_typeErrors(varName, errorsName, pathChain);
+    compileTypeErrors(varName: string, errorsName: string, pathChain: string): string {
+        return this.memberRunType.compileTypeErrors(varName, errorsName, pathChain);
     }
-    JIT_jsonEncode(varName: string): string {
-        return this.memberRunType.JIT_jsonEncode(varName);
+    compileJsonEncode(varName: string): string {
+        return this.memberRunType.compileJsonEncode(varName);
     }
-    JIT_jsonDecode(varName: string): string {
-        return this.memberRunType.JIT_jsonDecode(varName);
+    compileJsonDecode(varName: string): string {
+        return this.memberRunType.compileJsonDecode(varName);
     }
-    JIT_jsonStringify(varName: string): string {
-        return this.memberRunType.JIT_jsonStringify(varName);
+    compileJsonStringify(varName: string): string {
+        return this.memberRunType.compileJsonStringify(varName);
     }
     mock(...args: any[]): any {
         return this.memberRunType.mock(...args);

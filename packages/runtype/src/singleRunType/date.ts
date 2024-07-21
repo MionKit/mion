@@ -16,19 +16,19 @@ export class DateRunType extends SingleRunType<TypeClass> {
     public readonly isJsonEncodeRequired = false;
     public readonly isJsonDecodeRequired = true;
 
-    JIT_isType(varName: string): string {
+    compileIsType(varName: string): string {
         return `${varName} instanceof Date && !isNaN(${varName}.getTime())`;
     }
-    JIT_typeErrors(varName: string, errorsName: string, pathChain: string): string {
-        return `if (!(${this.JIT_isType(varName)})) ${errorsName}.push({path: ${pathChain}, expected: ${toLiteral(this.slug)}})`;
+    compileTypeErrors(varName: string, errorsName: string, pathChain: string): string {
+        return `if (!(${this.compileIsType(varName)})) ${errorsName}.push({path: ${pathChain}, expected: ${toLiteral(this.slug)}})`;
     }
-    JIT_jsonEncode(varName: string): string {
+    compileJsonEncode(varName: string): string {
         return DateJitJsonENcoder.encodeToJson(varName);
     }
-    JIT_jsonDecode(varName: string): string {
+    compileJsonDecode(varName: string): string {
         return DateJitJsonENcoder.decodeFromJson(varName);
     }
-    JIT_jsonStringify(varName: string): string {
+    compileJsonStringify(varName: string): string {
         return DateJitJsonENcoder.stringify(varName);
     }
     mock(minDate?: Date, maxDate?: Date): Date {

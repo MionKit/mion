@@ -30,39 +30,39 @@ export class TupleRunType extends BaseRunType<TypeTuple> {
         this.isJsonDecodeRequired = this.runTypes.some((rt) => rt.isJsonDecodeRequired);
         this.hasCircular = this.runTypes.some((rt) => rt.hasCircular);
     }
-    JIT_isType(varName: string): string {
-        const itemsCode = this.runTypes.map((rt, i) => `(${rt.JIT_isType(`${varName}[${i}]`)})`).join(' && ');
+    compileIsType(varName: string): string {
+        const itemsCode = this.runTypes.map((rt, i) => `(${rt.compileIsType(`${varName}[${i}]`)})`).join(' && ');
         return `${varName}.length <= ${this.runTypes.length} && ${itemsCode}`;
     }
-    JIT_typeErrors(varName: string, errorsName: string, pathChain: string): string {
+    compileTypeErrors(varName: string, errorsName: string, pathChain: string): string {
         const itemsCode = this.runTypes
-            .map((rt, i) => rt.JIT_typeErrors(`${varName}[${i}]`, errorsName, addToPathChain(pathChain, i)))
+            .map((rt, i) => rt.compileTypeErrors(`${varName}[${i}]`, errorsName, addToPathChain(pathChain, i)))
             .join(';');
         return (
             `if (!Array.isArray(${varName}) || ${varName}.length > ${this.runTypes.length}) ${errorsName}.push({path: ${pathChain}, expected: ${toLiteral(this.slug)}});` +
             `else {${itemsCode}}`
         );
     }
-    JIT_jsonEncode(varName: string): string {
+    compileJsonEncode(varName: string): string {
         if (skipJsonEncode(this)) return '';
         const encodeCodes = this.runTypes.map((rt, i) => {
             const useNative = !this.opts?.strictJSON && !rt.isJsonEncodeRequired;
             const accessor = `${varName}[${i}]`;
-            return useNative ? `` : `${accessor} = ${rt.JIT_jsonEncode(accessor)}`;
+            return useNative ? `` : `${accessor} = ${rt.compileJsonEncode(accessor)}`;
         });
         return encodeCodes.filter((code) => !!code).join(';');
     }
-    JIT_jsonDecode(varName: string): string {
+    compileJsonDecode(varName: string): string {
         if (skipJsonDecode(this)) return varName;
         const decodeCodes = this.runTypes.map((rt, i) => {
             const useNative = !this.opts?.strictJSON && !rt.isJsonDecodeRequired;
             const accessor = `${varName}[${i}]`;
-            return useNative ? `` : `${accessor} = ${rt.JIT_jsonDecode(accessor)}`;
+            return useNative ? `` : `${accessor} = ${rt.compileJsonDecode(accessor)}`;
         });
         return decodeCodes.filter((code) => !!code).join(';');
     }
-    JIT_jsonStringify(varName: string): string {
-        const encodeCodes = this.runTypes.map((rt, i) => rt.JIT_jsonStringify(`${varName}[${i}]`));
+    compileJsonStringify(varName: string): string {
+        const encodeCodes = this.runTypes.map((rt, i) => rt.compileJsonStringify(`${varName}[${i}]`));
         return `'['+${encodeCodes.join(`+','+`)}+']'`;
     }
     mock(...tupleArgs: any[][]): any[] {

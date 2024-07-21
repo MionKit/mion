@@ -15,19 +15,19 @@ export class NumberRunType extends SingleRunType<TypeNumber> {
     public readonly isJsonEncodeRequired = false;
     public readonly isJsonDecodeRequired = false;
 
-    JIT_isType(varName: string): string {
+    compileIsType(varName: string): string {
         return `typeof ${varName} === 'number' && Number.isFinite(${varName})`;
     }
-    JIT_typeErrors(varName: string, errorsName: string, pathChain: string): string {
-        return `if(!(${this.JIT_isType(varName)})) ${errorsName}.push({path: ${pathChain}, expected: ${toLiteral(this.slug)}})`;
+    compileTypeErrors(varName: string, errorsName: string, pathChain: string): string {
+        return `if(!(${this.compileIsType(varName)})) ${errorsName}.push({path: ${pathChain}, expected: ${toLiteral(this.slug)}})`;
     }
-    JIT_jsonEncode(): string {
+    compileJsonEncode(): string {
         return '';
     }
-    JIT_jsonDecode(): string {
+    compileJsonDecode(): string {
         return '';
     }
-    JIT_jsonStringify(varName: string): string {
+    compileJsonStringify(varName: string): string {
         return varName;
     }
     mock(min?: number, max?: number): number {

@@ -55,26 +55,26 @@ export class LiteralRunType extends SingleRunType<TypeLiteral> {
         }
         this.slug = `literal<${toLiteral(src.literal)}>`;
     }
-    JIT_isType(varName: string): string {
+    compileIsType(varName: string): string {
         if (typeof this.literal === 'symbol') return validateSymbol(varName, this.literal);
         else if (this.literal instanceof RegExp) return validateRegExp(varName, this.literal);
         else if (typeof this.literal === 'bigint') return validateBigInt(varName, this.literal);
         else return validateLiteral(varName, this.literal);
     }
-    JIT_typeErrors(varName: string, errorsName: string, pathChain: string): string {
+    compileTypeErrors(varName: string, errorsName: string, pathChain: string): string {
         if (typeof this.literal === 'symbol')
             return validateSymbolWithErrors(varName, errorsName, pathChain, this.literal, this.slug);
         else if (this.literal instanceof RegExp)
             return validateRegExpWithErrors(varName, errorsName, pathChain, this.literal, this.slug);
         return validateLiteralWithErrors(varName, errorsName, pathChain, this.literal, this.slug);
     }
-    JIT_jsonEncode(varName: string): string {
+    compileJsonEncode(varName: string): string {
         return this.jitJsonEncoder.encodeToJson(varName);
     }
-    JIT_jsonDecode(varName: string): string {
+    compileJsonDecode(varName: string): string {
         return this.jitJsonEncoder.decodeFromJson(varName);
     }
-    JIT_jsonStringify(varName: string): string {
+    compileJsonStringify(varName: string): string {
         return this.jitJsonEncoder.stringify(varName);
     }
     mock(): symbol | string | number | boolean | bigint | RegExp {

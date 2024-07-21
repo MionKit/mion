@@ -7,8 +7,8 @@
 import {ReflectionKind, TypeCallSignature, TypeFunction, TypeMethod, TypeMethodSignature} from '../_deepkit/src/reflection/type';
 import {BaseRunType} from '../baseRunTypes';
 import {isPromiseRunType} from '../guards';
-import {JITCompiler} from '../jitCompiler';
-import {JITFunctions, RunTypeJitFunctions, RunType, RunTypeOptions, RunTypeVisitor} from '../types';
+import {buildJITFunctions} from '../jitCompiler';
+import {JITFunctionsData, JitCompilerFunctions, RunType, RunTypeOptions, RunTypeVisitor} from '../types';
 import {toLiteral} from '../utils';
 import {ParameterRunType} from './param';
 
@@ -61,19 +61,19 @@ export class FunctionRunType<CallType extends AnyFunction = TypeFunction> extend
         this.hasReturnData = this._hasReturnData(this.returnType.kind);
         this.isAsync = isPromise || this._isAsync(this.returnType.kind);
     }
-    JIT_isType(): string {
+    compileIsType(): string {
         throw new Error(`${this.slug} validation is not supported, instead validate parameters or return type separately.`);
     }
-    JIT_typeErrors(): string {
+    compileTypeErrors(): string {
         throw new Error(`${this.slug} validation is not supported, instead validate parameters or return type separately.`);
     }
-    JIT_jsonEncode(): string {
+    compileJsonEncode(): string {
         throw new Error(`${this.slug} json encode is not supported, instead encode parameters or return type separately.`);
     }
-    JIT_jsonDecode(): string {
+    compileJsonDecode(): string {
         throw new Error(`${this.slug} json decode is not supported, instead decode parameters or return type separately.`);
     }
-    JIT_jsonStringify(): string {
+    compileJsonStringify(): string {
         throw new Error(`${this.slug} json stringify is not supported, instead stringify parameters or return type separately.`);
     }
     mock(): string {
@@ -82,46 +82,48 @@ export class FunctionRunType<CallType extends AnyFunction = TypeFunction> extend
 
     // ####### params #######
 
-    private _jitParamsFns: JITFunctions | undefined;
-    get jitParamsFns(): JITFunctions {
+    private _jitParamsFns: JITFunctionsData | undefined;
+    get jitParamsFns(): JITFunctionsData {
         if (this._jitParamsFns) return this._jitParamsFns;
-        return (this._jitParamsFns = new JITCompiler(this, this._paramsJitFunctions));
+        return (this._jitParamsFns = buildJITFunctions(this, this._paramsJitFunctions));
     }
 
-    private _paramsJitFunctions: RunTypeJitFunctions = {
-        isType: (varName: string) => {
+    private _paramsJitFunctions: JitCompilerFunctions = {
+        compileIsType: (varName: string) => {
             if (this.parameterTypes.length === 0) return `${varName}.length === 0`;
-            const paramsCode = this.parameterTypes.map((p, i) => `(${p.JIT_isType(varName, i)})`).join(' && ');
+            const paramsCode = this.parameterTypes.map((p, i) => `(${p.compileIsType(varName, i)})`).join(' && ');
             const maxLength = !this.hasRestParameter ? `&& ${varName}.length <= ${this.parameterTypes.length}` : '';
             const checkLength = `${varName}.length >= ${this.totalRequiredParams} ${maxLength}`;
             return `${checkLength} && ${paramsCode}`;
         },
-        typeErrors: (varName: string, errorsName: string, pathChain: string) => {
+        compileTypeErrors: (varName: string, errorsName: string, pathChain: string) => {
             const maxLength = !this.hasRestParameter ? `|| ${varName}.length > ${this.parameterTypes.length}` : '';
             const checkLength = `(${varName}.length < ${this.totalRequiredParams} ${maxLength})`;
-            const paramsCode = this.parameterTypes.map((p, i) => p.JIT_typeErrors(varName, errorsName, pathChain, i)).join(';');
+            const paramsCode = this.parameterTypes
+                .map((p, i) => p.compileTypeErrors(varName, errorsName, pathChain, i))
+                .join(';');
             return (
                 `if (!Array.isArray(${varName}) || ${checkLength}) ${errorsName}.push({path: ${pathChain}, expected: ${toLiteral(this.paramsName)}});` +
                 `else {${paramsCode}}`
             );
         },
-        jsonEncode: (varName: string) => {
+        compileJsonEncode: (varName: string) => {
             if (!this.opts?.strictJSON && !this.isParamsJsonEncodedRequired) return '';
             return this.parameterTypes
-                .map((p, i) => p.JIT_jsonEncode(varName, i))
+                .map((p, i) => p.compileJsonEncode(varName, i))
                 .filter((code) => !!code)
                 .join(';');
         },
-        jsonDecode: (varName: string) => {
+        compileJsonDecode: (varName: string) => {
             if (!this.opts?.strictJSON && !this.isParamsJsonDecodedRequired) return '';
             return this.parameterTypes
-                .map((p, i) => p.JIT_jsonDecode(varName, i))
+                .map((p, i) => p.compileJsonDecode(varName, i))
                 .filter((code) => !!code)
                 .join(';');
         },
-        jsonStringify: (varName: string) => {
+        compileJsonStringify: (varName: string) => {
             if (this.parameterTypes.length === 0) return `[]`;
-            const paramsCode = this.parameterTypes.map((p, i) => p.JIT_jsonStringify(varName, i)).join('+');
+            const paramsCode = this.parameterTypes.map((p, i) => p.compileJsonStringify(varName, i)).join('+');
             return `'['+${paramsCode}+']'`;
         },
     };
@@ -132,28 +134,28 @@ export class FunctionRunType<CallType extends AnyFunction = TypeFunction> extend
 
     // ####### return #######
 
-    private _jitReturnFns: JITFunctions | undefined;
-    get jitReturnFns(): JITFunctions {
+    private _jitReturnFns: JITFunctionsData | undefined;
+    get jitReturnFns(): JITFunctionsData {
         if (this._jitReturnFns) return this._jitReturnFns;
-        return (this._jitReturnFns = new JITCompiler(this, this._returnJitFunctions));
+        return (this._jitReturnFns = buildJITFunctions(this, this._returnJitFunctions));
     }
 
-    private _returnJitFunctions: RunTypeJitFunctions = {
-        isType: (varName) => {
-            return this.returnType.JIT_isType(varName);
+    private _returnJitFunctions: JitCompilerFunctions = {
+        compileIsType: (varName) => {
+            return this.returnType.compileIsType(varName);
         },
-        typeErrors: (varName: string, errorsName: string, pathChain: string) => {
-            return this.returnType.JIT_typeErrors(varName, errorsName, pathChain);
+        compileTypeErrors: (varName: string, errorsName: string, pathChain: string) => {
+            return this.returnType.compileTypeErrors(varName, errorsName, pathChain);
         },
-        jsonEncode: (varName: string) => {
+        compileJsonEncode: (varName: string) => {
             if (!this.opts?.strictJSON && !this.isReturnJsonEncodedRequired) return '';
-            return this.returnType.JIT_jsonEncode(varName);
+            return this.returnType.compileJsonEncode(varName);
         },
-        jsonDecode: (varName: string) => {
+        compileJsonDecode: (varName: string) => {
             if (!this.opts?.strictJSON && !this.isReturnJsonDecodedRequired) return '';
-            return this.returnType.JIT_jsonDecode(varName);
+            return this.returnType.compileJsonDecode(varName);
         },
-        jsonStringify: (varName: string) => this.returnType.JIT_jsonStringify(varName),
+        compileJsonStringify: (varName: string) => this.returnType.compileJsonStringify(varName),
     };
 
     returnMock(): any {

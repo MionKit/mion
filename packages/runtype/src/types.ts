@@ -14,26 +14,15 @@ export type JSONString = string;
 export type RunTypeVisitor = (deepkitType: Type, parents: RunType[], opts: RunTypeOptions) => RunType;
 export type SrcType = Type & {_runType?: RunType};
 
-export interface RunType<Opts extends RunTypeOptions = RunTypeOptions> {
-    /** Unique name of the run type, if two run type has the same name they are considered to be equal */
-    readonly slug: string;
-    readonly src: Type;
-    readonly kind: ReflectionKind;
-    readonly isJsonEncodeRequired: boolean;
-    readonly isJsonDecodeRequired: boolean;
-    readonly opts: Opts;
-    readonly jitFunctions: JITFunctions;
-    readonly nestLevel: number;
-    hasCircular: boolean;
-
+export interface JitCompilerFunctions {
     /**
      * JIT code validation code
      * should not include anything that is purely the validation of the type, ie function wrappers.
      * this code should not use return statements, it should be a single line of code that evaluates to a boolean
      * this code should not contain any sentence breaks or semicolons.
-     * ie: JIT_isType = () => `typeof vλluε === 'string'`
+     * ie: compileIsType = () => `typeof vλluε === 'string'`
      */
-    JIT_isType: (varName: string) => string;
+    compileIsType(varName: string): string;
     /**
      * JIT code Validation + error info
      * Similar to validation code but instead of returning a boolean it should assign an error message to the errorsName
@@ -42,33 +31,47 @@ export interface RunType<Opts extends RunTypeOptions = RunTypeOptions> {
      * pathChain is a string that represents the path to the property being validated.
      * pathChain is calculated at runtime so is an expresion like 'path1' + '/' + 'path2' + '/' + 'path3'
      */
-    JIT_typeErrors: (varName: string, errorsName: string, pathChain: string) => string;
+    compileTypeErrors(varName: string, errorsName: string, pathChain: string): string;
     /**
      * JIT code to transform from type to an object that can be serialized using json
      * this code should not use return statements, it should be a single line of code that evaluates to a json compatible type.
      * this code should not contain any sentence breaks or semicolons.
-     * ie for bigIng: JIT_jsonEncode = () => `vλluε.toString()`
+     * ie for bigIng: compileJsonEncode = () => `vλluε.toString()`
      * */
-    JIT_jsonEncode: (varName: string) => string;
+    compileJsonEncode(varName: string): string;
     /**
      * JIT code to transform from json to type so type can be deserialized from json
      * this code should not use return statements, it should be a single line that recieves a json compatible type and returns a deserialized value.
      * this code should not contain any sentence breaks or semicolons.
-     * ie for bigIng: JIT_jsonDecode = () => `BigInt(vλluε)`
+     * ie for bigIng: compileJsonDecode = () => `BigInt(vλluε)`
      *
      * For security reason decoding ignores any properties that are not defined in the type.
      * So is your type is {name: string} and the json is {name: string, age: number} the age property will be ignored.
      * */
-    JIT_jsonDecode: (varName: string) => string;
+    compileJsonDecode(varName: string): string;
     /**
      * JIT code to transform a type directly into s json string.
-     * when serializing to json normally we need first to prepare the object using JIT_jsonEncode and then JSON.stringify().
+     * when serializing to json normally we need first to prepare the object using compileJsonEncode and then JSON.stringify().
      * this code directly outputs the json string and saves traversing the type twice
      * stringify is allways strict
      * @param varName
      * @returns
      */
-    JIT_jsonStringify: (varName: string) => string;
+    compileJsonStringify(varName: string): string;
+}
+
+export interface RunType<Opts extends RunTypeOptions = RunTypeOptions> extends JitCompilerFunctions {
+    /** Unique name of the run type, if two run type has the same name they are considered to be equal */
+    readonly slug: string;
+    readonly src: Type;
+    readonly kind: ReflectionKind;
+    readonly isJsonEncodeRequired: boolean;
+    readonly isJsonDecodeRequired: boolean;
+    readonly opts: Opts;
+    readonly jitFunctions: JITFunctionsData;
+    readonly nestLevel: number;
+    hasCircular: boolean;
+
     /**
      * returns a mocked value, should be random when possible
      * */
@@ -93,13 +96,13 @@ export interface JitJsonEncoder {
 }
 
 type AnyFn = (...args: any[]) => any;
-export interface JitFn<Fn extends AnyFn> {
+export interface JitFnData<Fn extends AnyFn> {
     varNames: string[];
     code: string;
     fn: Fn;
 }
 
-export type SerializableJitFn<Fn extends AnyFn> = Omit<JitFn<Fn>, 'fn'>;
+export type SerializableJitFn<Fn extends AnyFn> = Omit<JitFnData<Fn>, 'fn'>;
 
 export interface RunTypeValidationError {
     /**
@@ -117,12 +120,12 @@ export type jsonEncodeFn = (value: any) => JSONValue;
 export type jsonDecodeFn = (value: JSONValue) => any;
 export type jsonStringifyFn = (value: any) => JSONString;
 
-export interface JITFunctions {
-    isType: JitFn<isTypeFn>;
-    typeErrors: JitFn<typeErrorsFn>;
-    jsonEncode: JitFn<jsonEncodeFn>;
-    jsonDecode: JitFn<jsonDecodeFn>;
-    jsonStringify: JitFn<jsonStringifyFn>;
+export interface JITFunctionsData {
+    isType: JitFnData<isTypeFn>;
+    typeErrors: JitFnData<typeErrorsFn>;
+    jsonEncode: JitFnData<jsonEncodeFn>;
+    jsonDecode: JitFnData<jsonDecodeFn>;
+    jsonStringify: JitFnData<jsonStringifyFn>;
 }
 
 export interface SerializableJITFunctions {
@@ -138,19 +141,11 @@ export type unwrappedJsonDecodeFn = (utils: JITUtils, value: JSONValue) => any;
 export type unwrappedJsonStringifyFn = (utils: JITUtils, value: any) => JSONString;
 
 export interface UnwrappedJITFunctions {
-    isType: JitFn<isTypeFn>;
-    typeErrors: JitFn<typeErrorsFn>;
-    jsonEncode: JitFn<unwrappedJsonEncodeFn>;
-    jsonDecode: JitFn<unwrappedJsonDecodeFn>;
-    jsonStringify: JitFn<unwrappedJsonStringifyFn>;
-}
-
-export interface RunTypeJitFunctions {
-    isType: (varName: string) => string;
-    typeErrors: (varName: string, errorsName: string, pathChain: string) => string;
-    jsonEncode: (varName: string) => string;
-    jsonDecode: (varName: string) => string;
-    jsonStringify: (varName: string) => string;
+    isType: JitFnData<isTypeFn>;
+    typeErrors: JitFnData<typeErrorsFn>;
+    jsonEncode: JitFnData<unwrappedJsonEncodeFn>;
+    jsonDecode: JitFnData<unwrappedJsonDecodeFn>;
+    jsonStringify: JitFnData<unwrappedJsonStringifyFn>;
 }
 
 /** Serializable classes

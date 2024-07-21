@@ -36,44 +36,44 @@ export class UnionRunType extends BaseRunType<TypeUnion> {
         this.hasCircular =
             this.runTypes.some((rt) => rt.hasCircular) || this.runTypes.some((rt) => hasCircularRunType(rt, parents));
     }
-    JIT_isType(varName: string): string {
-        return this.runTypes.map((rt) => `(${rt.JIT_isType(varName)})`).join(' || ');
+    compileIsType(varName: string): string {
+        return this.runTypes.map((rt) => `(${rt.compileIsType(varName)})`).join(' || ');
     }
-    JIT_typeErrors(varName: string, errorsName: string, pathChain: string): string {
-        return `if (!(${this.JIT_isType(varName)})) ${errorsName}.push({path: ${pathChain}, expected: ${toLiteral(this.slug)}})`;
+    compileTypeErrors(varName: string, errorsName: string, pathChain: string): string {
+        return `if (!(${this.compileIsType(varName)})) ${errorsName}.push({path: ${pathChain}, expected: ${toLiteral(this.slug)}})`;
     }
-    JIT_jsonEncode(varName: string): string {
+    compileJsonEncode(varName: string): string {
         const errorCode = `else { throw new Error('Can not encode json to union: expected ${this.slug} but got ' + ${varName}?.constructor?.name || typeof ${varName}) }`;
         const encode = this.runTypes
             .map((rt, i) => {
-                const checkCode = rt.JIT_isType(varName);
+                const checkCode = rt.compileIsType(varName);
                 const accessor = `${varName}[1]`;
-                const itemCode = skipJsonEncode(rt) ? '' : rt.JIT_jsonEncode(accessor);
+                const itemCode = skipJsonEncode(rt) ? '' : rt.compileJsonEncode(accessor);
                 const discriminatorCode = `{${varName} = [${i}, ${varName}]; ${itemCode}}`;
                 return `${i === 0 ? 'if' : 'else if'} (${checkCode}) ${discriminatorCode}`;
             })
             .join('\n');
         return `${encode}\n${errorCode}`;
     }
-    JIT_jsonDecode(varName: string): string {
+    compileJsonDecode(varName: string): string {
         const errorCode = `else { throw new Error('Can not decode json from union: expected ${this.slug} but got ' + ${varName}?.constructor?.name || typeof ${varName}) }`;
         const decode = this.runTypes
             .map((rt, i) => {
                 const checkCode = `${varName}[0] === ${i}`;
                 const accessor = `${varName}[1]`;
-                const itemCode = skipJsonDecode(rt) ? '' : rt.JIT_jsonDecode(varName);
+                const itemCode = skipJsonDecode(rt) ? '' : rt.compileJsonDecode(varName);
                 const discriminatorCode = `{${varName} = ${accessor}; ${itemCode}}`;
                 return `${i === 0 ? 'if' : 'else if'} (${checkCode})  ${discriminatorCode}`;
             })
             .join('\n');
         return `${decode}\n${errorCode}`;
     }
-    JIT_jsonStringify(varName: string): string {
+    compileJsonStringify(varName: string): string {
         const errorCode = `throw new Error('Can not stringify union: expected ${this.slug} but got ' + ${varName}?.constructor?.name || typeof ${varName})`;
         const encode = this.runTypes
             .map((rt, i) => {
-                const checkCode = rt.JIT_isType(varName);
-                const returnCode = `('[' + ${i} + ',' + ${rt.JIT_jsonStringify(varName)} + ']')`;
+                const checkCode = rt.compileIsType(varName);
+                const returnCode = `('[' + ${i} + ',' + ${rt.compileJsonStringify(varName)} + ']')`;
                 return `if (${checkCode}) return ${returnCode}`;
             })
             .join(';');

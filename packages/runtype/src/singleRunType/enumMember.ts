@@ -13,19 +13,19 @@ export class EnumMemberRunType extends SingleRunType<TypeEnum> {
     public readonly isJsonEncodeRequired = false;
     public readonly isJsonDecodeRequired = false;
 
-    JIT_isType(): string {
+    compileIsType(): string {
         throw new Error('Enum member operations are not supported');
     }
-    JIT_typeErrors(): string {
+    compileTypeErrors(): string {
         throw new Error('Enum member operations are not supported');
     }
-    JIT_jsonEncode(): string {
+    compileJsonEncode(): string {
         throw new Error('Enum member operations are not supported');
     }
-    JIT_jsonDecode(): string {
+    compileJsonDecode(): string {
         throw new Error('Enum member operations are not supported');
     }
-    JIT_jsonStringify(): string {
+    compileJsonStringify(): string {
         throw new Error('Enum member operations are not supported');
     }
     mock() {

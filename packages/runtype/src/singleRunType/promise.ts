@@ -25,25 +25,25 @@ export class PromiseRunType extends SingleRunType<TypePromise> {
         this.resolvedType = visitor(src.type, [...parents, this], opts);
         this.slug = `promise<${this.resolvedType.slug}>`;
     }
-    JIT_isType(varName: string): string {
+    compileIsType(varName: string): string {
         return `${varName} instanceof Promise`;
     }
     resolvedIsTypeJIT(varName: string): string {
-        return this.resolvedType.JIT_isType(varName);
+        return this.resolvedType.compileIsType(varName);
     }
-    JIT_typeErrors(varName: string, errorsName: string, pathChain: string): string {
+    compileTypeErrors(varName: string, errorsName: string, pathChain: string): string {
         return `if (!(${varName} instanceof Promise)) ${errorsName}.push({path: ${pathChain}, expected: ${toLiteral(this.slug)}})`;
     }
     resolveTypeErrorsJIT(varName: string, errorsName: string, pathChain: string): string {
-        return this.resolvedType.JIT_typeErrors(varName, errorsName, pathChain);
+        return this.resolvedType.compileTypeErrors(varName, errorsName, pathChain);
     }
-    JIT_jsonEncode(): string {
+    compileJsonEncode(): string {
         throw new Error(`${this.slug} can not be encoded to json.`);
     }
-    JIT_jsonDecode(): string {
+    compileJsonDecode(): string {
         throw new Error(`${this.slug} can not be decoded from json.`);
     }
-    JIT_jsonStringify(): string {
+    compileJsonStringify(): string {
         throw new Error(`${this.slug} can not be stringified.`);
     }
     mock(timeOut = 1, rejectError: string): Promise<any> {
