@@ -9,10 +9,10 @@ import {TypeAny, TypeUnknown} from '../_deepkit/src/reflection/type';
 import {random} from '../mock';
 import {toLiteral} from '../utils';
 import {mockObjectList} from '../constants';
-import {BaseRunType} from '../baseRunType';
+import {SingleRunType} from '../baseRunTypes';
 
-export class ObjectRunType extends BaseRunType<TypeAny | TypeUnknown> {
-    public readonly name = 'object';
+export class ObjectRunType extends SingleRunType<TypeAny | TypeUnknown> {
+    public readonly slug = 'object';
     public readonly isJsonEncodeRequired = false;
     public readonly isJsonDecodeRequired = false;
 
@@ -20,7 +20,7 @@ export class ObjectRunType extends BaseRunType<TypeAny | TypeUnknown> {
         return `typeof ${varName} === 'object' && ${varName} !== null`;
     }
     JIT_typeErrors(varName: string, errorsName: string, pathChain: string): string {
-        return `if (!(${this.JIT_isType(varName)})) ${errorsName}.push({path: ${pathChain}, expected: ${toLiteral(this.name)}})`;
+        return `if (!(${this.JIT_isType(varName)})) ${errorsName}.push({path: ${pathChain}, expected: ${toLiteral(this.slug)}})`;
     }
     JIT_jsonEncode(): string {
         return '';

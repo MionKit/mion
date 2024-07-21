@@ -5,9 +5,10 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {ReflectionKind} from './_deepkit/src/reflection/type';
+import {isSameType, ReflectionKind} from './_deepkit/src/reflection/type';
 import {jitUtils} from './jitUtils';
-import {RunType} from './types';
+import type {RunType} from './types';
+import type {SingleRunType} from './baseRunTypes';
 
 export function toLiteral(value: number | string | boolean | undefined | null | bigint | RegExp | symbol): string {
     switch (typeof value) {
@@ -56,4 +57,20 @@ export function isFunctionKind(kind: ReflectionKind): boolean {
         kind === ReflectionKind.methodSignature ||
         kind === ReflectionKind.indexSignature
     );
+}
+
+/**
+ * Checks whether or not a type has circular references, must be called within the properties of an object as is checking type parents.
+ * Can't check from a root object down to its properties
+ */
+export function hasCircularRunType(rt: RunType, parents: RunType[]): boolean {
+    return _hasCircularRunType(rt, parents);
+}
+
+function _hasCircularRunType(rt: RunType, parents: RunType[], index = 0): boolean {
+    const parent = parents[index];
+    if (!parent) return false;
+    if ((parent as SingleRunType<any, any>).isSingle) return _hasCircularRunType(rt, parents, index + 1);
+    if (isSameType(rt.src, parent.src)) return true;
+    return _hasCircularRunType(rt, parents, index + 1);
 }

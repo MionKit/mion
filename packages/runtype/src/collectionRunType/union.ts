@@ -7,9 +7,9 @@
 
 import {TypeUnion} from '../_deepkit/src/reflection/type';
 import {RunType, RunTypeOptions, RunTypeVisitor} from '../types';
-import {skipJsonDecode, skipJsonEncode, toLiteral} from '../utils';
+import {hasCircularRunType, skipJsonDecode, skipJsonEncode, toLiteral} from '../utils';
 import {random} from '../mock';
-import {BaseRunType} from '../baseRunType';
+import {BaseRunType} from '../baseRunTypes';
 
 /**
  * Unions get encoded into an array where arr[0] is the discriminator and arr[1] is the value.
@@ -19,28 +19,31 @@ import {BaseRunType} from '../baseRunType';
  * So [0, "123n"] is interpreted as a string and [1, "123n"] is interpreted as a bigint.
  * */
 export class UnionRunType extends BaseRunType<TypeUnion> {
-    public readonly name: string;
+    public readonly slug: string;
     public readonly isJsonEncodeRequired = true;
     public readonly isJsonDecodeRequired = true;
+    public readonly hasCircular: boolean;
     public readonly runTypes: RunType[];
     constructor(
         visitor: RunTypeVisitor,
         public readonly src: TypeUnion,
-        public readonly nestLevel: number,
+        public readonly parents: RunType[],
         public readonly opts: RunTypeOptions
     ) {
-        super(visitor, src, nestLevel, opts);
-        this.runTypes = src.types.map((t) => visitor(t, nestLevel, opts));
-        this.name = `union<${this.runTypes.map((rt) => rt.name).join(' | ')}>`;
+        super(visitor, src, parents, opts);
+        this.runTypes = src.types.map((t) => visitor(t, parents, opts));
+        this.slug = `union<${this.runTypes.map((rt) => rt.slug).join(' | ')}>`;
+        this.hasCircular =
+            this.runTypes.some((rt) => rt.hasCircular) || this.runTypes.some((rt) => hasCircularRunType(rt, parents));
     }
     JIT_isType(varName: string): string {
         return this.runTypes.map((rt) => `(${rt.JIT_isType(varName)})`).join(' || ');
     }
     JIT_typeErrors(varName: string, errorsName: string, pathChain: string): string {
-        return `if (!(${this.JIT_isType(varName)})) ${errorsName}.push({path: ${pathChain}, expected: ${toLiteral(this.name)}})`;
+        return `if (!(${this.JIT_isType(varName)})) ${errorsName}.push({path: ${pathChain}, expected: ${toLiteral(this.slug)}})`;
     }
     JIT_jsonEncode(varName: string): string {
-        const errorCode = `else { throw new Error('Can not encode json to union: expected ${this.name} but got ' + ${varName}?.constructor?.name || typeof ${varName}) }`;
+        const errorCode = `else { throw new Error('Can not encode json to union: expected ${this.slug} but got ' + ${varName}?.constructor?.name || typeof ${varName}) }`;
         const encode = this.runTypes
             .map((rt, i) => {
                 const checkCode = rt.JIT_isType(varName);
@@ -53,7 +56,7 @@ export class UnionRunType extends BaseRunType<TypeUnion> {
         return `${encode}\n${errorCode}`;
     }
     JIT_jsonDecode(varName: string): string {
-        const errorCode = `else { throw new Error('Can not decode json from union: expected ${this.name} but got ' + ${varName}?.constructor?.name || typeof ${varName}) }`;
+        const errorCode = `else { throw new Error('Can not decode json from union: expected ${this.slug} but got ' + ${varName}?.constructor?.name || typeof ${varName}) }`;
         const decode = this.runTypes
             .map((rt, i) => {
                 const checkCode = `${varName}[0] === ${i}`;
@@ -66,7 +69,7 @@ export class UnionRunType extends BaseRunType<TypeUnion> {
         return `${decode}\n${errorCode}`;
     }
     JIT_jsonStringify(varName: string): string {
-        const errorCode = `throw new Error('Can not stringify union: expected ${this.name} but got ' + ${varName}?.constructor?.name || typeof ${varName})`;
+        const errorCode = `throw new Error('Can not stringify union: expected ${this.slug} but got ' + ${varName}?.constructor?.name || typeof ${varName})`;
         const encode = this.runTypes
             .map((rt, i) => {
                 const checkCode = rt.JIT_isType(varName);

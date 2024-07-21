@@ -6,37 +6,39 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {ReflectionKind} from './_deepkit/src/reflection/type';
-import {RunType} from './types';
-import {StringRunType} from './singleRunType/string';
-import {DateRunType} from './singleRunType/date';
-import {NumberRunType} from './singleRunType/number';
-import {BooleanRunType} from './singleRunType/boolean';
-import {NullRunType} from './singleRunType/null';
-import {BigIntRunType} from './singleRunType/bigInt';
-import {SymbolRunType} from './singleRunType/symbol';
-import {AnyRunType} from './singleRunType/any';
-import {UndefinedRunType} from './singleRunType/undefined';
-import {UnknownRunType} from './singleRunType/unknown';
-import {VoidRunType} from './singleRunType/void';
-import {ArrayRunType} from './collectionRunType/array';
-import {LiteralRunType} from './singleRunType/literal';
-import {RegexpRunType} from './singleRunType/regexp';
-import {NeverRunType} from './singleRunType/never';
-import {EnumRunType} from './singleRunType/enum';
-import {EnumMemberRunType} from './singleRunType/enumMember';
-import {UnionRunType} from './collectionRunType/union';
-import {TupleRunType} from './collectionRunType/tuple';
-import {TupleMemberRunType} from './singleRunType/tupleMember';
-import {InterfaceRunType} from './collectionRunType/interface';
-import {PropertyRunType} from './collectionRunType/property';
-import {IndexSignatureRunType} from './collectionRunType/indexProperty';
-import {MethodSignatureRunType} from './functionRunType/methodSignature';
-import {CallSignatureRunType} from './functionRunType/call';
-import {FunctionRunType} from './functionRunType/function';
-import {ParameterRunType} from './functionRunType/param';
-import {PromiseRunType} from './singleRunType/promise';
-import {ObjectRunType} from './singleRunType/object';
+import {ReflectionKind, TypeMethod} from './_deepkit/src/reflection/type';
+/* IMPORTANT: import classes as type only to prevent js circular imports */
+import type {RunType} from './types';
+import type {StringRunType} from './singleRunType/string';
+import type {DateRunType} from './singleRunType/date';
+import type {NumberRunType} from './singleRunType/number';
+import type {BooleanRunType} from './singleRunType/boolean';
+import type {NullRunType} from './singleRunType/null';
+import type {BigIntRunType} from './singleRunType/bigInt';
+import type {SymbolRunType} from './singleRunType/symbol';
+import type {AnyRunType} from './singleRunType/any';
+import type {UndefinedRunType} from './singleRunType/undefined';
+import type {UnknownRunType} from './singleRunType/unknown';
+import type {VoidRunType} from './singleRunType/void';
+import type {ArrayRunType} from './collectionRunType/array';
+import type {LiteralRunType} from './singleRunType/literal';
+import type {RegexpRunType} from './singleRunType/regexp';
+import type {NeverRunType} from './singleRunType/never';
+import type {EnumRunType} from './singleRunType/enum';
+import type {EnumMemberRunType} from './singleRunType/enumMember';
+import type {UnionRunType} from './collectionRunType/union';
+import type {TupleRunType} from './collectionRunType/tuple';
+import type {TupleMemberRunType} from './collectionRunType/tupleMember';
+import type {InterfaceRunType, InterfaceRunTypeEntry} from './collectionRunType/interface';
+import type {PropertyRunType} from './collectionRunType/property';
+import type {IndexSignatureRunType} from './collectionRunType/indexProperty';
+import type {MethodSignatureRunType} from './functionRunType/methodSignature';
+import type {CallSignatureRunType} from './functionRunType/call';
+import type {FunctionRunType} from './functionRunType/function';
+import type {ParameterRunType} from './functionRunType/param';
+import type {PromiseRunType} from './singleRunType/promise';
+import type {ObjectRunType} from './singleRunType/object';
+import type {MethodRunType} from './functionRunType/method';
 
 export function isAnyRunType(rt: RunType): rt is AnyRunType {
     return rt.kind === ReflectionKind.any;
@@ -59,7 +61,7 @@ export function isCallSignatureRunType(rt: RunType): rt is CallSignatureRunType 
 }
 
 export function isDateRunType(rt: RunType): rt is DateRunType {
-    return rt.kind === ReflectionKind.class && rt.name === 'date';
+    return rt.kind === ReflectionKind.class && rt.slug === 'date';
 }
 
 export function isEnumRunType(rt: RunType): rt is EnumRunType {
@@ -152,4 +154,11 @@ export function isParameterRunType(rt: RunType): rt is ParameterRunType {
 
 export function isPromiseRunType(rt: RunType): rt is PromiseRunType {
     return rt.kind === ReflectionKind.promise;
+}
+
+export function isConstructor(rt: InterfaceRunTypeEntry): rt is MethodSignatureRunType | MethodRunType {
+    return (
+        (rt.kind === ReflectionKind.method || rt.kind === ReflectionKind.methodSignature) &&
+        (rt.src as TypeMethod).name === 'constructor'
+    );
 }

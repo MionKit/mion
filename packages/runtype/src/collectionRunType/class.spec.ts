@@ -12,7 +12,6 @@ import {
     buildTypeErrorsJITFn,
     buildJsonStringifyJITFn,
 } from '../jitCompiler';
-import {registerSerializableClass} from '../jitUtils';
 
 class SerializableClass {
     name: string;
@@ -31,7 +30,7 @@ class SerializableClass {
     }
 }
 
-class NonRegisteredClass {
+class NonSerializableClass {
     constructor(
         public name: string,
         public surname: string,
@@ -45,16 +44,7 @@ class NonRegisteredClass {
 }
 
 const serializable = new SerializableClass();
-const nonSerializable = new NonRegisteredClass('Jane', 'Smith', 1, new Date());
-registerSerializableClass(SerializableClass);
-
-it('register a non class throws an error', () => {
-    expect(() => registerSerializableClass(SerializableClass)).not.toThrow();
-    // TODO: NON serializable class should throw an error. but we don't have a way to check the number of parameters in the constructor
-    // MyClass.constructor.length always returns 1, and MyClass.length always return 0.  no matter the number of parameters in the constructor
-    // So at the moment we can only rely in typescript to enforce Serializable classes
-    expect(() => registerSerializableClass('hello' as any)).toThrow('Only classes can be registered as for deserialization');
-});
+const nonSerializable = new NonSerializableClass('Jane', 'Smith', 1, new Date());
 
 it('validate serializable object', () => {
     const validate = buildIsTypeJITFn(runType<SerializableClass>()).fn;
@@ -62,7 +52,7 @@ it('validate serializable object', () => {
 });
 
 it('validate non-serializable object', () => {
-    const validate = buildIsTypeJITFn(runType<NonRegisteredClass>()).fn;
+    const validate = buildIsTypeJITFn(runType<NonSerializableClass>()).fn;
     expect(validate(nonSerializable)).toBe(true);
 });
 
@@ -72,8 +62,8 @@ it('validate empty serializable object', () => {
 });
 
 it('validate empty non-serializable object', () => {
-    const validate = buildIsTypeJITFn(runType<NonRegisteredClass>()).fn;
-    expect(validate(new NonRegisteredClass('', '', 0, new Date()))).toBe(true);
+    const validate = buildIsTypeJITFn(runType<NonSerializableClass>()).fn;
+    expect(validate(new NonSerializableClass('', '', 0, new Date()))).toBe(true);
 });
 
 it('validate serializable object + errors', () => {
@@ -82,7 +72,7 @@ it('validate serializable object + errors', () => {
 });
 
 it('validate non-serializable object + errors', () => {
-    const valWithErrors = buildTypeErrorsJITFn(runType<NonRegisteredClass>()).fn;
+    const valWithErrors = buildTypeErrorsJITFn(runType<NonSerializableClass>()).fn;
     expect(valWithErrors(nonSerializable)).toEqual([]);
 });
 
@@ -95,9 +85,9 @@ it('encode/decode serializable object to json', () => {
 });
 
 it('decode non registered class throws an error', () => {
-    expect(() => buildJsonEncodeJITFn(runType<NonRegisteredClass>())).not.toThrow();
-    expect(() => buildJsonDecodeJITFn(runType<NonRegisteredClass>())).toThrow(
-        `Class NonRegisteredClass can't be serialized. Make sure to register it using registerSerializableClass()`
+    expect(() => buildJsonEncodeJITFn(runType<NonSerializableClass>())).not.toThrow();
+    expect(() => buildJsonDecodeJITFn(runType<NonSerializableClass>())).toThrow(
+        `Class NonSerializableClass can't be deserialized. Oly classes with and empty constructor can be deserialized.`
     );
 });
 

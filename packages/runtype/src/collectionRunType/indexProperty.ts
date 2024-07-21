@@ -1,11 +1,11 @@
 import {ReflectionKind, TypeIndexSignature} from '../_deepkit/src/reflection/type';
-import {BaseRunType} from '../baseRunType';
+import {BaseRunType} from '../baseRunTypes';
 import {RunType, RunTypeOptions, RunTypeVisitor} from '../types';
-import {addToPathChain, isFunctionKind, skipJsonDecode, skipJsonEncode} from '../utils';
-import {jitUtilsAsJson} from '../constants';
+import {addToPathChain, hasCircularRunType, isFunctionKind, skipJsonDecode, skipJsonEncode} from '../utils';
 import {NumberRunType} from '../singleRunType/number';
 import {StringRunType} from '../singleRunType/string';
 import {SymbolRunType} from '../singleRunType/symbol';
+import {jitUtilsVarNames} from '../jitUtils';
 
 /* ########
  * 2024 mion
@@ -15,27 +15,30 @@ import {SymbolRunType} from '../singleRunType/symbol';
  * ######## */
 
 export class IndexSignatureRunType extends BaseRunType<TypeIndexSignature> {
-    public readonly name: string;
+    public readonly slug: string;
     public readonly isJsonEncodeRequired;
     public readonly isJsonDecodeRequired;
+    public readonly hasCircular: boolean;
     public readonly indexType: RunType;
-    public readonly propType: NumberRunType | StringRunType | SymbolRunType;
+    public readonly indexKeyType: NumberRunType | StringRunType | SymbolRunType;
     public readonly isReadonly: boolean;
     public readonly shouldSerialize: boolean;
     constructor(
         visitor: RunTypeVisitor,
         public readonly src: TypeIndexSignature,
-        public readonly nestLevel: number,
+        public readonly parents: RunType[],
         public readonly opts: RunTypeOptions
     ) {
-        super(visitor, src, nestLevel, opts);
-        this.indexType = visitor(src.type, nestLevel, opts);
-        this.propType = visitor(src.index, nestLevel, opts) as NumberRunType | StringRunType | SymbolRunType;
+        super(visitor, src, parents, opts);
+        const newParents = [...parents, this];
+        this.indexType = visitor(src.type, newParents, opts);
+        this.indexKeyType = visitor(src.index, newParents, opts) as NumberRunType | StringRunType | SymbolRunType;
         this.shouldSerialize = !isFunctionKind(src.type.kind) && src.index.kind !== ReflectionKind.symbol;
         this.isReadonly = false; // TODO: readonly allowed to set in typescript but not present in deepkit
         this.isJsonEncodeRequired = this.indexType.isJsonEncodeRequired;
         this.isJsonDecodeRequired = this.indexType.isJsonDecodeRequired;
-        this.name = `index<${this.indexType.name}>`;
+        this.slug = `index<${this.indexType.slug}>`;
+        this.hasCircular = this.indexType.hasCircular || hasCircularRunType(this.indexType, parents);
     }
     JIT_isType(varName: string): string {
         if (!this.shouldSerialize) return '';
@@ -74,7 +77,7 @@ export class IndexSignatureRunType extends BaseRunType<TypeIndexSignature> {
         const indexName = `prΦp${this.nestLevel}`;
         const itemAccessor = `${varName}[${indexName}]`;
         const itemCode = this.indexType.JIT_jsonStringify(itemAccessor);
-        const forLoop = `const ${arrName} = []; for (const ${indexName} in ${varName}) {if (${itemAccessor} !== undefined) ${arrName}.push(${jitUtilsAsJson}(${indexName}) + ':' + ${itemCode})}`;
+        const forLoop = `const ${arrName} = []; for (const ${indexName} in ${varName}) {if (${itemAccessor} !== undefined) ${arrName}.push(${jitUtilsVarNames.asJSONString}(${indexName}) + ':' + ${itemCode})}`;
         const itemsCode = `(function(){${forLoop}; return ${arrName}.join(',')})()`;
         return itemsCode;
     }
@@ -83,13 +86,13 @@ export class IndexSignatureRunType extends BaseRunType<TypeIndexSignature> {
         for (let i = 0; i < length; i++) {
             let propName: number | string | symbol;
             switch (true) {
-                case !!(this.propType instanceof NumberRunType):
+                case !!(this.indexKeyType instanceof NumberRunType):
                     propName = i;
                     break;
-                case !!(this.propType instanceof StringRunType):
+                case !!(this.indexKeyType instanceof StringRunType):
                     propName = `key${i}`;
                     break;
-                case !!(this.propType instanceof SymbolRunType):
+                case !!(this.indexKeyType instanceof SymbolRunType):
                     propName = Symbol.for(`key${i}`);
                     break;
                 default:

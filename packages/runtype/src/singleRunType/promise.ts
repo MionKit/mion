@@ -1,5 +1,5 @@
 import {TypePromise} from '../_deepkit/src/reflection/type';
-import {BaseRunType} from '../baseRunType';
+import {SingleRunType} from '../baseRunTypes';
 import {RunType, RunTypeOptions, RunTypeVisitor} from '../types';
 import {toLiteral} from '../utils';
 
@@ -10,20 +10,20 @@ import {toLiteral} from '../utils';
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-export class PromiseRunType extends BaseRunType<TypePromise> {
-    public readonly name: string;
+export class PromiseRunType extends SingleRunType<TypePromise> {
+    public readonly slug: string;
     public readonly isJsonEncodeRequired = true;
     public readonly isJsonDecodeRequired = true;
     public readonly resolvedType: RunType;
     constructor(
         visitor: RunTypeVisitor,
         public readonly src: TypePromise,
-        public readonly nestLevel: number,
+        public readonly parents: RunType[],
         public readonly opts: RunTypeOptions
     ) {
-        super(visitor, src, nestLevel, opts);
-        this.resolvedType = visitor(src.type, nestLevel, opts);
-        this.name = `promise<${this.resolvedType.name}>`;
+        super(visitor, src, parents, opts);
+        this.resolvedType = visitor(src.type, [...parents, this], opts);
+        this.slug = `promise<${this.resolvedType.slug}>`;
     }
     JIT_isType(varName: string): string {
         return `${varName} instanceof Promise`;
@@ -32,19 +32,19 @@ export class PromiseRunType extends BaseRunType<TypePromise> {
         return this.resolvedType.JIT_isType(varName);
     }
     JIT_typeErrors(varName: string, errorsName: string, pathChain: string): string {
-        return `if (!(${varName} instanceof Promise)) ${errorsName}.push({path: ${pathChain}, expected: ${toLiteral(this.name)}})`;
+        return `if (!(${varName} instanceof Promise)) ${errorsName}.push({path: ${pathChain}, expected: ${toLiteral(this.slug)}})`;
     }
     resolveTypeErrorsJIT(varName: string, errorsName: string, pathChain: string): string {
         return this.resolvedType.JIT_typeErrors(varName, errorsName, pathChain);
     }
     JIT_jsonEncode(): string {
-        throw new Error(`${this.name} can not be encoded to json.`);
+        throw new Error(`${this.slug} can not be encoded to json.`);
     }
     JIT_jsonDecode(): string {
-        throw new Error(`${this.name} can not be decoded from json.`);
+        throw new Error(`${this.slug} can not be decoded from json.`);
     }
     JIT_jsonStringify(): string {
-        throw new Error(`${this.name} can not be stringified.`);
+        throw new Error(`${this.slug} can not be stringified.`);
     }
     mock(timeOut = 1, rejectError: string): Promise<any> {
         return new Promise((resolve, reject) => {

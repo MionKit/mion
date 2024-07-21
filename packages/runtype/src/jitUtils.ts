@@ -21,7 +21,7 @@ export const jitUtils: JITUtils = {
     // fastify lisecense: https://github.com/fastify/fast-json-stringify/blob/master/LICENSE
 
     /** optimized function to convert an string into a json string wrapped in double quotes */
-    asJSONString: (str) => {
+    asJSONString(str) {
         // eslint-disable-next-line no-control-regex
         const STR_ESCAPE = /[\u0000-\u001f\u0022\u005c\ud800-\udfff]/;
         if (str.length < 42) {
@@ -55,27 +55,21 @@ export const jitUtils: JITUtils = {
         }
     },
 
-    getSerializableClass: (name: string) => {
-        return classesMap.get(name);
+    registerSerializableClass(cls: SerializableClass) {
+        classesMap.set(cls.name, cls);
     },
 
-    getClassName: (cls: AnyClass) => {
-        if (!isClass(cls)) throw new Error('Cant get a class name from a non-class object');
-        return cls.name;
+    getSerializableClass(name: string) {
+        return classesMap.get(name);
     },
 };
 
 // !!! DO NOT MODIFY NAMES OF PROPERTY OR METHODS AS THESE ARE HARDCODED IN THE JIT GENERATED CODE !!!
 export type JITUtils = {
     asJSONString: (str: string) => string;
+    registerSerializableClass(cls: SerializableClass): void;
     getSerializableClass: (name: string) => SerializableClass | undefined;
-    getClassName: (cls: AnyClass) => string;
 };
-
-export function registerSerializableClass(cls: SerializableClass) {
-    if (!isClass(cls)) throw new Error('Only classes can be registered as for deserialization');
-    classesMap.set(cls.name, cls);
-}
 
 export function isClass(cls: AnyClass | any): cls is AnyClass {
     return (
@@ -86,3 +80,10 @@ export function isClass(cls: AnyClass | any): cls is AnyClass {
         cls.toString().startsWith('class')
     );
 }
+
+export const jitUtilsVarNames = {
+    root: 'j1tUt1l5',
+    asJSONString: `j1tUt1l5.${jitUtils.asJSONString.name}`,
+    registerSerializableClass: `j1tUt1l5.${jitUtils.registerSerializableClass.name}`,
+    getSerializableClass: `j1tUt1l5.${jitUtils.getSerializableClass.name}`,
+};

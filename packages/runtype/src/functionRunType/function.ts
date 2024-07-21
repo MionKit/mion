@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 import {ReflectionKind, TypeCallSignature, TypeFunction, TypeMethod, TypeMethodSignature} from '../_deepkit/src/reflection/type';
-import {BaseRunType} from '../baseRunType';
+import {BaseRunType} from '../baseRunTypes';
 import {isPromiseRunType} from '../guards';
 import {JITCompiler} from '../jitCompiler';
 import {JITFunctions, RunTypeJitFunctions, RunType, RunTypeOptions, RunTypeVisitor} from '../types';
@@ -17,6 +17,7 @@ type AnyFunction = TypeMethodSignature | TypeCallSignature | TypeFunction | Type
 export class FunctionRunType<CallType extends AnyFunction = TypeFunction> extends BaseRunType<CallType> {
     public readonly isJsonEncodeRequired = true; // triggers custom json encode so functions get skipped
     public readonly isJsonDecodeRequired = true; // triggers custom json encode so functions get skipped
+    public readonly hasCircular;
     public readonly isReturnJsonEncodedRequired: boolean;
     public readonly isReturnJsonDecodedRequired: boolean;
     public readonly isParamsJsonEncodedRequired: boolean;
@@ -25,7 +26,7 @@ export class FunctionRunType<CallType extends AnyFunction = TypeFunction> extend
     public readonly parameterTypes: ParameterRunType[];
     public readonly paramsName: string;
     public readonly returnName: string;
-    public readonly name: string;
+    public readonly slug: string;
     public readonly shouldSerialize = false;
     public readonly hasReturnData: boolean;
     public readonly hasOptionalParameters: boolean;
@@ -35,47 +36,48 @@ export class FunctionRunType<CallType extends AnyFunction = TypeFunction> extend
     constructor(
         visitor: RunTypeVisitor,
         public readonly src: CallType,
-        public readonly nestLevel: number,
+        public readonly parents: RunType[],
         public readonly opts: RunTypeOptions,
         callType = 'function'
     ) {
-        super(visitor, src, nestLevel, opts);
+        super(visitor, src, parents, opts);
         const start = opts?.paramsSlice?.start;
         const end = opts?.paramsSlice?.end;
-        const maybePromiseReturn = visitor(src.return, nestLevel, opts);
+        const maybePromiseReturn = visitor(src.return, parents, opts);
         const isPromise = isPromiseRunType(maybePromiseReturn);
         this.returnType = isPromise ? maybePromiseReturn.resolvedType : maybePromiseReturn;
-        this.parameterTypes = src.parameters.slice(start, end).map((p) => visitor(p, nestLevel, opts)) as ParameterRunType[];
+        this.parameterTypes = src.parameters.slice(start, end).map((p) => visitor(p, parents, opts)) as ParameterRunType[];
         this.totalRequiredParams = this.parameterTypes.reduce((acc, p) => acc + (p.isOptional ? 0 : 1), 0);
         this.isReturnJsonEncodedRequired = this.returnType.isJsonEncodeRequired;
         this.isReturnJsonDecodedRequired = this.returnType.isJsonDecodeRequired;
         this.isParamsJsonEncodedRequired = this.parameterTypes.some((p) => p.isJsonEncodeRequired);
         this.isParamsJsonDecodedRequired = this.parameterTypes.some((p) => p.isJsonDecodeRequired);
+        this.hasCircular = this.parameterTypes.some((p) => p.hasCircular) || this.returnType.hasCircular;
         this.hasOptionalParameters = this.totalRequiredParams < this.parameterTypes.length;
         this.hasRestParameter = !!this.parameterTypes.length && this.parameterTypes[this.parameterTypes.length - 1].isRest;
-        this.paramsName = `[${this.parameterTypes.map((p) => p.name).join(', ')}]`;
-        this.returnName = this.returnType.name;
-        this.name = `${callType}<${this.paramsName}, ${this.returnName}>`;
+        this.paramsName = `[${this.parameterTypes.map((p) => p.slug).join(', ')}]`;
+        this.returnName = this.returnType.slug;
+        this.slug = `${callType}:${(src as any)?.name || 'anonymous'}<${this.paramsName}, ${this.returnName}>`;
         this.hasReturnData = this._hasReturnData(this.returnType.kind);
         this.isAsync = isPromise || this._isAsync(this.returnType.kind);
     }
     JIT_isType(): string {
-        throw new Error(`${this.name} validation is not supported, instead validate parameters or return type separately.`);
+        throw new Error(`${this.slug} validation is not supported, instead validate parameters or return type separately.`);
     }
     JIT_typeErrors(): string {
-        throw new Error(`${this.name} validation is not supported, instead validate parameters or return type separately.`);
+        throw new Error(`${this.slug} validation is not supported, instead validate parameters or return type separately.`);
     }
     JIT_jsonEncode(): string {
-        throw new Error(`${this.name} json encode is not supported, instead encode parameters or return type separately.`);
+        throw new Error(`${this.slug} json encode is not supported, instead encode parameters or return type separately.`);
     }
     JIT_jsonDecode(): string {
-        throw new Error(`${this.name} json decode is not supported, instead decode parameters or return type separately.`);
+        throw new Error(`${this.slug} json decode is not supported, instead decode parameters or return type separately.`);
     }
     JIT_jsonStringify(): string {
-        throw new Error(`${this.name} json stringify is not supported, instead stringify parameters or return type separately.`);
+        throw new Error(`${this.slug} json stringify is not supported, instead stringify parameters or return type separately.`);
     }
     mock(): string {
-        throw new Error(`${this.name} mock is not supported, instead mock parameters or return type separately.`);
+        throw new Error(`${this.slug} mock is not supported, instead mock parameters or return type separately.`);
     }
 
     // ####### params #######

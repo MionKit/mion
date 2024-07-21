@@ -1,5 +1,5 @@
 import {TypeParameter} from '../_deepkit/src/reflection/type';
-import {BaseRunType} from '../baseRunType';
+import {BaseRunType} from '../baseRunTypes';
 import {RunType, RunTypeOptions, RunTypeVisitor} from '../types';
 import {addToPathChain, skipJsonDecode, skipJsonEncode} from '../utils';
 import {RestParamsRunType} from './restParams';
@@ -14,8 +14,9 @@ import {RestParamsRunType} from './restParams';
 export class ParameterRunType extends BaseRunType<TypeParameter> {
     public readonly isJsonEncodeRequired: boolean;
     public readonly isJsonDecodeRequired: boolean;
+    public readonly hasCircular: boolean;
     public readonly argRunType: RunType | RestParamsRunType;
-    public readonly name: string;
+    public readonly slug: string;
     public readonly isOptional: boolean;
     public readonly isReadonly: boolean;
     public readonly paramName: string;
@@ -25,18 +26,19 @@ export class ParameterRunType extends BaseRunType<TypeParameter> {
     constructor(
         visitor: RunTypeVisitor,
         public readonly src: TypeParameter,
-        public readonly nestLevel: number,
+        public readonly parents: RunType[],
         public readonly opts: RunTypeOptions
     ) {
-        super(visitor, src, nestLevel, opts);
-        this.argRunType = visitor(src.type, nestLevel, opts);
+        super(visitor, src, parents, opts);
+        this.argRunType = visitor(src.type, [...parents, this], opts);
         this.isJsonEncodeRequired = this.argRunType.isJsonEncodeRequired;
         this.isJsonDecodeRequired = this.argRunType.isJsonDecodeRequired;
+        this.hasCircular = this.argRunType.hasCircular;
         this.isRest = this.argRunType instanceof RestParamsRunType;
         this.isOptional = !!src.optional || this.isRest;
         this.isReadonly = !!src.readonly && !this.isRest;
         this.paramName = src.name;
-        this.name = `${this.isRest ? '...' : ''}${src.name}${this.isOptional ? '?' : ''}:${this.argRunType.name}`;
+        this.slug = `${this.isRest ? '...' : ''}${src.name}${this.isOptional ? '?' : ''}:${this.argRunType.slug}`;
     }
     JIT_isType(varName: string, itemIndex = 0): string {
         if (this.isRest) return this.argRunType.JIT_isType(varName, itemIndex);

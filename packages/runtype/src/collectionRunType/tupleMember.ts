@@ -6,25 +6,28 @@
  * ######## */
 
 import {TypeTupleMember} from '../_deepkit/src/reflection/type';
-import {BaseRunType} from '../baseRunType';
+import {BaseRunType} from '../baseRunTypes';
 import {RunType, RunTypeOptions, RunTypeVisitor} from '../types';
+import {hasCircularRunType} from '../utils';
 
 export class TupleMemberRunType extends BaseRunType<TypeTupleMember> {
     public readonly isJsonEncodeRequired: boolean;
     public readonly isJsonDecodeRequired: boolean;
+    public readonly hasCircular: boolean;
     public readonly memberRunType: RunType;
-    public readonly name: string;
+    public readonly slug: string;
     constructor(
         visitor: RunTypeVisitor,
         public readonly src: TypeTupleMember,
-        public readonly nestLevel: number,
+        public readonly parents: RunType[],
         public readonly opts: RunTypeOptions
     ) {
-        super(visitor, src, nestLevel, opts);
-        this.memberRunType = visitor(src.type, nestLevel, opts);
+        super(visitor, src, parents, opts);
+        this.memberRunType = visitor(src.type, [...parents, this], opts);
         this.isJsonEncodeRequired = this.memberRunType.isJsonEncodeRequired;
         this.isJsonDecodeRequired = this.memberRunType.isJsonDecodeRequired;
-        this.name = this.memberRunType.name;
+        this.slug = this.memberRunType.slug;
+        this.hasCircular = this.memberRunType.hasCircular || hasCircularRunType(this.memberRunType, parents);
     }
     JIT_isType(varName: string): string {
         return this.memberRunType.JIT_isType(varName);

@@ -1,5 +1,5 @@
 import {TypeRest} from '../_deepkit/src/reflection/type';
-import {BaseRunType} from '../baseRunType';
+import {BaseRunType} from '../baseRunTypes';
 import {RunType, RunTypeOptions, RunTypeVisitor} from '../types';
 import {addToPathChain, skipJsonDecode, skipJsonEncode} from '../utils';
 
@@ -13,8 +13,9 @@ import {addToPathChain, skipJsonDecode, skipJsonEncode} from '../utils';
 export class RestParamsRunType extends BaseRunType<TypeRest> {
     public readonly isJsonEncodeRequired: boolean;
     public readonly isJsonDecodeRequired: boolean;
+    public readonly hasCircular: boolean;
     public readonly memberRunType: RunType;
-    public readonly name: string;
+    public readonly slug: string;
     public readonly isOptional = true;
     public readonly isReadonly = false;
     public readonly paramName: string;
@@ -23,15 +24,16 @@ export class RestParamsRunType extends BaseRunType<TypeRest> {
     constructor(
         visitor: RunTypeVisitor,
         public readonly src: TypeRest,
-        public readonly nestLevel: number,
+        public readonly parents: RunType[],
         public readonly opts: RunTypeOptions
     ) {
-        super(visitor, src, nestLevel, opts);
-        this.memberRunType = visitor(src.type, nestLevel, opts);
+        super(visitor, src, parents, opts);
+        this.memberRunType = visitor(src.type, [...parents, this], opts);
         this.isJsonEncodeRequired = this.memberRunType.isJsonEncodeRequired;
         this.isJsonDecodeRequired = this.memberRunType.isJsonDecodeRequired;
+        this.hasCircular = this.memberRunType.hasCircular;
         this.paramName = (src as any).name || 'args';
-        this.name = `${this.memberRunType.name}[]`;
+        this.slug = `${this.memberRunType.slug}[]`;
     }
     JIT_isType(varName: string, itemIndex = 0): string {
         const indexName = `pλrλm${this.nestLevel}`;

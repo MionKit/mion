@@ -7,29 +7,28 @@
 
 import {TypeArray} from '../_deepkit/src/reflection/type';
 import {RunType, RunTypeOptions, RunTypeVisitor} from '../types';
-import {addToPathChain, skipJsonDecode, skipJsonEncode, toLiteral} from '../utils';
+import {addToPathChain, hasCircularRunType, skipJsonDecode, skipJsonEncode, toLiteral} from '../utils';
 import {random} from '../mock';
-import {BaseRunType} from '../baseRunType';
-import {hasCircularReference} from '../_deepkit/src/reflection/reflection';
+import {BaseRunType} from '../baseRunTypes';
 
 export class ArrayRunType extends BaseRunType<TypeArray> {
-    public readonly name: string;
+    public readonly slug: string;
     public readonly isJsonEncodeRequired;
     public readonly isJsonDecodeRequired;
+    public readonly hasCircular: boolean;
     public readonly itemsRunType: RunType;
-    public readonly hasCircularReference: boolean;
     constructor(
         visitor: RunTypeVisitor,
         public readonly src: TypeArray,
-        public readonly nestLevel: number,
+        public readonly parents: RunType[],
         public readonly opts: RunTypeOptions
     ) {
-        super(visitor, src, nestLevel, opts);
-        this.itemsRunType = visitor(src.type, nestLevel, opts);
-        this.hasCircularReference = hasCircularReference(src);
+        super(visitor, src, parents, opts);
+        this.itemsRunType = visitor(src.type, [...parents, this], opts);
         this.isJsonEncodeRequired = this.itemsRunType.isJsonEncodeRequired;
         this.isJsonDecodeRequired = this.itemsRunType.isJsonDecodeRequired;
-        this.name = `array<${this.itemsRunType.name}>`;
+        this.slug = `array<${this.itemsRunType.slug}>`;
+        this.hasCircular = this.itemsRunType.hasCircular || hasCircularRunType(this.itemsRunType, parents);
     }
     JIT_isType(varName: string): string {
         const indexName = `indεx${this.nestLevel}`;
@@ -43,7 +42,7 @@ export class ArrayRunType extends BaseRunType<TypeArray> {
         const listItemPath = addToPathChain(pathLiteral, indexName, false);
         const itemAccessor = `${varName}[${indexName}]`;
         const itemCode = this.itemsRunType.JIT_typeErrors(itemAccessor, errorsName, listItemPath);
-        const arrayCode = `if (!Array.isArray(${varName})) ${errorsName}.push({path: ${pathLiteral}, expected: ${toLiteral(this.name)}});`;
+        const arrayCode = `if (!Array.isArray(${varName})) ${errorsName}.push({path: ${pathLiteral}, expected: ${toLiteral(this.slug)}});`;
         return arrayCode + `else { for (let ${indexName} = 0; ${indexName} < ${varName}.length; ${indexName}++) {${itemCode}} }`;
     }
     JIT_jsonEncode(varName: string): string {

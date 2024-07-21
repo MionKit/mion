@@ -9,10 +9,10 @@ import {TypeSymbol} from '../_deepkit/src/reflection/type';
 import {JitJsonEncoder} from '../types';
 import {toLiteral} from '../utils';
 import {mockSymbol} from '../mock';
-import {BaseRunType} from '../baseRunType';
+import {SingleRunType} from '../baseRunTypes';
 
-export class SymbolRunType extends BaseRunType<TypeSymbol> {
-    public readonly name = 'symbol';
+export class SymbolRunType extends SingleRunType<TypeSymbol> {
+    public readonly slug = 'symbol';
     public readonly isJsonEncodeRequired = true;
     public readonly isJsonDecodeRequired = true;
 
@@ -20,7 +20,7 @@ export class SymbolRunType extends BaseRunType<TypeSymbol> {
         return `typeof ${varName} === 'symbol'`;
     }
     JIT_typeErrors(varName: string, errorsName: string, pathChain: string): string {
-        return `if (typeof ${varName} !== 'symbol') ${errorsName}.push({path: ${pathChain}, expected: ${toLiteral(this.name)}})`;
+        return `if (typeof ${varName} !== 'symbol') ${errorsName}.push({path: ${pathChain}, expected: ${toLiteral(this.slug)}})`;
     }
     JIT_jsonEncode(varName: string): string {
         return SymbolJitJsonENcoder.encodeToJson(varName);

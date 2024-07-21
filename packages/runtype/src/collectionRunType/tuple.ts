@@ -6,26 +6,29 @@
  * ######## */
 
 import {TypeTuple} from '../_deepkit/src/reflection/type';
-import {BaseRunType} from '../baseRunType';
+import {BaseRunType} from '../baseRunTypes';
 import {RunType, RunTypeOptions, RunTypeVisitor} from '../types';
 import {addToPathChain, skipJsonDecode, skipJsonEncode, toLiteral} from '../utils';
 
 export class TupleRunType extends BaseRunType<TypeTuple> {
-    public readonly name: string;
+    public readonly slug: string;
     public readonly isJsonEncodeRequired: boolean;
     public readonly isJsonDecodeRequired: boolean;
+    public readonly hasCircular: boolean;
     public readonly runTypes: RunType[];
     constructor(
         visitor: RunTypeVisitor,
         public readonly src: TypeTuple,
-        public readonly nestLevel: number,
+        public readonly parents: RunType[],
         public readonly opts: RunTypeOptions
     ) {
-        super(visitor, src, nestLevel, opts);
-        this.runTypes = src.types.map((t) => visitor(t, nestLevel, opts));
-        this.name = `tuple<${this.runTypes.map((rt) => rt.name).join(', ')}>`;
+        super(visitor, src, parents, opts);
+        const newParents = [...parents, this];
+        this.runTypes = src.types.map((t) => visitor(t, newParents, opts));
+        this.slug = `tuple<${this.runTypes.map((rt) => rt.slug).join(', ')}>`;
         this.isJsonEncodeRequired = this.runTypes.some((rt) => rt.isJsonEncodeRequired);
         this.isJsonDecodeRequired = this.runTypes.some((rt) => rt.isJsonDecodeRequired);
+        this.hasCircular = this.runTypes.some((rt) => rt.hasCircular);
     }
     JIT_isType(varName: string): string {
         const itemsCode = this.runTypes.map((rt, i) => `(${rt.JIT_isType(`${varName}[${i}]`)})`).join(' && ');
@@ -36,7 +39,7 @@ export class TupleRunType extends BaseRunType<TypeTuple> {
             .map((rt, i) => rt.JIT_typeErrors(`${varName}[${i}]`, errorsName, addToPathChain(pathChain, i)))
             .join(';');
         return (
-            `if (!Array.isArray(${varName}) || ${varName}.length > ${this.runTypes.length}) ${errorsName}.push({path: ${pathChain}, expected: ${toLiteral(this.name)}});` +
+            `if (!Array.isArray(${varName}) || ${varName}.length > ${this.runTypes.length}) ${errorsName}.push({path: ${pathChain}, expected: ${toLiteral(this.slug)}});` +
             `else {${itemsCode}}`
         );
     }

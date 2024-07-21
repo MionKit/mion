@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-export * from './src/baseRunType';
+export * from './src/baseRunTypes';
 export * from './src/constants';
 export * from './src/guards';
 export * from './src/jitCompiler';
@@ -33,7 +33,7 @@ export * from './src/singleRunType/void';
 export * from './src/singleRunType/symbol';
 export * from './src/singleRunType/regexp';
 export * from './src/singleRunType/promise';
-export * from './src/singleRunType/tupleMember';
+export * from './src/collectionRunType/tupleMember';
 export * from './src/collectionRunType/property';
 
 export * from './src/collectionRunType/array';

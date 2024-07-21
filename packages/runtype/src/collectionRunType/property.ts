@@ -7,16 +7,17 @@
 
 import {TypeProperty, TypePropertySignature} from '../_deepkit/src/reflection/type';
 import {RunType, RunTypeOptions, RunTypeVisitor} from '../types';
-import {addToPathChain, isFunctionKind, skipJsonDecode, skipJsonEncode, toLiteral} from '../utils';
+import {addToPathChain, hasCircularRunType, isFunctionKind, skipJsonDecode, skipJsonEncode, toLiteral} from '../utils';
 import {validPropertyNameRegExp} from '../constants';
-import {BaseRunType} from '../baseRunType';
+import {BaseRunType} from '../baseRunTypes';
 import {jitUtils} from '../jitUtils';
 
 export class PropertyRunType extends BaseRunType<TypePropertySignature | TypeProperty> {
     public readonly isJsonEncodeRequired: boolean;
     public readonly isJsonDecodeRequired: boolean;
+    public readonly hasCircular: boolean;
     public readonly memberRunType: RunType;
-    public readonly name: string;
+    public readonly slug: string;
     public readonly isOptional: boolean;
     public readonly isReadonly: boolean;
     public readonly propName: string | number;
@@ -26,12 +27,12 @@ export class PropertyRunType extends BaseRunType<TypePropertySignature | TypePro
     constructor(
         visitor: RunTypeVisitor,
         public readonly src: TypePropertySignature,
-        public readonly nestLevel: number,
+        public readonly parents: RunType[],
         public readonly opts: RunTypeOptions
     ) {
-        super(visitor, src, nestLevel, opts);
-        this.memberRunType = visitor(src.type, nestLevel, opts);
-
+        super(visitor, src, parents, opts);
+        const newParents = [...parents, this];
+        this.memberRunType = visitor(src.type, newParents, opts);
         this.isOptional = !!src.optional;
         this.isReadonly = !!src.readonly;
         if (typeof src.name === 'symbol') {
@@ -55,7 +56,8 @@ export class PropertyRunType extends BaseRunType<TypePropertySignature | TypePro
             this.safeAccessor = this.isSafePropName ? `.${src.name}` : `[${toLiteral(src.name)}]`;
         }
 
-        this.name = `${this.propName}${this.isOptional ? '?' : ''}:${this.memberRunType.name}`;
+        this.slug = `${this.propName}${this.isOptional ? '?' : ''}:${this.memberRunType.slug}`;
+        this.hasCircular = this.memberRunType.hasCircular || hasCircularRunType(this.memberRunType, parents);
     }
     JIT_isType(varName: string): string {
         if (!this.shouldSerialize) return '';

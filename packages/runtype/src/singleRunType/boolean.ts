@@ -8,10 +8,10 @@
 import {TypeBoolean} from '../_deepkit/src/reflection/type';
 import {toLiteral} from '../utils';
 import {mockBoolean} from '../mock';
-import {BaseRunType} from '../baseRunType';
+import {SingleRunType} from '../baseRunTypes';
 
-export class BooleanRunType extends BaseRunType<TypeBoolean> {
-    public readonly name = 'boolean';
+export class BooleanRunType extends SingleRunType<TypeBoolean> {
+    public readonly slug = 'boolean';
     public readonly isJsonEncodeRequired = false;
     public readonly isJsonDecodeRequired = false;
 
@@ -19,7 +19,7 @@ export class BooleanRunType extends BaseRunType<TypeBoolean> {
         return `typeof ${varName} === 'boolean'`;
     }
     JIT_typeErrors(varName: string, errorsName: string, pathChain: string): string {
-        return `if (typeof ${varName} !== 'boolean') ${errorsName}.push({path: ${pathChain}, expected: ${toLiteral(this.name)}})`;
+        return `if (typeof ${varName} !== 'boolean') ${errorsName}.push({path: ${pathChain}, expected: ${toLiteral(this.slug)}})`;
     }
     JIT_jsonEncode(): string {
         return '';

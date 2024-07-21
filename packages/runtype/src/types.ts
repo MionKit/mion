@@ -11,19 +11,21 @@ import {JITUtils} from './jitUtils';
 export type JSONValue = string | number | boolean | null | {[key: string]: JSONValue} | Array<JSONValue>;
 export type JSONString = string;
 
-export type RunTypeVisitor = (deepkitType: Type, nestLevel: number, opts: RunTypeOptions) => RunType;
+export type RunTypeVisitor = (deepkitType: Type, parents: RunType[], opts: RunTypeOptions) => RunType;
 export type SrcType = Type & {_runType?: RunType};
 
 export interface RunType<Opts extends RunTypeOptions = RunTypeOptions> {
     /** Unique name of the run type, if two run type has the same name they are considered to be equal */
-    readonly name: string;
-    readonly nestLevel: number;
-    // readonly public readonly src: T; // deepkit src, removing it from the type but still required in the constructor
+    readonly slug: string;
+    readonly src: Type;
     readonly kind: ReflectionKind;
     readonly isJsonEncodeRequired: boolean;
     readonly isJsonDecodeRequired: boolean;
     readonly opts: Opts;
     readonly jitFunctions: JITFunctions;
+    readonly nestLevel: number;
+    hasCircular: boolean;
+
     /**
      * JIT code validation code
      * should not include anything that is purely the validation of the type, ie function wrappers.

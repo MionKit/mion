@@ -9,10 +9,10 @@ import {TypeRegexp} from '../_deepkit/src/reflection/type';
 import {JitJsonEncoder} from '../types';
 import {toLiteral} from '../utils';
 import {mockRegExp} from '../mock';
-import {BaseRunType} from '../baseRunType';
+import {SingleRunType} from '../baseRunTypes';
 
-export class RegexpRunType extends BaseRunType<TypeRegexp> {
-    public readonly name = 'regexp';
+export class RegexpRunType extends SingleRunType<TypeRegexp> {
+    public readonly slug = 'regexp';
     public readonly isJsonEncodeRequired = true;
     public readonly isJsonDecodeRequired = true;
 
@@ -20,7 +20,7 @@ export class RegexpRunType extends BaseRunType<TypeRegexp> {
         return `(${varName} instanceof RegExp)`;
     }
     JIT_typeErrors(varName: string, errorsName: string, pathChain: string): string {
-        return `if (!(${varName} instanceof RegExp)) ${errorsName}.push({path: ${pathChain}, expected: ${toLiteral(this.name)}})`;
+        return `if (!(${varName} instanceof RegExp)) ${errorsName}.push({path: ${pathChain}, expected: ${toLiteral(this.slug)}})`;
     }
     JIT_jsonEncode(varName: string): string {
         return RegexpJitJsonEncoder.encodeToJson(varName);

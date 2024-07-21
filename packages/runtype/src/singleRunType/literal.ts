@@ -6,15 +6,15 @@
  * ######## */
 
 import {TypeLiteral} from '../_deepkit/src/reflection/type';
-import {JitJsonEncoder, RunTypeOptions, RunTypeVisitor} from '../types';
+import {JitJsonEncoder, RunType, RunTypeOptions, RunTypeVisitor} from '../types';
 import {SymbolJitJsonENcoder} from './symbol';
 import {BigIntJitJsonENcoder} from './bigInt';
 import {RegexpJitJsonEncoder} from './regexp';
 import {toLiteral} from '../utils';
-import {BaseRunType} from '../baseRunType';
+import {SingleRunType} from '../baseRunTypes';
 
-export class LiteralRunType extends BaseRunType<TypeLiteral> {
-    public readonly name: string;
+export class LiteralRunType extends SingleRunType<TypeLiteral> {
+    public readonly slug: string;
     public readonly isJsonEncodeRequired: boolean;
     public readonly isJsonDecodeRequired: boolean;
     public readonly jitJsonEncoder: JitJsonEncoder;
@@ -22,10 +22,10 @@ export class LiteralRunType extends BaseRunType<TypeLiteral> {
     constructor(
         visitor: RunTypeVisitor,
         public readonly src: TypeLiteral,
-        public readonly nestLevel: number,
+        public readonly parents: RunType[],
         public readonly opts: RunTypeOptions
     ) {
-        super(visitor, src, nestLevel, opts);
+        super(visitor, src, parents, opts);
         this.literal = src.literal;
         switch (true) {
             case typeof src.literal === 'bigint':
@@ -53,7 +53,7 @@ export class LiteralRunType extends BaseRunType<TypeLiteral> {
                 this.isJsonEncodeRequired = false;
                 this.isJsonDecodeRequired = false;
         }
-        this.name = `literal<${toLiteral(src.literal)}>`;
+        this.slug = `literal<${toLiteral(src.literal)}>`;
     }
     JIT_isType(varName: string): string {
         if (typeof this.literal === 'symbol') return validateSymbol(varName, this.literal);
@@ -63,10 +63,10 @@ export class LiteralRunType extends BaseRunType<TypeLiteral> {
     }
     JIT_typeErrors(varName: string, errorsName: string, pathChain: string): string {
         if (typeof this.literal === 'symbol')
-            return validateSymbolWithErrors(varName, errorsName, pathChain, this.literal, this.name);
+            return validateSymbolWithErrors(varName, errorsName, pathChain, this.literal, this.slug);
         else if (this.literal instanceof RegExp)
-            return validateRegExpWithErrors(varName, errorsName, pathChain, this.literal, this.name);
-        return validateLiteralWithErrors(varName, errorsName, pathChain, this.literal, this.name);
+            return validateRegExpWithErrors(varName, errorsName, pathChain, this.literal, this.slug);
+        return validateLiteralWithErrors(varName, errorsName, pathChain, this.literal, this.slug);
     }
     JIT_jsonEncode(varName: string): string {
         return this.jitJsonEncoder.encodeToJson(varName);

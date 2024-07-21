@@ -26,24 +26,24 @@ const rtRest2 = runType<Rest2FunctionType>() as FunctionRunType;
 
 it('return empty strings when calling regular jit functions', () => {
     expect(() => buildIsTypeJITFn(rt)).toThrow(
-        `function<[a:number, b:boolean, c?:string], date> validation is not supported, instead validate parameters or return type separately.`
+        `function:anonymous<[a:number, b:boolean, c?:string], date> validation is not supported, instead validate parameters or return type separately.`
     );
     expect(() => buildTypeErrorsJITFn(rt)).toThrow(
-        `function<[a:number, b:boolean, c?:string], date> validation is not supported, instead validate parameters or return type separately.`
+        `function:anonymous<[a:number, b:boolean, c?:string], date> validation is not supported, instead validate parameters or return type separately.`
     );
 
     expect(() => buildJsonEncodeJITFn(rt)).toThrow(
-        `function<[a:number, b:boolean, c?:string], date> json encode is not supported, instead encode parameters or return type separately.`
+        `function:anonymous<[a:number, b:boolean, c?:string], date> json encode is not supported, instead encode parameters or return type separately.`
     );
     expect(() => buildJsonDecodeJITFn(rt)).toThrow(
-        `function<[a:number, b:boolean, c?:string], date> json decode is not supported, instead decode parameters or return type separately.`
+        `function:anonymous<[a:number, b:boolean, c?:string], date> json decode is not supported, instead decode parameters or return type separately.`
     );
 
     expect(() => buildJsonStringifyJITFn(rt)).toThrow(
-        `function<[a:number, b:boolean, c?:string], date> json stringify is not supported, instead stringify parameters or return type separately.`
+        `function:anonymous<[a:number, b:boolean, c?:string], date> json stringify is not supported, instead stringify parameters or return type separately.`
     );
     expect(() => rt.mock()).toThrow(
-        `function<[a:number, b:boolean, c?:string], date> mock is not supported, instead mock parameters or return type separately`
+        `function:anonymous<[a:number, b:boolean, c?:string], date> mock is not supported, instead mock parameters or return type separately`
     );
 });
 
@@ -211,7 +211,7 @@ it(`if function's return type is a promise then return type should be the promis
     const fn = (a: number, b: boolean, c?: string): Promise<Date> => Promise.resolve(new Date());
     const reflectedType = reflectFunction(fn);
     expect(reflectedType instanceof FunctionRunType).toBe(true);
-    expect(reflectedType.returnType.name).toBe('date');
+    expect(reflectedType.returnType.slug).toBe('date');
 
     const validateReturn = reflectedType.jitReturnFns.isType.fn;
     const typeErrorsReturn = reflectedType.jitReturnFns.typeErrors.fn;
@@ -291,4 +291,16 @@ it('stringify function with only rest parameters', () => {
     const roundTrip3 = fromJson(JSON.parse(jsonStringify(typeValue2)));
     expect(roundTrip).toEqual(typeValue);
     expect(roundTrip3).toEqual(typeValue2);
+});
+
+it('use anonymous or function name in the type slug', () => {
+    const fn = (a: number, b: boolean, c?: string): Date => new Date();
+    const reflectedType = reflectFunction(fn);
+    expect(reflectedType.slug).toBe('function:anonymous<[a:number, b:boolean, c?:string], date>');
+
+    function namedFn(a: number, b: boolean, c?: string): Date {
+        return new Date();
+    }
+    const reflectedNamedType = reflectFunction(namedFn);
+    expect(reflectedNamedType.slug).toBe('function:namedFn<[a:number, b:boolean, c?:string], date>');
 });
