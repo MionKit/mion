@@ -24,21 +24,18 @@ export class FunctionRunType<CallType extends AnyFunction = TypeFunction> extend
     public readonly isParamsJsonDecodedRequired: boolean;
     public readonly returnType: RunType;
     public readonly parameterTypes: ParameterRunType[];
-    public readonly paramsName: string;
-    public readonly returnName: string;
-    public readonly slug: string;
     public readonly shouldSerialize = false;
     public readonly hasReturnData: boolean;
     public readonly hasOptionalParameters: boolean;
     public readonly isAsync: boolean;
     public readonly totalRequiredParams: number;
     public readonly hasRestParameter: boolean;
+    public readonly paramsName: string;
     constructor(
         visitor: RunTypeVisitor,
         public readonly src: CallType,
         public readonly parents: RunType[],
-        public readonly opts: RunTypeOptions,
-        callType = 'function'
+        public readonly opts: RunTypeOptions
     ) {
         super(visitor, src, parents, opts);
         const start = opts?.paramsSlice?.start;
@@ -55,29 +52,36 @@ export class FunctionRunType<CallType extends AnyFunction = TypeFunction> extend
         this.hasCircular = this.parameterTypes.some((p) => p.hasCircular) || this.returnType.hasCircular;
         this.hasOptionalParameters = this.totalRequiredParams < this.parameterTypes.length;
         this.hasRestParameter = !!this.parameterTypes.length && this.parameterTypes[this.parameterTypes.length - 1].isRest;
-        this.paramsName = `[${this.parameterTypes.map((p) => p.slug).join(', ')}]`;
-        this.returnName = this.returnType.slug;
-        this.slug = `${callType}:${(src as any)?.name || 'anonymous'}<${this.paramsName}, ${this.returnName}>`;
-        this.hasReturnData = this._hasReturnData(this.returnType.kind);
-        this.isAsync = isPromise || this._isAsync(this.returnType.kind);
+        this.hasReturnData = this._hasReturnData(this.returnType.src.kind);
+        this.isAsync = isPromise || this._isAsync(this.returnType.src.kind);
+        this.paramsName = `[${this.parameterTypes.map((p) => p.getJitId()).join(', ')}]`;
     }
+
+    private _jitId: string | undefined;
+    getJitId(): string {
+        if (this._jitId) return this._jitId;
+        return (this._jitId = `${this.src.kind}(${this.parameterTypes.map((p) => p.getJitId()).join(',')}):${this.returnType.getJitId()}`);
+    }
+
     compileIsType(): string {
-        throw new Error(`${this.slug} validation is not supported, instead validate parameters or return type separately.`);
+        throw new Error(`${this.getJitId()} validation is not supported, instead validate parameters or return type separately.`);
     }
     compileTypeErrors(): string {
-        throw new Error(`${this.slug} validation is not supported, instead validate parameters or return type separately.`);
+        throw new Error(`${this.getJitId()} validation is not supported, instead validate parameters or return type separately.`);
     }
     compileJsonEncode(): string {
-        throw new Error(`${this.slug} json encode is not supported, instead encode parameters or return type separately.`);
+        throw new Error(`${this.getJitId()} json encode is not supported, instead encode parameters or return type separately.`);
     }
     compileJsonDecode(): string {
-        throw new Error(`${this.slug} json decode is not supported, instead decode parameters or return type separately.`);
+        throw new Error(`${this.getJitId()} json decode is not supported, instead decode parameters or return type separately.`);
     }
     compileJsonStringify(): string {
-        throw new Error(`${this.slug} json stringify is not supported, instead stringify parameters or return type separately.`);
+        throw new Error(
+            `${this.getJitId()} json stringify is not supported, instead stringify parameters or return type separately.`
+        );
     }
     mock(): string {
-        throw new Error(`${this.slug} mock is not supported, instead mock parameters or return type separately.`);
+        throw new Error(`${this.getJitId()} mock is not supported, instead mock parameters or return type separately.`);
     }
 
     // ####### params #######

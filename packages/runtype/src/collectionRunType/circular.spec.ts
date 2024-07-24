@@ -62,6 +62,11 @@ interface CircularArrayUnion {
     array: (CircularArrayUnion | number)[];
 }
 
+// type T1 = {a: number} | string | T1; // circular type reference, ts error
+type T1 = {a: number} | string;
+type T2 = [{a: number}, string, T2]; // tuple allows circular reference
+type T3 = T3[]; // array allows circular reference
+
 it('should throw an error when trying to get the type of an object with circular reference', () => {
     expect(() => runType<Circular>()).toThrow('Circular references are not supported ie: type T = {a: T}');
     expect(() => runType<CircularClass>()).toThrow('Circular references are not supported ie: type T = {a: T}');
@@ -76,6 +81,12 @@ it('should throw an error when trying to get the type of an object with circular
 
 it('should not throw an error when trying to get the type of an object with circular reference', () => {
     expect(() => runType<NonCircular>()).not.toThrow('Circular references are not supported ie: type T = {a: T}');
+});
+
+it('is circular should be set only for property types or where the circular reference is created,not in the parents', () => {
+    // todo: implement
+    // always fail until implemented
+    throw new Error('circular only in properties still Not implemented');
 });
 
 // TODO: circular references are not supported yet

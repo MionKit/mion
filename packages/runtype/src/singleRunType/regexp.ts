@@ -12,7 +12,6 @@ import {mockRegExp} from '../mock';
 import {SingleRunType} from '../baseRunTypes';
 
 export class RegexpRunType extends SingleRunType<TypeRegexp> {
-    public readonly slug = 'regexp';
     public readonly isJsonEncodeRequired = true;
     public readonly isJsonDecodeRequired = true;
 
@@ -20,7 +19,7 @@ export class RegexpRunType extends SingleRunType<TypeRegexp> {
         return `(${varName} instanceof RegExp)`;
     }
     compileTypeErrors(varName: string, errorsName: string, pathChain: string): string {
-        return `if (!(${varName} instanceof RegExp)) ${errorsName}.push({path: ${pathChain}, expected: ${toLiteral(this.slug)}})`;
+        return `if (!(${varName} instanceof RegExp)) ${errorsName}.push({path: ${pathChain}, expected: ${toLiteral(this.getJitId())}})`;
     }
     compileJsonEncode(varName: string): string {
         return RegexpJitJsonEncoder.encodeToJson(varName);

@@ -12,7 +12,6 @@ import {mockSymbol} from '../mock';
 import {SingleRunType} from '../baseRunTypes';
 
 export class SymbolRunType extends SingleRunType<TypeSymbol> {
-    public readonly slug = 'symbol';
     public readonly isJsonEncodeRequired = true;
     public readonly isJsonDecodeRequired = true;
 
@@ -20,7 +19,7 @@ export class SymbolRunType extends SingleRunType<TypeSymbol> {
         return `typeof ${varName} === 'symbol'`;
     }
     compileTypeErrors(varName: string, errorsName: string, pathChain: string): string {
-        return `if (typeof ${varName} !== 'symbol') ${errorsName}.push({path: ${pathChain}, expected: ${toLiteral(this.slug)}})`;
+        return `if (typeof ${varName} !== 'symbol') ${errorsName}.push({path: ${pathChain}, expected: ${toLiteral(this.getJitId())}})`;
     }
     compileJsonEncode(varName: string): string {
         return SymbolJitJsonENcoder.encodeToJson(varName);

@@ -47,17 +47,12 @@ const MaxNestLevel = 20; // max parents levels to prevent infinite recursion or 
 
 export function runType<T>(opts: RunTypeOptions = {}, type?: ReceiveType<T>): RunType {
     type = resolveReceiveType(type);
-    const rt = visitor(type, [], opts);
-    return rt;
+    return visitor(type, [], opts);
 }
 
 export function reflectFunction<Fn extends (...args: any[]) => any>(fn: Fn, opts: RunTypeOptions = {}): FunctionRunType {
     const type = reflect(fn);
-    const rt = visitor(type, [], opts) as FunctionRunType;
-    if (rt.hasCircular) {
-        throw new Error('Circular references are not supported ie: type T = {a: T}');
-    }
-    return rt;
+    return visitor(type, [], opts) as FunctionRunType;
 }
 
 function visitor(deepkitType, parents: RunType[], opts: RunTypeOptions): RunType {
@@ -208,6 +203,7 @@ function visitor(deepkitType, parents: RunType[], opts: RunTypeOptions): RunType
     if (parents.length > MaxNestLevel) throw new Error('Max Nest Level exceeded while resolving run type');
     if (rt.hasCircular) throw new Error('Circular references are not supported ie: type T = {a: T}');
     (deepkitType as SrcType)._runType = rt;
+    if (rt.src.id || rt.src.typeName) console.log(rt.src.kind, rt.src.id, rt.src.typeName);
     return rt;
 }
 

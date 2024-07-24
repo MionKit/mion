@@ -12,7 +12,6 @@ import {mockObjectList} from '../constants';
 import {SingleRunType} from '../baseRunTypes';
 
 export class ObjectRunType extends SingleRunType<TypeAny | TypeUnknown> {
-    public readonly slug = 'object';
     public readonly isJsonEncodeRequired = false;
     public readonly isJsonDecodeRequired = false;
 
@@ -20,7 +19,7 @@ export class ObjectRunType extends SingleRunType<TypeAny | TypeUnknown> {
         return `typeof ${varName} === 'object' && ${varName} !== null`;
     }
     compileTypeErrors(varName: string, errorsName: string, pathChain: string): string {
-        return `if (!(${this.compileIsType(varName)})) ${errorsName}.push({path: ${pathChain}, expected: ${toLiteral(this.slug)}})`;
+        return `if (!(${this.compileIsType(varName)})) ${errorsName}.push({path: ${pathChain}, expected: ${toLiteral(this.getJitId())}})`;
     }
     compileJsonEncode(): string {
         return '';

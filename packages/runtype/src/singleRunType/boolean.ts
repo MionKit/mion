@@ -11,7 +11,6 @@ import {mockBoolean} from '../mock';
 import {SingleRunType} from '../baseRunTypes';
 
 export class BooleanRunType extends SingleRunType<TypeBoolean> {
-    public readonly slug = 'boolean';
     public readonly isJsonEncodeRequired = false;
     public readonly isJsonDecodeRequired = false;
 
@@ -19,7 +18,7 @@ export class BooleanRunType extends SingleRunType<TypeBoolean> {
         return `typeof ${varName} === 'boolean'`;
     }
     compileTypeErrors(varName: string, errorsName: string, pathChain: string): string {
-        return `if (typeof ${varName} !== 'boolean') ${errorsName}.push({path: ${pathChain}, expected: ${toLiteral(this.slug)}})`;
+        return `if (typeof ${varName} !== 'boolean') ${errorsName}.push({path: ${pathChain}, expected: ${toLiteral(this.getJitId())}})`;
     }
     compileJsonEncode(): string {
         return '';

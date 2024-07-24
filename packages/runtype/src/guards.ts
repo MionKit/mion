@@ -41,124 +41,124 @@ import type {ObjectRunType} from './singleRunType/object';
 import type {MethodRunType} from './functionRunType/method';
 
 export function isAnyRunType(rt: RunType): rt is AnyRunType {
-    return rt.kind === ReflectionKind.any;
+    return rt.src.kind === ReflectionKind.any;
 }
 
 export function isArrayRunType(rt: RunType): rt is ArrayRunType {
-    return rt.kind === ReflectionKind.array;
+    return rt.src.kind === ReflectionKind.array;
 }
 
 export function isBigIntRunType(rt: RunType): rt is BigIntRunType {
-    return rt.kind === ReflectionKind.bigint;
+    return rt.src.kind === ReflectionKind.bigint;
 }
 
 export function isBooleanRunType(rt: RunType): rt is BooleanRunType {
-    return rt.kind === ReflectionKind.boolean;
+    return rt.src.kind === ReflectionKind.boolean;
 }
 
 export function isCallSignatureRunType(rt: RunType): rt is CallSignatureRunType {
-    return rt.kind === ReflectionKind.callSignature;
+    return rt.src.kind === ReflectionKind.callSignature;
 }
 
 export function isDateRunType(rt: RunType): rt is DateRunType {
-    return rt.kind === ReflectionKind.class && rt.slug === 'date';
+    return rt.src.kind === ReflectionKind.class && rt.getJitId() === 'date';
 }
 
 export function isEnumRunType(rt: RunType): rt is EnumRunType {
-    return rt.kind === ReflectionKind.enum;
+    return rt.src.kind === ReflectionKind.enum;
 }
 
 export function isEnumMemberRunType(rt: RunType): rt is EnumMemberRunType {
-    return rt.kind === ReflectionKind.enumMember;
+    return rt.src.kind === ReflectionKind.enumMember;
 }
 
 export function isFunctionRunType(rt: RunType): rt is FunctionRunType<any> {
-    return rt.kind === ReflectionKind.function;
+    return rt.src.kind === ReflectionKind.function;
 }
 
 export function isIndexSignatureRunType(rt: RunType): rt is IndexSignatureRunType {
-    return rt.kind === ReflectionKind.indexSignature;
+    return rt.src.kind === ReflectionKind.indexSignature;
 }
 
 export function isLiteralRunType(rt: RunType): rt is LiteralRunType {
-    return rt.kind === ReflectionKind.literal;
+    return rt.src.kind === ReflectionKind.literal;
 }
 
 export function isMethodSignatureRunType(rt: RunType): rt is MethodSignatureRunType {
-    return rt.kind === ReflectionKind.methodSignature;
+    return rt.src.kind === ReflectionKind.methodSignature;
 }
 
 export function isNullRunType(rt: RunType): rt is NullRunType {
-    return rt.kind === ReflectionKind.null;
+    return rt.src.kind === ReflectionKind.null;
 }
 
 export function isNumberRunType(rt: RunType): rt is NumberRunType {
-    return rt.kind === ReflectionKind.number;
+    return rt.src.kind === ReflectionKind.number;
 }
 
 export function isInterfaceRunType(rt: RunType): rt is InterfaceRunType {
-    return rt.kind === ReflectionKind.objectLiteral;
+    return rt.src.kind === ReflectionKind.objectLiteral;
 }
 
 export function isPropertySignatureRunType(rt: RunType): rt is PropertyRunType {
-    return rt.kind === ReflectionKind.propertySignature;
+    return rt.src.kind === ReflectionKind.propertySignature;
 }
 
 export function isRegexpRunType(rt: RunType): rt is RegexpRunType {
-    return rt.kind === ReflectionKind.regexp;
+    return rt.src.kind === ReflectionKind.regexp;
 }
 
 export function isStringRunType(rt: RunType): rt is StringRunType {
-    return rt.kind === ReflectionKind.string;
+    return rt.src.kind === ReflectionKind.string;
 }
 
 export function isSymbolRunType(rt: RunType): rt is SymbolRunType {
-    return rt.kind === ReflectionKind.symbol;
+    return rt.src.kind === ReflectionKind.symbol;
 }
 
 export function isTupleRunType(rt: RunType): rt is TupleRunType {
-    return rt.kind === ReflectionKind.tuple;
+    return rt.src.kind === ReflectionKind.tuple;
 }
 
 export function isTupleMemberRunType(rt: RunType): rt is TupleMemberRunType {
-    return rt.kind === ReflectionKind.tupleMember;
+    return rt.src.kind === ReflectionKind.tupleMember;
 }
 
 export function isUndefinedRunType(rt: RunType): rt is UndefinedRunType {
-    return rt.kind === ReflectionKind.undefined;
+    return rt.src.kind === ReflectionKind.undefined;
 }
 
 export function isUnionRunType(rt: RunType): rt is UnionRunType {
-    return rt.kind === ReflectionKind.union;
+    return rt.src.kind === ReflectionKind.union;
 }
 
 export function isUnknownRunType(rt: RunType): rt is UnknownRunType {
-    return rt.kind === ReflectionKind.unknown;
+    return rt.src.kind === ReflectionKind.unknown;
 }
 
 export function isVoidRunType(rt: RunType): rt is VoidRunType {
-    return rt.kind === ReflectionKind.void;
+    return rt.src.kind === ReflectionKind.void;
 }
 
 export function isNeverRunType(rt: RunType): rt is NeverRunType {
-    return rt.kind === ReflectionKind.never;
+    return rt.src.kind === ReflectionKind.never;
 }
 
 export function isObjectRunType(rt: RunType): rt is ObjectRunType {
-    return rt.kind === ReflectionKind.object;
+    return rt.src.kind === ReflectionKind.object;
 }
 
 export function isParameterRunType(rt: RunType): rt is ParameterRunType {
-    return rt.kind === ReflectionKind.parameter;
+    return rt.src.kind === ReflectionKind.parameter;
 }
 
 export function isPromiseRunType(rt: RunType): rt is PromiseRunType {
-    return rt.kind === ReflectionKind.promise;
+    return rt.src.kind === ReflectionKind.promise;
 }
 
 export function isConstructor(rt: InterfaceRunTypeEntry): rt is MethodSignatureRunType | MethodRunType {
     return (
-        (rt.kind === ReflectionKind.method || rt.kind === ReflectionKind.methodSignature) &&
+        (rt.src.kind === ReflectionKind.method || rt.src.kind === ReflectionKind.methodSignature) &&
         (rt.src as TypeMethod).name === 'constructor'
     );
 }

@@ -4,7 +4,7 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
-import {TypeObjectLiteral, TypeClass} from '../_deepkit/src/reflection/type';
+import {TypeObjectLiteral, TypeClass, TypeIntersection} from '../_deepkit/src/reflection/type';
 import {RunType, RunTypeOptions, RunTypeVisitor} from '../types';
 import {skipJsonDecode, skipJsonEncode, toLiteral} from '../utils';
 import {PropertyRunType} from './property';
@@ -21,20 +21,21 @@ export type InterfaceRunTypeEntry =
     | IndexSignatureRunType
     | MethodRunType;
 
-export class InterfaceRunType<T extends TypeObjectLiteral | TypeClass = TypeObjectLiteral> extends BaseRunType<T> {
-    public readonly slug: string;
+export class InterfaceRunType<
+    T extends TypeObjectLiteral | TypeClass | TypeIntersection = TypeObjectLiteral,
+> extends BaseRunType<T> {
     public readonly isJsonEncodeRequired: boolean;
     public readonly isJsonDecodeRequired: boolean;
     public readonly hasCircular: boolean;
     public readonly entries: InterfaceRunTypeEntry[];
     public readonly serializableProps: PropertyRunType[];
-    public readonly indexProps: IndexSignatureRunType[];
+    public readonly serializableIndexProps: IndexSignatureRunType[];
+    protected propertySeparator = ',';
     constructor(
         visitor: RunTypeVisitor,
         public readonly src: T,
         public readonly parents: RunType[],
         public readonly opts: RunTypeOptions,
-        runTypeName = 'interface',
         isJsonDecodeRequired = false,
         isJsonEncodeRequired = false
     ) {
@@ -50,16 +51,29 @@ export class InterfaceRunType<T extends TypeObjectLiteral | TypeClass = TypeObje
 
         // ### index props ###
         // with symbol not being serializable index can only be string or number (max length 2)
-        this.indexProps = this.entries.filter(
+        this.serializableIndexProps = this.entries.filter(
             (prop) => prop.shouldSerialize && prop instanceof IndexSignatureRunType
         ) as IndexSignatureRunType[];
-        this.slug = `${runTypeName}<${[...this.serializableProps, ...this.indexProps].map((prop) => prop.slug).join(', ')}>`;
     }
+    private _jitId: string | undefined;
+    getJitId(): string {
+        if (this._jitId) return this._jitId;
+        const sortedProps = this.getAllSerializableProps(); // TODO: should we sort props?
+        this._jitId = `${this.src.kind}{${sortedProps.map((prop) => `${prop.getJitId()}`).join(this.propertySeparator)}}`;
+        return this._jitId;
+    }
+
+    private _allSerializableProps: (PropertyRunType | IndexSignatureRunType)[] | undefined;
+    private getAllSerializableProps(): (PropertyRunType | IndexSignatureRunType)[] {
+        if (this._allSerializableProps) return this._allSerializableProps;
+        return (this._allSerializableProps = [...this.serializableProps, ...this.serializableIndexProps]);
+    }
+
     compileIsType(varName: string): string {
         const propsCode = this.serializableProps.length
             ? this.serializableProps.map((prop) => `(${prop.compileIsType(varName)})`).join(' &&')
             : '';
-        const indexPropsCode = this.indexProps.length ? this.indexProps[0].compileIsType(varName) : '';
+        const indexPropsCode = this.serializableIndexProps.length ? this.serializableIndexProps[0].compileIsType(varName) : '';
         const code = [propsCode, indexPropsCode].filter((code) => !!code).join(' && ');
         return `typeof ${varName} === 'object' ${code ? `&& (${code})` : ''}`;
     }
@@ -67,19 +81,19 @@ export class InterfaceRunType<T extends TypeObjectLiteral | TypeClass = TypeObje
         const propsCode = this.serializableProps.length
             ? this.serializableProps.map((prop) => prop.compileTypeErrors(varName, errorsName, pathLiteral)).join(';')
             : '';
-        const indexPropsCode = this.indexProps.length
-            ? this.indexProps[0].compileTypeErrors(varName, errorsName, pathLiteral)
+        const indexPropsCode = this.serializableIndexProps.length
+            ? this.serializableIndexProps[0].compileTypeErrors(varName, errorsName, pathLiteral)
             : '';
         const code = [propsCode, indexPropsCode].filter((code) => !!code).join('; ');
         return (
-            `if (typeof ${varName} !== 'object') ${errorsName}.push({path: ${pathLiteral}, expected: ${toLiteral(this.slug)}});` +
+            `if (typeof ${varName} !== 'object') ${errorsName}.push({path: ${pathLiteral}, expected: ${toLiteral(this.getJitId())}});` +
             `else {${code}}`
         );
     }
     compileJsonEncode(varName: string): string {
         if (skipJsonEncode(this)) return '';
-        if (this.indexProps.length) {
-            return this.indexProps[0].compileJsonEncode(varName);
+        if (this.serializableIndexProps.length) {
+            return this.serializableIndexProps[0].compileJsonEncode(varName);
         }
         return this.serializableProps
             .map((prop) => prop.compileJsonEncode(varName))
@@ -88,8 +102,8 @@ export class InterfaceRunType<T extends TypeObjectLiteral | TypeClass = TypeObje
     }
     compileJsonDecode(varName: string): string {
         if (skipJsonDecode(this)) return '';
-        if (this.indexProps.length) {
-            return this.indexProps[0].compileJsonDecode(varName);
+        if (this.serializableIndexProps.length) {
+            return this.serializableIndexProps[0].compileJsonDecode(varName);
         }
         return this.serializableProps
             .map((prop) => prop.compileJsonDecode(varName))
@@ -97,8 +111,8 @@ export class InterfaceRunType<T extends TypeObjectLiteral | TypeClass = TypeObje
             .join(';');
     }
     compileJsonStringify(varName: string): string {
-        if (this.indexProps.length) {
-            const indexPropsCode = this.indexProps[0].compileJsonStringify(varName);
+        if (this.serializableIndexProps.length) {
+            const indexPropsCode = this.serializableIndexProps[0].compileJsonStringify(varName);
             return `'{'+${indexPropsCode}+'}'`;
         }
         const propsCode = this.serializableProps.map((prop, i) => prop.compileJsonStringify(varName, i === 0)).join('+');
@@ -107,10 +121,10 @@ export class InterfaceRunType<T extends TypeObjectLiteral | TypeClass = TypeObje
     mock(
         optionalParamsProbability: Record<string | number, number>,
         objArgs: Record<string | number, any[]>,
-        indexArgs?: any[]
+        indexArgs?: any[],
+        obj: Record<string | number, any> = {}
     ): Record<string | number, any> {
-        const obj: Record<string | number, any> = {};
-        this.serializableProps.forEach((prop) => {
+        this.getAllSerializableProps().forEach((prop) => {
             const name: string | number = prop.propName as any;
             const optionalProbability: number | undefined = optionalParamsProbability?.[name];
             const propArgs: any[] = objArgs?.[name] || [];

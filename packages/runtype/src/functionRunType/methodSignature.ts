@@ -13,9 +13,8 @@ export class MethodSignatureRunType extends FunctionRunType<TypeMethodSignature>
         visitor: RunTypeVisitor,
         public readonly src: TypeMethodSignature,
         public readonly parents: RunType[],
-        public readonly opts: RunTypeOptions,
-        callType = 'methodSignature'
+        public readonly opts: RunTypeOptions
     ) {
-        super(visitor, src, parents, opts, callType);
+        super(visitor, src, parents, opts);
     }
 }

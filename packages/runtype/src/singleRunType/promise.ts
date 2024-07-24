@@ -11,7 +11,6 @@ import {toLiteral} from '../utils';
  * ######## */
 
 export class PromiseRunType extends SingleRunType<TypePromise> {
-    public readonly slug: string;
     public readonly isJsonEncodeRequired = true;
     public readonly isJsonDecodeRequired = true;
     public readonly resolvedType: RunType;
@@ -23,7 +22,6 @@ export class PromiseRunType extends SingleRunType<TypePromise> {
     ) {
         super(visitor, src, parents, opts);
         this.resolvedType = visitor(src.type, [...parents, this], opts);
-        this.slug = `promise<${this.resolvedType.slug}>`;
     }
     compileIsType(varName: string): string {
         return `${varName} instanceof Promise`;
@@ -32,19 +30,19 @@ export class PromiseRunType extends SingleRunType<TypePromise> {
         return this.resolvedType.compileIsType(varName);
     }
     compileTypeErrors(varName: string, errorsName: string, pathChain: string): string {
-        return `if (!(${varName} instanceof Promise)) ${errorsName}.push({path: ${pathChain}, expected: ${toLiteral(this.slug)}})`;
+        return `if (!(${varName} instanceof Promise)) ${errorsName}.push({path: ${pathChain}, expected: ${toLiteral(this.getJitId())}})`;
     }
     resolveTypeErrorsJIT(varName: string, errorsName: string, pathChain: string): string {
         return this.resolvedType.compileTypeErrors(varName, errorsName, pathChain);
     }
     compileJsonEncode(): string {
-        throw new Error(`${this.slug} can not be encoded to json.`);
+        throw new Error(`${this.getJitId()} can not be encoded to json.`);
     }
     compileJsonDecode(): string {
-        throw new Error(`${this.slug} can not be decoded from json.`);
+        throw new Error(`${this.getJitId()} can not be decoded from json.`);
     }
     compileJsonStringify(): string {
-        throw new Error(`${this.slug} can not be stringified.`);
+        throw new Error(`${this.getJitId()} can not be stringified.`);
     }
     mock(timeOut = 1, rejectError: string): Promise<any> {
         return new Promise((resolve, reject) => {

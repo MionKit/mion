@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {ReflectionKind, Type} from './_deepkit/src/reflection/type';
+import {Type} from './_deepkit/src/reflection/type';
 import {JITUtils} from './jitUtils';
 
 export type JSONValue = string | number | boolean | null | {[key: string]: JSONValue} | Array<JSONValue>;
@@ -61,10 +61,7 @@ export interface JitCompilerFunctions {
 }
 
 export interface RunType<Opts extends RunTypeOptions = RunTypeOptions> extends JitCompilerFunctions {
-    /** Unique name of the run type, if two run type has the same name they are considered to be equal */
-    readonly slug: string;
     readonly src: Type;
-    readonly kind: ReflectionKind;
     readonly isJsonEncodeRequired: boolean;
     readonly isJsonDecodeRequired: boolean;
     readonly opts: Opts;
@@ -76,6 +73,12 @@ export interface RunType<Opts extends RunTypeOptions = RunTypeOptions> extends J
      * returns a mocked value, should be random when possible
      * */
     mock: (...args: any[]) => any;
+
+    /**
+     * Unique identifier of the run type, if two run types has the same jitId they will produce same jit functions.
+     * Ie, two classes with different functions but same exact properties has the same jitId .
+     * */
+    getJitId(): string | number;
 }
 
 export interface RunTypeOptions {

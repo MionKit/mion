@@ -10,7 +10,6 @@ import {SingleRunType} from '../baseRunTypes';
 import {toLiteral} from '../utils';
 
 export class UndefinedRunType extends SingleRunType<TypeUndefined> {
-    public readonly slug = 'undefined';
     public readonly isJsonEncodeRequired = true;
     public readonly isJsonDecodeRequired = true;
 
@@ -18,7 +17,7 @@ export class UndefinedRunType extends SingleRunType<TypeUndefined> {
         return `typeof ${varName} === 'undefined'`;
     }
     compileTypeErrors(varName: string, errorsName: string, pathChain: string): string {
-        return `if (typeof ${varName} !== 'undefined') ${errorsName}.push({path: ${pathChain}, expected: ${toLiteral(this.slug)}})`;
+        return `if (typeof ${varName} !== 'undefined') ${errorsName}.push({path: ${pathChain}, expected: ${toLiteral(this.getJitId())}})`;
     }
     compileJsonEncode(varName: string): string {
         return `${varName} = null`;

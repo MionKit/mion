@@ -11,7 +11,6 @@ import {mockNumber} from '../mock';
 import {SingleRunType} from '../baseRunTypes';
 
 export class NumberRunType extends SingleRunType<TypeNumber> {
-    public readonly slug = 'number';
     public readonly isJsonEncodeRequired = false;
     public readonly isJsonDecodeRequired = false;
 
@@ -19,7 +18,7 @@ export class NumberRunType extends SingleRunType<TypeNumber> {
         return `typeof ${varName} === 'number' && Number.isFinite(${varName})`;
     }
     compileTypeErrors(varName: string, errorsName: string, pathChain: string): string {
-        return `if(!(${this.compileIsType(varName)})) ${errorsName}.push({path: ${pathChain}, expected: ${toLiteral(this.slug)}})`;
+        return `if(!(${this.compileIsType(varName)})) ${errorsName}.push({path: ${pathChain}, expected: ${toLiteral(this.getJitId())}})`;
     }
     compileJsonEncode(): string {
         return '';

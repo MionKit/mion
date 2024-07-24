@@ -12,7 +12,6 @@ import {random} from '../mock';
 import {SingleRunType} from '../baseRunTypes';
 
 export class EnumRunType extends SingleRunType<TypeEnum> {
-    public readonly slug: string;
     public readonly isJsonEncodeRequired = false;
     public readonly isJsonDecodeRequired = false;
     public readonly values: (string | number | undefined | null)[];
@@ -26,13 +25,16 @@ export class EnumRunType extends SingleRunType<TypeEnum> {
         super(visitor, src, parents, opts);
         this.values = src.values;
         this.indexKind = src.indexType.kind;
-        this.slug = `enum<${src.values.map((v) => v).join(', ')}>`;
+    }
+
+    getJitId(): number | string {
+        return `${this.indexKind}{${this.values.map((v) => v).join(',')}}`;
     }
     compileIsType(varName: string): string {
         return this.values.map((v) => `${varName} === ${toLiteral(v)}`).join(' || ');
     }
     compileTypeErrors(varName: string, errorsName: string, pathChain: string): string {
-        return `if (!(${this.compileIsType(varName)})) ${errorsName}.push({path: ${pathChain}, expected: ${toLiteral(this.slug)}})`;
+        return `if (!(${this.compileIsType(varName)})) ${errorsName}.push({path: ${pathChain}, expected: ${toLiteral(this.getJitId())}})`;
     }
     compileJsonEncode(): string {
         return '';
