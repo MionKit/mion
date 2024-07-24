@@ -15,7 +15,6 @@ export class TupleMemberRunType extends BaseRunType<TypeTupleMember> {
     public readonly isJsonDecodeRequired: boolean;
     public readonly hasCircular: boolean;
     public readonly memberRunType: RunType;
-    public readonly slug: string;
     constructor(
         visitor: RunTypeVisitor,
         public readonly src: TypeTupleMember,
@@ -26,8 +25,10 @@ export class TupleMemberRunType extends BaseRunType<TypeTupleMember> {
         this.memberRunType = visitor(src.type, [...parents, this], opts);
         this.isJsonEncodeRequired = this.memberRunType.isJsonEncodeRequired;
         this.isJsonDecodeRequired = this.memberRunType.isJsonDecodeRequired;
-        this.slug = this.memberRunType.slug;
         this.hasCircular = this.memberRunType.hasCircular || hasCircularRunType(this.memberRunType, parents);
+    }
+    getJitId(): string | number {
+        return `${this.src.kind}:${this.memberRunType.getJitId()}`;
     }
     compileIsType(varName: string): string {
         return this.memberRunType.compileIsType(varName);

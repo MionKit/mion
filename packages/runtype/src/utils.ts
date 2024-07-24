@@ -7,7 +7,7 @@
 
 import {isSameType, ReflectionKind} from './_deepkit/src/reflection/type';
 import {jitUtils} from './jitUtils';
-import type {RunType} from './types';
+import type {AnyClass, RunType} from './types';
 import type {SingleRunType} from './baseRunTypes';
 
 export function toLiteral(value: number | string | boolean | undefined | null | bigint | RegExp | symbol): string {
@@ -73,4 +73,14 @@ function _hasCircularRunType(rt: RunType, parents: RunType[], index = 0): boolea
     if ((parent as SingleRunType<any, any>).isSingle) return _hasCircularRunType(rt, parents, index + 1);
     if (isSameType(rt.src, parent.src)) return true;
     return _hasCircularRunType(rt, parents, index + 1);
+}
+
+export function isClass(cls: AnyClass | any): cls is AnyClass {
+    return (
+        typeof cls === 'function' &&
+        cls.prototype &&
+        cls.prototype.constructor === cls &&
+        cls.prototype.constructor.name &&
+        cls.toString().startsWith('class')
+    );
 }

@@ -17,7 +17,6 @@ export class PropertyRunType extends BaseRunType<TypePropertySignature | TypePro
     public readonly isJsonDecodeRequired: boolean;
     public readonly hasCircular: boolean;
     public readonly memberRunType: RunType;
-    public readonly slug: string;
     public readonly isOptional: boolean;
     public readonly isReadonly: boolean;
     public readonly propName: string | number;
@@ -55,9 +54,10 @@ export class PropertyRunType extends BaseRunType<TypePropertySignature | TypePro
             this.propName = src.name;
             this.safeAccessor = this.isSafePropName ? `.${src.name}` : `[${toLiteral(src.name)}]`;
         }
-
-        this.slug = `${this.propName}${this.isOptional ? '?' : ''}:${this.memberRunType.slug}`;
         this.hasCircular = this.memberRunType.hasCircular || hasCircularRunType(this.memberRunType, parents);
+    }
+    getJitId(): string | number {
+        return `${this.propName}${this.isOptional ? '?' : ''}:${this.memberRunType.getJitId()}`;
     }
     compileIsType(varName: string): string {
         if (!this.shouldSerialize) return '';

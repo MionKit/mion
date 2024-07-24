@@ -11,7 +11,6 @@ import {RunType, RunTypeOptions, RunTypeVisitor} from '../types';
 import {addToPathChain, skipJsonDecode, skipJsonEncode, toLiteral} from '../utils';
 
 export class TupleRunType extends BaseRunType<TypeTuple> {
-    public readonly slug: string;
     public readonly isJsonEncodeRequired: boolean;
     public readonly isJsonDecodeRequired: boolean;
     public readonly hasCircular: boolean;
@@ -25,10 +24,16 @@ export class TupleRunType extends BaseRunType<TypeTuple> {
         super(visitor, src, parents, opts);
         const newParents = [...parents, this];
         this.runTypes = src.types.map((t) => visitor(t, newParents, opts));
-        this.slug = `tuple<${this.runTypes.map((rt) => rt.slug).join(', ')}>`;
         this.isJsonEncodeRequired = this.runTypes.some((rt) => rt.isJsonEncodeRequired);
         this.isJsonDecodeRequired = this.runTypes.some((rt) => rt.isJsonDecodeRequired);
         this.hasCircular = this.runTypes.some((rt) => rt.hasCircular);
+    }
+    private _jitId: string | undefined;
+    getJitId(): string {
+        if (this._jitId) return this._jitId;
+        // TODO: we need to check also for serializable tuple members as not all of them might be serializable
+        this._jitId = `${this.src.kind}{${this.runTypes.map((prop) => `${prop.getJitId()}`).join(',')}}`;
+        return this._jitId;
     }
     compileIsType(varName: string): string {
         const itemsCode = this.runTypes.map((rt, i) => `(${rt.compileIsType(`${varName}[${i}]`)})`).join(' && ');
@@ -39,7 +44,7 @@ export class TupleRunType extends BaseRunType<TypeTuple> {
             .map((rt, i) => rt.compileTypeErrors(`${varName}[${i}]`, errorsName, addToPathChain(pathChain, i)))
             .join(';');
         return (
-            `if (!Array.isArray(${varName}) || ${varName}.length > ${this.runTypes.length}) ${errorsName}.push({path: ${pathChain}, expected: ${toLiteral(this.slug)}});` +
+            `if (!Array.isArray(${varName}) || ${varName}.length > ${this.runTypes.length}) ${errorsName}.push({path: ${pathChain}, expected: ${toLiteral(this.getJitId())}});` +
             `else {${itemsCode}}`
         );
     }

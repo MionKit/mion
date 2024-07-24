@@ -8,8 +8,7 @@ import {TypeClass} from '../_deepkit/src/reflection/type';
 import {RunType, RunTypeOptions, RunTypeVisitor} from '../types';
 import {toLiteral} from '../utils';
 import {InterfaceRunType} from './interface';
-import {IndexSignatureRunType} from './indexProperty';
-import {jitUtils, jitUtilsVarNames} from '../jitUtils';
+import {jitUtils, jitVarNames} from '../jitUtils';
 import {isConstructor} from '../guards';
 
 export class ClassRunType extends InterfaceRunType<TypeClass> {
@@ -21,35 +20,32 @@ export class ClassRunType extends InterfaceRunType<TypeClass> {
         public readonly parents: RunType[],
         public readonly opts: RunTypeOptions
     ) {
-        super(visitor, src, parents, opts, 'class', true, true);
+        super(visitor, src, parents, opts, true, true);
         this.className = src.classType.name;
         this.canDeserialize = this.entries.every((prop) => !isConstructor(prop) || prop.parameterTypes.length === 0);
-        if (this.canDeserialize) jitUtils.registerSerializableClass(src.classType);
+        if (this.canDeserialize) jitUtils.addSerializableClass(src.classType);
     }
     compileJsonDecode(varName: string): string {
-        if (!this.canDeserialize)
-            throw new Error(
-                `Class ${this.className} can't be deserialized. Oly classes with and empty constructor can be deserialized.`
-            );
+        ClassRunType.checkSerializable(this.canDeserialize, this.className);
         const decodeParams = super.compileJsonDecode(varName);
         const decode = decodeParams ? `${decodeParams}; ` : '';
         const classVarname = `clλss${this.nestLevel}`;
         // todo create a new class
-        return `${decode}; const ${classVarname} = ${jitUtilsVarNames.getSerializableClass}(${toLiteral(this.className)}); ${varName} = Object.assign(new ${classVarname}, ${varName});`;
+        return `${decode}; const ${classVarname} = ${jitVarNames.getSerializableClass}(${toLiteral(this.className)}); ${varName} = Object.assign(new ${classVarname}, ${varName});`;
     }
     mock(
         optionalParamsProbability: Record<string | number, number>,
         objArgs: Record<string | number, any[]>,
         indexArgs?: any[]
     ): Record<string | number, any> {
-        const obj: Record<string | number, any> = {};
-        this.serializableProps.forEach((prop) => {
-            const name: string | number = prop.propName as any;
-            const optionalProbability: number | undefined = optionalParamsProbability?.[name];
-            const propArgs: any[] = objArgs?.[name] || [];
-            if (prop instanceof IndexSignatureRunType) prop.mock(obj, ...(indexArgs || []));
-            else obj[name] = prop.mock(optionalProbability, ...propArgs);
-        });
-        return obj;
+        ClassRunType.checkSerializable(this.canDeserialize, this.className);
+        return super.mock(optionalParamsProbability, objArgs, indexArgs, new this.src.classType());
+    }
+
+    private static checkSerializable(canDeserialize: boolean, className: string) {
+        if (!canDeserialize)
+            throw new Error(
+                `Class ${className} can't be deserialized. Only classes with and empty constructor can be deserialized.`
+            );
     }
 }

@@ -211,7 +211,7 @@ it(`if function's return type is a promise then return type should be the promis
     const fn = (a: number, b: boolean, c?: string): Promise<Date> => Promise.resolve(new Date());
     const reflectedType = reflectFunction(fn);
     expect(reflectedType instanceof FunctionRunType).toBe(true);
-    expect(reflectedType.returnType.slug).toBe('date');
+    expect(reflectedType.returnType.jitId).toBe('date');
 
     const validateReturn = reflectedType.jitReturnFns.isType.fn;
     const typeErrorsReturn = reflectedType.jitReturnFns.typeErrors.fn;
@@ -296,11 +296,11 @@ it('stringify function with only rest parameters', () => {
 it('use anonymous or function name in the type slug', () => {
     const fn = (a: number, b: boolean, c?: string): Date => new Date();
     const reflectedType = reflectFunction(fn);
-    expect(reflectedType.slug).toBe('function:anonymous<[a:number, b:boolean, c?:string], date>');
+    expect(reflectedType.jitId).toBe('function:anonymous<[a:number, b:boolean, c?:string], date>');
 
     function namedFn(a: number, b: boolean, c?: string): Date {
         return new Date();
     }
     const reflectedNamedType = reflectFunction(namedFn);
-    expect(reflectedNamedType.slug).toBe('function:namedFn<[a:number, b:boolean, c?:string], date>');
+    expect(reflectedNamedType.jitId).toBe('function:namedFn<[a:number, b:boolean, c?:string], date>');
 });

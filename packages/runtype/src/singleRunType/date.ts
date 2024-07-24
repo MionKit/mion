@@ -12,7 +12,6 @@ import {mockDate} from '../mock';
 import {SingleRunType} from '../baseRunTypes';
 
 export class DateRunType extends SingleRunType<TypeClass> {
-    public readonly slug = 'date';
     public readonly isJsonEncodeRequired = false;
     public readonly isJsonDecodeRequired = true;
 
@@ -20,7 +19,7 @@ export class DateRunType extends SingleRunType<TypeClass> {
         return `${varName} instanceof Date && !isNaN(${varName}.getTime())`;
     }
     compileTypeErrors(varName: string, errorsName: string, pathChain: string): string {
-        return `if (!(${this.compileIsType(varName)})) ${errorsName}.push({path: ${pathChain}, expected: ${toLiteral(this.slug)}})`;
+        return `if (!(${this.compileIsType(varName)})) ${errorsName}.push({path: ${pathChain}, expected: ${toLiteral(this.getJitId())}})`;
     }
     compileJsonEncode(varName: string): string {
         return DateJitJsonENcoder.encodeToJson(varName);
@@ -33,6 +32,9 @@ export class DateRunType extends SingleRunType<TypeClass> {
     }
     mock(minDate?: Date, maxDate?: Date): Date {
         return mockDate(minDate, maxDate);
+    }
+    getJitId(): string {
+        return 'date';
     }
 }
 

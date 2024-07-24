@@ -10,7 +10,6 @@ import {SingleRunType} from '../baseRunTypes';
 import {toLiteral} from '../utils';
 
 export class VoidRunType extends SingleRunType<TypeVoid> {
-    public readonly slug = 'void';
     public readonly isJsonEncodeRequired = false;
     public readonly isJsonDecodeRequired = false;
 
@@ -18,7 +17,7 @@ export class VoidRunType extends SingleRunType<TypeVoid> {
         return `${varName} === undefined`;
     }
     compileTypeErrors(varName: string, errorsName: string, pathChain: string): string {
-        return `if (${varName} !== undefined) ${errorsName}.push({path: ${pathChain}, expected: ${toLiteral(this.slug)}})`;
+        return `if (${varName} !== undefined) ${errorsName}.push({path: ${pathChain}, expected: ${toLiteral(this.getJitId())}})`;
     }
     compileJsonEncode(varName: string): string {
         return `${varName} = undefined`;

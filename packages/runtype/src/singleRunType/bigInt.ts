@@ -12,7 +12,6 @@ import {mockBigInt} from '../mock';
 import {SingleRunType} from '../baseRunTypes';
 
 export class BigIntRunType extends SingleRunType<TypeBigInt> {
-    public readonly slug = 'bigint';
     public readonly isJsonEncodeRequired = true;
     public readonly isJsonDecodeRequired = true;
 
@@ -20,7 +19,7 @@ export class BigIntRunType extends SingleRunType<TypeBigInt> {
         return `typeof ${varName} === 'bigint'`;
     }
     compileTypeErrors(varName: string, errorsName: string, pathChain: string): string {
-        return `if (typeof ${varName} !== 'bigint') ${errorsName}.push({path: ${pathChain}, expected: ${toLiteral(this.slug)}})`;
+        return `if (typeof ${varName} !== 'bigint') ${errorsName}.push({path: ${pathChain}, expected: ${toLiteral(this.getJitId())}})`;
     }
     compileJsonEncode(varName: string): string {
         return BigIntJitJsonENcoder.encodeToJson(varName);

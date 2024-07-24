@@ -12,7 +12,6 @@ import {random} from '../mock';
 import {BaseRunType} from '../baseRunTypes';
 
 export class ArrayRunType extends BaseRunType<TypeArray> {
-    public readonly slug: string;
     public readonly isJsonEncodeRequired;
     public readonly isJsonDecodeRequired;
     public readonly hasCircular: boolean;
@@ -27,8 +26,10 @@ export class ArrayRunType extends BaseRunType<TypeArray> {
         this.itemsRunType = visitor(src.type, [...parents, this], opts);
         this.isJsonEncodeRequired = this.itemsRunType.isJsonEncodeRequired;
         this.isJsonDecodeRequired = this.itemsRunType.isJsonDecodeRequired;
-        this.slug = `array<${this.itemsRunType.slug}>`;
         this.hasCircular = this.itemsRunType.hasCircular || hasCircularRunType(this.itemsRunType, parents);
+    }
+    getJitId(): string {
+        return `${this.src.kind}:${this.itemsRunType.getJitId()}`;
     }
     compileIsType(varName: string): string {
         const indexName = `indεx${this.nestLevel}`;
@@ -42,7 +43,7 @@ export class ArrayRunType extends BaseRunType<TypeArray> {
         const listItemPath = addToPathChain(pathLiteral, indexName, false);
         const itemAccessor = `${varName}[${indexName}]`;
         const itemCode = this.itemsRunType.compileTypeErrors(itemAccessor, errorsName, listItemPath);
-        const arrayCode = `if (!Array.isArray(${varName})) ${errorsName}.push({path: ${pathLiteral}, expected: ${toLiteral(this.slug)}});`;
+        const arrayCode = `if (!Array.isArray(${varName})) ${errorsName}.push({path: ${pathLiteral}, expected: ${toLiteral(this.getJitId())}});`;
         return arrayCode + `else { for (let ${indexName} = 0; ${indexName} < ${varName}.length; ${indexName}++) {${itemCode}} }`;
     }
     compileJsonEncode(varName: string): string {

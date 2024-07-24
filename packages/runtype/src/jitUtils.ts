@@ -5,21 +5,23 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {AnyClass, SerializableClass} from './types';
+import {SerializableClass} from './types';
 
 const classesMap = new Map<string, SerializableClass>();
+
+/** Cache for jit generated functions, only interfaces, classes and named types, must be inserted here */
+const jitCache: {[key: string]: (...args: any[]) => any} = {}; // using an object as might be easies to serialize
 
 /**
  * Object that wraps all utilities that are used by the jit generated functions for encode, decode, stringify etc..
  * !!! DO NOT MODIFY NAMES OF PROPERTY OR METHODS AS THESE ARE HARDCODED IN THE JIT GENERATED CODE !!!
  */
-export const jitUtils: JITUtils = {
-    // Bellow code is copied from from https://github.com/fastify/fast-json-stringify/blob/master/lib/serializer.js
+export const jitUtils = {
+    // Bellow code for 'asJSONString' is copied from from https://github.com/fastify/fast-json-stringify/blob/master/lib/serializer.js
     // which in turn got 'inspiration' from typia https://github.com/samchon/typia/blob/master/src/functional/$string.ts
     // both under MIT license
     // typia license: https://github.com/samchon/typia/blob/master/LICENSE
     // fastify lisecense: https://github.com/fastify/fast-json-stringify/blob/master/LICENSE
-
     /** optimized function to convert an string into a json string wrapped in double quotes */
     asJSONString(str) {
         // eslint-disable-next-line no-control-regex
@@ -54,36 +56,31 @@ export const jitUtils: JITUtils = {
             return JSON.stringify(str);
         }
     },
-
-    registerSerializableClass(cls: SerializableClass) {
+    addSerializableClass(cls: SerializableClass) {
         classesMap.set(cls.name, cls);
     },
-
     getSerializableClass(name: string) {
         return classesMap.get(name);
     },
+    addToJitCache(key: string, fn: (...args: any[]) => any) {
+        jitCache[key] = fn;
+    },
+    getFromJitCache(key: string) {
+        const jitFn = jitCache[key];
+        if (!jitFn) {
+            throw new Error(`JIT function with key ${key} not found in cache`);
+        }
+        return jitFn;
+    },
 };
 
-// !!! DO NOT MODIFY NAMES OF PROPERTY OR METHODS AS THESE ARE HARDCODED IN THE JIT GENERATED CODE !!!
-export type JITUtils = {
-    asJSONString: (str: string) => string;
-    registerSerializableClass(cls: SerializableClass): void;
-    getSerializableClass: (name: string) => SerializableClass | undefined;
-};
-
-export function isClass(cls: AnyClass | any): cls is AnyClass {
-    return (
-        typeof cls === 'function' &&
-        cls.prototype &&
-        cls.prototype.constructor === cls &&
-        cls.prototype.constructor.name &&
-        cls.toString().startsWith('class')
-    );
-}
-
-export const jitUtilsVarNames = {
-    root: 'j1tUt1l5',
+export const jitVarNames = {
+    jitUtils: 'j1tUt1l5',
     asJSONString: `j1tUt1l5.${jitUtils.asJSONString.name}`,
-    registerSerializableClass: `j1tUt1l5.${jitUtils.registerSerializableClass.name}`,
+    addSerializableClass: `j1tUt1l5.${jitUtils.addSerializableClass.name}`,
     getSerializableClass: `j1tUt1l5.${jitUtils.getSerializableClass.name}`,
+    addToJitCache: `j1tUt1l5.${jitUtils.addToJitCache.name}`,
+    getFromJitCache: `j1tUt1l5.${jitUtils.getFromJitCache.name}`,
 };
+
+export type JITUtils = typeof jitUtils;

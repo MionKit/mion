@@ -5,7 +5,7 @@ import {addToPathChain, hasCircularRunType, isFunctionKind, skipJsonDecode, skip
 import {NumberRunType} from '../singleRunType/number';
 import {StringRunType} from '../singleRunType/string';
 import {SymbolRunType} from '../singleRunType/symbol';
-import {jitUtilsVarNames} from '../jitUtils';
+import {jitVarNames} from '../jitUtils';
 
 /* ########
  * 2024 mion
@@ -15,7 +15,6 @@ import {jitUtilsVarNames} from '../jitUtils';
  * ######## */
 
 export class IndexSignatureRunType extends BaseRunType<TypeIndexSignature> {
-    public readonly slug: string;
     public readonly isJsonEncodeRequired;
     public readonly isJsonDecodeRequired;
     public readonly hasCircular: boolean;
@@ -23,6 +22,8 @@ export class IndexSignatureRunType extends BaseRunType<TypeIndexSignature> {
     public readonly indexKeyType: NumberRunType | StringRunType | SymbolRunType;
     public readonly isReadonly: boolean;
     public readonly shouldSerialize: boolean;
+    public readonly propName: string;
+    protected propertySeparator = '&';
     constructor(
         visitor: RunTypeVisitor,
         public readonly src: TypeIndexSignature,
@@ -37,8 +38,11 @@ export class IndexSignatureRunType extends BaseRunType<TypeIndexSignature> {
         this.isReadonly = false; // TODO: readonly allowed to set in typescript but not present in deepkit
         this.isJsonEncodeRequired = this.indexType.isJsonEncodeRequired;
         this.isJsonDecodeRequired = this.indexType.isJsonDecodeRequired;
-        this.slug = `index<${this.indexType.slug}>`;
         this.hasCircular = this.indexType.hasCircular || hasCircularRunType(this.indexType, parents);
+        this.propName = `${src.index.kind}`;
+    }
+    getJitId(): string | number {
+        return `${this.src.kind}:${this.propName}:${this.indexType.getJitId()}`;
     }
     compileIsType(varName: string): string {
         if (!this.shouldSerialize) return '';
@@ -77,7 +81,7 @@ export class IndexSignatureRunType extends BaseRunType<TypeIndexSignature> {
         const indexName = `prΦp${this.nestLevel}`;
         const itemAccessor = `${varName}[${indexName}]`;
         const itemCode = this.indexType.compileJsonStringify(itemAccessor);
-        const forLoop = `const ${arrName} = []; for (const ${indexName} in ${varName}) {if (${itemAccessor} !== undefined) ${arrName}.push(${jitUtilsVarNames.asJSONString}(${indexName}) + ':' + ${itemCode})}`;
+        const forLoop = `const ${arrName} = []; for (const ${indexName} in ${varName}) {if (${itemAccessor} !== undefined) ${arrName}.push(${jitVarNames.asJSONString}(${indexName}) + ':' + ${itemCode})}`;
         const itemsCode = `(function(){${forLoop}; return ${arrName}.join(',')})()`;
         return itemsCode;
     }

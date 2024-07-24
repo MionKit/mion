@@ -17,8 +17,7 @@ export class AnyRunType extends SingleRunType<TypeAny | TypeUnknown> {
         visitor: RunTypeVisitor,
         public readonly src: TypeAny | TypeUnknown,
         public readonly parents: RunType[],
-        public readonly opts: RunTypeOptions,
-        public readonly slug = 'any'
+        public readonly opts: RunTypeOptions
     ) {
         super(visitor, src, parents, opts);
     }

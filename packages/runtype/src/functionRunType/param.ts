@@ -16,7 +16,6 @@ export class ParameterRunType extends BaseRunType<TypeParameter> {
     public readonly isJsonDecodeRequired: boolean;
     public readonly hasCircular: boolean;
     public readonly argRunType: RunType | RestParamsRunType;
-    public readonly slug: string;
     public readonly isOptional: boolean;
     public readonly isReadonly: boolean;
     public readonly paramName: string;
@@ -38,8 +37,13 @@ export class ParameterRunType extends BaseRunType<TypeParameter> {
         this.isOptional = !!src.optional || this.isRest;
         this.isReadonly = !!src.readonly && !this.isRest;
         this.paramName = src.name;
-        this.slug = `${this.isRest ? '...' : ''}${src.name}${this.isOptional ? '?' : ''}:${this.argRunType.slug}`;
     }
+
+    getJitId(): string | number {
+        // param name is irrelevant (not required) as only position matters
+        return `${this.argRunType.getJitId()}${this.isOptional ? '?' : ''}`;
+    }
+
     compileIsType(varName: string, itemIndex = 0): string {
         if (this.isRest) return this.argRunType.compileIsType(varName, itemIndex);
         const argAccessor = `${varName}[${itemIndex}]`;

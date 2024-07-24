@@ -15,7 +15,6 @@ export class RestParamsRunType extends BaseRunType<TypeRest> {
     public readonly isJsonDecodeRequired: boolean;
     public readonly hasCircular: boolean;
     public readonly memberRunType: RunType;
-    public readonly slug: string;
     public readonly isOptional = true;
     public readonly isReadonly = false;
     public readonly paramName: string;
@@ -33,8 +32,13 @@ export class RestParamsRunType extends BaseRunType<TypeRest> {
         this.isJsonDecodeRequired = this.memberRunType.isJsonDecodeRequired;
         this.hasCircular = this.memberRunType.hasCircular;
         this.paramName = (src as any).name || 'args';
-        this.slug = `${this.memberRunType.slug}[]`;
     }
+
+    getJitId(): string | number {
+        // param name is irrelevant (not required) as only position matters
+        return `${this.memberRunType.getJitId()}[]`;
+    }
+
     compileIsType(varName: string, itemIndex = 0): string {
         const indexName = `pλrλm${this.nestLevel}`;
         const itemAccessor = `${varName}[${indexName}]`;

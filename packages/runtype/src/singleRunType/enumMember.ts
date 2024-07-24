@@ -9,7 +9,6 @@ import {TypeEnum} from '../_deepkit/src/reflection/type';
 import {SingleRunType} from '../baseRunTypes';
 
 export class EnumMemberRunType extends SingleRunType<TypeEnum> {
-    public readonly slug = 'enumMember';
     public readonly isJsonEncodeRequired = false;
     public readonly isJsonDecodeRequired = false;
 
