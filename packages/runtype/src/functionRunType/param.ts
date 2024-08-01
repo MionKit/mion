@@ -1,6 +1,6 @@
 import {TypeParameter} from '../_deepkit/src/reflection/type';
 import {BaseRunType} from '../baseRunTypes';
-import {RunType, RunTypeOptions, RunTypeVisitor} from '../types';
+import {JitErrorPath, RunType, RunTypeOptions, RunTypeVisitor} from '../types';
 import {addToPathChain, skipJsonDecode, skipJsonEncode} from '../utils';
 import {RestParamsRunType} from './restParams';
 
@@ -43,41 +43,40 @@ export class ParameterRunType extends BaseRunType<TypeParameter> {
         // param name is irrelevant (not required) as only position matters
         return `${this.argRunType.getJitId()}${this.isOptional ? '?' : ''}`;
     }
-
-    compileIsType(varName: string, itemIndex = 0): string {
-        if (this.isRest) return this.argRunType.compileIsType(varName, itemIndex);
-        const argAccessor = `${varName}[${itemIndex}]`;
+    getName(): string {
+        return `${this.paramName}${this.isOptional ? '?' : ''}:${this.argRunType.getName()}`;
+    }
+    compileIsType(varName: string, paramIndex = 0): string {
+        if (this.isRest) return this.argRunType.compileIsType(varName, paramIndex);
+        const argAccessor = `${varName}[${paramIndex}]`;
         if (this.isOptional) return `${argAccessor} === undefined || (${this.argRunType.compileIsType(argAccessor)})`;
         return this.argRunType.compileIsType(argAccessor);
     }
-    compileTypeErrors(varName: string, errorsName: string, pathChain: string, itemIndex = 0): string {
-        if (this.isRest) return this.argRunType.compileTypeErrors(varName, errorsName, pathChain, itemIndex);
-        const argAccessor = `${varName}[${itemIndex}]`;
+    compileTypeErrors(varName: string, errorsName: string, pathChain: JitErrorPath, paramIndex = 0): string {
+        if (this.isRest) return this.argRunType.compileTypeErrors(varName, errorsName, pathChain, paramIndex);
+        const argAccessor = `${varName}[${paramIndex}]`;
+        const paramPath = addToPathChain(pathChain, paramIndex);
         if (this.isOptional)
-            return `if (${argAccessor} !== undefined) {${this.argRunType.compileTypeErrors(
-                argAccessor,
-                errorsName,
-                addToPathChain(pathChain, itemIndex)
-            )}}`;
-        return this.argRunType.compileTypeErrors(argAccessor, errorsName, addToPathChain(pathChain, itemIndex));
+            return `if (${argAccessor} !== undefined) {${this.argRunType.compileTypeErrors(argAccessor, errorsName, paramPath)}}`;
+        return this.argRunType.compileTypeErrors(argAccessor, errorsName, paramPath);
     }
-    compileJsonEncode(varName: string, itemIndex = 0): string {
-        if (this.isRest) return this.argRunType.compileJsonEncode(varName, itemIndex);
-        const argAccessor = `${varName}[${itemIndex}]`;
+    compileJsonEncode(varName: string, paramIndex = 0): string {
+        if (this.isRest) return this.argRunType.compileJsonEncode(varName, paramIndex);
+        const argAccessor = `${varName}[${paramIndex}]`;
         if (skipJsonEncode(this)) return argAccessor;
         return this.argRunType.compileJsonEncode(argAccessor);
     }
-    compileJsonDecode(varName: string, itemIndex = 0): string {
-        if (this.isRest) return this.argRunType.compileJsonDecode(varName, itemIndex);
-        const argAccessor = `${varName}[${itemIndex}]`;
+    compileJsonDecode(varName: string, paramIndex = 0): string {
+        if (this.isRest) return this.argRunType.compileJsonDecode(varName, paramIndex);
+        const argAccessor = `${varName}[${paramIndex}]`;
         if (skipJsonDecode(this)) return argAccessor;
         return this.argRunType.compileJsonDecode(argAccessor);
     }
-    compileJsonStringify(varName: string, itemIndex = 0): string {
-        if (this.isRest) return this.argRunType.compileJsonStringify(varName, itemIndex);
-        const argAccessor = `${varName}[${itemIndex}]`;
+    compileJsonStringify(varName: string, paramIndex = 0): string {
+        if (this.isRest) return this.argRunType.compileJsonStringify(varName, paramIndex);
+        const argAccessor = `${varName}[${paramIndex}]`;
         const argCode = this.argRunType.compileJsonStringify(argAccessor);
-        const sep = itemIndex === 0 ? '' : `','+`;
+        const sep = paramIndex === 0 ? '' : `','+`;
         if (this.isOptional) {
             return `(${argAccessor} === undefined ? '': ${sep}${argCode})`;
         }

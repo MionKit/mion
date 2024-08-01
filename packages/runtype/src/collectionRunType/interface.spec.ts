@@ -103,24 +103,24 @@ it('validate object + errors', () => {
             name: 'hello',
         })
     ).toEqual([
-        {path: '/nullValue', expected: 'null'},
-        {path: '/stringArray', expected: 'array<string>'},
-        {path: '/bigInt', expected: 'bigint'},
-        {path: `/weird prop name \n?>'\\\t\r`, expected: 'string'},
+        {path: ['nullValue'], expected: 'null'},
+        {path: ['stringArray'], expected: 'array'},
+        {path: ['bigInt'], expected: 'bigint'},
+        {path: [`weird prop name \n?>'\\\t\r`], expected: 'string'},
     ]);
     expect(valWithErrors({})).toEqual([
-        {path: '/startDate', expected: 'date'},
-        {path: '/quantity', expected: 'number'},
-        {path: '/name', expected: 'string'},
-        {path: '/nullValue', expected: 'null'},
-        {path: '/stringArray', expected: 'array<string>'},
-        {path: '/bigInt', expected: 'bigint'},
-        {path: `/weird prop name \n?>'\\\t\r`, expected: 'string'},
+        {path: ['startDate'], expected: 'date'},
+        {path: ['quantity'], expected: 'number'},
+        {path: ['name'], expected: 'string'},
+        {path: ['nullValue'], expected: 'null'},
+        {path: ['stringArray'], expected: 'array'},
+        {path: ['bigInt'], expected: 'bigint'},
+        {path: [`weird prop name \n?>'\\\t\r`], expected: 'string'},
     ]);
     expect(valWithErrors('hello')).toEqual([
         {
-            path: '',
-            expected: `interface<startDate:date, quantity:number, name:string, nullValue:null, stringArray:array<string>, bigInt:bigint, optionalString?:string, weird prop name \n?>'\\\t\r:string>`,
+            path: [],
+            expected: `interface`,
         },
     ]);
 });

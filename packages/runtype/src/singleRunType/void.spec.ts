@@ -28,9 +28,9 @@ it('validate void', () => {
 it('validate void + errors', () => {
     const valWithErrors = buildTypeErrorsJITFn(rt).fn;
     expect(valWithErrors(undefined)).toEqual([]);
-    expect(valWithErrors(null)).toEqual([{path: '', expected: 'void'}]);
-    expect(valWithErrors(42)).toEqual([{path: '', expected: 'void'}]);
-    expect(valWithErrors('hello')).toEqual([{path: '', expected: 'void'}]);
+    expect(valWithErrors(null)).toEqual([{path: [], expected: 'void'}]);
+    expect(valWithErrors(42)).toEqual([{path: [], expected: 'void'}]);
+    expect(valWithErrors('hello')).toEqual([{path: [], expected: 'void'}]);
 });
 
 it('encode to json should return undefined', () => {

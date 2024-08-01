@@ -26,9 +26,9 @@ it('validate undefined', () => {
 it('validate undefined + errors', () => {
     const valWithErrors = buildTypeErrorsJITFn(rt).fn;
     expect(valWithErrors(undefined)).toEqual([]);
-    expect(valWithErrors(null)).toEqual([{path: '', expected: 'undefined'}]);
-    expect(valWithErrors(42)).toEqual([{path: '', expected: 'undefined'}]);
-    expect(valWithErrors('hello')).toEqual([{path: '', expected: 'undefined'}]);
+    expect(valWithErrors(null)).toEqual([{path: [], expected: 'undefined'}]);
+    expect(valWithErrors(42)).toEqual([{path: [], expected: 'undefined'}]);
+    expect(valWithErrors('hello')).toEqual([{path: [], expected: 'undefined'}]);
 });
 
 it('encode to json', () => {

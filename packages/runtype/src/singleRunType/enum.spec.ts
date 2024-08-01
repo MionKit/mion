@@ -42,9 +42,9 @@ it('validate enum + errors', () => {
     expect(valWithErrors(0)).toEqual([]);
     expect(valWithErrors('green')).toEqual([]);
     expect(valWithErrors(2)).toEqual([]);
-    expect(valWithErrors('Red')).toEqual([{path: '', expected: 'enum<0, green, 2>'}]);
-    expect(valWithErrors('Green')).toEqual([{path: '', expected: 'enum<0, green, 2>'}]);
-    expect(valWithErrors('Blue')).toEqual([{path: '', expected: 'enum<0, green, 2>'}]);
+    expect(valWithErrors('Red')).toEqual([{path: [], expected: 'enum'}]);
+    expect(valWithErrors('Green')).toEqual([{path: [], expected: 'enum'}]);
+    expect(valWithErrors('Blue')).toEqual([{path: [], expected: 'enum'}]);
 });
 
 it('encode/decode to json', () => {

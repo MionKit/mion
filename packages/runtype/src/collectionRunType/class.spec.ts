@@ -87,7 +87,7 @@ it('encode/decode serializable object to json', () => {
 it('decode non registered class throws an error', () => {
     expect(() => buildJsonEncodeJITFn(runType<NonSerializableClass>())).not.toThrow();
     expect(() => buildJsonDecodeJITFn(runType<NonSerializableClass>())).toThrow(
-        `Class NonSerializableClass can't be deserialized. Oly classes with and empty constructor can be deserialized.`
+        `Class NonSerializableClass can't be deserialized. Only classes with and empty constructor can be deserialized.`
     );
 });
 

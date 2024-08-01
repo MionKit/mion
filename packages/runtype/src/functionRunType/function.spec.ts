@@ -26,25 +26,23 @@ const rtRest2 = runType<Rest2FunctionType>() as FunctionRunType;
 
 it('return empty strings when calling regular jit functions', () => {
     expect(() => buildIsTypeJITFn(rt)).toThrow(
-        `function:anonymous<[a:number, b:boolean, c?:string], date> validation is not supported, instead validate parameters or return type separately.`
+        `function validation is not supported, instead validate parameters or return type separately.`
     );
     expect(() => buildTypeErrorsJITFn(rt)).toThrow(
-        `function:anonymous<[a:number, b:boolean, c?:string], date> validation is not supported, instead validate parameters or return type separately.`
+        `function validation is not supported, instead validate parameters or return type separately.`
     );
 
     expect(() => buildJsonEncodeJITFn(rt)).toThrow(
-        `function:anonymous<[a:number, b:boolean, c?:string], date> json encode is not supported, instead encode parameters or return type separately.`
+        `function json encode is not supported, instead encode parameters or return type separately.`
     );
     expect(() => buildJsonDecodeJITFn(rt)).toThrow(
-        `function:anonymous<[a:number, b:boolean, c?:string], date> json decode is not supported, instead decode parameters or return type separately.`
+        `function json decode is not supported, instead decode parameters or return type separately.`
     );
 
     expect(() => buildJsonStringifyJITFn(rt)).toThrow(
-        `function:anonymous<[a:number, b:boolean, c?:string], date> json stringify is not supported, instead stringify parameters or return type separately.`
+        `function json stringify is not supported, instead stringify parameters or return type separately.`
     );
-    expect(() => rt.mock()).toThrow(
-        `function:anonymous<[a:number, b:boolean, c?:string], date> mock is not supported, instead mock parameters or return type separately`
-    );
+    expect(() => rt.mock()).toThrow(`function mock is not supported, instead mock parameters or return type separately`);
 });
 
 it('validate function parameters', () => {
@@ -65,11 +63,11 @@ it('validate function + errors parameters', () => {
     expect(validate([3, false])).toEqual([]);
     // wrong type
     expect(validate([3, 3, 3])).toEqual([
-        {expected: 'boolean', path: '/1'},
-        {expected: 'string', path: '/2'},
+        {expected: 'boolean', path: [1]},
+        {expected: 'string', path: [2]},
     ]);
     // more parameters than expected
-    expect(validate([3, true, 'hello', 7])).toEqual([{expected: '[a:number, b:boolean, c?:string]', path: ''}]);
+    expect(validate([3, true, 'hello', 7])).toEqual([{expected: '[a:number, b:boolean, c?:string]', path: []}]);
 });
 
 it('encode/decode to json parameters', () => {
@@ -135,7 +133,7 @@ it('validate function return', () => {
 it('validate function return + errors', () => {
     const validate = rt.jitReturnFns.typeErrors.fn;
     expect(validate(new Date())).toEqual([]);
-    expect(validate(123)).toEqual([{expected: 'date', path: ''}]);
+    expect(validate(123)).toEqual([{expected: 'date', path: []}]);
 });
 
 it('encode/decode function return to json', () => {
@@ -211,7 +209,7 @@ it(`if function's return type is a promise then return type should be the promis
     const fn = (a: number, b: boolean, c?: string): Promise<Date> => Promise.resolve(new Date());
     const reflectedType = reflectFunction(fn);
     expect(reflectedType instanceof FunctionRunType).toBe(true);
-    expect(reflectedType.returnType.jitId).toBe('date');
+    expect(reflectedType.returnType.getJitId()).toBe('date');
 
     const validateReturn = reflectedType.jitReturnFns.isType.fn;
     const typeErrorsReturn = reflectedType.jitReturnFns.typeErrors.fn;
@@ -247,13 +245,13 @@ it('validate + errors parameters function with rest parameters', () => {
     expect(validate([3, false])).toEqual([]);
     // wrong type
     expect(validate([3, 3, 3])).toEqual([
-        {expected: 'boolean', path: '/1'},
-        {expected: 'date', path: '/2'},
+        {expected: 'boolean', path: [1]},
+        {expected: 'date', path: [2]},
     ]);
     // wrong rest params
     expect(validate([3, true, new Date(), 7, true])).toEqual([
-        {expected: 'date', path: '/3'},
-        {expected: 'date', path: '/4'},
+        {expected: 'date', path: [3]},
+        {expected: 'date', path: [4]},
     ]);
 });
 
@@ -291,16 +289,4 @@ it('stringify function with only rest parameters', () => {
     const roundTrip3 = fromJson(JSON.parse(jsonStringify(typeValue2)));
     expect(roundTrip).toEqual(typeValue);
     expect(roundTrip3).toEqual(typeValue2);
-});
-
-it('use anonymous or function name in the type slug', () => {
-    const fn = (a: number, b: boolean, c?: string): Date => new Date();
-    const reflectedType = reflectFunction(fn);
-    expect(reflectedType.jitId).toBe('function:anonymous<[a:number, b:boolean, c?:string], date>');
-
-    function namedFn(a: number, b: boolean, c?: string): Date {
-        return new Date();
-    }
-    const reflectedNamedType = reflectFunction(namedFn);
-    expect(reflectedNamedType.jitId).toBe('function:namedFn<[a:number, b:boolean, c?:string], date>');
 });

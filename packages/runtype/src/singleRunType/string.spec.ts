@@ -24,7 +24,7 @@ it('validate string', () => {
 it('validate string + errors', () => {
     const valWithErrors = buildTypeErrorsJITFn(rt).fn;
     expect(valWithErrors('hello')).toEqual([]);
-    expect(valWithErrors(2)).toEqual([{path: '', expected: 'string'}]);
+    expect(valWithErrors(2)).toEqual([{path: [], expected: 'string'}]);
 });
 
 it('encode to json', () => {

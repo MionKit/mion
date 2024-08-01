@@ -6,9 +6,10 @@
  * ######## */
 
 import {TypeNumber} from '../_deepkit/src/reflection/type';
-import {toLiteral} from '../utils';
+import {toLiteral, pathChainToLiteral} from '../utils';
 import {mockNumber} from '../mock';
 import {SingleRunType} from '../baseRunTypes';
+import {JitErrorPath} from '../types';
 
 export class NumberRunType extends SingleRunType<TypeNumber> {
     public readonly isJsonEncodeRequired = false;
@@ -17,8 +18,8 @@ export class NumberRunType extends SingleRunType<TypeNumber> {
     compileIsType(varName: string): string {
         return `typeof ${varName} === 'number' && Number.isFinite(${varName})`;
     }
-    compileTypeErrors(varName: string, errorsName: string, pathChain: string): string {
-        return `if(!(${this.compileIsType(varName)})) ${errorsName}.push({path: ${pathChain}, expected: ${toLiteral(this.getJitId())}})`;
+    compileTypeErrors(varName: string, errorsName: string, pathChain: JitErrorPath): string {
+        return `if(!(${this.compileIsType(varName)})) ${errorsName}.push({path: ${pathChainToLiteral(pathChain)}, expected: ${toLiteral(this.getName())}})`;
     }
     compileJsonEncode(): string {
         return '';

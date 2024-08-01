@@ -29,10 +29,10 @@ it('validate object + errors', () => {
     const valWithErrors = buildTypeErrorsJITFn(rt).fn;
     expect(valWithErrors({})).toEqual([]);
     expect(valWithErrors({a: 42, b: 'hello'})).toEqual([]);
-    expect(valWithErrors(null)).toEqual([{path: '', expected: 'object'}]);
-    expect(valWithErrors(undefined)).toEqual([{path: '', expected: 'object'}]);
-    expect(valWithErrors(42)).toEqual([{path: '', expected: 'object'}]);
-    expect(valWithErrors('hello')).toEqual([{path: '', expected: 'object'}]);
+    expect(valWithErrors(null)).toEqual([{path: [], expected: 'object'}]);
+    expect(valWithErrors(undefined)).toEqual([{path: [], expected: 'object'}]);
+    expect(valWithErrors(42)).toEqual([{path: [], expected: 'object'}]);
+    expect(valWithErrors('hello')).toEqual([{path: [], expected: 'object'}]);
 });
 
 it('encode to json', () => {

@@ -25,6 +25,9 @@ export class ClassRunType extends InterfaceRunType<TypeClass> {
         this.canDeserialize = this.entries.every((prop) => !isConstructor(prop) || prop.parameterTypes.length === 0);
         if (this.canDeserialize) jitUtils.addSerializableClass(src.classType);
     }
+    getJitId(): string {
+        return `${this.src.kind}:${this.className}`;
+    }
     compileJsonDecode(varName: string): string {
         ClassRunType.checkSerializable(this.canDeserialize, this.className);
         const decodeParams = super.compileJsonDecode(varName);

@@ -38,39 +38,39 @@ it('validate tuple + errors', () => {
     expect(valWithErrors([new Date(), 123, 'hello', null, ['a', 'b', 'c'], BigInt(123)])).toEqual([]);
     expect(valWithErrors([new Date(), 123, 'hello', null, [], BigInt(123)])).toEqual([]);
     expect(valWithErrors([new Date(), 123, 'hello', null])).toEqual([
-        {path: '/4', expected: 'array<string>'},
-        {path: '/5', expected: 'bigint'},
+        {path: [4], expected: 'array'},
+        {path: [5], expected: 'bigint'},
     ]);
     expect(valWithErrors([new Date(), 123, 'hello'])).toEqual([
-        {path: '/3', expected: 'null'},
-        {path: '/4', expected: 'array<string>'},
-        {path: '/5', expected: 'bigint'},
+        {path: [3], expected: 'null'},
+        {path: [4], expected: 'array'},
+        {path: [5], expected: 'bigint'},
     ]);
     expect(valWithErrors([new Date(), 123])).toEqual([
-        {path: '/2', expected: 'string'},
-        {path: '/3', expected: 'null'},
-        {path: '/4', expected: 'array<string>'},
-        {path: '/5', expected: 'bigint'},
+        {path: [2], expected: 'string'},
+        {path: [3], expected: 'null'},
+        {path: [4], expected: 'array'},
+        {path: [5], expected: 'bigint'},
     ]);
     expect(valWithErrors([new Date()])).toEqual([
-        {path: '/1', expected: 'number'},
-        {path: '/2', expected: 'string'},
-        {path: '/3', expected: 'null'},
-        {path: '/4', expected: 'array<string>'},
-        {path: '/5', expected: 'bigint'},
+        {path: [1], expected: 'number'},
+        {path: [2], expected: 'string'},
+        {path: [3], expected: 'null'},
+        {path: [4], expected: 'array'},
+        {path: [5], expected: 'bigint'},
     ]);
     expect(valWithErrors([])).toEqual([
-        {path: '/0', expected: 'date'},
-        {path: '/1', expected: 'number'},
-        {path: '/2', expected: 'string'},
-        {path: '/3', expected: 'null'},
-        {path: '/4', expected: 'array<string>'},
-        {path: '/5', expected: 'bigint'},
+        {path: [0], expected: 'date'},
+        {path: [1], expected: 'number'},
+        {path: [2], expected: 'string'},
+        {path: [3], expected: 'null'},
+        {path: [4], expected: 'array'},
+        {path: [5], expected: 'bigint'},
     ]);
-    expect(valWithErrors({})).toEqual([{path: '', expected: 'tuple<date, number, string, null, array<string>, bigint>'}]);
+    expect(valWithErrors({})).toEqual([{path: [], expected: 'tuple'}]);
     // extra elements in the tuple
     expect(valWithErrors([new Date(), 123, 'hello', null, ['a', 'b', 'c'], BigInt(123), 34])).toEqual([
-        {path: '', expected: 'tuple<date, number, string, null, array<string>, bigint>'},
+        {path: [], expected: 'tuple'},
     ]);
 });
 

@@ -5,8 +5,8 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 import {TypeObjectLiteral, TypeClass, TypeIntersection} from '../_deepkit/src/reflection/type';
-import {RunType, RunTypeOptions, RunTypeVisitor} from '../types';
-import {skipJsonDecode, skipJsonEncode, toLiteral} from '../utils';
+import {JitErrorPath, RunType, RunTypeOptions, RunTypeVisitor} from '../types';
+import {skipJsonDecode, skipJsonEncode, toLiteral, pathChainToLiteral} from '../utils';
 import {PropertyRunType} from './property';
 import {BaseRunType} from '../baseRunTypes';
 import {MethodSignatureRunType} from '../functionRunType/methodSignature';
@@ -30,7 +30,6 @@ export class InterfaceRunType<
     public readonly entries: InterfaceRunTypeEntry[];
     public readonly serializableProps: PropertyRunType[];
     public readonly serializableIndexProps: IndexSignatureRunType[];
-    protected propertySeparator = ',';
     constructor(
         visitor: RunTypeVisitor,
         public readonly src: T,
@@ -59,7 +58,7 @@ export class InterfaceRunType<
     getJitId(): string {
         if (this._jitId) return this._jitId;
         const sortedProps = this.getAllSerializableProps(); // TODO: should we sort props?
-        this._jitId = `${this.src.kind}{${sortedProps.map((prop) => `${prop.getJitId()}`).join(this.propertySeparator)}}`;
+        this._jitId = `${this.src.kind}{${sortedProps.map((prop) => `${prop.getJitId()}`).join(',')}}`;
         return this._jitId;
     }
 
@@ -77,16 +76,16 @@ export class InterfaceRunType<
         const code = [propsCode, indexPropsCode].filter((code) => !!code).join(' && ');
         return `typeof ${varName} === 'object' ${code ? `&& (${code})` : ''}`;
     }
-    compileTypeErrors(varName: string, errorsName: string, pathLiteral: string): string {
+    compileTypeErrors(varName: string, errorsName: string, pathChain: JitErrorPath): string {
         const propsCode = this.serializableProps.length
-            ? this.serializableProps.map((prop) => prop.compileTypeErrors(varName, errorsName, pathLiteral)).join(';')
+            ? this.serializableProps.map((prop) => prop.compileTypeErrors(varName, errorsName, pathChain)).join(';')
             : '';
         const indexPropsCode = this.serializableIndexProps.length
-            ? this.serializableIndexProps[0].compileTypeErrors(varName, errorsName, pathLiteral)
+            ? this.serializableIndexProps[0].compileTypeErrors(varName, errorsName, pathChain)
             : '';
         const code = [propsCode, indexPropsCode].filter((code) => !!code).join('; ');
         return (
-            `if (typeof ${varName} !== 'object') ${errorsName}.push({path: ${pathLiteral}, expected: ${toLiteral(this.getJitId())}});` +
+            `if (typeof ${varName} !== 'object') ${errorsName}.push({path: ${pathChainToLiteral(pathChain)}, expected: ${toLiteral(this.getName())}});` +
             `else {${code}}`
         );
     }

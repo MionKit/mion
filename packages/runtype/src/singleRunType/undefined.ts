@@ -7,7 +7,8 @@
 
 import {TypeUndefined} from '../_deepkit/src/reflection/type';
 import {SingleRunType} from '../baseRunTypes';
-import {toLiteral} from '../utils';
+import {JitErrorPath} from '../types';
+import {toLiteral, pathChainToLiteral} from '../utils';
 
 export class UndefinedRunType extends SingleRunType<TypeUndefined> {
     public readonly isJsonEncodeRequired = true;
@@ -16,8 +17,8 @@ export class UndefinedRunType extends SingleRunType<TypeUndefined> {
     compileIsType(varName: string): string {
         return `typeof ${varName} === 'undefined'`;
     }
-    compileTypeErrors(varName: string, errorsName: string, pathChain: string): string {
-        return `if (typeof ${varName} !== 'undefined') ${errorsName}.push({path: ${pathChain}, expected: ${toLiteral(this.getJitId())}})`;
+    compileTypeErrors(varName: string, errorsName: string, pathChain: JitErrorPath): string {
+        return `if (typeof ${varName} !== 'undefined') ${errorsName}.push({path: ${pathChainToLiteral(pathChain)}, expected: ${toLiteral(this.getName())}})`;
     }
     compileJsonEncode(varName: string): string {
         return `${varName} = null`;

@@ -6,8 +6,8 @@
  * ######## */
 
 import {TypeUnion} from '../_deepkit/src/reflection/type';
-import {RunType, RunTypeOptions, RunTypeVisitor} from '../types';
-import {hasCircularRunType, skipJsonDecode, skipJsonEncode, toLiteral} from '../utils';
+import {JitErrorPath, RunType, RunTypeOptions, RunTypeVisitor} from '../types';
+import {hasCircularRunType, skipJsonDecode, skipJsonEncode, toLiteral, pathChainToLiteral} from '../utils';
 import {random} from '../mock';
 import {BaseRunType} from '../baseRunTypes';
 
@@ -45,11 +45,11 @@ export class UnionRunType extends BaseRunType<TypeUnion> {
     compileIsType(varName: string): string {
         return this.runTypes.map((rt) => `(${rt.compileIsType(varName)})`).join(' || ');
     }
-    compileTypeErrors(varName: string, errorsName: string, pathChain: string): string {
-        return `if (!(${this.compileIsType(varName)})) ${errorsName}.push({path: ${pathChain}, expected: ${toLiteral(this.getJitId())}})`;
+    compileTypeErrors(varName: string, errorsName: string, pathChain: JitErrorPath): string {
+        return `if (!(${this.compileIsType(varName)})) ${errorsName}.push({path: ${pathChainToLiteral(pathChain)}, expected: ${toLiteral(this.getName())}})`;
     }
     compileJsonEncode(varName: string): string {
-        const errorCode = `else { throw new Error('Can not encode json to union: expected ${this.getJitId()} but got ' + ${varName}?.constructor?.name || typeof ${varName}) }`;
+        const errorCode = `else { throw new Error('Can not encode json to union: expected one of <${this.getUnionTypeNames()}> but got ' + ${varName}?.constructor?.name || typeof ${varName}) }`;
         const encode = this.runTypes
             .map((rt, i) => {
                 const checkCode = rt.compileIsType(varName);
@@ -62,7 +62,7 @@ export class UnionRunType extends BaseRunType<TypeUnion> {
         return `${encode}\n${errorCode}`;
     }
     compileJsonDecode(varName: string): string {
-        const errorCode = `else { throw new Error('Can not decode json from union: expected ${this.getJitId()} but got ' + ${varName}?.constructor?.name || typeof ${varName}) }`;
+        const errorCode = `else { throw new Error('Can not decode json from union: expected one of <${this.getUnionTypeNames()}> but got ' + ${varName}?.constructor?.name || typeof ${varName}) }`;
         const decode = this.runTypes
             .map((rt, i) => {
                 const checkCode = `${varName}[0] === ${i}`;
@@ -75,7 +75,7 @@ export class UnionRunType extends BaseRunType<TypeUnion> {
         return `${decode}\n${errorCode}`;
     }
     compileJsonStringify(varName: string): string {
-        const errorCode = `throw new Error('Can not stringify union: expected ${this.getJitId()} but got ' + ${varName}?.constructor?.name || typeof ${varName})`;
+        const errorCode = `throw new Error('Can not stringify union: expected one of <${this.getUnionTypeNames()}> but got ' + ${varName}?.constructor?.name || typeof ${varName})`;
         const encode = this.runTypes
             .map((rt, i) => {
                 const checkCode = rt.compileIsType(varName);
@@ -88,5 +88,10 @@ export class UnionRunType extends BaseRunType<TypeUnion> {
     mock(...unionArgs: any[][]): string {
         const unionMock = this.runTypes.map((rt, i) => rt.mock(...(unionArgs?.[i] || [])));
         return unionMock[random(0, unionMock.length - 1)];
+    }
+    private _unionTypeNames: string | undefined;
+    getUnionTypeNames(): string {
+        if (this._unionTypeNames) return this._unionTypeNames;
+        return (this._unionTypeNames = this.runTypes.map((rt) => rt.getName()).join(' | '));
     }
 }
