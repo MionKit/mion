@@ -31,7 +31,7 @@ export interface JitCompilerFunctions {
      * pathChain is a string that represents the path to the property being validated.
      * pathChain is calculated at runtime so is an expresion like 'path1' + '/' + 'path2' + '/' + 'path3'
      */
-    compileTypeErrors(varName: string, errorsName: string, pathChain: string): string;
+    compileTypeErrors(varName: string, errorsName: string, pathChain: JitErrorPath): string;
     /**
      * JIT code to transform from type to an object that can be serialized using json
      * this code should not use return statements, it should be a single line of code that evaluates to a json compatible type.
@@ -67,7 +67,7 @@ export interface RunType<Opts extends RunTypeOptions = RunTypeOptions> extends J
     readonly opts: Opts;
     readonly jitFunctions: JITFunctionsData;
     readonly nestLevel: number;
-    hasCircular: boolean;
+    readonly hasCircular: boolean;
 
     /**
      * returns a mocked value, should be random when possible
@@ -76,9 +76,12 @@ export interface RunType<Opts extends RunTypeOptions = RunTypeOptions> extends J
 
     /**
      * Unique identifier of the run type, if two run types has the same jitId they will produce same jit functions.
-     * Ie, two classes with different functions but same exact properties has the same jitId .
+     * Ie, if two classes have different methods but same exact properties, then they both have the same jitId.
      * */
     getJitId(): string | number;
+
+    /** Readable unique identifier of the RunType, used as the expected value of type errors */
+    getName(): string;
 }
 
 export interface RunTypeOptions {
@@ -161,3 +164,6 @@ export interface SerializableClass<T = any> {
 export interface AnyClass<T = any> {
     new (...args: any[]): T;
 }
+
+export type ErrorPathItem = {value: string | number; isLiteral: boolean};
+export type JitErrorPath = ErrorPathItem[];

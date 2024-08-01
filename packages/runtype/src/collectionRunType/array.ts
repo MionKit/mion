@@ -6,8 +6,8 @@
  * ######## */
 
 import {TypeArray} from '../_deepkit/src/reflection/type';
-import {RunType, RunTypeOptions, RunTypeVisitor} from '../types';
-import {addToPathChain, hasCircularRunType, skipJsonDecode, skipJsonEncode, toLiteral} from '../utils';
+import {JitErrorPath, RunType, RunTypeOptions, RunTypeVisitor} from '../types';
+import {addToPathChain, hasCircularRunType, skipJsonDecode, skipJsonEncode, toLiteral, pathChainToLiteral} from '../utils';
 import {random} from '../mock';
 import {BaseRunType} from '../baseRunTypes';
 
@@ -38,12 +38,12 @@ export class ArrayRunType extends BaseRunType<TypeArray> {
         const forLoop = `for (let ${indexName} = 0; ${indexName} < ${varName}.length; ${indexName}++) {if (!(${itemCode})) return false;}`;
         return `Array.isArray(${varName}) && (function() {${forLoop}return true})()`;
     }
-    compileTypeErrors(varName: string, errorsName: string, pathLiteral: string): string {
+    compileTypeErrors(varName: string, errorsName: string, pathChain: JitErrorPath): string {
         const indexName = `indεx${this.nestLevel}`;
-        const listItemPath = addToPathChain(pathLiteral, indexName, false);
+        const listItemPath = addToPathChain(pathChain, indexName, false);
         const itemAccessor = `${varName}[${indexName}]`;
         const itemCode = this.itemsRunType.compileTypeErrors(itemAccessor, errorsName, listItemPath);
-        const arrayCode = `if (!Array.isArray(${varName})) ${errorsName}.push({path: ${pathLiteral}, expected: ${toLiteral(this.getJitId())}});`;
+        const arrayCode = `if (!Array.isArray(${varName})) ${errorsName}.push({path: ${pathChainToLiteral(pathChain)}, expected: ${toLiteral(this.getName())}});`;
         return arrayCode + `else { for (let ${indexName} = 0; ${indexName} < ${varName}.length; ${indexName}++) {${itemCode}} }`;
     }
     compileJsonEncode(varName: string): string {

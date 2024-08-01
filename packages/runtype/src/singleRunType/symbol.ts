@@ -6,8 +6,8 @@
  * ######## */
 
 import {TypeSymbol} from '../_deepkit/src/reflection/type';
-import {JitJsonEncoder} from '../types';
-import {toLiteral} from '../utils';
+import {JitErrorPath, JitJsonEncoder} from '../types';
+import {toLiteral, pathChainToLiteral} from '../utils';
 import {mockSymbol} from '../mock';
 import {SingleRunType} from '../baseRunTypes';
 
@@ -18,8 +18,8 @@ export class SymbolRunType extends SingleRunType<TypeSymbol> {
     compileIsType(varName: string): string {
         return `typeof ${varName} === 'symbol'`;
     }
-    compileTypeErrors(varName: string, errorsName: string, pathChain: string): string {
-        return `if (typeof ${varName} !== 'symbol') ${errorsName}.push({path: ${pathChain}, expected: ${toLiteral(this.getJitId())}})`;
+    compileTypeErrors(varName: string, errorsName: string, pathChain: JitErrorPath): string {
+        return `if (typeof ${varName} !== 'symbol') ${errorsName}.push({path: ${pathChainToLiteral(pathChain)}, expected: ${toLiteral(this.getName())}})`;
     }
     compileJsonEncode(varName: string): string {
         return SymbolJitJsonENcoder.encodeToJson(varName);

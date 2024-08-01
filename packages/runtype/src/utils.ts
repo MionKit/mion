@@ -7,7 +7,7 @@
 
 import {isSameType, ReflectionKind} from './_deepkit/src/reflection/type';
 import {jitUtils} from './jitUtils';
-import type {AnyClass, RunType} from './types';
+import type {AnyClass, JitErrorPath, RunType} from './types';
 import type {SingleRunType} from './baseRunTypes';
 
 export function toLiteral(value: number | string | boolean | undefined | null | bigint | RegExp | symbol): string {
@@ -33,12 +33,18 @@ export function toLiteral(value: number | string | boolean | undefined | null | 
     }
 }
 
-export function toLiteralArray(value: any[]): string {
+export function arrayToLiteral(value: any[]): string {
     return `[${value.map((v) => toLiteral(v)).join(', ')}]`;
 }
 
-export function addToPathChain(pathChain: string, property: string | number, isLiteral = true): string {
-    return `${pathChain} + '/' + ${isLiteral ? toLiteral(property) : property}`;
+/** prints a pathChain to source code */
+export function pathChainToLiteral(pathChain: JitErrorPath): string {
+    return `[${pathChain.map((item) => (item.isLiteral ? toLiteral(item.value) : item.value)).join(', ')}]`;
+}
+
+/** Clones PathChain into a new array and adds new property */
+export function addToPathChain(pathChain: JitErrorPath, property: string | number, isLiteral = true): JitErrorPath {
+    return [...pathChain, {value: property, isLiteral}];
 }
 
 export function skipJsonEncode(rt: RunType): boolean {

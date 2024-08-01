@@ -1,7 +1,7 @@
 import {TypePromise} from '../_deepkit/src/reflection/type';
 import {SingleRunType} from '../baseRunTypes';
-import {RunType, RunTypeOptions, RunTypeVisitor} from '../types';
-import {toLiteral} from '../utils';
+import {JitErrorPath, RunType, RunTypeOptions, RunTypeVisitor} from '../types';
+import {toLiteral, pathChainToLiteral} from '../utils';
 
 /* ########
  * 2024 mion
@@ -29,20 +29,20 @@ export class PromiseRunType extends SingleRunType<TypePromise> {
     resolvedIsTypeJIT(varName: string): string {
         return this.resolvedType.compileIsType(varName);
     }
-    compileTypeErrors(varName: string, errorsName: string, pathChain: string): string {
-        return `if (!(${varName} instanceof Promise)) ${errorsName}.push({path: ${pathChain}, expected: ${toLiteral(this.getJitId())}})`;
+    compileTypeErrors(varName: string, errorsName: string, pathChain: JitErrorPath): string {
+        return `if (!(${varName} instanceof Promise)) ${errorsName}.push({path: ${pathChainToLiteral(pathChain)}, expected: ${toLiteral(this.getName())}})`;
     }
-    resolveTypeErrorsJIT(varName: string, errorsName: string, pathChain: string): string {
+    resolveTypeErrorsJIT(varName: string, errorsName: string, pathChain: JitErrorPath): string {
         return this.resolvedType.compileTypeErrors(varName, errorsName, pathChain);
     }
     compileJsonEncode(): string {
-        throw new Error(`${this.getJitId()} can not be encoded to json.`);
+        throw new Error(`${this.getName()} can not be encoded to json.`);
     }
     compileJsonDecode(): string {
-        throw new Error(`${this.getJitId()} can not be decoded from json.`);
+        throw new Error(`${this.getName()} can not be decoded from json.`);
     }
     compileJsonStringify(): string {
-        throw new Error(`${this.getJitId()} can not be stringified.`);
+        throw new Error(`${this.getName()} can not be stringified.`);
     }
     mock(timeOut = 1, rejectError: string): Promise<any> {
         return new Promise((resolve, reject) => {

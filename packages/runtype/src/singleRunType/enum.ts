@@ -6,8 +6,8 @@
  * ######## */
 
 import {ReflectionKind, TypeEnum} from '../_deepkit/src/reflection/type';
-import {RunType, RunTypeOptions, RunTypeVisitor} from '../types';
-import {toLiteral} from '../utils';
+import {JitErrorPath, RunType, RunTypeOptions, RunTypeVisitor} from '../types';
+import {toLiteral, pathChainToLiteral} from '../utils';
 import {random} from '../mock';
 import {SingleRunType} from '../baseRunTypes';
 
@@ -26,15 +26,14 @@ export class EnumRunType extends SingleRunType<TypeEnum> {
         this.values = src.values;
         this.indexKind = src.indexType.kind;
     }
-
     getJitId(): number | string {
         return `${this.indexKind}{${this.values.map((v) => v).join(',')}}`;
     }
     compileIsType(varName: string): string {
         return this.values.map((v) => `${varName} === ${toLiteral(v)}`).join(' || ');
     }
-    compileTypeErrors(varName: string, errorsName: string, pathChain: string): string {
-        return `if (!(${this.compileIsType(varName)})) ${errorsName}.push({path: ${pathChain}, expected: ${toLiteral(this.getJitId())}})`;
+    compileTypeErrors(varName: string, errorsName: string, pathChain: JitErrorPath): string {
+        return `if (!(${this.compileIsType(varName)})) ${errorsName}.push({path: ${pathChainToLiteral(pathChain)}, expected: ${toLiteral(this.getName())}})`;
     }
     compileJsonEncode(): string {
         return '';

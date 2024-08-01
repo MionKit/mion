@@ -1,6 +1,6 @@
 import {ReflectionKind, TypeIndexSignature} from '../_deepkit/src/reflection/type';
 import {BaseRunType} from '../baseRunTypes';
-import {RunType, RunTypeOptions, RunTypeVisitor} from '../types';
+import {JitErrorPath, RunType, RunTypeOptions, RunTypeVisitor} from '../types';
 import {addToPathChain, hasCircularRunType, isFunctionKind, skipJsonDecode, skipJsonEncode} from '../utils';
 import {NumberRunType} from '../singleRunType/number';
 import {StringRunType} from '../singleRunType/string';
@@ -52,10 +52,10 @@ export class IndexSignatureRunType extends BaseRunType<TypeIndexSignature> {
         const forLoop = `for (const ${indexName} in ${varName}) {if (!(${itemCode})) return false;}`;
         return `(function() {${forLoop}return true})()`;
     }
-    compileTypeErrors(varName: string, errorsName: string, pathLiteral: string): string {
+    compileTypeErrors(varName: string, errorsName: string, pathChain: JitErrorPath): string {
         if (!this.shouldSerialize) return '';
         const indexName = `prΦp${this.nestLevel}`;
-        const listItemPath = addToPathChain(pathLiteral, indexName, false);
+        const listItemPath = addToPathChain(pathChain, indexName, false);
         const itemAccessor = `${varName}[${indexName}]`;
         const itemCode = this.indexType.compileTypeErrors(itemAccessor, errorsName, listItemPath);
         return `for (const ${indexName} in ${varName}) {${itemCode}}`;

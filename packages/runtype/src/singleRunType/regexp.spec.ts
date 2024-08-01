@@ -28,9 +28,9 @@ it('validate regexp', () => {
 it('validate regexp + errors', () => {
     const valWithErrors = buildTypeErrorsJITFn(rt).fn;
     expect(valWithErrors(/abc/)).toEqual([]);
-    expect(valWithErrors(undefined)).toEqual([{path: '', expected: 'regexp'}]);
-    expect(valWithErrors(42)).toEqual([{path: '', expected: 'regexp'}]);
-    expect(valWithErrors('hello')).toEqual([{path: '', expected: 'regexp'}]);
+    expect(valWithErrors(undefined)).toEqual([{path: [], expected: 'regexp'}]);
+    expect(valWithErrors(42)).toEqual([{path: [], expected: 'regexp'}]);
+    expect(valWithErrors('hello')).toEqual([{path: [], expected: 'regexp'}]);
 });
 
 it('encode/decode json', () => {

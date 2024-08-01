@@ -6,7 +6,7 @@
  * ######## */
 
 import {TypeProperty, TypePropertySignature} from '../_deepkit/src/reflection/type';
-import {RunType, RunTypeOptions, RunTypeVisitor} from '../types';
+import {JitErrorPath, RunType, RunTypeOptions, RunTypeVisitor} from '../types';
 import {addToPathChain, hasCircularRunType, isFunctionKind, skipJsonDecode, skipJsonEncode, toLiteral} from '../utils';
 import {validPropertyNameRegExp} from '../constants';
 import {BaseRunType} from '../baseRunTypes';
@@ -67,17 +67,14 @@ export class PropertyRunType extends BaseRunType<TypePropertySignature | TypePro
         }
         return this.memberRunType.compileIsType(accessor);
     }
-    compileTypeErrors(varName: string, errorsName: string, pathChain: string): string {
+    compileTypeErrors(varName: string, errorsName: string, pathChain: JitErrorPath): string {
         if (!this.shouldSerialize) return '';
         const accessor = `${varName}${this.safeAccessor}`;
+        const propPath = addToPathChain(pathChain, this.propName);
         if (this.isOptional) {
-            return `if (${accessor} !== undefined) {${this.memberRunType.compileTypeErrors(
-                accessor,
-                errorsName,
-                addToPathChain(pathChain, this.propName)
-            )}}`;
+            return `if (${accessor} !== undefined) {${this.memberRunType.compileTypeErrors(accessor, errorsName, propPath)}}`;
         }
-        return this.memberRunType.compileTypeErrors(accessor, errorsName, addToPathChain(pathChain, this.propName));
+        return this.memberRunType.compileTypeErrors(accessor, errorsName, propPath);
     }
     compileJsonEncode(varName: string): string {
         if (!this.shouldSerialize) return '';

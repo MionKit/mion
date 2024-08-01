@@ -1,6 +1,6 @@
 import {TypeRest} from '../_deepkit/src/reflection/type';
 import {BaseRunType} from '../baseRunTypes';
-import {RunType, RunTypeOptions, RunTypeVisitor} from '../types';
+import {JitErrorPath, RunType, RunTypeOptions, RunTypeVisitor} from '../types';
 import {addToPathChain, skipJsonDecode, skipJsonEncode} from '../utils';
 
 /* ########
@@ -39,44 +39,44 @@ export class RestParamsRunType extends BaseRunType<TypeRest> {
         return `${this.memberRunType.getJitId()}[]`;
     }
 
-    compileIsType(varName: string, itemIndex = 0): string {
+    compileIsType(varName: string, paramIndex = 0): string {
         const indexName = `pλrλm${this.nestLevel}`;
         const itemAccessor = `${varName}[${indexName}]`;
         const itemCode = this.memberRunType.compileIsType(itemAccessor);
-        const forLoop = `for (let ${indexName} = ${itemIndex}; ${indexName} < ${varName}.length; ${indexName}++) {if (!(${itemCode})) return false;}`;
+        const forLoop = `for (let ${indexName} = ${paramIndex}; ${indexName} < ${varName}.length; ${indexName}++) {if (!(${itemCode})) return false;}`;
         return `(function() {${forLoop}return true})()`;
     }
-    compileTypeErrors(varName: string, errorsName: string, pathChain: string, itemIndex = 0): string {
+    compileTypeErrors(varName: string, errorsName: string, pathChain: JitErrorPath, paramIndex = 0): string {
         const indexName = `pλrλm${this.nestLevel}`;
         const listItemPath = addToPathChain(pathChain, indexName, false);
         const itemAccessor = `${varName}[${indexName}]`;
         const itemCode = this.memberRunType.compileTypeErrors(itemAccessor, errorsName, listItemPath);
-        return `for (let ${indexName} = ${itemIndex}; ${indexName} < ${varName}.length; ${indexName}++) {${itemCode}}`;
+        return `for (let ${indexName} = ${paramIndex}; ${indexName} < ${varName}.length; ${indexName}++) {${itemCode}}`;
     }
-    compileJsonEncode(varName: string, itemIndex = 0): string {
+    compileJsonEncode(varName: string, paramIndex = 0): string {
         if (skipJsonEncode(this)) return '';
         const indexName = `pλrλm${this.nestLevel}`;
         const itemAccessor = `${varName}[${indexName}]`;
         const itemCode = this.memberRunType.compileJsonEncode(itemAccessor);
         if (!itemCode) return '';
-        return `for (let ${indexName} = ${itemIndex}; ${indexName} < ${varName}.length; ${indexName}++) {${itemCode}}`;
+        return `for (let ${indexName} = ${paramIndex}; ${indexName} < ${varName}.length; ${indexName}++) {${itemCode}}`;
     }
-    compileJsonDecode(varName: string, itemIndex = 0): string {
+    compileJsonDecode(varName: string, paramIndex = 0): string {
         if (skipJsonDecode(this)) return '';
         const indexName = `pλrλm${this.nestLevel}`;
         const itemAccessor = `${varName}[${indexName}]`;
         const itemCode = this.memberRunType.compileJsonDecode(itemAccessor);
         if (!itemCode) return '';
-        return `for (let ${indexName} = ${itemIndex}; ${indexName} < ${varName}.length; ${indexName}++) {${itemCode}}`;
+        return `for (let ${indexName} = ${paramIndex}; ${indexName} < ${varName}.length; ${indexName}++) {${itemCode}}`;
     }
-    compileJsonStringify(varName: string, itemIndex = 0): string {
+    compileJsonStringify(varName: string, paramIndex = 0): string {
         const arrName = `rεsultλrr${this.nestLevel}`;
         const itemName = `itεm${this.nestLevel}`;
         const indexName = `indεx${this.nestLevel}`;
         const itemAccessor = `${varName}[${indexName}]`;
-        const sep = itemIndex === 0 ? '' : `','+`;
+        const sep = paramIndex === 0 ? '' : `','+`;
         const itemCode = this.memberRunType.compileJsonStringify(itemAccessor);
-        const forLoop = `const ${arrName} = []; for (let ${indexName} = ${itemIndex}; ${indexName} < ${varName}.length; ${indexName}++) {const ${itemName} = ${itemCode}; if(${itemName}) ${arrName}.push(${itemName})}`;
+        const forLoop = `const ${arrName} = []; for (let ${indexName} = ${paramIndex}; ${indexName} < ${varName}.length; ${indexName}++) {const ${itemName} = ${itemCode}; if(${itemName}) ${arrName}.push(${itemName})}`;
         return `(function(){${forLoop}; if (!${arrName}.length) {return '';} else {return ${sep}${arrName}.join(',')} })()`;
     }
     mock(...args: any[]): string {

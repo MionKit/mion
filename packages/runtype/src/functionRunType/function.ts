@@ -8,8 +8,8 @@ import {ReflectionKind, TypeCallSignature, TypeFunction, TypeMethod, TypeMethodS
 import {BaseRunType} from '../baseRunTypes';
 import {isPromiseRunType} from '../guards';
 import {buildJITFunctions} from '../jitCompiler';
-import {JITFunctionsData, JitCompilerFunctions, RunType, RunTypeOptions, RunTypeVisitor} from '../types';
-import {toLiteral} from '../utils';
+import {JITFunctionsData, JitCompilerFunctions, JitErrorPath, RunType, RunTypeOptions, RunTypeVisitor} from '../types';
+import {toLiteral, pathChainToLiteral} from '../utils';
 import {ParameterRunType} from './param';
 
 type AnyFunction = TypeMethodSignature | TypeCallSignature | TypeFunction | TypeMethod;
@@ -54,7 +54,7 @@ export class FunctionRunType<CallType extends AnyFunction = TypeFunction> extend
         this.hasRestParameter = !!this.parameterTypes.length && this.parameterTypes[this.parameterTypes.length - 1].isRest;
         this.hasReturnData = this._hasReturnData(this.returnType.src.kind);
         this.isAsync = isPromise || this._isAsync(this.returnType.src.kind);
-        this.paramsName = `[${this.parameterTypes.map((p) => p.getJitId()).join(', ')}]`;
+        this.paramsName = `[${this.parameterTypes.map((p) => p.getName()).join(', ')}]`;
     }
 
     private _jitId: string | undefined;
@@ -62,26 +62,25 @@ export class FunctionRunType<CallType extends AnyFunction = TypeFunction> extend
         if (this._jitId) return this._jitId;
         return (this._jitId = `${this.src.kind}(${this.parameterTypes.map((p) => p.getJitId()).join(',')}):${this.returnType.getJitId()}`);
     }
-
     compileIsType(): string {
-        throw new Error(`${this.getJitId()} validation is not supported, instead validate parameters or return type separately.`);
+        throw new Error(`${this.getName()} validation is not supported, instead validate parameters or return type separately.`);
     }
     compileTypeErrors(): string {
-        throw new Error(`${this.getJitId()} validation is not supported, instead validate parameters or return type separately.`);
+        throw new Error(`${this.getName()} validation is not supported, instead validate parameters or return type separately.`);
     }
     compileJsonEncode(): string {
-        throw new Error(`${this.getJitId()} json encode is not supported, instead encode parameters or return type separately.`);
+        throw new Error(`${this.getName()} json encode is not supported, instead encode parameters or return type separately.`);
     }
     compileJsonDecode(): string {
-        throw new Error(`${this.getJitId()} json decode is not supported, instead decode parameters or return type separately.`);
+        throw new Error(`${this.getName()} json decode is not supported, instead decode parameters or return type separately.`);
     }
     compileJsonStringify(): string {
         throw new Error(
-            `${this.getJitId()} json stringify is not supported, instead stringify parameters or return type separately.`
+            `${this.getName()} json stringify is not supported, instead stringify parameters or return type separately.`
         );
     }
     mock(): string {
-        throw new Error(`${this.getJitId()} mock is not supported, instead mock parameters or return type separately.`);
+        throw new Error(`${this.getName()} mock is not supported, instead mock parameters or return type separately.`);
     }
 
     // ####### params #######
@@ -100,14 +99,14 @@ export class FunctionRunType<CallType extends AnyFunction = TypeFunction> extend
             const checkLength = `${varName}.length >= ${this.totalRequiredParams} ${maxLength}`;
             return `${checkLength} && ${paramsCode}`;
         },
-        compileTypeErrors: (varName: string, errorsName: string, pathChain: string) => {
+        compileTypeErrors: (varName: string, errorsName: string, pathChain: JitErrorPath) => {
             const maxLength = !this.hasRestParameter ? `|| ${varName}.length > ${this.parameterTypes.length}` : '';
             const checkLength = `(${varName}.length < ${this.totalRequiredParams} ${maxLength})`;
             const paramsCode = this.parameterTypes
                 .map((p, i) => p.compileTypeErrors(varName, errorsName, pathChain, i))
                 .join(';');
             return (
-                `if (!Array.isArray(${varName}) || ${checkLength}) ${errorsName}.push({path: ${pathChain}, expected: ${toLiteral(this.paramsName)}});` +
+                `if (!Array.isArray(${varName}) || ${checkLength}) ${errorsName}.push({path: ${pathChainToLiteral(pathChain)}, expected: ${toLiteral(this.paramsName)}});` +
                 `else {${paramsCode}}`
             );
         },
@@ -148,7 +147,7 @@ export class FunctionRunType<CallType extends AnyFunction = TypeFunction> extend
         compileIsType: (varName) => {
             return this.returnType.compileIsType(varName);
         },
-        compileTypeErrors: (varName: string, errorsName: string, pathChain: string) => {
+        compileTypeErrors: (varName: string, errorsName: string, pathChain: JitErrorPath) => {
             return this.returnType.compileTypeErrors(varName, errorsName, pathChain);
         },
         compileJsonEncode: (varName: string) => {

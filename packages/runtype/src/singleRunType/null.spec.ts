@@ -26,9 +26,9 @@ it('validate null', () => {
 it('validate null + errors', () => {
     const valWithErrors = buildTypeErrorsJITFn(rt).fn;
     expect(valWithErrors(null)).toEqual([]);
-    expect(valWithErrors(undefined)).toEqual([{path: '', expected: 'null'}]);
-    expect(valWithErrors(42)).toEqual([{path: '', expected: 'null'}]);
-    expect(valWithErrors('hello')).toEqual([{path: '', expected: 'null'}]);
+    expect(valWithErrors(undefined)).toEqual([{path: [], expected: 'null'}]);
+    expect(valWithErrors(42)).toEqual([{path: [], expected: 'null'}]);
+    expect(valWithErrors('hello')).toEqual([{path: [], expected: 'null'}]);
 });
 
 it('encode to json', () => {

@@ -7,8 +7,8 @@
 
 import {TypeTuple} from '../_deepkit/src/reflection/type';
 import {BaseRunType} from '../baseRunTypes';
-import {RunType, RunTypeOptions, RunTypeVisitor} from '../types';
-import {addToPathChain, skipJsonDecode, skipJsonEncode, toLiteral} from '../utils';
+import {JitErrorPath, RunType, RunTypeOptions, RunTypeVisitor} from '../types';
+import {addToPathChain, pathChainToLiteral, skipJsonDecode, skipJsonEncode, toLiteral} from '../utils';
 
 export class TupleRunType extends BaseRunType<TypeTuple> {
     public readonly isJsonEncodeRequired: boolean;
@@ -39,12 +39,12 @@ export class TupleRunType extends BaseRunType<TypeTuple> {
         const itemsCode = this.runTypes.map((rt, i) => `(${rt.compileIsType(`${varName}[${i}]`)})`).join(' && ');
         return `${varName}.length <= ${this.runTypes.length} && ${itemsCode}`;
     }
-    compileTypeErrors(varName: string, errorsName: string, pathChain: string): string {
+    compileTypeErrors(varName: string, errorsName: string, pathChain: JitErrorPath): string {
         const itemsCode = this.runTypes
             .map((rt, i) => rt.compileTypeErrors(`${varName}[${i}]`, errorsName, addToPathChain(pathChain, i)))
             .join(';');
         return (
-            `if (!Array.isArray(${varName}) || ${varName}.length > ${this.runTypes.length}) ${errorsName}.push({path: ${pathChain}, expected: ${toLiteral(this.getJitId())}});` +
+            `if (!Array.isArray(${varName}) || ${varName}.length > ${this.runTypes.length}) ${errorsName}.push({path: ${pathChainToLiteral(pathChain)}, expected: ${toLiteral(this.getName())}});` +
             `else {${itemsCode}}`
         );
     }

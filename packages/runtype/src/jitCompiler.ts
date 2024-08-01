@@ -18,7 +18,7 @@ import type {
     typeErrorsFn,
     UnwrappedJITFunctions,
 } from './types';
-import {toLiteral, toLiteralArray} from './utils';
+import {toLiteral, arrayToLiteral} from './utils';
 
 /**
  * Builds all the JIT functions for a given RunType
@@ -52,8 +52,8 @@ export function buildTypeErrorsJITFn(runType: RunType, jitFunctions?: JitCompile
     const varName = `vλluε${runType.nestLevel}`;
     const errorsName = `εrrΦrs${runType.nestLevel}`;
     const jitCode = jitFunctions
-        ? jitFunctions.compileTypeErrors(varName, errorsName, `''`)
-        : runType.compileTypeErrors(varName, errorsName, `''`);
+        ? jitFunctions.compileTypeErrors(varName, errorsName, [])
+        : runType.compileTypeErrors(varName, errorsName, []);
     const code = `const ${errorsName} = []; ${jitCode}; return ${errorsName};`;
     try {
         const fn = createJitFnWithContext(varName, code);
@@ -120,7 +120,7 @@ export function getSerializableJitCompiler(compiled: JITFunctionsData): Serializ
 
 export function codifyJitFn(fn: JitFnData<(vλluε: any) => any>): string {
     const varNames = fn.varNames;
-    return `{\n  varNames:${toLiteralArray(varNames)},\n  code:${toLiteral(fn.code)},\n  fn:function(${varNames.join(',')}){${fn.code}}\n}`;
+    return `{\n  varNames:${arrayToLiteral(varNames)},\n  code:${toLiteral(fn.code)},\n  fn:function(${varNames.join(',')}){${fn.code}}\n}`;
 }
 
 export function codifyJitFunctions(compiled: JITFunctionsData): string {

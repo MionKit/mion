@@ -7,9 +7,10 @@
 
 import {TypeAny, TypeUnknown} from '../_deepkit/src/reflection/type';
 import {random} from '../mock';
-import {toLiteral} from '../utils';
+import {toLiteral, pathChainToLiteral} from '../utils';
 import {mockObjectList} from '../constants';
 import {SingleRunType} from '../baseRunTypes';
+import {JitErrorPath} from '../types';
 
 export class ObjectRunType extends SingleRunType<TypeAny | TypeUnknown> {
     public readonly isJsonEncodeRequired = false;
@@ -18,8 +19,8 @@ export class ObjectRunType extends SingleRunType<TypeAny | TypeUnknown> {
     compileIsType(varName: string): string {
         return `typeof ${varName} === 'object' && ${varName} !== null`;
     }
-    compileTypeErrors(varName: string, errorsName: string, pathChain: string): string {
-        return `if (!(${this.compileIsType(varName)})) ${errorsName}.push({path: ${pathChain}, expected: ${toLiteral(this.getJitId())}})`;
+    compileTypeErrors(varName: string, errorsName: string, pathChain: JitErrorPath): string {
+        return `if (!(${this.compileIsType(varName)})) ${errorsName}.push({path: ${pathChainToLiteral(pathChain)}, expected: ${toLiteral(this.getName())}})`;
     }
     compileJsonEncode(): string {
         return '';

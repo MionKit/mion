@@ -203,7 +203,6 @@ function visitor(deepkitType, parents: RunType[], opts: RunTypeOptions): RunType
     if (parents.length > MaxNestLevel) throw new Error('Max Nest Level exceeded while resolving run type');
     if (rt.hasCircular) throw new Error('Circular references are not supported ie: type T = {a: T}');
     (deepkitType as SrcType)._runType = rt;
-    if (rt.src.id || rt.src.typeName) console.log(rt.src.kind, rt.src.id, rt.src.typeName);
     return rt;
 }
 

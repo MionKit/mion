@@ -64,28 +64,26 @@ describe('IndexType', () => {
     it('validate index run type + errors', () => {
         const valWithErrors = buildTypeErrorsJITFn(rt).fn;
         expect(valWithErrors({key1: 'value1', key2: 'value2'})).toEqual([]);
-        expect(valWithErrors('hello')).toEqual([{path: '', expected: 'interface<index<string>>'}]);
-        expect(valWithErrors({key1: 'value1', key2: 123})).toEqual([{path: '/key2', expected: 'string'}]);
+        expect(valWithErrors('hello')).toEqual([{path: [], expected: 'interface'}]);
+        expect(valWithErrors({key1: 'value1', key2: 123})).toEqual([{path: ['key2'], expected: 'string'}]);
     });
 
     it('validate index run type with extra props + errors', () => {
         const valWithErrors = buildTypeErrorsJITFn(rtExtra).fn;
         expect(valWithErrors({key1: 'value1', key2: 'value2'})).toEqual([
-            {path: '/a', expected: 'string'}, // missing required property 'a'
-            {path: '/b', expected: 'number'}, // missing required property 'b'
+            {path: ['a'], expected: 'string'}, // missing required property 'a'
+            {path: ['b'], expected: 'number'}, // missing required property 'b'
         ]);
         expect(valWithErrors({a: 'hello', b: 2, key1: 'value1', key2: 'value2'})).toEqual([]); // no errors
         expect(valWithErrors({a: 'hello', b: 2, key1: 'value1', key2: 2})).toEqual([]); // no errors
-        expect(valWithErrors('hello')).toEqual([
-            {path: '', expected: 'interface<a:string, b:number, index<union<string | number>>>'},
-        ]); // invalid type
+        expect(valWithErrors('hello')).toEqual([{path: [], expected: 'interface'}]); // invalid type
         expect(valWithErrors({a: 'string', b: 123})).toEqual([]); // no errors
         expect(valWithErrors({a: 'string', b: 'string'})).toEqual([
-            {path: '/b', expected: 'number'}, // invalid type for property 'b'
+            {path: ['b'], expected: 'number'}, // invalid type for property 'b'
         ]);
         expect(valWithErrors({c: 'string', d: 123})).toEqual([
-            {path: '/a', expected: 'string'}, // missing required property 'a'
-            {path: '/b', expected: 'number'}, // missing required property 'b'
+            {path: ['a'], expected: 'string'}, // missing required property 'a'
+            {path: ['b'], expected: 'number'}, // missing required property 'b'
         ]);
     });
 
@@ -174,8 +172,10 @@ describe('IndexType recursion', () => {
     it('validate index run type + errors', () => {
         const valWithErrors = buildTypeErrorsJITFn(rtRec).fn;
         expect(valWithErrors({key1: {nestedKey1: 1, nestedKey2: 2}})).toEqual([]);
-        expect(valWithErrors('hello')).toEqual([{path: '', expected: 'interface<index<interface<index<number>>>>'}]);
-        expect(valWithErrors({key1: {nestedKey1: 1, nestedKey2: '2'}})).toEqual([{path: '/key1/nestedKey2', expected: 'number'}]);
+        expect(valWithErrors('hello')).toEqual([{path: [], expected: 'interface'}]);
+        expect(valWithErrors({key1: {nestedKey1: 1, nestedKey2: '2'}})).toEqual([
+            {path: ['key1', 'nestedKey2'], expected: 'number'},
+        ]);
     });
 
     it('encode to json', () => {

@@ -35,8 +35,8 @@ it('validate union + errors', () => {
     expect(valWithErrors('hello')).toEqual([]);
     expect(valWithErrors(null)).toEqual([]);
     expect(valWithErrors(['a', 'b', 'c'])).toEqual([]);
-    expect(valWithErrors({})).toEqual([{path: '', expected: 'union<date | number | string | null | array<string>>'}]);
-    expect(valWithErrors(true)).toEqual([{path: '', expected: 'union<date | number | string | null | array<string>>'}]);
+    expect(valWithErrors({})).toEqual([{path: [], expected: 'union'}]);
+    expect(valWithErrors(true)).toEqual([{path: [], expected: 'union'}]);
 });
 
 it('encode/decode to json', () => {
@@ -76,11 +76,9 @@ it('throw errors whe serializing deserializing object not belonging to the union
     const toJson = buildJsonEncodeJITFn(rtU).fn;
     const typeValue = new Date();
 
-    expect(() => jsonStringify(typeValue)).toThrow(
-        'Can not stringify union: expected union<string | array<string>> but got Date'
-    );
-    expect(() => fromJson(123)).toThrow('Can not decode json from union: expected union<string | array<string>> but got Number');
-    expect(() => toJson(typeValue)).toThrow('Can not encode json to union: expected union<string | array<string>> but got Date');
+    expect(() => jsonStringify(typeValue)).toThrow('Can not stringify union: expected one of <string | array> but got Date');
+    expect(() => fromJson(123)).toThrow('Can not decode json from union: expected one of <string | array> but got Number');
+    expect(() => toJson(typeValue)).toThrow('Can not encode json to union: expected one of <string | array> but got Date');
 });
 
 it('mock', () => {

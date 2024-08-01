@@ -7,7 +7,7 @@
 
 import {Type} from './_deepkit/src/reflection/type';
 import {buildJITFunctions} from './jitCompiler';
-import {JITFunctionsData, RunType, RunTypeOptions, RunTypeVisitor, SrcType} from './types';
+import {JitErrorPath, JITFunctionsData, RunType, RunTypeOptions, RunTypeVisitor, SrcType} from './types';
 
 export abstract class BaseRunType<T extends Type, Opts extends RunTypeOptions = RunTypeOptions> implements RunType<Opts> {
     public abstract readonly isJsonEncodeRequired: boolean;
@@ -27,17 +27,23 @@ export abstract class BaseRunType<T extends Type, Opts extends RunTypeOptions = 
     }
 
     abstract compileIsType(varName: string): string;
-    abstract compileTypeErrors(varName: string, errorsName: string, pathChain: string): string;
+    abstract compileTypeErrors(varName: string, errorsName: string, pathChain: JitErrorPath): string;
     abstract compileJsonEncode(varName: string): string;
     abstract compileJsonDecode(varName: string): string;
     abstract compileJsonStringify(varName: string): string;
     abstract mock(...args: any[]): any;
     abstract getJitId(): string | number;
 
-    private _compiled: JITFunctionsData | undefined;
+    private _compiledJitFunctions: JITFunctionsData | undefined;
     get jitFunctions(): JITFunctionsData {
-        if (this._compiled) return this._compiled;
-        return (this._compiled = buildJITFunctions(this));
+        if (this._compiledJitFunctions) return this._compiledJitFunctions;
+        return (this._compiledJitFunctions = buildJITFunctions(this));
+    }
+
+    private _typeName: string | undefined;
+    getName() {
+        if (this._typeName) return this._typeName;
+        return (this._typeName = this.constructor.name.toLowerCase().replace('runtype', ''));
     }
 }
 

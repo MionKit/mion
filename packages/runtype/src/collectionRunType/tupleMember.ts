@@ -7,7 +7,7 @@
 
 import {TypeTupleMember} from '../_deepkit/src/reflection/type';
 import {BaseRunType} from '../baseRunTypes';
-import {RunType, RunTypeOptions, RunTypeVisitor} from '../types';
+import {JitErrorPath, RunType, RunTypeOptions, RunTypeVisitor} from '../types';
 import {hasCircularRunType} from '../utils';
 
 export class TupleMemberRunType extends BaseRunType<TypeTupleMember> {
@@ -33,7 +33,7 @@ export class TupleMemberRunType extends BaseRunType<TypeTupleMember> {
     compileIsType(varName: string): string {
         return this.memberRunType.compileIsType(varName);
     }
-    compileTypeErrors(varName: string, errorsName: string, pathChain: string): string {
+    compileTypeErrors(varName: string, errorsName: string, pathChain: JitErrorPath): string {
         return this.memberRunType.compileTypeErrors(varName, errorsName, pathChain);
     }
     compileJsonEncode(varName: string): string {

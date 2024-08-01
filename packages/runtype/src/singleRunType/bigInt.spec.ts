@@ -28,7 +28,7 @@ it('validate bigint + errors', () => {
     const valWithErrors = buildTypeErrorsJITFn(rt).fn;
     expect(valWithErrors(1n)).toEqual([]);
     expect(valWithErrors(BigInt(42))).toEqual([]);
-    expect(valWithErrors('hello')).toEqual([{path: '', expected: 'bigint'}]);
+    expect(valWithErrors('hello')).toEqual([{path: [], expected: 'bigint'}]);
 });
 
 it('encode to json', () => {

@@ -7,7 +7,8 @@
 
 import {TypeVoid} from '../_deepkit/src/reflection/type';
 import {SingleRunType} from '../baseRunTypes';
-import {toLiteral} from '../utils';
+import {JitErrorPath} from '../types';
+import {toLiteral, pathChainToLiteral} from '../utils';
 
 export class VoidRunType extends SingleRunType<TypeVoid> {
     public readonly isJsonEncodeRequired = false;
@@ -16,8 +17,8 @@ export class VoidRunType extends SingleRunType<TypeVoid> {
     compileIsType(varName: string): string {
         return `${varName} === undefined`;
     }
-    compileTypeErrors(varName: string, errorsName: string, pathChain: string): string {
-        return `if (${varName} !== undefined) ${errorsName}.push({path: ${pathChain}, expected: ${toLiteral(this.getJitId())}})`;
+    compileTypeErrors(varName: string, errorsName: string, pathChain: JitErrorPath): string {
+        return `if (${varName} !== undefined) ${errorsName}.push({path: ${pathChainToLiteral(pathChain)}, expected: ${toLiteral(this.getName())}})`;
     }
     compileJsonEncode(varName: string): string {
         return `${varName} = undefined`;
