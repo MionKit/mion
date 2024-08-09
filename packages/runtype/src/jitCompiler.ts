@@ -36,9 +36,9 @@ export function buildJITFunctions(runType: RunType, jitFunctions?: JitCompilerFu
 }
 
 export function buildIsTypeJITFn(runType: RunType, jitFunctions?: JitCompilerFunctions): JITFunctionsData['isType'] {
-    const varName = `vλluε${runType.nestLevel}`;
+    const varName = `vλl${runType.nestLevel}`;
     const jitCode = jitFunctions ? jitFunctions.compileIsType(varName) : runType.compileIsType(varName);
-    const code = `return ${jitCode};`;
+    const code = runType.isSingle ? `return ${jitCode}` : jitCode;
     try {
         const fn = createJitFnWithContext(varName, code);
         return {varNames: [varName], code, fn};
@@ -48,8 +48,8 @@ export function buildIsTypeJITFn(runType: RunType, jitFunctions?: JitCompilerFun
 }
 
 export function buildTypeErrorsJITFn(runType: RunType, jitFunctions?: JitCompilerFunctions): JITFunctionsData['typeErrors'] {
-    const varName = `vλluε${runType.nestLevel}`;
-    const errorsName = `εrrΦrs${runType.nestLevel}`;
+    const varName = `vλl${runType.nestLevel}`;
+    const errorsName = `εrrs${runType.nestLevel}`;
     const jitCode = jitFunctions
         ? jitFunctions.compileTypeErrors(varName, errorsName, [])
         : runType.compileTypeErrors(varName, errorsName, []);
@@ -64,7 +64,7 @@ export function buildTypeErrorsJITFn(runType: RunType, jitFunctions?: JitCompile
 }
 
 export function buildJsonEncodeJITFn(runType: RunType, jitFunctions?: JitCompilerFunctions): JITFunctionsData['jsonEncode'] {
-    const varName = `vλluε${runType.nestLevel}`;
+    const varName = `vλl${runType.nestLevel}`;
     const jitCode = jitFunctions ? jitFunctions.compileJsonEncode(varName) : runType.compileJsonEncode(varName);
     const hasJitCode = !!jitCode;
     const code = `${jitCode} ${hasJitCode ? ';' : ''} return ${varName}`;
@@ -78,7 +78,7 @@ export function buildJsonEncodeJITFn(runType: RunType, jitFunctions?: JitCompile
 }
 
 export function buildJsonDecodeJITFn(runType: RunType, jitFunctions?: JitCompilerFunctions): JITFunctionsData['jsonDecode'] {
-    const varName = `vλluε${runType.nestLevel}`;
+    const varName = `vλl${runType.nestLevel}`;
     const jitCode = jitFunctions ? jitFunctions.compileJsonDecode(varName) : runType.compileJsonDecode(varName);
     const hasJitCode = !!jitCode;
     const code = `${jitCode} ${hasJitCode ? ';' : ''} return ${varName}`;
@@ -95,9 +95,9 @@ export function buildJsonStringifyJITFn(
     runType: RunType,
     jitFunctions?: JitCompilerFunctions
 ): JITFunctionsData['jsonStringify'] {
-    const varName = `vλluε${runType.nestLevel}`;
+    const varName = `vλl${runType.nestLevel}`;
     const jitCode = jitFunctions ? jitFunctions.compileJsonStringify(varName) : runType.compileJsonStringify(varName);
-    const code = `return ${jitCode};`;
+    const code = runType.isSingle ? `return ${jitCode}` : jitCode;
     try {
         const fn = createJitFnWithContext(varName, code);
         return {varNames: [varName], code, fn};
@@ -173,19 +173,10 @@ export function restoreCodifiedJitFunctions(jitFns: UnwrappedJITFunctions): JITF
  * @param code
  * @returns
  */
-function createJitFnWithContext(
-    varName: string,
-    code: string,
-    jitId?: string, // if inter
-    debugName?: string
-): (...args: any[]) => any {
+function createJitFnWithContext(varName: string, code: string): (...args: any[]) => any {
     // this function will have jitUtils as context as is an argument of the enclosing function
-    const internalFnName = jitId ?? `jitIntεrnλlƒn`;
-    const addToJitCache = jitId ? `\n${jitVarNames.addToJitCache}(${toLiteral(jitId)}, ${internalFnName});` : '';
-    const fnWithContext = `function ${internalFnName}(${varName}){${code}}${addToJitCache}\nreturn ${internalFnName};`;
+    const fnWithContext = `function jitƒn(${varName}){${code}}\nreturn jitƒn;`;
     const wrapperWithContext = new Function(jitVarNames.jitUtils, fnWithContext);
-    if (debugName) {
-        console.log(`Code for ${debugName}: `, wrapperWithContext.toString());
-    }
+    if (process.env.DEBUG_JIT) console.log(wrapperWithContext.toString());
     return wrapperWithContext(jitUtils); // returns the jit internal function with the context
 }

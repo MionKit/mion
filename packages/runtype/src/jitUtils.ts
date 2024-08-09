@@ -72,16 +72,27 @@ export const jitUtils = {
         }
         return jitFn;
     },
+    isInJitCache(key: string) {
+        return !!jitCache[key];
+    },
 };
 
 export const jitVarNames = {
-    jitUtils: 'jitUtils',
-    asJSONString: `jitUtils.${jitUtils.asJSONString.name}`,
-    addSerializableClass: `jitUtils.${jitUtils.addSerializableClass.name}`,
-    getSerializableClass: `jitUtils.${jitUtils.getSerializableClass.name}`,
-    addToJitCache: `jitUtils.${jitUtils.addToJitCache.name}`,
-    getFromJitCache: `jitUtils.${jitUtils.getFromJitCache.name}`,
-    pathChain: 'pλthChλin',
+    jitUtils: 'µTils',
+    asJSONString: `µTils.${jitUtils.asJSONString.name}`,
+    addSerializableClass: `µTils.${jitUtils.addSerializableClass.name}`,
+    getSerializableClass: `µTils.${jitUtils.getSerializableClass.name}`,
+    addToJitCache: `µTils.${jitUtils.addToJitCache.name}`,
+    getFromJitCache: `µTils.${jitUtils.getFromJitCache.name}`,
 };
+
+export const cachedJitVarNames = {
+    _jitUtils: '_µTils',
+    _pathChain: '_pλth',
+};
+
+export function prefixJitCachedVarName(varName: string) {
+    return `_${varName}`;
+}
 
 export type JITUtils = typeof jitUtils;
