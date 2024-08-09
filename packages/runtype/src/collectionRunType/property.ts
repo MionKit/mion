@@ -65,7 +65,7 @@ export class PropertyRunType extends BaseRunType<TypePropertySignature | TypePro
         if (!this.shouldSerialize) return '';
         const accessor = `${varName}${this.safeAccessor}`;
         if (this.isOptional) {
-            return `${accessor} === undefined || (${this.memberRunType.compileIsType(accessor)})`;
+            return `(${accessor} === undefined || ${this.memberRunType.compileIsType(accessor)})`;
         }
         return this.memberRunType.compileIsType(accessor);
     }

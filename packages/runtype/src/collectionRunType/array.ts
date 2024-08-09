@@ -16,11 +16,12 @@ import {
     pathChainToLiteral,
     replaceInCode,
 } from '../utils';
-import {random} from '../mock';
+import {mockRecursiveEmptyArray, random} from '../mock';
 import {BaseRunType} from '../baseRunTypes';
-import {jitVarNames} from '../jitUtils';
+import {cachedJitVarNames} from '../jitUtils';
 import {
     callJitCachedFn,
+    callTypeErrorsCachedJitFn,
     jitCacheCompileIsType,
     jitCacheCompileJsonDecode,
     jitCacheCompileJsonEncode,
@@ -35,7 +36,11 @@ export class ArrayRunType extends BaseRunType<TypeArray> {
     public readonly hasCircular: boolean;
     public readonly itemsRunType: RunType;
     public readonly shouldCacheJit: boolean;
-    public readonly shouldCallJitCache: boolean;
+    /**
+     * The only scenario where an array should call jit cache is when the itemsRunType is the same as this runType i.e: type TA = TA[];
+     * In practice this type only allows for an array of empty arrays. So very unlikely type but still supported as it is allowed by TS.
+     */
+    public readonly shouldCallJitCache: boolean; //
     constructor(
         visitor: RunTypeVisitor,
         public readonly src: TypeArray,
@@ -61,7 +66,7 @@ export class ArrayRunType extends BaseRunType<TypeArray> {
             const keepThis = (vn, jid) => this._compileIsType(vn, jid);
             return jitCacheCompileIsType(this, varName, keepThis);
         }
-        return this._compileIsType(varName, null, true);
+        return this._compileIsType(varName, null, this.nestLevel !== 0);
     }
     compileTypeErrors(varName: string, errorsName: string, pathChain: JitErrorPath): string {
         if (this.shouldCallJitCache) {
@@ -89,16 +94,20 @@ export class ArrayRunType extends BaseRunType<TypeArray> {
             const keepThis = (vn, jid) => this._compileJsonStringify(vn, jid);
             return jitCacheCompileJsonStringify(this, varName, keepThis);
         }
-        return this._compileJsonStringify(varName, null, true);
+        return this._compileJsonStringify(varName, null, this.nestLevel !== 0);
     }
     mock(length = random(0, 30), ...args: any[]): any[] {
+        if (this.shouldCallJitCache) {
+            const depth = random(1, 5);
+            return mockRecursiveEmptyArray(depth, length);
+        }
         return Array.from({length}, () => this.itemsRunType.mock(...args));
     }
 
     private _compileIsType(varName: string, cachedJitId = null, selfInvoke = false): string {
         const names = {
-            areItemsTypeValid: `λreItεmsTypεsVλlid${this.nestLevel}`,
-            index: `indεx${this.nestLevel}`,
+            areItemsTypeValid: `λITV${this.nestLevel}`,
+            index: `iε${this.nestLevel}`,
             varName,
         };
         const itemAccessor = `${names.varName}[${names.index}]`;
@@ -106,28 +115,30 @@ export class ArrayRunType extends BaseRunType<TypeArray> {
             ? callJitCachedFn([itemAccessor], cachedJitId)
             : this.itemsRunType.compileIsType(itemAccessor);
         const pseudoCode = `
-            function areItemsTypeValid() {
-                for (let index = 0; index < varName.length; index++) {
-                    const isItemValid = (itemsPseudoCode); 
-                    if (!isItemValid) return false;
-                }
-                return true;
+            if (!Array.isArray(varName)) return false;
+            for (let index = 0; index < varName.length; index++) {
+                if (!(itemsPseudoCode)) return false;
             }
-            return Array.isArray(varName) && areItemsTypeValid();`;
+            return true;`;
         const code = replaceInCode(pseudoCode, names).replace('itemsPseudoCode', itemsCode);
         return selfInvokeCode(code, selfInvoke);
     }
     private _compileTypeErrors(varName: string, errorsName: string, pathChain: JitErrorPath, cachedJitId = null): string {
         const names = {
-            index: `indεx${this.nestLevel}`,
+            index: `iε${this.nestLevel}`,
             expectedName: toLiteral(this.getName()),
-            errorPath: cachedJitId ? jitVarNames.pathChain : pathChainToLiteral(pathChain),
+            errorPath: cachedJitId ? cachedJitVarNames._pathChain : pathChainToLiteral(pathChain),
             varName,
             errorsName,
         };
         const itemAccessor = `${names.varName}[${names.index}]`;
         const itemCode = cachedJitId
-            ? callJitCachedFn([itemAccessor, `[...${jitVarNames.pathChain}, ${names.index}]`], cachedJitId)
+            ? callTypeErrorsCachedJitFn(
+                  itemAccessor,
+                  errorsName,
+                  `[...${cachedJitVarNames._pathChain}, ${names.index}]`,
+                  cachedJitId
+              )
             : this.itemsRunType.compileTypeErrors(itemAccessor, errorsName, addToPathChain(pathChain, names.index, false));
         const pseudoCode = `
             if (!Array.isArray(varName)) errorsName.push({path: errorPath, expected: expectedName});
@@ -140,7 +151,7 @@ export class ArrayRunType extends BaseRunType<TypeArray> {
     }
     private _compileJsonEncode(varName: string, cachedJitId = null): string {
         if (skipJsonEncode(this)) return '';
-        const indexName = `indεx${this.nestLevel}`;
+        const indexName = `iε${this.nestLevel}`;
         const itemAccessor = `${varName}[${indexName}]`;
         const itemCode = cachedJitId
             ? callJitCachedFn([itemAccessor], cachedJitId)
@@ -150,7 +161,7 @@ export class ArrayRunType extends BaseRunType<TypeArray> {
     }
     private _compileJsonDecode(varName: string, cachedJitId = null): string {
         if (skipJsonDecode(this)) return '';
-        const indexName = `indεx${this.nestLevel}`;
+        const indexName = `iε${this.nestLevel}`;
         const itemAccessor = `${varName}[${indexName}]`;
         const itemCode = cachedJitId
             ? callJitCachedFn([itemAccessor], cachedJitId)
@@ -161,8 +172,8 @@ export class ArrayRunType extends BaseRunType<TypeArray> {
     private _compileJsonStringify(varName: string, cachedJitId = null, selfInvoke = false): string {
         const names = {
             varName,
-            index: `indεx${this.nestLevel}`,
-            jsonItems: `jsΦnItεms${this.nestLevel}`,
+            index: `iε${this.nestLevel}`,
+            jsonItems: `itεms${this.nestLevel}`,
         };
         const itemAccessor = `${names.varName}[${names.index}]`;
         const itemCode = cachedJitId
@@ -170,9 +181,7 @@ export class ArrayRunType extends BaseRunType<TypeArray> {
             : this.itemsRunType.compileJsonStringify(itemAccessor);
         const pseudoCode = `
             const jsonItems = [];
-            for (let index = 0; index < varName.length; index++) {
-                jsonItems.push(itemsPseudoCode)
-            };
+            for (let index = 0; index < varName.length; index++) {jsonItems.push(itemsPseudoCode);}
             return '[' + jsonItems.join(',') + ']';`;
         const code = replaceInCode(pseudoCode, names).replace('itemsPseudoCode', itemCode);
         return selfInvokeCode(code, selfInvoke);

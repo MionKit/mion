@@ -39,8 +39,8 @@ export class TupleRunType extends BaseRunType<TypeTuple> {
         return this._jitId;
     }
     compileIsType(varName: string): string {
-        const itemsCode = this.runTypes.map((rt, i) => `(${rt.compileIsType(`${varName}[${i}]`)})`).join(' && ');
-        return `${varName}.length <= ${this.runTypes.length} && ${itemsCode}`;
+        const itemsCode = this.runTypes.map((rt, i) => rt.compileIsType(`${varName}[${i}]`)).join(' && ');
+        return `${varName}.length <= ${this.runTypes.length} && (${itemsCode})`;
     }
     compileTypeErrors(varName: string, errorsName: string, pathChain: JitErrorPath): string {
         const itemsCode = this.runTypes

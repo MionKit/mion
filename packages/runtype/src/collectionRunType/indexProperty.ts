@@ -51,8 +51,12 @@ export class IndexSignatureRunType extends BaseRunType<TypeIndexSignature> {
         const indexName = `prΦp${this.nestLevel}`;
         const itemAccessor = `${varName}[${indexName}]`;
         const itemCode = this.indexType.compileIsType(itemAccessor);
-        const forLoop = `for (const ${indexName} in ${varName}) {if (!(${itemCode})) return false;}`;
-        return `(function() {${forLoop}return true})()`;
+        return `(function() {
+            for (const ${indexName} in ${varName}) {
+                if (!(${itemCode})) return false;
+            }
+            return true;
+        })()`;
     }
     compileTypeErrors(varName: string, errorsName: string, pathChain: JitErrorPath): string {
         if (!this.shouldSerialize) return '';

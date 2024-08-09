@@ -71,25 +71,20 @@ export class InterfaceRunType<
     }
 
     compileIsType(varName: string): string {
-        const propsCode = this.serializableProps.length
-            ? this.serializableProps.map((prop) => `(${prop.compileIsType(varName)})`).join(' &&')
-            : '';
-        const indexPropsCode = this.serializableIndexProps.length ? this.serializableIndexProps[0].compileIsType(varName) : '';
-        const code = [propsCode, indexPropsCode].filter((code) => !!code).join(' && ');
-        return `typeof ${varName} === 'object' ${code ? `&& (${code})` : ''}`;
+        const isObjectCode = `typeof ${varName} === 'object'`;
+        const propsCode = this.serializableProps.map((prop) => prop.compileIsType(varName));
+        const indexPropsCode = this.serializableIndexProps.map((prop) => prop.compileIsType(varName));
+        const allPropsCode = [isObjectCode, ...propsCode, ...indexPropsCode].join(' && ');
+        return this.nestLevel === 0 ? `return (${allPropsCode})` : `(${allPropsCode})`;
     }
     compileTypeErrors(varName: string, errorsName: string, pathChain: JitErrorPath): string {
-        const propsCode = this.serializableProps.length
-            ? this.serializableProps.map((prop) => prop.compileTypeErrors(varName, errorsName, pathChain)).join(';')
-            : '';
-        const indexPropsCode = this.serializableIndexProps.length
-            ? this.serializableIndexProps[0].compileTypeErrors(varName, errorsName, pathChain)
-            : '';
-        const code = [propsCode, indexPropsCode].filter((code) => !!code).join('; ');
-        return (
-            `if (typeof ${varName} !== 'object') ${errorsName}.push({path: ${pathChainToLiteral(pathChain)}, expected: ${toLiteral(this.getName())}});` +
-            `else {${code}}`
-        );
+        const propsCode = this.serializableProps.map((prop) => prop.compileTypeErrors(varName, errorsName, pathChain));
+        const indexPropsCode = this.serializableIndexProps.map((prop) => prop.compileTypeErrors(varName, errorsName, pathChain));
+        const allPropsCode = [...propsCode, ...indexPropsCode].join(';');
+        return `
+            if (typeof ${varName} !== 'object') ${errorsName}.push({path: ${pathChainToLiteral(pathChain)}, expected: ${toLiteral(this.getName())}});
+            else {${allPropsCode}}
+        `;
     }
     compileJsonEncode(varName: string): string {
         if (skipJsonEncode(this)) return '';
@@ -117,7 +112,7 @@ export class InterfaceRunType<
             return `'{'+${indexPropsCode}+'}'`;
         }
         const propsCode = this.serializableProps.map((prop, i) => prop.compileJsonStringify(varName, i === 0)).join('+');
-        return `'{'+${propsCode}+'}'`;
+        return this.nestLevel === 0 ? `return ('{'+${propsCode}+'}')` : `'{'+${propsCode}+'}'`;
     }
     mock(
         optionalParamsProbability: Record<string | number, number>,

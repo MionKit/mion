@@ -77,7 +77,7 @@ describe('ArrayType', () => {
     });
 });
 
-describe('ArrayType recursion', () => {
+describe('ArrayType with multiple dimensions', () => {
     const rt = runType<string[][]>();
 
     it('validate string[][]', () => {

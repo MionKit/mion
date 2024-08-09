@@ -45,7 +45,7 @@ export class UnionRunType extends BaseRunType<TypeUnion> {
     }
 
     compileIsType(varName: string): string {
-        return this.runTypes.map((rt) => `(${rt.compileIsType(varName)})`).join(' || ');
+        return `(${this.runTypes.map((rt) => rt.compileIsType(varName)).join(' || ')})`;
     }
     compileTypeErrors(varName: string, errorsName: string, pathChain: JitErrorPath): string {
         return `if (!(${this.compileIsType(varName)})) ${errorsName}.push({path: ${pathChainToLiteral(pathChain)}, expected: ${toLiteral(this.getName())}})`;

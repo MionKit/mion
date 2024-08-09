@@ -52,3 +52,8 @@ export function mockAny(anyList = anyValuesList): any {
 export function random(min: number = 0, max = 10000): number {
     return Math.floor(Math.random() * (max - min + 1)) + min;
 }
+
+export function mockRecursiveEmptyArray(depth: number, length: number) {
+    if (depth === 0) return [];
+    return Array.from({length}, () => mockRecursiveEmptyArray(depth - 1, length));
+}
