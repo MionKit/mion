@@ -32,54 +32,54 @@ export enum ReflectionVisibility {
 }
 
 export enum ReflectionKind {
-    never,
-    any,
-    unknown,
-    void,
-    object,
-    string,
-    number,
-    boolean,
-    symbol,
-    bigint,
-    null,
-    undefined,
-    regexp,
+    never, //0
+    any, //1
+    unknown, //2
+    void, //3
+    object, //4
+    string, //5
+    number, //6
+    boolean, //7
+    symbol, //8
+    bigint, //9
+    null, //10
+    undefined, //11
+    regexp, //12
 
-    literal,
-    templateLiteral,
-    property,
-    method,
-    function,
-    parameter,
+    literal, //13
+    templateLiteral, //14
+    property, //15
+    method, //16
+    function, //17
+    parameter, //18
 
-    promise,
+    promise, //19
 
     /**
      * Uint8Array, Date, custom classes, Set, Map, etc
      */
-    class,
+    class, //20
 
-    typeParameter,
-    enum,
-    union,
-    intersection,
+    typeParameter, //21
+    enum, //22
+    union, //23
+    intersection, //24
 
-    array,
-    tuple,
-    tupleMember,
-    enumMember,
+    array, //25
+    tuple, //26
+    tupleMember, //27
+    enumMember, //28
 
-    rest,
+    rest, //29
 
-    objectLiteral,
-    indexSignature,
-    propertySignature,
-    methodSignature,
+    objectLiteral, //30
+    indexSignature, //31
+    propertySignature, //32
+    methodSignature, //33
 
-    infer,
+    infer, //34
 
-    callSignature,
+    callSignature, //35
 }
 
 export type TypeDecorator = (annotations: Annotations, decorator: TypeObjectLiteral) => boolean;

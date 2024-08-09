@@ -24,13 +24,13 @@ export class RestParamsRunType extends BaseRunType<TypeRest> {
         visitor: RunTypeVisitor,
         public readonly src: TypeRest,
         public readonly parents: RunType[],
-        public readonly opts: RunTypeOptions
+        opts: RunTypeOptions
     ) {
         super(visitor, src, parents, opts);
         this.memberRunType = visitor(src.type, [...parents, this], opts);
         this.isJsonEncodeRequired = this.memberRunType.isJsonEncodeRequired;
         this.isJsonDecodeRequired = this.memberRunType.isJsonDecodeRequired;
-        this.hasCircular = this.memberRunType.hasCircular;
+        this.hasCircular = !!this.memberRunType.hasCircular;
         this.paramName = (src as any).name || 'args';
     }
 

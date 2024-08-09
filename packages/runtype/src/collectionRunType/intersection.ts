@@ -19,7 +19,7 @@ export class IntersectionRunType extends InterfaceRunType<TypeIntersection> {
         visitor: RunTypeVisitor,
         public readonly src: TypeIntersection,
         public readonly parents: RunType[],
-        public readonly opts: RunTypeOptions
+        opts: RunTypeOptions
     ) {
         super(visitor, src, parents, opts);
     }

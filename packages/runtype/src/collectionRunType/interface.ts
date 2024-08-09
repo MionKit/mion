@@ -30,11 +30,12 @@ export class InterfaceRunType<
     public readonly entries: InterfaceRunTypeEntry[];
     public readonly serializableProps: PropertyRunType[];
     public readonly serializableIndexProps: IndexSignatureRunType[];
+    public readonly shouldCacheJit: boolean;
     constructor(
         visitor: RunTypeVisitor,
         public readonly src: T,
         public readonly parents: RunType[],
-        public readonly opts: RunTypeOptions,
+        opts: RunTypeOptions,
         isJsonDecodeRequired = false,
         isJsonEncodeRequired = false
     ) {
@@ -53,6 +54,7 @@ export class InterfaceRunType<
         this.serializableIndexProps = this.entries.filter(
             (prop) => prop.shouldSerialize && prop instanceof IndexSignatureRunType
         ) as IndexSignatureRunType[];
+        this.shouldCacheJit = this.hasCircular && (!!this.src.typeName || !!this.src.id);
     }
     private _jitId: string | undefined;
     getJitId(): string {

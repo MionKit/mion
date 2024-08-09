@@ -21,7 +21,7 @@ export class LiteralRunType extends SingleRunType<TypeLiteral> {
         visitor: RunTypeVisitor,
         public readonly src: TypeLiteral,
         public readonly parents: RunType[],
-        public readonly opts: RunTypeOptions
+        opts: RunTypeOptions
     ) {
         super(visitor, src, parents, opts);
         switch (true) {

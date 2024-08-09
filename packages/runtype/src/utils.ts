@@ -8,7 +8,6 @@
 import {isSameType, ReflectionKind} from './_deepkit/src/reflection/type';
 import {jitUtils} from './jitUtils';
 import type {AnyClass, JitErrorPath, RunType} from './types';
-import type {SingleRunType} from './baseRunTypes';
 
 export function toLiteral(value: number | string | boolean | undefined | null | bigint | RegExp | symbol): string {
     switch (typeof value) {
@@ -68,15 +67,17 @@ export function isFunctionKind(kind: ReflectionKind): boolean {
 /**
  * Checks whether or not a type has circular references, must be called within the properties of an object as is checking type parents.
  * Can't check from a root object down to its properties
+ * self and child could be the same type i.e:  type Circular = Circular[];
  */
-export function hasCircularRunType(rt: RunType, parents: RunType[]): boolean {
-    return _hasCircularRunType(rt, parents);
+export function hasCircularRunType(self: RunType, child: RunType, parents: RunType[]): boolean {
+    if (self === child || isSameType(self.src, child.src)) return true;
+    return _hasCircularRunType(child, parents);
 }
 
 function _hasCircularRunType(rt: RunType, parents: RunType[], index = 0): boolean {
     const parent = parents[index];
     if (!parent) return false;
-    if ((parent as SingleRunType<any, any>).isSingle) return _hasCircularRunType(rt, parents, index + 1);
+    if (parent.isSingle) return _hasCircularRunType(rt, parents, index + 1);
     if (isSameType(rt.src, parent.src)) return true;
     return _hasCircularRunType(rt, parents, index + 1);
 }
@@ -89,4 +90,11 @@ export function isClass(cls: AnyClass | any): cls is AnyClass {
         cls.prototype.constructor.name &&
         cls.toString().startsWith('class')
     );
+}
+
+export function replaceInCode(code: string, replacements: Record<string, string>): string {
+    for (const key in replacements) {
+        code = code.replaceAll(key, replacements[key]);
+    }
+    return code;
 }

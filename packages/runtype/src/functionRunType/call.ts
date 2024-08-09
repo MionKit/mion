@@ -13,7 +13,7 @@ export class CallSignatureRunType extends FunctionRunType<TypeCallSignature> {
         visitor: RunTypeVisitor,
         public readonly src: TypeCallSignature,
         public readonly parents: RunType[],
-        public readonly opts: RunTypeOptions
+        opts: RunTypeOptions
     ) {
         super(visitor, src, parents, opts);
     }

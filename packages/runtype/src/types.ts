@@ -62,12 +62,37 @@ export interface JitCompilerFunctions {
 
 export interface RunType<Opts extends RunTypeOptions = RunTypeOptions> extends JitCompilerFunctions {
     readonly src: Type;
+    readonly nestLevel: number;
     readonly isJsonEncodeRequired: boolean;
     readonly isJsonDecodeRequired: boolean;
-    readonly opts: Opts;
     readonly jitFunctions: JITFunctionsData;
-    readonly nestLevel: number;
-    readonly hasCircular: boolean;
+
+    /** Options for this RunType, only stored in the types that needs to use it */
+    readonly opts?: Opts;
+
+    /** Whether or not the type or child types has circular references, i.e: type T = {a: T} */
+    readonly hasCircular?: boolean;
+
+    /**
+     * Whether or not the type is a circular type and should be stored in jit cache.
+     * This is mandatory for types that has circular so it can be called later by the circular reference.
+     * Types that has a name can be stored in jit cache as well to reduce the amount of code generated.
+     * i.e: type T = {a: T} .
+     * In this example the type T is stored in the cache so can be called recursively when validating the property a
+     * otherwise a would generate the validation code for T but not the recursive call and would en up an stack overflow infinite loop.
+     */
+    readonly shouldCacheJit?: boolean;
+
+    /**
+     * Whether or not a type should be called from the jit cache rather than generating code.
+     * This is mandatory for circular types where the child type should call the jit cache instead of generating the code again.
+     * i.e: type T = {a: T} .
+     * In this example when generating the code for T.a the child type T should call the jit cache instead of generating the code again.
+     */
+    readonly shouldCallJitCache?: boolean;
+
+    /** whether or not the type is a single runtype that can´t have child run types, ie: string, number, boolean, null, etc.. */
+    readonly isSingle?: boolean;
 
     /**
      * returns a mocked value, should be random when possible

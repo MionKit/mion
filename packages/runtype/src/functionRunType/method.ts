@@ -13,7 +13,7 @@ export class MethodRunType extends FunctionRunType<TypeMethod> {
         visitor: RunTypeVisitor,
         public readonly src: TypeMethod,
         public readonly parents: RunType[],
-        public readonly opts: RunTypeOptions
+        opts: RunTypeOptions
     ) {
         super(visitor, src, parents, opts);
     }

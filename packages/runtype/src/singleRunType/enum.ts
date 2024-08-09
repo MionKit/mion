@@ -20,7 +20,7 @@ export class EnumRunType extends SingleRunType<TypeEnum> {
         visitor: RunTypeVisitor,
         public readonly src: TypeEnum,
         public readonly parents: RunType[],
-        public readonly opts: RunTypeOptions
+        opts: RunTypeOptions
     ) {
         super(visitor, src, parents, opts);
         this.values = src.values;

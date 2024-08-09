@@ -16,6 +16,7 @@ export class PropertyRunType extends BaseRunType<TypePropertySignature | TypePro
     public readonly isJsonEncodeRequired: boolean;
     public readonly isJsonDecodeRequired: boolean;
     public readonly hasCircular: boolean;
+    public readonly isCircular: boolean;
     public readonly memberRunType: RunType;
     public readonly isOptional: boolean;
     public readonly isReadonly: boolean;
@@ -27,7 +28,7 @@ export class PropertyRunType extends BaseRunType<TypePropertySignature | TypePro
         visitor: RunTypeVisitor,
         public readonly src: TypePropertySignature,
         public readonly parents: RunType[],
-        public readonly opts: RunTypeOptions
+        opts: RunTypeOptions
     ) {
         super(visitor, src, parents, opts);
         const newParents = [...parents, this];
@@ -54,7 +55,8 @@ export class PropertyRunType extends BaseRunType<TypePropertySignature | TypePro
             this.propName = src.name;
             this.safeAccessor = this.isSafePropName ? `.${src.name}` : `[${toLiteral(src.name)}]`;
         }
-        this.hasCircular = this.memberRunType.hasCircular || hasCircularRunType(this.memberRunType, parents);
+        this.hasCircular = this.memberRunType.hasCircular || hasCircularRunType(this, this.memberRunType, parents);
+        this.isCircular = this.hasCircular;
     }
     getJitId(): string | number {
         return `${this.propName}${this.isOptional ? '?' : ''}:${this.memberRunType.getJitId()}`;

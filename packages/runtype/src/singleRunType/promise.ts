@@ -18,7 +18,7 @@ export class PromiseRunType extends SingleRunType<TypePromise> {
         visitor: RunTypeVisitor,
         public readonly src: TypePromise,
         public readonly parents: RunType[],
-        public readonly opts: RunTypeOptions
+        opts: RunTypeOptions
     ) {
         super(visitor, src, parents, opts);
         this.resolvedType = visitor(src.type, [...parents, this], opts);

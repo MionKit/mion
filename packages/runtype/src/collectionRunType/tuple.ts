@@ -14,7 +14,9 @@ export class TupleRunType extends BaseRunType<TypeTuple> {
     public readonly isJsonEncodeRequired: boolean;
     public readonly isJsonDecodeRequired: boolean;
     public readonly hasCircular: boolean;
+    // public readonly isCircular: boolean; // TODO
     public readonly runTypes: RunType[];
+    public readonly shouldCacheJit: boolean;
     constructor(
         visitor: RunTypeVisitor,
         public readonly src: TypeTuple,
@@ -27,6 +29,7 @@ export class TupleRunType extends BaseRunType<TypeTuple> {
         this.isJsonEncodeRequired = this.runTypes.some((rt) => rt.isJsonEncodeRequired);
         this.isJsonDecodeRequired = this.runTypes.some((rt) => rt.isJsonDecodeRequired);
         this.hasCircular = this.runTypes.some((rt) => rt.hasCircular);
+        this.shouldCacheJit = this.hasCircular && (!!this.src.typeName || !!this.src.id);
     }
     private _jitId: string | undefined;
     getJitId(): string {

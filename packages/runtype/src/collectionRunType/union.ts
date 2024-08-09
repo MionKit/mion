@@ -23,16 +23,18 @@ export class UnionRunType extends BaseRunType<TypeUnion> {
     public readonly isJsonDecodeRequired = true;
     public readonly hasCircular: boolean;
     public readonly runTypes: RunType[];
+    public readonly shouldCacheJit: boolean;
     constructor(
         visitor: RunTypeVisitor,
         public readonly src: TypeUnion,
         public readonly parents: RunType[],
-        public readonly opts: RunTypeOptions
+        opts: RunTypeOptions
     ) {
         super(visitor, src, parents, opts);
         this.runTypes = src.types.map((t) => visitor(t, parents, opts));
         this.hasCircular =
-            this.runTypes.some((rt) => rt.hasCircular) || this.runTypes.some((rt) => hasCircularRunType(rt, parents));
+            this.runTypes.some((rt) => rt.hasCircular) || this.runTypes.some((rt) => hasCircularRunType(this, rt, parents));
+        this.shouldCacheJit = this.hasCircular && (!!this.src.typeName || !!this.src.id);
     }
     private _jitId: string | undefined;
     getJitId(): string {

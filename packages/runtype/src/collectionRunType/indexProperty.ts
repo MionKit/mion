@@ -18,6 +18,7 @@ export class IndexSignatureRunType extends BaseRunType<TypeIndexSignature> {
     public readonly isJsonEncodeRequired;
     public readonly isJsonDecodeRequired;
     public readonly hasCircular: boolean;
+    public readonly isCircular: boolean;
     public readonly indexType: RunType;
     public readonly indexKeyType: NumberRunType | StringRunType | SymbolRunType;
     public readonly isReadonly: boolean;
@@ -28,7 +29,7 @@ export class IndexSignatureRunType extends BaseRunType<TypeIndexSignature> {
         visitor: RunTypeVisitor,
         public readonly src: TypeIndexSignature,
         public readonly parents: RunType[],
-        public readonly opts: RunTypeOptions
+        opts: RunTypeOptions
     ) {
         super(visitor, src, parents, opts);
         const newParents = [...parents, this];
@@ -38,7 +39,8 @@ export class IndexSignatureRunType extends BaseRunType<TypeIndexSignature> {
         this.isReadonly = false; // TODO: readonly allowed to set in typescript but not present in deepkit
         this.isJsonEncodeRequired = this.indexType.isJsonEncodeRequired;
         this.isJsonDecodeRequired = this.indexType.isJsonDecodeRequired;
-        this.hasCircular = this.indexType.hasCircular || hasCircularRunType(this.indexType, parents);
+        this.hasCircular = this.indexType.hasCircular || hasCircularRunType(this, this.indexType, parents);
+        this.isCircular = this.hasCircular;
         this.propName = `${src.index.kind}`;
     }
     getJitId(): string | number {

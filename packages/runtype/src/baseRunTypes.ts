@@ -12,7 +12,6 @@ import {JitErrorPath, JITFunctionsData, RunType, RunTypeOptions, RunTypeVisitor,
 export abstract class BaseRunType<T extends Type, Opts extends RunTypeOptions = RunTypeOptions> implements RunType<Opts> {
     public abstract readonly isJsonEncodeRequired: boolean;
     public abstract readonly isJsonDecodeRequired: boolean;
-    public abstract hasCircular: boolean;
     public readonly nestLevel: number;
 
     constructor(
@@ -49,7 +48,6 @@ export abstract class BaseRunType<T extends Type, Opts extends RunTypeOptions = 
 
 export abstract class SingleRunType<T extends Type, Opts extends RunTypeOptions = RunTypeOptions> extends BaseRunType<T, Opts> {
     public readonly isSingle = true;
-    public readonly hasCircular = false;
 
     getJitId(): number | string {
         return this.src.kind;

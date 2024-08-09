@@ -18,7 +18,7 @@ export class ClassRunType extends InterfaceRunType<TypeClass> {
         visitor: RunTypeVisitor,
         public readonly src: TypeClass,
         public readonly parents: RunType[],
-        public readonly opts: RunTypeOptions
+        opts: RunTypeOptions
     ) {
         super(visitor, src, parents, opts, true, true);
         this.className = src.classType.name;

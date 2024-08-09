@@ -26,13 +26,13 @@ export class ParameterRunType extends BaseRunType<TypeParameter> {
         visitor: RunTypeVisitor,
         public readonly src: TypeParameter,
         public readonly parents: RunType[],
-        public readonly opts: RunTypeOptions
+        opts: RunTypeOptions
     ) {
         super(visitor, src, parents, opts);
         this.argRunType = visitor(src.type, [...parents, this], opts);
         this.isJsonEncodeRequired = this.argRunType.isJsonEncodeRequired;
         this.isJsonDecodeRequired = this.argRunType.isJsonDecodeRequired;
-        this.hasCircular = this.argRunType.hasCircular;
+        this.hasCircular = !!this.argRunType.hasCircular;
         this.isRest = this.argRunType instanceof RestParamsRunType;
         this.isOptional = !!src.optional || this.isRest;
         this.isReadonly = !!src.readonly && !this.isRest;
