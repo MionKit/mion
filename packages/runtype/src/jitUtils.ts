@@ -10,7 +10,7 @@ import {SerializableClass} from './types';
 const classesMap = new Map<string, SerializableClass>();
 
 /** Cache for jit generated functions, only interfaces, classes and named types, must be inserted here */
-const jitCache: {[key: string]: (...args: any[]) => any} = {}; // using an object as might be easies to serialize
+const jitCache = new Map<string | number, (...args: any[]) => any>();
 
 /**
  * Object that wraps all utilities that are used by the jit generated functions for encode, decode, stringify etc..
@@ -75,12 +75,13 @@ export const jitUtils = {
 };
 
 export const jitVarNames = {
-    jitUtils: 'j1tUt1l5',
-    asJSONString: `j1tUt1l5.${jitUtils.asJSONString.name}`,
-    addSerializableClass: `j1tUt1l5.${jitUtils.addSerializableClass.name}`,
-    getSerializableClass: `j1tUt1l5.${jitUtils.getSerializableClass.name}`,
-    addToJitCache: `j1tUt1l5.${jitUtils.addToJitCache.name}`,
-    getFromJitCache: `j1tUt1l5.${jitUtils.getFromJitCache.name}`,
+    jitUtils: 'jitUtils',
+    asJSONString: `jitUtils.${jitUtils.asJSONString.name}`,
+    addSerializableClass: `jitUtils.${jitUtils.addSerializableClass.name}`,
+    getSerializableClass: `jitUtils.${jitUtils.getSerializableClass.name}`,
+    addToJitCache: `jitUtils.${jitUtils.addToJitCache.name}`,
+    getFromJitCache: `jitUtils.${jitUtils.getFromJitCache.name}`,
+    pathChain: 'pλthChλin',
 };
 
 export type JITUtils = typeof jitUtils;

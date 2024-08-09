@@ -5,7 +5,6 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {} from './constants';
 import {jitUtils, jitVarNames} from './jitUtils';
 import type {
     JITFunctionsData,
@@ -54,7 +53,7 @@ export function buildTypeErrorsJITFn(runType: RunType, jitFunctions?: JitCompile
     const jitCode = jitFunctions
         ? jitFunctions.compileTypeErrors(varName, errorsName, [])
         : runType.compileTypeErrors(varName, errorsName, []);
-    const code = `const ${errorsName} = []; ${jitCode}; return ${errorsName};`;
+    const code = `const ${errorsName} = [];\n${jitCode};\nreturn ${errorsName};`;
     try {
         const fn = createJitFnWithContext(varName, code);
         return {varNames: [varName], code, fn};
@@ -177,12 +176,12 @@ export function restoreCodifiedJitFunctions(jitFns: UnwrappedJITFunctions): JITF
 function createJitFnWithContext(
     varName: string,
     code: string,
-    jitCacheName?: string, // must be a valid js variable name
+    jitId?: string, // if inter
     debugName?: string
 ): (...args: any[]) => any {
     // this function will have jitUtils as context as is an argument of the enclosing function
-    const internalFnName = jitCacheName ?? `jitIntεrnλlƒn`;
-    const addToJitCache = jitCacheName ? `\n${jitVarNames.addToJitCache}(${toLiteral(jitCacheName)}, ${internalFnName});` : '';
+    const internalFnName = jitId ?? `jitIntεrnλlƒn`;
+    const addToJitCache = jitId ? `\n${jitVarNames.addToJitCache}(${toLiteral(jitId)}, ${internalFnName});` : '';
     const fnWithContext = `function ${internalFnName}(${varName}){${code}}${addToJitCache}\nreturn ${internalFnName};`;
     const wrapperWithContext = new Function(jitVarNames.jitUtils, fnWithContext);
     if (debugName) {

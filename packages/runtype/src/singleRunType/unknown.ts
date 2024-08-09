@@ -14,7 +14,7 @@ export class UnknownRunType extends AnyRunType {
         visitor: RunTypeVisitor,
         public readonly src: TypeUnknown,
         public readonly parents: RunType[],
-        public readonly opts: RunTypeOptions
+        opts: RunTypeOptions
     ) {
         super(visitor, src, parents, opts);
     }
