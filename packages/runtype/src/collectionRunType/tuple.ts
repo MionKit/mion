@@ -8,9 +8,16 @@
 import {TypeTuple} from '../_deepkit/src/reflection/type';
 import {CollectionRunType} from '../baseRunTypes';
 import {jitNames} from '../constants';
-import {compileChildrenJitFunction, handleCircularJitCompiling} from '../jitCompiler';
+import {
+    compileChildrenJitFunction,
+    handleCircularIsType,
+    handleCircularJsonDecode,
+    handleCircularJsonEncode,
+    handleCircularJsonStringify,
+    handleCircularTypeErrors,
+} from '../jitCompiler';
 import {RunType, RunTypeOptions, RunTypeVisitor} from '../types';
-import {hasCircularParents, shouldSkipJsonDecode, shouldSkipJsonEncode, toLiteral} from '../utils';
+import {getErrorPath, getExpected, hasCircularParents, shouldSkipJsonDecode, shouldSkipJsonEncode} from '../utils';
 
 export class TupleRunType extends CollectionRunType<TypeTuple> {
     public readonly isJsonEncodeRequired: boolean;
@@ -32,30 +39,35 @@ export class TupleRunType extends CollectionRunType<TypeTuple> {
         this.jitId = `${this.src.kind}[${this.childRunTypes.map((prop) => `${prop.jitId}`).join(',')}]`;
     }
     compileIsType(parents: RunType[], varName: string): string {
-        const {isCompilingCircularChild} = getJitVars(this, parents, varName);
+        const {isCompilingCircularChild, nestLevel} = getJitVars(this, parents, varName);
         const callArgs = [varName];
         const compileChildren = (newParents) =>
             this.childRunTypes.map((rt, i) => rt.compileIsType(newParents, `${varName}[${i}]`)).join(' && ');
         const itemsCode = compileChildrenJitFunction(this, parents, isCompilingCircularChild, compileChildren);
         const code = `${varName}.length <= ${this.childRunTypes.length} && (${itemsCode})`;
-        return handleCircularJitCompiling(this, 'isT', code, callArgs, isCompilingCircularChild);
+        return handleCircularIsType(this, code, callArgs, isCompilingCircularChild, nestLevel);
     }
-    compileTypeErrors(parents: RunType[], varName: string): string {
+    compileTypeErrors(parents: RunType[], varName: string, pathC: string[]): string {
         const {index, isCompilingCircularChild} = getJitVars(this, parents, varName);
-        const callArgs = [varName, jitNames.errors, jitNames.path];
-        const compileChildren = (newParents) => {
-            return this.childRunTypes.map((rt, i) => rt.compileTypeErrors(newParents, `${varName}[${i}]`)).join(';');
-        };
+        const callArgs = [varName, jitNames.errors, jitNames.circularPath];
+        const compileChildren = (newParents) =>
+            this.childRunTypes
+                .map((rt, i) => {
+                    const accessor = `${varName}[${i}]`;
+                    const newPath = [...pathC, i];
+                    return rt.compileTypeErrors(newParents, accessor, newPath);
+                })
+                .join(';');
         const itemsCode = compileChildrenJitFunction(this, parents, isCompilingCircularChild, compileChildren);
         const code = `
-            if (!Array.isArray(${varName})) ${jitNames.errors}.push({path: [...${jitNames.path}], expected: ${toLiteral(this.getName())}});
+            if (!Array.isArray(${varName})) ${jitNames.errors}.push({path: ${getErrorPath(pathC)}, expected: ${getExpected(this)}});
             else {
                 for (let ${index} = 0; ${index} < ${varName}.length; ${index}++) {
                     ${itemsCode}
                 }
             }
         `;
-        return handleCircularJitCompiling(this, 'getTE', code, callArgs, isCompilingCircularChild);
+        return handleCircularTypeErrors(this, code, callArgs, isCompilingCircularChild, pathC);
     }
     compileJsonEncode(parents: RunType[], varName: string): string {
         const {isCompilingCircularChild} = getJitVars(this, parents, varName);
@@ -70,7 +82,7 @@ export class TupleRunType extends CollectionRunType<TypeTuple> {
             return childrenCode.filter((code) => !!code).join(';');
         };
         const itemsCode = compileChildrenJitFunction(this, parents, isCompilingCircularChild, compileChildren);
-        return handleCircularJitCompiling(this, 'isT', itemsCode, callArgs, isCompilingCircularChild);
+        return handleCircularJsonEncode(this, itemsCode, callArgs, isCompilingCircularChild);
     }
     compileJsonDecode(parents: RunType[], varName: string): string {
         const {isCompilingCircularChild} = getJitVars(this, parents, varName);
@@ -85,10 +97,10 @@ export class TupleRunType extends CollectionRunType<TypeTuple> {
             return decodeCodes.filter((code) => !!code).join(';');
         };
         const itemsCode = compileChildrenJitFunction(this, parents, isCompilingCircularChild, compileChildren);
-        return handleCircularJitCompiling(this, 'isT', itemsCode, callArgs, isCompilingCircularChild);
+        return handleCircularJsonDecode(this, itemsCode, callArgs, isCompilingCircularChild);
     }
     compileJsonStringify(parents: RunType[], varName: string): string {
-        const {isCompilingCircularChild} = getJitVars(this, parents, varName);
+        const {isCompilingCircularChild, nestLevel} = getJitVars(this, parents, varName);
         const callArgs = [varName];
         const compileChildren = (newParents) => {
             const encodeCodes = this.childRunTypes.map((rt, i) => {
@@ -99,7 +111,7 @@ export class TupleRunType extends CollectionRunType<TypeTuple> {
         };
         const itemsCode = compileChildrenJitFunction(this, parents, isCompilingCircularChild, compileChildren);
         const code = `'['+${itemsCode}+']'`;
-        return handleCircularJitCompiling(this, 'isT', code, callArgs, isCompilingCircularChild);
+        return handleCircularJsonStringify(this, code, callArgs, isCompilingCircularChild, nestLevel);
     }
     mock(...tupleArgs: any[][]): any[] {
         return this.childRunTypes.map((rt, i) => rt.mock(...(tupleArgs?.[i] || [])));

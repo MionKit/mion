@@ -27,7 +27,7 @@ export abstract class BaseRunType<T extends Type, Opts extends RunTypeOptions = 
     }
 
     abstract compileIsType(parents: RunType[], varName: string): string;
-    abstract compileTypeErrors(parents: RunType[], varName: string): string;
+    abstract compileTypeErrors(parents: RunType[], varName: string, pathC: (string | number)[]): string;
     abstract compileJsonEncode(parents: RunType[], varName: string): string;
     abstract compileJsonDecode(parents: RunType[], varName: string): string;
     abstract compileJsonStringify(parents: RunType[], varName: string): string;

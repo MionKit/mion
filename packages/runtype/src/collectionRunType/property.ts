@@ -11,7 +11,14 @@ import {hasCircularParents, isFunctionKind, shouldSkipJsonDecode, shouldSkipJson
 import {jitNames, validPropertyNameRegExp} from '../constants';
 import {BaseRunType} from '../baseRunTypes';
 import {jitUtils} from '../jitUtils';
-import {compileChildrenJitFunction, handleCircularJitCompiling} from '../jitCompiler';
+import {
+    compileChildrenJitFunction,
+    handleCircularIsType,
+    handleCircularJsonDecode,
+    handleCircularJsonEncode,
+    handleCircularJsonStringify,
+    handleCircularTypeErrors,
+} from '../jitCompiler';
 
 export class PropertyRunType extends BaseRunType<TypePropertySignature | TypeProperty> {
     public readonly isJsonEncodeRequired: boolean;
@@ -60,7 +67,7 @@ export class PropertyRunType extends BaseRunType<TypePropertySignature | TypePro
         this.jitId = `${this.propName}${optional}:${this.memberRunType.jitId}`;
     }
     compileIsType(parents: RunType[], varName: string): string {
-        const {propAccessor, isCompilingCircularChild} = getJitVars(this, parents, varName);
+        const {propAccessor, isCompilingCircularChild, nestLevel} = getJitVars(this, parents, varName);
         const callArgs = [propAccessor];
         const compileProperty = (newParents) => {
             if (!this.shouldSerialize) return '';
@@ -70,25 +77,26 @@ export class PropertyRunType extends BaseRunType<TypePropertySignature | TypePro
             return this.memberRunType.compileIsType(newParents, propAccessor);
         };
         const propCode = compileChildrenJitFunction(this, parents, isCompilingCircularChild, compileProperty);
-        return handleCircularJitCompiling(this, 'isT', propCode, callArgs, isCompilingCircularChild);
+        return handleCircularIsType(this, propCode, callArgs, isCompilingCircularChild, nestLevel);
     }
-    compileTypeErrors(parents: RunType[], varName: string): string {
+    compileTypeErrors(parents: RunType[], varName: string, pathC: string[]): string {
         const {propAccessor, isCompilingCircularChild} = getJitVars(this, parents, varName);
-        const callArgs = [propAccessor, jitNames.errors, jitNames.path];
+        const callArgs = [propAccessor, jitNames.errors, jitNames.circularPath];
         const compileProperty = (newParents) => {
             if (!this.shouldSerialize) return '';
             const accessor = `${varName}${this.safePropAccessor}`;
+            const newPath = [...pathC, toLiteral(this.propName)];
             if (this.isOptional) {
                 return `if (${accessor} !== undefined) {
-                    ${jitNames.path}.push(${toLiteral(this.src.name)});
-                    ${this.memberRunType.compileTypeErrors(newParents, accessor)}
-                    ${jitNames.path}.pop();
+                    ${this.memberRunType.compileTypeErrors(newParents, accessor, newPath)}
                 }`;
             }
-            return this.memberRunType.compileTypeErrors(newParents, accessor);
+            return `
+                ${this.memberRunType.compileTypeErrors(newParents, accessor, newPath)}
+            `;
         };
         const propCode = compileChildrenJitFunction(this, parents, isCompilingCircularChild, compileProperty);
-        return handleCircularJitCompiling(this, 'isT', propCode, callArgs, isCompilingCircularChild);
+        return handleCircularTypeErrors(this, propCode, callArgs, isCompilingCircularChild, pathC);
     }
     compileJsonEncode(parents: RunType[], varName: string): string {
         const {propAccessor, isCompilingCircularChild} = getJitVars(this, parents, varName);
@@ -100,7 +108,7 @@ export class PropertyRunType extends BaseRunType<TypePropertySignature | TypePro
             return propCode;
         };
         const propCode = compileChildrenJitFunction(this, parents, isCompilingCircularChild, compileProperty);
-        return handleCircularJitCompiling(this, 'isT', propCode, callArgs, isCompilingCircularChild);
+        return handleCircularJsonEncode(this, propCode, callArgs, isCompilingCircularChild);
     }
     compileJsonDecode(parents: RunType[], varName: string): string {
         const {propAccessor, isCompilingCircularChild} = getJitVars(this, parents, varName);
@@ -112,10 +120,10 @@ export class PropertyRunType extends BaseRunType<TypePropertySignature | TypePro
             return propCode;
         };
         const propCode = compileChildrenJitFunction(this, parents, isCompilingCircularChild, compileProperty);
-        return handleCircularJitCompiling(this, 'isT', propCode, callArgs, isCompilingCircularChild);
+        return handleCircularJsonDecode(this, propCode, callArgs, isCompilingCircularChild);
     }
     compileJsonStringify(parents: RunType[], varName: string, isFirst = false): string {
-        const {propAccessor, isCompilingCircularChild} = getJitVars(this, parents, varName);
+        const {propAccessor, isCompilingCircularChild, nestLevel} = getJitVars(this, parents, varName);
         const callArgs = [propAccessor];
         const compileProperty = (newParents) => {
             if (!this.shouldSerialize) return '';
@@ -132,7 +140,7 @@ export class PropertyRunType extends BaseRunType<TypePropertySignature | TypePro
             return `${sep}${proNameJSon}+':'+${propCode}`;
         };
         const propCode = compileChildrenJitFunction(this, parents, isCompilingCircularChild, compileProperty);
-        return handleCircularJitCompiling(this, 'isT', propCode, callArgs, isCompilingCircularChild);
+        return handleCircularJsonStringify(this, propCode, callArgs, isCompilingCircularChild, nestLevel);
     }
     mock(optionalProbability = 0.2, ...args: any[]): any {
         if (optionalProbability < 0 || optionalProbability > 1) throw new Error('optionalProbability must be between 0 and 1');
@@ -145,6 +153,7 @@ function getJitVars(rt: PropertyRunType, parents: RunType[], varName: string) {
     const isCompilingCircularChild = hasCircularParents(rt, parents);
     const safeAccessor = rt.isSafePropName ? `.${(rt.src as any).name}` : `[${toLiteral(rt.src.name)}]`;
     return {
+        nestLevel: parents.length,
         isCompilingCircularChild,
         propAccessor: `${varName}${safeAccessor}`,
     };

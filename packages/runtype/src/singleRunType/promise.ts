@@ -1,7 +1,7 @@
 import type {TypePromise} from '../_deepkit/src/reflection/type';
 import type {RunType, RunTypeOptions, RunTypeVisitor} from '../types';
 import {SingleRunType} from '../baseRunTypes';
-import {toLiteral} from '../utils';
+import {getErrorPath, getExpected} from '../utils';
 import {jitNames} from '../constants';
 
 /* ########
@@ -30,11 +30,11 @@ export class PromiseRunType extends SingleRunType<TypePromise> {
     resolvedIsTypeJIT(parents: RunType[], varName: string): string {
         return this.resolvedType.compileIsType(parents, varName);
     }
-    compileTypeErrors(parents: RunType[], varName: string): string {
-        return `if (!(${varName} instanceof Promise)) ${jitNames.errors}.push({path: [...${jitNames.path}], expected: ${toLiteral(this.getName())}})`;
+    compileTypeErrors(parents: RunType[], varName: string, pathC: string[]): string {
+        return `if (!(${varName} instanceof Promise)) ${jitNames.errors}.push({path: ${getErrorPath(pathC)}, expected: ${getExpected(this)}})`;
     }
-    resolveTypeErrorsJIT(parents: RunType[], varName: string): string {
-        return this.resolvedType.compileTypeErrors(parents, varName);
+    resolveTypeErrorsJIT(parents: RunType[], varName: string, pathC: string[]): string {
+        return this.resolvedType.compileTypeErrors(parents, varName, pathC);
     }
     compileJsonEncode(): string {
         throw new Error(`${this.getName()} can not be encoded to json.`);

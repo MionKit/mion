@@ -7,7 +7,7 @@
 
 import type {TypeString} from '../_deepkit/src/reflection/type';
 import type {RunType} from '../types';
-import {toLiteral} from '../utils';
+import {getErrorPath, getExpected} from '../utils';
 import {mockString} from '../mock';
 import {SingleRunType} from '../baseRunTypes';
 import {jitNames} from '../constants';
@@ -19,8 +19,8 @@ export class StringRunType extends SingleRunType<TypeString> {
     compileIsType(parents: RunType[], varName: string): string {
         return `typeof ${varName} === 'string'`;
     }
-    compileTypeErrors(parents: RunType[], varName: string): string {
-        return `if (typeof ${varName} !== 'string') ${jitNames.errors}.push({path: [...${jitNames.path}], expected: ${toLiteral(this.getName())}})`;
+    compileTypeErrors(parents: RunType[], varName: string, pathC: string[]): string {
+        return `if (typeof ${varName} !== 'string') ${jitNames.errors}.push({path: ${getErrorPath(pathC)}, expected: ${getExpected(this)}})`;
     }
     compileJsonEncode(): string {
         return '';

@@ -64,21 +64,20 @@ export class IndexSignatureRunType extends BaseRunType<TypeIndexSignature> {
         `;
         return handleCircularIsType(this, code, callArgs, isCompilingCircularChild, nestLevel);
     }
-    compileTypeErrors(parents: RunType[], varName: string): string {
+    compileTypeErrors(parents: RunType[], varName: string, pathC: string[]): string {
         const {prop, propAccessor, isCompilingCircularChild} = getJitVars(this, parents, varName);
-        const callArgs = [jitNames.errors, jitNames.path];
+        const callArgs = [jitNames.errors, jitNames.circularPath];
         const compileChildren = (newParents) => {
-            return this.indexType.compileTypeErrors(newParents, propAccessor);
+            const newPath = [...pathC, prop];
+            return this.indexType.compileTypeErrors(newParents, propAccessor, newPath);
         };
         const itemsCode = compileChildrenJitFunction(this, parents, isCompilingCircularChild, compileChildren);
         const code = `
             for (const ${prop} in ${varName}) {
-                ${jitNames.path}.push(${prop});
                 ${itemsCode}
-                ${jitNames.path}.pop();
             }
         `;
-        return handleCircularJsonDecode(this, code, callArgs, isCompilingCircularChild);
+        return handleCircularTypeErrors(this, code, callArgs, isCompilingCircularChild, pathC);
     }
     compileJsonEncode(parents: RunType[], varName: string): string {
         const {prop, propAccessor, isCompilingCircularChild} = getJitVars(this, parents, varName);
@@ -94,7 +93,7 @@ export class IndexSignatureRunType extends BaseRunType<TypeIndexSignature> {
         return handleCircularJsonEncode(this, encodeCode, callArgs, isCompilingCircularChild);
     }
     compileJsonDecode(parents: RunType[], varName: string): string {
-        const {prop, propAccessor, isCompilingCircularChild, nestLevel} = getJitVars(this, parents, varName);
+        const {prop, propAccessor, isCompilingCircularChild} = getJitVars(this, parents, varName);
         const callArgs = [varName];
         const compileChildren = (newParents) => this.indexType.compileJsonDecode(newParents, propAccessor);
         const itemsCode = compileChildrenJitFunction(this, parents, isCompilingCircularChild, compileChildren);
@@ -104,7 +103,7 @@ export class IndexSignatureRunType extends BaseRunType<TypeIndexSignature> {
             }
         `;
         const decodeCode = this.isJsonDecodeRequired ? code : '';
-        return handleCircularJsonStringify(this, decodeCode, callArgs, isCompilingCircularChild, nestLevel);
+        return handleCircularJsonDecode(this, decodeCode, callArgs, isCompilingCircularChild);
     }
     compileJsonStringify(parents: RunType[], varName: string): string {
         const {prop, propAccessor, isCompilingCircularChild, nestLevel} = getJitVars(this, parents, varName);
@@ -120,8 +119,7 @@ export class IndexSignatureRunType extends BaseRunType<TypeIndexSignature> {
             return ${arrName}.join(',');
         `;
 
-        return handleCircularTypeErrors(this, code, callArgs, isCompilingCircularChild);
-        // const itemsCode = `(function(){${forLoop}; return ${arrName}.join(',')})()`;
+        return handleCircularJsonStringify(this, code, callArgs, isCompilingCircularChild, nestLevel);
     }
     mock(parentMockObj: Record<string | number | symbol, any>, ...args: any[]): any {
         const length = Math.floor(Math.random() * 10);

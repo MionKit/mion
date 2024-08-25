@@ -7,7 +7,7 @@
 
 import {TypeUnion} from '../_deepkit/src/reflection/type';
 import {RunType, RunTypeOptions, RunTypeVisitor} from '../types';
-import {shouldSkipJsonDecode, shouldSkipJsonEncode, toLiteral} from '../utils';
+import {getErrorPath, getExpected, shouldSkipJsonDecode, shouldSkipJsonEncode} from '../utils';
 import {random} from '../mock';
 import {BaseRunType} from '../baseRunTypes';
 import {jitNames} from '../constants';
@@ -42,9 +42,9 @@ export class UnionRunType extends BaseRunType<TypeUnion> {
         parents.pop();
         return code;
     }
-    compileTypeErrors(parents: RunType[], varName: string): string {
+    compileTypeErrors(parents: RunType[], varName: string, pathC: string[]): string {
         parents.push(this);
-        const code = `if (!(${this.compileIsType(parents, varName)})) ${jitNames.errors}.push({path: [...${jitNames.path}], expected: ${toLiteral(this.getName())}})`;
+        const code = `if (!(${this.compileIsType(parents, varName)})) ${jitNames.errors}.push({path: ${getErrorPath(pathC)}, expected: ${getExpected(this)}})`;
         parents.pop();
         return code;
     }

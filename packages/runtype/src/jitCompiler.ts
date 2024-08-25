@@ -54,10 +54,13 @@ export function buildIsTypeJITFn(runType: RunType, jitFunctions?: JitCompilerFun
 export function buildTypeErrorsJITFn(runType: RunType, jitFunctions?: JitCompilerFunctions): JITFunctionsData['typeErrors'] {
     const varName = `vλl`;
     const parents = [];
-    const jitCode = jitFunctions ? jitFunctions.compileTypeErrors(parents, varName) : runType.compileTypeErrors(parents, varName);
+    const pathChain = [];
+    const jitCode = jitFunctions
+        ? jitFunctions.compileTypeErrors(parents, varName, pathChain)
+        : runType.compileTypeErrors(parents, varName, pathChain);
     const code = `
         const ${jitNames.errors} = [];
-        const ${jitNames.path} = [];
+        const ${jitNames.circularPath} = [];
         ${jitCode}
         return ${jitNames.errors};
     `;
@@ -229,7 +232,7 @@ export function createJitCachedFn(jitIdFnName: string, compiledCode: string, cac
 export type compileChildCB = (updatedParents: RunType[]) => string;
 
 /** wrapper function to handle circular types compiling */
-export function handleCircularJitCompiling(
+function handleCircularJitCompiling(
     rt: RunType,
     /** name to identify the function in the jit cache */
     fnName: string,
@@ -268,9 +271,17 @@ export function handleCircularTypeErrors(
     rt: RunType,
     code: string,
     jitCacheCallArgs: string[],
-    isCircularChild: boolean
+    isCircularChild: boolean,
+    pathC: (string | number)[]
 ): string {
-    return handleCircularJitCompiling(rt, 'TErr', code, jitCacheCallArgs, isCircularChild);
+    const typeErrorsCode = handleCircularJitCompiling(rt, 'TErr', code, jitCacheCallArgs, isCircularChild);
+    if (isCircularChild)
+        return `
+            ${jitNames.circularPath}.push(${pathC.join(',')});
+            ${typeErrorsCode}
+            ${jitNames.circularPath}.splice(-${pathC.length});
+        `;
+    return typeErrorsCode;
 }
 
 export function handleCircularJsonEncode(

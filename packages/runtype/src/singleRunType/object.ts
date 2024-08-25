@@ -8,7 +8,7 @@
 import type {TypeAny, TypeUnknown} from '../_deepkit/src/reflection/type';
 import type {RunType} from '../types';
 import {random} from '../mock';
-import {toLiteral} from '../utils';
+import {getErrorPath, getExpected} from '../utils';
 import {jitNames, mockObjectList} from '../constants';
 import {SingleRunType} from '../baseRunTypes';
 
@@ -19,8 +19,8 @@ export class ObjectRunType extends SingleRunType<TypeAny | TypeUnknown> {
     compileIsType(parents: RunType[], varName: string): string {
         return `(typeof ${varName} === 'object' && ${varName} !== null)`;
     }
-    compileTypeErrors(parents: RunType[], varName: string): string {
-        return `if (!(${this.compileIsType(parents, varName)})) ${jitNames.errors}.push({path: [...${jitNames.path}], expected: ${toLiteral(this.getName())}})`;
+    compileTypeErrors(parents: RunType[], varName: string, pathC: string[]): string {
+        return `if (!(${this.compileIsType(parents, varName)})) ${jitNames.errors}.push({path: ${getErrorPath(pathC)}, expected: ${getExpected(this)}})`;
     }
     compileJsonEncode(): string {
         return '';

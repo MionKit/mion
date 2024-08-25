@@ -29,7 +29,9 @@ export class ParameterRunType extends BaseRunType<TypeParameter> {
         opts: RunTypeOptions
     ) {
         super(visitor, src, parents, opts);
+        parents.push(this);
         this.argRunType = visitor(src.type, [...parents, this], opts);
+        parents.pop();
         this.isJsonEncodeRequired = this.argRunType.isJsonEncodeRequired;
         this.isJsonDecodeRequired = this.argRunType.isJsonDecodeRequired;
         this.isRest = this.argRunType instanceof RestParamsRunType;
@@ -60,16 +62,16 @@ export class ParameterRunType extends BaseRunType<TypeParameter> {
         parents.pop();
         return code;
     }
-    compileTypeErrors(parents: RunType[], varName: string, paramIndex = 0): string {
+    compileTypeErrors(parents: RunType[], varName: string, pathC: (string|number)[], paramIndex = 0): string {
         let code: string;
         parents.push(this);
         if (this.isRest) {
-            code = this.argRunType.compileTypeErrors(parents, varName, paramIndex);
+            code = this.argRunType.compileTypeErrors(parents, varName, pathC, paramIndex);
         } else {
             const argAccessor = `${varName}[${paramIndex}]`;
             code = this.isOptional
-                ? `if (${argAccessor} !== undefined) {${this.argRunType.compileTypeErrors(parents, argAccessor)}}`
-                : this.argRunType.compileTypeErrors(parents, argAccessor);
+                ? `if (${argAccessor} !== undefined) {${this.argRunType.compileTypeErrors(parents, argAccessor, [...pathC, paramIndex])}}`
+                : this.argRunType.compileTypeErrors(parents, argAccessor, [...pathC, paramIndex]);
         }
         parents.pop();
         return code;

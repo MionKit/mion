@@ -7,7 +7,7 @@
 
 import type {TypeNumber} from '../_deepkit/src/reflection/type';
 import type {RunType} from '../types';
-import {toLiteral} from '../utils';
+import {getErrorPath, getExpected} from '../utils';
 import {mockNumber} from '../mock';
 import {SingleRunType} from '../baseRunTypes';
 import {jitNames} from '../constants';
@@ -19,8 +19,8 @@ export class NumberRunType extends SingleRunType<TypeNumber> {
     compileIsType(parents: RunType[], varName: string): string {
         return `(typeof ${varName} === 'number' && Number.isFinite(${varName}))`;
     }
-    compileTypeErrors(parents: RunType[], varName: string): string {
-        return `if(!(${this.compileIsType(parents, varName)})) ${jitNames.errors}.push({path: [...${jitNames.path}], expected: ${toLiteral(this.getName())}})`;
+    compileTypeErrors(parents: RunType[], varName: string, pathC: string[]): string {
+        return `if(!(${this.compileIsType(parents, varName)})) ${jitNames.errors}.push({path: ${getErrorPath(pathC)}, expected: ${getExpected(this)}})`;
     }
     compileJsonEncode(): string {
         return '';

@@ -7,7 +7,7 @@
 
 import {TypeArray} from '../_deepkit/src/reflection/type';
 import {RunType, RunTypeOptions, RunTypeVisitor} from '../types';
-import {hasCircularParents, toLiteral} from '../utils';
+import {getErrorPath, getExpected, hasCircularParents} from '../utils';
 import {mockRecursiveEmptyArray, random} from '../mock';
 import {CollectionRunType} from '../baseRunTypes';
 import {
@@ -56,24 +56,23 @@ export class ArrayRunType extends CollectionRunType<TypeArray> {
         `;
         return handleCircularIsType(this, code, callArgs, isCompilingCircularChild, nestLevel);
     }
-    compileTypeErrors(parents: RunType[], varName: string): string {
+    compileTypeErrors(parents: RunType[], varName: string, pathC: string[]): string {
         const {index, indexAccessor, isCompilingCircularChild} = getJitVars(this, parents, varName);
-        const callArgs = [varName, jitNames.errors, jitNames.path];
+        const callArgs = [varName, jitNames.errors, jitNames.circularPath];
         const compileChildren = (newParents) => {
-            return this.childRunTypes[0].compileTypeErrors(newParents, indexAccessor);
+            const newPath = [...pathC, index];
+            return this.childRunTypes[0].compileTypeErrors(newParents, indexAccessor, newPath);
         };
         const itemsCode = compileChildrenJitFunction(this, parents, isCompilingCircularChild, compileChildren);
         const code = `
-            if (!Array.isArray(${varName})) ${jitNames.errors}.push({path: [...${jitNames.path}], expected: ${toLiteral(this.getName())}});
+            if (!Array.isArray(${varName})) ${jitNames.errors}.push({path: ${getErrorPath(pathC)}, expected: ${getExpected(this)}});
             else {
                 for (let ${index} = 0; ${index} < ${varName}.length; ${index}++) {
-                    ${jitNames.path}.push(${index});
                     ${itemsCode}
-                    ${jitNames.path}.pop();
                 }
             }
         `;
-        return handleCircularTypeErrors(this, code, callArgs, isCompilingCircularChild);
+        return handleCircularTypeErrors(this, code, callArgs, isCompilingCircularChild, pathC);
     }
     compileJsonEncode(parents: RunType[], varName: string): string {
         const {index, indexAccessor, isCompilingCircularChild} = getJitVars(this, parents, varName);

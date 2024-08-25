@@ -27,7 +27,9 @@ export class RestParamsRunType extends BaseRunType<TypeRest> {
         opts: RunTypeOptions
     ) {
         super(visitor, src, parents, opts);
-        this.memberRunType = visitor(src.type, [...parents, this], opts);
+        parents.push(this);
+        this.memberRunType = visitor(src.type, parents, opts);
+        parents.pop();
         this.isJsonEncodeRequired = this.memberRunType.isJsonEncodeRequired;
         this.isJsonDecodeRequired = this.memberRunType.isJsonDecodeRequired;
         this.paramName = (src as any).name || 'args';
@@ -48,11 +50,11 @@ export class RestParamsRunType extends BaseRunType<TypeRest> {
         parents.pop();
         return `(function() {${forLoop}return true})()`;
     }
-    compileTypeErrors(parents: RunType[], varName: string, paramIndex = 0): string {
+    compileTypeErrors(parents: RunType[], varName: string, pathC: (string | number)[], paramIndex = 0): string {
         parents.push(this);
         const indexName = `pλrλm${parents.length}`;
         const itemAccessor = `${varName}[${indexName}]`;
-        const itemCode = this.memberRunType.compileTypeErrors(parents, itemAccessor);
+        const itemCode = this.memberRunType.compileTypeErrors(parents, itemAccessor, pathC);
         parents.pop();
         return `for (let ${indexName} = ${paramIndex}; ${indexName} < ${varName}.length; ${indexName}++) {${itemCode}}`;
     }

@@ -31,8 +31,8 @@ export class TupleMemberRunType extends BaseRunType<TypeTupleMember> {
     compileIsType(parents: RunType[], varName: string): string {
         return this.memberRunType.compileIsType(parents, varName);
     }
-    compileTypeErrors(parents: RunType[], varName: string): string {
-        return this.memberRunType.compileTypeErrors(parents, varName);
+    compileTypeErrors(parents: RunType[], varName: string, pathC: string[]): string {
+        return this.memberRunType.compileTypeErrors(parents, varName, pathC);
     }
     compileJsonEncode(parents: RunType[], varName: string): string {
         return this.memberRunType.compileJsonEncode(parents, varName);
