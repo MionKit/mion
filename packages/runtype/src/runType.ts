@@ -6,9 +6,9 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
+import type {RunType, RunTypeOptions, RunTypeVisitor, SrcType} from './types';
 import {ReflectionKind, TypeObjectLiteral} from './_deepkit/src/reflection/type';
 import {resolveReceiveType, ReceiveType, reflect} from './_deepkit/src/reflection/reflection';
-import {RunType, RunTypeOptions, RunTypeVisitor, SrcType} from './types';
 import {StringRunType} from './singleRunType/string';
 import {DateRunType} from './singleRunType/date';
 import {NumberRunType} from './singleRunType/number';
@@ -42,6 +42,7 @@ import {ParameterRunType} from './functionRunType/param';
 import {MethodRunType} from './functionRunType/method';
 import {RestParamsRunType} from './functionRunType/restParams';
 import {ClassRunType} from './collectionRunType/class';
+import {hasCircularParents} from './utils';
 
 const MaxNestLevel = 20; // max parents levels to prevent infinite recursion or complicated types
 
@@ -58,10 +59,15 @@ export function reflectFunction<Fn extends (...args: any[]) => any>(fn: Fn, opts
 function visitor(deepkitType, parents: RunType[], opts: RunTypeOptions): RunType {
     // console.log('deepkitType', deepkitType);
 
-    /* RunType reference is stored in the deepkitType._runType so we can access both the deepkitType and the mion RunType
-     basically every runType stores a reference to a deepkit type and vice versa */
+    /*
+     RunType reference is stored in the deepkitType._runType so we can access both the deepkitType and the mion RunType
+     basically every runType stores a reference to a deepkit type and vice versa.
+     This also relies on deepkit handling circular types to prevent infinite loop when we are generating RunTypes  */
     const existingType: RunType | undefined = (deepkitType as SrcType)._runType;
-    if (existingType) return existingType;
+    if (existingType) {
+        if (hasCircularParents(existingType, parents)) (existingType as any).isCircular = true;
+        return existingType;
+    }
 
     let rt: RunType;
 
@@ -201,7 +207,6 @@ function visitor(deepkitType, parents: RunType[], opts: RunTypeOptions): RunType
     }
 
     if (parents.length > MaxNestLevel) throw new Error('Max Nest Level exceeded while resolving run type');
-    // if (rt.hasCircular) throw new Error('Circular references are not supported ie: type T = {a: T}');
     (deepkitType as SrcType)._runType = rt;
     return rt;
 }

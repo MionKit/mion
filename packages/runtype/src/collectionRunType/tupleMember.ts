@@ -7,15 +7,13 @@
 
 import {TypeTupleMember} from '../_deepkit/src/reflection/type';
 import {BaseRunType} from '../baseRunTypes';
-import {JitErrorPath, RunType, RunTypeOptions, RunTypeVisitor} from '../types';
-import {hasCircularRunType} from '../utils';
+import {RunType, RunTypeOptions, RunTypeVisitor} from '../types';
 
 export class TupleMemberRunType extends BaseRunType<TypeTupleMember> {
     public readonly isJsonEncodeRequired: boolean;
     public readonly isJsonDecodeRequired: boolean;
-    public readonly hasCircular: boolean;
     public readonly memberRunType: RunType;
-    public readonly isCircular: boolean;
+    public readonly jitId: string;
     constructor(
         visitor: RunTypeVisitor,
         public readonly src: TypeTupleMember,
@@ -23,29 +21,27 @@ export class TupleMemberRunType extends BaseRunType<TypeTupleMember> {
         opts: RunTypeOptions
     ) {
         super(visitor, src, parents, opts);
-        this.memberRunType = visitor(src.type, [...parents, this], opts);
+        parents.push(this);
+        this.memberRunType = visitor(src.type, parents, opts);
+        parents.pop();
         this.isJsonEncodeRequired = this.memberRunType.isJsonEncodeRequired;
         this.isJsonDecodeRequired = this.memberRunType.isJsonDecodeRequired;
-        this.hasCircular = this.memberRunType.hasCircular || hasCircularRunType(this, this.memberRunType, parents);
-        this.isCircular = this.hasCircular;
+        this.jitId = `${this.src.kind}:${this.memberRunType.jitId}`;
     }
-    getJitId(): string | number {
-        return `${this.src.kind}:${this.memberRunType.getJitId()}`;
+    compileIsType(parents: RunType[], varName: string): string {
+        return this.memberRunType.compileIsType(parents, varName);
     }
-    compileIsType(varName: string): string {
-        return this.memberRunType.compileIsType(varName);
+    compileTypeErrors(parents: RunType[], varName: string): string {
+        return this.memberRunType.compileTypeErrors(parents, varName);
     }
-    compileTypeErrors(varName: string, errorsName: string, pathChain: JitErrorPath): string {
-        return this.memberRunType.compileTypeErrors(varName, errorsName, pathChain);
+    compileJsonEncode(parents: RunType[], varName: string): string {
+        return this.memberRunType.compileJsonEncode(parents, varName);
     }
-    compileJsonEncode(varName: string): string {
-        return this.memberRunType.compileJsonEncode(varName);
+    compileJsonDecode(parents: RunType[], varName: string): string {
+        return this.memberRunType.compileJsonDecode(parents, varName);
     }
-    compileJsonDecode(varName: string): string {
-        return this.memberRunType.compileJsonDecode(varName);
-    }
-    compileJsonStringify(varName: string): string {
-        return this.memberRunType.compileJsonStringify(varName);
+    compileJsonStringify(parents: RunType[], varName: string): string {
+        return this.memberRunType.compileJsonStringify(parents, varName);
     }
     mock(...args: any[]): any {
         return this.memberRunType.mock(...args);

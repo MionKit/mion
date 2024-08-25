@@ -5,8 +5,8 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {TypeAny, TypeUnknown} from '../_deepkit/src/reflection/type';
-import {RunType, RunTypeOptions, RunTypeVisitor} from '../types';
+import type {TypeAny, TypeUnknown} from '../_deepkit/src/reflection/type';
+import type {RunType, RunTypeOptions, RunTypeVisitor} from '../types';
 import {mockAny} from '../mock';
 import {SingleRunType} from '../baseRunTypes';
 
@@ -33,7 +33,7 @@ export class AnyRunType extends SingleRunType<TypeAny | TypeUnknown> {
     compileJsonDecode(): string {
         return '';
     }
-    compileJsonStringify(varName: string): string {
+    compileJsonStringify(parents: RunType[], varName: string): string {
         return `JSON.stringify(${varName})`;
     }
     mock(anyValuesLis?: any[]): string {

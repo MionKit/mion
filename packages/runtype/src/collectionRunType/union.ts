@@ -6,10 +6,11 @@
  * ######## */
 
 import {TypeUnion} from '../_deepkit/src/reflection/type';
-import {JitErrorPath, RunType, RunTypeOptions, RunTypeVisitor} from '../types';
-import {hasCircularRunType, skipJsonDecode, skipJsonEncode, toLiteral, pathChainToLiteral} from '../utils';
+import {RunType, RunTypeOptions, RunTypeVisitor} from '../types';
+import {shouldSkipJsonDecode, shouldSkipJsonEncode, toLiteral} from '../utils';
 import {random} from '../mock';
 import {BaseRunType} from '../baseRunTypes';
+import {jitNames} from '../constants';
 
 /**
  * Unions get encoded into an array where arr[0] is the discriminator and arr[1] is the value.
@@ -21,9 +22,8 @@ import {BaseRunType} from '../baseRunTypes';
 export class UnionRunType extends BaseRunType<TypeUnion> {
     public readonly isJsonEncodeRequired = true;
     public readonly isJsonDecodeRequired = true;
-    public readonly hasCircular: boolean;
     public readonly runTypes: RunType[];
-    public readonly shouldCacheJit: boolean;
+    public readonly jitId: string;
     constructor(
         visitor: RunTypeVisitor,
         public readonly src: TypeUnion,
@@ -31,57 +31,55 @@ export class UnionRunType extends BaseRunType<TypeUnion> {
         opts: RunTypeOptions
     ) {
         super(visitor, src, parents, opts);
+        parents.push(this);
         this.runTypes = src.types.map((t) => visitor(t, parents, opts));
-        this.hasCircular =
-            this.runTypes.some((rt) => rt.hasCircular) || this.runTypes.some((rt) => hasCircularRunType(this, rt, parents));
-        this.shouldCacheJit = this.hasCircular && (!!this.src.typeName || !!this.src.id);
+        parents.pop();
+        this.jitId = `${this.src.kind}[${this.runTypes.map((prop) => `${prop.jitId}`).join('|')}]`;
     }
-    private _jitId: string | undefined;
-    getJitId(): string {
-        if (this._jitId) return this._jitId;
-        // TODO: we need to check also for serializable tuple members as not all of them might be serializable
-        this._jitId = `${this.src.kind}{${this.runTypes.map((prop) => `${prop.getJitId()}`).join('|')}}`;
-        return this._jitId;
+    compileIsType(parents: RunType[], varName: string): string {
+        parents.push(this);
+        const code = `(${this.runTypes.map((rt) => rt.compileIsType(parents, varName)).join(' || ')})`;
+        parents.pop();
+        return code;
     }
-
-    compileIsType(varName: string): string {
-        return `(${this.runTypes.map((rt) => rt.compileIsType(varName)).join(' || ')})`;
+    compileTypeErrors(parents: RunType[], varName: string): string {
+        parents.push(this);
+        const code = `if (!(${this.compileIsType(parents, varName)})) ${jitNames.errors}.push({path: [...${jitNames.path}], expected: ${toLiteral(this.getName())}})`;
+        parents.pop();
+        return code;
     }
-    compileTypeErrors(varName: string, errorsName: string, pathChain: JitErrorPath): string {
-        return `if (!(${this.compileIsType(varName)})) ${errorsName}.push({path: ${pathChainToLiteral(pathChain)}, expected: ${toLiteral(this.getName())}})`;
-    }
-    compileJsonEncode(varName: string): string {
+    compileJsonEncode(parents: RunType[], varName: string): string {
         const errorCode = `else { throw new Error('Can not encode json to union: expected one of <${this.getUnionTypeNames()}> but got ' + ${varName}?.constructor?.name || typeof ${varName}) }`;
         const encode = this.runTypes
             .map((rt, i) => {
-                const checkCode = rt.compileIsType(varName);
+                const checkCode = rt.compileIsType(parents, varName);
                 const accessor = `${varName}[1]`;
-                const itemCode = skipJsonEncode(rt) ? '' : rt.compileJsonEncode(accessor);
+                const itemCode = shouldSkipJsonEncode(rt) ? '' : rt.compileJsonEncode(parents, accessor);
                 const discriminatorCode = `{${varName} = [${i}, ${varName}]; ${itemCode}}`;
                 return `${i === 0 ? 'if' : 'else if'} (${checkCode}) ${discriminatorCode}`;
             })
             .join('\n');
         return `${encode}\n${errorCode}`;
     }
-    compileJsonDecode(varName: string): string {
+    compileJsonDecode(parents: RunType[], varName: string): string {
         const errorCode = `else { throw new Error('Can not decode json from union: expected one of <${this.getUnionTypeNames()}> but got ' + ${varName}?.constructor?.name || typeof ${varName}) }`;
         const decode = this.runTypes
             .map((rt, i) => {
                 const checkCode = `${varName}[0] === ${i}`;
                 const accessor = `${varName}[1]`;
-                const itemCode = skipJsonDecode(rt) ? '' : rt.compileJsonDecode(varName);
+                const itemCode = shouldSkipJsonDecode(rt) ? '' : rt.compileJsonDecode([...parents, this], varName);
                 const discriminatorCode = `{${varName} = ${accessor}; ${itemCode}}`;
                 return `${i === 0 ? 'if' : 'else if'} (${checkCode})  ${discriminatorCode}`;
             })
             .join('\n');
         return `${decode}\n${errorCode}`;
     }
-    compileJsonStringify(varName: string): string {
+    compileJsonStringify(parents: RunType[], varName: string): string {
         const errorCode = `throw new Error('Can not stringify union: expected one of <${this.getUnionTypeNames()}> but got ' + ${varName}?.constructor?.name || typeof ${varName})`;
         const encode = this.runTypes
             .map((rt, i) => {
-                const checkCode = rt.compileIsType(varName);
-                const returnCode = `('[' + ${i} + ',' + ${rt.compileJsonStringify(varName)} + ']')`;
+                const checkCode = rt.compileIsType(parents, varName);
+                const returnCode = `('[' + ${i} + ',' + ${rt.compileJsonStringify([...parents, this], varName)} + ']')`;
                 return `if (${checkCode}) return ${returnCode}`;
             })
             .join(';');

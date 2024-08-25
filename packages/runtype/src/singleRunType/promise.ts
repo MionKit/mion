@@ -1,7 +1,8 @@
-import {TypePromise} from '../_deepkit/src/reflection/type';
+import type {TypePromise} from '../_deepkit/src/reflection/type';
+import type {RunType, RunTypeOptions, RunTypeVisitor} from '../types';
 import {SingleRunType} from '../baseRunTypes';
-import {JitErrorPath, RunType, RunTypeOptions, RunTypeVisitor} from '../types';
-import {toLiteral, pathChainToLiteral} from '../utils';
+import {toLiteral} from '../utils';
+import {jitNames} from '../constants';
 
 /* ########
  * 2024 mion
@@ -23,17 +24,17 @@ export class PromiseRunType extends SingleRunType<TypePromise> {
         super(visitor, src, parents, opts);
         this.resolvedType = visitor(src.type, [...parents, this], opts);
     }
-    compileIsType(varName: string): string {
+    compileIsType(parents: RunType[], varName: string): string {
         return `${varName} instanceof Promise`;
     }
-    resolvedIsTypeJIT(varName: string): string {
-        return this.resolvedType.compileIsType(varName);
+    resolvedIsTypeJIT(parents: RunType[], varName: string): string {
+        return this.resolvedType.compileIsType(parents, varName);
     }
-    compileTypeErrors(varName: string, errorsName: string, pathChain: JitErrorPath): string {
-        return `if (!(${varName} instanceof Promise)) ${errorsName}.push({path: ${pathChainToLiteral(pathChain)}, expected: ${toLiteral(this.getName())}})`;
+    compileTypeErrors(parents: RunType[], varName: string): string {
+        return `if (!(${varName} instanceof Promise)) ${jitNames.errors}.push({path: [...${jitNames.path}], expected: ${toLiteral(this.getName())}})`;
     }
-    resolveTypeErrorsJIT(varName: string, errorsName: string, pathChain: JitErrorPath): string {
-        return this.resolvedType.compileTypeErrors(varName, errorsName, pathChain);
+    resolveTypeErrorsJIT(parents: RunType[], varName: string): string {
+        return this.resolvedType.compileTypeErrors(parents, varName);
     }
     compileJsonEncode(): string {
         throw new Error(`${this.getName()} can not be encoded to json.`);

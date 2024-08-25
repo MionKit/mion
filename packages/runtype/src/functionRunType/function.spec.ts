@@ -209,7 +209,7 @@ it(`if function's return type is a promise then return type should be the promis
     const fn = (a: number, b: boolean, c?: string): Promise<Date> => Promise.resolve(new Date());
     const reflectedType = reflectFunction(fn);
     expect(reflectedType instanceof FunctionRunType).toBe(true);
-    expect(reflectedType.returnType.getJitId()).toBe('date');
+    expect(reflectedType.returnType.jitId).toBe('date');
 
     const validateReturn = reflectedType.jitReturnFns.isType.fn;
     const typeErrorsReturn = reflectedType.jitReturnFns.typeErrors.fn;

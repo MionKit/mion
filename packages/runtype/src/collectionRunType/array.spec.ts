@@ -156,7 +156,6 @@ describe('ArrayType circular', () => {
         arr.push([]);
         arr[0].push([]);
         arr[0][0].push([]);
-        expect(rt.hasCircular).toBe(true);
         expect(validate(arr)).toBe(true);
     });
 

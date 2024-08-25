@@ -5,22 +5,22 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {TypeAny, TypeUnknown} from '../_deepkit/src/reflection/type';
+import type {TypeAny, TypeUnknown} from '../_deepkit/src/reflection/type';
+import type {RunType} from '../types';
 import {random} from '../mock';
-import {toLiteral, pathChainToLiteral} from '../utils';
-import {mockObjectList} from '../constants';
+import {toLiteral} from '../utils';
+import {jitNames, mockObjectList} from '../constants';
 import {SingleRunType} from '../baseRunTypes';
-import {JitErrorPath} from '../types';
 
 export class ObjectRunType extends SingleRunType<TypeAny | TypeUnknown> {
     public readonly isJsonEncodeRequired = false;
     public readonly isJsonDecodeRequired = false;
 
-    compileIsType(varName: string): string {
-        return `typeof ${varName} === 'object' && ${varName} !== null`;
+    compileIsType(parents: RunType[], varName: string): string {
+        return `(typeof ${varName} === 'object' && ${varName} !== null)`;
     }
-    compileTypeErrors(varName: string, errorsName: string, pathChain: JitErrorPath): string {
-        return `if (!(${this.compileIsType(varName)})) ${errorsName}.push({path: ${pathChainToLiteral(pathChain)}, expected: ${toLiteral(this.getName())}})`;
+    compileTypeErrors(parents: RunType[], varName: string): string {
+        return `if (!(${this.compileIsType(parents, varName)})) ${jitNames.errors}.push({path: [...${jitNames.path}], expected: ${toLiteral(this.getName())}})`;
     }
     compileJsonEncode(): string {
         return '';
@@ -28,7 +28,7 @@ export class ObjectRunType extends SingleRunType<TypeAny | TypeUnknown> {
     compileJsonDecode(): string {
         return '';
     }
-    compileJsonStringify(varName: string): string {
+    compileJsonStringify(parents: RunType[], varName: string): string {
         return `JSON.stringify(${varName})`;
     }
     mock(objectLis: object[] = mockObjectList): object {

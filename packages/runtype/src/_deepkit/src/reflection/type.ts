@@ -562,7 +562,7 @@ export type InlineRuntimeType<T extends ReflectionClass<any> | Type | number | s
     T extends ReflectionClass<infer K> ? K : any;
 
 export function isType(entry: any): entry is Type {
-    return 'object' === typeof entry && entry.constructor === Object && 'kind' in entry && 'number' === typeof entry.kind;
+    return 'object' === typeof entry && entry.constructor === Object && 'number' === typeof entry.kind;
 }
 
 export function isBinary(type: Type): boolean {

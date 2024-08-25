@@ -1,11 +1,19 @@
 import {ReflectionKind, TypeIndexSignature} from '../_deepkit/src/reflection/type';
 import {BaseRunType} from '../baseRunTypes';
-import {JitErrorPath, RunType, RunTypeOptions, RunTypeVisitor} from '../types';
-import {addToPathChain, hasCircularRunType, isFunctionKind, skipJsonDecode, skipJsonEncode} from '../utils';
+import {RunType, RunTypeOptions, RunTypeVisitor} from '../types';
+import {hasCircularParents, isFunctionKind} from '../utils';
 import {NumberRunType} from '../singleRunType/number';
 import {StringRunType} from '../singleRunType/string';
 import {SymbolRunType} from '../singleRunType/symbol';
-import {jitVarNames} from '../jitUtils';
+import {jitNames} from '../constants';
+import {
+    compileChildrenJitFunction,
+    handleCircularIsType,
+    handleCircularJsonDecode,
+    handleCircularJsonEncode,
+    handleCircularJsonStringify,
+    handleCircularTypeErrors,
+} from '../jitCompiler';
 
 /* ########
  * 2024 mion
@@ -17,14 +25,14 @@ import {jitVarNames} from '../jitUtils';
 export class IndexSignatureRunType extends BaseRunType<TypeIndexSignature> {
     public readonly isJsonEncodeRequired;
     public readonly isJsonDecodeRequired;
-    public readonly hasCircular: boolean;
-    public readonly isCircular: boolean;
     public readonly indexType: RunType;
     public readonly indexKeyType: NumberRunType | StringRunType | SymbolRunType;
     public readonly isReadonly: boolean;
     public readonly shouldSerialize: boolean;
     public readonly propName: string;
+    public readonly jitId: string;
     protected propertySeparator = '&';
+
     constructor(
         visitor: RunTypeVisitor,
         public readonly src: TypeIndexSignature,
@@ -32,64 +40,88 @@ export class IndexSignatureRunType extends BaseRunType<TypeIndexSignature> {
         opts: RunTypeOptions
     ) {
         super(visitor, src, parents, opts);
-        const newParents = [...parents, this];
-        this.indexType = visitor(src.type, newParents, opts);
-        this.indexKeyType = visitor(src.index, newParents, opts) as NumberRunType | StringRunType | SymbolRunType;
+        parents.push(this);
+        this.indexType = visitor(src.type, parents, opts);
+        this.indexKeyType = visitor(src.index, parents, opts) as NumberRunType | StringRunType | SymbolRunType;
+        parents.pop();
         this.shouldSerialize = !isFunctionKind(src.type.kind) && src.index.kind !== ReflectionKind.symbol;
         this.isReadonly = false; // TODO: readonly allowed to set in typescript but not present in deepkit
         this.isJsonEncodeRequired = this.indexType.isJsonEncodeRequired;
         this.isJsonDecodeRequired = this.indexType.isJsonDecodeRequired;
-        this.hasCircular = this.indexType.hasCircular || hasCircularRunType(this, this.indexType, parents);
-        this.isCircular = this.hasCircular;
         this.propName = `${src.index.kind}`;
+        this.jitId = `[${this.propName}]:${this.indexType.jitId}`;
     }
-    getJitId(): string | number {
-        return `${this.src.kind}:${this.propName}:${this.indexType.getJitId()}`;
-    }
-    compileIsType(varName: string): string {
-        if (!this.shouldSerialize) return '';
-        const indexName = `prΦp${this.nestLevel}`;
-        const itemAccessor = `${varName}[${indexName}]`;
-        const itemCode = this.indexType.compileIsType(itemAccessor);
-        return `(function() {
-            for (const ${indexName} in ${varName}) {
-                if (!(${itemCode})) return false;
+    compileIsType(parents: RunType[], varName: string): string {
+        const {prop, propAccessor, isCompilingCircularChild, nestLevel} = getJitVars(this, parents, varName);
+        const callArgs = [varName];
+        const compileChildren = (newParents) => this.indexType.compileIsType(newParents, propAccessor);
+        const itemsCode = compileChildrenJitFunction(this, parents, isCompilingCircularChild, compileChildren);
+        const code = `
+            for (const ${prop} in ${varName}) {
+                if (!(${itemsCode})) return false;
             }
             return true;
-        })()`;
+        `;
+        return handleCircularIsType(this, code, callArgs, isCompilingCircularChild, nestLevel);
     }
-    compileTypeErrors(varName: string, errorsName: string, pathChain: JitErrorPath): string {
-        if (!this.shouldSerialize) return '';
-        const indexName = `prΦp${this.nestLevel}`;
-        const listItemPath = addToPathChain(pathChain, indexName, false);
-        const itemAccessor = `${varName}[${indexName}]`;
-        const itemCode = this.indexType.compileTypeErrors(itemAccessor, errorsName, listItemPath);
-        return `for (const ${indexName} in ${varName}) {${itemCode}}`;
+    compileTypeErrors(parents: RunType[], varName: string): string {
+        const {prop, propAccessor, isCompilingCircularChild} = getJitVars(this, parents, varName);
+        const callArgs = [jitNames.errors, jitNames.path];
+        const compileChildren = (newParents) => {
+            return this.indexType.compileTypeErrors(newParents, propAccessor);
+        };
+        const itemsCode = compileChildrenJitFunction(this, parents, isCompilingCircularChild, compileChildren);
+        const code = `
+            for (const ${prop} in ${varName}) {
+                ${jitNames.path}.push(${prop});
+                ${itemsCode}
+                ${jitNames.path}.pop();
+            }
+        `;
+        return handleCircularJsonDecode(this, code, callArgs, isCompilingCircularChild);
     }
-    compileJsonEncode(varName: string): string {
-        if (skipJsonEncode(this) || !this.shouldSerialize) return '';
-        const indexName = `prΦp${this.nestLevel}`;
-        const itemAccessor = `${varName}[${indexName}]`;
-        const itemCode = this.indexType.compileJsonEncode(itemAccessor);
-        if (!itemCode) return '';
-        return `for (const ${indexName} in ${varName}) {${itemCode}}`;
+    compileJsonEncode(parents: RunType[], varName: string): string {
+        const {prop, propAccessor, isCompilingCircularChild} = getJitVars(this, parents, varName);
+        const callArgs = [varName];
+        const compileChildren = (newParents) => this.indexType.compileJsonEncode(newParents, propAccessor);
+        const itemsCode = compileChildrenJitFunction(this, parents, isCompilingCircularChild, compileChildren);
+        const code = `
+            for (const ${prop} in ${varName}) {
+                ${itemsCode}
+            }
+        `;
+        const encodeCode = this.isJsonEncodeRequired ? code : '';
+        return handleCircularJsonEncode(this, encodeCode, callArgs, isCompilingCircularChild);
     }
-    compileJsonDecode(varName: string): string {
-        if (skipJsonDecode(this) || !this.shouldSerialize) return '';
-        const indexName = `prΦp${this.nestLevel}`;
-        const itemAccessor = `${varName}[${indexName}]`;
-        const itemCode = this.indexType.compileJsonDecode(itemAccessor);
-        if (!itemCode) return '';
-        return `for (const ${indexName} in ${varName}) {${itemCode}}`;
+    compileJsonDecode(parents: RunType[], varName: string): string {
+        const {prop, propAccessor, isCompilingCircularChild, nestLevel} = getJitVars(this, parents, varName);
+        const callArgs = [varName];
+        const compileChildren = (newParents) => this.indexType.compileJsonDecode(newParents, propAccessor);
+        const itemsCode = compileChildrenJitFunction(this, parents, isCompilingCircularChild, compileChildren);
+        const code = `
+            for (const ${prop} in ${varName}) {
+                ${itemsCode}
+            }
+        `;
+        const decodeCode = this.isJsonDecodeRequired ? code : '';
+        return handleCircularJsonStringify(this, decodeCode, callArgs, isCompilingCircularChild, nestLevel);
     }
-    compileJsonStringify(varName: string): string {
-        const arrName = `prΦpsλrr${this.nestLevel}`;
-        const indexName = `prΦp${this.nestLevel}`;
-        const itemAccessor = `${varName}[${indexName}]`;
-        const itemCode = this.indexType.compileJsonStringify(itemAccessor);
-        const forLoop = `const ${arrName} = []; for (const ${indexName} in ${varName}) {if (${itemAccessor} !== undefined) ${arrName}.push(${jitVarNames.asJSONString}(${indexName}) + ':' + ${itemCode})}`;
-        const itemsCode = `(function(){${forLoop}; return ${arrName}.join(',')})()`;
-        return itemsCode;
+    compileJsonStringify(parents: RunType[], varName: string): string {
+        const {prop, propAccessor, isCompilingCircularChild, nestLevel} = getJitVars(this, parents, varName);
+        const arrName = `prΦpsλrr${nestLevel}`;
+        const callArgs = [varName];
+        const compileChildren = (newParents) => this.indexType.compileJsonStringify(newParents, propAccessor);
+        const itemsCode = compileChildrenJitFunction(this, parents, isCompilingCircularChild, compileChildren);
+        const code = `
+            const ${arrName} = [];
+            for (const ${prop} in ${varName}) {
+                if (${propAccessor} !== undefined) ${arrName}.push(${jitNames.utils}.asJSONString(${prop}) + ':' + ${itemsCode})
+            }
+            return ${arrName}.join(',');
+        `;
+
+        return handleCircularTypeErrors(this, code, callArgs, isCompilingCircularChild);
+        // const itemsCode = `(function(){${forLoop}; return ${arrName}.join(',')})()`;
     }
     mock(parentMockObj: Record<string | number | symbol, any>, ...args: any[]): any {
         const length = Math.floor(Math.random() * 10);
@@ -111,4 +143,16 @@ export class IndexSignatureRunType extends BaseRunType<TypeIndexSignature> {
             parentMockObj[propName] = this.indexType.mock(...args);
         }
     }
+}
+
+function getJitVars(rt: IndexSignatureRunType, parents: RunType[], varName: string) {
+    const nestLevel = parents.length;
+    const isCompilingCircularChild = hasCircularParents(rt, parents);
+    const prop = `prΦp${nestLevel}`;
+    return {
+        nestLevel,
+        isCompilingCircularChild,
+        prop,
+        propAccessor: `${varName}[${prop}]`,
+    };
 }

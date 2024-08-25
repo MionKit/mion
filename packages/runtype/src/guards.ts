@@ -39,6 +39,7 @@ import type {ParameterRunType} from './functionRunType/param';
 import type {PromiseRunType} from './singleRunType/promise';
 import type {ObjectRunType} from './singleRunType/object';
 import type {MethodRunType} from './functionRunType/method';
+import type {CollectionRunType} from './baseRunTypes';
 
 export function isAnyRunType(rt: RunType): rt is AnyRunType {
     return rt.src.kind === ReflectionKind.any;
@@ -61,7 +62,7 @@ export function isCallSignatureRunType(rt: RunType): rt is CallSignatureRunType 
 }
 
 export function isDateRunType(rt: RunType): rt is DateRunType {
-    return rt.src.kind === ReflectionKind.class && rt.getJitId() === 'date';
+    return rt.src.kind === ReflectionKind.class && rt.jitId === 'date';
 }
 
 export function isEnumRunType(rt: RunType): rt is EnumRunType {
@@ -161,4 +162,12 @@ export function isConstructor(rt: InterfaceRunTypeEntry): rt is MethodSignatureR
         (rt.src.kind === ReflectionKind.method || rt.src.kind === ReflectionKind.methodSignature) &&
         (rt.src as TypeMethod).name === 'constructor'
     );
+}
+
+export function isCollectionRunType(rt: RunType): rt is CollectionRunType<any> {
+    return (rt as CollectionRunType<any>).childRunTypes !== undefined;
+}
+
+export function isRunType(value: any): value is RunType {
+    return typeof value?.src?.kind === 'number' && typeof value?.getJitId === 'function';
 }

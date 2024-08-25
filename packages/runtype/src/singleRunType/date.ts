@@ -5,29 +5,30 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {TypeClass} from '../_deepkit/src/reflection/type';
-import {JitErrorPath, JitJsonEncoder} from '../types';
-import {toLiteral, pathChainToLiteral} from '../utils';
+import type {TypeClass} from '../_deepkit/src/reflection/type';
+import type {JitJsonEncoder, RunType} from '../types';
+import {toLiteral} from '../utils';
 import {mockDate} from '../mock';
 import {SingleRunType} from '../baseRunTypes';
+import {jitNames} from '../constants';
 
 export class DateRunType extends SingleRunType<TypeClass> {
     public readonly isJsonEncodeRequired = false;
     public readonly isJsonDecodeRequired = true;
 
-    compileIsType(varName: string): string {
-        return `${varName} instanceof Date && !isNaN(${varName}.getTime())`;
+    compileIsType(parents: RunType[], varName: string): string {
+        return `(${varName} instanceof Date && !isNaN(${varName}.getTime()))`;
     }
-    compileTypeErrors(varName: string, errorsName: string, pathChain: JitErrorPath): string {
-        return `if (!(${this.compileIsType(varName)})) ${errorsName}.push({path: ${pathChainToLiteral(pathChain)}, expected: ${toLiteral(this.getName())}})`;
+    compileTypeErrors(parents: RunType[], varName: string): string {
+        return `if (!(${this.compileIsType(parents, varName)})) ${jitNames.errors}.push({path: [...${jitNames.path}], expected: ${toLiteral(this.getName())}})`;
     }
-    compileJsonEncode(varName: string): string {
+    compileJsonEncode(parents: RunType[], varName: string): string {
         return DateJitJsonENcoder.encodeToJson(varName);
     }
-    compileJsonDecode(varName: string): string {
+    compileJsonDecode(parents: RunType[], varName: string): string {
         return DateJitJsonENcoder.decodeFromJson(varName);
     }
-    compileJsonStringify(varName: string): string {
+    compileJsonStringify(parents: RunType[], varName: string): string {
         return DateJitJsonENcoder.stringify(varName);
     }
     mock(minDate?: Date, maxDate?: Date): Date {

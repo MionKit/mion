@@ -22,23 +22,23 @@ export interface JitCompilerFunctions {
      * this code should not contain any sentence breaks or semicolons.
      * ie: compileIsType = () => `typeof vλluε === 'string'`
      */
-    compileIsType(varName: string): string;
+    compileIsType(parents: RunType[], varName: string): string;
     /**
      * JIT code Validation + error info
      * Similar to validation code but instead of returning a boolean it should assign an error message to the errorsName
      * This is an executable code block and can contain multiple lines or semicolons
-     * ie:  validateCodeWithErrors = () => `if (typeof vλluε !== 'string') ${errorsName} = 'Expected to be a String';`
+     * ie:  validateCodeWithErrors = () => `if (typeof vλluε !== 'string') ${jitNames.errors} = 'Expected to be a String';`
      * pathChain is a string that represents the path to the property being validated.
      * pathChain is calculated at runtime so is an expresion like 'path1' + '/' + 'path2' + '/' + 'path3'
      */
-    compileTypeErrors(varName: string, errorsName: string, pathChain: JitErrorPath): string;
+    compileTypeErrors(parents: RunType[], varName: string): string;
     /**
      * JIT code to transform from type to an object that can be serialized using json
      * this code should not use return statements, it should be a single line of code that evaluates to a json compatible type.
      * this code should not contain any sentence breaks or semicolons.
      * ie for bigIng: compileJsonEncode = () => `vλluε.toString()`
      * */
-    compileJsonEncode(varName: string): string;
+    compileJsonEncode(parents: RunType[], varName: string): string;
     /**
      * JIT code to transform from json to type so type can be deserialized from json
      * this code should not use return statements, it should be a single line that recieves a json compatible type and returns a deserialized value.
@@ -48,7 +48,7 @@ export interface JitCompilerFunctions {
      * For security reason decoding ignores any properties that are not defined in the type.
      * So is your type is {name: string} and the json is {name: string, age: number} the age property will be ignored.
      * */
-    compileJsonDecode(varName: string): string;
+    compileJsonDecode(parents: RunType[], varName: string): string;
     /**
      * JIT code to transform a type directly into s json string.
      * when serializing to json normally we need first to prepare the object using compileJsonEncode and then JSON.stringify().
@@ -57,39 +57,18 @@ export interface JitCompilerFunctions {
      * @param varName
      * @returns
      */
-    compileJsonStringify(varName: string): string;
+    compileJsonStringify(parents: RunType[], varName: string): string;
 }
 
 export interface RunType<Opts extends RunTypeOptions = RunTypeOptions> extends JitCompilerFunctions {
     readonly src: Type;
-    readonly nestLevel: number;
     readonly isJsonEncodeRequired: boolean;
     readonly isJsonDecodeRequired: boolean;
     readonly jitFunctions: JITFunctionsData;
+    readonly jitId: string | number;
 
     /** Options for this RunType, only stored in the types that needs to use it */
     readonly opts?: Opts;
-
-    /** Whether or not the type or child types has circular references, i.e: type T = {a: T} */
-    readonly hasCircular?: boolean;
-
-    /**
-     * Whether or not the type is a circular type and should be stored in jit cache.
-     * This is mandatory for types that has circular so it can be called later by the circular reference.
-     * Types that has a name can be stored in jit cache as well to reduce the amount of code generated.
-     * i.e: type T = {a: T} .
-     * In this example the type T is stored in the cache so can be called recursively when validating the property a
-     * otherwise a would generate the validation code for T but not the recursive call and would en up an stack overflow infinite loop.
-     */
-    readonly shouldCacheJit?: boolean;
-
-    /**
-     * Whether or not a type should be called from the jit cache rather than generating code.
-     * This is mandatory for circular types where the child type should call the jit cache instead of generating the code again.
-     * i.e: type T = {a: T} .
-     * In this example when generating the code for T.a the child type T should call the jit cache instead of generating the code again.
-     */
-    readonly shouldCallJitCache?: boolean;
 
     /** whether or not the type is a single runtype that can´t have child run types, ie: string, number, boolean, null, etc.. */
     readonly isSingle?: boolean;
@@ -98,12 +77,6 @@ export interface RunType<Opts extends RunTypeOptions = RunTypeOptions> extends J
      * returns a mocked value, should be random when possible
      * */
     mock: (...args: any[]) => any;
-
-    /**
-     * Unique identifier of the run type, if two run types has the same jitId they will produce same jit functions.
-     * Ie, if two classes have different methods but same exact properties, then they both have the same jitId.
-     * */
-    getJitId(): string | number;
 
     /** Readable unique identifier of the RunType, used as the expected value of type errors */
     getName(): string;
@@ -128,7 +101,7 @@ export interface JitJsonEncoder {
 
 type AnyFn = (...args: any[]) => any;
 export interface JitFnData<Fn extends AnyFn> {
-    varNames: string[];
+    argNames: string[];
     code: string;
     fn: Fn;
 }
@@ -190,5 +163,15 @@ export interface AnyClass<T = any> {
     new (...args: any[]): T;
 }
 
-export type ErrorPathItem = {value: string | number; isLiteral: boolean};
-export type JitErrorPath = ErrorPathItem[];
+export type CompileFn =
+    | JitCompilerFunctions['compileIsType']
+    | JitCompilerFunctions['compileJsonEncode']
+    | JitCompilerFunctions['compileJsonDecode']
+    | JitCompilerFunctions['compileJsonStringify'];
+
+export type CompileFnTypeErrors = JitCompilerFunctions['compileTypeErrors'];
+
+export type CompileFnKey = keyof Pick<
+    JitCompilerFunctions,
+    'compileIsType' | 'compileJsonEncode' | 'compileJsonDecode' | 'compileJsonStringify'
+>;

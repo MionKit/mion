@@ -8,8 +8,9 @@ import {TypeClass} from '../_deepkit/src/reflection/type';
 import {RunType, RunTypeOptions, RunTypeVisitor} from '../types';
 import {toLiteral} from '../utils';
 import {InterfaceRunType} from './interface';
-import {jitUtils, jitVarNames} from '../jitUtils';
+import {jitUtils} from '../jitUtils';
 import {isConstructor} from '../guards';
+import {jitNames} from '../constants';
 
 export class ClassRunType extends InterfaceRunType<TypeClass> {
     public readonly className: string;
@@ -28,13 +29,13 @@ export class ClassRunType extends InterfaceRunType<TypeClass> {
     getJitId(): string {
         return `${this.src.kind}:${this.className}`;
     }
-    compileJsonDecode(varName: string): string {
+    compileJsonDecode(parents: RunType[], varName: string): string {
         ClassRunType.checkSerializable(this.canDeserialize, this.className);
-        const decodeParams = super.compileJsonDecode(varName);
+        const decodeParams = super.compileJsonDecode([...parents, this], varName);
         const decode = decodeParams ? `${decodeParams}; ` : '';
-        const classVarname = `clλss${this.nestLevel}`;
+        const classVarname = `clλss${parents.length}`;
         // todo create a new class
-        return `${decode}; const ${classVarname} = ${jitVarNames.getSerializableClass}(${toLiteral(this.className)}); ${varName} = Object.assign(new ${classVarname}, ${varName});`;
+        return `${decode}; const ${classVarname} = ${jitNames.utils}.getSerializableClass(${toLiteral(this.className)}); ${varName} = Object.assign(new ${classVarname}, ${varName});`;
     }
     mock(
         optionalParamsProbability: Record<string | number, number>,

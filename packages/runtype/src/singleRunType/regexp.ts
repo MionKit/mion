@@ -5,29 +5,30 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {TypeRegexp} from '../_deepkit/src/reflection/type';
-import {JitErrorPath, JitJsonEncoder} from '../types';
-import {toLiteral, pathChainToLiteral} from '../utils';
+import type {TypeRegexp} from '../_deepkit/src/reflection/type';
+import type {JitJsonEncoder, RunType} from '../types';
+import {toLiteral} from '../utils';
 import {mockRegExp} from '../mock';
 import {SingleRunType} from '../baseRunTypes';
+import {jitNames} from '../constants';
 
 export class RegexpRunType extends SingleRunType<TypeRegexp> {
     public readonly isJsonEncodeRequired = true;
     public readonly isJsonDecodeRequired = true;
 
-    compileIsType(varName: string): string {
+    compileIsType(parents: RunType[], varName: string): string {
         return `(${varName} instanceof RegExp)`;
     }
-    compileTypeErrors(varName: string, errorsName: string, pathChain: JitErrorPath): string {
-        return `if (!(${varName} instanceof RegExp)) ${errorsName}.push({path: ${pathChainToLiteral(pathChain)}, expected: ${toLiteral(this.getName())}})`;
+    compileTypeErrors(parents: RunType[], varName: string): string {
+        return `if (!(${varName} instanceof RegExp)) ${jitNames.errors}.push({path: [...${jitNames.path}], expected: ${toLiteral(this.getName())}})`;
     }
-    compileJsonEncode(varName: string): string {
+    compileJsonEncode(parents: RunType[], varName: string): string {
         return RegexpJitJsonEncoder.encodeToJson(varName);
     }
-    compileJsonDecode(varName: string): string {
+    compileJsonDecode(parents: RunType[], varName: string): string {
         return RegexpJitJsonEncoder.decodeFromJson(varName);
     }
-    compileJsonStringify(varName: string): string {
+    compileJsonStringify(parents: RunType[], varName: string): string {
         return RegexpJitJsonEncoder.stringify(varName);
     }
     mock(list?: RegExp[]): RegExp {

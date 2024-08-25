@@ -5,29 +5,30 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {TypeSymbol} from '../_deepkit/src/reflection/type';
-import {JitErrorPath, JitJsonEncoder} from '../types';
-import {toLiteral, pathChainToLiteral} from '../utils';
+import type {TypeSymbol} from '../_deepkit/src/reflection/type';
+import type {JitJsonEncoder, RunType} from '../types';
+import {toLiteral} from '../utils';
 import {mockSymbol} from '../mock';
 import {SingleRunType} from '../baseRunTypes';
+import {jitNames} from '../constants';
 
 export class SymbolRunType extends SingleRunType<TypeSymbol> {
     public readonly isJsonEncodeRequired = true;
     public readonly isJsonDecodeRequired = true;
 
-    compileIsType(varName: string): string {
+    compileIsType(parents: RunType[], varName: string): string {
         return `typeof ${varName} === 'symbol'`;
     }
-    compileTypeErrors(varName: string, errorsName: string, pathChain: JitErrorPath): string {
-        return `if (typeof ${varName} !== 'symbol') ${errorsName}.push({path: ${pathChainToLiteral(pathChain)}, expected: ${toLiteral(this.getName())}})`;
+    compileTypeErrors(parents: RunType[], varName: string): string {
+        return `if (typeof ${varName} !== 'symbol') ${jitNames.errors}.push({path: [...${jitNames.path}], expected: ${toLiteral(this.getName())}})`;
     }
-    compileJsonEncode(varName: string): string {
+    compileJsonEncode(parents: RunType[], varName: string): string {
         return SymbolJitJsonENcoder.encodeToJson(varName);
     }
-    compileJsonDecode(varName: string): string {
+    compileJsonDecode(parents: RunType[], varName: string): string {
         return SymbolJitJsonENcoder.decodeFromJson(varName);
     }
-    compileJsonStringify(varName: string): string {
+    compileJsonStringify(parents: RunType[], varName: string): string {
         return SymbolJitJsonENcoder.stringify(varName);
     }
     mock(name?: string, length?: number, charsSet?: string): symbol {
