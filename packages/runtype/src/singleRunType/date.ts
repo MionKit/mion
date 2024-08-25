@@ -7,7 +7,7 @@
 
 import type {TypeClass} from '../_deepkit/src/reflection/type';
 import type {JitJsonEncoder, RunType} from '../types';
-import {toLiteral} from '../utils';
+import {getErrorPath, getExpected} from '../utils';
 import {mockDate} from '../mock';
 import {SingleRunType} from '../baseRunTypes';
 import {jitNames} from '../constants';
@@ -19,8 +19,8 @@ export class DateRunType extends SingleRunType<TypeClass> {
     compileIsType(parents: RunType[], varName: string): string {
         return `(${varName} instanceof Date && !isNaN(${varName}.getTime()))`;
     }
-    compileTypeErrors(parents: RunType[], varName: string): string {
-        return `if (!(${this.compileIsType(parents, varName)})) ${jitNames.errors}.push({path: [...${jitNames.path}], expected: ${toLiteral(this.getName())}})`;
+    compileTypeErrors(parents: RunType[], varName: string, pathC: string[]): string {
+        return `if (!(${this.compileIsType(parents, varName)})) ${jitNames.errors}.push({path: ${getErrorPath(pathC)}, expected: ${getExpected(this)}})`;
     }
     compileJsonEncode(parents: RunType[], varName: string): string {
         return DateJitJsonENcoder.encodeToJson(varName);

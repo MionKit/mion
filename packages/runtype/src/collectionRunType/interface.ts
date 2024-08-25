@@ -6,14 +6,21 @@
  * ######## */
 import {TypeObjectLiteral, TypeClass, TypeIntersection} from '../_deepkit/src/reflection/type';
 import {RunType, RunTypeOptions, RunTypeVisitor} from '../types';
-import {shouldSkipJsonDecode, shouldSkipJsonEncode, toLiteral, hasCircularParents} from '../utils';
+import {shouldSkipJsonDecode, shouldSkipJsonEncode, hasCircularParents, getErrorPath, getExpected} from '../utils';
 import {PropertyRunType} from './property';
 import {CollectionRunType} from '../baseRunTypes';
 import {MethodSignatureRunType} from '../functionRunType/methodSignature';
 import {CallSignatureRunType} from '../functionRunType/call';
 import {IndexSignatureRunType} from './indexProperty';
 import {MethodRunType} from '../functionRunType/method';
-import {compileChildrenJitFunction, handleCircularJitCompiling} from '../jitCompiler';
+import {
+    compileChildrenJitFunction,
+    handleCircularIsType,
+    handleCircularJsonDecode,
+    handleCircularJsonEncode,
+    handleCircularJsonStringify,
+    handleCircularTypeErrors,
+} from '../jitCompiler';
 import {jitNames} from '../constants';
 
 export type InterfaceRunTypeEntry =
@@ -50,28 +57,28 @@ export class InterfaceRunType<
     }
 
     compileIsType(parents: RunType[], varName: string): string {
-        const {isCompilingCircularChild} = getJitVars(this, parents);
+        const {isCompilingCircularChild, nestLevel} = getJitVars(this, parents);
         const callArgs = [varName];
         const compileChildren = (newParents) =>
             this.childRunTypes.map((prop) => prop.compileIsType(newParents, varName)).join(' && ');
         const propsCode = compileChildrenJitFunction(this, parents, isCompilingCircularChild, compileChildren);
-        const code = `typeof ${varName} === 'object' && ${propsCode}`;
-        return handleCircularJitCompiling(this, 'isT', code, callArgs, isCompilingCircularChild);
+        const code = `return (typeof ${varName} === 'object' && ${propsCode})`;
+        return handleCircularIsType(this, code, callArgs, isCompilingCircularChild, nestLevel);
     }
-    compileTypeErrors(parents: RunType[], varName: string): string {
+    compileTypeErrors(parents: RunType[], varName: string, pathC: string[]): string {
         const {isCompilingCircularChild} = getJitVars(this, parents);
-        const callArgs = [varName, jitNames.errors, jitNames.path];
+        const callArgs = [varName, jitNames.errors, jitNames.circularPath];
         const compileChildren = (newParents) => {
-            return this.childRunTypes.map((prop) => prop.compileTypeErrors(newParents, varName)).join(';');
+            return this.childRunTypes.map((prop) => prop.compileTypeErrors(newParents, varName, pathC)).join('\n');
         };
         const itemsCode = compileChildrenJitFunction(this, parents, isCompilingCircularChild, compileChildren);
         const code = `
-            if (!Array.isArray(${varName})) ${jitNames.errors}.push({path: [...${jitNames.path}], expected: ${toLiteral(this.getName())}});
+            if (typeof ${varName} !== 'object') ${jitNames.errors}.push({path: ${getErrorPath(pathC)}, expected: ${getExpected(this)}});
             else {
                 ${itemsCode}
             }
         `;
-        return handleCircularJitCompiling(this, 'getTE', code, callArgs, isCompilingCircularChild);
+        return handleCircularTypeErrors(this, code, callArgs, isCompilingCircularChild, pathC);
     }
     compileJsonEncode(parents: RunType[], varName: string): string {
         const {isCompilingCircularChild} = getJitVars(this, parents);
@@ -82,7 +89,7 @@ export class InterfaceRunType<
         };
 
         const propsCode = compileChildrenJitFunction(this, parents, isCompilingCircularChild, compileChildren);
-        return handleCircularJitCompiling(this, 'isT', propsCode, callArgs, isCompilingCircularChild);
+        return handleCircularJsonEncode(this, propsCode, callArgs, isCompilingCircularChild);
     }
     compileJsonDecode(parents: RunType[], varName: string): string {
         const {isCompilingCircularChild} = getJitVars(this, parents);
@@ -93,10 +100,10 @@ export class InterfaceRunType<
         };
 
         const propsCode = compileChildrenJitFunction(this, parents, isCompilingCircularChild, compileChildren);
-        return handleCircularJitCompiling(this, 'isT', propsCode, callArgs, isCompilingCircularChild);
+        return handleCircularJsonDecode(this, propsCode, callArgs, isCompilingCircularChild);
     }
     compileJsonStringify(parents: RunType[], varName: string): string {
-        const {isCompilingCircularChild} = getJitVars(this, parents);
+        const {isCompilingCircularChild, nestLevel} = getJitVars(this, parents);
         const callArgs = [varName];
         const compileChildren = (newParents) => {
             return this.childRunTypes.map((prop, i) => prop.compileJsonStringify(newParents, varName, i === 0)).join(',');
@@ -104,7 +111,7 @@ export class InterfaceRunType<
 
         const propsCode = compileChildrenJitFunction(this, parents, isCompilingCircularChild, compileChildren);
         const code = `'{'+${propsCode}+'}'`;
-        return handleCircularJitCompiling(this, 'isT', code, callArgs, isCompilingCircularChild);
+        return handleCircularJsonStringify(this, code, callArgs, isCompilingCircularChild, nestLevel);
     }
     mock(
         optionalParamsProbability: Record<string | number, number>,
@@ -126,6 +133,7 @@ export class InterfaceRunType<
 function getJitVars(rt: InterfaceRunType<any>, parents: RunType[]) {
     const isCompilingCircularChild = hasCircularParents(rt, parents);
     return {
+        nestLevel: parents.length,
         isCompilingCircularChild,
     };
 }

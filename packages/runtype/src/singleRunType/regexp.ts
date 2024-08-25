@@ -7,7 +7,7 @@
 
 import type {TypeRegexp} from '../_deepkit/src/reflection/type';
 import type {JitJsonEncoder, RunType} from '../types';
-import {toLiteral} from '../utils';
+import {getErrorPath, getExpected} from '../utils';
 import {mockRegExp} from '../mock';
 import {SingleRunType} from '../baseRunTypes';
 import {jitNames} from '../constants';
@@ -19,8 +19,8 @@ export class RegexpRunType extends SingleRunType<TypeRegexp> {
     compileIsType(parents: RunType[], varName: string): string {
         return `(${varName} instanceof RegExp)`;
     }
-    compileTypeErrors(parents: RunType[], varName: string): string {
-        return `if (!(${varName} instanceof RegExp)) ${jitNames.errors}.push({path: [...${jitNames.path}], expected: ${toLiteral(this.getName())}})`;
+    compileTypeErrors(parents: RunType[], varName: string, pathC: string[]): string {
+        return `if (!(${varName} instanceof RegExp)) ${jitNames.errors}.push({path: ${getErrorPath(pathC)}, expected: ${getExpected(this)}})`;
     }
     compileJsonEncode(parents: RunType[], varName: string): string {
         return RegexpJitJsonEncoder.encodeToJson(varName);

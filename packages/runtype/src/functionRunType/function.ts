@@ -10,7 +10,7 @@ import {jitNames} from '../constants';
 import {isPromiseRunType} from '../guards';
 import {buildJITFunctions} from '../jitCompiler';
 import {JITFunctionsData, JitCompilerFunctions, RunType, RunTypeOptions, RunTypeVisitor} from '../types';
-import {toLiteral} from '../utils';
+import {getErrorPath, toLiteral} from '../utils';
 import {ParameterRunType} from './param';
 
 type AnyFunction = TypeMethodSignature | TypeCallSignature | TypeFunction | TypeMethod;
@@ -102,12 +102,12 @@ export class FunctionRunType<CallType extends AnyFunction = TypeFunction> extend
             const checkLength = `${varName}.length >= ${this.totalRequiredParams} ${maxLength}`;
             return `${checkLength} && ${paramsCode}`;
         },
-        compileTypeErrors: (parents: RunType[], varName: string) => {
+        compileTypeErrors: (parents: RunType[], varName: string, pathC: (string | number)[]) => {
             const maxLength = !this.hasRestParameter ? `|| ${varName}.length > ${this.parameterTypes.length}` : '';
             const checkLength = `(${varName}.length < ${this.totalRequiredParams} ${maxLength})`;
-            const paramsCode = this.parameterTypes.map((p, i) => p.compileTypeErrors([...parents, this], varName, i)).join(';');
+            const paramsCode = this.parameterTypes.map((p, i) => p.compileTypeErrors([...parents, this], varName, pathC, i)).join(';');
             return (
-                `if (!Array.isArray(${varName}) || ${checkLength}) ${jitNames.errors}.push({path: [...${jitNames.path}], expected: ${toLiteral(this.paramsName)}});` +
+                `if (!Array.isArray(${varName}) || ${checkLength}) ${jitNames.errors}.push({path: ${getErrorPath(pathC)}, expected: ${toLiteral(this.paramsName)}});` +
                 `else {${paramsCode}}`
             );
         },
@@ -150,8 +150,8 @@ export class FunctionRunType<CallType extends AnyFunction = TypeFunction> extend
         compileIsType: (parents: RunType[], varName) => {
             return this.returnType.compileIsType([...parents, this], varName);
         },
-        compileTypeErrors: (parents: RunType[], varName: string) => {
-            return this.returnType.compileTypeErrors([...parents, this], varName);
+        compileTypeErrors: (parents: RunType[], varName: string, pathC: (string | number)[]) => {
+            return this.returnType.compileTypeErrors([...parents, this], varName, pathC);
         },
         compileJsonEncode: (parents: RunType[], varName: string) => {
             if (!this.opts?.strictJSON && !this.isReturnJsonEncodedRequired) return '';

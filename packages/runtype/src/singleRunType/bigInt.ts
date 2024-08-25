@@ -7,7 +7,7 @@
 
 import type {TypeBigInt} from '../_deepkit/src/reflection/type';
 import type {JitJsonEncoder, RunType} from '../types';
-import {toLiteral} from '../utils';
+import {getErrorPath, getExpected} from '../utils';
 import {mockBigInt} from '../mock';
 import {SingleRunType} from '../baseRunTypes';
 import {jitNames} from '../constants';
@@ -19,8 +19,8 @@ export class BigIntRunType extends SingleRunType<TypeBigInt> {
     compileIsType(parents: RunType[], varName: string): string {
         return `typeof ${varName} === 'bigint'`;
     }
-    compileTypeErrors(parents: RunType[], varName: string): string {
-        return `if (typeof ${varName} !== 'bigint') ${jitNames.errors}.push({path: [...${jitNames.path}], expected: ${toLiteral(this.getName())}})`;
+    compileTypeErrors(parents: RunType[], varName: string, pathC: string[]): string {
+        return `if (typeof ${varName} !== 'bigint') ${jitNames.errors}.push({path: ${getErrorPath(pathC)}, expected: ${getExpected(this)}})`;
     }
     compileJsonEncode(parents: RunType[], varName: string): string {
         return BigIntJitJsonENcoder.encodeToJson(varName);

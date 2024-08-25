@@ -31,7 +31,7 @@ export interface JitCompilerFunctions {
      * pathChain is a string that represents the path to the property being validated.
      * pathChain is calculated at runtime so is an expresion like 'path1' + '/' + 'path2' + '/' + 'path3'
      */
-    compileTypeErrors(parents: RunType[], varName: string): string;
+    compileTypeErrors(parents: RunType[], varName: string, pathC: (string | number)[]): string;
     /**
      * JIT code to transform from type to an object that can be serialized using json
      * this code should not use return statements, it should be a single line of code that evaluates to a json compatible type.

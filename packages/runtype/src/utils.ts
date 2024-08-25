@@ -8,6 +8,7 @@
 import type {AnyClass, RunType} from './types';
 import {isSameType, ReflectionKind} from './_deepkit/src/reflection/type';
 import {jitUtils} from './jitUtils';
+import {jitNames} from './constants';
 
 export function toLiteral(value: number | string | boolean | undefined | null | bigint | RegExp | symbol): string {
     switch (typeof value) {
@@ -69,4 +70,13 @@ export function hasCircularParents(rt: RunType, parents: RunType[]): boolean {
         if (isSameType(rt.src, parent.src)) return true;
     }
     return false;
+}
+
+export function getErrorPath(pathChain: (string | number)[]): string {
+    if (pathChain.length === 0) return `${jitNames.circularPath}.length ? [...${jitNames.circularPath}] : []`;
+    return `${jitNames.circularPath}.length ? [...${jitNames.circularPath},${pathChain.join(',')}] : [${pathChain.join(',')}]`;
+}
+
+export function getExpected(rt: RunType): string {
+    return toLiteral(rt.getName());
 }
