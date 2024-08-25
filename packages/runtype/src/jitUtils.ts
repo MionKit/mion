@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {SerializableClass} from './types';
+import type {SerializableClass} from './types';
 
 const classesMap = new Map<string, SerializableClass>();
 
@@ -14,16 +14,17 @@ const jitCache = new Map<string | number, (...args: any[]) => any>();
 
 /**
  * Object that wraps all utilities that are used by the jit generated functions for encode, decode, stringify etc..
- * !!! DO NOT MODIFY NAMES OF PROPERTY OR METHODS AS THESE ARE HARDCODED IN THE JIT GENERATED CODE !!!
+ * !!! DO NOT MODIFY METHOD NAMES OF PROPERTY OR METHODS AS THESE ARE HARDCODED IN THE JIT GENERATED CODE !!!
  */
 export const jitUtils = {
-    // Bellow code for 'asJSONString' is copied from from https://github.com/fastify/fast-json-stringify/blob/master/lib/serializer.js
-    // which in turn got 'inspiration' from typia https://github.com/samchon/typia/blob/master/src/functional/$string.ts
-    // both under MIT license
-    // typia license: https://github.com/samchon/typia/blob/master/LICENSE
-    // fastify lisecense: https://github.com/fastify/fast-json-stringify/blob/master/LICENSE
+    // !!! DO NOT MODIFY METHOD WITHOUT REVIEWING JIT CODE INVOCATIONS!!!
     /** optimized function to convert an string into a json string wrapped in double quotes */
     asJSONString(str) {
+        // Bellow code for 'asJSONString' is copied from from https://github.com/fastify/fast-json-stringify/blob/master/lib/serializer.js
+        // which in turn got 'inspiration' from typia https://github.com/samchon/typia/blob/master/src/functional/$string.ts
+        // both under MIT license
+        // typia license: https://github.com/samchon/typia/blob/master/LICENSE
+        // fastify lisecense: https://github.com/fastify/fast-json-stringify/blob/master/LICENSE
         // eslint-disable-next-line no-control-regex
         const STR_ESCAPE = /[\u0000-\u001f\u0022\u005c\ud800-\udfff]/;
         if (str.length < 42) {
@@ -56,15 +57,19 @@ export const jitUtils = {
             return JSON.stringify(str);
         }
     },
+    // !!! DO NOT MODIFY METHOD WITHOUT REVIEWING JIT CODE INVOCATIONS!!!
     addSerializableClass(cls: SerializableClass) {
         classesMap.set(cls.name, cls);
     },
+    // !!! DO NOT MODIFY METHOD WITHOUT REVIEWING JIT CODE INVOCATIONS!!!
     getSerializableClass(name: string) {
         return classesMap.get(name);
     },
+    // !!! DO NOT MODIFY METHOD WITHOUT REVIEWING JIT CODE INVOCATIONS!!!
     addToJitCache(key: string, fn: (...args: any[]) => any) {
         jitCache[key] = fn;
     },
+    // !!! DO NOT MODIFY METHOD WITHOUT REVIEWING JIT CODE INVOCATIONS!!!
     getFromJitCache(key: string) {
         const jitFn = jitCache[key];
         if (!jitFn) {
@@ -72,27 +77,10 @@ export const jitUtils = {
         }
         return jitFn;
     },
+    // !!! DO NOT MODIFY METHOD WITHOUT REVIEWING JIT CODE INVOCATIONS!!!
     isInJitCache(key: string) {
         return !!jitCache[key];
     },
 };
-
-export const jitVarNames = {
-    jitUtils: 'µTils',
-    asJSONString: `µTils.${jitUtils.asJSONString.name}`,
-    addSerializableClass: `µTils.${jitUtils.addSerializableClass.name}`,
-    getSerializableClass: `µTils.${jitUtils.getSerializableClass.name}`,
-    addToJitCache: `µTils.${jitUtils.addToJitCache.name}`,
-    getFromJitCache: `µTils.${jitUtils.getFromJitCache.name}`,
-};
-
-export const cachedJitVarNames = {
-    _jitUtils: '_µTils',
-    _pathChain: '_pλth',
-};
-
-export function prefixJitCachedVarName(varName: string) {
-    return `_${varName}`;
-}
 
 export type JITUtils = typeof jitUtils;

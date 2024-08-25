@@ -5,29 +5,30 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {TypeBigInt} from '../_deepkit/src/reflection/type';
-import {JitErrorPath, JitJsonEncoder} from '../types';
-import {toLiteral, pathChainToLiteral} from '../utils';
+import type {TypeBigInt} from '../_deepkit/src/reflection/type';
+import type {JitJsonEncoder, RunType} from '../types';
+import {toLiteral} from '../utils';
 import {mockBigInt} from '../mock';
 import {SingleRunType} from '../baseRunTypes';
+import {jitNames} from '../constants';
 
 export class BigIntRunType extends SingleRunType<TypeBigInt> {
     public readonly isJsonEncodeRequired = true;
     public readonly isJsonDecodeRequired = true;
 
-    compileIsType(varName: string): string {
+    compileIsType(parents: RunType[], varName: string): string {
         return `typeof ${varName} === 'bigint'`;
     }
-    compileTypeErrors(varName: string, errorsName: string, pathChain: JitErrorPath): string {
-        return `if (typeof ${varName} !== 'bigint') ${errorsName}.push({path: ${pathChainToLiteral(pathChain)}, expected: ${toLiteral(this.getName())}})`;
+    compileTypeErrors(parents: RunType[], varName: string): string {
+        return `if (typeof ${varName} !== 'bigint') ${jitNames.errors}.push({path: [...${jitNames.path}], expected: ${toLiteral(this.getName())}})`;
     }
-    compileJsonEncode(varName: string): string {
+    compileJsonEncode(parents: RunType[], varName: string): string {
         return BigIntJitJsonENcoder.encodeToJson(varName);
     }
-    compileJsonDecode(varName: string): string {
+    compileJsonDecode(parents: RunType[], varName: string): string {
         return BigIntJitJsonENcoder.decodeFromJson(varName);
     }
-    compileJsonStringify(varName: string): string {
+    compileJsonStringify(parents: RunType[], varName: string): string {
         return BigIntJitJsonENcoder.stringify(varName);
     }
     mock(min?: number, max?: number): bigint {

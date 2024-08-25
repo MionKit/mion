@@ -5,21 +5,22 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {TypeNumber} from '../_deepkit/src/reflection/type';
-import {toLiteral, pathChainToLiteral} from '../utils';
+import type {TypeNumber} from '../_deepkit/src/reflection/type';
+import type {RunType} from '../types';
+import {toLiteral} from '../utils';
 import {mockNumber} from '../mock';
 import {SingleRunType} from '../baseRunTypes';
-import {JitErrorPath} from '../types';
+import {jitNames} from '../constants';
 
 export class NumberRunType extends SingleRunType<TypeNumber> {
     public readonly isJsonEncodeRequired = false;
     public readonly isJsonDecodeRequired = false;
 
-    compileIsType(varName: string): string {
-        return `typeof ${varName} === 'number' && Number.isFinite(${varName})`;
+    compileIsType(parents: RunType[], varName: string): string {
+        return `(typeof ${varName} === 'number' && Number.isFinite(${varName}))`;
     }
-    compileTypeErrors(varName: string, errorsName: string, pathChain: JitErrorPath): string {
-        return `if(!(${this.compileIsType(varName)})) ${errorsName}.push({path: ${pathChainToLiteral(pathChain)}, expected: ${toLiteral(this.getName())}})`;
+    compileTypeErrors(parents: RunType[], varName: string): string {
+        return `if(!(${this.compileIsType(parents, varName)})) ${jitNames.errors}.push({path: [...${jitNames.path}], expected: ${toLiteral(this.getName())}})`;
     }
     compileJsonEncode(): string {
         return '';
@@ -27,7 +28,7 @@ export class NumberRunType extends SingleRunType<TypeNumber> {
     compileJsonDecode(): string {
         return '';
     }
-    compileJsonStringify(varName: string): string {
+    compileJsonStringify(parents: RunType[], varName: string): string {
         return varName;
     }
     mock(min?: number, max?: number): number {

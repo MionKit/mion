@@ -5,25 +5,26 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {TypeVoid} from '../_deepkit/src/reflection/type';
+import type {TypeVoid} from '../_deepkit/src/reflection/type';
+import type {RunType} from '../types';
 import {SingleRunType} from '../baseRunTypes';
-import {JitErrorPath} from '../types';
-import {toLiteral, pathChainToLiteral} from '../utils';
+import {toLiteral} from '../utils';
+import {jitNames} from '../constants';
 
 export class VoidRunType extends SingleRunType<TypeVoid> {
     public readonly isJsonEncodeRequired = false;
     public readonly isJsonDecodeRequired = false;
 
-    compileIsType(varName: string): string {
+    compileIsType(parents: RunType[], varName: string): string {
         return `${varName} === undefined`;
     }
-    compileTypeErrors(varName: string, errorsName: string, pathChain: JitErrorPath): string {
-        return `if (${varName} !== undefined) ${errorsName}.push({path: ${pathChainToLiteral(pathChain)}, expected: ${toLiteral(this.getName())}})`;
+    compileTypeErrors(parents: RunType[], varName: string): string {
+        return `if (${varName} !== undefined) ${jitNames.errors}.push({path: [...${jitNames.path}], expected: ${toLiteral(this.getName())}})`;
     }
-    compileJsonEncode(varName: string): string {
+    compileJsonEncode(parents: RunType[], varName: string): string {
         return `${varName} = undefined`;
     }
-    compileJsonDecode(varName: string): string {
+    compileJsonDecode(parents: RunType[], varName: string): string {
         return `${varName} = undefined`;
     }
     compileJsonStringify(): string {

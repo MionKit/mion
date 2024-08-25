@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {TypeEnum} from '../_deepkit/src/reflection/type';
+import type {TypeEnum} from '../_deepkit/src/reflection/type';
 import {SingleRunType} from '../baseRunTypes';
 
 export class EnumMemberRunType extends SingleRunType<TypeEnum> {

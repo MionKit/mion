@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {TypeNever} from '../_deepkit/src/reflection/type';
+import type {TypeNever} from '../_deepkit/src/reflection/type';
 import {SingleRunType} from '../baseRunTypes';
 
 export class NeverRunType extends SingleRunType<TypeNever> {

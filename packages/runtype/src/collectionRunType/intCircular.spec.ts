@@ -56,6 +56,16 @@ interface CircularArrayUnion {
     array: (CircularArrayUnion | number)[];
 }
 
+interface CircularDeepUnion {
+    deep: {deep: {deep: {deep: {deep: {deep: {deep: {or: string | CircularDeepUnion}}}}}}};
+}
+
+interface ContainsCircular {
+    a: string;
+    b: number;
+    c: CircularDeep; // is circular and should be
+}
+
 const rtCircular = runType<Circular>();
 
 // it('is circular should be set only for property types or where the circular reference is created, not in the parents', () => {

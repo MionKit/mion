@@ -5,14 +5,16 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 import {TypeObjectLiteral, TypeClass, TypeIntersection} from '../_deepkit/src/reflection/type';
-import {JitErrorPath, RunType, RunTypeOptions, RunTypeVisitor} from '../types';
-import {skipJsonDecode, skipJsonEncode, toLiteral, pathChainToLiteral} from '../utils';
+import {RunType, RunTypeOptions, RunTypeVisitor} from '../types';
+import {shouldSkipJsonDecode, shouldSkipJsonEncode, toLiteral, hasCircularParents} from '../utils';
 import {PropertyRunType} from './property';
-import {BaseRunType} from '../baseRunTypes';
+import {CollectionRunType} from '../baseRunTypes';
 import {MethodSignatureRunType} from '../functionRunType/methodSignature';
 import {CallSignatureRunType} from '../functionRunType/call';
 import {IndexSignatureRunType} from './indexProperty';
 import {MethodRunType} from '../functionRunType/method';
+import {compileChildrenJitFunction, handleCircularJitCompiling} from '../jitCompiler';
+import {jitNames} from '../constants';
 
 export type InterfaceRunTypeEntry =
     | PropertyRunType
@@ -23,14 +25,12 @@ export type InterfaceRunTypeEntry =
 
 export class InterfaceRunType<
     T extends TypeObjectLiteral | TypeClass | TypeIntersection = TypeObjectLiteral,
-> extends BaseRunType<T> {
+> extends CollectionRunType<T> {
     public readonly isJsonEncodeRequired: boolean;
     public readonly isJsonDecodeRequired: boolean;
-    public readonly hasCircular: boolean;
     public readonly entries: InterfaceRunTypeEntry[];
-    public readonly serializableProps: PropertyRunType[];
-    public readonly serializableIndexProps: IndexSignatureRunType[];
-    public readonly shouldCacheJit: boolean;
+    public readonly childRunTypes: (PropertyRunType | IndexSignatureRunType)[];
+    public readonly jitId: string;
     constructor(
         visitor: RunTypeVisitor,
         public readonly src: T,
@@ -40,79 +40,71 @@ export class InterfaceRunType<
         isJsonEncodeRequired = false
     ) {
         super(visitor, src, parents, opts);
-        const newParents = [...parents, this];
-        this.entries = src.types.map((type) => visitor(type, newParents, opts)) as typeof this.entries;
-        this.hasCircular = this.entries.some((prop) => prop.hasCircular);
+        parents.push(this);
+        this.entries = src.types.map((type) => visitor(type, parents, opts)) as typeof this.entries;
+        parents.pop();
         this.isJsonDecodeRequired = isJsonDecodeRequired || this.entries.some((prop) => prop.isJsonDecodeRequired);
         this.isJsonEncodeRequired = isJsonEncodeRequired || this.entries.some((prop) => prop.isJsonEncodeRequired);
-        this.serializableProps = this.entries.filter(
-            (prop) => prop.shouldSerialize && !(prop instanceof IndexSignatureRunType)
-        ) as PropertyRunType[];
-
-        // ### index props ###
-        // with symbol not being serializable index can only be string or number (max length 2)
-        this.serializableIndexProps = this.entries.filter(
-            (prop) => prop.shouldSerialize && prop instanceof IndexSignatureRunType
-        ) as IndexSignatureRunType[];
-        this.shouldCacheJit = this.hasCircular && (!!this.src.typeName || !!this.src.id);
-    }
-    private _jitId: string | undefined;
-    getJitId(): string {
-        if (this._jitId) return this._jitId;
-        const sortedProps = this.getAllSerializableProps(); // TODO: should we sort props?
-        this._jitId = `${this.src.kind}{${sortedProps.map((prop) => `${prop.getJitId()}`).join(',')}}`;
-        return this._jitId;
+        this.childRunTypes = this.entries.filter((prop) => prop.shouldSerialize) as (PropertyRunType | IndexSignatureRunType)[];
+        this.jitId = `${this.src.kind}{${this.childRunTypes.map((prop) => prop.jitId).join(',')}}`;
     }
 
-    private _allSerializableProps: (PropertyRunType | IndexSignatureRunType)[] | undefined;
-    private getAllSerializableProps(): (PropertyRunType | IndexSignatureRunType)[] {
-        if (this._allSerializableProps) return this._allSerializableProps;
-        return (this._allSerializableProps = [...this.serializableProps, ...this.serializableIndexProps]);
+    compileIsType(parents: RunType[], varName: string): string {
+        const {isCompilingCircularChild} = getJitVars(this, parents);
+        const callArgs = [varName];
+        const compileChildren = (newParents) =>
+            this.childRunTypes.map((prop) => prop.compileIsType(newParents, varName)).join(' && ');
+        const propsCode = compileChildrenJitFunction(this, parents, isCompilingCircularChild, compileChildren);
+        const code = `typeof ${varName} === 'object' && ${propsCode}`;
+        return handleCircularJitCompiling(this, 'isT', code, callArgs, isCompilingCircularChild);
     }
-
-    compileIsType(varName: string): string {
-        const isObjectCode = `typeof ${varName} === 'object'`;
-        const propsCode = this.serializableProps.map((prop) => prop.compileIsType(varName));
-        const indexPropsCode = this.serializableIndexProps.map((prop) => prop.compileIsType(varName));
-        const allPropsCode = [isObjectCode, ...propsCode, ...indexPropsCode].join(' && ');
-        return this.nestLevel === 0 ? `return (${allPropsCode})` : `(${allPropsCode})`;
-    }
-    compileTypeErrors(varName: string, errorsName: string, pathChain: JitErrorPath): string {
-        const propsCode = this.serializableProps.map((prop) => prop.compileTypeErrors(varName, errorsName, pathChain));
-        const indexPropsCode = this.serializableIndexProps.map((prop) => prop.compileTypeErrors(varName, errorsName, pathChain));
-        const allPropsCode = [...propsCode, ...indexPropsCode].join(';');
-        return `
-            if (typeof ${varName} !== 'object') ${errorsName}.push({path: ${pathChainToLiteral(pathChain)}, expected: ${toLiteral(this.getName())}});
-            else {${allPropsCode}}
+    compileTypeErrors(parents: RunType[], varName: string): string {
+        const {isCompilingCircularChild} = getJitVars(this, parents);
+        const callArgs = [varName, jitNames.errors, jitNames.path];
+        const compileChildren = (newParents) => {
+            return this.childRunTypes.map((prop) => prop.compileTypeErrors(newParents, varName)).join(';');
+        };
+        const itemsCode = compileChildrenJitFunction(this, parents, isCompilingCircularChild, compileChildren);
+        const code = `
+            if (!Array.isArray(${varName})) ${jitNames.errors}.push({path: [...${jitNames.path}], expected: ${toLiteral(this.getName())}});
+            else {
+                ${itemsCode}
+            }
         `;
+        return handleCircularJitCompiling(this, 'getTE', code, callArgs, isCompilingCircularChild);
     }
-    compileJsonEncode(varName: string): string {
-        if (skipJsonEncode(this)) return '';
-        if (this.serializableIndexProps.length) {
-            return this.serializableIndexProps[0].compileJsonEncode(varName);
-        }
-        return this.serializableProps
-            .map((prop) => prop.compileJsonEncode(varName))
-            .filter((code) => !!code)
-            .join(';');
+    compileJsonEncode(parents: RunType[], varName: string): string {
+        const {isCompilingCircularChild} = getJitVars(this, parents);
+        const callArgs = [varName];
+        const compileChildren = (newParents) => {
+            if (shouldSkipJsonEncode(this)) return '';
+            return this.childRunTypes.map((prop) => prop.compileJsonEncode(newParents, varName)).join(';');
+        };
+
+        const propsCode = compileChildrenJitFunction(this, parents, isCompilingCircularChild, compileChildren);
+        return handleCircularJitCompiling(this, 'isT', propsCode, callArgs, isCompilingCircularChild);
     }
-    compileJsonDecode(varName: string): string {
-        if (skipJsonDecode(this)) return '';
-        if (this.serializableIndexProps.length) {
-            return this.serializableIndexProps[0].compileJsonDecode(varName);
-        }
-        return this.serializableProps
-            .map((prop) => prop.compileJsonDecode(varName))
-            .filter((code) => !!code)
-            .join(';');
+    compileJsonDecode(parents: RunType[], varName: string): string {
+        const {isCompilingCircularChild} = getJitVars(this, parents);
+        const callArgs = [varName];
+        const compileChildren = (newParents) => {
+            if (shouldSkipJsonDecode(this)) return '';
+            return this.childRunTypes.map((prop) => prop.compileJsonDecode(newParents, varName)).join(';');
+        };
+
+        const propsCode = compileChildrenJitFunction(this, parents, isCompilingCircularChild, compileChildren);
+        return handleCircularJitCompiling(this, 'isT', propsCode, callArgs, isCompilingCircularChild);
     }
-    compileJsonStringify(varName: string): string {
-        if (this.serializableIndexProps.length) {
-            const indexPropsCode = this.serializableIndexProps[0].compileJsonStringify(varName);
-            return `'{'+${indexPropsCode}+'}'`;
-        }
-        const propsCode = this.serializableProps.map((prop, i) => prop.compileJsonStringify(varName, i === 0)).join('+');
-        return this.nestLevel === 0 ? `return ('{'+${propsCode}+'}')` : `'{'+${propsCode}+'}'`;
+    compileJsonStringify(parents: RunType[], varName: string): string {
+        const {isCompilingCircularChild} = getJitVars(this, parents);
+        const callArgs = [varName];
+        const compileChildren = (newParents) => {
+            return this.childRunTypes.map((prop, i) => prop.compileJsonStringify(newParents, varName, i === 0)).join(',');
+        };
+
+        const propsCode = compileChildrenJitFunction(this, parents, isCompilingCircularChild, compileChildren);
+        const code = `'{'+${propsCode}+'}'`;
+        return handleCircularJitCompiling(this, 'isT', code, callArgs, isCompilingCircularChild);
     }
     mock(
         optionalParamsProbability: Record<string | number, number>,
@@ -120,7 +112,7 @@ export class InterfaceRunType<
         indexArgs?: any[],
         obj: Record<string | number, any> = {}
     ): Record<string | number, any> {
-        this.getAllSerializableProps().forEach((prop) => {
+        this.childRunTypes.forEach((prop) => {
             const name: string | number = prop.propName as any;
             const optionalProbability: number | undefined = optionalParamsProbability?.[name];
             const propArgs: any[] = objArgs?.[name] || [];
@@ -129,4 +121,11 @@ export class InterfaceRunType<
         });
         return obj;
     }
+}
+
+function getJitVars(rt: InterfaceRunType<any>, parents: RunType[]) {
+    const isCompilingCircularChild = hasCircularParents(rt, parents);
+    return {
+        isCompilingCircularChild,
+    };
 }

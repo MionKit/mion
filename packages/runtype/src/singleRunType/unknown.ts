@@ -5,8 +5,8 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {TypeUnknown} from '../_deepkit/src/reflection/type';
-import {RunType, RunTypeOptions, RunTypeVisitor} from '../types';
+import type {TypeUnknown} from '../_deepkit/src/reflection/type';
+import type {RunType, RunTypeOptions, RunTypeVisitor} from '../types';
 import {AnyRunType} from './any';
 
 export class UnknownRunType extends AnyRunType {

@@ -5,42 +5,26 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {isSameType, TypeArray} from '../_deepkit/src/reflection/type';
-import {JitErrorPath, RunType, RunTypeOptions, RunTypeVisitor} from '../types';
-import {
-    addToPathChain,
-    hasCircularRunType,
-    skipJsonDecode,
-    skipJsonEncode,
-    toLiteral,
-    pathChainToLiteral,
-    replaceInCode,
-} from '../utils';
+import {TypeArray} from '../_deepkit/src/reflection/type';
+import {RunType, RunTypeOptions, RunTypeVisitor} from '../types';
+import {hasCircularParents, toLiteral} from '../utils';
 import {mockRecursiveEmptyArray, random} from '../mock';
-import {BaseRunType} from '../baseRunTypes';
-import {cachedJitVarNames} from '../jitUtils';
+import {CollectionRunType} from '../baseRunTypes';
 import {
-    callJitCachedFn,
-    callTypeErrorsCachedJitFn,
-    jitCacheCompileIsType,
-    jitCacheCompileJsonDecode,
-    jitCacheCompileJsonEncode,
-    jitCacheCompileJsonStringify,
-    jitCacheCompileTypeErrors,
-    selfInvokeCode,
-} from '../jitCacheCompiler';
+    compileChildrenJitFunction,
+    handleCircularIsType,
+    handleCircularJsonDecode,
+    handleCircularJsonEncode,
+    handleCircularJsonStringify,
+    handleCircularTypeErrors,
+} from '../jitCompiler';
+import {jitNames} from '../constants';
 
-export class ArrayRunType extends BaseRunType<TypeArray> {
+export class ArrayRunType extends CollectionRunType<TypeArray> {
     public readonly isJsonEncodeRequired;
     public readonly isJsonDecodeRequired;
-    public readonly hasCircular: boolean;
-    public readonly itemsRunType: RunType;
-    public readonly shouldCacheJit: boolean;
-    /**
-     * The only scenario where an array should call jit cache is when the itemsRunType is the same as this runType i.e: type TA = TA[];
-     * In practice this type only allows for an array of empty arrays. So very unlikely type but still supported as it is allowed by TS.
-     */
-    public readonly shouldCallJitCache: boolean; //
+    public readonly childRunTypes: RunType[];
+    public readonly jitId: string;
     constructor(
         visitor: RunTypeVisitor,
         public readonly src: TypeArray,
@@ -48,142 +32,109 @@ export class ArrayRunType extends BaseRunType<TypeArray> {
         opts: RunTypeOptions
     ) {
         super(visitor, src, parents, opts);
-        this.itemsRunType = visitor(src.type, [...parents, this], opts);
-        this.isJsonEncodeRequired = this.itemsRunType.isJsonEncodeRequired;
-        this.isJsonDecodeRequired = this.itemsRunType.isJsonDecodeRequired;
-        this.hasCircular = this.itemsRunType.hasCircular || hasCircularRunType(this, this.itemsRunType, parents);
-        this.shouldCacheJit = this.hasCircular || !!this.src.typeName;
-        this.shouldCallJitCache = isSameType(this.itemsRunType.src, this.src);
+        parents.push(this);
+        this.childRunTypes = [visitor(src.type, parents, opts)];
+        parents.pop();
+        this.isJsonEncodeRequired = this.childRunTypes[0].isJsonEncodeRequired;
+        this.isJsonDecodeRequired = this.childRunTypes[0].isJsonDecodeRequired;
+        this.jitId = `${this.src.kind}[${this.childRunTypes[0].jitId}]`;
     }
-    _jitId: string | undefined;
-    getJitId(): string {
-        if (this._jitId) return this._jitId;
-        if (this.shouldCallJitCache) return (this._jitId = `${this.src.kind}(${this.src.kind})`);
-        return (this._jitId = `${this.src.kind}:${this.itemsRunType.getJitId()}`);
+
+    compileIsType(parents: RunType[], varName: string): string {
+        const {index, indexAccessor, isCompilingCircularChild, nestLevel} = getJitVars(this, parents, varName);
+        const resultVal = `rεsult${nestLevel}`;
+        const callArgs = [varName];
+        const compileChildren = (newParents) => this.childRunTypes[0].compileIsType(newParents, indexAccessor);
+        const itemsCode = compileChildrenJitFunction(this, parents, isCompilingCircularChild, compileChildren);
+        const code = `
+            if (!Array.isArray(${varName})) return false;
+            for (let ${index} = 0; ${index} < ${varName}.length; ${index}++) {
+                const ${resultVal} = ${itemsCode};
+                if (!(${resultVal})) return false;
+            }
+            return true;
+        `;
+        return handleCircularIsType(this, code, callArgs, isCompilingCircularChild, nestLevel);
     }
-    compileIsType(varName: string): string {
-        if (this.shouldCallJitCache) {
-            const keepThis = (vn, jid) => this._compileIsType(vn, jid);
-            return jitCacheCompileIsType(this, varName, keepThis);
-        }
-        return this._compileIsType(varName, null, this.nestLevel !== 0);
+    compileTypeErrors(parents: RunType[], varName: string): string {
+        const {index, indexAccessor, isCompilingCircularChild} = getJitVars(this, parents, varName);
+        const callArgs = [varName, jitNames.errors, jitNames.path];
+        const compileChildren = (newParents) => {
+            return this.childRunTypes[0].compileTypeErrors(newParents, indexAccessor);
+        };
+        const itemsCode = compileChildrenJitFunction(this, parents, isCompilingCircularChild, compileChildren);
+        const code = `
+            if (!Array.isArray(${varName})) ${jitNames.errors}.push({path: [...${jitNames.path}], expected: ${toLiteral(this.getName())}});
+            else {
+                for (let ${index} = 0; ${index} < ${varName}.length; ${index}++) {
+                    ${jitNames.path}.push(${index});
+                    ${itemsCode}
+                    ${jitNames.path}.pop();
+                }
+            }
+        `;
+        return handleCircularTypeErrors(this, code, callArgs, isCompilingCircularChild);
     }
-    compileTypeErrors(varName: string, errorsName: string, pathChain: JitErrorPath): string {
-        if (this.shouldCallJitCache) {
-            const keepThis = (vn, en, pc, jid) => this._compileTypeErrors(vn, en, pc, jid);
-            return jitCacheCompileTypeErrors(this, varName, errorsName, pathChain, keepThis);
-        }
-        return this._compileTypeErrors(varName, errorsName, pathChain);
+    compileJsonEncode(parents: RunType[], varName: string): string {
+        const {index, indexAccessor, isCompilingCircularChild} = getJitVars(this, parents, varName);
+        const callArgs = [varName];
+        const compileChildren = (newParents) => this.childRunTypes[0].compileJsonEncode(newParents, indexAccessor);
+        const itemsCode = compileChildrenJitFunction(this, parents, isCompilingCircularChild, compileChildren);
+        const code = `
+            for (let ${index} = 0; ${index} < ${varName}.length; ${index}++) {
+                ${itemsCode}
+            }
+        `;
+        const encodeCode = this.isJsonEncodeRequired ? code : '';
+        return handleCircularJsonEncode(this, encodeCode, callArgs, isCompilingCircularChild);
     }
-    compileJsonEncode(varName: string): string {
-        if (this.shouldCallJitCache) {
-            const keepThis = (vn, jid) => this._compileJsonEncode(vn, jid);
-            return jitCacheCompileJsonEncode(this, varName, keepThis);
-        }
-        return this._compileJsonEncode(varName);
+    compileJsonDecode(parents: RunType[], varName: string): string {
+        const {index, indexAccessor, isCompilingCircularChild} = getJitVars(this, parents, varName);
+        const callArgs = [varName];
+        const compileChildren = (newParents) => this.childRunTypes[0].compileJsonDecode(newParents, indexAccessor);
+        const itemsCode = compileChildrenJitFunction(this, parents, isCompilingCircularChild, compileChildren);
+        const code = `
+            for (let ${index} = 0; ${index} < ${varName}.length; ${index}++) {
+                ${itemsCode}
+            }
+        `;
+        const decodeCode = this.isJsonDecodeRequired ? code : '';
+        return handleCircularJsonDecode(this, decodeCode, callArgs, isCompilingCircularChild);
     }
-    compileJsonDecode(varName: string): string {
-        if (this.shouldCallJitCache) {
-            const keepThis = (vn, jid) => this._compileJsonDecode(vn, jid);
-            return jitCacheCompileJsonDecode(this, varName, keepThis);
-        }
-        return this._compileJsonDecode(varName);
-    }
-    compileJsonStringify(varName: string): string {
-        if (this.shouldCallJitCache) {
-            const keepThis = (vn, jid) => this._compileJsonStringify(vn, jid);
-            return jitCacheCompileJsonStringify(this, varName, keepThis);
-        }
-        return this._compileJsonStringify(varName, null, this.nestLevel !== 0);
+    compileJsonStringify(parents: RunType[], varName: string): string {
+        const {index, indexAccessor, isCompilingCircularChild, nestLevel} = getJitVars(this, parents, varName);
+        const jsonItems = `jsonItεms${nestLevel}`;
+        const resultVal = `rεsult${nestLevel}`;
+        const callArgs = [varName];
+        const compileChildren = (newParents) => this.childRunTypes[0].compileJsonStringify(newParents, indexAccessor);
+        const itemsCode = compileChildrenJitFunction(this, parents, isCompilingCircularChild, compileChildren);
+        const code = `
+            const ${jsonItems} = [];
+            for (let ${index} = 0; ${index} < ${varName}.length; ${index}++) {
+                const ${resultVal} = ${itemsCode};
+                ${jsonItems}.push(${resultVal});
+            }
+            return '[' + ${jsonItems}.join(',') + ']';
+        `;
+        return handleCircularJsonStringify(this, code, callArgs, isCompilingCircularChild, nestLevel);
     }
     mock(length = random(0, 30), ...args: any[]): any[] {
-        if (this.shouldCallJitCache) {
+        if (this.isCircular) {
             const depth = random(1, 5);
             return mockRecursiveEmptyArray(depth, length);
         }
-        return Array.from({length}, () => this.itemsRunType.mock(...args));
+        return Array.from({length}, () => this.childRunTypes[0].mock(...args));
     }
+}
 
-    private _compileIsType(varName: string, cachedJitId = null, selfInvoke = false): string {
-        const names = {
-            areItemsTypeValid: `λITV${this.nestLevel}`,
-            index: `iε${this.nestLevel}`,
-            varName,
-        };
-        const itemAccessor = `${names.varName}[${names.index}]`;
-        const itemsCode = cachedJitId
-            ? callJitCachedFn([itemAccessor], cachedJitId)
-            : this.itemsRunType.compileIsType(itemAccessor);
-        const pseudoCode = `
-            if (!Array.isArray(varName)) return false;
-            for (let index = 0; index < varName.length; index++) {
-                if (!(itemsPseudoCode)) return false;
-            }
-            return true;`;
-        const code = replaceInCode(pseudoCode, names).replace('itemsPseudoCode', itemsCode);
-        return selfInvokeCode(code, selfInvoke);
-    }
-    private _compileTypeErrors(varName: string, errorsName: string, pathChain: JitErrorPath, cachedJitId = null): string {
-        const names = {
-            index: `iε${this.nestLevel}`,
-            expectedName: toLiteral(this.getName()),
-            errorPath: cachedJitId ? cachedJitVarNames._pathChain : pathChainToLiteral(pathChain),
-            varName,
-            errorsName,
-        };
-        const itemAccessor = `${names.varName}[${names.index}]`;
-        const itemCode = cachedJitId
-            ? callTypeErrorsCachedJitFn(
-                  itemAccessor,
-                  errorsName,
-                  `[...${cachedJitVarNames._pathChain}, ${names.index}]`,
-                  cachedJitId
-              )
-            : this.itemsRunType.compileTypeErrors(itemAccessor, errorsName, addToPathChain(pathChain, names.index, false));
-        const pseudoCode = `
-            if (!Array.isArray(varName)) errorsName.push({path: errorPath, expected: expectedName});
-            else {
-                for (let index = 0; index < varName.length; index++) {
-                    itemsPseudoCode
-                }
-            }`;
-        return replaceInCode(pseudoCode, names).replace('itemsPseudoCode', itemCode);
-    }
-    private _compileJsonEncode(varName: string, cachedJitId = null): string {
-        if (skipJsonEncode(this)) return '';
-        const indexName = `iε${this.nestLevel}`;
-        const itemAccessor = `${varName}[${indexName}]`;
-        const itemCode = cachedJitId
-            ? callJitCachedFn([itemAccessor], cachedJitId)
-            : this.itemsRunType.compileJsonEncode(itemAccessor);
-        if (!itemCode) return '';
-        return `for (let ${indexName} = 0; ${indexName} < ${varName}.length; ${indexName}++) {${itemCode}}`;
-    }
-    private _compileJsonDecode(varName: string, cachedJitId = null): string {
-        if (skipJsonDecode(this)) return '';
-        const indexName = `iε${this.nestLevel}`;
-        const itemAccessor = `${varName}[${indexName}]`;
-        const itemCode = cachedJitId
-            ? callJitCachedFn([itemAccessor], cachedJitId)
-            : this.itemsRunType.compileJsonDecode(itemAccessor);
-        if (!itemCode) return '';
-        return `for (let ${indexName} = 0; ${indexName} < ${varName}.length; ${indexName}++) {${itemCode}}`;
-    }
-    private _compileJsonStringify(varName: string, cachedJitId = null, selfInvoke = false): string {
-        const names = {
-            varName,
-            index: `iε${this.nestLevel}`,
-            jsonItems: `itεms${this.nestLevel}`,
-        };
-        const itemAccessor = `${names.varName}[${names.index}]`;
-        const itemCode = cachedJitId
-            ? callJitCachedFn([itemAccessor], cachedJitId)
-            : this.itemsRunType.compileJsonStringify(itemAccessor);
-        const pseudoCode = `
-            const jsonItems = [];
-            for (let index = 0; index < varName.length; index++) {jsonItems.push(itemsPseudoCode);}
-            return '[' + jsonItems.join(',') + ']';`;
-        const code = replaceInCode(pseudoCode, names).replace('itemsPseudoCode', itemCode);
-        return selfInvokeCode(code, selfInvoke);
-    }
+function getJitVars(rt: ArrayRunType, parents: RunType[], varName: string) {
+    const nestLevel = parents.length;
+    const isCompilingCircularChild = hasCircularParents(rt, parents);
+    const index = `iε${nestLevel}`;
+    return {
+        nestLevel,
+        isCompilingCircularChild,
+        index,
+        indexAccessor: `${varName}[${index}]`,
+    };
 }
