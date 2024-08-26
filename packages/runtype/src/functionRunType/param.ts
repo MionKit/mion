@@ -16,7 +16,6 @@ export class ParameterRunType extends BaseRunType<TypeParameter> {
     public readonly isJsonDecodeRequired: boolean;
     public readonly argRunType: RunType | RestParamsRunType;
     public readonly isOptional: boolean;
-    public readonly isReadonly: boolean;
     public readonly paramName: string;
     public readonly default: any;
     public readonly isRest: boolean;
@@ -36,7 +35,6 @@ export class ParameterRunType extends BaseRunType<TypeParameter> {
         this.isJsonDecodeRequired = this.argRunType.isJsonDecodeRequired;
         this.isRest = this.argRunType instanceof RestParamsRunType;
         this.isOptional = !!src.optional || this.isRest;
-        this.isReadonly = !!src.readonly && !this.isRest;
         this.paramName = src.name;
         this.jitId = 'param'; // will be overridden later
     }
@@ -62,7 +60,7 @@ export class ParameterRunType extends BaseRunType<TypeParameter> {
         parents.pop();
         return code;
     }
-    compileTypeErrors(parents: RunType[], varName: string, pathC: (string|number)[], paramIndex = 0): string {
+    compileTypeErrors(parents: RunType[], varName: string, pathC: (string | number)[], paramIndex = 0): string {
         let code: string;
         parents.push(this);
         if (this.isRest) {

@@ -27,7 +27,6 @@ export class IndexSignatureRunType extends BaseRunType<TypeIndexSignature> {
     public readonly isJsonDecodeRequired;
     public readonly indexType: RunType;
     public readonly indexKeyType: NumberRunType | StringRunType | SymbolRunType;
-    public readonly isReadonly: boolean;
     public readonly shouldSerialize: boolean;
     public readonly propName: string;
     public readonly jitId: string;
@@ -45,7 +44,6 @@ export class IndexSignatureRunType extends BaseRunType<TypeIndexSignature> {
         this.indexKeyType = visitor(src.index, parents, opts) as NumberRunType | StringRunType | SymbolRunType;
         parents.pop();
         this.shouldSerialize = !isFunctionKind(src.type.kind) && src.index.kind !== ReflectionKind.symbol;
-        this.isReadonly = false; // TODO: readonly allowed to set in typescript but not present in deepkit
         this.isJsonEncodeRequired = this.indexType.isJsonEncodeRequired;
         this.isJsonDecodeRequired = this.indexType.isJsonDecodeRequired;
         this.propName = `${src.index.kind}`;

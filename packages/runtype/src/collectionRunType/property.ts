@@ -24,8 +24,6 @@ export class PropertyRunType extends BaseRunType<TypePropertySignature | TypePro
     public readonly isJsonEncodeRequired: boolean;
     public readonly isJsonDecodeRequired: boolean;
     public readonly memberRunType: RunType;
-    public readonly isOptional: boolean;
-    public readonly isReadonly: boolean;
     public readonly propName: string | number;
     public readonly safePropAccessor: string;
     public readonly isSafePropName: boolean;
@@ -41,8 +39,6 @@ export class PropertyRunType extends BaseRunType<TypePropertySignature | TypePro
         parents.push(this);
         this.memberRunType = visitor(src.type, parents, opts);
         parents.pop();
-        this.isOptional = !!src.optional;
-        this.isReadonly = !!src.readonly;
         if (typeof src.name === 'symbol') {
             this.shouldSerialize = false;
             // forces encode & ignore the symbol
@@ -63,7 +59,7 @@ export class PropertyRunType extends BaseRunType<TypePropertySignature | TypePro
             this.propName = src.name;
             this.safePropAccessor = this.isSafePropName ? `.${src.name}` : `[${toLiteral(src.name)}]`;
         }
-        const optional = this.isOptional ? '?' : '';
+        const optional = this.src.optional ? '?' : '';
         this.jitId = `${this.propName}${optional}:${this.memberRunType.jitId}`;
     }
     compileIsType(parents: RunType[], varName: string): string {
@@ -71,7 +67,7 @@ export class PropertyRunType extends BaseRunType<TypePropertySignature | TypePro
         const callArgs = [propAccessor];
         const compileProperty = (newParents) => {
             if (!this.shouldSerialize) return '';
-            if (this.isOptional) {
+            if (this.src.optional) {
                 return `(${propAccessor} === undefined || ${this.memberRunType.compileIsType(newParents, propAccessor)})`;
             }
             return this.memberRunType.compileIsType(newParents, propAccessor);
@@ -86,7 +82,7 @@ export class PropertyRunType extends BaseRunType<TypePropertySignature | TypePro
             if (!this.shouldSerialize) return '';
             const accessor = `${varName}${this.safePropAccessor}`;
             const newPath = [...pathC, toLiteral(this.propName)];
-            if (this.isOptional) {
+            if (this.src.optional) {
                 return `if (${accessor} !== undefined) {${this.memberRunType.compileTypeErrors(newParents, accessor, newPath)}}`;
             }
             return `${this.memberRunType.compileTypeErrors(newParents, accessor, newPath)}`;
@@ -100,7 +96,7 @@ export class PropertyRunType extends BaseRunType<TypePropertySignature | TypePro
         const compileProperty = (newParents) => {
             if (!this.shouldSerialize || shouldSkipJsonEncode(this)) return '';
             const propCode = this.memberRunType.compileJsonEncode(newParents, propAccessor);
-            if (this.isOptional) return `if (${propAccessor} !== undefined) ${propCode}`;
+            if (this.src.optional) return `if (${propAccessor} !== undefined) ${propCode}`;
             return propCode;
         };
         const propCode = compileChildrenJitFunction(this, parents, isCompilingCircularChild, compileProperty);
@@ -112,7 +108,7 @@ export class PropertyRunType extends BaseRunType<TypePropertySignature | TypePro
         const compileProperty = (newParents) => {
             if (!this.shouldSerialize || shouldSkipJsonDecode(this)) return '';
             const propCode = this.memberRunType.compileJsonDecode(newParents, propAccessor);
-            if (this.isOptional) return `if (${propAccessor} !== undefined) ${propCode}`;
+            if (this.src.optional) return `if (${propAccessor} !== undefined) ${propCode}`;
             return propCode;
         };
         const propCode = compileChildrenJitFunction(this, parents, isCompilingCircularChild, compileProperty);
@@ -131,7 +127,7 @@ export class PropertyRunType extends BaseRunType<TypePropertySignature | TypePro
             const propCode = this.memberRunType.compileJsonStringify(newParents, accessor);
             // this can´t be processed in the parent as we need to handle the empty string case when value is undefined
             const sep = isFirst ? '' : `','+`;
-            if (this.isOptional) {
+            if (this.src.optional) {
                 return `(${accessor} === undefined ? '' : ${sep}${proNameJSon}+':'+${propCode})`;
             }
             return `${sep}${proNameJSon}+':'+${propCode}`;
@@ -141,7 +137,7 @@ export class PropertyRunType extends BaseRunType<TypePropertySignature | TypePro
     }
     mock(optionalProbability = 0.2, ...args: any[]): any {
         if (optionalProbability < 0 || optionalProbability > 1) throw new Error('optionalProbability must be between 0 and 1');
-        if (this.isOptional && Math.random() < optionalProbability) return undefined;
+        if (this.src.optional && Math.random() < optionalProbability) return undefined;
         return this.memberRunType.mock(...args);
     }
 }

@@ -260,12 +260,15 @@ export function handleCircularIsType(
     jitCacheCallArgs: string[],
     isCircularChild: boolean,
     nestLevel: number,
-    selfInvoke: boolean
+    selfInvoke: boolean,
+    returnAtLevel0 = false
 ): string {
     const isTypeCode = handleCircularJitCompiling(rt, 'isT', code, jitCacheCallArgs, isCircularChild);
     if (isCircularChild) return isTypeCode;
     if ((rt as any).isCircular) return `return ${isTypeCode}`;
-    return selfInvoke && nestLevel > 0 ? `(function(){${isTypeCode}})()` : isTypeCode;
+    if (selfInvoke && nestLevel > 0) return `(function(){${isTypeCode}})()`;
+    if (returnAtLevel0 && nestLevel === 0) return `return ${isTypeCode}`;
+    return isTypeCode;
 }
 
 export function handleCircularTypeErrors(
@@ -309,12 +312,15 @@ export function handleCircularJsonStringify(
     jitCacheCallArgs: string[],
     isCircularChild: boolean,
     nestLevel: number,
-    selfInvoke: boolean
+    selfInvoke: boolean,
+    returnAtLevel0 = false
 ): string {
     const isTypeCode = handleCircularJitCompiling(rt, 'jsonStr', code, jitCacheCallArgs, isCircularChild);
     if (isCircularChild) return isTypeCode;
     if ((rt as any).isCircular) return `return ${isTypeCode}`;
-    return selfInvoke && nestLevel > 0 ? `(function(){${isTypeCode}})()` : isTypeCode;
+    if (selfInvoke && nestLevel > 0) return `(function(){${isTypeCode}})()`;
+    if (returnAtLevel0 && nestLevel === 0) return `return ${isTypeCode}`;
+    return isTypeCode;
 }
 
 /** wrapper function to compile children types and managing parents array before and after children gets compiled*/
