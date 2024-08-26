@@ -18,7 +18,7 @@ export class TupleMemberRunType extends BaseRunType<TypeTupleMember> {
         visitor: RunTypeVisitor,
         public readonly src: TypeTupleMember,
         public readonly parents: RunType[],
-        opts: RunTypeOptions
+        public opts: RunTypeOptions
     ) {
         super(visitor, src, parents, opts);
         parents.push(this);
@@ -29,21 +29,45 @@ export class TupleMemberRunType extends BaseRunType<TypeTupleMember> {
         this.jitId = `${this.src.kind}:${this.memberRunType.jitId}`;
     }
     compileIsType(parents: RunType[], varName: string): string {
+        if (this.src.optional) {
+            return `(${varName} === undefined || ${this.memberRunType.compileIsType(parents, varName)})`;
+        }
         return this.memberRunType.compileIsType(parents, varName);
     }
-    compileTypeErrors(parents: RunType[], varName: string, pathC: string[]): string {
+    compileTypeErrors(parents: RunType[], varName: string, pathC: (string | number)[]): string {
+        if (this.src.optional) {
+            return `if (${varName} !== undefined) {${this.memberRunType.compileTypeErrors(parents, varName, pathC)}}`;
+        }
         return this.memberRunType.compileTypeErrors(parents, varName, pathC);
     }
     compileJsonEncode(parents: RunType[], varName: string): string {
+        if (this.src.optional) {
+            const itemCode = this.memberRunType.compileJsonEncode(parents, varName) || varName;
+            return `${varName} = ${varName} === undefined ? null : ${itemCode}`;
+        }
+        if (!this.opts?.strictJSON && !this.isJsonEncodeRequired) return '';
         return this.memberRunType.compileJsonEncode(parents, varName);
     }
     compileJsonDecode(parents: RunType[], varName: string): string {
+        if (this.src.optional) {
+            const itemCode = this.memberRunType.compileJsonDecode(parents, varName) || varName;
+            return `${varName} = ${varName} === null ? undefined : ${itemCode}`;
+        }
+        if (!this.opts?.strictJSON && !this.isJsonDecodeRequired) return '';
         return this.memberRunType.compileJsonDecode(parents, varName);
     }
     compileJsonStringify(parents: RunType[], varName: string): string {
+        if (this.src.optional) {
+            return `(${varName} === undefined ? null : ${this.memberRunType.compileJsonStringify(parents, varName)})`;
+        }
         return this.memberRunType.compileJsonStringify(parents, varName);
     }
     mock(...args: any[]): any {
+        if (this.src.optional) {
+            if (Math.random() < 0.5) {
+                return undefined;
+            }
+        }
         return this.memberRunType.mock(...args);
     }
 }

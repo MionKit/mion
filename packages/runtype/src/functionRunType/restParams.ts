@@ -14,8 +14,6 @@ export class RestParamsRunType extends BaseRunType<TypeRest> {
     public readonly isJsonEncodeRequired: boolean;
     public readonly isJsonDecodeRequired: boolean;
     public readonly memberRunType: RunType;
-    public readonly isOptional = true;
-    public readonly isReadonly = false;
     public readonly paramName: string;
     public readonly default: any;
     public readonly jitId: number | string;
