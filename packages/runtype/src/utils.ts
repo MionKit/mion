@@ -73,8 +73,9 @@ export function hasCircularParents(rt: RunType, parents: RunType[]): boolean {
 }
 
 export function getErrorPath(pathChain: (string | number)[]): string {
-    if (pathChain.length === 0) return `${jitNames.circularPath}.length ? [...${jitNames.circularPath}] : []`;
-    return `${jitNames.circularPath}.length ? [...${jitNames.circularPath},${pathChain.join(',')}] : [${pathChain.join(',')}]`;
+    // TODO: remove the array destructuring for jitNames.circularPath when is not needed (not circular references)
+    if (pathChain.length === 0) return `[...${jitNames.circularPath}]`;
+    return `[...${jitNames.circularPath},${pathChain.join(',')}]`;
 }
 
 export function getExpected(rt: RunType): string {

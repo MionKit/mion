@@ -54,7 +54,7 @@ export class ArrayRunType extends CollectionRunType<TypeArray> {
             }
             return true;
         `;
-        return handleCircularIsType(this, code, callArgs, isCompilingCircularChild, nestLevel);
+        return handleCircularIsType(this, code, callArgs, isCompilingCircularChild, nestLevel, true);
     }
     compileTypeErrors(parents: RunType[], varName: string, pathC: string[]): string {
         const {index, indexAccessor, isCompilingCircularChild} = getJitVars(this, parents, varName);
@@ -115,7 +115,7 @@ export class ArrayRunType extends CollectionRunType<TypeArray> {
             }
             return '[' + ${jsonItems}.join(',') + ']';
         `;
-        return handleCircularJsonStringify(this, code, callArgs, isCompilingCircularChild, nestLevel);
+        return handleCircularJsonStringify(this, code, callArgs, isCompilingCircularChild, nestLevel, true);
     }
     mock(length = random(0, 30), ...args: any[]): any[] {
         if (this.isCircular) {

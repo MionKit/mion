@@ -62,7 +62,7 @@ export class IndexSignatureRunType extends BaseRunType<TypeIndexSignature> {
             }
             return true;
         `;
-        return handleCircularIsType(this, code, callArgs, isCompilingCircularChild, nestLevel);
+        return handleCircularIsType(this, code, callArgs, isCompilingCircularChild, nestLevel, true);
     }
     compileTypeErrors(parents: RunType[], varName: string, pathC: string[]): string {
         const {prop, propAccessor, isCompilingCircularChild} = getJitVars(this, parents, varName);
@@ -119,7 +119,7 @@ export class IndexSignatureRunType extends BaseRunType<TypeIndexSignature> {
             return ${arrName}.join(',');
         `;
 
-        return handleCircularJsonStringify(this, code, callArgs, isCompilingCircularChild, nestLevel);
+        return handleCircularJsonStringify(this, code, callArgs, isCompilingCircularChild, nestLevel, true);
     }
     mock(parentMockObj: Record<string | number | symbol, any>, ...args: any[]): any {
         const length = Math.floor(Math.random() * 10);
