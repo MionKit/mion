@@ -63,13 +63,13 @@ export class InterfaceRunType<
             this.childRunTypes.map((prop) => prop.compileIsType(newParents, varName)).join(' && ');
         const propsCode = compileChildrenJitFunction(this, parents, isCompilingCircularChild, compileChildren);
         const code = `return (typeof ${varName} === 'object' && ${propsCode})`;
-        return handleCircularIsType(this, code, callArgs, isCompilingCircularChild, nestLevel);
+        return handleCircularIsType(this, code, callArgs, isCompilingCircularChild, nestLevel, true);
     }
     compileTypeErrors(parents: RunType[], varName: string, pathC: string[]): string {
         const {isCompilingCircularChild} = getJitVars(this, parents);
         const callArgs = [varName, jitNames.errors, jitNames.circularPath];
         const compileChildren = (newParents) => {
-            return this.childRunTypes.map((prop) => prop.compileTypeErrors(newParents, varName, pathC)).join('\n');
+            return this.childRunTypes.map((prop) => prop.compileTypeErrors(newParents, varName, pathC)).join(';');
         };
         const itemsCode = compileChildrenJitFunction(this, parents, isCompilingCircularChild, compileChildren);
         const code = `
@@ -106,12 +106,12 @@ export class InterfaceRunType<
         const {isCompilingCircularChild, nestLevel} = getJitVars(this, parents);
         const callArgs = [varName];
         const compileChildren = (newParents) => {
-            return this.childRunTypes.map((prop, i) => prop.compileJsonStringify(newParents, varName, i === 0)).join(',');
+            return this.childRunTypes.map((prop, i) => prop.compileJsonStringify(newParents, varName, i === 0)).join('+');
         };
 
         const propsCode = compileChildrenJitFunction(this, parents, isCompilingCircularChild, compileChildren);
-        const code = `'{'+${propsCode}+'}'`;
-        return handleCircularJsonStringify(this, code, callArgs, isCompilingCircularChild, nestLevel);
+        const code = `return '{'+${propsCode}+'}'`;
+        return handleCircularJsonStringify(this, code, callArgs, isCompilingCircularChild, nestLevel, true);
     }
     mock(
         optionalParamsProbability: Record<string | number, number>,

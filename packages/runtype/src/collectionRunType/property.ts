@@ -77,7 +77,7 @@ export class PropertyRunType extends BaseRunType<TypePropertySignature | TypePro
             return this.memberRunType.compileIsType(newParents, propAccessor);
         };
         const propCode = compileChildrenJitFunction(this, parents, isCompilingCircularChild, compileProperty);
-        return handleCircularIsType(this, propCode, callArgs, isCompilingCircularChild, nestLevel);
+        return handleCircularIsType(this, propCode, callArgs, isCompilingCircularChild, nestLevel, false);
     }
     compileTypeErrors(parents: RunType[], varName: string, pathC: string[]): string {
         const {propAccessor, isCompilingCircularChild} = getJitVars(this, parents, varName);
@@ -87,13 +87,9 @@ export class PropertyRunType extends BaseRunType<TypePropertySignature | TypePro
             const accessor = `${varName}${this.safePropAccessor}`;
             const newPath = [...pathC, toLiteral(this.propName)];
             if (this.isOptional) {
-                return `if (${accessor} !== undefined) {
-                    ${this.memberRunType.compileTypeErrors(newParents, accessor, newPath)}
-                }`;
+                return `if (${accessor} !== undefined) {${this.memberRunType.compileTypeErrors(newParents, accessor, newPath)}}`;
             }
-            return `
-                ${this.memberRunType.compileTypeErrors(newParents, accessor, newPath)}
-            `;
+            return `${this.memberRunType.compileTypeErrors(newParents, accessor, newPath)}`;
         };
         const propCode = compileChildrenJitFunction(this, parents, isCompilingCircularChild, compileProperty);
         return handleCircularTypeErrors(this, propCode, callArgs, isCompilingCircularChild, pathC);
@@ -133,6 +129,7 @@ export class PropertyRunType extends BaseRunType<TypePropertySignature | TypePro
                 : jitUtils.asJSONString(toLiteral(this.propName));
             const accessor = `${varName}${this.safePropAccessor}`;
             const propCode = this.memberRunType.compileJsonStringify(newParents, accessor);
+            // this can´t be processed in the parent as we need to handle the empty string case when value is undefined
             const sep = isFirst ? '' : `','+`;
             if (this.isOptional) {
                 return `(${accessor} === undefined ? '' : ${sep}${proNameJSon}+':'+${propCode})`;
@@ -140,7 +137,7 @@ export class PropertyRunType extends BaseRunType<TypePropertySignature | TypePro
             return `${sep}${proNameJSon}+':'+${propCode}`;
         };
         const propCode = compileChildrenJitFunction(this, parents, isCompilingCircularChild, compileProperty);
-        return handleCircularJsonStringify(this, propCode, callArgs, isCompilingCircularChild, nestLevel);
+        return handleCircularJsonStringify(this, propCode, callArgs, isCompilingCircularChild, nestLevel, false);
     }
     mock(optionalProbability = 0.2, ...args: any[]): any {
         if (optionalProbability < 0 || optionalProbability > 1) throw new Error('optionalProbability must be between 0 and 1');

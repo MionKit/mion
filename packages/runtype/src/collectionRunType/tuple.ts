@@ -45,7 +45,7 @@ export class TupleRunType extends CollectionRunType<TypeTuple> {
             this.childRunTypes.map((rt, i) => rt.compileIsType(newParents, `${varName}[${i}]`)).join(' && ');
         const itemsCode = compileChildrenJitFunction(this, parents, isCompilingCircularChild, compileChildren);
         const code = `${varName}.length <= ${this.childRunTypes.length} && (${itemsCode})`;
-        return handleCircularIsType(this, code, callArgs, isCompilingCircularChild, nestLevel);
+        return handleCircularIsType(this, code, callArgs, isCompilingCircularChild, nestLevel, false);
     }
     compileTypeErrors(parents: RunType[], varName: string, pathC: string[]): string {
         const {index, isCompilingCircularChild} = getJitVars(this, parents, varName);
@@ -111,7 +111,7 @@ export class TupleRunType extends CollectionRunType<TypeTuple> {
         };
         const itemsCode = compileChildrenJitFunction(this, parents, isCompilingCircularChild, compileChildren);
         const code = `'['+${itemsCode}+']'`;
-        return handleCircularJsonStringify(this, code, callArgs, isCompilingCircularChild, nestLevel);
+        return handleCircularJsonStringify(this, code, callArgs, isCompilingCircularChild, nestLevel, false);
     }
     mock(...tupleArgs: any[][]): any[] {
         return this.childRunTypes.map((rt, i) => rt.mock(...(tupleArgs?.[i] || [])));
