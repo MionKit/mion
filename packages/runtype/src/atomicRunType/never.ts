@@ -6,9 +6,9 @@
  * ######## */
 
 import type {TypeNever} from '../_deepkit/src/reflection/type';
-import {SingleRunType} from '../baseRunTypes';
+import {AtomicRunType} from '../baseRunTypes';
 
-export class NeverRunType extends SingleRunType<TypeNever> {
+export class NeverRunType extends AtomicRunType<TypeNever> {
     public readonly isJsonEncodeRequired = false;
     public readonly isJsonDecodeRequired = false;
 

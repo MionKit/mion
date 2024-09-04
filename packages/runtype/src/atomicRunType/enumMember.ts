@@ -6,9 +6,9 @@
  * ######## */
 
 import type {TypeEnum} from '../_deepkit/src/reflection/type';
-import {SingleRunType} from '../baseRunTypes';
+import {AtomicRunType} from '../baseRunTypes';
 
-export class EnumMemberRunType extends SingleRunType<TypeEnum> {
+export class EnumMemberRunType extends AtomicRunType<TypeEnum> {
     public readonly isJsonEncodeRequired = false;
     public readonly isJsonDecodeRequired = false;
 

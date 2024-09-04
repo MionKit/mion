@@ -5,21 +5,22 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import type {TypeNull} from '../_deepkit/src/reflection/type';
+import type {TypeAny, TypeUnknown} from '../_deepkit/src/reflection/type';
 import type {RunType} from '../types';
-import {SingleRunType} from '../baseRunTypes';
+import {random} from '../mock';
 import {getErrorPath, getExpected} from '../utils';
-import {jitNames} from '../constants';
+import {jitNames, mockObjectList} from '../constants';
+import {AtomicRunType} from '../baseRunTypes';
 
-export class NullRunType extends SingleRunType<TypeNull> {
+export class ObjectRunType extends AtomicRunType<TypeAny | TypeUnknown> {
     public readonly isJsonEncodeRequired = false;
     public readonly isJsonDecodeRequired = false;
 
     compileIsType(parents: RunType[], varName: string): string {
-        return `${varName} === null`;
+        return `(typeof ${varName} === 'object' && ${varName} !== null)`;
     }
     compileTypeErrors(parents: RunType[], varName: string, pathC: string[]): string {
-        return `if (${varName} !== null) ${jitNames.errors}.push({path: ${getErrorPath(pathC)}, expected: ${getExpected(this)}})`;
+        return `if (!(${this.compileIsType(parents, varName)})) ${jitNames.errors}.push({path: ${getErrorPath(pathC)}, expected: ${getExpected(this)}})`;
     }
     compileJsonEncode(): string {
         return '';
@@ -28,9 +29,9 @@ export class NullRunType extends SingleRunType<TypeNull> {
         return '';
     }
     compileJsonStringify(parents: RunType[], varName: string): string {
-        return varName;
+        return `JSON.stringify(${varName})`;
     }
-    mock(): null {
-        return null;
+    mock(objectLis: object[] = mockObjectList): object {
+        return objectLis[random(0, objectLis.length - 1)];
     }
 }

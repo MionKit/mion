@@ -9,10 +9,10 @@ import type {TypeNumber} from '../_deepkit/src/reflection/type';
 import type {RunType} from '../types';
 import {getErrorPath, getExpected} from '../utils';
 import {mockNumber} from '../mock';
-import {SingleRunType} from '../baseRunTypes';
+import {AtomicRunType} from '../baseRunTypes';
 import {jitNames} from '../constants';
 
-export class NumberRunType extends SingleRunType<TypeNumber> {
+export class NumberRunType extends AtomicRunType<TypeNumber> {
     public readonly isJsonEncodeRequired = false;
     public readonly isJsonDecodeRequired = false;
 

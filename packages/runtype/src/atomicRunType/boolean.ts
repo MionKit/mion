@@ -5,22 +5,22 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import type {TypeString} from '../_deepkit/src/reflection/type';
+import type {TypeBoolean} from '../_deepkit/src/reflection/type';
 import type {RunType} from '../types';
 import {getErrorPath, getExpected} from '../utils';
-import {mockString} from '../mock';
-import {SingleRunType} from '../baseRunTypes';
+import {mockBoolean} from '../mock';
+import {AtomicRunType} from '../baseRunTypes';
 import {jitNames} from '../constants';
 
-export class StringRunType extends SingleRunType<TypeString> {
+export class BooleanRunType extends AtomicRunType<TypeBoolean> {
     public readonly isJsonEncodeRequired = false;
     public readonly isJsonDecodeRequired = false;
 
     compileIsType(parents: RunType[], varName: string): string {
-        return `typeof ${varName} === 'string'`;
+        return `typeof ${varName} === 'boolean'`;
     }
     compileTypeErrors(parents: RunType[], varName: string, pathC: string[]): string {
-        return `if (typeof ${varName} !== 'string') ${jitNames.errors}.push({path: ${getErrorPath(pathC)}, expected: ${getExpected(this)}})`;
+        return `if (typeof ${varName} !== 'boolean') ${jitNames.errors}.push({path: ${getErrorPath(pathC)}, expected: ${getExpected(this)}})`;
     }
     compileJsonEncode(): string {
         return '';
@@ -29,9 +29,9 @@ export class StringRunType extends SingleRunType<TypeString> {
         return '';
     }
     compileJsonStringify(parents: RunType[], varName: string): string {
-        return `${jitNames.utils}.asJSONString(${varName})`;
+        return varName;
     }
-    mock(length: number, charSet: string): string {
-        return mockString(length, charSet);
+    mock(): boolean {
+        return mockBoolean();
     }
 }

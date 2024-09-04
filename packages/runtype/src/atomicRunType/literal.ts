@@ -11,10 +11,10 @@ import {SymbolJitJsonENcoder} from './symbol';
 import {BigIntJitJsonENcoder} from './bigInt';
 import {RegexpJitJsonEncoder} from './regexp';
 import {getErrorPath, toLiteral} from '../utils';
-import {SingleRunType} from '../baseRunTypes';
+import {AtomicRunType} from '../baseRunTypes';
 import {jitNames} from '../constants';
 
-export class LiteralRunType extends SingleRunType<TypeLiteral> {
+export class LiteralRunType extends AtomicRunType<TypeLiteral> {
     public readonly isJsonEncodeRequired: boolean;
     public readonly isJsonDecodeRequired: boolean;
     public readonly jitJsonEncoder: JitJsonEncoder;
