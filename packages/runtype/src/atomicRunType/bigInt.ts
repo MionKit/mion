@@ -9,10 +9,10 @@ import type {TypeBigInt} from '../_deepkit/src/reflection/type';
 import type {JitJsonEncoder, RunType} from '../types';
 import {getErrorPath, getExpected} from '../utils';
 import {mockBigInt} from '../mock';
-import {SingleRunType} from '../baseRunTypes';
+import {AtomicRunType} from '../baseRunTypes';
 import {jitNames} from '../constants';
 
-export class BigIntRunType extends SingleRunType<TypeBigInt> {
+export class BigIntRunType extends AtomicRunType<TypeBigInt> {
     public readonly isJsonEncodeRequired = true;
     public readonly isJsonDecodeRequired = true;
 

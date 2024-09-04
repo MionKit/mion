@@ -1,6 +1,6 @@
 import type {TypePromise} from '../_deepkit/src/reflection/type';
 import type {RunType, RunTypeOptions, RunTypeVisitor} from '../types';
-import {SingleRunType} from '../baseRunTypes';
+import {AtomicRunType} from '../baseRunTypes';
 import {getErrorPath, getExpected} from '../utils';
 import {jitNames} from '../constants';
 
@@ -11,7 +11,7 @@ import {jitNames} from '../constants';
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-export class PromiseRunType extends SingleRunType<TypePromise> {
+export class PromiseRunType extends AtomicRunType<TypePromise> {
     public readonly isJsonEncodeRequired = true;
     public readonly isJsonDecodeRequired = true;
     public readonly resolvedType: RunType;

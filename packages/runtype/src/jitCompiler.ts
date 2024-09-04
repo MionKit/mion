@@ -19,7 +19,6 @@ import type {
 import {jitUtils} from './jitUtils';
 import {toLiteral, arrayToLiteral} from './utils';
 import {jitNames} from './constants';
-import {CollectionRunType} from './baseRunTypes';
 
 /**
  * Builds all the JIT functions for a given RunType
@@ -41,7 +40,7 @@ export function buildIsTypeJITFn(runType: RunType, jitFunctions?: JitCompilerFun
     const varName = `vλl`;
     const parents = [];
     const jitCode = jitFunctions ? jitFunctions.compileIsType(parents, varName) : runType.compileIsType(parents, varName);
-    const code = runType.isSingle ? `return ${jitCode}` : jitCode;
+    const code = runType.isAtomic ? `return ${jitCode}` : jitCode;
     const argNames = [varName];
     try {
         const fn = createJitFnWithContext(argNames, code);
@@ -115,7 +114,7 @@ export function buildJsonStringifyJITFn(
     const jitCode = jitFunctions
         ? jitFunctions.compileJsonStringify(parents, varName)
         : runType.compileJsonStringify(parents, varName);
-    const code = runType.isSingle ? `return ${jitCode}` : jitCode;
+    const code = runType.isAtomic ? `return ${jitCode}` : jitCode;
     const argNames = [varName];
     try {
         const fn = createJitFnWithContext(argNames, code);
@@ -188,7 +187,7 @@ export function restoreCodifiedJitFunctions(jitFns: UnwrappedJITFunctions): JITF
 
 /**
  * Create a JIT function that has jitUtils (and possibly other required variables) in the context,
- * This way jitUtils ca be used without passing them as arguments to every single jit function (kind of global variables).
+ * This way jitUtils ca be used without passing them as arguments to every atomic jit function (kind of global variables).
  * @param varName
  * @param code
  * @returns
@@ -218,121 +217,14 @@ export function callJitCachedFn(jitIdFnName: string, callArgsNames: string[]): s
  * Create a new jit function and add it to the jit cache, so it can be called later.
  * @param jitNames
  * @param jitIdFnName
- * @param compiledCode
+ * @param code
  * @param cacheFnArgsNames
  */
-export function createJitCachedFn(jitIdFnName: string, compiledCode: string, cacheFnArgsNames: string[]): void {
+export function createJitCachedFn(jitIdFnName: string, code: string | (() => string), cacheFnArgsNames: string[]): void {
     if (!jitUtils.isInJitCache(jitIdFnName)) {
+        const compiledCode = typeof code === 'function' ? code() : code;
         const fn = createJitFnWithContext(cacheFnArgsNames, compiledCode);
         jitUtils.addToJitCache(jitIdFnName, fn as any);
         if (process.env.DEBUG_JIT) console.log(`cached jit ${jitIdFnName}: `, fn.toString());
     }
-}
-
-export type compileChildCB = (updatedParents: RunType[]) => string;
-
-/** wrapper function to handle circular types compiling */
-function handleCircularJitCompiling(
-    rt: RunType,
-    /** name to identify the function in the jit cache */
-    fnName: string,
-    /** jit pseudocode, itemsPseudoCode will be replaced after calling compileChildFn */
-    code: string,
-    /** argument Names when called jit cached function */
-    jitCacheCallArgs: string[],
-    /** flag to know if we are compiling a circular child */
-    isCircularChild: boolean
-): string {
-    // this is the scenario where we call a jit cached function instead generating code (end of recursion)
-    if (isCircularChild) return callJitCachedFn(`${rt.jitId}:${fnName}`, jitCacheCallArgs);
-
-    if (!(rt as CollectionRunType<any>).isCircular) return code;
-
-    // this is the scenario where we add function to jit cache and return the call to it instead generating inline code
-    const jitIdFnName = `${rt.jitId}:${fnName}`;
-    createJitCachedFn(jitIdFnName, code, jitCacheCallArgs); // adding the code to jit cache
-    return callJitCachedFn(jitIdFnName, jitCacheCallArgs); // return a call to the cached function
-}
-
-export function handleCircularIsType(
-    rt: RunType,
-    code: string,
-    jitCacheCallArgs: string[],
-    isCircularChild: boolean,
-    nestLevel: number,
-    selfInvoke: boolean,
-    returnAtLevel0 = false
-): string {
-    const isTypeCode = handleCircularJitCompiling(rt, 'isT', code, jitCacheCallArgs, isCircularChild);
-    if (isCircularChild) return isTypeCode;
-    if ((rt as any).isCircular) return `return ${isTypeCode}`;
-    if (selfInvoke && nestLevel > 0) return `(function(){${isTypeCode}})()`;
-    if (returnAtLevel0 && nestLevel === 0) return `return ${isTypeCode}`;
-    return isTypeCode;
-}
-
-export function handleCircularTypeErrors(
-    rt: RunType,
-    code: string,
-    jitCacheCallArgs: string[],
-    isCircularChild: boolean,
-    pathC: (string | number)[]
-): string {
-    const typeErrorsCode = handleCircularJitCompiling(rt, 'TErr', code, jitCacheCallArgs, isCircularChild);
-    if (isCircularChild)
-        return `
-            ${jitNames.circularPath}.push(${pathC.join(',')});
-            ${typeErrorsCode}
-            ${jitNames.circularPath}.splice(-${pathC.length});
-        `;
-    return typeErrorsCode;
-}
-
-export function handleCircularJsonEncode(
-    rt: RunType,
-    code: string,
-    jitCacheCallArgs: string[],
-    isCircularChild: boolean
-): string {
-    return handleCircularJitCompiling(rt, 'jsonEnc', code, jitCacheCallArgs, isCircularChild);
-}
-
-export function handleCircularJsonDecode(
-    rt: RunType,
-    code: string,
-    jitCacheCallArgs: string[],
-    isCircularChild: boolean
-): string {
-    return handleCircularJitCompiling(rt, 'jsonDec', code, jitCacheCallArgs, isCircularChild);
-}
-
-export function handleCircularJsonStringify(
-    rt: RunType,
-    code: string,
-    jitCacheCallArgs: string[],
-    isCircularChild: boolean,
-    nestLevel: number,
-    selfInvoke: boolean,
-    returnAtLevel0 = false
-): string {
-    const isTypeCode = handleCircularJitCompiling(rt, 'jsonStr', code, jitCacheCallArgs, isCircularChild);
-    if (isCircularChild) return isTypeCode;
-    if ((rt as any).isCircular) return `return ${isTypeCode}`;
-    if (selfInvoke && nestLevel > 0) return `(function(){${isTypeCode}})()`;
-    if (returnAtLevel0 && nestLevel === 0) return `return ${isTypeCode}`;
-    return isTypeCode;
-}
-
-/** wrapper function to compile children types and managing parents array before and after children gets compiled*/
-export function compileChildrenJitFunction(
-    rt: RunType,
-    parents: RunType[],
-    isCircularChild: boolean,
-    compileChildFn: compileChildCB
-): string {
-    if (isCircularChild) return ''; // skip compiling children if we are in a circular type
-    parents.push(rt);
-    const itemsCode = compileChildFn(parents);
-    parents.pop();
-    return itemsCode;
 }

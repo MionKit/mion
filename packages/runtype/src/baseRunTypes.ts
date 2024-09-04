@@ -46,9 +46,16 @@ export abstract class BaseRunType<T extends Type, Opts extends RunTypeOptions = 
     }
 }
 
-export abstract class SingleRunType<T extends Type, Opts extends RunTypeOptions = RunTypeOptions> extends BaseRunType<T, Opts> {
-    public readonly isSingle = true;
-    public readonly jitId: number;
+/**
+ * RunType that is atomic an does not contains any other child runTypes.
+ * ie: string, number, boolean, any, null, undefined, void, never, bigint, etc.
+ * */
+export abstract class AtomicRunType<T extends Type, Opts extends RunTypeOptions = RunTypeOptions> extends BaseRunType<T, Opts> {
+    public readonly isAtomic = true;
+
+    get jitId(): number {
+        return this.src.kind;
+    }
 
     constructor(
         visitor: RunTypeVisitor,
@@ -57,10 +64,15 @@ export abstract class SingleRunType<T extends Type, Opts extends RunTypeOptions 
         readonly opts: Opts
     ) {
         super(visitor, src, parents, opts);
-        this.jitId = this.src.kind;
     }
 }
 
+/**
+ * RunType that contains a collection or child runTypes.
+ * Collection RunTypes are the only ones that can have circular references. as a child of a collection RunType can be the parent of the collection RunType.
+ * i.e: interface, child runTypes are it's properties
+ * i.e: tuple, it's child runTypes are the tuple members
+ */
 export abstract class CollectionRunType<T extends Type, Opts extends RunTypeOptions = RunTypeOptions> extends BaseRunType<
     T,
     Opts
@@ -86,5 +98,30 @@ export abstract class CollectionRunType<T extends Type, Opts extends RunTypeOpti
         const jitId = `${this.src.kind}${childJitIds}`;
         parents.pop();
         return jitId;
+    }
+
+    /**
+     * jit code to check the type a Collection.
+     * ie: is a collection type is an array of string string[] then compileCollectionType generates jit code to check if the value is an array.
+     * if a collection type is an object with properties, then compileCollectionType generates jit code to check if the value is an object.
+     * this is used for the union type where we need to check a value against multiple types.
+     */
+    abstract compileCollectionIsType(parents: RunType[], varName: string): string;
+}
+
+/**
+ * RunType that contains a single member or child RunType. usually part of a collection RunType.
+ * i.e object properties, {prop: memberType} where memberType is the child RunType
+ */
+export abstract class MemberRunType<T extends Type, Opts extends RunTypeOptions = RunTypeOptions> extends BaseRunType<T, Opts> {
+    public abstract readonly memberType: RunType;
+    public abstract readonly memberName: string | number | symbol;
+    public abstract readonly jitId: string;
+
+    get isJsonEncodeRequired(): boolean {
+        return this.memberType.isJsonEncodeRequired;
+    }
+    get isJsonDecodeRequired(): boolean {
+        return this.memberType.isJsonDecodeRequired;
     }
 }

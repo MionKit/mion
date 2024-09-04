@@ -9,10 +9,10 @@ import {ReflectionKind, TypeEnum} from '../_deepkit/src/reflection/type';
 import type {RunType, RunTypeOptions, RunTypeVisitor} from '../types';
 import {getErrorPath, getExpected, toLiteral} from '../utils';
 import {random} from '../mock';
-import {SingleRunType} from '../baseRunTypes';
+import {AtomicRunType} from '../baseRunTypes';
 import {jitNames} from '../constants';
 
-export class EnumRunType extends SingleRunType<TypeEnum> {
+export class EnumRunType extends AtomicRunType<TypeEnum> {
     public readonly isJsonEncodeRequired = false;
     public readonly isJsonDecodeRequired = false;
     public readonly values: (string | number | undefined | null)[];

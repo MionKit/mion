@@ -9,10 +9,10 @@ import type {TypeClass} from '../_deepkit/src/reflection/type';
 import type {JitJsonEncoder, RunType} from '../types';
 import {getErrorPath, getExpected} from '../utils';
 import {mockDate} from '../mock';
-import {SingleRunType} from '../baseRunTypes';
+import {AtomicRunType} from '../baseRunTypes';
 import {jitNames} from '../constants';
 
-export class DateRunType extends SingleRunType<TypeClass> {
+export class DateRunType extends AtomicRunType<TypeClass> {
     public readonly isJsonEncodeRequired = false;
     public readonly isJsonDecodeRequired = true;
 

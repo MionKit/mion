@@ -9,10 +9,10 @@ import type {TypeSymbol} from '../_deepkit/src/reflection/type';
 import type {JitJsonEncoder, RunType} from '../types';
 import {getErrorPath, getExpected} from '../utils';
 import {mockSymbol} from '../mock';
-import {SingleRunType} from '../baseRunTypes';
+import {AtomicRunType} from '../baseRunTypes';
 import {jitNames} from '../constants';
 
-export class SymbolRunType extends SingleRunType<TypeSymbol> {
+export class SymbolRunType extends AtomicRunType<TypeSymbol> {
     public readonly isJsonEncodeRequired = true;
     public readonly isJsonDecodeRequired = true;
 

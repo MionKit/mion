@@ -8,9 +8,9 @@
 import type {TypeAny, TypeUnknown} from '../_deepkit/src/reflection/type';
 import type {RunType, RunTypeOptions, RunTypeVisitor} from '../types';
 import {mockAny} from '../mock';
-import {SingleRunType} from '../baseRunTypes';
+import {AtomicRunType} from '../baseRunTypes';
 
-export class AnyRunType extends SingleRunType<TypeAny | TypeUnknown> {
+export class AnyRunType extends AtomicRunType<TypeAny | TypeUnknown> {
     public readonly isJsonEncodeRequired = false;
     public readonly isJsonDecodeRequired = false;
     constructor(

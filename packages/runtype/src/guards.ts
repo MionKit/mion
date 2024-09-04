@@ -9,23 +9,23 @@
 import {ReflectionKind, TypeMethod} from './_deepkit/src/reflection/type';
 /* IMPORTANT: import classes as type only to prevent js circular imports */
 import type {RunType} from './types';
-import type {StringRunType} from './singleRunType/string';
-import type {DateRunType} from './singleRunType/date';
-import type {NumberRunType} from './singleRunType/number';
-import type {BooleanRunType} from './singleRunType/boolean';
-import type {NullRunType} from './singleRunType/null';
-import type {BigIntRunType} from './singleRunType/bigInt';
-import type {SymbolRunType} from './singleRunType/symbol';
-import type {AnyRunType} from './singleRunType/any';
-import type {UndefinedRunType} from './singleRunType/undefined';
-import type {UnknownRunType} from './singleRunType/unknown';
-import type {VoidRunType} from './singleRunType/void';
+import type {StringRunType} from './atomicRunType/string';
+import type {DateRunType} from './atomicRunType/date';
+import type {NumberRunType} from './atomicRunType/number';
+import type {BooleanRunType} from './atomicRunType/boolean';
+import type {NullRunType} from './atomicRunType/null';
+import type {BigIntRunType} from './atomicRunType/bigInt';
+import type {SymbolRunType} from './atomicRunType/symbol';
+import type {AnyRunType} from './atomicRunType/any';
+import type {UndefinedRunType} from './atomicRunType/undefined';
+import type {UnknownRunType} from './atomicRunType/unknown';
+import type {VoidRunType} from './atomicRunType/void';
 import type {ArrayRunType} from './collectionRunType/array';
-import type {LiteralRunType} from './singleRunType/literal';
-import type {RegexpRunType} from './singleRunType/regexp';
-import type {NeverRunType} from './singleRunType/never';
-import type {EnumRunType} from './singleRunType/enum';
-import type {EnumMemberRunType} from './singleRunType/enumMember';
+import type {LiteralRunType} from './atomicRunType/literal';
+import type {RegexpRunType} from './atomicRunType/regexp';
+import type {NeverRunType} from './atomicRunType/never';
+import type {EnumRunType} from './atomicRunType/enum';
+import type {EnumMemberRunType} from './atomicRunType/enumMember';
 import type {UnionRunType} from './collectionRunType/union';
 import type {TupleRunType} from './collectionRunType/tuple';
 import type {TupleMemberRunType} from './collectionRunType/tupleMember';
@@ -36,8 +36,8 @@ import type {MethodSignatureRunType} from './functionRunType/methodSignature';
 import type {CallSignatureRunType} from './functionRunType/call';
 import type {FunctionRunType} from './functionRunType/function';
 import type {ParameterRunType} from './functionRunType/param';
-import type {PromiseRunType} from './singleRunType/promise';
-import type {ObjectRunType} from './singleRunType/object';
+import type {PromiseRunType} from './atomicRunType/promise';
+import type {ObjectRunType} from './atomicRunType/object';
 import type {MethodRunType} from './functionRunType/method';
 import type {CollectionRunType} from './baseRunTypes';
 
@@ -165,7 +165,10 @@ export function isConstructor(rt: InterfaceRunTypeEntry): rt is MethodSignatureR
 }
 
 export function isCollectionRunType(rt: RunType): rt is CollectionRunType<any> {
-    return (rt as CollectionRunType<any>).childRunTypes !== undefined;
+    return (
+        Array.isArray((rt as CollectionRunType<any>).childRunTypes) &&
+        typeof (rt as CollectionRunType<any>).compileCollectionIsType === 'function'
+    );
 }
 
 export function isRunType(value: any): value is RunType {

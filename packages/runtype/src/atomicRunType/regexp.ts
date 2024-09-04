@@ -9,10 +9,10 @@ import type {TypeRegexp} from '../_deepkit/src/reflection/type';
 import type {JitJsonEncoder, RunType} from '../types';
 import {getErrorPath, getExpected} from '../utils';
 import {mockRegExp} from '../mock';
-import {SingleRunType} from '../baseRunTypes';
+import {AtomicRunType} from '../baseRunTypes';
 import {jitNames} from '../constants';
 
-export class RegexpRunType extends SingleRunType<TypeRegexp> {
+export class RegexpRunType extends AtomicRunType<TypeRegexp> {
     public readonly isJsonEncodeRequired = true;
     public readonly isJsonDecodeRequired = true;
 

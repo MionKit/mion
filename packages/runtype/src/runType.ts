@@ -9,23 +9,23 @@
 import type {RunType, RunTypeOptions, RunTypeVisitor, SrcType} from './types';
 import {ReflectionKind, TypeObjectLiteral} from './_deepkit/src/reflection/type';
 import {resolveReceiveType, ReceiveType, reflect} from './_deepkit/src/reflection/reflection';
-import {StringRunType} from './singleRunType/string';
-import {DateRunType} from './singleRunType/date';
-import {NumberRunType} from './singleRunType/number';
-import {BooleanRunType} from './singleRunType/boolean';
-import {NullRunType} from './singleRunType/null';
-import {BigIntRunType} from './singleRunType/bigInt';
-import {SymbolRunType} from './singleRunType/symbol';
-import {AnyRunType} from './singleRunType/any';
-import {UndefinedRunType} from './singleRunType/undefined';
-import {UnknownRunType} from './singleRunType/unknown';
-import {VoidRunType} from './singleRunType/void';
+import {StringRunType} from './atomicRunType/string';
+import {DateRunType} from './atomicRunType/date';
+import {NumberRunType} from './atomicRunType/number';
+import {BooleanRunType} from './atomicRunType/boolean';
+import {NullRunType} from './atomicRunType/null';
+import {BigIntRunType} from './atomicRunType/bigInt';
+import {SymbolRunType} from './atomicRunType/symbol';
+import {AnyRunType} from './atomicRunType/any';
+import {UndefinedRunType} from './atomicRunType/undefined';
+import {UnknownRunType} from './atomicRunType/unknown';
+import {VoidRunType} from './atomicRunType/void';
 import {ArrayRunType} from './collectionRunType/array';
-import {LiteralRunType} from './singleRunType/literal';
-import {RegexpRunType} from './singleRunType/regexp';
-import {NeverRunType} from './singleRunType/never';
-import {EnumRunType} from './singleRunType/enum';
-import {EnumMemberRunType} from './singleRunType/enumMember';
+import {LiteralRunType} from './atomicRunType/literal';
+import {RegexpRunType} from './atomicRunType/regexp';
+import {NeverRunType} from './atomicRunType/never';
+import {EnumRunType} from './atomicRunType/enum';
+import {EnumMemberRunType} from './atomicRunType/enumMember';
 import {UnionRunType} from './collectionRunType/union';
 import {TupleRunType} from './collectionRunType/tuple';
 import {TupleMemberRunType} from './collectionRunType/tupleMember';
@@ -35,8 +35,8 @@ import {IndexSignatureRunType} from './collectionRunType/indexProperty';
 import {MethodSignatureRunType} from './functionRunType/methodSignature';
 import {CallSignatureRunType} from './functionRunType/call';
 import {FunctionRunType} from './functionRunType/function';
-import {PromiseRunType} from './singleRunType/promise';
-import {ObjectRunType} from './singleRunType/object';
+import {PromiseRunType} from './atomicRunType/promise';
+import {ObjectRunType} from './atomicRunType/object';
 import {IntersectionRunType} from './collectionRunType/intersection';
 import {ParameterRunType} from './functionRunType/param';
 import {MethodRunType} from './functionRunType/method';
@@ -65,7 +65,8 @@ function visitor(deepkitType, parents: RunType[], opts: RunTypeOptions): RunType
      This also relies on deepkit handling circular types to prevent infinite loop when we are generating RunTypes  */
     const existingType: RunType | undefined = (deepkitType as SrcType)._runType;
     if (existingType) {
-        if (hasCircularParents(existingType, parents)) (existingType as any).isCircular = true;
+        if (!(existingType as any).isCircular && hasCircularParents(existingType, parents))
+            (existingType as any).isCircular = true;
         return existingType;
     }
 

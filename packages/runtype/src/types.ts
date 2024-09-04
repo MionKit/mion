@@ -70,8 +70,8 @@ export interface RunType<Opts extends RunTypeOptions = RunTypeOptions> extends J
     /** Options for this RunType, only stored in the types that needs to use it */
     readonly opts?: Opts;
 
-    /** whether or not the type is a single runtype that can´t have child run types, ie: string, number, boolean, null, etc.. */
-    readonly isSingle?: boolean;
+    /** whether or not the type is a atomic runtype that can´t have child run types, ie: string, number, boolean, null, etc.. */
+    readonly isAtomic?: boolean;
 
     /**
      * returns a mocked value, should be random when possible
