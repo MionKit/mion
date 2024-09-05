@@ -6,7 +6,7 @@
  * ######## */
 import {runType} from '../runType';
 import {InterfaceRunType} from './interface';
-import {NeverRunType} from '../singleRunType/never';
+import {NeverRunType} from '../atomicRunType/never';
 
 type IntersectionType = {
     prop3: string;
@@ -20,7 +20,7 @@ type IntersectionType = {
     readonly prop5: string[];
 };
 
-// when using single type and types are different it should resolve to never
+// when using atomic type and types are different it should resolve to never
 type typeNever1 = number & string;
 // when two object have a property with a literal but different type it should resolve to never
 type typeNever2 = {

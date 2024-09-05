@@ -80,7 +80,7 @@ export abstract class CollectionRunType<T extends Type, Opts extends RunTypeOpti
     /** Child RunTypes, only serializable RunTypes are included here, ie functions and other non serializable properties are not included */
     public abstract readonly childRunTypes: RunType[];
     public abstract readonly jitId: string;
-    public readonly isCircular = false;
+    public readonly isCircularRef = false;
 
     constructor(
         visitor: RunTypeVisitor,

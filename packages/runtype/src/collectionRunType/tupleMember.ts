@@ -6,14 +6,18 @@
  * ######## */
 
 import {TypeTupleMember} from '../_deepkit/src/reflection/type';
-import {BaseRunType} from '../baseRunTypes';
+import {MemberRunType} from '../baseRunTypes';
 import {RunType, RunTypeOptions, RunTypeVisitor} from '../types';
 
-export class TupleMemberRunType extends BaseRunType<TypeTupleMember> {
-    public readonly isJsonEncodeRequired: boolean;
-    public readonly isJsonDecodeRequired: boolean;
-    public readonly memberRunType: RunType;
-    public readonly jitId: string;
+export class TupleMemberRunType extends MemberRunType<TypeTupleMember> {
+    public readonly memberType: RunType;
+    get memberName(): string {
+        return this.src.name || '';
+    }
+    get jitId(): string {
+        const optional = this.src.optional ? '?' : '';
+        return `${this.src.kind}${optional}:${this.memberType.jitId}`;
+    }
     constructor(
         visitor: RunTypeVisitor,
         public readonly src: TypeTupleMember,
@@ -22,45 +26,48 @@ export class TupleMemberRunType extends BaseRunType<TypeTupleMember> {
     ) {
         super(visitor, src, parents, opts);
         parents.push(this);
-        this.memberRunType = visitor(src.type, parents, opts);
+        this.memberType = visitor(src.type, parents, opts);
         parents.pop();
-        this.isJsonEncodeRequired = this.memberRunType.isJsonEncodeRequired;
-        this.isJsonDecodeRequired = this.memberRunType.isJsonDecodeRequired;
-        this.jitId = `${this.src.kind}:${this.memberRunType.jitId}`;
     }
+
     compileIsType(parents: RunType[], varName: string): string {
+        // const compile = () => {};
         if (this.src.optional) {
-            return `(${varName} === undefined || ${this.memberRunType.compileIsType(parents, varName)})`;
+            return `(${varName} === undefined || ${this.memberType.compileIsType(parents, varName)})`;
         }
-        return this.memberRunType.compileIsType(parents, varName);
+        return this.memberType.compileIsType(parents, varName);
     }
     compileTypeErrors(parents: RunType[], varName: string, pathC: (string | number)[]): string {
+        // const compile = () => {};
         if (this.src.optional) {
-            return `if (${varName} !== undefined) {${this.memberRunType.compileTypeErrors(parents, varName, pathC)}}`;
+            return `if (${varName} !== undefined) {${this.memberType.compileTypeErrors(parents, varName, pathC)}}`;
         }
-        return this.memberRunType.compileTypeErrors(parents, varName, pathC);
+        return this.memberType.compileTypeErrors(parents, varName, pathC);
     }
     compileJsonEncode(parents: RunType[], varName: string): string {
+        // const compile = () => {};
         if (this.src.optional) {
-            const itemCode = this.memberRunType.compileJsonEncode(parents, varName) || varName;
+            const itemCode = this.memberType.compileJsonEncode(parents, varName) || varName;
             return `${varName} = ${varName} === undefined ? null : ${itemCode}`;
         }
         if (!this.opts?.strictJSON && !this.isJsonEncodeRequired) return '';
-        return this.memberRunType.compileJsonEncode(parents, varName);
+        return this.memberType.compileJsonEncode(parents, varName);
     }
     compileJsonDecode(parents: RunType[], varName: string): string {
+        // const compile = () => {};
         if (this.src.optional) {
-            const itemCode = this.memberRunType.compileJsonDecode(parents, varName) || varName;
+            const itemCode = this.memberType.compileJsonDecode(parents, varName) || varName;
             return `${varName} = ${varName} === null ? undefined : ${itemCode}`;
         }
         if (!this.opts?.strictJSON && !this.isJsonDecodeRequired) return '';
-        return this.memberRunType.compileJsonDecode(parents, varName);
+        return this.memberType.compileJsonDecode(parents, varName);
     }
     compileJsonStringify(parents: RunType[], varName: string): string {
+        // const compile = () => {};
         if (this.src.optional) {
-            return `(${varName} === undefined ? null : ${this.memberRunType.compileJsonStringify(parents, varName)})`;
+            return `(${varName} === undefined ? null : ${this.memberType.compileJsonStringify(parents, varName)})`;
         }
-        return this.memberRunType.compileJsonStringify(parents, varName);
+        return this.memberType.compileJsonStringify(parents, varName);
     }
     mock(...args: any[]): any {
         if (this.src.optional) {
@@ -68,6 +75,6 @@ export class TupleMemberRunType extends BaseRunType<TypeTupleMember> {
                 return undefined;
             }
         }
-        return this.memberRunType.mock(...args);
+        return this.memberType.mock(...args);
     }
 }

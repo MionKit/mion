@@ -23,6 +23,7 @@ export class IntersectionRunType extends InterfaceRunType<TypeIntersection> {
     ) {
         super(visitor, src, parents, opts);
     }
+
     compileIsType(): string {
         throw new Error('Intersection validation not supported, should be resolve to other RunTypes');
     }

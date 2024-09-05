@@ -13,8 +13,10 @@ import {isConstructor} from '../guards';
 import {jitNames} from '../constants';
 
 export class ClassRunType extends InterfaceRunType<TypeClass> {
-    public readonly className: string;
     public readonly canDeserialize: boolean;
+    get className(): string {
+        return this.src.classType.name;
+    }
     constructor(
         visitor: RunTypeVisitor,
         public readonly src: TypeClass,
@@ -22,13 +24,10 @@ export class ClassRunType extends InterfaceRunType<TypeClass> {
         opts: RunTypeOptions
     ) {
         super(visitor, src, parents, opts, true, true);
-        this.className = src.classType.name;
         this.canDeserialize = this.entries.every((prop) => !isConstructor(prop) || prop.parameterTypes.length === 0);
         if (this.canDeserialize) jitUtils.addSerializableClass(src.classType);
     }
-    getJitId(): string {
-        return `${this.src.kind}:${this.className}`;
-    }
+
     compileJsonDecode(parents: RunType[], varName: string): string {
         ClassRunType.checkSerializable(this.canDeserialize, this.className);
         const decodeParams = super.compileJsonDecode([...parents, this], varName);

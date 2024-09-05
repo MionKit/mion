@@ -13,7 +13,7 @@ import {
     buildJsonStringifyJITFn,
 } from '../jitCompiler';
 
-describe('ArrayType', () => {
+describe('Array', () => {
     const rt = runType<string[]>();
     const rD = runType<Date[]>();
 
@@ -77,7 +77,7 @@ describe('ArrayType', () => {
     });
 });
 
-describe('ArrayType with multiple dimensions', () => {
+describe('Array with multiple dimensions', () => {
     const rt = runType<string[][]>();
 
     it('validate string[][]', () => {
@@ -146,7 +146,10 @@ describe('ArrayType with multiple dimensions', () => {
     });
 });
 
-describe('ArrayType circular', () => {
+describe('Array circular ref', () => {
+    // this type is not really useful as only allows empty array
+    // but it is the only valid test for circular references in the array runType
+    // other more common circular array involves unions and are tested there i.e: types CS = (CS | string)[]
     type CircularArray = CircularArray[];
 
     it('validate CircularArray', () => {

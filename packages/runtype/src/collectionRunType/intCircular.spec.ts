@@ -125,3 +125,68 @@ it('should use JSON.stringify when there are circular references', () => {
     expect(jsonStringify(c2)).toBe(JSON.stringify(c2));
     expect(() => jsonStringify(c3)).toThrow('Converting circular structure to JSON');
 });
+
+describe('Circular array + union', () => {
+    type CuArray = (CuArray | Date | number | string)[];
+
+    it('validate CircularUnion array', () => {
+        const rt = runType<CuArray>();
+        const validate = buildIsTypeJITFn(rt).fn;
+        expect(validate(new Date())).toBe(true);
+        expect(validate(123)).toBe(true);
+        expect(validate('hello')).toBe(true);
+        expect(validate(null)).toBe(true);
+        expect(validate(['a', 'b', 'c'])).toBe(true);
+        expect(validate({})).toBe(false);
+        expect(validate(true)).toBe(false);
+    });
+
+    it('validate CircularUnion array + errors', () => {
+        const rt = runType<CuArray>();
+        const valWithErrors = buildTypeErrorsJITFn(rt).fn;
+        expect(valWithErrors(new Date())).toEqual([]);
+        expect(valWithErrors(123)).toEqual([]);
+        expect(valWithErrors('hello')).toEqual([]);
+        expect(valWithErrors(null)).toEqual([]);
+        expect(valWithErrors(['a', 'b', 'c'])).toEqual([]);
+        expect(valWithErrors({})).toEqual([{path: [], expected: 'union'}]);
+        expect(valWithErrors(true)).toEqual([{path: [], expected: 'union'}]);
+    });
+
+    it('encode/decode CircularUnion array to json', () => {
+        const rt = runType<CuArray>();
+        const toJson = buildJsonEncodeJITFn(rt).fn;
+        const fromJson = buildJsonDecodeJITFn(rt).fn;
+        const typeValue = new Date();
+        expect(rt.isJsonDecodeRequired).toBe(true);
+        expect(rt.isJsonEncodeRequired).toBe(true);
+        expect(fromJson(toJson(typeValue))).toEqual(typeValue);
+        expect(fromJson(toJson(123))).toEqual(123);
+        expect(fromJson(toJson('hello'))).toEqual('hello');
+        expect(fromJson(toJson(null))).toEqual(null);
+        expect(fromJson(toJson(['a', 'b', 'c']))).toEqual(['a', 'b', 'c']);
+
+        // objects are not the same same object in memory after round trip
+        expect(fromJson(toJson(typeValue))).not.toBe(typeValue);
+    });
+
+    it('json stringify CircularUnion array with discriminator', () => {
+        const rt = runType<CuArray>();
+        const jsonStringify = buildJsonStringifyJITFn(rt).fn;
+        const fromJson = buildJsonDecodeJITFn(rt).fn;
+        const typeValue = 'hello';
+        const roundTrip = fromJson(JSON.parse(jsonStringify(typeValue)));
+        expect(roundTrip).toEqual(typeValue);
+
+        const typeValue2 = ['a', 'b', 'c'];
+        const roundTrip2 = fromJson(JSON.parse(jsonStringify(typeValue2)));
+        expect(roundTrip2).toEqual(typeValue2);
+    });
+
+    it('mock CircularUnion array', () => {
+        const rt = runType<CuArray>();
+        const validate = buildIsTypeJITFn(rt).fn;
+        expect(rt.mock() instanceof Array).toBe(true);
+        expect(validate(rt.mock())).toBe(true);
+    });
+});
