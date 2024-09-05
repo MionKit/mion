@@ -29,7 +29,7 @@ import {isCollectionRunType} from '../guards';
  * */
 export class UnionRunType extends CollectionRunType<TypeUnion> {
     public readonly childRunTypes: RunType[];
-    public readonly jitId: string = '_';
+    public readonly jitId: string = '$';
     get isJsonEncodeRequired(): boolean {
         return true;
     }

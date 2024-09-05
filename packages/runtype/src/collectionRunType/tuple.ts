@@ -22,7 +22,7 @@ import {TupleMemberRunType} from './tupleMember';
 
 export class TupleRunType extends CollectionRunType<TypeTuple> {
     public readonly childRunTypes: TupleMemberRunType[];
-    public readonly jitId: string = '_';
+    public readonly jitId: string = '$';
     get isJsonEncodeRequired(): boolean {
         return this.childRunTypes.some((rt) => rt.isJsonEncodeRequired);
     }

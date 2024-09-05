@@ -224,7 +224,7 @@ describe('Interface', () => {
     });
 });
 
-describe('Interface with circular properties', () => {
+describe('Interface with circular ref properties', () => {
     interface ICircular {
         name: string;
         child?: ICircular;
@@ -270,7 +270,7 @@ describe('Interface with circular properties', () => {
     });
 });
 
-describe('Interface with circular type array', () => {
+describe('Interface with circular ref type array', () => {
     interface ICircularArray {
         name: string;
         children?: ICircularArray[];
@@ -284,6 +284,11 @@ describe('Interface with circular type array', () => {
         const obj2: ICircularArray = {name: 'hello', children: [{name: 'world'}]};
         expect(validate(obj1)).toBe(true);
         expect(validate(obj2)).toBe(true);
+
+        const obj3 = {name: 'hello', children: [{name: 123}]};
+        const obj4 = {name: 'hello', children: [123]};
+        expect(validate(obj3)).toBe(false);
+        expect(validate(obj4)).toBe(false);
     });
 
     it('validate circular interface on array + errors', () => {
@@ -355,22 +360,6 @@ describe('Interface with nested circular type', () => {
         const obj3 = {name: 'hello', embedded: {hello: 123}};
         expect(validate(obj3)).toBe(false);
     });
-    function anonymous(µTils) {
-        function jitƒn(vλl) {
-            return (
-                typeof vλl === 'object' &&
-                vλl !== null &&
-                !Array.isArray(vλl) &&
-                typeof vλl.name === 'string' &&
-                typeof vλl.embedded === 'object' &&
-                vλl.embedded !== null &&
-                !Array.isArray(vλl.embedded) &&
-                typeof vλl.embedded.hello === 'string' &&
-                µTils.getFromJitCache('child?:undefined:isT')(vλl.embedded.child)
-            );
-        }
-        return jitƒn;
-    }
 
     it('validate circular interface on nested object + errors', () => {
         const valWithErrors = buildTypeErrorsJITFn(rt).fn;
@@ -422,7 +411,7 @@ describe('Interface with nested circular type', () => {
     });
 });
 
-describe('Interface with circular tuple', () => {
+describe('Interface with circular ref tuple', () => {
     interface ICircularTuple {
         name: string;
         parent?: [string, ICircularTuple];

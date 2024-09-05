@@ -37,7 +37,7 @@ export class InterfaceRunType<
     public readonly isJsonDecodeRequired: boolean;
     public readonly entries: InterfaceRunTypeEntry[];
     public readonly childRunTypes: (PropertyRunType | IndexSignatureRunType)[];
-    public readonly jitId: string = '_';
+    public readonly jitId: string = '$';
     constructor(
         visitor: RunTypeVisitor,
         public readonly src: T,
