@@ -22,7 +22,7 @@ import {jitNames} from '../constants';
 
 export class ArrayRunType extends CollectionRunType<TypeArray> {
     public readonly childRunTypes: RunType[]; // although array can have only one type, it can reference itself so is considered a collection
-    public readonly jitId: string = '_';
+    public readonly jitId: string = '$';
     public readonly isJsonEncodeRequired: boolean = false;
     public readonly isJsonDecodeRequired: boolean = false;
     get child() {

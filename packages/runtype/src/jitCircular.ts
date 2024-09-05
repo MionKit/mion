@@ -24,14 +24,16 @@ function handleJitCacheCompiling(
     /** functions that compiles code, only called if required */
     compile: () => string,
     /** argument Names when called jit cached function */
-    jitCacheCallArgs: string[]
+    jitCacheCallArgs: string[],
+    addReturnToJit: boolean
 ): string {
     // if it is not a circular type, we can return the code directly
     if (!shouldCallJitCache(rt)) return compile();
 
     // if is a circular type, we need to create a jit function to handle the circular reference and call it
     const jitIdFnName = `${rt.jitId}:${fnName}`;
-    createJitCachedFn(jitIdFnName, compile, jitCacheCallArgs); // adding the code to jit cache
+    const compileJit = addReturnToJit ? () => `return ${compile()}` : compile;
+    createJitCachedFn(jitIdFnName, compileJit, jitCacheCallArgs); // adding the code to jit cache
     return callJitCachedFn(jitIdFnName, jitCacheCallArgs); // return a call to the cached function
 }
 
@@ -45,8 +47,10 @@ function handleCodeReturn(
     codeContainsReturn: boolean,
     fnName: string
 ) {
-    const codeHasReturn = codeContainsReturn && !shouldCallJitCache(rt);
-    const compiled = handleJitCacheCompiling(rt, fnName, compile, jitCacheCallArgs);
+    const shouldCallJit = shouldCallJitCache(rt);
+    const addReturnToJit = !codeContainsReturn;
+    const compiled = handleJitCacheCompiling(rt, fnName, compile, jitCacheCallArgs, addReturnToJit);
+    const codeHasReturn = codeContainsReturn && !shouldCallJit;
     if (nestLevel > 0) {
         // code contains a return and possibly more statements, we need to wrap it in a self invoking function to avoid syntax errors
         if (codeHasReturn) return `(function(){${compiled}})()`;
@@ -88,7 +92,7 @@ export function handleCircularTypeErrors(
     jitCacheCallArgs: string[],
     pathC: (string | number)[]
 ): string {
-    const typeErrorsCode = handleJitCacheCompiling(rt, 'TErr', compile, jitCacheCallArgs);
+    const typeErrorsCode = handleJitCacheCompiling(rt, 'TErr', compile, jitCacheCallArgs, false);
     if (shouldCallJitCache(rt))
         return `
             ${jitNames.circularPath}.push(${pathC.join(',')});
@@ -100,12 +104,12 @@ export function handleCircularTypeErrors(
 
 /** Handles Circular compiling for jit jsonEncode functions */
 export function handleCircularJsonEncode(rt: RunType, compile: () => string, jitCacheCallArgs: string[]): string {
-    return handleJitCacheCompiling(rt, 'jsonEnc', compile, jitCacheCallArgs);
+    return handleJitCacheCompiling(rt, 'jsonEnc', compile, jitCacheCallArgs, false);
 }
 
 /** Handles Circular compiling for jit jsonDecode functions */
 export function handleCircularJsonDecode(rt: RunType, compile: () => string, jitCacheCallArgs: string[]): string {
-    return handleJitCacheCompiling(rt, 'jsonDec', compile, jitCacheCallArgs);
+    return handleJitCacheCompiling(rt, 'jsonDec', compile, jitCacheCallArgs, false);
 }
 
 /** wrapper function to compile children types and managing parents array before and after children gets compiled*/
