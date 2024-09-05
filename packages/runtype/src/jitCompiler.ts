@@ -217,14 +217,16 @@ export function callJitCachedFn(jitIdFnName: string, callArgsNames: string[]): s
  * Create a new jit function and add it to the jit cache, so it can be called later.
  * @param jitNames
  * @param jitIdFnName
- * @param code
+ * @param code a string representing the src code or a functions that compiles the src code
  * @param cacheFnArgsNames
  */
 export function createJitCachedFn(jitIdFnName: string, code: string | (() => string), cacheFnArgsNames: string[]): void {
     if (!jitUtils.isInJitCache(jitIdFnName)) {
-        const compiledCode = typeof code === 'function' ? code() : code;
+        const isFn = typeof code === 'function';
+        if (isFn) jitUtils.addToJitCache(jitIdFnName, true as any); // add a placeholder to avoid infinite recursion
+        const compiledCode = isFn ? code() : code;
         const fn = createJitFnWithContext(cacheFnArgsNames, compiledCode);
-        jitUtils.addToJitCache(jitIdFnName, fn as any);
+        jitUtils.addToJitCache(jitIdFnName, fn);
         if (process.env.DEBUG_JIT) console.log(`cached jit ${jitIdFnName}: `, fn.toString());
     }
 }

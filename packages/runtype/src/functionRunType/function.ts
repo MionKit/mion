@@ -16,22 +16,55 @@ import {ParameterRunType} from './param';
 type AnyFunction = TypeMethodSignature | TypeCallSignature | TypeFunction | TypeMethod;
 
 export class FunctionRunType<CallType extends AnyFunction = TypeFunction> extends BaseRunType<CallType> {
-    public readonly isJsonEncodeRequired = true; // triggers custom json encode so functions get skipped
-    public readonly isJsonDecodeRequired = true; // triggers custom json encode so functions get skipped
-    public readonly isReturnJsonEncodedRequired: boolean;
-    public readonly isReturnJsonDecodedRequired: boolean;
-    public readonly isParamsJsonEncodedRequired: boolean;
-    public readonly isParamsJsonDecodedRequired: boolean;
     public readonly returnType: RunType;
     public readonly parameterTypes: ParameterRunType[];
-    public readonly shouldSerialize = false;
-    public readonly hasReturnData: boolean;
-    public readonly hasOptionalParameters: boolean;
-    public readonly isAsync: boolean;
     public readonly totalRequiredParams: number;
-    public readonly hasRestParameter: boolean;
-    public readonly paramsName: string;
-    public readonly jitId: string;
+    get shouldSerialize(): boolean {
+        return false;
+    }
+    get isJsonEncodeRequired(): boolean {
+        return true;
+    }
+    get isJsonDecodeRequired(): boolean {
+        return true;
+    }
+    get isReturnJsonEncodedRequired(): boolean {
+        return this.returnType.isJsonEncodeRequired;
+    }
+    get isReturnJsonDecodedRequired(): boolean {
+        return this.returnType.isJsonDecodeRequired;
+    }
+    get isParamsJsonEncodedRequired(): boolean {
+        return this.parameterTypes.some((p) => p.isJsonEncodeRequired);
+    }
+    get isParamsJsonDecodedRequired(): boolean {
+        return this.parameterTypes.some((p) => p.isJsonDecodeRequired);
+    }
+    get hasReturnData(): boolean {
+        const returnKind = this.returnType.src.kind;
+        return (
+            returnKind !== ReflectionKind.void && returnKind !== ReflectionKind.never && returnKind !== ReflectionKind.undefined
+        );
+    }
+    get hasOptionalParameters(): boolean {
+        return this.totalRequiredParams < this.parameterTypes.length;
+    }
+    get isAsync(): boolean {
+        const returnKind = this.returnType.src.kind;
+        return (
+            returnKind === ReflectionKind.promise || returnKind === ReflectionKind.any || returnKind === ReflectionKind.unknown
+        );
+    }
+    get hasRestParameter(): boolean {
+        return !!this.parameterTypes.length && this.parameterTypes[this.parameterTypes.length - 1].isRest;
+    }
+    get paramsName(): string {
+        return `[${this.parameterTypes.map((p) => p.getName()).join(', ')}]`;
+    }
+    get jitId(): string {
+        return `${this.src.kind}(${this.parameterTypes.map((p) => p.jitId).join(',')}):${this.returnType.jitId}`;
+    }
+    
     constructor(
         visitor: RunTypeVisitor,
         public readonly src: CallType,
@@ -46,23 +79,8 @@ export class FunctionRunType<CallType extends AnyFunction = TypeFunction> extend
         this.returnType = isPromise ? maybePromiseReturn.resolvedType : maybePromiseReturn;
         this.parameterTypes = src.parameters.slice(start, end).map((p) => visitor(p, parents, opts)) as ParameterRunType[];
         this.totalRequiredParams = this.parameterTypes.reduce((acc, p) => acc + (p.isOptional ? 0 : 1), 0);
-        this.isReturnJsonEncodedRequired = this.returnType.isJsonEncodeRequired;
-        this.isReturnJsonDecodedRequired = this.returnType.isJsonDecodeRequired;
-        this.isParamsJsonEncodedRequired = this.parameterTypes.some((p) => p.isJsonEncodeRequired);
-        this.isParamsJsonDecodedRequired = this.parameterTypes.some((p) => p.isJsonDecodeRequired);
-        this.hasOptionalParameters = this.totalRequiredParams < this.parameterTypes.length;
-        this.hasRestParameter = !!this.parameterTypes.length && this.parameterTypes[this.parameterTypes.length - 1].isRest;
-        this.hasReturnData = this._hasReturnData(this.returnType.src.kind);
-        this.isAsync = isPromise || this._isAsync(this.returnType.src.kind);
-        this.paramsName = `[${this.parameterTypes.map((p) => p.getName()).join(', ')}]`;
-        this.jitId = 'function'; // will be overridden later
     }
 
-    private _jitId: string | undefined;
-    getJitId(): string {
-        if (this._jitId) return this._jitId;
-        return (this._jitId = `${this.src.kind}(${this.parameterTypes.map((p) => p.jitId).join(',')}):${this.returnType.jitId}`);
-    }
     compileIsType(): string {
         throw new Error(`${this.getName()} validation is not supported, instead validate parameters or return type separately.`);
     }
@@ -105,7 +123,9 @@ export class FunctionRunType<CallType extends AnyFunction = TypeFunction> extend
         compileTypeErrors: (parents: RunType[], varName: string, pathC: (string | number)[]) => {
             const maxLength = !this.hasRestParameter ? `|| ${varName}.length > ${this.parameterTypes.length}` : '';
             const checkLength = `(${varName}.length < ${this.totalRequiredParams} ${maxLength})`;
-            const paramsCode = this.parameterTypes.map((p, i) => p.compileTypeErrors([...parents, this], varName, pathC, i)).join(';');
+            const paramsCode = this.parameterTypes
+                .map((p, i) => p.compileTypeErrors([...parents, this], varName, pathC, i))
+                .join(';');
             return (
                 `if (!Array.isArray(${varName}) || ${checkLength}) ${jitNames.errors}.push({path: ${getErrorPath(pathC)}, expected: ${toLiteral(this.paramsName)}});` +
                 `else {${paramsCode}}`
@@ -167,17 +187,5 @@ export class FunctionRunType<CallType extends AnyFunction = TypeFunction> extend
 
     returnMock(): any {
         return this.returnType.mock();
-    }
-
-    private _hasReturnData(returnKind: ReflectionKind): boolean {
-        return (
-            returnKind !== ReflectionKind.void && returnKind !== ReflectionKind.never && returnKind !== ReflectionKind.undefined
-        );
-    }
-
-    private _isAsync(returnKind: ReflectionKind): boolean {
-        return (
-            returnKind === ReflectionKind.promise || returnKind === ReflectionKind.any || returnKind === ReflectionKind.unknown
-        );
     }
 }

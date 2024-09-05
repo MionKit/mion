@@ -15,11 +15,20 @@ export class ParameterRunType extends BaseRunType<TypeParameter> {
     public readonly isJsonEncodeRequired: boolean;
     public readonly isJsonDecodeRequired: boolean;
     public readonly argRunType: RunType | RestParamsRunType;
-    public readonly isOptional: boolean;
-    public readonly paramName: string;
     public readonly default: any;
-    public readonly isRest: boolean;
-    public readonly jitId: string;
+
+    get isRest(): boolean {
+        return this.argRunType instanceof RestParamsRunType;
+    }
+    get isOptional(): boolean {
+        return !!this.src.optional || this.isRest;
+    }
+    get paramName(): string {
+        return this.src.name;
+    }
+    get jitId(): string {
+        return `${this.argRunType.jitId}${this.isOptional ? '?' : ''}`;
+    }
 
     constructor(
         visitor: RunTypeVisitor,
@@ -33,15 +42,6 @@ export class ParameterRunType extends BaseRunType<TypeParameter> {
         parents.pop();
         this.isJsonEncodeRequired = this.argRunType.isJsonEncodeRequired;
         this.isJsonDecodeRequired = this.argRunType.isJsonDecodeRequired;
-        this.isRest = this.argRunType instanceof RestParamsRunType;
-        this.isOptional = !!src.optional || this.isRest;
-        this.paramName = src.name;
-        this.jitId = 'param'; // will be overridden later
-    }
-
-    getJitId(): string | number {
-        // param name is irrelevant (not required) as only position matters
-        return `${this.argRunType.jitId}${this.isOptional ? '?' : ''}`;
     }
     getName(): string {
         return `${this.paramName}${this.isOptional ? '?' : ''}:${this.argRunType.getName()}`;

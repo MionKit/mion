@@ -65,8 +65,8 @@ function visitor(deepkitType, parents: RunType[], opts: RunTypeOptions): RunType
      This also relies on deepkit handling circular types to prevent infinite loop when we are generating RunTypes  */
     const existingType: RunType | undefined = (deepkitType as SrcType)._runType;
     if (existingType) {
-        if (!(existingType as any).isCircular && hasCircularParents(existingType, parents))
-            (existingType as any).isCircular = true;
+        if (!(existingType as any).isCircularRef && hasCircularParents(existingType, parents))
+            (existingType as any).isCircularRef = true;
         return existingType;
     }
 
