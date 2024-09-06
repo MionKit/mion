@@ -117,11 +117,4 @@ export abstract class MemberRunType<T extends Type, Opts extends RunTypeOptions 
     public abstract readonly memberType: RunType;
     public abstract readonly memberName: string | number | symbol;
     public abstract readonly jitId: string;
-
-    get isJsonEncodeRequired(): boolean {
-        return this.memberType.isJsonEncodeRequired;
-    }
-    get isJsonDecodeRequired(): boolean {
-        return this.memberType.isJsonDecodeRequired;
-    }
 }

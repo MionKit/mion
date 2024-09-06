@@ -11,13 +11,11 @@ import {RunType, RunTypeOptions, RunTypeVisitor} from '../types';
 
 export class TupleMemberRunType extends MemberRunType<TypeTupleMember> {
     public readonly memberType: RunType;
-    get memberName(): string {
-        return this.src.name || '';
-    }
-    get jitId(): string {
-        const optional = this.src.optional ? '?' : '';
-        return `${this.src.kind}${optional}:${this.memberType.jitId}`;
-    }
+    public readonly memberName: string | number;
+    public readonly isJsonEncodeRequired: boolean;
+    public readonly isJsonDecodeRequired: boolean;
+    public readonly jitId: string = '$';
+
     constructor(
         visitor: RunTypeVisitor,
         public readonly src: TypeTupleMember,
@@ -28,6 +26,11 @@ export class TupleMemberRunType extends MemberRunType<TypeTupleMember> {
         parents.push(this);
         this.memberType = visitor(src.type, parents, opts);
         parents.pop();
+        this.memberName = src.name || '';
+        const optional = this.src.optional ? '?' : '';
+        this.jitId = `${this.src.kind}${optional}:${this.memberType.jitId}`;
+        this.isJsonDecodeRequired = this.memberType.isJsonDecodeRequired;
+        this.isJsonEncodeRequired = this.memberType.isJsonEncodeRequired;
     }
 
     compileIsType(parents: RunType[], varName: string): string {
