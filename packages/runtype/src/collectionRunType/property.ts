@@ -23,28 +23,12 @@ import {
 export class PropertyRunType extends MemberRunType<TypePropertySignature | TypeProperty> {
     public readonly memberType: RunType;
     public readonly isSafePropName: boolean;
-    get memberName(): string | number {
-        return typeof this.src.name === 'symbol' ? this.src.name.toString() : this.src.name;
-    }
-    get shouldSerialize(): boolean {
-        return typeof this.src.name === 'symbol' ? false : !isFunctionKind(this.src.kind);
-    }
-    get isJsonEncodeRequired(): boolean {
-        return typeof this.src.name === 'symbol'
-            ? this.memberType.isJsonEncodeRequired
-            : this.memberType.isJsonEncodeRequired && this.shouldSerialize;
-    }
-    get isJsonDecodeRequired(): boolean {
-        return this.memberType.isJsonDecodeRequired;
-    }
-    get jitId(): string {
-        const optional = this.src.optional ? '?' : '';
-        return `${this.memberName}${optional}:${this.memberType.jitId}`;
-    }
-    get safePropAccessor(): string {
-        return this.isSafePropName ? `.${this.memberName}` : `[${toLiteral(this.memberName)}]`;
-    }
-
+    public readonly memberName: string | number;
+    public readonly shouldSerialize: boolean;
+    public readonly isJsonEncodeRequired: boolean;
+    public readonly isJsonDecodeRequired: boolean;
+    public readonly jitId: string = '$';
+    public readonly safePropAccessor: string;
     constructor(
         visitor: RunTypeVisitor,
         public readonly src: TypePropertySignature,
@@ -55,8 +39,23 @@ export class PropertyRunType extends MemberRunType<TypePropertySignature | TypeP
         parents.push(this);
         this.memberType = visitor(src.type, parents, opts);
         parents.pop();
+
+        if (typeof src.name === 'symbol') {
+            this.memberName = src.name.toString();
+            this.shouldSerialize = false;
+            this.isJsonEncodeRequired = this.memberType.isJsonEncodeRequired;
+            this.isJsonDecodeRequired = this.memberType.isJsonDecodeRequired;
+        } else {
+            this.memberName = src.name;
+            this.shouldSerialize = !isFunctionKind(src.kind);
+            this.isJsonEncodeRequired = this.memberType.isJsonEncodeRequired && this.shouldSerialize;
+            this.isJsonDecodeRequired = this.memberType.isJsonDecodeRequired;
+        }
+        const optional = this.src.optional ? '?' : '';
         this.isSafePropName =
             (typeof src.name === 'string' && validPropertyNameRegExp.test(src.name)) || typeof src.name === 'number';
+        this.safePropAccessor = this.isSafePropName ? `.${this.memberName}` : `[${toLiteral(this.memberName)}]`;
+        this.jitId = `${this.memberName}${optional}:${this.memberType.jitId}`;
     }
     compileIsType(parents: RunType[], varName: string): string {
         const {propAccessor, nestLevel} = getJitVars(this, parents, varName);

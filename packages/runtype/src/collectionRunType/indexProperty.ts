@@ -25,15 +25,12 @@ import {
 export class IndexSignatureRunType extends MemberRunType<TypeIndexSignature> {
     public readonly memberType: RunType;
     public readonly indexKeyType: NumberRunType | StringRunType | SymbolRunType;
-    get memberName(): string {
-        return `${this.src.index.kind}`;
-    }
-    get shouldSerialize(): boolean {
-        return !isFunctionKind(this.src.type.kind) && this.src.index.kind !== ReflectionKind.symbol;
-    }
-    get jitId(): string {
-        return `[${this.memberName}]:${this.memberType.jitId}`;
-    }
+    public readonly memberName: string | number;
+    public readonly shouldSerialize: boolean;
+    public readonly isJsonEncodeRequired: boolean;
+    public readonly isJsonDecodeRequired: boolean;
+    public readonly jitId: string = '$';
+
     constructor(
         visitor: RunTypeVisitor,
         public readonly src: TypeIndexSignature,
@@ -45,6 +42,11 @@ export class IndexSignatureRunType extends MemberRunType<TypeIndexSignature> {
         this.memberType = visitor(src.type, parents, opts);
         this.indexKeyType = visitor(src.index, parents, opts) as NumberRunType | StringRunType | SymbolRunType;
         parents.pop();
+        this.memberName = `${this.src.index.kind}`;
+        this.shouldSerialize = !isFunctionKind(src.type.kind) && src.index.kind !== ReflectionKind.symbol;
+        this.jitId = `[${this.memberName}]:${this.memberType.jitId}`;
+        this.isJsonEncodeRequired = this.memberType.isJsonEncodeRequired;
+        this.isJsonDecodeRequired = this.memberType.isJsonDecodeRequired;
     }
 
     compileIsType(parents: RunType[], varName: string): string {
