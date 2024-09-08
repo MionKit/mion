@@ -6,8 +6,8 @@
  * ######## */
 
 import {TypeArray} from '../_deepkit/src/reflection/type';
-import {JitContext, MockContext, RunType, RunTypeOptions, RunTypeVisitor, TypeErrorsContext} from '../types';
-import {getErrorPath, getExpected} from '../utils';
+import {JitContext, JitPathItem, MockContext, RunType, RunTypeOptions, RunTypeVisitor, TypeErrorsContext} from '../types';
+import {getJitErrorPath, getExpected} from '../utils';
 import {mockRecursiveEmptyArray, random} from '../mock';
 import {CollectionRunType} from '../baseRunTypes';
 import {
@@ -17,7 +17,6 @@ import {
     handleCircularJsonStringify,
     handleCircularTypeErrors,
 } from '../jitCircular';
-import {jitNames} from '../constants';
 import {compileChildren} from '../jitCompiler';
 
 export class ArrayRunType extends CollectionRunType<TypeArray> {
@@ -45,14 +44,15 @@ export class ArrayRunType extends CollectionRunType<TypeArray> {
 
     compileIsType(ctx: JitContext): string {
         const compile = () => {
+            const varName = ctx.args.vλl;
             const index = `iε${ctx.parents.length}`;
             const resultVal = `rεsult${ctx.parents.length}`;
-            const compC = (newCtx: JitContext) => this.child.compileIsType(newCtx);
-            const itemsCode = compileChildren(compC, this, ctx, index, true);
+            const childPath: JitPathItem = {vλl: index, useArrayAccessor: true};
+            const compC = (childCtx: JitContext) => this.child.compileIsType(childCtx);
             return `
-                if (!Array.isArray(${ctx.args.value})) return false;
-                for (let ${index} = 0; ${index} < ${ctx.args.value}.length; ${index}++) {
-                    const ${resultVal} = ${itemsCode};
+                if (!Array.isArray(${varName})) return false;
+                for (let ${index} = 0; ${index} < ${varName}.length; ${index}++) {
+                    const ${resultVal} = ${compileChildren(compC, this, ctx, childPath)};
                     if (!(${resultVal})) return false;
                 }
                 return true;
@@ -62,14 +62,16 @@ export class ArrayRunType extends CollectionRunType<TypeArray> {
     }
     compileTypeErrors(ctx: TypeErrorsContext): string {
         const compile = () => {
+            const varName = ctx.args.vλl;
+            const errorsName = ctx.args.εrrors;
             const index = `iε${ctx.parents.length}`;
-            const compC = (newCtx: TypeErrorsContext) => this.child.compileTypeErrors(newCtx);
-            const itemsCode = compileChildren(compC, this, ctx, index, true);
+            const childPath: JitPathItem = {vλl: index, useArrayAccessor: true};
+            const compC = (childCtx: TypeErrorsContext) => this.child.compileTypeErrors(childCtx);
             return `
-                if (!Array.isArray(${ctx.args.value})) ${jitNames.errors}.push({path: ${getErrorPath(ctx.path)}, expected: ${getExpected(this)}});
+                if (!Array.isArray(${varName})) ${errorsName}.push({path: ${getJitErrorPath(ctx.path)}, expected: ${getExpected(this)}});
                 else {
-                    for (let ${index} = 0; ${index} < ${ctx.args.value}.length; ${index}++) {
-                        ${itemsCode}
+                    for (let ${index} = 0; ${index} < ${varName}.length; ${index}++) {
+                        ${compileChildren(compC, this, ctx, childPath)}
                     }
                 }
             `;
@@ -87,12 +89,13 @@ export class ArrayRunType extends CollectionRunType<TypeArray> {
             const skip = isEncode ? !this.isJsonEncodeRequired : !this.isJsonDecodeRequired;
             const index = `iε${ctx.parents.length}`;
             if (skip) return '';
+            const varName = ctx.args.vλl;
+            const childPath: JitPathItem = {vλl: index, useArrayAccessor: true};
             const encDec = isEncode ? this.child.compileJsonEncode : this.child.compileJsonDecode;
-            const compC = (newCtx: JitContext) => encDec(newCtx);
-            const itemsCode = compileChildren(compC, this, ctx, index, true);
+            const compC = (childCtx: JitContext) => encDec(childCtx);
             return `
-                for (let ${index} = 0; ${index} < ${ctx.args.value}.length; ${index}++) {
-                    ${itemsCode}
+                for (let ${index} = 0; ${index} < ${varName}.length; ${index}++) {
+                    ${compileChildren(compC, this, ctx, childPath)}
                 }
             `;
         };
@@ -102,15 +105,16 @@ export class ArrayRunType extends CollectionRunType<TypeArray> {
 
     compileJsonStringify(ctx: JitContext): string {
         const compile = () => {
+            const varName = ctx.args.vλl;
             const index = `iε${ctx.parents.length}`;
             const jsonItems = `jsonItεms${ctx.parents.length}`;
             const resultVal = `rεsult${ctx.parents.length}`;
-            const compC = (newCtx: JitContext) => this.child.compileJsonStringify(newCtx);
-            const itemsCode = compileChildren(compC, this, ctx, index, true);
+            const childPath: JitPathItem = {vλl: index, useArrayAccessor: true};
+            const compC = (childCtx: JitContext) => this.child.compileJsonStringify(childCtx);
             return `
                 const ${jsonItems} = [];
-                for (let ${index} = 0; ${index} < ${ctx.args.value}.length; ${index}++) {
-                    const ${resultVal} = ${itemsCode};
+                for (let ${index} = 0; ${index} < ${varName}.length; ${index}++) {
+                    const ${resultVal} = ${compileChildren(compC, this, ctx, childPath)};
                     ${jsonItems}.push(${resultVal});
                 }
                 return '[' + ${jsonItems}.join(',') + ']';
@@ -118,7 +122,7 @@ export class ArrayRunType extends CollectionRunType<TypeArray> {
         };
         return handleCircularJsonStringify(compile, this, ctx, true);
     }
-    mock(ctx?: MockContext): any[] {
+    mock(ctx?: Pick<MockContext, 'arrayLength'>): any[] {
         const length = ctx?.arrayLength ?? random(0, 30);
         if (this.isCircularRef) {
             const depth = random(1, 5);

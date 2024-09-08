@@ -1,7 +1,7 @@
 import type {TypePromise} from '../_deepkit/src/reflection/type';
-import type {JitContext, MockOptions, RunType, RunTypeOptions, RunTypeVisitor, TypeErrorsContext} from '../types';
+import type {JitContext, MockContext, RunType, RunTypeOptions, RunTypeVisitor, TypeErrorsContext} from '../types';
 import {AtomicRunType} from '../baseRunTypes';
-import {getErrorPath, getExpected} from '../utils';
+import {getJitErrorPath, getExpected} from '../utils';
 
 /* ########
  * 2024 mion
@@ -24,14 +24,14 @@ export class PromiseRunType extends AtomicRunType<TypePromise> {
         this.resolvedType = visitor(src.type, [...parents, this], opts);
     }
     compileIsType(ctx: JitContext): string {
-        return `${ctx.args.value} instanceof Promise`;
+        return `${ctx.args.vλl} instanceof Promise`;
     }
     resolvedIsTypeJIT(ctx: JitContext): string {
         return this.resolvedType.compileIsType(ctx);
     }
     compileTypeErrors(ctx: TypeErrorsContext): string {
-        const {value, errors} = ctx.args;
-        return `if (!(${value} instanceof Promise)) ${errors}.push({path: ${getErrorPath(ctx.path)}, expected: ${getExpected(this)}})`;
+        const {vλl: value, εrrors: errors} = ctx.args;
+        return `if (!(${value} instanceof Promise)) ${errors}.push({path: ${getJitErrorPath(ctx.path)}, expected: ${getExpected(this)}})`;
     }
     resolveTypeErrorsJIT(ctx: TypeErrorsContext): string {
         return this.resolvedType.compileTypeErrors(ctx);
@@ -45,7 +45,7 @@ export class PromiseRunType extends AtomicRunType<TypePromise> {
     compileJsonStringify(): string {
         throw new Error(`${this.getName()} can not be stringified.`);
     }
-    mock(ctx?: Pick<MockOptions, 'promiseReject' | 'promiseTimeOut'>): Promise<any> {
+    mock(ctx?: Pick<MockContext, 'promiseReject' | 'promiseTimeOut'>): Promise<any> {
         const timeOut = ctx?.promiseTimeOut || 1;
         return new Promise((resolve, reject) => {
             if (timeOut > 0) {

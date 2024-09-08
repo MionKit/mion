@@ -6,11 +6,10 @@
  * ######## */
 
 import {TypeUnion} from '../_deepkit/src/reflection/type';
-import {JitContext, MockContext, RunType, RunTypeOptions, RunTypeVisitor, TypeErrorsContext} from '../types';
-import {getErrorPath, getExpected, shouldSkipJsonDecode, shouldSkipJsonEncode} from '../utils';
+import {JitContext, JitPathItem, MockContext, RunType, RunTypeOptions, RunTypeVisitor, TypeErrorsContext} from '../types';
+import {getJitErrorPath, getExpected, shouldSkipJsonDecode, shouldSkipJsonEncode} from '../utils';
 import {random} from '../mock';
 import {CollectionRunType} from '../baseRunTypes';
-import {jitNames} from '../constants';
 import {
     handleCircularIsType,
     handleCircularJsonEncode,
@@ -59,7 +58,9 @@ export class UnionRunType extends CollectionRunType<TypeUnion> {
     }
     compileTypeErrors(ctx: TypeErrorsContext): string {
         const compile = () => {
+            const errorsVarName = ctx.args.εrrors;
             const compC = (childCtx: TypeErrorsContext) => {
+                const childErrors = ctx.args.εrrors;
                 const atomicChildren = this.childRunTypes.filter((rt) => !isCollectionRunType(rt));
                 // TODO, old TS version, does not catch the type of rt, any[] is used to avoid compilation errors
                 const collectionChildren: any[] = this.childRunTypes.filter((rt) => isCollectionRunType(rt));
@@ -68,7 +69,7 @@ export class UnionRunType extends CollectionRunType<TypeUnion> {
                 const atomicItemsCode = atomicChildren
                     .map((rt) => {
                         // if match an union type then don't need to check the rest of the types
-                        return `if (${rt.compileIsType(childCtx)}) return ${jitNames.errors};`;
+                        return `if (${rt.compileIsType(childCtx)}) return ${childErrors};`;
                     })
                     .join('\n');
 
@@ -78,11 +79,11 @@ export class UnionRunType extends CollectionRunType<TypeUnion> {
                     .map((rt, i) => {
                         const isCollectionType = false; // TODO upgrade union algorithm
                         // if there are no errors found that means the type is correct and we can return
-                        const errorsBefore = `εrrs${i}Bef${ctx.parents.length}`;
+                        const errorsBefore = `εrrors${i}Bef${childCtx.parents.length}`;
                         return `if (${isCollectionType}) {
-                            const ${errorsBefore} = ${jitNames.errors}.length;
+                            const ${errorsBefore} = ${childErrors}.length;
                             ${rt.compileTypeErrors(childCtx)}
-                            if(${errorsBefore} === ${jitNames.errors}.length) return ${jitNames.errors};
+                            if(${errorsBefore} === ${childErrors}.length) return ${childErrors};
                         }`;
                     })
                     .join('\n');
@@ -93,7 +94,7 @@ export class UnionRunType extends CollectionRunType<TypeUnion> {
             // if we do all checks and code reaches this point then we can add an error for the root type
             return `
                 ${itemsCode}
-                ${jitNames.errors}.push({path: ${getErrorPath(ctx.path)}, expected: ${getExpected(this)}});
+                ${errorsVarName}.push({path: ${getJitErrorPath(ctx.path)}, expected: ${getExpected(this)}});
             `;
         };
         return handleCircularTypeErrors(compile, this, ctx);
@@ -109,20 +110,23 @@ export class UnionRunType extends CollectionRunType<TypeUnion> {
      */
     compileJsonEncode(ctx: JitContext): string {
         const compile = () => {
+            const varName = ctx.args.vλl;
+            const childPath: JitPathItem = {vλl: 1, useArrayAccessor: true};
             const compC = (childCtx: JitContext) => {
+                const childVarName = childCtx.args.vλl;
                 return this.childRunTypes
                     .map((rt, i) => {
                         const itemCode = shouldSkipJsonEncode(rt) ? '' : rt.compileJsonEncode(childCtx);
                         const iF = i === 0 ? 'if' : 'else if';
                         // item encoded before reassigning varName to [i, item]
-                        return `${iF} (${rt.compileIsType(childCtx)}) {${childCtx.args.value} = [${i}, ${childCtx.args.value}]; ${itemCode}}`;
+                        return `${iF} (${rt.compileIsType(childCtx)}) {${childVarName} = [${i}, ${childVarName}]; ${itemCode}}`;
                     })
                     .join('');
             };
-            const itemsCode = compileChildren(compC, this, ctx, 1);
+            const itemsCode = compileChildren(compC, this, ctx, childPath);
             return `
                 ${itemsCode}
-                else { throw new Error('Can not encode json to union: expected one of <${this.getUnionTypeNames()}> but got ' + ${ctx.args.value}?.constructor?.name || typeof ${ctx.args.value}) }
+                else { throw new Error('Can not encode json to union: expected one of <${this.getUnionTypeNames()}> but got ' + ${varName}?.constructor?.name || typeof ${varName}) }
             `;
         };
         return handleCircularJsonEncode(compile, this, ctx);
@@ -139,21 +143,22 @@ export class UnionRunType extends CollectionRunType<TypeUnion> {
      */
     compileJsonDecode(ctx: JitContext): string {
         const compile = () => {
-            const discriminator = `${ctx.args.value}[0]`;
+            const childPath: JitPathItem = {vλl: 1, useArrayAccessor: true};
+            const discriminator = `${ctx.args.vλl}[0]`;
             const compC = (childCtx: JitContext) => {
                 return this.childRunTypes
                     .map((rt, i) => {
                         const itemCode = shouldSkipJsonDecode(rt) ? '' : `${rt.compileJsonDecode(childCtx)};`;
                         const iF = i === 0 ? 'if' : 'else if';
                         // item is decoded before being extracted from the arrayßß
-                        return `${iF} ( ${discriminator} === ${i}) {${itemCode} ${discriminator} = ${childCtx.args.value}}`;
+                        return `${iF} ( ${discriminator} === ${i}) {${itemCode} ${discriminator} = ${childCtx.args.vλl}}`;
                     })
                     .join('');
             };
-            const itemsCode = compileChildren(compC, this, ctx, 1);
+            const itemsCode = compileChildren(compC, this, ctx, childPath);
             return `
                 ${itemsCode}
-                else { throw new Error('Can not decode json to union: expected one of <${this.getUnionTypeNames()}> but got ' + ${ctx.args.value}?.constructor?.name || typeof ${ctx.args.value}) }
+                else { throw new Error('Can not decode json to union: expected one of <${this.getUnionTypeNames()}> but got ' + ${ctx.args.vλl}?.constructor?.name || typeof ${ctx.args.vλl}) }
             `;
         };
         return handleCircularJsonEncode(compile, this, ctx);
@@ -173,12 +178,12 @@ export class UnionRunType extends CollectionRunType<TypeUnion> {
             const itemsCode = compileChildren(compC, this, ctx);
             return `
                 ${itemsCode}
-                else { throw new Error('Can not stringify union: expected one of <${this.getUnionTypeNames()}> but got ' + ${ctx.args.value}?.constructor?.name || typeof ${ctx.args.value}) }
+                else { throw new Error('Can not stringify union: expected one of <${this.getUnionTypeNames()}> but got ' + ${ctx.args.vλl}?.constructor?.name || typeof ${ctx.args.vλl}) }
             `;
         };
         return handleCircularJsonStringify(compile, this, ctx, true);
     }
-    mock(ctx?: MockContext): any {
+    mock(ctx?: Pick<MockContext, 'unionIndex'>): any {
         if (ctx?.unionIndex && (ctx.unionIndex < 0 || ctx.unionIndex >= this.childRunTypes.length)) {
             throw new Error('unionIndex must be between 0 and the number of types in the union');
         }

@@ -8,7 +8,7 @@
 import {TypeParameter} from '../_deepkit/src/reflection/type';
 import {MemberRunType} from '../baseRunTypes';
 import {compileChildren} from '../jitCompiler';
-import {JitContext, RunType, RunTypeOptions, RunTypeVisitor, TypeErrorsContext} from '../types';
+import {JitContext, JitPathItem, MockContext, RunType, RunTypeOptions, RunTypeVisitor, TypeErrorsContext} from '../types';
 import {shouldSkipJsonDecode, shouldSkipJsonEncode} from '../utils';
 import {RestParamsRunType} from './restParams';
 
@@ -47,25 +47,26 @@ export class ParameterRunType extends MemberRunType<TypeParameter> {
     getName(): string {
         return `${this.memberName}${this.isOptional ? '?' : ''}:${this.memberType.getName()}`;
     }
-    useArrayAccessorForJit() {
-        return true;
-    }
     compileIsType(ctx: JitContext): string {
         if (this.isRest) {
             return this.memberType.compileIsType(ctx);
         } else {
-            const compC = (newCtx: JitContext) => this.memberType.compileIsType(newCtx);
-            const itemCode = compileChildren(compC, this, ctx, this.memberIndex);
-            return this.isOptional ? `${ctx.args.value} === undefined || (${itemCode})` : itemCode;
+            const varName = ctx.args.vλl;
+            const childPath: JitPathItem = {vλl: this.memberIndex, useArrayAccessor: true};
+            const compC = (childCtx: JitContext) => this.memberType.compileIsType(childCtx);
+            const itemCode = compileChildren(compC, this, ctx, childPath);
+            return this.isOptional ? `${varName} === undefined || (${itemCode})` : itemCode;
         }
     }
     compileTypeErrors(ctx: TypeErrorsContext): string {
         if (this.isRest) {
             return this.memberType.compileTypeErrors(ctx);
         } else {
-            const compC = (newCtx: TypeErrorsContext) => this.memberType.compileTypeErrors(newCtx);
-            const itemCode = compileChildren(compC, this, ctx, this.memberIndex);
-            return this.isOptional ? `if (${ctx.args.value} !== undefined) {${itemCode}}` : itemCode;
+            const varName = ctx.args.vλl;
+            const childPath: JitPathItem = {vλl: this.memberIndex, useArrayAccessor: true};
+            const compC = (childCtx: TypeErrorsContext) => this.memberType.compileTypeErrors(childCtx);
+            const itemCode = compileChildren(compC, this, ctx, childPath);
+            return this.isOptional ? `if (${varName} !== undefined) {${itemCode}}` : itemCode;
         }
     }
     compileJsonEncode(ctx: JitContext): string {
@@ -79,26 +80,30 @@ export class ParameterRunType extends MemberRunType<TypeParameter> {
         if (this.isRest) {
             return compileFn(ctx);
         } else {
+            const varName = ctx.args.vλl;
             const shouldSkip = isEncode ? shouldSkipJsonEncode(this) : shouldSkipJsonDecode(this);
-            if (shouldSkip) return `${ctx.args.value}[${this.memberIndex}]`;
-            return compileChildren((newCtx: JitContext) => compileFn(newCtx), this, ctx, this.memberIndex);
+            if (shouldSkip) return `${varName}[${this.memberIndex}]`;
+            const childPath: JitPathItem = {vλl: this.memberIndex, useArrayAccessor: true};
+            return compileChildren((childCtx: JitContext) => compileFn(childCtx), this, ctx, childPath);
         }
     }
     compileJsonStringify(ctx: JitContext): string {
         if (this.isRest) {
             return this.memberType.compileJsonStringify(ctx);
         } else {
-            const compC = (newCtx: JitContext) => {
-                const argCode = this.memberType.compileJsonStringify(newCtx);
+            const childPath: JitPathItem = {vλl: this.memberIndex, useArrayAccessor: true};
+            const compC = (childCtx: JitContext) => {
+                const childVarName = childCtx.args.vλl;
+                const argCode = this.memberType.compileJsonStringify(childCtx);
                 const isFirst = this.memberIndex === 0;
                 const sep = isFirst ? '' : `','+`;
-                if (this.isOptional) return `(${newCtx.args.value} === undefined ? '': ${sep}${argCode})`;
+                if (this.isOptional) return `(${childVarName} === undefined ? '': ${sep}${argCode})`;
                 return `${sep}${argCode}`;
             };
-            return compileChildren(compC, this, ctx, this.memberIndex);
+            return compileChildren(compC, this, ctx, childPath);
         }
     }
-    mock(...args: any[]): any {
-        return this.memberType.mock(...args);
+    mock(ctx?: MockContext): any {
+        return this.memberType.mock(ctx);
     }
 }

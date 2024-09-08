@@ -7,7 +7,7 @@
 
 import type {TypeBoolean} from '../_deepkit/src/reflection/type';
 import type {JitContext, TypeErrorsContext} from '../types';
-import {getErrorPath, getExpected} from '../utils';
+import {getJitErrorPath, getExpected} from '../utils';
 import {mockBoolean} from '../mock';
 import {AtomicRunType} from '../baseRunTypes';
 
@@ -16,10 +16,10 @@ export class BooleanRunType extends AtomicRunType<TypeBoolean> {
     public readonly isJsonDecodeRequired = false;
 
     compileIsType(ctx: JitContext): string {
-        return `typeof ${ctx.args.value} === 'boolean'`;
+        return `typeof ${ctx.args.vλl} === 'boolean'`;
     }
     compileTypeErrors(ctx: TypeErrorsContext): string {
-        return `if (typeof ${ctx.args.value} !== 'boolean') ${ctx.args.errors}.push({path: ${getErrorPath(ctx.path)}, expected: ${getExpected(this)}})`;
+        return `if (typeof ${ctx.args.vλl} !== 'boolean') ${ctx.args.εrrors}.push({path: ${getJitErrorPath(ctx.path)}, expected: ${getExpected(this)}})`;
     }
     compileJsonEncode(): string {
         return '';
@@ -28,7 +28,7 @@ export class BooleanRunType extends AtomicRunType<TypeBoolean> {
         return '';
     }
     compileJsonStringify(ctx: JitContext): string {
-        return ctx.args.value;
+        return ctx.args.vλl;
     }
     mock(): boolean {
         return mockBoolean();

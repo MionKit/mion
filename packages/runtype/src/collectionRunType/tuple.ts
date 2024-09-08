@@ -7,7 +7,6 @@
 
 import {TypeTuple} from '../_deepkit/src/reflection/type';
 import {CollectionRunType} from '../baseRunTypes';
-import {jitNames} from '../constants';
 import {
     handleCircularIsType,
     handleCircularJsonDecode,
@@ -17,7 +16,7 @@ import {
 } from '../jitCircular';
 import {compileChildren} from '../jitCompiler';
 import {JitContext, MockContext, Mutable, RunType, RunTypeOptions, RunTypeVisitor, TypeErrorsContext} from '../types';
-import {getErrorPath, getExpected, shouldSkipJsonDecode, shouldSkipJsonEncode} from '../utils';
+import {getJitErrorPath, getExpected, shouldSkipJsonDecode, shouldSkipJsonEncode} from '../utils';
 import {TupleMemberRunType} from './tupleMember';
 
 export class TupleRunType extends CollectionRunType<TypeTuple> {
@@ -45,19 +44,21 @@ export class TupleRunType extends CollectionRunType<TypeTuple> {
 
     compileIsType(ctx: JitContext): string {
         const compile = () => {
+            const varName = ctx.args.vλl;
             const compC = (childCtx) => this.childRunTypes.map((rt) => rt.compileIsType(childCtx)).join(' && ');
-            const itemsCode = compileChildren(compC, this, ctx);
-            return `(Array.isArray(${ctx.args.value}) && ${ctx.args.value}.length <= ${this.childRunTypes.length} && (${itemsCode}))`;
+            return `(Array.isArray(${varName}) && ${varName}.length <= ${this.childRunTypes.length} && (${compileChildren(compC, this, ctx)}))`;
         };
         return handleCircularIsType(compile, this, ctx, false);
     }
     compileTypeErrors(ctx: TypeErrorsContext): string {
         const compile = () => {
+            const varName = ctx.args.vλl;
+            const errorsName = ctx.args.εrrors;
             const compC = (childCtx) => this.childRunTypes.map((rt) => rt.compileTypeErrors(childCtx)).join(';');
             const itemsCode = compileChildren(compC, this, ctx);
             return `
-                if (!Array.isArray(${ctx.args.value}) || ${ctx.args.value}.length > ${this.childRunTypes.length}) {
-                    ${jitNames.errors}.push({path: ${getErrorPath(ctx.path)}, expected: ${getExpected(this)}});
+                if (!Array.isArray(${varName}) || ${varName}.length > ${this.childRunTypes.length}) {
+                    ${errorsName}.push({path: ${getJitErrorPath(ctx.path)}, expected: ${getExpected(this)}});
                 } else {
                     ${itemsCode}
                 }
@@ -77,7 +78,7 @@ export class TupleRunType extends CollectionRunType<TypeTuple> {
         return handleCircularJsonEncode(compile, this, ctx);
     }
     compileJsonDecode(ctx: JitContext): string {
-        if (shouldSkipJsonDecode(this)) return ctx.args.value;
+        if (shouldSkipJsonDecode(this)) return ctx.args.vλl;
         const compile = () => {
             const compC = (childCtx) => {
                 const decodeCodes = this.childRunTypes.map((rt) => rt.compileJsonDecode(childCtx));
@@ -93,12 +94,11 @@ export class TupleRunType extends CollectionRunType<TypeTuple> {
                 const jsonStrings = this.childRunTypes.map((rt) => rt.compileJsonStringify(childCtx));
                 return jsonStrings.join(`+','+`);
             };
-            const itemsCode = compileChildren(compC, this, ctx);
-            return `'['+${itemsCode}+']'`;
+            return `'['+${compileChildren(compC, this, ctx)}+']'`;
         };
         return handleCircularJsonStringify(compile, this, ctx, false);
     }
-    mock(ctx?: MockContext): any[] {
+    mock(ctx?: Pick<MockContext, 'tupleOptions'>): any[] {
         return this.childRunTypes.map((rt, i) => rt.mock(ctx?.tupleOptions?.[i]));
     }
 }

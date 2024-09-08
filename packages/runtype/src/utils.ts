@@ -5,10 +5,9 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import type {AnyClass, RunType} from './types';
+import type {AnyClass, JitPathItem, RunType} from './types';
 import {isSameType, ReflectionKind} from './_deepkit/src/reflection/type';
 import {jitUtils} from './jitUtils';
-import {jitNames} from './constants';
 
 export function toLiteral(value: number | string | boolean | undefined | null | bigint | RegExp | symbol): string {
     switch (typeof value) {
@@ -72,10 +71,8 @@ export function hasCircularParents(rt: RunType, parents: RunType[]): boolean {
     return false;
 }
 
-export function getErrorPath(pathChain: (string | number)[]): string {
-    // TODO: remove the array destructuring for jitNames.circularPath when is not needed (not circular references)
-    if (pathChain.length === 0) return `[...${jitNames.circularPath}]`;
-    return `[...${jitNames.circularPath},${pathChain.join(',')}]`;
+export function getJitErrorPath(path: JitPathItem[]): string {
+    return `[${path.map((pathItem) => pathItem.literal ?? pathItem.vλl).join(',')}]`;
 }
 
 export function getExpected(rt: RunType): string {

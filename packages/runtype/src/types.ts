@@ -18,11 +18,22 @@ export interface JitCompileContext<FnArgs extends Record<string, string> = Recor
     parents: RunType[];
     /** the key of the argName must be the same as the variable name. so keys are used as inital variable names when jitContext gets reset. */
     args: FnArgs;
-    path: (string | number)[];
+    path: JitPathItem[];
 }
-
-export type JitContext = JitCompileContext<{value: string}>;
-export type TypeErrorsContext = JitCompileContext<{value: string; path: string; errors: string}>;
+export type JitPathItem = {
+    vλl: string | number;
+    /** whether the path item needs to be accesses as and array myobject[A] or as property myobject.A */
+    useArrayAccessor: boolean;
+    /**
+     * The literal value of the item when inserted into the code.
+     * This is set just in case val is not a valid js identifier.
+     * i.e: an object property width non standard name myobject["hello world"]
+     * the value in memory is (hello world) and quotes must be added when inserted into the code "hello world"
+     * */
+    literal?: string | number;
+};
+export type JitContext = JitCompileContext<{vλl: string}>;
+export type TypeErrorsContext = JitCompileContext<{vλl: string; pλth: string; εrrors: string}>;
 
 export type DefaultJitArgs = JitContext['args'];
 export type DefaultJitTypeErrorsArgs = TypeErrorsContext['args'];
@@ -40,9 +51,9 @@ export interface JitCompilerFunctions {
      * JIT code Validation + error info
      * Similar to validation code but instead of returning a boolean it should assign an error message to the errorsName
      * This is an executable code block and can contain multiple lines or semicolons
-     * ie:  validateCodeWithErrors = () => `if (typeof vλluε !== 'string') ${jitNames.errors} = 'Expected to be a String';`
-     * pathChain is a string that represents the path to the property being validated.
-     * pathChain is calculated at runtime so is an expresion like 'path1' + '/' + 'path2' + '/' + 'path3'
+     * ie:  validateCodeWithErrors = () => `if (typeof vλluε !== 'string') ${ctx.args.εrrors} = 'Expected to be a String';`
+     * path is a string that represents the path to the property being validated.
+     * path is calculated at runtime so is an expresion like 'path1' + '/' + 'path2' + '/' + 'path3'
      */
     compileTypeErrors(jitCompileContext: TypeErrorsContext): string;
     /**
@@ -67,8 +78,6 @@ export interface JitCompilerFunctions {
      * when serializing to json normally we need first to prepare the object using compileJsonEncode and then JSON.stringify().
      * this code directly outputs the json string and saves traversing the type twice
      * stringify is allways strict
-     * @param varName
-     * @returns
      */
     compileJsonStringify(jitCompileContext: JitContext): string;
 }
@@ -107,9 +116,9 @@ export interface RunTypeOptions {
 }
 
 export interface JitJsonEncoder {
-    decodeFromJson: (varName: string) => string;
-    encodeToJson: (varName: string) => string;
-    stringify: (varName: string) => string;
+    decodeFromJson: (vλl: string) => string;
+    encodeToJson: (vλl: string) => string;
+    stringify: (vλl: string) => string;
 }
 
 type AnyFn = (...args: any[]) => any;
@@ -189,7 +198,7 @@ export type CompileFnKey = keyof Pick<
     'compileIsType' | 'compileJsonEncode' | 'compileJsonDecode' | 'compileJsonStringify'
 >;
 
-export interface MockOptions {
+interface MockOptions {
     anyValuesLis?: any[];
     minNumber?: number;
     maxNumber?: number;
@@ -217,6 +226,7 @@ export interface MockOptions {
 }
 
 export interface MockContext extends MockOptions {
+    /** Used for mocking object with circular references */
     parents?: RunType[];
 }
 

@@ -67,9 +67,9 @@ export const mockObjectList = [{}, {a: 1}, {b: 2}, {a: 1, b: 'hello'}, {a: 1, b:
 
 export const jitNames = {
     utils: 'µTils',
-    errors: 'εrrs',
+    errors: 'εrrors',
     circularPath: 'ciPλth', // path array used when compiling RunType Errors with circular types
 };
 
-export const defaultJitArgs: DefaultJitArgs = {value: 'vλl'};
-export const defaultJitTypeErrorsArgs: DefaultJitTypeErrorsArgs = {value: 'vλl', path: 'pλth', errors: 'εrrs'};
+export const defaultJitArgs: DefaultJitArgs = {vλl: 'vλl'};
+export const defaultJitTypeErrorsArgs: DefaultJitTypeErrorsArgs = {vλl: 'vλl', pλth: 'pλth', εrrors: 'εrrors'};
