@@ -61,6 +61,7 @@ export function buildTypeErrorsJITFn(
 ): JITCompiledFunctionsData['typeErrors'] {
     const context: TypeErrorsContext = {args: {vλl: 'vλl', pλth: 'pλth', εrrors: 'εrrors'}, parents: [], path: []};
     const jitCode = jitFunctions ? jitFunctions.compileTypeErrors(context) : runType.compileTypeErrors(context);
+    // TODO: pλth array is used for circular functions or jit cached functions, it should be removed if not used
     const code = `
         const ${context.args.εrrors} = [];
         const ${context.args.pλth} = [];
@@ -212,7 +213,7 @@ function createJitFnWithContext(fnArgNames: string[], code: string): (...args: a
 
 /**
  * Generate jit code to call a cached jit function
- * i.e: `jitUtils.getFromJitCache('jitIdFnName')(jitUtils, varName, ...callArgsNames)`
+ * i.e: `jitUtils.getCachedFn('jitIdFnName')(jitUtils, varName, ...callArgsNames)`
  * @param jitNames
  * @param jitIdFnName
  * @param callArgsNames
@@ -220,7 +221,7 @@ function createJitFnWithContext(fnArgNames: string[], code: string): (...args: a
  */
 export function callJitCachedFn(jitIdFnName: string, callArgsNames: string[]): string {
     const id = toLiteral(jitIdFnName);
-    return `${jitNames.utils}.getFromJitCache(${id})(${callArgsNames.join(', ')})`; // getFromJitCache must match the name in jitUtils
+    return `${jitNames.utils}.getCachedFn(${id})(${callArgsNames.join(', ')})`; // getCachedFn must match the name in jitUtils
 }
 
 /**
@@ -231,13 +232,13 @@ export function callJitCachedFn(jitIdFnName: string, callArgsNames: string[]): s
  * @param cacheFnArgsNames
  */
 export function createJitCachedFn(jitIdFnName: string, code: string | (() => string), cacheFnArgsNames: string[]): void {
-    if (!jitUtils.isInJitCache(jitIdFnName)) {
+    if (!jitUtils.isFnInCache(jitIdFnName)) {
         const isFn = typeof code === 'function';
-        if (isFn) jitUtils.addToJitCache(jitIdFnName, true as any); // add a placeholder to avoid infinite recursion
+        if (isFn) jitUtils.addCachedFn(jitIdFnName, true as any); // add a placeholder to avoid infinite recursion
         const compiledCode = isFn ? code() : code;
         const fn = createJitFnWithContext(cacheFnArgsNames, compiledCode);
-        jitUtils.addToJitCache(jitIdFnName, fn);
-        if (process.env.DEBUG_JIT) console.log(`cached jit ${jitIdFnName}: `, fn.toString());
+        jitUtils.addCachedFn(jitIdFnName, fn);
+        if (process.env.DEBUG_JIT) console.log(`cached jit functions for ${jitIdFnName}`);
     }
 }
 
@@ -257,10 +258,9 @@ export function compileChildren<Ctx extends JitCompileContext>(
     ctx.parents.push(parentRt);
     if (pathItem) {
         const useArray = pathItem.useArrayAccessor ?? typeof pathItem.vλl === 'number';
-        const literal = pathItem.literal ?? pathItem.vλl;
-        const childAccessor = useArray ? `[${literal}]` : `.${literal}`;
+        const childAccessor = useArray ? `[${pathItem.literal}]` : `.${pathItem.vλl}`;
+        ctx.args.vλl = `${ctx.args.vλl}${childAccessor}`;
         ctx.path.push(pathItem);
-        ctx.args.value = `${ctx.args.value}${childAccessor}`;
     }
 
     const itemsCode = compileChildFn(ctx);

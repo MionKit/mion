@@ -5,9 +5,11 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import type {AnyClass, JitPathItem, RunType} from './types';
+import type {AnyClass, Mutable, RunType, TypeErrorsContext} from './types';
+import type {CollectionRunType} from './baseRunTypes';
 import {isSameType, ReflectionKind} from './_deepkit/src/reflection/type';
 import {jitUtils} from './jitUtils';
+import {isCollectionRunType} from './guards';
 
 export function toLiteral(value: number | string | boolean | undefined | null | bigint | RegExp | symbol): string {
     switch (typeof value) {
@@ -64,6 +66,13 @@ export function isClass(cls: AnyClass | any): cls is AnyClass {
     );
 }
 
+export function markAsCircular(rt: RunType, parents: RunType[]): void {
+    if ((rt as CollectionRunType<any>).isCircularRef || !isCollectionRunType(rt)) return;
+    if (hasCircularParents(rt, parents)) {
+        (rt as Mutable<CollectionRunType<any>>).isCircularRef = true;
+    }
+}
+
 export function hasCircularParents(rt: RunType, parents: RunType[]): boolean {
     for (const parent of parents) {
         if (isSameType(rt.src, parent.src)) return true;
@@ -71,8 +80,10 @@ export function hasCircularParents(rt: RunType, parents: RunType[]): boolean {
     return false;
 }
 
-export function getJitErrorPath(path: JitPathItem[]): string {
-    return `[${path.map((pathItem) => pathItem.literal ?? pathItem.vλl).join(',')}]`;
+export function getJitErrorPath(ctx: TypeErrorsContext): string {
+    if (ctx.path.length === 0) return `[...${ctx.args.pλth}]`;
+    const currentPathArgs = ctx.path.map((pathItem) => pathItem.literal).join(',');
+    return `[...${ctx.args.pλth},${currentPathArgs}]`;
 }
 
 export function getExpected(rt: RunType): string {

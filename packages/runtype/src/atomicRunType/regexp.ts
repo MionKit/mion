@@ -19,7 +19,7 @@ export class RegexpRunType extends AtomicRunType<TypeRegexp> {
         return `(${ctx.args.vλl} instanceof RegExp)`;
     }
     compileTypeErrors(ctx: TypeErrorsContext): string {
-        return `if (!(${ctx.args.vλl} instanceof RegExp)) ${ctx.args.εrrors}.push({path: ${getJitErrorPath(ctx.path)}, expected: ${getExpected(this)}})`;
+        return `if (!(${ctx.args.vλl} instanceof RegExp)) ${ctx.args.εrrors}.push({path: ${getJitErrorPath(ctx)}, expected: ${getExpected(this)}})`;
     }
     compileJsonEncode(ctx: JitContext): string {
         return RegexpJitJsonEncoder.encodeToJson(ctx.args.vλl);

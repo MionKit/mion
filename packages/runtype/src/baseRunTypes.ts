@@ -24,6 +24,7 @@ export abstract class BaseRunType<T extends Type, Opts extends RunTypeOptions = 
     public abstract readonly isJsonEncodeRequired: boolean;
     public abstract readonly isJsonDecodeRequired: boolean;
     public abstract readonly jitId: number | string;
+    randId = Math.random();
 
     constructor(
         visitor: RunTypeVisitor,
@@ -89,7 +90,7 @@ export abstract class CollectionRunType<T extends Type, Opts extends RunTypeOpti
     /** Child RunTypes, only serializable RunTypes are included here, ie functions and other non serializable properties are not included */
     public abstract readonly childRunTypes: RunType[];
     public abstract readonly jitId: string;
-    public readonly isCircularRef: boolean = false;
+    public readonly isCircularRef: boolean = false; // must be initialized here for isCollectionRunType guard to work in circular collections
 
     constructor(
         visitor: RunTypeVisitor,

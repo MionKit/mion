@@ -72,7 +72,7 @@ export class InterfaceRunType<
                 this.childRunTypes.map((prop) => prop.compileTypeErrors(childCtx)).join(';');
             return `
                 if (typeof ${varName} !== 'object' && ${varName} !== null && !Array.isArray(${varName})) {
-                    ${errorsName}.push({path: ${getJitErrorPath(ctx.path)}, expected: ${getExpected(this)}});
+                    ${errorsName}.push({path: ${getJitErrorPath(ctx)}, expected: ${getExpected(this)}});
                 } else {
                     ${compileChildren(compC, this, ctx)}
                 }

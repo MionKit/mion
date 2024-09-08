@@ -6,7 +6,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import type {Mutable, RunType, RunTypeOptions, RunTypeVisitor, SrcType} from './types';
+import type {RunType, RunTypeOptions, RunTypeVisitor, SrcType} from './types';
 import {ReflectionKind, TypeObjectLiteral} from './_deepkit/src/reflection/type';
 import {resolveReceiveType, ReceiveType, reflect} from './_deepkit/src/reflection/reflection';
 import {StringRunType} from './atomicRunType/string';
@@ -42,8 +42,7 @@ import {ParameterRunType} from './functionRunType/param';
 import {MethodRunType} from './functionRunType/method';
 import {RestParamsRunType} from './functionRunType/restParams';
 import {ClassRunType} from './collectionRunType/class';
-import {hasCircularParents} from './utils';
-import {CollectionRunType} from './baseRunTypes';
+import {markAsCircular} from './utils';
 
 const MaxNestLevel = 20; // max parents levels to prevent infinite recursion or complicated types
 
@@ -61,14 +60,16 @@ function visitor(deepkitType, parents: RunType[], opts: RunTypeOptions): RunType
     // console.log('deepkitType', deepkitType);
 
     /*
-     RunType reference is stored in the deepkitType._runType so we can access both the deepkitType and the mion RunType
+     RunType reference is stored in the deepkitType._runType so we can access both the deepkitType and the mion RunType,
      basically every runType stores a reference to a deepkit type and vice versa.
-     This also relies on deepkit handling circular types to prevent infinite loop when we are generating RunTypes  */
+     This also relies on deepkit handling circular types to prevent infinite loop when we are generating RunTypes.
+    */
     const existingType: RunType | undefined = (deepkitType as SrcType)._runType;
+    // TODO: IMPORTANT: seems like deepkit can generate multiple types objects for the same type, so we need to handle this
+    // we are attaching the runType to the deepkit type (deepkitType._runType), to link the two types together
+    // but as deepkit can generate multiple types that means existingType will be null and the markAsCircular function is not working as expected
     if (existingType) {
-        if (!(existingType as CollectionRunType<any>).isCircularRef && hasCircularParents(existingType, parents)) {
-            (existingType as Mutable<CollectionRunType<any>>).isCircularRef = true;
-        }
+        markAsCircular(existingType, parents);
         return existingType;
     }
 
@@ -210,7 +211,6 @@ function visitor(deepkitType, parents: RunType[], opts: RunTypeOptions): RunType
     }
 
     if (parents.length > MaxNestLevel) throw new Error('Max Nest Level exceeded while resolving run type');
-    (deepkitType as SrcType)._runType = rt;
     return rt;
 }
 

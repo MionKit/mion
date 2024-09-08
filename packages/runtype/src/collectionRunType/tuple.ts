@@ -58,7 +58,7 @@ export class TupleRunType extends CollectionRunType<TypeTuple> {
             const itemsCode = compileChildren(compC, this, ctx);
             return `
                 if (!Array.isArray(${varName}) || ${varName}.length > ${this.childRunTypes.length}) {
-                    ${errorsName}.push({path: ${getJitErrorPath(ctx.path)}, expected: ${getExpected(this)}});
+                    ${errorsName}.push({path: ${getJitErrorPath(ctx)}, expected: ${getExpected(this)}});
                 } else {
                     ${itemsCode}
                 }

@@ -21,7 +21,7 @@ export class NumberRunType extends AtomicRunType<TypeNumber> {
     }
     compileTypeErrors(ctx: TypeErrorsContext): string {
         const {εrrors: errors} = ctx.args;
-        return `if(!(${this.compileIsType(ctx)})) ${errors}.push({path: ${getJitErrorPath(ctx.path)}, expected: ${getExpected(this)}})`;
+        return `if(!(${this.compileIsType(ctx)})) ${errors}.push({path: ${getJitErrorPath(ctx)}, expected: ${getExpected(this)}})`;
     }
     compileJsonEncode(): string {
         return '';

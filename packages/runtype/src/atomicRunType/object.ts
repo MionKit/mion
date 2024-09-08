@@ -20,7 +20,7 @@ export class ObjectRunType extends AtomicRunType<TypeAny | TypeUnknown> {
         return `(typeof ${ctx.args.vλl} === 'object' && ${ctx.args.vλl} !== null)`;
     }
     compileTypeErrors(ctx: TypeErrorsContext): string {
-        return `if (!(${this.compileIsType(ctx)})) ${ctx.args.εrrors}.push({path: ${getJitErrorPath(ctx.path)}, expected: ${getExpected(this)}})`;
+        return `if (!(${this.compileIsType(ctx)})) ${ctx.args.εrrors}.push({path: ${getJitErrorPath(ctx)}, expected: ${getExpected(this)}})`;
     }
     compileJsonEncode(): string {
         return '';

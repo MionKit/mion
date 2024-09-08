@@ -31,7 +31,7 @@ export class PromiseRunType extends AtomicRunType<TypePromise> {
     }
     compileTypeErrors(ctx: TypeErrorsContext): string {
         const {vλl: value, εrrors: errors} = ctx.args;
-        return `if (!(${value} instanceof Promise)) ${errors}.push({path: ${getJitErrorPath(ctx.path)}, expected: ${getExpected(this)}})`;
+        return `if (!(${value} instanceof Promise)) ${errors}.push({path: ${getJitErrorPath(ctx)}, expected: ${getExpected(this)}})`;
     }
     resolveTypeErrorsJIT(ctx: TypeErrorsContext): string {
         return this.resolvedType.compileTypeErrors(ctx);

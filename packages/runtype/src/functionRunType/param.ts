@@ -52,7 +52,7 @@ export class ParameterRunType extends MemberRunType<TypeParameter> {
             return this.memberType.compileIsType(ctx);
         } else {
             const varName = ctx.args.vλl;
-            const childPath: JitPathItem = {vλl: this.memberIndex, useArrayAccessor: true};
+            const childPath: JitPathItem = this.getChildPath();
             const compC = (childCtx: JitContext) => this.memberType.compileIsType(childCtx);
             const itemCode = compileChildren(compC, this, ctx, childPath);
             return this.isOptional ? `${varName} === undefined || (${itemCode})` : itemCode;
@@ -63,7 +63,7 @@ export class ParameterRunType extends MemberRunType<TypeParameter> {
             return this.memberType.compileTypeErrors(ctx);
         } else {
             const varName = ctx.args.vλl;
-            const childPath: JitPathItem = {vλl: this.memberIndex, useArrayAccessor: true};
+            const childPath: JitPathItem = this.getChildPath();
             const compC = (childCtx: TypeErrorsContext) => this.memberType.compileTypeErrors(childCtx);
             const itemCode = compileChildren(compC, this, ctx, childPath);
             return this.isOptional ? `if (${varName} !== undefined) {${itemCode}}` : itemCode;
@@ -83,7 +83,7 @@ export class ParameterRunType extends MemberRunType<TypeParameter> {
             const varName = ctx.args.vλl;
             const shouldSkip = isEncode ? shouldSkipJsonEncode(this) : shouldSkipJsonDecode(this);
             if (shouldSkip) return `${varName}[${this.memberIndex}]`;
-            const childPath: JitPathItem = {vλl: this.memberIndex, useArrayAccessor: true};
+            const childPath: JitPathItem = this.getChildPath();
             return compileChildren((childCtx: JitContext) => compileFn(childCtx), this, ctx, childPath);
         }
     }
@@ -91,7 +91,7 @@ export class ParameterRunType extends MemberRunType<TypeParameter> {
         if (this.isRest) {
             return this.memberType.compileJsonStringify(ctx);
         } else {
-            const childPath: JitPathItem = {vλl: this.memberIndex, useArrayAccessor: true};
+            const childPath: JitPathItem = this.getChildPath();
             const compC = (childCtx: JitContext) => {
                 const childVarName = childCtx.args.vλl;
                 const argCode = this.memberType.compileJsonStringify(childCtx);
@@ -105,5 +105,8 @@ export class ParameterRunType extends MemberRunType<TypeParameter> {
     }
     mock(ctx?: MockContext): any {
         return this.memberType.mock(ctx);
+    }
+    getChildPath(): JitPathItem {
+        return {vλl: this.memberIndex, useArrayAccessor: true, literal: this.memberIndex};
     }
 }

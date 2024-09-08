@@ -135,7 +135,7 @@ export class FunctionRunType<CallType extends AnyFunction = TypeFunction> extend
             const compC = (childCtx) => this.parameterTypes.map((p) => p.compileTypeErrors(childCtx)).join(';');
             const paramsCode = compileChildren(compC, this, ctx);
             return (
-                `if (!Array.isArray(${ctx.args.vλl}) || ${checkLength}) ${ctx.args.εrrors}.push({path: ${getJitErrorPath(ctx.path)}, expected: ${toLiteral(this.paramsName)}});` +
+                `if (!Array.isArray(${ctx.args.vλl}) || ${checkLength}) ${ctx.args.εrrors}.push({path: ${getJitErrorPath(ctx)}, expected: ${toLiteral(this.paramsName)}});` +
                 `else {${paramsCode}}`
             );
         },

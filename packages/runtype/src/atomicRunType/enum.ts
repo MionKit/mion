@@ -33,7 +33,7 @@ export class EnumRunType extends AtomicRunType<TypeEnum> {
         return this.values.map((v) => `${ctx.args.vλl} === ${toLiteral(v)}`).join(' || ');
     }
     compileTypeErrors(ctx: TypeErrorsContext): string {
-        return `if (!(${this.compileIsType(ctx)})) ${ctx.args.εrrors}.push({path: ${getJitErrorPath(ctx.path)}, expected: ${getExpected(this)}})`;
+        return `if (!(${this.compileIsType(ctx)})) ${ctx.args.εrrors}.push({path: ${getJitErrorPath(ctx)}, expected: ${getExpected(this)}})`;
     }
     compileJsonEncode(): string {
         return '';

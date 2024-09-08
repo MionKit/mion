@@ -29,6 +29,7 @@ export class PropertyRunType extends MemberRunType<TypePropertySignature | TypeP
     public readonly isJsonDecodeRequired: boolean;
     public readonly jitId: string = '$';
     public readonly memberIndex: number = 0;
+    private literalMemberName: string | undefined;
     constructor(
         visitor: RunTypeVisitor,
         public readonly src: TypePropertySignature,
@@ -138,10 +139,8 @@ export class PropertyRunType extends MemberRunType<TypePropertySignature | TypeP
         if (this.src.optional && Math.random() < probability) return undefined;
         return this.memberType.mock(ctx);
     }
-
     getChildPath(): JitPathItem {
-        return this.isSafePropName
-            ? {vλl: this.memberName, useArrayAccessor: false}
-            : {vλl: this.memberName, useArrayAccessor: true, literal: toLiteral(this.memberName)};
+        if (typeof this.literalMemberName === 'undefined') this.literalMemberName = toLiteral(this.memberName);
+        return {vλl: this.memberName, useArrayAccessor: !this.isSafePropName, literal: this.literalMemberName};
     }
 }

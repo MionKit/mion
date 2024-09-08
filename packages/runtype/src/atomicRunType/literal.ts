@@ -109,12 +109,12 @@ function compileIsLiteral(ctx: JitContext, lit: Exclude<TypeLiteral['literal'], 
 
 function compileTypeErrorsSymbol(ctx: TypeErrorsContext, lit: symbol, name: string | number): string {
     return `if (typeof ${ctx.args.vλl} !== 'symbol' || ${ctx.args.vλl}.description !== ${toLiteral(lit.description)}) {
-        ${ctx.args.εrrors}.push({path: ${getJitErrorPath(ctx.path)}, expected: ${toLiteral(name)}})
+        ${ctx.args.εrrors}.push({path: ${getJitErrorPath(ctx)}, expected: ${toLiteral(name)}})
     }`;
 }
 
 function compileTypeErrorsRegExp(ctx: TypeErrorsContext, lit: RegExp, name: string | number): string {
-    return `if (String(${ctx.args.vλl}) !== String(${lit})) ${ctx.args.εrrors}.push({path: ${getJitErrorPath(ctx.path)}, expected: ${toLiteral(name)}})`;
+    return `if (String(${ctx.args.vλl}) !== String(${lit})) ${ctx.args.εrrors}.push({path: ${getJitErrorPath(ctx)}, expected: ${toLiteral(name)}})`;
 }
 
 function compileTypeErrorsLiteral(
@@ -122,5 +122,5 @@ function compileTypeErrorsLiteral(
     lit: Exclude<TypeLiteral['literal'], symbol>,
     name: string | number
 ): string {
-    return `if (${ctx.args.vλl} !== ${toLiteral(lit)}) ${ctx.args.εrrors}.push({path: ${getJitErrorPath(ctx.path)}, expected: ${toLiteral(name)}})`;
+    return `if (${ctx.args.vλl} !== ${toLiteral(lit)}) ${ctx.args.εrrors}.push({path: ${getJitErrorPath(ctx)}, expected: ${toLiteral(name)}})`;
 }
