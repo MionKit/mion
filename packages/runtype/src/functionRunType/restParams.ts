@@ -1,6 +1,7 @@
 import {TypeRest} from '../_deepkit/src/reflection/type';
-import {BaseRunType} from '../baseRunTypes';
-import {RunType, RunTypeOptions, RunTypeVisitor} from '../types';
+import {MemberRunType} from '../baseRunTypes';
+import {compileChildren} from '../jitCompiler';
+import {JitContext, RunType, RunTypeOptions, RunTypeVisitor, TypeErrorsContext} from '../types';
 import {shouldSkipJsonDecode, shouldSkipJsonEncode} from '../utils';
 
 /* ########
@@ -10,14 +11,14 @@ import {shouldSkipJsonDecode, shouldSkipJsonEncode} from '../utils';
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-export class RestParamsRunType extends BaseRunType<TypeRest> {
+export class RestParamsRunType extends MemberRunType<TypeRest> {
     public readonly isJsonEncodeRequired: boolean;
     public readonly isJsonDecodeRequired: boolean;
-    public readonly memberRunType: RunType;
-    public readonly paramName: string;
+    public readonly memberType: RunType;
+    public readonly memberName: string;
     public readonly default: any;
-    public readonly jitId: number | string;
-
+    public readonly jitId: string;
+    public readonly memberIndex: number = 0;
     constructor(
         visitor: RunTypeVisitor,
         public readonly src: TypeRest,
@@ -26,78 +27,68 @@ export class RestParamsRunType extends BaseRunType<TypeRest> {
     ) {
         super(visitor, src, parents, opts);
         parents.push(this);
-        this.memberRunType = visitor(src.type, parents, opts);
+        this.memberType = visitor(src.type, parents, opts);
         parents.pop();
-        this.isJsonEncodeRequired = this.memberRunType.isJsonEncodeRequired;
-        this.isJsonDecodeRequired = this.memberRunType.isJsonDecodeRequired;
-        this.paramName = (src as any).name || 'args';
-        this.jitId = 'restParams'; // will be overridden later
+        this.isJsonEncodeRequired = this.memberType.isJsonEncodeRequired;
+        this.isJsonDecodeRequired = this.memberType.isJsonDecodeRequired;
+        this.memberName = '...';
+        this.jitId = `...${src.kind}:${this.memberType.jitId}`;
     }
-
-    getJitId(): string | number {
-        // param name is irrelevant (not required) as only position matters
-        return `${this.memberRunType.jitId}[]`;
+    useArrayAccessorForJit() {
+        return true;
     }
-
-    compileIsType(parents: RunType[], varName: string, paramIndex = 0): string {
-        parents.push(this);
-        const indexName = `pλrλm${parents.length}`;
-        const itemAccessor = `${varName}[${indexName}]`;
-        const itemCode = this.memberRunType.compileIsType(parents, itemAccessor);
-        const forLoop = `for (let ${indexName} = ${paramIndex}; ${indexName} < ${varName}.length; ${indexName}++) {if (!(${itemCode})) return false;}`;
-        parents.pop();
-        return `(function() {${forLoop}return true})()`;
+    compileIsType(ctx: JitContext): string {
+        const indexName = `pλrλm${ctx.parents.length}`;
+        const compC = (newCtx: JitContext) => this.memberType.compileIsType(newCtx);
+        const itemCode = compileChildren(compC, this, ctx, indexName);
+        return `(function() {
+            for (let ${indexName} = ${this.memberIndex}; ${indexName} < ${ctx.args.value}.length; ${indexName}++) {
+                if (!(${itemCode})) return false;
+            }
+            return true;
+        })()`;
     }
-    compileTypeErrors(parents: RunType[], varName: string, pathC: (string | number)[], paramIndex = 0): string {
-        parents.push(this);
-        const indexName = `pλrλm${parents.length}`;
-        const itemAccessor = `${varName}[${indexName}]`;
-        const itemCode = this.memberRunType.compileTypeErrors(parents, itemAccessor, pathC);
-        parents.pop();
-        return `for (let ${indexName} = ${paramIndex}; ${indexName} < ${varName}.length; ${indexName}++) {${itemCode}}`;
+    compileTypeErrors(ctx: TypeErrorsContext): string {
+        const indexName = `pλrλm${ctx.parents.length}`;
+        const compC = (newCtx: TypeErrorsContext) => this.memberType.compileTypeErrors(newCtx);
+        const itemCode = compileChildren(compC, this, ctx, indexName);
+        return `for (let ${indexName} = ${this.memberIndex}; ${indexName} < ${ctx.args.value}.length; ${indexName}++) {${itemCode}}`;
     }
-    compileJsonEncode(parents: RunType[], varName: string, paramIndex = 0): string {
-        if (shouldSkipJsonEncode(this)) return '';
-        parents.push(this);
-        const indexName = `pλrλm${parents.length}`;
-        const itemAccessor = `${varName}[${indexName}]`;
-        const itemCode = this.memberRunType.compileJsonEncode(parents, itemAccessor);
-        parents.pop();
-        if (!itemCode) return '';
-        return `for (let ${indexName} = ${paramIndex}; ${indexName} < ${varName}.length; ${indexName}++) {${itemCode}}`;
+    compileJsonEncode(ctx: JitContext): string {
+        return this.compileJsonDE(ctx, true);
     }
-    compileJsonDecode(parents: RunType[], varName: string, paramIndex = 0): string {
-        if (shouldSkipJsonDecode(this)) return '';
-        parents.push(this);
-        const indexName = `pλrλm${parents.length}`;
-        const itemAccessor = `${varName}[${indexName}]`;
-        const itemCode = this.memberRunType.compileJsonDecode(parents, itemAccessor);
-        parents.pop();
-        if (!itemCode) return '';
-        return `for (let ${indexName} = ${paramIndex}; ${indexName} < ${varName}.length; ${indexName}++) {${itemCode}}`;
+    compileJsonDecode(ctx: JitContext): string {
+        return this.compileJsonDE(ctx, false);
     }
-    compileJsonStringify(parents: RunType[], varName: string, paramIndex = 0): string {
-        parents.push(this);
-        const arrName = `rεsultλrr${parents.length}`;
-        const itemName = `itεm${parents.length}`;
-        const indexName = `indεx${parents.length}`;
-        const itemAccessor = `${varName}[${indexName}]`;
-        const sep = paramIndex === 0 ? '' : `','+`;
-        const itemCode = this.memberRunType.compileJsonStringify(parents, itemAccessor);
-        const forLoop = `
+    private compileJsonDE(ctx: JitContext, isEncode = false): string {
+        const shouldSkip = isEncode ? shouldSkipJsonEncode(this) : shouldSkipJsonDecode(this);
+        const compileFn = isEncode ? this.memberType.compileJsonEncode : this.memberType.compileJsonDecode;
+        if (shouldSkip) return '';
+        const indexName = `pλrλm${ctx.parents.length}`;
+        const compC = (newCtx: JitContext) => compileFn(newCtx);
+        const itemCode = compileChildren(compC, this, ctx, indexName);
+        return `for (let ${indexName} = ${this.memberIndex}; ${indexName} < ${ctx.args.value}.length; ${indexName}++) {${itemCode}}`;
+    }
+    compileJsonStringify(ctx: JitContext): string {
+        const varName = ctx.args.value;
+        const arrName = `rεsultλrr${ctx.parents.length}`;
+        const itemName = `itεm${ctx.parents.length}`;
+        const indexName = `indεx${ctx.parents.length}`;
+        const isFist = this.memberIndex === 0;
+        const sep = isFist ? '' : `','+`;
+        const compC = (newCtx: JitContext) => this.memberType.compileJsonStringify(newCtx);
+        const itemCode = compileChildren(compC, this, ctx, indexName);
+        return `(function(){
             const ${arrName} = [];
-            for (let ${indexName} = ${paramIndex}; ${indexName} < ${varName}.length; ${indexName}++) {
+            for (let ${indexName} = ${this.memberIndex}; ${indexName} < ${varName}.length; ${indexName}++) {
                 const ${itemName} = ${itemCode};
                 if(${itemName}) ${arrName}.push(${itemName});
-            }`;
-        parents.pop();
-        return `(function(){
-            ${forLoop}
+            }
             if (!${arrName}.length) {return '';}
             else {return ${sep}${arrName}.join(',')}
         })()`;
     }
     mock(...args: any[]): string {
-        return this.memberRunType.mock(...args);
+        return this.memberType.mock(...args);
     }
 }

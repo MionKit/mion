@@ -6,7 +6,16 @@
  * ######## */
 
 import type {Type} from './_deepkit/src/reflection/type';
-import type {JITFunctionsData, RunType, RunTypeOptions, RunTypeVisitor, SrcType} from './types';
+import type {
+    JitContext,
+    JITCompiledFunctionsData,
+    MockContext,
+    RunType,
+    RunTypeOptions,
+    RunTypeVisitor,
+    SrcType,
+    TypeErrorsContext,
+} from './types';
 import {buildJITFunctions} from './jitCompiler';
 import {hasCircularParents} from './utils';
 import {isCollectionRunType} from './guards';
@@ -26,15 +35,15 @@ export abstract class BaseRunType<T extends Type, Opts extends RunTypeOptions = 
         (src as SrcType)._runType = this;
     }
 
-    abstract compileIsType(parents: RunType[], varName: string): string;
-    abstract compileTypeErrors(parents: RunType[], varName: string, pathC: (string | number)[]): string;
-    abstract compileJsonEncode(parents: RunType[], varName: string): string;
-    abstract compileJsonDecode(parents: RunType[], varName: string): string;
-    abstract compileJsonStringify(parents: RunType[], varName: string): string;
-    abstract mock(...args: any[]): any;
+    abstract compileIsType(ctx: JitContext): string;
+    abstract compileTypeErrors(ctx: TypeErrorsContext): string;
+    abstract compileJsonEncode(ctx: JitContext): string;
+    abstract compileJsonDecode(ctx: JitContext): string;
+    abstract compileJsonStringify(ctx: JitContext): string;
+    abstract mock(ctx?: MockContext): any;
 
-    private _compiledJitFunctions: JITFunctionsData | undefined;
-    get jitFunctions(): JITFunctionsData {
+    private _compiledJitFunctions: JITCompiledFunctionsData | undefined;
+    get functions(): JITCompiledFunctionsData {
         if (this._compiledJitFunctions) return this._compiledJitFunctions;
         return (this._compiledJitFunctions = buildJITFunctions(this));
     }
@@ -80,7 +89,7 @@ export abstract class CollectionRunType<T extends Type, Opts extends RunTypeOpti
     /** Child RunTypes, only serializable RunTypes are included here, ie functions and other non serializable properties are not included */
     public abstract readonly childRunTypes: RunType[];
     public abstract readonly jitId: string;
-    public readonly isCircularRef = false;
+    public readonly isCircularRef: boolean = false;
 
     constructor(
         visitor: RunTypeVisitor,
@@ -99,14 +108,6 @@ export abstract class CollectionRunType<T extends Type, Opts extends RunTypeOpti
         parents.pop();
         return jitId;
     }
-
-    /**
-     * jit code to check the type a Collection.
-     * ie: is a collection type is an array of string string[] then compileCollectionType generates jit code to check if the value is an array.
-     * if a collection type is an object with properties, then compileCollectionType generates jit code to check if the value is an object.
-     * this is used for the union type where we need to check a value against multiple types.
-     */
-    abstract compileCollectionIsType(parents: RunType[], varName: string): string;
 }
 
 /**
@@ -116,5 +117,12 @@ export abstract class CollectionRunType<T extends Type, Opts extends RunTypeOpti
 export abstract class MemberRunType<T extends Type, Opts extends RunTypeOptions = RunTypeOptions> extends BaseRunType<T, Opts> {
     public abstract readonly memberType: RunType;
     public abstract readonly memberName: string | number | symbol;
+    public abstract readonly memberIndex: number;
     public abstract readonly jitId: string;
+
+    /**
+     * Returns true if the member should be accessed using array notation [member] in JIT code
+     * or false if it should be accessed using object notation .member in JIT code.
+     */
+    abstract useArrayAccessorForJit(): boolean;
 }

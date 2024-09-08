@@ -39,7 +39,7 @@ import type {ParameterRunType} from './functionRunType/param';
 import type {PromiseRunType} from './atomicRunType/promise';
 import type {ObjectRunType} from './atomicRunType/object';
 import type {MethodRunType} from './functionRunType/method';
-import type {CollectionRunType} from './baseRunTypes';
+import type {CollectionRunType, MemberRunType} from './baseRunTypes';
 
 export function isAnyRunType(rt: RunType): rt is AnyRunType {
     return rt.src.kind === ReflectionKind.any;
@@ -165,9 +165,14 @@ export function isConstructor(rt: InterfaceRunTypeEntry): rt is MethodSignatureR
 }
 
 export function isCollectionRunType(rt: RunType): rt is CollectionRunType<any> {
+    return Array.isArray((rt as CollectionRunType<any>).childRunTypes);
+}
+
+export function isMemberRunType(rt: RunType): rt is MemberRunType<any> {
     return (
-        Array.isArray((rt as CollectionRunType<any>).childRunTypes) &&
-        typeof (rt as CollectionRunType<any>).compileCollectionIsType === 'function'
+        typeof (rt as MemberRunType<any>).memberType !== 'undefined' &&
+        typeof (rt as MemberRunType<any>).memberName !== 'undefined' &&
+        typeof (rt as MemberRunType<any>).useArrayAccessorForJit === 'function'
     );
 }
 

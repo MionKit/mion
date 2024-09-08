@@ -6,33 +6,32 @@
  * ######## */
 
 import type {TypeClass} from '../_deepkit/src/reflection/type';
-import type {JitJsonEncoder, RunType} from '../types';
+import type {JitContext, JitJsonEncoder, MockOptions, TypeErrorsContext} from '../types';
 import {getErrorPath, getExpected} from '../utils';
 import {mockDate} from '../mock';
 import {AtomicRunType} from '../baseRunTypes';
-import {jitNames} from '../constants';
 
 export class DateRunType extends AtomicRunType<TypeClass> {
     public readonly isJsonEncodeRequired = false;
     public readonly isJsonDecodeRequired = true;
 
-    compileIsType(parents: RunType[], varName: string): string {
-        return `(${varName} instanceof Date && !isNaN(${varName}.getTime()))`;
+    compileIsType(ctx: JitContext): string {
+        return `(${ctx.args.value} instanceof Date && !isNaN(${ctx.args.value}.getTime()))`;
     }
-    compileTypeErrors(parents: RunType[], varName: string, pathC: string[]): string {
-        return `if (!(${this.compileIsType(parents, varName)})) ${jitNames.errors}.push({path: ${getErrorPath(pathC)}, expected: ${getExpected(this)}})`;
+    compileTypeErrors(ctx: TypeErrorsContext): string {
+        return `if (!(${this.compileIsType(ctx)})) ${ctx.args.errors}.push({path: ${getErrorPath(ctx.path)}, expected: ${getExpected(this)}})`;
     }
-    compileJsonEncode(parents: RunType[], varName: string): string {
-        return DateJitJsonENcoder.encodeToJson(varName);
+    compileJsonEncode(ctx: JitContext): string {
+        return DateJitJsonENcoder.encodeToJson(ctx.args.value);
     }
-    compileJsonDecode(parents: RunType[], varName: string): string {
-        return DateJitJsonENcoder.decodeFromJson(varName);
+    compileJsonDecode(ctx: JitContext): string {
+        return DateJitJsonENcoder.decodeFromJson(ctx.args.value);
     }
-    compileJsonStringify(parents: RunType[], varName: string): string {
-        return DateJitJsonENcoder.stringify(varName);
+    compileJsonStringify(ctx: JitContext): string {
+        return DateJitJsonENcoder.stringify(ctx.args.value);
     }
-    mock(minDate?: Date, maxDate?: Date): Date {
-        return mockDate(minDate, maxDate);
+    mock(ctx?: Pick<MockOptions, 'minDate' | 'maxDate'>): Date {
+        return mockDate(ctx?.minDate, ctx?.maxDate);
     }
     getJitId(): string {
         return 'date';

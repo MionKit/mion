@@ -6,21 +6,21 @@
  * ######## */
 
 import type {TypeAny, TypeUnknown} from '../_deepkit/src/reflection/type';
-import type {RunType} from '../types';
+import type {JitContext, MockOptions, TypeErrorsContext} from '../types';
 import {random} from '../mock';
 import {getErrorPath, getExpected} from '../utils';
-import {jitNames, mockObjectList} from '../constants';
+import {mockObjectList} from '../constants';
 import {AtomicRunType} from '../baseRunTypes';
 
 export class ObjectRunType extends AtomicRunType<TypeAny | TypeUnknown> {
     public readonly isJsonEncodeRequired = false;
     public readonly isJsonDecodeRequired = false;
 
-    compileIsType(parents: RunType[], varName: string): string {
-        return `(typeof ${varName} === 'object' && ${varName} !== null)`;
+    compileIsType(ctx: JitContext): string {
+        return `(typeof ${ctx.args.value} === 'object' && ${ctx.args.value} !== null)`;
     }
-    compileTypeErrors(parents: RunType[], varName: string, pathC: string[]): string {
-        return `if (!(${this.compileIsType(parents, varName)})) ${jitNames.errors}.push({path: ${getErrorPath(pathC)}, expected: ${getExpected(this)}})`;
+    compileTypeErrors(ctx: TypeErrorsContext): string {
+        return `if (!(${this.compileIsType(ctx)})) ${ctx.args.errors}.push({path: ${getErrorPath(ctx.path)}, expected: ${getExpected(this)}})`;
     }
     compileJsonEncode(): string {
         return '';
@@ -28,10 +28,11 @@ export class ObjectRunType extends AtomicRunType<TypeAny | TypeUnknown> {
     compileJsonDecode(): string {
         return '';
     }
-    compileJsonStringify(parents: RunType[], varName: string): string {
-        return `JSON.stringify(${varName})`;
+    compileJsonStringify(ctx: JitContext): string {
+        return `JSON.stringify(${ctx.args.value})`;
     }
-    mock(objectLis: object[] = mockObjectList): object {
-        return objectLis[random(0, objectLis.length - 1)];
+    mock(ctx?: Pick<MockOptions, 'objectList'>): object {
+        const objectList = ctx?.objectList || mockObjectList;
+        return objectList[random(0, objectList.length - 1)];
     }
 }

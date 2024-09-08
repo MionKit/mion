@@ -53,7 +53,7 @@ it('mock', async () => {
 
 it('mock with reject', async () => {
     try {
-        const mock = rt.mock(1, 'rejected');
+        const mock = rt.mock({promiseTimeOut: 1, promiseReject: new Error('rejected')});
         await mock;
         throw new Error('promise not rejected');
     } catch (error: any) {

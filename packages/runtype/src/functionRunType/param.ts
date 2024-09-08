@@ -1,9 +1,3 @@
-import {TypeParameter} from '../_deepkit/src/reflection/type';
-import {BaseRunType} from '../baseRunTypes';
-import {RunType, RunTypeOptions, RunTypeVisitor} from '../types';
-import {shouldSkipJsonEncode} from '../utils';
-import {RestParamsRunType} from './restParams';
-
 /* ########
  * 2024 mion
  * Author: Ma-jerez
@@ -11,25 +5,32 @@ import {RestParamsRunType} from './restParams';
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-export class ParameterRunType extends BaseRunType<TypeParameter> {
+import {TypeParameter} from '../_deepkit/src/reflection/type';
+import {MemberRunType} from '../baseRunTypes';
+import {compileChildren} from '../jitCompiler';
+import {JitContext, RunType, RunTypeOptions, RunTypeVisitor, TypeErrorsContext} from '../types';
+import {shouldSkipJsonDecode, shouldSkipJsonEncode} from '../utils';
+import {RestParamsRunType} from './restParams';
+
+export class ParameterRunType extends MemberRunType<TypeParameter> {
     public readonly isJsonEncodeRequired: boolean;
     public readonly isJsonDecodeRequired: boolean;
-    public readonly argRunType: RunType | RestParamsRunType;
+    public readonly memberType: RunType | RestParamsRunType;
     public readonly default: any;
-
+    public readonly memberIndex: number = 0;
     get isRest(): boolean {
-        return this.argRunType instanceof RestParamsRunType;
+        return this.memberType instanceof RestParamsRunType;
     }
     get isOptional(): boolean {
         return !!this.src.optional || this.isRest;
     }
-    get paramName(): string {
+    get memberName(): string {
         return this.src.name;
     }
     get jitId(): string {
-        return `${this.argRunType.jitId}${this.isOptional ? '?' : ''}`;
+        if (this.isRest) return this.memberType.jitId as string;
+        return `${this.src.kind}${this.isOptional ? '?' : ''}:${this.memberType.jitId}`;
     }
-
     constructor(
         visitor: RunTypeVisitor,
         public readonly src: TypeParameter,
@@ -38,81 +39,66 @@ export class ParameterRunType extends BaseRunType<TypeParameter> {
     ) {
         super(visitor, src, parents, opts);
         parents.push(this);
-        this.argRunType = visitor(src.type, [...parents, this], opts);
+        this.memberType = visitor(src.type, [...parents, this], opts);
         parents.pop();
-        this.isJsonEncodeRequired = this.argRunType.isJsonEncodeRequired;
-        this.isJsonDecodeRequired = this.argRunType.isJsonDecodeRequired;
+        this.isJsonEncodeRequired = this.memberType.isJsonEncodeRequired;
+        this.isJsonDecodeRequired = this.memberType.isJsonDecodeRequired;
     }
     getName(): string {
-        return `${this.paramName}${this.isOptional ? '?' : ''}:${this.argRunType.getName()}`;
+        return `${this.memberName}${this.isOptional ? '?' : ''}:${this.memberType.getName()}`;
     }
-    compileIsType(parents: RunType[], varName: string, paramIndex = 0): string {
-        let code: string;
-        parents.push(this);
-        if (this.isRest) {
-            code = this.argRunType.compileIsType(parents, varName, paramIndex);
-        } else {
-            const argAccessor = `${varName}[${paramIndex}]`;
-            code = this.isOptional
-                ? `${argAccessor} === undefined || (${this.argRunType.compileIsType(parents, argAccessor)})`
-                : this.argRunType.compileIsType(parents, argAccessor);
-        }
-        parents.pop();
-        return code;
+    useArrayAccessorForJit() {
+        return true;
     }
-    compileTypeErrors(parents: RunType[], varName: string, pathC: (string | number)[], paramIndex = 0): string {
-        let code: string;
-        parents.push(this);
+    compileIsType(ctx: JitContext): string {
         if (this.isRest) {
-            code = this.argRunType.compileTypeErrors(parents, varName, pathC, paramIndex);
+            return this.memberType.compileIsType(ctx);
         } else {
-            const argAccessor = `${varName}[${paramIndex}]`;
-            code = this.isOptional
-                ? `if (${argAccessor} !== undefined) {${this.argRunType.compileTypeErrors(parents, argAccessor, [...pathC, paramIndex])}}`
-                : this.argRunType.compileTypeErrors(parents, argAccessor, [...pathC, paramIndex]);
+            const compC = (newCtx: JitContext) => this.memberType.compileIsType(newCtx);
+            const itemCode = compileChildren(compC, this, ctx, this.memberIndex);
+            return this.isOptional ? `${ctx.args.value} === undefined || (${itemCode})` : itemCode;
         }
-        parents.pop();
-        return code;
     }
-    compileJsonEncode(parents: RunType[], varName: string, paramIndex = 0): string {
-        let code: string;
-        parents.push(this);
+    compileTypeErrors(ctx: TypeErrorsContext): string {
         if (this.isRest) {
-            code = this.argRunType.compileJsonEncode(parents, varName, paramIndex);
+            return this.memberType.compileTypeErrors(ctx);
         } else {
-            const argAccessor = `${varName}[${paramIndex}]`;
-            code = shouldSkipJsonEncode(this) ? argAccessor : this.argRunType.compileJsonEncode(parents, argAccessor);
+            const compC = (newCtx: TypeErrorsContext) => this.memberType.compileTypeErrors(newCtx);
+            const itemCode = compileChildren(compC, this, ctx, this.memberIndex);
+            return this.isOptional ? `if (${ctx.args.value} !== undefined) {${itemCode}}` : itemCode;
         }
-        parents.pop();
-        return code;
     }
-    compileJsonDecode(parents: RunType[], varName: string, paramIndex = 0): string {
-        let code: string;
-        parents.push(this);
-        if (this.isRest) {
-            code = this.argRunType.compileJsonDecode(parents, varName, paramIndex);
-        } else {
-            const argAccessor = `${varName}[${paramIndex}]`;
-            code = shouldSkipJsonEncode(this) ? argAccessor : this.argRunType.compileJsonDecode(parents, argAccessor);
-        }
-        parents.pop();
-        return code;
+    compileJsonEncode(ctx: JitContext): string {
+        return this.compileJsonDE(ctx, true);
     }
-    compileJsonStringify(parents: RunType[], varName: string, paramIndex = 0): string {
-        let code: string;
-        parents.push(this);
+    compileJsonDecode(ctx: JitContext): string {
+        return this.compileJsonDE(ctx, false);
+    }
+    private compileJsonDE(ctx: JitContext, isEncode = false): string {
+        const compileFn = isEncode ? this.memberType.compileJsonEncode : this.memberType.compileJsonDecode;
         if (this.isRest) {
-            code = this.argRunType.compileJsonStringify(parents, varName, paramIndex);
+            return compileFn(ctx);
         } else {
-            const argAccessor = `${varName}[${paramIndex}]`;
-            const argCode = this.argRunType.compileJsonStringify(parents, argAccessor);
-            const sep = paramIndex === 0 ? '' : `','+`;
-            code = this.isOptional ? `(${argAccessor} === undefined ? '': ${sep}${argCode})` : `${sep}${argCode}`;
+            const shouldSkip = isEncode ? shouldSkipJsonEncode(this) : shouldSkipJsonDecode(this);
+            if (shouldSkip) return `${ctx.args.value}[${this.memberIndex}]`;
+            return compileChildren((newCtx: JitContext) => compileFn(newCtx), this, ctx, this.memberIndex);
         }
-        parents.pop();
-        return code;
+    }
+    compileJsonStringify(ctx: JitContext): string {
+        if (this.isRest) {
+            return this.memberType.compileJsonStringify(ctx);
+        } else {
+            const compC = (newCtx: JitContext) => {
+                const argCode = this.memberType.compileJsonStringify(newCtx);
+                const isFirst = this.memberIndex === 0;
+                const sep = isFirst ? '' : `','+`;
+                if (this.isOptional) return `(${newCtx.args.value} === undefined ? '': ${sep}${argCode})`;
+                return `${sep}${argCode}`;
+            };
+            return compileChildren(compC, this, ctx, this.memberIndex);
+        }
     }
     mock(...args: any[]): any {
-        return this.argRunType.mock(...args);
+        return this.memberType.mock(...args);
     }
 }

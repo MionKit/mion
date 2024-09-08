@@ -6,7 +6,7 @@
  * ######## */
 
 import type {TypeSymbol} from '../_deepkit/src/reflection/type';
-import type {JitJsonEncoder, RunType} from '../types';
+import type {JitContext, JitJsonEncoder, MockOptions, TypeErrorsContext} from '../types';
 import {getErrorPath, getExpected} from '../utils';
 import {mockSymbol} from '../mock';
 import {AtomicRunType} from '../baseRunTypes';
@@ -16,23 +16,23 @@ export class SymbolRunType extends AtomicRunType<TypeSymbol> {
     public readonly isJsonEncodeRequired = true;
     public readonly isJsonDecodeRequired = true;
 
-    compileIsType(parents: RunType[], varName: string): string {
-        return `typeof ${varName} === 'symbol'`;
+    compileIsType(ctx: JitContext): string {
+        return `typeof ${ctx.args.value} === 'symbol'`;
     }
-    compileTypeErrors(parents: RunType[], varName: string, pathC: string[]): string {
-        return `if (typeof ${varName} !== 'symbol') ${jitNames.errors}.push({path: ${getErrorPath(pathC)}, expected: ${getExpected(this)}})`;
+    compileTypeErrors(ctx: TypeErrorsContext): string {
+        return `if (typeof ${ctx.args.value} !== 'symbol') ${jitNames.errors}.push({path: ${getErrorPath(ctx.path)}, expected: ${getExpected(this)}})`;
     }
-    compileJsonEncode(parents: RunType[], varName: string): string {
-        return SymbolJitJsonENcoder.encodeToJson(varName);
+    compileJsonEncode(ctx: JitContext): string {
+        return SymbolJitJsonENcoder.encodeToJson(ctx.args.value);
     }
-    compileJsonDecode(parents: RunType[], varName: string): string {
-        return SymbolJitJsonENcoder.decodeFromJson(varName);
+    compileJsonDecode(ctx: JitContext): string {
+        return SymbolJitJsonENcoder.decodeFromJson(ctx.args.value);
     }
-    compileJsonStringify(parents: RunType[], varName: string): string {
-        return SymbolJitJsonENcoder.stringify(varName);
+    compileJsonStringify(ctx: JitContext): string {
+        return SymbolJitJsonENcoder.stringify(ctx.args.value);
     }
-    mock(name?: string, length?: number, charsSet?: string): symbol {
-        return mockSymbol(name, length, charsSet);
+    mock(ctx?: Pick<MockOptions, 'symbolLength' | 'symbolCharSet' | 'symbolName'>): symbol {
+        return mockSymbol(ctx?.symbolName, ctx?.symbolLength, ctx?.symbolCharSet);
     }
 }
 

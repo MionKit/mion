@@ -48,7 +48,7 @@ export function mockAny(anyList = anyValuesList): any {
     return anyList[random(0, anyList.length - 1)];
 }
 
-// generates a random number between min and max, both inclusive
+/** Generates a random number between min and max, both inclusive */
 export function random(min: number = 0, max = 10000): number {
     return Math.floor(Math.random() * (max - min + 1)) + min;
 }
