@@ -6,21 +6,20 @@
  * ######## */
 
 import type {TypeBoolean} from '../_deepkit/src/reflection/type';
-import type {RunType} from '../types';
+import type {JitContext, TypeErrorsContext} from '../types';
 import {getErrorPath, getExpected} from '../utils';
 import {mockBoolean} from '../mock';
 import {AtomicRunType} from '../baseRunTypes';
-import {jitNames} from '../constants';
 
 export class BooleanRunType extends AtomicRunType<TypeBoolean> {
     public readonly isJsonEncodeRequired = false;
     public readonly isJsonDecodeRequired = false;
 
-    compileIsType(parents: RunType[], varName: string): string {
-        return `typeof ${varName} === 'boolean'`;
+    compileIsType(ctx: JitContext): string {
+        return `typeof ${ctx.args.value} === 'boolean'`;
     }
-    compileTypeErrors(parents: RunType[], varName: string, pathC: string[]): string {
-        return `if (typeof ${varName} !== 'boolean') ${jitNames.errors}.push({path: ${getErrorPath(pathC)}, expected: ${getExpected(this)}})`;
+    compileTypeErrors(ctx: TypeErrorsContext): string {
+        return `if (typeof ${ctx.args.value} !== 'boolean') ${ctx.args.errors}.push({path: ${getErrorPath(ctx.path)}, expected: ${getExpected(this)}})`;
     }
     compileJsonEncode(): string {
         return '';
@@ -28,8 +27,8 @@ export class BooleanRunType extends AtomicRunType<TypeBoolean> {
     compileJsonDecode(): string {
         return '';
     }
-    compileJsonStringify(parents: RunType[], varName: string): string {
-        return varName;
+    compileJsonStringify(ctx: JitContext): string {
+        return ctx.args.value;
     }
     mock(): boolean {
         return mockBoolean();

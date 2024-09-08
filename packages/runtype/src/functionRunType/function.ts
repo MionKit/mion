@@ -8,8 +8,17 @@ import {ReflectionKind, TypeCallSignature, TypeFunction, TypeMethod, TypeMethodS
 import {BaseRunType} from '../baseRunTypes';
 import {jitNames} from '../constants';
 import {isPromiseRunType} from '../guards';
-import {buildJITFunctions} from '../jitCompiler';
-import {JITFunctionsData, JitCompilerFunctions, RunType, RunTypeOptions, RunTypeVisitor} from '../types';
+import {buildJITFunctions, compileChildren} from '../jitCompiler';
+import {
+    JITCompiledFunctionsData,
+    JitCompilerFunctions,
+    JitContext,
+    Mutable,
+    RunType,
+    RunTypeOptions,
+    RunTypeVisitor,
+    TypeErrorsContext,
+} from '../types';
 import {getErrorPath, toLiteral} from '../utils';
 import {ParameterRunType} from './param';
 
@@ -64,7 +73,7 @@ export class FunctionRunType<CallType extends AnyFunction = TypeFunction> extend
     get jitId(): string {
         return `${this.src.kind}(${this.parameterTypes.map((p) => p.jitId).join(',')}):${this.returnType.jitId}`;
     }
-    
+
     constructor(
         visitor: RunTypeVisitor,
         public readonly src: CallType,
@@ -79,6 +88,7 @@ export class FunctionRunType<CallType extends AnyFunction = TypeFunction> extend
         this.returnType = isPromise ? maybePromiseReturn.resolvedType : maybePromiseReturn;
         this.parameterTypes = src.parameters.slice(start, end).map((p) => visitor(p, parents, opts)) as ParameterRunType[];
         this.totalRequiredParams = this.parameterTypes.reduce((acc, p) => acc + (p.isOptional ? 0 : 1), 0);
+        this.parameterTypes.forEach((p, i) => ((p as Mutable<ParameterRunType>).memberIndex = i));
     }
 
     compileIsType(): string {
@@ -104,55 +114,56 @@ export class FunctionRunType<CallType extends AnyFunction = TypeFunction> extend
 
     // ####### params #######
 
-    private _jitParamsFns: JITFunctionsData | undefined;
-    get jitParamsFns(): JITFunctionsData {
+    private _jitParamsFns: JITCompiledFunctionsData | undefined;
+    get jitParamsFns(): JITCompiledFunctionsData {
         if (this._jitParamsFns) return this._jitParamsFns;
         return (this._jitParamsFns = buildJITFunctions(this, this._paramsJitFunctions));
     }
 
     private _paramsJitFunctions: JitCompilerFunctions = {
-        compileIsType: (parents: RunType[], varName: string) => {
-            if (this.parameterTypes.length === 0) return `${varName}.length === 0`;
-            const paramsCode = this.parameterTypes
-                .map((p, i) => `(${p.compileIsType([...parents, this], varName, i)})`)
-                .join(' && ');
-            const maxLength = !this.hasRestParameter ? `&& ${varName}.length <= ${this.parameterTypes.length}` : '';
-            const checkLength = `${varName}.length >= ${this.totalRequiredParams} ${maxLength}`;
+        compileIsType: (ctx: JitContext) => {
+            if (this.parameterTypes.length === 0) return `${ctx.args.value}.length === 0`;
+            const compC = (newCtx) => this.parameterTypes.map((p) => `(${p.compileIsType(newCtx)})`).join(' && ');
+            const paramsCode = compileChildren(compC, this, ctx);
+            const maxLength = !this.hasRestParameter ? `&& ${ctx.args.value}.length <= ${this.parameterTypes.length}` : '';
+            const checkLength = `${ctx.args.value}.length >= ${this.totalRequiredParams} ${maxLength}`;
             return `${checkLength} && ${paramsCode}`;
         },
-        compileTypeErrors: (parents: RunType[], varName: string, pathC: (string | number)[]) => {
-            const maxLength = !this.hasRestParameter ? `|| ${varName}.length > ${this.parameterTypes.length}` : '';
-            const checkLength = `(${varName}.length < ${this.totalRequiredParams} ${maxLength})`;
-            const paramsCode = this.parameterTypes
-                .map((p, i) => p.compileTypeErrors([...parents, this], varName, pathC, i))
-                .join(';');
+        compileTypeErrors: (ctx: TypeErrorsContext) => {
+            const maxLength = !this.hasRestParameter ? `|| ${ctx.args.value}.length > ${this.parameterTypes.length}` : '';
+            const checkLength = `(${ctx.args.value}.length < ${this.totalRequiredParams} ${maxLength})`;
+            const compC = (newCtx) => this.parameterTypes.map((p) => p.compileTypeErrors(newCtx)).join(';');
+            const paramsCode = compileChildren(compC, this, ctx);
             return (
-                `if (!Array.isArray(${varName}) || ${checkLength}) ${jitNames.errors}.push({path: ${getErrorPath(pathC)}, expected: ${toLiteral(this.paramsName)}});` +
+                `if (!Array.isArray(${ctx.args.value}) || ${checkLength}) ${jitNames.errors}.push({path: ${getErrorPath(ctx.path)}, expected: ${toLiteral(this.paramsName)}});` +
                 `else {${paramsCode}}`
             );
         },
-        compileJsonEncode: (parents: RunType[], varName: string) => {
-            if (!this.opts?.strictJSON && !this.isParamsJsonEncodedRequired) return '';
-            return this.parameterTypes
-                .map((p, i) => p.compileJsonEncode([...parents, this], varName, i))
-                .filter((code) => !!code)
-                .join(';');
+        compileJsonEncode: (ctx: JitContext) => {
+            return this.compileParamsJsonDE(ctx, true);
         },
-        compileJsonDecode: (parents: RunType[], varName: string) => {
-            if (!this.opts?.strictJSON && !this.isParamsJsonDecodedRequired) return '';
-            return this.parameterTypes
-                .map((p, i) => p.compileJsonDecode([...parents, this], varName, i))
-                .filter((code) => !!code)
-                .join(';');
+        compileJsonDecode: (ctx: JitContext) => {
+            return this.compileParamsJsonDE(ctx, false);
         },
-        compileJsonStringify: (parents: RunType[], varName: string) => {
+        compileJsonStringify: (ctx: JitContext) => {
             if (this.parameterTypes.length === 0) return `[]`;
-            const paramsCode = this.parameterTypes
-                .map((p, i) => p.compileJsonStringify([...parents, this], varName, i))
-                .join('+');
+            const compC = (newCtx) => this.parameterTypes.map((p) => p.compileJsonStringify(newCtx)).join('+');
+            const paramsCode = compileChildren(compC, this, ctx);
             return `'['+${paramsCode}+']'`;
         },
     };
+
+    private compileParamsJsonDE(ctx: JitContext, isEncode: boolean) {
+        const isEncRequired = isEncode ? this.isParamsJsonEncodedRequired : this.isParamsJsonDecodedRequired;
+        if (!this.opts?.strictJSON && !isEncRequired) return '';
+        const compC = (newCtx) => {
+            return this.parameterTypes
+                .filter((p) => (isEncode ? p.isJsonEncodeRequired : p.isJsonDecodeRequired))
+                .map((p) => (isEncode ? p.compileJsonEncode(newCtx) : p.compileJsonDecode(newCtx)))
+                .join(';');
+        };
+        return compileChildren(compC, this, ctx);
+    }
 
     paramsMock(): any[] {
         return this.parameterTypes.map((p) => p.mock());
@@ -160,29 +171,29 @@ export class FunctionRunType<CallType extends AnyFunction = TypeFunction> extend
 
     // ####### return #######
 
-    private _jitReturnFns: JITFunctionsData | undefined;
-    get jitReturnFns(): JITFunctionsData {
+    private _jitReturnFns: JITCompiledFunctionsData | undefined;
+    get jitReturnFns(): JITCompiledFunctionsData {
         if (this._jitReturnFns) return this._jitReturnFns;
         return (this._jitReturnFns = buildJITFunctions(this, this._returnJitFunctions));
     }
 
     private _returnJitFunctions: JitCompilerFunctions = {
-        compileIsType: (parents: RunType[], varName) => {
-            return this.returnType.compileIsType([...parents, this], varName);
+        compileIsType: (ctx: JitContext) => {
+            return compileChildren((newCtx) => this.returnType.compileIsType(newCtx), this, ctx);
         },
-        compileTypeErrors: (parents: RunType[], varName: string, pathC: (string | number)[]) => {
-            return this.returnType.compileTypeErrors([...parents, this], varName, pathC);
+        compileTypeErrors: (ctx: TypeErrorsContext) => {
+            return compileChildren((newCtx) => this.returnType.compileTypeErrors(newCtx), this, ctx);
         },
-        compileJsonEncode: (parents: RunType[], varName: string) => {
+        compileJsonEncode: (ctx: JitContext) => {
             if (!this.opts?.strictJSON && !this.isReturnJsonEncodedRequired) return '';
-            return this.returnType.compileJsonEncode([...parents, this], varName);
+            return compileChildren((newCtx) => this.returnType.compileJsonEncode(newCtx), this, ctx);
         },
-        compileJsonDecode: (parents: RunType[], varName: string) => {
+        compileJsonDecode: (ctx: JitContext) => {
             if (!this.opts?.strictJSON && !this.isReturnJsonDecodedRequired) return '';
-            return this.returnType.compileJsonDecode([...parents, this], varName);
+            return compileChildren((newCtx) => this.returnType.compileJsonDecode(newCtx), this, ctx);
         },
-        compileJsonStringify: (parents: RunType[], varName: string) =>
-            this.returnType.compileJsonStringify([...parents, this], varName),
+        compileJsonStringify: (ctx: JitContext) =>
+            compileChildren((newCtx) => this.returnType.compileJsonStringify(newCtx), this, ctx),
     };
 
     returnMock(): any {

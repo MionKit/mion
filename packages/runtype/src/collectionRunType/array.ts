@@ -6,12 +6,11 @@
  * ######## */
 
 import {TypeArray} from '../_deepkit/src/reflection/type';
-import {RunType, RunTypeOptions, RunTypeVisitor} from '../types';
+import {JitContext, MockContext, RunType, RunTypeOptions, RunTypeVisitor, TypeErrorsContext} from '../types';
 import {getErrorPath, getExpected} from '../utils';
 import {mockRecursiveEmptyArray, random} from '../mock';
 import {CollectionRunType} from '../baseRunTypes';
 import {
-    compileChildrenJitFunction,
     handleCircularIsType,
     handleCircularJsonDecode,
     handleCircularJsonEncode,
@@ -19,6 +18,7 @@ import {
     handleCircularTypeErrors,
 } from '../jitCircular';
 import {jitNames} from '../constants';
+import {compileChildren} from '../jitCompiler';
 
 export class ArrayRunType extends CollectionRunType<TypeArray> {
     public readonly childRunTypes: RunType[]; // although array can have only one type, it can reference itself so is considered a collection
@@ -43,113 +43,88 @@ export class ArrayRunType extends CollectionRunType<TypeArray> {
         this.isJsonDecodeRequired = this.child.isJsonDecodeRequired;
     }
 
-    compileIsType(parents: RunType[], varName: string): string {
-        const {index, indexAccessor, nestLevel} = getJitVars(this, parents, varName);
-        const callArgs = [varName];
+    compileIsType(ctx: JitContext): string {
         const compile = () => {
-            const resultVal = `rεsult${nestLevel}`;
-            const compileChildren = (newParents) => this.child.compileIsType(newParents, indexAccessor);
-            const itemsCode = compileChildrenJitFunction(this, parents, compileChildren);
+            const index = `iε${ctx.parents.length}`;
+            const resultVal = `rεsult${ctx.parents.length}`;
+            const compC = (newCtx: JitContext) => this.child.compileIsType(newCtx);
+            const itemsCode = compileChildren(compC, this, ctx, index, true);
             return `
-                if (!Array.isArray(${varName})) return false;
-                for (let ${index} = 0; ${index} < ${varName}.length; ${index}++) {
+                if (!Array.isArray(${ctx.args.value})) return false;
+                for (let ${index} = 0; ${index} < ${ctx.args.value}.length; ${index}++) {
                     const ${resultVal} = ${itemsCode};
                     if (!(${resultVal})) return false;
                 }
                 return true;
             `;
         };
-        return handleCircularIsType(this, compile, callArgs, nestLevel, true);
+        return handleCircularIsType(compile, this, ctx, true);
     }
-    compileCollectionIsType(parents: RunType[], varName: string): string {
-        return `Array.isArray(${varName})`;
-    }
-    compileTypeErrors(parents: RunType[], varName: string, pathC: string[]): string {
-        const {index, indexAccessor} = getJitVars(this, parents, varName);
-        const callArgs = [varName, jitNames.errors, jitNames.circularPath];
+    compileTypeErrors(ctx: TypeErrorsContext): string {
         const compile = () => {
-            const compileChildren = (newParents) => {
-                const newPath = [...pathC, index];
-                return this.child.compileTypeErrors(newParents, indexAccessor, newPath);
-            };
-            const itemsCode = compileChildrenJitFunction(this, parents, compileChildren);
+            const index = `iε${ctx.parents.length}`;
+            const compC = (newCtx: TypeErrorsContext) => this.child.compileTypeErrors(newCtx);
+            const itemsCode = compileChildren(compC, this, ctx, index, true);
             return `
-                if (!Array.isArray(${varName})) ${jitNames.errors}.push({path: ${getErrorPath(pathC)}, expected: ${getExpected(this)}});
+                if (!Array.isArray(${ctx.args.value})) ${jitNames.errors}.push({path: ${getErrorPath(ctx.path)}, expected: ${getExpected(this)}});
                 else {
-                    for (let ${index} = 0; ${index} < ${varName}.length; ${index}++) {
+                    for (let ${index} = 0; ${index} < ${ctx.args.value}.length; ${index}++) {
                         ${itemsCode}
                     }
                 }
             `;
         };
-        return handleCircularTypeErrors(this, compile, callArgs, pathC);
+        return handleCircularTypeErrors(compile, this, ctx);
     }
-    compileJsonEncode(parents: RunType[], varName: string): string {
-        const {index, indexAccessor} = getJitVars(this, parents, varName);
-        const callArgs = [varName];
+    compileJsonEncode(ctx: JitContext): string {
+        return this.jsonEncDec(ctx, true);
+    }
+    compileJsonDecode(ctx: JitContext): string {
+        return this.jsonEncDec(ctx, false);
+    }
+    private jsonEncDec(ctx: JitContext, isEncode: boolean): string {
         const compile = () => {
-            if (!this.isJsonEncodeRequired) return '';
-            const compileChildren = (newParents) => this.child.compileJsonEncode(newParents, indexAccessor);
-            const itemsCode = compileChildrenJitFunction(this, parents, compileChildren);
+            const skip = isEncode ? !this.isJsonEncodeRequired : !this.isJsonDecodeRequired;
+            const index = `iε${ctx.parents.length}`;
+            if (skip) return '';
+            const encDec = isEncode ? this.child.compileJsonEncode : this.child.compileJsonDecode;
+            const compC = (newCtx: JitContext) => encDec(newCtx);
+            const itemsCode = compileChildren(compC, this, ctx, index, true);
             return `
-                for (let ${index} = 0; ${index} < ${varName}.length; ${index}++) {
+                for (let ${index} = 0; ${index} < ${ctx.args.value}.length; ${index}++) {
                     ${itemsCode}
                 }
             `;
         };
-        return handleCircularJsonEncode(this, compile, callArgs);
+        const circularEncDEc = isEncode ? handleCircularJsonEncode : handleCircularJsonDecode;
+        return circularEncDEc(compile, this, ctx);
     }
-    compileJsonDecode(parents: RunType[], varName: string): string {
-        const {index, indexAccessor} = getJitVars(this, parents, varName);
-        const callArgs = [varName];
+
+    compileJsonStringify(ctx: JitContext): string {
         const compile = () => {
-            if (!this.isJsonDecodeRequired) return '';
-            const compileChildren = (newParents) => this.child.compileJsonDecode(newParents, indexAccessor);
-            const itemsCode = compileChildrenJitFunction(this, parents, compileChildren);
-            return `
-                for (let ${index} = 0; ${index} < ${varName}.length; ${index}++) {
-                    ${itemsCode}
-                }
-            `;
-        };
-        return handleCircularJsonDecode(this, compile, callArgs);
-    }
-    compileJsonStringify(parents: RunType[], varName: string): string {
-        const {index, indexAccessor, nestLevel} = getJitVars(this, parents, varName);
-        const callArgs = [varName];
-        const compile = () => {
-            const jsonItems = `jsonItεms${nestLevel}`;
-            const resultVal = `rεsult${nestLevel}`;
-            const compileChildren = (newParents) => this.child.compileJsonStringify(newParents, indexAccessor);
-            const itemsCode = compileChildrenJitFunction(this, parents, compileChildren);
+            const index = `iε${ctx.parents.length}`;
+            const jsonItems = `jsonItεms${ctx.parents.length}`;
+            const resultVal = `rεsult${ctx.parents.length}`;
+            const compC = (newCtx: JitContext) => this.child.compileJsonStringify(newCtx);
+            const itemsCode = compileChildren(compC, this, ctx, index, true);
             return `
                 const ${jsonItems} = [];
-                for (let ${index} = 0; ${index} < ${varName}.length; ${index}++) {
+                for (let ${index} = 0; ${index} < ${ctx.args.value}.length; ${index}++) {
                     const ${resultVal} = ${itemsCode};
                     ${jsonItems}.push(${resultVal});
                 }
                 return '[' + ${jsonItems}.join(',') + ']';
             `;
         };
-
-        return handleCircularJsonStringify(this, compile, callArgs, nestLevel, true);
+        return handleCircularJsonStringify(compile, this, ctx, true);
     }
-    mock(length = random(0, 30), ...args: any[]): any[] {
+    mock(ctx?: MockContext): any[] {
+        const length = ctx?.arrayLength ?? random(0, 30);
         if (this.isCircularRef) {
             const depth = random(1, 5);
             // specific scenario where array is circular with itself, i.e: CircularArray = CircularArray[]
             return mockRecursiveEmptyArray(depth, length);
         }
-        return Array.from({length}, () => this.child.mock(...args));
+        return Array.from({length}, () => this.child.mock(ctx));
     }
-}
-
-function getJitVars(rt: ArrayRunType, parents: RunType[], varName: string) {
-    const nestLevel = parents.length;
-    const index = `iε${nestLevel}`;
-    return {
-        nestLevel,
-        index,
-        indexAccessor: `${varName}[${index}]`,
-    };
 }

@@ -5,12 +5,9 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import type {RunType} from './types';
-import {jitNames} from './constants';
+import type {JitCompileContext, RunType} from './types';
 import {CollectionRunType} from './baseRunTypes';
 import {callJitCachedFn, createJitCachedFn} from './jitCompiler';
-
-export type compileChildCB = (updatedParents: RunType[]) => string;
 
 function shouldCallJitCache(rt: RunType): boolean {
     return (rt as CollectionRunType<any>).isCircularRef;
@@ -18,14 +15,13 @@ function shouldCallJitCache(rt: RunType): boolean {
 
 /** wrapper function to handle circular types compiling */
 function handleJitCacheCompiling(
-    rt: RunType,
-    /** name to identify the function in the jit cache */
-    fnName: string,
     /** functions that compiles code, only called if required */
     compile: () => string,
-    /** argument Names when called jit cached function */
-    jitCacheCallArgs: string[],
-    addReturnToJit: boolean
+    rt: RunType,
+    ctx: JitCompileContext,
+    addReturnToJit: boolean,
+    /** name to identify the function in the jit cache */
+    fnName: string
 ): string {
     // if it is not a circular type, we can return the code directly
     if (!shouldCallJitCache(rt)) return compile();
@@ -33,24 +29,26 @@ function handleJitCacheCompiling(
     // if is a circular type, we need to create a jit function to handle the circular reference and call it
     const jitIdFnName = `${rt.jitId}:${fnName}`;
     const compileJit = addReturnToJit ? () => `return ${compile()}` : compile;
-    createJitCachedFn(jitIdFnName, compileJit, jitCacheCallArgs); // adding the code to jit cache
+    const jitFnArgs = Object.keys(ctx.args);
+    const jitCacheCallArgs = Object.values(ctx.args);
+    createJitCachedFn(jitIdFnName, compileJit, jitFnArgs); // adding the code to jit cache
     return callJitCachedFn(jitIdFnName, jitCacheCallArgs); // return a call to the cached function
 }
 
 /** wrapper function to handle the return statement of circular jit code.
  * like JsonStringify os isType */
 function handleCodeReturn(
-    rt: RunType,
     compile: () => string,
-    jitCacheCallArgs: string[],
-    nestLevel: number,
+    rt: RunType,
+    ctx: JitCompileContext<any>,
     codeContainsReturn: boolean,
     fnName: string
 ) {
     const shouldCallJit = shouldCallJitCache(rt);
     const addReturnToJit = !codeContainsReturn;
-    const compiled = handleJitCacheCompiling(rt, fnName, compile, jitCacheCallArgs, addReturnToJit);
+    const compiled = handleJitCacheCompiling(compile, rt, ctx, addReturnToJit, fnName);
     const codeHasReturn = codeContainsReturn && !shouldCallJit;
+    const nestLevel = ctx.parents.length;
     if (nestLevel > 0) {
         // code contains a return and possibly more statements, we need to wrap it in a self invoking function to avoid syntax errors
         if (codeHasReturn) return `(function(){${compiled}})()`;
@@ -65,57 +63,55 @@ function handleCodeReturn(
 
 /** Handles Circular compiling for jit isType functions */
 export function handleCircularIsType(
-    rt: RunType,
     compile: () => string,
-    jitCacheCallArgs: string[],
-    nestLevel: number,
-    codeContainsReturn: boolean
+    rt: RunType,
+    ctx: JitCompileContext<any>,
+    codeContainsReturn: boolean,
+    fnName = 'isT'
 ): string {
-    return handleCodeReturn(rt, compile, jitCacheCallArgs, nestLevel, codeContainsReturn, 'isT');
+    return handleCodeReturn(compile, rt, ctx, codeContainsReturn, fnName);
 }
 
 /** Handles Circular compiling for jit jsonStringify functions */
 export function handleCircularJsonStringify(
-    rt: RunType,
     compile: () => string,
-    jitCacheCallArgs: string[],
-    nestLevel: number,
-    codeContainsReturn: boolean
+    rt: RunType,
+    ctx: JitCompileContext<any>,
+    codeContainsReturn: boolean,
+    fnName = 'jsonS'
 ): string {
-    return handleCodeReturn(rt, compile, jitCacheCallArgs, nestLevel, codeContainsReturn, 'jsonStr');
+    return handleCodeReturn(compile, rt, ctx, codeContainsReturn, fnName);
 }
 
 /** Handles Circular compiling for jit typeErrors functions */
 export function handleCircularTypeErrors(
-    rt: RunType,
     compile: () => string,
-    jitCacheCallArgs: string[],
-    pathC: (string | number)[]
+    rt: RunType,
+    ctx: JitCompileContext<any>,
+    codeContainsReturn = false,
+    fnName = 'TErr'
 ): string {
-    const typeErrorsCode = handleJitCacheCompiling(rt, 'TErr', compile, jitCacheCallArgs, false);
-    if (shouldCallJitCache(rt))
-        return `
-            ${jitNames.circularPath}.push(${pathC.join(',')});
-            ${typeErrorsCode}
-            ${jitNames.circularPath}.splice(-${pathC.length});
-        `;
-    return typeErrorsCode;
+    return handleJitCacheCompiling(compile, rt, ctx, codeContainsReturn, fnName);
 }
 
 /** Handles Circular compiling for jit jsonEncode functions */
-export function handleCircularJsonEncode(rt: RunType, compile: () => string, jitCacheCallArgs: string[]): string {
-    return handleJitCacheCompiling(rt, 'jsonEnc', compile, jitCacheCallArgs, false);
+export function handleCircularJsonEncode(
+    compile: () => string,
+    rt: RunType,
+    ctx: JitCompileContext<any>,
+    codeContainsReturn = false,
+    fnName = 'jsonE'
+): string {
+    return handleJitCacheCompiling(compile, rt, ctx, codeContainsReturn, fnName);
 }
 
 /** Handles Circular compiling for jit jsonDecode functions */
-export function handleCircularJsonDecode(rt: RunType, compile: () => string, jitCacheCallArgs: string[]): string {
-    return handleJitCacheCompiling(rt, 'jsonDec', compile, jitCacheCallArgs, false);
-}
-
-/** wrapper function to compile children types and managing parents array before and after children gets compiled*/
-export function compileChildrenJitFunction(rt: RunType, parents: RunType[], compileChildFn: compileChildCB): string {
-    parents.push(rt);
-    const itemsCode = compileChildFn(parents);
-    parents.pop();
-    return itemsCode;
+export function handleCircularJsonDecode(
+    compile: () => string,
+    rt: RunType,
+    ctx: JitCompileContext<any>,
+    codeContainsReturn = false,
+    fnName = 'jsonD'
+): string {
+    return handleJitCacheCompiling(compile, rt, ctx, codeContainsReturn, fnName);
 }

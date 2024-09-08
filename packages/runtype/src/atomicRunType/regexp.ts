@@ -6,7 +6,7 @@
  * ######## */
 
 import type {TypeRegexp} from '../_deepkit/src/reflection/type';
-import type {JitJsonEncoder, RunType} from '../types';
+import type {JitContext, JitJsonEncoder, MockOptions, TypeErrorsContext} from '../types';
 import {getErrorPath, getExpected} from '../utils';
 import {mockRegExp} from '../mock';
 import {AtomicRunType} from '../baseRunTypes';
@@ -16,23 +16,23 @@ export class RegexpRunType extends AtomicRunType<TypeRegexp> {
     public readonly isJsonEncodeRequired = true;
     public readonly isJsonDecodeRequired = true;
 
-    compileIsType(parents: RunType[], varName: string): string {
-        return `(${varName} instanceof RegExp)`;
+    compileIsType(ctx: JitContext): string {
+        return `(${ctx.args.value} instanceof RegExp)`;
     }
-    compileTypeErrors(parents: RunType[], varName: string, pathC: string[]): string {
-        return `if (!(${varName} instanceof RegExp)) ${jitNames.errors}.push({path: ${getErrorPath(pathC)}, expected: ${getExpected(this)}})`;
+    compileTypeErrors(ctx: TypeErrorsContext): string {
+        return `if (!(${ctx.args.value} instanceof RegExp)) ${jitNames.errors}.push({path: ${getErrorPath(ctx.path)}, expected: ${getExpected(this)}})`;
     }
-    compileJsonEncode(parents: RunType[], varName: string): string {
-        return RegexpJitJsonEncoder.encodeToJson(varName);
+    compileJsonEncode(ctx: JitContext): string {
+        return RegexpJitJsonEncoder.encodeToJson(ctx.args.value);
     }
-    compileJsonDecode(parents: RunType[], varName: string): string {
-        return RegexpJitJsonEncoder.decodeFromJson(varName);
+    compileJsonDecode(ctx: JitContext): string {
+        return RegexpJitJsonEncoder.decodeFromJson(ctx.args.value);
     }
-    compileJsonStringify(parents: RunType[], varName: string): string {
-        return RegexpJitJsonEncoder.stringify(varName);
+    compileJsonStringify(ctx: JitContext): string {
+        return RegexpJitJsonEncoder.stringify(ctx.args.value);
     }
-    mock(list?: RegExp[]): RegExp {
-        return mockRegExp(list);
+    mock(ctx?: Pick<MockOptions, 'regexpList'>): RegExp {
+        return mockRegExp(ctx?.regexpList);
     }
 }
 

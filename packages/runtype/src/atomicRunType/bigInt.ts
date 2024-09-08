@@ -6,33 +6,33 @@
  * ######## */
 
 import type {TypeBigInt} from '../_deepkit/src/reflection/type';
-import type {JitJsonEncoder, RunType} from '../types';
+import type {JitContext, JitJsonEncoder, MockOptions, TypeErrorsContext} from '../types';
 import {getErrorPath, getExpected} from '../utils';
 import {mockBigInt} from '../mock';
 import {AtomicRunType} from '../baseRunTypes';
-import {jitNames} from '../constants';
-
 export class BigIntRunType extends AtomicRunType<TypeBigInt> {
     public readonly isJsonEncodeRequired = true;
     public readonly isJsonDecodeRequired = true;
 
-    compileIsType(parents: RunType[], varName: string): string {
-        return `typeof ${varName} === 'bigint'`;
+    compileIsType(ctx: JitContext): string {
+        return `typeof ${ctx.args.value} === 'bigint'`;
     }
-    compileTypeErrors(parents: RunType[], varName: string, pathC: string[]): string {
-        return `if (typeof ${varName} !== 'bigint') ${jitNames.errors}.push({path: ${getErrorPath(pathC)}, expected: ${getExpected(this)}})`;
+    compileTypeErrors(ctx: TypeErrorsContext): string {
+        return `if (typeof ${ctx.args.value} !== 'bigint') ${ctx.args.errors}.push({path: ${getErrorPath(ctx.path)}, expected: ${getExpected(this)}})`;
     }
-    compileJsonEncode(parents: RunType[], varName: string): string {
-        return BigIntJitJsonENcoder.encodeToJson(varName);
+    compileJsonEncode(ctx: JitContext): string {
+        return BigIntJitJsonENcoder.encodeToJson(ctx.args.value);
     }
-    compileJsonDecode(parents: RunType[], varName: string): string {
-        return BigIntJitJsonENcoder.decodeFromJson(varName);
+    compileJsonDecode(ctx: JitContext): string {
+        return BigIntJitJsonENcoder.decodeFromJson(ctx.args.value);
     }
-    compileJsonStringify(parents: RunType[], varName: string): string {
-        return BigIntJitJsonENcoder.stringify(varName);
+    compileJsonStringify(jc: JitContext): string {
+        return BigIntJitJsonENcoder.stringify(jc.args.value);
     }
-    mock(min?: number, max?: number): bigint {
-        return mockBigInt(min, max);
+
+    /** this mocks a regular number and transforms into a bigint */
+    mock(ctx?: Pick<MockOptions, 'minNumber' | 'maxNumber'>): bigint {
+        return mockBigInt(ctx?.minNumber, ctx?.maxNumber);
     }
 }
 

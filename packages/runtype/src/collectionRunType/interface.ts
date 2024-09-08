@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 import {TypeObjectLiteral, TypeClass, TypeIntersection} from '../_deepkit/src/reflection/type';
-import {RunType, RunTypeOptions, RunTypeVisitor} from '../types';
+import {JitContext, MockContext, Mutable, RunType, RunTypeOptions, RunTypeVisitor, TypeErrorsContext} from '../types';
 import {shouldSkipJsonDecode, shouldSkipJsonEncode, getErrorPath, getExpected} from '../utils';
 import {PropertyRunType} from './property';
 import {CollectionRunType} from '../baseRunTypes';
@@ -14,7 +14,6 @@ import {CallSignatureRunType} from '../functionRunType/call';
 import {IndexSignatureRunType} from './indexProperty';
 import {MethodRunType} from '../functionRunType/method';
 import {
-    compileChildrenJitFunction,
     handleCircularIsType,
     handleCircularJsonDecode,
     handleCircularJsonEncode,
@@ -22,6 +21,7 @@ import {
     handleCircularTypeErrors,
 } from '../jitCircular';
 import {jitNames} from '../constants';
+import {compileChildren} from '../jitCompiler';
 
 export type InterfaceRunTypeEntry =
     | PropertyRunType
@@ -54,81 +54,67 @@ export class InterfaceRunType<
         this.isJsonEncodeRequired = isJsonEncodeRequired || this.entries.some((prop) => prop.isJsonEncodeRequired);
         this.childRunTypes = this.entries.filter((prop) => prop.shouldSerialize) as (PropertyRunType | IndexSignatureRunType)[];
         this.jitId = `${this.src.kind}{${this.childRunTypes.map((prop) => prop.jitId).join(',')}}`;
+        this.childRunTypes.forEach((p, i) => ((p as Mutable<PropertyRunType | IndexSignatureRunType>).memberIndex = i));
     }
 
-    compileIsType(parents: RunType[], varName: string): string {
-        const nestLevel = parents.length;
-        const callArgs = [varName];
+    compileIsType(ctx: JitContext): string {
         const compile = () => {
-            const propsCode = compileChildrenJitFunction(this, parents, (newParents) => {
-                return this.childRunTypes.map((prop) => prop.compileIsType(newParents, varName)).join(' && ');
-            });
-            return `(typeof ${varName} === 'object' && ${varName} !== null && !Array.isArray(${varName}) && ${propsCode})`;
+            const compC = (childCtx: JitContext) => this.childRunTypes.map((prop) => prop.compileIsType(childCtx)).join(' && ');
+            const propsCode = compileChildren(compC, this, ctx);
+            return `(typeof ${ctx.args.value} === 'object' && ${ctx.args.value} !== null && !Array.isArray(${ctx.args.value}) && ${propsCode})`;
         };
-        return handleCircularIsType(this, compile, callArgs, nestLevel, false);
+        return handleCircularIsType(compile, this, ctx, false);
     }
-    compileCollectionIsType(parents: RunType[], varName: string): string {
-        return `typeof ${varName} === 'object' && ${varName} !== null && !Array.isArray(${varName})`;
-    }
-    compileTypeErrors(parents: RunType[], varName: string, pathC: string[]): string {
-        const callArgs = [varName, jitNames.errors, jitNames.circularPath];
+    compileTypeErrors(ctx: TypeErrorsContext): string {
         const compile = () => {
-            const itemsCode = compileChildrenJitFunction(this, parents, (newParents) => {
-                return this.childRunTypes.map((prop) => prop.compileTypeErrors(newParents, varName, pathC)).join(';');
-            });
+            const compC = (childCtx: TypeErrorsContext) =>
+                this.childRunTypes.map((prop) => prop.compileTypeErrors(childCtx)).join(';');
+            const itemsCode = compileChildren(compC, this, ctx);
             return `
-                if (typeof ${varName} !== 'object' && ${varName} !== null && !Array.isArray(${varName})) {
-                    ${jitNames.errors}.push({path: ${getErrorPath(pathC)}, expected: ${getExpected(this)}});
+                if (typeof ${ctx.args.value} !== 'object' && ${ctx.args.value} !== null && !Array.isArray(${ctx.args.value})) {
+                    ${jitNames.errors}.push({path: ${getErrorPath(ctx.path)}, expected: ${getExpected(this)}});
                 } else {
                     ${itemsCode}
                 }
             `;
         };
-        return handleCircularTypeErrors(this, compile, callArgs, pathC);
+        return handleCircularTypeErrors(compile, this, ctx);
     }
-    compileJsonEncode(parents: RunType[], varName: string): string {
-        const callArgs = [varName];
+    compileJsonEncode(ctx: JitContext): string {
+        if (shouldSkipJsonEncode(this)) return '';
         const compile = () => {
-            return compileChildrenJitFunction(this, parents, (newParents) => {
-                if (shouldSkipJsonEncode(this)) return '';
-                return this.childRunTypes.map((prop) => prop.compileJsonEncode(newParents, varName)).join(';');
-            });
+            const compC = (childCtx: JitContext) => {
+                return this.childRunTypes.map((prop) => prop.compileJsonEncode(childCtx)).join(';');
+            };
+            return compileChildren(compC, this, ctx);
         };
-        return handleCircularJsonEncode(this, compile, callArgs);
+        return handleCircularJsonEncode(compile, this, ctx);
     }
-    compileJsonDecode(parents: RunType[], varName: string): string {
-        const callArgs = [varName];
+    compileJsonDecode(ctx: JitContext): string {
+        if (shouldSkipJsonDecode(this)) return '';
         const compile = () => {
-            return compileChildrenJitFunction(this, parents, (newParents) => {
-                if (shouldSkipJsonDecode(this)) return '';
-                return this.childRunTypes.map((prop) => prop.compileJsonDecode(newParents, varName)).join(';');
-            });
+            const compC = (childCtx: JitContext) => {
+                return this.childRunTypes.map((prop) => prop.compileJsonDecode(childCtx)).join(';');
+            };
+            return compileChildren(compC, this, ctx);
         };
-        return handleCircularJsonDecode(this, compile, callArgs);
+        return handleCircularJsonDecode(compile, this, ctx);
     }
-    compileJsonStringify(parents: RunType[], varName: string): string {
-        const nestLevel = parents.length;
-        const callArgs = [varName];
+    compileJsonStringify(ctx: JitContext): string {
         const compile = () => {
-            const propsCode = compileChildrenJitFunction(this, parents, (newParents) => {
-                return this.childRunTypes.map((prop, i) => prop.compileJsonStringify(newParents, varName, i === 0)).join('+');
-            });
+            const compC = (childCtx: JitContext) =>
+                this.childRunTypes.map((prop) => prop.compileJsonStringify(childCtx)).join('+');
+            const propsCode = compileChildren(compC, this, ctx);
             return `'{'+${propsCode}+'}'`;
         };
-        return handleCircularJsonStringify(this, compile, callArgs, nestLevel, false);
+        return handleCircularJsonStringify(compile, this, ctx, false);
     }
-    mock(
-        optionalParamsProbability: Record<string | number, number>,
-        objArgs: Record<string | number, any[]>,
-        indexArgs?: any[],
-        obj: Record<string | number, any> = {}
-    ): Record<string | number, any> {
+    mock(ctx?: MockContext): Record<string | number, any> {
+        const obj: Record<string | number, any> = ctx?.parentObj || {};
         this.childRunTypes.forEach((prop) => {
             const name: string | number = prop.memberName as any;
-            const optionalProbability: number | undefined = optionalParamsProbability?.[name];
-            const propArgs: any[] = objArgs?.[name] || [];
-            if (prop instanceof IndexSignatureRunType) prop.mock(obj, ...(indexArgs || []));
-            else obj[name] = prop.mock(optionalProbability, ...propArgs);
+            if (prop instanceof IndexSignatureRunType) prop.mock(ctx);
+            else obj[name] = prop.mock(ctx);
         });
         return obj;
     }

@@ -7,7 +7,16 @@
 
 import {TypeTupleMember} from '../_deepkit/src/reflection/type';
 import {MemberRunType} from '../baseRunTypes';
-import {RunType, RunTypeOptions, RunTypeVisitor} from '../types';
+import {
+    handleCircularIsType,
+    handleCircularJsonDecode,
+    handleCircularJsonEncode,
+    handleCircularJsonStringify,
+    handleCircularTypeErrors,
+} from '../jitCircular';
+import {compileChildren} from '../jitCompiler';
+import {JitContext, MockContext, RunType, RunTypeOptions, RunTypeVisitor, TypeErrorsContext} from '../types';
+import {shouldSkipJsonDecode, shouldSkipJsonEncode} from '../utils';
 
 export class TupleMemberRunType extends MemberRunType<TypeTupleMember> {
     public readonly memberType: RunType;
@@ -15,7 +24,7 @@ export class TupleMemberRunType extends MemberRunType<TypeTupleMember> {
     public readonly isJsonEncodeRequired: boolean;
     public readonly isJsonDecodeRequired: boolean;
     public readonly jitId: string = '$';
-
+    public readonly memberIndex: number = 0;
     constructor(
         visitor: RunTypeVisitor,
         public readonly src: TypeTupleMember,
@@ -29,55 +38,62 @@ export class TupleMemberRunType extends MemberRunType<TypeTupleMember> {
         this.memberName = src.name || '';
         const optional = this.src.optional ? '?' : '';
         this.jitId = `${this.src.kind}${optional}:${this.memberType.jitId}`;
-        this.isJsonDecodeRequired = this.memberType.isJsonDecodeRequired;
-        this.isJsonEncodeRequired = this.memberType.isJsonEncodeRequired;
+        this.isJsonDecodeRequired = this.memberType.isJsonDecodeRequired || !!this.src.optional;
+        this.isJsonEncodeRequired = this.memberType.isJsonEncodeRequired || !!this.src.optional;
     }
-
-    compileIsType(parents: RunType[], varName: string): string {
-        // const compile = () => {};
-        if (this.src.optional) {
-            return `(${varName} === undefined || ${this.memberType.compileIsType(parents, varName)})`;
-        }
-        return this.memberType.compileIsType(parents, varName);
+    useArrayAccessorForJit() {
+        return true;
     }
-    compileTypeErrors(parents: RunType[], varName: string, pathC: (string | number)[]): string {
-        // const compile = () => {};
-        if (this.src.optional) {
-            return `if (${varName} !== undefined) {${this.memberType.compileTypeErrors(parents, varName, pathC)}}`;
-        }
-        return this.memberType.compileTypeErrors(parents, varName, pathC);
+    compileIsType(ctx: JitContext): string {
+        const compile = () => {
+            const compC = (childCtx: JitContext) => this.memberType.compileIsType(childCtx);
+            const itemCode = compileChildren(compC, this, ctx, this.memberIndex);
+            return this.src.optional ? `(${ctx.args.value} === undefined || ${itemCode})` : itemCode;
+        };
+        return handleCircularIsType(compile, this, ctx, false);
     }
-    compileJsonEncode(parents: RunType[], varName: string): string {
-        // const compile = () => {};
-        if (this.src.optional) {
-            const itemCode = this.memberType.compileJsonEncode(parents, varName) || varName;
-            return `${varName} = ${varName} === undefined ? null : ${itemCode}`;
-        }
-        if (!this.opts?.strictJSON && !this.isJsonEncodeRequired) return '';
-        return this.memberType.compileJsonEncode(parents, varName);
+    compileTypeErrors(ctx: TypeErrorsContext): string {
+        const compile = () => {
+            const compC = (childCtx: TypeErrorsContext) => this.memberType.compileTypeErrors(childCtx);
+            const itemCode = compileChildren(compC, this, ctx, this.memberIndex);
+            return this.src.optional ? `if (${ctx.args.value} !== undefined) {${itemCode}}` : itemCode;
+        };
+        return handleCircularTypeErrors(compile, this, ctx);
     }
-    compileJsonDecode(parents: RunType[], varName: string): string {
-        // const compile = () => {};
-        if (this.src.optional) {
-            const itemCode = this.memberType.compileJsonDecode(parents, varName) || varName;
-            return `${varName} = ${varName} === null ? undefined : ${itemCode}`;
-        }
-        if (!this.opts?.strictJSON && !this.isJsonDecodeRequired) return '';
-        return this.memberType.compileJsonDecode(parents, varName);
+    compileJsonEncode(ctx: JitContext): string {
+        if (shouldSkipJsonEncode(this)) return '';
+        const compile = () => {
+            const compC = (childCtx: JitContext) => this.memberType.compileJsonEncode(childCtx);
+            const itemCode = compileChildren(compC, this, ctx, this.memberIndex);
+            return this.src.optional ? `${ctx.args.value} === undefined ? null : ${itemCode}` : itemCode;
+        };
+        return handleCircularJsonEncode(compile, this, ctx);
     }
-    compileJsonStringify(parents: RunType[], varName: string): string {
-        // const compile = () => {};
-        if (this.src.optional) {
-            return `(${varName} === undefined ? null : ${this.memberType.compileJsonStringify(parents, varName)})`;
-        }
-        return this.memberType.compileJsonStringify(parents, varName);
+    compileJsonDecode(ctx: JitContext): string {
+        if (shouldSkipJsonDecode(this)) return '';
+        const compile = () => {
+            const compC = (childCtx: JitContext) => this.memberType.compileJsonDecode(childCtx);
+            const itemCode = compileChildren(compC, this, ctx, this.memberIndex);
+            return this.src.optional ? `${ctx.args.value} === null ? undefined : ${itemCode}` : itemCode;
+        };
+        return handleCircularJsonDecode(compile, this, ctx);
     }
-    mock(...args: any[]): any {
+    compileJsonStringify(ctx: JitContext): string {
+        const compile = () => {
+            const compC = (childCtx: JitContext) => this.memberType.compileJsonStringify(childCtx);
+            const itemCode = compileChildren(compC, this, ctx, this.memberIndex);
+            return this.src.optional ? `(${ctx.args.value} === undefined ? null : ${itemCode})` : itemCode;
+        };
+        return handleCircularJsonStringify(compile, this, ctx, false);
+    }
+    mock(ctx?: Pick<MockContext, 'optionalProbability'>): any {
         if (this.src.optional) {
-            if (Math.random() < 0.5) {
+            const probability = ctx?.optionalProbability || 0.5;
+            if (probability < 0 || probability > 1) throw new Error('optionalProbability must be between 0 and 1');
+            if (Math.random() < probability) {
                 return undefined;
             }
         }
-        return this.memberType.mock(...args);
+        return this.memberType.mock(ctx);
     }
 }

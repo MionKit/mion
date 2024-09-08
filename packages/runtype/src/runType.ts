@@ -6,7 +6,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import type {RunType, RunTypeOptions, RunTypeVisitor, SrcType} from './types';
+import type {Mutable, RunType, RunTypeOptions, RunTypeVisitor, SrcType} from './types';
 import {ReflectionKind, TypeObjectLiteral} from './_deepkit/src/reflection/type';
 import {resolveReceiveType, ReceiveType, reflect} from './_deepkit/src/reflection/reflection';
 import {StringRunType} from './atomicRunType/string';
@@ -43,6 +43,7 @@ import {MethodRunType} from './functionRunType/method';
 import {RestParamsRunType} from './functionRunType/restParams';
 import {ClassRunType} from './collectionRunType/class';
 import {hasCircularParents} from './utils';
+import {CollectionRunType} from './baseRunTypes';
 
 const MaxNestLevel = 20; // max parents levels to prevent infinite recursion or complicated types
 
@@ -65,8 +66,9 @@ function visitor(deepkitType, parents: RunType[], opts: RunTypeOptions): RunType
      This also relies on deepkit handling circular types to prevent infinite loop when we are generating RunTypes  */
     const existingType: RunType | undefined = (deepkitType as SrcType)._runType;
     if (existingType) {
-        if (!(existingType as any).isCircularRef && hasCircularParents(existingType, parents))
-            (existingType as any).isCircularRef = true;
+        if (!(existingType as CollectionRunType<any>).isCircularRef && hasCircularParents(existingType, parents)) {
+            (existingType as Mutable<CollectionRunType<any>>).isCircularRef = true;
+        }
         return existingType;
     }
 

@@ -6,7 +6,7 @@
  * ######## */
 
 import type {TypeVoid} from '../_deepkit/src/reflection/type';
-import type {RunType} from '../types';
+import type {JitContext, TypeErrorsContext} from '../types';
 import {AtomicRunType} from '../baseRunTypes';
 import {getErrorPath, getExpected} from '../utils';
 import {jitNames} from '../constants';
@@ -15,17 +15,17 @@ export class VoidRunType extends AtomicRunType<TypeVoid> {
     public readonly isJsonEncodeRequired = false;
     public readonly isJsonDecodeRequired = false;
 
-    compileIsType(parents: RunType[], varName: string): string {
-        return `${varName} === undefined`;
+    compileIsType(ctx: JitContext): string {
+        return `${ctx.args.value} === undefined`;
     }
-    compileTypeErrors(parents: RunType[], varName: string, pathC: string[]): string {
-        return `if (${varName} !== undefined) ${jitNames.errors}.push({path: ${getErrorPath(pathC)}, expected: ${getExpected(this)}})`;
+    compileTypeErrors(ctx: TypeErrorsContext): string {
+        return `if (${ctx.args.value} !== undefined) ${jitNames.errors}.push({path: ${getErrorPath(ctx.path)}, expected: ${getExpected(this)}})`;
     }
-    compileJsonEncode(parents: RunType[], varName: string): string {
-        return `${varName} = undefined`;
+    compileJsonEncode(ctx: JitContext): string {
+        return `${ctx.args.value} = undefined`;
     }
-    compileJsonDecode(parents: RunType[], varName: string): string {
-        return `${varName} = undefined`;
+    compileJsonDecode(ctx: JitContext): string {
+        return `${ctx.args.value} = undefined`;
     }
     compileJsonStringify(): string {
         return 'undefined';

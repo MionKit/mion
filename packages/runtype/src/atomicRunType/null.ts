@@ -6,7 +6,7 @@
  * ######## */
 
 import type {TypeNull} from '../_deepkit/src/reflection/type';
-import type {RunType} from '../types';
+import type {JitContext, TypeErrorsContext} from '../types';
 import {AtomicRunType} from '../baseRunTypes';
 import {getErrorPath, getExpected} from '../utils';
 import {jitNames} from '../constants';
@@ -15,11 +15,11 @@ export class NullRunType extends AtomicRunType<TypeNull> {
     public readonly isJsonEncodeRequired = false;
     public readonly isJsonDecodeRequired = false;
 
-    compileIsType(parents: RunType[], varName: string): string {
-        return `${varName} === null`;
+    compileIsType(ctx: JitContext): string {
+        return `${ctx.args.value} === null`;
     }
-    compileTypeErrors(parents: RunType[], varName: string, pathC: string[]): string {
-        return `if (${varName} !== null) ${jitNames.errors}.push({path: ${getErrorPath(pathC)}, expected: ${getExpected(this)}})`;
+    compileTypeErrors(ctx: TypeErrorsContext): string {
+        return `if (${ctx.args.value} !== null) ${jitNames.errors}.push({path: ${getErrorPath(ctx.path)}, expected: ${getExpected(this)}})`;
     }
     compileJsonEncode(): string {
         return '';
@@ -27,8 +27,8 @@ export class NullRunType extends AtomicRunType<TypeNull> {
     compileJsonDecode(): string {
         return '';
     }
-    compileJsonStringify(parents: RunType[], varName: string): string {
-        return varName;
+    compileJsonStringify(ctx: JitContext): string {
+        return ctx.args.value;
     }
     mock(): null {
         return null;

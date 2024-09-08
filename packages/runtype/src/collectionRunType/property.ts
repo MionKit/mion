@@ -6,19 +6,19 @@
  * ######## */
 
 import {TypeProperty, TypePropertySignature} from '../_deepkit/src/reflection/type';
-import {RunType, RunTypeOptions, RunTypeVisitor} from '../types';
+import {JitContext, MockContext, RunType, RunTypeOptions, RunTypeVisitor, TypeErrorsContext} from '../types';
 import {isFunctionKind, shouldSkipJsonDecode, shouldSkipJsonEncode, toLiteral} from '../utils';
-import {jitNames, validPropertyNameRegExp} from '../constants';
+import {validPropertyNameRegExp} from '../constants';
 import {MemberRunType} from '../baseRunTypes';
 import {jitUtils} from '../jitUtils';
 import {
-    compileChildrenJitFunction,
     handleCircularIsType,
     handleCircularJsonDecode,
     handleCircularJsonEncode,
     handleCircularJsonStringify,
     handleCircularTypeErrors,
 } from '../jitCircular';
+import {compileChildren} from '../jitCompiler';
 
 export class PropertyRunType extends MemberRunType<TypePropertySignature | TypeProperty> {
     public readonly memberType: RunType;
@@ -29,6 +29,7 @@ export class PropertyRunType extends MemberRunType<TypePropertySignature | TypeP
     public readonly isJsonDecodeRequired: boolean;
     public readonly jitId: string = '$';
     public readonly safePropAccessor: string;
+    public readonly memberIndex: number = 0;
     constructor(
         visitor: RunTypeVisitor,
         public readonly src: TypePropertySignature,
@@ -57,95 +58,80 @@ export class PropertyRunType extends MemberRunType<TypePropertySignature | TypeP
         this.safePropAccessor = this.isSafePropName ? `.${this.memberName}` : `[${toLiteral(this.memberName)}]`;
         this.jitId = `${this.memberName}${optional}:${this.memberType.jitId}`;
     }
-    compileIsType(parents: RunType[], varName: string): string {
-        const {propAccessor, nestLevel} = getJitVars(this, parents, varName);
-        const callArgs = [propAccessor];
-        const compile = () => {
-            return compileChildrenJitFunction(this, parents, (newParents) => {
-                if (!this.shouldSerialize) return '';
-                if (this.src.optional) {
-                    return `(${propAccessor} === undefined || ${this.memberType.compileIsType(newParents, propAccessor)})`;
-                }
-                return this.memberType.compileIsType(newParents, propAccessor);
-            });
-        };
-        return handleCircularIsType(this, compile, callArgs, nestLevel, false);
+    useArrayAccessorForJit() {
+        return this.isSafePropName;
     }
-    compileTypeErrors(parents: RunType[], varName: string, pathC: string[]): string {
-        const {propAccessor} = getJitVars(this, parents, varName);
-        const callArgs = [propAccessor, jitNames.errors, jitNames.circularPath];
+    compileIsType(ctx: JitContext): string {
+        if (!this.shouldSerialize) return '';
         const compile = () => {
-            return compileChildrenJitFunction(this, parents, (newParents) => {
-                if (!this.shouldSerialize) return '';
-                const accessor = `${varName}${this.safePropAccessor}`;
-                const newPath = [...pathC, toLiteral(this.memberName)];
-                if (this.src.optional) {
-                    return `if (${accessor} !== undefined) {${this.memberType.compileTypeErrors(newParents, accessor, newPath)}}`;
-                }
-                return `${this.memberType.compileTypeErrors(newParents, accessor, newPath)}`;
-            });
+            const compC = (childCtx: JitContext) => {
+                const itemCode = this.memberType.compileIsType(childCtx);
+                return this.src.optional ? `(${childCtx.args.value} === undefined || ${itemCode})` : itemCode;
+            };
+            return compileChildren(compC, this, ctx, this.memberName);
         };
-        return handleCircularTypeErrors(this, compile, callArgs, pathC);
+        return handleCircularIsType(compile, this, ctx, false);
     }
-    compileJsonEncode(parents: RunType[], varName: string): string {
-        const {propAccessor} = getJitVars(this, parents, varName);
-        const callArgs = [propAccessor];
+    compileTypeErrors(ctx: TypeErrorsContext): string {
+        if (!this.shouldSerialize) return '';
         const compile = () => {
-            return compileChildrenJitFunction(this, parents, (newParents) => {
-                if (!this.shouldSerialize || shouldSkipJsonEncode(this)) return '';
-                const propCode = this.memberType.compileJsonEncode(newParents, propAccessor);
-                if (this.src.optional) return `if (${propAccessor} !== undefined) ${propCode}`;
+            const compC = (childCtx: TypeErrorsContext) => {
+                const itemCode = this.memberType.compileTypeErrors(childCtx);
+                return this.src.optional ? `if (${childCtx.args.value} !== undefined) {${itemCode}}` : itemCode;
+            };
+            return compileChildren(compC, this, ctx, this.memberName);
+        };
+        return handleCircularTypeErrors(compile, this, ctx);
+    }
+    compileJsonEncode(ctx: JitContext): string {
+        if (!this.shouldSerialize || shouldSkipJsonEncode(this)) return '';
+        const compile = () => {
+            const compC = (childCtx: JitContext) => {
+                const propCode = this.memberType.compileJsonEncode(childCtx);
+                if (this.src.optional) return `if (${childCtx.args.value} !== undefined) ${propCode}`;
                 return propCode;
-            });
+            };
+            return compileChildren(compC, this, ctx, this.memberName);
         };
-        return handleCircularJsonEncode(this, compile, callArgs);
+        return handleCircularJsonEncode(compile, this, ctx);
     }
-    compileJsonDecode(parents: RunType[], varName: string): string {
-        const {propAccessor} = getJitVars(this, parents, varName);
-        const callArgs = [propAccessor];
+    compileJsonDecode(ctx: JitContext): string {
+        if (!this.shouldSerialize || shouldSkipJsonDecode(this)) return '';
         const compile = () => {
-            return compileChildrenJitFunction(this, parents, (newParents) => {
-                if (!this.shouldSerialize || shouldSkipJsonDecode(this)) return '';
-                const propCode = this.memberType.compileJsonDecode(newParents, propAccessor);
-                if (this.src.optional) return `if (${propAccessor} !== undefined) ${propCode}`;
+            const compC = (childCtx: JitContext) => {
+                const propCode = this.memberType.compileJsonDecode(childCtx);
+                if (this.src.optional) return `if (${childCtx.args.value} !== undefined) ${propCode}`;
                 return propCode;
-            });
+            };
+            return compileChildren(compC, this, ctx, this.memberName);
         };
-        return handleCircularJsonDecode(this, compile, callArgs);
+        return handleCircularJsonDecode(compile, this, ctx);
     }
-    compileJsonStringify(parents: RunType[], varName: string, isFirst = false): string {
-        const {propAccessor, nestLevel} = getJitVars(this, parents, varName);
-        const callArgs = [propAccessor];
+    compileJsonStringify(ctx: JitContext): string {
+        if (!this.shouldSerialize) return '';
         const compile = () => {
-            return compileChildrenJitFunction(this, parents, (newParents) => {
-                if (!this.shouldSerialize) return '';
+            const compC = (childCtx: JitContext) => {
                 // when is not safe firs stringify sanitizes string, second output double quoted scaped json string
                 const proNameJSon = this.isSafePropName
                     ? `'${toLiteral(this.memberName)}'`
                     : jitUtils.asJSONString(toLiteral(this.memberName));
-                const accessor = `${varName}${this.safePropAccessor}`;
-                const propCode = this.memberType.compileJsonStringify(newParents, accessor);
+                const propCode = this.memberType.compileJsonStringify(childCtx);
                 // this can´t be processed in the parent as we need to handle the empty string case when value is undefined
+                const isFirst = this.memberIndex === 0;
                 const sep = isFirst ? '' : `','+`;
                 if (this.src.optional) {
-                    return `(${accessor} === undefined ? '' : ${sep}${proNameJSon}+':'+${propCode})`;
+                    return `(${childCtx.args.value} === undefined ? '' : ${sep}${proNameJSon}+':'+${propCode})`;
                 }
                 return `${sep}${proNameJSon}+':'+${propCode}`;
-            });
+            };
+            return compileChildren(compC, this, ctx, this.memberName);
         };
-        return handleCircularJsonStringify(this, compile, callArgs, nestLevel, false);
+        return handleCircularJsonStringify(compile, this, ctx, false);
     }
-    mock(optionalProbability = 0.5, ...args: any[]): any {
-        if (optionalProbability < 0 || optionalProbability > 1) throw new Error('optionalProbability must be between 0 and 1');
-        if (this.src.optional && Math.random() < optionalProbability) return undefined;
-        return this.memberType.mock(...args);
+    mock(ctx?: MockContext): any {
+        const probability = ctx?.optionalPropertyProbability?.[this.memberName] ?? ctx?.optionalProbability ?? 0.5;
+        if (probability < 0 || probability > 1) throw new Error('optionalProbability must be between 0 and 1');
+        if (this.src.optional && Math.random() < probability) return undefined;
+        return this.memberType.mock(ctx);
     }
-}
-
-function getJitVars(rt: PropertyRunType, parents: RunType[], varName: string) {
-    const safeAccessor = rt.isSafePropName ? `.${(rt.src as any).name}` : `[${toLiteral(rt.src.name)}]`;
-    return {
-        nestLevel: parents.length,
-        propAccessor: `${varName}${safeAccessor}`,
-    };
 }

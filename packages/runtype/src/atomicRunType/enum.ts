@@ -6,11 +6,10 @@
  * ######## */
 
 import {ReflectionKind, TypeEnum} from '../_deepkit/src/reflection/type';
-import type {RunType, RunTypeOptions, RunTypeVisitor} from '../types';
+import type {JitContext, MockContext, RunType, RunTypeOptions, RunTypeVisitor, TypeErrorsContext} from '../types';
 import {getErrorPath, getExpected, toLiteral} from '../utils';
 import {random} from '../mock';
 import {AtomicRunType} from '../baseRunTypes';
-import {jitNames} from '../constants';
 
 export class EnumRunType extends AtomicRunType<TypeEnum> {
     public readonly isJsonEncodeRequired = false;
@@ -30,11 +29,11 @@ export class EnumRunType extends AtomicRunType<TypeEnum> {
     getJitId(): number | string {
         return `${this.indexKind}{${this.values.map((v) => v).join(',')}}`;
     }
-    compileIsType(parents: RunType[], varName: string): string {
-        return this.values.map((v) => `${varName} === ${toLiteral(v)}`).join(' || ');
+    compileIsType(ctx: JitContext): string {
+        return this.values.map((v) => `${ctx.args.value} === ${toLiteral(v)}`).join(' || ');
     }
-    compileTypeErrors(parents: RunType[], varName: string, pathC: string[]): string {
-        return `if (!(${this.compileIsType(parents, varName)})) ${jitNames.errors}.push({path: ${getErrorPath(pathC)}, expected: ${getExpected(this)}})`;
+    compileTypeErrors(ctx: TypeErrorsContext): string {
+        return `if (!(${this.compileIsType(ctx)})) ${ctx.args.errors}.push({path: ${getErrorPath(ctx.path)}, expected: ${getExpected(this)}})`;
     }
     compileJsonEncode(): string {
         return '';
@@ -42,12 +41,16 @@ export class EnumRunType extends AtomicRunType<TypeEnum> {
     compileJsonDecode(): string {
         return '';
     }
-    compileJsonStringify(parents: RunType[], varName: string): string {
-        if (this.indexKind === ReflectionKind.number) return varName;
-        return `JSON.stringify(${varName})`;
+    compileJsonStringify(ctx: JitContext): string {
+        if (this.indexKind === ReflectionKind.number) return ctx.args.value;
+        return `JSON.stringify(${ctx.args.value})`;
     }
-    mock(index?: number): string | number | undefined | null {
-        const i = index || random(0, this.values.length - 1);
+    mock(ctx?: EnumMockOptions): string | number | undefined | null {
+        const i = ctx?.enumIndex || random(0, this.values.length - 1);
         return this.values[i];
     }
+}
+
+export interface EnumMockOptions extends MockContext {
+    enumIndex?: number;
 }

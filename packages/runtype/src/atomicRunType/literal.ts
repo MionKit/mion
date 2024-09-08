@@ -6,7 +6,7 @@
  * ######## */
 
 import type {TypeLiteral} from '../_deepkit/src/reflection/type';
-import type {JitJsonEncoder, RunType, RunTypeOptions, RunTypeVisitor} from '../types';
+import type {JitContext, JitJsonEncoder, RunType, RunTypeOptions, RunTypeVisitor, TypeErrorsContext} from '../types';
 import {SymbolJitJsonENcoder} from './symbol';
 import {BigIntJitJsonENcoder} from './bigInt';
 import {RegexpJitJsonEncoder} from './regexp';
@@ -55,27 +55,27 @@ export class LiteralRunType extends AtomicRunType<TypeLiteral> {
     getJitId(): string {
         return `${this.src.kind}:${String(this.src.literal)}`;
     }
-    compileIsType(parents: RunType[], varName: string): string {
-        if (typeof this.src.literal === 'symbol') return validateSymbol(varName, this.src.literal);
-        else if (this.src.literal instanceof RegExp) return validateRegExp(varName, this.src.literal);
-        else if (typeof this.src.literal === 'bigint') return validateBigInt(varName, this.src.literal);
-        else return validateLiteral(varName, this.src.literal);
+    compileIsType(ctx: JitContext): string {
+        if (typeof this.src.literal === 'symbol') return validateSymbol(ctx.args.value, this.src.literal);
+        else if (this.src.literal instanceof RegExp) return validateRegExp(ctx.args.value, this.src.literal);
+        else if (typeof this.src.literal === 'bigint') return validateBigInt(ctx.args.value, this.src.literal);
+        else return validateLiteral(ctx.args.value, this.src.literal);
     }
-    compileTypeErrors(parents: RunType[], varName: string, pathC: string[]): string {
+    compileTypeErrors(ctx: TypeErrorsContext): string {
         if (typeof this.src.literal === 'symbol')
-            return validateSymbolWithErrors(varName, this.src.literal, this.getName(), pathC);
+            return validateSymbolWithErrors(ctx.args.value, this.src.literal, this.getName(), ctx.path);
         else if (this.src.literal instanceof RegExp)
-            return validateRegExpWithErrors(varName, this.src.literal, this.getName(), pathC);
-        return validateLiteralWithErrors(varName, this.src.literal, this.getName(), pathC);
+            return validateRegExpWithErrors(ctx.args.value, this.src.literal, this.getName(), ctx.path);
+        return validateLiteralWithErrors(ctx.args.value, this.src.literal, this.getName(), ctx.path);
     }
-    compileJsonEncode(parents: RunType[], varName: string): string {
-        return this.jitJsonEncoder.encodeToJson(varName);
+    compileJsonEncode(ctx: JitContext): string {
+        return this.jitJsonEncoder.encodeToJson(ctx.args.value);
     }
-    compileJsonDecode(parents: RunType[], varName: string): string {
-        return this.jitJsonEncoder.decodeFromJson(varName);
+    compileJsonDecode(ctx: JitContext): string {
+        return this.jitJsonEncoder.decodeFromJson(ctx.args.value);
     }
-    compileJsonStringify(parents: RunType[], varName: string): string {
-        return this.jitJsonEncoder.stringify(varName);
+    compileJsonStringify(ctx: JitContext): string {
+        return this.jitJsonEncoder.stringify(ctx.args.value);
     }
     mock(): symbol | string | number | boolean | bigint | RegExp {
         return this.src.literal;
@@ -110,13 +110,13 @@ function validateLiteral(varName: string, literal: Exclude<TypeLiteral['literal'
     return `${varName} === ${toLiteral(literal)}`;
 }
 
-function validateSymbolWithErrors(varName: string, sbl: symbol, name: string | number, pathC: string[]): string {
+function validateSymbolWithErrors(varName: string, sbl: symbol, name: string | number, pathC: (string | number)[]): string {
     return `if (typeof ${varName} !== 'symbol' || ${varName}.description !== ${toLiteral(sbl.description)}) {
         ${jitNames.errors}.push({path: ${getErrorPath(pathC)}, expected: ${toLiteral(name)}})
     }`;
 }
 
-function validateRegExpWithErrors(varName: string, regexp: RegExp, name: string | number, pathC: string[]): string {
+function validateRegExpWithErrors(varName: string, regexp: RegExp, name: string | number, pathC: (string | number)[]): string {
     return `if (String(${varName}) !== String(${regexp})) ${jitNames.errors}.push({path: ${getErrorPath(pathC)}, expected: ${toLiteral(name)}})`;
 }
 
@@ -124,7 +124,7 @@ function validateLiteralWithErrors(
     varName: string,
     literal: Exclude<TypeLiteral['literal'], symbol>,
     name: string | number,
-    pathC: string[]
+    pathC: (string | number)[]
 ): string {
     return `if (${varName} !== ${toLiteral(literal)}) ${jitNames.errors}.push({path: ${getErrorPath(pathC)}, expected: ${toLiteral(name)}})`;
 }

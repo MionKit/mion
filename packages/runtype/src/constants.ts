@@ -5,6 +5,8 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
+import type {DefaultJitArgs, DefaultJitTypeErrorsArgs} from './types';
+
 export const validPropertyNameRegExp = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
 
 export const mockRegExpsList = [
@@ -68,3 +70,6 @@ export const jitNames = {
     errors: 'εrrs',
     circularPath: 'ciPλth', // path array used when compiling RunType Errors with circular types
 };
+
+export const defaultJitArgs: DefaultJitArgs = {value: 'vλl'};
+export const defaultJitTypeErrorsArgs: DefaultJitTypeErrorsArgs = {value: 'vλl', path: 'pλth', errors: 'εrrs'};

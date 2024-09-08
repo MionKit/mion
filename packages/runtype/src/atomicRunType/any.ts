@@ -6,7 +6,7 @@
  * ######## */
 
 import type {TypeAny, TypeUnknown} from '../_deepkit/src/reflection/type';
-import type {RunType, RunTypeOptions, RunTypeVisitor} from '../types';
+import type {JitContext, MockOptions, RunType, RunTypeOptions, RunTypeVisitor} from '../types';
 import {mockAny} from '../mock';
 import {AtomicRunType} from '../baseRunTypes';
 
@@ -33,10 +33,10 @@ export class AnyRunType extends AtomicRunType<TypeAny | TypeUnknown> {
     compileJsonDecode(): string {
         return '';
     }
-    compileJsonStringify(parents: RunType[], varName: string): string {
-        return `JSON.stringify(${varName})`;
+    compileJsonStringify(ctx: JitContext): string {
+        return `JSON.stringify(${ctx.args.value})`;
     }
-    mock(anyValuesLis?: any[]): string {
-        return mockAny(anyValuesLis);
+    mock(ctx?: MockOptions): string {
+        return mockAny(ctx?.anyValuesLis);
     }
 }

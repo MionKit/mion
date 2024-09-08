@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 import {TypeClass} from '../_deepkit/src/reflection/type';
-import {RunType, RunTypeOptions, RunTypeVisitor} from '../types';
+import {JitContext, MockContext, RunType, RunTypeOptions, RunTypeVisitor} from '../types';
 import {toLiteral} from '../utils';
 import {InterfaceRunType} from './interface';
 import {jitUtils} from '../jitUtils';
@@ -28,21 +28,22 @@ export class ClassRunType extends InterfaceRunType<TypeClass> {
         if (this.canDeserialize) jitUtils.addSerializableClass(src.classType);
     }
 
-    compileJsonDecode(parents: RunType[], varName: string): string {
+    compileJsonDecode(ctx: JitContext): string {
         ClassRunType.checkSerializable(this.canDeserialize, this.className);
-        const decodeParams = super.compileJsonDecode([...parents, this], varName);
+        const decodeParams = super.compileJsonDecode(ctx);
         const decode = decodeParams ? `${decodeParams}; ` : '';
-        const classVarname = `clλss${parents.length}`;
+        const classVarname = `clλss${ctx.parents.length}`;
         // todo create a new class
-        return `${decode}; const ${classVarname} = ${jitNames.utils}.getSerializableClass(${toLiteral(this.className)}); ${varName} = Object.assign(new ${classVarname}, ${varName});`;
+        return `
+            ${decode};
+            const ${classVarname} = ${jitNames.utils}.getSerializableClass(${toLiteral(this.className)});
+            ${ctx.args.value} = Object.assign(new ${classVarname}, ${ctx.args.value});
+        `;
     }
-    mock(
-        optionalParamsProbability: Record<string | number, number>,
-        objArgs: Record<string | number, any[]>,
-        indexArgs?: any[]
-    ): Record<string | number, any> {
+    mock(ctx?: MockContext): Record<string | number, any> {
         ClassRunType.checkSerializable(this.canDeserialize, this.className);
-        return super.mock(optionalParamsProbability, objArgs, indexArgs, new this.src.classType());
+        const newCtx: MockContext = { ...ctx, parentObj: new this.src.classType() };
+        return super.mock(newCtx);
     }
 
     private static checkSerializable(canDeserialize: boolean, className: string) {

@@ -6,21 +6,22 @@
  * ######## */
 
 import type {TypeNumber} from '../_deepkit/src/reflection/type';
-import type {RunType} from '../types';
+import type {JitContext, MockOptions, TypeErrorsContext} from '../types';
 import {getErrorPath, getExpected} from '../utils';
 import {mockNumber} from '../mock';
 import {AtomicRunType} from '../baseRunTypes';
-import {jitNames} from '../constants';
 
 export class NumberRunType extends AtomicRunType<TypeNumber> {
     public readonly isJsonEncodeRequired = false;
     public readonly isJsonDecodeRequired = false;
 
-    compileIsType(parents: RunType[], varName: string): string {
-        return `(typeof ${varName} === 'number' && Number.isFinite(${varName}))`;
+    compileIsType(ctx: JitContext): string {
+        const {value} = ctx.args;
+        return `(typeof ${value} === 'number' && Number.isFinite(${value}))`;
     }
-    compileTypeErrors(parents: RunType[], varName: string, pathC: string[]): string {
-        return `if(!(${this.compileIsType(parents, varName)})) ${jitNames.errors}.push({path: ${getErrorPath(pathC)}, expected: ${getExpected(this)}})`;
+    compileTypeErrors(ctx: TypeErrorsContext): string {
+        const {errors} = ctx.args;
+        return `if(!(${this.compileIsType(ctx)})) ${errors}.push({path: ${getErrorPath(ctx.path)}, expected: ${getExpected(this)}})`;
     }
     compileJsonEncode(): string {
         return '';
@@ -28,10 +29,10 @@ export class NumberRunType extends AtomicRunType<TypeNumber> {
     compileJsonDecode(): string {
         return '';
     }
-    compileJsonStringify(parents: RunType[], varName: string): string {
-        return varName;
+    compileJsonStringify(jc: JitContext): string {
+        return jc.args.value;
     }
-    mock(min?: number, max?: number): number {
-        return mockNumber(min, max);
+    mock(ctx?: Pick<MockOptions, 'minNumber' | 'maxNumber'>): number {
+        return mockNumber(ctx?.minNumber, ctx?.maxNumber);
     }
 }

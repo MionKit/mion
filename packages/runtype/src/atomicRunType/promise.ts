@@ -1,8 +1,7 @@
 import type {TypePromise} from '../_deepkit/src/reflection/type';
-import type {RunType, RunTypeOptions, RunTypeVisitor} from '../types';
+import type {JitContext, MockOptions, RunType, RunTypeOptions, RunTypeVisitor, TypeErrorsContext} from '../types';
 import {AtomicRunType} from '../baseRunTypes';
 import {getErrorPath, getExpected} from '../utils';
-import {jitNames} from '../constants';
 
 /* ########
  * 2024 mion
@@ -24,17 +23,18 @@ export class PromiseRunType extends AtomicRunType<TypePromise> {
         super(visitor, src, parents, opts);
         this.resolvedType = visitor(src.type, [...parents, this], opts);
     }
-    compileIsType(parents: RunType[], varName: string): string {
-        return `${varName} instanceof Promise`;
+    compileIsType(ctx: JitContext): string {
+        return `${ctx.args.value} instanceof Promise`;
     }
-    resolvedIsTypeJIT(parents: RunType[], varName: string): string {
-        return this.resolvedType.compileIsType(parents, varName);
+    resolvedIsTypeJIT(ctx: JitContext): string {
+        return this.resolvedType.compileIsType(ctx);
     }
-    compileTypeErrors(parents: RunType[], varName: string, pathC: string[]): string {
-        return `if (!(${varName} instanceof Promise)) ${jitNames.errors}.push({path: ${getErrorPath(pathC)}, expected: ${getExpected(this)}})`;
+    compileTypeErrors(ctx: TypeErrorsContext): string {
+        const {value, errors} = ctx.args;
+        return `if (!(${value} instanceof Promise)) ${errors}.push({path: ${getErrorPath(ctx.path)}, expected: ${getExpected(this)}})`;
     }
-    resolveTypeErrorsJIT(parents: RunType[], varName: string, pathC: string[]): string {
-        return this.resolvedType.compileTypeErrors(parents, varName, pathC);
+    resolveTypeErrorsJIT(ctx: TypeErrorsContext): string {
+        return this.resolvedType.compileTypeErrors(ctx);
     }
     compileJsonEncode(): string {
         throw new Error(`${this.getName()} can not be encoded to json.`);
@@ -45,17 +45,18 @@ export class PromiseRunType extends AtomicRunType<TypePromise> {
     compileJsonStringify(): string {
         throw new Error(`${this.getName()} can not be stringified.`);
     }
-    mock(timeOut = 1, rejectError: string): Promise<any> {
+    mock(ctx?: Pick<MockOptions, 'promiseReject' | 'promiseTimeOut'>): Promise<any> {
+        const timeOut = ctx?.promiseTimeOut || 1;
         return new Promise((resolve, reject) => {
             if (timeOut > 0) {
                 setTimeout(() => {
-                    if (rejectError) reject(new Error(rejectError));
-                    else resolve(this.resolvedType.mock());
+                    if (ctx?.promiseReject) reject(ctx.promiseReject);
+                    else resolve(this.resolvedType.mock(ctx));
                 }, timeOut);
                 return;
             }
-            if (rejectError) reject(new Error(rejectError));
-            else resolve(this.resolvedType.mock());
+            if (ctx?.promiseReject) reject(ctx.promiseReject);
+            else resolve(this.resolvedType.mock(ctx));
         });
     }
 }
