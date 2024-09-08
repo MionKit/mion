@@ -22,7 +22,7 @@ export class BigIntRunType extends AtomicRunType<TypeBigInt> {
         return `typeof ${varName} === 'bigint'`;
     }
     compileTypeErrors(parents: RunType[], varName: string, pathC: string[]): string {
-        return `if (typeof ${varName} !== 'bigint') ${jitNames.errors}.push({path: ${getErrorPath(pathC)}, expected: ${getExpected(this)}})`;
+        return `if (typeof ${varName} !== 'bigint') ${ctx.args.εrrors}.push({path: ${getErrorPath(pathC)}, expected: ${getExpected(this)}})`;
     }
     compileJsonEncode(parents: RunType[], varName: string): string {
         return BigIntJitJsonENcoder.encodeToJson(varName);

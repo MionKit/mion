@@ -119,10 +119,4 @@ export abstract class MemberRunType<T extends Type, Opts extends RunTypeOptions 
     public abstract readonly memberName: string | number | symbol;
     public abstract readonly memberIndex: number;
     public abstract readonly jitId: string;
-
-    /**
-     * Returns true if the member should be accessed using array notation [member] in JIT code
-     * or false if it should be accessed using object notation .member in JIT code.
-     */
-    abstract useArrayAccessorForJit(): boolean;
 }

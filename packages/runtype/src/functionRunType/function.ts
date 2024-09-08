@@ -6,20 +6,20 @@
  * ######## */
 import {ReflectionKind, TypeCallSignature, TypeFunction, TypeMethod, TypeMethodSignature} from '../_deepkit/src/reflection/type';
 import {BaseRunType} from '../baseRunTypes';
-import {jitNames} from '../constants';
 import {isPromiseRunType} from '../guards';
 import {buildJITFunctions, compileChildren} from '../jitCompiler';
 import {
     JITCompiledFunctionsData,
     JitCompilerFunctions,
     JitContext,
+    MockContext,
     Mutable,
     RunType,
     RunTypeOptions,
     RunTypeVisitor,
     TypeErrorsContext,
 } from '../types';
-import {getErrorPath, toLiteral} from '../utils';
+import {getJitErrorPath, toLiteral} from '../utils';
 import {ParameterRunType} from './param';
 
 type AnyFunction = TypeMethodSignature | TypeCallSignature | TypeFunction | TypeMethod;
@@ -122,20 +122,20 @@ export class FunctionRunType<CallType extends AnyFunction = TypeFunction> extend
 
     private _paramsJitFunctions: JitCompilerFunctions = {
         compileIsType: (ctx: JitContext) => {
-            if (this.parameterTypes.length === 0) return `${ctx.args.value}.length === 0`;
-            const compC = (newCtx) => this.parameterTypes.map((p) => `(${p.compileIsType(newCtx)})`).join(' && ');
+            if (this.parameterTypes.length === 0) return `${ctx.args.vλl}.length === 0`;
+            const compC = (childCtx) => this.parameterTypes.map((p) => `(${p.compileIsType(childCtx)})`).join(' && ');
             const paramsCode = compileChildren(compC, this, ctx);
-            const maxLength = !this.hasRestParameter ? `&& ${ctx.args.value}.length <= ${this.parameterTypes.length}` : '';
-            const checkLength = `${ctx.args.value}.length >= ${this.totalRequiredParams} ${maxLength}`;
+            const maxLength = !this.hasRestParameter ? `&& ${ctx.args.vλl}.length <= ${this.parameterTypes.length}` : '';
+            const checkLength = `${ctx.args.vλl}.length >= ${this.totalRequiredParams} ${maxLength}`;
             return `${checkLength} && ${paramsCode}`;
         },
         compileTypeErrors: (ctx: TypeErrorsContext) => {
-            const maxLength = !this.hasRestParameter ? `|| ${ctx.args.value}.length > ${this.parameterTypes.length}` : '';
-            const checkLength = `(${ctx.args.value}.length < ${this.totalRequiredParams} ${maxLength})`;
-            const compC = (newCtx) => this.parameterTypes.map((p) => p.compileTypeErrors(newCtx)).join(';');
+            const maxLength = !this.hasRestParameter ? `|| ${ctx.args.vλl}.length > ${this.parameterTypes.length}` : '';
+            const checkLength = `(${ctx.args.vλl}.length < ${this.totalRequiredParams} ${maxLength})`;
+            const compC = (childCtx) => this.parameterTypes.map((p) => p.compileTypeErrors(childCtx)).join(';');
             const paramsCode = compileChildren(compC, this, ctx);
             return (
-                `if (!Array.isArray(${ctx.args.value}) || ${checkLength}) ${jitNames.errors}.push({path: ${getErrorPath(ctx.path)}, expected: ${toLiteral(this.paramsName)}});` +
+                `if (!Array.isArray(${ctx.args.vλl}) || ${checkLength}) ${ctx.args.εrrors}.push({path: ${getJitErrorPath(ctx.path)}, expected: ${toLiteral(this.paramsName)}});` +
                 `else {${paramsCode}}`
             );
         },
@@ -147,7 +147,7 @@ export class FunctionRunType<CallType extends AnyFunction = TypeFunction> extend
         },
         compileJsonStringify: (ctx: JitContext) => {
             if (this.parameterTypes.length === 0) return `[]`;
-            const compC = (newCtx) => this.parameterTypes.map((p) => p.compileJsonStringify(newCtx)).join('+');
+            const compC = (childCtx) => this.parameterTypes.map((p) => p.compileJsonStringify(childCtx)).join('+');
             const paramsCode = compileChildren(compC, this, ctx);
             return `'['+${paramsCode}+']'`;
         },
@@ -156,17 +156,17 @@ export class FunctionRunType<CallType extends AnyFunction = TypeFunction> extend
     private compileParamsJsonDE(ctx: JitContext, isEncode: boolean) {
         const isEncRequired = isEncode ? this.isParamsJsonEncodedRequired : this.isParamsJsonDecodedRequired;
         if (!this.opts?.strictJSON && !isEncRequired) return '';
-        const compC = (newCtx) => {
+        const compC = (childCtx) => {
             return this.parameterTypes
                 .filter((p) => (isEncode ? p.isJsonEncodeRequired : p.isJsonDecodeRequired))
-                .map((p) => (isEncode ? p.compileJsonEncode(newCtx) : p.compileJsonDecode(newCtx)))
+                .map((p) => (isEncode ? p.compileJsonEncode(childCtx) : p.compileJsonDecode(childCtx)))
                 .join(';');
         };
         return compileChildren(compC, this, ctx);
     }
 
-    paramsMock(): any[] {
-        return this.parameterTypes.map((p) => p.mock());
+    paramsMock(ctx?: MockContext): any[] {
+        return this.parameterTypes.map((p) => p.mock(ctx));
     }
 
     // ####### return #######
@@ -179,24 +179,24 @@ export class FunctionRunType<CallType extends AnyFunction = TypeFunction> extend
 
     private _returnJitFunctions: JitCompilerFunctions = {
         compileIsType: (ctx: JitContext) => {
-            return compileChildren((newCtx) => this.returnType.compileIsType(newCtx), this, ctx);
+            return compileChildren((childCtx) => this.returnType.compileIsType(childCtx), this, ctx);
         },
         compileTypeErrors: (ctx: TypeErrorsContext) => {
-            return compileChildren((newCtx) => this.returnType.compileTypeErrors(newCtx), this, ctx);
+            return compileChildren((childCtx) => this.returnType.compileTypeErrors(childCtx), this, ctx);
         },
         compileJsonEncode: (ctx: JitContext) => {
             if (!this.opts?.strictJSON && !this.isReturnJsonEncodedRequired) return '';
-            return compileChildren((newCtx) => this.returnType.compileJsonEncode(newCtx), this, ctx);
+            return compileChildren((childCtx) => this.returnType.compileJsonEncode(childCtx), this, ctx);
         },
         compileJsonDecode: (ctx: JitContext) => {
             if (!this.opts?.strictJSON && !this.isReturnJsonDecodedRequired) return '';
-            return compileChildren((newCtx) => this.returnType.compileJsonDecode(newCtx), this, ctx);
+            return compileChildren((childCtx) => this.returnType.compileJsonDecode(childCtx), this, ctx);
         },
         compileJsonStringify: (ctx: JitContext) =>
-            compileChildren((newCtx) => this.returnType.compileJsonStringify(newCtx), this, ctx),
+            compileChildren((childCtx) => this.returnType.compileJsonStringify(childCtx), this, ctx),
     };
 
-    returnMock(): any {
-        return this.returnType.mock();
+    returnMock(ctx?: MockContext): any {
+        return this.returnType.mock(ctx);
     }
 }

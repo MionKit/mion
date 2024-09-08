@@ -6,8 +6,8 @@
  * ######## */
 
 import type {TypeString} from '../_deepkit/src/reflection/type';
-import type {JitContext, MockOptions, TypeErrorsContext} from '../types';
-import {getErrorPath, getExpected} from '../utils';
+import type {JitContext, MockContext, TypeErrorsContext} from '../types';
+import {getJitErrorPath, getExpected} from '../utils';
 import {mockString, random} from '../mock';
 import {AtomicRunType} from '../baseRunTypes';
 import {jitNames, stringCharSet} from '../constants';
@@ -17,10 +17,10 @@ export class StringRunType extends AtomicRunType<TypeString> {
     public readonly isJsonDecodeRequired = false;
 
     compileIsType(ctx: JitContext): string {
-        return `typeof ${ctx.args.value} === 'string'`;
+        return `typeof ${ctx.args.vλl} === 'string'`;
     }
     compileTypeErrors(ctx: TypeErrorsContext): string {
-        return `if (typeof ${ctx.args.value} !== 'string') ${jitNames.errors}.push({path: ${getErrorPath(ctx.path)}, expected: ${getExpected(this)}})`;
+        return `if (typeof ${ctx.args.vλl} !== 'string') ${ctx.args.εrrors}.push({path: ${getJitErrorPath(ctx.path)}, expected: ${getExpected(this)}})`;
     }
     compileJsonEncode(): string {
         return '';
@@ -29,9 +29,9 @@ export class StringRunType extends AtomicRunType<TypeString> {
         return '';
     }
     compileJsonStringify(ctx: JitContext): string {
-        return `${jitNames.utils}.asJSONString(${ctx.args.value})`;
+        return `${jitNames.utils}.asJSONString(${ctx.args.vλl})`;
     }
-    mock(ctx?: Pick<MockOptions, 'stringLength' | 'stringCharSet'>): string {
+    mock(ctx?: Pick<MockContext, 'stringLength' | 'stringCharSet'>): string {
         const length = ctx?.stringLength || random(1, 500);
         const charSet = ctx?.stringCharSet || stringCharSet;
         return mockString(length, charSet);

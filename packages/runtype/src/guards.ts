@@ -171,8 +171,7 @@ export function isCollectionRunType(rt: RunType): rt is CollectionRunType<any> {
 export function isMemberRunType(rt: RunType): rt is MemberRunType<any> {
     return (
         typeof (rt as MemberRunType<any>).memberType !== 'undefined' &&
-        typeof (rt as MemberRunType<any>).memberName !== 'undefined' &&
-        typeof (rt as MemberRunType<any>).useArrayAccessorForJit === 'function'
+        typeof (rt as MemberRunType<any>).memberName !== 'undefined'
     );
 }
 

@@ -18,11 +18,11 @@ import type {
     JitContext,
     TypeErrorsContext,
     JitCompileContext,
+    JitPathItem,
 } from './types';
 import {jitUtils} from './jitUtils';
 import {toLiteral, arrayToLiteral} from './utils';
 import {jitNames} from './constants';
-import {MemberRunType} from './baseRunTypes';
 
 /**
  * Builds all the JIT functions for a given RunType
@@ -41,7 +41,7 @@ export function buildJITFunctions(runType: RunType, jitFunctions?: JitCompilerFu
 }
 
 export function buildIsTypeJITFn(runType: RunType, jitFunctions?: JitCompilerFunctions): JITCompiledFunctionsData['isType'] {
-    const context: JitContext = {args: {value: 'vλl'}, parents: [], path: []};
+    const context: JitContext = {args: {vλl: 'vλl'}, parents: [], path: []};
     const jitCode = jitFunctions ? jitFunctions.compileIsType(context) : runType.compileIsType(context);
     const code = runType.isAtomic ? `return ${jitCode}` : jitCode;
     const argNames = Object.values(context.args);
@@ -49,7 +49,9 @@ export function buildIsTypeJITFn(runType: RunType, jitFunctions?: JitCompilerFun
         const fn = createJitFnWithContext(argNames, code);
         return {argNames, code, fn};
     } catch (e: any) {
-        throw new Error(`Error building isType JIT function for ${runType.jitId}: ${e?.message}.\nCode: ${code}`);
+        const fnCode = ` Code:\nfunction isType(){${code}}`;
+        const name = `(${runType.getName()}:${runType.jitId})`;
+        throw new Error(`Error building isType JIT function for type ${name}: ${e?.message} \n${fnCode}`);
     }
 }
 
@@ -57,21 +59,23 @@ export function buildTypeErrorsJITFn(
     runType: RunType,
     jitFunctions?: JitCompilerFunctions
 ): JITCompiledFunctionsData['typeErrors'] {
-    const context: TypeErrorsContext = {args: {value: 'vλl', path: 'pλth', errors: 'εrrs'}, parents: [], path: []};
+    const context: TypeErrorsContext = {args: {vλl: 'vλl', pλth: 'pλth', εrrors: 'εrrors'}, parents: [], path: []};
     const jitCode = jitFunctions ? jitFunctions.compileTypeErrors(context) : runType.compileTypeErrors(context);
     const code = `
-        const ${context.args.errors} = [];
-        const ${context.args.path} = [];
+        const ${context.args.εrrors} = [];
+        const ${context.args.pλth} = [];
         ${jitCode}
-        return ${context.args.errors};
+        return ${context.args.εrrors};
     `;
-    const argNames = Object.values(context.args);
+    // we only pass the value as argument as error and path are created inside the root function, this way user don't need to pass them every time
+    const argNames = [context.args.vλl];
     try {
         const fn = createJitFnWithContext(argNames, code);
         return {argNames, code, fn};
     } catch (e: any) {
-        const fnCode = ` Code:\nfunction anonymous(){${code}}`;
-        throw new Error(`Error building typeErrors JIT function for ${runType.jitId}: ${e?.message}.${fnCode}`);
+        const fnCode = ` Code:\nfunction typeErrors(){${code}}`;
+        const name = `(${runType.getName()}:${runType.jitId})`;
+        throw new Error(`Error building typeErrors JIT function for type ${name}: ${e?.message} \n${fnCode}`);
     }
 }
 
@@ -79,17 +83,18 @@ export function buildJsonEncodeJITFn(
     runType: RunType,
     jitFunctions?: JitCompilerFunctions
 ): JITCompiledFunctionsData['jsonEncode'] {
-    const context: JitContext = {args: {value: 'vλl'}, parents: [], path: []};
+    const context: JitContext = {args: {vλl: 'vλl'}, parents: [], path: []};
     const jitCode = jitFunctions ? jitFunctions.compileJsonEncode(context) : runType.compileJsonEncode(context);
     const hasJitCode = !!jitCode;
-    const code = `${jitCode} ${hasJitCode ? ';' : ''} return ${context.args.value}`;
+    const code = `${jitCode} ${hasJitCode ? ';' : ''} return ${context.args.vλl}`;
     const argNames = Object.values(context.args);
     try {
         const fn = createJitFnWithContext(argNames, code);
         return {argNames, code, fn};
     } catch (e: any) {
-        const fnCode = ` Code:\nfunction anonymous(){${code}}`;
-        throw new Error(`Error building jsonEncode JIT function for ${runType.jitId}: ${e?.message}.${fnCode}`);
+        const fnCode = ` Code:\nfunction jsonEncode(){${code}}`;
+        const name = `(${runType.getName()}:${runType.jitId})`;
+        throw new Error(`Error building jsonEncode JIT function for type ${name}: ${e?.message} \n${fnCode}`);
     }
 }
 
@@ -97,17 +102,18 @@ export function buildJsonDecodeJITFn(
     runType: RunType,
     jitFunctions?: JitCompilerFunctions
 ): JITCompiledFunctionsData['jsonDecode'] {
-    const context: JitContext = {args: {value: 'vλl'}, parents: [], path: []};
+    const context: JitContext = {args: {vλl: 'vλl'}, parents: [], path: []};
     const jitCode = jitFunctions ? jitFunctions.compileJsonDecode(context) : runType.compileJsonDecode(context);
     const hasJitCode = !!jitCode;
-    const code = `${jitCode} ${hasJitCode ? ';' : ''} return ${context.args.value}`;
+    const code = `${jitCode} ${hasJitCode ? ';' : ''} return ${context.args.vλl}`;
     const argNames = Object.values(context.args);
     try {
         const fn = createJitFnWithContext(argNames, code);
         return {argNames, code, fn};
     } catch (e: any) {
-        const fnCode = ` Code:\nfunction anonymous(){${code}}`;
-        throw new Error(`Error building jsonDecode JIT function for ${runType.jitId}: ${e?.message}.${fnCode}`);
+        const fnCode = ` Code:\nfunction jsonDecode(){${code}}`;
+        const name = `(${runType.getName()}:${runType.jitId})`;
+        throw new Error(`Error building jsonDecode JIT function for type ${name}: ${e?.message} \n${fnCode}`);
     }
 }
 
@@ -115,7 +121,7 @@ export function buildJsonStringifyJITFn(
     runType: RunType,
     jitFunctions?: JitCompilerFunctions
 ): JITCompiledFunctionsData['jsonStringify'] {
-    const context: JitContext = {args: {value: 'vλl'}, parents: [], path: []};
+    const context: JitContext = {args: {vλl: 'vλl'}, parents: [], path: []};
     const jitCode = jitFunctions ? jitFunctions.compileJsonStringify(context) : runType.compileJsonStringify(context);
     const code = runType.isAtomic ? `return ${jitCode}` : jitCode;
     const argNames = Object.values(context.args);
@@ -123,8 +129,9 @@ export function buildJsonStringifyJITFn(
         const fn = createJitFnWithContext(argNames, code);
         return {argNames, code, fn};
     } catch (e: any) {
-        const fnCode = ` Code:\nfunction anonymous(){${code}}`;
-        throw new Error(`Error building jsonStringify JIT function for ${runType.jitId}: ${e?.message}.${fnCode}`);
+        const fnCode = ` Code:\nfunction jsonStringify(){${code}}`;
+        const name = `(${runType.getName()}:${runType.jitId})`;
+        throw new Error(`Error building jsonStringify JIT function for type ${name}: ${e?.message} \n${fnCode}`);
     }
 }
 
@@ -243,34 +250,23 @@ export function compileChildren<Ctx extends JitCompileContext>(
     compileChildFn: compileChildCB<Ctx>,
     parentRt: RunType,
     ctx: Ctx,
-    /**
-     * Adds en entry to the path array and update the value of the args.value
-     * ei: when compiling a property from myObject.A childPath should be A
-     * ie: when compiling an entry in an array childPath should be the indexVarName in the for loop.
-     * */
-    childPath?: string | number,
-    /**
-     * Update the value of the args.value using array notation instead property notation
-     * Array notation: myObject['A']
-     * Property notation: myObject.A
-     */
-    isArrayAccessor?: boolean
+    pathItem?: JitPathItem
 ): string {
     // updates the context by updating parents, path and args
     const args = {...ctx.args};
     ctx.parents.push(parentRt);
-    if (childPath) {
-        const useArrayFromMember = (parentRt as MemberRunType<any>).useArrayAccessorForJit?.();
-        const useArrayAccessor = isArrayAccessor ?? (useArrayFromMember || typeof childPath === 'number');
-        const childAccessor = useArrayAccessor ? `[${toLiteral(childPath)}]` : `.${childPath}`;
-        ctx.path.push(childPath);
+    if (pathItem) {
+        const useArray = pathItem.useArrayAccessor ?? typeof pathItem.vλl === 'number';
+        const literal = pathItem.literal ?? pathItem.vλl;
+        const childAccessor = useArray ? `[${literal}]` : `.${literal}`;
+        ctx.path.push(pathItem);
         ctx.args.value = `${ctx.args.value}${childAccessor}`;
     }
 
     const itemsCode = compileChildFn(ctx);
 
     // restore the context to the previous state
-    if (childPath) {
+    if (pathItem) {
         ctx.path.pop();
     }
     ctx.parents.pop();

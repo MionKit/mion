@@ -1,6 +1,6 @@
 import {ReflectionKind, TypeIndexSignature} from '../_deepkit/src/reflection/type';
 import {MemberRunType} from '../baseRunTypes';
-import {JitContext, MockContext, RunType, RunTypeOptions, RunTypeVisitor, TypeErrorsContext} from '../types';
+import {JitContext, JitPathItem, MockContext, RunType, RunTypeOptions, RunTypeVisitor, TypeErrorsContext} from '../types';
 import {isFunctionKind, shouldSkipJsonDecode, shouldSkipJsonEncode} from '../utils';
 import {NumberRunType} from '../atomicRunType/number';
 import {StringRunType} from '../atomicRunType/string';
@@ -49,17 +49,15 @@ export class IndexSignatureRunType extends MemberRunType<TypeIndexSignature> {
         this.isJsonEncodeRequired = this.memberType.isJsonEncodeRequired;
         this.isJsonDecodeRequired = this.memberType.isJsonDecodeRequired;
     }
-    useArrayAccessorForJit() {
-        return true;
-    }
     compileIsType(ctx: JitContext): string {
         const compile = () => {
+            const varName = ctx.args.vλl;
             const prop = `prΦp${ctx.parents.length}`;
+            const childPath: JitPathItem = {vλl: prop, useArrayAccessor: true};
             const compC = (childCtx: JitContext) => this.memberType.compileIsType(childCtx);
-            const itemsCode = compileChildren(compC, this, ctx, prop);
             return `
-                for (const ${prop} in ${ctx.args.value}) {
-                    if (!(${itemsCode})) return false;
+                for (const ${prop} in ${varName}) {
+                    if (!(${compileChildren(compC, this, ctx, childPath)})) return false;
                 }
                 return true;
             `;
@@ -69,12 +67,13 @@ export class IndexSignatureRunType extends MemberRunType<TypeIndexSignature> {
     }
     compileTypeErrors(ctx: TypeErrorsContext): string {
         const compile = () => {
+            const varName = ctx.args.vλl;
             const prop = `prΦp${ctx.parents.length}`;
+            const childPath: JitPathItem = {vλl: prop, useArrayAccessor: true};
             const compC = (childCtx: TypeErrorsContext) => this.memberType.compileTypeErrors(childCtx);
-            const itemsCode = compileChildren(compC, this, ctx, prop);
             return `
-                for (const ${prop} in ${ctx.args.value}) {
-                    ${itemsCode}
+                for (const ${prop} in ${varName}) {
+                    ${compileChildren(compC, this, ctx, childPath)}
                 }
             `;
         };
@@ -90,14 +89,15 @@ export class IndexSignatureRunType extends MemberRunType<TypeIndexSignature> {
         const shouldSkip = isEncode ? shouldSkipJsonEncode(this) : shouldSkipJsonDecode(this);
         if (shouldSkip) return '';
         const compile = () => {
+            const varName = ctx.args.vλl;
             const prop = `prΦp${ctx.parents.length}`;
+            const childPath: JitPathItem = {vλl: prop, useArrayAccessor: true};
             const compC = (childCtx: JitContext) => {
                 return isEncode ? this.memberType.compileJsonEncode(childCtx) : this.memberType.compileJsonDecode(childCtx);
             };
-            const itemsCode = compileChildren(compC, this, ctx, prop);
             return `
-                for (const ${prop} in ${ctx.args.value}) {
-                    ${itemsCode}
+                for (const ${prop} in ${varName}) {
+                    ${compileChildren(compC, this, ctx, childPath)}
                 }
             `;
         };
@@ -106,24 +106,26 @@ export class IndexSignatureRunType extends MemberRunType<TypeIndexSignature> {
     }
     compileJsonStringify(ctx: JitContext): string {
         const compile = () => {
+            const varName = ctx.args.vλl;
             const prop = `prΦp${ctx.parents.length}`;
             const arrName = `prΦpsλrr${ctx.parents.length}`;
+            const childPath: JitPathItem = {vλl: prop, useArrayAccessor: true};
             const compC = (childCtx: JitContext) => {
+                const childVarName = childCtx.args.vλl;
                 const jsonVal = this.memberType.compileJsonStringify(childCtx);
-                return `if (${childCtx.args.value} !== undefined) ${arrName}.push(${jitNames.utils}.asJSONString(${prop}) + ':' + ${jsonVal})`;
+                return `if (${childVarName} !== undefined) ${arrName}.push(${jitNames.utils}.asJSONString(${prop}) + ':' + ${jsonVal})`;
             };
-            const itemsCode = compileChildren(compC, this, ctx, prop);
             return `
                 const ${arrName} = [];
-                for (const ${prop} in ${ctx.args.value}) {
-                    ${itemsCode}
+                for (const ${prop} in ${varName}) {
+                    ${compileChildren(compC, this, ctx, childPath)}
                 }
                 return ${arrName}.join(',');
             `;
         };
         return handleCircularJsonStringify(compile, this, ctx, true);
     }
-    mock(ctx?: MockContext): any {
+    mock(ctx?: Pick<MockContext, 'parentObj'>): any {
         const length = Math.floor(Math.random() * 10);
         const parentObj = ctx?.parentObj || {};
         for (let i = 0; i < length; i++) {

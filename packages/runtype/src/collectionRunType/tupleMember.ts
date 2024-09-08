@@ -15,7 +15,7 @@ import {
     handleCircularTypeErrors,
 } from '../jitCircular';
 import {compileChildren} from '../jitCompiler';
-import {JitContext, MockContext, RunType, RunTypeOptions, RunTypeVisitor, TypeErrorsContext} from '../types';
+import {JitContext, JitPathItem, MockContext, RunType, RunTypeOptions, RunTypeVisitor, TypeErrorsContext} from '../types';
 import {shouldSkipJsonDecode, shouldSkipJsonEncode} from '../utils';
 
 export class TupleMemberRunType extends MemberRunType<TypeTupleMember> {
@@ -41,48 +41,50 @@ export class TupleMemberRunType extends MemberRunType<TypeTupleMember> {
         this.isJsonDecodeRequired = this.memberType.isJsonDecodeRequired || !!this.src.optional;
         this.isJsonEncodeRequired = this.memberType.isJsonEncodeRequired || !!this.src.optional;
     }
-    useArrayAccessorForJit() {
-        return true;
-    }
     compileIsType(ctx: JitContext): string {
         const compile = () => {
+            const childPath: JitPathItem = {vλl: this.memberIndex, useArrayAccessor: true};
             const compC = (childCtx: JitContext) => this.memberType.compileIsType(childCtx);
-            const itemCode = compileChildren(compC, this, ctx, this.memberIndex);
-            return this.src.optional ? `(${ctx.args.value} === undefined || ${itemCode})` : itemCode;
+            const itemCode = compileChildren(compC, this, ctx, childPath);
+            return this.src.optional ? `(${ctx.args.vλl} === undefined || ${itemCode})` : itemCode;
         };
         return handleCircularIsType(compile, this, ctx, false);
     }
     compileTypeErrors(ctx: TypeErrorsContext): string {
         const compile = () => {
+            const childPath: JitPathItem = {vλl: this.memberIndex, useArrayAccessor: true};
             const compC = (childCtx: TypeErrorsContext) => this.memberType.compileTypeErrors(childCtx);
-            const itemCode = compileChildren(compC, this, ctx, this.memberIndex);
-            return this.src.optional ? `if (${ctx.args.value} !== undefined) {${itemCode}}` : itemCode;
+            const itemCode = compileChildren(compC, this, ctx, childPath);
+            return this.src.optional ? `if (${ctx.args.vλl} !== undefined) {${itemCode}}` : itemCode;
         };
         return handleCircularTypeErrors(compile, this, ctx);
     }
     compileJsonEncode(ctx: JitContext): string {
         if (shouldSkipJsonEncode(this)) return '';
         const compile = () => {
+            const childPath: JitPathItem = {vλl: this.memberIndex, useArrayAccessor: true};
             const compC = (childCtx: JitContext) => this.memberType.compileJsonEncode(childCtx);
-            const itemCode = compileChildren(compC, this, ctx, this.memberIndex);
-            return this.src.optional ? `${ctx.args.value} === undefined ? null : ${itemCode}` : itemCode;
+            const itemCode = compileChildren(compC, this, ctx, childPath);
+            return this.src.optional ? `${ctx.args.vλl} === undefined ? null : ${itemCode}` : itemCode;
         };
         return handleCircularJsonEncode(compile, this, ctx);
     }
     compileJsonDecode(ctx: JitContext): string {
         if (shouldSkipJsonDecode(this)) return '';
         const compile = () => {
+            const childPath: JitPathItem = {vλl: this.memberIndex, useArrayAccessor: true};
             const compC = (childCtx: JitContext) => this.memberType.compileJsonDecode(childCtx);
-            const itemCode = compileChildren(compC, this, ctx, this.memberIndex);
-            return this.src.optional ? `${ctx.args.value} === null ? undefined : ${itemCode}` : itemCode;
+            const itemCode = compileChildren(compC, this, ctx, childPath);
+            return this.src.optional ? `${ctx.args.vλl} === null ? undefined : ${itemCode}` : itemCode;
         };
         return handleCircularJsonDecode(compile, this, ctx);
     }
     compileJsonStringify(ctx: JitContext): string {
         const compile = () => {
+            const childPath: JitPathItem = {vλl: this.memberIndex, useArrayAccessor: true};
             const compC = (childCtx: JitContext) => this.memberType.compileJsonStringify(childCtx);
-            const itemCode = compileChildren(compC, this, ctx, this.memberIndex);
-            return this.src.optional ? `(${ctx.args.value} === undefined ? null : ${itemCode})` : itemCode;
+            const itemCode = compileChildren(compC, this, ctx, childPath);
+            return this.src.optional ? `(${ctx.args.vλl} === undefined ? null : ${itemCode})` : itemCode;
         };
         return handleCircularJsonStringify(compile, this, ctx, false);
     }

@@ -6,7 +6,7 @@
  * ######## */
 import {TypeObjectLiteral, TypeClass, TypeIntersection} from '../_deepkit/src/reflection/type';
 import {JitContext, MockContext, Mutable, RunType, RunTypeOptions, RunTypeVisitor, TypeErrorsContext} from '../types';
-import {shouldSkipJsonDecode, shouldSkipJsonEncode, getErrorPath, getExpected} from '../utils';
+import {shouldSkipJsonDecode, shouldSkipJsonEncode, getJitErrorPath, getExpected} from '../utils';
 import {PropertyRunType} from './property';
 import {CollectionRunType} from '../baseRunTypes';
 import {MethodSignatureRunType} from '../functionRunType/methodSignature';
@@ -20,7 +20,6 @@ import {
     handleCircularJsonStringify,
     handleCircularTypeErrors,
 } from '../jitCircular';
-import {jitNames} from '../constants';
 import {compileChildren} from '../jitCompiler';
 
 export type InterfaceRunTypeEntry =
@@ -59,22 +58,23 @@ export class InterfaceRunType<
 
     compileIsType(ctx: JitContext): string {
         const compile = () => {
+            const varName = ctx.args.vλl;
             const compC = (childCtx: JitContext) => this.childRunTypes.map((prop) => prop.compileIsType(childCtx)).join(' && ');
-            const propsCode = compileChildren(compC, this, ctx);
-            return `(typeof ${ctx.args.value} === 'object' && ${ctx.args.value} !== null && !Array.isArray(${ctx.args.value}) && ${propsCode})`;
+            return `(typeof ${varName} === 'object' && ${varName} !== null && !Array.isArray(${varName}) && ${compileChildren(compC, this, ctx)})`;
         };
         return handleCircularIsType(compile, this, ctx, false);
     }
     compileTypeErrors(ctx: TypeErrorsContext): string {
         const compile = () => {
+            const varName = ctx.args.vλl;
+            const errorsName = ctx.args.εrrors;
             const compC = (childCtx: TypeErrorsContext) =>
                 this.childRunTypes.map((prop) => prop.compileTypeErrors(childCtx)).join(';');
-            const itemsCode = compileChildren(compC, this, ctx);
             return `
-                if (typeof ${ctx.args.value} !== 'object' && ${ctx.args.value} !== null && !Array.isArray(${ctx.args.value})) {
-                    ${jitNames.errors}.push({path: ${getErrorPath(ctx.path)}, expected: ${getExpected(this)}});
+                if (typeof ${varName} !== 'object' && ${varName} !== null && !Array.isArray(${varName})) {
+                    ${errorsName}.push({path: ${getJitErrorPath(ctx.path)}, expected: ${getExpected(this)}});
                 } else {
-                    ${itemsCode}
+                    ${compileChildren(compC, this, ctx)}
                 }
             `;
         };
@@ -104,17 +104,16 @@ export class InterfaceRunType<
         const compile = () => {
             const compC = (childCtx: JitContext) =>
                 this.childRunTypes.map((prop) => prop.compileJsonStringify(childCtx)).join('+');
-            const propsCode = compileChildren(compC, this, ctx);
-            return `'{'+${propsCode}+'}'`;
+            return `'{'+${compileChildren(compC, this, ctx)}+'}'`;
         };
         return handleCircularJsonStringify(compile, this, ctx, false);
     }
-    mock(ctx?: MockContext): Record<string | number, any> {
+    mock(ctx?: Pick<MockContext, 'parentObj'>): Record<string | number, any> {
         const obj: Record<string | number, any> = ctx?.parentObj || {};
         this.childRunTypes.forEach((prop) => {
             const name: string | number = prop.memberName as any;
             if (prop instanceof IndexSignatureRunType) prop.mock(ctx);
-            else obj[name] = prop.mock(ctx);
+            else obj[name] = prop.mock(ctx as MockContext);
         });
         return obj;
     }

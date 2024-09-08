@@ -37,13 +37,13 @@ export class ClassRunType extends InterfaceRunType<TypeClass> {
         return `
             ${decode};
             const ${classVarname} = ${jitNames.utils}.getSerializableClass(${toLiteral(this.className)});
-            ${ctx.args.value} = Object.assign(new ${classVarname}, ${ctx.args.value});
+            ${ctx.args.vλl} = Object.assign(new ${classVarname}, ${ctx.args.vλl});
         `;
     }
     mock(ctx?: MockContext): Record<string | number, any> {
         ClassRunType.checkSerializable(this.canDeserialize, this.className);
-        const newCtx: MockContext = { ...ctx, parentObj: new this.src.classType() };
-        return super.mock(newCtx);
+        const childCtx: MockContext = {...ctx, parentObj: new this.src.classType()};
+        return super.mock(childCtx);
     }
 
     private static checkSerializable(canDeserialize: boolean, className: string) {

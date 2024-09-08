@@ -8,18 +8,17 @@
 import type {TypeNull} from '../_deepkit/src/reflection/type';
 import type {JitContext, TypeErrorsContext} from '../types';
 import {AtomicRunType} from '../baseRunTypes';
-import {getErrorPath, getExpected} from '../utils';
-import {jitNames} from '../constants';
+import {getJitErrorPath, getExpected} from '../utils';
 
 export class NullRunType extends AtomicRunType<TypeNull> {
     public readonly isJsonEncodeRequired = false;
     public readonly isJsonDecodeRequired = false;
 
     compileIsType(ctx: JitContext): string {
-        return `${ctx.args.value} === null`;
+        return `${ctx.args.vλl} === null`;
     }
     compileTypeErrors(ctx: TypeErrorsContext): string {
-        return `if (${ctx.args.value} !== null) ${jitNames.errors}.push({path: ${getErrorPath(ctx.path)}, expected: ${getExpected(this)}})`;
+        return `if (${ctx.args.vλl} !== null) ${ctx.args.εrrors}.push({path: ${getJitErrorPath(ctx.path)}, expected: ${getExpected(this)}})`;
     }
     compileJsonEncode(): string {
         return '';
@@ -28,7 +27,7 @@ export class NullRunType extends AtomicRunType<TypeNull> {
         return '';
     }
     compileJsonStringify(ctx: JitContext): string {
-        return ctx.args.value;
+        return ctx.args.vλl;
     }
     mock(): null {
         return null;

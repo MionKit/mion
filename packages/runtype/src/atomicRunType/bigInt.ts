@@ -6,8 +6,8 @@
  * ######## */
 
 import type {TypeBigInt} from '../_deepkit/src/reflection/type';
-import type {JitContext, JitJsonEncoder, MockOptions, TypeErrorsContext} from '../types';
-import {getErrorPath, getExpected} from '../utils';
+import type {JitContext, JitJsonEncoder, MockContext, TypeErrorsContext} from '../types';
+import {getJitErrorPath, getExpected} from '../utils';
 import {mockBigInt} from '../mock';
 import {AtomicRunType} from '../baseRunTypes';
 export class BigIntRunType extends AtomicRunType<TypeBigInt> {
@@ -15,35 +15,37 @@ export class BigIntRunType extends AtomicRunType<TypeBigInt> {
     public readonly isJsonDecodeRequired = true;
 
     compileIsType(ctx: JitContext): string {
-        return `typeof ${ctx.args.value} === 'bigint'`;
+        return `typeof ${ctx.args.vλl} === 'bigint'`;
     }
     compileTypeErrors(ctx: TypeErrorsContext): string {
-        return `if (typeof ${ctx.args.value} !== 'bigint') ${ctx.args.errors}.push({path: ${getErrorPath(ctx.path)}, expected: ${getExpected(this)}})`;
+        return `if (typeof ${ctx.args.vλl} !== 'bigint') ${ctx.args.εrrors}.push({path: ${getJitErrorPath(ctx.path)}, expected: ${getExpected(this)}})`;
     }
     compileJsonEncode(ctx: JitContext): string {
-        return BigIntJitJsonENcoder.encodeToJson(ctx.args.value);
+        return BigIntJitJsonENcoder.encodeToJson(ctx.args.vλl);
     }
     compileJsonDecode(ctx: JitContext): string {
-        return BigIntJitJsonENcoder.decodeFromJson(ctx.args.value);
+        return BigIntJitJsonENcoder.decodeFromJson(ctx.args.vλl);
     }
     compileJsonStringify(jc: JitContext): string {
-        return BigIntJitJsonENcoder.stringify(jc.args.value);
+        return BigIntJitJsonENcoder.stringify(jc.args.vλl);
     }
 
-    /** this mocks a regular number and transforms into a bigint */
-    mock(ctx?: Pick<MockOptions, 'minNumber' | 'maxNumber'>): bigint {
+    /** mocks a regular number and transforms into a bigint.
+     * this means range is limited to Number.MAX_SAFE_INTEGER
+     */
+    mock(ctx?: Pick<MockContext, 'minNumber' | 'maxNumber'>): bigint {
         return mockBigInt(ctx?.minNumber, ctx?.maxNumber);
     }
 }
 
 export const BigIntJitJsonENcoder: JitJsonEncoder = {
-    decodeFromJson(varName: string): string {
-        return `${varName} = BigInt(${varName})`;
+    decodeFromJson(vλl: string): string {
+        return `${vλl} = BigInt(${vλl})`;
     },
-    encodeToJson(varName: string): string {
-        return `${varName} = ${varName}.toString()`;
+    encodeToJson(vλl: string): string {
+        return `${vλl} = ${vλl}.toString()`;
     },
-    stringify(varName: string): string {
-        return `'"'+${varName}.toString()+'"'`;
+    stringify(vλl: string): string {
+        return `'"'+${vλl}.toString()+'"'`;
     },
 };
