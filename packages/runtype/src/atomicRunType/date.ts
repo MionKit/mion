@@ -19,7 +19,7 @@ export class DateRunType extends AtomicRunType<TypeClass> {
         return `(${ctx.args.vλl} instanceof Date && !isNaN(${ctx.args.vλl}.getTime()))`;
     }
     compileTypeErrors(ctx: TypeErrorsContext): string {
-        return `if (!(${this.compileIsType(ctx)})) ${ctx.args.εrrors}.push({path: ${getJitErrorPath(ctx.path)}, expected: ${getExpected(this)}})`;
+        return `if (!(${this.compileIsType(ctx)})) ${ctx.args.εrrors}.push({path: ${getJitErrorPath(ctx)}, expected: ${getExpected(this)}})`;
     }
     compileJsonEncode(ctx: JitContext): string {
         return DateJitJsonENcoder.encodeToJson(ctx.args.vλl);

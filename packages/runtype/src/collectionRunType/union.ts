@@ -94,7 +94,7 @@ export class UnionRunType extends CollectionRunType<TypeUnion> {
             // if we do all checks and code reaches this point then we can add an error for the root type
             return `
                 ${itemsCode}
-                ${errorsVarName}.push({path: ${getJitErrorPath(ctx.path)}, expected: ${getExpected(this)}});
+                ${errorsVarName}.push({path: ${getJitErrorPath(ctx)}, expected: ${getExpected(this)}});
             `;
         };
         return handleCircularTypeErrors(compile, this, ctx);
@@ -111,7 +111,7 @@ export class UnionRunType extends CollectionRunType<TypeUnion> {
     compileJsonEncode(ctx: JitContext): string {
         const compile = () => {
             const varName = ctx.args.vλl;
-            const childPath: JitPathItem = {vλl: 1, useArrayAccessor: true};
+            const childPath: JitPathItem = {vλl: 1, useArrayAccessor: true, literal: 1};
             const compC = (childCtx: JitContext) => {
                 const childVarName = childCtx.args.vλl;
                 return this.childRunTypes
@@ -143,7 +143,7 @@ export class UnionRunType extends CollectionRunType<TypeUnion> {
      */
     compileJsonDecode(ctx: JitContext): string {
         const compile = () => {
-            const childPath: JitPathItem = {vλl: 1, useArrayAccessor: true};
+            const childPath: JitPathItem = {vλl: 1, useArrayAccessor: true, literal: 1};
             const discriminator = `${ctx.args.vλl}[0]`;
             const compC = (childCtx: JitContext) => {
                 return this.childRunTypes

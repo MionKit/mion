@@ -19,7 +19,7 @@ export class BooleanRunType extends AtomicRunType<TypeBoolean> {
         return `typeof ${ctx.args.vλl} === 'boolean'`;
     }
     compileTypeErrors(ctx: TypeErrorsContext): string {
-        return `if (typeof ${ctx.args.vλl} !== 'boolean') ${ctx.args.εrrors}.push({path: ${getJitErrorPath(ctx.path)}, expected: ${getExpected(this)}})`;
+        return `if (typeof ${ctx.args.vλl} !== 'boolean') ${ctx.args.εrrors}.push({path: ${getJitErrorPath(ctx)}, expected: ${getExpected(this)}})`;
     }
     compileJsonEncode(): string {
         return '';

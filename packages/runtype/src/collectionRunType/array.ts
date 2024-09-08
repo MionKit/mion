@@ -47,7 +47,7 @@ export class ArrayRunType extends CollectionRunType<TypeArray> {
             const varName = ctx.args.vλl;
             const index = `iε${ctx.parents.length}`;
             const resultVal = `rεsult${ctx.parents.length}`;
-            const childPath: JitPathItem = {vλl: index, useArrayAccessor: true};
+            const childPath: JitPathItem = this.getChildPath(index);
             const compC = (childCtx: JitContext) => this.child.compileIsType(childCtx);
             return `
                 if (!Array.isArray(${varName})) return false;
@@ -65,10 +65,10 @@ export class ArrayRunType extends CollectionRunType<TypeArray> {
             const varName = ctx.args.vλl;
             const errorsName = ctx.args.εrrors;
             const index = `iε${ctx.parents.length}`;
-            const childPath: JitPathItem = {vλl: index, useArrayAccessor: true};
+            const childPath: JitPathItem = this.getChildPath(index);
             const compC = (childCtx: TypeErrorsContext) => this.child.compileTypeErrors(childCtx);
             return `
-                if (!Array.isArray(${varName})) ${errorsName}.push({path: ${getJitErrorPath(ctx.path)}, expected: ${getExpected(this)}});
+                if (!Array.isArray(${varName})) ${errorsName}.push({path: ${getJitErrorPath(ctx)}, expected: ${getExpected(this)}});
                 else {
                     for (let ${index} = 0; ${index} < ${varName}.length; ${index}++) {
                         ${compileChildren(compC, this, ctx, childPath)}
@@ -90,7 +90,7 @@ export class ArrayRunType extends CollectionRunType<TypeArray> {
             const index = `iε${ctx.parents.length}`;
             if (skip) return '';
             const varName = ctx.args.vλl;
-            const childPath: JitPathItem = {vλl: index, useArrayAccessor: true};
+            const childPath: JitPathItem = this.getChildPath(index);
             const encDec = isEncode ? this.child.compileJsonEncode : this.child.compileJsonDecode;
             const compC = (childCtx: JitContext) => encDec(childCtx);
             return `
@@ -109,7 +109,7 @@ export class ArrayRunType extends CollectionRunType<TypeArray> {
             const index = `iε${ctx.parents.length}`;
             const jsonItems = `jsonItεms${ctx.parents.length}`;
             const resultVal = `rεsult${ctx.parents.length}`;
-            const childPath: JitPathItem = {vλl: index, useArrayAccessor: true};
+            const childPath: JitPathItem = this.getChildPath(index);
             const compC = (childCtx: JitContext) => this.child.compileJsonStringify(childCtx);
             return `
                 const ${jsonItems} = [];
@@ -130,5 +130,8 @@ export class ArrayRunType extends CollectionRunType<TypeArray> {
             return mockRecursiveEmptyArray(depth, length);
         }
         return Array.from({length}, () => this.child.mock(ctx));
+    }
+    getChildPath(indexVarName: string): JitPathItem {
+        return {vλl: indexVarName, literal: indexVarName, useArrayAccessor: true};
     }
 }

@@ -20,7 +20,7 @@ export class StringRunType extends AtomicRunType<TypeString> {
         return `typeof ${ctx.args.vλl} === 'string'`;
     }
     compileTypeErrors(ctx: TypeErrorsContext): string {
-        return `if (typeof ${ctx.args.vλl} !== 'string') ${ctx.args.εrrors}.push({path: ${getJitErrorPath(ctx.path)}, expected: ${getExpected(this)}})`;
+        return `if (typeof ${ctx.args.vλl} !== 'string') ${ctx.args.εrrors}.push({path: ${getJitErrorPath(ctx)}, expected: ${getExpected(this)}})`;
     }
     compileJsonEncode(): string {
         return '';

@@ -37,7 +37,7 @@ export class RestParamsRunType extends MemberRunType<TypeRest> {
     compileIsType(ctx: JitContext): string {
         const varName = ctx.args.vλl;
         const indexName = `pλrλm${ctx.parents.length}`;
-        const childPath: JitPathItem = {vλl: indexName, useArrayAccessor: true};
+        const childPath: JitPathItem = this.getChildPath(indexName);
         const compC = (childCtx: JitContext) => this.memberType.compileIsType(childCtx);
         const itemCode = compileChildren(compC, this, ctx, childPath);
         return `(function() {
@@ -50,7 +50,7 @@ export class RestParamsRunType extends MemberRunType<TypeRest> {
     compileTypeErrors(ctx: TypeErrorsContext): string {
         const varName = ctx.args.vλl;
         const indexName = `pλrλm${ctx.parents.length}`;
-        const childPath: JitPathItem = {vλl: indexName, useArrayAccessor: true};
+        const childPath: JitPathItem = this.getChildPath(indexName);
         const compC = (childCtx: TypeErrorsContext) => this.memberType.compileTypeErrors(childCtx);
         const itemCode = compileChildren(compC, this, ctx, childPath);
         return `for (let ${indexName} = ${this.memberIndex}; ${indexName} < ${varName}.length; ${indexName}++) {${itemCode}}`;
@@ -67,7 +67,7 @@ export class RestParamsRunType extends MemberRunType<TypeRest> {
         if (shouldSkip) return '';
         const varName = ctx.args.vλl;
         const indexName = `pλrλm${ctx.parents.length}`;
-        const childPath: JitPathItem = {vλl: indexName, useArrayAccessor: true};
+        const childPath: JitPathItem = this.getChildPath(indexName);
         const compC = (childCtx: JitContext) => compileFn(childCtx);
         const itemCode = compileChildren(compC, this, ctx, childPath);
         return `for (let ${indexName} = ${this.memberIndex}; ${indexName} < ${varName}.length; ${indexName}++) {${itemCode}}`;
@@ -77,7 +77,7 @@ export class RestParamsRunType extends MemberRunType<TypeRest> {
         const arrName = `rεsultλrr${ctx.parents.length}`;
         const itemName = `itεm${ctx.parents.length}`;
         const indexName = `indεx${ctx.parents.length}`;
-        const childPath: JitPathItem = {vλl: indexName, useArrayAccessor: true};
+        const childPath: JitPathItem = this.getChildPath(indexName);
         const isFist = this.memberIndex === 0;
         const sep = isFist ? '' : `','+`;
         const compC = (childCtx: JitContext) => this.memberType.compileJsonStringify(childCtx);
@@ -94,5 +94,8 @@ export class RestParamsRunType extends MemberRunType<TypeRest> {
     }
     mock(ctx?: MockContext): string {
         return this.memberType.mock(ctx);
+    }
+    getChildPath(indexName: string): JitPathItem {
+        return {vλl: indexName, useArrayAccessor: true, literal: indexName};
     }
 }

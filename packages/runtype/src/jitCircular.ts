@@ -5,11 +5,11 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import type {JitCompileContext, RunType} from './types';
+import type {JitCompileContext, JitContext, RunType, TypeErrorsContext} from './types';
 import {CollectionRunType} from './baseRunTypes';
 import {callJitCachedFn, createJitCachedFn} from './jitCompiler';
 
-function shouldCallJitCache(rt: RunType): boolean {
+export function shouldCallJitCache(rt: RunType): boolean {
     return (rt as CollectionRunType<any>).isCircularRef;
 }
 
@@ -23,9 +23,11 @@ function handleJitCacheCompiling(
     /** name to identify the function in the jit cache */
     fnName: string
 ): string {
+    // if (isCollectionRunType(rt)) console.log('handleJitCacheCompiling for', rt);
     // if it is not a circular type, we can return the code directly
     if (!shouldCallJitCache(rt)) return compile();
 
+    console.log('handleJitCacheCompiling for', rt);
     // if is a circular type, we need to create a jit function to handle the circular reference and call it
     const jitIdFnName = `${rt.jitId}:${fnName}`;
     const compileJit = addReturnToJit ? () => `return ${compile()}` : compile;
@@ -40,7 +42,7 @@ function handleJitCacheCompiling(
 function handleCodeReturn(
     compile: () => string,
     rt: RunType,
-    ctx: JitCompileContext<any>,
+    ctx: JitCompileContext,
     codeContainsReturn: boolean,
     fnName: string
 ) {
@@ -65,20 +67,9 @@ function handleCodeReturn(
 export function handleCircularIsType(
     compile: () => string,
     rt: RunType,
-    ctx: JitCompileContext<any>,
+    ctx: JitContext,
     codeContainsReturn: boolean,
     fnName = 'isT'
-): string {
-    return handleCodeReturn(compile, rt, ctx, codeContainsReturn, fnName);
-}
-
-/** Handles Circular compiling for jit jsonStringify functions */
-export function handleCircularJsonStringify(
-    compile: () => string,
-    rt: RunType,
-    ctx: JitCompileContext<any>,
-    codeContainsReturn: boolean,
-    fnName = 'jsonS'
 ): string {
     return handleCodeReturn(compile, rt, ctx, codeContainsReturn, fnName);
 }
@@ -87,18 +78,29 @@ export function handleCircularJsonStringify(
 export function handleCircularTypeErrors(
     compile: () => string,
     rt: RunType,
-    ctx: JitCompileContext<any>,
+    ctx: TypeErrorsContext,
     codeContainsReturn = false,
     fnName = 'TErr'
 ): string {
-    return handleJitCacheCompiling(compile, rt, ctx, codeContainsReturn, fnName);
+    const typeErrorsCode = handleJitCacheCompiling(compile, rt, ctx, codeContainsReturn, fnName);
+    const pathLength = ctx.parents.length;
+    if (shouldCallJitCache(rt) && pathLength > 0) {
+        const updatePathArgs = ctx.path.map((item) => item.literal).join(',');
+        return `
+            ${ctx.args.pλth}.push(${updatePathArgs});
+            ${typeErrorsCode}
+            ${ctx.args.pλth}.splice(-${pathLength});
+        `;
+    }
+
+    return typeErrorsCode;
 }
 
 /** Handles Circular compiling for jit jsonEncode functions */
 export function handleCircularJsonEncode(
     compile: () => string,
     rt: RunType,
-    ctx: JitCompileContext<any>,
+    ctx: JitContext,
     codeContainsReturn = false,
     fnName = 'jsonE'
 ): string {
@@ -109,9 +111,20 @@ export function handleCircularJsonEncode(
 export function handleCircularJsonDecode(
     compile: () => string,
     rt: RunType,
-    ctx: JitCompileContext<any>,
+    ctx: JitContext,
     codeContainsReturn = false,
     fnName = 'jsonD'
 ): string {
     return handleJitCacheCompiling(compile, rt, ctx, codeContainsReturn, fnName);
+}
+
+/** Handles Circular compiling for jit jsonStringify functions */
+export function handleCircularJsonStringify(
+    compile: () => string,
+    rt: RunType,
+    ctx: JitContext,
+    codeContainsReturn: boolean,
+    fnName = 'jsonS'
+): string {
+    return handleCodeReturn(compile, rt, ctx, codeContainsReturn, fnName);
 }

@@ -18,7 +18,7 @@ export class BigIntRunType extends AtomicRunType<TypeBigInt> {
         return `typeof ${ctx.args.vλl} === 'bigint'`;
     }
     compileTypeErrors(ctx: TypeErrorsContext): string {
-        return `if (typeof ${ctx.args.vλl} !== 'bigint') ${ctx.args.εrrors}.push({path: ${getJitErrorPath(ctx.path)}, expected: ${getExpected(this)}})`;
+        return `if (typeof ${ctx.args.vλl} !== 'bigint') ${ctx.args.εrrors}.push({path: ${getJitErrorPath(ctx)}, expected: ${getExpected(this)}})`;
     }
     compileJsonEncode(ctx: JitContext): string {
         return BigIntJitJsonENcoder.encodeToJson(ctx.args.vλl);

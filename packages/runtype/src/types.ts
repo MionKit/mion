@@ -14,11 +14,15 @@ export type JSONString = string;
 export type RunTypeVisitor = (deepkitType: Type, parents: RunType[], opts: RunTypeOptions) => RunType;
 export type SrcType = Type & {_runType?: RunType};
 
-export interface JitCompileContext<FnArgs extends Record<string, string> = Record<string, string>> {
+export interface JitCompileContext<FnArgs extends JitFnArgs = JitFnArgs> {
     parents: RunType[];
     /** the key of the argName must be the same as the variable name. so keys are used as inital variable names when jitContext gets reset. */
     args: FnArgs;
     path: JitPathItem[];
+}
+interface JitFnArgs {
+    vλl: string;
+    [key: string]: string;
 }
 export type JitPathItem = {
     vλl: string | number;
@@ -26,11 +30,12 @@ export type JitPathItem = {
     useArrayAccessor: boolean;
     /**
      * The literal value of the item when inserted into the code.
-     * This is set just in case val is not a valid js identifier.
+     * if is a variable then literal is the same as vλl.
+     * ie when accessing arrays myobject[index] index is a variable and must be inserted as such code.
      * i.e: an object property width non standard name myobject["hello world"]
-     * the value in memory is (hello world) and quotes must be added when inserted into the code "hello world"
+     * The value in memory is (hello world) the literal value is "hello world" (with quotes)
      * */
-    literal?: string | number;
+    literal: string | number;
 };
 export type JitContext = JitCompileContext<{vλl: string}>;
 export type TypeErrorsContext = JitCompileContext<{vλl: string; pλth: string; εrrors: string}>;

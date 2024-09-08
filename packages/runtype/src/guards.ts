@@ -165,7 +165,10 @@ export function isConstructor(rt: InterfaceRunTypeEntry): rt is MethodSignatureR
 }
 
 export function isCollectionRunType(rt: RunType): rt is CollectionRunType<any> {
-    return Array.isArray((rt as CollectionRunType<any>).childRunTypes);
+    return (
+        typeof (rt as CollectionRunType<any>).isCircularRef === 'boolean' ||
+        Array.isArray((rt as CollectionRunType<any>).childRunTypes)
+    );
 }
 
 export function isMemberRunType(rt: RunType): rt is MemberRunType<any> {

@@ -43,7 +43,7 @@ export class TupleMemberRunType extends MemberRunType<TypeTupleMember> {
     }
     compileIsType(ctx: JitContext): string {
         const compile = () => {
-            const childPath: JitPathItem = {vλl: this.memberIndex, useArrayAccessor: true};
+            const childPath: JitPathItem = this.getChildPath();
             const compC = (childCtx: JitContext) => this.memberType.compileIsType(childCtx);
             const itemCode = compileChildren(compC, this, ctx, childPath);
             return this.src.optional ? `(${ctx.args.vλl} === undefined || ${itemCode})` : itemCode;
@@ -52,7 +52,7 @@ export class TupleMemberRunType extends MemberRunType<TypeTupleMember> {
     }
     compileTypeErrors(ctx: TypeErrorsContext): string {
         const compile = () => {
-            const childPath: JitPathItem = {vλl: this.memberIndex, useArrayAccessor: true};
+            const childPath: JitPathItem = this.getChildPath();
             const compC = (childCtx: TypeErrorsContext) => this.memberType.compileTypeErrors(childCtx);
             const itemCode = compileChildren(compC, this, ctx, childPath);
             return this.src.optional ? `if (${ctx.args.vλl} !== undefined) {${itemCode}}` : itemCode;
@@ -62,7 +62,7 @@ export class TupleMemberRunType extends MemberRunType<TypeTupleMember> {
     compileJsonEncode(ctx: JitContext): string {
         if (shouldSkipJsonEncode(this)) return '';
         const compile = () => {
-            const childPath: JitPathItem = {vλl: this.memberIndex, useArrayAccessor: true};
+            const childPath: JitPathItem = this.getChildPath();
             const compC = (childCtx: JitContext) => this.memberType.compileJsonEncode(childCtx);
             const itemCode = compileChildren(compC, this, ctx, childPath);
             return this.src.optional ? `${ctx.args.vλl} === undefined ? null : ${itemCode}` : itemCode;
@@ -72,7 +72,7 @@ export class TupleMemberRunType extends MemberRunType<TypeTupleMember> {
     compileJsonDecode(ctx: JitContext): string {
         if (shouldSkipJsonDecode(this)) return '';
         const compile = () => {
-            const childPath: JitPathItem = {vλl: this.memberIndex, useArrayAccessor: true};
+            const childPath: JitPathItem = this.getChildPath();
             const compC = (childCtx: JitContext) => this.memberType.compileJsonDecode(childCtx);
             const itemCode = compileChildren(compC, this, ctx, childPath);
             return this.src.optional ? `${ctx.args.vλl} === null ? undefined : ${itemCode}` : itemCode;
@@ -81,7 +81,7 @@ export class TupleMemberRunType extends MemberRunType<TypeTupleMember> {
     }
     compileJsonStringify(ctx: JitContext): string {
         const compile = () => {
-            const childPath: JitPathItem = {vλl: this.memberIndex, useArrayAccessor: true};
+            const childPath: JitPathItem = this.getChildPath();
             const compC = (childCtx: JitContext) => this.memberType.compileJsonStringify(childCtx);
             const itemCode = compileChildren(compC, this, ctx, childPath);
             return this.src.optional ? `(${ctx.args.vλl} === undefined ? null : ${itemCode})` : itemCode;
@@ -97,5 +97,8 @@ export class TupleMemberRunType extends MemberRunType<TypeTupleMember> {
             }
         }
         return this.memberType.mock(ctx);
+    }
+    getChildPath(): JitPathItem {
+        return {vλl: this.memberIndex, useArrayAccessor: true, literal: this.memberIndex};
     }
 }

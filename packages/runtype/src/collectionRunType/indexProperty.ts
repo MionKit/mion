@@ -53,7 +53,7 @@ export class IndexSignatureRunType extends MemberRunType<TypeIndexSignature> {
         const compile = () => {
             const varName = ctx.args.vλl;
             const prop = `prΦp${ctx.parents.length}`;
-            const childPath: JitPathItem = {vλl: prop, useArrayAccessor: true};
+            const childPath: JitPathItem = this.getChildPath(prop);
             const compC = (childCtx: JitContext) => this.memberType.compileIsType(childCtx);
             return `
                 for (const ${prop} in ${varName}) {
@@ -69,7 +69,7 @@ export class IndexSignatureRunType extends MemberRunType<TypeIndexSignature> {
         const compile = () => {
             const varName = ctx.args.vλl;
             const prop = `prΦp${ctx.parents.length}`;
-            const childPath: JitPathItem = {vλl: prop, useArrayAccessor: true};
+            const childPath: JitPathItem = this.getChildPath(prop);
             const compC = (childCtx: TypeErrorsContext) => this.memberType.compileTypeErrors(childCtx);
             return `
                 for (const ${prop} in ${varName}) {
@@ -91,7 +91,7 @@ export class IndexSignatureRunType extends MemberRunType<TypeIndexSignature> {
         const compile = () => {
             const varName = ctx.args.vλl;
             const prop = `prΦp${ctx.parents.length}`;
-            const childPath: JitPathItem = {vλl: prop, useArrayAccessor: true};
+            const childPath: JitPathItem = this.getChildPath(prop);
             const compC = (childCtx: JitContext) => {
                 return isEncode ? this.memberType.compileJsonEncode(childCtx) : this.memberType.compileJsonDecode(childCtx);
             };
@@ -109,7 +109,7 @@ export class IndexSignatureRunType extends MemberRunType<TypeIndexSignature> {
             const varName = ctx.args.vλl;
             const prop = `prΦp${ctx.parents.length}`;
             const arrName = `prΦpsλrr${ctx.parents.length}`;
-            const childPath: JitPathItem = {vλl: prop, useArrayAccessor: true};
+            const childPath: JitPathItem = this.getChildPath(prop);
             const compC = (childCtx: JitContext) => {
                 const childVarName = childCtx.args.vλl;
                 const jsonVal = this.memberType.compileJsonStringify(childCtx);
@@ -145,5 +145,8 @@ export class IndexSignatureRunType extends MemberRunType<TypeIndexSignature> {
             }
             parentObj[propName] = this.memberType.mock(ctx);
         }
+    }
+    getChildPath(propVarName: string): JitPathItem {
+        return {vλl: propVarName, literal: propVarName, useArrayAccessor: true};
     }
 }

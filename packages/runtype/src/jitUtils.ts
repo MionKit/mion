@@ -66,11 +66,11 @@ export const jitUtils = {
         return classesMap.get(name);
     },
     // !!! DO NOT MODIFY METHOD WITHOUT REVIEWING JIT CODE INVOCATIONS!!!
-    addToJitCache(key: string, fn: (...args: any[]) => any) {
+    addCachedFn(key: string, fn: (...args: any[]) => any) {
         jitCache[key] = fn;
     },
     // !!! DO NOT MODIFY METHOD WITHOUT REVIEWING JIT CODE INVOCATIONS!!!
-    getFromJitCache(key: string) {
+    getCachedFn(key: string) {
         const jitFn = jitCache[key];
         if (!jitFn) {
             throw new Error(`JIT function with key ${key} not found in cache`);
@@ -78,7 +78,7 @@ export const jitUtils = {
         return jitFn;
     },
     // !!! DO NOT MODIFY METHOD WITHOUT REVIEWING JIT CODE INVOCATIONS!!!
-    isInJitCache(key: string) {
+    isFnInCache(key: string) {
         return !!jitCache[key];
     },
 };

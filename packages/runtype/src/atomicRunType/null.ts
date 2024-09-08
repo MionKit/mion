@@ -18,7 +18,7 @@ export class NullRunType extends AtomicRunType<TypeNull> {
         return `${ctx.args.vλl} === null`;
     }
     compileTypeErrors(ctx: TypeErrorsContext): string {
-        return `if (${ctx.args.vλl} !== null) ${ctx.args.εrrors}.push({path: ${getJitErrorPath(ctx.path)}, expected: ${getExpected(this)}})`;
+        return `if (${ctx.args.vλl} !== null) ${ctx.args.εrrors}.push({path: ${getJitErrorPath(ctx)}, expected: ${getExpected(this)}})`;
     }
     compileJsonEncode(): string {
         return '';

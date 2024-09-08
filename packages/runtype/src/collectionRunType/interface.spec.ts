@@ -23,7 +23,10 @@ describe('Interface', () => {
         bigInt: bigint;
         optionalString?: string;
         "weird prop name \n?>'\\\t\r": string;
-        // TODO: index
+        deep?: {
+            a: string;
+            b: number;
+        };
     };
 
     interface objectSkipProps {
@@ -52,6 +55,10 @@ describe('Interface', () => {
                 bigInt: BigInt(123),
                 "weird prop name \n?>'\\\t\r": 'hello2',
                 // note optionalString is missing
+                deep: {
+                    a: 'hello',
+                    b: 123,
+                },
             })
         ).toBe(true);
         expect(
@@ -123,6 +130,24 @@ describe('Interface', () => {
                 path: [],
                 expected: `interface`,
             },
+        ]);
+        expect(
+            valWithErrors({
+                startDate: new Date(),
+                quantity: 123,
+                name: 'hello',
+                nullValue: null,
+                stringArray: ['a', 'b', 'c'],
+                bigInt: BigInt(123),
+                "weird prop name \n?>'\\\t\r": 'hello2',
+                deep: {
+                    a: 123, // should be string
+                    b: 'hello', // should be number
+                },
+            })
+        ).toEqual([
+            {path: ['deep', 'a'], expected: 'string'},
+            {path: ['deep', 'b'], expected: 'number'},
         ]);
     });
 
@@ -419,6 +444,7 @@ describe('Interface with nested circular type', () => {
 describe('Interface with nested circular type where root is not the circular ref', () => {
     interface ICircularDeep {
         name: string;
+        big: bigint;
         embedded: {
             hello: string;
             child?: ICircularDeep;
@@ -434,20 +460,31 @@ describe('Interface with nested circular type where root is not the circular ref
 
     it('validate circular interface that is not the root object', () => {
         const validate = buildIsTypeJITFn(rt).fn;
-        const obj1: RootNotCircular = {isRoot: true, ciChild: {name: 'hello', embedded: {hello: 'world'}}};
+        const obj1: RootNotCircular = {isRoot: true, ciChild: {name: 'hello', big: 1n, embedded: {hello: 'world'}}};
         const obj2: RootNotCircular = {
             isRoot: true,
-            ciChild: {name: 'hello', embedded: {hello: 'world', child: {name: 'world1', embedded: {hello: 'world2'}}}},
+            ciChild: {
+                name: 'hello',
+                big: 1n,
+                embedded: {
+                    hello: 'world',
+                    child: {name: 'world1', big: 1n, embedded: {hello: 'world2'}},
+                },
+            },
         };
         expect(validate(obj1)).toBe(true);
         expect(validate(obj2)).toBe(true);
 
-        const obj3 = {isRoot: true, ciChild: {name: 'hello', embedded: {hello: 123}}};
+        const obj3 = {isRoot: true, ciChild: {name: 'hello', big: 1n, embedded: {hello: 123}}};
         const obj4 = {
             isRoot: true,
-            ciChild: {name: 'hello', embedded: {hello: 'world', child: {name: 'world1', embedded: {hello: 123}}}},
+            ciChild: {
+                name: 'hello',
+                big: 1n,
+                embedded: {hello: 'world', child: {name: 'world1', big: 1n, embedded: {hello: 123}}},
+            },
         };
-        const obj5 = {isRoot: false, ciChild: {name: 'hello', embedded: {hello: 'world', child: 123}}};
+        const obj5 = {isRoot: false, ciChild: {name: 'hello', big: 1n, embedded: {hello: 'world', child: 123}}};
         expect(validate(obj3)).toBe(false);
         expect(validate(obj4)).toBe(false);
         expect(validate(obj5)).toBe(false);
@@ -455,20 +492,28 @@ describe('Interface with nested circular type where root is not the circular ref
 
     it('validate circular interface that is not the root object object + errors', () => {
         const valWithErrors = buildTypeErrorsJITFn(rt).fn;
-        const obj1: RootNotCircular = {isRoot: true, ciChild: {name: 'hello', embedded: {hello: 'world'}}};
+        const obj1: RootNotCircular = {isRoot: true, ciChild: {name: 'hello', big: 1n, embedded: {hello: 'world'}}};
         const obj2: RootNotCircular = {
             isRoot: true,
-            ciChild: {name: 'hello', embedded: {hello: 'world', child: {name: 'world1', embedded: {hello: 'world2'}}}},
+            ciChild: {
+                name: 'hello',
+                big: 1n,
+                embedded: {hello: 'world', child: {name: 'world1', big: 1n, embedded: {hello: 'world2'}}},
+            },
         };
         expect(valWithErrors(obj1)).toEqual([]);
         expect(valWithErrors(obj2)).toEqual([]);
 
-        const obj3 = {isRoot: true, ciChild: {name: 'hello', embedded: {hello: 123}}};
+        const obj3 = {isRoot: true, ciChild: {name: 'hello', big: 1n, embedded: {hello: 123}}};
         const obj4 = {
             isRoot: true,
-            ciChild: {name: 'hello', embedded: {hello: 'world', child: {name: 'world1', embedded: {hello: 123}}}},
+            ciChild: {
+                name: 'hello',
+                big: 1n,
+                embedded: {hello: 'world', child: {name: 'world1', big: 1n, embedded: {hello: 123}}},
+            },
         };
-        const obj5 = {isRoot: false, ciChild: {name: 'hello', embedded: {hello: 'world', child: 123}}};
+        const obj5 = {isRoot: false, ciChild: {name: 'hello', big: 1n, embedded: {hello: 'world', child: 123}}};
         expect(valWithErrors(obj3)).toEqual([{path: ['ciChild', 'embedded', 'hello'], expected: 'string'}]);
         expect(valWithErrors(obj4)).toEqual([{path: ['ciChild', 'embedded', 'child', 'embedded', 'hello'], expected: 'string'}]);
         expect(valWithErrors(obj5)).toEqual([
@@ -480,10 +525,14 @@ describe('Interface with nested circular type where root is not the circular ref
     it('encode/decode to json', () => {
         const toJson = buildJsonEncodeJITFn(rt).fn;
         const fromJson = buildJsonDecodeJITFn(rt).fn;
-        const obj1: RootNotCircular = {isRoot: true, ciChild: {name: 'hello', embedded: {hello: 'world'}}};
+        const obj1: RootNotCircular = {isRoot: true, ciChild: {name: 'hello', big: 1n, embedded: {hello: 'world'}}};
         const obj2: RootNotCircular = {
             isRoot: true,
-            ciChild: {name: 'hello', embedded: {hello: 'world', child: {name: 'world1', embedded: {hello: 'world2'}}}},
+            ciChild: {
+                name: 'hello',
+                big: 1n,
+                embedded: {hello: 'world', child: {name: 'world1', big: 1n, embedded: {hello: 'world2'}}},
+            },
         };
         expect(fromJson(toJson(obj1))).toEqual(obj1);
         expect(fromJson(toJson(obj2))).toEqual(obj2);
@@ -492,10 +541,14 @@ describe('Interface with nested circular type where root is not the circular ref
     it('json stringify', () => {
         const jsonStringify = buildJsonStringifyJITFn(rt).fn;
         const fromJson = buildJsonDecodeJITFn(rt).fn;
-        const obj1: RootNotCircular = {isRoot: true, ciChild: {name: 'hello', embedded: {hello: 'world'}}};
+        const obj1: RootNotCircular = {isRoot: true, ciChild: {name: 'hello', big: 1n, embedded: {hello: 'world'}}};
         const obj2: RootNotCircular = {
             isRoot: true,
-            ciChild: {name: 'hello', embedded: {hello: 'world', child: {name: 'world1', embedded: {hello: 'world2'}}}},
+            ciChild: {
+                name: 'hello',
+                big: 1n,
+                embedded: {hello: 'world', child: {name: 'world1', big: 1n, embedded: {hello: 'world2'}}},
+            },
         };
         const roundTrip1 = fromJson(JSON.parse(jsonStringify(obj1)));
         const roundTrip2 = fromJson(JSON.parse(jsonStringify(obj2)));
