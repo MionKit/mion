@@ -5,30 +5,39 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import type {TypeBoolean} from '../_deepkit/src/reflection/type';
-import type {JitContext, TypeErrorsContext} from '../types';
+import {ReflectionKind, type TypeBoolean} from '../_deepkit/src/reflection/type';
+import type {JitConstants, JitOperation, JitTypeErrorOperation} from '../types';
 import {getJitErrorPath, getExpected} from '../utils';
 import {mockBoolean} from '../mock';
 import {AtomicRunType} from '../baseRunTypes';
 
+const jitConstants: JitConstants = {
+    skipJit: false,
+    skipJsonEncode: true,
+    skipJsonDecode: true,
+    isCircularRef: false,
+    jitId: ReflectionKind.boolean,
+};
 export class BooleanRunType extends AtomicRunType<TypeBoolean> {
-    public readonly isJsonEncodeRequired = false;
-    public readonly isJsonDecodeRequired = false;
-
-    compileIsType(ctx: JitContext): string {
-        return `typeof ${ctx.args.vλl} === 'boolean'`;
+    src: TypeBoolean = null as any; // will be set after construction
+    constants = () => jitConstants;
+    getName(): string {
+        return 'boolean';
     }
-    compileTypeErrors(ctx: TypeErrorsContext): string {
-        return `if (typeof ${ctx.args.vλl} !== 'boolean') ${ctx.args.εrrors}.push({path: ${getJitErrorPath(ctx)}, expected: ${getExpected(this)}})`;
+    _compileIsType(stack: JitOperation): string {
+        return `typeof ${stack.args.vλl} === 'boolean'`;
     }
-    compileJsonEncode(): string {
-        return '';
+    _compileTypeErrors(stack: JitTypeErrorOperation): string {
+        return `if (typeof ${stack.args.vλl} !== 'boolean') ${stack.args.εrrors}.push({path: ${getJitErrorPath(stack)}, expected: ${getExpected(this)}})`;
     }
-    compileJsonDecode(): string {
-        return '';
+    _compileJsonEncode(op: JitOperation): string {
+        return op.args.vλl;
     }
-    compileJsonStringify(ctx: JitContext): string {
-        return ctx.args.vλl;
+    _compileJsonDecode(op: JitOperation): string {
+        return op.args.vλl;
+    }
+    _compileJsonStringify(stack: JitOperation): string {
+        return stack.args.vλl;
     }
     mock(): boolean {
         return mockBoolean();

@@ -20,7 +20,7 @@ import type {AnyRunType} from './atomicRunType/any';
 import type {UndefinedRunType} from './atomicRunType/undefined';
 import type {UnknownRunType} from './atomicRunType/unknown';
 import type {VoidRunType} from './atomicRunType/void';
-import type {ArrayRunType} from './collectionRunType/array';
+import type {ArrayRunType} from './memberRunType/array';
 import type {LiteralRunType} from './atomicRunType/literal';
 import type {RegexpRunType} from './atomicRunType/regexp';
 import type {NeverRunType} from './atomicRunType/never';
@@ -28,18 +28,19 @@ import type {EnumRunType} from './atomicRunType/enum';
 import type {EnumMemberRunType} from './atomicRunType/enumMember';
 import type {UnionRunType} from './collectionRunType/union';
 import type {TupleRunType} from './collectionRunType/tuple';
-import type {TupleMemberRunType} from './collectionRunType/tupleMember';
-import type {InterfaceRunType, InterfaceRunTypeEntry} from './collectionRunType/interface';
-import type {PropertyRunType} from './collectionRunType/property';
-import type {IndexSignatureRunType} from './collectionRunType/indexProperty';
+import type {TupleMemberRunType} from './memberRunType/tupleMember';
+import type {InterfaceRunType, InterfaceMember} from './collectionRunType/interface';
+import type {PropertyRunType} from './memberRunType/property';
+import type {IndexSignatureRunType} from './memberRunType/indexProperty';
 import type {MethodSignatureRunType} from './functionRunType/methodSignature';
 import type {CallSignatureRunType} from './functionRunType/call';
 import type {FunctionRunType} from './functionRunType/function';
-import type {ParameterRunType} from './functionRunType/param';
-import type {PromiseRunType} from './atomicRunType/promise';
+import type {ParameterRunType} from './memberRunType/param';
+import type {PromiseRunType} from './memberRunType/promise';
 import type {ObjectRunType} from './atomicRunType/object';
 import type {MethodRunType} from './functionRunType/method';
-import type {CollectionRunType, MemberRunType} from './baseRunTypes';
+import type {AtomicRunType, CollectionRunType, MemberRunType} from './baseRunTypes';
+import {dateJitId} from './constants';
 
 export function isAnyRunType(rt: RunType): rt is AnyRunType {
     return rt.src.kind === ReflectionKind.any;
@@ -62,7 +63,7 @@ export function isCallSignatureRunType(rt: RunType): rt is CallSignatureRunType 
 }
 
 export function isDateRunType(rt: RunType): rt is DateRunType {
-    return rt.src.kind === ReflectionKind.class && rt.jitId === 'date';
+    return isAtomicRunType(rt) && rt.getJitId() === dateJitId;
 }
 
 export function isEnumRunType(rt: RunType): rt is EnumRunType {
@@ -157,25 +158,23 @@ export function isPromiseRunType(rt: RunType): rt is PromiseRunType {
     return rt.src.kind === ReflectionKind.promise;
 }
 
-export function isConstructor(rt: InterfaceRunTypeEntry): rt is MethodSignatureRunType | MethodRunType {
+export function isConstructor(rt: InterfaceMember): rt is MethodSignatureRunType | MethodRunType {
     return (
         (rt.src.kind === ReflectionKind.method || rt.src.kind === ReflectionKind.methodSignature) &&
         (rt.src as TypeMethod).name === 'constructor'
     );
 }
 
+export function isAtomicRunType(rt: RunType): rt is AtomicRunType<any> {
+    return rt.getFamily() === 'A';
+}
+
 export function isCollectionRunType(rt: RunType): rt is CollectionRunType<any> {
-    return (
-        typeof (rt as CollectionRunType<any>).isCircularRef === 'boolean' ||
-        Array.isArray((rt as CollectionRunType<any>).childRunTypes)
-    );
+    return rt.getFamily() === 'C';
 }
 
 export function isMemberRunType(rt: RunType): rt is MemberRunType<any> {
-    return (
-        typeof (rt as MemberRunType<any>).memberType !== 'undefined' &&
-        typeof (rt as MemberRunType<any>).memberName !== 'undefined'
-    );
+    return rt.getFamily() === 'M';
 }
 
 export function isRunType(value: any): value is RunType {

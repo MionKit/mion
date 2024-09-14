@@ -5,51 +5,43 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 import {TypeClass} from '../_deepkit/src/reflection/type';
-import {JitContext, MockContext, RunType, RunTypeOptions, RunTypeVisitor} from '../types';
+import {JitOperation, MockContext} from '../types';
 import {toLiteral} from '../utils';
-import {InterfaceRunType} from './interface';
-import {jitUtils} from '../jitUtils';
+import {InterfaceRunType, InterfaceMember} from './interface';
 import {isConstructor} from '../guards';
 import {jitNames} from '../constants';
 
 export class ClassRunType extends InterfaceRunType<TypeClass> {
-    public readonly canDeserialize: boolean;
-    get className(): string {
+    getName(): string {
+        return `class`;
+    }
+    getClassName(): string {
         return this.src.classType.name;
     }
-    constructor(
-        visitor: RunTypeVisitor,
-        public readonly src: TypeClass,
-        public readonly parents: RunType[],
-        opts: RunTypeOptions
-    ) {
-        super(visitor, src, parents, opts, true, true);
-        this.canDeserialize = this.entries.every((prop) => !isConstructor(prop) || prop.parameterTypes.length === 0);
-        if (this.canDeserialize) jitUtils.addSerializableClass(src.classType);
+    canDeserialize(): boolean {
+        const children = this.getChildRunTypes() as InterfaceMember[];
+        return children.every((prop) => !isConstructor(prop) || prop.getParameters().getTotalParams() === 0);
     }
-
-    compileJsonDecode(ctx: JitContext): string {
-        ClassRunType.checkSerializable(this.canDeserialize, this.className);
-        const decodeParams = super.compileJsonDecode(ctx);
+    _compileJsonDecode(op: JitOperation): string {
+        checkSerializable(this.canDeserialize(), this.getClassName());
+        const decodeParams = super.compileJsonDecode(op);
         const decode = decodeParams ? `${decodeParams}; ` : '';
-        const classVarname = `clλss${ctx.parents.length}`;
+        const classVarname = `clλss${op.stack.length}`;
         // todo create a new class
         return `
             ${decode};
-            const ${classVarname} = ${jitNames.utils}.getSerializableClass(${toLiteral(this.className)});
-            ${ctx.args.vλl} = Object.assign(new ${classVarname}, ${ctx.args.vλl});
+            const ${classVarname} = ${jitNames.utils}.getSerializableClass(${toLiteral(this.getClassName())});
+            ${op.args.vλl} = Object.assign(new ${classVarname}, ${op.args.vλl});
         `;
     }
-    mock(ctx?: MockContext): Record<string | number, any> {
-        ClassRunType.checkSerializable(this.canDeserialize, this.className);
-        const childCtx: MockContext = {...ctx, parentObj: new this.src.classType()};
-        return super.mock(childCtx);
+    mock(op?: MockContext): Record<string | number, any> {
+        checkSerializable(this.canDeserialize(), this.getClassName());
+        const nextOp: MockContext = {...op, parentObj: new this.src.classType()};
+        return super.mock(nextOp);
     }
+}
 
-    private static checkSerializable(canDeserialize: boolean, className: string) {
-        if (!canDeserialize)
-            throw new Error(
-                `Class ${className} can't be deserialized. Only classes with and empty constructor can be deserialized.`
-            );
-    }
+function checkSerializable(canDeserialize: boolean, className: string) {
+    if (!canDeserialize)
+        throw new Error(`Class ${className} can't be deserialized. Only classes with and empty constructor can be deserialized.`);
 }

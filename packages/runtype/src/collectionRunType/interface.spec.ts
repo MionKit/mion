@@ -163,8 +163,8 @@ describe('Interface', () => {
             bigInt: BigInt(123),
             "weird prop name \n?>'\\\t\r": 'hello2',
         };
-        expect(rt.isJsonDecodeRequired).toBe(true);
-        expect(rt.isJsonEncodeRequired).toBe(true);
+        expect(rt.constants().skipJsonDecode).toBe(false);
+        expect(rt.constants().skipJsonEncode).toBe(false);
         expect(fromJson(toJson(typeValue))).toEqual(typeValue);
     });
 

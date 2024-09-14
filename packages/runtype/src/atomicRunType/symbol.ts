@@ -5,33 +5,43 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import type {TypeSymbol} from '../_deepkit/src/reflection/type';
-import type {JitContext, JitJsonEncoder, MockContext, TypeErrorsContext} from '../types';
+import {ReflectionKind, type TypeSymbol} from '../_deepkit/src/reflection/type';
+import type {JitOperation, JitJsonEncoder, MockContext, JitTypeErrorOperation, JitConstants} from '../types';
 import {getJitErrorPath, getExpected} from '../utils';
 import {mockSymbol} from '../mock';
 import {AtomicRunType} from '../baseRunTypes';
 
-export class SymbolRunType extends AtomicRunType<TypeSymbol> {
-    public readonly isJsonEncodeRequired = true;
-    public readonly isJsonDecodeRequired = true;
+const jitConstants: JitConstants = {
+    skipJit: true,
+    skipJsonEncode: true,
+    skipJsonDecode: true,
+    isCircularRef: false,
+    jitId: ReflectionKind.symbol,
+};
 
-    compileIsType(ctx: JitContext): string {
-        return `typeof ${ctx.args.vλl} === 'symbol'`;
+export class SymbolRunType extends AtomicRunType<TypeSymbol> {
+    src: TypeSymbol = null as any; // will be set after construction
+    constants = () => jitConstants;
+    getName(): string {
+        return 'symbol';
     }
-    compileTypeErrors(ctx: TypeErrorsContext): string {
-        return `if (typeof ${ctx.args.vλl} !== 'symbol') ${ctx.args.εrrors}.push({path: ${getJitErrorPath(ctx)}, expected: ${getExpected(this)}})`;
+    _compileIsType(stack: JitOperation): string {
+        return `typeof ${stack.args.vλl} === 'symbol'`;
     }
-    compileJsonEncode(ctx: JitContext): string {
-        return SymbolJitJsonEncoder.encodeToJson(ctx.args.vλl);
+    _compileTypeErrors(stack: JitTypeErrorOperation): string {
+        return `if (typeof ${stack.args.vλl} !== 'symbol') ${stack.args.εrrors}.push({path: ${getJitErrorPath(stack)}, expected: ${getExpected(this)}})`;
     }
-    compileJsonDecode(ctx: JitContext): string {
-        return SymbolJitJsonEncoder.decodeFromJson(ctx.args.vλl);
+    _compileJsonEncode(stack: JitOperation): string {
+        return SymbolJitJsonEncoder.encodeToJson(stack.args.vλl);
     }
-    compileJsonStringify(ctx: JitContext): string {
-        return SymbolJitJsonEncoder.stringify(ctx.args.vλl);
+    _compileJsonDecode(stack: JitOperation): string {
+        return SymbolJitJsonEncoder.decodeFromJson(stack.args.vλl);
     }
-    mock(ctx?: Pick<MockContext, 'symbolLength' | 'symbolCharSet' | 'symbolName'>): symbol {
-        return mockSymbol(ctx?.symbolName, ctx?.symbolLength, ctx?.symbolCharSet);
+    _compileJsonStringify(stack: JitOperation): string {
+        return SymbolJitJsonEncoder.stringify(stack.args.vλl);
+    }
+    mock(stack?: Pick<MockContext, 'symbolLength' | 'symbolCharSet' | 'symbolName'>): symbol {
+        return mockSymbol(stack?.symbolName, stack?.symbolLength, stack?.symbolCharSet);
     }
 }
 

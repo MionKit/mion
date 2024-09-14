@@ -5,34 +5,44 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import type {TypeAny, TypeUnknown} from '../_deepkit/src/reflection/type';
-import type {JitContext, MockContext, TypeErrorsContext} from '../types';
+import {ReflectionKind, type TypeAny, type TypeUnknown} from '../_deepkit/src/reflection/type';
+import type {JitOperation, MockContext, JitTypeErrorOperation, JitConstants} from '../types';
 import {random} from '../mock';
 import {getJitErrorPath, getExpected} from '../utils';
 import {mockObjectList} from '../constants';
 import {AtomicRunType} from '../baseRunTypes';
 
-export class ObjectRunType extends AtomicRunType<TypeAny | TypeUnknown> {
-    public readonly isJsonEncodeRequired = false;
-    public readonly isJsonDecodeRequired = false;
+const jitConstants: JitConstants = {
+    skipJit: false,
+    skipJsonEncode: true,
+    skipJsonDecode: true,
+    isCircularRef: false,
+    jitId: ReflectionKind.object,
+};
 
-    compileIsType(ctx: JitContext): string {
-        return `(typeof ${ctx.args.vλl} === 'object' && ${ctx.args.vλl} !== null)`;
+export class ObjectRunType extends AtomicRunType<TypeAny | TypeUnknown> {
+    src: TypeAny | TypeUnknown = null as any; // will be set after construction
+    constants = () => jitConstants;
+    getName(): string {
+        return 'object';
     }
-    compileTypeErrors(ctx: TypeErrorsContext): string {
-        return `if (!(${this.compileIsType(ctx)})) ${ctx.args.εrrors}.push({path: ${getJitErrorPath(ctx)}, expected: ${getExpected(this)}})`;
+    _compileIsType(stack: JitOperation): string {
+        return `(typeof ${stack.args.vλl} === 'object' && ${stack.args.vλl} !== null)`;
     }
-    compileJsonEncode(): string {
-        return '';
+    _compileTypeErrors(stack: JitTypeErrorOperation): string {
+        return `if (!(${this._compileIsType(stack)})) ${stack.args.εrrors}.push({path: ${getJitErrorPath(stack)}, expected: ${getExpected(this)}})`;
     }
-    compileJsonDecode(): string {
-        return '';
+    _compileJsonEncode(op: JitOperation): string {
+        return op.args.vλl;
     }
-    compileJsonStringify(ctx: JitContext): string {
-        return `JSON.stringify(${ctx.args.vλl})`;
+    _compileJsonDecode(op: JitOperation): string {
+        return op.args.vλl;
     }
-    mock(ctx?: Pick<MockContext, 'objectList'>): object {
-        const objectList = ctx?.objectList || mockObjectList;
+    _compileJsonStringify(stack: JitOperation): string {
+        return `JSON.stringify(${stack.args.vλl})`;
+    }
+    mock(stack?: Pick<MockContext, 'objectList'>): object {
+        const objectList = stack?.objectList || mockObjectList;
         return objectList[random(0, objectList.length - 1)];
     }
 }

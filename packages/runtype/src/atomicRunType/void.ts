@@ -5,28 +5,38 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import type {TypeVoid} from '../_deepkit/src/reflection/type';
-import type {JitContext, TypeErrorsContext} from '../types';
+import {ReflectionKind, type TypeVoid} from '../_deepkit/src/reflection/type';
+import type {JitConstants, JitOperation, JitTypeErrorOperation} from '../types';
 import {AtomicRunType} from '../baseRunTypes';
 import {getJitErrorPath, getExpected} from '../utils';
 
-export class VoidRunType extends AtomicRunType<TypeVoid> {
-    public readonly isJsonEncodeRequired = false;
-    public readonly isJsonDecodeRequired = false;
+const jitConstants: JitConstants = {
+    skipJit: true,
+    skipJsonEncode: true,
+    skipJsonDecode: true,
+    isCircularRef: false,
+    jitId: ReflectionKind.void,
+};
 
-    compileIsType(ctx: JitContext): string {
-        return `${ctx.args.vλl} === undefined`;
+export class VoidRunType extends AtomicRunType<TypeVoid> {
+    src: TypeVoid = null as any; // will be set after construction
+    constants = () => jitConstants;
+    getName(): string {
+        return 'void';
     }
-    compileTypeErrors(ctx: TypeErrorsContext): string {
-        return `if (${ctx.args.vλl} !== undefined) ${ctx.args.εrrors}.push({path: ${getJitErrorPath(ctx)}, expected: ${getExpected(this)}})`;
+    _compileIsType(stack: JitOperation): string {
+        return `${stack.args.vλl} === undefined`;
     }
-    compileJsonEncode(ctx: JitContext): string {
-        return `${ctx.args.vλl} = undefined`;
+    _compileTypeErrors(stack: JitTypeErrorOperation): string {
+        return `if (${stack.args.vλl} !== undefined) ${stack.args.εrrors}.push({path: ${getJitErrorPath(stack)}, expected: ${getExpected(this)}})`;
     }
-    compileJsonDecode(ctx: JitContext): string {
-        return `${ctx.args.vλl} = undefined`;
+    _compileJsonEncode(stack: JitOperation): string {
+        return `${stack.args.vλl} = undefined`;
     }
-    compileJsonStringify(): string {
+    _compileJsonDecode(stack: JitOperation): string {
+        return `${stack.args.vλl} = undefined`;
+    }
+    _compileJsonStringify(): string {
         return 'undefined';
     }
     mock(): void {}

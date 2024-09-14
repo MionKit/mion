@@ -12,18 +12,17 @@ export type JSONValue = string | number | boolean | null | {[key: string]: JSONV
 export type JSONString = string;
 
 export type RunTypeVisitor = (deepkitType: Type, parents: RunType[], opts: RunTypeOptions) => RunType;
-export type SrcType = Type & {_runType?: RunType};
+export type DKwithRT = Type & {_rt: RunType};
 
-export interface JitCompileContext<FnArgs extends JitFnArgs = JitFnArgs> {
-    parents: RunType[];
+type JitFnArgs = {vλl: string; [key: string]: string};
+export interface JitCompileOperation<FnArgs extends JitFnArgs = JitFnArgs> {
+    stack: RunType[];
     /** the key of the argName must be the same as the variable name. so keys are used as inital variable names when jitContext gets reset. */
     args: FnArgs;
     path: JitPathItem[];
+    getDefaultArgs(): FnArgs;
 }
-interface JitFnArgs {
-    vλl: string;
-    [key: string]: string;
-}
+
 export type JitPathItem = {
     vλl: string | number;
     /** whether the path item needs to be accesses as and array myobject[A] or as property myobject.A */
@@ -37,11 +36,32 @@ export type JitPathItem = {
      * */
     literal: string | number;
 };
-export type JitContext = JitCompileContext<{vλl: string}>;
-export type TypeErrorsContext = JitCompileContext<{vλl: string; pλth: string; εrrors: string}>;
+export type JitOperation = JitCompileOperation<{vλl: string}>;
+export type JitTypeErrorOperation = JitCompileOperation<{vλl: string; pλth: string; εrrors: string}>;
 
-export type DefaultJitArgs = JitContext['args'];
-export type DefaultJitTypeErrorsArgs = TypeErrorsContext['args'];
+export type DefaultJitArgs = JitOperation['args'];
+export type DefaultJitTypeErrorsArgs = JitTypeErrorOperation['args'];
+
+/**
+ * Runtime Metadata for a typescript types.
+ */
+export interface RunType extends JitCompilerFunctions {
+    readonly src: Type;
+    getName(): string;
+    getFamily(): 'A' | 'C' | 'M' | 'F'; // Atomic, Collection, Member, Function
+    constants(stack?: RunType[]): JitConstants;
+    mock: (mockContext?: MockContext) => any;
+    compile: () => JITCompiledFunctions;
+    getJitId(): string | number;
+}
+
+export type JitConstants = {
+    readonly skipJit: boolean;
+    readonly skipJsonEncode: boolean;
+    readonly skipJsonDecode: boolean;
+    readonly jitId: string | number;
+    readonly isCircularRef: boolean;
+};
 
 export interface JitCompilerFunctions {
     /**
@@ -51,23 +71,23 @@ export interface JitCompilerFunctions {
      * this code should not contain any sentence breaks or semicolons.
      * ie: compileIsType = () => `typeof vλluε === 'string'`
      */
-    compileIsType(jitCompileContext: JitContext): string;
+    compileIsType(jitCompileContext: JitOperation): string;
     /**
      * JIT code Validation + error info
      * Similar to validation code but instead of returning a boolean it should assign an error message to the errorsName
      * This is an executable code block and can contain multiple lines or semicolons
-     * ie:  validateCodeWithErrors = () => `if (typeof vλluε !== 'string') ${ctx.args.εrrors} = 'Expected to be a String';`
+     * ie:  validateCodeWithErrors = () => `if (typeof vλluε !== 'string') ${stack.args.εrrors} = 'Expected to be a String';`
      * path is a string that represents the path to the property being validated.
      * path is calculated at runtime so is an expresion like 'path1' + '/' + 'path2' + '/' + 'path3'
      */
-    compileTypeErrors(jitCompileContext: TypeErrorsContext): string;
+    compileTypeErrors(jitCompileContext: JitTypeErrorOperation): string;
     /**
      * JIT code to transform from type to an object that can be serialized using json
      * this code should not use return statements, it should be a single line of code that evaluates to a json compatible type.
      * this code should not contain any sentence breaks or semicolons.
      * ie for bigIng: compileJsonEncode = () => `vλluε.toString()`
      * */
-    compileJsonEncode(jitCompileContext: JitContext): string;
+    compileJsonEncode(jitCompileContext: JitOperation): string;
     /**
      * JIT code to transform from json to type so type can be deserialized from json
      * this code should not use return statements, it should be a single line that recieves a json compatible type and returns a deserialized value.
@@ -77,36 +97,14 @@ export interface JitCompilerFunctions {
      * For security reason decoding ignores any properties that are not defined in the type.
      * So is your type is {name: string} and the json is {name: string, age: number} the age property will be ignored.
      * */
-    compileJsonDecode(jitCompileContext: JitContext): string;
+    compileJsonDecode(jitCompileContext: JitOperation): string;
     /**
      * JIT code to transform a type directly into s json string.
      * when serializing to json normally we need first to prepare the object using compileJsonEncode and then JSON.stringify().
      * this code directly outputs the json string and saves traversing the type twice
      * stringify is allways strict
      */
-    compileJsonStringify(jitCompileContext: JitContext): string;
-}
-
-export interface RunType<Opts extends RunTypeOptions = RunTypeOptions> extends JitCompilerFunctions {
-    readonly src: Type;
-    readonly isJsonEncodeRequired: boolean;
-    readonly isJsonDecodeRequired: boolean;
-    readonly functions: JITCompiledFunctionsData;
-    readonly jitId: string | number;
-
-    /** Options for this RunType, only stored in the types that needs to use it */
-    readonly opts?: Opts;
-
-    /** whether or not the type is a atomic runtype that can´t have child run types, ie: string, number, boolean, null, etc.. */
-    readonly isAtomic?: boolean;
-
-    /**
-     * returns a mocked value, should be random when possible
-     * */
-    mock: (mockContext?: MockContext, ...args: any[]) => any;
-
-    /** Readable unique identifier of the RunType, used as the expected value of type errors */
-    getName(): string;
+    compileJsonStringify(jitCompileContext: JitOperation): string;
 }
 
 export interface RunTypeOptions {
@@ -151,7 +149,7 @@ export type jsonEncodeFn = (value: any) => JSONValue;
 export type jsonDecodeFn = (value: JSONValue) => any;
 export type jsonStringifyFn = (value: any) => JSONString;
 
-export interface JITCompiledFunctionsData {
+export interface JITCompiledFunctions {
     isType: JitFnData<isTypeFn>;
     typeErrors: JitFnData<typeErrorsFn>;
     jsonEncode: JitFnData<jsonEncodeFn>;
@@ -223,7 +221,7 @@ interface MockOptions {
     /** probability to generate options types, number between 0 and 1 */
     optionalProbability?: number;
     /** probability to generate an specific property of an object, number between 0 and 1 */
-    optionalPropertyProbability?: Record<string | number, number>;
+    optionalPropertyProbability?: Record<string | number, number>; // TODO change to a record of MockOptions
     parentObj?: Record<string | number | symbol, any>;
     /** the index of the object to mock withing the union */
     unionIndex?: number;

@@ -6,73 +6,64 @@
  * ######## */
 
 import type {TypeLiteral} from '../_deepkit/src/reflection/type';
-import type {JitContext, JitJsonEncoder, RunType, RunTypeOptions, RunTypeVisitor, TypeErrorsContext} from '../types';
+import type {JitOperation, JitJsonEncoder, JitTypeErrorOperation, JitConstants} from '../types';
 import {SymbolJitJsonEncoder} from './symbol';
 import {BigIntJitJsonENcoder} from './bigInt';
 import {RegexpJitJsonEncoder} from './regexp';
-import {getJitErrorPath, toLiteral} from '../utils';
+import {getJitErrorPath, memo, toLiteral} from '../utils';
 import {AtomicRunType} from '../baseRunTypes';
 
 export class LiteralRunType extends AtomicRunType<TypeLiteral> {
-    public readonly isJsonEncodeRequired: boolean;
-    public readonly isJsonDecodeRequired: boolean;
-    public readonly jitJsonEncoder: JitJsonEncoder;
-    constructor(
-        visitor: RunTypeVisitor,
-        public readonly src: TypeLiteral,
-        public readonly parents: RunType[],
-        opts: RunTypeOptions
-    ) {
-        super(visitor, src, parents, opts);
+    src: TypeLiteral = null as any; // will be set after construction
+    get jitConstants() {
+        return this.constants();
+    }
+    getName(): string {
+        return 'literal';
+    }
+    constants = memo((): JitConstants => {
         switch (true) {
-            case typeof src.literal === 'bigint':
-                this.jitJsonEncoder = BigIntJitJsonENcoder;
-                this.isJsonEncodeRequired = true;
-                this.isJsonDecodeRequired = true;
-                break;
-            case typeof src.literal === 'symbol':
-                this.jitJsonEncoder = SymbolJitJsonEncoder;
-                this.isJsonEncodeRequired = true;
-                this.isJsonDecodeRequired = true;
-                break;
-            case typeof src.literal === 'string':
-                this.jitJsonEncoder = noEncoder;
-                this.isJsonEncodeRequired = false;
-                this.isJsonDecodeRequired = false;
-                break;
-            case src.literal instanceof RegExp:
-                this.jitJsonEncoder = RegexpJitJsonEncoder;
-                this.isJsonEncodeRequired = true;
-                this.isJsonDecodeRequired = true;
-                break;
+            case typeof this.src.literal === 'bigint':
+                return getJitConstantsForBigint(this.src.kind, this.src.literal);
+            case typeof this.src.literal === 'symbol':
+                return getJitConstantsForSymbol(this.src.kind, this.src.literal);
+            case this.src.literal instanceof RegExp:
+                return getJitConstantsForRegExp(this.src.kind, this.src.literal);
             default:
-                this.jitJsonEncoder = noEncoder;
-                this.isJsonEncodeRequired = false;
-                this.isJsonDecodeRequired = false;
+                return getDefaultJitConstants(this.src.kind, this.src.literal);
+        }
+    });
+    getJsonEncoder() {
+        switch (true) {
+            case typeof this.src.literal === 'bigint':
+                return BigIntJitJsonENcoder;
+            case typeof this.src.literal === 'symbol':
+                return SymbolJitJsonEncoder;
+            case this.src.literal instanceof RegExp:
+                return RegexpJitJsonEncoder;
+            default:
+                return noEncoder;
         }
     }
-    getJitId(): string {
-        return `${this.src.kind}:${String(this.src.literal)}`;
+    _compileIsType(stack: JitOperation): string {
+        if (typeof this.src.literal === 'symbol') return compileIsSymbol(stack, this.src.literal);
+        else if (this.src.literal instanceof RegExp) return compileIsRegExp(stack, this.src.literal);
+        else if (typeof this.src.literal === 'bigint') return compileIsBigInt(stack, this.src.literal);
+        else return compileIsLiteral(stack, this.src.literal);
     }
-    compileIsType(ctx: JitContext): string {
-        if (typeof this.src.literal === 'symbol') return compileIsSymbol(ctx, this.src.literal);
-        else if (this.src.literal instanceof RegExp) return compileIsRegExp(ctx, this.src.literal);
-        else if (typeof this.src.literal === 'bigint') return compileIsBigInt(ctx, this.src.literal);
-        else return compileIsLiteral(ctx, this.src.literal);
+    _compileTypeErrors(stack: JitTypeErrorOperation): string {
+        if (typeof this.src.literal === 'symbol') return compileTypeErrorsSymbol(stack, this.src.literal, this.getName());
+        else if (this.src.literal instanceof RegExp) return compileTypeErrorsRegExp(stack, this.src.literal, this.getName());
+        return compileTypeErrorsLiteral(stack, this.src.literal, this.getName());
     }
-    compileTypeErrors(ctx: TypeErrorsContext): string {
-        if (typeof this.src.literal === 'symbol') return compileTypeErrorsSymbol(ctx, this.src.literal, this.getName());
-        else if (this.src.literal instanceof RegExp) return compileTypeErrorsRegExp(ctx, this.src.literal, this.getName());
-        return compileTypeErrorsLiteral(ctx, this.src.literal, this.getName());
+    _compileJsonEncode(stack: JitOperation): string {
+        return this.getJsonEncoder().encodeToJson(stack.args.vλl);
     }
-    compileJsonEncode(ctx: JitContext): string {
-        return this.jitJsonEncoder.encodeToJson(ctx.args.vλl);
+    _compileJsonDecode(stack: JitOperation): string {
+        return this.getJsonEncoder().decodeFromJson(stack.args.vλl);
     }
-    compileJsonDecode(ctx: JitContext): string {
-        return this.jitJsonEncoder.decodeFromJson(ctx.args.vλl);
-    }
-    compileJsonStringify(ctx: JitContext): string {
-        return this.jitJsonEncoder.stringify(ctx.args.vλl);
+    _compileJsonStringify(stack: JitOperation): string {
+        return this.getJsonEncoder().stringify(stack.args.vλl);
     }
     mock(): symbol | string | number | boolean | bigint | RegExp {
         return this.src.literal;
@@ -80,47 +71,84 @@ export class LiteralRunType extends AtomicRunType<TypeLiteral> {
 }
 
 const noEncoder: JitJsonEncoder = {
-    decodeFromJson() {
-        return ``;
+    decodeFromJson(vλl): string {
+        return vλl;
     },
-    encodeToJson() {
-        return ``;
+    encodeToJson(vλl): string {
+        return vλl;
     },
     stringify(vλl: string) {
         return `JSON.stringify(${vλl})`;
     },
 };
 
-function compileIsBigInt(ctx: JitContext, lit: bigint): string {
-    return `${ctx.args.vλl} === ${toLiteral(lit)}`;
+function compileIsBigInt(stack: JitOperation, lit: bigint): string {
+    return `${stack.args.vλl} === ${toLiteral(lit)}`;
 }
 
-function compileIsSymbol(ctx: JitContext, lit: symbol): string {
-    return `(typeof ${ctx.args.vλl} === 'symbol' && ${ctx.args.vλl}.description === ${toLiteral(lit.description)})`;
+function compileIsSymbol(stack: JitOperation, lit: symbol): string {
+    return `(typeof ${stack.args.vλl} === 'symbol' && ${stack.args.vλl}.description === ${toLiteral(lit.description)})`;
 }
 
-function compileIsRegExp(ctx: JitContext, lit: RegExp): string {
-    return `String(${ctx.args.vλl}) === String(${lit})`;
+function compileIsRegExp(stack: JitOperation, lit: RegExp): string {
+    return `String(${stack.args.vλl}) === String(${lit})`;
 }
 
-function compileIsLiteral(ctx: JitContext, lit: Exclude<TypeLiteral['literal'], symbol>): string {
-    return `${ctx.args.vλl} === ${toLiteral(lit)}`;
+function compileIsLiteral(stack: JitOperation, lit: Exclude<TypeLiteral['literal'], symbol>): string {
+    return `${stack.args.vλl} === ${toLiteral(lit)}`;
 }
 
-function compileTypeErrorsSymbol(ctx: TypeErrorsContext, lit: symbol, name: string | number): string {
-    return `if (typeof ${ctx.args.vλl} !== 'symbol' || ${ctx.args.vλl}.description !== ${toLiteral(lit.description)}) {
-        ${ctx.args.εrrors}.push({path: ${getJitErrorPath(ctx)}, expected: ${toLiteral(name)}})
+function compileTypeErrorsSymbol(stack: JitTypeErrorOperation, lit: symbol, name: string | number): string {
+    return `if (typeof ${stack.args.vλl} !== 'symbol' || ${stack.args.vλl}.description !== ${toLiteral(lit.description)}) {
+        ${stack.args.εrrors}.push({path: ${getJitErrorPath(stack)}, expected: ${toLiteral(name)}})
     }`;
 }
 
-function compileTypeErrorsRegExp(ctx: TypeErrorsContext, lit: RegExp, name: string | number): string {
-    return `if (String(${ctx.args.vλl}) !== String(${lit})) ${ctx.args.εrrors}.push({path: ${getJitErrorPath(ctx)}, expected: ${toLiteral(name)}})`;
+function compileTypeErrorsRegExp(stack: JitTypeErrorOperation, lit: RegExp, name: string | number): string {
+    return `if (String(${stack.args.vλl}) !== String(${lit})) ${stack.args.εrrors}.push({path: ${getJitErrorPath(stack)}, expected: ${toLiteral(name)}})`;
 }
 
 function compileTypeErrorsLiteral(
-    ctx: TypeErrorsContext,
+    stack: JitTypeErrorOperation,
     lit: Exclude<TypeLiteral['literal'], symbol>,
     name: string | number
 ): string {
-    return `if (${ctx.args.vλl} !== ${toLiteral(lit)}) ${ctx.args.εrrors}.push({path: ${getJitErrorPath(ctx)}, expected: ${toLiteral(name)}})`;
+    return `if (${stack.args.vλl} !== ${toLiteral(lit)}) ${stack.args.εrrors}.push({path: ${getJitErrorPath(stack)}, expected: ${toLiteral(name)}})`;
+}
+
+function getJitConstantsForBigint(kind: number, literal: bigint): JitConstants {
+    return {
+        skipJit: false,
+        skipJsonEncode: false,
+        skipJsonDecode: false,
+        isCircularRef: false,
+        jitId: `${kind}:${String(literal)}`,
+    };
+}
+function getJitConstantsForSymbol(kind: number, literal: symbol): JitConstants {
+    return {
+        skipJit: true,
+        skipJsonEncode: true,
+        skipJsonDecode: true,
+        isCircularRef: false,
+        jitId: `${kind}:${String(literal)}`,
+    };
+}
+function getJitConstantsForRegExp(kind: number, literal: RegExp): JitConstants {
+    return {
+        skipJit: false,
+        skipJsonEncode: false,
+        skipJsonDecode: false,
+        isCircularRef: false,
+        jitId: `${kind}:${String(literal)}`,
+    };
+}
+function getDefaultJitConstants(kind: number, literal: string | number | boolean): JitConstants {
+    return {
+        skipJit: false,
+        skipJsonEncode: true,
+        skipJsonDecode: true,
+        isCircularRef: false,
+        jitId: `${kind}:${literal}`,
+    };
 }
