@@ -5,11 +5,9 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import type {AnyClass, Mutable, RunType, TypeErrorsContext} from './types';
-import type {CollectionRunType} from './baseRunTypes';
+import type {AnyClass, RunType, JitTypeErrorOperation} from './types';
 import {isSameType, ReflectionKind} from './_deepkit/src/reflection/type';
 import {jitUtils} from './jitUtils';
-import {isCollectionRunType} from './guards';
 
 export function toLiteral(value: number | string | boolean | undefined | null | bigint | RegExp | symbol): string {
     switch (typeof value) {
@@ -38,14 +36,6 @@ export function arrayToLiteral(value: any[]): string {
     return `[${value.map((v) => toLiteral(v)).join(', ')}]`;
 }
 
-export function shouldSkipJsonEncode(rt: RunType): boolean {
-    return !rt.opts?.strictJSON && !rt.isJsonEncodeRequired;
-}
-
-export function shouldSkipJsonDecode(rt: RunType): boolean {
-    return !rt.opts?.strictJSON && !rt.isJsonDecodeRequired;
-}
-
 export function isFunctionKind(kind: ReflectionKind): boolean {
     return (
         kind === ReflectionKind.callSignature ||
@@ -66,13 +56,6 @@ export function isClass(cls: AnyClass | any): cls is AnyClass {
     );
 }
 
-export function markAsCircular(rt: RunType, parents: RunType[]): void {
-    if ((rt as CollectionRunType<any>).isCircularRef || !isCollectionRunType(rt)) return;
-    if (hasCircularParents(rt, parents)) {
-        (rt as Mutable<CollectionRunType<any>>).isCircularRef = true;
-    }
-}
-
 export function hasCircularParents(rt: RunType, parents: RunType[]): boolean {
     for (const parent of parents) {
         if (isSameType(rt.src, parent.src)) return true;
@@ -80,12 +63,20 @@ export function hasCircularParents(rt: RunType, parents: RunType[]): boolean {
     return false;
 }
 
-export function getJitErrorPath(ctx: TypeErrorsContext): string {
-    if (ctx.path.length === 0) return `[...${ctx.args.pλth}]`;
-    const currentPathArgs = ctx.path.map((pathItem) => pathItem.literal).join(',');
-    return `[...${ctx.args.pλth},${currentPathArgs}]`;
+export function getJitErrorPath(stack: JitTypeErrorOperation): string {
+    if (stack.path.length === 0) return `[...${stack.args.pλth}]`;
+    const currentPathArgs = stack.path.map((pathItem) => pathItem.literal).join(',');
+    return `[...${stack.args.pλth},${currentPathArgs}]`;
 }
 
 export function getExpected(rt: RunType): string {
     return toLiteral(rt.getName());
+}
+
+export function memo<Fn extends (...args: any[]) => any>(fn: Fn): Fn {
+    let cached: undefined | any;
+    return ((...args: any[]) => {
+        if (!cached) cached = fn(...args);
+        return cached;
+    }) as Fn;
 }

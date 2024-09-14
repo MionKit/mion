@@ -5,26 +5,36 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import type {TypeNever} from '../_deepkit/src/reflection/type';
+import {ReflectionKind, type TypeNever} from '../_deepkit/src/reflection/type';
 import {AtomicRunType} from '../baseRunTypes';
+import {JitConstants} from '../types';
 
+const jitConstants: JitConstants = {
+    skipJit: true,
+    skipJsonEncode: true,
+    skipJsonDecode: true,
+    isCircularRef: false,
+    jitId: ReflectionKind.never,
+};
 export class NeverRunType extends AtomicRunType<TypeNever> {
-    public readonly isJsonEncodeRequired = false;
-    public readonly isJsonDecodeRequired = false;
-
-    compileIsType(): string {
+    src: TypeNever = null as any; // will be set after construction
+    constants = () => jitConstants;
+    getName(): string {
+        return 'never';
+    }
+    _compileIsType(): string {
         throw new Error('Never type cannot exist at runtime.');
     }
-    compileTypeErrors(): string {
+    _compileTypeErrors(): string {
         throw new Error('Never type cannot exist at runtime.');
     }
-    compileJsonEncode(): string {
+    _compileJsonEncode(): string {
         throw new Error('Never type cannot be encoded to JSON.');
     }
-    compileJsonDecode(): string {
+    _compileJsonDecode(): string {
         throw new Error('Never type cannot be decoded from JSON.');
     }
-    compileJsonStringify(): string {
+    _compileJsonStringify(): string {
         throw new Error('Never type cannot be stringified.');
     }
     mock() {

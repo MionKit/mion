@@ -6,7 +6,6 @@
  * ######## */
 
 import {TypeIntersection} from '../_deepkit/src/reflection/type';
-import {RunType, RunTypeOptions, RunTypeVisitor} from '../types';
 import {InterfaceRunType} from './interface';
 
 /** IMPORTANT:
@@ -15,13 +14,10 @@ import {InterfaceRunType} from './interface';
  * ie: type NeVer = string & number will be resolved to never
  * */
 export class IntersectionRunType extends InterfaceRunType<TypeIntersection> {
-    constructor(
-        visitor: RunTypeVisitor,
-        public readonly src: TypeIntersection,
-        public readonly parents: RunType[],
-        opts: RunTypeOptions
-    ) {
-        super(visitor, src, parents, opts);
+    getName(): string {
+        return this.getChildRunTypes()
+            .map((c) => c.getName())
+            .join(' & ');
     }
 
     compileIsType(): string {

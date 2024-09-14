@@ -5,35 +5,45 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import type {TypeString} from '../_deepkit/src/reflection/type';
-import type {JitContext, MockContext, TypeErrorsContext} from '../types';
+import {ReflectionKind, type TypeString} from '../_deepkit/src/reflection/type';
+import type {JitOperation, MockContext, JitTypeErrorOperation, JitConstants} from '../types';
 import {getJitErrorPath, getExpected} from '../utils';
 import {mockString, random} from '../mock';
 import {AtomicRunType} from '../baseRunTypes';
 import {jitNames, stringCharSet} from '../constants';
 
-export class StringRunType extends AtomicRunType<TypeString> {
-    public readonly isJsonEncodeRequired = false;
-    public readonly isJsonDecodeRequired = false;
+const jitConstants: JitConstants = {
+    skipJit: false,
+    skipJsonEncode: true,
+    skipJsonDecode: true,
+    isCircularRef: false,
+    jitId: ReflectionKind.string,
+};
 
-    compileIsType(ctx: JitContext): string {
-        return `typeof ${ctx.args.vλl} === 'string'`;
+export class StringRunType extends AtomicRunType<TypeString> {
+    src: TypeString = null as any; // will be set after construction
+    constants = () => jitConstants;
+    getName(): string {
+        return 'string';
     }
-    compileTypeErrors(ctx: TypeErrorsContext): string {
-        return `if (typeof ${ctx.args.vλl} !== 'string') ${ctx.args.εrrors}.push({path: ${getJitErrorPath(ctx)}, expected: ${getExpected(this)}})`;
+    _compileIsType(op: JitOperation): string {
+        return `typeof ${op.args.vλl} === 'string'`;
     }
-    compileJsonEncode(): string {
-        return '';
+    _compileTypeErrors(op: JitTypeErrorOperation): string {
+        return `if (typeof ${op.args.vλl} !== 'string') ${op.args.εrrors}.push({path: ${getJitErrorPath(op)}, expected: ${getExpected(this)}})`;
     }
-    compileJsonDecode(): string {
-        return '';
+    _compileJsonEncode(op: JitOperation): string {
+        return op.args.vλl;
     }
-    compileJsonStringify(ctx: JitContext): string {
-        return `${jitNames.utils}.asJSONString(${ctx.args.vλl})`;
+    _compileJsonDecode(op: JitOperation): string {
+        return op.args.vλl;
     }
-    mock(ctx?: Pick<MockContext, 'stringLength' | 'stringCharSet'>): string {
-        const length = ctx?.stringLength || random(1, 500);
-        const charSet = ctx?.stringCharSet || stringCharSet;
+    _compileJsonStringify(stack: JitOperation): string {
+        return `${jitNames.utils}.asJSONString(${stack.args.vλl})`;
+    }
+    mock(stack?: Pick<MockContext, 'stringLength' | 'stringCharSet'>): string {
+        const length = stack?.stringLength || random(1, 500);
+        const charSet = stack?.stringCharSet || stringCharSet;
         return mockString(length, charSet);
     }
 }

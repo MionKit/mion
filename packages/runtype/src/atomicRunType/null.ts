@@ -5,29 +5,39 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import type {TypeNull} from '../_deepkit/src/reflection/type';
-import type {JitContext, TypeErrorsContext} from '../types';
+import {ReflectionKind, type TypeNull} from '../_deepkit/src/reflection/type';
+import type {JitConstants, JitOperation, JitTypeErrorOperation} from '../types';
 import {AtomicRunType} from '../baseRunTypes';
 import {getJitErrorPath, getExpected} from '../utils';
 
-export class NullRunType extends AtomicRunType<TypeNull> {
-    public readonly isJsonEncodeRequired = false;
-    public readonly isJsonDecodeRequired = false;
+const jitConstants: JitConstants = {
+    skipJit: false,
+    skipJsonEncode: true,
+    skipJsonDecode: true,
+    isCircularRef: false,
+    jitId: ReflectionKind.null,
+};
 
-    compileIsType(ctx: JitContext): string {
-        return `${ctx.args.vλl} === null`;
+export class NullRunType extends AtomicRunType<TypeNull> {
+    src: TypeNull = null as any; // will be set after construction
+    constants = () => jitConstants;
+    getName(): string {
+        return 'null';
     }
-    compileTypeErrors(ctx: TypeErrorsContext): string {
-        return `if (${ctx.args.vλl} !== null) ${ctx.args.εrrors}.push({path: ${getJitErrorPath(ctx)}, expected: ${getExpected(this)}})`;
+    _compileIsType(stack: JitOperation): string {
+        return `${stack.args.vλl} === null`;
     }
-    compileJsonEncode(): string {
-        return '';
+    _compileTypeErrors(stack: JitTypeErrorOperation): string {
+        return `if (${stack.args.vλl} !== null) ${stack.args.εrrors}.push({path: ${getJitErrorPath(stack)}, expected: ${getExpected(this)}})`;
     }
-    compileJsonDecode(): string {
-        return '';
+    _compileJsonEncode(op: JitOperation): string {
+        return op.args.vλl;
     }
-    compileJsonStringify(ctx: JitContext): string {
-        return ctx.args.vλl;
+    _compileJsonDecode(op: JitOperation): string {
+        return op.args.vλl;
+    }
+    _compileJsonStringify(stack: JitOperation): string {
+        return stack.args.vλl;
     }
     mock(): null {
         return null;

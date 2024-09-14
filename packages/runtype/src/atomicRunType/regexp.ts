@@ -5,33 +5,43 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import type {TypeRegexp} from '../_deepkit/src/reflection/type';
-import type {JitContext, JitJsonEncoder, MockContext, TypeErrorsContext} from '../types';
+import {ReflectionKind, type TypeRegexp} from '../_deepkit/src/reflection/type';
+import type {JitOperation, JitJsonEncoder, MockContext, JitTypeErrorOperation, JitConstants} from '../types';
 import {getJitErrorPath, getExpected} from '../utils';
 import {mockRegExp} from '../mock';
 import {AtomicRunType} from '../baseRunTypes';
 
-export class RegexpRunType extends AtomicRunType<TypeRegexp> {
-    public readonly isJsonEncodeRequired = true;
-    public readonly isJsonDecodeRequired = true;
+const jitConstants: JitConstants = {
+    skipJit: false,
+    skipJsonEncode: false,
+    skipJsonDecode: false,
+    isCircularRef: false,
+    jitId: ReflectionKind.regexp,
+};
 
-    compileIsType(ctx: JitContext): string {
-        return `(${ctx.args.vλl} instanceof RegExp)`;
+export class RegexpRunType extends AtomicRunType<TypeRegexp> {
+    src: TypeRegexp = null as any; // will be set after construction
+    constants = () => jitConstants;
+    getName(): string {
+        return 'regexp';
     }
-    compileTypeErrors(ctx: TypeErrorsContext): string {
-        return `if (!(${ctx.args.vλl} instanceof RegExp)) ${ctx.args.εrrors}.push({path: ${getJitErrorPath(ctx)}, expected: ${getExpected(this)}})`;
+    _compileIsType(stack: JitOperation): string {
+        return `(${stack.args.vλl} instanceof RegExp)`;
     }
-    compileJsonEncode(ctx: JitContext): string {
-        return RegexpJitJsonEncoder.encodeToJson(ctx.args.vλl);
+    _compileTypeErrors(stack: JitTypeErrorOperation): string {
+        return `if (!(${stack.args.vλl} instanceof RegExp)) ${stack.args.εrrors}.push({path: ${getJitErrorPath(stack)}, expected: ${getExpected(this)}})`;
     }
-    compileJsonDecode(ctx: JitContext): string {
-        return RegexpJitJsonEncoder.decodeFromJson(ctx.args.vλl);
+    _compileJsonEncode(stack: JitOperation): string {
+        return RegexpJitJsonEncoder.encodeToJson(stack.args.vλl);
     }
-    compileJsonStringify(ctx: JitContext): string {
-        return RegexpJitJsonEncoder.stringify(ctx.args.vλl);
+    _compileJsonDecode(stack: JitOperation): string {
+        return RegexpJitJsonEncoder.decodeFromJson(stack.args.vλl);
     }
-    mock(ctx?: Pick<MockContext, 'regexpList'>): RegExp {
-        return mockRegExp(ctx?.regexpList);
+    _compileJsonStringify(stack: JitOperation): string {
+        return RegexpJitJsonEncoder.stringify(stack.args.vλl);
+    }
+    mock(stack?: Pick<MockContext, 'regexpList'>): RegExp {
+        return mockRegExp(stack?.regexpList);
     }
 }
 

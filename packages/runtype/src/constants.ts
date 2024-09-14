@@ -5,7 +5,10 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
+import {ReflectionKind} from './_deepkit/src/reflection/type';
 import type {DefaultJitArgs, DefaultJitTypeErrorsArgs} from './types';
+
+export const dateJitId = `${ReflectionKind.class}Date`;
 
 export const validPropertyNameRegExp = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
 
@@ -67,9 +70,12 @@ export const mockObjectList = [{}, {a: 1}, {b: 2}, {a: 1, b: 'hello'}, {a: 1, b:
 
 export const jitNames = {
     utils: 'µTils',
-    errors: 'εrrors',
-    circularPath: 'ciPλth', // path array used when compiling RunType Errors with circular types
 };
 
-export const defaultJitArgs: DefaultJitArgs = {vλl: 'vλl'};
-export const defaultJitTypeErrorsArgs: DefaultJitTypeErrorsArgs = {vλl: 'vλl', pλth: 'pλth', εrrors: 'εrrors'};
+export function getDefaultJitArgs(): DefaultJitArgs {
+    return {vλl: 'vλl'};
+}
+
+export function getDefaultJitTypeErrorsArgs(): DefaultJitTypeErrorsArgs {
+    return {vλl: 'vλl', pλth: 'pλth', εrrors: 'εrrors'};
+}

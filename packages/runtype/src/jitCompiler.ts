@@ -6,7 +6,7 @@
  * ######## */
 
 import type {
-    JITCompiledFunctionsData,
+    JITCompiledFunctions,
     JSONValue,
     JitFnData,
     JitCompilerFunctions,
@@ -15,14 +15,13 @@ import type {
     isTypeFn,
     typeErrorsFn,
     UnwrappedJITFunctions,
-    JitContext,
-    TypeErrorsContext,
-    JitCompileContext,
-    JitPathItem,
+    JitOperation,
+    JitTypeErrorOperation,
+    JitCompileOperation,
 } from './types';
 import {jitUtils} from './jitUtils';
 import {toLiteral, arrayToLiteral} from './utils';
-import {jitNames} from './constants';
+import {getDefaultJitArgs, getDefaultJitTypeErrorsArgs, jitNames} from './constants';
 
 /**
  * Builds all the JIT functions for a given RunType
@@ -30,7 +29,7 @@ import {jitNames} from './constants';
  * @param jitFunctions
  * @returns
  */
-export function buildJITFunctions(runType: RunType, jitFunctions?: JitCompilerFunctions): JITCompiledFunctionsData {
+export function buildJITFunctions(runType: RunType, jitFunctions?: JitCompilerFunctions): JITCompiledFunctions {
     return {
         isType: buildIsTypeJITFn(runType, jitFunctions),
         typeErrors: buildTypeErrorsJITFn(runType, jitFunctions),
@@ -40,26 +39,32 @@ export function buildJITFunctions(runType: RunType, jitFunctions?: JitCompilerFu
     };
 }
 
-export function buildIsTypeJITFn(runType: RunType, jitFunctions?: JitCompilerFunctions): JITCompiledFunctionsData['isType'] {
-    const context: JitContext = {args: {vλl: 'vλl'}, parents: [], path: []};
-    const jitCode = jitFunctions ? jitFunctions.compileIsType(context) : runType.compileIsType(context);
-    const code = runType.isAtomic ? `return ${jitCode}` : jitCode;
+export function buildIsTypeJITFn(runType: RunType, jitFunctions?: JitCompilerFunctions): JITCompiledFunctions['isType'] {
+    const context: JitOperation = {
+        args: getDefaultJitArgs(),
+        stack: [],
+        path: [],
+        getDefaultArgs: getDefaultJitArgs,
+    };
+    const code = jitFunctions ? jitFunctions.compileIsType(context) : runType.compileIsType(context);
     const argNames = Object.values(context.args);
     try {
-        const fn = createJitFnWithContext(argNames, code);
+        const fn = createJitFnWithContext(argNames, code, 'isT');
         return {argNames, code, fn};
     } catch (e: any) {
         const fnCode = ` Code:\nfunction isType(){${code}}`;
-        const name = `(${runType.getName()}:${runType.jitId})`;
+        const name = `(${runType.getName()}:${runType.getJitId()})`;
         throw new Error(`Error building isType JIT function for type ${name}: ${e?.message} \n${fnCode}`);
     }
 }
 
-export function buildTypeErrorsJITFn(
-    runType: RunType,
-    jitFunctions?: JitCompilerFunctions
-): JITCompiledFunctionsData['typeErrors'] {
-    const context: TypeErrorsContext = {args: {vλl: 'vλl', pλth: 'pλth', εrrors: 'εrrors'}, parents: [], path: []};
+export function buildTypeErrorsJITFn(runType: RunType, jitFunctions?: JitCompilerFunctions): JITCompiledFunctions['typeErrors'] {
+    const context: JitTypeErrorOperation = {
+        args: getDefaultJitTypeErrorsArgs(),
+        stack: [],
+        path: [],
+        getDefaultArgs: getDefaultJitTypeErrorsArgs,
+    };
     const jitCode = jitFunctions ? jitFunctions.compileTypeErrors(context) : runType.compileTypeErrors(context);
     // TODO: pλth array is used for circular functions or jit cached functions, it should be removed if not used
     const code = `
@@ -71,49 +76,49 @@ export function buildTypeErrorsJITFn(
     // we only pass the value as argument as error and path are created inside the root function, this way user don't need to pass them every time
     const argNames = [context.args.vλl];
     try {
-        const fn = createJitFnWithContext(argNames, code);
+        const fn = createJitFnWithContext(argNames, code, 'TErr');
         return {argNames, code, fn};
     } catch (e: any) {
         const fnCode = ` Code:\nfunction typeErrors(){${code}}`;
-        const name = `(${runType.getName()}:${runType.jitId})`;
+        const name = `(${runType.getName()}:${runType.getJitId()})`;
         throw new Error(`Error building typeErrors JIT function for type ${name}: ${e?.message} \n${fnCode}`);
     }
 }
 
-export function buildJsonEncodeJITFn(
-    runType: RunType,
-    jitFunctions?: JitCompilerFunctions
-): JITCompiledFunctionsData['jsonEncode'] {
-    const context: JitContext = {args: {vλl: 'vλl'}, parents: [], path: []};
-    const jitCode = jitFunctions ? jitFunctions.compileJsonEncode(context) : runType.compileJsonEncode(context);
-    const hasJitCode = !!jitCode;
-    const code = `${jitCode} ${hasJitCode ? ';' : ''} return ${context.args.vλl}`;
+export function buildJsonEncodeJITFn(runType: RunType, jitFunctions?: JitCompilerFunctions): JITCompiledFunctions['jsonEncode'] {
+    const context: JitOperation = {
+        args: getDefaultJitArgs(),
+        stack: [],
+        path: [],
+        getDefaultArgs: getDefaultJitArgs,
+    };
+    const code = jitFunctions ? jitFunctions.compileJsonEncode(context) : runType.compileJsonEncode(context);
     const argNames = Object.values(context.args);
     try {
-        const fn = createJitFnWithContext(argNames, code);
+        const fn = createJitFnWithContext(argNames, code, 'JEnc');
         return {argNames, code, fn};
     } catch (e: any) {
         const fnCode = ` Code:\nfunction jsonEncode(){${code}}`;
-        const name = `(${runType.getName()}:${runType.jitId})`;
+        const name = `(${runType.getName()}:${runType.getJitId()})`;
         throw new Error(`Error building jsonEncode JIT function for type ${name}: ${e?.message} \n${fnCode}`);
     }
 }
 
-export function buildJsonDecodeJITFn(
-    runType: RunType,
-    jitFunctions?: JitCompilerFunctions
-): JITCompiledFunctionsData['jsonDecode'] {
-    const context: JitContext = {args: {vλl: 'vλl'}, parents: [], path: []};
-    const jitCode = jitFunctions ? jitFunctions.compileJsonDecode(context) : runType.compileJsonDecode(context);
-    const hasJitCode = !!jitCode;
-    const code = `${jitCode} ${hasJitCode ? ';' : ''} return ${context.args.vλl}`;
+export function buildJsonDecodeJITFn(runType: RunType, jitFunctions?: JitCompilerFunctions): JITCompiledFunctions['jsonDecode'] {
+    const context: JitOperation = {
+        args: getDefaultJitArgs(),
+        stack: [],
+        path: [],
+        getDefaultArgs: getDefaultJitArgs,
+    };
+    const code = jitFunctions ? jitFunctions.compileJsonDecode(context) : runType.compileJsonDecode(context);
     const argNames = Object.values(context.args);
     try {
-        const fn = createJitFnWithContext(argNames, code);
+        const fn = createJitFnWithContext(argNames, code, 'JDec');
         return {argNames, code, fn};
     } catch (e: any) {
         const fnCode = ` Code:\nfunction jsonDecode(){${code}}`;
-        const name = `(${runType.getName()}:${runType.jitId})`;
+        const name = `(${runType.getName()}:${runType.getJitId()})`;
         throw new Error(`Error building jsonDecode JIT function for type ${name}: ${e?.message} \n${fnCode}`);
     }
 }
@@ -121,22 +126,26 @@ export function buildJsonDecodeJITFn(
 export function buildJsonStringifyJITFn(
     runType: RunType,
     jitFunctions?: JitCompilerFunctions
-): JITCompiledFunctionsData['jsonStringify'] {
-    const context: JitContext = {args: {vλl: 'vλl'}, parents: [], path: []};
-    const jitCode = jitFunctions ? jitFunctions.compileJsonStringify(context) : runType.compileJsonStringify(context);
-    const code = runType.isAtomic ? `return ${jitCode}` : jitCode;
+): JITCompiledFunctions['jsonStringify'] {
+    const context: JitOperation = {
+        args: getDefaultJitArgs(),
+        stack: [],
+        path: [],
+        getDefaultArgs: getDefaultJitArgs,
+    };
+    const code = jitFunctions ? jitFunctions.compileJsonStringify(context) : runType.compileJsonStringify(context);
     const argNames = Object.values(context.args);
     try {
-        const fn = createJitFnWithContext(argNames, code);
+        const fn = createJitFnWithContext(argNames, code, 'JStr');
         return {argNames, code, fn};
     } catch (e: any) {
         const fnCode = ` Code:\nfunction jsonStringify(){${code}}`;
-        const name = `(${runType.getName()}:${runType.jitId})`;
+        const name = `(${runType.getName()}:${runType.getJitId()})`;
         throw new Error(`Error building jsonStringify JIT function for type ${name}: ${e?.message} \n${fnCode}`);
     }
 }
 
-export function getSerializableJitCompiler(compiled: JITCompiledFunctionsData): SerializableJITFunctions {
+export function getSerializableJitCompiler(compiled: JITCompiledFunctions): SerializableJITFunctions {
     return {
         isType: {argNames: compiled.isType.argNames, code: compiled.isType.code},
         typeErrors: {argNames: compiled.typeErrors.argNames, code: compiled.typeErrors.code},
@@ -151,7 +160,7 @@ export function codifyJitFn(fn: JitFnData<(vλluε: any) => any>): string {
     return `{\n  argNames:${arrayToLiteral(argNames)},\n  code:${toLiteral(fn.code)},\n  fn:function(${argNames.join(',')}){${fn.code}}\n}`;
 }
 
-export function codifyJitFunctions(compiled: JITCompiledFunctionsData): string {
+export function codifyJitFunctions(compiled: JITCompiledFunctions): string {
     const isType = codifyJitFn(compiled.isType);
     const typeErrors = codifyJitFn(compiled.typeErrors);
     const jsonEncode = codifyJitFn(compiled.jsonEncode);
@@ -161,8 +170,8 @@ export function codifyJitFunctions(compiled: JITCompiledFunctionsData): string {
 }
 
 /** Transform a SerializableJITFunctions into a JITFunctions */
-export function restoreJitFunctions(serializable: SerializableJITFunctions): JITCompiledFunctionsData {
-    const restored = serializable as JITCompiledFunctionsData;
+export function restoreJitFunctions(serializable: SerializableJITFunctions): JITCompiledFunctions {
+    const restored = serializable as JITCompiledFunctions;
     restored.isType.fn = new Function(...restored.isType.argNames, restored.isType.code) as isTypeFn;
     restored.typeErrors.fn = new Function(...restored.typeErrors.argNames, restored.typeErrors.code) as typeErrorsFn;
 
@@ -176,15 +185,15 @@ export function restoreJitFunctions(serializable: SerializableJITFunctions): JIT
     const stringifyFn = (vλluε: any) => stringify(jitUtils, vλluε);
     restored.jsonStringify.fn = stringifyFn;
 
-    return serializable as JITCompiledFunctionsData;
+    return serializable as JITCompiledFunctions;
 }
 
 /**
  * Restored JITFunctions after they have been codified and parsed by js.
  * Codified stringify function are missing the jitUtils wrapper, so it is added here.
  */
-export function restoreCodifiedJitFunctions(jitFns: UnwrappedJITFunctions): JITCompiledFunctionsData {
-    const restored = jitFns as any as JITCompiledFunctionsData;
+export function restoreCodifiedJitFunctions(jitFns: UnwrappedJITFunctions): JITCompiledFunctions {
+    const restored = jitFns as any as JITCompiledFunctions;
     // important to keep the original functions to avoid infinite recursion
     const originalDecode = jitFns.jsonDecode.fn;
     restored.jsonDecode.fn = (vλluε: JSONValue) => originalDecode(jitUtils, vλluε);
@@ -203,12 +212,17 @@ export function restoreCodifiedJitFunctions(jitFns: UnwrappedJITFunctions): JITC
  * @param code
  * @returns
  */
-function createJitFnWithContext(fnArgNames: string[], code: string): (...args: any[]) => any {
+function createJitFnWithContext(fnArgNames: string[], code: string, internalFnName = 'jit'): (...args: any[]) => any {
     // this function will have jitUtils as context as is an argument of the enclosing function
-    const fnWithContext = `function jitƒn(${fnArgNames.join(', ')}){${code}}\nreturn jitƒn;`;
-    const wrapperWithContext = new Function(jitNames.utils, fnWithContext);
-    if (process.env.DEBUG_JIT) console.log(wrapperWithContext.toString());
-    return wrapperWithContext(jitUtils); // returns the jit internal function with the context
+    const fnWithContext = `function ƒn${internalFnName}(${fnArgNames.join(', ')}){${code}}\nreturn ƒn${internalFnName};`;
+    try {
+        const wrapperWithContext = new Function(jitNames.utils, fnWithContext);
+        if (process.env.DEBUG_JIT) console.log(wrapperWithContext.toString());
+        return wrapperWithContext(jitUtils); // returns the jit internal function with the context
+    } catch (e: any) {
+        if (process.env.DEBUG_JIT) console.warn('Error creating jit function with context code:\n', code);
+        throw e;
+    }
 }
 
 /**
@@ -242,34 +256,16 @@ export function createJitCachedFn(jitIdFnName: string, code: string | (() => str
     }
 }
 
-export type compileChildCB<Ctx extends JitCompileContext> = (ctx: Ctx) => string;
-
-/**
- * Wrapper function to compile children types, it manages all the required updates to the compile context before and after compiling the children.
- */
-export function compileChildren<Ctx extends JitCompileContext>(
-    compileChildFn: compileChildCB<Ctx>,
-    parentRt: RunType,
-    ctx: Ctx,
-    pathItem?: JitPathItem
-): string {
-    // updates the context by updating parents, path and args
-    const args = {...ctx.args};
-    ctx.parents.push(parentRt);
-    if (pathItem) {
-        const useArray = pathItem.useArrayAccessor ?? typeof pathItem.vλl === 'number';
-        const childAccessor = useArray ? `[${pathItem.literal}]` : `.${pathItem.vλl}`;
-        ctx.args.vλl = `${ctx.args.vλl}${childAccessor}`;
-        ctx.path.push(pathItem);
+export function addReturnCode(compiled: string, op: JitCompileOperation, codeHasReturn: boolean): string {
+    const nestLevel = op.stack.length;
+    if (nestLevel > 0) {
+        // code contains a return and possibly more statements, we need to wrap it in a self invoking function to avoid syntax errors
+        if (codeHasReturn) return `(function(){${compiled}})()`;
+        // code is just a statement (i.e: typeof var === 'number'), we can return it directly
+        return compiled;
     }
-
-    const itemsCode = compileChildFn(ctx);
-
-    // restore the context to the previous state
-    if (pathItem) {
-        ctx.path.pop();
-    }
-    ctx.parents.pop();
-    ctx.args = args;
-    return itemsCode;
+    // nestLevel === 0 (root of the function)
+    if (codeHasReturn) return compiled; // code already contains a return, we can return it directly
+    // code is just a statement (i.e: typeof var === 'number'), we need to add a return statement as it is the root of the function
+    return `return ${compiled}`;
 }

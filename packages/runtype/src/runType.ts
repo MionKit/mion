@@ -6,8 +6,8 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import type {RunType, RunTypeOptions, RunTypeVisitor, SrcType} from './types';
-import {ReflectionKind, TypeObjectLiteral} from './_deepkit/src/reflection/type';
+import type {RunType, RunTypeVisitor, DKwithRT, Mutable} from './types';
+import {ReflectionKind, Type, TypeObjectLiteral} from './_deepkit/src/reflection/type';
 import {resolveReceiveType, ReceiveType, reflect} from './_deepkit/src/reflection/reflection';
 import {StringRunType} from './atomicRunType/string';
 import {DateRunType} from './atomicRunType/date';
@@ -20,7 +20,7 @@ import {AnyRunType} from './atomicRunType/any';
 import {UndefinedRunType} from './atomicRunType/undefined';
 import {UnknownRunType} from './atomicRunType/unknown';
 import {VoidRunType} from './atomicRunType/void';
-import {ArrayRunType} from './collectionRunType/array';
+import {ArrayRunType} from './memberRunType/array';
 import {LiteralRunType} from './atomicRunType/literal';
 import {RegexpRunType} from './atomicRunType/regexp';
 import {NeverRunType} from './atomicRunType/never';
@@ -28,35 +28,32 @@ import {EnumRunType} from './atomicRunType/enum';
 import {EnumMemberRunType} from './atomicRunType/enumMember';
 import {UnionRunType} from './collectionRunType/union';
 import {TupleRunType} from './collectionRunType/tuple';
-import {TupleMemberRunType} from './collectionRunType/tupleMember';
+import {TupleMemberRunType} from './memberRunType/tupleMember';
 import {InterfaceRunType} from './collectionRunType/interface';
-import {PropertyRunType} from './collectionRunType/property';
-import {IndexSignatureRunType} from './collectionRunType/indexProperty';
+import {PropertyRunType} from './memberRunType/property';
+import {IndexSignatureRunType} from './memberRunType/indexProperty';
 import {MethodSignatureRunType} from './functionRunType/methodSignature';
 import {CallSignatureRunType} from './functionRunType/call';
 import {FunctionRunType} from './functionRunType/function';
-import {PromiseRunType} from './atomicRunType/promise';
+import {PromiseRunType} from './memberRunType/promise';
 import {ObjectRunType} from './atomicRunType/object';
 import {IntersectionRunType} from './collectionRunType/intersection';
-import {ParameterRunType} from './functionRunType/param';
+import {ParameterRunType} from './memberRunType/param';
 import {MethodRunType} from './functionRunType/method';
-import {RestParamsRunType} from './functionRunType/restParams';
+import {RestParamsRunType} from './memberRunType/restParams';
 import {ClassRunType} from './collectionRunType/class';
-import {markAsCircular} from './utils';
 
-const MaxNestLevel = 20; // max parents levels to prevent infinite recursion or complicated types
-
-export function runType<T>(opts: RunTypeOptions = {}, type?: ReceiveType<T>): RunType {
-    type = resolveReceiveType(type);
-    return visitor(type, [], opts);
+export function runType<T>(type?: ReceiveType<T>): RunType {
+    type = resolveReceiveType(type); // deepkit has been extended to call createRunType ./_deepkit/src/reflection/processor.ts#L1697
+    return (type as DKwithRT)._rt;
 }
 
-export function reflectFunction<Fn extends (...args: any[]) => any>(fn: Fn, opts: RunTypeOptions = {}): FunctionRunType {
-    const type = reflect(fn);
-    return visitor(type, [], opts) as FunctionRunType;
+export function reflectFunction<Fn extends (...args: any[]) => any>(fn: Fn): FunctionRunType {
+    const type = reflect(fn); // deepkit has been extended to call createRunType ./_deepkit/src/reflection/processor.ts#L16
+    return (type as DKwithRT)._rt as FunctionRunType;
 }
 
-function visitor(deepkitType, parents: RunType[], opts: RunTypeOptions): RunType {
+export function createRunType(deepkitType: Type): RunType {
     // console.log('deepkitType', deepkitType);
 
     /*
@@ -64,113 +61,110 @@ function visitor(deepkitType, parents: RunType[], opts: RunTypeOptions): RunType
      basically every runType stores a reference to a deepkit type and vice versa.
      This also relies on deepkit handling circular types to prevent infinite loop when we are generating RunTypes.
     */
-    const existingType: RunType | undefined = (deepkitType as SrcType)._runType;
+    const existingType: RunType | undefined = (deepkitType as DKwithRT)._rt;
     // TODO: IMPORTANT: seems like deepkit can generate multiple types objects for the same type, so we need to handle this
     // we are attaching the runType to the deepkit type (deepkitType._runType), to link the two types together
     // but as deepkit can generate multiple types that means existingType will be null and the markAsCircular function is not working as expected
-    if (existingType) {
-        markAsCircular(existingType, parents);
-        return existingType;
-    }
+    if (existingType) return existingType;
 
     let rt: RunType;
 
     switch (deepkitType.kind) {
         case ReflectionKind.any:
-            rt = new AnyRunType(visitor, deepkitType, parents, opts);
+            rt = new AnyRunType();
             break;
         case ReflectionKind.array:
-            rt = new ArrayRunType(visitor, deepkitType, parents, opts);
+            rt = new ArrayRunType();
             break;
         case ReflectionKind.bigint:
-            rt = new BigIntRunType(visitor, deepkitType, parents, opts);
+            rt = new BigIntRunType();
             break;
         case ReflectionKind.boolean:
-            rt = new BooleanRunType(visitor, deepkitType, parents, opts);
+            rt = new BooleanRunType();
             break;
         case ReflectionKind.callSignature:
-            rt = new CallSignatureRunType(visitor, deepkitType, parents, opts);
+            rt = new CallSignatureRunType();
             break;
         case ReflectionKind.class:
             if (deepkitType.classType === Date) {
-                rt = new DateRunType(visitor, deepkitType, parents, opts);
+                rt = new DateRunType();
             } else if (deepkitType.classType === Map) {
                 throw new Error('Map is not implemented yet');
             } else if (deepkitType.classType === Set) {
                 throw new Error('Set is not implemented yet');
             } else {
-                rt = new ClassRunType(visitor, deepkitType, parents, opts);
+                rt = new ClassRunType();
             }
             break;
         case ReflectionKind.enum:
-            rt = new EnumRunType(visitor, deepkitType, parents, opts);
+            rt = new EnumRunType();
             break;
         case ReflectionKind.enumMember:
             // enum members are resolved by the enum type, so this is not expected to be called
-            rt = new EnumMemberRunType(visitor, deepkitType, parents, opts);
+            rt = new EnumMemberRunType();
             break;
         case ReflectionKind.function:
-            rt = new FunctionRunType(visitor, deepkitType, parents, opts);
+            rt = new FunctionRunType();
             break;
         case ReflectionKind.indexSignature:
-            rt = new IndexSignatureRunType(visitor, deepkitType, parents, opts);
+            rt = new IndexSignatureRunType();
             break;
         case ReflectionKind.infer:
             throw new Error(
                 'Infer type not supported, ie: type MyType =Type<T> = T extends (...args: any[]) => infer R ? R : any; https://www.typescriptlang.org/docs/handbook/2/conditional-types.html'
             );
         case ReflectionKind.intersection:
-            rt = new IntersectionRunType(visitor, deepkitType, parents, opts);
+            rt = new IntersectionRunType();
             break;
         case ReflectionKind.literal:
-            rt = new LiteralRunType(visitor, deepkitType, parents, opts);
+            rt = new LiteralRunType();
             break;
         case ReflectionKind.method:
-            rt = new MethodRunType(visitor, deepkitType, parents, opts);
+            rt = new MethodRunType();
             break;
         case ReflectionKind.methodSignature:
-            rt = new MethodSignatureRunType(visitor, deepkitType, parents, opts);
+            rt = new MethodSignatureRunType();
             break;
         case ReflectionKind.null:
-            rt = new NullRunType(visitor, deepkitType, parents, opts);
+            rt = new NullRunType();
             break;
         case ReflectionKind.number:
-            rt = new NumberRunType(visitor, deepkitType, parents, opts);
+            rt = new NumberRunType();
             break;
         case ReflectionKind.object:
-            rt = new ObjectRunType(visitor, deepkitType, parents, opts);
+            rt = new ObjectRunType();
             break;
         case ReflectionKind.objectLiteral:
             const objLiteral = deepkitType as TypeObjectLiteral;
             const originTypeName = objLiteral.originTypes?.[0].typeName;
             const isNativeType = originTypeName && nativeTypeNamesFromObjectLiterals.includes(originTypeName);
             if (isNativeType) {
-                rt = resolveNativeTypeFromObjectLiteral(visitor, objLiteral, parents, objLiteral, originTypeName);
+                rt = resolveNativeTypeFromObjectLiteral(createRunType, objLiteral, objLiteral, originTypeName);
             } else {
-                rt = new InterfaceRunType(visitor, objLiteral, parents, opts);
+                rt = new InterfaceRunType();
             }
             break;
         case ReflectionKind.parameter:
-            rt = new ParameterRunType(visitor, deepkitType, parents, opts);
+            rt = new ParameterRunType();
             break;
         case ReflectionKind.promise:
-            rt = new PromiseRunType(visitor, deepkitType, parents, opts);
+            rt = new PromiseRunType();
             break;
         case ReflectionKind.property:
         case ReflectionKind.propertySignature:
-            rt = new PropertyRunType(visitor, deepkitType, parents, opts);
+            rt = new PropertyRunType();
             break;
         case ReflectionKind.regexp:
-            rt = new RegexpRunType(visitor, deepkitType, parents, opts);
+            rt = new RegexpRunType();
             break;
         case ReflectionKind.rest:
-            rt = new RestParamsRunType(visitor, deepkitType, parents, opts);
+            rt = new RestParamsRunType();
             break;
         case ReflectionKind.string:
-            rt = new StringRunType(visitor, deepkitType, parents, opts);
+            rt = new StringRunType();
             break;
         case ReflectionKind.symbol:
-            rt = new SymbolRunType(visitor, deepkitType, parents, opts);
+            rt = new SymbolRunType();
             break;
         case ReflectionKind.templateLiteral:
             // deepkit automatically resolves template literals unions to literals
@@ -181,36 +175,37 @@ function visitor(deepkitType, parents: RunType[], opts: RunTypeOptions): RunType
             );
             break;
         case ReflectionKind.tuple:
-            rt = new TupleRunType(visitor, deepkitType, parents, opts);
+            rt = new TupleRunType();
             break;
         case ReflectionKind.tupleMember:
-            rt = new TupleMemberRunType(visitor, deepkitType, parents, opts);
+            rt = new TupleMemberRunType();
             break;
         case ReflectionKind.typeParameter:
             throw new Error('not implemented');
             // rType = resolveTypeParameter(deepkitType, opts, mapper);
             break;
         case ReflectionKind.undefined:
-            rt = new UndefinedRunType(visitor, deepkitType, parents, opts);
+            rt = new UndefinedRunType();
             break;
         case ReflectionKind.union:
-            rt = new UnionRunType(visitor, deepkitType, parents, opts);
+            rt = new UnionRunType();
             break;
         case ReflectionKind.unknown:
-            rt = new UnknownRunType(visitor, deepkitType, parents, opts);
+            rt = new UnknownRunType();
             break;
         case ReflectionKind.void:
-            rt = new VoidRunType(visitor, deepkitType, parents, opts);
+            rt = new VoidRunType();
             break;
         case ReflectionKind.never:
-            rt = new NeverRunType(visitor, deepkitType, parents, opts);
+            rt = new NeverRunType();
             break;
         default:
-            rt = new AnyRunType(visitor, deepkitType, parents, opts);
+            rt = new AnyRunType();
             break;
     }
-
-    if (parents.length > MaxNestLevel) throw new Error('Max Nest Level exceeded while resolving run type');
+    (rt as Mutable<RunType>).src = deepkitType;
+    (deepkitType as DKwithRT)._rt = rt;
+    // console.log('rt', rt);
     return rt;
 }
 
@@ -221,8 +216,6 @@ function resolveNativeTypeFromObjectLiteral(
     visitor: RunTypeVisitor,
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     src: TypeObjectLiteral,
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    parents: RunType[],
     deepkitType: TypeObjectLiteral,
     nativeName: string
 ): RunType {

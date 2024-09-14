@@ -5,36 +5,39 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import type {TypeAny, TypeUnknown} from '../_deepkit/src/reflection/type';
-import type {JitContext, MockContext, RunType, RunTypeOptions, RunTypeVisitor} from '../types';
+import {ReflectionKind, type TypeAny, type TypeUnknown} from '../_deepkit/src/reflection/type';
+import type {JitConstants, JitOperation, MockContext} from '../types';
 import {mockAny} from '../mock';
 import {AtomicRunType} from '../baseRunTypes';
 
+const jitConstants: JitConstants = {
+    skipJit: false,
+    skipJsonEncode: true,
+    skipJsonDecode: true,
+    isCircularRef: false,
+    jitId: ReflectionKind.any,
+};
+
 export class AnyRunType extends AtomicRunType<TypeAny | TypeUnknown> {
-    public readonly isJsonEncodeRequired = false;
-    public readonly isJsonDecodeRequired = false;
-    constructor(
-        visitor: RunTypeVisitor,
-        public readonly src: TypeAny | TypeUnknown,
-        public readonly parents: RunType[],
-        opts: RunTypeOptions
-    ) {
-        super(visitor, src, parents, opts);
+    src: TypeAny | TypeUnknown = null as any; // will be set after construction
+    constants = () => jitConstants;
+    getName(): string {
+        return this.src.kind === ReflectionKind.any ? 'any' : 'unknown';
     }
-    compileIsType(): string {
-        return `true`;
+    _compileIsType(): 'true' {
+        return 'true';
     }
-    compileTypeErrors(): string {
-        return ``;
-    }
-    compileJsonEncode(): string {
+    _compileTypeErrors(): '' {
         return '';
     }
-    compileJsonDecode(): string {
-        return '';
+    _compileJsonEncode(op: JitOperation): string {
+        return op.args.vλl;
     }
-    compileJsonStringify(ctx: JitContext): string {
-        return `JSON.stringify(${ctx.args.vλl})`;
+    _compileJsonDecode(op: JitOperation): string {
+        return op.args.vλl;
+    }
+    _compileJsonStringify(op: JitOperation): string {
+        return `JSON.stringify(${op.args.vλl})`;
     }
     mock(ctx?: Pick<MockContext, 'anyValuesLis'>): string {
         return mockAny(ctx?.anyValuesLis);

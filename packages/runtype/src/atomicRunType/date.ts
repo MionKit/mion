@@ -5,36 +5,45 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import type {TypeClass} from '../_deepkit/src/reflection/type';
-import type {JitContext, JitJsonEncoder, MockContext, TypeErrorsContext} from '../types';
+import {type TypeClass} from '../_deepkit/src/reflection/type';
+import type {JitOperation, JitJsonEncoder, MockContext, JitTypeErrorOperation, JitConstants} from '../types';
 import {getJitErrorPath, getExpected} from '../utils';
 import {mockDate} from '../mock';
 import {AtomicRunType} from '../baseRunTypes';
+import {dateJitId} from '../constants';
+
+const jitConstants: JitConstants = {
+    skipJit: false,
+    skipJsonEncode: true,
+    skipJsonDecode: false,
+    isCircularRef: false,
+    jitId: dateJitId, // reflection kind + class name
+};
 
 export class DateRunType extends AtomicRunType<TypeClass> {
-    public readonly isJsonEncodeRequired = false;
-    public readonly isJsonDecodeRequired = true;
-
-    compileIsType(ctx: JitContext): string {
-        return `(${ctx.args.vλl} instanceof Date && !isNaN(${ctx.args.vλl}.getTime()))`;
-    }
-    compileTypeErrors(ctx: TypeErrorsContext): string {
-        return `if (!(${this.compileIsType(ctx)})) ${ctx.args.εrrors}.push({path: ${getJitErrorPath(ctx)}, expected: ${getExpected(this)}})`;
-    }
-    compileJsonEncode(ctx: JitContext): string {
-        return DateJitJsonENcoder.encodeToJson(ctx.args.vλl);
-    }
-    compileJsonDecode(ctx: JitContext): string {
-        return DateJitJsonENcoder.decodeFromJson(ctx.args.vλl);
-    }
-    compileJsonStringify(ctx: JitContext): string {
-        return DateJitJsonENcoder.stringify(ctx.args.vλl);
-    }
-    mock(ctx?: Pick<MockContext, 'minDate' | 'maxDate'>): Date {
-        return mockDate(ctx?.minDate, ctx?.maxDate);
-    }
-    getJitId(): string {
+    src: TypeClass = null as any; // will be set after construction
+    getJitId = () => 'date';
+    constants = () => jitConstants;
+    getName(): string {
         return 'date';
+    }
+    _compileIsType(stack: JitOperation): string {
+        return `(${stack.args.vλl} instanceof Date && !isNaN(${stack.args.vλl}.getTime()))`;
+    }
+    _compileTypeErrors(stack: JitTypeErrorOperation): string {
+        return `if (!(${this._compileIsType(stack)})) ${stack.args.εrrors}.push({path: ${getJitErrorPath(stack)}, expected: ${getExpected(this)}})`;
+    }
+    _compileJsonEncode(stack: JitOperation): string {
+        return DateJitJsonENcoder.encodeToJson(stack.args.vλl);
+    }
+    _compileJsonDecode(stack: JitOperation): string {
+        return DateJitJsonENcoder.decodeFromJson(stack.args.vλl);
+    }
+    _compileJsonStringify(stack: JitOperation): string {
+        return DateJitJsonENcoder.stringify(stack.args.vλl);
+    }
+    mock(stack?: Pick<MockContext, 'minDate' | 'maxDate'>): Date {
+        return mockDate(stack?.minDate, stack?.maxDate);
     }
 }
 
@@ -42,8 +51,8 @@ export const DateJitJsonENcoder: JitJsonEncoder = {
     decodeFromJson(vλl: string): string {
         return `${vλl} = new Date(${vλl})`;
     },
-    encodeToJson(): string {
-        return ``;
+    encodeToJson(vλl: string): string {
+        return vλl;
     },
     stringify(vλl: string): string {
         return `'"'+${vλl}.toJSON()+'"'`;

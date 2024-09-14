@@ -16,6 +16,7 @@ import {
 describe('Array', () => {
     const rt = runType<string[]>();
     const rD = runType<Date[]>();
+    const rE = runType<never[]>();
 
     it('validate string[]', () => {
         const validate = buildIsTypeJITFn(rt).fn;
@@ -74,6 +75,12 @@ describe('Array', () => {
         expect(rt.mock() instanceof Array).toBe(true);
         const validate = buildIsTypeJITFn(rt).fn;
         expect(validate(rt.mock())).toBe(true);
+    });
+
+    it('compiling never[] should throw an exemption as is not serializable', () => {
+        expect(() => buildIsTypeJITFn(rE)).toThrow(
+            `Array of type <never> can't be compiled because <never> is non serializable.`
+        );
     });
 });
 
