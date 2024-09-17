@@ -79,3 +79,7 @@ export function getDefaultJitArgs(): DefaultJitArgs {
 export function getDefaultJitTypeErrorsArgs(): DefaultJitTypeErrorsArgs {
     return {vλl: 'vλl', pλth: 'pλth', εrrors: 'εrrors'};
 }
+
+export const maxStackDepth = 50;
+export const maxStackErrorMessage =
+    'Max compilation stack reached, either you have a very deeply nested type or there is an error in circular references in your type.';

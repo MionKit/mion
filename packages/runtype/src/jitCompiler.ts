@@ -49,7 +49,7 @@ export function buildIsTypeJITFn(runType: RunType, jitFunctions?: JitCompilerFun
     const code = jitFunctions ? jitFunctions.compileIsType(context) : runType.compileIsType(context);
     const argNames = Object.values(context.args);
     try {
-        const fn = createJitFnWithContext(argNames, code, 'isT');
+        const fn = createJitFnWithContext(argNames, code, 'Isτ');
         return {argNames, code, fn};
     } catch (e: any) {
         const fnCode = ` Code:\nfunction isType(){${code}}`;
@@ -76,7 +76,7 @@ export function buildTypeErrorsJITFn(runType: RunType, jitFunctions?: JitCompile
     // we only pass the value as argument as error and path are created inside the root function, this way user don't need to pass them every time
     const argNames = [context.args.vλl];
     try {
-        const fn = createJitFnWithContext(argNames, code, 'TErr');
+        const fn = createJitFnWithContext(argNames, code, 'Tεrr');
         return {argNames, code, fn};
     } catch (e: any) {
         const fnCode = ` Code:\nfunction typeErrors(){${code}}`;
@@ -95,7 +95,7 @@ export function buildJsonEncodeJITFn(runType: RunType, jitFunctions?: JitCompile
     const code = jitFunctions ? jitFunctions.compileJsonEncode(context) : runType.compileJsonEncode(context);
     const argNames = Object.values(context.args);
     try {
-        const fn = createJitFnWithContext(argNames, code, 'JEnc');
+        const fn = createJitFnWithContext(argNames, code, 'Jεnc');
         return {argNames, code, fn};
     } catch (e: any) {
         const fnCode = ` Code:\nfunction jsonEncode(){${code}}`;
@@ -114,7 +114,7 @@ export function buildJsonDecodeJITFn(runType: RunType, jitFunctions?: JitCompile
     const code = jitFunctions ? jitFunctions.compileJsonDecode(context) : runType.compileJsonDecode(context);
     const argNames = Object.values(context.args);
     try {
-        const fn = createJitFnWithContext(argNames, code, 'JDec');
+        const fn = createJitFnWithContext(argNames, code, 'JDεc');
         return {argNames, code, fn};
     } catch (e: any) {
         const fnCode = ` Code:\nfunction jsonDecode(){${code}}`;
@@ -136,7 +136,7 @@ export function buildJsonStringifyJITFn(
     const code = jitFunctions ? jitFunctions.compileJsonStringify(context) : runType.compileJsonStringify(context);
     const argNames = Object.values(context.args);
     try {
-        const fn = createJitFnWithContext(argNames, code, 'JStr');
+        const fn = createJitFnWithContext(argNames, code, 'JSτr');
         return {argNames, code, fn};
     } catch (e: any) {
         const fnCode = ` Code:\nfunction jsonStringify(){${code}}`;

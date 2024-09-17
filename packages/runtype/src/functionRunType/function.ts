@@ -18,6 +18,9 @@ export class FunctionParametersRunType<CallType extends AnyFunction = TypeFuncti
     getName(): string {
         return 'fnParams';
     }
+    protected getPathItem(): null {
+        return null;
+    }
     getChildRunTypes = (): RunType[] => {
         const childTypes = (this.src.parameters as DKwithRT[]) || []; // deepkit stores child types in the types property
         return childTypes.map((t) => t._rt);
@@ -48,11 +51,9 @@ export class FunctionParametersRunType<CallType extends AnyFunction = TypeFuncti
 
     _compileIsType(op: JitOperation) {
         if (this.getParameterTypes().length === 0) return `${op.args.vλl}.length === 0`;
-        const compNext = (nextOp) =>
-            this.getParameterTypes()
-                .map((p) => `(${p.compileIsType(nextOp)})`)
-                .join(' && ');
-        const paramsCode = this.compileChildren(compNext, op);
+        const paramsCode = this.getParameterTypes()
+            .map((p) => `(${p.compileIsType(op)})`)
+            .join(' && ');
         const maxLength = !this.hasRestParameter ? `&& ${op.args.vλl}.length <= ${this.getParameterTypes().length}` : '';
         const checkLength = `${op.args.vλl}.length >= ${this.getTotalRequiredParams()} ${maxLength}`;
         return `${checkLength} && ${paramsCode}`;
@@ -60,11 +61,9 @@ export class FunctionParametersRunType<CallType extends AnyFunction = TypeFuncti
     _compileTypeErrors(op: JitTypeErrorOperation) {
         const maxLength = !this.hasRestParameter ? `|| ${op.args.vλl}.length > ${this.getParameterTypes().length}` : '';
         const checkLength = `(${op.args.vλl}.length < ${this.getTotalRequiredParams()} ${maxLength})`;
-        const compNext = (nextOp) =>
-            this.getParameterTypes()
-                .map((p) => p.compileTypeErrors(nextOp))
-                .join(';');
-        const paramsCode = this.compileChildren(compNext, op);
+        const paramsCode = this.getParameterTypes()
+            .map((p) => p.compileTypeErrors(op))
+            .join(';');
         return (
             `if (!Array.isArray(${op.args.vλl}) || ${checkLength}) ${op.args.εrrors}.push({path: ${getJitErrorPath(op)}, expected: ${this.paramsLiteral()}});` +
             `else {${paramsCode}}`
@@ -80,24 +79,20 @@ export class FunctionParametersRunType<CallType extends AnyFunction = TypeFuncti
         const skip = this.constants().skipJit;
         if (skip) return '';
         if (this.getParameterTypes().length === 0) return `[]`;
-        const compNext = (nextOp) =>
-            this.getParameterTypes()
-                .map((p) => p.compileJsonStringify(nextOp))
-                .join('+');
-        const paramsCode = this.compileChildren(compNext, op);
+
+        const paramsCode = this.getParameterTypes()
+            .map((p) => p.compileJsonStringify(op))
+            .join('+');
         return `'['+${paramsCode}+']'`;
     }
 
     private compileParamsJsonDE(op: JitOperation, isEncode: boolean) {
         const skip = isEncode ? this.constants().skipJsonEncode : this.constants().skipJsonDecode;
         if (skip) return '';
-        const compNext = (nextOp) => {
-            return this.getParameterTypes()
-                .filter((p) => (isEncode ? p.compileJsonEncode : p.compileJsonDecode))
-                .map((p) => (isEncode ? p.compileJsonEncode(nextOp) : p.compileJsonDecode(nextOp)))
-                .join(';');
-        };
-        return this.compileChildren(compNext, op);
+        return this.getParameterTypes()
+            .filter((p) => (isEncode ? p.compileJsonEncode : p.compileJsonDecode))
+            .map((p) => (isEncode ? p.compileJsonEncode(op) : p.compileJsonDecode(op)))
+            .join(';');
     }
 
     mock(ctx?: MockContext) {

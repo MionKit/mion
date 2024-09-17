@@ -29,52 +29,41 @@ export class InterfaceRunType<
         const iName = (this.src.kind as any).typeName as string | undefined;
         return `interface${iName ? ` ${iName}` : ''}`;
     }
-
+    protected getPathItem(): null {
+        return null;
+    }
     // #### collection's jit code ####
     protected _compileIsType(op: JitOperation): string {
         const varName = op.args.vλl;
         const children = this.getJitChildren();
-        const compNext = (nextOp: JitOperation) => {
-            return `  && ${children.map((prop) => prop.compileIsType(nextOp)).join(' && ')}`;
-        };
-        return `(typeof ${varName} === 'object' && ${varName} !== null && !Array.isArray(${varName}) ${this.compileChildren(compNext, op)})`;
+        const childrenCode = `  && ${children.map((prop) => prop.compileIsType(op)).join(' && ')}`;
+        return `(typeof ${varName} === 'object' && ${varName} !== null && !Array.isArray(${varName}) ${childrenCode})`;
     }
     protected _compileTypeErrors(op: JitTypeErrorOperation): string {
         const varName = op.args.vλl;
         const errorsName = op.args.εrrors;
         const children = this.getJitChildren();
-        const compNext = (nextOp: JitTypeErrorOperation) => {
-            return children.map((prop) => prop.compileTypeErrors(nextOp)).join(';');
-        };
+        const childrenCode = children.map((prop) => prop.compileTypeErrors(op)).join(';');
         return `
             if (typeof ${varName} !== 'object' && ${varName} !== null && !Array.isArray(${varName})) {
                 ${errorsName}.push({path: ${getJitErrorPath(op)}, expected: ${getExpected(this)}});
             } else {
-                ${this.compileChildren(compNext, op)}
+                ${childrenCode}
             }
         `;
     }
     protected _compileJsonEncode(op: JitOperation): string {
         const children = this.getJsonEncodeChildren();
-        const compNext = (nextOp: JitOperation) => {
-            return children.map((prop) => prop.compileJsonEncode(nextOp)).join(';');
-        };
-        return this.compileChildren(compNext, op);
+        return children.map((prop) => prop.compileJsonEncode(op)).join(';');
     }
     protected _compileJsonDecode(op: JitOperation): string {
         const children = this.getJsonDecodeChildren();
-        const compNext = (nextOp: JitOperation) => {
-            return children.map((prop) => prop.compileJsonDecode(nextOp)).join(';');
-        };
-        return this.compileChildren(compNext, op);
+        return children.map((prop) => prop.compileJsonDecode(op)).join(';');
     }
     protected _compileJsonStringify(op: JitOperation): string {
         const children = this.getJitChildren();
-        if (!children.length) return '{}';
-        const compNext = (nextOp: JitOperation) => {
-            return children.map((prop) => prop.compileJsonStringify(nextOp)).join('+');
-        };
-        return `'{'+${this.compileChildren(compNext, op)}+'}'`;
+        const childrenCode = children.map((prop) => prop.compileJsonStringify(op)).join('+');
+        return `'{'+${childrenCode}+'}'`;
     }
 
     mock(ctx?: Pick<MockContext, 'parentObj'>): Record<string | number, any> {

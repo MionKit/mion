@@ -8,6 +8,7 @@
 import {TypeParameter} from '../_deepkit/src/reflection/type';
 import {SingleItemMemberRunType} from '../baseRunTypes';
 import {JitOperation, JitPathItem, MockContext, JitTypeErrorOperation} from '../types';
+import {memo} from '../utils';
 import {RestParamsRunType} from './restParams';
 
 export class ParameterRunType extends SingleItemMemberRunType<TypeParameter> {
@@ -38,9 +39,7 @@ export class ParameterRunType extends SingleItemMemberRunType<TypeParameter> {
             return this.getMemberType().compileIsType(op);
         } else {
             const varName = op.args.vλl;
-            const childPath: JitPathItem = this.getMemberPathItem();
-            const compNext = (nextOp: JitOperation) => this.getMemberType().compileIsType(nextOp);
-            const itemCode = this.compileChildren(compNext, op, childPath);
+            const itemCode = this.getMemberType().compileIsType(op);
             return this.isOptional() ? `${varName} === undefined || (${itemCode})` : itemCode;
         }
     }
@@ -49,47 +48,31 @@ export class ParameterRunType extends SingleItemMemberRunType<TypeParameter> {
             return this.getMemberType().compileTypeErrors(op);
         } else {
             const varName = op.args.vλl;
-            const childPath: JitPathItem = this.getMemberPathItem();
-            const compNext = (nextOp: JitTypeErrorOperation) => this.getMemberType().compileTypeErrors(nextOp);
-            const itemCode = this.compileChildren(compNext, op, childPath);
+            const itemCode = this.getMemberType().compileTypeErrors(op);
             return this.isOptional() ? `if (${varName} !== undefined) {${itemCode}}` : itemCode;
         }
     }
     protected _compileJsonEncode(op: JitOperation): string {
-        return this.compileJsonDE(op, true);
+        return this.getMemberType().compileJsonEncode(op);
     }
-    protected _compileJsonDecode(stack: JitOperation): string {
-        return this.compileJsonDE(stack, false);
-    }
-    private compileJsonDE(op: JitOperation, isEncode = false): string {
-        const compileFn = isEncode ? this.getMemberType().compileJsonEncode : this.getMemberType().compileJsonDecode;
-        if (this.isRest()) {
-            return compileFn(op);
-        } else {
-            const childPath: JitPathItem = this.getMemberPathItem();
-            return this.compileChildren((nextOp: JitOperation) => compileFn(nextOp), op, childPath);
-        }
+    protected _compileJsonDecode(op: JitOperation): string {
+        return this.getMemberType().compileJsonDecode(op);
     }
     protected _compileJsonStringify(op: JitOperation): string {
         if (this.isRest()) {
             return this.getMemberType().compileJsonStringify(op);
         } else {
-            const childPath: JitPathItem = this.getMemberPathItem();
-            const compNext = (nextOp: JitOperation) => {
-                const childVarName = nextOp.args.vλl;
-                const argCode = this.getMemberType().compileJsonStringify(nextOp);
-                const isFirst = this.getMemberIndex() === 0;
-                const sep = isFirst ? '' : `','+`;
-                if (this.isOptional()) return `(${childVarName} === undefined ? '': ${sep}${argCode})`;
-                return `${sep}${argCode}`;
-            };
-            return this.compileChildren(compNext, op, childPath);
+            const argCode = this.getMemberType().compileJsonStringify(op);
+            const isFirst = this.getMemberIndex() === 0;
+            const sep = isFirst ? '' : `','+`;
+            if (this.isOptional()) return `(${op.args.vλl} === undefined ? '': ${sep}${argCode})`;
+            return `${sep}${argCode}`;
         }
     }
     mock(ctx?: MockContext): any {
         return this.getMemberType().mock(ctx);
     }
-    getMemberPathItem(): JitPathItem {
+    getPathItem = memo((): JitPathItem => {
         return {vλl: this.getMemberIndex(), useArrayAccessor: true, literal: this.getMemberIndex()};
-    }
+    });
 }

@@ -1,6 +1,7 @@
 import {TypeRest} from '../_deepkit/src/reflection/type';
 import {SingleItemMemberRunType} from '../baseRunTypes';
 import {JitOperation, JitPathItem, MockContext, JitTypeErrorOperation} from '../types';
+import {memo} from '../utils';
 
 /* ########
  * 2024 mion
@@ -31,10 +32,9 @@ export class RestParamsRunType extends SingleItemMemberRunType<TypeRest> {
     }
     protected _compileIsType(op: JitOperation): string {
         const varName = op.args.vλl;
-        const childPath: JitPathItem = this.getMemberPathItem(op);
+        const childPath: JitPathItem = this.getPathItem(op);
         const indexName = childPath.vλl;
-        const compNext = (nextOp: JitOperation) => this.getMemberType().compileIsType(nextOp);
-        const itemCode = this.compileChildren(compNext, op, childPath);
+        const itemCode = this.getMemberType().compileIsType(op);
         return `(function() {
             for (let ${indexName} = ${this.getMemberIndex()}; ${indexName} < ${varName}.length; ${indexName}++) {
                 if (!(${itemCode})) return false;
@@ -44,10 +44,9 @@ export class RestParamsRunType extends SingleItemMemberRunType<TypeRest> {
     }
     protected _compileTypeErrors(op: JitTypeErrorOperation): string {
         const varName = op.args.vλl;
-        const childPath: JitPathItem = this.getMemberPathItem(op);
+        const childPath: JitPathItem = this.getPathItem(op);
         const indexName = childPath.vλl;
-        const compNext = (nextOp: JitTypeErrorOperation) => this.getMemberType().compileTypeErrors(nextOp);
-        const itemCode = this.compileChildren(compNext, op, childPath);
+        const itemCode = this.getMemberType().compileTypeErrors(op);
         return `for (let ${indexName} = ${this.getMemberIndex()}; ${indexName} < ${varName}.length; ${indexName}++) {${itemCode}}`;
     }
     protected _compileJsonEncode(op: JitOperation): string {
@@ -57,24 +56,21 @@ export class RestParamsRunType extends SingleItemMemberRunType<TypeRest> {
         return this.compileJsonDE(op, false);
     }
     private compileJsonDE(op: JitOperation, isEncode = false): string {
-        const compileFn = isEncode ? this.getMemberType().compileJsonEncode : this.getMemberType().compileJsonDecode;
         const varName = op.args.vλl;
-        const childPath: JitPathItem = this.getMemberPathItem(op);
+        const childPath: JitPathItem = this.getPathItem(op);
         const indexName = childPath.vλl;
-        const compNext = (nextOp: JitOperation) => compileFn(nextOp);
-        const itemCode = this.compileChildren(compNext, op, childPath);
+        const itemCode = isEncode ? this.getMemberType().compileJsonEncode(op) : this.getMemberType().compileJsonDecode(op);
         return `for (let ${indexName} = ${this.getMemberIndex()}; ${indexName} < ${varName}.length; ${indexName}++) {${itemCode}}`;
     }
     protected _compileJsonStringify(op: JitOperation): string {
         const varName = op.args.vλl;
         const arrName = `rεsultλrr${op.stack.length}`;
         const itemName = `itεm${op.stack.length}`;
-        const childPath: JitPathItem = this.getMemberPathItem(op);
+        const childPath: JitPathItem = this.getPathItem(op);
         const indexName = childPath.vλl;
         const isFist = this.getMemberIndex() === 0;
         const sep = isFist ? '' : `','+`;
-        const compNext = (nextOp: JitOperation) => this.getMemberType().compileJsonStringify(nextOp);
-        const itemCode = this.compileChildren(compNext, op, childPath);
+        const itemCode = this.getMemberType().compileJsonStringify(op);
         return `(function(){
             const ${arrName} = [];
             for (let ${indexName} = ${this.getMemberIndex()}; ${indexName} < ${varName}.length; ${indexName}++) {
@@ -88,8 +84,8 @@ export class RestParamsRunType extends SingleItemMemberRunType<TypeRest> {
     mock(ctx?: MockContext): string {
         return this.getMemberType().mock(ctx);
     }
-    getMemberPathItem(op: JitOperation): JitPathItem {
+    getPathItem = memo((op: JitOperation): JitPathItem => {
         const indexName = `iε${op.stack.length}`;
         return {vλl: indexName, useArrayAccessor: true, literal: indexName};
-    }
+    });
 }

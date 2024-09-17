@@ -15,52 +15,40 @@ export class TupleRunType extends ArrayCollectionRunType<TypeTuple> {
     getName(): string {
         throw 'tuple';
     }
+    protected getPathItem(): null {
+        return null;
+    }
     protected _compileIsType(op: JitOperation): string {
         const children = this.getJitChildren();
         const varName = op.args.vλl;
-        const compNext = (nextOp: JitOperation): string => {
-            return children.map((rt) => rt.compileIsType(nextOp)).join(' && ');
-        };
-        return `(Array.isArray(${varName}) && ${varName}.length <= ${children.length} && (${this.compileChildren(compNext, op)}))`;
+        const childrenCode = `&& (${children.map((rt) => rt.compileIsType(op)).join(' && ')})`;
+        return `(Array.isArray(${varName}) && ${varName}.length <= ${children.length} ${childrenCode})`;
     }
     protected _compileTypeErrors(op: JitTypeErrorOperation): string {
         const children = this.getJitChildren();
         const varName = op.args.vλl;
         const errorsName = op.args.εrrors;
-        const compNext = (nextOp: JitTypeErrorOperation): string => {
-            return children.map((rt) => rt.compileTypeErrors(nextOp)).join(';');
-        };
+        const childrenCode = children.map((rt) => rt.compileTypeErrors(op)).join(';');
         return `
-                if (!Array.isArray(${varName}) || ${varName}.length > ${children.length}) {
-                    ${errorsName}.push({path: ${getJitErrorPath(op)}, expected: ${getExpected(this)}});
-                } else {
-                    ${this.compileChildren(compNext, op)}
-                }
-            `;
+            if (!Array.isArray(${varName}) || ${varName}.length > ${children.length}) {
+                ${errorsName}.push({path: ${getJitErrorPath(op)}, expected: ${getExpected(this)}});
+            } else {
+                ${childrenCode}
+            }
+        `;
     }
     protected _compileJsonEncode(op: JitOperation): string {
         const children = this.getJsonEncodeChildren();
-        const compNext = (nextOp: JitOperation): string => {
-            const childrenCode = children.map((rt) => rt.compileJsonEncode(nextOp));
-            return childrenCode.filter((code) => !!code).join(';');
-        };
-        return this.compileChildren(compNext, op);
+        return children.map((rt) => rt.compileJsonEncode(op)).join(';');
     }
     protected _compileJsonDecode(op: JitOperation): string {
         const children = this.getJsonDecodeChildren();
-        const compNext = (nextOp: JitOperation): string => {
-            const decodeCodes = children.map((rt) => rt.compileJsonDecode(nextOp));
-            return decodeCodes.filter((code) => !!code).join(';');
-        };
-        return this.compileChildren(compNext, op);
+        return children.map((rt) => rt.compileJsonDecode(op)).join(';');
     }
     protected _compileJsonStringify(op: JitOperation): string {
         const children = this.getJitChildren();
-        const compNext = (nextOp: JitOperation): string => {
-            const jsonStrings = children.map((rt) => rt.compileJsonStringify(nextOp));
-            return jsonStrings.join(`+','+`);
-        };
-        return `'['+${this.compileChildren(compNext, op)}+']'`;
+        const childrenCode = children.map((rt) => rt.compileJsonStringify(op)).join(`+','+`);
+        return `'['+${childrenCode}+']'`;
     }
 
     mock(ctx?: Pick<MockContext, 'tupleOptions'>): any[] {
