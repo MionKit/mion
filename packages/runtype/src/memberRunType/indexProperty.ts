@@ -2,6 +2,7 @@ import {ReflectionKind, TypeIndexSignature} from '../_deepkit/src/reflection/typ
 import {SingleItemMemberRunType} from '../baseRunTypes';
 import {JitOperation, JitPathItem, MockContext, JitTypeErrorOperation} from '../types';
 import {jitNames} from '../constants';
+import {memo} from '../utils';
 
 /* ########
  * 2024 mion
@@ -36,12 +37,11 @@ export class IndexSignatureRunType extends SingleItemMemberRunType<TypeIndexSign
         const child = this.getJitChild();
         if (!child) return 'true';
         const varName = op.args.vλl;
-        const childPath: JitPathItem = this.getMemberPathItem(op);
+        const childPath: JitPathItem = this.getPathItem(op);
         const prop = childPath.vλl;
-        const compNext = (nextOp: JitOperation) => child.compileIsType(nextOp);
         return `
             for (const ${prop} in ${varName}) {
-                if (!(${this.compileChildren(compNext, op, childPath)})) return false;
+                if (!(${child.compileIsType(op)})) return false;
             }
             return true;
         `;
@@ -50,12 +50,11 @@ export class IndexSignatureRunType extends SingleItemMemberRunType<TypeIndexSign
         const child = this.getJitChild();
         if (!child) return '';
         const varName = op.args.vλl;
-        const childPath: JitPathItem = this.getMemberPathItem(op);
+        const childPath: JitPathItem = this.getPathItem(op);
         const prop = childPath.vλl;
-        const compNext = (nextOp: JitTypeErrorOperation) => child.compileTypeErrors(nextOp);
         return `
             for (const ${prop} in ${varName}) {
-                ${this.compileChildren(compNext, op, childPath)}
+                ${child.compileTypeErrors(op)}
             }
         `;
     }
@@ -69,33 +68,26 @@ export class IndexSignatureRunType extends SingleItemMemberRunType<TypeIndexSign
         const child = isEncode ? this.getJsonEncodeChild() : this.getJsonDecodeChild();
         if (!child) return '';
         const varName = op.args.vλl;
-        const childPath: JitPathItem = this.getMemberPathItem(op);
+        const childPath: JitPathItem = this.getPathItem(op);
         const prop = childPath.vλl;
-        const compNext = (nextOp: JitOperation) => {
-            return isEncode ? child.compileJsonEncode(nextOp) : child.compileJsonDecode(nextOp);
-        };
         return `
             for (const ${prop} in ${varName}) {
-                ${this.compileChildren(compNext, op, childPath)}
+                ${isEncode ? child.compileJsonEncode(op) : child.compileJsonDecode(op)}
             }
         `;
     }
     protected _compileJsonStringify(op: JitOperation): string {
         const child = this.getJitChild();
         if (!child) return `''`;
-        const childPath: JitPathItem = this.getMemberPathItem(op);
+        const childPath: JitPathItem = this.getPathItem(op);
         const varName = op.args.vλl;
         const prop = childPath.vλl;
         const arrName = `prΦpsλrr${op.stack.length}`;
-        const compNext = (nextOp: JitOperation) => {
-            const childVarName = nextOp.args.vλl;
-            const jsonVal = child.compileJsonStringify(nextOp);
-            return `if (${childVarName} !== undefined) ${arrName}.push(${jitNames.utils}.asJSONString(${prop}) + ':' + ${jsonVal})`;
-        };
+        const jsonVal = child.compileJsonStringify(op);
         return `
             const ${arrName} = [];
             for (const ${prop} in ${varName}) {
-                ${this.compileChildren(compNext, op, childPath)}
+                if (${prop} !== undefined) ${arrName}.push(${jitNames.utils}.asJSONString(${prop}) + ':' + ${jsonVal});
             }
             return ${arrName}.join(',');
         `;
@@ -121,8 +113,8 @@ export class IndexSignatureRunType extends SingleItemMemberRunType<TypeIndexSign
             parentObj[propName] = this.getMemberType().mock(ctx);
         }
     }
-    getMemberPathItem(op: JitOperation): JitPathItem {
+    getPathItem = memo((op: JitOperation): JitPathItem => {
         const prop = `prΦp${op.stack.length}`;
         return {vλl: prop, literal: prop, useArrayAccessor: true};
-    }
+    });
 }

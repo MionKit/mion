@@ -41,68 +41,44 @@ export class PropertyRunType extends SingleItemMemberRunType<TypePropertySignatu
     protected _compileIsType(op: JitOperation): string {
         const child = this.getJitChild();
         if (!child) return '';
-        const childPath: JitPathItem = this.getMemberPathItem();
-        const compNext = (nextOp: JitOperation) => {
-            const childVarName = nextOp.args.vλl;
-            const itemCode = child.compileIsType(nextOp);
-            return this.src.optional ? `(${childVarName} === undefined || ${itemCode})` : itemCode;
-        };
-        return this.compileChildren(compNext, op, childPath);
+        const itemCode = child.compileIsType(op);
+        return this.src.optional ? `(${op.args.vλl} === undefined || ${itemCode})` : itemCode;
     }
     protected _compileTypeErrors(op: JitTypeErrorOperation): string {
         const child = this.getJitChild();
         if (!child) return '';
-        const childPath: JitPathItem = this.getMemberPathItem();
-        const compNext = (nextOp: JitTypeErrorOperation) => {
-            const childVarName = nextOp.args.vλl;
-            const itemCode = child.compileTypeErrors(nextOp);
-            return this.src.optional ? `if (${childVarName} !== undefined) {${itemCode}}` : itemCode;
-        };
-        return this.compileChildren(compNext, op, childPath);
+        const itemCode = child.compileTypeErrors(op);
+        return this.src.optional ? `if (${op.args.vλl} !== undefined) {${itemCode}}` : itemCode;
     }
     protected _compileJsonEncode(op: JitOperation): string {
         const child = this.getJsonEncodeChild();
         if (!child) return '';
-        const childPath: JitPathItem = this.getMemberPathItem();
-        const compNext = (nextOp: JitOperation) => {
-            const childVarName = nextOp.args.vλl;
-            const propCode = child.compileJsonEncode(nextOp);
-            if (this.src.optional) return `if (${childVarName} !== undefined) ${propCode}`;
-            return propCode;
-        };
-        return this.compileChildren(compNext, op, childPath);
+        const propCode = child.compileJsonEncode(op);
+        if (this.src.optional) return `if (${op.args.vλl} !== undefined) ${propCode}`;
+        return propCode;
     }
     protected _compileJsonDecode(op: JitOperation): string {
         const child = this.getJsonDecodeChild();
         if (!child) return '';
-        const childPath: JitPathItem = this.getMemberPathItem();
-        const compNext = (nextOp: JitOperation) => {
-            const propCode = child.compileJsonDecode(nextOp);
-            if (this.src.optional) return `if (${nextOp.args.vλl} !== undefined) ${propCode}`;
-            return propCode;
-        };
-        return this.compileChildren(compNext, op, childPath);
+        const propCode = child.compileJsonDecode(op);
+        if (this.src.optional) return `if (${op.args.vλl} !== undefined) ${propCode}`;
+        return propCode;
     }
     protected _compileJsonStringify(op: JitOperation): string {
         const child = this.getJitChild();
         if (!child) return '';
-        const childPath: JitPathItem = this.getMemberPathItem();
-        const compNext = (nextOp: JitOperation) => {
-            const childVarName = nextOp.args.vλl;
-            // when is not safe firs stringify sanitizes string, second output double quoted scaped json string
-            const proNameJSon = this.isSafePropName()
-                ? `'${toLiteral(this.getMemberIndex())}'`
-                : jitUtils.asJSONString(toLiteral(this.getMemberIndex()));
-            const propCode = child.compileJsonStringify(nextOp);
-            // this can´t be processed in the parent as we need to handle the empty string case when value is undefined
-            const isFirst = this.getMemberIndex() === 0;
-            const sep = isFirst ? '' : `','+`;
-            if (this.src.optional) {
-                return `(${childVarName} === undefined ? '' : ${sep}${proNameJSon}+':'+${propCode})`;
-            }
-            return `${sep}${proNameJSon}+':'+${propCode}`;
-        };
-        return this.compileChildren(compNext, op, childPath);
+        // when is not safe firs stringify sanitizes string, second output double quoted scaped json string
+        const proNameJSon = this.isSafePropName()
+            ? `'${toLiteral(this.getMemberIndex())}'`
+            : jitUtils.asJSONString(toLiteral(this.getMemberIndex()));
+        const propCode = child.compileJsonStringify(op);
+        // this can´t be processed in the parent as we need to handle the empty string case when value is undefined
+        const isFirst = this.getMemberIndex() === 0;
+        const sep = isFirst ? '' : `','+`;
+        if (this.src.optional) {
+            return `(${op.args.vλl} === undefined ? '' : ${sep}${proNameJSon}+':'+${propCode})`;
+        }
+        return `${sep}${proNameJSon}+':'+${propCode}`;
     }
     mock(ctx?: Pick<MockContext, 'optionalPropertyProbability' | 'optionalProbability'>): any {
         const probability = ctx?.optionalPropertyProbability?.[this.getMemberName()] ?? ctx?.optionalProbability ?? 0.5;
@@ -110,7 +86,7 @@ export class PropertyRunType extends SingleItemMemberRunType<TypePropertySignatu
         if (this.src.optional && Math.random() < probability) return undefined;
         return this.getMemberType().mock(ctx);
     }
-    getMemberPathItem = memo((): JitPathItem => {
+    getPathItem = memo((): JitPathItem => {
         return {vλl: this.getMemberName(), useArrayAccessor: !this.isSafePropName(), literal: toLiteral(this.getMemberName())};
     });
 }

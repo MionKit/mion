@@ -24,57 +24,16 @@ export class UnionRunType extends SingleItemCollectionRunType<TypeUnion> {
     getName(): string {
         return 'union';
     }
-
+    protected getPathItem(): null {
+        return null;
+    }
     // #### collection's jit code ####
     protected _compileIsType(op: JitOperation): string {
-        return this.compileChildren((nextOp: JitOperation) => this.compileIsTypeChildren(nextOp), op);
-    }
-    protected _compileTypeErrors(op: JitTypeErrorOperation): string {
-        const errorsVarName = op.args.εrrors;
-        // if we do all checks and code reaches this point then we can add an error for the root type
-        return `
-            ${this.compileChildren((nextOp: JitTypeErrorOperation) => this.compileTypeErrorsChildren(nextOp), op)}
-            ${errorsVarName}.push({path: ${getJitErrorPath(op)}, expected: ${getExpected(this)}});
-        `;
-    }
-    /**
-     * When a union is encode to json is encode into and array with two elements: [unionDiscriminator, encoded Value]
-     * the first element is the index of the type in the union.
-     * the second element is the encoded value of the type.
-     * ie: type union = string | number | bigint;  var v1: union = 123n;  v1 is encoded as [2, "123n"]
-     */
-    protected _compileJsonEncode(op: JitOperation): string {
-        const varName = op.args.vλl;
-        return `
-                ${this.compileChildren((nextOp: JitOperation) => this.compileJsonEncodeChildren(nextOp), op)}
-                else { throw new Error('Can not encode json to union: expected one of <${this.getUnionTypeNames()}> but got ' + ${varName}?.constructor?.name || typeof ${varName}) }
-            `;
-    }
-    /**
-     * When a union is decoded from json it expects de two elements array format: [unionDiscriminator, Value to decodeßß]
-     * the first element is the index of the type in the union.
-     * the second element is the encoded value of the type.
-     * ie: type union = string | number | bigint;  var v1: union = 123n;  v1 is encoded as [2, "123n"]
-     */
-    protected _compileJsonDecode(op: JitOperation): string {
-        return `
-                ${this.compileChildren((nextOp: JitOperation) => this.compileJsonDecodeChildren(nextOp), op)}
-                else { throw new Error('Can not decode json to union: expected one of <${this.getUnionTypeNames()}> but got ' + ${op.args.vλl}?.constructor?.name || typeof ${op.args.vλl}) }
-            `;
-    }
-    protected _compileJsonStringify(op: JitOperation): string {
-        return `
-            ${this.compileChildren((nextOp: JitOperation) => this.compileJsonStringifyChildren(nextOp), op)}
-            else { throw new Error('Can not stringify union: expected one of <${this.getUnionTypeNames()}> but got ' + ${op.args.vλl}?.constructor?.name || typeof ${op.args.vλl}) }
-        `;
-    }
-
-    // #### members jit code ####
-    private compileIsTypeChildren(op: JitOperation): string {
         const children = this.getJitChildren();
         return `(${children.map((rt) => rt.compileIsType(op)).join(' || ')})`;
     }
-    private compileTypeErrorsChildren(op: JitTypeErrorOperation): string {
+    protected _compileTypeErrors(op: JitTypeErrorOperation): string {
+        const errorsVarName = op.args.εrrors;
         const childErrors = op.args.εrrors;
         const atomicChildren = this.getChildRunTypes().filter((rt) => !isCollectionRunType(rt));
         // TODO, old TS version, does not catch the type of rt, any[] is used to avoid compilation errors
@@ -102,11 +61,23 @@ export class UnionRunType extends SingleItemCollectionRunType<TypeUnion> {
                     }`;
             })
             .join('\n');
-        return `${atomicItemsCode} ${collectionsItemsCode}`;
+        // if we do all checks and code reaches this point then we can add an error for the root type
+        return `
+            ${atomicItemsCode}
+            ${collectionsItemsCode}
+            ${errorsVarName}.push({path: ${getJitErrorPath(op)}, expected: ${getExpected(this)}});
+        `;
     }
-    private compileJsonEncodeChildren(op: JitOperation): string {
+    /**
+     * When a union is encode to json is encode into and array with two elements: [unionDiscriminator, encoded Value]
+     * the first element is the index of the type in the union.
+     * the second element is the encoded value of the type.
+     * ie: type union = string | number | bigint;  var v1: union = 123n;  v1 is encoded as [2, "123n"]
+     */
+    protected _compileJsonEncode(op: JitOperation): string {
+        const varName = op.args.vλl;
         const childVarName = op.args.vλl;
-        return this.getChildRunTypes()
+        const childrenCode = this.getChildRunTypes()
             .map((rt, i) => {
                 const itemCode = rt.compileJsonEncode(op);
                 const iF = i === 0 ? 'if' : 'else if';
@@ -114,10 +85,20 @@ export class UnionRunType extends SingleItemCollectionRunType<TypeUnion> {
                 return `${iF} (${rt.compileIsType(op)}) {${childVarName} = [${i}, ${childVarName}]; ${itemCode}}`;
             })
             .join('');
+        return `
+                ${childrenCode}
+                else { throw new Error('Can not encode json to union: expected one of <${this.getUnionTypeNames()}> but got ' + ${varName}?.constructor?.name || typeof ${varName}) }
+            `;
     }
-    private compileJsonDecodeChildren(op: JitOperation): string {
+    /**
+     * When a union is decoded from json it expects de two elements array format: [unionDiscriminator, Value to decodeßß]
+     * the first element is the index of the type in the union.
+     * the second element is the encoded value of the type.
+     * ie: type union = string | number | bigint;  var v1: union = 123n;  v1 is encoded as [2, "123n"]
+     */
+    protected _compileJsonDecode(op: JitOperation): string {
         const discriminator = `${op.args.vλl}[0]`;
-        return this.getChildRunTypes()
+        const childrenCode = this.getChildRunTypes()
             .map((rt, i) => {
                 const itemCode = `${rt.compileJsonDecode(op)};`;
                 const iF = i === 0 ? 'if' : 'else if';
@@ -125,13 +106,21 @@ export class UnionRunType extends SingleItemCollectionRunType<TypeUnion> {
                 return `${iF} ( ${discriminator} === ${i}) {${itemCode} ${discriminator} = ${op.args.vλl}}`;
             })
             .join('');
+        return `
+                ${childrenCode}
+                else { throw new Error('Can not decode json to union: expected one of <${this.getUnionTypeNames()}> but got ' + ${op.args.vλl}?.constructor?.name || typeof ${op.args.vλl}) }
+            `;
     }
-    private compileJsonStringifyChildren(op: JitOperation): string {
-        return this.getChildRunTypes()
+    protected _compileJsonStringify(op: JitOperation): string {
+        const childrenCode = this.getChildRunTypes()
             .map((rt, i) => {
                 return `if (${rt.compileIsType(op)}) {return ('[' + ${i} + ',' + ${rt.compileJsonStringify(op)} + ']');}`;
             })
             .join('');
+        return `
+            ${childrenCode}
+            else { throw new Error('Can not stringify union: expected one of <${this.getUnionTypeNames()}> but got ' + ${op.args.vλl}?.constructor?.name || typeof ${op.args.vλl}) }
+        `;
     }
 
     mock(ctx?: Pick<MockContext, 'unionIndex'>): any {

@@ -67,7 +67,7 @@ export class PromiseRunType extends SingleItemMemberRunType<TypePromise> {
             else resolve(this.getMemberType().mock(ctx));
         });
     }
-    getMemberPathItem() {
+    getPathItem() {
         return undefined;
     }
 }

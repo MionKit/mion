@@ -27,6 +27,7 @@ import {
     shouldSkipJit,
     shouldSkipJsonDecode,
 } from './jitCircular';
+import {maxStackDepth, maxStackErrorMessage} from './constants';
 
 type DkCollection = Type & {types: Type[]};
 type DkMember = Type & {type: Type; optional: boolean};
@@ -34,7 +35,7 @@ type DkMember = Type & {type: Type; optional: boolean};
 export abstract class BaseRunType<T extends Type> implements RunType {
     abstract readonly src: T;
     abstract getName(): string;
-    abstract getFamily(): 'A' | 'C' | 'M' | 'F'; // Atomic, Collection, Member
+    abstract getFamily(): 'A' | 'C' | 'M' | 'F'; // Atomic, Collection, Member, Function
     abstract compileIsType(op: JitOperation): string;
     abstract compileTypeErrors(op: JitTypeErrorOperation): string;
     abstract compileJsonEncode(op: JitOperation): string;
@@ -87,17 +88,30 @@ export abstract class NonAtomicBaseRunType<T extends Type> extends BaseRunType<T
     compileIsType(op: JitOperation): string {
         if (shouldSkipJit(this)) return addReturnCode(this._compileIsTypeNoChildren(op), op, false);
         const codeContainsReturn = this.hasReturnCompileIsType();
-        const compile = (nextOp) => this._compileIsType(nextOp);
-        return addReturnCodeAndHandleCompileCache(compile, this, op, codeContainsReturn, 'isT');
+        const compNext = () => {
+            const oldArgs = this.pushStack(op);
+            const code = this._compileIsType(op);
+            this.popStack(op, oldArgs);
+            return code;
+        };
+        return addReturnCodeAndHandleCompileCache(compNext, this, op, codeContainsReturn, 'isT');
     }
     compileTypeErrors(op: JitTypeErrorOperation): string {
         const codeContainsReturn = false;
         if (shouldSkipJit(this)) return addReturnCode(this._compileTypeErrorsNoChildren(op), op, codeContainsReturn);
-        const compile = (nextOp) => this._compileTypeErrors(nextOp);
-        const typeErrorsCode = handleCircularStackAndJitCacheCompiling(compile as any, this, op, codeContainsReturn, 'TErr');
+        const compNext = () => {
+            const oldArgs = this.pushStack(op);
+            const code = this._compileTypeErrors(op);
+            this.popStack(op, oldArgs);
+            return code;
+        };
+        const typeErrorsCode = handleCircularStackAndJitCacheCompiling(compNext as any, this, op, codeContainsReturn, 'TErr');
         const pathLength = op.stack.length;
         if (shouldCallJitCache(this) && pathLength > 0) {
-            const updatePathArgs = op.path.map((item) => item.literal).join(',');
+            const updatePathArgs = op.path
+                .filter((i) => !!i)
+                .map((item) => item.literal)
+                .join(',');
             return `
             ${op.args.pλth}.push(${updatePathArgs});
             ${typeErrorsCode}
@@ -109,49 +123,58 @@ export abstract class NonAtomicBaseRunType<T extends Type> extends BaseRunType<T
     compileJsonEncode(op: JitOperation): string {
         const codeContainsReturn = false;
         if (shouldSkiJsonEncode(this)) return addReturnCode(this._compileJsonEncodeNoChildren(op), op, codeContainsReturn);
-        const compile = (nextOp) => this._compileJsonEncode(nextOp);
-        return handleCircularStackAndJitCacheCompiling(compile, this, op, codeContainsReturn, 'jsonE');
+        const compNext = () => {
+            const oldArgs = this.pushStack(op);
+            const code = this._compileJsonEncode(op);
+            this.popStack(op, oldArgs);
+            return code;
+        };
+        const compiled = handleCircularStackAndJitCacheCompiling(compNext, this, op, codeContainsReturn, 'jsonE');
+        return op.stack.length > 0 ? compiled : `${compiled}; return ${op.args.vλl}`;
     }
     compileJsonDecode(op: JitOperation): string {
         const codeContainsReturn = false;
         if (shouldSkipJsonDecode(this)) return addReturnCode(this._compileJsonDecodeNoChildren(op), op, codeContainsReturn);
-        const compile = (nextOp) => this._compileJsonDecode(nextOp);
-        return handleCircularStackAndJitCacheCompiling(compile, this, op, codeContainsReturn, 'jsonD');
+        const compNext = () => {
+            const oldArgs = this.pushStack(op);
+            const code = this._compileJsonDecode(op);
+            this.popStack(op, oldArgs);
+            return code;
+        };
+        const compiled = handleCircularStackAndJitCacheCompiling(compNext, this, op, codeContainsReturn, 'jsonD');
+        return op.stack.length > 0 ? compiled : `${compiled}; return ${op.args.vλl}`;
     }
     compileJsonStringify(op: JitOperation): string {
         if (shouldSkipJit(this)) return addReturnCode(this._compileJsonStringifyNoChildren(op), op, false);
         const codeContainsReturn = this.hasReturnCompileJsonStringify();
-        const compile = (nextOp) => this._compileJsonStringify(nextOp);
-        return addReturnCodeAndHandleCompileCache(compile, this, op, codeContainsReturn, 'jsonS');
+        const compNext = () => {
+            const oldArgs = this.pushStack(op);
+            const code = this._compileJsonStringify(op);
+            this.popStack(op, oldArgs);
+            return code;
+        };
+        return addReturnCodeAndHandleCompileCache(compNext, this, op, codeContainsReturn, 'jsonS');
     }
 
-    /**
-     * Wrapper function to compile children types, it manages all the required updates to the compile context before and after compiling the children.
-     */
-    compileChildren<JitOp extends JitOperation | JitTypeErrorOperation>(
-        compileChildFn: (op: JitOp) => string,
-        op: JitOp,
-        pathItem?: JitPathItem
-    ): string {
+    private pushStack(op: JitOperation | JitTypeErrorOperation): JitOperation['args'] {
+        if (op.stack.length > maxStackDepth) throw new Error(maxStackErrorMessage);
         // updates the context by updating parents, path and args
-        const args = {...op.args};
+        const pathItem = this.getPathItem(op);
+        const args = {...op.args}; // copy args to ensure child operations don't affect parent operations
         op.stack.push(this);
+        op.path.push(pathItem);
         if (pathItem) {
             const useArray = pathItem.useArrayAccessor ?? typeof pathItem.vλl === 'number';
             const childAccessor = useArray ? `[${pathItem.literal}]` : `.${pathItem.vλl}`;
             op.args.vλl = `${op.args.vλl}${childAccessor}`;
-            op.path.push(pathItem);
         }
+        return args;
+    }
 
-        const itemsCode = compileChildFn(op);
-
-        // restore the context to the previous state
-        if (pathItem) {
-            op.path.pop();
-        }
+    private popStack(op: JitOperation | JitTypeErrorOperation, oldOrgs: JitOperation['args']) {
+        op.path.pop();
         op.stack.pop();
-        op.args = args;
-        return itemsCode;
+        op.args = oldOrgs;
     }
 
     protected abstract _compileIsType(op: JitOperation): string;
@@ -169,6 +192,7 @@ export abstract class NonAtomicBaseRunType<T extends Type> extends BaseRunType<T
 
     protected abstract hasReturnCompileIsType(): boolean;
     protected abstract hasReturnCompileJsonStringify(): boolean;
+    protected abstract getPathItem(op: JitOperation): JitPathItem | null;
 }
 
 /**
@@ -195,13 +219,14 @@ export abstract class CollectionRunType<T extends Type> extends NonAtomicBaseRun
         return this.getChildRunTypes().filter((c) => !c.constants().skipJit && !c.constants().skipJsonDecode);
     }
     constants = memo((stack: RunType[] = []): JitConstants => {
+        if (stack.length > maxStackDepth) throw new Error(maxStackErrorMessage);
         const isInStack = stack.some((rt) => rt === this); // recursive reference
         if (isInStack) {
             return {
                 skipJit: false, // ensures that jit is ran when circular reference is found
                 skipJsonEncode: true,
                 skipJsonDecode: true,
-                jitId: '$',
+                jitId: '$elf',
                 isCircularRef: true,
             };
         }
@@ -237,7 +262,6 @@ export abstract class MemberRunType<T extends Type> extends NonAtomicBaseRunType
     abstract useArrayAccessor(): boolean;
     abstract isOptional(): boolean;
     abstract getMemberName(): string | number;
-    abstract getMemberPathItem(op: JitOperation): JitPathItem | undefined;
     getFamily(): 'M' {
         return 'M';
     }
@@ -268,6 +292,7 @@ export abstract class MemberRunType<T extends Type> extends NonAtomicBaseRunType
         return child;
     }
     constants = memo((stack: RunType[] = []): JitConstants => {
+        if (stack.length > maxStackDepth) throw new Error(maxStackErrorMessage);
         const isInStack = stack.some((rt) => rt === this); // recursive reference
         if (isInStack) {
             return {
@@ -279,7 +304,6 @@ export abstract class MemberRunType<T extends Type> extends NonAtomicBaseRunType
             };
         }
         stack.push(this);
-        stack.pop();
         const member = this.getMemberType();
         const memberValues = member.constants(stack);
         const optional = this.isOptional() ? '?' : '';
@@ -288,6 +312,7 @@ export abstract class MemberRunType<T extends Type> extends NonAtomicBaseRunType
             jitId: `${this.src.kind}${optional}:${memberValues.jitId}`,
         };
         stack.pop();
+        console.log('jitCts', jitCts);
         return jitCts;
     });
 }

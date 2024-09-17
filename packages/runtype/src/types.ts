@@ -19,7 +19,7 @@ export interface JitCompileOperation<FnArgs extends JitFnArgs = JitFnArgs> {
     stack: RunType[];
     /** the key of the argName must be the same as the variable name. so keys are used as inital variable names when jitContext gets reset. */
     args: FnArgs;
-    path: JitPathItem[];
+    path: (JitPathItem | null)[];
     getDefaultArgs(): FnArgs;
 }
 
