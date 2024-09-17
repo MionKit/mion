@@ -67,7 +67,7 @@ export function getJitErrorPath(stack: JitTypeErrorOperation): string {
     if (stack.path.length === 0) return `[...${stack.args.pλth}]`;
     const currentPathArgs = stack.path
         .filter((i) => i !== null)
-        .map((pathItem) => pathItem.literal)
+        .map((pathItem) => pathItem?.literal)
         .join(',');
     return `[...${stack.args.pλth},${currentPathArgs}]`;
 }

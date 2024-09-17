@@ -110,7 +110,7 @@ export abstract class NonAtomicBaseRunType<T extends Type> extends BaseRunType<T
         if (shouldCallJitCache(this) && pathLength > 0) {
             const updatePathArgs = op.path
                 .filter((i) => !!i)
-                .map((item) => item.literal)
+                .map((item) => item?.literal)
                 .join(',');
             return `
             ${op.args.pλth}.push(${updatePathArgs});
