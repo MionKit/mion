@@ -162,7 +162,7 @@ describe('Array circular ref', () => {
     it('validate CircularArray', () => {
         const rt = runType<CircularArray>();
         const validate = buildIsTypeJITFn(rt).fn;
-        console.log(rt.constants());
+        console.log(rt.getJitConstants());
         const arr: CircularArray = [];
         arr.push([]);
         arr[0].push([]);

@@ -6,10 +6,11 @@
  * ######## */
 
 import {ReflectionKind, type TypeNumber} from '../_deepkit/src/reflection/type';
-import type {JitOperation, MockContext, JitTypeErrorOperation, JitConstants} from '../types';
+import type {MockContext, JitConstants} from '../types';
 import {getJitErrorPath, getExpected} from '../utils';
 import {mockNumber} from '../mock';
 import {AtomicRunType} from '../baseRunTypes';
+import {JitCompileOp, JitTypeErrorCompileOp} from '../jitOperation';
 
 const jitConstants: JitConstants = {
     skipJit: false,
@@ -21,28 +22,28 @@ const jitConstants: JitConstants = {
 
 export class NumberRunType extends AtomicRunType<TypeNumber> {
     src: TypeNumber = null as any; // will be set after construction
-    constants = () => jitConstants;
+    getJitConstants = () => jitConstants;
     getName(): string {
         return 'number';
     }
-    _compileIsType(stack: JitOperation): string {
-        const {vλl: value} = stack.args;
+    _compileIsType(cop: JitCompileOp): string {
+        const {vλl: value} = cop.args;
         return `Number.isFinite(${value})`;
     }
-    _compileTypeErrors(stack: JitTypeErrorOperation): string {
-        const {εrrors: errors} = stack.args;
-        return `if(!(${this._compileIsType(stack)})) ${errors}.push({path: ${getJitErrorPath(stack)}, expected: ${getExpected(this)}})`;
+    _compileTypeErrors(cop: JitTypeErrorCompileOp): string {
+        const {εrrors: errors} = cop.args;
+        return `if(!(${this._compileIsType(cop)})) ${errors}.push({path: ${getJitErrorPath(cop)}, expected: ${getExpected(this)}})`;
     }
-    _compileJsonEncode(op: JitOperation): string {
-        return op.args.vλl;
+    _compileJsonEncode(cop: JitCompileOp): string {
+        return cop.vλl;
     }
-    _compileJsonDecode(op: JitOperation): string {
-        return op.args.vλl;
+    _compileJsonDecode(cop: JitCompileOp): string {
+        return cop.vλl;
     }
-    _compileJsonStringify(jc: JitOperation): string {
+    _compileJsonStringify(jc: JitCompileOp): string {
         return jc.args.vλl;
     }
-    mock(stack?: Pick<MockContext, 'minNumber' | 'maxNumber'>): number {
-        return mockNumber(stack?.minNumber, stack?.maxNumber);
+    mock(cop?: Pick<MockContext, 'minNumber' | 'maxNumber'>): number {
+        return mockNumber(cop?.minNumber, cop?.maxNumber);
     }
 }

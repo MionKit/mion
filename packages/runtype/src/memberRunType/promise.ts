@@ -1,6 +1,6 @@
 import {ReflectionKind, type TypePromise} from '../_deepkit/src/reflection/type';
-import type {MockContext, JitConstants} from '../types';
-import {SingleItemMemberRunType} from '../baseRunTypes';
+import type {MockContext, JitConstants, PathItem} from '../types';
+import {MemberRunType} from '../baseRunTypes';
 
 /* ########
  * 2024 mion
@@ -17,9 +17,9 @@ const jitConstants: JitConstants = {
     jitId: ReflectionKind.promise,
 };
 
-export class PromiseRunType extends SingleItemMemberRunType<TypePromise> {
+export class PromiseRunType extends MemberRunType<TypePromise> {
     src: TypePromise = null as any; // will be set after construction
-    constants = () => jitConstants;
+    getJitConstants = () => jitConstants;
     getName() {
         return 'promise';
     }
@@ -29,14 +29,8 @@ export class PromiseRunType extends SingleItemMemberRunType<TypePromise> {
     isOptional(): boolean {
         return false;
     }
-    useArrayAccessor() {
-        return false;
-    }
-    protected hasReturnCompileIsType(): boolean {
-        return false;
-    }
-    protected hasReturnCompileJsonStringify(): boolean {
-        return false;
+    getJitChildrenPath(): PathItem {
+        throw new Error('Method not implemented.');
     }
     protected _compileIsType(): string {
         throw new Error(`Jit compilation disabled for Promises.`);
@@ -66,8 +60,5 @@ export class PromiseRunType extends SingleItemMemberRunType<TypePromise> {
             if (ctx?.promiseReject) reject(ctx.promiseReject);
             else resolve(this.getMemberType().mock(ctx));
         });
-    }
-    getPathItem() {
-        return undefined;
     }
 }

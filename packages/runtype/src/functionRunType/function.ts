@@ -5,21 +5,22 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 import {ReflectionKind, TypeCallSignature, TypeFunction, TypeMethod, TypeMethodSignature} from '../_deepkit/src/reflection/type';
-import {ArrayCollectionRunType, BaseRunType} from '../baseRunTypes';
+import {BaseRunType, CollectionRunType} from '../baseRunTypes';
 import {isPromiseRunType} from '../guards';
-import {JITCompiledFunctions, JitOperation, MockContext, RunType, JitTypeErrorOperation, DKwithRT, JitConstants} from '../types';
+import {JITCompiledFunctions, MockContext, RunType, DKwithRT, JitConstants} from '../types';
 import {getJitErrorPath, memo, toLiteral} from '../utils';
 import {ParameterRunType} from '../memberRunType/param';
+import {JitCompileOp, JitTypeErrorCompileOp} from '../jitOperation';
 
 type AnyFunction = TypeMethodSignature | TypeCallSignature | TypeFunction | TypeMethod;
 
-export class FunctionParametersRunType<CallType extends AnyFunction = TypeFunction> extends ArrayCollectionRunType<CallType> {
+export class FunctionParametersRunType<CallType extends AnyFunction = TypeFunction> extends CollectionRunType<CallType> {
     src: CallType = null as any; // will be set after construction
     getName(): string {
         return 'fnParams';
     }
-    protected getPathItem(): null {
-        return null;
+    getJitChildrenPath(): null {
+        throw new Error('Method not implemented.');
     }
     getChildRunTypes = (): RunType[] => {
         const childTypes = (this.src.parameters as DKwithRT[]) || []; // deepkit stores child types in the types property
@@ -49,49 +50,49 @@ export class FunctionParametersRunType<CallType extends AnyFunction = TypeFuncti
     });
     // ####### params #######
 
-    _compileIsType(op: JitOperation) {
-        if (this.getParameterTypes().length === 0) return `${op.args.vλl}.length === 0`;
+    _compileIsType(cop: JitCompileOp) {
+        if (this.getParameterTypes().length === 0) return `${cop.vλl}.length === 0`;
         const paramsCode = this.getParameterTypes()
-            .map((p) => `(${p.compileIsType(op)})`)
+            .map((p) => `(${p.compileIsType(cop)})`)
             .join(' && ');
-        const maxLength = !this.hasRestParameter ? `&& ${op.args.vλl}.length <= ${this.getParameterTypes().length}` : '';
-        const checkLength = `${op.args.vλl}.length >= ${this.getTotalRequiredParams()} ${maxLength}`;
+        const maxLength = !this.hasRestParameter ? `&& ${cop.vλl}.length <= ${this.getParameterTypes().length}` : '';
+        const checkLength = `${cop.vλl}.length >= ${this.getTotalRequiredParams()} ${maxLength}`;
         return `${checkLength} && ${paramsCode}`;
     }
-    _compileTypeErrors(op: JitTypeErrorOperation) {
-        const maxLength = !this.hasRestParameter ? `|| ${op.args.vλl}.length > ${this.getParameterTypes().length}` : '';
-        const checkLength = `(${op.args.vλl}.length < ${this.getTotalRequiredParams()} ${maxLength})`;
+    _compileTypeErrors(cop: JitTypeErrorCompileOp) {
+        const maxLength = !this.hasRestParameter ? `|| ${cop.vλl}.length > ${this.getParameterTypes().length}` : '';
+        const checkLength = `(${cop.vλl}.length < ${this.getTotalRequiredParams()} ${maxLength})`;
         const paramsCode = this.getParameterTypes()
-            .map((p) => p.compileTypeErrors(op))
+            .map((p) => p.compileTypeErrors(cop))
             .join(';');
         return (
-            `if (!Array.isArray(${op.args.vλl}) || ${checkLength}) ${op.args.εrrors}.push({path: ${getJitErrorPath(op)}, expected: ${this.paramsLiteral()}});` +
+            `if (!Array.isArray(${cop.vλl}) || ${checkLength}) ${cop.args.εrrors}.push({path: ${getJitErrorPath(cop)}, expected: ${this.paramsLiteral()}});` +
             `else {${paramsCode}}`
         );
     }
-    _compileJsonEncode(op: JitOperation) {
-        return this.compileParamsJsonDE(op, true);
+    _compileJsonEncode(cop: JitCompileOp) {
+        return this.compileParamsJsonDE(cop, true);
     }
-    _compileJsonDecode(op: JitOperation) {
-        return this.compileParamsJsonDE(op, false);
+    _compileJsonDecode(cop: JitCompileOp) {
+        return this.compileParamsJsonDE(cop, false);
     }
-    _compileJsonStringify(op: JitOperation) {
-        const skip = this.constants().skipJit;
+    _compileJsonStringify(cop: JitCompileOp) {
+        const skip = this.getJitConstants().skipJit;
         if (skip) return '';
         if (this.getParameterTypes().length === 0) return `[]`;
 
         const paramsCode = this.getParameterTypes()
-            .map((p) => p.compileJsonStringify(op))
+            .map((p) => p.compileJsonStringify(cop))
             .join('+');
         return `'['+${paramsCode}+']'`;
     }
 
-    private compileParamsJsonDE(op: JitOperation, isEncode: boolean) {
-        const skip = isEncode ? this.constants().skipJsonEncode : this.constants().skipJsonDecode;
+    private compileParamsJsonDE(cop: JitCompileOp, isEncode: boolean) {
+        const skip = isEncode ? this.getJitConstants().skipJsonEncode : this.getJitConstants().skipJsonDecode;
         if (skip) return '';
         return this.getParameterTypes()
             .filter((p) => (isEncode ? p.compileJsonEncode : p.compileJsonDecode))
-            .map((p) => (isEncode ? p.compileJsonEncode(op) : p.compileJsonDecode(op)))
+            .map((p) => (isEncode ? p.compileJsonEncode(cop) : p.compileJsonDecode(cop)))
             .join(';');
     }
 
@@ -119,23 +120,23 @@ export class FunctionRunType<CallType extends AnyFunction = TypeFunction> extend
     get src(): CallType {
         return this._src;
     }
-    constants = (): JitConstants => functionJitConstants;
+    getJitConstants = (): JitConstants => functionJitConstants;
     getFamily(): 'F' {
         return 'F';
     }
-    compileIsType(): string {
+    _compileIsType(): string {
         throw new Error('Compile function not supported, call  compileParams or  compileReturn instead.');
     }
-    compileTypeErrors(): string {
+    _compileTypeErrors(): string {
         throw new Error('Compile function not supported, call  compileParams or  compileReturn instead.');
     }
-    compileJsonEncode(): string {
+    _compileJsonEncode(): string {
         throw new Error('Compile function not supported, call  compileParams or  compileReturn instead.');
     }
-    compileJsonDecode(): string {
+    _compileJsonDecode(): string {
         throw new Error('Compile function not supported, call  compileParams or  compileReturn instead.');
     }
-    compileJsonStringify(): string {
+    _compileJsonStringify(): string {
         throw new Error('Compile function not supported, call  compileParams or  compileReturn instead.');
     }
 

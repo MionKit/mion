@@ -5,11 +5,12 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 import {TypeClass} from '../_deepkit/src/reflection/type';
-import {JitOperation, MockContext} from '../types';
+import {MockContext} from '../types';
 import {toLiteral} from '../utils';
 import {InterfaceRunType, InterfaceMember} from './interface';
 import {isConstructor} from '../guards';
 import {jitNames} from '../constants';
+import {JitCompileOp} from '../jitOperation';
 
 export class ClassRunType extends InterfaceRunType<TypeClass> {
     getName(): string {
@@ -22,21 +23,21 @@ export class ClassRunType extends InterfaceRunType<TypeClass> {
         const children = this.getChildRunTypes() as InterfaceMember[];
         return children.every((prop) => !isConstructor(prop) || prop.getParameters().getTotalParams() === 0);
     }
-    _compileJsonDecode(op: JitOperation): string {
+    _compileJsonDecode(cop: JitCompileOp): string {
         checkSerializable(this.canDeserialize(), this.getClassName());
-        const decodeParams = super.compileJsonDecode(op);
+        const decodeParams = super.compileJsonDecode(cop);
         const decode = decodeParams ? `${decodeParams}; ` : '';
-        const classVarname = `clλss${op.stack.length}`;
+        const classVarname = `clλss${cop.length}`;
         // todo create a new class
         return `
             ${decode};
             const ${classVarname} = ${jitNames.utils}.getSerializableClass(${toLiteral(this.getClassName())});
-            ${op.args.vλl} = Object.assign(new ${classVarname}, ${op.args.vλl});
+            ${cop.vλl} = Object.assign(new ${classVarname}, ${cop.vλl});
         `;
     }
-    mock(op?: MockContext): Record<string | number, any> {
+    mock(cop?: MockContext): Record<string | number, any> {
         checkSerializable(this.canDeserialize(), this.getClassName());
-        const nextOp: MockContext = {...op, parentObj: new this.src.classType()};
+        const nextOp: MockContext = {...cop, parentObj: new this.src.classType()};
         return super.mock(nextOp);
     }
 }

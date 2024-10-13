@@ -6,10 +6,11 @@
  * ######## */
 
 import {TypeArray} from '../_deepkit/src/reflection/type';
-import {JitOperation, JitPathItem, MockContext, JitTypeErrorOperation} from '../types';
-import {getJitErrorPath, getExpected, memo} from '../utils';
+import {PathItem, MockContext} from '../types';
 import {mockRecursiveEmptyArray, random} from '../mock';
 import {MemberRunType} from '../baseRunTypes';
+import {JitCompileOp, JitTypeErrorCompileOp} from '../jitOperation';
+import {getJitErrorPath, getExpected, shouldSkiJsonEncode, shouldSkipJit, shouldSkipJsonDecode} from '../utils';
 
 export class ArrayRunType extends MemberRunType<TypeArray> {
     src: TypeArray = null as any; // will be set after construction
@@ -25,6 +26,13 @@ export class ArrayRunType extends MemberRunType<TypeArray> {
     isOptional(): boolean {
         return false;
     }
+    getJitChildrenPath(cop: JitCompileOp): PathItem {
+        const index = this.getIndexName(cop);
+        return cop.newPathItem(index, index, true);
+    }
+    private getIndexName(cop: JitCompileOp): string {
+        return `iε${cop.length}`;
+    }
     protected hasReturnCompileIsType(): boolean {
         return true;
     }
@@ -32,81 +40,66 @@ export class ArrayRunType extends MemberRunType<TypeArray> {
         return true;
     }
 
-    // ####### array with Jit children, means children is not serializable #######
-    protected _compileIsTypeNoChildren(): string {
-        const name = this.getMemberType().getName();
-        throw new Error(`Array of type <${name}> can't be compiled because <${name}> is non serializable.`);
-    }
-    protected _compileTypeErrorsNoChildren(): string {
-        const name = this.getMemberType().getName();
-        throw new Error(`Array of type <${name}> can't be compiled because <${name}> is non serializable.`);
-    }
-    protected _compileJsonEncodeNoChildren(op: JitOperation): string {
-        return op.args.vλl; // array might be serializable, but children not require encoding
-    }
-    protected _compileJsonDecodeNoChildren(op: JitOperation): string {
-        return op.args.vλl; // array might be serializable, but children not require decoding
-    }
-    protected _compileJsonStringifyNoChildren(): string {
-        const name = this.getMemberType().getName();
-        throw new Error(`Array of type <${name}> can't be compiled because <${name}> is non serializable.`);
-    }
-
-    protected _compileIsType(op: JitOperation): string {
-        const varName = op.args.vλl;
-        const resultVal = `rεsult${op.stack.length}`;
-        const childPath: JitPathItem = this.getPathItem(op);
-        const index = childPath.vλl;
+    protected _compileIsType(cop: JitCompileOp): string {
+        const varName = cop.vλl;
+        const resultVal = `rεsult${cop.length}`;
+        const index = this.getIndexName(cop);
+        if (shouldSkipJit(this)) return `Array.isArray(${varName})`;
         return `
             if (!Array.isArray(${varName})) return false;
             for (let ${index} = 0; ${index} < ${varName}.length; ${index}++) {
-                const ${resultVal} = ${this.getMemberType().compileIsType(op)};
+                const ${resultVal} = ${this.getMemberType().compileIsType(cop)};
                 if (!(${resultVal})) return false;
             }
             return true;
         `;
     }
-    protected _compileTypeErrors(op: JitTypeErrorOperation): string {
-        const varName = op.args.vλl;
-        const errorsName = op.args.εrrors;
-        const childPath: JitPathItem = this.getPathItem(op);
-        const index = childPath.vλl;
+    protected _compileTypeErrors(cop: JitTypeErrorCompileOp): string {
+        const varName = cop.vλl;
+        const errorsName = cop.args.εrrors;
+        const index = this.getIndexName(cop);
+        if (shouldSkipJit(this)) {
+            return `if (!Array.isArray(${varName})) ${errorsName}.push({path: ${getJitErrorPath(cop)}, expected: ${getExpected(this)}});`;
+        }
         return `
-            if (!Array.isArray(${varName})) ${errorsName}.push({path: ${getJitErrorPath(op)}, expected: ${getExpected(this)}});
+            if (!Array.isArray(${varName})) ${errorsName}.push({path: ${getJitErrorPath(cop)}, expected: ${getExpected(this)}});
             else {
                 for (let ${index} = 0; ${index} < ${varName}.length; ${index}++) {
-                    ${this.getMemberType().compileTypeErrors(op)}
+                    ${this.getMemberType().compileTypeErrors(cop)}
                 }
             }
         `;
     }
-    protected _compileJsonEncode(op: JitOperation): string {
-        return this.arrayJsonEncDec(op, true);
-    }
-    protected _compileJsonDecode(op: JitOperation): string {
-        return this.arrayJsonEncDec(op, false);
-    }
-    private arrayJsonEncDec(op: JitOperation, isEncode: boolean): string {
-        const varName = op.args.vλl;
-        const childPath: JitPathItem = this.getPathItem(op);
-        const index = childPath.vλl;
-        const childrenCode = isEncode ? this.getMemberType().compileJsonEncode(op) : this.getMemberType().compileJsonDecode(op);
+    protected _compileJsonEncode(cop: JitCompileOp): string {
+        const varName = cop.vλl;
+        const index = this.getIndexName(cop);
+        if (shouldSkiJsonEncode(this)) return '';
         return `
             for (let ${index} = 0; ${index} < ${varName}.length; ${index}++) {
-                ${childrenCode}
+                ${this.getMemberType().compileJsonEncode(cop)}
             }
         `;
     }
-    protected _compileJsonStringify(op: JitOperation): string {
-        const varName = op.args.vλl;
-        const jsonItems = `jsonItεms${op.stack.length}`;
-        const resultVal = `rεsult${op.stack.length}`;
-        const childPath: JitPathItem = this.getPathItem(op);
-        const index = childPath.vλl;
+    protected _compileJsonDecode(cop: JitCompileOp): string {
+        const varName = cop.vλl;
+        const index = this.getIndexName(cop);
+        if (shouldSkipJsonDecode(this)) return '';
+        return `
+            for (let ${index} = 0; ${index} < ${varName}.length; ${index}++) {
+                ${this.getMemberType().compileJsonDecode(cop)}
+            }
+        `;
+    }
+    protected _compileJsonStringify(cop: JitCompileOp): string {
+        const varName = cop.vλl;
+        const jsonItems = `jsonItεms${cop.length}`;
+        const resultVal = `rεsult${cop.length}`;
+        const index = this.getIndexName(cop);
+        if (shouldSkipJit(this)) return `JSON.stringify(${varName})`;
         return `
             const ${jsonItems} = [];
             for (let ${index} = 0; ${index} < ${varName}.length; ${index}++) {
-                const ${resultVal} = ${this.getMemberType().compileJsonStringify(op)};
+                const ${resultVal} = ${this.getMemberType().compileJsonStringify(cop)};
                 ${jsonItems}.push(${resultVal});
             }
             return '[' + ${jsonItems}.join(',') + ']';
@@ -114,15 +107,11 @@ export class ArrayRunType extends MemberRunType<TypeArray> {
     }
     mock(ctx?: Pick<MockContext, 'arrayLength'>): any[] {
         const length = ctx?.arrayLength ?? random(0, 30);
-        if (this.constants().isCircularRef) {
+        if (this.getJitConstants().isCircularRef) {
             const depth = random(1, 5);
             // specific scenario where array is circular with itself, i.e: CircularArray = CircularArray[]
             return mockRecursiveEmptyArray(depth, length);
         }
         return Array.from({length}, () => this.getMemberType().mock(ctx));
     }
-    getPathItem = memo((op: JitOperation): JitPathItem => {
-        const index = `iε${op.stack.length}`;
-        return {vλl: index, literal: index, useArrayAccessor: true};
-    });
 }

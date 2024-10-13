@@ -6,7 +6,6 @@
  * ######## */
 
 import {ReflectionKind} from './_deepkit/src/reflection/type';
-import type {DefaultJitArgs, DefaultJitTypeErrorsArgs} from './types';
 
 export const dateJitId = `${ReflectionKind.class}Date`;
 
@@ -72,14 +71,6 @@ export const jitNames = {
     utils: 'µTils',
 };
 
-export function getDefaultJitArgs(): DefaultJitArgs {
-    return {vλl: 'vλl'};
-}
-
-export function getDefaultJitTypeErrorsArgs(): DefaultJitTypeErrorsArgs {
-    return {vλl: 'vλl', pλth: 'pλth', εrrors: 'εrrors'};
-}
-
 export const maxStackDepth = 50;
 export const maxStackErrorMessage =
-    'Max compilation stack reached, either you have a very deeply nested type or there is an error in circular references in your type.';
+    'Max compilation cop reached, either you have a very deeply nested type or there is an error in circular references in your type.';

@@ -1,8 +1,8 @@
 import {ReflectionKind, TypeIndexSignature} from '../_deepkit/src/reflection/type';
-import {SingleItemMemberRunType} from '../baseRunTypes';
-import {JitOperation, JitPathItem, MockContext, JitTypeErrorOperation} from '../types';
+import {MemberRunType} from '../baseRunTypes';
+import {PathItem, MockContext} from '../types';
 import {jitNames} from '../constants';
-import {memo} from '../utils';
+import {JitCompileOp, JitTypeErrorCompileOp} from '../jitOperation';
 
 /* ########
  * 2024 mion
@@ -11,7 +11,7 @@ import {memo} from '../utils';
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-export class IndexSignatureRunType extends SingleItemMemberRunType<TypeIndexSignature> {
+export class IndexSignatureRunType extends MemberRunType<TypeIndexSignature> {
     src: TypeIndexSignature = null as any; // will be set after construction
     getName(): string {
         return 'indexProperty';
@@ -19,11 +19,15 @@ export class IndexSignatureRunType extends SingleItemMemberRunType<TypeIndexSign
     isOptional(): boolean {
         return false;
     }
-    useArrayAccessor() {
-        return true;
-    }
     getMemberName(): number {
         return this.src.index.kind;
+    }
+    getJitChildrenPath(cop: JitCompileOp): PathItem {
+        const prop = this.getPropName(cop);
+        return cop.newPathItem(prop, prop, true);
+    }
+    private getPropName(cop: JitCompileOp): string {
+        return `prΦp${cop.length}`;
     }
     protected hasReturnCompileIsType(): boolean {
         return true;
@@ -31,59 +35,60 @@ export class IndexSignatureRunType extends SingleItemMemberRunType<TypeIndexSign
     protected hasReturnCompileJsonStringify(): boolean {
         return true;
     }
-
-    // #### index prop jit code ####
-    protected _compileIsType(op: JitOperation): string {
+    // #### jit code ####
+    protected _compileIsType(cop: JitCompileOp): string {
         const child = this.getJitChild();
         if (!child) return 'true';
-        const varName = op.args.vλl;
-        const childPath: JitPathItem = this.getPathItem(op);
-        const prop = childPath.vλl;
+        const varName = cop.vλl;
+        const prop = this.getPropName(cop);
         return `
             for (const ${prop} in ${varName}) {
-                if (!(${child.compileIsType(op)})) return false;
+                if (!(${child.compileIsType(cop)})) return false;
             }
             return true;
         `;
     }
-    protected _compileTypeErrors(op: JitTypeErrorOperation): string {
+    protected _compileTypeErrors(cop: JitTypeErrorCompileOp): string {
         const child = this.getJitChild();
         if (!child) return '';
-        const varName = op.args.vλl;
-        const childPath: JitPathItem = this.getPathItem(op);
-        const prop = childPath.vλl;
+        const varName = cop.vλl;
+        const prop = this.getPropName(cop);
         return `
             for (const ${prop} in ${varName}) {
-                ${child.compileTypeErrors(op)}
+                ${child.compileTypeErrors(cop)}
             }
         `;
     }
-    protected _compileJsonEncode(op: JitOperation): string {
-        return this.compileJsonDE(op, true);
-    }
-    protected _compileJsonDecode(op: JitOperation): string {
-        return this.compileJsonDE(op, false);
-    }
-    private compileJsonDE(op: JitOperation, isEncode = false): string {
-        const child = isEncode ? this.getJsonEncodeChild() : this.getJsonDecodeChild();
+    protected _compileJsonEncode(cop: JitCompileOp): string {
+        const child = this.getJsonEncodeChild();
         if (!child) return '';
-        const varName = op.args.vλl;
-        const childPath: JitPathItem = this.getPathItem(op);
-        const prop = childPath.vλl;
+        const varName = cop.vλl;
+        const prop = this.getPropName(cop);
         return `
             for (const ${prop} in ${varName}) {
-                ${isEncode ? child.compileJsonEncode(op) : child.compileJsonDecode(op)}
+                ${child.compileJsonEncode(cop)}
             }
         `;
     }
-    protected _compileJsonStringify(op: JitOperation): string {
+    protected _compileJsonDecode(cop: JitCompileOp): string {
+        const child = this.getJsonDecodeChild();
+        if (!child) return '';
+        const varName = cop.vλl;
+        const prop = this.getPropName(cop);
+        return `
+            for (const ${prop} in ${varName}) {
+                ${child.compileJsonDecode(cop)}
+            }
+        `;
+    }
+
+    protected _compileJsonStringify(cop: JitCompileOp): string {
         const child = this.getJitChild();
         if (!child) return `''`;
-        const childPath: JitPathItem = this.getPathItem(op);
-        const varName = op.args.vλl;
-        const prop = childPath.vλl;
-        const arrName = `prΦpsλrr${op.stack.length}`;
-        const jsonVal = child.compileJsonStringify(op);
+        const varName = cop.vλl;
+        const prop = this.getPropName(cop);
+        const arrName = `prΦpsλrr${cop.length}`;
+        const jsonVal = child.compileJsonStringify(cop);
         return `
             const ${arrName} = [];
             for (const ${prop} in ${varName}) {
@@ -113,8 +118,4 @@ export class IndexSignatureRunType extends SingleItemMemberRunType<TypeIndexSign
             parentObj[propName] = this.getMemberType().mock(ctx);
         }
     }
-    getPathItem = memo((op: JitOperation): JitPathItem => {
-        const prop = `prΦp${op.stack.length}`;
-        return {vλl: prop, literal: prop, useArrayAccessor: true};
-    });
 }

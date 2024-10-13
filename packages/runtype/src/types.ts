@@ -5,7 +5,8 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {Type} from './_deepkit/src/reflection/type';
+import type {Type} from './_deepkit/src/reflection/type';
+import type {JitCompileOp, JitTypeErrorCompileOp} from './jitOperation';
 import {JITUtils} from './jitUtils';
 
 export type JSONValue = string | number | boolean | null | {[key: string]: JSONValue} | Array<JSONValue>;
@@ -14,19 +15,20 @@ export type JSONString = string;
 export type RunTypeVisitor = (deepkitType: Type, parents: RunType[], opts: RunTypeOptions) => RunType;
 export type DKwithRT = Type & {_rt: RunType};
 
-type JitFnArgs = {vλl: string; [key: string]: string};
-export interface JitCompileOperation<FnArgs extends JitFnArgs = JitFnArgs> {
-    stack: RunType[];
-    /** the key of the argName must be the same as the variable name. so keys are used as inital variable names when jitContext gets reset. */
-    args: FnArgs;
-    path: (JitPathItem | null)[];
-    getDefaultArgs(): FnArgs;
-}
+/**
+ * The argument names of the function to be compiled. The order of properties is important as must the same as the function args.
+ * ie: {vλl: 'vλl', arg1: 'arg1', error: 'eArr'} for the function (vλl, arg1, eArr) => any
+ */
+export type JitFnArgs = {
+    /** The name of the value of to be */
+    vλl: string;
+    /** Other argument names */
+    [key: string]: string;
+};
 
-export type JitPathItem = {
-    vλl: string | number;
-    /** whether the path item needs to be accesses as and array myobject[A] or as property myobject.A */
-    useArrayAccessor: boolean;
+export type PathItem = {
+    /** current compile stack variable name */
+    varName: string | number;
     /**
      * The literal value of the item when inserted into the code.
      * if is a variable then literal is the same as vλl.
@@ -34,13 +36,12 @@ export type JitPathItem = {
      * i.e: an object property width non standard name myobject["hello world"]
      * The value in memory is (hello world) the literal value is "hello world" (with quotes)
      * */
-    literal: string | number;
+    literal: string | number; // TODO: we could make literal optional and define only when different from varName
+    /** current compile stack full variable accessor */
+    vλl: string;
+    /** when runType have children types, whether the child item needs to be accesses as and array myobject[A] or as property myobject.A */
+    useArrayAccessor?: boolean;
 };
-export type JitOperation = JitCompileOperation<{vλl: string}>;
-export type JitTypeErrorOperation = JitCompileOperation<{vλl: string; pλth: string; εrrors: string}>;
-
-export type DefaultJitArgs = JitOperation['args'];
-export type DefaultJitTypeErrorsArgs = JitTypeErrorOperation['args'];
 
 /**
  * Runtime Metadata for a typescript types.
@@ -49,7 +50,7 @@ export interface RunType extends JitCompilerFunctions {
     readonly src: Type;
     getName(): string;
     getFamily(): 'A' | 'C' | 'M' | 'F'; // Atomic, Collection, Member, Function
-    constants(stack?: RunType[]): JitConstants;
+    getJitConstants(stack?: RunType[]): JitConstants;
     mock: (mockContext?: MockContext) => any;
     compile: () => JITCompiledFunctions;
     getJitId(): string | number;
@@ -69,42 +70,42 @@ export interface JitCompilerFunctions {
      * should not include anything that is purely the validation of the type, ie function wrappers.
      * this code should not use return statements, it should be a single line of code that evaluates to a boolean
      * this code should not contain any sentence breaks or semicolons.
-     * ie: compileIsType = () => `typeof vλluε === 'string'`
+     * ie: compileIsType = () => `typeof vλl === 'string'`
      */
-    compileIsType(jitCompileContext: JitOperation): string;
+    compileIsType(jitCompileContext: JitCompileOp): string;
     /**
      * JIT code Validation + error info
      * Similar to validation code but instead of returning a boolean it should assign an error message to the errorsName
      * This is an executable code block and can contain multiple lines or semicolons
-     * ie:  validateCodeWithErrors = () => `if (typeof vλluε !== 'string') ${stack.args.εrrors} = 'Expected to be a String';`
+     * ie:  validateCodeWithErrors = () => `if (typeof vλl !== 'string') ${cop.args.εrrors} = 'Expected to be a String';`
      * path is a string that represents the path to the property being validated.
-     * path is calculated at runtime so is an expresion like 'path1' + '/' + 'path2' + '/' + 'path3'
+     * path is calculated at runtime so is an expression like 'path1' + '/' + 'path2' + '/' + 'path3'
      */
-    compileTypeErrors(jitCompileContext: JitTypeErrorOperation): string;
+    compileTypeErrors(jitCompileContext: JitTypeErrorCompileOp): string;
     /**
      * JIT code to transform from type to an object that can be serialized using json
      * this code should not use return statements, it should be a single line of code that evaluates to a json compatible type.
      * this code should not contain any sentence breaks or semicolons.
-     * ie for bigIng: compileJsonEncode = () => `vλluε.toString()`
+     * ie for bigIng: compileJsonEncode = () => `vλl.toString()`
      * */
-    compileJsonEncode(jitCompileContext: JitOperation): string;
+    compileJsonEncode(jitCompileContext: JitCompileOp): string;
     /**
      * JIT code to transform from json to type so type can be deserialized from json
-     * this code should not use return statements, it should be a single line that recieves a json compatible type and returns a deserialized value.
+     * this code should not use return statements, it should be a single line that receives a json compatible type and returns a deserialized value.
      * this code should not contain any sentence breaks or semicolons.
-     * ie for bigIng: compileJsonDecode = () => `BigInt(vλluε)`
+     * ie for bigIng: compileJsonDecode = () => `BigInt(vλl)`
      *
      * For security reason decoding ignores any properties that are not defined in the type.
      * So is your type is {name: string} and the json is {name: string, age: number} the age property will be ignored.
      * */
-    compileJsonDecode(jitCompileContext: JitOperation): string;
+    compileJsonDecode(jitCompileContext: JitCompileOp): string;
     /**
      * JIT code to transform a type directly into s json string.
      * when serializing to json normally we need first to prepare the object using compileJsonEncode and then JSON.stringify().
      * this code directly outputs the json string and saves traversing the type twice
-     * stringify is allways strict
+     * stringify is always strict
      */
-    compileJsonStringify(jitCompileContext: JitOperation): string;
+    compileJsonStringify(jitCompileContext: JitCompileOp): string;
 }
 
 export interface RunTypeOptions {
