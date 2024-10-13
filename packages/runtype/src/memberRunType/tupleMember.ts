@@ -6,11 +6,11 @@
  * ######## */
 
 import {TypeTupleMember} from '../_deepkit/src/reflection/type';
-import {SingleItemMemberRunType} from '../baseRunTypes';
-import {JitOperation, JitPathItem, MockContext, JitTypeErrorOperation} from '../types';
-import {memo} from '../utils';
+import {MemberRunType} from '../baseRunTypes';
+import {JitCompileOp, JitTypeErrorCompileOp} from '../jitOperation';
+import {PathItem, MockContext} from '../types';
 
-export class TupleMemberRunType extends SingleItemMemberRunType<TypeTupleMember> {
+export class TupleMemberRunType extends MemberRunType<TypeTupleMember> {
     src: TypeTupleMember = null as any; // will be set after construction
     getName() {
         return 'string';
@@ -18,40 +18,38 @@ export class TupleMemberRunType extends SingleItemMemberRunType<TypeTupleMember>
     getMemberName() {
         return 'tupleMember';
     }
-    useArrayAccessor() {
-        return true;
-    }
     isOptional(): boolean {
         return !!this.src.optional;
     }
     getMemberIndex(): number {
         return this.src.parent.types.indexOf(this.src);
     }
+    getJitChildrenPath(cop: JitCompileOp): PathItem {
+        const index = this.getMemberIndex();
+        return cop.newPathItem(index, index, true);
+    }
     protected hasReturnCompileIsType(): boolean {
         return false;
     }
-    protected hasReturnCompileJsonStringify(): boolean {
-        return false;
+    protected _compileIsType(cop: JitCompileOp): string {
+        const itemCode = this.getMemberType().compileIsType(cop);
+        return this.src.optional ? `(${cop.vλl} === undefined || ${itemCode})` : itemCode;
     }
-    protected _compileIsType(op: JitOperation): string {
-        const itemCode = this.getMemberType().compileIsType(op);
-        return this.src.optional ? `(${op.args.vλl} === undefined || ${itemCode})` : itemCode;
+    protected _compileTypeErrors(cop: JitTypeErrorCompileOp): string {
+        const itemCode = this.getMemberType().compileTypeErrors(cop);
+        return this.src.optional ? `if (${cop.vλl} !== undefined) {${itemCode}}` : itemCode;
     }
-    protected _compileTypeErrors(op: JitTypeErrorOperation): string {
-        const itemCode = this.getMemberType().compileTypeErrors(op);
-        return this.src.optional ? `if (${op.args.vλl} !== undefined) {${itemCode}}` : itemCode;
+    protected _compileJsonEncode(cop: JitCompileOp): string {
+        const itemCode = this.getMemberType().compileJsonEncode(cop);
+        return this.src.optional ? `${cop.vλl} === undefined ? null : ${itemCode}` : itemCode;
     }
-    protected _compileJsonEncode(op: JitOperation): string {
-        const itemCode = this.getMemberType().compileJsonEncode(op);
-        return this.src.optional ? `${op.args.vλl} === undefined ? null : ${itemCode}` : itemCode;
+    protected _compileJsonDecode(cop: JitCompileOp): string {
+        const itemCode = this.getMemberType().compileJsonDecode(cop);
+        return this.src.optional ? `${cop.vλl} === null ? undefined : ${itemCode}` : itemCode;
     }
-    protected _compileJsonDecode(op: JitOperation): string {
-        const itemCode = this.getMemberType().compileJsonDecode(op);
-        return this.src.optional ? `${op.args.vλl} === null ? undefined : ${itemCode}` : itemCode;
-    }
-    protected _compileJsonStringify(op: JitOperation): string {
-        const itemCode = this.getMemberType().compileJsonStringify(op);
-        return this.src.optional ? `(${op.args.vλl} === undefined ? null : ${itemCode})` : itemCode;
+    protected _compileJsonStringify(cop: JitCompileOp): string {
+        const itemCode = this.getMemberType().compileJsonStringify(cop);
+        return this.src.optional ? `(${cop.vλl} === undefined ? null : ${itemCode})` : itemCode;
     }
     mock(ctx?: Pick<MockContext, 'optionalProbability'>): any {
         if (this.src.optional) {
@@ -63,8 +61,4 @@ export class TupleMemberRunType extends SingleItemMemberRunType<TypeTupleMember>
         }
         return this.getMemberType().mock(ctx);
     }
-    getPathItem = memo((): JitPathItem => {
-        const index = this.getMemberIndex();
-        return {vλl: index, useArrayAccessor: true, literal: index};
-    });
 }

@@ -6,10 +6,11 @@
  * ######## */
 
 import {ReflectionKind, TypeEnum} from '../_deepkit/src/reflection/type';
-import type {JitOperation, MockContext, JitTypeErrorOperation, JitConstants} from '../types';
+import type {MockContext, JitConstants} from '../types';
 import {getJitErrorPath, getExpected, toLiteral} from '../utils';
 import {random} from '../mock';
 import {AtomicRunType} from '../baseRunTypes';
+import {JitCompileOp, JitTypeErrorCompileOp} from '../jitOperation';
 
 const jitConstants: JitConstants = {
     skipJit: false,
@@ -21,28 +22,28 @@ const jitConstants: JitConstants = {
 
 export class EnumRunType extends AtomicRunType<TypeEnum> {
     src: TypeEnum = null as any; // will be set after construction
-    constants = () => jitConstants;
+    getJitConstants = () => jitConstants;
     getName(): string {
         return 'enum';
     }
-    _compileIsType(stack: JitOperation): string {
-        return this.src.values.map((v) => `${stack.args.vλl} === ${toLiteral(v)}`).join(' || ');
+    _compileIsType(cop: JitCompileOp): string {
+        return this.src.values.map((v) => `${cop.args.vλl} === ${toLiteral(v)}`).join(' || ');
     }
-    _compileTypeErrors(stack: JitTypeErrorOperation): string {
-        return `if (!(${this._compileIsType(stack)})) ${stack.args.εrrors}.push({path: ${getJitErrorPath(stack)}, expected: ${getExpected(this)}})`;
+    _compileTypeErrors(cop: JitTypeErrorCompileOp): string {
+        return `if (!(${this._compileIsType(cop)})) ${cop.args.εrrors}.push({path: ${getJitErrorPath(cop)}, expected: ${getExpected(this)}})`;
     }
-    _compileJsonEncode(op: JitOperation): string {
-        return op.args.vλl;
+    _compileJsonEncode(cop: JitCompileOp): string {
+        return cop.vλl;
     }
-    _compileJsonDecode(op: JitOperation): string {
-        return op.args.vλl;
+    _compileJsonDecode(cop: JitCompileOp): string {
+        return cop.vλl;
     }
-    _compileJsonStringify(stack: JitOperation): string {
-        if (this.src.indexType.kind === ReflectionKind.number) return stack.args.vλl;
-        return `JSON.stringify(${stack.args.vλl})`;
+    _compileJsonStringify(cop: JitCompileOp): string {
+        if (this.src.indexType.kind === ReflectionKind.number) return cop.args.vλl;
+        return `JSON.stringify(${cop.args.vλl})`;
     }
-    mock(stack?: Pick<MockContext, 'enumIndex'>): string | number | undefined | null {
-        const i = stack?.enumIndex || random(0, this.src.values.length - 1);
+    mock(cop?: Pick<MockContext, 'enumIndex'>): string | number | undefined | null {
+        const i = cop?.enumIndex || random(0, this.src.values.length - 1);
         return this.src.values[i];
     }
 }

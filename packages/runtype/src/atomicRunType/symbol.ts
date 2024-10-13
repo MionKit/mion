@@ -6,10 +6,11 @@
  * ######## */
 
 import {ReflectionKind, type TypeSymbol} from '../_deepkit/src/reflection/type';
-import type {JitOperation, JitJsonEncoder, MockContext, JitTypeErrorOperation, JitConstants} from '../types';
+import type {JitJsonEncoder, MockContext, JitConstants} from '../types';
 import {getJitErrorPath, getExpected} from '../utils';
 import {mockSymbol} from '../mock';
 import {AtomicRunType} from '../baseRunTypes';
+import {JitCompileOp, JitTypeErrorCompileOp} from '../jitOperation';
 
 const jitConstants: JitConstants = {
     skipJit: true,
@@ -21,27 +22,27 @@ const jitConstants: JitConstants = {
 
 export class SymbolRunType extends AtomicRunType<TypeSymbol> {
     src: TypeSymbol = null as any; // will be set after construction
-    constants = () => jitConstants;
+    getJitConstants = () => jitConstants;
     getName(): string {
         return 'symbol';
     }
-    _compileIsType(stack: JitOperation): string {
-        return `typeof ${stack.args.vλl} === 'symbol'`;
+    _compileIsType(cop: JitCompileOp): string {
+        return `typeof ${cop.args.vλl} === 'symbol'`;
     }
-    _compileTypeErrors(stack: JitTypeErrorOperation): string {
-        return `if (typeof ${stack.args.vλl} !== 'symbol') ${stack.args.εrrors}.push({path: ${getJitErrorPath(stack)}, expected: ${getExpected(this)}})`;
+    _compileTypeErrors(cop: JitTypeErrorCompileOp): string {
+        return `if (typeof ${cop.args.vλl} !== 'symbol') ${cop.args.εrrors}.push({path: ${getJitErrorPath(cop)}, expected: ${getExpected(this)}})`;
     }
-    _compileJsonEncode(stack: JitOperation): string {
-        return SymbolJitJsonEncoder.encodeToJson(stack.args.vλl);
+    _compileJsonEncode(cop: JitCompileOp): string {
+        return SymbolJitJsonEncoder.encodeToJson(cop.args.vλl);
     }
-    _compileJsonDecode(stack: JitOperation): string {
-        return SymbolJitJsonEncoder.decodeFromJson(stack.args.vλl);
+    _compileJsonDecode(cop: JitCompileOp): string {
+        return SymbolJitJsonEncoder.decodeFromJson(cop.args.vλl);
     }
-    _compileJsonStringify(stack: JitOperation): string {
-        return SymbolJitJsonEncoder.stringify(stack.args.vλl);
+    _compileJsonStringify(cop: JitCompileOp): string {
+        return SymbolJitJsonEncoder.stringify(cop.args.vλl);
     }
-    mock(stack?: Pick<MockContext, 'symbolLength' | 'symbolCharSet' | 'symbolName'>): symbol {
-        return mockSymbol(stack?.symbolName, stack?.symbolLength, stack?.symbolCharSet);
+    mock(cop?: Pick<MockContext, 'symbolLength' | 'symbolCharSet' | 'symbolName'>): symbol {
+        return mockSymbol(cop?.symbolName, cop?.symbolLength, cop?.symbolCharSet);
     }
 }
 

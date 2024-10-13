@@ -6,48 +6,49 @@
  * ######## */
 
 import {TypeTuple} from '../_deepkit/src/reflection/type';
-import {ArrayCollectionRunType} from '../baseRunTypes';
-import {JitOperation, MockContext, JitTypeErrorOperation} from '../types';
+import {CollectionRunType} from '../baseRunTypes';
+import {JitCompileOp, JitTypeErrorCompileOp} from '../jitOperation';
+import {MockContext} from '../types';
 import {getJitErrorPath, getExpected} from '../utils';
 
-export class TupleRunType extends ArrayCollectionRunType<TypeTuple> {
+export class TupleRunType extends CollectionRunType<TypeTuple> {
     src: TypeTuple = null as any; // will be set after construction
     getName(): string {
         throw 'tuple';
     }
-    protected getPathItem(): null {
+    getJitChildrenPath(): null {
         return null;
     }
-    protected _compileIsType(op: JitOperation): string {
+    protected _compileIsType(cop: JitCompileOp): string {
         const children = this.getJitChildren();
-        const varName = op.args.vλl;
-        const childrenCode = `&& (${children.map((rt) => rt.compileIsType(op)).join(' && ')})`;
+        const varName = cop.vλl;
+        const childrenCode = `&& (${children.map((rt) => rt.compileIsType(cop)).join(' && ')})`;
         return `(Array.isArray(${varName}) && ${varName}.length <= ${children.length} ${childrenCode})`;
     }
-    protected _compileTypeErrors(op: JitTypeErrorOperation): string {
+    protected _compileTypeErrors(cop: JitTypeErrorCompileOp): string {
         const children = this.getJitChildren();
-        const varName = op.args.vλl;
-        const errorsName = op.args.εrrors;
-        const childrenCode = children.map((rt) => rt.compileTypeErrors(op)).join(';');
+        const varName = cop.vλl;
+        const errorsName = cop.args.εrrors;
+        const childrenCode = children.map((rt) => rt.compileTypeErrors(cop)).join(';');
         return `
             if (!Array.isArray(${varName}) || ${varName}.length > ${children.length}) {
-                ${errorsName}.push({path: ${getJitErrorPath(op)}, expected: ${getExpected(this)}});
+                ${errorsName}.push({path: ${getJitErrorPath(cop)}, expected: ${getExpected(this)}});
             } else {
                 ${childrenCode}
             }
         `;
     }
-    protected _compileJsonEncode(op: JitOperation): string {
+    protected _compileJsonEncode(cop: JitCompileOp): string {
         const children = this.getJsonEncodeChildren();
-        return children.map((rt) => rt.compileJsonEncode(op)).join(';');
+        return children.map((rt) => rt.compileJsonEncode(cop)).join(';');
     }
-    protected _compileJsonDecode(op: JitOperation): string {
+    protected _compileJsonDecode(cop: JitCompileOp): string {
         const children = this.getJsonDecodeChildren();
-        return children.map((rt) => rt.compileJsonDecode(op)).join(';');
+        return children.map((rt) => rt.compileJsonDecode(cop)).join(';');
     }
-    protected _compileJsonStringify(op: JitOperation): string {
+    protected _compileJsonStringify(cop: JitCompileOp): string {
         const children = this.getJitChildren();
-        const childrenCode = children.map((rt) => rt.compileJsonStringify(op)).join(`+','+`);
+        const childrenCode = children.map((rt) => rt.compileJsonStringify(cop)).join(`+','+`);
         return `'['+${childrenCode}+']'`;
     }
 

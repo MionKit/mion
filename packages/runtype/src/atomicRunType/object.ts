@@ -6,11 +6,12 @@
  * ######## */
 
 import {ReflectionKind, type TypeAny, type TypeUnknown} from '../_deepkit/src/reflection/type';
-import type {JitOperation, MockContext, JitTypeErrorOperation, JitConstants} from '../types';
+import type {MockContext, JitConstants} from '../types';
 import {random} from '../mock';
 import {getJitErrorPath, getExpected} from '../utils';
 import {mockObjectList} from '../constants';
 import {AtomicRunType} from '../baseRunTypes';
+import {JitCompileOp, JitTypeErrorCompileOp} from '../jitOperation';
 
 const jitConstants: JitConstants = {
     skipJit: false,
@@ -22,27 +23,27 @@ const jitConstants: JitConstants = {
 
 export class ObjectRunType extends AtomicRunType<TypeAny | TypeUnknown> {
     src: TypeAny | TypeUnknown = null as any; // will be set after construction
-    constants = () => jitConstants;
+    getJitConstants = () => jitConstants;
     getName(): string {
         return 'object';
     }
-    _compileIsType(stack: JitOperation): string {
-        return `(typeof ${stack.args.vλl} === 'object' && ${stack.args.vλl} !== null)`;
+    _compileIsType(cop: JitCompileOp): string {
+        return `(typeof ${cop.args.vλl} === 'object' && ${cop.args.vλl} !== null)`;
     }
-    _compileTypeErrors(stack: JitTypeErrorOperation): string {
-        return `if (!(${this._compileIsType(stack)})) ${stack.args.εrrors}.push({path: ${getJitErrorPath(stack)}, expected: ${getExpected(this)}})`;
+    _compileTypeErrors(cop: JitTypeErrorCompileOp): string {
+        return `if (!(${this._compileIsType(cop)})) ${cop.args.εrrors}.push({path: ${getJitErrorPath(cop)}, expected: ${getExpected(this)}})`;
     }
-    _compileJsonEncode(op: JitOperation): string {
-        return op.args.vλl;
+    _compileJsonEncode(cop: JitCompileOp): string {
+        return cop.vλl;
     }
-    _compileJsonDecode(op: JitOperation): string {
-        return op.args.vλl;
+    _compileJsonDecode(cop: JitCompileOp): string {
+        return cop.vλl;
     }
-    _compileJsonStringify(stack: JitOperation): string {
-        return `JSON.stringify(${stack.args.vλl})`;
+    _compileJsonStringify(cop: JitCompileOp): string {
+        return `JSON.stringify(${cop.args.vλl})`;
     }
-    mock(stack?: Pick<MockContext, 'objectList'>): object {
-        const objectList = stack?.objectList || mockObjectList;
+    mock(cop?: Pick<MockContext, 'objectList'>): object {
+        const objectList = cop?.objectList || mockObjectList;
         return objectList[random(0, objectList.length - 1)];
     }
 }

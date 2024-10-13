@@ -163,8 +163,8 @@ describe('Interface', () => {
             bigInt: BigInt(123),
             "weird prop name \n?>'\\\t\r": 'hello2',
         };
-        expect(rt.constants().skipJsonDecode).toBe(false);
-        expect(rt.constants().skipJsonEncode).toBe(false);
+        expect(rt.getJitConstants().skipJsonDecode).toBe(false);
+        expect(rt.getJitConstants().skipJsonEncode).toBe(false);
         expect(fromJson(toJson(typeValue))).toEqual(typeValue);
     });
 
@@ -352,7 +352,7 @@ describe('Interface with circular ref type array', () => {
         expect(roundTrip2).toEqual(obj2);
     });
 
-    // todo: max stack size exceeded, this is because we are generating a full array with all recursive items with more array with recursive items.
+    // todo: max cop size exceeded, this is because we are generating a full array with all recursive items with more array with recursive items.
     // so the fix would be ti reduce the probability of generating an optional property the deeper we go.
     it('mock', () => {
         const mocked = rt.mock();

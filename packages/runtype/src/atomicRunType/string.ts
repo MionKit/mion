@@ -6,11 +6,12 @@
  * ######## */
 
 import {ReflectionKind, type TypeString} from '../_deepkit/src/reflection/type';
-import type {JitOperation, MockContext, JitTypeErrorOperation, JitConstants} from '../types';
+import type {MockContext, JitConstants} from '../types';
 import {getJitErrorPath, getExpected} from '../utils';
 import {mockString, random} from '../mock';
 import {AtomicRunType} from '../baseRunTypes';
 import {jitNames, stringCharSet} from '../constants';
+import {JitCompileOp, JitTypeErrorCompileOp} from '../jitOperation';
 
 const jitConstants: JitConstants = {
     skipJit: false,
@@ -22,28 +23,28 @@ const jitConstants: JitConstants = {
 
 export class StringRunType extends AtomicRunType<TypeString> {
     src: TypeString = null as any; // will be set after construction
-    constants = () => jitConstants;
+    getJitConstants = () => jitConstants;
     getName(): string {
         return 'string';
     }
-    _compileIsType(op: JitOperation): string {
-        return `typeof ${op.args.vλl} === 'string'`;
+    _compileIsType(cop: JitCompileOp): string {
+        return `typeof ${cop.vλl} === 'string'`;
     }
-    _compileTypeErrors(op: JitTypeErrorOperation): string {
-        return `if (typeof ${op.args.vλl} !== 'string') ${op.args.εrrors}.push({path: ${getJitErrorPath(op)}, expected: ${getExpected(this)}})`;
+    _compileTypeErrors(cop: JitTypeErrorCompileOp): string {
+        return `if (typeof ${cop.vλl} !== 'string') ${cop.args.εrrors}.push({path: ${getJitErrorPath(cop)}, expected: ${getExpected(this)}})`;
     }
-    _compileJsonEncode(op: JitOperation): string {
-        return op.args.vλl;
+    _compileJsonEncode(cop: JitCompileOp): string {
+        return cop.vλl;
     }
-    _compileJsonDecode(op: JitOperation): string {
-        return op.args.vλl;
+    _compileJsonDecode(cop: JitCompileOp): string {
+        return cop.vλl;
     }
-    _compileJsonStringify(stack: JitOperation): string {
-        return `${jitNames.utils}.asJSONString(${stack.args.vλl})`;
+    _compileJsonStringify(cop: JitCompileOp): string {
+        return `${jitNames.utils}.asJSONString(${cop.args.vλl})`;
     }
-    mock(stack?: Pick<MockContext, 'stringLength' | 'stringCharSet'>): string {
-        const length = stack?.stringLength || random(1, 500);
-        const charSet = stack?.stringCharSet || stringCharSet;
+    mock(cop?: Pick<MockContext, 'stringLength' | 'stringCharSet'>): string {
+        const length = cop?.stringLength || random(1, 500);
+        const charSet = cop?.stringCharSet || stringCharSet;
         return mockString(length, charSet);
     }
 }

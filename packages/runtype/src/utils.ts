@@ -5,9 +5,11 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import type {AnyClass, RunType, JitTypeErrorOperation} from './types';
+import type {AnyClass, RunType} from './types';
 import {isSameType, ReflectionKind} from './_deepkit/src/reflection/type';
 import {jitUtils} from './jitUtils';
+import {JitTypeErrorCompileOp} from './jitOperation';
+import {isAtomicRunType, isCollectionRunType, isMemberRunType} from './guards';
 
 export function toLiteral(value: number | string | boolean | undefined | null | bigint | RegExp | symbol): string {
     switch (typeof value) {
@@ -63,13 +65,9 @@ export function hasCircularParents(rt: RunType, parents: RunType[]): boolean {
     return false;
 }
 
-export function getJitErrorPath(stack: JitTypeErrorOperation): string {
-    if (stack.path.length === 0) return `[...${stack.args.pλth}]`;
-    const currentPathArgs = stack.path
-        .filter((i) => i !== null)
-        .map((pathItem) => pathItem?.literal)
-        .join(',');
-    return `[...${stack.args.pλth},${currentPathArgs}]`;
+export function getJitErrorPath(cop: JitTypeErrorCompileOp): string {
+    if (cop.length === 1) return `[...${cop.args.pλth}]`;
+    return `[...${cop.args.pλth},${cop.getStaticPathArgs()}]`;
 }
 
 export function getExpected(rt: RunType): string {
@@ -82,4 +80,51 @@ export function memo<Fn extends (...args: any[]) => any>(fn: Fn): Fn {
         if (!cached) cached = fn(...args);
         return cached;
     }) as Fn;
+}
+
+export function shouldSkipJit(rt: RunType): boolean {
+    if (isCollectionRunType(rt)) {
+        const children = rt.getJitChildren();
+        return !children.length;
+    }
+    if (isMemberRunType(rt)) {
+        const child = rt.getJitChild();
+        return !child;
+    }
+    if (isAtomicRunType(rt)) {
+        return rt.getJitConstants().skipJit;
+    }
+    throw new Error('shouldSkipJit: unknown RunType');
+}
+
+export function shouldSkipJsonDecode(rt: RunType): boolean {
+    if (shouldSkipJit(rt)) return true;
+    if (isCollectionRunType(rt)) {
+        const children = rt.getJsonDecodeChildren();
+        return !children.length;
+    }
+    if (isMemberRunType(rt)) {
+        const child = rt.getJsonDecodeChild();
+        return !child;
+    }
+    if (isAtomicRunType(rt)) {
+        return rt.getJitConstants().skipJsonDecode;
+    }
+    throw new Error('shouldSkipJsonDecode: unknown RunType');
+}
+
+export function shouldSkiJsonEncode(rt: RunType): boolean {
+    if (shouldSkipJit(rt)) return true;
+    if (isCollectionRunType(rt)) {
+        const children = rt.getJsonEncodeChildren();
+        return !children.length;
+    }
+    if (isMemberRunType(rt)) {
+        const child = rt.getJsonEncodeChild();
+        return !child;
+    }
+    if (isAtomicRunType(rt)) {
+        return rt.getJitConstants().skipJsonEncode;
+    }
+    throw new Error('shouldSkiJsonEncode: unknown RunType');
 }

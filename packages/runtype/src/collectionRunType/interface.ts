@@ -5,14 +5,15 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 import {TypeObjectLiteral, TypeClass, TypeIntersection} from '../_deepkit/src/reflection/type';
-import {JitOperation, MockContext, JitTypeErrorOperation} from '../types';
+import {MockContext, PathItem} from '../types';
 import {getJitErrorPath, getExpected} from '../utils';
 import {PropertyRunType} from '../memberRunType/property';
-import {ObjectCollectionRunType} from '../baseRunTypes';
+import {CollectionRunType} from '../baseRunTypes';
 import {MethodSignatureRunType} from '../functionRunType/methodSignature';
 import {CallSignatureRunType} from '../functionRunType/call';
 import {IndexSignatureRunType} from '../memberRunType/indexProperty';
 import {MethodRunType} from '../functionRunType/method';
+import {JitCompileOp, JitTypeErrorCompileOp} from '../jitOperation';
 
 export type InterfaceMember =
     | PropertyRunType
@@ -23,46 +24,46 @@ export type InterfaceMember =
 
 export class InterfaceRunType<
     T extends TypeObjectLiteral | TypeClass | TypeIntersection = TypeObjectLiteral,
-> extends ObjectCollectionRunType<T> {
+> extends CollectionRunType<T> {
     src: T = null as any; // will be set after construction
     getName(): string {
         const iName = (this.src.kind as any).typeName as string | undefined;
         return `interface${iName ? ` ${iName}` : ''}`;
     }
-    protected getPathItem(): null {
-        return null;
+    getJitChildrenPath(): PathItem | null {
+        throw new Error('Method not implemented.');
     }
     // #### collection's jit code ####
-    protected _compileIsType(op: JitOperation): string {
-        const varName = op.args.vλl;
+    protected _compileIsType(cop: JitCompileOp): string {
+        const varName = cop.vλl;
         const children = this.getJitChildren();
-        const childrenCode = `  && ${children.map((prop) => prop.compileIsType(op)).join(' && ')}`;
+        const childrenCode = `  && ${children.map((prop) => prop.compileIsType(cop)).join(' && ')}`;
         return `(typeof ${varName} === 'object' && ${varName} !== null && !Array.isArray(${varName}) ${childrenCode})`;
     }
-    protected _compileTypeErrors(op: JitTypeErrorOperation): string {
-        const varName = op.args.vλl;
-        const errorsName = op.args.εrrors;
+    protected _compileTypeErrors(cop: JitTypeErrorCompileOp): string {
+        const varName = cop.vλl;
+        const errorsName = cop.args.εrrors;
         const children = this.getJitChildren();
-        const childrenCode = children.map((prop) => prop.compileTypeErrors(op)).join(';');
+        const childrenCode = children.map((prop) => prop.compileTypeErrors(cop)).join(';');
         return `
             if (typeof ${varName} !== 'object' && ${varName} !== null && !Array.isArray(${varName})) {
-                ${errorsName}.push({path: ${getJitErrorPath(op)}, expected: ${getExpected(this)}});
+                ${errorsName}.push({path: ${getJitErrorPath(cop)}, expected: ${getExpected(this)}});
             } else {
                 ${childrenCode}
             }
         `;
     }
-    protected _compileJsonEncode(op: JitOperation): string {
+    protected _compileJsonEncode(cop: JitCompileOp): string {
         const children = this.getJsonEncodeChildren();
-        return children.map((prop) => prop.compileJsonEncode(op)).join(';');
+        return children.map((prop) => prop.compileJsonEncode(cop)).join(';');
     }
-    protected _compileJsonDecode(op: JitOperation): string {
+    protected _compileJsonDecode(cop: JitCompileOp): string {
         const children = this.getJsonDecodeChildren();
-        return children.map((prop) => prop.compileJsonDecode(op)).join(';');
+        return children.map((prop) => prop.compileJsonDecode(cop)).join(';');
     }
-    protected _compileJsonStringify(op: JitOperation): string {
+    protected _compileJsonStringify(cop: JitCompileOp): string {
         const children = this.getJitChildren();
-        const childrenCode = children.map((prop) => prop.compileJsonStringify(op)).join('+');
+        const childrenCode = children.map((prop) => prop.compileJsonStringify(cop)).join('+');
         return `'{'+${childrenCode}+'}'`;
     }
 

@@ -18,7 +18,7 @@ const jitConstants: JitConstants = {
 };
 export class NeverRunType extends AtomicRunType<TypeNever> {
     src: TypeNever = null as any; // will be set after construction
-    constants = () => jitConstants;
+    getJitConstants = () => jitConstants;
     getName(): string {
         return 'never';
     }
