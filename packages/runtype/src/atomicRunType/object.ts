@@ -28,7 +28,7 @@ export class ObjectRunType extends AtomicRunType<TypeAny | TypeUnknown> {
         return 'object';
     }
     _compileIsType(cop: JitCompileOp): string {
-        return `(typeof ${cop.args.vλl} === 'object' && ${cop.args.vλl} !== null)`;
+        return `(typeof ${cop.vλl} === 'object' && ${cop.vλl} !== null)`;
     }
     _compileTypeErrors(cop: JitTypeErrorCompileOp): string {
         return `if (!(${this._compileIsType(cop)})) ${cop.args.εrrors}.push({path: ${getJitErrorPath(cop)}, expected: ${getExpected(this)}})`;
@@ -40,7 +40,7 @@ export class ObjectRunType extends AtomicRunType<TypeAny | TypeUnknown> {
         return cop.vλl;
     }
     _compileJsonStringify(cop: JitCompileOp): string {
-        return `JSON.stringify(${cop.args.vλl})`;
+        return `JSON.stringify(${cop.vλl})`;
     }
     mock(cop?: Pick<MockContext, 'objectList'>): object {
         const objectList = cop?.objectList || mockObjectList;

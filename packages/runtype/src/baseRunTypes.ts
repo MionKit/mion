@@ -59,10 +59,12 @@ export abstract class BaseRunType<T extends Type> implements RunType {
                     ${code}
                     ${cop.args.pλth}.splice(-${pathLength});
                 `;
+                code = this.handleReturn(code, cop, false);
             }
         } else {
+            const codeHasReturn = this.hasReturnCompileTypeErrors();
             code = this._compileTypeErrors(cop);
-            // compileTypeErrors never needs a return statements
+            code = this.handleReturn(code, cop, codeHasReturn);
         }
         cop.popStack();
         return code;
@@ -112,14 +114,14 @@ export abstract class BaseRunType<T extends Type> implements RunType {
     private handleReturn(code: string, jitOp: JitCompileOperation, codeHasReturn: boolean): string {
         if (jitOp.length > 1) {
             // code contains a return and possibly more statements, we need to wrap it in a self invoking function to avoid syntax errors
-            if (codeHasReturn) return `(function(){${code}})()`;
+            if (codeHasReturn && jitOp.codeUnit === 'EXPRESSION') return `(function(){${code}})()`;
             // code is just a statement (i.e: typeof var === 'number'), we can return it directly
             return code;
         }
         // nestLevel === 0 (root of the function)
         if (codeHasReturn) return code; // code already contains a return, we can return it directly
-        // code is just a statement (i.e: typeof var === 'number'), we need to add a return statement as it is the root of the function
-        return `return ${code}`;
+        if (this.getFamily() === 'A' && jitOp.codeUnit !== 'BLOCK') return `return ${code}`; // atomic types should return the value directly
+        return `${code}${code ? ';' : ''}return ${jitOp.returnName}`; // code is a block or a composite type, main value must be returned;
     }
     private callCircularJitFn(cop: JitCompileOperation): string {
         return `${cop.name}(${Object.values(cop.args).join(', ')})`;
@@ -254,9 +256,9 @@ export abstract class MemberRunType<T extends Type> extends BaseRunType<T> {
         if (!child || child.getJitConstants().skipJsonDecode) return undefined;
         return child;
     }
-    getJitConstants = memo((cop: RunType[] = []): JitConstants => {
-        if (cop.length > maxStackDepth) throw new Error(maxStackErrorMessage);
-        const isInStack = cop.some((rt) => rt === this); // recursive reference
+    getJitConstants = memo((stack: RunType[] = []): JitConstants => {
+        if (stack.length > maxStackDepth) throw new Error(maxStackErrorMessage);
+        const isInStack = stack.some((rt) => rt === this); // recursive reference
         if (isInStack) {
             return {
                 jitId: '$',
@@ -266,16 +268,15 @@ export abstract class MemberRunType<T extends Type> extends BaseRunType<T> {
                 isCircularRef: true,
             };
         }
-        cop.push(this);
+        stack.push(this);
         const member = this.getMemberType();
-        const memberValues = member.getJitConstants(cop);
+        const memberValues = member.getJitConstants(stack);
         const optional = this.isOptional() ? '?' : '';
         const jitCts: JitConstants = {
             ...memberValues,
             jitId: `${this.src.kind}${optional}:${memberValues.jitId}`,
         };
-        cop.pop();
-        console.log('jitCts', jitCts);
+        stack.pop();
         return jitCts;
     });
 }

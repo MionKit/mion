@@ -40,7 +40,7 @@ export class StringRunType extends AtomicRunType<TypeString> {
         return cop.vλl;
     }
     _compileJsonStringify(cop: JitCompileOp): string {
-        return `${jitNames.utils}.asJSONString(${cop.args.vλl})`;
+        return `${jitNames.utils}.asJSONString(${cop.vλl})`;
     }
     mock(cop?: Pick<MockContext, 'stringLength' | 'stringCharSet'>): string {
         const length = cop?.stringLength || random(1, 500);

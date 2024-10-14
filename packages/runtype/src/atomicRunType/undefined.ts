@@ -26,16 +26,16 @@ export class UndefinedRunType extends AtomicRunType<TypeUndefined> {
         return 'undefined';
     }
     _compileIsType(cop: JitCompileOp): string {
-        return `typeof ${cop.args.vλl} === 'undefined'`;
+        return `typeof ${cop.vλl} === 'undefined'`;
     }
     _compileTypeErrors(cop: JitTypeErrorCompileOp): string {
-        return `if (typeof ${cop.args.vλl} !== 'undefined') ${cop.args.εrrors}.push({path: ${getJitErrorPath(cop)}, expected: ${getExpected(this)}})`;
+        return `if (typeof ${cop.vλl} !== 'undefined') ${cop.args.εrrors}.push({path: ${getJitErrorPath(cop)}, expected: ${getExpected(this)}})`;
     }
     _compileJsonEncode(cop: JitCompileOp): string {
-        return `${cop.args.vλl} = null`;
+        return `${cop.vλl} = null`;
     }
     _compileJsonDecode(cop: JitCompileOp): string {
-        return `${cop.args.vλl} = undefined`;
+        return `${cop.vλl} = undefined`;
     }
     _compileJsonStringify(): string {
         return `null`;

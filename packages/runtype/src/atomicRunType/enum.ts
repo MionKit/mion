@@ -27,7 +27,7 @@ export class EnumRunType extends AtomicRunType<TypeEnum> {
         return 'enum';
     }
     _compileIsType(cop: JitCompileOp): string {
-        return this.src.values.map((v) => `${cop.args.vλl} === ${toLiteral(v)}`).join(' || ');
+        return this.src.values.map((v) => `${cop.vλl} === ${toLiteral(v)}`).join(' || ');
     }
     _compileTypeErrors(cop: JitTypeErrorCompileOp): string {
         return `if (!(${this._compileIsType(cop)})) ${cop.args.εrrors}.push({path: ${getJitErrorPath(cop)}, expected: ${getExpected(this)}})`;
@@ -39,8 +39,8 @@ export class EnumRunType extends AtomicRunType<TypeEnum> {
         return cop.vλl;
     }
     _compileJsonStringify(cop: JitCompileOp): string {
-        if (this.src.indexType.kind === ReflectionKind.number) return cop.args.vλl;
-        return `JSON.stringify(${cop.args.vλl})`;
+        if (this.src.indexType.kind === ReflectionKind.number) return cop.vλl;
+        return `JSON.stringify(${cop.vλl})`;
     }
     mock(cop?: Pick<MockContext, 'enumIndex'>): string | number | undefined | null {
         const i = cop?.enumIndex || random(0, this.src.values.length - 1);

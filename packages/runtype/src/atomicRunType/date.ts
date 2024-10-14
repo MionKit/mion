@@ -29,19 +29,19 @@ export class DateRunType extends AtomicRunType<TypeClass> {
         return 'date';
     }
     _compileIsType(cop: JitCompileOp): string {
-        return `(${cop.args.vλl} instanceof Date && !isNaN(${cop.args.vλl}.getTime()))`;
+        return `(${cop.vλl} instanceof Date && !isNaN(${cop.vλl}.getTime()))`;
     }
     _compileTypeErrors(cop: JitTypeErrorCompileOp): string {
         return `if (!(${this._compileIsType(cop)})) ${cop.args.εrrors}.push({path: ${getJitErrorPath(cop)}, expected: ${getExpected(this)}})`;
     }
     _compileJsonEncode(cop: JitCompileOp): string {
-        return DateJitJsonENcoder.encodeToJson(cop.args.vλl);
+        return DateJitJsonENcoder.encodeToJson(cop.vλl);
     }
     _compileJsonDecode(cop: JitCompileOp): string {
-        return DateJitJsonENcoder.decodeFromJson(cop.args.vλl);
+        return DateJitJsonENcoder.decodeFromJson(cop.vλl);
     }
     _compileJsonStringify(cop: JitCompileOp): string {
-        return DateJitJsonENcoder.stringify(cop.args.vλl);
+        return DateJitJsonENcoder.stringify(cop.vλl);
     }
     mock(cop?: Pick<MockContext, 'minDate' | 'maxDate'>): Date {
         return mockDate(cop?.minDate, cop?.maxDate);
