@@ -37,6 +37,14 @@ export class JitCompileOperation<FnArgsNames extends JitFnArgs = JitFnArgs, Name
         public codeUnit: CodeUnit,
         public name: Name
     ) {}
+    private getDefaultPathItem(rt: RunType): StackItem {
+        return {
+            varName: this.args.vλl,
+            literal: this.args.vλl,
+            vλl: this.args.vλl,
+            rt,
+        };
+    }
     pushStack(rt: RunType) {
         if (this.stack.length > maxStackDepth) throw new Error(maxStackErrorMessage);
         const parent = this.getParentPathItem();
@@ -66,13 +74,26 @@ export class JitCompileOperation<FnArgsNames extends JitFnArgs = JitFnArgs, Name
             .map((pathItem) => pathItem?.literal)
             .join(',');
     }
-    private getDefaultPathItem(rt: RunType): StackItem {
-        return {
-            varName: this.args.vλl,
-            literal: this.args.vλl,
-            vλl: this.args.vλl,
-            rt,
-        };
+    getStaticPathLength(): number {
+        return this.stack.filter((i, index) => i !== null && index !== 0).length; // we need to skip the first item to generate static path
+    }
+
+    isCircularChild(): boolean {
+        const rt = this.stack[this.stack.length - 1].rt;
+        if (!rt.getJitConstants().isCircularRef) return false;
+        const isComposite = rt.getFamily() === 'C' || rt.getFamily() === 'M';
+        if (!isComposite) return false;
+        const currentJitId = rt.getJitId();
+        for (let i = this.stack.length - 2; i >= 0; i--) {
+            if (this.stack[i].rt.getJitId() === currentJitId) return true;
+        }
+        return false;
+    }
+
+    getNewArgsForCurrentOp(): FnArgsNames {
+        const newArgs = {...this.args};
+        newArgs.vλl = this.vλl;
+        return newArgs;
     }
 }
 

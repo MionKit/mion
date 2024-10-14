@@ -12,9 +12,9 @@ import {getJitErrorPath, getExpected} from '../utils';
 import {JitCompileOp, JitTypeErrorCompileOp} from '../jitOperation';
 
 const jitConstants: JitConstants = {
-    skipJit: true,
-    skipJsonEncode: true,
-    skipJsonDecode: true,
+    skipJit: false,
+    skipJsonEncode: false,
+    skipJsonDecode: false,
     isCircularRef: false,
     jitId: ReflectionKind.void,
 };

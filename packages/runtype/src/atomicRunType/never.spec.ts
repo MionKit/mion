@@ -16,11 +16,22 @@ import {
 const rt = runType<never>();
 
 it('validate never', () => {
-    expect(() => buildIsTypeJITFn(rt)).toThrow('Never type cannot exist at runtime.');
+    const validate = buildIsTypeJITFn(rt).fn;
+    expect(validate(true)).toBe(false);
+    expect(validate(false)).toBe(false);
+    expect(validate(1)).toBe(false);
+    expect(validate('3')).toBe(false);
+    expect(validate({})).toBe(false);
 });
 
 it('validate never + errors', () => {
-    expect(() => buildTypeErrorsJITFn(rt)).toThrow('Never type cannot exist at runtime.');
+    const valWithErrors = buildTypeErrorsJITFn(rt).fn;
+    expect(valWithErrors(true)).toEqual([{path: [], expected: 'never'}]);
+    expect(valWithErrors(false)).toEqual([{path: [], expected: 'never'}]);
+    expect(valWithErrors(1)).toEqual([{path: [], expected: 'never'}]);
+    expect(valWithErrors('3')).toEqual([{path: [], expected: 'never'}]);
+    expect(valWithErrors({})).toEqual([{path: [], expected: 'never'}]);
+    expect(valWithErrors('hello')).toEqual([{path: [], expected: 'never'}]);
 });
 
 it('encode to json should throw an error', () => {
