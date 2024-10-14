@@ -16,7 +16,6 @@ import {
 describe('Array', () => {
     const rt = runType<string[]>();
     const rD = runType<Date[]>();
-    const rE = runType<never[]>();
 
     it('validate string[]', () => {
         const validate = buildIsTypeJITFn(rt).fn;
@@ -75,12 +74,6 @@ describe('Array', () => {
         expect(rt.mock() instanceof Array).toBe(true);
         const validate = buildIsTypeJITFn(rt).fn;
         expect(validate(rt.mock())).toBe(true);
-    });
-
-    it('compiling never[] should throw an exemption as is not serializable', () => {
-        expect(() => buildIsTypeJITFn(rE)).toThrow(
-            `Array of type <never> can't be compiled because <never> is non serializable.`
-        );
     });
 });
 
@@ -162,7 +155,6 @@ describe('Array circular ref', () => {
     it('validate CircularArray', () => {
         const rt = runType<CircularArray>();
         const validate = buildIsTypeJITFn(rt).fn;
-        console.log(rt.getJitConstants());
         const arr: CircularArray = [];
         arr.push([]);
         arr[0].push([]);
@@ -179,8 +171,8 @@ describe('Array circular ref', () => {
         arr[0][0].push([]);
         expect(valWithErrors(arr)).toEqual([]);
 
-        arr.push(1 as any);
-        arr[0].push(2 as any);
+        arr.push('A' as any);
+        arr[0].push('A' as any);
         expect(valWithErrors(arr)).toEqual([
             {path: [0, 1], expected: 'array'},
             {path: [1], expected: 'array'},

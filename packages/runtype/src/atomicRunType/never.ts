@@ -7,12 +7,14 @@
 
 import {ReflectionKind, type TypeNever} from '../_deepkit/src/reflection/type';
 import {AtomicRunType} from '../baseRunTypes';
+import {JitTypeErrorCompileOp} from '../jitOperation';
 import {JitConstants} from '../types';
+import {getExpected, getJitErrorPath} from '../utils';
 
 const jitConstants: JitConstants = {
-    skipJit: true,
-    skipJsonEncode: true,
-    skipJsonDecode: true,
+    skipJit: false,
+    skipJsonEncode: false,
+    skipJsonDecode: false,
     isCircularRef: false,
     jitId: ReflectionKind.never,
 };
@@ -23,10 +25,10 @@ export class NeverRunType extends AtomicRunType<TypeNever> {
         return 'never';
     }
     _compileIsType(): string {
-        throw new Error('Never type cannot exist at runtime.');
+        return 'false';
     }
-    _compileTypeErrors(): string {
-        throw new Error('Never type cannot exist at runtime.');
+    _compileTypeErrors(cop: JitTypeErrorCompileOp): string {
+        return `${cop.args.εrrors}.push({path: ${getJitErrorPath(cop)}, expected: ${getExpected(this)}})`;
     }
     _compileJsonEncode(): string {
         throw new Error('Never type cannot be encoded to JSON.');
