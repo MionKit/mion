@@ -27,16 +27,16 @@ export class BigIntRunType extends AtomicRunType<TypeBigInt> {
         return 'bigint';
     }
     _compileIsType(cop: JitCompileOp): string {
-        return `typeof ${cop.args.vλl} === 'bigint'`;
+        return `typeof ${cop.vλl} === 'bigint'`;
     }
     _compileTypeErrors(cop: JitTypeErrorCompileOp): string {
-        return `if (typeof ${cop.args.vλl} !== 'bigint') ${cop.args.εrrors}.push({path: ${getJitErrorPath(cop)}, expected: ${getExpected(this)}})`;
+        return `if (typeof ${cop.vλl} !== 'bigint') ${cop.args.εrrors}.push({path: ${getJitErrorPath(cop)}, expected: ${getExpected(this)}})`;
     }
     _compileJsonEncode(cop: JitCompileOp): string {
-        return BigIntJitJsonENcoder.encodeToJson(cop.args.vλl);
+        return BigIntJitJsonENcoder.encodeToJson(cop.vλl);
     }
     _compileJsonDecode(cop: JitCompileOp): string {
-        return BigIntJitJsonENcoder.decodeFromJson(cop.args.vλl);
+        return BigIntJitJsonENcoder.decodeFromJson(cop.vλl);
     }
     _compileJsonStringify(jc: JitCompileOp): string {
         return BigIntJitJsonENcoder.stringify(jc.args.vλl);

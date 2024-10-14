@@ -27,19 +27,19 @@ export class SymbolRunType extends AtomicRunType<TypeSymbol> {
         return 'symbol';
     }
     _compileIsType(cop: JitCompileOp): string {
-        return `typeof ${cop.args.vλl} === 'symbol'`;
+        return `typeof ${cop.vλl} === 'symbol'`;
     }
     _compileTypeErrors(cop: JitTypeErrorCompileOp): string {
-        return `if (typeof ${cop.args.vλl} !== 'symbol') ${cop.args.εrrors}.push({path: ${getJitErrorPath(cop)}, expected: ${getExpected(this)}})`;
+        return `if (typeof ${cop.vλl} !== 'symbol') ${cop.args.εrrors}.push({path: ${getJitErrorPath(cop)}, expected: ${getExpected(this)}})`;
     }
     _compileJsonEncode(cop: JitCompileOp): string {
-        return SymbolJitJsonEncoder.encodeToJson(cop.args.vλl);
+        return SymbolJitJsonEncoder.encodeToJson(cop.vλl);
     }
     _compileJsonDecode(cop: JitCompileOp): string {
-        return SymbolJitJsonEncoder.decodeFromJson(cop.args.vλl);
+        return SymbolJitJsonEncoder.decodeFromJson(cop.vλl);
     }
     _compileJsonStringify(cop: JitCompileOp): string {
-        return SymbolJitJsonEncoder.stringify(cop.args.vλl);
+        return SymbolJitJsonEncoder.stringify(cop.vλl);
     }
     mock(cop?: Pick<MockContext, 'symbolLength' | 'symbolCharSet' | 'symbolName'>): symbol {
         return mockSymbol(cop?.symbolName, cop?.symbolLength, cop?.symbolCharSet);

@@ -27,19 +27,19 @@ export class RegexpRunType extends AtomicRunType<TypeRegexp> {
         return 'regexp';
     }
     _compileIsType(cop: JitCompileOp): string {
-        return `(${cop.args.vλl} instanceof RegExp)`;
+        return `(${cop.vλl} instanceof RegExp)`;
     }
     _compileTypeErrors(cop: JitTypeErrorCompileOp): string {
-        return `if (!(${cop.args.vλl} instanceof RegExp)) ${cop.args.εrrors}.push({path: ${getJitErrorPath(cop)}, expected: ${getExpected(this)}})`;
+        return `if (!(${cop.vλl} instanceof RegExp)) ${cop.args.εrrors}.push({path: ${getJitErrorPath(cop)}, expected: ${getExpected(this)}})`;
     }
     _compileJsonEncode(cop: JitCompileOp): string {
-        return RegexpJitJsonEncoder.encodeToJson(cop.args.vλl);
+        return RegexpJitJsonEncoder.encodeToJson(cop.vλl);
     }
     _compileJsonDecode(cop: JitCompileOp): string {
-        return RegexpJitJsonEncoder.decodeFromJson(cop.args.vλl);
+        return RegexpJitJsonEncoder.decodeFromJson(cop.vλl);
     }
     _compileJsonStringify(cop: JitCompileOp): string {
-        return RegexpJitJsonEncoder.stringify(cop.args.vλl);
+        return RegexpJitJsonEncoder.stringify(cop.vλl);
     }
     mock(cop?: Pick<MockContext, 'regexpList'>): RegExp {
         return mockRegExp(cop?.regexpList);

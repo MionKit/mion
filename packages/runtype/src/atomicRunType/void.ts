@@ -26,16 +26,16 @@ export class VoidRunType extends AtomicRunType<TypeVoid> {
         return 'void';
     }
     _compileIsType(cop: JitCompileOp): string {
-        return `${cop.args.vλl} === undefined`;
+        return `${cop.vλl} === undefined`;
     }
     _compileTypeErrors(cop: JitTypeErrorCompileOp): string {
-        return `if (${cop.args.vλl} !== undefined) ${cop.args.εrrors}.push({path: ${getJitErrorPath(cop)}, expected: ${getExpected(this)}})`;
+        return `if (${cop.vλl} !== undefined) ${cop.args.εrrors}.push({path: ${getJitErrorPath(cop)}, expected: ${getExpected(this)}})`;
     }
     _compileJsonEncode(cop: JitCompileOp): string {
-        return `${cop.args.vλl} = undefined`;
+        return `${cop.vλl} = undefined`;
     }
     _compileJsonDecode(cop: JitCompileOp): string {
-        return `${cop.args.vλl} = undefined`;
+        return `${cop.vλl} = undefined`;
     }
     _compileJsonStringify(): string {
         return 'undefined';

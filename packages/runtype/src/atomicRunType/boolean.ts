@@ -26,10 +26,10 @@ export class BooleanRunType extends AtomicRunType<TypeBoolean> {
         return 'boolean';
     }
     _compileIsType(cop: JitCompileOp): string {
-        return `typeof ${cop.args.vλl} === 'boolean'`;
+        return `typeof ${cop.vλl} === 'boolean'`;
     }
     _compileTypeErrors(cop: JitTypeErrorCompileOp): string {
-        return `if (typeof ${cop.args.vλl} !== 'boolean') ${cop.args.εrrors}.push({path: ${getJitErrorPath(cop)}, expected: ${getExpected(this)}})`;
+        return `if (typeof ${cop.vλl} !== 'boolean') ${cop.args.εrrors}.push({path: ${getJitErrorPath(cop)}, expected: ${getExpected(this)}})`;
     }
     _compileJsonEncode(cop: JitCompileOp): string {
         return cop.vλl;
@@ -38,7 +38,7 @@ export class BooleanRunType extends AtomicRunType<TypeBoolean> {
         return cop.vλl;
     }
     _compileJsonStringify(cop: JitCompileOp): string {
-        return cop.args.vλl;
+        return cop.vλl;
     }
     mock(): boolean {
         return mockBoolean();

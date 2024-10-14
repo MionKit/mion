@@ -38,11 +38,11 @@ export function buildJITFunctions(runType: RunType, jitFunctions?: JitCompilerFu
 }
 
 export function buildIsTypeJITFn(runType: RunType, jitFunctions?: JitCompilerFunctions): JITCompiledFunctions['isType'] {
-    const jitOp = new JitCompileOp('ƒnIsTypε');
+    const jitOp = new JitCompileOp('ƒnIsTypε', 'EXPRESSION');
     const code = jitFunctions ? jitFunctions.compileIsType(jitOp) : runType.compileIsType(jitOp);
     const argNames = Object.values(jitOp.args);
     try {
-        const fn = createJitFnWithContext(Object.values(jitOp.args), code, jitOp.name);
+        const fn = createJitFnWithContext(Object.values(jitOp.args), jitOp.argsDefaultValues, code, jitOp.name);
         return {argNames, code, fn};
     } catch (e: any) {
         const fnCode = ` Code:\nfunction isType(){${code}}`;
@@ -53,19 +53,11 @@ export function buildIsTypeJITFn(runType: RunType, jitFunctions?: JitCompilerFun
 
 export function buildTypeErrorsJITFn(runType: RunType, jitFunctions?: JitCompilerFunctions): JITCompiledFunctions['typeErrors'] {
     const jitOp: JitTypeErrorCompileOp = new JitTypeErrorCompileOp('ƒnTypεErrors');
-    const jitCode = jitFunctions ? jitFunctions.compileTypeErrors(jitOp) : runType.compileTypeErrors(jitOp);
-    // TODO: pλth array is used for circular functions or jit cached functions, it should be removed if not used
-    // TODO: we are defining errors and path inside code, we could pass them as arguments to createJitFnWithContext
-    const code = `
-        const ${jitOp.args.εrrors} = [];
-        const ${jitOp.args.pλth} = [];
-        ${jitCode}
-        return ${jitOp.args.εrrors};
-    `;
+    const code = jitFunctions ? jitFunctions.compileTypeErrors(jitOp) : runType.compileTypeErrors(jitOp);
     // we only pass the value as argument as error and path are created inside the root function, this way user don't need to pass them every time
     const argNames = [jitOp.args.vλl];
     try {
-        const fn = createJitFnWithContext(argNames, code, jitOp.name);
+        const fn = createJitFnWithContext(Object.values(jitOp.args), jitOp.argsDefaultValues, code, jitOp.name);
         return {argNames, code, fn};
     } catch (e: any) {
         const fnCode = ` Code:\nfunction typeErrors(){${code}}`;
@@ -75,11 +67,11 @@ export function buildTypeErrorsJITFn(runType: RunType, jitFunctions?: JitCompile
 }
 
 export function buildJsonEncodeJITFn(runType: RunType, jitFunctions?: JitCompilerFunctions): JITCompiledFunctions['jsonEncode'] {
-    const jitOp = new JitCompileOp('ƒnJsonεncode');
+    const jitOp = new JitCompileOp('ƒnJsonεncode', 'STATEMENT');
     const code = jitFunctions ? jitFunctions.compileJsonEncode(jitOp) : runType.compileJsonEncode(jitOp);
     const argNames = Object.values(jitOp.args);
     try {
-        const fn = createJitFnWithContext(Object.values(jitOp.args), code, jitOp.name);
+        const fn = createJitFnWithContext(Object.values(jitOp.args), jitOp.argsDefaultValues, code, jitOp.name);
         return {argNames, code, fn};
     } catch (e: any) {
         const fnCode = ` Code:\nfunction jsonEncode(){${code}}`;
@@ -89,11 +81,11 @@ export function buildJsonEncodeJITFn(runType: RunType, jitFunctions?: JitCompile
 }
 
 export function buildJsonDecodeJITFn(runType: RunType, jitFunctions?: JitCompilerFunctions): JITCompiledFunctions['jsonDecode'] {
-    const jitOp = new JitCompileOp('ƒnJsonDεcode');
+    const jitOp = new JitCompileOp('ƒnJsonDεcode', 'STATEMENT');
     const code = jitFunctions ? jitFunctions.compileJsonDecode(jitOp) : runType.compileJsonDecode(jitOp);
     const argNames = Object.values(jitOp.args);
     try {
-        const fn = createJitFnWithContext(Object.values(jitOp.args), code, jitOp.name);
+        const fn = createJitFnWithContext(Object.values(jitOp.args), jitOp.argsDefaultValues, code, jitOp.name);
         return {argNames, code, fn};
     } catch (e: any) {
         const fnCode = ` Code:\nfunction jsonDecode(){${code}}`;
@@ -106,11 +98,11 @@ export function buildJsonStringifyJITFn(
     runType: RunType,
     jitFunctions?: JitCompilerFunctions
 ): JITCompiledFunctions['jsonStringify'] {
-    const jitOp = new JitCompileOp('ƒnJsonStringify');
+    const jitOp = new JitCompileOp('ƒnJsonStringify', 'EXPRESSION');
     const code = jitFunctions ? jitFunctions.compileJsonStringify(jitOp) : runType.compileJsonStringify(jitOp);
     const argNames = Object.values(jitOp.args);
     try {
-        const fn = createJitFnWithContext(Object.values(jitOp.args), code, jitOp.name);
+        const fn = createJitFnWithContext(Object.values(jitOp.args), jitOp.argsDefaultValues, code, jitOp.name);
         return {argNames, code, fn};
     } catch (e: any) {
         const fnCode = ` Code:\nfunction jsonStringify(){${code}}`;
@@ -179,6 +171,16 @@ export function restoreCodifiedJitFunctions(jitFns: UnwrappedJITFunctions): JITC
     return restored;
 }
 
+export function getFunctionArgsCode(argNames: string[], argDefaultValues: (string | null)[]): string {
+    return argNames
+        .map((name, i) => {
+            const value = argDefaultValues[i];
+            if (!value) return name;
+            return `${name}=${argDefaultValues[i]}`;
+        })
+        .join(',');
+}
+
 /**
  * Create a JIT function that has jitUtils (and possibly other required variables) in the context,
  * This way jitUtils ca be used without passing them as arguments to every atomic jit function (kind of global variables).
@@ -186,9 +188,15 @@ export function restoreCodifiedJitFunctions(jitFns: UnwrappedJITFunctions): JITC
  * @param code
  * @returns
  */
-function createJitFnWithContext(argNames: string[], code: string, functionName): (...args: any[]) => any {
+function createJitFnWithContext(
+    argNames: string[],
+    argDefaultValues: (string | null)[],
+    code: string,
+    functionName
+): (...args: any[]) => any {
+    const argsCode = getFunctionArgsCode(argNames, argDefaultValues);
     // this function will have jitUtils as context as is an argument of the enclosing function
-    const fnWithContext = `function ${functionName}(${argNames.join(', ')}){${code}}\nreturn ${functionName};`;
+    const fnWithContext = `function ${functionName}(${argsCode}){${code}}\nreturn ${functionName};`;
     try {
         const wrapperWithContext = new Function(jitNames.utils, fnWithContext);
         if (process.env.DEBUG_JIT) console.log(wrapperWithContext.toString());
@@ -225,7 +233,8 @@ export function createJitCachedFn(fnName: string, code: string | (() => string),
         const isFn = typeof code === 'function';
         if (isFn) jitUtils.addCachedFn(fnName, true as any); // add a placeholder to avoid infinite recursion
         const compiledCode = isFn ? code() : code;
-        const fn = createJitFnWithContext(cacheFnArgsNames, compiledCode, fnName);
+        const defaultArgs = []; // TODO: we might add the option to pass default args to teh cached function (we even might user the same args a tje JitCompileOp)
+        const fn = createJitFnWithContext(cacheFnArgsNames, defaultArgs, compiledCode, fnName);
         jitUtils.addCachedFn(fnName, fn);
         if (process.env.DEBUG_JIT) console.log(`cached jit functions for ${fnName}`);
     }
