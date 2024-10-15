@@ -29,7 +29,7 @@ export class InterfaceRunType<
         const varName = cop.vλl;
         const children = this.getJitChildren();
         const childrenCode = `  && ${children.map((prop) => prop.compileIsType(cop)).join(' && ')}`;
-        return `(typeof ${varName} === 'object' && ${varName} !== null && !Array.isArray(${varName}) ${childrenCode})`;
+        return `(typeof ${varName} === 'object' && ${varName} !== null ${childrenCode})`;
     }
     _compileTypeErrors(cop: JitTypeErrorCompileOp): string {
         const varName = cop.vλl;
@@ -37,7 +37,7 @@ export class InterfaceRunType<
         const children = this.getJitChildren();
         const childrenCode = children.map((prop) => prop.compileTypeErrors(cop)).join(';');
         return `
-            if (typeof ${varName} !== 'object' && ${varName} !== null && !Array.isArray(${varName})) {
+            if (typeof ${varName} !== 'object' && ${varName} !== null) {
                 ${errorsName}.push({path: ${getJitErrorPath(cop)}, expected: ${getExpected(this)}});
             } else {
                 ${childrenCode}

@@ -43,39 +43,6 @@ describe('Interface', () => {
     const rtSkip = runType<objectSkipProps>();
     const rtOpt = runType<ObjectAllOptional>();
 
-    function anonymous(µTils) {
-        function ƒnIsTypε(vλl) {
-            return (
-                typeof vλl === 'object' &&
-                vλl !== null &&
-                !Array.isArray(vλl) &&
-                vλl.startDate instanceof Date &&
-                !isNaN(vλl.startDate.getTime()) &&
-                Number.isFinite(vλl.quantity) &&
-                typeof vλl.name === 'string' &&
-                vλl.nullValue === null &&
-                (function () {
-                    if (!Array.isArray(vλl.stringArray)) return false;
-                    for (let iε3 = 0; iε3 < vλl.stringArray.length; iε3++) {
-                        const rεsult3 = typeof vλl.stringArray[iε3] === 'string';
-                        if (!rεsult3) return false;
-                    }
-                    return true;
-                })() &&
-                typeof vλl.bigInt === 'bigint' &&
-                (vλl.optionalString === undefined || typeof vλl.optionalString === 'string') &&
-                typeof vλl["weird prop name \n?>'\\\t\r"] === 'string' &&
-                (vλl.deep === undefined ||
-                    (typeof vλl.deep === 'object' &&
-                        vλl.deep !== null &&
-                        !Array.isArray(vλl.deep) &&
-                        typeof vλl.deep.a === 'string' &&
-                        Number.isFinite(vλl.deep.b)))
-            );
-        }
-        return ƒnIsTypε;
-    }
-
     it('validate object', () => {
         const validate = buildIsTypeJITFn(rt).fn;
         expect(

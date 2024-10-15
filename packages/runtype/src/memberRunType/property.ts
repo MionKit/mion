@@ -7,7 +7,7 @@
 
 import {TypeProperty, TypePropertySignature} from '../_deepkit/src/reflection/type';
 import {MockContext, StackItem} from '../types';
-import {getPropIndex, getPropLiteral, getPropVarName, isSafePropName, memo, toLiteral, useArrayAccessorForProp} from '../utils';
+import {getPropIndex, getPropLiteral, getPropVarName, isSafePropName, memo, useArrayAccessorForProp} from '../utils';
 import {MemberRunType} from '../baseRunTypes';
 import {jitUtils} from '../jitUtils';
 import {JitCompileOp, JitTypeErrorCompileOp} from '../jitOperation';
@@ -60,8 +60,8 @@ export class PropertyRunType extends MemberRunType<TypePropertySignature | TypeP
         if (!child) return '';
         // when is not safe firs stringify sanitizes string, second output double quoted scaped json string
         const proNameJSon = isSafePropName(this.src.name)
-            ? `'${toLiteral(this.getChildIndex())}'`
-            : jitUtils.asJSONString(toLiteral(this.getChildIndex()));
+            ? `'${this.getChildLiteral()}'`
+            : jitUtils.asJSONString(this.getChildLiteral());
         const propCode = child.compileJsonStringify(cop);
         // this can´t be processed in the parent as we need to handle the empty string case when value is undefined
         const isFirst = this.getChildIndex() === 0;

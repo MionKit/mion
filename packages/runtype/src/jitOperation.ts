@@ -42,7 +42,7 @@ export class JitCompileOperation<FnArgsNames extends JitFnArgs = JitFnArgs, Name
         for (let i = 0; i < this.stack.length; i++) {
             const rt = this.stack[i].rt;
             if (isChildAccessorType(rt)) {
-                vλl += rt.useArrayAccessor() ? `[${rt.getChildVarName()}]` : `.${rt.getChildLiteral()}`;
+                vλl += rt.useArrayAccessor() ? `[${rt.getChildLiteral()}]` : `.${rt.getChildVarName()}`;
             }
         }
         return vλl;
