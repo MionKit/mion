@@ -1,10 +1,6 @@
-import {MemberRunType} from './baseRunTypes';
 import {maxStackDepth, maxStackErrorMessage} from './constants';
-import {JitFnArgs, PathItem, RunType} from './types';
-
-export interface StackItem extends PathItem {
-    rt: RunType;
-}
+import {isChildAccessorType} from './guards';
+import type {JitFnArgs, StackItem, RunType} from './types';
 
 /**
  * Jit Compile Operation unit
@@ -20,11 +16,10 @@ export type CodeUnit = 'EXPRESSION' | 'STATEMENT' | 'BLOCK';
 export class JitCompileOperation<FnArgsNames extends JitFnArgs = JitFnArgs, Name extends string = any> {
     /** The cop of types being compiled */
     stack: StackItem[] = [];
+    popItem: StackItem | undefined;
     /** current runType accessor in source code */
-    get vλl() {
-        const index = this.stack.length - 1;
-        if (index < 0) return this.args.vλl;
-        return this.stack[index].vλl;
+    get vλl(): string {
+        return this._stackVλl;
     }
     /** shorthand for  this.length */
     get length() {
@@ -38,23 +33,39 @@ export class JitCompileOperation<FnArgsNames extends JitFnArgs = JitFnArgs, Name
         public name: Name
     ) {}
     private getDefaultPathItem(rt: RunType): StackItem {
-        return {
-            varName: this.args.vλl,
-            literal: this.args.vλl,
-            vλl: this.args.vλl,
-            rt,
-        };
+        return {vλl: this.args.vλl, rt};
+    }
+    private _stackVλl: string = '';
+    private _stackStaticPath: (string | number)[] = [];
+    private getStackVλl(): string {
+        let vλl = this.args.vλl;
+        for (let i = 0; i < this.stack.length; i++) {
+            const rt = this.stack[i].rt;
+            if (isChildAccessorType(rt)) {
+                vλl += rt.useArrayAccessor() ? `[${rt.getChildVarName()}]` : `.${rt.getChildLiteral()}`;
+            }
+        }
+        return vλl;
+    }
+    private getStackStaticPath(): (string | number)[] {
+        const path: (string | number)[] = [];
+        for (let i = 0; i < this.stack.length; i++) {
+            const rt = this.stack[i].rt;
+            if (isChildAccessorType(rt)) {
+                path.push(rt.getChildLiteral());
+            }
+        }
+        return path;
     }
     pushStack(rt: RunType) {
         if (this.stack.length > maxStackDepth) throw new Error(maxStackErrorMessage);
-        const parent = this.getParentPathItem();
-        const childItem = (parent?.rt as MemberRunType<any>)?.getJitChildrenPath(this);
-        const newStackItem: StackItem = (childItem as StackItem) || this.getDefaultPathItem(rt);
-        if (!newStackItem.rt) newStackItem.rt = rt;
+        this._stackVλl = this.getStackVλl();
+        this._stackStaticPath = this.getStackStaticPath();
+        const newStackItem: StackItem = {vλl: this._stackVλl, rt};
         this.stack.push(newStackItem);
     }
     popStack() {
-        this.stack.pop();
+        this.popItem = this.stack.pop();
     }
     getParentPathItem(): StackItem | null {
         for (let i = this.stack.length - 1; i >= 0; i--) {
@@ -62,22 +73,12 @@ export class JitCompileOperation<FnArgsNames extends JitFnArgs = JitFnArgs, Name
         }
         return null;
     }
-    newPathItem(varName: string | number, literal: string | number, useArrayAccessor?: boolean): PathItem {
-        const parent = this.getParentPathItem() || {vλl: this.args.vλl};
-        const useArray = useArrayAccessor ?? typeof varName === 'number';
-        const vλl = useArray ? `${parent.vλl}[${literal}]` : `${parent.vλl}.${varName}`;
-        return {vλl, varName, literal, useArrayAccessor: useArray};
-    }
-    getStaticPathArgs(): string {
-        return this.stack
-            .filter((i, index) => i !== null && index !== 0) // we need to skip the first item to generate static path
-            .map((pathItem) => pathItem?.literal)
-            .join(',');
+    getStackStaticPathArgs(): string {
+        return this._stackStaticPath.join(',');
     }
     getStaticPathLength(): number {
-        return this.stack.filter((i, index) => i !== null && index !== 0).length; // we need to skip the first item to generate static path
+        return this._stackStaticPath.length;
     }
-
     isCircularChild(): boolean {
         const rt = this.stack[this.stack.length - 1].rt;
         if (!rt.getJitConstants().isCircularRef) return false;
@@ -89,7 +90,6 @@ export class JitCompileOperation<FnArgsNames extends JitFnArgs = JitFnArgs, Name
         }
         return false;
     }
-
     getNewArgsForCurrentOp(): FnArgsNames {
         const newArgs = {...this.args};
         newArgs.vλl = this.vλl;

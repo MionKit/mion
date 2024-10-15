@@ -5,22 +5,16 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 import {TypeObjectLiteral, TypeClass, TypeIntersection} from '../_deepkit/src/reflection/type';
-import {MockContext, PathItem} from '../types';
+import {MockContext} from '../types';
 import {getJitErrorPath, getExpected} from '../utils';
 import {PropertyRunType} from '../memberRunType/property';
 import {CollectionRunType} from '../baseRunTypes';
-import {MethodSignatureRunType} from '../functionRunType/methodSignature';
-import {CallSignatureRunType} from '../functionRunType/call';
+import {MethodSignatureRunType} from '../memberRunType/methodSignature';
 import {IndexSignatureRunType} from '../memberRunType/indexProperty';
-import {MethodRunType} from '../functionRunType/method';
+import {MethodRunType} from '../memberRunType/method';
 import {JitCompileOp, JitTypeErrorCompileOp} from '../jitOperation';
 
-export type InterfaceMember =
-    | PropertyRunType
-    | MethodSignatureRunType
-    | CallSignatureRunType
-    | IndexSignatureRunType
-    | MethodRunType;
+export type InterfaceMember = PropertyRunType | MethodSignatureRunType | IndexSignatureRunType | MethodRunType;
 
 export class InterfaceRunType<
     T extends TypeObjectLiteral | TypeClass | TypeIntersection = TypeObjectLiteral,
@@ -30,17 +24,14 @@ export class InterfaceRunType<
         const iName = (this.src.kind as any).typeName as string | undefined;
         return `interface${iName ? ` ${iName}` : ''}`;
     }
-    getJitChildrenPath(): PathItem | null {
-        throw new Error('Method not implemented.');
-    }
     // #### collection's jit code ####
-    protected _compileIsType(cop: JitCompileOp): string {
+    _compileIsType(cop: JitCompileOp): string {
         const varName = cop.vλl;
         const children = this.getJitChildren();
         const childrenCode = `  && ${children.map((prop) => prop.compileIsType(cop)).join(' && ')}`;
         return `(typeof ${varName} === 'object' && ${varName} !== null && !Array.isArray(${varName}) ${childrenCode})`;
     }
-    protected _compileTypeErrors(cop: JitTypeErrorCompileOp): string {
+    _compileTypeErrors(cop: JitTypeErrorCompileOp): string {
         const varName = cop.vλl;
         const errorsName = cop.args.εrrors;
         const children = this.getJitChildren();
@@ -53,15 +44,15 @@ export class InterfaceRunType<
             }
         `;
     }
-    protected _compileJsonEncode(cop: JitCompileOp): string {
+    _compileJsonEncode(cop: JitCompileOp): string {
         const children = this.getJsonEncodeChildren();
         return children.map((prop) => prop.compileJsonEncode(cop)).join(';');
     }
-    protected _compileJsonDecode(cop: JitCompileOp): string {
+    _compileJsonDecode(cop: JitCompileOp): string {
         const children = this.getJsonDecodeChildren();
         return children.map((prop) => prop.compileJsonDecode(cop)).join(';');
     }
-    protected _compileJsonStringify(cop: JitCompileOp): string {
+    _compileJsonStringify(cop: JitCompileOp): string {
         const children = this.getJitChildren();
         const childrenCode = children.map((prop) => prop.compileJsonStringify(cop)).join('+');
         return `'{'+${childrenCode}+'}'`;
@@ -70,7 +61,7 @@ export class InterfaceRunType<
     mock(ctx?: Pick<MockContext, 'parentObj'>): Record<string | number, any> {
         const obj: Record<string | number, any> = ctx?.parentObj || {};
         this.getChildRunTypes().forEach((prop) => {
-            const name = (prop as PropertyRunType).getMemberName();
+            const name = (prop as PropertyRunType).getChildVarName();
             if (prop instanceof IndexSignatureRunType) prop.mock(ctx);
             else obj[name] = prop.mock(ctx as MockContext);
         });

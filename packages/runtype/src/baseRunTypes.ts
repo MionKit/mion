@@ -6,9 +6,9 @@
  * ######## */
 
 import type {Type} from './_deepkit/src/reflection/type';
-import type {JITCompiledFunctions, MockContext, RunType, DKwithRT, JitConstants, Mutable, PathItem} from './types';
+import type {JITCompiledFunctions, MockContext, RunType, DKwithRT, JitConstants, Mutable, RunTypeChildAccessor} from './types';
 import {buildJITFunctions} from './jitCompiler';
-import {memo} from './utils';
+import {getPropIndex, memo} from './utils';
 import {maxStackDepth, maxStackErrorMessage} from './constants';
 import {JitCompileOp, JitCompileOperation, JitTypeErrorCompileOp} from './jitOperation';
 
@@ -23,15 +23,25 @@ export abstract class BaseRunType<T extends Type> implements RunType {
     abstract mock(mockContext?: MockContext): any;
     compile = memo((): JITCompiledFunctions => buildJITFunctions(this));
     getJitId = () => this.getJitConstants().jitId;
+    getParent = (): RunType | undefined => (this.src.parent as DKwithRT)?._rt;
+    getNestLevel = memo((): number => {
+        let level = 0;
+        let parent = this.src.parent;
+        while (parent) {
+            level++;
+            parent = parent.parent;
+        }
+        return level;
+    });
 
     // ########## Compile Methods ##########
 
     // child classes must implement these methods that contains the jit generation logic
-    protected abstract _compileIsType(cop: JitCompileOp): string;
-    protected abstract _compileTypeErrors(cop: JitTypeErrorCompileOp): string;
-    protected abstract _compileJsonEncode(cop: JitCompileOp): string;
-    protected abstract _compileJsonDecode(cop: JitCompileOp): string;
-    protected abstract _compileJsonStringify(cop: JitCompileOp): string;
+    abstract _compileIsType(cop: JitCompileOp): string;
+    abstract _compileTypeErrors(cop: JitTypeErrorCompileOp): string;
+    abstract _compileJsonEncode(cop: JitCompileOp): string;
+    abstract _compileJsonDecode(cop: JitCompileOp): string;
+    abstract _compileJsonStringify(cop: JitCompileOp): string;
 
     // these methods handle circular compiling and increase/decrease the stack level
     compileIsType(cop: JitCompileOp): string {
@@ -51,7 +61,7 @@ export abstract class BaseRunType<T extends Type> implements RunType {
         let code: string | undefined;
         cop.pushStack(this);
         if (cop.isCircularChild()) {
-            const pathArgs = cop.getStaticPathArgs();
+            const pathArgs = cop.getStackStaticPathArgs();
             const pathLength = cop.getStaticPathLength();
             // increase and decrease the static path before and after calling the circular function
             code = `${cop.args.pλth}.push(${pathArgs}); ${this.callCircularJitFn(cop)}; ${cop.args.pλth}.splice(-${pathLength});`;
@@ -115,7 +125,7 @@ export abstract class BaseRunType<T extends Type> implements RunType {
         }
         // nestLevel === 0 (root of the function)
         if (codeHasReturn) return code; // code already contains a return, we can return it directly
-        if (this.getFamily() === 'A' && jitOp.codeUnit !== 'BLOCK') return `return ${code}`; // atomic types should return the value directly
+        if (jitOp.codeUnit === 'EXPRESSION' || (this.getFamily() === 'A' && jitOp.codeUnit !== 'BLOCK')) return `return ${code}`; // atomic types should return the value directly
         return `${code}${code ? ';' : ''}return ${jitOp.returnName}`; // code is a block or a composite type, main value must be returned;
     }
     private callCircularJitFn(cop: JitCompileOperation): string {
@@ -127,19 +137,19 @@ export abstract class BaseRunType<T extends Type> implements RunType {
     // these flags are used to determine if the compiled code should be wrapped in a self invoking function or not
     // or if the compiled code should contain a return statement or not
     // all atomic types should have these same flags (code should never have a return statement)
-    protected hasReturnCompileIsType(): boolean {
+    hasReturnCompileIsType(): boolean {
         return false;
     }
-    protected hasReturnCompileTypeErrors(): boolean {
+    hasReturnCompileTypeErrors(): boolean {
         return false;
     }
-    protected hasReturnCompileJsonEncode(): boolean {
+    hasReturnCompileJsonEncode(): boolean {
         return false;
     }
-    protected hasReturnCompileJsonDecode(): boolean {
+    hasReturnCompileJsonDecode(): boolean {
         return false;
     }
-    protected hasReturnCompileJsonStringify(): boolean {
+    hasReturnCompileJsonStringify(): boolean {
         return false;
     }
 }
@@ -161,7 +171,6 @@ export abstract class AtomicRunType<T extends Type> extends BaseRunType<T> {
  * i.e: tuple, it's child runTypes are the tuple members
  */
 export abstract class CollectionRunType<T extends Type> extends BaseRunType<T> {
-    abstract getJitChildrenPath(cop: JitCompileOp): PathItem | null;
     getFamily(): 'C' {
         return 'C';
     }
@@ -218,10 +227,11 @@ export abstract class CollectionRunType<T extends Type> extends BaseRunType<T> {
  * RunType that contains a single member or child RunType. usually part of a collection RunType.
  * i.e object properties, {prop: memberType} where memberType is the child RunType
  */
-export abstract class MemberRunType<T extends Type> extends BaseRunType<T> {
-    abstract getJitChildrenPath(cop: JitCompileOp): PathItem | null;
+export abstract class MemberRunType<T extends Type> extends BaseRunType<T> implements RunTypeChildAccessor {
     abstract isOptional(): boolean;
-    abstract getMemberName(): string | number;
+    abstract getChildVarName(): string | number;
+    abstract getChildLiteral(): string | number;
+    abstract useArrayAccessor(): boolean;
     getFamily(): 'M' {
         return 'M';
     }
@@ -229,12 +239,8 @@ export abstract class MemberRunType<T extends Type> extends BaseRunType<T> {
         const memberType = (this.src as DkMember).type as DKwithRT; // deepkit stores member types in the type property
         return memberType._rt;
     };
-    getMemberIndex(): number {
-        const parent = this.src.parent;
-        if (!parent) return -1;
-        const types = (parent as DkCollection).types;
-        if (types) return types.indexOf(this.src);
-        return 0;
+    getChildIndex(): number {
+        return getPropIndex(this.src);
     }
     getJitChild(): RunType | undefined {
         let member: RunType | undefined = this.getMemberType();

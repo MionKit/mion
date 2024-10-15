@@ -1,5 +1,5 @@
 import {ReflectionKind, type TypePromise} from '../_deepkit/src/reflection/type';
-import type {MockContext, JitConstants, PathItem} from '../types';
+import type {MockContext, JitConstants} from '../types';
 import {MemberRunType} from '../baseRunTypes';
 
 /* ########
@@ -23,28 +23,31 @@ export class PromiseRunType extends MemberRunType<TypePromise> {
     getName() {
         return 'promise';
     }
-    getMemberName(): '' {
-        return '';
-    }
     isOptional(): boolean {
-        return false;
-    }
-    getJitChildrenPath(): PathItem {
-        throw new Error('Method not implemented.');
-    }
-    protected _compileIsType(): string {
         throw new Error(`Jit compilation disabled for Promises.`);
     }
-    protected _compileTypeErrors(): string {
+    getChildVarName(): string | number {
         throw new Error(`Jit compilation disabled for Promises.`);
     }
-    protected _compileJsonEncode(): string {
+    getChildLiteral(): string | number {
+        throw new Error(`Jit compilation disabled for Promises.`);
+    }
+    useArrayAccessor(): boolean {
+        throw new Error(`Jit compilation disabled for Promises.`);
+    }
+    _compileIsType(): string {
+        throw new Error(`Jit compilation disabled for Promises.`);
+    }
+    _compileTypeErrors(): string {
+        throw new Error(`Jit compilation disabled for Promises.`);
+    }
+    _compileJsonEncode(): string {
         throw new Error(`Jit compile disabled for Promises.`);
     }
-    protected _compileJsonDecode(): string {
+    _compileJsonDecode(): string {
         throw new Error(`Jit compile disabled for Promises.`);
     }
-    protected _compileJsonStringify(): string {
+    _compileJsonStringify(): string {
         throw new Error(`Jit compile disabled for Promises.`);
     }
     mock(ctx?: Pick<MockContext, 'promiseReject' | 'promiseTimeOut'>): Promise<any> {

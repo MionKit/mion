@@ -6,10 +6,11 @@
  * ######## */
 
 import type {AnyClass, RunType} from './types';
-import {isSameType, ReflectionKind} from './_deepkit/src/reflection/type';
+import {isSameType, ReflectionKind, Type} from './_deepkit/src/reflection/type';
 import {jitUtils} from './jitUtils';
 import {JitTypeErrorCompileOp} from './jitOperation';
 import {isAtomicRunType, isCollectionRunType, isMemberRunType} from './guards';
+import {validPropertyNameRegExp} from './constants';
 
 export function toLiteral(value: number | string | boolean | undefined | null | bigint | RegExp | symbol): string {
     switch (typeof value) {
@@ -67,7 +68,7 @@ export function hasCircularParents(rt: RunType, parents: RunType[]): boolean {
 
 export function getJitErrorPath(cop: JitTypeErrorCompileOp): string {
     if (cop.length === 1) return `[...${cop.args.pλth}]`;
-    return `[...${cop.args.pλth},${cop.getStaticPathArgs()}]`;
+    return `[...${cop.args.pλth},${cop.getStackStaticPathArgs()}]`;
 }
 
 export function getExpected(rt: RunType): string {
@@ -80,6 +81,30 @@ export function memo<Fn extends (...args: any[]) => any>(fn: Fn): Fn {
         if (!cached) cached = fn(...args);
         return cached;
     }) as Fn;
+}
+
+export function isSafePropName(name: string | number | symbol): boolean {
+    return (typeof name === 'string' && validPropertyNameRegExp.test(name)) || typeof name === 'number';
+}
+
+export function getPropVarName(name: string | number | symbol): string | number {
+    if (typeof name === 'symbol') return name.toString();
+    return name;
+}
+export function getPropLiteral(name: string | number | symbol): string | number {
+    return toLiteral(name);
+}
+export function useArrayAccessorForProp(name: string | number | symbol): boolean {
+    if (typeof name === 'number') return true;
+    return !isSafePropName(name);
+}
+
+export function getPropIndex(src: Type): number {
+    const parent = src.parent;
+    if (!parent) return -1;
+    const types = (parent as {types: Type[]}).types;
+    if (types) return types.indexOf(src);
+    return 0;
 }
 
 export function shouldSkipJit(rt: RunType): boolean {

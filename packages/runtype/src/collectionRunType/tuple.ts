@@ -16,16 +16,13 @@ export class TupleRunType extends CollectionRunType<TypeTuple> {
     getName(): string {
         throw 'tuple';
     }
-    getJitChildrenPath(): null {
-        return null;
-    }
-    protected _compileIsType(cop: JitCompileOp): string {
+    _compileIsType(cop: JitCompileOp): string {
         const children = this.getJitChildren();
         const varName = cop.vλl;
         const childrenCode = `&& (${children.map((rt) => rt.compileIsType(cop)).join(' && ')})`;
         return `(Array.isArray(${varName}) && ${varName}.length <= ${children.length} ${childrenCode})`;
     }
-    protected _compileTypeErrors(cop: JitTypeErrorCompileOp): string {
+    _compileTypeErrors(cop: JitTypeErrorCompileOp): string {
         const children = this.getJitChildren();
         const varName = cop.vλl;
         const errorsName = cop.args.εrrors;
@@ -38,15 +35,15 @@ export class TupleRunType extends CollectionRunType<TypeTuple> {
             }
         `;
     }
-    protected _compileJsonEncode(cop: JitCompileOp): string {
+    _compileJsonEncode(cop: JitCompileOp): string {
         const children = this.getJsonEncodeChildren();
         return children.map((rt) => rt.compileJsonEncode(cop)).join(';');
     }
-    protected _compileJsonDecode(cop: JitCompileOp): string {
+    _compileJsonDecode(cop: JitCompileOp): string {
         const children = this.getJsonDecodeChildren();
         return children.map((rt) => rt.compileJsonDecode(cop)).join(';');
     }
-    protected _compileJsonStringify(cop: JitCompileOp): string {
+    _compileJsonStringify(cop: JitCompileOp): string {
         const children = this.getJitChildren();
         const childrenCode = children.map((rt) => rt.compileJsonStringify(cop)).join(`+','+`);
         return `'['+${childrenCode}+']'`;

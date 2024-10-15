@@ -32,14 +32,14 @@ import {TupleMemberRunType} from './memberRunType/tupleMember';
 import {InterfaceRunType} from './collectionRunType/interface';
 import {PropertyRunType} from './memberRunType/property';
 import {IndexSignatureRunType} from './memberRunType/indexProperty';
-import {MethodSignatureRunType} from './functionRunType/methodSignature';
+import {MethodSignatureRunType} from './memberRunType/methodSignature';
 import {CallSignatureRunType} from './functionRunType/call';
 import {FunctionRunType} from './functionRunType/function';
 import {PromiseRunType} from './memberRunType/promise';
 import {ObjectRunType} from './atomicRunType/object';
 import {IntersectionRunType} from './collectionRunType/intersection';
 import {ParameterRunType} from './memberRunType/param';
-import {MethodRunType} from './functionRunType/method';
+import {MethodRunType} from './memberRunType/method';
 import {RestParamsRunType} from './memberRunType/restParams';
 import {ClassRunType} from './collectionRunType/class';
 

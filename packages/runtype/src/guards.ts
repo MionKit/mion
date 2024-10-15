@@ -8,7 +8,7 @@
 
 import {ReflectionKind, TypeMethod} from './_deepkit/src/reflection/type';
 /* IMPORTANT: import classes as type only to prevent js circular imports */
-import type {RunType} from './types';
+import type {RunType, RunTypeChildAccessor} from './types';
 import type {StringRunType} from './atomicRunType/string';
 import type {DateRunType} from './atomicRunType/date';
 import type {NumberRunType} from './atomicRunType/number';
@@ -32,13 +32,13 @@ import type {TupleMemberRunType} from './memberRunType/tupleMember';
 import type {InterfaceRunType, InterfaceMember} from './collectionRunType/interface';
 import type {PropertyRunType} from './memberRunType/property';
 import type {IndexSignatureRunType} from './memberRunType/indexProperty';
-import type {MethodSignatureRunType} from './functionRunType/methodSignature';
+import type {MethodSignatureRunType} from './memberRunType/methodSignature';
 import type {CallSignatureRunType} from './functionRunType/call';
 import type {FunctionRunType} from './functionRunType/function';
 import type {ParameterRunType} from './memberRunType/param';
 import type {PromiseRunType} from './memberRunType/promise';
 import type {ObjectRunType} from './atomicRunType/object';
-import type {MethodRunType} from './functionRunType/method';
+import type {MethodRunType} from './memberRunType/method';
 import type {AtomicRunType, CollectionRunType, MemberRunType} from './baseRunTypes';
 import {dateJitId} from './constants';
 
@@ -163,6 +163,10 @@ export function isConstructor(rt: InterfaceMember): rt is MethodSignatureRunType
         (rt.src.kind === ReflectionKind.method || rt.src.kind === ReflectionKind.methodSignature) &&
         (rt.src as TypeMethod).name === 'constructor'
     );
+}
+
+export function isChildAccessorType(rt: RunType): rt is RunTypeChildAccessor {
+    return !!(rt as any as RunTypeChildAccessor).getChildVarName && !!(rt as any as RunTypeChildAccessor).getChildLiteral;
 }
 
 export function isAtomicRunType(rt: RunType): rt is AtomicRunType<any> {
