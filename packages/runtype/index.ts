@@ -43,5 +43,5 @@ export * from './src/collectionRunType/union';
 export * from './src/collectionRunType/tuple';
 
 export * from './src/functionRunType/call';
-export * from './src/functionRunType/methodSignature';
+export * from './src/memberRunType/methodSignature';
 export * from './src/functionRunType/function';

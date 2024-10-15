@@ -7,8 +7,8 @@
 
 import {TypeParameter} from '../_deepkit/src/reflection/type';
 import {MemberRunType} from '../baseRunTypes';
-import {JitCompileOp, JitCompileOperation, JitTypeErrorCompileOp} from '../jitOperation';
-import {PathItem, MockContext} from '../types';
+import {JitCompileOp, JitTypeErrorCompileOp} from '../jitOperation';
+import {MockContext} from '../types';
 import {RestParamsRunType} from './restParams';
 
 export class ParameterRunType extends MemberRunType<TypeParameter> {
@@ -19,17 +19,19 @@ export class ParameterRunType extends MemberRunType<TypeParameter> {
     isOptional(): boolean {
         return !!this.src.optional || this.isRest();
     }
-    getMemberName(): string | number {
-        return this.src.name;
+    getChildVarName(): number {
+        return this.getChildIndex();
+    }
+    getChildLiteral(): number {
+        throw this.getChildIndex();
+    }
+    useArrayAccessor(): true {
+        return true;
     }
     isRest(): boolean {
         return this.getMemberType() instanceof RestParamsRunType;
     }
-    getJitChildrenPath(cop: JitCompileOperation): PathItem {
-        const memberIndex = this.getMemberIndex();
-        return cop.newPathItem(memberIndex, memberIndex, true);
-    }
-    protected _compileIsType(cop: JitCompileOp): string {
+    _compileIsType(cop: JitCompileOp): string {
         if (this.isRest()) {
             return this.getMemberType().compileIsType(cop);
         } else {
@@ -38,7 +40,7 @@ export class ParameterRunType extends MemberRunType<TypeParameter> {
             return this.isOptional() ? `${varName} === undefined || (${itemCode})` : itemCode;
         }
     }
-    protected _compileTypeErrors(cop: JitTypeErrorCompileOp): string {
+    _compileTypeErrors(cop: JitTypeErrorCompileOp): string {
         if (this.isRest()) {
             return this.getMemberType().compileTypeErrors(cop);
         } else {
@@ -47,18 +49,18 @@ export class ParameterRunType extends MemberRunType<TypeParameter> {
             return this.isOptional() ? `if (${varName} !== undefined) {${itemCode}}` : itemCode;
         }
     }
-    protected _compileJsonEncode(cop: JitCompileOp): string {
+    _compileJsonEncode(cop: JitCompileOp): string {
         return this.getMemberType().compileJsonEncode(cop);
     }
-    protected _compileJsonDecode(cop: JitCompileOp): string {
+    _compileJsonDecode(cop: JitCompileOp): string {
         return this.getMemberType().compileJsonDecode(cop);
     }
-    protected _compileJsonStringify(cop: JitCompileOp): string {
+    _compileJsonStringify(cop: JitCompileOp): string {
         if (this.isRest()) {
             return this.getMemberType().compileJsonStringify(cop);
         } else {
             const argCode = this.getMemberType().compileJsonStringify(cop);
-            const isFirst = this.getMemberIndex() === 0;
+            const isFirst = this.getChildIndex() === 0;
             const sep = isFirst ? '' : `','+`;
             if (this.isOptional()) return `(${cop.vλl} === undefined ? '': ${sep}${argCode})`;
             return `${sep}${argCode}`;

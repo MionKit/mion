@@ -6,7 +6,7 @@
  * ######## */
 
 import {TypeArray} from '../_deepkit/src/reflection/type';
-import {PathItem, MockContext} from '../types';
+import {MockContext} from '../types';
 import {mockRecursiveEmptyArray, random} from '../mock';
 import {MemberRunType} from '../baseRunTypes';
 import {JitCompileOp, JitTypeErrorCompileOp} from '../jitOperation';
@@ -17,33 +17,32 @@ export class ArrayRunType extends MemberRunType<TypeArray> {
     getName() {
         return `array`;
     }
-    getMemberName(): '' {
-        return ''; // Although array is considered a Member run type, it has no name like a property or method
+    getChildVarName(): string {
+        return `iε${this.getNestLevel()}`;
     }
-    useArrayAccessor() {
+    getChildLiteral(): string {
+        return this.getChildVarName();
+    }
+    useArrayAccessor(): true {
         return true;
     }
     isOptional(): boolean {
         return false;
     }
-    getJitChildrenPath(cop: JitCompileOp): PathItem {
-        const index = this.getIndexName(cop);
-        return cop.newPathItem(index, index, true);
-    }
-    private getIndexName(cop: JitCompileOp): string {
-        return `iε${cop.length}`;
-    }
-    protected hasReturnCompileIsType(): boolean {
+
+    hasReturnCompileIsType(): boolean {
         return true;
     }
-    protected hasReturnCompileJsonStringify(): boolean {
+    hasReturnCompileJsonStringify(): boolean {
         return true;
     }
 
-    protected _compileIsType(cop: JitCompileOp): string {
+    // #### jit code ####
+
+    _compileIsType(cop: JitCompileOp): string {
         const varName = cop.vλl;
         const resultVal = `rεsult${cop.length}`;
-        const index = this.getIndexName(cop);
+        const index = this.getChildVarName();
         if (shouldSkipJit(this)) return `Array.isArray(${varName})`;
         return `
             if (!Array.isArray(${varName})) return false;
@@ -54,10 +53,10 @@ export class ArrayRunType extends MemberRunType<TypeArray> {
             return true;
         `;
     }
-    protected _compileTypeErrors(cop: JitTypeErrorCompileOp): string {
+    _compileTypeErrors(cop: JitTypeErrorCompileOp): string {
         const varName = cop.vλl;
         const errorsName = cop.args.εrrors;
-        const index = this.getIndexName(cop);
+        const index = this.getChildVarName();
         if (shouldSkipJit(this)) {
             return `if (!Array.isArray(${varName})) ${errorsName}.push({path: ${getJitErrorPath(cop)}, expected: ${getExpected(this)}});`;
         }
@@ -70,9 +69,9 @@ export class ArrayRunType extends MemberRunType<TypeArray> {
             }
         `;
     }
-    protected _compileJsonEncode(cop: JitCompileOp): string {
+    _compileJsonEncode(cop: JitCompileOp): string {
         const varName = cop.vλl;
-        const index = this.getIndexName(cop);
+        const index = this.getChildVarName();
         if (shouldSkiJsonEncode(this)) return '';
         return `
             for (let ${index} = 0; ${index} < ${varName}.length; ${index}++) {
@@ -80,9 +79,9 @@ export class ArrayRunType extends MemberRunType<TypeArray> {
             }
         `;
     }
-    protected _compileJsonDecode(cop: JitCompileOp): string {
+    _compileJsonDecode(cop: JitCompileOp): string {
         const varName = cop.vλl;
-        const index = this.getIndexName(cop);
+        const index = this.getChildVarName();
         if (shouldSkipJsonDecode(this)) return '';
         return `
             for (let ${index} = 0; ${index} < ${varName}.length; ${index}++) {
@@ -90,11 +89,11 @@ export class ArrayRunType extends MemberRunType<TypeArray> {
             }
         `;
     }
-    protected _compileJsonStringify(cop: JitCompileOp): string {
+    _compileJsonStringify(cop: JitCompileOp): string {
         const varName = cop.vλl;
         const jsonItems = `jsonItεms${cop.length}`;
         const resultVal = `rεsult${cop.length}`;
-        const index = this.getIndexName(cop);
+        const index = this.getChildVarName();
         if (shouldSkipJit(this)) return `JSON.stringify(${varName})`;
         return `
             const ${jsonItems} = [];

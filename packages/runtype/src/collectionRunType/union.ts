@@ -6,7 +6,7 @@
  * ######## */
 
 import {TypeUnion} from '../_deepkit/src/reflection/type';
-import {MockContext, PathItem} from '../types';
+import {MockContext} from '../types';
 import {getJitErrorPath, getExpected} from '../utils';
 import {random} from '../mock';
 import {CollectionRunType} from '../baseRunTypes';
@@ -25,15 +25,12 @@ export class UnionRunType extends CollectionRunType<TypeUnion> {
     getName(): string {
         return 'union';
     }
-    getJitChildrenPath(): PathItem | null {
-        throw new Error('Method not implemented.');
-    }
     // #### collection's jit code ####
-    protected _compileIsType(cop: JitCompileOp): string {
+    _compileIsType(cop: JitCompileOp): string {
         const children = this.getJitChildren();
         return `(${children.map((rt) => rt.compileIsType(cop)).join(' || ')})`;
     }
-    protected _compileTypeErrors(cop: JitTypeErrorCompileOp): string {
+    _compileTypeErrors(cop: JitTypeErrorCompileOp): string {
         const errorsVarName = cop.args.εrrors;
         const childErrors = cop.args.εrrors;
         const atomicChildren = this.getChildRunTypes().filter((rt) => !isCollectionRunType(rt));
@@ -75,7 +72,7 @@ export class UnionRunType extends CollectionRunType<TypeUnion> {
      * the second element is the encoded value of the type.
      * ie: type union = string | number | bigint;  var v1: union = 123n;  v1 is encoded as [2, "123n"]
      */
-    protected _compileJsonEncode(cop: JitCompileOp): string {
+    _compileJsonEncode(cop: JitCompileOp): string {
         const varName = cop.vλl;
         const childVarName = cop.vλl;
         const childrenCode = this.getChildRunTypes()
@@ -97,7 +94,7 @@ export class UnionRunType extends CollectionRunType<TypeUnion> {
      * the second element is the encoded value of the type.
      * ie: type union = string | number | bigint;  var v1: union = 123n;  v1 is encoded as [2, "123n"]
      */
-    protected _compileJsonDecode(cop: JitCompileOp): string {
+    _compileJsonDecode(cop: JitCompileOp): string {
         const discriminator = `${cop.vλl}[0]`;
         const childrenCode = this.getChildRunTypes()
             .map((rt, i) => {
@@ -112,7 +109,7 @@ export class UnionRunType extends CollectionRunType<TypeUnion> {
                 else { throw new Error('Can not decode json to union: expected one of <${this.getUnionTypeNames()}> but got ' + ${cop.vλl}?.constructor?.name || typeof ${cop.vλl}) }
             `;
     }
-    protected _compileJsonStringify(cop: JitCompileOp): string {
+    _compileJsonStringify(cop: JitCompileOp): string {
         const childrenCode = this.getChildRunTypes()
             .map((rt, i) => {
                 return `if (${rt.compileIsType(cop)}) {return ('[' + ${i} + ',' + ${rt.compileJsonStringify(cop)} + ']');}`;
@@ -136,19 +133,19 @@ export class UnionRunType extends CollectionRunType<TypeUnion> {
             .join(' | ');
     }
 
-    protected hasReturnCompileIsType(): boolean {
+    hasReturnCompileIsType(): boolean {
         return true;
     }
-    protected hasReturnCompileTypeErrors(): boolean {
+    hasReturnCompileTypeErrors(): boolean {
         return true;
     }
-    protected hasReturnCompileJsonEncode(): boolean {
+    hasReturnCompileJsonEncode(): boolean {
         return true;
     }
-    protected hasReturnCompileJsonDecode(): boolean {
+    hasReturnCompileJsonDecode(): boolean {
         return true;
     }
-    protected hasReturnCompileJsonStringify(): boolean {
+    hasReturnCompileJsonStringify(): boolean {
         return true;
     }
 }

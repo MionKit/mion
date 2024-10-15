@@ -27,12 +27,10 @@ export class NumberRunType extends AtomicRunType<TypeNumber> {
         return 'number';
     }
     _compileIsType(cop: JitCompileOp): string {
-        const {vλl: value} = cop.args;
-        return `Number.isFinite(${value})`;
+        return `Number.isFinite(${cop.vλl})`;
     }
     _compileTypeErrors(cop: JitTypeErrorCompileOp): string {
-        const {εrrors: errors} = cop.args;
-        return `if(!(${this._compileIsType(cop)})) ${errors}.push({path: ${getJitErrorPath(cop)}, expected: ${getExpected(this)}})`;
+        return `if(!(${this._compileIsType(cop)})) ${cop.args.εrrors}.push({path: ${getJitErrorPath(cop)}, expected: ${getExpected(this)}})`;
     }
     _compileJsonEncode(cop: JitCompileOp): string {
         return cop.vλl;
@@ -40,8 +38,8 @@ export class NumberRunType extends AtomicRunType<TypeNumber> {
     _compileJsonDecode(cop: JitCompileOp): string {
         return cop.vλl;
     }
-    _compileJsonStringify(jc: JitCompileOp): string {
-        return jc.args.vλl;
+    _compileJsonStringify(cop: JitCompileOp): string {
+        return cop.vλl;
     }
     mock(cop?: Pick<MockContext, 'minNumber' | 'maxNumber'>): number {
         return mockNumber(cop?.minNumber, cop?.maxNumber);

@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import type {Type} from './_deepkit/src/reflection/type';
+import type {Type, TypeCallSignature, TypeFunction, TypeMethod, TypeMethodSignature} from './_deepkit/src/reflection/type';
 import type {JitCompileOp, JitTypeErrorCompileOp} from './jitOperation';
 import {JITUtils} from './jitUtils';
 
@@ -26,21 +26,11 @@ export type JitFnArgs = {
     [key: string]: string;
 };
 
-export type PathItem = {
-    /** current compile stack variable name */
-    varName: string | number;
-    /**
-     * The literal value of the item when inserted into the code.
-     * if is a variable then literal is the same as vλl.
-     * ie when accessing arrays myobject[index] index is a variable and must be inserted as such code.
-     * i.e: an object property width non standard name myobject["hello world"]
-     * The value in memory is (hello world) the literal value is "hello world" (with quotes)
-     * */
-    literal: string | number; // TODO: we could make literal optional and define only when different from varName
+export type StackItem = {
     /** current compile stack full variable accessor */
     vλl: string;
-    /** when runType have children types, whether the child item needs to be accesses as and array myobject[A] or as property myobject.A */
-    useArrayAccessor?: boolean;
+    /** current compile stack variable accessor */
+    rt: RunType;
 };
 
 /**
@@ -54,6 +44,30 @@ export interface RunType extends JitCompilerFunctions {
     mock: (mockContext?: MockContext) => any;
     compile: () => JITCompiledFunctions;
     getJitId(): string | number;
+}
+
+export interface RunTypeChildAccessor extends RunType {
+    /**
+     * Returns the position of the child in the parent type.
+     */
+    getChildIndex(): number;
+    /**
+     * Returns the variable name for the compiled child
+     * ie: for an object property, it should return the property name
+     * ie: for an array member, it should return the index variable name
+     */
+    getChildVarName(): string | number;
+    /** Returns the static member name or literal as it should be inserted in source code.
+     * ie: for an object property, it should return the property name as a string encapsulated in quotes, ie: prop => 'prop'
+     * ie: for an array member, it should return the varName as is a dynamic value, ie: index => index
+     */
+    getChildLiteral(): string | number;
+    /** Returns true if the property name is safe to use as a property accessor in source code
+     * ie: return false if a property can be accessed using the dot notation, ie: obj.prop, for properties that are numbers return false
+     * ie: for an array member return true as it should be accessed using the array accessor, ie: obj[index]
+     */
+    useArrayAccessor(): boolean;
+    isOptional(): boolean;
 }
 
 export type JitConstants = {
@@ -233,6 +247,8 @@ export interface MockContext extends MockOptions {
     /** Used for mocking object with circular references */
     parents?: RunType[];
 }
+
+export type AnyFunction = TypeMethodSignature | TypeCallSignature | TypeFunction | TypeMethod;
 
 export type Mutable<T> = {
     -readonly [K in keyof T]: T[K];

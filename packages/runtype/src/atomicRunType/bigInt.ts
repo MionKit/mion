@@ -38,8 +38,8 @@ export class BigIntRunType extends AtomicRunType<TypeBigInt> {
     _compileJsonDecode(cop: JitCompileOp): string {
         return BigIntJitJsonENcoder.decodeFromJson(cop.vλl);
     }
-    _compileJsonStringify(jc: JitCompileOp): string {
-        return BigIntJitJsonENcoder.stringify(jc.args.vλl);
+    _compileJsonStringify(cop: JitCompileOp): string {
+        return BigIntJitJsonENcoder.stringify(cop.vλl);
     }
     /** mocks a regular number and transforms into a bigint.
      * this means range is limited to Number.MAX_SAFE_INTEGER

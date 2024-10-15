@@ -1,7 +1,7 @@
 import {TypeRest} from '../_deepkit/src/reflection/type';
 import {MemberRunType} from '../baseRunTypes';
 import {JitCompileOp, JitTypeErrorCompileOp} from '../jitOperation';
-import {PathItem, MockContext} from '../types';
+import {MockContext} from '../types';
 
 /* ########
  * 2024 mion
@@ -18,62 +18,61 @@ export class RestParamsRunType extends MemberRunType<TypeRest> {
     isOptional() {
         return true;
     }
-    getMemberName() {
-        return '...';
+    getChildVarName(): string {
+        return `iε${this.getNestLevel()}`;
     }
-    private getIndexName(cop: JitCompileOp): string {
-        return `iε${cop.length}`;
+    getChildLiteral(): string {
+        return this.getChildVarName();
     }
-    getJitChildrenPath(cop: JitCompileOp): PathItem {
-        const indexName = this.getIndexName(cop);
-        return cop.newPathItem(indexName, indexName, true);
-    }
-    protected hasReturnCompileIsType(): boolean {
+    useArrayAccessor(): true {
         return true;
     }
-    protected hasReturnCompileJsonStringify(): boolean {
+    hasReturnCompileIsType(): boolean {
         return true;
     }
-    protected _compileIsType(cop: JitCompileOp): string {
+    hasReturnCompileJsonStringify(): boolean {
+        return true;
+    }
+    _compileIsType(cop: JitCompileOp): string {
         const varName = cop.vλl;
-        const indexName = this.getIndexName(cop);
+        const indexName = this.getChildVarName();
         const itemCode = this.getMemberType().compileIsType(cop);
         return `
-            for (let ${indexName} = ${this.getMemberIndex()}; ${indexName} < ${varName}.length; ${indexName}++) {
+            for (let ${indexName} = ${this.getChildIndex()}; ${indexName} < ${varName}.length; ${indexName}++) {
                 if (!(${itemCode})) return false;
             }
             return true;
         `;
     }
-    protected _compileTypeErrors(cop: JitTypeErrorCompileOp): string {
+    _compileTypeErrors(cop: JitTypeErrorCompileOp): string {
         const varName = cop.vλl;
-        const indexName = this.getIndexName(cop);
+        const indexName = this.getChildVarName();
         const itemCode = this.getMemberType().compileTypeErrors(cop);
-        return `for (let ${indexName} = ${this.getMemberIndex()}; ${indexName} < ${varName}.length; ${indexName}++) {${itemCode}}`;
+        return `for (let ${indexName} = ${this.getChildIndex()}; ${indexName} < ${varName}.length; ${indexName}++) {${itemCode}}`;
     }
-    protected _compileJsonEncode(cop: JitCompileOp): string {
+    _compileJsonEncode(cop: JitCompileOp): string {
         return this.compileJsonDE(cop, true);
     }
-    protected _compileJsonDecode(cop: JitCompileOp): string {
+    _compileJsonDecode(cop: JitCompileOp): string {
         return this.compileJsonDE(cop, false);
     }
     private compileJsonDE(cop: JitCompileOp, isEncode = false): string {
         const varName = cop.vλl;
-        const indexName = this.getIndexName(cop);
+        const indexName = this.getChildVarName();
         const itemCode = isEncode ? this.getMemberType().compileJsonEncode(cop) : this.getMemberType().compileJsonDecode(cop);
-        return `for (let ${indexName} = ${this.getMemberIndex()}; ${indexName} < ${varName}.length; ${indexName}++) {${itemCode}}`;
+        return `for (let ${indexName} = ${this.getChildIndex()}; ${indexName} < ${varName}.length; ${indexName}++) {${itemCode}}`;
     }
-    protected _compileJsonStringify(cop: JitCompileOp): string {
+    _compileJsonStringify(cop: JitCompileOp): string {
         const varName = cop.vλl;
         const arrName = `rεsultλrr${cop.length}`;
         const itemName = `itεm${cop.length}`;
-        const indexName = this.getIndexName(cop);
-        const isFist = this.getMemberIndex() === 0;
+        const indexName = this.getChildVarName();
+        const isFist = this.getChildIndex() === 0;
         const sep = isFist ? '' : `','+`;
         const itemCode = this.getMemberType().compileJsonStringify(cop);
         return `
             const ${arrName} = [];
-            for (let ${indexName} = ${this.getMemberIndex()}; ${indexName} < ${varName}.length; ${indexName}++) {
+            for (let ${indexName} = ${this.getChildIndex()}; ${indexName} < ${varName}.length; ${indexName}++) {
                 const ${itemName} = ${itemCode};
                 if(${itemName}) ${arrName}.push(${itemName});
             }

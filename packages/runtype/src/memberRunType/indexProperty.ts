@@ -1,6 +1,6 @@
 import {ReflectionKind, TypeIndexSignature} from '../_deepkit/src/reflection/type';
 import {MemberRunType} from '../baseRunTypes';
-import {PathItem, MockContext} from '../types';
+import {MockContext} from '../types';
 import {jitNames} from '../constants';
 import {JitCompileOp, JitTypeErrorCompileOp} from '../jitOperation';
 
@@ -19,28 +19,27 @@ export class IndexSignatureRunType extends MemberRunType<TypeIndexSignature> {
     isOptional(): boolean {
         return false;
     }
-    getMemberName(): number {
-        return this.src.index.kind;
+    getChildVarName(): string {
+        return `prΦp${this.getNestLevel()}`;
     }
-    getJitChildrenPath(cop: JitCompileOp): PathItem {
-        const prop = this.getPropName(cop);
-        return cop.newPathItem(prop, prop, true);
+    getChildLiteral(): string {
+        return this.getChildVarName();
     }
-    private getPropName(cop: JitCompileOp): string {
-        return `prΦp${cop.length}`;
-    }
-    protected hasReturnCompileIsType(): boolean {
+    useArrayAccessor(): true {
         return true;
     }
-    protected hasReturnCompileJsonStringify(): boolean {
+    hasReturnCompileIsType(): boolean {
+        return true;
+    }
+    hasReturnCompileJsonStringify(): boolean {
         return true;
     }
     // #### jit code ####
-    protected _compileIsType(cop: JitCompileOp): string {
+    _compileIsType(cop: JitCompileOp): string {
         const child = this.getJitChild();
         if (!child) return 'true';
         const varName = cop.vλl;
-        const prop = this.getPropName(cop);
+        const prop = this.getChildVarName();
         return `
             for (const ${prop} in ${varName}) {
                 if (!(${child.compileIsType(cop)})) return false;
@@ -48,33 +47,33 @@ export class IndexSignatureRunType extends MemberRunType<TypeIndexSignature> {
             return true;
         `;
     }
-    protected _compileTypeErrors(cop: JitTypeErrorCompileOp): string {
+    _compileTypeErrors(cop: JitTypeErrorCompileOp): string {
         const child = this.getJitChild();
         if (!child) return '';
         const varName = cop.vλl;
-        const prop = this.getPropName(cop);
+        const prop = this.getChildVarName();
         return `
             for (const ${prop} in ${varName}) {
                 ${child.compileTypeErrors(cop)}
             }
         `;
     }
-    protected _compileJsonEncode(cop: JitCompileOp): string {
+    _compileJsonEncode(cop: JitCompileOp): string {
         const child = this.getJsonEncodeChild();
         if (!child) return '';
         const varName = cop.vλl;
-        const prop = this.getPropName(cop);
+        const prop = this.getChildVarName();
         return `
             for (const ${prop} in ${varName}) {
                 ${child.compileJsonEncode(cop)}
             }
         `;
     }
-    protected _compileJsonDecode(cop: JitCompileOp): string {
+    _compileJsonDecode(cop: JitCompileOp): string {
         const child = this.getJsonDecodeChild();
         if (!child) return '';
         const varName = cop.vλl;
-        const prop = this.getPropName(cop);
+        const prop = this.getChildVarName();
         return `
             for (const ${prop} in ${varName}) {
                 ${child.compileJsonDecode(cop)}
@@ -82,11 +81,11 @@ export class IndexSignatureRunType extends MemberRunType<TypeIndexSignature> {
         `;
     }
 
-    protected _compileJsonStringify(cop: JitCompileOp): string {
+    _compileJsonStringify(cop: JitCompileOp): string {
         const child = this.getJitChild();
         if (!child) return `''`;
         const varName = cop.vλl;
-        const prop = this.getPropName(cop);
+        const prop = this.getChildVarName();
         const arrName = `prΦpsλrr${cop.length}`;
         const jsonVal = child.compileJsonStringify(cop);
         return `
