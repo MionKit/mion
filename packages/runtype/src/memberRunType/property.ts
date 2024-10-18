@@ -58,19 +58,21 @@ export class PropertyRunType extends MemberRunType<TypePropertySignature | TypeP
     _compileJsonStringify(cop: JitCompileOp): string {
         const child = this.getJitChild();
         if (!child) return '';
-        // when is not safe firs stringify sanitizes string, second output double quoted scaped json string
-        const proNameJSon = isSafePropName(this.src.name)
-            ? `'${this.getChildLiteral()}'`
-            : jitUtils.asJSONString(this.getChildLiteral());
         const propCode = child.compileJsonStringify(cop);
         // this can´t be processed in the parent as we need to handle the empty string case when value is undefined
         const isFirst = this.getChildIndex() === 0;
-        const sep = isFirst ? '' : `','+`;
+        const sep = isFirst ? '' : ',';
+        // encoding safe property with ':' inside the string saves a little processing
+        // when prop is not safe we need to double encode double quotes and escape characters
+        const propDef = isSafePropName(this.src.name)
+            ? `'${sep}"${this.getChildVarName()}":'`
+            : `'${sep}'+${jitUtils.asJSONString(this.getChildLiteral())}+':'`;
         if (this.src.optional) {
             const childItem = cop.popItem as StackItem;
-            return `(${childItem.vλl} === undefined ? '' : ${sep}${proNameJSon}+':'+${propCode})`;
+            // TODO: check if json for an object with first property undefined is valid (maybe the comma must be dynamic too)
+            return `(${childItem.vλl} === undefined ? '' : ${propDef}+${propCode})`;
         }
-        return `${sep}${proNameJSon}+':'+${propCode}`;
+        return `${propDef}+${propCode}`;
     }
     mock(ctx?: Pick<MockContext, 'optionalPropertyProbability' | 'optionalProbability'>): any {
         const probability = ctx?.optionalPropertyProbability?.[this.getChildVarName()] ?? ctx?.optionalProbability ?? 0.5;
