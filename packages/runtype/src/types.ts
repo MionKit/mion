@@ -91,7 +91,7 @@ export interface JitCompilerFunctions {
      * JIT code Validation + error info
      * Similar to validation code but instead of returning a boolean it should assign an error message to the errorsName
      * This is an executable code block and can contain multiple lines or semicolons
-     * ie:  validateCodeWithErrors = () => `if (typeof vλl !== 'string') ${cop.args.εrrors} = 'Expected to be a String';`
+     * ie:  validateCodeWithErrors = () => `if (typeof vλl !== 'string') ${cop.args.εrr} = 'Expected to be a String';`
      * path is a string that represents the path to the property being validated.
      * path is calculated at runtime so is an expression like 'path1' + '/' + 'path2' + '/' + 'path3'
      */

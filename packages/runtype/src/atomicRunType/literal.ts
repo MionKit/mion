@@ -101,12 +101,12 @@ function compileIsLiteral(cop: JitCompileOp, lit: Exclude<TypeLiteral['literal']
 
 function compileTypeErrorsSymbol(cop: JitTypeErrorCompileOp, lit: symbol, name: string | number): string {
     return `if (typeof ${cop.vλl} !== 'symbol' || ${cop.vλl}.description !== ${toLiteral(lit.description)}) {
-        ${cop.args.εrrors}.push({path: ${getJitErrorPath(cop)}, expected: ${toLiteral(name)}})
+        ${cop.args.εrr}.push({path:${getJitErrorPath(cop)},expected:${toLiteral(name)}})
     }`;
 }
 
 function compileTypeErrorsRegExp(cop: JitTypeErrorCompileOp, lit: RegExp, name: string | number): string {
-    return `if (String(${cop.vλl}) !== String(${lit})) ${cop.args.εrrors}.push({path: ${getJitErrorPath(cop)}, expected: ${toLiteral(name)}})`;
+    return `if (String(${cop.vλl}) !== String(${lit})) ${cop.args.εrr}.push({path:${getJitErrorPath(cop)},expected:${toLiteral(name)}})`;
 }
 
 function compileTypeErrorsLiteral(
@@ -114,7 +114,7 @@ function compileTypeErrorsLiteral(
     lit: Exclude<TypeLiteral['literal'], symbol>,
     name: string | number
 ): string {
-    return `if (${cop.vλl} !== ${toLiteral(lit)}) ${cop.args.εrrors}.push({path: ${getJitErrorPath(cop)}, expected: ${toLiteral(name)}})`;
+    return `if (${cop.vλl} !== ${toLiteral(lit)}) ${cop.args.εrr}.push({path:${getJitErrorPath(cop)},expected:${toLiteral(name)}})`;
 }
 
 function getJitConstantsForBigint(kind: number, literal: bigint): JitConstants {

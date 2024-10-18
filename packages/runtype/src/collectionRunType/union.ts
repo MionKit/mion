@@ -31,8 +31,8 @@ export class UnionRunType extends CollectionRunType<TypeUnion> {
         return `(${children.map((rt) => rt.compileIsType(cop)).join(' || ')})`;
     }
     _compileTypeErrors(cop: JitTypeErrorCompileOp): string {
-        const errorsVarName = cop.args.εrrors;
-        const childErrors = cop.args.εrrors;
+        const errorsVarName = cop.args.εrr;
+        const childErrors = cop.args.εrr;
         const atomicChildren = this.getChildRunTypes().filter((rt) => !isCollectionRunType(rt));
         // TODO, old TS version, does not catch the type of rt, any[] is used to avoid compilation errors
         const collectionChildren: any[] = this.getChildRunTypes().filter((rt) => isCollectionRunType(rt));
@@ -51,7 +51,7 @@ export class UnionRunType extends CollectionRunType<TypeUnion> {
             .map((rt, i) => {
                 const isCollectionType = false; // TODO upgrade union algorithm
                 // if there are no errors found that means the type is correct and we can return
-                const errorsBefore = `εrrors${i}Bef${cop.length}`;
+                const errorsBefore = `εrr${i}Bef${cop.length}`;
                 return `if (${isCollectionType}) {
                         const ${errorsBefore} = ${childErrors}.length;
                         ${rt.compileTypeErrors(cop)}
@@ -63,7 +63,7 @@ export class UnionRunType extends CollectionRunType<TypeUnion> {
         return `
             ${atomicItemsCode}
             ${collectionsItemsCode}
-            ${errorsVarName}.push({path: ${getJitErrorPath(cop)}, expected: ${getExpected(this)}});
+            ${errorsVarName}.push({path: ${getJitErrorPath(cop)},expected: ${getExpected(this)}});
         `;
     }
     /**

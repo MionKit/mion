@@ -54,7 +54,7 @@ export class FunctionParametersRunType<CallType extends AnyFunction = TypeFuncti
             .map((p) => p.compileTypeErrors(cop))
             .join(';');
         return (
-            `if (!Array.isArray(${cop.vλl}) || ${checkLength}) ${cop.args.εrrors}.push({path: ${getJitErrorPath(cop)}, expected: ${this.paramsLiteral()}});` +
+            `if (!Array.isArray(${cop.vλl}) || ${checkLength}) ${cop.args.εrr}.push({path:${getJitErrorPath(cop)},expected:${this.paramsLiteral()}});` +
             `else {${paramsCode}}`
         );
     }
