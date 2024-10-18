@@ -122,7 +122,6 @@ function getJitConstantsForBigint(kind: number, literal: bigint): JitConstants {
         skipJit: false,
         skipJsonEncode: false,
         skipJsonDecode: false,
-        isCircularRef: false,
         jitId: `${kind}:${String(literal)}`,
     };
 }
@@ -131,7 +130,6 @@ function getJitConstantsForSymbol(kind: number, literal: symbol): JitConstants {
         skipJit: true,
         skipJsonEncode: true,
         skipJsonDecode: true,
-        isCircularRef: false,
         jitId: `${kind}:${String(literal)}`,
     };
 }
@@ -140,7 +138,6 @@ function getJitConstantsForRegExp(kind: number, literal: RegExp): JitConstants {
         skipJit: false,
         skipJsonEncode: false,
         skipJsonDecode: false,
-        isCircularRef: false,
         jitId: `${kind}:${String(literal)}`,
     };
 }
@@ -149,7 +146,6 @@ function getDefaultJitConstants(kind: number, literal: string | number | boolean
         skipJit: false,
         skipJsonEncode: true,
         skipJsonDecode: true,
-        isCircularRef: false,
         jitId: `${kind}:${literal}`,
     };
 }

@@ -31,7 +31,13 @@ export type StackItem = {
     vλl: string;
     /** current compile stack variable accessor */
     rt: RunType;
+    call?: StackCallFlags;
 };
+
+export interface StackCallFlags {
+    shouldGenerate?: true;
+    shouldCall?: true;
+}
 
 /**
  * Runtime Metadata for a typescript types.
@@ -44,6 +50,12 @@ export interface RunType extends JitCompilerFunctions {
     mock: (mockContext?: MockContext) => any;
     compile: () => JITCompiledFunctions;
     getJitId(): string | number;
+    /**
+     * In Some scenarios (recursive types) code must be compiled into an aux function instead directly inside the main jit function.
+     * In those scenarios auxFnName will be have the name of that function.
+     * */
+    auxFnName?: string;
+    isCircular?: boolean;
 }
 
 export interface RunTypeChildAccessor extends RunType {
@@ -75,7 +87,6 @@ export type JitConstants = {
     readonly skipJsonEncode: boolean;
     readonly skipJsonDecode: boolean;
     readonly jitId: string | number;
-    readonly isCircularRef: boolean;
 };
 
 export interface JitCompilerFunctions {

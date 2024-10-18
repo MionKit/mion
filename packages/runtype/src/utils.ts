@@ -6,7 +6,7 @@
  * ######## */
 
 import type {AnyClass, RunType} from './types';
-import {isSameType, ReflectionKind, Type} from './_deepkit/src/reflection/type';
+import {ReflectionKind, Type} from './_deepkit/src/reflection/type';
 import {jitUtils} from './jitUtils';
 import {JitTypeErrorCompileOp} from './jitOperation';
 import {isAtomicRunType, isCollectionRunType, isMemberRunType} from './guards';
@@ -59,11 +59,10 @@ export function isClass(cls: AnyClass | any): cls is AnyClass {
     );
 }
 
-export function hasCircularParents(rt: RunType, parents: RunType[]): boolean {
-    for (const parent of parents) {
-        if (isSameType(rt.src, parent.src)) return true;
-    }
-    return false;
+export function isSameJitType(a: RunType, b: RunType): boolean {
+    if (a === b) return true;
+    if (a.src.kind !== b.src.kind) return false;
+    return a.getJitId() === b.getJitId();
 }
 
 export function getJitErrorPath(cop: JitTypeErrorCompileOp): string {

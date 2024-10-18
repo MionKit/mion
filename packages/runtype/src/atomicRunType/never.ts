@@ -15,7 +15,6 @@ const jitConstants: JitConstants = {
     skipJit: false,
     skipJsonEncode: false,
     skipJsonDecode: false,
-    isCircularRef: false,
     jitId: ReflectionKind.never,
 };
 export class NeverRunType extends AtomicRunType<TypeNever> {
