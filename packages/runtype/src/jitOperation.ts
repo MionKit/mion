@@ -17,6 +17,8 @@ export class JitCompileOperation<FnArgsNames extends JitFnArgs = JitFnArgs, Name
     /** The cop of types being compiled */
     stack: StackItem[] = [];
     popItem: StackItem | undefined;
+    internalFnNames = new Map<number, string>();
+    internalFnCode = new Map<string, string>();
     /** current runType accessor in source code */
     get vλl(): string {
         return this._stackVλl;
@@ -57,12 +59,26 @@ export class JitCompileOperation<FnArgsNames extends JitFnArgs = JitFnArgs, Name
         }
         return path;
     }
-    pushStack(rt: RunType) {
+    private getCircularFnName(newChild: RunType): string | undefined {
+        // we need to use jitId as deepkit can generate multiple instances of the same type
+        const circularIndex = this.stack.findIndex((item) => item.rt.getJitId() === newChild.getJitId());
+        if (circularIndex === -1) return;
+        if (circularIndex === 0) return this.name;
+        const internalFnName = this.internalFnNames.get(circularIndex);
+        if (internalFnName) return internalFnName;
+        const fnName = `ƒnAux${circularIndex}`;
+        this.internalFnNames.set(circularIndex, fnName);
+        return fnName;
+    }
+    /** push new item to the stack, returns true if new child is already in the stack (is circular type) */
+    pushStack(newChild: RunType): string | undefined {
         if (this.stack.length > maxStackDepth) throw new Error(maxStackErrorMessage);
+        const circularFnName = this.getCircularFnName(newChild); // must be called before new item is added to stack
         this._stackVλl = this.getStackVλl();
         this._stackStaticPath = this.getStackStaticPath();
-        const newStackItem: StackItem = {vλl: this._stackVλl, rt};
+        const newStackItem: StackItem = {vλl: this._stackVλl, rt: newChild};
         this.stack.push(newStackItem);
+        return circularFnName;
     }
     popStack() {
         this.popItem = this.stack.pop();
@@ -79,17 +95,6 @@ export class JitCompileOperation<FnArgsNames extends JitFnArgs = JitFnArgs, Name
     getStaticPathLength(): number {
         return this._stackStaticPath.length;
     }
-    isCircularChild(): boolean {
-        const rt = this.stack[this.stack.length - 1].rt;
-        if (!rt.getJitConstants().isCircularRef) return false;
-        const isComposite = rt.getFamily() === 'C' || rt.getFamily() === 'M';
-        if (!isComposite) return false;
-        const currentJitId = rt.getJitId();
-        for (let i = this.stack.length - 2; i >= 0; i--) {
-            if (this.stack[i].rt.getJitId() === currentJitId) return true;
-        }
-        return false;
-    }
     getNewArgsForCurrentOp(): FnArgsNames {
         const newArgs = {...this.args};
         newArgs.vλl = this.vλl;
@@ -103,9 +108,9 @@ export class JitCompileOp<Name extends string = any> extends JitCompileOperation
     }
 }
 
-export class JitTypeErrorCompileOp extends JitCompileOperation<{vλl: string; pλth: string; εrrors: string}, 'ƒnTypεErrors'> {
+export class JitTypeErrorCompileOp extends JitCompileOperation<{vλl: string; pλth: string; εrr: string}, 'ƒnTypεErrors'> {
     constructor(name: 'ƒnTypεErrors') {
-        super({vλl: 'vλl', pλth: 'pλth', εrrors: 'εrrors'}, [null, '[]', '[]'], 'εrrors', 'BLOCK', name);
+        super({vλl: 'vλl', pλth: 'pλth', εrr: 'εrr'}, [null, '[]', '[]'], 'εrr', 'BLOCK', name);
     }
 }
 
