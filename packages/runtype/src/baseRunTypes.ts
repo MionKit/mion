@@ -25,13 +25,15 @@ export abstract class BaseRunType<T extends Type> implements RunType {
     getJitId = () => this.getJitConstants().jitId;
     getParent = (): RunType | undefined => (this.src.parent as DKwithRT)?._rt;
     getNestLevel = memo((): number => {
-        let level = 0;
         let parent = this.src.parent;
-        while (parent) {
-            level++;
+        let isInStack = false;
+        const stack: Type[] = []; // handles circular references
+        while (parent && !isInStack) {
             parent = parent.parent;
+            isInStack = stack.some((t) => t === parent);
+            if (parent) stack.push(parent);
         }
-        return level;
+        return stack.length;
     });
 
     // ########## Compile Methods ##########
@@ -45,10 +47,10 @@ export abstract class BaseRunType<T extends Type> implements RunType {
 
     // these methods handle circular compiling and increase/decrease the stack level
     compileIsType(cop: JitCompileOp): string {
+        const circularFnName = cop.pushStack(this);
         let code: string | undefined;
-        cop.pushStack(this);
-        if (cop.isCircularChild()) {
-            code = this.handleReturn(this.callCircularJitFn(cop), cop, false);
+        if (circularFnName) {
+            code = this.handleReturn(this.callCircularJitFn(cop, circularFnName), cop, false);
         } else {
             const codeHasReturn = this.hasReturnCompileIsType();
             code = this._compileIsType(cop);
@@ -58,13 +60,13 @@ export abstract class BaseRunType<T extends Type> implements RunType {
         return code;
     }
     compileTypeErrors(cop: JitTypeErrorCompileOp): string {
+        const circularFnName = cop.pushStack(this);
         let code: string | undefined;
-        cop.pushStack(this);
-        if (cop.isCircularChild()) {
+        if (circularFnName) {
             const pathArgs = cop.getStackStaticPathArgs();
             const pathLength = cop.getStaticPathLength();
             // increase and decrease the static path before and after calling the circular function
-            code = `${cop.args.pλth}.push(${pathArgs}); ${this.callCircularJitFn(cop)}; ${cop.args.pλth}.splice(-${pathLength});`;
+            code = `${cop.args.pλth}.push(${pathArgs}); ${this.callCircularJitFn(cop, circularFnName)}; ${cop.args.pλth}.splice(-${pathLength});`;
             code = this.handleReturn(code, cop, false);
         } else {
             const codeHasReturn = this.hasReturnCompileTypeErrors();
@@ -75,10 +77,10 @@ export abstract class BaseRunType<T extends Type> implements RunType {
         return code;
     }
     compileJsonEncode(cop: JitCompileOp): string {
+        const circularFnName = cop.pushStack(this);
         let code: string | undefined;
-        cop.pushStack(this);
-        if (cop.isCircularChild()) {
-            code = this.handleReturn(this.callCircularJitFn(cop), cop, false);
+        if (circularFnName) {
+            code = this.handleReturn(this.callCircularJitFn(cop, circularFnName), cop, false);
         } else {
             const codeHasReturn = this.hasReturnCompileJsonEncode();
             code = this._compileJsonEncode(cop);
@@ -88,10 +90,10 @@ export abstract class BaseRunType<T extends Type> implements RunType {
         return code;
     }
     compileJsonDecode(cop: JitCompileOp): string {
+        const circularFnName = cop.pushStack(this);
         let code: string | undefined;
-        cop.pushStack(this);
-        if (cop.isCircularChild()) {
-            code = this.handleReturn(this.callCircularJitFn(cop), cop, false);
+        if (circularFnName) {
+            code = this.handleReturn(this.callCircularJitFn(cop, circularFnName), cop, false);
         } else {
             const codeHasReturn = this.hasReturnCompileJsonDecode();
             code = this._compileJsonDecode(cop);
@@ -101,10 +103,10 @@ export abstract class BaseRunType<T extends Type> implements RunType {
         return code;
     }
     compileJsonStringify(cop: JitCompileOp): string {
+        const circularFnName = cop.pushStack(this);
         let code: string | undefined;
-        cop.pushStack(this);
-        if (cop.isCircularChild()) {
-            code = this.handleReturn(this.callCircularJitFn(cop), cop, false);
+        if (circularFnName) {
+            code = this.handleReturn(this.callCircularJitFn(cop, circularFnName), cop, false);
         } else {
             const codeHasReturn = this.hasReturnCompileJsonStringify();
             code = this._compileJsonStringify(cop);
@@ -128,8 +130,8 @@ export abstract class BaseRunType<T extends Type> implements RunType {
         if (jitOp.codeUnit === 'EXPRESSION' || (this.getFamily() === 'A' && jitOp.codeUnit !== 'BLOCK')) return `return ${code}`; // atomic types should return the value directly
         return `${code}${code ? ';' : ''}return ${jitOp.returnName}`; // code is a block or a composite type, main value must be returned;
     }
-    private callCircularJitFn(cop: JitCompileOperation): string {
-        return `${cop.name}(${Object.values(cop.getNewArgsForCurrentOp()).join(', ')})`;
+    private callCircularJitFn(cop: JitCompileOperation, fnName: string): string {
+        return `${fnName}(${Object.values(cop.getNewArgsForCurrentOp()).join(', ')})`;
     }
 
     // ########## Return flags ##########
@@ -195,7 +197,7 @@ export abstract class CollectionRunType<T extends Type> extends BaseRunType<T> {
                 skipJit: false, // ensures that jit is ran when circular reference is found
                 skipJsonEncode: true,
                 skipJsonDecode: true,
-                jitId: '$elf',
+                jitId: '$',
                 isCircularRef: true,
             };
         }
@@ -219,6 +221,7 @@ export abstract class CollectionRunType<T extends Type> extends BaseRunType<T> {
         }
         jitCts.jitId = `${this.src.kind}[${childrenJitIds.join(',')}]`;
         stack.pop();
+        console.log((this.src?.parent as any)?.name, this.src.typeName, jitCts.jitId, jitCts.isCircularRef);
         return jitCts;
     });
 }
