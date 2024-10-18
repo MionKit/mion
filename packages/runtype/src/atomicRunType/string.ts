@@ -31,7 +31,7 @@ export class StringRunType extends AtomicRunType<TypeString> {
         return `typeof ${cop.vλl} === 'string'`;
     }
     _compileTypeErrors(cop: JitTypeErrorCompileOp): string {
-        return `if (typeof ${cop.vλl} !== 'string') ${cop.args.εrrors}.push({path: ${getJitErrorPath(cop)}, expected: ${getExpected(this)}})`;
+        return `if (typeof ${cop.vλl} !== 'string') ${cop.args.εrr}.push({path:${getJitErrorPath(cop)},expected:${getExpected(this)}})`;
     }
     _compileJsonEncode(cop: JitCompileOp): string {
         return cop.vλl;

@@ -29,7 +29,7 @@ export class NullRunType extends AtomicRunType<TypeNull> {
         return `${cop.vλl} === null`;
     }
     _compileTypeErrors(cop: JitTypeErrorCompileOp): string {
-        return `if (${cop.vλl} !== null) ${cop.args.εrrors}.push({path: ${getJitErrorPath(cop)}, expected: ${getExpected(this)}})`;
+        return `if (${cop.vλl} !== null) ${cop.args.εrr}.push({path:${getJitErrorPath(cop)},expected:${getExpected(this)}})`;
     }
     _compileJsonEncode(cop: JitCompileOp): string {
         return cop.vλl;

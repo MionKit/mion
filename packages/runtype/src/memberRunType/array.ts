@@ -55,13 +55,12 @@ export class ArrayRunType extends MemberRunType<TypeArray> {
     }
     _compileTypeErrors(cop: JitTypeErrorCompileOp): string {
         const varName = cop.vλl;
-        const errorsName = cop.args.εrrors;
         const index = this.getChildVarName();
         if (shouldSkipJit(this)) {
-            return `if (!Array.isArray(${varName})) ${errorsName}.push({path: ${getJitErrorPath(cop)}, expected: ${getExpected(this)}});`;
+            return `if (!Array.isArray(${varName})) ${cop.args.εrr}.push({path:${getJitErrorPath(cop)},expected:${getExpected(this)}});`;
         }
         return `
-            if (!Array.isArray(${varName})) ${errorsName}.push({path: ${getJitErrorPath(cop)}, expected: ${getExpected(this)}});
+            if (!Array.isArray(${varName})) ${cop.args.εrr}.push({path:${getJitErrorPath(cop)},expected:${getExpected(this)}});
             else {
                 for (let ${index} = 0; ${index} < ${varName}.length; ${index}++) {
                     ${this.getMemberType().compileTypeErrors(cop)}

@@ -33,12 +33,11 @@ export class InterfaceRunType<
     }
     _compileTypeErrors(cop: JitTypeErrorCompileOp): string {
         const varName = cop.vλl;
-        const errorsName = cop.args.εrrors;
         const children = this.getJitChildren();
         const childrenCode = children.map((prop) => prop.compileTypeErrors(cop)).join(';');
         return `
             if (typeof ${varName} !== 'object' && ${varName} !== null) {
-                ${errorsName}.push({path: ${getJitErrorPath(cop)}, expected: ${getExpected(this)}});
+                ${cop.args.εrr}.push({path:${getJitErrorPath(cop)},expected:${getExpected(this)}});
             } else {
                 ${childrenCode}
             }

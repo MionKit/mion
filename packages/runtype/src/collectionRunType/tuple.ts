@@ -25,11 +25,10 @@ export class TupleRunType extends CollectionRunType<TypeTuple> {
     _compileTypeErrors(cop: JitTypeErrorCompileOp): string {
         const children = this.getJitChildren();
         const varName = cop.vλl;
-        const errorsName = cop.args.εrrors;
         const childrenCode = children.map((rt) => rt.compileTypeErrors(cop)).join(';');
         return `
             if (!Array.isArray(${varName}) || ${varName}.length > ${children.length}) {
-                ${errorsName}.push({path: ${getJitErrorPath(cop)}, expected: ${getExpected(this)}});
+                ${cop.args.εrr}.push({path:${getJitErrorPath(cop)},expected:${getExpected(this)}});
             } else {
                 ${childrenCode}
             }
