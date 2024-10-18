@@ -41,7 +41,7 @@ export class ArrayRunType extends MemberRunType<TypeArray> {
 
     _compileIsType(cop: JitCompileOp): string {
         const varName = cop.vλl;
-        const resultVal = `rεsult${cop.length}`;
+        const resultVal = `rεs${cop.length}`;
         const index = this.getChildVarName();
         if (shouldSkipJit(this)) return `Array.isArray(${varName})`;
         return `
@@ -91,7 +91,7 @@ export class ArrayRunType extends MemberRunType<TypeArray> {
     _compileJsonStringify(cop: JitCompileOp): string {
         const varName = cop.vλl;
         const jsonItems = `jsonItεms${cop.length}`;
-        const resultVal = `rεsult${cop.length}`;
+        const resultVal = `rεs${cop.length}`;
         const index = this.getChildVarName();
         if (shouldSkipJit(this)) return `JSON.stringify(${varName})`;
         return `
@@ -105,7 +105,7 @@ export class ArrayRunType extends MemberRunType<TypeArray> {
     }
     mock(ctx?: Pick<MockContext, 'arrayLength'>): any[] {
         const length = ctx?.arrayLength ?? random(0, 30);
-        if (this.getJitConstants().isCircularRef) {
+        if (this.isCircular) {
             const depth = random(1, 5);
             // specific scenario where array is circular with itself, i.e: CircularArray = CircularArray[]
             return mockRecursiveEmptyArray(depth, length);

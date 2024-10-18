@@ -309,7 +309,6 @@ describe('Interface with circular ref type array', () => {
         const obj2: ICircularArray = {name: 'hello', children: [{name: 'world'}]};
         expect(validate(obj1)).toBe(true);
         expect(validate(obj2)).toBe(true);
-
         const obj3 = {name: 'hello', children: [{name: 123}]};
         const obj4 = {name: 'hello', children: [123]};
         expect(validate(obj3)).toBe(false);

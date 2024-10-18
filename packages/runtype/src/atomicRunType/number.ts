@@ -16,7 +16,6 @@ const jitConstants: JitConstants = {
     skipJit: false,
     skipJsonEncode: true,
     skipJsonDecode: true,
-    isCircularRef: false,
     jitId: ReflectionKind.number,
 };
 
