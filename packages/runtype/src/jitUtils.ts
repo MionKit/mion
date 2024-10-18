@@ -12,6 +12,9 @@ const classesMap = new Map<string, SerializableClass>();
 /** Cache for jit generated functions, only interfaces, classes and named types, must be inserted here */
 const jitCache = new Map<string | number, (...args: any[]) => any>();
 
+// eslint-disable-next-line no-control-regex
+const STR_ESCAPE = /[\u0000-\u001f\u0022\u005c\ud800-\udfff]/;
+
 /**
  * Object that wraps all utilities that are used by the jit generated functions for encode, decode, stringify etc..
  * !!! DO NOT MODIFY METHOD NAMES OF PROPERTY OR METHODS AS THESE ARE HARDCODED IN THE JIT GENERATED CODE !!!
@@ -25,8 +28,6 @@ export const jitUtils = {
         // both under MIT license
         // typia license: https://github.com/samchon/typia/blob/master/LICENSE
         // fastify lisecense: https://github.com/fastify/fast-json-stringify/blob/master/LICENSE
-        // eslint-disable-next-line no-control-regex
-        const STR_ESCAPE = /[\u0000-\u001f\u0022\u005c\ud800-\udfff]/;
         if (str.length < 42) {
             const len = str.length;
             let result = '';
@@ -50,7 +51,7 @@ export const jitUtils = {
             }
 
             return (last === -1 && '"' + str + '"') || '"' + result + str.slice(last) + '"';
-        } else if (str.length < 5000 && STR_ESCAPE.test(str) === false) {
+        } else if (str.length < 1000 && STR_ESCAPE.test(str) === false) {
             // Only use the regular expression for shorter input. The overhead is otherwise too much.
             return '"' + str + '"';
         } else {
