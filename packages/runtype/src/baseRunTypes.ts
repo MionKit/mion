@@ -75,6 +75,10 @@ export abstract class BaseRunType<T extends Type> implements RunType {
             const codeHasReturn = this.hasReturnCompileTypeErrors();
             code = this._compileTypeErrors(cop);
             code = this.handleReturn(code, cop, codeHasReturn, callFlags);
+            if (callFlags?.shouldGenerate && !cop.isRootItem()) {
+                const {args, length} = cop.getStaticPathArgsForFnCall();
+                code = `${cop.args.pλth}.push(${args}); ${code}; ${cop.args.pλth}.splice(-${length});`;
+            }
         }
         cop.popStack();
         return code;
@@ -122,36 +126,36 @@ export abstract class BaseRunType<T extends Type> implements RunType {
     // handleReturn must be called before popStack gets called
     private handleReturn(
         code: string,
-        jitOp: JitCompileOperation,
+        cop: JitCompileOperation,
         codeHasReturn: boolean,
         callFlags: StackCallFlags | undefined
     ): string {
-        const codeWithReturn = this.handleReturnFromType(code, jitOp, codeHasReturn);
+        const codeWithReturn = this.handleReturnFromType(code, cop, codeHasReturn);
         if (callFlags?.shouldGenerate) {
-            jitOp.addNewFunction(this.auxFnName as string, codeWithReturn);
+            cop.addNewFunction(this.auxFnName as string, codeWithReturn);
         }
-        if (jitOp.isRootItem()) {
-            return jitOp.getAllCode();
+        if (cop.isRootItem()) {
+            return cop.getAllCode();
         }
         // if we should generate a new function but we are not in the root of the function, we should also call the new function
         if (callFlags?.shouldGenerate) {
-            return this.callCircularJitFn(jitOp);
+            return this.callCircularJitFn(cop);
         }
         return codeWithReturn;
     }
 
-    private handleReturnFromType(code: string, jitOp: JitCompileOperation, codeHasReturn: boolean): string {
-        const isRoot = jitOp.length === 1;
+    private handleReturnFromType(code: string, cop: JitCompileOperation, codeHasReturn: boolean): string {
+        const isRoot = cop.length === 1;
         if (!isRoot) {
             // code contains a return and possibly more statements, we need to wrap it in a self invoking function to avoid syntax errors
-            if (codeHasReturn && jitOp.codeUnit === 'EXPRESSION') return `(function(){${code}})()`;
+            if (codeHasReturn && cop.codeUnit === 'EXPRESSION') return `(function(){${code}})()`;
             // code is just a statement (i.e: typeof var === 'number'), we can return it directly
             return code;
         }
         // nestLevel === 0 (root of the function)
         if (codeHasReturn) return code; // code already contains a return, we can return it directly
-        if (jitOp.codeUnit === 'EXPRESSION' || (this.getFamily() === 'A' && jitOp.codeUnit !== 'BLOCK')) return `return ${code}`; // atomic types should return the value directly
-        return `${code}${code ? ';' : ''}return ${jitOp.returnName}`; // code is a block or a composite type, main value must be returned;
+        if (cop.codeUnit === 'EXPRESSION' || (this.getFamily() === 'A' && cop.codeUnit !== 'BLOCK')) return `return ${code}`; // atomic types should return the value directly
+        return `${code}${code ? ';' : ''}return ${cop.returnName}`; // code is a block or a composite type, main value must be returned;
     }
 
     private callCircularJitFn(cop: JitCompileOperation): string {
@@ -190,8 +194,8 @@ export abstract class BaseRunType<T extends Type> implements RunType {
             this.isCircular = true;
             return {
                 skipJit: false, // ensures that jit is ran when circular reference is found
-                skipJsonEncode: true,
-                skipJsonDecode: true,
+                skipJsonEncode: false,
+                skipJsonDecode: false,
                 jitId: '$',
             };
         }

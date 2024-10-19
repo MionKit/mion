@@ -64,6 +64,7 @@ export class JitCompileOperation<FnArgsNames extends JitFnArgs = JitFnArgs, Name
     popStack() {
         const subStack = this.stack[this.stack.length - 1];
         this.popItem = subStack.pop();
+        if (this.popItem) this._stackVλl = this.popItem.vλl;
         if (subStack.length === 0) this.stack.pop();
     }
     getStackStaticPathArgs(): string {
@@ -71,6 +72,18 @@ export class JitCompileOperation<FnArgsNames extends JitFnArgs = JitFnArgs, Name
     }
     getStaticPathLength(): number {
         return this._stackStaticPath.length;
+    }
+    getStaticPathArgsForFnCall(): {args: string; length: number} {
+        const isRoot = this.isSubStackRootItem();
+        if (isRoot) {
+            const parentSubStack = this.stack[this.stack.length - 2];
+            const currentStackItem = this.getCurrentStackItem();
+            if (parentSubStack && currentStackItem) {
+                const staticPath = this.getStackStaticPath([...parentSubStack, currentStackItem]);
+                return {args: staticPath.join(','), length: staticPath.length};
+            }
+        }
+        return {args: this.getStackStaticPathArgs(), length: this.getStaticPathLength()};
     }
     getNewArgsForCurrentOp(): FnArgsNames {
         const newArgs = {...this.args};
@@ -82,7 +95,7 @@ export class JitCompileOperation<FnArgsNames extends JitFnArgs = JitFnArgs, Name
     }
     getAllCode(): string {
         const allFns = Array.from(this.jitFunctions.keys())
-            .map((name, i) => this.getJitCodeForFn(name, i === 0))
+            .map((name) => this.getJitCodeForFn(name, name === this.name))
             .join('\n');
         return allFns;
     }
@@ -109,6 +122,20 @@ export class JitCompileOperation<FnArgsNames extends JitFnArgs = JitFnArgs, Name
         const subStack = this.stack[this.stack.length - 1];
         if (!subStack) return false;
         return subStack.length === 1;
+    }
+    getCurrentStackItem(): StackItem | undefined {
+        const subStack = this.stack[this.stack.length - 1];
+        if (!subStack) return;
+        return subStack[subStack.length - 1];
+    }
+    getParentStackItem(): StackItem | undefined {
+        const subStack = this.stack[this.stack.length - 1];
+        if (!subStack) return;
+        if (subStack.length === 1) {
+            const prevSubStack = this.stack[this.stack.length - 2];
+            return prevSubStack[prevSubStack.length - 1];
+        }
+        return subStack[subStack.length - 2];
     }
 
     private createNewSubStackIfRequired(newChild: RunType) {
@@ -157,9 +184,17 @@ export class JitCompileOperation<FnArgsNames extends JitFnArgs = JitFnArgs, Name
             .join(',');
     }
     private getFnArgsCodeForFnCall(): string {
+        const isRoot = this.isSubStackRootItem();
+        let vλl = this.vλl;
+        if (isRoot) {
+            const parentSubStack = this.stack[this.stack.length - 2];
+            const currentStackItem = this.getCurrentStackItem();
+            if (parentSubStack && currentStackItem) vλl = this.getStackVλl([...parentSubStack, currentStackItem]);
+            else vλl = this.args.vλl;
+        }
         return Object.values(this.args)
             .map((name) => {
-                if (name === 'vλl') return this.vλl;
+                if (name === 'vλl') return vλl;
                 return name;
             })
             .join(',');
