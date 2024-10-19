@@ -26,6 +26,8 @@ export class JitCompileOperation<FnArgsNames extends JitFnArgs = JitFnArgs, Name
      * Multiple functions can be generated when there are circular types.
      */
     jitFunctions = new Map<string, string>();
+    /** maps type jit id to function name */
+    jitIdToFnName = new Map<string | number, string>();
     /** current runType accessor in source code */
     get vλl(): string {
         return this._stackVλl;
@@ -50,7 +52,7 @@ export class JitCompileOperation<FnArgsNames extends JitFnArgs = JitFnArgs, Name
         if (this.stack.length > maxStackDepth) throw new Error(maxStackErrorMessage);
         if (this.stack.length === 0) {
             newChild.getJitConstants(); // ensures the constants are generated in correct order
-            newChild.auxFnName = this.name;
+            newChild.auxFnName = this.getFunctionName(newChild);
         }
         this.createNewSubStackIfRequired(newChild);
         const subStack = this.stack[this.stack.length - 1];
@@ -99,20 +101,15 @@ export class JitCompileOperation<FnArgsNames extends JitFnArgs = JitFnArgs, Name
             .join('\n');
         return allFns;
     }
-    getJitCodeForFn(name: string, useDefaultValues: boolean): string {
-        const fnCode = this.jitFunctions.get(name);
-        if (!fnCode) throw new Error(`Function ${name} not found`);
+    getJitCodeForFn(fnName: string, useDefaultValues: boolean): string {
+        const fnCode = this.jitFunctions.get(fnName);
+        if (!fnCode) throw new Error(`Function ${fnName} not found`);
         const argsCode = this.getFnArgsCode(useDefaultValues);
-        const fnName = this.getSanitizedFnName(name);
         return `function ${fnName}(${argsCode}){${fnCode}}`;
     }
-    getJitCodeForFnCall(name: string): string {
-        const fnName = this.getSanitizedFnName(name);
+    getJitCodeForFnCall(fnName: string): string {
         const argsCode = this.getFnArgsCodeForFnCall();
         return `${fnName}(${argsCode})`;
-    }
-    getSanitizedFnName(fnName: string): string {
-        return fnName === auxFnName0 ? this.name : fnName;
     }
     isRootItem() {
         if (this.stack.length !== 1) return false;
@@ -138,15 +135,28 @@ export class JitCompileOperation<FnArgsNames extends JitFnArgs = JitFnArgs, Name
         return subStack[subStack.length - 2];
     }
 
+    getFunctionName(rt: RunType) {
+        const jitId: string | number = rt.getJitId();
+        const existingFnName = this.jitIdToFnName.get(jitId);
+        if (existingFnName) return existingFnName;
+        const isZero = this.jitIdToFnName.size === 0;
+        const newFnName = isZero ? this.name : getNewAuxFnNameFromIndex(this.jitIdToFnName.size, rt);
+        this.jitIdToFnName.set(jitId, newFnName);
+        return newFnName;
+    }
+
     private createNewSubStackIfRequired(newChild: RunType) {
         const subStack = this.stack[this.stack.length - 1];
         if (!subStack) {
             this.stack.push([]);
             return;
         }
-        if (!newChild.auxFnName || subStack.length === 0) return;
+        if (!newChild.isCircular || subStack.length === 0) return;
         const isCircularParent = !subStack.some((i) => isSameJitType(i.rt, newChild));
-        if (isCircularParent) this.stack.push([]);
+        if (isCircularParent) {
+            this.stack.push([]);
+            newChild.auxFnName = this.getFunctionName(newChild);
+        }
     }
     /** must be called before inserting the run type into the stack */
     private getCallFnFlags(rt: RunType, subStack: StackItem[]): StackCallFlags | undefined {
@@ -218,8 +228,7 @@ export class JitTypeErrorCompileOp extends JitCompileOperation<{vλl: string; p�
 export type DefaultJitArgs = JitCompileOp['args'];
 export type DefaultJitTypeErrorsArgs = JitTypeErrorCompileOp['args'];
 
-export function getNewAuxFnNameFromIndex(index): string {
-    return `ƒnAux${index}`;
+export function getNewAuxFnNameFromIndex(index, rt: RunType): string {
+    const typeName = (rt.src as any).typeName || 'Aux';
+    return `ƒn${typeName}${index}`;
 }
-
-export const auxFnName0 = getNewAuxFnNameFromIndex(0);

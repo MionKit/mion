@@ -19,7 +19,7 @@ import type {
 import {buildJITFunctions} from './jitCompiler';
 import {getPropIndex, memo} from './utils';
 import {maxStackDepth, maxStackErrorMessage} from './constants';
-import {getNewAuxFnNameFromIndex, JitCompileOp, JitCompileOperation, JitTypeErrorCompileOp} from './jitOperation';
+import {JitCompileOp, JitCompileOperation, JitTypeErrorCompileOp} from './jitOperation';
 
 type DkCollection = Type & {types: Type[]};
 type DkMember = Type & {type: Type; optional: boolean};
@@ -34,7 +34,7 @@ export abstract class BaseRunType<T extends Type> implements RunType {
     getJitId = () => this.getJitConstants().jitId;
     getParent = (): RunType | undefined => (this.src.parent as DKwithRT)?._rt;
     getNestLevel = memo((): number => {
-        if (this.auxFnName) return 0; // circular references start a new context
+        if (this.isCircular) return 0; // circular references start a new context
         const parent = this.getParent() as BaseRunType<T>;
         if (!parent) return 0;
         return parent.getNestLevel() + 1;
@@ -54,7 +54,7 @@ export abstract class BaseRunType<T extends Type> implements RunType {
         const callFlags = cop.pushStack(this);
         let code: string | undefined;
         if (callFlags?.shouldCall) {
-            code = this.callCircularJitFn(cop);
+            code = cop.getJitCodeForFnCall(this.auxFnName as string);
         } else {
             const codeHasReturn = this.hasReturnCompileIsType();
             code = this._compileIsType(cop);
@@ -70,7 +70,7 @@ export abstract class BaseRunType<T extends Type> implements RunType {
             const pathArgs = cop.getStackStaticPathArgs();
             const pathLength = cop.getStaticPathLength();
             // increase and decrease the static path before and after calling the circular function
-            code = `${cop.args.pλth}.push(${pathArgs}); ${this.callCircularJitFn(cop)}; ${cop.args.pλth}.splice(-${pathLength});`;
+            code = `${cop.args.pλth}.push(${pathArgs}); ${cop.getJitCodeForFnCall(this.auxFnName as string)}; ${cop.args.pλth}.splice(-${pathLength});`;
         } else {
             const codeHasReturn = this.hasReturnCompileTypeErrors();
             code = this._compileTypeErrors(cop);
@@ -87,7 +87,7 @@ export abstract class BaseRunType<T extends Type> implements RunType {
         const callFlags = cop.pushStack(this);
         let code: string | undefined;
         if (callFlags?.shouldCall) {
-            code = this.callCircularJitFn(cop);
+            code = cop.getJitCodeForFnCall(this.auxFnName as string);
         } else {
             const codeHasReturn = this.hasReturnCompileJsonEncode();
             code = this._compileJsonEncode(cop);
@@ -100,7 +100,7 @@ export abstract class BaseRunType<T extends Type> implements RunType {
         const callFlags = cop.pushStack(this);
         let code: string | undefined;
         if (callFlags?.shouldCall) {
-            code = this.callCircularJitFn(cop);
+            code = cop.getJitCodeForFnCall(this.auxFnName as string);
         } else {
             const codeHasReturn = this.hasReturnCompileJsonDecode();
             code = this._compileJsonDecode(cop);
@@ -113,7 +113,7 @@ export abstract class BaseRunType<T extends Type> implements RunType {
         const callFlags = cop.pushStack(this);
         let code: string | undefined;
         if (callFlags?.shouldCall) {
-            code = this.callCircularJitFn(cop);
+            code = cop.getJitCodeForFnCall(this.auxFnName as string);
         } else {
             const codeHasReturn = this.hasReturnCompileJsonStringify();
             code = this._compileJsonStringify(cop);
@@ -139,7 +139,7 @@ export abstract class BaseRunType<T extends Type> implements RunType {
         }
         // if we should generate a new function but we are not in the root of the function, we should also call the new function
         if (callFlags?.shouldGenerate) {
-            return this.callCircularJitFn(cop);
+            return cop.getJitCodeForFnCall(this.auxFnName as string);
         }
         return codeWithReturn;
     }
@@ -156,10 +156,6 @@ export abstract class BaseRunType<T extends Type> implements RunType {
         if (codeHasReturn) return code; // code already contains a return, we can return it directly
         if (cop.codeUnit === 'EXPRESSION' || (this.getFamily() === 'A' && cop.codeUnit !== 'BLOCK')) return `return ${code}`; // atomic types should return the value directly
         return `${code}${code ? ';' : ''}return ${cop.returnName}`; // code is a block or a composite type, main value must be returned;
-    }
-
-    private callCircularJitFn(cop: JitCompileOperation): string {
-        return cop.getJitCodeForFnCall(this.auxFnName as string);
     }
 
     // ########## Return flags ##########
@@ -190,7 +186,6 @@ export abstract class BaseRunType<T extends Type> implements RunType {
         const inStackIndex = stack.findIndex((rt) => rt === this); // cant use isSameJitType because it uses getJitId
         const isInStack = inStackIndex >= 0; // recursive reference
         if (isInStack) {
-            this.auxFnName = getNewAuxFnNameFromIndex(inStackIndex);
             this.isCircular = true;
             return {
                 skipJit: false, // ensures that jit is ran when circular reference is found
