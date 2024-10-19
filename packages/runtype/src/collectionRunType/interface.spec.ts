@@ -516,7 +516,7 @@ describe('Interface with nested circular type where root is not the circular ref
         expect(valWithErrors(obj3)).toEqual([{path: ['ciChild', 'embedded', 'hello'], expected: 'string'}]);
         expect(valWithErrors(obj4)).toEqual([{path: ['ciChild', 'embedded', 'child', 'embedded', 'hello'], expected: 'string'}]);
         expect(valWithErrors(obj5)).toEqual([
-            {path: ['isRoot'], expected: 'true'},
+            {path: ['isRoot'], expected: 'literal'},
             {path: ['ciChild', 'embedded', 'child'], expected: 'interface'},
         ]);
     });
@@ -548,6 +548,148 @@ describe('Interface with nested circular type where root is not the circular ref
                 big: 1n,
                 embedded: {hello: 'world', child: {name: 'world1', big: 1n, embedded: {hello: 'world2'}}},
             },
+        };
+        const roundTrip1 = fromJson(JSON.parse(jsonStringify(obj1)));
+        const roundTrip2 = fromJson(JSON.parse(jsonStringify(obj2)));
+        expect(roundTrip1).toEqual(obj1);
+        expect(roundTrip2).toEqual(obj2);
+    });
+
+    it('mock', () => {
+        const mocked = rt.mock();
+        expect(mocked).toHaveProperty('isRoot');
+        expect(mocked).toHaveProperty('ciChild');
+        expect(typeof mocked.ciChild.child === 'undefined' || typeof mocked.ciChild.child === 'object').toBe(true);
+        const validate = buildIsTypeJITFn(rt).fn;
+        expect(validate(rt.mock())).toBe(true);
+    });
+});
+
+describe('Interface with nested circular + multiple circular', () => {
+    interface ICircularDeep {
+        name: string;
+        big: bigint;
+        embedded: {
+            hello: string;
+            child?: ICircularDeep;
+        };
+    }
+
+    interface ICircularDate {
+        date: Date;
+        month: number;
+        year: number;
+        embedded?: ICircularDate;
+    }
+
+    interface RootCircular {
+        isRoot: true;
+        ciChild: ICircularDeep;
+        ciRoort?: RootCircular;
+        ciDate: ICircularDate;
+    }
+
+    const rt = runType<RootCircular>();
+
+    it.only('validate circular interface that is not the root object', () => {
+        const validate = buildIsTypeJITFn(rt).fn;
+        const ciDate: ICircularDate = {date: new Date(), month: 1, year: 2021};
+        const obj1: RootCircular = {isRoot: true, ciChild: {name: 'hello', big: 1n, embedded: {hello: 'world'}}, ciDate};
+        const obj2: RootCircular = {
+            isRoot: true,
+            ciChild: {
+                name: 'hello',
+                big: 1n,
+                embedded: {
+                    hello: 'world',
+                    child: {name: 'world1', big: 1n, embedded: {hello: 'world2'}},
+                },
+            },
+            ciDate,
+        };
+        expect(validate(obj1)).toBe(true);
+        expect(validate(obj2)).toBe(true);
+
+        const obj3 = {isRoot: true, ciChild: {name: 'hello', big: 1n, embedded: {hello: 123}}};
+        const obj4 = {
+            isRoot: true,
+            ciChild: {
+                name: 'hello',
+                big: 1n,
+                embedded: {hello: 'world', child: {name: 'world1', big: 1n, embedded: {hello: 123}}},
+            },
+        };
+        const obj5 = {isRoot: false, ciChild: {name: 'hello', big: 1n, embedded: {hello: 'world', child: 123}}};
+        expect(validate(obj3)).toBe(false);
+        expect(validate(obj4)).toBe(false);
+        expect(validate(obj5)).toBe(false);
+    });
+
+    it('validate circular interface that is not the root object object + errors', () => {
+        const valWithErrors = buildTypeErrorsJITFn(rt).fn;
+        const ciDate: ICircularDate = {date: new Date(), month: 1, year: 2021};
+        const obj1: RootCircular = {isRoot: true, ciChild: {name: 'hello', big: 1n, embedded: {hello: 'world'}}, ciDate};
+        const obj2: RootCircular = {
+            isRoot: true,
+            ciChild: {
+                name: 'hello',
+                big: 1n,
+                embedded: {hello: 'world', child: {name: 'world1', big: 1n, embedded: {hello: 'world2'}}},
+            },
+            ciDate,
+        };
+        expect(valWithErrors(obj1)).toEqual([]);
+        expect(valWithErrors(obj2)).toEqual([]);
+
+        const obj3 = {isRoot: true, ciChild: {name: 'hello', big: 1n, embedded: {hello: 123}}};
+        const obj4 = {
+            isRoot: true,
+            ciChild: {
+                name: 'hello',
+                big: 1n,
+                embedded: {hello: 'world', child: {name: 'world1', big: 1n, embedded: {hello: 123}}},
+            },
+        };
+        const obj5 = {isRoot: false, ciChild: {name: 'hello', big: 1n, embedded: {hello: 'world', child: 123}}};
+        expect(valWithErrors(obj3)).toEqual([{path: ['ciChild', 'embedded', 'hello'], expected: 'string'}]);
+        expect(valWithErrors(obj4)).toEqual([{path: ['ciChild', 'embedded', 'child', 'embedded', 'hello'], expected: 'string'}]);
+        expect(valWithErrors(obj5)).toEqual([
+            {path: ['isRoot'], expected: 'literal'},
+            {path: ['ciChild', 'embedded', 'child'], expected: 'interface'},
+        ]);
+    });
+
+    it('encode/decode to json', () => {
+        const toJson = buildJsonEncodeJITFn(rt).fn;
+        const fromJson = buildJsonDecodeJITFn(rt).fn;
+        const ciDate: ICircularDate = {date: new Date(), month: 1, year: 2021};
+        const obj1: RootCircular = {isRoot: true, ciChild: {name: 'hello', big: 1n, embedded: {hello: 'world'}}, ciDate};
+        const obj2: RootCircular = {
+            isRoot: true,
+            ciChild: {
+                name: 'hello',
+                big: 1n,
+                embedded: {hello: 'world', child: {name: 'world1', big: 1n, embedded: {hello: 'world2'}}},
+            },
+            ciDate,
+        };
+        expect(fromJson(toJson(obj1))).toEqual(obj1);
+        expect(fromJson(toJson(obj2))).toEqual(obj2);
+    });
+
+    it('json stringify', () => {
+        const jsonStringify = buildJsonStringifyJITFn(rt).fn;
+        const fromJson = buildJsonDecodeJITFn(rt).fn;
+        const ciDate: ICircularDate = {date: new Date(), month: 1, year: 2021};
+        const obj1: RootCircular = {isRoot: true, ciChild: {name: 'hello', big: 1n, embedded: {hello: 'world'}}, ciDate};
+        const obj2: RootCircular = {
+            isRoot: true,
+            ciChild: {
+                name: 'hello',
+                big: 1n,
+                embedded: {hello: 'world', child: {name: 'world1', big: 1n, embedded: {hello: 'world2'}}},
+            },
+            ciDate,
         };
         const roundTrip1 = fromJson(JSON.parse(jsonStringify(obj1)));
         const roundTrip2 = fromJson(JSON.parse(jsonStringify(obj2)));
