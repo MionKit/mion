@@ -591,7 +591,7 @@ describe('Interface with nested circular + multiple circular', () => {
 
     const rt = runType<RootCircular>();
 
-    it.only('validate circular interface that is not the root object', () => {
+    it('validate circular interface that is not the root object', () => {
         const validate = buildIsTypeJITFn(rt).fn;
         const ciDate: ICircularDate = {date: new Date(), month: 1, year: 2021};
         const obj1: RootCircular = {isRoot: true, ciChild: {name: 'hello', big: 1n, embedded: {hello: 'world'}}, ciDate};
