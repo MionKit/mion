@@ -580,6 +580,7 @@ describe('Interface with nested circular + multiple circular', () => {
         month: number;
         year: number;
         embedded?: ICircularDate;
+        deep?: ICircularDeep;
     }
 
     interface RootCircular {
