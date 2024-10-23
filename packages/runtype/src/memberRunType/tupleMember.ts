@@ -8,7 +8,7 @@
 import {TypeTupleMember} from '../_deepkit/src/reflection/type';
 import {MemberRunType} from '../baseRunTypes';
 import {JitCompileOp, JitTypeErrorCompileOp} from '../jitOperation';
-import {MockContext, StackItem} from '../types';
+import {MockContext} from '../types';
 
 export class TupleMemberRunType extends MemberRunType<TypeTupleMember> {
     src: TypeTupleMember = null as any; // will be set after construction
@@ -32,28 +32,23 @@ export class TupleMemberRunType extends MemberRunType<TypeTupleMember> {
     }
     _compileIsType(cop: JitCompileOp): string {
         const itemCode = this.getMemberType().compileIsType(cop);
-        const childItem = cop.popItem as StackItem;
-        return this.src.optional ? `(${childItem.vλl} === undefined || ${itemCode})` : itemCode;
+        return this.src.optional ? `(${cop.getChildVλl()} === undefined || ${itemCode})` : itemCode;
     }
     _compileTypeErrors(cop: JitTypeErrorCompileOp): string {
         const itemCode = this.getMemberType().compileTypeErrors(cop);
-        const childItem = cop.popItem as StackItem;
-        return this.src.optional ? `if (${childItem.vλl} !== undefined) {${itemCode}}` : itemCode;
+        return this.src.optional ? `if (${cop.getChildVλl()} !== undefined) {${itemCode}}` : itemCode;
     }
     _compileJsonEncode(cop: JitCompileOp): string {
         const itemCode = this.getMemberType().compileJsonEncode(cop);
-        const childItem = cop.popItem as StackItem;
-        return this.src.optional ? `${childItem.vλl} === undefined ? null : ${itemCode}` : itemCode;
+        return this.src.optional ? `${cop.getChildVλl()} === undefined ? null : ${itemCode}` : itemCode;
     }
     _compileJsonDecode(cop: JitCompileOp): string {
         const itemCode = this.getMemberType().compileJsonDecode(cop);
-        const childItem = cop.popItem as StackItem;
-        return this.src.optional ? `${childItem.vλl} === null ? undefined : ${itemCode}` : itemCode;
+        return this.src.optional ? `${cop.getChildVλl()} === null ? undefined : ${itemCode}` : itemCode;
     }
     _compileJsonStringify(cop: JitCompileOp): string {
         const itemCode = this.getMemberType().compileJsonStringify(cop);
-        const childItem = cop.popItem as StackItem;
-        return this.src.optional ? `(${childItem.vλl} === undefined ? null : ${itemCode})` : itemCode;
+        return this.src.optional ? `(${cop.getChildVλl()} === undefined ? null : ${itemCode})` : itemCode;
     }
     mock(ctx?: Pick<MockContext, 'optionalProbability'>): any {
         if (this.src.optional) {

@@ -134,7 +134,6 @@ export class JitCompileOperation<FnArgsNames extends JitFnArgs = JitFnArgs, Name
         }
         return subStack[subStack.length - 2];
     }
-
     getFunctionName(rt: RunType) {
         const jitId: string | number = rt.getJitId();
         const existingFnName = this.jitIdToFnName.get(jitId);
@@ -144,7 +143,17 @@ export class JitCompileOperation<FnArgsNames extends JitFnArgs = JitFnArgs, Name
         this.jitIdToFnName.set(jitId, newFnName);
         return newFnName;
     }
+    getChildVλl(): string {
+        const parent = this.getCurrentStackItem();
+        if (!parent) return this.args.vλl;
+        return this.getChildVλlForParent(parent);
+    }
 
+    private getChildVλlForParent(parent: StackItem): string {
+        const rt = parent.rt;
+        if (!isChildAccessorType(rt)) throw new Error(`cant get child var name from ${rt.getName()}`);
+        return parent.vλl + (rt.useArrayAccessor() ? `[${rt.getChildLiteral()}]` : `.${rt.getChildVarName()}`);
+    }
     private createNewSubStackIfRequired(newChild: RunType) {
         const subStack = this.stack[this.stack.length - 1];
         if (!subStack) {
@@ -199,7 +208,7 @@ export class JitCompileOperation<FnArgsNames extends JitFnArgs = JitFnArgs, Name
         if (isRoot) {
             const parentSubStack = this.stack[this.stack.length - 2];
             const currentStackItem = this.getCurrentStackItem();
-            if (parentSubStack && currentStackItem) vλl = this.getStackVλl([...parentSubStack, currentStackItem]);
+            if (parentSubStack && currentStackItem) vλl = this.getChildVλlForParent(parentSubStack[parentSubStack.length - 1]);
             else vλl = this.args.vλl;
         }
         return Object.values(this.args)
