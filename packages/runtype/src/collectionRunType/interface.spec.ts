@@ -628,7 +628,12 @@ describe('Interface with nested circular + multiple circular', () => {
 
     it('validate circular interface that is not the root object object + errors', () => {
         const valWithErrors = buildTypeErrorsJITFn(rt).fn;
-        const ciDate: ICircularDate = {date: new Date(), month: 1, year: 2021};
+        const ciDate: ICircularDate = {
+            date: new Date(),
+            month: 1,
+            year: 2021,
+            embedded: {date: new Date(), month: 1, year: 2021},
+        };
         const obj1: RootCircular = {isRoot: true, ciChild: {name: 'hello', big: 1n, embedded: {hello: 'world'}}, ciDate};
         const obj2: RootCircular = {
             isRoot: true,
@@ -642,7 +647,7 @@ describe('Interface with nested circular + multiple circular', () => {
         expect(valWithErrors(obj1)).toEqual([]);
         expect(valWithErrors(obj2)).toEqual([]);
 
-        const obj3 = {isRoot: true, ciChild: {name: 'hello', big: 1n, embedded: {hello: 123}}};
+        const obj3 = {isRoot: true, ciChild: {name: 'hello', big: 1n, embedded: {hello: 123}}}; // missing ciDate as well
         const obj4 = {
             isRoot: true,
             ciChild: {
@@ -650,13 +655,26 @@ describe('Interface with nested circular + multiple circular', () => {
                 big: 1n,
                 embedded: {hello: 'world', child: {name: 'world1', big: 1n, embedded: {hello: 123}}},
             },
+            ciDate,
         };
-        const obj5 = {isRoot: false, ciChild: {name: 'hello', big: 1n, embedded: {hello: 'world', child: 123}}};
-        expect(valWithErrors(obj3)).toEqual([{path: ['ciChild', 'embedded', 'hello'], expected: 'string'}]);
+        const obj5 = {isRoot: false, ciChild: {name: 'hello', big: 1n, embedded: {hello: 'world', child: 123}}, ciDate};
+        expect(valWithErrors(obj3)).toEqual([
+            {path: ['ciChild', 'embedded', 'hello'], expected: 'string'},
+            {path: ['ciDate'], expected: 'interface'},
+        ]);
         expect(valWithErrors(obj4)).toEqual([{path: ['ciChild', 'embedded', 'child', 'embedded', 'hello'], expected: 'string'}]);
         expect(valWithErrors(obj5)).toEqual([
             {path: ['isRoot'], expected: 'literal'},
             {path: ['ciChild', 'embedded', 'child'], expected: 'interface'},
+        ]);
+
+        // wrong ciDate
+        obj5.ciDate = {date: 'fello', month: 1, year: 2021, embedded: true} as any;
+        expect(valWithErrors(obj5)).toEqual([
+            {path: ['isRoot'], expected: 'literal'},
+            {path: ['ciChild', 'embedded', 'child'], expected: 'interface'},
+            {path: ['ciDate', 'date'], expected: 'date'},
+            {path: ['ciDate', 'embedded'], expected: 'interface'},
         ]);
     });
 

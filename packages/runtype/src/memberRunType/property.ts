@@ -6,7 +6,7 @@
  * ######## */
 
 import {TypeProperty, TypePropertySignature} from '../_deepkit/src/reflection/type';
-import {MockContext, StackItem} from '../types';
+import {MockContext} from '../types';
 import {getPropIndex, getPropLiteral, getPropVarName, isSafePropName, memo, useArrayAccessorForProp} from '../utils';
 import {MemberRunType} from '../baseRunTypes';
 import {jitUtils} from '../jitUtils';
@@ -29,30 +29,26 @@ export class PropertyRunType extends MemberRunType<TypePropertySignature | TypeP
         const child = this.getJitChild();
         if (!child) return '';
         const itemCode = child.compileIsType(cop);
-        const childItem = cop.popItem as StackItem;
-        return this.src.optional ? `(${childItem.vλl} === undefined || ${itemCode})` : itemCode;
+        return this.src.optional ? `(${cop.getChildVλl()} === undefined || ${itemCode})` : itemCode;
     }
     _compileTypeErrors(cop: JitTypeErrorCompileOp): string {
         const child = this.getJitChild();
         if (!child) return '';
         const itemCode = child.compileTypeErrors(cop);
-        const childItem = cop.popItem as StackItem;
-        return this.src.optional ? `if (${childItem.vλl} !== undefined) {${itemCode}}` : itemCode;
+        return this.src.optional ? `if (${cop.getChildVλl()} !== undefined) {${itemCode}}` : itemCode;
     }
     _compileJsonEncode(cop: JitCompileOp): string {
         const child = this.getJsonEncodeChild();
         if (!child) return '';
         const propCode = child.compileJsonEncode(cop);
-        const childItem = cop.popItem as StackItem;
-        if (this.src.optional) return `if (${childItem.vλl} !== undefined) ${propCode}`;
+        if (this.src.optional) return `if (${cop.getChildVλl()} !== undefined) ${propCode}`;
         return propCode;
     }
     _compileJsonDecode(cop: JitCompileOp): string {
         const child = this.getJsonDecodeChild();
         if (!child) return '';
         const propCode = child.compileJsonDecode(cop);
-        const childItem = cop.popItem as StackItem;
-        if (this.src.optional) return `if (${childItem.vλl} !== undefined) ${propCode}`;
+        if (this.src.optional) return `if (${cop.getChildVλl()} !== undefined) ${propCode}`;
         return propCode;
     }
     _compileJsonStringify(cop: JitCompileOp): string {
@@ -68,9 +64,8 @@ export class PropertyRunType extends MemberRunType<TypePropertySignature | TypeP
             ? `'${sep}"${this.getChildVarName()}":'`
             : `'${sep}'+${jitUtils.asJSONString(this.getChildLiteral())}+':'`;
         if (this.src.optional) {
-            const childItem = cop.popItem as StackItem;
             // TODO: check if json for an object with first property undefined is valid (maybe the comma must be dynamic too)
-            return `(${childItem.vλl} === undefined ? '' : ${propDef}+${propCode})`;
+            return `(${cop.getChildVλl()} === undefined ? '' : ${propDef}+${propCode})`;
         }
         return `${propDef}+${propCode}`;
     }
