@@ -162,12 +162,12 @@ describe('TupleRunType', () => {
     });
 });
 
-describe('TupleRunType with circular refs', () => {
+describe('TupleRunType with circular type definitions', () => {
     type TupleCircular = [Date, number, string, null, string[], bigint, TupleCircular?];
 
     const rt = runType<TupleCircular>();
 
-    it('validate tuple with circular refs', () => {
+    it('validate tuple with circular type definitions', () => {
         const validate = buildIsTypeJITFn(rt).fn;
         const tDeep: TupleCircular = [new Date(), 456, 'world', null, ['x', 'y', 'z'], BigInt(456)];
         const typeValue: TupleCircular = [new Date(), 123, 'hello', null, ['a', 'b', 'c'], BigInt(123), tDeep];
@@ -176,7 +176,7 @@ describe('TupleRunType with circular refs', () => {
         expect(validate(typeValueWrong)).toBe(false);
     });
 
-    it('validate tuple with circular refs + errors', () => {
+    it('validate tuple with circular type definitions + errors', () => {
         const valWithErrors = buildTypeErrorsJITFn(rt).fn;
         const tDeep: TupleCircular = [new Date(), 456, 'world', null, ['x', 'y', 'z'], BigInt(456)];
         const typeValue: TupleCircular = [new Date(), 123, 'hello', null, ['a', 'b', 'c'], BigInt(123), tDeep];
