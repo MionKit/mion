@@ -14,9 +14,6 @@ import {getJitErrorPath, getExpected, shouldSkiJsonEncode, shouldSkipJit, should
 
 export class ArrayRunType extends MemberRunType<TypeArray> {
     src: TypeArray = null as any; // will be set after construction
-    getName() {
-        return `array`;
-    }
     getChildVarName(): string {
         return `iε${this.getNestLevel()}`;
     }

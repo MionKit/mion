@@ -20,10 +20,6 @@ export class InterfaceRunType<
     T extends TypeObjectLiteral | TypeClass | TypeIntersection = TypeObjectLiteral,
 > extends CollectionRunType<T> {
     src: T = null as any; // will be set after construction
-    getName(): string {
-        const iName = (this.src.kind as any).typeName as string | undefined;
-        return `interface${iName ? ` ${iName}` : ''}`;
-    }
     // #### collection's jit code ####
     _compileIsType(cop: JitCompileOp): string {
         const varName = cop.vλl;

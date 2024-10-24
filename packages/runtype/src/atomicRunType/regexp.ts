@@ -22,9 +22,6 @@ const jitConstants: JitConstants = {
 export class RegexpRunType extends AtomicRunType<TypeRegexp> {
     src: TypeRegexp = null as any; // will be set after construction
     getJitConstants = () => jitConstants;
-    getName(): string {
-        return 'regexp';
-    }
     _compileIsType(cop: JitCompileOp): string {
         return `(${cop.vλl} instanceof RegExp)`;
     }

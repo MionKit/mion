@@ -21,9 +21,6 @@ const jitConstants: JitConstants = {
 export class AnyRunType extends AtomicRunType<TypeAny | TypeUnknown> {
     src: TypeAny | TypeUnknown = null as any; // will be set after construction
     getJitConstants = () => jitConstants;
-    getName(): string {
-        return this.src.kind === ReflectionKind.any ? 'any' : 'unknown';
-    }
     _compileIsType(): 'true' {
         return 'true';
     }

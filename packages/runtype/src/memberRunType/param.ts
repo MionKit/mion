@@ -13,9 +13,6 @@ import {RestParamsRunType} from './restParams';
 
 export class ParameterRunType extends MemberRunType<TypeParameter> {
     src: TypeParameter = null as any; // will be set after construction
-    getName() {
-        return 'property';
-    }
     isOptional(): boolean {
         return !!this.src.optional || this.isRest();
     }

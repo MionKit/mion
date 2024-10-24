@@ -10,23 +10,20 @@ import type {JitJsonEncoder, MockContext, JitConstants} from '../types';
 import {getJitErrorPath, getExpected} from '../utils';
 import {mockDate} from '../mock';
 import {AtomicRunType} from '../baseRunTypes';
-import {dateJitId} from '../constants';
 import {JitCompileOp, JitTypeErrorCompileOp} from '../jitOperation';
+import {ReflectionSubKinds} from '../reflectionNames';
 
 const jitConstants: JitConstants = {
     skipJit: false,
     skipJsonEncode: true,
     skipJsonDecode: false,
-    jitId: dateJitId, // reflection kind + class name
+    jitId: ReflectionSubKinds.date,
 };
 
 export class DateRunType extends AtomicRunType<TypeClass> {
     src: TypeClass = null as any; // will be set after construction
-    getJitId = () => 'date';
+    getJitId = () => jitConstants.jitId;
     getJitConstants = () => jitConstants;
-    getName(): string {
-        return 'date';
-    }
     _compileIsType(cop: JitCompileOp): string {
         return `(${cop.vλl} instanceof Date && !isNaN(${cop.vλl}.getTime()))`;
     }

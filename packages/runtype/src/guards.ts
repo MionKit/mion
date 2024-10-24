@@ -40,7 +40,7 @@ import type {PromiseRunType} from './memberRunType/promise';
 import type {ObjectRunType} from './atomicRunType/object';
 import type {MethodRunType} from './memberRunType/method';
 import type {AtomicRunType, CollectionRunType, MemberRunType} from './baseRunTypes';
-import {dateJitId} from './constants';
+import {ReflectionSubKinds} from './reflectionNames';
 
 export function isAnyRunType(rt: RunType): rt is AnyRunType {
     return rt.src.kind === ReflectionKind.any;
@@ -63,7 +63,7 @@ export function isCallSignatureRunType(rt: RunType): rt is CallSignatureRunType 
 }
 
 export function isDateRunType(rt: RunType): rt is DateRunType {
-    return isAtomicRunType(rt) && rt.getJitId() === dateJitId;
+    return rt.getJitId() === ReflectionSubKinds.date;
 }
 
 export function isEnumRunType(rt: RunType): rt is EnumRunType {

@@ -22,9 +22,6 @@ import {JitCompileOp, JitTypeErrorCompileOp} from '../jitOperation';
  * */
 export class UnionRunType extends CollectionRunType<TypeUnion> {
     src: TypeUnion = null as any; // will be set after construction
-    getName(): string {
-        return 'union';
-    }
     // #### collection's jit code ####
     _compileIsType(cop: JitCompileOp): string {
         const children = this.getJitChildren();

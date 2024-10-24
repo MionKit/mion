@@ -19,9 +19,6 @@ export class LiteralRunType extends AtomicRunType<TypeLiteral> {
     get jitConstants() {
         return this.getJitConstants();
     }
-    getName(): string {
-        return 'literal';
-    }
     getJitConstants = memo((): JitConstants => {
         switch (true) {
             case typeof this.src.literal === 'bigint':

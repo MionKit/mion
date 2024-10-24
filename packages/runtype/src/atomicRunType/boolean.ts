@@ -21,9 +21,6 @@ const jitConstants: JitConstants = {
 export class BooleanRunType extends AtomicRunType<TypeBoolean> {
     src: TypeBoolean = null as any; // will be set after construction
     getJitConstants = () => jitConstants;
-    getName(): string {
-        return 'boolean';
-    }
     _compileIsType(cop: JitCompileOp): string {
         return `typeof ${cop.vλl} === 'boolean'`;
     }

@@ -5,10 +5,6 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {ReflectionKind} from './_deepkit/src/reflection/type';
-
-export const dateJitId = `${ReflectionKind.class}Date`;
-
 export const validPropertyNameRegExp = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
 
 export const mockRegExpsList = [
