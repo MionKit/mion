@@ -7,9 +7,7 @@ import {CollectionRunType} from '../baseRunTypes';
 
 export class FunctionParametersRunType<CallType extends AnyFunction = TypeFunction> extends CollectionRunType<CallType> {
     src: CallType = null as any; // will be set after construction
-    getName(): string {
-        return 'fnParams';
-    }
+    getName = (): string => 'fnParams';
     getChildRunTypes = (): RunType[] => {
         const childTypes = (this.src.parameters as DKwithRT[]) || []; // deepkit stores child types in the types property
         return childTypes.map((t) => t._rt);

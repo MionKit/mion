@@ -21,9 +21,6 @@ const jitConstants: JitConstants = {
 export class UndefinedRunType extends AtomicRunType<TypeUndefined> {
     src: TypeUndefined = null as any; // will be set after construction
     getJitConstants = () => jitConstants;
-    getName(): string {
-        return 'undefined';
-    }
     _compileIsType(cop: JitCompileOp): string {
         return `typeof ${cop.vλl} === 'undefined'`;
     }

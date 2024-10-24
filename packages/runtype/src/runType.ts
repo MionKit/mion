@@ -6,7 +6,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import type {RunType, RunTypeVisitor, DKwithRT, Mutable} from './types';
+import type {RunType, DKwithRT, Mutable} from './types';
 import {ReflectionKind, Type, TypeObjectLiteral} from './_deepkit/src/reflection/type';
 import {resolveReceiveType, ReceiveType, reflect} from './_deepkit/src/reflection/reflection';
 import {StringRunType} from './atomicRunType/string';
@@ -139,7 +139,7 @@ export function createRunType(deepkitType: Type): RunType {
             const originTypeName = objLiteral.originTypes?.[0].typeName;
             const isNativeType = originTypeName && nativeTypeNamesFromObjectLiterals.includes(originTypeName);
             if (isNativeType) {
-                rt = resolveNativeTypeFromObjectLiteral(createRunType, objLiteral, objLiteral, originTypeName);
+                throw new Error(`Native type "${originTypeName}" is not supported`);
             } else {
                 rt = new InterfaceRunType();
             }
@@ -210,21 +210,3 @@ export function createRunType(deepkitType: Type): RunType {
 }
 
 const nativeTypeNamesFromObjectLiterals = ['AsyncIterator', 'Iterator'];
-
-function resolveNativeTypeFromObjectLiteral(
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    visitor: RunTypeVisitor,
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    src: TypeObjectLiteral,
-    deepkitType: TypeObjectLiteral,
-    nativeName: string
-): RunType {
-    switch (nativeName) {
-        case 'Iterator':
-            throw new Error('Iterator not implemented');
-        case 'AsyncIterator':
-            throw new Error('AsyncIterator RunTypes are not supported');
-        default:
-            throw new Error(`Type is not an Native Type`);
-    }
-}

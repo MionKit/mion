@@ -20,9 +20,6 @@ const jitConstants: JitConstants = {
 export class EnumMemberRunType extends AtomicRunType<TypeEnum> {
     src: TypeEnum = null as any; // will be set after construction
     getJitConstants = () => jitConstants;
-    getName(): string {
-        return 'enum';
-    }
     _compileIsType(): string {
         throw new Error('Enum member operations are not supported');
     }

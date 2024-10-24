@@ -13,9 +13,6 @@ import {JitCompileOp, JitTypeErrorCompileOp} from '../jitOperation';
 
 export class IndexSignatureRunType extends MemberRunType<TypeIndexSignature> {
     src: TypeIndexSignature = null as any; // will be set after construction
-    getName(): string {
-        return 'indexProperty';
-    }
     isOptional(): boolean {
         return false;
     }

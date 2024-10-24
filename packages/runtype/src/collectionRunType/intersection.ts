@@ -14,12 +14,6 @@ import {InterfaceRunType} from './interface';
  * ie: type NeVer = string & number will be resolved to never
  * */
 export class IntersectionRunType extends InterfaceRunType<TypeIntersection> {
-    getName(): string {
-        return this.getChildRunTypes()
-            .map((c) => c.getName())
-            .join(' & ');
-    }
-
     compileIsType(): string {
         throw new Error('Intersection validation not supported, should be resolve to other RunTypes');
     }

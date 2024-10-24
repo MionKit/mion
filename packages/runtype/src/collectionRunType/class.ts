@@ -13,9 +13,6 @@ import {jitNames} from '../constants';
 import {JitCompileOp} from '../jitOperation';
 
 export class ClassRunType extends InterfaceRunType<TypeClass> {
-    getName(): string {
-        return `class`;
-    }
     getClassName(): string {
         return this.src.classType.name;
     }

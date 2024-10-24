@@ -14,9 +14,6 @@ import {JitCompileOp, JitTypeErrorCompileOp} from '../jitOperation';
 
 export class PropertyRunType extends MemberRunType<TypePropertySignature | TypeProperty> {
     src: TypePropertySignature | TypeProperty = null as any; // will be set after construction
-    getName() {
-        return 'property';
-    }
     getChildIndex = memo(() => getPropIndex(this.src));
     getChildVarName = memo(() => getPropVarName(this.src.name));
     getChildLiteral = memo(() => getPropLiteral(this.getChildVarName()));

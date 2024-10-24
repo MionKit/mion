@@ -22,9 +22,6 @@ const jitConstants: JitConstants = {
 export class EnumRunType extends AtomicRunType<TypeEnum> {
     src: TypeEnum = null as any; // will be set after construction
     getJitConstants = () => jitConstants;
-    getName(): string {
-        return 'enum';
-    }
     _compileIsType(cop: JitCompileOp): string {
         return this.src.values.map((v) => `${cop.vλl} === ${toLiteral(v)}`).join(' || ');
     }

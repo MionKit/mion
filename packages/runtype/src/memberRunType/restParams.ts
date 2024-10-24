@@ -12,9 +12,6 @@ import {MockContext} from '../types';
 
 export class RestParamsRunType extends MemberRunType<TypeRest> {
     src: TypeRest = null as any; // will be set after construction
-    getName() {
-        return 'restParams';
-    }
     isOptional() {
         return true;
     }

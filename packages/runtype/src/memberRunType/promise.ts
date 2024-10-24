@@ -19,9 +19,6 @@ const jitConstants: JitConstants = {
 export class PromiseRunType extends MemberRunType<TypePromise> {
     src: TypePromise = null as any; // will be set after construction
     getJitConstants = () => jitConstants;
-    getName() {
-        return 'promise';
-    }
     isOptional(): boolean {
         throw new Error(`Jit compilation disabled for Promises.`);
     }
@@ -41,13 +38,13 @@ export class PromiseRunType extends MemberRunType<TypePromise> {
         throw new Error(`Jit compilation disabled for Promises.`);
     }
     _compileJsonEncode(): string {
-        throw new Error(`Jit compile disabled for Promises.`);
+        throw new Error(`Jit compilation disabled for Promises.`);
     }
     _compileJsonDecode(): string {
-        throw new Error(`Jit compile disabled for Promises.`);
+        throw new Error(`Jit compilation disabled for Promises.`);
     }
     _compileJsonStringify(): string {
-        throw new Error(`Jit compile disabled for Promises.`);
+        throw new Error(`Jit compilation disabled for Promises..`);
     }
     mock(ctx?: Pick<MockContext, 'promiseReject' | 'promiseTimeOut'>): Promise<any> {
         const timeOut = ctx?.promiseTimeOut || 1;

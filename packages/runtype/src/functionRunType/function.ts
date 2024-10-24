@@ -55,20 +55,6 @@ export class FunctionRunType<CallType extends AnyFunction = TypeFunction> extend
     //     const end = opts?.paramsSlice?.end;
     //     parameterRunTypes = src.parameters.slice(start, end).map((p) => visitor(p, parents, opts)) as ParameterRunType[];
     // }
-    getName(): string {
-        switch (this.src.kind) {
-            case ReflectionKind.function:
-                return 'function';
-            case ReflectionKind.method:
-                return 'method';
-            case ReflectionKind.callSignature:
-                return 'call';
-            case ReflectionKind.methodSignature:
-                return 'method';
-            default:
-                return 'function';
-        }
-    }
     getReturnType(): RunType {
         return (this.src.return as DKwithRT)._rt;
     }

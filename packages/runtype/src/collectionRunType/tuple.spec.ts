@@ -101,8 +101,8 @@ it('encode/decode to json', () => {
     const toJson = buildJsonEncodeJITFn(rt).fn;
     const fromJson = buildJsonDecodeJITFn(rt).fn;
     const typeValue = [new Date(), 123, 'hello', null, ['a', 'b', 'c'], BigInt(123)];
-    expect(rt.isJsonDecodeRequired).toBe(true);
-    expect(rt.isJsonEncodeRequired).toBe(true);
+    expect(rt.getJitConstants().skipJsonDecode).toBe(false);
+    expect(rt.getJitConstants().skipJsonEncode).toBe(false);
     expect(fromJson(toJson(typeValue))).toEqual(typeValue);
 });
 
@@ -132,8 +132,6 @@ it('json stringify tuple with optional params', () => {
     const roundTrip = fromJson(JSON.parse(jsonStringify(typeValue)));
     expect(roundTrip).toEqual(typeValue);
     const typeValue2 = [3];
-    console.log(jsonStringify(typeValue2));
-    console.log(JSON.parse(jsonStringify(typeValue2)));
     const roundTrip2 = fromJson(JSON.parse(jsonStringify(typeValue2)));
     expect(roundTrip2).toEqual([3]);
 });
@@ -153,7 +151,6 @@ it('mock', () => {
 
 it('mock  tuple with optional params', () => {
     const mocked = runType<TupleWithOptionals>().mock();
-    console.log(mocked);
     expect(mocked.length).toBeLessThanOrEqual(4);
     expect(typeof mocked[0]).toBe('number');
     expect(typeof mocked[1] === 'bigint' || typeof mocked[1] === 'undefined').toBeTruthy();
