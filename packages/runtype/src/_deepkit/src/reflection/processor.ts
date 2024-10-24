@@ -1694,7 +1694,21 @@ export class Processor {
 
         // !!!!!! IMPORTANT THIS IS NOT ORIGINAL SRC CODE FROM DEEPKIT !!!!!!
         // this is the single entry point to create mion RunTypes from Deepkit Types
+
+        // type
         createRunType(entry as Type);
+
+         // member type
+        if ((entry as any).type) {
+            createRunType((entry as any).type);
+        }
+
+         // collection types
+        if ((entry as any).types && Array.isArray((entry as any).types)) {
+            for (const t of (entry as any).types) {
+                createRunType(t as Type);
+            }
+        }
 
         // !!!!!! IMPORTANT THIS IS NOT ORIGINAL SRC CODE FROM DEEPKIT !!!!!
 
