@@ -13,9 +13,6 @@ import {getJitErrorPath, getExpected} from '../utils';
 
 export class TupleRunType extends CollectionRunType<TypeTuple> {
     src: TypeTuple = null as any; // will be set after construction
-    getName(): string {
-        throw 'tuple';
-    }
     _compileIsType(cop: JitCompileOp): string {
         const children = this.getJitChildren();
         const varName = cop.vλl;
