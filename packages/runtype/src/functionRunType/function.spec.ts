@@ -77,8 +77,8 @@ it('encode/decode to json parameters', () => {
     const typeValue2 = [3, true];
     expect(rt.isParamsJsonEncodedRequired).toBe(false);
     expect(rt.isParamsJsonDecodedRequired).toBe(false);
-    expect(fromJson(toJson(typeValue))).toEqual(typeValue);
-    expect(fromJson(toJson(typeValue2))).toEqual(typeValue2);
+    expect(fromJson(JSON.parse(JSON.stringify(toJson(typeValue))))).toEqual(typeValue);
+    expect(fromJson(JSON.parse(JSON.stringify(toJson(typeValue2))))).toEqual(typeValue2);
 });
 
 it('required encode/decode to json parameters', () => {
@@ -89,8 +89,8 @@ it('required encode/decode to json parameters', () => {
     const typeValue2 = [d];
     expect(rt2.isParamsJsonEncodedRequired).toBe(false);
     expect(rt2.isParamsJsonDecodedRequired).toBe(true);
-    expect(fromJson(toJson(typeValue))).toEqual(typeValue);
-    expect(fromJson(toJson(typeValue2))).toEqual(typeValue2);
+    expect(fromJson(JSON.parse(JSON.stringify(toJson(typeValue))))).toEqual(typeValue);
+    expect(fromJson(JSON.parse(JSON.stringify(toJson(typeValue2))))).toEqual(typeValue2);
 });
 
 it('json stringify parameters', () => {
@@ -142,7 +142,7 @@ it('encode/decode function return to json', () => {
     const returnValue = new Date();
     expect(rt.isReturnJsonEncodedRequired).toBe(false);
     expect(rt.isReturnJsonDecodedRequired).toBe(true);
-    expect(fromJson(toJson(returnValue))).toEqual(returnValue);
+    expect(fromJson(JSON.parse(JSON.stringify(toJson(returnValue))))).toEqual(returnValue);
 });
 
 it('required encode/decode function return to json', () => {
@@ -151,7 +151,7 @@ it('required encode/decode function return to json', () => {
     const returnValue = 1n;
     expect(rt.isReturnJsonEncodedRequired).toBe(false);
     expect(rt.isReturnJsonDecodedRequired).toBe(true);
-    expect(fromJson(toJson(returnValue))).toEqual(returnValue);
+    expect(fromJson(JSON.parse(JSON.stringify(toJson(returnValue))))).toEqual(returnValue);
 });
 
 it('json stringify function return', () => {
@@ -190,7 +190,7 @@ it('should get runType from a function using reflectFunction', () => {
     const paramsValues = [3, true, 'hello'];
     expect(validate(paramsValues)).toBe(true);
     expect(typeErrors(paramsValues)).toEqual([]);
-    expect(fromJson(toJson(paramsValues))).toBe(paramsValues);
+    expect(fromJson(JSON.parse(JSON.stringify(toJson(paramsValues))))).toBe(paramsValues);
     expect(fromJson(JSON.parse(jsonStringify(paramsValues)))).toEqual(paramsValues);
 
     const validateReturn = reflectedType.compileReturn.isType.fn;

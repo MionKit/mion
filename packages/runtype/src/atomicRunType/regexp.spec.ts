@@ -37,7 +37,7 @@ it('encode/decode json', () => {
     const fromJson = buildJsonDecodeJITFn(rt).fn;
     const toJson = buildJsonEncodeJITFn(rt).fn;
     mockRegExpsList.forEach((regexp) => {
-        expect(fromJson(toJson(regexp))).toEqual(regexp);
+        expect(fromJson(JSON.parse(JSON.stringify(toJson(regexp))))).toEqual(regexp);
     });
 });
 

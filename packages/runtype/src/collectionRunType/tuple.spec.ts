@@ -102,20 +102,22 @@ describe('TupleRunType', () => {
         const toJson = buildJsonEncodeJITFn(rt).fn;
         const fromJson = buildJsonDecodeJITFn(rt).fn;
         const typeValue = [new Date(), 123, 'hello', null, ['a', 'b', 'c'], BigInt(123)];
+        // value used for json encode/decode gets modified so we need to copy it to compare later
+        const copy1 = structuredClone(typeValue);
         expect(rt.getJitConstants().skipJsonDecode).toBe(false);
         expect(rt.getJitConstants().skipJsonEncode).toBe(false);
-        expect(fromJson(toJson(typeValue))).toEqual(typeValue);
+        expect(fromJson(JSON.parse(JSON.stringify(toJson(copy1))))).toEqual(typeValue);
     });
 
     it('encode/decode tuple with optional parameters to json', () => {
         const toJson = buildJsonEncodeJITFn(runType<TupleWithOptionals>()).fn;
         const fromJson = buildJsonDecodeJITFn(runType<TupleWithOptionals>()).fn;
         const typeValue = [3, undefined, true, 4];
-        expect(fromJson(toJson(typeValue))).toEqual(typeValue);
-        expect(fromJson(toJson([3, undefined, undefined, 4]))).toEqual([3, undefined, undefined, 4]);
-        expect(fromJson(toJson([3, 2n, true, 4]))).toEqual([3, 2n, true, 4]);
-        expect(fromJson(toJson([3]))).toEqual([3, undefined, undefined, undefined]);
-        expect(fromJson(toJson([3]))).toEqual([3]);
+        expect(fromJson(JSON.parse(JSON.stringify(toJson(typeValue))))).toEqual(typeValue);
+        expect(fromJson(JSON.parse(JSON.stringify(toJson([3, undefined, undefined, 4]))))).toEqual([3, undefined, undefined, 4]);
+        expect(fromJson(JSON.parse(JSON.stringify(toJson([3, 2n, true, 4]))))).toEqual([3, 2n, true, 4]);
+        expect(fromJson(JSON.parse(JSON.stringify(toJson([3]))))).toEqual([3, undefined, undefined, undefined]);
+        expect(fromJson(JSON.parse(JSON.stringify(toJson([3]))))).toEqual([3]);
     });
 
     it('json stringify', () => {
@@ -193,8 +195,9 @@ describe('TupleRunType with circular type definitions', () => {
         const fromJson = buildJsonDecodeJITFn(rt).fn;
         const tDeep: TupleCircular = [new Date(), 456, 'world', null, ['x', 'y', 'z'], BigInt(456)];
         const typeValue: TupleCircular = [new Date(), 123, 'hello', null, ['a', 'b', 'c'], BigInt(123), tDeep];
-
-        expect(fromJson(toJson(typeValue))).toEqual(typeValue);
+        // value used for json encode/decode gets modified so we need to copy it to compare later
+        const copy1 = structuredClone(typeValue);
+        expect(fromJson(JSON.parse(JSON.stringify(toJson(copy1))))).toEqual(typeValue);
     });
 
     it('json stringify', () => {

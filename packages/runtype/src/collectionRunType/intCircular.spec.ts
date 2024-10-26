@@ -108,9 +108,13 @@ it('should encode/decode objects with circular references', () => {
     const c3: Circular = {n: 3, s: 'foo'};
     c1.c = c2; // non circular
     c3.c = c3; // circular
-    expect(fromJson(toJson(c1))).toEqual(c1);
-    expect(fromJson(toJson(c2))).toEqual(c2);
-    expect(fromJson(toJson(c3))).toEqual(c3);
+    // value used for json encode/decode gets modified so we need to copy it to compare later
+    const copy1 = structuredClone(c1);
+    const copy2 = structuredClone(c2);
+    const copy3 = structuredClone(c3);
+    expect(fromJson(JSON.parse(JSON.stringify(toJson(copy1))))).toEqual(c1);
+    expect(fromJson(JSON.parse(JSON.stringify(toJson(copy2))))).toEqual(c2);
+    expect(fromJson(JSON.parse(JSON.stringify(toJson(copy3))))).toEqual(c3);
 });
 
 it('should use JSON.stringify when there are circular references', () => {
@@ -158,16 +162,14 @@ describe('Circular array + union', () => {
         const toJson = buildJsonEncodeJITFn(rt).fn;
         const fromJson = buildJsonDecodeJITFn(rt).fn;
         const typeValue = new Date();
-        expect(rt.isJsonDecodeRequired).toBe(true);
-        expect(rt.isJsonEncodeRequired).toBe(true);
-        expect(fromJson(toJson(typeValue))).toEqual(typeValue);
-        expect(fromJson(toJson(123))).toEqual(123);
-        expect(fromJson(toJson('hello'))).toEqual('hello');
-        expect(fromJson(toJson(null))).toEqual(null);
-        expect(fromJson(toJson(['a', 'b', 'c']))).toEqual(['a', 'b', 'c']);
+        expect(fromJson(JSON.parse(JSON.stringify(toJson(typeValue))))).toEqual(typeValue);
+        expect(fromJson(JSON.parse(JSON.stringify(toJson(123))))).toEqual(123);
+        expect(fromJson(JSON.parse(JSON.stringify(toJson('hello'))))).toEqual('hello');
+        expect(fromJson(JSON.parse(JSON.stringify(toJson(null))))).toEqual(null);
+        expect(fromJson(JSON.parse(JSON.stringify(toJson(['a', 'b', 'c']))))).toEqual(['a', 'b', 'c']);
 
         // objects are not the same same object in memory after round trip
-        expect(fromJson(toJson(typeValue))).not.toBe(typeValue);
+        expect(fromJson(JSON.parse(JSON.stringify(toJson(typeValue))))).not.toBe(typeValue);
     });
 
     it('json stringify CircularUnion array with discriminator', () => {

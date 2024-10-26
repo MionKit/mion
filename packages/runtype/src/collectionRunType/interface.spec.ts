@@ -45,6 +45,7 @@ describe('Interface', () => {
 
     it('validate object', () => {
         const validate = buildIsTypeJITFn(rt).fn;
+
         expect(
             validate({
                 startDate: new Date(),
@@ -128,7 +129,7 @@ describe('Interface', () => {
         expect(valWithErrors('hello')).toEqual([
             {
                 path: [],
-                expected: `interface`,
+                expected: `objectLiteral`,
             },
         ]);
         expect(
@@ -163,9 +164,11 @@ describe('Interface', () => {
             bigInt: BigInt(123),
             "weird prop name \n?>'\\\t\r": 'hello2',
         };
+        // value used for json encode/decode gets modified so we need to copy it to compare later
+        const copy = {...typeValue};
         expect(rt.getJitConstants().skipJsonDecode).toBe(false);
         expect(rt.getJitConstants().skipJsonEncode).toBe(false);
-        expect(fromJson(toJson(typeValue))).toEqual(typeValue);
+        expect(fromJson(JSON.parse(JSON.stringify(toJson(copy))))).toEqual(typeValue);
     });
 
     // TODO: disabled for now. JSON strict will be moved to an extra validation step instead when serializing/deserializing
@@ -177,7 +180,7 @@ describe('Interface', () => {
             methodProp: () => 'hello',
             [Symbol('test')]: 'hello',
         };
-        expect(fromJson(toJson(typeValue))).toEqual({name: 'hello'});
+        expect(fromJson(JSON.parse(JSON.stringify(toJson(typeValue))))).toEqual({name: 'hello'});
     });
 
     it('json stringify', () => {
@@ -228,7 +231,7 @@ describe('Interface', () => {
         const toJson = buildJsonEncodeJITFn(rtI).fn;
         const fromJson = buildJsonDecodeJITFn(rtI).fn;
         const typeValue = {name: 'John', surname: 'Doe'};
-        expect(fromJson(toJson(typeValue))).toEqual(typeValue);
+        expect(fromJson(JSON.parse(JSON.stringify(toJson(typeValue))))).toEqual(typeValue);
 
         const jsonStringify = buildJsonStringifyJITFn(rtI).fn;
         const roundTrip = fromJson(JSON.parse(jsonStringify(typeValue)));
@@ -275,7 +278,9 @@ describe('Interface with circular ref properties', () => {
         const toJson = buildJsonEncodeJITFn(rt).fn;
         const fromJson = buildJsonDecodeJITFn(rt).fn;
         const obj: ICircular = {name: 'hello', child: {name: 'world'}};
-        expect(fromJson(toJson(obj))).toEqual(obj);
+        // value used for json encode/decode gets modified so we need to copy it to compare later
+        const copy = {...obj};
+        expect(fromJson(JSON.parse(JSON.stringify(toJson(copy))))).toEqual(obj);
     });
 
     it('json stringify', () => {
@@ -328,7 +333,7 @@ describe('Interface with circular ref type array', () => {
             {path: ['children', 0, 'name'], expected: 'string'},
             {path: ['children', 1, 'children'], expected: 'array'},
         ]);
-        expect(valWithErrors(obj4)).toEqual([{path: ['children', 0], expected: 'interface'}]);
+        expect(valWithErrors(obj4)).toEqual([{path: ['children', 0], expected: 'objectLiteral'}]);
     });
 
     it('encode/decode to json', () => {
@@ -336,8 +341,11 @@ describe('Interface with circular ref type array', () => {
         const fromJson = buildJsonDecodeJITFn(rt).fn;
         const obj1: ICircularArray = {name: 'hello', children: []};
         const obj2: ICircularArray = {name: 'hello', children: [{name: 'world'}]};
-        expect(fromJson(toJson(obj1))).toEqual(obj1);
-        expect(fromJson(toJson(obj2))).toEqual(obj2);
+        // value used for json encode/decode gets modified so we need to copy it to compare later
+        const copy1 = {...obj1};
+        const copy2 = {...obj2};
+        expect(fromJson(JSON.parse(JSON.stringify(toJson(copy1))))).toEqual(obj1);
+        expect(fromJson(JSON.parse(JSON.stringify(toJson(copy2))))).toEqual(obj2);
     });
 
     it('json stringify', () => {
@@ -412,8 +420,11 @@ describe('Interface with nested circular type', () => {
             name: 'hello',
             embedded: {hello: 'world', child: {name: 'world1', embedded: {hello: 'world2'}}},
         };
-        expect(fromJson(toJson(obj1))).toEqual(obj1);
-        expect(fromJson(toJson(obj2))).toEqual(obj2);
+        // value used for json encode/decode gets modified so we need to copy it to compare later
+        const copy1 = {...obj1};
+        const copy2 = {...obj2};
+        expect(fromJson(JSON.parse(JSON.stringify(toJson(copy1))))).toEqual(obj1);
+        expect(fromJson(JSON.parse(JSON.stringify(toJson(copy2))))).toEqual(obj2);
     });
 
     it('json stringify', () => {
@@ -517,7 +528,7 @@ describe('Interface with nested circular type where root is not the circular ref
         expect(valWithErrors(obj4)).toEqual([{path: ['ciChild', 'embedded', 'child', 'embedded', 'hello'], expected: 'string'}]);
         expect(valWithErrors(obj5)).toEqual([
             {path: ['isRoot'], expected: 'literal'},
-            {path: ['ciChild', 'embedded', 'child'], expected: 'interface'},
+            {path: ['ciChild', 'embedded', 'child'], expected: 'objectLiteral'},
         ]);
     });
 
@@ -533,8 +544,11 @@ describe('Interface with nested circular type where root is not the circular ref
                 embedded: {hello: 'world', child: {name: 'world1', big: 1n, embedded: {hello: 'world2'}}},
             },
         };
-        expect(fromJson(toJson(obj1))).toEqual(obj1);
-        expect(fromJson(toJson(obj2))).toEqual(obj2);
+        // value used for json encode/decode gets modified so we need to copy it to compare later
+        const copy1 = structuredClone(obj1);
+        const copy2 = structuredClone(obj2);
+        expect(fromJson(JSON.parse(JSON.stringify(toJson(copy1))))).toEqual(obj1);
+        expect(fromJson(JSON.parse(JSON.stringify(toJson(copy2))))).toEqual(obj2);
     });
 
     it('json stringify', () => {
@@ -660,21 +674,21 @@ describe('Interface with nested circular + multiple circular', () => {
         const obj5 = {isRoot: false, ciChild: {name: 'hello', big: 1n, embedded: {hello: 'world', child: 123}}, ciDate};
         expect(valWithErrors(obj3)).toEqual([
             {path: ['ciChild', 'embedded', 'hello'], expected: 'string'},
-            {path: ['ciDate'], expected: 'interface'},
+            {path: ['ciDate'], expected: 'objectLiteral'},
         ]);
         expect(valWithErrors(obj4)).toEqual([{path: ['ciChild', 'embedded', 'child', 'embedded', 'hello'], expected: 'string'}]);
         expect(valWithErrors(obj5)).toEqual([
             {path: ['isRoot'], expected: 'literal'},
-            {path: ['ciChild', 'embedded', 'child'], expected: 'interface'},
+            {path: ['ciChild', 'embedded', 'child'], expected: 'objectLiteral'},
         ]);
 
         // wrong ciDate
         obj5.ciDate = {date: 'fello', month: 1, year: 2021, embedded: true} as any;
         expect(valWithErrors(obj5)).toEqual([
             {path: ['isRoot'], expected: 'literal'},
-            {path: ['ciChild', 'embedded', 'child'], expected: 'interface'},
+            {path: ['ciChild', 'embedded', 'child'], expected: 'objectLiteral'},
             {path: ['ciDate', 'date'], expected: 'date'},
-            {path: ['ciDate', 'embedded'], expected: 'interface'},
+            {path: ['ciDate', 'embedded'], expected: 'objectLiteral'},
         ]);
     });
 
@@ -692,8 +706,11 @@ describe('Interface with nested circular + multiple circular', () => {
             },
             ciDate,
         };
-        expect(fromJson(toJson(obj1))).toEqual(obj1);
-        expect(fromJson(toJson(obj2))).toEqual(obj2);
+        // value used for json encode/decode gets modified so we need to copy it to compare later
+        const copy1 = structuredClone(obj1);
+        const copy2 = structuredClone(obj2);
+        expect(fromJson(JSON.parse(JSON.stringify(toJson(copy1))))).toEqual(obj1);
+        expect(fromJson(JSON.parse(JSON.stringify(toJson(copy2))))).toEqual(obj2);
     });
 
     it('json stringify', () => {
@@ -756,8 +773,8 @@ describe('Interface with circular ref tuple', () => {
 
         const obj3 = {name: 'hello', parent: ['world', 123]};
         const obj4 = {name: 'hello', parent: ['world', {name: 'world', parent: ['hello', 123]}]};
-        expect(valWithErrors(obj3)).toEqual([{path: ['parent', 1], expected: 'interface'}]);
-        expect(valWithErrors(obj4)).toEqual([{path: ['parent', 1, 'parent', 1], expected: 'interface'}]);
+        expect(valWithErrors(obj3)).toEqual([{path: ['parent', 1], expected: 'objectLiteral'}]);
+        expect(valWithErrors(obj4)).toEqual([{path: ['parent', 1, 'parent', 1], expected: 'objectLiteral'}]);
     });
 
     it('encode/decode to json', () => {
@@ -765,8 +782,11 @@ describe('Interface with circular ref tuple', () => {
         const fromJson = buildJsonDecodeJITFn(rt).fn;
         const obj1: ICircularTuple = {name: 'hello', parent: ['world', {name: 'world'}]};
         const obj2: ICircularTuple = {name: 'hello', parent: ['world', {name: 'world', parent: ['hello', obj1]}]};
-        expect(fromJson(toJson(obj1))).toEqual(obj1);
-        expect(fromJson(toJson(obj2))).toEqual(obj2);
+        // value used for json encode/decode gets modified so we need to copy it to compare later
+        const copy1 = structuredClone(obj1);
+        const copy2 = structuredClone(obj2);
+        expect(fromJson(JSON.parse(JSON.stringify(toJson(copy1))))).toEqual(obj1);
+        expect(fromJson(JSON.parse(JSON.stringify(toJson(copy2))))).toEqual(obj2);
     });
 
     it('json stringify', () => {

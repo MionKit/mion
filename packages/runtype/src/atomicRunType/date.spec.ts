@@ -31,7 +31,7 @@ it('encode/decode to json', () => {
     const toJson = buildJsonEncodeJITFn(rt).fn;
     const fromJson = buildJsonDecodeJITFn(rt).fn;
     const typeValue = new Date();
-    expect(fromJson(toJson(typeValue))).toEqual(typeValue);
+    expect(fromJson(JSON.parse(JSON.stringify(toJson(typeValue))))).toEqual(typeValue);
 });
 
 it('json stringify', () => {
