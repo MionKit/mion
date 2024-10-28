@@ -17,9 +17,9 @@ import type {
     StackCallFlags,
 } from './types';
 import {buildJITFunctions} from './jitCompiler';
-import {getPropIndex, memo} from './utils';
+import {getPropIndex, memo, sKipJsonFromOptions} from './utils';
 import {maxStackDepth, maxStackErrorMessage} from './constants';
-import {JitCompileOp, JitCompileOperation, JitTypeErrorCompileOp} from './jitOperation';
+import {JitDefaultOp, JitCompileOperation, JitTypeErrorCompileOp} from './jitOperation';
 import {getReflectionName} from './reflectionNames';
 
 type DkCollection = Type & {types: Type[]};
@@ -44,14 +44,14 @@ export abstract class BaseRunType<T extends Type> implements RunType {
     // ########## Compile Methods ##########
 
     // child classes must implement these methods that contains the jit generation logic
-    abstract _compileIsType(cop: JitCompileOp): string;
+    abstract _compileIsType(cop: JitDefaultOp): string;
     abstract _compileTypeErrors(cop: JitTypeErrorCompileOp): string;
-    abstract _compileJsonEncode(cop: JitCompileOp): string;
-    abstract _compileJsonDecode(cop: JitCompileOp): string;
-    abstract _compileJsonStringify(cop: JitCompileOp): string;
+    abstract _compileJsonEncode(cop: JitDefaultOp): string;
+    abstract _compileJsonDecode(cop: JitDefaultOp): string;
+    abstract _compileJsonStringify(cop: JitDefaultOp): string;
 
     // these methods handle circular compiling and increase/decrease the stack level
-    compileIsType(cop: JitCompileOp): string {
+    compileIsType(cop: JitDefaultOp): string {
         const callFlags = cop.pushStack(this);
         let code: string | undefined;
         if (callFlags?.shouldCall) {
@@ -84,7 +84,7 @@ export abstract class BaseRunType<T extends Type> implements RunType {
         cop.popStack();
         return code;
     }
-    compileJsonEncode(cop: JitCompileOp): string {
+    compileJsonEncode(cop: JitDefaultOp): string {
         const callFlags = cop.pushStack(this);
         let code: string | undefined;
         if (callFlags?.shouldCall) {
@@ -97,7 +97,7 @@ export abstract class BaseRunType<T extends Type> implements RunType {
         cop.popStack();
         return code;
     }
-    compileJsonDecode(cop: JitCompileOp): string {
+    compileJsonDecode(cop: JitDefaultOp): string {
         const callFlags = cop.pushStack(this);
         let code: string | undefined;
         if (callFlags?.shouldCall) {
@@ -110,7 +110,7 @@ export abstract class BaseRunType<T extends Type> implements RunType {
         cop.popStack();
         return code;
     }
-    compileJsonStringify(cop: JitCompileOp): string {
+    compileJsonStringify(cop: JitDefaultOp): string {
         const callFlags = cop.pushStack(this);
         let code: string | undefined;
         if (callFlags?.shouldCall) {
@@ -206,6 +206,14 @@ export abstract class AtomicRunType<T extends Type> extends BaseRunType<T> {
     getFamily(): 'A' {
         return 'A';
     }
+    compileJsonEncode(cop: JitDefaultOp): string {
+        if (this.getJitConstants().skipJsonEncode) return '';
+        return super.compileJsonEncode(cop);
+    }
+    compileJsonDecode(cop: JitDefaultOp): string {
+        if (this.getJitConstants().skipJsonDecode) return '';
+        return super.compileJsonDecode(cop);
+    }
 }
 
 /**
@@ -225,10 +233,14 @@ export abstract class CollectionRunType<T extends Type> extends BaseRunType<T> {
     getJitChildren(): RunType[] {
         return this.getChildRunTypes().filter((c) => !c.getJitConstants().skipJit);
     }
-    getJsonEncodeChildren(): RunType[] {
+    getJsonEncodeChildren(cop: JitCompileOperation): RunType[] {
+        if (cop.compileOptions.safeJSON !== 'none')
+            return this.getJitChildren().filter((c) => c.getFamily() !== 'A' || !c.getJitConstants().skipJsonEncode);
         return this.getChildRunTypes().filter((c) => !c.getJitConstants().skipJit && !c.getJitConstants().skipJsonEncode);
     }
-    getJsonDecodeChildren(): RunType[] {
+    getJsonDecodeChildren(cop: JitCompileOperation): RunType[] {
+        if (cop.compileOptions.safeJSON !== 'none')
+            return this.getJitChildren().filter((c) => c.getFamily() !== 'A' || !c.getJitConstants().skipJsonDecode);
         return this.getChildRunTypes().filter((c) => !c.getJitConstants().skipJit && !c.getJitConstants().skipJsonDecode);
     }
     getJitConstants(stack: RunType[] = []): JitConstants {
@@ -285,13 +297,15 @@ export abstract class MemberRunType<T extends Type> extends BaseRunType<T> imple
         if (member.getJitConstants().skipJit) member = undefined;
         return member;
     }
-    getJsonEncodeChild(): RunType | undefined {
+    getJsonEncodeChild(cop: JitCompileOperation): RunType | undefined {
         const child = this.getJitChild();
-        if (!child || child.getJitConstants().skipJsonEncode) return undefined;
+        if (child && child.getFamily() !== 'A' && cop.compileOptions.safeJSON !== 'none') return child;
+        if (!child || child.getJitConstants().skipJsonEncode || sKipJsonFromOptions(cop, this)) return undefined;
         return child;
     }
-    getJsonDecodeChild(): RunType | undefined {
+    getJsonDecodeChild(cop: JitCompileOperation): RunType | undefined {
         const child = this.getJitChild();
+        if (child && child.getFamily() !== 'A' && cop.compileOptions.safeJSON !== 'none') return child;
         if (!child || child.getJitConstants().skipJsonDecode) return undefined;
         return child;
     }

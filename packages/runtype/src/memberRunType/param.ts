@@ -7,7 +7,7 @@
 
 import {TypeParameter} from '../_deepkit/src/reflection/type';
 import {MemberRunType} from '../baseRunTypes';
-import {JitCompileOp, JitTypeErrorCompileOp} from '../jitOperation';
+import {JitDefaultOp, JitTypeErrorCompileOp} from '../jitOperation';
 import {MockContext} from '../types';
 import {RestParamsRunType} from './restParams';
 
@@ -28,7 +28,7 @@ export class ParameterRunType extends MemberRunType<TypeParameter> {
     isRest(): boolean {
         return this.getMemberType() instanceof RestParamsRunType;
     }
-    _compileIsType(cop: JitCompileOp): string {
+    _compileIsType(cop: JitDefaultOp): string {
         if (this.isRest()) {
             return this.getMemberType().compileIsType(cop);
         } else {
@@ -46,13 +46,13 @@ export class ParameterRunType extends MemberRunType<TypeParameter> {
             return this.isOptional() ? `if (${varName} !== undefined) {${itemCode}}` : itemCode;
         }
     }
-    _compileJsonEncode(cop: JitCompileOp): string {
+    _compileJsonEncode(cop: JitDefaultOp): string {
         return this.getMemberType().compileJsonEncode(cop);
     }
-    _compileJsonDecode(cop: JitCompileOp): string {
+    _compileJsonDecode(cop: JitDefaultOp): string {
         return this.getMemberType().compileJsonDecode(cop);
     }
-    _compileJsonStringify(cop: JitCompileOp): string {
+    _compileJsonStringify(cop: JitDefaultOp): string {
         if (this.isRest()) {
             return this.getMemberType().compileJsonStringify(cop);
         } else {

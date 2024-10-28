@@ -6,12 +6,15 @@
  * ######## */
 
 import {TypeUnion} from '../_deepkit/src/reflection/type';
-import {MockContext} from '../types';
-import {getJitErrorPath, getExpected} from '../utils';
+import {MockContext, RunType} from '../types';
 import {random} from '../mock';
 import {CollectionRunType} from '../baseRunTypes';
-import {isCollectionRunType} from '../guards';
-import {JitCompileOp, JitTypeErrorCompileOp} from '../jitOperation';
+import {JitDefaultOp, JitTypeErrorCompileOp} from '../jitOperation';
+import {compileIsTypeFromOtherOp, getExpected, getJitErrorPath, memo} from '../utils';
+import {InterfaceRunType} from './interface';
+import {ClassRunType} from './class';
+import {IntersectionRunType} from './intersection';
+import {UnionInterfaceRunType} from '../mergerRunType/unionInterface';
 
 /**
  * Unions get encoded into an array where arr[0] is the discriminator and arr[1] is the value.
@@ -22,45 +25,44 @@ import {JitCompileOp, JitTypeErrorCompileOp} from '../jitOperation';
  * */
 export class UnionRunType extends CollectionRunType<TypeUnion> {
     src: TypeUnion = null as any; // will be set after construction
+
     // #### collection's jit code ####
-    _compileIsType(cop: JitCompileOp): string {
-        const children = this.getJitChildren();
+    _compileIsType(cop: JitDefaultOp): string {
+        const children = this.getMergedJitChildren();
         return `(${children.map((rt) => rt.compileIsType(cop)).join(' || ')})`;
     }
+
+    // this version just heck if has error and return an single error in the root of the union.
+    // if all types we cant know one the user was trying to use.
     _compileTypeErrors(cop: JitTypeErrorCompileOp): string {
-        const errorsVarName = cop.args.εrr;
-        const childErrors = cop.args.εrr;
-        const atomicChildren = this.getChildRunTypes().filter((rt) => !isCollectionRunType(rt));
-        // TODO, old TS version, does not catch the type of rt, any[] is used to avoid compilation errors
-        const collectionChildren: any[] = this.getChildRunTypes().filter((rt) => isCollectionRunType(rt));
+        const children = this.getMergedJitChildren();
+        const isType = `(${children.map((rt) => compileIsTypeFromOtherOp(cop, rt)).join(' || ')})`;
+        const errorsPath = getJitErrorPath(cop);
+        return `if (!${isType}) ${cop.args.εrr}.push({path: ${errorsPath}, expected: ${getExpected(this)}});`;
+    }
 
-        // on atomic types if value matches a atomic type we can say the type is correct and return without adding errors
-        const atomicItemsCode = atomicChildren
-            .map((rt) => {
-                // if match an union type then don't need to check the rest of the types
-                return `if (${rt.compileIsType(cop)}) return ${childErrors};`;
-            })
-            .join('\n');
+    /** TODO: this version returns an error for every single item in the union.
+     * We would need to group the types by the ones that expert an array an object or any other type. and only push errors related to that type */
+    private _compileTypeErrorsTODO(cop: JitTypeErrorCompileOp): string {
+        const children = this.getMergedJitChildren();
 
-        // on collection types if value matches the collection type (ie: array or object, etc) we need to check type errors for that type and return if no errors are found
-        // if errors are found we can continue checking the rest of the types
-        const collectionsItemsCode = collectionChildren
-            .map((rt, i) => {
-                const isCollectionType = false; // TODO upgrade union algorithm
-                // if there are no errors found that means the type is correct and we can return
-                const errorsBefore = `εrr${i}Bef${cop.length}`;
-                return `if (${isCollectionType}) {
-                        const ${errorsBefore} = ${childErrors}.length;
-                        ${rt.compileTypeErrors(cop)}
-                        if(${errorsBefore} === ${childErrors}.length) return ${childErrors};
-                    }`;
-            })
-            .join('\n');
-        // if we do all checks and code reaches this point then we can add an error for the root type
+        const countVar = `εrrCount${this.getNestLevel()}`;
+        const startVar = `εrrStart${this.getNestLevel()}`;
+        const indexVar = `uε${this.getNestLevel()}`;
+
         return `
-            ${atomicItemsCode}
-            ${collectionsItemsCode}
-            ${errorsVarName}.push({path: ${getJitErrorPath(cop)},expected: ${getExpected(this)}});
+            const ${startVar} = ${cop.args.εrr}.length;
+            for (let ${indexVar} = 0; ${indexVar} < ${children.length}; ${indexVar}++) {
+                const ${countVar} = ${cop.args.εrr}.length;
+                switch (${indexVar}) {
+                    ${children.map((rt, i) => `case ${i}: {${rt.compileTypeErrors(cop)}; break;}`).join('\n')}
+                }
+                // if no errors were added, means that the type is valid, we clear previous errors and return
+                if (${countVar} === ${cop.args.εrr}.length) {
+                    ${cop.args.εrr}.splice(${startVar} - ${cop.args.εrr}.length);
+                    break;
+                }
+            }
         `;
     }
     /**
@@ -69,20 +71,23 @@ export class UnionRunType extends CollectionRunType<TypeUnion> {
      * the second element is the encoded value of the type.
      * ie: type union = string | number | bigint;  var v1: union = 123n;  v1 is encoded as [2, "123n"]
      */
-    _compileJsonEncode(cop: JitCompileOp): string {
-        const varName = cop.vλl;
-        const childVarName = cop.vλl;
-        const childrenCode = this.getChildRunTypes()
+    _compileJsonEncode(cop: JitDefaultOp): string {
+        const childrenCode = this.getMergedJitChildren()
             .map((rt, i) => {
+                const isMergedInterface = rt instanceof UnionInterfaceRunType;
                 const itemCode = rt.compileJsonEncode(cop);
+                const itemIsType = isMergedInterface
+                    ? `typeof ${cop.vλl} === 'object' && ${cop.vλl} !== null`
+                    : compileIsTypeFromOtherOp(cop, rt);
                 const iF = i === 0 ? 'if' : 'else if';
                 // item encoded before reassigning varName to [i, item]
-                return `${iF} (${rt.compileIsType(cop)}) {${childVarName} = [${i}, ${childVarName}]; ${itemCode}}`;
+                return `${iF} (${itemIsType}) {${itemCode}; ${cop.vλl} = [${i}, ${cop.vλl}]}`;
             })
+            .filter((c) => !!c)
             .join('');
         return `
                 ${childrenCode}
-                else { throw new Error('Can not encode json to union: expected one of <${this.getUnionTypeNames()}> but got ' + ${varName}?.constructor?.name || typeof ${varName}) }
+                else { throw new Error('Can not encode json to union: expected one of <${this.getUnionTypeNames()}> but got ' + ${cop.vλl}?.constructor?.name || typeof ${cop.vλl}) }
             `;
     }
     /**
@@ -91,26 +96,28 @@ export class UnionRunType extends CollectionRunType<TypeUnion> {
      * the second element is the encoded value of the type.
      * ie: type union = string | number | bigint;  var v1: union = 123n;  v1 is encoded as [2, "123n"]
      */
-    _compileJsonDecode(cop: JitCompileOp): string {
-        const discriminator = `${cop.vλl}[0]`;
-        const childrenCode = this.getChildRunTypes()
+    _compileJsonDecode(cop: JitDefaultOp): string {
+        const childrenCode = this.getMergedJitChildren()
             .map((rt, i) => {
                 const itemCode = `${rt.compileJsonDecode(cop)};`;
                 const iF = i === 0 ? 'if' : 'else if';
                 // item is decoded before being extracted from the array
-                return `${iF} ( ${discriminator} === ${i}) {${itemCode} ${discriminator} = ${cop.vλl}}`;
+                return `${iF} ( ${cop.vλl}[0] === ${i}) {${cop.vλl} = ${cop.vλl}[1]; ${itemCode}}`;
             })
+            .filter((c) => !!c)
             .join('');
         return `
                 ${childrenCode}
                 else { throw new Error('Can not decode json to union: expected one of <${this.getUnionTypeNames()}> but got ' + ${cop.vλl}?.constructor?.name || typeof ${cop.vλl}) }
             `;
     }
-    _compileJsonStringify(cop: JitCompileOp): string {
-        const childrenCode = this.getChildRunTypes()
+    _compileJsonStringify(cop: JitDefaultOp): string {
+        const childrenCode = this.getMergedJitChildren()
             .map((rt, i) => {
-                return `if (${rt.compileIsType(cop)}) {return ('[' + ${i} + ',' + ${rt.compileJsonStringify(cop)} + ']');}`;
+                const itemIsType = compileIsTypeFromOtherOp(cop, rt);
+                return `if (${itemIsType}) {return ('[' + ${i} + ',' + ${rt.compileJsonStringify(cop)} + ']');}`;
             })
+            .filter((c) => !!c)
             .join('');
         return `
             ${childrenCode}
@@ -130,18 +137,29 @@ export class UnionRunType extends CollectionRunType<TypeUnion> {
             .join(' | ');
     }
 
-    hasReturnCompileIsType(): boolean {
-        return true;
+    // typescript merge all properties of interfaces, classes and object literals in the union.
+    private getMergedJitChildren = memo((): RunType[] => {
+        let mergedInterface: UnionInterfaceRunType | undefined;
+        const children = this.getJitChildren();
+        const nonInterfaceChildren: RunType[] = [];
+        for (const rt of children) {
+            const shouldMerge = rt instanceof InterfaceRunType || rt instanceof ClassRunType || rt instanceof IntersectionRunType;
+            if (shouldMerge) {
+                mergedInterface = this.initMergedInterface(mergedInterface, rt);
+            } else {
+                nonInterfaceChildren.push(rt);
+            }
+        }
+        if (mergedInterface) nonInterfaceChildren.push(mergedInterface);
+        return nonInterfaceChildren;
+    });
+
+    private initMergedInterface(mergedInterface: UnionInterfaceRunType | undefined, rt: RunType) {
+        if (!mergedInterface) mergedInterface = new UnionInterfaceRunType();
+        mergedInterface.mergeInterface(rt as InterfaceRunType);
+        return mergedInterface;
     }
-    hasReturnCompileTypeErrors(): boolean {
-        return true;
-    }
-    hasReturnCompileJsonEncode(): boolean {
-        return true;
-    }
-    hasReturnCompileJsonDecode(): boolean {
-        return true;
-    }
+
     hasReturnCompileJsonStringify(): boolean {
         return true;
     }

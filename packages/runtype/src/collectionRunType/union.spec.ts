@@ -12,6 +12,7 @@ import {
     buildTypeErrorsJITFn,
     buildJsonStringifyJITFn,
 } from '../jitCompiler';
+import {jitUtils} from '../jitUtils';
 
 describe('Atomic Union', () => {
     type AtomicUnion = Date | number | string | null | bigint;
@@ -59,16 +60,14 @@ describe('Atomic Union', () => {
         const toJson = buildJsonEncodeJITFn(rt).fn;
         const fromJson = buildJsonDecodeJITFn(rt).fn;
 
-        expect(rt.isJsonDecodeRequired).toBe(true);
-        expect(rt.isJsonEncodeRequired).toBe(true);
-        expect(fromJson(toJson(a))).toEqual(a);
-        expect(fromJson(toJson(b))).toEqual(b);
-        expect(fromJson(toJson(c))).toEqual(c);
-        expect(fromJson(toJson(d))).toEqual(d);
-        expect(fromJson(toJson(e))).toEqual(e);
+        expect(fromJson(JSON.parse(JSON.stringify(toJson(a))))).toEqual(a);
+        expect(fromJson(JSON.parse(JSON.stringify(toJson(b))))).toEqual(b);
+        expect(fromJson(JSON.parse(JSON.stringify(toJson(c))))).toEqual(c);
+        expect(fromJson(JSON.parse(JSON.stringify(toJson(d))))).toEqual(d);
+        expect(fromJson(JSON.parse(JSON.stringify(toJson(e))))).toEqual(e);
 
         // objects are not the same same object in memory after round trip
-        expect(fromJson(toJson(a))).not.toBe(a);
+        expect(fromJson(JSON.parse(JSON.stringify(toJson(a))))).not.toBe(a);
     });
 
     it('json stringify with discriminator', () => {
@@ -147,15 +146,13 @@ describe('Union Arr', () => {
         const toJson = buildJsonEncodeJITFn(rt).fn;
         const fromJson = buildJsonDecodeJITFn(rt).fn;
 
-        expect(rt.isJsonDecodeRequired).toBe(true);
-        expect(rt.isJsonEncodeRequired).toBe(true);
-        expect(fromJson(toJson(arrA))).toEqual(arrA);
-        expect(fromJson(toJson(arrB))).toEqual(arrB);
-        expect(fromJson(toJson(arrC))).toEqual(arrC);
-        expect(fromJson(toJson(arrD))).toEqual(arrD);
+        expect(fromJson(JSON.parse(JSON.stringify(toJson(arrA))))).toEqual(arrA);
+        expect(fromJson(JSON.parse(JSON.stringify(toJson(arrB))))).toEqual(arrB);
+        expect(fromJson(JSON.parse(JSON.stringify(toJson(arrC))))).toEqual(arrC);
+        expect(fromJson(JSON.parse(JSON.stringify(toJson(arrD))))).toEqual(arrD);
 
         // objects are not the same same object in memory after round trip
-        expect(fromJson(toJson(arrA))).not.toBe(arrA);
+        expect(fromJson(JSON.parse(JSON.stringify(toJson(arrA))))).not.toBe(arrA);
     });
 
     it('json stringify with discriminator', () => {
@@ -191,11 +188,12 @@ describe('Union Arr', () => {
 });
 
 describe('Union Obj', () => {
-    type UnionObj = {a: string} | {b: number} | {c: boolean};
+    type UnionObj = {a: string} | {b: number} | {c: bigint};
 
-    // union of objects allow for an abject with all the properties of the objects
-    const objA: UnionObj = {a: 'hello', b: 123, c: true};
+    // mion does not allow mix of properties in the union
+    const objA: UnionObj = {a: 'hello', b: 123, c: 1n};
     const objB: UnionObj = {a: 'world'};
+    const objC: UnionObj = {c: 1n};
     const notA = {}; // union of object must have at least one of the properties of the union
     const notB = {a: 123}; // properties of the union must be of the correct type
 
@@ -207,8 +205,9 @@ describe('Union Obj', () => {
     it('validate union', () => {
         const validate = buildIsTypeJITFn(rt).fn;
 
-        expect(validate(objA)).toBe(true);
+        expect(validate(objA)).toBe(false);
         expect(validate(objB)).toBe(true);
+        expect(validate(objC)).toBe(true);
 
         expect(validate(notA)).toBe(false);
         expect(validate(notB)).toBe(false);
@@ -218,8 +217,9 @@ describe('Union Obj', () => {
     it('validate union + errors', () => {
         const valWithErrors = buildTypeErrorsJITFn(rt).fn;
 
-        expect(valWithErrors(objA)).toEqual([]);
+        expect(valWithErrors(objA)).toEqual([{path: [], expected: 'union'}]);
         expect(valWithErrors(objB)).toEqual([]);
+        expect(valWithErrors(objC)).toEqual([]);
 
         expect(valWithErrors(notA)).toEqual([{path: [], expected: 'union'}]);
         expect(valWithErrors(notB)).toEqual([{path: [], expected: 'union'}]);
@@ -230,19 +230,20 @@ describe('Union Obj', () => {
         const toJson = buildJsonEncodeJITFn(rt).fn;
         const fromJson = buildJsonDecodeJITFn(rt).fn;
 
-        expect(rt.isJsonDecodeRequired).toBe(true);
-        expect(rt.isJsonEncodeRequired).toBe(true);
-        expect(fromJson(toJson(objA))).toEqual(objA);
-        expect(fromJson(toJson(objB))).toEqual(objB);
+        expect(fromJson(JSON.parse(JSON.stringify(toJson(objA))))).toEqual(objA);
+        expect(fromJson(JSON.parse(JSON.stringify(toJson(objB))))).toEqual(objB);
+        expect(fromJson(JSON.parse(JSON.stringify(toJson(objC))))).toEqual(objC);
 
         // objects are not the same same object in memory after round trip
-        expect(fromJson(toJson(objA))).not.toBe(objA);
+        expect(fromJson(JSON.parse(JSON.stringify(toJson(objA))))).not.toBe(objA);
     });
 
     it('json stringify with discriminator', () => {
         // this should be serialized as [discriminatorIndex, value]
         const jsonStringify = buildJsonStringifyJITFn(rt).fn;
         const fromJson = buildJsonDecodeJITFn(rt).fn;
+
+        console.log(jsonStringify(objA));
 
         expect(fromJson(JSON.parse(jsonStringify(objA)))).toEqual(objA);
         expect(fromJson(JSON.parse(jsonStringify(objB)))).toEqual(objB);
@@ -276,39 +277,73 @@ describe('Union Obj', () => {
 });
 
 describe('Union Mixed', () => {
-    type UnionMix = string[] | number[] | boolean[] | {a: string} | {b: number} | {c: boolean};
+    /**
+     * Union of mixed types
+     * Mion's run time union validation is slightly different from typescript union algorithm.
+     * typescript allows for mixing of properties of objects in the union, mion does not.
+     * Look mixD object bellow, it has mixed properties of the objects in the union, typescript allows this but mion validation fails.
+     */
+    class D {
+        public d: Date = new Date();
+    }
+    type UnionMix = string[] | number[] | boolean[] | {a: string; aa: boolean} | {b: number} | {c: bigint; aa: 'string'};
+    type UnMix2 = {a: boolean} | {a: number};
 
     const mixA: UnionMix = ['a', 'b', 'c'];
-    const mixB: UnionMix = {a: 'hello', b: 123, c: true};
-    const notA = [1, 'b'];
-    const notB = {};
-    const notC = {a: 'hello', d: 'extra'};
-    // if uncommented bellow code ts will throw an error.
-    // const notMixA: UnionMix  = [1, 'b'];
-    // const notMixB: UnionMix  = {}; // error in root
-    // const notMixC: UnionMix  = {a: 'hello', d: 'extra'}; // errors in prop d
+    const mixB: UnionMix = {a: 'hello', aa: true};
+    // TODO: class disabled until we decide how to handle serialization of classes
+    // const mixC: UnionMix = {d: new Date()}; // although is not a class instance, it has the same properties so is true
+    const mixD: UnionMix = {b: 123, c: 123n}; // typescript allow mixed properties of objects, but mion runType validation does not
+    const notMixA = [1, 'b'];
+    const notMixB = {};
+    const notMixC = {a: 'hello', aa: true, j: 'extra'}; // union uses strict assertion that checks for extra properties
+    const notMixD = {a: 'hello', d: 'world'}; // expect aa property
+
+    const mix2A: UnMix2 = {a: true};
+    const mix2B: UnMix2 = {a: 123};
+    const notMix2A = {a: 'hello'};
+    const notMix2B = {};
 
     const rt = runType<UnionMix>();
+    const rt2 = runType<UnMix2>();
 
     it('validate union', () => {
         const validate = buildIsTypeJITFn(rt).fn;
 
         expect(validate(mixA)).toBe(true);
         expect(validate(mixB)).toBe(true);
+        // TODO: class disabled until we decide how to handle serialization of classes
+        // expect(validate(mixC)).toBe(true);
 
-        expect(validate(notA)).toBe(false);
-        expect(validate(notB)).toBe(false);
-        expect(validate(notC)).toBe(false);
+        expect(validate(mixD)).toBe(false); // mion does not allow mixed properties in objects
+
+        expect(validate(notMixA)).toBe(false);
+        expect(validate(notMixB)).toBe(false);
+        expect(validate(notMixD)).toBe(false);
+
+        expect(validate(notMixC)).toBe(false); // union type does check for extra properties so object with extra properties are not valid
     });
 
+    // for UnMix2 the 'a' property is merged into a single union prop, so 'a' accepts both boolean and number
+    it('validate union with merged properties', () => {
+        const validate = buildIsTypeJITFn(rt2).fn;
+
+        expect(validate(mix2A)).toBe(true);
+        expect(validate(mix2B)).toBe(true);
+
+        expect(validate(notMix2A)).toBe(false);
+        expect(validate(notMix2B)).toBe(false);
+    });
+
+    // validation for Unions does not return info about the path as we can't know which type of the union the user was trying to use.
     it('validate union + errors', () => {
         const valWithErrors = buildTypeErrorsJITFn(rt).fn;
 
         expect(valWithErrors(mixA)).toEqual([]);
         expect(valWithErrors(mixB)).toEqual([]);
 
-        expect(valWithErrors(notA)).toEqual([{path: [], expected: 'union'}]);
-        expect(valWithErrors(notB)).toEqual([{path: [], expected: 'union'}]);
+        expect(valWithErrors(notMixA)).toEqual([{path: [], expected: 'union'}]);
+        expect(valWithErrors(notMixB)).toEqual([{path: [], expected: 'union'}]);
         // expect(valWithErrors(notC)).toEqual([{path: [], expected: 'union'}]);
     });
 
@@ -316,13 +351,11 @@ describe('Union Mixed', () => {
         const toJson = buildJsonEncodeJITFn(rt).fn;
         const fromJson = buildJsonDecodeJITFn(rt).fn;
 
-        expect(rt.isJsonDecodeRequired).toBe(true);
-        expect(rt.isJsonEncodeRequired).toBe(true);
-        expect(fromJson(toJson(mixA))).toEqual(mixA);
-        expect(fromJson(toJson(mixB))).toEqual(mixB);
-
-        // objects are not the same same object in memory after round trip
-        expect(fromJson(toJson(mixA))).not.toBe(mixA);
+        console.log(toJson(mixB));
+        console.log(fromJson(JSON.parse(JSON.stringify(toJson(mixB)))));
+        fromJson(JSON.parse(JSON.stringify(toJson(mixB))));
+        expect(fromJson(JSON.parse(JSON.stringify(toJson(mixA))))).toEqual(mixA);
+        expect(fromJson(JSON.parse(JSON.stringify(toJson(mixB))))).toEqual(mixB);
     });
 
     it('json stringify with discriminator', () => {

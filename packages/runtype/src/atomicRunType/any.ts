@@ -9,7 +9,7 @@ import {ReflectionKind, type TypeAny, type TypeUnknown} from '../_deepkit/src/re
 import type {JitConstants, MockContext} from '../types';
 import {mockAny} from '../mock';
 import {AtomicRunType} from '../baseRunTypes';
-import {JitCompileOp} from '../jitOperation';
+import {JitDefaultOp} from '../jitOperation';
 
 const jitConstants: JitConstants = {
     skipJit: false,
@@ -27,13 +27,13 @@ export class AnyRunType extends AtomicRunType<TypeAny | TypeUnknown> {
     _compileTypeErrors(): '' {
         return '';
     }
-    _compileJsonEncode(cop: JitCompileOp): string {
+    _compileJsonEncode(cop: JitDefaultOp): string {
         return cop.vλl;
     }
-    _compileJsonDecode(cop: JitCompileOp): string {
+    _compileJsonDecode(cop: JitDefaultOp): string {
         return cop.vλl;
     }
-    _compileJsonStringify(cop: JitCompileOp): string {
+    _compileJsonStringify(cop: JitDefaultOp): string {
         return `JSON.stringify(${cop.vλl})`;
     }
     mock(ctx?: Pick<MockContext, 'anyValuesLis'>): string {

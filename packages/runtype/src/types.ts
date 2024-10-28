@@ -6,7 +6,7 @@
  * ######## */
 
 import type {Type, TypeCallSignature, TypeFunction, TypeMethod, TypeMethodSignature} from './_deepkit/src/reflection/type';
-import type {JitCompileOp, JitTypeErrorCompileOp} from './jitOperation';
+import type {JitDefaultOp, JitTypeErrorCompileOp} from './jitOperation';
 import {JITUtils} from './jitUtils';
 
 export type JSONValue = string | number | boolean | null | {[key: string]: JSONValue} | Array<JSONValue>;
@@ -97,7 +97,7 @@ export interface JitCompilerFunctions {
      * this code should not contain any sentence breaks or semicolons.
      * ie: compileIsType = () => `typeof vλl === 'string'`
      */
-    compileIsType(jitCompileContext: JitCompileOp): string;
+    compileIsType(jitCompileContext: JitDefaultOp): string;
     /**
      * JIT code Validation + error info
      * Similar to validation code but instead of returning a boolean it should assign an error message to the errorsName
@@ -113,7 +113,7 @@ export interface JitCompilerFunctions {
      * this code should not contain any sentence breaks or semicolons.
      * ie for bigIng: compileJsonEncode = () => `vλl.toString()`
      * */
-    compileJsonEncode(jitCompileContext: JitCompileOp): string;
+    compileJsonEncode(jitCompileContext: JitDefaultOp): string;
     /**
      * JIT code to transform from json to type so type can be deserialized from json
      * this code should not use return statements, it should be a single line that receives a json compatible type and returns a deserialized value.
@@ -123,14 +123,29 @@ export interface JitCompilerFunctions {
      * For security reason decoding ignores any properties that are not defined in the type.
      * So is your type is {name: string} and the json is {name: string, age: number} the age property will be ignored.
      * */
-    compileJsonDecode(jitCompileContext: JitCompileOp): string;
+    compileJsonDecode(jitCompileContext: JitDefaultOp): string;
     /**
      * JIT code to transform a type directly into s json string.
      * when serializing to json normally we need first to prepare the object using compileJsonEncode and then JSON.stringify().
      * this code directly outputs the json string and saves traversing the type twice
      * stringify is always strict
      */
-    compileJsonStringify(jitCompileContext: JitCompileOp): string;
+    compileJsonStringify(jitCompileContext: JitDefaultOp): string;
+}
+
+export interface JitCompilerOptions {
+    /** if true isType function will return false for unknown properties in objects. */
+    strictTypes?: boolean;
+    /** safe json parsing
+     * none: no safe parsing, all properties are parsed
+     * throw: throw an error if unknown properties are found
+     * undefined: set unknown properties to undefined. more performant than deleting properties
+     * strip: strip unknown properties by deleting them
+     *
+     * if more than 10 unknown properties are found on any object then an error is thrown.
+     * // TODO: at the moment we only check maxUnknownKeys per object and we should do it for the whole object graph most probaly passing a new arg to the json decode function
+     */
+    safeJSON?: 'none' | 'throw' | 'undefined' | 'strip';
 }
 
 export interface RunTypeOptions {

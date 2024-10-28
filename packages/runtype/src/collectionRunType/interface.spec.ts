@@ -252,6 +252,211 @@ describe('Interface', () => {
     });
 });
 
+describe('Interface with strict modes', () => {
+    type ObjectType = {
+        startDate: Date;
+        quantity: number;
+        name: string;
+        nullValue: null;
+        stringArray: string[];
+        bigInt: bigint;
+        optionalString?: string;
+        "weird prop name \n?>'\\\t\r": string;
+        deep?: {
+            a: string;
+            b: number;
+        };
+    };
+
+    type ObjectTypeWithExtra = {
+        startDate: Date;
+        quantity: number;
+        name: string;
+        nullValue: null;
+        stringArray: string[];
+        bigInt: bigint;
+        optionalString?: string;
+        "weird prop name \n?>'\\\t\r": string;
+        someExtra: string;
+        someExtra2: number;
+        "extra weird prop name \n?>'\\\t\r": string;
+        deep?: {
+            a: string;
+            b: number;
+            cExtra: boolean;
+        };
+    };
+
+    const rt = runType<ObjectType>();
+
+    const startDate = new Date();
+
+    const obj: ObjectType = {
+        startDate,
+        quantity: 123,
+        name: 'hello',
+        nullValue: null,
+        stringArray: ['a', 'b', 'c'],
+        bigInt: BigInt(123),
+        "weird prop name \n?>'\\\t\r": 'hello2',
+    };
+
+    const objWithExtra: ObjectTypeWithExtra = {
+        startDate,
+        quantity: 123,
+        name: 'hello',
+        nullValue: null,
+        stringArray: ['a', 'b', 'c'],
+        bigInt: BigInt(123),
+        "weird prop name \n?>'\\\t\r": 'hello2',
+        someExtra: 'hello',
+        someExtra2: 123,
+        "extra weird prop name \n?>'\\\t\r": 'hello3',
+        deep: {
+            a: 'hello',
+            b: 123,
+            cExtra: true,
+        },
+    };
+
+    const objWithExtraDeep = {
+        startDate,
+        quantity: 123,
+        name: 'hello',
+        nullValue: null,
+        stringArray: ['a', 'b', 'c'],
+        bigInt: BigInt(123),
+        "weird prop name \n?>'\\\t\r": 'hello2',
+        deep: {
+            a: 'hello',
+            b: 123,
+            cExtra: true,
+        },
+    };
+
+    it('validate object with extra properties', () => {
+        const validate = buildIsTypeJITFn(rt).fn;
+        const validateStrict = buildIsTypeJITFn(rt, undefined, {strictTypes: true}).fn;
+
+        expect(validate(obj)).toBe(true);
+        expect(validateStrict(obj)).toBe(true);
+
+        expect(validate(objWithExtra)).toBe(true);
+        expect(validateStrict(objWithExtra)).toBe(false);
+        expect(validateStrict(objWithExtraDeep)).toBe(false);
+    });
+
+    it('validate object with extra properties + errors', () => {
+        const valWithErrors = buildTypeErrorsJITFn(rt).fn;
+        const valWithErrorsStrict = buildTypeErrorsJITFn(rt, undefined, {strictTypes: true}).fn;
+
+        expect(valWithErrors(obj)).toEqual([]);
+        expect(valWithErrorsStrict(obj)).toEqual([]);
+
+        expect(valWithErrors(objWithExtra)).toEqual([]);
+        // unknown properties are not allowed in strict mode and return as never type
+        expect(valWithErrorsStrict(objWithExtra)).toEqual([
+            {path: ['someExtra'], expected: 'never'},
+            {path: ['someExtra2'], expected: 'never'},
+            {path: ["extra weird prop name \n?>'\\\t\r"], expected: 'never'},
+            {path: ['deep', 'cExtra'], expected: 'never'},
+        ]);
+        expect(valWithErrorsStrict(objWithExtraDeep)).toEqual([{path: ['deep', 'cExtra'], expected: 'never'}]);
+    });
+
+    it('encode/decode to json safeJson', () => {
+        const toJson = buildJsonEncodeJITFn(rt).fn;
+        const fromJson = buildJsonDecodeJITFn(rt).fn;
+        const fromJsonSafeThrow = buildJsonDecodeJITFn(rt, undefined, {safeJSON: 'throw'}).fn;
+        const fromJsonSafeUndefined = buildJsonDecodeJITFn(rt, undefined, {safeJSON: 'undefined'}).fn;
+        const fromJsonSafeStrip = buildJsonDecodeJITFn(rt, undefined, {safeJSON: 'strip'}).fn;
+
+        const jsonString = JSON.stringify(toJson(structuredClone(objWithExtra)));
+        // value used for json encode/decode gets modified so we need to copy it to compare later
+        const copy1 = JSON.parse(jsonString);
+        const copy2 = JSON.parse(jsonString);
+        const copy3 = JSON.parse(jsonString);
+        const copy4 = JSON.parse(jsonString);
+
+        const extraWithUndefined = structuredClone(objWithExtra) as any;
+        extraWithUndefined.someExtra = undefined;
+        extraWithUndefined.someExtra2 = undefined;
+        extraWithUndefined["extra weird prop name \n?>'\\\t\r"] = undefined;
+        extraWithUndefined.deep.cExtra = undefined;
+
+        const extraWithStrip = structuredClone(objWithExtra) as any;
+        delete extraWithStrip.someExtra;
+        delete extraWithStrip.someExtra2;
+        delete extraWithStrip["extra weird prop name \n?>'\\\t\r"];
+        delete extraWithStrip.deep.cExtra;
+
+        expect(fromJson(copy1)).toEqual(objWithExtra);
+        expect(() => fromJsonSafeThrow(copy2)).toThrow('Unknown properties in JSON');
+        expect(fromJsonSafeUndefined(copy3)).toEqual(extraWithUndefined);
+        expect(fromJsonSafeStrip(copy4)).toEqual(extraWithStrip);
+    });
+
+    it('encode/decode to json safeJson deep', () => {
+        const toJson = buildJsonEncodeJITFn(rt).fn;
+        const fromJsonSafeThrow = buildJsonDecodeJITFn(rt, undefined, {safeJSON: 'throw'}).fn;
+        const fromJsonSafeUndefined = buildJsonDecodeJITFn(rt, undefined, {safeJSON: 'undefined'}).fn;
+        const fromJsonSafeStrip = buildJsonDecodeJITFn(rt, undefined, {safeJSON: 'strip'}).fn;
+
+        const jsonString2 = JSON.stringify(toJson(structuredClone(objWithExtraDeep)));
+        const copyD1 = JSON.parse(jsonString2);
+        const copyD2 = JSON.parse(jsonString2);
+        const copyD3 = JSON.parse(jsonString2);
+        expect(() => fromJsonSafeThrow(copyD1)).toThrow('Unknown properties in JSON');
+        expect(fromJsonSafeUndefined(copyD2)).toEqual({
+            startDate,
+            quantity: 123,
+            name: 'hello',
+            nullValue: null,
+            stringArray: ['a', 'b', 'c'],
+            bigInt: BigInt(123),
+            "weird prop name \n?>'\\\t\r": 'hello2',
+            deep: {
+                a: 'hello',
+                b: 123,
+                cExtra: undefined,
+            },
+        });
+        expect(fromJsonSafeStrip(copyD3)).toEqual({
+            startDate,
+            quantity: 123,
+            name: 'hello',
+            nullValue: null,
+            stringArray: ['a', 'b', 'c'],
+            bigInt: BigInt(123),
+            "weird prop name \n?>'\\\t\r": 'hello2',
+            deep: {
+                a: 'hello',
+                b: 123,
+            },
+        });
+    });
+
+    it('json stringify to strip extra params without fail', () => {
+        const jsonStringify = buildJsonStringifyJITFn(rt).fn;
+        const fromJson = buildJsonDecodeJITFn(rt).fn;
+        const jsonString = jsonStringify(objWithExtra);
+        const roundTrip = fromJson(JSON.parse(jsonString));
+        expect(roundTrip).toEqual({
+            startDate,
+            quantity: 123,
+            name: 'hello',
+            nullValue: null,
+            stringArray: ['a', 'b', 'c'],
+            bigInt: BigInt(123),
+            "weird prop name \n?>'\\\t\r": 'hello2',
+            deep: {
+                a: 'hello',
+                b: 123,
+            },
+        });
+    });
+});
+
 describe('Interface with circular ref properties', () => {
     interface ICircular {
         name: string;

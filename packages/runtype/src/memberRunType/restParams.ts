@@ -1,6 +1,6 @@
 import {TypeRest} from '../_deepkit/src/reflection/type';
 import {MemberRunType} from '../baseRunTypes';
-import {JitCompileOp, JitTypeErrorCompileOp} from '../jitOperation';
+import {JitDefaultOp, JitTypeErrorCompileOp} from '../jitOperation';
 import {MockContext} from '../types';
 
 /* ########
@@ -30,7 +30,7 @@ export class RestParamsRunType extends MemberRunType<TypeRest> {
     hasReturnCompileJsonStringify(): boolean {
         return true;
     }
-    _compileIsType(cop: JitCompileOp): string {
+    _compileIsType(cop: JitDefaultOp): string {
         const varName = cop.vλl;
         const indexName = this.getChildVarName();
         const itemCode = this.getMemberType().compileIsType(cop);
@@ -47,19 +47,19 @@ export class RestParamsRunType extends MemberRunType<TypeRest> {
         const itemCode = this.getMemberType().compileTypeErrors(cop);
         return `for (let ${indexName} = ${this.getChildIndex()}; ${indexName} < ${varName}.length; ${indexName}++) {${itemCode}}`;
     }
-    _compileJsonEncode(cop: JitCompileOp): string {
+    _compileJsonEncode(cop: JitDefaultOp): string {
         return this.compileJsonDE(cop, true);
     }
-    _compileJsonDecode(cop: JitCompileOp): string {
+    _compileJsonDecode(cop: JitDefaultOp): string {
         return this.compileJsonDE(cop, false);
     }
-    private compileJsonDE(cop: JitCompileOp, isEncode = false): string {
+    private compileJsonDE(cop: JitDefaultOp, isEncode = false): string {
         const varName = cop.vλl;
         const indexName = this.getChildVarName();
         const itemCode = isEncode ? this.getMemberType().compileJsonEncode(cop) : this.getMemberType().compileJsonDecode(cop);
         return `for (let ${indexName} = ${this.getChildIndex()}; ${indexName} < ${varName}.length; ${indexName}++) {${itemCode}}`;
     }
-    _compileJsonStringify(cop: JitCompileOp): string {
+    _compileJsonStringify(cop: JitDefaultOp): string {
         const varName = cop.vλl;
         const arrName = `rεsultλrr${cop.length}`;
         const itemName = `itεm${cop.length}`;

@@ -9,7 +9,7 @@ import {ReflectionKind, type TypeUndefined} from '../_deepkit/src/reflection/typ
 import type {JitConstants} from '../types';
 import {AtomicRunType} from '../baseRunTypes';
 import {getJitErrorPath, getExpected} from '../utils';
-import {JitCompileOp, JitTypeErrorCompileOp} from '../jitOperation';
+import {JitDefaultOp, JitTypeErrorCompileOp} from '../jitOperation';
 
 const jitConstants: JitConstants = {
     skipJit: false,
@@ -21,16 +21,16 @@ const jitConstants: JitConstants = {
 export class UndefinedRunType extends AtomicRunType<TypeUndefined> {
     src: TypeUndefined = null as any; // will be set after construction
     getJitConstants = () => jitConstants;
-    _compileIsType(cop: JitCompileOp): string {
+    _compileIsType(cop: JitDefaultOp): string {
         return `typeof ${cop.vλl} === 'undefined'`;
     }
     _compileTypeErrors(cop: JitTypeErrorCompileOp): string {
         return `if (typeof ${cop.vλl} !== 'undefined') ${cop.args.εrr}.push({path:${getJitErrorPath(cop)},expected:${getExpected(this)}})`;
     }
-    _compileJsonEncode(cop: JitCompileOp): string {
+    _compileJsonEncode(cop: JitDefaultOp): string {
         return `${cop.vλl} = null`;
     }
-    _compileJsonDecode(cop: JitCompileOp): string {
+    _compileJsonDecode(cop: JitDefaultOp): string {
         return `${cop.vλl} = undefined`;
     }
     _compileJsonStringify(): string {

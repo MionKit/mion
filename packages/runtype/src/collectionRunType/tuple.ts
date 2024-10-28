@@ -7,13 +7,13 @@
 
 import {TypeTuple} from '../_deepkit/src/reflection/type';
 import {CollectionRunType} from '../baseRunTypes';
-import {JitCompileOp, JitTypeErrorCompileOp} from '../jitOperation';
+import {JitDefaultOp, JitTypeErrorCompileOp} from '../jitOperation';
 import {MockContext} from '../types';
 import {getJitErrorPath, getExpected} from '../utils';
 
 export class TupleRunType extends CollectionRunType<TypeTuple> {
     src: TypeTuple = null as any; // will be set after construction
-    _compileIsType(cop: JitCompileOp): string {
+    _compileIsType(cop: JitDefaultOp): string {
         const children = this.getJitChildren();
         const varName = cop.vλl;
         const childrenCode = `&& (${children.map((rt) => rt.compileIsType(cop)).join(' && ')})`;
@@ -31,17 +31,26 @@ export class TupleRunType extends CollectionRunType<TypeTuple> {
             }
         `;
     }
-    _compileJsonEncode(cop: JitCompileOp): string {
-        const children = this.getJsonEncodeChildren();
-        return children.map((rt) => rt.compileJsonEncode(cop)).join(';');
+    _compileJsonEncode(cop: JitDefaultOp): string {
+        const children = this.getJsonEncodeChildren(cop);
+        return children
+            .map((rt) => rt.compileJsonEncode(cop))
+            .filter((c) => !!c)
+            .join(';');
     }
-    _compileJsonDecode(cop: JitCompileOp): string {
-        const children = this.getJsonDecodeChildren();
-        return children.map((rt) => rt.compileJsonDecode(cop)).join(';');
+    _compileJsonDecode(cop: JitDefaultOp): string {
+        const children = this.getJsonDecodeChildren(cop);
+        return children
+            .map((rt) => rt.compileJsonDecode(cop))
+            .filter((c) => !!c)
+            .join(';');
     }
-    _compileJsonStringify(cop: JitCompileOp): string {
+    _compileJsonStringify(cop: JitDefaultOp): string {
         const children = this.getJitChildren();
-        const childrenCode = children.map((rt) => rt.compileJsonStringify(cop)).join(`+','+`);
+        const childrenCode = children
+            .map((rt) => rt.compileJsonStringify(cop))
+            .filter((c) => !!c)
+            .join(`+','+`);
         return `'['+${childrenCode}+']'`;
     }
 

@@ -11,7 +11,7 @@ import {random} from '../mock';
 import {getJitErrorPath, getExpected} from '../utils';
 import {mockObjectList} from '../constants';
 import {AtomicRunType} from '../baseRunTypes';
-import {JitCompileOp, JitTypeErrorCompileOp} from '../jitOperation';
+import {JitDefaultOp, JitTypeErrorCompileOp} from '../jitOperation';
 
 const jitConstants: JitConstants = {
     skipJit: false,
@@ -23,19 +23,19 @@ const jitConstants: JitConstants = {
 export class ObjectRunType extends AtomicRunType<TypeAny | TypeUnknown> {
     src: TypeAny | TypeUnknown = null as any; // will be set after construction
     getJitConstants = () => jitConstants;
-    _compileIsType(cop: JitCompileOp): string {
+    _compileIsType(cop: JitDefaultOp): string {
         return `(typeof ${cop.vλl} === 'object' && ${cop.vλl} !== null)`;
     }
     _compileTypeErrors(cop: JitTypeErrorCompileOp): string {
         return `if (!(${this._compileIsType(cop)})) ${cop.args.εrr}.push({path:${getJitErrorPath(cop)},expected:${getExpected(this)}})`;
     }
-    _compileJsonEncode(cop: JitCompileOp): string {
+    _compileJsonEncode(cop: JitDefaultOp): string {
         return cop.vλl;
     }
-    _compileJsonDecode(cop: JitCompileOp): string {
+    _compileJsonDecode(cop: JitDefaultOp): string {
         return cop.vλl;
     }
-    _compileJsonStringify(cop: JitCompileOp): string {
+    _compileJsonStringify(cop: JitDefaultOp): string {
         return `JSON.stringify(${cop.vλl})`;
     }
     mock(cop?: Pick<MockContext, 'objectList'>): object {

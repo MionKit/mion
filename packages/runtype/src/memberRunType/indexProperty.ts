@@ -2,7 +2,7 @@ import {ReflectionKind, TypeIndexSignature} from '../_deepkit/src/reflection/typ
 import {MemberRunType} from '../baseRunTypes';
 import {MockContext} from '../types';
 import {jitNames} from '../constants';
-import {JitCompileOp, JitTypeErrorCompileOp} from '../jitOperation';
+import {JitDefaultOp, JitTypeErrorCompileOp} from '../jitOperation';
 
 /* ########
  * 2024 mion
@@ -32,7 +32,7 @@ export class IndexSignatureRunType extends MemberRunType<TypeIndexSignature> {
         return true;
     }
     // #### jit code ####
-    _compileIsType(cop: JitCompileOp): string {
+    _compileIsType(cop: JitDefaultOp): string {
         const child = this.getJitChild();
         if (!child) return 'true';
         const varName = cop.vλl;
@@ -55,8 +55,8 @@ export class IndexSignatureRunType extends MemberRunType<TypeIndexSignature> {
             }
         `;
     }
-    _compileJsonEncode(cop: JitCompileOp): string {
-        const child = this.getJsonEncodeChild();
+    _compileJsonEncode(cop: JitDefaultOp): string {
+        const child = this.getJsonEncodeChild(cop);
         if (!child) return '';
         const varName = cop.vλl;
         const prop = this.getChildVarName();
@@ -66,8 +66,8 @@ export class IndexSignatureRunType extends MemberRunType<TypeIndexSignature> {
             }
         `;
     }
-    _compileJsonDecode(cop: JitCompileOp): string {
-        const child = this.getJsonDecodeChild();
+    _compileJsonDecode(cop: JitDefaultOp): string {
+        const child = this.getJsonDecodeChild(cop);
         if (!child) return '';
         const varName = cop.vλl;
         const prop = this.getChildVarName();
@@ -78,7 +78,7 @@ export class IndexSignatureRunType extends MemberRunType<TypeIndexSignature> {
         `;
     }
 
-    _compileJsonStringify(cop: JitCompileOp): string {
+    _compileJsonStringify(cop: JitDefaultOp): string {
         const child = this.getJitChild();
         if (!child) return `''`;
         const varName = cop.vλl;

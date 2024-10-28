@@ -10,7 +10,7 @@ import type {JitJsonEncoder, MockContext, JitConstants} from '../types';
 import {getJitErrorPath, getExpected} from '../utils';
 import {mockDate} from '../mock';
 import {AtomicRunType} from '../baseRunTypes';
-import {JitCompileOp, JitTypeErrorCompileOp} from '../jitOperation';
+import {JitDefaultOp, JitTypeErrorCompileOp} from '../jitOperation';
 import {ReflectionSubKinds} from '../reflectionNames';
 
 const jitConstants: JitConstants = {
@@ -24,19 +24,19 @@ export class DateRunType extends AtomicRunType<TypeClass> {
     src: TypeClass = null as any; // will be set after construction
     getJitId = () => jitConstants.jitId;
     getJitConstants = () => jitConstants;
-    _compileIsType(cop: JitCompileOp): string {
+    _compileIsType(cop: JitDefaultOp): string {
         return `(${cop.vλl} instanceof Date && !isNaN(${cop.vλl}.getTime()))`;
     }
     _compileTypeErrors(cop: JitTypeErrorCompileOp): string {
         return `if (!(${this._compileIsType(cop)})) ${cop.args.εrr}.push({path:${getJitErrorPath(cop)},expected:${getExpected(this)}})`;
     }
-    _compileJsonEncode(cop: JitCompileOp): string {
+    _compileJsonEncode(cop: JitDefaultOp): string {
         return DateJitJsonENcoder.encodeToJson(cop.vλl);
     }
-    _compileJsonDecode(cop: JitCompileOp): string {
+    _compileJsonDecode(cop: JitDefaultOp): string {
         return DateJitJsonENcoder.decodeFromJson(cop.vλl);
     }
-    _compileJsonStringify(cop: JitCompileOp): string {
+    _compileJsonStringify(cop: JitDefaultOp): string {
         return DateJitJsonENcoder.stringify(cop.vλl);
     }
     mock(cop?: Pick<MockContext, 'minDate' | 'maxDate'>): Date {

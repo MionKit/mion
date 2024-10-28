@@ -113,7 +113,7 @@ describe('TupleRunType', () => {
         const toJson = buildJsonEncodeJITFn(runType<TupleWithOptionals>()).fn;
         const fromJson = buildJsonDecodeJITFn(runType<TupleWithOptionals>()).fn;
         const typeValue = [3, undefined, true, 4];
-        expect(fromJson(JSON.parse(JSON.stringify(toJson(typeValue))))).toEqual(typeValue);
+        expect(fromJson(JSON.parse(JSON.stringify(toJson([3, undefined, true, 4]))))).toEqual(typeValue);
         expect(fromJson(JSON.parse(JSON.stringify(toJson([3, undefined, undefined, 4]))))).toEqual([3, undefined, undefined, 4]);
         expect(fromJson(JSON.parse(JSON.stringify(toJson([3, 2n, true, 4]))))).toEqual([3, 2n, true, 4]);
         expect(fromJson(JSON.parse(JSON.stringify(toJson([3]))))).toEqual([3, undefined, undefined, undefined]);

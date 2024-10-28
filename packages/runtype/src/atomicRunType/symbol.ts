@@ -10,7 +10,7 @@ import type {JitJsonEncoder, MockContext, JitConstants} from '../types';
 import {getJitErrorPath, getExpected} from '../utils';
 import {mockSymbol} from '../mock';
 import {AtomicRunType} from '../baseRunTypes';
-import {JitCompileOp, JitTypeErrorCompileOp} from '../jitOperation';
+import {JitDefaultOp, JitTypeErrorCompileOp} from '../jitOperation';
 
 const jitConstants: JitConstants = {
     skipJit: true,
@@ -22,19 +22,19 @@ const jitConstants: JitConstants = {
 export class SymbolRunType extends AtomicRunType<TypeSymbol> {
     src: TypeSymbol = null as any; // will be set after construction
     getJitConstants = () => jitConstants;
-    _compileIsType(cop: JitCompileOp): string {
+    _compileIsType(cop: JitDefaultOp): string {
         return `typeof ${cop.vλl} === 'symbol'`;
     }
     _compileTypeErrors(cop: JitTypeErrorCompileOp): string {
         return `if (typeof ${cop.vλl} !== 'symbol') ${cop.args.εrr}.push({path:${getJitErrorPath(cop)},expected:${getExpected(this)}})`;
     }
-    _compileJsonEncode(cop: JitCompileOp): string {
+    _compileJsonEncode(cop: JitDefaultOp): string {
         return SymbolJitJsonEncoder.encodeToJson(cop.vλl);
     }
-    _compileJsonDecode(cop: JitCompileOp): string {
+    _compileJsonDecode(cop: JitDefaultOp): string {
         return SymbolJitJsonEncoder.decodeFromJson(cop.vλl);
     }
-    _compileJsonStringify(cop: JitCompileOp): string {
+    _compileJsonStringify(cop: JitDefaultOp): string {
         return SymbolJitJsonEncoder.stringify(cop.vλl);
     }
     mock(cop?: Pick<MockContext, 'symbolLength' | 'symbolCharSet' | 'symbolName'>): symbol {

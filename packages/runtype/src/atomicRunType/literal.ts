@@ -12,7 +12,7 @@ import {BigIntJitJsonENcoder} from './bigInt';
 import {RegexpJitJsonEncoder} from './regexp';
 import {getJitErrorPath, memo, toLiteral} from '../utils';
 import {AtomicRunType} from '../baseRunTypes';
-import {JitCompileOp, JitTypeErrorCompileOp} from '../jitOperation';
+import {JitDefaultOp, JitTypeErrorCompileOp} from '../jitOperation';
 
 export class LiteralRunType extends AtomicRunType<TypeLiteral> {
     src: TypeLiteral = null as any; // will be set after construction
@@ -43,7 +43,7 @@ export class LiteralRunType extends AtomicRunType<TypeLiteral> {
                 return noEncoder;
         }
     }
-    _compileIsType(cop: JitCompileOp): string {
+    _compileIsType(cop: JitDefaultOp): string {
         if (typeof this.src.literal === 'symbol') return compileIsSymbol(cop, this.src.literal);
         else if (this.src.literal instanceof RegExp) return compileIsRegExp(cop, this.src.literal);
         else if (typeof this.src.literal === 'bigint') return compileIsBigInt(cop, this.src.literal);
@@ -54,13 +54,13 @@ export class LiteralRunType extends AtomicRunType<TypeLiteral> {
         else if (this.src.literal instanceof RegExp) return compileTypeErrorsRegExp(cop, this.src.literal, this.getName());
         return compileTypeErrorsLiteral(cop, this.src.literal, this.getName());
     }
-    _compileJsonEncode(cop: JitCompileOp): string {
+    _compileJsonEncode(cop: JitDefaultOp): string {
         return this.getJsonEncoder().encodeToJson(cop.vλl);
     }
-    _compileJsonDecode(cop: JitCompileOp): string {
+    _compileJsonDecode(cop: JitDefaultOp): string {
         return this.getJsonEncoder().decodeFromJson(cop.vλl);
     }
-    _compileJsonStringify(cop: JitCompileOp): string {
+    _compileJsonStringify(cop: JitDefaultOp): string {
         return this.getJsonEncoder().stringify(cop.vλl);
     }
     mock(): symbol | string | number | boolean | bigint | RegExp {
@@ -80,19 +80,19 @@ const noEncoder: JitJsonEncoder = {
     },
 };
 
-function compileIsBigInt(cop: JitCompileOp, lit: bigint): string {
+function compileIsBigInt(cop: JitDefaultOp, lit: bigint): string {
     return `${cop.vλl} === ${toLiteral(lit)}`;
 }
 
-function compileIsSymbol(cop: JitCompileOp, lit: symbol): string {
+function compileIsSymbol(cop: JitDefaultOp, lit: symbol): string {
     return `(typeof ${cop.vλl} === 'symbol' && ${cop.vλl}.description === ${toLiteral(lit.description)})`;
 }
 
-function compileIsRegExp(cop: JitCompileOp, lit: RegExp): string {
+function compileIsRegExp(cop: JitDefaultOp, lit: RegExp): string {
     return `String(${cop.vλl}) === String(${lit})`;
 }
 
-function compileIsLiteral(cop: JitCompileOp, lit: Exclude<TypeLiteral['literal'], symbol>): string {
+function compileIsLiteral(cop: JitDefaultOp, lit: Exclude<TypeLiteral['literal'], symbol>): string {
     return `${cop.vλl} === ${toLiteral(lit)}`;
 }
 

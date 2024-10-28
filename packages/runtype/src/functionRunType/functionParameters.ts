@@ -1,6 +1,6 @@
 import {getJitErrorPath, memo, toLiteral} from '../utils';
 import {ParameterRunType} from '../memberRunType/param';
-import {JitCompileOp, JitTypeErrorCompileOp} from '../jitOperation';
+import {JitDefaultOp, JitTypeErrorCompileOp} from '../jitOperation';
 import {AnyFunction, DKwithRT, MockContext, RunType} from '../types';
 import {TypeFunction} from '../_deepkit/src/reflection/type';
 import {CollectionRunType} from '../baseRunTypes';
@@ -36,7 +36,7 @@ export class FunctionParametersRunType<CallType extends AnyFunction = TypeFuncti
     });
     // ####### params #######
 
-    _compileIsType(cop: JitCompileOp) {
+    _compileIsType(cop: JitDefaultOp) {
         if (this.getParameterTypes().length === 0) return `${cop.vλl}.length === 0`;
         const paramsCode = this.getParameterTypes()
             .map((p) => `(${p.compileIsType(cop)})`)
@@ -56,13 +56,13 @@ export class FunctionParametersRunType<CallType extends AnyFunction = TypeFuncti
             `else {${paramsCode}}`
         );
     }
-    _compileJsonEncode(cop: JitCompileOp) {
+    _compileJsonEncode(cop: JitDefaultOp) {
         return this.compileParamsJsonDE(cop, true);
     }
-    _compileJsonDecode(cop: JitCompileOp) {
+    _compileJsonDecode(cop: JitDefaultOp) {
         return this.compileParamsJsonDE(cop, false);
     }
-    _compileJsonStringify(cop: JitCompileOp) {
+    _compileJsonStringify(cop: JitDefaultOp) {
         const skip = this.getJitConstants().skipJit;
         if (skip) return '';
         if (this.getParameterTypes().length === 0) return `[]`;
@@ -73,7 +73,7 @@ export class FunctionParametersRunType<CallType extends AnyFunction = TypeFuncti
         return `'['+${paramsCode}+']'`;
     }
 
-    private compileParamsJsonDE(cop: JitCompileOp, isEncode: boolean) {
+    private compileParamsJsonDE(cop: JitDefaultOp, isEncode: boolean) {
         const skip = isEncode ? this.getJitConstants().skipJsonEncode : this.getJitConstants().skipJsonDecode;
         if (skip) return '';
         return this.getParameterTypes()

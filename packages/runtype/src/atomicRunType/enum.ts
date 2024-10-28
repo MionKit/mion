@@ -10,7 +10,7 @@ import type {MockContext, JitConstants} from '../types';
 import {getJitErrorPath, getExpected, toLiteral} from '../utils';
 import {random} from '../mock';
 import {AtomicRunType} from '../baseRunTypes';
-import {JitCompileOp, JitTypeErrorCompileOp} from '../jitOperation';
+import {JitDefaultOp, JitTypeErrorCompileOp} from '../jitOperation';
 
 const jitConstants: JitConstants = {
     skipJit: false,
@@ -22,19 +22,19 @@ const jitConstants: JitConstants = {
 export class EnumRunType extends AtomicRunType<TypeEnum> {
     src: TypeEnum = null as any; // will be set after construction
     getJitConstants = () => jitConstants;
-    _compileIsType(cop: JitCompileOp): string {
+    _compileIsType(cop: JitDefaultOp): string {
         return this.src.values.map((v) => `${cop.vλl} === ${toLiteral(v)}`).join(' || ');
     }
     _compileTypeErrors(cop: JitTypeErrorCompileOp): string {
         return `if (!(${this._compileIsType(cop)})) ${cop.args.εrr}.push({path:${getJitErrorPath(cop)},expected:${getExpected(this)}})`;
     }
-    _compileJsonEncode(cop: JitCompileOp): string {
+    _compileJsonEncode(cop: JitDefaultOp): string {
         return cop.vλl;
     }
-    _compileJsonDecode(cop: JitCompileOp): string {
+    _compileJsonDecode(cop: JitDefaultOp): string {
         return cop.vλl;
     }
-    _compileJsonStringify(cop: JitCompileOp): string {
+    _compileJsonStringify(cop: JitDefaultOp): string {
         if (this.src.indexType.kind === ReflectionKind.number) return cop.vλl;
         return `JSON.stringify(${cop.vλl})`;
     }

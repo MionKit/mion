@@ -15,11 +15,12 @@ import type {
     isTypeFn,
     typeErrorsFn,
     UnwrappedJITFunctions,
+    JitCompilerOptions,
 } from './types';
 import {jitUtils} from './jitUtils';
 import {toLiteral, arrayToLiteral} from './utils';
 import {jitNames} from './constants';
-import {JitCompileOp, JitTypeErrorCompileOp} from './jitOperation';
+import {JitDefaultOp, JitTypeErrorCompileOp} from './jitOperation';
 
 /**
  * Builds all the JIT functions for a given RunType
@@ -27,18 +28,26 @@ import {JitCompileOp, JitTypeErrorCompileOp} from './jitOperation';
  * @param jitFunctions
  * @returns
  */
-export function buildJITFunctions(runType: RunType, jitFunctions?: JitCompilerFunctions): JITCompiledFunctions {
+export function buildJITFunctions(
+    runType: RunType,
+    jitFunctions?: JitCompilerFunctions,
+    compileOpts?: JitCompilerOptions
+): JITCompiledFunctions {
     return {
-        isType: buildIsTypeJITFn(runType, jitFunctions),
-        typeErrors: buildTypeErrorsJITFn(runType, jitFunctions),
-        jsonEncode: buildJsonEncodeJITFn(runType, jitFunctions),
-        jsonDecode: buildJsonDecodeJITFn(runType, jitFunctions),
-        jsonStringify: buildJsonStringifyJITFn(runType, jitFunctions),
+        isType: buildIsTypeJITFn(runType, jitFunctions, compileOpts),
+        typeErrors: buildTypeErrorsJITFn(runType, jitFunctions, compileOpts),
+        jsonEncode: buildJsonEncodeJITFn(runType, jitFunctions, compileOpts),
+        jsonDecode: buildJsonDecodeJITFn(runType, jitFunctions, compileOpts),
+        jsonStringify: buildJsonStringifyJITFn(runType, jitFunctions, compileOpts),
     };
 }
 
-export function buildIsTypeJITFn(runType: RunType, jitFunctions?: JitCompilerFunctions): JITCompiledFunctions['isType'] {
-    const jitOp = new JitCompileOp('ƒnIsTypε', 'EXPRESSION');
+export function buildIsTypeJITFn(
+    runType: RunType,
+    jitFunctions?: JitCompilerFunctions,
+    compileOpts?: JitCompilerOptions
+): JITCompiledFunctions['isType'] {
+    const jitOp = new JitDefaultOp('ƒnIsTypε', 'EXPRESSION', compileOpts);
     const code = jitFunctions ? jitFunctions.compileIsType(jitOp) : runType.compileIsType(jitOp);
     const argNames = Object.values(jitOp.args);
     try {
@@ -51,9 +60,13 @@ export function buildIsTypeJITFn(runType: RunType, jitFunctions?: JitCompilerFun
     }
 }
 
-export function buildTypeErrorsJITFn(runType: RunType, jitFunctions?: JitCompilerFunctions): JITCompiledFunctions['typeErrors'] {
+export function buildTypeErrorsJITFn(
+    runType: RunType,
+    jitFunctions?: JitCompilerFunctions,
+    compileOpts?: JitCompilerOptions
+): JITCompiledFunctions['typeErrors'] {
     // TODO: the jitOp.args.pλth is not used when there are no circular types, so we need to remove to optimize this usage
-    const jitOp: JitTypeErrorCompileOp = new JitTypeErrorCompileOp('ƒnTypεErrors');
+    const jitOp: JitTypeErrorCompileOp = new JitTypeErrorCompileOp('ƒnTypεErrors', compileOpts);
     const code = jitFunctions ? jitFunctions.compileTypeErrors(jitOp) : runType.compileTypeErrors(jitOp);
     // we only pass the value as argument as error and path are created inside the root function, this way user don't need to pass them every time
     const argNames = [jitOp.args.vλl];
@@ -67,8 +80,12 @@ export function buildTypeErrorsJITFn(runType: RunType, jitFunctions?: JitCompile
     }
 }
 
-export function buildJsonEncodeJITFn(runType: RunType, jitFunctions?: JitCompilerFunctions): JITCompiledFunctions['jsonEncode'] {
-    const jitOp = new JitCompileOp('ƒnJsonεncode', 'STATEMENT');
+export function buildJsonEncodeJITFn(
+    runType: RunType,
+    jitFunctions?: JitCompilerFunctions,
+    compileOpts?: JitCompilerOptions
+): JITCompiledFunctions['jsonEncode'] {
+    const jitOp = new JitDefaultOp('ƒnJsonεncode', 'STATEMENT', compileOpts);
     const code = jitFunctions ? jitFunctions.compileJsonEncode(jitOp) : runType.compileJsonEncode(jitOp);
     const argNames = Object.values(jitOp.args);
     try {
@@ -81,8 +98,12 @@ export function buildJsonEncodeJITFn(runType: RunType, jitFunctions?: JitCompile
     }
 }
 
-export function buildJsonDecodeJITFn(runType: RunType, jitFunctions?: JitCompilerFunctions): JITCompiledFunctions['jsonDecode'] {
-    const jitOp = new JitCompileOp('ƒnJsonDεcode', 'STATEMENT');
+export function buildJsonDecodeJITFn(
+    runType: RunType,
+    jitFunctions?: JitCompilerFunctions,
+    compileOpts?: JitCompilerOptions
+): JITCompiledFunctions['jsonDecode'] {
+    const jitOp = new JitDefaultOp('ƒnJsonDεcode', 'STATEMENT', compileOpts);
     const code = jitFunctions ? jitFunctions.compileJsonDecode(jitOp) : runType.compileJsonDecode(jitOp);
     const argNames = Object.values(jitOp.args);
     try {
@@ -97,9 +118,10 @@ export function buildJsonDecodeJITFn(runType: RunType, jitFunctions?: JitCompile
 
 export function buildJsonStringifyJITFn(
     runType: RunType,
-    jitFunctions?: JitCompilerFunctions
+    jitFunctions?: JitCompilerFunctions,
+    compileOpts?: JitCompilerOptions
 ): JITCompiledFunctions['jsonStringify'] {
-    const jitOp = new JitCompileOp('ƒnJsonStringify', 'EXPRESSION');
+    const jitOp = new JitDefaultOp('ƒnJsonStringify', 'EXPRESSION', compileOpts);
     const code = jitFunctions ? jitFunctions.compileJsonStringify(jitOp) : runType.compileJsonStringify(jitOp);
     const argNames = Object.values(jitOp.args);
     try {

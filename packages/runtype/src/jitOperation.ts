@@ -1,6 +1,6 @@
-import {maxStackDepth, maxStackErrorMessage} from './constants';
+import {DEFAULT_COMPILE_OPTS, maxStackDepth, maxStackErrorMessage} from './constants';
 import {isChildAccessorType} from './guards';
-import type {JitFnArgs, StackItem, RunType, StackCallFlags} from './types';
+import type {JitFnArgs, StackItem, RunType, StackCallFlags, JitCompilerOptions} from './types';
 import {isSameJitType} from './utils';
 
 /**
@@ -15,6 +15,7 @@ import {isSameJitType} from './utils';
 export type CodeUnit = 'EXPRESSION' | 'STATEMENT' | 'BLOCK';
 
 export class JitCompileOperation<FnArgsNames extends JitFnArgs = JitFnArgs, Name extends string = any> {
+    compileOptions: JitCompilerOptions;
     /** The list of types being compiled.
      * each time there is a circular type a new substack is created.
      */
@@ -43,10 +44,13 @@ export class JitCompileOperation<FnArgsNames extends JitFnArgs = JitFnArgs, Name
         public argsDefaultValues: Record<keyof FnArgsNames, string | null>,
         public returnName: string,
         public codeUnit: CodeUnit,
-        public name: Name
-    ) {}
+        public name: Name,
+        compileOptions: Partial<JitCompilerOptions> = {}
+    ) {
+        this.compileOptions = {...DEFAULT_COMPILE_OPTS, ...compileOptions};
+    }
     private _stackVλl: string = '';
-    private _stackStaticPath: (string | number)[] = [];
+    _stackStaticPath: (string | number)[] = [];
     /** push new item to the stack, returns true if new child is already in the stack (is circular type) */
     pushStack(newChild: RunType): StackCallFlags | undefined {
         if (this.stack.length > maxStackDepth) throw new Error(maxStackErrorMessage);
@@ -68,6 +72,7 @@ export class JitCompileOperation<FnArgsNames extends JitFnArgs = JitFnArgs, Name
         this.popItem = subStack.pop();
         if (this.popItem) this._stackVλl = this.popItem.vλl;
         if (subStack.length === 0) this.stack.pop();
+        this._stackStaticPath = this.getStackStaticPath(subStack);
     }
     getStackStaticPathArgs(): string {
         return this._stackStaticPath.join(',');
@@ -149,7 +154,7 @@ export class JitCompileOperation<FnArgsNames extends JitFnArgs = JitFnArgs, Name
         return this.getChildVλlForParent(parent);
     }
 
-    private getChildVλlForParent(parent: StackItem): string {
+    getChildVλlForParent(parent: StackItem): string {
         const rt = parent.rt;
         if (!isChildAccessorType(rt)) throw new Error(`cant get child var name from ${rt.getName()}`);
         return parent.vλl + (rt.useArrayAccessor() ? `[${rt.getChildLiteral()}]` : `.${rt.getChildVarName()}`);
@@ -220,21 +225,21 @@ export class JitCompileOperation<FnArgsNames extends JitFnArgs = JitFnArgs, Name
     }
 }
 
-export class JitCompileOp<Name extends string = any> extends JitCompileOperation<{vλl: string}, Name> {
-    constructor(name: Name, codeUnit: CodeUnit) {
-        super({vλl: 'vλl'}, {vλl: null}, 'vλl', codeUnit, name);
+export class JitDefaultOp<Name extends string = any> extends JitCompileOperation<{vλl: string}, Name> {
+    constructor(name: Name, codeUnit: CodeUnit, compileOptions?: Partial<JitCompilerOptions>) {
+        super({vλl: 'vλl'}, {vλl: null}, 'vλl', codeUnit, name, compileOptions);
     }
 }
 
 export class JitTypeErrorCompileOp extends JitCompileOperation<{vλl: string; pλth: string; εrr: string}, 'ƒnTypεErrors'> {
-    constructor(name: 'ƒnTypεErrors') {
+    constructor(name: 'ƒnTypεErrors', compileOptions?: Partial<JitCompilerOptions>) {
         const args = {vλl: 'vλl', pλth: 'pλth', εrr: 'εrr'};
         const defaultValues = {vλl: null, pλth: '[]', εrr: '[]'};
-        super(args, defaultValues, 'εrr', 'BLOCK', name);
+        super(args, defaultValues, 'εrr', 'BLOCK', name, compileOptions);
     }
 }
 
-export type DefaultJitArgs = JitCompileOp['args'];
+export type DefaultJitArgs = JitDefaultOp['args'];
 export type DefaultJitTypeErrorsArgs = JitTypeErrorCompileOp['args'];
 
 export function getNewAuxFnNameFromIndex(index, rt: RunType): string {

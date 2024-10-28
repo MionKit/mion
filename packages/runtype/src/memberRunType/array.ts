@@ -9,7 +9,7 @@ import {TypeArray} from '../_deepkit/src/reflection/type';
 import {MockContext} from '../types';
 import {mockRecursiveEmptyArray, random} from '../mock';
 import {MemberRunType} from '../baseRunTypes';
-import {JitCompileOp, JitTypeErrorCompileOp} from '../jitOperation';
+import {JitDefaultOp, JitTypeErrorCompileOp} from '../jitOperation';
 import {getJitErrorPath, getExpected, shouldSkiJsonEncode, shouldSkipJit, shouldSkipJsonDecode} from '../utils';
 
 export class ArrayRunType extends MemberRunType<TypeArray> {
@@ -36,7 +36,7 @@ export class ArrayRunType extends MemberRunType<TypeArray> {
 
     // #### jit code ####
 
-    _compileIsType(cop: JitCompileOp): string {
+    _compileIsType(cop: JitDefaultOp): string {
         const varName = cop.vλl;
         const resultVal = `rεs${cop.length}`;
         const index = this.getChildVarName();
@@ -65,27 +65,27 @@ export class ArrayRunType extends MemberRunType<TypeArray> {
             }
         `;
     }
-    _compileJsonEncode(cop: JitCompileOp): string {
+    _compileJsonEncode(cop: JitDefaultOp): string {
         const varName = cop.vλl;
         const index = this.getChildVarName();
-        if (shouldSkiJsonEncode(this)) return '';
+        if (shouldSkiJsonEncode(this, cop)) return '';
         return `
             for (let ${index} = 0; ${index} < ${varName}.length; ${index}++) {
                 ${this.getMemberType().compileJsonEncode(cop)}
             }
         `;
     }
-    _compileJsonDecode(cop: JitCompileOp): string {
+    _compileJsonDecode(cop: JitDefaultOp): string {
         const varName = cop.vλl;
         const index = this.getChildVarName();
-        if (shouldSkipJsonDecode(this)) return '';
+        if (shouldSkipJsonDecode(this, cop)) return '';
         return `
             for (let ${index} = 0; ${index} < ${varName}.length; ${index}++) {
                 ${this.getMemberType().compileJsonDecode(cop)}
             }
         `;
     }
-    _compileJsonStringify(cop: JitCompileOp): string {
+    _compileJsonStringify(cop: JitDefaultOp): string {
         const varName = cop.vλl;
         const jsonItems = `jsonItεms${cop.length}`;
         const resultVal = `rεs${cop.length}`;

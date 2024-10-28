@@ -9,7 +9,7 @@ import {ReflectionKind, type TypeNull} from '../_deepkit/src/reflection/type';
 import type {JitConstants} from '../types';
 import {AtomicRunType} from '../baseRunTypes';
 import {getJitErrorPath, getExpected} from '../utils';
-import {JitCompileOp, JitTypeErrorCompileOp} from '../jitOperation';
+import {JitDefaultOp, JitTypeErrorCompileOp} from '../jitOperation';
 
 const jitConstants: JitConstants = {
     skipJit: false,
@@ -21,19 +21,19 @@ const jitConstants: JitConstants = {
 export class NullRunType extends AtomicRunType<TypeNull> {
     src: TypeNull = null as any; // will be set after construction
     getJitConstants = () => jitConstants;
-    _compileIsType(cop: JitCompileOp): string {
+    _compileIsType(cop: JitDefaultOp): string {
         return `${cop.vλl} === null`;
     }
     _compileTypeErrors(cop: JitTypeErrorCompileOp): string {
         return `if (${cop.vλl} !== null) ${cop.args.εrr}.push({path:${getJitErrorPath(cop)},expected:${getExpected(this)}})`;
     }
-    _compileJsonEncode(cop: JitCompileOp): string {
+    _compileJsonEncode(cop: JitDefaultOp): string {
         return cop.vλl;
     }
-    _compileJsonDecode(cop: JitCompileOp): string {
+    _compileJsonDecode(cop: JitDefaultOp): string {
         return cop.vλl;
     }
-    _compileJsonStringify(cop: JitCompileOp): string {
+    _compileJsonStringify(cop: JitDefaultOp): string {
         return cop.vλl;
     }
     mock(): null {

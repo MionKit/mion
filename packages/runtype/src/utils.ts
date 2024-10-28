@@ -8,7 +8,7 @@
 import type {AnyClass, RunType} from './types';
 import {ReflectionKind, Type} from './_deepkit/src/reflection/type';
 import {jitUtils} from './jitUtils';
-import {JitTypeErrorCompileOp} from './jitOperation';
+import {JitCompileOperation, JitDefaultOp, JitTypeErrorCompileOp} from './jitOperation';
 import {isAtomicRunType, isCollectionRunType, isMemberRunType} from './guards';
 import {validPropertyNameRegExp} from './constants';
 
@@ -36,7 +36,11 @@ export function toLiteral(value: number | string | boolean | undefined | null | 
 }
 
 export function arrayToLiteral(value: any[]): string {
-    return `[${value.map((v) => toLiteral(v)).join(', ')}]`;
+    return `[${arrayToArgumentsLiteral(value)}]`;
+}
+
+export function arrayToArgumentsLiteral(value: any[]): string {
+    return value.map((v) => `(${toLiteral(v)})`).join(', ');
 }
 
 export function isFunctionKind(kind: ReflectionKind): boolean {
@@ -65,9 +69,10 @@ export function isSameJitType(a: RunType, b: RunType): boolean {
     return a.getJitId() === b.getJitId();
 }
 
-export function getJitErrorPath(cop: JitTypeErrorCompileOp): string {
-    if (cop.length === 1) return `[...${cop.args.pλth}]`;
-    return `[...${cop.args.pλth},${cop.getStackStaticPathArgs()}]`;
+export function getJitErrorPath(cop: JitTypeErrorCompileOp, extraPathLiteral?: string | number): string {
+    const extraPath = extraPathLiteral ? `,${extraPathLiteral}` : '';
+    if (cop.length === 1) return `[...${cop.args.pλth}${extraPath}]`;
+    return `[...${cop.args.pλth},${cop.getStackStaticPathArgs()}${extraPath}]`;
 }
 
 export function getExpected(rt: RunType): string {
@@ -121,14 +126,14 @@ export function shouldSkipJit(rt: RunType): boolean {
     throw new Error('shouldSkipJit: unknown RunType');
 }
 
-export function shouldSkipJsonDecode(rt: RunType): boolean {
+export function shouldSkipJsonDecode(rt: RunType, cop: JitCompileOperation): boolean {
     if (shouldSkipJit(rt)) return true;
     if (isCollectionRunType(rt)) {
-        const children = rt.getJsonDecodeChildren();
+        const children = rt.getJsonDecodeChildren(cop);
         return !children.length;
     }
     if (isMemberRunType(rt)) {
-        const child = rt.getJsonDecodeChild();
+        const child = rt.getJsonDecodeChild(cop);
         return !child;
     }
     if (isAtomicRunType(rt)) {
@@ -137,18 +142,30 @@ export function shouldSkipJsonDecode(rt: RunType): boolean {
     throw new Error('shouldSkipJsonDecode: unknown RunType');
 }
 
-export function shouldSkiJsonEncode(rt: RunType): boolean {
+export function shouldSkiJsonEncode(rt: RunType, cop: JitCompileOperation): boolean {
     if (shouldSkipJit(rt)) return true;
     if (isCollectionRunType(rt)) {
-        const children = rt.getJsonEncodeChildren();
+        const children = rt.getJsonEncodeChildren(cop);
         return !children.length;
     }
     if (isMemberRunType(rt)) {
-        const child = rt.getJsonEncodeChild();
+        const child = rt.getJsonEncodeChild(cop);
         return !child;
     }
     if (isAtomicRunType(rt)) {
         return rt.getJitConstants().skipJsonEncode;
     }
     throw new Error('shouldSkiJsonEncode: unknown RunType');
+}
+
+export function compileIsTypeFromOtherOp(cop: JitDefaultOp, rt: RunType): string {
+    const codeUnit = cop.codeUnit;
+    cop.codeUnit = 'EXPRESSION';
+    const isTypeCode = rt.compileIsType(cop);
+    cop.codeUnit = codeUnit;
+    return isTypeCode;
+}
+
+export function sKipJsonFromOptions(cop: JitCompileOperation, rt: RunType): boolean {
+    return rt.getFamily() !== 'A' && cop.compileOptions.safeJSON !== 'none';
 }

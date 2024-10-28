@@ -5,6 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
+import {maxUnknownKeys} from './constants';
 import type {SerializableClass} from './types';
 
 const classesMap = new Map<string, SerializableClass>();
@@ -14,6 +15,8 @@ const jitCache = new Map<string | number, (...args: any[]) => any>();
 
 // eslint-disable-next-line no-control-regex
 const STR_ESCAPE = /[\u0000-\u001f\u0022\u005c\ud800-\udfff]/;
+
+const jitObjectKeys = new Map<string, Set<string | number>>();
 
 /**
  * Object that wraps all utilities that are used by the jit generated functions for encode, decode, stringify etc..
@@ -81,6 +84,32 @@ export const jitUtils = {
     // !!! DO NOT MODIFY METHOD WITHOUT REVIEWING JIT CODE INVOCATIONS!!!
     isFnInCache(key: string) {
         return !!jitCache[key];
+    },
+    // !!! DO NOT MODIFY METHOD WITHOUT REVIEWING JIT CODE INVOCATIONS!!!
+    /**
+     * Checks if the object has extra unknown keys.
+     * if none keys are passe the function assumes theres is a single key with the value of keysId
+     * @param obj the object to be checked
+     * @param keysId an unique id if the set of keys to be checked, might be keys.join()
+     * @param keys the keys that are expected to be in the object
+     * @returns false if no unknown keys are found, otherwise an array with the extra unknown keys
+     */
+    getObjectUnknownKeys(returnKeys: boolean, obj: any, keysId: string, ...keys: (string | number)[]): string[] | boolean {
+        const _keysSet = jitObjectKeys.get(keysId);
+        const keysSet = _keysSet || new Set<string | number>(keys.length === 0 ? [keysId] : keys);
+        if (!_keysSet) jitObjectKeys.set(keysId, keysSet);
+
+        let result: string[] | undefined;
+        const objectKeys = Object.keys(obj);
+        for (const key of objectKeys) {
+            if (!keysSet.has(key)) {
+                if (!returnKeys) return true;
+                if (!result) result = [];
+                result.push(key);
+                if (result.length >= maxUnknownKeys) throw new Error('Too many unknown keys');
+            }
+        }
+        return result ?? false;
     },
 };
 

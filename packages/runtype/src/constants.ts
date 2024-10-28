@@ -5,6 +5,20 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
+import {JitCompilerOptions} from './types';
+
+export const DEFAULT_COMPILE_OPTS: JitCompilerOptions = {
+    /** when set to true the isType and typeErrors will be strict and do not allow of extra unknown properties in objects  */
+    strictTypes: false,
+    /**
+     * Configures how json parse should handle unknown properties.
+     * none: no safe parsing, all properties are parsed
+     * throw: throws an error if unknown properties are found
+     * strip: strip unknown properties
+     */
+    safeJSON: 'none',
+};
+
 export const validPropertyNameRegExp = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
 
 export const mockRegExpsList = [
@@ -67,6 +81,7 @@ export const jitNames = {
     utils: 'µTils',
 };
 
+export const maxUnknownKeys = 10;
 export const maxStackDepth = 50;
 export const maxStackErrorMessage =
     'Max compilation nested level reached, either you have a very deeply nested type or there is an error in circular references in your type.';
