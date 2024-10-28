@@ -8,7 +8,7 @@
 import type {AnyClass, RunType} from './types';
 import {ReflectionKind, Type} from './_deepkit/src/reflection/type';
 import {jitUtils} from './jitUtils';
-import {JitCompileOperation, JitDefaultOp, JitTypeErrorCompileOp} from './jitOperation';
+import {JitCompileOperation, JitTypeErrorCompileOp} from './jitOperation';
 import {isAtomicRunType, isCollectionRunType, isMemberRunType} from './guards';
 import {validPropertyNameRegExp} from './constants';
 
@@ -156,16 +156,4 @@ export function shouldSkiJsonEncode(rt: RunType, cop: JitCompileOperation): bool
         return rt.getJitConstants().skipJsonEncode;
     }
     throw new Error('shouldSkiJsonEncode: unknown RunType');
-}
-
-export function compileIsTypeFromOtherOp(cop: JitDefaultOp, rt: RunType): string {
-    const codeUnit = cop.codeUnit;
-    cop.codeUnit = 'EXPRESSION';
-    const isTypeCode = rt.compileIsType(cop);
-    cop.codeUnit = codeUnit;
-    return isTypeCode;
-}
-
-export function sKipJsonFromOptions(cop: JitCompileOperation, rt: RunType): boolean {
-    return rt.getFamily() !== 'A' && cop.compileOptions.safeJSON !== 'none';
 }

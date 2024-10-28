@@ -38,7 +38,8 @@ export class InterfaceRunType<
             ? ` &&  !${this.callCheckUnknownProperties(cop, children, false)}`
             : '';
         const childrenCode = `  && ${children.map((prop) => prop.compileIsType(cop)).join(' && ')}`;
-        return `(typeof ${varName} === 'object' && ${varName} !== null${strictCheck}${childrenCode})`;
+        // adding strictCheck at the end improves performance when property checks fail and in union types
+        return `(typeof ${varName} === 'object' && ${varName} !== null${childrenCode}${strictCheck})`;
     }
     _compileTypeErrors(cop: JitTypeErrorCompileOp): string {
         const varName = cop.vλl;
@@ -57,8 +58,8 @@ export class InterfaceRunType<
             if (typeof ${varName} !== 'object' && ${varName} !== null) {
                 ${cop.args.εrr}.push({path:${getJitErrorPath(cop)},expected:${getExpected(this)}});
             } else {
-                ${strictCheck}
                 ${childrenCode}
+                ${strictCheck}
             }
         `;
     }

@@ -13,7 +13,7 @@ import {
     TypeProperty,
 } from '../_deepkit/src/reflection/type';
 import {DKwithRT, MockContext, Mutable, RunType, RunTypeChildAccessor} from '../types';
-import {getJitErrorPath, getExpected, toLiteral, compileIsTypeFromOtherOp, arrayToArgumentsLiteral} from '../utils';
+import {getJitErrorPath, getExpected, toLiteral, arrayToArgumentsLiteral} from '../utils';
 import {PropertyRunType} from '../memberRunType/property';
 import {IndexSignatureRunType} from '../memberRunType/indexProperty';
 import {JitDefaultOp, JitTypeErrorCompileOp} from '../jitOperation';
@@ -116,7 +116,7 @@ export class UnionInterfaceRunType extends InterfaceRunType<anySrcInterface> {
         const noExtraKeys = skip
             ? ''
             : ` && !${jitNames.utils}.objectHasExtraKeys(${keysID}, ${cop.vλl}, ${arrayToArgumentsLiteral(childrenNames)})`;
-        return `(${children.map((prop) => compileIsTypeFromOtherOp(cop, prop)).join(' && ')}${noExtraKeys})`;
+        return `(${children.map((prop) => prop.compileIsType(cop)).join(' && ')}${noExtraKeys})`;
     }
 
     // #### collection's jit code ####
@@ -131,7 +131,7 @@ export class UnionInterfaceRunType extends InterfaceRunType<anySrcInterface> {
         const varName = cop.vλl;
         const parentPath = getJitErrorPath(cop);
         const childrenCode = this.mergedInterfaces.length
-            ? `if (!${compileIsTypeFromOtherOp(cop, this)}) ${cop.args.εrr}.push({path:${parentPath},expected:${getExpected(this)}});`
+            ? `if (!${this.compileIsType(cop)}) ${cop.args.εrr}.push({path:${parentPath},expected:${getExpected(this)}});`
             : '';
         return `
             if (typeof ${varName} !== 'object' && ${varName} !== null) {

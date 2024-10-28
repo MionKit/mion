@@ -10,7 +10,7 @@ import {MockContext, RunType} from '../types';
 import {random} from '../mock';
 import {CollectionRunType} from '../baseRunTypes';
 import {JitDefaultOp, JitTypeErrorCompileOp} from '../jitOperation';
-import {compileIsTypeFromOtherOp, getExpected, getJitErrorPath, memo} from '../utils';
+import {getExpected, getJitErrorPath, memo} from '../utils';
 import {InterfaceRunType} from './interface';
 import {ClassRunType} from './class';
 import {IntersectionRunType} from './intersection';
@@ -28,20 +28,113 @@ export class UnionRunType extends CollectionRunType<TypeUnion> {
 
     // #### collection's jit code ####
     _compileIsType(cop: JitDefaultOp): string {
-        const children = this.getMergedJitChildren();
-        return `(${children.map((rt) => rt.compileIsType(cop)).join(' || ')})`;
+        const strictTypes = cop.compileOptions.strictTypes;
+        cop.compileOptions.strictTypes = true; // strictTypes ensures no extra properties of the union go unchecked
+        const children = this.getJitChildren();
+        const code = `(${children.map((rt) => rt.compileIsType(cop)).join(' || ')})`;
+        cop.compileOptions.strictTypes = strictTypes;
+        return code;
     }
 
     // this version just heck if has error and return an single error in the root of the union.
     // if all types we cant know one the user was trying to use.
     _compileTypeErrors(cop: JitTypeErrorCompileOp): string {
-        const children = this.getMergedJitChildren();
-        const isType = `(${children.map((rt) => compileIsTypeFromOtherOp(cop, rt)).join(' || ')})`;
+        const strictTypes = cop.compileOptions.strictTypes;
+        cop.compileOptions.strictTypes = true; // strictTypes ensures no extra properties of the union go unchecked
+        const children = this.getJitChildren();
+        const isType = `(${children.map((rt) => rt.compileIsType(cop)).join(' || ')})`;
         const errorsPath = getJitErrorPath(cop);
-        return `if (!${isType}) ${cop.args.εrr}.push({path: ${errorsPath}, expected: ${getExpected(this)}});`;
+        const code = `if (!${isType}) ${cop.args.εrr}.push({path: ${errorsPath}, expected: ${getExpected(this)}});`;
+        cop.compileOptions.strictTypes = strictTypes;
+        return code;
+    }
+
+    /**
+     * When a union is encode to json is encode into and array with two elements: [unionDiscriminator, encoded Value]
+     * the first element is the index of the type in the union.
+     * the second element is the encoded value of the type.
+     * ie: type union = string | number | bigint;  var v1: union = 123n;  v1 is encoded as [2, "123n"]
+     */
+    _compileJsonEncode(cop: JitDefaultOp): string {
+        const strictTypes = cop.compileOptions.strictTypes;
+        cop.compileOptions.strictTypes = true; // strictTypes ensures no extra properties of the union go unchecked
+        const childrenCode = this.getJitChildren()
+            .map((rt, i) => {
+                const itemCode = rt.compileJsonEncode(cop);
+                const itemIsType = rt.compileIsType(cop);
+                const iF = i === 0 ? 'if' : 'else if';
+                // item encoded before reassigning varName to [i, item]
+                return `${iF} (${itemIsType}) {${itemCode}; ${cop.vλl} = [${i}, ${cop.vλl}]}`;
+            })
+            .filter((c) => !!c)
+            .join('');
+        const code = `
+            ${childrenCode}
+            else { throw new Error('Can not encode json to union: expected one of <${this.getUnionTypeNames()}> but got ' + ${cop.vλl}?.constructor?.name || typeof ${cop.vλl}) }
+        `;
+
+        cop.compileOptions.strictTypes = strictTypes;
+        return code;
+    }
+    /**
+     * When a union is decoded from json it expects de two elements array format: [unionDiscriminator, Value to decode]
+     * the first element is the index of the type in the union.
+     * the second element is the encoded value of the type.
+     * ie: type union = string | number | bigint;  var v1: union = 123n;  v1 is encoded as [2, "123n"]
+     */
+    _compileJsonDecode(cop: JitDefaultOp): string {
+        const strictTypes = cop.compileOptions.strictTypes;
+        cop.compileOptions.strictTypes = true; // strictTypes ensures no extra properties of the union go unchecked
+        const decVar = `dεc${this.getNestLevel()}`;
+        const childrenCode = this.getJitChildren()
+            .map((rt, i) => {
+                const itemCode = `${rt.compileJsonDecode(cop)};`;
+                const iF = i === 0 ? 'if' : 'else if';
+                // item is decoded before being extracted from the array
+                return `${iF} ( ${decVar} === ${i}) {${cop.vλl} = ${cop.vλl}[1]; ${itemCode}}`;
+            })
+            .filter((c) => !!c)
+            .join('');
+        const code = `
+                const ${decVar} = ${cop.vλl}[0];
+                ${childrenCode}
+                else { throw new Error('Can not decode json to union: expected one of <${this.getUnionTypeNames()}> but got ' + ${cop.vλl}?.constructor?.name || typeof ${cop.vλl}) }
+            `;
+        cop.compileOptions.strictTypes = strictTypes;
+        return code;
+    }
+    _compileJsonStringify(cop: JitDefaultOp): string {
+        const strictTypes = cop.compileOptions.strictTypes;
+        cop.compileOptions.strictTypes = true; // strictTypes ensures no extra properties of the union go unchecked
+        const childrenCode = this.getJitChildren()
+            .map((rt, i) => {
+                const itemIsType = rt.compileIsType(cop);
+                return `if (${itemIsType}) {return ('[' + ${i} + ',' + ${rt.compileJsonStringify(cop)} + ']');}`;
+            })
+            .filter((c) => !!c)
+            .join('');
+        const code = `
+            ${childrenCode}
+            else { throw new Error('Can not stringify union: expected one of <${this.getUnionTypeNames()}> but got ' + ${cop.vλl}?.constructor?.name || typeof ${cop.vλl}) }
+        `;
+        cop.compileOptions.strictTypes = strictTypes;
+        return code;
+    }
+    mock(ctx?: Pick<MockContext, 'unionIndex'>): any {
+        if (ctx?.unionIndex && (ctx.unionIndex < 0 || ctx.unionIndex >= this.getChildRunTypes().length)) {
+            throw new Error('unionIndex must be between 0 and the number of types in the union');
+        }
+        const index = ctx?.unionIndex ?? random(0, this.getChildRunTypes().length - 1);
+        return this.getChildRunTypes()[index].mock(ctx);
+    }
+    getUnionTypeNames(): string {
+        return this.getChildRunTypes()
+            .map((rt) => rt.getName())
+            .join(' | ');
     }
 
     /** TODO: this version returns an error for every single item in the union.
+     * This version checks all properties but would allow for Partial or empty objects to be valid.
      * We would need to group the types by the ones that expert an array an object or any other type. and only push errors related to that type */
     private _compileTypeErrorsTODO(cop: JitTypeErrorCompileOp): string {
         const children = this.getMergedJitChildren();
@@ -64,77 +157,6 @@ export class UnionRunType extends CollectionRunType<TypeUnion> {
                 }
             }
         `;
-    }
-    /**
-     * When a union is encode to json is encode into and array with two elements: [unionDiscriminator, encoded Value]
-     * the first element is the index of the type in the union.
-     * the second element is the encoded value of the type.
-     * ie: type union = string | number | bigint;  var v1: union = 123n;  v1 is encoded as [2, "123n"]
-     */
-    _compileJsonEncode(cop: JitDefaultOp): string {
-        const childrenCode = this.getMergedJitChildren()
-            .map((rt, i) => {
-                const isMergedInterface = rt instanceof UnionInterfaceRunType;
-                const itemCode = rt.compileJsonEncode(cop);
-                const itemIsType = isMergedInterface
-                    ? `typeof ${cop.vλl} === 'object' && ${cop.vλl} !== null`
-                    : compileIsTypeFromOtherOp(cop, rt);
-                const iF = i === 0 ? 'if' : 'else if';
-                // item encoded before reassigning varName to [i, item]
-                return `${iF} (${itemIsType}) {${itemCode}; ${cop.vλl} = [${i}, ${cop.vλl}]}`;
-            })
-            .filter((c) => !!c)
-            .join('');
-        return `
-                ${childrenCode}
-                else { throw new Error('Can not encode json to union: expected one of <${this.getUnionTypeNames()}> but got ' + ${cop.vλl}?.constructor?.name || typeof ${cop.vλl}) }
-            `;
-    }
-    /**
-     * When a union is decoded from json it expects de two elements array format: [unionDiscriminator, Value to decode]
-     * the first element is the index of the type in the union.
-     * the second element is the encoded value of the type.
-     * ie: type union = string | number | bigint;  var v1: union = 123n;  v1 is encoded as [2, "123n"]
-     */
-    _compileJsonDecode(cop: JitDefaultOp): string {
-        const childrenCode = this.getMergedJitChildren()
-            .map((rt, i) => {
-                const itemCode = `${rt.compileJsonDecode(cop)};`;
-                const iF = i === 0 ? 'if' : 'else if';
-                // item is decoded before being extracted from the array
-                return `${iF} ( ${cop.vλl}[0] === ${i}) {${cop.vλl} = ${cop.vλl}[1]; ${itemCode}}`;
-            })
-            .filter((c) => !!c)
-            .join('');
-        return `
-                ${childrenCode}
-                else { throw new Error('Can not decode json to union: expected one of <${this.getUnionTypeNames()}> but got ' + ${cop.vλl}?.constructor?.name || typeof ${cop.vλl}) }
-            `;
-    }
-    _compileJsonStringify(cop: JitDefaultOp): string {
-        const childrenCode = this.getMergedJitChildren()
-            .map((rt, i) => {
-                const itemIsType = compileIsTypeFromOtherOp(cop, rt);
-                return `if (${itemIsType}) {return ('[' + ${i} + ',' + ${rt.compileJsonStringify(cop)} + ']');}`;
-            })
-            .filter((c) => !!c)
-            .join('');
-        return `
-            ${childrenCode}
-            else { throw new Error('Can not stringify union: expected one of <${this.getUnionTypeNames()}> but got ' + ${cop.vλl}?.constructor?.name || typeof ${cop.vλl}) }
-        `;
-    }
-    mock(ctx?: Pick<MockContext, 'unionIndex'>): any {
-        if (ctx?.unionIndex && (ctx.unionIndex < 0 || ctx.unionIndex >= this.getChildRunTypes().length)) {
-            throw new Error('unionIndex must be between 0 and the number of types in the union');
-        }
-        const index = ctx?.unionIndex ?? random(0, this.getChildRunTypes().length - 1);
-        return this.getChildRunTypes()[index].mock(ctx);
-    }
-    getUnionTypeNames(): string {
-        return this.getChildRunTypes()
-            .map((rt) => rt.getName())
-            .join(' | ');
     }
 
     // typescript merge all properties of interfaces, classes and object literals in the union.

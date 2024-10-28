@@ -17,7 +17,7 @@ import type {
     StackCallFlags,
 } from './types';
 import {buildJITFunctions} from './jitCompiler';
-import {getPropIndex, memo, sKipJsonFromOptions} from './utils';
+import {getPropIndex, memo} from './utils';
 import {maxStackDepth, maxStackErrorMessage} from './constants';
 import {JitDefaultOp, JitCompileOperation, JitTypeErrorCompileOp} from './jitOperation';
 import {getReflectionName} from './reflectionNames';
@@ -52,6 +52,8 @@ export abstract class BaseRunType<T extends Type> implements RunType {
 
     // these methods handle circular compiling and increase/decrease the stack level
     compileIsType(cop: JitDefaultOp): string {
+        const codeUnit = cop.codeUnit;
+        cop.codeUnit = 'EXPRESSION'; // compileIsType is usually called within other expressions, so we ensure is compiled with proper flags
         const callFlags = cop.pushStack(this);
         let code: string | undefined;
         if (callFlags?.shouldCall) {
@@ -62,6 +64,7 @@ export abstract class BaseRunType<T extends Type> implements RunType {
             code = this.handleReturn(code, cop, codeHasReturn, callFlags);
         }
         cop.popStack();
+        cop.codeUnit = codeUnit;
         return code;
     }
     compileTypeErrors(cop: JitTypeErrorCompileOp): string {
@@ -300,7 +303,7 @@ export abstract class MemberRunType<T extends Type> extends BaseRunType<T> imple
     getJsonEncodeChild(cop: JitCompileOperation): RunType | undefined {
         const child = this.getJitChild();
         if (child && child.getFamily() !== 'A' && cop.compileOptions.safeJSON !== 'none') return child;
-        if (!child || child.getJitConstants().skipJsonEncode || sKipJsonFromOptions(cop, this)) return undefined;
+        if (!child || child.getJitConstants().skipJsonEncode) return undefined;
         return child;
     }
     getJsonDecodeChild(cop: JitCompileOperation): RunType | undefined {
