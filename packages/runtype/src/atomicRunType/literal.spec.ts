@@ -5,13 +5,6 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 import {runType} from '../runType';
-import {
-    buildJsonEncodeJITFn,
-    buildJsonDecodeJITFn,
-    buildIsTypeJITFn,
-    buildTypeErrorsJITFn,
-    buildJsonStringifyJITFn,
-} from '../jitCompiler';
 
 const reg = /abc/i;
 const reg2 = /['"]\/ \\ \//; // regexp with characters that can be problematic in jit code if not correctly scaped
@@ -25,13 +18,13 @@ const rtBig = runType<1n>();
 const rtSym = runType<typeof sym>();
 
 it('validate literal', () => {
-    const validate2 = buildIsTypeJITFn(rt2).fn;
-    const validateA = buildIsTypeJITFn(rtA).fn;
-    const validateReg = buildIsTypeJITFn(rtReg).fn;
-    const validateReg2 = buildIsTypeJITFn(rtReg2).fn;
-    const validateTrue = buildIsTypeJITFn(rtTrue).fn;
-    const validateBig = buildIsTypeJITFn(rtBig).fn;
-    const validateSym = buildIsTypeJITFn(rtSym).fn;
+    const validate2 = rt2.isType;
+    const validateA = rtA.isType;
+    const validateReg = rtReg.isType;
+    const validateReg2 = rtReg2.isType;
+    const validateTrue = rtTrue.isType;
+    const validateBig = rtBig.isType;
+    const validateSym = rtSym.isType;
 
     // success
     expect(validate2(2)).toBe(true);
@@ -52,13 +45,13 @@ it('validate literal', () => {
 });
 
 it('validate literal + errors', () => {
-    const valWithErrors2 = buildTypeErrorsJITFn(rt2).fn;
-    const valWithErrorsA = buildTypeErrorsJITFn(rtA).fn;
-    const valWithErrorsReg = buildTypeErrorsJITFn(rtReg).fn;
-    const valWithErrorsReg2 = buildTypeErrorsJITFn(rtReg2).fn;
-    const valWithErrorsTrue = buildTypeErrorsJITFn(rtTrue).fn;
-    const valWithErrorsBig = buildTypeErrorsJITFn(rtBig).fn;
-    const valWithErrorsSym = buildTypeErrorsJITFn(rtSym).fn;
+    const valWithErrors2 = rt2.typeErrors;
+    const valWithErrorsA = rtA.typeErrors;
+    const valWithErrorsReg = rtReg.typeErrors;
+    const valWithErrorsReg2 = rtReg2.typeErrors;
+    const valWithErrorsTrue = rtTrue.typeErrors;
+    const valWithErrorsBig = rtBig.typeErrors;
+    const valWithErrorsSym = rtSym.typeErrors;
 
     // success
     expect(valWithErrors2(2)).toEqual([]);
@@ -79,12 +72,12 @@ it('validate literal + errors', () => {
 });
 
 it('encode to json', () => {
-    const toJson2 = buildJsonEncodeJITFn(rt2).fn;
-    const toJsonA = buildJsonEncodeJITFn(rtA).fn;
-    const toJsonReg = buildJsonEncodeJITFn(rtReg).fn;
-    const toJsonTrue = buildJsonEncodeJITFn(rtTrue).fn;
-    const toJsonBig = buildJsonEncodeJITFn(rtBig).fn;
-    const toJsonSym = buildJsonEncodeJITFn(rtSym).fn;
+    const toJson2 = rt2.jsonEncode;
+    const toJsonA = rtA.jsonEncode;
+    const toJsonReg = rtReg.jsonEncode;
+    const toJsonTrue = rtTrue.jsonEncode;
+    const toJsonBig = rtBig.jsonEncode;
+    const toJsonSym = rtSym.jsonEncode;
 
     expect(toJson2(2)).toEqual(2);
     expect(toJsonA('a')).toEqual('a');
@@ -95,12 +88,12 @@ it('encode to json', () => {
 });
 
 it('decode from json', () => {
-    const fromJson2 = buildJsonDecodeJITFn(rt2).fn;
-    const fromJsonA = buildJsonDecodeJITFn(rtA).fn;
-    const fromJsonReg = buildJsonDecodeJITFn(rtReg).fn;
-    const fromJsonTrue = buildJsonDecodeJITFn(rtTrue).fn;
-    const fromJsonBig = buildJsonDecodeJITFn(rtBig).fn;
-    const fromJsonSym = buildJsonDecodeJITFn(rtSym).fn;
+    const fromJson2 = rt2.jsonDecode;
+    const fromJsonA = rtA.jsonDecode;
+    const fromJsonReg = rtReg.jsonDecode;
+    const fromJsonTrue = rtTrue.jsonDecode;
+    const fromJsonBig = rtBig.jsonDecode;
+    const fromJsonSym = rtSym.jsonDecode;
 
     expect(fromJson2(2)).toEqual(2);
     expect(fromJsonA('a')).toEqual('a');
@@ -111,19 +104,19 @@ it('decode from json', () => {
 });
 
 it('json stringify', () => {
-    const jsonStringify2 = buildJsonStringifyJITFn(rt2).fn;
-    const jsonStringifyA = buildJsonStringifyJITFn(rtA).fn;
-    const jsonStringifyReg = buildJsonStringifyJITFn(rtReg).fn;
-    const jsonStringifyTrue = buildJsonStringifyJITFn(rtTrue).fn;
-    const jsonStringifyBig = buildJsonStringifyJITFn(rtBig).fn;
-    const jsonStringifySym = buildJsonStringifyJITFn(rtSym).fn;
+    const jsonStringify2 = rt2.jsonStringify;
+    const jsonStringifyA = rtA.jsonStringify;
+    const jsonStringifyReg = rtReg.jsonStringify;
+    const jsonStringifyTrue = rtTrue.jsonStringify;
+    const jsonStringifyBig = rtBig.jsonStringify;
+    const jsonStringifySym = rtSym.jsonStringify;
 
-    const fromJson2 = buildJsonDecodeJITFn(rt2).fn;
-    const fromJsonA = buildJsonDecodeJITFn(rtA).fn;
-    const fromJsonReg = buildJsonDecodeJITFn(rtReg).fn;
-    const fromJsonTrue = buildJsonDecodeJITFn(rtTrue).fn;
-    const fromJsonBig = buildJsonDecodeJITFn(rtBig).fn;
-    const fromJsonSym = buildJsonDecodeJITFn(rtSym).fn;
+    const fromJson2 = rt2.jsonDecode;
+    const fromJsonA = rtA.jsonDecode;
+    const fromJsonReg = rtReg.jsonDecode;
+    const fromJsonTrue = rtTrue.jsonDecode;
+    const fromJsonBig = rtBig.jsonDecode;
+    const fromJsonSym = rtSym.jsonDecode;
 
     const typeValue2 = null;
     const roundTrip2 = fromJson2(JSON.parse(jsonStringify2(typeValue2)));

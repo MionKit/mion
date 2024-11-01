@@ -5,13 +5,6 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 import {runType} from '../runType';
-import {
-    buildJsonEncodeJITFn,
-    buildJsonDecodeJITFn,
-    buildIsTypeJITFn,
-    buildTypeErrorsJITFn,
-    buildJsonStringifyJITFn,
-} from '../jitCompiler';
 
 class SerializableClass {
     name: string;

@@ -8,7 +8,7 @@
 import type {AnyClass, RunType} from './types';
 import {ReflectionKind, Type} from './_deepkit/src/reflection/type';
 import {jitUtils} from './jitUtils';
-import {JitCompileOperation, JitTypeErrorCompileOp} from './jitOperation';
+import {JitTypeErrorCompileOperation} from './jitCompiler';
 import {isAtomicRunType, isCollectionRunType, isMemberRunType} from './guards';
 import {validPropertyNameRegExp} from './constants';
 
@@ -69,7 +69,7 @@ export function isSameJitType(a: RunType, b: RunType): boolean {
     return a.getJitId() === b.getJitId();
 }
 
-export function getJitErrorPath(cop: JitTypeErrorCompileOp, extraPathLiteral?: string | number): string {
+export function getJitErrorPath(cop: JitTypeErrorCompileOperation, extraPathLiteral?: string | number): string {
     const extraPath = extraPathLiteral ? `,${extraPathLiteral}` : '';
     if (cop.length === 1) return `[...${cop.args.pλth}${extraPath}]`;
     return `[...${cop.args.pλth},${cop.getStackStaticPathArgs()}${extraPath}]`;
@@ -126,14 +126,14 @@ export function shouldSkipJit(rt: RunType): boolean {
     throw new Error('shouldSkipJit: unknown RunType');
 }
 
-export function shouldSkipJsonDecode(rt: RunType, cop: JitCompileOperation): boolean {
+export function shouldSkipJsonDecode(rt: RunType): boolean {
     if (shouldSkipJit(rt)) return true;
     if (isCollectionRunType(rt)) {
-        const children = rt.getJsonDecodeChildren(cop);
+        const children = rt.getJsonDecodeChildren();
         return !children.length;
     }
     if (isMemberRunType(rt)) {
-        const child = rt.getJsonDecodeChild(cop);
+        const child = rt.getJsonDecodeChild();
         return !child;
     }
     if (isAtomicRunType(rt)) {
@@ -142,14 +142,14 @@ export function shouldSkipJsonDecode(rt: RunType, cop: JitCompileOperation): boo
     throw new Error('shouldSkipJsonDecode: unknown RunType');
 }
 
-export function shouldSkiJsonEncode(rt: RunType, cop: JitCompileOperation): boolean {
+export function shouldSkiJsonEncode(rt: RunType): boolean {
     if (shouldSkipJit(rt)) return true;
     if (isCollectionRunType(rt)) {
-        const children = rt.getJsonEncodeChildren(cop);
+        const children = rt.getJsonEncodeChildren();
         return !children.length;
     }
     if (isMemberRunType(rt)) {
-        const child = rt.getJsonEncodeChild(cop);
+        const child = rt.getJsonEncodeChild();
         return !child;
     }
     if (isAtomicRunType(rt)) {

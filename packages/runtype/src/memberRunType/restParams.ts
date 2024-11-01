@@ -1,7 +1,13 @@
 import {TypeRest} from '../_deepkit/src/reflection/type';
 import {MemberRunType} from '../baseRunTypes';
-import {JitDefaultOp, JitTypeErrorCompileOp} from '../jitOperation';
-import {MockContext} from '../types';
+import type {
+    jitIsTypeCompileOperation,
+    JitJsonDecodeCompileOperation,
+    JitJsonEncodeCompileOperation,
+    JitJsonStringifyCompileOperation,
+    JitTypeErrorCompileOperation,
+} from '../jitCompiler';
+import {JitFnID, MockContext} from '../types';
 
 /* ########
  * 2024 mion
@@ -24,13 +30,17 @@ export class RestParamsRunType extends MemberRunType<TypeRest> {
     useArrayAccessor(): true {
         return true;
     }
-    hasReturnCompileIsType(): boolean {
-        return true;
+    jitFnHasReturn(copId: JitFnID): boolean {
+        switch (copId) {
+            case 'isType':
+                return true;
+            case 'jsonStringify':
+                return true;
+            default:
+                return super.jitFnHasReturn(copId);
+        }
     }
-    hasReturnCompileJsonStringify(): boolean {
-        return true;
-    }
-    _compileIsType(cop: JitDefaultOp): string {
+    _compileIsType(cop: jitIsTypeCompileOperation): string {
         const varName = cop.vλl;
         const indexName = this.getChildVarName();
         const itemCode = this.getMemberType().compileIsType(cop);
@@ -41,25 +51,25 @@ export class RestParamsRunType extends MemberRunType<TypeRest> {
             return true;
         `;
     }
-    _compileTypeErrors(cop: JitTypeErrorCompileOp): string {
+    _compileTypeErrors(cop: JitTypeErrorCompileOperation): string {
         const varName = cop.vλl;
         const indexName = this.getChildVarName();
         const itemCode = this.getMemberType().compileTypeErrors(cop);
         return `for (let ${indexName} = ${this.getChildIndex()}; ${indexName} < ${varName}.length; ${indexName}++) {${itemCode}}`;
     }
-    _compileJsonEncode(cop: JitDefaultOp): string {
-        return this.compileJsonDE(cop, true);
-    }
-    _compileJsonDecode(cop: JitDefaultOp): string {
-        return this.compileJsonDE(cop, false);
-    }
-    private compileJsonDE(cop: JitDefaultOp, isEncode = false): string {
+    _compileJsonEncode(cop: JitJsonEncodeCompileOperation): string {
         const varName = cop.vλl;
         const indexName = this.getChildVarName();
-        const itemCode = isEncode ? this.getMemberType().compileJsonEncode(cop) : this.getMemberType().compileJsonDecode(cop);
+        const itemCode = this.getMemberType().compileJsonEncode(cop);
         return `for (let ${indexName} = ${this.getChildIndex()}; ${indexName} < ${varName}.length; ${indexName}++) {${itemCode}}`;
     }
-    _compileJsonStringify(cop: JitDefaultOp): string {
+    _compileJsonDecode(cop: JitJsonDecodeCompileOperation): string {
+        const varName = cop.vλl;
+        const indexName = this.getChildVarName();
+        const itemCode = this.getMemberType().compileJsonDecode(cop);
+        return `for (let ${indexName} = ${this.getChildIndex()}; ${indexName} < ${varName}.length; ${indexName}++) {${itemCode}}`;
+    }
+    _compileJsonStringify(cop: JitJsonStringifyCompileOperation): string {
         const varName = cop.vλl;
         const arrName = `rεsultλrr${cop.length}`;
         const itemName = `itεm${cop.length}`;

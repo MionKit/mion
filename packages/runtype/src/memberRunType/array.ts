@@ -6,10 +6,16 @@
  * ######## */
 
 import {TypeArray} from '../_deepkit/src/reflection/type';
-import {MockContext} from '../types';
+import {JitFnID, MockContext} from '../types';
 import {mockRecursiveEmptyArray, random} from '../mock';
 import {MemberRunType} from '../baseRunTypes';
-import {JitDefaultOp, JitTypeErrorCompileOp} from '../jitOperation';
+import type {
+    jitIsTypeCompileOperation,
+    JitJsonDecodeCompileOperation,
+    JitJsonEncodeCompileOperation,
+    JitJsonStringifyCompileOperation,
+    JitTypeErrorCompileOperation,
+} from '../jitCompiler';
 import {getJitErrorPath, getExpected, shouldSkiJsonEncode, shouldSkipJit, shouldSkipJsonDecode} from '../utils';
 
 export class ArrayRunType extends MemberRunType<TypeArray> {
@@ -26,17 +32,20 @@ export class ArrayRunType extends MemberRunType<TypeArray> {
     isOptional(): boolean {
         return false;
     }
-
-    hasReturnCompileIsType(): boolean {
-        return true;
-    }
-    hasReturnCompileJsonStringify(): boolean {
-        return true;
+    jitFnHasReturn(copId: JitFnID): boolean {
+        switch (copId) {
+            case 'isType':
+                return true;
+            case 'jsonStringify':
+                return true;
+            default:
+                return super.jitFnHasReturn(copId);
+        }
     }
 
     // #### jit code ####
 
-    _compileIsType(cop: JitDefaultOp): string {
+    _compileIsType(cop: jitIsTypeCompileOperation): string {
         const varName = cop.vλl;
         const resultVal = `rεs${cop.length}`;
         const index = this.getChildVarName();
@@ -50,7 +59,7 @@ export class ArrayRunType extends MemberRunType<TypeArray> {
             return true;
         `;
     }
-    _compileTypeErrors(cop: JitTypeErrorCompileOp): string {
+    _compileTypeErrors(cop: JitTypeErrorCompileOperation): string {
         const varName = cop.vλl;
         const index = this.getChildVarName();
         if (shouldSkipJit(this)) {
@@ -65,27 +74,27 @@ export class ArrayRunType extends MemberRunType<TypeArray> {
             }
         `;
     }
-    _compileJsonEncode(cop: JitDefaultOp): string {
+    _compileJsonEncode(cop: JitJsonEncodeCompileOperation): string {
         const varName = cop.vλl;
         const index = this.getChildVarName();
-        if (shouldSkiJsonEncode(this, cop)) return '';
+        if (shouldSkiJsonEncode(this)) return '';
         return `
             for (let ${index} = 0; ${index} < ${varName}.length; ${index}++) {
                 ${this.getMemberType().compileJsonEncode(cop)}
             }
         `;
     }
-    _compileJsonDecode(cop: JitDefaultOp): string {
+    _compileJsonDecode(cop: JitJsonDecodeCompileOperation): string {
         const varName = cop.vλl;
         const index = this.getChildVarName();
-        if (shouldSkipJsonDecode(this, cop)) return '';
+        if (shouldSkipJsonDecode(this)) return '';
         return `
             for (let ${index} = 0; ${index} < ${varName}.length; ${index}++) {
                 ${this.getMemberType().compileJsonDecode(cop)}
             }
         `;
     }
-    _compileJsonStringify(cop: JitDefaultOp): string {
+    _compileJsonStringify(cop: JitJsonStringifyCompileOperation): string {
         const varName = cop.vλl;
         const jsonItems = `jsonItεms${cop.length}`;
         const resultVal = `rεs${cop.length}`;

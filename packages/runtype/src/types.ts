@@ -6,7 +6,7 @@
  * ######## */
 
 import type {Type, TypeCallSignature, TypeFunction, TypeMethod, TypeMethodSignature} from './_deepkit/src/reflection/type';
-import type {JitDefaultOp, JitTypeErrorCompileOp} from './jitOperation';
+import type {JitCompileOperation} from './jitCompiler';
 import {JITUtils} from './jitUtils';
 
 export type JSONValue = string | number | boolean | null | {[key: string]: JSONValue} | Array<JSONValue>;
@@ -14,6 +14,17 @@ export type JSONString = string;
 
 export type RunTypeVisitor = (deepkitType: Type, parents: RunType[], opts: RunTypeOptions) => RunType;
 export type DKwithRT = Type & {_rt: RunType};
+
+export type JitFnID =
+    | 'isType'
+    | 'typeErrors'
+    | 'jsonEncode'
+    | 'jsonDecode'
+    | 'jsonStringify'
+    | 'hasUnknownKeys'
+    | 'getUnknownKeys'
+    | 'stripUnknownKeys'
+    | 'unknownKeysToUndefined';
 
 /**
  * The argument names of the function to be compiled. The order of properties is important as must the same as the function args.
@@ -26,36 +37,27 @@ export type JitFnArgs = {
     [key: string]: string;
 };
 
-export type StackItem = {
-    /** current compile stack full variable accessor */
-    vλl: string;
-    /** current compile stack variable accessor */
-    rt: RunType;
-    call?: StackCallFlags;
-};
-
-export interface StackCallFlags {
-    shouldGenerate?: true;
-    shouldCall?: true;
-}
-
 /**
  * Runtime Metadata for a typescript types.
  */
-export interface RunType extends JitCompilerFunctions {
+export interface RunType {
     readonly src: Type;
     getName(): string;
     getFamily(): 'A' | 'C' | 'M' | 'F'; // Atomic, Collection, Member, Function
     getJitConstants(stack?: RunType[]): JitConstants;
     mock: (mockContext?: MockContext) => any;
-    compile: () => JITCompiledFunctions;
     getJitId(): string | number;
-    /**
-     * In Some scenarios (recursive types) code must be compiled into an aux function instead directly inside the main jit function.
-     * In those scenarios auxFnName will be have the name of that function.
-     * */
-    auxFnName?: string;
     isCircular?: boolean;
+
+    // isType: (value: any) => boolean;
+    // typeErrors: (value: any) => RunTypeValidationError[];
+    // jsonEncode: (value: any) => JSONValue;
+    // jsonDecode: (value: JSONValue) => any;
+    // jsonStringify: (value: any) => JSONString;
+    // hasUnknownKeys: (value: any) => boolean;
+    // getUnknownKeys: (value: any) => string[];
+    // stripUnknownKeys: (value: any) => any;
+    // unknownKeysToUndefined: (value: any) => any;
 }
 
 export interface RunTypeChildAccessor extends RunType {
@@ -89,75 +91,32 @@ export type JitConstants = {
     readonly jitId: string | number;
 };
 
-export interface JitCompilerFunctions {
-    /**
-     * JIT code validation code
-     * should not include anything that is purely the validation of the type, ie function wrappers.
-     * this code should not use return statements, it should be a single line of code that evaluates to a boolean
-     * this code should not contain any sentence breaks or semicolons.
-     * ie: compileIsType = () => `typeof vλl === 'string'`
-     */
-    compileIsType(jitCompileContext: JitDefaultOp): string;
-    /**
-     * JIT code Validation + error info
-     * Similar to validation code but instead of returning a boolean it should assign an error message to the errorsName
-     * This is an executable code block and can contain multiple lines or semicolons
-     * ie:  validateCodeWithErrors = () => `if (typeof vλl !== 'string') ${cop.args.εrr} = 'Expected to be a String';`
-     * path is a string that represents the path to the property being validated.
-     * path is calculated at runtime so is an expression like 'path1' + '/' + 'path2' + '/' + 'path3'
-     */
-    compileTypeErrors(jitCompileContext: JitTypeErrorCompileOp): string;
-    /**
-     * JIT code to transform from type to an object that can be serialized using json
-     * this code should not use return statements, it should be a single line of code that evaluates to a json compatible type.
-     * this code should not contain any sentence breaks or semicolons.
-     * ie for bigIng: compileJsonEncode = () => `vλl.toString()`
-     * */
-    compileJsonEncode(jitCompileContext: JitDefaultOp): string;
-    /**
-     * JIT code to transform from json to type so type can be deserialized from json
-     * this code should not use return statements, it should be a single line that receives a json compatible type and returns a deserialized value.
-     * this code should not contain any sentence breaks or semicolons.
-     * ie for bigIng: compileJsonDecode = () => `BigInt(vλl)`
-     *
-     * For security reason decoding ignores any properties that are not defined in the type.
-     * So is your type is {name: string} and the json is {name: string, age: number} the age property will be ignored.
-     * */
-    compileJsonDecode(jitCompileContext: JitDefaultOp): string;
-    /**
-     * JIT code to transform a type directly into s json string.
-     * when serializing to json normally we need first to prepare the object using compileJsonEncode and then JSON.stringify().
-     * this code directly outputs the json string and saves traversing the type twice
-     * stringify is always strict
-     */
-    compileJsonStringify(jitCompileContext: JitDefaultOp): string;
-}
-
-export interface JitCompilerOptions {
-    /** if true isType function will return false for unknown properties in objects. */
-    strictTypes?: boolean;
-    /** safe json parsing
-     * none: no safe parsing, all properties are parsed
-     * throw: throw an error if unknown properties are found
-     * undefined: set unknown properties to undefined. more performant than deleting properties
-     * strip: strip unknown properties by deleting them
-     *
-     * if more than 10 unknown properties are found on any object then an error is thrown.
-     * // TODO: at the moment we only check maxUnknownKeys per object and we should do it for the whole object graph most probaly passing a new arg to the json decode function
-     */
-    safeJSON?: 'none' | 'throw' | 'undefined' | 'strip';
-}
-
 export interface RunTypeOptions {
-    /**
-     * Json encoding/decoding will eliminate unknown properties
-     * ie: if your type is {name: string} and the json is {name: string, age: number} the age property will be removed en encoding/decoding.
-     */
-    strictJSON?: boolean;
-
     /** slice parameters when parsing functions */
     paramsSlice?: {start?: number; end?: number};
 }
+
+/**
+ * Jit Compile Operation unit
+ * EXPRESSION: the result of each type compilations is expected to be a js expression that resolves to a single value, and can be used wit operators like +, -, *, /, ||, &&, etc.
+ * i.e: expType1 + expType2, expType1 || expType2, etc. Expressions cant contain return statements, if statements, semicolons, etc.
+ * if a code block is needed in an expression it must be wrapped in a self invoking function. i.e: (() => { //... code block })()
+ * STATEMENT: the result of each type compilations is expected to be a js statement that can be used in a block of code, and can contain return statements, if statements, semicolons, etc.
+ * BLOCK: the main difference is that and statement can be returned directly ie: return statementCode;
+ * while in a block the main value must be returned after code block execution. ie: blockCode; return vλl;
+ */
+export type CodeUnit = 'EXPRESSION' | 'STATEMENT' | 'BLOCK';
+
+export interface CompiledOperation extends Pick<JitCompileOperation, 'opId' | 'args' | 'defaultParamValues' | 'code'> {
+    jitFn: (...args: any[]) => any;
+    dependencies: string[];
+}
+
+export interface SerializableCompiledOperation extends Pick<JitCompileOperation, 'args' | 'defaultParamValues' | 'code'> {
+    dependencies: string[];
+}
+
+export type SerializedOperations = Record<string, SerializableCompiledOperation>;
 
 export interface JitJsonEncoder {
     decodeFromJson: (vλl: string) => string;
@@ -228,19 +187,6 @@ export interface SerializableClass<T = any> {
 export interface AnyClass<T = any> {
     new (...args: any[]): T;
 }
-
-export type CompileFn =
-    | JitCompilerFunctions['compileIsType']
-    | JitCompilerFunctions['compileJsonEncode']
-    | JitCompilerFunctions['compileJsonDecode']
-    | JitCompilerFunctions['compileJsonStringify'];
-
-export type CompileFnTypeErrors = JitCompilerFunctions['compileTypeErrors'];
-
-export type CompileFnKey = keyof Pick<
-    JitCompilerFunctions,
-    'compileIsType' | 'compileJsonEncode' | 'compileJsonDecode' | 'compileJsonStringify'
->;
 
 interface MockOptions {
     anyValuesLis?: any[];

@@ -12,7 +12,13 @@ import {CollectionRunType} from '../baseRunTypes';
 import {MethodSignatureRunType} from '../memberRunType/methodSignature';
 import {IndexSignatureRunType} from '../memberRunType/indexProperty';
 import {MethodRunType} from '../memberRunType/method';
-import {JitDefaultOp, JitTypeErrorCompileOp} from '../jitOperation';
+import type {
+    jitIsTypeCompileOperation,
+    JitJsonDecodeCompileOperation,
+    JitJsonEncodeCompileOperation,
+    JitJsonStringifyCompileOperation,
+    JitTypeErrorCompileOperation,
+} from '../jitCompiler';
 import {jitNames} from '../constants';
 
 export type InterfaceMember = PropertyRunType | MethodSignatureRunType | IndexSignatureRunType | MethodRunType;
@@ -22,7 +28,7 @@ export class InterfaceRunType<
 > extends CollectionRunType<T> {
     src: T = null as any; // will be set after construction
 
-    callCheckUnknownProperties(cop: JitDefaultOp, childrenRunTypes: RunType[], returnKeys: boolean): string {
+    callCheckUnknownProperties(cop: jitIsTypeCompileOperation, childrenRunTypes: RunType[], returnKeys: boolean): string {
         const childrenNames = childrenRunTypes.filter((prop) => !!(prop.src as any).name).map((prop) => (prop.src as any).name);
         if (childrenNames.length === 0) return '';
         const keysID = toLiteral(childrenNames.join(':'));
@@ -31,82 +37,69 @@ export class InterfaceRunType<
     }
 
     // #### collection's jit code ####
-    _compileIsType(cop: JitDefaultOp): string {
+    _compileIsType(cop: jitIsTypeCompileOperation): string {
         const varName = cop.vλl;
         const children = this.getJitChildren();
-        const strictCheck = cop.compileOptions.strictTypes
-            ? ` &&  !${this.callCheckUnknownProperties(cop, children, false)}`
-            : '';
         const childrenCode = `  && ${children.map((prop) => prop.compileIsType(cop)).join(' && ')}`;
         // adding strictCheck at the end improves performance when property checks fail and in union types
-        return `(typeof ${varName} === 'object' && ${varName} !== null${childrenCode}${strictCheck})`;
+        return `(typeof ${varName} === 'object' && ${varName} !== null${childrenCode})`;
     }
-    _compileTypeErrors(cop: JitTypeErrorCompileOp): string {
+    _compileTypeErrors(cop: JitTypeErrorCompileOperation): string {
         const varName = cop.vλl;
-        const keyVar = `kεy${this.getNestLevel()}`;
-        const unknownVar = `µnkPrΦps${this.getNestLevel()}`;
         const children = this.getJitChildren();
         const childrenCode = children.map((prop) => prop.compileTypeErrors(cop)).join(';');
-        const strictCheck = cop.compileOptions.strictTypes
-            ? `
-            const ${unknownVar} = ${this.callCheckUnknownProperties(cop, children, true)};
-            if (${unknownVar}) {
-                for (const ${keyVar} of ${unknownVar}) {${cop.args.εrr}.push({path:${getJitErrorPath(cop, keyVar)}, expected:'never'});}
-            }`
-            : '';
         return `
             if (typeof ${varName} !== 'object' && ${varName} !== null) {
                 ${cop.args.εrr}.push({path:${getJitErrorPath(cop)},expected:${getExpected(this)}});
             } else {
                 ${childrenCode}
-                ${strictCheck}
             }
         `;
     }
-    _compileJsonEncode(cop: JitDefaultOp): string {
-        const children = this.getJsonEncodeChildren(cop);
+    _compileJsonEncode(cop: JitJsonEncodeCompileOperation): string {
+        const children = this.getJsonEncodeChildren();
         return children
             .map((prop) => prop.compileJsonEncode(cop))
             .filter((c) => !!c)
             .join(';');
     }
-    _compileJsonDecode(cop: JitDefaultOp): string {
-        const children = this.getJsonDecodeChildren(cop);
-        const allJitChildren = this.getJitChildren();
-        const unknownVar = `µnkPrΦps${this.getNestLevel()}`;
-        const keyVar = `kεy${this.getNestLevel()}`;
-        let unknownCode = '';
-        switch (cop.compileOptions.safeJSON) {
-            case 'undefined':
-                unknownCode = `
-                    const ${unknownVar} = ${this.callCheckUnknownProperties(cop, allJitChildren, true)};
-                    if (${unknownVar}) {
-                        for (const ${keyVar} of ${unknownVar}) { ${cop.vλl}[${keyVar}] = undefined; }
-                    }
-                `;
-                break;
-            case 'strip':
-                unknownCode = `
-                    const ${unknownVar} = ${this.callCheckUnknownProperties(cop, allJitChildren, true)};
-                    if (${unknownVar}) {
-                        for (const ${keyVar} of ${unknownVar}) { delete ${cop.vλl}[${keyVar}]; }
-                    }
-                `;
-                break;
-            case 'throw':
-                unknownCode = `
-                    const ${unknownVar} = ${this.callCheckUnknownProperties(cop, allJitChildren, false)};
-                    if (${unknownVar}) throw new Error('Unknown properties in JSON');
-                `;
-                break;
-        }
+    _compileJsonDecode(cop: JitJsonDecodeCompileOperation): string {
+        const children = this.getJsonDecodeChildren();
+        // const allJitChildren = this.getJitChildren();
+        // const unknownVar = `µnkPrΦps${this.getNestLevel()}`;
+        // const keyVar = `kεy${this.getNestLevel()}`;
+        // let unknownCode = '';
+        // switch (cop.compileOptions.safeJSON) {
+        //     case 'undefined':
+        //         unknownCode = `
+        //             const ${unknownVar} = ${this.callCheckUnknownProperties(cop, allJitChildren, true)};
+        //             if (${unknownVar}) {
+        //                 for (const ${keyVar} of ${unknownVar}) { ${cop.vλl}[${keyVar}] = undefined; }
+        //             }
+        //         `;
+        //         break;
+        //     case 'strip':
+        //         unknownCode = `
+        //             const ${unknownVar} = ${this.callCheckUnknownProperties(cop, allJitChildren, true)};
+        //             if (${unknownVar}) {
+        //                 for (const ${keyVar} of ${unknownVar}) { delete ${cop.vλl}[${keyVar}]; }
+        //             }
+        //         `;
+        //         break;
+        //     case 'throw':
+        //         unknownCode = `
+        //             const ${unknownVar} = ${this.callCheckUnknownProperties(cop, allJitChildren, false)};
+        //             if (${unknownVar}) throw new Error('Unknown properties in JSON');
+        //         `;
+        //         break;
+        // }
         const childrenCode = children
             .map((prop) => prop.compileJsonDecode(cop))
             .filter((c) => !!c)
             .join(';');
-        return unknownCode + childrenCode;
+        return childrenCode;
     }
-    _compileJsonStringify(cop: JitDefaultOp): string {
+    _compileJsonStringify(cop: JitJsonStringifyCompileOperation): string {
         const children = this.getJitChildren();
         const childrenCode = children
             .map((prop) => prop.compileJsonStringify(cop))

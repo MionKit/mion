@@ -6,12 +6,12 @@
  * ######## */
 
 import {maxUnknownKeys} from './constants';
-import type {SerializableClass} from './types';
+import type {CompiledOperation, SerializableClass} from './types';
 
 const classesMap = new Map<string, SerializableClass>();
 
 /** Cache for jit generated functions, only interfaces, classes and named types, must be inserted here */
-const jitCache = new Map<string | number, (...args: any[]) => any>();
+const jitCache = new Map<string, CompiledOperation>();
 
 // eslint-disable-next-line no-control-regex
 const STR_ESCAPE = /[\u0000-\u001f\u0022\u005c\ud800-\udfff]/;
@@ -70,16 +70,15 @@ export const jitUtils = {
         return classesMap.get(name);
     },
     // !!! DO NOT MODIFY METHOD WITHOUT REVIEWING JIT CODE INVOCATIONS!!!
-    addCachedFn(key: string, fn: (...args: any[]) => any) {
-        jitCache[key] = fn;
+    addCachedFn(key: string, cop: CompiledOperation) {
+        jitCache.set(key, cop);
+    },
+    getCachedCompiledOperation(key: string): CompiledOperation | undefined {
+        return jitCache.get(key);
     },
     // !!! DO NOT MODIFY METHOD WITHOUT REVIEWING JIT CODE INVOCATIONS!!!
-    getCachedFn(key: string) {
-        const jitFn = jitCache[key];
-        if (!jitFn) {
-            throw new Error(`JIT function with key ${key} not found in cache`);
-        }
-        return jitFn;
+    getCachedFn(key: string): undefined | ((...args: any[]) => any) {
+        return jitCache.get(key)?.jitFn;
     },
     // !!! DO NOT MODIFY METHOD WITHOUT REVIEWING JIT CODE INVOCATIONS!!!
     isFnInCache(key: string) {

@@ -5,13 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 import {reflectFunction, runType} from '../runType';
-import {
-    buildJsonEncodeJITFn,
-    buildJsonDecodeJITFn,
-    buildIsTypeJITFn,
-    buildTypeErrorsJITFn,
-    buildJsonStringifyJITFn,
-} from '../jitCompiler';
+
 import {FunctionRunType} from './function';
 
 type FunctionType = (a: number, b: boolean, c?: string) => Date;

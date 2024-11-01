@@ -10,7 +10,7 @@ import {toLiteral} from '../utils';
 import {InterfaceRunType, InterfaceMember} from './interface';
 import {isConstructor} from '../guards';
 import {jitNames} from '../constants';
-import {JitDefaultOp} from '../jitOperation';
+import type {JitJsonDecodeCompileOperation} from '../jitCompiler';
 
 export class ClassRunType extends InterfaceRunType<TypeClass> {
     getClassName(): string {
@@ -20,7 +20,7 @@ export class ClassRunType extends InterfaceRunType<TypeClass> {
         const children = this.getChildRunTypes() as InterfaceMember[];
         return children.every((prop) => !isConstructor(prop) || prop.getParameters().getTotalParams() === 0);
     }
-    _compileJsonDecode(cop: JitDefaultOp): string {
+    _compileJsonDecode(cop: JitJsonDecodeCompileOperation): string {
         checkSerializable(this.canDeserialize(), this.getClassName());
         const decodeParams = super.compileJsonDecode(cop);
         const decode = decodeParams ? `${decodeParams}; ` : '';

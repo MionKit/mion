@@ -16,7 +16,13 @@ import {DKwithRT, MockContext, Mutable, RunType, RunTypeChildAccessor} from '../
 import {getJitErrorPath, getExpected, toLiteral, arrayToArgumentsLiteral} from '../utils';
 import {PropertyRunType} from '../memberRunType/property';
 import {IndexSignatureRunType} from '../memberRunType/indexProperty';
-import {JitDefaultOp, JitTypeErrorCompileOp} from '../jitOperation';
+import type {
+    jitIsTypeCompileOperation,
+    JitJsonDecodeCompileOperation,
+    JitJsonEncodeCompileOperation,
+    JitJsonStringifyCompileOperation,
+    JitTypeErrorCompileOperation,
+} from '../jitCompiler';
 import {InterfaceRunType} from '../collectionRunType/interface';
 import {MemberRunType} from '../baseRunTypes';
 import {UnionRunType} from '../collectionRunType/union';
@@ -120,14 +126,14 @@ export class UnionInterfaceRunType extends InterfaceRunType<anySrcInterface> {
     }
 
     // #### collection's jit code ####
-    _compileIsType(cop: JitDefaultOp): string {
+    _compileIsType(cop: jitIsTypeCompileOperation): string {
         const varName = cop.vλl;
         const childCode = this.mergedInterfaces.length
             ? ` && (${this.mergedInterfaces.map((rt) => this._compileIsTypeMergedChildren(cop, rt)).join(' || ')})`
             : '';
         return `(typeof ${varName} === 'object' && ${varName} !== null${childCode})`;
     }
-    _compileTypeErrors(cop: JitTypeErrorCompileOp): string {
+    _compileTypeErrors(cop: JitTypeErrorCompileOperation): string {
         const varName = cop.vλl;
         const parentPath = getJitErrorPath(cop);
         const childrenCode = this.mergedInterfaces.length
@@ -141,7 +147,7 @@ export class UnionInterfaceRunType extends InterfaceRunType<anySrcInterface> {
             }
         `;
     }
-    _compileJsonEncode(cop: JitDefaultOp): string {
+    _compileJsonEncode(cop: JitJsonEncodeCompileOperation): string {
         const jsonEncodedMergedList = this.mergedInterfaces.filter(
             (c) => !c.getJitConstants().skipJit && !c.getJitConstants().skipJsonEncode
         );
@@ -156,7 +162,7 @@ export class UnionInterfaceRunType extends InterfaceRunType<anySrcInterface> {
                   .join('\n')
             : '';
     }
-    _compileJsonDecode(cop: JitDefaultOp): string {
+    _compileJsonDecode(cop: JitJsonDecodeCompileOperation): string {
         const jsonDecodedMergedList = this.mergedInterfaces.filter(
             (c) => !c.getJitConstants().skipJit && !c.getJitConstants().skipJsonDecode
         );
@@ -171,7 +177,7 @@ export class UnionInterfaceRunType extends InterfaceRunType<anySrcInterface> {
                   .join('\n')
             : '';
     }
-    _compileJsonStringify(cop: JitDefaultOp): string {
+    _compileJsonStringify(cop: JitJsonStringifyCompileOperation): string {
         const children = this.getJitChildren();
         const childrenCode = children.map((prop) => prop.compileJsonStringify(cop)).join('+');
         return `'{'+${childrenCode}+'}'`;

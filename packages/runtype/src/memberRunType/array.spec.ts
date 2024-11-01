@@ -5,20 +5,13 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 import {runType} from '../runType';
-import {
-    buildJsonEncodeJITFn,
-    buildJsonDecodeJITFn,
-    buildIsTypeJITFn,
-    buildTypeErrorsJITFn,
-    buildJsonStringifyJITFn,
-} from '../jitCompiler';
 
 describe('Array', () => {
     const rt = runType<string[]>();
     const rD = runType<Date[]>();
 
     it('validate string[]', () => {
-        const validate = buildIsTypeJITFn(rt).fn;
+        const validate = rt.isType;
         expect(validate([])).toBe(true);
         expect(validate(['hello', 'world'])).toBe(true);
         expect(validate(['hello', 2])).toBe(false);
@@ -26,41 +19,41 @@ describe('Array', () => {
     });
 
     it('validate string[] + errors', () => {
-        const valWithErrors = buildTypeErrorsJITFn(rt).fn;
+        const valWithErrors = rt.typeErrors;
         expect(valWithErrors(['hello', 'world'])).toEqual([]);
         expect(valWithErrors('hello')).toEqual([{path: [], expected: 'array'}]);
         expect(valWithErrors(['hello', 123])).toEqual([{path: [1], expected: 'string'}]);
     });
 
     it('encode to json', () => {
-        const toJson = buildJsonEncodeJITFn(rt).fn;
+        const toJson = rt.jsonEncode;
         const typeValue = ['hello', 'world'];
         expect(toJson(typeValue)).toEqual(typeValue);
     });
 
     it('decode from json', () => {
-        const fromJson = buildJsonDecodeJITFn(rt).fn;
+        const fromJson = rt.jsonDecode;
         const typeValue = ['hello', 'world'];
         const json = JSON.parse(JSON.stringify(typeValue));
         expect(fromJson(json)).toEqual(typeValue);
     });
 
     it('encode to json date', () => {
-        const toJson = buildJsonEncodeJITFn(rD).fn;
+        const toJson = rD.jsonEncode;
         const typeValue = [new Date(), new Date()];
         expect(toJson(typeValue)).toBe(typeValue);
     });
 
     it('decode from json date', () => {
-        const fromJson = buildJsonDecodeJITFn(rD).fn;
+        const fromJson = rD.jsonDecode;
         const typeValue = [new Date(), new Date()];
         const json = JSON.parse(JSON.stringify(typeValue));
         expect(fromJson(json)).toEqual(typeValue);
     });
 
     it('json stringify', () => {
-        const jsonStringify = buildJsonStringifyJITFn(rt).fn;
-        const fromJson = buildJsonDecodeJITFn(rt).fn;
+        const jsonStringify = rt.jsonStringify;
+        const fromJson = rt.jsonDecode;
         const typeValue = ['hello', 'world'];
         const roundTrip = fromJson(JSON.parse(jsonStringify(typeValue)));
         expect(roundTrip).toEqual(typeValue);
@@ -72,7 +65,7 @@ describe('Array', () => {
 
     it('mock', () => {
         expect(rt.mock() instanceof Array).toBe(true);
-        const validate = buildIsTypeJITFn(rt).fn;
+        const validate = rt.isType;
         expect(validate(rt.mock())).toBe(true);
     });
 });
@@ -81,7 +74,7 @@ describe('Array with multiple dimensions', () => {
     const rt = runType<string[][]>();
 
     it('validate string[][]', () => {
-        const validate = buildIsTypeJITFn(rt).fn;
+        const validate = rt.isType;
         expect(validate([])).toBe(true);
         expect(validate([[]])).toBe(true);
         expect(
@@ -96,7 +89,7 @@ describe('Array with multiple dimensions', () => {
     });
 
     it('validate string[][] + errors', () => {
-        const valWithErrors = buildTypeErrorsJITFn(rt).fn;
+        const valWithErrors = rt.typeErrors;
         expect(valWithErrors([])).toEqual([]);
         expect(valWithErrors([[]])).toEqual([]);
         expect(
@@ -115,21 +108,21 @@ describe('Array with multiple dimensions', () => {
     });
 
     it('encode to json', () => {
-        const toJson = buildJsonEncodeJITFn(rt).fn;
+        const toJson = rt.jsonEncode;
         const typeValue = [['hello', 'world'], ['a', 'b'], []];
         expect(toJson(typeValue)).toEqual(typeValue);
     });
 
     it('decode from json', () => {
-        const fromJson = buildJsonDecodeJITFn(rt).fn;
+        const fromJson = rt.jsonDecode;
         const typeValue = [['hello', 'world'], ['a', 'b'], []];
         const json = JSON.parse(JSON.stringify(typeValue));
         expect(fromJson(json)).toEqual(typeValue);
     });
 
     it('json stringify', () => {
-        const jsonStringify = buildJsonStringifyJITFn(rt).fn;
-        const fromJson = buildJsonDecodeJITFn(rt).fn;
+        const jsonStringify = rt.jsonStringify;
+        const fromJson = rt.jsonDecode;
         const typeValue = [['hello', 'world'], ['a', 'b'], []];
         const roundTrip = fromJson(JSON.parse(jsonStringify(typeValue)));
         expect(roundTrip).toEqual(typeValue);
@@ -140,7 +133,7 @@ describe('Array with multiple dimensions', () => {
     });
 
     it('mock', () => {
-        const validate = buildIsTypeJITFn(rt).fn;
+        const validate = rt.isType;
         expect(rt.mock() instanceof Array).toBe(true);
         expect(validate(rt.mock())).toBe(true);
     });
@@ -154,7 +147,7 @@ describe('Array circular ref', () => {
 
     it('validate CircularArray', () => {
         const rt = runType<CircularArray>();
-        const validate = buildIsTypeJITFn(rt).fn;
+        const validate = rt.isType;
         const arr: CircularArray = [];
         arr.push([]);
         arr[0].push([]);
@@ -164,7 +157,7 @@ describe('Array circular ref', () => {
 
     it('validate CircularArray + errors', () => {
         const rt = runType<CircularArray>();
-        const valWithErrors = buildTypeErrorsJITFn(rt).fn;
+        const valWithErrors = rt.typeErrors;
         const arr: CircularArray = [];
         arr.push([]);
         arr[0].push([]);
@@ -181,7 +174,7 @@ describe('Array circular ref', () => {
 
     it('encode CircularArray to json', () => {
         const rt = runType<CircularArray>();
-        const toJson = buildJsonEncodeJITFn(rt).fn;
+        const toJson = rt.jsonEncode;
         const arr: CircularArray = [];
         arr.push([]);
         arr[0].push([]);
@@ -191,7 +184,7 @@ describe('Array circular ref', () => {
 
     it('decode CircularArray from json', () => {
         const rt = runType<CircularArray>();
-        const fromJson = buildJsonDecodeJITFn(rt).fn;
+        const fromJson = rt.jsonDecode;
         const arr: CircularArray = [];
         arr.push([]);
         arr[0].push([]);
@@ -202,8 +195,8 @@ describe('Array circular ref', () => {
 
     it('json stringify CircularArray', () => {
         const rt = runType<CircularArray>();
-        const jsonStringify = buildJsonStringifyJITFn(rt).fn;
-        const fromJson = buildJsonDecodeJITFn(rt).fn;
+        const jsonStringify = rt.jsonStringify;
+        const fromJson = rt.jsonDecode;
         const arr: CircularArray = [];
         arr.push([]);
         arr[0].push([]);
@@ -218,7 +211,7 @@ describe('Array circular ref', () => {
 
     it('mock CircularArray', () => {
         const rt = runType<CircularArray>();
-        const validate = buildIsTypeJITFn(rt).fn;
+        const validate = rt.isType;
         expect(rt.mock() instanceof Array).toBe(true);
         expect(validate(rt.mock())).toBe(true);
     });

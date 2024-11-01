@@ -10,7 +10,13 @@ import {MockContext} from '../types';
 import {getPropIndex, getPropLiteral, getPropVarName, isSafePropName, memo, useArrayAccessorForProp} from '../utils';
 import {MemberRunType} from '../baseRunTypes';
 import {jitUtils} from '../jitUtils';
-import {JitDefaultOp, JitTypeErrorCompileOp} from '../jitOperation';
+import type {
+    jitIsTypeCompileOperation,
+    JitJsonDecodeCompileOperation,
+    JitJsonEncodeCompileOperation,
+    JitJsonStringifyCompileOperation,
+    JitTypeErrorCompileOperation,
+} from '../jitCompiler';
 
 export class PropertyRunType extends MemberRunType<TypePropertySignature | TypeProperty> {
     src: TypePropertySignature | TypeProperty = null as any; // will be set after construction
@@ -22,33 +28,33 @@ export class PropertyRunType extends MemberRunType<TypePropertySignature | TypeP
 
     // #### jit code ####
 
-    _compileIsType(cop: JitDefaultOp): string {
+    _compileIsType(cop: jitIsTypeCompileOperation): string {
         const child = this.getJitChild();
         if (!child) return '';
         const itemCode = child.compileIsType(cop);
         return this.src.optional ? `(${cop.getChildVλl()} === undefined || ${itemCode})` : itemCode;
     }
-    _compileTypeErrors(cop: JitTypeErrorCompileOp): string {
+    _compileTypeErrors(cop: JitTypeErrorCompileOperation): string {
         const child = this.getJitChild();
         if (!child) return '';
         const itemCode = child.compileTypeErrors(cop);
         return this.src.optional ? `if (${cop.getChildVλl()} !== undefined) {${itemCode}}` : itemCode;
     }
-    _compileJsonEncode(cop: JitDefaultOp): string {
-        const child = this.getJsonEncodeChild(cop);
+    _compileJsonEncode(cop: JitJsonEncodeCompileOperation): string {
+        const child = this.getJsonEncodeChild();
         if (!child) return '';
         const propCode = child.compileJsonEncode(cop);
         if (this.src.optional) return `if (${cop.getChildVλl()} !== undefined) {${propCode}}`;
         return propCode;
     }
-    _compileJsonDecode(cop: JitDefaultOp): string {
-        const child = this.getJsonDecodeChild(cop);
+    _compileJsonDecode(cop: JitJsonDecodeCompileOperation): string {
+        const child = this.getJsonDecodeChild();
         if (!child) return '';
         const propCode = child.compileJsonDecode(cop);
         if (this.src.optional) return `if (${cop.getChildVλl()} !== undefined) {${propCode}}`;
         return propCode;
     }
-    _compileJsonStringify(cop: JitDefaultOp): string {
+    _compileJsonStringify(cop: JitJsonStringifyCompileOperation): string {
         const child = this.getJitChild();
         if (!child) return '';
         const propCode = child.compileJsonStringify(cop);

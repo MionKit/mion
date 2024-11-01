@@ -10,7 +10,13 @@ import type {JitJsonEncoder, MockContext, JitConstants} from '../types';
 import {getJitErrorPath, getExpected} from '../utils';
 import {mockBigInt} from '../mock';
 import {AtomicRunType} from '../baseRunTypes';
-import {JitDefaultOp, JitTypeErrorCompileOp} from '../jitOperation';
+import type {
+    jitIsTypeCompileOperation,
+    JitJsonDecodeCompileOperation,
+    JitJsonEncodeCompileOperation,
+    JitJsonStringifyCompileOperation,
+    JitTypeErrorCompileOperation,
+} from '../jitCompiler';
 
 const jitConstants: JitConstants = {
     skipJit: false,
@@ -22,19 +28,19 @@ const jitConstants: JitConstants = {
 export class BigIntRunType extends AtomicRunType<TypeBigInt> {
     src: TypeBigInt = null as any; // will be set after construction
     getJitConstants = () => jitConstants;
-    _compileIsType(cop: JitDefaultOp): string {
+    _compileIsType(cop: jitIsTypeCompileOperation): string {
         return `typeof ${cop.vλl} === 'bigint'`;
     }
-    _compileTypeErrors(cop: JitTypeErrorCompileOp): string {
+    _compileTypeErrors(cop: JitTypeErrorCompileOperation): string {
         return `if (typeof ${cop.vλl} !== 'bigint') ${cop.args.εrr}.push({path:${getJitErrorPath(cop)},expected:${getExpected(this)}})`;
     }
-    _compileJsonEncode(cop: JitDefaultOp): string {
+    _compileJsonEncode(cop: JitJsonEncodeCompileOperation): string {
         return BigIntJitJsonENcoder.encodeToJson(cop.vλl);
     }
-    _compileJsonDecode(cop: JitDefaultOp): string {
+    _compileJsonDecode(cop: JitJsonDecodeCompileOperation): string {
         return BigIntJitJsonENcoder.decodeFromJson(cop.vλl);
     }
-    _compileJsonStringify(cop: JitDefaultOp): string {
+    _compileJsonStringify(cop: JitJsonStringifyCompileOperation): string {
         return BigIntJitJsonENcoder.stringify(cop.vλl);
     }
     /** mocks a regular number and transforms into a bigint.

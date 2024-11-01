@@ -5,13 +5,6 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 import {runType} from '../runType';
-import {
-    buildJsonEncodeJITFn,
-    buildJsonDecodeJITFn,
-    buildIsTypeJITFn,
-    buildTypeErrorsJITFn,
-    buildJsonStringifyJITFn,
-} from '../jitCompiler';
 
 describe('TupleRunType', () => {
     type TupleType = [Date, number, string, null, string[], bigint];
@@ -20,7 +13,7 @@ describe('TupleRunType', () => {
     const rt = runType<TupleType>();
 
     it('validate tuple', () => {
-        const validate = buildIsTypeJITFn(rt).fn;
+        const validate = rt.isType;
         expect(validate([new Date(), 123, 'hello', null, ['a', 'b', 'c'], BigInt(123)])).toBe(true);
         expect(validate([new Date(), 123, 'hello', null, [], BigInt(123)])).toBe(true);
         expect(validate([new Date(), 123, 'hello', null, ['a', 'b', 'c']])).toBe(false);
@@ -47,7 +40,7 @@ describe('TupleRunType', () => {
     });
 
     it('validate tuple + errors', () => {
-        const valWithErrors = buildTypeErrorsJITFn(rt).fn;
+        const valWithErrors = rt.typeErrors;
         expect(valWithErrors([new Date(), 123, 'hello', null, ['a', 'b', 'c'], BigInt(123)])).toEqual([]);
         expect(valWithErrors([new Date(), 123, 'hello', null, [], BigInt(123)])).toEqual([]);
         expect(valWithErrors([new Date(), 123, 'hello', null])).toEqual([
@@ -99,8 +92,8 @@ describe('TupleRunType', () => {
     });
 
     it('encode/decode to json', () => {
-        const toJson = buildJsonEncodeJITFn(rt).fn;
-        const fromJson = buildJsonDecodeJITFn(rt).fn;
+        const toJson = rt.jsonEncode;
+        const fromJson = rt.jsonDecode;
         const typeValue = [new Date(), 123, 'hello', null, ['a', 'b', 'c'], BigInt(123)];
         // value used for json encode/decode gets modified so we need to copy it to compare later
         const copy1 = structuredClone(typeValue);
@@ -121,8 +114,8 @@ describe('TupleRunType', () => {
     });
 
     it('json stringify', () => {
-        const jsonStringify = buildJsonStringifyJITFn(rt).fn;
-        const fromJson = buildJsonDecodeJITFn(rt).fn;
+        const jsonStringify = rt.jsonStringify;
+        const fromJson = rt.jsonDecode;
         const typeValue = [new Date(), 123, 'hello', null, ['a', 'b', 'c'], BigInt(123)];
         const roundTrip = fromJson(JSON.parse(jsonStringify(typeValue)));
         expect(roundTrip).toEqual(typeValue);
@@ -148,7 +141,7 @@ describe('TupleRunType', () => {
         expect(mocked[3]).toBeNull();
         expect(Array.isArray(mocked[4])).toBe(true);
         expect(typeof mocked[5]).toBe('bigint');
-        const validate = buildIsTypeJITFn(rt).fn;
+        const validate = rt.isType;
         expect(validate(rt.mock())).toBe(true);
     });
 
@@ -170,7 +163,7 @@ describe('TupleRunType with circular type definitions', () => {
     const rt = runType<TupleCircular>();
 
     it('validate tuple with circular type definitions', () => {
-        const validate = buildIsTypeJITFn(rt).fn;
+        const validate = rt.isType;
         const tDeep: TupleCircular = [new Date(), 456, 'world', null, ['x', 'y', 'z'], BigInt(456)];
         const typeValue: TupleCircular = [new Date(), 123, 'hello', null, ['a', 'b', 'c'], BigInt(123), tDeep];
         const typeValueWrong = [null, 123, 'hello', null, ['a', 'b', 'c'], BigInt(123)];
@@ -179,7 +172,7 @@ describe('TupleRunType with circular type definitions', () => {
     });
 
     it('validate tuple with circular type definitions + errors', () => {
-        const valWithErrors = buildTypeErrorsJITFn(rt).fn;
+        const valWithErrors = rt.typeErrors;
         const tDeep: TupleCircular = [new Date(), 456, 'world', null, ['x', 'y', 'z'], BigInt(456)];
         const typeValue: TupleCircular = [new Date(), 123, 'hello', null, ['a', 'b', 'c'], BigInt(123), tDeep];
         const typeValueWrong = [null, 123, 'hello', null, ['a', 'b', 'c'], BigInt(123), null];
@@ -191,8 +184,8 @@ describe('TupleRunType with circular type definitions', () => {
     });
 
     it('encode/decode to json', () => {
-        const toJson = buildJsonEncodeJITFn(rt).fn;
-        const fromJson = buildJsonDecodeJITFn(rt).fn;
+        const toJson = rt.jsonEncode;
+        const fromJson = rt.jsonDecode;
         const tDeep: TupleCircular = [new Date(), 456, 'world', null, ['x', 'y', 'z'], BigInt(456)];
         const typeValue: TupleCircular = [new Date(), 123, 'hello', null, ['a', 'b', 'c'], BigInt(123), tDeep];
         // value used for json encode/decode gets modified so we need to copy it to compare later
@@ -201,8 +194,8 @@ describe('TupleRunType with circular type definitions', () => {
     });
 
     it('json stringify', () => {
-        const jsonStringify = buildJsonStringifyJITFn(rt).fn;
-        const fromJson = buildJsonDecodeJITFn(rt).fn;
+        const jsonStringify = rt.jsonStringify;
+        const fromJson = rt.jsonDecode;
         const tDeep: TupleCircular = [new Date(), 456, 'world', null, ['x', 'y', 'z'], BigInt(456)];
         const typeValue: TupleCircular = [new Date(), 123, 'hello', null, ['a', 'b', 'c'], BigInt(123), tDeep];
 
@@ -226,7 +219,7 @@ describe('TupleRunType with circular type definitions', () => {
                 expectMocked(mocked[6]);
             }
         };
-        const validate = buildIsTypeJITFn(rt).fn;
+        const validate = rt.isType;
         expect(validate(mocked)).toBe(true);
         expectMocked(mocked);
     });

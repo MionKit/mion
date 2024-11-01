@@ -5,18 +5,11 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 import {runType} from '../runType';
-import {
-    buildJsonEncodeJITFn,
-    buildJsonDecodeJITFn,
-    buildIsTypeJITFn,
-    buildTypeErrorsJITFn,
-    buildJsonStringifyJITFn,
-} from '../jitCompiler';
 
 const rt = runType<undefined>();
 
 it('validate undefined', () => {
-    const validate = buildIsTypeJITFn(rt).fn;
+    const validate = rt.isType;
     expect(validate(undefined)).toBe(true);
     expect(validate(null)).toBe(false);
     expect(validate(42)).toBe(false);
@@ -24,7 +17,7 @@ it('validate undefined', () => {
 });
 
 it('validate undefined + errors', () => {
-    const valWithErrors = buildTypeErrorsJITFn(rt).fn;
+    const valWithErrors = rt.typeErrors;
     expect(valWithErrors(undefined)).toEqual([]);
     expect(valWithErrors(null)).toEqual([{path: [], expected: 'undefined'}]);
     expect(valWithErrors(42)).toEqual([{path: [], expected: 'undefined'}]);
@@ -32,20 +25,20 @@ it('validate undefined + errors', () => {
 });
 
 it('encode to json', () => {
-    const toJson = buildJsonEncodeJITFn(rt).fn;
+    const toJson = rt.jsonEncode;
     const typeValue = undefined;
     expect(toJson(typeValue)).toEqual(null);
 });
 
 it('decode from json', () => {
-    const fromJson = buildJsonDecodeJITFn(rt).fn;
+    const fromJson = rt.jsonDecode;
     const typeValue = null;
     expect(fromJson(typeValue)).toEqual(undefined);
 });
 
 it('json stringify', () => {
-    const jsonStringify = buildJsonStringifyJITFn(rt).fn;
-    const fromJson = buildJsonDecodeJITFn(rt).fn;
+    const jsonStringify = rt.jsonStringify;
+    const fromJson = rt.jsonDecode;
     const typeValue = undefined;
     const roundTrip = fromJson(JSON.parse(jsonStringify(typeValue)));
     expect(roundTrip).toEqual(typeValue);
@@ -53,6 +46,6 @@ it('json stringify', () => {
 
 it('mock', () => {
     expect(rt.mock()).toBeUndefined();
-    const validate = buildIsTypeJITFn(rt).fn;
+    const validate = rt.isType;
     expect(validate(rt.mock())).toBe(true);
 });

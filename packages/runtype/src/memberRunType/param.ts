@@ -7,7 +7,13 @@
 
 import {TypeParameter} from '../_deepkit/src/reflection/type';
 import {MemberRunType} from '../baseRunTypes';
-import {JitDefaultOp, JitTypeErrorCompileOp} from '../jitOperation';
+import type {
+    jitIsTypeCompileOperation,
+    JitJsonDecodeCompileOperation,
+    JitJsonEncodeCompileOperation,
+    JitJsonStringifyCompileOperation,
+    JitTypeErrorCompileOperation,
+} from '../jitCompiler';
 import {MockContext} from '../types';
 import {RestParamsRunType} from './restParams';
 
@@ -28,7 +34,7 @@ export class ParameterRunType extends MemberRunType<TypeParameter> {
     isRest(): boolean {
         return this.getMemberType() instanceof RestParamsRunType;
     }
-    _compileIsType(cop: JitDefaultOp): string {
+    _compileIsType(cop: jitIsTypeCompileOperation): string {
         if (this.isRest()) {
             return this.getMemberType().compileIsType(cop);
         } else {
@@ -37,7 +43,7 @@ export class ParameterRunType extends MemberRunType<TypeParameter> {
             return this.isOptional() ? `${varName} === undefined || (${itemCode})` : itemCode;
         }
     }
-    _compileTypeErrors(cop: JitTypeErrorCompileOp): string {
+    _compileTypeErrors(cop: JitTypeErrorCompileOperation): string {
         if (this.isRest()) {
             return this.getMemberType().compileTypeErrors(cop);
         } else {
@@ -46,13 +52,13 @@ export class ParameterRunType extends MemberRunType<TypeParameter> {
             return this.isOptional() ? `if (${varName} !== undefined) {${itemCode}}` : itemCode;
         }
     }
-    _compileJsonEncode(cop: JitDefaultOp): string {
+    _compileJsonEncode(cop: JitJsonEncodeCompileOperation): string {
         return this.getMemberType().compileJsonEncode(cop);
     }
-    _compileJsonDecode(cop: JitDefaultOp): string {
+    _compileJsonDecode(cop: JitJsonDecodeCompileOperation): string {
         return this.getMemberType().compileJsonDecode(cop);
     }
-    _compileJsonStringify(cop: JitDefaultOp): string {
+    _compileJsonStringify(cop: JitJsonStringifyCompileOperation): string {
         if (this.isRest()) {
             return this.getMemberType().compileJsonStringify(cop);
         } else {

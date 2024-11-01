@@ -5,18 +5,11 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 import {runType} from '../runType';
-import {
-    buildJsonEncodeJITFn,
-    buildJsonDecodeJITFn,
-    buildIsTypeJITFn,
-    buildTypeErrorsJITFn,
-    buildJsonStringifyJITFn,
-} from '../jitCompiler';
 
 const rt = runType<never>();
 
 it('validate never', () => {
-    const validate = buildIsTypeJITFn(rt).fn;
+    const validate = rt.isType;
     expect(validate(true)).toBe(false);
     expect(validate(false)).toBe(false);
     expect(validate(1)).toBe(false);
@@ -25,7 +18,7 @@ it('validate never', () => {
 });
 
 it('validate never + errors', () => {
-    const valWithErrors = buildTypeErrorsJITFn(rt).fn;
+    const valWithErrors = rt.typeErrors;
     expect(valWithErrors(true)).toEqual([{path: [], expected: 'never'}]);
     expect(valWithErrors(false)).toEqual([{path: [], expected: 'never'}]);
     expect(valWithErrors(1)).toEqual([{path: [], expected: 'never'}]);

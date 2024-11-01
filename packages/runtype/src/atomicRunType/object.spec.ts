@@ -5,18 +5,11 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 import {runType} from '../runType';
-import {
-    buildJsonEncodeJITFn,
-    buildJsonDecodeJITFn,
-    buildIsTypeJITFn,
-    buildTypeErrorsJITFn,
-    buildJsonStringifyJITFn,
-} from '../jitCompiler';
 
 const rt = runType<object>();
 
 it('validate object', () => {
-    const validate = buildIsTypeJITFn(rt).fn;
+    const validate = rt.isType;
     expect(validate({})).toBe(true);
     expect(validate({a: 42, b: 'hello'})).toBe(true);
     expect(validate(null)).toBe(false);
@@ -26,7 +19,7 @@ it('validate object', () => {
 });
 
 it('validate object + errors', () => {
-    const valWithErrors = buildTypeErrorsJITFn(rt).fn;
+    const valWithErrors = rt.typeErrors;
     expect(valWithErrors({})).toEqual([]);
     expect(valWithErrors({a: 42, b: 'hello'})).toEqual([]);
     expect(valWithErrors(null)).toEqual([{path: [], expected: 'object'}]);
@@ -36,21 +29,21 @@ it('validate object + errors', () => {
 });
 
 it('encode to json', () => {
-    const toJson = buildJsonEncodeJITFn(rt).fn;
+    const toJson = rt.jsonEncode;
     const typeValue = null;
     expect(toJson(typeValue)).toEqual(typeValue);
 });
 
 it('decode from json', () => {
-    const fromJson = buildJsonDecodeJITFn(rt).fn;
+    const fromJson = rt.jsonDecode;
     const typeValue = null;
     const jsonValue = JSON.parse(JSON.stringify(typeValue));
     expect(fromJson(jsonValue)).toEqual(typeValue);
 });
 
 it('json stringify', () => {
-    const jsonStringify = buildJsonStringifyJITFn(rt).fn;
-    const fromJson = buildJsonDecodeJITFn(rt).fn;
+    const jsonStringify = rt.jsonStringify;
+    const fromJson = rt.jsonDecode;
     const typeValue = {a: 42, b: 'hello'};
     const roundTrip = fromJson(JSON.parse(jsonStringify(typeValue)));
     expect(roundTrip).toEqual(typeValue);
@@ -58,6 +51,6 @@ it('json stringify', () => {
 
 it('mock', () => {
     expect(typeof rt.mock).toBe('function');
-    const validate = buildIsTypeJITFn(rt).fn;
+    const validate = rt.isType;
     expect(validate(rt.mock())).toBe(true);
 });
