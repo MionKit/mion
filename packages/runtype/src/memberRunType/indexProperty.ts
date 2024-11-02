@@ -1,7 +1,7 @@
 import {ReflectionKind, TypeIndexSignature} from '../_deepkit/src/reflection/type';
 import {MemberRunType} from '../baseRunTypes';
 import {JitFnID, MockContext} from '../types';
-import {jitNames} from '../constants';
+import {JitFnIDs, jitNames} from '../constants';
 import type {
     JitIsTypeCompiler,
     JitJsonDecodeCompileOperation,
@@ -33,9 +33,9 @@ export class IndexSignatureRunType extends MemberRunType<TypeIndexSignature> {
     }
     jitFnHasReturn(copId: JitFnID): boolean {
         switch (copId) {
-            case 'isType':
+            case JitFnIDs.isType:
                 return true;
-            case 'jsonStringify':
+            case JitFnIDs.jsonStringify:
                 return true;
             default:
                 return super.jitFnHasReturn(copId);

@@ -5,6 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 import {runType} from '../runType';
+import {JitFnIDs} from '../constants';
 
 enum Color {
     Red,
@@ -15,7 +16,7 @@ enum Color {
 const rt = runType<Color>();
 
 it('validate enum', () => {
-    const validate = rt.jitFnIsType();
+    const validate = rt.createJitFunction(JitFnIDs.isType);
     expect(validate(Color.Red)).toBe(true);
     expect(validate(Color.Green)).toBe(true);
     expect(validate(Color.Blue)).toBe(true);
@@ -28,7 +29,7 @@ it('validate enum', () => {
 });
 
 it('validate enum + errors', () => {
-    const valWithErrors = rt.jitFnTypeErrors();
+    const valWithErrors = rt.createJitFunction(JitFnIDs.typeErrors);
     expect(valWithErrors(Color.Red)).toEqual([]);
     expect(valWithErrors(Color.Green)).toEqual([]);
     expect(valWithErrors(Color.Blue)).toEqual([]);
@@ -41,15 +42,15 @@ it('validate enum + errors', () => {
 });
 
 it('encode/decode to json', () => {
-    const toJson = rt.jitFnJsonEncode();
-    const fromJson = rt.jitFnJsonDecode();
+    const toJson = rt.createJitFunction(JitFnIDs.jsonEncode);
+    const fromJson = rt.createJitFunction(JitFnIDs.jsonDecode);
     const typeValue = Color.Red;
     expect(fromJson(JSON.parse(JSON.stringify(toJson(typeValue))))).toEqual(typeValue);
 });
 
 it('json stringify', () => {
-    const jsonStringify = rt.jitFnJsonStringify();
-    const fromJson = rt.jitFnJsonDecode();
+    const jsonStringify = rt.createJitFunction(JitFnIDs.jsonStringify);
+    const fromJson = rt.createJitFunction(JitFnIDs.jsonDecode);
     const typeValue = Color.Red;
     const roundTrip = fromJson(JSON.parse(jsonStringify(typeValue)));
     expect(roundTrip).toEqual(typeValue);
@@ -62,6 +63,6 @@ it('json stringify', () => {
 it('mock', () => {
     const mocked = rt.mock();
     expect(mocked === 0 || mocked === 'green' || mocked === 2).toBe(true);
-    const validate = rt.jitFnIsType();
+    const validate = rt.createJitFunction(JitFnIDs.isType);
     expect(validate(rt.mock())).toBe(true);
 });

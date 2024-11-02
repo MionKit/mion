@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 import {reflectFunction, runType} from '../runType';
-
+import {JitFnIDs} from '../constants';
 import {FunctionRunType} from './function';
 
 type FunctionType = (a: number, b: boolean, c?: string) => Date;
@@ -19,21 +19,21 @@ const rtRest = runType<RestFunctionType>() as FunctionRunType;
 const rtRest2 = runType<Rest2FunctionType>() as FunctionRunType;
 
 it('return empty strings when calling regular jit functions', () => {
-    expect(() => buildIsTypeJITFn(rt)).toThrow(
+    expect(() => rt.createJitFunction(JitFnIDs.isType)).toThrow(
         `function validation is not supported, instead validate parameters or return type separately.`
     );
-    expect(() => buildTypeErrorsJITFn(rt)).toThrow(
+    expect(() => rt.createJitFunction(JitFnIDs.typeErrors)).toThrow(
         `function validation is not supported, instead validate parameters or return type separately.`
     );
 
-    expect(() => buildJsonEncodeJITFn(rt)).toThrow(
+    expect(() => rt.createJitFunction(JitFnIDs.jsonEncode)).toThrow(
         `function json encode is not supported, instead encode parameters or return type separately.`
     );
-    expect(() => buildJsonDecodeJITFn(rt)).toThrow(
+    expect(() => rt.createJitFunction(JitFnIDs.jsonDecode)).toThrow(
         `function json decode is not supported, instead decode parameters or return type separately.`
     );
 
-    expect(() => buildJsonStringifyJITFn(rt)).toThrow(
+    expect(() => rt.createJitFunction(JitFnIDs.jsonStringify)).toThrow(
         `function json stringify is not supported, instead stringify parameters or return type separately.`
     );
     expect(() => rt.mock()).toThrow(`function mock is not supported, instead mock parameters or return type separately`);

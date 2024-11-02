@@ -7,7 +7,8 @@
 
 import type {Type, TypeCallSignature, TypeFunction, TypeMethod, TypeMethodSignature} from './_deepkit/src/reflection/type';
 import type {JitCompiler} from './jitCompiler';
-import {JITUtils} from './jitUtils';
+import type {JITUtils} from './jitUtils';
+import type {JitFnIDs} from './constants';
 
 export type JSONValue = string | number | boolean | null | {[key: string]: JSONValue} | Array<JSONValue>;
 export type JSONString = string;
@@ -15,16 +16,8 @@ export type JSONString = string;
 export type RunTypeVisitor = (deepkitType: Type, parents: RunType[], opts: RunTypeOptions) => RunType;
 export type DKwithRT = Type & {_rt: RunType};
 
-export type JitFnID =
-    | 'isType'
-    | 'typeErrors'
-    | 'jsonEncode'
-    | 'jsonDecode'
-    | 'jsonStringify'
-    | 'hasUnknownKeys'
-    | 'getUnknownKeys'
-    | 'stripUnknownKeys'
-    | 'unknownKeysToUndefined';
+// on of the values of JitFnIDs object
+export type JitFnID = (typeof JitFnIDs)[keyof typeof JitFnIDs];
 
 /**
  * The argument names of the function to be compiled. The order of properties is important as must the same as the function args.
@@ -50,15 +43,7 @@ export interface RunType {
     // ######## JIT functions ########
     getJitId(): string | number;
     getJitConstants(stack?: RunType[]): JitConstants;
-    jitFnIsType(): (value: any) => boolean;
-    jitFnTypeErrors(): (value: any) => RunTypeValidationError[];
-    jitFnJsonEncode(): (value: any) => JSONValue;
-    jitFnJsonDecode(): (value: JSONValue) => any;
-    jitFnJsonStringify(): (value: any) => JSONString;
-    // jitFnHasUnknownKeys(): (value: any) => boolean;
-    // jitFnGetUnknownKeys(): (value: any) => string[];
-    // jitFnStripUnknownKeys(): (value: any) => any;
-    // jitFnUnknownKeysToUndefined(): (value: any) => any;
+    createJitFunction(name: JitFnID): (...args: any[]) => any;
 }
 
 export interface RunTypeChildAccessor extends RunType {
@@ -108,12 +93,12 @@ export interface RunTypeOptions {
  */
 export type CodeUnit = 'EXPRESSION' | 'STATEMENT' | 'BLOCK';
 
-export interface CompiledOperation extends Pick<JitCompiler, 'opId' | 'args' | 'defaultParamValues' | 'code'> {
+export interface CompiledOperation
+    extends Pick<JitCompiler, 'opId' | 'args' | 'defaultParamValues' | 'code' | 'jitFnId' | 'dependencies'> {
     jitFn: (...args: any[]) => any;
-    dependencies: string[];
 }
 
-export interface SerializableCompiledOperation extends Pick<JitCompiler, 'args' | 'defaultParamValues' | 'code'> {
+export interface SerializableCompiledOperation extends Pick<JitCompiler, 'opId' | 'args' | 'defaultParamValues' | 'code'> {
     dependencies: string[];
 }
 

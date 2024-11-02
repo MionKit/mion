@@ -5,6 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 import {runType} from '../runType';
+import {JitFnIDs} from '../constants';
 
 interface Circular {
     n: number;
@@ -68,7 +69,7 @@ const rtCircular = runType<Circular>();
 // });
 
 it('should validate objects with circular references', () => {
-    const validate = rtCircular.jitFnIsType();
+    const validate = rtCircular.createJitFunction(JitFnIDs.isType);
     const c1: Circular = {n: 1, s: 'hello'};
     const c2: Circular = {n: 2, s: 'world'};
     const c3: Circular = {n: 3, s: 'foo'};
@@ -81,7 +82,7 @@ it('should validate objects with circular references', () => {
 });
 
 it('should validate object + errors with circular references', () => {
-    const valWithErrors = rtCircular.jitFnTypeErrors();
+    const valWithErrors = rtCircular.createJitFunction(JitFnIDs.typeErrors);
     const c1: Circular = {n: 1, s: 'hello'};
     const c2: Circular = {n: 2, s: 'world'};
     const c3: Circular = {n: 3, s: 'foo'};
@@ -94,8 +95,8 @@ it('should validate object + errors with circular references', () => {
 });
 
 it('should encode/decode objects with circular references', () => {
-    const toJson = rtCircular.jitFnJsonEncode();
-    const fromJson = rtCircular.jitFnJsonDecode();
+    const toJson = rtCircular.createJitFunction(JitFnIDs.jsonEncode);
+    const fromJson = rtCircular.createJitFunction(JitFnIDs.jsonDecode);
     const c1: Circular = {n: 1, s: 'hello'};
     const c2: Circular = {n: 2, s: 'world'};
     const c3: Circular = {n: 3, s: 'foo'};
@@ -111,7 +112,7 @@ it('should encode/decode objects with circular references', () => {
 });
 
 it('should use JSON.stringify when there are circular references', () => {
-    const jsonStringify = rtCircular.jitFnJsonStringify();
+    const jsonStringify = rtCircular.createJitFunction(JitFnIDs.jsonStringify);
     const c1: Circular = {n: 1, s: 'hello'};
     const c2: Circular = {n: 2, s: 'world'};
     const c3: Circular = {n: 3, s: 'foo'};
@@ -128,7 +129,7 @@ describe('Circular array + union', () => {
 
     it('validate CircularUnion array', () => {
         const rt = runType<CuArray>();
-        const validate = rt.jitFnIsType();
+        const validate = rt.createJitFunction(JitFnIDs.isType);
         expect(validate(new Date())).toBe(true);
         expect(validate(123)).toBe(true);
         expect(validate('hello')).toBe(true);
@@ -140,7 +141,7 @@ describe('Circular array + union', () => {
 
     it('validate CircularUnion array + errors', () => {
         const rt = runType<CuArray>();
-        const valWithErrors = rt.jitFnTypeErrors();
+        const valWithErrors = rt.createJitFunction(JitFnIDs.typeErrors);
         expect(valWithErrors(new Date())).toEqual([]);
         expect(valWithErrors(123)).toEqual([]);
         expect(valWithErrors('hello')).toEqual([]);
@@ -152,8 +153,8 @@ describe('Circular array + union', () => {
 
     it('encode/decode CircularUnion array to json', () => {
         const rt = runType<CuArray>();
-        const toJson = rt.jitFnJsonEncode();
-        const fromJson = rt.jitFnJsonDecode();
+        const toJson = rt.createJitFunction(JitFnIDs.jsonEncode);
+        const fromJson = rt.createJitFunction(JitFnIDs.jsonDecode);
         const typeValue = new Date();
         expect(fromJson(JSON.parse(JSON.stringify(toJson(typeValue))))).toEqual(typeValue);
         expect(fromJson(JSON.parse(JSON.stringify(toJson(123))))).toEqual(123);
@@ -167,8 +168,8 @@ describe('Circular array + union', () => {
 
     it('json stringify CircularUnion array with discriminator', () => {
         const rt = runType<CuArray>();
-        const jsonStringify = rt.jitFnJsonStringify();
-        const fromJson = rt.jitFnJsonDecode();
+        const jsonStringify = rt.createJitFunction(JitFnIDs.jsonStringify);
+        const fromJson = rt.createJitFunction(JitFnIDs.jsonDecode);
         const typeValue = 'hello';
         const roundTrip = fromJson(JSON.parse(jsonStringify(typeValue)));
         expect(roundTrip).toEqual(typeValue);
@@ -180,7 +181,7 @@ describe('Circular array + union', () => {
 
     it('mock CircularUnion array', () => {
         const rt = runType<CuArray>();
-        const validate = rt.jitFnIsType();
+        const validate = rt.createJitFunction(JitFnIDs.isType);
         expect(rt.mock() instanceof Array).toBe(true);
         expect(validate(rt.mock())).toBe(true);
     });

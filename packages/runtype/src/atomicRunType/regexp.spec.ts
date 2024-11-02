@@ -5,13 +5,13 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 import {runType} from '../runType';
-
+import {JitFnIDs} from '../constants';
 import {mockRegExpsList} from '../constants';
 
 const rt = runType<RegExp>();
 
 it('validate regexp', () => {
-    const validate = rt.jitFnIsType();
+    const validate = rt.createJitFunction(JitFnIDs.isType);
     expect(validate(/abc/)).toBe(true);
     expect(validate(new RegExp('abc'))).toBe(true);
     expect(validate(undefined)).toBe(false);
@@ -20,7 +20,7 @@ it('validate regexp', () => {
 });
 
 it('validate regexp + errors', () => {
-    const valWithErrors = rt.jitFnTypeErrors();
+    const valWithErrors = rt.createJitFunction(JitFnIDs.typeErrors);
     expect(valWithErrors(/abc/)).toEqual([]);
     expect(valWithErrors(undefined)).toEqual([{path: [], expected: 'regexp'}]);
     expect(valWithErrors(42)).toEqual([{path: [], expected: 'regexp'}]);
@@ -28,16 +28,16 @@ it('validate regexp + errors', () => {
 });
 
 it('encode/decode json', () => {
-    const fromJson = rt.jitFnJsonDecode();
-    const toJson = rt.jitFnJsonEncode();
+    const fromJson = rt.createJitFunction(JitFnIDs.jsonDecode);
+    const toJson = rt.createJitFunction(JitFnIDs.jsonEncode);
     mockRegExpsList.forEach((regexp) => {
         expect(fromJson(JSON.parse(JSON.stringify(toJson(regexp))))).toEqual(regexp);
     });
 });
 
 it('json stringify', () => {
-    const jsonStringify = rt.jitFnJsonStringify();
-    const fromJson = rt.jitFnJsonDecode();
+    const jsonStringify = rt.createJitFunction(JitFnIDs.jsonStringify);
+    const fromJson = rt.createJitFunction(JitFnIDs.jsonDecode);
     mockRegExpsList.forEach((regexp) => {
         const typeValue = regexp;
         const roundTrip = fromJson(JSON.parse(jsonStringify(typeValue)));
@@ -47,6 +47,6 @@ it('json stringify', () => {
 
 it('mock', () => {
     expect(rt.mock() instanceof RegExp).toBe(true);
-    const validate = rt.jitFnIsType();
+    const validate = rt.createJitFunction(JitFnIDs.isType);
     expect(validate(rt.mock())).toBe(true);
 });

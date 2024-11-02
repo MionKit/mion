@@ -5,6 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 import {runType} from '../runType';
+import {JitFnIDs} from '../constants';
 
 describe('IndexType', () => {
     interface IndexString {
@@ -35,7 +36,7 @@ describe('IndexType', () => {
     const multipleIndex = runType<MultipleIndex>();
 
     it('validate index run type', () => {
-        const validate = rt.jitFnIsType();
+        const validate = rt.createJitFunction(JitFnIDs.isType);
         expect(validate({})).toBe(true);
         expect(validate({key1: 'value1', key2: 'value2'})).toBe(true);
         expect(validate({key1: 'value1', key2: 2})).toBe(false);
@@ -43,7 +44,7 @@ describe('IndexType', () => {
     });
 
     it('validate index run type + extra properties', () => {
-        const validate = rtExtra.jitFnIsType();
+        const validate = rtExtra.createJitFunction(JitFnIDs.isType);
         expect(validate({key1: 'value1', key2: 'value2'})).toBe(false); // missing required a and b
         expect(validate({key1: 'value1', key2: 2})).toBe(false); // missing required a and b
         expect(validate({a: 'hello', b: 2, key1: 'value1', key2: 'value2'})).toBe(true);
@@ -55,14 +56,14 @@ describe('IndexType', () => {
     });
 
     it('validate index run type + errors', () => {
-        const valWithErrors = rt.jitFnTypeErrors();
+        const valWithErrors = rt.createJitFunction(JitFnIDs.typeErrors);
         expect(valWithErrors({key1: 'value1', key2: 'value2'})).toEqual([]);
         expect(valWithErrors('hello')).toEqual([{path: [], expected: 'interface'}]);
         expect(valWithErrors({key1: 'value1', key2: 123})).toEqual([{path: ['key2'], expected: 'string'}]);
     });
 
     it('validate index run type with extra props + errors', () => {
-        const valWithErrors = rtExtra.jitFnTypeErrors();
+        const valWithErrors = rtExtra.createJitFunction(JitFnIDs.typeErrors);
         expect(valWithErrors({key1: 'value1', key2: 'value2'})).toEqual([
             {path: ['a'], expected: 'string'}, // missing required property 'a'
             {path: ['b'], expected: 'number'}, // missing required property 'b'
@@ -81,12 +82,12 @@ describe('IndexType', () => {
     });
 
     it('encode/decode to json', () => {
-        const toJsonString = rt.jitFnJsonEncode();
-        const toJsonDate = rD.jitFnJsonEncode();
-        const toJsonBigint = rBI.jitFnJsonEncode();
-        const fromJsonString = rt.jitFnJsonDecode();
-        const fromJsonDate = rD.jitFnJsonDecode();
-        const fromJsonBigint = rBI.jitFnJsonDecode();
+        const toJsonString = rt.createJitFunction(JitFnIDs.jsonEncode);
+        const toJsonDate = rD.createJitFunction(JitFnIDs.jsonEncode);
+        const toJsonBigint = rBI.createJitFunction(JitFnIDs.jsonEncode);
+        const fromJsonString = rt.createJitFunction(JitFnIDs.jsonDecode);
+        const fromJsonDate = rD.createJitFunction(JitFnIDs.jsonDecode);
+        const fromJsonBigint = rBI.createJitFunction(JitFnIDs.jsonDecode);
         const date = new Date();
         const roundTripString = fromJsonString(JSON.parse(JSON.stringify(toJsonString({key1: 'value1', key2: 'value2'}))));
         const roundTripDate = fromJsonDate(JSON.parse(JSON.stringify(toJsonDate({key1: date, key2: date}))));
@@ -97,8 +98,8 @@ describe('IndexType', () => {
     });
 
     it('json stringify', () => {
-        const jsonStringify = rt.jitFnJsonStringify();
-        const fromJson = rt.jitFnJsonDecode();
+        const jsonStringify = rt.createJitFunction(JitFnIDs.jsonStringify);
+        const fromJson = rt.createJitFunction(JitFnIDs.jsonDecode);
         const typeValue = {key1: 'value1', key2: 'value2'};
         const roundTrip = fromJson(JSON.parse(jsonStringify(typeValue)));
         expect(roundTrip).toEqual(typeValue);
@@ -109,8 +110,8 @@ describe('IndexType', () => {
     });
 
     it('json stringify IndexWithExtraProps', () => {
-        const jsonStringify = rtExtra.jitFnJsonStringify();
-        const fromJson = rtExtra.jitFnJsonDecode();
+        const jsonStringify = rtExtra.createJitFunction(JitFnIDs.jsonStringify);
+        const fromJson = rtExtra.createJitFunction(JitFnIDs.jsonDecode);
         const typeValue = {
             key1: 'value1',
             key2: 'value2',
@@ -123,13 +124,13 @@ describe('IndexType', () => {
 
     it('mock', () => {
         expect(rt.mock() instanceof Object).toBe(true);
-        const validate = rt.jitFnIsType();
+        const validate = rt.createJitFunction(JitFnIDs.isType);
         expect(validate(rt.mock())).toBe(true);
     });
 
     it('mock IndexWithExtraProps', () => {
         expect(rtExtra.mock() instanceof Object).toBe(true);
-        const validate = rtExtra.jitFnIsType();
+        const validate = rtExtra.createJitFunction(JitFnIDs.isType);
         expect(validate(rtExtra.mock())).toBe(true);
     });
 
@@ -141,9 +142,9 @@ describe('IndexType', () => {
             [Symbol('key4')]: new Date(),
         };
 
-        const toJson = multipleIndex.jitFnJsonEncode();
-        const fromJson = multipleIndex.jitFnJsonDecode();
-        const stringify = multipleIndex.jitFnJsonStringify();
+        const toJson = multipleIndex.createJitFunction(JitFnIDs.jsonEncode);
+        const fromJson = multipleIndex.createJitFunction(JitFnIDs.jsonDecode);
+        const stringify = multipleIndex.createJitFunction(JitFnIDs.jsonStringify);
 
         expect(toJson(obj)).toEqual(obj);
         expect(fromJson({key1: 'value1', key2: 'value2'})).toEqual({key1: 'value1', key2: 'value2'});
@@ -155,7 +156,7 @@ describe('IndexType recursion', () => {
     const rtRec = runType<{[key: string]: {[key: string]: number}}>();
 
     it('validate index run type', () => {
-        const validate = rtRec.jitFnIsType();
+        const validate = rtRec.createJitFunction(JitFnIDs.isType);
         expect(validate({})).toBe(true);
         expect(validate({key1: {nestedKey1: 1, nestedKey2: 2}})).toBe(true);
         expect(validate({key1: {nestedKey1: 1, nestedKey2: '2'}})).toBe(false);
@@ -163,7 +164,7 @@ describe('IndexType recursion', () => {
     });
 
     it('validate index run type + errors', () => {
-        const valWithErrors = rtRec.jitFnTypeErrors();
+        const valWithErrors = rtRec.createJitFunction(JitFnIDs.typeErrors);
         expect(valWithErrors({key1: {nestedKey1: 1, nestedKey2: 2}})).toEqual([]);
         expect(valWithErrors('hello')).toEqual([{path: [], expected: 'interface'}]);
         expect(valWithErrors({key1: {nestedKey1: 1, nestedKey2: '2'}})).toEqual([
@@ -172,21 +173,21 @@ describe('IndexType recursion', () => {
     });
 
     it('encode to json', () => {
-        const toJson = rtRec.jitFnJsonEncode();
+        const toJson = rtRec.createJitFunction(JitFnIDs.jsonEncode);
         const obj = {key1: {nestedKey1: 1, nestedKey2: 2}};
         expect(toJson(obj)).toEqual(obj);
     });
 
     it('decode from json', () => {
-        const fromJson = rtRec.jitFnJsonDecode();
+        const fromJson = rtRec.createJitFunction(JitFnIDs.jsonDecode);
         const obj = {key1: {nestedKey1: 1, nestedKey2: 2}};
         const jsonString = JSON.stringify(obj);
         expect(fromJson(JSON.parse(jsonString))).toEqual(obj);
     });
 
     it('json stringify', () => {
-        const jsonStringify = rtRec.jitFnJsonStringify();
-        const fromJson = rtRec.jitFnJsonDecode();
+        const jsonStringify = rtRec.createJitFunction(JitFnIDs.jsonStringify);
+        const fromJson = rtRec.createJitFunction(JitFnIDs.jsonDecode);
         const obj = {key1: {nestedKey1: 1, nestedKey2: 2}};
         const roundTrip = fromJson(JSON.parse(jsonStringify(obj)));
         expect(roundTrip).toEqual(obj);
@@ -194,7 +195,7 @@ describe('IndexType recursion', () => {
 
     it('mock', () => {
         expect(rtRec.mock() instanceof Object).toBe(true);
-        const validate = rtRec.jitFnIsType();
+        const validate = rtRec.createJitFunction(JitFnIDs.isType);
         expect(validate(rtRec.mock())).toBe(true);
     });
 });

@@ -5,6 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 import {runType} from '../runType';
+import {JitFnIDs} from '../constants';
 
 describe('Interface', () => {
     type ObjectType = {
@@ -37,7 +38,7 @@ describe('Interface', () => {
     const rtOpt = runType<ObjectAllOptional>();
 
     it('validate object', () => {
-        const validate = rt.jitFnIsType();
+        const validate = rt.createJitFunction(JitFnIDs.isType);
 
         expect(
             validate({
@@ -81,12 +82,12 @@ describe('Interface', () => {
     });
 
     it('validate empty object for ObjectAllOptional type', () => {
-        const validate = rtOpt.jitFnIsType();
+        const validate = rtOpt.createJitFunction(JitFnIDs.isType);
         expect(validate({})).toBe(true);
     });
 
     it('validate object + errors', () => {
-        const valWithErrors = rt.jitFnTypeErrors();
+        const valWithErrors = rt.createJitFunction(JitFnIDs.typeErrors);
         expect(
             valWithErrors({
                 startDate: new Date(),
@@ -146,8 +147,8 @@ describe('Interface', () => {
     });
 
     it('encode/decode to json', () => {
-        const toJson = rt.jitFnJsonEncode();
-        const fromJson = rt.jitFnJsonDecode();
+        const toJson = rt.createJitFunction(JitFnIDs.jsonEncode);
+        const fromJson = rt.createJitFunction(JitFnIDs.jsonDecode);
         const typeValue = {
             startDate: new Date(),
             quantity: 123,
@@ -166,8 +167,8 @@ describe('Interface', () => {
 
     // TODO: disabled for now. JSON strict will be moved to an extra validation step instead when serializing/deserializing
     it.skip('skip props when encode/decode to json', () => {
-        const toJson = rtSkip.jitFnJsonEncode();
-        const fromJson = rtSkip.jitFnJsonDecode();
+        const toJson = rtSkip.createJitFunction(JitFnIDs.jsonEncode);
+        const fromJson = rtSkip.createJitFunction(JitFnIDs.jsonDecode);
         const typeValue = {
             name: 'hello',
             methodProp: () => 'hello',
@@ -177,8 +178,8 @@ describe('Interface', () => {
     });
 
     it('json stringify', () => {
-        const jsonStringify = rt.jitFnJsonStringify();
-        const fromJson = rt.jitFnJsonDecode();
+        const jsonStringify = rt.createJitFunction(JitFnIDs.jsonStringify);
+        const fromJson = rt.createJitFunction(JitFnIDs.jsonDecode);
         const typeValue = {
             startDate: new Date(),
             quantity: 123,
@@ -215,18 +216,18 @@ describe('Interface', () => {
         }
 
         const rtI = runType<I>();
-        const validate = rtI.jitFnIsType();
+        const validate = rtI.createJitFunction(JitFnIDs.isType);
         expect(validate({name: 'John', surname: 'Doe'})).toBe(true);
 
-        const valWithErrors = rtI.jitFnTypeErrors();
+        const valWithErrors = rtI.createJitFunction(JitFnIDs.typeErrors);
         expect(valWithErrors({name: 'John', surname: 'Doe'})).toEqual([]);
 
-        const toJson = rtI.jitFnJsonEncode();
-        const fromJson = rtI.jitFnJsonDecode();
+        const toJson = rtI.createJitFunction(JitFnIDs.jsonEncode);
+        const fromJson = rtI.createJitFunction(JitFnIDs.jsonDecode);
         const typeValue = {name: 'John', surname: 'Doe'};
         expect(fromJson(JSON.parse(JSON.stringify(toJson(typeValue))))).toEqual(typeValue);
 
-        const jsonStringify = rtI.jitFnJsonStringify();
+        const jsonStringify = rtI.createJitFunction(JitFnIDs.jsonStringify);
         const roundTrip = fromJson(JSON.parse(jsonStringify(typeValue)));
         expect(roundTrip).toEqual(typeValue);
     });
@@ -240,7 +241,7 @@ describe('Interface', () => {
         expect(mocked).toHaveProperty('stringArray');
         expect(mocked).toHaveProperty('bigInt');
         expect(mocked).toHaveProperty("weird prop name \n?>'\\\t\r");
-        const validate = rt.jitFnIsType();
+        const validate = rt.createJitFunction(JitFnIDs.isType);
         expect(validate(rt.mock())).toBe(true);
     });
 });
@@ -328,7 +329,7 @@ describe('Interface with strict modes', () => {
     };
 
     it('validate object with extra properties', () => {
-        const validate = rt.jitFnIsType();
+        const validate = rt.createJitFunction(JitFnIDs.isType);
         const validateStrict = buildIsTypeJITFn(rt, undefined, {strictTypes: true}).fn;
 
         expect(validate(obj)).toBe(true);
@@ -340,7 +341,7 @@ describe('Interface with strict modes', () => {
     });
 
     it('validate object with extra properties + errors', () => {
-        const valWithErrors = rt.jitFnTypeErrors();
+        const valWithErrors = rt.createJitFunction(JitFnIDs.typeErrors);
         const valWithErrorsStrict = buildTypeErrorsJITFn(rt, undefined, {strictTypes: true}).fn;
 
         expect(valWithErrors(obj)).toEqual([]);
@@ -358,8 +359,8 @@ describe('Interface with strict modes', () => {
     });
 
     it('encode/decode to json safeJson', () => {
-        const toJson = rt.jitFnJsonEncode();
-        const fromJson = rt.jitFnJsonDecode();
+        const toJson = rt.createJitFunction(JitFnIDs.jsonEncode);
+        const fromJson = rt.createJitFunction(JitFnIDs.jsonDecode);
         const fromJsonSafeThrow = buildJsonDecodeJITFn(rt, undefined, {safeJSON: 'throw'}).fn;
         const fromJsonSafeUndefined = buildJsonDecodeJITFn(rt, undefined, {safeJSON: 'undefined'}).fn;
         const fromJsonSafeStrip = buildJsonDecodeJITFn(rt, undefined, {safeJSON: 'strip'}).fn;
@@ -390,7 +391,7 @@ describe('Interface with strict modes', () => {
     });
 
     it('encode/decode to json safeJson deep', () => {
-        const toJson = rt.jitFnJsonEncode();
+        const toJson = rt.createJitFunction(JitFnIDs.jsonEncode);
         const fromJsonSafeThrow = buildJsonDecodeJITFn(rt, undefined, {safeJSON: 'throw'}).fn;
         const fromJsonSafeUndefined = buildJsonDecodeJITFn(rt, undefined, {safeJSON: 'undefined'}).fn;
         const fromJsonSafeStrip = buildJsonDecodeJITFn(rt, undefined, {safeJSON: 'strip'}).fn;
@@ -430,8 +431,8 @@ describe('Interface with strict modes', () => {
     });
 
     it('json stringify to strip extra params without fail', () => {
-        const jsonStringify = rt.jitFnJsonStringify();
-        const fromJson = rt.jitFnJsonDecode();
+        const jsonStringify = rt.createJitFunction(JitFnIDs.jsonStringify);
+        const fromJson = rt.createJitFunction(JitFnIDs.jsonDecode);
         const jsonString = jsonStringify(objWithExtra);
         const roundTrip = fromJson(JSON.parse(jsonString));
         expect(roundTrip).toEqual({
@@ -461,20 +462,20 @@ describe('Interface with circular ref properties', () => {
     const rt = runType<ICircular>();
 
     it('validate circular object', () => {
-        const validate = rt.jitFnIsType();
+        const validate = rt.createJitFunction(JitFnIDs.isType);
         const obj: ICircular = {name: 'hello', child: {name: 'world'}};
         expect(validate(obj)).toBe(true);
     });
 
     it('validate circular object + errors', () => {
-        const valWithErrors = rt.jitFnTypeErrors();
+        const valWithErrors = rt.createJitFunction(JitFnIDs.typeErrors);
         const obj: ICircular = {name: 'hello', child: {name: 'world'}};
         expect(valWithErrors(obj)).toEqual([]);
     });
 
     it('encode/decode to json', () => {
-        const toJson = rt.jitFnJsonEncode();
-        const fromJson = rt.jitFnJsonDecode();
+        const toJson = rt.createJitFunction(JitFnIDs.jsonEncode);
+        const fromJson = rt.createJitFunction(JitFnIDs.jsonDecode);
         const obj: ICircular = {name: 'hello', child: {name: 'world'}};
         // value used for json encode/decode gets modified so we need to copy it to compare later
         const copy = {...obj};
@@ -482,8 +483,8 @@ describe('Interface with circular ref properties', () => {
     });
 
     it('json stringify', () => {
-        const jsonStringify = rt.jitFnJsonStringify();
-        const fromJson = rt.jitFnJsonDecode();
+        const jsonStringify = rt.createJitFunction(JitFnIDs.jsonStringify);
+        const fromJson = rt.createJitFunction(JitFnIDs.jsonDecode);
         const obj: ICircular = {name: 'hello', child: {name: 'world'}};
         const roundTrip = fromJson(JSON.parse(jsonStringify(obj)));
         expect(roundTrip).toEqual(obj);
@@ -493,7 +494,7 @@ describe('Interface with circular ref properties', () => {
         const mocked = rt.mock();
         expect(mocked).toHaveProperty('name');
         expect(typeof mocked.parent === 'undefined' || typeof mocked.parent === 'object').toBe(true);
-        const validate = rt.jitFnIsType();
+        const validate = rt.createJitFunction(JitFnIDs.isType);
         expect(validate(rt.mock())).toBe(true);
     });
 });
@@ -507,7 +508,7 @@ describe('Interface with circular ref type array', () => {
     const rt = runType<ICircularArray>();
 
     it('validate circular interface on array', () => {
-        const validate = rt.jitFnIsType();
+        const validate = rt.createJitFunction(JitFnIDs.isType);
         const obj1: ICircularArray = {name: 'hello', children: []};
         const obj2: ICircularArray = {name: 'hello', children: [{name: 'world'}]};
         expect(validate(obj1)).toBe(true);
@@ -519,7 +520,7 @@ describe('Interface with circular ref type array', () => {
     });
 
     it('validate circular interface on array + errors', () => {
-        const valWithErrors = rt.jitFnTypeErrors();
+        const valWithErrors = rt.createJitFunction(JitFnIDs.typeErrors);
         const obj1: ICircularArray = {name: 'hello', children: []};
         const obj2: ICircularArray = {name: 'hello', children: [{name: 'world'}]};
         expect(valWithErrors(obj1)).toEqual([]);
@@ -535,8 +536,8 @@ describe('Interface with circular ref type array', () => {
     });
 
     it('encode/decode to json', () => {
-        const toJson = rt.jitFnJsonEncode();
-        const fromJson = rt.jitFnJsonDecode();
+        const toJson = rt.createJitFunction(JitFnIDs.jsonEncode);
+        const fromJson = rt.createJitFunction(JitFnIDs.jsonDecode);
         const obj1: ICircularArray = {name: 'hello', children: []};
         const obj2: ICircularArray = {name: 'hello', children: [{name: 'world'}]};
         // value used for json encode/decode gets modified so we need to copy it to compare later
@@ -547,8 +548,8 @@ describe('Interface with circular ref type array', () => {
     });
 
     it('json stringify', () => {
-        const jsonStringify = rt.jitFnJsonStringify();
-        const fromJson = rt.jitFnJsonDecode();
+        const jsonStringify = rt.createJitFunction(JitFnIDs.jsonStringify);
+        const fromJson = rt.createJitFunction(JitFnIDs.jsonDecode);
         const obj1: ICircularArray = {name: 'hello', children: []};
         const obj2: ICircularArray = {name: 'hello', children: [{name: 'world'}]};
         const roundTrip1 = fromJson(JSON.parse(jsonStringify(obj1)));
@@ -563,7 +564,7 @@ describe('Interface with circular ref type array', () => {
         const mocked = rt.mock();
         expect(mocked).toHaveProperty('name');
         expect(typeof mocked.parents === 'undefined' || Array.isArray(mocked.parents)).toBe(true);
-        const validate = rt.jitFnIsType();
+        const validate = rt.createJitFunction(JitFnIDs.isType);
         expect(validate(rt.mock())).toBe(true);
     });
 });
@@ -579,7 +580,7 @@ describe('Interface with nested circular type', () => {
     const rt = runType<ICircularDeep>();
 
     it('validate circular interface on nested object', () => {
-        const validate = rt.jitFnIsType();
+        const validate = rt.createJitFunction(JitFnIDs.isType);
         const obj1: ICircularDeep = {name: 'hello', embedded: {hello: 'world'}};
         const obj2: ICircularDeep = {
             name: 'hello',
@@ -595,7 +596,7 @@ describe('Interface with nested circular type', () => {
     });
 
     it('validate circular interface on nested object + errors', () => {
-        const valWithErrors = rt.jitFnTypeErrors();
+        const valWithErrors = rt.createJitFunction(JitFnIDs.typeErrors);
         const obj1: ICircularDeep = {name: 'hello', embedded: {hello: 'world'}};
         const obj2: ICircularDeep = {
             name: 'hello',
@@ -611,8 +612,8 @@ describe('Interface with nested circular type', () => {
     });
 
     it('encode/decode to json', () => {
-        const toJson = rt.jitFnJsonEncode();
-        const fromJson = rt.jitFnJsonDecode();
+        const toJson = rt.createJitFunction(JitFnIDs.jsonEncode);
+        const fromJson = rt.createJitFunction(JitFnIDs.jsonDecode);
         const obj1: ICircularDeep = {name: 'hello', embedded: {hello: 'world'}};
         const obj2: ICircularDeep = {
             name: 'hello',
@@ -626,8 +627,8 @@ describe('Interface with nested circular type', () => {
     });
 
     it('json stringify', () => {
-        const jsonStringify = rt.jitFnJsonStringify();
-        const fromJson = rt.jitFnJsonDecode();
+        const jsonStringify = rt.createJitFunction(JitFnIDs.jsonStringify);
+        const fromJson = rt.createJitFunction(JitFnIDs.jsonDecode);
         const obj1: ICircularDeep = {name: 'hello', embedded: {hello: 'world'}};
         const obj2: ICircularDeep = {
             name: 'hello',
@@ -644,7 +645,7 @@ describe('Interface with nested circular type', () => {
         expect(mocked).toHaveProperty('name');
         expect(mocked).toHaveProperty('embedded');
         expect(typeof mocked.embedded.child === 'undefined' || typeof mocked.embedded.child === 'object').toBe(true);
-        const validate = rt.jitFnIsType();
+        const validate = rt.createJitFunction(JitFnIDs.isType);
         expect(validate(rt.mock())).toBe(true);
     });
 });
@@ -667,7 +668,7 @@ describe('Interface with nested circular type where root is not the circular ref
     const rt = runType<RootNotCircular>();
 
     it('validate circular interface that is not the root object', () => {
-        const validate = rt.jitFnIsType();
+        const validate = rt.createJitFunction(JitFnIDs.isType);
         const obj1: RootNotCircular = {isRoot: true, ciChild: {name: 'hello', big: 1n, embedded: {hello: 'world'}}};
         const obj2: RootNotCircular = {
             isRoot: true,
@@ -699,7 +700,7 @@ describe('Interface with nested circular type where root is not the circular ref
     });
 
     it('validate circular interface that is not the root object object + errors', () => {
-        const valWithErrors = rt.jitFnTypeErrors();
+        const valWithErrors = rt.createJitFunction(JitFnIDs.typeErrors);
         const obj1: RootNotCircular = {isRoot: true, ciChild: {name: 'hello', big: 1n, embedded: {hello: 'world'}}};
         const obj2: RootNotCircular = {
             isRoot: true,
@@ -731,8 +732,8 @@ describe('Interface with nested circular type where root is not the circular ref
     });
 
     it('encode/decode to json', () => {
-        const toJson = rt.jitFnJsonEncode();
-        const fromJson = rt.jitFnJsonDecode();
+        const toJson = rt.createJitFunction(JitFnIDs.jsonEncode);
+        const fromJson = rt.createJitFunction(JitFnIDs.jsonDecode);
         const obj1: RootNotCircular = {isRoot: true, ciChild: {name: 'hello', big: 1n, embedded: {hello: 'world'}}};
         const obj2: RootNotCircular = {
             isRoot: true,
@@ -750,8 +751,8 @@ describe('Interface with nested circular type where root is not the circular ref
     });
 
     it('json stringify', () => {
-        const jsonStringify = rt.jitFnJsonStringify();
-        const fromJson = rt.jitFnJsonDecode();
+        const jsonStringify = rt.createJitFunction(JitFnIDs.jsonStringify);
+        const fromJson = rt.createJitFunction(JitFnIDs.jsonDecode);
         const obj1: RootNotCircular = {isRoot: true, ciChild: {name: 'hello', big: 1n, embedded: {hello: 'world'}}};
         const obj2: RootNotCircular = {
             isRoot: true,
@@ -772,7 +773,7 @@ describe('Interface with nested circular type where root is not the circular ref
         expect(mocked).toHaveProperty('isRoot');
         expect(mocked).toHaveProperty('ciChild');
         expect(typeof mocked.ciChild.child === 'undefined' || typeof mocked.ciChild.child === 'object').toBe(true);
-        const validate = rt.jitFnIsType();
+        const validate = rt.createJitFunction(JitFnIDs.isType);
         expect(validate(rt.mock())).toBe(true);
     });
 });
@@ -805,7 +806,7 @@ describe('Interface with nested circular + multiple circular', () => {
     const rt = runType<RootCircular>();
 
     it('validate circular interface that is not the root object', () => {
-        const validate = rt.jitFnIsType();
+        const validate = rt.createJitFunction(JitFnIDs.isType);
         const ciDate: ICircularDate = {date: new Date(), month: 1, year: 2021};
         const obj1: RootCircular = {isRoot: true, ciChild: {name: 'hello', big: 1n, embedded: {hello: 'world'}}, ciDate};
         const obj2: RootCircular = {
@@ -839,7 +840,7 @@ describe('Interface with nested circular + multiple circular', () => {
     });
 
     it('validate circular interface that is not the root object object + errors', () => {
-        const valWithErrors = rt.jitFnTypeErrors();
+        const valWithErrors = rt.createJitFunction(JitFnIDs.typeErrors);
         const ciDate: ICircularDate = {
             date: new Date(),
             month: 1,
@@ -891,8 +892,8 @@ describe('Interface with nested circular + multiple circular', () => {
     });
 
     it('encode/decode to json', () => {
-        const toJson = rt.jitFnJsonEncode();
-        const fromJson = rt.jitFnJsonDecode();
+        const toJson = rt.createJitFunction(JitFnIDs.jsonEncode);
+        const fromJson = rt.createJitFunction(JitFnIDs.jsonDecode);
         const ciDate: ICircularDate = {date: new Date(), month: 1, year: 2021};
         const obj1: RootCircular = {isRoot: true, ciChild: {name: 'hello', big: 1n, embedded: {hello: 'world'}}, ciDate};
         const obj2: RootCircular = {
@@ -912,8 +913,8 @@ describe('Interface with nested circular + multiple circular', () => {
     });
 
     it('json stringify', () => {
-        const jsonStringify = rt.jitFnJsonStringify();
-        const fromJson = rt.jitFnJsonDecode();
+        const jsonStringify = rt.createJitFunction(JitFnIDs.jsonStringify);
+        const fromJson = rt.createJitFunction(JitFnIDs.jsonDecode);
         const ciDate: ICircularDate = {date: new Date(), month: 1, year: 2021};
         const obj1: RootCircular = {isRoot: true, ciChild: {name: 'hello', big: 1n, embedded: {hello: 'world'}}, ciDate};
         const obj2: RootCircular = {
@@ -936,7 +937,7 @@ describe('Interface with nested circular + multiple circular', () => {
         expect(mocked).toHaveProperty('isRoot');
         expect(mocked).toHaveProperty('ciChild');
         expect(typeof mocked.ciChild.child === 'undefined' || typeof mocked.ciChild.child === 'object').toBe(true);
-        const validate = rt.jitFnIsType();
+        const validate = rt.createJitFunction(JitFnIDs.isType);
         expect(validate(rt.mock())).toBe(true);
     });
 });
@@ -950,7 +951,7 @@ describe('Interface with circular ref tuple', () => {
     const rt = runType<ICircularTuple>();
 
     it('validate circular interface on tuple', () => {
-        const validate = rt.jitFnIsType();
+        const validate = rt.createJitFunction(JitFnIDs.isType);
         const obj1: ICircularTuple = {name: 'hello', parent: ['world', {name: 'world'}]};
         const obj2: ICircularTuple = {name: 'hello', parent: ['world', {name: 'world', parent: ['hello', obj1]}]};
         expect(validate(obj1)).toBe(true);
@@ -963,7 +964,7 @@ describe('Interface with circular ref tuple', () => {
     });
 
     it('validate circular interface on tuple + errors', () => {
-        const valWithErrors = rt.jitFnTypeErrors();
+        const valWithErrors = rt.createJitFunction(JitFnIDs.typeErrors);
         const obj1: ICircularTuple = {name: 'hello', parent: ['world', {name: 'world'}]};
         const obj2: ICircularTuple = {name: 'hello', parent: ['world', {name: 'world', parent: ['hello', obj1]}]};
         expect(valWithErrors(obj1)).toEqual([]);
@@ -976,8 +977,8 @@ describe('Interface with circular ref tuple', () => {
     });
 
     it('encode/decode to json', () => {
-        const toJson = rt.jitFnJsonEncode();
-        const fromJson = rt.jitFnJsonDecode();
+        const toJson = rt.createJitFunction(JitFnIDs.jsonEncode);
+        const fromJson = rt.createJitFunction(JitFnIDs.jsonDecode);
         const obj1: ICircularTuple = {name: 'hello', parent: ['world', {name: 'world'}]};
         const obj2: ICircularTuple = {name: 'hello', parent: ['world', {name: 'world', parent: ['hello', obj1]}]};
         // value used for json encode/decode gets modified so we need to copy it to compare later
@@ -988,8 +989,8 @@ describe('Interface with circular ref tuple', () => {
     });
 
     it('json stringify', () => {
-        const jsonStringify = rt.jitFnJsonStringify();
-        const fromJson = rt.jitFnJsonDecode();
+        const jsonStringify = rt.createJitFunction(JitFnIDs.jsonStringify);
+        const fromJson = rt.createJitFunction(JitFnIDs.jsonDecode);
         const obj1: ICircularTuple = {name: 'hello', parent: ['world', {name: 'world'}]};
         const obj2: ICircularTuple = {name: 'hello', parent: ['world', {name: 'world', parent: ['hello', obj1]}]};
         const roundTrip1 = fromJson(JSON.parse(jsonStringify(obj1)));
@@ -1002,7 +1003,7 @@ describe('Interface with circular ref tuple', () => {
         const mocked = rt.mock();
         expect(mocked).toHaveProperty('name');
         expect(typeof mocked.parent === 'undefined' || Array.isArray(mocked.parent)).toBe(true);
-        const validate = rt.jitFnIsType();
+        const validate = rt.createJitFunction(JitFnIDs.isType);
         expect(validate(rt.mock())).toBe(true);
     });
 });

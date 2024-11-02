@@ -27,6 +27,7 @@ export class NeverRunType extends AtomicRunType<TypeNever> {
         return `${cop.args.εrr}.push({path:${getJitErrorPath(cop)},expected:${getExpected(this)}})`;
     }
     _compileJsonEncode(): string {
+        console.log('here 2');
         throw new Error('Never type cannot be encoded to JSON.');
     }
     _compileJsonDecode(): string {

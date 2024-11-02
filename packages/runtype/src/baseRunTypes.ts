@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 /* ########
  * 2024 mion
  * Author: Ma-jerez
@@ -6,21 +7,9 @@
  * ######## */
 
 import {ReflectionKind, type Type} from './_deepkit/src/reflection/type';
-import type {
-    MockContext,
-    RunType,
-    DKwithRT,
-    JitConstants,
-    Mutable,
-    RunTypeChildAccessor,
-    CodeUnit,
-    JitFnID,
-    RunTypeValidationError,
-    JSONValue,
-    JSONString,
-} from './types';
+import type {MockContext, RunType, DKwithRT, JitConstants, Mutable, RunTypeChildAccessor, CodeUnit, JitFnID} from './types';
 import {getPropIndex, memo} from './utils';
-import {maxStackDepth, maxStackErrorMessage} from './constants';
+import {JitFnIDs, maxStackDepth, maxStackErrorMessage} from './constants';
 import {
     JitTypeErrorCompiler,
     JitIsTypeCompiler,
@@ -29,6 +18,10 @@ import {
     JitJsonDecodeCompileOperation,
     JitCompiler,
     getJITFnId,
+    JitGetUnknownKeysCompiler,
+    JitHasUnknownKeysCompiler,
+    JitStripUnknownKeysCompiler,
+    JitUnknownKeysToUndefinedCompiler,
 } from './jitCompiler';
 import {getReflectionName} from './reflectionNames';
 import {jitUtils} from './jitUtils';
@@ -52,224 +45,6 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
         return parent.getNestLevel() + 1;
     });
 
-    // ########## Create Jit Functions ##########
-
-    jitFnIsType(): (value: any) => boolean {
-        const fn = jitUtils.getCachedFn(getJITFnId('isType', this));
-        if (fn) return fn;
-        const cop = new JitIsTypeCompiler(this);
-        this.compileIsType(cop);
-        return cop.getCompiledFunction();
-    }
-    jitFnTypeErrors(): (value: any) => RunTypeValidationError[] {
-        const fn = jitUtils.getCachedFn(getJITFnId('typeErrors', this));
-        if (fn) return fn;
-        const cop = new JitTypeErrorCompiler(this);
-        this.compileTypeErrors(cop);
-        return cop.getCompiledFunction();
-    }
-    jitFnJsonEncode(): (value: any) => JSONValue {
-        const fn = jitUtils.getCachedFn(getJITFnId('jsonEncode', this));
-        if (fn) return fn;
-        const cop = new JitJsonEncodeCompiler(this);
-        this.compileJsonEncode(cop);
-        return cop.getCompiledFunction();
-    }
-    jitFnJsonDecode(): (value: JSONValue) => any {
-        const fn = jitUtils.getCachedFn(getJITFnId('jsonDecode', this));
-        if (fn) return fn;
-        const cop = new JitJsonDecodeCompileOperation(this);
-        this.compileJsonDecode(cop);
-        return cop.getCompiledFunction();
-    }
-    jitFnJsonStringify(): (value: any) => JSONString {
-        const fn = jitUtils.getCachedFn(getJITFnId('jsonStringify', this));
-        if (fn) return fn;
-        const cop = new JitJsonStringifyCompiler(this);
-        this.compileJsonStringify(cop);
-        return cop.getCompiledFunction();
-    }
-    // jitFnHasUnknownKeys(): (value: any) => boolean {}
-    // jitFnGetUnknownKeys(): (value: any) => string[] {}
-    // jitFnStripUnknownKeys(): (value: any) => any {}
-    // jitFnUnknownKeysToUndefined(): (value: any) => any {}
-
-    // ########## Compile Methods ##########
-
-    /* BaseRunType is in charge of handling circular refs, return values, create subprograms, etc.
-     * While the child class will only contain the logic to generate the code. */
-    abstract _compileIsType(cop: JitCompiler): string;
-    abstract _compileTypeErrors(cop: JitTypeErrorCompiler): string;
-    abstract _compileJsonEncode(cop: JitCompiler): string;
-    abstract _compileJsonDecode(cop: JitCompiler): string;
-    abstract _compileJsonStringify(cop: JitCompiler): string;
-
-    /**
-     * JIT code validation code
-     * should not include anything that is purely the validation of the type, ie function wrappers.
-     * this code should not use return statements, it should be a single line of code that evaluates to a boolean
-     * this code should not contain any sentence breaks or semicolons.
-     * ie: compileIsType = () => `typeof vλl === 'string'`
-     */
-    compileIsType(cop: JitCompiler): string {
-        let code: string | undefined = cop.getCodeFromCache();
-        if (code) return code;
-        cop.pushStack(this);
-        if (cop.shouldCreateDependency()) {
-            const newCompileOp = new JitIsTypeCompiler(this);
-            this.compileIsType(newCompileOp);
-            cop.addDependency(newCompileOp);
-            code = cop.getDependencyCallCode('isType');
-        } else if (cop.shouldCallDependency()) {
-            code = cop.getDependencyCallCode('isType');
-        } else {
-            code = this._compileIsType(cop);
-            code = this.handleReturnValues(code, cop);
-        }
-        cop.popStack(code);
-        return code;
-    }
-
-    /**
-     * JIT code Validation + error info
-     * Similar to validation code but instead of returning a boolean it should assign an error message to the errorsName
-     * This is an executable code block and can contain multiple lines or semicolons
-     * ie:  validateCodeWithErrors = () => `if (typeof vλl !== 'string') ${cop.args.εrr} = 'Expected to be a String';`
-     * path is a string that represents the path to the property being validated.
-     * path is calculated at runtime so is an expression like 'path1' + '/' + 'path2' + '/' + 'path3'
-     */
-    compileTypeErrors(cop: JitTypeErrorCompiler): string {
-        let code: string | undefined = cop.getCodeFromCache();
-        if (code) return code;
-        cop.pushStack(this);
-        if (cop.shouldCreateDependency()) {
-            const newCompileOp = new JitTypeErrorCompiler(this);
-            this.compileTypeErrors(newCompileOp);
-            cop.addDependency(newCompileOp);
-            code = cop.getDependencyCallCode('typeErrors');
-        } else if (cop.shouldCallDependency()) {
-            const pathArgs = cop.getStackStaticPathArgs();
-            const pathLength = cop.getStaticPathLength();
-            // increase and decrease the static path before and after calling the circular function
-            code = `${cop.args.pλth}.push(${pathArgs}); ${cop.getDependencyCallCode('typeErrors')}; ${cop.args.pλth}.splice(-${pathLength});`;
-        } else {
-            code = this._compileTypeErrors(cop);
-            code = this.handleReturnValues(code, cop);
-        }
-        cop.popStack(code);
-        return code;
-    }
-
-    /**
-     * JIT code to transform from type to an object that can be serialized using json
-     * this code should not use return statements, it should be a single line of code that evaluates to a json compatible type.
-     * this code should not contain any sentence breaks or semicolons.
-     * ie for bigIng: compileJsonEncode = () => `vλl.toString()`
-     * */
-    compileJsonEncode(cop: JitCompiler): string {
-        let code: string | undefined = cop.getCodeFromCache();
-        if (code) return code;
-        cop.pushStack(this);
-        if (cop.shouldCreateDependency()) {
-            const newCompileOp = new JitJsonEncodeCompiler(this);
-            this.compileJsonEncode(newCompileOp);
-            cop.addDependency(newCompileOp);
-            code = cop.getDependencyCallCode('jsonEncode');
-        } else if (cop.shouldCallDependency()) {
-            code = cop.getDependencyCallCode('jsonEncode');
-        } else {
-            code = this._compileJsonEncode(cop);
-            code = this.handleReturnValues(code, cop);
-        }
-        cop.popStack(code);
-        return code;
-    }
-
-    /**
-     * JIT code to transform from json to type so type can be deserialized from json
-     * this code should not use return statements, it should be a single line that receives a json compatible type and returns a deserialized value.
-     * this code should not contain any sentence breaks or semicolons.
-     * ie for bigIng: compileJsonDecode = () => `BigInt(vλl)`
-     *
-     * For security reason decoding ignores any properties that are not defined in the type.
-     * So is your type is {name: string} and the json is {name: string, age: number} the age property will be ignored.
-     * */
-    compileJsonDecode(cop: JitCompiler): string {
-        let code: string | undefined = cop.getCodeFromCache();
-        if (code) return code;
-        cop.pushStack(this);
-        if (cop.shouldCreateDependency()) {
-            const newCompileOp = new JitJsonDecodeCompileOperation(this);
-            this.compileJsonDecode(newCompileOp);
-            cop.addDependency(newCompileOp);
-            code = cop.getDependencyCallCode('jsonDecode');
-        } else if (cop.shouldCallDependency()) {
-            code = cop.getDependencyCallCode('jsonDecode');
-        } else {
-            code = this._compileJsonDecode(cop);
-            code = this.handleReturnValues(code, cop);
-        }
-        cop.popStack(code);
-        return code;
-    }
-
-    /**
-     * JIT code to transform a type directly into s json string.
-     * when serializing to json normally we need first to prepare the object using compileJsonEncode and then JSON.stringify().
-     * this code directly outputs the json string and saves traversing the type twice
-     * stringify is always strict
-     */
-    compileJsonStringify(cop: JitCompiler): string {
-        let code: string | undefined = cop.getCodeFromCache();
-        if (code) return code;
-        cop.pushStack(this);
-        if (cop.shouldCreateDependency()) {
-            const newCompileOp = new JitJsonStringifyCompiler(this);
-            this.compileJsonStringify(newCompileOp);
-            cop.addDependency(newCompileOp);
-            code = cop.getDependencyCallCode('jsonStringify');
-        } else if (cop.shouldCallDependency()) {
-            code = cop.getDependencyCallCode('jsonStringify');
-        } else {
-            code = this._compileJsonStringify(cop);
-            code = this.handleReturnValues(code, cop);
-        }
-        cop.popStack(code);
-        return code;
-    }
-
-    private handleReturnValues(code: string, cop: JitCompiler<any, any>): string {
-        const rt = cop.getCurrentStackItem()?.rt;
-        if (!rt) throw new Error('No current stack item');
-        const codeHasReturn: boolean = this.jitFnHasReturn(cop.opId);
-        const codeUnit: CodeUnit = this.jitFnCodeUnit(cop.opId);
-        if (cop.length === 1) {
-            switch (codeUnit) {
-                case 'EXPRESSION':
-                    return codeHasReturn ? code : `return (${code});`;
-                case 'BLOCK':
-                    // if code is a block and does not have return, we need to make sure
-                    const lastChar = code.length - 1; // eslint-disable-line no-case-declarations
-                    const hasFullStop = code.lastIndexOf(';') === lastChar || code.lastIndexOf('}') === lastChar; // eslint-disable-line no-case-declarations
-                    const stopChar = hasFullStop ? '' : ';'; // eslint-disable-line no-case-declarations
-                    return codeHasReturn ? code : `${code}${stopChar}return ${cop.returnName}`;
-                case 'STATEMENT':
-                    // statements can be returned directly
-                    return codeHasReturn ? code : `return ${cop.returnName}`;
-            }
-        }
-
-        switch (codeUnit) {
-            case 'EXPRESSION':
-                // if code should be an expression, but code has return a statement, we need to wrap it in a self invoking function to avoid syntax errors
-                // TODO: we could create a new function and cache instead a self invoking function a performance is same but code is not repeated
-                return codeHasReturn ? `(function(){${code}})()` : code;
-            default:
-                // if code is an statement or block we don't need to do anything as code can be inlined as it is
-                return code;
-        }
-    }
-
     getCircularJitConstants(stack: RunType[] = []): JitConstants | undefined {
         const inStackIndex = stack.findIndex((rt) => rt === this); // cant use isSameJitType because it uses getJitId
         const isInStack = inStackIndex >= 0; // recursive reference
@@ -284,6 +59,123 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
         }
     }
 
+    // ########## Create Jit Functions ##########
+
+    createJitFunction = (copId: JitFnID): ((...args: any[]) => any) => {
+        const fn = jitUtils.getCachedFn(getJITFnId(copId, this));
+        if (fn) return fn;
+        const newCompileOp: JitCompiler = this.createJitCompiler(copId);
+        this.compile(newCompileOp, copId);
+        return newCompileOp.getCompiledFunction();
+    };
+
+    // ########## Child _compile Methods ##########
+
+    /* BaseRunType compileX method is in charge of handling circular refs, return values, create subprograms, etc.
+     * While the child _compileX must only contain the logic to generate the code. */
+    abstract _compileIsType(cop: JitCompiler): string;
+    abstract _compileTypeErrors(cop: JitTypeErrorCompiler): string;
+    abstract _compileJsonEncode(cop: JitCompiler): string;
+    abstract _compileJsonDecode(cop: JitCompiler): string;
+    abstract _compileJsonStringify(cop: JitCompiler): string;
+    // bellow methods are not abstract as they only overridden in CollectionRunType
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    _compileGetUnknownKeys = (cop: JitCompiler): string => '';
+    _compileHasUnknownKeys = (cop: JitCompiler): string => '';
+    _compileStripUnknownKeys = (cop: JitCompiler): string => '';
+    _compileUnknownKeysToUndefined = (cop: JitCompiler): string => '';
+
+    // ########## Compile Methods ##########
+
+    compileIsType(cop: JitCompiler): string {
+        return this.compile(cop, JitFnIDs.isType);
+    }
+    compileTypeErrors(cop: JitTypeErrorCompiler): string {
+        return this.compile(cop, JitFnIDs.typeErrors);
+    }
+    compileJsonEncode(cop: JitCompiler): string {
+        return this.compile(cop, JitFnIDs.jsonEncode);
+    }
+    compileJsonDecode(cop: JitCompiler): string {
+        return this.compile(cop, JitFnIDs.jsonDecode);
+    }
+    compileJsonStringify(cop: JitCompiler): string {
+        return this.compile(cop, JitFnIDs.jsonStringify);
+    }
+    compileGetUnknownKeys(cop: JitCompiler): string {
+        return this.compile(cop, JitFnIDs.getUnknownKeys);
+    }
+    compileHasUnknownKeys(cop: JitCompiler): string {
+        return this.compile(cop, JitFnIDs.hasUnknownKeys);
+    }
+    compileStripUnknownKeys(cop: JitCompiler): string {
+        return this.compile(cop, JitFnIDs.stripUnknownKeys);
+    }
+    compileUnknownKeysToUndefined(cop: JitCompiler): string {
+        return this.compile(cop, JitFnIDs.unknownKeysToUndefined);
+    }
+
+    private compile(cop: JitCompiler, copId: JitFnID) {
+        let code: string | undefined = cop.getCodeFromCache();
+        if (code) return code;
+        cop.pushStack(this);
+        if (cop.shouldCreateDependency()) {
+            const fnId = getJITFnId(copId, this);
+            const cachedCop = jitUtils.getCachedCompiledOperation(fnId);
+            if (cachedCop) {
+                cop.addDependency(cachedCop);
+                code = cop.getDependencyCallCode(copId, fnId);
+            } else {
+                const newCompileOp: JitCompiler = this.createJitCompiler(copId, cop);
+                this.compile(newCompileOp, copId);
+                cop.addDependency(newCompileOp);
+                code = cop.getDependencyCallCode(copId, fnId);
+            }
+        } else if (cop.shouldCallDependency()) {
+            code = cop.getDependencyCallCode(copId);
+            if (copId === JitFnIDs.typeErrors) {
+                const pathArgs = cop.getStackStaticPathArgs();
+                const pathLength = cop.getStaticPathLength();
+                // increase and decrease the static path before and after calling the circular function
+                code = `${cop.args.pλth}.push(${pathArgs}); ${code}; ${cop.args.pλth}.splice(-${pathLength});`;
+            }
+        } else {
+            code = this._compile(copId, cop);
+            code = this.handleReturnValues(code, cop);
+        }
+        cop.popStack(code);
+        return code;
+    }
+
+    private handleReturnValues(code: string, cop: JitCompiler<any, any>): string {
+        const codeHasReturn: boolean = this.jitFnHasReturn(cop.opId);
+        const codeUnit: CodeUnit = this.jitFnCodeUnit(cop.opId);
+        if (cop.length === 1) {
+            switch (codeUnit) {
+                case 'EXPRESSION':
+                    return codeHasReturn ? code : `return (${code})`;
+                case 'BLOCK':
+                case 'STATEMENT': {
+                    // if code is a block and does not have return, we need to make sure
+                    const lastChar = code.length - 1;
+                    const hasFullStop = code.lastIndexOf(';') === lastChar || code.lastIndexOf('}') === lastChar;
+                    const stopChar = hasFullStop ? '' : ';';
+                    return codeHasReturn ? code : `${code}${stopChar} return ${cop.returnName}`;
+                }
+            }
+        }
+
+        switch (codeUnit) {
+            case 'EXPRESSION':
+                // if code should be an expression, but code has return a statement, we need to wrap it in a self invoking function to avoid syntax errors
+                // TODO: we could create a new function and cache instead a self invoking function a performance is same but code is not repeated
+                return codeHasReturn ? `(function(){${code}})()` : code;
+            default:
+                // if code is an statement or block we don't need to do anything as code can be inlined as it is
+                return code;
+        }
+    }
+
     // ########## Return flags ##########
     // any child with different settings should override these methods
     // these flags are used to determine if the compiled code should be wrapped in a self invoking function or not
@@ -291,23 +183,23 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
     // all atomic types should have these same flags (code should never have a return statement)
     jitFnHasReturn(copId: JitFnID): boolean {
         switch (copId) {
-            case 'isType':
+            case JitFnIDs.isType:
                 return false;
-            case 'typeErrors':
+            case JitFnIDs.typeErrors:
                 return false;
-            case 'jsonEncode':
+            case JitFnIDs.jsonEncode:
                 return false;
-            case 'jsonDecode':
+            case JitFnIDs.jsonDecode:
                 return false;
-            case 'jsonStringify':
+            case JitFnIDs.jsonStringify:
                 return false;
-            case 'getUnknownKeys':
+            case JitFnIDs.getUnknownKeys:
                 return false;
-            case 'hasUnknownKeys':
+            case JitFnIDs.hasUnknownKeys:
                 return false;
-            case 'stripUnknownKeys':
+            case JitFnIDs.stripUnknownKeys:
                 return false;
-            case 'unknownKeysToUndefined':
+            case JitFnIDs.unknownKeysToUndefined:
                 return false;
             default:
                 throw new Error(`Unknown compile operation: ${copId}`);
@@ -316,28 +208,79 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
 
     jitFnCodeUnit(copId: JitFnID): CodeUnit {
         switch (copId) {
-            case 'isType':
+            case JitFnIDs.isType:
                 return 'EXPRESSION';
-            case 'typeErrors':
+            case JitFnIDs.typeErrors:
                 return 'BLOCK';
-            case 'jsonEncode':
+            case JitFnIDs.jsonEncode:
                 return 'STATEMENT';
-            case 'jsonDecode':
+            case JitFnIDs.jsonDecode:
                 return 'STATEMENT';
-            case 'jsonStringify':
+            case JitFnIDs.jsonStringify:
                 return 'EXPRESSION';
-            case 'getUnknownKeys':
+            case JitFnIDs.getUnknownKeys:
                 return 'BLOCK';
-            case 'hasUnknownKeys':
+            case JitFnIDs.hasUnknownKeys:
                 return 'EXPRESSION';
-            case 'stripUnknownKeys':
+            case JitFnIDs.stripUnknownKeys:
                 return 'BLOCK';
-            case 'unknownKeysToUndefined':
+            case JitFnIDs.unknownKeysToUndefined:
                 return 'BLOCK';
             default:
                 throw new Error(`Unknown compile operation: ${copId}`);
         }
     }
+
+    private _compile(copId: JitFnID, cop: JitCompiler): string {
+        switch (copId) {
+            case JitFnIDs.isType:
+                return this._compileIsType(cop);
+            case JitFnIDs.typeErrors:
+                return this._compileTypeErrors(cop as JitTypeErrorCompiler);
+            case JitFnIDs.jsonEncode:
+                return this._compileJsonEncode(cop);
+            case JitFnIDs.jsonDecode:
+                return this._compileJsonDecode(cop);
+            case JitFnIDs.jsonStringify:
+                return this._compileJsonStringify(cop);
+            case JitFnIDs.getUnknownKeys:
+                return this._compileGetUnknownKeys(cop);
+            case JitFnIDs.hasUnknownKeys:
+                return this._compileHasUnknownKeys(cop);
+            case JitFnIDs.stripUnknownKeys:
+                return this._compileStripUnknownKeys(cop);
+            case JitFnIDs.unknownKeysToUndefined:
+                return this._compileUnknownKeysToUndefined(cop);
+            default:
+                throw new Error(`Unknown compile operation: ${copId}`);
+        }
+    }
+
+    private createJitCompiler = (copId: JitFnID, parent?: JitCompiler): JitCompiler => {
+        const length = parent?.length ?? 0;
+        switch (copId) {
+            case JitFnIDs.isType:
+                return new JitIsTypeCompiler(this, length);
+            case JitFnIDs.typeErrors:
+                return new JitTypeErrorCompiler(this, length);
+            case JitFnIDs.jsonEncode:
+                return new JitJsonEncodeCompiler(this, length);
+            case JitFnIDs.jsonDecode:
+                return new JitJsonDecodeCompileOperation(this, length);
+            case JitFnIDs.jsonStringify:
+                return new JitJsonStringifyCompiler(this, length);
+            case JitFnIDs.getUnknownKeys:
+                return new JitGetUnknownKeysCompiler(this, length);
+            case JitFnIDs.hasUnknownKeys:
+                return new JitHasUnknownKeysCompiler(this, length);
+            case JitFnIDs.stripUnknownKeys:
+                return new JitStripUnknownKeysCompiler(this, length);
+            case JitFnIDs.unknownKeysToUndefined:
+                return new JitUnknownKeysToUndefinedCompiler(this, length);
+            default:
+                throw new Error(`Unknown compile operation: ${copId}`);
+        }
+    };
 }
 
 /**

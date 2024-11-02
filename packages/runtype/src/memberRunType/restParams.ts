@@ -1,5 +1,6 @@
 import {TypeRest} from '../_deepkit/src/reflection/type';
 import {MemberRunType} from '../baseRunTypes';
+import {JitFnIDs} from '../constants';
 import type {
     JitIsTypeCompiler,
     JitJsonDecodeCompileOperation,
@@ -32,9 +33,9 @@ export class RestParamsRunType extends MemberRunType<TypeRest> {
     }
     jitFnHasReturn(copId: JitFnID): boolean {
         switch (copId) {
-            case 'isType':
+            case JitFnIDs.isType:
                 return true;
-            case 'jsonStringify':
+            case JitFnIDs.jsonStringify:
                 return true;
             default:
                 return super.jitFnHasReturn(copId);

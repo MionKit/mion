@@ -7,6 +7,7 @@
 
 import {TypeTupleMember} from '../_deepkit/src/reflection/type';
 import {BaseRunType, MemberRunType} from '../baseRunTypes';
+import {JitFnIDs} from '../constants';
 import type {
     JitIsTypeCompiler,
     JitJsonDecodeCompileOperation,
@@ -41,9 +42,9 @@ export class TupleMemberRunType extends MemberRunType<TypeTupleMember> {
     }
     jitFnHasReturn(copId: JitFnID): boolean {
         switch (copId) {
-            case 'isType':
+            case JitFnIDs.isType:
                 return true;
-            case 'jsonStringify':
+            case JitFnIDs.jsonStringify:
                 return true;
             default:
                 return super.jitFnHasReturn(copId);

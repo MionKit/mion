@@ -5,6 +5,30 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
+export const JitFnIDs = {
+    isType: 1,
+    typeErrors: 2,
+    jsonEncode: 3,
+    jsonDecode: 4,
+    jsonStringify: 5,
+    getUnknownKeys: 6,
+    hasUnknownKeys: 7,
+    stripUnknownKeys: 8,
+    unknownKeysToUndefined: 9,
+} as const;
+
+export const JitFnNames = {
+    1: 'isType',
+    2: 'typeErrors',
+    3: 'jsonEncode',
+    4: 'jsonDecode',
+    5: 'jsonStringify',
+    6: 'getUnknownKeys',
+    7: 'hasUnknownKeys',
+    8: 'stripUnknownKeys',
+    9: 'unknownKeysToUndefined',
+} as const;
+
 export const validPropertyNameRegExp = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
 
 export const mockRegExpsList = [

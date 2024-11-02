@@ -17,6 +17,7 @@ import type {
     JitTypeErrorCompiler,
 } from '../jitCompiler';
 import {getJitErrorPath, getExpected, shouldSkiJsonEncode, shouldSkipJit, shouldSkipJsonDecode} from '../utils';
+import {JitFnIDs} from '../constants';
 
 export class ArrayRunType extends MemberRunType<TypeArray> {
     src: TypeArray = null as any; // will be set after construction
@@ -34,9 +35,9 @@ export class ArrayRunType extends MemberRunType<TypeArray> {
     }
     jitFnHasReturn(copId: JitFnID): boolean {
         switch (copId) {
-            case 'isType':
+            case JitFnIDs.isType:
                 return true;
-            case 'jsonStringify':
+            case JitFnIDs.jsonStringify:
                 return true;
             default:
                 return super.jitFnHasReturn(copId);

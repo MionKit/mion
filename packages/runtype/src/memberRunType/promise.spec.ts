@@ -5,27 +5,28 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 import {runType} from '../runType';
+import {JitFnIDs} from '../constants';
 
 const rt = runType<Promise<string>>();
 
 it('validate promise<string> should throw an error', () => {
-    expect(() => buildIsTypeJITFn(rt)).toThrow('Jit compilation disabled for Promises.');
+    expect(() => rt.createJitFunction(JitFnIDs.isType)).toThrow('Jit compilation disabled for Promises.');
 });
 
 it('validate promise<string> + errors should throw an error', () => {
-    expect(() => buildTypeErrorsJITFn(rt)).toThrow('Jit compilation disabled for Promises.');
+    expect(() => rt.createJitFunction(JitFnIDs.typeErrors)).toThrow('Jit compilation disabled for Promises.');
 });
 
 it('encode to json should throw an error', () => {
-    expect(() => buildJsonEncodeJITFn(rt)).toThrow('Jit compilation disabled for Promises.');
+    expect(() => rt.createJitFunction(JitFnIDs.jsonEncode)).toThrow('Jit compilation disabled for Promises.');
 });
 
 it('decode from json should throw an error', () => {
-    expect(() => buildJsonDecodeJITFn(rt)).toThrow('Jit compilation disabled for Promises.');
+    expect(() => rt.createJitFunction(JitFnIDs.jsonEncode)).toThrow('Jit compilation disabled for Promises.');
 });
 
 it('json stringify', () => {
-    expect(() => buildJsonStringifyJITFn(rt)).toThrow('Jit compilation disabled for Promises.');
+    expect(() => rt.createJitFunction(JitFnIDs.jsonStringify)).toThrow('Jit compilation disabled for Promises.');
 });
 
 it('mock', async () => {
