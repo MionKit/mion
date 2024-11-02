@@ -8,6 +8,8 @@
 import {maxUnknownKeys} from './constants';
 import type {CompiledOperation, SerializableClass} from './types';
 
+export type JITUtils = typeof jitUtils;
+
 const classesMap = new Map<string, SerializableClass>();
 
 /** Cache for jit generated functions, only interfaces, classes and named types, must be inserted here */
@@ -111,5 +113,3 @@ export const jitUtils = {
         return result ?? false;
     },
 };
-
-export type JITUtils = typeof jitUtils;

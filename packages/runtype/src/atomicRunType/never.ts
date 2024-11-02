@@ -7,7 +7,7 @@
 
 import {ReflectionKind, type TypeNever} from '../_deepkit/src/reflection/type';
 import {AtomicRunType} from '../baseRunTypes';
-import {JitTypeErrorCompileOperation} from '../jitCompiler';
+import {JitTypeErrorCompiler} from '../jitCompiler';
 import {JitConstants} from '../types';
 import {getExpected, getJitErrorPath} from '../utils';
 
@@ -23,7 +23,7 @@ export class NeverRunType extends AtomicRunType<TypeNever> {
     _compileIsType(): string {
         return 'false';
     }
-    _compileTypeErrors(cop: JitTypeErrorCompileOperation): string {
+    _compileTypeErrors(cop: JitTypeErrorCompiler): string {
         return `${cop.args.εrr}.push({path:${getJitErrorPath(cop)},expected:${getExpected(this)}})`;
     }
     _compileJsonEncode(): string {

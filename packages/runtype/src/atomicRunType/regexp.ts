@@ -10,13 +10,7 @@ import type {JitJsonEncoder, MockContext, JitConstants} from '../types';
 import {getJitErrorPath, getExpected} from '../utils';
 import {mockRegExp} from '../mock';
 import {AtomicRunType} from '../baseRunTypes';
-import type {
-    jitIsTypeCompileOperation,
-    JitJsonDecodeCompileOperation,
-    JitJsonEncodeCompileOperation,
-    JitJsonStringifyCompileOperation,
-    JitTypeErrorCompileOperation,
-} from '../jitCompiler';
+import type {JitCompiler, JitTypeErrorCompiler} from '../jitCompiler';
 
 const jitConstants: JitConstants = {
     skipJit: false,
@@ -28,19 +22,19 @@ const jitConstants: JitConstants = {
 export class RegexpRunType extends AtomicRunType<TypeRegexp> {
     src: TypeRegexp = null as any; // will be set after construction
     getJitConstants = () => jitConstants;
-    _compileIsType(cop: jitIsTypeCompileOperation): string {
+    _compileIsType(cop: JitCompiler): string {
         return `(${cop.vλl} instanceof RegExp)`;
     }
-    _compileTypeErrors(cop: JitTypeErrorCompileOperation): string {
+    _compileTypeErrors(cop: JitTypeErrorCompiler): string {
         return `if (!(${cop.vλl} instanceof RegExp)) ${cop.args.εrr}.push({path:${getJitErrorPath(cop)},expected:${getExpected(this)}})`;
     }
-    _compileJsonEncode(cop: JitJsonEncodeCompileOperation): string {
+    _compileJsonEncode(cop: JitCompiler): string {
         return RegexpJitJsonEncoder.encodeToJson(cop.vλl);
     }
-    _compileJsonDecode(cop: JitJsonDecodeCompileOperation): string {
+    _compileJsonDecode(cop: JitCompiler): string {
         return RegexpJitJsonEncoder.decodeFromJson(cop.vλl);
     }
-    _compileJsonStringify(cop: JitJsonStringifyCompileOperation): string {
+    _compileJsonStringify(cop: JitCompiler): string {
         return RegexpJitJsonEncoder.stringify(cop.vλl);
     }
     mock(cop?: Pick<MockContext, 'regexpList'>): RegExp {

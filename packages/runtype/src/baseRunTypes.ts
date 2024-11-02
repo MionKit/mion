@@ -6,18 +6,32 @@
  * ######## */
 
 import {ReflectionKind, type Type} from './_deepkit/src/reflection/type';
-import type {MockContext, RunType, DKwithRT, JitConstants, Mutable, RunTypeChildAccessor, CodeUnit, JitFnID} from './types';
+import type {
+    MockContext,
+    RunType,
+    DKwithRT,
+    JitConstants,
+    Mutable,
+    RunTypeChildAccessor,
+    CodeUnit,
+    JitFnID,
+    RunTypeValidationError,
+    JSONValue,
+    JSONString,
+} from './types';
 import {getPropIndex, memo} from './utils';
 import {maxStackDepth, maxStackErrorMessage} from './constants';
 import {
-    JitTypeErrorCompileOperation,
-    jitIsTypeCompileOperation,
-    JitJsonEncodeCompileOperation,
-    JitJsonStringifyCompileOperation,
+    JitTypeErrorCompiler,
+    JitIsTypeCompiler,
+    JitJsonEncodeCompiler,
+    JitJsonStringifyCompiler,
     JitJsonDecodeCompileOperation,
-    JitCompileOperation,
+    JitCompiler,
+    getJITFnId,
 } from './jitCompiler';
 import {getReflectionName} from './reflectionNames';
+import {jitUtils} from './jitUtils';
 
 type DkCollection = Type & {types: Type[]};
 type DkMember = Type & {type: Type; optional: boolean};
@@ -38,15 +52,57 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
         return parent.getNestLevel() + 1;
     });
 
+    // ########## Create Jit Functions ##########
+
+    jitFnIsType(): (value: any) => boolean {
+        const fn = jitUtils.getCachedFn(getJITFnId('isType', this));
+        if (fn) return fn;
+        const cop = new JitIsTypeCompiler(this);
+        this.compileIsType(cop);
+        return cop.getCompiledFunction();
+    }
+    jitFnTypeErrors(): (value: any) => RunTypeValidationError[] {
+        const fn = jitUtils.getCachedFn(getJITFnId('typeErrors', this));
+        if (fn) return fn;
+        const cop = new JitTypeErrorCompiler(this);
+        this.compileTypeErrors(cop);
+        return cop.getCompiledFunction();
+    }
+    jitFnJsonEncode(): (value: any) => JSONValue {
+        const fn = jitUtils.getCachedFn(getJITFnId('jsonEncode', this));
+        if (fn) return fn;
+        const cop = new JitJsonEncodeCompiler(this);
+        this.compileJsonEncode(cop);
+        return cop.getCompiledFunction();
+    }
+    jitFnJsonDecode(): (value: JSONValue) => any {
+        const fn = jitUtils.getCachedFn(getJITFnId('jsonDecode', this));
+        if (fn) return fn;
+        const cop = new JitJsonDecodeCompileOperation(this);
+        this.compileJsonDecode(cop);
+        return cop.getCompiledFunction();
+    }
+    jitFnJsonStringify(): (value: any) => JSONString {
+        const fn = jitUtils.getCachedFn(getJITFnId('jsonStringify', this));
+        if (fn) return fn;
+        const cop = new JitJsonStringifyCompiler(this);
+        this.compileJsonStringify(cop);
+        return cop.getCompiledFunction();
+    }
+    // jitFnHasUnknownKeys(): (value: any) => boolean {}
+    // jitFnGetUnknownKeys(): (value: any) => string[] {}
+    // jitFnStripUnknownKeys(): (value: any) => any {}
+    // jitFnUnknownKeysToUndefined(): (value: any) => any {}
+
     // ########## Compile Methods ##########
 
     /* BaseRunType is in charge of handling circular refs, return values, create subprograms, etc.
      * While the child class will only contain the logic to generate the code. */
-    abstract _compileIsType(cop: jitIsTypeCompileOperation): string;
-    abstract _compileTypeErrors(cop: JitTypeErrorCompileOperation): string;
-    abstract _compileJsonEncode(cop: JitJsonEncodeCompileOperation): string;
-    abstract _compileJsonDecode(cop: JitJsonDecodeCompileOperation): string;
-    abstract _compileJsonStringify(cop: JitJsonStringifyCompileOperation): string;
+    abstract _compileIsType(cop: JitCompiler): string;
+    abstract _compileTypeErrors(cop: JitTypeErrorCompiler): string;
+    abstract _compileJsonEncode(cop: JitCompiler): string;
+    abstract _compileJsonDecode(cop: JitCompiler): string;
+    abstract _compileJsonStringify(cop: JitCompiler): string;
 
     /**
      * JIT code validation code
@@ -55,17 +111,17 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
      * this code should not contain any sentence breaks or semicolons.
      * ie: compileIsType = () => `typeof vλl === 'string'`
      */
-    compileIsType(cop: jitIsTypeCompileOperation): string {
+    compileIsType(cop: JitCompiler): string {
         let code: string | undefined = cop.getCodeFromCache();
         if (code) return code;
         cop.pushStack(this);
         if (cop.shouldCreateDependency()) {
-            const newCompileOp = new jitIsTypeCompileOperation(this);
+            const newCompileOp = new JitIsTypeCompiler(this);
             this.compileIsType(newCompileOp);
             cop.addDependency(newCompileOp);
-            code = cop.getDependencyCallCode();
+            code = cop.getDependencyCallCode('isType');
         } else if (cop.shouldCallDependency()) {
-            code = cop.getDependencyCallCode();
+            code = cop.getDependencyCallCode('isType');
         } else {
             code = this._compileIsType(cop);
             code = this.handleReturnValues(code, cop);
@@ -82,20 +138,20 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
      * path is a string that represents the path to the property being validated.
      * path is calculated at runtime so is an expression like 'path1' + '/' + 'path2' + '/' + 'path3'
      */
-    compileTypeErrors(cop: JitTypeErrorCompileOperation): string {
+    compileTypeErrors(cop: JitTypeErrorCompiler): string {
         let code: string | undefined = cop.getCodeFromCache();
         if (code) return code;
         cop.pushStack(this);
         if (cop.shouldCreateDependency()) {
-            const newCompileOp = new JitTypeErrorCompileOperation(this);
+            const newCompileOp = new JitTypeErrorCompiler(this);
             this.compileTypeErrors(newCompileOp);
             cop.addDependency(newCompileOp);
-            code = cop.getDependencyCallCode();
+            code = cop.getDependencyCallCode('typeErrors');
         } else if (cop.shouldCallDependency()) {
             const pathArgs = cop.getStackStaticPathArgs();
             const pathLength = cop.getStaticPathLength();
             // increase and decrease the static path before and after calling the circular function
-            code = `${cop.args.pλth}.push(${pathArgs}); ${cop.getDependencyCallCode()}; ${cop.args.pλth}.splice(-${pathLength});`;
+            code = `${cop.args.pλth}.push(${pathArgs}); ${cop.getDependencyCallCode('typeErrors')}; ${cop.args.pλth}.splice(-${pathLength});`;
         } else {
             code = this._compileTypeErrors(cop);
             code = this.handleReturnValues(code, cop);
@@ -110,17 +166,17 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
      * this code should not contain any sentence breaks or semicolons.
      * ie for bigIng: compileJsonEncode = () => `vλl.toString()`
      * */
-    compileJsonEncode(cop: JitJsonEncodeCompileOperation): string {
+    compileJsonEncode(cop: JitCompiler): string {
         let code: string | undefined = cop.getCodeFromCache();
         if (code) return code;
         cop.pushStack(this);
         if (cop.shouldCreateDependency()) {
-            const newCompileOp = new JitJsonEncodeCompileOperation(this);
+            const newCompileOp = new JitJsonEncodeCompiler(this);
             this.compileJsonEncode(newCompileOp);
             cop.addDependency(newCompileOp);
-            code = cop.getDependencyCallCode();
+            code = cop.getDependencyCallCode('jsonEncode');
         } else if (cop.shouldCallDependency()) {
-            code = cop.getDependencyCallCode();
+            code = cop.getDependencyCallCode('jsonEncode');
         } else {
             code = this._compileJsonEncode(cop);
             code = this.handleReturnValues(code, cop);
@@ -138,7 +194,7 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
      * For security reason decoding ignores any properties that are not defined in the type.
      * So is your type is {name: string} and the json is {name: string, age: number} the age property will be ignored.
      * */
-    compileJsonDecode(cop: JitJsonDecodeCompileOperation): string {
+    compileJsonDecode(cop: JitCompiler): string {
         let code: string | undefined = cop.getCodeFromCache();
         if (code) return code;
         cop.pushStack(this);
@@ -146,9 +202,9 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
             const newCompileOp = new JitJsonDecodeCompileOperation(this);
             this.compileJsonDecode(newCompileOp);
             cop.addDependency(newCompileOp);
-            code = cop.getDependencyCallCode();
+            code = cop.getDependencyCallCode('jsonDecode');
         } else if (cop.shouldCallDependency()) {
-            code = cop.getDependencyCallCode();
+            code = cop.getDependencyCallCode('jsonDecode');
         } else {
             code = this._compileJsonDecode(cop);
             code = this.handleReturnValues(code, cop);
@@ -163,17 +219,17 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
      * this code directly outputs the json string and saves traversing the type twice
      * stringify is always strict
      */
-    compileJsonStringify(cop: JitJsonStringifyCompileOperation): string {
+    compileJsonStringify(cop: JitCompiler): string {
         let code: string | undefined = cop.getCodeFromCache();
         if (code) return code;
         cop.pushStack(this);
         if (cop.shouldCreateDependency()) {
-            const newCompileOp = new JitJsonStringifyCompileOperation(this);
+            const newCompileOp = new JitJsonStringifyCompiler(this);
             this.compileJsonStringify(newCompileOp);
             cop.addDependency(newCompileOp);
-            code = cop.getDependencyCallCode();
+            code = cop.getDependencyCallCode('jsonStringify');
         } else if (cop.shouldCallDependency()) {
-            code = cop.getDependencyCallCode();
+            code = cop.getDependencyCallCode('jsonStringify');
         } else {
             code = this._compileJsonStringify(cop);
             code = this.handleReturnValues(code, cop);
@@ -182,7 +238,7 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
         return code;
     }
 
-    private handleReturnValues(code: string, cop: JitCompileOperation<any, any>): string {
+    private handleReturnValues(code: string, cop: JitCompiler<any, any>): string {
         const rt = cop.getCurrentStackItem()?.rt;
         if (!rt) throw new Error('No current stack item');
         const codeHasReturn: boolean = this.jitFnHasReturn(cop.opId);

@@ -9,12 +9,7 @@ import {ReflectionKind, type TypeVoid} from '../_deepkit/src/reflection/type';
 import type {JitConstants} from '../types';
 import {AtomicRunType} from '../baseRunTypes';
 import {getJitErrorPath, getExpected} from '../utils';
-import type {
-    jitIsTypeCompileOperation,
-    JitJsonDecodeCompileOperation,
-    JitJsonEncodeCompileOperation,
-    JitTypeErrorCompileOperation,
-} from '../jitCompiler';
+import type {JitCompiler, JitTypeErrorCompiler} from '../jitCompiler';
 
 const jitConstants: JitConstants = {
     skipJit: false,
@@ -26,16 +21,16 @@ const jitConstants: JitConstants = {
 export class VoidRunType extends AtomicRunType<TypeVoid> {
     src: TypeVoid = null as any; // will be set after construction
     getJitConstants = () => jitConstants;
-    _compileIsType(cop: jitIsTypeCompileOperation): string {
+    _compileIsType(cop: JitCompiler): string {
         return `${cop.vλl} === undefined`;
     }
-    _compileTypeErrors(cop: JitTypeErrorCompileOperation): string {
+    _compileTypeErrors(cop: JitTypeErrorCompiler): string {
         return `if (${cop.vλl} !== undefined) ${cop.args.εrr}.push({path:${getJitErrorPath(cop)},expected:${getExpected(this)}})`;
     }
-    _compileJsonEncode(cop: JitJsonEncodeCompileOperation): string {
+    _compileJsonEncode(cop: JitCompiler): string {
         return `${cop.vλl} = undefined`;
     }
-    _compileJsonDecode(cop: JitJsonDecodeCompileOperation): string {
+    _compileJsonDecode(cop: JitCompiler): string {
         return `${cop.vλl} = undefined`;
     }
     _compileJsonStringify(): string {

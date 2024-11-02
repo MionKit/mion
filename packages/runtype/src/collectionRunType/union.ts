@@ -8,13 +8,13 @@
 import {TypeUnion} from '../_deepkit/src/reflection/type';
 import {MockContext, RunType} from '../types';
 import {random} from '../mock';
-import {CollectionRunType} from '../baseRunTypes';
+import {BaseRunType, CollectionRunType} from '../baseRunTypes';
 import type {
-    jitIsTypeCompileOperation,
+    JitIsTypeCompiler,
     JitJsonDecodeCompileOperation,
-    JitJsonEncodeCompileOperation,
-    JitJsonStringifyCompileOperation,
-    JitTypeErrorCompileOperation,
+    JitJsonEncodeCompiler,
+    JitJsonStringifyCompiler,
+    JitTypeErrorCompiler,
 } from '../jitCompiler';
 import {getExpected, getJitErrorPath, memo} from '../utils';
 import {InterfaceRunType} from './interface';
@@ -33,7 +33,7 @@ export class UnionRunType extends CollectionRunType<TypeUnion> {
     src: TypeUnion = null as any; // will be set after construction
 
     // #### collection's jit code ####
-    _compileIsType(cop: jitIsTypeCompileOperation): string {
+    _compileIsType(cop: JitIsTypeCompiler): string {
         // TODO: enforce strictTypes to ensure no extra properties of the union go unchecked
         const children = this.getJitChildren();
         const code = `(${children.map((rt) => rt.compileIsType(cop)).join(' || ')})`;
@@ -42,7 +42,7 @@ export class UnionRunType extends CollectionRunType<TypeUnion> {
 
     // this version just heck if has error and return an single error in the root of the union.
     // if all types we cant know one the user was trying to use.
-    _compileTypeErrors(cop: JitTypeErrorCompileOperation): string {
+    _compileTypeErrors(cop: JitTypeErrorCompiler): string {
         // TODO: enforce strictTypes to ensure no extra properties of the union go unchecked
         const children = this.getJitChildren();
         const isType = `(${children.map((rt) => rt.compileIsType(cop)).join(' || ')})`;
@@ -57,7 +57,7 @@ export class UnionRunType extends CollectionRunType<TypeUnion> {
      * the second element is the encoded value of the type.
      * ie: type union = string | number | bigint;  var v1: union = 123n;  v1 is encoded as [2, "123n"]
      */
-    _compileJsonEncode(cop: JitJsonEncodeCompileOperation): string {
+    _compileJsonEncode(cop: JitJsonEncodeCompiler): string {
         // TODO: enforce strictTypes to ensure no extra properties of the union go unchecked
         const childrenCode = this.getJitChildren()
             .map((rt, i) => {
@@ -101,7 +101,7 @@ export class UnionRunType extends CollectionRunType<TypeUnion> {
             `;
         return code;
     }
-    _compileJsonStringify(cop: JitJsonStringifyCompileOperation): string {
+    _compileJsonStringify(cop: JitJsonStringifyCompiler): string {
         // TODO: enforce strictTypes to ensure no extra properties of the union go unchecked
         const childrenCode = this.getJitChildren()
             .map((rt, i) => {
@@ -132,7 +132,7 @@ export class UnionRunType extends CollectionRunType<TypeUnion> {
     /** TODO: this version returns an error for every single item in the union.
      * This version checks all properties but would allow for Partial or empty objects to be valid.
      * We would need to group the types by the ones that expert an array an object or any other type. and only push errors related to that type */
-    private _compileTypeErrorsTODO(cop: JitTypeErrorCompileOperation): string {
+    private _compileTypeErrorsTODO(cop: JitTypeErrorCompiler): string {
         const children = this.getMergedJitChildren();
 
         const countVar = `εrrCount${this.getNestLevel()}`;
@@ -156,10 +156,10 @@ export class UnionRunType extends CollectionRunType<TypeUnion> {
     }
 
     // typescript merge all properties of interfaces, classes and object literals in the union.
-    private getMergedJitChildren = memo((): RunType[] => {
+    private getMergedJitChildren = memo((): BaseRunType[] => {
         let mergedInterface: UnionInterfaceRunType | undefined;
         const children = this.getJitChildren();
-        const nonInterfaceChildren: RunType[] = [];
+        const nonInterfaceChildren: BaseRunType[] = [];
         for (const rt of children) {
             const shouldMerge = rt instanceof InterfaceRunType || rt instanceof ClassRunType || rt instanceof IntersectionRunType;
             if (shouldMerge) {

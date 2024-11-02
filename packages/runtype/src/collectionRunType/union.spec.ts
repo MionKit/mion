@@ -24,7 +24,7 @@ describe('Atomic Union', () => {
     const rtConf = runType<configOpt>();
 
     it('validate union', () => {
-        const validate = rt.isType;
+        const validate = rt.jitFnIsType();
 
         expect(validate(a)).toBe(true);
         expect(validate(b)).toBe(true);
@@ -37,7 +37,7 @@ describe('Atomic Union', () => {
     });
 
     it('validate union discriminator string', () => {
-        const validate = rtConf.isType;
+        const validate = rtConf.jitFnIsType();
 
         expect(validate('UNO')).toBe(true);
         expect(validate('DOS')).toBe(true);
@@ -48,7 +48,7 @@ describe('Atomic Union', () => {
     });
 
     it('validate union + errors', () => {
-        const valWithErrors = rt.typeErrors;
+        const valWithErrors = rt.jitFnTypeErrors();
 
         expect(valWithErrors(a)).toEqual([]);
         expect(valWithErrors(b)).toEqual([]);
@@ -62,8 +62,8 @@ describe('Atomic Union', () => {
     });
 
     it('encode/decode to json', () => {
-        const toJson = rt.jsonEncode;
-        const fromJson = rt.jsonDecode;
+        const toJson = rt.jitFnJsonEncode();
+        const fromJson = rt.jitFnJsonDecode();
 
         expect(fromJson(JSON.parse(JSON.stringify(toJson(a))))).toEqual(a);
         expect(fromJson(JSON.parse(JSON.stringify(toJson(b))))).toEqual(b);
@@ -77,8 +77,8 @@ describe('Atomic Union', () => {
 
     it('json stringify with discriminator', () => {
         // this should be serialized as [discriminatorIndex, value]
-        const jsonStringify = rt.jsonStringify;
-        const fromJson = rt.jsonDecode;
+        const jsonStringify = rt.jitFnJsonStringify();
+        const fromJson = rt.jitFnJsonDecode();
 
         expect(fromJson(JSON.parse(jsonStringify(a)))).toEqual(a);
         expect(fromJson(JSON.parse(jsonStringify(b)))).toEqual(b);
@@ -90,9 +90,9 @@ describe('Atomic Union', () => {
     it('throw errors when serializing deserializing object not belonging to the union', () => {
         type UT = string | number;
         const rtU = runType<UT>();
-        const jsonStringify = rtU.jsonStringify;
-        const fromJson = rtU.jsonDecode;
-        const toJson = rtU.jsonEncode;
+        const jsonStringify = rtU.jitFnJsonStringify();
+        const fromJson = rtU.jitFnJsonDecode();
+        const toJson = rtU.jitFnJsonEncode();
         const typeValue = new Date();
 
         expect(() => jsonStringify(typeValue)).toThrow('Can not stringify union: expected one of <string | number> but got Date');
@@ -109,7 +109,7 @@ describe('Atomic Union', () => {
                 mocked instanceof Date ||
                 mocked === null
         ).toBe(true);
-        const validate = rt.isType;
+        const validate = rt.jitFnIsType();
         expect(validate(rt.mock())).toBe(true);
     });
 });
@@ -126,7 +126,7 @@ describe('Union Arr', () => {
     const rt = runType<UnionArr>();
 
     it('validate union', () => {
-        const validate = rt.isType;
+        const validate = rt.jitFnIsType();
 
         expect(validate(arrA)).toBe(true);
         expect(validate(arrB)).toBe(true);
@@ -137,7 +137,7 @@ describe('Union Arr', () => {
     });
 
     it('validate union + errors', () => {
-        const valWithErrors = rt.typeErrors;
+        const valWithErrors = rt.jitFnTypeErrors();
 
         expect(valWithErrors(arrA)).toEqual([]);
         expect(valWithErrors(arrB)).toEqual([]);
@@ -148,8 +148,8 @@ describe('Union Arr', () => {
     });
 
     it('encode/decode to json', () => {
-        const toJson = rt.jsonEncode;
-        const fromJson = rt.jsonDecode;
+        const toJson = rt.jitFnJsonEncode();
+        const fromJson = rt.jitFnJsonDecode();
 
         expect(fromJson(JSON.parse(JSON.stringify(toJson(arrA))))).toEqual(arrA);
         expect(fromJson(JSON.parse(JSON.stringify(toJson(arrB))))).toEqual(arrB);
@@ -162,8 +162,8 @@ describe('Union Arr', () => {
 
     it('json stringify with discriminator', () => {
         // this should be serialized as [discriminatorIndex, value]
-        const jsonStringify = rt.jsonStringify;
-        const fromJson = rt.jsonDecode;
+        const jsonStringify = rt.jitFnJsonStringify();
+        const fromJson = rt.jitFnJsonDecode();
 
         const copyA = structuredClone(arrA);
         const copyB = structuredClone(arrB);
@@ -176,9 +176,9 @@ describe('Union Arr', () => {
     });
 
     it('throw errors when serializing deserializing object not belonging to the union', () => {
-        const jsonStringify = rt.jsonStringify;
-        const fromJson = rt.jsonDecode;
-        const toJson = rt.jsonEncode;
+        const jsonStringify = rt.jitFnJsonStringify();
+        const fromJson = rt.jitFnJsonDecode();
+        const toJson = rt.jitFnJsonEncode();
         const typeValue = new Date();
 
         expect(() => jsonStringify(typeValue)).toThrow(
@@ -195,7 +195,7 @@ describe('Union Arr', () => {
     it('mock', () => {
         const mocked = rt.mock();
         expect(Array.isArray(mocked)).toBe(true);
-        const validate = rt.isType;
+        const validate = rt.jitFnIsType();
         expect(validate(rt.mock())).toBe(true);
     });
 });
@@ -215,7 +215,7 @@ describe('Union Obj', () => {
     const rt = runType<UnionObj>();
 
     it('validate union', () => {
-        const validate = rt.isType;
+        const validate = rt.jitFnIsType();
 
         expect(validate(objA)).toBe(false);
         expect(validate(objB)).toBe(true);
@@ -227,7 +227,7 @@ describe('Union Obj', () => {
     });
 
     it('validate union + errors', () => {
-        const valWithErrors = rt.typeErrors;
+        const valWithErrors = rt.jitFnTypeErrors();
 
         expect(valWithErrors(objA)).toEqual([{path: [], expected: 'union'}]);
         expect(valWithErrors(objB)).toEqual([]);
@@ -239,8 +239,8 @@ describe('Union Obj', () => {
     });
 
     it('encode/decode to json', () => {
-        const toJson = rt.jsonEncode;
-        const fromJson = rt.jsonDecode;
+        const toJson = rt.jitFnJsonEncode();
+        const fromJson = rt.jitFnJsonDecode();
 
         const copyA = structuredClone(objA);
         const copyB = structuredClone(objB);
@@ -253,8 +253,8 @@ describe('Union Obj', () => {
 
     it('json stringify with discriminator', () => {
         // this should be serialized as [discriminatorIndex, value]
-        const jsonStringify = rt.jsonStringify;
-        const fromJson = rt.jsonDecode;
+        const jsonStringify = rt.jitFnJsonStringify();
+        const fromJson = rt.jitFnJsonDecode();
 
         expect(() => jsonStringify(objA)).toThrow(); // mion throws an error for mixed properties in the union
         expect(fromJson(JSON.parse(jsonStringify(objB)))).toEqual(objB);
@@ -262,9 +262,9 @@ describe('Union Obj', () => {
     });
 
     it('throw errors whe serializing deserializing object not belonging to the union', () => {
-        const jsonStringify = rt.jsonStringify;
-        const fromJson = rt.jsonDecode;
-        const toJson = rt.jsonEncode;
+        const jsonStringify = rt.jitFnJsonStringify();
+        const fromJson = rt.jitFnJsonDecode();
+        const toJson = rt.jitFnJsonEncode();
         const typeValue = new Date();
 
         expect(() => jsonStringify(typeValue)).toThrow(
@@ -281,7 +281,7 @@ describe('Union Obj', () => {
     it('mock', () => {
         const mocked = rt.mock();
         expect(typeof mocked === 'object').toBe(true);
-        const validate = rt.isType;
+        const validate = rt.jitFnIsType();
         expect(validate(rt.mock())).toBe(true);
     });
 });
@@ -318,7 +318,7 @@ describe('Union Mixed', () => {
     const rt2 = runType<UnMix2>();
 
     it('validate union', () => {
-        const validate = rt.isType;
+        const validate = rt.jitFnIsType();
 
         expect(validate(mixA)).toBe(true);
         expect(validate(mixB)).toBe(true);
@@ -336,7 +336,7 @@ describe('Union Mixed', () => {
 
     // for UnMix2 the 'a' property is merged into a single union prop, so 'a' accepts both boolean and number
     it('validate union with merged properties', () => {
-        const validate = rt2.isType;
+        const validate = rt2.jitFnIsType();
 
         expect(validate(mix2A)).toBe(true);
         expect(validate(mix2B)).toBe(true);
@@ -347,7 +347,7 @@ describe('Union Mixed', () => {
 
     // validation for Unions does not return info about the path as we can't know which type of the union the user was trying to use.
     it('validate union + errors', () => {
-        const valWithErrors = rt.typeErrors;
+        const valWithErrors = rt.jitFnTypeErrors();
 
         expect(valWithErrors(mixA)).toEqual([]);
         expect(valWithErrors(mixB)).toEqual([]);
@@ -358,8 +358,8 @@ describe('Union Mixed', () => {
     });
 
     it('encode/decode to json', () => {
-        const toJson = rt.jsonEncode;
-        const fromJson = rt.jsonDecode;
+        const toJson = rt.jitFnJsonEncode();
+        const fromJson = rt.jitFnJsonDecode();
 
         const copyA = structuredClone(mixA);
         const copyB = structuredClone(mixB);
@@ -369,17 +369,17 @@ describe('Union Mixed', () => {
 
     it('json stringify with discriminator', () => {
         // this should be serialized as [discriminatorIndex, value]
-        const jsonStringify = rt.jsonStringify;
-        const fromJson = rt.jsonDecode;
+        const jsonStringify = rt.jitFnJsonStringify();
+        const fromJson = rt.jitFnJsonDecode();
 
         expect(fromJson(JSON.parse(jsonStringify(mixA)))).toEqual(mixA);
         expect(fromJson(JSON.parse(jsonStringify(mixB)))).toEqual(mixB);
     });
 
     it('throw errors whe serializing deserializing object not belonging to the union', () => {
-        const jsonStringify = rt.jsonStringify;
-        const fromJson = rt.jsonDecode;
-        const toJson = rt.jsonEncode;
+        const jsonStringify = rt.jitFnJsonStringify();
+        const fromJson = rt.jitFnJsonDecode();
+        const toJson = rt.jitFnJsonEncode();
         const typeValue = new Date();
 
         expect(() => jsonStringify(typeValue)).toThrow(
@@ -396,7 +396,7 @@ describe('Union Mixed', () => {
     it('mock', () => {
         const mocked = rt.mock();
         expect(typeof mocked === 'object').toBe(true);
-        const validate = rt.isType;
+        const validate = rt.jitFnIsType();
         expect(validate(rt.mock())).toBe(true);
     });
 });
@@ -406,7 +406,7 @@ describe('Union circular', () => {
 
     it('validate CircularProperty', () => {
         const rt = runType<UnionC>();
-        const validate = rt.isType;
+        const validate = rt.jitFnIsType();
         expect(validate(new Date())).toBe(true);
         expect(validate(123)).toBe(true);
         expect(validate('hello')).toBe(true);
@@ -426,7 +426,7 @@ describe('Union circular', () => {
 
     it('validate CircularProperty + errors', () => {
         const rt = runType<UnionC>();
-        const valWithErrors = rt.typeErrors;
+        const valWithErrors = rt.jitFnTypeErrors();
         expect(valWithErrors(new Date())).toEqual([]);
         expect(valWithErrors(123)).toEqual([]);
         expect(valWithErrors('hello')).toEqual([]);

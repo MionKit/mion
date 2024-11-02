@@ -12,19 +12,13 @@ import {
     TypeUnion,
     TypeProperty,
 } from '../_deepkit/src/reflection/type';
-import {DKwithRT, MockContext, Mutable, RunType, RunTypeChildAccessor} from '../types';
+import {DKwithRT, MockContext, Mutable, RunTypeChildAccessor} from '../types';
 import {getJitErrorPath, getExpected, toLiteral, arrayToArgumentsLiteral} from '../utils';
 import {PropertyRunType} from '../memberRunType/property';
 import {IndexSignatureRunType} from '../memberRunType/indexProperty';
-import type {
-    jitIsTypeCompileOperation,
-    JitJsonDecodeCompileOperation,
-    JitJsonEncodeCompileOperation,
-    JitJsonStringifyCompileOperation,
-    JitTypeErrorCompileOperation,
-} from '../jitCompiler';
+import type {JitCompiler, JitTypeErrorCompiler} from '../jitCompiler';
 import {InterfaceRunType} from '../collectionRunType/interface';
-import {MemberRunType} from '../baseRunTypes';
+import {BaseRunType, MemberRunType} from '../baseRunTypes';
 import {UnionRunType} from '../collectionRunType/union';
 import {MethodRunType} from '../memberRunType/method';
 import {MethodSignatureRunType} from '../memberRunType/methodSignature';
@@ -38,7 +32,7 @@ export class UnionInterfaceRunType extends InterfaceRunType<anySrcInterface> {
 
     mergedInterfaces: InterfaceRunType[] = [];
     mergedProperties: Map<string | number, MemberRunType<any>> = new Map();
-    getChildRunTypes = (): RunType[] => {
+    getChildRunTypes = (): BaseRunType[] => {
         return Array.from(this.mergedProperties.values());
     };
 
@@ -112,7 +106,7 @@ export class UnionInterfaceRunType extends InterfaceRunType<anySrcInterface> {
         return unionSrc;
     }
 
-    private _compileIsTypeMergedChildren(cop: JitDefaultOp, rt: InterfaceRunType, skipExtraKeysCheck = false): string {
+    private _compileIsTypeMergedChildren(cop: JitCompiler, rt: InterfaceRunType, skipExtraKeysCheck = false): string {
         const children = rt.getJitChildren();
         if (!children.length) return '';
         const hasIndexProp = children.some((prop) => prop instanceof IndexSignatureRunType);
@@ -126,14 +120,14 @@ export class UnionInterfaceRunType extends InterfaceRunType<anySrcInterface> {
     }
 
     // #### collection's jit code ####
-    _compileIsType(cop: jitIsTypeCompileOperation): string {
+    _compileIsType(cop: JitCompiler): string {
         const varName = cop.vλl;
         const childCode = this.mergedInterfaces.length
             ? ` && (${this.mergedInterfaces.map((rt) => this._compileIsTypeMergedChildren(cop, rt)).join(' || ')})`
             : '';
         return `(typeof ${varName} === 'object' && ${varName} !== null${childCode})`;
     }
-    _compileTypeErrors(cop: JitTypeErrorCompileOperation): string {
+    _compileTypeErrors(cop: JitTypeErrorCompiler): string {
         const varName = cop.vλl;
         const parentPath = getJitErrorPath(cop);
         const childrenCode = this.mergedInterfaces.length
@@ -147,7 +141,7 @@ export class UnionInterfaceRunType extends InterfaceRunType<anySrcInterface> {
             }
         `;
     }
-    _compileJsonEncode(cop: JitJsonEncodeCompileOperation): string {
+    _compileJsonEncode(cop: JitCompiler): string {
         const jsonEncodedMergedList = this.mergedInterfaces.filter(
             (c) => !c.getJitConstants().skipJit && !c.getJitConstants().skipJsonEncode
         );
@@ -162,7 +156,7 @@ export class UnionInterfaceRunType extends InterfaceRunType<anySrcInterface> {
                   .join('\n')
             : '';
     }
-    _compileJsonDecode(cop: JitJsonDecodeCompileOperation): string {
+    _compileJsonDecode(cop: JitCompiler): string {
         const jsonDecodedMergedList = this.mergedInterfaces.filter(
             (c) => !c.getJitConstants().skipJit && !c.getJitConstants().skipJsonDecode
         );
@@ -177,24 +171,24 @@ export class UnionInterfaceRunType extends InterfaceRunType<anySrcInterface> {
                   .join('\n')
             : '';
     }
-    _compileJsonStringify(cop: JitJsonStringifyCompileOperation): string {
+    _compileJsonStringify(cop: JitCompiler): string {
         const children = this.getJitChildren();
         const childrenCode = children.map((prop) => prop.compileJsonStringify(cop)).join('+');
         return `'{'+${childrenCode}+'}'`;
 
-        const jsonEncodedMergedList = this.mergedInterfaces.filter(
-            (c) => !c.getJitConstants().skipJit && !c.getJitConstants().skipJsonEncode
-        );
-        return jsonEncodedMergedList.length
-            ? jsonEncodedMergedList
-                  .map((rt, i) => {
-                      const childIsType = this._compileIsTypeMergedChildren(cop, rt, true);
-                      const childCode = rt.compileJsonEncode(cop);
-                      const iF = i === 0 ? 'if' : 'else if';
-                      return `${iF} (${childIsType}) {${childCode}}`;
-                  })
-                  .join('\n')
-            : '';
+        // const jsonEncodedMergedList = this.mergedInterfaces.filter(
+        //     (c) => !c.getJitConstants().skipJit && !c.getJitConstants().skipJsonEncode
+        // );
+        // return jsonEncodedMergedList.length
+        //     ? jsonEncodedMergedList
+        //           .map((rt, i) => {
+        //               const childIsType = this._compileIsTypeMergedChildren(cop, rt, true);
+        //               const childCode = rt.compileJsonEncode(cop);
+        //               const iF = i === 0 ? 'if' : 'else if';
+        //               return `${iF} (${childIsType}) {${childCode}}`;
+        //           })
+        //           .join('\n')
+        //     : '';
     }
 
     mock(ctx?: Pick<MockContext, 'parentObj'>): Record<string | number, any> {

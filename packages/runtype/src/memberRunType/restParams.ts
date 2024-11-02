@@ -1,11 +1,11 @@
 import {TypeRest} from '../_deepkit/src/reflection/type';
 import {MemberRunType} from '../baseRunTypes';
 import type {
-    jitIsTypeCompileOperation,
+    JitIsTypeCompiler,
     JitJsonDecodeCompileOperation,
-    JitJsonEncodeCompileOperation,
-    JitJsonStringifyCompileOperation,
-    JitTypeErrorCompileOperation,
+    JitJsonEncodeCompiler,
+    JitJsonStringifyCompiler,
+    JitTypeErrorCompiler,
 } from '../jitCompiler';
 import {JitFnID, MockContext} from '../types';
 
@@ -40,7 +40,7 @@ export class RestParamsRunType extends MemberRunType<TypeRest> {
                 return super.jitFnHasReturn(copId);
         }
     }
-    _compileIsType(cop: jitIsTypeCompileOperation): string {
+    _compileIsType(cop: JitIsTypeCompiler): string {
         const varName = cop.vλl;
         const indexName = this.getChildVarName();
         const itemCode = this.getMemberType().compileIsType(cop);
@@ -51,13 +51,13 @@ export class RestParamsRunType extends MemberRunType<TypeRest> {
             return true;
         `;
     }
-    _compileTypeErrors(cop: JitTypeErrorCompileOperation): string {
+    _compileTypeErrors(cop: JitTypeErrorCompiler): string {
         const varName = cop.vλl;
         const indexName = this.getChildVarName();
         const itemCode = this.getMemberType().compileTypeErrors(cop);
         return `for (let ${indexName} = ${this.getChildIndex()}; ${indexName} < ${varName}.length; ${indexName}++) {${itemCode}}`;
     }
-    _compileJsonEncode(cop: JitJsonEncodeCompileOperation): string {
+    _compileJsonEncode(cop: JitJsonEncodeCompiler): string {
         const varName = cop.vλl;
         const indexName = this.getChildVarName();
         const itemCode = this.getMemberType().compileJsonEncode(cop);
@@ -69,7 +69,7 @@ export class RestParamsRunType extends MemberRunType<TypeRest> {
         const itemCode = this.getMemberType().compileJsonDecode(cop);
         return `for (let ${indexName} = ${this.getChildIndex()}; ${indexName} < ${varName}.length; ${indexName}++) {${itemCode}}`;
     }
-    _compileJsonStringify(cop: JitJsonStringifyCompileOperation): string {
+    _compileJsonStringify(cop: JitJsonStringifyCompiler): string {
         const varName = cop.vλl;
         const arrName = `rεsultλrr${cop.length}`;
         const itemName = `itεm${cop.length}`;

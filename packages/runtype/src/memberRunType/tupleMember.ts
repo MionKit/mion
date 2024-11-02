@@ -6,19 +6,19 @@
  * ######## */
 
 import {TypeTupleMember} from '../_deepkit/src/reflection/type';
-import {MemberRunType} from '../baseRunTypes';
+import {BaseRunType, MemberRunType} from '../baseRunTypes';
 import type {
-    jitIsTypeCompileOperation,
+    JitIsTypeCompiler,
     JitJsonDecodeCompileOperation,
-    JitJsonEncodeCompileOperation,
-    JitJsonStringifyCompileOperation,
-    JitTypeErrorCompileOperation,
+    JitJsonEncodeCompiler,
+    JitJsonStringifyCompiler,
+    JitTypeErrorCompiler,
 } from '../jitCompiler';
-import {JitFnID, JitConstants, MockContext, Mutable, RunType} from '../types';
+import {JitFnID, JitConstants, MockContext, Mutable} from '../types';
 
 export class TupleMemberRunType extends MemberRunType<TypeTupleMember> {
     src: TypeTupleMember = null as any; // will be set after construction
-    getJitConstants(stack: RunType[] = []): JitConstants {
+    getJitConstants(stack: BaseRunType[] = []): JitConstants {
         const constants = super.getJitConstants(stack) as Mutable<JitConstants>;
         if (this.isOptional()) {
             constants.skipJsonDecode = false;
@@ -49,15 +49,15 @@ export class TupleMemberRunType extends MemberRunType<TypeTupleMember> {
                 return super.jitFnHasReturn(copId);
         }
     }
-    _compileIsType(cop: jitIsTypeCompileOperation): string {
+    _compileIsType(cop: JitIsTypeCompiler): string {
         const itemCode = this.getMemberType().compileIsType(cop);
         return this.isOptional() ? `(${cop.getChildVλl()} === undefined || ${itemCode})` : itemCode;
     }
-    _compileTypeErrors(cop: JitTypeErrorCompileOperation): string {
+    _compileTypeErrors(cop: JitTypeErrorCompiler): string {
         const itemCode = this.getMemberType().compileTypeErrors(cop);
         return this.isOptional() ? `if (${cop.getChildVλl()} !== undefined) {${itemCode}}` : itemCode;
     }
-    _compileJsonEncode(cop: JitJsonEncodeCompileOperation): string {
+    _compileJsonEncode(cop: JitJsonEncodeCompiler): string {
         const shouldSkip = this.getMemberType().getJitConstants().skipJsonEncode;
         const itemCode = shouldSkip ? '' : this.getMemberType().compileJsonEncode(cop);
         const elseBlock = shouldSkip ? '' : `else {${itemCode}}`;
@@ -73,7 +73,7 @@ export class TupleMemberRunType extends MemberRunType<TypeTupleMember> {
             ? `if (${cop.getChildVλl()} === null) {${cop.getChildVλl()} = undefined} ${elseBlock}`
             : itemCode;
     }
-    _compileJsonStringify(cop: JitJsonStringifyCompileOperation): string {
+    _compileJsonStringify(cop: JitJsonStringifyCompiler): string {
         const itemCode = this.getMemberType().compileJsonStringify(cop);
         return this.isOptional() ? `(${cop.getChildVλl()} === undefined ? null : ${itemCode})` : itemCode;
     }

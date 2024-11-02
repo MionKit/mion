@@ -10,11 +10,11 @@ import {JitFnID, MockContext} from '../types';
 import {mockRecursiveEmptyArray, random} from '../mock';
 import {MemberRunType} from '../baseRunTypes';
 import type {
-    jitIsTypeCompileOperation,
+    JitIsTypeCompiler,
     JitJsonDecodeCompileOperation,
-    JitJsonEncodeCompileOperation,
-    JitJsonStringifyCompileOperation,
-    JitTypeErrorCompileOperation,
+    JitJsonEncodeCompiler,
+    JitJsonStringifyCompiler,
+    JitTypeErrorCompiler,
 } from '../jitCompiler';
 import {getJitErrorPath, getExpected, shouldSkiJsonEncode, shouldSkipJit, shouldSkipJsonDecode} from '../utils';
 
@@ -45,7 +45,7 @@ export class ArrayRunType extends MemberRunType<TypeArray> {
 
     // #### jit code ####
 
-    _compileIsType(cop: jitIsTypeCompileOperation): string {
+    _compileIsType(cop: JitIsTypeCompiler): string {
         const varName = cop.vλl;
         const resultVal = `rεs${cop.length}`;
         const index = this.getChildVarName();
@@ -59,7 +59,7 @@ export class ArrayRunType extends MemberRunType<TypeArray> {
             return true;
         `;
     }
-    _compileTypeErrors(cop: JitTypeErrorCompileOperation): string {
+    _compileTypeErrors(cop: JitTypeErrorCompiler): string {
         const varName = cop.vλl;
         const index = this.getChildVarName();
         if (shouldSkipJit(this)) {
@@ -74,7 +74,7 @@ export class ArrayRunType extends MemberRunType<TypeArray> {
             }
         `;
     }
-    _compileJsonEncode(cop: JitJsonEncodeCompileOperation): string {
+    _compileJsonEncode(cop: JitJsonEncodeCompiler): string {
         const varName = cop.vλl;
         const index = this.getChildVarName();
         if (shouldSkiJsonEncode(this)) return '';
@@ -94,7 +94,7 @@ export class ArrayRunType extends MemberRunType<TypeArray> {
             }
         `;
     }
-    _compileJsonStringify(cop: JitJsonStringifyCompileOperation): string {
+    _compileJsonStringify(cop: JitJsonStringifyCompiler): string {
         const varName = cop.vλl;
         const jsonItems = `jsonItεms${cop.length}`;
         const resultVal = `rεs${cop.length}`;

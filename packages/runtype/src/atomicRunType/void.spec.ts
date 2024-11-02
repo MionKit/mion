@@ -9,7 +9,7 @@ import {runType} from '../runType';
 const rt = runType<void>();
 
 it('validate void', () => {
-    const validate = rt.isType;
+    const validate = rt.jitFnIsType();
     function vd() {}
     expect(validate(undefined)).toBe(true);
     expect(validate(vd())).toBe(true);
@@ -19,7 +19,7 @@ it('validate void', () => {
 });
 
 it('validate void + errors', () => {
-    const valWithErrors = rt.typeErrors;
+    const valWithErrors = rt.jitFnTypeErrors();
     expect(valWithErrors(undefined)).toEqual([]);
     expect(valWithErrors(null)).toEqual([{path: [], expected: 'void'}]);
     expect(valWithErrors(42)).toEqual([{path: [], expected: 'void'}]);
@@ -27,22 +27,22 @@ it('validate void + errors', () => {
 });
 
 it('encode to json should return undefined', () => {
-    const encode = rt.jsonEncode;
+    const encode = rt.jitFnJsonEncode();
     expect(encode(undefined)).toBe(undefined);
 });
 
 it('decode from json should return undefined', () => {
-    const decode = rt.jsonDecode;
+    const decode = rt.jitFnJsonDecode();
     expect(decode('')).toBe(undefined);
 });
 
 it('json stringify should return undefined', () => {
-    const stringify = rt.jsonStringify;
+    const stringify = rt.jitFnJsonStringify();
     expect(stringify(undefined)).toBe(undefined);
 });
 
 it('mock', () => {
     expect(rt.mock()).toBeUndefined();
-    const validate = rt.isType;
+    const validate = rt.jitFnIsType();
     expect(validate(rt.mock())).toBe(true);
 });

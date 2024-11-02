@@ -3,11 +3,11 @@ import {MemberRunType} from '../baseRunTypes';
 import {JitFnID, MockContext} from '../types';
 import {jitNames} from '../constants';
 import type {
-    jitIsTypeCompileOperation,
+    JitIsTypeCompiler,
     JitJsonDecodeCompileOperation,
-    JitJsonEncodeCompileOperation,
-    JitJsonStringifyCompileOperation,
-    JitTypeErrorCompileOperation,
+    JitJsonEncodeCompiler,
+    JitJsonStringifyCompiler,
+    JitTypeErrorCompiler,
 } from '../jitCompiler';
 
 /* ########
@@ -42,7 +42,7 @@ export class IndexSignatureRunType extends MemberRunType<TypeIndexSignature> {
         }
     }
     // #### jit code ####
-    _compileIsType(cop: jitIsTypeCompileOperation): string {
+    _compileIsType(cop: JitIsTypeCompiler): string {
         const child = this.getJitChild();
         if (!child) return 'true';
         const varName = cop.vλl;
@@ -54,7 +54,7 @@ export class IndexSignatureRunType extends MemberRunType<TypeIndexSignature> {
             return true;
         `;
     }
-    _compileTypeErrors(cop: JitTypeErrorCompileOperation): string {
+    _compileTypeErrors(cop: JitTypeErrorCompiler): string {
         const child = this.getJitChild();
         if (!child) return '';
         const varName = cop.vλl;
@@ -65,7 +65,7 @@ export class IndexSignatureRunType extends MemberRunType<TypeIndexSignature> {
             }
         `;
     }
-    _compileJsonEncode(cop: JitJsonEncodeCompileOperation): string {
+    _compileJsonEncode(cop: JitJsonEncodeCompiler): string {
         const child = this.getJsonEncodeChild();
         if (!child) return '';
         const varName = cop.vλl;
@@ -88,7 +88,7 @@ export class IndexSignatureRunType extends MemberRunType<TypeIndexSignature> {
         `;
     }
 
-    _compileJsonStringify(cop: JitJsonStringifyCompileOperation): string {
+    _compileJsonStringify(cop: JitJsonStringifyCompiler): string {
         const child = this.getJitChild();
         if (!child) return `''`;
         const varName = cop.vλl;

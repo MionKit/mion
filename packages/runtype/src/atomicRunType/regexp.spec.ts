@@ -11,7 +11,7 @@ import {mockRegExpsList} from '../constants';
 const rt = runType<RegExp>();
 
 it('validate regexp', () => {
-    const validate = rt.isType;
+    const validate = rt.jitFnIsType();
     expect(validate(/abc/)).toBe(true);
     expect(validate(new RegExp('abc'))).toBe(true);
     expect(validate(undefined)).toBe(false);
@@ -20,7 +20,7 @@ it('validate regexp', () => {
 });
 
 it('validate regexp + errors', () => {
-    const valWithErrors = rt.typeErrors;
+    const valWithErrors = rt.jitFnTypeErrors();
     expect(valWithErrors(/abc/)).toEqual([]);
     expect(valWithErrors(undefined)).toEqual([{path: [], expected: 'regexp'}]);
     expect(valWithErrors(42)).toEqual([{path: [], expected: 'regexp'}]);
@@ -28,16 +28,16 @@ it('validate regexp + errors', () => {
 });
 
 it('encode/decode json', () => {
-    const fromJson = rt.jsonDecode;
-    const toJson = rt.jsonEncode;
+    const fromJson = rt.jitFnJsonDecode();
+    const toJson = rt.jitFnJsonEncode();
     mockRegExpsList.forEach((regexp) => {
         expect(fromJson(JSON.parse(JSON.stringify(toJson(regexp))))).toEqual(regexp);
     });
 });
 
 it('json stringify', () => {
-    const jsonStringify = rt.jsonStringify;
-    const fromJson = rt.jsonDecode;
+    const jsonStringify = rt.jitFnJsonStringify();
+    const fromJson = rt.jitFnJsonDecode();
     mockRegExpsList.forEach((regexp) => {
         const typeValue = regexp;
         const roundTrip = fromJson(JSON.parse(jsonStringify(typeValue)));
@@ -47,6 +47,6 @@ it('json stringify', () => {
 
 it('mock', () => {
     expect(rt.mock() instanceof RegExp).toBe(true);
-    const validate = rt.isType;
+    const validate = rt.jitFnIsType();
     expect(validate(rt.mock())).toBe(true);
 });

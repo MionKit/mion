@@ -9,7 +9,7 @@ import {runType} from '../runType';
 const rt = runType<never>();
 
 it('validate never', () => {
-    const validate = rt.isType;
+    const validate = rt.jitFnIsType();
     expect(validate(true)).toBe(false);
     expect(validate(false)).toBe(false);
     expect(validate(1)).toBe(false);
@@ -18,7 +18,7 @@ it('validate never', () => {
 });
 
 it('validate never + errors', () => {
-    const valWithErrors = rt.typeErrors;
+    const valWithErrors = rt.jitFnTypeErrors();
     expect(valWithErrors(true)).toEqual([{path: [], expected: 'never'}]);
     expect(valWithErrors(false)).toEqual([{path: [], expected: 'never'}]);
     expect(valWithErrors(1)).toEqual([{path: [], expected: 'never'}]);

@@ -18,13 +18,13 @@ const rtBig = runType<1n>();
 const rtSym = runType<typeof sym>();
 
 it('validate literal', () => {
-    const validate2 = rt2.isType;
-    const validateA = rtA.isType;
-    const validateReg = rtReg.isType;
-    const validateReg2 = rtReg2.isType;
-    const validateTrue = rtTrue.isType;
-    const validateBig = rtBig.isType;
-    const validateSym = rtSym.isType;
+    const validate2 = rt2.jitFnIsType();
+    const validateA = rtA.jitFnIsType();
+    const validateReg = rtReg.jitFnIsType();
+    const validateReg2 = rtReg2.jitFnIsType();
+    const validateTrue = rtTrue.jitFnIsType();
+    const validateBig = rtBig.jitFnIsType();
+    const validateSym = rtSym.jitFnIsType();
 
     // success
     expect(validate2(2)).toBe(true);
@@ -45,13 +45,13 @@ it('validate literal', () => {
 });
 
 it('validate literal + errors', () => {
-    const valWithErrors2 = rt2.typeErrors;
-    const valWithErrorsA = rtA.typeErrors;
-    const valWithErrorsReg = rtReg.typeErrors;
-    const valWithErrorsReg2 = rtReg2.typeErrors;
-    const valWithErrorsTrue = rtTrue.typeErrors;
-    const valWithErrorsBig = rtBig.typeErrors;
-    const valWithErrorsSym = rtSym.typeErrors;
+    const valWithErrors2 = rt2.jitFnTypeErrors();
+    const valWithErrorsA = rtA.jitFnTypeErrors();
+    const valWithErrorsReg = rtReg.jitFnTypeErrors();
+    const valWithErrorsReg2 = rtReg2.jitFnTypeErrors();
+    const valWithErrorsTrue = rtTrue.jitFnTypeErrors();
+    const valWithErrorsBig = rtBig.jitFnTypeErrors();
+    const valWithErrorsSym = rtSym.jitFnTypeErrors();
 
     // success
     expect(valWithErrors2(2)).toEqual([]);
@@ -72,12 +72,12 @@ it('validate literal + errors', () => {
 });
 
 it('encode to json', () => {
-    const toJson2 = rt2.jsonEncode;
-    const toJsonA = rtA.jsonEncode;
-    const toJsonReg = rtReg.jsonEncode;
-    const toJsonTrue = rtTrue.jsonEncode;
-    const toJsonBig = rtBig.jsonEncode;
-    const toJsonSym = rtSym.jsonEncode;
+    const toJson2 = rt2.jitFnJsonEncode();
+    const toJsonA = rtA.jitFnJsonEncode();
+    const toJsonReg = rtReg.jitFnJsonEncode();
+    const toJsonTrue = rtTrue.jitFnJsonEncode();
+    const toJsonBig = rtBig.jitFnJsonEncode();
+    const toJsonSym = rtSym.jitFnJsonEncode();
 
     expect(toJson2(2)).toEqual(2);
     expect(toJsonA('a')).toEqual('a');
@@ -88,12 +88,12 @@ it('encode to json', () => {
 });
 
 it('decode from json', () => {
-    const fromJson2 = rt2.jsonDecode;
-    const fromJsonA = rtA.jsonDecode;
-    const fromJsonReg = rtReg.jsonDecode;
-    const fromJsonTrue = rtTrue.jsonDecode;
-    const fromJsonBig = rtBig.jsonDecode;
-    const fromJsonSym = rtSym.jsonDecode;
+    const fromJson2 = rt2.jitFnJsonDecode();
+    const fromJsonA = rtA.jitFnJsonDecode();
+    const fromJsonReg = rtReg.jitFnJsonDecode();
+    const fromJsonTrue = rtTrue.jitFnJsonDecode();
+    const fromJsonBig = rtBig.jitFnJsonDecode();
+    const fromJsonSym = rtSym.jitFnJsonDecode();
 
     expect(fromJson2(2)).toEqual(2);
     expect(fromJsonA('a')).toEqual('a');
@@ -104,19 +104,19 @@ it('decode from json', () => {
 });
 
 it('json stringify', () => {
-    const jsonStringify2 = rt2.jsonStringify;
-    const jsonStringifyA = rtA.jsonStringify;
-    const jsonStringifyReg = rtReg.jsonStringify;
-    const jsonStringifyTrue = rtTrue.jsonStringify;
-    const jsonStringifyBig = rtBig.jsonStringify;
-    const jsonStringifySym = rtSym.jsonStringify;
+    const jsonStringify2 = rt2.jitFnJsonStringify();
+    const jsonStringifyA = rtA.jitFnJsonStringify();
+    const jsonStringifyReg = rtReg.jitFnJsonStringify();
+    const jsonStringifyTrue = rtTrue.jitFnJsonStringify();
+    const jsonStringifyBig = rtBig.jitFnJsonStringify();
+    const jsonStringifySym = rtSym.jitFnJsonStringify();
 
-    const fromJson2 = rt2.jsonDecode;
-    const fromJsonA = rtA.jsonDecode;
-    const fromJsonReg = rtReg.jsonDecode;
-    const fromJsonTrue = rtTrue.jsonDecode;
-    const fromJsonBig = rtBig.jsonDecode;
-    const fromJsonSym = rtSym.jsonDecode;
+    const fromJson2 = rt2.jitFnJsonDecode();
+    const fromJsonA = rtA.jitFnJsonDecode();
+    const fromJsonReg = rtReg.jitFnJsonDecode();
+    const fromJsonTrue = rtTrue.jitFnJsonDecode();
+    const fromJsonBig = rtBig.jitFnJsonDecode();
+    const fromJsonSym = rtSym.jitFnJsonDecode();
 
     const typeValue2 = null;
     const roundTrip2 = fromJson2(JSON.parse(jsonStringify2(typeValue2)));

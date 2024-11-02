@@ -13,11 +13,11 @@ import {MethodSignatureRunType} from '../memberRunType/methodSignature';
 import {IndexSignatureRunType} from '../memberRunType/indexProperty';
 import {MethodRunType} from '../memberRunType/method';
 import type {
-    jitIsTypeCompileOperation,
+    JitIsTypeCompiler,
     JitJsonDecodeCompileOperation,
-    JitJsonEncodeCompileOperation,
-    JitJsonStringifyCompileOperation,
-    JitTypeErrorCompileOperation,
+    JitJsonEncodeCompiler,
+    JitJsonStringifyCompiler,
+    JitTypeErrorCompiler,
 } from '../jitCompiler';
 import {jitNames} from '../constants';
 
@@ -28,7 +28,7 @@ export class InterfaceRunType<
 > extends CollectionRunType<T> {
     src: T = null as any; // will be set after construction
 
-    callCheckUnknownProperties(cop: jitIsTypeCompileOperation, childrenRunTypes: RunType[], returnKeys: boolean): string {
+    callCheckUnknownProperties(cop: JitIsTypeCompiler, childrenRunTypes: RunType[], returnKeys: boolean): string {
         const childrenNames = childrenRunTypes.filter((prop) => !!(prop.src as any).name).map((prop) => (prop.src as any).name);
         if (childrenNames.length === 0) return '';
         const keysID = toLiteral(childrenNames.join(':'));
@@ -37,14 +37,14 @@ export class InterfaceRunType<
     }
 
     // #### collection's jit code ####
-    _compileIsType(cop: jitIsTypeCompileOperation): string {
+    _compileIsType(cop: JitIsTypeCompiler): string {
         const varName = cop.vλl;
         const children = this.getJitChildren();
         const childrenCode = `  && ${children.map((prop) => prop.compileIsType(cop)).join(' && ')}`;
         // adding strictCheck at the end improves performance when property checks fail and in union types
         return `(typeof ${varName} === 'object' && ${varName} !== null${childrenCode})`;
     }
-    _compileTypeErrors(cop: JitTypeErrorCompileOperation): string {
+    _compileTypeErrors(cop: JitTypeErrorCompiler): string {
         const varName = cop.vλl;
         const children = this.getJitChildren();
         const childrenCode = children.map((prop) => prop.compileTypeErrors(cop)).join(';');
@@ -56,7 +56,7 @@ export class InterfaceRunType<
             }
         `;
     }
-    _compileJsonEncode(cop: JitJsonEncodeCompileOperation): string {
+    _compileJsonEncode(cop: JitJsonEncodeCompiler): string {
         const children = this.getJsonEncodeChildren();
         return children
             .map((prop) => prop.compileJsonEncode(cop))
@@ -99,7 +99,7 @@ export class InterfaceRunType<
             .join(';');
         return childrenCode;
     }
-    _compileJsonStringify(cop: JitJsonStringifyCompileOperation): string {
+    _compileJsonStringify(cop: JitJsonStringifyCompiler): string {
         const children = this.getJitChildren();
         const childrenCode = children
             .map((prop) => prop.compileJsonStringify(cop))

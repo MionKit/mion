@@ -11,7 +11,7 @@ describe('Array', () => {
     const rD = runType<Date[]>();
 
     it('validate string[]', () => {
-        const validate = rt.isType;
+        const validate = rt.jitFnIsType();
         expect(validate([])).toBe(true);
         expect(validate(['hello', 'world'])).toBe(true);
         expect(validate(['hello', 2])).toBe(false);
@@ -19,41 +19,41 @@ describe('Array', () => {
     });
 
     it('validate string[] + errors', () => {
-        const valWithErrors = rt.typeErrors;
+        const valWithErrors = rt.jitFnTypeErrors();
         expect(valWithErrors(['hello', 'world'])).toEqual([]);
         expect(valWithErrors('hello')).toEqual([{path: [], expected: 'array'}]);
         expect(valWithErrors(['hello', 123])).toEqual([{path: [1], expected: 'string'}]);
     });
 
     it('encode to json', () => {
-        const toJson = rt.jsonEncode;
+        const toJson = rt.jitFnJsonEncode();
         const typeValue = ['hello', 'world'];
         expect(toJson(typeValue)).toEqual(typeValue);
     });
 
     it('decode from json', () => {
-        const fromJson = rt.jsonDecode;
+        const fromJson = rt.jitFnJsonDecode();
         const typeValue = ['hello', 'world'];
         const json = JSON.parse(JSON.stringify(typeValue));
         expect(fromJson(json)).toEqual(typeValue);
     });
 
     it('encode to json date', () => {
-        const toJson = rD.jsonEncode;
+        const toJson = rD.jitFnJsonEncode();
         const typeValue = [new Date(), new Date()];
         expect(toJson(typeValue)).toBe(typeValue);
     });
 
     it('decode from json date', () => {
-        const fromJson = rD.jsonDecode;
+        const fromJson = rD.jitFnJsonDecode();
         const typeValue = [new Date(), new Date()];
         const json = JSON.parse(JSON.stringify(typeValue));
         expect(fromJson(json)).toEqual(typeValue);
     });
 
     it('json stringify', () => {
-        const jsonStringify = rt.jsonStringify;
-        const fromJson = rt.jsonDecode;
+        const jsonStringify = rt.jitFnJsonStringify();
+        const fromJson = rt.jitFnJsonDecode();
         const typeValue = ['hello', 'world'];
         const roundTrip = fromJson(JSON.parse(jsonStringify(typeValue)));
         expect(roundTrip).toEqual(typeValue);
@@ -65,7 +65,7 @@ describe('Array', () => {
 
     it('mock', () => {
         expect(rt.mock() instanceof Array).toBe(true);
-        const validate = rt.isType;
+        const validate = rt.jitFnIsType();
         expect(validate(rt.mock())).toBe(true);
     });
 });
@@ -74,7 +74,7 @@ describe('Array with multiple dimensions', () => {
     const rt = runType<string[][]>();
 
     it('validate string[][]', () => {
-        const validate = rt.isType;
+        const validate = rt.jitFnIsType();
         expect(validate([])).toBe(true);
         expect(validate([[]])).toBe(true);
         expect(
@@ -89,7 +89,7 @@ describe('Array with multiple dimensions', () => {
     });
 
     it('validate string[][] + errors', () => {
-        const valWithErrors = rt.typeErrors;
+        const valWithErrors = rt.jitFnTypeErrors();
         expect(valWithErrors([])).toEqual([]);
         expect(valWithErrors([[]])).toEqual([]);
         expect(
@@ -108,21 +108,21 @@ describe('Array with multiple dimensions', () => {
     });
 
     it('encode to json', () => {
-        const toJson = rt.jsonEncode;
+        const toJson = rt.jitFnJsonEncode();
         const typeValue = [['hello', 'world'], ['a', 'b'], []];
         expect(toJson(typeValue)).toEqual(typeValue);
     });
 
     it('decode from json', () => {
-        const fromJson = rt.jsonDecode;
+        const fromJson = rt.jitFnJsonDecode();
         const typeValue = [['hello', 'world'], ['a', 'b'], []];
         const json = JSON.parse(JSON.stringify(typeValue));
         expect(fromJson(json)).toEqual(typeValue);
     });
 
     it('json stringify', () => {
-        const jsonStringify = rt.jsonStringify;
-        const fromJson = rt.jsonDecode;
+        const jsonStringify = rt.jitFnJsonStringify();
+        const fromJson = rt.jitFnJsonDecode();
         const typeValue = [['hello', 'world'], ['a', 'b'], []];
         const roundTrip = fromJson(JSON.parse(jsonStringify(typeValue)));
         expect(roundTrip).toEqual(typeValue);
@@ -133,7 +133,7 @@ describe('Array with multiple dimensions', () => {
     });
 
     it('mock', () => {
-        const validate = rt.isType;
+        const validate = rt.jitFnIsType();
         expect(rt.mock() instanceof Array).toBe(true);
         expect(validate(rt.mock())).toBe(true);
     });
@@ -147,7 +147,7 @@ describe('Array circular ref', () => {
 
     it('validate CircularArray', () => {
         const rt = runType<CircularArray>();
-        const validate = rt.isType;
+        const validate = rt.jitFnIsType();
         const arr: CircularArray = [];
         arr.push([]);
         arr[0].push([]);
@@ -157,7 +157,7 @@ describe('Array circular ref', () => {
 
     it('validate CircularArray + errors', () => {
         const rt = runType<CircularArray>();
-        const valWithErrors = rt.typeErrors;
+        const valWithErrors = rt.jitFnTypeErrors();
         const arr: CircularArray = [];
         arr.push([]);
         arr[0].push([]);
@@ -174,7 +174,7 @@ describe('Array circular ref', () => {
 
     it('encode CircularArray to json', () => {
         const rt = runType<CircularArray>();
-        const toJson = rt.jsonEncode;
+        const toJson = rt.jitFnJsonEncode();
         const arr: CircularArray = [];
         arr.push([]);
         arr[0].push([]);
@@ -184,7 +184,7 @@ describe('Array circular ref', () => {
 
     it('decode CircularArray from json', () => {
         const rt = runType<CircularArray>();
-        const fromJson = rt.jsonDecode;
+        const fromJson = rt.jitFnJsonDecode();
         const arr: CircularArray = [];
         arr.push([]);
         arr[0].push([]);
@@ -195,8 +195,8 @@ describe('Array circular ref', () => {
 
     it('json stringify CircularArray', () => {
         const rt = runType<CircularArray>();
-        const jsonStringify = rt.jsonStringify;
-        const fromJson = rt.jsonDecode;
+        const jsonStringify = rt.jitFnJsonStringify();
+        const fromJson = rt.jitFnJsonDecode();
         const arr: CircularArray = [];
         arr.push([]);
         arr[0].push([]);
@@ -211,7 +211,7 @@ describe('Array circular ref', () => {
 
     it('mock CircularArray', () => {
         const rt = runType<CircularArray>();
-        const validate = rt.isType;
+        const validate = rt.jitFnIsType();
         expect(rt.mock() instanceof Array).toBe(true);
         expect(validate(rt.mock())).toBe(true);
     });

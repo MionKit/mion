@@ -7,8 +7,7 @@
 import {ReflectionKind, TypeFunction} from '../_deepkit/src/reflection/type';
 import {BaseRunType} from '../baseRunTypes';
 import {isPromiseRunType} from '../guards';
-import {JITCompiledFunctions, MockContext, RunType, DKwithRT, JitConstants, AnyFunction} from '../types';
-import {memo} from '../utils';
+import {MockContext, DKwithRT, JitConstants, AnyFunction} from '../types';
 import {FunctionParametersRunType} from './functionParameters';
 
 const functionJitConstants: JitConstants = {
@@ -55,8 +54,8 @@ export class FunctionRunType<CallType extends AnyFunction = TypeFunction> extend
     //     const end = opts?.paramsSlice?.end;
     //     parameterRunTypes = src.parameters.slice(start, end).map((p) => visitor(p, parents, opts)) as ParameterRunType[];
     // }
-    getReturnType(): RunType {
-        return (this.src.return as DKwithRT)._rt;
+    getReturnType(): BaseRunType {
+        return (this.src.return as DKwithRT)._rt as BaseRunType;
     }
     getParameters(): FunctionParametersRunType {
         return this.parameterRunTypes;
@@ -79,9 +78,6 @@ export class FunctionRunType<CallType extends AnyFunction = TypeFunction> extend
     mock(): any[] {
         throw new Error('Function Mock is not allowed, call mockParams or mockReturn instead.');
     }
-
-    compileReturn = memo((): JITCompiledFunctions => this.getReturnType().compile());
-    compileParams = memo((): JITCompiledFunctions => this.parameterRunTypes.compile());
     mockReturn(ctx?: MockContext): any {
         return this.getReturnType().mock(ctx);
     }

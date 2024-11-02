@@ -11,11 +11,11 @@ import {getPropIndex, getPropLiteral, getPropVarName, isSafePropName, memo, useA
 import {MemberRunType} from '../baseRunTypes';
 import {jitUtils} from '../jitUtils';
 import type {
-    jitIsTypeCompileOperation,
+    JitIsTypeCompiler,
     JitJsonDecodeCompileOperation,
-    JitJsonEncodeCompileOperation,
-    JitJsonStringifyCompileOperation,
-    JitTypeErrorCompileOperation,
+    JitJsonEncodeCompiler,
+    JitJsonStringifyCompiler,
+    JitTypeErrorCompiler,
 } from '../jitCompiler';
 
 export class PropertyRunType extends MemberRunType<TypePropertySignature | TypeProperty> {
@@ -28,19 +28,19 @@ export class PropertyRunType extends MemberRunType<TypePropertySignature | TypeP
 
     // #### jit code ####
 
-    _compileIsType(cop: jitIsTypeCompileOperation): string {
+    _compileIsType(cop: JitIsTypeCompiler): string {
         const child = this.getJitChild();
         if (!child) return '';
         const itemCode = child.compileIsType(cop);
         return this.src.optional ? `(${cop.getChildVλl()} === undefined || ${itemCode})` : itemCode;
     }
-    _compileTypeErrors(cop: JitTypeErrorCompileOperation): string {
+    _compileTypeErrors(cop: JitTypeErrorCompiler): string {
         const child = this.getJitChild();
         if (!child) return '';
         const itemCode = child.compileTypeErrors(cop);
         return this.src.optional ? `if (${cop.getChildVλl()} !== undefined) {${itemCode}}` : itemCode;
     }
-    _compileJsonEncode(cop: JitJsonEncodeCompileOperation): string {
+    _compileJsonEncode(cop: JitJsonEncodeCompiler): string {
         const child = this.getJsonEncodeChild();
         if (!child) return '';
         const propCode = child.compileJsonEncode(cop);
@@ -54,7 +54,7 @@ export class PropertyRunType extends MemberRunType<TypePropertySignature | TypeP
         if (this.src.optional) return `if (${cop.getChildVλl()} !== undefined) {${propCode}}`;
         return propCode;
     }
-    _compileJsonStringify(cop: JitJsonStringifyCompileOperation): string {
+    _compileJsonStringify(cop: JitJsonStringifyCompiler): string {
         const child = this.getJitChild();
         if (!child) return '';
         const propCode = child.compileJsonStringify(cop);
