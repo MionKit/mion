@@ -11,7 +11,7 @@ export const JitFnIDs = {
     jsonEncode: 3,
     jsonDecode: 4,
     jsonStringify: 5,
-    getUnknownKeys: 6,
+    unknownKeyErrors: 6,
     hasUnknownKeys: 7,
     stripUnknownKeys: 8,
     unknownKeysToUndefined: 9,
@@ -23,7 +23,7 @@ export const JitFnNames = {
     3: 'jsonEncode',
     4: 'jsonDecode',
     5: 'jsonStringify',
-    6: 'getUnknownKeys',
+    6: 'unknownKeyErrors',
     7: 'hasUnknownKeys',
     8: 'stripUnknownKeys',
     9: 'unknownKeysToUndefined',
@@ -59,7 +59,7 @@ export const mockRegExpsList = [
     /\/\\\//, // regexp double scaped \\
 ];
 
-export const stringCharSet = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890 ';
+export const stringCharSet = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890 .>?<~!@#$%^&*()_+-=[]{}|;:,';
 
 export const anyValuesList = [
     {},

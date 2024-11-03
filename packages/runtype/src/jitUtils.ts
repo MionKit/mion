@@ -4,21 +4,18 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
-
 import {maxUnknownKeys} from './constants';
 import type {CompiledOperation, SerializableClass} from './types';
 
 export type JITUtils = typeof jitUtils;
 
-const classesMap = new Map<string, SerializableClass>();
-
-/** Cache for jit generated functions, only interfaces, classes and named types, must be inserted here */
-const jitCache = new Map<string, CompiledOperation>();
-
 // eslint-disable-next-line no-control-regex
 const STR_ESCAPE = /[\u0000-\u001f\u0022\u005c\ud800-\udfff]/;
 
+const classesMap = new Map<string, SerializableClass>();
+const jitCache = new Map<string, CompiledOperation>();
 const jitObjectKeys = new Map<string, Set<string | number>>();
+const jitHashes = new Map<string, string>();
 
 /**
  * Object that wraps all utilities that are used by the jit generated functions for encode, decode, stringify etc..
@@ -75,12 +72,19 @@ export const jitUtils = {
     addCachedFn(key: string, cop: CompiledOperation) {
         jitCache.set(key, cop);
     },
+    // !!! DO NOT MODIFY METHOD WITHOUT REVIEWING JIT CODE INVOCATIONS!!!
     getCachedCompiledOperation(key: string): CompiledOperation | undefined {
         return jitCache.get(key);
     },
     // !!! DO NOT MODIFY METHOD WITHOUT REVIEWING JIT CODE INVOCATIONS!!!
     getCachedFn(key: string): undefined | ((...args: any[]) => any) {
         return jitCache.get(key)?.jitFn;
+    },
+    // !!! DO NOT MODIFY METHOD WITHOUT REVIEWING JIT CODE INVOCATIONS!!!
+    getJitFn(key: string): (...args: any[]) => any {
+        const cop = jitCache.get(key);
+        if (!cop) throw new Error(`Jit function not found for key ${key}`);
+        return cop.jitFn;
     },
     // !!! DO NOT MODIFY METHOD WITHOUT REVIEWING JIT CODE INVOCATIONS!!!
     isFnInCache(key: string) {
@@ -113,3 +117,38 @@ export const jitUtils = {
         return result ?? false;
     },
 };
+
+const hashChars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+
+export function quickHash(input: string, length = 28) {
+    const PRIME = 37; // Prime number to mix hash more robustly
+    let hash = 0;
+    // Generate initial numeric hash
+    for (let i = 0; i < input.length; i++) {
+        hash = (hash * PRIME + input.charCodeAt(i)) % Number.MAX_SAFE_INTEGER;
+    }
+    // Convert numeric hash to a short alphanumeric string
+    let result = '';
+    while (result.length < length) {
+        hash = (hash * PRIME) % Number.MAX_SAFE_INTEGER;
+        result += hashChars.charAt(hash % hashChars.length);
+    }
+    return result.slice(0, length);
+}
+
+export function getJitIDHash(jitId: string, length = 28): string {
+    if (jitId.length < length) return jitId;
+    let id = quickHash(jitId, length);
+    let counter = 1;
+    let existing = jitHashes.get(id);
+    // Check if ID already exists and corresponds to the same input
+    while (existing && existing !== jitId) {
+        id = quickHash(jitId + counter, length);
+        counter++;
+        existing = jitHashes.get(id);
+    }
+
+    // Store the unique ID with its original input string
+    jitHashes.set(id, jitId);
+    return id;
+}

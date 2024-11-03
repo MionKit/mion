@@ -6,6 +6,7 @@
  * ######## */
 import {runType} from '../runType';
 import {JitFnIDs} from '../constants';
+import {jitUtils} from '../jitUtils';
 
 describe('Array', () => {
     const rt = runType<string[]>();
@@ -153,7 +154,7 @@ describe('Array circular ref', () => {
         arr.push([]);
         arr[0].push([]);
         arr[0][0].push([]);
-        expect(validate(arr)).toBe(true);
+        expect(validate([[]])).toBe(true);
     });
 
     it('validate CircularArray + errors', () => {

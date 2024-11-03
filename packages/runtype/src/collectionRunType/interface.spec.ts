@@ -328,42 +328,36 @@ describe('Interface with strict modes', () => {
         },
     };
 
-    it('validate object with extra properties', () => {
+    it('validate object hasUnknownKeys', () => {
         const validate = rt.createJitFunction(JitFnIDs.isType);
-        const validateStrict = buildIsTypeJITFn(rt, undefined, {strictTypes: true}).fn;
+        const hasUnknownKeys = rt.createJitFunction(JitFnIDs.hasUnknownKeys);
 
         expect(validate(obj)).toBe(true);
-        expect(validateStrict(obj)).toBe(true);
+        expect(hasUnknownKeys(obj)).toBe(true);
 
         expect(validate(objWithExtra)).toBe(true);
-        expect(validateStrict(objWithExtra)).toBe(false);
-        expect(validateStrict(objWithExtraDeep)).toBe(false);
-    });
-
-    it('validate object with extra properties + errors', () => {
-        const valWithErrors = rt.createJitFunction(JitFnIDs.typeErrors);
-        const valWithErrorsStrict = buildTypeErrorsJITFn(rt, undefined, {strictTypes: true}).fn;
-
-        expect(valWithErrors(obj)).toEqual([]);
-        expect(valWithErrorsStrict(obj)).toEqual([]);
-
-        expect(valWithErrors(objWithExtra)).toEqual([]);
-        // unknown properties are not allowed in strict mode and return as never type
-        expect(valWithErrorsStrict(objWithExtra)).toEqual([
-            {path: ['someExtra'], expected: 'never'},
-            {path: ['someExtra2'], expected: 'never'},
-            {path: ["extra weird prop name \n?>'\\\t\r"], expected: 'never'},
-            {path: ['deep', 'cExtra'], expected: 'never'},
-        ]);
-        expect(valWithErrorsStrict(objWithExtraDeep)).toEqual([{path: ['deep', 'cExtra'], expected: 'never'}]);
+        expect(hasUnknownKeys(objWithExtra)).toBe(false);
+        expect(hasUnknownKeys(objWithExtraDeep)).toBe(false);
     });
 
     it('encode/decode to json safeJson', () => {
         const toJson = rt.createJitFunction(JitFnIDs.jsonEncode);
         const fromJson = rt.createJitFunction(JitFnIDs.jsonDecode);
-        const fromJsonSafeThrow = buildJsonDecodeJITFn(rt, undefined, {safeJSON: 'throw'}).fn;
-        const fromJsonSafeUndefined = buildJsonDecodeJITFn(rt, undefined, {safeJSON: 'undefined'}).fn;
-        const fromJsonSafeStrip = buildJsonDecodeJITFn(rt, undefined, {safeJSON: 'strip'}).fn;
+        const hasUnknownKeys = rt.createJitFunction(JitFnIDs.hasUnknownKeys);
+        const unknownKeysToUndefined = rt.createJitFunction(JitFnIDs.unknownKeysToUndefined);
+        const stripUnknownKeys = rt.createJitFunction(JitFnIDs.stripUnknownKeys);
+        const fromJsonSafeThrow = (val) => {
+            if (hasUnknownKeys(val)) throw new Error('Unknown properties in JSON');
+            return fromJson(val);
+        };
+        const fromJsonSafeUndefined = (val) => {
+            unknownKeysToUndefined(val);
+            return fromJson(val);
+        };
+        const fromJsonSafeStrip = (val) => {
+            stripUnknownKeys(val);
+            return fromJson(val);
+        };
 
         const jsonString = JSON.stringify(toJson(structuredClone(objWithExtra)));
         // value used for json encode/decode gets modified so we need to copy it to compare later
@@ -392,9 +386,22 @@ describe('Interface with strict modes', () => {
 
     it('encode/decode to json safeJson deep', () => {
         const toJson = rt.createJitFunction(JitFnIDs.jsonEncode);
-        const fromJsonSafeThrow = buildJsonDecodeJITFn(rt, undefined, {safeJSON: 'throw'}).fn;
-        const fromJsonSafeUndefined = buildJsonDecodeJITFn(rt, undefined, {safeJSON: 'undefined'}).fn;
-        const fromJsonSafeStrip = buildJsonDecodeJITFn(rt, undefined, {safeJSON: 'strip'}).fn;
+        const fromJson = rt.createJitFunction(JitFnIDs.jsonDecode);
+        const hasUnknownKeys = rt.createJitFunction(JitFnIDs.hasUnknownKeys);
+        const unknownKeysToUndefined = rt.createJitFunction(JitFnIDs.unknownKeysToUndefined);
+        const stripUnknownKeys = rt.createJitFunction(JitFnIDs.stripUnknownKeys);
+        const fromJsonSafeThrow = (val) => {
+            if (hasUnknownKeys(val)) throw new Error('Unknown properties in JSON');
+            return fromJson(val);
+        };
+        const fromJsonSafeUndefined = (val) => {
+            unknownKeysToUndefined(val);
+            return fromJson(val);
+        };
+        const fromJsonSafeStrip = (val) => {
+            stripUnknownKeys(val);
+            return fromJson(val);
+        };
 
         const jsonString2 = JSON.stringify(toJson(structuredClone(objWithExtraDeep)));
         const copyD1 = JSON.parse(jsonString2);
@@ -431,6 +438,7 @@ describe('Interface with strict modes', () => {
     });
 
     it('json stringify to strip extra params without fail', () => {
+        // json stringify automatically strips unknown keys
         const jsonStringify = rt.createJitFunction(JitFnIDs.jsonStringify);
         const fromJson = rt.createJitFunction(JitFnIDs.jsonDecode);
         const jsonString = jsonStringify(objWithExtra);

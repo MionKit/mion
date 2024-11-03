@@ -47,6 +47,18 @@ export class FunctionRunType<CallType extends AnyFunction = TypeFunction> extend
     _compileJsonStringify(): string {
         throw new Error('Compile function not supported, call  compileParams or  compileReturn instead.');
     }
+    _compileHasUnknownKeys(): string {
+        throw new Error('Compile function not supported, call  compileParams or  compileReturn instead.');
+    }
+    _compileUnknownKeyErrors(): string {
+        throw new Error('Compile function not supported, call  compileParams or  compileReturn instead.');
+    }
+    _compileStripUnknownKeys(): string {
+        throw new Error('Compile function not supported, call  compileParams or  compileReturn instead.');
+    }
+    _compileUnknownKeysToUndefined(): string {
+        throw new Error('Compile function not supported, call  compileParams or  compileReturn instead.');
+    }
 
     // TODO: paramsSlice has been removed as options are not jet passed when building the run type. maybe we can pass it to the JitCompileOperation instead
     // constructor() {

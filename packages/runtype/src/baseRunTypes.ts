@@ -18,10 +18,11 @@ import {
     JitJsonDecodeCompileOperation,
     JitCompiler,
     getJITFnId,
-    JitGetUnknownKeysCompiler,
+    JitUnknownKeyErrorCompiler,
     JitHasUnknownKeysCompiler,
     JitStripUnknownKeysCompiler,
     JitUnknownKeysToUndefinedCompiler,
+    JitErrorsBaseCompiler,
 } from './jitCompiler';
 import {getReflectionName} from './reflectionNames';
 import {jitUtils} from './jitUtils';
@@ -74,23 +75,21 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
     /* BaseRunType compileX method is in charge of handling circular refs, return values, create subprograms, etc.
      * While the child _compileX must only contain the logic to generate the code. */
     abstract _compileIsType(cop: JitCompiler): string;
-    abstract _compileTypeErrors(cop: JitTypeErrorCompiler): string;
+    abstract _compileTypeErrors(cop: JitErrorsBaseCompiler): string;
     abstract _compileJsonEncode(cop: JitCompiler): string;
     abstract _compileJsonDecode(cop: JitCompiler): string;
     abstract _compileJsonStringify(cop: JitCompiler): string;
-    // bellow methods are not abstract as they only overridden in CollectionRunType
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    _compileGetUnknownKeys = (cop: JitCompiler): string => '';
-    _compileHasUnknownKeys = (cop: JitCompiler): string => '';
-    _compileStripUnknownKeys = (cop: JitCompiler): string => '';
-    _compileUnknownKeysToUndefined = (cop: JitCompiler): string => '';
+    abstract _compileHasUnknownKeys(cop: JitCompiler): string;
+    abstract _compileUnknownKeyErrors(cop: JitErrorsBaseCompiler): string;
+    abstract _compileStripUnknownKeys(cop: JitCompiler): string;
+    abstract _compileUnknownKeysToUndefined(cop: JitCompiler): string;
 
     // ########## Compile Methods ##########
 
     compileIsType(cop: JitCompiler): string {
         return this.compile(cop, JitFnIDs.isType);
     }
-    compileTypeErrors(cop: JitTypeErrorCompiler): string {
+    compileTypeErrors(cop: JitErrorsBaseCompiler): string {
         return this.compile(cop, JitFnIDs.typeErrors);
     }
     compileJsonEncode(cop: JitCompiler): string {
@@ -102,8 +101,8 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
     compileJsonStringify(cop: JitCompiler): string {
         return this.compile(cop, JitFnIDs.jsonStringify);
     }
-    compileGetUnknownKeys(cop: JitCompiler): string {
-        return this.compile(cop, JitFnIDs.getUnknownKeys);
+    compileUnknownKeyErrors(cop: JitErrorsBaseCompiler): string {
+        return this.compile(cop, JitFnIDs.unknownKeyErrors);
     }
     compileHasUnknownKeys(cop: JitCompiler): string {
         return this.compile(cop, JitFnIDs.hasUnknownKeys);
@@ -114,7 +113,14 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
     compileUnknownKeysToUndefined(cop: JitCompiler): string {
         return this.compile(cop, JitFnIDs.unknownKeysToUndefined);
     }
-
+    /**
+     * Compiles the current operation.
+     * Note current JitCompiler operation might be different from the passed operation id.
+     * ie: typeErrors might want to compile isType to generate the part of the code that checks for the type.
+     * @param cop current jit compiler operation
+     * @param copId operation id
+     * @returns
+     */
     private compile(cop: JitCompiler, copId: JitFnID) {
         let code: string | undefined = cop.getCodeFromCache();
         if (code) return code;
@@ -193,7 +199,7 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
                 return false;
             case JitFnIDs.jsonStringify:
                 return false;
-            case JitFnIDs.getUnknownKeys:
+            case JitFnIDs.unknownKeyErrors:
                 return false;
             case JitFnIDs.hasUnknownKeys:
                 return false;
@@ -218,7 +224,7 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
                 return 'STATEMENT';
             case JitFnIDs.jsonStringify:
                 return 'EXPRESSION';
-            case JitFnIDs.getUnknownKeys:
+            case JitFnIDs.unknownKeyErrors:
                 return 'BLOCK';
             case JitFnIDs.hasUnknownKeys:
                 return 'EXPRESSION';
@@ -236,15 +242,15 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
             case JitFnIDs.isType:
                 return this._compileIsType(cop);
             case JitFnIDs.typeErrors:
-                return this._compileTypeErrors(cop as JitTypeErrorCompiler);
+                return this._compileTypeErrors(cop as JitErrorsBaseCompiler);
             case JitFnIDs.jsonEncode:
                 return this._compileJsonEncode(cop);
             case JitFnIDs.jsonDecode:
                 return this._compileJsonDecode(cop);
             case JitFnIDs.jsonStringify:
                 return this._compileJsonStringify(cop);
-            case JitFnIDs.getUnknownKeys:
-                return this._compileGetUnknownKeys(cop);
+            case JitFnIDs.unknownKeyErrors:
+                return this._compileUnknownKeyErrors(cop as JitErrorsBaseCompiler);
             case JitFnIDs.hasUnknownKeys:
                 return this._compileHasUnknownKeys(cop);
             case JitFnIDs.stripUnknownKeys:
@@ -269,8 +275,8 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
                 return new JitJsonDecodeCompileOperation(this, length);
             case JitFnIDs.jsonStringify:
                 return new JitJsonStringifyCompiler(this, length);
-            case JitFnIDs.getUnknownKeys:
-                return new JitGetUnknownKeysCompiler(this, length);
+            case JitFnIDs.unknownKeyErrors:
+                return new JitUnknownKeyErrorCompiler(this, length);
             case JitFnIDs.hasUnknownKeys:
                 return new JitHasUnknownKeysCompiler(this, length);
             case JitFnIDs.stripUnknownKeys:
@@ -290,6 +296,18 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
 export abstract class AtomicRunType<T extends Type> extends BaseRunType<T> {
     getFamily(): 'A' {
         return 'A';
+    }
+    _compileHasUnknownKeys(cop: JitCompiler): string {
+        return '';
+    }
+    _compileUnknownKeyErrors(cop: JitCompiler): string {
+        return '';
+    }
+    _compileStripUnknownKeys(cop: JitCompiler): string {
+        return '';
+    }
+    _compileUnknownKeysToUndefined(cop: JitCompiler): string {
+        return '';
     }
 }
 
@@ -318,6 +336,30 @@ export abstract class CollectionRunType<T extends Type> extends BaseRunType<T> {
     }
     getJitConstants(stack: BaseRunType[] = []): JitConstants {
         return this._getJitConstants(stack);
+    }
+    _compileHasUnknownKeys(cop: JitCompiler): string {
+        return this.getJitChildren()
+            .map((c) => c.compileHasUnknownKeys(cop))
+            .filter((code) => !!code)
+            .join(' || ');
+    }
+    _compileUnknownKeyErrors(cop: JitErrorsBaseCompiler): string {
+        return this.getJitChildren()
+            .map((c) => c.compileUnknownKeyErrors(cop))
+            .filter((code) => !!code)
+            .join(';');
+    }
+    _compileStripUnknownKeys(cop: JitCompiler): string {
+        return this.getJitChildren()
+            .map((c) => c.compileStripUnknownKeys(cop))
+            .filter((code) => !!code)
+            .join(';');
+    }
+    _compileUnknownKeysToUndefined(cop: JitCompiler): string {
+        return this.getJitChildren()
+            .map((c) => c.compileUnknownKeysToUndefined(cop))
+            .filter((code) => !!code)
+            .join(';');
     }
     private _getJitConstants = memo((stack: BaseRunType[] = []): JitConstants => {
         if (stack.length > maxStackDepth) throw new Error(maxStackErrorMessage);
@@ -385,7 +427,18 @@ export abstract class MemberRunType<T extends Type> extends BaseRunType<T> imple
     getJitConstants(stack: BaseRunType[] = []): JitConstants {
         return this._getJitConstants(stack);
     }
-
+    _compileHasUnknownKeys(cop: JitCompiler): string {
+        return this.getJitChild()?.compileHasUnknownKeys(cop) || '';
+    }
+    _compileUnknownKeyErrors(cop: JitErrorsBaseCompiler): string {
+        return this.getJitChild()?.compileUnknownKeyErrors(cop) || '';
+    }
+    _compileStripUnknownKeys(cop: JitCompiler): string {
+        return this.getJitChild()?.compileStripUnknownKeys(cop) || '';
+    }
+    _compileUnknownKeysToUndefined(cop: JitCompiler): string {
+        return this.getJitChild()?.compileUnknownKeysToUndefined(cop) || '';
+    }
     private _getJitConstants = memo((stack: BaseRunType[] = []): JitConstants => {
         if (stack.length > maxStackDepth) throw new Error(maxStackErrorMessage);
         const circularJitConstants = this.getCircularJitConstants(stack);

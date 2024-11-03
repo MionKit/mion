@@ -9,7 +9,7 @@ import {ReflectionKind} from './_deepkit/src/reflection/type';
 import {isDateRunType} from './guards';
 import {RunType} from './types';
 
-export const ReflectionNames: {[key: number]: keyof typeof ReflectionKind} = {
+export const ReflectionKindName: {[key: number]: keyof typeof ReflectionKind} = {
     0: 'never',
     1: 'any',
     2: 'unknown',
@@ -69,8 +69,8 @@ export function getReflectionName(rt: RunType): AnyKind {
         case ReflectionKind.class:
             if (isDateRunType(rt)) return ReflectionSubNames[ReflectionSubKinds.date];
             // TODO: add map and set
-            return ReflectionNames[rt.src.kind];
+            return ReflectionKindName[rt.src.kind];
         default:
-            return ReflectionNames[rt.src.kind];
+            return ReflectionKindName[rt.src.kind];
     }
 }
