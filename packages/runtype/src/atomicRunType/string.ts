@@ -10,8 +10,8 @@ import type {MockContext, JitConstants} from '../types';
 import {getJitErrorPath, getExpected} from '../utils';
 import {mockString, random} from '../mock';
 import {AtomicRunType} from '../baseRunTypes';
-import {jitNames, stringCharSet} from '../constants';
-import type {JitCompiler, JitTypeErrorCompiler} from '../jitCompiler';
+import {stringCharSet} from '../constants';
+import type {JitCompiler, JitErrorsCompiler} from '../jitCompiler';
 
 const jitConstants: JitConstants = {
     skipJit: false,
@@ -26,8 +26,8 @@ export class StringRunType extends AtomicRunType<TypeString> {
     _compileIsType(cop: JitCompiler): string {
         return `typeof ${cop.vλl} === 'string'`;
     }
-    _compileTypeErrors(cop: JitTypeErrorCompiler): string {
-        return `if (typeof ${cop.vλl} !== 'string') ${cop.args.εrr}.push({path:${getJitErrorPath(cop)},expected:${getExpected(this)}})`;
+    _compileTypeErrors(cop: JitErrorsCompiler): string {
+        return `if (typeof ${cop.vλl} !== 'string') µTils.errPush(${cop.args.εrr},${getJitErrorPath(cop)},${getExpected(this)})`;
     }
     _compileJsonEncode(cop: JitCompiler): string {
         return cop.vλl;
@@ -36,7 +36,7 @@ export class StringRunType extends AtomicRunType<TypeString> {
         return cop.vλl;
     }
     _compileJsonStringify(cop: JitCompiler): string {
-        return `${jitNames.utils}.asJSONString(${cop.vλl})`;
+        return `µTils.asJSONString(${cop.vλl})`;
     }
     mock(cop?: Pick<MockContext, 'stringLength' | 'stringCharSet'>): string {
         const length = cop?.stringLength || random(1, 500);

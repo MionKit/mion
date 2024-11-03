@@ -94,11 +94,12 @@ export interface RunTypeOptions {
 export type CodeUnit = 'EXPRESSION' | 'STATEMENT' | 'BLOCK';
 
 export interface CompiledOperation
-    extends Pick<JitCompiler, 'opId' | 'args' | 'defaultParamValues' | 'code' | 'jitFnId' | 'dependencies'> {
+    extends Pick<JitCompiler, 'opId' | 'args' | 'defaultParamValues' | 'code' | 'jitFnHash' | 'jitId' | 'dependencies'> {
     jitFn: (...args: any[]) => any;
 }
 
-export interface SerializableCompiledOperation extends Pick<JitCompiler, 'opId' | 'args' | 'defaultParamValues' | 'code'> {
+export interface SerializableCompiledOperation
+    extends Pick<JitCompiler, 'opId' | 'args' | 'defaultParamValues' | 'code' | 'jitFnHash' | 'jitId'> {
     dependencies: string[];
 }
 
@@ -119,7 +120,7 @@ export interface JitFnData<Fn extends AnyFn> {
 
 export type SerializableJitFn<Fn extends AnyFn> = Omit<JitFnData<Fn>, 'fn'>;
 
-export interface RunTypeValidationError {
+export interface RunTypeError {
     /**
      * Path the the property that failed validation if the validated item was an object class, etc..
      * Index if item that failed validation was in an array.
@@ -130,7 +131,7 @@ export interface RunTypeValidationError {
 }
 
 export type isTypeFn = (value: any) => boolean;
-export type typeErrorsFn = (value: any) => RunTypeValidationError[];
+export type typeErrorsFn = (value: any) => RunTypeError[];
 export type jsonEncodeFn = (value: any) => JSONValue;
 export type jsonDecodeFn = (value: JSONValue) => any;
 export type jsonStringifyFn = (value: any) => JSONString;

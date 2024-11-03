@@ -333,11 +333,11 @@ describe('Interface with strict modes', () => {
         const hasUnknownKeys = rt.createJitFunction(JitFnIDs.hasUnknownKeys);
 
         expect(validate(obj)).toBe(true);
-        expect(hasUnknownKeys(obj)).toBe(true);
+        expect(hasUnknownKeys(obj)).toBe(false);
 
         expect(validate(objWithExtra)).toBe(true);
-        expect(hasUnknownKeys(objWithExtra)).toBe(false);
-        expect(hasUnknownKeys(objWithExtraDeep)).toBe(false);
+        expect(hasUnknownKeys(objWithExtra)).toBe(true);
+        expect(hasUnknownKeys(objWithExtraDeep)).toBe(true);
     });
 
     it('encode/decode to json safeJson', () => {

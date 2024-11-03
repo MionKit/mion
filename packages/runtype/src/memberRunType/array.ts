@@ -9,13 +9,7 @@ import {TypeArray} from '../_deepkit/src/reflection/type';
 import {JitFnID, MockContext} from '../types';
 import {mockRecursiveEmptyArray, random} from '../mock';
 import {MemberRunType} from '../baseRunTypes';
-import type {
-    JitIsTypeCompiler,
-    JitJsonDecodeCompileOperation,
-    JitJsonEncodeCompiler,
-    JitJsonStringifyCompiler,
-    JitTypeErrorCompiler,
-} from '../jitCompiler';
+import type {JitCompiler, JitErrorsCompiler} from '../jitCompiler';
 import {getJitErrorPath, getExpected, shouldSkiJsonEncode, shouldSkipJit, shouldSkipJsonDecode} from '../utils';
 import {JitFnIDs} from '../constants';
 
@@ -46,7 +40,7 @@ export class ArrayRunType extends MemberRunType<TypeArray> {
 
     // #### jit code ####
 
-    _compileIsType(cop: JitIsTypeCompiler): string {
+    _compileIsType(cop: JitCompiler): string {
         const varName = cop.vλl;
         const resultVal = `rεs${cop.length}`;
         const index = this.getChildVarName();
@@ -60,14 +54,14 @@ export class ArrayRunType extends MemberRunType<TypeArray> {
             return true;
         `;
     }
-    _compileTypeErrors(cop: JitTypeErrorCompiler): string {
+    _compileTypeErrors(cop: JitErrorsCompiler): string {
         const varName = cop.vλl;
         const index = this.getChildVarName();
         if (shouldSkipJit(this)) {
-            return `if (!Array.isArray(${varName})) ${cop.args.εrr}.push({path:${getJitErrorPath(cop)},expected:${getExpected(this)}});`;
+            return `if (!Array.isArray(${varName})) µTils.errPush(${cop.args.εrr},${getJitErrorPath(cop)},${getExpected(this)});`;
         }
         return `
-            if (!Array.isArray(${varName})) ${cop.args.εrr}.push({path:${getJitErrorPath(cop)},expected:${getExpected(this)}});
+            if (!Array.isArray(${varName})) µTils.errPush(${cop.args.εrr},${getJitErrorPath(cop)},${getExpected(this)});
             else {
                 for (let ${index} = 0; ${index} < ${varName}.length; ${index}++) {
                     ${this.getMemberType().compileTypeErrors(cop)}
@@ -75,7 +69,7 @@ export class ArrayRunType extends MemberRunType<TypeArray> {
             }
         `;
     }
-    _compileJsonEncode(cop: JitJsonEncodeCompiler): string {
+    _compileJsonEncode(cop: JitCompiler): string {
         const varName = cop.vλl;
         const index = this.getChildVarName();
         if (shouldSkiJsonEncode(this)) return '';
@@ -85,7 +79,7 @@ export class ArrayRunType extends MemberRunType<TypeArray> {
             }
         `;
     }
-    _compileJsonDecode(cop: JitJsonDecodeCompileOperation): string {
+    _compileJsonDecode(cop: JitCompiler): string {
         const varName = cop.vλl;
         const index = this.getChildVarName();
         if (shouldSkipJsonDecode(this)) return '';
@@ -95,7 +89,7 @@ export class ArrayRunType extends MemberRunType<TypeArray> {
             }
         `;
     }
-    _compileJsonStringify(cop: JitJsonStringifyCompiler): string {
+    _compileJsonStringify(cop: JitCompiler): string {
         const varName = cop.vλl;
         const jsonItems = `jsonItεms${cop.length}`;
         const resultVal = `rεs${cop.length}`;

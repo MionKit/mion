@@ -7,51 +7,45 @@
 
 import {TypeTuple} from '../_deepkit/src/reflection/type';
 import {CollectionRunType} from '../baseRunTypes';
-import type {
-    JitIsTypeCompiler,
-    JitJsonDecodeCompileOperation,
-    JitJsonEncodeCompiler,
-    JitJsonStringifyCompiler,
-    JitTypeErrorCompiler,
-} from '../jitCompiler';
+import type {JitCompiler, JitErrorsCompiler} from '../jitCompiler';
 import {MockContext} from '../types';
 import {getJitErrorPath, getExpected} from '../utils';
 
 export class TupleRunType extends CollectionRunType<TypeTuple> {
     src: TypeTuple = null as any; // will be set after construction
-    _compileIsType(cop: JitIsTypeCompiler): string {
+    _compileIsType(cop: JitCompiler): string {
         const children = this.getJitChildren();
         const varName = cop.vλl;
         const childrenCode = `&& (${children.map((rt) => rt.compileIsType(cop)).join(' && ')})`;
         return `(Array.isArray(${varName}) && ${varName}.length <= ${children.length} ${childrenCode})`;
     }
-    _compileTypeErrors(cop: JitTypeErrorCompiler): string {
+    _compileTypeErrors(cop: JitErrorsCompiler): string {
         const children = this.getJitChildren();
         const varName = cop.vλl;
         const childrenCode = children.map((rt) => rt.compileTypeErrors(cop)).join(';');
         return `
             if (!Array.isArray(${varName}) || ${varName}.length > ${children.length}) {
-                ${cop.args.εrr}.push({path:${getJitErrorPath(cop)},expected:${getExpected(this)}});
+                µTils.errPush(${cop.args.εrr},${getJitErrorPath(cop)},${getExpected(this)});
             } else {
                 ${childrenCode}
             }
         `;
     }
-    _compileJsonEncode(cop: JitJsonEncodeCompiler): string {
+    _compileJsonEncode(cop: JitCompiler): string {
         const children = this.getJsonEncodeChildren();
         return children
             .map((rt) => rt.compileJsonEncode(cop))
             .filter((c) => !!c)
             .join(';');
     }
-    _compileJsonDecode(cop: JitJsonDecodeCompileOperation): string {
+    _compileJsonDecode(cop: JitCompiler): string {
         const children = this.getJsonDecodeChildren();
         return children
             .map((rt) => rt.compileJsonDecode(cop))
             .filter((c) => !!c)
             .join(';');
     }
-    _compileJsonStringify(cop: JitJsonStringifyCompiler): string {
+    _compileJsonStringify(cop: JitCompiler): string {
         const children = this.getJitChildren();
         const childrenCode = children
             .map((rt) => rt.compileJsonStringify(cop))

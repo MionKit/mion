@@ -1,13 +1,7 @@
-import {TypeRest} from '../_deepkit/src/reflection/type';
+import type {TypeRest} from '../_deepkit/src/reflection/type';
+import type {JitCompiler, JitErrorsCompiler} from '../jitCompiler';
 import {MemberRunType} from '../baseRunTypes';
 import {JitFnIDs} from '../constants';
-import type {
-    JitIsTypeCompiler,
-    JitJsonDecodeCompileOperation,
-    JitJsonEncodeCompiler,
-    JitJsonStringifyCompiler,
-    JitTypeErrorCompiler,
-} from '../jitCompiler';
 import {JitFnID, MockContext} from '../types';
 
 /* ########
@@ -41,7 +35,7 @@ export class RestParamsRunType extends MemberRunType<TypeRest> {
                 return super.jitFnHasReturn(copId);
         }
     }
-    _compileIsType(cop: JitIsTypeCompiler): string {
+    _compileIsType(cop: JitCompiler): string {
         const varName = cop.vλl;
         const indexName = this.getChildVarName();
         const itemCode = this.getMemberType().compileIsType(cop);
@@ -52,25 +46,25 @@ export class RestParamsRunType extends MemberRunType<TypeRest> {
             return true;
         `;
     }
-    _compileTypeErrors(cop: JitTypeErrorCompiler): string {
+    _compileTypeErrors(cop: JitErrorsCompiler): string {
         const varName = cop.vλl;
         const indexName = this.getChildVarName();
         const itemCode = this.getMemberType().compileTypeErrors(cop);
         return `for (let ${indexName} = ${this.getChildIndex()}; ${indexName} < ${varName}.length; ${indexName}++) {${itemCode}}`;
     }
-    _compileJsonEncode(cop: JitJsonEncodeCompiler): string {
+    _compileJsonEncode(cop: JitCompiler): string {
         const varName = cop.vλl;
         const indexName = this.getChildVarName();
         const itemCode = this.getMemberType().compileJsonEncode(cop);
         return `for (let ${indexName} = ${this.getChildIndex()}; ${indexName} < ${varName}.length; ${indexName}++) {${itemCode}}`;
     }
-    _compileJsonDecode(cop: JitJsonDecodeCompileOperation): string {
+    _compileJsonDecode(cop: JitCompiler): string {
         const varName = cop.vλl;
         const indexName = this.getChildVarName();
         const itemCode = this.getMemberType().compileJsonDecode(cop);
         return `for (let ${indexName} = ${this.getChildIndex()}; ${indexName} < ${varName}.length; ${indexName}++) {${itemCode}}`;
     }
-    _compileJsonStringify(cop: JitJsonStringifyCompiler): string {
+    _compileJsonStringify(cop: JitCompiler): string {
         const varName = cop.vλl;
         const arrName = `rεsultλrr${cop.length}`;
         const itemName = `itεm${cop.length}`;

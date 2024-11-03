@@ -10,7 +10,7 @@ import type {MockContext, JitConstants} from '../types';
 import {getJitErrorPath, getExpected} from '../utils';
 import {mockNumber} from '../mock';
 import {AtomicRunType} from '../baseRunTypes';
-import type {JitCompiler, JitTypeErrorCompiler} from '../jitCompiler';
+import type {JitCompiler, JitErrorsCompiler} from '../jitCompiler';
 
 const jitConstants: JitConstants = {
     skipJit: false,
@@ -25,8 +25,8 @@ export class NumberRunType extends AtomicRunType<TypeNumber> {
     _compileIsType(cop: JitCompiler): string {
         return `Number.isFinite(${cop.vλl})`;
     }
-    _compileTypeErrors(cop: JitTypeErrorCompiler): string {
-        return `if(!(${this._compileIsType(cop)})) ${cop.args.εrr}.push({path:${getJitErrorPath(cop)},expected:${getExpected(this)}})`;
+    _compileTypeErrors(cop: JitErrorsCompiler): string {
+        return `if(!(${this._compileIsType(cop)})) µTils.errPush(${cop.args.εrr},${getJitErrorPath(cop)},${getExpected(this)})`;
     }
     _compileJsonEncode(cop: JitCompiler): string {
         return cop.vλl;

@@ -6,9 +6,9 @@
  * ######## */
 
 import type {AnyClass, RunType} from './types';
+import type {JitCompiler, JitErrorsCompiler} from './jitCompiler';
 import {ReflectionKind, Type} from './_deepkit/src/reflection/type';
 import {jitUtils} from './jitUtils';
-import {JitErrorsBaseCompiler} from './jitCompiler';
 import {isAtomicRunType, isCollectionRunType, isMemberRunType} from './guards';
 import {validPropertyNameRegExp} from './constants';
 
@@ -69,7 +69,11 @@ export function isSameJitType(a: RunType, b: RunType): boolean {
     return a.getJitId() === b.getJitId();
 }
 
-export function getJitErrorPath(cop: JitErrorsBaseCompiler, extraPathLiteral?: string | number): string {
+export function isSameJitCompiler(a: JitCompiler, b: JitCompiler): boolean {
+    return a.opId === b.opId && isSameJitType(a.rootType, b.rootType);
+}
+
+export function getJitErrorPath(cop: JitErrorsCompiler, extraPathLiteral?: string | number): string {
     const extraPath = extraPathLiteral ? `,${extraPathLiteral}` : '';
     if (cop.length === 1) return `[...${cop.args.pλth}${extraPath}]`;
     return `[...${cop.args.pλth},${cop.getStackStaticPathArgs()}${extraPath}]`;

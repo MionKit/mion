@@ -10,7 +10,7 @@ import type {JitJsonEncoder, MockContext, JitConstants} from '../types';
 import {getJitErrorPath, getExpected} from '../utils';
 import {mockSymbol} from '../mock';
 import {AtomicRunType} from '../baseRunTypes';
-import type {JitCompiler, JitTypeErrorCompiler} from '../jitCompiler';
+import type {JitCompiler, JitErrorsCompiler} from '../jitCompiler';
 
 const jitConstants: JitConstants = {
     skipJit: true,
@@ -25,8 +25,8 @@ export class SymbolRunType extends AtomicRunType<TypeSymbol> {
     _compileIsType(cop: JitCompiler): string {
         return `typeof ${cop.vλl} === 'symbol'`;
     }
-    _compileTypeErrors(cop: JitTypeErrorCompiler): string {
-        return `if (typeof ${cop.vλl} !== 'symbol') ${cop.args.εrr}.push({path:${getJitErrorPath(cop)},expected:${getExpected(this)}})`;
+    _compileTypeErrors(cop: JitErrorsCompiler): string {
+        return `if (typeof ${cop.vλl} !== 'symbol') µTils.errPush(${cop.args.εrr},${getJitErrorPath(cop)},${getExpected(this)})`;
     }
     _compileJsonEncode(cop: JitCompiler): string {
         return SymbolJitJsonEncoder.encodeToJson(cop.vλl);

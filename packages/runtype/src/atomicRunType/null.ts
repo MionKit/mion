@@ -9,7 +9,7 @@ import {ReflectionKind, type TypeNull} from '../_deepkit/src/reflection/type';
 import type {JitConstants} from '../types';
 import {AtomicRunType} from '../baseRunTypes';
 import {getJitErrorPath, getExpected} from '../utils';
-import type {JitCompiler, JitTypeErrorCompiler} from '../jitCompiler';
+import type {JitCompiler, JitErrorsCompiler} from '../jitCompiler';
 
 const jitConstants: JitConstants = {
     skipJit: false,
@@ -24,8 +24,8 @@ export class NullRunType extends AtomicRunType<TypeNull> {
     _compileIsType(cop: JitCompiler): string {
         return `${cop.vλl} === null`;
     }
-    _compileTypeErrors(cop: JitTypeErrorCompiler): string {
-        return `if (${cop.vλl} !== null) ${cop.args.εrr}.push({path:${getJitErrorPath(cop)},expected:${getExpected(this)}})`;
+    _compileTypeErrors(cop: JitErrorsCompiler): string {
+        return `if (${cop.vλl} !== null) µTils.errPush(${cop.args.εrr},${getJitErrorPath(cop)},${getExpected(this)})`;
     }
     _compileJsonEncode(cop: JitCompiler): string {
         return cop.vλl;

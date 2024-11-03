@@ -1,9 +1,8 @@
 import type {Type} from '../_deepkit/src/reflection/type';
 import type {DKwithRT, JitConstants} from '../types';
 import {AtomicRunType} from '../baseRunTypes';
-import {getJITFnId, type JitCompiler, type JitTypeErrorCompiler} from '../jitCompiler';
+import {getJITFnHash, type JitCompiler, type JitErrorsCompiler} from '../jitCompiler';
 import {toLiteral} from '../utils';
-import {jitNames} from '../constants';
 
 const jitConstants: JitConstants = {
     skipJit: false,
@@ -18,7 +17,7 @@ export class BooleanRunType extends AtomicRunType<Type> {
     _compileIsType(cop: JitCompiler): string {
         return this.getFunctionInvocation(cop);
     }
-    _compileTypeErrors(cop: JitTypeErrorCompiler): string {
+    _compileTypeErrors(cop: JitErrorsCompiler): string {
         const pathArgs = cop.getStackStaticPathArgs();
         const pathLength = cop.getStaticPathLength();
         return `${cop.args.pλth}.push(${pathArgs}); ${this.getFunctionInvocation(cop)}; ${cop.args.pλth}.splice(-${pathLength});`;
@@ -34,8 +33,8 @@ export class BooleanRunType extends AtomicRunType<Type> {
     }
 
     private getFunctionInvocation(cop: JitCompiler<any>): string {
-        const id = toLiteral(getJITFnId(cop.opId, this.src._rt));
-        return `${jitNames.utils}.getCachedFn(${id})(${Object.values(cop.args).join(', ')})`;
+        const id = toLiteral(getJITFnHash(cop.opId, this.src._rt));
+        return `µTils.getCachedFn(${id})(${Object.values(cop.args).join(', ')})`;
     }
 
     mock(): boolean {

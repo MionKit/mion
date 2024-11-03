@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 import {maxUnknownKeys} from './constants';
-import type {CompiledOperation, SerializableClass} from './types';
+import type {CompiledOperation, RunTypeError, SerializableClass} from './types';
 
 export type JITUtils = typeof jitUtils;
 
@@ -99,28 +99,45 @@ export const jitUtils = {
      * @param keys the keys that are expected to be in the object
      * @returns false if no unknown keys are found, otherwise an array with the extra unknown keys
      */
-    getObjectUnknownKeys(returnKeys: boolean, obj: any, keysId: string, ...keys: (string | number)[]): string[] | boolean {
+    getObjectUnknownKeys(obj: any, keysId: string, ...keys: (string | number)[]): string[] {
         const _keysSet = jitObjectKeys.get(keysId);
         const keysSet = _keysSet || new Set<string | number>(keys.length === 0 ? [keysId] : keys);
         if (!_keysSet) jitObjectKeys.set(keysId, keysSet);
-
-        let result: string[] | undefined;
+        const result: string[] = [];
         const objectKeys = Object.keys(obj);
         for (const key of objectKeys) {
             if (!keysSet.has(key)) {
-                if (!returnKeys) return true;
-                if (!result) result = [];
                 result.push(key);
                 if (result.length >= maxUnknownKeys) throw new Error('Too many unknown keys');
             }
         }
-        return result ?? false;
+        return result;
+    },
+    // !!! DO NOT MODIFY METHOD WITHOUT REVIEWING JIT CODE INVOCATIONS!!!
+    objectHasUnknownKeys(obj: any, keysId: string, ...keys: (string | number)[]): boolean {
+        const _keysSet = jitObjectKeys.get(keysId);
+        const keysSet = _keysSet || new Set<string | number>(keys.length === 0 ? [keysId] : keys);
+        if (!_keysSet) jitObjectKeys.set(keysId, keysSet);
+        const objectKeys = Object.keys(obj);
+        for (const key of objectKeys) {
+            if (!keysSet.has(key)) {
+                return true;
+            }
+        }
+        return false;
+    },
+    // !!! DO NOT MODIFY METHOD WITHOUT REVIEWING JIT CODE INVOCATIONS!!!
+    errPush(εrr: RunTypeError[], path: string, expected: string) {
+        εrr.push({path, expected});
     },
 };
 
-const hashChars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+export const hashChars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+export const hashIncrement = 4;
+export const maxHashCollisions = 10;
+export const hashDefaultLength = 28;
 
-export function quickHash(input: string, length = 28) {
+export function quickHash(input: string, length = hashDefaultLength) {
     const PRIME = 37; // Prime number to mix hash more robustly
     let hash = 0;
     // Generate initial numeric hash
@@ -136,16 +153,19 @@ export function quickHash(input: string, length = 28) {
     return result.slice(0, length);
 }
 
-export function getJitIDHash(jitId: string, length = 28): string {
-    if (jitId.length < length) return jitId;
+export function getJitIDHash(jitId: string, length = hashDefaultLength): string {
     let id = quickHash(jitId, length);
     let counter = 1;
     let existing = jitHashes.get(id);
     // Check if ID already exists and corresponds to the same input
     while (existing && existing !== jitId) {
-        id = quickHash(jitId + counter, length);
+        length += counter * hashIncrement;
+        // generates a longer hash if there are collisions
+        // this would allow trying to get all possible hashes for a given input just by increasing the length
+        id = quickHash(jitId, length);
         counter++;
         existing = jitHashes.get(id);
+        if (counter > maxHashCollisions) throw new Error(`Cannot generate unique hash for jitId: ${jitId} too many collisions.`);
     }
 
     // Store the unique ID with its original input string

@@ -9,8 +9,7 @@ import {MockContext} from '../types';
 import {toLiteral} from '../utils';
 import {InterfaceRunType, InterfaceMember} from './interface';
 import {isConstructor} from '../guards';
-import {jitNames} from '../constants';
-import type {JitJsonDecodeCompileOperation} from '../jitCompiler';
+import type {JitCompiler} from '../jitCompiler';
 
 export class ClassRunType extends InterfaceRunType<TypeClass> {
     getClassName(): string {
@@ -20,7 +19,7 @@ export class ClassRunType extends InterfaceRunType<TypeClass> {
         const children = this.getChildRunTypes() as InterfaceMember[];
         return children.every((prop) => !isConstructor(prop) || prop.getParameters().getTotalParams() === 0);
     }
-    _compileJsonDecode(cop: JitJsonDecodeCompileOperation): string {
+    _compileJsonDecode(cop: JitCompiler): string {
         checkSerializable(this.canDeserialize(), this.getClassName());
         const decodeParams = super.compileJsonDecode(cop);
         const decode = decodeParams ? `${decodeParams}; ` : '';
@@ -28,7 +27,7 @@ export class ClassRunType extends InterfaceRunType<TypeClass> {
         // todo create a new class
         return `
             ${decode};
-            const ${classVarname} = ${jitNames.utils}.getSerializableClass(${toLiteral(this.getClassName())});
+            const ${classVarname} = µTils.getSerializableClass(${toLiteral(this.getClassName())});
             ${cop.vλl} = Object.assign(new ${classVarname}, ${cop.vλl});
         `;
     }

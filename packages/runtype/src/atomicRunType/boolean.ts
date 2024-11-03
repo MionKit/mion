@@ -10,7 +10,7 @@ import type {JitConstants} from '../types';
 import {getJitErrorPath, getExpected} from '../utils';
 import {mockBoolean} from '../mock';
 import {AtomicRunType} from '../baseRunTypes';
-import type {JitCompiler, JitTypeErrorCompiler} from '../jitCompiler';
+import type {JitCompiler, JitErrorsCompiler} from '../jitCompiler';
 
 const jitConstants: JitConstants = {
     skipJit: false,
@@ -24,8 +24,8 @@ export class BooleanRunType extends AtomicRunType<TypeBoolean> {
     _compileIsType(cop: JitCompiler): string {
         return `typeof ${cop.vλl} === 'boolean'`;
     }
-    _compileTypeErrors(cop: JitTypeErrorCompiler): string {
-        return `if (typeof ${cop.vλl} !== 'boolean') ${cop.args.εrr}.push({path:${getJitErrorPath(cop)},expected:${getExpected(this)}})`;
+    _compileTypeErrors(cop: JitErrorsCompiler): string {
+        return `if (typeof ${cop.vλl} !== 'boolean') µTils.errPush(${cop.args.εrr},${getJitErrorPath(cop)},${getExpected(this)})`;
     }
     _compileJsonEncode(cop: JitCompiler): string {
         return cop.vλl;

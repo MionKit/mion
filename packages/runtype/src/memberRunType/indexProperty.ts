@@ -1,14 +1,8 @@
 import {ReflectionKind, TypeIndexSignature} from '../_deepkit/src/reflection/type';
 import {MemberRunType} from '../baseRunTypes';
 import {JitFnID, MockContext} from '../types';
-import {JitFnIDs, jitNames} from '../constants';
-import type {
-    JitIsTypeCompiler,
-    JitJsonDecodeCompileOperation,
-    JitJsonEncodeCompiler,
-    JitJsonStringifyCompiler,
-    JitTypeErrorCompiler,
-} from '../jitCompiler';
+import {JitFnIDs} from '../constants';
+import type {JitCompiler, JitErrorsCompiler} from '../jitCompiler';
 
 /* ########
  * 2024 mion
@@ -42,7 +36,7 @@ export class IndexSignatureRunType extends MemberRunType<TypeIndexSignature> {
         }
     }
     // #### jit code ####
-    _compileIsType(cop: JitIsTypeCompiler): string {
+    _compileIsType(cop: JitCompiler): string {
         const child = this.getJitChild();
         if (!child) return 'true';
         const varName = cop.vλl;
@@ -54,7 +48,7 @@ export class IndexSignatureRunType extends MemberRunType<TypeIndexSignature> {
             return true;
         `;
     }
-    _compileTypeErrors(cop: JitTypeErrorCompiler): string {
+    _compileTypeErrors(cop: JitErrorsCompiler): string {
         const child = this.getJitChild();
         if (!child) return '';
         const varName = cop.vλl;
@@ -65,7 +59,7 @@ export class IndexSignatureRunType extends MemberRunType<TypeIndexSignature> {
             }
         `;
     }
-    _compileJsonEncode(cop: JitJsonEncodeCompiler): string {
+    _compileJsonEncode(cop: JitCompiler): string {
         const child = this.getJsonEncodeChild();
         if (!child) return '';
         const varName = cop.vλl;
@@ -76,7 +70,7 @@ export class IndexSignatureRunType extends MemberRunType<TypeIndexSignature> {
             }
         `;
     }
-    _compileJsonDecode(cop: JitJsonDecodeCompileOperation): string {
+    _compileJsonDecode(cop: JitCompiler): string {
         const child = this.getJsonDecodeChild();
         if (!child) return '';
         const varName = cop.vλl;
@@ -88,7 +82,7 @@ export class IndexSignatureRunType extends MemberRunType<TypeIndexSignature> {
         `;
     }
 
-    _compileJsonStringify(cop: JitJsonStringifyCompiler): string {
+    _compileJsonStringify(cop: JitCompiler): string {
         const child = this.getJitChild();
         if (!child) return `''`;
         const varName = cop.vλl;
@@ -98,7 +92,7 @@ export class IndexSignatureRunType extends MemberRunType<TypeIndexSignature> {
         return `
             const ${arrName} = [];
             for (const ${prop} in ${varName}) {
-                if (${prop} !== undefined) ${arrName}.push(${jitNames.utils}.asJSONString(${prop}) + ':' + ${jsonVal});
+                if (${prop} !== undefined) ${arrName}.push(µTils.asJSONString(${prop}) + ':' + ${jsonVal});
             }
             return ${arrName}.join(',');
         `;

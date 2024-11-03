@@ -12,7 +12,7 @@ import {BigIntJitJsonENcoder} from './bigInt';
 import {RegexpJitJsonEncoder} from './regexp';
 import {getJitErrorPath, memo, toLiteral} from '../utils';
 import {AtomicRunType} from '../baseRunTypes';
-import type {JitCompiler, JitTypeErrorCompiler} from '../jitCompiler';
+import type {JitCompiler, JitErrorsCompiler} from '../jitCompiler';
 
 export class LiteralRunType extends AtomicRunType<TypeLiteral> {
     src: TypeLiteral = null as any; // will be set after construction
@@ -49,7 +49,7 @@ export class LiteralRunType extends AtomicRunType<TypeLiteral> {
         else if (typeof this.src.literal === 'bigint') return compileIsBigInt(cop, this.src.literal);
         else return compileIsLiteral(cop, this.src.literal);
     }
-    _compileTypeErrors(cop: JitTypeErrorCompiler): string {
+    _compileTypeErrors(cop: JitErrorsCompiler): string {
         if (typeof this.src.literal === 'symbol') return compileTypeErrorsSymbol(cop, this.src.literal, this.getName());
         else if (this.src.literal instanceof RegExp) return compileTypeErrorsRegExp(cop, this.src.literal, this.getName());
         return compileTypeErrorsLiteral(cop, this.src.literal, this.getName());
@@ -96,22 +96,22 @@ function compileIsLiteral(cop: JitCompiler, lit: Exclude<TypeLiteral['literal'],
     return `${cop.vλl} === ${toLiteral(lit)}`;
 }
 
-function compileTypeErrorsSymbol(cop: JitTypeErrorCompiler, lit: symbol, name: string | number): string {
+function compileTypeErrorsSymbol(cop: JitErrorsCompiler, lit: symbol, name: string | number): string {
     return `if (typeof ${cop.vλl} !== 'symbol' || ${cop.vλl}.description !== ${toLiteral(lit.description)}) {
-        ${cop.args.εrr}.push({path:${getJitErrorPath(cop)},expected:${toLiteral(name)}})
+        µTils.errPush(${cop.args.εrr},${getJitErrorPath(cop)},${toLiteral(name)})
     }`;
 }
 
-function compileTypeErrorsRegExp(cop: JitTypeErrorCompiler, lit: RegExp, name: string | number): string {
-    return `if (String(${cop.vλl}) !== String(${lit})) ${cop.args.εrr}.push({path:${getJitErrorPath(cop)},expected:${toLiteral(name)}})`;
+function compileTypeErrorsRegExp(cop: JitErrorsCompiler, lit: RegExp, name: string | number): string {
+    return `if (String(${cop.vλl}) !== String(${lit})) µTils.errPush(${cop.args.εrr},${getJitErrorPath(cop)},${toLiteral(name)})`;
 }
 
 function compileTypeErrorsLiteral(
-    cop: JitTypeErrorCompiler,
+    cop: JitErrorsCompiler,
     lit: Exclude<TypeLiteral['literal'], symbol>,
     name: string | number
 ): string {
-    return `if (${cop.vλl} !== ${toLiteral(lit)}) ${cop.args.εrr}.push({path:${getJitErrorPath(cop)},expected:${toLiteral(name)}})`;
+    return `if (${cop.vλl} !== ${toLiteral(lit)}) µTils.errPush(${cop.args.εrr},${getJitErrorPath(cop)},${toLiteral(name)})`;
 }
 
 function getJitConstantsForBigint(kind: number, literal: bigint): JitConstants {

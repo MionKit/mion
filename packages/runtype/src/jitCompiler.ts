@@ -4,8 +4,8 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
-import type {JitFnArgs, RunType, CodeUnit, Mutable, CompiledOperation, JitFnID} from './types';
-import {JitFnIDs, JitFnNames, jitNames, maxStackDepth, maxStackErrorMessage} from './constants';
+import type {JitFnArgs, RunType, Mutable, CompiledOperation, JitFnID} from './types';
+import {JitFnNames, jitNames, maxStackDepth, maxStackErrorMessage} from './constants';
 import {isChildAccessorType} from './guards';
 import {isSameJitType, toLiteral} from './utils';
 import {BaseRunType} from './baseRunTypes';
@@ -20,7 +20,10 @@ export type StackItem = {
     dependencyId?: string;
 };
 
-export class JitCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extends JitFnID = any> {
+export type JitCompilerLike = BaseCompiler | CompiledOperation;
+export type JitDependencies = Map<string, JitCompilerLike>;
+
+export class BaseCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extends JitFnID = any> {
     constructor(
         public readonly rootType: RunType,
         public readonly opId: ID,
@@ -28,11 +31,14 @@ export class JitCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extends J
         /** when creating the function it might have default values */
         public readonly defaultParamValues: Record<keyof FnArgsNames, string | null>,
         public readonly returnName: string,
-        public readonly parentLength: number
+        public readonly dependencies: JitDependencies = new Map()
     ) {
-        this.jitFnId = getJITFnId(this.opId, this.rootType);
+        this.jitFnHash = getJITFnHash(this.opId, this.rootType);
+        this.jitId = this.rootType.getJitId();
+        this.addDependency(this);
     }
-    readonly jitFnId: string;
+    readonly jitId: string | number;
+    readonly jitFnHash: string;
     readonly jitFn: ((...args: any[]) => any) | undefined;
     readonly code: string = '';
     /** The list of types being compiled.
@@ -40,8 +46,7 @@ export class JitCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extends J
      */
     readonly stack: StackItem[] = [];
     popItem: StackItem | undefined;
-    /** List of function dependencies by jit id */
-    readonly dependencies: Set<string> = new Set();
+
     /** current runType accessor in source code */
     get vλl(): string {
         return this._stackVλl;
@@ -50,11 +55,16 @@ export class JitCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extends J
     get length() {
         return this.stack.length;
     }
+    get totalLength() {
+        let length = 0;
+        this.dependencies.forEach((dep) => (length += dep instanceof BaseCompiler ? dep.length : 0));
+        return length;
+    }
     private _stackVλl: string = '';
     private _stackStaticPath: (string | number)[] = [];
     /** push new item to the stack, returns true if new child is already in the stack (is circular type) */
     pushStack(newChild: RunType): void {
-        const totalLength = this.stack.length + this.parentLength;
+        const totalLength = this.stack.length + this.totalLength;
         if (totalLength > maxStackDepth) throw new Error(maxStackErrorMessage);
         if (this.stack.length === 0) {
             if (newChild !== this.rootType) throw new Error('rootType should be the first item in the stack');
@@ -64,19 +74,18 @@ export class JitCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extends J
         this._stackStaticPath = getStackStaticPath(this);
         const newStackItem: StackItem = {vλl: this._stackVλl, rt: newChild};
         if (shouldCreateDependency(this, newChild)) {
-            newStackItem.dependencyId = getJITFnId(this.opId, newChild);
-            this.dependencies.add(newStackItem.dependencyId);
+            newStackItem.dependencyId = getJITFnHash(this.opId, newChild);
         }
         this.stack.push(newStackItem);
     }
     popStack(resultCode: string): void | ((...args: any[]) => any) {
-        (this as Mutable<JitCompiler>).code = resultCode;
+        (this as Mutable<BaseCompiler>).code = resultCode;
         this.popItem = this.stack.pop();
         this._stackVλl = this.popItem?.vλl || this.args.vλl;
         this._stackStaticPath = getStackStaticPath(this);
         if (this.stack.length === 0) {
             try {
-                return this.compiledFunction(); // add the compiled function to jit cache
+                return compiledFunction(this); // add the compiled function to jit cache
             } catch (e: any) {
                 const fnCode = ` Code:\nfunction ${this.opId}(){${this.code}}`;
                 const name = `(${this.rootType.getName()}:${this.rootType.getJitId()})`;
@@ -93,10 +102,6 @@ export class JitCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extends J
     getStaticPathArgsForFnCall(): {args: string; length: number} {
         return {args: this.getStackStaticPathArgs(), length: this.getStaticPathLength()};
     }
-    addDependency(dependencyCop: JitCompiler | CompiledOperation) {
-        this.dependencies.add(dependencyCop.jitFnId);
-        dependencyCop.dependencies.forEach((id) => this.dependencies.add(id));
-    }
     getCurrentStackItem(): StackItem {
         return this.stack[this.stack.length - 1];
     }
@@ -108,136 +113,98 @@ export class JitCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extends J
         return parent.vλl + (rt.useArrayAccessor() ? `[${rt.getChildLiteral()}]` : `.${rt.getChildVarName()}`);
     }
     getCodeFromCache(): string | undefined {
-        return jitUtils.getCachedCompiledOperation(this.jitFnId)?.code;
+        return jitUtils.getCachedCompiledOperation(this.jitFnHash)?.code;
     }
-    shouldCreateDependency(): boolean {
+    shouldCreateDependency(opId: JitFnID): boolean {
         const stackItem = this.getCurrentStackItem();
-        return !!stackItem.dependencyId && !isSameJitType(stackItem.rt, this.rootType);
+        const existingJitCompiler = this.getDependency(opId, stackItem.rt);
+        return !!stackItem.dependencyId && this.stack.length > 1 && !existingJitCompiler;
     }
     shouldCallDependency(): boolean {
-        return this.stack.length > 1 && !!this.getCurrentStackItem().dependencyId;
+        const stackItem = this.getCurrentStackItem();
+        return !!stackItem.dependencyId && this.stack.length > 1;
     }
     getDependencyCallCode(opId: JitFnID, fnID?: string): string {
         const stackItem = this.getCurrentStackItem();
         if (!stackItem.dependencyId) throw new Error('Current stack item is already a dependency');
-        const fnId = fnID ?? getJITFnId(opId, stackItem.rt);
+        const fnId = fnID ?? getJITFnHash(opId, stackItem.rt);
         const id = toLiteral(fnId);
         const args = Object.entries(this.args)
             .map(([key, name]) => (key === 'vλl' ? stackItem.vλl : name))
             .join(',');
-        return `${jitNames.utils}.getJitFn(${id})(${args})`;
+        return `µTils.getJitFn(${id})(${args})`;
     }
     getCompiledFunction(): (...args: any[]) => any {
         if (!this.jitFn) throw new Error('Can not get compiled function before the compile operation is finished');
         return this.jitFn;
     }
-    private compiledFunction(): (...args: any[]) => any {
-        if (this.jitFn) return this.jitFn;
-        if (!this.code || this.stack.length !== 0)
-            throw new Error('Can not get compiled function before the compile operation is finished');
-        const fn = jitUtils.getCachedFn(this.jitFnId);
-        if (fn) return fn;
-        const fnName = JitFnNames[this.opId];
-        const fnArgs = getJitFnArgs(this); // function arguments with default values ie: 'vλl, pλth=[], εrr=[]'
-        const fnCode = `function ${fnName}(${fnArgs}){${this.code}}`;
-        const newFn = createJitFnWithContext(fnCode, fnName);
-        (this as Mutable<JitCompiler>).jitFn = newFn;
-        jitUtils.addCachedFn(this.jitFnId, this as CompiledOperation);
-        return newFn;
+    hasDependency(opId: JitFnID, rootType: RunType): boolean {
+        const id = `${opId}:${rootType.getJitId()}`;
+        return this.dependencies.has(id);
+    }
+    getDependency(opId: JitFnID, rootType: RunType): JitCompilerLike | undefined {
+        const id = `${opId}:${rootType.getJitId()}`;
+        return this.dependencies.get(id);
+    }
+    addDependency(cop: JitCompilerLike) {
+        const id = `${this.opId}:${cop.jitId}`;
+        this.dependencies.set(id, this);
     }
 }
 
 // ################### Compile Operations ###################
 
-export class JitBaseCompiler<ID extends JitFnID = any> extends JitCompiler<{vλl: 'vλl'}, ID> {
-    constructor(rt: RunType, id: ID, parentLength: number) {
-        super(rt, id, {vλl: 'vλl'}, {vλl: null}, 'vλl', parentLength);
+export class JitCompiler<ID extends JitFnID = any> extends BaseCompiler<{vλl: 'vλl'}, ID> {
+    constructor(rt: RunType, id: ID, dependencies?: JitDependencies) {
+        super(rt, id, {vλl: 'vλl'}, {vλl: null}, 'vλl', dependencies);
     }
 }
 
-export class JitErrorsBaseCompiler<ID extends JitFnID = any> extends JitCompiler<{vλl: 'vλl'; pλth: 'pλth'; εrr: 'εrr'}, ID> {
-    constructor(rt: RunType, id: ID, parentLength: number) {
+export class JitErrorsCompiler<ID extends JitFnID = any> extends BaseCompiler<{vλl: 'vλl'; pλth: 'pλth'; εrr: 'εrr'}, ID> {
+    constructor(rt: RunType, id: ID, dependencies?: JitDependencies) {
         const args = {vλl: 'vλl', pλth: 'pλth', εrr: 'εrr'} as const;
         const defaultValues = {vλl: null, pλth: '[]', εrr: '[]'};
-        super(rt, id, args, defaultValues, 'εrr', parentLength);
-    }
-}
-
-export class JitIsTypeCompiler extends JitBaseCompiler<(typeof JitFnIDs)['isType']> {
-    constructor(rt: RunType, parentLength: number) {
-        super(rt, JitFnIDs.isType, parentLength);
-    }
-}
-
-export class JitTypeErrorCompiler extends JitErrorsBaseCompiler<(typeof JitFnIDs)['typeErrors']> {
-    constructor(rt: RunType, parentLength: number) {
-        super(rt, JitFnIDs.typeErrors, parentLength);
-    }
-}
-
-export class JitUnknownKeyErrorCompiler extends JitErrorsBaseCompiler<(typeof JitFnIDs)['unknownKeyErrors']> {
-    constructor(rt: RunType, parentLength: number) {
-        super(rt, JitFnIDs.unknownKeyErrors, parentLength);
-    }
-}
-
-export class JitJsonEncodeCompiler extends JitBaseCompiler<(typeof JitFnIDs)['jsonEncode']> {
-    constructor(rt: RunType, parentLength: number) {
-        super(rt, JitFnIDs.jsonEncode, parentLength);
-    }
-}
-
-export class JitJsonDecodeCompileOperation extends JitBaseCompiler<(typeof JitFnIDs)['jsonDecode']> {
-    constructor(rt: RunType, parentLength: number) {
-        super(rt, JitFnIDs.jsonDecode, parentLength);
-    }
-}
-export class JitJsonStringifyCompiler extends JitCompiler<{vλl: 'vλl'}, (typeof JitFnIDs)['jsonStringify']> {
-    constructor(rt: RunType, parentLength: number) {
-        super(rt, JitFnIDs.jsonStringify, {vλl: 'vλl'}, {vλl: null}, 'vλl', parentLength);
-    }
-}
-
-export class JitHasUnknownKeysCompiler extends JitBaseCompiler<(typeof JitFnIDs)['hasUnknownKeys']> {
-    constructor(rt: RunType, parentLength: number) {
-        super(rt, JitFnIDs.hasUnknownKeys, parentLength);
-    }
-}
-
-export class JitStripUnknownKeysCompiler extends JitBaseCompiler<(typeof JitFnIDs)['stripUnknownKeys']> {
-    constructor(rt: RunType, parentLength: number) {
-        super(rt, JitFnIDs.stripUnknownKeys, parentLength);
-    }
-}
-
-export class JitUnknownKeysToUndefinedCompiler extends JitBaseCompiler<(typeof JitFnIDs)['unknownKeysToUndefined']> {
-    constructor(rt: RunType, parentLength: number) {
-        super(rt, JitFnIDs.unknownKeysToUndefined, parentLength);
+        super(rt, id, args, defaultValues, 'εrr', dependencies);
     }
 }
 
 // ################### Other Compiler functions ###################
 
-export function getNewAuxFnNameFromIndex(index, rt: RunType): string {
-    const typeName = (rt.src as any).typeName || 'Aux';
-    return `ƒn${typeName}${index}`;
-}
-
-export function shouldCreateDependency(cop: JitCompiler, rt: RunType): boolean {
+export function shouldCreateDependency(cop: BaseCompiler, rt: RunType): boolean {
     if (cop.stack.length === 0) return false;
     if (rt.src.typeName) return true;
     const isRoot = cop.length === 1;
-    const codeUnit: CodeUnit = (rt as BaseRunType).jitFnCodeUnit(cop.opId);
+    const isExpression: boolean = (rt as BaseRunType).jitFnIsExpression(cop.opId);
     const codeHasReturn: boolean = (rt as BaseRunType).jitFnHasReturn(cop.opId);
-    const isSelfInvoking = !isRoot && codeUnit === 'EXPRESSION' && codeHasReturn;
+    const isSelfInvoking = !isRoot && isExpression && codeHasReturn;
     if (isSelfInvoking) return true;
     const hasCircularParent = cop.stack.some((i) => isSameJitType(i.rt, rt));
     return hasCircularParent;
 }
 
-export function getJITFnId(id: JitFnID, rt: RunType): string {
+export function getJITFnHash(id: JitFnID, rt: RunType): string {
     const hash = getJitIDHash(rt.getJitId().toString());
-    return `${id}:${hash}`;
+    return `${id}_${hash}`;
+}
+
+export function getJitFnCode(cop: JitCompilerLike): {fnName: string; fnCode: string} {
+    const fnName = process.env.DEBUG_JIT ? `${JitFnNames[cop.opId]}${cop.jitFnHash}` : JitFnNames[cop.opId];
+    const fnArgs = getJitFnArgs(cop); // function arguments with default values ie: 'vλl, pλth=[], εrr=[]'
+    const fnCode = `function ${fnName}(${fnArgs}){${cop.code}}`;
+    return {fnName, fnCode};
+}
+
+function compiledFunction(cop: BaseCompiler): (...args: any[]) => any {
+    if (cop.jitFn) return cop.jitFn;
+    if (!cop.code || cop.stack.length !== 0)
+        throw new Error('Can not get compiled function before the compile operation is finished');
+    const fn = jitUtils.getCachedFn(cop.jitFnHash);
+    if (fn) return fn;
+    const {fnCode, fnName} = getJitFnCode(cop);
+    const newFn = createJitFnWithContext(fnCode, fnName);
+    (cop as Mutable<BaseCompiler>).jitFn = newFn;
+    jitUtils.addCachedFn(cop.jitFnHash, cop as CompiledOperation);
+    return newFn;
 }
 
 /**
@@ -260,7 +227,7 @@ function createJitFnWithContext(code: string, functionName): (...args: any[]) =>
     }
 }
 
-function getJitFnArgs(cop: JitCompiler): string {
+function getJitFnArgs(cop: JitCompilerLike): string {
     return Object.entries(cop.args)
         .map(([key, name]) => {
             if (!cop.defaultParamValues[key]) return name;
@@ -270,7 +237,7 @@ function getJitFnArgs(cop: JitCompiler): string {
         .join(',');
 }
 
-function getStackVλl(cop: JitCompiler): string {
+function getStackVλl(cop: BaseCompiler): string {
     let vλl = cop.args.vλl;
     for (let i = 0; i < cop.stack.length; i++) {
         const rt = cop.stack[i].rt;
@@ -280,7 +247,7 @@ function getStackVλl(cop: JitCompiler): string {
     }
     return vλl;
 }
-function getStackStaticPath(cop: JitCompiler): (string | number)[] {
+function getStackStaticPath(cop: BaseCompiler): (string | number)[] {
     const path: (string | number)[] = [];
     for (let i = 0; i < cop.stack.length; i++) {
         const rt = cop.stack[i].rt;

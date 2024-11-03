@@ -7,6 +7,8 @@
  * ######## */
 
 import {ReflectionKind, TypeMethod} from './_deepkit/src/reflection/type';
+import {ReflectionSubKinds} from './reflectionNames';
+import {JitFnIDs} from './constants';
 /* IMPORTANT: import classes as type only to prevent js circular imports */
 import type {RunType, RunTypeChildAccessor} from './types';
 import type {StringRunType} from './atomicRunType/string';
@@ -40,7 +42,7 @@ import type {PromiseRunType} from './memberRunType/promise';
 import type {ObjectRunType} from './atomicRunType/object';
 import type {MethodRunType} from './memberRunType/method';
 import type {AtomicRunType, CollectionRunType, MemberRunType} from './baseRunTypes';
-import {ReflectionSubKinds} from './reflectionNames';
+import type {BaseCompiler, JitErrorsCompiler} from './jitCompiler';
 
 export function isAnyRunType(rt: RunType): rt is AnyRunType {
     return rt.src.kind === ReflectionKind.any;
@@ -183,4 +185,8 @@ export function isMemberRunType(rt: RunType): rt is MemberRunType<any> {
 
 export function isRunType(value: any): value is RunType {
     return typeof value?.src?.kind === 'number' && typeof value?.getJitId === 'function';
+}
+
+export function isJitErrorsCompiler(value: BaseCompiler): value is JitErrorsCompiler {
+    return value.opId === JitFnIDs.typeErrors || value.opId === JitFnIDs.unknownKeyErrors;
 }

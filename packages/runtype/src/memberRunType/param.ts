@@ -5,15 +5,9 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {TypeParameter} from '../_deepkit/src/reflection/type';
+import type {TypeParameter} from '../_deepkit/src/reflection/type';
+import type {JitCompiler, JitErrorsCompiler} from '../jitCompiler';
 import {MemberRunType} from '../baseRunTypes';
-import type {
-    JitIsTypeCompiler,
-    JitJsonDecodeCompileOperation,
-    JitJsonEncodeCompiler,
-    JitJsonStringifyCompiler,
-    JitTypeErrorCompiler,
-} from '../jitCompiler';
 import {MockContext} from '../types';
 import {RestParamsRunType} from './restParams';
 
@@ -34,7 +28,7 @@ export class ParameterRunType extends MemberRunType<TypeParameter> {
     isRest(): boolean {
         return this.getMemberType() instanceof RestParamsRunType;
     }
-    _compileIsType(cop: JitIsTypeCompiler): string {
+    _compileIsType(cop: JitCompiler): string {
         if (this.isRest()) {
             return this.getMemberType().compileIsType(cop);
         } else {
@@ -43,7 +37,7 @@ export class ParameterRunType extends MemberRunType<TypeParameter> {
             return this.isOptional() ? `${varName} === undefined || (${itemCode})` : itemCode;
         }
     }
-    _compileTypeErrors(cop: JitTypeErrorCompiler): string {
+    _compileTypeErrors(cop: JitErrorsCompiler): string {
         if (this.isRest()) {
             return this.getMemberType().compileTypeErrors(cop);
         } else {
@@ -52,13 +46,13 @@ export class ParameterRunType extends MemberRunType<TypeParameter> {
             return this.isOptional() ? `if (${varName} !== undefined) {${itemCode}}` : itemCode;
         }
     }
-    _compileJsonEncode(cop: JitJsonEncodeCompiler): string {
+    _compileJsonEncode(cop: JitCompiler): string {
         return this.getMemberType().compileJsonEncode(cop);
     }
-    _compileJsonDecode(cop: JitJsonDecodeCompileOperation): string {
+    _compileJsonDecode(cop: JitCompiler): string {
         return this.getMemberType().compileJsonDecode(cop);
     }
-    _compileJsonStringify(cop: JitJsonStringifyCompiler): string {
+    _compileJsonStringify(cop: JitCompiler): string {
         if (this.isRest()) {
             return this.getMemberType().compileJsonStringify(cop);
         } else {

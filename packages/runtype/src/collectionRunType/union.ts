@@ -5,17 +5,11 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {TypeUnion} from '../_deepkit/src/reflection/type';
+import type {TypeUnion} from '../_deepkit/src/reflection/type';
+import type {JitCompiler, JitErrorsCompiler} from '../jitCompiler';
 import {MockContext, RunType} from '../types';
 import {random} from '../mock';
 import {BaseRunType, CollectionRunType} from '../baseRunTypes';
-import type {
-    JitIsTypeCompiler,
-    JitJsonDecodeCompileOperation,
-    JitJsonEncodeCompiler,
-    JitJsonStringifyCompiler,
-    JitTypeErrorCompiler,
-} from '../jitCompiler';
 import {getExpected, getJitErrorPath, memo} from '../utils';
 import {InterfaceRunType} from './interface';
 import {ClassRunType} from './class';
@@ -33,7 +27,7 @@ export class UnionRunType extends CollectionRunType<TypeUnion> {
     src: TypeUnion = null as any; // will be set after construction
 
     // #### collection's jit code ####
-    _compileIsType(cop: JitIsTypeCompiler): string {
+    _compileIsType(cop: JitCompiler): string {
         // TODO: enforce strictTypes to ensure no extra properties of the union go unchecked
         const children = this.getJitChildren();
         const code = `(${children.map((rt) => rt.compileIsType(cop)).join(' || ')})`;
@@ -42,12 +36,12 @@ export class UnionRunType extends CollectionRunType<TypeUnion> {
 
     // this version just heck if has error and return an single error in the root of the union.
     // if all types we cant know one the user was trying to use.
-    _compileTypeErrors(cop: JitTypeErrorCompiler): string {
+    _compileTypeErrors(cop: JitErrorsCompiler): string {
         // TODO: enforce strictTypes to ensure no extra properties of the union go unchecked
         const children = this.getJitChildren();
         const isType = `(${children.map((rt) => rt.compileIsType(cop)).join(' || ')})`;
         const errorsPath = getJitErrorPath(cop);
-        const code = `if (!${isType}) ${cop.args.εrr}.push({path: ${errorsPath}, expected: ${getExpected(this)}});`;
+        const code = `if (!${isType}) µTils.errPush(${cop.args.εrr},${errorsPath},${getExpected(this)});`;
         return code;
     }
 
@@ -57,7 +51,7 @@ export class UnionRunType extends CollectionRunType<TypeUnion> {
      * the second element is the encoded value of the type.
      * ie: type union = string | number | bigint;  var v1: union = 123n;  v1 is encoded as [2, "123n"]
      */
-    _compileJsonEncode(cop: JitJsonEncodeCompiler): string {
+    _compileJsonEncode(cop: JitCompiler): string {
         // TODO: enforce strictTypes to ensure no extra properties of the union go unchecked
         const childrenCode = this.getJitChildren()
             .map((rt, i) => {
@@ -82,7 +76,7 @@ export class UnionRunType extends CollectionRunType<TypeUnion> {
      * the second element is the encoded value of the type.
      * ie: type union = string | number | bigint;  var v1: union = 123n;  v1 is encoded as [2, "123n"]
      */
-    _compileJsonDecode(cop: JitJsonDecodeCompileOperation): string {
+    _compileJsonDecode(cop: JitCompiler): string {
         // TODO: enforce strictTypes to ensure no extra properties of the union go unchecked
         const decVar = `dεc${this.getNestLevel()}`;
         const childrenCode = this.getJitChildren()
@@ -101,7 +95,7 @@ export class UnionRunType extends CollectionRunType<TypeUnion> {
             `;
         return code;
     }
-    _compileJsonStringify(cop: JitJsonStringifyCompiler): string {
+    _compileJsonStringify(cop: JitCompiler): string {
         // TODO: enforce strictTypes to ensure no extra properties of the union go unchecked
         const childrenCode = this.getJitChildren()
             .map((rt, i) => {
@@ -132,7 +126,7 @@ export class UnionRunType extends CollectionRunType<TypeUnion> {
     /** TODO: this version returns an error for every single item in the union.
      * This version checks all properties but would allow for Partial or empty objects to be valid.
      * We would need to group the types by the ones that expert an array an object or any other type. and only push errors related to that type */
-    private _compileTypeErrorsTODO(cop: JitTypeErrorCompiler): string {
+    private _compileTypeErrorsTODO(cop: JitErrorsCompiler): string {
         const children = this.getMergedJitChildren();
 
         const countVar = `εrrCount${this.getNestLevel()}`;

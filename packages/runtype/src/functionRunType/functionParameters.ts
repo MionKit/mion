@@ -1,13 +1,6 @@
 import {getJitErrorPath, memo, toLiteral} from '../utils';
 import {ParameterRunType} from '../memberRunType/param';
-import type {
-    JitCompiler,
-    JitIsTypeCompiler,
-    JitJsonDecodeCompileOperation,
-    JitJsonEncodeCompiler,
-    JitJsonStringifyCompiler,
-    JitTypeErrorCompiler,
-} from '../jitCompiler';
+import type {JitCompiler, JitErrorsCompiler} from '../jitCompiler';
 import {AnyFunction, DKwithRT, MockContext} from '../types';
 import {TypeFunction} from '../_deepkit/src/reflection/type';
 import {BaseRunType, CollectionRunType} from '../baseRunTypes';
@@ -43,7 +36,7 @@ export class FunctionParametersRunType<CallType extends AnyFunction = TypeFuncti
     });
     // ####### params #######
 
-    _compileIsType(cop: JitIsTypeCompiler) {
+    _compileIsType(cop: JitCompiler) {
         if (this.getParameterTypes().length === 0) return `${cop.vλl}.length === 0`;
         const paramsCode = this.getParameterTypes()
             .map((p) => `(${p.compileIsType(cop)})`)
@@ -52,24 +45,24 @@ export class FunctionParametersRunType<CallType extends AnyFunction = TypeFuncti
         const checkLength = `${cop.vλl}.length >= ${this.getTotalRequiredParams()} ${maxLength}`;
         return `${checkLength} && ${paramsCode}`;
     }
-    _compileTypeErrors(cop: JitTypeErrorCompiler) {
+    _compileTypeErrors(cop: JitErrorsCompiler) {
         const maxLength = !this.hasRestParameter ? `|| ${cop.vλl}.length > ${this.getParameterTypes().length}` : '';
         const checkLength = `(${cop.vλl}.length < ${this.getTotalRequiredParams()} ${maxLength})`;
         const paramsCode = this.getParameterTypes()
             .map((p) => p.compileTypeErrors(cop))
             .join(';');
         return (
-            `if (!Array.isArray(${cop.vλl}) || ${checkLength}) ${cop.args.εrr}.push({path:${getJitErrorPath(cop)},expected:${this.paramsLiteral()}});` +
+            `if (!Array.isArray(${cop.vλl}) || ${checkLength}) µTils.errPush(${cop.args.εrr},${getJitErrorPath(cop)},${this.paramsLiteral()});` +
             `else {${paramsCode}}`
         );
     }
-    _compileJsonEncode(cop: JitJsonEncodeCompiler) {
+    _compileJsonEncode(cop: JitCompiler) {
         return this.compileParamsJsonDE(cop, true);
     }
-    _compileJsonDecode(cop: JitJsonDecodeCompileOperation) {
+    _compileJsonDecode(cop: JitCompiler) {
         return this.compileParamsJsonDE(cop, false);
     }
-    _compileJsonStringify(cop: JitJsonStringifyCompiler) {
+    _compileJsonStringify(cop: JitCompiler) {
         const skip = this.getJitConstants().skipJit;
         if (skip) return '';
         if (this.getParameterTypes().length === 0) return `[]`;

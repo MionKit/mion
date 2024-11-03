@@ -16,13 +16,12 @@ import {DKwithRT, MockContext, Mutable, RunTypeChildAccessor} from '../types';
 import {getJitErrorPath, getExpected, toLiteral, arrayToArgumentsLiteral} from '../utils';
 import {PropertyRunType} from '../memberRunType/property';
 import {IndexSignatureRunType} from '../memberRunType/indexProperty';
-import type {JitCompiler, JitTypeErrorCompiler} from '../jitCompiler';
+import type {JitCompiler, JitErrorsCompiler} from '../jitCompiler';
 import {InterfaceRunType} from '../collectionRunType/interface';
 import {BaseRunType, MemberRunType} from '../baseRunTypes';
 import {UnionRunType} from '../collectionRunType/union';
 import {MethodRunType} from '../memberRunType/method';
 import {MethodSignatureRunType} from '../memberRunType/methodSignature';
-import {jitNames} from '../constants';
 
 type anySrcInterface = TypeObjectLiteral | TypeClass | TypeIntersection;
 
@@ -115,7 +114,7 @@ export class UnionInterfaceRunType extends InterfaceRunType<anySrcInterface> {
         const keysID = skip ? '' : toLiteral(childrenNames.join(''));
         const noExtraKeys = skip
             ? ''
-            : ` && !${jitNames.utils}.objectHasExtraKeys(${keysID}, ${cop.vλl}, ${arrayToArgumentsLiteral(childrenNames)})`;
+            : ` && !µTils.objectHasExtraKeys(${keysID}, ${cop.vλl}, ${arrayToArgumentsLiteral(childrenNames)})`;
         return `(${children.map((prop) => prop.compileIsType(cop)).join(' && ')}${noExtraKeys})`;
     }
 
@@ -127,15 +126,15 @@ export class UnionInterfaceRunType extends InterfaceRunType<anySrcInterface> {
             : '';
         return `(typeof ${varName} === 'object' && ${varName} !== null${childCode})`;
     }
-    _compileTypeErrors(cop: JitTypeErrorCompiler): string {
+    _compileTypeErrors(cop: JitErrorsCompiler): string {
         const varName = cop.vλl;
         const parentPath = getJitErrorPath(cop);
         const childrenCode = this.mergedInterfaces.length
-            ? `if (!${this.compileIsType(cop)}) ${cop.args.εrr}.push({path:${parentPath},expected:${getExpected(this)}});`
+            ? `if (!${this.compileIsType(cop)}) µTils.errPush(${cop.args.εrr},${parentPath},${getExpected(this)});`
             : '';
         return `
             if (typeof ${varName} !== 'object' && ${varName} !== null) {
-                ${cop.args.εrr}.push({path:${parentPath},expected:${getExpected(this)}});
+                µTils.errPush(${cop.args.εrr},${parentPath},${getExpected(this)});
             } else {
                 ${childrenCode}
             }

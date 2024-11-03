@@ -5,18 +5,12 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {TypeProperty, TypePropertySignature} from '../_deepkit/src/reflection/type';
+import type {TypeProperty, TypePropertySignature} from '../_deepkit/src/reflection/type';
+import type {JitCompiler, JitErrorsCompiler} from '../jitCompiler';
 import {MockContext} from '../types';
 import {getPropIndex, getPropLiteral, getPropVarName, isSafePropName, memo, useArrayAccessorForProp} from '../utils';
 import {MemberRunType} from '../baseRunTypes';
 import {jitUtils} from '../jitUtils';
-import type {
-    JitIsTypeCompiler,
-    JitJsonDecodeCompileOperation,
-    JitJsonEncodeCompiler,
-    JitJsonStringifyCompiler,
-    JitTypeErrorCompiler,
-} from '../jitCompiler';
 
 export class PropertyRunType extends MemberRunType<TypePropertySignature | TypeProperty> {
     src: TypePropertySignature | TypeProperty = null as any; // will be set after construction
@@ -28,33 +22,33 @@ export class PropertyRunType extends MemberRunType<TypePropertySignature | TypeP
 
     // #### jit code ####
 
-    _compileIsType(cop: JitIsTypeCompiler): string {
+    _compileIsType(cop: JitCompiler): string {
         const child = this.getJitChild();
         if (!child) return '';
         const itemCode = child.compileIsType(cop);
         return this.src.optional ? `(${cop.getChildVλl()} === undefined || ${itemCode})` : itemCode;
     }
-    _compileTypeErrors(cop: JitTypeErrorCompiler): string {
+    _compileTypeErrors(cop: JitErrorsCompiler): string {
         const child = this.getJitChild();
         if (!child) return '';
         const itemCode = child.compileTypeErrors(cop);
         return this.src.optional ? `if (${cop.getChildVλl()} !== undefined) {${itemCode}}` : itemCode;
     }
-    _compileJsonEncode(cop: JitJsonEncodeCompiler): string {
+    _compileJsonEncode(cop: JitCompiler): string {
         const child = this.getJsonEncodeChild();
         if (!child) return '';
         const propCode = child.compileJsonEncode(cop);
         if (this.src.optional) return `if (${cop.getChildVλl()} !== undefined) {${propCode}}`;
         return propCode;
     }
-    _compileJsonDecode(cop: JitJsonDecodeCompileOperation): string {
+    _compileJsonDecode(cop: JitCompiler): string {
         const child = this.getJsonDecodeChild();
         if (!child) return '';
         const propCode = child.compileJsonDecode(cop);
         if (this.src.optional) return `if (${cop.getChildVλl()} !== undefined) {${propCode}}`;
         return propCode;
     }
-    _compileJsonStringify(cop: JitJsonStringifyCompiler): string {
+    _compileJsonStringify(cop: JitCompiler): string {
         const child = this.getJitChild();
         if (!child) return '';
         const propCode = child.compileJsonStringify(cop);
