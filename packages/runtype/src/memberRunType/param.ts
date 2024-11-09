@@ -63,6 +63,19 @@ export class ParameterRunType extends MemberRunType<TypeParameter> {
             return `${sep}${argCode}`;
         }
     }
+    _compileHasUnknownKeys(): string {
+        return '';
+    }
+    _compileUnknownKeyErrors(): string {
+        return '';
+    }
+    _compileStripUnknownKeys(): string {
+        return '';
+    }
+    _compileUnknownKeysToUndefined(): string {
+        return '';
+    }
+
     mock(ctx?: MockContext): any {
         return this.getMemberType().mock(ctx);
     }

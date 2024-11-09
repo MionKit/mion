@@ -206,6 +206,46 @@ describe('Interface', () => {
         expect(roundTrip2).toEqual(typeValue2);
     });
 
+    it('json stringify must set optional properties first in order to work properly', () => {
+        type Obj1 = {
+            a: string;
+            b?: string;
+        };
+        const rtObj1 = runType<Obj1>();
+        const jsonStringify = rtObj1.createJitFunction(JitFnIDs.jsonStringify);
+        const fromJson = rtObj1.createJitFunction(JitFnIDs.jsonDecode);
+
+        const typeValue: Obj1 = {a: 'helloA', b: 'helloB'};
+        const json = jsonStringify(typeValue);
+        expect(json).toEqual(`{"b":"helloB","a":"helloA"}`);
+        expect(fromJson(JSON.parse(json))).toEqual(typeValue);
+
+        const typeValue2: Obj1 = {a: 'helloA'};
+        const json2 = jsonStringify(typeValue2);
+        expect(json2).toEqual(`{"a":"helloA"}`);
+        expect(fromJson(JSON.parse(json2))).toEqual(typeValue2);
+    });
+
+    it('json stringify should work when all fields are optional', () => {
+        type Obj2 = {
+            a?: string;
+            b?: string;
+        };
+        const rtObj1 = runType<Obj2>();
+        const jsonStringify = rtObj1.createJitFunction(JitFnIDs.jsonStringify);
+        const fromJson = rtObj1.createJitFunction(JitFnIDs.jsonDecode);
+
+        const typeValue: Obj2 = {a: 'helloA', b: 'helloB'};
+        const json = jsonStringify(typeValue);
+        expect(json).toEqual(`{"a":"helloA","b":"helloB"}`);
+        expect(fromJson(JSON.parse(json))).toEqual(typeValue);
+
+        const typeValue2: Obj2 = {a: 'helloA'};
+        const json2 = jsonStringify(typeValue2);
+        expect(json2).toEqual(`{"a":"helloA"}`);
+        expect(fromJson(JSON.parse(json2))).toEqual(typeValue2);
+    });
+
     it('object with repeated property types', () => {
         interface I {
             name: string;

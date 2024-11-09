@@ -6,10 +6,11 @@
  * ######## */
 
 import {ReflectionKind, type TypeAny, type TypeUnknown} from '../_deepkit/src/reflection/type';
-import type {JitConstants, MockContext} from '../types';
+import type {JitConstants, JitFnID, MockContext} from '../types';
 import {mockAny} from '../mock';
 import {AtomicRunType} from '../baseRunTypes';
 import type {JitCompiler} from '../jitCompiler';
+import {JitFnIDs} from '../constants';
 
 const jitConstants: JitConstants = {
     skipJit: false,
@@ -21,6 +22,14 @@ const jitConstants: JitConstants = {
 export class AnyRunType extends AtomicRunType<TypeAny | TypeUnknown> {
     src: TypeAny | TypeUnknown = null as any; // will be set after construction
     getJitConstants = () => jitConstants;
+    jitFnHasReturn(fnId: JitFnID): boolean {
+        switch (fnId) {
+            case JitFnIDs.typeErrors:
+                return false;
+            default:
+                return super.jitFnHasReturn(fnId);
+        }
+    }
     _compileIsType(): 'true' {
         return 'true';
     }

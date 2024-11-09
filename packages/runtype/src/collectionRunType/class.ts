@@ -23,7 +23,7 @@ export class ClassRunType extends InterfaceRunType<TypeClass> {
         checkSerializable(this.canDeserialize(), this.getClassName());
         const decodeParams = super.compileJsonDecode(cop);
         const decode = decodeParams ? `${decodeParams}; ` : '';
-        const classVarname = `clλss${cop.length}`;
+        const classVarname = `clλss${this.getNestLevel()}`;
         // todo create a new class
         return `
             ${decode};

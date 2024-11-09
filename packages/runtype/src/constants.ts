@@ -95,3 +95,8 @@ export const maxUnknownKeys = 10;
 export const maxStackDepth = 50;
 export const maxStackErrorMessage =
     'Max compilation nested level reached, either you have a very deeply nested type or there is an error related to circular references un the types.';
+
+export const jitArgs = {vλl: 'vλl'} as const;
+export const jitDefaultArgs = {vλl: null} as const;
+export const jitErrorArgs = {vλl: 'vλl', pλth: 'pλth', εrr: 'εrr'} as const;
+export const jitDefaultErrorArgs = {vλl: null, pλth: '[]', εrr: '[]'} as const;

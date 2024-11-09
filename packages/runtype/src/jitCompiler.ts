@@ -5,11 +5,21 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 import type {JitFnArgs, RunType, Mutable, CompiledOperation, JitFnID} from './types';
-import {JitFnNames, jitNames, maxStackDepth, maxStackErrorMessage} from './constants';
+import {
+    jitArgs,
+    jitDefaultArgs,
+    jitDefaultErrorArgs,
+    jitErrorArgs,
+    JitFnIDs,
+    JitFnNames,
+    jitNames,
+    maxStackDepth,
+    maxStackErrorMessage,
+} from './constants';
 import {isChildAccessorType} from './guards';
-import {isSameJitType, toLiteral} from './utils';
+import {isSameJitType} from './utils';
 import {BaseRunType} from './baseRunTypes';
-import {getJitIDHash, jitUtils} from './jitUtils';
+import {jitUtils} from './jitUtils';
 
 export type StackItem = {
     /** current compile stack full variable accessor */
@@ -36,21 +46,18 @@ export class BaseCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extends 
         this.jitFnHash = getJITFnHash(this.opId, this.rootType);
         this.jitId = this.rootType.getJitId();
         this.addDependency(this);
+        this.vλl = this.args.vλl;
     }
     readonly jitId: string | number;
     readonly jitFnHash: string;
     readonly jitFn: ((...args: any[]) => any) | undefined;
     readonly code: string = '';
+    readonly canSkipped?: boolean = false;
     /** The list of types being compiled.
      * each time there is a circular type a new substack is created.
      */
     readonly stack: StackItem[] = [];
     popItem: StackItem | undefined;
-
-    /** current runType accessor in source code */
-    get vλl(): string {
-        return this._stackVλl;
-    }
     /** shorthand for  this.length */
     get length() {
         return this.stack.length;
@@ -60,7 +67,7 @@ export class BaseCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extends 
         this.dependencies.forEach((dep) => (length += dep instanceof BaseCompiler ? dep.length : 0));
         return length;
     }
-    private _stackVλl: string = '';
+    vλl: string = '';
     private _stackStaticPath: (string | number)[] = [];
     /** push new item to the stack, returns true if new child is already in the stack (is circular type) */
     pushStack(newChild: RunType): void {
@@ -70,9 +77,9 @@ export class BaseCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extends 
             if (newChild !== this.rootType) throw new Error('rootType should be the first item in the stack');
             newChild.getJitConstants(); // ensures the constants are generated in correct order
         }
-        this._stackVλl = getStackVλl(this);
+        this.vλl = getStackVλl(this);
         this._stackStaticPath = getStackStaticPath(this);
-        const newStackItem: StackItem = {vλl: this._stackVλl, rt: newChild};
+        const newStackItem: StackItem = {vλl: this.vλl, rt: newChild};
         if (shouldCreateDependency(this, newChild)) {
             newStackItem.dependencyId = getJITFnHash(this.opId, newChild);
         }
@@ -81,7 +88,8 @@ export class BaseCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extends 
     popStack(resultCode: string): void | ((...args: any[]) => any) {
         (this as Mutable<BaseCompiler>).code = resultCode;
         this.popItem = this.stack.pop();
-        this._stackVλl = this.popItem?.vλl || this.args.vλl;
+        const item = this.stack[this.stack.length - 1];
+        this.vλl = item?.vλl || this.args.vλl;
         this._stackStaticPath = getStackStaticPath(this);
         if (this.stack.length === 0) {
             try {
@@ -103,7 +111,9 @@ export class BaseCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extends 
         return {args: this.getStackStaticPathArgs(), length: this.getStaticPathLength()};
     }
     getCurrentStackItem(): StackItem {
-        return this.stack[this.stack.length - 1];
+        const item = this.stack[this.stack.length - 1];
+        if (!item) throw new Error('Compiler stack is empty, no current item');
+        return item;
     }
     getChildVλl(): string {
         const parent = this.getCurrentStackItem();
@@ -123,16 +133,6 @@ export class BaseCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extends 
     shouldCallDependency(): boolean {
         const stackItem = this.getCurrentStackItem();
         return !!stackItem.dependencyId && this.stack.length > 1;
-    }
-    getDependencyCallCode(opId: JitFnID, fnID?: string): string {
-        const stackItem = this.getCurrentStackItem();
-        if (!stackItem.dependencyId) throw new Error('Current stack item is already a dependency');
-        const fnId = fnID ?? getJITFnHash(opId, stackItem.rt);
-        const id = toLiteral(fnId);
-        const args = Object.entries(this.args)
-            .map(([key, name]) => (key === 'vλl' ? stackItem.vλl : name))
-            .join(',');
-        return `µTils.getJitFn(${id})(${args})`;
     }
     getCompiledFunction(): (...args: any[]) => any {
         if (!this.jitFn) throw new Error('Can not get compiled function before the compile operation is finished');
@@ -154,37 +154,48 @@ export class BaseCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extends 
 
 // ################### Compile Operations ###################
 
-export class JitCompiler<ID extends JitFnID = any> extends BaseCompiler<{vλl: 'vλl'}, ID> {
+export class JitCompiler<ID extends JitFnID = any> extends BaseCompiler<typeof jitArgs, ID> {
     constructor(rt: RunType, id: ID, dependencies?: JitDependencies) {
-        super(rt, id, {vλl: 'vλl'}, {vλl: null}, 'vλl', dependencies);
+        super(rt, id, {...jitArgs}, {...jitDefaultArgs}, 'vλl', dependencies);
     }
 }
 
-export class JitErrorsCompiler<ID extends JitFnID = any> extends BaseCompiler<{vλl: 'vλl'; pλth: 'pλth'; εrr: 'εrr'}, ID> {
+export class JitErrorsCompiler<ID extends JitFnID = any> extends BaseCompiler<typeof jitErrorArgs, ID> {
     constructor(rt: RunType, id: ID, dependencies?: JitDependencies) {
-        const args = {vλl: 'vλl', pλth: 'pλth', εrr: 'εrr'} as const;
-        const defaultValues = {vλl: null, pλth: '[]', εrr: '[]'};
+        const args = {...jitErrorArgs};
+        const defaultValues = {...jitDefaultErrorArgs};
         super(rt, id, args, defaultValues, 'εrr', dependencies);
     }
 }
 
 // ################### Other Compiler functions ###################
 
+/**
+ * Indicates whether or not a type should be embedded or called as a dependency.
+ * Circular types are always called as dependencies.
+ * we could play around with this function to control whether more code is cached or embeded.
+ * Cached reduce code size but decrease performance as more function calls are generated and a map lookup done for each function.
+ * @param cop
+ * @param rt
+ * @returns
+ */
 export function shouldCreateDependency(cop: BaseCompiler, rt: RunType): boolean {
     if (cop.stack.length === 0) return false;
-    if (rt.src.typeName) return true;
+    if (rt.src.typeName && rt.getFamily() === 'C') return true;
     const isRoot = cop.length === 1;
-    const isExpression: boolean = (rt as BaseRunType).jitFnIsExpression(cop.opId);
-    const codeHasReturn: boolean = (rt as BaseRunType).jitFnHasReturn(cop.opId);
-    const isSelfInvoking = !isRoot && isExpression && codeHasReturn;
-    if (isSelfInvoking) return true;
+    if (!isRoot && rt.getFamily() === 'A') {
+        // self invoking functions that contains atomic types are cached
+        const isExpression: boolean = (rt as BaseRunType).jitFnIsExpression(cop.opId);
+        const codeHasReturn: boolean = (rt as BaseRunType).jitFnHasReturn(cop.opId);
+        const isSelfInvoking = isExpression && codeHasReturn;
+        if (isSelfInvoking) return true;
+    }
     const hasCircularParent = cop.stack.some((i) => isSameJitType(i.rt, rt));
     return hasCircularParent;
 }
 
 export function getJITFnHash(id: JitFnID, rt: RunType): string {
-    const hash = getJitIDHash(rt.getJitId().toString());
-    return `${id}_${hash}`;
+    return `${id}_${rt.getJitHash()}`;
 }
 
 export function getJitFnCode(cop: JitCompilerLike): {fnName: string; fnCode: string} {
@@ -196,8 +207,7 @@ export function getJitFnCode(cop: JitCompilerLike): {fnName: string; fnCode: str
 
 function compiledFunction(cop: BaseCompiler): (...args: any[]) => any {
     if (cop.jitFn) return cop.jitFn;
-    if (!cop.code || cop.stack.length !== 0)
-        throw new Error('Can not get compiled function before the compile operation is finished');
+    if (cop.stack.length !== 0) throw new Error('Can not get compiled function before the compile operation is finished');
     const fn = jitUtils.getCachedFn(cop.jitFnHash);
     if (fn) return fn;
     const {fnCode, fnName} = getJitFnCode(cop);
@@ -317,3 +327,32 @@ function getStackStaticPath(cop: BaseCompiler): (string | number)[] {
 
 //     return restored;
 // }
+
+export function createJitCompiler(rt: BaseRunType, fnId: JitFnID, parent?: BaseCompiler): BaseCompiler {
+    const existingJitCompiler = parent?.getDependency(fnId, rt);
+    if (existingJitCompiler) {
+        throw new Error(`Circular reference detected: ${existingJitCompiler.jitFnHash}`);
+    }
+    switch (fnId) {
+        case JitFnIDs.isType:
+            return new JitCompiler(rt, fnId, parent?.dependencies);
+        case JitFnIDs.typeErrors:
+            return new JitErrorsCompiler(rt, fnId, parent?.dependencies);
+        case JitFnIDs.jsonEncode:
+            return new JitCompiler(rt, fnId, parent?.dependencies);
+        case JitFnIDs.jsonDecode:
+            return new JitCompiler(rt, fnId, parent?.dependencies);
+        case JitFnIDs.jsonStringify:
+            return new JitCompiler(rt, fnId, parent?.dependencies);
+        case JitFnIDs.unknownKeyErrors:
+            return new JitErrorsCompiler(rt, fnId, parent?.dependencies);
+        case JitFnIDs.hasUnknownKeys:
+            return new JitCompiler(rt, fnId, parent?.dependencies);
+        case JitFnIDs.stripUnknownKeys:
+            return new JitCompiler(rt, fnId, parent?.dependencies);
+        case JitFnIDs.unknownKeysToUndefined:
+            return new JitCompiler(rt, fnId, parent?.dependencies);
+        default:
+            throw new Error(`Unknown compile operation: ${fnId}`);
+    }
+}

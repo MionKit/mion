@@ -43,6 +43,8 @@ import type {ObjectRunType} from './atomicRunType/object';
 import type {MethodRunType} from './memberRunType/method';
 import type {AtomicRunType, CollectionRunType, MemberRunType} from './baseRunTypes';
 import type {BaseCompiler, JitErrorsCompiler} from './jitCompiler';
+import {ClassRunType} from './collectionRunType/class';
+import {IntersectionRunType} from './collectionRunType/intersection';
 
 export function isAnyRunType(rt: RunType): rt is AnyRunType {
     return rt.src.kind === ReflectionKind.any;
@@ -102,6 +104,22 @@ export function isNumberRunType(rt: RunType): rt is NumberRunType {
 
 export function isInterfaceRunType(rt: RunType): rt is InterfaceRunType {
     return rt.src.kind === ReflectionKind.objectLiteral;
+}
+
+export function isObjectLiteralRunType(rt: RunType): rt is InterfaceRunType {
+    return rt.src.kind === ReflectionKind.objectLiteral;
+}
+
+export function isClassRunType(rt: RunType): rt is ClassRunType {
+    return rt.src.kind === ReflectionKind.class;
+}
+
+export function isIntersectionRunType(rt: RunType): rt is IntersectionRunType {
+    return rt.src.kind === ReflectionKind.intersection;
+}
+
+export function isPropertyRunType(rt: RunType): rt is PropertyRunType {
+    return rt.src.kind === ReflectionKind.property;
 }
 
 export function isPropertySignatureRunType(rt: RunType): rt is PropertyRunType {

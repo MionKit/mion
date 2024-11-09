@@ -17,7 +17,7 @@ export class RestParamsRunType extends MemberRunType<TypeRest> {
         return true;
     }
     getChildVarName(): string {
-        return `iε${this.getNestLevel()}`;
+        return `e${this.getNestLevel()}`;
     }
     getChildLiteral(): string {
         return this.getChildVarName();
@@ -25,14 +25,14 @@ export class RestParamsRunType extends MemberRunType<TypeRest> {
     useArrayAccessor(): true {
         return true;
     }
-    jitFnHasReturn(copId: JitFnID): boolean {
-        switch (copId) {
+    jitFnHasReturn(fnId: JitFnID): boolean {
+        switch (fnId) {
             case JitFnIDs.isType:
                 return true;
             case JitFnIDs.jsonStringify:
                 return true;
             default:
-                return super.jitFnHasReturn(copId);
+                return super.jitFnHasReturn(fnId);
         }
     }
     _compileIsType(cop: JitCompiler): string {
@@ -66,8 +66,8 @@ export class RestParamsRunType extends MemberRunType<TypeRest> {
     }
     _compileJsonStringify(cop: JitCompiler): string {
         const varName = cop.vλl;
-        const arrName = `rεsultλrr${cop.length}`;
-        const itemName = `itεm${cop.length}`;
+        const arrName = `res${this.getNestLevel()}`;
+        const itemName = `its${this.getNestLevel()}`;
         const indexName = this.getChildVarName();
         const isFist = this.getChildIndex() === 0;
         const sep = isFist ? '' : `','+`;
@@ -81,6 +81,18 @@ export class RestParamsRunType extends MemberRunType<TypeRest> {
             if (!${arrName}.length) {return '';}
             else {return ${sep}${arrName}.join(',')}
         `;
+    }
+    _compileHasUnknownKeys(): string {
+        return '';
+    }
+    _compileUnknownKeyErrors(): string {
+        return '';
+    }
+    _compileStripUnknownKeys(): string {
+        return '';
+    }
+    _compileUnknownKeysToUndefined(): string {
+        return '';
     }
     mock(ctx?: MockContext): string {
         return this.getMemberType().mock(ctx);

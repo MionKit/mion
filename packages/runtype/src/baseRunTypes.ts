@@ -6,14 +6,13 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {ReflectionKind, type Type} from './_deepkit/src/reflection/type';
+import {ReflectionKind, TypeIndexSignature, TypeProperty, type Type} from './_deepkit/src/reflection/type';
 import type {MockContext, RunType, DKwithRT, JitConstants, Mutable, RunTypeChildAccessor, CodeUnit, JitFnID} from './types';
-import {getPropIndex, memo} from './utils';
-import {JitFnIDs, maxStackDepth, maxStackErrorMessage} from './constants';
-import {JitErrorsCompiler, JitCompiler, getJITFnHash} from './jitCompiler';
+import {getPropIndex, memo, toLiteral} from './utils';
+import {jitArgs, jitErrorArgs, JitFnIDs, maxStackDepth, maxStackErrorMessage} from './constants';
+import {JitErrorsCompiler, JitCompiler, getJITFnHash, createJitCompiler} from './jitCompiler';
 import {getReflectionName} from './reflectionNames';
-import {jitUtils} from './jitUtils';
-import {isJitErrorsCompiler} from './guards';
+import {createJitIDHash, jitUtils} from './jitUtils';
 
 type DkCollection = Type & {types: Type[]};
 type DkMember = Type & {type: Type; optional: boolean};
@@ -26,6 +25,7 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
     abstract mock(mockContext?: MockContext): any;
     getName = memo((): string => getReflectionName(this));
     getJitId = () => this.getJitConstants().jitId;
+    getJitHash = memo((): string => createJitIDHash(this.getJitId().toString()));
     getParent = (): RunType | undefined => (this.src.parent as DKwithRT)?._rt;
     getNestLevel = memo((): number => {
         if (this.isCircular) return 0; // circular references start a new context
@@ -35,26 +35,30 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
     });
 
     getCircularJitConstants(stack: RunType[] = []): JitConstants | undefined {
-        const inStackIndex = stack.findIndex((rt) => rt === this); // cant use isSameJitType because it uses getJitId
+        const inStackIndex = stack.findIndex((rt) => rt === this); // cant use isSameJitType because it uses getJitId and would loop forever
         const isInStack = inStackIndex >= 0; // recursive reference
         if (isInStack) {
             this.isCircular = true;
+            const name = this.src.typeName || ''; // todo: not sure if all the circular references will have a name
             return {
-                skipJit: false, // ensures that jit is ran when circular reference is found
+                skipJit: false, // circular types requires custom logic so can't be skipped
                 skipJsonEncode: false,
                 skipJsonDecode: false,
-                jitId: '$',
+                jitId: '$' + this.src.kind + `_${inStackIndex}` + name, // ensures different circular types have different jitId
             };
         }
     }
 
     // ########## Create Jit Functions ##########
 
-    createJitFunction = (copId: JitFnID): ((...args: any[]) => any) => {
-        const fn = jitUtils.getCachedFn(getJITFnHash(copId, this));
-        if (fn) return fn;
-        const newCompileOp: JitCompiler = this.createJitCompiler(copId);
-        this.compile(newCompileOp, copId);
+    createJitFunction = (fnId: JitFnID): ((...args: any[]) => any) => {
+        const existingCop = jitUtils.getCachedCompiledOperation(getJITFnHash(fnId, this));
+        if (existingCop) {
+            if (process.env.DEBUG_JIT) console.log(`\x1b[32m Using cached function: ${existingCop.jitFnHash} \x1b[0m`);
+            return existingCop.jitFn;
+        }
+        const newCompileOp: JitCompiler = createJitCompiler(this, fnId) as JitCompiler;
+        this.compile(newCompileOp, fnId);
         return newCompileOp.getCompiledFunction();
     };
 
@@ -102,52 +106,95 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
         return this.compile(cop, JitFnIDs.unknownKeysToUndefined);
     }
     /**
-     * Compiles the current operation.
+     * Compiles the current function.
      * Note current JitCompiler operation might be different from the passed operation id.
      * ie: typeErrors might want to compile isType to generate the part of the code that checks for the type.
+     * This function handles the logic to determine if the operation should be compiled and code should be inlined, or called as a dependency.
      * @param cop current jit compiler operation
-     * @param copId operation id
+     * @param fnId operation id
      * @returns
      */
-    private compile(cop: JitCompiler, copId: JitFnID) {
+    private compile(cop: JitCompiler, fnId: JitFnID) {
         let code: string | undefined = cop.getCodeFromCache();
         if (code) return code;
         cop.pushStack(this);
-        if (cop.shouldCreateDependency(copId)) {
-            const fnId = getJITFnHash(copId, this);
-            const cachedCop = jitUtils.getCachedCompiledOperation(fnId);
+        if (cop.shouldCreateDependency(fnId)) {
+            const fnHash = getJITFnHash(fnId, this);
+            const cachedCop = jitUtils.getCachedCompiledOperation(fnHash);
             if (cachedCop) {
                 cop.addDependency(cachedCop);
-                code = this.callDependency(cop, copId, fnId);
+                code = this.callDependency(cop, fnId);
+                // if (process.env.DEBUG_JIT) console.log(`\x1b[33m Using cached op: ${cachedCop.jitFnHash} \x1b[0m`);
             } else {
-                const newCompileOp: JitCompiler = this.createJitCompiler(copId, cop);
-                this.compile(newCompileOp, copId);
-                code = this.callDependency(cop, copId, fnId);
+                const newCompileOp: JitCompiler = createJitCompiler(this, fnId, cop) as JitCompiler;
+                this.compile(newCompileOp, fnId);
+                code = this.callDependency(cop, fnId);
             }
+            console.log('shouldCreateDependency', code);
         } else if (cop.shouldCallDependency()) {
-            code = this.callDependency(cop, copId);
+            code = this.callDependency(cop, fnId);
         } else {
-            code = this._compile(copId, cop);
-            code = this.handleReturnValues(code, cop);
+            switch (fnId) {
+                case JitFnIDs.isType:
+                    code = this._compileIsType(cop);
+                    break;
+                case JitFnIDs.typeErrors:
+                    code = this._compileTypeErrors(cop as JitErrorsCompiler);
+                    break;
+                case JitFnIDs.jsonEncode:
+                    code = this._compileJsonEncode(cop);
+                    break;
+                case JitFnIDs.jsonDecode:
+                    code = this._compileJsonDecode(cop);
+                    break;
+                case JitFnIDs.jsonStringify:
+                    code = this._compileJsonStringify(cop);
+                    break;
+                case JitFnIDs.unknownKeyErrors:
+                    code = this._compileUnknownKeyErrors(cop as JitErrorsCompiler);
+                    break;
+                case JitFnIDs.hasUnknownKeys:
+                    code = this._compileHasUnknownKeys(cop);
+                    break;
+                case JitFnIDs.stripUnknownKeys:
+                    code = this._compileStripUnknownKeys(cop);
+                    break;
+                case JitFnIDs.unknownKeysToUndefined:
+                    code = this._compileUnknownKeysToUndefined(cop);
+                    break;
+                default:
+                    throw new Error(`Unknown compile operation: ${fnId}`);
+            }
+            code = this.handleReturnValues(cop, fnId, code);
         }
         cop.popStack(code);
         return code;
     }
 
-    private callDependency(cop: JitCompiler, copId: JitFnID, fnId?: string): string {
-        const code = cop.getDependencyCallCode(copId, fnId);
-        if (isJitErrorsCompiler(cop)) {
+    callDependency(cop: JitCompiler, opIdToCall: JitFnID): string {
+        const stackItem = cop.getCurrentStackItem();
+        if (!stackItem.dependencyId)
+            throw new Error(`Current stack item should not generate a dependency, stack item jitId: ${stackItem.rt.getJitId()}`);
+        const fnId = getJITFnHash(opIdToCall, stackItem.rt);
+        const isErrorCall = opIdToCall === JitFnIDs.typeErrors || opIdToCall === JitFnIDs.unknownKeyErrors;
+        const id = toLiteral(fnId);
+        const args = isErrorCall ? jitErrorArgs : jitArgs;
+        const argsCode = Object.entries(args)
+            .map(([key, name]) => (key === 'vλl' ? stackItem.vλl : name))
+            .join(',');
+        const callCode = `µTils.getJitFn(${id})(${argsCode})`;
+        if (isErrorCall) {
             const pathArgs = cop.getStackStaticPathArgs();
             const pathLength = cop.getStaticPathLength();
             // increase and decrease the static path before and after calling the circular function
-            return `${cop.args.pλth}.push(${pathArgs}); ${code}; ${cop.args.pλth}.splice(-${pathLength});`;
+            return `${jitErrorArgs.pλth}.push(${pathArgs}); ${callCode}; ${jitErrorArgs.pλth}.splice(-${pathLength});`;
         }
-        return code;
+        return callCode;
     }
 
-    private handleReturnValues(code: string, cop: JitCompiler): string {
-        const codeHasReturn: boolean = this.jitFnHasReturn(cop.opId);
-        const isExpression: boolean = this.jitFnIsExpression(cop.opId);
+    handleReturnValues(cop: JitCompiler, currentOpId: JitFnID, code: string, isCallDependency?: true): string {
+        const codeHasReturn: boolean = isCallDependency ?? this.jitFnHasReturn(currentOpId);
+        const isExpression: boolean = this.jitFnIsExpression(currentOpId);
         const isRoot = cop.length === 1;
         if (isRoot && isExpression) {
             return codeHasReturn ? code : `return (${code})`;
@@ -173,8 +220,8 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
     // these flags are used to determine if the compiled code should be wrapped in a self invoking function or not
     // or if the compiled code should contain a return statement or not
     // all atomic types should have these same flags (code should never have a return statement)
-    jitFnHasReturn(copId: JitFnID): boolean {
-        switch (copId) {
+    jitFnHasReturn(fnId: JitFnID): boolean {
+        switch (fnId) {
             case JitFnIDs.isType:
                 return false;
             case JitFnIDs.typeErrors:
@@ -194,12 +241,12 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
             case JitFnIDs.unknownKeysToUndefined:
                 return false;
             default:
-                throw new Error(`Unknown compile operation: ${copId}`);
+                throw new Error(`Unknown compile operation: ${fnId}`);
         }
     }
 
-    jitFnIsExpression(copId: JitFnID): boolean {
-        switch (copId) {
+    jitFnIsExpression(fnId: JitFnID): boolean {
+        switch (fnId) {
             case JitFnIDs.isType:
                 return true;
             case JitFnIDs.typeErrors:
@@ -219,64 +266,9 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
             case JitFnIDs.unknownKeysToUndefined:
                 return false;
             default:
-                throw new Error(`Unknown compile operation: ${copId}`);
+                throw new Error(`Unknown compile operation: ${fnId}`);
         }
     }
-
-    private _compile(copId: JitFnID, cop: JitCompiler): string {
-        switch (copId) {
-            case JitFnIDs.isType:
-                return this._compileIsType(cop);
-            case JitFnIDs.typeErrors:
-                return this._compileTypeErrors(cop as JitErrorsCompiler);
-            case JitFnIDs.jsonEncode:
-                return this._compileJsonEncode(cop);
-            case JitFnIDs.jsonDecode:
-                return this._compileJsonDecode(cop);
-            case JitFnIDs.jsonStringify:
-                return this._compileJsonStringify(cop);
-            case JitFnIDs.unknownKeyErrors:
-                return this._compileUnknownKeyErrors(cop as JitErrorsCompiler);
-            case JitFnIDs.hasUnknownKeys:
-                return this._compileHasUnknownKeys(cop);
-            case JitFnIDs.stripUnknownKeys:
-                return this._compileStripUnknownKeys(cop);
-            case JitFnIDs.unknownKeysToUndefined:
-                return this._compileUnknownKeysToUndefined(cop);
-            default:
-                throw new Error(`Unknown compile operation: ${copId}`);
-        }
-    }
-
-    private createJitCompiler = (copId: JitFnID, parent?: JitCompiler): JitCompiler => {
-        const existingJitCompiler = parent?.getDependency(copId, this);
-        if (existingJitCompiler) {
-            if (process.env.DEBUG_JIT) console.warn(`Circular reference runType:`, this);
-            throw new Error(`Circular reference detected: ${existingJitCompiler.jitFnHash}`);
-        }
-        switch (copId) {
-            case JitFnIDs.isType:
-                return new JitCompiler(this, copId, parent?.dependencies);
-            case JitFnIDs.typeErrors:
-                return new JitErrorsCompiler(this, copId, parent?.dependencies);
-            case JitFnIDs.jsonEncode:
-                return new JitCompiler(this, copId, parent?.dependencies);
-            case JitFnIDs.jsonDecode:
-                return new JitCompiler(this, copId, parent?.dependencies);
-            case JitFnIDs.jsonStringify:
-                return new JitCompiler(this, copId, parent?.dependencies);
-            case JitFnIDs.unknownKeyErrors:
-                return new JitErrorsCompiler(this, copId, parent?.dependencies);
-            case JitFnIDs.hasUnknownKeys:
-                return new JitCompiler(this, copId, parent?.dependencies);
-            case JitFnIDs.stripUnknownKeys:
-                return new JitCompiler(this, copId, parent?.dependencies);
-            case JitFnIDs.unknownKeysToUndefined:
-                return new JitCompiler(this, copId, parent?.dependencies);
-            default:
-                throw new Error(`Unknown compile operation: ${copId}`);
-        }
-    };
 }
 
 /**
@@ -316,13 +308,30 @@ export abstract class CollectionRunType<T extends Type> extends BaseRunType<T> {
         return childTypes.map((t) => t._rt as BaseRunType);
     };
     getJitChildren(): BaseRunType[] {
-        return this.getChildRunTypes().filter((c) => !c.getJitConstants().skipJit);
+        let skipIndex = false; // if there are multiple index signatures, only the first one will be used as they must be same type just different keys
+        return this.getChildRunTypes().filter((c) => {
+            if (c.getJitConstants().skipJit) return false;
+            const isIndex = c.src.kind === ReflectionKind.indexSignature;
+            if (isIndex && skipIndex) return false;
+            if (isIndex) skipIndex = true;
+            return true;
+        });
     }
     getJsonEncodeChildren(): BaseRunType[] {
-        return this.getChildRunTypes().filter((c) => !c.getJitConstants().skipJit && !c.getJitConstants().skipJsonEncode);
+        return this.getJitChildren().filter((c) => !c.getJitConstants().skipJsonEncode);
     }
     getJsonDecodeChildren(): BaseRunType[] {
-        return this.getChildRunTypes().filter((c) => !c.getJitConstants().skipJit && !c.getJitConstants().skipJsonDecode);
+        return this.getJitChildren().filter((c) => !c.getJitConstants().skipJsonDecode);
+    }
+    // In order to json stringify to work properly optional properties must come first
+    getJsonStringifyChildren(): BaseRunType[] {
+        return this.getJitChildren().sort((a, b) => {
+            const aOptional = a instanceof MemberRunType && a.isOptional();
+            const bOptional = b instanceof MemberRunType && b.isOptional();
+            if (aOptional && !bOptional) return -1;
+            if (!aOptional && bOptional) return 1;
+            return 0;
+        });
     }
     getJitConstants(stack: BaseRunType[] = []): JitConstants {
         return this._getJitConstants(stack);
@@ -420,22 +429,23 @@ export abstract class MemberRunType<T extends Type> extends BaseRunType<T> imple
     _compileHasUnknownKeys(cop: JitCompiler): string {
         const code = this.getJitChild()?.compileHasUnknownKeys(cop);
         if (!code) return '';
-        return this.isOptional() ? `(${cop.vλl} !== undefined && ${code})` : code;
+        const childName = cop.getChildVλl();
+        return this.isOptional() ? `(${childName} !== undefined && ${code})` : code;
     }
     _compileUnknownKeyErrors(cop: JitErrorsCompiler): string {
         const code = this.getJitChild()?.compileUnknownKeyErrors(cop) || '';
         if (!code) return '';
-        return this.isOptional() ? `if (${cop.vλl} !== undefined) {${code}}` : code;
+        return this.isOptional() ? `if (${cop.getChildVλl()} !== undefined) {${code}}` : code;
     }
     _compileStripUnknownKeys(cop: JitCompiler): string {
         const code = this.getJitChild()?.compileStripUnknownKeys(cop) || '';
         if (!code) return '';
-        return this.isOptional() ? `if (${cop.vλl} !== undefined) {${code}}` : code;
+        return this.isOptional() ? `if (${cop.getChildVλl()} !== undefined) {${code}}` : code;
     }
     _compileUnknownKeysToUndefined(cop: JitCompiler): string {
         const code = this.getJitChild()?.compileUnknownKeysToUndefined(cop) || '';
         if (!code) return '';
-        return this.isOptional() ? `if (${cop.vλl} !== undefined) {${code}}` : code;
+        return this.isOptional() ? `if (${cop.getChildVλl()} !== undefined) {${code}}` : code;
     }
     private _getJitConstants = memo((stack: BaseRunType[] = []): JitConstants => {
         if (stack.length > maxStackDepth) throw new Error(maxStackErrorMessage);
@@ -445,10 +455,10 @@ export abstract class MemberRunType<T extends Type> extends BaseRunType<T> imple
         const member = this.getMemberType();
         const memberValues = member.getJitConstants(stack);
         const optional = this.isOptional() ? '?' : '';
-        const name = (this.src as any).name ?? this.src.kind;
-        const jitCts: JitConstants = {
+        const id = (this.src as TypeProperty).name?.toString() || (this.src as TypeIndexSignature).index?.kind || this.src.kind;
+        const jitCts: Mutable<JitConstants> = {
             ...memberValues,
-            jitId: `${name}${optional}:${memberValues.jitId}`,
+            jitId: `${id}${optional}:${memberValues.jitId}`,
         };
         stack.pop();
         return jitCts;

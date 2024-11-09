@@ -7,10 +7,19 @@
 
 import type {TypeProperty, TypePropertySignature} from '../_deepkit/src/reflection/type';
 import type {JitCompiler, JitErrorsCompiler} from '../jitCompiler';
-import {MockContext} from '../types';
-import {getPropIndex, getPropLiteral, getPropVarName, isSafePropName, memo, useArrayAccessorForProp} from '../utils';
-import {MemberRunType} from '../baseRunTypes';
+import {JitConstants, MockContext, Mutable} from '../types';
+import {
+    getPropIndex,
+    getPropLiteral,
+    getPropVarName,
+    isLastStringifyChildren,
+    isSafePropName,
+    memo,
+    useArrayAccessorForProp,
+} from '../utils';
+import {BaseRunType, MemberRunType} from '../baseRunTypes';
 import {jitUtils} from '../jitUtils';
+import {InterfaceRunType} from '../collectionRunType/interface';
 
 export class PropertyRunType extends MemberRunType<TypePropertySignature | TypeProperty> {
     src: TypePropertySignature | TypeProperty = null as any; // will be set after construction
@@ -18,7 +27,18 @@ export class PropertyRunType extends MemberRunType<TypePropertySignature | TypeP
     getChildVarName = memo(() => getPropVarName(this.src.name));
     getChildLiteral = memo(() => getPropLiteral(this.getChildVarName()));
     useArrayAccessor = memo(() => useArrayAccessorForProp(this.src.name));
+    getJitChildIndex = () => (this.getParent() as InterfaceRunType).getJitChildren().indexOf(this);
     isOptional = () => !!this.src.optional;
+    getJitConstants(stack: BaseRunType[] = []): JitConstants {
+        const jc = super.getJitConstants(stack) as Mutable<JitConstants>;
+        const name = (this.src as TypeProperty).name;
+        if (typeof name === 'symbol') {
+            jc.skipJit = true;
+            jc.skipJsonEncode = true;
+            jc.skipJsonDecode = true;
+        }
+        return jc;
+    }
 
     // #### jit code ####
 
@@ -53,18 +73,18 @@ export class PropertyRunType extends MemberRunType<TypePropertySignature | TypeP
         if (!child) return '';
         const propCode = child.compileJsonStringify(cop);
         // this can´t be processed in the parent as we need to handle the empty string case when value is undefined
-        const isFirst = this.getChildIndex() === 0;
-        const sep = isFirst ? '' : ',';
+        const isLast = isLastStringifyChildren(this);
+        const sep = isLast ? '' : '+","';
         // encoding safe property with ':' inside the string saves a little processing
         // when prop is not safe we need to double encode double quotes and escape characters
         const propDef = isSafePropName(this.src.name)
-            ? `'${sep}"${this.getChildVarName()}":'`
-            : `'${sep}'+${jitUtils.asJSONString(this.getChildLiteral())}+':'`;
+            ? `'"${this.getChildVarName()}":'`
+            : `${jitUtils.asJSONString(this.getChildLiteral())}+':'`;
         if (this.src.optional) {
             // TODO: check if json for an object with first property undefined is valid (maybe the comma must be dynamic too)
-            return `(${cop.getChildVλl()} === undefined ? '' : ${propDef}+${propCode})`;
+            return `(${cop.getChildVλl()} === undefined ? '' : ${propDef}+${propCode}${sep})`;
         }
-        return `${propDef}+${propCode}`;
+        return `${propDef}+${propCode}${sep}`;
     }
     mock(ctx?: Pick<MockContext, 'optionalPropertyProbability' | 'optionalProbability'>): any {
         const probability = ctx?.optionalPropertyProbability?.[this.getChildVarName()] ?? ctx?.optionalProbability ?? 0.5;

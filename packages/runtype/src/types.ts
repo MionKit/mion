@@ -42,6 +42,7 @@ export interface RunType {
 
     // ######## JIT functions ########
     getJitId(): string | number;
+    getJitHash: () => string;
     getJitConstants(stack?: RunType[]): JitConstants;
     createJitFunction(name: JitFnID): (...args: any[]) => any;
 }
@@ -125,7 +126,7 @@ export interface RunTypeError {
      * Path the the property that failed validation if the validated item was an object class, etc..
      * Index if item that failed validation was in an array.
      * null if validated item was a single property */
-    path: string;
+    path: (string | number)[];
     /** the type of the expected data */
     expected: string;
 }

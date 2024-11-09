@@ -11,6 +11,7 @@ import {ReflectionKind, Type} from './_deepkit/src/reflection/type';
 import {jitUtils} from './jitUtils';
 import {isAtomicRunType, isCollectionRunType, isMemberRunType} from './guards';
 import {validPropertyNameRegExp} from './constants';
+import {CollectionRunType, MemberRunType} from './baseRunTypes';
 
 export function toLiteral(value: number | string | boolean | undefined | null | bigint | RegExp | symbol): string {
     switch (typeof value) {
@@ -40,7 +41,7 @@ export function arrayToLiteral(value: any[]): string {
 }
 
 export function arrayToArgumentsLiteral(value: any[]): string {
-    return value.map((v) => `(${toLiteral(v)})`).join(', ');
+    return value.map((v) => `${toLiteral(v)}`).join(', ');
 }
 
 export function isFunctionKind(kind: ReflectionKind): boolean {
@@ -113,6 +114,13 @@ export function getPropIndex(src: Type): number {
     const types = (parent as {types: Type[]}).types;
     if (types) return types.indexOf(src);
     return 0;
+}
+
+export function isLastStringifyChildren(child: MemberRunType<any>): boolean {
+    const parent = child.getParent() as CollectionRunType<any>;
+    if (!parent) return false;
+    const siblings = parent.getJsonStringifyChildren();
+    return siblings.indexOf(child) === siblings.length - 1;
 }
 
 export function shouldSkipJit(rt: RunType): boolean {

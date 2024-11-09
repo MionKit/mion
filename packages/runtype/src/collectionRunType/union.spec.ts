@@ -4,8 +4,8 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
-import {runType} from '../runType';
 import {JitFnIDs} from '../constants';
+import {runType} from '../runType';
 
 describe('Atomic Union', () => {
     type AtomicUnion = Date | number | string | null | bigint;
@@ -403,9 +403,9 @@ describe('Union Mixed', () => {
 });
 
 describe('Union circular', () => {
-    type UnionC = Date | number | string | {a?: UnionC} | UnionC[];
+    type UnionC = Date | number | string | {a?: UnionC; b?: string} | UnionC[];
 
-    it('validate CircularProperty', () => {
+    it('validate Circular Union', () => {
         const rt = runType<UnionC>();
         const validate = rt.createJitFunction(JitFnIDs.isType);
         expect(validate(new Date())).toBe(true);
@@ -416,7 +416,10 @@ describe('Union circular', () => {
         expect(validate(['a', 'b', 'c'])).toBe(true);
         expect(validate([])).toBe(true);
         expect(validate([[]])).toBe(true);
-        expect(validate([[new Date()], 3, 'hello'])).toBe(true);
+        const x: UnionC = [new Date(), 3, 'hello'];
+        const x2: UnionC = [[new Date()], 3, 'hello'];
+        expect(validate(x)).toBe(true);
+        expect(validate(x2)).toBe(true);
 
         // error inside the recursion (bigint and boolean are not allowed)
         expect(validate([new Date(), true])).toBe(false);
@@ -425,7 +428,7 @@ describe('Union circular', () => {
         expect(validate(true)).toBe(false);
     });
 
-    it('validate CircularProperty + errors', () => {
+    it('validate Circular Union + errors', () => {
         const rt = runType<UnionC>();
         const valWithErrors = rt.createJitFunction(JitFnIDs.typeErrors);
         expect(valWithErrors(new Date())).toEqual([]);
@@ -447,7 +450,7 @@ describe('Union circular', () => {
         expect(valWithErrors(true)).toEqual([{path: [], expected: 'union'}]);
     });
 
-    it('encode/decode CircularProperty to json', () => {});
+    it('encode/decode Circular Union to json', () => {});
 
-    it('json stringify CircularProperty with discriminator', () => {});
+    it('json stringify Circular Union with discriminator', () => {});
 });

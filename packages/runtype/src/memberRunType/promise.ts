@@ -1,13 +1,12 @@
-import {ReflectionKind, type TypePromise} from '../_deepkit/src/reflection/type';
-import type {MockContext, JitConstants} from '../types';
-import {MemberRunType} from '../baseRunTypes';
-
 /* ########
  * 2024 mion
  * Author: Ma-jerez
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
+import {ReflectionKind, type TypePromise} from '../_deepkit/src/reflection/type';
+import type {MockContext, JitConstants} from '../types';
+import {MemberRunType} from '../baseRunTypes';
 
 const jitConstants: JitConstants = {
     skipJit: true,

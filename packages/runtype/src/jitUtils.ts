@@ -99,7 +99,7 @@ export const jitUtils = {
      * @param keys the keys that are expected to be in the object
      * @returns false if no unknown keys are found, otherwise an array with the extra unknown keys
      */
-    getObjectUnknownKeys(obj: any, keysId: string, ...keys: (string | number)[]): string[] {
+    getUnknownKeys(obj: any, keysId: string, ...keys: (string | number)[]): string[] {
         const _keysSet = jitObjectKeys.get(keysId);
         const keysSet = _keysSet || new Set<string | number>(keys.length === 0 ? [keysId] : keys);
         if (!_keysSet) jitObjectKeys.set(keysId, keysSet);
@@ -114,7 +114,7 @@ export const jitUtils = {
         return result;
     },
     // !!! DO NOT MODIFY METHOD WITHOUT REVIEWING JIT CODE INVOCATIONS!!!
-    objectHasUnknownKeys(obj: any, keysId: string, ...keys: (string | number)[]): boolean {
+    hasUnknownKeys(obj: any, keysId: string, ...keys: (string | number)[]): boolean {
         const _keysSet = jitObjectKeys.get(keysId);
         const keysSet = _keysSet || new Set<string | number>(keys.length === 0 ? [keysId] : keys);
         if (!_keysSet) jitObjectKeys.set(keysId, keysSet);
@@ -127,7 +127,7 @@ export const jitUtils = {
         return false;
     },
     // !!! DO NOT MODIFY METHOD WITHOUT REVIEWING JIT CODE INVOCATIONS!!!
-    errPush(εrr: RunTypeError[], path: string, expected: string) {
+    errPush(εrr: RunTypeError[], path: (string | number)[], expected: string) {
         εrr.push({path, expected});
     },
 };
@@ -153,7 +153,7 @@ export function quickHash(input: string, length = hashDefaultLength) {
     return result.slice(0, length);
 }
 
-export function getJitIDHash(jitId: string, length = hashDefaultLength): string {
+export function createJitIDHash(jitId: string, length = hashDefaultLength): string {
     let id = quickHash(jitId, length);
     let counter = 1;
     let existing = jitHashes.get(id);

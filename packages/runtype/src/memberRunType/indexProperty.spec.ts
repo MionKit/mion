@@ -112,7 +112,7 @@ describe('IndexType', () => {
     it('json stringify IndexWithExtraProps', () => {
         const jsonStringify = rtExtra.createJitFunction(JitFnIDs.jsonStringify);
         const fromJson = rtExtra.createJitFunction(JitFnIDs.jsonDecode);
-        const typeValue = {
+        const typeValue: IndexWithExtraProps = {
             key1: 'value1',
             key2: 'value2',
             a: 'extra1',
@@ -135,12 +135,12 @@ describe('IndexType', () => {
     });
 
     it('multiple index properties', () => {
-        const obj = {
+        const obj: MultipleIndex = {
             key1: 'value1',
             key2: 'value2',
             [Symbol('key3')]: new Date(),
             [Symbol('key4')]: new Date(),
-        };
+        }; // symbol keys should be skipped from jit
 
         const toJson = multipleIndex.createJitFunction(JitFnIDs.jsonEncode);
         const fromJson = multipleIndex.createJitFunction(JitFnIDs.jsonDecode);

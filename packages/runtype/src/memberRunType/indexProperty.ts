@@ -1,8 +1,10 @@
 import {ReflectionKind, TypeIndexSignature} from '../_deepkit/src/reflection/type';
-import {MemberRunType} from '../baseRunTypes';
-import {JitFnID, MockContext} from '../types';
+import {BaseRunType, MemberRunType} from '../baseRunTypes';
+import {JitConstants, JitFnID, MockContext, Mutable} from '../types';
 import {JitFnIDs} from '../constants';
 import type {JitCompiler, JitErrorsCompiler} from '../jitCompiler';
+import {InterfaceRunType} from '../collectionRunType/interface';
+import {isLastStringifyChildren} from '../utils';
 
 /* ########
  * 2024 mion
@@ -17,7 +19,7 @@ export class IndexSignatureRunType extends MemberRunType<TypeIndexSignature> {
         return false;
     }
     getChildVarName(): string {
-        return `prΦp${this.getNestLevel()}`;
+        return `p${this.getNestLevel()}`;
     }
     getChildLiteral(): string {
         return this.getChildVarName();
@@ -25,14 +27,26 @@ export class IndexSignatureRunType extends MemberRunType<TypeIndexSignature> {
     useArrayAccessor(): true {
         return true;
     }
-    jitFnHasReturn(copId: JitFnID): boolean {
-        switch (copId) {
+    getJitConstants(stack: BaseRunType[] = []): JitConstants {
+        const jc = super.getJitConstants(stack) as Mutable<JitConstants>;
+        const index = (this.src as TypeIndexSignature).index?.kind || undefined;
+        if (index === ReflectionKind.symbol) {
+            jc.skipJit = true;
+            jc.skipJsonEncode = true;
+            jc.skipJsonDecode = true;
+        }
+        return jc;
+    }
+    jitFnHasReturn(fnId: JitFnID): boolean {
+        switch (fnId) {
             case JitFnIDs.isType:
                 return true;
             case JitFnIDs.jsonStringify:
                 return true;
+            case JitFnIDs.hasUnknownKeys:
+                return true;
             default:
-                return super.jitFnHasReturn(copId);
+                return super.jitFnHasReturn(fnId);
         }
     }
     // #### jit code ####
@@ -59,14 +73,24 @@ export class IndexSignatureRunType extends MemberRunType<TypeIndexSignature> {
             }
         `;
     }
+
+    private getSkipCode(cop: JitCompiler, prop: string): string {
+        const namedChildren = (this.getParent() as InterfaceRunType).getNamedChildren();
+        const skipNames = namedChildren.length
+            ? namedChildren.map((child) => `${child.getChildLiteral()} === ${prop}`).join(' || ')
+            : '';
+        return namedChildren.length ? `if (${skipNames}) continue;\n` : '';
+    }
+
     _compileJsonEncode(cop: JitCompiler): string {
         const child = this.getJsonEncodeChild();
         if (!child) return '';
         const varName = cop.vλl;
         const prop = this.getChildVarName();
+        const skipCode = this.getSkipCode(cop, prop);
         return `
             for (const ${prop} in ${varName}) {
-                ${child.compileJsonEncode(cop)}
+                ${skipCode}${child.compileJsonEncode(cop)}
             }
         `;
     }
@@ -75,9 +99,10 @@ export class IndexSignatureRunType extends MemberRunType<TypeIndexSignature> {
         if (!child) return '';
         const varName = cop.vλl;
         const prop = this.getChildVarName();
+        const skipCode = this.getSkipCode(cop, prop);
         return `
             for (const ${prop} in ${varName}) {
-                ${child.compileJsonDecode(cop)}
+                ${skipCode}${child.compileJsonDecode(cop)}
             }
         `;
     }
@@ -87,14 +112,57 @@ export class IndexSignatureRunType extends MemberRunType<TypeIndexSignature> {
         if (!child) return `''`;
         const varName = cop.vλl;
         const prop = this.getChildVarName();
-        const arrName = `prΦpsλrr${cop.length}`;
+        const arrName = `ls${this.getNestLevel()}`;
         const jsonVal = child.compileJsonStringify(cop);
+        const isLast = isLastStringifyChildren(this);
+        const sep = isLast ? '' : '+","';
+        const skipCode = this.getSkipCode(cop, prop);
         return `
             const ${arrName} = [];
             for (const ${prop} in ${varName}) {
-                if (${prop} !== undefined) ${arrName}.push(µTils.asJSONString(${prop}) + ':' + ${jsonVal});
+                ${skipCode}if (${prop} !== undefined) ${arrName}.push(µTils.asJSONString(${prop}) + ':' + ${jsonVal});
             }
-            return ${arrName}.join(',');
+            return ${arrName}.join(',')${sep};
+        `;
+    }
+
+    _compileHasUnknownKeys(cop: JitCompiler): string {
+        if (this.getMemberType().getFamily() === 'A') return '';
+        const memberCode = this.getMemberType().compileHasUnknownKeys(cop);
+        if (!memberCode) return '';
+        const varName = cop.vλl;
+        const prop = this.getChildVarName();
+        const resultVal = `res${this.getNestLevel()}`;
+        return `
+            for (const ${prop} in ${varName}) {
+                const ${resultVal} = ${memberCode};
+                if (${resultVal}) return true;
+            }
+            return false;
+        `;
+    }
+    _compileUnknownKeyErrors(cop: JitErrorsCompiler): string {
+        if (this.getMemberType().getFamily() === 'A') return '';
+        const memberCode = this.getMemberType().compileUnknownKeyErrors(cop);
+        return this.traverseCode(cop, memberCode);
+    }
+    _compileStripUnknownKeys(cop: JitCompiler): string {
+        if (this.getMemberType().getFamily() === 'A') return '';
+        const memberCode = this.getMemberType().compileStripUnknownKeys(cop);
+        return this.traverseCode(cop, memberCode);
+    }
+    _compileUnknownKeysToUndefined(cop: JitCompiler): string {
+        if (this.getMemberType().getFamily() === 'A') return '';
+        const memberCode = this.getMemberType().compileUnknownKeysToUndefined(cop);
+        return this.traverseCode(cop, memberCode);
+    }
+    traverseCode(cop: JitCompiler, memberCode: string): string {
+        if (!memberCode) return '';
+        const prop = this.getChildVarName();
+        return `
+            for (const ${prop} in ${cop.vλl}) {
+                ${memberCode}
+            }
         `;
     }
     mock(ctx?: Pick<MockContext, 'parentObj'>): any {

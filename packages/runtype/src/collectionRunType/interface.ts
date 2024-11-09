@@ -8,7 +8,7 @@ import {TypeObjectLiteral, TypeClass, TypeIntersection} from '../_deepkit/src/re
 import {MockContext, RunType} from '../types';
 import {getJitErrorPath, getExpected, toLiteral, arrayToArgumentsLiteral} from '../utils';
 import {PropertyRunType} from '../memberRunType/property';
-import {CollectionRunType} from '../baseRunTypes';
+import {CollectionRunType, MemberRunType} from '../baseRunTypes';
 import {MethodSignatureRunType} from '../memberRunType/methodSignature';
 import {IndexSignatureRunType} from '../memberRunType/indexProperty';
 import {MethodRunType} from '../memberRunType/method';
@@ -26,8 +26,12 @@ export class InterfaceRunType<
         if (childrenNames.length === 0) return '';
         const keysID = toLiteral(childrenNames.join(':'));
         const keysArgs = childrenNames.length === 1 ? keysID : `${keysID}, ${arrayToArgumentsLiteral(childrenNames)}`;
-        if (returnKeys) return `µTils.getObjectUnknownKeys(${cop.vλl}, ${keysArgs})`;
-        return `µTils.objectHasUnknownKeys(${cop.vλl}, ${keysArgs})`;
+        if (returnKeys) return `µTils.getUnknownKeys(${cop.vλl}, ${keysArgs})`;
+        return `(typeof ${cop.vλl} === 'object' && ${cop.vλl} !== null && µTils.hasUnknownKeys(${cop.vλl}, ${keysArgs}))`;
+    }
+
+    getNamedChildren(): InterfaceMember[] {
+        return this.getJitChildren().filter((prop) => !!(prop.src as any).name) as InterfaceMember[];
     }
 
     // #### collection's jit code ####
@@ -66,7 +70,11 @@ export class InterfaceRunType<
         return childrenCode;
     }
     _compileJsonStringify(cop: JitCompiler): string {
-        const children = this.getJitChildren();
+        const children = this.getJsonStringifyChildren();
+        if (children.length === 0) return `''`;
+        const AllOptional = children.every((prop) => (prop as MemberRunType<any>).isOptional());
+        // if all properties are optional,  we can not optimize and use JSON.stringify
+        if (AllOptional) return `JSON.stringify(${cop.vλl})`;
         const childrenCode = children
             .map((prop) => prop.compileJsonStringify(cop))
             .filter((c) => !!c)
@@ -81,7 +89,7 @@ export class InterfaceRunType<
     };
     _compileUnknownKeyErrors = (cop: JitErrorsCompiler): string => {
         const allJitChildren = this.getJitChildren();
-        const unknownVar = `µnkPrΦps${this.getNestLevel()}`;
+        const unknownVar = `µnkps${this.getNestLevel()}`;
         const keyVar = `kεy${this.getNestLevel()}`;
         const parentCode = `
             const ${unknownVar} = ${this.callCheckUnknownProperties(cop, allJitChildren, true)};
@@ -97,7 +105,7 @@ export class InterfaceRunType<
     };
     _compileStripUnknownKeys = (cop: JitCompiler): string => {
         const allJitChildren = this.getJitChildren();
-        const unknownVar = `µnkPrΦps${this.getNestLevel()}`;
+        const unknownVar = `µnkps${this.getNestLevel()}`;
         const keyVar = `kεy${this.getNestLevel()}`;
         const parentCode = `
             const ${unknownVar} = ${this.callCheckUnknownProperties(cop, allJitChildren, true)};
@@ -110,7 +118,7 @@ export class InterfaceRunType<
     };
     _compileUnknownKeysToUndefined = (cop: JitCompiler): string => {
         const allJitChildren = this.getJitChildren();
-        const unknownVar = `µnkPrΦps${this.getNestLevel()}`;
+        const unknownVar = `µnkps${this.getNestLevel()}`;
         const keyVar = `kεy${this.getNestLevel()}`;
         const parentCode = `
             const ${unknownVar} = ${this.callCheckUnknownProperties(cop, allJitChildren, true)};
