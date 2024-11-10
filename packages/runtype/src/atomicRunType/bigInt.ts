@@ -47,10 +47,10 @@ export class BigIntRunType extends AtomicRunType<TypeBigInt> {
 
 export const BigIntJitJsonENcoder: JitJsonEncoder = {
     decodeFromJson(vλl: string): string {
-        return `${vλl} = BigInt(${vλl})`;
+        return `BigInt(${vλl})`;
     },
     encodeToJson(vλl: string): string {
-        return `${vλl} = ${vλl}.toString()`;
+        return `${vλl}.toString()`;
     },
     stringify(vλl: string): string {
         return `'"'+${vλl}.toString()+'"'`;

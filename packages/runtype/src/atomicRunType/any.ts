@@ -36,12 +36,6 @@ export class AnyRunType extends AtomicRunType<TypeAny | TypeUnknown> {
     _compileTypeErrors(): '' {
         return '';
     }
-    _compileJsonEncode(cop: JitCompiler): string {
-        return cop.vλl;
-    }
-    _compileJsonDecode(cop: JitCompiler): string {
-        return cop.vλl;
-    }
     _compileJsonStringify(cop: JitCompiler): string {
         return `JSON.stringify(${cop.vλl})`;
     }

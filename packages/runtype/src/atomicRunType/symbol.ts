@@ -44,10 +44,10 @@ export class SymbolRunType extends AtomicRunType<TypeSymbol> {
 
 export const SymbolJitJsonEncoder: JitJsonEncoder = {
     decodeFromJson(vλl: string): string {
-        return `${vλl} = Symbol(${vλl}.substring(7))`;
+        return `Symbol(${vλl}.substring(7))`;
     },
     encodeToJson(vλl: string): string {
-        return `${vλl} =  'Symbol:' + (${vλl}.description || '')`;
+        return `'Symbol:' + (${vλl}.description || '')`;
     },
     stringify(vλl: string): string {
         return `JSON.stringify('Symbol:' + (${vλl}.description || ''))`;

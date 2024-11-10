@@ -27,14 +27,8 @@ export class BooleanRunType extends AtomicRunType<TypeBoolean> {
     _compileTypeErrors(cop: JitErrorsCompiler): string {
         return `if (typeof ${cop.vλl} !== 'boolean') µTils.errPush(${cop.args.εrr},${getJitErrorPath(cop)},${getExpected(this)})`;
     }
-    _compileJsonEncode(cop: JitCompiler): string {
-        return cop.vλl;
-    }
-    _compileJsonDecode(cop: JitCompiler): string {
-        return cop.vλl;
-    }
-    _compileJsonStringify(cop: JitCompiler): string {
-        return cop.vλl;
+    _compileJsonStringify(cop: JitErrorsCompiler): string {
+        return `(${cop.vλl} ? 'true' : 'false')`;
     }
     mock(): boolean {
         return mockBoolean();

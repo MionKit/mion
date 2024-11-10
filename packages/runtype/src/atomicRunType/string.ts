@@ -29,12 +29,7 @@ export class StringRunType extends AtomicRunType<TypeString> {
     _compileTypeErrors(cop: JitErrorsCompiler): string {
         return `if (typeof ${cop.vλl} !== 'string') µTils.errPush(${cop.args.εrr},${getJitErrorPath(cop)},${getExpected(this)})`;
     }
-    _compileJsonEncode(cop: JitCompiler): string {
-        return cop.vλl;
-    }
-    _compileJsonDecode(cop: JitCompiler): string {
-        return cop.vλl;
-    }
+
     _compileJsonStringify(cop: JitCompiler): string {
         return `µTils.asJSONString(${cop.vλl})`;
     }

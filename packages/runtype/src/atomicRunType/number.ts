@@ -28,15 +28,6 @@ export class NumberRunType extends AtomicRunType<TypeNumber> {
     _compileTypeErrors(cop: JitErrorsCompiler): string {
         return `if(!(${this._compileIsType(cop)})) µTils.errPush(${cop.args.εrr},${getJitErrorPath(cop)},${getExpected(this)})`;
     }
-    _compileJsonEncode(cop: JitCompiler): string {
-        return cop.vλl;
-    }
-    _compileJsonDecode(cop: JitCompiler): string {
-        return cop.vλl;
-    }
-    _compileJsonStringify(cop: JitCompiler): string {
-        return cop.vλl;
-    }
     mock(cop?: Pick<MockContext, 'minNumber' | 'maxNumber'>): number {
         return mockNumber(cop?.minNumber, cop?.maxNumber);
     }

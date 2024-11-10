@@ -46,7 +46,7 @@ export class DateRunType extends AtomicRunType<TypeClass> {
 
 export const DateJitJsonENcoder: JitJsonEncoder = {
     decodeFromJson(vλl: string): string {
-        return `${vλl} = new Date(${vλl})`;
+        return `new Date(${vλl})`;
     },
     encodeToJson(vλl: string): string {
         return vλl;
