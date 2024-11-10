@@ -103,6 +103,7 @@ export class UnionRunType extends CollectionRunType<TypeUnion> {
 
         return code;
     }
+
     /**
      * When a union is decoded from json it expects de two elements array format: [unionDiscriminator, Value to decode]
      * the first element is the index of the type in the union.

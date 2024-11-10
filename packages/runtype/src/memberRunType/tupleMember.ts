@@ -53,11 +53,11 @@ export class TupleMemberRunType extends MemberRunType<TypeTupleMember> {
     }
     _compileJsonDecode(cop: JitCompiler): string {
         const child = this.getJsonDecodeChild();
-        if (!child) return this.isOptional() ? `if (${cop.getChildVλl()} === undefined ) {${cop.getChildVλl()} = null}` : '';
+        if (!child) return this.isOptional() ? `if (${cop.getChildVλl()} === null ) {${cop.getChildVλl()} = undefined}` : '';
         const childCode = child.compileJsonDecode(cop);
         const isExpression = childIsExpression(cop, JitFnIDs.jsonDecode, child);
         const code = isExpression ? `${cop.getChildVλl()} = ${childCode};` : childCode;
-        return this.isOptional() ? `if (${cop.getChildVλl()} === undefined ) {${cop.getChildVλl()} = null} else {${code}}` : code;
+        return this.isOptional() ? `if (${cop.getChildVλl()} === null ) {${cop.getChildVλl()} = undefined} else {${code}}` : code;
     }
     _compileJsonStringify(cop: JitCompiler): string {
         const itemCode = this.getMemberType().compileJsonStringify(cop);

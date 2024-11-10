@@ -59,7 +59,7 @@ describe('IndexType', () => {
     it('validate index run type + errors', () => {
         const valWithErrors = rt.createJitFunction(JitFnIDs.typeErrors);
         expect(valWithErrors({key1: 'value1', key2: 'value2'})).toEqual([]);
-        expect(valWithErrors('hello')).toEqual([{path: [], expected: 'objectLiteral'}]);
+        expect(valWithErrors('hello')).toEqual([{path: [], expected: 'object'}]);
         expect(valWithErrors({key1: 'value1', key2: 123})).toEqual([{path: ['key2'], expected: 'string'}]);
     });
 
@@ -71,7 +71,7 @@ describe('IndexType', () => {
         ]);
         expect(valWithErrors({a: 'hello', b: 2, key1: 'value1', key2: 'value2'})).toEqual([]); // no errors
         expect(valWithErrors({a: 'hello', b: 2, key1: 'value1', key2: 2})).toEqual([]); // no errors
-        expect(valWithErrors('hello')).toEqual([{path: [], expected: 'objectLiteral'}]); // invalid type
+        expect(valWithErrors('hello')).toEqual([{path: [], expected: 'object'}]); // invalid type
         expect(valWithErrors({a: 'string', b: 123})).toEqual([]); // no errors
         expect(valWithErrors({a: 'string', b: 'string'})).toEqual([
             {path: ['b'], expected: 'number'}, // invalid type for property 'b'
@@ -176,7 +176,7 @@ describe('IndexType nested', () => {
     it('validate index run type + errors', () => {
         const valWithErrors = rtNested.createJitFunction(JitFnIDs.typeErrors);
         expect(valWithErrors({key1: {nestedKey1: 1, nestedKey2: 2}})).toEqual([]);
-        expect(valWithErrors('hello')).toEqual([{path: [], expected: 'objectLiteral'}]);
+        expect(valWithErrors('hello')).toEqual([{path: [], expected: 'object'}]);
         expect(valWithErrors({key1: {nestedKey1: 1, nestedKey2: '2'}})).toEqual([
             {path: ['key1', 'nestedKey2'], expected: 'number'},
         ]);
@@ -185,7 +185,7 @@ describe('IndexType nested', () => {
     it('validate index run type with Date + errors', () => {
         const valWithErrors = rtNested2.createJitFunction(JitFnIDs.typeErrors);
         expect(valWithErrors({key1: {nestedKey1: new Date(), nestedKey2: new Date()}})).toEqual([]);
-        expect(valWithErrors('hello')).toEqual([{path: [], expected: 'objectLiteral'}]);
+        expect(valWithErrors('hello')).toEqual([{path: [], expected: 'object'}]);
         expect(valWithErrors({key1: {nestedKey1: new Date(), nestedKey2: '2'}})).toEqual([
             {path: ['key1', 'nestedKey2'], expected: 'date'},
         ]);

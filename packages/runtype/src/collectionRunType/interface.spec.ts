@@ -79,6 +79,7 @@ describe('Interface', () => {
         ).toBe(false);
         expect(validate({})).toBe(false);
         expect(validate('hello')).toBe(false);
+        expect(validate(null)).toBe(false);
     });
 
     it('validate empty object for ObjectAllOptional type', () => {
@@ -147,6 +148,11 @@ describe('Interface', () => {
             {path: ['deep', 'a'], expected: 'string'},
             {path: ['deep', 'b'], expected: 'number'},
         ]);
+    });
+
+    it('validate object + errors for null', () => {
+        const valWithErrors = rt.createJitFunction(JitFnIDs.typeErrors);
+        expect(valWithErrors(null)).toEqual([{path: [], expected: 'object'}]);
     });
 
     it('encode/decode to json', () => {
@@ -583,7 +589,7 @@ describe('Interface with circular ref type array', () => {
             {path: ['children', 0, 'name'], expected: 'string'},
             {path: ['children', 1, 'children'], expected: 'array'},
         ]);
-        expect(valWithErrors(obj4)).toEqual([{path: ['children', 0], expected: 'objectLiteral'}]);
+        expect(valWithErrors(obj4)).toEqual([{path: ['children', 0], expected: 'object'}]);
     });
 
     it('encode/decode to json', () => {
@@ -778,7 +784,7 @@ describe('Interface with nested circular type where root is not the circular ref
         expect(valWithErrors(obj4)).toEqual([{path: ['ciChild', 'embedded', 'child', 'embedded', 'hello'], expected: 'string'}]);
         expect(valWithErrors(obj5)).toEqual([
             {path: ['isRoot'], expected: 'literal'},
-            {path: ['ciChild', 'embedded', 'child'], expected: 'objectLiteral'},
+            {path: ['ciChild', 'embedded', 'child'], expected: 'object'},
         ]);
     });
 
@@ -924,21 +930,21 @@ describe('Interface with nested circular + multiple circular', () => {
         const obj5 = {isRoot: false, ciChild: {name: 'hello', big: 1n, embedded: {hello: 'world', child: 123}}, ciDate};
         expect(valWithErrors(obj3)).toEqual([
             {path: ['ciChild', 'embedded', 'hello'], expected: 'string'},
-            {path: ['ciDate'], expected: 'objectLiteral'},
+            {path: ['ciDate'], expected: 'object'},
         ]);
         expect(valWithErrors(obj4)).toEqual([{path: ['ciChild', 'embedded', 'child', 'embedded', 'hello'], expected: 'string'}]);
         expect(valWithErrors(obj5)).toEqual([
             {path: ['isRoot'], expected: 'literal'},
-            {path: ['ciChild', 'embedded', 'child'], expected: 'objectLiteral'},
+            {path: ['ciChild', 'embedded', 'child'], expected: 'object'},
         ]);
 
         // wrong ciDate
         obj5.ciDate = {date: 'fello', month: 1, year: 2021, embedded: true} as any;
         expect(valWithErrors(obj5)).toEqual([
             {path: ['isRoot'], expected: 'literal'},
-            {path: ['ciChild', 'embedded', 'child'], expected: 'objectLiteral'},
+            {path: ['ciChild', 'embedded', 'child'], expected: 'object'},
             {path: ['ciDate', 'date'], expected: 'date'},
-            {path: ['ciDate', 'embedded'], expected: 'objectLiteral'},
+            {path: ['ciDate', 'embedded'], expected: 'object'},
         ]);
     });
 
@@ -1023,8 +1029,8 @@ describe('Interface with circular ref tuple', () => {
 
         const obj3 = {name: 'hello', parent: ['world', 123]};
         const obj4 = {name: 'hello', parent: ['world', {name: 'world', parent: ['hello', 123]}]};
-        expect(valWithErrors(obj3)).toEqual([{path: ['parent', 1], expected: 'objectLiteral'}]);
-        expect(valWithErrors(obj4)).toEqual([{path: ['parent', 1, 'parent', 1], expected: 'objectLiteral'}]);
+        expect(valWithErrors(obj3)).toEqual([{path: ['parent', 1], expected: 'object'}]);
+        expect(valWithErrors(obj4)).toEqual([{path: ['parent', 1, 'parent', 1], expected: 'object'}]);
     });
 
     it('encode/decode to json', () => {

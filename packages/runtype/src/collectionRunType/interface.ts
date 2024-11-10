@@ -37,6 +37,8 @@ export class InterfaceRunType<
 
     // #### collection's jit code ####
 
+    // extra check to prevent empty array passing as object where all properties are optional
+    // when this check is disabled empty array will pass as object but fail when checking for properties
     private getExtraArrayCheckCode(cop: JitCompiler): string {
         if (this.areAllChildrenOptional === undefined) {
             this.areAllChildrenOptional = this.getJitChildren().every(
@@ -63,7 +65,7 @@ export class InterfaceRunType<
         const childrenCode = children.map((prop) => prop.compileTypeErrors(cop)).join(';');
         const arrayCheck = this.getExtraArrayCheckCode(cop);
         return `
-            if (typeof ${varName} !== 'object' && ${varName} !== null ${arrayCheck}) {
+            if (typeof ${varName} !== 'object' || ${varName} === null ${arrayCheck}) {
                 µTils.errPush(${cop.args.εrr},${getJitErrorPath(cop)},${getExpected(this)});
             } else {
                 ${childrenCode}
