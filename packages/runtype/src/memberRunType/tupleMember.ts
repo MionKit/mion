@@ -9,6 +9,7 @@ import type {TypeTupleMember} from '../_deepkit/src/reflection/type';
 import type {JitCompiler, JitErrorsCompiler} from '../jitCompiler';
 import {BaseRunType, MemberRunType} from '../baseRunTypes';
 import {JitConstants, MockContext, Mutable} from '../types';
+import {JitFnIDs} from '../constants';
 
 export class TupleMemberRunType extends MemberRunType<TypeTupleMember> {
     src: TypeTupleMember = null as any; // will be set after construction
@@ -42,20 +43,20 @@ export class TupleMemberRunType extends MemberRunType<TypeTupleMember> {
         return this.isOptional() ? `if (${cop.getChildVλl()} !== undefined) {${itemCode}}` : itemCode;
     }
     _compileJsonEncode(cop: JitCompiler): string {
-        const shouldSkip = this.getMemberType().getJitConstants().skipJsonEncode;
-        const itemCode = shouldSkip ? '' : this.getMemberType().compileJsonEncode(cop);
-        const elseBlock = shouldSkip ? '' : `else {${itemCode}}`;
-        return this.isOptional()
-            ? `if (${cop.getChildVλl()} === undefined ) {${cop.getChildVλl()} = null} ${elseBlock}`
-            : itemCode;
+        const child = this.getJsonEncodeChild();
+        if (!child) return this.isOptional() ? `if (${cop.getChildVλl()} === undefined ) {${cop.getChildVλl()} = null}` : '';
+        const childCode = child.compileJsonEncode(cop);
+        const isExpression = this.childIsExpression(cop, JitFnIDs.jsonEncode, child);
+        const code = isExpression ? `${cop.getChildVλl()} = ${childCode};` : childCode;
+        return this.isOptional() ? `if (${cop.getChildVλl()} === undefined ) {${cop.getChildVλl()} = null} else {${code}}` : code;
     }
     _compileJsonDecode(cop: JitCompiler): string {
-        const shouldSkip = this.getMemberType().getJitConstants().skipJsonDecode;
-        const itemCode = shouldSkip ? '' : this.getMemberType().compileJsonDecode(cop);
-        const elseBlock = shouldSkip ? '' : `else {${itemCode}}`;
-        return this.isOptional()
-            ? `if (${cop.getChildVλl()} === null) {${cop.getChildVλl()} = undefined} ${elseBlock}`
-            : itemCode;
+        const child = this.getJsonDecodeChild();
+        if (!child) return this.isOptional() ? `if (${cop.getChildVλl()} === undefined ) {${cop.getChildVλl()} = null}` : '';
+        const childCode = child.compileJsonDecode(cop);
+        const isExpression = this.childIsExpression(cop, JitFnIDs.jsonDecode, child);
+        const code = isExpression ? `${cop.getChildVλl()} = ${childCode};` : childCode;
+        return this.isOptional() ? `if (${cop.getChildVλl()} === undefined ) {${cop.getChildVλl()} = null} else {${code}}` : code;
     }
     _compileJsonStringify(cop: JitCompiler): string {
         const itemCode = this.getMemberType().compileJsonStringify(cop);

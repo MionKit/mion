@@ -10,7 +10,7 @@ import {JitFnID, MockContext} from '../types';
 import {mockRecursiveEmptyArray, random} from '../mock';
 import {MemberRunType} from '../baseRunTypes';
 import type {JitCompiler, JitErrorsCompiler} from '../jitCompiler';
-import {getJitErrorPath, getExpected, shouldSkiJsonEncode, shouldSkipJit, shouldSkipJsonDecode} from '../utils';
+import {getJitErrorPath, getExpected, shouldSkipJit} from '../utils';
 import {JitFnIDs} from '../constants';
 
 export class ArrayRunType extends MemberRunType<TypeArray> {
@@ -74,22 +74,22 @@ export class ArrayRunType extends MemberRunType<TypeArray> {
     _compileJsonEncode(cop: JitCompiler): string {
         const varName = cop.vλl;
         const index = this.getChildVarName();
-        if (shouldSkiJsonEncode(this)) return '';
-        return `
-            for (let ${index} = 0; ${index} < ${varName}.length; ${index}++) {
-                ${this.getMemberType().compileJsonEncode(cop)}
-            }
-        `;
+        const child = this.getJsonEncodeChild();
+        if (!child) return '';
+        const childCode = child.compileJsonEncode(cop);
+        const isExpression = this.childIsExpression(cop, JitFnIDs.jsonEncode, child);
+        const code = isExpression ? `${cop.getChildVλl()} = ${childCode};` : childCode;
+        return `for (let ${index} = 0; ${index} < ${varName}.length; ${index}++) {${code}}`;
     }
     _compileJsonDecode(cop: JitCompiler): string {
         const varName = cop.vλl;
         const index = this.getChildVarName();
-        if (shouldSkipJsonDecode(this)) return '';
-        return `
-            for (let ${index} = 0; ${index} < ${varName}.length; ${index}++) {
-                ${this.getMemberType().compileJsonDecode(cop)}
-            }
-        `;
+        const child = this.getJsonDecodeChild();
+        if (!child) return '';
+        const childCode = child.compileJsonDecode(cop);
+        const isExpression = this.childIsExpression(cop, JitFnIDs.jsonDecode, child);
+        const code = isExpression ? `${cop.getChildVλl()} = ${childCode};` : childCode;
+        return `for (let ${index} = 0; ${index} < ${varName}.length; ${index}++) {${code}}`;
     }
     _compileJsonStringify(cop: JitCompiler): string {
         const varName = cop.vλl;

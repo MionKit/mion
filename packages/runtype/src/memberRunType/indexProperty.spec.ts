@@ -6,6 +6,7 @@
  * ######## */
 import {runType} from '../runType';
 import {JitFnIDs} from '../constants';
+import path from 'path';
 
 describe('IndexType', () => {
     interface IndexString {
@@ -152,19 +153,28 @@ describe('IndexType', () => {
     });
 });
 
-describe('IndexType recursion', () => {
-    const rtRec = runType<{[key: string]: {[key: string]: number}}>();
+describe('IndexType nested', () => {
+    const rtNested = runType<{[key: string]: {[key: string]: number}}>();
+    const rtNested2 = runType<{[key: string]: {[key: string]: Date}}>();
 
     it('validate index run type', () => {
-        const validate = rtRec.createJitFunction(JitFnIDs.isType);
+        const validate = rtNested.createJitFunction(JitFnIDs.isType);
         expect(validate({})).toBe(true);
         expect(validate({key1: {nestedKey1: 1, nestedKey2: 2}})).toBe(true);
         expect(validate({key1: {nestedKey1: 1, nestedKey2: '2'}})).toBe(false);
         expect(validate('hello')).toBe(false);
     });
 
+    it('validate index run type with Date', () => {
+        const validate = rtNested2.createJitFunction(JitFnIDs.isType);
+        expect(validate({})).toBe(true);
+        expect(validate({key1: {nestedKey1: new Date(), nestedKey2: new Date()}})).toBe(true);
+        expect(validate({key1: {nestedKey1: new Date(), nestedKey2: '2'}})).toBe(false);
+        expect(validate('hello')).toBe(false);
+    });
+
     it('validate index run type + errors', () => {
-        const valWithErrors = rtRec.createJitFunction(JitFnIDs.typeErrors);
+        const valWithErrors = rtNested.createJitFunction(JitFnIDs.typeErrors);
         expect(valWithErrors({key1: {nestedKey1: 1, nestedKey2: 2}})).toEqual([]);
         expect(valWithErrors('hello')).toEqual([{path: [], expected: 'objectLiteral'}]);
         expect(valWithErrors({key1: {nestedKey1: 1, nestedKey2: '2'}})).toEqual([
@@ -172,30 +182,60 @@ describe('IndexType recursion', () => {
         ]);
     });
 
+    it('validate index run type with Date + errors', () => {
+        const valWithErrors = rtNested2.createJitFunction(JitFnIDs.typeErrors);
+        expect(valWithErrors({key1: {nestedKey1: new Date(), nestedKey2: new Date()}})).toEqual([]);
+        expect(valWithErrors('hello')).toEqual([{path: [], expected: 'objectLiteral'}]);
+        expect(valWithErrors({key1: {nestedKey1: new Date(), nestedKey2: '2'}})).toEqual([
+            {path: ['key1', 'nestedKey2'], expected: 'date'},
+        ]);
+    });
+
     it('encode to json', () => {
-        const toJson = rtRec.createJitFunction(JitFnIDs.jsonEncode);
+        const toJson = rtNested.createJitFunction(JitFnIDs.jsonEncode);
         const obj = {key1: {nestedKey1: 1, nestedKey2: 2}};
         expect(toJson(obj)).toEqual(obj);
     });
 
+    it('encode to json Date', () => {
+        const toJson = rtNested2.createJitFunction(JitFnIDs.jsonEncode);
+        const obj = {key1: {nestedKey1: new Date(), nestedKey2: new Date()}};
+        expect(toJson(obj)).toEqual(obj);
+    });
+
     it('decode from json', () => {
-        const fromJson = rtRec.createJitFunction(JitFnIDs.jsonDecode);
+        const fromJson = rtNested.createJitFunction(JitFnIDs.jsonDecode);
         const obj = {key1: {nestedKey1: 1, nestedKey2: 2}};
         const jsonString = JSON.stringify(obj);
         expect(fromJson(JSON.parse(jsonString))).toEqual(obj);
     });
 
+    it('decode from json Date', () => {
+        const fromJson = rtNested2.createJitFunction(JitFnIDs.jsonDecode);
+        const obj = {key1: {nestedKey1: new Date(), nestedKey2: new Date()}};
+        const jsonString = JSON.stringify(obj);
+        expect(fromJson(JSON.parse(jsonString))).toEqual(obj);
+    });
+
     it('json stringify', () => {
-        const jsonStringify = rtRec.createJitFunction(JitFnIDs.jsonStringify);
-        const fromJson = rtRec.createJitFunction(JitFnIDs.jsonDecode);
+        const jsonStringify = rtNested.createJitFunction(JitFnIDs.jsonStringify);
+        const fromJson = rtNested.createJitFunction(JitFnIDs.jsonDecode);
         const obj = {key1: {nestedKey1: 1, nestedKey2: 2}};
         const roundTrip = fromJson(JSON.parse(jsonStringify(obj)));
         expect(roundTrip).toEqual(obj);
     });
 
+    it('json stringify Date', () => {
+        const jsonStringify = rtNested2.createJitFunction(JitFnIDs.jsonStringify);
+        const fromJson = rtNested2.createJitFunction(JitFnIDs.jsonDecode);
+        const obj = {key1: {nestedKey1: new Date(), nestedKey2: new Date()}};
+        const roundTrip = fromJson(JSON.parse(jsonStringify(obj)));
+        expect(roundTrip).toEqual(obj);
+    });
+
     it('mock', () => {
-        expect(rtRec.mock() instanceof Object).toBe(true);
-        const validate = rtRec.createJitFunction(JitFnIDs.isType);
-        expect(validate(rtRec.mock())).toBe(true);
+        expect(rtNested.mock() instanceof Object).toBe(true);
+        const validate = rtNested.createJitFunction(JitFnIDs.isType);
+        expect(validate(rtNested.mock())).toBe(true);
     });
 });

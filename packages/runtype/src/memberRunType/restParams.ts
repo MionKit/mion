@@ -37,10 +37,10 @@ export class RestParamsRunType extends MemberRunType<TypeRest> {
     }
     _compileIsType(cop: JitCompiler): string {
         const varName = cop.vλl;
-        const indexName = this.getChildVarName();
+        const index = this.getChildVarName();
         const itemCode = this.getMemberType().compileIsType(cop);
         return `
-            for (let ${indexName} = ${this.getChildIndex()}; ${indexName} < ${varName}.length; ${indexName}++) {
+            for (let ${index} = ${this.getChildIndex()}; ${index} < ${varName}.length; ${index}++) {
                 if (!(${itemCode})) return false;
             }
             return true;
@@ -48,33 +48,41 @@ export class RestParamsRunType extends MemberRunType<TypeRest> {
     }
     _compileTypeErrors(cop: JitErrorsCompiler): string {
         const varName = cop.vλl;
-        const indexName = this.getChildVarName();
+        const index = this.getChildVarName();
         const itemCode = this.getMemberType().compileTypeErrors(cop);
-        return `for (let ${indexName} = ${this.getChildIndex()}; ${indexName} < ${varName}.length; ${indexName}++) {${itemCode}}`;
+        return `for (let ${index} = ${this.getChildIndex()}; ${index} < ${varName}.length; ${index}++) {${itemCode}}`;
     }
     _compileJsonEncode(cop: JitCompiler): string {
         const varName = cop.vλl;
-        const indexName = this.getChildVarName();
-        const itemCode = this.getMemberType().compileJsonEncode(cop);
-        return `for (let ${indexName} = ${this.getChildIndex()}; ${indexName} < ${varName}.length; ${indexName}++) {${itemCode}}`;
+        const index = this.getChildVarName();
+        const child = this.getJsonEncodeChild();
+        if (!child) return '';
+        const childCode = child.compileJsonEncode(cop);
+        const isExpression = this.childIsExpression(cop, JitFnIDs.jsonEncode, child);
+        const code = isExpression ? `${cop.getChildVλl()} = ${childCode};` : childCode;
+        return `for (let ${index} = ${this.getChildIndex()}; ${index} < ${varName}.length; ${index}++) {${code}}`;
     }
     _compileJsonDecode(cop: JitCompiler): string {
         const varName = cop.vλl;
-        const indexName = this.getChildVarName();
-        const itemCode = this.getMemberType().compileJsonDecode(cop);
-        return `for (let ${indexName} = ${this.getChildIndex()}; ${indexName} < ${varName}.length; ${indexName}++) {${itemCode}}`;
+        const index = this.getChildVarName();
+        const child = this.getJsonDecodeChild();
+        if (!child) return '';
+        const childCode = child.compileJsonDecode(cop);
+        const isExpression = this.childIsExpression(cop, JitFnIDs.jsonDecode, child);
+        const code = isExpression ? `${cop.getChildVλl()} = ${childCode};` : childCode;
+        return `for (let ${index} = ${this.getChildIndex()}; ${index} < ${varName}.length; ${index}++) {${code}}`;
     }
     _compileJsonStringify(cop: JitCompiler): string {
         const varName = cop.vλl;
         const arrName = `res${this.getNestLevel()}`;
         const itemName = `its${this.getNestLevel()}`;
-        const indexName = this.getChildVarName();
+        const index = this.getChildVarName();
         const isFist = this.getChildIndex() === 0;
         const sep = isFist ? '' : `','+`;
         const itemCode = this.getMemberType().compileJsonStringify(cop);
         return `
             const ${arrName} = [];
-            for (let ${indexName} = ${this.getChildIndex()}; ${indexName} < ${varName}.length; ${indexName}++) {
+            for (let ${index} = ${this.getChildIndex()}; ${index} < ${varName}.length; ${index}++) {
                 const ${itemName} = ${itemCode};
                 if(${itemName}) ${arrName}.push(${itemName});
             }

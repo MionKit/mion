@@ -334,7 +334,6 @@ describe('test array strict modes + circular reference', () => {
         const jsonStringify = rt.createJitFunction(JitFnIDs.jsonStringify);
         const fromJson = rt.createJitFunction(JitFnIDs.jsonDecode);
         const jsonString = jsonStringify(objWithExtra);
-        console.log(jsonString);
         const roundTrip = fromJson(JSON.parse(jsonString));
         expect(roundTrip).toEqual({
             a: 'hello',

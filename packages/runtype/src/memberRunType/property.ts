@@ -20,6 +20,7 @@ import {
 import {BaseRunType, MemberRunType} from '../baseRunTypes';
 import {jitUtils} from '../jitUtils';
 import {InterfaceRunType} from '../collectionRunType/interface';
+import {JitFnIDs} from '../constants';
 
 export class PropertyRunType extends MemberRunType<TypePropertySignature | TypeProperty> {
     src: TypePropertySignature | TypeProperty = null as any; // will be set after construction
@@ -57,16 +58,20 @@ export class PropertyRunType extends MemberRunType<TypePropertySignature | TypeP
     _compileJsonEncode(cop: JitCompiler): string {
         const child = this.getJsonEncodeChild();
         if (!child) return '';
-        const propCode = child.compileJsonEncode(cop);
-        if (this.src.optional) return `if (${cop.getChildVλl()} !== undefined) {${propCode}}`;
-        return propCode;
+        const childCode = child.compileJsonEncode(cop);
+        const isExpression = this.childIsExpression(cop, JitFnIDs.jsonEncode, child);
+        const code = isExpression ? `${cop.getChildVλl()} = ${childCode};` : childCode;
+        if (this.src.optional) return `if (${cop.getChildVλl()} !== undefined) {${code}}`;
+        return code;
     }
     _compileJsonDecode(cop: JitCompiler): string {
         const child = this.getJsonDecodeChild();
         if (!child) return '';
-        const propCode = child.compileJsonDecode(cop);
-        if (this.src.optional) return `if (${cop.getChildVλl()} !== undefined) {${propCode}}`;
-        return propCode;
+        const childCode = child.compileJsonDecode(cop);
+        const isExpression = this.childIsExpression(cop, JitFnIDs.jsonDecode, child);
+        const code = isExpression ? `${cop.getChildVλl()} = ${childCode};` : childCode;
+        if (this.src.optional) return `if (${cop.getChildVλl()} !== undefined) {${code}}`;
+        return code;
     }
     _compileJsonStringify(cop: JitCompiler): string {
         const child = this.getJitChild();

@@ -55,31 +55,22 @@ export class IndexSignatureRunType extends MemberRunType<TypeIndexSignature> {
         if (!child) return 'true';
         const varName = cop.vλl;
         const prop = this.getChildVarName();
-        return `
-            for (const ${prop} in ${varName}) {
-                if (!(${child.compileIsType(cop)})) return false;
-            }
-            return true;
-        `;
+        return `for (const ${prop} in ${varName}){if (!(${child.compileIsType(cop)})) return false;}return true;`;
     }
     _compileTypeErrors(cop: JitErrorsCompiler): string {
         const child = this.getJitChild();
         if (!child) return '';
         const varName = cop.vλl;
         const prop = this.getChildVarName();
-        return `
-            for (const ${prop} in ${varName}) {
-                ${child.compileTypeErrors(cop)}
-            }
-        `;
+        return `for (const ${prop} in ${varName}) {${child.compileTypeErrors(cop)}}`;
     }
 
-    private getSkipCode(cop: JitCompiler, prop: string): string {
+    private getSkipCode(prop: string): string {
         const namedChildren = (this.getParent() as InterfaceRunType).getNamedChildren();
         const skipNames = namedChildren.length
             ? namedChildren.map((child) => `${child.getChildLiteral()} === ${prop}`).join(' || ')
             : '';
-        return namedChildren.length ? `if (${skipNames}) continue;\n` : '';
+        return namedChildren.length ? `if (${skipNames}) continue;` : '';
     }
 
     _compileJsonEncode(cop: JitCompiler): string {
@@ -87,24 +78,22 @@ export class IndexSignatureRunType extends MemberRunType<TypeIndexSignature> {
         if (!child) return '';
         const varName = cop.vλl;
         const prop = this.getChildVarName();
-        const skipCode = this.getSkipCode(cop, prop);
-        return `
-            for (const ${prop} in ${varName}) {
-                ${skipCode}${child.compileJsonEncode(cop)}
-            }
-        `;
+        const skipCode = this.getSkipCode(prop);
+        const childCode = child.compileJsonEncode(cop);
+        const isExpression = this.childIsExpression(cop, JitFnIDs.jsonEncode, child);
+        const code = isExpression ? `${cop.getChildVλl()} = ${childCode};` : childCode;
+        return `for (const ${prop} in ${varName}){${skipCode} ${code}}`;
     }
     _compileJsonDecode(cop: JitCompiler): string {
         const child = this.getJsonDecodeChild();
         if (!child) return '';
         const varName = cop.vλl;
         const prop = this.getChildVarName();
-        const skipCode = this.getSkipCode(cop, prop);
-        return `
-            for (const ${prop} in ${varName}) {
-                ${skipCode}${child.compileJsonDecode(cop)}
-            }
-        `;
+        const skipCode = this.getSkipCode(prop);
+        const childCode = child.compileJsonDecode(cop);
+        const isExpression = this.childIsExpression(cop, JitFnIDs.jsonDecode, child);
+        const code = isExpression ? `${cop.getChildVλl()} = ${childCode};` : childCode;
+        return `for (const ${prop} in ${varName}){${skipCode} ${code}}`;
     }
 
     _compileJsonStringify(cop: JitCompiler): string {
@@ -116,11 +105,12 @@ export class IndexSignatureRunType extends MemberRunType<TypeIndexSignature> {
         const jsonVal = child.compileJsonStringify(cop);
         const isLast = isLastStringifyChildren(this);
         const sep = isLast ? '' : '+","';
-        const skipCode = this.getSkipCode(cop, prop);
+        const skipCode = this.getSkipCode(prop);
         return `
             const ${arrName} = [];
             for (const ${prop} in ${varName}) {
-                ${skipCode}if (${prop} !== undefined) ${arrName}.push(µTils.asJSONString(${prop}) + ':' + ${jsonVal});
+                ${skipCode}
+                if (${prop} !== undefined) ${arrName}.push(µTils.asJSONString(${prop}) + ':' + ${jsonVal});
             }
             return ${arrName}.join(',')${sep};
         `;
@@ -133,13 +123,7 @@ export class IndexSignatureRunType extends MemberRunType<TypeIndexSignature> {
         const varName = cop.vλl;
         const prop = this.getChildVarName();
         const resultVal = `res${this.getNestLevel()}`;
-        return `
-            for (const ${prop} in ${varName}) {
-                const ${resultVal} = ${memberCode};
-                if (${resultVal}) return true;
-            }
-            return false;
-        `;
+        return `for (const ${prop} in ${varName}) {const ${resultVal} = ${memberCode};if (${resultVal}) return true;}return false;`;
     }
     _compileUnknownKeyErrors(cop: JitErrorsCompiler): string {
         if (this.getMemberType().getFamily() === 'A') return '';
@@ -159,11 +143,7 @@ export class IndexSignatureRunType extends MemberRunType<TypeIndexSignature> {
     traverseCode(cop: JitCompiler, memberCode: string): string {
         if (!memberCode) return '';
         const prop = this.getChildVarName();
-        return `
-            for (const ${prop} in ${cop.vλl}) {
-                ${memberCode}
-            }
-        `;
+        return `for (const ${prop} in ${cop.vλl}) {${memberCode}}`;
     }
     mock(ctx?: Pick<MockContext, 'parentObj'>): any {
         const length = Math.floor(Math.random() * 10);
