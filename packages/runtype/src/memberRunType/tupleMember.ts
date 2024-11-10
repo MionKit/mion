@@ -10,6 +10,7 @@ import type {JitCompiler, JitErrorsCompiler} from '../jitCompiler';
 import {BaseRunType, MemberRunType} from '../baseRunTypes';
 import {JitConstants, MockContext, Mutable} from '../types';
 import {JitFnIDs} from '../constants';
+import {childIsExpression} from '../utils';
 
 export class TupleMemberRunType extends MemberRunType<TypeTupleMember> {
     src: TypeTupleMember = null as any; // will be set after construction
@@ -46,7 +47,7 @@ export class TupleMemberRunType extends MemberRunType<TypeTupleMember> {
         const child = this.getJsonEncodeChild();
         if (!child) return this.isOptional() ? `if (${cop.getChildVλl()} === undefined ) {${cop.getChildVλl()} = null}` : '';
         const childCode = child.compileJsonEncode(cop);
-        const isExpression = this.childIsExpression(cop, JitFnIDs.jsonEncode, child);
+        const isExpression = childIsExpression(cop, JitFnIDs.jsonEncode, child);
         const code = isExpression ? `${cop.getChildVλl()} = ${childCode};` : childCode;
         return this.isOptional() ? `if (${cop.getChildVλl()} === undefined ) {${cop.getChildVλl()} = null} else {${code}}` : code;
     }
@@ -54,7 +55,7 @@ export class TupleMemberRunType extends MemberRunType<TypeTupleMember> {
         const child = this.getJsonDecodeChild();
         if (!child) return this.isOptional() ? `if (${cop.getChildVλl()} === undefined ) {${cop.getChildVλl()} = null}` : '';
         const childCode = child.compileJsonDecode(cop);
-        const isExpression = this.childIsExpression(cop, JitFnIDs.jsonDecode, child);
+        const isExpression = childIsExpression(cop, JitFnIDs.jsonDecode, child);
         const code = isExpression ? `${cop.getChildVλl()} = ${childCode};` : childCode;
         return this.isOptional() ? `if (${cop.getChildVλl()} === undefined ) {${cop.getChildVλl()} = null} else {${code}}` : code;
     }

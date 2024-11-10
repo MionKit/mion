@@ -5,13 +5,13 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import type {AnyClass, RunType} from './types';
+import type {AnyClass, JitFnID, RunType} from './types';
 import type {JitCompiler, JitErrorsCompiler} from './jitCompiler';
 import {ReflectionKind, Type} from './_deepkit/src/reflection/type';
 import {jitUtils} from './jitUtils';
 import {isAtomicRunType, isCollectionRunType, isMemberRunType} from './guards';
 import {validPropertyNameRegExp} from './constants';
-import {CollectionRunType, MemberRunType} from './baseRunTypes';
+import {BaseRunType} from './baseRunTypes';
 
 export function toLiteral(value: number | string | boolean | undefined | null | bigint | RegExp | symbol): string {
     switch (typeof value) {
@@ -116,11 +116,10 @@ export function getPropIndex(src: Type): number {
     return 0;
 }
 
-export function isLastStringifyChildren(child: MemberRunType<any>): boolean {
-    const parent = child.getParent() as CollectionRunType<any>;
-    if (!parent) return false;
-    const siblings = parent.getJsonStringifyChildren();
-    return siblings.indexOf(child) === siblings.length - 1;
+export function childIsExpression(cop: JitCompiler, fnId: JitFnID, child: BaseRunType): boolean {
+    const popItem = cop.popItem;
+    if (child !== popItem?.rt) throw new Error('isChildExpression can only be called after the child has been compiled');
+    return child.jitFnIsExpression(fnId) || !!popItem?.dependencyId;
 }
 
 export function shouldSkipJit(rt: RunType): boolean {

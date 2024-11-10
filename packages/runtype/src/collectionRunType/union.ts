@@ -10,7 +10,7 @@ import type {JitCompiler, JitErrorsCompiler} from '../jitCompiler';
 import {JitConstants, JitFnID, MockContext, Mutable, RunType} from '../types';
 import {random} from '../mock';
 import {BaseRunType, CollectionRunType} from '../baseRunTypes';
-import {getExpected, getJitErrorPath, memo} from '../utils';
+import {childIsExpression, getExpected, getJitErrorPath, memo} from '../utils';
 import {InterfaceRunType} from './interface';
 import {ClassRunType} from './class';
 import {IntersectionRunType} from './intersection';
@@ -32,6 +32,12 @@ export class UnionRunType extends CollectionRunType<TypeUnion> {
         jc.skipJsonDecode = false;
         jc.skipJsonEncode = false;
         return jc;
+    }
+    getJsonEncodeChildren(): BaseRunType[] {
+        return this.getJitChildren();
+    }
+    getJsonDecodeChildren(): BaseRunType[] {
+        return this.getJitChildren();
     }
     jitFnHasReturn(fnId: JitFnID): boolean {
         switch (fnId) {
@@ -78,14 +84,15 @@ export class UnionRunType extends CollectionRunType<TypeUnion> {
     _compileJsonEncode(cop: JitCompiler): string {
         // TODO: enforce strictTypes to ensure no extra properties of the union go unchecked
         const childrenCode = this.getJitChildren()
-            .map((rt, i) => {
-                const childCode = rt.compileJsonEncode(cop);
-                const skipEncode = !childCode || childCode === cop.vλl;
-                const encodeCode = skipEncode ? '' : `${childCode};`;
-                const itemIsType = this.getChildStrictIsType(rt, cop);
+            .map((child, i) => {
                 const iF = i === 0 ? 'if' : 'else if';
+                let childCode = child.compileJsonEncode(cop);
+                if (childCode === cop.vλl) childCode = '';
+                const isExpression = childIsExpression(cop, JitFnIDs.jsonEncode, child);
+                const encodeCode = isExpression && childCode ? `${cop.vλl} = ${childCode};` : childCode;
+                const itemIsType = this.getChildStrictIsType(child, cop);
                 // item encoded before reassigning varName to [i, item]
-                return `${iF} (${itemIsType}) {${encodeCode}${cop.vλl} = [${i}, ${cop.vλl}]}`;
+                return `${iF} (${itemIsType}) {${encodeCode} ${cop.vλl} = [${i}, ${cop.vλl}]}`;
             })
             .filter((c) => !!c)
             .join('');
@@ -105,27 +112,28 @@ export class UnionRunType extends CollectionRunType<TypeUnion> {
     _compileJsonDecode(cop: JitCompiler): string {
         // TODO: enforce strictTypes to ensure no extra properties of the union go unchecked
         const decVar = `dεc${this.getNestLevel()}`;
-        const childrenCode = this.getJitChildren()
-            .map((rt, i) => {
-                const childCode = rt.compileJsonDecode(cop);
-                const skipDecode = !childCode || childCode === cop.vλl;
-                const decodeCode = skipDecode ? '' : `;${childCode}`;
+        const children = this.getJsonDecodeChildren();
+        const childrenCode = children
+            .map((child, i) => {
                 const iF = i === 0 ? 'if' : 'else if';
+                let childCode = child.compileJsonDecode(cop);
+                if (childCode === cop.vλl) childCode = '';
+                const isExpression = childIsExpression(cop, JitFnIDs.jsonDecode, child);
+                const code = isExpression && childCode && childCode !== cop.vλl ? `${cop.vλl} = ${childCode}` : childCode;
                 // item is decoded before being extracted from the array
-                return `${iF} ( ${decVar} === ${i}) {${cop.vλl} = ${cop.vλl}[1]${decodeCode}}`;
+                return `${iF} ( ${decVar} === ${i}) {${cop.vλl} = ${cop.vλl}[1];${code}}`;
             })
             .filter((c) => !!c)
             .join('');
         const code = `
                 const ${decVar} = ${cop.vλl}[0];
                 ${childrenCode}
-                else { throw new Error('Can not decode json to union: expected one of <${this.getUnionTypeNames()}> but got ' + ${cop.vλl}?.constructor?.name || typeof ${cop.vλl}) }
-            `;
+                else { throw new Error('Can not decode json to union: expected one of <${this.getUnionTypeNames()}> but got ' + ${cop.vλl}?.constructor?.name || typeof ${cop.vλl}) }            `;
         return code;
     }
     _compileJsonStringify(cop: JitCompiler): string {
         // TODO: enforce strictTypes to ensure no extra properties of the union go unchecked
-        const childrenCode = this.getJitChildren()
+        const childrenCode = this.getJsonEncodeChildren()
             .map((rt, i) => {
                 const itemIsType = this.getChildStrictIsType(rt, cop);
                 const childCode = rt.compileJsonStringify(cop);

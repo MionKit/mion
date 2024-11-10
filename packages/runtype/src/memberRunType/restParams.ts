@@ -3,6 +3,7 @@ import type {JitCompiler, JitErrorsCompiler} from '../jitCompiler';
 import {MemberRunType} from '../baseRunTypes';
 import {JitFnIDs} from '../constants';
 import {JitFnID, MockContext} from '../types';
+import { childIsExpression } from '../utils';
 
 /* ########
  * 2024 mion
@@ -58,7 +59,7 @@ export class RestParamsRunType extends MemberRunType<TypeRest> {
         const child = this.getJsonEncodeChild();
         if (!child) return '';
         const childCode = child.compileJsonEncode(cop);
-        const isExpression = this.childIsExpression(cop, JitFnIDs.jsonEncode, child);
+        const isExpression = childIsExpression(cop, JitFnIDs.jsonEncode, child);
         const code = isExpression ? `${cop.getChildVλl()} = ${childCode};` : childCode;
         return `for (let ${index} = ${this.getChildIndex()}; ${index} < ${varName}.length; ${index}++) {${code}}`;
     }
@@ -68,7 +69,7 @@ export class RestParamsRunType extends MemberRunType<TypeRest> {
         const child = this.getJsonDecodeChild();
         if (!child) return '';
         const childCode = child.compileJsonDecode(cop);
-        const isExpression = this.childIsExpression(cop, JitFnIDs.jsonDecode, child);
+        const isExpression = childIsExpression(cop, JitFnIDs.jsonDecode, child);
         const code = isExpression ? `${cop.getChildVλl()} = ${childCode};` : childCode;
         return `for (let ${index} = ${this.getChildIndex()}; ${index} < ${varName}.length; ${index}++) {${code}}`;
     }

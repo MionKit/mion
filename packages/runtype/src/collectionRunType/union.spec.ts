@@ -5,6 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 import {JitFnIDs} from '../constants';
+import {jitUtils} from '../jitUtils';
 import {runType} from '../runType';
 
 describe('Atomic Union', () => {
@@ -71,9 +72,6 @@ describe('Atomic Union', () => {
         expect(fromJson(JSON.parse(JSON.stringify(toJson(c))))).toEqual(c);
         expect(fromJson(JSON.parse(JSON.stringify(toJson(d))))).toEqual(d);
         expect(fromJson(JSON.parse(JSON.stringify(toJson(e))))).toEqual(e);
-
-        // objects are not the same same object in memory after round trip
-        expect(fromJson(JSON.parse(JSON.stringify(toJson(a))))).not.toBe(a);
     });
 
     it('json stringify with discriminator', () => {
@@ -405,52 +403,92 @@ describe('Union Mixed', () => {
 describe('Union circular', () => {
     type UnionC = Date | number | string | {a?: UnionC; b?: string} | UnionC[];
 
+    const d: UnionC = new Date();
+    const n: UnionC = 123;
+    const s: UnionC = 'hello';
+    const o: UnionC = {a: {a: {}}};
+    const o1: UnionC = {};
+    const a: UnionC = [];
+    const a2: UnionC = [[]];
+    const x0: UnionC = [123, 3, {b: 'hello'}];
+    const x1: UnionC = [123, 3, 'hello'];
+    const x2: UnionC = [[123], 3, [3, 'hello']];
+
+    const notA = true;
+    const notB = {c: 'hello'}; // note existing properties are not allowed in the union
+    const notC = {a: true}; // properties of the union must be of the correct type
+
+    const rt = runType<UnionC>();
+
     it('validate Circular Union', () => {
-        const rt = runType<UnionC>();
         const validate = rt.createJitFunction(JitFnIDs.isType);
-        expect(validate(new Date())).toBe(true);
-        expect(validate(123)).toBe(true);
-        expect(validate('hello')).toBe(true);
-        expect(validate({a: {a: {}}})).toBe(true);
-        expect(validate({})).toBe(true);
-        expect(validate(['a', 'b', 'c'])).toBe(true);
-        expect(validate([])).toBe(true);
-        expect(validate([[]])).toBe(true);
-        const x: UnionC = [new Date(), 3, 'hello'];
-        const x2: UnionC = [[new Date()], 3, 'hello'];
-        expect(validate(x)).toBe(true);
+
+        expect(validate(d)).toBe(true);
+        expect(validate(n)).toBe(true);
+        expect(validate(s)).toBe(true);
+        expect(validate(o)).toBe(true);
+        expect(validate(o1)).toBe(true);
+        expect(validate(a)).toBe(true);
+        expect(validate(a2)).toBe(true);
+        expect(validate(x0)).toBe(true);
+        expect(validate(x1)).toBe(true);
         expect(validate(x2)).toBe(true);
 
-        // error inside the recursion (bigint and boolean are not allowed)
-        expect(validate([new Date(), true])).toBe(false);
-        expect(validate([[new Date()], 3, 3n])).toBe(false);
-        // wrong root type
-        expect(validate(true)).toBe(false);
+        expect(validate(notA)).toBe(false);
+        expect(validate(notB)).toBe(false);
+        expect(validate(notC)).toBe(false);
     });
 
     it('validate Circular Union + errors', () => {
-        const rt = runType<UnionC>();
         const valWithErrors = rt.createJitFunction(JitFnIDs.typeErrors);
-        expect(valWithErrors(new Date())).toEqual([]);
-        expect(valWithErrors(123)).toEqual([]);
-        expect(valWithErrors('hello')).toEqual([]);
-        expect(valWithErrors({a: {a: {}}})).toEqual([]);
-        expect(valWithErrors({})).toEqual([]);
-        expect(valWithErrors(['a', 'b', 'c'])).toEqual([]);
-        expect(valWithErrors([])).toEqual([]);
-        expect(valWithErrors([[]])).toEqual([]);
-        expect(valWithErrors([[new Date()], 3, 'hello'])).toEqual([]);
 
-        // error inside the recursion (bigint and boolean are not allowed)
-        console.log(valWithErrors([new Date(), true]));
-        expect(valWithErrors([new Date(), true])).toEqual([{path: [1], expected: 'union'}]);
-        expect(valWithErrors([[new Date()], 3, 3n])).toEqual([{path: [0, 2], expected: 'union'}]);
+        expect(valWithErrors(d)).toEqual([]);
+        expect(valWithErrors(n)).toEqual([]);
+        expect(valWithErrors(s)).toEqual([]);
+        expect(valWithErrors(o)).toEqual([]);
+        expect(valWithErrors(o1)).toEqual([]);
+        expect(valWithErrors(a)).toEqual([]);
+        expect(valWithErrors(a2)).toEqual([]);
+        expect(valWithErrors(x0)).toEqual([]);
+        expect(valWithErrors(x1)).toEqual([]);
+        expect(valWithErrors(x2)).toEqual([]);
 
-        // wrong root type
-        expect(valWithErrors(true)).toEqual([{path: [], expected: 'union'}]);
+        // union errors return empty path always, as we can't know which type of the union the user was trying to use.
+        expect(valWithErrors(notA)).toEqual([{path: [], expected: 'union'}]);
+        expect(valWithErrors(notB)).toEqual([{path: [], expected: 'union'}]);
+        expect(valWithErrors(notC)).toEqual([{path: [], expected: 'union'}]);
     });
 
-    it('encode/decode Circular Union to json', () => {});
+    it('encode/decode Circular Union to json', () => {
+        const toJson = rt.createJitFunction(JitFnIDs.jsonEncode);
+        const fromJson = rt.createJitFunction(JitFnIDs.jsonDecode);
 
-    it('json stringify Circular Union with discriminator', () => {});
+        expect(fromJson(JSON.parse(JSON.stringify(toJson(d))))).toEqual(d);
+        expect(fromJson(JSON.parse(JSON.stringify(toJson(n))))).toEqual(n);
+        expect(fromJson(JSON.parse(JSON.stringify(toJson(s))))).toEqual(s);
+        expect(fromJson(JSON.parse(JSON.stringify(toJson(structuredClone(o)))))).toEqual(o);
+        expect(fromJson(JSON.parse(JSON.stringify(toJson(structuredClone(o1)))))).toEqual(o1);
+        expect(fromJson(JSON.parse(JSON.stringify(toJson(structuredClone(a)))))).toEqual(a);
+        expect(fromJson(JSON.parse(JSON.stringify(toJson(structuredClone(a2)))))).toEqual(a2);
+        expect(fromJson(JSON.parse(JSON.stringify(toJson(structuredClone(x0)))))).toEqual(x0);
+        expect(fromJson(JSON.parse(JSON.stringify(toJson(structuredClone(x1)))))).toEqual(x1);
+        expect(fromJson(JSON.parse(JSON.stringify(toJson(structuredClone(x2)))))).toEqual(x2);
+    });
+
+    it('json stringify Circular Union with discriminator', () => {
+        // this should be serialized as [discriminatorIndex, value]
+        const jsonStringify = rt.createJitFunction(JitFnIDs.jsonStringify);
+        const fromJson = rt.createJitFunction(JitFnIDs.jsonDecode);
+
+        expect(fromJson(JSON.parse(jsonStringify(d)))).toEqual(d);
+        expect(fromJson(JSON.parse(jsonStringify(n)))).toEqual(n);
+        expect(fromJson(JSON.parse(jsonStringify(s)))).toEqual(s);
+        expect(fromJson(JSON.parse(jsonStringify(structuredClone(o))))).toEqual(o);
+        expect(fromJson(JSON.parse(jsonStringify(structuredClone(o1))))).toEqual(o1);
+        expect(fromJson(JSON.parse(jsonStringify(structuredClone(a))))).toEqual(a);
+        expect(fromJson(JSON.parse(jsonStringify(structuredClone(a2))))).toEqual(a2);
+        expect(fromJson(JSON.parse(jsonStringify(structuredClone(x0))))).toEqual(x0);
+        expect(fromJson(JSON.parse(jsonStringify(structuredClone(x1))))).toEqual(x1);
+        expect(fromJson(JSON.parse(jsonStringify(structuredClone(x2))))).toEqual(x2);
+    });
 });

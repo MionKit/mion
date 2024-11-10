@@ -133,9 +133,9 @@ export const jitUtils = {
 };
 
 export const hashChars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-export const hashIncrement = 4;
+export const hashIncrement = 8;
 export const maxHashCollisions = 10;
-export const hashDefaultLength = 28;
+export const hashDefaultLength = 16;
 
 export function quickHash(input: string, length = hashDefaultLength) {
     const PRIME = 37; // Prime number to mix hash more robustly

@@ -7,24 +7,8 @@
 import {runType} from '../runType';
 import {JitFnIDs} from '../constants';
 
-interface Circular {
-    n: number;
-    s: string;
-    c?: Circular;
-    d?: Date;
-}
-
-class CircularClass {
-    n?: number;
-    s?: string;
-    c?: CircularClass;
-}
-
-class CircularClassConstructor {
-    n?: number;
-    s?: string;
-    constructor(public c?: CircularClassConstructor) {}
-}
+// ####### NOTE RUNTYPES SUPPORT CIRCULAR TYPE REFERENCES, BUT NOT CIRCULAR OBJECTS AT RUNTIME #####
+// circular objects will throw maximum call stack exceeded error
 
 interface CircularTuple {
     tuple: [number, CircularTuple];
@@ -60,81 +44,92 @@ interface ContainsCircular {
     c: CircularDeep; // is circular and should be
 }
 
-const rtCircular = runType<Circular>();
+describe('Circular object', () => {
+    interface Circular {
+        n: number;
+        s: string;
+        c?: Circular;
+        d?: Date;
+    }
 
-// it('is circular should be set only for property types or where the circular reference is created, not in the parents', () => {
-//     // todo: implement
-//     // always fail until implemented
-//     throw new Error('circular only in properties still Not implemented');
-// });
+    const rtCircular = runType<Circular>();
 
-it('should validate objects with circular references', () => {
-    const validate = rtCircular.createJitFunction(JitFnIDs.isType);
-    const c1: Circular = {n: 1, s: 'hello'};
+    const c1: Circular = {n: 1, s: 'hello', c: {n: 2, s: 'world'}};
     const c2: Circular = {n: 2, s: 'world'};
-    const c3: Circular = {n: 3, s: 'foo'};
-    c1.c = c2; // circular type but non circular reference
-    c3.c = c3; // circular type and circular reference
-    console.log(validate.toString());
-    expect(validate(c1)).toBe(true);
-    expect(validate(c2)).toBe(true);
-    expect(validate(c3)).toBe(true);
-});
+    const c3: Circular = {n: 3, s: 'foo', c: {n: 3, s: 'foo'}};
 
-it('should validate object + errors with circular references', () => {
-    const valWithErrors = rtCircular.createJitFunction(JitFnIDs.typeErrors);
-    const c1: Circular = {n: 1, s: 'hello'};
-    const c2: Circular = {n: 2, s: 'world'};
-    const c3: Circular = {n: 3, s: 'foo'};
-    c1.c = c2; // non circular
-    c3.c = c3; // circular
-    console.log(valWithErrors.toString());
-    expect(valWithErrors(c1)).toEqual([]);
-    expect(valWithErrors(c2)).toEqual([]);
-    expect(valWithErrors(c3)).toEqual([]);
-});
+    const notC1 = {n: 1, s: 'hello', c: {n: 2, s: 123}}; // c.s is not a string
+    const notC2 = {n: 1, s: 'hello', c: {n: 2}}; // c.s is missing
 
-it('should encode/decode objects with circular references', () => {
-    const toJson = rtCircular.createJitFunction(JitFnIDs.jsonEncode);
-    const fromJson = rtCircular.createJitFunction(JitFnIDs.jsonDecode);
-    const c1: Circular = {n: 1, s: 'hello'};
-    const c2: Circular = {n: 2, s: 'world'};
-    const c3: Circular = {n: 3, s: 'foo'};
-    c1.c = c2; // non circular
-    c3.c = c3; // circular
-    // value used for json encode/decode gets modified so we need to copy it to compare later
-    const copy1 = structuredClone(c1);
-    const copy2 = structuredClone(c2);
-    const copy3 = structuredClone(c3);
-    expect(fromJson(JSON.parse(JSON.stringify(toJson(copy1))))).toEqual(c1);
-    expect(fromJson(JSON.parse(JSON.stringify(toJson(copy2))))).toEqual(c2);
-    expect(fromJson(JSON.parse(JSON.stringify(toJson(copy3))))).toEqual(c3);
-});
+    it('should validate objects with circular references', () => {
+        const validate = rtCircular.createJitFunction(JitFnIDs.isType);
 
-it('should use JSON.stringify when there are circular references', () => {
-    const jsonStringify = rtCircular.createJitFunction(JitFnIDs.jsonStringify);
-    const c1: Circular = {n: 1, s: 'hello'};
-    const c2: Circular = {n: 2, s: 'world'};
-    const c3: Circular = {n: 3, s: 'foo'};
-    c1.c = c2; // non circular
-    c3.c = c3; // circular
-    console.log(jsonStringify.toString());
-    expect(jsonStringify(c1)).toBe(JSON.stringify(c1));
-    expect(jsonStringify(c2)).toBe(JSON.stringify(c2));
-    expect(() => jsonStringify(c3)).toThrow('Converting circular structure to JSON');
+        expect(validate(c1)).toBe(true);
+        expect(validate(c2)).toBe(true);
+        expect(validate(c3)).toBe(true);
+
+        expect(validate(notC1)).toBe(false);
+        expect(validate(notC2)).toBe(false);
+    });
+
+    it('should validate object + errors with circular references', () => {
+        const valWithErrors = rtCircular.createJitFunction(JitFnIDs.typeErrors);
+
+        expect(valWithErrors(c1)).toEqual([]);
+        expect(valWithErrors(c2)).toEqual([]);
+        expect(valWithErrors(c3)).toEqual([]);
+
+        expect(valWithErrors(notC1)).toEqual([{path: ['c', 's'], expected: 'string'}]);
+        expect(valWithErrors(notC2)).toEqual([{path: ['c', 's'], expected: 'string'}]);
+    });
+
+    it('should encode/decode objects with circular references', () => {
+        const toJson = rtCircular.createJitFunction(JitFnIDs.jsonEncode);
+        const fromJson = rtCircular.createJitFunction(JitFnIDs.jsonDecode);
+
+        const copy1 = structuredClone(c1);
+        const copy2 = structuredClone(c2);
+        const copy3 = structuredClone(c3);
+        expect(fromJson(JSON.parse(JSON.stringify(toJson(copy1))))).toEqual(c1);
+        expect(fromJson(JSON.parse(JSON.stringify(toJson(copy2))))).toEqual(c2);
+        expect(fromJson(JSON.parse(JSON.stringify(toJson(copy3))))).toEqual(c3);
+    });
+
+    it('should use JSON.stringify when there are circular references', () => {
+        const jsonStringify = rtCircular.createJitFunction(JitFnIDs.jsonStringify);
+
+        const toJson = rtCircular.createJitFunction(JitFnIDs.jsonEncode);
+        const fromJson = rtCircular.createJitFunction(JitFnIDs.jsonDecode);
+
+        const copy1 = structuredClone(c1);
+        const copy2 = structuredClone(c2);
+        const copy3 = structuredClone(c3);
+        expect(fromJson(JSON.parse(jsonStringify(toJson(copy1))))).toEqual(c1);
+        expect(fromJson(JSON.parse(jsonStringify(toJson(copy2))))).toEqual(c2);
+        expect(fromJson(JSON.parse(jsonStringify(toJson(copy3))))).toEqual(c3);
+    });
 });
 
 describe('Circular array + union', () => {
     type CuArray = (CuArray | Date | number | string)[];
 
+    const rt = runType<CuArray>();
+
+    const cu1 = [new Date(), 123, 'hello', ['a', 'b', 'c']];
+    const cu2 = [new Date(), 123, 'hello', ['a', 2, 'c'], cu1];
+    const cu3 = [];
+
     it('validate CircularUnion array', () => {
         const rt = runType<CuArray>();
         const validate = rt.createJitFunction(JitFnIDs.isType);
-        expect(validate(new Date())).toBe(true);
-        expect(validate(123)).toBe(true);
-        expect(validate('hello')).toBe(true);
-        expect(validate(null)).toBe(true);
+        expect(validate([new Date()])).toBe(true);
+        expect(validate([123])).toBe(true);
+        expect(validate(['hello'])).toBe(true);
         expect(validate(['a', 'b', 'c'])).toBe(true);
+        expect(validate(['a', 'b', 'c'])).toBe(true);
+
+        expect(validate(null)).toBe(true);
+        
         expect(validate({})).toBe(false);
         expect(validate(true)).toBe(false);
     });

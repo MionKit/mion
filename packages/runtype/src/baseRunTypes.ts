@@ -25,7 +25,7 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
     abstract mock(mockContext?: MockContext): any;
     getName = memo((): string => getReflectionName(this));
     getJitId = () => this.getJitConstants().jitId;
-    getJitHash = memo((): string => createJitIDHash(this.getJitId().toString()));
+    getJitHash = memo((): string => createJitIDHash(this.getJitId().toString(), 15)); // first char will be the function type, total 16 chars
     getParent = (): RunType | undefined => (this.src.parent as DKwithRT)?._rt;
     getNestLevel = memo((): number => {
         if (this.isCircular) return 0; // circular references start a new context
@@ -130,7 +130,6 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
                 this.compile(newCompileOp, fnId);
                 code = this.callDependency(cop, fnId);
             }
-            console.log('shouldCreateDependency', code);
         } else if (cop.shouldCallDependency()) {
             code = this.callDependency(cop, fnId);
         } else {
@@ -197,7 +196,7 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
         const isExpression: boolean = this.jitFnIsExpression(currentOpId);
         const isRoot = cop.length === 1;
         if (isRoot && isExpression) {
-            return codeHasReturn ? code : `return (${code})`;
+            return codeHasReturn ? code : `return ${code}`;
         }
         if (isRoot) {
             // if code is a block and does not have return, we need to make sure
@@ -279,6 +278,15 @@ export abstract class AtomicRunType<T extends Type> extends BaseRunType<T> {
     getFamily(): 'A' {
         return 'A';
     }
+    _compileJsonEncode(cop: JitCompiler): string {
+        return cop.vλl;
+    }
+    _compileJsonDecode(cop: JitCompiler): string {
+        return cop.vλl;
+    }
+    _compileJsonStringify(cop: JitCompiler): string {
+        return cop.vλl;
+    }
     _compileHasUnknownKeys(cop: JitCompiler): string {
         return '';
     }
@@ -290,6 +298,20 @@ export abstract class AtomicRunType<T extends Type> extends BaseRunType<T> {
     }
     _compileUnknownKeysToUndefined(cop: JitCompiler): string {
         return '';
+    }
+    jitFnIsExpression(fnId: JitFnID): boolean {
+        switch (fnId) {
+            case JitFnIDs.isType:
+                return true;
+            case JitFnIDs.jsonEncode:
+                return true;
+            case JitFnIDs.jsonDecode:
+                return true;
+            case JitFnIDs.jsonStringify:
+                return true;
+            default:
+                return super.jitFnIsExpression(fnId);
+        }
     }
 }
 
@@ -398,6 +420,10 @@ export abstract class MemberRunType<T extends Type> extends BaseRunType<T> imple
     abstract getChildVarName(): string | number;
     abstract getChildLiteral(): string | number;
     abstract useArrayAccessor(): boolean;
+    /** used to compile json stringify */
+    skipCommas?: boolean;
+    /** used to compile json stringify */
+    tempChildVλl?: string;
     getFamily(): 'M' {
         return 'M';
     }

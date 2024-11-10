@@ -10,7 +10,7 @@ import {JitFnID, MockContext} from '../types';
 import {mockRecursiveEmptyArray, random} from '../mock';
 import {MemberRunType} from '../baseRunTypes';
 import type {JitCompiler, JitErrorsCompiler} from '../jitCompiler';
-import {getJitErrorPath, getExpected, shouldSkipJit} from '../utils';
+import {getJitErrorPath, getExpected, shouldSkipJit, childIsExpression} from '../utils';
 import {JitFnIDs} from '../constants';
 
 export class ArrayRunType extends MemberRunType<TypeArray> {
@@ -77,7 +77,7 @@ export class ArrayRunType extends MemberRunType<TypeArray> {
         const child = this.getJsonEncodeChild();
         if (!child) return '';
         const childCode = child.compileJsonEncode(cop);
-        const isExpression = this.childIsExpression(cop, JitFnIDs.jsonEncode, child);
+        const isExpression = childIsExpression(cop, JitFnIDs.jsonEncode, child);
         const code = isExpression ? `${cop.getChildVλl()} = ${childCode};` : childCode;
         return `for (let ${index} = 0; ${index} < ${varName}.length; ${index}++) {${code}}`;
     }
@@ -87,7 +87,7 @@ export class ArrayRunType extends MemberRunType<TypeArray> {
         const child = this.getJsonDecodeChild();
         if (!child) return '';
         const childCode = child.compileJsonDecode(cop);
-        const isExpression = this.childIsExpression(cop, JitFnIDs.jsonDecode, child);
+        const isExpression = childIsExpression(cop, JitFnIDs.jsonDecode, child);
         const code = isExpression ? `${cop.getChildVλl()} = ${childCode};` : childCode;
         return `for (let ${index} = 0; ${index} < ${varName}.length; ${index}++) {${code}}`;
     }

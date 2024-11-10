@@ -50,7 +50,7 @@ inter.prop5 = ['a', 'b', 'c'];
 it('Intersections generate already resolved types', () => {
     expect(rt instanceof InterfaceRunType).toBe(true);
     expect(rtNever1 instanceof NeverRunType).toBe(true);
-    expect(rt.getJitId()).toBe('30{prop1:date,prop2:6,prop3:5,prop4:10,prop5:25:5}');
+    expect(rt.getJitId()).toBe('30{prop1:20001,prop2:6,prop3:5,prop4:10,prop5:25:5}');
     expect(rtNever1.getJitId()).toBe(0);
 });
 

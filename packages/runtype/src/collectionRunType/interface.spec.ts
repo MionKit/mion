@@ -84,6 +84,9 @@ describe('Interface', () => {
     it('validate empty object for ObjectAllOptional type', () => {
         const validate = rtOpt.createJitFunction(JitFnIDs.isType);
         expect(validate({})).toBe(true);
+        // there is extra JIT code generated when all properties are optional
+        // empty arrays also have typeof 'object' so we need to differentiate between them
+        expect(validate([])).toBe(false);
     });
 
     it('validate object + errors', () => {

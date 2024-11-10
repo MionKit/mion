@@ -4,7 +4,7 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
-import {TypeObjectLiteral, TypeClass, TypeIntersection} from '../_deepkit/src/reflection/type';
+import {TypeObjectLiteral, TypeClass, TypeIntersection, TypeProperty, ReflectionKind} from '../_deepkit/src/reflection/type';
 import {MockContext, RunType} from '../types';
 import {getJitErrorPath, getExpected, toLiteral, arrayToArgumentsLiteral} from '../utils';
 import {PropertyRunType} from '../memberRunType/property';
@@ -20,6 +20,7 @@ export class InterfaceRunType<
     T extends TypeObjectLiteral | TypeClass | TypeIntersection = TypeObjectLiteral,
 > extends CollectionRunType<T> {
     src: T = null as any; // will be set after construction
+    areAllChildrenOptional?: boolean;
 
     callCheckUnknownProperties(cop: JitCompiler, childrenRunTypes: RunType[], returnKeys: boolean): string {
         const childrenNames = childrenRunTypes.filter((prop) => !!(prop.src as any).name).map((prop) => (prop.src as any).name);
@@ -35,19 +36,34 @@ export class InterfaceRunType<
     }
 
     // #### collection's jit code ####
+
+    private getExtraArrayCheckCode(cop: JitCompiler): string {
+        if (this.areAllChildrenOptional === undefined) {
+            this.areAllChildrenOptional = this.getJitChildren().every(
+                (prop) =>
+                    (prop as MemberRunType<any>)?.isOptional() ||
+                    (prop.src as TypeProperty)?.optional ||
+                    prop.src.kind === ReflectionKind.indexSignature
+            );
+        }
+        if (!this.areAllChildrenOptional) return '';
+        return ` && !Array.isArray(${cop.vλl})`;
+    }
     _compileIsType(cop: JitCompiler): string {
         const varName = cop.vλl;
         const children = this.getJitChildren();
-        const childrenCode = `  && ${children.map((prop) => prop.compileIsType(cop)).join(' && ')}`;
+        const childrenCode = `&& ${children.map((prop) => prop.compileIsType(cop)).join(' && ')}`;
+        const arrayCheck = this.getExtraArrayCheckCode(cop);
         // adding strictCheck at the end improves performance when property checks fail and in union types
-        return `(typeof ${varName} === 'object' && ${varName} !== null${childrenCode})`;
+        return `(typeof ${varName} === 'object' && ${varName} !== null${childrenCode} ${arrayCheck})`;
     }
     _compileTypeErrors(cop: JitErrorsCompiler): string {
         const varName = cop.vλl;
         const children = this.getJitChildren();
         const childrenCode = children.map((prop) => prop.compileTypeErrors(cop)).join(';');
+        const arrayCheck = this.getExtraArrayCheckCode(cop);
         return `
-            if (typeof ${varName} !== 'object' && ${varName} !== null) {
+            if (typeof ${varName} !== 'object' && ${varName} !== null ${arrayCheck}) {
                 µTils.errPush(${cop.args.εrr},${getJitErrorPath(cop)},${getExpected(this)});
             } else {
                 ${childrenCode}
@@ -70,16 +86,37 @@ export class InterfaceRunType<
         return childrenCode;
     }
     _compileJsonStringify(cop: JitCompiler): string {
-        const children = this.getJsonStringifyChildren();
+        const children = this.getJsonStringifyChildren() as MemberRunType<any>[];
         if (children.length === 0) return `''`;
-        const AllOptional = children.every((prop) => (prop as MemberRunType<any>).isOptional());
+        const allOptional = children.every((prop) => (prop as MemberRunType<any>).isOptional());
         // if all properties are optional,  we can not optimize and use JSON.stringify
-        if (AllOptional) return `JSON.stringify(${cop.vλl})`;
+        if (allOptional) return this._compileJsonStringifyIntoArray(cop, children);
         const childrenCode = children
-            .map((prop) => prop.compileJsonStringify(cop))
+            .map((prop, i) => {
+                const nexChild = children[i + 1];
+                const isLast = !nexChild;
+                prop.skipCommas = isLast;
+                return prop.compileJsonStringify(cop);
+            })
             .filter((c) => !!c)
             .join('+');
         return `'{'+${childrenCode}+'}'`;
+    }
+    private _compileJsonStringifyIntoArray(cop: JitCompiler, children: MemberRunType<any>[]): string {
+        const arrName = `ns${this.getNestLevel()}`;
+        const childrenCode = children
+            .map((prop) => {
+                prop.skipCommas = true;
+                const childCode = prop.compileJsonStringify(cop);
+                if (!childCode) return '';
+                const code = `${arrName}.push(${childCode})`;
+                // makes an extra check to avoid pushing empty strings to the array (childCode also makes the same check but is better than having to filter the array after)
+                return prop.isOptional() ? `if (${prop.tempChildVλl} !== undefined){${code}}` : `${code};`;
+            })
+            .filter((c) => !!c)
+            .join('');
+
+        return `(function(){const ${arrName} = [];${childrenCode};return '{'+${arrName}.join(',')+'}'})()`;
     }
     _compileHasUnknownKeys = (cop: JitCompiler): string => {
         const allJitChildren = this.getJitChildren();

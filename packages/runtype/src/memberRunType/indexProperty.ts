@@ -4,7 +4,7 @@ import {JitConstants, JitFnID, MockContext, Mutable} from '../types';
 import {JitFnIDs} from '../constants';
 import type {JitCompiler, JitErrorsCompiler} from '../jitCompiler';
 import {InterfaceRunType} from '../collectionRunType/interface';
-import {isLastStringifyChildren} from '../utils';
+import {childIsExpression} from '../utils';
 
 /* ########
  * 2024 mion
@@ -80,7 +80,7 @@ export class IndexSignatureRunType extends MemberRunType<TypeIndexSignature> {
         const prop = this.getChildVarName();
         const skipCode = this.getSkipCode(prop);
         const childCode = child.compileJsonEncode(cop);
-        const isExpression = this.childIsExpression(cop, JitFnIDs.jsonEncode, child);
+        const isExpression = childIsExpression(cop, JitFnIDs.jsonEncode, child);
         const code = isExpression ? `${cop.getChildVλl()} = ${childCode};` : childCode;
         return `for (const ${prop} in ${varName}){${skipCode} ${code}}`;
     }
@@ -91,7 +91,7 @@ export class IndexSignatureRunType extends MemberRunType<TypeIndexSignature> {
         const prop = this.getChildVarName();
         const skipCode = this.getSkipCode(prop);
         const childCode = child.compileJsonDecode(cop);
-        const isExpression = this.childIsExpression(cop, JitFnIDs.jsonDecode, child);
+        const isExpression = childIsExpression(cop, JitFnIDs.jsonDecode, child);
         const code = isExpression ? `${cop.getChildVλl()} = ${childCode};` : childCode;
         return `for (const ${prop} in ${varName}){${skipCode} ${code}}`;
     }
@@ -103,8 +103,7 @@ export class IndexSignatureRunType extends MemberRunType<TypeIndexSignature> {
         const prop = this.getChildVarName();
         const arrName = `ls${this.getNestLevel()}`;
         const jsonVal = child.compileJsonStringify(cop);
-        const isLast = isLastStringifyChildren(this);
-        const sep = isLast ? '' : '+","';
+        const sep = this.skipCommas ? '' : '+","';
         const skipCode = this.getSkipCode(prop);
         return `
             const ${arrName} = [];

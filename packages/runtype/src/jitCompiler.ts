@@ -168,6 +168,37 @@ export class JitErrorsCompiler<ID extends JitFnID = any> extends BaseCompiler<ty
     }
 }
 
+// ################### Compiler Creation ###################
+
+export function createJitCompiler(rt: BaseRunType, fnId: JitFnID, parent?: BaseCompiler): BaseCompiler {
+    const existingJitCompiler = parent?.getDependency(fnId, rt);
+    if (existingJitCompiler) {
+        throw new Error(`Circular reference detected: ${existingJitCompiler.jitFnHash}`);
+    }
+    switch (fnId) {
+        case JitFnIDs.isType:
+            return new JitCompiler(rt, fnId, parent?.dependencies);
+        case JitFnIDs.typeErrors:
+            return new JitErrorsCompiler(rt, fnId, parent?.dependencies);
+        case JitFnIDs.jsonEncode:
+            return new JitCompiler(rt, fnId, parent?.dependencies);
+        case JitFnIDs.jsonDecode:
+            return new JitCompiler(rt, fnId, parent?.dependencies);
+        case JitFnIDs.jsonStringify:
+            return new JitCompiler(rt, fnId, parent?.dependencies);
+        case JitFnIDs.unknownKeyErrors:
+            return new JitErrorsCompiler(rt, fnId, parent?.dependencies);
+        case JitFnIDs.hasUnknownKeys:
+            return new JitCompiler(rt, fnId, parent?.dependencies);
+        case JitFnIDs.stripUnknownKeys:
+            return new JitCompiler(rt, fnId, parent?.dependencies);
+        case JitFnIDs.unknownKeysToUndefined:
+            return new JitCompiler(rt, fnId, parent?.dependencies);
+        default:
+            throw new Error(`Unknown compile operation: ${fnId}`);
+    }
+}
+
 // ################### Other Compiler functions ###################
 
 /**
@@ -195,11 +226,11 @@ export function shouldCreateDependency(cop: BaseCompiler, rt: RunType): boolean 
 }
 
 export function getJITFnHash(id: JitFnID, rt: RunType): string {
-    return `${id}_${rt.getJitHash()}`;
+    return `${id}${rt.getJitHash()}`;
 }
 
 export function getJitFnCode(cop: JitCompilerLike): {fnName: string; fnCode: string} {
-    const fnName = process.env.DEBUG_JIT ? `${JitFnNames[cop.opId]}${cop.jitFnHash}` : JitFnNames[cop.opId];
+    const fnName = process.env.DEBUG_JIT ? `${JitFnNames[cop.opId]}_${cop.jitFnHash}` : JitFnNames[cop.opId];
     const fnArgs = getJitFnArgs(cop); // function arguments with default values ie: 'vλl, pλth=[], εrr=[]'
     const fnCode = `function ${fnName}(${fnArgs}){${cop.code}}`;
     return {fnName, fnCode};
@@ -327,32 +358,3 @@ function getStackStaticPath(cop: BaseCompiler): (string | number)[] {
 
 //     return restored;
 // }
-
-export function createJitCompiler(rt: BaseRunType, fnId: JitFnID, parent?: BaseCompiler): BaseCompiler {
-    const existingJitCompiler = parent?.getDependency(fnId, rt);
-    if (existingJitCompiler) {
-        throw new Error(`Circular reference detected: ${existingJitCompiler.jitFnHash}`);
-    }
-    switch (fnId) {
-        case JitFnIDs.isType:
-            return new JitCompiler(rt, fnId, parent?.dependencies);
-        case JitFnIDs.typeErrors:
-            return new JitErrorsCompiler(rt, fnId, parent?.dependencies);
-        case JitFnIDs.jsonEncode:
-            return new JitCompiler(rt, fnId, parent?.dependencies);
-        case JitFnIDs.jsonDecode:
-            return new JitCompiler(rt, fnId, parent?.dependencies);
-        case JitFnIDs.jsonStringify:
-            return new JitCompiler(rt, fnId, parent?.dependencies);
-        case JitFnIDs.unknownKeyErrors:
-            return new JitErrorsCompiler(rt, fnId, parent?.dependencies);
-        case JitFnIDs.hasUnknownKeys:
-            return new JitCompiler(rt, fnId, parent?.dependencies);
-        case JitFnIDs.stripUnknownKeys:
-            return new JitCompiler(rt, fnId, parent?.dependencies);
-        case JitFnIDs.unknownKeysToUndefined:
-            return new JitCompiler(rt, fnId, parent?.dependencies);
-        default:
-            throw new Error(`Unknown compile operation: ${fnId}`);
-    }
-}

@@ -11,6 +11,7 @@ import {MemberRunType} from '../baseRunTypes';
 import {MockContext} from '../types';
 import {RestParamsRunType} from './restParams';
 import {JitFnIDs} from '../constants';
+import {childIsExpression} from '../utils';
 
 export class ParameterRunType extends MemberRunType<TypeParameter> {
     src: TypeParameter = null as any; // will be set after construction
@@ -51,14 +52,14 @@ export class ParameterRunType extends MemberRunType<TypeParameter> {
         const child = this.getJsonEncodeChild();
         if (!child) return '';
         const childCode = child.compileJsonEncode(cop);
-        const isExpression = this.childIsExpression(cop, JitFnIDs.jsonEncode, child);
+        const isExpression = childIsExpression(cop, JitFnIDs.jsonEncode, child);
         return isExpression ? `${cop.getChildVλl()} = ${childCode};` : childCode;
     }
     _compileJsonDecode(cop: JitCompiler): string {
         const child = this.getJsonDecodeChild();
         if (!child) return '';
         const childCode = child.compileJsonDecode(cop);
-        const isExpression = this.childIsExpression(cop, JitFnIDs.jsonDecode, child);
+        const isExpression = childIsExpression(cop, JitFnIDs.jsonDecode, child);
         return isExpression ? `${cop.getChildVλl()} = ${childCode};` : childCode;
     }
     _compileJsonStringify(cop: JitCompiler): string {
