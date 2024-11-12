@@ -40,54 +40,60 @@ class NonSerializableClass {
 const serializable = new SerializableClass();
 const nonSerializable = new NonSerializableClass('Jane', 'Smith', 1, new Date());
 
-it('validate serializable object', () => {
-    const validate = runType<SerializableClass>().createJitFunction(JitFnIDs.isType);
+const rt = runType<SerializableClass>();
+const rtNonS = runType<NonSerializableClass>();
+
+it('validate class', () => {
+    const validate = rt.createJitFunction(JitFnIDs.isType);
     expect(validate(serializable)).toBe(true);
 });
 
-it('validate non-serializable object', () => {
-    const validate = runType<NonSerializableClass>().createJitFunction(JitFnIDs.isType);
-    expect(validate(nonSerializable)).toBe(true);
-});
-
-it('validate empty serializable object', () => {
-    const validate = runType<SerializableClass>().createJitFunction(JitFnIDs.isType);
+it('validate empty class', () => {
+    const validate = rt.createJitFunction(JitFnIDs.isType);
     expect(validate(new SerializableClass())).toBe(true);
 });
 
-it('validate empty non-serializable object', () => {
-    const validate = runType<NonSerializableClass>().createJitFunction(JitFnIDs.isType);
-    expect(validate(new NonSerializableClass('', '', 0, new Date()))).toBe(true);
-});
-
-it('validate serializable object + errors', () => {
-    const valWithErrors = runType<SerializableClass>().createJitFunction(JitFnIDs.typeErrors);
+it('validate class + errors', () => {
+    const valWithErrors = rt.createJitFunction(JitFnIDs.typeErrors);
     expect(valWithErrors(serializable)).toEqual([]);
 });
 
-it('validate non-serializable object + errors', () => {
-    const valWithErrors = runType<NonSerializableClass>().createJitFunction(JitFnIDs.typeErrors);
-    expect(valWithErrors(nonSerializable)).toEqual([]);
+it('encode/decode class to json', () => {
+    const toJson = rt.createJitFunction(JitFnIDs.jsonEncode);
+    // restored object has the properties of the original object but is not a class instance
+    const restored = JSON.parse(JSON.stringify(toJson(serializable)));
+    // TODO: decide if we want to include methods in the serialization
+    expect(restored).toEqual({
+        name: serializable.name,
+        surname: serializable.surname,
+        id: serializable.id,
+        startDate: serializable.startDate.toJSON(),
+    });
 });
 
-it('encode/decode serializable object to json', () => {
-    const toJson = runType<SerializableClass>().createJitFunction(JitFnIDs.jsonEncode);
-    const fromJson = runType<SerializableClass>().createJitFunction(JitFnIDs.jsonDecode);
-    const roundtrip = fromJson(JSON.parse(JSON.stringify(toJson(serializable))));
-    expect(roundtrip).toEqual(serializable);
-    expect(roundtrip.getFullName()).toEqual(serializable.getFullName());
+it('json stringify class', () => {
+    const jsonStringify = rt.createJitFunction(JitFnIDs.jsonStringify);
+    // restored object has the properties of the original object but is not a class instance
+    const restored = JSON.parse(jsonStringify(serializable));
+    // TODO: decide if we want to include methods in the serialization
+    expect(restored).toEqual({
+        name: serializable.name,
+        surname: serializable.surname,
+        id: serializable.id,
+        startDate: serializable.startDate.toJSON(),
+    });
 });
 
-it('decode non registered class throws an error', () => {
-    expect(() => runType<NonSerializableClass>().createJitFunction(JitFnIDs.jsonEncode)).not.toThrow();
-    expect(() => runType<NonSerializableClass>().createJitFunction(JitFnIDs.jsonDecode)).toThrow(
-        `Class NonSerializableClass can't be deserialized. Only classes with and empty constructor can be deserialized.`
-    );
+it('classes can not be decoded', () => {
+    expect(() => rtNonS.createJitFunction(JitFnIDs.jsonDecode)).toThrow(`Classes can not be deserialized.`);
 });
 
-it('json stringify serializable object', () => {
-    const jsonStringify = runType<SerializableClass>().createJitFunction(JitFnIDs.jsonStringify);
-    const fromJson = runType<SerializableClass>().createJitFunction(JitFnIDs.jsonDecode);
-    const roundTrip = fromJson(JSON.parse(jsonStringify(serializable)));
-    expect(roundTrip).toEqual(serializable);
+it('mock class', () => {
+    const mock = rt.mock();
+    console.log(mock);
+    const validate = rt.createJitFunction(JitFnIDs.isType);
+    expect(mock instanceof SerializableClass).toBeTruthy();
+    expect(validate(mock)).toBe(true);
 });
+
+it.todo('decide what to do with methods in classes, if include them on jit functions or not');

@@ -98,8 +98,6 @@ describe('TupleRunType', () => {
         const typeValue = [new Date(), 123, 'hello', null, ['a', 'b', 'c'], BigInt(123)];
         // value used for json encode/decode gets modified so we need to copy it to compare later
         const copy1 = structuredClone(typeValue);
-        expect(rt.getJitConstants().skipJsonDecode).toBe(false);
-        expect(rt.getJitConstants().skipJsonEncode).toBe(false);
         expect(fromJson(JSON.parse(JSON.stringify(toJson(copy1))))).toEqual(typeValue);
     });
 

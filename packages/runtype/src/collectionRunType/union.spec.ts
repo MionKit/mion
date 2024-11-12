@@ -5,7 +5,6 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 import {JitFnIDs} from '../constants';
-import {jitUtils} from '../jitUtils';
 import {runType} from '../runType';
 
 describe('Atomic Union', () => {

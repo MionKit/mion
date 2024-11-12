@@ -15,6 +15,7 @@ import {JitFnIDs} from '../constants';
 
 export class ArrayRunType extends MemberRunType<TypeArray> {
     src: TypeArray = null as any; // will be set after construction
+    isJitInlined = () => false;
     getChildVarName(): string {
         return `i${this.getNestLevel()}`;
     }

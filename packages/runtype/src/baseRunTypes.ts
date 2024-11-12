@@ -6,10 +6,28 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {ReflectionKind, TypeIndexSignature, TypeProperty, type Type} from './_deepkit/src/reflection/type';
-import type {MockContext, RunType, DKwithRT, JitConstants, Mutable, RunTypeChildAccessor, CodeUnit, JitFnID} from './types';
-import {getPropIndex, memo, toLiteral} from './utils';
-import {jitArgs, jitErrorArgs, JitFnIDs, maxStackDepth, maxStackErrorMessage} from './constants';
+import {ReflectionKind, type TypeIndexSignature, type TypeProperty, type Type} from './_deepkit/src/reflection/type';
+import type {
+    MockContext,
+    RunType,
+    DKwithRT,
+    JitConstants,
+    Mutable,
+    RunTypeChildAccessor,
+    JitFnID,
+    CompiledOperation,
+} from './types';
+import {getPropIndex, memo} from './utils';
+import {
+    defaultJitFnHasReturn,
+    defaultJitFnIsExpression,
+    jitArgs,
+    jitErrorArgs,
+    JitFnIDs,
+    JitFnNames,
+    maxStackDepth,
+    maxStackErrorMessage,
+} from './constants';
 import {JitErrorsCompiler, JitCompiler, getJITFnHash, createJitCompiler} from './jitCompiler';
 import {getReflectionName} from './reflectionNames';
 import {createJitIDHash, jitUtils} from './jitUtils';
@@ -23,9 +41,10 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
     abstract getFamily(): 'A' | 'C' | 'M' | 'F'; // Atomic, Collection, Member, Function
     abstract getJitConstants(stack?: RunType[]): JitConstants;
     abstract mock(mockContext?: MockContext): any;
+    isJitInlined = () => !(this.isCircular || (this.src.typeName && this.getFamily() === 'C'));
     getName = memo((): string => getReflectionName(this));
     getJitId = () => this.getJitConstants().jitId;
-    getJitHash = memo((): string => createJitIDHash(this.getJitId().toString(), 15)); // first char will be the function type, total 16 chars
+    getJitHash = memo((): string => createJitIDHash(this.getJitId().toString(), 18));
     getParent = (): RunType | undefined => (this.src.parent as DKwithRT)?._rt;
     getNestLevel = memo((): number => {
         if (this.isCircular) return 0; // circular references start a new context
@@ -52,15 +71,19 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
     // ########## Create Jit Functions ##########
 
     createJitFunction = (fnId: JitFnID): ((...args: any[]) => any) => {
-        const existingCop = jitUtils.getCachedCompiledOperation(getJITFnHash(fnId, this));
+        return this._getJitCompiledOperation(fnId).fn;
+    };
+
+    private _getJitCompiledOperation(fnId: JitFnID, parentCop?: JitCompiler): CompiledOperation {
+        const existingCop = jitUtils.getJIT(getJITFnHash(fnId, this));
         if (existingCop) {
             if (process.env.DEBUG_JIT) console.log(`\x1b[32m Using cached function: ${existingCop.jitFnHash} \x1b[0m`);
-            return existingCop.jitFn;
+            return existingCop;
         }
-        const newCompileOp: JitCompiler = createJitCompiler(this, fnId) as JitCompiler;
+        const newCompileOp: JitCompiler = createJitCompiler(this, fnId, parentCop) as JitCompiler;
         this.compile(newCompileOp, fnId);
-        return newCompileOp.getCompiledFunction();
-    };
+        return newCompileOp as CompiledOperation;
+    }
 
     // ########## Child _compile Methods ##########
 
@@ -107,31 +130,20 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
     }
     /**
      * Compiles the current function.
+     * This function handles the logic to determine if the operation should be compiled and code should be inlined, or called as a dependency.
      * Note current JitCompiler operation might be different from the passed operation id.
      * ie: typeErrors might want to compile isType to generate the part of the code that checks for the type.
-     * This function handles the logic to determine if the operation should be compiled and code should be inlined, or called as a dependency.
      * @param cop current jit compiler operation
      * @param fnId operation id
      * @returns
      */
     private compile(cop: JitCompiler, fnId: JitFnID) {
-        let code: string | undefined = cop.getCodeFromCache();
-        if (code) return code;
+        let code: string | undefined;
         cop.pushStack(this);
-        if (cop.shouldCreateDependency(fnId)) {
-            const fnHash = getJITFnHash(fnId, this);
-            const cachedCop = jitUtils.getCachedCompiledOperation(fnHash);
-            if (cachedCop) {
-                cop.addDependency(cachedCop);
-                code = this.callDependency(cop, fnId);
-                // if (process.env.DEBUG_JIT) console.log(`\x1b[33m Using cached op: ${cachedCop.jitFnHash} \x1b[0m`);
-            } else {
-                const newCompileOp: JitCompiler = createJitCompiler(this, fnId, cop) as JitCompiler;
-                this.compile(newCompileOp, fnId);
-                code = this.callDependency(cop, fnId);
-            }
-        } else if (cop.shouldCallDependency()) {
-            code = this.callDependency(cop, fnId);
+        if (cop.shouldCallDependency()) {
+            const compiledOp = this._getJitCompiledOperation(fnId, cop);
+            code = this.callDependency(cop, compiledOp);
+            cop.updateDependencies(compiledOp);
         } else {
             switch (fnId) {
                 case JitFnIDs.isType:
@@ -170,21 +182,22 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
         return code;
     }
 
-    callDependency(cop: JitCompiler, opIdToCall: JitFnID): string {
-        const stackItem = cop.getCurrentStackItem();
-        if (!stackItem.dependencyId)
-            throw new Error(`Current stack item should not generate a dependency, stack item jitId: ${stackItem.rt.getJitId()}`);
-        const fnId = getJITFnHash(opIdToCall, stackItem.rt);
-        const isErrorCall = opIdToCall === JitFnIDs.typeErrors || opIdToCall === JitFnIDs.unknownKeyErrors;
-        const id = toLiteral(fnId);
+    callDependency(currentCop: JitCompiler, cop: CompiledOperation): string {
+        const stackItem = currentCop.getCurrentStackItem();
+        const isErrorCall = cop.opId === JitFnIDs.typeErrors || cop.opId === JitFnIDs.unknownKeyErrors;
         const args = isErrorCall ? jitErrorArgs : jitArgs;
         const argsCode = Object.entries(args)
             .map(([key, name]) => (key === 'vλl' ? stackItem.vλl : name))
             .join(',');
-        const callCode = `µTils.getJitFn(${id})(${argsCode})`;
+        const isSame = currentCop.jitFnHash === cop.jitFnHash;
+        // call local variable instead directly calling jitUtils to avoid lookups.
+        // ie function context (local variable created when compiling the function): const abc = jitUtils.getJIT('abc);
+        // ie calling context variable: abc.fn();
+        // if operation is the same as the current operation we can call the function directly
+        const callCode = isSame ? `${cop.jitFnHash}(${argsCode})` : `${cop.jitFnHash}.fn(${argsCode})`;
         if (isErrorCall) {
-            const pathArgs = cop.getStackStaticPathArgs();
-            const pathLength = cop.getStaticPathLength();
+            const pathArgs = currentCop.getStackStaticPathArgs();
+            const pathLength = currentCop.getStaticPathLength();
             // increase and decrease the static path before and after calling the circular function
             return `${jitErrorArgs.pλth}.push(${pathArgs}); ${callCode}; ${jitErrorArgs.pλth}.splice(-${pathLength});`;
         }
@@ -220,53 +233,15 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
     // or if the compiled code should contain a return statement or not
     // all atomic types should have these same flags (code should never have a return statement)
     jitFnHasReturn(fnId: JitFnID): boolean {
-        switch (fnId) {
-            case JitFnIDs.isType:
-                return false;
-            case JitFnIDs.typeErrors:
-                return false;
-            case JitFnIDs.jsonEncode:
-                return false;
-            case JitFnIDs.jsonDecode:
-                return false;
-            case JitFnIDs.jsonStringify:
-                return false;
-            case JitFnIDs.unknownKeyErrors:
-                return false;
-            case JitFnIDs.hasUnknownKeys:
-                return false;
-            case JitFnIDs.stripUnknownKeys:
-                return false;
-            case JitFnIDs.unknownKeysToUndefined:
-                return false;
-            default:
-                throw new Error(`Unknown compile operation: ${fnId}`);
-        }
+        const hasReturn = defaultJitFnHasReturn[JitFnNames[fnId]];
+        if (hasReturn === undefined) throw new Error(`Unknown compile operation: ${fnId}`);
+        return hasReturn;
     }
 
     jitFnIsExpression(fnId: JitFnID): boolean {
-        switch (fnId) {
-            case JitFnIDs.isType:
-                return true;
-            case JitFnIDs.typeErrors:
-                return false;
-            case JitFnIDs.jsonEncode:
-                return false;
-            case JitFnIDs.jsonDecode:
-                return false;
-            case JitFnIDs.jsonStringify:
-                return true;
-            case JitFnIDs.unknownKeyErrors:
-                return false;
-            case JitFnIDs.hasUnknownKeys:
-                return true;
-            case JitFnIDs.stripUnknownKeys:
-                return false;
-            case JitFnIDs.unknownKeysToUndefined:
-                return false;
-            default:
-                throw new Error(`Unknown compile operation: ${fnId}`);
-        }
+        const isExpression = defaultJitFnIsExpression[JitFnNames[fnId]];
+        if (isExpression === undefined) throw new Error(`Unknown compile operation: ${fnId}`);
+        return isExpression;
     }
 }
 
@@ -327,6 +302,7 @@ export abstract class CollectionRunType<T extends Type> extends BaseRunType<T> {
     }
     getChildRunTypes = (): BaseRunType[] => {
         const childTypes = ((this.src as DkCollection).types as DKwithRT[]) || []; // deepkit stores child types in the types property
+        // console.log('childTypes ===>', childTypes);
         return childTypes.map((t) => t._rt as BaseRunType);
     };
     getJitChildren(): BaseRunType[] {

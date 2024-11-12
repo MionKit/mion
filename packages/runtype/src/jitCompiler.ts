@@ -4,55 +4,58 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
-import type {JitFnArgs, RunType, Mutable, CompiledOperation, JitFnID} from './types';
+import type {JitFnArgs, Mutable, CompiledOperation, JitFnID} from './types';
+import type {BaseRunType} from './baseRunTypes';
 import {
     jitArgs,
     jitDefaultArgs,
     jitDefaultErrorArgs,
     jitErrorArgs,
     JitFnIDs,
-    JitFnNames,
     jitNames,
     maxStackDepth,
     maxStackErrorMessage,
 } from './constants';
 import {isChildAccessorType} from './guards';
-import {isSameJitType} from './utils';
-import {BaseRunType} from './baseRunTypes';
+import {toLiteral} from './utils';
 import {jitUtils} from './jitUtils';
 
 export type StackItem = {
     /** current compile stack full variable accessor */
     vλl: string;
     /** current compile stack variable accessor */
-    rt: RunType;
+    rt: BaseRunType;
     /** if should call a dependency instead inline code, then this would contain the id of the dependency to call */
     dependencyId?: string;
 };
 
 export type JitCompilerLike = BaseCompiler | CompiledOperation;
-export type JitDependencies = Map<string, JitCompilerLike>;
+export type JitDependencies = Set<string>;
 
 export class BaseCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extends JitFnID = any> {
     constructor(
-        public readonly rootType: RunType,
+        public readonly rootType: BaseRunType,
         public readonly opId: ID,
         public readonly args: FnArgsNames,
         /** when creating the function it might have default values */
         public readonly defaultParamValues: Record<keyof FnArgsNames, string | null>,
         public readonly returnName: string,
-        public readonly dependencies: JitDependencies = new Map()
+        public readonly parentLength: number = 0
     ) {
         this.jitFnHash = getJITFnHash(this.opId, this.rootType);
         this.jitId = this.rootType.getJitId();
-        this.addDependency(this);
         this.vλl = this.args.vλl;
+        jitUtils.setCachedCompiled(this.jitFnHash, this as CompiledOperation);
     }
     readonly jitId: string | number;
     readonly jitFnHash: string;
-    readonly jitFn: ((...args: any[]) => any) | undefined;
+    // !!! DO NOT MODIFY METHOD WITHOUT REVIEWING JIT CODE INVOCATIONS!!!
+    readonly fn: ((...args: any[]) => any) | undefined;
     readonly code: string = '';
+    readonly contextCode: string = '';
     readonly canSkipped?: boolean = false;
+    readonly directDependencies: JitDependencies = new Set();
+    readonly childDependencies: JitDependencies = new Set();
     /** The list of types being compiled.
      * each time there is a circular type a new substack is created.
      */
@@ -63,14 +66,12 @@ export class BaseCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extends 
         return this.stack.length;
     }
     get totalLength() {
-        let length = 0;
-        this.dependencies.forEach((dep) => (length += dep instanceof BaseCompiler ? dep.length : 0));
-        return length;
+        return this.stack.length + this.parentLength;
     }
     vλl: string = '';
     private _stackStaticPath: (string | number)[] = [];
     /** push new item to the stack, returns true if new child is already in the stack (is circular type) */
-    pushStack(newChild: RunType): void {
+    pushStack(newChild: BaseRunType): void {
         const totalLength = this.stack.length + this.totalLength;
         if (totalLength > maxStackDepth) throw new Error(maxStackErrorMessage);
         if (this.stack.length === 0) {
@@ -80,9 +81,6 @@ export class BaseCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extends 
         this.vλl = getStackVλl(this);
         this._stackStaticPath = getStackStaticPath(this);
         const newStackItem: StackItem = {vλl: this.vλl, rt: newChild};
-        if (shouldCreateDependency(this, newChild)) {
-            newStackItem.dependencyId = getJITFnHash(this.opId, newChild);
-        }
         this.stack.push(newStackItem);
     }
     popStack(resultCode: string): void | ((...args: any[]) => any) {
@@ -93,7 +91,7 @@ export class BaseCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extends 
         this._stackStaticPath = getStackStaticPath(this);
         if (this.stack.length === 0) {
             try {
-                return compiledFunction(this); // add the compiled function to jit cache
+                return compileFunction(this); // add the compiled function to jit cache
             } catch (e: any) {
                 const fnCode = ` Code:\nfunction ${this.opId}(){${this.code}}`;
                 const name = `(${this.rootType.getName()}:${this.rootType.getJitId()})`;
@@ -122,129 +120,95 @@ export class BaseCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extends 
         if (!isChildAccessorType(rt)) throw new Error(`cant get child var name from ${rt.getName()}`);
         return parent.vλl + (rt.useArrayAccessor() ? `[${rt.getChildLiteral()}]` : `.${rt.getChildVarName()}`);
     }
-    getCodeFromCache(): string | undefined {
-        return jitUtils.getCachedCompiledOperation(this.jitFnHash)?.code;
-    }
-    shouldCreateDependency(opId: JitFnID): boolean {
-        const stackItem = this.getCurrentStackItem();
-        const existingJitCompiler = this.getDependency(opId, stackItem.rt);
-        return !!stackItem.dependencyId && this.stack.length > 1 && !existingJitCompiler;
-    }
     shouldCallDependency(): boolean {
         const stackItem = this.getCurrentStackItem();
-        return !!stackItem.dependencyId && this.stack.length > 1;
+        return !stackItem.rt.isJitInlined() && this.stack.length > 1;
     }
     getCompiledFunction(): (...args: any[]) => any {
-        if (!this.jitFn) throw new Error('Can not get compiled function before the compile operation is finished');
-        return this.jitFn;
+        if (!this.fn) throw new Error('Can not get compiled function before the compile operation is finished');
+        return this.fn;
     }
-    hasDependency(opId: JitFnID, rootType: RunType): boolean {
-        const id = `${opId}:${rootType.getJitId()}`;
-        return this.dependencies.has(id);
-    }
-    getDependency(opId: JitFnID, rootType: RunType): JitCompilerLike | undefined {
-        const id = `${opId}:${rootType.getJitId()}`;
-        return this.dependencies.get(id);
-    }
-    addDependency(cop: JitCompilerLike) {
-        const id = `${this.opId}:${cop.jitId}`;
-        this.dependencies.set(id, this);
+    updateDependencies(childCop: CompiledOperation): void {
+        this.directDependencies.add(childCop.jitFnHash);
+        childCop.directDependencies.forEach((dep) => this.childDependencies.add(dep));
+        childCop.childDependencies.forEach((dep) => this.childDependencies.add(dep));
     }
 }
 
 // ################### Compile Operations ###################
 
 export class JitCompiler<ID extends JitFnID = any> extends BaseCompiler<typeof jitArgs, ID> {
-    constructor(rt: RunType, id: ID, dependencies?: JitDependencies) {
-        super(rt, id, {...jitArgs}, {...jitDefaultArgs}, 'vλl', dependencies);
+    constructor(rt: BaseRunType, id: ID, parentLength: number = 0) {
+        super(rt, id, {...jitArgs}, {...jitDefaultArgs}, 'vλl', parentLength);
     }
 }
 
 export class JitErrorsCompiler<ID extends JitFnID = any> extends BaseCompiler<typeof jitErrorArgs, ID> {
-    constructor(rt: RunType, id: ID, dependencies?: JitDependencies) {
+    constructor(rt: BaseRunType, id: ID, parentLength: number = 0) {
         const args = {...jitErrorArgs};
         const defaultValues = {...jitDefaultErrorArgs};
-        super(rt, id, args, defaultValues, 'εrr', dependencies);
+        super(rt, id, args, defaultValues, 'εrr', parentLength);
     }
 }
 
 // ################### Compiler Creation ###################
 
 export function createJitCompiler(rt: BaseRunType, fnId: JitFnID, parent?: BaseCompiler): BaseCompiler {
-    const existingJitCompiler = parent?.getDependency(fnId, rt);
-    if (existingJitCompiler) {
-        throw new Error(`Circular reference detected: ${existingJitCompiler.jitFnHash}`);
-    }
     switch (fnId) {
         case JitFnIDs.isType:
-            return new JitCompiler(rt, fnId, parent?.dependencies);
+            return new JitCompiler(rt, fnId, parent?.totalLength);
         case JitFnIDs.typeErrors:
-            return new JitErrorsCompiler(rt, fnId, parent?.dependencies);
+            return new JitErrorsCompiler(rt, fnId, parent?.totalLength);
         case JitFnIDs.jsonEncode:
-            return new JitCompiler(rt, fnId, parent?.dependencies);
+            return new JitCompiler(rt, fnId, parent?.totalLength);
         case JitFnIDs.jsonDecode:
-            return new JitCompiler(rt, fnId, parent?.dependencies);
+            return new JitCompiler(rt, fnId, parent?.totalLength);
         case JitFnIDs.jsonStringify:
-            return new JitCompiler(rt, fnId, parent?.dependencies);
+            return new JitCompiler(rt, fnId, parent?.totalLength);
         case JitFnIDs.unknownKeyErrors:
-            return new JitErrorsCompiler(rt, fnId, parent?.dependencies);
+            return new JitErrorsCompiler(rt, fnId, parent?.totalLength);
         case JitFnIDs.hasUnknownKeys:
-            return new JitCompiler(rt, fnId, parent?.dependencies);
+            return new JitCompiler(rt, fnId, parent?.totalLength);
         case JitFnIDs.stripUnknownKeys:
-            return new JitCompiler(rt, fnId, parent?.dependencies);
+            return new JitCompiler(rt, fnId, parent?.totalLength);
         case JitFnIDs.unknownKeysToUndefined:
-            return new JitCompiler(rt, fnId, parent?.dependencies);
+            return new JitCompiler(rt, fnId, parent?.totalLength);
         default:
             throw new Error(`Unknown compile operation: ${fnId}`);
     }
 }
 
 // ################### Other Compiler functions ###################
-
 /**
- * Indicates whether or not a type should be embedded or called as a dependency.
- * Circular types are always called as dependencies.
- * we could play around with this function to control whether more code is cached or embeded.
- * Cached reduce code size but decrease performance as more function calls are generated and a map lookup done for each function.
- * @param cop
+ * Creates a function name based on the jitHash of the runType and the id of the function.
+ * it is a valid js variable name.
+ * @param id
  * @param rt
  * @returns
  */
-export function shouldCreateDependency(cop: BaseCompiler, rt: RunType): boolean {
-    if (cop.stack.length === 0) return false;
-    if (rt.src.typeName && rt.getFamily() === 'C') return true;
-    const isRoot = cop.length === 1;
-    if (!isRoot && rt.getFamily() === 'A') {
-        // self invoking functions that contains atomic types are cached
-        const isExpression: boolean = (rt as BaseRunType).jitFnIsExpression(cop.opId);
-        const codeHasReturn: boolean = (rt as BaseRunType).jitFnHasReturn(cop.opId);
-        const isSelfInvoking = isExpression && codeHasReturn;
-        if (isSelfInvoking) return true;
-    }
-    const hasCircularParent = cop.stack.some((i) => isSameJitType(i.rt, rt));
-    return hasCircularParent;
+export function getJITFnHash(id: JitFnID, rt: BaseRunType): string {
+    return `fn${id}_${rt.getJitHash()}`;
 }
 
-export function getJITFnHash(id: JitFnID, rt: RunType): string {
-    return `${id}${rt.getJitHash()}`;
-}
-
-export function getJitFnCode(cop: JitCompilerLike): {fnName: string; fnCode: string} {
-    const fnName = process.env.DEBUG_JIT ? `${JitFnNames[cop.opId]}_${cop.jitFnHash}` : JitFnNames[cop.opId];
+function getJitFnCode(cop: JitCompilerLike): {fnName: string; fnCode: string} {
+    const fnName = cop.jitFnHash;
     const fnArgs = getJitFnArgs(cop); // function arguments with default values ie: 'vλl, pλth=[], εrr=[]'
     const fnCode = `function ${fnName}(${fnArgs}){${cop.code}}`;
     return {fnName, fnCode};
 }
 
-function compiledFunction(cop: BaseCompiler): (...args: any[]) => any {
-    if (cop.jitFn) return cop.jitFn;
+function compileFunction(cop: BaseCompiler): (...args: any[]) => any {
+    if (cop.fn) return cop.fn;
     if (cop.stack.length !== 0) throw new Error('Can not get compiled function before the compile operation is finished');
-    const fn = jitUtils.getCachedFn(cop.jitFnHash);
-    if (fn) return fn;
+    if (jitUtils.hasJitFn(cop.jitFnHash)) return jitUtils.getJitFn(cop.jitFnHash);
     const {fnCode, fnName} = getJitFnCode(cop);
-    const newFn = createJitFnWithContext(fnCode, fnName);
-    (cop as Mutable<BaseCompiler>).jitFn = newFn;
-    jitUtils.addCachedFn(cop.jitFnHash, cop as CompiledOperation);
+    const otherDependencies = Array.from(cop.directDependencies.values()).filter((jitFnHash) => jitFnHash !== cop.jitFnHash);
+    const contextCode: string = otherDependencies
+        .map((jitFnHash) => `const ${jitFnHash}= µTils.getJIT(${toLiteral(jitFnHash)})`)
+        .join(';');
+    const newFn = createJitFnWithContext(fnCode, fnName, contextCode);
+    (cop as Mutable<BaseCompiler>).fn = newFn;
+    (cop as Mutable<BaseCompiler>).contextCode = contextCode;
     return newFn;
 }
 
@@ -255,17 +219,27 @@ function compiledFunction(cop: BaseCompiler): (...args: any[]) => any {
  * @param code
  * @returns
  */
-function createJitFnWithContext(code: string, functionName): (...args: any[]) => any {
+function createJitFnWithContext(code: string, functionName: string, contextCode?: string): (...args: any[]) => any {
     // this function will have jitUtils as context as is an argument of the enclosing function
-    const fnWithContext = `${code}\nreturn ${functionName};`;
+    const context = contextCode ? `${contextCode};` : '';
+    const fnWithContext = `${context} ${code} return ${functionName};`;
     try {
         const wrapperWithContext = new Function(jitNames.utils, fnWithContext);
-        if (process.env.DEBUG_JIT) console.log(code);
+        if (process.env.DEBUG_JIT) console.log(printFn(fnWithContext, code, functionName, contextCode));
         return wrapperWithContext(jitUtils); // returns the jit internal function with the context
     } catch (e: any) {
-        if (process.env.DEBUG_JIT) console.warn('Error creating jit function with context code:\n', code);
+        if (process.env.DEBUG_JIT) {
+            console.warn(
+                'Error creating jit function with context code:\n',
+                printFn(fnWithContext, code, functionName, contextCode)
+            );
+        }
         throw e;
     }
+}
+
+function printFn(fnWithContext: string, code: string, functionName: string, contextCode?: string): string {
+    return contextCode ? `function context_${functionName}(){${fnWithContext}}` : code;
 }
 
 function getJitFnArgs(cop: JitCompilerLike): string {

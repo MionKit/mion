@@ -117,9 +117,7 @@ export function getPropIndex(src: Type): number {
 }
 
 export function childIsExpression(cop: JitCompiler, fnId: JitFnID, child: BaseRunType): boolean {
-    const popItem = cop.popItem;
-    if (child !== popItem?.rt) throw new Error('isChildExpression can only be called after the child has been compiled');
-    return child.jitFnIsExpression(fnId) || !!popItem?.dependencyId;
+    return child.jitFnIsExpression(fnId) || !child.isJitInlined();
 }
 
 export function shouldSkipJit(rt: RunType): boolean {

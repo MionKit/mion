@@ -23,10 +23,10 @@ it('validate object + errors', () => {
     const valWithErrors = rt.createJitFunction(JitFnIDs.typeErrors);
     expect(valWithErrors({})).toEqual([]);
     expect(valWithErrors({a: 42, b: 'hello'})).toEqual([]);
-    expect(valWithErrors(null)).toEqual([{path: [], expected: 'object'}]);
-    expect(valWithErrors(undefined)).toEqual([{path: [], expected: 'object'}]);
-    expect(valWithErrors(42)).toEqual([{path: [], expected: 'object'}]);
-    expect(valWithErrors('hello')).toEqual([{path: [], expected: 'object'}]);
+    expect(valWithErrors(null)).toEqual([{path: [], expected: 'objectLiteral'}]);
+    expect(valWithErrors(undefined)).toEqual([{path: [], expected: 'objectLiteral'}]);
+    expect(valWithErrors(42)).toEqual([{path: [], expected: 'objectLiteral'}]);
+    expect(valWithErrors('hello')).toEqual([{path: [], expected: 'objectLiteral'}]);
 });
 
 it('encode to json', () => {

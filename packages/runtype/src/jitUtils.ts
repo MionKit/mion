@@ -5,14 +5,13 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 import {maxUnknownKeys} from './constants';
-import type {CompiledOperation, RunTypeError, SerializableClass} from './types';
+import type {CompiledOperation, RunTypeError} from './types';
 
 export type JITUtils = typeof jitUtils;
 
 // eslint-disable-next-line no-control-regex
 const STR_ESCAPE = /[\u0000-\u001f\u0022\u005c\ud800-\udfff]/;
 
-const classesMap = new Map<string, SerializableClass>();
 const jitCache = new Map<string, CompiledOperation>();
 const jitObjectKeys = new Map<string, Set<string | number>>();
 const jitHashes = new Map<string, string>();
@@ -61,34 +60,22 @@ export const jitUtils = {
         }
     },
     // !!! DO NOT MODIFY METHOD WITHOUT REVIEWING JIT CODE INVOCATIONS!!!
-    addSerializableClass(cls: SerializableClass) {
-        classesMap.set(cls.name, cls);
-    },
-    // !!! DO NOT MODIFY METHOD WITHOUT REVIEWING JIT CODE INVOCATIONS!!!
-    getSerializableClass(name: string) {
-        return classesMap.get(name);
-    },
-    // !!! DO NOT MODIFY METHOD WITHOUT REVIEWING JIT CODE INVOCATIONS!!!
-    addCachedFn(key: string, cop: CompiledOperation) {
+    setCachedCompiled(key: string, cop: CompiledOperation) {
         jitCache.set(key, cop);
     },
     // !!! DO NOT MODIFY METHOD WITHOUT REVIEWING JIT CODE INVOCATIONS!!!
-    getCachedCompiledOperation(key: string): CompiledOperation | undefined {
+    getJIT(key: string): CompiledOperation | undefined {
         return jitCache.get(key);
-    },
-    // !!! DO NOT MODIFY METHOD WITHOUT REVIEWING JIT CODE INVOCATIONS!!!
-    getCachedFn(key: string): undefined | ((...args: any[]) => any) {
-        return jitCache.get(key)?.jitFn;
     },
     // !!! DO NOT MODIFY METHOD WITHOUT REVIEWING JIT CODE INVOCATIONS!!!
     getJitFn(key: string): (...args: any[]) => any {
         const cop = jitCache.get(key);
         if (!cop) throw new Error(`Jit function not found for key ${key}`);
-        return cop.jitFn;
+        return cop.fn;
     },
     // !!! DO NOT MODIFY METHOD WITHOUT REVIEWING JIT CODE INVOCATIONS!!!
-    isFnInCache(key: string) {
-        return !!jitCache[key];
+    hasJitFn(key: string) {
+        return !!jitCache.get(key)?.fn;
     },
     // !!! DO NOT MODIFY METHOD WITHOUT REVIEWING JIT CODE INVOCATIONS!!!
     /**
@@ -159,6 +146,7 @@ export function createJitIDHash(jitId: string, length = hashDefaultLength): stri
     let existing = jitHashes.get(id);
     // Check if ID already exists and corresponds to the same input
     while (existing && existing !== jitId) {
+        if (process.env.DEBUG_JIT) console.warn(`Collision for jitId: ${jitId} with hash: ${id}`);
         length += counter * hashIncrement;
         // generates a longer hash if there are collisions
         // this would allow trying to get all possible hashes for a given input just by increasing the length

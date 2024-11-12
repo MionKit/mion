@@ -38,12 +38,10 @@ export interface RunType {
     getName(): string;
     getFamily(): 'A' | 'C' | 'M' | 'F'; // Atomic, Collection, Member, Function
     mock: (mockContext?: MockContext) => any;
-    isCircular?: boolean;
 
     // ######## JIT functions ########
     getJitId(): string | number;
     getJitHash: () => string;
-    getJitConstants(stack?: RunType[]): JitConstants;
     createJitFunction(name: JitFnID): (...args: any[]) => any;
 }
 
@@ -95,8 +93,11 @@ export interface RunTypeOptions {
 export type CodeUnit = 'EXPRESSION' | 'STATEMENT' | 'BLOCK';
 
 export interface CompiledOperation
-    extends Pick<JitCompiler, 'opId' | 'args' | 'defaultParamValues' | 'code' | 'jitFnHash' | 'jitId' | 'dependencies'> {
-    jitFn: (...args: any[]) => any;
+    extends Pick<
+        JitCompiler,
+        'opId' | 'args' | 'defaultParamValues' | 'code' | 'jitFnHash' | 'jitId' | 'directDependencies' | 'childDependencies'
+    > {
+    fn: (...args: any[]) => any;
 }
 
 export interface SerializableCompiledOperation
@@ -163,12 +164,6 @@ export interface UnwrappedJITFunctions {
     jsonEncode: JitFnData<unwrappedJsonEncodeFn>;
     jsonDecode: JitFnData<unwrappedJsonDecodeFn>;
     jsonStringify: JitFnData<unwrappedJsonStringifyFn>;
-}
-
-/** Serializable classes
- * Must have constructor with no arguments  */
-export interface SerializableClass<T = any> {
-    new (): T;
 }
 
 /** Any Class */
