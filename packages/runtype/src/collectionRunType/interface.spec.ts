@@ -127,7 +127,7 @@ describe('Interface', () => {
         expect(valWithErrors('hello')).toEqual([
             {
                 path: [],
-                expected: `objectLiteral`,
+                expected: `object`,
             },
         ]);
         expect(

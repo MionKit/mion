@@ -267,13 +267,13 @@ describe('Union Obj', () => {
         const typeValue = new Date();
 
         expect(() => jsonStringify(typeValue)).toThrow(
-            'Can not stringify union: expected one of <objectLiteral | objectLiteral | objectLiteral> but got Date'
+            'Can not stringify union: expected one of <object | object | object> but got Date'
         );
         expect(() => fromJson(123)).toThrow(
-            'Can not decode json to union: expected one of <objectLiteral | objectLiteral | objectLiteral> but got Number'
+            'Can not decode json to union: expected one of <object | object | object> but got Number'
         );
         expect(() => toJson(typeValue)).toThrow(
-            'Can not encode json to union: expected one of <objectLiteral | objectLiteral | objectLiteral> but got Date'
+            'Can not encode json to union: expected one of <object | object | object> but got Date'
         );
     });
 
@@ -382,13 +382,13 @@ describe('Union Mixed', () => {
         const typeValue = new Date();
 
         expect(() => jsonStringify(typeValue)).toThrow(
-            'Can not stringify union: expected one of <array | array | array | objectLiteral | objectLiteral | objectLiteral> but got Date'
+            'Can not stringify union: expected one of <array | array | array | object | object | object> but got Date'
         );
         expect(() => fromJson(123)).toThrow(
-            'Can not decode json to union: expected one of <array | array | array | objectLiteral | objectLiteral | objectLiteral> but got Number'
+            'Can not decode json to union: expected one of <array | array | array | object | object | object> but got Number'
         );
         expect(() => toJson(typeValue)).toThrow(
-            'Can not encode json to union: expected one of <array | array | array | objectLiteral | objectLiteral | objectLiteral> but got Date'
+            'Can not encode json to union: expected one of <array | array | array | object | object | object> but got Date'
         );
     });
 
