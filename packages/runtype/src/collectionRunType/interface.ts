@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 import {TypeObjectLiteral, TypeClass, TypeIntersection, TypeProperty, ReflectionKind} from '../_deepkit/src/reflection/type';
-import {MockContext, RunType} from '../types';
+import {MockOperation, RunType} from '../types';
 import {getJitErrorPath, getExpected, toLiteral, arrayToArgumentsLiteral} from '../utils';
 import {PropertyRunType} from '../memberRunType/property';
 import {CollectionRunType, MemberRunType} from '../baseRunTypes';
@@ -169,12 +169,12 @@ export class InterfaceRunType<
         return childrenCode ? `${parentCode}\n${childrenCode}` : parentCode;
     };
 
-    mock(ctx?: Pick<MockContext, 'parentObj'>): Record<string | number, any> {
-        const obj: Record<string | number, any> = ctx?.parentObj || {};
+    _mock(ctx: Pick<MockOperation, 'parentObj'>): Record<string | number, any> {
+        let obj: Record<string | number, any> = ctx.parentObj || {};
         this.getChildRunTypes().forEach((prop) => {
             const name = (prop as PropertyRunType).getChildVarName();
-            if (prop instanceof IndexSignatureRunType) prop.mock(ctx);
-            else obj[name] = prop.mock(ctx as MockContext);
+            if (prop instanceof IndexSignatureRunType) obj = {...obj, ...prop.mock(ctx as MockOperation)};
+            else obj[name] = prop.mock(ctx as MockOperation);
         });
         return obj;
     }

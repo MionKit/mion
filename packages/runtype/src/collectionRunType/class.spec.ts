@@ -38,7 +38,6 @@ class NonSerializableClass {
 }
 
 const serializable = new SerializableClass();
-const nonSerializable = new NonSerializableClass('Jane', 'Smith', 1, new Date());
 
 const rt = runType<SerializableClass>();
 const rtNonS = runType<NonSerializableClass>();
@@ -90,7 +89,6 @@ it('classes can not be decoded', () => {
 
 it('mock class', () => {
     const mock = rt.mock();
-    console.log(mock);
     const validate = rt.createJitFunction(JitFnIDs.isType);
     expect(mock instanceof SerializableClass).toBeTruthy();
     expect(validate(mock)).toBe(true);

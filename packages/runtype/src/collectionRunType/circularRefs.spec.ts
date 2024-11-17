@@ -309,8 +309,9 @@ describe('Circular Object with index property', () => {
 
     it('mock CircularIndex object', () => {
         const validate = rt.createJitFunction(JitFnIDs.isType);
-        expect(rt.mock() instanceof Object).toBe(true);
-        expect(validate(rt.mock())).toBe(true);
+        const mocked = rt.mock();
+        expect(mocked instanceof Object).toBe(true);
+        expect(validate(mocked)).toBe(true);
     });
 });
 

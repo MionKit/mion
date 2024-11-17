@@ -8,7 +8,7 @@
 import type {TypeTupleMember} from '../_deepkit/src/reflection/type';
 import type {JitCompiler, JitErrorsCompiler} from '../jitCompiler';
 import {BaseRunType, MemberRunType} from '../baseRunTypes';
-import {JitConstants, MockContext, Mutable} from '../types';
+import {JitConstants, MockOperation, Mutable} from '../types';
 import {JitFnIDs} from '../constants';
 import {childIsExpression} from '../utils';
 
@@ -63,11 +63,11 @@ export class TupleMemberRunType extends MemberRunType<TypeTupleMember> {
         const itemCode = this.getMemberType().compileJsonStringify(cop);
         return this.isOptional() ? `(${cop.getChildVλl()} === undefined ? null : ${itemCode})` : itemCode;
     }
-    mock(ctx?: Pick<MockContext, 'optionalProbability'>): any {
+    _mock(ctx: Pick<MockOperation, 'optionalProbability'>): any {
         if (this.isOptional()) {
-            const probability = ctx?.optionalProbability || 0.5;
+            const probability = ctx.optionalProbability;
             if (probability < 0 || probability > 1) throw new Error('optionalProbability must be between 0 and 1');
-            if (Math.random() < probability) {
+            if (Math.random() > probability) {
                 return undefined;
             }
         }

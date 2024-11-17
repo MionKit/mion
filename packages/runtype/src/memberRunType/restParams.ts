@@ -2,7 +2,7 @@ import type {TypeRest} from '../_deepkit/src/reflection/type';
 import type {JitCompiler, JitErrorsCompiler} from '../jitCompiler';
 import {MemberRunType} from '../baseRunTypes';
 import {JitFnIDs} from '../constants';
-import {JitFnID, MockContext} from '../types';
+import {JitFnID, MockOperation} from '../types';
 import {childIsExpression} from '../utils';
 import {ParameterRunType} from './param';
 import {TupleMemberRunType} from './tupleMember';
@@ -104,7 +104,7 @@ export class RestParamsRunType extends MemberRunType<TypeRest> {
     _compileUnknownKeysToUndefined(): string {
         return '';
     }
-    mock(ctx?: MockContext): string {
+    _mock(ctx: MockOperation): string {
         return this.getMemberType().mock(ctx);
     }
 }

@@ -1,7 +1,7 @@
 import {getExpected, getJitErrorPath, toLiteral} from '../utils';
 import {ParameterRunType} from '../memberRunType/param';
 import type {JitCompiler, JitErrorsCompiler} from '../jitCompiler';
-import {AnyFunction, DKwithRT, MockContext} from '../types';
+import {AnyFunction, DKwithRT, MockOperation} from '../types';
 import {TypeFunction} from '../_deepkit/src/reflection/type';
 import {BaseRunType, CollectionRunType} from '../baseRunTypes';
 
@@ -98,7 +98,7 @@ export class FunctionParametersRunType<CallType extends AnyFunction = TypeFuncti
             .join(';');
     }
 
-    mock(ctx?: MockContext) {
+    _mock(ctx: MockOperation) {
         return this.getParameterTypes().map((p) => p.mock(ctx));
     }
 }

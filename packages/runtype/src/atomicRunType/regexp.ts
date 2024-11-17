@@ -6,7 +6,7 @@
  * ######## */
 
 import {ReflectionKind, type TypeRegexp} from '../_deepkit/src/reflection/type';
-import type {JitJsonEncoder, MockContext, JitConstants} from '../types';
+import type {JitJsonEncoder, MockOperation, JitConstants} from '../types';
 import {getJitErrorPath, getExpected} from '../utils';
 import {mockRegExp} from '../mock';
 import {AtomicRunType} from '../baseRunTypes';
@@ -37,8 +37,8 @@ export class RegexpRunType extends AtomicRunType<TypeRegexp> {
     _compileJsonStringify(cop: JitCompiler): string {
         return RegexpJitJsonEncoder.stringify(cop.vλl);
     }
-    mock(cop?: Pick<MockContext, 'regexpList'>): RegExp {
-        return mockRegExp(cop?.regexpList);
+    _mock(ctx: Pick<MockOperation, 'regexpList'>): RegExp {
+        return mockRegExp(ctx.regexpList);
     }
 }
 

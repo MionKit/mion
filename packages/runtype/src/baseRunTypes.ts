@@ -8,7 +8,7 @@
 
 import {ReflectionKind, type TypeIndexSignature, type TypeProperty, type Type} from './_deepkit/src/reflection/type';
 import type {
-    MockContext,
+    MockOperation,
     RunType,
     DKwithRT,
     JitConstants,
@@ -16,11 +16,13 @@ import type {
     RunTypeChildAccessor,
     JitFnID,
     CompiledOperation,
+    MockOptions,
 } from './types';
 import {getPropIndex, memo} from './utils';
 import {
     defaultJitFnHasReturn,
     defaultJitFnIsExpression,
+    defaultMockOptions,
     jitArgs,
     jitErrorArgs,
     JitFnIDs,
@@ -31,6 +33,7 @@ import {
 import {JitErrorsCompiler, JitCompiler, getJITFnHash, createJitCompiler} from './jitCompiler';
 import {getReflectionName} from './reflectionNames';
 import {createJitIDHash, jitUtils} from './jitUtils';
+import {isMockContext} from './guards';
 
 type DkCollection = Type & {types: Type[]};
 type DkMember = Type & {type: Type; optional: boolean};
@@ -40,7 +43,7 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
     abstract readonly src: T;
     abstract getFamily(): 'A' | 'C' | 'M' | 'F'; // Atomic, Collection, Member, Function
     abstract getJitConstants(stack?: RunType[]): JitConstants;
-    abstract mock(mockContext?: MockContext): any;
+    abstract _mock(mockContext: MockOperation): any;
     isJitInlined = () => !(this.isCircular || (this.src.typeName && this.getFamily() === 'C'));
     getName = memo((): string => getReflectionName(this));
     getJitId = () => this.getJitConstants().jitId;
@@ -66,6 +69,55 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
                 jitId: '$' + this.src.kind + `_${inStackIndex}` + name, // ensures different circular types have different jitId
             };
         }
+    }
+
+    // ########## Mock ##########
+
+    mock(k?: Partial<MockOptions>): any {
+        const ctx = this.initMockOptions(k);
+        ctx.stack.push(this);
+        const recursionLevel = ctx.stack.filter((rt) => rt === this).length;
+        const updatedContext = recursionLevel ? this.onCircularMock(ctx, recursionLevel) : ctx;
+        const mocked = this._mock(updatedContext);
+        ctx.stack.pop();
+        return mocked;
+    }
+
+    // reduces all probabilities within the MockOptions to prevent infinite loops
+    private onCircularMock(ctx: MockOperation, recursionLevel): MockOperation {
+        const maxDepth = ctx.maxMockRecursion;
+        const divisor = recursionLevel;
+        const {optionalProbability, maxRandomArrayLength, optionalPropertyProbability, arrayLength} = ctx;
+        const newProv = recursionLevel >= maxDepth ? 0 : optionalProbability / divisor;
+        const newMaxLength = recursionLevel >= maxDepth ? 0 : Math.round(maxRandomArrayLength / divisor);
+        // console.log(`divisor: ${divisor} | newMaxLength: ${newMaxLength} | newProv: ${newProv}`);
+        const ret: MockOperation = {
+            ...ctx,
+            optionalProbability: newProv,
+            maxRandomArrayLength: newMaxLength,
+        };
+        if (optionalPropertyProbability) {
+            const entries = Object.entries(optionalPropertyProbability).map(([key, value]) => {
+                const newProv = recursionLevel > maxDepth ? 0 : value / divisor;
+                return [key, value / newProv];
+            });
+            ret.optionalPropertyProbability = Object.fromEntries(entries);
+        }
+        if (arrayLength) {
+            const newLength = recursionLevel >= maxDepth ? 0 : Math.round(arrayLength / divisor);
+            ret.arrayLength = newLength;
+        }
+        if (ret.parentObj) ret.parentObj = {}; // prevents mocking objects with circular references
+        return ret;
+    }
+
+    private initMockOptions(k?: Partial<MockOptions>): MockOperation {
+        if (k && isMockContext(k)) return k;
+        return {
+            ...defaultMockOptions,
+            ...(k || {}),
+            stack: [],
+        };
     }
 
     // ########## Create Jit Functions ##########

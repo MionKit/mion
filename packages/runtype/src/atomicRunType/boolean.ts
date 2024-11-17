@@ -30,7 +30,7 @@ export class BooleanRunType extends AtomicRunType<TypeBoolean> {
     _compileJsonStringify(cop: JitErrorsCompiler): string {
         return `(${cop.vλl} ? 'true' : 'false')`;
     }
-    mock(): boolean {
+    _mock(): boolean {
         return mockBoolean();
     }
 }

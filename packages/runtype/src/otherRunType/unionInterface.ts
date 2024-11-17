@@ -12,7 +12,7 @@ import {
     TypeUnion,
     TypeProperty,
 } from '../_deepkit/src/reflection/type';
-import {DKwithRT, MockContext, Mutable, RunTypeChildAccessor} from '../types';
+import {DKwithRT, MockOperation, Mutable, RunTypeChildAccessor} from '../types';
 import {getJitErrorPath, getExpected, toLiteral, arrayToArgumentsLiteral} from '../utils';
 import {PropertyRunType} from '../memberRunType/property';
 import {IndexSignatureRunType} from '../memberRunType/indexProperty';
@@ -190,12 +190,12 @@ export class UnionInterfaceRunType extends InterfaceRunType<anySrcInterface> {
         //     : '';
     }
 
-    mock(ctx?: Pick<MockContext, 'parentObj'>): Record<string | number, any> {
+    _mock(ctx: Pick<MockOperation, 'parentObj'>): Record<string | number, any> {
         const obj: Record<string | number, any> = ctx?.parentObj || {};
         this.getChildRunTypes().forEach((prop) => {
             const name = (prop as PropertyRunType).getChildVarName();
             if (prop instanceof IndexSignatureRunType) prop.mock(ctx);
-            else obj[name] = prop.mock(ctx as MockContext);
+            else obj[name] = prop.mock(ctx as MockOperation);
         });
         return obj;
     }

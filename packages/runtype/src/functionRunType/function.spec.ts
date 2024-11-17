@@ -208,7 +208,7 @@ describe('function return', () => {
     it('mock function return', () => {
         const mocked = rt.mockReturn();
         expect(mocked instanceof Date).toBe(true);
-        const validate = rt.createJitFunction(JitFnIDs.isType);
+        const validate = rt.createJitReturnFunction(JitFnIDs.isType);
         expect(validate(rt.mockReturn())).toBe(true);
     });
 

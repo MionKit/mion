@@ -1,3 +1,5 @@
+import type {MockOptions} from './types';
+
 /* ########
  * 2024 mion
  * Author: Ma-jerez
@@ -65,7 +67,7 @@ export const mockRegExpsList = [
     /[a-z]/, // Matches a single lowercase letter
     /\d+/, // Matches one or more digits
     /\s+/, // Matches one or more whitespace characters
-    /^https?:\/\/[\w.-]+\.[a-zA-Z]{2,}$/i, // Matches a URL starting with http:// or https://
+    /^https:\/\/[\w.-]+\.[a-zA-Z]{2,}$/i, // Matches a URL starting with http:// or https://
     /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/i, // Matches an email address
     /\b\d{2}\/\d{2}\/\d{4}\b/, // Matches a date in the format MM/DD/YYYY
     /\b\d{1,2}:\d{2}\b/, // Matches a time in the format HH:MM
@@ -123,3 +125,17 @@ export const jitArgs = {vλl: 'vλl'} as const;
 export const jitDefaultArgs = {vλl: null} as const;
 export const jitErrorArgs = {vλl: 'vλl', pλth: 'pλth', εrr: 'εrr'} as const;
 export const jitDefaultErrorArgs = {vλl: null, pλth: '[]', εrr: '[]'} as const;
+
+export const defaultMockOptions = {
+    anyValuesList,
+    promiseTimeOut: 1,
+    regexpList: mockRegExpsList,
+    maxRandomStringLength: 100,
+    stringCharSet,
+    maxRandomArrayLength: 60,
+    /** probability to generate options types, number between 0 and 1 */
+    optionalProbability: 0.5,
+    objectList: mockObjectList,
+    maxStackDepth,
+    maxMockRecursion: 10,
+} satisfies MockOptions;

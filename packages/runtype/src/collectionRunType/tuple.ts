@@ -8,7 +8,7 @@
 import {TypeTuple} from '../_deepkit/src/reflection/type';
 import {CollectionRunType} from '../baseRunTypes';
 import type {JitCompiler, JitErrorsCompiler} from '../jitCompiler';
-import {MockContext} from '../types';
+import {MockOperation} from '../types';
 import {getJitErrorPath, getExpected} from '../utils';
 
 export class TupleRunType extends CollectionRunType<TypeTuple> {
@@ -54,7 +54,7 @@ export class TupleRunType extends CollectionRunType<TypeTuple> {
         return `'['+${childrenCode}+']'`;
     }
 
-    mock(ctx?: Pick<MockContext, 'tupleOptions'>): any[] {
-        return this.getChildRunTypes().map((rt, i) => rt.mock(ctx?.tupleOptions?.[i]));
+    _mock(ctx: Pick<MockOperation, 'tupleOptions'>): any[] {
+        return this.getChildRunTypes().map((rt, i) => rt.mock(ctx.tupleOptions?.[i]));
     }
 }

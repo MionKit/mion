@@ -7,7 +7,7 @@
 
 import type {TypeProperty, TypePropertySignature} from '../_deepkit/src/reflection/type';
 import type {JitCompiler, JitErrorsCompiler} from '../jitCompiler';
-import {JitConstants, MockContext, Mutable} from '../types';
+import {JitConstants, MockOperation, Mutable} from '../types';
 import {
     childIsExpression,
     getPropIndex,
@@ -91,10 +91,10 @@ export class PropertyRunType extends MemberRunType<TypePropertySignature | TypeP
         }
         return `${propDef}+${propCode}${sep}`;
     }
-    mock(ctx?: Pick<MockContext, 'optionalPropertyProbability' | 'optionalProbability'>): any {
-        const probability = ctx?.optionalPropertyProbability?.[this.getChildVarName()] ?? ctx?.optionalProbability ?? 0.5;
+    _mock(ctx: Pick<MockOperation, 'optionalPropertyProbability' | 'optionalProbability'>): any {
+        const probability = ctx.optionalPropertyProbability?.[this.getChildVarName()] ?? ctx.optionalProbability;
         if (probability < 0 || probability > 1) throw new Error('optionalProbability must be between 0 and 1');
-        if (this.src.optional && Math.random() < probability) return undefined;
+        if (this.src.optional && Math.random() > probability) return undefined;
         return this.getMemberType().mock(ctx);
     }
 }

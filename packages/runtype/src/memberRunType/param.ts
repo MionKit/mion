@@ -8,7 +8,7 @@
 import {ReflectionKind, type TypeParameter} from '../_deepkit/src/reflection/type';
 import type {JitCompiler, JitErrorsCompiler} from '../jitCompiler';
 import {MemberRunType} from '../baseRunTypes';
-import {MockContext} from '../types';
+import {MockOperation} from '../types';
 import {JitFnIDs} from '../constants';
 import {childIsExpression, getParamIndex} from '../utils';
 
@@ -92,7 +92,7 @@ export class ParameterRunType extends MemberRunType<TypeParameter> {
         return '';
     }
 
-    mock(ctx?: MockContext): any {
+    _mock(ctx: MockOperation): any {
         return this.getMemberType().mock(ctx);
     }
 }

@@ -123,19 +123,19 @@ export const jitUtils = {
 };
 
 export const hashChars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-export const hashIncrement = 8;
-export const maxHashCollisions = 10;
+export const hashIncrement = 4;
+export const maxHashCollisions = 5;
 export const hashDefaultLength = 16;
 
-export function quickHash(input: string, length = hashDefaultLength) {
+export function quickHash(input: string, length = hashDefaultLength, prevResult?: string): string {
     const PRIME = 37; // Prime number to mix hash more robustly
     let hash = 0;
     // Generate initial numeric hash
     for (let i = 0; i < input.length; i++) {
         hash = (hash * PRIME + input.charCodeAt(i)) % Number.MAX_SAFE_INTEGER;
     }
+    let result = prevResult || '';
     // Convert numeric hash to a short alphanumeric string
-    let result = '';
     while (result.length < length) {
         hash = (hash * PRIME) % Number.MAX_SAFE_INTEGER;
         result += hashChars.charAt(hash % hashChars.length);
@@ -149,11 +149,15 @@ export function createJitIDHash(jitId: string, length = hashDefaultLength): stri
     let existing = jitHashes.get(id);
     // Check if ID already exists and corresponds to the same input
     while (existing && existing !== jitId) {
-        if (process.env.DEBUG_JIT) console.warn(`Collision for jitId: ${jitId} with hash: ${id}`);
         length += counter * hashIncrement;
         // generates a longer hash if there are collisions
         // this would allow trying to get all possible hashes for a given input just by increasing the length
-        id = quickHash(jitId, length);
+        const newId = quickHash(jitId, length, id);
+        if (process.env.DEBUG_JIT)
+            console.warn(
+                `Collision for jitId: ${jitId} with extended hash: ${newId}, and existing jitId: ${existing} with hash: ${id}`
+            );
+        id = newId;
         counter++;
         existing = jitHashes.get(id);
         if (counter > maxHashCollisions) throw new Error(`Cannot generate unique hash for jitId: ${jitId} too many collisions.`);

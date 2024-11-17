@@ -37,7 +37,7 @@ export interface RunType {
     readonly src: Type;
     getName(): string;
     getFamily(): 'A' | 'C' | 'M' | 'F'; // Atomic, Collection, Member, Function
-    mock: (mockContext?: MockContext) => any;
+    mock: (options?: Partial<MockOptions>) => any;
 
     // ######## JIT functions ########
     getJitId(): string | number;
@@ -174,36 +174,41 @@ export interface AnyClass<T = any> {
     new (...args: any[]): T;
 }
 
-interface MockOptions {
-    anyValuesLis?: any[];
+export interface MockOptions {
+    anyValuesList: any[];
     minNumber?: number;
     maxNumber?: number;
     minDate?: number;
     maxDate?: number;
     enumIndex?: number;
-    objectList?: object[];
-    promiseTimeOut?: number;
+    objectList: object[];
+    promiseTimeOut: number;
     promiseReject?: string | Error | any;
-    regexpList?: RegExp[];
+    regexpList: RegExp[];
+    maxRandomStringLength: number;
     stringLength?: number;
-    stringCharSet?: string;
+    stringCharSet: string;
     symbolLength?: number;
     symbolCharSet?: string;
     symbolName?: string;
+    maxRandomArrayLength: number;
     arrayLength?: number;
-    /** probability to generate options types, number between 0 and 1 */
-    optionalProbability?: number;
+    /** probability to generate options types, number between 0 and 1,
+     * bigger values have bigger probability of generate the optional property */
+    optionalProbability: number;
     /** probability to generate an specific property of an object, number between 0 and 1 */
     optionalPropertyProbability?: Record<string | number, number>; // TODO change to a record of MockOptions
     parentObj?: Record<string | number | symbol, any>;
     /** the index of the object to mock withing the union */
     unionIndex?: number;
     tupleOptions?: MockOptions[];
+    maxStackDepth: number;
+    maxMockRecursion: number;
 }
 
-export interface MockContext extends MockOptions {
+export interface MockOperation extends MockOptions {
     /** Used for mocking object with circular references */
-    parents?: RunType[];
+    stack: RunType[];
 }
 
 export type AnyFunction = TypeMethodSignature | TypeCallSignature | TypeFunction | TypeMethod;

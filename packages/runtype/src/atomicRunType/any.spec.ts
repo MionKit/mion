@@ -47,7 +47,6 @@ it('json stringify', () => {
 });
 
 it('mock', () => {
-    expect(typeof rt.mock).toBe('function');
     const validate = rt.createJitFunction(JitFnIDs.isType);
     expect(validate(rt.mock())).toBe(true);
 });

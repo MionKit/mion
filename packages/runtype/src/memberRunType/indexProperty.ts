@@ -1,10 +1,11 @@
 import {ReflectionKind, TypeIndexSignature} from '../_deepkit/src/reflection/type';
 import {BaseRunType, MemberRunType} from '../baseRunTypes';
-import {JitConstants, JitFnID, MockContext, Mutable} from '../types';
+import {JitConstants, JitFnID, MockOperation, Mutable} from '../types';
 import {JitFnIDs} from '../constants';
 import type {JitCompiler, JitErrorsCompiler} from '../jitCompiler';
 import {InterfaceRunType} from '../collectionRunType/interface';
 import {childIsExpression} from '../utils';
+import {random} from '../mock';
 
 /* ########
  * 2024 mion
@@ -144,9 +145,9 @@ export class IndexSignatureRunType extends MemberRunType<TypeIndexSignature> {
         const prop = this.getChildVarName();
         return `for (const ${prop} in ${cop.vλl}) {${memberCode}}`;
     }
-    mock(ctx?: Pick<MockContext, 'parentObj'>): any {
-        const length = Math.floor(Math.random() * 10);
-        const parentObj = ctx?.parentObj || {};
+    _mock(ctx: MockOperation): any {
+        const length = random(0, ctx.maxRandomArrayLength);
+        const parentObj = ctx.parentObj || {};
         for (let i = 0; i < length; i++) {
             let propName: number | string | symbol;
             switch (true) {
@@ -164,5 +165,6 @@ export class IndexSignatureRunType extends MemberRunType<TypeIndexSignature> {
             }
             parentObj[propName] = this.getMemberType().mock(ctx);
         }
+        return parentObj;
     }
 }

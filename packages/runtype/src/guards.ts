@@ -10,7 +10,7 @@ import {ReflectionKind, TypeMethod} from './_deepkit/src/reflection/type';
 import {ReflectionSubKinds} from './reflectionNames';
 import {JitFnIDs} from './constants';
 /* IMPORTANT: import classes as type only to prevent js circular imports */
-import type {RunType, RunTypeChildAccessor} from './types';
+import type {MockOperation, MockOptions, RunType, RunTypeChildAccessor} from './types';
 import type {StringRunType} from './atomicRunType/string';
 import type {DateRunType} from './atomicRunType/date';
 import type {NumberRunType} from './atomicRunType/number';
@@ -207,4 +207,8 @@ export function isRunType(value: any): value is RunType {
 
 export function isJitErrorsCompiler(value: BaseCompiler): value is JitErrorsCompiler {
     return value.opId === JitFnIDs.typeErrors || value.opId === JitFnIDs.unknownKeyErrors;
+}
+
+export function isMockContext(k: Partial<MockOptions>): k is MockOperation {
+    return (k as MockOperation).stack !== undefined;
 }

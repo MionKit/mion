@@ -6,7 +6,7 @@
  * ######## */
 
 import {ReflectionKind, type TypeNumber} from '../_deepkit/src/reflection/type';
-import type {MockContext, JitConstants} from '../types';
+import type {MockOperation, JitConstants} from '../types';
 import {getJitErrorPath, getExpected} from '../utils';
 import {mockNumber} from '../mock';
 import {AtomicRunType} from '../baseRunTypes';
@@ -28,7 +28,7 @@ export class NumberRunType extends AtomicRunType<TypeNumber> {
     _compileTypeErrors(cop: JitErrorsCompiler): string {
         return `if(!(${this._compileIsType(cop)})) µTils.errPush(${cop.args.εrr},${getJitErrorPath(cop)},${getExpected(this)})`;
     }
-    mock(cop?: Pick<MockContext, 'minNumber' | 'maxNumber'>): number {
-        return mockNumber(cop?.minNumber, cop?.maxNumber);
+    _mock(ctx: Pick<MockOperation, 'minNumber' | 'maxNumber'>): number {
+        return mockNumber(ctx.minNumber, ctx.maxNumber);
     }
 }

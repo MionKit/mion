@@ -35,7 +35,7 @@ export class EnumMemberRunType extends AtomicRunType<TypeEnum> {
     _compileJsonStringify(): string {
         throw new Error('Enum member operations are not supported');
     }
-    mock() {
+    _mock() {
         throw new Error('Enum member operations are not supported');
     }
 }

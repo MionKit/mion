@@ -6,7 +6,7 @@
  * ######## */
 
 import {ReflectionKind, type TypeBigInt} from '../_deepkit/src/reflection/type';
-import type {JitJsonEncoder, MockContext, JitConstants} from '../types';
+import type {JitJsonEncoder, MockOperation, JitConstants} from '../types';
 import {getJitErrorPath, getExpected} from '../utils';
 import {mockBigInt} from '../mock';
 import {AtomicRunType} from '../baseRunTypes';
@@ -40,8 +40,8 @@ export class BigIntRunType extends AtomicRunType<TypeBigInt> {
     /** mocks a regular number and transforms into a bigint.
      * this means range is limited to Number.MAX_SAFE_INTEGER
      */
-    mock(cop?: Pick<MockContext, 'minNumber' | 'maxNumber'>): bigint {
-        return mockBigInt(cop?.minNumber, cop?.maxNumber);
+    _mock(ctx: Pick<MockOperation, 'minNumber' | 'maxNumber'>): bigint {
+        return mockBigInt(ctx.minNumber, ctx.maxNumber);
     }
 }
 

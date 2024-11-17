@@ -36,7 +36,7 @@ export class UndefinedRunType extends AtomicRunType<TypeUndefined> {
     _compileJsonStringify(): string {
         return `null`;
     }
-    mock(): undefined {
+    _mock(): undefined {
         return undefined;
     }
 }

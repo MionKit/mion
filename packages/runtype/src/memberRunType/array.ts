@@ -6,8 +6,8 @@
  * ######## */
 
 import {TypeArray} from '../_deepkit/src/reflection/type';
-import {JitFnID, MockContext} from '../types';
-import {mockRecursiveEmptyArray, random} from '../mock';
+import {JitFnID, MockOperation} from '../types';
+import {random} from '../mock';
 import {MemberRunType} from '../baseRunTypes';
 import type {JitCompiler, JitErrorsCompiler} from '../jitCompiler';
 import {getJitErrorPath, getExpected, shouldSkipJit, childIsExpression} from '../utils';
@@ -150,13 +150,8 @@ export class ArrayRunType extends MemberRunType<TypeArray> {
         `;
     }
 
-    mock(ctx?: Pick<MockContext, 'arrayLength'>): any[] {
-        const length = ctx?.arrayLength ?? random(0, 30);
-        if (this.isCircular) {
-            const depth = random(1, 5);
-            // specific scenario where array is circular with itself, i.e: CircularArray = CircularArray[]
-            return mockRecursiveEmptyArray(depth, length);
-        }
+    _mock(ctx: MockOperation): any[] {
+        const length = ctx.arrayLength ?? random(0, ctx.maxRandomArrayLength);
         return Array.from({length}, () => this.getMemberType().mock(ctx));
     }
 }

@@ -35,7 +35,7 @@ export class NeverRunType extends AtomicRunType<TypeNever> {
     _compileJsonStringify(): string {
         throw new Error('Never type cannot be stringified.');
     }
-    mock() {
+    _mock() {
         throw new Error('Never type cannot be mocked.');
     }
 }

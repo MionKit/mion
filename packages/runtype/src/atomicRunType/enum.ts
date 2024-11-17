@@ -6,7 +6,7 @@
  * ######## */
 
 import {ReflectionKind, TypeEnum} from '../_deepkit/src/reflection/type';
-import type {MockContext, JitConstants} from '../types';
+import type {MockOperation, JitConstants} from '../types';
 import {getJitErrorPath, getExpected, toLiteral} from '../utils';
 import {random} from '../mock';
 import {AtomicRunType} from '../baseRunTypes';
@@ -32,8 +32,8 @@ export class EnumRunType extends AtomicRunType<TypeEnum> {
         if (this.src.indexType.kind === ReflectionKind.number) return cop.vλl;
         return `JSON.stringify(${cop.vλl})`;
     }
-    mock(cop?: Pick<MockContext, 'enumIndex'>): string | number | undefined | null {
-        const i = cop?.enumIndex || random(0, this.src.values.length - 1);
+    _mock(ctx: Pick<MockOperation, 'enumIndex'>): string | number | undefined | null {
+        const i = ctx.enumIndex || random(0, this.src.values.length - 1);
         return this.src.values[i];
     }
 }

@@ -7,7 +7,7 @@
 
 import type {TypeUnion} from '../_deepkit/src/reflection/type';
 import type {JitCompiler, JitErrorsCompiler} from '../jitCompiler';
-import {JitConstants, JitFnID, MockContext, Mutable, RunType} from '../types';
+import {JitConstants, JitFnID, MockOperation, Mutable, RunType} from '../types';
 import {random} from '../mock';
 import {BaseRunType, CollectionRunType} from '../baseRunTypes';
 import {childIsExpression, getExpected, getJitErrorPath, memo} from '../utils';
@@ -150,8 +150,8 @@ export class UnionRunType extends CollectionRunType<TypeUnion> {
         `;
         return code;
     }
-    mock(ctx?: Pick<MockContext, 'unionIndex'>): any {
-        if (ctx?.unionIndex && (ctx.unionIndex < 0 || ctx.unionIndex >= this.getChildRunTypes().length)) {
+    _mock(ctx: Pick<MockOperation, 'unionIndex'>): any {
+        if (ctx.unionIndex && (ctx.unionIndex < 0 || ctx.unionIndex >= this.getChildRunTypes().length)) {
             throw new Error('unionIndex must be between 0 and the number of types in the union');
         }
         const index = ctx?.unionIndex ?? random(0, this.getChildRunTypes().length - 1);
