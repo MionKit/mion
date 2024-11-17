@@ -15,4 +15,5 @@ export class MethodSignatureRunType extends FunctionRunType<TypeMethodSignature>
     getChildLiteral = memo(() => getPropLiteral(this.getChildVarName()));
     useArrayAccessor = memo(() => useArrayAccessorForProp(this.src.name));
     isOptional = () => !!this.src.optional;
+    skipSettingAccessor = () => false;
 }

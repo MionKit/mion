@@ -81,7 +81,13 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
             return existingCop;
         }
         const newCompileOp: JitCompiler = createJitCompiler(this, fnId, parentCop) as JitCompiler;
-        this.compile(newCompileOp, fnId);
+        try {
+            this.compile(newCompileOp, fnId);
+        } catch (e) {
+            // if something goes wrong during compilation we want to remove the compiler from the cache
+            newCompileOp.removeFromJitCache();
+            throw e;
+        }
         return newCompileOp as CompiledOperation;
     }
 
@@ -302,7 +308,6 @@ export abstract class CollectionRunType<T extends Type> extends BaseRunType<T> {
     }
     getChildRunTypes = (): BaseRunType[] => {
         const childTypes = ((this.src as DkCollection).types as DKwithRT[]) || []; // deepkit stores child types in the types property
-        // console.log('childTypes ===>', childTypes);
         return childTypes.map((t) => t._rt as BaseRunType);
     };
     getJitChildren(): BaseRunType[] {
@@ -427,6 +432,9 @@ export abstract class MemberRunType<T extends Type> extends BaseRunType<T> imple
     }
     getJitConstants(stack: BaseRunType[] = []): JitConstants {
         return this._getJitConstants(stack);
+    }
+    skipSettingAccessor(): boolean {
+        return false;
     }
     _compileHasUnknownKeys(cop: JitCompiler): string {
         const code = this.getJitChild()?.compileHasUnknownKeys(cop);

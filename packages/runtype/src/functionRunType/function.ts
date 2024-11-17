@@ -6,9 +6,12 @@
  * ######## */
 import {ReflectionKind, TypeFunction} from '../_deepkit/src/reflection/type';
 import {BaseRunType} from '../baseRunTypes';
-import {isPromiseRunType} from '../guards';
-import {MockContext, DKwithRT, JitConstants, AnyFunction} from '../types';
-import {FunctionParametersRunType} from './functionParameters';
+import {isFunctionRunType, isPromiseRunType} from '../guards';
+import {JitCompiler, JitErrorsCompiler} from '../jitCompiler';
+import {MockContext, DKwithRT, JitConstants, AnyFunction, JitFnID} from '../types';
+import {FunctionParametersRunType} from '../collectionRunType/functionParameters';
+import {getExpected, getJitErrorPath, toLiteral} from '../utils';
+import {PromiseRunType} from '../memberRunType/promise';
 
 const functionJitConstants: JitConstants = {
     skipJit: true,
@@ -32,20 +35,68 @@ export class FunctionRunType<CallType extends AnyFunction = TypeFunction> extend
     getFamily(): 'F' {
         return 'F';
     }
-    _compileIsType(): string {
-        throw new Error('Compile function not supported, call  compileParams or  compileReturn instead.');
+    getFnName(): string | number {
+        const name = (this.src as TypeFunction).name;
+        if (!name) return '';
+        if (typeof name === 'symbol') return name.toString();
+        return name;
     }
-    _compileTypeErrors(): string {
-        throw new Error('Compile function not supported, call  compileParams or  compileReturn instead.');
+    /**
+     * returns the number of parameters of the function, follows same logic as Function.prototype.length
+     * https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Function/length
+     * @returns
+     */
+    getLength(): number {
+        return this.parameterRunTypes.getLength();
     }
+
+    createJitParamsFunction(fnId: JitFnID): (...args: any[]) => any {
+        return this.parameterRunTypes.createJitFunction(fnId);
+    }
+    createJitReturnFunction(fnId: JitFnID): (...args: any[]) => any {
+        let currentType: PromiseRunType | FunctionRunType<any> = this; // eslint-disable-line @typescript-eslint/no-this-alias
+        // iterate over the return type chain until we reach a non-function non-promise type
+        // eslint-disable-next-line no-constant-condition
+        while (true) {
+            if (isFunctionRunType(currentType)) {
+                const returnType = currentType.getReturnType();
+                if (isPromiseRunType(returnType) || isFunctionRunType(returnType)) {
+                    currentType = returnType;
+                    continue;
+                }
+                return returnType.createJitFunction(fnId);
+            }
+            const memberType = currentType.getMemberType();
+            if (isPromiseRunType(memberType) || isFunctionRunType(memberType)) {
+                currentType = memberType;
+                continue;
+            }
+            return memberType.createJitFunction(fnId);
+        }
+    }
+
+    // ######## JIT functions (all throw error) ########
+
+    // can't know the types of the runtype function parameters, neither the return type, so only compare function name and length
+    _compileIsType(cop: JitCompiler): string {
+        const fnName = this.getFnName();
+        const nameCheck = fnName ? ` && ${cop.vλl}.name === ${toLiteral(fnName)}` : '';
+        return `typeof ${cop.vλl} === 'function'  && ${cop.vλl}.length === ${this.parameterRunTypes.getLength()} ${nameCheck}`;
+    }
+    _compileTypeErrors(cop: JitErrorsCompiler): string {
+        return `if (!(${this._compileIsType(cop)})) µTils.errPush(${cop.args.εrr},${getJitErrorPath(cop)},${getExpected(this)});`;
+    }
+    /**
+     * json encode a function
+     */
     _compileJsonEncode(): string {
-        throw new Error('Compile function not supported, call  compileParams or  compileReturn instead.');
+        throw new Error(`Compile function JsonEncode not supported, call  compileParams or  compileReturn instead.`);
     }
     _compileJsonDecode(): string {
-        throw new Error('Compile function not supported, call  compileParams or  compileReturn instead.');
+        throw new Error(`Compile function JsonDecode not supported, call  compileParams or  compileReturn instead.`);
     }
     _compileJsonStringify(): string {
-        throw new Error('Compile function not supported, call  compileParams or  compileReturn instead.');
+        throw new Error(`Compile function sonStringify not supported, call  compileParams or  compileReturn instead.`);
     }
     _compileHasUnknownKeys(): string {
         return '';

@@ -11,7 +11,7 @@ export type JITUtils = typeof jitUtils;
 
 // eslint-disable-next-line no-control-regex
 const STR_ESCAPE = /[\u0000-\u001f\u0022\u005c\ud800-\udfff]/;
-
+const MAX_SCAPE_TEST_LENGTH = 1000; // possible to tweak after benchmarking
 const jitCache = new Map<string, CompiledOperation>();
 const jitObjectKeys = new Map<string, Set<string | number>>();
 const jitHashes = new Map<string, string>();
@@ -52,7 +52,7 @@ export const jitUtils = {
             }
 
             return (last === -1 && '"' + str + '"') || '"' + result + str.slice(last) + '"';
-        } else if (str.length < 1000 && STR_ESCAPE.test(str) === false) {
+        } else if (str.length < MAX_SCAPE_TEST_LENGTH && STR_ESCAPE.test(str) === false) {
             // Only use the regular expression for shorter input. The overhead is otherwise too much.
             return '"' + str + '"';
         } else {
@@ -60,8 +60,11 @@ export const jitUtils = {
         }
     },
     // !!! DO NOT MODIFY METHOD WITHOUT REVIEWING JIT CODE INVOCATIONS!!!
-    setCachedCompiled(key: string, cop: CompiledOperation) {
+    addToJitCache(key: string, cop: CompiledOperation) {
         jitCache.set(key, cop);
+    },
+    removeFromJitCache(key: string) {
+        jitCache.delete(key);
     },
     // !!! DO NOT MODIFY METHOD WITHOUT REVIEWING JIT CODE INVOCATIONS!!!
     getJIT(key: string): CompiledOperation | undefined {

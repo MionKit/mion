@@ -7,7 +7,7 @@
 
 import type {AnyClass, JitFnID, RunType} from './types';
 import type {JitCompiler, JitErrorsCompiler} from './jitCompiler';
-import {ReflectionKind, Type} from './_deepkit/src/reflection/type';
+import {ReflectionKind, Type, TypeFunction, TypeParameter} from './_deepkit/src/reflection/type';
 import {jitUtils} from './jitUtils';
 import {isAtomicRunType, isCollectionRunType, isMemberRunType} from './guards';
 import {validPropertyNameRegExp} from './constants';
@@ -113,6 +113,13 @@ export function getPropIndex(src: Type): number {
     if (!parent) return -1;
     const types = (parent as {types: Type[]}).types;
     if (types) return types.indexOf(src);
+    return 0;
+}
+
+export function getParamIndex(src: TypeParameter): number {
+    const parent = src.parent as TypeFunction;
+    if (!parent) return -1;
+    if (parent.parameters) return parent.parameters.indexOf(src);
     return 0;
 }
 

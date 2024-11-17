@@ -45,20 +45,33 @@ export class BaseCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extends 
         this.jitFnHash = getJITFnHash(this.opId, this.rootType);
         this.jitId = this.rootType.getJitId();
         this.vλl = this.args.vλl;
-        jitUtils.setCachedCompiled(this.jitFnHash, this as CompiledOperation);
+        jitUtils.addToJitCache(this.jitFnHash, this as CompiledOperation);
     }
     readonly jitId: string | number;
     readonly jitFnHash: string;
     // !!! DO NOT MODIFY METHOD WITHOUT REVIEWING JIT CODE INVOCATIONS!!!
+    /** The Jit Generated function once the compilation is finished */
     readonly fn: ((...args: any[]) => any) | undefined;
+
+    /** Code for the jit function. */
     readonly code: string = '';
+    /** Code for the context function enclosing the jit function.
+     * This can be used to initialize constant or some other things that will be required across all invocation.
+     * By default this contains constants for the direct dependencies of the jit function.
+     * */
     readonly contextCode: string = '';
-    readonly canSkipped?: boolean = false;
-    readonly directDependencies: JitDependencies = new Set();
-    readonly childDependencies: JitDependencies = new Set();
-    /** The list of types being compiled.
-     * each time there is a circular type a new substack is created.
+    /**
+     * This flag is set to true when the result of a jit compilation is a no operation.
+     * Some jit compiled functions could execute no operations (ie: jsonEncode/jsonDecode a string)
      */
+    readonly isNoop?: boolean = false;
+    /** The list of dependencies that are called directly by this function */
+    readonly directDependencies: JitDependencies = new Set();
+    /** The list of dependencies that are called by the child dependencies of this function.
+     * TODO: this could not be required, as we could resolve them accessing the dependencies child items.
+     */
+    readonly childDependencies: JitDependencies = new Set();
+    /** The list of types being compiled.*/
     readonly stack: StackItem[] = [];
     popItem: StackItem | undefined;
     /** shorthand for  this.length */
@@ -120,6 +133,11 @@ export class BaseCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extends 
         if (!isChildAccessorType(rt)) throw new Error(`cant get child var name from ${rt.getName()}`);
         return parent.vλl + (rt.useArrayAccessor() ? `[${rt.getChildLiteral()}]` : `.${rt.getChildVarName()}`);
     }
+    getParentVλl(): string {
+        const parent = this.stack[this.stack.length - 2];
+        if (!parent) return this.args.vλl;
+        return parent.vλl;
+    }
     shouldCallDependency(): boolean {
         const stackItem = this.getCurrentStackItem();
         return !stackItem.rt.isJitInlined() && this.stack.length > 1;
@@ -132,6 +150,9 @@ export class BaseCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extends 
         this.directDependencies.add(childCop.jitFnHash);
         childCop.directDependencies.forEach((dep) => this.childDependencies.add(dep));
         childCop.childDependencies.forEach((dep) => this.childDependencies.add(dep));
+    }
+    removeFromJitCache(): void {
+        jitUtils.removeFromJitCache(this.jitFnHash);
     }
 }
 
@@ -256,7 +277,7 @@ function getStackVλl(cop: BaseCompiler): string {
     let vλl = cop.args.vλl;
     for (let i = 0; i < cop.stack.length; i++) {
         const rt = cop.stack[i].rt;
-        if (isChildAccessorType(rt)) {
+        if (isChildAccessorType(rt) && !rt.skipSettingAccessor()) {
             vλl += rt.useArrayAccessor() ? `[${rt.getChildLiteral()}]` : `.${rt.getChildVarName()}`;
         }
     }
@@ -266,7 +287,7 @@ function getStackStaticPath(cop: BaseCompiler): (string | number)[] {
     const path: (string | number)[] = [];
     for (let i = 0; i < cop.stack.length; i++) {
         const rt = cop.stack[i].rt;
-        if (isChildAccessorType(rt)) {
+        if (isChildAccessorType(rt) && !rt.skipSettingAccessor()) {
             path.push(rt.getChildLiteral());
         }
     }

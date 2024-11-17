@@ -6,8 +6,15 @@
  * ######## */
 import {runType} from '../runType';
 import {JitFnIDs} from '../constants';
+import {getJITFnHash} from '../jitCompiler';
+import {jitUtils} from '../jitUtils';
 
 const rt = runType<Promise<string>>();
+
+it('Ensures when compiling a function throws an error the jit compiler is not stored in cache', () => {
+    expect(() => rt.createJitFunction(JitFnIDs.isType)).toThrow('Jit compilation disabled for Promises.');
+    expect(jitUtils.getJIT(getJITFnHash(JitFnIDs.isType, rt as any))).toBe(undefined);
+});
 
 it('validate promise<string> should throw an error', () => {
     expect(() => rt.createJitFunction(JitFnIDs.isType)).toThrow('Jit compilation disabled for Promises.');
@@ -22,7 +29,7 @@ it('encode to json should throw an error', () => {
 });
 
 it('decode from json should throw an error', () => {
-    expect(() => rt.createJitFunction(JitFnIDs.jsonEncode)).toThrow('Jit compilation disabled for Promises.');
+    expect(() => rt.createJitFunction(JitFnIDs.jsonDecode)).toThrow('Jit compilation disabled for Promises.');
 });
 
 it('json stringify', () => {

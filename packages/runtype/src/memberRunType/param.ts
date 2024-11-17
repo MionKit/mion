@@ -5,47 +5,53 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import type {TypeParameter} from '../_deepkit/src/reflection/type';
+import {ReflectionKind, type TypeParameter} from '../_deepkit/src/reflection/type';
 import type {JitCompiler, JitErrorsCompiler} from '../jitCompiler';
 import {MemberRunType} from '../baseRunTypes';
 import {MockContext} from '../types';
-import {RestParamsRunType} from './restParams';
 import {JitFnIDs} from '../constants';
-import {childIsExpression} from '../utils';
+import {childIsExpression, getParamIndex} from '../utils';
 
 export class ParameterRunType extends MemberRunType<TypeParameter> {
     src: TypeParameter = null as any; // will be set after construction
     isOptional(): boolean {
-        return !!this.src.optional || this.isRest();
+        return !!this.src.optional || this.isRest() || this.hasDefaultValue();
+    }
+    getChildIndex(): number {
+        return getParamIndex(this.src);
     }
     getChildVarName(): number {
         return this.getChildIndex();
     }
     getChildLiteral(): number {
-        throw this.getChildIndex();
+        return this.getChildIndex();
     }
     useArrayAccessor(): true {
         return true;
     }
     isRest(): boolean {
-        return this.getMemberType() instanceof RestParamsRunType;
+        return this.getMemberType().src.kind === ReflectionKind.rest;
+    }
+    skipSettingAccessor() {
+        return this.isRest();
+    }
+    hasDefaultValue(): boolean {
+        return !!this.src.default;
     }
     _compileIsType(cop: JitCompiler): string {
         if (this.isRest()) {
             return this.getMemberType().compileIsType(cop);
         } else {
-            const varName = cop.vλl;
             const itemCode = this.getMemberType().compileIsType(cop);
-            return this.isOptional() ? `${varName} === undefined || (${itemCode})` : itemCode;
+            return this.isOptional() ? `${cop.getChildVλl()} === undefined || (${itemCode})` : itemCode;
         }
     }
     _compileTypeErrors(cop: JitErrorsCompiler): string {
         if (this.isRest()) {
             return this.getMemberType().compileTypeErrors(cop);
         } else {
-            const varName = cop.vλl;
             const itemCode = this.getMemberType().compileTypeErrors(cop);
-            return this.isOptional() ? `if (${varName} !== undefined) {${itemCode}}` : itemCode;
+            return this.isOptional() ? `if (${cop.getChildVλl()} !== undefined) {${itemCode}}` : itemCode;
         }
     }
     _compileJsonEncode(cop: JitCompiler): string {
@@ -69,7 +75,7 @@ export class ParameterRunType extends MemberRunType<TypeParameter> {
             const argCode = this.getMemberType().compileJsonStringify(cop);
             const isFirst = this.getChildIndex() === 0;
             const sep = isFirst ? '' : `','+`;
-            if (this.isOptional()) return `(${cop.vλl} === undefined ? '': ${sep}${argCode})`;
+            if (this.isOptional()) return `(${cop.getChildVλl()} === undefined ? '': ${sep}${argCode})`;
             return `${sep}${argCode}`;
         }
     }

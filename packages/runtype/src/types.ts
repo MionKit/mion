@@ -67,6 +67,9 @@ export interface RunTypeChildAccessor extends RunType {
      */
     useArrayAccessor(): boolean;
     isOptional(): boolean;
+    /** In Some situation (rest params) the access logic might be set in the child node instead the parent
+     * so we want to skip setting the accessor in the parent.  */
+    skipSettingAccessor(): boolean;
 }
 
 export type JitConstants = {
