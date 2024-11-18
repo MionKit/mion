@@ -64,19 +64,19 @@ describe('function', () => {
         expect(validate(function sum(s, b, c) {})).toBe(true);
     });
 
-    it('throw errors for json encode/decode', () => {
+    it('throw errors for json encode/decode, jsonStringify and mock', () => {
         expect(() => rt.createJitFunction(JitFnIDs.isType)).not.toThrow();
         expect(() => rt.createJitFunction(JitFnIDs.typeErrors)).not.toThrow();
 
         expect(() => rt.createJitFunction(JitFnIDs.jsonEncode)).toThrow(
-            `Compile function JsonEncode not supported, call  compileParams or  compileReturn instead.`
+            `Compile function JsonEncode not supported, call compileParams or compileReturn instead.`
         );
         expect(() => rt.createJitFunction(JitFnIDs.jsonDecode)).toThrow(
-            `Compile function JsonDecode not supported, call  compileParams or  compileReturn instead.`
+            `Compile function JsonDecode not supported, call compileParams or compileReturn instead.`
         );
 
         expect(() => rt.createJitFunction(JitFnIDs.jsonStringify)).toThrow(
-            `Compile function sonStringify not supported, call  compileParams or  compileReturn instead.`
+            `Compile function JsonStringify not supported, call compileParams or compileReturn instead.`
         );
         expect(() => rt.mock()).toThrow('Function Mock is not allowed, call mockParams or mockReturn instead.');
     });

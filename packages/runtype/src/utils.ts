@@ -84,7 +84,7 @@ export function getExpected(rt: RunType): string {
     return toLiteral(rt.getName());
 }
 
-export function memo<Fn extends (...args: any[]) => any>(fn: Fn): Fn {
+export function memorize<Fn extends (...args: any[]) => any>(fn: Fn): Fn {
     let cached: undefined | any;
     return ((...args: any[]) => {
         if (!cached) cached = fn(...args);

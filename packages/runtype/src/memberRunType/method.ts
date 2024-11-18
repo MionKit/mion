@@ -7,13 +7,13 @@
 import {TypeMethod} from '../_deepkit/src/reflection/type';
 import {FunctionRunType} from '../functionRunType/function';
 import {RunTypeChildAccessor} from '../types';
-import {getPropIndex, getPropLiteral, getPropVarName, memo, useArrayAccessorForProp} from '../utils';
+import {getPropIndex, getPropLiteral, getPropVarName, memorize, useArrayAccessorForProp} from '../utils';
 
 export class MethodRunType extends FunctionRunType<TypeMethod> implements RunTypeChildAccessor {
-    getChildIndex = memo(() => getPropIndex(this.src));
-    getChildVarName = memo(() => getPropVarName(this.src.name));
-    getChildLiteral = memo(() => getPropLiteral(this.getChildVarName()));
-    useArrayAccessor = memo(() => useArrayAccessorForProp(this.src.name));
+    getChildIndex = memorize(() => getPropIndex(this.src));
+    getChildVarName = memorize(() => getPropVarName(this.src.name));
+    getChildLiteral = memorize(() => getPropLiteral(this.getChildVarName()));
+    useArrayAccessor = memorize(() => useArrayAccessorForProp(this.src.name));
     isOptional = () => !!this.src.optional;
     skipSettingAccessor = () => false;
 }

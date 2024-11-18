@@ -6,7 +6,7 @@
  * ######## */
 import {ReflectionKind, TypeFunction} from '../_deepkit/src/reflection/type';
 import {BaseRunType} from '../baseRunTypes';
-import {isFunctionRunType, isPromiseRunType} from '../guards';
+import {isAnyFunctionRunType, isFunctionRunType, isPromiseRunType} from '../guards';
 import {JitCompiler, JitErrorsCompiler} from '../jitCompiler';
 import {MockOperation, DKwithRT, JitConstants, AnyFunction, JitFnID} from '../types';
 import {FunctionParametersRunType} from '../collectionRunType/functionParameters';
@@ -58,7 +58,7 @@ export class FunctionRunType<CallType extends AnyFunction = TypeFunction> extend
         // iterate over the return type chain until we reach a non-function non-promise type
         // eslint-disable-next-line no-constant-condition
         while (true) {
-            if (isFunctionRunType(currentType)) {
+            if (isAnyFunctionRunType(currentType)) {
                 const returnType = currentType.getReturnType();
                 if (isPromiseRunType(returnType) || isFunctionRunType(returnType)) {
                     currentType = returnType;
@@ -90,13 +90,13 @@ export class FunctionRunType<CallType extends AnyFunction = TypeFunction> extend
      * json encode a function
      */
     _compileJsonEncode(): string {
-        throw new Error(`Compile function JsonEncode not supported, call  compileParams or  compileReturn instead.`);
+        throw new Error(`Compile function JsonEncode not supported, call compileParams or compileReturn instead.`);
     }
     _compileJsonDecode(): string {
-        throw new Error(`Compile function JsonDecode not supported, call  compileParams or  compileReturn instead.`);
+        throw new Error(`Compile function JsonDecode not supported, call compileParams or compileReturn instead.`);
     }
     _compileJsonStringify(): string {
-        throw new Error(`Compile function sonStringify not supported, call  compileParams or  compileReturn instead.`);
+        throw new Error(`Compile function JsonStringify not supported, call compileParams or compileReturn instead.`);
     }
     _compileHasUnknownKeys(): string {
         return '';

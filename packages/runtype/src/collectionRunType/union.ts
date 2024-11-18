@@ -10,7 +10,7 @@ import type {JitCompiler, JitErrorsCompiler} from '../jitCompiler';
 import {JitConstants, JitFnID, MockOperation, Mutable, RunType} from '../types';
 import {random} from '../mock';
 import {BaseRunType, CollectionRunType} from '../baseRunTypes';
-import {childIsExpression, getExpected, getJitErrorPath, memo} from '../utils';
+import {childIsExpression, getExpected, getJitErrorPath, memorize} from '../utils';
 import {InterfaceRunType} from './interface';
 import {ClassRunType} from './class';
 import {IntersectionRunType} from './intersection';
@@ -189,7 +189,7 @@ export class UnionRunType extends CollectionRunType<TypeUnion> {
     }
 
     // typescript merge all properties of interfaces, classes and object literals in the union.
-    private getMergedJitChildren = memo((): BaseRunType[] => {
+    private getMergedJitChildren = memorize((): BaseRunType[] => {
         let mergedInterface: UnionInterfaceRunType | undefined;
         const children = this.getJitChildren();
         const nonInterfaceChildren: BaseRunType[] = [];

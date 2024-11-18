@@ -18,7 +18,7 @@ import type {
     CompiledOperation,
     MockOptions,
 } from './types';
-import {getPropIndex, memo} from './utils';
+import {getPropIndex, memorize} from './utils';
 import {
     defaultJitFnHasReturn,
     defaultJitFnIsExpression,
@@ -45,11 +45,11 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
     abstract getJitConstants(stack?: RunType[]): JitConstants;
     abstract _mock(mockContext: MockOperation): any;
     isJitInlined = () => !(this.isCircular || (this.src.typeName && this.getFamily() === 'C'));
-    getName = memo((): string => getReflectionName(this));
+    getName = memorize((): string => getReflectionName(this));
     getJitId = () => this.getJitConstants().jitId;
-    getJitHash = memo((): string => createJitIDHash(this.getJitId().toString(), 18));
+    getJitHash = memorize((): string => createJitIDHash(this.getJitId().toString(), 18));
     getParent = (): RunType | undefined => (this.src.parent as DKwithRT)?._rt;
-    getNestLevel = memo((): number => {
+    getNestLevel = memorize((): number => {
         if (this.isCircular) return 0; // circular references start a new context
         const parent = this.getParent() as BaseRunType<T>;
         if (!parent) return 0;
@@ -415,7 +415,7 @@ export abstract class CollectionRunType<T extends Type> extends BaseRunType<T> {
             .filter((code) => !!code)
             .join(';');
     }
-    private _getJitConstants = memo((stack: BaseRunType[] = []): JitConstants => {
+    private _getJitConstants = memorize((stack: BaseRunType[] = []): JitConstants => {
         if (stack.length > maxStackDepth) throw new Error(maxStackErrorMessage);
         const circularJitConstants = this.getCircularJitConstants(stack);
         if (circularJitConstants) return circularJitConstants;
@@ -509,7 +509,7 @@ export abstract class MemberRunType<T extends Type> extends BaseRunType<T> imple
         if (!code) return '';
         return this.isOptional() ? `if (${cop.getChildVλl()} !== undefined) {${code}}` : code;
     }
-    private _getJitConstants = memo((stack: BaseRunType[] = []): JitConstants => {
+    private _getJitConstants = memorize((stack: BaseRunType[] = []): JitConstants => {
         if (stack.length > maxStackDepth) throw new Error(maxStackErrorMessage);
         const circularJitConstants = this.getCircularJitConstants(stack);
         if (circularJitConstants) return circularJitConstants;

@@ -35,7 +35,7 @@ import type {InterfaceRunType, InterfaceMember} from './collectionRunType/interf
 import type {PropertyRunType} from './memberRunType/property';
 import type {IndexSignatureRunType} from './memberRunType/indexProperty';
 import type {MethodSignatureRunType} from './memberRunType/methodSignature';
-import type {CallSignatureRunType} from './functionRunType/call';
+import type {CallSignatureRunType} from './memberRunType/callSignature';
 import type {FunctionRunType} from './functionRunType/function';
 import type {ParameterRunType} from './memberRunType/param';
 import type {PromiseRunType} from './memberRunType/promise';
@@ -80,6 +80,10 @@ export function isEnumMemberRunType(rt: RunType): rt is EnumMemberRunType {
 
 export function isFunctionRunType(rt: RunType): rt is FunctionRunType<any> {
     return rt.src.kind === ReflectionKind.function;
+}
+
+export function isAnyFunctionRunType(rt: RunType): rt is FunctionRunType<any> {
+    return (rt.src as any).return?.kind !== undefined;
 }
 
 export function isIndexSignatureRunType(rt: RunType): rt is IndexSignatureRunType {

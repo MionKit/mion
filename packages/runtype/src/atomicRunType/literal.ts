@@ -10,7 +10,7 @@ import type {JitJsonEncoder, JitConstants} from '../types';
 import {SymbolJitJsonEncoder} from './symbol';
 import {BigIntJitJsonENcoder} from './bigInt';
 import {RegexpJitJsonEncoder} from './regexp';
-import {getJitErrorPath, memo, toLiteral} from '../utils';
+import {getJitErrorPath, memorize, toLiteral} from '../utils';
 import {AtomicRunType} from '../baseRunTypes';
 import type {JitCompiler, JitErrorsCompiler} from '../jitCompiler';
 
@@ -19,7 +19,7 @@ export class LiteralRunType extends AtomicRunType<TypeLiteral> {
     get jitConstants() {
         return this.getJitConstants();
     }
-    getJitConstants = memo((): JitConstants => {
+    getJitConstants = memorize((): JitConstants => {
         switch (true) {
             case typeof this.src.literal === 'bigint':
                 return getJitConstantsForBigint(this.src.kind, this.src.literal);

@@ -14,7 +14,7 @@ import {
     getPropLiteral,
     getPropVarName,
     isSafePropName,
-    memo,
+    memorize,
     useArrayAccessorForProp,
 } from '../utils';
 import {BaseRunType, MemberRunType} from '../baseRunTypes';
@@ -24,10 +24,10 @@ import {JitFnIDs} from '../constants';
 
 export class PropertyRunType extends MemberRunType<TypePropertySignature | TypeProperty> {
     src: TypePropertySignature | TypeProperty = null as any; // will be set after construction
-    getChildIndex = memo(() => getPropIndex(this.src));
-    getChildVarName = memo(() => getPropVarName(this.src.name));
-    getChildLiteral = memo(() => getPropLiteral(this.getChildVarName()));
-    useArrayAccessor = memo(() => useArrayAccessorForProp(this.src.name));
+    getChildIndex = memorize(() => getPropIndex(this.src));
+    getChildVarName = memorize(() => getPropVarName(this.src.name));
+    getChildLiteral = memorize(() => getPropLiteral(this.getChildVarName()));
+    useArrayAccessor = memorize(() => useArrayAccessorForProp(this.src.name));
     getJitChildIndex = () => (this.getParent() as InterfaceRunType).getJitChildren().indexOf(this);
     isOptional = () => !!this.src.optional;
     getJitConstants(stack: BaseRunType[] = []): JitConstants {

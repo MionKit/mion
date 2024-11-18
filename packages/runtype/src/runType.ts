@@ -33,7 +33,7 @@ import {InterfaceRunType} from './collectionRunType/interface';
 import {PropertyRunType} from './memberRunType/property';
 import {IndexSignatureRunType} from './memberRunType/indexProperty';
 import {MethodSignatureRunType} from './memberRunType/methodSignature';
-import {CallSignatureRunType} from './functionRunType/call';
+import {CallSignatureRunType} from './memberRunType/callSignature';
 import {FunctionRunType} from './functionRunType/function';
 import {PromiseRunType} from './memberRunType/promise';
 import {ObjectRunType} from './atomicRunType/object';
