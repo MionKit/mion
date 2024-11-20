@@ -6,7 +6,7 @@
  * ######## */
 import {TypeObjectLiteral, TypeClass, TypeIntersection, TypeProperty, ReflectionKind} from '../_deepkit/src/reflection/type';
 import {MockOperation, RunType} from '../types';
-import {getJitErrorPath, getExpected, toLiteral, arrayToArgumentsLiteral, memorize} from '../utils';
+import {getJitErrorPath, getExpected, memorize, arrayToLiteral} from '../utils';
 import {PropertyRunType} from '../memberRunType/property';
 import {CollectionRunType, MemberRunType} from '../baseRunTypes';
 import {MethodSignatureRunType} from '../memberRunType/methodSignature';
@@ -14,6 +14,7 @@ import {IndexSignatureRunType} from '../memberRunType/indexProperty';
 import {MethodRunType} from '../memberRunType/method';
 import type {JitCompiler, JitErrorsCompiler} from '../jitCompiler';
 import {CallSignatureRunType} from '../memberRunType/callSignature';
+import {minKeysForSet} from '../constants';
 
 export type InterfaceMember =
     | PropertyRunType
@@ -60,7 +61,7 @@ export class InterfaceRunType<
         }
         return `
             if (typeof ${varName} !== 'object' || ${varName} === null ${arrayCheck}) {
-                µTils.errPush(${cop.args.εrr},${getJitErrorPath(cop)},${getExpected(this)});
+                utl.err(${cop.args.εrr},${getJitErrorPath(cop)},${getExpected(this)});
             } else {
                 ${childrenCode}
             }
@@ -131,7 +132,7 @@ export class InterfaceRunType<
             const ${unknownVar} = ${this.callCheckUnknownProperties(cop, allJitChildren, true)};
             if (${unknownVar}) {
                 for (const ${keyVar} of ${unknownVar}) {
-                    µTils.errPush(${cop.args.εrr},${getJitErrorPath(cop, keyVar)},${getExpected(this)})
+                    utl.err(${cop.args.εrr},${getJitErrorPath(cop, keyVar)},${getExpected(this)})
                 delete ${cop.vλl}[${keyVar}];
                 }
             }
@@ -180,10 +181,15 @@ export class InterfaceRunType<
     private callCheckUnknownProperties(cop: JitCompiler, childrenRunTypes: RunType[], returnKeys: boolean): string {
         const childrenNames = childrenRunTypes.filter((prop) => !!(prop.src as any).name).map((prop) => (prop.src as any).name);
         if (childrenNames.length === 0) return '';
-        const keysID = toLiteral(childrenNames.join(':'));
-        const keysArgs = childrenNames.length === 1 ? keysID : `${keysID}, ${arrayToArgumentsLiteral(childrenNames)}`;
-        if (returnKeys) return `µTils.getUnknownKeys(${cop.vλl}, ${keysArgs})`;
-        return `(typeof ${cop.vλl} === 'object' && ${cop.vλl} !== null && µTils.hasUnknownKeys(${cop.vλl}, ${keysArgs}))`;
+        const keysName = `k_${this.getJitHash()}`;
+        if (childrenNames.length > minKeysForSet) {
+            cop.contextCodeItems.set(keysName, `const ${keysName} = new Set(${arrayToLiteral(childrenNames)})`);
+            if (returnKeys) return `utl.getUnknownKeysFromSet(${cop.vλl}, ${keysName})`;
+            return `(typeof ${cop.vλl} === 'object' && ${cop.vλl} !== null && utl.hasUnknownKeysFromSet(${cop.vλl}, ${keysName}))`;
+        }
+        cop.contextCodeItems.set(keysName, `const ${keysName} = ${arrayToLiteral(childrenNames)}`);
+        if (returnKeys) return `utl.getUnknownKeysFromArray(${cop.vλl}, ${keysName})`;
+        return `(typeof ${cop.vλl} === 'object' && ${cop.vλl} !== null && utl.hasUnknownKeysFromArray(${cop.vλl}, ${keysName}))`;
     }
 
     // extra check to prevent empty array passing as object where all properties are optional

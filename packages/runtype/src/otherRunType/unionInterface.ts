@@ -114,7 +114,7 @@ export class UnionInterfaceRunType extends InterfaceRunType<anySrcInterface> {
         const keysID = skip ? '' : toLiteral(childrenNames.join(''));
         const noExtraKeys = skip
             ? ''
-            : ` && !µTils.objectHasExtraKeys(${keysID}, ${cop.vλl}, ${arrayToArgumentsLiteral(childrenNames)})`;
+            : ` && !utl.objectHasExtraKeys(${keysID}, ${cop.vλl}, ${arrayToArgumentsLiteral(childrenNames)})`;
         return `(${children.map((prop) => prop.compileIsType(cop)).join(' && ')}${noExtraKeys})`;
     }
 
@@ -130,11 +130,11 @@ export class UnionInterfaceRunType extends InterfaceRunType<anySrcInterface> {
         const varName = cop.vλl;
         const parentPath = getJitErrorPath(cop);
         const childrenCode = this.mergedInterfaces.length
-            ? `if (!${this.compileIsType(cop)}) µTils.errPush(${cop.args.εrr},${parentPath},${getExpected(this)});`
+            ? `if (!${this.compileIsType(cop)}) utl.err(${cop.args.εrr},${parentPath},${getExpected(this)});`
             : '';
         return `
             if (typeof ${varName} !== 'object' && ${varName} !== null) {
-                µTils.errPush(${cop.args.εrr},${parentPath},${getExpected(this)});
+                utl.err(${cop.args.εrr},${parentPath},${getExpected(this)});
             } else {
                 ${childrenCode}
             }

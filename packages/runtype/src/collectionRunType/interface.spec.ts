@@ -387,6 +387,8 @@ describe('Interface with strict modes', () => {
         expect(hasUnknownKeys(objWithExtraDeep)).toBe(true);
     });
 
+    it.todo('hasunknowkeys is generating code that is not needed, stringArray property generates extra function that is empty');
+
     it('encode/decode to json safeJson', () => {
         const toJson = rt.createJitFunction(JitFnIDs.jsonEncode);
         const fromJson = rt.createJitFunction(JitFnIDs.jsonDecode);

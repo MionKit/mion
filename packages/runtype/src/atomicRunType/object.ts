@@ -26,7 +26,7 @@ export class ObjectRunType extends AtomicRunType<TypeAny | TypeUnknown> {
         return `(typeof ${cop.vλl} === 'object' && ${cop.vλl} !== null)`;
     }
     _compileTypeErrors(cop: JitErrorsCompiler): string {
-        return `if (!(${this._compileIsType(cop)})) µTils.errPush(${cop.args.εrr},${getJitErrorPath(cop)},${getExpected(this)})`;
+        return `if (!(${this._compileIsType(cop)})) utl.err(${cop.args.εrr},${getJitErrorPath(cop)},${getExpected(this)})`;
     }
 
     _compileJsonStringify(cop: JitCompiler): string {

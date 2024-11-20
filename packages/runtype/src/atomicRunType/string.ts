@@ -27,11 +27,11 @@ export class StringRunType extends AtomicRunType<TypeString> {
         return `typeof ${cop.vλl} === 'string'`;
     }
     _compileTypeErrors(cop: JitErrorsCompiler): string {
-        return `if (typeof ${cop.vλl} !== 'string') µTils.errPush(${cop.args.εrr},${getJitErrorPath(cop)},${getExpected(this)})`;
+        return `if (typeof ${cop.vλl} !== 'string') utl.err(${cop.args.εrr},${getJitErrorPath(cop)},${getExpected(this)})`;
     }
 
     _compileJsonStringify(cop: JitCompiler): string {
-        return `µTils.asJSONString(${cop.vλl})`;
+        return `utl.asJSONString(${cop.vλl})`;
     }
     _mock(ctx: MockOperation): string {
         const length = ctx.stringLength || random(1, ctx.maxRandomStringLength);

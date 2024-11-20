@@ -18,7 +18,7 @@ import type {
     CompiledOperation,
     MockOptions,
 } from './types';
-import {getPropIndex, memorize} from './utils';
+import {getPropIndex, memorize, toLiteral} from './utils';
 import {
     defaultJitFnHasReturn,
     defaultJitFnIsExpression,
@@ -47,7 +47,7 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
     isJitInlined = () => !(this.isCircular || (this.src.typeName && this.getFamily() === 'C'));
     getName = memorize((): string => getReflectionName(this));
     getJitId = () => this.getJitConstants().jitId;
-    getJitHash = memorize((): string => createJitIDHash(this.getJitId().toString(), 18));
+    getJitHash = memorize((): string => createJitIDHash(this.getJitId().toString()));
     getParent = (): RunType | undefined => (this.src.parent as DKwithRT)?._rt;
     getNestLevel = memorize((): number => {
         if (this.isCircular) return 0; // circular references start a new context
@@ -247,12 +247,14 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
         const argsCode = Object.entries(args)
             .map(([key, name]) => (key === 'vλl' ? stackItem.vλl : name))
             .join(',');
-        const isSame = currentCop.jitFnHash === cop.jitFnHash;
+        const isSelf = currentCop.jitFnHash === cop.jitFnHash;
+        const varName = cop.jitFnHash;
         // call local variable instead directly calling jitUtils to avoid lookups.
         // ie function context (local variable created when compiling the function): const abc = jitUtils.getJIT('abc);
         // ie calling context variable: abc.fn();
         // if operation is the same as the current operation we can call the function directly
-        const callCode = isSame ? `${cop.jitFnHash}(${argsCode})` : `${cop.jitFnHash}.fn(${argsCode})`;
+        const callCode = isSelf ? `${varName}(${argsCode})` : `${varName}.fn(${argsCode})`;
+        if (!isSelf) currentCop.contextCodeItems.set(varName, `const ${varName} = utl.getJIT(${toLiteral(varName)})`);
         if (isErrorCall) {
             const pathArgs = currentCop.getStackStaticPathArgs();
             const pathLength = currentCop.getStaticPathLength();

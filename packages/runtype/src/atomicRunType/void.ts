@@ -25,7 +25,7 @@ export class VoidRunType extends AtomicRunType<TypeVoid> {
         return `${cop.vλl} === undefined`;
     }
     _compileTypeErrors(cop: JitErrorsCompiler): string {
-        return `if (${cop.vλl} !== undefined) µTils.errPush(${cop.args.εrr},${getJitErrorPath(cop)},${getExpected(this)})`;
+        return `if (${cop.vλl} !== undefined) utl.err(${cop.args.εrr},${getJitErrorPath(cop)},${getExpected(this)})`;
     }
     _compileJsonEncode(cop: JitCompiler): string {
         return `${cop.vλl} = undefined`;

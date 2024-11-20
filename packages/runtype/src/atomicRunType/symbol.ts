@@ -26,7 +26,7 @@ export class SymbolRunType extends AtomicRunType<TypeSymbol> {
         return `typeof ${cop.vλl} === 'symbol'`;
     }
     _compileTypeErrors(cop: JitErrorsCompiler): string {
-        return `if (typeof ${cop.vλl} !== 'symbol') µTils.errPush(${cop.args.εrr},${getJitErrorPath(cop)},${getExpected(this)})`;
+        return `if (typeof ${cop.vλl} !== 'symbol') utl.err(${cop.args.εrr},${getJitErrorPath(cop)},${getExpected(this)})`;
     }
     _compileJsonEncode(cop: JitCompiler): string {
         return SymbolJitJsonEncoder.encodeToJson(cop.vλl);

@@ -21,7 +21,7 @@ export type JitFnID = (typeof JitFnIDs)[keyof typeof JitFnIDs];
 
 /**
  * The argument names of the function to be compiled. The order of properties is important as must the same as the function args.
- * ie: {vλl: 'vλl', arg1: 'arg1', error: 'eArr'} for the function (vλl, arg1, eArr) => any
+ * ie: {vλl: 'val', arg1: 'arg1', error: 'err'} for the function (vλl, arg1, eArr) => any
  */
 export type JitFnArgs = {
     /** The name of the value of to be */

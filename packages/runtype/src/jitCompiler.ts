@@ -17,7 +17,6 @@ import {
     maxStackErrorMessage,
 } from './constants';
 import {isChildAccessorType} from './guards';
-import {toLiteral} from './utils';
 import {jitUtils} from './jitUtils';
 
 export type StackItem = {
@@ -60,6 +59,7 @@ export class BaseCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extends 
      * By default this contains constants for the direct dependencies of the jit function.
      * */
     readonly contextCode: string = '';
+    readonly contextCodeItems = new Map<string, string>();
     /**
      * This flag is set to true when the result of a jit compilation is a no operation.
      * Some jit compiled functions could execute no operations (ie: jsonEncode/jsonDecode a string)
@@ -160,7 +160,7 @@ export class BaseCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extends 
 
 export class JitCompiler<ID extends JitFnID = any> extends BaseCompiler<typeof jitArgs, ID> {
     constructor(rt: BaseRunType, id: ID, parentLength: number = 0) {
-        super(rt, id, {...jitArgs}, {...jitDefaultArgs}, 'vλl', parentLength);
+        super(rt, id, {...jitArgs}, {...jitDefaultArgs}, 'v', parentLength);
     }
 }
 
@@ -168,7 +168,7 @@ export class JitErrorsCompiler<ID extends JitFnID = any> extends BaseCompiler<ty
     constructor(rt: BaseRunType, id: ID, parentLength: number = 0) {
         const args = {...jitErrorArgs};
         const defaultValues = {...jitDefaultErrorArgs};
-        super(rt, id, args, defaultValues, 'εrr', parentLength);
+        super(rt, id, args, defaultValues, 'er', parentLength);
     }
 }
 
@@ -208,7 +208,7 @@ export function createJitCompiler(rt: BaseRunType, fnId: JitFnID, parent?: BaseC
  * @returns
  */
 export function getJITFnHash(id: JitFnID, rt: BaseRunType): string {
-    return `fn${id}_${rt.getJitHash()}`;
+    return `f${id}_${rt.getJitHash()}`;
 }
 
 function getJitFnCode(cop: JitCompilerLike): {fnName: string; fnCode: string} {
@@ -223,13 +223,9 @@ function compileFunction(cop: BaseCompiler): (...args: any[]) => any {
     if (cop.stack.length !== 0) throw new Error('Can not get compiled function before the compile operation is finished');
     if (jitUtils.hasJitFn(cop.jitFnHash)) return jitUtils.getJitFn(cop.jitFnHash);
     const {fnCode, fnName} = getJitFnCode(cop);
-    const otherDependencies = Array.from(cop.directDependencies.values()).filter((jitFnHash) => jitFnHash !== cop.jitFnHash);
-    const contextCode: string = otherDependencies
-        .map((jitFnHash) => `const ${jitFnHash}= µTils.getJIT(${toLiteral(jitFnHash)})`)
-        .join(';');
-    const newFn = createJitFnWithContext(fnCode, fnName, contextCode);
+    (cop as Mutable<BaseCompiler>).contextCode = Array.from(cop.contextCodeItems.values()).join(';\n');
+    const newFn = createJitFnWithContext(fnCode, fnName, cop.contextCode);
     (cop as Mutable<BaseCompiler>).fn = newFn;
-    (cop as Mutable<BaseCompiler>).contextCode = contextCode;
     return newFn;
 }
 

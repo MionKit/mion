@@ -25,7 +25,7 @@ export class UndefinedRunType extends AtomicRunType<TypeUndefined> {
         return `typeof ${cop.vλl} === 'undefined'`;
     }
     _compileTypeErrors(cop: JitErrorsCompiler): string {
-        return `if (typeof ${cop.vλl} !== 'undefined') µTils.errPush(${cop.args.εrr},${getJitErrorPath(cop)},${getExpected(this)})`;
+        return `if (typeof ${cop.vλl} !== 'undefined') utl.err(${cop.args.εrr},${getJitErrorPath(cop)},${getExpected(this)})`;
     }
     _compileJsonEncode(cop: JitCompiler): string {
         return `${cop.vλl} = null`;

@@ -26,7 +26,7 @@ export class NumberRunType extends AtomicRunType<TypeNumber> {
         return `Number.isFinite(${cop.vλl})`;
     }
     _compileTypeErrors(cop: JitErrorsCompiler): string {
-        return `if(!(${this._compileIsType(cop)})) µTils.errPush(${cop.args.εrr},${getJitErrorPath(cop)},${getExpected(this)})`;
+        return `if(!(${this._compileIsType(cop)})) utl.err(${cop.args.εrr},${getJitErrorPath(cop)},${getExpected(this)})`;
     }
     _mock(ctx: Pick<MockOperation, 'minNumber' | 'maxNumber'>): number {
         return mockNumber(ctx.minNumber, ctx.maxNumber);

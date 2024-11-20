@@ -26,7 +26,7 @@ export class EnumRunType extends AtomicRunType<TypeEnum> {
         return this.src.values.map((v) => `${cop.vλl} === ${toLiteral(v)}`).join(' || ');
     }
     _compileTypeErrors(cop: JitErrorsCompiler): string {
-        return `if (!(${this._compileIsType(cop)})) µTils.errPush(${cop.args.εrr},${getJitErrorPath(cop)},${getExpected(this)})`;
+        return `if (!(${this._compileIsType(cop)})) utl.err(${cop.args.εrr},${getJitErrorPath(cop)},${getExpected(this)})`;
     }
     _compileJsonStringify(cop: JitCompiler): string {
         if (this.src.indexType.kind === ReflectionKind.number) return cop.vλl;

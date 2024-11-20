@@ -110,7 +110,7 @@ export class IndexSignatureRunType extends MemberRunType<TypeIndexSignature> {
             const ${arrName} = [];
             for (const ${prop} in ${varName}) {
                 ${skipCode}
-                if (${prop} !== undefined) ${arrName}.push(µTils.asJSONString(${prop}) + ':' + ${jsonVal});
+                if (${prop} !== undefined) ${arrName}.push(utl.asJSONString(${prop}) + ':' + ${jsonVal});
             }
             return ${arrName}.join(',')${sep};
         `;

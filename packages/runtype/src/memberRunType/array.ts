@@ -61,10 +61,10 @@ export class ArrayRunType extends MemberRunType<TypeArray> {
         const varName = cop.vλl;
         const index = this.getChildVarName();
         if (shouldSkipJit(this)) {
-            return `if (!Array.isArray(${varName})) µTils.errPush(${cop.args.εrr},${getJitErrorPath(cop)},${getExpected(this)});`;
+            return `if (!Array.isArray(${varName})) utl.err(${cop.args.εrr},${getJitErrorPath(cop)},${getExpected(this)});`;
         }
         return `
-            if (!Array.isArray(${varName})) µTils.errPush(${cop.args.εrr},${getJitErrorPath(cop)},${getExpected(this)});
+            if (!Array.isArray(${varName})) utl.err(${cop.args.εrr},${getJitErrorPath(cop)},${getExpected(this)});
             else {
                 for (let ${index} = 0; ${index} < ${varName}.length; ${index}++) {
                     ${this.getMemberType().compileTypeErrors(cop)}

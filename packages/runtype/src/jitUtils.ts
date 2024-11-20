@@ -13,7 +13,6 @@ export type JITUtils = typeof jitUtils;
 const STR_ESCAPE = /[\u0000-\u001f\u0022\u005c\ud800-\udfff]/;
 const MAX_SCAPE_TEST_LENGTH = 1000; // possible to tweak after benchmarking
 const jitCache = new Map<string, CompiledOperation>();
-const jitObjectKeys = new Map<string, Set<string | number>>();
 const jitHashes = new Map<string, string>();
 
 /**
@@ -81,51 +80,66 @@ export const jitUtils = {
         return !!jitCache.get(key)?.fn;
     },
     // !!! DO NOT MODIFY METHOD WITHOUT REVIEWING JIT CODE INVOCATIONS!!!
-    /**
-     * Checks if the object has extra unknown keys.
-     * if none keys are passe the function assumes theres is a single key with the value of keysId
-     * @param obj the object to be checked
-     * @param keysId an unique id if the set of keys to be checked, might be keys.join()
-     * @param keys the keys that are expected to be in the object
-     * @returns false if no unknown keys are found, otherwise an array with the extra unknown keys
-     */
-    getUnknownKeys(obj: any, keysId: string, ...keys: (string | number)[]): string[] {
-        const _keysSet = jitObjectKeys.get(keysId);
-        const keysSet = _keysSet || new Set<string | number>(keys.length === 0 ? [keysId] : keys);
-        if (!_keysSet) jitObjectKeys.set(keysId, keysSet);
-        const result: string[] = [];
-        const objectKeys = Object.keys(obj);
-        for (const key of objectKeys) {
-            if (!keysSet.has(key)) {
-                result.push(key);
-                if (result.length >= maxUnknownKeys) throw new Error('Too many unknown keys');
+    getUnknownKeysFromSet(obj: Record<string | number, any>, keys: Set<string | number>): (string | number)[] {
+        const unknownKeys: (string | number)[] = [];
+        for (const prop in obj) {
+            if (!keys.has(prop)) {
+                unknownKeys.push(prop);
+                if (unknownKeys.length >= maxUnknownKeys) throw new Error('Too many unknown keys');
             }
         }
-        return result;
+        return unknownKeys;
+    },
+    getUnknownKeysFromArray(obj: Record<string | number, any>, keys: (string | number)[]): (string | number)[] {
+        const unknownKeys: (string | number)[] = [];
+        for (const prop in obj) {
+            let found = false;
+            for (let j = 0; j < keys.length; j++) {
+                if (keys[j] === prop) {
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) {
+                unknownKeys.push(prop as string);
+                if (unknownKeys.length >= maxUnknownKeys) throw new Error('Too many unknown keys');
+            }
+        }
+        return unknownKeys;
     },
     // !!! DO NOT MODIFY METHOD WITHOUT REVIEWING JIT CODE INVOCATIONS!!!
-    hasUnknownKeys(obj: any, keysId: string, ...keys: (string | number)[]): boolean {
-        const _keysSet = jitObjectKeys.get(keysId);
-        const keysSet = _keysSet || new Set<string | number>(keys.length === 0 ? [keysId] : keys);
-        if (!_keysSet) jitObjectKeys.set(keysId, keysSet);
-        const objectKeys = Object.keys(obj);
-        for (const key of objectKeys) {
-            if (!keysSet.has(key)) {
-                return true;
+    hasUnknownKeysFromArray(obj: Record<string | number, any>, keys: (string | number)[]): boolean {
+        for (const prop in obj) {
+            // iterates over the object keys and if not found prop adds to unknownKeys
+            let found = false;
+            for (let j = 0; j < keys.length; j++) {
+                if (keys[j] === prop) {
+                    found = true;
+                    break;
+                }
             }
+            if (!found) return true;
+        }
+        return false;
+    },
+    hasUnknownKeysFromSet(obj: Record<string | number, any>, keys: Set<string | number>): boolean {
+        for (const prop in obj) {
+            if (!keys.has(prop)) return true;
         }
         return false;
     },
     // !!! DO NOT MODIFY METHOD WITHOUT REVIEWING JIT CODE INVOCATIONS!!!
-    errPush(εrr: RunTypeError[], path: (string | number)[], expected: string) {
-        εrr.push({path, expected});
+    err(err: RunTypeError[], path: (string | number)[], expected: string) {
+        err.push({path, expected});
     },
 };
 
 export const hashChars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-export const hashIncrement = 4;
-export const maxHashCollisions = 5;
-export const hashDefaultLength = 16;
+export const hashIncrement = 2;
+export const maxHashCollisions = 12;
+// TODO: investigate if this is a good default length, we want short hashes for small code size
+// variable hash length avoids collisions, so there shouldn't be any problems. but better to keep an eye on it
+export const hashDefaultLength = 8;
 
 export function quickHash(input: string, length = hashDefaultLength, prevResult?: string): string {
     const PRIME = 37; // Prime number to mix hash more robustly

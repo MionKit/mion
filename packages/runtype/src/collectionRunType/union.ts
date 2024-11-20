@@ -71,7 +71,7 @@ export class UnionRunType extends CollectionRunType<TypeUnion> {
         // TODO: enforce strictTypes to ensure no extra properties of the union go unchecked
         const isType = this.compileIsType(cop);
         const errorsPath = getJitErrorPath(cop);
-        const code = `if (!${isType}) µTils.errPush(${cop.args.εrr},${errorsPath},${getExpected(this)});`;
+        const code = `if (!${isType}) utl.err(${cop.args.εrr},${errorsPath},${getExpected(this)});`;
         return code;
     }
 

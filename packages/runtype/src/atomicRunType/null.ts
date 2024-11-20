@@ -25,7 +25,7 @@ export class NullRunType extends AtomicRunType<TypeNull> {
         return `${cop.vλl} === null`;
     }
     _compileTypeErrors(cop: JitErrorsCompiler): string {
-        return `if (${cop.vλl} !== null) µTils.errPush(${cop.args.εrr},${getJitErrorPath(cop)},${getExpected(this)})`;
+        return `if (${cop.vλl} !== null) utl.err(${cop.args.εrr},${getJitErrorPath(cop)},${getExpected(this)})`;
     }
     _mock(): null {
         return null;

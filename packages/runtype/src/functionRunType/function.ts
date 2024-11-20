@@ -84,7 +84,7 @@ export class FunctionRunType<CallType extends AnyFunction = TypeFunction> extend
         return `typeof ${cop.vλl} === 'function'  && ${cop.vλl}.length === ${this.parameterRunTypes.getLength()} ${nameCheck}`;
     }
     _compileTypeErrors(cop: JitErrorsCompiler): string {
-        return `if (!(${this._compileIsType(cop)})) µTils.errPush(${cop.args.εrr},${getJitErrorPath(cop)},${getExpected(this)});`;
+        return `if (!(${this._compileIsType(cop)})) utl.err(${cop.args.εrr},${getJitErrorPath(cop)},${getExpected(this)});`;
     }
     /**
      * json encode a function

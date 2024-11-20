@@ -113,17 +113,18 @@ export const anyValuesList = [
 export const mockObjectList = [{}, {a: 1}, {b: 2}, {a: 1, b: 'hello'}, {a: 1, b: 2, c: 3}, {a: 'hello', b: 2, c: 'wold', d: 4}];
 
 export const jitNames = {
-    utils: 'µTils',
+    utils: 'utl',
 };
 
+export const minKeysForSet = 30;
 export const maxUnknownKeys = 10;
 export const maxStackDepth = 50;
 export const maxStackErrorMessage =
     'Max compilation nested level reached, either you have a very deeply nested type or there is an error related to circular references un the types.';
 
-export const jitArgs = {vλl: 'vλl'} as const;
+export const jitArgs = {vλl: 'v'} as const;
 export const jitDefaultArgs = {vλl: null} as const;
-export const jitErrorArgs = {vλl: 'vλl', pλth: 'pλth', εrr: 'εrr'} as const;
+export const jitErrorArgs = {vλl: 'v', pλth: 'pth', εrr: 'er'} as const;
 export const jitDefaultErrorArgs = {vλl: null, pλth: '[]', εrr: '[]'} as const;
 
 export const defaultMockOptions = {
