@@ -6,8 +6,8 @@
  * ######## */
 
 import type {Type, TypeCallSignature, TypeFunction, TypeMethod, TypeMethodSignature} from './_deepkit/src/reflection/type';
-import type {JitCompiler} from './jitCompiler';
-import type {JITUtils} from './jitUtils';
+import type {JitCompiler} from './lib/jitCompiler';
+import type {JITUtils} from './lib/jitUtils';
 import type {JitFnIDs} from './constants';
 
 export type JSONValue = string | number | boolean | null | {[key: string]: JSONValue} | Array<JSONValue>;

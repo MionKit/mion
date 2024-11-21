@@ -18,11 +18,10 @@ import type {
     CompiledOperation,
     MockOptions,
 } from './types';
-import {getPropIndex, memorize, toLiteral} from './utils';
+import {getPropIndex, memorize, toLiteral} from './lib/utils';
 import {
     defaultJitFnHasReturn,
     defaultJitFnIsExpression,
-    defaultMockOptions,
     jitArgs,
     jitErrorArgs,
     JitFnIDs,
@@ -30,10 +29,11 @@ import {
     maxStackDepth,
     maxStackErrorMessage,
 } from './constants';
-import {JitErrorsCompiler, JitCompiler, getJITFnHash, createJitCompiler} from './jitCompiler';
-import {getReflectionName} from './reflectionNames';
-import {createJitIDHash, jitUtils} from './jitUtils';
-import {isMockContext} from './guards';
+import {JitErrorsCompiler, JitCompiler, getJITFnHash, createJitCompiler} from './lib/jitCompiler';
+import {getReflectionName} from './constants.kind';
+import {createJitIDHash, jitUtils} from './lib/jitUtils';
+import {isMockContext} from './lib/guards';
+import {defaultMockOptions} from './constants.mock';
 
 type DkCollection = Type & {types: Type[]};
 type DkMember = Type & {type: Type; optional: boolean};
