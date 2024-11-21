@@ -22,11 +22,11 @@ const jitConstants: JitConstants = {
 export class NumberRunType extends AtomicRunType<TypeNumber> {
     src: TypeNumber = null as any; // will be set after construction
     getJitConstants = () => jitConstants;
-    _compileIsType(cop: JitCompiler): string {
-        return `Number.isFinite(${cop.vλl})`;
+    _compileIsType(comp: JitCompiler): string {
+        return `Number.isFinite(${comp.vλl})`;
     }
-    _compileTypeErrors(cop: JitErrorsCompiler): string {
-        return `if(!(${this._compileIsType(cop)})) utl.err(${cop.args.εrr},${getJitErrorPath(cop)},${getExpected(this)})`;
+    _compileTypeErrors(comp: JitErrorsCompiler): string {
+        return `if(!(${this._compileIsType(comp)})) utl.err(${comp.args.εrr},${getJitErrorPath(comp)},${getExpected(this)})`;
     }
     _mock(ctx: Pick<MockOperation, 'minNumber' | 'maxNumber'>): number {
         return mockNumber(ctx.minNumber, ctx.maxNumber);

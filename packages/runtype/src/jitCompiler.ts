@@ -211,21 +211,21 @@ export function getJITFnHash(id: JitFnID, rt: BaseRunType): string {
     return `f${id}_${rt.getJitHash()}`;
 }
 
-function getJitFnCode(cop: JitCompilerLike): {fnName: string; fnCode: string} {
-    const fnName = cop.jitFnHash;
-    const fnArgs = getJitFnArgs(cop); // function arguments with default values ie: 'vλl, pλth=[], εrr=[]'
-    const fnCode = `function ${fnName}(${fnArgs}){${cop.code}}`;
+function getJitFnCode(comp: JitCompilerLike): {fnName: string; fnCode: string} {
+    const fnName = comp.jitFnHash;
+    const fnArgs = getJitFnArgs(comp); // function arguments with default values ie: 'vλl, pλth=[], εrr=[]'
+    const fnCode = `function ${fnName}(${fnArgs}){${comp.code}}`;
     return {fnName, fnCode};
 }
 
-function compileFunction(cop: BaseCompiler): (...args: any[]) => any {
-    if (cop.fn) return cop.fn;
-    if (cop.stack.length !== 0) throw new Error('Can not get compiled function before the compile operation is finished');
-    if (jitUtils.hasJitFn(cop.jitFnHash)) return jitUtils.getJitFn(cop.jitFnHash);
-    const {fnCode, fnName} = getJitFnCode(cop);
-    (cop as Mutable<BaseCompiler>).contextCode = Array.from(cop.contextCodeItems.values()).join(';\n');
-    const newFn = createJitFnWithContext(fnCode, fnName, cop.contextCode);
-    (cop as Mutable<BaseCompiler>).fn = newFn;
+function compileFunction(comp: BaseCompiler): (...args: any[]) => any {
+    if (comp.fn) return comp.fn;
+    if (comp.stack.length !== 0) throw new Error('Can not get compiled function before the compile operation is finished');
+    if (jitUtils.hasJitFn(comp.jitFnHash)) return jitUtils.getJitFn(comp.jitFnHash);
+    const {fnCode, fnName} = getJitFnCode(comp);
+    (comp as Mutable<BaseCompiler>).contextCode = Array.from(comp.contextCodeItems.values()).join(';\n');
+    const newFn = createJitFnWithContext(fnCode, fnName, comp.contextCode);
+    (comp as Mutable<BaseCompiler>).fn = newFn;
     return newFn;
 }
 
@@ -259,30 +259,30 @@ function printFn(fnWithContext: string, code: string, functionName: string, cont
     return contextCode ? `function context_${functionName}(){${fnWithContext}}` : code;
 }
 
-function getJitFnArgs(cop: JitCompilerLike): string {
-    return Object.entries(cop.args)
+function getJitFnArgs(comp: JitCompilerLike): string {
+    return Object.entries(comp.args)
         .map(([key, name]) => {
-            if (!cop.defaultParamValues[key]) return name;
-            const value = cop.defaultParamValues[key];
+            if (!comp.defaultParamValues[key]) return name;
+            const value = comp.defaultParamValues[key];
             return `${name}=${value}`;
         })
         .join(',');
 }
 
-function getStackVλl(cop: BaseCompiler): string {
-    let vλl = cop.args.vλl;
-    for (let i = 0; i < cop.stack.length; i++) {
-        const rt = cop.stack[i].rt;
+function getStackVλl(comp: BaseCompiler): string {
+    let vλl = comp.args.vλl;
+    for (let i = 0; i < comp.stack.length; i++) {
+        const rt = comp.stack[i].rt;
         if (isChildAccessorType(rt) && !rt.skipSettingAccessor()) {
             vλl += rt.useArrayAccessor() ? `[${rt.getChildLiteral()}]` : `.${rt.getChildVarName()}`;
         }
     }
     return vλl;
 }
-function getStackStaticPath(cop: BaseCompiler): (string | number)[] {
+function getStackStaticPath(comp: BaseCompiler): (string | number)[] {
     const path: (string | number)[] = [];
-    for (let i = 0; i < cop.stack.length; i++) {
-        const rt = cop.stack[i].rt;
+    for (let i = 0; i < comp.stack.length; i++) {
+        const rt = comp.stack[i].rt;
         if (isChildAccessorType(rt) && !rt.skipSettingAccessor()) {
             path.push(rt.getChildLiteral());
         }

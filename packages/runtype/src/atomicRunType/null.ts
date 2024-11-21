@@ -21,11 +21,11 @@ const jitConstants: JitConstants = {
 export class NullRunType extends AtomicRunType<TypeNull> {
     src: TypeNull = null as any; // will be set after construction
     getJitConstants = () => jitConstants;
-    _compileIsType(cop: JitCompiler): string {
-        return `${cop.vλl} === null`;
+    _compileIsType(comp: JitCompiler): string {
+        return `${comp.vλl} === null`;
     }
-    _compileTypeErrors(cop: JitErrorsCompiler): string {
-        return `if (${cop.vλl} !== null) utl.err(${cop.args.εrr},${getJitErrorPath(cop)},${getExpected(this)})`;
+    _compileTypeErrors(comp: JitErrorsCompiler): string {
+        return `if (${comp.vλl} !== null) utl.err(${comp.args.εrr},${getJitErrorPath(comp)},${getExpected(this)})`;
     }
     _mock(): null {
         return null;

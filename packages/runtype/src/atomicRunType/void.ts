@@ -21,17 +21,17 @@ const jitConstants: JitConstants = {
 export class VoidRunType extends AtomicRunType<TypeVoid> {
     src: TypeVoid = null as any; // will be set after construction
     getJitConstants = () => jitConstants;
-    _compileIsType(cop: JitCompiler): string {
-        return `${cop.vλl} === undefined`;
+    _compileIsType(comp: JitCompiler): string {
+        return `${comp.vλl} === undefined`;
     }
-    _compileTypeErrors(cop: JitErrorsCompiler): string {
-        return `if (${cop.vλl} !== undefined) utl.err(${cop.args.εrr},${getJitErrorPath(cop)},${getExpected(this)})`;
+    _compileTypeErrors(comp: JitErrorsCompiler): string {
+        return `if (${comp.vλl} !== undefined) utl.err(${comp.args.εrr},${getJitErrorPath(comp)},${getExpected(this)})`;
     }
-    _compileJsonEncode(cop: JitCompiler): string {
-        return `${cop.vλl} = undefined`;
+    _compileJsonEncode(comp: JitCompiler): string {
+        return `${comp.vλl} = undefined`;
     }
-    _compileJsonDecode(cop: JitCompiler): string {
-        return `${cop.vλl} = undefined`;
+    _compileJsonDecode(comp: JitCompiler): string {
+        return `${comp.vλl} = undefined`;
     }
     _compileJsonStringify(): string {
         return 'undefined';

@@ -22,15 +22,15 @@ const jitConstants: JitConstants = {
 export class EnumRunType extends AtomicRunType<TypeEnum> {
     src: TypeEnum = null as any; // will be set after construction
     getJitConstants = () => jitConstants;
-    _compileIsType(cop: JitCompiler): string {
-        return this.src.values.map((v) => `${cop.vλl} === ${toLiteral(v)}`).join(' || ');
+    _compileIsType(comp: JitCompiler): string {
+        return this.src.values.map((v) => `${comp.vλl} === ${toLiteral(v)}`).join(' || ');
     }
-    _compileTypeErrors(cop: JitErrorsCompiler): string {
-        return `if (!(${this._compileIsType(cop)})) utl.err(${cop.args.εrr},${getJitErrorPath(cop)},${getExpected(this)})`;
+    _compileTypeErrors(comp: JitErrorsCompiler): string {
+        return `if (!(${this._compileIsType(comp)})) utl.err(${comp.args.εrr},${getJitErrorPath(comp)},${getExpected(this)})`;
     }
-    _compileJsonStringify(cop: JitCompiler): string {
-        if (this.src.indexType.kind === ReflectionKind.number) return cop.vλl;
-        return `JSON.stringify(${cop.vλl})`;
+    _compileJsonStringify(comp: JitCompiler): string {
+        if (this.src.indexType.kind === ReflectionKind.number) return comp.vλl;
+        return `JSON.stringify(${comp.vλl})`;
     }
     _mock(ctx: Pick<MockOperation, 'enumIndex'>): string | number | undefined | null {
         const i = ctx.enumIndex || random(0, this.src.values.length - 1);

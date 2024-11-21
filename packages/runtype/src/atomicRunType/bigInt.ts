@@ -22,20 +22,20 @@ const jitConstants: JitConstants = {
 export class BigIntRunType extends AtomicRunType<TypeBigInt> {
     src: TypeBigInt = null as any; // will be set after construction
     getJitConstants = () => jitConstants;
-    _compileIsType(cop: JitCompiler): string {
-        return `typeof ${cop.vλl} === 'bigint'`;
+    _compileIsType(comp: JitCompiler): string {
+        return `typeof ${comp.vλl} === 'bigint'`;
     }
-    _compileTypeErrors(cop: JitErrorsCompiler): string {
-        return `if (typeof ${cop.vλl} !== 'bigint') utl.err(${cop.args.εrr},${getJitErrorPath(cop)},${getExpected(this)})`;
+    _compileTypeErrors(comp: JitErrorsCompiler): string {
+        return `if (typeof ${comp.vλl} !== 'bigint') utl.err(${comp.args.εrr},${getJitErrorPath(comp)},${getExpected(this)})`;
     }
-    _compileJsonEncode(cop: JitCompiler): string {
-        return BigIntJitJsonENcoder.encodeToJson(cop.vλl);
+    _compileJsonEncode(comp: JitCompiler): string {
+        return BigIntJitJsonENcoder.encodeToJson(comp.vλl);
     }
-    _compileJsonDecode(cop: JitCompiler): string {
-        return BigIntJitJsonENcoder.decodeFromJson(cop.vλl);
+    _compileJsonDecode(comp: JitCompiler): string {
+        return BigIntJitJsonENcoder.decodeFromJson(comp.vλl);
     }
-    _compileJsonStringify(cop: JitCompiler): string {
-        return BigIntJitJsonENcoder.stringify(cop.vλl);
+    _compileJsonStringify(comp: JitCompiler): string {
+        return BigIntJitJsonENcoder.stringify(comp.vλl);
     }
     /** mocks a regular number and transforms into a bigint.
      * this means range is limited to Number.MAX_SAFE_INTEGER

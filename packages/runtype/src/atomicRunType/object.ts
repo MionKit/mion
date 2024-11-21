@@ -22,15 +22,15 @@ const jitConstants: JitConstants = {
 export class ObjectRunType extends AtomicRunType<TypeAny | TypeUnknown> {
     src: TypeAny | TypeUnknown = null as any; // will be set after construction
     getJitConstants = () => jitConstants;
-    _compileIsType(cop: JitCompiler): string {
-        return `(typeof ${cop.vλl} === 'object' && ${cop.vλl} !== null)`;
+    _compileIsType(comp: JitCompiler): string {
+        return `(typeof ${comp.vλl} === 'object' && ${comp.vλl} !== null)`;
     }
-    _compileTypeErrors(cop: JitErrorsCompiler): string {
-        return `if (!(${this._compileIsType(cop)})) utl.err(${cop.args.εrr},${getJitErrorPath(cop)},${getExpected(this)})`;
+    _compileTypeErrors(comp: JitErrorsCompiler): string {
+        return `if (!(${this._compileIsType(comp)})) utl.err(${comp.args.εrr},${getJitErrorPath(comp)},${getExpected(this)})`;
     }
 
-    _compileJsonStringify(cop: JitCompiler): string {
-        return `JSON.stringify(${cop.vλl})`;
+    _compileJsonStringify(comp: JitCompiler): string {
+        return `JSON.stringify(${comp.vλl})`;
     }
     _mock(ctx: Pick<MockOperation, 'objectList'>): object {
         const objectList = ctx.objectList;

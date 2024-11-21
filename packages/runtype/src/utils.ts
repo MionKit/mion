@@ -74,10 +74,10 @@ export function isSameJitCompiler(a: JitCompiler, b: JitCompiler): boolean {
     return a.opId === b.opId && isSameJitType(a.rootType, b.rootType);
 }
 
-export function getJitErrorPath(cop: JitErrorsCompiler, extraPathLiteral?: string | number): string {
+export function getJitErrorPath(comp: JitErrorsCompiler, extraPathLiteral?: string | number): string {
     const extraPath = extraPathLiteral ? `,${extraPathLiteral}` : '';
-    if (cop.length === 1) return `[...${cop.args.pλth}${extraPath}]`;
-    return `[...${cop.args.pλth},${cop.getStackStaticPathArgs()}${extraPath}]`;
+    if (comp.length === 1) return `[...${comp.args.pλth}${extraPath}]`;
+    return `[...${comp.args.pλth},${comp.getStackStaticPathArgs()}${extraPath}]`;
 }
 
 export function getExpected(rt: RunType): string {
@@ -123,7 +123,7 @@ export function getParamIndex(src: TypeParameter): number {
     return 0;
 }
 
-export function childIsExpression(cop: JitCompiler, fnId: JitFnID, child: BaseRunType): boolean {
+export function childIsExpression(comp: JitCompiler, fnId: JitFnID, child: BaseRunType): boolean {
     return child.jitFnIsExpression(fnId) || !child.isJitInlined();
 }
 

@@ -22,20 +22,20 @@ const jitConstants: JitConstants = {
 export class SymbolRunType extends AtomicRunType<TypeSymbol> {
     src: TypeSymbol = null as any; // will be set after construction
     getJitConstants = () => jitConstants;
-    _compileIsType(cop: JitCompiler): string {
-        return `typeof ${cop.vλl} === 'symbol'`;
+    _compileIsType(comp: JitCompiler): string {
+        return `typeof ${comp.vλl} === 'symbol'`;
     }
-    _compileTypeErrors(cop: JitErrorsCompiler): string {
-        return `if (typeof ${cop.vλl} !== 'symbol') utl.err(${cop.args.εrr},${getJitErrorPath(cop)},${getExpected(this)})`;
+    _compileTypeErrors(comp: JitErrorsCompiler): string {
+        return `if (typeof ${comp.vλl} !== 'symbol') utl.err(${comp.args.εrr},${getJitErrorPath(comp)},${getExpected(this)})`;
     }
-    _compileJsonEncode(cop: JitCompiler): string {
-        return SymbolJitJsonEncoder.encodeToJson(cop.vλl);
+    _compileJsonEncode(comp: JitCompiler): string {
+        return SymbolJitJsonEncoder.encodeToJson(comp.vλl);
     }
-    _compileJsonDecode(cop: JitCompiler): string {
-        return SymbolJitJsonEncoder.decodeFromJson(cop.vλl);
+    _compileJsonDecode(comp: JitCompiler): string {
+        return SymbolJitJsonEncoder.decodeFromJson(comp.vλl);
     }
-    _compileJsonStringify(cop: JitCompiler): string {
-        return SymbolJitJsonEncoder.stringify(cop.vλl);
+    _compileJsonStringify(comp: JitCompiler): string {
+        return SymbolJitJsonEncoder.stringify(comp.vλl);
     }
     _mock(ctx: MockOperation): symbol {
         return mockSymbol(ctx.symbolName, ctx.symbolLength, ctx.symbolCharSet);

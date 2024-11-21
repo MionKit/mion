@@ -43,40 +43,40 @@ export class PropertyRunType extends MemberRunType<TypePropertySignature | TypeP
 
     // #### jit code ####
 
-    _compileIsType(cop: JitCompiler): string {
+    _compileIsType(comp: JitCompiler): string {
         const child = this.getJitChild();
         if (!child) return '';
-        const itemCode = child.compileIsType(cop);
-        return this.src.optional ? `(${cop.getChildVλl()} === undefined || ${itemCode})` : itemCode;
+        const itemCode = child.compileIsType(comp);
+        return this.src.optional ? `(${comp.getChildVλl()} === undefined || ${itemCode})` : itemCode;
     }
-    _compileTypeErrors(cop: JitErrorsCompiler): string {
+    _compileTypeErrors(comp: JitErrorsCompiler): string {
         const child = this.getJitChild();
         if (!child) return '';
-        const itemCode = child.compileTypeErrors(cop);
-        return this.src.optional ? `if (${cop.getChildVλl()} !== undefined) {${itemCode}}` : itemCode;
+        const itemCode = child.compileTypeErrors(comp);
+        return this.src.optional ? `if (${comp.getChildVλl()} !== undefined) {${itemCode}}` : itemCode;
     }
-    _compileJsonEncode(cop: JitCompiler): string {
+    _compileJsonEncode(comp: JitCompiler): string {
         const child = this.getJsonEncodeChild();
         if (!child) return '';
-        const childCode = child.compileJsonEncode(cop);
-        const isExpression = childIsExpression(cop, JitFnIDs.jsonEncode, child);
-        const code = isExpression ? `${cop.getChildVλl()} = ${childCode};` : childCode;
-        if (this.src.optional) return `if (${cop.getChildVλl()} !== undefined) {${code}}`;
+        const childCode = child.compileJsonEncode(comp);
+        const isExpression = childIsExpression(comp, JitFnIDs.jsonEncode, child);
+        const code = isExpression ? `${comp.getChildVλl()} = ${childCode};` : childCode;
+        if (this.src.optional) return `if (${comp.getChildVλl()} !== undefined) {${code}}`;
         return code;
     }
-    _compileJsonDecode(cop: JitCompiler): string {
+    _compileJsonDecode(comp: JitCompiler): string {
         const child = this.getJsonDecodeChild();
         if (!child) return '';
-        const childCode = child.compileJsonDecode(cop);
-        const isExpression = childIsExpression(cop, JitFnIDs.jsonDecode, child);
-        const code = isExpression ? `${cop.getChildVλl()} = ${childCode};` : childCode;
-        if (this.src.optional) return `if (${cop.getChildVλl()} !== undefined) {${code}}`;
+        const childCode = child.compileJsonDecode(comp);
+        const isExpression = childIsExpression(comp, JitFnIDs.jsonDecode, child);
+        const code = isExpression ? `${comp.getChildVλl()} = ${childCode};` : childCode;
+        if (this.src.optional) return `if (${comp.getChildVλl()} !== undefined) {${code}}`;
         return code;
     }
-    _compileJsonStringify(cop: JitCompiler): string {
+    _compileJsonStringify(comp: JitCompiler): string {
         const child = this.getJitChild();
         if (!child) return '';
-        const propCode = child.compileJsonStringify(cop);
+        const propCode = child.compileJsonStringify(comp);
         // this can´t be processed in the parent as we need to handle the empty string case when value is undefined
         const sep = this.skipCommas ? '' : '+","';
         // encoding safe property with ':' inside the string saves a little processing
@@ -85,7 +85,7 @@ export class PropertyRunType extends MemberRunType<TypePropertySignature | TypeP
             ? `'"${this.getChildVarName()}":'`
             : `${jitUtils.asJSONString(this.getChildLiteral())}+':'`;
         if (this.src.optional) {
-            this.tempChildVλl = cop.getChildVλl();
+            this.tempChildVλl = comp.getChildVλl();
             // TODO: check if json for an object with first property undefined is valid (maybe the comma must be dynamic too)
             return `(${this.tempChildVλl} === undefined ? '' : ${propDef}+${propCode}${sep})`;
         }

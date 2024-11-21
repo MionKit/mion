@@ -23,15 +23,15 @@ const jitConstants: JitConstants = {
 export class StringRunType extends AtomicRunType<TypeString> {
     src: TypeString = null as any; // will be set after construction
     getJitConstants = () => jitConstants;
-    _compileIsType(cop: JitCompiler): string {
-        return `typeof ${cop.vλl} === 'string'`;
+    _compileIsType(comp: JitCompiler): string {
+        return `typeof ${comp.vλl} === 'string'`;
     }
-    _compileTypeErrors(cop: JitErrorsCompiler): string {
-        return `if (typeof ${cop.vλl} !== 'string') utl.err(${cop.args.εrr},${getJitErrorPath(cop)},${getExpected(this)})`;
+    _compileTypeErrors(comp: JitErrorsCompiler): string {
+        return `if (typeof ${comp.vλl} !== 'string') utl.err(${comp.args.εrr},${getJitErrorPath(comp)},${getExpected(this)})`;
     }
 
-    _compileJsonStringify(cop: JitCompiler): string {
-        return `utl.asJSONString(${cop.vλl})`;
+    _compileJsonStringify(comp: JitCompiler): string {
+        return `utl.asJSONString(${comp.vλl})`;
     }
     _mock(ctx: MockOperation): string {
         const length = ctx.stringLength || random(1, ctx.maxRandomStringLength);

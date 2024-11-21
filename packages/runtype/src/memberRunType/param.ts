@@ -38,44 +38,44 @@ export class ParameterRunType extends MemberRunType<TypeParameter> {
     hasDefaultValue(): boolean {
         return !!this.src.default;
     }
-    _compileIsType(cop: JitCompiler): string {
+    _compileIsType(comp: JitCompiler): string {
         if (this.isRest()) {
-            return this.getMemberType().compileIsType(cop);
+            return this.getMemberType().compileIsType(comp);
         } else {
-            const itemCode = this.getMemberType().compileIsType(cop);
-            return this.isOptional() ? `${cop.getChildVλl()} === undefined || (${itemCode})` : itemCode;
+            const itemCode = this.getMemberType().compileIsType(comp);
+            return this.isOptional() ? `${comp.getChildVλl()} === undefined || (${itemCode})` : itemCode;
         }
     }
-    _compileTypeErrors(cop: JitErrorsCompiler): string {
+    _compileTypeErrors(comp: JitErrorsCompiler): string {
         if (this.isRest()) {
-            return this.getMemberType().compileTypeErrors(cop);
+            return this.getMemberType().compileTypeErrors(comp);
         } else {
-            const itemCode = this.getMemberType().compileTypeErrors(cop);
-            return this.isOptional() ? `if (${cop.getChildVλl()} !== undefined) {${itemCode}}` : itemCode;
+            const itemCode = this.getMemberType().compileTypeErrors(comp);
+            return this.isOptional() ? `if (${comp.getChildVλl()} !== undefined) {${itemCode}}` : itemCode;
         }
     }
-    _compileJsonEncode(cop: JitCompiler): string {
+    _compileJsonEncode(comp: JitCompiler): string {
         const child = this.getJsonEncodeChild();
         if (!child) return '';
-        const childCode = child.compileJsonEncode(cop);
-        const isExpression = childIsExpression(cop, JitFnIDs.jsonEncode, child);
-        return isExpression ? `${cop.getChildVλl()} = ${childCode};` : childCode;
+        const childCode = child.compileJsonEncode(comp);
+        const isExpression = childIsExpression(comp, JitFnIDs.jsonEncode, child);
+        return isExpression ? `${comp.getChildVλl()} = ${childCode};` : childCode;
     }
-    _compileJsonDecode(cop: JitCompiler): string {
+    _compileJsonDecode(comp: JitCompiler): string {
         const child = this.getJsonDecodeChild();
         if (!child) return '';
-        const childCode = child.compileJsonDecode(cop);
-        const isExpression = childIsExpression(cop, JitFnIDs.jsonDecode, child);
-        return isExpression ? `${cop.getChildVλl()} = ${childCode};` : childCode;
+        const childCode = child.compileJsonDecode(comp);
+        const isExpression = childIsExpression(comp, JitFnIDs.jsonDecode, child);
+        return isExpression ? `${comp.getChildVλl()} = ${childCode};` : childCode;
     }
-    _compileJsonStringify(cop: JitCompiler): string {
+    _compileJsonStringify(comp: JitCompiler): string {
         if (this.isRest()) {
-            return this.getMemberType().compileJsonStringify(cop);
+            return this.getMemberType().compileJsonStringify(comp);
         } else {
-            const argCode = this.getMemberType().compileJsonStringify(cop);
+            const argCode = this.getMemberType().compileJsonStringify(comp);
             const isFirst = this.getChildIndex() === 0;
             const sep = isFirst ? '' : `','+`;
-            if (this.isOptional()) return `(${cop.getChildVλl()} === undefined ? '': ${sep}${argCode})`;
+            if (this.isOptional()) return `(${comp.getChildVλl()} === undefined ? '': ${sep}${argCode})`;
             return `${sep}${argCode}`;
         }
     }

@@ -78,13 +78,13 @@ export class FunctionRunType<CallType extends AnyFunction = TypeFunction> extend
     // ######## JIT functions (all throw error) ########
 
     // can't know the types of the runtype function parameters, neither the return type, so only compare function name and length
-    _compileIsType(cop: JitCompiler): string {
+    _compileIsType(comp: JitCompiler): string {
         const fnName = this.getFnName();
-        const nameCheck = fnName ? ` && ${cop.vλl}.name === ${toLiteral(fnName)}` : '';
-        return `typeof ${cop.vλl} === 'function'  && ${cop.vλl}.length === ${this.parameterRunTypes.getLength()} ${nameCheck}`;
+        const nameCheck = fnName ? ` && ${comp.vλl}.name === ${toLiteral(fnName)}` : '';
+        return `typeof ${comp.vλl} === 'function'  && ${comp.vλl}.length === ${this.parameterRunTypes.getLength()} ${nameCheck}`;
     }
-    _compileTypeErrors(cop: JitErrorsCompiler): string {
-        return `if (!(${this._compileIsType(cop)})) utl.err(${cop.args.εrr},${getJitErrorPath(cop)},${getExpected(this)});`;
+    _compileTypeErrors(comp: JitErrorsCompiler): string {
+        return `if (!(${this._compileIsType(comp)})) utl.err(${comp.args.εrr},${getJitErrorPath(comp)},${getExpected(this)});`;
     }
     /**
      * json encode a function

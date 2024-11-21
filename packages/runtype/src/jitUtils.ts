@@ -59,8 +59,8 @@ export const jitUtils = {
         }
     },
     // !!! DO NOT MODIFY METHOD WITHOUT REVIEWING JIT CODE INVOCATIONS!!!
-    addToJitCache(key: string, cop: CompiledOperation) {
-        jitCache.set(key, cop);
+    addToJitCache(key: string, comp: CompiledOperation) {
+        jitCache.set(key, comp);
     },
     removeFromJitCache(key: string) {
         jitCache.delete(key);
@@ -71,9 +71,9 @@ export const jitUtils = {
     },
     // !!! DO NOT MODIFY METHOD WITHOUT REVIEWING JIT CODE INVOCATIONS!!!
     getJitFn(key: string): (...args: any[]) => any {
-        const cop = jitCache.get(key);
-        if (!cop) throw new Error(`Jit function not found for key ${key}`);
-        return cop.fn;
+        const comp = jitCache.get(key);
+        if (!comp) throw new Error(`Jit function not found for key ${key}`);
+        return comp.fn;
     },
     // !!! DO NOT MODIFY METHOD WITHOUT REVIEWING JIT CODE INVOCATIONS!!!
     hasJitFn(key: string) {

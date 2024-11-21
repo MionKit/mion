@@ -48,30 +48,30 @@ export class UnionRunType extends CollectionRunType<TypeUnion> {
         }
     }
 
-    private getChildStrictIsType(rt: BaseRunType, cop: JitCompiler): string {
-        const isTypeCode = rt.compileIsType(cop);
+    private getChildStrictIsType(rt: BaseRunType, comp: JitCompiler): string {
+        const isTypeCode = rt.compileIsType(comp);
         const isTypeWithProperties =
             isInterfaceRunType(rt) || isClassRunType(rt) || isObjectLiteralRunType(rt) || isIntersectionRunType(rt);
         if (!isTypeWithProperties) return isTypeCode;
-        const codeHasUnknown = rt.compileHasUnknownKeys(cop);
+        const codeHasUnknown = rt.compileHasUnknownKeys(comp);
         return codeHasUnknown ? `(${isTypeCode} && !${codeHasUnknown})` : `${isTypeCode}`;
     }
 
     // #### collection's jit code ####
-    _compileIsType(cop: JitCompiler): string {
+    _compileIsType(comp: JitCompiler): string {
         // TODO: enforce strictTypes to ensure no extra properties of the union go unchecked
         const children = this.getJitChildren();
-        const code = children.map((rt) => this.getChildStrictIsType(rt, cop)).join(' || ');
+        const code = children.map((rt) => this.getChildStrictIsType(rt, comp)).join(' || ');
         return `(${code})`;
     }
 
     // this version just heck if has error and return an single error in the root of the union.
     // if all types we cant know one the user was trying to use.
-    _compileTypeErrors(cop: JitErrorsCompiler): string {
+    _compileTypeErrors(comp: JitErrorsCompiler): string {
         // TODO: enforce strictTypes to ensure no extra properties of the union go unchecked
-        const isType = this.compileIsType(cop);
-        const errorsPath = getJitErrorPath(cop);
-        const code = `if (!${isType}) utl.err(${cop.args.εrr},${errorsPath},${getExpected(this)});`;
+        const isType = this.compileIsType(comp);
+        const errorsPath = getJitErrorPath(comp);
+        const code = `if (!${isType}) utl.err(${comp.args.εrr},${errorsPath},${getExpected(this)});`;
         return code;
     }
 
@@ -81,23 +81,23 @@ export class UnionRunType extends CollectionRunType<TypeUnion> {
      * the second element is the encoded value of the type.
      * ie: type union = string | number | bigint;  var v1: union = 123n;  v1 is encoded as [2, "123n"]
      */
-    _compileJsonEncode(cop: JitCompiler): string {
+    _compileJsonEncode(comp: JitCompiler): string {
         // TODO: enforce strictTypes to ensure no extra properties of the union go unchecked
         const childrenCode = this.getJitChildren()
             .map((child, i) => {
                 const iF = i === 0 ? 'if' : 'else if';
-                const childCode = child.getJitConstants().skipJsonEncode ? '' : child.compileJsonEncode(cop);
-                const isExpression = childIsExpression(cop, JitFnIDs.jsonEncode, child);
-                const encodeCode = isExpression && childCode ? `${cop.vλl} = ${childCode};` : childCode;
-                const itemIsType = this.getChildStrictIsType(child, cop);
+                const childCode = child.getJitConstants().skipJsonEncode ? '' : child.compileJsonEncode(comp);
+                const isExpression = childIsExpression(comp, JitFnIDs.jsonEncode, child);
+                const encodeCode = isExpression && childCode ? `${comp.vλl} = ${childCode};` : childCode;
+                const itemIsType = this.getChildStrictIsType(child, comp);
                 // item encoded before reassigning varName to [i, item]
-                return `${iF} (${itemIsType}) {${encodeCode} ${cop.vλl} = [${i}, ${cop.vλl}]}`;
+                return `${iF} (${itemIsType}) {${encodeCode} ${comp.vλl} = [${i}, ${comp.vλl}]}`;
             })
             .filter((c) => !!c)
             .join('');
         const code = `
             ${childrenCode}
-            else { throw new Error('Can not encode json to union: expected one of <${this.getUnionTypeNames()}> but got ' + ${cop.vλl}?.constructor?.name || typeof ${cop.vλl}) }
+            else { throw new Error('Can not encode json to union: expected one of <${this.getUnionTypeNames()}> but got ' + ${comp.vλl}?.constructor?.name || typeof ${comp.vλl}) }
         `;
 
         return code;
@@ -109,35 +109,35 @@ export class UnionRunType extends CollectionRunType<TypeUnion> {
      * the second element is the encoded value of the type.
      * ie: type union = string | number | bigint;  var v1: union = 123n;  v1 is encoded as [2, "123n"]
      */
-    _compileJsonDecode(cop: JitCompiler): string {
+    _compileJsonDecode(comp: JitCompiler): string {
         // TODO: enforce strictTypes to ensure no extra properties of the union go unchecked
         const decVar = `dεc${this.getNestLevel()}`;
         const children = this.getJsonDecodeChildren();
         const childrenCode = children
             .map((child, i) => {
                 const iF = i === 0 ? 'if' : 'else if';
-                const childCode = child.getJitConstants().skipJsonDecode ? '' : child.compileJsonDecode(cop);
-                const isExpression = childIsExpression(cop, JitFnIDs.jsonDecode, child);
-                const code = isExpression && childCode && childCode !== cop.vλl ? `${cop.vλl} = ${childCode}` : childCode;
+                const childCode = child.getJitConstants().skipJsonDecode ? '' : child.compileJsonDecode(comp);
+                const isExpression = childIsExpression(comp, JitFnIDs.jsonDecode, child);
+                const code = isExpression && childCode && childCode !== comp.vλl ? `${comp.vλl} = ${childCode}` : childCode;
                 // item is decoded before being extracted from the array
-                return `${iF} ( ${decVar} === ${i}) {${cop.vλl} = ${cop.vλl}[1];${code}}`;
+                return `${iF} ( ${decVar} === ${i}) {${comp.vλl} = ${comp.vλl}[1];${code}}`;
             })
             .filter((c) => !!c)
             .join('');
         const code = `
-                const ${decVar} = ${cop.vλl}[0];
+                const ${decVar} = ${comp.vλl}[0];
                 ${childrenCode}
-                else { throw new Error('Can not decode json to union: expected one of <${this.getUnionTypeNames()}> but got ' + ${cop.vλl}?.constructor?.name || typeof ${cop.vλl}) }            `;
+                else { throw new Error('Can not decode json to union: expected one of <${this.getUnionTypeNames()}> but got ' + ${comp.vλl}?.constructor?.name || typeof ${comp.vλl}) }            `;
         return code;
     }
-    _compileJsonStringify(cop: JitCompiler): string {
+    _compileJsonStringify(comp: JitCompiler): string {
         // TODO: enforce strictTypes to ensure no extra properties of the union go unchecked
         const childrenCode = this.getJsonEncodeChildren()
             .map((rt, i) => {
-                const itemIsType = this.getChildStrictIsType(rt, cop);
-                const childCode = rt.compileJsonStringify(cop);
-                const skipDecode = !childCode || childCode === cop.vλl;
-                const stringifyCode = skipDecode ? cop.vλl : `${childCode}`;
+                const itemIsType = this.getChildStrictIsType(rt, comp);
+                const childCode = rt.compileJsonStringify(comp);
+                const skipDecode = !childCode || childCode === comp.vλl;
+                const stringifyCode = skipDecode ? comp.vλl : `${childCode}`;
                 const code = `'[${i},' + ${stringifyCode} + ']'`;
                 const itemCode = rt.getFamily() === 'A' ? `(${code})` : code;
                 return `if (${itemIsType}) {return ${itemCode}}`;
@@ -146,7 +146,7 @@ export class UnionRunType extends CollectionRunType<TypeUnion> {
             .join('');
         const code = `
             ${childrenCode}
-            else { throw new Error('Can not stringify union: expected one of <${this.getUnionTypeNames()}> but got ' + ${cop.vλl}?.constructor?.name || typeof ${cop.vλl}) }
+            else { throw new Error('Can not stringify union: expected one of <${this.getUnionTypeNames()}> but got ' + ${comp.vλl}?.constructor?.name || typeof ${comp.vλl}) }
         `;
         return code;
     }
@@ -165,7 +165,7 @@ export class UnionRunType extends CollectionRunType<TypeUnion> {
 
     /** TODO: this uses getMergedJitChildren that merged all properties of interfaces, classes and object literals in the union.
      * This version checks all properties but would allow for Partial or empty objects to be valid. */
-    private _compileTypeErrorsTODO(cop: JitErrorsCompiler): string {
+    private _compileTypeErrorsTODO(comp: JitErrorsCompiler): string {
         const children = this.getMergedJitChildren();
 
         const countVar = `εrrCount${this.getNestLevel()}`;
@@ -173,15 +173,15 @@ export class UnionRunType extends CollectionRunType<TypeUnion> {
         const indexVar = `uε${this.getNestLevel()}`;
 
         return `
-            const ${startVar} = ${cop.args.εrr}.length;
+            const ${startVar} = ${comp.args.εrr}.length;
             for (let ${indexVar} = 0; ${indexVar} < ${children.length}; ${indexVar}++) {
-                const ${countVar} = ${cop.args.εrr}.length;
+                const ${countVar} = ${comp.args.εrr}.length;
                 switch (${indexVar}) {
-                    ${children.map((rt, i) => `case ${i}: {${rt.compileTypeErrors(cop)}; break;}`).join('\n')}
+                    ${children.map((rt, i) => `case ${i}: {${rt.compileTypeErrors(comp)}; break;}`).join('\n')}
                 }
                 // if no errors were added, means that the type is valid, we clear previous errors and return
-                if (${countVar} === ${cop.args.εrr}.length) {
-                    ${cop.args.εrr}.splice(${startVar} - ${cop.args.εrr}.length);
+                if (${countVar} === ${comp.args.εrr}.length) {
+                    ${comp.args.εrr}.splice(${startVar} - ${comp.args.εrr}.length);
                     break;
                 }
             }

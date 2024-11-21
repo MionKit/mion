@@ -21,14 +21,14 @@ const jitConstants: JitConstants = {
 export class BooleanRunType extends AtomicRunType<TypeBoolean> {
     src: TypeBoolean = null as any; // will be set after construction
     getJitConstants = () => jitConstants;
-    _compileIsType(cop: JitCompiler): string {
-        return `typeof ${cop.vλl} === 'boolean'`;
+    _compileIsType(comp: JitCompiler): string {
+        return `typeof ${comp.vλl} === 'boolean'`;
     }
-    _compileTypeErrors(cop: JitErrorsCompiler): string {
-        return `if (typeof ${cop.vλl} !== 'boolean') utl.err(${cop.args.εrr},${getJitErrorPath(cop)},${getExpected(this)})`;
+    _compileTypeErrors(comp: JitErrorsCompiler): string {
+        return `if (typeof ${comp.vλl} !== 'boolean') utl.err(${comp.args.εrr},${getJitErrorPath(comp)},${getExpected(this)})`;
     }
-    _compileJsonStringify(cop: JitErrorsCompiler): string {
-        return `(${cop.vλl} ? 'true' : 'false')`;
+    _compileJsonStringify(comp: JitErrorsCompiler): string {
+        return `(${comp.vλl} ? 'true' : 'false')`;
     }
     _mock(): boolean {
         return mockBoolean();

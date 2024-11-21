@@ -35,33 +35,37 @@ export class TupleMemberRunType extends MemberRunType<TypeTupleMember> {
     isOptional(): boolean {
         return !!this.src.optional;
     }
-    _compileIsType(cop: JitCompiler): string {
-        const itemCode = this.getMemberType().compileIsType(cop);
-        return this.isOptional() ? `(${cop.getChildVλl()} === undefined || ${itemCode})` : itemCode;
+    _compileIsType(comp: JitCompiler): string {
+        const itemCode = this.getMemberType().compileIsType(comp);
+        return this.isOptional() ? `(${comp.getChildVλl()} === undefined || ${itemCode})` : itemCode;
     }
-    _compileTypeErrors(cop: JitErrorsCompiler): string {
-        const itemCode = this.getMemberType().compileTypeErrors(cop);
-        return this.isOptional() ? `if (${cop.getChildVλl()} !== undefined) {${itemCode}}` : itemCode;
+    _compileTypeErrors(comp: JitErrorsCompiler): string {
+        const itemCode = this.getMemberType().compileTypeErrors(comp);
+        return this.isOptional() ? `if (${comp.getChildVλl()} !== undefined) {${itemCode}}` : itemCode;
     }
-    _compileJsonEncode(cop: JitCompiler): string {
+    _compileJsonEncode(comp: JitCompiler): string {
         const child = this.getJsonEncodeChild();
-        if (!child) return this.isOptional() ? `if (${cop.getChildVλl()} === undefined ) {${cop.getChildVλl()} = null}` : '';
-        const childCode = child.compileJsonEncode(cop);
-        const isExpression = childIsExpression(cop, JitFnIDs.jsonEncode, child);
-        const code = isExpression ? `${cop.getChildVλl()} = ${childCode};` : childCode;
-        return this.isOptional() ? `if (${cop.getChildVλl()} === undefined ) {${cop.getChildVλl()} = null} else {${code}}` : code;
+        if (!child) return this.isOptional() ? `if (${comp.getChildVλl()} === undefined ) {${comp.getChildVλl()} = null}` : '';
+        const childCode = child.compileJsonEncode(comp);
+        const isExpression = childIsExpression(comp, JitFnIDs.jsonEncode, child);
+        const code = isExpression ? `${comp.getChildVλl()} = ${childCode};` : childCode;
+        return this.isOptional()
+            ? `if (${comp.getChildVλl()} === undefined ) {${comp.getChildVλl()} = null} else {${code}}`
+            : code;
     }
-    _compileJsonDecode(cop: JitCompiler): string {
+    _compileJsonDecode(comp: JitCompiler): string {
         const child = this.getJsonDecodeChild();
-        if (!child) return this.isOptional() ? `if (${cop.getChildVλl()} === null ) {${cop.getChildVλl()} = undefined}` : '';
-        const childCode = child.compileJsonDecode(cop);
-        const isExpression = childIsExpression(cop, JitFnIDs.jsonDecode, child);
-        const code = isExpression ? `${cop.getChildVλl()} = ${childCode};` : childCode;
-        return this.isOptional() ? `if (${cop.getChildVλl()} === null ) {${cop.getChildVλl()} = undefined} else {${code}}` : code;
+        if (!child) return this.isOptional() ? `if (${comp.getChildVλl()} === null ) {${comp.getChildVλl()} = undefined}` : '';
+        const childCode = child.compileJsonDecode(comp);
+        const isExpression = childIsExpression(comp, JitFnIDs.jsonDecode, child);
+        const code = isExpression ? `${comp.getChildVλl()} = ${childCode};` : childCode;
+        return this.isOptional()
+            ? `if (${comp.getChildVλl()} === null ) {${comp.getChildVλl()} = undefined} else {${code}}`
+            : code;
     }
-    _compileJsonStringify(cop: JitCompiler): string {
-        const itemCode = this.getMemberType().compileJsonStringify(cop);
-        return this.isOptional() ? `(${cop.getChildVλl()} === undefined ? null : ${itemCode})` : itemCode;
+    _compileJsonStringify(comp: JitCompiler): string {
+        const itemCode = this.getMemberType().compileJsonStringify(comp);
+        return this.isOptional() ? `(${comp.getChildVλl()} === undefined ? null : ${itemCode})` : itemCode;
     }
     _mock(ctx: Pick<MockOperation, 'optionalProbability'>): any {
         if (this.isOptional()) {

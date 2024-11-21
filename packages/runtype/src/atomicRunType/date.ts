@@ -24,20 +24,20 @@ export class DateRunType extends AtomicRunType<TypeClass> {
     src: TypeClass = null as any; // will be set after construction
     getJitId = () => jitConstants.jitId;
     getJitConstants = () => jitConstants;
-    _compileIsType(cop: JitCompiler): string {
-        return `(${cop.vλl} instanceof Date && !isNaN(${cop.vλl}.getTime()))`;
+    _compileIsType(comp: JitCompiler): string {
+        return `(${comp.vλl} instanceof Date && !isNaN(${comp.vλl}.getTime()))`;
     }
-    _compileTypeErrors(cop: JitErrorsCompiler): string {
-        return `if (!(${this._compileIsType(cop)})) utl.err(${cop.args.εrr},${getJitErrorPath(cop)},${getExpected(this)})`;
+    _compileTypeErrors(comp: JitErrorsCompiler): string {
+        return `if (!(${this._compileIsType(comp)})) utl.err(${comp.args.εrr},${getJitErrorPath(comp)},${getExpected(this)})`;
     }
-    _compileJsonEncode(cop: JitCompiler): string {
-        return DateJitJsonENcoder.encodeToJson(cop.vλl);
+    _compileJsonEncode(comp: JitCompiler): string {
+        return DateJitJsonENcoder.encodeToJson(comp.vλl);
     }
-    _compileJsonDecode(cop: JitCompiler): string {
-        return DateJitJsonENcoder.decodeFromJson(cop.vλl);
+    _compileJsonDecode(comp: JitCompiler): string {
+        return DateJitJsonENcoder.decodeFromJson(comp.vλl);
     }
-    _compileJsonStringify(cop: JitCompiler): string {
-        return DateJitJsonENcoder.stringify(cop.vλl);
+    _compileJsonStringify(comp: JitCompiler): string {
+        return DateJitJsonENcoder.stringify(comp.vλl);
     }
     _mock(ctx: Pick<MockOperation, 'minDate' | 'maxDate'>): Date {
         return mockDate(ctx.minDate, ctx.maxDate);

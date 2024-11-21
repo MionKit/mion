@@ -23,8 +23,8 @@ export class NeverRunType extends AtomicRunType<TypeNever> {
     _compileIsType(): string {
         return 'false';
     }
-    _compileTypeErrors(cop: JitErrorsCompiler): string {
-        return `utl.err(${cop.args.εrr},${getJitErrorPath(cop)},${getExpected(this)})`;
+    _compileTypeErrors(comp: JitErrorsCompiler): string {
+        return `utl.err(${comp.args.εrr},${getJitErrorPath(comp)},${getExpected(this)})`;
     }
     _compileJsonEncode(): string {
         throw new Error('Never type cannot be encoded to JSON.');

@@ -39,62 +39,62 @@ export class FunctionParametersRunType<CallType extends AnyFunction = TypeFuncti
     }
     // ####### params #######
 
-    _compileCheckParamsLength(cop: JitCompiler): string {
+    _compileCheckParamsLength(comp: JitCompiler): string {
         const totalOptional = this.getOptionalParamsLength();
         const totalNonOptional = this.getTotalParams() - totalOptional;
         switch (true) {
             case this.hasRestParameter():
                 return ``;
             case totalOptional === 0:
-                return `${cop.vλl}.length === ${this.getLength()}`;
+                return `${comp.vλl}.length === ${this.getLength()}`;
             default:
-                return `${cop.vλl}.length >= ${totalNonOptional} && ${cop.vλl}.length <= ${this.getTotalParams()}`;
+                return `${comp.vλl}.length >= ${totalNonOptional} && ${comp.vλl}.length <= ${this.getTotalParams()}`;
         }
     }
 
-    _compileIsType(cop: JitCompiler) {
-        if (this.getParameterTypes().length === 0) return `${cop.vλl}.length === 0`;
+    _compileIsType(comp: JitCompiler) {
+        if (this.getParameterTypes().length === 0) return `${comp.vλl}.length === 0`;
         const paramsCode = this.getParameterTypes()
-            .map((p) => `(${p.compileIsType(cop)})`)
+            .map((p) => `(${p.compileIsType(comp)})`)
             .join(' && ');
-        const lengthCode = this._compileCheckParamsLength(cop);
+        const lengthCode = this._compileCheckParamsLength(comp);
         const checkLength = lengthCode ? `${lengthCode} && ` : lengthCode;
         return `${checkLength}${paramsCode}`;
     }
-    _compileTypeErrors(cop: JitErrorsCompiler) {
-        const lengthCode = this._compileCheckParamsLength(cop);
+    _compileTypeErrors(comp: JitErrorsCompiler) {
+        const lengthCode = this._compileCheckParamsLength(comp);
         const checkLength = lengthCode ? ` || !(${lengthCode})` : lengthCode;
         const paramsCode = this.getParameterTypes()
-            .map((p) => p.compileTypeErrors(cop))
+            .map((p) => p.compileTypeErrors(comp))
             .join(';');
         return (
-            `if (!Array.isArray(${cop.vλl})${checkLength}) utl.err(${cop.args.εrr},${getJitErrorPath(cop)},${getExpected(this)});` +
+            `if (!Array.isArray(${comp.vλl})${checkLength}) utl.err(${comp.args.εrr},${getJitErrorPath(comp)},${getExpected(this)});` +
             `else {${paramsCode}}`
         );
     }
-    _compileJsonEncode(cop: JitCompiler) {
-        return this.compileParamsJsonDE(cop, true);
+    _compileJsonEncode(comp: JitCompiler) {
+        return this.compileParamsJsonDE(comp, true);
     }
-    _compileJsonDecode(cop: JitCompiler) {
-        return this.compileParamsJsonDE(cop, false);
+    _compileJsonDecode(comp: JitCompiler) {
+        return this.compileParamsJsonDE(comp, false);
     }
-    _compileJsonStringify(cop: JitCompiler) {
+    _compileJsonStringify(comp: JitCompiler) {
         const skip = this.getJitConstants().skipJit;
         if (skip) return '';
         if (this.getParameterTypes().length === 0) return `[]`;
 
         const paramsCode = this.getParameterTypes()
-            .map((p) => p.compileJsonStringify(cop))
+            .map((p) => p.compileJsonStringify(comp))
             .join('+');
         return `'['+${paramsCode}+']'`;
     }
 
-    private compileParamsJsonDE(cop: JitCompiler, isEncode: boolean) {
+    private compileParamsJsonDE(comp: JitCompiler, isEncode: boolean) {
         const skip = isEncode ? this.getJitConstants().skipJsonEncode : this.getJitConstants().skipJsonDecode;
         if (skip) return '';
         return this.getParameterTypes()
             .filter((p) => (isEncode ? p.compileJsonEncode : p.compileJsonDecode))
-            .map((p) => (isEncode ? p.compileJsonEncode(cop) : p.compileJsonDecode(cop)))
+            .map((p) => (isEncode ? p.compileJsonEncode(comp) : p.compileJsonDecode(comp)))
             .join(';');
     }
 

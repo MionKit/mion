@@ -43,57 +43,57 @@ export class ArrayRunType extends MemberRunType<TypeArray> {
 
     // #### jit code ####
 
-    _compileIsType(cop: JitCompiler): string {
-        const varName = cop.vλl;
+    _compileIsType(comp: JitCompiler): string {
+        const varName = comp.vλl;
         const resultVal = `res${this.getNestLevel()}`;
         const index = this.getChildVarName();
         if (shouldSkipJit(this)) return `Array.isArray(${varName})`;
         return `
             if (!Array.isArray(${varName})) return false;
             for (let ${index} = 0; ${index} < ${varName}.length; ${index}++) {
-                const ${resultVal} = ${this.getMemberType().compileIsType(cop)};
+                const ${resultVal} = ${this.getMemberType().compileIsType(comp)};
                 if (!(${resultVal})) return false;
             }
             return true;
         `;
     }
-    _compileTypeErrors(cop: JitErrorsCompiler): string {
-        const varName = cop.vλl;
+    _compileTypeErrors(comp: JitErrorsCompiler): string {
+        const varName = comp.vλl;
         const index = this.getChildVarName();
         if (shouldSkipJit(this)) {
-            return `if (!Array.isArray(${varName})) utl.err(${cop.args.εrr},${getJitErrorPath(cop)},${getExpected(this)});`;
+            return `if (!Array.isArray(${varName})) utl.err(${comp.args.εrr},${getJitErrorPath(comp)},${getExpected(this)});`;
         }
         return `
-            if (!Array.isArray(${varName})) utl.err(${cop.args.εrr},${getJitErrorPath(cop)},${getExpected(this)});
+            if (!Array.isArray(${varName})) utl.err(${comp.args.εrr},${getJitErrorPath(comp)},${getExpected(this)});
             else {
                 for (let ${index} = 0; ${index} < ${varName}.length; ${index}++) {
-                    ${this.getMemberType().compileTypeErrors(cop)}
+                    ${this.getMemberType().compileTypeErrors(comp)}
                 }
             }
         `;
     }
-    _compileJsonEncode(cop: JitCompiler): string {
-        const varName = cop.vλl;
+    _compileJsonEncode(comp: JitCompiler): string {
+        const varName = comp.vλl;
         const index = this.getChildVarName();
         const child = this.getJsonEncodeChild();
         if (!child) return '';
-        const childCode = child.compileJsonEncode(cop);
-        const isExpression = childIsExpression(cop, JitFnIDs.jsonEncode, child);
-        const code = isExpression ? `${cop.getChildVλl()} = ${childCode};` : childCode;
+        const childCode = child.compileJsonEncode(comp);
+        const isExpression = childIsExpression(comp, JitFnIDs.jsonEncode, child);
+        const code = isExpression ? `${comp.getChildVλl()} = ${childCode};` : childCode;
         return `for (let ${index} = 0; ${index} < ${varName}.length; ${index}++) {${code}}`;
     }
-    _compileJsonDecode(cop: JitCompiler): string {
-        const varName = cop.vλl;
+    _compileJsonDecode(comp: JitCompiler): string {
+        const varName = comp.vλl;
         const index = this.getChildVarName();
         const child = this.getJsonDecodeChild();
         if (!child) return '';
-        const childCode = child.compileJsonDecode(cop);
-        const isExpression = childIsExpression(cop, JitFnIDs.jsonDecode, child);
-        const code = isExpression ? `${cop.getChildVλl()} = ${childCode};` : childCode;
+        const childCode = child.compileJsonDecode(comp);
+        const isExpression = childIsExpression(comp, JitFnIDs.jsonDecode, child);
+        const code = isExpression ? `${comp.getChildVλl()} = ${childCode};` : childCode;
         return `for (let ${index} = 0; ${index} < ${varName}.length; ${index}++) {${code}}`;
     }
-    _compileJsonStringify(cop: JitCompiler): string {
-        const varName = cop.vλl;
+    _compileJsonStringify(comp: JitCompiler): string {
+        const varName = comp.vλl;
         const jsonItems = `ls${this.getNestLevel()}`;
         const resultVal = `res${this.getNestLevel()}`;
         const index = this.getChildVarName();
@@ -101,17 +101,17 @@ export class ArrayRunType extends MemberRunType<TypeArray> {
         return `
             const ${jsonItems} = [];
             for (let ${index} = 0; ${index} < ${varName}.length; ${index}++) {
-                const ${resultVal} = ${this.getMemberType().compileJsonStringify(cop)};
+                const ${resultVal} = ${this.getMemberType().compileJsonStringify(comp)};
                 ${jsonItems}.push(${resultVal});
             }
             return '[' + ${jsonItems}.join(',') + ']';
         `;
     }
-    _compileHasUnknownKeys(cop: JitCompiler): string {
+    _compileHasUnknownKeys(comp: JitCompiler): string {
         if (this.getMemberType().getFamily() === 'A' || shouldSkipJit(this)) return '';
-        const memberCode = this.getMemberType().compileHasUnknownKeys(cop);
+        const memberCode = this.getMemberType().compileHasUnknownKeys(comp);
         if (!memberCode) return '';
-        const varName = cop.vλl;
+        const varName = comp.vλl;
         const resultVal = `res${this.getNestLevel()}`;
         const index = this.getChildVarName();
 
@@ -124,27 +124,27 @@ export class ArrayRunType extends MemberRunType<TypeArray> {
             return false;
         `;
     }
-    _compileUnknownKeyErrors(cop: JitErrorsCompiler): string {
+    _compileUnknownKeyErrors(comp: JitErrorsCompiler): string {
         if (this.getMemberType().getFamily() === 'A' || shouldSkipJit(this)) return '';
-        const memberCode = this.getMemberType().compileUnknownKeyErrors(cop);
-        return this.traverseCode(cop, memberCode);
+        const memberCode = this.getMemberType().compileUnknownKeyErrors(comp);
+        return this.traverseCode(comp, memberCode);
     }
-    _compileStripUnknownKeys(cop: JitCompiler): string {
+    _compileStripUnknownKeys(comp: JitCompiler): string {
         if (this.getMemberType().getFamily() === 'A' || shouldSkipJit(this)) return '';
-        const memberCode = this.getMemberType().compileStripUnknownKeys(cop);
-        return this.traverseCode(cop, memberCode);
+        const memberCode = this.getMemberType().compileStripUnknownKeys(comp);
+        return this.traverseCode(comp, memberCode);
     }
-    _compileUnknownKeysToUndefined(cop: JitCompiler): string {
+    _compileUnknownKeysToUndefined(comp: JitCompiler): string {
         if (this.getMemberType().getFamily() === 'A' || shouldSkipJit(this)) return '';
-        const memberCode = this.getMemberType().compileUnknownKeysToUndefined(cop);
-        return this.traverseCode(cop, memberCode);
+        const memberCode = this.getMemberType().compileUnknownKeysToUndefined(comp);
+        return this.traverseCode(comp, memberCode);
     }
 
-    traverseCode(cop: JitCompiler, memberCode: string): string {
+    traverseCode(comp: JitCompiler, memberCode: string): string {
         if (!memberCode) return '';
         const index = this.getChildVarName();
         return `
-            for (let ${index} = 0; ${index} < ${cop.vλl}.length; ${index}++) {
+            for (let ${index} = 0; ${index} < ${comp.vλl}.length; ${index}++) {
                 ${memberCode}
             }
         `;

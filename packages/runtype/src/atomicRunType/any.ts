@@ -36,8 +36,8 @@ export class AnyRunType extends AtomicRunType<TypeAny | TypeUnknown> {
     _compileTypeErrors(): '' {
         return '';
     }
-    _compileJsonStringify(cop: JitCompiler): string {
-        return `JSON.stringify(${cop.vλl})`;
+    _compileJsonStringify(comp: JitCompiler): string {
+        return `JSON.stringify(${comp.vλl})`;
     }
     _mock(ctx: Pick<MockOperation, 'anyValuesList'>): string {
         return mockAny(ctx.anyValuesList);
