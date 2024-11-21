@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {ReflectionKind, type TypeNever} from '../../_deepkit/src/reflection/type';
+import {ReflectionKind, type TypeNever} from '../../lib/_deepkit/src/reflection/type';
 import {AtomicRunType} from '../../baseRunTypes';
 import {JitErrorsCompiler} from '../../lib/jitCompiler';
 import {JitConstants} from '../../types';

@@ -1,4 +1,4 @@
-import type {TypeRest} from '../../_deepkit/src/reflection/type';
+import type {TypeRest} from '../../lib/_deepkit/src/reflection/type';
 import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
 import {MemberRunType} from '../../baseRunTypes';
 import {JitFnIDs} from '../../constants';

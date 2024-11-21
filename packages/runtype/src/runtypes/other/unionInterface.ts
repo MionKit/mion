@@ -11,7 +11,7 @@ import {
     ReflectionKind,
     TypeUnion,
     TypeProperty,
-} from '../../_deepkit/src/reflection/type';
+} from '../../lib/_deepkit/src/reflection/type';
 import {DKwithRT, MockOperation, Mutable, RunTypeChildAccessor} from '../../types';
 import {getJitErrorPath, getExpected, toLiteral, arrayToArgumentsLiteral} from '../../lib/utils';
 import {PropertyRunType} from '../member/property';

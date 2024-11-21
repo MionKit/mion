@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import type {Type, TypeCallSignature, TypeFunction, TypeMethod, TypeMethodSignature} from './_deepkit/src/reflection/type';
+import type {Type, TypeCallSignature, TypeFunction, TypeMethod, TypeMethodSignature} from './lib/_deepkit/src/reflection/type';
 import type {JitCompiler} from './lib/jitCompiler';
 import type {JITUtils} from './lib/jitUtils';
 import type {JitFnIDs} from './constants';

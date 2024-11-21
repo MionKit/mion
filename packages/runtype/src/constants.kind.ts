@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {ReflectionKind} from './_deepkit/src/reflection/type';
+import {ReflectionKind} from './lib/_deepkit/src/reflection/type';
 import {isDateRunType} from './lib/guards';
 import {RunType} from './types';
 

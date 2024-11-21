@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {ReflectionKind, type TypeBoolean} from '../../_deepkit/src/reflection/type';
+import {ReflectionKind, type TypeBoolean} from '../../lib/_deepkit/src/reflection/type';
 import type {JitConstants} from '../../types';
 import {getJitErrorPath, getExpected} from '../../lib/utils';
 import {mockBoolean} from '../../lib/mock';

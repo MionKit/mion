@@ -6,7 +6,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {ReflectionKind, type TypeIndexSignature, type TypeProperty, type Type} from './_deepkit/src/reflection/type';
+import {ReflectionKind, type TypeIndexSignature, type TypeProperty, type Type} from './lib/_deepkit/src/reflection/type';
 import type {
     MockOperation,
     RunType,

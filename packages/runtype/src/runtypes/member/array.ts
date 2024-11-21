@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {TypeArray} from '../../_deepkit/src/reflection/type';
+import {TypeArray} from '../../lib/_deepkit/src/reflection/type';
 import {JitFnID, MockOperation} from '../../types';
 import {random} from '../../lib/mock';
 import {MemberRunType} from '../../baseRunTypes';

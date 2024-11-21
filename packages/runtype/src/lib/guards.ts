@@ -6,7 +6,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {ReflectionKind, TypeMethod} from '../_deepkit/src/reflection/type';
+import {ReflectionKind, TypeMethod} from './_deepkit/src/reflection/type';
 import {ReflectionSubKinds} from '../constants.kind';
 import {JitFnIDs} from '../constants';
 /* IMPORTANT: import classes as type only to prevent js circular imports */

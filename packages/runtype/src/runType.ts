@@ -7,8 +7,8 @@
  * ######## */
 
 import type {RunType, DKwithRT, Mutable} from './types';
-import {ReflectionKind, Type, TypeObjectLiteral} from './_deepkit/src/reflection/type';
-import {resolveReceiveType, ReceiveType, reflect} from './_deepkit/src/reflection/reflection';
+import {ReflectionKind, Type, TypeObjectLiteral} from './lib/_deepkit/src/reflection/type';
+import {resolveReceiveType, ReceiveType, reflect} from './lib/_deepkit/src/reflection/reflection';
 import {StringRunType} from './runtypes/atomic/string';
 import {DateRunType} from './runtypes/atomic/date';
 import {NumberRunType} from './runtypes/atomic/number';

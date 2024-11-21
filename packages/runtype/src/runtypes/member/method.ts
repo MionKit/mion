@@ -4,7 +4,7 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
-import {TypeMethod} from '../../_deepkit/src/reflection/type';
+import {TypeMethod} from '../../lib/_deepkit/src/reflection/type';
 import {FunctionRunType} from '../function/function';
 import {RunTypeChildAccessor} from '../../types';
 import {getPropIndex, getPropLiteral, getPropVarName, memorize, useArrayAccessorForProp} from '../../lib/utils';

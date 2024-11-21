@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {ReflectionKind, type TypeRegexp} from '../../_deepkit/src/reflection/type';
+import {ReflectionKind, type TypeRegexp} from '../../lib/_deepkit/src/reflection/type';
 import type {JitJsonEncoder, MockOperation, JitConstants} from '../../types';
 import {getJitErrorPath, getExpected} from '../../lib/utils';
 import {mockRegExp} from '../../lib/mock';

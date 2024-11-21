@@ -2,7 +2,7 @@ import {getExpected, getJitErrorPath, toLiteral} from '../../lib/utils';
 import {ParameterRunType} from '../member/param';
 import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
 import {AnyFunction, DKwithRT, MockOperation} from '../../types';
-import {TypeFunction} from '../../_deepkit/src/reflection/type';
+import {TypeFunction} from '../../lib/_deepkit/src/reflection/type';
 import {BaseRunType, CollectionRunType} from '../../baseRunTypes';
 
 export class FunctionParametersRunType<CallType extends AnyFunction = TypeFunction> extends CollectionRunType<CallType> {

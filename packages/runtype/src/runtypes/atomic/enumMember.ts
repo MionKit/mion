@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {ReflectionKind, type TypeEnum} from '../../_deepkit/src/reflection/type';
+import {ReflectionKind, type TypeEnum} from '../../lib/_deepkit/src/reflection/type';
 import {AtomicRunType} from '../../baseRunTypes';
 import {JitConstants} from '../../types';
 

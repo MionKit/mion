@@ -4,7 +4,7 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
-import {ReflectionKind, type TypePromise} from '../../_deepkit/src/reflection/type';
+import {ReflectionKind, type TypePromise} from '../../lib/_deepkit/src/reflection/type';
 import type {MockOperation, JitConstants} from '../../types';
 import {MemberRunType} from '../../baseRunTypes';
 

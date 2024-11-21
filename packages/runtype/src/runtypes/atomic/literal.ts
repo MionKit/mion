@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import type {TypeLiteral} from '../../_deepkit/src/reflection/type';
+import type {TypeLiteral} from '../../lib/_deepkit/src/reflection/type';
 import type {JitJsonEncoder, JitConstants} from '../../types';
 import {SymbolJitJsonEncoder} from './symbol';
 import {BigIntJitJsonENcoder} from './bigInt';

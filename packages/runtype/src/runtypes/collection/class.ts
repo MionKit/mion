@@ -4,7 +4,7 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
-import {TypeClass} from '../../_deepkit/src/reflection/type';
+import {TypeClass} from '../../lib/_deepkit/src/reflection/type';
 import {MockOperation} from '../../types';
 import {InterfaceRunType, InterfaceMember} from './interface';
 import {isConstructor} from '../../lib/guards';
