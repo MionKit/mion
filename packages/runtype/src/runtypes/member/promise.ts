@@ -6,7 +6,7 @@
  * ######## */
 import {ReflectionKind, type TypePromise} from '../../lib/_deepkit/src/reflection/type';
 import type {MockOperation, JitConstants} from '../../types';
-import {MemberRunType} from '../../baseRunTypes';
+import {MemberRunType} from '../../lib/baseRunTypes';
 
 const jitConstants: JitConstants = {
     skipJit: true,

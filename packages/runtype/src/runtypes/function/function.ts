@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 import {ReflectionKind, TypeFunction} from '../../lib/_deepkit/src/reflection/type';
-import {BaseRunType} from '../../baseRunTypes';
+import {BaseRunType} from '../../lib/baseRunTypes';
 import {isAnyFunctionRunType, isFunctionRunType, isPromiseRunType} from '../../lib/guards';
 import {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
 import {MockOperation, DKwithRT, JitConstants, AnyFunction, JitFnID} from '../../types';

@@ -6,7 +6,7 @@
  * ######## */
 
 import {ReflectionKind, type TypeEnum} from '../../lib/_deepkit/src/reflection/type';
-import {AtomicRunType} from '../../baseRunTypes';
+import {AtomicRunType} from '../../lib/baseRunTypes';
 import {JitConstants} from '../../types';
 
 const jitConstants: JitConstants = {

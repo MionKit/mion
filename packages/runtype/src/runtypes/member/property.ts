@@ -17,7 +17,7 @@ import {
     memorize,
     useArrayAccessorForProp,
 } from '../../lib/utils';
-import {BaseRunType, MemberRunType} from '../../baseRunTypes';
+import {BaseRunType, MemberRunType} from '../../lib/baseRunTypes';
 import {jitUtils} from '../../lib/jitUtils';
 import {InterfaceRunType} from '../collection/interface';
 import {JitFnIDs} from '../../constants';

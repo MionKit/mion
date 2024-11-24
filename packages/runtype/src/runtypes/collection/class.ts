@@ -10,6 +10,7 @@ import {InterfaceRunType, InterfaceMember} from './interface';
 import {isConstructor} from '../../lib/guards';
 import {PropertyRunType} from '../member/property';
 import {IndexSignatureRunType} from '../member/indexProperty';
+import {JitCompiler} from '../../lib/jitCompiler';
 
 export class ClassRunType extends InterfaceRunType<TypeClass> {
     getClassName(): string {
@@ -19,7 +20,8 @@ export class ClassRunType extends InterfaceRunType<TypeClass> {
         const children = this.getChildRunTypes() as InterfaceMember[];
         return children.every((prop) => !isConstructor(prop) || prop.getParameters().getTotalParams() === 0);
     }
-    _compileJsonDecode(): string {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    _compileJsonDecode(comp: JitCompiler): string {
         throw new Error(`Classes can not be deserialized.`);
     }
     _mock(ctx: MockOperation): Record<string | number, any> {

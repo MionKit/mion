@@ -9,7 +9,7 @@ import {ReflectionKind, TypeEnum} from '../../lib/_deepkit/src/reflection/type';
 import type {MockOperation, JitConstants} from '../../types';
 import {getJitErrorPath, getExpected, toLiteral} from '../../lib/utils';
 import {random} from '../../lib/mock';
-import {AtomicRunType} from '../../baseRunTypes';
+import {AtomicRunType} from '../../lib/baseRunTypes';
 import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
 
 const jitConstants: JitConstants = {

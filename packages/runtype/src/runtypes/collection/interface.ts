@@ -14,7 +14,7 @@ import {
 import {MockOperation, RunType} from '../../types';
 import {getJitErrorPath, getExpected, memorize, arrayToLiteral} from '../../lib/utils';
 import {PropertyRunType} from '../member/property';
-import {CollectionRunType, MemberRunType} from '../../baseRunTypes';
+import {CollectionRunType, MemberRunType} from '../../lib/baseRunTypes';
 import {MethodSignatureRunType} from '../member/methodSignature';
 import {IndexSignatureRunType} from '../member/indexProperty';
 import {MethodRunType} from '../member/method';
@@ -124,13 +124,13 @@ export class InterfaceRunType<
 
         return `(function(){const ${arrName} = [];${childrenCode};return '{'+${arrName}.join(',')+'}'})()`;
     }
-    _compileHasUnknownKeys = (comp: JitCompiler): string => {
+    _compileHasUnknownKeys(comp: JitCompiler): string {
         const allJitChildren = this.getJitChildren();
         const parentCode = this.callCheckUnknownProperties(comp, allJitChildren, false);
         const childrenCode = super._compileHasUnknownKeys(comp);
         return childrenCode ? `${parentCode} || ${childrenCode}` : parentCode;
-    };
-    _compileUnknownKeyErrors = (comp: JitErrorsCompiler): string => {
+    }
+    _compileUnknownKeyErrors(comp: JitErrorsCompiler): string {
         const allJitChildren = this.getJitChildren();
         const unknownVar = `unk${this.getNestLevel()}`;
         const keyVar = `ky${this.getNestLevel()}`;
@@ -145,8 +145,8 @@ export class InterfaceRunType<
         `;
         const childrenCode = super._compileUnknownKeyErrors(comp);
         return childrenCode ? `${parentCode}\n${childrenCode}` : parentCode;
-    };
-    _compileStripUnknownKeys = (comp: JitCompiler): string => {
+    }
+    _compileStripUnknownKeys(comp: JitCompiler): string {
         const allJitChildren = this.getJitChildren();
         const unknownVar = `unk${this.getNestLevel()}`;
         const keyVar = `ky${this.getNestLevel()}`;
@@ -158,8 +158,8 @@ export class InterfaceRunType<
         `;
         const childrenCode = super._compileStripUnknownKeys(comp);
         return childrenCode ? `${parentCode}\n${childrenCode}` : parentCode;
-    };
-    _compileUnknownKeysToUndefined = (comp: JitCompiler): string => {
+    }
+    _compileUnknownKeysToUndefined(comp: JitCompiler): string {
         const allJitChildren = this.getJitChildren();
         const unknownVar = `unk${this.getNestLevel()}`;
         const keyVar = `ky${this.getNestLevel()}`;
@@ -171,7 +171,7 @@ export class InterfaceRunType<
         `;
         const childrenCode = super._compileUnknownKeysToUndefined(comp);
         return childrenCode ? `${parentCode}\n${childrenCode}` : parentCode;
-    };
+    }
 
     _mock(ctx: Pick<MockOperation, 'parentObj'>): Record<string | number, any> {
         if (this.isCallable()) return this.getCallSignature()!.mock(ctx as MockOperation);

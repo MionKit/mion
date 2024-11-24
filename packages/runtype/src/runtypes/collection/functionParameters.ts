@@ -3,7 +3,7 @@ import {ParameterRunType} from '../member/param';
 import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
 import {AnyFunction, DKwithRT, MockOperation} from '../../types';
 import {TypeFunction} from '../../lib/_deepkit/src/reflection/type';
-import {BaseRunType, CollectionRunType} from '../../baseRunTypes';
+import {BaseRunType, CollectionRunType} from '../../lib/baseRunTypes';
 
 export class FunctionParametersRunType<CallType extends AnyFunction = TypeFunction> extends CollectionRunType<CallType> {
     src: CallType = null as any; // will be set after construction

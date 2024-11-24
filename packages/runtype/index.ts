@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-export * from './src/baseRunTypes';
+export * from './src/lib/baseRunTypes';
 export * from './src/constants';
 export * from './src/lib/guards';
 export * from './src/lib/jitCompiler';

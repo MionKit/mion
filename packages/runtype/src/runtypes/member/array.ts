@@ -8,7 +8,7 @@
 import {TypeArray} from '../../lib/_deepkit/src/reflection/type';
 import {JitFnID, MockOperation} from '../../types';
 import {random} from '../../lib/mock';
-import {MemberRunType} from '../../baseRunTypes';
+import {MemberRunType} from '../../lib/baseRunTypes';
 import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
 import {getJitErrorPath, getExpected, shouldSkipJit, childIsExpression} from '../../lib/utils';
 import {JitFnIDs} from '../../constants';

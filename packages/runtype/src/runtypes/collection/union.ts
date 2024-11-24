@@ -9,7 +9,7 @@ import type {TypeUnion} from '../../lib/_deepkit/src/reflection/type';
 import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
 import {JitConstants, JitFnID, MockOperation, Mutable, RunType} from '../../types';
 import {random} from '../../lib/mock';
-import {BaseRunType, CollectionRunType} from '../../baseRunTypes';
+import {BaseRunType, CollectionRunType} from '../../lib/baseRunTypes';
 import {childIsExpression, getExpected, getJitErrorPath, memorize} from '../../lib/utils';
 import {InterfaceRunType} from './interface';
 import {ClassRunType} from './class';

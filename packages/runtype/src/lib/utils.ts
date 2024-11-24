@@ -10,7 +10,7 @@ import {ReflectionKind, Type, TypeFunction, TypeParameter} from './_deepkit/src/
 import {jitUtils} from './jitUtils';
 import {isAtomicRunType, isCollectionRunType, isMemberRunType} from './guards';
 import {validPropertyNameRegExp} from '../constants';
-import {BaseRunType} from '../baseRunTypes';
+import {BaseRunType} from './baseRunTypes';
 import type {JitCompiler, JitErrorsCompiler} from './jitCompiler';
 
 export function toLiteral(value: number | string | boolean | undefined | null | bigint | RegExp | symbol): string {

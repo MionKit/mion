@@ -7,7 +7,7 @@
 
 import type {TypeTupleMember} from '../../lib/_deepkit/src/reflection/type';
 import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
-import {BaseRunType, MemberRunType} from '../../baseRunTypes';
+import {BaseRunType, MemberRunType} from '../../lib/baseRunTypes';
 import {JitConstants, MockOperation, Mutable} from '../../types';
 import {JitFnIDs} from '../../constants';
 import {childIsExpression} from '../../lib/utils';

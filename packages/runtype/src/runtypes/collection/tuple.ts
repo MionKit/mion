@@ -6,7 +6,7 @@
  * ######## */
 
 import {TypeTuple} from '../../lib/_deepkit/src/reflection/type';
-import {CollectionRunType} from '../../baseRunTypes';
+import {CollectionRunType} from '../../lib/baseRunTypes';
 import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
 import {MockOperation} from '../../types';
 import {getJitErrorPath, getExpected} from '../../lib/utils';

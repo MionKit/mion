@@ -6,7 +6,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {ReflectionKind, type TypeIndexSignature, type TypeProperty, type Type} from './lib/_deepkit/src/reflection/type';
+import {ReflectionKind, type TypeIndexSignature, type TypeProperty, type Type} from './_deepkit/src/reflection/type';
 import type {
     MockOperation,
     RunType,
@@ -17,8 +17,8 @@ import type {
     JitFnID,
     CompiledOperation,
     MockOptions,
-} from './types';
-import {getPropIndex, memorize, toLiteral} from './lib/utils';
+} from '../types';
+import {getPropIndex, memorize, toLiteral} from './utils';
 import {
     defaultJitFnHasReturn,
     defaultJitFnIsExpression,
@@ -28,12 +28,12 @@ import {
     JitFnNames,
     maxStackDepth,
     maxStackErrorMessage,
-} from './constants';
-import {JitErrorsCompiler, JitCompiler, getJITFnHash, createJitCompiler} from './lib/jitCompiler';
-import {getReflectionName} from './constants.kind';
-import {createJitIDHash, jitUtils} from './lib/jitUtils';
-import {isMockContext} from './lib/guards';
-import {defaultMockOptions} from './constants.mock';
+} from '../constants';
+import {JitErrorsCompiler, JitCompiler, getJITFnHash, createJitCompiler} from './jitCompiler';
+import {getReflectionName} from '../constants.kind';
+import {createJitIDHash, jitUtils} from './jitUtils';
+import {isMockContext} from './guards';
+import {defaultMockOptions} from '../constants.mock';
 
 type DkCollection = Type & {types: Type[]};
 type DkMember = Type & {type: Type; optional: boolean};

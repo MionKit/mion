@@ -42,6 +42,7 @@ import {ParameterRunType} from './runtypes/member/param';
 import {MethodRunType} from './runtypes/member/method';
 import {RestParamsRunType} from './runtypes/member/restParams';
 import {ClassRunType} from './runtypes/collection/class';
+import {MapRunType} from './runtypes/native/map';
 
 export function runType<T>(type?: ReceiveType<T>): RunType {
     type = resolveReceiveType(type); // deepkit has been extended to call createRunType ./_deepkit/src/reflection/processor.ts#L1697
@@ -89,7 +90,9 @@ export function createRunType(deepkitType: Type): RunType {
             if (deepkitType.classType === Date) {
                 rt = new DateRunType();
             } else if (deepkitType.classType === Map) {
-                throw new Error('Map is not implemented yet');
+                if (deepkitType.arguments?.length !== 2)
+                    throw new Error('Map type must have two arguments, ie: Map<string, number>');
+                rt = new MapRunType();
             } else if (deepkitType.classType === Set) {
                 throw new Error('Set is not implemented yet');
             } else {

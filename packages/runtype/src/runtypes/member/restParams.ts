@@ -1,6 +1,6 @@
 import type {TypeRest} from '../../lib/_deepkit/src/reflection/type';
 import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
-import {MemberRunType} from '../../baseRunTypes';
+import {MemberRunType} from '../../lib/baseRunTypes';
 import {JitFnIDs} from '../../constants';
 import {JitFnID, MockOperation} from '../../types';
 import {childIsExpression} from '../../lib/utils';

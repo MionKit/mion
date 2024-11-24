@@ -7,7 +7,7 @@
 
 import {ReflectionKind, type TypeParameter} from '../../lib/_deepkit/src/reflection/type';
 import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
-import {MemberRunType} from '../../baseRunTypes';
+import {MemberRunType} from '../../lib/baseRunTypes';
 import {MockOperation} from '../../types';
 import {JitFnIDs} from '../../constants';
 import {childIsExpression, getParamIndex} from '../../lib/utils';

@@ -18,7 +18,7 @@ import {PropertyRunType} from '../member/property';
 import {IndexSignatureRunType} from '../member/indexProperty';
 import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
 import {InterfaceRunType} from '../collection/interface';
-import {BaseRunType, MemberRunType} from '../../baseRunTypes';
+import {BaseRunType, MemberRunType} from '../../lib/baseRunTypes';
 import {UnionRunType} from '../collection/union';
 import {MethodRunType} from '../member/method';
 import {MethodSignatureRunType} from '../member/methodSignature';

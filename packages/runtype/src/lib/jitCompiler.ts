@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 import type {JitFnArgs, Mutable, CompiledOperation, JitFnID} from '../types';
-import type {BaseRunType} from '../baseRunTypes';
+import type {BaseRunType} from './baseRunTypes';
 import {
     jitArgs,
     jitDefaultArgs,

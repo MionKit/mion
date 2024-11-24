@@ -8,7 +8,7 @@
 import {ReflectionKind, type TypeAny, type TypeUnknown} from '../../lib/_deepkit/src/reflection/type';
 import type {JitConstants, JitFnID, MockOperation} from '../../types';
 import {mockAny} from '../../lib/mock';
-import {AtomicRunType} from '../../baseRunTypes';
+import {AtomicRunType} from '../../lib/baseRunTypes';
 import type {JitCompiler} from '../../lib/jitCompiler';
 import {JitFnIDs} from '../../constants';
 

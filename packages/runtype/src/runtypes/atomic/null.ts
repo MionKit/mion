@@ -7,7 +7,7 @@
 
 import {ReflectionKind, type TypeNull} from '../../lib/_deepkit/src/reflection/type';
 import type {JitConstants} from '../../types';
-import {AtomicRunType} from '../../baseRunTypes';
+import {AtomicRunType} from '../../lib/baseRunTypes';
 import {getJitErrorPath, getExpected} from '../../lib/utils';
 import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
 

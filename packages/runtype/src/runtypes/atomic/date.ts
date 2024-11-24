@@ -9,7 +9,7 @@ import {type TypeClass} from '../../lib/_deepkit/src/reflection/type';
 import type {JitJsonEncoder, MockOperation, JitConstants} from '../../types';
 import {getJitErrorPath, getExpected} from '../../lib/utils';
 import {mockDate} from '../../lib/mock';
-import {AtomicRunType} from '../../baseRunTypes';
+import {AtomicRunType} from '../../lib/baseRunTypes';
 import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
 import {ReflectionSubKinds} from '../../constants.kind';
 

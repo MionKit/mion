@@ -11,7 +11,7 @@ import {SymbolJitJsonEncoder} from './symbol';
 import {BigIntJitJsonENcoder} from './bigInt';
 import {RegexpJitJsonEncoder} from './regexp';
 import {getJitErrorPath, memorize, toLiteral} from '../../lib/utils';
-import {AtomicRunType} from '../../baseRunTypes';
+import {AtomicRunType} from '../../lib/baseRunTypes';
 import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
 
 export class LiteralRunType extends AtomicRunType<TypeLiteral> {

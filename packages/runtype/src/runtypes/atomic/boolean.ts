@@ -9,7 +9,7 @@ import {ReflectionKind, type TypeBoolean} from '../../lib/_deepkit/src/reflectio
 import type {JitConstants} from '../../types';
 import {getJitErrorPath, getExpected} from '../../lib/utils';
 import {mockBoolean} from '../../lib/mock';
-import {AtomicRunType} from '../../baseRunTypes';
+import {AtomicRunType} from '../../lib/baseRunTypes';
 import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
 
 const jitConstants: JitConstants = {

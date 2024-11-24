@@ -41,7 +41,7 @@ import type {ParameterRunType} from '../runtypes/member/param';
 import type {PromiseRunType} from '../runtypes/member/promise';
 import type {ObjectRunType} from '../runtypes/atomic/object';
 import type {MethodRunType} from '../runtypes/member/method';
-import type {AtomicRunType, CollectionRunType, MemberRunType} from '../baseRunTypes';
+import type {AtomicRunType, CollectionRunType, MemberRunType} from './baseRunTypes';
 import type {BaseCompiler, JitErrorsCompiler} from './jitCompiler';
 import {ClassRunType} from '../runtypes/collection/class';
 import {IntersectionRunType} from '../runtypes/collection/intersection';
