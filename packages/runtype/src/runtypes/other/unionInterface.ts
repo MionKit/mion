@@ -12,7 +12,7 @@ import {
     TypeUnion,
     TypeProperty,
 } from '../../lib/_deepkit/src/reflection/type';
-import {DKwithRT, MockOperation, Mutable, RunTypeChildAccessor} from '../../types';
+import type {MockOperation, Mutable, RunTypeChildAccessor, SrcType} from '../../types';
 import {getJitErrorPath, getExpected, toLiteral, arrayToArgumentsLiteral} from '../../lib/utils';
 import {PropertyRunType} from '../member/property';
 import {IndexSignatureRunType} from '../member/indexProperty';
@@ -27,8 +27,6 @@ type anySrcInterface = TypeObjectLiteral | TypeClass | TypeIntersection;
 
 /** Merges multiple interfaces into one. */
 export class UnionInterfaceRunType extends InterfaceRunType<anySrcInterface> {
-    src = null as any; // will be set after construction
-
     mergedInterfaces: InterfaceRunType[] = [];
     mergedProperties: Map<string | number, MemberRunType<any>> = new Map();
     getChildRunTypes = (): BaseRunType[] => {
@@ -36,10 +34,10 @@ export class UnionInterfaceRunType extends InterfaceRunType<anySrcInterface> {
     };
 
     mergeInterface(Irt: InterfaceRunType): void {
-        if (!this.src) {
-            this.src = {...Irt.src} as TypeObjectLiteral;
+        if (!(this as any).src) {
+            (this as Mutable<UnionInterfaceRunType>).src = {...Irt.src};
             this.src.types = [];
-            (this.src as DKwithRT)._rt = Irt;
+            (this.src as Mutable<SrcType>)._rt = Irt;
         }
         Irt.getChildRunTypes().forEach((rt) => this.addProperty(rt as MemberRunType<any>));
         this.mergedInterfaces.push(Irt);
@@ -94,13 +92,13 @@ export class UnionInterfaceRunType extends InterfaceRunType<anySrcInterface> {
     }
 
     private getNewUnionType(): TypeUnion {
-        const unionRT = new UnionRunType();
+        const unionRT: Mutable<UnionRunType> = new UnionRunType();
         const unionSrc = {
             isMergedUnion: true,
             kind: ReflectionKind.union,
             types: [],
             _rt: unionRT,
-        } as TypeUnion;
+        } as SrcType<TypeUnion>;
         unionRT.src = unionSrc;
         return unionSrc;
     }

@@ -7,7 +7,7 @@
  * ######## */
 
 import {ReflectionKind, TypeMethod} from './_deepkit/src/reflection/type';
-import {ReflectionSubKinds} from '../constants.kind';
+import {ReflectionSubKind} from '../constants.kind';
 import {JitFnIDs} from '../constants';
 /* IMPORTANT: import classes as type only to prevent js circular imports */
 import type {MockOperation, MockOptions, RunType, RunTypeChildAccessor} from '../types';
@@ -67,7 +67,7 @@ export function isCallSignatureRunType(rt: RunType): rt is CallSignatureRunType 
 }
 
 export function isDateRunType(rt: RunType): rt is DateRunType {
-    return rt.getJitId() === ReflectionSubKinds.date;
+    return rt.getJitId() === ReflectionSubKind.date;
 }
 
 export function isEnumRunType(rt: RunType): rt is EnumRunType {

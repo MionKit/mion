@@ -12,7 +12,6 @@ import {MockOperation} from '../../types';
 import {getJitErrorPath, getExpected} from '../../lib/utils';
 
 export class TupleRunType extends CollectionRunType<TypeTuple> {
-    src: TypeTuple = null as any; // will be set after construction
     _compileIsType(comp: JitCompiler): string {
         const children = this.getJitChildren();
         const varName = comp.vλl;

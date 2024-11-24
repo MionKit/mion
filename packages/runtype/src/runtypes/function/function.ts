@@ -4,11 +4,11 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
+import type {MockOperation, JitConstants, AnyFunction, JitFnID, SrcType} from '../../types';
 import {ReflectionKind, TypeFunction} from '../../lib/_deepkit/src/reflection/type';
 import {BaseRunType} from '../../lib/baseRunTypes';
 import {isAnyFunctionRunType, isFunctionRunType, isPromiseRunType} from '../../lib/guards';
 import {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
-import {MockOperation, DKwithRT, JitConstants, AnyFunction, JitFnID} from '../../types';
 import {FunctionParametersRunType} from '../collection/functionParameters';
 import {getExpected, getJitErrorPath, toLiteral} from '../../lib/utils';
 import {PromiseRunType} from '../member/promise';
@@ -21,15 +21,11 @@ const functionJitConstants: JitConstants = {
 };
 
 export class FunctionRunType<CallType extends AnyFunction = TypeFunction> extends BaseRunType<CallType> {
-    private _src: CallType = null as any; // will be set after construction
-    private parameterRunTypes: FunctionParametersRunType = null as any;
-    set src(src: CallType) {
-        this._src = src;
-        this.parameterRunTypes = new FunctionParametersRunType();
-        (this.parameterRunTypes as any).src = src;
-    }
-    get src(): CallType {
-        return this._src;
+    // parameterRunTypes.src must be set after FunctionRunType creation
+    parameterRunTypes: FunctionParametersRunType = new FunctionParametersRunType();
+    linkSrc(deepkitType: SrcType): void {
+        super.linkSrc(deepkitType);
+        (this.parameterRunTypes as any).src = deepkitType;
     }
     getJitConstants = (): JitConstants => functionJitConstants;
     getFamily(): 'F' {
@@ -118,7 +114,7 @@ export class FunctionRunType<CallType extends AnyFunction = TypeFunction> extend
     //     parameterRunTypes = src.parameters.slice(start, end).map((p) => visitor(p, parents, opts)) as ParameterRunType[];
     // }
     getReturnType(): BaseRunType {
-        return (this.src.return as DKwithRT)._rt as BaseRunType;
+        return (this.src.return as SrcType)._rt as BaseRunType;
     }
     getParameters(): FunctionParametersRunType {
         return this.parameterRunTypes;

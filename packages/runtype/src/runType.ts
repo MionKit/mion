@@ -6,8 +6,9 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import type {RunType, DKwithRT, Mutable} from './types';
-import {ReflectionKind, Type, TypeObjectLiteral} from './lib/_deepkit/src/reflection/type';
+import type {RunType, Mutable, SrcType} from './types';
+import type {BaseRunType} from './lib/baseRunTypes';
+import {ReflectionKind, TypeObjectLiteral} from './lib/_deepkit/src/reflection/type';
 import {resolveReceiveType, ReceiveType, reflect} from './lib/_deepkit/src/reflection/reflection';
 import {StringRunType} from './runtypes/atomic/string';
 import {DateRunType} from './runtypes/atomic/date';
@@ -43,18 +44,20 @@ import {MethodRunType} from './runtypes/member/method';
 import {RestParamsRunType} from './runtypes/member/restParams';
 import {ClassRunType} from './runtypes/collection/class';
 import {MapRunType} from './runtypes/native/map';
+import {ReflectionSubKind} from './constants.kind';
 
 export function runType<T>(type?: ReceiveType<T>): RunType {
-    type = resolveReceiveType(type); // deepkit has been extended to call createRunType ./_deepkit/src/reflection/processor.ts#L1697
-    return (type as DKwithRT)._rt;
+    const t = resolveReceiveType(type) as SrcType; // deepkit has been extended to call createRunType ./_deepkit/src/reflection/processor.ts#L1697
+    return t._rt;
 }
 
 export function reflectFunction<Fn extends (...args: any[]) => any>(fn: Fn): FunctionRunType {
-    const type = reflect(fn); // deepkit has been extended to call createRunType ./_deepkit/src/reflection/processor.ts#L16
-    return (type as DKwithRT)._rt as FunctionRunType;
+    const type = reflect(fn) as SrcType; // deepkit has been extended to call createRunType ./_deepkit/src/reflection/processor.ts#L16
+    return type._rt as any as FunctionRunType;
 }
 
-export function createRunType(deepkitType: Type): RunType {
+// This method gets called directly from deepkit when is creating deepkit types
+export function createRunType(deepkitType: Mutable<SrcType>): RunType {
     // console.log('deepkitType', deepkitType);
 
     /*
@@ -62,13 +65,13 @@ export function createRunType(deepkitType: Type): RunType {
      basically every runType stores a reference to a deepkit type and vice versa.
      This also relies on deepkit handling circular types to prevent infinite loop when we are generating RunTypes.
     */
-    const existingType: RunType | undefined = (deepkitType as DKwithRT)._rt;
+    const existingType: RunType | undefined = deepkitType._rt;
     // TODO: IMPORTANT: seems like deepkit can generate multiple types objects for the same type, so we need to handle this
     // we are attaching the runType to the deepkit type (deepkitType._runType), to link the two types together
     // but as deepkit can generate multiple types that means existingType will be null and the markAsCircular function is not working as expected
     if (existingType) return existingType;
 
-    let rt: RunType;
+    let rt: BaseRunType;
 
     switch (deepkitType.kind) {
         case ReflectionKind.any:
@@ -88,10 +91,12 @@ export function createRunType(deepkitType: Type): RunType {
             break;
         case ReflectionKind.class:
             if (deepkitType.classType === Date) {
+                deepkitType.subKind = ReflectionSubKind.date;
                 rt = new DateRunType();
             } else if (deepkitType.classType === Map) {
                 if (deepkitType.arguments?.length !== 2)
                     throw new Error('Map type must have two arguments, ie: Map<string, number>');
+                deepkitType.subKind = ReflectionSubKind.map;
                 rt = new MapRunType();
             } else if (deepkitType.classType === Set) {
                 throw new Error('Set is not implemented yet');
@@ -107,7 +112,9 @@ export function createRunType(deepkitType: Type): RunType {
             rt = new EnumMemberRunType();
             break;
         case ReflectionKind.function:
-            rt = new FunctionRunType();
+            const frt = new FunctionRunType();
+            (frt.parameterRunTypes as Mutable<RunType>).src = deepkitType;
+            rt = frt;
             break;
         case ReflectionKind.indexSignature:
             rt = new IndexSignatureRunType();
@@ -206,8 +213,7 @@ export function createRunType(deepkitType: Type): RunType {
             rt = new AnyRunType();
             break;
     }
-    (rt as Mutable<RunType>).src = deepkitType;
-    (deepkitType as DKwithRT)._rt = rt;
+    rt.linkSrc(deepkitType);
     // console.log('rt', rt);
     return rt;
 }

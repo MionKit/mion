@@ -32,7 +32,6 @@ export type InterfaceMember =
 export class InterfaceRunType<
     T extends TypeObjectLiteral | TypeClass | TypeIntersection = TypeObjectLiteral,
 > extends CollectionRunType<T> {
-    src: T = null as any; // will be set after construction
     areAllChildrenOptional?: boolean;
 
     getNamedChildren(): InterfaceMember[] {

@@ -27,4 +27,5 @@ export class CallSignatureRunType extends FunctionRunType<TypeCallSignature> imp
     useArrayAccessor = () => false;
     isOptional = () => false;
     skipSettingAccessor = () => false;
+    isRootVal = () => false;
 }

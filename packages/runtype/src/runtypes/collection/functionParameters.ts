@@ -1,15 +1,14 @@
+import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
+import type {AnyFunction, MockOperation, SrcType} from '../../types';
 import {getExpected, getJitErrorPath, toLiteral} from '../../lib/utils';
 import {ParameterRunType} from '../member/param';
-import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
-import {AnyFunction, DKwithRT, MockOperation} from '../../types';
 import {TypeFunction} from '../../lib/_deepkit/src/reflection/type';
 import {BaseRunType, CollectionRunType} from '../../lib/baseRunTypes';
 
 export class FunctionParametersRunType<CallType extends AnyFunction = TypeFunction> extends CollectionRunType<CallType> {
-    src: CallType = null as any; // will be set after construction
     getName = (): string => 'fnParams';
     getChildRunTypes = (): BaseRunType[] => {
-        const childTypes = (this.src.parameters as DKwithRT[]) || []; // deepkit stores child types in the types property
+        const childTypes = (this.src.parameters as SrcType[]) || []; // deepkit stores child types in the types property
         return childTypes.map((t) => t._rt as BaseRunType);
     };
     getParameterTypes(): ParameterRunType[] {

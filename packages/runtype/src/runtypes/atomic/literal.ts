@@ -15,7 +15,6 @@ import {AtomicRunType} from '../../lib/baseRunTypes';
 import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
 
 export class LiteralRunType extends AtomicRunType<TypeLiteral> {
-    src: TypeLiteral = null as any; // will be set after construction
     get jitConstants() {
         return this.getJitConstants();
     }

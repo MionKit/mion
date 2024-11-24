@@ -20,7 +20,6 @@ const jitConstants: JitConstants = {
 };
 
 export class BigIntRunType extends AtomicRunType<TypeBigInt> {
-    src: TypeBigInt = null as any; // will be set after construction
     getJitConstants = () => jitConstants;
     _compileIsType(comp: JitCompiler): string {
         return `typeof ${comp.vλl} === 'bigint'`;

@@ -16,7 +16,6 @@ const jitConstants: JitConstants = {
 };
 
 export class PromiseRunType extends MemberRunType<TypePromise> {
-    src: TypePromise = null as any; // will be set after construction
     getJitConstants = () => jitConstants;
     isOptional(): boolean {
         throw new Error(`Jit compilation disabled for Promises.`);

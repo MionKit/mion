@@ -18,7 +18,6 @@ const jitConstants: JitConstants = {
 
 // TODO: not sure when run type will be generated but doesn't seem to be used when using reflection on enums
 export class EnumMemberRunType extends AtomicRunType<TypeEnum> {
-    src: TypeEnum = null as any; // will be set after construction
     getJitConstants = () => jitConstants;
     _compileIsType(): string {
         throw new Error('Enum member operations are not supported');

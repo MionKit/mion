@@ -23,7 +23,6 @@ import {InterfaceRunType} from '../collection/interface';
 import {JitFnIDs} from '../../constants';
 
 export class PropertyRunType extends MemberRunType<TypePropertySignature | TypeProperty> {
-    src: TypePropertySignature | TypeProperty = null as any; // will be set after construction
     getChildIndex = memorize(() => getPropIndex(this.src));
     getChildVarName = memorize(() => getPropVarName(this.src.name));
     getChildLiteral = memorize(() => getPropLiteral(this.getChildVarName()));

@@ -15,7 +15,6 @@ import {random} from '../../lib/mock';
  * ######## */
 
 export class IndexSignatureRunType extends MemberRunType<TypeIndexSignature> {
-    src: TypeIndexSignature = null as any; // will be set after construction
     isOptional(): boolean {
         return false;
     }

@@ -11,17 +11,16 @@ import {getJitErrorPath, getExpected} from '../../lib/utils';
 import {mockDate} from '../../lib/mock';
 import {AtomicRunType} from '../../lib/baseRunTypes';
 import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
-import {ReflectionSubKinds} from '../../constants.kind';
+import {ReflectionSubKind} from '../../constants.kind';
 
 const jitConstants: JitConstants = {
     skipJit: false,
     skipJsonEncode: true,
     skipJsonDecode: false,
-    jitId: ReflectionSubKinds.date,
+    jitId: ReflectionSubKind.date,
 };
 
 export class DateRunType extends AtomicRunType<TypeClass> {
-    src: TypeClass = null as any; // will be set after construction
     getJitId = () => jitConstants.jitId;
     getJitConstants = () => jitConstants;
     _compileIsType(comp: JitCompiler): string {

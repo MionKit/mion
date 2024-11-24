@@ -13,7 +13,6 @@ import {JitFnIDs} from '../../constants';
 import {childIsExpression} from '../../lib/utils';
 
 export class TupleMemberRunType extends MemberRunType<TypeTupleMember> {
-    src: TypeTupleMember = null as any; // will be set after construction
     getJitConstants(stack: BaseRunType[] = []): JitConstants {
         const constants = super.getJitConstants(stack) as Mutable<JitConstants>;
         if (this.isOptional()) {

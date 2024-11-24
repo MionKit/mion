@@ -15,7 +15,6 @@ import {TupleMemberRunType} from './tupleMember';
  * ######## */
 
 export class RestParamsRunType extends MemberRunType<TypeRest> {
-    src: TypeRest = null as any; // will be set after construction
     isOptional() {
         return true;
     }

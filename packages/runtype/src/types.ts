@@ -9,12 +9,17 @@ import type {Type, TypeCallSignature, TypeFunction, TypeMethod, TypeMethodSignat
 import type {JitCompiler} from './lib/jitCompiler';
 import type {JITUtils} from './lib/jitUtils';
 import type {JitFnIDs} from './constants';
+import type {ReflectionSubKind} from './constants.kind';
 
 export type JSONValue = string | number | boolean | null | {[key: string]: JSONValue} | Array<JSONValue>;
 export type JSONString = string;
 
+export type SubKind = (typeof ReflectionSubKind)[keyof typeof ReflectionSubKind];
 export type RunTypeVisitor = (deepkitType: Type, parents: RunType[], opts: RunTypeOptions) => RunType;
-export type DKwithRT = Type & {_rt: RunType};
+export type SrcType<T extends Type = Type> = T & {
+    readonly _rt: RunType;
+    readonly subKind?: SubKind;
+};
 
 // on of the values of JitFnIDs object
 export type JitFnID = (typeof JitFnIDs)[keyof typeof JitFnIDs];
@@ -34,7 +39,7 @@ export type JitFnArgs = {
  * Runtime Metadata for a typescript types.
  */
 export interface RunType {
-    readonly src: Type;
+    readonly src: SrcType<any>;
     getName(): string;
     getFamily(): 'A' | 'C' | 'M' | 'F'; // Atomic, Collection, Member, Function
     mock: (options?: Partial<MockOptions>) => any;
@@ -47,7 +52,7 @@ export interface RunType {
 
 export interface RunTypeChildAccessor extends RunType {
     /**
-     * Returns the position of the child in the parent type.
+     * Returns the position of the child within the parent type.
      */
     getChildIndex(): number;
     /**
@@ -66,10 +71,14 @@ export interface RunTypeChildAccessor extends RunType {
      * ie: for an array member return true as it should be accessed using the array accessor, ie: obj[index]
      */
     useArrayAccessor(): boolean;
+    /** Returns true if the property is optional */
     isOptional(): boolean;
     /** In Some situation (rest params) the access logic might be set in the child node instead the parent
      * so we want to skip setting the accessor in the parent.  */
     skipSettingAccessor(): boolean;
+    /** Returns true if the parents accessor should be ignored, typically used when a temp variable is used.
+     * ie when accessing a Map entry: `for (let entry of Map){}` here any compiled children will use `entry` as the root path */
+    isRootVal(): boolean;
 }
 
 export type JitConstants = {

@@ -26,7 +26,6 @@ import {UnionInterfaceRunType} from '../other/unionInterface';
  * So [0, "123n"] is interpreted as a string and [1, "123n"] is interpreted as a bigint.
  * */
 export class UnionRunType extends CollectionRunType<TypeUnion> {
-    src: TypeUnion = null as any; // will be set after construction
     getJitConstants(stack: BaseRunType[] = []): JitConstants {
         const jc = super.getJitConstants(stack) as Mutable<JitConstants>;
         jc.skipJsonDecode = false;

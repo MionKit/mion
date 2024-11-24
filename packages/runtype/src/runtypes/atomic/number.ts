@@ -20,7 +20,6 @@ const jitConstants: JitConstants = {
 };
 
 export class NumberRunType extends AtomicRunType<TypeNumber> {
-    src: TypeNumber = null as any; // will be set after construction
     getJitConstants = () => jitConstants;
     _compileIsType(comp: JitCompiler): string {
         return `Number.isFinite(${comp.vλl})`;

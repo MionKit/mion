@@ -16,4 +16,5 @@ export class MethodRunType extends FunctionRunType<TypeMethod> implements RunTyp
     useArrayAccessor = memorize(() => useArrayAccessorForProp(this.src.name));
     isOptional = () => !!this.src.optional;
     skipSettingAccessor = () => false;
+    isRootVal = () => false;
 }

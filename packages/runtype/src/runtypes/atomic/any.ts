@@ -20,7 +20,6 @@ const jitConstants: JitConstants = {
 };
 
 export class AnyRunType extends AtomicRunType<TypeAny | TypeUnknown> {
-    src: TypeAny | TypeUnknown = null as any; // will be set after construction
     getJitConstants = () => jitConstants;
     jitFnHasReturn(fnId: JitFnID): boolean {
         switch (fnId) {

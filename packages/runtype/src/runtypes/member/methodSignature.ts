@@ -16,4 +16,5 @@ export class MethodSignatureRunType extends FunctionRunType<TypeMethodSignature>
     useArrayAccessor = memorize(() => useArrayAccessorForProp(this.src.name));
     isOptional = () => !!this.src.optional;
     skipSettingAccessor = () => false;
+    isRootVal = () => false;
 }

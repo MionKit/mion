@@ -1696,7 +1696,7 @@ export class Processor {
         // this is the single entry point to create mion RunTypes from Deepkit Types
 
         // type
-        createRunType(entry as Type);
+        createRunType(entry as any);
 
          // member type
         if ((entry as any).type) {
@@ -1706,7 +1706,7 @@ export class Processor {
          // collection types
         if ((entry as any).types && Array.isArray((entry as any).types)) {
             for (const t of (entry as any).types) {
-                createRunType(t as Type);
+                createRunType(t as any);
             }
         }
 

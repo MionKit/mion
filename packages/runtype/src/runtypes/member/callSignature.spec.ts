@@ -4,9 +4,8 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
-import {reflectFunction, runType} from '../../runType';
+import {runType} from '../../runType';
 import {JitFnIDs} from '../../constants';
-import {FunctionRunType} from '../function/function';
 import {InterfaceRunType} from '../collection/interface';
 
 // deepkit generates a FunctionRunType not a CallSignatureRunType

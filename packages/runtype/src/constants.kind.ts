@@ -6,7 +6,6 @@
  * ######## */
 
 import {ReflectionKind} from './lib/_deepkit/src/reflection/type';
-import {isDateRunType} from './lib/guards';
 import {RunType} from './types';
 
 export const ReflectionKindName: {[key: number]: keyof typeof ReflectionKind} = {
@@ -49,31 +48,25 @@ export const ReflectionKindName: {[key: number]: keyof typeof ReflectionKind} = 
 };
 
 // ReflectionKind from deepkit is extended with the following sub kinds
-export const ReflectionSubKinds = {
+export const ReflectionSubKind = {
     // group of sub-kinds that extends ReflectionKind.class
     date: 20_001,
     map: 20_002,
     set: 20_003,
 
     functionParams: 17_001,
-};
+} as const;
 
-export const ReflectionSubNames: {[key: number]: keyof typeof ReflectionSubKinds} = {
+export const ReflectionSubNames: {[key: number]: keyof typeof ReflectionSubKind} = {
     20_001: 'date',
     20_002: 'map',
     20_003: 'set',
     17_001: 'functionParams',
-};
+} as const;
 
-type AnyKind = keyof typeof ReflectionKind | keyof typeof ReflectionSubKinds;
+type AnyKindName = keyof typeof ReflectionKind | keyof typeof ReflectionSubKind;
 
-export function getReflectionName(rt: RunType): AnyKind {
-    switch (rt.src.kind) {
-        case ReflectionKind.class:
-            if (isDateRunType(rt)) return ReflectionSubNames[ReflectionSubKinds.date];
-            // TODO: add map and set
-            return ReflectionKindName[rt.src.kind];
-        default:
-            return ReflectionKindName[rt.src.kind];
-    }
+export function getReflectionName(rt: RunType): AnyKindName {
+    if (rt.src.subKind) return ReflectionSubNames[rt.src.subKind];
+    return ReflectionKindName[rt.src.kind];
 }
