@@ -9,7 +9,7 @@ import {ClassRunType} from '../collection/class';
 import {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
 import {BaseRunType} from '../../lib/baseRunTypes';
 import {JitFnIDs} from '../../constants';
-import {getExpected, getJitErrorPath, memorize} from '../../lib/utils';
+import {getExpected, memorize} from '../../lib/utils';
 import {BasicMemberRunType} from '../member/basicMember';
 import {ReflectionSubKind} from '../../constants.kind';
 import {ReflectionKind, TypeClass} from '../../lib/_deepkit/src/reflection/type';
@@ -90,7 +90,7 @@ export class MapRunType extends ClassRunType {
             .map((c) => c.compileTypeErrors(comp))
             .join(';');
         return `
-            if (!(${comp.vλl} instanceof Map)){utl.err(${comp.args.εrr},${getJitErrorPath(comp)},${getExpected(this)})}
+            if (!(${comp.vλl} instanceof Map)){${comp.callJitErr(getExpected(this))}}
             else {for (const ${entry} of ${comp.vλl}) {${childrenCode}}}
         `;
     }

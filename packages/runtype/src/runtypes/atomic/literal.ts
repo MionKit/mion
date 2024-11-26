@@ -10,7 +10,7 @@ import type {JitJsonEncoder, JitConstants} from '../../types';
 import {SymbolJitJsonEncoder} from './symbol';
 import {BigIntJitJsonENcoder} from './bigInt';
 import {RegexpJitJsonEncoder} from './regexp';
-import {getJitErrorPath, memorize, toLiteral} from '../../lib/utils';
+import {memorize, toLiteral} from '../../lib/utils';
 import {AtomicRunType} from '../../lib/baseRunTypes';
 import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
 
@@ -96,13 +96,11 @@ function compileIsLiteral(comp: JitCompiler, lit: Exclude<TypeLiteral['literal']
 }
 
 function compileTypeErrorsSymbol(comp: JitErrorsCompiler, lit: symbol, name: string | number): string {
-    return `if (typeof ${comp.vλl} !== 'symbol' || ${comp.vλl}.description !== ${toLiteral(lit.description)}) {
-        utl.err(${comp.args.εrr},${getJitErrorPath(comp)},${toLiteral(name)})
-    }`;
+    return `if (typeof ${comp.vλl} !== 'symbol' || ${comp.vλl}.description !== ${toLiteral(lit.description)}) {${comp.callJitErr(toLiteral(name))}}`;
 }
 
 function compileTypeErrorsRegExp(comp: JitErrorsCompiler, lit: RegExp, name: string | number): string {
-    return `if (String(${comp.vλl}) !== String(${lit})) utl.err(${comp.args.εrr},${getJitErrorPath(comp)},${toLiteral(name)})`;
+    return `if (String(${comp.vλl}) !== String(${lit})) ${comp.callJitErr(toLiteral(name))}`;
 }
 
 function compileTypeErrorsLiteral(
@@ -110,7 +108,7 @@ function compileTypeErrorsLiteral(
     lit: Exclude<TypeLiteral['literal'], symbol>,
     name: string | number
 ): string {
-    return `if (${comp.vλl} !== ${toLiteral(lit)}) utl.err(${comp.args.εrr},${getJitErrorPath(comp)},${toLiteral(name)})`;
+    return `if (${comp.vλl} !== ${toLiteral(lit)}) ${comp.callJitErr(toLiteral(name))}`;
 }
 
 function getJitConstantsForBigint(kind: number, literal: bigint): JitConstants {

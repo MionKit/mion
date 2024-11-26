@@ -10,7 +10,7 @@ import {BaseRunType} from '../../lib/baseRunTypes';
 import {isAnyFunctionRunType, isFunctionRunType, isPromiseRunType} from '../../lib/guards';
 import {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
 import {FunctionParametersRunType} from '../collection/functionParameters';
-import {getExpected, getJitErrorPath, toLiteral} from '../../lib/utils';
+import {getExpected, toLiteral} from '../../lib/utils';
 import {PromiseRunType} from '../member/promise';
 
 const functionJitConstants: JitConstants = {
@@ -80,7 +80,7 @@ export class FunctionRunType<CallType extends AnyFunction = TypeFunction> extend
         return `typeof ${comp.vλl} === 'function'  && ${comp.vλl}.length === ${this.parameterRunTypes.getLength()} ${nameCheck}`;
     }
     _compileTypeErrors(comp: JitErrorsCompiler): string {
-        return `if (!(${this._compileIsType(comp)})) utl.err(${comp.args.εrr},${getJitErrorPath(comp)},${getExpected(this)});`;
+        return `if (!(${this._compileIsType(comp)})) ${comp.callJitErr(getExpected(this))};`;
     }
     /**
      * json encode a function

@@ -11,7 +11,7 @@ import {jitUtils} from './jitUtils';
 import {isAtomicRunType, isCollectionRunType, isMemberRunType} from './guards';
 import {validPropertyNameRegExp} from '../constants';
 import {BaseRunType} from './baseRunTypes';
-import type {JitCompiler, JitErrorsCompiler} from './jitCompiler';
+import type {JitCompiler} from './jitCompiler';
 
 export function toLiteral(value: number | string | boolean | undefined | null | bigint | RegExp | symbol): string {
     switch (typeof value) {
@@ -72,12 +72,6 @@ export function isSameJitType(a: RunType, b: RunType): boolean {
 
 export function isSameJitCompiler(a: JitCompiler, b: JitCompiler): boolean {
     return a.opId === b.opId && isSameJitType(a.rootType, b.rootType);
-}
-
-export function getJitErrorPath(comp: JitErrorsCompiler, extraPathLiteral?: string | number): string {
-    const extraPath = extraPathLiteral ? `,${extraPathLiteral}` : '';
-    if (comp.length === 1) return `[...${comp.args.pλth}${extraPath}]`;
-    return `[...${comp.args.pλth},${comp.getStackStaticPathArgs()}${extraPath}]`;
 }
 
 export function getExpected(rt: RunType): string {

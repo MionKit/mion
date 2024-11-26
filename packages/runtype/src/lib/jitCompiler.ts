@@ -170,6 +170,11 @@ export class JitErrorsCompiler<ID extends JitFnID = any> extends BaseCompiler<ty
         const defaultValues = {...jitDefaultErrorArgs};
         super(rt, id, args, defaultValues, 'er', parentLength);
     }
+    callJitErr(expectedLiteral: string, extraPathLiteral?: string | number): string {
+        const extraPath = extraPathLiteral ? `,${extraPathLiteral}` : '';
+        const pathItems = `[${this.getStackStaticPathArgs()}${extraPath}]`;
+        return `utl.err(${this.args.εrr},${this.args.pλth},${pathItems},${expectedLiteral})`;
+    }
 }
 
 // ################### Compiler Creation ###################

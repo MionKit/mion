@@ -129,8 +129,9 @@ export const jitUtils = {
         return false;
     },
     // !!! DO NOT MODIFY METHOD WITHOUT REVIEWING JIT CODE INVOCATIONS!!!
-    err(err: RunTypeError[], path: (string | number)[], expected: string) {
-        err.push({path, expected});
+    err(err: RunTypeError[], path: (string | number)[], pathItems: (string | number)[], expected: string) {
+        if (path.length) err.push({path: [...path, ...pathItems], expected});
+        else err.push({path: pathItems, expected});
     },
 };
 

@@ -7,7 +7,7 @@
 
 import {type TypeClass} from '../../lib/_deepkit/src/reflection/type';
 import type {JitJsonEncoder, MockOperation, JitConstants} from '../../types';
-import {getJitErrorPath, getExpected} from '../../lib/utils';
+import {getExpected} from '../../lib/utils';
 import {mockDate} from '../../lib/mock';
 import {AtomicRunType} from '../../lib/baseRunTypes';
 import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
@@ -27,7 +27,7 @@ export class DateRunType extends AtomicRunType<TypeClass> {
         return `(${comp.vλl} instanceof Date && !isNaN(${comp.vλl}.getTime()))`;
     }
     _compileTypeErrors(comp: JitErrorsCompiler): string {
-        return `if (!(${this._compileIsType(comp)})) utl.err(${comp.args.εrr},${getJitErrorPath(comp)},${getExpected(this)})`;
+        return `if (!(${this._compileIsType(comp)})) ${comp.callJitErr(getExpected(this))}`;
     }
     _compileJsonEncode(comp: JitCompiler): string {
         return DateJitJsonENcoder.encodeToJson(comp.vλl);

@@ -7,7 +7,7 @@
 
 import {ReflectionKind, type TypeBoolean} from '../../lib/_deepkit/src/reflection/type';
 import type {JitConstants} from '../../types';
-import {getJitErrorPath, getExpected} from '../../lib/utils';
+import {getExpected} from '../../lib/utils';
 import {mockBoolean} from '../../lib/mock';
 import {AtomicRunType} from '../../lib/baseRunTypes';
 import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
@@ -24,7 +24,7 @@ export class BooleanRunType extends AtomicRunType<TypeBoolean> {
         return `typeof ${comp.vλl} === 'boolean'`;
     }
     _compileTypeErrors(comp: JitErrorsCompiler): string {
-        return `if (typeof ${comp.vλl} !== 'boolean') utl.err(${comp.args.εrr},${getJitErrorPath(comp)},${getExpected(this)})`;
+        return `if (typeof ${comp.vλl} !== 'boolean') ${comp.callJitErr(getExpected(this))}`;
     }
     _compileJsonStringify(comp: JitErrorsCompiler): string {
         return `(${comp.vλl} ? 'true' : 'false')`;
