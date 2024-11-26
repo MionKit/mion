@@ -26,6 +26,4 @@ export class CallSignatureRunType extends FunctionRunType<TypeCallSignature> imp
     getChildLiteral = () => '""';
     useArrayAccessor = () => false;
     isOptional = () => false;
-    skipSettingAccessor = () => false;
-    isRootVal = () => false;
 }

@@ -123,7 +123,7 @@ export function getParamIndex(src: TypeParameter): number {
     return 0;
 }
 
-export function childIsExpression(comp: JitCompiler, fnId: JitFnID, child: BaseRunType): boolean {
+export function childIsExpression(fnId: JitFnID, child: BaseRunType): boolean {
     return child.jitFnIsExpression(fnId) || !child.isJitInlined();
 }
 

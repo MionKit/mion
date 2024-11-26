@@ -86,7 +86,7 @@ export class UnionRunType extends CollectionRunType<TypeUnion> {
             .map((child, i) => {
                 const iF = i === 0 ? 'if' : 'else if';
                 const childCode = child.getJitConstants().skipJsonEncode ? '' : child.compileJsonEncode(comp);
-                const isExpression = childIsExpression(comp, JitFnIDs.jsonEncode, child);
+                const isExpression = childIsExpression(JitFnIDs.jsonEncode, child);
                 const encodeCode = isExpression && childCode ? `${comp.vλl} = ${childCode};` : childCode;
                 const itemIsType = this.getChildStrictIsType(child, comp);
                 // item encoded before reassigning varName to [i, item]
@@ -116,7 +116,7 @@ export class UnionRunType extends CollectionRunType<TypeUnion> {
             .map((child, i) => {
                 const iF = i === 0 ? 'if' : 'else if';
                 const childCode = child.getJitConstants().skipJsonDecode ? '' : child.compileJsonDecode(comp);
-                const isExpression = childIsExpression(comp, JitFnIDs.jsonDecode, child);
+                const isExpression = childIsExpression(JitFnIDs.jsonDecode, child);
                 const code = isExpression && childCode && childCode !== comp.vλl ? `${comp.vλl} = ${childCode}` : childCode;
                 // item is decoded before being extracted from the array
                 return `${iF} ( ${decVar} === ${i}) {${comp.vλl} = ${comp.vλl}[1];${code}}`;

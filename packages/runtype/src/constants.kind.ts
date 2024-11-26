@@ -50,18 +50,19 @@ export const ReflectionKindName: {[key: number]: keyof typeof ReflectionKind} = 
 // ReflectionKind from deepkit is extended with the following sub kinds
 export const ReflectionSubKind = {
     // group of sub-kinds that extends ReflectionKind.class
-    date: 20_001,
-    map: 20_002,
-    set: 20_003,
+    date: 20_01,
+    map: 20_02,
+    set: 20_03,
 
-    functionParams: 17_001,
+    functionParams: 17_01,
+    indexedMember: 18_01,
 } as const;
 
 export const ReflectionSubNames: {[key: number]: keyof typeof ReflectionSubKind} = {
-    20_001: 'date',
-    20_002: 'map',
-    20_003: 'set',
-    17_001: 'functionParams',
+    20_01: 'date',
+    20_02: 'map',
+    20_03: 'set',
+    17_01: 'functionParams',
 } as const;
 
 type AnyKindName = keyof typeof ReflectionKind | keyof typeof ReflectionSubKind;

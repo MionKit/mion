@@ -58,7 +58,7 @@ export class PropertyRunType extends MemberRunType<TypePropertySignature | TypeP
         const child = this.getJsonEncodeChild();
         if (!child) return '';
         const childCode = child.compileJsonEncode(comp);
-        const isExpression = childIsExpression(comp, JitFnIDs.jsonEncode, child);
+        const isExpression = childIsExpression(JitFnIDs.jsonEncode, child);
         const code = isExpression ? `${comp.getChildVλl()} = ${childCode};` : childCode;
         if (this.src.optional) return `if (${comp.getChildVλl()} !== undefined) {${code}}`;
         return code;
@@ -67,7 +67,7 @@ export class PropertyRunType extends MemberRunType<TypePropertySignature | TypeP
         const child = this.getJsonDecodeChild();
         if (!child) return '';
         const childCode = child.compileJsonDecode(comp);
-        const isExpression = childIsExpression(comp, JitFnIDs.jsonDecode, child);
+        const isExpression = childIsExpression(JitFnIDs.jsonDecode, child);
         const code = isExpression ? `${comp.getChildVλl()} = ${childCode};` : childCode;
         if (this.src.optional) return `if (${comp.getChildVλl()} !== undefined) {${code}}`;
         return code;

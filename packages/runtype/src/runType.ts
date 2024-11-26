@@ -94,8 +94,6 @@ export function createRunType(deepkitType: Mutable<SrcType>): RunType {
                 deepkitType.subKind = ReflectionSubKind.date;
                 rt = new DateRunType();
             } else if (deepkitType.classType === Map) {
-                if (deepkitType.arguments?.length !== 2)
-                    throw new Error('Map type must have two arguments, ie: Map<string, number>');
                 deepkitType.subKind = ReflectionSubKind.map;
                 rt = new MapRunType();
             } else if (deepkitType.classType === Set) {

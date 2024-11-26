@@ -80,7 +80,7 @@ export class IndexSignatureRunType extends MemberRunType<TypeIndexSignature> {
         const prop = this.getChildVarName();
         const skipCode = this.getSkipCode(prop);
         const childCode = child.compileJsonEncode(comp);
-        const isExpression = childIsExpression(comp, JitFnIDs.jsonEncode, child);
+        const isExpression = childIsExpression(JitFnIDs.jsonEncode, child);
         const code = isExpression ? `${comp.getChildVλl()} = ${childCode};` : childCode;
         return `for (const ${prop} in ${varName}){${skipCode} ${code}}`;
     }
@@ -91,7 +91,7 @@ export class IndexSignatureRunType extends MemberRunType<TypeIndexSignature> {
         const prop = this.getChildVarName();
         const skipCode = this.getSkipCode(prop);
         const childCode = child.compileJsonDecode(comp);
-        const isExpression = childIsExpression(comp, JitFnIDs.jsonDecode, child);
+        const isExpression = childIsExpression(JitFnIDs.jsonDecode, child);
         const code = isExpression ? `${comp.getChildVλl()} = ${childCode};` : childCode;
         return `for (const ${prop} in ${varName}){${skipCode} ${code}}`;
     }

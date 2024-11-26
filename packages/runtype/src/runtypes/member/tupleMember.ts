@@ -46,7 +46,7 @@ export class TupleMemberRunType extends MemberRunType<TypeTupleMember> {
         const child = this.getJsonEncodeChild();
         if (!child) return this.isOptional() ? `if (${comp.getChildVλl()} === undefined ) {${comp.getChildVλl()} = null}` : '';
         const childCode = child.compileJsonEncode(comp);
-        const isExpression = childIsExpression(comp, JitFnIDs.jsonEncode, child);
+        const isExpression = childIsExpression(JitFnIDs.jsonEncode, child);
         const code = isExpression ? `${comp.getChildVλl()} = ${childCode};` : childCode;
         return this.isOptional()
             ? `if (${comp.getChildVλl()} === undefined ) {${comp.getChildVλl()} = null} else {${code}}`
@@ -56,7 +56,7 @@ export class TupleMemberRunType extends MemberRunType<TypeTupleMember> {
         const child = this.getJsonDecodeChild();
         if (!child) return this.isOptional() ? `if (${comp.getChildVλl()} === null ) {${comp.getChildVλl()} = undefined}` : '';
         const childCode = child.compileJsonDecode(comp);
-        const isExpression = childIsExpression(comp, JitFnIDs.jsonDecode, child);
+        const isExpression = childIsExpression(JitFnIDs.jsonDecode, child);
         const code = isExpression ? `${comp.getChildVλl()} = ${childCode};` : childCode;
         return this.isOptional()
             ? `if (${comp.getChildVλl()} === null ) {${comp.getChildVλl()} = undefined} else {${code}}`

@@ -6,13 +6,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {
-    ReflectionKind,
-    type TypeIndexSignature,
-    type TypeProperty,
-    type Type,
-    TypeParameter,
-} from './_deepkit/src/reflection/type';
+import {ReflectionKind, type TypeIndexSignature, type TypeProperty, type Type} from './_deepkit/src/reflection/type';
 import type {
     MockOperation,
     RunType,
@@ -23,6 +17,8 @@ import type {
     CompiledOperation,
     MockOptions,
     SrcType,
+    SrcMember,
+    SrcCollection,
 } from '../types';
 import {getPropIndex, memorize, toLiteral} from './utils';
 import {
@@ -41,27 +37,24 @@ import {createJitIDHash, jitUtils} from './jitUtils';
 import {isMockContext} from './guards';
 import {defaultMockOptions} from '../constants.mock';
 
-type DkCollection = SrcType & {types: Type[]};
-type DkMember = SrcType<TypeParameter>;
-
 export abstract class BaseRunType<T extends Type = any> implements RunType {
     isCircular?: boolean;
     readonly src: SrcType<T> = null as any; // real value will be set after construction by the createRunType function
     abstract getFamily(): 'A' | 'C' | 'M' | 'F'; // Atomic, Collection, Member, Function
     abstract getJitConstants(stack?: RunType[]): JitConstants;
     abstract _mock(mockContext: MockOperation): any;
+
     isJitInlined = () => !(this.isCircular || (this.src.typeName && this.getFamily() === 'C'));
     getName = memorize((): string => getReflectionName(this));
     getJitId = () => this.getJitConstants().jitId;
     getJitHash = memorize((): string => createJitIDHash(this.getJitId().toString()));
-    getParent = (): RunType | undefined => (this.src.parent as SrcType)?._rt;
+    getParent = (): BaseRunType | undefined => (this.src.parent as SrcType)?._rt as BaseRunType;
     getNestLevel = memorize((): number => {
         if (this.isCircular) return 0; // circular references start a new context
         const parent = this.getParent() as BaseRunType<T>;
         if (!parent) return 0;
         return parent.getNestLevel() + 1;
     });
-
     getCircularJitConstants(stack: RunType[] = []): JitConstants | undefined {
         const inStackIndex = stack.findIndex((rt) => rt === this); // cant use isSameJitType because it uses getJitId and would loop forever
         const isInStack = inStackIndex >= 0; // recursive reference
@@ -76,10 +69,23 @@ export abstract class BaseRunType<T extends Type = any> implements RunType {
             };
         }
     }
-
+    //** method that should be called Immediately after the RunType gets created to link the SrcType and RunType */
     linkSrc(src: SrcType<any>): void {
         (this as Mutable<RunType>).src = src;
         (src as Mutable<SrcType>)._rt = this;
+    }
+    /**
+     * Some elements might need a standalone name variable that ignores the vλl value of the parents.
+     * returns a variable that is being compiled, ignores the parents variable names */
+    getStandaloneVλl(): string | undefined {
+        return undefined;
+    }
+    /**
+     * Some elements might need a custom static path to be able to reference the source of an error.
+     * ie: when validating a Map we need to differentiate if the value that failed is the  key or the value of a map's entry.
+     */
+    getStaticPathLiteral(): string | number | undefined {
+        return undefined;
     }
 
     // ########## Mock ##########
@@ -372,7 +378,7 @@ export abstract class CollectionRunType<T extends Type> extends BaseRunType<T> {
         return 'C';
     }
     getChildRunTypes = (): BaseRunType[] => {
-        const childTypes = ((this.src as DkCollection).types as SrcType[]) || []; // deepkit stores child types in the types property
+        const childTypes = ((this.src as SrcCollection).types as SrcType[]) || []; // deepkit stores child types in the types property
         return childTypes.map((t) => t._rt as BaseRunType);
     };
     getJitChildren(): BaseRunType[] {
@@ -450,7 +456,8 @@ export abstract class CollectionRunType<T extends Type> extends BaseRunType<T> {
         }
         const isArray = this.src.kind === ReflectionKind.tuple || this.src.kind === ReflectionKind.array;
         const groupID = isArray ? `[${childrenJitIds.join(',')}]` : `{${childrenJitIds.join(',')}}`;
-        jitCts.jitId = `${this.src.kind}${groupID}`;
+        const kind = this.src.subKind || this.src.kind;
+        jitCts.jitId = `${kind}${groupID}`;
         stack.pop();
 
         return jitCts;
@@ -461,7 +468,7 @@ export abstract class CollectionRunType<T extends Type> extends BaseRunType<T> {
  * RunType that contains a single member or child RunType. usually part of a collection RunType.
  * i.e object properties, {prop: memberType} where memberType is the child RunType
  */
-export abstract class MemberRunType<T extends Type> extends BaseRunType<T> implements RunTypeChildAccessor {
+export abstract class MemberRunType<T extends SrcMember> extends BaseRunType<T> implements RunTypeChildAccessor {
     abstract isOptional(): boolean;
     abstract getChildVarName(): string | number;
     abstract getChildLiteral(): string | number;
@@ -474,14 +481,11 @@ export abstract class MemberRunType<T extends Type> extends BaseRunType<T> imple
         return 'M';
     }
     getMemberType = (): BaseRunType => {
-        const memberType = (this.src as DkMember).type as SrcType; // deepkit stores member types in the type property
+        const memberType = this.src.type as SrcType; // deepkit stores member types in the type property
         return memberType._rt as BaseRunType;
     };
     getChildIndex(): number {
         return getPropIndex(this.src);
-    }
-    isRootVal(): boolean {
-        return false;
     }
     getJitChild(): BaseRunType | undefined {
         let member: BaseRunType | undefined = this.getMemberType();
@@ -500,9 +504,6 @@ export abstract class MemberRunType<T extends Type> extends BaseRunType<T> imple
     }
     getJitConstants(stack: BaseRunType[] = []): JitConstants {
         return this._getJitConstants(stack);
-    }
-    skipSettingAccessor(): boolean {
-        return false;
     }
     _compileHasUnknownKeys(comp: JitCompiler): string {
         const code = this.getJitChild()?.compileHasUnknownKeys(comp);
@@ -533,10 +534,14 @@ export abstract class MemberRunType<T extends Type> extends BaseRunType<T> imple
         const member = this.getMemberType();
         const memberValues = member.getJitConstants(stack);
         const optional = this.isOptional() ? '?' : '';
-        const id = (this.src as TypeProperty).name?.toString() || (this.src as TypeIndexSignature).index?.kind || this.src.kind;
+        const kind =
+            (this.src as TypeProperty).name?.toString() ||
+            (this.src as TypeIndexSignature).index?.kind ||
+            this.src.subKind ||
+            this.src.kind;
         const jitCts: Mutable<JitConstants> = {
             ...memberValues,
-            jitId: `${id}${optional}:${memberValues.jitId}`,
+            jitId: `${kind}${optional}:${memberValues.jitId}`,
         };
         stack.pop();
         return jitCts;

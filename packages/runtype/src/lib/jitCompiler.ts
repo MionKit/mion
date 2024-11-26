@@ -273,7 +273,10 @@ function getStackVλl(comp: BaseCompiler): string {
     let vλl = comp.args.vλl;
     for (let i = 0; i < comp.stack.length; i++) {
         const rt = comp.stack[i].rt;
-        if (isChildAccessorType(rt) && !rt.skipSettingAccessor()) {
+        const standaloneVλl = rt.getStandaloneVλl();
+        if (standaloneVλl) {
+            vλl = standaloneVλl;
+        } else if (isChildAccessorType(rt) && !rt.skipSettingAccessor?.()) {
             vλl += rt.useArrayAccessor() ? `[${rt.getChildLiteral()}]` : `.${rt.getChildVarName()}`;
         }
     }
@@ -283,7 +286,10 @@ function getStackStaticPath(comp: BaseCompiler): (string | number)[] {
     const path: (string | number)[] = [];
     for (let i = 0; i < comp.stack.length; i++) {
         const rt = comp.stack[i].rt;
-        if (isChildAccessorType(rt) && !rt.skipSettingAccessor()) {
+        const pathItem = rt.getStaticPathLiteral();
+        if (pathItem) {
+            path.push(pathItem);
+        } else if (isChildAccessorType(rt) && !rt.skipSettingAccessor?.()) {
             path.push(rt.getChildLiteral());
         }
     }

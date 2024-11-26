@@ -61,7 +61,7 @@ export class RestParamsRunType extends MemberRunType<TypeRest> {
         const child = this.getJsonEncodeChild();
         if (!child) return '';
         const childCode = child.compileJsonEncode(comp);
-        const isExpression = childIsExpression(comp, JitFnIDs.jsonEncode, child);
+        const isExpression = childIsExpression(JitFnIDs.jsonEncode, child);
         const code = isExpression ? `${comp.getChildVλl()} = ${childCode};` : childCode;
         return `for (let ${index} = ${this.getChildIndex()}; ${index} < ${comp.vλl}.length; ${index}++) {${code}}`;
     }
@@ -70,7 +70,7 @@ export class RestParamsRunType extends MemberRunType<TypeRest> {
         const child = this.getJsonDecodeChild();
         if (!child) return '';
         const childCode = child.compileJsonDecode(comp);
-        const isExpression = childIsExpression(comp, JitFnIDs.jsonDecode, child);
+        const isExpression = childIsExpression(JitFnIDs.jsonDecode, child);
         const code = isExpression ? `${comp.getChildVλl()} = ${childCode};` : childCode;
         return `for (let ${index} = ${this.getChildIndex()}; ${index} < ${comp.vλl}.length; ${index}++) {${code}}`;
     }

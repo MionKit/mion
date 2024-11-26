@@ -20,6 +20,8 @@ export type SrcType<T extends Type = Type> = T & {
     readonly _rt: RunType;
     readonly subKind?: SubKind;
 };
+export type SrcCollection = Type & {types: Type[]};
+export type SrcMember = Type & {type: Type};
 
 // on of the values of JitFnIDs object
 export type JitFnID = (typeof JitFnIDs)[keyof typeof JitFnIDs];
@@ -75,10 +77,7 @@ export interface RunTypeChildAccessor extends RunType {
     isOptional(): boolean;
     /** In Some situation (rest params) the access logic might be set in the child node instead the parent
      * so we want to skip setting the accessor in the parent.  */
-    skipSettingAccessor(): boolean;
-    /** Returns true if the parents accessor should be ignored, typically used when a temp variable is used.
-     * ie when accessing a Map entry: `for (let entry of Map){}` here any compiled children will use `entry` as the root path */
-    isRootVal(): boolean;
+    skipSettingAccessor?(): boolean;
 }
 
 export type JitConstants = {

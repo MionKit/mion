@@ -57,14 +57,14 @@ export class ParameterRunType extends MemberRunType<TypeParameter> {
         const child = this.getJsonEncodeChild();
         if (!child) return '';
         const childCode = child.compileJsonEncode(comp);
-        const isExpression = childIsExpression(comp, JitFnIDs.jsonEncode, child);
+        const isExpression = childIsExpression(JitFnIDs.jsonEncode, child);
         return isExpression ? `${comp.getChildVλl()} = ${childCode};` : childCode;
     }
     _compileJsonDecode(comp: JitCompiler): string {
         const child = this.getJsonDecodeChild();
         if (!child) return '';
         const childCode = child.compileJsonDecode(comp);
-        const isExpression = childIsExpression(comp, JitFnIDs.jsonDecode, child);
+        const isExpression = childIsExpression(JitFnIDs.jsonDecode, child);
         return isExpression ? `${comp.getChildVλl()} = ${childCode};` : childCode;
     }
     _compileJsonStringify(comp: JitCompiler): string {
@@ -90,7 +90,6 @@ export class ParameterRunType extends MemberRunType<TypeParameter> {
     _compileUnknownKeysToUndefined(): string {
         return '';
     }
-
     _mock(ctx: MockOperation): any {
         return this.getMemberType().mock(ctx);
     }
