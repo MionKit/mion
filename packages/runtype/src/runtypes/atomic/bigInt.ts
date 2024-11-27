@@ -7,7 +7,6 @@
 
 import {ReflectionKind, type TypeBigInt} from '../../lib/_deepkit/src/reflection/type';
 import type {JitJsonEncoder, MockOperation, JitConstants} from '../../types';
-import {getExpected} from '../../lib/utils';
 import {mockBigInt} from '../../lib/mock';
 import {AtomicRunType} from '../../lib/baseRunTypes';
 import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
@@ -25,7 +24,7 @@ export class BigIntRunType extends AtomicRunType<TypeBigInt> {
         return `typeof ${comp.vλl} === 'bigint'`;
     }
     _compileTypeErrors(comp: JitErrorsCompiler): string {
-        return `if (typeof ${comp.vλl} !== 'bigint') ${comp.callJitErr(getExpected(this))}`;
+        return `if (typeof ${comp.vλl} !== 'bigint') ${comp.callJitErr(this)}`;
     }
     _compileJsonEncode(comp: JitCompiler): string {
         return BigIntJitJsonENcoder.encodeToJson(comp.vλl);

@@ -10,7 +10,7 @@ import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
 import {JitConstants, JitFnID, MockOperation, Mutable, RunType} from '../../types';
 import {random} from '../../lib/mock';
 import {BaseRunType, CollectionRunType} from '../../lib/baseRunTypes';
-import {childIsExpression, getExpected, memorize} from '../../lib/utils';
+import {childIsExpression, memorize} from '../../lib/utils';
 import {InterfaceRunType} from './interface';
 import {ClassRunType} from './class';
 import {IntersectionRunType} from './intersection';
@@ -69,7 +69,7 @@ export class UnionRunType extends CollectionRunType<TypeUnion> {
     _compileTypeErrors(comp: JitErrorsCompiler): string {
         // TODO: enforce strictTypes to ensure no extra properties of the union go unchecked
         const isType = this.compileIsType(comp);
-        const code = `if (!${isType}) ${comp.callJitErr(getExpected(this))};`;
+        const code = `if (!${isType}) ${comp.callJitErr(this)};`;
         return code;
     }
 

@@ -9,7 +9,6 @@ import {TypeTuple} from '../../lib/_deepkit/src/reflection/type';
 import {CollectionRunType} from '../../lib/baseRunTypes';
 import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
 import {MockOperation} from '../../types';
-import {getExpected} from '../../lib/utils';
 
 export class TupleRunType extends CollectionRunType<TypeTuple> {
     _compileIsType(comp: JitCompiler): string {
@@ -24,7 +23,7 @@ export class TupleRunType extends CollectionRunType<TypeTuple> {
         const childrenCode = children.map((rt) => rt.compileTypeErrors(comp)).join(';');
         return `
             if (!Array.isArray(${varName}) || ${varName}.length > ${children.length}) {
-                ${comp.callJitErr(getExpected(this))};
+                ${comp.callJitErr(this)};
             } else {
                 ${childrenCode}
             }

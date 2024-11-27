@@ -18,6 +18,7 @@ import {
 } from '../constants';
 import {isChildAccessorType} from './guards';
 import {jitUtils} from './jitUtils';
+import {toLiteral} from './utils';
 
 export type StackItem = {
     /** current compile stack full variable accessor */
@@ -170,10 +171,11 @@ export class JitErrorsCompiler<ID extends JitFnID = any> extends BaseCompiler<ty
         const defaultValues = {...jitDefaultErrorArgs};
         super(rt, id, args, defaultValues, 'er', parentLength);
     }
-    callJitErr(expectedLiteral: string, extraPathLiteral?: string | number): string {
+    callJitErr(expected: string | number | BaseRunType, extraPathLiteral?: string | number): string {
+        const expectLiteral = typeof expected === 'object' ? toLiteral(expected.getName()) : toLiteral(expected);
         const extraPath = extraPathLiteral ? `,${extraPathLiteral}` : '';
         const pathItems = `[${this.getStackStaticPathArgs()}${extraPath}]`;
-        return `utl.err(${this.args.εrr},${this.args.pλth},${pathItems},${expectedLiteral})`;
+        return `utl.err(${this.args.εrr},${this.args.pλth},${pathItems},${expectLiteral})`;
     }
 }
 

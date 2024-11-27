@@ -74,10 +74,6 @@ export function isSameJitCompiler(a: JitCompiler, b: JitCompiler): boolean {
     return a.opId === b.opId && isSameJitType(a.rootType, b.rootType);
 }
 
-export function getExpected(rt: RunType): string {
-    return toLiteral(rt.getName());
-}
-
 export function memorize<Fn extends (...args: any[]) => any>(fn: Fn): Fn {
     let cached: undefined | any;
     return ((...args: any[]) => {

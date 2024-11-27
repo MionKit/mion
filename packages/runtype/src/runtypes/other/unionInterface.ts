@@ -13,7 +13,7 @@ import {
     TypeProperty,
 } from '../../lib/_deepkit/src/reflection/type';
 import type {MockOperation, Mutable, RunTypeChildAccessor, SrcType} from '../../types';
-import {getExpected, toLiteral, arrayToArgumentsLiteral} from '../../lib/utils';
+import {toLiteral, arrayToArgumentsLiteral} from '../../lib/utils';
 import {PropertyRunType} from '../member/property';
 import {IndexSignatureRunType} from '../member/indexProperty';
 import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
@@ -126,12 +126,10 @@ export class UnionInterfaceRunType extends InterfaceRunType<anySrcInterface> {
     }
     _compileTypeErrors(comp: JitErrorsCompiler): string {
         const varName = comp.vλl;
-        const childrenCode = this.mergedInterfaces.length
-            ? `if (!${this.compileIsType(comp)}) ${comp.callJitErr(getExpected(this))};`
-            : '';
+        const childrenCode = this.mergedInterfaces.length ? `if (!${this.compileIsType(comp)}) ${comp.callJitErr(this)};` : '';
         return `
             if (typeof ${varName} !== 'object' && ${varName} !== null) {
-                ${comp.callJitErr(getExpected(this))};
+                ${comp.callJitErr(this)};
             } else {
                 ${childrenCode}
             }

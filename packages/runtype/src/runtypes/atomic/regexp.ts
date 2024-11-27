@@ -7,7 +7,7 @@
 
 import {ReflectionKind, type TypeRegexp} from '../../lib/_deepkit/src/reflection/type';
 import type {JitJsonEncoder, MockOperation, JitConstants} from '../../types';
-import {getExpected} from '../../lib/utils';
+
 import {mockRegExp} from '../../lib/mock';
 import {AtomicRunType} from '../../lib/baseRunTypes';
 import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
@@ -25,7 +25,7 @@ export class RegexpRunType extends AtomicRunType<TypeRegexp> {
         return `(${comp.vλl} instanceof RegExp)`;
     }
     _compileTypeErrors(comp: JitErrorsCompiler): string {
-        return `if (!(${comp.vλl} instanceof RegExp)) ${comp.callJitErr(getExpected(this))}`;
+        return `if (!(${comp.vλl} instanceof RegExp)) ${comp.callJitErr(this)}`;
     }
     _compileJsonEncode(comp: JitCompiler): string {
         return RegexpJitJsonEncoder.encodeToJson(comp.vλl);

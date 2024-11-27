@@ -9,7 +9,6 @@ import {ReflectionKind, type TypeNever} from '../../lib/_deepkit/src/reflection/
 import {AtomicRunType} from '../../lib/baseRunTypes';
 import {JitErrorsCompiler} from '../../lib/jitCompiler';
 import {JitConstants} from '../../types';
-import {getExpected} from '../../lib/utils';
 
 const jitConstants: JitConstants = {
     skipJit: false,
@@ -23,7 +22,7 @@ export class NeverRunType extends AtomicRunType<TypeNever> {
         return 'false';
     }
     _compileTypeErrors(comp: JitErrorsCompiler): string {
-        return `${comp.callJitErr(getExpected(this))}`;
+        return `${comp.callJitErr(this)}`;
     }
     _compileJsonEncode(): string {
         throw new Error('Never type cannot be encoded to JSON.');

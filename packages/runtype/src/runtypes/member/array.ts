@@ -10,7 +10,7 @@ import {JitFnID, MockOperation} from '../../types';
 import {random} from '../../lib/mock';
 import {MemberRunType} from '../../lib/baseRunTypes';
 import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
-import {getExpected, shouldSkipJit, childIsExpression} from '../../lib/utils';
+import {shouldSkipJit, childIsExpression} from '../../lib/utils';
 import {JitFnIDs} from '../../constants';
 
 export class ArrayRunType extends MemberRunType<TypeArray> {
@@ -60,10 +60,10 @@ export class ArrayRunType extends MemberRunType<TypeArray> {
         const varName = comp.vλl;
         const index = this.getChildVarName();
         if (shouldSkipJit(this)) {
-            return `if (!Array.isArray(${varName})) ${comp.callJitErr(getExpected(this))};`;
+            return `if (!Array.isArray(${varName})) ${comp.callJitErr(this)};`;
         }
         return `
-            if (!Array.isArray(${varName})) ${comp.callJitErr(getExpected(this))};
+            if (!Array.isArray(${varName})) ${comp.callJitErr(this)};
             else {
                 for (let ${index} = 0; ${index} < ${varName}.length; ${index}++) {
                     ${this.getMemberType().compileTypeErrors(comp)}

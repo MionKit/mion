@@ -7,7 +7,7 @@
 
 import {ReflectionKind, type TypeSymbol} from '../../lib/_deepkit/src/reflection/type';
 import type {JitJsonEncoder, MockOperation, JitConstants} from '../../types';
-import {getExpected} from '../../lib/utils';
+
 import {mockSymbol} from '../../lib/mock';
 import {AtomicRunType} from '../../lib/baseRunTypes';
 import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
@@ -25,7 +25,7 @@ export class SymbolRunType extends AtomicRunType<TypeSymbol> {
         return `typeof ${comp.vλl} === 'symbol'`;
     }
     _compileTypeErrors(comp: JitErrorsCompiler): string {
-        return `if (typeof ${comp.vλl} !== 'symbol') ${comp.callJitErr(getExpected(this))}`;
+        return `if (typeof ${comp.vλl} !== 'symbol') ${comp.callJitErr(this)}`;
     }
     _compileJsonEncode(comp: JitCompiler): string {
         return SymbolJitJsonEncoder.encodeToJson(comp.vλl);

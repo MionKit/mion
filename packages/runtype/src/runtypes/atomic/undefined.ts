@@ -8,7 +8,7 @@
 import {ReflectionKind, type TypeUndefined} from '../../lib/_deepkit/src/reflection/type';
 import type {JitConstants} from '../../types';
 import {AtomicRunType} from '../../lib/baseRunTypes';
-import {getExpected} from '../../lib/utils';
+
 import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
 
 const jitConstants: JitConstants = {
@@ -24,7 +24,7 @@ export class UndefinedRunType extends AtomicRunType<TypeUndefined> {
         return `typeof ${comp.vλl} === 'undefined'`;
     }
     _compileTypeErrors(comp: JitErrorsCompiler): string {
-        return `if (typeof ${comp.vλl} !== 'undefined') ${comp.callJitErr(getExpected(this))}`;
+        return `if (typeof ${comp.vλl} !== 'undefined') ${comp.callJitErr(this)}`;
     }
     _compileJsonEncode(comp: JitCompiler): string {
         return `${comp.vλl} = null`;

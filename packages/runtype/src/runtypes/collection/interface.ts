@@ -12,7 +12,7 @@ import {
     ReflectionKind,
 } from '../../lib/_deepkit/src/reflection/type';
 import {MockOperation, RunType} from '../../types';
-import {getExpected, memorize, arrayToLiteral} from '../../lib/utils';
+import {memorize, arrayToLiteral} from '../../lib/utils';
 import {PropertyRunType} from '../member/property';
 import {CollectionRunType, MemberRunType} from '../../lib/baseRunTypes';
 import {MethodSignatureRunType} from '../member/methodSignature';
@@ -66,7 +66,7 @@ export class InterfaceRunType<
         }
         return `
             if (typeof ${varName} !== 'object' || ${varName} === null ${arrayCheck}) {
-                ${comp.callJitErr(getExpected(this))};
+                ${comp.callJitErr(this)};
             } else {
                 ${childrenCode}
             }
@@ -137,7 +137,7 @@ export class InterfaceRunType<
             const ${unknownVar} = ${this.callCheckUnknownProperties(comp, allJitChildren, true)};
             if (${unknownVar}) {
                 for (const ${keyVar} of ${unknownVar}) {
-                    ${comp.callJitErr(getExpected(this), keyVar)}
+                    ${comp.callJitErr(this, keyVar)}
                     delete ${comp.vλl}[${keyVar}]; // TODO: this is getting errors should not be deleting anything
                 }
             }

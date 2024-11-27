@@ -1,6 +1,6 @@
 import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
 import type {AnyFunction, MockOperation, SrcType} from '../../types';
-import {getExpected, toLiteral} from '../../lib/utils';
+import {toLiteral} from '../../lib/utils';
 import {ParameterRunType} from '../member/param';
 import {TypeFunction} from '../../lib/_deepkit/src/reflection/type';
 import {BaseRunType, CollectionRunType} from '../../lib/baseRunTypes';
@@ -66,7 +66,7 @@ export class FunctionParametersRunType<CallType extends AnyFunction = TypeFuncti
         const paramsCode = this.getParameterTypes()
             .map((p) => p.compileTypeErrors(comp))
             .join(';');
-        return `if (!Array.isArray(${comp.vλl})${checkLength}) ${comp.callJitErr(getExpected(this))};` + `else {${paramsCode}}`;
+        return `if (!Array.isArray(${comp.vλl})${checkLength}) ${comp.callJitErr(this)};` + `else {${paramsCode}}`;
     }
     _compileJsonEncode(comp: JitCompiler) {
         return this.compileParamsJsonDE(comp, true);
