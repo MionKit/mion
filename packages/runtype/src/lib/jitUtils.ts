@@ -6,6 +6,7 @@
  * ######## */
 import {maxUnknownKeys} from '../constants';
 import type {CompiledOperation, RunTypeError} from '../types';
+import type {BaseCompiler} from './jitCompiler';
 
 export type JITUtils = typeof jitUtils;
 
@@ -59,8 +60,20 @@ export const jitUtils = {
         }
     },
     // !!! DO NOT MODIFY METHOD WITHOUT REVIEWING JIT CODE INVOCATIONS!!!
-    addToJitCache(key: string, comp: CompiledOperation) {
-        jitCache.set(key, comp);
+    addToJitCache(key: string, comp: BaseCompiler) {
+        // TODO: atm we cant store the compiled version as the jit fn gets updated in the original object after the compilation ends, so we losing the reference to fn
+        // const compiled: CompiledOperation = {
+        //     fn: comp.fn!,
+        //     fnId: comp.fnId,
+        //     args: comp.args,
+        //     defaultParamValues: comp.defaultParamValues,
+        //     code: comp.code,
+        //     jitFnHash: comp.jitFnHash,
+        //     jitId: comp.jitId,
+        //     directDependencies: comp.directDependencies,
+        //     childDependencies: comp.childDependencies,
+        // };
+        jitCache.set(key, comp as CompiledOperation);
     },
     removeFromJitCache(key: string) {
         jitCache.delete(key);
@@ -182,3 +195,5 @@ export function createJitIDHash(jitId: string, length = hashDefaultLength): stri
     jitHashes.set(id, jitId);
     return id;
 }
+
+export const logJitCache = () => console.log(jitCache);

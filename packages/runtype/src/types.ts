@@ -6,10 +6,25 @@
  * ######## */
 
 import type {Type, TypeCallSignature, TypeFunction, TypeMethod, TypeMethodSignature} from './lib/_deepkit/src/reflection/type';
-import type {JitCompiler} from './lib/jitCompiler';
+import type {BaseCompiler} from './lib/jitCompiler';
 import type {JITUtils} from './lib/jitUtils';
 import type {JitFnIDs} from './constants';
 import type {ReflectionSubKind} from './constants.kind';
+
+/**
+ * Runtime Metadata for a typescript types.
+ */
+export interface RunType {
+    readonly src: SrcType<any>;
+    getName(): string;
+    getFamily(): 'A' | 'C' | 'M' | 'F'; // Atomic, Collection, Member, Function
+    mock: (options?: Partial<MockOptions>) => any;
+
+    // ######## JIT functions ########
+    getJitId(): string | number;
+    getJitHash: () => string;
+    createJitFunction(name: JitFnID): (...args: any[]) => any;
+}
 
 export type JSONValue = string | number | boolean | null | {[key: string]: JSONValue} | Array<JSONValue>;
 export type JSONString = string;
@@ -36,21 +51,6 @@ export type JitFnArgs = {
     /** Other argument names */
     [key: string]: string;
 };
-
-/**
- * Runtime Metadata for a typescript types.
- */
-export interface RunType {
-    readonly src: SrcType<any>;
-    getName(): string;
-    getFamily(): 'A' | 'C' | 'M' | 'F'; // Atomic, Collection, Member, Function
-    mock: (options?: Partial<MockOptions>) => any;
-
-    // ######## JIT functions ########
-    getJitId(): string | number;
-    getJitHash: () => string;
-    createJitFunction(name: JitFnID): (...args: any[]) => any;
-}
 
 export interface RunTypeChildAccessor extends RunType {
     /**
@@ -80,12 +80,18 @@ export interface RunTypeChildAccessor extends RunType {
     skipSettingAccessor?(): boolean;
 }
 
-export type JitConstants = {
+export interface JitConstants {
     readonly skipJit: boolean;
     readonly skipJsonEncode: boolean;
     readonly skipJsonDecode: boolean;
     readonly jitId: string | number;
-};
+}
+
+export interface CustomVλl {
+    vλl: string;
+    isStandalone?: boolean;
+    useArrayAccessor?: boolean;
+}
 
 export interface RunTypeOptions {
     /** slice parameters when parsing functions */
@@ -105,14 +111,14 @@ export type CodeUnit = 'EXPRESSION' | 'STATEMENT' | 'BLOCK';
 
 export interface CompiledOperation
     extends Pick<
-        JitCompiler,
-        'opId' | 'args' | 'defaultParamValues' | 'code' | 'jitFnHash' | 'jitId' | 'directDependencies' | 'childDependencies'
+        BaseCompiler,
+        'fnId' | 'args' | 'defaultParamValues' | 'code' | 'jitFnHash' | 'jitId' | 'directDependencies' | 'childDependencies'
     > {
     fn: (...args: any[]) => any;
 }
 
 export interface SerializableCompiledOperation
-    extends Pick<JitCompiler, 'opId' | 'args' | 'defaultParamValues' | 'code' | 'jitFnHash' | 'jitId'> {
+    extends Pick<BaseCompiler, 'fnId' | 'args' | 'defaultParamValues' | 'code' | 'jitFnHash' | 'jitId'> {
     dependencies: string[];
 }
 

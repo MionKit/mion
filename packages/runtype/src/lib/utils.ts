@@ -71,7 +71,7 @@ export function isSameJitType(a: RunType, b: RunType): boolean {
 }
 
 export function isSameJitCompiler(a: JitCompiler, b: JitCompiler): boolean {
-    return a.opId === b.opId && isSameJitType(a.rootType, b.rootType);
+    return a.fnId === b.fnId && isSameJitType(a.rootType, b.rootType);
 }
 
 export function memorize<Fn extends (...args: any[]) => any>(fn: Fn): Fn {

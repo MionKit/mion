@@ -210,7 +210,7 @@ export function isRunType(value: any): value is RunType {
 }
 
 export function isJitErrorsCompiler(value: BaseCompiler): value is JitErrorsCompiler {
-    return value.opId === JitFnIDs.typeErrors || value.opId === JitFnIDs.unknownKeyErrors;
+    return value.fnId === JitFnIDs.typeErrors || value.fnId === JitFnIDs.unknownKeyErrors;
 }
 
 export function isMockContext(k: Partial<MockOptions>): k is MockOperation {

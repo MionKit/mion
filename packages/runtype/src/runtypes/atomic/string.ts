@@ -7,7 +7,6 @@
 
 import {ReflectionKind, type TypeString} from '../../lib/_deepkit/src/reflection/type';
 import type {MockOperation, JitConstants} from '../../types';
-
 import {mockString, random} from '../../lib/mock';
 import {AtomicRunType} from '../../lib/baseRunTypes';
 import {stringCharSet} from '../../constants.mock';

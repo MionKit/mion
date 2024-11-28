@@ -5,6 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 import {JitFnIDs} from '../../constants';
+import {logJitCache} from '../../lib/jitUtils';
 import {runType} from '../../runType';
 
 interface SmallObject {
@@ -12,6 +13,7 @@ interface SmallObject {
     prop2: number;
     prop3: boolean;
     prop4?: Date;
+    prop5?: bigint;
 }
 
 const testMap = new Map<string, number>([
@@ -25,6 +27,7 @@ const rt = runType<Map<string, number>>();
 const testMapStringSmallObject = new Map<string, SmallObject>([
     ['key1', {prop1: 'value1', prop2: 1, prop3: true}],
     ['key2', {prop1: 'value2', prop2: 2, prop3: false, prop4: new Date()}],
+    ['key3', {prop1: 'value3', prop2: 3, prop3: true, prop5: BigInt(100)}],
 ]);
 
 const rtStringSmallObject = runType<Map<string, SmallObject>>();
@@ -35,6 +38,11 @@ interface DeepWithMap {
 }
 
 const rtDeepWithMap = runType<DeepWithMap>();
+
+function cloneMap<K, V>(map: Map<K, V>): Map<K, V> {
+    const copyEntries = Array.from(map.entries()).map(([k, v]) => [structuredClone(k), structuredClone(v)] as [K, V]);
+    return new Map(copyEntries);
+}
 
 it('validate Map', () => {
     const validate = rt.createJitFunction(JitFnIDs.isType);
@@ -72,7 +80,7 @@ it('validate Map<string, SmallObject>', () => {
     expect(validate(testMapStringSmallObject)).toBe(true);
 
     const notMap = 'hello';
-    const wrongKey = new Map([[1, testMapStringSmallObject]]);
+    const wrongKey = new Map([[1, {prop1: 'value1', prop2: 1, prop3: true}]]);
     const wrongValue = new Map([['one', {prop1: 'value1'}]]); // missing prop2 and prop3
     expect(validate(notMap)).toBe(false);
     expect(validate(wrongKey)).toBe(false);
@@ -97,95 +105,59 @@ it('validate Map + errors', () => {
     expect(valWithErrors(wrongValue)).toEqual([{path: [['val', 'one']], expected: 'number'}]);
 });
 
-// it('encode/decode Map to json', () => {
-//     const toJson = rt.createJitFunction(JitFnIDs.jsonEncode);
-//     // Should serialize the Map as an array of entries
-//     const serialized = toJson(testMap);
-//     const restored = JSON.parse(JSON.stringify(serialized));
-//     expect(restored).toEqual(Array.from(testMap.entries()));
-// });
+it('encode/decode Map to json', () => {
+    const toJson = rt.createJitFunction(JitFnIDs.jsonEncode);
+    const fromJson = rt.createJitFunction(JitFnIDs.jsonDecode);
 
-// it('json stringify Map', () => {
-//     const jsonStringify = rt.createJitFunction(JitFnIDs.jsonStringify);
-//     // Should serialize the Map as an array of entries
-//     const jsonString = jsonStringify(testMap);
-//     const restored = JSON.parse(jsonString);
-//     expect(restored).toEqual(Array.from(testMap.entries()));
-// });
+    // the encode/decode operations are destructive, so we need to clone the map
+    const mapCopy = cloneMap(testMap);
+    const encoded = toJson(mapCopy);
+    const stringified = JSON.stringify(encoded);
+    const decoded = fromJson(JSON.parse(stringified));
 
-// it('Maps cannot be decoded', () => {
-//     expect(() => rt.createJitFunction(JitFnIDs.jsonDecode)).toThrow(`Maps cannot be deserialized.`);
-// });
+    expect(decoded).toEqual(testMap);
+});
 
-// it('mock Map', () => {
-//     const mock = rt.mock();
-//     const validate = rt.createJitFunction(JitFnIDs.isType);
-//     expect(mock instanceof Map).toBeTruthy();
-//     expect(validate(mock)).toBe(true);
-// });
+it('encode/decode Map<string, SmallObject> to json', () => {
+    const toJson = rtStringSmallObject.createJitFunction(JitFnIDs.jsonEncode);
+    const fromJson = rtStringSmallObject.createJitFunction(JitFnIDs.jsonDecode);
 
-// it.todo('decide how to handle Maps in jit functions, whether to include methods or not');
+    // the encode/decode operations are destructive, so we need to clone the map
+    const mapCopy = cloneMap(testMapStringSmallObject);
+    const encoded = toJson(mapCopy);
+    const stringified = JSON.stringify(encoded);
+    const decoded = fromJson(JSON.parse(stringified));
+    expect(decoded).toEqual(testMapStringSmallObject);
+});
 
-// it('validate Map<string, SmallObject> + errors', () => {
-//     const valWithErrors = rtStringSmallObject.createJitFunction(JitFnIDs.typeErrors);
-//     expect(valWithErrors(testMapStringSmallObject)).toEqual([]);
-// });
+it('json stringify Map', () => {
+    const jsonStringify = rt.createJitFunction(JitFnIDs.jsonStringify);
+    const fromJson = rt.createJitFunction(JitFnIDs.jsonDecode);
+    // Should serialize the Map as an array of entries
+    const mapCopy = cloneMap(testMap);
+    const jsonString = jsonStringify(mapCopy);
+    const restored = fromJson(JSON.parse(jsonString));
+    expect(restored).toEqual(testMap);
+});
 
-// it('encode/decode Map<string, SmallObject> to json', () => {
-//     const toJson = rtStringSmallObject.createJitFunction(JitFnIDs.jsonEncode);
-//     const serialized = toJson(testMapStringSmallObject);
-//     const restored = JSON.parse(JSON.stringify(serialized));
-//     expect(restored).toEqual(Array.from(testMapStringSmallObject.entries()));
-// });
+it('json stringify Map<string, SmallObject>', () => {
+    const jsonStringify = rtStringSmallObject.createJitFunction(JitFnIDs.jsonStringify);
+    const fromJson = rtStringSmallObject.createJitFunction(JitFnIDs.jsonDecode);
+    // Should serialize the Map as an array of entries
+    const mapCopy = cloneMap(testMapStringSmallObject);
+    const jsonString = jsonStringify(mapCopy);
+    const restored = fromJson(JSON.parse(jsonString));
+    expect(restored).toEqual(testMapStringSmallObject);
+});
 
-// it('json stringify Map<string, SmallObject>', () => {
-//     const jsonStringify = rtStringSmallObject.createJitFunction(JitFnIDs.jsonStringify);
-//     const jsonString = jsonStringify(testMapStringSmallObject);
-//     const restored = JSON.parse(jsonString);
-//     expect(restored).toEqual(Array.from(testMapStringSmallObject.entries()));
-// });
+it('mock Map', () => {
+    const mock = rt.mock();
+    const validate = rt.createJitFunction(JitFnIDs.isType);
+    expect(mock instanceof Map).toBeTruthy();
+    expect(validate(mock)).toBe(true);
+});
 
-// it('mock Map<string, SmallObject>', () => {
-//     const mock = rtStringSmallObject.mock();
-//     const validate = rtStringSmallObject.createJitFunction(JitFnIDs.isType);
-//     expect(mock instanceof Map).toBeTruthy();
-//     expect(validate(mock)).toBe(true);
-// });
-
-// const testMapSmallObjectDate = new Map<SmallObject, Date>([
-//     [{prop1: 'value1', prop2: 1, prop3: true}, new Date()],
-//     [{prop1: 'value2', prop2: 2, prop3: false}, new Date()],
-// ]);
-
-// const rtSmallObjectDate = runType<Map<SmallObject, Date>>();
-
-// it('validate Map<SmallObject, Date>', () => {
-//     const validate = rtSmallObjectDate.createJitFunction(JitFnIDs.isType);
-//     expect(validate(testMapSmallObjectDate)).toBe(true);
-// });
-
-// it('validate Map<SmallObject, Date> + errors', () => {
-//     const valWithErrors = rtSmallObjectDate.createJitFunction(JitFnIDs.typeErrors);
-//     expect(valWithErrors(testMapSmallObjectDate)).toEqual([]);
-// });
-
-// it('encode/decode Map<SmallObject, Date> to json', () => {
-//     const toJson = rtSmallObjectDate.createJitFunction(JitFnIDs.jsonEncode);
-//     const serialized = toJson(testMapSmallObjectDate);
-//     const restored = JSON.parse(JSON.stringify(serialized));
-//     expect(restored).toEqual(Array.from(testMapSmallObjectDate.entries()));
-// });
-
-// it('json stringify Map<SmallObject, Date>', () => {
-//     const jsonStringify = rtSmallObjectDate.createJitFunction(JitFnIDs.jsonStringify);
-//     const jsonString = jsonStringify(testMapSmallObjectDate);
-//     const restored = JSON.parse(jsonString);
-//     expect(restored).toEqual(Array.from(testMapSmallObjectDate.entries()));
-// });
-
-// it('mock Map<SmallObject, Date>', () => {
-//     const mock = rtSmallObjectDate.mock();
-//     const validate = rtSmallObjectDate.createJitFunction(JitFnIDs.isType);
-//     expect(mock instanceof Map).toBeTruthy();
-//     expect(validate(mock)).toBe(true);
-// });
+afterAll(() => {
+    logJitCache();
+    logJitCache();
+});

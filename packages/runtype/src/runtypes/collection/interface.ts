@@ -91,7 +91,7 @@ export class InterfaceRunType<
     }
     _compileJsonStringify(comp: JitCompiler): string {
         if (this.isCallable()) return this.getCallSignature()!._compileJsonStringify();
-        const children = this.getJsonStringifyChildren() as MemberRunType<any>[];
+        const children = this.getJsonStringifyChildren();
         if (children.length === 0) return `''`;
         const allOptional = children.every((prop) => (prop as MemberRunType<any>).isOptional());
         // if all properties are optional,  we can not optimize and use JSON.stringify
@@ -181,6 +181,17 @@ export class InterfaceRunType<
             else obj[name] = prop.mock(ctx as MockOperation);
         });
         return obj;
+    }
+
+    // In order to json stringify to work properly optional properties must come first
+    getJsonStringifyChildren(): MemberRunType<any>[] {
+        return this.getJitChildren().sort((a, b) => {
+            const aOptional = a instanceof MemberRunType && a.isOptional();
+            const bOptional = b instanceof MemberRunType && b.isOptional();
+            if (aOptional && !bOptional) return -1;
+            if (!aOptional && bOptional) return 1;
+            return 0;
+        }) as MemberRunType<any>[];
     }
 
     private callCheckUnknownProperties(comp: JitCompiler, childrenRunTypes: RunType[], returnKeys: boolean): string {

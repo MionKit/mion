@@ -35,17 +35,17 @@ export type JitDependencies = Set<string>;
 export class BaseCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extends JitFnID = any> {
     constructor(
         public readonly rootType: BaseRunType,
-        public readonly opId: ID,
+        public readonly fnId: ID,
         public readonly args: FnArgsNames,
         /** when creating the function it might have default values */
         public readonly defaultParamValues: Record<keyof FnArgsNames, string | null>,
         public readonly returnName: string,
         public readonly parentLength: number = 0
     ) {
-        this.jitFnHash = getJITFnHash(this.opId, this.rootType);
+        this.jitFnHash = getJITFnHash(this.fnId, this.rootType);
         this.jitId = this.rootType.getJitId();
         this.vλl = this.args.vλl;
-        jitUtils.addToJitCache(this.jitFnHash, this as CompiledOperation);
+        jitUtils.addToJitCache(this.jitFnHash, this);
     }
     readonly jitId: string | number;
     readonly jitFnHash: string;
@@ -107,9 +107,9 @@ export class BaseCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extends 
             try {
                 return compileFunction(this); // add the compiled function to jit cache
             } catch (e: any) {
-                const fnCode = ` Code:\nfunction ${this.opId}(){${this.code}}`;
+                const fnCode = ` Code:\nfunction ${this.fnId}(){${this.code}}`;
                 const name = `(${this.rootType.getName()}:${this.rootType.getJitId()})`;
-                throw new Error(`Error building ${this.opId} JIT function for type ${name}: ${e?.message} \n${fnCode}`);
+                throw new Error(`Error building ${this.fnId} JIT function for type ${name}: ${e?.message} \n${fnCode}`);
             }
         }
     }
@@ -280,9 +280,11 @@ function getStackVλl(comp: BaseCompiler): string {
     let vλl = comp.args.vλl;
     for (let i = 0; i < comp.stack.length; i++) {
         const rt = comp.stack[i].rt;
-        const standaloneVλl = rt.getStandaloneVλl();
-        if (standaloneVλl) {
-            vλl = standaloneVλl;
+        const custom = rt.getCustomVλl(comp.fnId);
+        if (custom && custom.isStandalone) {
+            vλl = custom.vλl;
+        } else if (custom) {
+            vλl += custom.useArrayAccessor ? `[${custom.vλl}]` : `.${custom.vλl}`;
         } else if (isChildAccessorType(rt) && !rt.skipSettingAccessor?.()) {
             vλl += rt.useArrayAccessor() ? `[${rt.getChildLiteral()}]` : `.${rt.getChildVarName()}`;
         }
@@ -293,7 +295,7 @@ function getStackStaticPath(comp: BaseCompiler): (string | number)[] {
     const path: (string | number)[] = [];
     for (let i = 0; i < comp.stack.length; i++) {
         const rt = comp.stack[i].rt;
-        const pathItem = rt.getStaticPathLiteral();
+        const pathItem = rt.getStaticPathLiteral(comp.fnId);
         if (pathItem) {
             path.push(pathItem);
         } else if (isChildAccessorType(rt) && !rt.skipSettingAccessor?.()) {

@@ -25,6 +25,9 @@ import {MethodSignatureRunType} from '../member/methodSignature';
 
 type anySrcInterface = TypeObjectLiteral | TypeClass | TypeIntersection;
 
+// TODO: THIS IS A WORK IN PROGRESS, not used atm. need to investigate how to improve union isType and jsonEncode
+// https://github.com/orgs/MionKit/projects/3/views/1?pane=issue&itemId=88057141
+
 /** Merges multiple interfaces into one. */
 export class UnionInterfaceRunType extends InterfaceRunType<anySrcInterface> {
     mergedInterfaces: InterfaceRunType[] = [];

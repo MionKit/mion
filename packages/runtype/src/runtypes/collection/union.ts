@@ -27,10 +27,12 @@ import {UnionInterfaceRunType} from '../other/unionInterface';
  * */
 export class UnionRunType extends CollectionRunType<TypeUnion> {
     getJitConstants(stack: BaseRunType[] = []): JitConstants {
-        const jc = super.getJitConstants(stack) as Mutable<JitConstants>;
-        jc.skipJsonDecode = false;
-        jc.skipJsonEncode = false;
-        return jc;
+        return {
+            ...(super.getJitConstants(stack) as Mutable<JitConstants>),
+            skipJit: false,
+            skipJsonDecode: false,
+            skipJsonEncode: false,
+        };
     }
     getJsonEncodeChildren(): BaseRunType[] {
         return this.getJitChildren();

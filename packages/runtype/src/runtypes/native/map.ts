@@ -4,30 +4,33 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
-import type {JitFnID, SrcType} from '../../types';
+import type {JitConstants, JitFnID, Mutable, SrcType} from '../../types';
 import {ClassRunType} from '../collection/class';
 import {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
 import {BaseRunType} from '../../lib/baseRunTypes';
 import {JitFnIDs} from '../../constants';
-import {memorize} from '../../lib/utils';
 import {BasicMemberRunType} from '../member/basicMember';
 import {ReflectionSubKind} from '../../constants.kind';
 import {ReflectionKind, TypeClass} from '../../lib/_deepkit/src/reflection/type';
 
-export class MapKeyRunType extends BasicMemberRunType<any> {
+class MapKeyRunType extends BasicMemberRunType<any> {
     index = 0;
-    getStaticPathLiteral(): string {
+    getStaticPathLiteral(fnId: JitFnID): string | number {
         const parent = this.getParent()!;
-        const keyRef = `${parent.getStandaloneVλl()}[0]`;
+        const custom = parent.getCustomVλl(fnId)!;
+        if (fnId === JitFnIDs.jsonDecode) return custom.vλl;
+        const keyRef = `${custom.vλl}[0]`;
         return `['key',${keyRef}]`;
     }
 }
 
-export class MapValueRunType extends BasicMemberRunType<any> {
+class MapValueRunType extends BasicMemberRunType<any> {
     index = 1;
-    getStaticPathLiteral(): string {
+    getStaticPathLiteral(fnId: JitFnID): string | number {
         const parent = this.getParent()!;
-        const keyRef = `${parent.getStandaloneVλl()}[0]`;
+        const custom = parent.getCustomVλl(fnId)!;
+        if (fnId === JitFnIDs.jsonDecode) return custom.vλl;
+        const keyRef = `${custom.vλl}[0]`;
         return `['val',${keyRef}]`;
     }
 }
@@ -36,7 +39,25 @@ export class MapRunType extends ClassRunType {
     keyRT = new MapKeyRunType();
     valueRT = new MapValueRunType();
     children = [this.keyRT, this.valueRT];
-    getStandaloneVλl = memorize(() => `me${this.getNestLevel()}`);
+    getCustomVλl(fnId: JitFnID) {
+        // jsonDecode is decoding a regular array so no need to use an special case for vλl as other operations
+        if (fnId === JitFnIDs.jsonDecode) return {vλl: `mi${this.getNestLevel()}`, isStandalone: false, useArrayAccessor: true};
+        // other operations use an special case for vλl where all parents are skipped
+        return {vλl: `me${this.getNestLevel()}`, isStandalone: true};
+    }
+    getJitConstants(stack: BaseRunType[] = []): JitConstants {
+        return {
+            ...(super.getJitConstants(stack) as Mutable<JitConstants>),
+            skipJsonEncode: false, // we need to be sure to parse all entries wen encoding
+            // is jsonDecode is not needed for children we just can assign the entries directly to a new Map
+        };
+    }
+    getJsonEncodeChildren(): BaseRunType[] {
+        return this.getJitChildren();
+    }
+    getJsonDecodeChildren(): BaseRunType[] {
+        return this.getJitChildren();
+    }
     linkSrc(src: SrcType<TypeClass>): void {
         const mapTypes = src.arguments;
         if (!mapTypes || mapTypes.length !== 2) throw new Error('MapRunType expects 2 type arguments: ie: Map<string, number>');
@@ -64,15 +85,12 @@ export class MapRunType extends ClassRunType {
                 return true;
             case JitFnIDs.jsonStringify:
                 return true;
-            case JitFnIDs.hasUnknownKeys:
-                return true;
             default:
                 return super.jitFnHasReturn(fnId);
         }
     }
     _compileIsType(comp: JitCompiler): string {
-        // Compile the isType function for Map
-        const entry = this.getStandaloneVλl();
+        const entry = this.getCustomVλl(JitFnIDs.isType).vλl;
         const childrenCode = this.getJitChildren()
             .map((c) => `if (!(${c.compileIsType(comp)})) return false`)
             .join(';');
@@ -84,8 +102,7 @@ export class MapRunType extends ClassRunType {
     }
 
     _compileTypeErrors(comp: JitErrorsCompiler): string {
-        // Compile the typeErrors function for Map
-        const entry = this.getStandaloneVλl();
+        const entry = this.getCustomVλl(JitFnIDs.typeErrors).vλl;
         const childrenCode = this.getJitChildren()
             .map((c) => c.compileTypeErrors(comp))
             .join(';');
@@ -96,16 +113,55 @@ export class MapRunType extends ClassRunType {
     }
 
     _compileJsonEncode(comp: JitCompiler): string {
-        return `todo: ${comp.vλl}`;
+        const entry = this.getCustomVλl(JitFnIDs.jsonEncode).vλl;
+        const resName = `ml${this.getNestLevel()}`;
+        const childrenCode = this.getJsonEncodeChildren()
+            .map((c) => c.compileJsonEncode(comp))
+            .filter((c) => c)
+            .join(';');
+        return `
+            const ${resName} = [];
+            for (const ${entry} of ${comp.vλl}) {${childrenCode} ${resName}.push(${entry})}
+            ${comp.vλl} = ${resName};
+        `;
     }
 
     _compileJsonDecode(comp: JitCompiler): string {
-        return `todo: ${comp.vλl}`;
+        const skipKey = !this.keyRT.getJsonDecodeChild();
+        const skipValue = !this.valueRT.getJsonDecodeChild();
+        if (skipKey && skipValue) {
+            return `${comp.vλl} = new Map(${comp.vλl})`;
+        }
+        const index = this.getCustomVλl(JitFnIDs.jsonDecode).vλl;
+        const childrenCode = this.getJsonDecodeChildren()
+            .map((c) => c.compileJsonDecode(comp))
+            .filter((c) => c)
+            .join(';');
+        return `
+            for (let ${index} = 0; ${index} < ${comp.vλl}.length; ${index}++) {${childrenCode}}
+            ${comp.vλl} = new Map(${comp.vλl})
+        `;
     }
 
     _compileJsonStringify(comp: JitCompiler): string {
-        return `todo: ${comp.vλl}`;
+        const entry = this.getCustomVλl(JitFnIDs.jsonStringify).vλl;
+        const childrenCode = this.getJitChildren()
+            .map((c) => c.compileJsonStringify(comp))
+            .join('+');
+
+        const jsonItems = `ls${this.getNestLevel()}`;
+        const resultVal = `res${this.getNestLevel()}`;
+        return `
+            const ${jsonItems} = [];
+            for (const ${entry} of ${comp.vλl}) {
+                const ${resultVal} = '['+${childrenCode}+']';
+                ${jsonItems}.push(${resultVal});
+            }
+            return '[' + ${jsonItems}.join(',') + ']';
+        `;
     }
+
+    // TODO: Implement the following methods, shoild just call same compile method for children, look into to array run type
 
     _compileHasUnknownKeys(comp: JitCompiler): string {
         return `todo: ${comp.vλl}`;

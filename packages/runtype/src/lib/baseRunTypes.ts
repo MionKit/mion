@@ -19,6 +19,7 @@ import type {
     SrcType,
     SrcMember,
     SrcCollection,
+    CustomVλl,
 } from '../types';
 import {getPropIndex, memorize, toLiteral} from './utils';
 import {
@@ -43,7 +44,6 @@ export abstract class BaseRunType<T extends Type = any> implements RunType {
     abstract getFamily(): 'A' | 'C' | 'M' | 'F'; // Atomic, Collection, Member, Function
     abstract getJitConstants(stack?: RunType[]): JitConstants;
     abstract _mock(mockContext: MockOperation): any;
-
     isJitInlined = () => !(this.isCircular || (this.src.typeName && this.getFamily() === 'C'));
     getName = memorize((): string => getReflectionName(this));
     getJitId = () => this.getJitConstants().jitId;
@@ -69,7 +69,7 @@ export abstract class BaseRunType<T extends Type = any> implements RunType {
             };
         }
     }
-    //** method that should be called Immediately after the RunType gets created to link the SrcType and RunType */
+    /** method that should be called Immediately after the RunType gets created to link the SrcType and RunType */
     linkSrc(src: SrcType<any>): void {
         (this as Mutable<RunType>).src = src;
         (src as Mutable<SrcType>)._rt = this;
@@ -77,14 +77,14 @@ export abstract class BaseRunType<T extends Type = any> implements RunType {
     /**
      * Some elements might need a standalone name variable that ignores the vλl value of the parents.
      * returns a variable that is being compiled, ignores the parents variable names */
-    getStandaloneVλl(): string | undefined {
+    getCustomVλl(fnId: JitFnID): CustomVλl | undefined {
         return undefined;
     }
     /**
      * Some elements might need a custom static path to be able to reference the source of an error.
      * ie: when validating a Map we need to differentiate if the value that failed is the  key or the value of a map's entry.
      */
-    getStaticPathLiteral(): string | number | undefined {
+    getStaticPathLiteral(fnId: JitFnID): string | number | undefined {
         return undefined;
     }
 
@@ -220,36 +220,18 @@ export abstract class BaseRunType<T extends Type = any> implements RunType {
             code = this.callDependency(comp, compiledOp);
             comp.updateDependencies(compiledOp);
         } else {
+            // prettier-ignore
             switch (fnId) {
-                case JitFnIDs.isType:
-                    code = this._compileIsType(comp);
-                    break;
-                case JitFnIDs.typeErrors:
-                    code = this._compileTypeErrors(comp as JitErrorsCompiler);
-                    break;
-                case JitFnIDs.jsonEncode:
-                    code = this._compileJsonEncode(comp);
-                    break;
-                case JitFnIDs.jsonDecode:
-                    code = this._compileJsonDecode(comp);
-                    break;
-                case JitFnIDs.jsonStringify:
-                    code = this._compileJsonStringify(comp);
-                    break;
-                case JitFnIDs.unknownKeyErrors:
-                    code = this._compileUnknownKeyErrors(comp as JitErrorsCompiler);
-                    break;
-                case JitFnIDs.hasUnknownKeys:
-                    code = this._compileHasUnknownKeys(comp);
-                    break;
-                case JitFnIDs.stripUnknownKeys:
-                    code = this._compileStripUnknownKeys(comp);
-                    break;
-                case JitFnIDs.unknownKeysToUndefined:
-                    code = this._compileUnknownKeysToUndefined(comp);
-                    break;
-                default:
-                    throw new Error(`Unknown compile operation: ${fnId}`);
+                case JitFnIDs.isType: code = this._compileIsType(comp); break;
+                case JitFnIDs.typeErrors: code = this._compileTypeErrors(comp as JitErrorsCompiler); break;
+                case JitFnIDs.jsonEncode: code = this._compileJsonEncode(comp); break;
+                case JitFnIDs.jsonDecode: code = this._compileJsonDecode(comp); break;
+                case JitFnIDs.jsonStringify: code = this._compileJsonStringify(comp); break;
+                case JitFnIDs.unknownKeyErrors: code = this._compileUnknownKeyErrors(comp as JitErrorsCompiler); break;
+                case JitFnIDs.hasUnknownKeys: code = this._compileHasUnknownKeys(comp); break;
+                case JitFnIDs.stripUnknownKeys: code = this._compileStripUnknownKeys(comp); break;
+                case JitFnIDs.unknownKeysToUndefined: code = this._compileUnknownKeysToUndefined(comp); break;
+                default: throw new Error(`Unknown compile operation: ${fnId}`);
             }
             code = this.handleReturnValues(comp, fnId, code);
         }
@@ -259,7 +241,7 @@ export abstract class BaseRunType<T extends Type = any> implements RunType {
 
     callDependency(currentCop: JitCompiler, comp: CompiledOperation): string {
         const stackItem = currentCop.getCurrentStackItem();
-        const isErrorCall = comp.opId === JitFnIDs.typeErrors || comp.opId === JitFnIDs.unknownKeyErrors;
+        const isErrorCall = comp.fnId === JitFnIDs.typeErrors || comp.fnId === JitFnIDs.unknownKeyErrors;
         const args = isErrorCall ? jitErrorArgs : jitArgs;
         const argsCode = Object.entries(args)
             .map(([key, name]) => (key === 'vλl' ? stackItem.vλl : name))
@@ -396,16 +378,6 @@ export abstract class CollectionRunType<T extends Type> extends BaseRunType<T> {
     }
     getJsonDecodeChildren(): BaseRunType[] {
         return this.getJitChildren().filter((c) => !c.getJitConstants().skipJsonDecode);
-    }
-    // In order to json stringify to work properly optional properties must come first
-    getJsonStringifyChildren(): BaseRunType[] {
-        return this.getJitChildren().sort((a, b) => {
-            const aOptional = a instanceof MemberRunType && a.isOptional();
-            const bOptional = b instanceof MemberRunType && b.isOptional();
-            if (aOptional && !bOptional) return -1;
-            if (!aOptional && bOptional) return 1;
-            return 0;
-        });
     }
     getJitConstants(stack: BaseRunType[] = []): JitConstants {
         return this._getJitConstants(stack);
