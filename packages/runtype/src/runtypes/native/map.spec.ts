@@ -156,8 +156,3 @@ it('mock Map', () => {
     expect(mock instanceof Map).toBeTruthy();
     expect(validate(mock)).toBe(true);
 });
-
-afterAll(() => {
-    logJitCache();
-    logJitCache();
-});

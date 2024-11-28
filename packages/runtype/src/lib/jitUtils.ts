@@ -195,5 +195,3 @@ export function createJitIDHash(jitId: string, length = hashDefaultLength): stri
     jitHashes.set(id, jitId);
     return id;
 }
-
-export const logJitCache = () => console.log(jitCache);

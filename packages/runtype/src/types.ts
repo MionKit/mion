@@ -112,17 +112,25 @@ export type CodeUnit = 'EXPRESSION' | 'STATEMENT' | 'BLOCK';
 export interface CompiledOperation
     extends Pick<
         BaseCompiler,
-        'fnId' | 'args' | 'defaultParamValues' | 'code' | 'jitFnHash' | 'jitId' | 'directDependencies' | 'childDependencies'
+        | 'fnId'
+        | 'args'
+        | 'defaultParamValues'
+        | 'code'
+        | 'contextCode'
+        | 'jitFnHash'
+        | 'jitId'
+        | 'directDependencies'
+        | 'childDependencies'
     > {
     fn: (...args: any[]) => any;
 }
 
-export interface SerializableCompiledOperation
-    extends Pick<BaseCompiler, 'fnId' | 'args' | 'defaultParamValues' | 'code' | 'jitFnHash' | 'jitId'> {
+export interface SerializableJit extends Omit<CompiledOperation, 'fnId' | 'directDependencies' | 'childDependencies'> {
+    // combination of childDependencies and directDependencies
     dependencies: string[];
 }
 
-export type SerializedOperations = Record<string, SerializableCompiledOperation>;
+export type SerializedOperations = Record<string, SerializableJit>;
 
 export interface JitJsonEncoder {
     decodeFromJson: (vλl: string) => string;
