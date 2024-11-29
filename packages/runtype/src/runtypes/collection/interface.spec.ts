@@ -6,6 +6,7 @@
  * ######## */
 import {runType} from '../../runType';
 import {JitFnIDs} from '../../constants';
+import path from 'path';
 
 describe('Interface', () => {
     type ObjectType = {
@@ -375,7 +376,7 @@ describe('Interface with strict modes', () => {
         },
     };
 
-    it('validate object hasUnknownKeys', () => {
+    it('validate hasUnknownKeys', () => {
         const validate = rt.createJitFunction(JitFnIDs.isType);
         const hasUnknownKeys = rt.createJitFunction(JitFnIDs.hasUnknownKeys);
 
@@ -385,6 +386,20 @@ describe('Interface with strict modes', () => {
         expect(validate(objWithExtra)).toBe(true);
         expect(hasUnknownKeys(objWithExtra)).toBe(true);
         expect(hasUnknownKeys(objWithExtraDeep)).toBe(true);
+    });
+
+    it('get unknown keys', () => {
+        const getUnknownKeyErrors = rt.createJitFunction(JitFnIDs.unknownKeyErrors);
+        expect(getUnknownKeyErrors(obj)).toEqual([]);
+
+        // unknown key are always type 'never', we might want to investigate if returning other kind of error, as returning always same thing might be a bit useless
+        expect(getUnknownKeyErrors(objWithExtra)).toEqual([
+            {path: ['someExtra'], expected: 'never'},
+            {path: ['someExtra2'], expected: 'never'},
+            {path: ["extra weird prop name \n?>'\\\t\r"], expected: 'never'},
+            {path: ['deep', 'cExtra'], expected: 'never'},
+        ]);
+        expect(getUnknownKeyErrors(objWithExtraDeep)).toEqual([{path: ['deep', 'cExtra'], expected: 'never'}]);
     });
 
     it.todo('hasunknowkeys is generating code that is not needed, stringArray property generates extra function that is empty');

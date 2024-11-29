@@ -161,8 +161,9 @@ describe('test array strict modes', () => {
     arrWithExtraDeep[0].deep.extraB = 'extraB';
 
     const rt = runType<ObjTArr>();
+    const rtSimple = runType<string[]>();
 
-    it('validate object hasUnknownKeys', () => {
+    it('array hasUnknownKeys', () => {
         const validate = rt.createJitFunction(JitFnIDs.isType);
         const hasUnknownKeys = rt.createJitFunction(JitFnIDs.hasUnknownKeys);
 
@@ -170,6 +171,51 @@ describe('test array strict modes', () => {
         expect(hasUnknownKeys(arr)).toBe(false);
 
         expect(hasUnknownKeys(arrWithExtraDeep)).toBe(true);
+    });
+
+    it('simple array hasUnknownKeys on array with non objects', () => {
+        const validate = rtSimple.createJitFunction(JitFnIDs.isType);
+        const hasUnknownKeys = rtSimple.createJitFunction(JitFnIDs.hasUnknownKeys);
+
+        expect(hasUnknownKeys([])).toBe(false);
+        expect(hasUnknownKeys(['hello', 'world', {hello: 'world'}])).toBe(false);
+        expect(validate(['hello', 'world', {hello: 'world'}])).toBe(false); // is not string[]
+    });
+
+    it('array _compileUnknownKeyErrors', () => {
+        const validate = rt.createJitFunction(JitFnIDs.isType);
+        const getUnknownKeys = rt.createJitFunction(JitFnIDs.unknownKeyErrors);
+
+        expect(validate(arr)).toBe(true);
+        expect(getUnknownKeys(arr)).toEqual([]);
+
+        expect(validate(arrWithExtraDeep)).toBe(true); // type is ok but has unknown keys
+        expect(getUnknownKeys(arrWithExtraDeep)).toEqual([
+            {path: [0, 'extraA'], expected: 'never'},
+            {path: [0, 'deep', 'extraB'], expected: 'never'},
+        ]);
+    });
+
+    it('simple array _compileUnknownKeyErrors on array with non objects', () => {
+        const validate = rtSimple.createJitFunction(JitFnIDs.isType);
+        const getUnknownKeys = rtSimple.createJitFunction(JitFnIDs.unknownKeyErrors);
+
+        expect(getUnknownKeys([])).toEqual([]);
+        expect(getUnknownKeys(['hello', 'world', {hello: 'world'}])).toEqual([]);
+        expect(validate(['hello', 'world', {hello: 'world'}])).toBe(false); // is not string[]
+    });
+
+    it('simple array _compileStripUnknownKeys _compileUnknownKeysToUndefined', () => {
+        const stripUnknownKeys = rtSimple.createJitFunction(JitFnIDs.stripUnknownKeys);
+        const unknownKeysToUndefined = rtSimple.createJitFunction(JitFnIDs.unknownKeysToUndefined);
+        const validate = rtSimple.createJitFunction(JitFnIDs.isType);
+
+        const wrongArray = ['hello', 'world', {hello: 'world'}];
+        expect(validate(wrongArray)).toBe(false);
+
+        // should do nothing as there are no unknown keys even if type is wrong
+        expect(stripUnknownKeys(wrongArray)).toEqual(wrongArray);
+        expect(unknownKeysToUndefined(wrongArray)).toEqual(wrongArray);
     });
 
     it('encode/decode to json safeJson deep', () => {

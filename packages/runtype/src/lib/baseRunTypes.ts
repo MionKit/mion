@@ -104,14 +104,14 @@ export abstract class BaseRunType<T extends Type = any> implements RunType {
     private onCircularMock(ctx: MockOperation, recursionLevel): MockOperation {
         const maxDepth = ctx.maxMockRecursion;
         const divisor = recursionLevel;
-        const {optionalProbability, maxRandomArrayLength, optionalPropertyProbability, arrayLength} = ctx;
+        const {optionalProbability, maxRandomItemsLength: maxRandomArrayLength, optionalPropertyProbability, arrayLength} = ctx;
         const newProv = recursionLevel >= maxDepth ? 0 : optionalProbability / divisor;
         const newMaxLength = recursionLevel >= maxDepth ? 0 : Math.round(maxRandomArrayLength / divisor);
         // console.log(`divisor: ${divisor} | newMaxLength: ${newMaxLength} | newProv: ${newProv}`);
         const ret: MockOperation = {
             ...ctx,
             optionalProbability: newProv,
-            maxRandomArrayLength: newMaxLength,
+            maxRandomItemsLength: newMaxLength,
         };
         if (optionalPropertyProbability) {
             const entries = Object.entries(optionalPropertyProbability).map(([key, value]) => {

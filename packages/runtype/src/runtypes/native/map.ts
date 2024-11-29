@@ -4,7 +4,7 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
-import type {JitConstants, JitFnID, Mutable, SrcType} from '../../types';
+import type {JitConstants, JitFnID, MockOperation, Mutable, SrcType} from '../../types';
 import {ClassRunType} from '../collection/class';
 import {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
 import {BaseRunType} from '../../lib/baseRunTypes';
@@ -12,6 +12,7 @@ import {JitFnIDs} from '../../constants';
 import {BasicMemberRunType} from '../member/basicMember';
 import {ReflectionSubKind} from '../../constants.kind';
 import {ReflectionKind, TypeClass} from '../../lib/_deepkit/src/reflection/type';
+import {random} from '../../lib/mock';
 
 class MapKeyRunType extends BasicMemberRunType<any> {
     index = 0;
@@ -48,8 +49,8 @@ export class MapRunType extends ClassRunType {
     getJitConstants(stack: BaseRunType[] = []): JitConstants {
         return {
             ...(super.getJitConstants(stack) as Mutable<JitConstants>),
-            skipJsonEncode: false, // we need to be sure to parse all entries wen encoding
-            // is jsonDecode is not needed for children we just can assign the entries directly to a new Map
+            skipJsonEncode: false, // we always need to transform the map to an array when encoding
+            skipJsonDecode: false, // we always need to transform the array to a map when decoding
         };
     }
     getJsonEncodeChildren(): BaseRunType[] {
@@ -82,8 +83,8 @@ export class MapRunType extends ClassRunType {
     jitFnHasReturn(fnId: JitFnID): boolean {
         switch (fnId) {
             case JitFnIDs.isType:
-                return true;
             case JitFnIDs.jsonStringify:
+            case JitFnIDs.hasUnknownKeys:
                 return true;
             default:
                 return super.jitFnHasReturn(fnId);
@@ -129,9 +130,7 @@ export class MapRunType extends ClassRunType {
     _compileJsonDecode(comp: JitCompiler): string {
         const skipKey = !this.keyRT.getJsonDecodeChild();
         const skipValue = !this.valueRT.getJsonDecodeChild();
-        if (skipKey && skipValue) {
-            return `${comp.vλl} = new Map(${comp.vλl})`;
-        }
+        if (skipKey && skipValue) return `${comp.vλl} = new Map(${comp.vλl})`;
         const index = this.getCustomVλl(JitFnIDs.jsonDecode).vλl;
         const childrenCode = this.getJsonDecodeChildren()
             .map((c) => c.compileJsonDecode(comp))
@@ -148,7 +147,6 @@ export class MapRunType extends ClassRunType {
         const childrenCode = this.getJitChildren()
             .map((c) => c.compileJsonStringify(comp))
             .join('+');
-
         const jsonItems = `ls${this.getNestLevel()}`;
         const resultVal = `res${this.getNestLevel()}`;
         return `
@@ -164,35 +162,73 @@ export class MapRunType extends ClassRunType {
     // TODO: Implement the following methods, shoild just call same compile method for children, look into to array run type
 
     _compileHasUnknownKeys(comp: JitCompiler): string {
-        return `todo: ${comp.vλl}`;
+        const keyCode = this.keyRT.compileHasUnknownKeys(comp);
+        const valueCode = this.valueRT.compileHasUnknownKeys(comp);
+        if (!keyCode && !valueCode) return 'return false';
+        const entry = this.getCustomVλl(JitFnIDs.hasUnknownKeys).vλl;
+        return `
+            if (!(${comp.vλl} instanceof Map)) return false;
+            for (const ${entry} of ${comp.vλl}) {
+                ${keyCode ? `if (${keyCode}) return true;` : ''}
+                ${valueCode ? `if (${valueCode}) return true;` : ''}
+            }
+            return false;
+        `;
     }
 
-    _compileUnknownKeyErrors(comp: JitCompiler): string {
-        return `todo: ${comp.vλl}`;
+    _compileUnknownKeyErrors(comp: JitErrorsCompiler): string {
+        const keyCode = this.keyRT.compileUnknownKeyErrors(comp);
+        const valueCode = this.valueRT.compileUnknownKeyErrors(comp);
+        if (!keyCode && !valueCode) return '';
+        const varName = comp.vλl;
+        const entry = this.getCustomVλl(JitFnIDs.unknownKeyErrors).vλl;
+        return `
+            if (!(${varName} instanceof Map)) return;
+            for (const ${entry} of ${varName}) {
+                ${keyCode ? `${keyCode}` : ''}
+                ${valueCode ? `${valueCode}` : ''}
+            }
+        `;
     }
 
     _compileStripUnknownKeys(comp: JitCompiler): string {
-        return `todo: ${comp.vλl}`;
+        const keyCode = this.keyRT.compileStripUnknownKeys(comp);
+        const valueCode = this.valueRT.compileStripUnknownKeys(comp);
+        if (!keyCode && !valueCode) return '';
+        const varName = comp.vλl;
+        const entry = this.getCustomVλl(JitFnIDs.stripUnknownKeys).vλl;
+        return `
+            if (!(${varName} instanceof Map)) return;
+            for (const ${entry} of ${varName}) {
+                ${keyCode ? `${keyCode}` : ''}
+                ${valueCode ? `${valueCode}` : ''}
+            }
+        `;
     }
 
     _compileUnknownKeysToUndefined(comp: JitCompiler): string {
-        return `todo: ${comp.vλl}`;
+        const keyCode = this.keyRT.compileUnknownKeysToUndefined(comp);
+        const valueCode = this.valueRT.compileUnknownKeysToUndefined(comp);
+        if (!keyCode && !valueCode) return '';
+        const varName = comp.vλl;
+        const entry = this.getCustomVλl(JitFnIDs.unknownKeysToUndefined).vλl;
+        return `
+            if (!(${varName} instanceof Map)) return;
+            for (const ${entry} of ${varName}) {
+                ${keyCode ? `${keyCode}` : ''}
+                ${valueCode ? `${valueCode}` : ''}
+            }
+        `;
     }
 
-    _mock(): Map<any, any> {
-        // ctx: MockOperation
-        // Generate a mock Map
-        // const mockMap = new Map();
-        // const keyType = runType(this.src.typeArguments![0]);
-        // const valueType = runType(this.src.typeArguments![1]);
-        // // ...existing code...
-        // const size = ctx.faker.datatype.number({min: 1, max: 5});
-        // for (let i = 0; i < size; i++) {
-        //     const key = keyType.mock(ctx);
-        //     const value = valueType.mock(ctx);
-        //     mockMap.set(key, value);
-        // }
-        // return mockMap;
-        return new Map();
+    _mock(ctx: MockOperation): Map<any, any> {
+        const mockMap = new Map();
+        const length = ctx.arrayLength ?? random(0, ctx.maxRandomItemsLength);
+        for (let i = 0; i < length; i++) {
+            const keyType = this.keyRT.mock(ctx);
+            const valueType = this.valueRT.mock(ctx);
+            mockMap.set(keyType, valueType);
+        }
+        return mockMap;
     }
 }

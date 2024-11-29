@@ -5,7 +5,6 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 import {JitFnIDs} from '../../constants';
-import {logJitCache} from '../../lib/jitUtils';
 import {runType} from '../../runType';
 
 interface SmallObject {
@@ -149,6 +148,93 @@ it('json stringify Map<string, SmallObject>', () => {
     const restored = fromJson(JSON.parse(jsonString));
     expect(restored).toEqual(testMapStringSmallObject);
 });
+
+it('has unknown keys in Map<string, number>', () => {
+    const hasUnknownKeys = rt.createJitFunction(JitFnIDs.hasUnknownKeys);
+    const validate = rt.createJitFunction(JitFnIDs.isType);
+    const validMap = new Map<string, number>([
+        ['one', 1],
+        ['two', 2],
+    ]);
+    const mapWithWrongKeys = new Map<any, any>([
+        [1, 1],
+        [1, 2],
+        [3, 3],
+    ]);
+
+    expect(hasUnknownKeys(validMap)).toEqual(false);
+    // maps on itself never have unknown keys.
+    // A map can have invalid type keys but not unknown keys as map key are not strongly typed
+    expect(hasUnknownKeys(mapWithWrongKeys)).toBe(false);
+    expect(validate(mapWithWrongKeys)).toBe(false);
+});
+
+it('has unknown keys in Map<string, SmallObject>', () => {
+    const hasUnknownKeys = rtStringSmallObject.createJitFunction(JitFnIDs.hasUnknownKeys);
+    const validate = rtStringSmallObject.createJitFunction(JitFnIDs.isType);
+    const validMap = new Map<string, SmallObject>([
+        ['key1', {prop1: 'value1', prop2: 1, prop3: true}],
+        ['key2', {prop1: 'value2', prop2: 2, prop3: false}],
+    ]);
+    const mapWithUnknownKeys = new Map<string, any>([
+        ['key1', {prop1: 'value1', prop2: 1, prop3: true, unknownProp: 'test'}],
+        ['key2', {prop1: 'value2', prop2: 2, prop3: false}],
+    ]);
+
+    expect(hasUnknownKeys(validMap)).toBe(false);
+    expect(hasUnknownKeys(mapWithUnknownKeys)).toBe(true); // in this case the objects inside the map has unknown keys
+    expect(validate(mapWithUnknownKeys)).toBe(true); // objects inside the map are valid but have unknown keys
+});
+
+it('unknown key errors in Map<string, number>', () => {
+    const unknownKeyErrors = rt.createJitFunction(JitFnIDs.unknownKeyErrors);
+    const validMap = new Map<string, number>([
+        ['one', 1],
+        ['two', 2],
+    ]);
+    const mapWithUnknownKeys = new Map([
+        ['one', 1],
+        ['two', 2],
+        ['three', 3],
+    ]);
+
+    expect(unknownKeyErrors(validMap)).toEqual([]);
+    expect(unknownKeyErrors(mapWithUnknownKeys)).toEqual([]);
+});
+
+it('unknown key errors in Map<string, SmallObject>', () => {
+    const unknownKeyErrors = rtStringSmallObject.createJitFunction(JitFnIDs.unknownKeyErrors);
+    const validate = rtStringSmallObject.createJitFunction(JitFnIDs.isType);
+    const validMap = new Map<string, SmallObject>([['key1', {prop1: 'value1', prop2: 1, prop3: true}]]);
+    const mapWithUnknownKeys = new Map<string, any>([['key1', {prop1: 'value1', prop2: 1, prop3: true, unknownProp: 'test'}]]);
+
+    expect(unknownKeyErrors(validMap)).toEqual([]);
+    expect(unknownKeyErrors(mapWithUnknownKeys)).toEqual([{path: [['val', 'key1'], 'unknownProp'], expected: 'never'}]);
+    expect(validate(mapWithUnknownKeys)).toBe(true); // objects inside the map are valid but have unknown keys
+});
+
+it('strip unknown keys in Map<string, SmallObject>', () => {
+    const stripUnknownKeys = rtStringSmallObject.createJitFunction(JitFnIDs.stripUnknownKeys);
+    const mapWithUnknownKeys = new Map<string, any>([['key1', {prop1: 'value1', prop2: 1, prop3: true, unknownProp: 'test'}]]);
+
+    stripUnknownKeys(mapWithUnknownKeys);
+    expect(mapWithUnknownKeys.get('key1')).toEqual({prop1: 'value1', prop2: 1, prop3: true});
+});
+
+it('unknown keys to undefined in Map<string, SmallObject>', () => {
+    const unknownKeysToUndefined = rtStringSmallObject.createJitFunction(JitFnIDs.unknownKeysToUndefined);
+    const mapWithUnknownKeys = new Map<string, any>([['key1', {prop1: 'value1', prop2: 1, prop3: true, unknownProp: 'test'}]]);
+
+    unknownKeysToUndefined(mapWithUnknownKeys);
+    expect(mapWithUnknownKeys.get('key1')).toEqual({
+        prop1: 'value1',
+        prop2: 1,
+        prop3: true,
+        unknownProp: undefined,
+    });
+});
+
+// MOck should be working correctly
 
 it('mock Map', () => {
     const mock = rt.mock();

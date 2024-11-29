@@ -69,7 +69,7 @@ export const defaultMockOptions = {
     regexpList: mockRegExpsList,
     maxRandomStringLength: 100,
     stringCharSet,
-    maxRandomArrayLength: 60,
+    maxRandomItemsLength: 60,
     /** probability to generate options types, number between 0 and 1 */
     optionalProbability: 0.5,
     objectList: mockObjectList,

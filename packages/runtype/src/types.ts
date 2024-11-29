@@ -213,7 +213,7 @@ export interface MockOptions {
     symbolLength?: number;
     symbolCharSet?: string;
     symbolName?: string;
-    maxRandomArrayLength: number;
+    maxRandomItemsLength: number;
     arrayLength?: number;
     /** probability to generate options types, number between 0 and 1,
      * bigger values have bigger probability of generate the optional property */

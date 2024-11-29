@@ -40,9 +40,7 @@ export class IndexSignatureRunType extends MemberRunType<TypeIndexSignature> {
     jitFnHasReturn(fnId: JitFnID): boolean {
         switch (fnId) {
             case JitFnIDs.isType:
-                return true;
             case JitFnIDs.jsonStringify:
-                return true;
             case JitFnIDs.hasUnknownKeys:
                 return true;
             default:
@@ -55,7 +53,7 @@ export class IndexSignatureRunType extends MemberRunType<TypeIndexSignature> {
         if (!child) return 'true';
         const varName = comp.vλl;
         const prop = this.getChildVarName();
-        return `for (const ${prop} in ${varName}){if (!(${child.compileIsType(comp)})) return false;}return true;`;
+        return `for (const ${prop} in ${varName}){if (!(${child.compileIsType(comp)})) return false;} return true;`;
     }
     _compileTypeErrors(comp: JitErrorsCompiler): string {
         const child = this.getJitChild();
@@ -145,7 +143,7 @@ export class IndexSignatureRunType extends MemberRunType<TypeIndexSignature> {
         return `for (const ${prop} in ${comp.vλl}) {${memberCode}}`;
     }
     _mock(ctx: MockOperation): any {
-        const length = random(0, ctx.maxRandomArrayLength);
+        const length = random(0, ctx.maxRandomItemsLength);
         const parentObj = ctx.parentObj || {};
         for (let i = 0; i < length; i++) {
             let propName: number | string | symbol;

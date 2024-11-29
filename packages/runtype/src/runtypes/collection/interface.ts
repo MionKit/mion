@@ -135,12 +135,7 @@ export class InterfaceRunType<
         const keyVar = `ky${this.getNestLevel()}`;
         const parentCode = `
             const ${unknownVar} = ${this.callCheckUnknownProperties(comp, allJitChildren, true)};
-            if (${unknownVar}) {
-                for (const ${keyVar} of ${unknownVar}) {
-                    ${comp.callJitErr(this, keyVar)}
-                    delete ${comp.vλl}[${keyVar}]; // TODO: this is getting errors should not be deleting anything
-                }
-            }
+            if (${unknownVar}) {for (const ${keyVar} of ${unknownVar}) {${comp.callJitErr('never', keyVar)}}}
         `;
         const childrenCode = super._compileUnknownKeyErrors(comp);
         return childrenCode ? `${parentCode}\n${childrenCode}` : parentCode;
@@ -151,9 +146,7 @@ export class InterfaceRunType<
         const keyVar = `ky${this.getNestLevel()}`;
         const parentCode = `
             const ${unknownVar} = ${this.callCheckUnknownProperties(comp, allJitChildren, true)};
-            if (${unknownVar}) {
-                for (const ${keyVar} of ${unknownVar}) { delete ${comp.vλl}[${keyVar}]; }
-            }
+            if (${unknownVar}) {for (const ${keyVar} of ${unknownVar}){delete ${comp.vλl}[${keyVar}]}}
         `;
         const childrenCode = super._compileStripUnknownKeys(comp);
         return childrenCode ? `${parentCode}\n${childrenCode}` : parentCode;
@@ -164,9 +157,7 @@ export class InterfaceRunType<
         const keyVar = `ky${this.getNestLevel()}`;
         const parentCode = `
             const ${unknownVar} = ${this.callCheckUnknownProperties(comp, allJitChildren, true)};
-            if (${unknownVar}) {
-                for (const ${keyVar} of ${unknownVar}) { ${comp.vλl}[${keyVar}] = undefined; }
-            }
+            if (${unknownVar}) {for (const ${keyVar} of ${unknownVar}){${comp.vλl}[${keyVar}] = undefined}}
         `;
         const childrenCode = super._compileUnknownKeysToUndefined(comp);
         return childrenCode ? `${parentCode}\n${childrenCode}` : parentCode;

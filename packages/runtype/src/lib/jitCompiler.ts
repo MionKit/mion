@@ -173,9 +173,9 @@ export class JitErrorsCompiler<ID extends JitFnID = any> extends BaseCompiler<ty
     }
     callJitErr(expected: string | number | BaseRunType, extraPathLiteral?: string | number): string {
         const expectLiteral = typeof expected === 'object' ? toLiteral(expected.getName()) : toLiteral(expected);
-        const extraPath = extraPathLiteral ? `,${extraPathLiteral}` : '';
-        const pathItems = `[${this.getStackStaticPathArgs()}${extraPath}]`;
-        return `utl.err(${this.args.εrr},${this.args.pλth},${pathItems},${expectLiteral})`;
+        const extraPath = extraPathLiteral ? `${extraPathLiteral}` : '';
+        const pathItems = [this.getStackStaticPathArgs(), extraPath].filter((a) => a).join(',');
+        return `utl.err(${this.args.εrr},${this.args.pλth},[${pathItems}],${expectLiteral})`;
     }
 }
 

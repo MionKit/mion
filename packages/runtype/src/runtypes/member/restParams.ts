@@ -34,7 +34,6 @@ export class RestParamsRunType extends MemberRunType<TypeRest> {
     jitFnHasReturn(fnId: JitFnID): boolean {
         switch (fnId) {
             case JitFnIDs.isType:
-                return true;
             case JitFnIDs.jsonStringify:
                 return true;
             default:

@@ -30,9 +30,7 @@ export class ArrayRunType extends MemberRunType<TypeArray> {
     jitFnHasReturn(fnId: JitFnID): boolean {
         switch (fnId) {
             case JitFnIDs.isType:
-                return true;
             case JitFnIDs.jsonStringify:
-                return true;
             case JitFnIDs.hasUnknownKeys:
                 return true;
             default:
@@ -107,9 +105,9 @@ export class ArrayRunType extends MemberRunType<TypeArray> {
         `;
     }
     _compileHasUnknownKeys(comp: JitCompiler): string {
-        if (this.getMemberType().getFamily() === 'A' || shouldSkipJit(this)) return '';
+        if (this.getMemberType().getFamily() === 'A' || shouldSkipJit(this)) return 'return false';
         const memberCode = this.getMemberType().compileHasUnknownKeys(comp);
-        if (!memberCode) return '';
+        if (!memberCode) return 'return false';
         const varName = comp.vλl;
         const resultVal = `res${this.getNestLevel()}`;
         const index = this.getChildVarName();
@@ -150,7 +148,7 @@ export class ArrayRunType extends MemberRunType<TypeArray> {
     }
 
     _mock(ctx: MockOperation): any[] {
-        const length = ctx.arrayLength ?? random(0, ctx.maxRandomArrayLength);
+        const length = ctx.arrayLength ?? random(0, ctx.maxRandomItemsLength);
         return Array.from({length}, () => this.getMemberType().mock(ctx));
     }
 }
