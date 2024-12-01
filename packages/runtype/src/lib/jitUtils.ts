@@ -4,7 +4,7 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
-import {maxUnknownKeys} from '../constants';
+import {maxStackDepth, maxUnknownKeys} from '../constants';
 import type {CompiledOperation, RunTypeError} from '../types';
 import type {BaseCompiler} from './jitCompiler';
 
@@ -23,7 +23,7 @@ const jitHashes = new Map<string, string>();
 export const jitUtils = {
     // !!! DO NOT MODIFY METHOD WITHOUT REVIEWING JIT CODE INVOCATIONS!!!
     /** optimized function to convert an string into a json string wrapped in double quotes */
-    asJSONString(str) {
+    asJSONString(str: string) {
         // Bellow code for 'asJSONString' is copied from from https://github.com/fastify/fast-json-stringify/blob/master/lib/serializer.js
         // which in turn got 'inspiration' from typia https://github.com/samchon/typia/blob/master/src/functional/$string.ts
         // both under MIT license
@@ -146,11 +146,16 @@ export const jitUtils = {
         if (path.length) err.push({path: [...path, ...pathItems], expected});
         else err.push({path: pathItems, expected});
     },
+    // !!! DO NOT MODIFY METHOD WITHOUT REVIEWING JIT CODE INVOCATIONS!!!
+    safeMapKey(value: any): any {
+        if (isSafeMapKeyValue(value)) return value;
+        return null;
+    },
 };
 
 export const hashChars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-export const hashIncrement = 2;
-export const maxHashCollisions = 12;
+export const hashIncrement = 1;
+export const maxHashCollisions = 22;
 // TODO: investigate if this is a good default length, we want short hashes for small code size
 // variable hash length avoids collisions, so there shouldn't be any problems. but better to keep an eye on it
 export const hashDefaultLength = 8;
@@ -181,7 +186,7 @@ export function createJitIDHash(jitId: string, length = hashDefaultLength): stri
         // generates a longer hash if there are collisions
         // this would allow trying to get all possible hashes for a given input just by increasing the length
         const newId = quickHash(jitId, length, id);
-        if (process.env.DEBUG_JIT)
+        if (process.env.DEBUG_JIT || process.env.NODE_ENV === 'test')
             console.warn(
                 `Collision for jitId: ${jitId} with extended hash: ${newId}, and existing jitId: ${existing} with hash: ${id}`
             );
@@ -194,4 +199,18 @@ export function createJitIDHash(jitId: string, length = hashDefaultLength): stri
     // Store the unique ID with its original input string
     jitHashes.set(id, jitId);
     return id;
+}
+
+/**
+ * Checks if key map can be serialized/deserialized with json and still works as a key for a map.
+ * ie: if a map key is an string, it can be serialized to json and deserialized back an still will identify the correct map entry.
+ * ie: if a map entry is an object, the object can not be serialized/deserialized and wont work as the same key for entry map as they are not same memory ref.
+ *  */
+export function isSafeMapKeyValue(value: any, depth = 0): boolean {
+    if (depth > maxStackDepth) return false;
+    if (value === undefined) return true;
+    if (value === null) return true;
+    const type = typeof value;
+    if (type === 'number' || type === 'string' || type === 'boolean') return true;
+    return false;
 }

@@ -55,7 +55,9 @@ export const ReflectionSubKind = {
     set: 20_03,
 
     functionParams: 17_01,
-    indexedMember: 18_01,
+    mapKey: 18_01,
+    mapValue: 18_02,
+    setItem: 18_03,
 } as const;
 
 export const ReflectionSubNames: {[key: number]: keyof typeof ReflectionSubKind} = {

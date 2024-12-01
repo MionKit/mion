@@ -82,7 +82,7 @@ export class PropertyRunType extends MemberRunType<TypePropertySignature | TypeP
         // when prop is not safe we need to double encode double quotes and escape characters
         const propDef = isSafePropName(this.src.name)
             ? `'"${this.getChildVarName()}":'`
-            : `${jitUtils.asJSONString(this.getChildLiteral())}+':'`;
+            : `${jitUtils.asJSONString(this.getChildLiteral() as string)}+':'`;
         if (this.src.optional) {
             this.tempChildVλl = comp.getChildVλl();
             // TODO: check if json for an object with first property undefined is valid (maybe the comma must be dynamic too)

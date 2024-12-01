@@ -11,7 +11,7 @@ import {childIsExpression, memorize, toLiteral} from '../../lib/utils';
 import {JitFnIDs} from '../../constants';
 
 // TODO: investigate is other member types cloud extend this class instead of MemberRunType
-export class BasicMemberRunType<T extends SrcMember> extends MemberRunType<T> {
+export class GenericMemberRunType<T extends SrcMember> extends MemberRunType<T> {
     index = 0;
     getChildIndex = () => this.index;
     getChildVarName = () => this.index;

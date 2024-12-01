@@ -45,6 +45,7 @@ import {RestParamsRunType} from './runtypes/member/restParams';
 import {ClassRunType} from './runtypes/collection/class';
 import {MapRunType} from './runtypes/native/map';
 import {ReflectionSubKind} from './constants.kind';
+import {SetRunType} from './runtypes/native/set';
 
 export function runType<T>(type?: ReceiveType<T>): RunType {
     const t = resolveReceiveType(type) as SrcType; // deepkit has been extended to call createRunType ./_deepkit/src/reflection/processor.ts#L1697
@@ -97,7 +98,8 @@ export function createRunType(deepkitType: Mutable<SrcType>): RunType {
                 deepkitType.subKind = ReflectionSubKind.map;
                 rt = new MapRunType();
             } else if (deepkitType.classType === Set) {
-                throw new Error('Set is not implemented yet');
+                deepkitType.subKind = ReflectionSubKind.set;
+                rt = new SetRunType();
             } else {
                 rt = new ClassRunType();
             }

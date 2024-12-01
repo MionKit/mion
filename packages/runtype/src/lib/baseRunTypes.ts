@@ -77,14 +77,14 @@ export abstract class BaseRunType<T extends Type = any> implements RunType {
     /**
      * Some elements might need a standalone name variable that ignores the vλl value of the parents.
      * returns a variable that is being compiled, ignores the parents variable names */
-    getCustomVλl(fnId: JitFnID): CustomVλl | undefined {
+    getCustomVλl(comp: JitCompiler): CustomVλl | undefined {
         return undefined;
     }
     /**
      * Some elements might need a custom static path to be able to reference the source of an error.
      * ie: when validating a Map we need to differentiate if the value that failed is the  key or the value of a map's entry.
      */
-    getStaticPathLiteral(fnId: JitFnID): string | number | undefined {
+    getStaticPathLiteral(comp: JitCompiler): string | number | undefined {
         return undefined;
     }
 
@@ -140,10 +140,10 @@ export abstract class BaseRunType<T extends Type = any> implements RunType {
     // ########## Create Jit Functions ##########
 
     createJitFunction = (fnId: JitFnID): ((...args: any[]) => any) => {
-        return this._getJitCompiledOperation(fnId).fn;
+        return this.getJitCompiledOperation(fnId).fn;
     };
 
-    private _getJitCompiledOperation(fnId: JitFnID, parentCop?: JitCompiler): CompiledOperation {
+    getJitCompiledOperation(fnId: JitFnID, parentCop?: JitCompiler): CompiledOperation {
         const existingCop = jitUtils.getJIT(getJITFnHash(fnId, this));
         if (existingCop) {
             if (process.env.DEBUG_JIT) console.log(`\x1b[32m Using cached function: ${existingCop.jitFnHash} \x1b[0m`);
@@ -216,7 +216,7 @@ export abstract class BaseRunType<T extends Type = any> implements RunType {
         let code: string | undefined;
         comp.pushStack(this);
         if (comp.shouldCallDependency()) {
-            const compiledOp = this._getJitCompiledOperation(fnId, comp);
+            const compiledOp = this.getJitCompiledOperation(fnId, comp);
             code = this.callDependency(comp, compiledOp);
             comp.updateDependencies(compiledOp);
         } else {
