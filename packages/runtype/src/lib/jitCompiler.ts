@@ -16,7 +16,7 @@ import {
     maxStackDepth,
     maxStackErrorMessage,
 } from '../constants';
-import {isChildAccessorType} from './guards';
+import {isChildAccessorType, isJitErrorsCompiler} from './guards';
 import {jitUtils} from './jitUtils';
 import {toLiteral} from './utils';
 
@@ -93,7 +93,7 @@ export class BaseCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extends 
             newChild.getJitConstants(); // ensures the constants are generated in correct order
         }
         this.vλl = getStackVλl(this);
-        this._stackStaticPath = getStackStaticPath(this);
+        if (isJitErrorsCompiler(this)) this._stackStaticPath = getStackStaticPath(this);
         const newStackItem: StackItem = {vλl: this.vλl, rt: newChild};
         this.stack.push(newStackItem);
     }
@@ -102,7 +102,7 @@ export class BaseCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extends 
         this.popItem = this.stack.pop();
         const item = this.stack[this.stack.length - 1];
         this.vλl = item?.vλl || this.args.vλl;
-        this._stackStaticPath = getStackStaticPath(this);
+        if (isJitErrorsCompiler(this)) this._stackStaticPath = getStackStaticPath(this);
         if (this.stack.length === 0) {
             try {
                 return compileFunction(this); // add the compiled function to jit cache
@@ -277,10 +277,10 @@ function getJitFnArgs(comp: JitCompilerLike): string {
 }
 
 function getStackVλl(comp: BaseCompiler): string {
-    let vλl = comp.args.vλl;
+    let vλl: string = comp.args.vλl;
     for (let i = 0; i < comp.stack.length; i++) {
         const rt = comp.stack[i].rt;
-        const custom = rt.getCustomVλl(comp.fnId);
+        const custom = rt.getCustomVλl(comp as JitCompiler);
         if (custom && custom.isStandalone) {
             vλl = custom.vλl;
         } else if (custom) {
@@ -295,7 +295,7 @@ function getStackStaticPath(comp: BaseCompiler): (string | number)[] {
     const path: (string | number)[] = [];
     for (let i = 0; i < comp.stack.length; i++) {
         const rt = comp.stack[i].rt;
-        const pathItem = rt.getStaticPathLiteral(comp.fnId);
+        const pathItem = rt.getStaticPathLiteral(comp as JitCompiler);
         if (pathItem) {
             path.push(pathItem);
         } else if (isChildAccessorType(rt) && !rt.skipSettingAccessor?.()) {
