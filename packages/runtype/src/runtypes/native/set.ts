@@ -5,35 +5,40 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 import type {JitConstants, MockOperation, Mutable, SrcType} from '../../types';
-import {GenericMemberRunType} from '../member/genericMember';
 import {ReflectionSubKind} from '../../constants.kind';
-import {ReflectionKind, TypeClass} from '../../lib/_deepkit/src/reflection/type';
+import {ReflectionKind, type TypeClass} from '../../lib/_deepkit/src/reflection/type';
 import {random} from '../../lib/mock';
+import {GenericMemberRunType} from '../member/genericMember';
 import {IterableRunType} from './Iterable';
 import {JitCompiler} from '../../lib/jitCompiler';
 import {JitFnIDs} from '../../constants';
 import {BaseRunType} from '../../lib/baseRunTypes';
 
-export class MapRunType extends IterableRunType {
-    keyRT = new MapKeyRunType();
-    valueRT = new MapValueRunType();
-    children = [this.keyRT, this.valueRT];
-    instance = 'Map';
+class SetKeyRunType extends GenericMemberRunType<any> {
+    index = 0;
+    skipSettingAccessor() {
+        return true;
+    }
+    getStaticPathLiteral(comp: JitCompiler): string {
+        const parent = this.getParent()! as SetRunType;
+        const custom = parent.getCustomVλl(comp)!;
+        return `{key:utl.safeKey(${custom.vλl}),index:${parent.getIndexVarName()}}`;
+    }
+}
+
+export class SetRunType extends IterableRunType {
+    keyRT = new SetKeyRunType();
+    children = [this.keyRT];
+    instance = 'Set';
     linkSrc(src: SrcType<TypeClass>): void {
         const types = src.arguments;
-        if (!types || types.length !== 2) throw new Error(`Map expects 2 type arguments: ie: Map<string, number>`);
+        if (!types || types.length !== 1) throw new Error(`Set expects 1 type argument: ie: Set<number>`);
         super.linkSrc(src);
         this.keyRT.linkSrc({
             kind: ReflectionKind.parameter,
             parent: src,
             type: types[0],
-            subKind: ReflectionSubKind.mapKey,
-        });
-        this.valueRT.linkSrc({
-            kind: ReflectionKind.parameter,
-            parent: src,
-            type: types[1],
-            subKind: ReflectionSubKind.mapValue,
+            subKind: ReflectionSubKind.setItem,
         });
     }
     getCustomVλl(comp: JitCompiler) {
@@ -51,32 +56,13 @@ export class MapRunType extends IterableRunType {
         };
     }
 
-    _mock(ctx: MockOperation): Map<any, any> | any {
-        const mockMap = new Map();
+    _mock(ctx: MockOperation): Set<any> {
+        const mockSet = new Set();
         const length = ctx.arrayLength ?? random(0, ctx.maxRandomItemsLength);
         for (let i = 0; i < length; i++) {
-            const keyType = this.keyRT.mock(ctx);
-            const valueType = this.valueRT.mock(ctx);
-            mockMap.set(keyType, valueType);
+            const value = this.keyRT.mock(ctx);
+            mockSet.add(value);
         }
-        return mockMap;
-    }
-}
-
-class MapKeyRunType extends GenericMemberRunType<any> {
-    index = 0;
-    getStaticPathLiteral(comp: JitCompiler): string | number {
-        const parent = this.getParent()! as MapRunType;
-        const custom = parent.getCustomVλl(comp)!;
-        return `{key:utl.safeKey(${custom.vλl}[0]),index:${parent.getIndexVarName()},failed:'mapKey'}`;
-    }
-}
-
-class MapValueRunType extends GenericMemberRunType<any> {
-    index = 1;
-    getStaticPathLiteral(comp: JitCompiler): string | number {
-        const parent = this.getParent()! as MapRunType;
-        const custom = parent.getCustomVλl(comp)!;
-        return `{key:utl.safeKey(${custom.vλl}[0]),index:${parent.getIndexVarName()},failed:'mapVal'}`;
+        return mockSet;
     }
 }

@@ -38,7 +38,9 @@ export class GenericMemberRunType<T extends SrcMember> extends MemberRunType<T> 
         const child = this.getJsonEncodeChild();
         if (!child) return '';
         const childCode = child.compileJsonEncode(comp);
+        console.log('childCode', childCode);
         const isExpression = childIsExpression(JitFnIDs.jsonEncode, child);
+        console.log('comp.getChildVλl()', comp.getChildVλl());
         const code = isExpression ? `${comp.getChildVλl()} = ${childCode};` : childCode;
         if (this.isOptional()) return `if (${comp.getChildVλl()} !== undefined) {${code}}`;
         return code;

@@ -147,7 +147,7 @@ export const jitUtils = {
         else err.push({path: pathItems, expected});
     },
     // !!! DO NOT MODIFY METHOD WITHOUT REVIEWING JIT CODE INVOCATIONS!!!
-    safeMapKey(value: any): any {
+    safeKey(value: any): any {
         if (isSafeMapKeyValue(value)) return value;
         return null;
     },

@@ -132,6 +132,7 @@ export class BaseCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extends 
         if (!parent) return this.args.vλl;
         const rt = parent.rt;
         if (!isChildAccessorType(rt)) throw new Error(`cant get child var name from ${rt.getName()}`);
+        if (rt.skipSettingAccessor?.()) return parent.vλl;
         return parent.vλl + (rt.useArrayAccessor() ? `[${rt.getChildLiteral()}]` : `.${rt.getChildVarName()}`);
     }
     getParentVλl(): string {
