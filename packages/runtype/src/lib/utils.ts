@@ -6,7 +6,7 @@
  * ######## */
 
 import type {AnyClass, JitFnID, RunType} from '../types';
-import {ReflectionKind, Type, TypeFunction, TypeParameter} from './_deepkit/src/reflection/type';
+import {ReflectionKind, Type, TypeFunction, TypeParameter, TypeTuple, TypeTupleMember} from './_deepkit/src/reflection/type';
 import {jitUtils} from './jitUtils';
 import {validPropertyNameRegExp} from '../constants';
 import {BaseRunType} from './baseRunTypes';
@@ -105,10 +105,11 @@ export function getPropIndex(src: Type): number {
     return 0;
 }
 
-export function getParamIndex(src: TypeParameter): number {
-    const parent = src.parent as TypeFunction;
+export function getParamIndex(src: TypeParameter | TypeTupleMember): number {
+    const parent = src.parent as TypeFunction | TypeTuple;
     if (!parent) return -1;
-    if (parent.parameters) return parent.parameters.indexOf(src);
+    if ((parent as TypeFunction).parameters) return (parent as TypeFunction).parameters.indexOf(src as TypeParameter);
+    if ((parent as TypeTuple).types) return (parent as TypeTuple).types.indexOf(src as TypeTupleMember);
     return 0;
 }
 

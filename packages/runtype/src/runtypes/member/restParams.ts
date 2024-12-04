@@ -11,6 +11,7 @@ import type {MockOperation} from '../../types';
 import type {ParameterRunType} from './param';
 import type {TupleMemberRunType} from './tupleMember';
 import {ArrayRunType} from './array';
+import {random} from '../../lib/mock';
 
 export class RestParamsRunType extends ArrayRunType<TypeRest> {
     getChildIndex(): number {
@@ -39,6 +40,11 @@ export class RestParamsRunType extends ArrayRunType<TypeRest> {
         `;
     }
     _mock(ctx: MockOperation) {
-        return this.getMemberType().mock(ctx);
+        const length = random(0, ctx.maxRandomItemsLength);
+        const items: any[] = [];
+        for (let i = 0; i < length; i++) {
+            items.push(this.getMemberType().mock(ctx));
+        }
+        return items;
     }
 }

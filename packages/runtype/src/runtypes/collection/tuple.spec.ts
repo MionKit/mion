@@ -108,8 +108,16 @@ describe('TupleRunType', () => {
         expect(fromJson(JSON.parse(JSON.stringify(toJson([3, undefined, true, 4]))))).toEqual(typeValue);
         expect(fromJson(JSON.parse(JSON.stringify(toJson([3, undefined, undefined, 4]))))).toEqual([3, undefined, undefined, 4]);
         expect(fromJson(JSON.parse(JSON.stringify(toJson([3, 2n, true, 4]))))).toEqual([3, 2n, true, 4]);
-        expect(fromJson(JSON.parse(JSON.stringify(toJson([3]))))).toEqual([3, undefined, undefined, undefined]);
-        expect(fromJson(JSON.parse(JSON.stringify(toJson([3]))))).toEqual([3]);
+
+        const allUndefined = [3, undefined, undefined, undefined];
+        const restored1 = fromJson(JSON.parse(JSON.stringify(toJson(allUndefined))));
+        expect(restored1).toEqual([3, undefined, undefined, undefined]);
+        expect(restored1.length).toBe(4);
+
+        const allNotSet = [3];
+        const restored2 = fromJson(JSON.parse(JSON.stringify(toJson(allNotSet))));
+        expect(restored2).toEqual([3]);
+        expect(restored2.length).toBe(1);
     });
 
     it('json stringify', () => {
@@ -265,8 +273,11 @@ describe('TupleRunType with rest parameter', () => {
 
     it('mock', () => {
         const mocked = rt.mock();
-        expect(mocked).toHaveLength(1);
+        expect(mocked.length >= 1).toBe(true);
         expect(typeof mocked[0]).toBe('number');
+        for (let i = 1; i < mocked.length; i++) {
+            expect(typeof mocked[i]).toBe('string');
+        }
         const validate = rt.createJitFunction(JitFnIDs.isType);
         expect(validate(mocked)).toBe(true);
     });

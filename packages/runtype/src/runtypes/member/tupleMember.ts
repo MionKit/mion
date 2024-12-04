@@ -7,7 +7,7 @@
 
 import type {TypeTupleMember} from '../../lib/_deepkit/src/reflection/type';
 import type {BaseRunType} from '../../lib/baseRunTypes';
-import {JitConfig, MockOperation, Mutable} from '../../types';
+import {JitConfig, Mutable} from '../../types';
 import {ParameterRunType} from './param';
 
 export class TupleMemberRunType extends ParameterRunType<TypeTupleMember> {
@@ -25,18 +25,5 @@ export class TupleMemberRunType extends ParameterRunType<TypeTupleMember> {
     }
     getChildLiteral(): number {
         return this.getChildVarName();
-    }
-    insertUndefined(): boolean {
-        return true;
-    }
-    _mock(ctx: MockOperation): any {
-        if (this.isOptional()) {
-            const probability = ctx.optionalProbability;
-            if (probability < 0 || probability > 1) throw new Error('optionalProbability must be between 0 and 1');
-            if (Math.random() > probability) {
-                return undefined;
-            }
-        }
-        return this.getMemberType().mock(ctx);
     }
 }

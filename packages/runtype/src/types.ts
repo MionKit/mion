@@ -5,7 +5,14 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import type {Type, TypeCallSignature, TypeFunction, TypeMethod, TypeMethodSignature} from './lib/_deepkit/src/reflection/type';
+import type {
+    Type,
+    TypeCallSignature,
+    TypeFunction,
+    TypeMethod,
+    TypeMethodSignature,
+    TypeTuple,
+} from './lib/_deepkit/src/reflection/type';
 import type {BaseCompiler} from './lib/jitCompiler';
 import type {JITUtils} from './lib/jitUtils';
 import type {JitFnIDs} from './constants';
@@ -225,6 +232,7 @@ export interface MockOptions {
     /** the index of the object to mock withing the union */
     unionIndex?: number;
     tupleOptions?: MockOptions[];
+    paramsOptions?: MockOptions[];
     maxStackDepth: number;
     maxMockRecursion: number;
 }
@@ -235,6 +243,7 @@ export interface MockOperation extends MockOptions {
 }
 
 export type AnyFunction = TypeMethodSignature | TypeCallSignature | TypeFunction | TypeMethod;
+export type AnyParameterListRunType = AnyFunction | TypeTuple;
 
 export type Mutable<T> = {
     -readonly [K in keyof T]: T[K];

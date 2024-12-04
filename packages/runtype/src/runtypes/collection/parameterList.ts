@@ -1,11 +1,10 @@
 import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
-import type {AnyFunction, MockOperation, SrcType} from '../../types';
+import type {AnyParameterListRunType, MockOperation, SrcType} from '../../types';
 import {ParameterRunType} from '../member/param';
-import {ReflectionKind, TypeFunction, TypeTuple} from '../../lib/_deepkit/src/reflection/type';
+import {ReflectionKind, TypeFunction} from '../../lib/_deepkit/src/reflection/type';
 import {CollectionRunType} from '../../lib/baseRunTypes';
 import {TupleMemberRunType} from '../member/tupleMember';
 
-type AnyParameterListRunType = AnyFunction | TypeTuple;
 type AnyParamRunType = ParameterRunType | TupleMemberRunType;
 
 export class ParameterListRunType<ParamList extends AnyParameterListRunType = TypeFunction> extends CollectionRunType<ParamList> {
@@ -69,6 +68,11 @@ export class ParameterListRunType<ParamList extends AnyParameterListRunType = Ty
     }
 
     _mock(ctx: MockOperation) {
-        return this.getChildRunTypes().map((p) => p.mock(ctx));
+        const options = this.src.kind === ReflectionKind.tuple ? ctx.tupleOptions : ctx.paramsOptions;
+        const params = this.getChildRunTypes().map((p, i) => p.mock(options?.[i] || ctx));
+        if (this.hasRestParameter()) {
+            return [...params.slice(0, -1), ...params[params.length - 1]];
+        }
+        return params;
     }
 }
