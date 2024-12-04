@@ -80,7 +80,7 @@ export interface RunTypeChildAccessor extends RunType {
     skipSettingAccessor?(): boolean;
 }
 
-export interface JitConstants {
+export interface JitConfig {
     readonly skipJit: boolean;
     readonly skipJsonEncode: boolean;
     readonly skipJsonDecode: boolean;
@@ -121,6 +121,7 @@ export interface CompiledOperation
         | 'jitId'
         | 'directDependencies'
         | 'childDependencies'
+        | 'isNoop'
     > {
     fn: (...args: any[]) => any;
 }
@@ -133,8 +134,8 @@ export interface SerializableJit extends Omit<CompiledOperation, 'fnId' | 'direc
 export type SerializedOperations = Record<string, SerializableJit>;
 
 export interface JitJsonEncoder {
-    decodeFromJson: (vλl: string) => string;
-    encodeToJson: (vλl: string) => string;
+    decodeFromJson: (vλl: string) => string | undefined;
+    encodeToJson: (vλl: string) => string | undefined;
     stringify: (vλl: string) => string;
 }
 

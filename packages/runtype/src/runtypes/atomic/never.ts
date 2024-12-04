@@ -8,16 +8,16 @@
 import {ReflectionKind, type TypeNever} from '../../lib/_deepkit/src/reflection/type';
 import {AtomicRunType} from '../../lib/baseRunTypes';
 import {JitErrorsCompiler} from '../../lib/jitCompiler';
-import {JitConstants} from '../../types';
+import {JitConfig} from '../../types';
 
-const jitConstants: JitConstants = {
+const jitConstants: JitConfig = {
     skipJit: false,
     skipJsonEncode: false,
     skipJsonDecode: false,
     jitId: ReflectionKind.never,
 };
 export class NeverRunType extends AtomicRunType<TypeNever> {
-    getJitConstants = () => jitConstants;
+    getJitConfig = () => jitConstants;
     _compileIsType(): string {
         return 'false';
     }

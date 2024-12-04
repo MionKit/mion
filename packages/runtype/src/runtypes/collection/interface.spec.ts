@@ -6,7 +6,7 @@
  * ######## */
 import {runType} from '../../runType';
 import {JitFnIDs} from '../../constants';
-import path from 'path';
+import {BaseRunType} from '../../lib/baseRunTypes';
 
 describe('Interface', () => {
     type ObjectType = {
@@ -173,16 +173,36 @@ describe('Interface', () => {
         expect(fromJson(JSON.parse(JSON.stringify(toJson(copy))))).toEqual(typeValue);
     });
 
-    // TODO: disabled for now. JSON strict will be moved to an extra validation step instead when serializing/deserializing
-    it.skip('skip props when encode/decode to json', () => {
+    // TODO: decide if we want to serialise some properties that are usually skipped by json
+    it('skip props when encode/decode to json', () => {
         const toJson = rtSkip.createJitFunction(JitFnIDs.jsonEncode);
         const fromJson = rtSkip.createJitFunction(JitFnIDs.jsonDecode);
+        const jsonStringify = rtSkip.createJitFunction(JitFnIDs.jsonStringify);
         const typeValue = {
             name: 'hello',
             methodProp: () => 'hello',
             [Symbol('test')]: 'hello',
         };
         expect(fromJson(JSON.parse(JSON.stringify(toJson(typeValue))))).toEqual({name: 'hello'});
+        expect(fromJson(JSON.parse(jsonStringify(typeValue)))).toEqual({name: 'hello'});
+    });
+
+    it('json encode/decode should be marked as noop when there are no actions required', () => {
+        interface NoJsonENCDECRequired {
+            a: number;
+            b: string;
+        }
+        interface sonENCDECRequired {
+            a: bigint;
+            c: Date;
+        }
+
+        const rtNoop = runType<NoJsonENCDECRequired>() as BaseRunType;
+        const rtEncRequired = runType<sonENCDECRequired>() as BaseRunType;
+        expect(rtNoop.getJitCompiledOperation(JitFnIDs.jsonEncode).isNoop).toBe(true);
+        expect(rtNoop.getJitCompiledOperation(JitFnIDs.jsonDecode).isNoop).toBe(true);
+        expect(rtEncRequired.getJitCompiledOperation(JitFnIDs.jsonEncode).isNoop).toBe(false);
+        expect(rtEncRequired.getJitCompiledOperation(JitFnIDs.jsonDecode).isNoop).toBe(false);
     });
 
     it('json stringify', () => {

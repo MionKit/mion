@@ -4,7 +4,7 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
-import type {JitConstants, MockOperation, Mutable, SrcType} from '../../types';
+import type {JitConfig, MockOperation, Mutable, SrcType} from '../../types';
 import {ReflectionSubKind} from '../../constants.kind';
 import {ReflectionKind, type TypeClass} from '../../lib/_deepkit/src/reflection/type';
 import {random} from '../../lib/mock';
@@ -48,9 +48,9 @@ export class SetRunType extends IterableRunType {
         // other operations use an special case for vλl where all parents are skipped
         return {vλl: `it${this.getNestLevel()}`, isStandalone: true};
     }
-    getJitConstants(stack: BaseRunType[] = []): JitConstants {
+    getJitConfig(stack: BaseRunType[] = []): JitConfig {
         return {
-            ...(super.getJitConstants(stack) as Mutable<JitConstants>),
+            ...(super.getJitConfig(stack) as Mutable<JitConfig>),
             skipJsonEncode: false, // we always need to transform the map/set into to an array when encoding
             skipJsonDecode: false, // we always need to transform the array to a map/set when decoding
         };

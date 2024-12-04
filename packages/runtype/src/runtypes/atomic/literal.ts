@@ -6,9 +6,9 @@
  * ######## */
 
 import type {TypeLiteral} from '../../lib/_deepkit/src/reflection/type';
-import type {JitJsonEncoder, JitConstants} from '../../types';
+import type {JitJsonEncoder, JitConfig} from '../../types';
 import {SymbolJitJsonEncoder} from './symbol';
-import {BigIntJitJsonENcoder} from './bigInt';
+import {BigIntJitJsonEncoder} from './bigInt';
 import {RegexpJitJsonEncoder} from './regexp';
 import {memorize, toLiteral} from '../../lib/utils';
 import {AtomicRunType} from '../../lib/baseRunTypes';
@@ -16,9 +16,9 @@ import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
 
 export class LiteralRunType extends AtomicRunType<TypeLiteral> {
     get jitConstants() {
-        return this.getJitConstants();
+        return this.getJitConfig();
     }
-    getJitConstants = memorize((): JitConstants => {
+    getJitConfig = memorize((): JitConfig => {
         switch (true) {
             case typeof this.src.literal === 'bigint':
                 return getJitConstantsForBigint(this.src.kind, this.src.literal);
@@ -33,7 +33,7 @@ export class LiteralRunType extends AtomicRunType<TypeLiteral> {
     getJsonEncoder() {
         switch (true) {
             case typeof this.src.literal === 'bigint':
-                return BigIntJitJsonENcoder;
+                return BigIntJitJsonEncoder;
             case typeof this.src.literal === 'symbol':
                 return SymbolJitJsonEncoder;
             case this.src.literal instanceof RegExp:
@@ -53,10 +53,10 @@ export class LiteralRunType extends AtomicRunType<TypeLiteral> {
         else if (this.src.literal instanceof RegExp) return compileTypeErrorsRegExp(comp, this.src.literal, this.getName());
         return compileTypeErrorsLiteral(comp, this.src.literal, this.getName());
     }
-    _compileJsonEncode(comp: JitCompiler): string {
+    _compileJsonEncode(comp: JitCompiler): string | undefined {
         return this.getJsonEncoder().encodeToJson(comp.vλl);
     }
-    _compileJsonDecode(comp: JitCompiler): string {
+    _compileJsonDecode(comp: JitCompiler): string | undefined {
         return this.getJsonEncoder().decodeFromJson(comp.vλl);
     }
     _compileJsonStringify(comp: JitCompiler): string {
@@ -68,11 +68,11 @@ export class LiteralRunType extends AtomicRunType<TypeLiteral> {
 }
 
 const noEncoder: JitJsonEncoder = {
-    decodeFromJson(vλl): string {
-        return vλl;
+    decodeFromJson(): undefined {
+        return undefined;
     },
-    encodeToJson(vλl): string {
-        return vλl;
+    encodeToJson(): undefined {
+        return undefined;
     },
     stringify(vλl: string) {
         return `JSON.stringify(${vλl})`;
@@ -111,7 +111,7 @@ function compileTypeErrorsLiteral(
     return `if (${comp.vλl} !== ${toLiteral(lit)}) ${comp.callJitErr(name)}`;
 }
 
-function getJitConstantsForBigint(kind: number, literal: bigint): JitConstants {
+function getJitConstantsForBigint(kind: number, literal: bigint): JitConfig {
     return {
         skipJit: false,
         skipJsonEncode: false,
@@ -119,7 +119,7 @@ function getJitConstantsForBigint(kind: number, literal: bigint): JitConstants {
         jitId: `${kind}:${String(literal)}`,
     };
 }
-function getJitConstantsForSymbol(kind: number, literal: symbol): JitConstants {
+function getJitConstantsForSymbol(kind: number, literal: symbol): JitConfig {
     return {
         skipJit: true,
         skipJsonEncode: true,
@@ -127,7 +127,7 @@ function getJitConstantsForSymbol(kind: number, literal: symbol): JitConstants {
         jitId: `${kind}:${String(literal)}`,
     };
 }
-function getJitConstantsForRegExp(kind: number, literal: RegExp): JitConstants {
+function getJitConstantsForRegExp(kind: number, literal: RegExp): JitConfig {
     return {
         skipJit: false,
         skipJsonEncode: false,
@@ -135,7 +135,7 @@ function getJitConstantsForRegExp(kind: number, literal: RegExp): JitConstants {
         jitId: `${kind}:${String(literal)}`,
     };
 }
-function getDefaultJitConstants(kind: number, literal: string | number | boolean): JitConstants {
+function getDefaultJitConstants(kind: number, literal: string | number | boolean): JitConfig {
     return {
         skipJit: false,
         skipJsonEncode: true,

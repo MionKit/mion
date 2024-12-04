@@ -6,13 +6,13 @@
  * ######## */
 
 import {ReflectionKind, type TypeAny, type TypeUnknown} from '../../lib/_deepkit/src/reflection/type';
-import type {JitConstants, JitFnID, MockOperation} from '../../types';
+import type {JitConfig, JitFnID, MockOperation} from '../../types';
 import {mockAny} from '../../lib/mock';
 import {AtomicRunType} from '../../lib/baseRunTypes';
 import type {JitCompiler} from '../../lib/jitCompiler';
 import {JitFnIDs} from '../../constants';
 
-const jitConstants: JitConstants = {
+const jitConstants: JitConfig = {
     skipJit: false,
     skipJsonEncode: true,
     skipJsonDecode: true,
@@ -20,7 +20,7 @@ const jitConstants: JitConstants = {
 };
 
 export class AnyRunType extends AtomicRunType<TypeAny | TypeUnknown> {
-    getJitConstants = () => jitConstants;
+    getJitConfig = () => jitConstants;
     jitFnHasReturn(fnId: JitFnID): boolean {
         switch (fnId) {
             case JitFnIDs.typeErrors:
@@ -29,11 +29,11 @@ export class AnyRunType extends AtomicRunType<TypeAny | TypeUnknown> {
                 return super.jitFnHasReturn(fnId);
         }
     }
-    _compileIsType(): 'true' {
-        return 'true';
+    _compileIsType(): undefined {
+        return undefined;
     }
-    _compileTypeErrors(): '' {
-        return '';
+    _compileTypeErrors(): undefined {
+        return undefined;
     }
     _compileJsonStringify(comp: JitCompiler): string {
         return `JSON.stringify(${comp.vλl})`;

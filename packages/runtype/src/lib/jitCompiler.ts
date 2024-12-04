@@ -27,6 +27,7 @@ export type StackItem = {
     rt: BaseRunType;
     /** if should call a dependency instead inline code, then this would contain the id of the dependency to call */
     dependencyId?: string;
+    staticPath?: (string | number)[];
 };
 
 export type JitCompilerLike = BaseCompiler | CompiledOperation;
@@ -90,21 +91,23 @@ export class BaseCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extends 
         if (totalLength > maxStackDepth) throw new Error(maxStackErrorMessage);
         if (this.stack.length === 0) {
             if (newChild !== this.rootType) throw new Error('rootType should be the first item in the stack');
-            newChild.getJitConstants(); // ensures the constants are generated in correct order
+            newChild.getJitConfig(); // ensures the constants are generated in correct order
         }
         this.vλl = getStackVλl(this);
+        // static path must be called before pushing the new item
         if (isJitErrorsCompiler(this)) this._stackStaticPath = getStackStaticPath(this);
-        const newStackItem: StackItem = {vλl: this.vλl, rt: newChild};
+        const newStackItem: StackItem = {vλl: this.vλl, rt: newChild, staticPath: this._stackStaticPath};
         this.stack.push(newStackItem);
     }
-    popStack(resultCode: string): void | ((...args: any[]) => any) {
-        (this as Mutable<BaseCompiler>).code = resultCode;
+    popStack(resultCode: string | undefined): void | ((...args: any[]) => any) {
+        if (resultCode) (this as Mutable<BaseCompiler>).code = resultCode;
         this.popItem = this.stack.pop();
         const item = this.stack[this.stack.length - 1];
         this.vλl = item?.vλl || this.args.vλl;
-        if (isJitErrorsCompiler(this)) this._stackStaticPath = getStackStaticPath(this);
+        if (isJitErrorsCompiler(this)) this._stackStaticPath = item?.staticPath || [];
         if (this.stack.length === 0) {
             try {
+                this.setIsNoop();
                 return compileFunction(this); // add the compiled function to jit cache
             } catch (e: any) {
                 const fnCode = ` Code:\nfunction ${this.fnId}(){${this.code}}`;
@@ -155,6 +158,34 @@ export class BaseCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extends 
     }
     removeFromJitCache(): void {
         jitUtils.removeFromJitCache(this.jitFnHash);
+    }
+    setIsNoop(): void {
+        let isNoop = false;
+        let code = this.code.trim(); // todo: investigate removing all white spaces from the code
+        switch (this.fnId) {
+            case JitFnIDs.isType:
+                isNoop = !this.code || this.code === 'true' || this.code === 'return true';
+                if (isNoop) code = `return true`; // if code is a noop, we still need to return true
+                break;
+            case JitFnIDs.hasUnknownKeys:
+                isNoop = !this.code || this.code === 'false' || this.code === 'return false';
+                if (isNoop) code = `return false`; // if code is a noop, we still need return false
+                break;
+            case JitFnIDs.jsonEncode:
+            case JitFnIDs.jsonDecode:
+            case JitFnIDs.stripUnknownKeys:
+            case JitFnIDs.unknownKeysToUndefined:
+                isNoop = !this.code || this.code === this.args.vλ || this.code === `return ${this.args.vλl}`;
+                if (isNoop) code = `return ${this.args.vλl}`; // if code is a noop, we need to return the value
+                break;
+            case JitFnIDs.typeErrors:
+            case JitFnIDs.unknownKeyErrors:
+                isNoop = !this.code || this.code === this.args.εrr || this.code === `return ${this.args.εrr}`;
+                if (isNoop) code = `return ${this.args.εrr}`; // if code is a noop, we need to return the error array
+                break;
+        }
+        (this as Mutable<BaseCompiler>).isNoop = isNoop;
+        (this as Mutable<BaseCompiler>).code = code;
     }
 }
 
@@ -294,6 +325,7 @@ function getStackVλl(comp: BaseCompiler): string {
 }
 function getStackStaticPath(comp: BaseCompiler): (string | number)[] {
     const path: (string | number)[] = [];
+    const rtName: any = [];
     for (let i = 0; i < comp.stack.length; i++) {
         const rt = comp.stack[i].rt;
         const pathItem = rt.getStaticPathLiteral(comp as JitCompiler);
@@ -302,6 +334,7 @@ function getStackStaticPath(comp: BaseCompiler): (string | number)[] {
         } else if (isChildAccessorType(rt) && !rt.skipSettingAccessor?.()) {
             path.push(rt.getChildLiteral());
         }
+        rtName.push({path: [...path], name: rt.constructor.name});
     }
     return path;
 }

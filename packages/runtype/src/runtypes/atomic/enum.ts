@@ -6,13 +6,13 @@
  * ######## */
 
 import {ReflectionKind, TypeEnum} from '../../lib/_deepkit/src/reflection/type';
-import type {MockOperation, JitConstants} from '../../types';
+import type {MockOperation, JitConfig} from '../../types';
 import {toLiteral} from '../../lib/utils';
 import {random} from '../../lib/mock';
 import {AtomicRunType} from '../../lib/baseRunTypes';
 import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
 
-const jitConstants: JitConstants = {
+const jitConstants: JitConfig = {
     skipJit: false,
     skipJsonEncode: true,
     skipJsonDecode: true,
@@ -20,7 +20,7 @@ const jitConstants: JitConstants = {
 };
 
 export class EnumRunType extends AtomicRunType<TypeEnum> {
-    getJitConstants = () => jitConstants;
+    getJitConfig = () => jitConstants;
     _compileIsType(comp: JitCompiler): string {
         return this.src.values.map((v) => `${comp.vλl} === ${toLiteral(v)}`).join(' || ');
     }

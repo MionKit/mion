@@ -72,22 +72,23 @@ export class InterfaceRunType<
             }
         `;
     }
-    _compileJsonEncode(comp: JitCompiler): string {
+    _compileJsonEncode(comp: JitCompiler) {
         if (this.isCallable()) return this.getCallSignature()!._compileJsonEncode();
         const children = this.getJsonEncodeChildren();
-        return children
+        const childrenCode = children
             .map((prop) => prop.compileJsonEncode(comp))
-            .filter((c) => !!c)
+            .filter(Boolean)
             .join(';');
+        return childrenCode || undefined;
     }
-    _compileJsonDecode(comp: JitCompiler): string {
+    _compileJsonDecode(comp: JitCompiler) {
         if (this.isCallable()) return this.getCallSignature()!._compileJsonDecode();
         const children = this.getJsonDecodeChildren();
         const childrenCode = children
             .map((prop) => prop.compileJsonDecode(comp))
-            .filter((c) => !!c)
+            .filter(Boolean)
             .join(';');
-        return childrenCode;
+        return childrenCode || undefined;
     }
     _compileJsonStringify(comp: JitCompiler): string {
         if (this.isCallable()) return this.getCallSignature()!._compileJsonStringify();
@@ -103,7 +104,7 @@ export class InterfaceRunType<
                 prop.skipCommas = isLast;
                 return prop.compileJsonStringify(comp);
             })
-            .filter((c) => !!c)
+            .filter(Boolean)
             .join('+');
         return `'{'+${childrenCode}+'}'`;
     }
@@ -118,7 +119,7 @@ export class InterfaceRunType<
                 // makes an extra check to avoid pushing empty strings to the array (childCode also makes the same check but is better than having to filter the array after)
                 return prop.isOptional() ? `if (${prop.tempChildVλl} !== undefined){${code}}` : `${code};`;
             })
-            .filter((c) => !!c)
+            .filter(Boolean)
             .join('');
 
         return `(function(){const ${arrName} = [];${childrenCode};return '{'+${arrName}.join(',')+'}'})()`;
@@ -163,7 +164,7 @@ export class InterfaceRunType<
         return childrenCode ? `${parentCode}\n${childrenCode}` : parentCode;
     }
 
-    _mock(ctx: Pick<MockOperation, 'parentObj'>): Record<string | number, any> {
+    _mock(ctx: MockOperation): Record<string | number, any> {
         if (this.isCallable()) return this.getCallSignature()!.mock(ctx as MockOperation);
         let obj: Record<string | number, any> = ctx.parentObj || {};
         this.getChildRunTypes().forEach((prop) => {

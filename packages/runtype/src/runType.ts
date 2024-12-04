@@ -36,7 +36,7 @@ import {IndexSignatureRunType} from './runtypes/member/indexProperty';
 import {MethodSignatureRunType} from './runtypes/member/methodSignature';
 import {CallSignatureRunType} from './runtypes/member/callSignature';
 import {FunctionRunType} from './runtypes/function/function';
-import {PromiseRunType} from './runtypes/member/promise';
+import {PromiseRunType} from './runtypes/native/promise';
 import {ObjectRunType} from './runtypes/atomic/object';
 import {IntersectionRunType} from './runtypes/collection/intersection';
 import {ParameterRunType} from './runtypes/member/param';

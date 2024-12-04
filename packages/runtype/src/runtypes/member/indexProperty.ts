@@ -1,6 +1,6 @@
 import {ReflectionKind, TypeIndexSignature} from '../../lib/_deepkit/src/reflection/type';
 import {BaseRunType, MemberRunType} from '../../lib/baseRunTypes';
-import {JitConstants, JitFnID, MockOperation, Mutable} from '../../types';
+import {JitConfig, JitFnID, MockOperation, Mutable} from '../../types';
 import {JitFnIDs} from '../../constants';
 import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
 import {InterfaceRunType} from '../collection/interface';
@@ -27,8 +27,8 @@ export class IndexSignatureRunType extends MemberRunType<TypeIndexSignature> {
     useArrayAccessor(): true {
         return true;
     }
-    getJitConstants(stack: BaseRunType[] = []): JitConstants {
-        const jc = super.getJitConstants(stack) as Mutable<JitConstants>;
+    getJitConfig(stack: BaseRunType[] = []): JitConfig {
+        const jc = super.getJitConfig(stack) as Mutable<JitConfig>;
         const index = (this.src as TypeIndexSignature).index?.kind || undefined;
         if (index === ReflectionKind.symbol) {
             jc.skipJit = true;
@@ -48,59 +48,47 @@ export class IndexSignatureRunType extends MemberRunType<TypeIndexSignature> {
         }
     }
     // #### jit code ####
-    _compileIsType(comp: JitCompiler): string {
-        const child = this.getJitChild();
-        if (!child) return 'true';
-        const varName = comp.vλl;
-        const prop = this.getChildVarName();
-        return `for (const ${prop} in ${varName}){if (!(${child.compileIsType(comp)})) return false;} return true;`;
+    _compileIsType(comp: JitCompiler) {
+        const childCode = this.getJitChild()?.compileIsType(comp);
+        if (!childCode) return undefined;
+        return `for (const ${this.getChildVarName()} in ${comp.vλl}){if (!(${childCode})) return false;} return true;`;
     }
-    _compileTypeErrors(comp: JitErrorsCompiler): string {
-        const child = this.getJitChild();
-        if (!child) return '';
-        const varName = comp.vλl;
-        const prop = this.getChildVarName();
-        return `for (const ${prop} in ${varName}) {${child.compileTypeErrors(comp)}}`;
+    _compileTypeErrors(comp: JitErrorsCompiler) {
+        const childCode = this.getJitChild()?.compileTypeErrors(comp);
+        if (!childCode) return undefined;
+        return `for (const ${this.getChildVarName()} in ${comp.vλl}) {${childCode}}`;
     }
-
-    private getSkipCode(prop: string): string {
-        const namedChildren = (this.getParent() as InterfaceRunType).getNamedChildren();
-        const skipNames = namedChildren.length
-            ? namedChildren.map((child) => `${child.getChildLiteral()} === ${prop}`).join(' || ')
-            : '';
-        return namedChildren.length ? `if (${skipNames}) continue;` : '';
-    }
-
-    _compileJsonEncode(comp: JitCompiler): string {
+    _compileJsonEncode(comp: JitCompiler) {
         const child = this.getJsonEncodeChild();
-        if (!child) return '';
+        const childCode = child?.compileJsonEncode(comp);
+        if (!child || !childCode) return undefined;
         const varName = comp.vλl;
         const prop = this.getChildVarName();
         const skipCode = this.getSkipCode(prop);
-        const childCode = child.compileJsonEncode(comp);
+
         const isExpression = childIsExpression(JitFnIDs.jsonEncode, child);
         const code = isExpression ? `${comp.getChildVλl()} = ${childCode};` : childCode;
         return `for (const ${prop} in ${varName}){${skipCode} ${code}}`;
     }
-    _compileJsonDecode(comp: JitCompiler): string {
+    _compileJsonDecode(comp: JitCompiler) {
         const child = this.getJsonDecodeChild();
-        if (!child) return '';
+        const childCode = child?.compileJsonDecode(comp);
+        if (!child || !childCode) return undefined;
         const varName = comp.vλl;
         const prop = this.getChildVarName();
         const skipCode = this.getSkipCode(prop);
-        const childCode = child.compileJsonDecode(comp);
+
         const isExpression = childIsExpression(JitFnIDs.jsonDecode, child);
         const code = isExpression ? `${comp.getChildVλl()} = ${childCode};` : childCode;
         return `for (const ${prop} in ${varName}){${skipCode} ${code}}`;
     }
-
-    _compileJsonStringify(comp: JitCompiler): string {
+    _compileJsonStringify(comp: JitCompiler) {
         const child = this.getJitChild();
-        if (!child) return `''`;
+        const jsonVal = child?.compileJsonStringify(comp);
+        if (!child || !jsonVal) return undefined;
         const varName = comp.vλl;
         const prop = this.getChildVarName();
         const arrName = `ls${this.getNestLevel()}`;
-        const jsonVal = child.compileJsonStringify(comp);
         const sep = this.skipCommas ? '' : '+","';
         const skipCode = this.getSkipCode(prop);
         return `
@@ -112,35 +100,29 @@ export class IndexSignatureRunType extends MemberRunType<TypeIndexSignature> {
             return ${arrName}.join(',')${sep};
         `;
     }
-
-    _compileHasUnknownKeys(comp: JitCompiler): string {
-        if (this.getMemberType().getFamily() === 'A') return '';
-        const memberCode = this.getMemberType().compileHasUnknownKeys(comp);
+    _compileHasUnknownKeys(comp: JitCompiler) {
+        if (this.getMemberType().getFamily() === 'A') return undefined;
+        const memberCode = this.getJitChild()?.compileHasUnknownKeys(comp);
         if (!memberCode) return '';
         const varName = comp.vλl;
         const prop = this.getChildVarName();
         const resultVal = `res${this.getNestLevel()}`;
         return `for (const ${prop} in ${varName}) {const ${resultVal} = ${memberCode};if (${resultVal}) return true;}return false;`;
     }
-    _compileUnknownKeyErrors(comp: JitErrorsCompiler): string {
-        if (this.getMemberType().getFamily() === 'A') return '';
-        const memberCode = this.getMemberType().compileUnknownKeyErrors(comp);
+    _compileUnknownKeyErrors(comp: JitErrorsCompiler) {
+        if (this.getMemberType().getFamily() === 'A') return undefined;
+        const memberCode = this.getJitChild()?.compileUnknownKeyErrors(comp);
         return this.traverseCode(comp, memberCode);
     }
-    _compileStripUnknownKeys(comp: JitCompiler): string {
-        if (this.getMemberType().getFamily() === 'A') return '';
-        const memberCode = this.getMemberType().compileStripUnknownKeys(comp);
+    _compileStripUnknownKeys(comp: JitCompiler) {
+        if (this.getMemberType().getFamily() === 'A') return undefined;
+        const memberCode = this.getJitChild()?.compileStripUnknownKeys(comp);
         return this.traverseCode(comp, memberCode);
     }
-    _compileUnknownKeysToUndefined(comp: JitCompiler): string {
-        if (this.getMemberType().getFamily() === 'A') return '';
-        const memberCode = this.getMemberType().compileUnknownKeysToUndefined(comp);
+    _compileUnknownKeysToUndefined(comp: JitCompiler) {
+        if (this.getMemberType().getFamily() === 'A') return undefined;
+        const memberCode = this.getJitChild()?.compileUnknownKeysToUndefined(comp);
         return this.traverseCode(comp, memberCode);
-    }
-    traverseCode(comp: JitCompiler, memberCode: string): string {
-        if (!memberCode) return '';
-        const prop = this.getChildVarName();
-        return `for (const ${prop} in ${comp.vλl}) {${memberCode}}`;
     }
     _mock(ctx: MockOperation): any {
         const length = random(0, ctx.maxRandomItemsLength);
@@ -163,5 +145,17 @@ export class IndexSignatureRunType extends MemberRunType<TypeIndexSignature> {
             parentObj[propName] = this.getMemberType().mock(ctx);
         }
         return parentObj;
+    }
+    private traverseCode(comp: JitCompiler, memberCode: string | undefined): string | undefined {
+        if (!memberCode) return undefined;
+        const prop = this.getChildVarName();
+        return `for (const ${prop} in ${comp.vλl}) {${memberCode}}`;
+    }
+    private getSkipCode(prop: string): string {
+        const namedChildren = (this.getParent() as InterfaceRunType).getNamedChildren();
+        const skipNames = namedChildren.length
+            ? namedChildren.map((child) => `${child.getChildLiteral()} === ${prop}`).join(' || ')
+            : '';
+        return namedChildren.length ? `if (${skipNames}) continue;` : '';
     }
 }

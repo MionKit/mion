@@ -54,7 +54,7 @@ export const ReflectionSubKind = {
     map: 20_02,
     set: 20_03,
 
-    functionParams: 17_01,
+    params: 17_01,
     mapKey: 18_01,
     mapValue: 18_02,
     setItem: 18_03,
@@ -64,7 +64,7 @@ export const ReflectionSubNames: {[key: number]: keyof typeof ReflectionSubKind}
     20_01: 'date',
     20_02: 'map',
     20_03: 'set',
-    17_01: 'functionParams',
+    17_01: 'params',
 } as const;
 
 type AnyKindName = keyof typeof ReflectionKind | keyof typeof ReflectionSubKind;

@@ -31,8 +31,8 @@ describe('call signature', () => {
         expect(rt.getFamily()).toBe('C');
         expect(rt.isCallable()).toBe(true);
         expect(rt.getCallSignature()).toBeTruthy();
-        expect(rt.getCallSignature()?.getLength()).toBe(2);
     });
+
     it('validate', () => {
         const validate = rt.createJitFunction(JitFnIDs.isType);
         expect(validate(exampleFunction)).toBe(true);
@@ -72,7 +72,6 @@ describe('call signature with extra props', () => {
         expect(rtProps.getFamily()).toBe('C');
         expect(rtProps.isCallable()).toBe(true);
         expect(rtProps.getCallSignature()).toBeTruthy();
-        expect(rtProps.getCallSignature()?.getLength()).toBe(2);
     });
 
     it('is type', () => {
@@ -119,7 +118,7 @@ describe('call signature parameters', () => {
 
     it('should handle excess parameters', () => {
         const getTypeErrors = rt.getCallSignature()!.createJitParamsFunction(JitFnIDs.typeErrors);
-        expect(getTypeErrors([1, true, 'extra'])).toEqual([{expected: 'fnParams', path: []}]);
+        expect(getTypeErrors([1, true, 'extra'])).toEqual([{expected: 'params', path: []}]);
     });
 
     it('should encode and decode parameters to JSON', () => {

@@ -6,7 +6,6 @@
  * ######## */
 import {runType} from '../../runType';
 import {JitFnIDs} from '../../constants';
-import path from 'path';
 
 describe('IndexType', () => {
     interface IndexString {

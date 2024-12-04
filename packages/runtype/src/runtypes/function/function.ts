@@ -4,16 +4,16 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
-import type {MockOperation, JitConstants, AnyFunction, JitFnID, SrcType} from '../../types';
+import type {MockOperation, JitConfig, AnyFunction, JitFnID, SrcType} from '../../types';
 import {ReflectionKind, TypeFunction} from '../../lib/_deepkit/src/reflection/type';
 import {BaseRunType} from '../../lib/baseRunTypes';
 import {isAnyFunctionRunType, isFunctionRunType, isPromiseRunType} from '../../lib/guards';
 import {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
-import {FunctionParametersRunType} from '../collection/functionParameters';
-import {toLiteral} from '../../lib/utils';
-import {PromiseRunType} from '../member/promise';
+import {ParameterListRunType} from '../collection/parameterList';
+import {PromiseRunType} from '../native/promise';
+import {ReflectionSubKind} from '../../constants.kind';
 
-const functionJitConstants: JitConstants = {
+const functionJitConstants: JitConfig = {
     skipJit: true,
     skipJsonEncode: true,
     skipJsonDecode: true,
@@ -22,12 +22,12 @@ const functionJitConstants: JitConstants = {
 
 export class FunctionRunType<CallType extends AnyFunction = TypeFunction> extends BaseRunType<CallType> {
     // parameterRunTypes.src must be set after FunctionRunType creation
-    parameterRunTypes: FunctionParametersRunType = new FunctionParametersRunType();
+    parameterRunTypes: ParameterListRunType = new ParameterListRunType();
     linkSrc(deepkitType: SrcType): void {
         super.linkSrc(deepkitType);
-        (this.parameterRunTypes as any).src = deepkitType;
+        this.parameterRunTypes.linkSrc({...deepkitType, subKind: ReflectionSubKind.params});
     }
-    getJitConstants = (): JitConstants => functionJitConstants;
+    getJitConfig = (): JitConfig => functionJitConstants;
     getFamily(): 'F' {
         return 'F';
     }
@@ -36,14 +36,6 @@ export class FunctionRunType<CallType extends AnyFunction = TypeFunction> extend
         if (!name) return '';
         if (typeof name === 'symbol') return name.toString();
         return name;
-    }
-    /**
-     * returns the number of parameters of the function, follows same logic as Function.prototype.length
-     * https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Function/length
-     * @returns
-     */
-    getLength(): number {
-        return this.parameterRunTypes.getLength();
     }
 
     createJitParamsFunction(fnId: JitFnID): (...args: any[]) => any {
@@ -75,9 +67,12 @@ export class FunctionRunType<CallType extends AnyFunction = TypeFunction> extend
 
     // can't know the types of the runtype function parameters, neither the return type, so only compare function name and length
     _compileIsType(comp: JitCompiler): string {
-        const fnName = this.getFnName();
-        const nameCheck = fnName ? ` && ${comp.vλl}.name === ${toLiteral(fnName)}` : '';
-        return `typeof ${comp.vλl} === 'function'  && ${comp.vλl}.length === ${this.parameterRunTypes.getLength()} ${nameCheck}`;
+        const minLength = this.parameterRunTypes.totalRequiredParams();
+        const totalParams = this.parameterRunTypes.getChildRunTypes().length;
+        const hasOptional = totalParams > minLength;
+        const maxLength =
+            this.parameterRunTypes.hasRestParameter() || !hasOptional ? '' : ` && ${comp.vλl}.length <= ${totalParams}`;
+        return `(typeof ${comp.vλl} === 'function' && ${comp.vλl}.length >= ${minLength} ${maxLength})`;
     }
     _compileTypeErrors(comp: JitErrorsCompiler): string {
         return `if (!(${this._compileIsType(comp)})) ${comp.callJitErr(this)};`;
@@ -116,7 +111,7 @@ export class FunctionRunType<CallType extends AnyFunction = TypeFunction> extend
     getReturnType(): BaseRunType {
         return (this.src.return as SrcType)._rt as BaseRunType;
     }
-    getParameters(): FunctionParametersRunType {
+    getParameters(): ParameterListRunType {
         return this.parameterRunTypes;
     }
     hasReturnData(): boolean {

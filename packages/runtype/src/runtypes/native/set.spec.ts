@@ -263,7 +263,6 @@ describe('SerRunType with nested sets', () => {
             b: new Set([{s: 's', arr: 1}]), // arr should be number[]
         };
         expect(valWithErrors(notSet)).toEqual([{path: ['b'], expected: 'set'}]);
-        console.log(valWithErrors(wrongValue));
         expect(valWithErrors(wrongValue)).toEqual([{path: ['b', {key: null, index: 0}, 'arr'], expected: 'array'}]);
     });
 

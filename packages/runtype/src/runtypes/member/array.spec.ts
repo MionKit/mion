@@ -6,6 +6,7 @@
  * ######## */
 import {runType} from '../../runType';
 import {JitFnIDs} from '../../constants';
+import {BaseRunType} from '../../lib/baseRunTypes';
 
 describe('Array', () => {
     const rt = runType<string[]>();
@@ -30,6 +31,7 @@ describe('Array', () => {
         const toJson = rt.createJitFunction(JitFnIDs.jsonEncode);
         const typeValue = ['hello', 'world'];
         expect(toJson(typeValue)).toEqual(typeValue);
+        expect((rt as BaseRunType).getJitCompiledOperation(JitFnIDs.jsonEncode).isNoop).toBe(true);
     });
 
     it('decode from json', () => {
@@ -37,12 +39,14 @@ describe('Array', () => {
         const typeValue = ['hello', 'world'];
         const json = JSON.parse(JSON.stringify(typeValue));
         expect(fromJson(json)).toEqual(typeValue);
+        expect((rt as BaseRunType).getJitCompiledOperation(JitFnIDs.jsonDecode).isNoop).toBe(true);
     });
 
     it('encode to json date', () => {
         const toJson = rD.createJitFunction(JitFnIDs.jsonEncode);
         const typeValue = [new Date(), new Date()];
         expect(toJson(typeValue)).toBe(typeValue);
+        expect((rD as BaseRunType).getJitCompiledOperation(JitFnIDs.jsonEncode).isNoop).toBe(true);
     });
 
     it('decode from json date', () => {
@@ -50,6 +54,7 @@ describe('Array', () => {
         const typeValue = [new Date(), new Date()];
         const json = JSON.parse(JSON.stringify(typeValue));
         expect(fromJson(json)).toEqual(typeValue);
+        expect((rD as BaseRunType).getJitCompiledOperation(JitFnIDs.jsonDecode).isNoop).toBe(false);
     });
 
     it('json stringify', () => {

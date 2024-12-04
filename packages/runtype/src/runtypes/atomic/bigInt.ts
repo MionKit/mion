@@ -6,12 +6,12 @@
  * ######## */
 
 import {ReflectionKind, type TypeBigInt} from '../../lib/_deepkit/src/reflection/type';
-import type {JitJsonEncoder, MockOperation, JitConstants} from '../../types';
+import type {JitJsonEncoder, MockOperation, JitConfig} from '../../types';
 import {mockBigInt} from '../../lib/mock';
 import {AtomicRunType} from '../../lib/baseRunTypes';
 import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
 
-const jitConstants: JitConstants = {
+const jitConstants: JitConfig = {
     skipJit: false,
     skipJsonEncode: false,
     skipJsonDecode: false,
@@ -19,21 +19,21 @@ const jitConstants: JitConstants = {
 };
 
 export class BigIntRunType extends AtomicRunType<TypeBigInt> {
-    getJitConstants = () => jitConstants;
+    getJitConfig = () => jitConstants;
     _compileIsType(comp: JitCompiler): string {
         return `typeof ${comp.vλl} === 'bigint'`;
     }
     _compileTypeErrors(comp: JitErrorsCompiler): string {
         return `if (typeof ${comp.vλl} !== 'bigint') ${comp.callJitErr(this)}`;
     }
-    _compileJsonEncode(comp: JitCompiler): string {
-        return BigIntJitJsonENcoder.encodeToJson(comp.vλl);
+    _compileJsonEncode(comp: JitCompiler) {
+        return BigIntJitJsonEncoder.encodeToJson(comp.vλl);
     }
-    _compileJsonDecode(comp: JitCompiler): string {
-        return BigIntJitJsonENcoder.decodeFromJson(comp.vλl);
+    _compileJsonDecode(comp: JitCompiler) {
+        return BigIntJitJsonEncoder.decodeFromJson(comp.vλl);
     }
-    _compileJsonStringify(comp: JitCompiler): string {
-        return BigIntJitJsonENcoder.stringify(comp.vλl);
+    _compileJsonStringify(comp: JitCompiler) {
+        return BigIntJitJsonEncoder.stringify(comp.vλl);
     }
     /** mocks a regular number and transforms into a bigint.
      * this means range is limited to Number.MAX_SAFE_INTEGER
@@ -43,7 +43,7 @@ export class BigIntRunType extends AtomicRunType<TypeBigInt> {
     }
 }
 
-export const BigIntJitJsonENcoder: JitJsonEncoder = {
+export const BigIntJitJsonEncoder: JitJsonEncoder = {
     decodeFromJson(vλl: string): string {
         return `BigInt(${vλl})`;
     },

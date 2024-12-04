@@ -6,13 +6,13 @@
  * ######## */
 
 import {ReflectionKind, type TypeNumber} from '../../lib/_deepkit/src/reflection/type';
-import type {MockOperation, JitConstants} from '../../types';
+import type {MockOperation, JitConfig} from '../../types';
 
 import {mockNumber} from '../../lib/mock';
 import {AtomicRunType} from '../../lib/baseRunTypes';
 import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
 
-const jitConstants: JitConstants = {
+const jitConstants: JitConfig = {
     skipJit: false,
     skipJsonEncode: true,
     skipJsonDecode: true,
@@ -20,7 +20,7 @@ const jitConstants: JitConstants = {
 };
 
 export class NumberRunType extends AtomicRunType<TypeNumber> {
-    getJitConstants = () => jitConstants;
+    getJitConfig = () => jitConstants;
     _compileIsType(comp: JitCompiler): string {
         return `Number.isFinite(${comp.vλl})`;
     }

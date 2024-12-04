@@ -32,7 +32,7 @@ export * from './src/runtypes/atomic/unknown';
 export * from './src/runtypes/atomic/void';
 export * from './src/runtypes/atomic/symbol';
 export * from './src/runtypes/atomic/regexp';
-export * from './src/runtypes/member/promise';
+export * from './src/runtypes/native/promise';
 export * from './src/runtypes/member/tupleMember';
 export * from './src/runtypes/member/property';
 

@@ -6,12 +6,12 @@
  * ######## */
 
 import {ReflectionKind, type TypeVoid} from '../../lib/_deepkit/src/reflection/type';
-import type {JitConstants} from '../../types';
+import type {JitConfig} from '../../types';
 import {AtomicRunType} from '../../lib/baseRunTypes';
 
 import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
 
-const jitConstants: JitConstants = {
+const jitConstants: JitConfig = {
     skipJit: false,
     skipJsonEncode: false,
     skipJsonDecode: false,
@@ -19,7 +19,7 @@ const jitConstants: JitConstants = {
 };
 
 export class VoidRunType extends AtomicRunType<TypeVoid> {
-    getJitConstants = () => jitConstants;
+    getJitConfig = () => jitConstants;
     _compileIsType(comp: JitCompiler): string {
         return `${comp.vλl} === undefined`;
     }

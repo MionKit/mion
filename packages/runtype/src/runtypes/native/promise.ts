@@ -5,10 +5,10 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 import {ReflectionKind, type TypePromise} from '../../lib/_deepkit/src/reflection/type';
-import type {MockOperation, JitConstants} from '../../types';
+import type {MockOperation, JitConfig} from '../../types';
 import {MemberRunType} from '../../lib/baseRunTypes';
 
-const jitConstants: JitConstants = {
+const jitConstants: JitConfig = {
     skipJit: true,
     skipJsonEncode: true,
     skipJsonDecode: true,
@@ -16,7 +16,7 @@ const jitConstants: JitConstants = {
 };
 
 export class PromiseRunType extends MemberRunType<TypePromise> {
-    getJitConstants = () => jitConstants;
+    getJitConfig = () => jitConstants;
     isOptional(): boolean {
         throw new Error(`Jit compilation disabled for Promises.`);
     }

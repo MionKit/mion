@@ -19,7 +19,6 @@ function sumWithDefault(a: number, b: number = 2, c?: number): number {
     return a + b + (c || 0);
 }
 function sumRest(a: number, b: number, ...c: number[]): number {
-    console.log(c);
     return a + b + c.reduce((acc, v) => acc + v, 0);
 }
 
@@ -38,19 +37,14 @@ describe('function', () => {
 
         expect(rtSum.getFamily()).toBe('F');
         expect(rtSum.getFnName()).toBe('sum');
-        expect(rtSum.getLength()).toBe(3);
         expect(sum.length).toBe(3);
 
         expect(rtSumWithDefault.getFamily()).toBe('F');
         expect(rtSumWithDefault.getFnName()).toBe('sumWithDefault');
-        // only counts until the first optional parameter
-        expect(rtSumWithDefault.getLength()).toBe(1);
         expect(sumWithDefault.length).toBe(1);
 
         expect(rtSumRest.getFamily()).toBe('F');
         expect(rtSumRest.getFnName()).toBe('sumRest');
-        // rest parameters are not counted
-        expect(rtSumRest.getLength()).toBe(2);
         expect(sumRest.length).toBe(2);
 
         expect(validate(sum)).toBe(true);
@@ -106,7 +100,9 @@ describe('function parameters', () => {
             {expected: 'string', path: [2]},
         ]);
         // more parameters than expected
-        expect(validate([3, true, 'hello', 7])).toEqual([{expected: 'fnParams', path: []}]);
+        expect(validate([3, true, 'hello', 7])).toEqual([{expected: 'params', path: []}]);
+        /// les parameters than expected
+        expect(validate([3])).toEqual([{expected: 'boolean', path: [1]}]);
     });
 
     it('encode/decode to json parameters', () => {
@@ -158,6 +154,51 @@ describe('function parameters', () => {
         expect(mocked.length >= 2 && mocked.length <= 3).toBe(true);
         const validate = rt.createJitParamsFunction(JitFnIDs.isType);
         expect(validate(rt.mockParams())).toBe(true);
+    });
+});
+
+describe('non serializable parameters', () => {
+    type FunctionType = (a: number, b: boolean, c: () => any) => Date; // c is not serializable
+    const rtWithFN = runType<FunctionType>() as FunctionRunType;
+
+    it('validate non serializable types must be undefined', () => {
+        const validate = rtWithFN.createJitParamsFunction(JitFnIDs.isType);
+        expect(validate([3, true, () => null])).toBe(false); // non serializable types must be null
+        expect(validate([3, true, undefined])).toBe(true); // non serializable types must be null
+    });
+
+    it('get errors from non serializable types', () => {
+        const validate = rtWithFN.createJitParamsFunction(JitFnIDs.typeErrors);
+        expect(validate([3, true, () => null])).toEqual([{expected: 'undefined', path: [2]}]);
+        expect(validate([3, true, undefined])).toEqual([]);
+    });
+
+    it('encode/decode to json non serializable types', () => {
+        const toJson = rtWithFN.createJitParamsFunction(JitFnIDs.jsonEncode);
+        const fromJson = rtWithFN.createJitParamsFunction(JitFnIDs.jsonDecode);
+        const typeValue = [3, true, () => null];
+        const typeValue2 = [3, true, undefined];
+        expect(fromJson(JSON.parse(JSON.stringify(toJson(typeValue))))).toEqual([3, true, undefined]);
+        expect(fromJson(JSON.parse(JSON.stringify(toJson(typeValue2))))).toEqual([3, true, undefined]);
+    });
+
+    it('json stringify non serializable types', () => {
+        const jsonStringify = rtWithFN.createJitParamsFunction(JitFnIDs.jsonStringify);
+        const fromJson = rtWithFN.createJitParamsFunction(JitFnIDs.jsonDecode);
+        const typeValue = [3, true, () => null];
+        const typeValue2 = [3, true, undefined];
+        const roundTrip = fromJson(JSON.parse(jsonStringify(typeValue)));
+        const roundTrip2 = fromJson(JSON.parse(jsonStringify(typeValue2)));
+        expect(roundTrip).toEqual([3, true, undefined]);
+        expect(roundTrip2).toEqual([3, true, undefined]);
+    });
+
+    it('mock non serializable types', () => {
+        const mocked = rtWithFN.mockParams();
+        expect(Array.isArray(mocked)).toBe(true);
+        expect(mocked.length >= 2 && mocked.length <= 3).toBe(true);
+        const validate = rtWithFN.createJitParamsFunction(JitFnIDs.isType);
+        expect(validate(rtWithFN.mockParams())).toBe(true);
     });
 });
 

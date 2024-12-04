@@ -38,7 +38,7 @@ import type {MethodSignatureRunType} from '../runtypes/member/methodSignature';
 import type {CallSignatureRunType} from '../runtypes/member/callSignature';
 import type {FunctionRunType} from '../runtypes/function/function';
 import type {ParameterRunType} from '../runtypes/member/param';
-import type {PromiseRunType} from '../runtypes/member/promise';
+import type {PromiseRunType} from '../runtypes/native/promise';
 import type {ObjectRunType} from '../runtypes/atomic/object';
 import type {MethodRunType} from '../runtypes/member/method';
 import type {AtomicRunType, CollectionRunType, MemberRunType} from './baseRunTypes';

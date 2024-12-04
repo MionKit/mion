@@ -18,7 +18,7 @@ export class ClassRunType extends InterfaceRunType<TypeClass> {
     }
     isSerializableClass(): boolean {
         const children = this.getChildRunTypes() as InterfaceMember[];
-        return children.every((prop) => !isConstructor(prop) || prop.getParameters().getTotalParams() === 0);
+        return children.every((prop) => !isConstructor(prop) || prop.getParameters().getChildRunTypes().length === 0);
     }
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     _compileJsonDecode(comp: JitCompiler): string {

@@ -223,3 +223,51 @@ describe('TupleRunType with circular type definitions', () => {
         expectMocked(mocked);
     });
 });
+
+describe('TupleRunType with rest parameter', () => {
+    type TupleRest = [number, ...string[]];
+    const rt = runType<TupleRest>();
+
+    it('validate tuple with rest parameter', () => {
+        const validate = rt.createJitFunction(JitFnIDs.isType);
+        expect(validate([3, 'a', 'b', 'c'])).toBe(true);
+        expect(validate([3])).toBe(true);
+        expect(validate([3, 'a'])).toBe(true);
+        expect(validate([3, 'a', 'b'])).toBe(true);
+        expect(validate([3, 'a', 'b', 4])).toBe(false);
+    });
+
+    it('validate tuple with rest parameter + errors', () => {
+        const valWithErrors = rt.createJitFunction(JitFnIDs.typeErrors);
+        expect(valWithErrors([3, 'a', 'b', 'c'])).toEqual([]);
+        expect(valWithErrors([3])).toEqual([]);
+        expect(valWithErrors([3, 'a'])).toEqual([]);
+        expect(valWithErrors([3, 'a', 'b'])).toEqual([]);
+        expect(valWithErrors([3, 'a', 'b', 4])).toEqual([{path: [3], expected: 'string'}]);
+    });
+
+    it('encode/decode to json', () => {
+        const toJson = rt.createJitFunction(JitFnIDs.jsonEncode);
+        const fromJson = rt.createJitFunction(JitFnIDs.jsonDecode);
+        const typeValue: TupleRest = [3, 'a', 'b', 'c'];
+        // value used for json encode/decode gets modified so we need to copy it to compare later
+        const copy1 = structuredClone(typeValue);
+        expect(fromJson(JSON.parse(JSON.stringify(toJson(copy1))))).toEqual(typeValue);
+    });
+
+    it('json stringify', () => {
+        const jsonStringify = rt.createJitFunction(JitFnIDs.jsonStringify);
+        const fromJson = rt.createJitFunction(JitFnIDs.jsonDecode);
+        const typeValue: TupleRest = [3, 'a', 'b', 'c'];
+        const roundTrip = fromJson(JSON.parse(jsonStringify(typeValue)));
+        expect(roundTrip).toEqual(typeValue);
+    });
+
+    it('mock', () => {
+        const mocked = rt.mock();
+        expect(mocked).toHaveLength(1);
+        expect(typeof mocked[0]).toBe('number');
+        const validate = rt.createJitFunction(JitFnIDs.isType);
+        expect(validate(mocked)).toBe(true);
+    });
+});

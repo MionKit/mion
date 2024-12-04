@@ -7,7 +7,7 @@
 
 import type {TypeUnion} from '../../lib/_deepkit/src/reflection/type';
 import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
-import {JitConstants, JitFnID, MockOperation, Mutable, RunType} from '../../types';
+import {JitConfig, JitFnID, MockOperation, Mutable, RunType} from '../../types';
 import {random} from '../../lib/mock';
 import {BaseRunType, CollectionRunType} from '../../lib/baseRunTypes';
 import {childIsExpression, memorize} from '../../lib/utils';
@@ -26,9 +26,9 @@ import {UnionInterfaceRunType} from '../other/unionInterface';
  * So [0, "123n"] is interpreted as a string and [1, "123n"] is interpreted as a bigint.
  * */
 export class UnionRunType extends CollectionRunType<TypeUnion> {
-    getJitConstants(stack: BaseRunType[] = []): JitConstants {
+    getJitConfig(stack: BaseRunType[] = []): JitConfig {
         return {
-            ...(super.getJitConstants(stack) as Mutable<JitConstants>),
+            ...(super.getJitConfig(stack) as Mutable<JitConfig>),
             skipJit: false,
             skipJsonDecode: false,
             skipJsonEncode: false,
@@ -49,7 +49,7 @@ export class UnionRunType extends CollectionRunType<TypeUnion> {
         }
     }
 
-    private getChildStrictIsType(rt: BaseRunType, comp: JitCompiler): string {
+    private getChildStrictIsType(rt: BaseRunType, comp: JitCompiler) {
         const isTypeCode = rt.compileIsType(comp);
         const isTypeWithProperties =
             isInterfaceRunType(rt) || isClassRunType(rt) || isObjectLiteralRunType(rt) || isIntersectionRunType(rt);
@@ -86,7 +86,7 @@ export class UnionRunType extends CollectionRunType<TypeUnion> {
         const childrenCode = this.getJitChildren()
             .map((child, i) => {
                 const iF = i === 0 ? 'if' : 'else if';
-                const childCode = child.getJitConstants().skipJsonEncode ? '' : child.compileJsonEncode(comp);
+                const childCode = child.getJitConfig().skipJsonEncode ? '' : child.compileJsonEncode(comp);
                 const isExpression = childIsExpression(JitFnIDs.jsonEncode, child);
                 const encodeCode = isExpression && childCode ? `${comp.vλl} = ${childCode};` : childCode;
                 const itemIsType = this.getChildStrictIsType(child, comp);
@@ -116,7 +116,7 @@ export class UnionRunType extends CollectionRunType<TypeUnion> {
         const childrenCode = children
             .map((child, i) => {
                 const iF = i === 0 ? 'if' : 'else if';
-                const childCode = child.getJitConstants().skipJsonDecode ? '' : child.compileJsonDecode(comp);
+                const childCode = child.getJitConfig().skipJsonDecode ? '' : child.compileJsonDecode(comp);
                 const isExpression = childIsExpression(JitFnIDs.jsonDecode, child);
                 const code = isExpression && childCode && childCode !== comp.vλl ? `${comp.vλl} = ${childCode}` : childCode;
                 // item is decoded before being extracted from the array

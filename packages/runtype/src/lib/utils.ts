@@ -8,7 +8,6 @@
 import type {AnyClass, JitFnID, RunType} from '../types';
 import {ReflectionKind, Type, TypeFunction, TypeParameter} from './_deepkit/src/reflection/type';
 import {jitUtils} from './jitUtils';
-import {isAtomicRunType, isCollectionRunType, isMemberRunType} from './guards';
 import {validPropertyNameRegExp} from '../constants';
 import {BaseRunType} from './baseRunTypes';
 import type {JitCompiler} from './jitCompiler';
@@ -115,51 +114,4 @@ export function getParamIndex(src: TypeParameter): number {
 
 export function childIsExpression(fnId: JitFnID, child: BaseRunType): boolean {
     return child.jitFnIsExpression(fnId) || !child.isJitInlined();
-}
-
-export function shouldSkipJit(rt: RunType): boolean {
-    if (isCollectionRunType(rt)) {
-        const children = rt.getJitChildren();
-        return !children.length;
-    }
-    if (isMemberRunType(rt)) {
-        const child = rt.getJitChild();
-        return !child;
-    }
-    if (isAtomicRunType(rt)) {
-        return rt.getJitConstants().skipJit;
-    }
-    throw new Error('shouldSkipJit: unknown RunType');
-}
-
-export function shouldSkipJsonDecode(rt: RunType): boolean {
-    if (shouldSkipJit(rt)) return true;
-    if (isCollectionRunType(rt)) {
-        const children = rt.getJsonDecodeChildren();
-        return !children.length;
-    }
-    if (isMemberRunType(rt)) {
-        const child = rt.getJsonDecodeChild();
-        return !child;
-    }
-    if (isAtomicRunType(rt)) {
-        return rt.getJitConstants().skipJsonDecode;
-    }
-    throw new Error('shouldSkipJsonDecode: unknown RunType');
-}
-
-export function shouldSkiJsonEncode(rt: RunType): boolean {
-    if (shouldSkipJit(rt)) return true;
-    if (isCollectionRunType(rt)) {
-        const children = rt.getJsonEncodeChildren();
-        return !children.length;
-    }
-    if (isMemberRunType(rt)) {
-        const child = rt.getJsonEncodeChild();
-        return !child;
-    }
-    if (isAtomicRunType(rt)) {
-        return rt.getJitConstants().skipJsonEncode;
-    }
-    throw new Error('shouldSkiJsonEncode: unknown RunType');
 }

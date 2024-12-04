@@ -6,13 +6,13 @@
  * ######## */
 
 import {ReflectionKind, type TypeSymbol} from '../../lib/_deepkit/src/reflection/type';
-import type {JitJsonEncoder, MockOperation, JitConstants} from '../../types';
+import type {JitJsonEncoder, MockOperation, JitConfig} from '../../types';
 
 import {mockSymbol} from '../../lib/mock';
 import {AtomicRunType} from '../../lib/baseRunTypes';
 import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
 
-const jitConstants: JitConstants = {
+const jitConstants: JitConfig = {
     skipJit: true,
     skipJsonEncode: true,
     skipJsonDecode: true,
@@ -20,17 +20,17 @@ const jitConstants: JitConstants = {
 };
 
 export class SymbolRunType extends AtomicRunType<TypeSymbol> {
-    getJitConstants = () => jitConstants;
+    getJitConfig = () => jitConstants;
     _compileIsType(comp: JitCompiler): string {
         return `typeof ${comp.vλl} === 'symbol'`;
     }
     _compileTypeErrors(comp: JitErrorsCompiler): string {
         return `if (typeof ${comp.vλl} !== 'symbol') ${comp.callJitErr(this)}`;
     }
-    _compileJsonEncode(comp: JitCompiler): string {
+    _compileJsonEncode(comp: JitCompiler) {
         return SymbolJitJsonEncoder.encodeToJson(comp.vλl);
     }
-    _compileJsonDecode(comp: JitCompiler): string {
+    _compileJsonDecode(comp: JitCompiler) {
         return SymbolJitJsonEncoder.decodeFromJson(comp.vλl);
     }
     _compileJsonStringify(comp: JitCompiler): string {

@@ -140,7 +140,7 @@ export class UnionInterfaceRunType extends InterfaceRunType<anySrcInterface> {
     }
     _compileJsonEncode(comp: JitCompiler): string {
         const jsonEncodedMergedList = this.mergedInterfaces.filter(
-            (c) => !c.getJitConstants().skipJit && !c.getJitConstants().skipJsonEncode
+            (c) => !c.getJitConfig().skipJit && !c.getJitConfig().skipJsonEncode
         );
         return jsonEncodedMergedList.length
             ? jsonEncodedMergedList
@@ -155,7 +155,7 @@ export class UnionInterfaceRunType extends InterfaceRunType<anySrcInterface> {
     }
     _compileJsonDecode(comp: JitCompiler): string {
         const jsonDecodedMergedList = this.mergedInterfaces.filter(
-            (c) => !c.getJitConstants().skipJit && !c.getJitConstants().skipJsonDecode
+            (c) => !c.getJitConfig().skipJit && !c.getJitConfig().skipJsonDecode
         );
         return jsonDecodedMergedList.length
             ? jsonDecodedMergedList

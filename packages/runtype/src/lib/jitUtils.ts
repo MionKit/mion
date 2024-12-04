@@ -186,7 +186,7 @@ export function createJitIDHash(jitId: string, length = hashDefaultLength): stri
         // generates a longer hash if there are collisions
         // this would allow trying to get all possible hashes for a given input just by increasing the length
         const newId = quickHash(jitId, length, id);
-        if (process.env.DEBUG_JIT || process.env.NODE_ENV === 'test')
+        if (process.env.DEBUG_JIT)
             console.warn(
                 `Collision for jitId: ${jitId} with extended hash: ${newId}, and existing jitId: ${existing} with hash: ${id}`
             );
