@@ -1,0 +1,47 @@
+{
+  "name": "@mionkit/eslint-plugin",
+  "version": "0.7.2",
+  "description": "ESLint rules for mion projects",
+  "keywords": [
+    "eslint",
+    "mion",
+    "runtypes",
+    "run types",
+    "run-type"
+  ],
+  "author": "ma jerez <jerez.m82@gmail.com>",
+  "homepage": "https://mion.io/",
+  "license": "MIT",
+  "main": ".dist/cjs/index.js",
+  "module": ".dist/esm/index.js",
+  "types": ".dist/types/index.d.ts",
+  "directories": {
+    "lib": ".dist"
+  },
+  "files": [
+    ".dist"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MionKit/mion.git"
+  },
+  "scripts": {
+    "test": "jest",
+    "dev": "rimraf .dist && tsc --build tsconfig.json --watch",
+    "dev:test": "jest --watch",
+    "lint": "eslint src --ext .ts",
+    "format": "prettier --write src/**/*.ts",
+    "build:cjs": "tsc --project tsconfig.build.json --module CommonJS --outDir .dist/cjs",
+    "build:esm": "tsc --project tsconfig.build.json --module NodeNext --outDir .dist/esm",
+    "build:types": "tsc --project tsconfig.build.json --emitDeclarationOnly --declaration --outDir .dist/types",
+    "build": "npm run build:cjs && npm run build:esm && npm run build:types",
+    "auto-readme": "embedme **/*.md && prettier --write **/*.md",
+    "clean": "rimraf .dist & rimraf .coverage"
+  },
+  "bugs": {
+    "url": "https://github.com/MionKit/mion/issues"
+  },
+  "dependencies": {
+    "@typescript-eslint/utils": "^8.17.0"
+  }
+}

@@ -47,6 +47,7 @@
   "devDependencies": {
     "@deepkit/core": "1.0.1-alpha.124",
     "@deepkit/type-compiler": "1.0.1-alpha.142",
+    "@mionkit/eslint-plugin": "^0.7.2",
     "@types/aws-lambda": "^8.10.108",
     "@types/jest": "^29.5.3",
     "@types/node": "^18.17.0",
@@ -65,13 +66,14 @@
   },
   "workspaces": [
     "packages/core",
+    "packages/eslint-plugin",
     "packages/runtype",
     "packages/router",
     "packages/aws",
     "packages/gcloud",
     "packages/bun",
     "packages/common",
-    "packages/quick-start", 
+    "packages/quick-start",
     "packages/http",
     "packages/client",
     "packages/codegen"
