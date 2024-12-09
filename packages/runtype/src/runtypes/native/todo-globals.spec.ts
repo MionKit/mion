@@ -17,7 +17,7 @@ describe.skip('native types that throw when trying to create a RunType', () => {
 
     it('should throw when creating RunType for JSON', () => {
         // src =  kind: 30, id: 1, types: [] } and children  { kind: 30, id: 2, types: [], annotations: {} }
-        expect(() => runType<typeof JSON>()).toThrow();
+        expect(() => runType<JSON>()).toThrow();
     });
 
     it('should throw when creating RunType for Worker', () => {

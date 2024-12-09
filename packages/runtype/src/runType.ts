@@ -73,10 +73,6 @@ function createAllRunTypes(src: SrcType): undefined {
         createRunType(current);
         const subStack: SrcType[] = [];
 
-        // TODO: even if type is non serializable we might want to parse child nodes and be able to access them
-        // TODO; maybe we can se a flag to skip the child nodes of non serializable types when in compile mode
-        if (current._rt && current._rt instanceof NonSerializableRunType) continue;
-
         // single child type nodes
         if (current.type) subStack.push(current.type);
         if (current.return) subStack.push(current.return);

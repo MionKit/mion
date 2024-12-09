@@ -5,18 +5,20 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {AtomicRunType} from '../../lib/baseRunTypes';
+import type {TypeClass, TypeObjectLiteral} from '../../lib/_deepkit/src/reflection/type';
+import {BaseRunType} from '../../lib/baseRunTypes';
+import {JitConfig} from '../../types';
+import {InterfaceRunType} from '../collection/interface';
 
 // Non serializable types might not be Atomic but will be skipped so it doesn't matter
-export class NonSerializableRunType extends AtomicRunType<any> {
-    getJitConfig() {
-        const kind = this.src.subKind || this.src.kind;
-        const name = this.src.typeName || this.src.classType?.constructor?.name || '';
+export class NonSerializableRunType extends InterfaceRunType<TypeObjectLiteral | TypeClass> {
+    getJitConfig(stack?: BaseRunType[]): JitConfig {
+        // skip return false so we ensure the compile functions will throw when a NonSerializable type is used
         return {
-            skipJit: true,
-            skipJsonEncode: true,
-            skipJsonDecode: true,
-            jitId: `${kind}${name}`,
+            ...super.getJitConfig(stack),
+            skipJsonEncode: false,
+            skipJsonDecode: false,
+            skipJit: false,
         };
     }
     _compileIsType(): string {
@@ -32,6 +34,18 @@ export class NonSerializableRunType extends AtomicRunType<any> {
         throw new Error(`Jit compilation disabled for Non Serializable types.`);
     }
     _compileJsonStringify(): string {
+        throw new Error(`Jit compilation disabled for Non Serializable types.`);
+    }
+    _compileHasUnknownKeys(): string {
+        throw new Error(`Jit compilation disabled for Non Serializable types.`);
+    }
+    _compileUnknownKeyErrors(): string {
+        throw new Error(`Jit compilation disabled for Non Serializable types.`);
+    }
+    _compileStripUnknownKeys(): string {
+        throw new Error(`Jit compilation disabled for Non Serializable types.`);
+    }
+    _compileUnknownKeysToUndefined(): string {
         throw new Error(`Jit compilation disabled for Non Serializable types.`);
     }
     _mock(): any {
