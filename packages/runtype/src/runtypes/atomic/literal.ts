@@ -7,7 +7,6 @@
 
 import type {TypeLiteral} from '../../lib/_deepkit/src/reflection/type';
 import type {JitJsonEncoder, JitConfig} from '../../types';
-import {SymbolJitJsonEncoder} from './symbol';
 import {BigIntJitJsonEncoder} from './bigInt';
 import {RegexpJitJsonEncoder} from './regexp';
 import {memorize, toLiteral} from '../../lib/utils';
@@ -76,6 +75,18 @@ const noEncoder: JitJsonEncoder = {
     },
     stringify(vλl: string) {
         return `JSON.stringify(${vλl})`;
+    },
+};
+
+const SymbolJitJsonEncoder: JitJsonEncoder = {
+    decodeFromJson(vλl: string): string {
+        return `Symbol(${vλl}.substring(7))`;
+    },
+    encodeToJson(vλl: string): string {
+        return `'Symbol:' + (${vλl}.description || '')`;
+    },
+    stringify(vλl: string): string {
+        return `JSON.stringify('Symbol:' + (${vλl}.description || ''))`;
     },
 };
 

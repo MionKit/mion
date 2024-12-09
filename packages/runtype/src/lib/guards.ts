@@ -6,9 +6,10 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {ReflectionKind, TypeMethod} from './_deepkit/src/reflection/type';
+import type {TypeClass, TypeMethod, TypeObjectLiteral} from './_deepkit/src/reflection/type';
+import {ReflectionKind} from './_deepkit/src/reflection/type';
 import {ReflectionSubKind} from '../constants.kind';
-import {JitFnIDs} from '../constants';
+import {JitFnIDs, nonSerializableClasses, nonSerializableGlobals} from '../constants';
 /* IMPORTANT: import classes as type only to prevent js circular imports */
 import type {MockOperation, MockOptions, RunType, RunTypeChildAccessor} from '../types';
 import type {StringRunType} from '../runtypes/atomic/string';
@@ -17,7 +18,6 @@ import type {NumberRunType} from '../runtypes/atomic/number';
 import type {BooleanRunType} from '../runtypes/atomic/boolean';
 import type {NullRunType} from '../runtypes/atomic/null';
 import type {BigIntRunType} from '../runtypes/atomic/bigInt';
-import type {SymbolRunType} from '../runtypes/atomic/symbol';
 import type {AnyRunType} from '../runtypes/atomic/any';
 import type {UndefinedRunType} from '../runtypes/atomic/undefined';
 import type {UnknownRunType} from '../runtypes/atomic/unknown';
@@ -43,8 +43,9 @@ import type {ObjectRunType} from '../runtypes/atomic/object';
 import type {MethodRunType} from '../runtypes/member/method';
 import type {AtomicRunType, CollectionRunType, MemberRunType} from './baseRunTypes';
 import type {BaseCompiler, JitErrorsCompiler} from './jitCompiler';
-import {ClassRunType} from '../runtypes/collection/class';
-import {IntersectionRunType} from '../runtypes/collection/intersection';
+import type {ClassRunType} from '../runtypes/collection/class';
+import type {IntersectionRunType} from '../runtypes/collection/intersection';
+import type {SymbolRunType} from '../runtypes/atomic/symbol';
 
 export function isAnyRunType(rt: RunType): rt is AnyRunType {
     return rt.src.kind === ReflectionKind.any;
@@ -215,4 +216,13 @@ export function isJitErrorsCompiler(value: BaseCompiler): value is JitErrorsComp
 
 export function isMockContext(k: Partial<MockOptions>): k is MockOperation {
     return (k as MockOperation).stack !== undefined;
+}
+
+export function isNonSerializableClass(src: TypeClass): boolean {
+    return nonSerializableClasses.includes(src.classType);
+}
+
+export function isNonSerializableObject(src: TypeObjectLiteral): boolean {
+    if (!src.typeName) return false;
+    return nonSerializableGlobals.includes(src.typeName);
 }

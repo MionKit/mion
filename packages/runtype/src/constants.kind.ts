@@ -53,6 +53,7 @@ export const ReflectionSubKind = {
     date: 20_01,
     map: 20_02,
     set: 20_03,
+    nonSerializable: 20_04,
 
     params: 17_01,
     mapKey: 18_01,

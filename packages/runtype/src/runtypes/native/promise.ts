@@ -16,33 +16,36 @@ const jitConstants: JitConfig = {
 };
 
 export class PromiseRunType extends MemberRunType<TypePromise> {
-    getJitConfig = () => jitConstants;
-    isOptional(): boolean {
-        throw new Error(`Jit compilation disabled for Promises.`);
-    }
-    getChildVarName(): string | number {
-        throw new Error(`Jit compilation disabled for Promises.`);
-    }
-    getChildLiteral(): string | number {
-        throw new Error(`Jit compilation disabled for Promises.`);
-    }
-    useArrayAccessor(): boolean {
-        throw new Error(`Jit compilation disabled for Promises.`);
-    }
     _compileIsType(): string {
-        throw new Error(`Jit compilation disabled for Promises.`);
+        throw new Error(`Jit compilation disabled for Non Serializable types.`);
     }
     _compileTypeErrors(): string {
-        throw new Error(`Jit compilation disabled for Promises.`);
+        throw new Error(`Jit compilation disabled for Non Serializable types.`);
     }
     _compileJsonEncode(): string {
-        throw new Error(`Jit compilation disabled for Promises.`);
+        throw new Error(`Jit compilation disabled for Non Serializable types.`);
     }
     _compileJsonDecode(): string {
-        throw new Error(`Jit compilation disabled for Promises.`);
+        throw new Error(`Jit compilation disabled for Non Serializable types.`);
     }
     _compileJsonStringify(): string {
-        throw new Error(`Jit compilation disabled for Promises..`);
+        throw new Error(`Jit compilation disabled for Non Serializable types.`);
+    }
+
+    getJitConfig() {
+        return jitConstants;
+    }
+    isOptional(): boolean {
+        return false;
+    }
+    getChildVarName(): string | number {
+        return 'p';
+    }
+    getChildLiteral(): string | number {
+        return 'p';
+    }
+    useArrayAccessor(): boolean {
+        return false;
     }
     _mock(ctx: Pick<MockOperation, 'promiseReject' | 'promiseTimeOut'>): Promise<any> {
         const timeOut = ctx.promiseTimeOut || 1;

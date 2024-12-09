@@ -69,3 +69,71 @@ export const jitArgs = {vλl: 'v'} as const;
 export const jitDefaultArgs = {vλl: null} as const;
 export const jitErrorArgs = {vλl: 'v', pλth: 'pth', εrr: 'er'} as const;
 export const jitDefaultErrorArgs = {vλl: null, pλth: '[]', εrr: '[]'} as const;
+
+export const nonSerializableClasses = [
+    // TODO: decide what to do with native errors, they should be easily serializable
+    Error,
+    EvalError,
+    RangeError,
+    ReferenceError,
+    SyntaxError,
+    TypeError,
+    URIError,
+    AggregateError,
+    // Promise, // Promise has it's own RunType
+    // data types
+    WeakMap,
+    WeakSet,
+    DataView,
+    ArrayBuffer,
+    SharedArrayBuffer,
+    Float32Array,
+    Float64Array,
+    Int8Array,
+    Int16Array,
+    Int32Array,
+    Uint8Array,
+    Uint8ClampedArray,
+    Uint16Array,
+    Uint32Array,
+    BigInt64Array,
+    BigUint64Array,
+];
+
+// these are global objects that are not serializable.
+// values are repeated from nonSerializableClasses, as if they are classes or global object depends in typescript stn lib types and these can change
+export const nonSerializableGlobals = [
+    // TODO: decide what to do with native errors, they should be easily serializable
+    'Error',
+    'EvalError',
+    'RangeError',
+    'ReferenceError',
+    'SyntaxError',
+    'TypeError',
+    'URIError',
+    'AggregateError',
+    // data types
+    'WeakMap',
+    'WeakSet',
+    'DataView',
+    'ArrayBuffer',
+    'SharedArrayBuffer',
+    'Float32Array',
+    'Float64Array',
+    'Int8Array',
+    'Int16Array',
+    'Int32Array',
+    'Uint8Array',
+    'Uint8ClampedArray',
+    'Uint16Array',
+    'Uint32Array',
+    'BigInt64Array',
+    'BigUint64Array',
+    // bellow are common interface names from standard libraries, they added here but not tested
+    'Generator',
+    'GeneratorFunction',
+    'AsyncGenerator',
+    'Iterator',
+    'AsyncGeneratorFunction',
+    'AsyncIterator',
+];

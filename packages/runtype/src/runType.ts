@@ -8,7 +8,7 @@
 
 import type {RunType, Mutable, SrcType} from './types';
 import type {BaseRunType} from './lib/baseRunTypes';
-import {ReflectionKind, TypeObjectLiteral} from './lib/_deepkit/src/reflection/type';
+import {ReflectionKind, type TypeClass} from './lib/_deepkit/src/reflection/type';
 import {resolveReceiveType, ReceiveType, reflect} from './lib/_deepkit/src/reflection/reflection';
 import {StringRunType} from './runtypes/atomic/string';
 import {DateRunType} from './runtypes/atomic/date';
@@ -16,7 +16,6 @@ import {NumberRunType} from './runtypes/atomic/number';
 import {BooleanRunType} from './runtypes/atomic/boolean';
 import {NullRunType} from './runtypes/atomic/null';
 import {BigIntRunType} from './runtypes/atomic/bigInt';
-import {SymbolRunType} from './runtypes/atomic/symbol';
 import {AnyRunType} from './runtypes/atomic/any';
 import {UndefinedRunType} from './runtypes/atomic/undefined';
 import {UnknownRunType} from './runtypes/atomic/unknown';
@@ -46,19 +45,68 @@ import {ClassRunType} from './runtypes/collection/class';
 import {MapRunType} from './runtypes/native/map';
 import {ReflectionSubKind} from './constants.kind';
 import {SetRunType} from './runtypes/native/set';
+import {JitFnIDs} from './constants';
+import {SymbolRunType} from './runtypes/atomic/symbol';
+import {isNonSerializableClass, isNonSerializableObject} from './lib/guards';
+import {NonSerializableRunType} from './runtypes/native/nonSerializable';
 
 export function runType<T>(type?: ReceiveType<T>): RunType {
-    const t = resolveReceiveType(type) as SrcType; // deepkit has been extended to call createRunType ./_deepkit/src/reflection/processor.ts#L1697
-    return t._rt;
+    const src = resolveReceiveType(type) as SrcType;
+    createAllRunTypes(src);
+    return src._rt;
 }
 
 export function reflectFunction<Fn extends (...args: any[]) => any>(fn: Fn): FunctionRunType {
-    const type = reflect(fn) as SrcType; // deepkit has been extended to call createRunType ./_deepkit/src/reflection/processor.ts#L16
-    return type._rt as any as FunctionRunType;
+    const src = reflect(fn) as SrcType;
+    createAllRunTypes(src);
+    return src._rt as any as FunctionRunType;
 }
 
-// This method gets called directly from deepkit when is creating deepkit types
-export function createRunType(deepkitType: Mutable<SrcType>): RunType {
+// We need to traverse all child nodes to create all the runTypes
+function createAllRunTypes(src: SrcType): undefined {
+    const stack: SrcType[] = [src];
+
+    while (stack.length > 0) {
+        const current = stack.pop()! as any;
+        if (current._rt) continue;
+
+        createRunType(current);
+        const subStack: SrcType[] = [];
+
+        // TODO: even if type is non serializable we might want to parse child nodes and be able to access them
+        // TODO; maybe we can se a flag to skip the child nodes of non serializable types when in compile mode
+        if (current._rt && current._rt instanceof NonSerializableRunType) continue;
+
+        // single child type nodes
+        if (current.type) subStack.push(current.type);
+        if (current.return) subStack.push(current.return);
+        if (current.indexType) subStack.push(current.indexType);
+        if (current.origin) subStack.push(current.origin);
+        if (current.indexAccessOrigin?.index) subStack.push(current.indexAccessOrigin?.index);
+        if (current.indexAccessOrigin?.container) subStack.push(current.indexAccessOrigin?.container);
+
+        // multiple child type nodes
+        if (current.types) pushToSubStack(current.types, subStack);
+        if (current.parameters) pushToSubStack(current.parameters, subStack);
+        if (current.arguments) pushToSubStack(current.arguments, subStack);
+        if (current.extendsArguments) pushToSubStack(current.extendsArguments, subStack);
+        if (current.implements) pushToSubStack(current.implements, subStack);
+        if (current.typeArguments) pushToSubStack(current.typeArguments, subStack);
+        if (current.decorators) pushToSubStack(current.decorators, subStack);
+        if (current.scheduleDecorators) pushToSubStack(current.scheduleDecorators, subStack);
+        if (current.originTypes?.typeArgument) pushToSubStack(current.originTypes?.typeArguments, subStack);
+
+        for (const subType of subStack) {
+            if (!subType._rt) stack.push(subType);
+        }
+    }
+}
+
+function pushToSubStack(otherSubTypes: SrcType[], subStack: SrcType[]) {
+    if (Array.isArray(otherSubTypes)) subStack.push(...otherSubTypes);
+}
+
+function createRunType(deepkitType: Mutable<SrcType>): RunType {
     // console.log('deepkitType', deepkitType);
 
     /*
@@ -91,18 +139,7 @@ export function createRunType(deepkitType: Mutable<SrcType>): RunType {
             rt = new CallSignatureRunType();
             break;
         case ReflectionKind.class:
-            if (deepkitType.classType === Date) {
-                deepkitType.subKind = ReflectionSubKind.date;
-                rt = new DateRunType();
-            } else if (deepkitType.classType === Map) {
-                deepkitType.subKind = ReflectionSubKind.map;
-                rt = new MapRunType();
-            } else if (deepkitType.classType === Set) {
-                deepkitType.subKind = ReflectionSubKind.set;
-                rt = new SetRunType();
-            } else {
-                rt = new ClassRunType();
-            }
+            rt = initClassRunType(deepkitType);
             break;
         case ReflectionKind.enum:
             rt = new EnumRunType();
@@ -145,11 +182,8 @@ export function createRunType(deepkitType: Mutable<SrcType>): RunType {
             rt = new ObjectRunType();
             break;
         case ReflectionKind.objectLiteral:
-            const objLiteral = deepkitType as TypeObjectLiteral;
-            const originTypeName = objLiteral.originTypes?.[0].typeName;
-            const isNativeType = originTypeName && nativeTypeNamesFromObjectLiterals.includes(originTypeName);
-            if (isNativeType) {
-                throw new Error(`Native type "${originTypeName}" is not supported`);
+            if (isNonSerializableObject(deepkitType)) {
+                rt = new NonSerializableRunType();
             } else {
                 rt = new InterfaceRunType();
             }
@@ -218,4 +252,27 @@ export function createRunType(deepkitType: Mutable<SrcType>): RunType {
     return rt;
 }
 
-const nativeTypeNamesFromObjectLiterals = ['AsyncIterator', 'Iterator'];
+function initClassRunType(src: TypeClass & {subKind?: number}): BaseRunType {
+    switch (src.classType) {
+        case Date:
+            src.subKind = ReflectionSubKind.date;
+            return new DateRunType();
+        case Map:
+            src.subKind = ReflectionSubKind.map;
+            return new MapRunType();
+        case Set:
+            src.subKind = ReflectionSubKind.set;
+            return new SetRunType();
+        default:
+            if (isNonSerializableClass(src)) {
+                src.subKind = ReflectionSubKind.nonSerializable;
+                return new NonSerializableRunType();
+            }
+            return new ClassRunType();
+    }
+}
+
+export function createIsTypeFunction<T>(type?: ReceiveType<T>): (value: any) => boolean {
+    const rt = runType(type);
+    return rt.createJitFunction(JitFnIDs.isType);
+}

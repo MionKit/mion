@@ -60,7 +60,6 @@ import { ClassType, isArray, isClass, isFunction, stringifyValueWithType } from 
 import { isWithDeferredDecorators } from '../decorator';
 import { ReflectionClass, TData } from './reflection';
 import { state } from './state';
-import { createRunType } from '@mionkit/runtype/src/runType';
 
 export type RuntimeStackEntry = Type | Object | (() => ClassType | Object) | string | number | boolean | bigint;
 
@@ -1691,28 +1690,6 @@ export class Processor {
         } else {
             program.stack.push(entry);
         }
-
-        // !!!!!! IMPORTANT THIS IS NOT ORIGINAL SRC CODE FROM DEEPKIT !!!!!!
-        // this is the single entry point to create mion RunTypes from Deepkit Types
-
-        // type
-        createRunType(entry as any);
-
-         // member type
-        if ((entry as any).type) {
-            createRunType((entry as any).type);
-        }
-
-         // collection types
-        if ((entry as any).types && Array.isArray((entry as any).types)) {
-            for (const t of (entry as any).types) {
-                createRunType(t as any);
-            }
-        }
-
-        // !!!!!! IMPORTANT THIS IS NOT ORIGINAL SRC CODE FROM DEEPKIT !!!!!
-
-        // console.log('push Type', i, entry);
     }
 
     protected pop(): RuntimeStackEntry {
