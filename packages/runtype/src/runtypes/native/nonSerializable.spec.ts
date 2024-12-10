@@ -77,7 +77,7 @@ describe('non serializable general behavior', () => {
     });
 
     it('union with non serializable type should throw when compiling jit', () => {
-        const rt = runType<Int8Array | string>();
+        const rt = runType<Int8Array | Uint8Array>();
         failOnCreateJitFunction(rt);
     });
 });
