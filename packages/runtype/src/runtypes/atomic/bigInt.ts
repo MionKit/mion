@@ -6,10 +6,11 @@
  * ######## */
 
 import {ReflectionKind, type TypeBigInt} from '../../lib/_deepkit/src/reflection/type';
-import type {JitJsonEncoder, MockOperation, JitConfig} from '../../types';
+import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
+import type {MockOperation, JitConfig} from '../../types';
 import {mockBigInt} from '../../lib/mock';
 import {AtomicRunType} from '../../lib/baseRunTypes';
-import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
+import {bigIntSerializer} from '../../serializers/bigint';
 
 const jitConstants: JitConfig = {
     skipJit: false,
@@ -27,13 +28,13 @@ export class BigIntRunType extends AtomicRunType<TypeBigInt> {
         return `if (typeof ${comp.vλl} !== 'bigint') ${comp.callJitErr(this)}`;
     }
     _compileJsonEncode(comp: JitCompiler) {
-        return BigIntJitJsonEncoder.encodeToJson(comp.vλl);
+        return bigIntSerializer.toJsonVal(comp.vλl);
     }
     _compileJsonDecode(comp: JitCompiler) {
-        return BigIntJitJsonEncoder.decodeFromJson(comp.vλl);
+        return bigIntSerializer.fromJsonVal(comp.vλl);
     }
     _compileJsonStringify(comp: JitCompiler) {
-        return BigIntJitJsonEncoder.stringify(comp.vλl);
+        return bigIntSerializer.stringify(comp.vλl);
     }
     /** mocks a regular number and transforms into a bigint.
      * this means range is limited to Number.MAX_SAFE_INTEGER
@@ -42,15 +43,3 @@ export class BigIntRunType extends AtomicRunType<TypeBigInt> {
         return mockBigInt(ctx.minNumber, ctx.maxNumber);
     }
 }
-
-export const BigIntJitJsonEncoder: JitJsonEncoder = {
-    decodeFromJson(vλl: string): string {
-        return `BigInt(${vλl})`;
-    },
-    encodeToJson(vλl: string): string {
-        return `${vλl}.toString()`;
-    },
-    stringify(vλl: string): string {
-        return `'"'+${vλl}.toString()+'"'`;
-    },
-};

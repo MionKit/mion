@@ -9,9 +9,9 @@ import {ReflectionKind, TypeFunction} from '../../lib/_deepkit/src/reflection/ty
 import {BaseRunType} from '../../lib/baseRunTypes';
 import {isAnyFunctionRunType, isFunctionRunType, isPromiseRunType} from '../../lib/guards';
 import {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
-import {ParameterListRunType} from '../collection/parameterList';
 import {PromiseRunType} from '../native/promise';
 import {ReflectionSubKind} from '../../constants.kind';
+import {TupleRunType} from '../collection/tuple';
 
 const functionJitConstants: JitConfig = {
     skipJit: true,
@@ -22,7 +22,7 @@ const functionJitConstants: JitConfig = {
 
 export class FunctionRunType<CallType extends AnyFunction = TypeFunction> extends BaseRunType<CallType> {
     // parameterRunTypes.src must be set after FunctionRunType creation
-    parameterRunTypes: ParameterListRunType = new ParameterListRunType();
+    parameterRunTypes: TupleRunType = new TupleRunType();
     linkSrc(deepkitType: SrcType): void {
         super.linkSrc(deepkitType);
         this.parameterRunTypes.linkSrc({...deepkitType, subKind: ReflectionSubKind.params});
@@ -111,7 +111,7 @@ export class FunctionRunType<CallType extends AnyFunction = TypeFunction> extend
     getReturnType(): BaseRunType {
         return (this.src.return as SrcType)._rt as BaseRunType;
     }
-    getParameters(): ParameterListRunType {
+    getParameters(): TupleRunType {
         return this.parameterRunTypes;
     }
     hasReturnData(): boolean {

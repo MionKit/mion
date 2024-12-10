@@ -6,11 +6,12 @@
  * ######## */
 
 import {type TypeClass} from '../../lib/_deepkit/src/reflection/type';
-import type {JitJsonEncoder, MockOperation, JitConfig} from '../../types';
+import type {MockOperation, JitConfig} from '../../types';
+import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
 import {mockDate} from '../../lib/mock';
 import {AtomicRunType} from '../../lib/baseRunTypes';
-import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
 import {ReflectionSubKind} from '../../constants.kind';
+import {dateSerializer} from '../../serializers/date';
 
 const jitConstants: JitConfig = {
     skipJit: false,
@@ -29,27 +30,15 @@ export class DateRunType extends AtomicRunType<TypeClass> {
         return `if (!(${this._compileIsType(comp)})) ${comp.callJitErr(this)}`;
     }
     _compileJsonEncode(comp: JitCompiler) {
-        return DateJitJsonENcoder.encodeToJson(comp.vλl);
+        return dateSerializer.toJsonVal(comp.vλl);
     }
     _compileJsonDecode(comp: JitCompiler) {
-        return DateJitJsonENcoder.decodeFromJson(comp.vλl);
+        return dateSerializer.fromJsonVal(comp.vλl);
     }
     _compileJsonStringify(comp: JitCompiler) {
-        return DateJitJsonENcoder.stringify(comp.vλl);
+        return dateSerializer.stringify(comp.vλl);
     }
     _mock(ctx: Pick<MockOperation, 'minDate' | 'maxDate'>): Date {
         return mockDate(ctx.minDate, ctx.maxDate);
     }
 }
-
-export const DateJitJsonENcoder: JitJsonEncoder = {
-    decodeFromJson(vλl: string): string {
-        return `new Date(${vλl})`;
-    },
-    encodeToJson(vλl: string): string {
-        return vλl;
-    },
-    stringify(vλl: string): string {
-        return `'"'+${vλl}.toJSON()+'"'`;
-    },
-};

@@ -314,7 +314,7 @@ describe('Interface', () => {
     });
 });
 
-describe('Interface with strict modes', () => {
+describe('Interface with unknown props', () => {
     type ObjectType = {
         startDate: Date;
         quantity: number;

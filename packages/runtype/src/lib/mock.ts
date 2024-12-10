@@ -29,6 +29,12 @@ export function mockRegExp(list = mockRegExpsList): RegExp {
     return list[random(0, list.length - 1)];
 }
 
+/**
+ * Generates a random number between min and max, both inclusive.
+ * @param min 0 by default
+ * @param max 10000 by default
+ * @returns random number
+ */
 export function mockNumber(min = 0, max = 10000): number {
     if (min > max) {
         throw new Error('min cannot be greater than max');
@@ -36,6 +42,11 @@ export function mockNumber(min = 0, max = 10000): number {
     return random(min, max);
 }
 
+/**
+ * Generates a random date between minDate and maxDate, both inclusive.
+ * @param minDate 0 by default
+ * @param maxDate Date.now() by default
+ */
 export function mockDate(minDate: Date | number = new Date(0), maxDate: Date | number = new Date()): Date {
     const min = typeof minDate === 'number' ? minDate : minDate.getTime();
     const max = typeof maxDate === 'number' ? maxDate : maxDate.getTime();

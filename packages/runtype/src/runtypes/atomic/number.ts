@@ -7,10 +7,10 @@
 
 import {ReflectionKind, type TypeNumber} from '../../lib/_deepkit/src/reflection/type';
 import type {MockOperation, JitConfig} from '../../types';
-
+import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
 import {mockNumber} from '../../lib/mock';
 import {AtomicRunType} from '../../lib/baseRunTypes';
-import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
+import {numberSerializer} from '../../serializers/number';
 
 const jitConstants: JitConfig = {
     skipJit: false,
@@ -26,6 +26,15 @@ export class NumberRunType extends AtomicRunType<TypeNumber> {
     }
     _compileTypeErrors(comp: JitErrorsCompiler): string {
         return `if(!(${this._compileIsType(comp)})) ${comp.callJitErr(this)}`;
+    }
+    _compileJsonEncode(comp: JitCompiler) {
+        return numberSerializer.toJsonVal(comp.vλl);
+    }
+    _compileJsonDecode(comp: JitCompiler) {
+        return numberSerializer.fromJsonVal(comp.vλl);
+    }
+    _compileJsonStringify(comp: JitCompiler) {
+        return numberSerializer.stringify(comp.vλl);
     }
     _mock(ctx: Pick<MockOperation, 'minNumber' | 'maxNumber'>): number {
         return mockNumber(ctx.minNumber, ctx.maxNumber);

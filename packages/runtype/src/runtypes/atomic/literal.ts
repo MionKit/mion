@@ -6,12 +6,13 @@
  * ######## */
 
 import type {TypeLiteral} from '../../lib/_deepkit/src/reflection/type';
-import type {JitJsonEncoder, JitConfig} from '../../types';
-import {BigIntJitJsonEncoder} from './bigInt';
-import {RegexpJitJsonEncoder} from './regexp';
+import type {JitSerializer, JitConfig} from '../../types';
+import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
 import {memorize, toLiteral} from '../../lib/utils';
 import {AtomicRunType} from '../../lib/baseRunTypes';
-import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
+import {bigIntSerializer} from '../../serializers/bigint';
+import {regexpSerializer} from '../../serializers/regexp';
+import {symbolSerializer} from '../../serializers/symbol';
 
 export class LiteralRunType extends AtomicRunType<TypeLiteral> {
     get jitConstants() {
@@ -32,11 +33,11 @@ export class LiteralRunType extends AtomicRunType<TypeLiteral> {
     getJsonEncoder() {
         switch (true) {
             case typeof this.src.literal === 'bigint':
-                return BigIntJitJsonEncoder;
+                return bigIntSerializer;
             case typeof this.src.literal === 'symbol':
-                return SymbolJitJsonEncoder;
+                return symbolSerializer;
             case this.src.literal instanceof RegExp:
-                return RegexpJitJsonEncoder;
+                return regexpSerializer;
             default:
                 return noEncoder;
         }
@@ -53,10 +54,10 @@ export class LiteralRunType extends AtomicRunType<TypeLiteral> {
         return compileTypeErrorsLiteral(comp, this.src.literal, this.getName());
     }
     _compileJsonEncode(comp: JitCompiler): string | undefined {
-        return this.getJsonEncoder().encodeToJson(comp.vλl);
+        return this.getJsonEncoder().toJsonVal(comp.vλl);
     }
     _compileJsonDecode(comp: JitCompiler): string | undefined {
-        return this.getJsonEncoder().decodeFromJson(comp.vλl);
+        return this.getJsonEncoder().fromJsonVal(comp.vλl);
     }
     _compileJsonStringify(comp: JitCompiler): string {
         return this.getJsonEncoder().stringify(comp.vλl);
@@ -66,27 +67,15 @@ export class LiteralRunType extends AtomicRunType<TypeLiteral> {
     }
 }
 
-const noEncoder: JitJsonEncoder = {
-    decodeFromJson(): undefined {
+const noEncoder: JitSerializer = {
+    fromJsonVal(): undefined {
         return undefined;
     },
-    encodeToJson(): undefined {
+    toJsonVal(): undefined {
         return undefined;
     },
     stringify(vλl: string) {
         return `JSON.stringify(${vλl})`;
-    },
-};
-
-const SymbolJitJsonEncoder: JitJsonEncoder = {
-    decodeFromJson(vλl: string): string {
-        return `Symbol(${vλl}.substring(7))`;
-    },
-    encodeToJson(vλl: string): string {
-        return `'Symbol:' + (${vλl}.description || '')`;
-    },
-    stringify(vλl: string): string {
-        return `JSON.stringify('Symbol:' + (${vλl}.description || ''))`;
     },
 };
 

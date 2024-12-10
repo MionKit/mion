@@ -6,15 +6,15 @@
  * ######## */
 
 import {ReflectionKind, type TypeUndefined} from '../../lib/_deepkit/src/reflection/type';
+import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
 import type {JitConfig} from '../../types';
 import {AtomicRunType} from '../../lib/baseRunTypes';
-
-import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
+import {undefinedSerializer} from '../../serializers/undefined';
 
 const jitConstants: JitConfig = {
     skipJit: false,
-    skipJsonEncode: true,
-    skipJsonDecode: true,
+    skipJsonEncode: false,
+    skipJsonDecode: false,
     jitId: ReflectionKind.undefined,
 };
 
@@ -26,14 +26,14 @@ export class UndefinedRunType extends AtomicRunType<TypeUndefined> {
     _compileTypeErrors(comp: JitErrorsCompiler): string {
         return `if (typeof ${comp.vλl} !== 'undefined') ${comp.callJitErr(this)}`;
     }
-    _compileJsonEncode(comp: JitCompiler): string {
-        return `${comp.vλl} = null`;
+    _compileJsonEncode(comp: JitCompiler) {
+        return undefinedSerializer.toJsonVal(comp.vλl);
     }
-    _compileJsonDecode(comp: JitCompiler): string {
-        return `${comp.vλl} = undefined`;
+    _compileJsonDecode(comp: JitCompiler) {
+        return undefinedSerializer.fromJsonVal(comp.vλl);
     }
-    _compileJsonStringify(): string {
-        return `null`;
+    _compileJsonStringify(comp: JitCompiler): string {
+        return undefinedSerializer.stringify(comp.vλl);
     }
     _mock(): undefined {
         return undefined;

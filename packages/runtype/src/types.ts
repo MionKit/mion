@@ -140,9 +140,9 @@ export interface SerializableJit extends Omit<CompiledOperation, 'fnId' | 'direc
 
 export type SerializedOperations = Record<string, SerializableJit>;
 
-export interface JitJsonEncoder {
-    decodeFromJson: (vλl: string) => string | undefined;
-    encodeToJson: (vλl: string) => string | undefined;
+export interface JitSerializer {
+    fromJsonVal: (vλl: string) => string | undefined;
+    toJsonVal: (vλl: string) => string | undefined;
     stringify: (vλl: string) => string;
 }
 

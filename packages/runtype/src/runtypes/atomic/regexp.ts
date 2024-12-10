@@ -6,11 +6,11 @@
  * ######## */
 
 import {ReflectionKind, type TypeRegexp} from '../../lib/_deepkit/src/reflection/type';
-import type {JitJsonEncoder, MockOperation, JitConfig} from '../../types';
-
+import type {MockOperation, JitConfig} from '../../types';
+import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
 import {mockRegExp} from '../../lib/mock';
 import {AtomicRunType} from '../../lib/baseRunTypes';
-import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
+import {regexpSerializer} from '../../serializers/regexp';
 
 const jitConstants: JitConfig = {
     skipJit: false,
@@ -28,29 +28,15 @@ export class RegexpRunType extends AtomicRunType<TypeRegexp> {
         return `if (!(${comp.vλl} instanceof RegExp)) ${comp.callJitErr(this)}`;
     }
     _compileJsonEncode(comp: JitCompiler) {
-        return RegexpJitJsonEncoder.encodeToJson(comp.vλl);
+        return regexpSerializer.toJsonVal(comp.vλl);
     }
     _compileJsonDecode(comp: JitCompiler) {
-        return RegexpJitJsonEncoder.decodeFromJson(comp.vλl);
+        return regexpSerializer.fromJsonVal(comp.vλl);
     }
     _compileJsonStringify(comp: JitCompiler) {
-        return RegexpJitJsonEncoder.stringify(comp.vλl);
+        return regexpSerializer.stringify(comp.vλl);
     }
     _mock(ctx: Pick<MockOperation, 'regexpList'>): RegExp {
         return mockRegExp(ctx.regexpList);
     }
 }
-
-const matchRegExpString = '/\\/(.*)\\/(.*)?/';
-
-export const RegexpJitJsonEncoder: JitJsonEncoder = {
-    decodeFromJson(vλl: string): string {
-        return `(function(){const parts = ${vλl}.match(${matchRegExpString}) ;return new RegExp(parts[1], parts[2] || '')})()`;
-    },
-    encodeToJson(vλl: string): string {
-        return `${vλl}.toString()`;
-    },
-    stringify(vλl: string): string {
-        return `JSON.stringify(${vλl}.toString())`;
-    },
-};
