@@ -63,39 +63,41 @@ describe('Atomic Union', () => {
     });
 
     it('encode/decode to json', () => {
-        const toJson = rt.createJitFunction(JitFnIDs.jsonEncode);
-        const fromJson = rt.createJitFunction(JitFnIDs.jsonDecode);
+        const toJsonVal = rt.createJitFunction(JitFnIDs.toJsonVal);
+        const fromJsonVal = rt.createJitFunction(JitFnIDs.fromJsonVal);
 
-        expect(fromJson(JSON.parse(JSON.stringify(toJson(a))))).toEqual(a);
-        expect(fromJson(JSON.parse(JSON.stringify(toJson(b))))).toEqual(b);
-        expect(fromJson(JSON.parse(JSON.stringify(toJson(c))))).toEqual(c);
-        expect(fromJson(JSON.parse(JSON.stringify(toJson(d))))).toEqual(d);
-        expect(fromJson(JSON.parse(JSON.stringify(toJson(e))))).toEqual(e);
+        expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(a))))).toEqual(a);
+        expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(b))))).toEqual(b);
+        expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(c))))).toEqual(c);
+        expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(d))))).toEqual(d);
+        expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(e))))).toEqual(e);
     });
 
     it('json stringify with discriminator', () => {
         // this should be serialized as [discriminatorIndex, value]
         const jsonStringify = rt.createJitFunction(JitFnIDs.jsonStringify);
-        const fromJson = rt.createJitFunction(JitFnIDs.jsonDecode);
+        const fromJsonVal = rt.createJitFunction(JitFnIDs.fromJsonVal);
 
-        expect(fromJson(JSON.parse(jsonStringify(a)))).toEqual(a);
-        expect(fromJson(JSON.parse(jsonStringify(b)))).toEqual(b);
-        expect(fromJson(JSON.parse(jsonStringify(c)))).toEqual(c);
-        expect(fromJson(JSON.parse(jsonStringify(d)))).toEqual(d);
-        expect(fromJson(JSON.parse(jsonStringify(e)))).toEqual(e);
+        expect(fromJsonVal(JSON.parse(jsonStringify(a)))).toEqual(a);
+        expect(fromJsonVal(JSON.parse(jsonStringify(b)))).toEqual(b);
+        expect(fromJsonVal(JSON.parse(jsonStringify(c)))).toEqual(c);
+        expect(fromJsonVal(JSON.parse(jsonStringify(d)))).toEqual(d);
+        expect(fromJsonVal(JSON.parse(jsonStringify(e)))).toEqual(e);
     });
 
     it('throw errors when serializing deserializing object not belonging to the union', () => {
         type UT = string | number;
         const rtU = runType<UT>();
         const jsonStringify = rtU.createJitFunction(JitFnIDs.jsonStringify);
-        const fromJson = rtU.createJitFunction(JitFnIDs.jsonDecode);
-        const toJson = rtU.createJitFunction(JitFnIDs.jsonEncode);
+        const fromJsonVal = rtU.createJitFunction(JitFnIDs.fromJsonVal);
+        const toJsonVal = rtU.createJitFunction(JitFnIDs.toJsonVal);
         const typeValue = new Date();
 
         expect(() => jsonStringify(typeValue)).toThrow('Can not stringify union: expected one of <string | number> but got Date');
-        expect(() => fromJson(123)).toThrow('Can not decode json to union: expected one of <string | number> but got Number');
-        expect(() => toJson(typeValue)).toThrow('Can not encode json to union: expected one of <string | number> but got Date');
+        expect(() => fromJsonVal(123)).toThrow('Can not decode json to union: expected one of <string | number> but got Number');
+        expect(() => toJsonVal(typeValue)).toThrow(
+            'Can not encode json to union: expected one of <string | number> but got Date'
+        );
     });
 
     it('mock', () => {
@@ -146,46 +148,46 @@ describe('Union Arr', () => {
     });
 
     it('encode/decode to json', () => {
-        const toJson = rt.createJitFunction(JitFnIDs.jsonEncode);
-        const fromJson = rt.createJitFunction(JitFnIDs.jsonDecode);
+        const toJsonVal = rt.createJitFunction(JitFnIDs.toJsonVal);
+        const fromJsonVal = rt.createJitFunction(JitFnIDs.fromJsonVal);
 
-        expect(fromJson(JSON.parse(JSON.stringify(toJson(arrA))))).toEqual(arrA);
-        expect(fromJson(JSON.parse(JSON.stringify(toJson(arrB))))).toEqual(arrB);
-        expect(fromJson(JSON.parse(JSON.stringify(toJson(arrC))))).toEqual(arrC);
-        expect(fromJson(JSON.parse(JSON.stringify(toJson(arrD))))).toEqual(arrD);
+        expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(arrA))))).toEqual(arrA);
+        expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(arrB))))).toEqual(arrB);
+        expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(arrC))))).toEqual(arrC);
+        expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(arrD))))).toEqual(arrD);
 
         // objects are not the same same object in memory after round trip
-        expect(fromJson(JSON.parse(JSON.stringify(toJson(arrA))))).not.toBe(arrA);
+        expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(arrA))))).not.toBe(arrA);
     });
 
     it('json stringify with discriminator', () => {
         // this should be serialized as [discriminatorIndex, value]
         const jsonStringify = rt.createJitFunction(JitFnIDs.jsonStringify);
-        const fromJson = rt.createJitFunction(JitFnIDs.jsonDecode);
+        const fromJsonVal = rt.createJitFunction(JitFnIDs.fromJsonVal);
 
         const copyA = structuredClone(arrA);
         const copyB = structuredClone(arrB);
         const copyC = structuredClone(arrC);
         const copyD = structuredClone(arrD);
-        expect(fromJson(JSON.parse(jsonStringify(copyA)))).toEqual(arrA);
-        expect(fromJson(JSON.parse(jsonStringify(copyB)))).toEqual(arrB);
-        expect(fromJson(JSON.parse(jsonStringify(copyC)))).toEqual(arrC);
-        expect(fromJson(JSON.parse(jsonStringify(copyD)))).toEqual(arrD);
+        expect(fromJsonVal(JSON.parse(jsonStringify(copyA)))).toEqual(arrA);
+        expect(fromJsonVal(JSON.parse(jsonStringify(copyB)))).toEqual(arrB);
+        expect(fromJsonVal(JSON.parse(jsonStringify(copyC)))).toEqual(arrC);
+        expect(fromJsonVal(JSON.parse(jsonStringify(copyD)))).toEqual(arrD);
     });
 
     it('throw errors when serializing deserializing object not belonging to the union', () => {
         const jsonStringify = rt.createJitFunction(JitFnIDs.jsonStringify);
-        const fromJson = rt.createJitFunction(JitFnIDs.jsonDecode);
-        const toJson = rt.createJitFunction(JitFnIDs.jsonEncode);
+        const fromJsonVal = rt.createJitFunction(JitFnIDs.fromJsonVal);
+        const toJsonVal = rt.createJitFunction(JitFnIDs.toJsonVal);
         const typeValue = new Date();
 
         expect(() => jsonStringify(typeValue)).toThrow(
             'Can not stringify union: expected one of <array | array | array> but got Date'
         );
-        expect(() => fromJson(123)).toThrow(
+        expect(() => fromJsonVal(123)).toThrow(
             'Can not decode json to union: expected one of <array | array | array> but got Number'
         );
-        expect(() => toJson(typeValue)).toThrow(
+        expect(() => toJsonVal(typeValue)).toThrow(
             'Can not encode json to union: expected one of <array | array | array> but got Date'
         );
     });
@@ -237,41 +239,41 @@ describe('Union Obj', () => {
     });
 
     it('encode/decode to json', () => {
-        const toJson = rt.createJitFunction(JitFnIDs.jsonEncode);
-        const fromJson = rt.createJitFunction(JitFnIDs.jsonDecode);
+        const toJsonVal = rt.createJitFunction(JitFnIDs.toJsonVal);
+        const fromJsonVal = rt.createJitFunction(JitFnIDs.fromJsonVal);
 
         const copyA = structuredClone(objA);
         const copyB = structuredClone(objB);
         const copyC = structuredClone(objC);
 
-        expect(() => toJson(copyA)).toThrow(); // mion throws an error for mixed properties in the union
-        expect(fromJson(JSON.parse(JSON.stringify(toJson(copyB))))).toEqual(objB);
-        expect(fromJson(JSON.parse(JSON.stringify(toJson(copyC))))).toEqual(objC);
+        expect(() => toJsonVal(copyA)).toThrow(); // mion throws an error for mixed properties in the union
+        expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(copyB))))).toEqual(objB);
+        expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(copyC))))).toEqual(objC);
     });
 
     it('json stringify with discriminator', () => {
         // this should be serialized as [discriminatorIndex, value]
         const jsonStringify = rt.createJitFunction(JitFnIDs.jsonStringify);
-        const fromJson = rt.createJitFunction(JitFnIDs.jsonDecode);
+        const fromJsonVal = rt.createJitFunction(JitFnIDs.fromJsonVal);
 
         expect(() => jsonStringify(objA)).toThrow(); // mion throws an error for mixed properties in the union
-        expect(fromJson(JSON.parse(jsonStringify(objB)))).toEqual(objB);
-        expect(fromJson(JSON.parse(jsonStringify(objC)))).toEqual(objC);
+        expect(fromJsonVal(JSON.parse(jsonStringify(objB)))).toEqual(objB);
+        expect(fromJsonVal(JSON.parse(jsonStringify(objC)))).toEqual(objC);
     });
 
     it('throw errors whe serializing deserializing object not belonging to the union', () => {
         const jsonStringify = rt.createJitFunction(JitFnIDs.jsonStringify);
-        const fromJson = rt.createJitFunction(JitFnIDs.jsonDecode);
-        const toJson = rt.createJitFunction(JitFnIDs.jsonEncode);
+        const fromJsonVal = rt.createJitFunction(JitFnIDs.fromJsonVal);
+        const toJsonVal = rt.createJitFunction(JitFnIDs.toJsonVal);
         const typeValue = new Date();
 
         expect(() => jsonStringify(typeValue)).toThrow(
             'Can not stringify union: expected one of <object | object | object> but got Date'
         );
-        expect(() => fromJson(123)).toThrow(
+        expect(() => fromJsonVal(123)).toThrow(
             'Can not decode json to union: expected one of <object | object | object> but got Number'
         );
-        expect(() => toJson(typeValue)).toThrow(
+        expect(() => toJsonVal(typeValue)).toThrow(
             'Can not encode json to union: expected one of <object | object | object> but got Date'
         );
     });
@@ -356,37 +358,37 @@ describe('Union Mixed', () => {
     });
 
     it('encode/decode to json', () => {
-        const toJson = rt.createJitFunction(JitFnIDs.jsonEncode);
-        const fromJson = rt.createJitFunction(JitFnIDs.jsonDecode);
+        const toJsonVal = rt.createJitFunction(JitFnIDs.toJsonVal);
+        const fromJsonVal = rt.createJitFunction(JitFnIDs.fromJsonVal);
 
         const copyA = structuredClone(mixA);
         const copyB = structuredClone(mixB);
-        expect(fromJson(JSON.parse(JSON.stringify(toJson(copyA))))).toEqual(mixA);
-        expect(fromJson(JSON.parse(JSON.stringify(toJson(copyB))))).toEqual(mixB);
+        expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(copyA))))).toEqual(mixA);
+        expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(copyB))))).toEqual(mixB);
     });
 
     it('json stringify with discriminator', () => {
         // this should be serialized as [discriminatorIndex, value]
         const jsonStringify = rt.createJitFunction(JitFnIDs.jsonStringify);
-        const fromJson = rt.createJitFunction(JitFnIDs.jsonDecode);
+        const fromJsonVal = rt.createJitFunction(JitFnIDs.fromJsonVal);
 
-        expect(fromJson(JSON.parse(jsonStringify(mixA)))).toEqual(mixA);
-        expect(fromJson(JSON.parse(jsonStringify(mixB)))).toEqual(mixB);
+        expect(fromJsonVal(JSON.parse(jsonStringify(mixA)))).toEqual(mixA);
+        expect(fromJsonVal(JSON.parse(jsonStringify(mixB)))).toEqual(mixB);
     });
 
     it('throw errors whe serializing deserializing object not belonging to the union', () => {
         const jsonStringify = rt.createJitFunction(JitFnIDs.jsonStringify);
-        const fromJson = rt.createJitFunction(JitFnIDs.jsonDecode);
-        const toJson = rt.createJitFunction(JitFnIDs.jsonEncode);
+        const fromJsonVal = rt.createJitFunction(JitFnIDs.fromJsonVal);
+        const toJsonVal = rt.createJitFunction(JitFnIDs.toJsonVal);
         const typeValue = new Date();
 
         expect(() => jsonStringify(typeValue)).toThrow(
             'Can not stringify union: expected one of <array | array | array | object | object | object> but got Date'
         );
-        expect(() => fromJson(123)).toThrow(
+        expect(() => fromJsonVal(123)).toThrow(
             'Can not decode json to union: expected one of <array | array | array | object | object | object> but got Number'
         );
-        expect(() => toJson(typeValue)).toThrow(
+        expect(() => toJsonVal(typeValue)).toThrow(
             'Can not encode json to union: expected one of <array | array | array | object | object | object> but got Date'
         );
     });
@@ -459,35 +461,35 @@ describe('Union circular', () => {
     });
 
     it('encode/decode Circular Union to json', () => {
-        const toJson = rt.createJitFunction(JitFnIDs.jsonEncode);
-        const fromJson = rt.createJitFunction(JitFnIDs.jsonDecode);
+        const toJsonVal = rt.createJitFunction(JitFnIDs.toJsonVal);
+        const fromJsonVal = rt.createJitFunction(JitFnIDs.fromJsonVal);
 
-        expect(fromJson(JSON.parse(JSON.stringify(toJson(d))))).toEqual(d);
-        expect(fromJson(JSON.parse(JSON.stringify(toJson(n))))).toEqual(n);
-        expect(fromJson(JSON.parse(JSON.stringify(toJson(s))))).toEqual(s);
-        expect(fromJson(JSON.parse(JSON.stringify(toJson(structuredClone(o)))))).toEqual(o);
-        expect(fromJson(JSON.parse(JSON.stringify(toJson(structuredClone(o1)))))).toEqual(o1);
-        expect(fromJson(JSON.parse(JSON.stringify(toJson(structuredClone(a)))))).toEqual(a);
-        expect(fromJson(JSON.parse(JSON.stringify(toJson(structuredClone(a2)))))).toEqual(a2);
-        expect(fromJson(JSON.parse(JSON.stringify(toJson(structuredClone(x0)))))).toEqual(x0);
-        expect(fromJson(JSON.parse(JSON.stringify(toJson(structuredClone(x1)))))).toEqual(x1);
-        expect(fromJson(JSON.parse(JSON.stringify(toJson(structuredClone(x2)))))).toEqual(x2);
+        expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(d))))).toEqual(d);
+        expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(n))))).toEqual(n);
+        expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(s))))).toEqual(s);
+        expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(structuredClone(o)))))).toEqual(o);
+        expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(structuredClone(o1)))))).toEqual(o1);
+        expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(structuredClone(a)))))).toEqual(a);
+        expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(structuredClone(a2)))))).toEqual(a2);
+        expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(structuredClone(x0)))))).toEqual(x0);
+        expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(structuredClone(x1)))))).toEqual(x1);
+        expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(structuredClone(x2)))))).toEqual(x2);
     });
 
     it('json stringify Circular Union with discriminator', () => {
         // this should be serialized as [discriminatorIndex, value]
         const jsonStringify = rt.createJitFunction(JitFnIDs.jsonStringify);
-        const fromJson = rt.createJitFunction(JitFnIDs.jsonDecode);
+        const fromJsonVal = rt.createJitFunction(JitFnIDs.fromJsonVal);
 
-        expect(fromJson(JSON.parse(jsonStringify(d)))).toEqual(d);
-        expect(fromJson(JSON.parse(jsonStringify(n)))).toEqual(n);
-        expect(fromJson(JSON.parse(jsonStringify(s)))).toEqual(s);
-        expect(fromJson(JSON.parse(jsonStringify(structuredClone(o))))).toEqual(o);
-        expect(fromJson(JSON.parse(jsonStringify(structuredClone(o1))))).toEqual(o1);
-        expect(fromJson(JSON.parse(jsonStringify(structuredClone(a))))).toEqual(a);
-        expect(fromJson(JSON.parse(jsonStringify(structuredClone(a2))))).toEqual(a2);
-        expect(fromJson(JSON.parse(jsonStringify(structuredClone(x0))))).toEqual(x0);
-        expect(fromJson(JSON.parse(jsonStringify(structuredClone(x1))))).toEqual(x1);
-        expect(fromJson(JSON.parse(jsonStringify(structuredClone(x2))))).toEqual(x2);
+        expect(fromJsonVal(JSON.parse(jsonStringify(d)))).toEqual(d);
+        expect(fromJsonVal(JSON.parse(jsonStringify(n)))).toEqual(n);
+        expect(fromJsonVal(JSON.parse(jsonStringify(s)))).toEqual(s);
+        expect(fromJsonVal(JSON.parse(jsonStringify(structuredClone(o))))).toEqual(o);
+        expect(fromJsonVal(JSON.parse(jsonStringify(structuredClone(o1))))).toEqual(o1);
+        expect(fromJsonVal(JSON.parse(jsonStringify(structuredClone(a))))).toEqual(a);
+        expect(fromJsonVal(JSON.parse(jsonStringify(structuredClone(a2))))).toEqual(a2);
+        expect(fromJsonVal(JSON.parse(jsonStringify(structuredClone(x0))))).toEqual(x0);
+        expect(fromJsonVal(JSON.parse(jsonStringify(structuredClone(x1))))).toEqual(x1);
+        expect(fromJsonVal(JSON.parse(jsonStringify(structuredClone(x2))))).toEqual(x2);
     });
 });

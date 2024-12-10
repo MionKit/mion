@@ -12,8 +12,8 @@ import {JitConfig} from '../../types';
 
 const jitConstants: JitConfig = {
     skipJit: false,
-    skipJsonEncode: false,
-    skipJsonDecode: false,
+    skipToJsonVal: false,
+    skipFromJsonVal: false,
     jitId: ReflectionKind.never,
 };
 export class NeverRunType extends AtomicRunType<TypeNever> {
@@ -24,10 +24,10 @@ export class NeverRunType extends AtomicRunType<TypeNever> {
     _compileTypeErrors(comp: JitErrorsCompiler): string {
         return `${comp.callJitErr(this)}`;
     }
-    _compileJsonEncode(): string {
+    _compileToJsonVal(): string {
         throw new Error('Never type cannot be encoded to JSON.');
     }
-    _compileJsonDecode(): string {
+    _compileFromJsonVal(): string {
         throw new Error('Never type cannot be decoded from JSON.');
     }
     _compileJsonStringify(): string {

@@ -14,8 +14,8 @@ import {booleanSerializer} from '../../serializers/boolean';
 
 const jitConstants: JitConfig = {
     skipJit: false,
-    skipJsonEncode: true,
-    skipJsonDecode: true,
+    skipToJsonVal: true,
+    skipFromJsonVal: true,
     jitId: ReflectionKind.boolean,
 };
 export class BooleanRunType extends AtomicRunType<TypeBoolean> {
@@ -26,10 +26,10 @@ export class BooleanRunType extends AtomicRunType<TypeBoolean> {
     _compileTypeErrors(comp: JitErrorsCompiler): string {
         return `if (typeof ${comp.vλl} !== 'boolean') ${comp.callJitErr(this)}`;
     }
-    _compileJsonEncode(comp: JitCompiler) {
-        return booleanSerializer.toJsonVal(comp.vλl);
+    _compileToJsonVal(comp: JitCompiler) {
+        return booleanSerializer.ToJsonVal(comp.vλl);
     }
-    _compileJsonDecode(comp: JitCompiler) {
+    _compileFromJsonVal(comp: JitCompiler) {
         return booleanSerializer.fromJsonVal(comp.vλl);
     }
     _compileJsonStringify(comp: JitCompiler) {

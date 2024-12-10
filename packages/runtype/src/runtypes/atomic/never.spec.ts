@@ -29,11 +29,11 @@ it('validate never + errors', () => {
 });
 
 it('encode to json should throw an error', () => {
-    expect(() => rt.createJitFunction(JitFnIDs.jsonEncode)).toThrow('Never type cannot be encoded to JSON.');
+    expect(() => rt.createJitFunction(JitFnIDs.toJsonVal)).toThrow('Never type cannot be encoded to JSON.');
 });
 
 it('decode from json should throw an error', () => {
-    expect(() => rt.createJitFunction(JitFnIDs.jsonDecode)).toThrow('Never type cannot be decoded from JSON.');
+    expect(() => rt.createJitFunction(JitFnIDs.fromJsonVal)).toThrow('Never type cannot be decoded from JSON.');
 });
 
 it('json stringify', () => {

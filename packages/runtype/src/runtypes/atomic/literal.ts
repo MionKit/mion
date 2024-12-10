@@ -30,7 +30,7 @@ export class LiteralRunType extends AtomicRunType<TypeLiteral> {
                 return getDefaultJitConstants(this.src.kind, this.src.literal);
         }
     });
-    getJsonEncoder() {
+    getToJsonValr() {
         switch (true) {
             case typeof this.src.literal === 'bigint':
                 return bigIntSerializer;
@@ -53,14 +53,14 @@ export class LiteralRunType extends AtomicRunType<TypeLiteral> {
         else if (this.src.literal instanceof RegExp) return compileTypeErrorsRegExp(comp, this.src.literal, this.getName());
         return compileTypeErrorsLiteral(comp, this.src.literal, this.getName());
     }
-    _compileJsonEncode(comp: JitCompiler): string | undefined {
-        return this.getJsonEncoder().toJsonVal(comp.vλl);
+    _compileToJsonVal(comp: JitCompiler): string | undefined {
+        return this.getToJsonValr().ToJsonVal(comp.vλl);
     }
-    _compileJsonDecode(comp: JitCompiler): string | undefined {
-        return this.getJsonEncoder().fromJsonVal(comp.vλl);
+    _compileFromJsonVal(comp: JitCompiler): string | undefined {
+        return this.getToJsonValr().fromJsonVal(comp.vλl);
     }
     _compileJsonStringify(comp: JitCompiler): string {
-        return this.getJsonEncoder().stringify(comp.vλl);
+        return this.getToJsonValr().stringify(comp.vλl);
     }
     _mock(): symbol | string | number | boolean | bigint | RegExp {
         return this.src.literal;
@@ -71,7 +71,7 @@ const noEncoder: JitSerializer = {
     fromJsonVal(): undefined {
         return undefined;
     },
-    toJsonVal(): undefined {
+    ToJsonVal(): undefined {
         return undefined;
     },
     stringify(vλl: string) {
@@ -114,32 +114,32 @@ function compileTypeErrorsLiteral(
 function getJitConstantsForBigint(kind: number, literal: bigint): JitConfig {
     return {
         skipJit: false,
-        skipJsonEncode: false,
-        skipJsonDecode: false,
+        skipToJsonVal: false,
+        skipFromJsonVal: false,
         jitId: `${kind}:${String(literal)}`,
     };
 }
 function getJitConstantsForSymbol(kind: number, literal: symbol): JitConfig {
     return {
         skipJit: true,
-        skipJsonEncode: true,
-        skipJsonDecode: true,
+        skipToJsonVal: true,
+        skipFromJsonVal: true,
         jitId: `${kind}:${String(literal)}`,
     };
 }
 function getJitConstantsForRegExp(kind: number, literal: RegExp): JitConfig {
     return {
         skipJit: false,
-        skipJsonEncode: false,
-        skipJsonDecode: false,
+        skipToJsonVal: false,
+        skipFromJsonVal: false,
         jitId: `${kind}:${String(literal)}`,
     };
 }
 function getDefaultJitConstants(kind: number, literal: string | number | boolean): JitConfig {
     return {
         skipJit: false,
-        skipJsonEncode: true,
-        skipJsonDecode: true,
+        skipToJsonVal: true,
+        skipFromJsonVal: true,
         jitId: `${kind}:${literal}`,
     };
 }

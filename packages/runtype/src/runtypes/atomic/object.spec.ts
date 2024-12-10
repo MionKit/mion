@@ -30,23 +30,23 @@ it('validate object + errors', () => {
 });
 
 it('encode to json', () => {
-    const toJson = rt.createJitFunction(JitFnIDs.jsonEncode);
+    const toJsonVal = rt.createJitFunction(JitFnIDs.toJsonVal);
     const typeValue = null;
-    expect(toJson(typeValue)).toEqual(typeValue);
+    expect(toJsonVal(typeValue)).toEqual(typeValue);
 });
 
 it('decode from json', () => {
-    const fromJson = rt.createJitFunction(JitFnIDs.jsonDecode);
+    const fromJsonVal = rt.createJitFunction(JitFnIDs.fromJsonVal);
     const typeValue = null;
     const jsonValue = JSON.parse(JSON.stringify(typeValue));
-    expect(fromJson(jsonValue)).toEqual(typeValue);
+    expect(fromJsonVal(jsonValue)).toEqual(typeValue);
 });
 
 it('json stringify', () => {
     const jsonStringify = rt.createJitFunction(JitFnIDs.jsonStringify);
-    const fromJson = rt.createJitFunction(JitFnIDs.jsonDecode);
+    const fromJsonVal = rt.createJitFunction(JitFnIDs.fromJsonVal);
     const typeValue = {a: 42, b: 'hello'};
-    const roundTrip = fromJson(JSON.parse(jsonStringify(typeValue)));
+    const roundTrip = fromJsonVal(JSON.parse(jsonStringify(typeValue)));
     expect(roundTrip).toEqual(typeValue);
 });
 

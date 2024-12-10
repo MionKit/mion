@@ -28,19 +28,19 @@ it('validate regexp + errors', () => {
 });
 
 it('encode/decode json', () => {
-    const fromJson = rt.createJitFunction(JitFnIDs.jsonDecode);
-    const toJson = rt.createJitFunction(JitFnIDs.jsonEncode);
+    const fromJsonVal = rt.createJitFunction(JitFnIDs.fromJsonVal);
+    const toJsonVal = rt.createJitFunction(JitFnIDs.toJsonVal);
     mockRegExpsList.forEach((regexp) => {
-        expect(fromJson(JSON.parse(JSON.stringify(toJson(regexp))))).toEqual(regexp);
+        expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(regexp))))).toEqual(regexp);
     });
 });
 
 it('json stringify', () => {
     const jsonStringify = rt.createJitFunction(JitFnIDs.jsonStringify);
-    const fromJson = rt.createJitFunction(JitFnIDs.jsonDecode);
+    const fromJsonVal = rt.createJitFunction(JitFnIDs.fromJsonVal);
     mockRegExpsList.forEach((regexp) => {
         const typeValue = regexp;
-        const roundTrip = fromJson(JSON.parse(jsonStringify(typeValue)));
+        const roundTrip = fromJsonVal(JSON.parse(jsonStringify(typeValue)));
         expect(roundTrip).toEqual(typeValue);
     });
 });

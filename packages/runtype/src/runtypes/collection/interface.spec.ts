@@ -157,8 +157,8 @@ describe('Interface', () => {
     });
 
     it('encode/decode to json', () => {
-        const toJson = rt.createJitFunction(JitFnIDs.jsonEncode);
-        const fromJson = rt.createJitFunction(JitFnIDs.jsonDecode);
+        const toJsonVal = rt.createJitFunction(JitFnIDs.toJsonVal);
+        const fromJsonVal = rt.createJitFunction(JitFnIDs.fromJsonVal);
         const typeValue = {
             startDate: new Date(),
             quantity: 123,
@@ -170,21 +170,21 @@ describe('Interface', () => {
         };
         // value used for json encode/decode gets modified so we need to copy it to compare later
         const copy = {...typeValue};
-        expect(fromJson(JSON.parse(JSON.stringify(toJson(copy))))).toEqual(typeValue);
+        expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(copy))))).toEqual(typeValue);
     });
 
     // TODO: decide if we want to serialise some properties that are usually skipped by json
     it('skip props when encode/decode to json', () => {
-        const toJson = rtSkip.createJitFunction(JitFnIDs.jsonEncode);
-        const fromJson = rtSkip.createJitFunction(JitFnIDs.jsonDecode);
+        const toJsonVal = rtSkip.createJitFunction(JitFnIDs.toJsonVal);
+        const fromJsonVal = rtSkip.createJitFunction(JitFnIDs.fromJsonVal);
         const jsonStringify = rtSkip.createJitFunction(JitFnIDs.jsonStringify);
         const typeValue = {
             name: 'hello',
             methodProp: () => 'hello',
             [Symbol('test')]: 'hello',
         };
-        expect(fromJson(JSON.parse(JSON.stringify(toJson(typeValue))))).toEqual({name: 'hello'});
-        expect(fromJson(JSON.parse(jsonStringify(typeValue)))).toEqual({name: 'hello'});
+        expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(typeValue))))).toEqual({name: 'hello'});
+        expect(fromJsonVal(JSON.parse(jsonStringify(typeValue)))).toEqual({name: 'hello'});
     });
 
     it('json encode/decode should be marked as noop when there are no actions required', () => {
@@ -199,15 +199,15 @@ describe('Interface', () => {
 
         const rtNoop = runType<NoJsonENCDECRequired>() as BaseRunType;
         const rtEncRequired = runType<sonENCDECRequired>() as BaseRunType;
-        expect(rtNoop.getJitCompiledOperation(JitFnIDs.jsonEncode).isNoop).toBe(true);
-        expect(rtNoop.getJitCompiledOperation(JitFnIDs.jsonDecode).isNoop).toBe(true);
-        expect(rtEncRequired.getJitCompiledOperation(JitFnIDs.jsonEncode).isNoop).toBe(false);
-        expect(rtEncRequired.getJitCompiledOperation(JitFnIDs.jsonDecode).isNoop).toBe(false);
+        expect(rtNoop.getJitCompiledOperation(JitFnIDs.toJsonVal).isNoop).toBe(true);
+        expect(rtNoop.getJitCompiledOperation(JitFnIDs.fromJsonVal).isNoop).toBe(true);
+        expect(rtEncRequired.getJitCompiledOperation(JitFnIDs.toJsonVal).isNoop).toBe(false);
+        expect(rtEncRequired.getJitCompiledOperation(JitFnIDs.fromJsonVal).isNoop).toBe(false);
     });
 
     it('json stringify', () => {
         const jsonStringify = rt.createJitFunction(JitFnIDs.jsonStringify);
-        const fromJson = rt.createJitFunction(JitFnIDs.jsonDecode);
+        const fromJsonVal = rt.createJitFunction(JitFnIDs.fromJsonVal);
         const typeValue = {
             startDate: new Date(),
             quantity: 123,
@@ -217,7 +217,7 @@ describe('Interface', () => {
             bigInt: BigInt(123),
             "weird prop name \n?>'\\\t\r": 'hello2',
         };
-        const roundTrip = fromJson(JSON.parse(jsonStringify(typeValue)));
+        const roundTrip = fromJsonVal(JSON.parse(jsonStringify(typeValue)));
         expect(roundTrip).toEqual(typeValue);
 
         const typeValue2 = {
@@ -230,7 +230,7 @@ describe('Interface', () => {
             "weird prop name \n?>'\\\t\r": 'hello2',
             optionalString: 'hello',
         };
-        const roundTrip2 = fromJson(JSON.parse(jsonStringify(typeValue2)));
+        const roundTrip2 = fromJsonVal(JSON.parse(jsonStringify(typeValue2)));
         expect(roundTrip2).toEqual(typeValue2);
     });
 
@@ -241,17 +241,17 @@ describe('Interface', () => {
         };
         const rtObj1 = runType<Obj1>();
         const jsonStringify = rtObj1.createJitFunction(JitFnIDs.jsonStringify);
-        const fromJson = rtObj1.createJitFunction(JitFnIDs.jsonDecode);
+        const fromJsonVal = rtObj1.createJitFunction(JitFnIDs.fromJsonVal);
 
         const typeValue: Obj1 = {a: 'helloA', b: 'helloB'};
         const json = jsonStringify(typeValue);
         expect(json).toEqual(`{"b":"helloB","a":"helloA"}`);
-        expect(fromJson(JSON.parse(json))).toEqual(typeValue);
+        expect(fromJsonVal(JSON.parse(json))).toEqual(typeValue);
 
         const typeValue2: Obj1 = {a: 'helloA'};
         const json2 = jsonStringify(typeValue2);
         expect(json2).toEqual(`{"a":"helloA"}`);
-        expect(fromJson(JSON.parse(json2))).toEqual(typeValue2);
+        expect(fromJsonVal(JSON.parse(json2))).toEqual(typeValue2);
     });
 
     it('json stringify should work when all fields are optional', () => {
@@ -261,17 +261,17 @@ describe('Interface', () => {
         };
         const rtObj1 = runType<Obj2>();
         const jsonStringify = rtObj1.createJitFunction(JitFnIDs.jsonStringify);
-        const fromJson = rtObj1.createJitFunction(JitFnIDs.jsonDecode);
+        const fromJsonVal = rtObj1.createJitFunction(JitFnIDs.fromJsonVal);
 
         const typeValue: Obj2 = {a: 'helloA', b: 'helloB'};
         const json = jsonStringify(typeValue);
         expect(json).toEqual(`{"a":"helloA","b":"helloB"}`);
-        expect(fromJson(JSON.parse(json))).toEqual(typeValue);
+        expect(fromJsonVal(JSON.parse(json))).toEqual(typeValue);
 
         const typeValue2: Obj2 = {a: 'helloA'};
         const json2 = jsonStringify(typeValue2);
         expect(json2).toEqual(`{"a":"helloA"}`);
-        expect(fromJson(JSON.parse(json2))).toEqual(typeValue2);
+        expect(fromJsonVal(JSON.parse(json2))).toEqual(typeValue2);
     });
 
     it('object with repeated property types', () => {
@@ -290,13 +290,13 @@ describe('Interface', () => {
         const valWithErrors = rtI.createJitFunction(JitFnIDs.typeErrors);
         expect(valWithErrors({name: 'John', surname: 'Doe'})).toEqual([]);
 
-        const toJson = rtI.createJitFunction(JitFnIDs.jsonEncode);
-        const fromJson = rtI.createJitFunction(JitFnIDs.jsonDecode);
+        const toJsonVal = rtI.createJitFunction(JitFnIDs.toJsonVal);
+        const fromJsonVal = rtI.createJitFunction(JitFnIDs.fromJsonVal);
         const typeValue = {name: 'John', surname: 'Doe'};
-        expect(fromJson(JSON.parse(JSON.stringify(toJson(typeValue))))).toEqual(typeValue);
+        expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(typeValue))))).toEqual(typeValue);
 
         const jsonStringify = rtI.createJitFunction(JitFnIDs.jsonStringify);
-        const roundTrip = fromJson(JSON.parse(jsonStringify(typeValue)));
+        const roundTrip = fromJsonVal(JSON.parse(jsonStringify(typeValue)));
         expect(roundTrip).toEqual(typeValue);
     });
 
@@ -425,25 +425,25 @@ describe('Interface with unknown props', () => {
     it.todo('hasunknowkeys is generating code that is not needed, stringArray property generates extra function that is empty');
 
     it('encode/decode to json safeJson', () => {
-        const toJson = rt.createJitFunction(JitFnIDs.jsonEncode);
-        const fromJson = rt.createJitFunction(JitFnIDs.jsonDecode);
+        const toJsonVal = rt.createJitFunction(JitFnIDs.toJsonVal);
+        const fromJsonVal = rt.createJitFunction(JitFnIDs.fromJsonVal);
         const hasUnknownKeys = rt.createJitFunction(JitFnIDs.hasUnknownKeys);
         const unknownKeysToUndefined = rt.createJitFunction(JitFnIDs.unknownKeysToUndefined);
         const stripUnknownKeys = rt.createJitFunction(JitFnIDs.stripUnknownKeys);
         const fromJsonSafeThrow = (val) => {
             if (hasUnknownKeys(val)) throw new Error('Unknown properties in JSON');
-            return fromJson(val);
+            return fromJsonVal(val);
         };
         const fromJsonSafeUndefined = (val) => {
             unknownKeysToUndefined(val);
-            return fromJson(val);
+            return fromJsonVal(val);
         };
         const fromJsonSafeStrip = (val) => {
             stripUnknownKeys(val);
-            return fromJson(val);
+            return fromJsonVal(val);
         };
 
-        const jsonString = JSON.stringify(toJson(structuredClone(objWithExtra)));
+        const jsonString = JSON.stringify(toJsonVal(structuredClone(objWithExtra)));
         // value used for json encode/decode gets modified so we need to copy it to compare later
         const copy1 = JSON.parse(jsonString);
         const copy2 = JSON.parse(jsonString);
@@ -462,32 +462,32 @@ describe('Interface with unknown props', () => {
         delete extraWithStrip["extra weird prop name \n?>'\\\t\r"];
         delete extraWithStrip.deep.cExtra;
 
-        expect(fromJson(copy1)).toEqual(objWithExtra);
+        expect(fromJsonVal(copy1)).toEqual(objWithExtra);
         expect(() => fromJsonSafeThrow(copy2)).toThrow('Unknown properties in JSON');
         expect(fromJsonSafeUndefined(copy3)).toEqual(extraWithUndefined);
         expect(fromJsonSafeStrip(copy4)).toEqual(extraWithStrip);
     });
 
     it('encode/decode to json safeJson deep', () => {
-        const toJson = rt.createJitFunction(JitFnIDs.jsonEncode);
-        const fromJson = rt.createJitFunction(JitFnIDs.jsonDecode);
+        const toJsonVal = rt.createJitFunction(JitFnIDs.toJsonVal);
+        const fromJsonVal = rt.createJitFunction(JitFnIDs.fromJsonVal);
         const hasUnknownKeys = rt.createJitFunction(JitFnIDs.hasUnknownKeys);
         const unknownKeysToUndefined = rt.createJitFunction(JitFnIDs.unknownKeysToUndefined);
         const stripUnknownKeys = rt.createJitFunction(JitFnIDs.stripUnknownKeys);
         const fromJsonSafeThrow = (val) => {
             if (hasUnknownKeys(val)) throw new Error('Unknown properties in JSON');
-            return fromJson(val);
+            return fromJsonVal(val);
         };
         const fromJsonSafeUndefined = (val) => {
             unknownKeysToUndefined(val);
-            return fromJson(val);
+            return fromJsonVal(val);
         };
         const fromJsonSafeStrip = (val) => {
             stripUnknownKeys(val);
-            return fromJson(val);
+            return fromJsonVal(val);
         };
 
-        const jsonString2 = JSON.stringify(toJson(structuredClone(objWithExtraDeep)));
+        const jsonString2 = JSON.stringify(toJsonVal(structuredClone(objWithExtraDeep)));
         const copyD1 = JSON.parse(jsonString2);
         const copyD2 = JSON.parse(jsonString2);
         const copyD3 = JSON.parse(jsonString2);
@@ -524,9 +524,9 @@ describe('Interface with unknown props', () => {
     it('json stringify to strip extra params without fail', () => {
         // json stringify automatically strips unknown keys
         const jsonStringify = rt.createJitFunction(JitFnIDs.jsonStringify);
-        const fromJson = rt.createJitFunction(JitFnIDs.jsonDecode);
+        const fromJsonVal = rt.createJitFunction(JitFnIDs.fromJsonVal);
         const jsonString = jsonStringify(objWithExtra);
-        const roundTrip = fromJson(JSON.parse(jsonString));
+        const roundTrip = fromJsonVal(JSON.parse(jsonString));
         expect(roundTrip).toEqual({
             startDate,
             quantity: 123,
@@ -564,19 +564,19 @@ describe('Interface with circular ref properties', () => {
     });
 
     it('encode/decode to json', () => {
-        const toJson = rt.createJitFunction(JitFnIDs.jsonEncode);
-        const fromJson = rt.createJitFunction(JitFnIDs.jsonDecode);
+        const toJsonVal = rt.createJitFunction(JitFnIDs.toJsonVal);
+        const fromJsonVal = rt.createJitFunction(JitFnIDs.fromJsonVal);
         const obj: ICircular = {name: 'hello', child: {name: 'world'}};
         // value used for json encode/decode gets modified so we need to copy it to compare later
         const copy = {...obj};
-        expect(fromJson(JSON.parse(JSON.stringify(toJson(copy))))).toEqual(obj);
+        expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(copy))))).toEqual(obj);
     });
 
     it('json stringify', () => {
         const jsonStringify = rt.createJitFunction(JitFnIDs.jsonStringify);
-        const fromJson = rt.createJitFunction(JitFnIDs.jsonDecode);
+        const fromJsonVal = rt.createJitFunction(JitFnIDs.fromJsonVal);
         const obj: ICircular = {name: 'hello', child: {name: 'world'}};
-        const roundTrip = fromJson(JSON.parse(jsonStringify(obj)));
+        const roundTrip = fromJsonVal(JSON.parse(jsonStringify(obj)));
         expect(roundTrip).toEqual(obj);
     });
 
@@ -626,24 +626,24 @@ describe('Interface with circular ref type array', () => {
     });
 
     it('encode/decode to json', () => {
-        const toJson = rt.createJitFunction(JitFnIDs.jsonEncode);
-        const fromJson = rt.createJitFunction(JitFnIDs.jsonDecode);
+        const toJsonVal = rt.createJitFunction(JitFnIDs.toJsonVal);
+        const fromJsonVal = rt.createJitFunction(JitFnIDs.fromJsonVal);
         const obj1: ICircularArray = {name: 'hello', children: []};
         const obj2: ICircularArray = {name: 'hello', children: [{name: 'world'}]};
         // value used for json encode/decode gets modified so we need to copy it to compare later
         const copy1 = {...obj1};
         const copy2 = {...obj2};
-        expect(fromJson(JSON.parse(JSON.stringify(toJson(copy1))))).toEqual(obj1);
-        expect(fromJson(JSON.parse(JSON.stringify(toJson(copy2))))).toEqual(obj2);
+        expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(copy1))))).toEqual(obj1);
+        expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(copy2))))).toEqual(obj2);
     });
 
     it('json stringify', () => {
         const jsonStringify = rt.createJitFunction(JitFnIDs.jsonStringify);
-        const fromJson = rt.createJitFunction(JitFnIDs.jsonDecode);
+        const fromJsonVal = rt.createJitFunction(JitFnIDs.fromJsonVal);
         const obj1: ICircularArray = {name: 'hello', children: []};
         const obj2: ICircularArray = {name: 'hello', children: [{name: 'world'}]};
-        const roundTrip1 = fromJson(JSON.parse(jsonStringify(obj1)));
-        const roundTrip2 = fromJson(JSON.parse(jsonStringify(obj2)));
+        const roundTrip1 = fromJsonVal(JSON.parse(jsonStringify(obj1)));
+        const roundTrip2 = fromJsonVal(JSON.parse(jsonStringify(obj2)));
         expect(roundTrip1).toEqual(obj1);
         expect(roundTrip2).toEqual(obj2);
     });
@@ -702,8 +702,8 @@ describe('Interface with nested circular type', () => {
     });
 
     it('encode/decode to json', () => {
-        const toJson = rt.createJitFunction(JitFnIDs.jsonEncode);
-        const fromJson = rt.createJitFunction(JitFnIDs.jsonDecode);
+        const toJsonVal = rt.createJitFunction(JitFnIDs.toJsonVal);
+        const fromJsonVal = rt.createJitFunction(JitFnIDs.fromJsonVal);
         const obj1: ICircularDeep = {name: 'hello', embedded: {hello: 'world'}};
         const obj2: ICircularDeep = {
             name: 'hello',
@@ -712,20 +712,20 @@ describe('Interface with nested circular type', () => {
         // value used for json encode/decode gets modified so we need to copy it to compare later
         const copy1 = {...obj1};
         const copy2 = {...obj2};
-        expect(fromJson(JSON.parse(JSON.stringify(toJson(copy1))))).toEqual(obj1);
-        expect(fromJson(JSON.parse(JSON.stringify(toJson(copy2))))).toEqual(obj2);
+        expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(copy1))))).toEqual(obj1);
+        expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(copy2))))).toEqual(obj2);
     });
 
     it('json stringify', () => {
         const jsonStringify = rt.createJitFunction(JitFnIDs.jsonStringify);
-        const fromJson = rt.createJitFunction(JitFnIDs.jsonDecode);
+        const fromJsonVal = rt.createJitFunction(JitFnIDs.fromJsonVal);
         const obj1: ICircularDeep = {name: 'hello', embedded: {hello: 'world'}};
         const obj2: ICircularDeep = {
             name: 'hello',
             embedded: {hello: 'world', child: {name: 'world1', embedded: {hello: 'world2'}}},
         };
-        const roundTrip1 = fromJson(JSON.parse(jsonStringify(obj1)));
-        const roundTrip2 = fromJson(JSON.parse(jsonStringify(obj2)));
+        const roundTrip1 = fromJsonVal(JSON.parse(jsonStringify(obj1)));
+        const roundTrip2 = fromJsonVal(JSON.parse(jsonStringify(obj2)));
         expect(roundTrip1).toEqual(obj1);
         expect(roundTrip2).toEqual(obj2);
     });
@@ -822,8 +822,8 @@ describe('Interface with nested circular type where root is not the circular ref
     });
 
     it('encode/decode to json', () => {
-        const toJson = rt.createJitFunction(JitFnIDs.jsonEncode);
-        const fromJson = rt.createJitFunction(JitFnIDs.jsonDecode);
+        const toJsonVal = rt.createJitFunction(JitFnIDs.toJsonVal);
+        const fromJsonVal = rt.createJitFunction(JitFnIDs.fromJsonVal);
         const obj1: RootNotCircular = {isRoot: true, ciChild: {name: 'hello', big: 1n, embedded: {hello: 'world'}}};
         const obj2: RootNotCircular = {
             isRoot: true,
@@ -836,13 +836,13 @@ describe('Interface with nested circular type where root is not the circular ref
         // value used for json encode/decode gets modified so we need to copy it to compare later
         const copy1 = structuredClone(obj1);
         const copy2 = structuredClone(obj2);
-        expect(fromJson(JSON.parse(JSON.stringify(toJson(copy1))))).toEqual(obj1);
-        expect(fromJson(JSON.parse(JSON.stringify(toJson(copy2))))).toEqual(obj2);
+        expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(copy1))))).toEqual(obj1);
+        expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(copy2))))).toEqual(obj2);
     });
 
     it('json stringify', () => {
         const jsonStringify = rt.createJitFunction(JitFnIDs.jsonStringify);
-        const fromJson = rt.createJitFunction(JitFnIDs.jsonDecode);
+        const fromJsonVal = rt.createJitFunction(JitFnIDs.fromJsonVal);
         const obj1: RootNotCircular = {isRoot: true, ciChild: {name: 'hello', big: 1n, embedded: {hello: 'world'}}};
         const obj2: RootNotCircular = {
             isRoot: true,
@@ -852,8 +852,8 @@ describe('Interface with nested circular type where root is not the circular ref
                 embedded: {hello: 'world', child: {name: 'world1', big: 1n, embedded: {hello: 'world2'}}},
             },
         };
-        const roundTrip1 = fromJson(JSON.parse(jsonStringify(obj1)));
-        const roundTrip2 = fromJson(JSON.parse(jsonStringify(obj2)));
+        const roundTrip1 = fromJsonVal(JSON.parse(jsonStringify(obj1)));
+        const roundTrip2 = fromJsonVal(JSON.parse(jsonStringify(obj2)));
         expect(roundTrip1).toEqual(obj1);
         expect(roundTrip2).toEqual(obj2);
     });
@@ -982,8 +982,8 @@ describe('Interface with nested circular + multiple circular', () => {
     });
 
     it('encode/decode to json', () => {
-        const toJson = rt.createJitFunction(JitFnIDs.jsonEncode);
-        const fromJson = rt.createJitFunction(JitFnIDs.jsonDecode);
+        const toJsonVal = rt.createJitFunction(JitFnIDs.toJsonVal);
+        const fromJsonVal = rt.createJitFunction(JitFnIDs.fromJsonVal);
         const ciDate: ICircularDate = {date: new Date(), month: 1, year: 2021};
         const obj1: RootCircular = {isRoot: true, ciChild: {name: 'hello', big: 1n, embedded: {hello: 'world'}}, ciDate};
         const obj2: RootCircular = {
@@ -998,13 +998,13 @@ describe('Interface with nested circular + multiple circular', () => {
         // value used for json encode/decode gets modified so we need to copy it to compare later
         const copy1 = structuredClone(obj1);
         const copy2 = structuredClone(obj2);
-        expect(fromJson(JSON.parse(JSON.stringify(toJson(copy1))))).toEqual(obj1);
-        expect(fromJson(JSON.parse(JSON.stringify(toJson(copy2))))).toEqual(obj2);
+        expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(copy1))))).toEqual(obj1);
+        expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(copy2))))).toEqual(obj2);
     });
 
     it('json stringify', () => {
         const jsonStringify = rt.createJitFunction(JitFnIDs.jsonStringify);
-        const fromJson = rt.createJitFunction(JitFnIDs.jsonDecode);
+        const fromJsonVal = rt.createJitFunction(JitFnIDs.fromJsonVal);
         const ciDate: ICircularDate = {date: new Date(), month: 1, year: 2021};
         const obj1: RootCircular = {isRoot: true, ciChild: {name: 'hello', big: 1n, embedded: {hello: 'world'}}, ciDate};
         const obj2: RootCircular = {
@@ -1016,8 +1016,8 @@ describe('Interface with nested circular + multiple circular', () => {
             },
             ciDate,
         };
-        const roundTrip1 = fromJson(JSON.parse(jsonStringify(obj1)));
-        const roundTrip2 = fromJson(JSON.parse(jsonStringify(obj2)));
+        const roundTrip1 = fromJsonVal(JSON.parse(jsonStringify(obj1)));
+        const roundTrip2 = fromJsonVal(JSON.parse(jsonStringify(obj2)));
         expect(roundTrip1).toEqual(obj1);
         expect(roundTrip2).toEqual(obj2);
     });
@@ -1067,24 +1067,24 @@ describe('Interface with circular ref tuple', () => {
     });
 
     it('encode/decode to json', () => {
-        const toJson = rt.createJitFunction(JitFnIDs.jsonEncode);
-        const fromJson = rt.createJitFunction(JitFnIDs.jsonDecode);
+        const toJsonVal = rt.createJitFunction(JitFnIDs.toJsonVal);
+        const fromJsonVal = rt.createJitFunction(JitFnIDs.fromJsonVal);
         const obj1: ICircularTuple = {name: 'hello', parent: ['world', {name: 'world'}]};
         const obj2: ICircularTuple = {name: 'hello', parent: ['world', {name: 'world', parent: ['hello', obj1]}]};
         // value used for json encode/decode gets modified so we need to copy it to compare later
         const copy1 = structuredClone(obj1);
         const copy2 = structuredClone(obj2);
-        expect(fromJson(JSON.parse(JSON.stringify(toJson(copy1))))).toEqual(obj1);
-        expect(fromJson(JSON.parse(JSON.stringify(toJson(copy2))))).toEqual(obj2);
+        expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(copy1))))).toEqual(obj1);
+        expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(copy2))))).toEqual(obj2);
     });
 
     it('json stringify', () => {
         const jsonStringify = rt.createJitFunction(JitFnIDs.jsonStringify);
-        const fromJson = rt.createJitFunction(JitFnIDs.jsonDecode);
+        const fromJsonVal = rt.createJitFunction(JitFnIDs.fromJsonVal);
         const obj1: ICircularTuple = {name: 'hello', parent: ['world', {name: 'world'}]};
         const obj2: ICircularTuple = {name: 'hello', parent: ['world', {name: 'world', parent: ['hello', obj1]}]};
-        const roundTrip1 = fromJson(JSON.parse(jsonStringify(obj1)));
-        const roundTrip2 = fromJson(JSON.parse(jsonStringify(obj2)));
+        const roundTrip1 = fromJsonVal(JSON.parse(jsonStringify(obj1)));
+        const roundTrip2 = fromJsonVal(JSON.parse(jsonStringify(obj2)));
         expect(roundTrip1).toEqual(obj1);
         expect(roundTrip2).toEqual(obj2);
     });

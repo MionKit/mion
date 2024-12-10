@@ -89,8 +89,8 @@ export interface RunTypeChildAccessor extends RunType {
 
 export interface JitConfig {
     readonly skipJit: boolean;
-    readonly skipJsonEncode: boolean;
-    readonly skipJsonDecode: boolean;
+    readonly skipToJsonVal: boolean;
+    readonly skipFromJsonVal: boolean;
     readonly jitId: string | number;
 }
 
@@ -142,7 +142,7 @@ export type SerializedOperations = Record<string, SerializableJit>;
 
 export interface JitSerializer {
     fromJsonVal: (vλl: string) => string | undefined;
-    toJsonVal: (vλl: string) => string | undefined;
+    ToJsonVal: (vλl: string) => string | undefined;
     stringify: (vλl: string) => string;
 }
 
@@ -167,35 +167,35 @@ export interface RunTypeError {
 
 export type isTypeFn = (value: any) => boolean;
 export type typeErrorsFn = (value: any) => RunTypeError[];
-export type jsonEncodeFn = (value: any) => JSONValue;
-export type jsonDecodeFn = (value: JSONValue) => any;
+export type toJsonValFn = (value: any) => JSONValue;
+export type fromJsonValFn = (value: JSONValue) => any;
 export type jsonStringifyFn = (value: any) => JSONString;
 
 export interface JITCompiledFunctions {
     isType: JitFnData<isTypeFn>;
     typeErrors: JitFnData<typeErrorsFn>;
-    jsonEncode: JitFnData<jsonEncodeFn>;
-    jsonDecode: JitFnData<jsonDecodeFn>;
+    toJsonVal: JitFnData<toJsonValFn>;
+    fromJsonVal: JitFnData<fromJsonValFn>;
     jsonStringify: JitFnData<jsonStringifyFn>;
 }
 
 export interface SerializableJITFunctions {
     isType: SerializableJitFn<isTypeFn>;
     typeErrors: SerializableJitFn<typeErrorsFn>;
-    jsonEncode: SerializableJitFn<jsonEncodeFn>;
-    jsonDecode: SerializableJitFn<jsonDecodeFn>;
+    toJsonVal: SerializableJitFn<toJsonValFn>;
+    fromJsonVal: SerializableJitFn<fromJsonValFn>;
     jsonStringify: SerializableJitFn<jsonStringifyFn>;
 }
 
-export type unwrappedJsonEncodeFn = (utils: JITUtils, value: any) => JSONValue;
-export type unwrappedJsonDecodeFn = (utils: JITUtils, value: JSONValue) => any;
+export type unwrappedToJsonValFn = (utils: JITUtils, value: any) => JSONValue;
+export type unwrappedFromJsonValFn = (utils: JITUtils, value: JSONValue) => any;
 export type unwrappedJsonStringifyFn = (utils: JITUtils, value: any) => JSONString;
 
 export interface UnwrappedJITFunctions {
     isType: JitFnData<isTypeFn>;
     typeErrors: JitFnData<typeErrorsFn>;
-    jsonEncode: JitFnData<unwrappedJsonEncodeFn>;
-    jsonDecode: JitFnData<unwrappedJsonDecodeFn>;
+    toJsonVal: JitFnData<unwrappedToJsonValFn>;
+    fromJsonVal: JitFnData<unwrappedFromJsonValFn>;
     jsonStringify: JitFnData<unwrappedJsonStringifyFn>;
 }
 

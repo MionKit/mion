@@ -28,12 +28,12 @@ it('validate void + errors', () => {
 });
 
 it('encode to json should return undefined', () => {
-    const encode = rt.createJitFunction(JitFnIDs.jsonEncode);
+    const encode = rt.createJitFunction(JitFnIDs.toJsonVal);
     expect(encode(undefined)).toBe(undefined);
 });
 
 it('decode from json should return undefined', () => {
-    const decode = rt.createJitFunction(JitFnIDs.jsonDecode);
+    const decode = rt.createJitFunction(JitFnIDs.fromJsonVal);
     expect(decode('')).toBe(undefined);
 });
 

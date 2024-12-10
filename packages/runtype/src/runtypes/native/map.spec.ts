@@ -68,25 +68,25 @@ describe('MapRunType with simple key and values Map<string, number>', () => {
     });
 
     it('encode/decode Map to json', () => {
-        const toJson = rt.createJitFunction(JitFnIDs.jsonEncode);
-        const fromJson = rt.createJitFunction(JitFnIDs.jsonDecode);
+        const toJsonVal = rt.createJitFunction(JitFnIDs.toJsonVal);
+        const fromJsonVal = rt.createJitFunction(JitFnIDs.fromJsonVal);
 
         // the encode/decode operations are destructive, so we need to clone the map
         const mapCopy = cloneMap(testMap);
-        const encoded = toJson(mapCopy);
+        const encoded = toJsonVal(mapCopy);
         const stringified = JSON.stringify(encoded);
-        const decoded = fromJson(JSON.parse(stringified));
+        const decoded = fromJsonVal(JSON.parse(stringified));
 
         expect(decoded).toEqual(testMap);
     });
 
     it('json stringify Map', () => {
         const jsonStringify = rt.createJitFunction(JitFnIDs.jsonStringify);
-        const fromJson = rt.createJitFunction(JitFnIDs.jsonDecode);
+        const fromJsonVal = rt.createJitFunction(JitFnIDs.fromJsonVal);
         // Should serialize the Map as an array of entries
         const mapCopy = cloneMap(testMap);
         const jsonString = jsonStringify(mapCopy);
-        const restored = fromJson(JSON.parse(jsonString));
+        const restored = fromJsonVal(JSON.parse(jsonString));
         expect(restored).toEqual(testMap);
     });
 
@@ -179,24 +179,24 @@ describe('MapRunType with simple key and complex objects Map<string, SmallObject
     });
 
     it('encode/decode Map<string, SmallObject> to json', () => {
-        const toJson = rtStringSmallObject.createJitFunction(JitFnIDs.jsonEncode);
-        const fromJson = rtStringSmallObject.createJitFunction(JitFnIDs.jsonDecode);
+        const toJsonVal = rtStringSmallObject.createJitFunction(JitFnIDs.toJsonVal);
+        const fromJsonVal = rtStringSmallObject.createJitFunction(JitFnIDs.fromJsonVal);
 
         // the encode/decode operations are destructive, so we need to clone the map
         const mapCopy = cloneMap(testMapStringSmallObject);
-        const encoded = toJson(mapCopy);
+        const encoded = toJsonVal(mapCopy);
         const stringified = JSON.stringify(encoded);
-        const decoded = fromJson(JSON.parse(stringified));
+        const decoded = fromJsonVal(JSON.parse(stringified));
         expect(decoded).toEqual(testMapStringSmallObject);
     });
 
     it('json stringify Map<string, SmallObject>', () => {
         const jsonStringify = rtStringSmallObject.createJitFunction(JitFnIDs.jsonStringify);
-        const fromJson = rtStringSmallObject.createJitFunction(JitFnIDs.jsonDecode);
+        const fromJsonVal = rtStringSmallObject.createJitFunction(JitFnIDs.fromJsonVal);
         // Should serialize the Map as an array of entries
         const mapCopy = cloneMap(testMapStringSmallObject);
         const jsonString = jsonStringify(mapCopy);
-        const restored = fromJson(JSON.parse(jsonString));
+        const restored = fromJsonVal(JSON.parse(jsonString));
         expect(restored).toEqual(testMapStringSmallObject);
     });
 
@@ -312,24 +312,24 @@ describe('MapRunType with complex key and simple values Map<SmallObject, number>
     });
 
     it('encode/decode Map<SmallObject, number> to json', () => {
-        const toJson = rtSmallObjectNumber.createJitFunction(JitFnIDs.jsonEncode);
-        const fromJson = rtSmallObjectNumber.createJitFunction(JitFnIDs.jsonDecode);
+        const toJsonVal = rtSmallObjectNumber.createJitFunction(JitFnIDs.toJsonVal);
+        const fromJsonVal = rtSmallObjectNumber.createJitFunction(JitFnIDs.fromJsonVal);
 
         // the encode/decode operations are destructive, so we need to clone the map
         const mapCopy = cloneMap(testMapSmallObjectNumber);
-        const encoded = toJson(mapCopy);
+        const encoded = toJsonVal(mapCopy);
         const stringified = JSON.stringify(encoded);
-        const decoded = fromJson(JSON.parse(stringified));
+        const decoded = fromJsonVal(JSON.parse(stringified));
         expect(decoded).toEqual(testMapSmallObjectNumber);
     });
 
     it('json stringify Map<SmallObject, number>', () => {
         const jsonStringify = rtSmallObjectNumber.createJitFunction(JitFnIDs.jsonStringify);
-        const fromJson = rtSmallObjectNumber.createJitFunction(JitFnIDs.jsonDecode);
+        const fromJsonVal = rtSmallObjectNumber.createJitFunction(JitFnIDs.fromJsonVal);
         // Should serialize the Map as an array of entries
         const mapCopy = cloneMap(testMapSmallObjectNumber);
         const jsonString = jsonStringify(mapCopy);
-        const restored = fromJson(JSON.parse(jsonString));
+        const restored = fromJsonVal(JSON.parse(jsonString));
         expect(restored).toEqual(testMapSmallObjectNumber);
     });
 
@@ -438,8 +438,8 @@ describe('MapRunType with nested maps', () => {
     });
 
     it('encode/decode objects with nested maps to json', () => {
-        const toJson = rtDeepWithMap.createJitFunction(JitFnIDs.jsonEncode);
-        const fromJson = rtDeepWithMap.createJitFunction(JitFnIDs.jsonDecode);
+        const toJsonVal = rtDeepWithMap.createJitFunction(JitFnIDs.toJsonVal);
+        const fromJsonVal = rtDeepWithMap.createJitFunction(JitFnIDs.fromJsonVal);
 
         const obj: DeepWithMap = {
             a: 'a',
@@ -449,15 +449,15 @@ describe('MapRunType with nested maps', () => {
             ]),
         };
         const clone = {...obj, b: cloneMap(obj.b)}; // the encode/decode operations are destructive, so we need to clone the map
-        const encoded = toJson(clone);
+        const encoded = toJsonVal(clone);
         const stringified = JSON.stringify(encoded);
-        const decoded = fromJson(JSON.parse(stringified));
+        const decoded = fromJsonVal(JSON.parse(stringified));
         expect(decoded).toEqual(obj);
     });
 
     it('json stringify objects with nested maps', () => {
         const jsonStringify = rtDeepWithMap.createJitFunction(JitFnIDs.jsonStringify);
-        const fromJson = rtDeepWithMap.createJitFunction(JitFnIDs.jsonDecode);
+        const fromJsonVal = rtDeepWithMap.createJitFunction(JitFnIDs.fromJsonVal);
 
         const obj: DeepWithMap = {
             a: 'a',
@@ -467,7 +467,7 @@ describe('MapRunType with nested maps', () => {
             ]),
         };
         const jsonString = jsonStringify(obj);
-        const restored = fromJson(JSON.parse(jsonString));
+        const restored = fromJsonVal(JSON.parse(jsonString));
         expect(restored).toEqual(obj);
     });
 

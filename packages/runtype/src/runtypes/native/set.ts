@@ -42,8 +42,8 @@ export class SetRunType extends IterableRunType {
         });
     }
     getCustomVλl(comp: JitCompiler) {
-        // jsonDecode is decoding a regular array so no need to use an special case for vλl as other operations
-        if (comp.fnId === JitFnIDs.jsonDecode)
+        // fromJsonVal is decoding a regular array so no need to use an special case for vλl as other operations
+        if (comp.fnId === JitFnIDs.fromJsonVal)
             return {vλl: `it${this.getNestLevel()}`, isStandalone: false, useArrayAccessor: true};
         // other operations use an special case for vλl where all parents are skipped
         return {vλl: `it${this.getNestLevel()}`, isStandalone: true};
@@ -51,8 +51,8 @@ export class SetRunType extends IterableRunType {
     getJitConfig(stack: BaseRunType[] = []): JitConfig {
         return {
             ...(super.getJitConfig(stack) as Mutable<JitConfig>),
-            skipJsonEncode: false, // we always need to transform the map/set into to an array when encoding
-            skipJsonDecode: false, // we always need to transform the array to a map/set when decoding
+            skipToJsonVal: false, // we always need to transform the map/set into to an array when encoding
+            skipFromJsonVal: false, // we always need to transform the array to a map/set when decoding
         };
     }
 

@@ -13,8 +13,8 @@ import {nullSerializer} from '../../serializers/null';
 
 const jitConstants: JitConfig = {
     skipJit: false,
-    skipJsonEncode: true,
-    skipJsonDecode: true,
+    skipToJsonVal: true,
+    skipFromJsonVal: true,
     jitId: ReflectionKind.null,
 };
 
@@ -26,10 +26,10 @@ export class NullRunType extends AtomicRunType<TypeNull> {
     _compileTypeErrors(comp: JitErrorsCompiler): string {
         return `if (${comp.vλl} !== null) ${comp.callJitErr(this)}`;
     }
-    _compileJsonEncode(comp: JitCompiler) {
-        return nullSerializer.toJsonVal(comp.vλl);
+    _compileToJsonVal(comp: JitCompiler) {
+        return nullSerializer.ToJsonVal(comp.vλl);
     }
-    _compileJsonDecode(comp: JitCompiler) {
+    _compileFromJsonVal(comp: JitCompiler) {
         return nullSerializer.fromJsonVal(comp.vλl);
     }
     _compileJsonStringify(comp: JitCompiler) {

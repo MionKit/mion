@@ -59,9 +59,9 @@ it('validate class + errors', () => {
 });
 
 it('encode/decode class to json', () => {
-    const toJson = rt.createJitFunction(JitFnIDs.jsonEncode);
+    const toJsonVal = rt.createJitFunction(JitFnIDs.toJsonVal);
     // restored object has the properties of the original object but is not a class instance
-    const restored = JSON.parse(JSON.stringify(toJson(serializable)));
+    const restored = JSON.parse(JSON.stringify(toJsonVal(serializable)));
     // TODO: decide if we want to include methods in the serialization
     expect(restored).toEqual({
         name: serializable.name,
@@ -85,7 +85,7 @@ it('json stringify class', () => {
 });
 
 it('classes can not be decoded', () => {
-    expect(() => rtNonS.createJitFunction(JitFnIDs.jsonDecode)).toThrow(`Classes can not be deserialized.`);
+    expect(() => rtNonS.createJitFunction(JitFnIDs.fromJsonVal)).toThrow(`Classes can not be deserialized.`);
 });
 
 it('mock class', () => {
@@ -123,9 +123,9 @@ describe('Classes that extend other classes', () => {
     });
 
     it('encode/decode extended class to json', () => {
-        const toJson = rtExtended.createJitFunction(JitFnIDs.jsonEncode);
+        const toJsonVal = rtExtended.createJitFunction(JitFnIDs.toJsonVal);
         // restored object has the properties of the original object but is not a class instance
-        const restored = JSON.parse(JSON.stringify(toJson(extended)));
+        const restored = JSON.parse(JSON.stringify(toJsonVal(extended)));
         expect(restored).toEqual({
             baseProp: extended.baseProp,
             extendedProp: extended.extendedProp,

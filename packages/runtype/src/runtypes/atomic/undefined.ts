@@ -13,8 +13,8 @@ import {undefinedSerializer} from '../../serializers/undefined';
 
 const jitConstants: JitConfig = {
     skipJit: false,
-    skipJsonEncode: false,
-    skipJsonDecode: false,
+    skipToJsonVal: false,
+    skipFromJsonVal: false,
     jitId: ReflectionKind.undefined,
 };
 
@@ -26,10 +26,10 @@ export class UndefinedRunType extends AtomicRunType<TypeUndefined> {
     _compileTypeErrors(comp: JitErrorsCompiler): string {
         return `if (typeof ${comp.vλl} !== 'undefined') ${comp.callJitErr(this)}`;
     }
-    _compileJsonEncode(comp: JitCompiler) {
-        return undefinedSerializer.toJsonVal(comp.vλl);
+    _compileToJsonVal(comp: JitCompiler) {
+        return undefinedSerializer.ToJsonVal(comp.vλl);
     }
-    _compileJsonDecode(comp: JitCompiler) {
+    _compileFromJsonVal(comp: JitCompiler) {
         return undefinedSerializer.fromJsonVal(comp.vλl);
     }
     _compileJsonStringify(comp: JitCompiler): string {

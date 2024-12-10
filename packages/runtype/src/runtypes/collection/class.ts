@@ -21,7 +21,7 @@ export class ClassRunType extends InterfaceRunType<TypeClass> {
         return children.every((prop) => !isConstructor(prop) || prop.getParameters().getChildRunTypes().length === 0);
     }
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    _compileJsonDecode(comp: JitCompiler): string {
+    _compileFromJsonVal(comp: JitCompiler): string {
         throw new Error(`Classes can not be deserialized.`);
     }
     _mock(ctx: MockOperation): Record<string | number, any> {

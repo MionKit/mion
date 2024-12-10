@@ -13,8 +13,8 @@ it('all jit compile function should throw and error', () => {
     const errorMessage = `Jit compilation disabled for Non Serializable types.`;
     expect(() => rt.createJitFunction(JitFnIDs.isType)).toThrow(errorMessage);
     expect(() => rt.createJitFunction(JitFnIDs.typeErrors)).toThrow(errorMessage);
-    expect(() => rt.createJitFunction(JitFnIDs.jsonEncode)).toThrow(errorMessage);
-    expect(() => rt.createJitFunction(JitFnIDs.jsonDecode)).toThrow(errorMessage);
+    expect(() => rt.createJitFunction(JitFnIDs.toJsonVal)).toThrow(errorMessage);
+    expect(() => rt.createJitFunction(JitFnIDs.fromJsonVal)).toThrow(errorMessage);
     expect(() => rt.createJitFunction(JitFnIDs.jsonStringify)).toThrow(errorMessage);
 });
 

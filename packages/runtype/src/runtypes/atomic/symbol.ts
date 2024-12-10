@@ -14,8 +14,8 @@ import {symbolSerializer} from '../../serializers/symbol';
 
 const jitConstants: JitConfig = {
     skipJit: true,
-    skipJsonEncode: true,
-    skipJsonDecode: true,
+    skipToJsonVal: true,
+    skipFromJsonVal: true,
     jitId: ReflectionKind.symbol,
 };
 
@@ -27,10 +27,10 @@ export class SymbolRunType extends AtomicRunType<TypeSymbol> {
     _compileTypeErrors(comp: JitErrorsCompiler): string {
         return `if (typeof ${comp.vλl} !== 'symbol') ${comp.callJitErr(this)}`;
     }
-    _compileJsonEncode(comp: JitCompiler) {
-        return symbolSerializer.toJsonVal(comp.vλl);
+    _compileToJsonVal(comp: JitCompiler) {
+        return symbolSerializer.ToJsonVal(comp.vλl);
     }
-    _compileJsonDecode(comp: JitCompiler) {
+    _compileFromJsonVal(comp: JitCompiler) {
         return symbolSerializer.fromJsonVal(comp.vλl);
     }
     _compileJsonStringify(comp: JitCompiler): string {

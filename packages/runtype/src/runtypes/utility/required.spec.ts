@@ -49,10 +49,10 @@ describe('Required typescript utility type makes all properties required', () =>
     });
 
     it('json encode/decode', () => {
-        const encode = rt.createJitFunction(JitFnIDs.jsonEncode);
-        const encodeMaybe = rtRequired.createJitFunction(JitFnIDs.jsonEncode);
-        const decode = rt.createJitFunction(JitFnIDs.jsonDecode);
-        const decodeMaybe = rtRequired.createJitFunction(JitFnIDs.jsonDecode);
+        const encode = rt.createJitFunction(JitFnIDs.toJsonVal);
+        const encodeMaybe = rtRequired.createJitFunction(JitFnIDs.toJsonVal);
+        const decode = rt.createJitFunction(JitFnIDs.fromJsonVal);
+        const decodeMaybe = rtRequired.createJitFunction(JitFnIDs.fromJsonVal);
 
         expect(decode(JSON.parse(JSON.stringify(encode(person))))).toEqual({name: 'John', age: 30, createdAt});
         expect(decodeMaybe(JSON.parse(JSON.stringify(encodeMaybe(maybePerson))))).toEqual({createdAt});
@@ -61,8 +61,8 @@ describe('Required typescript utility type makes all properties required', () =>
     it('json stringify', () => {
         const stringify = rt.createJitFunction(JitFnIDs.jsonStringify);
         const stringifyMaybe = rtRequired.createJitFunction(JitFnIDs.jsonStringify);
-        const decode = rt.createJitFunction(JitFnIDs.jsonDecode);
-        const decodeMaybe = rtRequired.createJitFunction(JitFnIDs.jsonDecode);
+        const decode = rt.createJitFunction(JitFnIDs.fromJsonVal);
+        const decodeMaybe = rtRequired.createJitFunction(JitFnIDs.fromJsonVal);
 
         expect(decode(JSON.parse(stringify(person)))).toEqual({name: 'John', age: 30, createdAt});
         expect(decodeMaybe(JSON.parse(stringifyMaybe(maybePerson)))).toEqual({createdAt});

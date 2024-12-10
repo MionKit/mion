@@ -47,10 +47,10 @@ describe('Omit typescript utility type only pick selected properties', () => {
     });
 
     it('json encode/decode', () => {
-        const encode = rt.createJitFunction(JitFnIDs.jsonEncode);
-        const encodeOmit = rtOmit.createJitFunction(JitFnIDs.jsonEncode);
-        const decode = rt.createJitFunction(JitFnIDs.jsonDecode);
-        const decodeOmit = rtOmit.createJitFunction(JitFnIDs.jsonDecode);
+        const encode = rt.createJitFunction(JitFnIDs.toJsonVal);
+        const encodeOmit = rtOmit.createJitFunction(JitFnIDs.toJsonVal);
+        const decode = rt.createJitFunction(JitFnIDs.fromJsonVal);
+        const decodeOmit = rtOmit.createJitFunction(JitFnIDs.fromJsonVal);
 
         expect(decode(JSON.parse(JSON.stringify(encode(person))))).toEqual(person);
         expect(decodeOmit(JSON.parse(JSON.stringify(encodeOmit(omitPerson))))).toEqual(omitPerson);
@@ -86,8 +86,8 @@ describe('Omit typescript utility type only pick selected properties', () => {
     it('json stringify', () => {
         const stringify = rt.createJitFunction(JitFnIDs.jsonStringify);
         const stringifyOmit = rtOmit.createJitFunction(JitFnIDs.jsonStringify);
-        const decode = rt.createJitFunction(JitFnIDs.jsonDecode);
-        const decodeOmit = rtOmit.createJitFunction(JitFnIDs.jsonDecode);
+        const decode = rt.createJitFunction(JitFnIDs.fromJsonVal);
+        const decodeOmit = rtOmit.createJitFunction(JitFnIDs.fromJsonVal);
 
         expect(decode(JSON.parse(stringify(person)))).toEqual(person);
         // json stringify directly removes unknown keys

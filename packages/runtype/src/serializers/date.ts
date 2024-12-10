@@ -11,7 +11,7 @@ export const dateSerializer: JitSerializer = {
     fromJsonVal(vλl: string): string {
         return `new Date(${vλl})`;
     },
-    toJsonVal(vλl: string): string {
+    ToJsonVal(vλl: string): string {
         return vλl;
     },
     stringify(vλl: string): string {

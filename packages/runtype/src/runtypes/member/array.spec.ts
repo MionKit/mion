@@ -28,44 +28,44 @@ describe('Array', () => {
     });
 
     it('encode to json', () => {
-        const toJson = rt.createJitFunction(JitFnIDs.jsonEncode);
+        const toJsonVal = rt.createJitFunction(JitFnIDs.toJsonVal);
         const typeValue = ['hello', 'world'];
-        expect(toJson(typeValue)).toEqual(typeValue);
-        expect((rt as BaseRunType).getJitCompiledOperation(JitFnIDs.jsonEncode).isNoop).toBe(true);
+        expect(toJsonVal(typeValue)).toEqual(typeValue);
+        expect((rt as BaseRunType).getJitCompiledOperation(JitFnIDs.toJsonVal).isNoop).toBe(true);
     });
 
     it('decode from json', () => {
-        const fromJson = rt.createJitFunction(JitFnIDs.jsonDecode);
+        const fromJsonVal = rt.createJitFunction(JitFnIDs.fromJsonVal);
         const typeValue = ['hello', 'world'];
         const json = JSON.parse(JSON.stringify(typeValue));
-        expect(fromJson(json)).toEqual(typeValue);
-        expect((rt as BaseRunType).getJitCompiledOperation(JitFnIDs.jsonDecode).isNoop).toBe(true);
+        expect(fromJsonVal(json)).toEqual(typeValue);
+        expect((rt as BaseRunType).getJitCompiledOperation(JitFnIDs.fromJsonVal).isNoop).toBe(true);
     });
 
     it('encode to json date', () => {
-        const toJson = rD.createJitFunction(JitFnIDs.jsonEncode);
+        const toJsonVal = rD.createJitFunction(JitFnIDs.toJsonVal);
         const typeValue = [new Date(), new Date()];
-        expect(toJson(typeValue)).toBe(typeValue);
-        expect((rD as BaseRunType).getJitCompiledOperation(JitFnIDs.jsonEncode).isNoop).toBe(true);
+        expect(toJsonVal(typeValue)).toBe(typeValue);
+        expect((rD as BaseRunType).getJitCompiledOperation(JitFnIDs.toJsonVal).isNoop).toBe(true);
     });
 
     it('decode from json date', () => {
-        const fromJson = rD.createJitFunction(JitFnIDs.jsonDecode);
+        const fromJsonVal = rD.createJitFunction(JitFnIDs.fromJsonVal);
         const typeValue = [new Date(), new Date()];
         const json = JSON.parse(JSON.stringify(typeValue));
-        expect(fromJson(json)).toEqual(typeValue);
-        expect((rD as BaseRunType).getJitCompiledOperation(JitFnIDs.jsonDecode).isNoop).toBe(false);
+        expect(fromJsonVal(json)).toEqual(typeValue);
+        expect((rD as BaseRunType).getJitCompiledOperation(JitFnIDs.fromJsonVal).isNoop).toBe(false);
     });
 
     it('json stringify', () => {
         const jsonStringify = rt.createJitFunction(JitFnIDs.jsonStringify);
-        const fromJson = rt.createJitFunction(JitFnIDs.jsonDecode);
+        const fromJsonVal = rt.createJitFunction(JitFnIDs.fromJsonVal);
         const typeValue = ['hello', 'world'];
-        const roundTrip = fromJson(JSON.parse(jsonStringify(typeValue)));
+        const roundTrip = fromJsonVal(JSON.parse(jsonStringify(typeValue)));
         expect(roundTrip).toEqual(typeValue);
 
         const typeValue2 = [];
-        const roundTrip2 = fromJson(JSON.parse(jsonStringify(typeValue2)));
+        const roundTrip2 = fromJsonVal(JSON.parse(jsonStringify(typeValue2)));
         expect(roundTrip2).toEqual(typeValue2);
     });
 
@@ -114,27 +114,27 @@ describe('Array with multiple dimensions', () => {
     });
 
     it('encode to json', () => {
-        const toJson = rt.createJitFunction(JitFnIDs.jsonEncode);
+        const toJsonVal = rt.createJitFunction(JitFnIDs.toJsonVal);
         const typeValue = [['hello', 'world'], ['a', 'b'], []];
-        expect(toJson(typeValue)).toEqual(typeValue);
+        expect(toJsonVal(typeValue)).toEqual(typeValue);
     });
 
     it('decode from json', () => {
-        const fromJson = rt.createJitFunction(JitFnIDs.jsonDecode);
+        const fromJsonVal = rt.createJitFunction(JitFnIDs.fromJsonVal);
         const typeValue = [['hello', 'world'], ['a', 'b'], []];
         const json = JSON.parse(JSON.stringify(typeValue));
-        expect(fromJson(json)).toEqual(typeValue);
+        expect(fromJsonVal(json)).toEqual(typeValue);
     });
 
     it('json stringify', () => {
         const jsonStringify = rt.createJitFunction(JitFnIDs.jsonStringify);
-        const fromJson = rt.createJitFunction(JitFnIDs.jsonDecode);
+        const fromJsonVal = rt.createJitFunction(JitFnIDs.fromJsonVal);
         const typeValue = [['hello', 'world'], ['a', 'b'], []];
-        const roundTrip = fromJson(JSON.parse(jsonStringify(typeValue)));
+        const roundTrip = fromJsonVal(JSON.parse(jsonStringify(typeValue)));
         expect(roundTrip).toEqual(typeValue);
 
         const typeValue2 = [];
-        const roundTrip2 = fromJson(JSON.parse(jsonStringify(typeValue2)));
+        const roundTrip2 = fromJsonVal(JSON.parse(jsonStringify(typeValue2)));
         expect(roundTrip2).toEqual(typeValue2);
     });
 
@@ -224,25 +224,25 @@ describe('test array strict modes', () => {
     });
 
     it('encode/decode to json safeJson deep', () => {
-        const toJson = rt.createJitFunction(JitFnIDs.jsonEncode);
-        const fromJson = rt.createJitFunction(JitFnIDs.jsonDecode);
+        const toJsonVal = rt.createJitFunction(JitFnIDs.toJsonVal);
+        const fromJsonVal = rt.createJitFunction(JitFnIDs.fromJsonVal);
         const hasUnknownKeys = rt.createJitFunction(JitFnIDs.hasUnknownKeys);
         const unknownKeysToUndefined = rt.createJitFunction(JitFnIDs.unknownKeysToUndefined);
         const stripUnknownKeys = rt.createJitFunction(JitFnIDs.stripUnknownKeys);
         const fromJsonSafeThrow = (val) => {
             if (hasUnknownKeys(val)) throw new Error('Unknown properties in JSON');
-            return fromJson(val);
+            return fromJsonVal(val);
         };
         const fromJsonSafeUndefined = (val) => {
             unknownKeysToUndefined(val);
-            return fromJson(val);
+            return fromJsonVal(val);
         };
         const fromJsonSafeStrip = (val) => {
             stripUnknownKeys(val);
-            return fromJson(val);
+            return fromJsonVal(val);
         };
 
-        const jsonString2 = JSON.stringify(toJson(structuredClone(arrWithExtraDeep)));
+        const jsonString2 = JSON.stringify(toJsonVal(structuredClone(arrWithExtraDeep)));
         const copyD1 = JSON.parse(jsonString2);
         const copyD2 = JSON.parse(jsonString2);
         const copyD3 = JSON.parse(jsonString2);
@@ -299,25 +299,25 @@ describe('test array strict modes + circular reference', () => {
     });
 
     it('encode/decode to json safeJson', () => {
-        const toJson = rt.createJitFunction(JitFnIDs.jsonEncode);
-        const fromJson = rt.createJitFunction(JitFnIDs.jsonDecode);
+        const toJsonVal = rt.createJitFunction(JitFnIDs.toJsonVal);
+        const fromJsonVal = rt.createJitFunction(JitFnIDs.fromJsonVal);
         const hasUnknownKeys = rt.createJitFunction(JitFnIDs.hasUnknownKeys);
         const unknownKeysToUndefined = rt.createJitFunction(JitFnIDs.unknownKeysToUndefined);
         const stripUnknownKeys = rt.createJitFunction(JitFnIDs.stripUnknownKeys);
         const fromJsonSafeThrow = (val) => {
             if (hasUnknownKeys(val)) throw new Error('Unknown properties in JSON');
-            return fromJson(val);
+            return fromJsonVal(val);
         };
         const fromJsonSafeUndefined = (val) => {
             unknownKeysToUndefined(val);
-            return fromJson(val);
+            return fromJsonVal(val);
         };
         const fromJsonSafeStrip = (val) => {
             stripUnknownKeys(val);
-            return fromJson(val);
+            return fromJsonVal(val);
         };
 
-        const jsonString = JSON.stringify(toJson(structuredClone(objWithExtra)));
+        const jsonString = JSON.stringify(toJsonVal(structuredClone(objWithExtra)));
         // value used for json encode/decode gets modified so we need to copy it to compare later
         const copy1 = JSON.parse(jsonString);
         const copy2 = JSON.parse(jsonString);
@@ -330,32 +330,32 @@ describe('test array strict modes + circular reference', () => {
         const extraWithStrip = structuredClone(objWithExtra) as any;
         delete extraWithStrip.extraA;
 
-        expect(fromJson(copy1)).toEqual(objWithExtra);
+        expect(fromJsonVal(copy1)).toEqual(objWithExtra);
         expect(() => fromJsonSafeThrow(copy2)).toThrow('Unknown properties in JSON');
         expect(fromJsonSafeUndefined(copy3)).toEqual(extraWithUndefined);
         expect(fromJsonSafeStrip(copy4)).toEqual(extraWithStrip);
     });
 
     it('encode/decode to json safeJson deep', () => {
-        const toJson = rt.createJitFunction(JitFnIDs.jsonEncode);
-        const fromJson = rt.createJitFunction(JitFnIDs.jsonDecode);
+        const toJsonVal = rt.createJitFunction(JitFnIDs.toJsonVal);
+        const fromJsonVal = rt.createJitFunction(JitFnIDs.fromJsonVal);
         const hasUnknownKeys = rt.createJitFunction(JitFnIDs.hasUnknownKeys);
         const unknownKeysToUndefined = rt.createJitFunction(JitFnIDs.unknownKeysToUndefined);
         const stripUnknownKeys = rt.createJitFunction(JitFnIDs.stripUnknownKeys);
         const fromJsonSafeThrow = (val) => {
             if (hasUnknownKeys(val)) throw new Error('Unknown properties in JSON');
-            return fromJson(val);
+            return fromJsonVal(val);
         };
         const fromJsonSafeUndefined = (val) => {
             unknownKeysToUndefined(val);
-            return fromJson(val);
+            return fromJsonVal(val);
         };
         const fromJsonSafeStrip = (val) => {
             stripUnknownKeys(val);
-            return fromJson(val);
+            return fromJsonVal(val);
         };
 
-        const jsonString2 = JSON.stringify(toJson(structuredClone(objWithExtraDeep)));
+        const jsonString2 = JSON.stringify(toJsonVal(structuredClone(objWithExtraDeep)));
         const copyD1 = JSON.parse(jsonString2);
         const copyD2 = JSON.parse(jsonString2);
         const copyD3 = JSON.parse(jsonString2);
@@ -383,9 +383,9 @@ describe('test array strict modes + circular reference', () => {
     it('json stringify to strip extra params without fail', () => {
         // json stringify automatically strips unknown keys
         const jsonStringify = rt.createJitFunction(JitFnIDs.jsonStringify);
-        const fromJson = rt.createJitFunction(JitFnIDs.jsonDecode);
+        const fromJsonVal = rt.createJitFunction(JitFnIDs.fromJsonVal);
         const jsonString = jsonStringify(objWithExtra);
-        const roundTrip = fromJson(JSON.parse(jsonString));
+        const roundTrip = fromJsonVal(JSON.parse(jsonString));
         expect(roundTrip).toEqual({
             a: 'hello',
             deep: {
@@ -427,36 +427,36 @@ describe('Array circular ref', () => {
     });
 
     it('encode CircularArray to json', () => {
-        const toJson = rt.createJitFunction(JitFnIDs.jsonEncode);
+        const toJsonVal = rt.createJitFunction(JitFnIDs.toJsonVal);
         const arr: CircularArray = [];
         arr.push([]);
         arr[0].push([]);
         arr[0][0].push([]);
-        expect(toJson(arr)).toEqual(arr);
+        expect(toJsonVal(arr)).toEqual(arr);
     });
 
     it('decode CircularArray from json', () => {
-        const fromJson = rt.createJitFunction(JitFnIDs.jsonDecode);
+        const fromJsonVal = rt.createJitFunction(JitFnIDs.fromJsonVal);
         const arr: CircularArray = [];
         arr.push([]);
         arr[0].push([]);
         arr[0][0].push([]);
         const json = JSON.parse(JSON.stringify(arr));
-        expect(fromJson(json)).toEqual(arr);
+        expect(fromJsonVal(json)).toEqual(arr);
     });
 
     it('json stringify CircularArray', () => {
         const jsonStringify = rt.createJitFunction(JitFnIDs.jsonStringify);
-        const fromJson = rt.createJitFunction(JitFnIDs.jsonDecode);
+        const fromJsonVal = rt.createJitFunction(JitFnIDs.fromJsonVal);
         const arr: CircularArray = [];
         arr.push([]);
         arr[0].push([]);
         arr[0][0].push([]);
-        const roundTrip = fromJson(JSON.parse(jsonStringify(arr)));
+        const roundTrip = fromJsonVal(JSON.parse(jsonStringify(arr)));
         expect(roundTrip).toEqual(arr);
 
         const arr2: CircularArray = [];
-        const roundTrip2 = fromJson(JSON.parse(jsonStringify(arr2)));
+        const roundTrip2 = fromJsonVal(JSON.parse(jsonStringify(arr2)));
         expect(roundTrip2).toEqual(arr2);
     });
 

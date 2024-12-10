@@ -10,8 +10,8 @@ import {MemberRunType} from '../../lib/baseRunTypes';
 
 const jitConstants: JitConfig = {
     skipJit: true,
-    skipJsonEncode: true,
-    skipJsonDecode: true,
+    skipToJsonVal: true,
+    skipFromJsonVal: true,
     jitId: ReflectionKind.promise,
 };
 
@@ -22,10 +22,10 @@ export class PromiseRunType extends MemberRunType<TypePromise> {
     _compileTypeErrors(): string {
         throw new Error(`Jit compilation disabled for Non Serializable types.`);
     }
-    _compileJsonEncode(): string {
+    _compileToJsonVal(): string {
         throw new Error(`Jit compilation disabled for Non Serializable types.`);
     }
-    _compileJsonDecode(): string {
+    _compileFromJsonVal(): string {
         throw new Error(`Jit compilation disabled for Non Serializable types.`);
     }
     _compileJsonStringify(): string {

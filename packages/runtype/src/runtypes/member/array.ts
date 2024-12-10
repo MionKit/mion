@@ -66,23 +66,23 @@ export class ArrayRunType<T extends Type = TypeArray> extends MemberRunType<T> {
             else {for (let ${index} = ${this.startIndex()}; ${index} < ${varName}.length; ${index}++) {${memberCode}}}
         `;
     }
-    _compileJsonEncode(comp: JitCompiler) {
+    _compileToJsonVal(comp: JitCompiler) {
         const varName = comp.vλl;
         const index = this.getChildVarName();
-        const child = this.getJsonEncodeChild();
-        const childCode = child?.compileJsonEncode(comp);
+        const child = this.getToJsonValChild();
+        const childCode = child?.compileToJsonVal(comp);
         if (!childCode || !child) return undefined;
-        const isExpression = childIsExpression(JitFnIDs.jsonEncode, child);
+        const isExpression = childIsExpression(JitFnIDs.toJsonVal, child);
         const code = isExpression ? `${comp.getChildVλl()} = ${childCode};` : childCode;
         return `for (let ${index} = ${this.startIndex()}; ${index} < ${varName}.length; ${index}++) {${code}}`;
     }
-    _compileJsonDecode(comp: JitCompiler) {
+    _compileFromJsonVal(comp: JitCompiler) {
         const varName = comp.vλl;
         const index = this.getChildVarName();
-        const child = this.getJsonDecodeChild();
-        const childCode = child?.compileJsonDecode(comp);
+        const child = this.getFromJsonValChild();
+        const childCode = child?.compileFromJsonVal(comp);
         if (!childCode || !child) return undefined;
-        const isExpression = childIsExpression(JitFnIDs.jsonDecode, child);
+        const isExpression = childIsExpression(JitFnIDs.fromJsonVal, child);
         const code = isExpression ? `${comp.getChildVλl()} = ${childCode};` : childCode;
         return `for (let ${index} = ${this.startIndex()}; ${index} < ${varName}.length; ${index}++) {${code}}`;
     }

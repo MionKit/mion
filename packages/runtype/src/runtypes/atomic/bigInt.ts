@@ -14,8 +14,8 @@ import {bigIntSerializer} from '../../serializers/bigint';
 
 const jitConstants: JitConfig = {
     skipJit: false,
-    skipJsonEncode: false,
-    skipJsonDecode: false,
+    skipToJsonVal: false,
+    skipFromJsonVal: false,
     jitId: ReflectionKind.bigint,
 };
 
@@ -27,10 +27,10 @@ export class BigIntRunType extends AtomicRunType<TypeBigInt> {
     _compileTypeErrors(comp: JitErrorsCompiler): string {
         return `if (typeof ${comp.vλl} !== 'bigint') ${comp.callJitErr(this)}`;
     }
-    _compileJsonEncode(comp: JitCompiler) {
-        return bigIntSerializer.toJsonVal(comp.vλl);
+    _compileToJsonVal(comp: JitCompiler) {
+        return bigIntSerializer.ToJsonVal(comp.vλl);
     }
-    _compileJsonDecode(comp: JitCompiler) {
+    _compileFromJsonVal(comp: JitCompiler) {
         return bigIntSerializer.fromJsonVal(comp.vλl);
     }
     _compileJsonStringify(comp: JitCompiler) {

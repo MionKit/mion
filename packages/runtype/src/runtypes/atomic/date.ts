@@ -15,8 +15,8 @@ import {dateSerializer} from '../../serializers/date';
 
 const jitConstants: JitConfig = {
     skipJit: false,
-    skipJsonEncode: true,
-    skipJsonDecode: false,
+    skipToJsonVal: true,
+    skipFromJsonVal: false,
     jitId: ReflectionSubKind.date,
 };
 
@@ -29,10 +29,10 @@ export class DateRunType extends AtomicRunType<TypeClass> {
     _compileTypeErrors(comp: JitErrorsCompiler): string {
         return `if (!(${this._compileIsType(comp)})) ${comp.callJitErr(this)}`;
     }
-    _compileJsonEncode(comp: JitCompiler) {
-        return dateSerializer.toJsonVal(comp.vλl);
+    _compileToJsonVal(comp: JitCompiler) {
+        return dateSerializer.ToJsonVal(comp.vλl);
     }
-    _compileJsonDecode(comp: JitCompiler) {
+    _compileFromJsonVal(comp: JitCompiler) {
         return dateSerializer.fromJsonVal(comp.vλl);
     }
     _compileJsonStringify(comp: JitCompiler) {

@@ -22,17 +22,17 @@ it('validate Date + errors', () => {
 });
 
 it('encode/decode to json', () => {
-    const toJson = rt.createJitFunction(JitFnIDs.jsonEncode);
-    const fromJson = rt.createJitFunction(JitFnIDs.jsonDecode);
+    const toJsonVal = rt.createJitFunction(JitFnIDs.toJsonVal);
+    const fromJsonVal = rt.createJitFunction(JitFnIDs.fromJsonVal);
     const typeValue = new Date();
-    expect(fromJson(JSON.parse(JSON.stringify(toJson(typeValue))))).toEqual(typeValue);
+    expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(typeValue))))).toEqual(typeValue);
 });
 
 it('json stringify', () => {
     const jsonStringify = rt.createJitFunction(JitFnIDs.jsonStringify);
-    const fromJson = rt.createJitFunction(JitFnIDs.jsonDecode);
+    const fromJsonVal = rt.createJitFunction(JitFnIDs.fromJsonVal);
     const typeValue = new Date();
-    const roundTrip = fromJson(JSON.parse(jsonStringify(typeValue)));
+    const roundTrip = fromJsonVal(JSON.parse(jsonStringify(typeValue)));
     expect(roundTrip).toEqual(typeValue);
 });
 

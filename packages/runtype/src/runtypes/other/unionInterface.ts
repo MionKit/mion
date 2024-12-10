@@ -25,7 +25,7 @@ import {MethodSignatureRunType} from '../member/methodSignature';
 
 type anySrcInterface = TypeObjectLiteral | TypeClass | TypeIntersection;
 
-// TODO: THIS IS A WORK IN PROGRESS, not used atm. need to investigate how to improve union isType and jsonEncode
+// TODO: THIS IS A WORK IN PROGRESS, not used atm. need to investigate how to improve union isType and toJsonVal
 // https://github.com/orgs/MionKit/projects/3/views/1?pane=issue&itemId=88057141
 
 /** Merges multiple interfaces into one. */
@@ -138,30 +138,30 @@ export class UnionInterfaceRunType extends InterfaceRunType<anySrcInterface> {
             }
         `;
     }
-    _compileJsonEncode(comp: JitCompiler): string {
-        const jsonEncodedMergedList = this.mergedInterfaces.filter(
-            (c) => !c.getJitConfig().skipJit && !c.getJitConfig().skipJsonEncode
+    _compileToJsonVal(comp: JitCompiler): string {
+        const toJsonValdMergedList = this.mergedInterfaces.filter(
+            (c) => !c.getJitConfig().skipJit && !c.getJitConfig().skipToJsonVal
         );
-        return jsonEncodedMergedList.length
-            ? jsonEncodedMergedList
+        return toJsonValdMergedList.length
+            ? toJsonValdMergedList
                   .map((rt, i) => {
                       const childIsType = this._compileIsTypeMergedChildren(comp, rt, true);
-                      const childCode = rt.compileJsonEncode(comp);
+                      const childCode = rt.compileToJsonVal(comp);
                       const iF = i === 0 ? 'if' : 'else if';
                       return `${iF} (${childIsType}) {${childCode}}`;
                   })
                   .join('\n')
             : '';
     }
-    _compileJsonDecode(comp: JitCompiler): string {
-        const jsonDecodedMergedList = this.mergedInterfaces.filter(
-            (c) => !c.getJitConfig().skipJit && !c.getJitConfig().skipJsonDecode
+    _compileFromJsonVal(comp: JitCompiler): string {
+        const fromJsonValdMergedList = this.mergedInterfaces.filter(
+            (c) => !c.getJitConfig().skipJit && !c.getJitConfig().skipFromJsonVal
         );
-        return jsonDecodedMergedList.length
-            ? jsonDecodedMergedList
+        return fromJsonValdMergedList.length
+            ? fromJsonValdMergedList
                   .map((rt, i) => {
                       const childIsType = this._compileIsTypeMergedChildren(comp, rt, true);
-                      const childCode = rt.compileJsonDecode(comp);
+                      const childCode = rt.compileFromJsonVal(comp);
                       const iF = i === 0 ? 'if' : 'else if';
                       return `${iF} (${childIsType}) {${childCode}}`;
                   })
@@ -173,14 +173,14 @@ export class UnionInterfaceRunType extends InterfaceRunType<anySrcInterface> {
         const childrenCode = children.map((prop) => prop.compileJsonStringify(comp)).join('+');
         return `'{'+${childrenCode}+'}'`;
 
-        // const jsonEncodedMergedList = this.mergedInterfaces.filter(
-        //     (c) => !c.getJitConstants().skipJit && !c.getJitConstants().skipJsonEncode
+        // const toJsonValdMergedList = this.mergedInterfaces.filter(
+        //     (c) => !c.getJitConstants().skipJit && !c.getJitConstants().skipToJsonVal
         // );
-        // return jsonEncodedMergedList.length
-        //     ? jsonEncodedMergedList
+        // return toJsonValdMergedList.length
+        //     ? toJsonValdMergedList
         //           .map((rt, i) => {
         //               const childIsType = this._compileIsTypeMergedChildren(comp, rt, true);
-        //               const childCode = rt.compileJsonEncode(comp);
+        //               const childCode = rt.compileToJsonVal(comp);
         //               const iF = i === 0 ? 'if' : 'else if';
         //               return `${iF} (${childIsType}) {${childCode}}`;
         //           })

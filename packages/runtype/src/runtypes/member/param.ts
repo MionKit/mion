@@ -50,22 +50,22 @@ export class ParameterRunType<T extends ParamT = TypeParameter> extends MemberRu
         if (this.isRest()) return childCode;
         return this.isOptional() ? `if (${comp.getChildVλl()} !== undefined) {${childCode}}` : childCode;
     }
-    _compileJsonEncode(comp: JitCompiler) {
-        const child = this.getJsonEncodeChild();
-        const childCode = child?.compileJsonEncode(comp);
+    _compileToJsonVal(comp: JitCompiler) {
+        const child = this.getToJsonValChild();
+        const childCode = child?.compileToJsonVal(comp);
         const optionalCode = `if (${comp.getChildVλl()} === undefined ) {if (${comp.vλl}.length > ${this.getChildIndex()}) ${comp.getChildVλl()} = null}`;
         if (!child || !childCode) return this.isOptional() ? optionalCode : undefined;
-        const isExpression = childIsExpression(JitFnIDs.jsonEncode, child);
+        const isExpression = childIsExpression(JitFnIDs.toJsonVal, child);
         const code = isExpression ? `${comp.getChildVλl()} = ${childCode};` : childCode;
         return this.isOptional() ? `${optionalCode} else {${code}}` : code;
     }
-    _compileJsonDecode(comp: JitCompiler) {
+    _compileFromJsonVal(comp: JitCompiler) {
         if (!this.getJitChild()) return `${comp.getChildVλl()} = undefined;`; // non serializable are restored to undefined
-        const child = this.getJsonDecodeChild();
-        const childCode = child?.compileJsonDecode(comp);
+        const child = this.getFromJsonValChild();
+        const childCode = child?.compileFromJsonVal(comp);
         const optionalCOde = `if (${comp.getChildVλl()} === null ) {${comp.getChildVλl()} = undefined}`;
         if (!child || !childCode) return this.isOptional() ? optionalCOde : undefined;
-        const isExpression = childIsExpression(JitFnIDs.jsonDecode, child);
+        const isExpression = childIsExpression(JitFnIDs.fromJsonVal, child);
         const code = isExpression ? `${comp.getChildVλl()} = ${childCode};` : childCode;
         return this.isOptional() ? `${optionalCOde} else if (${comp.getChildVλl()} !== undefined) {${code}}` : code;
     }

@@ -20,10 +20,10 @@ export class IntersectionRunType extends InterfaceRunType<TypeIntersection> {
     compileTypeErrors(): string {
         throw new Error('Intersection validation not supported, should be resolve to other RunTypes');
     }
-    compileJsonEncode(): string {
+    compileToJsonVal(): string {
         throw new Error('Intersection serialization not supported, should be resolve to other RunTypes');
     }
-    compileJsonDecode(): string {
+    compileFromJsonVal(): string {
         throw new Error('Intersection serialization not supported, should be resolve to other RunTypes');
     }
     compileJsonStringify(): string {

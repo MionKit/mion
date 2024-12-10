@@ -17,7 +17,6 @@ import type {
     CompiledOperation,
     MockOptions,
     SrcType,
-    SrcMember,
     SrcCollection,
     CustomVλl,
 } from '../types';
@@ -63,8 +62,8 @@ export abstract class BaseRunType<T extends Type = any> implements RunType {
             const name = this.src.typeName || ''; // todo: not sure if all the circular references will have a name
             return {
                 skipJit: false, // circular types requires custom logic so can't be skipped
-                skipJsonEncode: false,
-                skipJsonDecode: false,
+                skipToJsonVal: false,
+                skipFromJsonVal: false,
                 jitId: '$' + this.src.kind + `_${inStackIndex}` + name, // ensures different circular types have different jitId
             };
         }
@@ -166,8 +165,8 @@ export abstract class BaseRunType<T extends Type = any> implements RunType {
      * While the child _compileX must only contain the logic to generate the code. */
     abstract _compileIsType(comp: JitCompiler): string | undefined;
     abstract _compileTypeErrors(comp: JitErrorsCompiler): string | undefined;
-    abstract _compileJsonEncode(comp: JitCompiler): string | undefined;
-    abstract _compileJsonDecode(comp: JitCompiler): string | undefined;
+    abstract _compileToJsonVal(comp: JitCompiler): string | undefined;
+    abstract _compileFromJsonVal(comp: JitCompiler): string | undefined;
     abstract _compileJsonStringify(comp: JitCompiler): string | undefined;
     abstract _compileHasUnknownKeys(comp: JitCompiler): string | undefined;
     abstract _compileUnknownKeyErrors(comp: JitErrorsCompiler): string | undefined;
@@ -182,11 +181,11 @@ export abstract class BaseRunType<T extends Type = any> implements RunType {
     compileTypeErrors(comp: JitErrorsCompiler): string | undefined {
         return this.compile(comp, JitFnIDs.typeErrors);
     }
-    compileJsonEncode(comp: JitCompiler): string | undefined {
-        return this.compile(comp, JitFnIDs.jsonEncode);
+    compileToJsonVal(comp: JitCompiler): string | undefined {
+        return this.compile(comp, JitFnIDs.toJsonVal);
     }
-    compileJsonDecode(comp: JitCompiler): string | undefined {
-        return this.compile(comp, JitFnIDs.jsonDecode);
+    compileFromJsonVal(comp: JitCompiler): string | undefined {
+        return this.compile(comp, JitFnIDs.fromJsonVal);
     }
     compileJsonStringify(comp: JitCompiler): string | undefined {
         return this.compile(comp, JitFnIDs.jsonStringify);
@@ -224,8 +223,8 @@ export abstract class BaseRunType<T extends Type = any> implements RunType {
             switch (fnId) {
                 case JitFnIDs.isType: code = this._compileIsType(comp); break;
                 case JitFnIDs.typeErrors: code = this._compileTypeErrors(comp as JitErrorsCompiler); break;
-                case JitFnIDs.jsonEncode: code = this._compileJsonEncode(comp); break;
-                case JitFnIDs.jsonDecode: code = this._compileJsonDecode(comp); break;
+                case JitFnIDs.toJsonVal: code = this._compileToJsonVal(comp); break;
+                case JitFnIDs.fromJsonVal: code = this._compileFromJsonVal(comp); break;
                 case JitFnIDs.jsonStringify: code = this._compileJsonStringify(comp); break;
                 case JitFnIDs.unknownKeyErrors: code = this._compileUnknownKeyErrors(comp as JitErrorsCompiler); break;
                 case JitFnIDs.hasUnknownKeys: code = this._compileHasUnknownKeys(comp); break;
@@ -314,10 +313,10 @@ export abstract class AtomicRunType<T extends Type> extends BaseRunType<T> {
     getFamily(): 'A' {
         return 'A';
     }
-    _compileJsonEncode(comp: JitCompiler): string | undefined {
+    _compileToJsonVal(comp: JitCompiler): string | undefined {
         return undefined;
     }
-    _compileJsonDecode(comp: JitCompiler): string | undefined {
+    _compileFromJsonVal(comp: JitCompiler): string | undefined {
         return undefined;
     }
     _compileJsonStringify(comp: JitCompiler): string | undefined {
@@ -339,9 +338,9 @@ export abstract class AtomicRunType<T extends Type> extends BaseRunType<T> {
         switch (fnId) {
             case JitFnIDs.isType:
                 return true;
-            case JitFnIDs.jsonEncode:
+            case JitFnIDs.toJsonVal:
                 return true;
-            case JitFnIDs.jsonDecode:
+            case JitFnIDs.fromJsonVal:
                 return true;
             case JitFnIDs.jsonStringify:
                 return true;
@@ -375,11 +374,11 @@ export abstract class CollectionRunType<T extends Type> extends BaseRunType<T> {
             return true;
         });
     }
-    getJsonEncodeChildren(): BaseRunType[] {
-        return this.getJitChildren().filter((c) => !c.getJitConfig().skipJsonEncode);
+    getToJsonValChildren(): BaseRunType[] {
+        return this.getJitChildren().filter((c) => !c.getJitConfig().skipToJsonVal);
     }
-    getJsonDecodeChildren(): BaseRunType[] {
-        return this.getJitChildren().filter((c) => !c.getJitConfig().skipJsonDecode);
+    getFromJsonValChildren(): BaseRunType[] {
+        return this.getJitChildren().filter((c) => !c.getJitConfig().skipFromJsonVal);
     }
     getJitConfig(stack: BaseRunType[] = []): JitConfig {
         return this._getJitConfig(stack);
@@ -417,15 +416,15 @@ export abstract class CollectionRunType<T extends Type> extends BaseRunType<T> {
         const children = this.getChildRunTypes();
         const jitCts: Mutable<JitConfig> = {
             skipJit: true,
-            skipJsonEncode: true,
-            skipJsonDecode: true,
+            skipToJsonVal: true,
+            skipFromJsonVal: true,
             jitId: ``,
         };
         for (const child of children) {
             const childConf = child.getJitConfig(stack);
             jitCts.skipJit &&= childConf.skipJit;
-            jitCts.skipJsonEncode &&= childConf.skipJsonEncode;
-            jitCts.skipJsonDecode &&= childConf.skipJsonDecode;
+            jitCts.skipToJsonVal &&= childConf.skipToJsonVal;
+            jitCts.skipFromJsonVal &&= childConf.skipFromJsonVal;
             childrenJitIds.push(childConf.jitId);
         }
         const isArray = this.src.kind === ReflectionKind.tuple || this.src.kind === ReflectionKind.array;
@@ -466,14 +465,14 @@ export abstract class MemberRunType<T extends Type> extends BaseRunType<T> imple
         if (member.getJitConfig().skipJit) return undefined;
         return member;
     }
-    getJsonEncodeChild(): BaseRunType | undefined {
+    getToJsonValChild(): BaseRunType | undefined {
         const child = this.getJitChild();
-        if (!child || child.getJitConfig().skipJsonEncode) return undefined;
+        if (!child || child.getJitConfig().skipToJsonVal) return undefined;
         return child;
     }
-    getJsonDecodeChild(): BaseRunType | undefined {
+    getFromJsonValChild(): BaseRunType | undefined {
         const child = this.getJitChild();
-        if (!child || child.getJitConfig().skipJsonDecode) return undefined;
+        if (!child || child.getJitConfig().skipFromJsonVal) return undefined;
         return child;
     }
     getJitConfig(stack: BaseRunType[] = []): JitConfig {

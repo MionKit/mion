@@ -34,8 +34,8 @@ export class PropertyRunType extends MemberRunType<TypePropertySignature | TypeP
         const name = (this.src as TypeProperty).name;
         if (typeof name === 'symbol') {
             jc.skipJit = true;
-            jc.skipJsonEncode = true;
-            jc.skipJsonDecode = true;
+            jc.skipToJsonVal = true;
+            jc.skipFromJsonVal = true;
         }
         return jc;
     }
@@ -52,20 +52,20 @@ export class PropertyRunType extends MemberRunType<TypePropertySignature | TypeP
         if (!itemCode) return undefined;
         return this.src.optional ? `if (${comp.getChildVλl()} !== undefined) {${itemCode}}` : itemCode;
     }
-    _compileJsonEncode(comp: JitCompiler) {
-        const child = this.getJsonEncodeChild();
-        const childCode = child?.compileJsonEncode(comp);
+    _compileToJsonVal(comp: JitCompiler) {
+        const child = this.getToJsonValChild();
+        const childCode = child?.compileToJsonVal(comp);
         if (!child || !childCode) return undefined;
-        const isExpression = childIsExpression(JitFnIDs.jsonEncode, child);
+        const isExpression = childIsExpression(JitFnIDs.toJsonVal, child);
         const code = isExpression ? `${comp.getChildVλl()} = ${childCode};` : childCode;
         if (this.src.optional) return `if (${comp.getChildVλl()} !== undefined) {${code}}`;
         return code;
     }
-    _compileJsonDecode(comp: JitCompiler) {
-        const child = this.getJsonDecodeChild();
-        const childCode = child?.compileJsonDecode(comp);
+    _compileFromJsonVal(comp: JitCompiler) {
+        const child = this.getFromJsonValChild();
+        const childCode = child?.compileFromJsonVal(comp);
         if (!child || !childCode) return undefined;
-        const isExpression = childIsExpression(JitFnIDs.jsonDecode, child);
+        const isExpression = childIsExpression(JitFnIDs.fromJsonVal, child);
         const code = isExpression ? `${comp.getChildVλl()} = ${childCode};` : childCode;
         if (this.src.optional) return `if (${comp.getChildVλl()} !== undefined) {${code}}`;
         return code;

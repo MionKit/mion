@@ -52,11 +52,11 @@ describe('call signature', () => {
         expect(() => rt.createJitFunction(JitFnIDs.isType)).not.toThrow();
         expect(() => rt.createJitFunction(JitFnIDs.typeErrors)).not.toThrow();
 
-        expect(() => rt.createJitFunction(JitFnIDs.jsonEncode)).toThrow(
-            `Compile function JsonEncode not supported, call compileParams or compileReturn instead.`
+        expect(() => rt.createJitFunction(JitFnIDs.toJsonVal)).toThrow(
+            `Compile function ToJsonVal not supported, call compileParams or compileReturn instead.`
         );
-        expect(() => rt.createJitFunction(JitFnIDs.jsonDecode)).toThrow(
-            `Compile function JsonDecode not supported, call compileParams or compileReturn instead.`
+        expect(() => rt.createJitFunction(JitFnIDs.fromJsonVal)).toThrow(
+            `Compile function FromJsonVal not supported, call compileParams or compileReturn instead.`
         );
 
         expect(() => rt.createJitFunction(JitFnIDs.jsonStringify)).toThrow(
@@ -122,10 +122,10 @@ describe('call signature parameters', () => {
     });
 
     it('should encode and decode parameters to JSON', () => {
-        const toJson = rt.getCallSignature()!.createJitParamsFunction(JitFnIDs.jsonEncode);
-        const fromJson = rt.getCallSignature()!.createJitParamsFunction(JitFnIDs.jsonDecode);
+        const toJsonVal = rt.getCallSignature()!.createJitParamsFunction(JitFnIDs.toJsonVal);
+        const fromJsonVal = rt.getCallSignature()!.createJitParamsFunction(JitFnIDs.fromJsonVal);
         const params = [1, true];
-        expect(fromJson(JSON.parse(JSON.stringify(toJson(params))))).toEqual(params);
+        expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(params))))).toEqual(params);
     });
 
     it('should mock parameters correctly', () => {
@@ -151,19 +151,19 @@ describe('call signature return', () => {
     });
 
     it('encode/decode call signature return to json', () => {
-        const toJson = rt.getCallSignature()!.createJitReturnFunction(JitFnIDs.jsonEncode);
-        const fromJson = rt.getCallSignature()!.createJitReturnFunction(JitFnIDs.jsonDecode);
+        const toJsonVal = rt.getCallSignature()!.createJitReturnFunction(JitFnIDs.toJsonVal);
+        const fromJsonVal = rt.getCallSignature()!.createJitReturnFunction(JitFnIDs.fromJsonVal);
         const returnValue = 'result';
 
-        expect(fromJson(JSON.parse(JSON.stringify(toJson(returnValue))))).toEqual(returnValue);
+        expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(returnValue))))).toEqual(returnValue);
     });
 
     it('json stringify call signature return', () => {
         const jsonStringify = rt.getCallSignature()!.createJitReturnFunction(JitFnIDs.jsonStringify);
-        const fromJson = rt.getCallSignature()!.createJitReturnFunction(JitFnIDs.jsonDecode);
+        const fromJsonVal = rt.getCallSignature()!.createJitReturnFunction(JitFnIDs.fromJsonVal);
         const returnValue = 'result';
 
-        const roundTrip = fromJson(JSON.parse(jsonStringify(returnValue)));
+        const roundTrip = fromJsonVal(JSON.parse(jsonStringify(returnValue)));
         expect(roundTrip).toEqual(returnValue);
     });
 

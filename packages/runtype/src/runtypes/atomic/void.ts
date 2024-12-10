@@ -13,8 +13,8 @@ import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
 
 const jitConstants: JitConfig = {
     skipJit: false,
-    skipJsonEncode: false,
-    skipJsonDecode: false,
+    skipToJsonVal: false,
+    skipFromJsonVal: false,
     jitId: ReflectionKind.void,
 };
 
@@ -26,10 +26,10 @@ export class VoidRunType extends AtomicRunType<TypeVoid> {
     _compileTypeErrors(comp: JitErrorsCompiler): string {
         return `if (${comp.vλl} !== undefined) ${comp.callJitErr(this)}`;
     }
-    _compileJsonEncode(comp: JitCompiler): string {
+    _compileToJsonVal(comp: JitCompiler): string {
         return `${comp.vλl} = undefined`;
     }
-    _compileJsonDecode(comp: JitCompiler): string {
+    _compileFromJsonVal(comp: JitCompiler): string {
         return `${comp.vλl} = undefined`;
     }
     _compileJsonStringify(): string {

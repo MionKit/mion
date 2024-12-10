@@ -32,8 +32,8 @@ export class IndexSignatureRunType extends MemberRunType<TypeIndexSignature> {
         const index = (this.src as TypeIndexSignature).index?.kind || undefined;
         if (index === ReflectionKind.symbol) {
             jc.skipJit = true;
-            jc.skipJsonEncode = true;
-            jc.skipJsonDecode = true;
+            jc.skipToJsonVal = true;
+            jc.skipFromJsonVal = true;
         }
         return jc;
     }
@@ -58,27 +58,27 @@ export class IndexSignatureRunType extends MemberRunType<TypeIndexSignature> {
         if (!childCode) return undefined;
         return `for (const ${this.getChildVarName()} in ${comp.vλl}) {${childCode}}`;
     }
-    _compileJsonEncode(comp: JitCompiler) {
-        const child = this.getJsonEncodeChild();
-        const childCode = child?.compileJsonEncode(comp);
+    _compileToJsonVal(comp: JitCompiler) {
+        const child = this.getToJsonValChild();
+        const childCode = child?.compileToJsonVal(comp);
         if (!child || !childCode) return undefined;
         const varName = comp.vλl;
         const prop = this.getChildVarName();
         const skipCode = this.getSkipCode(prop);
 
-        const isExpression = childIsExpression(JitFnIDs.jsonEncode, child);
+        const isExpression = childIsExpression(JitFnIDs.toJsonVal, child);
         const code = isExpression ? `${comp.getChildVλl()} = ${childCode};` : childCode;
         return `for (const ${prop} in ${varName}){${skipCode} ${code}}`;
     }
-    _compileJsonDecode(comp: JitCompiler) {
-        const child = this.getJsonDecodeChild();
-        const childCode = child?.compileJsonDecode(comp);
+    _compileFromJsonVal(comp: JitCompiler) {
+        const child = this.getFromJsonValChild();
+        const childCode = child?.compileFromJsonVal(comp);
         if (!child || !childCode) return undefined;
         const varName = comp.vλl;
         const prop = this.getChildVarName();
         const skipCode = this.getSkipCode(prop);
 
-        const isExpression = childIsExpression(JitFnIDs.jsonDecode, child);
+        const isExpression = childIsExpression(JitFnIDs.fromJsonVal, child);
         const code = isExpression ? `${comp.getChildVλl()} = ${childCode};` : childCode;
         return `for (const ${prop} in ${varName}){${skipCode} ${code}}`;
     }

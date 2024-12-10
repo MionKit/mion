@@ -48,24 +48,24 @@ describe('SerRunType with simple keys Set<string>', () => {
     });
 
     it('encode/decode Set to json', () => {
-        const toJson = rt.createJitFunction(JitFnIDs.jsonEncode);
-        const fromJson = rt.createJitFunction(JitFnIDs.jsonDecode);
+        const toJsonVal = rt.createJitFunction(JitFnIDs.toJsonVal);
+        const fromJsonVal = rt.createJitFunction(JitFnIDs.fromJsonVal);
 
         const setCopy = cloneSet(testSet);
-        const encoded = toJson(setCopy);
+        const encoded = toJsonVal(setCopy);
         const stringified = JSON.stringify(encoded);
-        const decoded = fromJson(JSON.parse(stringified));
+        const decoded = fromJsonVal(JSON.parse(stringified));
 
         expect(decoded).toEqual(testSet);
     });
 
     it('json stringify Set', () => {
         const jsonStringify = rt.createJitFunction(JitFnIDs.jsonStringify);
-        const fromJson = rt.createJitFunction(JitFnIDs.jsonDecode);
+        const fromJsonVal = rt.createJitFunction(JitFnIDs.fromJsonVal);
 
         const setCopy = cloneSet(testSet);
         const jsonString = jsonStringify(setCopy);
-        const restored = fromJson(JSON.parse(jsonString));
+        const restored = fromJsonVal(JSON.parse(jsonString));
 
         expect(restored).toEqual(testSet);
     });
@@ -138,24 +138,24 @@ describe('SerRunType with complex objects keys Set<SmallObject>', () => {
     });
 
     it('encode/decode Set<SmallObject> to json', () => {
-        const toJson = rtSmallObject.createJitFunction(JitFnIDs.jsonEncode);
-        const fromJson = rtSmallObject.createJitFunction(JitFnIDs.jsonDecode);
+        const toJsonVal = rtSmallObject.createJitFunction(JitFnIDs.toJsonVal);
+        const fromJsonVal = rtSmallObject.createJitFunction(JitFnIDs.fromJsonVal);
 
         const setCopy = cloneSet(testSetSmallObject);
-        const encoded = toJson(setCopy);
+        const encoded = toJsonVal(setCopy);
         const stringified = JSON.stringify(encoded);
-        const decoded = fromJson(JSON.parse(stringified));
+        const decoded = fromJsonVal(JSON.parse(stringified));
 
         expect(decoded).toEqual(testSetSmallObject);
     });
 
     it('json stringify Set<SmallObject>', () => {
         const jsonStringify = rtSmallObject.createJitFunction(JitFnIDs.jsonStringify);
-        const fromJson = rtSmallObject.createJitFunction(JitFnIDs.jsonDecode);
+        const fromJsonVal = rtSmallObject.createJitFunction(JitFnIDs.fromJsonVal);
 
         const setCopy = cloneSet(testSetSmallObject);
         const jsonString = jsonStringify(setCopy);
-        const restored = fromJson(JSON.parse(jsonString));
+        const restored = fromJsonVal(JSON.parse(jsonString));
 
         expect(restored).toEqual(testSetSmallObject);
     });
@@ -267,8 +267,8 @@ describe('SerRunType with nested sets', () => {
     });
 
     it('encode/decode objects with nested sets to json', () => {
-        const toJson = rtDeepWithSet.createJitFunction(JitFnIDs.jsonEncode);
-        const fromJson = rtDeepWithSet.createJitFunction(JitFnIDs.jsonDecode);
+        const toJsonVal = rtDeepWithSet.createJitFunction(JitFnIDs.toJsonVal);
+        const fromJsonVal = rtDeepWithSet.createJitFunction(JitFnIDs.fromJsonVal);
 
         const set1: DeepWithSet['b'] = new Set([
             {s: 'a', arr: [1, 2, 3]},
@@ -279,16 +279,16 @@ describe('SerRunType with nested sets', () => {
             b: set1,
         };
         const objCopy = structuredClone(obj);
-        const encoded = toJson(objCopy);
+        const encoded = toJsonVal(objCopy);
         const stringified = JSON.stringify(encoded);
-        const decoded = fromJson(JSON.parse(stringified));
+        const decoded = fromJsonVal(JSON.parse(stringified));
 
         expect(decoded).toEqual(obj);
     });
 
     it('json stringify objects with nested sets', () => {
         const jsonStringify = rtDeepWithSet.createJitFunction(JitFnIDs.jsonStringify);
-        const fromJson = rtDeepWithSet.createJitFunction(JitFnIDs.jsonDecode);
+        const fromJsonVal = rtDeepWithSet.createJitFunction(JitFnIDs.fromJsonVal);
 
         const set1: DeepWithSet['b'] = new Set([
             {s: 'a', arr: [1, 2, 3]},
@@ -300,7 +300,7 @@ describe('SerRunType with nested sets', () => {
         };
         const objCopy = structuredClone(obj);
         const jsonString = jsonStringify(objCopy);
-        const restored = fromJson(JSON.parse(jsonString));
+        const restored = fromJsonVal(JSON.parse(jsonString));
 
         expect(restored).toEqual(obj);
     });

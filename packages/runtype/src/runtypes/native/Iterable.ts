@@ -19,10 +19,10 @@ export abstract class IterableRunType extends ClassRunType {
     getIndexVarName(): string {
         return `e${this.getNestLevel()}`;
     }
-    getJsonEncodeChildren(): BaseRunType[] {
+    getToJsonValChildren(): BaseRunType[] {
         return this.getJitChildren();
     }
-    getJsonDecodeChildren(): BaseRunType[] {
+    getFromJsonValChildren(): BaseRunType[] {
         return this.getJitChildren();
     }
     getChildRunTypes = (): BaseRunType[] => {
@@ -62,11 +62,11 @@ export abstract class IterableRunType extends ClassRunType {
         `;
     }
 
-    _compileJsonEncode(comp: JitCompiler): string {
+    _compileToJsonVal(comp: JitCompiler): string {
         const entry = this.getCustomVλl(comp)?.vλl || comp.vλl;
         const resName = `ml${this.getNestLevel()}`;
-        const childrenCode = this.getJsonEncodeChildren()
-            .map((c) => c.compileJsonEncode(comp))
+        const childrenCode = this.getToJsonValChildren()
+            .map((c) => c.compileToJsonVal(comp))
             .filter((c) => c)
             .join(';');
         if (!childrenCode) return `${comp.vλl} = Array.from(${comp.vλl})`;
@@ -77,11 +77,11 @@ export abstract class IterableRunType extends ClassRunType {
         `;
     }
 
-    _compileJsonDecode(comp: JitCompiler): string {
-        if (!this.getJsonDecodeChildren().length) return `${comp.vλl} = new Map(${comp.vλl})`;
+    _compileFromJsonVal(comp: JitCompiler): string {
+        if (!this.getFromJsonValChildren().length) return `${comp.vλl} = new Map(${comp.vλl})`;
         const index = this.getCustomVλl(comp)?.vλl || comp.vλl;
-        const childrenCode = this.getJsonDecodeChildren()
-            .map((c) => c.compileJsonDecode(comp))
+        const childrenCode = this.getFromJsonValChildren()
+            .map((c) => c.compileFromJsonVal(comp))
             .filter((c) => c)
             .join(';');
         if (!childrenCode) return `${comp.vλl} = new ${this.instance}(${comp.vλl})`;

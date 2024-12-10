@@ -57,29 +57,29 @@ describe('Circular object', () => {
     });
 
     it('should encode/decode objects with circular references', () => {
-        const toJson = rtCircular.createJitFunction(JitFnIDs.jsonEncode);
-        const fromJson = rtCircular.createJitFunction(JitFnIDs.jsonDecode);
+        const toJsonVal = rtCircular.createJitFunction(JitFnIDs.toJsonVal);
+        const fromJsonVal = rtCircular.createJitFunction(JitFnIDs.fromJsonVal);
 
         const copy1 = structuredClone(c1);
         const copy2 = structuredClone(c2);
         const copy3 = structuredClone(c3);
-        expect(fromJson(JSON.parse(JSON.stringify(toJson(copy1))))).toEqual(c1);
-        expect(fromJson(JSON.parse(JSON.stringify(toJson(copy2))))).toEqual(c2);
-        expect(fromJson(JSON.parse(JSON.stringify(toJson(copy3))))).toEqual(c3);
+        expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(copy1))))).toEqual(c1);
+        expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(copy2))))).toEqual(c2);
+        expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(copy3))))).toEqual(c3);
     });
 
     it('should use JSON.stringify when there are circular references', () => {
         const jsonStringify = rtCircular.createJitFunction(JitFnIDs.jsonStringify);
 
-        const toJson = rtCircular.createJitFunction(JitFnIDs.jsonEncode);
-        const fromJson = rtCircular.createJitFunction(JitFnIDs.jsonDecode);
+        const toJsonVal = rtCircular.createJitFunction(JitFnIDs.toJsonVal);
+        const fromJsonVal = rtCircular.createJitFunction(JitFnIDs.fromJsonVal);
 
         const copy1 = structuredClone(c1);
         const copy2 = structuredClone(c2);
         const copy3 = structuredClone(c3);
-        expect(fromJson(JSON.parse(jsonStringify(toJson(copy1))))).toEqual(c1);
-        expect(fromJson(JSON.parse(jsonStringify(toJson(copy2))))).toEqual(c2);
-        expect(fromJson(JSON.parse(jsonStringify(toJson(copy3))))).toEqual(c3);
+        expect(fromJsonVal(JSON.parse(jsonStringify(toJsonVal(copy1))))).toEqual(c1);
+        expect(fromJsonVal(JSON.parse(jsonStringify(toJsonVal(copy2))))).toEqual(c2);
+        expect(fromJsonVal(JSON.parse(jsonStringify(toJsonVal(copy3))))).toEqual(c3);
     });
 });
 
@@ -127,29 +127,29 @@ describe('Circular array + union', () => {
     });
 
     it('encode/decode CircularUnion array to json', () => {
-        const toJson = rt.createJitFunction(JitFnIDs.jsonEncode);
-        const fromJson = rt.createJitFunction(JitFnIDs.jsonDecode);
+        const toJsonVal = rt.createJitFunction(JitFnIDs.toJsonVal);
+        const fromJsonVal = rt.createJitFunction(JitFnIDs.fromJsonVal);
 
         const copy1: CuArray = [date, 123, 'hello', ['a', 'b', 'c']];
         const copy2: CuArray = [date, 123, 'hello', ['a', 2, 'c'], [date, 123, 'hello', ['a', 'b', 'c']]];
         const copy3: CuArray = [];
 
-        expect(fromJson(JSON.parse(JSON.stringify(toJson(copy1))))).toEqual(cu1);
-        expect(fromJson(JSON.parse(JSON.stringify(toJson(copy2))))).toEqual(cu2);
-        expect(fromJson(JSON.parse(JSON.stringify(toJson(copy3))))).toEqual(cu3);
+        expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(copy1))))).toEqual(cu1);
+        expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(copy2))))).toEqual(cu2);
+        expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(copy3))))).toEqual(cu3);
     });
 
     it('json stringify CircularUnion array with discriminator', () => {
         const jsonStringify = rt.createJitFunction(JitFnIDs.jsonStringify);
-        const fromJson = rt.createJitFunction(JitFnIDs.jsonDecode);
+        const fromJsonVal = rt.createJitFunction(JitFnIDs.fromJsonVal);
 
         const copy1: CuArray = [date, 123, 'hello', ['a', 'b', 'c']];
         const copy2: CuArray = [date, 123, 'hello', ['a', 2, 'c'], [date, 123, 'hello', ['a', 'b', 'c']]];
         const copy3: CuArray = [];
 
-        expect(fromJson(JSON.parse(jsonStringify(copy1))).length).toEqual(cu1.length);
-        expect(fromJson(JSON.parse(jsonStringify(copy2))).length).toEqual(cu2.length);
-        expect(fromJson(JSON.parse(jsonStringify(copy3))).length).toEqual(cu3.length);
+        expect(fromJsonVal(JSON.parse(jsonStringify(copy1))).length).toEqual(cu1.length);
+        expect(fromJsonVal(JSON.parse(jsonStringify(copy2))).length).toEqual(cu2.length);
+        expect(fromJsonVal(JSON.parse(jsonStringify(copy3))).length).toEqual(cu3.length);
     });
 
     it('mock CircularUnion array', () => {
@@ -206,29 +206,29 @@ describe('Circular object with tuple', () => {
     });
 
     it('encode/decode CircularTuple object to json', () => {
-        const toJson = rt.createJitFunction(JitFnIDs.jsonEncode);
-        const fromJson = rt.createJitFunction(JitFnIDs.jsonDecode);
+        const toJsonVal = rt.createJitFunction(JitFnIDs.toJsonVal);
+        const fromJsonVal = rt.createJitFunction(JitFnIDs.fromJsonVal);
 
         const copy1: CircularTuple = {tuple: [1n, {tuple: [2n, {tuple: [3n, {tuple: [4n]}]}]}]};
         const copy2: CircularTuple = {tuple: [1n, {tuple: [2n]}]};
         const copy3: CircularTuple = {tuple: [1n]};
 
-        expect(fromJson(JSON.parse(JSON.stringify(toJson(copy1))))).toEqual(c1);
-        expect(fromJson(JSON.parse(JSON.stringify(toJson(copy2))))).toEqual(c2);
-        expect(fromJson(JSON.parse(JSON.stringify(toJson(copy3))))).toEqual(c3);
+        expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(copy1))))).toEqual(c1);
+        expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(copy2))))).toEqual(c2);
+        expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(copy3))))).toEqual(c3);
     });
 
     it('json stringify CircularTuple object with discriminator', () => {
         const jsonStringify = rt.createJitFunction(JitFnIDs.jsonStringify);
-        const fromJson = rt.createJitFunction(JitFnIDs.jsonDecode);
+        const fromJsonVal = rt.createJitFunction(JitFnIDs.fromJsonVal);
 
         const copy1: CircularTuple = {tuple: [1n, {tuple: [2n, {tuple: [3n, {tuple: [4n]}]}]}]};
         const copy2: CircularTuple = {tuple: [1n, {tuple: [2n]}]};
         const copy3: CircularTuple = {tuple: [1n]};
 
-        expect(fromJson(JSON.parse(jsonStringify(copy1)))).toEqual(c1);
-        expect(fromJson(JSON.parse(jsonStringify(copy2)))).toEqual(c2);
-        expect(fromJson(JSON.parse(jsonStringify(copy3)))).toEqual(c3);
+        expect(fromJsonVal(JSON.parse(jsonStringify(copy1)))).toEqual(c1);
+        expect(fromJsonVal(JSON.parse(jsonStringify(copy2)))).toEqual(c2);
+        expect(fromJsonVal(JSON.parse(jsonStringify(copy3)))).toEqual(c3);
     });
 
     it('mock CircularTuple object', () => {
@@ -282,29 +282,29 @@ describe('Circular Object with index property', () => {
     });
 
     it('encode/decode CircularIndex object to json', () => {
-        const toJson = rt.createJitFunction(JitFnIDs.jsonEncode);
-        const fromJson = rt.createJitFunction(JitFnIDs.jsonDecode);
+        const toJsonVal = rt.createJitFunction(JitFnIDs.toJsonVal);
+        const fromJsonVal = rt.createJitFunction(JitFnIDs.fromJsonVal);
 
         const copy1: CircularIndex = {index: {a: {index: {b: {index: {}}}}}};
         const copy2: CircularIndex = {index: {a: {index: {}}}};
         const copy3: CircularIndex = {index: {}};
 
-        expect(fromJson(JSON.parse(JSON.stringify(toJson(copy1))))).toEqual(c1);
-        expect(fromJson(JSON.parse(JSON.stringify(toJson(copy2))))).toEqual(c2);
-        expect(fromJson(JSON.parse(JSON.stringify(toJson(copy3))))).toEqual(c3);
+        expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(copy1))))).toEqual(c1);
+        expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(copy2))))).toEqual(c2);
+        expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(copy3))))).toEqual(c3);
     });
 
     it('json stringify CircularIndex object with discriminator', () => {
         const jsonStringify = rt.createJitFunction(JitFnIDs.jsonStringify);
-        const fromJson = rt.createJitFunction(JitFnIDs.jsonDecode);
+        const fromJsonVal = rt.createJitFunction(JitFnIDs.fromJsonVal);
 
         const copy1: CircularIndex = {index: {a: {index: {b: {index: {}}}}}};
         const copy2: CircularIndex = {index: {a: {index: {}}}};
         const copy3: CircularIndex = {index: {}};
 
-        expect(fromJson(JSON.parse(jsonStringify(copy1)))).toEqual(c1);
-        expect(fromJson(JSON.parse(jsonStringify(copy2)))).toEqual(c2);
-        expect(fromJson(JSON.parse(jsonStringify(copy3)))).toEqual(c3);
+        expect(fromJsonVal(JSON.parse(jsonStringify(copy1)))).toEqual(c1);
+        expect(fromJsonVal(JSON.parse(jsonStringify(copy2)))).toEqual(c2);
+        expect(fromJsonVal(JSON.parse(jsonStringify(copy3)))).toEqual(c3);
     });
 
     it('mock CircularIndex object', () => {
@@ -363,25 +363,25 @@ describe('Circular Object with deep nested properties', () => {
     });
 
     it('encode/decode CircularDeep object to json', () => {
-        const toJson = rt.createJitFunction(JitFnIDs.jsonEncode);
-        const fromJson = rt.createJitFunction(JitFnIDs.jsonDecode);
+        const toJsonVal = rt.createJitFunction(JitFnIDs.toJsonVal);
+        const fromJsonVal = rt.createJitFunction(JitFnIDs.fromJsonVal);
 
         const copy1: CircularDeep = {deep1: {deep2: {deep3: {deep4: {deep1: {deep2: {deep3: {}}}}}}}};
         const copy2: CircularDeep = {deep1: {deep2: {deep3: {}}}};
 
-        expect(fromJson(JSON.parse(JSON.stringify(toJson(copy1))))).toEqual(c1);
-        expect(fromJson(JSON.parse(JSON.stringify(toJson(copy2))))).toEqual(c2);
+        expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(copy1))))).toEqual(c1);
+        expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(copy2))))).toEqual(c2);
     });
 
     it('json stringify CircularDeep object with discriminator', () => {
         const jsonStringify = rt.createJitFunction(JitFnIDs.jsonStringify);
-        const fromJson = rt.createJitFunction(JitFnIDs.jsonDecode);
+        const fromJsonVal = rt.createJitFunction(JitFnIDs.fromJsonVal);
 
         const copy1: CircularDeep = {deep1: {deep2: {deep3: {deep4: {deep1: {deep2: {deep3: {}}}}}}}};
         const copy2: CircularDeep = {deep1: {deep2: {deep3: {}}}};
 
-        expect(fromJson(JSON.parse(jsonStringify(copy1)))).toEqual(c1);
-        expect(fromJson(JSON.parse(jsonStringify(copy2)))).toEqual(c2);
+        expect(fromJsonVal(JSON.parse(jsonStringify(copy1)))).toEqual(c1);
+        expect(fromJsonVal(JSON.parse(jsonStringify(copy2)))).toEqual(c2);
     });
 
     it('mock CircularDeep object', () => {

@@ -11,8 +11,8 @@ import {JitConfig} from '../../types';
 
 const jitConstants: JitConfig = {
     skipJit: true,
-    skipJsonEncode: true,
-    skipJsonDecode: true,
+    skipToJsonVal: true,
+    skipFromJsonVal: true,
     jitId: ReflectionKind.enumMember,
 };
 
@@ -25,10 +25,10 @@ export class EnumMemberRunType extends AtomicRunType<TypeEnum> {
     _compileTypeErrors(): string {
         throw new Error('Enum member operations are not supported');
     }
-    _compileJsonEncode(): string {
+    _compileToJsonVal(): string {
         throw new Error('Enum member operations are not supported');
     }
-    _compileJsonDecode(): string {
+    _compileFromJsonVal(): string {
         throw new Error('Enum member operations are not supported');
     }
     _compileJsonStringify(): string {

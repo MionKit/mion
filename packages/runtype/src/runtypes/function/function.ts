@@ -15,8 +15,8 @@ import {TupleRunType} from '../collection/tuple';
 
 const functionJitConstants: JitConfig = {
     skipJit: true,
-    skipJsonEncode: true,
-    skipJsonDecode: true,
+    skipToJsonVal: true,
+    skipFromJsonVal: true,
     jitId: ReflectionKind.function,
 };
 
@@ -80,11 +80,11 @@ export class FunctionRunType<CallType extends AnyFunction = TypeFunction> extend
     /**
      * json encode a function
      */
-    _compileJsonEncode(): string {
-        throw new Error(`Compile function JsonEncode not supported, call compileParams or compileReturn instead.`);
+    _compileToJsonVal(): string {
+        throw new Error(`Compile function ToJsonVal not supported, call compileParams or compileReturn instead.`);
     }
-    _compileJsonDecode(): string {
-        throw new Error(`Compile function JsonDecode not supported, call compileParams or compileReturn instead.`);
+    _compileFromJsonVal(): string {
+        throw new Error(`Compile function FromJsonVal not supported, call compileParams or compileReturn instead.`);
     }
     _compileJsonStringify(): string {
         throw new Error(`Compile function JsonStringify not supported, call compileParams or compileReturn instead.`);

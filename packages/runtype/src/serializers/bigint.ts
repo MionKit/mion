@@ -11,7 +11,7 @@ export const bigIntSerializer: JitSerializer = {
     fromJsonVal(vλl: string): string {
         return `BigInt(${vλl})`;
     },
-    toJsonVal(vλl: string): string {
+    ToJsonVal(vλl: string): string {
         return `${vλl}.toString()`;
     },
     stringify(vλl: string): string {

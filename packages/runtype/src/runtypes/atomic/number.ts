@@ -14,8 +14,8 @@ import {numberSerializer} from '../../serializers/number';
 
 const jitConstants: JitConfig = {
     skipJit: false,
-    skipJsonEncode: true,
-    skipJsonDecode: true,
+    skipToJsonVal: true,
+    skipFromJsonVal: true,
     jitId: ReflectionKind.number,
 };
 
@@ -27,10 +27,10 @@ export class NumberRunType extends AtomicRunType<TypeNumber> {
     _compileTypeErrors(comp: JitErrorsCompiler): string {
         return `if(!(${this._compileIsType(comp)})) ${comp.callJitErr(this)}`;
     }
-    _compileJsonEncode(comp: JitCompiler) {
-        return numberSerializer.toJsonVal(comp.vλl);
+    _compileToJsonVal(comp: JitCompiler) {
+        return numberSerializer.ToJsonVal(comp.vλl);
     }
-    _compileJsonDecode(comp: JitCompiler) {
+    _compileFromJsonVal(comp: JitCompiler) {
         return numberSerializer.fromJsonVal(comp.vλl);
     }
     _compileJsonStringify(comp: JitCompiler) {

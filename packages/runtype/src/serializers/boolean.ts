@@ -11,7 +11,7 @@ export const booleanSerializer: JitSerializer = {
     fromJsonVal(): undefined {
         return undefined;
     },
-    toJsonVal(): undefined {
+    ToJsonVal(): undefined {
         return undefined;
     },
     stringify(vλl: string): string {

@@ -49,10 +49,10 @@ describe('Partial typescript utility type makes all properties optional', () => 
     });
 
     it('json encode/decode', () => {
-        const encode = rt.createJitFunction(JitFnIDs.jsonEncode);
-        const encodePartial = rtPartial.createJitFunction(JitFnIDs.jsonEncode);
-        const decode = rt.createJitFunction(JitFnIDs.jsonDecode);
-        const decodePartial = rtPartial.createJitFunction(JitFnIDs.jsonDecode);
+        const encode = rt.createJitFunction(JitFnIDs.toJsonVal);
+        const encodePartial = rtPartial.createJitFunction(JitFnIDs.toJsonVal);
+        const decode = rt.createJitFunction(JitFnIDs.fromJsonVal);
+        const decodePartial = rtPartial.createJitFunction(JitFnIDs.fromJsonVal);
 
         expect(decode(JSON.parse(JSON.stringify(encode(person))))).toEqual({name: 'John', age: 30, createdAt});
         expect(decodePartial(JSON.parse(JSON.stringify(encodePartial(partialPerson))))).toEqual({createdAt});
@@ -61,8 +61,8 @@ describe('Partial typescript utility type makes all properties optional', () => 
     it('json stringify', () => {
         const stringify = rt.createJitFunction(JitFnIDs.jsonStringify);
         const stringifyPartial = rtPartial.createJitFunction(JitFnIDs.jsonStringify);
-        const decode = rt.createJitFunction(JitFnIDs.jsonDecode);
-        const decodePartial = rtPartial.createJitFunction(JitFnIDs.jsonDecode);
+        const decode = rt.createJitFunction(JitFnIDs.fromJsonVal);
+        const decodePartial = rtPartial.createJitFunction(JitFnIDs.fromJsonVal);
 
         expect(decode(JSON.parse(stringify(person)))).toEqual({name: 'John', age: 30, createdAt});
         expect(decodePartial(JSON.parse(stringifyPartial(partialPerson)))).toEqual({createdAt});

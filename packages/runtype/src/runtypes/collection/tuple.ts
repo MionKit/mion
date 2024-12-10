@@ -46,21 +46,21 @@ export class TupleRunType<ParamList extends AnyParameterListRunType = TypeTuple>
         const paramsCode = children.map((p) => p.compileTypeErrors(comp)).join(';');
         return `if (!Array.isArray(${comp.vλl})${lengthCode}) ${comp.callJitErr(this)}; else {${paramsCode}}`;
     }
-    _compileJsonEncode(comp: JitCompiler) {
+    _compileToJsonVal(comp: JitCompiler) {
         const children = this.getChildRunTypes();
         if (!children.length) return undefined;
         const code = children
-            .map((p) => p.compileJsonEncode(comp))
+            .map((p) => p.compileToJsonVal(comp))
             .filter(Boolean)
             .join(';');
         return code || undefined;
     }
-    _compileJsonDecode(comp: JitCompiler) {
+    _compileFromJsonVal(comp: JitCompiler) {
         const children = this.getChildRunTypes();
         if (!children.length) return undefined;
         return (
             children
-                .map((p) => p.compileJsonDecode(comp))
+                .map((p) => p.compileFromJsonVal(comp))
                 .filter(Boolean)
                 .join(';') || undefined
         );

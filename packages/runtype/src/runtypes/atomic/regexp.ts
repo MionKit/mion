@@ -14,8 +14,8 @@ import {regexpSerializer} from '../../serializers/regexp';
 
 const jitConstants: JitConfig = {
     skipJit: false,
-    skipJsonEncode: false,
-    skipJsonDecode: false,
+    skipToJsonVal: false,
+    skipFromJsonVal: false,
     jitId: ReflectionKind.regexp,
 };
 
@@ -27,10 +27,10 @@ export class RegexpRunType extends AtomicRunType<TypeRegexp> {
     _compileTypeErrors(comp: JitErrorsCompiler): string {
         return `if (!(${comp.vλl} instanceof RegExp)) ${comp.callJitErr(this)}`;
     }
-    _compileJsonEncode(comp: JitCompiler) {
-        return regexpSerializer.toJsonVal(comp.vλl);
+    _compileToJsonVal(comp: JitCompiler) {
+        return regexpSerializer.ToJsonVal(comp.vλl);
     }
-    _compileJsonDecode(comp: JitCompiler) {
+    _compileFromJsonVal(comp: JitCompiler) {
         return regexpSerializer.fromJsonVal(comp.vλl);
     }
     _compileJsonStringify(comp: JitCompiler) {

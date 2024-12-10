@@ -27,23 +27,23 @@ it('validate symbol + errors', () => {
 });
 
 it('encode to json', () => {
-    const toJson = rt.createJitFunction(JitFnIDs.jsonEncode);
+    const toJsonVal = rt.createJitFunction(JitFnIDs.toJsonVal);
     const typeValue = Symbol('foo');
-    expect(toJson(typeValue)).toEqual('Symbol:foo');
+    expect(toJsonVal(typeValue)).toEqual('Symbol:foo');
 });
 
 it('decode from json', () => {
-    const fromJson = rt.createJitFunction(JitFnIDs.jsonDecode);
+    const fromJsonVal = rt.createJitFunction(JitFnIDs.fromJsonVal);
     const typeValue = Symbol('foo');
     const jsonValue = 'Symbol:foo';
-    expect(fromJson(jsonValue).toString()).toEqual(typeValue.toString());
+    expect(fromJsonVal(jsonValue).toString()).toEqual(typeValue.toString());
 });
 
 it('json stringify', () => {
     const jsonStringify = rt.createJitFunction(JitFnIDs.jsonStringify);
-    const fromJson = rt.createJitFunction(JitFnIDs.jsonDecode);
+    const fromJsonVal = rt.createJitFunction(JitFnIDs.fromJsonVal);
     const typeValue = Symbol('foo');
-    const roundTrip = fromJson(JSON.parse(jsonStringify(typeValue)));
+    const roundTrip = fromJsonVal(JSON.parse(jsonStringify(typeValue)));
     expect(roundTrip.toString()).toEqual(typeValue.toString());
 });
 

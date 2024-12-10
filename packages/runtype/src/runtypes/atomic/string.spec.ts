@@ -22,20 +22,20 @@ it('validate string + errors', () => {
 });
 
 it('encode to json', () => {
-    const toJson = rt.createJitFunction(JitFnIDs.jsonEncode);
-    expect(toJson('hello')).toBe('hello');
+    const toJsonVal = rt.createJitFunction(JitFnIDs.toJsonVal);
+    expect(toJsonVal('hello')).toBe('hello');
 });
 
 it('decode from json', () => {
-    const fromJson = rt.createJitFunction(JitFnIDs.jsonDecode);
-    expect(fromJson('hello')).toBe('hello');
+    const fromJsonVal = rt.createJitFunction(JitFnIDs.fromJsonVal);
+    expect(fromJsonVal('hello')).toBe('hello');
 });
 
 it('json stringify', () => {
     const jsonStringify = rt.createJitFunction(JitFnIDs.jsonStringify);
-    const fromJson = rt.createJitFunction(JitFnIDs.jsonDecode);
+    const fromJsonVal = rt.createJitFunction(JitFnIDs.fromJsonVal);
     const typeValue = 'hello';
-    const roundTrip = fromJson(JSON.parse(jsonStringify(typeValue)));
+    const roundTrip = fromJsonVal(JSON.parse(jsonStringify(typeValue)));
     expect(roundTrip).toEqual(typeValue);
 });
 

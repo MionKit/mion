@@ -41,10 +41,10 @@ describe('NonNull typescript utility type, exclude atomic elements from an union
     });
 
     it('json encode/decode', () => {
-        const encode = rt.createJitFunction(JitFnIDs.jsonEncode);
-        const encodeNonNull = rtNonNull.createJitFunction(JitFnIDs.jsonEncode);
-        const decode = rt.createJitFunction(JitFnIDs.jsonDecode);
-        const decodeNonNull = rtNonNull.createJitFunction(JitFnIDs.jsonDecode);
+        const encode = rt.createJitFunction(JitFnIDs.toJsonVal);
+        const encodeNonNull = rtNonNull.createJitFunction(JitFnIDs.toJsonVal);
+        const decode = rt.createJitFunction(JitFnIDs.fromJsonVal);
+        const decodeNonNull = rtNonNull.createJitFunction(JitFnIDs.fromJsonVal);
 
         expect(decode(JSON.parse(JSON.stringify(encode(nullable))))).toEqual(nullable);
         expect(decodeNonNull(JSON.parse(JSON.stringify(encodeNonNull(nonNullable))))).toEqual(nonNullable);
@@ -53,8 +53,8 @@ describe('NonNull typescript utility type, exclude atomic elements from an union
     it('json stringify', () => {
         const stringify = rt.createJitFunction(JitFnIDs.jsonStringify);
         const stringifyNonNull = rtNonNull.createJitFunction(JitFnIDs.jsonStringify);
-        const decode = rt.createJitFunction(JitFnIDs.jsonDecode);
-        const decodeNonNull = rtNonNull.createJitFunction(JitFnIDs.jsonDecode);
+        const decode = rt.createJitFunction(JitFnIDs.fromJsonVal);
+        const decodeNonNull = rtNonNull.createJitFunction(JitFnIDs.fromJsonVal);
 
         expect(decode(JSON.parse(stringify(nullable)))).toEqual(nullable);
         expect(decodeNonNull(JSON.parse(stringifyNonNull(nonNullable)))).toEqual(nonNullable);

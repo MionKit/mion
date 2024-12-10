@@ -64,7 +64,7 @@ export class BaseCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extends 
     readonly contextCodeItems = new Map<string, string>();
     /**
      * This flag is set to true when the result of a jit compilation is a no operation.
-     * Some jit compiled functions could execute no operations (ie: jsonEncode/jsonDecode a string)
+     * Some jit compiled functions could execute no operations (ie: toJsonVal/fromJsonVal a string)
      */
     readonly isNoop?: boolean = false;
     /** The list of dependencies that are called directly by this function */
@@ -171,8 +171,8 @@ export class BaseCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extends 
                 isNoop = !this.code || this.code === 'false' || this.code === 'return false';
                 if (isNoop) code = `return false`; // if code is a noop, we still need return false
                 break;
-            case JitFnIDs.jsonEncode:
-            case JitFnIDs.jsonDecode:
+            case JitFnIDs.toJsonVal:
+            case JitFnIDs.fromJsonVal:
             case JitFnIDs.stripUnknownKeys:
             case JitFnIDs.unknownKeysToUndefined:
                 isNoop = !this.code || this.code === this.args.vλ || this.code === `return ${this.args.vλl}`;
@@ -219,9 +219,9 @@ export function createJitCompiler(rt: BaseRunType, fnId: JitFnID, parent?: BaseC
             return new JitCompiler(rt, fnId, parent?.totalLength);
         case JitFnIDs.typeErrors:
             return new JitErrorsCompiler(rt, fnId, parent?.totalLength);
-        case JitFnIDs.jsonEncode:
+        case JitFnIDs.toJsonVal:
             return new JitCompiler(rt, fnId, parent?.totalLength);
-        case JitFnIDs.jsonDecode:
+        case JitFnIDs.fromJsonVal:
             return new JitCompiler(rt, fnId, parent?.totalLength);
         case JitFnIDs.jsonStringify:
             return new JitCompiler(rt, fnId, parent?.totalLength);
@@ -343,8 +343,8 @@ function getStackStaticPath(comp: BaseCompiler): (string | number)[] {
 //     return {
 //         isType: {argNames: compiled.isType.argNames, code: compiled.isType.code},
 //         typeErrors: {argNames: compiled.typeErrors.argNames, code: compiled.typeErrors.code},
-//         jsonEncode: {argNames: compiled.jsonEncode.argNames, code: compiled.jsonEncode.code},
-//         jsonDecode: {argNames: compiled.jsonDecode.argNames, code: compiled.jsonDecode.code},
+//         toJsonVal: {argNames: compiled.toJsonVal.argNames, code: compiled.toJsonVal.code},
+//         fromJsonVal: {argNames: compiled.fromJsonVal.argNames, code: compiled.fromJsonVal.code},
 //         jsonStringify: {argNames: compiled.jsonStringify.argNames, code: compiled.jsonStringify.code},
 //     };
 // }
@@ -357,10 +357,10 @@ function getStackStaticPath(comp: BaseCompiler): (string | number)[] {
 // export function codifyJitFunctions(compiled: JITCompiledFunctions): string {
 //     const isType = codifyJitFn(compiled.isType);
 //     const typeErrors = codifyJitFn(compiled.typeErrors);
-//     const jsonEncode = codifyJitFn(compiled.jsonEncode);
-//     const jsonDecode = codifyJitFn(compiled.jsonDecode);
+//     const toJsonVal = codifyJitFn(compiled.toJsonVal);
+//     const fromJsonVal = codifyJitFn(compiled.fromJsonVal);
 //     const jsonStringify = codifyJitFn(compiled.jsonStringify);
-//     return `{\n isType:${isType},\n typeErrors:${typeErrors},\n jsonEncode:${jsonEncode},\n jsonDecode:${jsonDecode},\n jsonStringify:${jsonStringify}\n}`;
+//     return `{\n isType:${isType},\n typeErrors:${typeErrors},\n toJsonVal:${toJsonVal},\n fromJsonVal:${fromJsonVal},\n jsonStringify:${jsonStringify}\n}`;
 // }
 
 // /** Transform a SerializableJITFunctions into a JITFunctions */
@@ -369,11 +369,11 @@ function getStackStaticPath(comp: BaseCompiler): (string | number)[] {
 //     restored.isType.fn = new Function(...restored.isType.argNames, restored.isType.code) as isTypeFn;
 //     restored.typeErrors.fn = new Function(...restored.typeErrors.argNames, restored.typeErrors.code) as typeErrorsFn;
 
-//     const encode = new Function(...restored.jsonEncode.argNames, restored.jsonEncode.code);
-//     restored.jsonEncode.fn = (vλl: any) => encode(jitUtils, vλl);
+//     const encode = new Function(...restored.toJsonVal.argNames, restored.toJsonVal.code);
+//     restored.toJsonVal.fn = (vλl: any) => encode(jitUtils, vλl);
 
-//     const decode = new Function(...restored.jsonDecode.argNames, restored.jsonDecode.code);
-//     restored.jsonDecode.fn = (vλl: any) => decode(jitUtils, vλl);
+//     const decode = new Function(...restored.fromJsonVal.argNames, restored.fromJsonVal.code);
+//     restored.fromJsonVal.fn = (vλl: any) => decode(jitUtils, vλl);
 
 //     const stringify = new Function(...restored.jsonStringify.argNames, restored.jsonStringify.code);
 //     const stringifyFn = (vλl: any) => stringify(jitUtils, vλl);
@@ -389,10 +389,10 @@ function getStackStaticPath(comp: BaseCompiler): (string | number)[] {
 // export function restoreCodifiedJitFunctions(jitFns: UnwrappedJITFunctions): JITCompiledFunctions {
 //     const restored = jitFns as any as JITCompiledFunctions;
 //     // important to keep the original functions to avoid infinite recursion
-//     const originalDecode = jitFns.jsonDecode.fn;
-//     restored.jsonDecode.fn = (vλl: JSONValue) => originalDecode(jitUtils, vλl);
-//     const originalEncode = jitFns.jsonEncode.fn;
-//     jitFns.jsonEncode.fn = (vλl: any) => originalEncode(jitUtils, vλl);
+//     const originalDecode = jitFns.fromJsonVal.fn;
+//     restored.fromJsonVal.fn = (vλl: JSONValue) => originalDecode(jitUtils, vλl);
+//     const originalEncode = jitFns.toJsonVal.fn;
+//     jitFns.toJsonVal.fn = (vλl: any) => originalEncode(jitUtils, vλl);
 //     const originalStringifyFn = jitFns.jsonStringify.fn;
 //     restored.jsonStringify.fn = (vλl: any) => originalStringifyFn(jitUtils, vλl);
 

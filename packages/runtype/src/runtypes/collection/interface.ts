@@ -72,20 +72,20 @@ export class InterfaceRunType<
             }
         `;
     }
-    _compileJsonEncode(comp: JitCompiler) {
-        if (this.isCallable()) return this.getCallSignature()!._compileJsonEncode();
-        const children = this.getJsonEncodeChildren();
+    _compileToJsonVal(comp: JitCompiler) {
+        if (this.isCallable()) return this.getCallSignature()!._compileToJsonVal();
+        const children = this.getToJsonValChildren();
         const childrenCode = children
-            .map((prop) => prop.compileJsonEncode(comp))
+            .map((prop) => prop.compileToJsonVal(comp))
             .filter(Boolean)
             .join(';');
         return childrenCode || undefined;
     }
-    _compileJsonDecode(comp: JitCompiler) {
-        if (this.isCallable()) return this.getCallSignature()!._compileJsonDecode();
-        const children = this.getJsonDecodeChildren();
+    _compileFromJsonVal(comp: JitCompiler) {
+        if (this.isCallable()) return this.getCallSignature()!._compileFromJsonVal();
+        const children = this.getFromJsonValChildren();
         const childrenCode = children
-            .map((prop) => prop.compileJsonDecode(comp))
+            .map((prop) => prop.compileFromJsonVal(comp))
             .filter(Boolean)
             .join(';');
         return childrenCode || undefined;

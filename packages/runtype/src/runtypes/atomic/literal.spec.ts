@@ -73,12 +73,12 @@ it('validate literal + errors', () => {
 });
 
 it('encode to json', () => {
-    const toJson2 = rt2.createJitFunction(JitFnIDs.jsonEncode);
-    const toJsonA = rtA.createJitFunction(JitFnIDs.jsonEncode);
-    const toJsonReg = rtReg.createJitFunction(JitFnIDs.jsonEncode);
-    const toJsonTrue = rtTrue.createJitFunction(JitFnIDs.jsonEncode);
-    const toJsonBig = rtBig.createJitFunction(JitFnIDs.jsonEncode);
-    const toJsonSym = rtSym.createJitFunction(JitFnIDs.jsonEncode);
+    const toJson2 = rt2.createJitFunction(JitFnIDs.toJsonVal);
+    const toJsonA = rtA.createJitFunction(JitFnIDs.toJsonVal);
+    const toJsonReg = rtReg.createJitFunction(JitFnIDs.toJsonVal);
+    const toJsonTrue = rtTrue.createJitFunction(JitFnIDs.toJsonVal);
+    const toJsonBig = rtBig.createJitFunction(JitFnIDs.toJsonVal);
+    const toJsonSym = rtSym.createJitFunction(JitFnIDs.toJsonVal);
 
     expect(toJson2(2)).toEqual(2);
     expect(toJsonA('a')).toEqual('a');
@@ -89,12 +89,12 @@ it('encode to json', () => {
 });
 
 it('decode from json', () => {
-    const fromJson2 = rt2.createJitFunction(JitFnIDs.jsonDecode);
-    const fromJsonA = rtA.createJitFunction(JitFnIDs.jsonDecode);
-    const fromJsonReg = rtReg.createJitFunction(JitFnIDs.jsonDecode);
-    const fromJsonTrue = rtTrue.createJitFunction(JitFnIDs.jsonDecode);
-    const fromJsonBig = rtBig.createJitFunction(JitFnIDs.jsonDecode);
-    const fromJsonSym = rtSym.createJitFunction(JitFnIDs.jsonDecode);
+    const fromJson2 = rt2.createJitFunction(JitFnIDs.fromJsonVal);
+    const fromJsonA = rtA.createJitFunction(JitFnIDs.fromJsonVal);
+    const fromJsonReg = rtReg.createJitFunction(JitFnIDs.fromJsonVal);
+    const fromJsonTrue = rtTrue.createJitFunction(JitFnIDs.fromJsonVal);
+    const fromJsonBig = rtBig.createJitFunction(JitFnIDs.fromJsonVal);
+    const fromJsonSym = rtSym.createJitFunction(JitFnIDs.fromJsonVal);
 
     expect(fromJson2(2)).toEqual(2);
     expect(fromJsonA('a')).toEqual('a');
@@ -112,12 +112,12 @@ it('json stringify', () => {
     const jsonStringifyBig = rtBig.createJitFunction(JitFnIDs.jsonStringify);
     const jsonStringifySym = rtSym.createJitFunction(JitFnIDs.jsonStringify);
 
-    const fromJson2 = rt2.createJitFunction(JitFnIDs.jsonDecode);
-    const fromJsonA = rtA.createJitFunction(JitFnIDs.jsonDecode);
-    const fromJsonReg = rtReg.createJitFunction(JitFnIDs.jsonDecode);
-    const fromJsonTrue = rtTrue.createJitFunction(JitFnIDs.jsonDecode);
-    const fromJsonBig = rtBig.createJitFunction(JitFnIDs.jsonDecode);
-    const fromJsonSym = rtSym.createJitFunction(JitFnIDs.jsonDecode);
+    const fromJson2 = rt2.createJitFunction(JitFnIDs.fromJsonVal);
+    const fromJsonA = rtA.createJitFunction(JitFnIDs.fromJsonVal);
+    const fromJsonReg = rtReg.createJitFunction(JitFnIDs.fromJsonVal);
+    const fromJsonTrue = rtTrue.createJitFunction(JitFnIDs.fromJsonVal);
+    const fromJsonBig = rtBig.createJitFunction(JitFnIDs.fromJsonVal);
+    const fromJsonSym = rtSym.createJitFunction(JitFnIDs.fromJsonVal);
 
     const typeValue2 = null;
     const roundTrip2 = fromJson2(JSON.parse(jsonStringify2(typeValue2)));

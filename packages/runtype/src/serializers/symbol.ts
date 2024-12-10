@@ -11,7 +11,7 @@ export const symbolSerializer: JitSerializer = {
     fromJsonVal(vλl: string): string {
         return `Symbol(${vλl}.substring(7))`;
     },
-    toJsonVal(vλl: string): string {
+    ToJsonVal(vλl: string): string {
         return `'Symbol:' + (${vλl}.description || '')`;
     },
     stringify(vλl: string): string {

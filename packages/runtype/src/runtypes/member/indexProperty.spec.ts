@@ -82,12 +82,12 @@ describe('IndexType', () => {
     });
 
     it('encode/decode to json', () => {
-        const toJsonString = rt.createJitFunction(JitFnIDs.jsonEncode);
-        const toJsonDate = rD.createJitFunction(JitFnIDs.jsonEncode);
-        const toJsonBigint = rBI.createJitFunction(JitFnIDs.jsonEncode);
-        const fromJsonString = rt.createJitFunction(JitFnIDs.jsonDecode);
-        const fromJsonDate = rD.createJitFunction(JitFnIDs.jsonDecode);
-        const fromJsonBigint = rBI.createJitFunction(JitFnIDs.jsonDecode);
+        const toJsonString = rt.createJitFunction(JitFnIDs.toJsonVal);
+        const toJsonDate = rD.createJitFunction(JitFnIDs.toJsonVal);
+        const toJsonBigint = rBI.createJitFunction(JitFnIDs.toJsonVal);
+        const fromJsonString = rt.createJitFunction(JitFnIDs.fromJsonVal);
+        const fromJsonDate = rD.createJitFunction(JitFnIDs.fromJsonVal);
+        const fromJsonBigint = rBI.createJitFunction(JitFnIDs.fromJsonVal);
         const date = new Date();
         const roundTripString = fromJsonString(JSON.parse(JSON.stringify(toJsonString({key1: 'value1', key2: 'value2'}))));
         const roundTripDate = fromJsonDate(JSON.parse(JSON.stringify(toJsonDate({key1: date, key2: date}))));
@@ -99,26 +99,26 @@ describe('IndexType', () => {
 
     it('json stringify', () => {
         const jsonStringify = rt.createJitFunction(JitFnIDs.jsonStringify);
-        const fromJson = rt.createJitFunction(JitFnIDs.jsonDecode);
+        const fromJsonVal = rt.createJitFunction(JitFnIDs.fromJsonVal);
         const typeValue = {key1: 'value1', key2: 'value2'};
-        const roundTrip = fromJson(JSON.parse(jsonStringify(typeValue)));
+        const roundTrip = fromJsonVal(JSON.parse(jsonStringify(typeValue)));
         expect(roundTrip).toEqual(typeValue);
 
         const typeValue2 = {};
-        const roundTrip2 = fromJson(JSON.parse(jsonStringify(typeValue2)));
+        const roundTrip2 = fromJsonVal(JSON.parse(jsonStringify(typeValue2)));
         expect(roundTrip2).toEqual(typeValue2);
     });
 
     it('json stringify IndexWithExtraProps', () => {
         const jsonStringify = rtExtra.createJitFunction(JitFnIDs.jsonStringify);
-        const fromJson = rtExtra.createJitFunction(JitFnIDs.jsonDecode);
+        const fromJsonVal = rtExtra.createJitFunction(JitFnIDs.fromJsonVal);
         const typeValue: IndexWithExtraProps = {
             key1: 'value1',
             key2: 'value2',
             a: 'extra1',
             b: 123,
         };
-        const roundTrip = fromJson(JSON.parse(jsonStringify(typeValue)));
+        const roundTrip = fromJsonVal(JSON.parse(jsonStringify(typeValue)));
         expect(roundTrip).toEqual(typeValue);
     });
 
@@ -142,12 +142,12 @@ describe('IndexType', () => {
             [Symbol('key4')]: new Date(),
         }; // symbol keys should be skipped from jit
 
-        const toJson = multipleIndex.createJitFunction(JitFnIDs.jsonEncode);
-        const fromJson = multipleIndex.createJitFunction(JitFnIDs.jsonDecode);
+        const toJsonVal = multipleIndex.createJitFunction(JitFnIDs.toJsonVal);
+        const fromJsonVal = multipleIndex.createJitFunction(JitFnIDs.fromJsonVal);
         const stringify = multipleIndex.createJitFunction(JitFnIDs.jsonStringify);
 
-        expect(toJson(obj)).toEqual(obj);
-        expect(fromJson({key1: 'value1', key2: 'value2'})).toEqual({key1: 'value1', key2: 'value2'});
+        expect(toJsonVal(obj)).toEqual(obj);
+        expect(fromJsonVal({key1: 'value1', key2: 'value2'})).toEqual({key1: 'value1', key2: 'value2'});
         expect(stringify(obj)).toEqual(JSON.stringify(obj));
     });
 });
@@ -191,44 +191,44 @@ describe('IndexType nested', () => {
     });
 
     it('encode to json', () => {
-        const toJson = rtNested.createJitFunction(JitFnIDs.jsonEncode);
+        const toJsonVal = rtNested.createJitFunction(JitFnIDs.toJsonVal);
         const obj = {key1: {nestedKey1: 1, nestedKey2: 2}};
-        expect(toJson(obj)).toEqual(obj);
+        expect(toJsonVal(obj)).toEqual(obj);
     });
 
     it('encode to json Date', () => {
-        const toJson = rtNested2.createJitFunction(JitFnIDs.jsonEncode);
+        const toJsonVal = rtNested2.createJitFunction(JitFnIDs.toJsonVal);
         const obj = {key1: {nestedKey1: new Date(), nestedKey2: new Date()}};
-        expect(toJson(obj)).toEqual(obj);
+        expect(toJsonVal(obj)).toEqual(obj);
     });
 
     it('decode from json', () => {
-        const fromJson = rtNested.createJitFunction(JitFnIDs.jsonDecode);
+        const fromJsonVal = rtNested.createJitFunction(JitFnIDs.fromJsonVal);
         const obj = {key1: {nestedKey1: 1, nestedKey2: 2}};
         const jsonString = JSON.stringify(obj);
-        expect(fromJson(JSON.parse(jsonString))).toEqual(obj);
+        expect(fromJsonVal(JSON.parse(jsonString))).toEqual(obj);
     });
 
     it('decode from json Date', () => {
-        const fromJson = rtNested2.createJitFunction(JitFnIDs.jsonDecode);
+        const fromJsonVal = rtNested2.createJitFunction(JitFnIDs.fromJsonVal);
         const obj = {key1: {nestedKey1: new Date(), nestedKey2: new Date()}};
         const jsonString = JSON.stringify(obj);
-        expect(fromJson(JSON.parse(jsonString))).toEqual(obj);
+        expect(fromJsonVal(JSON.parse(jsonString))).toEqual(obj);
     });
 
     it('json stringify', () => {
         const jsonStringify = rtNested.createJitFunction(JitFnIDs.jsonStringify);
-        const fromJson = rtNested.createJitFunction(JitFnIDs.jsonDecode);
+        const fromJsonVal = rtNested.createJitFunction(JitFnIDs.fromJsonVal);
         const obj = {key1: {nestedKey1: 1, nestedKey2: 2}};
-        const roundTrip = fromJson(JSON.parse(jsonStringify(obj)));
+        const roundTrip = fromJsonVal(JSON.parse(jsonStringify(obj)));
         expect(roundTrip).toEqual(obj);
     });
 
     it('json stringify Date', () => {
         const jsonStringify = rtNested2.createJitFunction(JitFnIDs.jsonStringify);
-        const fromJson = rtNested2.createJitFunction(JitFnIDs.jsonDecode);
+        const fromJsonVal = rtNested2.createJitFunction(JitFnIDs.fromJsonVal);
         const obj = {key1: {nestedKey1: new Date(), nestedKey2: new Date()}};
-        const roundTrip = fromJson(JSON.parse(jsonStringify(obj)));
+        const roundTrip = fromJsonVal(JSON.parse(jsonStringify(obj)));
         expect(roundTrip).toEqual(obj);
     });
 

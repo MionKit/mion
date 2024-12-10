@@ -93,49 +93,54 @@ describe('TupleRunType', () => {
     });
 
     it('encode/decode to json', () => {
-        const toJson = rt.createJitFunction(JitFnIDs.jsonEncode);
-        const fromJson = rt.createJitFunction(JitFnIDs.jsonDecode);
+        const toJsonVal = rt.createJitFunction(JitFnIDs.toJsonVal);
+        const fromJsonVal = rt.createJitFunction(JitFnIDs.fromJsonVal);
         const typeValue = [new Date(), 123, 'hello', null, ['a', 'b', 'c'], BigInt(123)];
         // value used for json encode/decode gets modified so we need to copy it to compare later
         const copy1 = structuredClone(typeValue);
-        expect(fromJson(JSON.parse(JSON.stringify(toJson(copy1))))).toEqual(typeValue);
+        expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(copy1))))).toEqual(typeValue);
     });
 
     it('encode/decode tuple with optional parameters to json', () => {
-        const toJson = runType<TupleWithOptionals>().createJitFunction(JitFnIDs.jsonEncode);
-        const fromJson = runType<TupleWithOptionals>().createJitFunction(JitFnIDs.jsonDecode);
+        const toJsonVal = runType<TupleWithOptionals>().createJitFunction(JitFnIDs.toJsonVal);
+        const fromJsonVal = runType<TupleWithOptionals>().createJitFunction(JitFnIDs.fromJsonVal);
         const typeValue = [3, undefined, true, 4];
-        expect(fromJson(JSON.parse(JSON.stringify(toJson([3, undefined, true, 4]))))).toEqual(typeValue);
-        expect(fromJson(JSON.parse(JSON.stringify(toJson([3, undefined, undefined, 4]))))).toEqual([3, undefined, undefined, 4]);
-        expect(fromJson(JSON.parse(JSON.stringify(toJson([3, 2n, true, 4]))))).toEqual([3, 2n, true, 4]);
+        expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal([3, undefined, true, 4]))))).toEqual(typeValue);
+        expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal([3, undefined, undefined, 4]))))).toEqual([
+            3,
+            undefined,
+            undefined,
+            4,
+        ]);
+        expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal([3, 2n, true, 4]))))).toEqual([3, 2n, true, 4]);
 
         const allUndefined = [3, undefined, undefined, undefined];
-        const restored1 = fromJson(JSON.parse(JSON.stringify(toJson(allUndefined))));
+        const restored1 = fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(allUndefined))));
         expect(restored1).toEqual([3, undefined, undefined, undefined]);
         expect(restored1.length).toBe(4);
 
         const allNotSet = [3];
-        const restored2 = fromJson(JSON.parse(JSON.stringify(toJson(allNotSet))));
+        const restored2 = fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(allNotSet))));
         expect(restored2).toEqual([3]);
         expect(restored2.length).toBe(1);
     });
 
     it('json stringify', () => {
         const jsonStringify = rt.createJitFunction(JitFnIDs.jsonStringify);
-        const fromJson = rt.createJitFunction(JitFnIDs.jsonDecode);
+        const fromJsonVal = rt.createJitFunction(JitFnIDs.fromJsonVal);
         const typeValue = [new Date(), 123, 'hello', null, ['a', 'b', 'c'], BigInt(123)];
-        const roundTrip = fromJson(JSON.parse(jsonStringify(typeValue)));
+        const roundTrip = fromJsonVal(JSON.parse(jsonStringify(typeValue)));
         expect(roundTrip).toEqual(typeValue);
     });
 
     it('json stringify tuple with optional params', () => {
         const jsonStringify = runType<TupleWithOptionals>().createJitFunction(JitFnIDs.jsonStringify);
-        const fromJson = runType<TupleWithOptionals>().createJitFunction(JitFnIDs.jsonDecode);
+        const fromJsonVal = runType<TupleWithOptionals>().createJitFunction(JitFnIDs.fromJsonVal);
         const typeValue = [3, undefined, true, 4];
-        const roundTrip = fromJson(JSON.parse(jsonStringify(typeValue)));
+        const roundTrip = fromJsonVal(JSON.parse(jsonStringify(typeValue)));
         expect(roundTrip).toEqual(typeValue);
         const typeValue2 = [3];
-        const roundTrip2 = fromJson(JSON.parse(jsonStringify(typeValue2)));
+        const roundTrip2 = fromJsonVal(JSON.parse(jsonStringify(typeValue2)));
         expect(roundTrip2).toEqual([3]);
     });
 
@@ -191,22 +196,22 @@ describe('TupleRunType with circular type definitions', () => {
     });
 
     it('encode/decode to json', () => {
-        const toJson = rt.createJitFunction(JitFnIDs.jsonEncode);
-        const fromJson = rt.createJitFunction(JitFnIDs.jsonDecode);
+        const toJsonVal = rt.createJitFunction(JitFnIDs.toJsonVal);
+        const fromJsonVal = rt.createJitFunction(JitFnIDs.fromJsonVal);
         const tDeep: TupleCircular = [new Date(), 456, 'world', null, ['x', 'y', 'z'], BigInt(456)];
         const typeValue: TupleCircular = [new Date(), 123, 'hello', null, ['a', 'b', 'c'], BigInt(123), tDeep];
         // value used for json encode/decode gets modified so we need to copy it to compare later
         const copy1 = structuredClone(typeValue);
-        expect(fromJson(JSON.parse(JSON.stringify(toJson(copy1))))).toEqual(typeValue);
+        expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(copy1))))).toEqual(typeValue);
     });
 
     it('json stringify', () => {
         const jsonStringify = rt.createJitFunction(JitFnIDs.jsonStringify);
-        const fromJson = rt.createJitFunction(JitFnIDs.jsonDecode);
+        const fromJsonVal = rt.createJitFunction(JitFnIDs.fromJsonVal);
         const tDeep: TupleCircular = [new Date(), 456, 'world', null, ['x', 'y', 'z'], BigInt(456)];
         const typeValue: TupleCircular = [new Date(), 123, 'hello', null, ['a', 'b', 'c'], BigInt(123), tDeep];
 
-        const roundTrip = fromJson(JSON.parse(jsonStringify(typeValue)));
+        const roundTrip = fromJsonVal(JSON.parse(jsonStringify(typeValue)));
         expect(roundTrip).toEqual(typeValue);
     });
 
@@ -255,19 +260,19 @@ describe('TupleRunType with rest parameter', () => {
     });
 
     it('encode/decode to json', () => {
-        const toJson = rt.createJitFunction(JitFnIDs.jsonEncode);
-        const fromJson = rt.createJitFunction(JitFnIDs.jsonDecode);
+        const toJsonVal = rt.createJitFunction(JitFnIDs.toJsonVal);
+        const fromJsonVal = rt.createJitFunction(JitFnIDs.fromJsonVal);
         const typeValue: TupleRest = [3, 'a', 'b', 'c'];
         // value used for json encode/decode gets modified so we need to copy it to compare later
         const copy1 = structuredClone(typeValue);
-        expect(fromJson(JSON.parse(JSON.stringify(toJson(copy1))))).toEqual(typeValue);
+        expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(copy1))))).toEqual(typeValue);
     });
 
     it('json stringify', () => {
         const jsonStringify = rt.createJitFunction(JitFnIDs.jsonStringify);
-        const fromJson = rt.createJitFunction(JitFnIDs.jsonDecode);
+        const fromJsonVal = rt.createJitFunction(JitFnIDs.fromJsonVal);
         const typeValue: TupleRest = [3, 'a', 'b', 'c'];
-        const roundTrip = fromJson(JSON.parse(jsonStringify(typeValue)));
+        const roundTrip = fromJsonVal(JSON.parse(jsonStringify(typeValue)));
         expect(roundTrip).toEqual(typeValue);
     });
 

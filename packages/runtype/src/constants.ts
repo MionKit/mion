@@ -8,8 +8,8 @@
 export const JitFnNames = {
     1: 'isType',
     2: 'typeErrors',
-    3: 'jsonEncode',
-    4: 'jsonDecode',
+    3: 'toJsonVal',
+    4: 'fromJsonVal',
     5: 'jsonStringify',
     6: 'unknownKeyErrors',
     7: 'hasUnknownKeys',
@@ -20,8 +20,8 @@ export const JitFnNames = {
 export const JitFnIDs = {
     isType: 1,
     typeErrors: 2,
-    jsonEncode: 3,
-    jsonDecode: 4,
+    toJsonVal: 3,
+    fromJsonVal: 4,
     jsonStringify: 5,
     unknownKeyErrors: 6,
     hasUnknownKeys: 7,
@@ -32,8 +32,8 @@ export const JitFnIDs = {
 export const defaultJitFnHasReturn = {
     isType: false,
     typeErrors: false,
-    jsonEncode: false,
-    jsonDecode: false,
+    toJsonVal: false,
+    fromJsonVal: false,
     jsonStringify: false,
     unknownKeyErrors: false,
     hasUnknownKeys: false,
@@ -44,8 +44,8 @@ export const defaultJitFnHasReturn = {
 export const defaultJitFnIsExpression = {
     isType: true,
     typeErrors: false,
-    jsonEncode: false,
-    jsonDecode: false,
+    toJsonVal: false,
+    fromJsonVal: false,
     jsonStringify: true,
     unknownKeyErrors: false,
     hasUnknownKeys: true,
