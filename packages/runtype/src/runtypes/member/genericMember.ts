@@ -41,7 +41,7 @@ export class GenericMemberRunType<T extends SrcMember> extends MemberRunType<T> 
         return childCode;
     }
     _compileToJsonVal(comp: JitCompiler) {
-        const child = this.getToJsonValChild();
+        const child = this.getJitChild();
         const childCode = child?.compileToJsonVal(comp);
         if (!childCode || !child) return undefined;
         const isExpression = childIsExpression(JitFnIDs.toJsonVal, child); // expressions must be assigned to a variable
@@ -50,7 +50,7 @@ export class GenericMemberRunType<T extends SrcMember> extends MemberRunType<T> 
         return code;
     }
     _compileFromJsonVal(comp: JitCompiler) {
-        const child = this.getFromJsonValChild();
+        const child = this.getJitChild();
         const childCode = child?.compileFromJsonVal(comp);
         if (!childCode || !child) return undefined;
         const isExpression = childIsExpression(JitFnIDs.fromJsonVal, child);

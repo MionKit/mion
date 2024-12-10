@@ -15,8 +15,6 @@ import {dateSerializer} from '../../serializers/date';
 
 const jitConstants: JitConfig = {
     skipJit: false,
-    skipToJsonVal: true,
-    skipFromJsonVal: false,
     jitId: ReflectionSubKind.date,
 };
 

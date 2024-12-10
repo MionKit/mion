@@ -14,8 +14,6 @@ import {JitFnIDs} from '../../constants';
 
 const jitConstants: JitConfig = {
     skipJit: false,
-    skipToJsonVal: true,
-    skipFromJsonVal: true,
     jitId: ReflectionKind.any,
 };
 

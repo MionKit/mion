@@ -51,7 +51,7 @@ export class ParameterRunType<T extends ParamT = TypeParameter> extends MemberRu
         return this.isOptional() ? `if (${comp.getChildVλl()} !== undefined) {${childCode}}` : childCode;
     }
     _compileToJsonVal(comp: JitCompiler) {
-        const child = this.getToJsonValChild();
+        const child = this.getJitChild();
         const childCode = child?.compileToJsonVal(comp);
         const optionalCode = `if (${comp.getChildVλl()} === undefined ) {if (${comp.vλl}.length > ${this.getChildIndex()}) ${comp.getChildVλl()} = null}`;
         if (!child || !childCode) return this.isOptional() ? optionalCode : undefined;
@@ -61,7 +61,7 @@ export class ParameterRunType<T extends ParamT = TypeParameter> extends MemberRu
     }
     _compileFromJsonVal(comp: JitCompiler) {
         if (!this.getJitChild()) return `${comp.getChildVλl()} = undefined;`; // non serializable are restored to undefined
-        const child = this.getFromJsonValChild();
+        const child = this.getJitChild();
         const childCode = child?.compileFromJsonVal(comp);
         const optionalCOde = `if (${comp.getChildVλl()} === null ) {${comp.getChildVλl()} = undefined}`;
         if (!child || !childCode) return this.isOptional() ? optionalCOde : undefined;

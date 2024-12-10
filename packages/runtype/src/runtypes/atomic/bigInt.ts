@@ -14,8 +14,6 @@ import {bigIntSerializer} from '../../serializers/bigint';
 
 const jitConstants: JitConfig = {
     skipJit: false,
-    skipToJsonVal: false,
-    skipFromJsonVal: false,
     jitId: ReflectionKind.bigint,
 };
 

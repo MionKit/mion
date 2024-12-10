@@ -12,8 +12,6 @@ import {JitConfig} from '../../types';
 
 const jitConstants: JitConfig = {
     skipJit: false,
-    skipToJsonVal: false,
-    skipFromJsonVal: false,
     jitId: ReflectionKind.never,
 };
 export class NeverRunType extends AtomicRunType<TypeNever> {

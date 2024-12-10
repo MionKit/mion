@@ -62,8 +62,6 @@ export abstract class BaseRunType<T extends Type = any> implements RunType {
             const name = this.src.typeName || ''; // todo: not sure if all the circular references will have a name
             return {
                 skipJit: false, // circular types requires custom logic so can't be skipped
-                skipToJsonVal: false,
-                skipFromJsonVal: false,
                 jitId: '$' + this.src.kind + `_${inStackIndex}` + name, // ensures different circular types have different jitId
             };
         }
@@ -374,12 +372,6 @@ export abstract class CollectionRunType<T extends Type> extends BaseRunType<T> {
             return true;
         });
     }
-    getToJsonValChildren(): BaseRunType[] {
-        return this.getJitChildren().filter((c) => !c.getJitConfig().skipToJsonVal);
-    }
-    getFromJsonValChildren(): BaseRunType[] {
-        return this.getJitChildren().filter((c) => !c.getJitConfig().skipFromJsonVal);
-    }
     getJitConfig(stack: BaseRunType[] = []): JitConfig {
         return this._getJitConfig(stack);
     }
@@ -416,15 +408,11 @@ export abstract class CollectionRunType<T extends Type> extends BaseRunType<T> {
         const children = this.getChildRunTypes();
         const jitCts: Mutable<JitConfig> = {
             skipJit: true,
-            skipToJsonVal: true,
-            skipFromJsonVal: true,
             jitId: ``,
         };
         for (const child of children) {
             const childConf = child.getJitConfig(stack);
             jitCts.skipJit &&= childConf.skipJit;
-            jitCts.skipToJsonVal &&= childConf.skipToJsonVal;
-            jitCts.skipFromJsonVal &&= childConf.skipFromJsonVal;
             childrenJitIds.push(childConf.jitId);
         }
         const isArray = this.src.kind === ReflectionKind.tuple || this.src.kind === ReflectionKind.array;
@@ -432,7 +420,6 @@ export abstract class CollectionRunType<T extends Type> extends BaseRunType<T> {
         const kind = this.src.subKind || this.src.kind;
         jitCts.jitId = `${kind}${groupID}`;
         stack.pop();
-
         return jitCts;
     });
 }
@@ -464,16 +451,6 @@ export abstract class MemberRunType<T extends Type> extends BaseRunType<T> imple
         const member: BaseRunType = this.getMemberType();
         if (member.getJitConfig().skipJit) return undefined;
         return member;
-    }
-    getToJsonValChild(): BaseRunType | undefined {
-        const child = this.getJitChild();
-        if (!child || child.getJitConfig().skipToJsonVal) return undefined;
-        return child;
-    }
-    getFromJsonValChild(): BaseRunType | undefined {
-        const child = this.getJitChild();
-        if (!child || child.getJitConfig().skipFromJsonVal) return undefined;
-        return child;
     }
     getJitConfig(stack: BaseRunType[] = []): JitConfig {
         return this._getJitConfig(stack);

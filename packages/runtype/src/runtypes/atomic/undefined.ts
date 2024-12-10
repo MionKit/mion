@@ -13,8 +13,6 @@ import {undefinedSerializer} from '../../serializers/undefined';
 
 const jitConstants: JitConfig = {
     skipJit: false,
-    skipToJsonVal: false,
-    skipFromJsonVal: false,
     jitId: ReflectionKind.undefined,
 };
 

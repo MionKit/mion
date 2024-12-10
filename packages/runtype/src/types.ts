@@ -89,8 +89,6 @@ export interface RunTypeChildAccessor extends RunType {
 
 export interface JitConfig {
     readonly skipJit: boolean;
-    readonly skipToJsonVal: boolean;
-    readonly skipFromJsonVal: boolean;
     readonly jitId: string | number;
 }
 

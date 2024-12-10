@@ -13,8 +13,6 @@ import {nullSerializer} from '../../serializers/null';
 
 const jitConstants: JitConfig = {
     skipJit: false,
-    skipToJsonVal: true,
-    skipFromJsonVal: true,
     jitId: ReflectionKind.null,
 };
 

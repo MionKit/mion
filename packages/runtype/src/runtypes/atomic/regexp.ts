@@ -14,8 +14,6 @@ import {regexpSerializer} from '../../serializers/regexp';
 
 const jitConstants: JitConfig = {
     skipJit: false,
-    skipToJsonVal: false,
-    skipFromJsonVal: false,
     jitId: ReflectionKind.regexp,
 };
 

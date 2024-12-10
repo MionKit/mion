@@ -57,45 +57,41 @@ export class ArrayRunType<T extends Type = TypeArray> extends MemberRunType<T> {
         `;
     }
     _compileTypeErrors(comp: JitErrorsCompiler): string {
-        const varName = comp.vλl;
         const index = this.getChildVarName();
         const memberCode = this.getJitChild()?.compileTypeErrors(comp);
-        if (!memberCode) return `if (!Array.isArray(${varName})) ${comp.callJitErr(this)};`;
+        if (!memberCode) return `if (!Array.isArray(${comp.vλl})) ${comp.callJitErr(this)};`;
         return `
-            if (!Array.isArray(${varName})) ${comp.callJitErr(this)};
-            else {for (let ${index} = ${this.startIndex()}; ${index} < ${varName}.length; ${index}++) {${memberCode}}}
+            if (!Array.isArray(${comp.vλl})) ${comp.callJitErr(this)};
+            else {for (let ${index} = ${this.startIndex()}; ${index} < ${comp.vλl}.length; ${index}++) {${memberCode}}}
         `;
     }
     _compileToJsonVal(comp: JitCompiler) {
-        const varName = comp.vλl;
         const index = this.getChildVarName();
-        const child = this.getToJsonValChild();
+        const child = this.getJitChild();
         const childCode = child?.compileToJsonVal(comp);
         if (!childCode || !child) return undefined;
         const isExpression = childIsExpression(JitFnIDs.toJsonVal, child);
         const code = isExpression ? `${comp.getChildVλl()} = ${childCode};` : childCode;
-        return `for (let ${index} = ${this.startIndex()}; ${index} < ${varName}.length; ${index}++) {${code}}`;
+        return `for (let ${index} = ${this.startIndex()}; ${index} < ${comp.vλl}.length; ${index}++) {${code}}`;
     }
     _compileFromJsonVal(comp: JitCompiler) {
-        const varName = comp.vλl;
         const index = this.getChildVarName();
-        const child = this.getFromJsonValChild();
+        const child = this.getJitChild();
         const childCode = child?.compileFromJsonVal(comp);
         if (!childCode || !child) return undefined;
         const isExpression = childIsExpression(JitFnIDs.fromJsonVal, child);
         const code = isExpression ? `${comp.getChildVλl()} = ${childCode};` : childCode;
-        return `for (let ${index} = ${this.startIndex()}; ${index} < ${varName}.length; ${index}++) {${code}}`;
+        return `for (let ${index} = ${this.startIndex()}; ${index} < ${comp.vλl}.length; ${index}++) {${code}}`;
     }
     _compileJsonStringify(comp: JitCompiler): string {
-        const varName = comp.vλl;
         const memberCode = this.getJitChild()?.compileJsonStringify(comp);
-        if (!memberCode) return `JSON.stringify(${varName})`;
+        if (!memberCode) return `JSON.stringify(${comp.vλl})`;
         const jsonItems = `ls${this.getNestLevel()}`;
         const resultVal = `res${this.getNestLevel()}`;
         const index = this.getChildVarName();
         return `
             const ${jsonItems} = [];
-            for (let ${index} = ${this.startIndex()}; ${index} < ${varName}.length; ${index}++) {
+            for (let ${index} = ${this.startIndex()}; ${index} < ${comp.vλl}.length; ${index}++) {
                 const ${resultVal} = ${memberCode};
                 ${jsonItems}.push(${resultVal});
             }
@@ -106,13 +102,12 @@ export class ArrayRunType<T extends Type = TypeArray> extends MemberRunType<T> {
         if (this.getMemberType().getFamily() === 'A') return undefined;
         const memberCode = this.getJitChild()?.compileHasUnknownKeys(comp);
         if (!memberCode) return undefined;
-        const varName = comp.vλl;
         const resultVal = `res${this.getNestLevel()}`;
         const index = this.getChildVarName();
 
         return `
-            if (!Array.isArray(${varName})) return false;
-            for (let ${index} = ${this.startIndex()}; ${index} < ${varName}.length; ${index}++) {
+            if (!Array.isArray(${comp.vλl})) return false;
+            for (let ${index} = ${this.startIndex()}; ${index} < ${comp.vλl}.length; ${index}++) {
                 const ${resultVal} = ${memberCode};
                 if (${resultVal}) return true;
             }

@@ -14,8 +14,6 @@ import {booleanSerializer} from '../../serializers/boolean';
 
 const jitConstants: JitConfig = {
     skipJit: false,
-    skipToJsonVal: true,
-    skipFromJsonVal: true,
     jitId: ReflectionKind.boolean,
 };
 export class BooleanRunType extends AtomicRunType<TypeBoolean> {

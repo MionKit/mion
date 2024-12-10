@@ -4,7 +4,7 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
-import type {JitConfig, MockOperation, Mutable, SrcType} from '../../types';
+import type {MockOperation, SrcType} from '../../types';
 import {ReflectionSubKind} from '../../constants.kind';
 import {ReflectionKind, type TypeClass} from '../../lib/_deepkit/src/reflection/type';
 import {random} from '../../lib/mock';
@@ -12,7 +12,6 @@ import {GenericMemberRunType} from '../member/genericMember';
 import {IterableRunType} from './Iterable';
 import {JitCompiler} from '../../lib/jitCompiler';
 import {JitFnIDs} from '../../constants';
-import {BaseRunType} from '../../lib/baseRunTypes';
 
 class SetKeyRunType extends GenericMemberRunType<any> {
     index = 0;
@@ -47,13 +46,6 @@ export class SetRunType extends IterableRunType {
             return {vλl: `it${this.getNestLevel()}`, isStandalone: false, useArrayAccessor: true};
         // other operations use an special case for vλl where all parents are skipped
         return {vλl: `it${this.getNestLevel()}`, isStandalone: true};
-    }
-    getJitConfig(stack: BaseRunType[] = []): JitConfig {
-        return {
-            ...(super.getJitConfig(stack) as Mutable<JitConfig>),
-            skipToJsonVal: false, // we always need to transform the map/set into to an array when encoding
-            skipFromJsonVal: false, // we always need to transform the array to a map/set when decoding
-        };
     }
 
     _mock(ctx: MockOperation): Set<any> {

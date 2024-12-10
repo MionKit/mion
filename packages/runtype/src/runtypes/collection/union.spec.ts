@@ -5,6 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 import {JitFnIDs} from '../../constants';
+import {BaseRunType} from '../../lib/baseRunTypes';
 import {runType} from '../../runType';
 
 describe('Atomic Union', () => {
@@ -111,6 +112,18 @@ describe('Atomic Union', () => {
         ).toBe(true);
         const validate = rt.createJitFunction(JitFnIDs.isType);
         expect(validate(rt.mock())).toBe(true);
+    });
+
+    it('json encode/decode should never be marked as noop as encoding/decoding is always required', () => {
+        type atomicNoEncRequired = number | string;
+        type atomicEncRequired = bigint | Date;
+
+        const rtNoop = runType<atomicNoEncRequired>() as BaseRunType;
+        const rtEncRequired = runType<atomicEncRequired>() as BaseRunType;
+        expect(rtNoop.getJitCompiledOperation(JitFnIDs.toJsonVal).isNoop).toBe(false);
+        expect(rtNoop.getJitCompiledOperation(JitFnIDs.fromJsonVal).isNoop).toBe(false);
+        expect(rtEncRequired.getJitCompiledOperation(JitFnIDs.toJsonVal).isNoop).toBe(false);
+        expect(rtEncRequired.getJitCompiledOperation(JitFnIDs.fromJsonVal).isNoop).toBe(false);
     });
 });
 

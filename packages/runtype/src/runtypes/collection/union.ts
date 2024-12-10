@@ -30,15 +30,7 @@ export class UnionRunType extends CollectionRunType<TypeUnion> {
         return {
             ...(super.getJitConfig(stack) as Mutable<JitConfig>),
             skipJit: false,
-            skipFromJsonVal: false,
-            skipToJsonVal: false,
         };
-    }
-    getToJsonValChildren(): BaseRunType[] {
-        return this.getJitChildren();
-    }
-    getFromJsonValChildren(): BaseRunType[] {
-        return this.getJitChildren();
     }
     jitFnHasReturn(fnId: JitFnID): boolean {
         switch (fnId) {
@@ -86,14 +78,14 @@ export class UnionRunType extends CollectionRunType<TypeUnion> {
         const childrenCode = this.getJitChildren()
             .map((child, i) => {
                 const iF = i === 0 ? 'if' : 'else if';
-                const childCode = child.getJitConfig().skipToJsonVal ? '' : child.compileToJsonVal(comp);
+                const childCode = child.compileToJsonVal(comp) || '';
                 const isExpression = childIsExpression(JitFnIDs.toJsonVal, child);
                 const encodeCode = isExpression && childCode ? `${comp.vλl} = ${childCode};` : childCode;
                 const itemIsType = this.getChildStrictIsType(child, comp);
                 // item encoded before reassigning varName to [i, item]
                 return `${iF} (${itemIsType}) {${encodeCode} ${comp.vλl} = [${i}, ${comp.vλl}]}`;
             })
-            .filter((c) => !!c)
+            .filter(Boolean)
             .join('');
         const code = `
             ${childrenCode}
@@ -112,17 +104,17 @@ export class UnionRunType extends CollectionRunType<TypeUnion> {
     _compileFromJsonVal(comp: JitCompiler): string {
         // TODO: enforce strictTypes to ensure no extra properties of the union go unchecked
         const decVar = `dεc${this.getNestLevel()}`;
-        const children = this.getFromJsonValChildren();
+        const children = this.getJitChildren();
         const childrenCode = children
             .map((child, i) => {
                 const iF = i === 0 ? 'if' : 'else if';
-                const childCode = child.getJitConfig().skipFromJsonVal ? '' : child.compileFromJsonVal(comp);
+                const childCode = child.compileFromJsonVal(comp) || '';
                 const isExpression = childIsExpression(JitFnIDs.fromJsonVal, child);
                 const code = isExpression && childCode && childCode !== comp.vλl ? `${comp.vλl} = ${childCode}` : childCode;
                 // item is decoded before being extracted from the array
                 return `${iF} ( ${decVar} === ${i}) {${comp.vλl} = ${comp.vλl}[1];${code}}`;
             })
-            .filter((c) => !!c)
+            .filter(Boolean)
             .join('');
         const code = `
                 const ${decVar} = ${comp.vλl}[0];
@@ -132,7 +124,7 @@ export class UnionRunType extends CollectionRunType<TypeUnion> {
     }
     _compileJsonStringify(comp: JitCompiler): string {
         // TODO: enforce strictTypes to ensure no extra properties of the union go unchecked
-        const childrenCode = this.getToJsonValChildren()
+        const childrenCode = this.getJitChildren()
             .map((rt, i) => {
                 const itemIsType = this.getChildStrictIsType(rt, comp);
                 const childCode = rt.compileJsonStringify(comp);
@@ -142,7 +134,7 @@ export class UnionRunType extends CollectionRunType<TypeUnion> {
                 const itemCode = rt.getFamily() === 'A' ? `(${code})` : code;
                 return `if (${itemIsType}) {return ${itemCode}}`;
             })
-            .filter((c) => !!c)
+            .filter(Boolean)
             .join('');
         const code = `
             ${childrenCode}

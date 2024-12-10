@@ -74,7 +74,7 @@ export class InterfaceRunType<
     }
     _compileToJsonVal(comp: JitCompiler) {
         if (this.isCallable()) return this.getCallSignature()!._compileToJsonVal();
-        const children = this.getToJsonValChildren();
+        const children = this.getJitChildren();
         const childrenCode = children
             .map((prop) => prop.compileToJsonVal(comp))
             .filter(Boolean)
@@ -83,7 +83,7 @@ export class InterfaceRunType<
     }
     _compileFromJsonVal(comp: JitCompiler) {
         if (this.isCallable()) return this.getCallSignature()!._compileFromJsonVal();
-        const children = this.getFromJsonValChildren();
+        const children = this.getJitChildren();
         const childrenCode = children
             .map((prop) => prop.compileFromJsonVal(comp))
             .filter(Boolean)

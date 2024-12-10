@@ -14,8 +14,6 @@ export class TupleMemberRunType extends ParameterRunType<TypeTupleMember> {
     getJitConfig(stack: BaseRunType[] = []): JitConfig {
         const constants = super.getJitConfig(stack) as Mutable<JitConfig>;
         if (this.isOptional()) {
-            constants.skipFromJsonVal = false;
-            constants.skipToJsonVal = false;
             constants.skipJit = false;
         }
         return constants;

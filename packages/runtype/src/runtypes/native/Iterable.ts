@@ -15,20 +15,12 @@ export abstract class IterableRunType extends ClassRunType {
     abstract children: BaseRunType[];
     abstract instance: string;
     abstract _mock(ctx: MockOperation): any;
-
     getIndexVarName(): string {
         return `e${this.getNestLevel()}`;
-    }
-    getToJsonValChildren(): BaseRunType[] {
-        return this.getJitChildren();
-    }
-    getFromJsonValChildren(): BaseRunType[] {
-        return this.getJitChildren();
     }
     getChildRunTypes = (): BaseRunType[] => {
         return this.children;
     };
-
     jitFnHasReturn(fnId: JitFnID): boolean {
         switch (fnId) {
             case JitFnIDs.isType:
@@ -49,7 +41,6 @@ export abstract class IterableRunType extends ClassRunType {
             for (const ${entry} of ${comp.vλl}) {${childrenCode}} return true;
         `;
     }
-
     _compileTypeErrors(comp: JitErrorsCompiler): string {
         const entry = this.getCustomVλl(comp)?.vλl || comp.vλl;
         const childrenCode = this.getJitChildren()
@@ -61,11 +52,10 @@ export abstract class IterableRunType extends ClassRunType {
             else {let ${index} = 0;for (const ${entry} of ${comp.vλl}) {${childrenCode}; ${index}++}}
         `;
     }
-
     _compileToJsonVal(comp: JitCompiler): string {
         const entry = this.getCustomVλl(comp)?.vλl || comp.vλl;
         const resName = `ml${this.getNestLevel()}`;
-        const childrenCode = this.getToJsonValChildren()
+        const childrenCode = this.getJitChildren()
             .map((c) => c.compileToJsonVal(comp))
             .filter((c) => c)
             .join(';');
@@ -76,11 +66,10 @@ export abstract class IterableRunType extends ClassRunType {
             ${comp.vλl} = ${resName};
         `;
     }
-
     _compileFromJsonVal(comp: JitCompiler): string {
-        if (!this.getFromJsonValChildren().length) return `${comp.vλl} = new Map(${comp.vλl})`;
+        if (!this.getJitChildren().length) return `${comp.vλl} = new Map(${comp.vλl})`;
         const index = this.getCustomVλl(comp)?.vλl || comp.vλl;
-        const childrenCode = this.getFromJsonValChildren()
+        const childrenCode = this.getJitChildren()
             .map((c) => c.compileFromJsonVal(comp))
             .filter((c) => c)
             .join(';');
@@ -90,7 +79,6 @@ export abstract class IterableRunType extends ClassRunType {
             ${comp.vλl} = new ${this.instance}(${comp.vλl})
         `;
     }
-
     _compileJsonStringify(comp: JitCompiler): string {
         const entry = this.getCustomVλl(comp)?.vλl || comp.vλl;
         const jitChildren = this.getJitChildren();

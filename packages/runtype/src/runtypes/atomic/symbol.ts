@@ -14,8 +14,6 @@ import {symbolSerializer} from '../../serializers/symbol';
 
 const jitConstants: JitConfig = {
     skipJit: true,
-    skipToJsonVal: true,
-    skipFromJsonVal: true,
     jitId: ReflectionKind.symbol,
 };
 

@@ -114,32 +114,24 @@ function compileTypeErrorsLiteral(
 function getJitConstantsForBigint(kind: number, literal: bigint): JitConfig {
     return {
         skipJit: false,
-        skipToJsonVal: false,
-        skipFromJsonVal: false,
         jitId: `${kind}:${String(literal)}`,
     };
 }
 function getJitConstantsForSymbol(kind: number, literal: symbol): JitConfig {
     return {
         skipJit: true,
-        skipToJsonVal: true,
-        skipFromJsonVal: true,
         jitId: `${kind}:${String(literal)}`,
     };
 }
 function getJitConstantsForRegExp(kind: number, literal: RegExp): JitConfig {
     return {
         skipJit: false,
-        skipToJsonVal: false,
-        skipFromJsonVal: false,
         jitId: `${kind}:${String(literal)}`,
     };
 }
 function getDefaultJitConstants(kind: number, literal: string | number | boolean): JitConfig {
     return {
         skipJit: false,
-        skipToJsonVal: true,
-        skipFromJsonVal: true,
         jitId: `${kind}:${literal}`,
     };
 }

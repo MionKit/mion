@@ -14,8 +14,6 @@ import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
 
 const jitConstants: JitConfig = {
     skipJit: false,
-    skipToJsonVal: true,
-    skipFromJsonVal: true,
     jitId: ReflectionKind.enum,
 };
 

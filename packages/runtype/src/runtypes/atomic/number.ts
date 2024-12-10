@@ -14,8 +14,6 @@ import {numberSerializer} from '../../serializers/number';
 
 const jitConstants: JitConfig = {
     skipJit: false,
-    skipToJsonVal: true,
-    skipFromJsonVal: true,
     jitId: ReflectionKind.number,
 };
 

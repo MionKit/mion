@@ -32,8 +32,6 @@ export class IndexSignatureRunType extends MemberRunType<TypeIndexSignature> {
         const index = (this.src as TypeIndexSignature).index?.kind || undefined;
         if (index === ReflectionKind.symbol) {
             jc.skipJit = true;
-            jc.skipToJsonVal = true;
-            jc.skipFromJsonVal = true;
         }
         return jc;
     }
@@ -59,7 +57,7 @@ export class IndexSignatureRunType extends MemberRunType<TypeIndexSignature> {
         return `for (const ${this.getChildVarName()} in ${comp.vλl}) {${childCode}}`;
     }
     _compileToJsonVal(comp: JitCompiler) {
-        const child = this.getToJsonValChild();
+        const child = this.getJitChild();
         const childCode = child?.compileToJsonVal(comp);
         if (!child || !childCode) return undefined;
         const varName = comp.vλl;
@@ -71,7 +69,7 @@ export class IndexSignatureRunType extends MemberRunType<TypeIndexSignature> {
         return `for (const ${prop} in ${varName}){${skipCode} ${code}}`;
     }
     _compileFromJsonVal(comp: JitCompiler) {
-        const child = this.getFromJsonValChild();
+        const child = this.getJitChild();
         const childCode = child?.compileFromJsonVal(comp);
         if (!child || !childCode) return undefined;
         const varName = comp.vλl;

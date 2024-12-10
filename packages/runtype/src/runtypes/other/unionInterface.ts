@@ -139,9 +139,7 @@ export class UnionInterfaceRunType extends InterfaceRunType<anySrcInterface> {
         `;
     }
     _compileToJsonVal(comp: JitCompiler): string {
-        const toJsonValdMergedList = this.mergedInterfaces.filter(
-            (c) => !c.getJitConfig().skipJit && !c.getJitConfig().skipToJsonVal
-        );
+        const toJsonValdMergedList = this.mergedInterfaces.filter((c) => !c.getJitConfig().skipJit);
         return toJsonValdMergedList.length
             ? toJsonValdMergedList
                   .map((rt, i) => {
@@ -154,9 +152,7 @@ export class UnionInterfaceRunType extends InterfaceRunType<anySrcInterface> {
             : '';
     }
     _compileFromJsonVal(comp: JitCompiler): string {
-        const fromJsonValdMergedList = this.mergedInterfaces.filter(
-            (c) => !c.getJitConfig().skipJit && !c.getJitConfig().skipFromJsonVal
-        );
+        const fromJsonValdMergedList = this.mergedInterfaces.filter((c) => !c.getJitConfig().skipJit);
         return fromJsonValdMergedList.length
             ? fromJsonValdMergedList
                   .map((rt, i) => {
@@ -174,7 +170,7 @@ export class UnionInterfaceRunType extends InterfaceRunType<anySrcInterface> {
         return `'{'+${childrenCode}+'}'`;
 
         // const toJsonValdMergedList = this.mergedInterfaces.filter(
-        //     (c) => !c.getJitConstants().skipJit && !c.getJitConstants().skipToJsonVal
+        //     (c) => !c.getJitConstants().skipJit
         // );
         // return toJsonValdMergedList.length
         //     ? toJsonValdMergedList

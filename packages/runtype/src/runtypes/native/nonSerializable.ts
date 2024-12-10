@@ -16,8 +16,6 @@ export class NonSerializableRunType extends InterfaceRunType<TypeObjectLiteral |
         // skip return false so we ensure the compile functions will throw when a NonSerializable type is used
         return {
             ...super.getJitConfig(stack),
-            skipToJsonVal: false,
-            skipFromJsonVal: false,
             skipJit: false,
         };
     }

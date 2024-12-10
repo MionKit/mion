@@ -15,8 +15,6 @@ import {TupleRunType} from '../collection/tuple';
 
 const functionJitConstants: JitConfig = {
     skipJit: true,
-    skipToJsonVal: true,
-    skipFromJsonVal: true,
     jitId: ReflectionKind.function,
 };
 

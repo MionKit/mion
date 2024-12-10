@@ -6,6 +6,7 @@
  * ######## */
 import {runType} from '../../runType';
 import {JitFnIDs} from '../../constants';
+import {BaseRunType} from '../../lib/baseRunTypes';
 
 describe('TupleRunType', () => {
     type TupleType = [Date, number, string, null, string[], bigint];
@@ -166,6 +167,18 @@ describe('TupleRunType', () => {
         expect(typeof mocked[3] === 'number' || typeof mocked[3] === 'undefined').toBeTruthy();
         const validate = runType<TupleWithOptionals>().createJitFunction(JitFnIDs.isType);
         expect(validate(mocked)).toBe(true);
+    });
+
+    it('json encode/decode should be marked as noop when there are no actions required', () => {
+        type NoJsonENCDECRequired = [number, string];
+        type sonENCDECRequired = [bigint, Date];
+
+        const rtNoop = runType<NoJsonENCDECRequired>() as BaseRunType;
+        const rtEncRequired = runType<sonENCDECRequired>() as BaseRunType;
+        expect(rtNoop.getJitCompiledOperation(JitFnIDs.toJsonVal).isNoop).toBe(true);
+        expect(rtNoop.getJitCompiledOperation(JitFnIDs.fromJsonVal).isNoop).toBe(true);
+        expect(rtEncRequired.getJitCompiledOperation(JitFnIDs.toJsonVal).isNoop).toBe(false);
+        expect(rtEncRequired.getJitCompiledOperation(JitFnIDs.fromJsonVal).isNoop).toBe(false);
     });
 });
 

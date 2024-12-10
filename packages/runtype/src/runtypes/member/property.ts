@@ -34,8 +34,6 @@ export class PropertyRunType extends MemberRunType<TypePropertySignature | TypeP
         const name = (this.src as TypeProperty).name;
         if (typeof name === 'symbol') {
             jc.skipJit = true;
-            jc.skipToJsonVal = true;
-            jc.skipFromJsonVal = true;
         }
         return jc;
     }
@@ -53,7 +51,7 @@ export class PropertyRunType extends MemberRunType<TypePropertySignature | TypeP
         return this.src.optional ? `if (${comp.getChildVλl()} !== undefined) {${itemCode}}` : itemCode;
     }
     _compileToJsonVal(comp: JitCompiler) {
-        const child = this.getToJsonValChild();
+        const child = this.getJitChild();
         const childCode = child?.compileToJsonVal(comp);
         if (!child || !childCode) return undefined;
         const isExpression = childIsExpression(JitFnIDs.toJsonVal, child);
@@ -62,7 +60,7 @@ export class PropertyRunType extends MemberRunType<TypePropertySignature | TypeP
         return code;
     }
     _compileFromJsonVal(comp: JitCompiler) {
-        const child = this.getFromJsonValChild();
+        const child = this.getJitChild();
         const childCode = child?.compileFromJsonVal(comp);
         if (!child || !childCode) return undefined;
         const isExpression = childIsExpression(JitFnIDs.fromJsonVal, child);
