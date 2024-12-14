@@ -15,6 +15,7 @@ export const JitFnNames = {
     7: 'hasUnknownKeys',
     8: 'stripUnknownKeys',
     9: 'unknownKeysToUndefined',
+    10: 'aux',
 } as const;
 
 export const JitFnIDs = {
@@ -27,6 +28,7 @@ export const JitFnIDs = {
     hasUnknownKeys: 7,
     stripUnknownKeys: 8,
     unknownKeysToUndefined: 9,
+    aux: 10,
 } as const;
 
 export const defaultJitFnHasReturn = {
@@ -39,6 +41,7 @@ export const defaultJitFnHasReturn = {
     hasUnknownKeys: false,
     stripUnknownKeys: false,
     unknownKeysToUndefined: false,
+    aux: true,
 } as const;
 
 export const defaultJitFnIsExpression = {
@@ -51,6 +54,7 @@ export const defaultJitFnIsExpression = {
     hasUnknownKeys: true,
     stripUnknownKeys: false,
     unknownKeysToUndefined: false,
+    aux: false,
 } as const;
 
 export const validPropertyNameRegExp = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
