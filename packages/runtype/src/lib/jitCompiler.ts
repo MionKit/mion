@@ -133,18 +133,9 @@ export class BaseCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extends 
         if (rt.skipSettingAccessor?.()) return parent.vλl;
         return parent.vλl + (rt.useArrayAccessor() ? `[${rt.getChildLiteral()}]` : `.${rt.getChildVarName()}`);
     }
-    getParentVλl(): string {
-        const parent = this.stack[this.stack.length - 2];
-        if (!parent) return this.args.vλl;
-        return parent.vλl;
-    }
     shouldCallDependency(): boolean {
         const stackItem = this.getCurrentStackItem();
         return !stackItem.rt.isJitInlined() && this.stack.length > 1;
-    }
-    getCompiledFunction(): (...args: any[]) => any {
-        if (!this.fn) throw new Error('Can not get compiled function before the compile operation is finished');
-        return this.fn;
     }
     updateDependencies(childCop: CompiledOperation): void {
         this.dependenciesSet.add(childCop.jitFnHash);
@@ -153,7 +144,11 @@ export class BaseCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extends 
     removeFromJitCache(): void {
         jitUtils.removeFromJitCache(this.jitFnHash);
     }
-    setIsNoop(): void {
+    /**
+     * Set the isNoop flag based on the code of the operation.
+     * must be called before function gets compiled.
+     */
+    private setIsNoop(): void {
         let isNoop = false;
         let code = this.code.trim(); // todo: investigate removing all white spaces from the code
         switch (this.fnId) {
