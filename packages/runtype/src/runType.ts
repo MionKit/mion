@@ -8,7 +8,7 @@
 
 import type {RunType, Mutable, SrcType} from './types';
 import type {BaseRunType} from './lib/baseRunTypes';
-import {ReflectionKind, type TypeClass} from './lib/_deepkit/src/reflection/type';
+import {ReflectionKind, type TypeClass, type Type} from './lib/_deepkit/src/reflection/type';
 import {resolveReceiveType, ReceiveType, reflect} from './lib/_deepkit/src/reflection/reflection';
 import {StringRunType} from './runtypes/atomic/string';
 import {DateRunType} from './runtypes/atomic/date';
@@ -47,7 +47,18 @@ import {ReflectionSubKind} from './constants.kind';
 import {SetRunType} from './runtypes/native/set';
 import {JitFnIDs} from './constants';
 import {SymbolRunType} from './runtypes/atomic/symbol';
-import {isNonSerializableClass, isNonSerializableObject} from './lib/guards';
+import {
+    hasArguments,
+    hasExtendsArguments,
+    hasImplements,
+    hasIndexType,
+    hasParameters,
+    hasReturn,
+    hasType,
+    hasTypes,
+    isNonSerializableClass,
+    isNonSerializableObject,
+} from './lib/guards';
 import {NonSerializableRunType} from './runtypes/native/nonSerializable';
 
 export function runType<T>(type?: ReceiveType<T>): RunType {
@@ -63,43 +74,44 @@ export function reflectFunction<Fn extends (...args: any[]) => any>(fn: Fn): Fun
 }
 
 // We need to traverse all child nodes to create all the runTypes
-function createAllRunTypes(src: SrcType): undefined {
-    const stack: SrcType[] = [src];
+function createAllRunTypes(src: SrcType): void {
+    const stack: Type[] = [src];
 
     while (stack.length > 0) {
-        const current = stack.pop()! as any;
-        if (current._rt) continue;
+        const current = stack.pop();
+        if (!current || (current as SrcType)._rt) continue;
 
-        createRunType(current);
-        const subStack: SrcType[] = [];
+        createRunType(current as Mutable<SrcType>);
 
         // single child type nodes
-        if (current.type) subStack.push(current.type);
-        if (current.return) subStack.push(current.return);
-        if (current.indexType) subStack.push(current.indexType);
-        if (current.origin) subStack.push(current.origin);
-        if (current.indexAccessOrigin?.index) subStack.push(current.indexAccessOrigin?.index);
-        if (current.indexAccessOrigin?.container) subStack.push(current.indexAccessOrigin?.container);
+        if (hasType(current)) stack.push(current.type);
+        if (hasReturn(current)) stack.push(current.return);
+        if (hasIndexType(current)) stack.push(current.indexType);
+        if (current.origin) stack.push(current.origin);
+        if (current.indexAccessOrigin?.index) stack.push(current.indexAccessOrigin?.index);
+        if (current.indexAccessOrigin?.container) stack.push(current.indexAccessOrigin?.container);
 
         // multiple child type nodes
-        if (current.types) pushToSubStack(current.types, subStack);
-        if (current.parameters) pushToSubStack(current.parameters, subStack);
-        if (current.arguments) pushToSubStack(current.arguments, subStack);
-        if (current.extendsArguments) pushToSubStack(current.extendsArguments, subStack);
-        if (current.implements) pushToSubStack(current.implements, subStack);
-        if (current.typeArguments) pushToSubStack(current.typeArguments, subStack);
-        if (current.decorators) pushToSubStack(current.decorators, subStack);
-        if (current.scheduleDecorators) pushToSubStack(current.scheduleDecorators, subStack);
-        if (current.originTypes?.typeArgument) pushToSubStack(current.originTypes?.typeArguments, subStack);
+        if (hasTypes(current)) pushToStack(current.types, stack);
+        if (hasParameters(current)) pushToStack(current.parameters, stack);
+        if (hasArguments(current)) pushToStack(current.arguments, stack);
+        if (hasExtendsArguments(current)) pushToStack(current.extendsArguments, stack);
+        if (hasImplements(current)) pushToStack(current.implements, stack);
+        if (current.typeArguments) pushToStack(current.typeArguments, stack);
+        if (current.decorators) pushToStack(current.decorators, stack);
+        if (current.scheduleDecorators) pushToStack(current.scheduleDecorators, stack);
 
-        for (const subType of subStack) {
-            if (!subType._rt) stack.push(subType);
-        }
+        // // TODO: make sure what to do with originTypes
+        // if (current.originTypes) {
+        //     current.originTypes.forEach((ot) => {
+        //         if (ot.typeArguments) pushToStack(ot.typeArguments, stack);
+        //     });
+        // }
     }
 }
 
-function pushToSubStack(otherSubTypes: SrcType[], subStack: SrcType[]) {
-    if (Array.isArray(otherSubTypes)) subStack.push(...otherSubTypes);
+function pushToStack(subTypes: Type[], stack: Type[]) {
+    if (Array.isArray(subTypes)) stack.push(...subTypes);
 }
 
 function createRunType(deepkitType: Mutable<SrcType>): RunType {
@@ -119,6 +131,11 @@ function createRunType(deepkitType: Mutable<SrcType>): RunType {
     let rt: BaseRunType;
 
     switch (deepkitType.kind) {
+        // All types with metadata are resolved as kind = 0
+        case ReflectionKind.never:
+            rt = new NeverRunType();
+            // console.log('deepkitType', deepkitType.originTypes?.[0]?.typeArguments);
+            break;
         case ReflectionKind.any:
             rt = new AnyRunType();
             break;
@@ -235,9 +252,6 @@ function createRunType(deepkitType: Mutable<SrcType>): RunType {
             break;
         case ReflectionKind.void:
             rt = new VoidRunType();
-            break;
-        case ReflectionKind.never:
-            rt = new NeverRunType();
             break;
         default:
             rt = new AnyRunType();

@@ -54,25 +54,20 @@ export class BaseCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extends 
     /** The Jit Generated function once the compilation is finished */
     readonly fn: ((...args: any[]) => any) | undefined;
 
-    /** Code for the jit function. */
+    /** Code for the jit function. after the operation has been compiled */
     readonly code: string = '';
     /** Code for the context function enclosing the jit function.
      * This can be used to initialize constant or some other things that will be required across all invocation.
      * By default this contains constants for the direct dependencies of the jit function.
      * */
-    readonly contextCode: string = '';
     readonly contextCodeItems = new Map<string, string>();
     /**
      * This flag is set to true when the result of a jit compilation is a no operation.
      * Some jit compiled functions could execute no operations (ie: toJsonVal/fromJsonVal a string)
      */
     readonly isNoop?: boolean = false;
-    /** The list of dependencies that are called directly by this function */
-    readonly directDependencies: JitDependencies = new Set();
-    /** The list of dependencies that are called by the child dependencies of this function.
-     * TODO: this could not be required, as we could resolve them accessing the dependencies child items.
-     */
-    readonly childDependencies: JitDependencies = new Set();
+    /** The list of all jit functions that are used by this function and it's children. */
+    readonly dependenciesSet: JitDependencies = new Set();
     /** The list of types being compiled.*/
     readonly stack: StackItem[] = [];
     popItem: StackItem | undefined;
@@ -152,9 +147,8 @@ export class BaseCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extends 
         return this.fn;
     }
     updateDependencies(childCop: CompiledOperation): void {
-        this.directDependencies.add(childCop.jitFnHash);
-        childCop.directDependencies.forEach((dep) => this.childDependencies.add(dep));
-        childCop.childDependencies.forEach((dep) => this.childDependencies.add(dep));
+        this.dependenciesSet.add(childCop.jitFnHash);
+        childCop.dependenciesSet.forEach((dep) => this.dependenciesSet.add(dep));
     }
     removeFromJitCache(): void {
         jitUtils.removeFromJitCache(this.jitFnHash);
@@ -250,45 +244,42 @@ export function getJITFnHash(id: JitFnID, rt: BaseRunType): string {
     return `f${id}_${rt.getJitHash()}`;
 }
 
-function getJitFnCode(comp: JitCompilerLike): {fnName: string; fnCode: string} {
-    const fnName = comp.jitFnHash;
-    const fnArgs = getJitFnArgs(comp); // function arguments with default values ie: 'vλl, pλth=[], εrr=[]'
-    const fnCode = `function ${fnName}(${fnArgs}){${comp.code}}`;
-    return {fnName, fnCode};
-}
-
 function compileFunction(comp: BaseCompiler): (...args: any[]) => any {
     if (comp.fn) return comp.fn;
     if (comp.stack.length !== 0) throw new Error('Can not get compiled function before the compile operation is finished');
     if (jitUtils.hasJitFn(comp.jitFnHash)) return jitUtils.getJitFn(comp.jitFnHash);
-    const {fnCode, fnName} = getJitFnCode(comp);
-    (comp as Mutable<BaseCompiler>).contextCode = Array.from(comp.contextCodeItems.values()).join(';\n');
-    const newFn = createJitFnWithContext(fnCode, fnName, comp.contextCode);
-    (comp as Mutable<BaseCompiler>).fn = newFn;
-    return newFn;
+    const {fnCode, fnName, contextCode} = getJitFnCode(comp);
+    const {fn, code} = createJitFnWithContext(fnName, fnCode, contextCode);
+    (comp as Mutable<BaseCompiler>).code = code;
+    (comp as Mutable<BaseCompiler>).fn = fn;
+    return fn;
+}
+
+function getJitFnCode(comp: BaseCompiler): {fnName: string; fnCode: string; contextCode: string} {
+    const fnName = comp.jitFnHash;
+    const fnArgs = getJitFnArgs(comp); // function arguments with default values ie: 'vλl, pλth=[], εrr=[]'
+    const fnCode = `function ${fnName}(${fnArgs}){${comp.code}}`;
+    return {fnName, fnCode, contextCode: Array.from(comp.contextCodeItems.values()).join(';\n')};
 }
 
 /**
  * Create a JIT function that has jitUtils (and possibly other required variables) in the context,
  * This way jitUtils ca be used without passing them as arguments to every atomic jit function (kind of global variables).
  * @param varName
- * @param code
+ * @param fnCode
  * @returns
  */
-function createJitFnWithContext(code: string, functionName: string, contextCode?: string): (...args: any[]) => any {
+function createJitFnWithContext(fnName: string, fnCode: string, contextCode?: string) {
     // this function will have jitUtils as context as is an argument of the enclosing function
     const context = contextCode ? `${contextCode};` : '';
-    const fnWithContext = `${context} ${code} return ${functionName};`;
+    const fnWithContext = `${context} ${fnCode} return ${fnName};`;
     try {
         const wrapperWithContext = new Function(jitNames.utils, fnWithContext);
-        if (process.env.DEBUG_JIT) console.log(printFn(fnWithContext, code, functionName, contextCode));
-        return wrapperWithContext(jitUtils); // returns the jit internal function with the context
+        if (process.env.DEBUG_JIT) console.log(printFn(fnWithContext, fnCode, fnName, contextCode));
+        return {fn: wrapperWithContext(jitUtils), code: fnWithContext}; // returns the jit internal function with the context
     } catch (e: any) {
         if (process.env.DEBUG_JIT) {
-            console.warn(
-                'Error creating jit function with context code:\n',
-                printFn(fnWithContext, code, functionName, contextCode)
-            );
+            console.warn('Error creating jit function with context code:\n', printFn(fnWithContext, fnCode, fnName, contextCode));
         }
         throw e;
     }

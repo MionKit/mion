@@ -70,8 +70,7 @@ export const jitUtils = {
         //     code: comp.code,
         //     jitFnHash: comp.jitFnHash,
         //     jitId: comp.jitId,
-        //     directDependencies: comp.directDependencies,
-        //     childDependencies: comp.childDependencies,
+        //     dependenciesSet: comp.dependenciesSet,
         // };
         jitCache.set(key, comp as CompiledOperation);
     },

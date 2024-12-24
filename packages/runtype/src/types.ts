@@ -117,22 +117,13 @@ export type CodeUnit = 'EXPRESSION' | 'STATEMENT' | 'BLOCK';
 export interface CompiledOperation
     extends Pick<
         BaseCompiler,
-        | 'fnId'
-        | 'args'
-        | 'defaultParamValues'
-        | 'code'
-        | 'contextCode'
-        | 'jitFnHash'
-        | 'jitId'
-        | 'directDependencies'
-        | 'childDependencies'
-        | 'isNoop'
+        'fnId' | 'args' | 'defaultParamValues' | 'code' | 'jitFnHash' | 'jitId' | 'dependenciesSet' | 'isNoop'
     > {
     fn: (...args: any[]) => any;
 }
 
-export interface SerializableJit extends Omit<CompiledOperation, 'fnId' | 'directDependencies' | 'childDependencies'> {
-    // combination of childDependencies and directDependencies
+export interface SerializableJit extends Omit<CompiledOperation, 'fnId' | 'dependenciesSet'> {
+    // dependency list is serialized as a string array
     dependencies: string[];
 }
 

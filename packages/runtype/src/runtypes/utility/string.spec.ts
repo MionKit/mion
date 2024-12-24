@@ -5,23 +5,28 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {JitFnIDs} from '../constants';
-import {runType} from '../runType';
+import {JitFnIDs} from '../../constants';
+import {runType} from '../../runType';
 
 // Intrinsic String Manipulation Types: these are typescript native utility types but require a runtime implementation
 // Uppercase<StringType>, Lowercase<StringType>, Capitalize<StringType>, Uncapitalize<StringType>
 
-describe('Uppercase  typescript utility type', () => {
+describe('Uppercase typescript utility type', () => {
     type UpperStr = Uppercase<string>;
-    type MaxLength<N extends number> = {__meta?: never & ['MaxLength', N]};
     const rt = runType<UpperStr>();
-    const rtMaxLength = runType<MaxLength<5>>();
+    const rt2 = runType<Uppercase<string>>();
 
     const upperString: UpperStr = 'HELLO';
     const lowerString: string = 'hello';
 
     it('validate', () => {
         const isType = rt.createJitFunction(JitFnIDs.isType);
+        expect(isType(upperString)).toEqual(true);
+        expect(isType(lowerString)).toEqual(false);
+    });
+
+    it('validate no origin', () => {
+        const isType = rt2.createJitFunction(JitFnIDs.isType);
         expect(isType(upperString)).toEqual(true);
         expect(isType(lowerString)).toEqual(false);
     });

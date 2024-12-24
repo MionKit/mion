@@ -6,10 +6,10 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import type {TypeClass, TypeMethod, TypeObjectLiteral} from './_deepkit/src/reflection/type';
-import {ReflectionKind} from './_deepkit/src/reflection/type';
+import type {Type, TypeClass, TypeMethod, TypeObjectLiteral, TypeParameter} from './_deepkit/src/reflection/type';
+import {isType, ReflectionKind} from './_deepkit/src/reflection/type';
 import {ReflectionSubKind} from '../constants.kind';
-import {JitFnIDs, nonSerializableClasses, nonSerializableGlobals} from '../constants';
+import {JitFnIDs, nativeUtilityStringTypes, nonSerializableClasses, nonSerializableGlobals} from '../constants';
 /* IMPORTANT: import classes as type only to prevent js circular imports */
 import type {MockOperation, MockOptions, RunType, RunTypeChildAccessor} from '../types';
 import type {StringRunType} from '../runtypes/atomic/string';
@@ -225,4 +225,57 @@ export function isNonSerializableClass(src: TypeClass): boolean {
 export function isNonSerializableObject(src: TypeObjectLiteral): boolean {
     if (!src.typeName) return false;
     return nonSerializableGlobals.includes(src.typeName);
+}
+
+export function isNativeUtilityStringTypes(src: Type): boolean {
+    if (!src.typeName) return false;
+    return nativeUtilityStringTypes.includes(src.typeName);
+}
+
+export function hasType(src: any): src is {type: Type} {
+    return isType(src?.type);
+}
+
+export function hasTypes(src: any): src is {types: Type[]} {
+    return Array.isArray(src?.types) && isType(src);
+}
+
+export function hasReturn(src: any): src is {return: Type} {
+    return isType(src?.return);
+}
+
+export function hasParameters(src: any): src is {parameters: Type[]} {
+    return Array.isArray(src?.parameters) && isType(src);
+}
+
+export function hasIndexType(src: any): src is {indexType: Type} {
+    return isType(src?.indexType);
+}
+
+export function hasArguments(src: any): src is {arguments: Type[]} {
+    return Array.isArray(src?.arguments) && isType(src);
+}
+
+export function hasExtends(src: any): src is {extends: Type[]} {
+    return Array.isArray(src?.extends) && isType(src);
+}
+
+export function hasExtendsArguments(src: any): src is {extendsArguments: Type[]} {
+    return Array.isArray(src?.extendsArguments) && isType(src);
+}
+
+export function hasTypeArguments(src: any): src is {typeArguments: Type[]} {
+    return Array.isArray(src?.typeArguments) && isType(src);
+}
+
+export function hasTypeParameters(src: any): src is {typeParameters: TypeParameter[]} {
+    return Array.isArray(src?.typeParameters) && isType(src);
+}
+
+export function hasMembers(src: any): src is {members: InterfaceMember[]} {
+    return Array.isArray(src?.members) && isType(src);
+}
+
+export function hasImplements(src: any): src is {implements: Type[]} {
+    return Array.isArray(src?.implements) && isType(src);
 }

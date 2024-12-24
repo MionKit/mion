@@ -141,3 +141,5 @@ export const nonSerializableGlobals = [
     'AsyncGeneratorFunction',
     'AsyncIterator',
 ];
+
+export const nativeUtilityStringTypes = ['Uppercase', 'Lowercase', 'Capitalize', 'Uncapitalize'];
