@@ -39,7 +39,7 @@ export class BaseCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extends 
         public readonly fnId: ID,
         public readonly args: FnArgsNames,
         /** when creating the function it might have default values */
-        public readonly defaultParamValues: Record<keyof FnArgsNames, string | null>,
+        public readonly defaultParamValues: Record<keyof FnArgsNames, any>,
         public readonly returnName: string,
         public readonly parentLength: number = 0
     ) {

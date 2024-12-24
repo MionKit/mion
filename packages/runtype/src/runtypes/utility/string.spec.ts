@@ -12,21 +12,13 @@ import {runType} from '../../runType';
 // Uppercase<StringType>, Lowercase<StringType>, Capitalize<StringType>, Uncapitalize<StringType>
 
 describe('Uppercase typescript utility type', () => {
-    type UpperStr = Uppercase<string>;
-    const rt = runType<UpperStr>();
-    const rt2 = runType<Uppercase<string>>();
+    const rt = runType<Uppercase<string>>();
 
-    const upperString: UpperStr = 'HELLO';
+    const upperString: Uppercase<string> = 'HELLO';
     const lowerString: string = 'hello';
 
     it('validate', () => {
         const isType = rt.createJitFunction(JitFnIDs.isType);
-        expect(isType(upperString)).toEqual(true);
-        expect(isType(lowerString)).toEqual(false);
-    });
-
-    it('validate no origin', () => {
-        const isType = rt2.createJitFunction(JitFnIDs.isType);
         expect(isType(upperString)).toEqual(true);
         expect(isType(lowerString)).toEqual(false);
     });

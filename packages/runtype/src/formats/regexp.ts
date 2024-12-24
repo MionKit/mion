@@ -65,3 +65,10 @@ export const IPV4_RANGE_REGEX = /^(?:[0-9]{1,3}\.){3}[0-9]{1,3}\/[0-9]{1,2}$/;
 
 // IDs
 export const UUID_REGEX = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
+
+// unicode alphanumeric characters
+export const ALPHANUMERIC_REGEX = /[\p{L}|\p{N}]/gu;
+export const ALPHANUMERIC_S_REGEX = /[\p{L}|\p{N}|\s]/gu;
+export const ALPHA_REGEX = /[\p{L}|\s]/gu;
+export const ALPHA_S_REGEX = /[\p{L}]/gu;
+export const NUMERIC_REGEX = /[\p{N}]/gu;

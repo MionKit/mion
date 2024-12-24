@@ -5,60 +5,56 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {DATE_REGEX, DATE_TIME_REGEX, TIME_REGEX} from './regexp';
-
-// number & length
-export type Max<N extends number> = {__max: N};
-export type Min<N extends number> = {__min: N};
-export type Length<N extends number> = {__length: N};
-export type Range<Mi extends number, Ma extends number> = {__range: [Mi, Ma]};
-export type GT<N extends number> = {__gt: N};
-export type GTE<N extends number> = {__gte: N};
-export type LT<N extends number> = {__lt: N};
-export type LTE<N extends number> = {__lte: N};
+import {ALPHA_REGEX, ALPHANUMERIC_REGEX, NUMERIC_REGEX} from './regexp';
 
 // String
-export type Pattern<R extends RegExp> = {__pattern: R};
-export type Alpha = {__alpha: true};
-export type AlphaNumeric = {__alphaNumeric: true};
-export type Numeric = {__numeric: true};
-export type Lower = {__lower: true};
-export type Upper = {__upper: true};
-export type Capitalize = {__Capitalize: true};
-export type UnCapitalize = {__UnCapitalize: true};
+export type Length<N extends number> = {length: N};
+export type MaxLength<N extends number> = {maxLength: N};
+export type MinLength<N extends number> = {minLength: N};
+export type Pattern<R extends RegExp> = {regexp: R};
+export type Alpha = {regexp: typeof ALPHA_REGEX};
+export type AlphaNumeric = {regexp: typeof ALPHANUMERIC_REGEX};
+export type Numeric = {regexp: typeof NUMERIC_REGEX};
+export type Lower = {lower: true};
+export type Upper = {upper: true};
+export type Capital = {capitalize: true};
+export type UnCapital = {unCapitalize: true};
 
 // Date and Time
 
-export type DateTime = {__dateTime: typeof DATE_TIME_REGEX};
-export type Date = {__date: typeof DATE_REGEX};
-export type Time = {__time: typeof TIME_REGEX};
+export type DateTime = {validator: 'vf_isDateTime'};
+export type Date = {validator: 'vf_isDate'};
+export type Time = {validator: 'vf_isTime'};
 
 // Internet
-export type Email = {__max: 254; __email: true};
-export type Domain = {__domain: true};
-export type Url = {__max: 2048; __url: true};
-export type Phone = {__phone: true};
-export type Ip = {__ip: true};
-export type IpV4 = {__ipV4: true};
-export type IpV6 = {__ipV6: true};
-export type IpRange = {__ipRange: true};
+export type Email<N extends number = 256, AllowedChars extends string = any> = {
+    validator: 'vf_isEmail';
+    allowedChars: AllowedChars;
+    maxLength: N;
+};
+export type Domain = {validator: 'vf_isDomain'};
+export type Url<N extends number = 2048> = {maxLength: N; validator: 'vf_isURL'};
+export type Phone = {validator: 'vf_isPhone'};
+export type Ip = {validator: 'vf_isIP'};
+export type IpV4 = {validator: 'vf_isIPv4'};
+export type IpV6 = {validator: 'vf_isIPv6'};
+export type IpRange = {validator: 'vf_isIPRange'};
 
 // IDs
-export type UUID = {__uuid: true};
+export type UUID = {validator: 'vf_isUUID'};
 
 export type StringFormatParam =
-    | Max<number>
-    | Min<number>
+    | MaxLength<number>
+    | MinLength<number>
     | Length<number>
-    | Range<number, number>
     | Pattern<RegExp>
     | Alpha
     | AlphaNumeric
     | Numeric
     | Lower
     | Upper
-    | Capitalize
-    | UnCapitalize
+    | Capital
+    | UnCapital
     | DateTime
     | Date
     | Time
@@ -71,6 +67,10 @@ export type StringFormatParam =
     | IpRange
     | UUID;
 
-export type StringFormat<T extends StringFormatParam[]> = T;
+export type StringFormat<T extends StringFormatParam> = string & (T | unknown);
 
-export type EmailFormat = StringFormat<[Email, Max<250>]>;
+// TEST CASES
+export type EmailFormat = StringFormat<Email & MaxLength<126>>;
+export type ALPHN = StringFormat<{regexp: typeof ALPHANUMERIC_REGEX}>;
+export const ml: ALPHN = 'qwer';
+export const email: EmailFormat = 'qwer';
