@@ -96,7 +96,7 @@ function isDomainWithContext(utl: JITUtils): (str: string) => boolean {
 function isEmailWithContext(utl: JITUtils): (str: string, maxLength: number) => boolean {
     const vf_isDomain = utl.getJIT('vf_isDomain')!;
     const allowedLocalChars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._%+-';
-    function vf_isEmail(str: string, maxLength: number, allowedLocal?: string): boolean {
+    function vf_isEmail(str: string, maxLength: number = 2048, allowedLocal?: string): boolean {
         if (str.length > maxLength) return false;
         const atIndex = str.indexOf('@');
         if (atIndex <= 0 || atIndex !== str.lastIndexOf('@') || atIndex === str.length - 1) return false;
@@ -113,7 +113,7 @@ function isEmailWithContext(utl: JITUtils): (str: string, maxLength: number) => 
 }
 
 function isURlWithContext(utl: JITUtils): (str: string, maxLength: number) => boolean {
-    function vf_isURL(str: string, maxLength: number): boolean {
+    function vf_isURL(str: string, maxLength: number = 2048): boolean {
         if (str.length > maxLength) return false;
         if (!str.startsWith('http://') && !str.startsWith('https://')) return false;
         const urlPart = str.substring(str.indexOf('://') + 3);
@@ -125,7 +125,7 @@ function isURlWithContext(utl: JITUtils): (str: string, maxLength: number) => bo
 }
 
 function isURLExtendedWithContext(utl: JITUtils): (str: string, maxLength: number) => boolean {
-    function vf_isURLExtended(str: string, maxLength: number): boolean {
+    function vf_isURLExtended(str: string, maxLength: number = 2048): boolean {
         if (str.length > maxLength) return false;
         const protocols = ['http://', 'https://', 'ftp://', 'file://', 'mailto:', 'data:'];
         let matchesProtocol = false;

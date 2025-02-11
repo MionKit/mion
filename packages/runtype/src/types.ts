@@ -18,6 +18,8 @@ import type {JITUtils} from './lib/jitUtils';
 import type {JitFnIDs} from './constants';
 import type {ReflectionSubKind} from './constants.kind';
 
+// ###################### RunTypes ######################
+
 /**
  * Runtime Metadata for a typescript types.
  */
@@ -103,31 +105,13 @@ export interface RunTypeOptions {
     paramsSlice?: {start?: number; end?: number};
 }
 
-/**
- * Jit Compile Operation unit
- * EXPRESSION: the result of each type compilations is expected to be a js expression that resolves to a single value, and can be used wit operators like +, -, *, /, ||, &&, etc.
- * i.e: expType1 + expType2, expType1 || expType2, etc. Expressions cant contain return statements, if statements, semicolons, etc.
- * if a code block is needed in an expression it must be wrapped in a self invoking function. i.e: (() => { //... code block })()
- * STATEMENT: the result of each type compilations is expected to be a js statement that can be used in a block of code, and can contain return statements, if statements, semicolons, etc.
- * BLOCK: the main difference is that and statement can be returned directly ie: return statementCode;
- * while in a block the main value must be returned after code block execution. ie: blockCode; return vλl;
- */
-export type CodeUnit = 'EXPRESSION' | 'STATEMENT' | 'BLOCK';
 
-export interface CompiledOperation
-    extends Pick<
-        BaseCompiler,
-        'fnId' | 'args' | 'defaultParamValues' | 'code' | 'jitFnHash' | 'jitId' | 'dependenciesSet' | 'isNoop'
-    > {
-    fn: (...args: any[]) => any;
+// ###################### JIT FUNCTIONS ######################
+
+export interface JitValidator {
+    isType: (value: any) => boolean;
+    typeErrors: (value: any) => RunTypeError[];
 }
-
-export interface SerializableJit extends Omit<CompiledOperation, 'fnId' | 'dependenciesSet'> {
-    // dependency list is serialized as a string array
-    dependencies: string[];
-}
-
-export type SerializedOperations = Record<string, SerializableJit>;
 
 export interface JitSerializer {
     fromJsonVal: (vλl: string) => string | undefined;
@@ -188,10 +172,37 @@ export interface UnwrappedJITFunctions {
     jsonStringify: JitFnData<unwrappedJsonStringifyFn>;
 }
 
-/** Any Class */
-export interface AnyClass<T = any> {
-    new (...args: any[]): T;
+/**
+ * Jit Compile Operation unit
+ * EXPRESSION: the result of each type compilations is expected to be a js expression that resolves to a single value, and can be used wit operators like +, -, *, /, ||, &&, etc.
+ * i.e: expType1 + expType2, expType1 || expType2, etc. Expressions cant contain return statements, if statements, semicolons, etc.
+ * if a code block is needed in an expression it must be wrapped in a self invoking function. i.e: (() => { //... code block })()
+ * STATEMENT: the result of each type compilations is expected to be a js statement that can be used in a block of code, and can contain return statements, if statements, semicolons, etc.
+ * BLOCK: the main difference is that and statement can be returned directly ie: return statementCode;
+ * while in a block the main value must be returned after code block execution. ie: blockCode; return vλl;
+ */
+export type CodeUnit = 'EXPRESSION' | 'STATEMENT' | 'BLOCK';
+
+export interface CompiledOperation
+    extends Pick<
+        BaseCompiler,
+        'fnId' | 'args' | 'defaultParamValues' | 'code' | 'jitFnHash' | 'jitId' | 'dependenciesSet' | 'isNoop'
+    > {
+    fn: (...args: any[]) => any;
 }
+
+export interface SerializableJit extends Omit<CompiledOperation, 'fnId' | 'dependenciesSet'> {
+    // dependency list is serialized as a string array
+    dependencies: string[];
+}
+
+export type SerializedOperations = Record<string, SerializableJit>;
+
+export type AnyFunction = TypeMethodSignature | TypeCallSignature | TypeFunction | TypeMethod;
+export type AnyParameterListRunType = AnyFunction | TypeTuple;
+
+
+// ###################### MOCK #####################
 
 export interface MockOptions {
     anyValuesList: any[];
@@ -231,9 +242,31 @@ export interface MockOperation extends MockOptions {
     stack: RunType[];
 }
 
-export type AnyFunction = TypeMethodSignature | TypeCallSignature | TypeFunction | TypeMethod;
-export type AnyParameterListRunType = AnyFunction | TypeTuple;
+// ###################### Branded Types #####################
+
+/**
+ * A base type that satisfies some extra constrains.
+ * ie: an Alphanumeric type is an string that only allow letters and numbers.
+ * ie: in Integer type is a number that only allow integer values.
+ * */
+export type BrandedType<BaseType, TypeParams> = BaseType & {__meta?: TypeParams};
+
+export type ValidatorParams = {validatorName?: string};
+
+export type SerializerParams =  {serializerName?: string};
+
+// ###################### OTHERS #####################
+
+/** Any Class */
+export interface AnyClass<T = any> {
+    new (...args: any[]): T;
+}
+
 
 export type Mutable<T> = {
     -readonly [K in keyof T]: T[K];
 };
+
+
+
+
