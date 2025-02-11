@@ -56,6 +56,7 @@ import {
     hasReturn,
     hasType,
     hasTypes,
+    isNativeUtilityStringTypes,
     isNonSerializableClass,
     isNonSerializableObject,
 } from './lib/guards';
@@ -133,8 +134,8 @@ function createRunType(deepkitType: Mutable<SrcType>): RunType {
     switch (deepkitType.kind) {
         // All types with metadata are resolved as kind = 0
         case ReflectionKind.never:
-            rt = new NeverRunType();
-            // console.log('deepkitType', deepkitType.originTypes?.[0]?.typeArguments);
+            // TODO add the string format feature
+            rt = isNativeUtilityStringTypes(deepkitType) ? new StringRunType() : new NeverRunType();
             break;
         case ReflectionKind.any:
             rt = new AnyRunType();
