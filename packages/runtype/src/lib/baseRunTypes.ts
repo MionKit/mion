@@ -22,14 +22,7 @@ import type {
     JitFn,
 } from '../types';
 import {getPropIndex, memorize, toLiteral} from './utils';
-import {
-    jitArgs,
-    jitErrorArgs,
-    jitFunctionList,
-    JitFunctions,
-    maxStackDepth,
-    maxStackErrorMessage,
-} from '../constants';
+import {jitArgs, jitErrorArgs, jitFunctionList, JitFunctions, maxStackDepth, maxStackErrorMessage} from '../constants';
 import {JitErrorsCompiler, JitCompiler, getJITFnHash, createJitCompiler} from './jitCompiler';
 import {getReflectionName} from '../constants.kind';
 import {createJitIDHash, jitUtils} from './jitUtils';

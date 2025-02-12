@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import { BrandedType, SerializerParams, ValidatorParams } from '../types';
+import {BrandedType, TypeParams} from '../types';
 import {ALPHA_REGEX, ALPHANUMERIC_REGEX, NUMERIC_REGEX} from './regexp';
 
 // String
@@ -18,9 +18,9 @@ export type StringParams = {
     capitalize?: boolean;
     unCapitalize?: boolean;
     regexp?: RegExp;
-} & ValidatorParams & SerializerParams;
+} & TypeParams;
 
-export type StringFormat<P extends StringParams> =BrandedType<string, P>;
+export type StringFormat<P extends StringParams> = BrandedType<string, P>;
 
 export type Alpha = StringFormat<{regexp: typeof ALPHA_REGEX}>;
 export type AlphaNumeric = StringFormat<{regexp: typeof ALPHANUMERIC_REGEX}>;
@@ -43,7 +43,7 @@ export type Email<MaxL extends number = 256, AllowedLocalChars extends string = 
     minLocalLength: 6;
     allowedLocalChars: AllowedLocalChars;
 }>;
-export type Domain = StringFormat<{validatorName: 'vf_isDomain', maxLength: 253}>;
+export type Domain = StringFormat<{validatorName: 'vf_isDomain'; maxLength: 253}>;
 export type Url<N extends number = 2048> = StringFormat<{maxLength: N; validatorName: 'vf_isURL'}>;
 export type Phone = StringFormat<{validatorName: 'vf_isPhone'}>;
 export type Ip = StringFormat<{validatorName: 'vf_isIP'}>;
@@ -53,9 +53,6 @@ export type IpRange = StringFormat<{validatorName: 'vf_isIPRange'}>;
 
 // IDs
 export type UUID = StringFormat<{validatorName: 'vf_isUUID'}>;
-
-
-
 
 // TEST CASES
 export type EmailFormat = Email<256, 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789@.-_'>;
