@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {JitFnIDs} from '../../constants';
+import {JitFunctions} from '../../constants';
 import {runType} from '../../runType';
 
 // Deepkit already implements all logic for Required
@@ -25,8 +25,8 @@ describe('Required typescript utility type makes all properties required', () =>
     const maybePerson = {createdAt};
 
     it('validate', () => {
-        const isType = rt.createJitFunction(JitFnIDs.isType);
-        const isTypeMaybe = rtRequired.createJitFunction(JitFnIDs.isType);
+        const isType = rt.createJitFunction(JitFunctions.isType);
+        const isTypeMaybe = rtRequired.createJitFunction(JitFunctions.isType);
         expect(isType(person)).toEqual(true);
         expect(isTypeMaybe(maybePerson)).toEqual(true);
 
@@ -35,8 +35,8 @@ describe('Required typescript utility type makes all properties required', () =>
     });
 
     it('validate errors', () => {
-        const typeErrors = rt.createJitFunction(JitFnIDs.typeErrors);
-        const typeErrorsMaybe = rtRequired.createJitFunction(JitFnIDs.typeErrors);
+        const typeErrors = rt.createJitFunction(JitFunctions.typeErrors);
+        const typeErrorsMaybe = rtRequired.createJitFunction(JitFunctions.typeErrors);
 
         expect(typeErrors(person)).toEqual([]);
         expect(typeErrorsMaybe(maybePerson)).toEqual([]);
@@ -49,20 +49,20 @@ describe('Required typescript utility type makes all properties required', () =>
     });
 
     it('json encode/decode', () => {
-        const encode = rt.createJitFunction(JitFnIDs.toJsonVal);
-        const encodeMaybe = rtRequired.createJitFunction(JitFnIDs.toJsonVal);
-        const decode = rt.createJitFunction(JitFnIDs.fromJsonVal);
-        const decodeMaybe = rtRequired.createJitFunction(JitFnIDs.fromJsonVal);
+        const encode = rt.createJitFunction(JitFunctions.toJsonVal);
+        const encodeMaybe = rtRequired.createJitFunction(JitFunctions.toJsonVal);
+        const decode = rt.createJitFunction(JitFunctions.fromJsonVal);
+        const decodeMaybe = rtRequired.createJitFunction(JitFunctions.fromJsonVal);
 
         expect(decode(JSON.parse(JSON.stringify(encode(person))))).toEqual({name: 'John', age: 30, createdAt});
         expect(decodeMaybe(JSON.parse(JSON.stringify(encodeMaybe(maybePerson))))).toEqual({createdAt});
     });
 
     it('json stringify', () => {
-        const stringify = rt.createJitFunction(JitFnIDs.jsonStringify);
-        const stringifyMaybe = rtRequired.createJitFunction(JitFnIDs.jsonStringify);
-        const decode = rt.createJitFunction(JitFnIDs.fromJsonVal);
-        const decodeMaybe = rtRequired.createJitFunction(JitFnIDs.fromJsonVal);
+        const stringify = rt.createJitFunction(JitFunctions.jsonStringify);
+        const stringifyMaybe = rtRequired.createJitFunction(JitFunctions.jsonStringify);
+        const decode = rt.createJitFunction(JitFunctions.fromJsonVal);
+        const decodeMaybe = rtRequired.createJitFunction(JitFunctions.fromJsonVal);
 
         expect(decode(JSON.parse(stringify(person)))).toEqual({name: 'John', age: 30, createdAt});
         expect(decodeMaybe(JSON.parse(stringifyMaybe(maybePerson)))).toEqual({createdAt});
@@ -71,8 +71,8 @@ describe('Required typescript utility type makes all properties required', () =>
     it('mock', () => {
         const mocked = rt.mock();
         const mockedMaybe = rtRequired.mock();
-        const isType = rt.createJitFunction(JitFnIDs.isType);
-        const isTypeMaybe = rtRequired.createJitFunction(JitFnIDs.isType);
+        const isType = rt.createJitFunction(JitFunctions.isType);
+        const isTypeMaybe = rtRequired.createJitFunction(JitFunctions.isType);
 
         expect(Object.keys(mocked)).toEqual(['name', 'age', 'createdAt']);
         expect(Object.keys(mockedMaybe).length <= 3).toBe(true);

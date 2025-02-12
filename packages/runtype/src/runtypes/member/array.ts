@@ -11,7 +11,7 @@ import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
 import {random} from '../../lib/mock';
 import {MemberRunType} from '../../lib/baseRunTypes';
 import {childIsExpression} from '../../lib/utils';
-import {JitFnIDs} from '../../constants';
+import {JitFunctions} from '../../constants';
 
 export class ArrayRunType<T extends Type = TypeArray> extends MemberRunType<T> {
     isJitInlined = () => false;
@@ -32,9 +32,9 @@ export class ArrayRunType<T extends Type = TypeArray> extends MemberRunType<T> {
     }
     jitFnHasReturn(fnId: JitFnID): boolean {
         switch (fnId) {
-            case JitFnIDs.isType:
-            case JitFnIDs.jsonStringify:
-            case JitFnIDs.hasUnknownKeys:
+            case JitFunctions.isType.id:
+            case JitFunctions.jsonStringify.id:
+            case JitFunctions.hasUnknownKeys.id:
                 return true;
             default:
                 return super.jitFnHasReturn(fnId);
@@ -70,7 +70,7 @@ export class ArrayRunType<T extends Type = TypeArray> extends MemberRunType<T> {
         const child = this.getJitChild();
         const childCode = child?.compileToJsonVal(comp);
         if (!childCode || !child) return undefined;
-        const isExpression = childIsExpression(JitFnIDs.toJsonVal, child);
+        const isExpression = childIsExpression(JitFunctions.toJsonVal.id, child);
         const code = isExpression ? `${comp.getChildVλl()} = ${childCode};` : childCode;
         return `for (let ${index} = ${this.startIndex()}; ${index} < ${comp.vλl}.length; ${index}++) {${code}}`;
     }
@@ -79,7 +79,7 @@ export class ArrayRunType<T extends Type = TypeArray> extends MemberRunType<T> {
         const child = this.getJitChild();
         const childCode = child?.compileFromJsonVal(comp);
         if (!childCode || !child) return undefined;
-        const isExpression = childIsExpression(JitFnIDs.fromJsonVal, child);
+        const isExpression = childIsExpression(JitFunctions.fromJsonVal.id, child);
         const code = isExpression ? `${comp.getChildVλl()} = ${childCode};` : childCode;
         return `for (let ${index} = ${this.startIndex()}; ${index} < ${comp.vλl}.length; ${index}++) {${code}}`;
     }

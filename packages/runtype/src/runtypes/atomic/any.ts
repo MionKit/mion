@@ -10,7 +10,7 @@ import type {JitConfig, JitFnID, MockOperation} from '../../types';
 import {mockAny} from '../../lib/mock';
 import {AtomicRunType} from '../../lib/baseRunTypes';
 import type {JitCompiler} from '../../lib/jitCompiler';
-import {JitFnIDs} from '../../constants';
+import {JitFunctions} from '../../constants';
 
 const jitConstants: JitConfig = {
     skipJit: false,
@@ -21,7 +21,7 @@ export class AnyRunType extends AtomicRunType<TypeAny | TypeUnknown> {
     getJitConfig = () => jitConstants;
     jitFnHasReturn(fnId: JitFnID): boolean {
         switch (fnId) {
-            case JitFnIDs.typeErrors:
+            case JitFunctions.typeErrors.id:
                 return false;
             default:
                 return super.jitFnHasReturn(fnId);

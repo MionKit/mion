@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {JitFnIDs} from '../../constants';
+import {JitFunctions} from '../../constants';
 import {runType} from '../../runType';
 
 describe('Record  typescript utility type', () => {
@@ -19,7 +19,7 @@ describe('Record  typescript utility type', () => {
     };
 
     it('validate', () => {
-        const isType = rt.createJitFunction(JitFnIDs.isType);
+        const isType = rt.createJitFunction(JitFunctions.isType);
         expect(isType(params)).toEqual(true);
     });
 
@@ -28,7 +28,7 @@ describe('Record  typescript utility type', () => {
             '1': {a: 'hello', b: 'not a number', c: new Date()},
             '2': {a: 'world', b: 2, c: 'not a date'},
         };
-        const typeErrors = rt.createJitFunction(JitFnIDs.typeErrors);
+        const typeErrors = rt.createJitFunction(JitFunctions.typeErrors);
         expect(typeErrors(invalidParams)).toEqual([
             {path: ['1', 'b'], expected: 'number'},
             {path: ['2', 'c'], expected: 'date'},
@@ -36,16 +36,16 @@ describe('Record  typescript utility type', () => {
     });
 
     it('json encode/decode', () => {
-        const encode = rt.createJitFunction(JitFnIDs.toJsonVal);
-        const decode = rt.createJitFunction(JitFnIDs.fromJsonVal);
+        const encode = rt.createJitFunction(JitFunctions.toJsonVal);
+        const decode = rt.createJitFunction(JitFunctions.fromJsonVal);
         const encoded = encode(params);
         const decoded = decode(JSON.parse(JSON.stringify(encoded)));
         expect(decoded).toEqual(params);
     });
 
     it('json stringify', () => {
-        const stringify = rt.createJitFunction(JitFnIDs.jsonStringify);
-        const decode = rt.createJitFunction(JitFnIDs.fromJsonVal);
+        const stringify = rt.createJitFunction(JitFunctions.jsonStringify);
+        const decode = rt.createJitFunction(JitFunctions.fromJsonVal);
         const jsonString = stringify(params);
         const parsed = JSON.parse(jsonString);
         const decoded = decode(parsed);
@@ -54,7 +54,7 @@ describe('Record  typescript utility type', () => {
 
     it('mock', () => {
         const mocked = rt.mock();
-        const isType = rt.createJitFunction(JitFnIDs.isType);
+        const isType = rt.createJitFunction(JitFunctions.isType);
         expect(isType(mocked)).toEqual(true);
         expect(typeof mocked).toBe('object');
         for (const key in mocked) {

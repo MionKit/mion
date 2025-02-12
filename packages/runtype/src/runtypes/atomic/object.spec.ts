@@ -5,12 +5,12 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 import {runType} from '../../runType';
-import {JitFnIDs} from '../../constants';
+import {JitFunctions} from '../../constants';
 
 const rt = runType<object>();
 
 it('validate object', () => {
-    const validate = rt.createJitFunction(JitFnIDs.isType);
+    const validate = rt.createJitFunction(JitFunctions.isType);
     expect(validate({})).toBe(true);
     expect(validate({a: 42, b: 'hello'})).toBe(true);
     expect(validate(null)).toBe(false);
@@ -20,7 +20,7 @@ it('validate object', () => {
 });
 
 it('validate object + errors', () => {
-    const valWithErrors = rt.createJitFunction(JitFnIDs.typeErrors);
+    const valWithErrors = rt.createJitFunction(JitFunctions.typeErrors);
     expect(valWithErrors({})).toEqual([]);
     expect(valWithErrors({a: 42, b: 'hello'})).toEqual([]);
     expect(valWithErrors(null)).toEqual([{path: [], expected: 'objectLiteral'}]);
@@ -30,27 +30,27 @@ it('validate object + errors', () => {
 });
 
 it('encode to json', () => {
-    const toJsonVal = rt.createJitFunction(JitFnIDs.toJsonVal);
+    const toJsonVal = rt.createJitFunction(JitFunctions.toJsonVal);
     const typeValue = null;
     expect(toJsonVal(typeValue)).toEqual(typeValue);
 });
 
 it('decode from json', () => {
-    const fromJsonVal = rt.createJitFunction(JitFnIDs.fromJsonVal);
+    const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
     const typeValue = null;
     const jsonValue = JSON.parse(JSON.stringify(typeValue));
     expect(fromJsonVal(jsonValue)).toEqual(typeValue);
 });
 
 it('json stringify', () => {
-    const jsonStringify = rt.createJitFunction(JitFnIDs.jsonStringify);
-    const fromJsonVal = rt.createJitFunction(JitFnIDs.fromJsonVal);
+    const jsonStringify = rt.createJitFunction(JitFunctions.jsonStringify);
+    const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
     const typeValue = {a: 42, b: 'hello'};
     const roundTrip = fromJsonVal(JSON.parse(jsonStringify(typeValue)));
     expect(roundTrip).toEqual(typeValue);
 });
 
 it('mock', () => {
-    const validate = rt.createJitFunction(JitFnIDs.isType);
+    const validate = rt.createJitFunction(JitFunctions.isType);
     expect(validate(rt.mock())).toBe(true);
 });

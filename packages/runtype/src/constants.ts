@@ -5,57 +5,27 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-export const JitFnNames = {
-    1: 'isType',
-    2: 'typeErrors',
-    3: 'toJsonVal',
-    4: 'fromJsonVal',
-    5: 'jsonStringify',
-    6: 'unknownKeyErrors',
-    7: 'hasUnknownKeys',
-    8: 'stripUnknownKeys',
-    9: 'unknownKeysToUndefined',
-    10: 'aux',
-} as const;
+export interface JitFnSetting {
+    id: number;
+    name: string;
+    hasReturn: boolean;
+    isExpression: boolean;
+}
 
-export const JitFnIDs = {
-    isType: 1,
-    typeErrors: 2,
-    toJsonVal: 3,
-    fromJsonVal: 4,
-    jsonStringify: 5,
-    unknownKeyErrors: 6,
-    hasUnknownKeys: 7,
-    stripUnknownKeys: 8,
-    unknownKeysToUndefined: 9,
-    aux: 10,
-} as const;
+export const JitFunctions = {
+    isType: {id: 1, name: 'isType', hasReturn: false, isExpression: true},
+    typeErrors: {id: 2, name: 'typeErrors', hasReturn: false, isExpression: false},
+    toJsonVal: {id: 3, name: 'toJsonVal', hasReturn: false, isExpression: false},
+    fromJsonVal: {id: 4, name: 'fromJsonVal', hasReturn: false, isExpression: false},
+    jsonStringify: {id: 5, name: 'jsonStringify', hasReturn: false, isExpression: true},
+    unknownKeyErrors: {id: 6, name: 'unknownKeyErrors', hasReturn: false, isExpression: false},
+    hasUnknownKeys: {id: 7, name: 'hasUnknownKeys', hasReturn: false, isExpression: true},
+    stripUnknownKeys: {id: 8, name: 'stripUnknownKeys', hasReturn: false, isExpression: false},
+    unknownKeysToUndefined: {id: 9, name: 'unknownKeysToUndefined', hasReturn: false, isExpression: false},
+    aux: {id: 10, name: 'aux', hasReturn: true, isExpression: false},
+} as const satisfies {[key: string]: JitFnSetting};
 
-export const defaultJitFnHasReturn = {
-    isType: false,
-    typeErrors: false,
-    toJsonVal: false,
-    fromJsonVal: false,
-    jsonStringify: false,
-    unknownKeyErrors: false,
-    hasUnknownKeys: false,
-    stripUnknownKeys: false,
-    unknownKeysToUndefined: false,
-    aux: true,
-} as const;
-
-export const defaultJitFnIsExpression = {
-    isType: true,
-    typeErrors: false,
-    toJsonVal: false,
-    fromJsonVal: false,
-    jsonStringify: true,
-    unknownKeyErrors: false,
-    hasUnknownKeys: true,
-    stripUnknownKeys: false,
-    unknownKeysToUndefined: false,
-    aux: false,
-} as const;
+export const jitFunctionList = Object.values(JitFunctions);
 
 export const validPropertyNameRegExp = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
 

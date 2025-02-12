@@ -8,7 +8,7 @@ import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
 import {MemberRunType} from '../../lib/baseRunTypes';
 import {MockOperation, SrcMember} from '../../types';
 import {childIsExpression} from '../../lib/utils';
-import {JitFnIDs} from '../../constants';
+import {JitFunctions} from '../../constants';
 
 // TODO: investigate is other member types cloud extend this class instead of MemberRunType
 export class GenericMemberRunType<T extends SrcMember> extends MemberRunType<T> {
@@ -44,7 +44,7 @@ export class GenericMemberRunType<T extends SrcMember> extends MemberRunType<T> 
         const child = this.getJitChild();
         const childCode = child?.compileToJsonVal(comp);
         if (!childCode || !child) return undefined;
-        const isExpression = childIsExpression(JitFnIDs.toJsonVal, child); // expressions must be assigned to a variable
+        const isExpression = childIsExpression(JitFunctions.toJsonVal.id, child); // expressions must be assigned to a variable
         const code = isExpression ? `${comp.getChildVλl()} = ${childCode};` : childCode;
         if (this.isOptional()) return `if (${comp.getChildVλl()} !== undefined) {${code}}`;
         return code;
@@ -53,7 +53,7 @@ export class GenericMemberRunType<T extends SrcMember> extends MemberRunType<T> 
         const child = this.getJitChild();
         const childCode = child?.compileFromJsonVal(comp);
         if (!childCode || !child) return undefined;
-        const isExpression = childIsExpression(JitFnIDs.fromJsonVal, child);
+        const isExpression = childIsExpression(JitFunctions.fromJsonVal.id, child);
         const code = isExpression ? `${comp.getChildVλl()} = ${childCode};` : childCode;
         if (this.isOptional()) return `if (${comp.getChildVλl()} !== undefined) {${code}}`;
         return code;

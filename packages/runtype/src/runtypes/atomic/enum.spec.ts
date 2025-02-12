@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 import {runType} from '../../runType';
-import {JitFnIDs} from '../../constants';
+import {JitFunctions} from '../../constants';
 
 enum Color {
     Red,
@@ -16,7 +16,7 @@ enum Color {
 const rt = runType<Color>();
 
 it('validate enum', () => {
-    const validate = rt.createJitFunction(JitFnIDs.isType);
+    const validate = rt.createJitFunction(JitFunctions.isType);
     expect(validate(Color.Red)).toBe(true);
     expect(validate(Color.Green)).toBe(true);
     expect(validate(Color.Blue)).toBe(true);
@@ -29,7 +29,7 @@ it('validate enum', () => {
 });
 
 it('validate enum + errors', () => {
-    const valWithErrors = rt.createJitFunction(JitFnIDs.typeErrors);
+    const valWithErrors = rt.createJitFunction(JitFunctions.typeErrors);
     expect(valWithErrors(Color.Red)).toEqual([]);
     expect(valWithErrors(Color.Green)).toEqual([]);
     expect(valWithErrors(Color.Blue)).toEqual([]);
@@ -42,15 +42,15 @@ it('validate enum + errors', () => {
 });
 
 it('encode/decode to json', () => {
-    const toJsonVal = rt.createJitFunction(JitFnIDs.toJsonVal);
-    const fromJsonVal = rt.createJitFunction(JitFnIDs.fromJsonVal);
+    const toJsonVal = rt.createJitFunction(JitFunctions.toJsonVal);
+    const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
     const typeValue = Color.Red;
     expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(typeValue))))).toEqual(typeValue);
 });
 
 it('json stringify', () => {
-    const jsonStringify = rt.createJitFunction(JitFnIDs.jsonStringify);
-    const fromJsonVal = rt.createJitFunction(JitFnIDs.fromJsonVal);
+    const jsonStringify = rt.createJitFunction(JitFunctions.jsonStringify);
+    const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
     const typeValue = Color.Red;
     const roundTrip = fromJsonVal(JSON.parse(jsonStringify(typeValue)));
     expect(roundTrip).toEqual(typeValue);
@@ -63,6 +63,6 @@ it('json stringify', () => {
 it('mock', () => {
     const mocked = rt.mock();
     expect(mocked === 0 || mocked === 'green' || mocked === 2).toBe(true);
-    const validate = rt.createJitFunction(JitFnIDs.isType);
+    const validate = rt.createJitFunction(JitFunctions.isType);
     expect(validate(rt.mock())).toBe(true);
 });

@@ -11,7 +11,7 @@ import {
     jitDefaultArgs,
     jitDefaultErrorArgs,
     jitErrorArgs,
-    JitFnIDs,
+    JitFunctions,
     jitNames,
     maxStackDepth,
     maxStackErrorMessage,
@@ -152,23 +152,23 @@ export class BaseCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extends 
         let isNoop = false;
         let code = this.code.trim(); // todo: investigate removing all white spaces from the code
         switch (this.fnId) {
-            case JitFnIDs.isType:
+            case JitFunctions.isType.id:
                 isNoop = !this.code || this.code === 'true' || this.code === 'return true';
                 if (isNoop) code = `return true`; // if code is a noop, we still need to return true
                 break;
-            case JitFnIDs.hasUnknownKeys:
+            case JitFunctions.hasUnknownKeys.id:
                 isNoop = !this.code || this.code === 'false' || this.code === 'return false';
                 if (isNoop) code = `return false`; // if code is a noop, we still need return false
                 break;
-            case JitFnIDs.toJsonVal:
-            case JitFnIDs.fromJsonVal:
-            case JitFnIDs.stripUnknownKeys:
-            case JitFnIDs.unknownKeysToUndefined:
+            case JitFunctions.toJsonVal.id:
+            case JitFunctions.fromJsonVal.id:
+            case JitFunctions.stripUnknownKeys.id:
+            case JitFunctions.unknownKeysToUndefined.id:
                 isNoop = !this.code || this.code === this.args.vλ || this.code === `return ${this.args.vλl}`;
                 if (isNoop) code = `return ${this.args.vλl}`; // if code is a noop, we need to return the value
                 break;
-            case JitFnIDs.typeErrors:
-            case JitFnIDs.unknownKeyErrors:
+            case JitFunctions.typeErrors.id:
+            case JitFunctions.unknownKeyErrors.id:
                 isNoop = !this.code || this.code === this.args.εrr || this.code === `return ${this.args.εrr}`;
                 if (isNoop) code = `return ${this.args.εrr}`; // if code is a noop, we need to return the error array
                 break;
@@ -204,23 +204,23 @@ export class JitErrorsCompiler<ID extends JitFnID = any> extends BaseCompiler<ty
 
 export function createJitCompiler(rt: BaseRunType, fnId: JitFnID, parent?: BaseCompiler): BaseCompiler {
     switch (fnId) {
-        case JitFnIDs.isType:
+        case JitFunctions.isType.id:
             return new JitCompiler(rt, fnId, parent?.totalLength);
-        case JitFnIDs.typeErrors:
+        case JitFunctions.typeErrors.id:
             return new JitErrorsCompiler(rt, fnId, parent?.totalLength);
-        case JitFnIDs.toJsonVal:
+        case JitFunctions.toJsonVal.id:
             return new JitCompiler(rt, fnId, parent?.totalLength);
-        case JitFnIDs.fromJsonVal:
+        case JitFunctions.fromJsonVal.id:
             return new JitCompiler(rt, fnId, parent?.totalLength);
-        case JitFnIDs.jsonStringify:
+        case JitFunctions.jsonStringify.id:
             return new JitCompiler(rt, fnId, parent?.totalLength);
-        case JitFnIDs.unknownKeyErrors:
+        case JitFunctions.unknownKeyErrors.id:
             return new JitErrorsCompiler(rt, fnId, parent?.totalLength);
-        case JitFnIDs.hasUnknownKeys:
+        case JitFunctions.hasUnknownKeys.id:
             return new JitCompiler(rt, fnId, parent?.totalLength);
-        case JitFnIDs.stripUnknownKeys:
+        case JitFunctions.stripUnknownKeys.id:
             return new JitCompiler(rt, fnId, parent?.totalLength);
-        case JitFnIDs.unknownKeysToUndefined:
+        case JitFunctions.unknownKeysToUndefined.id:
             return new JitCompiler(rt, fnId, parent?.totalLength);
         default:
             throw new Error(`Unknown compile operation: ${fnId}`);

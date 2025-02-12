@@ -20,7 +20,7 @@ import {
 import {BaseRunType, MemberRunType} from '../../lib/baseRunTypes';
 import {jitUtils} from '../../lib/jitUtils';
 import {InterfaceRunType} from '../collection/interface';
-import {JitFnIDs} from '../../constants';
+import {JitFunctions} from '../../constants';
 
 export class PropertyRunType extends MemberRunType<TypePropertySignature | TypeProperty> {
     getChildIndex = memorize(() => getPropIndex(this.src));
@@ -54,7 +54,7 @@ export class PropertyRunType extends MemberRunType<TypePropertySignature | TypeP
         const child = this.getJitChild();
         const childCode = child?.compileToJsonVal(comp);
         if (!child || !childCode) return undefined;
-        const isExpression = childIsExpression(JitFnIDs.toJsonVal, child);
+        const isExpression = childIsExpression(JitFunctions.toJsonVal.id, child);
         const code = isExpression ? `${comp.getChildVλl()} = ${childCode};` : childCode;
         if (this.src.optional) return `if (${comp.getChildVλl()} !== undefined) {${code}}`;
         return code;
@@ -63,7 +63,7 @@ export class PropertyRunType extends MemberRunType<TypePropertySignature | TypeP
         const child = this.getJitChild();
         const childCode = child?.compileFromJsonVal(comp);
         if (!child || !childCode) return undefined;
-        const isExpression = childIsExpression(JitFnIDs.fromJsonVal, child);
+        const isExpression = childIsExpression(JitFunctions.fromJsonVal.id, child);
         const code = isExpression ? `${comp.getChildVλl()} = ${childCode};` : childCode;
         if (this.src.optional) return `if (${comp.getChildVλl()} !== undefined) {${code}}`;
         return code;

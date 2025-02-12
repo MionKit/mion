@@ -4,7 +4,7 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
-import {JitFnIDs} from '../../constants';
+import {JitFunctions} from '../../constants';
 import {runType} from '../../runType';
 
 function cloneMap<K, V>(map: Map<K, V>): Map<K, V> {
@@ -22,7 +22,7 @@ describe('MapRunType with simple key and values Map<string, number>', () => {
     const rt = runType<Map<string, number>>();
 
     it('validate Map', () => {
-        const validate = rt.createJitFunction(JitFnIDs.isType);
+        const validate = rt.createJitFunction(JitFunctions.isType);
         expect(validate(testMap)).toBe(true);
 
         const notMap = 'hello';
@@ -34,12 +34,12 @@ describe('MapRunType with simple key and values Map<string, number>', () => {
     });
 
     it('validate empty Map', () => {
-        const validate = rt.createJitFunction(JitFnIDs.isType);
+        const validate = rt.createJitFunction(JitFunctions.isType);
         expect(validate(new Map())).toBe(true);
     });
 
     it('Get Map errors', () => {
-        const valWithErrors = rt.createJitFunction(JitFnIDs.typeErrors);
+        const valWithErrors = rt.createJitFunction(JitFunctions.typeErrors);
         expect(valWithErrors(testMap)).toEqual([]);
 
         const notMap = 'hello';
@@ -53,7 +53,7 @@ describe('MapRunType with simple key and values Map<string, number>', () => {
 
     it('Get errors for a map which keys can not be serialized to json ie: Map<bigint, number>', () => {
         const rtBigMap = runType<Map<bigint, number>>();
-        const valWithErrors = rtBigMap.createJitFunction(JitFnIDs.typeErrors);
+        const valWithErrors = rtBigMap.createJitFunction(JitFunctions.typeErrors);
         const bigMap = new Map<bigint, number>([[BigInt(1), 1]]);
         expect(valWithErrors(bigMap)).toEqual([]);
 
@@ -68,8 +68,8 @@ describe('MapRunType with simple key and values Map<string, number>', () => {
     });
 
     it('encode/decode Map to json', () => {
-        const toJsonVal = rt.createJitFunction(JitFnIDs.toJsonVal);
-        const fromJsonVal = rt.createJitFunction(JitFnIDs.fromJsonVal);
+        const toJsonVal = rt.createJitFunction(JitFunctions.toJsonVal);
+        const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
 
         // the encode/decode operations are destructive, so we need to clone the map
         const mapCopy = cloneMap(testMap);
@@ -81,8 +81,8 @@ describe('MapRunType with simple key and values Map<string, number>', () => {
     });
 
     it('json stringify Map', () => {
-        const jsonStringify = rt.createJitFunction(JitFnIDs.jsonStringify);
-        const fromJsonVal = rt.createJitFunction(JitFnIDs.fromJsonVal);
+        const jsonStringify = rt.createJitFunction(JitFunctions.jsonStringify);
+        const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
         // Should serialize the Map as an array of entries
         const mapCopy = cloneMap(testMap);
         const jsonString = jsonStringify(mapCopy);
@@ -91,8 +91,8 @@ describe('MapRunType with simple key and values Map<string, number>', () => {
     });
 
     it('has unknown keys in Map<string, number>', () => {
-        const hasUnknownKeys = rt.createJitFunction(JitFnIDs.hasUnknownKeys);
-        const validate = rt.createJitFunction(JitFnIDs.isType);
+        const hasUnknownKeys = rt.createJitFunction(JitFunctions.hasUnknownKeys);
+        const validate = rt.createJitFunction(JitFunctions.isType);
         const validMap = new Map<string, number>([
             ['one', 1],
             ['two', 2],
@@ -111,7 +111,7 @@ describe('MapRunType with simple key and values Map<string, number>', () => {
     });
 
     it('unknown key errors in Map<string, number>', () => {
-        const unknownKeyErrors = rt.createJitFunction(JitFnIDs.unknownKeyErrors);
+        const unknownKeyErrors = rt.createJitFunction(JitFunctions.unknownKeyErrors);
         const validMap = new Map<string, number>([
             ['one', 1],
             ['two', 2],
@@ -128,7 +128,7 @@ describe('MapRunType with simple key and values Map<string, number>', () => {
 
     it('mock Map<string, number>', () => {
         const mock = rt.mock();
-        const validate = rt.createJitFunction(JitFnIDs.isType);
+        const validate = rt.createJitFunction(JitFunctions.isType);
         expect(mock instanceof Map).toBeTruthy();
         expect(validate(mock)).toBe(true);
     });
@@ -152,7 +152,7 @@ describe('MapRunType with simple key and complex objects Map<string, SmallObject
     const rtStringSmallObject = runType<Map<string, SmallObject>>();
 
     it('validate Map<string, SmallObject>', () => {
-        const validate = rtStringSmallObject.createJitFunction(JitFnIDs.isType);
+        const validate = rtStringSmallObject.createJitFunction(JitFunctions.isType);
         expect(validate(testMapStringSmallObject)).toBe(true);
 
         const notMap = 'hello';
@@ -164,7 +164,7 @@ describe('MapRunType with simple key and complex objects Map<string, SmallObject
     });
 
     it('Get Map errors Map<string, SmallObject>', () => {
-        const valWithErrors = rtStringSmallObject.createJitFunction(JitFnIDs.typeErrors);
+        const valWithErrors = rtStringSmallObject.createJitFunction(JitFunctions.typeErrors);
         expect(valWithErrors(testMapStringSmallObject)).toEqual([]);
 
         const notMap = 'hello';
@@ -179,8 +179,8 @@ describe('MapRunType with simple key and complex objects Map<string, SmallObject
     });
 
     it('encode/decode Map<string, SmallObject> to json', () => {
-        const toJsonVal = rtStringSmallObject.createJitFunction(JitFnIDs.toJsonVal);
-        const fromJsonVal = rtStringSmallObject.createJitFunction(JitFnIDs.fromJsonVal);
+        const toJsonVal = rtStringSmallObject.createJitFunction(JitFunctions.toJsonVal);
+        const fromJsonVal = rtStringSmallObject.createJitFunction(JitFunctions.fromJsonVal);
 
         // the encode/decode operations are destructive, so we need to clone the map
         const mapCopy = cloneMap(testMapStringSmallObject);
@@ -191,8 +191,8 @@ describe('MapRunType with simple key and complex objects Map<string, SmallObject
     });
 
     it('json stringify Map<string, SmallObject>', () => {
-        const jsonStringify = rtStringSmallObject.createJitFunction(JitFnIDs.jsonStringify);
-        const fromJsonVal = rtStringSmallObject.createJitFunction(JitFnIDs.fromJsonVal);
+        const jsonStringify = rtStringSmallObject.createJitFunction(JitFunctions.jsonStringify);
+        const fromJsonVal = rtStringSmallObject.createJitFunction(JitFunctions.fromJsonVal);
         // Should serialize the Map as an array of entries
         const mapCopy = cloneMap(testMapStringSmallObject);
         const jsonString = jsonStringify(mapCopy);
@@ -201,8 +201,8 @@ describe('MapRunType with simple key and complex objects Map<string, SmallObject
     });
 
     it('has unknown keys in Map<string, SmallObject>', () => {
-        const hasUnknownKeys = rtStringSmallObject.createJitFunction(JitFnIDs.hasUnknownKeys);
-        const validate = rtStringSmallObject.createJitFunction(JitFnIDs.isType);
+        const hasUnknownKeys = rtStringSmallObject.createJitFunction(JitFunctions.hasUnknownKeys);
+        const validate = rtStringSmallObject.createJitFunction(JitFunctions.isType);
         const validMap = new Map<string, SmallObject>([
             ['key1', {prop1: 'value1', prop2: 1, prop3: true}],
             ['key2', {prop1: 'value2', prop2: 2, prop3: false}],
@@ -218,8 +218,8 @@ describe('MapRunType with simple key and complex objects Map<string, SmallObject
     });
 
     it('unknown key errors in Map<string, SmallObject>', () => {
-        const unknownKeyErrors = rtStringSmallObject.createJitFunction(JitFnIDs.unknownKeyErrors);
-        const validate = rtStringSmallObject.createJitFunction(JitFnIDs.isType);
+        const unknownKeyErrors = rtStringSmallObject.createJitFunction(JitFunctions.unknownKeyErrors);
+        const validate = rtStringSmallObject.createJitFunction(JitFunctions.isType);
         const validMap = new Map<string, SmallObject>([['key1', {prop1: 'value1', prop2: 1, prop3: true}]]);
         const mapWithUnknownKeys = new Map<string, any>([
             ['key1', {prop1: 'value1', prop2: 1, prop3: true, unknownProp: 'test'}],
@@ -233,7 +233,7 @@ describe('MapRunType with simple key and complex objects Map<string, SmallObject
     });
 
     it('strip unknown keys in Map<string, SmallObject>', () => {
-        const stripUnknownKeys = rtStringSmallObject.createJitFunction(JitFnIDs.stripUnknownKeys);
+        const stripUnknownKeys = rtStringSmallObject.createJitFunction(JitFunctions.stripUnknownKeys);
         const mapWithUnknownKeys = new Map<string, any>([
             ['key1', {prop1: 'value1', prop2: 1, prop3: true, unknownProp: 'test'}],
         ]);
@@ -243,7 +243,7 @@ describe('MapRunType with simple key and complex objects Map<string, SmallObject
     });
 
     it('unknown keys to undefined in Map<string, SmallObject>', () => {
-        const unknownKeysToUndefined = rtStringSmallObject.createJitFunction(JitFnIDs.unknownKeysToUndefined);
+        const unknownKeysToUndefined = rtStringSmallObject.createJitFunction(JitFunctions.unknownKeysToUndefined);
         const mapWithUnknownKeys = new Map<string, any>([
             ['key1', {prop1: 'value1', prop2: 1, prop3: true, unknownProp: 'test'}],
         ]);
@@ -259,7 +259,7 @@ describe('MapRunType with simple key and complex objects Map<string, SmallObject
 
     it('mock Map<string, SmallObject>', () => {
         const mock = rtStringSmallObject.mock();
-        const validate = rtStringSmallObject.createJitFunction(JitFnIDs.isType);
+        const validate = rtStringSmallObject.createJitFunction(JitFunctions.isType);
         expect(mock instanceof Map).toBeTruthy();
         expect(validate(mock)).toBe(true);
     });
@@ -283,7 +283,7 @@ describe('MapRunType with complex key and simple values Map<SmallObject, number>
     const rtSmallObjectNumber = runType<Map<SmallObject, number>>();
 
     it('validate Map<SmallObject, number>', () => {
-        const validate = rtSmallObjectNumber.createJitFunction(JitFnIDs.isType);
+        const validate = rtSmallObjectNumber.createJitFunction(JitFunctions.isType);
         expect(validate(testMapSmallObjectNumber)).toBe(true);
 
         const notMap = 'hello';
@@ -295,7 +295,7 @@ describe('MapRunType with complex key and simple values Map<SmallObject, number>
     });
 
     it('Get Map errors Map<SmallObject, number>', () => {
-        const valWithErrors = rtSmallObjectNumber.createJitFunction(JitFnIDs.typeErrors);
+        const valWithErrors = rtSmallObjectNumber.createJitFunction(JitFunctions.typeErrors);
         expect(valWithErrors(testMapSmallObjectNumber)).toEqual([]);
 
         const notMap = 'hello';
@@ -312,8 +312,8 @@ describe('MapRunType with complex key and simple values Map<SmallObject, number>
     });
 
     it('encode/decode Map<SmallObject, number> to json', () => {
-        const toJsonVal = rtSmallObjectNumber.createJitFunction(JitFnIDs.toJsonVal);
-        const fromJsonVal = rtSmallObjectNumber.createJitFunction(JitFnIDs.fromJsonVal);
+        const toJsonVal = rtSmallObjectNumber.createJitFunction(JitFunctions.toJsonVal);
+        const fromJsonVal = rtSmallObjectNumber.createJitFunction(JitFunctions.fromJsonVal);
 
         // the encode/decode operations are destructive, so we need to clone the map
         const mapCopy = cloneMap(testMapSmallObjectNumber);
@@ -324,8 +324,8 @@ describe('MapRunType with complex key and simple values Map<SmallObject, number>
     });
 
     it('json stringify Map<SmallObject, number>', () => {
-        const jsonStringify = rtSmallObjectNumber.createJitFunction(JitFnIDs.jsonStringify);
-        const fromJsonVal = rtSmallObjectNumber.createJitFunction(JitFnIDs.fromJsonVal);
+        const jsonStringify = rtSmallObjectNumber.createJitFunction(JitFunctions.jsonStringify);
+        const fromJsonVal = rtSmallObjectNumber.createJitFunction(JitFunctions.fromJsonVal);
         // Should serialize the Map as an array of entries
         const mapCopy = cloneMap(testMapSmallObjectNumber);
         const jsonString = jsonStringify(mapCopy);
@@ -334,8 +334,8 @@ describe('MapRunType with complex key and simple values Map<SmallObject, number>
     });
 
     it('has unknown keys in Map<SmallObject, number>', () => {
-        const hasUnknownKeys = rtSmallObjectNumber.createJitFunction(JitFnIDs.hasUnknownKeys);
-        const validate = rtSmallObjectNumber.createJitFunction(JitFnIDs.isType);
+        const hasUnknownKeys = rtSmallObjectNumber.createJitFunction(JitFunctions.hasUnknownKeys);
+        const validate = rtSmallObjectNumber.createJitFunction(JitFunctions.isType);
         const validMap = new Map<SmallObject, number>([
             [{prop1: 'value1', prop2: 1, prop3: true}, 1],
             [{prop1: 'value2', prop2: 2, prop3: false}, 2],
@@ -351,8 +351,8 @@ describe('MapRunType with complex key and simple values Map<SmallObject, number>
     });
 
     it('unknown key errors in Map<SmallObject, number>', () => {
-        const unknownKeyErrors = rtSmallObjectNumber.createJitFunction(JitFnIDs.unknownKeyErrors);
-        const validate = rtSmallObjectNumber.createJitFunction(JitFnIDs.isType);
+        const unknownKeyErrors = rtSmallObjectNumber.createJitFunction(JitFunctions.unknownKeyErrors);
+        const validate = rtSmallObjectNumber.createJitFunction(JitFunctions.isType);
         const validMap = new Map<SmallObject, number>([[{prop1: 'value1', prop2: 1, prop3: true}, 1]]);
         const mapWithUnknownKeys = new Map<any, number>([[{prop1: 'value1', prop2: 1, prop3: true, unknownProp: 'test'}, 1]]);
 
@@ -364,7 +364,7 @@ describe('MapRunType with complex key and simple values Map<SmallObject, number>
     });
 
     it('strip unknown keys in Map<SmallObject, number>', () => {
-        const stripUnknownKeys = rtSmallObjectNumber.createJitFunction(JitFnIDs.stripUnknownKeys);
+        const stripUnknownKeys = rtSmallObjectNumber.createJitFunction(JitFunctions.stripUnknownKeys);
         const entry = {prop1: 'value1', prop2: 1, prop3: true, unknownProp: 'test'};
         const mapWithUnknownKeys = new Map<any, number>([[entry, 1]]);
 
@@ -373,7 +373,7 @@ describe('MapRunType with complex key and simple values Map<SmallObject, number>
     });
 
     it('unknown keys to undefined in Map<SmallObject, number>', () => {
-        const unknownKeysToUndefined = rtSmallObjectNumber.createJitFunction(JitFnIDs.unknownKeysToUndefined);
+        const unknownKeysToUndefined = rtSmallObjectNumber.createJitFunction(JitFunctions.unknownKeysToUndefined);
         const entry = {prop1: 'value1', prop2: 1, prop3: true, unknownProp: 'test'};
         const mapWithUnknownKeys = new Map<any, number>([[entry, 1]]);
 
@@ -383,7 +383,7 @@ describe('MapRunType with complex key and simple values Map<SmallObject, number>
 
     it('mock Map<SmallObject, number>', () => {
         const mock = rtSmallObjectNumber.mock();
-        const validate = rtSmallObjectNumber.createJitFunction(JitFnIDs.isType);
+        const validate = rtSmallObjectNumber.createJitFunction(JitFunctions.isType);
         expect(mock instanceof Map).toBeTruthy();
         expect(validate(mock)).toBe(true);
     });
@@ -398,7 +398,7 @@ describe('MapRunType with nested maps', () => {
     const rtDeepWithMap = runType<DeepWithMap>();
 
     it('validate objects with nested maps', () => {
-        const validate = rtDeepWithMap.createJitFunction(JitFnIDs.isType);
+        const validate = rtDeepWithMap.createJitFunction(JitFunctions.isType);
         const obj: DeepWithMap = {
             a: 'a',
             b: new Map([
@@ -417,7 +417,7 @@ describe('MapRunType with nested maps', () => {
     });
 
     it('Get Map errors with nested maps', () => {
-        const valWithErrors = rtDeepWithMap.createJitFunction(JitFnIDs.typeErrors);
+        const valWithErrors = rtDeepWithMap.createJitFunction(JitFunctions.typeErrors);
         const obj: DeepWithMap = {
             a: 'a',
             b: new Map([
@@ -438,8 +438,8 @@ describe('MapRunType with nested maps', () => {
     });
 
     it('encode/decode objects with nested maps to json', () => {
-        const toJsonVal = rtDeepWithMap.createJitFunction(JitFnIDs.toJsonVal);
-        const fromJsonVal = rtDeepWithMap.createJitFunction(JitFnIDs.fromJsonVal);
+        const toJsonVal = rtDeepWithMap.createJitFunction(JitFunctions.toJsonVal);
+        const fromJsonVal = rtDeepWithMap.createJitFunction(JitFunctions.fromJsonVal);
 
         const obj: DeepWithMap = {
             a: 'a',
@@ -456,8 +456,8 @@ describe('MapRunType with nested maps', () => {
     });
 
     it('json stringify objects with nested maps', () => {
-        const jsonStringify = rtDeepWithMap.createJitFunction(JitFnIDs.jsonStringify);
-        const fromJsonVal = rtDeepWithMap.createJitFunction(JitFnIDs.fromJsonVal);
+        const jsonStringify = rtDeepWithMap.createJitFunction(JitFunctions.jsonStringify);
+        const fromJsonVal = rtDeepWithMap.createJitFunction(JitFunctions.fromJsonVal);
 
         const obj: DeepWithMap = {
             a: 'a',
@@ -472,8 +472,8 @@ describe('MapRunType with nested maps', () => {
     });
 
     it('has unknown keys in objects with nested maps', () => {
-        const hasUnknownKeys = rtDeepWithMap.createJitFunction(JitFnIDs.hasUnknownKeys);
-        const validate = rtDeepWithMap.createJitFunction(JitFnIDs.isType);
+        const hasUnknownKeys = rtDeepWithMap.createJitFunction(JitFunctions.hasUnknownKeys);
+        const validate = rtDeepWithMap.createJitFunction(JitFunctions.isType);
         const obj: DeepWithMap = {
             a: 'a',
             b: new Map([
@@ -495,8 +495,8 @@ describe('MapRunType with nested maps', () => {
     });
 
     it('unknown key errors in objects with nested maps', () => {
-        const unknownKeyErrors = rtDeepWithMap.createJitFunction(JitFnIDs.unknownKeyErrors);
-        const validate = rtDeepWithMap.createJitFunction(JitFnIDs.isType);
+        const unknownKeyErrors = rtDeepWithMap.createJitFunction(JitFunctions.unknownKeyErrors);
+        const validate = rtDeepWithMap.createJitFunction(JitFunctions.isType);
         const obj: DeepWithMap = {
             a: 'a',
             b: new Map([
@@ -520,7 +520,7 @@ describe('MapRunType with nested maps', () => {
     });
 
     it('strip unknown keys in objects with nested maps', () => {
-        const stripUnknownKeys = rtDeepWithMap.createJitFunction(JitFnIDs.stripUnknownKeys);
+        const stripUnknownKeys = rtDeepWithMap.createJitFunction(JitFunctions.stripUnknownKeys);
         const objWithUnknownKeys = {
             a: 'a',
             b: new Map([
@@ -540,7 +540,7 @@ describe('MapRunType with nested maps', () => {
     });
 
     it('unknown keys to undefined in objects with nested maps', () => {
-        const unknownKeysToUndefined = rtDeepWithMap.createJitFunction(JitFnIDs.unknownKeysToUndefined);
+        const unknownKeysToUndefined = rtDeepWithMap.createJitFunction(JitFunctions.unknownKeysToUndefined);
         const objWithUnknownKeys = {
             a: 'a',
             b: new Map([
@@ -561,7 +561,7 @@ describe('MapRunType with nested maps', () => {
 
     it('mock objects with nested maps', () => {
         const mock = rtDeepWithMap.mock();
-        const validate = rtDeepWithMap.createJitFunction(JitFnIDs.isType);
+        const validate = rtDeepWithMap.createJitFunction(JitFunctions.isType);
         expect(mock.b instanceof Map).toBeTruthy();
         expect(validate(mock)).toBe(true);
     });

@@ -19,15 +19,14 @@ import type {
     SrcType,
     SrcCollection,
     CustomVλl,
+    JitFn,
 } from '../types';
 import {getPropIndex, memorize, toLiteral} from './utils';
 import {
-    defaultJitFnHasReturn,
-    defaultJitFnIsExpression,
     jitArgs,
     jitErrorArgs,
-    JitFnIDs,
-    JitFnNames,
+    jitFunctionList,
+    JitFunctions,
     maxStackDepth,
     maxStackErrorMessage,
 } from '../constants';
@@ -136,8 +135,8 @@ export abstract class BaseRunType<T extends Type = any> implements RunType {
 
     // ########## Create Jit Functions ##########
 
-    createJitFunction = (fnId: JitFnID): ((...args: any[]) => any) => {
-        return this.getJitCompiledOperation(fnId).fn;
+    createJitFunction = (jitFn: JitFn): ((...args: any[]) => any) => {
+        return this.getJitCompiledOperation(jitFn.id).fn;
     };
 
     getJitCompiledOperation(fnId: JitFnID, parentCop?: JitCompiler): CompiledOperation {
@@ -174,31 +173,31 @@ export abstract class BaseRunType<T extends Type = any> implements RunType {
     // ########## Compile Methods ##########
 
     compileIsType(comp: JitCompiler): string | undefined {
-        return this.compile(comp, JitFnIDs.isType);
+        return this.compile(comp, JitFunctions.isType.id);
     }
     compileTypeErrors(comp: JitErrorsCompiler): string | undefined {
-        return this.compile(comp, JitFnIDs.typeErrors);
+        return this.compile(comp, JitFunctions.typeErrors.id);
     }
     compileToJsonVal(comp: JitCompiler): string | undefined {
-        return this.compile(comp, JitFnIDs.toJsonVal);
+        return this.compile(comp, JitFunctions.toJsonVal.id);
     }
     compileFromJsonVal(comp: JitCompiler): string | undefined {
-        return this.compile(comp, JitFnIDs.fromJsonVal);
+        return this.compile(comp, JitFunctions.fromJsonVal.id);
     }
     compileJsonStringify(comp: JitCompiler): string | undefined {
-        return this.compile(comp, JitFnIDs.jsonStringify);
+        return this.compile(comp, JitFunctions.jsonStringify.id);
     }
     compileUnknownKeyErrors(comp: JitErrorsCompiler): string | undefined {
-        return this.compile(comp, JitFnIDs.unknownKeyErrors);
+        return this.compile(comp, JitFunctions.unknownKeyErrors.id);
     }
     compileHasUnknownKeys(comp: JitCompiler): string | undefined {
-        return this.compile(comp, JitFnIDs.hasUnknownKeys);
+        return this.compile(comp, JitFunctions.hasUnknownKeys.id);
     }
     compileStripUnknownKeys(comp: JitCompiler): string | undefined {
-        return this.compile(comp, JitFnIDs.stripUnknownKeys);
+        return this.compile(comp, JitFunctions.stripUnknownKeys.id);
     }
     compileUnknownKeysToUndefined(comp: JitCompiler): string | undefined {
-        return this.compile(comp, JitFnIDs.unknownKeysToUndefined);
+        return this.compile(comp, JitFunctions.unknownKeysToUndefined.id);
     }
     /**
      * Compiles the current function.
@@ -219,15 +218,15 @@ export abstract class BaseRunType<T extends Type = any> implements RunType {
         } else {
             // prettier-ignore
             switch (fnId) {
-                case JitFnIDs.isType: code = this._compileIsType(comp); break;
-                case JitFnIDs.typeErrors: code = this._compileTypeErrors(comp as JitErrorsCompiler); break;
-                case JitFnIDs.toJsonVal: code = this._compileToJsonVal(comp); break;
-                case JitFnIDs.fromJsonVal: code = this._compileFromJsonVal(comp); break;
-                case JitFnIDs.jsonStringify: code = this._compileJsonStringify(comp); break;
-                case JitFnIDs.unknownKeyErrors: code = this._compileUnknownKeyErrors(comp as JitErrorsCompiler); break;
-                case JitFnIDs.hasUnknownKeys: code = this._compileHasUnknownKeys(comp); break;
-                case JitFnIDs.stripUnknownKeys: code = this._compileStripUnknownKeys(comp); break;
-                case JitFnIDs.unknownKeysToUndefined: code = this._compileUnknownKeysToUndefined(comp); break;
+                case JitFunctions.isType.id: code = this._compileIsType(comp); break;
+                case JitFunctions.typeErrors.id: code = this._compileTypeErrors(comp as JitErrorsCompiler); break;
+                case JitFunctions.toJsonVal.id: code = this._compileToJsonVal(comp); break;
+                case JitFunctions.fromJsonVal.id: code = this._compileFromJsonVal(comp); break;
+                case JitFunctions.jsonStringify.id: code = this._compileJsonStringify(comp); break;
+                case JitFunctions.unknownKeyErrors.id: code = this._compileUnknownKeyErrors(comp as JitErrorsCompiler); break;
+                case JitFunctions.hasUnknownKeys.id: code = this._compileHasUnknownKeys(comp); break;
+                case JitFunctions.stripUnknownKeys.id: code = this._compileStripUnknownKeys(comp); break;
+                case JitFunctions.unknownKeysToUndefined.id: code = this._compileUnknownKeysToUndefined(comp); break;
                 default: throw new Error(`Unknown compile operation: ${fnId}`);
             }
             if (code) code = this.handleReturnValues(comp, fnId, code);
@@ -238,7 +237,7 @@ export abstract class BaseRunType<T extends Type = any> implements RunType {
 
     callDependency(currentCop: JitCompiler, comp: CompiledOperation): string {
         const stackItem = currentCop.getCurrentStackItem();
-        const isErrorCall = comp.fnId === JitFnIDs.typeErrors || comp.fnId === JitFnIDs.unknownKeyErrors;
+        const isErrorCall = comp.fnId === JitFunctions.typeErrors.id || comp.fnId === JitFunctions.unknownKeyErrors.id;
         const args = isErrorCall ? jitErrorArgs : jitArgs;
         const argsCode = Object.entries(args)
             .map(([key, name]) => (key === 'vλl' ? stackItem.vλl : name))
@@ -291,15 +290,15 @@ export abstract class BaseRunType<T extends Type = any> implements RunType {
     // or if the compiled code should contain a return statement or not
     // all atomic types should have these same flags (code should never have a return statement)
     jitFnHasReturn(fnId: JitFnID): boolean {
-        const hasReturn = defaultJitFnHasReturn[JitFnNames[fnId]];
-        if (hasReturn === undefined) throw new Error(`Unknown compile operation: ${fnId}`);
-        return hasReturn;
+        const fnConfig = jitFunctionList.find((f) => f.id === fnId);
+        if (fnConfig === undefined) throw new Error(`Unknown compile operation: ${fnId}`);
+        return fnConfig.hasReturn;
     }
 
     jitFnIsExpression(fnId: JitFnID): boolean {
-        const isExpression = defaultJitFnIsExpression[JitFnNames[fnId]];
-        if (isExpression === undefined) throw new Error(`Unknown compile operation: ${fnId}`);
-        return isExpression;
+        const fnConfig = jitFunctionList.find((f) => f.id === fnId);
+        if (fnConfig === undefined) throw new Error(`Unknown compile operation: ${fnId}`);
+        return fnConfig.isExpression;
     }
 }
 
@@ -334,13 +333,13 @@ export abstract class AtomicRunType<T extends Type> extends BaseRunType<T> {
     }
     jitFnIsExpression(fnId: JitFnID): boolean {
         switch (fnId) {
-            case JitFnIDs.isType:
+            case JitFunctions.isType.id:
                 return true;
-            case JitFnIDs.toJsonVal:
+            case JitFunctions.toJsonVal.id:
                 return true;
-            case JitFnIDs.fromJsonVal:
+            case JitFunctions.fromJsonVal.id:
                 return true;
-            case JitFnIDs.jsonStringify:
+            case JitFunctions.jsonStringify.id:
                 return true;
             default:
                 return super.jitFnIsExpression(fnId);

@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 import {runType} from '../../runType';
-import {JitFnIDs} from '../../constants';
+import {JitFunctions} from '../../constants';
 
 const reg = /abc/i;
 const reg2 = /['"]\/ \\ \//; // regexp with characters that can be problematic in jit code if not correctly scaped
@@ -19,13 +19,13 @@ const rtBig = runType<1n>();
 const rtSym = runType<typeof sym>();
 
 it('validate literal', () => {
-    const validate2 = rt2.createJitFunction(JitFnIDs.isType);
-    const validateA = rtA.createJitFunction(JitFnIDs.isType);
-    const validateReg = rtReg.createJitFunction(JitFnIDs.isType);
-    const validateReg2 = rtReg2.createJitFunction(JitFnIDs.isType);
-    const validateTrue = rtTrue.createJitFunction(JitFnIDs.isType);
-    const validateBig = rtBig.createJitFunction(JitFnIDs.isType);
-    const validateSym = rtSym.createJitFunction(JitFnIDs.isType);
+    const validate2 = rt2.createJitFunction(JitFunctions.isType);
+    const validateA = rtA.createJitFunction(JitFunctions.isType);
+    const validateReg = rtReg.createJitFunction(JitFunctions.isType);
+    const validateReg2 = rtReg2.createJitFunction(JitFunctions.isType);
+    const validateTrue = rtTrue.createJitFunction(JitFunctions.isType);
+    const validateBig = rtBig.createJitFunction(JitFunctions.isType);
+    const validateSym = rtSym.createJitFunction(JitFunctions.isType);
 
     // success
     expect(validate2(2)).toBe(true);
@@ -46,13 +46,13 @@ it('validate literal', () => {
 });
 
 it('validate literal + errors', () => {
-    const valWithErrors2 = rt2.createJitFunction(JitFnIDs.typeErrors);
-    const valWithErrorsA = rtA.createJitFunction(JitFnIDs.typeErrors);
-    const valWithErrorsReg = rtReg.createJitFunction(JitFnIDs.typeErrors);
-    const valWithErrorsReg2 = rtReg2.createJitFunction(JitFnIDs.typeErrors);
-    const valWithErrorsTrue = rtTrue.createJitFunction(JitFnIDs.typeErrors);
-    const valWithErrorsBig = rtBig.createJitFunction(JitFnIDs.typeErrors);
-    const valWithErrorsSym = rtSym.createJitFunction(JitFnIDs.typeErrors);
+    const valWithErrors2 = rt2.createJitFunction(JitFunctions.typeErrors);
+    const valWithErrorsA = rtA.createJitFunction(JitFunctions.typeErrors);
+    const valWithErrorsReg = rtReg.createJitFunction(JitFunctions.typeErrors);
+    const valWithErrorsReg2 = rtReg2.createJitFunction(JitFunctions.typeErrors);
+    const valWithErrorsTrue = rtTrue.createJitFunction(JitFunctions.typeErrors);
+    const valWithErrorsBig = rtBig.createJitFunction(JitFunctions.typeErrors);
+    const valWithErrorsSym = rtSym.createJitFunction(JitFunctions.typeErrors);
 
     // success
     expect(valWithErrors2(2)).toEqual([]);
@@ -73,12 +73,12 @@ it('validate literal + errors', () => {
 });
 
 it('encode to json', () => {
-    const toJson2 = rt2.createJitFunction(JitFnIDs.toJsonVal);
-    const toJsonA = rtA.createJitFunction(JitFnIDs.toJsonVal);
-    const toJsonReg = rtReg.createJitFunction(JitFnIDs.toJsonVal);
-    const toJsonTrue = rtTrue.createJitFunction(JitFnIDs.toJsonVal);
-    const toJsonBig = rtBig.createJitFunction(JitFnIDs.toJsonVal);
-    const toJsonSym = rtSym.createJitFunction(JitFnIDs.toJsonVal);
+    const toJson2 = rt2.createJitFunction(JitFunctions.toJsonVal);
+    const toJsonA = rtA.createJitFunction(JitFunctions.toJsonVal);
+    const toJsonReg = rtReg.createJitFunction(JitFunctions.toJsonVal);
+    const toJsonTrue = rtTrue.createJitFunction(JitFunctions.toJsonVal);
+    const toJsonBig = rtBig.createJitFunction(JitFunctions.toJsonVal);
+    const toJsonSym = rtSym.createJitFunction(JitFunctions.toJsonVal);
 
     expect(toJson2(2)).toEqual(2);
     expect(toJsonA('a')).toEqual('a');
@@ -89,12 +89,12 @@ it('encode to json', () => {
 });
 
 it('decode from json', () => {
-    const fromJson2 = rt2.createJitFunction(JitFnIDs.fromJsonVal);
-    const fromJsonA = rtA.createJitFunction(JitFnIDs.fromJsonVal);
-    const fromJsonReg = rtReg.createJitFunction(JitFnIDs.fromJsonVal);
-    const fromJsonTrue = rtTrue.createJitFunction(JitFnIDs.fromJsonVal);
-    const fromJsonBig = rtBig.createJitFunction(JitFnIDs.fromJsonVal);
-    const fromJsonSym = rtSym.createJitFunction(JitFnIDs.fromJsonVal);
+    const fromJson2 = rt2.createJitFunction(JitFunctions.fromJsonVal);
+    const fromJsonA = rtA.createJitFunction(JitFunctions.fromJsonVal);
+    const fromJsonReg = rtReg.createJitFunction(JitFunctions.fromJsonVal);
+    const fromJsonTrue = rtTrue.createJitFunction(JitFunctions.fromJsonVal);
+    const fromJsonBig = rtBig.createJitFunction(JitFunctions.fromJsonVal);
+    const fromJsonSym = rtSym.createJitFunction(JitFunctions.fromJsonVal);
 
     expect(fromJson2(2)).toEqual(2);
     expect(fromJsonA('a')).toEqual('a');
@@ -105,19 +105,19 @@ it('decode from json', () => {
 });
 
 it('json stringify', () => {
-    const jsonStringify2 = rt2.createJitFunction(JitFnIDs.jsonStringify);
-    const jsonStringifyA = rtA.createJitFunction(JitFnIDs.jsonStringify);
-    const jsonStringifyReg = rtReg.createJitFunction(JitFnIDs.jsonStringify);
-    const jsonStringifyTrue = rtTrue.createJitFunction(JitFnIDs.jsonStringify);
-    const jsonStringifyBig = rtBig.createJitFunction(JitFnIDs.jsonStringify);
-    const jsonStringifySym = rtSym.createJitFunction(JitFnIDs.jsonStringify);
+    const jsonStringify2 = rt2.createJitFunction(JitFunctions.jsonStringify);
+    const jsonStringifyA = rtA.createJitFunction(JitFunctions.jsonStringify);
+    const jsonStringifyReg = rtReg.createJitFunction(JitFunctions.jsonStringify);
+    const jsonStringifyTrue = rtTrue.createJitFunction(JitFunctions.jsonStringify);
+    const jsonStringifyBig = rtBig.createJitFunction(JitFunctions.jsonStringify);
+    const jsonStringifySym = rtSym.createJitFunction(JitFunctions.jsonStringify);
 
-    const fromJson2 = rt2.createJitFunction(JitFnIDs.fromJsonVal);
-    const fromJsonA = rtA.createJitFunction(JitFnIDs.fromJsonVal);
-    const fromJsonReg = rtReg.createJitFunction(JitFnIDs.fromJsonVal);
-    const fromJsonTrue = rtTrue.createJitFunction(JitFnIDs.fromJsonVal);
-    const fromJsonBig = rtBig.createJitFunction(JitFnIDs.fromJsonVal);
-    const fromJsonSym = rtSym.createJitFunction(JitFnIDs.fromJsonVal);
+    const fromJson2 = rt2.createJitFunction(JitFunctions.fromJsonVal);
+    const fromJsonA = rtA.createJitFunction(JitFunctions.fromJsonVal);
+    const fromJsonReg = rtReg.createJitFunction(JitFunctions.fromJsonVal);
+    const fromJsonTrue = rtTrue.createJitFunction(JitFunctions.fromJsonVal);
+    const fromJsonBig = rtBig.createJitFunction(JitFunctions.fromJsonVal);
+    const fromJsonSym = rtSym.createJitFunction(JitFunctions.fromJsonVal);
 
     const typeValue2 = null;
     const roundTrip2 = fromJson2(JSON.parse(jsonStringify2(typeValue2)));

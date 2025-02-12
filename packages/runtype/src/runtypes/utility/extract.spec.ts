@@ -6,7 +6,7 @@
  * ######## */
 
 import {runType} from '../../runType';
-import {JitFnIDs} from '../../constants';
+import {JitFunctions} from '../../constants';
 
 // Deepkit already implements all logic for Extract
 
@@ -19,8 +19,8 @@ describe('Extract typescript utility type, extract atomic elements from an union
     const excludeAge: Extract<PersonProp, 'name' | 'createdAt'> = 'name';
 
     it('validate', () => {
-        const isType = rt.createJitFunction(JitFnIDs.isType);
-        const isTypeExtract = rtExtract.createJitFunction(JitFnIDs.isType);
+        const isType = rt.createJitFunction(JitFunctions.isType);
+        const isTypeExtract = rtExtract.createJitFunction(JitFunctions.isType);
 
         expect(isType(personProp)).toEqual(true);
         expect(isTypeExtract(excludeAge)).toEqual(true);
@@ -30,8 +30,8 @@ describe('Extract typescript utility type, extract atomic elements from an union
     });
 
     it('validate errors', () => {
-        const typeErrors = rt.createJitFunction(JitFnIDs.typeErrors);
-        const typeErrorsExtract = rtExtract.createJitFunction(JitFnIDs.typeErrors);
+        const typeErrors = rt.createJitFunction(JitFunctions.typeErrors);
+        const typeErrorsExtract = rtExtract.createJitFunction(JitFunctions.typeErrors);
 
         expect(typeErrors(personProp)).toEqual([]);
         expect(typeErrorsExtract(excludeAge)).toEqual([]);
@@ -41,20 +41,20 @@ describe('Extract typescript utility type, extract atomic elements from an union
     });
 
     it('json encode/decode', () => {
-        const encode = rt.createJitFunction(JitFnIDs.toJsonVal);
-        const encodeExtract = rtExtract.createJitFunction(JitFnIDs.toJsonVal);
-        const decode = rt.createJitFunction(JitFnIDs.fromJsonVal);
-        const decodeExtract = rtExtract.createJitFunction(JitFnIDs.fromJsonVal);
+        const encode = rt.createJitFunction(JitFunctions.toJsonVal);
+        const encodeExtract = rtExtract.createJitFunction(JitFunctions.toJsonVal);
+        const decode = rt.createJitFunction(JitFunctions.fromJsonVal);
+        const decodeExtract = rtExtract.createJitFunction(JitFunctions.fromJsonVal);
 
         expect(decode(JSON.parse(JSON.stringify(encode(personProp))))).toEqual(personProp);
         expect(decodeExtract(JSON.parse(JSON.stringify(encodeExtract(excludeAge))))).toEqual(excludeAge);
     });
 
     it('json stringify', () => {
-        const stringify = rt.createJitFunction(JitFnIDs.jsonStringify);
-        const stringifyExtract = rtExtract.createJitFunction(JitFnIDs.jsonStringify);
-        const decode = rt.createJitFunction(JitFnIDs.fromJsonVal);
-        const decodeExtract = rtExtract.createJitFunction(JitFnIDs.fromJsonVal);
+        const stringify = rt.createJitFunction(JitFunctions.jsonStringify);
+        const stringifyExtract = rtExtract.createJitFunction(JitFunctions.jsonStringify);
+        const decode = rt.createJitFunction(JitFunctions.fromJsonVal);
+        const decodeExtract = rtExtract.createJitFunction(JitFunctions.fromJsonVal);
 
         expect(decode(JSON.parse(stringify(personProp)))).toEqual(personProp);
         expect(decodeExtract(JSON.parse(stringifyExtract(excludeAge)))).toEqual(excludeAge);
@@ -63,8 +63,8 @@ describe('Extract typescript utility type, extract atomic elements from an union
     it('mock', () => {
         const mocked = rt.mock();
         const mockedExtract = rtExtract.mock();
-        const isType = rt.createJitFunction(JitFnIDs.isType);
-        const isTypeExtract = rtExtract.createJitFunction(JitFnIDs.isType);
+        const isType = rt.createJitFunction(JitFunctions.isType);
+        const isTypeExtract = rtExtract.createJitFunction(JitFunctions.isType);
 
         expect(['name', 'age', 'createdAt'].includes(mocked)).toBe(true);
         expect(['name', 'createdAt'].includes(mockedExtract)).toBe(true);
@@ -86,8 +86,8 @@ describe('Extract typescript utility type, extract items from objects union', ()
     };
 
     it('validate', () => {
-        const isType = rt.createJitFunction(JitFnIDs.isType);
-        const isTypeExtract = rtExtract.createJitFunction(JitFnIDs.isType);
+        const isType = rt.createJitFunction(JitFunctions.isType);
+        const isTypeExtract = rtExtract.createJitFunction(JitFunctions.isType);
 
         expect(isType(shape)).toEqual(true);
         expect(isTypeExtract(excludeShape)).toEqual(true);
@@ -97,8 +97,8 @@ describe('Extract typescript utility type, extract items from objects union', ()
     });
 
     it('validate errors', () => {
-        const typeErrors = rt.createJitFunction(JitFnIDs.typeErrors);
-        const typeErrorsExtract = rtExtract.createJitFunction(JitFnIDs.typeErrors);
+        const typeErrors = rt.createJitFunction(JitFunctions.typeErrors);
+        const typeErrorsExtract = rtExtract.createJitFunction(JitFunctions.typeErrors);
 
         expect(typeErrors(shape)).toEqual([]);
         expect(typeErrorsExtract(excludeShape)).toEqual([]);
@@ -108,20 +108,20 @@ describe('Extract typescript utility type, extract items from objects union', ()
     });
 
     it('json encode/decode', () => {
-        const encode = rt.createJitFunction(JitFnIDs.toJsonVal);
-        const encodeExtract = rtExtract.createJitFunction(JitFnIDs.toJsonVal);
-        const decode = rt.createJitFunction(JitFnIDs.fromJsonVal);
-        const decodeExtract = rtExtract.createJitFunction(JitFnIDs.fromJsonVal);
+        const encode = rt.createJitFunction(JitFunctions.toJsonVal);
+        const encodeExtract = rtExtract.createJitFunction(JitFunctions.toJsonVal);
+        const decode = rt.createJitFunction(JitFunctions.fromJsonVal);
+        const decodeExtract = rtExtract.createJitFunction(JitFunctions.fromJsonVal);
 
         expect(decode(JSON.parse(JSON.stringify(encode(shape))))).toEqual(shape);
         expect(decodeExtract(JSON.parse(JSON.stringify(encodeExtract(excludeShape))))).toEqual(excludeShape);
     });
 
     it('json stringify', () => {
-        const stringify = rt.createJitFunction(JitFnIDs.jsonStringify);
-        const stringifyExtract = rtExtract.createJitFunction(JitFnIDs.jsonStringify);
-        const decode = rt.createJitFunction(JitFnIDs.fromJsonVal);
-        const decodeExtract = rtExtract.createJitFunction(JitFnIDs.fromJsonVal);
+        const stringify = rt.createJitFunction(JitFunctions.jsonStringify);
+        const stringifyExtract = rtExtract.createJitFunction(JitFunctions.jsonStringify);
+        const decode = rt.createJitFunction(JitFunctions.fromJsonVal);
+        const decodeExtract = rtExtract.createJitFunction(JitFunctions.fromJsonVal);
 
         expect(decode(JSON.parse(stringify(shape)))).toEqual(shape);
         expect(decodeExtract(JSON.parse(stringifyExtract(excludeShape)))).toEqual(excludeShape);
@@ -130,8 +130,8 @@ describe('Extract typescript utility type, extract items from objects union', ()
     it('mock', () => {
         const mocked = rt.mock();
         const mockedExtract = rtExtract.mock();
-        const isType = rt.createJitFunction(JitFnIDs.isType);
-        const isTypeExtract = rtExtract.createJitFunction(JitFnIDs.isType);
+        const isType = rt.createJitFunction(JitFunctions.isType);
+        const isTypeExtract = rtExtract.createJitFunction(JitFunctions.isType);
 
         expect(isType(mocked)).toBe(true);
         expect(isTypeExtract(mockedExtract)).toBe(true);

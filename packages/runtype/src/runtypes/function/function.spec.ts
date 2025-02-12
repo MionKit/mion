@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 import {reflectFunction, runType} from '../../runType';
-import {JitFnIDs} from '../../constants';
+import {JitFunctions} from '../../constants';
 import {FunctionRunType} from './function';
 
 type FunctionType = (a: number, b: boolean, c?: string) => Date;
@@ -32,8 +32,8 @@ const rtSumRest = reflectFunction(sumRest) as FunctionRunType;
 
 describe('function', () => {
     it('validate', () => {
-        const validate = rtSum.createJitFunction(JitFnIDs.isType);
-        const getTypeErrors = rtSum.createJitFunction(JitFnIDs.typeErrors);
+        const validate = rtSum.createJitFunction(JitFunctions.isType);
+        const getTypeErrors = rtSum.createJitFunction(JitFunctions.typeErrors);
 
         expect(rtSum.getFamily()).toBe('F');
         expect(rtSum.getFnName()).toBe('sum');
@@ -59,17 +59,17 @@ describe('function', () => {
     });
 
     it('throw errors for json encode/decode, jsonStringify and mock', () => {
-        expect(() => rt.createJitFunction(JitFnIDs.isType)).not.toThrow();
-        expect(() => rt.createJitFunction(JitFnIDs.typeErrors)).not.toThrow();
+        expect(() => rt.createJitFunction(JitFunctions.isType)).not.toThrow();
+        expect(() => rt.createJitFunction(JitFunctions.typeErrors)).not.toThrow();
 
-        expect(() => rt.createJitFunction(JitFnIDs.toJsonVal)).toThrow(
+        expect(() => rt.createJitFunction(JitFunctions.toJsonVal)).toThrow(
             `Compile function ToJsonVal not supported, call compileParams or compileReturn instead.`
         );
-        expect(() => rt.createJitFunction(JitFnIDs.fromJsonVal)).toThrow(
+        expect(() => rt.createJitFunction(JitFunctions.fromJsonVal)).toThrow(
             `Compile function FromJsonVal not supported, call compileParams or compileReturn instead.`
         );
 
-        expect(() => rt.createJitFunction(JitFnIDs.jsonStringify)).toThrow(
+        expect(() => rt.createJitFunction(JitFunctions.jsonStringify)).toThrow(
             `Compile function JsonStringify not supported, call compileParams or compileReturn instead.`
         );
         expect(() => rt.mock()).toThrow('Function Mock is not allowed, call mockParams or mockReturn instead.');
@@ -78,7 +78,7 @@ describe('function', () => {
 
 describe('function parameters', () => {
     it('validate function parameters', () => {
-        const validate = rt.createJitParamsFunction(JitFnIDs.isType);
+        const validate = rt.createJitParamsFunction(JitFunctions.isType);
 
         expect(validate([3, true, 'hello'])).toBe(true);
         // optional parameter
@@ -90,7 +90,7 @@ describe('function parameters', () => {
     });
 
     it('validate function + errors parameters', () => {
-        const validate = rt.createJitParamsFunction(JitFnIDs.typeErrors);
+        const validate = rt.createJitParamsFunction(JitFunctions.typeErrors);
         expect(validate([3, true, 'hello'])).toEqual([]);
         // optional parameter
         expect(validate([3, false])).toEqual([]);
@@ -106,8 +106,8 @@ describe('function parameters', () => {
     });
 
     it('encode/decode to json parameters', () => {
-        const toJsonVal = rt.createJitParamsFunction(JitFnIDs.toJsonVal);
-        const fromJsonVal = rt.createJitParamsFunction(JitFnIDs.fromJsonVal);
+        const toJsonVal = rt.createJitParamsFunction(JitFunctions.toJsonVal);
+        const fromJsonVal = rt.createJitParamsFunction(JitFunctions.fromJsonVal);
         const typeValue = [3, true, 'hello'];
         const typeValue2 = [3, true];
 
@@ -116,8 +116,8 @@ describe('function parameters', () => {
     });
 
     it('required encode/decode to json parameters', () => {
-        const toJsonVal = rt2.createJitParamsFunction(JitFnIDs.toJsonVal);
-        const fromJsonVal = rt2.createJitParamsFunction(JitFnIDs.fromJsonVal);
+        const toJsonVal = rt2.createJitParamsFunction(JitFunctions.toJsonVal);
+        const fromJsonVal = rt2.createJitParamsFunction(JitFunctions.fromJsonVal);
         const d = new Date();
         const typeValue = [d, true];
         const typeValue2 = [d];
@@ -126,8 +126,8 @@ describe('function parameters', () => {
     });
 
     it('json stringify parameters', () => {
-        const jsonStringify = rt.createJitParamsFunction(JitFnIDs.jsonStringify);
-        const fromJsonVal = rt.createJitParamsFunction(JitFnIDs.fromJsonVal);
+        const jsonStringify = rt.createJitParamsFunction(JitFunctions.jsonStringify);
+        const fromJsonVal = rt.createJitParamsFunction(JitFunctions.fromJsonVal);
         const typeValue = [3, true, 'hello'];
         const typeValue2 = [3, true];
         const roundTrip = fromJsonVal(JSON.parse(jsonStringify(typeValue)));
@@ -137,8 +137,8 @@ describe('function parameters', () => {
     });
 
     it('json stringify required parameters', () => {
-        const jsonStringify = rt2.createJitParamsFunction(JitFnIDs.jsonStringify);
-        const fromJsonVal = rt2.createJitParamsFunction(JitFnIDs.fromJsonVal);
+        const jsonStringify = rt2.createJitParamsFunction(JitFunctions.jsonStringify);
+        const fromJsonVal = rt2.createJitParamsFunction(JitFunctions.fromJsonVal);
         const d = new Date();
         const typeValue = [d, true];
         const typeValue2 = [d];
@@ -152,7 +152,7 @@ describe('function parameters', () => {
         const mocked = rt.mockParams();
         expect(Array.isArray(mocked)).toBe(true);
         expect(mocked.length >= 2 && mocked.length <= 3).toBe(true);
-        const validate = rt.createJitParamsFunction(JitFnIDs.isType);
+        const validate = rt.createJitParamsFunction(JitFunctions.isType);
         expect(validate(rt.mockParams())).toBe(true);
     });
 });
@@ -162,20 +162,20 @@ describe('non serializable parameters', () => {
     const rtWithFN = runType<FunctionType>() as FunctionRunType;
 
     it('validate non serializable types must be undefined', () => {
-        const validate = rtWithFN.createJitParamsFunction(JitFnIDs.isType);
+        const validate = rtWithFN.createJitParamsFunction(JitFunctions.isType);
         expect(validate([3, true, () => null])).toBe(false); // non serializable types must be null
         expect(validate([3, true, undefined])).toBe(true); // non serializable types must be null
     });
 
     it('get errors from non serializable types', () => {
-        const validate = rtWithFN.createJitParamsFunction(JitFnIDs.typeErrors);
+        const validate = rtWithFN.createJitParamsFunction(JitFunctions.typeErrors);
         expect(validate([3, true, () => null])).toEqual([{expected: 'undefined', path: [2]}]);
         expect(validate([3, true, undefined])).toEqual([]);
     });
 
     it('encode/decode to json non serializable types', () => {
-        const toJsonVal = rtWithFN.createJitParamsFunction(JitFnIDs.toJsonVal);
-        const fromJsonVal = rtWithFN.createJitParamsFunction(JitFnIDs.fromJsonVal);
+        const toJsonVal = rtWithFN.createJitParamsFunction(JitFunctions.toJsonVal);
+        const fromJsonVal = rtWithFN.createJitParamsFunction(JitFunctions.fromJsonVal);
         const typeValue = [3, true, () => null];
         const typeValue2 = [3, true, undefined];
         expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(typeValue))))).toEqual([3, true, undefined]);
@@ -183,8 +183,8 @@ describe('non serializable parameters', () => {
     });
 
     it('json stringify non serializable types', () => {
-        const jsonStringify = rtWithFN.createJitParamsFunction(JitFnIDs.jsonStringify);
-        const fromJsonVal = rtWithFN.createJitParamsFunction(JitFnIDs.fromJsonVal);
+        const jsonStringify = rtWithFN.createJitParamsFunction(JitFunctions.jsonStringify);
+        const fromJsonVal = rtWithFN.createJitParamsFunction(JitFunctions.fromJsonVal);
         const typeValue = [3, true, () => null];
         const typeValue2 = [3, true, undefined];
         const roundTrip = fromJsonVal(JSON.parse(jsonStringify(typeValue)));
@@ -197,50 +197,50 @@ describe('non serializable parameters', () => {
         const mocked = rtWithFN.mockParams();
         expect(Array.isArray(mocked)).toBe(true);
         expect(mocked.length >= 2 && mocked.length <= 3).toBe(true);
-        const validate = rtWithFN.createJitParamsFunction(JitFnIDs.isType);
+        const validate = rtWithFN.createJitParamsFunction(JitFunctions.isType);
         expect(validate(rtWithFN.mockParams())).toBe(true);
     });
 });
 
 describe('function return', () => {
     it('validate function return', () => {
-        const validate = rt.createJitReturnFunction(JitFnIDs.isType);
+        const validate = rt.createJitReturnFunction(JitFunctions.isType);
         expect(validate(new Date())).toBe(true);
         expect(validate(123)).toBe(false);
     });
 
     it('validate function return + errors', () => {
-        const validate = rt.createJitReturnFunction(JitFnIDs.typeErrors);
+        const validate = rt.createJitReturnFunction(JitFunctions.typeErrors);
         expect(validate(new Date())).toEqual([]);
         expect(validate(123)).toEqual([{expected: 'date', path: []}]);
     });
 
     it('encode/decode function return to json', () => {
-        const toJsonVal = rt.createJitReturnFunction(JitFnIDs.toJsonVal);
-        const fromJsonVal = rt.createJitReturnFunction(JitFnIDs.fromJsonVal);
+        const toJsonVal = rt.createJitReturnFunction(JitFunctions.toJsonVal);
+        const fromJsonVal = rt.createJitReturnFunction(JitFunctions.fromJsonVal);
         const returnValue = new Date();
         expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(returnValue))))).toEqual(returnValue);
     });
 
     it('required encode/decode function return to json', () => {
-        const toJsonVal = rt2.createJitReturnFunction(JitFnIDs.toJsonVal);
-        const fromJsonVal = rt2.createJitReturnFunction(JitFnIDs.fromJsonVal);
+        const toJsonVal = rt2.createJitReturnFunction(JitFunctions.toJsonVal);
+        const fromJsonVal = rt2.createJitReturnFunction(JitFunctions.fromJsonVal);
         const returnValue = 1n;
 
         expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(returnValue))))).toEqual(returnValue);
     });
 
     it('json stringify function return', () => {
-        const jsonStringify = rt.createJitReturnFunction(JitFnIDs.jsonStringify);
-        const fromJsonVal = rt.createJitReturnFunction(JitFnIDs.fromJsonVal);
+        const jsonStringify = rt.createJitReturnFunction(JitFunctions.jsonStringify);
+        const fromJsonVal = rt.createJitReturnFunction(JitFunctions.fromJsonVal);
         const returnValue = new Date();
         const roundTrip = fromJsonVal(JSON.parse(jsonStringify(returnValue)));
         expect(roundTrip).toEqual(returnValue);
     });
 
     it('json stringify required function return', () => {
-        const jsonStringify = rt2.createJitReturnFunction(JitFnIDs.jsonStringify);
-        const fromJsonVal = rt2.createJitReturnFunction(JitFnIDs.fromJsonVal);
+        const jsonStringify = rt2.createJitReturnFunction(JitFunctions.jsonStringify);
+        const fromJsonVal = rt2.createJitReturnFunction(JitFunctions.fromJsonVal);
         const returnValue = 1n;
         const roundTrip = fromJsonVal(JSON.parse(jsonStringify(returnValue)));
         expect(roundTrip).toEqual(returnValue);
@@ -249,7 +249,7 @@ describe('function return', () => {
     it('mock function return', () => {
         const mocked = rt.mockReturn();
         expect(mocked instanceof Date).toBe(true);
-        const validate = rt.createJitReturnFunction(JitFnIDs.isType);
+        const validate = rt.createJitReturnFunction(JitFunctions.isType);
         expect(validate(rt.mockReturn())).toBe(true);
     });
 
@@ -258,11 +258,11 @@ describe('function return', () => {
         const reflectedType = reflectFunction(fn);
         expect(reflectedType instanceof FunctionRunType).toBe(true);
 
-        const validateReturn = reflectedType.createJitReturnFunction(JitFnIDs.isType);
-        const typeErrorsReturn = reflectedType.createJitReturnFunction(JitFnIDs.typeErrors);
-        const toJsonReturn = reflectedType.createJitReturnFunction(JitFnIDs.toJsonVal);
-        const fromJsonReturn = reflectedType.createJitReturnFunction(JitFnIDs.fromJsonVal);
-        const jsonStringifyReturn = reflectedType.createJitReturnFunction(JitFnIDs.jsonStringify);
+        const validateReturn = reflectedType.createJitReturnFunction(JitFunctions.isType);
+        const typeErrorsReturn = reflectedType.createJitReturnFunction(JitFunctions.typeErrors);
+        const toJsonReturn = reflectedType.createJitReturnFunction(JitFunctions.toJsonVal);
+        const fromJsonReturn = reflectedType.createJitReturnFunction(JitFunctions.fromJsonVal);
+        const jsonStringifyReturn = reflectedType.createJitReturnFunction(JitFunctions.jsonStringify);
         const returnValue = new Date();
         expect(validateReturn(returnValue)).toBe(true);
         expect(typeErrorsReturn(returnValue)).toEqual([]);
@@ -277,11 +277,11 @@ describe('function return', () => {
                 new Date();
         const reflectedType = reflectFunction(fn);
 
-        const validateReturn = reflectedType.createJitReturnFunction(JitFnIDs.isType);
-        const typeErrorsReturn = reflectedType.createJitReturnFunction(JitFnIDs.typeErrors);
-        const toJsonReturn = reflectedType.createJitReturnFunction(JitFnIDs.toJsonVal);
-        const fromJsonReturn = reflectedType.createJitReturnFunction(JitFnIDs.fromJsonVal);
-        const jsonStringifyReturn = reflectedType.createJitReturnFunction(JitFnIDs.jsonStringify);
+        const validateReturn = reflectedType.createJitReturnFunction(JitFunctions.isType);
+        const typeErrorsReturn = reflectedType.createJitReturnFunction(JitFunctions.typeErrors);
+        const toJsonReturn = reflectedType.createJitReturnFunction(JitFunctions.toJsonVal);
+        const fromJsonReturn = reflectedType.createJitReturnFunction(JitFunctions.fromJsonVal);
+        const jsonStringifyReturn = reflectedType.createJitReturnFunction(JitFunctions.jsonStringify);
         const returnValue = new Date();
         expect(validateReturn(returnValue)).toBe(true);
         expect(typeErrorsReturn(returnValue)).toEqual([]);
@@ -292,7 +292,7 @@ describe('function return', () => {
 
 describe('function with rest parameters', () => {
     it('validate function with rest parameters', () => {
-        const validate = rtRest.createJitParamsFunction(JitFnIDs.isType);
+        const validate = rtRest.createJitParamsFunction(JitFunctions.isType);
         const date1 = new Date();
         const date2 = new Date();
         expect(validate([3, true, date1, date2])).toBe(true);
@@ -305,7 +305,7 @@ describe('function with rest parameters', () => {
     });
 
     it('validate + errors parameters function with rest parameters', () => {
-        const validate = rtRest.createJitParamsFunction(JitFnIDs.typeErrors);
+        const validate = rtRest.createJitParamsFunction(JitFunctions.typeErrors);
         expect(validate([3, true, new Date(), new Date()])).toEqual([]);
         // optional parameter
         expect(validate([3, false])).toEqual([]);
@@ -322,8 +322,8 @@ describe('function with rest parameters', () => {
     });
 
     it('encode/decode to json function with rest parameters', () => {
-        const toJsonVal = rtRest.createJitParamsFunction(JitFnIDs.toJsonVal);
-        const fromJsonVal = rtRest.createJitParamsFunction(JitFnIDs.fromJsonVal);
+        const toJsonVal = rtRest.createJitParamsFunction(JitFunctions.toJsonVal);
+        const fromJsonVal = rtRest.createJitParamsFunction(JitFunctions.fromJsonVal);
 
         const typeValue = [3, true, new Date(), new Date()];
         const typeValue2 = [3, true];
@@ -334,8 +334,8 @@ describe('function with rest parameters', () => {
     });
 
     it('stringify function with rest parameters', () => {
-        const jsonStringify = rtRest.createJitParamsFunction(JitFnIDs.jsonStringify);
-        const fromJsonVal = rtRest.createJitParamsFunction(JitFnIDs.fromJsonVal);
+        const jsonStringify = rtRest.createJitParamsFunction(JitFunctions.jsonStringify);
+        const fromJsonVal = rtRest.createJitParamsFunction(JitFunctions.fromJsonVal);
         const typeValue = [3, true, new Date(), new Date()];
         const typeValue2 = [3, true];
         const roundTrip = fromJsonVal(JSON.parse(jsonStringify(typeValue)));
@@ -345,8 +345,8 @@ describe('function with rest parameters', () => {
     });
 
     it('stringify function with only rest parameters', () => {
-        const jsonStringify = rtRest2.createJitParamsFunction(JitFnIDs.jsonStringify);
-        const fromJsonVal = rtRest2.createJitParamsFunction(JitFnIDs.fromJsonVal);
+        const jsonStringify = rtRest2.createJitParamsFunction(JitFunctions.jsonStringify);
+        const fromJsonVal = rtRest2.createJitParamsFunction(JitFunctions.fromJsonVal);
         const typeValue = [3, 2, 1];
         const typeValue2: number[] = [];
         const roundTrip = fromJsonVal(JSON.parse(jsonStringify(typeValue)));
@@ -361,22 +361,22 @@ it('should get runType from a function using reflectFunction', () => {
     const reflectedType = reflectFunction(fn);
     expect(reflectedType instanceof FunctionRunType).toBe(true);
 
-    const validate = reflectedType.createJitParamsFunction(JitFnIDs.isType);
-    const typeErrors = reflectedType.createJitParamsFunction(JitFnIDs.typeErrors);
-    const toJsonVal = reflectedType.createJitParamsFunction(JitFnIDs.toJsonVal);
-    const fromJsonVal = reflectedType.createJitParamsFunction(JitFnIDs.fromJsonVal);
-    const jsonStringify = reflectedType.createJitParamsFunction(JitFnIDs.jsonStringify);
+    const validate = reflectedType.createJitParamsFunction(JitFunctions.isType);
+    const typeErrors = reflectedType.createJitParamsFunction(JitFunctions.typeErrors);
+    const toJsonVal = reflectedType.createJitParamsFunction(JitFunctions.toJsonVal);
+    const fromJsonVal = reflectedType.createJitParamsFunction(JitFunctions.fromJsonVal);
+    const jsonStringify = reflectedType.createJitParamsFunction(JitFunctions.jsonStringify);
     const paramsValues = [3, true, 'hello'];
     expect(validate(paramsValues)).toBe(true);
     expect(typeErrors(paramsValues)).toEqual([]);
     expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal([3, true, 'hello']))))).toEqual(paramsValues);
     expect(fromJsonVal(JSON.parse(jsonStringify([3, true, 'hello'])))).toEqual(paramsValues);
 
-    const validateReturn = reflectedType.createJitReturnFunction(JitFnIDs.isType);
-    const typeErrorsReturn = reflectedType.createJitReturnFunction(JitFnIDs.typeErrors);
-    const toJsonReturn = reflectedType.createJitReturnFunction(JitFnIDs.toJsonVal);
-    const fromJsonReturn = reflectedType.createJitReturnFunction(JitFnIDs.fromJsonVal);
-    const jsonStringifyReturn = reflectedType.createJitReturnFunction(JitFnIDs.jsonStringify);
+    const validateReturn = reflectedType.createJitReturnFunction(JitFunctions.isType);
+    const typeErrorsReturn = reflectedType.createJitReturnFunction(JitFunctions.typeErrors);
+    const toJsonReturn = reflectedType.createJitReturnFunction(JitFunctions.toJsonVal);
+    const fromJsonReturn = reflectedType.createJitReturnFunction(JitFunctions.fromJsonVal);
+    const jsonStringifyReturn = reflectedType.createJitReturnFunction(JitFunctions.jsonStringify);
     const returnValue = new Date();
     expect(validateReturn(returnValue)).toBe(true);
     expect(typeErrorsReturn(returnValue)).toEqual([]);

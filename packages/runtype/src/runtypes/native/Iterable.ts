@@ -8,7 +8,7 @@ import type {JitFnID, MockOperation} from '../../types';
 import {ClassRunType} from '../collection/class';
 import {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
 import {BaseRunType} from '../../lib/baseRunTypes';
-import {JitFnIDs} from '../../constants';
+import {JitFunctions} from '../../constants';
 
 // This is the base class for all iterable run types, like SetRunType and MapRunType
 export abstract class IterableRunType extends ClassRunType {
@@ -23,9 +23,9 @@ export abstract class IterableRunType extends ClassRunType {
     };
     jitFnHasReturn(fnId: JitFnID): boolean {
         switch (fnId) {
-            case JitFnIDs.isType:
-            case JitFnIDs.jsonStringify:
-            case JitFnIDs.hasUnknownKeys:
+            case JitFunctions.isType.id:
+            case JitFunctions.jsonStringify.id:
+            case JitFunctions.hasUnknownKeys.id:
                 return true;
             default:
                 return super.jitFnHasReturn(fnId);

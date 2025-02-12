@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 import {runType} from '../../runType';
-import {JitFnIDs} from '../../constants';
+import {JitFunctions} from '../../constants';
 import {BaseRunType} from '../../lib/baseRunTypes';
 
 describe('Array', () => {
@@ -13,7 +13,7 @@ describe('Array', () => {
     const rD = runType<Date[]>();
 
     it('validate string[]', () => {
-        const validate = rt.createJitFunction(JitFnIDs.isType);
+        const validate = rt.createJitFunction(JitFunctions.isType);
         expect(validate([])).toBe(true);
         expect(validate(['hello', 'world'])).toBe(true);
         expect(validate(['hello', 2])).toBe(false);
@@ -21,45 +21,45 @@ describe('Array', () => {
     });
 
     it('validate string[] + errors', () => {
-        const valWithErrors = rt.createJitFunction(JitFnIDs.typeErrors);
+        const valWithErrors = rt.createJitFunction(JitFunctions.typeErrors);
         expect(valWithErrors(['hello', 'world'])).toEqual([]);
         expect(valWithErrors('hello')).toEqual([{path: [], expected: 'array'}]);
         expect(valWithErrors(['hello', 123])).toEqual([{path: [1], expected: 'string'}]);
     });
 
     it('encode to json', () => {
-        const toJsonVal = rt.createJitFunction(JitFnIDs.toJsonVal);
+        const toJsonVal = rt.createJitFunction(JitFunctions.toJsonVal);
         const typeValue = ['hello', 'world'];
         expect(toJsonVal(typeValue)).toEqual(typeValue);
-        expect((rt as BaseRunType).getJitCompiledOperation(JitFnIDs.toJsonVal).isNoop).toBe(true);
+        expect((rt as BaseRunType).getJitCompiledOperation(JitFunctions.toJsonVal.id).isNoop).toBe(true);
     });
 
     it('decode from json', () => {
-        const fromJsonVal = rt.createJitFunction(JitFnIDs.fromJsonVal);
+        const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
         const typeValue = ['hello', 'world'];
         const json = JSON.parse(JSON.stringify(typeValue));
         expect(fromJsonVal(json)).toEqual(typeValue);
-        expect((rt as BaseRunType).getJitCompiledOperation(JitFnIDs.fromJsonVal).isNoop).toBe(true);
+        expect((rt as BaseRunType).getJitCompiledOperation(JitFunctions.fromJsonVal.id).isNoop).toBe(true);
     });
 
     it('encode to json date', () => {
-        const toJsonVal = rD.createJitFunction(JitFnIDs.toJsonVal);
+        const toJsonVal = rD.createJitFunction(JitFunctions.toJsonVal);
         const typeValue = [new Date(), new Date()];
         expect(toJsonVal(typeValue)).toBe(typeValue);
-        expect((rD as BaseRunType).getJitCompiledOperation(JitFnIDs.toJsonVal).isNoop).toBe(true);
+        expect((rD as BaseRunType).getJitCompiledOperation(JitFunctions.toJsonVal.id).isNoop).toBe(true);
     });
 
     it('decode from json date', () => {
-        const fromJsonVal = rD.createJitFunction(JitFnIDs.fromJsonVal);
+        const fromJsonVal = rD.createJitFunction(JitFunctions.fromJsonVal);
         const typeValue = [new Date(), new Date()];
         const json = JSON.parse(JSON.stringify(typeValue));
         expect(fromJsonVal(json)).toEqual(typeValue);
-        expect((rD as BaseRunType).getJitCompiledOperation(JitFnIDs.fromJsonVal).isNoop).toBe(false);
+        expect((rD as BaseRunType).getJitCompiledOperation(JitFunctions.fromJsonVal.id).isNoop).toBe(false);
     });
 
     it('json stringify', () => {
-        const jsonStringify = rt.createJitFunction(JitFnIDs.jsonStringify);
-        const fromJsonVal = rt.createJitFunction(JitFnIDs.fromJsonVal);
+        const jsonStringify = rt.createJitFunction(JitFunctions.jsonStringify);
+        const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
         const typeValue = ['hello', 'world'];
         const roundTrip = fromJsonVal(JSON.parse(jsonStringify(typeValue)));
         expect(roundTrip).toEqual(typeValue);
@@ -71,7 +71,7 @@ describe('Array', () => {
 
     it('mock', () => {
         expect(rt.mock() instanceof Array).toBe(true);
-        const validate = rt.createJitFunction(JitFnIDs.isType);
+        const validate = rt.createJitFunction(JitFunctions.isType);
         expect(validate(rt.mock())).toBe(true);
     });
 });
@@ -80,7 +80,7 @@ describe('Array with multiple dimensions', () => {
     const rt = runType<string[][]>();
 
     it('validate string[][]', () => {
-        const validate = rt.createJitFunction(JitFnIDs.isType);
+        const validate = rt.createJitFunction(JitFunctions.isType);
         expect(validate([])).toBe(true);
         expect(validate([[]])).toBe(true);
         expect(
@@ -95,7 +95,7 @@ describe('Array with multiple dimensions', () => {
     });
 
     it('validate string[][] + errors', () => {
-        const valWithErrors = rt.createJitFunction(JitFnIDs.typeErrors);
+        const valWithErrors = rt.createJitFunction(JitFunctions.typeErrors);
         expect(valWithErrors([])).toEqual([]);
         expect(valWithErrors([[]])).toEqual([]);
         expect(
@@ -114,21 +114,21 @@ describe('Array with multiple dimensions', () => {
     });
 
     it('encode to json', () => {
-        const toJsonVal = rt.createJitFunction(JitFnIDs.toJsonVal);
+        const toJsonVal = rt.createJitFunction(JitFunctions.toJsonVal);
         const typeValue = [['hello', 'world'], ['a', 'b'], []];
         expect(toJsonVal(typeValue)).toEqual(typeValue);
     });
 
     it('decode from json', () => {
-        const fromJsonVal = rt.createJitFunction(JitFnIDs.fromJsonVal);
+        const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
         const typeValue = [['hello', 'world'], ['a', 'b'], []];
         const json = JSON.parse(JSON.stringify(typeValue));
         expect(fromJsonVal(json)).toEqual(typeValue);
     });
 
     it('json stringify', () => {
-        const jsonStringify = rt.createJitFunction(JitFnIDs.jsonStringify);
-        const fromJsonVal = rt.createJitFunction(JitFnIDs.fromJsonVal);
+        const jsonStringify = rt.createJitFunction(JitFunctions.jsonStringify);
+        const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
         const typeValue = [['hello', 'world'], ['a', 'b'], []];
         const roundTrip = fromJsonVal(JSON.parse(jsonStringify(typeValue)));
         expect(roundTrip).toEqual(typeValue);
@@ -139,7 +139,7 @@ describe('Array with multiple dimensions', () => {
     });
 
     it('mock', () => {
-        const validate = rt.createJitFunction(JitFnIDs.isType);
+        const validate = rt.createJitFunction(JitFunctions.isType);
         expect(rt.mock() instanceof Array).toBe(true);
         expect(validate(rt.mock())).toBe(true);
     });
@@ -169,8 +169,8 @@ describe('test array strict modes', () => {
     const rtSimple = runType<string[]>();
 
     it('array hasUnknownKeys', () => {
-        const validate = rt.createJitFunction(JitFnIDs.isType);
-        const hasUnknownKeys = rt.createJitFunction(JitFnIDs.hasUnknownKeys);
+        const validate = rt.createJitFunction(JitFunctions.isType);
+        const hasUnknownKeys = rt.createJitFunction(JitFunctions.hasUnknownKeys);
 
         expect(validate(arr)).toBe(true);
         expect(hasUnknownKeys(arr)).toBe(false);
@@ -179,8 +179,8 @@ describe('test array strict modes', () => {
     });
 
     it('simple array hasUnknownKeys on array with non objects', () => {
-        const validate = rtSimple.createJitFunction(JitFnIDs.isType);
-        const hasUnknownKeys = rtSimple.createJitFunction(JitFnIDs.hasUnknownKeys);
+        const validate = rtSimple.createJitFunction(JitFunctions.isType);
+        const hasUnknownKeys = rtSimple.createJitFunction(JitFunctions.hasUnknownKeys);
 
         expect(hasUnknownKeys([])).toBe(false);
         expect(hasUnknownKeys(['hello', 'world', {hello: 'world'}])).toBe(false);
@@ -188,8 +188,8 @@ describe('test array strict modes', () => {
     });
 
     it('array _compileUnknownKeyErrors', () => {
-        const validate = rt.createJitFunction(JitFnIDs.isType);
-        const getUnknownKeys = rt.createJitFunction(JitFnIDs.unknownKeyErrors);
+        const validate = rt.createJitFunction(JitFunctions.isType);
+        const getUnknownKeys = rt.createJitFunction(JitFunctions.unknownKeyErrors);
 
         expect(validate(arr)).toBe(true);
         expect(getUnknownKeys(arr)).toEqual([]);
@@ -202,8 +202,8 @@ describe('test array strict modes', () => {
     });
 
     it('simple array _compileUnknownKeyErrors on array with non objects', () => {
-        const validate = rtSimple.createJitFunction(JitFnIDs.isType);
-        const getUnknownKeys = rtSimple.createJitFunction(JitFnIDs.unknownKeyErrors);
+        const validate = rtSimple.createJitFunction(JitFunctions.isType);
+        const getUnknownKeys = rtSimple.createJitFunction(JitFunctions.unknownKeyErrors);
 
         expect(getUnknownKeys([])).toEqual([]);
         expect(getUnknownKeys(['hello', 'world', {hello: 'world'}])).toEqual([]);
@@ -211,9 +211,9 @@ describe('test array strict modes', () => {
     });
 
     it('simple array _compileStripUnknownKeys _compileUnknownKeysToUndefined', () => {
-        const stripUnknownKeys = rtSimple.createJitFunction(JitFnIDs.stripUnknownKeys);
-        const unknownKeysToUndefined = rtSimple.createJitFunction(JitFnIDs.unknownKeysToUndefined);
-        const validate = rtSimple.createJitFunction(JitFnIDs.isType);
+        const stripUnknownKeys = rtSimple.createJitFunction(JitFunctions.stripUnknownKeys);
+        const unknownKeysToUndefined = rtSimple.createJitFunction(JitFunctions.unknownKeysToUndefined);
+        const validate = rtSimple.createJitFunction(JitFunctions.isType);
 
         const wrongArray = ['hello', 'world', {hello: 'world'}];
         expect(validate(wrongArray)).toBe(false);
@@ -224,11 +224,11 @@ describe('test array strict modes', () => {
     });
 
     it('encode/decode to json safeJson deep', () => {
-        const toJsonVal = rt.createJitFunction(JitFnIDs.toJsonVal);
-        const fromJsonVal = rt.createJitFunction(JitFnIDs.fromJsonVal);
-        const hasUnknownKeys = rt.createJitFunction(JitFnIDs.hasUnknownKeys);
-        const unknownKeysToUndefined = rt.createJitFunction(JitFnIDs.unknownKeysToUndefined);
-        const stripUnknownKeys = rt.createJitFunction(JitFnIDs.stripUnknownKeys);
+        const toJsonVal = rt.createJitFunction(JitFunctions.toJsonVal);
+        const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
+        const hasUnknownKeys = rt.createJitFunction(JitFunctions.hasUnknownKeys);
+        const unknownKeysToUndefined = rt.createJitFunction(JitFunctions.unknownKeysToUndefined);
+        const stripUnknownKeys = rt.createJitFunction(JitFunctions.stripUnknownKeys);
         const fromJsonSafeThrow = (val) => {
             if (hasUnknownKeys(val)) throw new Error('Unknown properties in JSON');
             return fromJsonVal(val);
@@ -287,8 +287,8 @@ describe('test array strict modes + circular reference', () => {
     const rt = runType<ObjectType>();
 
     it('validate object hasUnknownKeys', () => {
-        const validate = rt.createJitFunction(JitFnIDs.isType);
-        const hasUnknownKeys = rt.createJitFunction(JitFnIDs.hasUnknownKeys);
+        const validate = rt.createJitFunction(JitFunctions.isType);
+        const hasUnknownKeys = rt.createJitFunction(JitFunctions.hasUnknownKeys);
 
         expect(validate(obj)).toBe(true);
         expect(hasUnknownKeys(obj)).toBe(false);
@@ -299,11 +299,11 @@ describe('test array strict modes + circular reference', () => {
     });
 
     it('encode/decode to json safeJson', () => {
-        const toJsonVal = rt.createJitFunction(JitFnIDs.toJsonVal);
-        const fromJsonVal = rt.createJitFunction(JitFnIDs.fromJsonVal);
-        const hasUnknownKeys = rt.createJitFunction(JitFnIDs.hasUnknownKeys);
-        const unknownKeysToUndefined = rt.createJitFunction(JitFnIDs.unknownKeysToUndefined);
-        const stripUnknownKeys = rt.createJitFunction(JitFnIDs.stripUnknownKeys);
+        const toJsonVal = rt.createJitFunction(JitFunctions.toJsonVal);
+        const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
+        const hasUnknownKeys = rt.createJitFunction(JitFunctions.hasUnknownKeys);
+        const unknownKeysToUndefined = rt.createJitFunction(JitFunctions.unknownKeysToUndefined);
+        const stripUnknownKeys = rt.createJitFunction(JitFunctions.stripUnknownKeys);
         const fromJsonSafeThrow = (val) => {
             if (hasUnknownKeys(val)) throw new Error('Unknown properties in JSON');
             return fromJsonVal(val);
@@ -337,11 +337,11 @@ describe('test array strict modes + circular reference', () => {
     });
 
     it('encode/decode to json safeJson deep', () => {
-        const toJsonVal = rt.createJitFunction(JitFnIDs.toJsonVal);
-        const fromJsonVal = rt.createJitFunction(JitFnIDs.fromJsonVal);
-        const hasUnknownKeys = rt.createJitFunction(JitFnIDs.hasUnknownKeys);
-        const unknownKeysToUndefined = rt.createJitFunction(JitFnIDs.unknownKeysToUndefined);
-        const stripUnknownKeys = rt.createJitFunction(JitFnIDs.stripUnknownKeys);
+        const toJsonVal = rt.createJitFunction(JitFunctions.toJsonVal);
+        const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
+        const hasUnknownKeys = rt.createJitFunction(JitFunctions.hasUnknownKeys);
+        const unknownKeysToUndefined = rt.createJitFunction(JitFunctions.unknownKeysToUndefined);
+        const stripUnknownKeys = rt.createJitFunction(JitFunctions.stripUnknownKeys);
         const fromJsonSafeThrow = (val) => {
             if (hasUnknownKeys(val)) throw new Error('Unknown properties in JSON');
             return fromJsonVal(val);
@@ -382,8 +382,8 @@ describe('test array strict modes + circular reference', () => {
 
     it('json stringify to strip extra params without fail', () => {
         // json stringify automatically strips unknown keys
-        const jsonStringify = rt.createJitFunction(JitFnIDs.jsonStringify);
-        const fromJsonVal = rt.createJitFunction(JitFnIDs.fromJsonVal);
+        const jsonStringify = rt.createJitFunction(JitFunctions.jsonStringify);
+        const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
         const jsonString = jsonStringify(objWithExtra);
         const roundTrip = fromJsonVal(JSON.parse(jsonString));
         expect(roundTrip).toEqual({
@@ -405,13 +405,13 @@ describe('Array circular ref', () => {
     const rt = runType<CircularArray>();
 
     it('validate CircularArray', () => {
-        const validate = rt.createJitFunction(JitFnIDs.isType);
+        const validate = rt.createJitFunction(JitFunctions.isType);
         const arr: CircularArray = [[[[]]], [[]], []];
         expect(validate(arr)).toBe(true);
     });
 
     it('validate CircularArray + errors', () => {
-        const valWithErrors = rt.createJitFunction(JitFnIDs.typeErrors);
+        const valWithErrors = rt.createJitFunction(JitFunctions.typeErrors);
         const arr: CircularArray = [];
         arr.push([]);
         arr[0].push([]);
@@ -427,7 +427,7 @@ describe('Array circular ref', () => {
     });
 
     it('encode CircularArray to json', () => {
-        const toJsonVal = rt.createJitFunction(JitFnIDs.toJsonVal);
+        const toJsonVal = rt.createJitFunction(JitFunctions.toJsonVal);
         const arr: CircularArray = [];
         arr.push([]);
         arr[0].push([]);
@@ -436,7 +436,7 @@ describe('Array circular ref', () => {
     });
 
     it('decode CircularArray from json', () => {
-        const fromJsonVal = rt.createJitFunction(JitFnIDs.fromJsonVal);
+        const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
         const arr: CircularArray = [];
         arr.push([]);
         arr[0].push([]);
@@ -446,8 +446,8 @@ describe('Array circular ref', () => {
     });
 
     it('json stringify CircularArray', () => {
-        const jsonStringify = rt.createJitFunction(JitFnIDs.jsonStringify);
-        const fromJsonVal = rt.createJitFunction(JitFnIDs.fromJsonVal);
+        const jsonStringify = rt.createJitFunction(JitFunctions.jsonStringify);
+        const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
         const arr: CircularArray = [];
         arr.push([]);
         arr[0].push([]);
@@ -461,7 +461,7 @@ describe('Array circular ref', () => {
     });
 
     it('mock CircularArray', () => {
-        const validate = rt.createJitFunction(JitFnIDs.isType);
+        const validate = rt.createJitFunction(JitFunctions.isType);
         expect(rt.mock() instanceof Array).toBe(true);
         expect(validate(rt.mock())).toBe(true);
     });

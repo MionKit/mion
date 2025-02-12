@@ -4,7 +4,7 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
-import {JitFnIDs} from '../../constants';
+import {JitFunctions} from '../../constants';
 import {runType} from '../../runType';
 
 function cloneSet<T>(set: Set<T>): Set<T> {
@@ -17,7 +17,7 @@ describe('SerRunType with simple keys Set<string>', () => {
     const rt = runType<Set<string>>();
 
     it('validate Set', () => {
-        const validate = rt.createJitFunction(JitFnIDs.isType);
+        const validate = rt.createJitFunction(JitFunctions.isType);
         expect(validate(testSet)).toBe(true);
 
         const notSet = 'hello';
@@ -28,12 +28,12 @@ describe('SerRunType with simple keys Set<string>', () => {
     });
 
     it('validate empty Set', () => {
-        const validate = rt.createJitFunction(JitFnIDs.isType);
+        const validate = rt.createJitFunction(JitFunctions.isType);
         expect(validate(new Set())).toBe(true);
     });
 
     it('Get Set<string> errors', () => {
-        const valWithErrors = rt.createJitFunction(JitFnIDs.typeErrors);
+        const valWithErrors = rt.createJitFunction(JitFunctions.typeErrors);
         expect(valWithErrors(testSet)).toEqual([]);
 
         const notSet = 'hello';
@@ -48,8 +48,8 @@ describe('SerRunType with simple keys Set<string>', () => {
     });
 
     it('encode/decode Set to json', () => {
-        const toJsonVal = rt.createJitFunction(JitFnIDs.toJsonVal);
-        const fromJsonVal = rt.createJitFunction(JitFnIDs.fromJsonVal);
+        const toJsonVal = rt.createJitFunction(JitFunctions.toJsonVal);
+        const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
 
         const setCopy = cloneSet(testSet);
         const encoded = toJsonVal(setCopy);
@@ -60,8 +60,8 @@ describe('SerRunType with simple keys Set<string>', () => {
     });
 
     it('json stringify Set', () => {
-        const jsonStringify = rt.createJitFunction(JitFnIDs.jsonStringify);
-        const fromJsonVal = rt.createJitFunction(JitFnIDs.fromJsonVal);
+        const jsonStringify = rt.createJitFunction(JitFunctions.jsonStringify);
+        const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
 
         const setCopy = cloneSet(testSet);
         const jsonString = jsonStringify(setCopy);
@@ -71,8 +71,8 @@ describe('SerRunType with simple keys Set<string>', () => {
     });
 
     it('has unknown keys in Set<string>', () => {
-        const hasUnknownKeys = rt.createJitFunction(JitFnIDs.hasUnknownKeys);
-        const validate = rt.createJitFunction(JitFnIDs.isType);
+        const hasUnknownKeys = rt.createJitFunction(JitFunctions.hasUnknownKeys);
+        const validate = rt.createJitFunction(JitFunctions.isType);
         const validSet = new Set<string>(['one', 'two']);
 
         expect(hasUnknownKeys(validSet)).toEqual(false);
@@ -80,7 +80,7 @@ describe('SerRunType with simple keys Set<string>', () => {
     });
 
     it('unknown key errors in Set<string>', () => {
-        const unknownKeyErrors = rt.createJitFunction(JitFnIDs.unknownKeyErrors);
+        const unknownKeyErrors = rt.createJitFunction(JitFunctions.unknownKeyErrors);
         const validSet = new Set<string>(['one', 'two']);
 
         expect(unknownKeyErrors(validSet)).toEqual([]);
@@ -88,7 +88,7 @@ describe('SerRunType with simple keys Set<string>', () => {
 
     it('mock Set<string>', () => {
         const mock = rt.mock();
-        const validate = rt.createJitFunction(JitFnIDs.isType);
+        const validate = rt.createJitFunction(JitFunctions.isType);
         expect(mock instanceof Set).toBeTruthy();
         expect(validate(mock)).toBe(true);
     });
@@ -112,7 +112,7 @@ describe('SerRunType with complex objects keys Set<SmallObject>', () => {
     const rtSmallObject = runType<Set<SmallObject>>();
 
     it('validate Set<SmallObject>', () => {
-        const validate = rtSmallObject.createJitFunction(JitFnIDs.isType);
+        const validate = rtSmallObject.createJitFunction(JitFunctions.isType);
         expect(validate(testSetSmallObject)).toBe(true);
 
         const notSet = 'hello';
@@ -123,7 +123,7 @@ describe('SerRunType with complex objects keys Set<SmallObject>', () => {
     });
 
     it('Get Set<SmallObject> errors', () => {
-        const valWithErrors = rtSmallObject.createJitFunction(JitFnIDs.typeErrors);
+        const valWithErrors = rtSmallObject.createJitFunction(JitFunctions.typeErrors);
         expect(valWithErrors(testSetSmallObject)).toEqual([]);
 
         const notSet = 'hello';
@@ -138,8 +138,8 @@ describe('SerRunType with complex objects keys Set<SmallObject>', () => {
     });
 
     it('encode/decode Set<SmallObject> to json', () => {
-        const toJsonVal = rtSmallObject.createJitFunction(JitFnIDs.toJsonVal);
-        const fromJsonVal = rtSmallObject.createJitFunction(JitFnIDs.fromJsonVal);
+        const toJsonVal = rtSmallObject.createJitFunction(JitFunctions.toJsonVal);
+        const fromJsonVal = rtSmallObject.createJitFunction(JitFunctions.fromJsonVal);
 
         const setCopy = cloneSet(testSetSmallObject);
         const encoded = toJsonVal(setCopy);
@@ -150,8 +150,8 @@ describe('SerRunType with complex objects keys Set<SmallObject>', () => {
     });
 
     it('json stringify Set<SmallObject>', () => {
-        const jsonStringify = rtSmallObject.createJitFunction(JitFnIDs.jsonStringify);
-        const fromJsonVal = rtSmallObject.createJitFunction(JitFnIDs.fromJsonVal);
+        const jsonStringify = rtSmallObject.createJitFunction(JitFunctions.jsonStringify);
+        const fromJsonVal = rtSmallObject.createJitFunction(JitFunctions.fromJsonVal);
 
         const setCopy = cloneSet(testSetSmallObject);
         const jsonString = jsonStringify(setCopy);
@@ -161,8 +161,8 @@ describe('SerRunType with complex objects keys Set<SmallObject>', () => {
     });
 
     it('has unknown keys in Set<SmallObject>', () => {
-        const hasUnknownKeys = rtSmallObject.createJitFunction(JitFnIDs.hasUnknownKeys);
-        const validate = rtSmallObject.createJitFunction(JitFnIDs.isType);
+        const hasUnknownKeys = rtSmallObject.createJitFunction(JitFunctions.hasUnknownKeys);
+        const validate = rtSmallObject.createJitFunction(JitFunctions.isType);
         const validSet = new Set<SmallObject>([
             {prop1: 'value1', prop2: 1, prop3: true},
             {prop1: 'value2', prop2: 2, prop3: false},
@@ -178,8 +178,8 @@ describe('SerRunType with complex objects keys Set<SmallObject>', () => {
     });
 
     it('unknown key errors in Set<SmallObject>', () => {
-        const unknownKeyErrors = rtSmallObject.createJitFunction(JitFnIDs.unknownKeyErrors);
-        const validate = rtSmallObject.createJitFunction(JitFnIDs.isType);
+        const unknownKeyErrors = rtSmallObject.createJitFunction(JitFunctions.unknownKeyErrors);
+        const validate = rtSmallObject.createJitFunction(JitFunctions.isType);
         const validSet = new Set<SmallObject>([{prop1: 'value1', prop2: 1, prop3: true}]);
         const setWithUnknownKeys = new Set<any>([{prop1: 'value1', prop2: 1, prop3: true, unknownProp: 'test'}]);
 
@@ -189,7 +189,7 @@ describe('SerRunType with complex objects keys Set<SmallObject>', () => {
     });
 
     it('strip unknown keys in Set<SmallObject>', () => {
-        const stripUnknownKeys = rtSmallObject.createJitFunction(JitFnIDs.stripUnknownKeys);
+        const stripUnknownKeys = rtSmallObject.createJitFunction(JitFunctions.stripUnknownKeys);
         const setWithUnknownKeys = new Set<any>([{prop1: 'value1', prop2: 1, prop3: true, unknownProp: 'test'}]);
 
         stripUnknownKeys(setWithUnknownKeys);
@@ -197,7 +197,7 @@ describe('SerRunType with complex objects keys Set<SmallObject>', () => {
     });
 
     it('unknown keys to undefined in Set<SmallObject>', () => {
-        const unknownKeysToUndefined = rtSmallObject.createJitFunction(JitFnIDs.unknownKeysToUndefined);
+        const unknownKeysToUndefined = rtSmallObject.createJitFunction(JitFunctions.unknownKeysToUndefined);
         const setWithUnknownKeys = new Set<any>([{prop1: 'value1', prop2: 1, prop3: true, unknownProp: 'test'}]);
 
         unknownKeysToUndefined(setWithUnknownKeys);
@@ -211,7 +211,7 @@ describe('SerRunType with complex objects keys Set<SmallObject>', () => {
 
     it('mock Set<SmallObject>', () => {
         const mock = rtSmallObject.mock();
-        const validate = rtSmallObject.createJitFunction(JitFnIDs.isType);
+        const validate = rtSmallObject.createJitFunction(JitFunctions.isType);
         expect(mock instanceof Set).toBeTruthy();
         expect(validate(mock)).toBe(true);
     });
@@ -225,7 +225,7 @@ describe('SerRunType with nested sets', () => {
     const rtDeepWithSet = runType<DeepWithSet>();
 
     it('validate objects with nested sets', () => {
-        const validate = rtDeepWithSet.createJitFunction(JitFnIDs.isType);
+        const validate = rtDeepWithSet.createJitFunction(JitFunctions.isType);
         const set1: DeepWithSet['b'] = new Set([
             {s: 'a', arr: [1, 2, 3]},
             {s: 'b', arr: [4, 5, 6]},
@@ -246,7 +246,7 @@ describe('SerRunType with nested sets', () => {
     });
 
     it('Get errors for objects with nested sets', () => {
-        const valWithErrors = rtDeepWithSet.createJitFunction(JitFnIDs.typeErrors);
+        const valWithErrors = rtDeepWithSet.createJitFunction(JitFunctions.typeErrors);
         const set1: DeepWithSet['b'] = new Set([
             {s: 'a', arr: [1, 2, 3]},
             {s: 'b', arr: [4, 5, 6]},
@@ -267,8 +267,8 @@ describe('SerRunType with nested sets', () => {
     });
 
     it('encode/decode objects with nested sets to json', () => {
-        const toJsonVal = rtDeepWithSet.createJitFunction(JitFnIDs.toJsonVal);
-        const fromJsonVal = rtDeepWithSet.createJitFunction(JitFnIDs.fromJsonVal);
+        const toJsonVal = rtDeepWithSet.createJitFunction(JitFunctions.toJsonVal);
+        const fromJsonVal = rtDeepWithSet.createJitFunction(JitFunctions.fromJsonVal);
 
         const set1: DeepWithSet['b'] = new Set([
             {s: 'a', arr: [1, 2, 3]},
@@ -287,8 +287,8 @@ describe('SerRunType with nested sets', () => {
     });
 
     it('json stringify objects with nested sets', () => {
-        const jsonStringify = rtDeepWithSet.createJitFunction(JitFnIDs.jsonStringify);
-        const fromJsonVal = rtDeepWithSet.createJitFunction(JitFnIDs.fromJsonVal);
+        const jsonStringify = rtDeepWithSet.createJitFunction(JitFunctions.jsonStringify);
+        const fromJsonVal = rtDeepWithSet.createJitFunction(JitFunctions.fromJsonVal);
 
         const set1: DeepWithSet['b'] = new Set([
             {s: 'a', arr: [1, 2, 3]},
@@ -306,8 +306,8 @@ describe('SerRunType with nested sets', () => {
     });
 
     it('has unknown keys in objects with nested sets', () => {
-        const hasUnknownKeys = rtDeepWithSet.createJitFunction(JitFnIDs.hasUnknownKeys);
-        const validate = rtDeepWithSet.createJitFunction(JitFnIDs.isType);
+        const hasUnknownKeys = rtDeepWithSet.createJitFunction(JitFunctions.hasUnknownKeys);
+        const validate = rtDeepWithSet.createJitFunction(JitFunctions.isType);
         const set1: DeepWithSet['b'] = new Set([
             {s: 'a', arr: [1, 2, 3]},
             {s: 'b', arr: [4, 5, 6]},
@@ -328,8 +328,8 @@ describe('SerRunType with nested sets', () => {
     });
 
     it('unknown key errors in objects with nested sets', () => {
-        const unknownKeyErrors = rtDeepWithSet.createJitFunction(JitFnIDs.unknownKeyErrors);
-        const validate = rtDeepWithSet.createJitFunction(JitFnIDs.isType);
+        const unknownKeyErrors = rtDeepWithSet.createJitFunction(JitFunctions.unknownKeyErrors);
+        const validate = rtDeepWithSet.createJitFunction(JitFunctions.isType);
         const set1: DeepWithSet['b'] = new Set([
             {s: 'a', arr: [1, 2, 3]},
             {s: 'b', arr: [4, 5, 6]},
@@ -350,7 +350,7 @@ describe('SerRunType with nested sets', () => {
     });
 
     it('strip unknown keys in objects with nested sets', () => {
-        const stripUnknownKeys = rtDeepWithSet.createJitFunction(JitFnIDs.stripUnknownKeys);
+        const stripUnknownKeys = rtDeepWithSet.createJitFunction(JitFunctions.stripUnknownKeys);
         const objWithUnknownKeys: any = {
             a: 'a',
             b: new Set([
@@ -371,7 +371,7 @@ describe('SerRunType with nested sets', () => {
     });
 
     it('unknown keys to undefined in objects with nested sets', () => {
-        const unknownKeysToUndefined = rtDeepWithSet.createJitFunction(JitFnIDs.unknownKeysToUndefined);
+        const unknownKeysToUndefined = rtDeepWithSet.createJitFunction(JitFunctions.unknownKeysToUndefined);
         const objWithUnknownKeys: any = {
             a: 'a',
             b: new Set([
@@ -394,7 +394,7 @@ describe('SerRunType with nested sets', () => {
 
     it('mock objects with nested sets', () => {
         const mock = rtDeepWithSet.mock();
-        const validate = rtDeepWithSet.createJitFunction(JitFnIDs.isType);
+        const validate = rtDeepWithSet.createJitFunction(JitFunctions.isType);
         expect(mock.b instanceof Set).toBeTruthy();
         expect(validate(mock)).toBe(true);
     });
