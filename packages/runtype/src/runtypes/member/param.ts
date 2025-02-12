@@ -9,7 +9,7 @@ import {ReflectionKind, TypeTupleMember, type TypeParameter} from '../../lib/_de
 import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
 import {MemberRunType} from '../../lib/baseRunTypes';
 import {MockOperation} from '../../types';
-import {JitFnIDs} from '../../constants';
+import {JitFunctions} from '../../constants';
 import {childIsExpression, getParamIndex} from '../../lib/utils';
 
 type ParamT = TypeParameter | TypeTupleMember;
@@ -55,7 +55,7 @@ export class ParameterRunType<T extends ParamT = TypeParameter> extends MemberRu
         const childCode = child?.compileToJsonVal(comp);
         const optionalCode = `if (${comp.getChildVλl()} === undefined ) {if (${comp.vλl}.length > ${this.getChildIndex()}) ${comp.getChildVλl()} = null}`;
         if (!child || !childCode) return this.isOptional() ? optionalCode : undefined;
-        const isExpression = childIsExpression(JitFnIDs.toJsonVal, child);
+        const isExpression = childIsExpression(JitFunctions.toJsonVal.id, child);
         const code = isExpression ? `${comp.getChildVλl()} = ${childCode};` : childCode;
         return this.isOptional() ? `${optionalCode} else {${code}}` : code;
     }
@@ -65,7 +65,7 @@ export class ParameterRunType<T extends ParamT = TypeParameter> extends MemberRu
         const childCode = child?.compileFromJsonVal(comp);
         const optionalCOde = `if (${comp.getChildVλl()} === null ) {${comp.getChildVλl()} = undefined}`;
         if (!child || !childCode) return this.isOptional() ? optionalCOde : undefined;
-        const isExpression = childIsExpression(JitFnIDs.fromJsonVal, child);
+        const isExpression = childIsExpression(JitFunctions.fromJsonVal.id, child);
         const code = isExpression ? `${comp.getChildVλl()} = ${childCode};` : childCode;
         return this.isOptional() ? `${optionalCOde} else if (${comp.getChildVλl()} !== undefined) {${code}}` : code;
     }

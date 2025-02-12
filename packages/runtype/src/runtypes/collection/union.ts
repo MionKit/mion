@@ -14,7 +14,7 @@ import {childIsExpression, memorize} from '../../lib/utils';
 import {InterfaceRunType} from './interface';
 import {ClassRunType} from './class';
 import {IntersectionRunType} from './intersection';
-import {JitFnIDs} from '../../constants';
+import {JitFunctions} from '../../constants';
 import {isClassRunType, isInterfaceRunType, isIntersectionRunType, isObjectLiteralRunType} from '../../lib/guards';
 import {UnionInterfaceRunType} from '../other/unionInterface';
 
@@ -34,7 +34,7 @@ export class UnionRunType extends CollectionRunType<TypeUnion> {
     }
     jitFnHasReturn(fnId: JitFnID): boolean {
         switch (fnId) {
-            case JitFnIDs.jsonStringify:
+            case JitFunctions.jsonStringify.id:
                 return true;
             default:
                 return super.jitFnHasReturn(fnId);
@@ -79,7 +79,7 @@ export class UnionRunType extends CollectionRunType<TypeUnion> {
             .map((child, i) => {
                 const iF = i === 0 ? 'if' : 'else if';
                 const childCode = child.compileToJsonVal(comp) || '';
-                const isExpression = childIsExpression(JitFnIDs.toJsonVal, child);
+                const isExpression = childIsExpression(JitFunctions.toJsonVal.id, child);
                 const encodeCode = isExpression && childCode ? `${comp.vλl} = ${childCode};` : childCode;
                 const itemIsType = this.getChildStrictIsType(child, comp);
                 // item encoded before reassigning varName to [i, item]
@@ -109,7 +109,7 @@ export class UnionRunType extends CollectionRunType<TypeUnion> {
             .map((child, i) => {
                 const iF = i === 0 ? 'if' : 'else if';
                 const childCode = child.compileFromJsonVal(comp) || '';
-                const isExpression = childIsExpression(JitFnIDs.fromJsonVal, child);
+                const isExpression = childIsExpression(JitFunctions.fromJsonVal.id, child);
                 const code = isExpression && childCode && childCode !== comp.vλl ? `${comp.vλl} = ${childCode}` : childCode;
                 // item is decoded before being extracted from the array
                 return `${iF} ( ${decVar} === ${i}) {${comp.vλl} = ${comp.vλl}[1];${code}}`;

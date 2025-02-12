@@ -11,7 +11,7 @@ import {ReflectionKind, TypeClass} from '../../lib/_deepkit/src/reflection/type'
 import {random} from '../../lib/mock';
 import {IterableRunType} from './Iterable';
 import {JitCompiler} from '../../lib/jitCompiler';
-import {JitFnIDs} from '../../constants';
+import {JitFunctions} from '../../constants';
 
 export class MapRunType extends IterableRunType {
     keyRT = new MapKeyRunType();
@@ -37,7 +37,7 @@ export class MapRunType extends IterableRunType {
     }
     getCustomVλl(comp: JitCompiler) {
         // fromJsonVal is decoding a regular array so no need to use an special case for vλl as other operations
-        if (comp.fnId === JitFnIDs.fromJsonVal)
+        if (comp.fnId === JitFunctions.fromJsonVal.id)
             return {vλl: `it${this.getNestLevel()}`, isStandalone: false, useArrayAccessor: true};
         // other operations use an special case for vλl where all parents are skipped
         return {vλl: `it${this.getNestLevel()}`, isStandalone: true};

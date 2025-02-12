@@ -4,7 +4,7 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
-import {JitFnIDs} from '../../constants';
+import {JitFunctions} from '../../constants';
 import {BaseRunType} from '../../lib/baseRunTypes';
 import {runType} from '../../runType';
 
@@ -26,7 +26,7 @@ describe('Atomic Union', () => {
     const rtConf = runType<configOpt>();
 
     it('validate union', () => {
-        const validate = rt.createJitFunction(JitFnIDs.isType);
+        const validate = rt.createJitFunction(JitFunctions.isType);
 
         expect(validate(a)).toBe(true);
         expect(validate(b)).toBe(true);
@@ -39,7 +39,7 @@ describe('Atomic Union', () => {
     });
 
     it('validate union discriminator string', () => {
-        const validate = rtConf.createJitFunction(JitFnIDs.isType);
+        const validate = rtConf.createJitFunction(JitFunctions.isType);
 
         expect(validate('UNO')).toBe(true);
         expect(validate('DOS')).toBe(true);
@@ -50,7 +50,7 @@ describe('Atomic Union', () => {
     });
 
     it('validate union + errors', () => {
-        const valWithErrors = rt.createJitFunction(JitFnIDs.typeErrors);
+        const valWithErrors = rt.createJitFunction(JitFunctions.typeErrors);
 
         expect(valWithErrors(a)).toEqual([]);
         expect(valWithErrors(b)).toEqual([]);
@@ -64,8 +64,8 @@ describe('Atomic Union', () => {
     });
 
     it('encode/decode to json', () => {
-        const toJsonVal = rt.createJitFunction(JitFnIDs.toJsonVal);
-        const fromJsonVal = rt.createJitFunction(JitFnIDs.fromJsonVal);
+        const toJsonVal = rt.createJitFunction(JitFunctions.toJsonVal);
+        const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
 
         expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(a))))).toEqual(a);
         expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(b))))).toEqual(b);
@@ -76,8 +76,8 @@ describe('Atomic Union', () => {
 
     it('json stringify with discriminator', () => {
         // this should be serialized as [discriminatorIndex, value]
-        const jsonStringify = rt.createJitFunction(JitFnIDs.jsonStringify);
-        const fromJsonVal = rt.createJitFunction(JitFnIDs.fromJsonVal);
+        const jsonStringify = rt.createJitFunction(JitFunctions.jsonStringify);
+        const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
 
         expect(fromJsonVal(JSON.parse(jsonStringify(a)))).toEqual(a);
         expect(fromJsonVal(JSON.parse(jsonStringify(b)))).toEqual(b);
@@ -89,9 +89,9 @@ describe('Atomic Union', () => {
     it('throw errors when serializing deserializing object not belonging to the union', () => {
         type UT = string | number;
         const rtU = runType<UT>();
-        const jsonStringify = rtU.createJitFunction(JitFnIDs.jsonStringify);
-        const fromJsonVal = rtU.createJitFunction(JitFnIDs.fromJsonVal);
-        const toJsonVal = rtU.createJitFunction(JitFnIDs.toJsonVal);
+        const jsonStringify = rtU.createJitFunction(JitFunctions.jsonStringify);
+        const fromJsonVal = rtU.createJitFunction(JitFunctions.fromJsonVal);
+        const toJsonVal = rtU.createJitFunction(JitFunctions.toJsonVal);
         const typeValue = new Date();
 
         expect(() => jsonStringify(typeValue)).toThrow('Can not stringify union: expected one of <string | number> but got Date');
@@ -110,7 +110,7 @@ describe('Atomic Union', () => {
                 mocked instanceof Date ||
                 mocked === null
         ).toBe(true);
-        const validate = rt.createJitFunction(JitFnIDs.isType);
+        const validate = rt.createJitFunction(JitFunctions.isType);
         expect(validate(rt.mock())).toBe(true);
     });
 
@@ -120,10 +120,10 @@ describe('Atomic Union', () => {
 
         const rtNoop = runType<atomicNoEncRequired>() as BaseRunType;
         const rtEncRequired = runType<atomicEncRequired>() as BaseRunType;
-        expect(rtNoop.getJitCompiledOperation(JitFnIDs.toJsonVal).isNoop).toBe(false);
-        expect(rtNoop.getJitCompiledOperation(JitFnIDs.fromJsonVal).isNoop).toBe(false);
-        expect(rtEncRequired.getJitCompiledOperation(JitFnIDs.toJsonVal).isNoop).toBe(false);
-        expect(rtEncRequired.getJitCompiledOperation(JitFnIDs.fromJsonVal).isNoop).toBe(false);
+        expect(rtNoop.getJitCompiledOperation(JitFunctions.toJsonVal.id).isNoop).toBe(false);
+        expect(rtNoop.getJitCompiledOperation(JitFunctions.fromJsonVal.id).isNoop).toBe(false);
+        expect(rtEncRequired.getJitCompiledOperation(JitFunctions.toJsonVal.id).isNoop).toBe(false);
+        expect(rtEncRequired.getJitCompiledOperation(JitFunctions.fromJsonVal.id).isNoop).toBe(false);
     });
 });
 
@@ -139,7 +139,7 @@ describe('Union Arr', () => {
     const rt = runType<UnionArr>();
 
     it('validate union', () => {
-        const validate = rt.createJitFunction(JitFnIDs.isType);
+        const validate = rt.createJitFunction(JitFunctions.isType);
 
         expect(validate(arrA)).toBe(true);
         expect(validate(arrB)).toBe(true);
@@ -150,7 +150,7 @@ describe('Union Arr', () => {
     });
 
     it('validate union + errors', () => {
-        const valWithErrors = rt.createJitFunction(JitFnIDs.typeErrors);
+        const valWithErrors = rt.createJitFunction(JitFunctions.typeErrors);
 
         expect(valWithErrors(arrA)).toEqual([]);
         expect(valWithErrors(arrB)).toEqual([]);
@@ -161,8 +161,8 @@ describe('Union Arr', () => {
     });
 
     it('encode/decode to json', () => {
-        const toJsonVal = rt.createJitFunction(JitFnIDs.toJsonVal);
-        const fromJsonVal = rt.createJitFunction(JitFnIDs.fromJsonVal);
+        const toJsonVal = rt.createJitFunction(JitFunctions.toJsonVal);
+        const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
 
         expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(arrA))))).toEqual(arrA);
         expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(arrB))))).toEqual(arrB);
@@ -175,8 +175,8 @@ describe('Union Arr', () => {
 
     it('json stringify with discriminator', () => {
         // this should be serialized as [discriminatorIndex, value]
-        const jsonStringify = rt.createJitFunction(JitFnIDs.jsonStringify);
-        const fromJsonVal = rt.createJitFunction(JitFnIDs.fromJsonVal);
+        const jsonStringify = rt.createJitFunction(JitFunctions.jsonStringify);
+        const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
 
         const copyA = structuredClone(arrA);
         const copyB = structuredClone(arrB);
@@ -189,9 +189,9 @@ describe('Union Arr', () => {
     });
 
     it('throw errors when serializing deserializing object not belonging to the union', () => {
-        const jsonStringify = rt.createJitFunction(JitFnIDs.jsonStringify);
-        const fromJsonVal = rt.createJitFunction(JitFnIDs.fromJsonVal);
-        const toJsonVal = rt.createJitFunction(JitFnIDs.toJsonVal);
+        const jsonStringify = rt.createJitFunction(JitFunctions.jsonStringify);
+        const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
+        const toJsonVal = rt.createJitFunction(JitFunctions.toJsonVal);
         const typeValue = new Date();
 
         expect(() => jsonStringify(typeValue)).toThrow(
@@ -208,7 +208,7 @@ describe('Union Arr', () => {
     it('mock', () => {
         const mocked = rt.mock();
         expect(Array.isArray(mocked)).toBe(true);
-        const validate = rt.createJitFunction(JitFnIDs.isType);
+        const validate = rt.createJitFunction(JitFunctions.isType);
         expect(validate(rt.mock())).toBe(true);
     });
 });
@@ -228,7 +228,7 @@ describe('Union Obj', () => {
     const rt = runType<UnionObj>();
 
     it('validate union', () => {
-        const validate = rt.createJitFunction(JitFnIDs.isType);
+        const validate = rt.createJitFunction(JitFunctions.isType);
 
         expect(validate(objA)).toBe(false);
         expect(validate(objB)).toBe(true);
@@ -240,7 +240,7 @@ describe('Union Obj', () => {
     });
 
     it('validate union + errors', () => {
-        const valWithErrors = rt.createJitFunction(JitFnIDs.typeErrors);
+        const valWithErrors = rt.createJitFunction(JitFunctions.typeErrors);
 
         expect(valWithErrors(objA)).toEqual([{path: [], expected: 'union'}]);
         expect(valWithErrors(objB)).toEqual([]);
@@ -252,8 +252,8 @@ describe('Union Obj', () => {
     });
 
     it('encode/decode to json', () => {
-        const toJsonVal = rt.createJitFunction(JitFnIDs.toJsonVal);
-        const fromJsonVal = rt.createJitFunction(JitFnIDs.fromJsonVal);
+        const toJsonVal = rt.createJitFunction(JitFunctions.toJsonVal);
+        const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
 
         const copyA = structuredClone(objA);
         const copyB = structuredClone(objB);
@@ -266,8 +266,8 @@ describe('Union Obj', () => {
 
     it('json stringify with discriminator', () => {
         // this should be serialized as [discriminatorIndex, value]
-        const jsonStringify = rt.createJitFunction(JitFnIDs.jsonStringify);
-        const fromJsonVal = rt.createJitFunction(JitFnIDs.fromJsonVal);
+        const jsonStringify = rt.createJitFunction(JitFunctions.jsonStringify);
+        const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
 
         expect(() => jsonStringify(objA)).toThrow(); // mion throws an error for mixed properties in the union
         expect(fromJsonVal(JSON.parse(jsonStringify(objB)))).toEqual(objB);
@@ -275,9 +275,9 @@ describe('Union Obj', () => {
     });
 
     it('throw errors whe serializing deserializing object not belonging to the union', () => {
-        const jsonStringify = rt.createJitFunction(JitFnIDs.jsonStringify);
-        const fromJsonVal = rt.createJitFunction(JitFnIDs.fromJsonVal);
-        const toJsonVal = rt.createJitFunction(JitFnIDs.toJsonVal);
+        const jsonStringify = rt.createJitFunction(JitFunctions.jsonStringify);
+        const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
+        const toJsonVal = rt.createJitFunction(JitFunctions.toJsonVal);
         const typeValue = new Date();
 
         expect(() => jsonStringify(typeValue)).toThrow(
@@ -294,7 +294,7 @@ describe('Union Obj', () => {
     it('mock', () => {
         const mocked = rt.mock();
         expect(typeof mocked === 'object').toBe(true);
-        const validate = rt.createJitFunction(JitFnIDs.isType);
+        const validate = rt.createJitFunction(JitFunctions.isType);
         expect(validate(rt.mock())).toBe(true);
     });
 });
@@ -331,7 +331,7 @@ describe('Union Mixed', () => {
     const rt2 = runType<UnMix2>();
 
     it('validate union', () => {
-        const validate = rt.createJitFunction(JitFnIDs.isType);
+        const validate = rt.createJitFunction(JitFunctions.isType);
 
         expect(validate(mixA)).toBe(true);
         expect(validate(mixB)).toBe(true);
@@ -349,7 +349,7 @@ describe('Union Mixed', () => {
 
     // for UnMix2 the 'a' property is merged into a single union prop, so 'a' accepts both boolean and number
     it('validate union with merged properties', () => {
-        const validate = rt2.createJitFunction(JitFnIDs.isType);
+        const validate = rt2.createJitFunction(JitFunctions.isType);
 
         expect(validate(mix2A)).toBe(true);
         expect(validate(mix2B)).toBe(true);
@@ -360,7 +360,7 @@ describe('Union Mixed', () => {
 
     // validation for Unions does not return info about the path as we can't know which type of the union the user was trying to use.
     it('validate union + errors', () => {
-        const valWithErrors = rt.createJitFunction(JitFnIDs.typeErrors);
+        const valWithErrors = rt.createJitFunction(JitFunctions.typeErrors);
 
         expect(valWithErrors(mixA)).toEqual([]);
         expect(valWithErrors(mixB)).toEqual([]);
@@ -371,8 +371,8 @@ describe('Union Mixed', () => {
     });
 
     it('encode/decode to json', () => {
-        const toJsonVal = rt.createJitFunction(JitFnIDs.toJsonVal);
-        const fromJsonVal = rt.createJitFunction(JitFnIDs.fromJsonVal);
+        const toJsonVal = rt.createJitFunction(JitFunctions.toJsonVal);
+        const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
 
         const copyA = structuredClone(mixA);
         const copyB = structuredClone(mixB);
@@ -382,17 +382,17 @@ describe('Union Mixed', () => {
 
     it('json stringify with discriminator', () => {
         // this should be serialized as [discriminatorIndex, value]
-        const jsonStringify = rt.createJitFunction(JitFnIDs.jsonStringify);
-        const fromJsonVal = rt.createJitFunction(JitFnIDs.fromJsonVal);
+        const jsonStringify = rt.createJitFunction(JitFunctions.jsonStringify);
+        const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
 
         expect(fromJsonVal(JSON.parse(jsonStringify(mixA)))).toEqual(mixA);
         expect(fromJsonVal(JSON.parse(jsonStringify(mixB)))).toEqual(mixB);
     });
 
     it('throw errors whe serializing deserializing object not belonging to the union', () => {
-        const jsonStringify = rt.createJitFunction(JitFnIDs.jsonStringify);
-        const fromJsonVal = rt.createJitFunction(JitFnIDs.fromJsonVal);
-        const toJsonVal = rt.createJitFunction(JitFnIDs.toJsonVal);
+        const jsonStringify = rt.createJitFunction(JitFunctions.jsonStringify);
+        const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
+        const toJsonVal = rt.createJitFunction(JitFunctions.toJsonVal);
         const typeValue = new Date();
 
         expect(() => jsonStringify(typeValue)).toThrow(
@@ -409,7 +409,7 @@ describe('Union Mixed', () => {
     it('mock', () => {
         const mocked = rt.mock();
         expect(typeof mocked === 'object').toBe(true);
-        const validate = rt.createJitFunction(JitFnIDs.isType);
+        const validate = rt.createJitFunction(JitFunctions.isType);
         expect(validate(rt.mock())).toBe(true);
     });
 });
@@ -435,7 +435,7 @@ describe('Union circular', () => {
     const rt = runType<UnionC>();
 
     it('validate Circular Union', () => {
-        const validate = rt.createJitFunction(JitFnIDs.isType);
+        const validate = rt.createJitFunction(JitFunctions.isType);
 
         expect(validate(d)).toBe(true);
         expect(validate(n)).toBe(true);
@@ -454,7 +454,7 @@ describe('Union circular', () => {
     });
 
     it('validate Circular Union + errors', () => {
-        const valWithErrors = rt.createJitFunction(JitFnIDs.typeErrors);
+        const valWithErrors = rt.createJitFunction(JitFunctions.typeErrors);
 
         expect(valWithErrors(d)).toEqual([]);
         expect(valWithErrors(n)).toEqual([]);
@@ -474,8 +474,8 @@ describe('Union circular', () => {
     });
 
     it('encode/decode Circular Union to json', () => {
-        const toJsonVal = rt.createJitFunction(JitFnIDs.toJsonVal);
-        const fromJsonVal = rt.createJitFunction(JitFnIDs.fromJsonVal);
+        const toJsonVal = rt.createJitFunction(JitFunctions.toJsonVal);
+        const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
 
         expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(d))))).toEqual(d);
         expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(n))))).toEqual(n);
@@ -491,8 +491,8 @@ describe('Union circular', () => {
 
     it('json stringify Circular Union with discriminator', () => {
         // this should be serialized as [discriminatorIndex, value]
-        const jsonStringify = rt.createJitFunction(JitFnIDs.jsonStringify);
-        const fromJsonVal = rt.createJitFunction(JitFnIDs.fromJsonVal);
+        const jsonStringify = rt.createJitFunction(JitFunctions.jsonStringify);
+        const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
 
         expect(fromJsonVal(JSON.parse(jsonStringify(d)))).toEqual(d);
         expect(fromJsonVal(JSON.parse(jsonStringify(n)))).toEqual(n);

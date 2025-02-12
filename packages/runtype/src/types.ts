@@ -15,7 +15,7 @@ import type {
 } from './lib/_deepkit/src/reflection/type';
 import type {BaseCompiler} from './lib/jitCompiler';
 import type {JITUtils} from './lib/jitUtils';
-import type {JitFnIDs} from './constants';
+import type {JitFunctions} from './constants';
 import type {ReflectionSubKind} from './constants.kind';
 
 // ###################### RunTypes ######################
@@ -32,7 +32,7 @@ export interface RunType {
     // ######## JIT functions ########
     getJitId(): string | number;
     getJitHash: () => string;
-    createJitFunction(name: JitFnID): (...args: any[]) => any;
+    createJitFunction(jitFn: JitFn): (...args: any[]) => any;
 }
 
 export type JSONValue = string | number | boolean | null | {[key: string]: JSONValue} | Array<JSONValue>;
@@ -46,9 +46,6 @@ export type SrcType<T extends Type = Type> = T & {
 };
 export type SrcCollection = Type & {types: Type[]};
 export type SrcMember = Type & {type: Type};
-
-// on of the values of JitFnIDs object
-export type JitFnID = (typeof JitFnIDs)[keyof typeof JitFnIDs];
 
 /**
  * The argument names of the function to be compiled. The order of properties is important as must the same as the function args.
@@ -107,6 +104,11 @@ export interface RunTypeOptions {
 
 
 // ###################### JIT FUNCTIONS ######################
+
+export type JitFn = (typeof JitFunctions)[keyof typeof JitFunctions];
+
+// one of the existing jit functions ids 
+export type JitFnID = JitFn['id'];
 
 export interface JitValidator {
     isType: (value: any) => boolean;
@@ -171,17 +173,6 @@ export interface UnwrappedJITFunctions {
     fromJsonVal: JitFnData<unwrappedFromJsonValFn>;
     jsonStringify: JitFnData<unwrappedJsonStringifyFn>;
 }
-
-/**
- * Jit Compile Operation unit
- * EXPRESSION: the result of each type compilations is expected to be a js expression that resolves to a single value, and can be used wit operators like +, -, *, /, ||, &&, etc.
- * i.e: expType1 + expType2, expType1 || expType2, etc. Expressions cant contain return statements, if statements, semicolons, etc.
- * if a code block is needed in an expression it must be wrapped in a self invoking function. i.e: (() => { //... code block })()
- * STATEMENT: the result of each type compilations is expected to be a js statement that can be used in a block of code, and can contain return statements, if statements, semicolons, etc.
- * BLOCK: the main difference is that and statement can be returned directly ie: return statementCode;
- * while in a block the main value must be returned after code block execution. ie: blockCode; return vλl;
- */
-export type CodeUnit = 'EXPRESSION' | 'STATEMENT' | 'BLOCK';
 
 export interface CompiledOperation
     extends Pick<

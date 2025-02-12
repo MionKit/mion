@@ -6,7 +6,7 @@
  * ######## */
 
 import {runType} from '../../runType';
-import {JitFnIDs} from '../../constants';
+import {JitFunctions} from '../../constants';
 
 // Deepkit already implements all logic for Exclude
 
@@ -19,8 +19,8 @@ describe('Exclude typescript utility type, exclude atomic elements from an union
     const excludeAge: Exclude<PersonProp, 'age'> = 'name';
 
     it('validate', () => {
-        const isType = rt.createJitFunction(JitFnIDs.isType);
-        const isTypeExclude = rtExclude.createJitFunction(JitFnIDs.isType);
+        const isType = rt.createJitFunction(JitFunctions.isType);
+        const isTypeExclude = rtExclude.createJitFunction(JitFunctions.isType);
 
         expect(isType(personProp)).toEqual(true);
         expect(isTypeExclude(excludeAge)).toEqual(true);
@@ -30,8 +30,8 @@ describe('Exclude typescript utility type, exclude atomic elements from an union
     });
 
     it('validate errors', () => {
-        const typeErrors = rt.createJitFunction(JitFnIDs.typeErrors);
-        const typeErrorsExclude = rtExclude.createJitFunction(JitFnIDs.typeErrors);
+        const typeErrors = rt.createJitFunction(JitFunctions.typeErrors);
+        const typeErrorsExclude = rtExclude.createJitFunction(JitFunctions.typeErrors);
 
         expect(typeErrors(personProp)).toEqual([]);
         expect(typeErrorsExclude(excludeAge)).toEqual([]);
@@ -41,20 +41,20 @@ describe('Exclude typescript utility type, exclude atomic elements from an union
     });
 
     it('json encode/decode', () => {
-        const encode = rt.createJitFunction(JitFnIDs.toJsonVal);
-        const encodeExclude = rtExclude.createJitFunction(JitFnIDs.toJsonVal);
-        const decode = rt.createJitFunction(JitFnIDs.fromJsonVal);
-        const decodeExclude = rtExclude.createJitFunction(JitFnIDs.fromJsonVal);
+        const encode = rt.createJitFunction(JitFunctions.toJsonVal);
+        const encodeExclude = rtExclude.createJitFunction(JitFunctions.toJsonVal);
+        const decode = rt.createJitFunction(JitFunctions.fromJsonVal);
+        const decodeExclude = rtExclude.createJitFunction(JitFunctions.fromJsonVal);
 
         expect(decode(JSON.parse(JSON.stringify(encode(personProp))))).toEqual(personProp);
         expect(decodeExclude(JSON.parse(JSON.stringify(encodeExclude(excludeAge))))).toEqual(excludeAge);
     });
 
     it('json stringify', () => {
-        const stringify = rt.createJitFunction(JitFnIDs.jsonStringify);
-        const stringifyExclude = rtExclude.createJitFunction(JitFnIDs.jsonStringify);
-        const decode = rt.createJitFunction(JitFnIDs.fromJsonVal);
-        const decodeExclude = rtExclude.createJitFunction(JitFnIDs.fromJsonVal);
+        const stringify = rt.createJitFunction(JitFunctions.jsonStringify);
+        const stringifyExclude = rtExclude.createJitFunction(JitFunctions.jsonStringify);
+        const decode = rt.createJitFunction(JitFunctions.fromJsonVal);
+        const decodeExclude = rtExclude.createJitFunction(JitFunctions.fromJsonVal);
 
         expect(decode(JSON.parse(stringify(personProp)))).toEqual(personProp);
         expect(decodeExclude(JSON.parse(stringifyExclude(excludeAge)))).toEqual(excludeAge);
@@ -63,8 +63,8 @@ describe('Exclude typescript utility type, exclude atomic elements from an union
     it('mock', () => {
         const mocked = rt.mock();
         const mockedExclude = rtExclude.mock();
-        const isType = rt.createJitFunction(JitFnIDs.isType);
-        const isTypeExclude = rtExclude.createJitFunction(JitFnIDs.isType);
+        const isType = rt.createJitFunction(JitFunctions.isType);
+        const isTypeExclude = rtExclude.createJitFunction(JitFunctions.isType);
 
         expect(['name', 'age', 'createdAt'].includes(mocked)).toBe(true);
         expect(['name', 'createdAt'].includes(mockedExclude)).toBe(true);
@@ -82,8 +82,8 @@ describe('Exclude typescript utility type, exclude items from objects union', ()
     const excludeShape: Exclude<Shape, {kind: 'circle'}> = {kind: 'square', x: 5};
 
     it('validate', () => {
-        const isType = rt.createJitFunction(JitFnIDs.isType);
-        const isTypeExclude = rtExclude.createJitFunction(JitFnIDs.isType);
+        const isType = rt.createJitFunction(JitFunctions.isType);
+        const isTypeExclude = rtExclude.createJitFunction(JitFunctions.isType);
 
         expect(isType(shape)).toEqual(true);
         expect(isTypeExclude(excludeShape)).toEqual(true);
@@ -93,8 +93,8 @@ describe('Exclude typescript utility type, exclude items from objects union', ()
     });
 
     it('validate errors', () => {
-        const typeErrors = rt.createJitFunction(JitFnIDs.typeErrors);
-        const typeErrorsExclude = rtExclude.createJitFunction(JitFnIDs.typeErrors);
+        const typeErrors = rt.createJitFunction(JitFunctions.typeErrors);
+        const typeErrorsExclude = rtExclude.createJitFunction(JitFunctions.typeErrors);
 
         expect(typeErrors(shape)).toEqual([]);
         expect(typeErrorsExclude(excludeShape)).toEqual([]);
@@ -104,20 +104,20 @@ describe('Exclude typescript utility type, exclude items from objects union', ()
     });
 
     it('json encode/decode', () => {
-        const encode = rt.createJitFunction(JitFnIDs.toJsonVal);
-        const encodeExclude = rtExclude.createJitFunction(JitFnIDs.toJsonVal);
-        const decode = rt.createJitFunction(JitFnIDs.fromJsonVal);
-        const decodeExclude = rtExclude.createJitFunction(JitFnIDs.fromJsonVal);
+        const encode = rt.createJitFunction(JitFunctions.toJsonVal);
+        const encodeExclude = rtExclude.createJitFunction(JitFunctions.toJsonVal);
+        const decode = rt.createJitFunction(JitFunctions.fromJsonVal);
+        const decodeExclude = rtExclude.createJitFunction(JitFunctions.fromJsonVal);
 
         expect(decode(JSON.parse(JSON.stringify(encode(shape))))).toEqual(shape);
         expect(decodeExclude(JSON.parse(JSON.stringify(encodeExclude(excludeShape))))).toEqual(excludeShape);
     });
 
     it('json stringify', () => {
-        const stringify = rt.createJitFunction(JitFnIDs.jsonStringify);
-        const stringifyExclude = rtExclude.createJitFunction(JitFnIDs.jsonStringify);
-        const decode = rt.createJitFunction(JitFnIDs.fromJsonVal);
-        const decodeExclude = rtExclude.createJitFunction(JitFnIDs.fromJsonVal);
+        const stringify = rt.createJitFunction(JitFunctions.jsonStringify);
+        const stringifyExclude = rtExclude.createJitFunction(JitFunctions.jsonStringify);
+        const decode = rt.createJitFunction(JitFunctions.fromJsonVal);
+        const decodeExclude = rtExclude.createJitFunction(JitFunctions.fromJsonVal);
 
         expect(decode(JSON.parse(stringify(shape)))).toEqual(shape);
         expect(decodeExclude(JSON.parse(stringifyExclude(excludeShape)))).toEqual(excludeShape);
@@ -126,8 +126,8 @@ describe('Exclude typescript utility type, exclude items from objects union', ()
     it('mock', () => {
         const mocked = rt.mock();
         const mockedExclude = rtExclude.mock();
-        const isType = rt.createJitFunction(JitFnIDs.isType);
-        const isTypeExclude = rtExclude.createJitFunction(JitFnIDs.isType);
+        const isType = rt.createJitFunction(JitFunctions.isType);
+        const isTypeExclude = rtExclude.createJitFunction(JitFunctions.isType);
 
         expect(isType(mocked)).toBe(true);
         expect(isTypeExclude(mockedExclude)).toBe(true);

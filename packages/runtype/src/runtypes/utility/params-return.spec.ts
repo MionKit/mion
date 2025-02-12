@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {JitFnIDs} from '../../constants';
+import {JitFunctions} from '../../constants';
 import {runType} from '../../runType';
 
 // Deepkit already implements all logic for Pick
@@ -22,8 +22,8 @@ describe('Parameters & ReturnType typescript utility type', () => {
     const returnVal: FnReturn = new Date();
 
     it('validate', () => {
-        const isType = rt.createJitFunction(JitFnIDs.isType);
-        const isTypeReturn = rtReturn.createJitFunction(JitFnIDs.isType);
+        const isType = rt.createJitFunction(JitFunctions.isType);
+        const isTypeReturn = rtReturn.createJitFunction(JitFunctions.isType);
 
         expect(isType(params)).toEqual(true);
         expect(isTypeReturn(returnVal)).toEqual(true);
@@ -33,8 +33,8 @@ describe('Parameters & ReturnType typescript utility type', () => {
     });
 
     it('validate errors', () => {
-        const typeErrors = rt.createJitFunction(JitFnIDs.typeErrors);
-        const typeErrorsReturn = rtReturn.createJitFunction(JitFnIDs.typeErrors);
+        const typeErrors = rt.createJitFunction(JitFunctions.typeErrors);
+        const typeErrorsReturn = rtReturn.createJitFunction(JitFunctions.typeErrors);
 
         expect(typeErrors(params)).toEqual([]);
         expect(typeErrorsReturn(returnVal)).toEqual([]);
@@ -44,10 +44,10 @@ describe('Parameters & ReturnType typescript utility type', () => {
     });
 
     it('json encode/decode', () => {
-        const encode = rt.createJitFunction(JitFnIDs.toJsonVal);
-        const encodeReturn = rtReturn.createJitFunction(JitFnIDs.toJsonVal);
-        const decode = rt.createJitFunction(JitFnIDs.fromJsonVal);
-        const decodeReturn = rtReturn.createJitFunction(JitFnIDs.fromJsonVal);
+        const encode = rt.createJitFunction(JitFunctions.toJsonVal);
+        const encodeReturn = rtReturn.createJitFunction(JitFunctions.toJsonVal);
+        const decode = rt.createJitFunction(JitFunctions.fromJsonVal);
+        const decodeReturn = rtReturn.createJitFunction(JitFunctions.fromJsonVal);
 
         const params1 = [...params];
         expect(decode(JSON.parse(JSON.stringify(encode(params1))))).toEqual(params);
@@ -55,10 +55,10 @@ describe('Parameters & ReturnType typescript utility type', () => {
     });
 
     it('json stringify', () => {
-        const stringify = rt.createJitFunction(JitFnIDs.jsonStringify);
-        const stringifyReturn = rtReturn.createJitFunction(JitFnIDs.jsonStringify);
-        const decode = rt.createJitFunction(JitFnIDs.fromJsonVal);
-        const decodeReturn = rtReturn.createJitFunction(JitFnIDs.fromJsonVal);
+        const stringify = rt.createJitFunction(JitFunctions.jsonStringify);
+        const stringifyReturn = rtReturn.createJitFunction(JitFunctions.jsonStringify);
+        const decode = rt.createJitFunction(JitFunctions.fromJsonVal);
+        const decodeReturn = rtReturn.createJitFunction(JitFunctions.fromJsonVal);
 
         const params1 = [...params];
         expect(decode(JSON.parse(stringify(params1)))).toEqual(params);
@@ -68,8 +68,8 @@ describe('Parameters & ReturnType typescript utility type', () => {
     it('mock', () => {
         const mocked = rt.mock();
         const mockedReturn = rtReturn.mock();
-        const isType = rt.createJitFunction(JitFnIDs.isType);
-        const isTypeReturn = rtReturn.createJitFunction(JitFnIDs.isType);
+        const isType = rt.createJitFunction(JitFunctions.isType);
+        const isTypeReturn = rtReturn.createJitFunction(JitFunctions.isType);
 
         expect(typeof mocked[0] === 'number').toBe(true);
         expect(typeof mocked[1] === 'boolean').toBe(true);
@@ -95,26 +95,26 @@ describe('ConstructorParameter typescript utility type', () => {
     const params: PersonConstructor = ['John', 30, new Date()];
 
     it('validate', () => {
-        const isType = rt.createJitFunction(JitFnIDs.isType);
+        const isType = rt.createJitFunction(JitFunctions.isType);
         expect(isType(params)).toEqual(true);
     });
 
     it('validate errors', () => {
-        const typeErrors = rt.createJitFunction(JitFnIDs.typeErrors);
+        const typeErrors = rt.createJitFunction(JitFunctions.typeErrors);
         expect(typeErrors(params)).toEqual([]);
     });
 
     it('json encode/decode', () => {
-        const encode = rt.createJitFunction(JitFnIDs.toJsonVal);
-        const decode = rt.createJitFunction(JitFnIDs.fromJsonVal);
+        const encode = rt.createJitFunction(JitFunctions.toJsonVal);
+        const decode = rt.createJitFunction(JitFunctions.fromJsonVal);
 
         const params1 = [...params];
         expect(decode(JSON.parse(JSON.stringify(encode(params1))))).toEqual(params);
     });
 
     it('json stringify', () => {
-        const stringify = rt.createJitFunction(JitFnIDs.jsonStringify);
-        const decode = rt.createJitFunction(JitFnIDs.fromJsonVal);
+        const stringify = rt.createJitFunction(JitFunctions.jsonStringify);
+        const decode = rt.createJitFunction(JitFunctions.fromJsonVal);
 
         const params1 = [...params];
         expect(decode(JSON.parse(stringify(params1)))).toEqual(params);
@@ -122,7 +122,7 @@ describe('ConstructorParameter typescript utility type', () => {
 
     it('mock', () => {
         const mocked = rt.mock();
-        const isType = rt.createJitFunction(JitFnIDs.isType);
+        const isType = rt.createJitFunction(JitFunctions.isType);
 
         expect(typeof mocked[0] === 'string').toBe(true);
         expect(typeof mocked[1] === 'number').toBe(true);

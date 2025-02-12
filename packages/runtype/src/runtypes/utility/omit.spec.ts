@@ -6,7 +6,7 @@
  * ######## */
 
 import {runType} from '../../runType';
-import {JitFnIDs} from '../../constants';
+import {JitFunctions} from '../../constants';
 
 // Deepkit already implements all logic for Omit
 
@@ -25,8 +25,8 @@ describe('Omit typescript utility type only pick selected properties', () => {
     const omitPerson: Omit<Person, 'age'> = {name: 'John', createdAt};
 
     it('validate', () => {
-        const isType = rt.createJitFunction(JitFnIDs.isType);
-        const isTypeOmit = rtOmit.createJitFunction(JitFnIDs.isType);
+        const isType = rt.createJitFunction(JitFunctions.isType);
+        const isTypeOmit = rtOmit.createJitFunction(JitFunctions.isType);
 
         expect(isType(person)).toEqual(true);
         expect(isTypeOmit(omitPerson)).toEqual(true);
@@ -36,8 +36,8 @@ describe('Omit typescript utility type only pick selected properties', () => {
     });
 
     it('validate errors', () => {
-        const typeErrors = rt.createJitFunction(JitFnIDs.typeErrors);
-        const typeErrorsOmit = rtOmit.createJitFunction(JitFnIDs.typeErrors);
+        const typeErrors = rt.createJitFunction(JitFunctions.typeErrors);
+        const typeErrorsOmit = rtOmit.createJitFunction(JitFunctions.typeErrors);
 
         expect(typeErrors(person)).toEqual([]);
         expect(typeErrorsOmit(omitPerson)).toEqual([]);
@@ -47,19 +47,19 @@ describe('Omit typescript utility type only pick selected properties', () => {
     });
 
     it('json encode/decode', () => {
-        const encode = rt.createJitFunction(JitFnIDs.toJsonVal);
-        const encodeOmit = rtOmit.createJitFunction(JitFnIDs.toJsonVal);
-        const decode = rt.createJitFunction(JitFnIDs.fromJsonVal);
-        const decodeOmit = rtOmit.createJitFunction(JitFnIDs.fromJsonVal);
+        const encode = rt.createJitFunction(JitFunctions.toJsonVal);
+        const encodeOmit = rtOmit.createJitFunction(JitFunctions.toJsonVal);
+        const decode = rt.createJitFunction(JitFunctions.fromJsonVal);
+        const decodeOmit = rtOmit.createJitFunction(JitFunctions.fromJsonVal);
 
         expect(decode(JSON.parse(JSON.stringify(encode(person))))).toEqual(person);
         expect(decodeOmit(JSON.parse(JSON.stringify(encodeOmit(omitPerson))))).toEqual(omitPerson);
 
         // remove extra properties from Omit type
 
-        const hasUnknownKeys = rtOmit.createJitFunction(JitFnIDs.hasUnknownKeys);
-        const unknownKeysToUndefined = rtOmit.createJitFunction(JitFnIDs.unknownKeysToUndefined);
-        const stripUnknownKeys = rtOmit.createJitFunction(JitFnIDs.stripUnknownKeys);
+        const hasUnknownKeys = rtOmit.createJitFunction(JitFunctions.hasUnknownKeys);
+        const unknownKeysToUndefined = rtOmit.createJitFunction(JitFunctions.unknownKeysToUndefined);
+        const stripUnknownKeys = rtOmit.createJitFunction(JitFunctions.stripUnknownKeys);
 
         const fromJsonSafeThrow = (val) => {
             if (hasUnknownKeys(val)) throw new Error('Unknown properties in JSON');
@@ -84,10 +84,10 @@ describe('Omit typescript utility type only pick selected properties', () => {
     });
 
     it('json stringify', () => {
-        const stringify = rt.createJitFunction(JitFnIDs.jsonStringify);
-        const stringifyOmit = rtOmit.createJitFunction(JitFnIDs.jsonStringify);
-        const decode = rt.createJitFunction(JitFnIDs.fromJsonVal);
-        const decodeOmit = rtOmit.createJitFunction(JitFnIDs.fromJsonVal);
+        const stringify = rt.createJitFunction(JitFunctions.jsonStringify);
+        const stringifyOmit = rtOmit.createJitFunction(JitFunctions.jsonStringify);
+        const decode = rt.createJitFunction(JitFunctions.fromJsonVal);
+        const decodeOmit = rtOmit.createJitFunction(JitFunctions.fromJsonVal);
 
         expect(decode(JSON.parse(stringify(person)))).toEqual(person);
         // json stringify directly removes unknown keys
@@ -97,8 +97,8 @@ describe('Omit typescript utility type only pick selected properties', () => {
     it('mock', () => {
         const mocked = rt.mock();
         const mockedOmit = rtOmit.mock();
-        const isType = rt.createJitFunction(JitFnIDs.isType);
-        const isTypeOmit = rtOmit.createJitFunction(JitFnIDs.isType);
+        const isType = rt.createJitFunction(JitFunctions.isType);
+        const isTypeOmit = rtOmit.createJitFunction(JitFunctions.isType);
 
         expect(Object.keys(mocked)).toEqual(['name', 'age', 'createdAt']);
         expect(Object.keys(mockedOmit)).toEqual(['name', 'createdAt']);

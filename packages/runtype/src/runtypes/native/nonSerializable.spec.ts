@@ -6,7 +6,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 import {runType} from '../../runType';
-import {JitFnIDs} from '../../constants';
+import {JitFunctions} from '../../constants';
 import {getJITFnHash} from '../../lib/jitCompiler';
 import {jitUtils} from '../../lib/jitUtils';
 import {NonSerializableRunType} from './nonSerializable';
@@ -28,21 +28,21 @@ import {RunType} from '../../types';
 describe('non serializable general behavior', () => {
     it('Ensure compiler operations are not stored in jit cache when an error is thrown', () => {
         const rt = runType<Int8Array>();
-        expect(() => rt.createJitFunction(JitFnIDs.isType)).toThrow('Jit compilation disabled for Non Serializable types.');
-        expect(jitUtils.getJIT(getJITFnHash(JitFnIDs.isType, rt as any))).toBe(undefined);
+        expect(() => rt.createJitFunction(JitFunctions.isType)).toThrow('Jit compilation disabled for Non Serializable types.');
+        expect(jitUtils.getJIT(getJITFnHash(JitFunctions.isType.id, rt as any))).toBe(undefined);
     });
 
     function failOnCreateJitFunction(rt: RunType) {
         const errorMessage = `Jit compilation disabled for Non Serializable types.`;
-        expect(() => rt.createJitFunction(JitFnIDs.isType)).toThrow(errorMessage);
-        expect(() => rt.createJitFunction(JitFnIDs.typeErrors)).toThrow(errorMessage);
-        expect(() => rt.createJitFunction(JitFnIDs.toJsonVal)).toThrow(errorMessage);
-        expect(() => rt.createJitFunction(JitFnIDs.fromJsonVal)).toThrow(errorMessage);
-        expect(() => rt.createJitFunction(JitFnIDs.jsonStringify)).toThrow(errorMessage);
-        expect(() => rt.createJitFunction(JitFnIDs.hasUnknownKeys)).toThrow(errorMessage);
-        expect(() => rt.createJitFunction(JitFnIDs.stripUnknownKeys)).toThrow(errorMessage);
-        expect(() => rt.createJitFunction(JitFnIDs.unknownKeyErrors)).toThrow(errorMessage);
-        expect(() => rt.createJitFunction(JitFnIDs.unknownKeysToUndefined)).toThrow(errorMessage);
+        expect(() => rt.createJitFunction(JitFunctions.isType)).toThrow(errorMessage);
+        expect(() => rt.createJitFunction(JitFunctions.typeErrors)).toThrow(errorMessage);
+        expect(() => rt.createJitFunction(JitFunctions.toJsonVal)).toThrow(errorMessage);
+        expect(() => rt.createJitFunction(JitFunctions.fromJsonVal)).toThrow(errorMessage);
+        expect(() => rt.createJitFunction(JitFunctions.jsonStringify)).toThrow(errorMessage);
+        expect(() => rt.createJitFunction(JitFunctions.hasUnknownKeys)).toThrow(errorMessage);
+        expect(() => rt.createJitFunction(JitFunctions.stripUnknownKeys)).toThrow(errorMessage);
+        expect(() => rt.createJitFunction(JitFunctions.unknownKeyErrors)).toThrow(errorMessage);
+        expect(() => rt.createJitFunction(JitFunctions.unknownKeysToUndefined)).toThrow(errorMessage);
         expect(() => rt.mock()).toThrow(`Mock is disabled for Non Serializable types.`);
     }
 

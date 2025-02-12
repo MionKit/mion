@@ -5,12 +5,12 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 import {runType} from '../../runType';
-import {JitFnIDs} from '../../constants';
+import {JitFunctions} from '../../constants';
 
 const rt = runType<undefined>();
 
 it('validate undefined', () => {
-    const validate = rt.createJitFunction(JitFnIDs.isType);
+    const validate = rt.createJitFunction(JitFunctions.isType);
     expect(validate(undefined)).toBe(true);
     expect(validate(null)).toBe(false);
     expect(validate(42)).toBe(false);
@@ -18,7 +18,7 @@ it('validate undefined', () => {
 });
 
 it('validate undefined + errors', () => {
-    const valWithErrors = rt.createJitFunction(JitFnIDs.typeErrors);
+    const valWithErrors = rt.createJitFunction(JitFunctions.typeErrors);
     expect(valWithErrors(undefined)).toEqual([]);
     expect(valWithErrors(null)).toEqual([{path: [], expected: 'undefined'}]);
     expect(valWithErrors(42)).toEqual([{path: [], expected: 'undefined'}]);
@@ -26,20 +26,20 @@ it('validate undefined + errors', () => {
 });
 
 it('encode to json', () => {
-    const toJsonVal = rt.createJitFunction(JitFnIDs.toJsonVal);
+    const toJsonVal = rt.createJitFunction(JitFunctions.toJsonVal);
     const typeValue = undefined;
     expect(toJsonVal(typeValue)).toEqual(null);
 });
 
 it('decode from json', () => {
-    const fromJsonVal = rt.createJitFunction(JitFnIDs.fromJsonVal);
+    const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
     const typeValue = null;
     expect(fromJsonVal(typeValue)).toEqual(undefined);
 });
 
 it('json stringify', () => {
-    const jsonStringify = rt.createJitFunction(JitFnIDs.jsonStringify);
-    const fromJsonVal = rt.createJitFunction(JitFnIDs.fromJsonVal);
+    const jsonStringify = rt.createJitFunction(JitFunctions.jsonStringify);
+    const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
     const typeValue = undefined;
     const roundTrip = fromJsonVal(JSON.parse(jsonStringify(typeValue)));
     expect(roundTrip).toEqual(typeValue);
@@ -47,6 +47,6 @@ it('json stringify', () => {
 
 it('mock', () => {
     expect(rt.mock()).toBeUndefined();
-    const validate = rt.createJitFunction(JitFnIDs.isType);
+    const validate = rt.createJitFunction(JitFunctions.isType);
     expect(validate(rt.mock())).toBe(true);
 });

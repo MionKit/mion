@@ -4,7 +4,7 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
-import type {MockOperation, JitConfig, AnyFunction, JitFnID, SrcType} from '../../types';
+import type {MockOperation, JitConfig, AnyFunction, SrcType, JitFn} from '../../types';
 import {ReflectionKind, TypeFunction} from '../../lib/_deepkit/src/reflection/type';
 import {BaseRunType} from '../../lib/baseRunTypes';
 import {isAnyFunctionRunType, isFunctionRunType, isPromiseRunType} from '../../lib/guards';
@@ -36,10 +36,10 @@ export class FunctionRunType<CallType extends AnyFunction = TypeFunction> extend
         return name;
     }
 
-    createJitParamsFunction(fnId: JitFnID): (...args: any[]) => any {
-        return this.parameterRunTypes.createJitFunction(fnId);
+    createJitParamsFunction(jitFn: JitFn): (...args: any[]) => any {
+        return this.parameterRunTypes.createJitFunction(jitFn);
     }
-    createJitReturnFunction(fnId: JitFnID): (...args: any[]) => any {
+    createJitReturnFunction(jitFn: JitFn): (...args: any[]) => any {
         let currentType: PromiseRunType | FunctionRunType<any> = this; // eslint-disable-line @typescript-eslint/no-this-alias
         // iterate over the return type chain until we reach a non-function non-promise type
         // eslint-disable-next-line no-constant-condition
@@ -50,14 +50,14 @@ export class FunctionRunType<CallType extends AnyFunction = TypeFunction> extend
                     currentType = returnType;
                     continue;
                 }
-                return returnType.createJitFunction(fnId);
+                return returnType.createJitFunction(jitFn);
             }
             const memberType = currentType.getMemberType();
             if (isPromiseRunType(memberType) || isFunctionRunType(memberType)) {
                 currentType = memberType;
                 continue;
             }
-            return memberType.createJitFunction(fnId);
+            return memberType.createJitFunction(jitFn);
         }
     }
 

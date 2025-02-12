@@ -5,17 +5,17 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 import {runType} from '../../runType';
-import {JitFnIDs} from '../../constants';
+import {JitFunctions} from '../../constants';
 
 const rt = runType<Promise<string>>();
 
 it('all jit compile function should throw and error', () => {
     const errorMessage = `Jit compilation disabled for Non Serializable types.`;
-    expect(() => rt.createJitFunction(JitFnIDs.isType)).toThrow(errorMessage);
-    expect(() => rt.createJitFunction(JitFnIDs.typeErrors)).toThrow(errorMessage);
-    expect(() => rt.createJitFunction(JitFnIDs.toJsonVal)).toThrow(errorMessage);
-    expect(() => rt.createJitFunction(JitFnIDs.fromJsonVal)).toThrow(errorMessage);
-    expect(() => rt.createJitFunction(JitFnIDs.jsonStringify)).toThrow(errorMessage);
+    expect(() => rt.createJitFunction(JitFunctions.isType)).toThrow(errorMessage);
+    expect(() => rt.createJitFunction(JitFunctions.typeErrors)).toThrow(errorMessage);
+    expect(() => rt.createJitFunction(JitFunctions.toJsonVal)).toThrow(errorMessage);
+    expect(() => rt.createJitFunction(JitFunctions.fromJsonVal)).toThrow(errorMessage);
+    expect(() => rt.createJitFunction(JitFunctions.jsonStringify)).toThrow(errorMessage);
 });
 
 it('mock', async () => {

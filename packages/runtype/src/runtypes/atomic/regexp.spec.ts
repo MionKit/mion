@@ -5,13 +5,13 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 import {runType} from '../../runType';
-import {JitFnIDs} from '../../constants';
+import {JitFunctions} from '../../constants';
 import {mockRegExpsList} from '../../constants.mock';
 
 const rt = runType<RegExp>();
 
 it('validate regexp', () => {
-    const validate = rt.createJitFunction(JitFnIDs.isType);
+    const validate = rt.createJitFunction(JitFunctions.isType);
     expect(validate(/abc/)).toBe(true);
     expect(validate(new RegExp('abc'))).toBe(true);
     expect(validate(undefined)).toBe(false);
@@ -20,7 +20,7 @@ it('validate regexp', () => {
 });
 
 it('validate regexp + errors', () => {
-    const valWithErrors = rt.createJitFunction(JitFnIDs.typeErrors);
+    const valWithErrors = rt.createJitFunction(JitFunctions.typeErrors);
     expect(valWithErrors(/abc/)).toEqual([]);
     expect(valWithErrors(undefined)).toEqual([{path: [], expected: 'regexp'}]);
     expect(valWithErrors(42)).toEqual([{path: [], expected: 'regexp'}]);
@@ -28,16 +28,16 @@ it('validate regexp + errors', () => {
 });
 
 it('encode/decode json', () => {
-    const fromJsonVal = rt.createJitFunction(JitFnIDs.fromJsonVal);
-    const toJsonVal = rt.createJitFunction(JitFnIDs.toJsonVal);
+    const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
+    const toJsonVal = rt.createJitFunction(JitFunctions.toJsonVal);
     mockRegExpsList.forEach((regexp) => {
         expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(regexp))))).toEqual(regexp);
     });
 });
 
 it('json stringify', () => {
-    const jsonStringify = rt.createJitFunction(JitFnIDs.jsonStringify);
-    const fromJsonVal = rt.createJitFunction(JitFnIDs.fromJsonVal);
+    const jsonStringify = rt.createJitFunction(JitFunctions.jsonStringify);
+    const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
     mockRegExpsList.forEach((regexp) => {
         const typeValue = regexp;
         const roundTrip = fromJsonVal(JSON.parse(jsonStringify(typeValue)));
@@ -47,6 +47,6 @@ it('json stringify', () => {
 
 it('mock', () => {
     expect(rt.mock() instanceof RegExp).toBe(true);
-    const validate = rt.createJitFunction(JitFnIDs.isType);
+    const validate = rt.createJitFunction(JitFunctions.isType);
     expect(validate(rt.mock())).toBe(true);
 });

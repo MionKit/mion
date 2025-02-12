@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 import {runType} from '../../runType';
-import {JitFnIDs} from '../../constants';
+import {JitFunctions} from '../../constants';
 import {InterfaceRunType} from '../collection/interface';
 
 // deepkit generates a FunctionRunType not a CallSignatureRunType
@@ -34,14 +34,14 @@ describe('call signature', () => {
     });
 
     it('validate', () => {
-        const validate = rt.createJitFunction(JitFnIDs.isType);
+        const validate = rt.createJitFunction(JitFunctions.isType);
         expect(validate(exampleFunction)).toBe(true);
         expect(validate(() => null)).toBe(false); // params length mismatch
         expect(validate({})).toBe(false);
     });
 
     it('type errors', () => {
-        const getTypeErrors = rt.createJitFunction(JitFnIDs.typeErrors);
+        const getTypeErrors = rt.createJitFunction(JitFunctions.typeErrors);
 
         expect(getTypeErrors(exampleFunction)).toEqual([]);
         expect(getTypeErrors(() => null)).toEqual([{expected: 'callSignature', path: []}]);
@@ -49,17 +49,17 @@ describe('call signature', () => {
     });
 
     it('throw errors for json encode/decode, jsonStringify and mock', () => {
-        expect(() => rt.createJitFunction(JitFnIDs.isType)).not.toThrow();
-        expect(() => rt.createJitFunction(JitFnIDs.typeErrors)).not.toThrow();
+        expect(() => rt.createJitFunction(JitFunctions.isType)).not.toThrow();
+        expect(() => rt.createJitFunction(JitFunctions.typeErrors)).not.toThrow();
 
-        expect(() => rt.createJitFunction(JitFnIDs.toJsonVal)).toThrow(
+        expect(() => rt.createJitFunction(JitFunctions.toJsonVal)).toThrow(
             `Compile function ToJsonVal not supported, call compileParams or compileReturn instead.`
         );
-        expect(() => rt.createJitFunction(JitFnIDs.fromJsonVal)).toThrow(
+        expect(() => rt.createJitFunction(JitFunctions.fromJsonVal)).toThrow(
             `Compile function FromJsonVal not supported, call compileParams or compileReturn instead.`
         );
 
-        expect(() => rt.createJitFunction(JitFnIDs.jsonStringify)).toThrow(
+        expect(() => rt.createJitFunction(JitFunctions.jsonStringify)).toThrow(
             `Compile function JsonStringify not supported, call compileParams or compileReturn instead.`
         );
         expect(() => rt.mock()).toThrow('Function Mock is not allowed, call mockParams or mockReturn instead.');
@@ -75,7 +75,7 @@ describe('call signature with extra props', () => {
     });
 
     it('is type', () => {
-        const validate = rtProps.createJitFunction(JitFnIDs.isType);
+        const validate = rtProps.createJitFunction(JitFunctions.isType);
 
         const obj: CallSignatureWithProperties = Object.assign((a: number, b: boolean) => 'hello', {
             extraProp1: 'value1',
@@ -89,7 +89,7 @@ describe('call signature with extra props', () => {
     });
 
     it('type errors', () => {
-        const getTypeErrors = rtProps.createJitFunction(JitFnIDs.typeErrors);
+        const getTypeErrors = rtProps.createJitFunction(JitFunctions.typeErrors);
 
         const obj = (a: number, b: boolean) => 'hello';
 
@@ -102,28 +102,28 @@ describe('call signature with extra props', () => {
 
 describe('call signature parameters', () => {
     it('should validate correct parameters', () => {
-        const validate = rt.getCallSignature()!.createJitParamsFunction(JitFnIDs.isType);
+        const validate = rt.getCallSignature()!.createJitParamsFunction(JitFunctions.isType);
         expect(validate([1, true])).toBe(true);
     });
 
     it('should return errors for invalid parameters', () => {
-        const getTypeErrors = rt.getCallSignature()!.createJitParamsFunction(JitFnIDs.typeErrors);
+        const getTypeErrors = rt.getCallSignature()!.createJitParamsFunction(JitFunctions.typeErrors);
         expect(getTypeErrors([1, 'invalid'])).toEqual([{expected: 'boolean', path: [1]}]);
     });
 
     it('should handle missing parameters', () => {
-        const validate = rt.getCallSignature()!.createJitParamsFunction(JitFnIDs.isType);
+        const validate = rt.getCallSignature()!.createJitParamsFunction(JitFunctions.isType);
         expect(validate([1])).toBe(false);
     });
 
     it('should handle excess parameters', () => {
-        const getTypeErrors = rt.getCallSignature()!.createJitParamsFunction(JitFnIDs.typeErrors);
+        const getTypeErrors = rt.getCallSignature()!.createJitParamsFunction(JitFunctions.typeErrors);
         expect(getTypeErrors([1, true, 'extra'])).toEqual([{expected: 'params', path: []}]);
     });
 
     it('should encode and decode parameters to JSON', () => {
-        const toJsonVal = rt.getCallSignature()!.createJitParamsFunction(JitFnIDs.toJsonVal);
-        const fromJsonVal = rt.getCallSignature()!.createJitParamsFunction(JitFnIDs.fromJsonVal);
+        const toJsonVal = rt.getCallSignature()!.createJitParamsFunction(JitFunctions.toJsonVal);
+        const fromJsonVal = rt.getCallSignature()!.createJitParamsFunction(JitFunctions.fromJsonVal);
         const params = [1, true];
         expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(params))))).toEqual(params);
     });
@@ -132,35 +132,35 @@ describe('call signature parameters', () => {
         const mocked = rt.getCallSignature()!.mockParams();
         expect(Array.isArray(mocked)).toBe(true);
         expect(mocked.length).toBe(2);
-        const validate = rt.getCallSignature()!.createJitParamsFunction(JitFnIDs.isType);
+        const validate = rt.getCallSignature()!.createJitParamsFunction(JitFunctions.isType);
         expect(validate(mocked)).toBe(true);
     });
 });
 
 describe('call signature return', () => {
     it('validate call signature return', () => {
-        const validateReturn = rt.getCallSignature()!.createJitReturnFunction(JitFnIDs.isType);
+        const validateReturn = rt.getCallSignature()!.createJitReturnFunction(JitFunctions.isType);
         expect(validateReturn('result')).toBe(true);
         expect(validateReturn(123)).toBe(false);
     });
 
     it('validate call signature return + errors', () => {
-        const typeErrorsReturn = rt.getCallSignature()!.createJitReturnFunction(JitFnIDs.typeErrors);
+        const typeErrorsReturn = rt.getCallSignature()!.createJitReturnFunction(JitFunctions.typeErrors);
         expect(typeErrorsReturn('result')).toEqual([]);
         expect(typeErrorsReturn(123)).toEqual([{expected: 'string', path: []}]);
     });
 
     it('encode/decode call signature return to json', () => {
-        const toJsonVal = rt.getCallSignature()!.createJitReturnFunction(JitFnIDs.toJsonVal);
-        const fromJsonVal = rt.getCallSignature()!.createJitReturnFunction(JitFnIDs.fromJsonVal);
+        const toJsonVal = rt.getCallSignature()!.createJitReturnFunction(JitFunctions.toJsonVal);
+        const fromJsonVal = rt.getCallSignature()!.createJitReturnFunction(JitFunctions.fromJsonVal);
         const returnValue = 'result';
 
         expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(returnValue))))).toEqual(returnValue);
     });
 
     it('json stringify call signature return', () => {
-        const jsonStringify = rt.getCallSignature()!.createJitReturnFunction(JitFnIDs.jsonStringify);
-        const fromJsonVal = rt.getCallSignature()!.createJitReturnFunction(JitFnIDs.fromJsonVal);
+        const jsonStringify = rt.getCallSignature()!.createJitReturnFunction(JitFunctions.jsonStringify);
+        const fromJsonVal = rt.getCallSignature()!.createJitReturnFunction(JitFunctions.fromJsonVal);
         const returnValue = 'result';
 
         const roundTrip = fromJsonVal(JSON.parse(jsonStringify(returnValue)));
@@ -170,7 +170,7 @@ describe('call signature return', () => {
     it('mock call signature return', () => {
         const mocked = rt.getCallSignature()!.mockReturn();
         expect(typeof mocked).toBe('string');
-        const validateReturn = rt.getCallSignature()!.createJitReturnFunction(JitFnIDs.isType);
+        const validateReturn = rt.getCallSignature()!.createJitReturnFunction(JitFunctions.isType);
         expect(validateReturn(rt.getCallSignature()!.mockReturn())).toBe(true);
     });
 });

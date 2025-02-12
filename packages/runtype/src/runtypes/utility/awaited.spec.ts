@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {JitFnIDs} from '../../constants';
+import {JitFunctions} from '../../constants';
 import {runType} from '../../runType';
 
 describe('Record  typescript utility type', () => {
@@ -16,27 +16,27 @@ describe('Record  typescript utility type', () => {
     const myType: MyType = {a: 'hello', b: 1, c: new Date()};
 
     it('validate', () => {
-        const isType = rt.createJitFunction(JitFnIDs.isType);
+        const isType = rt.createJitFunction(JitFunctions.isType);
         expect(isType(myType)).toEqual(true);
     });
 
     it('validate errors', () => {
         const invalidParams = {a: 'world', b: 2, c: 'not a date'};
-        const typeErrors = rt.createJitFunction(JitFnIDs.typeErrors);
+        const typeErrors = rt.createJitFunction(JitFunctions.typeErrors);
         expect(typeErrors(invalidParams)).toEqual([{path: ['c'], expected: 'date'}]);
     });
 
     it('json encode/decode', () => {
-        const encode = rt.createJitFunction(JitFnIDs.toJsonVal);
-        const decode = rt.createJitFunction(JitFnIDs.fromJsonVal);
+        const encode = rt.createJitFunction(JitFunctions.toJsonVal);
+        const decode = rt.createJitFunction(JitFunctions.fromJsonVal);
         const encoded = encode({...myType});
         const decoded = decode(JSON.parse(JSON.stringify(encoded)));
         expect(decoded).toEqual(myType);
     });
 
     it('json stringify', () => {
-        const stringify = rt.createJitFunction(JitFnIDs.jsonStringify);
-        const decode = rt.createJitFunction(JitFnIDs.fromJsonVal);
+        const stringify = rt.createJitFunction(JitFunctions.jsonStringify);
+        const decode = rt.createJitFunction(JitFunctions.fromJsonVal);
         const jsonString = stringify({...myType});
         const parsed = JSON.parse(jsonString);
         const decoded = decode(parsed);
@@ -45,7 +45,7 @@ describe('Record  typescript utility type', () => {
 
     it('mock', () => {
         const mocked = rt.mock();
-        const isType = rt.createJitFunction(JitFnIDs.isType);
+        const isType = rt.createJitFunction(JitFunctions.isType);
         expect(isType(mocked)).toEqual(true);
         expect(typeof mocked).toBe('object');
         expect(typeof mocked.a).toBe('string');

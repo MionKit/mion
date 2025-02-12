@@ -5,12 +5,12 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 import {runType} from '../../runType';
-import {JitFnIDs} from '../../constants';
+import {JitFunctions} from '../../constants';
 
 const rt = runType<never>();
 
 it('validate never', () => {
-    const validate = rt.createJitFunction(JitFnIDs.isType);
+    const validate = rt.createJitFunction(JitFunctions.isType);
     expect(validate(true)).toBe(false);
     expect(validate(false)).toBe(false);
     expect(validate(1)).toBe(false);
@@ -19,7 +19,7 @@ it('validate never', () => {
 });
 
 it('validate never + errors', () => {
-    const valWithErrors = rt.createJitFunction(JitFnIDs.typeErrors);
+    const valWithErrors = rt.createJitFunction(JitFunctions.typeErrors);
     expect(valWithErrors(true)).toEqual([{path: [], expected: 'never'}]);
     expect(valWithErrors(false)).toEqual([{path: [], expected: 'never'}]);
     expect(valWithErrors(1)).toEqual([{path: [], expected: 'never'}]);
@@ -29,15 +29,15 @@ it('validate never + errors', () => {
 });
 
 it('encode to json should throw an error', () => {
-    expect(() => rt.createJitFunction(JitFnIDs.toJsonVal)).toThrow('Never type cannot be encoded to JSON.');
+    expect(() => rt.createJitFunction(JitFunctions.toJsonVal)).toThrow('Never type cannot be encoded to JSON.');
 });
 
 it('decode from json should throw an error', () => {
-    expect(() => rt.createJitFunction(JitFnIDs.fromJsonVal)).toThrow('Never type cannot be decoded from JSON.');
+    expect(() => rt.createJitFunction(JitFunctions.fromJsonVal)).toThrow('Never type cannot be decoded from JSON.');
 });
 
 it('json stringify', () => {
-    expect(() => rt.createJitFunction(JitFnIDs.jsonStringify)).toThrow('Never type cannot be stringified.');
+    expect(() => rt.createJitFunction(JitFunctions.jsonStringify)).toThrow('Never type cannot be stringified.');
 });
 
 it('mock', () => {

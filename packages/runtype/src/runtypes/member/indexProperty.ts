@@ -1,7 +1,7 @@
 import {ReflectionKind, TypeIndexSignature} from '../../lib/_deepkit/src/reflection/type';
 import {BaseRunType, MemberRunType} from '../../lib/baseRunTypes';
 import {JitConfig, JitFnID, MockOperation, Mutable} from '../../types';
-import {JitFnIDs} from '../../constants';
+import {JitFunctions} from '../../constants';
 import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
 import {InterfaceRunType} from '../collection/interface';
 import {childIsExpression} from '../../lib/utils';
@@ -37,9 +37,9 @@ export class IndexSignatureRunType extends MemberRunType<TypeIndexSignature> {
     }
     jitFnHasReturn(fnId: JitFnID): boolean {
         switch (fnId) {
-            case JitFnIDs.isType:
-            case JitFnIDs.jsonStringify:
-            case JitFnIDs.hasUnknownKeys:
+            case JitFunctions.isType.id:
+            case JitFunctions.jsonStringify.id:
+            case JitFunctions.hasUnknownKeys.id:
                 return true;
             default:
                 return super.jitFnHasReturn(fnId);
@@ -64,7 +64,7 @@ export class IndexSignatureRunType extends MemberRunType<TypeIndexSignature> {
         const prop = this.getChildVarName();
         const skipCode = this.getSkipCode(prop);
 
-        const isExpression = childIsExpression(JitFnIDs.toJsonVal, child);
+        const isExpression = childIsExpression(JitFunctions.toJsonVal.id, child);
         const code = isExpression ? `${comp.getChildVλl()} = ${childCode};` : childCode;
         return `for (const ${prop} in ${varName}){${skipCode} ${code}}`;
     }
@@ -76,7 +76,7 @@ export class IndexSignatureRunType extends MemberRunType<TypeIndexSignature> {
         const prop = this.getChildVarName();
         const skipCode = this.getSkipCode(prop);
 
-        const isExpression = childIsExpression(JitFnIDs.fromJsonVal, child);
+        const isExpression = childIsExpression(JitFunctions.fromJsonVal.id, child);
         const code = isExpression ? `${comp.getChildVλl()} = ${childCode};` : childCode;
         return `for (const ${prop} in ${varName}){${skipCode} ${code}}`;
     }

@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 import {runType} from '../../runType';
-import {JitFnIDs} from '../../constants';
+import {JitFunctions} from '../../constants';
 
 // ####### NOTE RUNTYPES SUPPORT CIRCULAR TYPE REFERENCES, BUT NOT CIRCULAR OBJECTS AT RUNTIME #####
 
@@ -35,7 +35,7 @@ describe('Circular object', () => {
     const notC2 = {n: 1, s: 'hello', c: {n: 2}}; // c.s is missing
 
     it('should validate objects with circular references', () => {
-        const validate = rtCircular.createJitFunction(JitFnIDs.isType);
+        const validate = rtCircular.createJitFunction(JitFunctions.isType);
 
         expect(validate(c1)).toBe(true);
         expect(validate(c2)).toBe(true);
@@ -46,7 +46,7 @@ describe('Circular object', () => {
     });
 
     it('should validate object + errors with circular references', () => {
-        const valWithErrors = rtCircular.createJitFunction(JitFnIDs.typeErrors);
+        const valWithErrors = rtCircular.createJitFunction(JitFunctions.typeErrors);
 
         expect(valWithErrors(c1)).toEqual([]);
         expect(valWithErrors(c2)).toEqual([]);
@@ -57,8 +57,8 @@ describe('Circular object', () => {
     });
 
     it('should encode/decode objects with circular references', () => {
-        const toJsonVal = rtCircular.createJitFunction(JitFnIDs.toJsonVal);
-        const fromJsonVal = rtCircular.createJitFunction(JitFnIDs.fromJsonVal);
+        const toJsonVal = rtCircular.createJitFunction(JitFunctions.toJsonVal);
+        const fromJsonVal = rtCircular.createJitFunction(JitFunctions.fromJsonVal);
 
         const copy1 = structuredClone(c1);
         const copy2 = structuredClone(c2);
@@ -69,10 +69,10 @@ describe('Circular object', () => {
     });
 
     it('should use JSON.stringify when there are circular references', () => {
-        const jsonStringify = rtCircular.createJitFunction(JitFnIDs.jsonStringify);
+        const jsonStringify = rtCircular.createJitFunction(JitFunctions.jsonStringify);
 
-        const toJsonVal = rtCircular.createJitFunction(JitFnIDs.toJsonVal);
-        const fromJsonVal = rtCircular.createJitFunction(JitFnIDs.fromJsonVal);
+        const toJsonVal = rtCircular.createJitFunction(JitFunctions.toJsonVal);
+        const fromJsonVal = rtCircular.createJitFunction(JitFunctions.fromJsonVal);
 
         const copy1 = structuredClone(c1);
         const copy2 = structuredClone(c2);
@@ -102,7 +102,7 @@ describe('Circular array + union', () => {
     const notCu4 = null;
 
     it('validate CircularUnion array', () => {
-        const validate = rt.createJitFunction(JitFnIDs.isType);
+        const validate = rt.createJitFunction(JitFunctions.isType);
         expect(validate(cu1)).toBe(true);
         expect(validate(cu2)).toBe(true);
         expect(validate(cu3)).toBe(true);
@@ -114,7 +114,7 @@ describe('Circular array + union', () => {
     });
 
     it('validate CircularUnion array + errors', () => {
-        const valWithErrors = rt.createJitFunction(JitFnIDs.typeErrors);
+        const valWithErrors = rt.createJitFunction(JitFunctions.typeErrors);
 
         expect(valWithErrors(cu1)).toEqual([]);
         expect(valWithErrors(cu2)).toEqual([]);
@@ -127,8 +127,8 @@ describe('Circular array + union', () => {
     });
 
     it('encode/decode CircularUnion array to json', () => {
-        const toJsonVal = rt.createJitFunction(JitFnIDs.toJsonVal);
-        const fromJsonVal = rt.createJitFunction(JitFnIDs.fromJsonVal);
+        const toJsonVal = rt.createJitFunction(JitFunctions.toJsonVal);
+        const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
 
         const copy1: CuArray = [date, 123, 'hello', ['a', 'b', 'c']];
         const copy2: CuArray = [date, 123, 'hello', ['a', 2, 'c'], [date, 123, 'hello', ['a', 'b', 'c']]];
@@ -140,8 +140,8 @@ describe('Circular array + union', () => {
     });
 
     it('json stringify CircularUnion array with discriminator', () => {
-        const jsonStringify = rt.createJitFunction(JitFnIDs.jsonStringify);
-        const fromJsonVal = rt.createJitFunction(JitFnIDs.fromJsonVal);
+        const jsonStringify = rt.createJitFunction(JitFunctions.jsonStringify);
+        const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
 
         const copy1: CuArray = [date, 123, 'hello', ['a', 'b', 'c']];
         const copy2: CuArray = [date, 123, 'hello', ['a', 2, 'c'], [date, 123, 'hello', ['a', 'b', 'c']]];
@@ -153,7 +153,7 @@ describe('Circular array + union', () => {
     });
 
     it('mock CircularUnion array', () => {
-        const validate = rt.createJitFunction(JitFnIDs.isType);
+        const validate = rt.createJitFunction(JitFunctions.isType);
         expect(rt.mock() instanceof Array).toBe(true);
         expect(validate(rt.mock())).toBe(true);
     });
@@ -180,7 +180,7 @@ describe('Circular object with tuple', () => {
     const notC4 = null;
 
     it('validate CircularTuple object', () => {
-        const validate = rt.createJitFunction(JitFnIDs.isType);
+        const validate = rt.createJitFunction(JitFunctions.isType);
         expect(validate(c1)).toBe(true);
         expect(validate(c2)).toBe(true);
         expect(validate(c3)).toBe(true);
@@ -192,7 +192,7 @@ describe('Circular object with tuple', () => {
     });
 
     it('validate CircularTuple object + errors', () => {
-        const valWithErrors = rt.createJitFunction(JitFnIDs.typeErrors);
+        const valWithErrors = rt.createJitFunction(JitFunctions.typeErrors);
 
         expect(valWithErrors(c1)).toEqual([]);
         expect(valWithErrors(c2)).toEqual([]);
@@ -206,8 +206,8 @@ describe('Circular object with tuple', () => {
     });
 
     it('encode/decode CircularTuple object to json', () => {
-        const toJsonVal = rt.createJitFunction(JitFnIDs.toJsonVal);
-        const fromJsonVal = rt.createJitFunction(JitFnIDs.fromJsonVal);
+        const toJsonVal = rt.createJitFunction(JitFunctions.toJsonVal);
+        const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
 
         const copy1: CircularTuple = {tuple: [1n, {tuple: [2n, {tuple: [3n, {tuple: [4n]}]}]}]};
         const copy2: CircularTuple = {tuple: [1n, {tuple: [2n]}]};
@@ -219,8 +219,8 @@ describe('Circular object with tuple', () => {
     });
 
     it('json stringify CircularTuple object with discriminator', () => {
-        const jsonStringify = rt.createJitFunction(JitFnIDs.jsonStringify);
-        const fromJsonVal = rt.createJitFunction(JitFnIDs.fromJsonVal);
+        const jsonStringify = rt.createJitFunction(JitFunctions.jsonStringify);
+        const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
 
         const copy1: CircularTuple = {tuple: [1n, {tuple: [2n, {tuple: [3n, {tuple: [4n]}]}]}]};
         const copy2: CircularTuple = {tuple: [1n, {tuple: [2n]}]};
@@ -232,7 +232,7 @@ describe('Circular object with tuple', () => {
     });
 
     it('mock CircularTuple object', () => {
-        const validate = rt.createJitFunction(JitFnIDs.isType);
+        const validate = rt.createJitFunction(JitFunctions.isType);
         expect(rt.mock() instanceof Object).toBe(true);
         expect(validate(rt.mock())).toBe(true);
     });
@@ -258,7 +258,7 @@ describe('Circular Object with index property', () => {
     const notC3 = new Date();
 
     it('validate CircularIndex object', () => {
-        const validate = rt.createJitFunction(JitFnIDs.isType);
+        const validate = rt.createJitFunction(JitFunctions.isType);
         expect(validate(c1)).toBe(true);
         expect(validate(c2)).toBe(true);
         expect(validate(c3)).toBe(true);
@@ -269,7 +269,7 @@ describe('Circular Object with index property', () => {
     });
 
     it('validate CircularIndex object + errors', () => {
-        const valWithErrors = rt.createJitFunction(JitFnIDs.typeErrors);
+        const valWithErrors = rt.createJitFunction(JitFunctions.typeErrors);
 
         expect(valWithErrors(c1)).toEqual([]);
         expect(valWithErrors(c2)).toEqual([]);
@@ -282,8 +282,8 @@ describe('Circular Object with index property', () => {
     });
 
     it('encode/decode CircularIndex object to json', () => {
-        const toJsonVal = rt.createJitFunction(JitFnIDs.toJsonVal);
-        const fromJsonVal = rt.createJitFunction(JitFnIDs.fromJsonVal);
+        const toJsonVal = rt.createJitFunction(JitFunctions.toJsonVal);
+        const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
 
         const copy1: CircularIndex = {index: {a: {index: {b: {index: {}}}}}};
         const copy2: CircularIndex = {index: {a: {index: {}}}};
@@ -295,8 +295,8 @@ describe('Circular Object with index property', () => {
     });
 
     it('json stringify CircularIndex object with discriminator', () => {
-        const jsonStringify = rt.createJitFunction(JitFnIDs.jsonStringify);
-        const fromJsonVal = rt.createJitFunction(JitFnIDs.fromJsonVal);
+        const jsonStringify = rt.createJitFunction(JitFunctions.jsonStringify);
+        const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
 
         const copy1: CircularIndex = {index: {a: {index: {b: {index: {}}}}}};
         const copy2: CircularIndex = {index: {a: {index: {}}}};
@@ -308,7 +308,7 @@ describe('Circular Object with index property', () => {
     });
 
     it('mock CircularIndex object', () => {
-        const validate = rt.createJitFunction(JitFnIDs.isType);
+        const validate = rt.createJitFunction(JitFunctions.isType);
         const mocked = rt.mock();
         expect(mocked instanceof Object).toBe(true);
         expect(validate(mocked)).toBe(true);
@@ -336,7 +336,7 @@ describe('Circular Object with deep nested properties', () => {
     const notC5 = 'hello';
 
     it('validate CircularDeep object', () => {
-        const validate = rt.createJitFunction(JitFnIDs.isType);
+        const validate = rt.createJitFunction(JitFunctions.isType);
         expect(validate(c1)).toBe(true);
         expect(validate(c2)).toBe(true);
 
@@ -348,7 +348,7 @@ describe('Circular Object with deep nested properties', () => {
     });
 
     it('validate CircularDeep object + errors', () => {
-        const valWithErrors = rt.createJitFunction(JitFnIDs.typeErrors);
+        const valWithErrors = rt.createJitFunction(JitFunctions.typeErrors);
 
         expect(valWithErrors(c1)).toEqual([]);
         expect(valWithErrors(c2)).toEqual([]);
@@ -363,8 +363,8 @@ describe('Circular Object with deep nested properties', () => {
     });
 
     it('encode/decode CircularDeep object to json', () => {
-        const toJsonVal = rt.createJitFunction(JitFnIDs.toJsonVal);
-        const fromJsonVal = rt.createJitFunction(JitFnIDs.fromJsonVal);
+        const toJsonVal = rt.createJitFunction(JitFunctions.toJsonVal);
+        const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
 
         const copy1: CircularDeep = {deep1: {deep2: {deep3: {deep4: {deep1: {deep2: {deep3: {}}}}}}}};
         const copy2: CircularDeep = {deep1: {deep2: {deep3: {}}}};
@@ -374,8 +374,8 @@ describe('Circular Object with deep nested properties', () => {
     });
 
     it('json stringify CircularDeep object with discriminator', () => {
-        const jsonStringify = rt.createJitFunction(JitFnIDs.jsonStringify);
-        const fromJsonVal = rt.createJitFunction(JitFnIDs.fromJsonVal);
+        const jsonStringify = rt.createJitFunction(JitFunctions.jsonStringify);
+        const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
 
         const copy1: CircularDeep = {deep1: {deep2: {deep3: {deep4: {deep1: {deep2: {deep3: {}}}}}}}};
         const copy2: CircularDeep = {deep1: {deep2: {deep3: {}}}};
@@ -385,7 +385,7 @@ describe('Circular Object with deep nested properties', () => {
     });
 
     it('mock CircularDeep object', () => {
-        const validate = rt.createJitFunction(JitFnIDs.isType);
+        const validate = rt.createJitFunction(JitFunctions.isType);
         expect(rt.mock() instanceof Object).toBe(true);
         expect(validate(rt.mock())).toBe(true);
     });

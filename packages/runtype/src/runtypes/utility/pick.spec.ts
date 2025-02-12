@@ -6,7 +6,7 @@
  * ######## */
 
 import {runType} from '../../runType';
-import {JitFnIDs} from '../../constants';
+import {JitFunctions} from '../../constants';
 
 // Deepkit already implements all logic for Pick
 
@@ -25,8 +25,8 @@ describe('Pick typescript utility type only pick selected properties', () => {
     const pickedPerson: Pick<Person, 'name' | 'createdAt'> = {name: 'John', createdAt};
 
     it('validate', () => {
-        const isType = rt.createJitFunction(JitFnIDs.isType);
-        const isTypePick = rtPick.createJitFunction(JitFnIDs.isType);
+        const isType = rt.createJitFunction(JitFunctions.isType);
+        const isTypePick = rtPick.createJitFunction(JitFunctions.isType);
 
         expect(isType(person)).toEqual(true);
         expect(isTypePick(pickedPerson)).toEqual(true);
@@ -36,8 +36,8 @@ describe('Pick typescript utility type only pick selected properties', () => {
     });
 
     it('validate errors', () => {
-        const typeErrors = rt.createJitFunction(JitFnIDs.typeErrors);
-        const typeErrorsPick = rtPick.createJitFunction(JitFnIDs.typeErrors);
+        const typeErrors = rt.createJitFunction(JitFunctions.typeErrors);
+        const typeErrorsPick = rtPick.createJitFunction(JitFunctions.typeErrors);
 
         expect(typeErrors(person)).toEqual([]);
         expect(typeErrorsPick(pickedPerson)).toEqual([]);
@@ -47,19 +47,19 @@ describe('Pick typescript utility type only pick selected properties', () => {
     });
 
     it('json encode/decode', () => {
-        const encode = rt.createJitFunction(JitFnIDs.toJsonVal);
-        const encodePick = rtPick.createJitFunction(JitFnIDs.toJsonVal);
-        const decode = rt.createJitFunction(JitFnIDs.fromJsonVal);
-        const decodePick = rtPick.createJitFunction(JitFnIDs.fromJsonVal);
+        const encode = rt.createJitFunction(JitFunctions.toJsonVal);
+        const encodePick = rtPick.createJitFunction(JitFunctions.toJsonVal);
+        const decode = rt.createJitFunction(JitFunctions.fromJsonVal);
+        const decodePick = rtPick.createJitFunction(JitFunctions.fromJsonVal);
 
         expect(decode(JSON.parse(JSON.stringify(encode(person))))).toEqual(person);
         expect(decodePick(JSON.parse(JSON.stringify(encodePick(pickedPerson))))).toEqual(pickedPerson);
 
         // remove extra properties from Pick type
 
-        const hasUnknownKeys = rtPick.createJitFunction(JitFnIDs.hasUnknownKeys);
-        const unknownKeysToUndefined = rtPick.createJitFunction(JitFnIDs.unknownKeysToUndefined);
-        const stripUnknownKeys = rtPick.createJitFunction(JitFnIDs.stripUnknownKeys);
+        const hasUnknownKeys = rtPick.createJitFunction(JitFunctions.hasUnknownKeys);
+        const unknownKeysToUndefined = rtPick.createJitFunction(JitFunctions.unknownKeysToUndefined);
+        const stripUnknownKeys = rtPick.createJitFunction(JitFunctions.stripUnknownKeys);
 
         const fromJsonSafeThrow = (val) => {
             if (hasUnknownKeys(val)) throw new Error('Unknown properties in JSON');
@@ -84,10 +84,10 @@ describe('Pick typescript utility type only pick selected properties', () => {
     });
 
     it('json stringify', () => {
-        const stringify = rt.createJitFunction(JitFnIDs.jsonStringify);
-        const stringifyPick = rtPick.createJitFunction(JitFnIDs.jsonStringify);
-        const decode = rt.createJitFunction(JitFnIDs.fromJsonVal);
-        const decodePick = rtPick.createJitFunction(JitFnIDs.fromJsonVal);
+        const stringify = rt.createJitFunction(JitFunctions.jsonStringify);
+        const stringifyPick = rtPick.createJitFunction(JitFunctions.jsonStringify);
+        const decode = rt.createJitFunction(JitFunctions.fromJsonVal);
+        const decodePick = rtPick.createJitFunction(JitFunctions.fromJsonVal);
 
         expect(decode(JSON.parse(stringify(person)))).toEqual(person);
         // json stringify directly removes unknown keys
@@ -97,8 +97,8 @@ describe('Pick typescript utility type only pick selected properties', () => {
     it('mock', () => {
         const mocked = rt.mock();
         const mockedPick = rtPick.mock();
-        const isType = rt.createJitFunction(JitFnIDs.isType);
-        const isTypePick = rtPick.createJitFunction(JitFnIDs.isType);
+        const isType = rt.createJitFunction(JitFunctions.isType);
+        const isTypePick = rtPick.createJitFunction(JitFunctions.isType);
 
         expect(Object.keys(mocked)).toEqual(['name', 'age', 'createdAt']);
         expect(Object.keys(mockedPick)).toEqual(['name', 'createdAt']);
