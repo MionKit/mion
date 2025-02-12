@@ -235,16 +235,18 @@ export interface MockOperation extends MockOptions {
 
 // ###################### Branded Types #####################
 
+export type ValidatorParams = {validatorName?: string};
+
+export type SerializerParams =  {serializerName?: string};
+
+export type TypeParams = ValidatorParams & SerializerParams;
+
 /**
  * A base type that satisfies some extra constrains.
  * ie: an Alphanumeric type is an string that only allow letters and numbers.
  * ie: in Integer type is a number that only allow integer values.
  * */
-export type BrandedType<BaseType, TypeParams> = BaseType & {__meta?: TypeParams};
-
-export type ValidatorParams = {validatorName?: string};
-
-export type SerializerParams =  {serializerName?: string};
+export type BrandedType<BaseType, Params extends TypeParams> = BaseType & {__meta?: Params}
 
 // ###################### OTHERS #####################
 
