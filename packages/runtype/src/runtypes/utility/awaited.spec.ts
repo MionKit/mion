@@ -8,7 +8,7 @@
 import {JitFunctions} from '../../constants';
 import {runType} from '../../runType';
 
-describe('Record  typescript utility type', () => {
+describe('Awaited typescript utility type', () => {
     type MyPromise = Promise<{a: string; b: number; c: Date}>; // note how record does not check the type of keys
     type MyType = Awaited<MyPromise>;
     const rt = runType<MyType>();

@@ -12,7 +12,6 @@ import {
     jitDefaultErrorArgs,
     jitErrorArgs,
     JitFunctions,
-    jitNames,
     maxStackDepth,
     maxStackErrorMessage,
 } from '../constants';
@@ -236,7 +235,7 @@ export function createJitCompiler(rt: BaseRunType, fnId: JitFnID, parent?: BaseC
  * @returns
  */
 export function getJITFnHash(id: JitFnID, rt: BaseRunType): string {
-    return `f${id}_${rt.getJitHash()}`;
+    return `${id}_${rt.getJitHash()}`;
 }
 
 function compileFunction(comp: BaseCompiler): (...args: any[]) => any {
@@ -269,7 +268,7 @@ function createJitFnWithContext(fnName: string, fnCode: string, contextCode?: st
     const context = contextCode ? `${contextCode};` : '';
     const fnWithContext = `${context} ${fnCode} return ${fnName};`;
     try {
-        const wrapperWithContext = new Function(jitNames.utils, fnWithContext);
+        const wrapperWithContext = new Function('utl', fnWithContext);
         if (process.env.DEBUG_JIT) console.log(printFn(fnWithContext, fnCode, fnName, contextCode));
         return {fn: wrapperWithContext(jitUtils), code: fnWithContext}; // returns the jit internal function with the context
     } catch (e: any) {

@@ -13,7 +13,7 @@ export const ReflectionKindName: {[key: number]: keyof typeof ReflectionKind} = 
     1: 'any',
     2: 'unknown',
     3: 'void',
-    4: 'objectLiteral', // name was changed from 'object' to 'objectLiteral'
+    4: 'objectLiteral', // name was changed from deepkit's 'object' to 'objectLiteral'
     5: 'string',
     6: 'number',
     7: 'boolean',
@@ -39,7 +39,7 @@ export const ReflectionKindName: {[key: number]: keyof typeof ReflectionKind} = 
     27: 'tupleMember',
     28: 'enumMember',
     29: 'rest',
-    30: 'object', // name was changed from 'objectLiteral' to 'object'
+    30: 'object', // name was changed from deepkit's 'objectLiteral' to 'object' for better error messages
     31: 'indexSignature',
     32: 'propertySignature',
     33: 'methodSignature',

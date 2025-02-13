@@ -8,7 +8,7 @@ import {JitFunctions} from '../constants';
 import {runType} from '../runType';
 import {StringFormat} from './string';
 
-it.only('validate string max length', () => {
+it('validate string max length', () => {
     type Max5 = StringFormat<{maxLength: 5}>;
     const rt = runType<Max5>();
     const isType = rt.createJitFunction(JitFunctions.isType);

@@ -6,13 +6,14 @@
  * ######## */
 
 import type {TypeLiteral} from '../../lib/_deepkit/src/reflection/type';
-import type {JitSerializer, JitConfig} from '../../types';
+import type {JitConfig} from '../../types';
+import type {JitRunTypeTransformer} from '../../lib/types';
 import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
 import {memorize, toLiteral} from '../../lib/utils';
 import {AtomicRunType} from '../../lib/baseRunTypes';
-import {bigIntSerializer} from '../../serializers/bigint';
-import {regexpSerializer} from '../../serializers/regexp';
-import {symbolSerializer} from '../../serializers/symbol';
+import {bigIntTransformer} from '../../serializers/bigint';
+import {regexpTransformer} from '../../serializers/regexp';
+import {symbolTransformer} from '../../serializers/symbol';
 
 export class LiteralRunType extends AtomicRunType<TypeLiteral> {
     get jitConstants() {
@@ -30,14 +31,14 @@ export class LiteralRunType extends AtomicRunType<TypeLiteral> {
                 return getDefaultJitConstants(this.src.kind, this.src.literal);
         }
     });
-    getToJsonValr() {
+    getValidator() {
         switch (true) {
             case typeof this.src.literal === 'bigint':
-                return bigIntSerializer;
+                return bigIntTransformer;
             case typeof this.src.literal === 'symbol':
-                return symbolSerializer;
+                return symbolTransformer;
             case this.src.literal instanceof RegExp:
-                return regexpSerializer;
+                return regexpTransformer;
             default:
                 return noEncoder;
         }
@@ -54,28 +55,28 @@ export class LiteralRunType extends AtomicRunType<TypeLiteral> {
         return compileTypeErrorsLiteral(comp, this.src.literal, this.getName());
     }
     _compileToJsonVal(comp: JitCompiler): string | undefined {
-        return this.getToJsonValr().ToJsonVal(comp.vλl);
+        return this.getValidator()._compileToJsonVal(comp);
     }
     _compileFromJsonVal(comp: JitCompiler): string | undefined {
-        return this.getToJsonValr().fromJsonVal(comp.vλl);
+        return this.getValidator()._compileFromJsonVal(comp);
     }
     _compileJsonStringify(comp: JitCompiler): string {
-        return this.getToJsonValr().stringify(comp.vλl);
+        return this.getValidator()._compileJsonStringify(comp);
     }
     _mock(): symbol | string | number | boolean | bigint | RegExp {
         return this.src.literal;
     }
 }
 
-const noEncoder: JitSerializer = {
-    fromJsonVal(): undefined {
+const noEncoder: JitRunTypeTransformer = {
+    _compileFromJsonVal(): undefined {
         return undefined;
     },
-    ToJsonVal(): undefined {
+    _compileToJsonVal(): undefined {
         return undefined;
     },
-    stringify(vλl: string) {
-        return `JSON.stringify(${vλl})`;
+    _compileJsonStringify(comp: JitCompiler) {
+        return `JSON.stringify(${comp.vλl})`;
     },
 };
 

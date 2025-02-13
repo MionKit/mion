@@ -10,7 +10,7 @@ import type {MockOperation, JitConfig} from '../../types';
 import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
 import {mockRegExp} from '../../lib/mock';
 import {AtomicRunType} from '../../lib/baseRunTypes';
-import {regexpSerializer} from '../../serializers/regexp';
+import {regexpTransformer} from '../../serializers/regexp';
 
 const jitConstants: JitConfig = {
     skipJit: false,
@@ -26,13 +26,13 @@ export class RegexpRunType extends AtomicRunType<TypeRegexp> {
         return `if (!(${comp.vλl} instanceof RegExp)) ${comp.callJitErr(this)}`;
     }
     _compileToJsonVal(comp: JitCompiler) {
-        return regexpSerializer.ToJsonVal(comp.vλl);
+        return regexpTransformer._compileToJsonVal(comp);
     }
     _compileFromJsonVal(comp: JitCompiler) {
-        return regexpSerializer.fromJsonVal(comp.vλl);
+        return regexpTransformer._compileFromJsonVal(comp);
     }
     _compileJsonStringify(comp: JitCompiler) {
-        return regexpSerializer.stringify(comp.vλl);
+        return regexpTransformer._compileJsonStringify(comp);
     }
     _mock(ctx: Pick<MockOperation, 'regexpList'>): RegExp {
         return mockRegExp(ctx.regexpList);

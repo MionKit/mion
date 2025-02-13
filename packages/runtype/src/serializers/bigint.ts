@@ -5,16 +5,17 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {JitSerializer} from '../types';
+import type {JitRunTypeTransformer} from '../lib/types';
+import type {JitCompiler} from '../lib/jitCompiler';
 
-export const bigIntSerializer: JitSerializer = {
-    fromJsonVal(vλl: string): string {
-        return `BigInt(${vλl})`;
+export const bigIntTransformer: JitRunTypeTransformer = {
+    _compileFromJsonVal(comp: JitCompiler): string {
+        return `BigInt(${comp.vλl})`;
     },
-    ToJsonVal(vλl: string): string {
-        return `${vλl}.toString()`;
+    _compileToJsonVal(comp: JitCompiler): string {
+        return `${comp.vλl}.toString()`;
     },
-    stringify(vλl: string): string {
-        return `'"'+${vλl}.toString()+'"'`;
+    _compileJsonStringify(comp: JitCompiler): string {
+        return `'"'+${comp.vλl}.toString()+'"'`;
     },
 };

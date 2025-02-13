@@ -5,16 +5,17 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {JitSerializer} from '../types';
+import type {JitRunTypeTransformer} from '../lib/types';
+import type {JitCompiler} from '../lib/jitCompiler';
 
-export const symbolSerializer: JitSerializer = {
-    fromJsonVal(vλl: string): string {
-        return `Symbol(${vλl}.substring(7))`;
+export const symbolTransformer: JitRunTypeTransformer = {
+    _compileFromJsonVal(comp: JitCompiler): string {
+        return `Symbol(${comp.vλl}.substring(7))`;
     },
-    ToJsonVal(vλl: string): string {
-        return `'Symbol:' + (${vλl}.description || '')`;
+    _compileToJsonVal(comp: JitCompiler): string {
+        return `'Symbol:' + (${comp.vλl}.description || '')`;
     },
-    stringify(vλl: string): string {
-        return `JSON.stringify('Symbol:' + (${vλl}.description || ''))`;
+    _compileJsonStringify(comp: JitCompiler): string {
+        return `JSON.stringify('Symbol:' + (${comp.vλl}.description || ''))`;
     },
 };

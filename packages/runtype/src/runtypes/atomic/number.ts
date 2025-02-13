@@ -10,7 +10,6 @@ import type {MockOperation, JitConfig} from '../../types';
 import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
 import {mockNumber} from '../../lib/mock';
 import {AtomicRunType} from '../../lib/baseRunTypes';
-import {numberSerializer} from '../../serializers/number';
 
 const jitConstants: JitConfig = {
     skipJit: false,
@@ -25,14 +24,14 @@ export class NumberRunType extends AtomicRunType<TypeNumber> {
     _compileTypeErrors(comp: JitErrorsCompiler): string {
         return `if(!(${this._compileIsType(comp)})) ${comp.callJitErr(this)}`;
     }
-    _compileToJsonVal(comp: JitCompiler) {
-        return numberSerializer.ToJsonVal(comp.vλl);
+    _compileToJsonVal() {
+        return undefined;
     }
-    _compileFromJsonVal(comp: JitCompiler) {
-        return numberSerializer.fromJsonVal(comp.vλl);
+    _compileFromJsonVal() {
+        return undefined;
     }
     _compileJsonStringify(comp: JitCompiler) {
-        return numberSerializer.stringify(comp.vλl);
+        return comp.vλl;
     }
     _mock(ctx: Pick<MockOperation, 'minNumber' | 'maxNumber'>): number {
         return mockNumber(ctx.minNumber, ctx.maxNumber);

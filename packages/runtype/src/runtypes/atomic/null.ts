@@ -9,7 +9,6 @@ import {ReflectionKind, type TypeNull} from '../../lib/_deepkit/src/reflection/t
 import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
 import type {JitConfig} from '../../types';
 import {AtomicRunType} from '../../lib/baseRunTypes';
-import {nullSerializer} from '../../serializers/null';
 
 const jitConstants: JitConfig = {
     skipJit: false,
@@ -24,14 +23,14 @@ export class NullRunType extends AtomicRunType<TypeNull> {
     _compileTypeErrors(comp: JitErrorsCompiler): string {
         return `if (${comp.vλl} !== null) ${comp.callJitErr(this)}`;
     }
-    _compileToJsonVal(comp: JitCompiler) {
-        return nullSerializer.ToJsonVal(comp.vλl);
+    _compileToJsonVal() {
+        return undefined;
     }
-    _compileFromJsonVal(comp: JitCompiler) {
-        return nullSerializer.fromJsonVal(comp.vλl);
+    _compileFromJsonVal() {
+        return undefined;
     }
     _compileJsonStringify(comp: JitCompiler) {
-        return nullSerializer.stringify(comp.vλl);
+        return comp.vλl;
     }
     _mock(): null {
         return null;
