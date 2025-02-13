@@ -11,9 +11,9 @@ import type {JitRunTypeTransformer} from '../../lib/types';
 import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
 import {memorize, toLiteral} from '../../lib/utils';
 import {AtomicRunType} from '../../lib/baseRunTypes';
-import {bigIntTransformer} from '../../serializers/bigint';
-import {regexpTransformer} from '../../serializers/regexp';
-import {symbolTransformer} from '../../serializers/symbol';
+import {bigIntTransformer} from '../../transformers/bigint';
+import {regexpTransformer} from '../../transformers/regexp';
+import {symbolTransformer} from '../../transformers/symbol';
 
 export class LiteralRunType extends AtomicRunType<TypeLiteral> {
     get jitConstants() {
