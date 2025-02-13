@@ -11,7 +11,6 @@ import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
 import {mockDate} from '../../lib/mock';
 import {AtomicRunType} from '../../lib/baseRunTypes';
 import {ReflectionSubKind} from '../../constants.kind';
-import {dateSerializer} from '../../serializers/date';
 
 const jitConstants: JitConfig = {
     skipJit: false,
@@ -27,14 +26,14 @@ export class DateRunType extends AtomicRunType<TypeClass> {
     _compileTypeErrors(comp: JitErrorsCompiler): string {
         return `if (!(${this._compileIsType(comp)})) ${comp.callJitErr(this)}`;
     }
-    _compileToJsonVal(comp: JitCompiler) {
-        return dateSerializer.ToJsonVal(comp.vλl);
+    _compileToJsonVal() {
+        return undefined;
     }
     _compileFromJsonVal(comp: JitCompiler) {
-        return dateSerializer.fromJsonVal(comp.vλl);
+        return `new Date(${comp.vλl})`;
     }
     _compileJsonStringify(comp: JitCompiler) {
-        return dateSerializer.stringify(comp.vλl);
+        return `'"'+${comp.vλl}.toJSON()+'"'`;
     }
     _mock(ctx: Pick<MockOperation, 'minDate' | 'maxDate'>): Date {
         return mockDate(ctx.minDate, ctx.maxDate);

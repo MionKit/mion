@@ -5,18 +5,19 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {JitSerializer} from '../types';
+import type {JitRunTypeTransformer} from '../lib/types';
+import type {JitCompiler} from '../lib/jitCompiler';
 
 const matchRegExpString = '/\\/(.*)\\/(.*)?/';
 
-export const regexpSerializer: JitSerializer = {
-    fromJsonVal(vλl: string): string {
-        return `(function(){const parts = ${vλl}.match(${matchRegExpString}) ;return new RegExp(parts[1], parts[2] || '')})()`;
+export const regexpTransformer: JitRunTypeTransformer = {
+    _compileFromJsonVal(comp: JitCompiler): string {
+        return `(function(){const parts = ${comp.vλl}.match(${matchRegExpString}) ;return new RegExp(parts[1], parts[2] || '')})()`;
     },
-    ToJsonVal(vλl: string): string {
-        return `${vλl}.toString()`;
+    _compileToJsonVal(comp: JitCompiler): string {
+        return `${comp.vλl}.toString()`;
     },
-    stringify(vλl: string): string {
-        return `JSON.stringify(${vλl}.toString())`;
+    _compileJsonStringify(comp: JitCompiler): string {
+        return `JSON.stringify(${comp.vλl}.toString())`;
     },
 };

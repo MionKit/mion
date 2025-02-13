@@ -6,44 +6,51 @@
  * ######## */
 
 export interface JitFnSetting {
-    id: number;
+    id: string;
     name: string;
     hasReturn: boolean;
     isExpression: boolean;
 }
 
+// list of available jit functions
+// ######## !IMPORTANT: all functions id must be unique ########
+
+export const jitValidationFunctions = {
+    isType: {id: 'is', name: 'isType', hasReturn: false, isExpression: true},
+    typeErrors: {id: 'te', name: 'typeErrors', hasReturn: false, isExpression: false},
+} as const satisfies {[key: string]: JitFnSetting};
+
+export const jitSerializationFunctions = {
+    toJsonVal: {id: 'tj', name: 'toJsonVal', hasReturn: false, isExpression: false},
+    fromJsonVal: {id: 'fj', name: 'fromJsonVal', hasReturn: false, isExpression: false},
+    jsonStringify: {id: 'js', name: 'jsonStringify', hasReturn: false, isExpression: true},
+    // not yet implemented
+    toBinary: {id: 'tb', name: 'toJsonVal', hasReturn: false, isExpression: false},
+    fromBinary: {id: 'fb', name: 'fromJsonVal', hasReturn: false, isExpression: false},
+    toString: {id: 'ts', name: 'jsonStringify', hasReturn: false, isExpression: true},
+    fromString: {id: 'fs', name: 'jsonParse', hasReturn: false, isExpression: true},
+} as const satisfies {[key: string]: JitFnSetting};
+
 export const JitFunctions = {
-    isType: {id: 1, name: 'isType', hasReturn: false, isExpression: true},
-    typeErrors: {id: 2, name: 'typeErrors', hasReturn: false, isExpression: false},
-    toJsonVal: {id: 3, name: 'toJsonVal', hasReturn: false, isExpression: false},
-    fromJsonVal: {id: 4, name: 'fromJsonVal', hasReturn: false, isExpression: false},
-    jsonStringify: {id: 5, name: 'jsonStringify', hasReturn: false, isExpression: true},
-    unknownKeyErrors: {id: 6, name: 'unknownKeyErrors', hasReturn: false, isExpression: false},
-    hasUnknownKeys: {id: 7, name: 'hasUnknownKeys', hasReturn: false, isExpression: true},
-    stripUnknownKeys: {id: 8, name: 'stripUnknownKeys', hasReturn: false, isExpression: false},
-    unknownKeysToUndefined: {id: 9, name: 'unknownKeysToUndefined', hasReturn: false, isExpression: false},
-    aux: {id: 10, name: 'aux', hasReturn: true, isExpression: false},
+    ...jitValidationFunctions,
+    ...jitSerializationFunctions,
+    unknownKeyErrors: {id: 'uk', name: 'unknownKeyErrors', hasReturn: false, isExpression: false},
+    hasUnknownKeys: {id: 'hk', name: 'hasUnknownKeys', hasReturn: false, isExpression: true},
+    stripUnknownKeys: {id: 'sk', name: 'stripUnknownKeys', hasReturn: false, isExpression: false},
+    unknownKeysToUndefined: {id: 'ku', name: 'unknownKeysToUndefined', hasReturn: false, isExpression: false},
+    aux: {id: 'aux', name: 'aux', hasReturn: true, isExpression: false},
 } as const satisfies {[key: string]: JitFnSetting};
 
 export const jitFunctionList = Object.values(JitFunctions);
 
-export const validPropertyNameRegExp = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
-
-export const jitNames = {
-    utils: 'utl',
-};
-
-export const minKeysForSet = 30;
-export const maxUnknownKeys = 10;
-export const maxStackDepth = 50;
-export const maxStackErrorMessage =
-    'Max compilation nested level reached, either you have a very deeply nested type or there is an error related to circular references un the types.';
-
+// variable names used in jit functions
+// JitUtils is passed with the name 'utl'. it is hardcoded in all jit code to avoid string interpolation
 export const jitArgs = {vλl: 'v'} as const;
 export const jitDefaultArgs = {vλl: null} as const;
 export const jitErrorArgs = {vλl: 'v', pλth: 'pth', εrr: 'er'} as const;
 export const jitDefaultErrorArgs = {vλl: null, pλth: '[]', εrr: '[]'} as const;
 
+// native javascript objects that are not serializable
 export const nonSerializableClasses = [
     // TODO: decide what to do with native errors, they should be easily serializable
     Error,
@@ -112,4 +119,13 @@ export const nonSerializableGlobals = [
     'AsyncIterator',
 ];
 
+// typescript utility types
 export const nativeUtilityStringTypes = ['Uppercase', 'Lowercase', 'Capitalize', 'Uncapitalize'];
+
+// other constants
+export const validPropertyNameRegExp = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
+export const minKeysForSet = 30;
+export const maxUnknownKeys = 10;
+export const maxStackDepth = 50;
+export const maxStackErrorMessage =
+    'Max compilation nested level reached, either you have a very deeply nested type or there is an error related to circular references un the types.';

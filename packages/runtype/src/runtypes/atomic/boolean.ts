@@ -10,7 +10,6 @@ import type {JitConfig} from '../../types';
 import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
 import {mockBoolean} from '../../lib/mock';
 import {AtomicRunType} from '../../lib/baseRunTypes';
-import {booleanSerializer} from '../../serializers/boolean';
 
 const jitConstants: JitConfig = {
     skipJit: false,
@@ -24,14 +23,14 @@ export class BooleanRunType extends AtomicRunType<TypeBoolean> {
     _compileTypeErrors(comp: JitErrorsCompiler): string {
         return `if (typeof ${comp.vλl} !== 'boolean') ${comp.callJitErr(this)}`;
     }
-    _compileToJsonVal(comp: JitCompiler) {
-        return booleanSerializer.ToJsonVal(comp.vλl);
+    _compileToJsonVal() {
+        return undefined;
     }
-    _compileFromJsonVal(comp: JitCompiler) {
-        return booleanSerializer.fromJsonVal(comp.vλl);
+    _compileFromJsonVal() {
+        return undefined;
     }
     _compileJsonStringify(comp: JitCompiler) {
-        return booleanSerializer.stringify(comp.vλl);
+        return `(${comp.vλl} ? 'true' : 'false')`;
     }
     _mock(): boolean {
         return mockBoolean();

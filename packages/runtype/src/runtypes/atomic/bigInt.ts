@@ -10,7 +10,7 @@ import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
 import type {MockOperation, JitConfig} from '../../types';
 import {mockBigInt} from '../../lib/mock';
 import {AtomicRunType} from '../../lib/baseRunTypes';
-import {bigIntSerializer} from '../../serializers/bigint';
+import {bigIntTransformer} from '../../serializers/bigint';
 
 const jitConstants: JitConfig = {
     skipJit: false,
@@ -26,13 +26,13 @@ export class BigIntRunType extends AtomicRunType<TypeBigInt> {
         return `if (typeof ${comp.vλl} !== 'bigint') ${comp.callJitErr(this)}`;
     }
     _compileToJsonVal(comp: JitCompiler) {
-        return bigIntSerializer.ToJsonVal(comp.vλl);
+        return bigIntTransformer._compileToJsonVal(comp);
     }
     _compileFromJsonVal(comp: JitCompiler) {
-        return bigIntSerializer.fromJsonVal(comp.vλl);
+        return bigIntTransformer._compileFromJsonVal(comp);
     }
     _compileJsonStringify(comp: JitCompiler) {
-        return bigIntSerializer.stringify(comp.vλl);
+        return bigIntTransformer._compileJsonStringify(comp);
     }
     /** mocks a regular number and transforms into a bigint.
      * this means range is limited to Number.MAX_SAFE_INTEGER

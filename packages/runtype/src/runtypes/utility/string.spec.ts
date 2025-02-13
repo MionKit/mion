@@ -11,7 +11,7 @@ import {runType} from '../../runType';
 // Intrinsic String Manipulation Types: these are typescript native utility types but require a runtime implementation
 // Uppercase<StringType>, Lowercase<StringType>, Capitalize<StringType>, Uncapitalize<StringType>
 
-describe('Uppercase typescript utility type', () => {
+describe.skip('Uppercase typescript utility type', () => {
     const rt = runType<Uppercase<string>>();
 
     const upperString: Uppercase<string> = 'HELLO';

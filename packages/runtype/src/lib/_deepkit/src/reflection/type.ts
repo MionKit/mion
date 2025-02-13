@@ -2086,7 +2086,8 @@ export const typeDecorators: TypeDecorator[] = [
     (annotations: Annotations, decorator: TypeObjectLiteral) => {
         const meta = getAnnotationMeta(decorator);
         if (!meta) return false;
-
+        // ########## !IMPORTANT SOME CODE HAS BEEN STRIPED OUT HERE ##########
+        // other decorators are not used by mion only the metaAnnotation
         switch (meta.id) {
             default: {
                 metaAnnotation.register(annotations, {name: meta.id, options: meta.params});

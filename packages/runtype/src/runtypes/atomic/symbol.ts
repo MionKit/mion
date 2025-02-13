@@ -10,7 +10,7 @@ import type {MockOperation, JitConfig} from '../../types';
 import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
 import {mockSymbol} from '../../lib/mock';
 import {AtomicRunType} from '../../lib/baseRunTypes';
-import {symbolSerializer} from '../../serializers/symbol';
+import {symbolTransformer} from '../../serializers/symbol';
 
 const jitConstants: JitConfig = {
     skipJit: true,
@@ -26,13 +26,13 @@ export class SymbolRunType extends AtomicRunType<TypeSymbol> {
         return `if (typeof ${comp.vλl} !== 'symbol') ${comp.callJitErr(this)}`;
     }
     _compileToJsonVal(comp: JitCompiler) {
-        return symbolSerializer.ToJsonVal(comp.vλl);
+        return symbolTransformer._compileToJsonVal(comp);
     }
     _compileFromJsonVal(comp: JitCompiler) {
-        return symbolSerializer.fromJsonVal(comp.vλl);
+        return symbolTransformer._compileFromJsonVal(comp);
     }
     _compileJsonStringify(comp: JitCompiler): string {
-        return symbolSerializer.stringify(comp.vλl);
+        return symbolTransformer._compileJsonStringify(comp);
     }
     _mock(ctx: MockOperation): symbol {
         return mockSymbol(ctx.symbolName, ctx.symbolLength, ctx.symbolCharSet);

@@ -102,24 +102,12 @@ export interface RunTypeOptions {
     paramsSlice?: {start?: number; end?: number};
 }
 
-
 // ###################### JIT FUNCTIONS ######################
 
 export type JitFn = (typeof JitFunctions)[keyof typeof JitFunctions];
 
-// one of the existing jit functions ids 
+// one of the existing jit functions ids
 export type JitFnID = JitFn['id'];
-
-export interface JitValidator {
-    isType: (value: any) => boolean;
-    typeErrors: (value: any) => RunTypeError[];
-}
-
-export interface JitSerializer {
-    fromJsonVal: (vλl: string) => string | undefined;
-    ToJsonVal: (vλl: string) => string | undefined;
-    stringify: (vλl: string) => string;
-}
 
 type AnyFn = (...args: any[]) => any;
 export interface JitFnData<Fn extends AnyFn> {
@@ -192,7 +180,6 @@ export type SerializedOperations = Record<string, SerializableJit>;
 export type AnyFunction = TypeMethodSignature | TypeCallSignature | TypeFunction | TypeMethod;
 export type AnyParameterListRunType = AnyFunction | TypeTuple;
 
-
 // ###################### MOCK #####################
 
 export interface MockOptions {
@@ -237,7 +224,7 @@ export interface MockOperation extends MockOptions {
 
 export type ValidatorParams = {validatorName?: string};
 
-export type SerializerParams =  {serializerName?: string};
+export type SerializerParams = {serializerName?: string};
 
 export type TypeParams = ValidatorParams & SerializerParams;
 
@@ -246,7 +233,8 @@ export type TypeParams = ValidatorParams & SerializerParams;
  * ie: an Alphanumeric type is an string that only allow letters and numbers.
  * ie: in Integer type is a number that only allow integer values.
  * */
-export type BrandedType<BaseType, Params extends TypeParams> = BaseType & {__meta?: Params}
+// // must match ./lib/_deepkit/src/reflection/type<TypeAnnotation>
+export type BrandedType<BaseType, Name extends string, P extends TypeParams> = BaseType & {__meta?: never & [Name, P]};
 
 // ###################### OTHERS #####################
 
@@ -255,11 +243,6 @@ export interface AnyClass<T = any> {
     new (...args: any[]): T;
 }
 
-
 export type Mutable<T> = {
     -readonly [K in keyof T]: T[K];
 };
-
-
-
-
