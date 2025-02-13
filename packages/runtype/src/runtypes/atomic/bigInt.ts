@@ -10,7 +10,7 @@ import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
 import type {MockOperation, JitConfig} from '../../types';
 import {mockBigInt} from '../../lib/mock';
 import {AtomicRunType} from '../../lib/baseRunTypes';
-import {bigIntTransformer} from '../../serializers/bigint';
+import {bigIntTransformer} from '../../transformers/bigint';
 
 const jitConstants: JitConfig = {
     skipJit: false,

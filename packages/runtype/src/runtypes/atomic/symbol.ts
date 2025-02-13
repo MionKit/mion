@@ -10,7 +10,7 @@ import type {MockOperation, JitConfig} from '../../types';
 import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
 import {mockSymbol} from '../../lib/mock';
 import {AtomicRunType} from '../../lib/baseRunTypes';
-import {symbolTransformer} from '../../serializers/symbol';
+import {symbolTransformer} from '../../transformers/symbol';
 
 const jitConstants: JitConfig = {
     skipJit: true,

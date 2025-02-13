@@ -10,7 +10,7 @@ import type {MockOperation, JitConfig} from '../../types';
 import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
 import {mockRegExp} from '../../lib/mock';
 import {AtomicRunType} from '../../lib/baseRunTypes';
-import {regexpTransformer} from '../../serializers/regexp';
+import {regexpTransformer} from '../../transformers/regexp';
 
 const jitConstants: JitConfig = {
     skipJit: false,
