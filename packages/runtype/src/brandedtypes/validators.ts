@@ -125,9 +125,9 @@ function isURlWithContext(utl: JITUtils): (str: string, maxLength: number) => bo
 }
 
 function isURLExtendedWithContext(utl: JITUtils): (str: string, maxLength: number) => boolean {
+    const protocols = ['http://', 'https://', 'ftp://', 'file://', 'mailto:', 'data:'];
     function vf_isURLExtended(str: string, maxLength: number = 2048): boolean {
         if (str.length > maxLength) return false;
-        const protocols = ['http://', 'https://', 'ftp://', 'file://', 'mailto:', 'data:'];
         let matchesProtocol = false;
         for (const protocol of protocols) {
             if (str.startsWith(protocol)) {

@@ -1,11 +1,12 @@
 /* ########
- * 2024 mion
+ * 2025 mion
  * Author: Ma-jerez
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
 import {BrandedType, TypeParams} from '../types';
+import {stringMaxLengthValidator} from '../validators/string';
 import {ALPHA_REGEX, ALPHANUMERIC_REGEX, NUMERIC_REGEX} from './regexp';
 
 // String
@@ -20,7 +21,7 @@ export type StringParams = {
     regexp?: RegExp;
 } & TypeParams;
 
-export type StringFormat<P extends StringParams> = BrandedType<string, P>;
+export type StringFormat<P extends StringParams> = BrandedType<string, 'string', P>;
 
 export type Alpha = StringFormat<{regexp: typeof ALPHA_REGEX}>;
 export type AlphaNumeric = StringFormat<{regexp: typeof ALPHANUMERIC_REGEX}>;
@@ -54,8 +55,4 @@ export type IpRange = StringFormat<{validatorName: 'vf_isIPRange'}>;
 // IDs
 export type UUID = StringFormat<{validatorName: 'vf_isUUID'}>;
 
-// TEST CASES
-export type EmailFormat = Email<256, 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789@.-_'>;
-export type ALPHN = StringFormat<{regexp: typeof ALPHANUMERIC_REGEX}>;
-export const ml: ALPHN = 'qwer';
-export const email: EmailFormat = 'qwer';
+stringMaxLengthValidator;
