@@ -26,13 +26,13 @@ export class RegexpRunType extends AtomicRunType<TypeRegexp> {
         return `if (!(${comp.vλl} instanceof RegExp)) ${comp.callJitErr(this)}`;
     }
     _compileToJsonVal(comp: JitCompiler) {
-        return regexpTransformer._compileToJsonVal(comp);
+        return regexpTransformer._compileToJsonVal(comp, this);
     }
     _compileFromJsonVal(comp: JitCompiler) {
-        return regexpTransformer._compileFromJsonVal(comp);
+        return regexpTransformer._compileFromJsonVal(comp, this);
     }
     _compileJsonStringify(comp: JitCompiler) {
-        return regexpTransformer._compileJsonStringify(comp);
+        return regexpTransformer._compileJsonStringify(comp, this);
     }
     _mock(ctx: Pick<MockOperation, 'regexpList'>): RegExp {
         return mockRegExp(ctx.regexpList);
