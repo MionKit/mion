@@ -4,8 +4,8 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
-
-import {JitValidator, RunTypeError} from '../types';
+import type {JitRunTypeValidator} from '../lib/types';
+import {ReflectionKind} from '../lib/_deepkit/src/reflection/type';
 
 export type StringParams = {
     maxLength?: number;
@@ -22,44 +22,52 @@ export type StringParams = {
 
 // maxLength validator
 export const stringMaxLengthValidator = {
+    kind: ReflectionKind.string,
     name: 'maxLength',
-    isType(vλl: string): boolean {
-        return typeof vλl === 'string';
+    _compileIsType(comp, rt): string {
+        const typeValue = rt.getTypeAnnotationValue(this.name, 'number') as number;
+        return `${comp.vλl}.length < ${typeValue}`;
     },
-    typeErrors(vλl: string): RunTypeError[] {
-        return vλl as any;
+    _compileTypeErrors(comp, rt): string {
+        return `if (!(${this._compileIsType(comp, rt)})) ${comp.callJitErr(this.name)}`;
     },
-} satisfies JitValidator;
+} satisfies JitRunTypeValidator;
 
 // minLength validator
 export const stringMinLengthValidator = {
+    kind: ReflectionKind.string,
     name: 'minLength',
-    isType(vλl: string): boolean {
-        return typeof vλl === 'string';
+    _compileIsType(comp, rt): string {
+        const typeValue = rt.getTypeAnnotationValue(this.name, 'number') as number;
+        return `${comp.vλl}.length > ${typeValue}`;
     },
-    typeErrors(vλl: string): RunTypeError[] {
-        return vλl as any;
+    _compileTypeErrors(comp, rt): string {
+        return `if (!(${this._compileIsType(comp, rt)})) ${comp.callJitErr(this.name)}`;
     },
-} satisfies JitValidator;
+} satisfies JitRunTypeValidator;
 
 // length validator
 export const stringLengthValidator = {
-    name: 'minLength',
-    isType(vλl: string): boolean {
-        return typeof vλl === 'string';
+    kind: ReflectionKind.string,
+    name: 'length',
+    _compileIsType(comp, rt): string {
+        const typeValue = rt.getTypeAnnotationValue(this.name, 'number') as number;
+        return `${comp.vλl}.length === ${typeValue}`;
     },
-    typeErrors(vλl: string): RunTypeError[] {
-        return vλl as any;
+    _compileTypeErrors(comp, rt): string {
+        return `if (!(${this._compileIsType(comp, rt)})) ${comp.callJitErr(this.name)}`;
     },
-} satisfies JitValidator;
+} satisfies JitRunTypeValidator;
 
 // pattern validator
 export const stringPatternValidator = {
-    name: 'minLength',
-    isType(vλl: string): boolean {
-        return typeof vλl === 'string';
+    kind: ReflectionKind.string,
+    name: 'pattern',
+    _compileIsType(comp, rt): string {
+        const typeValue = rt.getTypeAnnotationValue(this.name, 'number') as number;
+        return `${comp.vλl}.match(${typeValue})`;
     },
-    typeErrors(vλl: string): RunTypeError[] {
-        return vλl as any;
+    _compileTypeErrors(comp, rt): string {
+        return `if (!(${this._compileIsType(comp, rt)})) ${comp.callJitErr(this.name)}`;
     },
-} satisfies JitValidator;
+} satisfies JitRunTypeValidator;

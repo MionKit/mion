@@ -26,13 +26,13 @@ export class SymbolRunType extends AtomicRunType<TypeSymbol> {
         return `if (typeof ${comp.vλl} !== 'symbol') ${comp.callJitErr(this)}`;
     }
     _compileToJsonVal(comp: JitCompiler) {
-        return symbolTransformer._compileToJsonVal(comp);
+        return symbolTransformer._compileToJsonVal(comp, this);
     }
     _compileFromJsonVal(comp: JitCompiler) {
-        return symbolTransformer._compileFromJsonVal(comp);
+        return symbolTransformer._compileFromJsonVal(comp, this);
     }
     _compileJsonStringify(comp: JitCompiler): string {
-        return symbolTransformer._compileJsonStringify(comp);
+        return symbolTransformer._compileJsonStringify(comp, this);
     }
     _mock(ctx: MockOperation): symbol {
         return mockSymbol(ctx.symbolName, ctx.symbolLength, ctx.symbolCharSet);

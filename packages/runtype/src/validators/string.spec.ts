@@ -6,7 +6,7 @@
  * ######## */
 import {JitFunctions} from '../constants';
 import {runType} from '../runType';
-import {StringFormat} from './string';
+import {StringFormat} from '../brandedtypes/string';
 
 it('validate string max length', () => {
     type Max5 = StringFormat<{maxLength: 5}>;

@@ -55,13 +55,13 @@ export class LiteralRunType extends AtomicRunType<TypeLiteral> {
         return compileTypeErrorsLiteral(comp, this.src.literal, this.getName());
     }
     _compileToJsonVal(comp: JitCompiler): string | undefined {
-        return this.getValidator()._compileToJsonVal(comp);
+        return this.getValidator()._compileToJsonVal(comp, this);
     }
     _compileFromJsonVal(comp: JitCompiler): string | undefined {
-        return this.getValidator()._compileFromJsonVal(comp);
+        return this.getValidator()._compileFromJsonVal(comp, this);
     }
     _compileJsonStringify(comp: JitCompiler): string {
-        return this.getValidator()._compileJsonStringify(comp);
+        return this.getValidator()._compileJsonStringify(comp, this);
     }
     _mock(): symbol | string | number | boolean | bigint | RegExp {
         return this.src.literal;

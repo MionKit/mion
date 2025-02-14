@@ -6,7 +6,16 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {ReflectionKind, type TypeIndexSignature, type TypeProperty, type Type} from './_deepkit/src/reflection/type';
+import {
+    ReflectionKind,
+    type TypeIndexSignature,
+    type TypeProperty,
+    type Type,
+    metaAnnotation,
+    TypeObjectLiteral,
+    TypePropertySignature,
+    TypeLiteral,
+} from './_deepkit/src/reflection/type';
 import type {
     MockOperation,
     RunType,
@@ -292,6 +301,24 @@ export abstract class BaseRunType<T extends Type = any> implements RunType {
         const fnConfig = jitFunctionList.find((f) => f.id === fnId);
         if (fnConfig === undefined) throw new Error(`Unknown compile operation: ${fnId}`);
         return fnConfig.isExpression;
+    }
+
+    getTypeAnnotationValue(paramName: string, expectedTypeof: string): TypeLiteral['literal'] {
+        // type annotations are alway object literals, ie: {maxLength: 5}
+        const typeOptions = metaAnnotation.getFirst(this.src)?.options as TypeObjectLiteral[] | undefined;
+        if (!typeOptions) throw new Error(`Cannot find type option ${paramName} for ${this.getName()}`);
+        for (const typeOption of typeOptions) {
+            const params = typeOption.types as TypePropertySignature[];
+            for (const param of params) {
+                if (param.name === paramName) {
+                    const typeValue = (param.type as TypeLiteral).literal;
+                    if (typeof typeValue !== expectedTypeof)
+                        throw new Error(`Type option ${paramName} for ${this.getName()} must be a ${expectedTypeof}`);
+                    return typeValue;
+                }
+            }
+        }
+        throw new Error(`Cannot find type option ${paramName} for ${this.getName()}`);
     }
 }
 

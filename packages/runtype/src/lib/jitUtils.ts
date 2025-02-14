@@ -7,6 +7,9 @@
 import {maxStackDepth, maxUnknownKeys} from '../constants';
 import type {CompiledOperation, RunTypeError} from '../types';
 import type {BaseCompiler} from './jitCompiler';
+import type {JitRunTypeTransformer, JitRunTypeValidator} from './types';
+import {ReflectionKind} from './_deepkit/src/reflection/type';
+import {ReflectionKindName} from '../constants.kind';
 
 export type JITUtils = typeof jitUtils;
 
@@ -15,6 +18,7 @@ const STR_ESCAPE = /[\u0000-\u001f\u0022\u005c\ud800-\udfff]/;
 const MAX_SCAPE_TEST_LENGTH = 1000; // possible to tweak after benchmarking
 const jitCache = new Map<string, CompiledOperation>();
 const jitHashes = new Map<string, string>();
+const typeAnnotationsCache = new Map<string, JitRunTypeValidator | JitRunTypeTransformer>();
 
 /**
  * Object that wraps all utilities that are used by the jit generated functions for encode, decode, stringify etc..
@@ -150,26 +154,39 @@ export const jitUtils = {
         if (isSafeMapKeyValue(value)) return value;
         return null;
     },
+    registerTypeOperation(typeKind: ReflectionKind, operation: JitRunTypeValidator | JitRunTypeTransformer) {
+        const id = `${typeKind}_${operation.name}`;
+        if (typeAnnotationsCache.has(id))
+            throw new Error(`Annotation type ${operation.name} already registered for ${ReflectionKindName[typeKind]}`);
+        typeAnnotationsCache.set(id, operation);
+    },
+    getTypeOperation(typeKind: ReflectionKind, name: string): JitRunTypeValidator | JitRunTypeTransformer | undefined {
+        const id = `${typeKind}_${name}`;
+        if (!typeAnnotationsCache.has(id))
+            throw new Error(`Annotation type ${name} not found for ${ReflectionKindName[typeKind]}`);
+        return typeAnnotationsCache.get(`${typeKind}_${name}`);
+    },
 };
 
-export const hashChars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-export const hashIncrement = 1;
-export const maxHashCollisions = 22;
-// TODO: investigate if this is a good default length, we want short hashes for small code size
+const hashChars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+const hashIncrement = 1;
+const maxHashCollisions = 22;
+const PRIME = 37; // Prime number to mix hash more robustly
+
+// TODO: investigate if this is a good default length, we want short hashes for small code size but long enough to avoid collisions
 // variable hash length avoids collisions, so there shouldn't be any problems. but better to keep an eye on it
-export const hashDefaultLength = 8;
+const hashDefaultLength = 10;
 
 export function quickHash(input: string, length = hashDefaultLength, prevResult?: string): string {
-    const PRIME = 37; // Prime number to mix hash more robustly
     let hash = 0;
     // Generate initial numeric hash
     for (let i = 0; i < input.length; i++) {
-        hash = (hash * PRIME + input.charCodeAt(i)) % Number.MAX_SAFE_INTEGER;
+        hash = (hash * PRIME + input.charCodeAt(i)) & 0x1fffffffffffff; // bitwise is slightly faster than modulo
     }
     let result = prevResult || '';
     // Convert numeric hash to a short alphanumeric string
     while (result.length < length) {
-        hash = (hash * PRIME) % Number.MAX_SAFE_INTEGER;
+        hash = (hash * PRIME) & 0x1fffffffffffff; // bitwise is slightly faster than modulo
         result += hashChars.charAt(hash % hashChars.length);
     }
     return result.slice(0, length);

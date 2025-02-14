@@ -222,9 +222,9 @@ export interface MockOperation extends MockOptions {
 
 // ###################### Branded Types #####################
 
-export type ValidatorParams = {validatorName?: string};
+export type ValidatorParams = {validator?: string};
 
-export type SerializerParams = {serializerName?: string};
+export type SerializerParams = {serializer?: string} | {transformer?: string};
 
 export type TypeParams = ValidatorParams & SerializerParams;
 

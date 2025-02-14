@@ -26,13 +26,13 @@ export class BigIntRunType extends AtomicRunType<TypeBigInt> {
         return `if (typeof ${comp.vλl} !== 'bigint') ${comp.callJitErr(this)}`;
     }
     _compileToJsonVal(comp: JitCompiler) {
-        return bigIntTransformer._compileToJsonVal(comp);
+        return bigIntTransformer._compileToJsonVal(comp, this);
     }
     _compileFromJsonVal(comp: JitCompiler) {
-        return bigIntTransformer._compileFromJsonVal(comp);
+        return bigIntTransformer._compileFromJsonVal(comp, this);
     }
     _compileJsonStringify(comp: JitCompiler) {
-        return bigIntTransformer._compileJsonStringify(comp);
+        return bigIntTransformer._compileJsonStringify(comp, this);
     }
     /** mocks a regular number and transforms into a bigint.
      * this means range is limited to Number.MAX_SAFE_INTEGER
