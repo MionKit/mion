@@ -10,9 +10,9 @@ import type {JitConfig} from '../../types';
 import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
 import {memorize, toLiteral} from '../../lib/utils';
 import {AtomicRunType} from '../../lib/baseRunTypes';
-import {bigIntTransformer} from '../../transformers/bigint';
-import {regexpTransformer} from '../../transformers/regexp';
-import {symbolTransformer} from '../../transformers/symbol';
+import {bigIntTransformer} from './bigInt';
+import {regexpTransformer} from './regexp';
+import {symbolTransformer} from './symbol';
 
 export class LiteralRunType extends AtomicRunType<TypeLiteral> {
     get jitConstants() {
@@ -54,13 +54,13 @@ export class LiteralRunType extends AtomicRunType<TypeLiteral> {
         return compileTypeErrorsLiteral(comp, this.src.literal, this.getName());
     }
     _compileToJsonVal(comp: JitCompiler): string | undefined {
-        return this.getValidator()._compileToJsonVal(comp, this);
+        return this.getValidator()._compileToJsonVal(comp);
     }
     _compileFromJsonVal(comp: JitCompiler): string | undefined {
-        return this.getValidator()._compileFromJsonVal(comp, this);
+        return this.getValidator()._compileFromJsonVal(comp);
     }
     _compileJsonStringify(comp: JitCompiler): string {
-        return this.getValidator()._compileJsonStringify(comp, this);
+        return this.getValidator()._compileJsonStringify(comp);
     }
     _mock(): symbol | string | number | boolean | bigint | RegExp {
         return this.src.literal;

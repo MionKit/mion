@@ -10,7 +10,6 @@ import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
 import type {MockOperation, JitConfig} from '../../types';
 import {mockBigInt} from '../../lib/mock';
 import {AtomicRunType} from '../../lib/baseRunTypes';
-import {bigIntTransformer} from '../../transformers/bigint';
 
 const jitConstants: JitConfig = {
     skipJit: false,
@@ -26,13 +25,13 @@ export class BigIntRunType extends AtomicRunType<TypeBigInt> {
         return `if (typeof ${comp.vλl} !== 'bigint') ${comp.callJitErr(this)}`;
     }
     _compileToJsonVal(comp: JitCompiler) {
-        return bigIntTransformer._compileToJsonVal(comp, this);
+        return bigIntTransformer._compileToJsonVal(comp);
     }
     _compileFromJsonVal(comp: JitCompiler) {
-        return bigIntTransformer._compileFromJsonVal(comp, this);
+        return bigIntTransformer._compileFromJsonVal(comp);
     }
     _compileJsonStringify(comp: JitCompiler) {
-        return bigIntTransformer._compileJsonStringify(comp, this);
+        return bigIntTransformer._compileJsonStringify(comp);
     }
     /** mocks a regular number and transforms into a bigint.
      * this means range is limited to Number.MAX_SAFE_INTEGER
@@ -41,3 +40,16 @@ export class BigIntRunType extends AtomicRunType<TypeBigInt> {
         return mockBigInt(ctx.minNumber, ctx.maxNumber);
     }
 }
+// bigintTransformer (used internally only so no need to register in JitUtils)
+
+export const bigIntTransformer = {
+    _compileFromJsonVal(comp: JitCompiler): string {
+        return `BigInt(${comp.vλl})`;
+    },
+    _compileToJsonVal(comp: JitCompiler): string {
+        return `${comp.vλl}.toString()`;
+    },
+    _compileJsonStringify(comp: JitCompiler): string {
+        return `'"'+${comp.vλl}.toString()+'"'`;
+    },
+};

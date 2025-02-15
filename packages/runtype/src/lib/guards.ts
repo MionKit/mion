@@ -46,7 +46,8 @@ import type {BaseCompiler, JitErrorsCompiler} from './jitCompiler';
 import type {ClassRunType} from '../runtypes/collection/class';
 import type {IntersectionRunType} from '../runtypes/collection/intersection';
 import type {SymbolRunType} from '../runtypes/atomic/symbol';
-import {JitRunTypeFormatter, JitRunTypeValidator} from './types';
+import {JitRunTypeFormatter} from '../formats/typeFormat.runtypes';
+import {JitRunTypeValidator} from '../formats/typeFormat.runtypes';
 
 export function isAnyRunType(rt: RunType): rt is AnyRunType {
     return rt.src.kind === ReflectionKind.any;
