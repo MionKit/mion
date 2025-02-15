@@ -128,26 +128,26 @@ export interface RunTypeError {
     expected: string;
 }
 
-export type isTypeFn = (value: any) => boolean;
-export type typeErrorsFn = (value: any) => RunTypeError[];
-export type toJsonValFn = (value: any) => JSONValue;
-export type fromJsonValFn = (value: JSONValue) => any;
-export type jsonStringifyFn = (value: any) => JSONString;
+export type IsTypeFn = (value: any) => boolean;
+export type TypeErrorsFn = (value: any) => RunTypeError[];
+export type ToJsonValFn = (value: any) => JSONValue;
+export type FromJsonValFn = (value: JSONValue) => any;
+export type JsonStringifyFn = (value: any) => JSONString;
 
 export interface JITCompiledFunctions {
-    isType: JitFnData<isTypeFn>;
-    typeErrors: JitFnData<typeErrorsFn>;
-    toJsonVal: JitFnData<toJsonValFn>;
-    fromJsonVal: JitFnData<fromJsonValFn>;
-    jsonStringify: JitFnData<jsonStringifyFn>;
+    isType: JitFnData<IsTypeFn>;
+    typeErrors: JitFnData<TypeErrorsFn>;
+    toJsonVal: JitFnData<ToJsonValFn>;
+    fromJsonVal: JitFnData<FromJsonValFn>;
+    jsonStringify: JitFnData<JsonStringifyFn>;
 }
 
 export interface SerializableJITFunctions {
-    isType: SerializableJitFn<isTypeFn>;
-    typeErrors: SerializableJitFn<typeErrorsFn>;
-    toJsonVal: SerializableJitFn<toJsonValFn>;
-    fromJsonVal: SerializableJitFn<fromJsonValFn>;
-    jsonStringify: SerializableJitFn<jsonStringifyFn>;
+    isType: SerializableJitFn<IsTypeFn>;
+    typeErrors: SerializableJitFn<TypeErrorsFn>;
+    toJsonVal: SerializableJitFn<ToJsonValFn>;
+    fromJsonVal: SerializableJitFn<FromJsonValFn>;
+    jsonStringify: SerializableJitFn<JsonStringifyFn>;
 }
 
 export type unwrappedToJsonValFn = (utils: JITUtils, value: any) => JSONValue;
@@ -155,8 +155,8 @@ export type unwrappedFromJsonValFn = (utils: JITUtils, value: JSONValue) => any;
 export type unwrappedJsonStringifyFn = (utils: JITUtils, value: any) => JSONString;
 
 export interface UnwrappedJITFunctions {
-    isType: JitFnData<isTypeFn>;
-    typeErrors: JitFnData<typeErrorsFn>;
+    isType: JitFnData<IsTypeFn>;
+    typeErrors: JitFnData<TypeErrorsFn>;
     toJsonVal: JitFnData<unwrappedToJsonValFn>;
     fromJsonVal: JitFnData<unwrappedFromJsonValFn>;
     jsonStringify: JitFnData<unwrappedJsonStringifyFn>;
