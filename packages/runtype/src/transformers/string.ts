@@ -4,20 +4,13 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
-import type {JitRunTypeTransformer} from '../lib/types';
+import type {JitRunTypeFormatter} from '../lib/types';
 import {ReflectionKind} from '../lib/_deepkit/src/reflection/type';
-
-export type StringTransformParams = {
-    toLowercase?: boolean;
-    toUppercase?: boolean;
-    capitalize?: boolean;
-    unCapitalize?: boolean;
-};
 
 // toLowercase transformer
 export const stringToLowercaseTransformer = {
     kind: ReflectionKind.string,
-    name: 'toLowercase',
+    name: 'lowercase',
     // TODO: transformers might need only one function
     _compileFromJsonVal: (comp) => {
         return `${comp.vλl}.toLowerCase()`;
@@ -28,12 +21,13 @@ export const stringToLowercaseTransformer = {
     _compileJsonStringify: (comp) => {
         return `${comp.vλl}.toLowerCase()`;
     },
-} satisfies JitRunTypeTransformer;
+} satisfies JitRunTypeFormatter;
 
 // toUppercase transformer
 export const stringToUppercaseTransformer = {
     kind: ReflectionKind.string,
-    name: 'toUppercase',
+    name: 'uppercase',
+    // TODO: transformers might need only one function
     _compileFromJsonVal: (comp) => {
         return `${comp.vλl}.toUpperCase()`;
     },
@@ -43,12 +37,13 @@ export const stringToUppercaseTransformer = {
     _compileJsonStringify: (comp) => {
         return `${comp.vλl}.toUpperCase()`;
     },
-} satisfies JitRunTypeTransformer;
+} satisfies JitRunTypeFormatter;
 
 // capitalize transformer
 export const stringCapitalizeTransformer = {
     kind: ReflectionKind.string,
     name: 'capitalize',
+    // TODO: transformers might need only one function
     _compileFromJsonVal: (comp) => {
         return `${comp.vλl}.charAt(0).toUpperCase() + ${comp.vλl}.slice(1)`;
     },
@@ -58,12 +53,13 @@ export const stringCapitalizeTransformer = {
     _compileJsonStringify: (comp) => {
         return `${comp.vλl}.charAt(0).toUpperCase() + ${comp.vλl}.slice(1)`;
     },
-} satisfies JitRunTypeTransformer;
+} satisfies JitRunTypeFormatter;
 
 // unCapitalize transformer
 export const stringUnCapitalizeTransformer = {
     kind: ReflectionKind.string,
     name: 'unCapitalize',
+    // TODO: transformers might need only one function
     _compileFromJsonVal: (comp) => {
         return `${comp.vλl}.charAt(0).toLowerCase() + ${comp.vλl}.slice(1)`;
     },
@@ -73,4 +69,4 @@ export const stringUnCapitalizeTransformer = {
     _compileJsonStringify: (comp) => {
         return `${comp.vλl}.charAt(0).toLowerCase() + ${comp.vλl}.slice(1)`;
     },
-} satisfies JitRunTypeTransformer;
+} satisfies JitRunTypeFormatter;

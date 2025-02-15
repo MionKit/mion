@@ -5,12 +5,12 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import type {JitRunTypeTransformer} from '../lib/types';
+import type {JitRunTypeFormatter} from '../lib/types';
 import type {JitCompiler} from '../lib/jitCompiler';
 import {ReflectionKind} from '../lib/_deepkit/src/reflection/type';
 
 // bigintTransformer (used internally only so no need to register in JitUtils)
-export const bigIntTransformer: JitRunTypeTransformer = {
+export const bigIntTransformer: JitRunTypeFormatter = {
     kind: ReflectionKind.bigint,
     name: '_bigint',
     _compileFromJsonVal(comp: JitCompiler): string {

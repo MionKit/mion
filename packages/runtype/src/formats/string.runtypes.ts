@@ -7,31 +7,59 @@
 
 import {jitUtils} from '../lib/jitUtils';
 // ############ IMPORTANT: RUN-TYPE FILES should not use type imports as will remove type information ############
+import {stringCapitalizeTransformer, stringToLowercaseTransformer, stringToUppercaseTransformer} from '../transformers/string';
+import {TypeFormat, TypeParams} from './typeFormat.runtypes';
 import {
-    stringCapitalizeTransformer,
-    stringToLowercaseTransformer,
-    stringToUppercaseTransformer,
-    StringTransformParams,
-} from '../transformers/string';
-import {BrandedType, TypeParams} from './branded.runtypes';
-import {
+    stringAllowedCharsValidator,
+    stringDisallowedCharsValidator,
     stringLengthValidator,
     stringMaxLengthValidator,
     stringMinLengthValidator,
     stringPatternValidator,
-    StringValidatorParams,
 } from '../validators/string';
 import {ALPHA_REGEX, ALPHANUMERIC_REGEX, NUMERIC_REGEX} from './regexp';
 
+// ############ IMPORTANT: ALL TYPE FORMATS MUST REGISTER THEIR TYPE VALIDATORS ############
+// Each validator property must match a validator  name
+export type StringValidatorParams = {
+    maxLength?: number;
+    minLength?: number;
+    length?: number;
+    pattern?: RegExp;
+    allowedChars?: string;
+    disallowedChars?: string;
+};
+// register Validator operations so they can be used in the jit compiler
+jitUtils.registerBrandedTypeOperation(stringMaxLengthValidator);
+jitUtils.registerBrandedTypeOperation(stringMinLengthValidator);
+jitUtils.registerBrandedTypeOperation(stringLengthValidator);
+jitUtils.registerBrandedTypeOperation(stringPatternValidator);
+jitUtils.registerBrandedTypeOperation(stringAllowedCharsValidator);
+jitUtils.registerBrandedTypeOperation(stringDisallowedCharsValidator);
+
+// ############ IMPORTANT: ALL TYPE FORMATS MUST REGISTER THEIR TYPE TRANSFORMERS ############
+// Each format property must match a transformer name
+export type StringTransformParams = {
+    lowercase?: boolean;
+    uppercase?: boolean;
+    capitalize?: boolean;
+    unCapitalize?: boolean;
+};
+// register Transformer operations so they can be used in the jit compiler
+jitUtils.registerBrandedTypeOperation(stringToLowercaseTransformer);
+jitUtils.registerBrandedTypeOperation(stringToUppercaseTransformer);
+jitUtils.registerBrandedTypeOperation(stringCapitalizeTransformer);
+jitUtils.registerBrandedTypeOperation(stringCapitalizeTransformer);
+
 // String type annotations (property names must match validator names)
 export type StringParams = TypeParams & StringValidatorParams & StringTransformParams;
-export type StringFormat<P extends StringParams> = BrandedType<string, 'string', P>;
+export type StringFormat<P extends StringParams> = TypeFormat<string, 'string', P>;
 
 export type Alpha = StringFormat<{pattern: typeof ALPHA_REGEX}>;
 export type AlphaNumeric = StringFormat<{pattern: typeof ALPHANUMERIC_REGEX}>;
 export type Numeric = StringFormat<{pattern: typeof NUMERIC_REGEX}>;
-export type Lower = StringFormat<{toLowercase: true}>;
-export type Upper = StringFormat<{toUppercase: true}>;
+export type Lower = StringFormat<{lowercase: true}>;
+export type Upper = StringFormat<{uppercase: true}>;
 export type Capital = StringFormat<{capitalize: true}>;
 export type UnCapital = StringFormat<{unCapitalize: true}>;
 
@@ -59,18 +87,3 @@ export type IPRange = StringFormat<{validator: 'vf_isIPRange'}>;
 
 // IDs
 export type UUID = StringFormat<{validator: 'vf_isUUID'}>;
-
-// ############ IMPORTANT: ALL BRANDED TYPES MUST REGISTER THEIR TYPE VALIDATORS AND TRANSFORMERS ############
-// Each branded type property must match a validator or transformer name with the same name as the property
-
-// register Validator operations so they can be used in the jit compiler
-jitUtils.registerBrandedTypeOperation(stringMaxLengthValidator);
-jitUtils.registerBrandedTypeOperation(stringMinLengthValidator);
-jitUtils.registerBrandedTypeOperation(stringLengthValidator);
-jitUtils.registerBrandedTypeOperation(stringPatternValidator);
-
-// register Transformer operations so they can be used in the jit compiler
-jitUtils.registerBrandedTypeOperation(stringToLowercaseTransformer);
-jitUtils.registerBrandedTypeOperation(stringToUppercaseTransformer);
-jitUtils.registerBrandedTypeOperation(stringCapitalizeTransformer);
-jitUtils.registerBrandedTypeOperation(stringCapitalizeTransformer);
