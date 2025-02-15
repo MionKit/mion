@@ -6,7 +6,8 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import type {JitRunTypeFormatter, JitRunTypeValidator} from './types';
+import type {JitRunTypeFormatter} from '../formats/typeFormat.runtypes';
+import type {JitRunTypeValidator} from '../formats/typeFormat.runtypes';
 import {
     ReflectionKind,
     type TypeIndexSignature,

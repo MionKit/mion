@@ -7,7 +7,8 @@
 import {maxStackDepth, maxUnknownKeys} from '../constants';
 import type {JitCompiled, RunTypeError} from '../types';
 import type {BaseCompiler} from './jitCompiler';
-import type {JitRunTypeFormatter, JitRunTypeValidator} from './types';
+import type {JitRunTypeFormatter} from '../formats/typeFormat.runtypes';
+import type {JitRunTypeValidator} from '../formats/typeFormat.runtypes';
 import {ReflectionKind} from './_deepkit/src/reflection/type';
 import {ReflectionKindName} from '../constants.kind';
 

@@ -10,7 +10,6 @@ import type {MockOperation, JitConfig} from '../../types';
 import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
 import {mockSymbol} from '../../lib/mock';
 import {AtomicRunType} from '../../lib/baseRunTypes';
-import {symbolTransformer} from '../../transformers/symbol';
 
 const jitConstants: JitConfig = {
     skipJit: true,
@@ -26,15 +25,30 @@ export class SymbolRunType extends AtomicRunType<TypeSymbol> {
         return `if (typeof ${comp.vλl} !== 'symbol') ${comp.callJitErr(this)}`;
     }
     _compileToJsonVal(comp: JitCompiler) {
-        return symbolTransformer._compileToJsonVal(comp, this);
+        return symbolTransformer._compileToJsonVal(comp);
     }
     _compileFromJsonVal(comp: JitCompiler) {
-        return symbolTransformer._compileFromJsonVal(comp, this);
+        return symbolTransformer._compileFromJsonVal(comp);
     }
     _compileJsonStringify(comp: JitCompiler): string {
-        return symbolTransformer._compileJsonStringify(comp, this);
+        return symbolTransformer._compileJsonStringify(comp);
     }
     _mock(ctx: MockOperation): symbol {
         return mockSymbol(ctx.symbolName, ctx.symbolLength, ctx.symbolCharSet);
     }
 }
+
+// symbolTransformer (used internally only so no need to register in JitUtils)
+
+export const symbolTransformer = {
+    // TODO: transformers might need only one function
+    _compileFromJsonVal(comp: JitCompiler): string {
+        return `Symbol(${comp.vλl}.substring(7))`;
+    },
+    _compileToJsonVal(comp: JitCompiler): string {
+        return `'Symbol:' + (${comp.vλl}.description || '')`;
+    },
+    _compileJsonStringify(comp: JitCompiler): string {
+        return `JSON.stringify('Symbol:' + (${comp.vλl}.description || ''))`;
+    },
+};

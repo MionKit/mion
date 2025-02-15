@@ -10,7 +10,6 @@ import type {MockOperation, JitConfig} from '../../types';
 import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
 import {mockRegExp} from '../../lib/mock';
 import {AtomicRunType} from '../../lib/baseRunTypes';
-import {regexpTransformer} from '../../transformers/regexp';
 
 const jitConstants: JitConfig = {
     skipJit: false,
@@ -26,15 +25,28 @@ export class RegexpRunType extends AtomicRunType<TypeRegexp> {
         return `if (!(${comp.vλl} instanceof RegExp)) ${comp.callJitErr(this)}`;
     }
     _compileToJsonVal(comp: JitCompiler) {
-        return regexpTransformer._compileToJsonVal(comp, this);
+        return regexpTransformer._compileToJsonVal(comp);
     }
     _compileFromJsonVal(comp: JitCompiler) {
-        return regexpTransformer._compileFromJsonVal(comp, this);
+        return regexpTransformer._compileFromJsonVal(comp);
     }
     _compileJsonStringify(comp: JitCompiler) {
-        return regexpTransformer._compileJsonStringify(comp, this);
+        return regexpTransformer._compileJsonStringify(comp);
     }
     _mock(ctx: Pick<MockOperation, 'regexpList'>): RegExp {
         return mockRegExp(ctx.regexpList);
     }
 }
+
+// regexpTransformer (used internally only so no need to register in JitUtils)
+export const regexpTransformer = {
+    _compileFromJsonVal(comp: JitCompiler): string {
+        return `(function(){const parts = ${comp.vλl}.match(/\\/(.*)\\/(.*)?/) ;return new RegExp(parts[1], parts[2] || '')})()`;
+    },
+    _compileToJsonVal(comp: JitCompiler): string {
+        return `${comp.vλl}.toString()`;
+    },
+    _compileJsonStringify(comp: JitCompiler): string {
+        return `JSON.stringify(${comp.vλl}.toString())`;
+    },
+};
