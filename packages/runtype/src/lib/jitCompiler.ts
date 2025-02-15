@@ -4,7 +4,7 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
-import type {JitFnArgs, Mutable, CompiledOperation, JitFnID} from '../types';
+import type {JitFnArgs, Mutable, JitCompiled, JitFnID} from '../types';
 import type {BaseRunType} from './baseRunTypes';
 import {
     jitArgs,
@@ -29,7 +29,7 @@ export type StackItem = {
     staticPath?: (string | number)[];
 };
 
-export type JitCompilerLike = BaseCompiler | CompiledOperation;
+export type JitCompilerLike = BaseCompiler | JitCompiled;
 export type JitDependencies = Set<string>;
 
 export class BaseCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extends JitFnID = any> {
@@ -61,8 +61,8 @@ export class BaseCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extends 
      * */
     readonly contextCodeItems = new Map<string, string>();
     /**
-     * This flag is set to true when the result of a jit compilation is a no operation.
-     * Some jit compiled functions could execute no operations (ie: toJsonVal/fromJsonVal a string)
+     * This flag is set to true when the result of a jit compilation is a no operation (empty function).
+     * Some jit compiled functions could execute no operations (ie: string, boolean and numbers does not require toJsonVal/fromJsonVal)
      */
     readonly isNoop?: boolean = false;
     /** The list of all jit functions that are used by this function and it's children. */
@@ -136,7 +136,7 @@ export class BaseCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extends 
         const stackItem = this.getCurrentStackItem();
         return !stackItem.rt.isJitInlined() && this.stack.length > 1;
     }
-    updateDependencies(childCop: CompiledOperation): void {
+    updateDependencies(childCop: JitCompiled): void {
         this.dependenciesSet.add(childCop.jitFnHash);
         childCop.dependenciesSet.forEach((dep) => this.dependenciesSet.add(dep));
     }
@@ -146,6 +146,7 @@ export class BaseCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extends 
     /**
      * Set the isNoop flag based on the code of the operation.
      * must be called before function gets compiled.
+     * The isNoop flag is used to avoid calling the function when the result of compilation is an empty function.
      */
     private setIsNoop(): void {
         let isNoop = false;

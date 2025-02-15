@@ -23,19 +23,20 @@ import type {
     Mutable,
     RunTypeChildAccessor,
     JitFnID,
-    CompiledOperation,
+    JitCompiled,
     MockOptions,
     SrcType,
     SrcCollection,
     CustomVλl,
     JitFn,
 } from '../types';
+import type {JitRunTypeTransformer, JitRunTypeValidator} from './types';
 import {getPropIndex, memorize, toLiteral} from './utils';
 import {jitArgs, jitErrorArgs, jitFunctionList, JitFunctions, maxStackDepth, maxStackErrorMessage} from '../constants';
 import {JitErrorsCompiler, JitCompiler, getJITFnHash, createJitCompiler} from './jitCompiler';
 import {getReflectionName} from '../constants.kind';
 import {createJitIDHash, jitUtils} from './jitUtils';
-import {isMockContext} from './guards';
+import {isMockContext, isRunTypeTransformer, isRunTypeValidator} from './guards';
 import {defaultMockOptions} from '../constants.mock';
 
 export abstract class BaseRunType<T extends Type = any> implements RunType {
@@ -46,7 +47,14 @@ export abstract class BaseRunType<T extends Type = any> implements RunType {
     abstract _mock(mockContext: MockOperation): any;
     isJitInlined = () => !(this.isCircular || (this.src.typeName && this.getFamily() === 'C'));
     getName = memorize((): string => getReflectionName(this));
-    getJitId = () => this.getJitConfig().jitId;
+    getJitId() {
+        const brandedOperations = this.getBrandedOperations();
+        if (!brandedOperations) return this.getJitConfig().jitId;
+        // TODO: two types with different param values should have different jitIds, so we also need to include the param values in the jitId
+        // branded JitIds might be quite long do we want to hash them?
+        const brandedIds = brandedOperations.map((v) => v.name).join('_');
+        return this.getJitConfig().jitId + '_' + brandedIds;
+    }
     getJitHash = memorize((): string => createJitIDHash(this.getJitId().toString()));
     getParent = (): BaseRunType | undefined => (this.src.parent as SrcType)?._rt as BaseRunType;
     getNestLevel = memorize((): number => {
@@ -138,24 +146,25 @@ export abstract class BaseRunType<T extends Type = any> implements RunType {
     // ########## Create Jit Functions ##########
 
     createJitFunction = (jitFn: JitFn): ((...args: any[]) => any) => {
-        return this.getJitCompiledOperation(jitFn.id).fn;
+        return this.getJitCompiledFunction(jitFn.id).fn;
     };
 
-    getJitCompiledOperation(fnId: JitFnID, parentCop?: JitCompiler): CompiledOperation {
-        const existingCop = jitUtils.getJIT(getJITFnHash(fnId, this));
-        if (existingCop) {
-            if (process.env.DEBUG_JIT) console.log(`\x1b[32m Using cached function: ${existingCop.jitFnHash} \x1b[0m`);
-            return existingCop;
+    getJitCompiledFunction(fnId: JitFnID, parentCop?: JitCompiler): JitCompiled {
+        const jitCompiled = jitUtils.getJIT(getJITFnHash(fnId, this));
+        if (jitCompiled) {
+            if (process.env.DEBUG_JIT) console.log(`\x1b[32m Using cached function: ${jitCompiled.jitFnHash} \x1b[0m`);
+            return jitCompiled;
         }
-        const newCompileOp: JitCompiler = createJitCompiler(this, fnId, parentCop) as JitCompiler;
+        const newJitCompiler: JitCompiler = createJitCompiler(this, fnId, parentCop) as JitCompiler;
         try {
-            this.compile(newCompileOp, fnId);
+            this.compile(newJitCompiler, fnId);
         } catch (e) {
-            // if something goes wrong during compilation we want to remove the compiler from the cache
-            newCompileOp.removeFromJitCache();
+            // if something goes wrong during compilation we want to remove the compiler from
+            // the cache as this is automatically added to jitUtils cache during compilation
+            newJitCompiler.removeFromJitCache();
             throw e;
         }
-        return newCompileOp as CompiledOperation;
+        return newJitCompiler as JitCompiled;
     }
 
     // ########## Child _compile Methods ##########
@@ -213,18 +222,51 @@ export abstract class BaseRunType<T extends Type = any> implements RunType {
     private compile(comp: JitCompiler, fnId: JitFnID) {
         let code: string | undefined;
         comp.pushStack(this);
+        const brandedOperations = this.getBrandedOperations();
         if (comp.shouldCallDependency()) {
-            const compiledOp = this.getJitCompiledOperation(fnId, comp);
+            const compiledOp = this.getJitCompiledFunction(fnId, comp);
             code = this.callDependency(comp, compiledOp);
             comp.updateDependencies(compiledOp);
         } else {
             // prettier-ignore
             switch (fnId) {
-                case JitFunctions.isType.id: code = this._compileIsType(comp); break;
-                case JitFunctions.typeErrors.id: code = this._compileTypeErrors(comp as JitErrorsCompiler); break;
-                case JitFunctions.toJsonVal.id: code = this._compileToJsonVal(comp); break;
-                case JitFunctions.fromJsonVal.id: code = this._compileFromJsonVal(comp); break;
-                case JitFunctions.jsonStringify.id: code = this._compileJsonStringify(comp); break;
+                case JitFunctions.isType.id: {
+                    code = this._compileIsType(comp);
+                    const validators = brandedOperations?.filter(isRunTypeValidator);
+                    const brandedCode = validators?.map((v) => v._compileIsType(comp, this)).filter(Boolean).join(' && ') || undefined;
+                    if (code && brandedCode) code += ' && ' + brandedCode;
+                    else if (brandedCode) code = brandedCode;
+                    break;
+                }
+                case JitFunctions.typeErrors.id: {
+                    code = this._compileTypeErrors(comp as JitErrorsCompiler);
+                    const validators = brandedOperations?.filter(isRunTypeValidator);
+                    const brandedCode = validators?.map((v) => v._compileTypeErrors(comp as JitErrorsCompiler, this)).filter(Boolean).join(';') || undefined;
+                    if (code && brandedCode) code += ';' + brandedCode;
+                    else if (brandedCode) code = brandedCode;
+                    break;
+                }
+                case JitFunctions.toJsonVal.id: {
+                    code = this._compileToJsonVal(comp); 
+                    const transformers = brandedOperations?.filter(isRunTypeTransformer);
+                    // TODO the transformer should be applied before _compileToJsonVal and it's result should be passed instead the variable name
+                    if (transformers) code = transformers.map((v) => v._compileToJsonVal(comp as JitErrorsCompiler, this)).filter(Boolean).join(';');
+                    break;
+                }
+                case JitFunctions.fromJsonVal.id:  {
+                    code =this._compileFromJsonVal(comp);
+                    const transformers = brandedOperations?.filter(isRunTypeTransformer);
+                    // TODO the transformer should be applied before _compileToJsonVal and it's result should be passed instead the variable name
+                    if (transformers) code = transformers.map((v) => v._compileFromJsonVal(comp as JitErrorsCompiler, this)).filter(Boolean).join(';');
+                    break;
+                }
+                case JitFunctions.jsonStringify.id: {
+                    code = this._compileJsonStringify(comp);
+                    const transformers = brandedOperations?.filter(isRunTypeTransformer);
+                    // TODO the transformer should be applied before _compileToJsonVal and it's result should be passed instead the variable name
+                    if (transformers) code = transformers.map((v) => v._compileJsonStringify(comp as JitErrorsCompiler, this)).filter(Boolean).join('+');
+                    break;
+                }
                 case JitFunctions.unknownKeyErrors.id: code = this._compileUnknownKeyErrors(comp as JitErrorsCompiler); break;
                 case JitFunctions.hasUnknownKeys.id: code = this._compileHasUnknownKeys(comp); break;
                 case JitFunctions.stripUnknownKeys.id: code = this._compileStripUnknownKeys(comp); break;
@@ -237,7 +279,7 @@ export abstract class BaseRunType<T extends Type = any> implements RunType {
         return code;
     }
 
-    callDependency(currentCop: JitCompiler, comp: CompiledOperation): string {
+    callDependency(currentCop: JitCompiler, comp: JitCompiled): string {
         const stackItem = currentCop.getCurrentStackItem();
         const isErrorCall = comp.fnId === JitFunctions.typeErrors.id || comp.fnId === JitFunctions.unknownKeyErrors.id;
         const args = isErrorCall ? jitErrorArgs : jitArgs;
@@ -303,12 +345,26 @@ export abstract class BaseRunType<T extends Type = any> implements RunType {
         return fnConfig.isExpression;
     }
 
-    getTypeAnnotationValue(paramName: string, expectedTypeof: string): TypeLiteral['literal'] {
+    getBrandedOperations(): (JitRunTypeValidator | JitRunTypeTransformer)[] | undefined {
+        const brandedOptions = this.getBrandedOptions();
+        if (!brandedOptions) return;
+        const operations: (JitRunTypeValidator | JitRunTypeTransformer)[] = [];
+        for (const brandedOption of brandedOptions) {
+            const params = brandedOption.types as TypePropertySignature[];
+            for (const param of params) {
+                const operation = jitUtils.getBrandedTypeOperation(this.src.kind, param.name as string);
+                if (operation) operations.push(operation);
+            }
+        }
+        return operations;
+    }
+
+    getBrandedTypeParamValue(paramName: string, expectedTypeof: string): TypeLiteral['literal'] {
         // type annotations are alway object literals, ie: {maxLength: 5}
-        const typeOptions = metaAnnotation.getFirst(this.src)?.options as TypeObjectLiteral[] | undefined;
-        if (!typeOptions) throw new Error(`Cannot find type option ${paramName} for ${this.getName()}`);
-        for (const typeOption of typeOptions) {
-            const params = typeOption.types as TypePropertySignature[];
+        const brandedOptions = this.getBrandedOptions();
+        if (!brandedOptions) throw new Error(`Cannot find type option ${paramName} for ${this.getName()}`);
+        for (const brandedOption of brandedOptions) {
+            const params = brandedOption.types as TypePropertySignature[];
             for (const param of params) {
                 if (param.name === paramName) {
                     const typeValue = (param.type as TypeLiteral).literal;
@@ -319,6 +375,16 @@ export abstract class BaseRunType<T extends Type = any> implements RunType {
             }
         }
         throw new Error(`Cannot find type option ${paramName} for ${this.getName()}`);
+    }
+
+    getBrandedOptions(): TypeObjectLiteral[] | undefined {
+        const annotations = metaAnnotation.getAnnotations(this.src);
+        if (!annotations) return;
+        const brandedOptions: TypeObjectLiteral[] = [];
+        for (const v of annotations) {
+            brandedOptions.push(...(v.options as TypeObjectLiteral[]));
+        }
+        return brandedOptions.length ? brandedOptions : undefined;
     }
 }
 
@@ -432,7 +498,7 @@ export abstract class CollectionRunType<T extends Type> extends BaseRunType<T> {
         for (const child of children) {
             const childConf = child.getJitConfig(stack);
             jitCts.skipJit &&= childConf.skipJit;
-            childrenJitIds.push(childConf.jitId);
+            childrenJitIds.push(child.getJitId());
         }
         const isArray = this.src.kind === ReflectionKind.tuple || this.src.kind === ReflectionKind.array;
         const groupID = isArray ? `[${childrenJitIds.join(',')}]` : `{${childrenJitIds.join(',')}}`;
@@ -510,7 +576,7 @@ export abstract class MemberRunType<T extends Type> extends BaseRunType<T> imple
             this.src.kind;
         const jitCts: Mutable<JitConfig> = {
             ...memberValues,
-            jitId: `${kind}${optional}:${memberValues.jitId}`,
+            jitId: `${kind}${optional}:${member.getJitId()}`,
         };
         stack.pop();
         return jitCts;

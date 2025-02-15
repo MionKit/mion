@@ -46,6 +46,7 @@ import type {BaseCompiler, JitErrorsCompiler} from './jitCompiler';
 import type {ClassRunType} from '../runtypes/collection/class';
 import type {IntersectionRunType} from '../runtypes/collection/intersection';
 import type {SymbolRunType} from '../runtypes/atomic/symbol';
+import {JitRunTypeTransformer, JitRunTypeValidator} from './types';
 
 export function isAnyRunType(rt: RunType): rt is AnyRunType {
     return rt.src.kind === ReflectionKind.any;
@@ -278,4 +279,12 @@ export function hasMembers(src: any): src is {members: InterfaceMember[]} {
 
 export function hasImplements(src: any): src is {implements: Type[]} {
     return Array.isArray(src?.implements) && isType(src);
+}
+
+export function isRunTypeValidator(src: JitRunTypeTransformer | JitRunTypeValidator): src is JitRunTypeValidator {
+    return typeof (src as JitRunTypeValidator)?._compileIsType === 'function';
+}
+
+export function isRunTypeTransformer(src: JitRunTypeTransformer | JitRunTypeValidator): src is JitRunTypeTransformer {
+    return typeof (src as JitRunTypeTransformer)?._compileFromJsonVal !== 'function';
 }

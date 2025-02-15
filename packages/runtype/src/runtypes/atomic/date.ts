@@ -18,7 +18,6 @@ const jitConstants: JitConfig = {
 };
 
 export class DateRunType extends AtomicRunType<TypeClass> {
-    getJitId = () => jitConstants.jitId;
     getJitConfig = () => jitConstants;
     _compileIsType(comp: JitCompiler): string {
         return `(${comp.vλl} instanceof Date && !isNaN(${comp.vλl}.getTime()))`;
