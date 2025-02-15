@@ -58,7 +58,7 @@ export abstract class BaseRunType<T extends Type = any> implements RunType {
     getName = memorize((): string => getReflectionName(this));
     getJitId() {
         const formatsId = this.getTypeFormatJitId();
-        return formatsId ? this.getJitConfig().jitId + '_' + formatsId : this.getJitConfig().jitId;
+        return formatsId ? this.getJitConfig().jitId + ':' + formatsId : this.getJitConfig().jitId;
     }
     getJitHash = memorize((): string => createJitIDHash(this.getJitId().toString()));
     getParent = (): BaseRunType | undefined => (this.src.parent as SrcType)?._rt as BaseRunType;
@@ -397,10 +397,10 @@ export abstract class BaseRunType<T extends Type = any> implements RunType {
             for (const param of formatParams) {
                 const name = param.name as string;
                 const typeValue = (param.type as TypeLiteral).literal;
-                ids.push(`${name}_${String(typeValue)}`);
+                ids.push(`${name}:${String(typeValue)}`);
             }
         }
-        return ids.join('_');
+        return ids.join(':');
     }
 }
 

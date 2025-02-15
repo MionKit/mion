@@ -156,7 +156,7 @@ export const jitUtils = {
         return null;
     },
     registerBrandedTypeOperation(operation: JitRunTypeValidator | JitRunTypeFormatter, shouldThrow = false) {
-        const id = `${operation.kind}_${operation.name}`;
+        const id = getJitKey(operation.kind, operation.name);
         const exiting = typeAnnotationsCache.get(id);
         if (exiting && exiting !== operation) {
             if (shouldThrow) {
@@ -171,16 +171,20 @@ export const jitUtils = {
         name: string,
         shouldThrow = false
     ): JitRunTypeValidator | JitRunTypeFormatter | undefined {
-        const id = `${typeKind}_${name}`;
+        const id = getJitKey(typeKind, name);
         if (!typeAnnotationsCache.has(id)) {
             if (shouldThrow) {
                 throw new Error(`Annotation type ${name} not found for ${ReflectionKindName[typeKind]}`);
             }
             return;
         }
-        return typeAnnotationsCache.get(`${typeKind}_${name}`);
+        return typeAnnotationsCache.get(id);
     },
 };
+
+function getJitKey(kind: string | number, name: string | number): string {
+    return `${kind}:${name}`;
+}
 
 const hashChars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
 const hashIncrement = 1;
