@@ -7,7 +7,7 @@
 import {maxStackDepth, maxUnknownKeys} from '../constants';
 import type {JitCompiled, RunTypeError} from '../types';
 import type {BaseCompiler} from './jitCompiler';
-import type {JitRunTypeTransformer, JitRunTypeValidator} from './types';
+import type {JitRunTypeFormatter, JitRunTypeValidator} from './types';
 import {ReflectionKind} from './_deepkit/src/reflection/type';
 import {ReflectionKindName} from '../constants.kind';
 
@@ -18,7 +18,7 @@ const STR_ESCAPE = /[\u0000-\u001f\u0022\u005c\ud800-\udfff]/;
 const MAX_SCAPE_TEST_LENGTH = 1000; // possible to tweak after benchmarking
 const jitCache = new Map<string, JitCompiled>();
 const jitHashes = new Map<string, string>();
-const typeAnnotationsCache = new Map<string, JitRunTypeValidator | JitRunTypeTransformer>();
+const typeAnnotationsCache = new Map<string, JitRunTypeValidator | JitRunTypeFormatter>();
 
 /**
  * Object that wraps all utilities that are used by the jit generated functions for encode, decode, stringify etc..
@@ -154,7 +154,7 @@ export const jitUtils = {
         if (isSafeMapKeyValue(value)) return value;
         return null;
     },
-    registerBrandedTypeOperation(operation: JitRunTypeValidator | JitRunTypeTransformer, shouldThrow = false) {
+    registerBrandedTypeOperation(operation: JitRunTypeValidator | JitRunTypeFormatter, shouldThrow = false) {
         const id = `${operation.kind}_${operation.name}`;
         const exiting = typeAnnotationsCache.get(id);
         if (exiting && exiting !== operation) {
@@ -169,7 +169,7 @@ export const jitUtils = {
         typeKind: ReflectionKind,
         name: string,
         shouldThrow = false
-    ): JitRunTypeValidator | JitRunTypeTransformer | undefined {
+    ): JitRunTypeValidator | JitRunTypeFormatter | undefined {
         const id = `${typeKind}_${name}`;
         if (!typeAnnotationsCache.has(id)) {
             if (shouldThrow) {
@@ -227,7 +227,7 @@ export function createJitIDHash(jitId: string, length = hashDefaultLength): stri
 
     // Store the unique ID with its original input string
     jitHashes.set(id, jitId);
-    console.log(`Jit ID hash: ${id} for jitId: ${jitId}`);
+    // console.log(`Jit ID: ${jitId} with hash: ${id}`);
     return id;
 }
 

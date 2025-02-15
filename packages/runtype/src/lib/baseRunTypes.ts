@@ -6,6 +6,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
+import type {JitRunTypeFormatter, JitRunTypeValidator} from './types';
 import {
     ReflectionKind,
     type TypeIndexSignature,
@@ -30,9 +31,16 @@ import type {
     CustomVλl,
     JitFn,
 } from '../types';
-import type {JitRunTypeTransformer, JitRunTypeValidator} from './types';
+import {
+    jitArgs,
+    jitErrorArgs,
+    JitFunctions,
+    jitFnHasReturn,
+    jitFnIsExpression,
+    maxStackDepth,
+    maxStackErrorMessage,
+} from '../constants';
 import {getPropIndex, memorize, toLiteral} from './utils';
-import {jitArgs, jitErrorArgs, jitFunctionList, JitFunctions, maxStackDepth, maxStackErrorMessage} from '../constants';
 import {JitErrorsCompiler, JitCompiler, getJITFnHash, createJitCompiler} from './jitCompiler';
 import {getReflectionName} from '../constants.kind';
 import {createJitIDHash, jitUtils} from './jitUtils';
@@ -48,12 +56,8 @@ export abstract class BaseRunType<T extends Type = any> implements RunType {
     isJitInlined = () => !(this.isCircular || (this.src.typeName && this.getFamily() === 'C'));
     getName = memorize((): string => getReflectionName(this));
     getJitId() {
-        const brandedOperations = this.getBrandedOperations();
-        if (!brandedOperations) return this.getJitConfig().jitId;
-        // TODO: two types with different param values should have different jitIds, so we also need to include the param values in the jitId
-        // branded JitIds might be quite long do we want to hash them?
-        const brandedIds = brandedOperations.map((v) => v.name).join('_');
-        return this.getJitConfig().jitId + '_' + brandedIds;
+        const formatsId = this.getTypeFormatJitId();
+        return formatsId ? this.getJitConfig().jitId + '_' + formatsId : this.getJitConfig().jitId;
     }
     getJitHash = memorize((): string => createJitIDHash(this.getJitId().toString()));
     getParent = (): BaseRunType | undefined => (this.src.parent as SrcType)?._rt as BaseRunType;
@@ -222,7 +226,7 @@ export abstract class BaseRunType<T extends Type = any> implements RunType {
     private compile(comp: JitCompiler, fnId: JitFnID) {
         let code: string | undefined;
         comp.pushStack(this);
-        const brandedOperations = this.getBrandedOperations();
+        const typeFormatters = this.getRunTypeTypeFormatters();
         if (comp.shouldCallDependency()) {
             const compiledOp = this.getJitCompiledFunction(fnId, comp);
             code = this.callDependency(comp, compiledOp);
@@ -232,37 +236,37 @@ export abstract class BaseRunType<T extends Type = any> implements RunType {
             switch (fnId) {
                 case JitFunctions.isType.id: {
                     code = this._compileIsType(comp);
-                    const validators = brandedOperations?.filter(isRunTypeValidator);
-                    const brandedCode = validators?.map((v) => v._compileIsType(comp, this)).filter(Boolean).join(' && ') || undefined;
-                    if (code && brandedCode) code += ' && ' + brandedCode;
-                    else if (brandedCode) code = brandedCode;
+                    const validators = typeFormatters?.filter(isRunTypeValidator);
+                    const validationCode = validators?.map((v) => v._compileIsType(comp, this)).filter(Boolean).join(' && ') || undefined;
+                    if (code && validationCode) code += ' && ' + validationCode;
+                    else if (validationCode) code = validationCode;
                     break;
                 }
                 case JitFunctions.typeErrors.id: {
                     code = this._compileTypeErrors(comp as JitErrorsCompiler);
-                    const validators = brandedOperations?.filter(isRunTypeValidator);
-                    const brandedCode = validators?.map((v) => v._compileTypeErrors(comp as JitErrorsCompiler, this)).filter(Boolean).join(';') || undefined;
-                    if (code && brandedCode) code += ';' + brandedCode;
-                    else if (brandedCode) code = brandedCode;
+                    const validators = typeFormatters?.filter(isRunTypeValidator);
+                    const validationCode = validators?.map((v) => v._compileTypeErrors(comp as JitErrorsCompiler, this)).filter(Boolean).join(';') || undefined;
+                    if (code && validationCode) code += ';' + validationCode;
+                    else if (validationCode) code = validationCode;
                     break;
                 }
                 case JitFunctions.toJsonVal.id: {
                     code = this._compileToJsonVal(comp); 
-                    const transformers = brandedOperations?.filter(isRunTypeTransformer);
+                    const transformers = typeFormatters?.filter(isRunTypeTransformer);
                     // TODO the transformer should be applied before _compileToJsonVal and it's result should be passed instead the variable name
                     if (transformers) code = transformers.map((v) => v._compileToJsonVal(comp as JitErrorsCompiler, this)).filter(Boolean).join(';');
                     break;
                 }
                 case JitFunctions.fromJsonVal.id:  {
                     code =this._compileFromJsonVal(comp);
-                    const transformers = brandedOperations?.filter(isRunTypeTransformer);
+                    const transformers = typeFormatters?.filter(isRunTypeTransformer);
                     // TODO the transformer should be applied before _compileToJsonVal and it's result should be passed instead the variable name
                     if (transformers) code = transformers.map((v) => v._compileFromJsonVal(comp as JitErrorsCompiler, this)).filter(Boolean).join(';');
                     break;
                 }
                 case JitFunctions.jsonStringify.id: {
                     code = this._compileJsonStringify(comp);
-                    const transformers = brandedOperations?.filter(isRunTypeTransformer);
+                    const transformers = typeFormatters?.filter(isRunTypeTransformer);
                     // TODO the transformer should be applied before _compileToJsonVal and it's result should be passed instead the variable name
                     if (transformers) code = transformers.map((v) => v._compileJsonStringify(comp as JitErrorsCompiler, this)).filter(Boolean).join('+');
                     break;
@@ -334,38 +338,34 @@ export abstract class BaseRunType<T extends Type = any> implements RunType {
     // or if the compiled code should contain a return statement or not
     // all atomic types should have these same flags (code should never have a return statement)
     jitFnHasReturn(fnId: JitFnID): boolean {
-        const fnConfig = jitFunctionList.find((f) => f.id === fnId);
-        if (fnConfig === undefined) throw new Error(`Unknown compile operation: ${fnId}`);
-        return fnConfig.hasReturn;
+        return jitFnHasReturn(fnId);
     }
 
     jitFnIsExpression(fnId: JitFnID): boolean {
-        const fnConfig = jitFunctionList.find((f) => f.id === fnId);
-        if (fnConfig === undefined) throw new Error(`Unknown compile operation: ${fnId}`);
-        return fnConfig.isExpression;
+        return jitFnIsExpression(fnId);
     }
 
-    getBrandedOperations(): (JitRunTypeValidator | JitRunTypeTransformer)[] | undefined {
-        const brandedOptions = this.getBrandedOptions();
-        if (!brandedOptions) return;
-        const operations: (JitRunTypeValidator | JitRunTypeTransformer)[] = [];
-        for (const brandedOption of brandedOptions) {
-            const params = brandedOption.types as TypePropertySignature[];
-            for (const param of params) {
-                const operation = jitUtils.getBrandedTypeOperation(this.src.kind, param.name as string);
-                if (operation) operations.push(operation);
+    getRunTypeTypeFormatters(): (JitRunTypeValidator | JitRunTypeFormatter)[] | undefined {
+        const formatAnnotations = this.getTypeFormatAnnotations();
+        if (!formatAnnotations) return;
+        const typeFormatters: (JitRunTypeValidator | JitRunTypeFormatter)[] = [];
+        for (const format of formatAnnotations) {
+            const formatParams = format.types as TypePropertySignature[];
+            for (const param of formatParams) {
+                const typeFormatter = jitUtils.getBrandedTypeOperation(this.src.kind, param.name as string);
+                if (typeFormatter) typeFormatters.push(typeFormatter);
             }
         }
-        return operations;
+        return typeFormatters;
     }
 
-    getBrandedTypeParamValue(paramName: string, expectedTypeof: string): TypeLiteral['literal'] {
+    getTypeFormatParam(paramName: string, expectedTypeof: string): TypeLiteral['literal'] {
         // type annotations are alway object literals, ie: {maxLength: 5}
-        const brandedOptions = this.getBrandedOptions();
-        if (!brandedOptions) throw new Error(`Cannot find type option ${paramName} for ${this.getName()}`);
-        for (const brandedOption of brandedOptions) {
-            const params = brandedOption.types as TypePropertySignature[];
-            for (const param of params) {
+        const formatAnnotations = this.getTypeFormatAnnotations();
+        if (!formatAnnotations) throw new Error(`Cannot find type option ${paramName} for ${this.getName()}`);
+        for (const format of formatAnnotations) {
+            const formatParams = format.types as TypePropertySignature[];
+            for (const param of formatParams) {
                 if (param.name === paramName) {
                     const typeValue = (param.type as TypeLiteral).literal;
                     if (typeof typeValue !== expectedTypeof)
@@ -377,14 +377,29 @@ export abstract class BaseRunType<T extends Type = any> implements RunType {
         throw new Error(`Cannot find type option ${paramName} for ${this.getName()}`);
     }
 
-    getBrandedOptions(): TypeObjectLiteral[] | undefined {
+    getTypeFormatAnnotations(): TypeObjectLiteral[] | undefined {
         const annotations = metaAnnotation.getAnnotations(this.src);
         if (!annotations) return;
-        const brandedOptions: TypeObjectLiteral[] = [];
+        const formatAnnotations: TypeObjectLiteral[] = [];
         for (const v of annotations) {
-            brandedOptions.push(...(v.options as TypeObjectLiteral[]));
+            formatAnnotations.push(...(v.options as TypeObjectLiteral[]));
         }
-        return brandedOptions.length ? brandedOptions : undefined;
+        return formatAnnotations.length ? formatAnnotations : undefined;
+    }
+
+    getTypeFormatJitId(): string {
+        const formatAnnotations = this.getTypeFormatAnnotations();
+        if (!formatAnnotations) return '';
+        const ids: string[] = [];
+        for (const format of formatAnnotations) {
+            const formatParams = format.types as TypePropertySignature[];
+            for (const param of formatParams) {
+                const name = param.name as string;
+                const typeValue = (param.type as TypeLiteral).literal;
+                ids.push(`${name}_${String(typeValue)}`);
+            }
+        }
+        return ids.join('_');
     }
 }
 

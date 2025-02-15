@@ -5,6 +5,8 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
+import {JitFnID} from './types';
+
 export interface JitFnSetting {
     id: string;
     name: string;
@@ -42,6 +44,19 @@ export const JitFunctions = {
 } as const satisfies {[key: string]: JitFnSetting};
 
 export const jitFunctionList = Object.values(JitFunctions);
+export const jitFunctionsById = Object.fromEntries(jitFunctionList.map((f) => [f.id, f]));
+
+export function jitFnHasReturn(fnId: JitFnID): boolean {
+    const fnConfig = jitFunctionsById[fnId];
+    if (fnConfig === undefined) throw new Error(`Unknown jit function id: ${fnId}`);
+    return fnConfig.hasReturn;
+}
+
+export function jitFnIsExpression(fnId: JitFnID): boolean {
+    const fnConfig = jitFunctionsById[fnId];
+    if (fnConfig === undefined) throw new Error(`Unknown jit function id: ${fnId}`);
+    return fnConfig.isExpression;
+}
 
 // variable names used in jit functions
 // JitUtils is passed with the name 'utl'. it is hardcoded in all jit code to avoid string interpolation
