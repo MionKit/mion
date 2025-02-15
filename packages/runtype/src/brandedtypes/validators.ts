@@ -7,7 +7,7 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 
 import {jitUtils, type JITUtils} from '../lib/jitUtils';
-import {CompiledOperation} from '../types';
+import {JitCompiled} from '../types';
 
 export const validatorNames = {
     isDate: 'vf_isDate',
@@ -245,7 +245,7 @@ function isUUIDWithContext(utl: JITUtils): (str: string) => boolean {
     return vf_isUUID;
 }
 
-export const isTime: CompiledOperation = {
+export const isTime: JitCompiled = {
     fn: isTimeWithContext(jitUtils),
     fnId: validatorNames.isTime,
     jitFnHash: validatorNames.isTime,
@@ -256,7 +256,7 @@ export const isTime: CompiledOperation = {
     dependenciesSet: new Set(),
 };
 
-export const isDate: CompiledOperation = {
+export const isDate: JitCompiled = {
     fn: isDateWithContext(jitUtils),
     fnId: validatorNames.isDate,
     jitFnHash: validatorNames.isDate,
@@ -267,7 +267,7 @@ export const isDate: CompiledOperation = {
     dependenciesSet: new Set(),
 };
 
-export const isDateTime: CompiledOperation = {
+export const isDateTime: JitCompiled = {
     fn: isDateTimeWithContext(jitUtils),
     fnId: validatorNames.isDateTime,
     jitFnHash: validatorNames.isDateTime,
@@ -278,7 +278,7 @@ export const isDateTime: CompiledOperation = {
     dependenciesSet: new Set([validatorNames.isDate, validatorNames.isTime]),
 };
 
-export const isDomain: CompiledOperation = {
+export const isDomain: JitCompiled = {
     fn: isDomainWithContext(jitUtils),
     fnId: validatorNames.isDomain,
     jitFnHash: validatorNames.isDomain,
@@ -289,7 +289,7 @@ export const isDomain: CompiledOperation = {
     dependenciesSet: new Set(),
 };
 
-export const isEmail: CompiledOperation = {
+export const isEmail: JitCompiled = {
     fn: isEmailWithContext(jitUtils),
     fnId: validatorNames.isEmail,
     jitFnHash: validatorNames.isEmail,
@@ -300,7 +300,7 @@ export const isEmail: CompiledOperation = {
     dependenciesSet: new Set([validatorNames.isDomain]),
 };
 
-export const isURL: CompiledOperation = {
+export const isURL: JitCompiled = {
     fn: isURlWithContext(jitUtils),
     fnId: validatorNames.isURL,
     jitFnHash: validatorNames.isURL,
@@ -311,7 +311,7 @@ export const isURL: CompiledOperation = {
     dependenciesSet: new Set(),
 };
 
-export const isURLExtended: CompiledOperation = {
+export const isURLExtended: JitCompiled = {
     fn: isURLExtendedWithContext(jitUtils),
     fnId: validatorNames.isURLExtended,
     jitFnHash: validatorNames.isURLExtended,
@@ -322,7 +322,7 @@ export const isURLExtended: CompiledOperation = {
     dependenciesSet: new Set(),
 };
 
-export const isPhone: CompiledOperation = {
+export const isPhone: JitCompiled = {
     fn: isPhoneWithContext(jitUtils),
     fnId: validatorNames.isPhone,
     jitFnHash: validatorNames.isPhone,
@@ -333,7 +333,7 @@ export const isPhone: CompiledOperation = {
     dependenciesSet: new Set(),
 };
 
-export const isIP: CompiledOperation = {
+export const isIP: JitCompiled = {
     fn: isIpWithContext(jitUtils),
     fnId: validatorNames.isIP,
     jitFnHash: validatorNames.isIP,
@@ -344,7 +344,7 @@ export const isIP: CompiledOperation = {
     dependenciesSet: new Set([validatorNames.isIPv4, validatorNames.isIPv6]),
 };
 
-export const isIPv4: CompiledOperation = {
+export const isIPv4: JitCompiled = {
     fn: isIPv4WithContext(jitUtils),
     fnId: validatorNames.isIPv4,
     jitFnHash: validatorNames.isIPv4,
@@ -355,7 +355,7 @@ export const isIPv4: CompiledOperation = {
     dependenciesSet: new Set(),
 };
 
-export const isIPv6: CompiledOperation = {
+export const isIPv6: JitCompiled = {
     fn: isIPv6WithContext(jitUtils),
     fnId: validatorNames.isIPv6,
     jitFnHash: validatorNames.isIPv6,
@@ -366,7 +366,7 @@ export const isIPv6: CompiledOperation = {
     dependenciesSet: new Set(),
 };
 
-export const isIPv4Range: CompiledOperation = {
+export const isIPv4Range: JitCompiled = {
     fn: isIPv4RangeWithContext(jitUtils),
     fnId: validatorNames.isIPv4Range,
     jitFnHash: validatorNames.isIPv4Range,
@@ -377,7 +377,7 @@ export const isIPv4Range: CompiledOperation = {
     dependenciesSet: new Set([validatorNames.isIPv4]),
 };
 
-export const isUUID: CompiledOperation = {
+export const isUUID: JitCompiled = {
     fn: isUUIDWithContext(jitUtils),
     fnId: validatorNames.isUUID,
     jitFnHash: validatorNames.isUUID,

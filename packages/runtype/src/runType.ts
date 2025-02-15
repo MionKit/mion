@@ -62,6 +62,11 @@ import {
 } from './lib/guards';
 import {NonSerializableRunType} from './runtypes/native/nonSerializable';
 
+export function isTypeFn<T>(type?: ReceiveType<T>): (value: any) => boolean {
+    const rt = runType(type);
+    return rt.createJitFunction(JitFunctions.isType);
+}
+
 export function runType<T>(type?: ReceiveType<T>): RunType {
     const src = resolveReceiveType(type) as SrcType;
     createAllRunTypes(src);

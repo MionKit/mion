@@ -162,7 +162,7 @@ export interface UnwrappedJITFunctions {
     jsonStringify: JitFnData<unwrappedJsonStringifyFn>;
 }
 
-export interface CompiledOperation
+export interface JitCompiled
     extends Pick<
         BaseCompiler,
         'fnId' | 'args' | 'defaultParamValues' | 'code' | 'jitFnHash' | 'jitId' | 'dependenciesSet' | 'isNoop'
@@ -170,7 +170,7 @@ export interface CompiledOperation
     fn: (...args: any[]) => any;
 }
 
-export interface SerializableJit extends Omit<CompiledOperation, 'fnId' | 'dependenciesSet'> {
+export interface SerializableJit extends Omit<JitCompiled, 'fnId' | 'dependenciesSet'> {
     // dependency list is serialized as a string array
     dependencies: string[];
 }
@@ -219,22 +219,6 @@ export interface MockOperation extends MockOptions {
     /** Used for mocking object with circular references */
     stack: RunType[];
 }
-
-// ###################### Branded Types #####################
-
-export type ValidatorParams = {validator?: string};
-
-export type SerializerParams = {serializer?: string} | {transformer?: string};
-
-export type TypeParams = ValidatorParams & SerializerParams;
-
-/**
- * A base type that satisfies some extra constrains.
- * ie: an Alphanumeric type is an string that only allow letters and numbers.
- * ie: in Integer type is a number that only allow integer values.
- * */
-// // must match ./lib/_deepkit/src/reflection/type<TypeAnnotation>
-export type BrandedType<BaseType, Name extends string, P extends TypeParams> = BaseType & {__meta?: never & [Name, P]};
 
 // ###################### OTHERS #####################
 

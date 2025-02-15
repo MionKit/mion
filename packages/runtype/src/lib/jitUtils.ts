@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 import {maxStackDepth, maxUnknownKeys} from '../constants';
-import type {CompiledOperation, RunTypeError} from '../types';
+import type {JitCompiled, RunTypeError} from '../types';
 import type {BaseCompiler} from './jitCompiler';
 import type {JitRunTypeTransformer, JitRunTypeValidator} from './types';
 import {ReflectionKind} from './_deepkit/src/reflection/type';
@@ -16,7 +16,7 @@ export type JITUtils = typeof jitUtils;
 // eslint-disable-next-line no-control-regex
 const STR_ESCAPE = /[\u0000-\u001f\u0022\u005c\ud800-\udfff]/;
 const MAX_SCAPE_TEST_LENGTH = 1000; // possible to tweak after benchmarking
-const jitCache = new Map<string, CompiledOperation>();
+const jitCache = new Map<string, JitCompiled>();
 const jitHashes = new Map<string, string>();
 const typeAnnotationsCache = new Map<string, JitRunTypeValidator | JitRunTypeTransformer>();
 
@@ -76,13 +76,13 @@ export const jitUtils = {
         //     jitId: comp.jitId,
         //     dependenciesSet: comp.dependenciesSet,
         // };
-        jitCache.set(key, comp as CompiledOperation);
+        jitCache.set(key, comp as JitCompiled);
     },
     removeFromJitCache(key: string) {
         jitCache.delete(key);
     },
     // !!! DO NOT MODIFY METHOD WITHOUT REVIEWING JIT CODE INVOCATIONS!!!
-    getJIT(key: string): CompiledOperation | undefined {
+    getJIT(key: string): JitCompiled | undefined {
         return jitCache.get(key);
     },
     // !!! DO NOT MODIFY METHOD WITHOUT REVIEWING JIT CODE INVOCATIONS!!!
@@ -154,16 +154,29 @@ export const jitUtils = {
         if (isSafeMapKeyValue(value)) return value;
         return null;
     },
-    registerTypeOperation(typeKind: ReflectionKind, operation: JitRunTypeValidator | JitRunTypeTransformer) {
-        const id = `${typeKind}_${operation.name}`;
-        if (typeAnnotationsCache.has(id))
-            throw new Error(`Annotation type ${operation.name} already registered for ${ReflectionKindName[typeKind]}`);
+    registerBrandedTypeOperation(operation: JitRunTypeValidator | JitRunTypeTransformer, shouldThrow = false) {
+        const id = `${operation.kind}_${operation.name}`;
+        const exiting = typeAnnotationsCache.get(id);
+        if (exiting && exiting !== operation) {
+            if (shouldThrow) {
+                throw new Error(`Annotation type ${operation.name} already registered for ${ReflectionKindName[operation.kind]}`);
+            }
+            return;
+        }
         typeAnnotationsCache.set(id, operation);
     },
-    getTypeOperation(typeKind: ReflectionKind, name: string): JitRunTypeValidator | JitRunTypeTransformer | undefined {
+    getBrandedTypeOperation(
+        typeKind: ReflectionKind,
+        name: string,
+        shouldThrow = false
+    ): JitRunTypeValidator | JitRunTypeTransformer | undefined {
         const id = `${typeKind}_${name}`;
-        if (!typeAnnotationsCache.has(id))
-            throw new Error(`Annotation type ${name} not found for ${ReflectionKindName[typeKind]}`);
+        if (!typeAnnotationsCache.has(id)) {
+            if (shouldThrow) {
+                throw new Error(`Annotation type ${name} not found for ${ReflectionKindName[typeKind]}`);
+            }
+            return;
+        }
         return typeAnnotationsCache.get(`${typeKind}_${name}`);
     },
 };
@@ -214,6 +227,7 @@ export function createJitIDHash(jitId: string, length = hashDefaultLength): stri
 
     // Store the unique ID with its original input string
     jitHashes.set(id, jitId);
+    console.log(`Jit ID hash: ${id} for jitId: ${jitId}`);
     return id;
 }
 

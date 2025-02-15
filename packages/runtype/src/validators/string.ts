@@ -7,17 +7,11 @@
 import type {JitRunTypeValidator} from '../lib/types';
 import {ReflectionKind} from '../lib/_deepkit/src/reflection/type';
 
-export type StringParams = {
+export type StringValidatorParams = {
     maxLength?: number;
     minLength?: number;
     length?: number;
     pattern?: RegExp;
-
-    // bellow are more transformer than Validators
-    // toLowercase?: boolean;
-    // toUppercase?: boolean;
-    // capitalize?: boolean;
-    // unCapitalize?: boolean;
 };
 
 // maxLength validator
@@ -25,8 +19,8 @@ export const stringMaxLengthValidator = {
     kind: ReflectionKind.string,
     name: 'maxLength',
     _compileIsType(comp, rt): string {
-        const typeValue = rt.getTypeAnnotationValue(this.name, 'number') as number;
-        return `${comp.vλl}.length < ${typeValue}`;
+        const typeParam = rt.getBrandedTypeParamValue(this.name, 'number') as number;
+        return `${comp.vλl}.length <= ${typeParam}`;
     },
     _compileTypeErrors(comp, rt): string {
         return `if (!(${this._compileIsType(comp, rt)})) ${comp.callJitErr(this.name)}`;
@@ -38,8 +32,8 @@ export const stringMinLengthValidator = {
     kind: ReflectionKind.string,
     name: 'minLength',
     _compileIsType(comp, rt): string {
-        const typeValue = rt.getTypeAnnotationValue(this.name, 'number') as number;
-        return `${comp.vλl}.length > ${typeValue}`;
+        const typeParam = rt.getBrandedTypeParamValue(this.name, 'number') as number;
+        return `${comp.vλl}.length >= ${typeParam}`;
     },
     _compileTypeErrors(comp, rt): string {
         return `if (!(${this._compileIsType(comp, rt)})) ${comp.callJitErr(this.name)}`;
@@ -51,8 +45,8 @@ export const stringLengthValidator = {
     kind: ReflectionKind.string,
     name: 'length',
     _compileIsType(comp, rt): string {
-        const typeValue = rt.getTypeAnnotationValue(this.name, 'number') as number;
-        return `${comp.vλl}.length === ${typeValue}`;
+        const typeParam = rt.getBrandedTypeParamValue(this.name, 'number') as number;
+        return `${comp.vλl}.length === ${typeParam}`;
     },
     _compileTypeErrors(comp, rt): string {
         return `if (!(${this._compileIsType(comp, rt)})) ${comp.callJitErr(this.name)}`;
@@ -64,8 +58,8 @@ export const stringPatternValidator = {
     kind: ReflectionKind.string,
     name: 'pattern',
     _compileIsType(comp, rt): string {
-        const typeValue = rt.getTypeAnnotationValue(this.name, 'number') as number;
-        return `${comp.vλl}.match(${typeValue})`;
+        const typeParam = rt.getBrandedTypeParamValue(this.name, 'number') as number;
+        return `${comp.vλl}.match(${typeParam})`;
     },
     _compileTypeErrors(comp, rt): string {
         return `if (!(${this._compileIsType(comp, rt)})) ${comp.callJitErr(this.name)}`;

@@ -7,7 +7,6 @@
 
 import type {TypeLiteral} from '../../lib/_deepkit/src/reflection/type';
 import type {JitConfig} from '../../types';
-import type {JitRunTypeTransformer} from '../../lib/types';
 import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
 import {memorize, toLiteral} from '../../lib/utils';
 import {AtomicRunType} from '../../lib/baseRunTypes';
@@ -68,7 +67,7 @@ export class LiteralRunType extends AtomicRunType<TypeLiteral> {
     }
 }
 
-const noEncoder: JitRunTypeTransformer = {
+const noEncoder = {
     _compileFromJsonVal(): undefined {
         return undefined;
     },
