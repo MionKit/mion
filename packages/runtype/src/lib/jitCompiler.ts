@@ -4,8 +4,9 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
-import type {JitFnArgs, Mutable, JitCompiled, JitFnID} from '../types';
+import type {JitFnArgs, Mutable, JitCompiled, JitFnID, RunTypeErrorInfo, PureFunction} from '../types';
 import type {BaseRunType} from './baseRunTypes';
+import type {AnyKindName} from '../constants.kind';
 import {
     jitArgs,
     jitDefaultArgs,
@@ -35,6 +36,7 @@ export type JitDependencies = Set<string>;
 export class BaseCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extends JitFnID = any> {
     constructor(
         public readonly rootType: BaseRunType,
+        // the id of the function to be compiled (isType, typeErrors, toJsonVal, fromJsonVal, etc)
         public readonly fnId: ID,
         public readonly args: FnArgsNames,
         /** when creating the function it might have default values */
@@ -67,6 +69,7 @@ export class BaseCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extends 
     readonly isNoop?: boolean = false;
     /** The list of all jit functions that are used by this function and it's children. */
     readonly dependenciesSet: JitDependencies = new Set();
+    readonly pureFnDependencies: Set<string> = new Set();
     /** The list of types being compiled.*/
     readonly stack: StackItem[] = [];
     popItem: StackItem | undefined;
@@ -105,7 +108,7 @@ export class BaseCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extends 
                 return compileFunction(this); // add the compiled function to jit cache
             } catch (e: any) {
                 const fnCode = ` Code:\nfunction ${this.fnId}(){${this.code}}`;
-                const name = `(${this.rootType.getName()}:${this.rootType.getJitId()})`;
+                const name = `(${this.rootType.getKindName()}:${this.rootType.getJitId()})`;
                 throw new Error(`Error building ${this.fnId} JIT function for type ${name}: ${e?.message} \n${fnCode}`);
             }
         }
@@ -128,7 +131,7 @@ export class BaseCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extends 
         const parent = this.getCurrentStackItem();
         if (!parent) return this.args.vλl;
         const rt = parent.rt;
-        if (!isChildAccessorType(rt)) throw new Error(`cant get child var name from ${rt.getName()}`);
+        if (!isChildAccessorType(rt)) throw new Error(`cant get child var name from ${rt.getKindName()}`);
         if (rt.skipSettingAccessor?.()) return parent.vλl;
         return parent.vλl + (rt.useArrayAccessor() ? `[${rt.getChildLiteral()}]` : `.${rt.getChildVarName()}`);
     }
@@ -139,6 +142,15 @@ export class BaseCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extends 
     updateDependencies(childCop: JitCompiled): void {
         this.dependenciesSet.add(childCop.jitFnHash);
         childCop.dependenciesSet.forEach((dep) => this.dependenciesSet.add(dep));
+    }
+    addPureFnDependency(fn: PureFunction<any> | string): void {
+        if (typeof fn === 'function' && !fn.name) throw new Error('Pure function must have a name');
+        const key = typeof fn === 'string' ? fn : fn.name;
+        if (!jitUtils.hasPureFn(key))
+            throw new Error(
+                `Pure function with name ${key} can not be added as jit dependency, be sure to add it by calling jitUtils.addPureFn()`
+            );
+        this.pureFnDependencies.add(key);
     }
     removeFromJitCache(): void {
         jitUtils.removeFromJitCache(this.jitFnHash);
@@ -192,11 +204,21 @@ export class JitErrorsCompiler<ID extends JitFnID = any> extends BaseCompiler<ty
         const defaultValues = {...jitDefaultErrorArgs};
         super(rt, id, args, defaultValues, 'er', parentLength);
     }
-    callJitErr(expected: string | number | BaseRunType, extraPathLiteral?: string | number): string {
-        const expectLiteral = typeof expected === 'object' ? toLiteral(expected.getName()) : toLiteral(expected);
+    callJitErr(expected: AnyKindName | BaseRunType<any>, info?: RunTypeErrorInfo): string {
+        const expectLiteral = typeof expected === 'string' ? toLiteral(expected) : toLiteral(expected.getKindName());
+        const pathItems = this.getStackStaticPathArgs();
+        return this._callJitErr(this.args.εrr, this.args.pλth, pathItems, expectLiteral, info);
+    }
+    callJitErrWithPath(expected: AnyKindName, extraPathLiteral?: string | number, info?: RunTypeErrorInfo): string {
+        const expectLiteral = toLiteral(expected);
         const extraPath = extraPathLiteral ? `${extraPathLiteral}` : '';
-        const pathItems = [this.getStackStaticPathArgs(), extraPath].filter((a) => a).join(',');
-        return `utl.err(${this.args.εrr},${this.args.pλth},[${pathItems}],${expectLiteral})`;
+        const pathItems = [this.getStackStaticPathArgs(), extraPath].filter(Boolean).join(',');
+        return this._callJitErr(this.args.εrr, this.args.pλth, pathItems, expectLiteral, info);
+    }
+    private _callJitErr(εrr: string, pλth: string, pathItems: string, expected: string, info?: RunTypeErrorInfo) {
+        const outputInfo = info && Object.values(info).filter(Boolean).length > 0;
+        const infoCode = outputInfo ? `,${JSON.stringify(info)}` : '';
+        return `utl.err(${εrr},${pλth},[${pathItems}],${expected}${infoCode})`;
     }
 }
 

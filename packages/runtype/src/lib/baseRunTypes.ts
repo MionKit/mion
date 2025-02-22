@@ -5,19 +5,6 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
-
-import type {JitRunTypeFormatter} from '../formats/typeFormat.runtypes';
-import type {JitRunTypeValidator} from '../formats/typeFormat.runtypes';
-import {
-    ReflectionKind,
-    type TypeIndexSignature,
-    type TypeProperty,
-    type Type,
-    metaAnnotation,
-    TypeObjectLiteral,
-    TypePropertySignature,
-    TypeLiteral,
-} from './_deepkit/src/reflection/type';
 import type {
     MockOperation,
     RunType,
@@ -31,6 +18,7 @@ import type {
     SrcCollection,
     CustomVλl,
     JitFn,
+    ParsedAnnotation,
 } from '../types';
 import {
     jitArgs,
@@ -41,23 +29,37 @@ import {
     maxStackDepth,
     maxStackErrorMessage,
 } from '../constants';
+import {ReflectionKind, type TypeIndexSignature, type TypeProperty, type Type} from './_deepkit/src/reflection/type';
 import {getPropIndex, memorize, toLiteral} from './utils';
 import {JitErrorsCompiler, JitCompiler, getJITFnHash, createJitCompiler} from './jitCompiler';
-import {getReflectionName} from '../constants.kind';
-import {createJitIDHash, jitUtils} from './jitUtils';
+import {type AnyKindName, getReflectionName} from '../constants.kind';
+import {jitUtils} from './jitUtils';
+import {createJitIDHash} from './quickHash';
 import {isMockContext, isRunTypeTransformer, isRunTypeValidator} from './guards';
 import {defaultMockOptions} from '../constants.mock';
+import {
+    parseAnnotations,
+    getParsedAnnotations,
+    getTypeFormats,
+    type JitRunTypeValidator,
+    getRunTypeValidator,
+    getRunTypeTransformers,
+} from './formats';
 
-export abstract class BaseRunType<T extends Type = any> implements RunType {
+export abstract class BaseRunType<T extends Type = Type> implements RunType {
     isCircular?: boolean;
     readonly src: SrcType<T> = null as any; // real value will be set after construction by the createRunType function
     abstract getFamily(): 'A' | 'C' | 'M' | 'F'; // Atomic, Collection, Member, Function
     abstract getJitConfig(stack?: RunType[]): JitConfig;
     abstract _mock(mockContext: MockOperation): any;
     isJitInlined = () => !(this.isCircular || (this.src.typeName && this.getFamily() === 'C'));
-    getName = memorize((): string => getReflectionName(this));
+    getKindName = memorize((): AnyKindName => getReflectionName(this));
+    getTypeName = (): string => this.src.typeName || this.getKindName();
+    getTypeAnnotations = (): ParsedAnnotation[] => getParsedAnnotations(this);
     getJitId() {
-        const formatsId = this.getTypeFormatJitId();
+        const formatsId = this.getTypeAnnotations()
+            .map((a) => a.jitId)
+            .join(':');
         return formatsId ? this.getJitConfig().jitId + ':' + formatsId : this.getJitConfig().jitId;
     }
     getJitHash = memorize((): string => createJitIDHash(this.getJitId().toString()));
@@ -81,9 +83,10 @@ export abstract class BaseRunType<T extends Type = any> implements RunType {
         }
     }
     /** method that should be called Immediately after the RunType gets created to link the SrcType and RunType */
-    linkSrc(src: SrcType<any>): void {
+    onCreated(src: SrcType<any>): void {
         (this as Mutable<RunType>).src = src;
         (src as Mutable<SrcType>)._rt = this;
+        parseAnnotations(this);
     }
     /**
      * Some elements might need a standalone name variable that ignores the vλl value of the parents.
@@ -106,12 +109,21 @@ export abstract class BaseRunType<T extends Type = any> implements RunType {
         ctx.stack.push(this);
         const recursionLevel = ctx.stack.filter((rt) => rt === this).length;
         const updatedContext = recursionLevel ? this.onCircularMock(ctx, recursionLevel) : ctx;
-        const mocked = this._mock(updatedContext);
+        // Just one type validator allowed per type, and is responsible to mock the value,
+        // ie: email and uuid should contain the logic to generate a valid value
+        const typeValidator = getRunTypeValidator(this);
+        let mocked = typeValidator ? typeValidator._mock(updatedContext, this) : this._mock(updatedContext);
+        // once mocked multiple type transformers can be applied to the mocked value
+        const typeTransformers = getRunTypeTransformers(this);
+        if (typeTransformers.length) mocked = typeTransformers.reduce((acc, t) => t._mock(updatedContext, this, acc), mocked);
         ctx.stack.pop();
         return mocked;
     }
 
     // reduces all probabilities within the MockOptions to prevent infinite loops
+    // each time mocking is a level deeper, the probabilities to generate an optional property should be reduced
+    // this does not prevent infinite loops on types with circular references that are non optional,
+    // we probably should throw an error in this case but these kind of types are technically not possible in real world so we can ignore them for now
     private onCircularMock(ctx: MockOperation, recursionLevel): MockOperation {
         const maxDepth = ctx.maxMockRecursion;
         const divisor = recursionLevel;
@@ -227,7 +239,7 @@ export abstract class BaseRunType<T extends Type = any> implements RunType {
     private compile(comp: JitCompiler, fnId: JitFnID) {
         let code: string | undefined;
         comp.pushStack(this);
-        const typeFormatters = this.getRunTypeTypeFormatters();
+        const typeFormatters = getTypeFormats(this);
         if (comp.shouldCallDependency()) {
             const compiledOp = this.getJitCompiledFunction(fnId, comp);
             code = this.callDependency(comp, compiledOp);
@@ -345,63 +357,6 @@ export abstract class BaseRunType<T extends Type = any> implements RunType {
     jitFnIsExpression(fnId: JitFnID): boolean {
         return jitFnIsExpression(fnId);
     }
-
-    getRunTypeTypeFormatters(): (JitRunTypeValidator | JitRunTypeFormatter)[] | undefined {
-        const formatAnnotations = this.getTypeFormatAnnotations();
-        if (!formatAnnotations) return;
-        const typeFormatters: (JitRunTypeValidator | JitRunTypeFormatter)[] = [];
-        for (const format of formatAnnotations) {
-            const formatParams = format.types as TypePropertySignature[];
-            for (const param of formatParams) {
-                const typeFormatter = jitUtils.getBrandedTypeOperation(this.src.kind, param.name as string);
-                if (typeFormatter) typeFormatters.push(typeFormatter);
-            }
-        }
-        return typeFormatters;
-    }
-
-    getTypeFormatParam(paramName: string, expectedTypeof: string): TypeLiteral['literal'] {
-        // type annotations are alway object literals, ie: {maxLength: 5}
-        const formatAnnotations = this.getTypeFormatAnnotations();
-        if (!formatAnnotations) throw new Error(`Cannot find type option ${paramName} for ${this.getName()}`);
-        for (const format of formatAnnotations) {
-            const formatParams = format.types as TypePropertySignature[];
-            for (const param of formatParams) {
-                if (param.name === paramName) {
-                    const typeValue = (param.type as TypeLiteral).literal;
-                    if (typeof typeValue !== expectedTypeof)
-                        throw new Error(`Type option ${paramName} for ${this.getName()} must be a ${expectedTypeof}`);
-                    return typeValue;
-                }
-            }
-        }
-        throw new Error(`Cannot find type option ${paramName} for ${this.getName()}`);
-    }
-
-    getTypeFormatAnnotations(): TypeObjectLiteral[] | undefined {
-        const annotations = metaAnnotation.getAnnotations(this.src);
-        if (!annotations) return;
-        const formatAnnotations: TypeObjectLiteral[] = [];
-        for (const v of annotations) {
-            formatAnnotations.push(...(v.options as TypeObjectLiteral[]));
-        }
-        return formatAnnotations.length ? formatAnnotations : undefined;
-    }
-
-    getTypeFormatJitId(): string {
-        const formatAnnotations = this.getTypeFormatAnnotations();
-        if (!formatAnnotations) return '';
-        const ids: string[] = [];
-        for (const format of formatAnnotations) {
-            const formatParams = format.types as TypePropertySignature[];
-            for (const param of formatParams) {
-                const name = param.name as string;
-                const typeValue = (param.type as TypeLiteral).literal;
-                ids.push(`${name}:${String(typeValue)}`);
-            }
-        }
-        return ids.join(':');
-    }
 }
 
 /**
@@ -500,7 +455,7 @@ export abstract class CollectionRunType<T extends Type> extends BaseRunType<T> {
             .filter((code) => !!code)
             .join(';');
     }
-    private _getJitConfig = memorize((stack: BaseRunType[] = []): JitConfig => {
+    private _getJitConfig = memorize((stack: BaseRunType<any>[] = []): JitConfig => {
         if (stack.length > maxStackDepth) throw new Error(maxStackErrorMessage);
         const circularJitConf = this.getCircularJitConfig(stack);
         if (circularJitConf) return circularJitConf;
@@ -577,7 +532,7 @@ export abstract class MemberRunType<T extends Type> extends BaseRunType<T> imple
         if (!code) return undefined;
         return this.isOptional() ? `if (${comp.getChildVλl()} !== undefined) {${code}}` : code;
     }
-    private _getJitConfig = memorize((stack: BaseRunType[] = []): JitConfig => {
+    private _getJitConfig = memorize((stack: BaseRunType<any>[] = []): JitConfig => {
         if (stack.length > maxStackDepth) throw new Error(maxStackErrorMessage);
         const circularJitConf = this.getCircularJitConfig(stack);
         if (circularJitConf) return circularJitConf;

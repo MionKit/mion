@@ -16,8 +16,15 @@ export function mockBigInt(min = 0, max = 10000): bigint {
     return BigInt(random(min, max));
 }
 
-export function mockString(length = random(0, 30), charSet = stringCharSet): string {
-    return Array.from({length}, () => charSet[random(0, charSet.length - 1)]).join('');
+export function mockString(length = random(0, 30), allowedChars = stringCharSet, disallowedChars: string = ''): string {
+    if (allowedChars.length === 0) throw new Error('Can not generate random string as allowedChars cannot be empty');
+    const allowedCharSet = allowedChars
+        .split('')
+        .filter((char) => !disallowedChars.includes(char))
+        .join('');
+    if (allowedCharSet.length === 0)
+        throw new Error('Can not generate random string as allowedChars and disallowedChars are mutually exclusive');
+    return Array.from({length}, () => allowedCharSet[random(0, allowedCharSet.length - 1)]).join('');
 }
 
 export function mockSymbol(name?: string, length?: number, charsSet?: string): symbol {
@@ -63,6 +70,10 @@ export function mockAny(anyList = anyValuesList): any {
 /** Generates a random number between min and max, both inclusive */
 export function random(min: number = 0, max = 10000): number {
     return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+export function randomItem<T>(list: T[]): T {
+    return list[random(0, list.length - 1)];
 }
 
 export function mockRecursiveEmptyArray(depth: number, length: number) {

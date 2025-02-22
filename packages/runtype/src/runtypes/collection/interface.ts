@@ -66,7 +66,7 @@ export class InterfaceRunType<
         }
         return `
             if (typeof ${varName} !== 'object' || ${varName} === null ${arrayCheck}) {
-                ${comp.callJitErr(this)};
+                ${comp.callJitErr(this, {typeName: (this.src as TypeClass)?.classType?.name || this.src.typeName})};
             } else {
                 ${childrenCode}
             }
@@ -136,7 +136,7 @@ export class InterfaceRunType<
         const keyVar = `ky${this.getNestLevel()}`;
         const parentCode = `
             const ${unknownVar} = ${this.callCheckUnknownProperties(comp, allJitChildren, true)};
-            if (${unknownVar}) {for (const ${keyVar} of ${unknownVar}) {${comp.callJitErr('never', keyVar)}}}
+            if (${unknownVar}) {for (const ${keyVar} of ${unknownVar}) {${comp.callJitErrWithPath('never', keyVar)}}}
         `;
         const childrenCode = super._compileUnknownKeyErrors(comp);
         return childrenCode ? `${parentCode}\n${childrenCode}` : parentCode;

@@ -151,7 +151,7 @@ export class UnionRunType extends CollectionRunType<TypeUnion> {
     }
     getUnionTypeNames(): string {
         return this.getChildRunTypes()
-            .map((rt) => rt.getName())
+            .map((rt) => rt.getKindName())
             .join(' | ');
     }
 

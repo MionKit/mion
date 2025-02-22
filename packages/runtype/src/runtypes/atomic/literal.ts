@@ -13,6 +13,7 @@ import {AtomicRunType} from '../../lib/baseRunTypes';
 import {bigIntTransformer} from './bigInt';
 import {regexpTransformer} from './regexp';
 import {symbolTransformer} from './symbol';
+import {AnyKindName} from '../../constants.kind';
 
 export class LiteralRunType extends AtomicRunType<TypeLiteral> {
     get jitConstants() {
@@ -49,9 +50,9 @@ export class LiteralRunType extends AtomicRunType<TypeLiteral> {
         else return compileIsLiteral(comp, this.src.literal);
     }
     _compileTypeErrors(comp: JitErrorsCompiler): string {
-        if (typeof this.src.literal === 'symbol') return compileTypeErrorsSymbol(comp, this.src.literal, this.getName());
-        else if (this.src.literal instanceof RegExp) return compileTypeErrorsRegExp(comp, this.src.literal, this.getName());
-        return compileTypeErrorsLiteral(comp, this.src.literal, this.getName());
+        if (typeof this.src.literal === 'symbol') return compileTypeErrorsSymbol(comp, this.src.literal, this.getKindName());
+        else if (this.src.literal instanceof RegExp) return compileTypeErrorsRegExp(comp, this.src.literal, this.getKindName());
+        return compileTypeErrorsLiteral(comp, this.src.literal, this.getKindName());
     }
     _compileToJsonVal(comp: JitCompiler): string | undefined {
         return this.getValidator()._compileToJsonVal(comp);
@@ -95,18 +96,18 @@ function compileIsLiteral(comp: JitCompiler, lit: Exclude<TypeLiteral['literal']
     return `${comp.vλl} === ${toLiteral(lit)}`;
 }
 
-function compileTypeErrorsSymbol(comp: JitErrorsCompiler, lit: symbol, name: string | number): string {
+function compileTypeErrorsSymbol(comp: JitErrorsCompiler, lit: symbol, name: AnyKindName): string {
     return `if (typeof ${comp.vλl} !== 'symbol' || ${comp.vλl}.description !== ${toLiteral(lit.description)}) {${comp.callJitErr(name)}}`;
 }
 
-function compileTypeErrorsRegExp(comp: JitErrorsCompiler, lit: RegExp, name: string | number): string {
+function compileTypeErrorsRegExp(comp: JitErrorsCompiler, lit: RegExp, name: AnyKindName): string {
     return `if (String(${comp.vλl}) !== String(${lit})) ${comp.callJitErr(name)}`;
 }
 
 function compileTypeErrorsLiteral(
     comp: JitErrorsCompiler,
     lit: Exclude<TypeLiteral['literal'], symbol>,
-    name: string | number
+    name: AnyKindName
 ): string {
     return `if (${comp.vλl} !== ${toLiteral(lit)}) ${comp.callJitErr(name)}`;
 }

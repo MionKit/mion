@@ -15,6 +15,8 @@ const jitConstants: JitConfig = {
     jitId: ReflectionKind.undefined,
 };
 
+// TODO: json stringify removes undefined values, so we might wat to do the same here
+
 export class UndefinedRunType extends AtomicRunType<TypeUndefined> {
     getJitConfig = () => jitConstants;
     _compileIsType(comp: JitCompiler): string {

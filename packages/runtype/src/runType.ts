@@ -258,7 +258,7 @@ function createRunType(deepkitType: Mutable<SrcType>): RunType {
             rt = new AnyRunType();
             break;
     }
-    rt.linkSrc(deepkitType);
+    rt.onCreated(deepkitType);
     // console.log('rt', rt);
     return rt;
 }

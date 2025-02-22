@@ -46,7 +46,8 @@ export class ParameterRunType<T extends ParamT = TypeParameter> extends MemberRu
     }
     _compileTypeErrors(comp: JitErrorsCompiler) {
         const childCode = this.getJitChild()?.compileTypeErrors(comp);
-        if (!childCode) return `if (${comp.getChildVλl()} !== undefined) ${comp.callJitErr('undefined', this.getChildIndex())}`; // non serializable types must be undefined
+        if (!childCode)
+            return `if (${comp.getChildVλl()} !== undefined) ${comp.callJitErrWithPath('undefined', this.getChildIndex())}`; // non serializable types must be undefined
         if (this.isRest()) return childCode;
         return this.isOptional() ? `if (${comp.getChildVλl()} !== undefined) {${childCode}}` : childCode;
     }

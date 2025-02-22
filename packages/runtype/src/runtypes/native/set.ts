@@ -29,11 +29,11 @@ export class SetRunType extends IterableRunType {
     keyRT = new SetKeyRunType();
     children = [this.keyRT];
     instance = 'Set';
-    linkSrc(src: SrcType<TypeClass>): void {
+    onCreated(src: SrcType<TypeClass>): void {
         const types = src.arguments;
         if (!types || types.length !== 1) throw new Error(`Set expects 1 type argument: ie: Set<number>`);
-        super.linkSrc(src);
-        this.keyRT.linkSrc({
+        super.onCreated(src);
+        this.keyRT.onCreated({
             kind: ReflectionKind.parameter,
             parent: src,
             type: types[0],

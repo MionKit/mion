@@ -68,7 +68,7 @@ export const ReflectionSubNames: {[key: number]: keyof typeof ReflectionSubKind}
     17_01: 'params',
 } as const;
 
-type AnyKindName = keyof typeof ReflectionKind | keyof typeof ReflectionSubKind;
+export type AnyKindName = keyof typeof ReflectionKind | keyof typeof ReflectionSubKind;
 
 export function getReflectionName(rt: RunType): AnyKindName {
     if (rt.src.subKind) return ReflectionSubNames[rt.src.subKind];

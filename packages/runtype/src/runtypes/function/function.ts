@@ -21,9 +21,9 @@ const functionJitConstants: JitConfig = {
 export class FunctionRunType<CallType extends AnyFunction = TypeFunction> extends BaseRunType<CallType> {
     // parameterRunTypes.src must be set after FunctionRunType creation
     parameterRunTypes: TupleRunType = new TupleRunType();
-    linkSrc(deepkitType: SrcType): void {
-        super.linkSrc(deepkitType);
-        this.parameterRunTypes.linkSrc({...deepkitType, subKind: ReflectionSubKind.params});
+    onCreated(deepkitType: SrcType): void {
+        super.onCreated(deepkitType);
+        this.parameterRunTypes.onCreated({...deepkitType, subKind: ReflectionSubKind.params});
     }
     getJitConfig = (): JitConfig => functionJitConstants;
     getFamily(): 'F' {

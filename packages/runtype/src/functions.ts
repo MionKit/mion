@@ -17,3 +17,8 @@ export async function typeErrorsFn<T>(type?: ReceiveType<T>): Promise<TypeErrors
     const rt = runType(type);
     return rt.createJitFunction(JitFunctions.typeErrors);
 }
+
+export function mockType<T>(type?: ReceiveType<T>): T {
+    const rt = runType(type);
+    return rt.mock() as T;
+}
