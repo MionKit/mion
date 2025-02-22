@@ -18,17 +18,17 @@ export class MapRunType extends IterableRunType {
     valueRT = new MapValueRunType();
     children = [this.keyRT, this.valueRT];
     instance = 'Map';
-    linkSrc(src: SrcType<TypeClass>): void {
+    onCreated(src: SrcType<TypeClass>): void {
         const types = src.arguments;
         if (!types || types.length !== 2) throw new Error(`Map expects 2 type arguments: ie: Map<string, number>`);
-        super.linkSrc(src);
-        this.keyRT.linkSrc({
+        super.onCreated(src);
+        this.keyRT.onCreated({
             kind: ReflectionKind.parameter,
             parent: src,
             type: types[0],
             subKind: ReflectionSubKind.mapKey,
         });
-        this.valueRT.linkSrc({
+        this.valueRT.onCreated({
             kind: ReflectionKind.parameter,
             parent: src,
             type: types[1],

@@ -4,11 +4,12 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
-
+// ###### !IMPORTANT: all imports should be types only to prevent circular dependencies ######
 import type {
     Type,
     TypeCallSignature,
     TypeFunction,
+    TypeLiteral,
     TypeMethod,
     TypeMethodSignature,
     TypeTuple,
@@ -17,6 +18,7 @@ import type {BaseCompiler} from './lib/jitCompiler';
 import type {JITUtils} from './lib/jitUtils';
 import type {JitFunctions} from './constants';
 import type {ReflectionSubKind} from './constants.kind';
+import type {TypeFormatter} from './lib/formats';
 
 // ###################### RunTypes ######################
 
@@ -25,7 +27,7 @@ import type {ReflectionSubKind} from './constants.kind';
  */
 export interface RunType {
     readonly src: SrcType<any>;
-    getName(): string;
+    getKindName(): string;
     getFamily(): 'A' | 'C' | 'M' | 'F'; // Atomic, Collection, Member, Function
     mock: (options?: Partial<MockOptions>) => any;
 
@@ -109,7 +111,7 @@ export type JitFn = (typeof JitFunctions)[keyof typeof JitFunctions];
 // one of the existing jit functions ids
 export type JitFnID = JitFn['id'];
 
-type AnyFn = (...args: any[]) => any;
+export type AnyFn = (...args: any[]) => any;
 export interface JitFnData<Fn extends AnyFn> {
     argNames: string[];
     code: string;
@@ -117,6 +119,11 @@ export interface JitFnData<Fn extends AnyFn> {
 }
 
 export type SerializableJitFn<Fn extends AnyFn> = Omit<JitFnData<Fn>, 'fn'>;
+
+export type RunTypeErrorInfo = {
+    format?: string;
+    typeName?: string;
+};
 
 export interface RunTypeError {
     /**
@@ -126,6 +133,7 @@ export interface RunTypeError {
     path: (string | number)[];
     /** the type of the expected data */
     expected: string;
+    info?: RunTypeErrorInfo;
 }
 
 export type IsTypeFn = (value: any) => boolean;
@@ -165,7 +173,15 @@ export interface UnwrappedJITFunctions {
 export interface JitCompiled
     extends Pick<
         BaseCompiler,
-        'fnId' | 'args' | 'defaultParamValues' | 'code' | 'jitFnHash' | 'jitId' | 'dependenciesSet' | 'isNoop'
+        | 'fnId'
+        | 'args'
+        | 'defaultParamValues'
+        | 'code'
+        | 'jitFnHash'
+        | 'jitId'
+        | 'dependenciesSet'
+        | 'pureFnDependencies'
+        | 'isNoop'
     > {
     fn: (...args: any[]) => any;
 }
@@ -220,6 +236,33 @@ export interface MockOperation extends MockOptions {
     stack: RunType[];
 }
 
+// ###################### TYPE FORMATS #####################
+
+export type DKAnnotation = {
+    name: string;
+    options: Type[];
+};
+
+export type ParsedAnnotation = DKAnnotation & {
+    jitId: string;
+    params: TypeFormatParams;
+    formatters: TypeFormatter[];
+};
+
+export type TypeFormatValue = TypeLiteral['literal'] | TypeFormatValue[] | {[key: string]: TypeFormatValue};
+export type TypeFormatParams = Record<string, TypeFormatValue>;
+export type TypeFormatParsedParams = {__jitId: string; [key: string]: TypeFormatValue};
+
+/**
+ * Functions that can be used by jitCode.
+ * These function must not have external dependencies, use variables from outside the function scope, do not have side effects, etc.
+ * These function can be correctly serialized/deserialized using function.toString() method.
+ * These function can not be anonym and must have an unique name.
+ */
+export type PureFunction<P extends TypeFormatParams> = (val: any, jitUtils: JITUtils, params: P) => any;
+
+export type CompiledPureFunction = {fn: PureFunction<any>; code: string};
+
 // ###################### OTHERS #####################
 
 /** Any Class */
@@ -229,4 +272,8 @@ export interface AnyClass<T = any> {
 
 export type Mutable<T> = {
     -readonly [K in keyof T]: T[K];
+};
+
+export type DeepRequired<T> = {
+    [K in keyof T]-?: T[K] extends object ? DeepRequired<T[K]> : T[K];
 };

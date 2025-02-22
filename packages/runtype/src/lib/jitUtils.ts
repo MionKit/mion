@@ -5,21 +5,16 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 import {maxStackDepth, maxUnknownKeys} from '../constants';
-import type {JitCompiled, RunTypeError} from '../types';
+import type {CompiledPureFunction, JitCompiled, PureFunction, RunTypeError, RunTypeErrorInfo, TypeFormatParams} from '../types';
 import type {BaseCompiler} from './jitCompiler';
-import type {JitRunTypeFormatter} from '../formats/typeFormat.runtypes';
-import type {JitRunTypeValidator} from '../formats/typeFormat.runtypes';
-import {ReflectionKind} from './_deepkit/src/reflection/type';
-import {ReflectionKindName} from '../constants.kind';
 
 export type JITUtils = typeof jitUtils;
 
 // eslint-disable-next-line no-control-regex
 const STR_ESCAPE = /[\u0000-\u001f\u0022\u005c\ud800-\udfff]/;
 const MAX_SCAPE_TEST_LENGTH = 1000; // possible to tweak after benchmarking
-const jitCache = new Map<string, JitCompiled>();
-const jitHashes = new Map<string, string>();
-const typeAnnotationsCache = new Map<string, JitRunTypeValidator | JitRunTypeFormatter>();
+const jitTypesCache = new Map<string, JitCompiled>();
+const pureFnsCache = new Map<string, CompiledPureFunction>();
 
 /**
  * Object that wraps all utilities that are used by the jit generated functions for encode, decode, stringify etc..
@@ -66,35 +61,24 @@ export const jitUtils = {
     },
     // !!! DO NOT MODIFY METHOD WITHOUT REVIEWING JIT CODE INVOCATIONS!!!
     addToJitCache(key: string, comp: BaseCompiler) {
-        // TODO: atm we cant store the compiled version as the jit fn gets updated in the original object after the compilation ends, so we losing the reference to fn
-        // const compiled: CompiledOperation = {
-        //     fn: comp.fn!,
-        //     fnId: comp.fnId,
-        //     args: comp.args,
-        //     defaultParamValues: comp.defaultParamValues,
-        //     code: comp.code,
-        //     jitFnHash: comp.jitFnHash,
-        //     jitId: comp.jitId,
-        //     dependenciesSet: comp.dependenciesSet,
-        // };
-        jitCache.set(key, comp as JitCompiled);
+        jitTypesCache.set(key, comp as JitCompiled);
     },
     removeFromJitCache(key: string) {
-        jitCache.delete(key);
+        jitTypesCache.delete(key);
     },
     // !!! DO NOT MODIFY METHOD WITHOUT REVIEWING JIT CODE INVOCATIONS!!!
     getJIT(key: string): JitCompiled | undefined {
-        return jitCache.get(key);
+        return jitTypesCache.get(key);
     },
     // !!! DO NOT MODIFY METHOD WITHOUT REVIEWING JIT CODE INVOCATIONS!!!
     getJitFn(key: string): (...args: any[]) => any {
-        const comp = jitCache.get(key);
+        const comp = jitTypesCache.get(key);
         if (!comp) throw new Error(`Jit function not found for key ${key}`);
         return comp.fn;
     },
     // !!! DO NOT MODIFY METHOD WITHOUT REVIEWING JIT CODE INVOCATIONS!!!
     hasJitFn(key: string) {
-        return !!jitCache.get(key)?.fn;
+        return !!jitTypesCache.get(key)?.fn;
     },
     // !!! DO NOT MODIFY METHOD WITHOUT REVIEWING JIT CODE INVOCATIONS!!!
     getUnknownKeysFromSet(obj: Record<string | number, any>, keys: Set<string | number>): (string | number)[] {
@@ -146,95 +130,42 @@ export const jitUtils = {
         return false;
     },
     // !!! DO NOT MODIFY METHOD WITHOUT REVIEWING JIT CODE INVOCATIONS!!!
-    err(err: RunTypeError[], path: (string | number)[], pathItems: (string | number)[], expected: string) {
-        if (path.length) err.push({path: [...path, ...pathItems], expected});
-        else err.push({path: pathItems, expected});
+    err(
+        err: RunTypeError[],
+        path: (string | number)[],
+        pathItems: (string | number)[],
+        expected: string,
+        info?: RunTypeErrorInfo
+    ) {
+        const runTypeErr: RunTypeError = {
+            expected,
+            path: path.length ? [...path, ...pathItems] : pathItems,
+        };
+        if (info) runTypeErr.info = info;
+        err.push(runTypeErr);
     },
     // !!! DO NOT MODIFY METHOD WITHOUT REVIEWING JIT CODE INVOCATIONS!!!
     safeKey(value: any): any {
         if (isSafeMapKeyValue(value)) return value;
         return null;
     },
-    registerBrandedTypeOperation(operation: JitRunTypeValidator | JitRunTypeFormatter, shouldThrow = false) {
-        const id = getJitKey(operation.kind, operation.name);
-        const exiting = typeAnnotationsCache.get(id);
-        if (exiting && exiting !== operation) {
-            if (shouldThrow) {
-                throw new Error(`Annotation type ${operation.name} already registered for ${ReflectionKindName[operation.kind]}`);
-            }
-            return;
-        }
-        typeAnnotationsCache.set(id, operation);
+    addPureFn<P extends TypeFormatParams>(fn: PureFunction<P>) {
+        if (!fn.name) throw new Error('Pure function must have a name and must be unique');
+        const existing = pureFnsCache.get(fn.name);
+        if (existing && existing.fn !== fn) throw new Error(`Pure function with name ${fn.name} already exists`);
+        if (existing) return existing;
+        const compiled: CompiledPureFunction = {fn, code: fn.toString()};
+        pureFnsCache.set(fn.name, compiled);
     },
-    getBrandedTypeOperation(
-        typeKind: ReflectionKind,
-        name: string,
-        shouldThrow = false
-    ): JitRunTypeValidator | JitRunTypeFormatter | undefined {
-        const id = getJitKey(typeKind, name);
-        if (!typeAnnotationsCache.has(id)) {
-            if (shouldThrow) {
-                throw new Error(`Annotation type ${name} not found for ${ReflectionKindName[typeKind]}`);
-            }
-            return;
-        }
-        return typeAnnotationsCache.get(id);
+    getPureFn(name: string): PureFunction<TypeFormatParams> {
+        const fn = pureFnsCache.get(name);
+        if (!fn) throw new Error(`Pure function with name ${name} not found`);
+        return fn.fn;
+    },
+    hasPureFn(name: string): boolean {
+        return !!pureFnsCache.get(name);
     },
 };
-
-function getJitKey(kind: string | number, name: string | number): string {
-    return `${kind}:${name}`;
-}
-
-const hashChars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-const hashIncrement = 1;
-const maxHashCollisions = 22;
-const PRIME = 37; // Prime number to mix hash more robustly
-
-// TODO: investigate if this is a good default length, we want short hashes for small code size but long enough to avoid collisions
-// variable hash length avoids collisions, so there shouldn't be any problems. but better to keep an eye on it
-const hashDefaultLength = 10;
-
-export function quickHash(input: string, length = hashDefaultLength, prevResult?: string): string {
-    let hash = 0;
-    // Generate initial numeric hash
-    for (let i = 0; i < input.length; i++) {
-        hash = (hash * PRIME + input.charCodeAt(i)) & 0x1fffffffffffff; // bitwise is slightly faster than modulo
-    }
-    let result = prevResult || '';
-    // Convert numeric hash to a short alphanumeric string
-    while (result.length < length) {
-        hash = (hash * PRIME) & 0x1fffffffffffff; // bitwise is slightly faster than modulo
-        result += hashChars.charAt(hash % hashChars.length);
-    }
-    return result.slice(0, length);
-}
-
-export function createJitIDHash(jitId: string, length = hashDefaultLength): string {
-    let id = quickHash(jitId, length);
-    let counter = 1;
-    let existing = jitHashes.get(id);
-    // Check if ID already exists and corresponds to the same input
-    while (existing && existing !== jitId) {
-        length += counter * hashIncrement;
-        // generates a longer hash if there are collisions
-        // this would allow trying to get all possible hashes for a given input just by increasing the length
-        const newId = quickHash(jitId, length, id);
-        if (process.env.DEBUG_JIT)
-            console.warn(
-                `Collision for jitId: ${jitId} with extended hash: ${newId}, and existing jitId: ${existing} with hash: ${id}`
-            );
-        id = newId;
-        counter++;
-        existing = jitHashes.get(id);
-        if (counter > maxHashCollisions) throw new Error(`Cannot generate unique hash for jitId: ${jitId} too many collisions.`);
-    }
-
-    // Store the unique ID with its original input string
-    jitHashes.set(id, jitId);
-    // console.log(`Jit ID: ${jitId} with hash: ${id}`);
-    return id;
-}
 
 /**
  * Checks if key map can be serialized/deserialized with json and still works as a key for a map.

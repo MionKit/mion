@@ -51,6 +51,9 @@ function isTimeWithContext(utl: JITUtils): (str: string) => boolean {
     return vf_isTime;
 }
 
+/**
+ * Validate a string as a date in the format YYYY-MM-DD
+ */
 function isDateWithContext(utl: JITUtils): (str: string) => boolean {
     function vf_isDate(str: string): boolean {
         if (str.length !== 10) return false;
@@ -68,6 +71,9 @@ function isDateWithContext(utl: JITUtils): (str: string) => boolean {
     return vf_isDate;
 }
 
+/**
+ * Validate a string as a date-time in the format YYYY-MM-DDTHH:MM:SS
+ */
 function isDateTimeWithContext(utl: JITUtils): (str: string) => boolean {
     const vf_isDate = utl.getJIT('vf_isDate')!;
     const vf_isTime = utl.getJIT('vf_isTime')!;
@@ -80,6 +86,18 @@ function isDateTimeWithContext(utl: JITUtils): (str: string) => boolean {
     return vf_isDateTime;
 }
 
+/**
+ * Validate a string as a domain
+ * A domain is a string that contains only alphanumeric characters and hyphens, separated by dots.
+ * The domain must not start or end with a hyphen.
+ * The domain must not contain hyphens in the first or last position of a subdomain.
+ * The domain must not contain more than 255 characters in total.
+ * The top level domain must be at least 2 characters long and less than 63 characters long.
+ *
+ * @param str The string to validate
+ * @param maxLength The maximum length of the domain
+ * @param allowedTopLevelDomains An array of top level domains that are allowed
+ * */
 function isDomainWithContext(utl: JITUtils): (str: string) => boolean {
     function vf_isDomain(str: string): boolean {
         const domainParts = str.split('.');
@@ -223,6 +241,7 @@ function isIPv4RangeWithContext(utl: JITUtils): (str: string) => boolean {
 }
 
 function isUUIDWithContext(utl: JITUtils): (str: string) => boolean {
+    const hexRegex = /^[0-9a-fA-F]+$/;
     function vf_isUUID(str: string): boolean {
         if (str.length !== 36) return false;
         const parts = str.split('-');
@@ -236,7 +255,6 @@ function isUUIDWithContext(utl: JITUtils): (str: string) => boolean {
         ) {
             return false;
         }
-        const hexRegex = /^[0-9a-fA-F]+$/;
         for (const part of parts) {
             if (!hexRegex.test(part)) return false;
         }
@@ -244,146 +262,3 @@ function isUUIDWithContext(utl: JITUtils): (str: string) => boolean {
     }
     return vf_isUUID;
 }
-
-export const isTime: JitCompiled = {
-    fn: isTimeWithContext(jitUtils),
-    fnId: validatorNames.isTime,
-    jitFnHash: validatorNames.isTime,
-    jitId: validatorNames.isTime,
-    args: {vλl: 'str'},
-    defaultParamValues: {},
-    code: isTimeWithContext.toString(),
-    dependenciesSet: new Set(),
-};
-
-export const isDate: JitCompiled = {
-    fn: isDateWithContext(jitUtils),
-    fnId: validatorNames.isDate,
-    jitFnHash: validatorNames.isDate,
-    jitId: validatorNames.isDate,
-    args: {vλl: 'str'},
-    defaultParamValues: {},
-    code: isDateWithContext.toString(),
-    dependenciesSet: new Set(),
-};
-
-export const isDateTime: JitCompiled = {
-    fn: isDateTimeWithContext(jitUtils),
-    fnId: validatorNames.isDateTime,
-    jitFnHash: validatorNames.isDateTime,
-    jitId: validatorNames.isDateTime,
-    args: {vλl: 'str'},
-    defaultParamValues: {},
-    code: '',
-    dependenciesSet: new Set([validatorNames.isDate, validatorNames.isTime]),
-};
-
-export const isDomain: JitCompiled = {
-    fn: isDomainWithContext(jitUtils),
-    fnId: validatorNames.isDomain,
-    jitFnHash: validatorNames.isDomain,
-    jitId: validatorNames.isDomain,
-    args: {vλl: 'str'},
-    defaultParamValues: {},
-    code: isDomainWithContext.toString(),
-    dependenciesSet: new Set(),
-};
-
-export const isEmail: JitCompiled = {
-    fn: isEmailWithContext(jitUtils),
-    fnId: validatorNames.isEmail,
-    jitFnHash: validatorNames.isEmail,
-    jitId: validatorNames.isEmail,
-    args: {vλl: 'str', maxLength: 'number'},
-    defaultParamValues: {maxLength: 256},
-    code: isEmailWithContext.toString(),
-    dependenciesSet: new Set([validatorNames.isDomain]),
-};
-
-export const isURL: JitCompiled = {
-    fn: isURlWithContext(jitUtils),
-    fnId: validatorNames.isURL,
-    jitFnHash: validatorNames.isURL,
-    jitId: validatorNames.isURL,
-    args: {vλl: 'str', maxLength: 'number'},
-    defaultParamValues: {maxLength: 2048},
-    code: isURlWithContext.toString(),
-    dependenciesSet: new Set(),
-};
-
-export const isURLExtended: JitCompiled = {
-    fn: isURLExtendedWithContext(jitUtils),
-    fnId: validatorNames.isURLExtended,
-    jitFnHash: validatorNames.isURLExtended,
-    jitId: validatorNames.isURLExtended,
-    args: {vλl: 'str', maxLength: 'number'},
-    defaultParamValues: {maxLength: 2048},
-    code: isURLExtendedWithContext.toString(),
-    dependenciesSet: new Set(),
-};
-
-export const isPhone: JitCompiled = {
-    fn: isPhoneWithContext(jitUtils),
-    fnId: validatorNames.isPhone,
-    jitFnHash: validatorNames.isPhone,
-    jitId: validatorNames.isPhone,
-    args: {vλl: 'str'},
-    defaultParamValues: {},
-    code: isPhoneWithContext.toString(),
-    dependenciesSet: new Set(),
-};
-
-export const isIP: JitCompiled = {
-    fn: isIpWithContext(jitUtils),
-    fnId: validatorNames.isIP,
-    jitFnHash: validatorNames.isIP,
-    jitId: validatorNames.isIP,
-    args: {vλl: 'str'},
-    defaultParamValues: {},
-    code: '',
-    dependenciesSet: new Set([validatorNames.isIPv4, validatorNames.isIPv6]),
-};
-
-export const isIPv4: JitCompiled = {
-    fn: isIPv4WithContext(jitUtils),
-    fnId: validatorNames.isIPv4,
-    jitFnHash: validatorNames.isIPv4,
-    jitId: validatorNames.isIPv4,
-    args: {vλl: 'str'},
-    defaultParamValues: {},
-    code: isIPv4WithContext.toString(),
-    dependenciesSet: new Set(),
-};
-
-export const isIPv6: JitCompiled = {
-    fn: isIPv6WithContext(jitUtils),
-    fnId: validatorNames.isIPv6,
-    jitFnHash: validatorNames.isIPv6,
-    jitId: validatorNames.isIPv6,
-    args: {vλl: 'str'},
-    defaultParamValues: {},
-    code: isIPv6WithContext.toString(),
-    dependenciesSet: new Set(),
-};
-
-export const isIPv4Range: JitCompiled = {
-    fn: isIPv4RangeWithContext(jitUtils),
-    fnId: validatorNames.isIPv4Range,
-    jitFnHash: validatorNames.isIPv4Range,
-    jitId: validatorNames.isIPv4Range,
-    args: {vλl: 'str'},
-    defaultParamValues: {},
-    code: isIPv4RangeWithContext.toString(),
-    dependenciesSet: new Set([validatorNames.isIPv4]),
-};
-
-export const isUUID: JitCompiled = {
-    fn: isUUIDWithContext(jitUtils),
-    fnId: validatorNames.isUUID,
-    jitFnHash: validatorNames.isUUID,
-    jitId: validatorNames.isUUID,
-    args: {vλl: 'str'},
-    defaultParamValues: {},
-    code: isUUIDWithContext.toString(),
-    dependenciesSet: new Set(),
-};

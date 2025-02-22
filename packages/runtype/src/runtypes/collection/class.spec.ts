@@ -7,6 +7,7 @@
 import {runType} from '../../runType';
 import {JitFunctions} from '../../constants';
 import exp from 'constants';
+import {info} from 'console';
 
 class SerializableClass {
     name: string;
@@ -119,7 +120,7 @@ describe('Classes that extend other classes', () => {
         const valWithErrors = rtExtended.createJitFunction(JitFunctions.typeErrors);
         expect(valWithErrors(extended)).toEqual([]);
         expect(valWithErrors(base)).toEqual([{path: ['extendedProp'], expected: 'string'}]);
-        expect(valWithErrors(null)).toEqual([{path: [], expected: 'class'}]);
+        expect(valWithErrors(null)).toEqual([{path: [], expected: 'class', info: {typeName: 'ExtendedClass'}}]);
     });
 
     it('encode/decode extended class to json', () => {
