@@ -9,8 +9,8 @@ import type {JitCompiler, JitErrorsCompiler} from '../lib/jitCompiler';
 import {compilePureFunctionCall, registerFormatter, registerPureFunction} from '../lib/formats';
 import {JitRunTypeValidator} from '../lib/jitFormatters';
 import {ReflectionKind} from '../lib/_deepkit/src/reflection/type';
-import {DomainParams} from './domain.runtypes';
-import {TypeFormat} from '../lib/formats.runtypes';
+import {DomainParams} from './domain.runtype';
+import {TypeFormat} from '../lib/formats.runtype';
 import {MockOperation} from '../types';
 
 export const defaultUrlParams = {

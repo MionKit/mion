@@ -6,7 +6,7 @@
  * ######## */
 
 import {isTypeFn, mockTypeFn, typeErrorsFn} from '../functions';
-import {UUID_V4, UUID_V7, uuidV7} from './uuid.runtypes';
+import {UUID_V4, UUID_V7, uuidV7} from './uuid.runtype';
 
 // ####### UUID v4 #######
 

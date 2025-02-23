@@ -6,7 +6,7 @@
  * ######## */
 
 import {isTypeFn, mockTypeFn, typeErrorsFn} from '../functions';
-import {AlphaNumericString, AlphaString, LowerString, NumericString, StringFormat, UpperString} from './string.runtypes';
+import {AlphaNumericString, AlphaString, LowerString, NumericString, StringFormat, UpperString} from './string.runtype';
 
 // #### maxLength ####
 
