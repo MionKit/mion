@@ -37,14 +37,8 @@ import {jitUtils} from './jitUtils';
 import {createJitIDHash} from './quickHash';
 import {isMockContext, isRunTypeTransformer, isRunTypeValidator} from './guards';
 import {defaultMockOptions} from '../constants.mock';
-import {
-    parseAnnotations,
-    getParsedAnnotations,
-    getTypeFormats,
-    type JitRunTypeValidator,
-    getRunTypeValidator,
-    getRunTypeTransformers,
-} from './formats';
+import {parseAnnotations, getParsedAnnotations, getTypeFormats, getRunTypeValidator, getRunTypeTransformers} from './formats';
+import {type JitRunTypeValidator} from './jitFormatters';
 
 export abstract class BaseRunType<T extends Type = Type> implements RunType {
     isCircular?: boolean;

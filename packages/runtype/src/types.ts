@@ -261,7 +261,14 @@ export type TypeFormatParsedParams = {__jitId: string; [key: string]: TypeFormat
  */
 export type PureFunction<P extends TypeFormatParams> = (val: any, jitUtils: JITUtils, params: P) => any;
 
-export type CompiledPureFunction = {fn: PureFunction<any>; code: string};
+export type CompiledPureFunction = {
+    originFn?: PureFunction<any>;
+    fn: PureFunction<any>;
+    paramNames: string[];
+    body: string;
+    name: string;
+    dependencies: Set<string>;
+};
 
 // ###################### OTHERS #####################
 

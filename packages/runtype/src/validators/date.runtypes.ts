@@ -6,12 +6,20 @@
  * ######## */
 import type {BaseRunType} from '../lib/baseRunTypes';
 import type {JitCompiler, JitErrorsCompiler} from '../lib/jitCompiler';
-import {JitRunTypeValidator} from '../lib/formats';
+import {JitRunTypeValidator} from '../lib/jitFormatters';
 import {ReflectionKind} from '../lib/_deepkit/src/reflection/type';
 import {TypeFormat} from '../lib/formats.runtypes';
 import {MockOperation} from '../types';
 
-export type StringDate = TypeFormat<string, 'date', any>;
+export type StringDateParams = {
+    format: 'YY:mm:ss' | 'HH:mm' | 'mm:ss' | 'HH' | 'mm' | 'ss';
+};
+
+export const defaultTimeParams = {
+    format: 'HH:mm:ss',
+} as const;
+
+export type StringDate<P extends StringDateParams> = TypeFormat<string, 'date', P>;
 
 // Date validator
 export class DateValidator extends JitRunTypeValidator {

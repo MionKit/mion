@@ -5,20 +5,20 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {jitFnHasReturn, jitFnIsExpression} from '../constants';
 import {ReflectionKindName} from '../constants.kind';
-import type {JitFnID, MockOperation, ParsedAnnotation, PureFunction, TypeFormatParams, TypeFormatValue} from '../types';
+import type {CompiledPureFunction, ParsedAnnotation, PureFunction, TypeFormatParams, TypeFormatValue} from '../types';
 import {
     metaAnnotation,
     ReflectionKind,
-    TypeTupleMember,
+    type TypeTupleMember,
     type TypeLiteral,
     type TypeObjectLiteral,
     type TypePropertySignature,
     type TypeTuple,
 } from './_deepkit/src/reflection/type';
 import type {BaseRunType} from './baseRunTypes';
-import {JitCompiler, type JitErrorsCompiler} from './jitCompiler';
+import type {JitCompiler} from './jitCompiler';
+import {JitRunTypeTransformer, JitRunTypeValidator} from './jitFormatters';
 import {jitUtils} from './jitUtils';
 import {toLiteral} from './utils';
 
@@ -28,7 +28,7 @@ const validatorPrefix = 'v';
 const formatterPrefix = 'f';
 
 /** Adds a TypeFormatter or TypeValidator to the formatters cache */
-export function addFormatterToCache<T extends TypeFormatter>(operation: T, shouldThrow = false): T {
+export function registerFormatter<T extends TypeFormatter>(operation: T, shouldThrow = false): T {
     const prefix = operation instanceof JitRunTypeValidator ? validatorPrefix : formatterPrefix;
     const id = getFormatterKey(prefix, operation.kind, operation.name);
     const exiting = typeAnnotationsCache.get(id);
@@ -39,6 +39,27 @@ export function addFormatterToCache<T extends TypeFormatter>(operation: T, shoul
     }
     typeAnnotationsCache.set(id, operation);
     return operation;
+}
+
+export function registerPureFunction(fn: PureFunction<any>, testFn = false): CompiledPureFunction {
+    const existing = jitUtils.getCompiledPureFn(fn.name);
+    if (existing && existing.originFn && existing.originFn !== fn)
+        throw new Error(`Pure function with name ${fn.name} already exists`);
+    if (existing) return existing;
+    const compiled = parsePureFunction(fn, testFn);
+    jitUtils.addPureFn(compiled);
+    return compiled;
+}
+
+export function registerPureFunctionGroup(fns: PureFunction<any>[], testFn = false): CompiledPureFunction[] {
+    const compiledFns = fns.map((fn) => registerPureFunction(fn, testFn));
+    compiledFns.forEach((cfn) => {
+        compiledFns.forEach((cf) => {
+            if (cfn.name === cf.name) return;
+            cf.dependencies.add(cfn.name);
+        });
+    });
+    return compiledFns;
 }
 
 /** Gets a TypeFormatter or TypeValidator to the formatters cache */
@@ -53,6 +74,12 @@ export function getFormattersFromCache(typeKind: ReflectionKind, name: string, s
     if (validator) result.push(validator);
     if (formatter) result.push(formatter);
     return result;
+}
+
+export function getPureFn(name: string): PureFunction<any> {
+    const fn = jitUtils.getPureFn(name);
+    if (!fn) throw new Error(`Pure function ${name} not found`);
+    return fn;
 }
 
 export function getFormatterKey(prefix: string, kind: string | number, name: string | number): string {
@@ -201,71 +228,60 @@ export function compilePureFunctionCall(
     comp: JitCompiler,
     rt: BaseRunType,
     pureFn: PureFunction<any>,
-    params?: TypeFormatParams
+    params: TypeFormatParams
 ): string {
     const name = pureFn.name;
     if (!name) throw new Error('Pure function must have a name');
-    jitUtils.addPureFn(pureFn);
+    registerPureFunction(pureFn); // will throw if there is a different pure function with the same name
     comp.addPureFnDependency(pureFn);
 
     // Add context code for the pure function and params
     const varName = `${name}${rt.getNestLevel()}_${comp.contextCodeItems.size}`;
     const paramsName = `${varName}P`;
     const pureFunctionCode = `const ${varName} = utl.getPureFn(${toLiteral(name)})`;
-    const paramsCode = params ? `const ${paramsName} = ${JSON.stringify(params)}` : '{}';
+    const paramsCode = `const ${paramsName} = ${JSON.stringify(params)}`;
     comp.contextCodeItems.set(varName, pureFunctionCode);
     comp.contextCodeItems.set(paramsName, paramsCode);
-
     // call the pure function, passing value, jitUtils and params (pure function arguments)
     return `${varName}(${comp.vλl},utl,${paramsName})`;
 }
 
-/** Base class for all type validators. */
-export abstract class JitRunTypeValidator<P extends TypeFormatParams = TypeFormatParams> {
-    abstract kind: ReflectionKind;
-    abstract name: string;
+function parsePureFunction(fn: PureFunction<any>, testFn = false): CompiledPureFunction {
+    if (!fn.name) throw new Error('Pure Functions must have a name');
 
-    getParams(rt: BaseRunType, defaultParams: NonNullable<P>) {
-        const params = getFormatterParams(rt, this.name, 'validator', defaultParams) as NonNullable<P>;
-        this.validateParams?.(rt, params);
-        return params;
-    }
-    /** Throws an error if params are not valid */
-    validateParams?(rt: BaseRunType, params: P): void;
-    jitFnHasReturn = (fnId: JitFnID) => jitFnHasReturn(fnId);
-    jitFnIsExpression = (fnId: JitFnID) => jitFnIsExpression(fnId);
+    const fnString = fn.toString();
+    const bodyStart = fnString.indexOf('{');
+    const bodyEnd = fnString.lastIndexOf('}');
+    if (bodyStart === -1 || bodyEnd === -1 || bodyEnd <= bodyStart) throw new Error("Invalid function, can't parse body");
 
-    abstract _compileIsType(comp: JitCompiler, rt: BaseRunType): string;
-    abstract _compileTypeErrors(comp: JitErrorsCompiler, rt: BaseRunType): string;
-    abstract _mock(mockContext: MockOperation, rt: BaseRunType): any;
-}
+    const paramsStart = fnString.indexOf('(') + 1;
+    const paramsEnd = fnString.indexOf(')');
+    if (paramsStart === 0 || paramsEnd === -1 || paramsEnd <= paramsStart)
+        throw new Error("Invalid function, can't parse parameters");
 
-/** Base class for all type formatters. */
-export abstract class JitRunTypeTransformer<P extends TypeFormatParams = TypeFormatParams> {
-    abstract kind: ReflectionKind;
-    abstract name: string;
+    const paramsString = fnString.substring(paramsStart, paramsEnd).trim();
+    const paramNames = paramsString.length > 0 ? paramsString.split(/\s*,\s*/) : [];
+    if (paramNames.length === 0 && paramNames.length > 3) throw new Error('Pure function must have between 1 and 3 parameters');
 
-    getParams(rt: BaseRunType, defaultParams: NonNullable<P>) {
-        const params = getFormatterParams(rt, this.name, 'formatter', defaultParams) as NonNullable<P>;
-        this.validateParams?.(rt, params);
-        return params;
+    // Validate parameters
+    const validIdentifier = /^[_$a-zA-Z][_$a-zA-Z0-9]*$/;
+    for (const param of paramNames) {
+        if (!validIdentifier.test(param))
+            throw new Error(
+                `Invalid parameter name: ${param}, pure function parameters must be valid identifiers and do not allow default values.`
+            );
     }
 
-    /** Throws an error if params are not valid */
-    validateParams?(rt: BaseRunType, params: P): void;
-    jitFnHasReturn = (fnId: JitFnID) => jitFnHasReturn(fnId);
-    jitFnIsExpression = (fnId: JitFnID) => jitFnIsExpression(fnId);
-    abstract _mock(mockContext: MockOperation, rt: BaseRunType, val: any): any;
-    abstract _format(comp: JitCompiler, rt: BaseRunType): string;
-    abstract _compileIsType(comp: JitCompiler, rt: BaseRunType): string;
-    abstract _compileTypeErrors(comp: JitErrorsCompiler, rt: BaseRunType): string;
+    const body = fnString.substring(bodyStart + 1, bodyEnd);
 
-    /** Value are always transformed on ingest by default, Formatters can override this method to change functionality. */
-    _compileFromJsonVal = (comp: JitCompiler, rt: BaseRunType): string | undefined => this._format(comp, rt);
-
-    /** Value are NOT transformed on egress by default, Formatters can override this method to change functionality. */
-    _compileToJsonVal = (comp: JitCompiler, rt: BaseRunType): string | undefined => undefined; // eslint-disable-line @typescript-eslint/no-unused-vars
-
-    /** Value are NOT transformed on egress by default, Formatters can override this method to change functionality. */
-    _compileJsonStringify = (comp: JitCompiler, rt: BaseRunType): string | undefined => undefined; // eslint-disable-line @typescript-eslint/no-unused-vars
+    const compiled = {name: fn.name, paramNames, body, fn, originFn: fn, dependencies: new Set<string>()};
+    if (testFn || process.env.MION_COMPILE === 'true' || process.env.JEST_WORKER_ID !== undefined) {
+        try {
+            // when testing we immediately add the deserialized function to ensure test are working with deserialized functions
+            compiled.fn = new Function(...paramNames, body) as PureFunction<any>;
+        } catch (error: any) {
+            throw new Error(`Pure function ${fn.name} can not be deserialized: ${error?.message}`);
+        }
+    }
+    return compiled;
 }

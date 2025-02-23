@@ -6,10 +6,9 @@
  * ######## */
 import type {BaseRunType} from '../lib/baseRunTypes';
 import type {JitCompiler, JitErrorsCompiler} from '../lib/jitCompiler';
-import {addFormatterToCache, compilePureFunctionCall} from '../lib/formats';
-import {JitRunTypeValidator} from '../lib/formats';
+import {registerFormatter, compilePureFunctionCall, registerPureFunction} from '../lib/formats';
+import {JitRunTypeValidator} from '../lib/jitFormatters';
 import {ReflectionKind} from '../lib/_deepkit/src/reflection/type';
-import {jitUtils} from '../lib/jitUtils';
 import {MockOperation} from '../types';
 import {TypeFormat} from '../lib/formats.runtypes';
 
@@ -75,5 +74,5 @@ export function isUUID(value: string, utl, p: {version: '4' | '7'}): boolean {
 
 // ############### Register runtypes ###############
 
-jitUtils.addPureFn(isUUID);
-addFormatterToCache(new UUID_Validator());
+registerPureFunction(isUUID);
+registerFormatter(new UUID_Validator());
