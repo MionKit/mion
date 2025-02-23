@@ -7,8 +7,8 @@
  * ######## */
 import type {BaseRunType} from '../lib/baseRunTypes';
 import type {JitCompiler, JitErrorsCompiler} from '../lib/jitCompiler';
-import {TypeFormat} from '../lib/formats.runtypes';
-import {compilePureFunctionCall, registerFormatter, registerPureFunction} from '../lib/formats';
+import {TypeFormat} from '../lib/formats.runtype';
+import {compilePureFunctionCall, registerFormatter, registerPureFunctionGroup} from '../lib/formats';
 import {JitRunTypeTransformer} from '../lib/jitFormatters';
 import {JitRunTypeValidator} from '../lib/jitFormatters';
 import {ReflectionKind} from '../lib/_deepkit/src/reflection/type';
@@ -276,9 +276,8 @@ export function disallowedCharsFn(s: string, jUtl, p: Required<StringFormatParam
 // ############### Register runtypes ###############
 
 // register pure functions so they can be used in the jit compiler
-registerPureFunction(allowedCharsFn);
-registerPureFunction(disallowedCharsFn);
+registerPureFunctionGroup([allowedCharsFn, disallowedCharsFn]);
 
 // register Validator operations so they can be used in the jit compiler
-registerFormatter(new StringValidator());
-registerFormatter(new StringFormatter());
+export const stringValidator = registerFormatter(new StringValidator());
+export const stringFormatter = registerFormatter(new StringFormatter());

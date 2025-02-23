@@ -6,7 +6,7 @@
  * ######## */
 
 import {isTypeFn, mockTypeFn, typeErrorsFn} from '../functions';
-import {TimeString} from './time.runtypes';
+import {TimeString} from './time.runtype';
 
 // ####### Time format HH:mm:ss #######
 

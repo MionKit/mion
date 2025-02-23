@@ -10,11 +10,15 @@ import {registerFormatter, compilePureFunctionCall, registerPureFunction} from '
 import {JitRunTypeValidator} from '../lib/jitFormatters';
 import {ReflectionKind} from '../lib/_deepkit/src/reflection/type';
 import {MockOperation} from '../types';
-import {TypeFormat} from '../lib/formats.runtypes';
+import {TypeFormat} from '../lib/formats.runtype';
 
 export type UUID_Params = {
     version: 4 | 7;
 };
+
+export const defUUIDParams = {
+    version: 4,
+} as const satisfies UUID_Params;
 
 // IDs
 export type UUID_V4 = TypeFormat<string, 'uuid', {version: 4}>;
@@ -26,7 +30,7 @@ export class UUID_Validator extends JitRunTypeValidator<UUID_Params> {
     readonly kind = ReflectionKind.string;
     readonly name = UUID_Validator.id;
     _compileIsType(comp: JitCompiler, rt: BaseRunType): string {
-        const params = this.getParams(rt, {version: 4});
+        const params = this.getParams(rt, defUUIDParams);
         // version must be set as a string to call pure function isUUID
         return compilePureFunctionCall(comp, rt, isUUID, {...params, version: String(params.version)});
     }
@@ -36,7 +40,7 @@ export class UUID_Validator extends JitRunTypeValidator<UUID_Params> {
         return `if (!(${this._compileIsType(comp, rt)})) ${comp.callJitErr('string', info)}`;
     }
     _mock(mockContext: MockOperation, rt: BaseRunType) {
-        const {version} = this.getParams(rt, {version: 4});
+        const {version} = this.getParams(rt, defUUIDParams);
         return version === 4 ? crypto.randomUUID() : uuidV7();
     }
     validateParams(rt: BaseRunType, params: UUID_Params) {
@@ -75,4 +79,4 @@ export function isUUID(value: string, utl, p: {version: '4' | '7'}): boolean {
 // ############### Register runtypes ###############
 
 registerPureFunction(isUUID);
-registerFormatter(new UUID_Validator());
+export const uuidValidator = registerFormatter(new UUID_Validator());

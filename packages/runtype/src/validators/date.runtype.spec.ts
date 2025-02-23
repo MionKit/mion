@@ -1,0 +1,303 @@
+/* ########
+ * 2025 mion
+ * Author: Ma-jerez
+ * License: MIT
+ * The software is provided "as is", without warranty of any kind.
+ * ######## */
+
+import {isTypeFn, mockTypeFn, typeErrorsFn} from '../functions';
+import {DateString} from './date.runtype';
+
+// ####### Date format YYYY-MM-DD #######
+
+type YYYYMMDD = DateString<{format: 'YYYY-MM-DD'}>; // same as StringDate<{format: 'ISO'}>;
+
+it('validate date with format YYYY-MM-DD', async () => {
+    const isType = await isTypeFn<YYYYMMDD>();
+    // valid date
+    expect(isType('2023-01-01')).toBe(true);
+    expect(isType('0000-12-31')).toBe(true);
+    // invalid date
+    expect(isType('2023-13-01')).toBe(false);
+    expect(isType('2023-00-01')).toBe(false);
+    expect(isType('2023-01-32')).toBe(false);
+    // invalid characters
+    expect(isType('2023-01-0!')).toBe(false);
+    // wrong length
+    expect(isType('2023-01')).toBe(false);
+    expect(isType('2023-01-01-01')).toBe(false);
+});
+it('get date errors for format YYYY-MM-DD', async () => {
+    const typeErrors = await typeErrorsFn<YYYYMMDD>();
+    const dateError = {expected: 'string', path: [], info: {format: 'date', typeName: 'YYYYMMDD'}};
+    // valid date
+    expect(typeErrors('2023-01-01')).toEqual([]);
+    expect(typeErrors('0000-12-31')).toEqual([]);
+    // invalid date
+    expect(typeErrors('2023-13-01')).toEqual([dateError]);
+    expect(typeErrors('2023-00-01')).toEqual([dateError]);
+    expect(typeErrors('2023-01-32')).toEqual([dateError]);
+    // invalid characters
+    expect(typeErrors('2023-01-0!')).toEqual([dateError]);
+    // wrong length
+    expect(typeErrors('2023-01')).toEqual([dateError]);
+    expect(typeErrors('2023-01-01-01')).toEqual([dateError]);
+});
+it('mock date with format YYYY-MM-DD', async () => {
+    const mockType = mockTypeFn<YYYYMMDD>();
+    const isType = await isTypeFn<YYYYMMDD>();
+    const matchRegex = /^\d{4}-\d{2}-\d{2}$/;
+    const mockedItems = Array.from({length: 20}, () => mockType());
+    for (const item of mockedItems) {
+        expect(isType(item)).toBe(true);
+        expect(item).toMatch(matchRegex);
+    }
+});
+
+// ####### Date format DD-MM-YYYY #######
+
+type DDMMYYYY = DateString<{format: 'DD-MM-YYYY'}>;
+
+it('validate date with format DD-MM-YYYY', async () => {
+    const isType = await isTypeFn<DDMMYYYY>();
+    // valid date
+    expect(isType('01-01-2023')).toBe(true);
+    expect(isType('31-12-0000')).toBe(true);
+    // invalid date
+    expect(isType('01-13-2023')).toBe(false);
+    expect(isType('01-00-2023')).toBe(false);
+    expect(isType('32-01-2023')).toBe(false);
+    // invalid characters
+    expect(isType('01-0!-2023')).toBe(false);
+    // wrong length
+    expect(isType('01-2023')).toBe(false);
+    expect(isType('01-01-2023-01')).toBe(false);
+});
+it('get date errors for format DD-MM-YYYY', async () => {
+    const typeErrors = await typeErrorsFn<DDMMYYYY>();
+    const dateError = {expected: 'string', path: [], info: {format: 'date', typeName: 'DDMMYYYY'}};
+    // valid date
+    expect(typeErrors('01-01-2023')).toEqual([]);
+    expect(typeErrors('31-12-0000')).toEqual([]);
+    // invalid date
+    expect(typeErrors('01-13-2023')).toEqual([dateError]);
+    expect(typeErrors('01-00-2023')).toEqual([dateError]);
+    expect(typeErrors('32-01-2023')).toEqual([dateError]);
+    // invalid characters
+    expect(typeErrors('01-0!-2023')).toEqual([dateError]);
+    // wrong length
+    expect(typeErrors('01-2023')).toEqual([dateError]);
+    expect(typeErrors('01-01-2023-01')).toEqual([dateError]);
+});
+it('mock date with format DD-MM-YYYY', async () => {
+    const mockType = mockTypeFn<DDMMYYYY>();
+    const isType = await isTypeFn<DDMMYYYY>();
+    const matchRegex = /^\d{2}-\d{2}-\d{4}$/;
+    const mockedItems = Array.from({length: 20}, () => mockType());
+    for (const item of mockedItems) {
+        expect(isType(item)).toBe(true);
+        expect(item).toMatch(matchRegex);
+    }
+});
+
+// ####### Date format MM-DD-YYYY #######
+
+type MMDDYYYY = DateString<{format: 'MM-DD-YYYY'}>;
+
+it('validate date with format MM-DD-YYYY', async () => {
+    const isType = await isTypeFn<MMDDYYYY>();
+    // valid date
+    expect(isType('01-01-2023')).toBe(true);
+    expect(isType('12-31-0000')).toBe(true);
+    // invalid date
+    expect(isType('13-01-2023')).toBe(false);
+    expect(isType('00-01-2023')).toBe(false);
+    expect(isType('01-32-2023')).toBe(false);
+    // invalid characters
+    expect(isType('01-0!-2023')).toBe(false);
+    // wrong length
+    expect(isType('01-2023')).toBe(false);
+    expect(isType('01-01-2023-01')).toBe(false);
+});
+it('get date errors for format MM-DD-YYYY', async () => {
+    const typeErrors = await typeErrorsFn<MMDDYYYY>();
+    const dateError = {expected: 'string', path: [], info: {format: 'date', typeName: 'MMDDYYYY'}};
+    // valid date
+    expect(typeErrors('01-01-2023')).toEqual([]);
+    expect(typeErrors('12-31-0000')).toEqual([]);
+    // invalid date
+    expect(typeErrors('13-01-2023')).toEqual([dateError]);
+    expect(typeErrors('00-01-2023')).toEqual([dateError]);
+    expect(typeErrors('01-32-2023')).toEqual([dateError]);
+    // invalid characters
+    expect(typeErrors('01-0!-2023')).toEqual([dateError]);
+    // wrong length
+    expect(typeErrors('01-2023')).toEqual([dateError]);
+    expect(typeErrors('01-01-2023-01')).toEqual([dateError]);
+});
+it('mock date with format MM-DD-YYYY', async () => {
+    const mockType = mockTypeFn<MMDDYYYY>();
+    const isType = await isTypeFn<MMDDYYYY>();
+    const matchRegex = /^\d{2}-\d{2}-\d{4}$/;
+    const mockedItems = Array.from({length: 20}, () => mockType());
+    for (const item of mockedItems) {
+        expect(isType(item)).toBe(true);
+        expect(item).toMatch(matchRegex);
+    }
+});
+
+// ####### Date format YYYY-MM #######
+
+type YYYYMM = DateString<{format: 'YYYY-MM'}>;
+
+it('validate date with format YYYY-MM', async () => {
+    const isType = await isTypeFn<YYYYMM>();
+    // valid date
+    expect(isType('2023-01')).toBe(true);
+    expect(isType('0000-12')).toBe(true);
+    // invalid date
+    expect(isType('2023-13')).toBe(false);
+    expect(isType('2023-00')).toBe(false);
+    // invalid characters
+    expect(isType('2023-01-0!')).toBe(false);
+    // wrong length
+    expect(isType('2023')).toBe(false);
+    expect(isType('2023-01-01')).toBe(false);
+});
+it('get date errors for format YYYY-MM', async () => {
+    const typeErrors = await typeErrorsFn<YYYYMM>();
+    const dateError = {expected: 'string', path: [], info: {format: 'date', typeName: 'YYYYMM'}};
+    // valid date
+    expect(typeErrors('2023-01')).toEqual([]);
+    expect(typeErrors('0000-12')).toEqual([]);
+    // invalid date
+    expect(typeErrors('2023-13')).toEqual([dateError]);
+    expect(typeErrors('2023-00')).toEqual([dateError]);
+    // invalid characters
+    expect(typeErrors('2023-01-0!')).toEqual([dateError]);
+    // wrong length
+    expect(typeErrors('2023')).toEqual([dateError]);
+    expect(typeErrors('2023-01-01')).toEqual([dateError]);
+});
+it('mock date with format YYYY-MM', async () => {
+    const mockType = mockTypeFn<YYYYMM>();
+    const isType = await isTypeFn<YYYYMM>();
+    const matchRegex = /^\d{4}-\d{2}$/;
+    const mockedItems = Array.from({length: 20}, () => mockType());
+    for (const item of mockedItems) {
+        expect(isType(item)).toBe(true);
+        expect(item).toMatch(matchRegex);
+    }
+});
+
+// ####### Date format MM-DD #######
+
+type MMDD = DateString<{format: 'MM-DD'}>;
+
+it('validate date with format MM-DD', async () => {
+    const isType = await isTypeFn<MMDD>();
+    // valid date
+    expect(isType('01-01')).toBe(true);
+    expect(isType('12-31')).toBe(true);
+    // invalid date
+    expect(isType('13-01')).toBe(false);
+    expect(isType('00-01')).toBe(false);
+    expect(isType('01-32')).toBe(false);
+    // invalid characters
+    expect(isType('01-0!')).toBe(false);
+    // wrong length
+    expect(isType('01')).toBe(false);
+    expect(isType('01-01-01')).toBe(false);
+});
+it('get date errors for format MM-DD', async () => {
+    const typeErrors = await typeErrorsFn<MMDD>();
+    const dateError = {expected: 'string', path: [], info: {format: 'date', typeName: 'MMDD'}};
+    // valid date
+    expect(typeErrors('01-01')).toEqual([]);
+    expect(typeErrors('12-31')).toEqual([]);
+    // invalid date
+    expect(typeErrors('13-01')).toEqual([dateError]);
+    expect(typeErrors('00-01')).toEqual([dateError]);
+    expect(typeErrors('01-32')).toEqual([dateError]);
+    // invalid characters
+    expect(typeErrors('01-0!')).toEqual([dateError]);
+    // wrong length
+    expect(typeErrors('01')).toEqual([dateError]);
+    expect(typeErrors('01-01-01')).toEqual([dateError]);
+});
+it('mock date with format MM-DD', async () => {
+    const mockType = mockTypeFn<MMDD>();
+    const isType = await isTypeFn<MMDD>();
+    const matchRegex = /^\d{2}-\d{2}$/;
+    const mockedItems = Array.from({length: 20}, () => mockType());
+    for (const item of mockedItems) {
+        expect(isType(item)).toBe(true);
+        expect(item).toMatch(matchRegex);
+    }
+});
+
+// ####### Date format DD-MM #######
+
+type DDMM = DateString<{format: 'DD-MM'}>;
+
+it('validate date with format DD-MM', async () => {
+    const isType = await isTypeFn<DDMM>();
+    // valid date
+    expect(isType('01-01')).toBe(true);
+    expect(isType('31-12')).toBe(true);
+    // invalid date
+    expect(isType('01-13')).toBe(false);
+    expect(isType('01-00')).toBe(false);
+    expect(isType('32-01')).toBe(false);
+    // invalid characters
+    expect(isType('01-0!')).toBe(false);
+    // wrong length
+    expect(isType('01')).toBe(false);
+    expect(isType('01-01-01')).toBe(false);
+});
+it('get date errors for format DD-MM', async () => {
+    const typeErrors = await typeErrorsFn<DDMM>();
+    const dateError = {expected: 'string', path: [], info: {format: 'date', typeName: 'DDMM'}};
+    // valid date
+    expect(typeErrors('01-01')).toEqual([]);
+    expect(typeErrors('31-12')).toEqual([]);
+    // invalid date
+    expect(typeErrors('01-13')).toEqual([dateError]);
+    expect(typeErrors('01-00')).toEqual([dateError]);
+    expect(typeErrors('32-01')).toEqual([dateError]);
+    // invalid characters
+    expect(typeErrors('01-0!')).toEqual([dateError]);
+    // wrong length
+    expect(typeErrors('01')).toEqual([dateError]);
+    expect(typeErrors('01-01-01')).toEqual([dateError]);
+});
+it('mock date with format DD-MM', async () => {
+    const mockType = mockTypeFn<DDMM>();
+    const isType = await isTypeFn<DDMM>();
+    const matchRegex = /^\d{2}-\d{2}$/;
+    const mockedItems = Array.from({length: 20}, () => mockType());
+    for (const item of mockedItems) {
+        expect(isType(item)).toBe(true);
+        expect(item).toMatch(matchRegex);
+    }
+});
+
+function context_is_Tjxn1nljtx(utl) {
+    const isDateString0_0 = utl.getPureFn('isDateString');
+    const isDateString0_0P = {format: 'DD-MM', id: 6};
+    function is_Tjxn1nljtx(v) {
+        return typeof v === 'string' && isDateString0_0(v, utl, isDateString0_0P);
+    }
+    return is_Tjxn1nljtx;
+}
+
+function context_te_Tjxn1nljtx(utl) {
+    const isDateString0_0 = utl.getPureFn('isDateString');
+    const isDateString0_0P = {format: 'DD-MM', id: 6};
+    function te_Tjxn1nljtx(v, pth = [], er = []) {
+        if (typeof v !== 'string') utl.err(er, pth, [], 'string');
+        if (!isDateString0_0(v, utl, isDateString0_0P)) utl.err(er, pth, [], 'string', {format: 'date', typeName: 'DDMM'});
+        return er;
+    }
+    return te_Tjxn1nljtx;
+}

@@ -8,33 +8,49 @@ import type {BaseRunType} from '../lib/baseRunTypes';
 import type {JitCompiler, JitErrorsCompiler} from '../lib/jitCompiler';
 import {JitRunTypeValidator} from '../lib/jitFormatters';
 import {ReflectionKind} from '../lib/_deepkit/src/reflection/type';
-import {TypeFormat} from '../lib/formats.runtypes';
+import {DomainParams} from './domain.runtype';
+import {TypeFormat} from '../lib/formats.runtype';
 import {MockOperation} from '../types';
 
-export type StringDateParams = {
-    format: 'YY:mm:ss' | 'HH:mm' | 'mm:ss' | 'HH' | 'mm' | 'ss';
+export const DefaultEmailParams = {
+    maxLength: 256,
+    localPart: {
+        minLength: 3,
+    },
+} as const satisfies EmailParams;
+
+export type EmailParams = {
+    maxLength?: number;
+    localPart?: {
+        maxLength?: number;
+        minLength?: number;
+        allowedChars?: string;
+        disallowedChars?: string;
+    };
+    domain?: DomainParams;
 };
 
-export const defaultTimeParams = {
-    format: 'HH:mm:ss',
-} as const;
+export type Email<P extends EmailParams = typeof DefaultEmailParams> = TypeFormat<string, 'email', P>;
 
-export type StringDate<P extends StringDateParams> = TypeFormat<string, 'date', P>;
-
-// Date validator
-export class DateValidator extends JitRunTypeValidator {
-    static id = 'date';
+// Email validator
+export class EmailValidator extends JitRunTypeValidator<EmailParams> {
+    static id = 'email';
     kind = ReflectionKind.string;
-    name = DateValidator.id;
+    name = EmailValidator.id;
     _compileIsType(comp: JitCompiler, rt: BaseRunType): string {
         return `// TODO: ${comp.vλl} ${rt.getKindName()}`;
     }
     _compileTypeErrors(comp: JitErrorsCompiler, rt: BaseRunType): string {
-        // TODO: Implement date validation error logic
+        // TODO: Implement email validation error logic
         return `if (!(${this._compileIsType(comp, rt)})) ${comp.callJitErr('string', {format: this.name, typeName: rt.src.typeName})}`;
     }
     _mock(mockContext: MockOperation, rt: BaseRunType) {
         // TODO
         return {value: rt.getKindName()};
     }
+    validateParams() {}
+}
+
+export function isEmail(value: string): value is Email {
+    return typeof value === 'string';
 }

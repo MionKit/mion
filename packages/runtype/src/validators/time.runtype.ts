@@ -8,26 +8,27 @@ import type {BaseRunType} from '../lib/baseRunTypes';
 import type {JitCompiler, JitErrorsCompiler} from '../lib/jitCompiler';
 import {JitRunTypeValidator} from '../lib/jitFormatters';
 import {ReflectionKind} from '../lib/_deepkit/src/reflection/type';
-import {TypeFormat} from '../lib/formats.runtypes';
+import {TypeFormat} from '../lib/formats.runtype';
 import {MockOperation} from '../types';
 import {JITUtils} from '../lib/jitUtils';
 import {compilePureFunctionCall, registerFormatter, registerPureFunctionGroup} from '../lib/formats';
 
 export type TimeStringParams = {
     format: 'ISO' | 'HH:mm:ss[.mmm]TZ' | 'HH:mm:ss[.mmm]' | 'HH:mm:ss' | 'HH:mm' | 'mm:ss' | 'HH' | 'mm' | 'ss';
+    isTimeDiff?: boolean;
 };
 
 export const defaultTimeParams = {
-    format: 'HH:mm:ss',
-} as const;
+    format: 'ISO',
+} as const satisfies TimeStringParams;
 
 export type TimeString<P extends TimeStringParams = typeof defaultTimeParams> = TypeFormat<string, 'time', P>;
 
 // Time validator
-export class TimeValidator extends JitRunTypeValidator<TimeStringParams> {
+export class TimeStringValidator extends JitRunTypeValidator<TimeStringParams> {
     static id = 'time';
     kind = ReflectionKind.string;
-    name = TimeValidator.id;
+    name = TimeStringValidator.id;
     _compileIsType(comp: JitCompiler, rt: BaseRunType): string {
         const params = this.getParams(rt, defaultTimeParams);
         return compilePureFunctionCall(comp, rt, isTimeString, {format: params.format, id: ForMatsIds[params.format]});
@@ -181,7 +182,7 @@ export function isSecondsWithMlsString(secsAnsMls: string, ju: JITUtils): secsAn
     return true;
 }
 export function isTimeZoneString(timeZone: string, ju: JITUtils): timeZone is 'TZ' {
-    const isZ = timeZone.endsWith('Z') || timeZone.endsWith('z');
+    const isZ = timeZone === 'Z' || timeZone === 'z';
     if (isZ) return true;
     const tzParts = timeZone.split(':') as ['hh', 'mm'];
     if (tzParts.length !== 2) return false;
@@ -201,4 +202,4 @@ registerPureFunctionGroup([
     isSecondsWithMlsString,
     isTimeZoneString,
 ]);
-registerFormatter(new TimeValidator());
+registerFormatter(new TimeStringValidator());
