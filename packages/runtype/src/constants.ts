@@ -20,6 +20,9 @@ export interface JitFnSetting {
 export const jitValidationFunctions = {
     isType: {id: 'is', name: 'isType', hasReturn: false, isExpression: true},
     typeErrors: {id: 'te', name: 'typeErrors', hasReturn: false, isExpression: false},
+    // not yet implemented, this will check a type bug ignore sll type formats, ie, lowercase, uppercase, etc
+    // this will be used for better performance once ensured that a tye has been already formatted
+    isTypeIgnoreFormat: {id: 'isNF', name: 'isTypeIgnoreFormat', hasReturn: false, isExpression: true},
 } as const satisfies {[key: string]: JitFnSetting};
 
 export const jitSerializationFunctions = {

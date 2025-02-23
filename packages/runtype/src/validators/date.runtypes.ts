@@ -30,4 +30,3 @@ export class DateValidator extends JitRunTypeValidator {
         return {value: rt.getKindName()};
     }
 }
-1;

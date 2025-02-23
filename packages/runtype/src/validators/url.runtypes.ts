@@ -47,6 +47,7 @@ export class URLValidator extends JitRunTypeValidator {
         // TODO
         return {value: rt.getKindName()};
     }
+    validateParams() {}
 }
 
 /**

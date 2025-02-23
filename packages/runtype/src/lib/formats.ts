@@ -226,9 +226,12 @@ export abstract class JitRunTypeValidator<P extends TypeFormatParams = TypeForma
     abstract name: string;
 
     getParams(rt: BaseRunType, defaultParams: NonNullable<P>) {
-        return getFormatterParams(rt, this.name, 'validator', defaultParams) as NonNullable<P>;
+        const params = getFormatterParams(rt, this.name, 'validator', defaultParams) as NonNullable<P>;
+        this.validateParams?.(rt, params);
+        return params;
     }
-
+    /** Throws an error if params are not valid */
+    validateParams?(rt: BaseRunType, params: P): void;
     jitFnHasReturn = (fnId: JitFnID) => jitFnHasReturn(fnId);
     jitFnIsExpression = (fnId: JitFnID) => jitFnIsExpression(fnId);
 
@@ -243,13 +246,19 @@ export abstract class JitRunTypeTransformer<P extends TypeFormatParams = TypeFor
     abstract name: string;
 
     getParams(rt: BaseRunType, defaultParams: NonNullable<P>) {
-        return getFormatterParams(rt, this.name, 'formatter', defaultParams) as NonNullable<P>;
+        const params = getFormatterParams(rt, this.name, 'formatter', defaultParams) as NonNullable<P>;
+        this.validateParams?.(rt, params);
+        return params;
     }
 
+    /** Throws an error if params are not valid */
+    validateParams?(rt: BaseRunType, params: P): void;
     jitFnHasReturn = (fnId: JitFnID) => jitFnHasReturn(fnId);
     jitFnIsExpression = (fnId: JitFnID) => jitFnIsExpression(fnId);
     abstract _mock(mockContext: MockOperation, rt: BaseRunType, val: any): any;
     abstract _format(comp: JitCompiler, rt: BaseRunType): string;
+    abstract _compileIsType(comp: JitCompiler, rt: BaseRunType): string;
+    abstract _compileTypeErrors(comp: JitErrorsCompiler, rt: BaseRunType): string;
 
     /** Value are always transformed on ingest by default, Formatters can override this method to change functionality. */
     _compileFromJsonVal = (comp: JitCompiler, rt: BaseRunType): string | undefined => this._format(comp, rt);

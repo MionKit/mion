@@ -198,6 +198,12 @@ export class JitCompiler<ID extends JitFnID = any> extends BaseCompiler<typeof j
     }
 }
 
+export class JitIsTypeCompiler<ID extends JitFnID = any> extends JitCompiler<ID> {
+    constructor(rt: BaseRunType, id: ID, parentLength: number = 0) {
+        super(rt, id, parentLength);
+    }
+}
+
 export class JitErrorsCompiler<ID extends JitFnID = any> extends BaseCompiler<typeof jitErrorArgs, ID> {
     constructor(rt: BaseRunType, id: ID, parentLength: number = 0) {
         const args = {...jitErrorArgs};
