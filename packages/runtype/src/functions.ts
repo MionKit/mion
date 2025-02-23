@@ -18,7 +18,14 @@ export async function typeErrorsFn<T>(type?: ReceiveType<T>): Promise<TypeErrors
     return rt.createJitFunction(JitFunctions.typeErrors);
 }
 
-export function mockType<T>(type?: ReceiveType<T>): T {
+/** Returns a function that checks if the given value is of the specified type, but ignore type transformations like uppercase, lowercase etc */
+export async function isTypeIgnoreFormatFn<T>(type: ReceiveType<T>): Promise<IsTypeFn> {
     const rt = runType(type);
-    return rt.mock() as T;
+    return rt.createJitFunction(JitFunctions.isTypeIgnoreFormat);
+}
+
+/** Returns a function that checks if the given value is of the specified type. */
+export function mockTypeFn<T>(type?: ReceiveType<T>): () => T {
+    const rt = runType(type);
+    return (): T => rt.mock();
 }

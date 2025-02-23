@@ -249,16 +249,14 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
             switch (fnId) {
                 case JitFunctions.isType.id: {
                     code = this._compileIsType(comp);
-                    const validators = typeFormatters?.filter(isRunTypeValidator);
-                    const validationCode = validators?.map((v) => v._compileIsType(comp, this)).filter(Boolean).join(' && ') || undefined;
+                    const validationCode = typeFormatters?.map((v) => v._compileIsType(comp, this)).filter(Boolean).join(' && ') || undefined;
                     if (code && validationCode) code += ' && ' + validationCode;
                     else if (validationCode) code = validationCode;
                     break;
                 }
                 case JitFunctions.typeErrors.id: {
                     code = this._compileTypeErrors(comp as JitErrorsCompiler);
-                    const validators = typeFormatters?.filter(isRunTypeValidator);
-                    const validationCode = validators?.map((v) => v._compileTypeErrors(comp as JitErrorsCompiler, this)).filter(Boolean).join(';') || undefined;
+                    const validationCode = typeFormatters?.map((v) => v._compileTypeErrors(comp as JitErrorsCompiler, this)).filter(Boolean).join(';') || undefined;
                     if (code && validationCode) code += ';' + validationCode;
                     else if (validationCode) code = validationCode;
                     break;

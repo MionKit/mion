@@ -48,6 +48,7 @@ export class EmailValidator extends JitRunTypeValidator<EmailParams> {
         // TODO
         return {value: rt.getKindName()};
     }
+    validateParams() {}
 }
 
 export function isEmail(value: string): value is Email {

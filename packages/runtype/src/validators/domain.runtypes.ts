@@ -37,4 +37,5 @@ export class DomainValidator extends JitRunTypeValidator<DomainParams> {
         // TODO
         return {value: rt.getKindName()};
     }
+    validateParams() {}
 }

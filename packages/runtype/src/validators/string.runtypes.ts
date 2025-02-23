@@ -13,15 +13,12 @@ import {ReflectionKind} from '../lib/_deepkit/src/reflection/type';
 import {jitUtils} from '../lib/jitUtils';
 import {MockOperation} from '../types';
 import {mockString, random, randomItem} from '../lib/mock';
-import {JitFunctions} from '../constants';
 
-export const ALPHANUMERIC_REGEX = /[\p{L}|\p{N}]/gu;
-export const ALPHANUMERIC_S_REGEX = /[\p{L}|\p{N}|\s]/gu;
-export const ALPHA_REGEX = /[\p{L}|\s]/gu;
-export const ALPHA_S_REGEX = /[\p{L}]/gu;
-export const NUMERIC_REGEX = /[\p{N}]/gu;
+export const ALPHANUMERIC_REGEX = /^[\p{L}\p{N}]+$/u;
+export const ALPHA_REGEX = /^[\p{L}]+$/u;
+export const NUMERIC_REGEX = /^[\p{N}]+$/u;
 
-// Each validator property must match a validator  name
+// ############### String Format Params ###############
 export type StringValidatorsParams = {
     // validators
     maxLength?: number;
@@ -31,30 +28,37 @@ export type StringValidatorsParams = {
     allowedChars?: string;
     disallowedChars?: string;
     samples?: string[];
+    sampleChars?: string;
 };
-
 export type StringTransformersParams = {
     // formatters
     lowercase?: boolean;
     uppercase?: boolean;
     capitalize?: boolean;
-    unCapitalize?: boolean;
 };
-
 export type StringFormatParams = StringValidatorsParams & StringTransformersParams;
+
+// ############### Base String Format ###############
 
 export type StringFormat<P extends StringFormatParams> = TypeFormat<string, 'string', P>;
 
-export type Alpha<P extends StringFormatParams = {}> = StringFormat<P & {pattern: typeof ALPHA_REGEX}>;
-export type AlphaNumeric = StringFormat<{pattern: typeof ALPHANUMERIC_REGEX}>;
-export type Numeric = StringFormat<{pattern: typeof NUMERIC_REGEX}>;
-export type Lower = StringFormat<{lowercase: true}>;
-export type Upper = StringFormat<{uppercase: true}>;
-export type Capital = StringFormat<{capitalize: true}>;
-export type UnCapital = StringFormat<{unCapitalize: true}>;
+// ############### Default String Formats ###############
+
+export type AlphaString<P extends StringFormatParams = {}> = StringFormat<
+    P & {pattern: typeof ALPHA_REGEX; sampleChars: 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ'}
+>;
+export type AlphaNumericString<P extends StringFormatParams = {}> = StringFormat<
+    P & {pattern: typeof ALPHANUMERIC_REGEX; sampleChars: 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'}
+>;
+export type NumericString<P extends StringFormatParams = {}> = StringFormat<
+    P & {pattern: typeof NUMERIC_REGEX; sampleChars: '0123456789'}
+>;
+export type LowerString<P extends StringFormatParams = {}> = StringFormat<P & {lowercase: true}>;
+export type UpperString<P extends StringFormatParams = {}> = StringFormat<P & {uppercase: true}>;
+export type CapitalString<P extends StringFormatParams = {}> = StringFormat<P & {capitalize: true}>;
 
 // ############### Validator ###############
-export class StringValidator extends JitRunTypeValidator<StringFormatParams> {
+class StringValidator extends JitRunTypeValidator<StringFormatParams> {
     static readonly id = 'string';
     readonly kind = ReflectionKind.string;
     readonly name = 'string' as const;
@@ -120,46 +124,112 @@ export class StringValidator extends JitRunTypeValidator<StringFormatParams> {
         return errors.join(';');
     }
     _mock(mockContext: MockOperation, rt: BaseRunType) {
-        const params = this.getParams(rt, {});
-        return stringValidatorMock(rt, mockContext, params);
+        return stringValidatorMock(rt, mockContext, this.getParams(rt, {}));
+    }
+    validateParams(rt: BaseRunType, params: StringFormatParams): void {
+        const {pattern, samples, sampleChars} = params;
+        if (pattern && !samples && !sampleChars)
+            throw new Error(`'samples' or 'sampleChars' must be provided when 'pattern' is defined for type ${rt.getTypeName()}`);
+        if (pattern && samples) {
+            samples.forEach((sample) => {
+                if (!this.isType(sample, params))
+                    throw new Error(
+                        `provided sample [${sample}] does not match all the constraints for type ${rt.getTypeName()}`
+                    );
+            });
+        }
+        if (pattern && sampleChars) {
+            if (!pattern.test(sampleChars))
+                throw new Error(
+                    `provided sampleChars (${sampleChars}) does not match all the constraints for type ${rt.getTypeName()}`
+                );
+        }
+    }
+    isType(value: any, params: StringFormatParams): value is string {
+        const {maxLength, minLength, length, pattern, allowedChars, disallowedChars} = params;
+        if (maxLength !== undefined && value.length > maxLength) return false;
+        if (minLength !== undefined && value.length < minLength) return false;
+        if (length !== undefined && value.length !== length) return false;
+        if (pattern !== undefined && !pattern.test(value)) return false;
+        if (allowedChars !== undefined && !allowedCharsFn(value, jitUtils, params as Required<StringFormatParams>)) return false;
+        if (disallowedChars !== undefined && !disallowedCharsFn(value, jitUtils, params as Required<StringFormatParams>))
+            return false;
+        return true;
     }
 }
 
 // ############### Formatter ###############
 
-export class StringFormatter extends JitRunTypeTransformer<StringFormatParams> {
+class StringFormatter extends JitRunTypeTransformer<StringFormatParams> {
     static readonly id = 'string';
     readonly kind = ReflectionKind.string as const;
     readonly name = StringFormatter.id;
     _format(comp: JitCompiler, rt: BaseRunType): string {
-        const {lowercase, uppercase, capitalize, unCapitalize} = this.getParams(rt, {});
-        // if more than one formatter is defined, then throw an error
-        if ([lowercase, uppercase, capitalize, unCapitalize].filter((v) => v).length > 1) {
-            throw new Error('Only one string formatter can be defined, either lowercase, uppercase, capitalize or unCapitalize');
-        }
+        const {lowercase, uppercase, capitalize} = this.getParams(rt, {});
         if (lowercase) return `${comp.vλl}.toLowerCase()`;
         if (uppercase) return `${comp.vλl}.toUpperCase()`;
         if (capitalize) return `${comp.vλl}.charAt(0).toUpperCase() + ${comp.vλl}.slice(1)`;
-        if (unCapitalize) return `${comp.vλl}.charAt(0).toLowerCase() + ${comp.vλl}.slice(1)`;
         return '';
+    }
+    _compileIsType(comp: JitCompiler, rt: BaseRunType): string {
+        const {lowercase, uppercase, capitalize} = this.getParams(rt, {});
+        const conditions: string[] = [];
+        if (lowercase) conditions.push(`${comp.vλl} === ${comp.vλl}.toLowerCase()`);
+        if (uppercase) conditions.push(`${comp.vλl} === ${comp.vλl}.toUpperCase()`);
+        if (capitalize) {
+            const isFirstLetterUppercase = `${comp.vλl}.charAt(0) === ${comp.vλl}.charAt(0).toUpperCase()`;
+            const isRestLowercase = `${comp.vλl}.slice(1) === ${comp.vλl}.slice(1).toLowerCase()`;
+            conditions.push(`${isFirstLetterUppercase} && ${isRestLowercase}`);
+        }
+        if (conditions.length === 0) return '';
+        return conditions.join(' && ');
+    }
+    _compileTypeErrors(comp: JitErrorsCompiler, rt: BaseRunType): string {
+        const {lowercase, uppercase, capitalize} = this.getParams(rt, {});
+        const errors: string[] = [];
+        if (lowercase) {
+            const info = {format: 'lowercase', typeName: rt.src.typeName};
+            errors.push(`if (!(${comp.vλl} === ${comp.vλl}.toLowerCase())) ${comp.callJitErr('string', info)}`);
+        }
+        if (uppercase) {
+            const info = {format: 'uppercase', typeName: rt.src.typeName};
+            errors.push(`if (!(${comp.vλl} === ${comp.vλl}.toUpperCase())) ${comp.callJitErr('string', info)}`);
+        }
+        if (capitalize) {
+            const isFirstLetterUppercase = `${comp.vλl}.charAt(0) === ${comp.vλl}.charAt(0).toUpperCase()`;
+            const isRestLowercase = `${comp.vλl}.slice(1) === ${comp.vλl}.slice(1).toLowerCase()`;
+            const info = {format: 'capitalize', typeName: rt.src.typeName};
+            errors.push(`if (!(${isFirstLetterUppercase} && ${isRestLowercase})) ${comp.callJitErr('string', info)}`);
+        }
+        return errors.join(';');
     }
     _mock(mockContext: MockOperation, rt: BaseRunType, val: any) {
         const params = this.getParams(rt, {});
         return stringTransformerMock(rt, mockContext, params, val);
+    }
+    validateParams(rt: BaseRunType, params: StringFormatParams) {
+        // throw error if more than one formatter is defined
+        const {lowercase, uppercase, capitalize} = params;
+        if ([lowercase, uppercase, capitalize].filter((v) => v).length > 1) {
+            throw new Error(
+                `Only one string formatter can be defined, either lowercase, uppercase or capitalize for type ${rt.getTypeName()}`
+            );
+        }
     }
 }
 
 // ############### UTIL FUNCTIONS (Might be reused by other Type Formatters) ###############
 
 export function stringValidatorMock(rt: BaseRunType, mockContext: MockOperation, params: StringFormatParams): string {
-    const {maxLength, minLength, length, pattern, allowedChars, disallowedChars, samples} = params;
-    if (pattern && !samples) throw new Error(`'samples' must be provided when 'pattern' is defined for type ${rt.getTypeName()}`);
+    const {maxLength, minLength, length, pattern, allowedChars, disallowedChars, samples, sampleChars} = params;
     if (pattern && samples) {
-        const sample = randomItem(samples);
-        const isType = rt.createJitFunction(JitFunctions.isType);
-        if (!isType(sample))
-            throw new Error(`provided sample [${sample}] does not match all the constraints for type ${rt.getTypeName()}`);
-        return sample;
+        return randomItem(samples);
+    }
+    if (pattern && sampleChars) {
+        const newAllowedChars = allowedChars ? allowedChars + sampleChars : sampleChars;
+        const newMinLength = minLength ? minLength : 1; // patterns will fail if generated string length is 0
+        const newParams = {...params, pattern: undefined, allowedChars: newAllowedChars, minLength: newMinLength};
+        return stringValidatorMock(rt, mockContext, newParams);
     }
     switch (true) {
         case length !== undefined:
@@ -176,17 +246,16 @@ export function stringValidatorMock(rt: BaseRunType, mockContext: MockOperation,
 }
 
 export function stringTransformerMock(rt: BaseRunType, mockContext: MockOperation, params: StringFormatParams, val: any): any {
-    const {lowercase, uppercase, capitalize, unCapitalize} = params;
+    const {lowercase, uppercase, capitalize} = params;
     // if more than one formatter is defined, then throw an error
-    if ([lowercase, uppercase, capitalize, unCapitalize].filter((v) => v).length > 1) {
+    if ([lowercase, uppercase, capitalize].filter((v) => v).length > 1) {
         throw new Error(
-            `Only one string formatter can be defined, either lowercase, uppercase, capitalize or unCapitalize for type ${rt.getTypeName()}`
+            `Only one string formatter can be defined, either lowercase, uppercase or capitalize for type ${rt.getTypeName()}`
         );
     }
     if (lowercase) return val.toLowerCase();
     if (uppercase) return val.toUpperCase();
     if (capitalize) return val.charAt(0).toUpperCase() + val.slice(1);
-    if (unCapitalize) return val.charAt(0).toLowerCase() + val.slice(1);
     return val;
 }
 
@@ -202,7 +271,7 @@ export function disallowedCharsFn(s: string, jUtl, p: Required<StringFormatParam
     return true;
 }
 
-// ############### register runtypes ###############
+// ############### Register runtypes ###############
 
 // register pure functions so they can be used in the jit compiler
 jitUtils.addPureFn(allowedCharsFn);

@@ -36,4 +36,5 @@ export class IPValidator extends JitRunTypeValidator {
         // TODO
         return {value: rt.getKindName()};
     }
+    validateParams() {}
 }
