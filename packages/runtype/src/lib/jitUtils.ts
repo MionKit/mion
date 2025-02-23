@@ -149,18 +149,22 @@ export const jitUtils = {
         if (isSafeMapKeyValue(value)) return value;
         return null;
     },
-    addPureFn<P extends TypeFormatParams>(fn: PureFunction<P>) {
-        if (!fn.name) throw new Error('Pure function must have a name and must be unique');
-        const existing = pureFnsCache.get(fn.name);
-        if (existing && existing.fn !== fn) throw new Error(`Pure function with name ${fn.name} already exists`);
+    addPureFn(compiledFn: CompiledPureFunction) {
+        if (!compiledFn.name) throw new Error('Pure function must have a name and must be unique');
+        const existing = pureFnsCache.get(compiledFn.name);
         if (existing) return existing;
-        const compiled: CompiledPureFunction = {fn, code: fn.toString()};
-        pureFnsCache.set(fn.name, compiled);
+        pureFnsCache.set(compiledFn.name, compiledFn);
     },
-    getPureFn(name: string): PureFunction<TypeFormatParams> {
-        const fn = pureFnsCache.get(name);
+    usePureFn(name: string): PureFunction<TypeFormatParams> {
+        const fn = pureFnsCache.get(name)?.fn;
         if (!fn) throw new Error(`Pure function with name ${name} not found`);
-        return fn.fn;
+        return fn;
+    },
+    getPureFn(name: string): PureFunction<TypeFormatParams> | undefined {
+        return pureFnsCache.get(name)?.fn;
+    },
+    getCompiledPureFn(name: string): CompiledPureFunction | undefined {
+        return pureFnsCache.get(name);
     },
     hasPureFn(name: string): boolean {
         return !!pureFnsCache.get(name);

@@ -233,23 +233,16 @@ export class JitErrorsCompiler<ID extends JitFnID = any> extends BaseCompiler<ty
 export function createJitCompiler(rt: BaseRunType, fnId: JitFnID, parent?: BaseCompiler): BaseCompiler {
     switch (fnId) {
         case JitFunctions.isType.id:
-            return new JitCompiler(rt, fnId, parent?.totalLength);
-        case JitFunctions.typeErrors.id:
-            return new JitErrorsCompiler(rt, fnId, parent?.totalLength);
         case JitFunctions.toJsonVal.id:
-            return new JitCompiler(rt, fnId, parent?.totalLength);
         case JitFunctions.fromJsonVal.id:
-            return new JitCompiler(rt, fnId, parent?.totalLength);
         case JitFunctions.jsonStringify.id:
-            return new JitCompiler(rt, fnId, parent?.totalLength);
-        case JitFunctions.unknownKeyErrors.id:
-            return new JitErrorsCompiler(rt, fnId, parent?.totalLength);
         case JitFunctions.hasUnknownKeys.id:
-            return new JitCompiler(rt, fnId, parent?.totalLength);
         case JitFunctions.stripUnknownKeys.id:
-            return new JitCompiler(rt, fnId, parent?.totalLength);
         case JitFunctions.unknownKeysToUndefined.id:
             return new JitCompiler(rt, fnId, parent?.totalLength);
+        case JitFunctions.typeErrors.id:
+        case JitFunctions.unknownKeyErrors.id:
+            return new JitErrorsCompiler(rt, fnId, parent?.totalLength);
         default:
             throw new Error(`Unknown compile operation: ${fnId}`);
     }
@@ -352,63 +345,3 @@ function getStackStaticPath(comp: BaseCompiler): (string | number)[] {
     }
     return path;
 }
-
-// export function getSerializableJitCompiler(compiled: JITCompiledFunctions): SerializableJITFunctions {
-//     return {
-//         isType: {argNames: compiled.isType.argNames, code: compiled.isType.code},
-//         typeErrors: {argNames: compiled.typeErrors.argNames, code: compiled.typeErrors.code},
-//         toJsonVal: {argNames: compiled.toJsonVal.argNames, code: compiled.toJsonVal.code},
-//         fromJsonVal: {argNames: compiled.fromJsonVal.argNames, code: compiled.fromJsonVal.code},
-//         jsonStringify: {argNames: compiled.jsonStringify.argNames, code: compiled.jsonStringify.code},
-//     };
-// }
-
-// export function codifyJitFn(fn: JitFnData<(vλl: any) => any>): string {
-//     const argNames = fn.argNames;
-//     return `{\n  argNames:${arrayToLiteral(argNames)},\n  code:${toLiteral(fn.code)},\n  fn:function(${argNames.join(',')}){${fn.code}}\n}`;
-// }
-
-// export function codifyJitFunctions(compiled: JITCompiledFunctions): string {
-//     const isType = codifyJitFn(compiled.isType);
-//     const typeErrors = codifyJitFn(compiled.typeErrors);
-//     const toJsonVal = codifyJitFn(compiled.toJsonVal);
-//     const fromJsonVal = codifyJitFn(compiled.fromJsonVal);
-//     const jsonStringify = codifyJitFn(compiled.jsonStringify);
-//     return `{\n isType:${isType},\n typeErrors:${typeErrors},\n toJsonVal:${toJsonVal},\n fromJsonVal:${fromJsonVal},\n jsonStringify:${jsonStringify}\n}`;
-// }
-
-// /** Transform a SerializableJITFunctions into a JITFunctions */
-// export function restoreJitFunctions(serializable: SerializableJITFunctions): JITCompiledFunctions {
-//     const restored = serializable as JITCompiledFunctions;
-//     restored.isType.fn = new Function(...restored.isType.argNames, restored.isType.code) as isTypeFn;
-//     restored.typeErrors.fn = new Function(...restored.typeErrors.argNames, restored.typeErrors.code) as typeErrorsFn;
-
-//     const encode = new Function(...restored.toJsonVal.argNames, restored.toJsonVal.code);
-//     restored.toJsonVal.fn = (vλl: any) => encode(jitUtils, vλl);
-
-//     const decode = new Function(...restored.fromJsonVal.argNames, restored.fromJsonVal.code);
-//     restored.fromJsonVal.fn = (vλl: any) => decode(jitUtils, vλl);
-
-//     const stringify = new Function(...restored.jsonStringify.argNames, restored.jsonStringify.code);
-//     const stringifyFn = (vλl: any) => stringify(jitUtils, vλl);
-//     restored.jsonStringify.fn = stringifyFn;
-
-//     return serializable as JITCompiledFunctions;
-// }
-
-// /**
-//  * Restored JITFunctions after they have been codified and parsed by js.
-//  * Codified stringify function are missing the jitUtils wrapper, so it is added here.
-//  */
-// export function restoreCodifiedJitFunctions(jitFns: UnwrappedJITFunctions): JITCompiledFunctions {
-//     const restored = jitFns as any as JITCompiledFunctions;
-//     // important to keep the original functions to avoid infinite recursion
-//     const originalDecode = jitFns.fromJsonVal.fn;
-//     restored.fromJsonVal.fn = (vλl: JSONValue) => originalDecode(jitUtils, vλl);
-//     const originalEncode = jitFns.toJsonVal.fn;
-//     jitFns.toJsonVal.fn = (vλl: any) => originalEncode(jitUtils, vλl);
-//     const originalStringifyFn = jitFns.jsonStringify.fn;
-//     restored.jsonStringify.fn = (vλl: any) => originalStringifyFn(jitUtils, vλl);
-
-//     return restored;
-// }

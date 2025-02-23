@@ -6,10 +6,10 @@
  * ######## */
 import type {BaseRunType} from '../lib/baseRunTypes';
 import type {JitCompiler, JitErrorsCompiler} from '../lib/jitCompiler';
-import {compilePureFunctionCall, JitRunTypeValidator} from '../lib/formats';
+import {compilePureFunctionCall, registerFormatter, registerPureFunction} from '../lib/formats';
+import {JitRunTypeValidator} from '../lib/jitFormatters';
 import {ReflectionKind} from '../lib/_deepkit/src/reflection/type';
 import {DomainParams} from './domain.runtypes';
-import {jitUtils, JITUtils} from '../lib/jitUtils';
 import {TypeFormat} from '../lib/formats.runtypes';
 import {MockOperation} from '../types';
 
@@ -60,7 +60,7 @@ export class URLValidator extends JitRunTypeValidator {
  * @param allowedProtocols array of allowed protocols
  * @param disallowedChars string of allowed characters
  */
-function isURL(url: string, jUtl: JITUtils, p: Required<UrlParams>): boolean {
+function isURL(url: string, jUtl, p: Required<UrlParams>): boolean {
     if (url.length > p.maxLength) return false;
     let matchesProtocol = false;
     for (const protocol of p.allowedProtocols) {
@@ -74,4 +74,5 @@ function isURL(url: string, jUtl: JITUtils, p: Required<UrlParams>): boolean {
     return true;
 }
 
-jitUtils.addPureFn(isURL);
+registerPureFunction(isURL);
+registerFormatter(new URLValidator());
