@@ -26,10 +26,28 @@ it('validate date with format YYYY-MM-DD', async () => {
     // wrong length
     expect(isType('2023-01')).toBe(false);
     expect(isType('2023-01-01-01')).toBe(false);
+    // invalid leap year
+    expect(isType('1900-02-29')).toBe(false);
+    expect(isType('2000-02-29')).toBe(true);
+    // invalid february
+    expect(isType('2023-02-30')).toBe(false);
+    // invalid month with 31 days
+    expect(isType('2023-04-31')).toBe(false);
+    expect(isType('2023-06-31')).toBe(false);
+    expect(isType('2023-09-31')).toBe(false);
+    expect(isType('2023-11-31')).toBe(false);
+    // valid month with 31 days
+    expect(isType('2023-01-31')).toBe(true);
+    expect(isType('2023-03-31')).toBe(true);
 });
 it('get date errors for format YYYY-MM-DD', async () => {
     const typeErrors = await typeErrorsFn<YYYYMMDD>();
-    const dateError = {expected: 'string', path: [], info: {format: 'date', typeName: 'YYYYMMDD'}};
+    const dateError = {
+        expected: 'string',
+        path: [],
+        format: {name: 'date', invalid: {format: 'YYYY-MM-DD'}},
+        typeName: 'YYYYMMDD',
+    };
     // valid date
     expect(typeErrors('2023-01-01')).toEqual([]);
     expect(typeErrors('0000-12-31')).toEqual([]);
@@ -75,7 +93,12 @@ it('validate date with format DD-MM-YYYY', async () => {
 });
 it('get date errors for format DD-MM-YYYY', async () => {
     const typeErrors = await typeErrorsFn<DDMMYYYY>();
-    const dateError = {expected: 'string', path: [], info: {format: 'date', typeName: 'DDMMYYYY'}};
+    const dateError = {
+        expected: 'string',
+        path: [],
+        format: {name: 'date', invalid: {format: 'DD-MM-YYYY'}},
+        typeName: 'DDMMYYYY',
+    };
     // valid date
     expect(typeErrors('01-01-2023')).toEqual([]);
     expect(typeErrors('31-12-0000')).toEqual([]);
@@ -121,7 +144,12 @@ it('validate date with format MM-DD-YYYY', async () => {
 });
 it('get date errors for format MM-DD-YYYY', async () => {
     const typeErrors = await typeErrorsFn<MMDDYYYY>();
-    const dateError = {expected: 'string', path: [], info: {format: 'date', typeName: 'MMDDYYYY'}};
+    const dateError = {
+        expected: 'string',
+        path: [],
+        format: {name: 'date', invalid: {format: 'MM-DD-YYYY'}},
+        typeName: 'MMDDYYYY',
+    };
     // valid date
     expect(typeErrors('01-01-2023')).toEqual([]);
     expect(typeErrors('12-31-0000')).toEqual([]);
@@ -166,7 +194,7 @@ it('validate date with format YYYY-MM', async () => {
 });
 it('get date errors for format YYYY-MM', async () => {
     const typeErrors = await typeErrorsFn<YYYYMM>();
-    const dateError = {expected: 'string', path: [], info: {format: 'date', typeName: 'YYYYMM'}};
+    const dateError = {expected: 'string', path: [], format: {name: 'date', invalid: {format: 'YYYY-MM'}}, typeName: 'YYYYMM'};
     // valid date
     expect(typeErrors('2023-01')).toEqual([]);
     expect(typeErrors('0000-12')).toEqual([]);
@@ -211,7 +239,7 @@ it('validate date with format MM-DD', async () => {
 });
 it('get date errors for format MM-DD', async () => {
     const typeErrors = await typeErrorsFn<MMDD>();
-    const dateError = {expected: 'string', path: [], info: {format: 'date', typeName: 'MMDD'}};
+    const dateError = {expected: 'string', path: [], format: {name: 'date', invalid: {format: 'MM-DD'}}, typeName: 'MMDD'};
     // valid date
     expect(typeErrors('01-01')).toEqual([]);
     expect(typeErrors('12-31')).toEqual([]);
@@ -257,7 +285,7 @@ it('validate date with format DD-MM', async () => {
 });
 it('get date errors for format DD-MM', async () => {
     const typeErrors = await typeErrorsFn<DDMM>();
-    const dateError = {expected: 'string', path: [], info: {format: 'date', typeName: 'DDMM'}};
+    const dateError = {expected: 'string', path: [], format: {name: 'date', invalid: {format: 'DD-MM'}}, typeName: 'DDMM'};
     // valid date
     expect(typeErrors('01-01')).toEqual([]);
     expect(typeErrors('31-12')).toEqual([]);
@@ -281,23 +309,3 @@ it('mock date with format DD-MM', async () => {
         expect(item).toMatch(matchRegex);
     }
 });
-
-function context_is_Tjxn1nljtx(utl) {
-    const isDateString0_0 = utl.getPureFn('isDateString');
-    const isDateString0_0P = {format: 'DD-MM', id: 6};
-    function is_Tjxn1nljtx(v) {
-        return typeof v === 'string' && isDateString0_0(v, utl, isDateString0_0P);
-    }
-    return is_Tjxn1nljtx;
-}
-
-function context_te_Tjxn1nljtx(utl) {
-    const isDateString0_0 = utl.getPureFn('isDateString');
-    const isDateString0_0P = {format: 'DD-MM', id: 6};
-    function te_Tjxn1nljtx(v, pth = [], er = []) {
-        if (typeof v !== 'string') utl.err(er, pth, [], 'string');
-        if (!isDateString0_0(v, utl, isDateString0_0P)) utl.err(er, pth, [], 'string', {format: 'date', typeName: 'DDMM'});
-        return er;
-    }
-    return te_Tjxn1nljtx;
-}

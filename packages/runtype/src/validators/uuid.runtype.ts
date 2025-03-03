@@ -6,11 +6,11 @@
  * ######## */
 import type {BaseRunType} from '../lib/baseRunTypes';
 import type {JitCompiler, JitErrorsCompiler} from '../lib/jitCompiler';
-import {registerFormatter, compilePureFunctionCall, registerPureFunction} from '../lib/formats';
+import {registerFormatter, compilePureFunctionCall, registerPureFunctionWithCtx} from '../lib/formats';
 import {JitRunTypeValidator} from '../lib/jitFormatters';
 import {ReflectionKind} from '../lib/_deepkit/src/reflection/type';
 import {MockOperation} from '../types';
-import {TypeFormat} from '../lib/formats.runtype';
+import {TypeFormat} from '../lib/formats.runtype'; // !Important: TypeFormat cant be imported as type for all runType functionality to work
 
 export type UUID_Params = {
     version: 4 | 7;
@@ -21,8 +21,8 @@ export const defUUIDParams = {
 } as const satisfies UUID_Params;
 
 // IDs
-export type UUID_V4 = TypeFormat<string, 'uuid', {version: 4}>;
-export type UUID_V7 = TypeFormat<string, 'uuid', {version: 7}>;
+export type UUID_V4 = TypeFormat<string, typeof UUID_Validator.id, {version: 4}>;
+export type UUID_V7 = TypeFormat<string, typeof UUID_Validator.id, {version: 7}>;
 
 // UUID validator
 export class UUID_Validator extends JitRunTypeValidator<UUID_Params> {
@@ -35,13 +35,16 @@ export class UUID_Validator extends JitRunTypeValidator<UUID_Params> {
         return compilePureFunctionCall(comp, rt, isUUID, {...params, version: String(params.version)});
     }
     _compileTypeErrors(comp: JitErrorsCompiler, rt: BaseRunType): string {
-        // TODO: Implement UUID validation error logic
-        const info = {format: this.name, typeName: rt.src.typeName};
-        return `if (!(${this._compileIsType(comp, rt)})) ${comp.callJitErr('string', info)}`;
+        const isTypeCode = this._compileIsType(comp, rt);
+        if (!isTypeCode) return '';
+
+        const params = this.getParams(rt, defUUIDParams);
+        const formatError = {name: this.name, invalid: {version: params.version}};
+        return `if (!(${isTypeCode})) ${comp.callJitErr(rt, undefined, formatError)}`;
     }
     _mock(mockContext: MockOperation, rt: BaseRunType) {
         const {version} = this.getParams(rt, defUUIDParams);
-        return version === 4 ? crypto.randomUUID() : uuidV7();
+        return version === 4 ? crypto.randomUUID() : mockUuidV7();
     }
     validateParams(rt: BaseRunType, params: UUID_Params) {
         if (params.version !== 4 && params.version !== 7) {
@@ -51,32 +54,35 @@ export class UUID_Validator extends JitRunTypeValidator<UUID_Params> {
 }
 
 /** Generates a random UUID V7, no hyphens are included in the uuid */
-export function uuidV7(): string {
+export function mockUuidV7(): string {
     const uuid = crypto.randomUUID();
     const timestamp = BigInt(Date.now());
     const tHex = timestamp.toString(16).padStart(12, '0');
     return `${tHex.substring(0, 8)}-${tHex.substring(8)}-7${uuid.substring(15)}`;
 }
 
-export function isUUID(value: string, utl, p: {version: '4' | '7'}): boolean {
-    if (value.length !== 36) return false;
-    for (let i = 0; i < 36; i++) {
-        if (i === 8 || i === 13 || i === 18 || i === 23) {
-            if (value[i] !== '-') return false;
-        } else if (i === 14) {
-            if (value[i] !== p.version) return false;
-        } else {
-            const charCode = value.charCodeAt(i);
-            const is09 = charCode >= 48 && charCode <= 57;
-            const isaf = charCode >= 97 && charCode <= 102;
-            const isAF = charCode >= 65 && charCode <= 70;
-            if (!(is09 || isaf || isAF)) return false;
+/** @reflection never */
+export function isUUID() {
+    return function is_uuid(value: string, p: {version: '4' | '7'}) {
+        if (value.length !== 36) return false;
+        for (let i = 0; i < 36; i++) {
+            if (i === 8 || i === 13 || i === 18 || i === 23) {
+                if (value[i] !== '-') return false;
+            } else if (i === 14) {
+                if (value[i] !== p.version) return false;
+            } else {
+                const charCode = value.charCodeAt(i);
+                const is09 = charCode >= 48 && charCode <= 57;
+                const isaf = charCode >= 97 && charCode <= 102;
+                const isAF = charCode >= 65 && charCode <= 70;
+                if (!(is09 || isaf || isAF)) return false;
+            }
         }
-    }
-    return true;
+        return true;
+    };
 }
 
 // ############### Register runtypes ###############
 
-registerPureFunction(isUUID);
+registerPureFunctionWithCtx(isUUID);
 export const uuidValidator = registerFormatter(new UUID_Validator());

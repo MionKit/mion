@@ -9,7 +9,6 @@ import type {
     Type,
     TypeCallSignature,
     TypeFunction,
-    TypeLiteral,
     TypeMethod,
     TypeMethodSignature,
     TypeTuple,
@@ -120,9 +119,21 @@ export interface JitFnData<Fn extends AnyFn> {
 
 export type SerializableJitFn<Fn extends AnyFn> = Omit<JitFnData<Fn>, 'fn'>;
 
-export type RunTypeErrorInfo = {
-    format?: string;
-    typeName?: string;
+export type TypeFormatInvalidValueItem = number | string | boolean;
+export type TypeFormatInvalid =
+    | TypeFormatInvalidValueItem
+    | TypeFormatInvalidValueItem[]
+    | {[key: string]: TypeFormatInvalidValueItem};
+
+// maps TypeFormatParams to the same type but regexp are replaced by string
+export type InvalidFormatParams<T extends TypeFormatParams = TypeFormatParams> = {
+    [K in keyof T]: T[K] extends RegExp ? string : T[K];
+};
+
+export type TypeFormatError = {
+    name?: string; // the name of the format that failed
+    // list of properties that failed validation
+    invalid?: InvalidFormatParams;
 };
 
 export interface RunTypeError {
@@ -133,7 +144,8 @@ export interface RunTypeError {
     path: (string | number)[];
     /** the type of the expected data */
     expected: string;
-    info?: RunTypeErrorInfo;
+    typeName?: string;
+    format?: TypeFormatError;
 }
 
 export type IsTypeFn = (value: any) => boolean;
@@ -249,7 +261,8 @@ export type ParsedAnnotation = DKAnnotation & {
     formatters: TypeFormatter[];
 };
 
-export type TypeFormatValue = TypeLiteral['literal'] | TypeFormatValue[] | {[key: string]: TypeFormatValue};
+type ParamLiteral = string | number | boolean | RegExp;
+export type TypeFormatValue = ParamLiteral | TypeFormatValue[] | {[key: string]: TypeFormatValue};
 export type TypeFormatParams = Record<string, TypeFormatValue>;
 export type TypeFormatParsedParams = {__jitId: string; [key: string]: TypeFormatValue};
 
@@ -259,11 +272,19 @@ export type TypeFormatParsedParams = {__jitId: string; [key: string]: TypeFormat
  * These function can be correctly serialized/deserialized using function.toString() method.
  * These function can not be anonym and must have an unique name.
  */
-export type PureFunction<P extends TypeFormatParams> = (val: any, jitUtils: JITUtils, params: P) => any;
+export type PureFunction<P extends TypeFormatParams> = GenericPureFunction<P> | ErrorsPureFunction<P>;
+export type GenericPureFunction<P extends TypeFormatParams> = (val: any, params: P) => any;
+
+/**
+ * Pure function that return an array with a list of invalid format properties.
+ * ie: if a string should be maxLength = 5 and that string is 6 characters long, the function should return {invalid:['maxLength']}
+ */
+export type ErrorsPureFunction<P extends TypeFormatParams> = (val: any, params: P) => string[] | undefined;
+export type PureFunctionWithContext<P extends TypeFormatParams> = (jitUtils: JITUtils) => PureFunction<P>;
 
 export type CompiledPureFunction = {
-    originFn?: PureFunction<any>;
-    fn: PureFunction<any>;
+    originFnWithCtx: PureFunctionWithContext<any>;
+    fn?: PureFunction<any>;
     paramNames: string[];
     body: string;
     name: string;
@@ -283,4 +304,8 @@ export type Mutable<T> = {
 
 export type DeepRequired<T> = {
     [K in keyof T]-?: T[K] extends object ? DeepRequired<T[K]> : T[K];
+};
+
+export type DeepPartial<T> = {
+    [K in keyof T]?: T[K] extends object ? DeepPartial<T[K]> : T[K];
 };

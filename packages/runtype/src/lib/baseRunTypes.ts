@@ -109,7 +109,8 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
         let mocked = typeValidator ? typeValidator._mock(updatedContext, this) : this._mock(updatedContext);
         // once mocked multiple type transformers can be applied to the mocked value
         const typeTransformers = getRunTypeTransformers(this);
-        if (typeTransformers.length) mocked = typeTransformers.reduce((acc, t) => t._mock(updatedContext, this, acc), mocked);
+        if (typeTransformers.length)
+            mocked = typeTransformers.reduce((acc, t) => t._formatMockedValue(updatedContext, this, acc), mocked);
         ctx.stack.pop();
         return mocked;
     }

@@ -7,13 +7,16 @@
  * ######## */
 import type {BaseRunType} from '../lib/baseRunTypes';
 import type {JitCompiler, JitErrorsCompiler} from '../lib/jitCompiler';
-import {TypeFormat} from '../lib/formats.runtype';
-import {compilePureFunctionCall, registerFormatter, registerPureFunctionGroup} from '../lib/formats';
-import {JitRunTypeTransformer} from '../lib/jitFormatters';
-import {JitRunTypeValidator} from '../lib/jitFormatters';
+import {TypeFormat} from '../lib/formats.runtype'; // !Important: TypeFormat cant be imported as type for all runType functionality to work
+import {
+    compileAddParamsToCtx,
+    compileErrorsPureFunctionCall,
+    registerFormatter,
+    registerPureFunctionWithCtx,
+} from '../lib/formats';
+import {JitRunTypeFormatter} from '../lib/jitFormatters';
 import {ReflectionKind} from '../lib/_deepkit/src/reflection/type';
-import {jitUtils} from '../lib/jitUtils';
-import {MockOperation} from '../types';
+import {ErrorsPureFunction, InvalidFormatParams, MockOperation, PureFunction, TypeFormatInvalid} from '../types';
 import {mockString, random, randomItem} from '../lib/mock';
 
 export const ALPHANUMERIC_REGEX = /^[\p{L}\p{N}]+$/u;
@@ -29,6 +32,8 @@ export type StringValidatorsParams = {
     pattern?: RegExp;
     allowedChars?: string;
     disallowedChars?: string;
+    allowedValues?: string[];
+    disallowedValues?: string[];
     samples?: string[];
     sampleChars?: string;
 };
@@ -39,6 +44,11 @@ export type StringTransformersParams = {
     capitalize?: boolean;
 };
 export type StringFormatParams = StringValidatorsParams & StringTransformersParams;
+
+type ParsedStringFormatParams = StringFormatParams & {
+    disallowedRegexp?: RegExp;
+    allowedRegexp?: RegExp;
+};
 
 // ############### Base String Format ###############
 
@@ -60,81 +70,93 @@ export type UpperString<P extends StringFormatParams = {}> = StringFormat<P & {u
 export type CapitalString<P extends StringFormatParams = {}> = StringFormat<P & {capitalize: true}>;
 
 // ############### Validator ###############
-class StringValidator extends JitRunTypeValidator<StringFormatParams> {
-    static readonly id = 'string';
+class StringFormatter extends JitRunTypeFormatter<ParsedStringFormatParams> {
+    static readonly id = 'string' as const;
     readonly kind = ReflectionKind.string;
-    readonly name = 'string' as const;
+    readonly name = StringFormatter.id;
+    isStr = isStringFormat();
+    escapeRegexp = (s: string) => s.replace(/[/\-\\^$*+?.()|[\]{}]/g, '\\$&');
+    getParams(rt: BaseRunType, defaultParams: StringFormatParams): ParsedStringFormatParams {
+        const params = super.getParams(rt, defaultParams);
+        if (params.allowedChars?.length) params.allowedRegexp = new RegExp(`^[${this.escapeRegexp(params.allowedChars)}]+$`);
+        if (params.disallowedChars?.length)
+            params.disallowedRegexp = new RegExp(`[${this.escapeRegexp(params.disallowedChars)}]`);
+        return params;
+    }
+    _format(comp: JitCompiler, rt: BaseRunType): string {
+        const {lowercase, uppercase, capitalize} = this.getParams(rt, {});
+        if (lowercase) return `${comp.vλl}.toLowerCase()`;
+        if (uppercase) return `${comp.vλl}.toUpperCase()`;
+        if (capitalize) return `${comp.vλl}.charAt(0).toUpperCase() + ${comp.vλl}.slice(1)`;
+        return '';
+    }
     _compileIsType(comp: JitCompiler, rt: BaseRunType): string {
-        const {maxLength, minLength, length, pattern, allowedChars, disallowedChars} = this.getParams(rt, {});
-
+        const params = this.getParams(rt, {});
         const conditions: string[] = [];
+        const {
+            maxLength,
+            minLength,
+            length,
+            pattern,
+            allowedRegexp,
+            disallowedRegexp,
+            allowedValues,
+            disallowedValues,
+            lowercase,
+            uppercase,
+            capitalize,
+        } = params;
+
+        // basic validators
         if (maxLength !== undefined) conditions.push(`${comp.vλl}.length <= ${maxLength}`);
         if (minLength !== undefined) conditions.push(`${comp.vλl}.length >= ${minLength}`);
         if (length !== undefined) conditions.push(`${comp.vλl}.length === ${length}`);
-        if (pattern !== undefined) {
-            const regexpVarName = `regexp${rt.getNestLevel()}_${comp.contextCodeItems.size}`;
-            comp.contextCodeItems.set(regexpVarName, `const ${regexpVarName} = ${pattern}`);
-            conditions.push(`${regexpVarName}.test(${comp.vλl})`);
+
+        // allowed validators (these are not simple statements so better to cal external function)
+        if (pattern || allowedRegexp || disallowedRegexp || allowedValues || disallowedValues) {
+            const {paramsName} = compileAddParamsToCtx(comp, rt, params);
+            if (pattern) conditions.push(`${paramsName}.pattern.test(${comp.vλl})`);
+            if (allowedRegexp) conditions.push(`${paramsName}.allowedRegexp.test(${comp.vλl})`);
+            if (disallowedRegexp) conditions.push(`!${paramsName}.disallowedRegexp.test(${comp.vλl})`);
+            if (allowedValues) conditions.push(`${paramsName}.allowedValues.includes(${comp.vλl})`);
+            if (disallowedValues) conditions.push(`!${paramsName}.disallowedValues.includes(${comp.vλl})`);
         }
-        if (allowedChars !== undefined) {
-            const params = {allowedChars} satisfies StringFormatParams;
-            conditions.push(compilePureFunctionCall(comp, rt, allowedCharsFn, params));
+
+        // transformers
+        if (lowercase) conditions.push(`${comp.vλl} === ${comp.vλl}.toLowerCase()`);
+        if (uppercase) conditions.push(`${comp.vλl} === ${comp.vλl}.toUpperCase()`);
+        if (capitalize) {
+            const isFirstLetterUppercase = `${comp.vλl}.charAt(0) === ${comp.vλl}.charAt(0).toUpperCase()`;
+            const isRestLowercase = `${comp.vλl}.slice(1) === ${comp.vλl}.slice(1).toLowerCase()`;
+            conditions.push(`${isFirstLetterUppercase} && ${isRestLowercase}`);
         }
-        if (disallowedChars !== undefined) {
-            const params = {disallowedChars} satisfies StringFormatParams;
-            conditions.push(compilePureFunctionCall(comp, rt, disallowedCharsFn, params));
-        }
-        if (conditions.length === 0) return '';
+
         return conditions.join(' && ');
     }
     _compileTypeErrors(comp: JitErrorsCompiler, rt: BaseRunType): string {
-        const {maxLength, minLength, length, pattern, allowedChars, disallowedChars} = this.getParams(rt, {});
-
-        const errors: string[] = [];
-        if (maxLength !== undefined) {
-            const info = {format: 'maxLength', typeName: rt.src.typeName};
-            errors.push(`if (!(${comp.vλl}.length <= ${maxLength})) ${comp.callJitErr('string', info)}`);
-        }
-        if (minLength !== undefined) {
-            const info = {format: 'minLength', typeName: rt.src.typeName};
-            errors.push(`if (!(${comp.vλl}.length >= ${minLength})) ${comp.callJitErr('string', info)}`);
-        }
-        if (length !== undefined) {
-            const info = {format: 'length', typeName: rt.src.typeName};
-            errors.push(`if (!(${comp.vλl}.length === ${length})) ${comp.callJitErr('string', info)}`);
-        }
-        if (pattern !== undefined) {
-            const regexpVarName = `regexp${rt.getNestLevel()}_${comp.contextCodeItems.size}`;
-            comp.contextCodeItems.set(regexpVarName, `const ${regexpVarName} = ${pattern}`);
-            const info = {format: 'pattern', typeName: rt.src.typeName};
-            errors.push(`if (!(${regexpVarName}.test(${comp.vλl}))) ${comp.callJitErr('string', info)}`);
-        }
-        if (allowedChars !== undefined) {
-            const params = {allowedChars} satisfies StringFormatParams;
-            const info = {format: 'allowedChars', typeName: rt.src.typeName};
-            errors.push(
-                `if (!(${compilePureFunctionCall(comp, rt, allowedCharsFn, params)})) ${comp.callJitErr('string', info)}`
-            );
-        }
-        if (disallowedChars !== undefined) {
-            const params = {disallowedChars} satisfies StringFormatParams;
-            const info = {format: 'disallowedChars', typeName: rt.src.typeName};
-            errors.push(
-                `if (!(${compilePureFunctionCall(comp, rt, disallowedCharsFn, params)})) ${comp.callJitErr('string', info)}`
-            );
-        }
-        return errors.join(';');
+        const params = this.getParams(rt, {});
+        // the get type errors function does not need to be so optimized so we call a single function that makes all the checks
+        return compileErrorsPureFunctionCall(comp, rt, stringFormatErrors, params, this.name);
     }
-    _mock(mockContext: MockOperation, rt: BaseRunType) {
-        return stringValidatorMock(rt, mockContext, this.getParams(rt, {}));
+    _mock(mockContext: MockOperation, rt: BaseRunType): string {
+        const params = this.getParams(rt, {});
+        return stringValidatorMock(rt, mockContext, params);
+    }
+    _formatMockedValue(mockContext: MockOperation, rt: BaseRunType, val: any): string {
+        const params = this.getParams(rt, {});
+        const {lowercase, uppercase, capitalize} = params;
+        if (lowercase) return val.toLowerCase();
+        if (uppercase) return val.toUpperCase();
+        if (capitalize) return val.charAt(0).toUpperCase() + val.slice(1);
+        return val;
     }
     validateParams(rt: BaseRunType, params: StringFormatParams): void {
-        const {pattern, samples, sampleChars} = params;
+        const {pattern, samples, sampleChars, lowercase, uppercase, capitalize} = params;
         if (pattern && !samples && !sampleChars)
             throw new Error(`'samples' or 'sampleChars' must be provided when 'pattern' is defined for type ${rt.getTypeName()}`);
         if (pattern && samples) {
             samples.forEach((sample) => {
-                if (!this.isType(sample, params))
+                if (!this.isStr(sample, params))
                     throw new Error(
                         `provided sample [${sample}] does not match all the constraints for type ${rt.getTypeName()}`
                     );
@@ -146,72 +168,6 @@ class StringValidator extends JitRunTypeValidator<StringFormatParams> {
                     `provided sampleChars (${sampleChars}) does not match all the constraints for type ${rt.getTypeName()}`
                 );
         }
-    }
-    isType(value: any, params: StringFormatParams): value is string {
-        const {maxLength, minLength, length, pattern, allowedChars, disallowedChars} = params;
-        if (maxLength !== undefined && value.length > maxLength) return false;
-        if (minLength !== undefined && value.length < minLength) return false;
-        if (length !== undefined && value.length !== length) return false;
-        if (pattern !== undefined && !pattern.test(value)) return false;
-        if (allowedChars !== undefined && !allowedCharsFn(value, jitUtils, params as Required<StringFormatParams>)) return false;
-        if (disallowedChars !== undefined && !disallowedCharsFn(value, jitUtils, params as Required<StringFormatParams>))
-            return false;
-        return true;
-    }
-}
-
-// ############### Formatter ###############
-
-class StringFormatter extends JitRunTypeTransformer<StringFormatParams> {
-    static readonly id = 'string';
-    readonly kind = ReflectionKind.string as const;
-    readonly name = StringFormatter.id;
-    _format(comp: JitCompiler, rt: BaseRunType): string {
-        const {lowercase, uppercase, capitalize} = this.getParams(rt, {});
-        if (lowercase) return `${comp.vλl}.toLowerCase()`;
-        if (uppercase) return `${comp.vλl}.toUpperCase()`;
-        if (capitalize) return `${comp.vλl}.charAt(0).toUpperCase() + ${comp.vλl}.slice(1)`;
-        return '';
-    }
-    _compileIsType(comp: JitCompiler, rt: BaseRunType): string {
-        const {lowercase, uppercase, capitalize} = this.getParams(rt, {});
-        const conditions: string[] = [];
-        if (lowercase) conditions.push(`${comp.vλl} === ${comp.vλl}.toLowerCase()`);
-        if (uppercase) conditions.push(`${comp.vλl} === ${comp.vλl}.toUpperCase()`);
-        if (capitalize) {
-            const isFirstLetterUppercase = `${comp.vλl}.charAt(0) === ${comp.vλl}.charAt(0).toUpperCase()`;
-            const isRestLowercase = `${comp.vλl}.slice(1) === ${comp.vλl}.slice(1).toLowerCase()`;
-            conditions.push(`${isFirstLetterUppercase} && ${isRestLowercase}`);
-        }
-        if (conditions.length === 0) return '';
-        return conditions.join(' && ');
-    }
-    _compileTypeErrors(comp: JitErrorsCompiler, rt: BaseRunType): string {
-        const {lowercase, uppercase, capitalize} = this.getParams(rt, {});
-        const errors: string[] = [];
-        if (lowercase) {
-            const info = {format: 'lowercase', typeName: rt.src.typeName};
-            errors.push(`if (!(${comp.vλl} === ${comp.vλl}.toLowerCase())) ${comp.callJitErr('string', info)}`);
-        }
-        if (uppercase) {
-            const info = {format: 'uppercase', typeName: rt.src.typeName};
-            errors.push(`if (!(${comp.vλl} === ${comp.vλl}.toUpperCase())) ${comp.callJitErr('string', info)}`);
-        }
-        if (capitalize) {
-            const isFirstLetterUppercase = `${comp.vλl}.charAt(0) === ${comp.vλl}.charAt(0).toUpperCase()`;
-            const isRestLowercase = `${comp.vλl}.slice(1) === ${comp.vλl}.slice(1).toLowerCase()`;
-            const info = {format: 'capitalize', typeName: rt.src.typeName};
-            errors.push(`if (!(${isFirstLetterUppercase} && ${isRestLowercase})) ${comp.callJitErr('string', info)}`);
-        }
-        return errors.join(';');
-    }
-    _mock(mockContext: MockOperation, rt: BaseRunType, val: any) {
-        const params = this.getParams(rt, {});
-        return stringTransformerMock(rt, mockContext, params, val);
-    }
-    validateParams(rt: BaseRunType, params: StringFormatParams) {
-        // throw error if more than one formatter is defined
-        const {lowercase, uppercase, capitalize} = params;
         if ([lowercase, uppercase, capitalize].filter((v) => v).length > 1) {
             throw new Error(
                 `Only one string formatter can be defined, either lowercase, uppercase or capitalize for type ${rt.getTypeName()}`
@@ -247,37 +203,64 @@ export function stringValidatorMock(rt: BaseRunType, mockContext: MockOperation,
     }
 }
 
-export function stringTransformerMock(rt: BaseRunType, mockContext: MockOperation, params: StringFormatParams, val: any): any {
-    const {lowercase, uppercase, capitalize} = params;
-    // if more than one formatter is defined, then throw an error
-    if ([lowercase, uppercase, capitalize].filter((v) => v).length > 1) {
-        throw new Error(
-            `Only one string formatter can be defined, either lowercase, uppercase or capitalize for type ${rt.getTypeName()}`
-        );
-    }
-    if (lowercase) return val.toLowerCase();
-    if (uppercase) return val.toUpperCase();
-    if (capitalize) return val.charAt(0).toUpperCase() + val.slice(1);
-    return val;
-}
-
 // ############### PURE FUNCTIONS ###############
-
-export function allowedCharsFn(s: string, jUtl, p: Required<StringFormatParams>): boolean {
-    for (let i = 0; i < s.length; i++) if (!p.allowedChars.includes(s[i])) return false;
-    return true;
+/** @reflection never */
+export function isStringFormat() {
+    return function is_string(s: string, p: StringFormatParams): s is string {
+        if (p.maxLength !== undefined && s.length > p.maxLength) return false;
+        if (p.minLength !== undefined && s.length < p.minLength) return false;
+        if (p.length !== undefined && s.length !== p.length) return false;
+        if (p.pattern !== undefined && !p.pattern.test(s)) return false;
+        if (p.allowedChars !== undefined) for (let i = 0; i < s.length; i++) if (!p.allowedChars.includes(s[i])) return false;
+        if (p.disallowedChars !== undefined)
+            for (let i = 0; i < p.disallowedChars.length; i++) if (s.includes(p.disallowedChars[i])) return false;
+        if (p.allowedValues !== undefined && !p.allowedValues.includes(s)) return false;
+        if (p.disallowedValues !== undefined && p.disallowedValues.includes(s)) return false;
+        if (p.lowercase && s !== s.toLowerCase()) return false;
+        if (p.uppercase && s !== s.toUpperCase()) return false;
+        if (p.capitalize) {
+            if (s.charAt(0) !== s.charAt(0).toUpperCase() || s.slice(1) !== s.slice(1).toLowerCase()) return false;
+        }
+        return true;
+    } as PureFunction<StringFormatParams>;
 }
-
-export function disallowedCharsFn(s: string, jUtl, p: Required<StringFormatParams>): boolean {
-    for (let i = 0; i < p.disallowedChars.length; i++) if (s.includes(p.disallowedChars[i])) return false;
-    return true;
+/** @reflection never */
+export function stringFormatErrors() {
+    return function string_errors(s: string, p: ParsedStringFormatParams): InvalidFormatParams | undefined {
+        const invalid: [string, TypeFormatInvalid][] = [];
+        if (p.maxLength !== undefined && s.length > p.maxLength) invalid.push(['maxLength', p.maxLength]);
+        if (p.minLength !== undefined && s.length < p.minLength) invalid.push(['minLength', p.minLength]);
+        if (p.length !== undefined && s.length !== p.length) invalid.push(['length', p.length]);
+        if (p.pattern !== undefined && !p.pattern.test(s)) invalid.push(['pattern', p.pattern.toString()]);
+        if (p.allowedRegexp !== undefined && !p.allowedRegexp.test(s)) invalid.push(['allowedChars', (p as any).allowedChars]);
+        if (p.disallowedRegexp !== undefined && p.disallowedRegexp.test(s))
+            invalid.push(['disallowedChars', (p as any).disallowedChars]);
+        if (p.allowedValues !== undefined && !p.allowedValues.includes(s)) invalid.push(['allowedValues', p.allowedValues]);
+        if (p.disallowedValues !== undefined && p.disallowedValues.includes(s))
+            invalid.push(['disallowedValues', p.disallowedValues]);
+        if (p.lowercase && s !== s.toLowerCase()) invalid.push(['lowercase', p.lowercase]);
+        if (p.uppercase && s !== s.toUpperCase()) invalid.push(['uppercase', p.uppercase]);
+        if (p.capitalize && (s.charAt(0) !== s.charAt(0).toUpperCase() || s.slice(1) !== s.slice(1).toLowerCase()))
+            invalid.push(['capitalize', p.capitalize]);
+        if (invalid.length) return Object.fromEntries(invalid);
+    } as ErrorsPureFunction<StringFormatParams>;
+}
+/** @reflection never */
+export function isAllowedString() {
+    return function is_allowed(s: string, p: ParsedStringFormatParams): boolean {
+        if (p.allowedRegexp !== undefined && !p.allowedRegexp.test(s)) return false;
+        if (p.disallowedRegexp !== undefined && p.disallowedRegexp.test(s)) return false;
+        if (p.allowedValues !== undefined && !p.allowedValues.includes(s)) return false;
+        if (p.disallowedValues !== undefined && p.disallowedValues.includes(s)) return false;
+        return true;
+    } as PureFunction<StringFormatParams>;
 }
 
 // ############### Register runtypes ###############
 
 // register pure functions so they can be used in the jit compiler
-registerPureFunctionGroup([allowedCharsFn, disallowedCharsFn]);
+registerPureFunctionWithCtx(isStringFormat);
+registerPureFunctionWithCtx(stringFormatErrors);
 
 // register Validator operations so they can be used in the jit compiler
-export const stringValidator = registerFormatter(new StringValidator());
 export const stringFormatter = registerFormatter(new StringFormatter());
