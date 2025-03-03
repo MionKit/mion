@@ -4,7 +4,7 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
-import type {JitFnArgs, Mutable, JitCompiled, JitFnID, RunTypeErrorInfo, PureFunction} from '../types';
+import type {JitFnArgs, Mutable, JitCompiled, JitFnID, TypeFormatError, PureFunction} from '../types';
 import type {BaseRunType} from './baseRunTypes';
 import type {AnyKindName} from '../constants.kind';
 import {
@@ -210,21 +210,39 @@ export class JitErrorsCompiler<ID extends JitFnID = any> extends BaseCompiler<ty
         const defaultValues = {...jitDefaultErrorArgs};
         super(rt, id, args, defaultValues, 'er', parentLength);
     }
-    callJitErr(expected: AnyKindName | BaseRunType<any>, info?: RunTypeErrorInfo): string {
+    callJitErr(expected: AnyKindName | BaseRunType<any>, typeName?: string, info?: TypeFormatError): string {
         const expectLiteral = typeof expected === 'string' ? toLiteral(expected) : toLiteral(expected.getKindName());
+        const tName = typeName || (expected as BaseRunType).src?.typeName;
         const pathItems = this.getStackStaticPathArgs();
-        return this._callJitErr(this.args.εrr, this.args.pλth, pathItems, expectLiteral, info);
+        return this._callJitErr(this.args.εrr, this.args.pλth, pathItems, expectLiteral, tName, info);
     }
-    callJitErrWithPath(expected: AnyKindName, extraPathLiteral?: string | number, info?: RunTypeErrorInfo): string {
+    callJitErrWithPath(
+        expected: AnyKindName,
+        extraPathLiteral?: string | number,
+        typeName?: string,
+        info?: TypeFormatError
+    ): string {
         const expectLiteral = toLiteral(expected);
         const extraPath = extraPathLiteral ? `${extraPathLiteral}` : '';
         const pathItems = [this.getStackStaticPathArgs(), extraPath].filter(Boolean).join(',');
-        return this._callJitErr(this.args.εrr, this.args.pλth, pathItems, expectLiteral, info);
+        return this._callJitErr(this.args.εrr, this.args.pλth, pathItems, expectLiteral, typeName, info);
     }
-    private _callJitErr(εrr: string, pλth: string, pathItems: string, expected: string, info?: RunTypeErrorInfo) {
-        const outputInfo = info && Object.values(info).filter(Boolean).length > 0;
-        const infoCode = outputInfo ? `,${JSON.stringify(info)}` : '';
-        return `utl.err(${εrr},${pλth},[${pathItems}],${expected}${infoCode})`;
+    private _callJitErr(
+        εrr: string,
+        pλth: string,
+        pathItems: string,
+        expected: string,
+        typeName?: string,
+        info?: TypeFormatError
+    ) {
+        const optionals: string[] = [];
+        if (info || typeName) {
+            const typeNameCode = typeName ? toLiteral(typeName) : 'undefined';
+            const infoCode = info ? JSON.stringify(info) : 'undefined';
+            optionals.push(typeNameCode, infoCode);
+        }
+        const optionalsCode = optionals.length ? `,${optionals.join(',')}` : '';
+        return `utl.err(${εrr},${pλth},[${pathItems}],${expected}${optionalsCode})`;
     }
 }
 

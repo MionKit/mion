@@ -5,8 +5,8 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 import type {BaseRunType} from '../lib/baseRunTypes';
-import type {JitCompiler, JitErrorsCompiler} from '../lib/jitCompiler';
-import {compilePureFunctionCall, registerFormatter, registerPureFunction} from '../lib/formats';
+import type {JitCompiler} from '../lib/jitCompiler';
+import {compilePureFunctionCall, registerFormatter, registerPureFunctionWithCtx} from '../lib/formats';
 import {JitRunTypeValidator} from '../lib/jitFormatters';
 import {ReflectionKind} from '../lib/_deepkit/src/reflection/type';
 import {DomainParams} from './domain.runtype';
@@ -39,10 +39,6 @@ export class URLValidator extends JitRunTypeValidator {
         const params = this.getParams(rt, defaultUrlParams);
         return compilePureFunctionCall(comp, rt, isURL, params);
     }
-    _compileTypeErrors(comp: JitErrorsCompiler, rt: BaseRunType): string {
-        // TODO: Implement URL validation error logic
-        return `if (!(${this._compileIsType(comp, rt)})) ${comp.callJitErr('string', {format: this.name, typeName: rt.src.typeName})}`;
-    }
     _mock(mockContext: MockOperation, rt: BaseRunType) {
         // TODO
         return {value: rt.getKindName()};
@@ -59,20 +55,22 @@ export class URLValidator extends JitRunTypeValidator {
  * @param maxLength maximum length of the URL
  * @param allowedProtocols array of allowed protocols
  * @param disallowedChars string of allowed characters
+ * @reflection never
  */
-function isURL(url: string, jUtl, p: Required<UrlParams>): boolean {
-    if (url.length > p.maxLength) return false;
-    let matchesProtocol = false;
-    for (const protocol of p.allowedProtocols) {
-        if (url.startsWith(protocol)) {
-            matchesProtocol = true;
-            break;
+function isURL() {
+    return function is_url(url: string, p: Required<UrlParams>): boolean {
+        if (url.length > p.maxLength) return false;
+        let matchesProtocol = false;
+        for (const protocol of p.allowedProtocols) {
+            if (url.startsWith(protocol)) {
+                matchesProtocol = true;
+                break;
+            }
         }
-    }
-    if (!matchesProtocol) return false;
-
-    return true;
+        if (!matchesProtocol) return false;
+        return true;
+    };
 }
 
-registerPureFunction(isURL);
+registerPureFunctionWithCtx(isURL);
 registerFormatter(new URLValidator());

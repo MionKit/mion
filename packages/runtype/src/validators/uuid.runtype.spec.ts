@@ -6,12 +6,12 @@
  * ######## */
 
 import {isTypeFn, mockTypeFn, typeErrorsFn} from '../functions';
-import {UUID_V4, UUID_V7, uuidV7} from './uuid.runtype';
+import {UUID_V4, UUID_V7, mockUuidV7} from './uuid.runtype';
 
 // ####### UUID v4 #######
 
 // uuid v4 isType
-// uuid v4 format is a string with the following format: xxxxxxxx-xxxx-4xxx-xxxx-xxxxxxxxxxxx
+// uuid v4 format is a string with the following name: xxxxxxxx-xxxx-4xxx-xxxx-xxxxxxxxxxxx
 // the 3rd section must start with 4
 it('validate uuid v4', async () => {
     const isType = await isTypeFn<UUID_V4>();
@@ -33,7 +33,7 @@ it('validate uuid v4', async () => {
 //  uuid v4 typeErrors
 it('get uuid v4 errors', async () => {
     const typeErrors = await typeErrorsFn<UUID_V4>();
-    const expectedError = {expected: 'string', path: [], info: {format: 'uuid', typeName: 'UUID_V4'}};
+    const expectedError = {expected: 'string', path: [], format: {name: 'uuid', invalid: {version: 4}}, typeName: 'UUID_V4'};
     // valid v4 and variant
     expect(typeErrors('f47ac10b-58cc-4372-a567-0e02b2c3d479')).toEqual([]);
     expect(typeErrors('FFFFFFFF-0000-4fff-aaaa-FFFFFFff9900')).toEqual([]);
@@ -73,14 +73,14 @@ it('validate uuid v7', async () => {
     // wrong length
     expect(isType('f47ac10b-58cc-7372-a567-')).toBe(false);
 
-    const someIds = Array.from({length: 20}, () => uuidV7());
+    const someIds = Array.from({length: 20}, () => mockUuidV7());
     for (const uuid of someIds) expect(isType(uuid)).toBe(true);
 });
 
 //  uuid v7 typeErrors
 it('get uuid v7 errors', async () => {
     const typeErrors = await typeErrorsFn<UUID_V7>();
-    const expectedError = {expected: 'string', path: [], info: {format: 'uuid', typeName: 'UUID_V7'}};
+    const expectedError = {expected: 'string', path: [], format: {name: 'uuid', invalid: {version: 7}}, typeName: 'UUID_V7'};
     // valid v7 and variant
     expect(typeErrors('f47ac10b-58cc-7372-b909-0e02b2c3d479')).toEqual([]);
     expect(typeErrors('FFFFFFFF-0000-7fff-aaaa-FFFFFFff9900')).toEqual([]);
@@ -92,7 +92,7 @@ it('get uuid v7 errors', async () => {
     // wrong length
     expect(typeErrors('f47ac10b-58cc-7372-a567-')).toEqual([expectedError]);
 
-    const someIds = Array.from({length: 20}, () => uuidV7());
+    const someIds = Array.from({length: 20}, () => mockUuidV7());
     for (const uuid of someIds) expect(typeErrors(uuid)).toEqual([]);
 });
 

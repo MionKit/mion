@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 import {maxStackDepth, maxUnknownKeys} from '../constants';
-import type {CompiledPureFunction, JitCompiled, PureFunction, RunTypeError, RunTypeErrorInfo, TypeFormatParams} from '../types';
+import type {CompiledPureFunction, JitCompiled, PureFunction, RunTypeError, TypeFormatError, TypeFormatParams} from '../types';
 import type {BaseCompiler} from './jitCompiler';
 
 export type JITUtils = typeof jitUtils;
@@ -135,13 +135,15 @@ export const jitUtils = {
         path: (string | number)[],
         pathItems: (string | number)[],
         expected: string,
-        info?: RunTypeErrorInfo
+        typeName?: string,
+        format?: TypeFormatError
     ) {
         const runTypeErr: RunTypeError = {
             expected,
             path: path.length ? [...path, ...pathItems] : pathItems,
         };
-        if (info) runTypeErr.info = info;
+        if (typeName) runTypeErr.typeName = typeName;
+        if (format) runTypeErr.format = format;
         err.push(runTypeErr);
     },
     // !!! DO NOT MODIFY METHOD WITHOUT REVIEWING JIT CODE INVOCATIONS!!!
@@ -156,12 +158,16 @@ export const jitUtils = {
         pureFnsCache.set(compiledFn.name, compiledFn);
     },
     usePureFn(name: string): PureFunction<TypeFormatParams> {
-        const fn = pureFnsCache.get(name)?.fn;
-        if (!fn) throw new Error(`Pure function with name ${name} not found`);
-        return fn;
+        const compiled = pureFnsCache.get(name);
+        if (!compiled) throw new Error(`Pure function with name ${name} not found`);
+        initPureFunction(compiled);
+        return compiled.fn;
     },
     getPureFn(name: string): PureFunction<TypeFormatParams> | undefined {
-        return pureFnsCache.get(name)?.fn;
+        const compiled = pureFnsCache.get(name);
+        if (!compiled) return;
+        initPureFunction(compiled);
+        return compiled.fn;
     },
     getCompiledPureFn(name: string): CompiledPureFunction | undefined {
         return pureFnsCache.get(name);
@@ -183,4 +189,23 @@ export function isSafeMapKeyValue(value: any, depth = 0): boolean {
     const type = typeof value;
     if (type === 'number' || type === 'string' || type === 'boolean') return true;
     return false;
+}
+
+function initPureFunction(compiled: CompiledPureFunction): asserts compiled is Required<CompiledPureFunction> {
+    if (compiled.fn) return;
+    if (process.env.MION_COMPILE === 'true' || process.env.JEST_WORKER_ID !== undefined) {
+        const {paramNames, body} = compiled;
+        try {
+            // when testing we immediately add the deserialized function to ensure test are working with deserialized functions
+            // this is to ensure that the deserialization process is working correctly
+            // this process is not needed in production as the original function is used
+            const newWithCtx = paramNames.length ? new Function(...paramNames, body) : new Function(body);
+            compiled.fn = newWithCtx(jitUtils) as PureFunction<any>;
+            return;
+        } catch (error: any) {
+            console.warn(`Pure ${compiled.name} can not be deserialized. Function code:\n${compiled.originFnWithCtx.toString()}`);
+            throw new Error(`Pure function ${compiled.name} can not be deserialized: ${error?.message}`);
+        }
+    }
+    compiled.fn = compiled.originFnWithCtx(jitUtils);
 }

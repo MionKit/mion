@@ -6,7 +6,7 @@
  * ######## */
 
 import {ReflectionKindName} from '../constants.kind';
-import type {CompiledPureFunction, ParsedAnnotation, PureFunction, TypeFormatParams, TypeFormatValue} from '../types';
+import type {CompiledPureFunction, ParsedAnnotation, PureFunctionWithContext, TypeFormatParams, TypeFormatValue} from '../types';
 import {
     metaAnnotation,
     ReflectionKind,
@@ -17,12 +17,12 @@ import {
     type TypeTuple,
 } from './_deepkit/src/reflection/type';
 import type {BaseRunType} from './baseRunTypes';
-import type {JitCompiler} from './jitCompiler';
-import {JitRunTypeTransformer, JitRunTypeValidator} from './jitFormatters';
+import {JitErrorsCompiler, type JitCompiler} from './jitCompiler';
+import {FormatterType, JitRunTypeFormatter, JitRunTypeTransformer, JitRunTypeValidator} from './jitFormatters';
 import {jitUtils} from './jitUtils';
-import {toLiteral} from './utils';
+import {isSafePropName, toLiteral} from './utils';
 
-export type TypeFormatter = JitRunTypeTransformer | JitRunTypeValidator;
+export type TypeFormatter = JitRunTypeFormatter | JitRunTypeValidator;
 const typeAnnotationsCache = new Map<string, TypeFormatter>();
 const validatorPrefix = 'v';
 const formatterPrefix = 'f';
@@ -41,18 +41,18 @@ export function registerFormatter<T extends TypeFormatter>(operation: T, shouldT
     return operation;
 }
 
-export function registerPureFunction(fn: PureFunction<any>, testFn = false): CompiledPureFunction {
-    const existing = jitUtils.getCompiledPureFn(fn.name);
-    if (existing && existing.originFn && existing.originFn !== fn)
-        throw new Error(`Pure function with name ${fn.name} already exists`);
+export function registerPureFunctionWithCtx(fnWithCtx: PureFunctionWithContext<any>): CompiledPureFunction {
+    const existing = jitUtils.getCompiledPureFn(fnWithCtx.name);
+    if (existing && existing.originFnWithCtx && existing.originFnWithCtx !== fnWithCtx)
+        throw new Error(`Pure function with name ${fnWithCtx.name} already exists`);
     if (existing) return existing;
-    const compiled = parsePureFunction(fn, testFn);
+    const compiled = parsePureFunctionWithCtx(fnWithCtx);
     jitUtils.addPureFn(compiled);
     return compiled;
 }
 
-export function registerPureFunctionGroup(fns: PureFunction<any>[], testFn = false): CompiledPureFunction[] {
-    const compiledFns = fns.map((fn) => registerPureFunction(fn, testFn));
+export function registerPureFunctionGroupWithCtx(fnsWithCtx: PureFunctionWithContext<any>[]): CompiledPureFunction[] {
+    const compiledFns = fnsWithCtx.map((fn) => registerPureFunctionWithCtx(fn));
     compiledFns.forEach((cfn) => {
         compiledFns.forEach((cf) => {
             if (cfn.name === cf.name) return;
@@ -76,12 +76,6 @@ export function getFormattersFromCache(typeKind: ReflectionKind, name: string, s
     return result;
 }
 
-export function getPureFn(name: string): PureFunction<any> {
-    const fn = jitUtils.getPureFn(name);
-    if (!fn) throw new Error(`Pure function ${name} not found`);
-    return fn;
-}
-
 export function getFormatterKey(prefix: string, kind: string | number, name: string | number): string {
     return `${prefix}:${kind}:${name}`;
 }
@@ -92,17 +86,17 @@ export function getTypeFormats(rt: BaseRunType): TypeFormatter[] {
 }
 
 /** Returns the validator for a given type. ATM only one validator is allowed for each type */
-export function getRunTypeValidator(rt: BaseRunType): JitRunTypeValidator | undefined {
+export function getRunTypeValidator(rt: BaseRunType): JitRunTypeValidator | JitRunTypeFormatter | undefined {
     const parsedAnnotations = metaAnnotation.getAnnotations(rt.src) as ParsedAnnotation[];
     for (const annotation of parsedAnnotations) {
-        const validator = annotation.formatters.find((f) => f instanceof JitRunTypeValidator);
-        if (validator) return validator as JitRunTypeValidator;
+        const validator = annotation.formatters.find((f) => f.type === 'F' || f.type === 'V');
+        if (validator) return validator as JitRunTypeValidator | JitRunTypeFormatter;
     }
     return undefined;
 }
 
-export function getRunTypeTransformers(rt: BaseRunType): JitRunTypeTransformer[] {
-    return getTypeFormats(rt).filter((f) => f instanceof JitRunTypeTransformer) as JitRunTypeTransformer[];
+export function getRunTypeTransformers(rt: BaseRunType): (JitRunTypeFormatter | JitRunTypeTransformer)[] {
+    return getTypeFormats(rt).filter((f) => f.type === 'T' || f.type === 'F') as JitRunTypeFormatter[];
 }
 
 export function getParsedAnnotations(rt: BaseRunType): ParsedAnnotation[] {
@@ -178,10 +172,10 @@ function recursiveParseParams(
 export function getFormatterParams<P extends TypeFormatParams>(
     rt: BaseRunType,
     name: string,
-    type: 'validator' | 'formatter',
+    type: FormatterType,
     defaultParams: P
 ): P {
-    const isValidator = type === 'validator';
+    const isValidator = type === 'V';
     const annotations = rt.getTypeAnnotations().filter((a) => a.name === name);
     for (const annotation of annotations) {
         const formatter = annotation.formatters.find((f) => {
@@ -218,6 +212,30 @@ function isRecord(value: TypeFormatValue): value is TypeFormatParams {
     return typeof value === 'object' && value !== null && !Array.isArray(value) && !(value instanceof RegExp);
 }
 
+export function typeParamsToLiteral(params: TypeFormatValue): string {
+    switch (true) {
+        case typeof params === 'string':
+            return toLiteral(params);
+        case typeof params === 'number':
+            return `${params}`;
+        case typeof params === 'boolean':
+            return params ? 'true' : 'false';
+        case params instanceof RegExp:
+            return params.toString();
+        case Array.isArray(params):
+            return `[${params.map((v) => typeParamsToLiteral(v)).join(', ')}]`;
+        case typeof params === 'object': {
+            const entriesLiterals = Object.entries(params).map(([k, v]) => {
+                const propName = isSafePropName(k) ? k : toLiteral(k);
+                return `${propName}: ${typeParamsToLiteral(v)}`;
+            });
+            return `{${entriesLiterals.join(', ')}}`;
+        }
+        default:
+            throw new Error(`Unsupported type format params ${params}`);
+    }
+}
+
 /**
  * Adds an existing pure function to the context and return code calling it.
  * The function must have a name, be pure, have no side effects and no dependencies, otherwise compiled code will not work.
@@ -227,41 +245,82 @@ function isRecord(value: TypeFormatValue): value is TypeFormatParams {
 export function compilePureFunctionCall(
     comp: JitCompiler,
     rt: BaseRunType,
-    pureFn: PureFunction<any>,
+    pureFn: PureFunctionWithContext<any>,
     params: TypeFormatParams
 ): string {
-    const name = pureFn.name;
-    if (!name) throw new Error('Pure function must have a name');
-    registerPureFunction(pureFn); // will throw if there is a different pure function with the same name
-    comp.addPureFnDependency(pureFn);
-
-    // Add context code for the pure function and params
-    const varName = `${name}${rt.getNestLevel()}_${comp.contextCodeItems.size}`;
-    const paramsName = `${varName}P`;
-    const pureFunctionCode = `const ${varName} = utl.getPureFn(${toLiteral(name)})`;
-    const paramsCode = `const ${paramsName} = ${JSON.stringify(params)}`;
-    comp.contextCodeItems.set(varName, pureFunctionCode);
-    comp.contextCodeItems.set(paramsName, paramsCode);
+    const {varName, paramsName} = compilePureFunctionContext(comp, rt, pureFn, params);
     // call the pure function, passing value, jitUtils and params (pure function arguments)
-    return `${varName}(${comp.vλl},utl,${paramsName})`;
+    return `${varName}(${comp.vλl},${paramsName})`;
 }
 
-function parsePureFunction(fn: PureFunction<any>, testFn = false): CompiledPureFunction {
-    if (!fn.name) throw new Error('Pure Functions must have a name');
+export function compileErrorsPureFunctionCall(
+    comp: JitErrorsCompiler,
+    rt: BaseRunType,
+    pureFn: PureFunctionWithContext<any>,
+    params: TypeFormatParams,
+    format: string
+): string {
+    const {varName, paramsName} = compilePureFunctionContext(comp, rt, pureFn, params);
+    const errVarName = `${varName}Err`;
+    const pathItems = comp.getStackStaticPathArgs();
+    const expectLiteral = toLiteral(rt.getKindName());
 
-    const fnString = fn.toString();
+    // call the pure function, passing value, jitUtils and params (pure function arguments)
+    const errorPureFnCall = `const ${errVarName} = ${varName}(${comp.vλl},${paramsName},${comp.args.εrr})`;
+    const infoCode = `{name:${toLiteral(format)},invalid:${errVarName}}`;
+    const typeName = rt.src.typeName ? toLiteral(rt.src.typeName) : 'undefined';
+    const callJitErr = `if (${errVarName}) utl.err(${comp.args.εrr},${comp.args.pλth},[${pathItems}],${expectLiteral},${typeName},${infoCode});`;
+    return `${errorPureFnCall};${callJitErr}`;
+}
+
+export function compilePureFunctionContext(
+    comp: JitCompiler | JitErrorsCompiler,
+    rt: BaseRunType,
+    pureFn: PureFunctionWithContext<any>,
+    params: TypeFormatParams
+): {varName: string; paramsName: string} {
+    const name = pureFn.name;
+    if (!name) throw new Error('Pure function must have a name');
+    registerPureFunctionWithCtx(pureFn); // will throw if there is a different pure function with the same name
+    comp.addPureFnDependency(pureFn);
+    // Add context code for the pure function and params
+    const varName = `${name}${rt.getNestLevel()}`;
+    const pureFunctionCode = `const ${varName} = utl.getPureFn(${toLiteral(name)})`;
+    comp.contextCodeItems.set(varName, pureFunctionCode);
+    const {paramsName} = compileAddParamsToCtx(comp, rt, params);
+    return {varName, paramsName};
+}
+
+export function compileAddParamsToCtx(
+    comp: JitCompiler | JitErrorsCompiler,
+    rt: BaseRunType,
+    params: TypeFormatParams
+): {paramsName: string} {
+    const paramsName = `ftPrams${rt.getNestLevel()}`; //TODO: we might need to add a name based on the type formatter
+    if (comp.contextCodeItems.has(paramsName)) return {paramsName};
+    const paramsCode = `const ${paramsName} = ${typeParamsToLiteral(params)}`;
+    comp.contextCodeItems.set(paramsName, paramsCode);
+    return {paramsName};
+}
+
+function parsePureFunctionWithCtx(fnWithContext: PureFunctionWithContext<any>): CompiledPureFunction {
+    if (!fnWithContext.name) throw new Error('Pure Functions must have a name');
+
+    const fnString = fnWithContext.toString();
     const bodyStart = fnString.indexOf('{');
     const bodyEnd = fnString.lastIndexOf('}');
     if (bodyStart === -1 || bodyEnd === -1 || bodyEnd <= bodyStart) throw new Error("Invalid function, can't parse body");
 
     const paramsStart = fnString.indexOf('(') + 1;
     const paramsEnd = fnString.indexOf(')');
-    if (paramsStart === 0 || paramsEnd === -1 || paramsEnd <= paramsStart)
+
+    if (paramsStart === 0 || paramsEnd === -1 || paramsEnd < paramsStart) {
         throw new Error("Invalid function, can't parse parameters");
+    }
 
     const paramsString = fnString.substring(paramsStart, paramsEnd).trim();
     const paramNames = paramsString.length > 0 ? paramsString.split(/\s*,\s*/) : [];
-    if (paramNames.length === 0 && paramNames.length > 3) throw new Error('Pure function must have between 1 and 3 parameters');
+    if (paramNames.length > 1) throw new Error('Pure function with context must have max 1 parameter');
 
     // Validate parameters
     const validIdentifier = /^[_$a-zA-Z][_$a-zA-Z0-9]*$/;
@@ -273,15 +332,13 @@ function parsePureFunction(fn: PureFunction<any>, testFn = false): CompiledPureF
     }
 
     const body = fnString.substring(bodyStart + 1, bodyEnd);
-
-    const compiled = {name: fn.name, paramNames, body, fn, originFn: fn, dependencies: new Set<string>()};
-    if (testFn || process.env.MION_COMPILE === 'true' || process.env.JEST_WORKER_ID !== undefined) {
-        try {
-            // when testing we immediately add the deserialized function to ensure test are working with deserialized functions
-            compiled.fn = new Function(...paramNames, body) as PureFunction<any>;
-        } catch (error: any) {
-            throw new Error(`Pure function ${fn.name} can not be deserialized: ${error?.message}`);
-        }
-    }
+    const compiled = {
+        originFnWithCtx: fnWithContext,
+        fn: null as any, // will be set later so all possible dependencies are resolved
+        name: fnWithContext.name,
+        paramNames,
+        body,
+        dependencies: new Set<string>(),
+    };
     return compiled;
 }

@@ -6,7 +6,17 @@
  * ######## */
 
 import {isTypeFn, mockTypeFn, typeErrorsFn} from '../functions';
-import {AlphaNumericString, AlphaString, LowerString, NumericString, StringFormat, UpperString} from './string.runtype';
+import {
+    ALPHA_REGEX,
+    ALPHANUMERIC_REGEX,
+    AlphaNumericString,
+    AlphaString,
+    LowerString,
+    NUMERIC_REGEX,
+    NumericString,
+    StringFormat,
+    UpperString,
+} from './string.runtype';
 
 // #### maxLength ####
 
@@ -21,9 +31,11 @@ it('validate string max length 2', async () => {
 it('get max length errors', async () => {
     type Max5 = StringFormat<{maxLength: 5}>;
     const typeErrors = await typeErrorsFn<Max5>();
+    const format = {name: 'string', invalid: {maxLength: 5}};
+    const expectedError = {expected: 'string', path: [], format, typeName: 'Max5'};
     expect(typeErrors('aaaa')).toEqual([]);
     expect(typeErrors('aaaaa')).toEqual([]);
-    expect(typeErrors('aaaaaa')).toEqual([{expected: 'string', path: [], info: {format: 'maxLength', typeName: 'Max5'}}]);
+    expect(typeErrors('aaaaaa')).toEqual([expectedError]);
 });
 
 it('mock max length', async () => {
@@ -49,7 +61,9 @@ it('validate string min length', async () => {
 it('get min length errors', async () => {
     type Min5 = StringFormat<{minLength: 5}>;
     const typeErrors = await typeErrorsFn<Min5>();
-    expect(typeErrors('aaaa')).toEqual([{expected: 'string', path: [], info: {format: 'minLength', typeName: 'Min5'}}]);
+    const format = {name: 'string', invalid: {minLength: 5}};
+    const expectedError = {expected: 'string', path: [], format, typeName: 'Min5'};
+    expect(typeErrors('aaaa')).toEqual([expectedError]);
     expect(typeErrors('aaaaa')).toEqual([]);
     expect(typeErrors('aaaaaa')).toEqual([]);
 });
@@ -77,7 +91,8 @@ it('validate string length', async () => {
 it('get length errors', async () => {
     type Length5 = StringFormat<{length: 5}>;
     const typeErrors = await typeErrorsFn<Length5>();
-    const expectedError = {expected: 'string', path: [], info: {format: 'length', typeName: 'Length5'}};
+    const format = {name: 'string', invalid: {length: 5}};
+    const expectedError = {expected: 'string', path: [], format, typeName: 'Length5'};
     expect(typeErrors('aaaa')).toEqual([expectedError]);
     expect(typeErrors('aaaaa')).toEqual([]);
     expect(typeErrors('aaaaaa')).toEqual([expectedError]);
@@ -106,9 +121,11 @@ it('validate string pattern', async () => {
 it('get pattern errors', async () => {
     const regex = /^[a-zA-Z]+$/;
     type AlphaPattern = StringFormat<{pattern: typeof regex; sampleChars: 'abcdefgABCDEFG'}>;
+    const format = {name: 'string', invalid: {pattern: regex.toString()}};
+    const expectedError = {expected: 'string', path: [], format, typeName: 'AlphaPattern'};
     const typeErrors = await typeErrorsFn<AlphaPattern>();
     expect(typeErrors('aaaa')).toEqual([]);
-    expect(typeErrors('aaaa1')).toEqual([{expected: 'string', path: [], info: {format: 'pattern', typeName: 'AlphaPattern'}}]);
+    expect(typeErrors('aaaa1')).toEqual([expectedError]);
 });
 
 it('mock pattern and samples', async () => {
@@ -160,18 +177,44 @@ it('validate string allowedChars', async () => {
     expect(isType('baaaaccc')).toBe(true);
     expect(isType('caaaabb')).toBe(true);
     expect(isType('d')).toBe(false);
+    expect(isType('ad')).toBe(false);
+});
+
+it('validate string allowedChars that include characters that needs to be escaped in regexp', async () => {
+    type AllowedChars = StringFormat<{allowedChars: '!\\/.*{}[]()^$?+'}>;
+    const isType = await isTypeFn<AllowedChars>();
+    expect(isType('!')).toBe(true);
+    expect(isType('\\')).toBe(true);
+    expect(isType('/')).toBe(true);
+    expect(isType('.')).toBe(true);
+    expect(isType('*')).toBe(true);
+    expect(isType('{')).toBe(true);
+    expect(isType('}')).toBe(true);
+    expect(isType('[')).toBe(true);
+    expect(isType(']')).toBe(true);
+    expect(isType('(')).toBe(true);
+    expect(isType(')')).toBe(true);
+    expect(isType('^')).toBe(true);
+    expect(isType('$')).toBe(true);
+    expect(isType('?')).toBe(true);
+    expect(isType('+')).toBe(true);
+    expect(isType('a')).toBe(false);
+    expect(isType('a?')).toBe(false);
 });
 
 it('get allowedChars errors', async () => {
     type AllowedChars = StringFormat<{allowedChars: 'abc'}>;
     const typeErrors = await typeErrorsFn<AllowedChars>();
+    const format = {name: 'string', invalid: {allowedChars: 'abc'}};
+    const expectedError = {expected: 'string', path: [], format, typeName: 'AllowedChars'};
     expect(typeErrors('a')).toEqual([]);
     expect(typeErrors('b')).toEqual([]);
     expect(typeErrors('c')).toEqual([]);
     expect(typeErrors('abc')).toEqual([]);
     expect(typeErrors('baaaaccc')).toEqual([]);
     expect(typeErrors('caaaabb')).toEqual([]);
-    expect(typeErrors('d')).toEqual([{expected: 'string', path: [], info: {format: 'allowedChars', typeName: 'AllowedChars'}}]);
+    expect(typeErrors('d')).toEqual([expectedError]);
+    expect(typeErrors('ad')).toEqual([expectedError]);
 });
 
 it('mock allowedChars', async () => {
@@ -198,12 +241,36 @@ it('validate string disallowedChars', async () => {
     expect(isType('d')).toBe(true);
     expect(isType('e')).toBe(true);
     expect(isType('deporte')).toBe(true);
+    expect(isType('ad')).toBe(false);
+});
+
+it('validate string disallowedChars that include characters that needs to be escaped in regexp', async () => {
+    type DisallowedChars = StringFormat<{disallowedChars: '!\\/.*{}[]()^$?+'}>;
+    const isType = await isTypeFn<DisallowedChars>();
+    expect(isType('!')).toBe(false);
+    expect(isType('\\')).toBe(false);
+    expect(isType('/')).toBe(false);
+    expect(isType('.')).toBe(false);
+    expect(isType('*')).toBe(false);
+    expect(isType('{')).toBe(false);
+    expect(isType('}')).toBe(false);
+    expect(isType('[')).toBe(false);
+    expect(isType(']')).toBe(false);
+    expect(isType('(')).toBe(false);
+    expect(isType(')')).toBe(false);
+    expect(isType('^')).toBe(false);
+    expect(isType('$')).toBe(false);
+    expect(isType('?')).toBe(false);
+    expect(isType('+')).toBe(false);
+    expect(isType('a')).toBe(true);
+    expect(isType('a?')).toBe(false);
 });
 
 it('get disallowedChars errors', async () => {
     type DisallowedChars = StringFormat<{disallowedChars: 'abc'}>;
     const typeErrors = await typeErrorsFn<DisallowedChars>();
-    const expectedError = {expected: 'string', path: [], info: {format: 'disallowedChars', typeName: 'DisallowedChars'}};
+    const format = {name: 'string', invalid: {disallowedChars: 'abc'}};
+    const expectedError = {expected: 'string', path: [], format, typeName: 'DisallowedChars'};
     expect(typeErrors('a')).toEqual([expectedError]);
     expect(typeErrors('b')).toEqual([expectedError]);
     expect(typeErrors('c')).toEqual([expectedError]);
@@ -213,6 +280,7 @@ it('get disallowedChars errors', async () => {
     expect(typeErrors('d')).toEqual([]);
     expect(typeErrors('e')).toEqual([]);
     expect(typeErrors('deporte')).toEqual([]);
+    expect(typeErrors('ad')).toEqual([expectedError]);
 });
 
 it('mock disallowedChars', async () => {
@@ -243,12 +311,16 @@ it('get multiple params errors', async () => {
     const regex = /^[a-zA-Z]+$/;
     type Multi = StringFormat<{pattern: typeof regex; sampleChars: 'abcdefgABCDEFG'; minLength: 5; maxLength: 8}>;
     const typeErrors = await typeErrorsFn<Multi>();
-    expect(typeErrors('aaaaa1')).toEqual([{expected: 'string', path: [], info: {format: 'pattern', typeName: 'Multi'}}]);
-    expect(typeErrors('aaaa')).toEqual([{expected: 'string', path: [], info: {format: 'minLength', typeName: 'Multi'}}]);
+    const format = {name: 'string'};
+    const expectedError = {expected: 'string', path: [], format, typeName: 'Multi'};
+    expect(typeErrors('aaaaa1')).toEqual([{...expectedError, format: {...format, invalid: {pattern: regex.toString()}}}]);
+    expect(typeErrors('aaaa')).toEqual([{...expectedError, format: {...format, invalid: {minLength: 5}}}]);
     expect(typeErrors('aaaaa')).toEqual([]);
     expect(typeErrors('aaaaaa')).toEqual([]);
-    expect(typeErrors('aaaaaaa8')).toEqual([{expected: 'string', path: [], info: {format: 'pattern', typeName: 'Multi'}}]);
-    expect(typeErrors('aaaaaaaabmajk')).toEqual([{expected: 'string', path: [], info: {format: 'maxLength', typeName: 'Multi'}}]);
+    expect(typeErrors('aaaaaaa8')).toEqual([{...expectedError, format: {...format, invalid: {pattern: regex.toString()}}}]);
+    expect(typeErrors('aaaaaaaabmaj2')).toEqual([
+        {...expectedError, format: {...format, invalid: {pattern: regex.toString(), maxLength: 8}}},
+    ]);
 });
 
 it('mock multiple params', async () => {
@@ -257,7 +329,6 @@ it('mock multiple params', async () => {
         pattern: typeof regex;
         minLength: 5;
         maxLength: 8;
-        //
         samples: ['aaaaa', 'aaaBCaaa', 'DEaaac', 'aaabaaaC'];
     }>;
     const mockType = mockTypeFn<Multi>();
@@ -298,9 +369,11 @@ it('validate string alpha', async () => {
 
 it('get alpha string errors', async () => {
     const typeErrors = await typeErrorsFn<AlphaString<{minLength: 3}>>();
+    const format = {name: 'string'};
+    const expectedError = {expected: 'string', path: [], format, typeName: 'AlphaString'};
     expect(typeErrors('abcdef')).toEqual([]);
-    expect(typeErrors('ab')).toEqual([{expected: 'string', path: [], info: {format: 'minLength', typeName: 'AlphaString'}}]);
-    expect(typeErrors('123')).toEqual([{expected: 'string', path: [], info: {format: 'pattern', typeName: 'AlphaString'}}]);
+    expect(typeErrors('ab')).toEqual([{...expectedError, format: {...format, invalid: {minLength: 3}}}]);
+    expect(typeErrors('123')).toEqual([{...expectedError, format: {...format, invalid: {pattern: ALPHA_REGEX.toString()}}}]);
 });
 
 it('mock alpha string', async () => {
@@ -328,15 +401,15 @@ it('validate string alpha numeric', async () => {
 
 it('get alpha numeric string errors', async () => {
     const typeErrors = await typeErrorsFn<AlphaNumericString<{minLength: 3}>>();
+    const format = {name: 'string'};
+    const expectedError = {expected: 'string', path: [], format, typeName: 'AlphaNumericString'};
     expect(typeErrors('abcd2891')).toEqual([]);
     expect(typeErrors('12342891')).toEqual([]);
     expect(typeErrors('abcdCDHKO')).toEqual([]);
     expect(typeErrors('abcd+!]')).toEqual([
-        {expected: 'string', path: [], info: {format: 'pattern', typeName: 'AlphaNumericString'}},
+        {...expectedError, format: {...format, invalid: {pattern: ALPHANUMERIC_REGEX.toString()}}},
     ]);
-    expect(typeErrors('ab')).toEqual([
-        {expected: 'string', path: [], info: {format: 'minLength', typeName: 'AlphaNumericString'}},
-    ]);
+    expect(typeErrors('ab')).toEqual([{...expectedError, format: {...format, invalid: {minLength: 3}}}]);
 });
 
 it('mock alpha numeric string', async () => {
@@ -367,16 +440,15 @@ it('validate string numeric', async () => {
 
 it('get numeric string errors', async () => {
     const typeErrors = await typeErrorsFn<NumericString<{minLength: 3; maxLength: 5}>>();
-    const patternError = {expected: 'string', path: [], info: {format: 'pattern', typeName: 'NumericString'}};
-    const maxLengthError = {expected: 'string', path: [], info: {format: 'maxLength', typeName: 'NumericString'}};
-    const minLengthError = {expected: 'string', path: [], info: {format: 'minLength', typeName: 'NumericString'}};
+    const format = {name: 'string'};
+    const expectedError = {expected: 'string', path: [], format, typeName: 'NumericString'};
     expect(typeErrors('1234')).toEqual([]);
     expect(typeErrors('12345')).toEqual([]);
-    expect(typeErrors('1.23')).toEqual([patternError]);
-    expect(typeErrors('1,23')).toEqual([patternError]);
-    expect(typeErrors('123456')).toEqual([maxLengthError]);
-    expect(typeErrors('12')).toEqual([minLengthError]);
-    expect(typeErrors('abcd')).toEqual([patternError]);
+    expect(typeErrors('1.23')).toEqual([{...expectedError, format: {...format, invalid: {pattern: NUMERIC_REGEX.toString()}}}]);
+    expect(typeErrors('1,23')).toEqual([{...expectedError, format: {...format, invalid: {pattern: NUMERIC_REGEX.toString()}}}]);
+    expect(typeErrors('123456')).toEqual([{...expectedError, format: {...format, invalid: {maxLength: 5}}}]);
+    expect(typeErrors('12')).toEqual([{...expectedError, format: {...format, invalid: {minLength: 3}}}]);
+    expect(typeErrors('abcd')).toEqual([{...expectedError, format: {...format, invalid: {pattern: NUMERIC_REGEX.toString()}}}]);
 });
 
 it('mock numeric string', async () => {
@@ -407,8 +479,10 @@ it('validate lowercase string', async () => {
 
 it('get lowercase string errors', async () => {
     const typeErrors = await typeErrorsFn<LowerString<{minLength: 3}>>();
-    const lowercaseError = {expected: 'string', path: [], info: {format: 'lowercase', typeName: 'LowerString'}};
-    const minLengthError = {expected: 'string', path: [], info: {format: 'minLength', typeName: 'LowerString'}};
+    const format1 = {name: 'string', invalid: {lowercase: true}};
+    const format2 = {name: 'string', invalid: {minLength: 3}};
+    const lowercaseError = {expected: 'string', path: [], format: format1, typeName: 'LowerString'};
+    const minLengthError = {expected: 'string', path: [], format: format2, typeName: 'LowerString'};
     expect(typeErrors('abcd')).toEqual([]);
     expect(typeErrors('ABCD')).toEqual([lowercaseError]);
     expect(typeErrors('Abcd')).toEqual([lowercaseError]);
@@ -446,8 +520,10 @@ it('validate uppercase string', async () => {
 
 it('get uppercase string errors', async () => {
     const typeErrors = await typeErrorsFn<UpperString<{minLength: 3}>>();
-    const uppercaseError = {expected: 'string', path: [], info: {format: 'uppercase', typeName: 'UpperString'}};
-    const minLengthError = {expected: 'string', path: [], info: {format: 'minLength', typeName: 'UpperString'}};
+    const info1 = {name: 'string', invalid: {uppercase: true}};
+    const info2 = {name: 'string', invalid: {minLength: 3}};
+    const uppercaseError = {expected: 'string', path: [], format: info1, typeName: 'UpperString'};
+    const minLengthError = {expected: 'string', path: [], format: info2, typeName: 'UpperString'};
     expect(typeErrors('abcd')).toEqual([uppercaseError]);
     expect(typeErrors('ABCD')).toEqual([]);
     expect(typeErrors('Abcd')).toEqual([uppercaseError]);
@@ -489,7 +565,8 @@ it('validate capital string', async () => {
 it('get capital string errors', async () => {
     type CapitalString = StringFormat<{capitalize: true}>;
     const typeErrors = await typeErrorsFn<CapitalString>();
-    const capitalizeError = {expected: 'string', path: [], info: {format: 'capitalize', typeName: 'CapitalString'}};
+    const format = {name: 'string', invalid: {capitalize: true}};
+    const capitalizeError = {expected: 'string', path: [], format, typeName: 'CapitalString'};
     expect(typeErrors('abcd')).toEqual([capitalizeError]);
     expect(typeErrors('ABCD')).toEqual([capitalizeError]);
     expect(typeErrors('Abcd')).toEqual([]);
