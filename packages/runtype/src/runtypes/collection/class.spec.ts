@@ -120,7 +120,7 @@ describe('Classes that extend other classes', () => {
         const valWithErrors = rtExtended.createJitFunction(JitFunctions.typeErrors);
         expect(valWithErrors(extended)).toEqual([]);
         expect(valWithErrors(base)).toEqual([{path: ['extendedProp'], expected: 'string'}]);
-        expect(valWithErrors(null)).toEqual([{path: [], expected: 'class', info: {typeName: 'ExtendedClass'}}]);
+        expect(valWithErrors(null)).toEqual([{path: [], expected: 'class'}]);
     });
 
     it('encode/decode extended class to json', () => {

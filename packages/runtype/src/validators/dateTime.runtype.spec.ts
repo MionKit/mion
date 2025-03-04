@@ -37,7 +37,6 @@ it('get datetime errors for format ISO', async () => {
         expected: 'string',
         path: [],
         format: {name: 'dateTime', invalid: {}},
-        typeName: 'ISODateTime',
     };
     const dateTimeInvalidError = JSON.parse(JSON.stringify(dateTimeError));
     dateTimeInvalidError.format.invalid = {date: {format: 'ISO'}, time: {format: 'ISO'}};
@@ -97,7 +96,6 @@ it('get datetime errors for format MM-DDTHH', async () => {
         expected: 'string',
         path: [],
         format: {name: 'dateTime', invalid: {date: {format: 'MM-DD'}, time: {format: 'HH'}}},
-        typeName: 'MMDDTHH',
     };
     const dateError = JSON.parse(JSON.stringify(dateTimeError));
     dateError.format.invalid = {date: {format: 'MM-DD'}};

@@ -135,14 +135,12 @@ export const jitUtils = {
         path: (string | number)[],
         pathItems: (string | number)[],
         expected: string,
-        typeName?: string,
         format?: TypeFormatError
     ) {
         const runTypeErr: RunTypeError = {
             expected,
             path: path.length ? [...path, ...pathItems] : pathItems,
         };
-        if (typeName) runTypeErr.typeName = typeName;
         if (format) runTypeErr.format = format;
         err.push(runTypeErr);
     },

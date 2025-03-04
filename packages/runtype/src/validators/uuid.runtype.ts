@@ -40,7 +40,7 @@ export class UUID_Validator extends JitRunTypeValidator<UUID_Params> {
 
         const params = this.getParams(rt, defUUIDParams);
         const formatError = {name: this.name, invalid: {version: params.version}};
-        return `if (!(${isTypeCode})) ${comp.callJitErr(rt, undefined, formatError)}`;
+        return `if (!(${isTypeCode})) ${comp.callJitErr(rt, formatError)}`;
     }
     _mock(mockContext: MockOperation, rt: BaseRunType) {
         const {version} = this.getParams(rt, defUUIDParams);

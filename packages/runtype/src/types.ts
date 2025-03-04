@@ -144,8 +144,8 @@ export interface RunTypeError {
     path: (string | number)[];
     /** the type of the expected data */
     expected: string;
-    typeName?: string;
     format?: TypeFormatError;
+    // typeName?: string; // tyeName can not be included as two types could Have the same jitId and different names
 }
 
 export type IsTypeFn = (value: any) => boolean;

@@ -210,36 +210,22 @@ export class JitErrorsCompiler<ID extends JitFnID = any> extends BaseCompiler<ty
         const defaultValues = {...jitDefaultErrorArgs};
         super(rt, id, args, defaultValues, 'er', parentLength);
     }
-    callJitErr(expected: AnyKindName | BaseRunType<any>, typeName?: string, info?: TypeFormatError): string {
+    callJitErr(expected: AnyKindName | BaseRunType<any>, info?: TypeFormatError): string {
         const expectLiteral = typeof expected === 'string' ? toLiteral(expected) : toLiteral(expected.getKindName());
-        const tName = typeName || (expected as BaseRunType).src?.typeName;
         const pathItems = this.getStackStaticPathArgs();
-        return this._callJitErr(this.args.εrr, this.args.pλth, pathItems, expectLiteral, tName, info);
+        return this._callJitErr(this.args.εrr, this.args.pλth, pathItems, expectLiteral, info);
     }
-    callJitErrWithPath(
-        expected: AnyKindName,
-        extraPathLiteral?: string | number,
-        typeName?: string,
-        info?: TypeFormatError
-    ): string {
+    callJitErrWithPath(expected: AnyKindName, extraPathLiteral?: string | number, info?: TypeFormatError): string {
         const expectLiteral = toLiteral(expected);
         const extraPath = extraPathLiteral ? `${extraPathLiteral}` : '';
         const pathItems = [this.getStackStaticPathArgs(), extraPath].filter(Boolean).join(',');
-        return this._callJitErr(this.args.εrr, this.args.pλth, pathItems, expectLiteral, typeName, info);
+        return this._callJitErr(this.args.εrr, this.args.pλth, pathItems, expectLiteral, info);
     }
-    private _callJitErr(
-        εrr: string,
-        pλth: string,
-        pathItems: string,
-        expected: string,
-        typeName?: string,
-        info?: TypeFormatError
-    ) {
+    private _callJitErr(εrr: string, pλth: string, pathItems: string, expected: string, info?: TypeFormatError) {
         const optionals: string[] = [];
-        if (info || typeName) {
-            const typeNameCode = typeName ? toLiteral(typeName) : 'undefined';
+        if (info) {
             const infoCode = info ? JSON.stringify(info) : 'undefined';
-            optionals.push(typeNameCode, infoCode);
+            optionals.push(infoCode);
         }
         const optionalsCode = optionals.length ? `,${optionals.join(',')}` : '';
         return `utl.err(${εrr},${pλth},[${pathItems}],${expected}${optionalsCode})`;
