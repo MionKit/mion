@@ -22,7 +22,7 @@ import {FormatterType, JitRunTypeFormatter, JitRunTypeTransformer, JitRunTypeVal
 import {jitUtils} from './jitUtils';
 import {isSafePropName, toLiteral} from './utils';
 
-export type TypeFormatter = JitRunTypeFormatter | JitRunTypeValidator;
+export type TypeFormatter = JitRunTypeFormatter | JitRunTypeValidator | JitRunTypeFormatter;
 const typeAnnotationsCache = new Map<string, TypeFormatter>();
 const validatorPrefix = 'v';
 const formatterPrefix = 'f';
@@ -268,8 +268,7 @@ export function compileErrorsPureFunctionCall(
     // call the pure function, passing value, jitUtils and params (pure function arguments)
     const errorPureFnCall = `const ${errVarName} = ${varName}(${comp.vλl},${paramsName},${comp.args.εrr})`;
     const infoCode = `{name:${toLiteral(format)},invalid:${errVarName}}`;
-    const typeName = rt.src.typeName ? toLiteral(rt.src.typeName) : 'undefined';
-    const callJitErr = `if (${errVarName}) utl.err(${comp.args.εrr},${comp.args.pλth},[${pathItems}],${expectLiteral},${typeName},${infoCode});`;
+    const callJitErr = `if (${errVarName}) utl.err(${comp.args.εrr},${comp.args.pλth},[${pathItems}],${expectLiteral},${infoCode});`;
     return `${errorPureFnCall};${callJitErr}`;
 }
 

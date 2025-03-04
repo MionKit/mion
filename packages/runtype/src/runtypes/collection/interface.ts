@@ -66,7 +66,7 @@ export class InterfaceRunType<
         }
         return `
             if (typeof ${varName} !== 'object' || ${varName} === null ${arrayCheck}) {
-                ${comp.callJitErr(this, (this.src as TypeClass)?.classType?.name || this.src.typeName)};
+                ${comp.callJitErr(this)};
             } else {
                 ${childrenCode}
             }

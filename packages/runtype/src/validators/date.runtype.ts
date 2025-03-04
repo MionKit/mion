@@ -44,7 +44,7 @@ export class DateStringValidator extends JitRunTypeValidator<DateStringParams> {
         if (!isTypeCode) return '';
         const params = this.getParams(rt, defaultDateParams);
         const formatError = {name: this.name, invalid: {format: params.format}};
-        return `if (!(${isTypeCode})) ${comp.callJitErr(rt, undefined, formatError)}`;
+        return `if (!(${isTypeCode})) ${comp.callJitErr(rt, formatError)}`;
     }
     _mock(mockContext: MockOperation, rt: BaseRunType) {
         const params = this.getParams(rt, defaultDateParams);

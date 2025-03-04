@@ -36,7 +36,7 @@ it('validate time with format HH:mm:ss', async () => {
 });
 it('get time errors for format HH:mm:ss', async () => {
     const typeErrors = await typeErrorsFn<HHmmss>();
-    const timeError = {expected: 'string', path: [], format: {name: 'time', invalid: {format: 'HH:mm:ss'}}, typeName: 'HHmmss'};
+    const timeError = {expected: 'string', path: [], format: {name: 'time', invalid: {format: 'HH:mm:ss'}}};
     // valid time
     expect(typeErrors('00:00:00')).toEqual([]);
     expect(typeErrors('23:59:59')).toEqual([]);
@@ -89,7 +89,7 @@ it('validate time with format HH:mm', async () => {
 });
 it('get time errors for format HH:mm', async () => {
     const typeErrors = await typeErrorsFn<HHmm>();
-    const timeError = {expected: 'string', path: [], format: {name: 'time', invalid: {format: 'HH:mm'}}, typeName: 'HHmm'};
+    const timeError = {expected: 'string', path: [], format: {name: 'time', invalid: {format: 'HH:mm'}}};
     // valid time
     expect(typeErrors('00:00')).toEqual([]);
     expect(typeErrors('23:59')).toEqual([]);
@@ -135,7 +135,7 @@ it('validate time with format mm:ss', async () => {
 });
 it('get time errors for format mm:ss', async () => {
     const typeErrors = await typeErrorsFn<mmss>();
-    const timeError = {expected: 'string', path: [], format: {name: 'time', invalid: {format: 'mm:ss'}}, typeName: 'mmss'};
+    const timeError = {expected: 'string', path: [], format: {name: 'time', invalid: {format: 'mm:ss'}}};
     // valid time
     expect(typeErrors('00:00')).toEqual([]);
     expect(typeErrors('59:59')).toEqual([]);
@@ -178,7 +178,7 @@ it('validate time with format HH', async () => {
 });
 it('get time errors for format HH', async () => {
     const typeErrors = await typeErrorsFn<HH>();
-    const timeError = {expected: 'string', path: [], format: {name: 'time', invalid: {format: 'HH'}}, typeName: 'HH'};
+    const timeError = {expected: 'string', path: [], format: {name: 'time', invalid: {format: 'HH'}}};
     // valid time
     expect(typeErrors('00')).toEqual([]);
     expect(typeErrors('23')).toEqual([]);
@@ -218,7 +218,7 @@ it('validate time with format mm', async () => {
 });
 it('get time errors for format mm', async () => {
     const typeErrors = await typeErrorsFn<mm>();
-    const timeError = {expected: 'string', path: [], format: {name: 'time', invalid: {format: 'mm'}}, typeName: 'mm'};
+    const timeError = {expected: 'string', path: [], format: {name: 'time', invalid: {format: 'mm'}}};
     // valid time
     expect(typeErrors('00')).toEqual([]);
     expect(typeErrors('59')).toEqual([]);
@@ -258,7 +258,7 @@ it('validate time with format ss', async () => {
 });
 it('get time errors for format ss', async () => {
     const typeErrors = await typeErrorsFn<ss>();
-    const timeError = {expected: 'string', path: [], format: {name: 'time', invalid: {format: 'ss'}}, typeName: 'ss'};
+    const timeError = {expected: 'string', path: [], format: {name: 'time', invalid: {format: 'ss'}}};
     // valid time
     expect(typeErrors('00')).toEqual([]);
     expect(typeErrors('59')).toEqual([]);
@@ -323,7 +323,7 @@ it('validate time with format HH:mm:ss[.mmm]TZ', async () => {
 });
 it('get time errors for format HH:mm:ss[.mmm]TZ', async () => {
     const typeErrors = await typeErrorsFn<ISOtime>();
-    const timeError = {expected: 'string', path: [], format: {name: 'time', invalid: {format: 'ISO'}}, typeName: 'ISOtime'};
+    const timeError = {expected: 'string', path: [], format: {name: 'time', invalid: {format: 'ISO'}}};
     // valid time
     expect(typeErrors('00:00:00Z')).toEqual([]);
     expect(typeErrors('23:59:59Z')).toEqual([]);

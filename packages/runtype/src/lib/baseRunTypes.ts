@@ -35,10 +35,17 @@ import {JitErrorsCompiler, JitCompiler, getJITFnHash, createJitCompiler} from '.
 import {type AnyKindName, getReflectionName} from '../constants.kind';
 import {jitUtils} from './jitUtils';
 import {createJitIDHash} from './quickHash';
-import {isMockContext, isRunTypeTransformer, isRunTypeValidator} from './guards';
+import {isMockContext} from './guards';
 import {defaultMockOptions} from '../constants.mock';
-import {parseAnnotations, getParsedAnnotations, getTypeFormats, getRunTypeValidator, getRunTypeTransformers} from './formats';
-import {type JitRunTypeValidator} from './jitFormatters';
+import {
+    parseAnnotations,
+    getParsedAnnotations,
+    getTypeFormats,
+    getRunTypeValidator,
+    getRunTypeTransformers,
+    TypeFormatter,
+} from './formats';
+import {JitRunTypeFormatter, type JitRunTypeValidator} from './jitFormatters';
 
 export abstract class BaseRunType<T extends Type = Type> implements RunType {
     isCircular?: boolean;
@@ -258,23 +265,21 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
                 }
                 case JitFunctions.toJsonVal.id: {
                     code = this._compileToJsonVal(comp); 
-                    const transformers = typeFormatters?.filter(isRunTypeTransformer);
-                    // TODO the transformer should be applied before _compileToJsonVal and it's result should be passed instead the variable name
-                    if (transformers) code = transformers.map((v) => v._compileToJsonVal(comp as JitErrorsCompiler, this)).filter(Boolean).join(';');
+                    const transformers = typeFormatters?.filter((t) => !!(t as JitRunTypeFormatter)._compileToJsonVal) as JitRunTypeFormatter[];
+                    // apply the output of one transformer as the input to the next ie: finalCode = transformer2(transformer1(code))
+                    if (transformers) code = this.applyTransformers(code, comp, transformers, fnId);
                     break;
                 }
                 case JitFunctions.fromJsonVal.id:  {
                     code =this._compileFromJsonVal(comp);
-                    const transformers = typeFormatters?.filter(isRunTypeTransformer);
-                    // TODO the transformer should be applied before _compileToJsonVal and it's result should be passed instead the variable name
-                    if (transformers) code = transformers.map((v) => v._compileFromJsonVal(comp as JitErrorsCompiler, this)).filter(Boolean).join(';');
+                    const transformers = typeFormatters?.filter((t) => !!(t as JitRunTypeFormatter)._compileFromJsonVal) as JitRunTypeFormatter[];
+                    if (transformers) code = this.applyTransformers(code, comp, transformers, fnId);
                     break;
                 }
                 case JitFunctions.jsonStringify.id: {
                     code = this._compileJsonStringify(comp);
-                    const transformers = typeFormatters?.filter(isRunTypeTransformer);
-                    // TODO the transformer should be applied before _compileToJsonVal and it's result should be passed instead the variable name
-                    if (transformers) code = transformers.map((v) => v._compileJsonStringify(comp as JitErrorsCompiler, this)).filter(Boolean).join('+');
+                    const transformers = typeFormatters?.filter((t) => !!(t as JitRunTypeFormatter)._compileJsonStringify) as JitRunTypeFormatter[];
+                    if (transformers) code = this.applyTransformers(code, comp, transformers, fnId);
                     break;
                 }
                 case JitFunctions.unknownKeyErrors.id: code = this._compileUnknownKeyErrors(comp as JitErrorsCompiler); break;
@@ -286,6 +291,37 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
             if (code) code = this.handleReturnValues(comp, fnId, code);
         }
         comp.popStack(code);
+        return code;
+    }
+
+    private applyTransformers(
+        code: string | undefined,
+        comp: JitCompiler,
+        transformers: JitRunTypeFormatter[],
+        fnId: JitFnID
+    ): string | undefined {
+        if (!transformers.length) return code;
+        const vλl = comp.vλl;
+        code = transformers.reduce((acc, t) => {
+            comp.vλl = acc;
+            let result: string | undefined;
+            switch (fnId) {
+                case JitFunctions.toJsonVal.id:
+                    result = t._compileToJsonVal(comp, this);
+                    break;
+                case JitFunctions.fromJsonVal.id:
+                    result = t._compileFromJsonVal(comp, this);
+                    break;
+                case JitFunctions.jsonStringify.id:
+                    result = t._compileJsonStringify(comp, this);
+                    break;
+                default:
+                    throw new Error(`Unknown transformer operation: ${fnId}`);
+            }
+            if (!result) return acc;
+            return result;
+        }, code || vλl);
+        comp.vλl = vλl;
         return code;
     }
 
