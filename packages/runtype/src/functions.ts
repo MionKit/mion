@@ -1,5 +1,5 @@
 import {JitFunctions} from './constants';
-import {ReceiveType} from './lib/_deepkit/src/reflection/reflection';
+import {ReceiveType} from '@deepkit/type';
 import {runType} from './runType';
 import {IsTypeFn, TypeErrorsFn} from './types';
 

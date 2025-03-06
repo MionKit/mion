@@ -1,4 +1,4 @@
-import {ReflectionKind, TypeIndexSignature} from '../../lib/_deepkit/src/reflection/type';
+import {ReflectionKind, TypeIndexSignature} from '@deepkit/type';
 import {BaseRunType, MemberRunType} from '../../lib/baseRunTypes';
 import {JitConfig, JitFnID, MockOperation, Mutable} from '../../types';
 import {JitFunctions} from '../../constants';

@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import type {TypeUnion} from '../../lib/_deepkit/src/reflection/type';
+import type {TypeUnion} from '@deepkit/type';
 import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
 import {JitConfig, JitFnID, MockOperation, Mutable, RunType} from '../../types';
 import {random} from '../../lib/mock';

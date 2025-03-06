@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {ReflectionKind, type TypeAny, type TypeUnknown} from '../../lib/_deepkit/src/reflection/type';
+import {ReflectionKind, type TypeAny, type TypeUnknown} from '@deepkit/type';
 import type {MockOperation, JitConfig} from '../../types';
 import {random} from '../../lib/mock';
 

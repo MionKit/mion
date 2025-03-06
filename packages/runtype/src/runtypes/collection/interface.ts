@@ -4,13 +4,7 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
-import {
-    TypeObjectLiteral,
-    TypeClass,
-    TypeIntersection,
-    TypeProperty,
-    ReflectionKind,
-} from '../../lib/_deepkit/src/reflection/type';
+import {TypeObjectLiteral, TypeClass, TypeIntersection, TypeProperty, ReflectionKind} from '@deepkit/type';
 import {MockOperation, RunType} from '../../types';
 import {memorize, arrayToLiteral} from '../../lib/utils';
 import {PropertyRunType} from '../member/property';

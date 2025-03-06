@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import type {TypeRest} from '../../lib/_deepkit/src/reflection/type';
+import type {TypeRest} from '@deepkit/type';
 import type {JitCompiler} from '../../lib/jitCompiler';
 import type {MockOperation} from '../../types';
 import type {ParameterRunType} from './param';

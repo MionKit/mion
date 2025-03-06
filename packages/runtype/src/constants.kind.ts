@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {ReflectionKind} from './lib/_deepkit/src/reflection/type';
+import {ReflectionKind} from '@deepkit/type';
 import {RunType} from './types';
 
 export const ReflectionKindName: {[key: number]: keyof typeof ReflectionKind} = {

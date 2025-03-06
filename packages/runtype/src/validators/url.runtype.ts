@@ -8,7 +8,7 @@ import type {BaseRunType} from '../lib/baseRunTypes';
 import type {JitCompiler} from '../lib/jitCompiler';
 import {compilePureFunctionCall, registerFormatter, registerPureFunctionWithCtx} from '../lib/formats';
 import {JitRunTypeValidator} from '../lib/jitFormatters';
-import {ReflectionKind} from '../lib/_deepkit/src/reflection/type';
+import {ReflectionKind} from '@deepkit/type';
 import {DomainParams} from './domain.runtype';
 import {TypeFormat} from '../lib/formats.runtype';
 import {MockOperation} from '../types';
