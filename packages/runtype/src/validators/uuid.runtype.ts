@@ -9,7 +9,7 @@ import type {JitCompiler, JitErrorsCompiler} from '../lib/jitCompiler';
 import {registerFormatter, compilePureFunctionCall, registerPureFunctionWithCtx} from '../lib/formats';
 import {JitRunTypeValidator} from '../lib/jitFormatters';
 import {ReflectionKind} from '../lib/_deepkit/src/reflection/type';
-import {MockOperation} from '../types';
+import {GenericPureFunction, MockOperation} from '../types';
 import {TypeFormat} from '../lib/formats.runtype'; // !Important: TypeFormat cant be imported as type for all runType functionality to work
 
 export type UUID_Params = {
@@ -31,7 +31,7 @@ export class UUID_Validator extends JitRunTypeValidator<UUID_Params> {
     readonly name = UUID_Validator.id;
     _compileIsType(comp: JitCompiler, rt: BaseRunType): string {
         const params = this.getParams(rt, defUUIDParams);
-        // version must be set as a string to call pure function isUUID
+        // version must be set as a string to call pure function isUUID, this is so no transform is needed when comparing with uuid charat
         return compilePureFunctionCall(comp, rt, isUUID, {...params, version: String(params.version)});
     }
     _compileTypeErrors(comp: JitErrorsCompiler, rt: BaseRunType): string {
@@ -63,7 +63,8 @@ export function mockUuidV7(): string {
 
 /** @reflection never */
 export function isUUID() {
-    return function is_uuid(value: string, p: {version: '4' | '7'}) {
+    type UUID_VString = {version: '4' | '7'};
+    return function is_uuid(value: string, p: UUID_VString) {
         if (value.length !== 36) return false;
         for (let i = 0; i < 36; i++) {
             if (i === 8 || i === 13 || i === 18 || i === 23) {
@@ -79,7 +80,7 @@ export function isUUID() {
             }
         }
         return true;
-    };
+    } as GenericPureFunction<UUID_VString>;
 }
 
 // ############### Register runtypes ###############
