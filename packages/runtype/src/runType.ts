@@ -102,12 +102,10 @@ function createAllRunTypes(src: SrcType): void {
         if (current.decorators) pushToStack(current.decorators, stack);
         if (current.scheduleDecorators) pushToStack(current.scheduleDecorators, stack);
 
-        // // TODO: make sure what to do with originTypes
-        // if (current.originTypes) {
-        //     current.originTypes.forEach((ot) => {
-        //         if (ot.typeArguments) pushToStack(ot.typeArguments, stack);
-        //     });
-        // }
+        // originTypes
+        current.originTypes?.forEach((ot) => {
+            if (ot.typeArguments) pushToStack(ot.typeArguments, stack);
+        });
     }
 }
 

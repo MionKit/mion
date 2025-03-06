@@ -5,6 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
+import {inspect} from 'util';
 import {ReflectionKindName} from '../constants.kind';
 import type {CompiledPureFunction, ParsedAnnotation, PureFunctionWithContext, TypeFormatParams, TypeFormatValue} from '../types';
 import {
@@ -21,6 +22,7 @@ import {JitErrorsCompiler, type JitCompiler} from './jitCompiler';
 import {FormatterType, JitRunTypeFormatter, JitRunTypeTransformer, JitRunTypeValidator} from './jitFormatters';
 import {jitUtils} from './jitUtils';
 import {isSafePropName, toLiteral} from './utils';
+import {PropertySignature} from 'typescript';
 
 export type TypeFormatter = JitRunTypeFormatter | JitRunTypeValidator | JitRunTypeFormatter;
 const typeAnnotationsCache = new Map<string, TypeFormatter>();
@@ -135,7 +137,8 @@ export function parseAnnotations(rt: BaseRunType): ParsedAnnotation[] {
 function recursiveParseParams(
     rt: BaseRunType,
     propValue: TypeObjectLiteral | TypeTuple,
-    idResult: {jitId: string}
+    idResult: {jitId: string},
+    path = ''
 ): TypeFormatValue {
     const properties = propValue.types as TypePropertySignature[] | TypeTupleMember[];
     const paramsResult = propValue.kind === ReflectionKind.objectLiteral ? {} : [];
@@ -143,17 +146,21 @@ function recursiveParseParams(
     for (const prop of properties) {
         const propIndex = prop.name ? String(prop.name) : index;
         const name = prop.name ? String(prop.name) : prop.kind;
-        const memberItem = prop.type;
+        const pathName = path ? `${path}.${name}` : String(name);
+        const memberItem =
+            prop.type.kind !== ReflectionKind.literal && prop.type.origin?.kind === ReflectionKind.literal
+                ? prop.type.origin
+                : prop.type;
         idResult.jitId += `${name}:`;
         switch (memberItem.kind) {
             case ReflectionKind.objectLiteral:
                 idResult.jitId += '{';
-                paramsResult[propIndex] = recursiveParseParams(rt, memberItem as TypeObjectLiteral, idResult);
+                paramsResult[propIndex] = recursiveParseParams(rt, memberItem as TypeObjectLiteral, idResult, pathName);
                 idResult.jitId += '}';
                 break;
             case ReflectionKind.tuple:
                 idResult.jitId += '[';
-                paramsResult[propIndex] = recursiveParseParams(rt, memberItem as TypeTuple, idResult);
+                paramsResult[propIndex] = recursiveParseParams(rt, memberItem as TypeTuple, idResult, pathName);
                 idResult.jitId += ']';
                 break;
             case ReflectionKind.literal:
@@ -161,7 +168,7 @@ function recursiveParseParams(
                 idResult.jitId += String(paramsResult[propIndex]);
                 break;
             default:
-                throw new Error(`Unsupported type format value for ${name} in ${rt.getTypeName()}`);
+                throw new Error(`Unsupported type format value for ${pathName} in ${rt.getTypeName()}`);
         }
         index++;
     }

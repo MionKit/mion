@@ -279,7 +279,7 @@ export type GenericPureFunction<P extends TypeFormatParams> = (val: any, params:
  * Pure function that return an array with a list of invalid format properties.
  * ie: if a string should be maxLength = 5 and that string is 6 characters long, the function should return {invalid:['maxLength']}
  */
-export type ErrorsPureFunction<P extends TypeFormatParams> = (val: any, params: P) => string[] | undefined;
+export type ErrorsPureFunction<P extends TypeFormatParams> = (val: any, params: P, namePrefix: string) => string[] | undefined;
 export type PureFunctionWithContext<P extends TypeFormatParams> = (jitUtils: JITUtils) => PureFunction<P>;
 
 export type CompiledPureFunction = {

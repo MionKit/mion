@@ -16,7 +16,7 @@ import {
 } from '../lib/formats';
 import {JitRunTypeFormatter} from '../lib/jitFormatters';
 import {ReflectionKind} from '../lib/_deepkit/src/reflection/type';
-import {ErrorsPureFunction, InvalidFormatParams, MockOperation, PureFunction, TypeFormatInvalid} from '../types';
+import {ErrorsPureFunction, GenericPureFunction, InvalidFormatParams, MockOperation, TypeFormatInvalid} from '../types';
 import {mockString, random, randomItem} from '../lib/mock';
 
 export const ALPHANUMERIC_REGEX = /^[\p{L}\p{N}]+$/u;
@@ -57,7 +57,7 @@ export type StringFormat<P extends StringFormatParams> = TypeFormat<string, 'str
 // ############### Default String Formats ###############
 
 export type AlphaString<P extends StringFormatParams = {}> = StringFormat<
-    P & {pattern: typeof ALPHA_REGEX; sampleChars: 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ'}
+    P & {pattern: typeof ALPHA_REGEX; sampleChars: 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ', samples: ['abjTncl', 'asdjppmMNB' ]}
 >;
 export type AlphaNumericString<P extends StringFormatParams = {}> = StringFormat<
     P & {pattern: typeof ALPHANUMERIC_REGEX; sampleChars: 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'}
@@ -222,26 +222,27 @@ export function isStringFormat() {
             if (s.charAt(0) !== s.charAt(0).toUpperCase() || s.slice(1) !== s.slice(1).toLowerCase()) return false;
         }
         return true;
-    } as PureFunction<StringFormatParams>;
+    } as GenericPureFunction<StringFormatParams>;
 }
 /** @reflection never */
 export function stringFormatErrors() {
-    return function string_errors(s: string, p: ParsedStringFormatParams): InvalidFormatParams | undefined {
+    return function string_errors(s: string, p: ParsedStringFormatParams, pfx: string): InvalidFormatParams | undefined {
         const invalid: [string, TypeFormatInvalid][] = [];
-        if (p.maxLength !== undefined && s.length > p.maxLength) invalid.push(['maxLength', p.maxLength]);
-        if (p.minLength !== undefined && s.length < p.minLength) invalid.push(['minLength', p.minLength]);
-        if (p.length !== undefined && s.length !== p.length) invalid.push(['length', p.length]);
-        if (p.pattern !== undefined && !p.pattern.test(s)) invalid.push(['pattern', p.pattern.toString()]);
-        if (p.allowedRegexp !== undefined && !p.allowedRegexp.test(s)) invalid.push(['allowedChars', (p as any).allowedChars]);
+        if (p.maxLength !== undefined && s.length > p.maxLength) invalid.push([`${pfx}maxLength`, p.maxLength]);
+        if (p.minLength !== undefined && s.length < p.minLength) invalid.push([`${pfx}minLength`, p.minLength]);
+        if (p.length !== undefined && s.length !== p.length) invalid.push([`${pfx}length`, p.length]);
+        if (p.pattern !== undefined && !p.pattern.test(s)) invalid.push([`${pfx}pattern`, p.pattern.toString()]);
+        if (p.allowedRegexp !== undefined && !p.allowedRegexp.test(s))
+            invalid.push([`${pfx}allowedChars`, (p as any).allowedChars]);
         if (p.disallowedRegexp !== undefined && p.disallowedRegexp.test(s))
-            invalid.push(['disallowedChars', (p as any).disallowedChars]);
-        if (p.allowedValues !== undefined && !p.allowedValues.includes(s)) invalid.push(['allowedValues', p.allowedValues]);
+            invalid.push([`${pfx}disallowedChars`, (p as any).disallowedChars]);
+        if (p.allowedValues !== undefined && !p.allowedValues.includes(s)) invalid.push([`${pfx}allowedValues`, p.allowedValues]);
         if (p.disallowedValues !== undefined && p.disallowedValues.includes(s))
-            invalid.push(['disallowedValues', p.disallowedValues]);
-        if (p.lowercase && s !== s.toLowerCase()) invalid.push(['lowercase', p.lowercase]);
-        if (p.uppercase && s !== s.toUpperCase()) invalid.push(['uppercase', p.uppercase]);
+            invalid.push([`${pfx}disallowedValues`, p.disallowedValues]);
+        if (p.lowercase && s !== s.toLowerCase()) invalid.push([`${pfx}lowercase`, p.lowercase]);
+        if (p.uppercase && s !== s.toUpperCase()) invalid.push([`${pfx}uppercase`, p.uppercase]);
         if (p.capitalize && (s.charAt(0) !== s.charAt(0).toUpperCase() || s.slice(1) !== s.slice(1).toLowerCase()))
-            invalid.push(['capitalize', p.capitalize]);
+            invalid.push([`${pfx}capitalize`, p.capitalize]);
         if (invalid.length) return Object.fromEntries(invalid);
     } as ErrorsPureFunction<StringFormatParams>;
 }
@@ -253,7 +254,7 @@ export function isAllowedString() {
         if (p.allowedValues !== undefined && !p.allowedValues.includes(s)) return false;
         if (p.disallowedValues !== undefined && p.disallowedValues.includes(s)) return false;
         return true;
-    } as PureFunction<StringFormatParams>;
+    } as GenericPureFunction<StringFormatParams>;
 }
 
 // ############### Register runtypes ###############
