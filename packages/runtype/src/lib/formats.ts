@@ -5,7 +5,6 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {inspect} from 'util';
 import {ReflectionKindName} from '../constants.kind';
 import type {CompiledPureFunction, ParsedAnnotation, PureFunctionWithContext, TypeFormatParams, TypeFormatValue} from '../types';
 import {
@@ -16,13 +15,12 @@ import {
     type TypeObjectLiteral,
     type TypePropertySignature,
     type TypeTuple,
-} from './_deepkit/src/reflection/type';
+} from '@deepkit/type';
 import type {BaseRunType} from './baseRunTypes';
 import {JitErrorsCompiler, type JitCompiler} from './jitCompiler';
 import {FormatterType, JitRunTypeFormatter, JitRunTypeTransformer, JitRunTypeValidator} from './jitFormatters';
 import {jitUtils} from './jitUtils';
 import {isSafePropName, toLiteral} from './utils';
-import {PropertySignature} from 'typescript';
 
 export type TypeFormatter = JitRunTypeFormatter | JitRunTypeValidator | JitRunTypeFormatter;
 const typeAnnotationsCache = new Map<string, TypeFormatter>();
@@ -83,13 +81,13 @@ export function getFormatterKey(prefix: string, kind: string | number, name: str
 }
 
 export function getTypeFormats(rt: BaseRunType): TypeFormatter[] {
-    const parsedAnnotations = metaAnnotation.getAnnotations(rt.src) as ParsedAnnotation[];
+    const parsedAnnotations = metaAnnotation.getAnnotations(rt.src) as any as ParsedAnnotation[];
     return parsedAnnotations.map((a) => a.formatters).flat();
 }
 
 /** Returns the validator for a given type. ATM only one validator is allowed for each type */
 export function getRunTypeValidator(rt: BaseRunType): JitRunTypeValidator | JitRunTypeFormatter | undefined {
-    const parsedAnnotations = metaAnnotation.getAnnotations(rt.src) as ParsedAnnotation[];
+    const parsedAnnotations = metaAnnotation.getAnnotations(rt.src) as any as ParsedAnnotation[];
     for (const annotation of parsedAnnotations) {
         const validator = annotation.formatters.find((f) => f.type === 'F' || f.type === 'V');
         if (validator) return validator as JitRunTypeValidator | JitRunTypeFormatter;
@@ -102,11 +100,11 @@ export function getRunTypeTransformers(rt: BaseRunType): (JitRunTypeFormatter | 
 }
 
 export function getParsedAnnotations(rt: BaseRunType): ParsedAnnotation[] {
-    return metaAnnotation.getAnnotations(rt.src) as ParsedAnnotation[];
+    return metaAnnotation.getAnnotations(rt.src) as any as ParsedAnnotation[];
 }
 
 export function parseAnnotations(rt: BaseRunType): ParsedAnnotation[] {
-    const dkAnnotations = metaAnnotation.getAnnotations(rt.src) as ParsedAnnotation[];
+    const dkAnnotations = metaAnnotation.getAnnotations(rt.src) as any as ParsedAnnotation[];
     if (dkAnnotations.length === 0) return dkAnnotations;
     // TODO: investigate why only a single annotation gets parsed, ie: type StringFormat<{maxLength:}> & Email, is just returning the Email annotation
     // We might actually want to enforce this, ie: we could have an email and uuid and those are not compatible

@@ -6,7 +6,7 @@
  * ######## */
 
 import type {AnyClass, JitFnID, RunType} from '../types';
-import {ReflectionKind, Type, TypeFunction, TypeParameter, TypeTuple, TypeTupleMember} from './_deepkit/src/reflection/type';
+import {ReflectionKind, Type, TypeFunction, TypeParameter, TypeTuple, TypeTupleMember} from '@deepkit/type';
 import {jitUtils} from './jitUtils';
 import {validPropertyNameRegExp} from '../constants';
 import {BaseRunType} from './baseRunTypes';

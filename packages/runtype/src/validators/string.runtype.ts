@@ -15,7 +15,7 @@ import {
     registerPureFunctionWithCtx,
 } from '../lib/formats';
 import {JitRunTypeFormatter} from '../lib/jitFormatters';
-import {ReflectionKind} from '../lib/_deepkit/src/reflection/type';
+import {ReflectionKind} from '@deepkit/type';
 import {ErrorsPureFunction, GenericPureFunction, InvalidFormatParams, MockOperation, TypeFormatInvalid} from '../types';
 import {mockString, random, randomItem} from '../lib/mock';
 
@@ -57,7 +57,11 @@ export type StringFormat<P extends StringFormatParams> = TypeFormat<string, 'str
 // ############### Default String Formats ###############
 
 export type AlphaString<P extends StringFormatParams = {}> = StringFormat<
-    P & {pattern: typeof ALPHA_REGEX; sampleChars: 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ', samples: ['abjTncl', 'asdjppmMNB' ]}
+    P & {
+        pattern: typeof ALPHA_REGEX;
+        sampleChars: 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
+        samples: ['abjTncl', 'asdjppmMNB'];
+    }
 >;
 export type AlphaNumericString<P extends StringFormatParams = {}> = StringFormat<
     P & {pattern: typeof ALPHANUMERIC_REGEX; sampleChars: 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'}

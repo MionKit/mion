@@ -8,7 +8,7 @@ import type {BaseRunType} from '../lib/baseRunTypes';
 import type {JitCompiler, JitErrorsCompiler} from '../lib/jitCompiler';
 import {registerFormatter, compilePureFunctionCall, registerPureFunctionWithCtx} from '../lib/formats';
 import {JitRunTypeValidator} from '../lib/jitFormatters';
-import {ReflectionKind} from '../lib/_deepkit/src/reflection/type';
+import {ReflectionKind} from '@deepkit/type';
 import {GenericPureFunction, MockOperation} from '../types';
 import {TypeFormat} from '../lib/formats.runtype'; // !Important: TypeFormat cant be imported as type for all runType functionality to work
 

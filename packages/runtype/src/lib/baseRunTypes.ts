@@ -29,7 +29,7 @@ import {
     maxStackDepth,
     maxStackErrorMessage,
 } from '../constants';
-import {ReflectionKind, type TypeIndexSignature, type TypeProperty, type Type} from './_deepkit/src/reflection/type';
+import {ReflectionKind, type TypeIndexSignature, type TypeProperty, type Type} from '@deepkit/type';
 import {getPropIndex, memorize, toLiteral} from './utils';
 import {JitErrorsCompiler, JitCompiler, getJITFnHash, createJitCompiler} from './jitCompiler';
 import {type AnyKindName, getReflectionName} from '../constants.kind';

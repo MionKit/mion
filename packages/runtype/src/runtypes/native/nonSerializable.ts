@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import type {TypeClass, TypeObjectLiteral} from '../../lib/_deepkit/src/reflection/type';
+import type {TypeClass, TypeObjectLiteral} from '@deepkit/type';
 import {BaseRunType} from '../../lib/baseRunTypes';
 import {JitConfig} from '../../types';
 import {InterfaceRunType} from '../collection/interface';

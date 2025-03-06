@@ -5,11 +5,11 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import type {TypeTuple} from '../../lib/_deepkit/src/reflection/type';
+import type {TypeTuple} from '@deepkit/type';
 import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
 import type {AnyParameterListRunType, MockOperation, SrcType} from '../../types';
 import {ParameterRunType} from '../member/param';
-import {ReflectionKind} from '../../lib/_deepkit/src/reflection/type';
+import {ReflectionKind} from '@deepkit/type';
 import {CollectionRunType} from '../../lib/baseRunTypes';
 import {TupleMemberRunType} from '../member/tupleMember';
 

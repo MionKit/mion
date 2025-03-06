@@ -8,7 +8,7 @@ import type {BaseRunType} from './baseRunTypes';
 import type {JitCompiler, JitErrorsCompiler} from './jitCompiler';
 import type {TypeFormatParams, JitFnID, MockOperation} from '../types';
 import {jitFnHasReturn, jitFnIsExpression} from '../constants';
-import {ReflectionKind} from './_deepkit/src/reflection/type';
+import {ReflectionKind} from '@deepkit/type';
 import {getFormatterParams, typeParamsToLiteral} from './formats';
 
 export type FormatterType = 'F' | 'V' | 'T'; // formatter | validator | transformer

@@ -6,8 +6,8 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import type {Type, TypeClass, TypeMethod, TypeObjectLiteral, TypeParameter} from './_deepkit/src/reflection/type';
-import {isType, ReflectionKind} from './_deepkit/src/reflection/type';
+import type {Type, TypeClass, TypeMethod, TypeObjectLiteral, TypeParameter} from '@deepkit/type';
+import {isType, ReflectionKind} from '@deepkit/type';
 import {ReflectionSubKind} from '../constants.kind';
 import {JitFunctions, nativeUtilityStringTypes, nonSerializableClasses, nonSerializableGlobals} from '../constants';
 /* IMPORTANT: import classes as type only to prevent js circular imports */

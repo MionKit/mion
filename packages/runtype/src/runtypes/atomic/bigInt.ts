@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {ReflectionKind, type TypeBigInt} from '../../lib/_deepkit/src/reflection/type';
+import {ReflectionKind, type TypeBigInt} from '@deepkit/type';
 import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
 import type {MockOperation, JitConfig} from '../../types';
 import {mockBigInt} from '../../lib/mock';

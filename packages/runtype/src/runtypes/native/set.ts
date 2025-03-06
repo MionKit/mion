@@ -6,7 +6,7 @@
  * ######## */
 import type {MockOperation, SrcType} from '../../types';
 import {ReflectionSubKind} from '../../constants.kind';
-import {ReflectionKind, type TypeClass} from '../../lib/_deepkit/src/reflection/type';
+import {ReflectionKind, type TypeClass} from '@deepkit/type';
 import {random} from '../../lib/mock';
 import {GenericMemberRunType} from '../member/genericMember';
 import {IterableRunType} from './Iterable';
