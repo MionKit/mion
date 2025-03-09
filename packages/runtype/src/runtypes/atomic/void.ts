@@ -17,7 +17,7 @@ const jitConstants: JitConfig = {
 };
 
 export class VoidRunType extends AtomicRunType<TypeVoid> {
-    getJitConfig = () => jitConstants;
+    _getJitConfig = () => jitConstants;
     _compileIsType(comp: JitCompiler): string {
         return `${comp.vλl} === undefined`;
     }

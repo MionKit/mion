@@ -16,7 +16,7 @@ const jitConstants: JitConfig = {
 };
 
 export class NullRunType extends AtomicRunType<TypeNull> {
-    getJitConfig = () => jitConstants;
+    _getJitConfig = () => jitConstants;
     _compileIsType(comp: JitCompiler): string {
         return `${comp.vλl} === null`;
     }

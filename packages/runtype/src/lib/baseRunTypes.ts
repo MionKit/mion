@@ -18,7 +18,7 @@ import type {
     SrcCollection,
     CustomVλl,
     JitFn,
-    ParsedAnnotation,
+    FormatAnnotation,
 } from '../types';
 import {
     jitArgs,
@@ -38,8 +38,8 @@ import {createJitIDHash} from './quickHash';
 import {isMockContext} from './guards';
 import {defaultMockOptions} from '../constants.mock';
 import {
-    parseAnnotations,
-    getParsedAnnotations,
+    initFormatAnnotations,
+    getFormatAnnotations,
     getTypeFormats,
     getRunTypeValidator,
     getRunTypeTransformers,
@@ -56,13 +56,8 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
     isJitInlined = () => !(this.isCircular || (this.src.typeName && this.getFamily() === 'C'));
     getKindName = memorize((): AnyKindName => getReflectionName(this));
     getTypeName = (): string => this.src.typeName || this.getKindName();
-    getTypeAnnotations = (): ParsedAnnotation[] => getParsedAnnotations(this);
-    getJitId() {
-        const formatsId = this.getTypeAnnotations()
-            .map((a) => a.jitId)
-            .join(':');
-        return formatsId ? this.getJitConfig().jitId + ':' + formatsId : this.getJitConfig().jitId;
-    }
+    getFormatAnnotations = (): FormatAnnotation[] => getFormatAnnotations(this);
+    getJitId = () => this.getJitConfig().jitId;
     getJitHash = memorize((): string => createJitIDHash(this.getJitId().toString()));
     getParent = (): BaseRunType | undefined => (this.src.parent as SrcType)?._rt as BaseRunType;
     getNestLevel = memorize((): number => {
@@ -87,7 +82,7 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
     onCreated(src: SrcType<any>): void {
         (this as Mutable<RunType>).src = src;
         (src as Mutable<SrcType>)._rt = this;
-        parseAnnotations(this);
+        initFormatAnnotations(this);
     }
     /**
      * Some elements might need a standalone name variable that ignores the vλl value of the parents.
@@ -393,6 +388,7 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
  * ie: string, number, boolean, any, null, undefined, void, never, bigint, etc.
  * */
 export abstract class AtomicRunType<T extends Type> extends BaseRunType<T> {
+    abstract _getJitConfig(stack?: RunType[]): JitConfig;
     getFamily(): 'A' {
         return 'A';
     }
@@ -431,6 +427,23 @@ export abstract class AtomicRunType<T extends Type> extends BaseRunType<T> {
                 return super.jitFnIsExpression(fnId);
         }
     }
+    private annotationsConfig?: JitConfig;
+    getJitConfig = (stack: BaseRunType[] = []): JitConfig => {
+        if (this.annotationsConfig) return this.annotationsConfig;
+        const annotations = this.getFormatAnnotations();
+        if (!annotations.length) return this._getJitConfig(stack);
+        const annotationRunTypes = annotations.map((a) => a.options._rt) as BaseRunType[];
+        const annotationJitIds: (string | number)[] = [];
+        for (const rt of annotationRunTypes) {
+            const aConf = rt.getJitConfig(stack);
+            annotationJitIds.push(aConf.jitId);
+        }
+        // important to clone the config as we are going to modify it
+        const config = {...this._getJitConfig(stack)} as Mutable<JitConfig>;
+        config.jitId += `&${annotationJitIds.join(',')}`;
+        this.annotationsConfig = config;
+        return config;
+    };
 }
 
 /**
@@ -567,7 +580,7 @@ export abstract class MemberRunType<T extends Type> extends BaseRunType<T> imple
         if (circularJitConf) return circularJitConf;
         stack.push(this);
         const member = this.getMemberType();
-        const memberValues = member.getJitConfig(stack);
+        const memberConfig = member.getJitConfig(stack);
         const optional = this.isOptional() ? '?' : '';
         const kind =
             (this.src as TypeProperty).name?.toString() ||
@@ -575,7 +588,7 @@ export abstract class MemberRunType<T extends Type> extends BaseRunType<T> imple
             this.src.subKind ||
             this.src.kind;
         const jitCts: Mutable<JitConfig> = {
-            ...memberValues,
+            ...memberConfig,
             jitId: `${kind}${optional}:${member.getJitId()}`,
         };
         stack.pop();

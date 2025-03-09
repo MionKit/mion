@@ -6,16 +6,15 @@
  * ######## */
 
 import {ReflectionKindName} from '../constants.kind';
-import type {CompiledPureFunction, ParsedAnnotation, PureFunctionWithContext, TypeFormatParams, TypeFormatValue} from '../types';
-import {
-    metaAnnotation,
-    ReflectionKind,
-    type TypeTupleMember,
-    type TypeLiteral,
-    type TypeObjectLiteral,
-    type TypePropertySignature,
-    type TypeTuple,
-} from '@deepkit/type';
+import type {
+    CompiledPureFunction,
+    FormatAnnotation,
+    PureFunction,
+    PureFunctionWithContext,
+    TypeFormatParams,
+    TypeFormatValue,
+} from '../types';
+import {typeAnnotation, ReflectionKind} from '@deepkit/type';
 import type {BaseRunType} from './baseRunTypes';
 import {JitErrorsCompiler, type JitCompiler} from './jitCompiler';
 import {FormatterType, JitRunTypeFormatter, JitRunTypeTransformer, JitRunTypeValidator} from './jitFormatters';
@@ -51,6 +50,20 @@ export function registerPureFunctionWithCtx(fnWithCtx: PureFunctionWithContext<a
     return compiled;
 }
 
+export function getPureFn(fnOrName: string | PureFunctionWithContext<any>): PureFunction<TypeFormatParams> | undefined {
+    if (typeof fnOrName === 'string') return jitUtils.getPureFn(fnOrName);
+    const name = fnOrName.name;
+    if (!name) throw new Error('Pure Functions must have a name');
+    return jitUtils.getPureFn(name);
+}
+
+export function getCompiledPureFn(fnOrName: string | PureFunctionWithContext<any>): CompiledPureFunction | undefined {
+    if (typeof fnOrName === 'string') return jitUtils.getCompiledPureFn(fnOrName);
+    const name = fnOrName.name;
+    if (!name) throw new Error('Pure Functions must have a name');
+    return jitUtils.getCompiledPureFn(name);
+}
+
 export function registerPureFunctionGroupWithCtx(fnsWithCtx: PureFunctionWithContext<any>[]): CompiledPureFunction[] {
     const compiledFns = fnsWithCtx.map((fn) => registerPureFunctionWithCtx(fn));
     compiledFns.forEach((cfn) => {
@@ -81,13 +94,13 @@ export function getFormatterKey(prefix: string, kind: string | number, name: str
 }
 
 export function getTypeFormats(rt: BaseRunType): TypeFormatter[] {
-    const parsedAnnotations = metaAnnotation.getAnnotations(rt.src) as any as ParsedAnnotation[];
+    const parsedAnnotations = typeAnnotation.getAnnotations(rt.src) as any as FormatAnnotation[];
     return parsedAnnotations.map((a) => a.formatters).flat();
 }
 
 /** Returns the validator for a given type. ATM only one validator is allowed for each type */
 export function getRunTypeValidator(rt: BaseRunType): JitRunTypeValidator | JitRunTypeFormatter | undefined {
-    const parsedAnnotations = metaAnnotation.getAnnotations(rt.src) as any as ParsedAnnotation[];
+    const parsedAnnotations = typeAnnotation.getAnnotations(rt.src) as any as FormatAnnotation[];
     for (const annotation of parsedAnnotations) {
         const validator = annotation.formatters.find((f) => f.type === 'F' || f.type === 'V');
         if (validator) return validator as JitRunTypeValidator | JitRunTypeFormatter;
@@ -99,81 +112,39 @@ export function getRunTypeTransformers(rt: BaseRunType): (JitRunTypeFormatter | 
     return getTypeFormats(rt).filter((f) => f.type === 'T' || f.type === 'F') as JitRunTypeFormatter[];
 }
 
-export function getParsedAnnotations(rt: BaseRunType): ParsedAnnotation[] {
-    return metaAnnotation.getAnnotations(rt.src) as any as ParsedAnnotation[];
+export function getFormatAnnotations(rt: BaseRunType): FormatAnnotation[] {
+    return typeAnnotation.getAnnotations(rt.src) as any as FormatAnnotation[];
 }
 
-export function parseAnnotations(rt: BaseRunType): ParsedAnnotation[] {
-    const dkAnnotations = metaAnnotation.getAnnotations(rt.src) as any as ParsedAnnotation[];
-    if (dkAnnotations.length === 0) return dkAnnotations;
+/**
+ * Reads deepkit annotations and augment them with the associated formatters.
+ * @param rt
+ * @returns
+ */
+export function initFormatAnnotations(rt: BaseRunType): FormatAnnotation[] {
+    const annotations = typeAnnotation.getAnnotations(rt.src);
+    if (annotations.length === 0) return annotations as FormatAnnotation[];
     // TODO: investigate why only a single annotation gets parsed, ie: type StringFormat<{maxLength:}> & Email, is just returning the Email annotation
     // We might actually want to enforce this, ie: we could have an email and uuid and those are not compatible
-    if (dkAnnotations.length > 1) throw new Error(`Only one type annotation is allowed for ${rt.getTypeName()}`);
-    for (const dkAnnotation of dkAnnotations) {
-        if (dkAnnotation.options.length !== 1)
-            // this should throw only if type formats are not properly defined by developers
-            throw new Error(
-                `Type Format only allow one options parameter for ${rt.getTypeName()}, use TypeFormat to create a new type format.`
-            );
-        const unparsedParams = dkAnnotation.options[0] as TypeObjectLiteral | TypeTuple | undefined;
-        dkAnnotation.formatters = getFormattersFromCache(rt.src.kind, dkAnnotation.name);
-        if (!unparsedParams) {
-            dkAnnotation.params = {};
-            dkAnnotation.jitId = '';
-            continue;
-        } else if (unparsedParams.kind === ReflectionKind.objectLiteral) {
-            const jitIdResult = {jitId: ''};
-            dkAnnotation.params = recursiveParseParams(rt, unparsedParams, jitIdResult) as TypeFormatParams;
-            dkAnnotation.jitId = jitIdResult.jitId;
-        } else {
-            throw new Error(`Unsupported type params for ${rt.getTypeName()}, type params must be an object literal`);
-        }
+    if (annotations.length > 1) throw new Error(`Only one type annotation is allowed for ${rt.getTypeName()}`);
+    for (const annotation of annotations) {
+        if (!annotation.name) throw new Error(`Type annotation must have a name for ${rt.getTypeName()}`);
+
+        const params = annotation.options;
+        if (params.kind !== ReflectionKind.objectLiteral)
+            throw new Error(`Type annotation must be an object literal for ${rt.getTypeName()}`);
+        (annotation as any).formatters = getFormattersFromCache(rt.src.kind, annotation.name);
     }
-    return dkAnnotations;
+    return annotations as FormatAnnotation[];
 }
 
-function recursiveParseParams(
-    rt: BaseRunType,
-    propValue: TypeObjectLiteral | TypeTuple,
-    idResult: {jitId: string},
-    path = ''
-): TypeFormatValue {
-    const properties = propValue.types as TypePropertySignature[] | TypeTupleMember[];
-    const paramsResult = propValue.kind === ReflectionKind.objectLiteral ? {} : [];
-    let index = 0;
-    for (const prop of properties) {
-        const propIndex = prop.name ? String(prop.name) : index;
-        const name = prop.name ? String(prop.name) : prop.kind;
-        const pathName = path ? `${path}.${name}` : String(name);
-        const memberItem =
-            prop.type.kind !== ReflectionKind.literal && prop.type.origin?.kind === ReflectionKind.literal
-                ? prop.type.origin
-                : prop.type;
-        idResult.jitId += `${name}:`;
-        switch (memberItem.kind) {
-            case ReflectionKind.objectLiteral:
-                idResult.jitId += '{';
-                paramsResult[propIndex] = recursiveParseParams(rt, memberItem as TypeObjectLiteral, idResult, pathName);
-                idResult.jitId += '}';
-                break;
-            case ReflectionKind.tuple:
-                idResult.jitId += '[';
-                paramsResult[propIndex] = recursiveParseParams(rt, memberItem as TypeTuple, idResult, pathName);
-                idResult.jitId += ']';
-                break;
-            case ReflectionKind.literal:
-                paramsResult[propIndex] = (memberItem as TypeLiteral).literal;
-                idResult.jitId += String(paramsResult[propIndex]);
-                break;
-            default:
-                throw new Error(`Unsupported type format value for ${pathName} in ${rt.getTypeName()}`);
-        }
-        index++;
-    }
-    return paramsResult;
+export function getAnnotationParams(annotation: FormatAnnotation, rt: BaseRunType): TypeFormatParams {
+    if (annotation.params) return annotation.params;
+    annotation.params = typeAnnotation.getOption(rt.src, annotation.name) as TypeFormatParams;
+    return annotation.params;
 }
 
-// TODO: ensure params are returned in the same order as they are defined in the type format
+/** Returns the params for a given type formatter */
 export function getFormatterParams<P extends TypeFormatParams>(
     rt: BaseRunType,
     name: string,
@@ -181,14 +152,14 @@ export function getFormatterParams<P extends TypeFormatParams>(
     defaultParams: P
 ): P {
     const isValidator = type === 'V';
-    const annotations = rt.getTypeAnnotations().filter((a) => a.name === name);
+    const annotations = rt.getFormatAnnotations().filter((a) => a.name === name);
     for (const annotation of annotations) {
         const formatter = annotation.formatters.find((f) => {
             const targetIsValidator = f instanceof JitRunTypeValidator;
             return isValidator ? targetIsValidator : !targetIsValidator;
         });
         if (!formatter) continue;
-        return recursiveSetDefaultValues(rt, defaultParams, annotation.params);
+        return recursiveSetDefaultValues(rt, defaultParams, getAnnotationParams(annotation, rt));
     }
     throw new Error(`Type Formatter ${name} not found for ${rt.getTypeName()}`);
 }
