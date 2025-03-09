@@ -18,8 +18,8 @@ export abstract class BaseFormatter<P extends TypeFormatParams = TypeFormatParam
     abstract name: string;
     abstract type: FormatterType;
 
-    getParams(rt: BaseRunType, defaultParams: NonNullable<P>): NonNullable<P> {
-        const params = getFormatterParams(rt, this.name, this.type, defaultParams) as NonNullable<P>;
+    getParams(rt: BaseRunType): NonNullable<P> {
+        const params = getFormatterParams(rt, this.name, this.type) as NonNullable<P>;
         this.validateParams?.(rt, params);
         return params;
     }
@@ -32,7 +32,7 @@ export abstract class BaseFormatter<P extends TypeFormatParams = TypeFormatParam
         return `${name}${rt.getNestLevel()}_${comp.contextCodeItems.size}`;
     }
     addParamsToContext(comp: JitCompiler, rt: BaseRunType, name: string): string {
-        const params = this.getParams(rt, {} as NonNullable<P>);
+        const params = this.getParams(rt);
         const ctxName = this.getCtxVarName(comp, rt, name) + 'P';
         const ctxCode = `const ${ctxName} = ${typeParamsToLiteral(params)};`;
         comp.contextCodeItems.set(ctxName, ctxCode);

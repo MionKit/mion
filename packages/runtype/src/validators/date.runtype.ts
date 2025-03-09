@@ -20,11 +20,9 @@ export type ParsedDateStringParams = DateStringParams & {
     id: (typeof DateFormatsIds)[keyof typeof DateFormatsIds];
 };
 
-export const defaultDateParams = {
-    format: 'ISO',
-} as const satisfies DateStringParams;
+export type DefaultDateParams = {format: 'ISO'};
 
-export type DateString<P extends Partial<DateStringParams> = typeof defaultDateParams> = TypeFormat<
+export type DateString<P extends Partial<DateStringParams> = DefaultDateParams> = TypeFormat<
     string,
     typeof DateStringValidator.id,
     P
@@ -36,18 +34,18 @@ export class DateStringValidator extends JitRunTypeValidator<DateStringParams> {
     kind = ReflectionKind.string;
     name = DateStringValidator.id;
     _compileIsType(comp: JitCompiler, rt: BaseRunType): string {
-        const params = this.getParams(rt, defaultDateParams);
+        const params = this.getParams(rt);
         return compilePureFunctionCall(comp, rt, isDateString, parseDateStringParams(params));
     }
     _compileTypeErrors(comp: JitErrorsCompiler, rt: BaseRunType): string {
         const isTypeCode = this._compileIsType(comp, rt);
         if (!isTypeCode) return '';
-        const params = this.getParams(rt, defaultDateParams);
+        const params = this.getParams(rt);
         const formatError = {name: this.name, invalid: {format: params.format}};
         return `if (!(${isTypeCode})) ${comp.callJitErr(rt, formatError)}`;
     }
     _mock(mockContext: MockOperation, rt: BaseRunType) {
-        const params = this.getParams(rt, defaultDateParams);
+        const params = this.getParams(rt);
         return mockDateString({format: params.format, id: DateFormatsIds[params.format]});
     }
 }

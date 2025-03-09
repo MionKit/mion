@@ -40,14 +40,32 @@ export function registerFormatter<T extends TypeFormatter>(operation: T, shouldT
     return operation;
 }
 
-export function registerPureFunctionWithCtx(fnWithCtx: PureFunctionWithContext<any>): CompiledPureFunction {
+export function registerPureFunctionWithCtx(
+    fnWithCtx: PureFunctionWithContext<any>,
+    dependencies?: PureFunctionWithContext<any>[]
+): CompiledPureFunction {
     const existing = jitUtils.getCompiledPureFn(fnWithCtx.name);
     if (existing && existing.originFnWithCtx && existing.originFnWithCtx !== fnWithCtx)
         throw new Error(`Pure function with name ${fnWithCtx.name} already exists`);
     if (existing) return existing;
     const compiled = parsePureFunctionWithCtx(fnWithCtx);
+    if (dependencies) {
+        dependencies.forEach((d) => registerPureFunctionWithCtx(d));
+        dependencies.forEach((d) => compiled.dependencies.add(d.name));
+    }
     jitUtils.addPureFn(compiled);
     return compiled;
+}
+
+export function registerPureFunctionGroupWithCtx(fnsWithCtx: PureFunctionWithContext<any>[]): CompiledPureFunction[] {
+    const compiledFns = fnsWithCtx.map((fn) => registerPureFunctionWithCtx(fn));
+    compiledFns.forEach((cfn) => {
+        compiledFns.forEach((cf) => {
+            if (cfn.name === cf.name) return;
+            cf.dependencies.add(cfn.name);
+        });
+    });
+    return compiledFns;
 }
 
 export function getPureFn(fnOrName: string | PureFunctionWithContext<any>): PureFunction<TypeFormatParams> | undefined {
@@ -62,17 +80,6 @@ export function getCompiledPureFn(fnOrName: string | PureFunctionWithContext<any
     const name = fnOrName.name;
     if (!name) throw new Error('Pure Functions must have a name');
     return jitUtils.getCompiledPureFn(name);
-}
-
-export function registerPureFunctionGroupWithCtx(fnsWithCtx: PureFunctionWithContext<any>[]): CompiledPureFunction[] {
-    const compiledFns = fnsWithCtx.map((fn) => registerPureFunctionWithCtx(fn));
-    compiledFns.forEach((cfn) => {
-        compiledFns.forEach((cf) => {
-            if (cfn.name === cf.name) return;
-            cf.dependencies.add(cfn.name);
-        });
-    });
-    return compiledFns;
 }
 
 /** Gets a TypeFormatter or TypeValidator to the formatters cache */
@@ -145,12 +152,7 @@ export function getAnnotationParams(annotation: FormatAnnotation, rt: BaseRunTyp
 }
 
 /** Returns the params for a given type formatter */
-export function getFormatterParams<P extends TypeFormatParams>(
-    rt: BaseRunType,
-    name: string,
-    type: FormatterType,
-    defaultParams: P
-): P {
+export function getFormatterParams<P extends TypeFormatParams>(rt: BaseRunType, name: string, type: FormatterType): P {
     const isValidator = type === 'V';
     const annotations = rt.getFormatAnnotations().filter((a) => a.name === name);
     for (const annotation of annotations) {
@@ -159,33 +161,9 @@ export function getFormatterParams<P extends TypeFormatParams>(
             return isValidator ? targetIsValidator : !targetIsValidator;
         });
         if (!formatter) continue;
-        return recursiveSetDefaultValues(rt, defaultParams, getAnnotationParams(annotation, rt));
+        return getAnnotationParams(annotation, rt) as P;
     }
     throw new Error(`Type Formatter ${name} not found for ${rt.getTypeName()}`);
-}
-
-/** Returns the default value for a given type. */
-export function recursiveSetDefaultValues<D extends TypeFormatParams>(rt: BaseRunType, defaults: D, params: TypeFormatParams): D {
-    if (Object.keys(params).length === 0) return JSON.parse(JSON.stringify(defaults));
-    const paramsCopy = {...params};
-    for (const key in defaults) {
-        const defaultVal = defaults[key];
-        if (typeof defaultVal === 'undefined') continue;
-        if (paramsCopy[key] === undefined) paramsCopy[key] = defaultVal;
-        const copyVal = paramsCopy[key];
-        const isDefaultRecord = isRecord(defaultVal);
-        const isParamsRecord = isRecord(copyVal);
-        if (isDefaultRecord && isParamsRecord) {
-            paramsCopy[key] = recursiveSetDefaultValues(rt, defaultVal, copyVal);
-        } else if (isDefaultRecord !== isParamsRecord) {
-            throw new Error(`Default value and Type param value for ${key} in ${rt.getTypeName()} must have the same type.`);
-        }
-    }
-    return paramsCopy as D;
-}
-
-function isRecord(value: TypeFormatValue): value is TypeFormatParams {
-    return typeof value === 'object' && value !== null && !Array.isArray(value) && !(value instanceof RegExp);
 }
 
 export function typeParamsToLiteral(params: TypeFormatValue): string {
@@ -201,10 +179,12 @@ export function typeParamsToLiteral(params: TypeFormatValue): string {
         case Array.isArray(params):
             return `[${params.map((v) => typeParamsToLiteral(v)).join(', ')}]`;
         case typeof params === 'object': {
-            const entriesLiterals = Object.entries(params).map(([k, v]) => {
-                const propName = isSafePropName(k) ? k : toLiteral(k);
-                return `${propName}: ${typeParamsToLiteral(v)}`;
-            });
+            const entriesLiterals = Object.entries(params)
+                .filter((ent) => ent[1] !== undefined)
+                .map(([k, v]) => {
+                    const propName = isSafePropName(k) ? k : toLiteral(k);
+                    return `${propName}: ${typeParamsToLiteral(v)}`;
+                });
             return `{${entriesLiterals.join(', ')}}`;
         }
         default:

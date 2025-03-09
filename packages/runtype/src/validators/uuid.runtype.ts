@@ -12,13 +12,7 @@ import {ReflectionKind} from '@deepkit/type';
 import {GenericPureFunction, MockOperation} from '../types';
 import {TypeFormat} from '../lib/formats.runtype'; // !Important: TypeFormat cant be imported as type for all runType functionality to work
 
-export type UUID_Params = {
-    version: 4 | 7;
-};
-
-export const defUUIDParams = {
-    version: 4,
-} as const satisfies UUID_Params;
+export type UUID_Params = {version: 4 | 7};
 
 // IDs
 export type UUID_V4 = TypeFormat<string, typeof UUID_Validator.id, {version: 4}>;
@@ -30,7 +24,7 @@ export class UUID_Validator extends JitRunTypeValidator<UUID_Params> {
     readonly kind = ReflectionKind.string;
     readonly name = UUID_Validator.id;
     _compileIsType(comp: JitCompiler, rt: BaseRunType): string {
-        const params = this.getParams(rt, defUUIDParams);
+        const params = this.getParams(rt);
         // version must be set as a string to call pure function isUUID, this is so no transform is needed when comparing with uuid charat
         return compilePureFunctionCall(comp, rt, isUUID, {...params, version: String(params.version)});
     }
@@ -38,12 +32,12 @@ export class UUID_Validator extends JitRunTypeValidator<UUID_Params> {
         const isTypeCode = this._compileIsType(comp, rt);
         if (!isTypeCode) return '';
 
-        const params = this.getParams(rt, defUUIDParams);
+        const params = this.getParams(rt);
         const formatError = {name: this.name, invalid: {version: params.version}};
         return `if (!(${isTypeCode})) ${comp.callJitErr(rt, formatError)}`;
     }
     _mock(mockContext: MockOperation, rt: BaseRunType) {
-        const {version} = this.getParams(rt, defUUIDParams);
+        const {version} = this.getParams(rt);
         return version === 4 ? crypto.randomUUID() : mockUuidV7();
     }
     validateParams(rt: BaseRunType, params: UUID_Params) {

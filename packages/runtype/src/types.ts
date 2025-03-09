@@ -112,23 +112,6 @@ export interface JitFnData<Fn extends AnyFn> {
 
 export type SerializableJitFn<Fn extends AnyFn> = Omit<JitFnData<Fn>, 'fn'>;
 
-export type TypeFormatInvalidValueItem = number | string | boolean;
-export type TypeFormatInvalid =
-    | TypeFormatInvalidValueItem
-    | TypeFormatInvalidValueItem[]
-    | {[key: string]: TypeFormatInvalidValueItem};
-
-// maps TypeFormatParams to the same type but regexp are replaced by string
-export type InvalidFormatParams<T extends TypeFormatParams = TypeFormatParams> = {
-    [K in keyof T]: T[K] extends RegExp ? string : T[K];
-};
-
-export type TypeFormatError = {
-    name?: string; // the name of the format that failed
-    // list of properties that failed validation
-    invalid?: InvalidFormatParams;
-};
-
 export interface RunTypeError {
     /**
      * Path the the property that failed validation if the validated item was an object class, etc..
@@ -253,10 +236,24 @@ export type FormatAnnotation = DKAnnotation & {
     formatters: TypeFormatter[];
 };
 
+export type TypeFormatError = {
+    name?: string; // the name of the format that failed
+    // list of properties that failed validation
+    invalid?: InvalidFormatParams;
+};
+
 type ParamLiteral = string | number | boolean | RegExp;
 export type TypeFormatValue = ParamLiteral | TypeFormatValue[] | {[key: string]: TypeFormatValue};
 export type TypeFormatParams = Record<string, TypeFormatValue>;
 export type TypeFormatParsedParams = {__jitId: string; [key: string]: TypeFormatValue};
+
+// same as TypeFormatParams but Regexp values are replaced by string
+type InvalidParamLiteral = string | number | boolean;
+export type InvalidFormatParam = InvalidParamLiteral | InvalidParamLiteral[] | {[key: string]: InvalidParamLiteral};
+export type InvalidFormatParams = Record<string, TypeFormatValue>;
+// export type InvalidFormatParams<T extends TypeFormatParams = TypeFormatParams> = {
+//     [K in keyof T]: T[K] extends RegExp ? string : T[K];
+// };
 
 /**
  * Functions that can be used by jitCode.
@@ -265,13 +262,13 @@ export type TypeFormatParsedParams = {__jitId: string; [key: string]: TypeFormat
  * These function can not be anonym and must have an unique name.
  */
 export type PureFunction<P extends TypeFormatParams> = GenericPureFunction<P> | ErrorsPureFunction<P>;
+export type ErrorsPureFunction<P extends TypeFormatParams> = (val: any, params: P) => InvalidFormatParams | undefined;
 export type GenericPureFunction<P extends TypeFormatParams> = (val: any, params: P) => any;
 
 /**
  * Pure function that return an array with a list of invalid format properties.
  * ie: if a string should be maxLength = 5 and that string is 6 characters long, the function should return {invalid:['maxLength']}
  */
-export type ErrorsPureFunction<P extends TypeFormatParams> = (val: any, params: P, namePrefix: string) => string[] | undefined;
 export type PureFunctionWithContext<P extends TypeFormatParams> = (jitUtils: JITUtils) => PureFunction<P>;
 
 export type CompiledPureFunction = {
