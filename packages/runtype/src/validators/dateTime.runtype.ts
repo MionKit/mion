@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/ban-types */
+
 /* ########
  * 2025 mion
  * Author: Ma-jerez
@@ -12,14 +14,14 @@ import {TypeFormat} from '../lib/formats.runtype'; // !Important: TypeFormat can
 import {ErrorsPureFunction, InvalidFormatParams, MockOperation} from '../types';
 import {
     DateStringParams,
-    defaultDateParams,
+    DefaultDateParams,
     isDateString,
     mockDateString,
     parseDateStringParams,
     ParsedDateStringParams,
 } from './date.runtype';
 import {
-    defaultTimeParams,
+    DefaultTimeParams,
     isTimeString,
     mockTimeString,
     ParsedTimeStringParams,
@@ -46,16 +48,16 @@ export type ParsedStringDateTimeParams = {
     splitChar: string;
 };
 
-export const defaultDateTimeParams = {
-    date: defaultDateParams,
-    time: defaultTimeParams,
-    splitChar: 'T',
-} as const satisfies StringDateTimeParams;
+export type DefaultDateTimeParams = {
+    date: DefaultDateParams;
+    time: DefaultTimeParams;
+    splitChar: 'T';
+};
 
-export type DateTimeString<P extends Partial<StringDateTimeParams> = typeof defaultDateTimeParams> = TypeFormat<
+export type DateTimeString<P extends Partial<StringDateTimeParams> = {}> = TypeFormat<
     string,
     typeof DateTimeValidator.id,
-    P
+    DefaultDateTimeParams & P
 >;
 
 // DateTime validator
@@ -64,16 +66,16 @@ export class DateTimeValidator extends JitRunTypeValidator<StringDateTimeParams>
     kind = ReflectionKind.string;
     name = DateTimeValidator.id;
     _compileIsType(comp: JitCompiler, rt: BaseRunType): string {
-        const params = this.getParams(rt, defaultDateTimeParams);
+        const params = this.getParams(rt);
         return compilePureFunctionCall(comp, rt, isDateTime, parseDateTimeString(params));
     }
     _compileTypeErrors(comp: JitErrorsCompiler, rt: BaseRunType): string {
-        const params = this.getParams(rt, defaultDateTimeParams);
+        const params = this.getParams(rt);
         // the get type errors function does not need to be so optimized so we call a single function that makes all the checks
         return compileErrorsPureFunctionCall(comp, rt, dateTimeErrors, parseDateTimeString(params), this.name);
     }
     _mock(mockContext: MockOperation, rt: BaseRunType) {
-        const params = this.getParams(rt, defaultDateTimeParams);
+        const params = this.getParams(rt);
         return mockDateTimeString(parseDateTimeString(params));
     }
 }

@@ -12,10 +12,6 @@ import {TypeFormat} from '../lib/formats.runtype'; // !Important: TypeFormat can
 import {MockOperation} from '../types';
 import {compilePureFunctionCall, registerFormatter, registerPureFunctionWithCtx} from '../lib/formats';
 
-export const defaultTimeParams = {
-    format: 'ISO',
-} as const satisfies TimeStringParams;
-
 // string formats ae mapped to number fos faster comparison
 const ForMatsIds = {
     ISO: 0,
@@ -29,19 +25,14 @@ const ForMatsIds = {
     ss: 8,
 } as const;
 
+export type DefaultTimeParams = {format: 'ISO'};
 export type TimeStringParams = {
     format: 'ISO' | 'HH:mm:ss[.mmm]TZ' | 'HH:mm:ss[.mmm]' | 'HH:mm:ss' | 'HH:mm' | 'mm:ss' | 'HH' | 'mm' | 'ss';
 };
 
-export type ParsedTimeStringParams = TimeStringParams & {
-    id: (typeof ForMatsIds)[keyof typeof ForMatsIds];
-};
+export type ParsedTimeStringParams = TimeStringParams & {id: (typeof ForMatsIds)[keyof typeof ForMatsIds]};
 
-export type TimeString<P extends Partial<TimeStringParams> = typeof defaultTimeParams> = TypeFormat<
-    string,
-    typeof TimeStringValidator.id,
-    P
->;
+export type TimeString<P extends TimeStringParams = DefaultTimeParams> = TypeFormat<string, typeof TimeStringValidator.id, P>;
 
 // Time validator
 export class TimeStringValidator extends JitRunTypeValidator<TimeStringParams> {
@@ -49,18 +40,18 @@ export class TimeStringValidator extends JitRunTypeValidator<TimeStringParams> {
     kind = ReflectionKind.string;
     name = TimeStringValidator.id;
     _compileIsType(comp: JitCompiler, rt: BaseRunType): string {
-        const params = this.getParams(rt, defaultTimeParams);
+        const params = this.getParams(rt);
         return compilePureFunctionCall(comp, rt, isTimeString, {format: params.format, id: ForMatsIds[params.format]});
     }
     _compileTypeErrors(comp: JitErrorsCompiler, rt: BaseRunType): string {
         const isTypeCode = this._compileIsType(comp, rt);
         if (!isTypeCode) return '';
-        const params = this.getParams(rt, defaultTimeParams);
+        const params = this.getParams(rt);
         const formatError = {name: this.name, invalid: {format: params.format}};
         return `if (!(${isTypeCode})) ${comp.callJitErr(rt, formatError)}`;
     }
     _mock(mockContext: MockOperation, rt: BaseRunType) {
-        const params = this.getParams(rt, defaultTimeParams);
+        const params = this.getParams(rt);
         return mockTimeString({format: params.format, id: ForMatsIds[params.format]});
     }
 }

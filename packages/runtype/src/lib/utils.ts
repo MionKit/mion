@@ -116,3 +116,13 @@ export function getParamIndex(src: TypeParameter | TypeTupleMember): number {
 export function childIsExpression(fnId: JitFnID, child: BaseRunType): boolean {
     return child.jitFnIsExpression(fnId) || !child.isJitInlined();
 }
+
+/**
+ * Escapes special characters in a regular expression.
+ * Should be the same as https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/RegExp/escape
+ * @param val
+ * @returns
+ */
+export function regexpEscape(val: string): string {
+    return val.replace(/[/\-\\^$*+?.()|[\]{}]/g, '\\$&');
+}
