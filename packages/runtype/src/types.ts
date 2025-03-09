@@ -245,12 +245,11 @@ export interface MockOperation extends MockOptions {
 
 export type DKAnnotation = {
     name: string;
-    options: Type[];
+    options: SrcType;
 };
 
-export type ParsedAnnotation = DKAnnotation & {
-    jitId: string;
-    params: TypeFormatParams;
+export type FormatAnnotation = DKAnnotation & {
+    params?: TypeFormatParams;
     formatters: TypeFormatter[];
 };
 

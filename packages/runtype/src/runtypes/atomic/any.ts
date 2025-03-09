@@ -18,7 +18,7 @@ const jitConstants: JitConfig = {
 };
 
 export class AnyRunType extends AtomicRunType<TypeAny | TypeUnknown> {
-    getJitConfig = () => jitConstants;
+    _getJitConfig = () => jitConstants;
     jitFnHasReturn(fnId: JitFnID): boolean {
         switch (fnId) {
             case JitFunctions.typeErrors.id:

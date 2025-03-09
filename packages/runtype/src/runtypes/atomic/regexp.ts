@@ -17,7 +17,7 @@ const jitConstants: JitConfig = {
 };
 
 export class RegexpRunType extends AtomicRunType<TypeRegexp> {
-    getJitConfig = () => jitConstants;
+    _getJitConfig = () => jitConstants;
     _compileIsType(comp: JitCompiler): string {
         return `(${comp.vλl} instanceof RegExp)`;
     }

@@ -9,7 +9,7 @@
 import type {RunType, Mutable, SrcType} from './types';
 import type {BaseRunType} from './lib/baseRunTypes';
 import type {TypeClass, Type} from '@deepkit/type';
-import {ReflectionKind, resolveReceiveType, ReceiveType, reflect} from '@deepkit/type';
+import {ReflectionKind, resolveReceiveType, ReceiveType, reflect, typeAnnotation} from '@deepkit/type';
 import {StringRunType} from './runtypes/atomic/string';
 import {DateRunType} from './runtypes/atomic/date';
 import {NumberRunType} from './runtypes/atomic/number';
@@ -64,18 +64,18 @@ import {NonSerializableRunType} from './runtypes/native/nonSerializable';
 
 export function runType<T>(type?: ReceiveType<T>): RunType {
     const src = resolveReceiveType(type) as SrcType;
-    createAllRunTypes(src);
+    createRunTypes(src);
     return src._rt;
 }
 
 export function reflectFunction<Fn extends (...args: any[]) => any>(fn: Fn): FunctionRunType {
     const src = reflect(fn) as SrcType;
-    createAllRunTypes(src);
+    createRunTypes(src);
     return src._rt as any as FunctionRunType;
 }
 
 // We need to traverse all child nodes to create all the runTypes
-function createAllRunTypes(src: SrcType): void {
+function createRunTypes(src: SrcType): void {
     const stack: Type[] = [src];
 
     while (stack.length > 0) {
@@ -101,6 +101,12 @@ function createAllRunTypes(src: SrcType): void {
         if (current.typeArguments) pushToStack(current.typeArguments, stack);
         if (current.decorators) pushToStack(current.decorators, stack);
         if (current.scheduleDecorators) pushToStack(current.scheduleDecorators, stack);
+
+        // annotations
+        if (current.annotations) {
+            const annotations = typeAnnotation.getAnnotations(current);
+            for (const annotation of annotations) stack.push(annotation.options);
+        }
 
         // originTypes
         current.originTypes?.forEach((ot) => {
