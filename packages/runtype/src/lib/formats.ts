@@ -214,7 +214,7 @@ export function compileErrorsPureFunctionCall(
     rt: BaseRunType,
     pureFn: PureFunctionWithContext<any>,
     params: TypeFormatParams,
-    format: string
+    formatName: string
 ): string {
     const {varName, paramsName} = compilePureFunctionContext(comp, rt, pureFn, params);
     const errVarName = `${varName}Err`;
@@ -223,7 +223,7 @@ export function compileErrorsPureFunctionCall(
 
     // call the pure function, passing value, jitUtils and params (pure function arguments)
     const errorPureFnCall = `const ${errVarName} = ${varName}(${comp.vλl},${paramsName},${comp.args.εrr})`;
-    const infoCode = `{name:${toLiteral(format)},invalid:${errVarName}}`;
+    const infoCode = `{name:${toLiteral(formatName)},invalid:${errVarName}}`;
     const callJitErr = `if (${errVarName}) utl.err(${comp.args.εrr},${comp.args.pλth},[${pathItems}],${expectLiteral},${infoCode});`;
     return `${errorPureFnCall};${callJitErr}`;
 }
