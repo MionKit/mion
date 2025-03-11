@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/ban-types */
 /* ########
  * 2025 mion
  * Author: Ma-jerez
@@ -5,32 +6,40 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 import type {BaseRunType} from '../lib/baseRunTypes';
-import type {JitCompiler} from '../lib/jitCompiler';
+import type {JitCompiler, JitErrorsCompiler} from '../lib/jitCompiler';
 import {JitRunTypeValidator} from '../lib/jitFormatters';
 import {ReflectionKind} from '@deepkit/type';
-import {DomainParams} from './domain.runtype';
+import {DefaultDomainParams, Domain} from './domain.runtype';
 import {TypeFormat} from '../lib/formats.runtype';
 import {MockOperation} from '../types';
+import {StringValidatorsParams} from './string.runtype';
 
-export const DefaultEmailParams = {
-    maxLength: 256,
-    localPart: {
-        minLength: 3,
-    },
-} as const satisfies EmailParams;
-
-export type EmailParams = {
-    maxLength?: number;
-    localPart?: {
-        maxLength?: number;
-        minLength?: number;
-        allowedChars?: string;
-        disallowedChars?: string;
-    };
-    domain?: DomainParams;
+export type EmailOnlyParams = {
+    maxLength: 254;
+};
+export type DefaultLocalPart = {
+    maxLength: 64;
+    minLength: 3;
+    /** Disallows non typical email chars
+     * avoiding the character + prevents aliasing used in goggle and other providers
+     * characters . and @ are allowed as are typically used
+     * */
+    disallowedChars: `()<>[]:;\\,+ `; //
+};
+export type DefaultEmailParams = EmailOnlyParams & {
+    domain: DefaultDomainParams;
+    localPart: DefaultLocalPart;
+};
+export type EmailParams = StringValidatorsParams & {
+    localPart: StringValidatorsParams;
+    domain: Domain;
 };
 
-export type Email<P extends EmailParams = typeof DefaultEmailParams> = TypeFormat<string, 'email', P>;
+export type Email<
+    E extends StringValidatorsParams = {},
+    L extends StringValidatorsParams = {},
+    D extends Domain = Domain,
+> = TypeFormat<string, 'email', EmailOnlyParams & E & {localPart: DefaultLocalPart & L} & {domain: Domain & D}>;
 
 // Email validator
 export class EmailValidator extends JitRunTypeValidator<EmailParams> {
@@ -43,6 +52,10 @@ export class EmailValidator extends JitRunTypeValidator<EmailParams> {
     _mock(mockContext: MockOperation, rt: BaseRunType) {
         // TODO
         return {value: rt.getKindName()};
+    }
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    _compileTypeErrors(comp: JitErrorsCompiler, rt: BaseRunType): string {
+        throw new Error('Method not implemented.');
     }
     validateParams() {}
 }

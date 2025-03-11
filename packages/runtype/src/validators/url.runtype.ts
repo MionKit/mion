@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable @typescript-eslint/ban-types */
 /* ########
  * 2025 mion
  * Author: Ma-jerez
@@ -5,38 +7,52 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 import type {BaseRunType} from '../lib/baseRunTypes';
-import type {JitCompiler} from '../lib/jitCompiler';
+import type {JitCompiler, JitErrorsCompiler} from '../lib/jitCompiler';
 import {compilePureFunctionCall, registerFormatter, registerPureFunctionWithCtx} from '../lib/formats';
-import {JitRunTypeValidator} from '../lib/jitFormatters';
+import {JitRunTypeFormatter} from '../lib/jitFormatters';
 import {ReflectionKind} from '@deepkit/type';
-import {DomainParams} from './domain.runtype';
+import {Domain} from './domain.runtype';
 import {TypeFormat} from '../lib/formats.runtype';
 import {MockOperation} from '../types';
 
-export const defaultUrlParams = {
-    maxLength: 2048,
-    allowedProtocols: ['http://', 'https://', 'ftp://', 'ftps://', 'ws://', 'wss://', 'file://'],
-    disallowedChars: '\t\n\r ',
-    allowIPs: true,
-} satisfies UrlParams;
+export type DefaultUrlParams = {
+    maxLength: 2048;
+    allowedProtocols: ['http://', 'https://', 'ftp://', 'ftps://', 'ws://', 'wss://', 'file://'];
+    disallowedChars: '\t\n\r ';
+    allowIPs: true;
+};
 
 export type UrlParams = {
     maxLength?: number;
     allowedProtocols?: string[];
     disallowedChars?: string;
     allowIPs?: boolean;
-    domain?: DomainParams;
+    domain?: Domain;
+    samples?: string[];
 };
 
-export type StringURL<P extends UrlParams = typeof defaultUrlParams> = TypeFormat<string, 'url', P>;
+export type StringURL<P extends UrlParams = {}, D extends Domain | undefined = undefined> = TypeFormat<
+    string,
+    'url',
+    DefaultUrlParams & P & {domain?: D}
+>;
 
 // URL validator
-export class URLValidator extends JitRunTypeValidator {
+export class URLValidator extends JitRunTypeFormatter<UrlParams> {
+    _compileTypeErrors(comp: JitErrorsCompiler, rt: BaseRunType): string {
+        throw new Error('Method not implemented.');
+    }
+    _format(comp: JitCompiler, rt: BaseRunType): string {
+        throw new Error('Method not implemented.');
+    }
+    _formatMockedValue(mockContext: MockOperation, rt: BaseRunType, val: any): string {
+        throw new Error('Method not implemented.');
+    }
     static readonly id = 'url';
     readonly kind = ReflectionKind.string;
     readonly name = URLValidator.id;
     _compileIsType(comp: JitCompiler, rt: BaseRunType): string {
-        const params = this.getParams(rt, defaultUrlParams);
+        const params = this.getParams(rt);
         return compilePureFunctionCall(comp, rt, isURL, params);
     }
     _mock(mockContext: MockOperation, rt: BaseRunType) {
