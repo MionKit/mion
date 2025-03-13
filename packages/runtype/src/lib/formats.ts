@@ -17,19 +17,16 @@ import type {
 import {typeAnnotation, ReflectionKind} from '@deepkit/type';
 import type {BaseRunType} from './baseRunTypes';
 import {JitErrorsCompiler, type JitCompiler} from './jitCompiler';
-import {FormatterType, JitRunTypeFormatter, JitRunTypeTransformer, JitRunTypeValidator} from './jitFormatters';
+import {JitRunTypeFormatter} from './jitFormatters';
 import {jitUtils} from './jitUtils';
 import {isSafePropName, toLiteral} from './utils';
 
-export type TypeFormatter = JitRunTypeFormatter | JitRunTypeValidator | JitRunTypeFormatter;
-const typeAnnotationsCache = new Map<string, TypeFormatter>();
-const validatorPrefix = 'v';
+const typeAnnotationsCache = new Map<string, JitRunTypeFormatter>();
 const formatterPrefix = 'f';
 
 /** Adds a TypeFormatter or TypeValidator to the formatters cache */
-export function registerFormatter<T extends TypeFormatter>(operation: T, shouldThrow = false): T {
-    const prefix = operation instanceof JitRunTypeValidator ? validatorPrefix : formatterPrefix;
-    const id = getFormatterKey(prefix, operation.kind, operation.name);
+export function registerFormatter<T extends JitRunTypeFormatter>(operation: T, shouldThrow = false): T {
+    const id = getFormatterKey(formatterPrefix, operation.kind, operation.name);
     const exiting = typeAnnotationsCache.get(id);
     if (exiting && exiting !== operation) {
         if (shouldThrow)
@@ -83,40 +80,39 @@ export function getCompiledPureFn(fnOrName: string | PureFunctionWithContext<any
 }
 
 /** Gets a TypeFormatter or TypeValidator to the formatters cache */
-export function getFormattersFromCache(typeKind: ReflectionKind, name: string, shouldThrow = false): TypeFormatter[] {
-    const validator = typeAnnotationsCache.get(getFormatterKey(validatorPrefix, typeKind, name));
+export function getFormatterFromCache(
+    typeKind: ReflectionKind,
+    name: string,
+    shouldThrow = false
+): JitRunTypeFormatter | undefined {
     const formatter = typeAnnotationsCache.get(getFormatterKey(formatterPrefix, typeKind, name));
-    if (!validator && !formatter) {
+    if (!formatter) {
         if (shouldThrow) throw new Error(`Annotation type ${name} not found for ${ReflectionKindName[typeKind]}`);
-        return [];
+        return undefined;
     }
-    const result: TypeFormatter[] = [];
-    if (validator) result.push(validator);
-    if (formatter) result.push(formatter);
-    return result;
+    return formatter;
 }
 
 export function getFormatterKey(prefix: string, kind: string | number, name: string | number): string {
     return `${prefix}:${kind}:${name}`;
 }
 
-export function getTypeFormats(rt: BaseRunType): TypeFormatter[] {
+export function getTypeFormats(rt: BaseRunType): JitRunTypeFormatter[] {
     const parsedAnnotations = typeAnnotation.getAnnotations(rt.src) as any as FormatAnnotation[];
-    return parsedAnnotations.map((a) => a.formatters).flat();
+    return parsedAnnotations.map((a) => a.formatter).flat();
 }
 
 /** Returns the validator for a given type. ATM only one validator is allowed for each type */
-export function getRunTypeValidator(rt: BaseRunType): JitRunTypeValidator | JitRunTypeFormatter | undefined {
+export function getRunTypeFormatter(rt: BaseRunType): JitRunTypeFormatter | undefined {
     const parsedAnnotations = typeAnnotation.getAnnotations(rt.src) as any as FormatAnnotation[];
     for (const annotation of parsedAnnotations) {
-        const validator = annotation.formatters.find((f) => f.type === 'F' || f.type === 'V');
-        if (validator) return validator as JitRunTypeValidator | JitRunTypeFormatter;
+        return annotation.formatter;
     }
     return undefined;
 }
 
-export function getRunTypeTransformers(rt: BaseRunType): (JitRunTypeFormatter | JitRunTypeTransformer)[] {
-    return getTypeFormats(rt).filter((f) => f.type === 'T' || f.type === 'F') as JitRunTypeFormatter[];
+export function getRunTypeTransformers(rt: BaseRunType): JitRunTypeFormatter[] {
+    return getTypeFormats(rt).filter((f) => !!f._compileFormat) as JitRunTypeFormatter[];
 }
 
 export function getFormatAnnotations(rt: BaseRunType): FormatAnnotation[] {
@@ -131,16 +127,16 @@ export function getFormatAnnotations(rt: BaseRunType): FormatAnnotation[] {
 export function initFormatAnnotations(rt: BaseRunType): FormatAnnotation[] {
     const annotations = typeAnnotation.getAnnotations(rt.src);
     if (annotations.length === 0) return annotations as FormatAnnotation[];
-    // TODO: investigate why only a single annotation gets parsed, ie: type StringFormat<{maxLength:}> & Email, is just returning the Email annotation
-    // We might actually want to enforce this, ie: we could have an email and uuid and those are not compatible
     if (annotations.length > 1) throw new Error(`Only one type annotation is allowed for ${rt.getTypeName()}`);
     for (const annotation of annotations) {
         if (!annotation.name) throw new Error(`Type annotation must have a name for ${rt.getTypeName()}`);
 
         const params = annotation.options;
+        const formatter = getFormatterFromCache(rt.src.kind, annotation.name);
         if (params.kind !== ReflectionKind.objectLiteral)
             throw new Error(`Type annotation must be an object literal for ${rt.getTypeName()}`);
-        (annotation as any).formatters = getFormattersFromCache(rt.src.kind, annotation.name);
+        if (!formatter) throw new Error(`Type Formatter ${annotation.name} not found for ${rt.getTypeName()}`);
+        (annotation as FormatAnnotation).formatter = formatter;
     }
     return annotations as FormatAnnotation[];
 }
@@ -152,21 +148,17 @@ export function getAnnotationParams(annotation: FormatAnnotation, rt: BaseRunTyp
 }
 
 /** Returns the params for a given type formatter */
-export function getFormatterParams<P extends TypeFormatParams>(rt: BaseRunType, name: string, type: FormatterType): P {
-    const isValidator = type === 'V';
+export function getFormatterParams<P extends TypeFormatParams>(rt: BaseRunType, name: string): P {
     const annotations = rt.getFormatAnnotations().filter((a) => a.name === name);
     for (const annotation of annotations) {
-        const formatter = annotation.formatters.find((f) => {
-            const targetIsValidator = f instanceof JitRunTypeValidator;
-            return isValidator ? targetIsValidator : !targetIsValidator;
-        });
+        const formatter = annotation.formatter;
         if (!formatter) continue;
         return getAnnotationParams(annotation, rt) as P;
     }
     throw new Error(`Type Formatter ${name} not found for ${rt.getTypeName()}`);
 }
 
-export function typeParamsToLiteral(params: TypeFormatValue): string {
+export function typeParamsToLiteral(params: TypeFormatValue, ignoreProps?: string[]): string {
     switch (true) {
         case typeof params === 'string':
             return toLiteral(params);
@@ -180,7 +172,7 @@ export function typeParamsToLiteral(params: TypeFormatValue): string {
             return `[${params.map((v) => typeParamsToLiteral(v)).join(', ')}]`;
         case typeof params === 'object': {
             const entriesLiterals = Object.entries(params)
-                .filter((ent) => ent[1] !== undefined)
+                .filter((ent) => ent[1] !== undefined && (!ignoreProps || !ignoreProps.includes(ent[0])))
                 .map(([k, v]) => {
                     const propName = isSafePropName(k) ? k : toLiteral(k);
                     return `${propName}: ${typeParamsToLiteral(v)}`;
@@ -202,21 +194,38 @@ export function compilePureFunctionCall(
     comp: JitCompiler,
     rt: BaseRunType,
     pureFn: PureFunctionWithContext<any>,
-    params: TypeFormatParams
+    params: TypeFormatParams | string[],
+    ignoreProps?: string[]
 ): string {
-    const {varName, paramsName} = compilePureFunctionContext(comp, rt, pureFn, params);
+    const {fnName, paramsName} = compilePureFunctionContext(comp, rt, pureFn, params, ignoreProps);
     // call the pure function, passing value, jitUtils and params (pure function arguments)
-    return `${varName}(${comp.vλl},${paramsName})`;
+    return `${fnName}(${comp.vλl},${paramsName})`;
+}
+
+export function compileMultiplePureFunctionCall(
+    comp: JitCompiler,
+    rt: BaseRunType,
+    params: TypeFormatParams | string[],
+    pureFnList: {fn: PureFunctionWithContext<any>; paramsPath: string; vλl: string}[],
+    ignoreProps?: string[]
+): string[] {
+    // call the pure function, passing value, jitUtils and params (pure function arguments)
+    return pureFnList.map((fnArgs) => {
+        const {fn, paramsPath, vλl} = fnArgs;
+        const {fnName, paramsName} = compilePureFunctionContext(comp, rt, fn, params, ignoreProps);
+        return `${fnName}(${vλl},${paramsName}.${paramsPath})`;
+    });
 }
 
 export function compileErrorsPureFunctionCall(
     comp: JitErrorsCompiler,
     rt: BaseRunType,
     pureFn: PureFunctionWithContext<any>,
-    params: TypeFormatParams,
-    formatName: string
+    params: TypeFormatParams | string[],
+    formatName: string,
+    ignoreProps?: string[]
 ): string {
-    const {varName, paramsName} = compilePureFunctionContext(comp, rt, pureFn, params);
+    const {fnName: varName, paramsName} = compilePureFunctionContext(comp, rt, pureFn, params, ignoreProps);
     const errVarName = `${varName}Err`;
     const pathItems = comp.getStackStaticPathArgs();
     const expectLiteral = toLiteral(rt.getKindName());
@@ -232,28 +241,31 @@ export function compilePureFunctionContext(
     comp: JitCompiler | JitErrorsCompiler,
     rt: BaseRunType,
     pureFn: PureFunctionWithContext<any>,
-    params: TypeFormatParams
-): {varName: string; paramsName: string} {
+    params: TypeFormatParams | string[],
+    ignoreProps?: string[]
+): {fnName: string; paramsName: string} {
     const name = pureFn.name;
     if (!name) throw new Error('Pure function must have a name');
     registerPureFunctionWithCtx(pureFn); // will throw if there is a different pure function with the same name
     comp.addPureFnDependency(pureFn);
     // Add context code for the pure function and params
-    const varName = `${name}${rt.getNestLevel()}`;
-    const pureFunctionCode = `const ${varName} = utl.getPureFn(${toLiteral(name)})`;
-    comp.contextCodeItems.set(varName, pureFunctionCode);
-    const {paramsName} = compileAddParamsToCtx(comp, rt, params);
-    return {varName, paramsName};
+    const fnName = `${name}${rt.getNestLevel()}`;
+    const pureFunctionCode = `const ${fnName} = utl.getPureFn(${toLiteral(name)})`;
+    comp.contextCodeItems.set(fnName, pureFunctionCode);
+    const {paramsName} = compileAddParamsToCtx(comp, rt, params, ignoreProps);
+    return {fnName, paramsName};
 }
 
 export function compileAddParamsToCtx(
     comp: JitCompiler | JitErrorsCompiler,
     rt: BaseRunType,
-    params: TypeFormatParams
+    params: TypeFormatParams | string[],
+    ignoreProps?: string[]
 ): {paramsName: string} {
-    const paramsName = `ftPrams${rt.getNestLevel()}`; //TODO: we might need to add a name based on the type formatter
+    if (Array.isArray(params)) return {paramsName: params.map((p) => toLiteral(p)).join('.')};
+    const paramsName = `args${rt.getNestLevel()}`; //TODO: we might need to add a name based on the type formatter
     if (comp.contextCodeItems.has(paramsName)) return {paramsName};
-    const paramsCode = `const ${paramsName} = ${typeParamsToLiteral(params)}`;
+    const paramsCode = `const ${paramsName} = ${typeParamsToLiteral(params, ignoreProps)}`;
     comp.contextCodeItems.set(paramsName, paramsCode);
     return {paramsName};
 }

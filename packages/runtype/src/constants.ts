@@ -34,6 +34,8 @@ export const jitSerializationFunctions = {
     fromBinary: {id: 'fb', name: 'fromJsonVal', hasReturn: false, isExpression: false},
     toString: {id: 'ts', name: 'jsonStringify', hasReturn: false, isExpression: true},
     fromString: {id: 'fs', name: 'jsonParse', hasReturn: false, isExpression: true},
+    // apply type formatters, ie: lowercase, uppercase, trim, etc
+    format: {id: 'fmt', name: 'format', hasReturn: false, isExpression: true},
 } as const satisfies {[key: string]: JitFnSetting};
 
 export const JitFunctions = {

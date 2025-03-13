@@ -42,40 +42,38 @@ export type StringTransformersParams = {
 };
 export type StringFormatParams = StringValidatorsParams & StringTransformersParams;
 
-type ParsedStringFormatParams = StringFormatParams & {
+type StringParams = StringFormatParams & {
     disallowedRegexp?: RegExp;
     allowedRegexp?: RegExp;
 };
 
-type StringValidatorParams = ParsedStringFormatParams & {samples: undefined; sampleChars: undefined};
+type StringValidatorParams = StringParams & {samples: undefined; sampleChars: undefined};
 
 // ############### Base String Format ###############
 
 export type StringFormat<P extends StringFormatParams = {}> = TypeFormat<string, typeof StringFormatter.id, P>;
 
+const ignoreProps = ['samples', 'sampleChars'];
+
 // ############### Validator ###############
-class StringFormatter extends JitRunTypeFormatter<ParsedStringFormatParams> {
+class StringFormatter extends JitRunTypeFormatter<StringParams> {
     static readonly id = 'string' as const;
     readonly kind = ReflectionKind.string;
     readonly name = StringFormatter.id;
-    getParams(rt: BaseRunType): ParsedStringFormatParams {
+    getParams(rt: BaseRunType): StringParams {
         const params = super.getParams(rt);
         if (params.allowedChars?.length) params.allowedRegexp = new RegExp(`^[${regexpEscape(params.allowedChars)}]+$`);
         if (params.disallowedChars?.length) params.disallowedRegexp = new RegExp(`[${regexpEscape(params.disallowedChars)}]`);
         return params;
     }
-    getValidatorParams(rt: BaseRunType): StringValidatorParams {
-        const params = this.getParams(rt);
-        return {...params, samples: undefined, sampleChars: undefined};
-    }
-    _format(comp: JitCompiler, rt: BaseRunType): string {
+    _compileFormat(comp: JitCompiler, rt: BaseRunType): string {
         const {lowercase, uppercase, capitalize} = this.getParams(rt);
         if (lowercase) return `${comp.vλl}.toLowerCase()`;
         if (uppercase) return `${comp.vλl}.toUpperCase()`;
         if (capitalize) return `${comp.vλl}.charAt(0).toUpperCase() + ${comp.vλl}.slice(1)`;
         return '';
     }
-    _compileIsType(comp: JitCompiler, rt: BaseRunType): string {
+    _compileIsType(comp: JitCompiler, rt: BaseRunType, paramsPath?: string[]): string {
         const params = this.getParams(rt);
         const conditions: string[] = [];
         const {
@@ -99,7 +97,7 @@ class StringFormatter extends JitRunTypeFormatter<ParsedStringFormatParams> {
 
         // allowed validators (these are not simple statements so better to cal external function)
         if (pattern || allowedRegexp || disallowedRegexp || allowedValues || disallowedValues) {
-            const {paramsName} = compileAddParamsToCtx(comp, rt, params);
+            const {paramsName} = compileAddParamsToCtx(comp, rt, paramsPath || params, ignoreProps);
             if (pattern) conditions.push(`${paramsName}.pattern.test(${comp.vλl})`);
             if (allowedRegexp) conditions.push(`${paramsName}.allowedRegexp.test(${comp.vλl})`);
             if (disallowedRegexp) conditions.push(`!${paramsName}.disallowedRegexp.test(${comp.vλl})`);
@@ -118,10 +116,10 @@ class StringFormatter extends JitRunTypeFormatter<ParsedStringFormatParams> {
 
         return conditions.join(' && ');
     }
-    _compileTypeErrors(comp: JitErrorsCompiler, rt: BaseRunType): string {
-        const params = this.getValidatorParams(rt);
+    _compileTypeErrors(comp: JitErrorsCompiler, rt: BaseRunType, paramsPath?: string[]): string {
+        const params = this.getParams(rt);
         // the get type errors function does not need to be so optimized so we call a single function that makes all the checks
-        return compileErrorsPureFunctionCall(comp, rt, stringFormatErrors, params as any, this.name);
+        return compileErrorsPureFunctionCall(comp, rt, stringFormatErrors, paramsPath || params, this.name, ignoreProps);
     }
     _mock(mockContext: MockOperation, rt: BaseRunType): string {
         const params = this.getParams(rt);
@@ -129,10 +127,9 @@ class StringFormatter extends JitRunTypeFormatter<ParsedStringFormatParams> {
     }
     _formatMockedValue(mockContext: MockOperation, rt: BaseRunType, val: any): string {
         const params = this.getParams(rt);
-        const {lowercase, uppercase, capitalize} = params;
-        if (lowercase) return val.toLowerCase();
-        if (uppercase) return val.toUpperCase();
-        if (capitalize) return val.charAt(0).toUpperCase() + val.slice(1);
+        if (params.lowercase) return val.toLowerCase();
+        if (params.uppercase) return val.toUpperCase();
+        if (params.capitalize) return val.charAt(0).toUpperCase() + val.slice(1);
         return val;
     }
     stringErrors = stringFormatErrors();

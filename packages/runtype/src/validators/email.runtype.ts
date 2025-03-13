@@ -7,7 +7,7 @@
  * ######## */
 import type {BaseRunType} from '../lib/baseRunTypes';
 import type {JitCompiler, JitErrorsCompiler} from '../lib/jitCompiler';
-import {JitRunTypeValidator} from '../lib/jitFormatters';
+import {JitRunTypeFormatter} from '../lib/jitFormatters';
 import {ReflectionKind} from '@deepkit/type';
 import {DefaultDomainParams, Domain} from './domain.runtype';
 import {TypeFormat} from '../lib/formats.runtype';
@@ -42,10 +42,10 @@ export type Email<
 > = TypeFormat<string, 'email', EmailOnlyParams & E & {localPart: DefaultLocalPart & L} & {domain: Domain & D}>;
 
 // Email validator
-export class EmailValidator extends JitRunTypeValidator<EmailParams> {
+export class EmailFormat extends JitRunTypeFormatter<EmailParams> {
     static id = 'email';
     kind = ReflectionKind.string;
-    name = EmailValidator.id;
+    name = EmailFormat.id;
     _compileIsType(comp: JitCompiler, rt: BaseRunType): string {
         return `// TODO: ${comp.vλl} ${rt.getKindName()}`;
     }
@@ -57,7 +57,9 @@ export class EmailValidator extends JitRunTypeValidator<EmailParams> {
     _compileTypeErrors(comp: JitErrorsCompiler, rt: BaseRunType): string {
         throw new Error('Method not implemented.');
     }
-    validateParams() {}
+    _compileFormat(comp: JitCompiler): string {
+        return `${comp.vλl}.toLowerCase()`; // all emails are lower case
+    }
 }
 
 export function isEmail(value: string): value is Email {

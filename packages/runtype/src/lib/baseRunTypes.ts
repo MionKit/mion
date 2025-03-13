@@ -41,11 +41,10 @@ import {
     initFormatAnnotations,
     getFormatAnnotations,
     getTypeFormats,
-    getRunTypeValidator,
+    getRunTypeFormatter,
     getRunTypeTransformers,
-    TypeFormatter,
 } from './formats';
-import {JitRunTypeFormatter, type JitRunTypeValidator} from './jitFormatters';
+import {JitRunTypeFormatter} from './jitFormatters';
 
 export abstract class BaseRunType<T extends Type = Type> implements RunType {
     isCircular?: boolean;
@@ -107,12 +106,17 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
         const updatedContext = recursionLevel ? this.onCircularMock(ctx, recursionLevel) : ctx;
         // Just one type validator allowed per type, and is responsible to mock the value,
         // ie: email and uuid should contain the logic to generate a valid value
-        const typeValidator = getRunTypeValidator(this);
+        const typeValidator = getRunTypeFormatter(this);
         let mocked = typeValidator ? typeValidator._mock(updatedContext, this) : this._mock(updatedContext);
         // once mocked multiple type transformers can be applied to the mocked value
         const typeTransformers = getRunTypeTransformers(this);
-        if (typeTransformers.length)
-            mocked = typeTransformers.reduce((acc, t) => t._formatMockedValue(updatedContext, this, acc), mocked);
+        if (typeTransformers.length) {
+            const compiledFormatters = typeTransformers
+                .filter((t) => !!t._compileFormat)
+                .map((t) => this.getJitCompiledFunction(JitFunctions.format.id));
+            const formatters = compiledFormatters.filter((c) => !c.isNoop).map((c) => c.fn);
+            mocked = formatters.reduce((acc, format) => format(acc), mocked);
+        }
         ctx.stack.pop();
         return mocked;
     }
@@ -262,25 +266,31 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
                     code = this._compileToJsonVal(comp); 
                     const transformers = typeFormatters?.filter((t) => !!(t as JitRunTypeFormatter)._compileToJsonVal) as JitRunTypeFormatter[];
                     // apply the output of one transformer as the input to the next ie: finalCode = transformer2(transformer1(code))
-                    if (transformers) code = this.applyTransformers(code, comp, transformers, fnId);
+                    if (transformers.length) code = this.applyTransformers(code, comp, transformers, fnId);
                     break;
                 }
                 case JitFunctions.fromJsonVal.id:  {
                     code =this._compileFromJsonVal(comp);
                     const transformers = typeFormatters?.filter((t) => !!(t as JitRunTypeFormatter)._compileFromJsonVal) as JitRunTypeFormatter[];
-                    if (transformers) code = this.applyTransformers(code, comp, transformers, fnId);
+                    if (transformers.length) code = this.applyTransformers(code, comp, transformers, fnId);
                     break;
                 }
                 case JitFunctions.jsonStringify.id: {
                     code = this._compileJsonStringify(comp);
                     const transformers = typeFormatters?.filter((t) => !!(t as JitRunTypeFormatter)._compileJsonStringify) as JitRunTypeFormatter[];
-                    if (transformers) code = this.applyTransformers(code, comp, transformers, fnId);
+                    if (transformers.length) code = this.applyTransformers(code, comp, transformers, fnId);
                     break;
                 }
                 case JitFunctions.unknownKeyErrors.id: code = this._compileUnknownKeyErrors(comp as JitErrorsCompiler); break;
                 case JitFunctions.hasUnknownKeys.id: code = this._compileHasUnknownKeys(comp); break;
                 case JitFunctions.stripUnknownKeys.id: code = this._compileStripUnknownKeys(comp); break;
                 case JitFunctions.unknownKeysToUndefined.id: code = this._compileUnknownKeysToUndefined(comp); break;
+                case JitFunctions.format.id: {
+                    if (this.src.kind !== ReflectionKind.string && this.src.kind !== ReflectionKind.number) throw new Error('Format can only be applied to string and number types');
+                    const transformers = typeFormatters?.filter((t) => !!(t as JitRunTypeFormatter)._compileFormat) as JitRunTypeFormatter[];
+                    if (transformers.length) code = this.applyTransformers(code, comp, transformers, fnId);
+                    break;
+                }
                 default: throw new Error(`Unknown compile operation: ${fnId}`);
             }
             if (code) code = this.handleReturnValues(comp, fnId, code);
@@ -309,6 +319,13 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
                     break;
                 case JitFunctions.jsonStringify.id:
                     result = t._compileJsonStringify(comp, this);
+                    break;
+                case JitFunctions.format.id:
+                    if (!t._compileFormat)
+                        throw new Error(
+                            `Type Formatter ${t.name} does not implement _compileFormat method for ${this.getTypeName()}`
+                        );
+                    result = t._compileFormat(comp, this);
                     break;
                 default:
                     throw new Error(`Unknown transformer operation: ${fnId}`);
@@ -578,6 +595,8 @@ export abstract class MemberRunType<T extends Type> extends BaseRunType<T> imple
         if (stack.length > maxStackDepth) throw new Error(maxStackErrorMessage);
         const circularJitConf = this.getCircularJitConfig(stack);
         if (circularJitConf) return circularJitConf;
+        // TODO: some properties could be skipped from the JIT ID. so we could implement a mechanism to mark them to be skipped
+        // ie: sample and sampleChars from StringFormat are too large but they do not affect jit code generation as those properties are only used during mocking
         stack.push(this);
         const member = this.getMemberType();
         const memberConfig = member.getJitConfig(stack);
