@@ -73,16 +73,8 @@ export class DomainFormatter extends JitRunTypeFormatter<DomainParams> {
     static id = 'domain' as const;
     kind = ReflectionKind.string;
     name = DomainFormatter.id;
-    getValidatorParams(rt: BaseRunType): DomainParams {
-        const params = this.getParams(rt);
-        return {
-            ...params,
-            names: {...params.names, samples: undefined, sampleChars: undefined},
-            tld: {...params.tld, samples: undefined, sampleChars: undefined},
-        } as any;
-    }
     _compileIsType(comp: JitCompiler, rt: BaseRunType): string {
-        const params = this.getValidatorParams(rt);
+        const params = this.getParams(rt);
         return compilePureFunctionCall(comp, rt, isDomain, params);
     }
     private randomSubdomain(params: DomainParams): string {
@@ -91,7 +83,7 @@ export class DomainFormatter extends JitRunTypeFormatter<DomainParams> {
         return Array.from({length: totalSUbparts}, () => randomItem(samples)).join('-');
     }
     _mock(mockContext: MockOperation, rt: BaseRunType): string {
-        const params = this.getValidatorParams(rt);
+        const params = this.getParams(rt);
         const tldSamples = params.tld.samples || ['com', 'org', 'net', 'co.uk'];
         const tld = randomItem(tldSamples);
         const tldParts = tld.split('.');
@@ -107,11 +99,11 @@ export class DomainFormatter extends JitRunTypeFormatter<DomainParams> {
         return parts.join('.');
     }
     _compileTypeErrors(comp: JitErrorsCompiler, rt: BaseRunType): string {
-        const params = this.getValidatorParams(rt);
+        const params = this.getParams(rt);
         // the get type errors function does not need to be so optimized so we call a single function that makes all the checks
         return compileErrorsPureFunctionCall(comp, rt, domainErrors, params, this.name);
     }
-    _format(comp: JitCompiler): string {
+    _compileFormat(comp: JitCompiler): string {
         return `${comp.vλl}.toLowerCase()`; // all domain are lower case
     }
     _formatMockedValue(mockContext: MockOperation, rt: BaseRunType, val: any): string {

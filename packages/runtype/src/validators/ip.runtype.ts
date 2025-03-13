@@ -34,10 +34,10 @@ export type IPV4WithPort = TypeFormat<string, 'ip', {version: 4; allowLocalHost:
 export type IPV6WithPort = TypeFormat<string, 'ip', {version: 6; allowLocalHost: true; allowPort: true}>;
 
 // IP validator
-export class IPValidator extends JitRunTypeFormatter<IpValidatorParams> {
+export class IPFormat extends JitRunTypeFormatter<IpValidatorParams> {
     static id = 'ip';
     kind = ReflectionKind.string;
-    name = IPValidator.id;
+    name = IPFormat.id;
     _compileIsType(comp: JitCompiler, rt: BaseRunType): string {
         const params = this.getParams(rt);
         if (params.version === 4) return compilePureFunctionCall(comp, rt, isIPV4, params);
@@ -54,13 +54,9 @@ export class IPValidator extends JitRunTypeFormatter<IpValidatorParams> {
         const params = this.getParams(rt);
         return compileErrorsPureFunctionCall(comp, rt, getIPErrors, params, this.name);
     }
-    _format(comp: JitCompiler) {
-        return `${comp.vλl}.toLowerCase()`; // all domain are lower case
+    _compileFormat(comp: JitCompiler) {
+        return `${comp.vλl}.toLowerCase()`; // transform to lowercase in case it is localhost
     }
-    _formatMockedValue(mockContext: MockOperation, rt: BaseRunType, val: any): string {
-        return val.toLowerCase();
-    }
-    validateParams() {}
 }
 
 /** @reflection never */
@@ -172,4 +168,4 @@ registerPureFunctionWithCtx(isIPV6, [isLocalHost]);
 registerPureFunctionWithCtx(getIPErrors, [isIPV4, isIPV6]);
 
 // register Validator operations so they can be used in the jit compiler
-export const ipFormatter = registerFormatter(new IPValidator());
+export const ipFormatter = registerFormatter(new IPFormat());

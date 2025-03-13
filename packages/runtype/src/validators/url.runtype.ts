@@ -39,15 +39,6 @@ export type StringURL<P extends UrlParams = {}, D extends Domain | undefined = u
 
 // URL validator
 export class URLValidator extends JitRunTypeFormatter<UrlParams> {
-    _compileTypeErrors(comp: JitErrorsCompiler, rt: BaseRunType): string {
-        throw new Error('Method not implemented.');
-    }
-    _format(comp: JitCompiler, rt: BaseRunType): string {
-        throw new Error('Method not implemented.');
-    }
-    _formatMockedValue(mockContext: MockOperation, rt: BaseRunType, val: any): string {
-        throw new Error('Method not implemented.');
-    }
     static readonly id = 'url';
     readonly kind = ReflectionKind.string;
     readonly name = URLValidator.id;
@@ -59,7 +50,13 @@ export class URLValidator extends JitRunTypeFormatter<UrlParams> {
         // TODO
         return {value: rt.getKindName()};
     }
-    validateParams() {}
+    _compileTypeErrors(comp: JitErrorsCompiler, rt: BaseRunType): string {
+        throw new Error('Method not implemented.');
+    }
+    _formatMockedValue(mockContext: MockOperation, rt: BaseRunType, val: any): string {
+        throw new Error('Method not implemented.');
+    }
+    _compileFormat?; // no format needed
 }
 
 /**

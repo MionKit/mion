@@ -6,18 +6,15 @@
  * ######## */
 import type {BaseRunType} from '../lib/baseRunTypes';
 import type {JitCompiler, JitErrorsCompiler} from '../lib/jitCompiler';
-import {JitRunTypeValidator} from '../lib/jitFormatters';
+import {JitRunTypeFormatter} from '../lib/jitFormatters';
 import {ReflectionKind} from '@deepkit/type';
 import {TypeFormat} from '../lib/formats.runtype'; // !Important: TypeFormat cant be imported as type for all runType functionality to work
-import {MockOperation} from '../types';
+import {GenericPureFunction, MockOperation} from '../types';
 import {compilePureFunctionCall, registerFormatter, registerPureFunctionWithCtx} from '../lib/formats';
+import {JITUtils} from '../lib/jitUtils';
 
 export type DateStringParams = {
     format: 'ISO' | 'YYYY-MM-DD' | 'DD-MM-YYYY' | 'MM-DD-YYYY' | 'MM-DD' | 'DD-MM' | 'YYYY-MM';
-};
-
-export type ParsedDateStringParams = DateStringParams & {
-    id: (typeof DateFormatsIds)[keyof typeof DateFormatsIds];
 };
 
 export type DefaultDateParams = {format: 'ISO'};
@@ -29,13 +26,29 @@ export type DateString<P extends Partial<DateStringParams> = DefaultDateParams> 
 >;
 
 // Date validator
-export class DateStringValidator extends JitRunTypeValidator<DateStringParams> {
+export class DateStringValidator extends JitRunTypeFormatter<DateStringParams> {
     static id = 'date' as const;
     kind = ReflectionKind.string;
     name = DateStringValidator.id;
     _compileIsType(comp: JitCompiler, rt: BaseRunType): string {
         const params = this.getParams(rt);
-        return compilePureFunctionCall(comp, rt, isDateString, parseDateStringParams(params));
+        switch (params.format) {
+            case 'ISO':
+            case 'YYYY-MM-DD':
+                return compilePureFunctionCall(comp, rt, isDateString_YMD, params);
+            case 'DD-MM-YYYY':
+                return compilePureFunctionCall(comp, rt, isDateString_DMY, params);
+            case 'MM-DD-YYYY':
+                return compilePureFunctionCall(comp, rt, isDateString_MDY, params);
+            case 'YYYY-MM':
+                return compilePureFunctionCall(comp, rt, isDateString_YM, params);
+            case 'MM-DD':
+                return compilePureFunctionCall(comp, rt, isDateString_MD, params);
+            case 'DD-MM':
+                return compilePureFunctionCall(comp, rt, isDateString_DM, params);
+            default:
+                throw new Error(`Invalid date format: ${params.format}`);
+        }
     }
     _compileTypeErrors(comp: JitErrorsCompiler, rt: BaseRunType): string {
         const isTypeCode = this._compileIsType(comp, rt);
@@ -46,52 +59,34 @@ export class DateStringValidator extends JitRunTypeValidator<DateStringParams> {
     }
     _mock(mockContext: MockOperation, rt: BaseRunType) {
         const params = this.getParams(rt);
-        return mockDateString({format: params.format, id: DateFormatsIds[params.format]});
+        const year = String(Math.floor(Math.random() * 10000)).padStart(4, '0');
+        const month = String(Math.floor(Math.random() * 12) + 1).padStart(2, '0');
+        const day = String(Math.floor(Math.random() * 28) + 1).padStart(2, '0');
+        switch (params.format) {
+            case 'ISO':
+            case 'YYYY-MM-DD':
+                return `${year}-${month}-${day}`;
+            case 'DD-MM-YYYY':
+                return `${day}-${month}-${year}`;
+            case 'MM-DD-YYYY':
+                return `${month}-${day}-${year}`;
+            case 'YYYY-MM':
+                return `${year}-${month}`;
+            case 'MM-DD':
+                return `${month}-${day}`;
+            case 'DD-MM':
+                return `${day}-${month}`;
+            default:
+                throw new Error(`Invalid date format: ${params.format}`);
+        }
     }
-}
-
-// string formats are mapped to number for faster comparison
-const DateFormatsIds = {
-    ISO: 0,
-    'YYYY-MM-DD': 1,
-    'DD-MM-YYYY': 2,
-    'MM-DD-YYYY': 3,
-    'YYYY-MM': 4,
-    'MM-DD': 5,
-    'DD-MM': 6,
-} as const;
-
-export function parseDateStringParams(params: DateStringParams): ParsedDateStringParams {
-    return {format: params.format, id: DateFormatsIds[params.format]};
-}
-
-export function mockDateString(params: ParsedDateStringParams): string {
-    const year = String(Math.floor(Math.random() * 10000)).padStart(4, '0');
-    const month = String(Math.floor(Math.random() * 12) + 1).padStart(2, '0');
-    const day = String(Math.floor(Math.random() * 28) + 1).padStart(2, '0');
-    switch (params.id) {
-        case 0: // ISO
-        case 1: // 'YYYY-MM-DD'
-            return `${year}-${month}-${day}`;
-        case 2: // 'DD-MM-YYYY'
-            return `${day}-${month}-${year}`;
-        case 3: // 'MM-DD-YYYY'
-            return `${month}-${day}-${year}`;
-        case 4: // 'YYYY-MM'
-            return `${year}-${month}`;
-        case 5: // 'MM-DD'
-            return `${month}-${day}`;
-        case 6: // 'DD-MM'
-            return `${day}-${month}`;
-        default:
-            throw new Error(`Invalid date format: ${params.format}`);
-    }
+    _compileFormat?; // no format needed
 }
 
 /** @reflection never */
 export function isDateString() {
     // check is a valid date taking into account leap years
-    function isFullDate(year: string | undefined, month: string, day?: string): boolean {
+    return function is_date_string(year: string | undefined, month: string, day?: string): boolean {
         let y: undefined | number = undefined;
         if (year) {
             if (year.length !== 4) return false;
@@ -117,29 +112,69 @@ export function isDateString() {
             }
         }
         return true;
-    }
-    return function is_date_string(value: string, p: ParsedDateStringParams): boolean {
-        const parts = value.split('-');
-        switch (p.id) {
-            case 0: // ISO
-            case 1: // 'YYYY-MM-DD'
-                return parts.length === 3 && isFullDate(parts[0], parts[1], parts[2]);
-            case 2: // 'DD-MM-YYYY'
-                return parts.length === 3 && isFullDate(parts[2], parts[1], parts[0]);
-            case 3: // 'MM-DD-YYYY'
-                return parts.length === 3 && isFullDate(parts[2], parts[0], parts[1]);
-            case 4: // 'YYYY-MM'
-                return parts.length === 2 && isFullDate(parts[0], parts[1]);
-            case 5: // 'MM-DD'
-                return parts.length === 2 && isFullDate(undefined, parts[0], parts[1]);
-            case 6: // 'DD-MM'
-                return parts.length === 2 && isFullDate(undefined, parts[1], parts[0]);
-            default:
-                throw new Error(`Invalid date format: ${p.format}`);
-        }
     };
+}
+
+/** @reflection never */
+export function isDateString_YMD(utl: JITUtils) {
+    const isDate = utl.getPureFn('isDateString') as any as ReturnType<typeof isDateString>;
+    return function is_date(value: string): boolean {
+        const parts = value.split('-');
+        return parts.length === 3 && isDate(parts[0], parts[1], parts[2]);
+    } satisfies GenericPureFunction<DateStringParams>;
+}
+
+/** @reflection never */
+export function isDateString_DMY(utl: JITUtils) {
+    const isDate = utl.getPureFn('isDateString') as any as ReturnType<typeof isDateString>;
+    return function is_date(value: string): boolean {
+        const parts = value.split('-');
+        return parts.length === 3 && isDate(parts[2], parts[1], parts[0]);
+    } satisfies GenericPureFunction<DateStringParams>;
+}
+
+/** @reflection never */
+export function isDateString_MDY(utl: JITUtils) {
+    const isDate = utl.getPureFn('isDateString') as any as ReturnType<typeof isDateString>;
+    return function is_date(value: string): boolean {
+        const parts = value.split('-');
+        return parts.length === 3 && isDate(parts[2], parts[0], parts[1]);
+    } satisfies GenericPureFunction<DateStringParams>;
+}
+
+/** @reflection never */
+export function isDateString_YM(utl: JITUtils) {
+    const isDate = utl.getPureFn('isDateString') as any as ReturnType<typeof isDateString>;
+    return function is_date(value: string): boolean {
+        const parts = value.split('-');
+        return parts.length === 2 && isDate(parts[0], parts[1]);
+    } satisfies GenericPureFunction<DateStringParams>;
+}
+
+/** @reflection never */
+export function isDateString_MD(utl: JITUtils) {
+    const isDate = utl.getPureFn('isDateString') as any as ReturnType<typeof isDateString>;
+    return function is_date(value: string): boolean {
+        const parts = value.split('-');
+        return parts.length === 2 && isDate(undefined, parts[0], parts[1]);
+    } satisfies GenericPureFunction<DateStringParams>;
+}
+
+/** @reflection never */
+export function isDateString_DM(utl: JITUtils) {
+    const isDate = utl.getPureFn('isDateString') as any as ReturnType<typeof isDateString>;
+    return function is_date(value: string): boolean {
+        const parts = value.split('-');
+        return parts.length === 2 && isDate(undefined, parts[1], parts[0]);
+    } satisfies GenericPureFunction<DateStringParams>;
 }
 
 // ######### Registering the date validator #########
 registerPureFunctionWithCtx(isDateString);
+registerPureFunctionWithCtx(isDateString_YMD, [isDateString]);
+registerPureFunctionWithCtx(isDateString_DMY, [isDateString]);
+registerPureFunctionWithCtx(isDateString_MDY, [isDateString]);
+registerPureFunctionWithCtx(isDateString_YM, [isDateString]);
+registerPureFunctionWithCtx(isDateString_MD, [isDateString]);
+registerPureFunctionWithCtx(isDateString_DM, [isDateString]);
 export const dateStringValidator = registerFormatter(new DateStringValidator());

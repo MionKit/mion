@@ -31,6 +31,7 @@ it('validate datetime with format ISO', async () => {
     expect(isType('2023-01-01')).toBe(false);
     expect(isType('2023-01-01T00:00')).toBe(false);
 });
+
 it('get datetime errors for format ISO', async () => {
     const typeErrors = await typeErrorsFn<ISODateTime>();
     const dateTimeError = {

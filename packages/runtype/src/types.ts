@@ -10,7 +10,7 @@ import type {BaseCompiler} from './lib/jitCompiler';
 import type {JITUtils} from './lib/jitUtils';
 import type {JitFunctions} from './constants';
 import type {ReflectionSubKind} from './constants.kind';
-import type {TypeFormatter} from './lib/formats';
+import type {JitRunTypeFormatter} from './lib/jitFormatters';
 
 // ###################### RunTypes ######################
 
@@ -233,7 +233,7 @@ export type DKAnnotation = {
 
 export type FormatAnnotation = DKAnnotation & {
     params?: TypeFormatParams;
-    formatters: TypeFormatter[];
+    formatter: JitRunTypeFormatter;
 };
 
 export type TypeFormatError = {

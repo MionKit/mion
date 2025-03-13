@@ -8,43 +8,19 @@
  * ######## */
 import type {BaseRunType} from '../lib/baseRunTypes';
 import type {JitCompiler, JitErrorsCompiler} from '../lib/jitCompiler';
-import {JitRunTypeValidator} from '../lib/jitFormatters';
+import {JitRunTypeFormatter} from '../lib/jitFormatters';
 import {ReflectionKind} from '@deepkit/type';
 import {TypeFormat} from '../lib/formats.runtype'; // !Important: TypeFormat cant be imported as type for all runType functionality to work
-import {ErrorsPureFunction, InvalidFormatParams, MockOperation} from '../types';
-import {
-    DateStringParams,
-    DefaultDateParams,
-    isDateString,
-    mockDateString,
-    parseDateStringParams,
-    ParsedDateStringParams,
-} from './date.runtype';
-import {
-    DefaultTimeParams,
-    isTimeString,
-    mockTimeString,
-    ParsedTimeStringParams,
-    parseTimeStringParams,
-    TimeStringParams,
-} from './time.runtype';
-import {JITUtils} from '../lib/jitUtils';
-import {
-    compileErrorsPureFunctionCall,
-    compilePureFunctionCall,
-    registerFormatter,
-    registerPureFunctionGroupWithCtx,
-} from '../lib/formats';
+import {JitFnID, MockOperation} from '../types';
+import {DateStringParams, dateStringValidator, DefaultDateParams} from './date.runtype';
+import {DefaultTimeParams, TimeStringParams, timeStringValidator} from './time.runtype';
+import {registerFormatter} from '../lib/formats';
+import {JitFunctions} from '../constants';
+import {toLiteral} from '../lib/utils';
 
 export type StringDateTimeParams = {
     date: DateStringParams;
     time: TimeStringParams;
-    splitChar: string;
-};
-
-export type ParsedStringDateTimeParams = {
-    date: DateStringParams & {id: ParsedDateStringParams['id']};
-    time: TimeStringParams & {id: ParsedTimeStringParams['id']};
     splitChar: string;
 };
 
@@ -56,67 +32,69 @@ export type DefaultDateTimeParams = {
 
 export type DateTimeString<P extends Partial<StringDateTimeParams> = {}> = TypeFormat<
     string,
-    typeof DateTimeValidator.id,
+    typeof DateTimeFormat.id,
     DefaultDateTimeParams & P
 >;
 
 // DateTime validator
-export class DateTimeValidator extends JitRunTypeValidator<StringDateTimeParams> {
+export class DateTimeFormat extends JitRunTypeFormatter<StringDateTimeParams> {
     static id = 'dateTime' as const;
     kind = ReflectionKind.string;
-    name = DateTimeValidator.id;
+    name = DateTimeFormat.id;
+    jitFnIsExpression(fnId: JitFnID) {
+        switch (fnId) {
+            case JitFunctions.isType.id:
+                return false;
+            default:
+                return super.jitFnIsExpression(fnId);
+        }
+    }
     _compileIsType(comp: JitCompiler, rt: BaseRunType): string {
         const params = this.getParams(rt);
-        return compilePureFunctionCall(comp, rt, isDateTime, parseDateTimeString(params));
+        const dateCode = dateStringValidator.compileIsType(comp, rt, params.date, ['date'], 'date');
+        const timeCode = timeStringValidator.compileIsType(comp, rt, params.time, ['time'], 'time');
+        const fName = `is_${this.name}${rt.getNestLevel()}`;
+        const code = `function ${fName}(dt) {
+            const [date, time] = dt.split(${toLiteral(params.splitChar)});
+            if (!date || !time) return false;
+            return ${dateCode} && ${timeCode};
+        }`;
+        comp.contextCodeItems.set(fName, code);
+        return `${fName}(${comp.vλl})`;
     }
     _compileTypeErrors(comp: JitErrorsCompiler, rt: BaseRunType): string {
         const params = this.getParams(rt);
-        // the get type errors function does not need to be so optimized so we call a single function that makes all the checks
-        return compileErrorsPureFunctionCall(comp, rt, dateTimeErrors, parseDateTimeString(params), this.name);
+        const code = `const [date, time] = ${comp.vλl}.split(${params.splitChar})`;
+        const dateCode = dateStringValidator.compileTypeErrors(comp, rt, params.date, ['date'], 'date');
+        const timeCode = timeStringValidator.compileTypeErrors(comp, rt, params.time, ['time'], 'time');
+        const invalid = {date: {format: params.date.format}, time: {format: params.time.format}};
+        return `${code};if (!date || !time) ${comp.callJitErr(rt, {name: rt.getTypeName(), invalid})};${dateCode};${timeCode}`;
     }
     _mock(mockContext: MockOperation, rt: BaseRunType) {
         const params = this.getParams(rt);
-        return mockDateTimeString(parseDateTimeString(params));
+        const mockedDate = dateStringValidator.mock(mockContext, rt, params.date);
+        const mockTimeString = timeStringValidator.mock(mockContext, rt, params.time);
+        return `${mockedDate}${params.splitChar}${mockTimeString}`;
     }
-}
-
-export function mockDateTimeString(params: ParsedStringDateTimeParams): string {
-    return `${mockDateString(params.date)}${params.splitChar}${mockTimeString(params.time)}`;
-}
-/** @reflection never */
-export function parseDateTimeString(params: StringDateTimeParams): ParsedStringDateTimeParams {
-    return {
-        date: parseDateStringParams(params.date),
-        time: parseTimeStringParams(params.time),
-        splitChar: params.splitChar,
-    };
-}
-/** @reflection never */
-export function isDateTime(utl: JITUtils) {
-    const isDate = utl.usePureFn('isDateString') as ReturnType<typeof isDateString>;
-    const isTime = utl.usePureFn('isTimeString') as ReturnType<typeof isTimeString>;
-    return function is_date_time_string(value: string, params: ParsedStringDateTimeParams): boolean {
-        const [date, time] = value.split(params.splitChar);
-        if (!date || !time) return false;
-        return isDate(date, params.date) && isTime(time, params.time);
-    };
-}
-
-/** @reflection never */
-export function dateTimeErrors(utl: JITUtils) {
-    const isDate = utl.usePureFn('isDateString') as ReturnType<typeof isDateString>;
-    const isTime = utl.usePureFn('isTimeString') as ReturnType<typeof isTimeString>;
-    return function date_time_errors(value: string, params: ParsedStringDateTimeParams): InvalidFormatParams | undefined {
-        const [date, time] = value.split(params.splitChar);
-        if (!date || !time) return {date: {format: params.date.format}, time: {format: params.time.format}};
-        const isD = isDate(date, params.date);
-        const idT = isTime(time, params.time);
-        if (!isD && !idT) return {date: {format: params.date.format}, time: {format: params.time.format}};
-        if (!isD) return {date: {format: params.date.format}};
-        if (!idT) return {time: {format: params.time.format}};
-    } as ErrorsPureFunction<ParsedStringDateTimeParams>;
+    _compileFormat?(comp: JitCompiler, rt: BaseRunType); // no format needed
 }
 
 // ######### Registering validator and pure functions ########
-registerFormatter(new DateTimeValidator());
-registerPureFunctionGroupWithCtx([isDateTime, isDateString, isTimeString]);
+registerFormatter(new DateTimeFormat());
+
+// function context_is_hX5NpZd1Hx() {
+//     const isDateString_YMD0 = utl.getPureFn('isDateString_YMD');
+//     // TODO this should be the root arams conatining seprate info for date and time
+//     const args0 = {format: 'ISO'};
+//     const isTimeString_ISO_TZ0 = utl.getPureFn('isTimeString_ISO_TZ');
+//     function is_dateTime0(dt) {
+//         const [date, time] = dt.split('T');
+//         if (!date || !time) return false;
+//         // TODO: this should be args0.date and args0.time
+//         return isDateString_YMD0(date, args0) && isTimeString_ISO_TZ0(time, args0);
+//     }
+//     function is_hX5NpZd1Hx(v) {
+//         return typeof v === 'string' && is_dateTime0(v);
+//     }
+//     return is_hX5NpZd1Hx;
+// }

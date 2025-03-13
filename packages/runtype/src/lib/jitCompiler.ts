@@ -184,6 +184,10 @@ export class BaseCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extends 
                 isNoop = !this.code || this.code === this.args.εrr || this.code === `return ${this.args.εrr}`;
                 if (isNoop) code = `return ${this.args.εrr}`; // if code is a noop, we need to return the error array
                 break;
+            case JitFunctions.format.id:
+                isNoop = !this.code || this.code === this.args.vλ || this.code === `return ${this.args.vλl}`;
+                if (isNoop) code = `return ${this.args.vλl}`; // if code is a noop, we need to return the value
+                break;
         }
         (this as Mutable<BaseCompiler>).isNoop = isNoop;
         (this as Mutable<BaseCompiler>).code = code;
@@ -243,6 +247,7 @@ export function createJitCompiler(rt: BaseRunType, fnId: JitFnID, parent?: BaseC
         case JitFunctions.hasUnknownKeys.id:
         case JitFunctions.stripUnknownKeys.id:
         case JitFunctions.unknownKeysToUndefined.id:
+        case JitFunctions.format.id:
             return new JitCompiler(rt, fnId, parent?.totalLength);
         case JitFunctions.typeErrors.id:
         case JitFunctions.unknownKeyErrors.id:
