@@ -53,13 +53,12 @@ type StringValidatorParams = StringParams & {samples: undefined; sampleChars: un
 
 export type StringFormat<P extends StringFormatParams = {}> = TypeFormat<string, typeof StringFormatter.id, P>;
 
-const ignoreProps = ['samples', 'sampleChars'];
-
 // ############### Validator ###############
 class StringFormatter extends JitRunTypeFormatter<StringParams> {
     static readonly id = 'string' as const;
     readonly kind = ReflectionKind.string;
     readonly name = StringFormatter.id;
+    readonly ignoreJitParams = ['samples', 'sampleChars'];
     getParams(rt: BaseRunType): StringParams {
         const params = super.getParams(rt);
         if (params.allowedChars?.length) params.allowedRegexp = new RegExp(`^[${regexpEscape(params.allowedChars)}]+$`);
@@ -73,7 +72,7 @@ class StringFormatter extends JitRunTypeFormatter<StringParams> {
         if (capitalize) return `${comp.vλl}.charAt(0).toUpperCase() + ${comp.vλl}.slice(1)`;
         return '';
     }
-    _compileIsType(comp: JitCompiler, rt: BaseRunType, paramsPath?: string[]): string {
+    _compileIsType(comp: JitCompiler, rt: BaseRunType): string {
         const params = this.getParams(rt);
         const conditions: string[] = [];
         const {
@@ -97,7 +96,7 @@ class StringFormatter extends JitRunTypeFormatter<StringParams> {
 
         // allowed validators (these are not simple statements so better to cal external function)
         if (pattern || allowedRegexp || disallowedRegexp || allowedValues || disallowedValues) {
-            const {paramsName} = compileAddParamsToCtx(comp, rt, paramsPath || params, ignoreProps);
+            const {paramsName} = compileAddParamsToCtx(comp, rt, this);
             if (pattern) conditions.push(`${paramsName}.pattern.test(${comp.vλl})`);
             if (allowedRegexp) conditions.push(`${paramsName}.allowedRegexp.test(${comp.vλl})`);
             if (disallowedRegexp) conditions.push(`!${paramsName}.disallowedRegexp.test(${comp.vλl})`);
@@ -116,10 +115,9 @@ class StringFormatter extends JitRunTypeFormatter<StringParams> {
 
         return conditions.join(' && ');
     }
-    _compileTypeErrors(comp: JitErrorsCompiler, rt: BaseRunType, paramsPath?: string[]): string {
-        const params = this.getParams(rt);
+    _compileTypeErrors(comp: JitErrorsCompiler, rt: BaseRunType): string {
         // the get type errors function does not need to be so optimized so we call a single function that makes all the checks
-        return compileErrorsPureFunctionCall(comp, rt, stringFormatErrors, paramsPath || params, this.name, ignoreProps);
+        return compileErrorsPureFunctionCall(comp, rt, this, stringFormatErrors).callCode;
     }
     _mock(mockContext: MockOperation, rt: BaseRunType): string {
         const params = this.getParams(rt);

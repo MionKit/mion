@@ -7,7 +7,7 @@
  * ######## */
 import type {BaseRunType} from './baseRunTypes';
 import type {JitCompiler, JitErrorsCompiler} from './jitCompiler';
-import type {TypeFormatParams, JitFnID, MockOperation} from '../types';
+import type {TypeFormatParams, JitFnID, MockOperation, Mutable} from '../types';
 import {jitFnHasReturn, jitFnIsExpression, JitFunctions} from '../constants';
 import {ReflectionKind} from '@deepkit/type';
 import {getFormatterParams} from './formats';
@@ -24,21 +24,28 @@ export abstract class JitRunTypeFormatter<P extends TypeFormatParams = any> {
         return jitFnIsExpression(fnId);
     }
 
-    params?: P;
-    path?: string[];
+    /** Params from parent formatter */
+    readonly paramsFromParent?: P;
+    /**
+     * When set this is the path to the params in the parent's params object.
+     * ie: if dateTime is the parent of the current formatter and params are {date: {format: 'ISO'}} then the child path will be ['date']
+     */
+    readonly parentPath?: string[];
+    /** List of params that will be excluded from jit code */
+    readonly ignoreJitParams?: string[];
 
-    private pushContext(params?: P, path?: string[]) {
-        this.params = params;
-        this.path = path;
+    private pushContext(paramsFromParent?: P, parentPath?: string[]) {
+        (this as Mutable<JitRunTypeFormatter>).paramsFromParent = paramsFromParent;
+        (this as Mutable<JitRunTypeFormatter>).parentPath = parentPath;
     }
 
     private popContext() {
-        this.params = undefined;
-        this.path = undefined;
+        (this as Mutable<JitRunTypeFormatter>).paramsFromParent = undefined;
+        (this as Mutable<JitRunTypeFormatter>).parentPath = undefined;
     }
 
     getParams(rt: BaseRunType): NonNullable<P> {
-        if (this.params) return this.params as NonNullable<P>;
+        if (this.paramsFromParent) return this.paramsFromParent as NonNullable<P>;
         const params = getFormatterParams(rt, this.name) as NonNullable<P>;
         this.validateParams?.(rt, params);
         return params;

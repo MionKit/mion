@@ -74,8 +74,7 @@ export class DomainFormatter extends JitRunTypeFormatter<DomainParams> {
     kind = ReflectionKind.string;
     name = DomainFormatter.id;
     _compileIsType(comp: JitCompiler, rt: BaseRunType): string {
-        const params = this.getParams(rt);
-        return compilePureFunctionCall(comp, rt, isDomain, params);
+        return compilePureFunctionCall(comp, rt, this, isDomain).callCode;
     }
     private randomSubdomain(params: DomainParams): string {
         const totalSUbparts = random(1, 3);
@@ -99,9 +98,8 @@ export class DomainFormatter extends JitRunTypeFormatter<DomainParams> {
         return parts.join('.');
     }
     _compileTypeErrors(comp: JitErrorsCompiler, rt: BaseRunType): string {
-        const params = this.getParams(rt);
         // the get type errors function does not need to be so optimized so we call a single function that makes all the checks
-        return compileErrorsPureFunctionCall(comp, rt, domainErrors, params, this.name);
+        return compileErrorsPureFunctionCall(comp, rt, this, domainErrors).callCode;
     }
     _compileFormat(comp: JitCompiler): string {
         return `${comp.vλl}.toLowerCase()`; // all domain are lower case

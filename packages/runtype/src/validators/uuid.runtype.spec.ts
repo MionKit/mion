@@ -33,7 +33,7 @@ it('validate uuid v4', async () => {
 //  uuid v4 typeErrors
 it('get uuid v4 errors', async () => {
     const typeErrors = await typeErrorsFn<UUID_V4>();
-    const expectedError = {expected: 'string', path: [], format: {name: 'uuid', invalid: {version: 4}}};
+    const expectedError = {expected: 'string', path: [], format: {name: 'uuid', invalid: {version: '4'}}};
     // valid v4 and variant
     expect(typeErrors('f47ac10b-58cc-4372-a567-0e02b2c3d479')).toEqual([]);
     expect(typeErrors('FFFFFFFF-0000-4fff-aaaa-FFFFFFff9900')).toEqual([]);
@@ -80,7 +80,7 @@ it('validate uuid v7', async () => {
 //  uuid v7 typeErrors
 it('get uuid v7 errors', async () => {
     const typeErrors = await typeErrorsFn<UUID_V7>();
-    const expectedError = {expected: 'string', path: [], format: {name: 'uuid', invalid: {version: 7}}};
+    const expectedError = {expected: 'string', path: [], format: {name: 'uuid', invalid: {version: '7'}}};
     // valid v7 and variant
     expect(typeErrors('f47ac10b-58cc-7372-b909-0e02b2c3d479')).toEqual([]);
     expect(typeErrors('FFFFFFFF-0000-7fff-aaaa-FFFFFFff9900')).toEqual([]);

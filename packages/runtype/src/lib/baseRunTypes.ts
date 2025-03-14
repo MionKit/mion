@@ -379,7 +379,10 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
         }
         if (isExpression) {
             // if code should be an expression, but code has return a statement, we need to wrap it in a self invoking function to avoid syntax errors
+            // VERY IMPORTANT TODO, WE CAN IMPROVE PERF QUITE A BIT BY CREATING A NEW FUNCTION IN CONTEXT INSTEAD SELF INVOkING
             // TODO: we could create a new function and cache instead a self invoking function a performance is same but code is not repeated
+            // IE: comp.selfInvoke(code), this will create a new function in context and call that function instead of self invoking
+            // specially for atomic types as we can be sure there are no references to children types inside the code
             return codeHasReturn ? `(function(){${code}})()` : code;
         }
         // if code is an statement or block we don't need to do anything as code can be inlined as it is

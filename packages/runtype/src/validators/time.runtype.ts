@@ -32,27 +32,8 @@ export class TimeStringFormat extends JitRunTypeFormatter<TimeStringParams> {
     name = TimeStringFormat.id;
     _compileIsType(comp: JitCompiler, rt: BaseRunType): string {
         const params = this.getParams(rt);
-        switch (params.format) {
-            case 'ISO':
-            case 'HH:mm:ss[.mmm]TZ':
-                return compilePureFunctionCall(comp, rt, isTimeString_ISO_TZ, params);
-            case 'HH:mm:ss[.mmm]':
-                return compilePureFunctionCall(comp, rt, isTimeString_ISO, params);
-            case 'HH:mm:ss':
-                return compilePureFunctionCall(comp, rt, isTimeString_HHmmss, params);
-            case 'HH:mm':
-                return compilePureFunctionCall(comp, rt, isTimeString_HHmm, params);
-            case 'mm:ss':
-                return compilePureFunctionCall(comp, rt, isTimeString_mmss, params);
-            case 'HH':
-                return compilePureFunctionCall(comp, rt, isHours, params);
-            case 'mm':
-                return compilePureFunctionCall(comp, rt, isMinutes, params);
-            case 'ss':
-                return compilePureFunctionCall(comp, rt, isSeconds, params);
-            default:
-                throw new Error(`Invalid time format: ${params.format}`);
-        }
+        const formatFn = this.getFormatPureFn(params.format);
+        return compilePureFunctionCall(comp, rt, this, formatFn).callCode;
     }
     _compileTypeErrors(comp: JitErrorsCompiler, rt: BaseRunType): string {
         const isTypeCode = this._compileIsType(comp, rt);
@@ -89,6 +70,29 @@ export class TimeStringFormat extends JitRunTypeFormatter<TimeStringParams> {
         }
     }
     _compileFormat?; // no format needed
+    getFormatPureFn(format) {
+        switch (format) {
+            case 'ISO':
+            case 'HH:mm:ss[.mmm]TZ':
+                return isTimeString_ISO_TZ;
+            case 'HH:mm:ss[.mmm]':
+                return isTimeString_ISO;
+            case 'HH:mm:ss':
+                return isTimeString_HHmmss;
+            case 'HH:mm':
+                return isTimeString_HHmm;
+            case 'mm:ss':
+                return isTimeString_mmss;
+            case 'HH':
+                return isHours;
+            case 'mm':
+                return isMinutes;
+            case 'ss':
+                return isSeconds;
+            default:
+                throw new Error(`Invalid time format: ${format}`);
+        }
+    }
 }
 
 // ######### Mocking functions #########
@@ -245,3 +249,4 @@ registerPureFunctionWithCtx(isTimeString_HHmmss, pureTimeFns);
 registerPureFunctionWithCtx(isTimeString_HHmm, pureTimeFns);
 registerPureFunctionWithCtx(isTimeString_mmss, pureTimeFns);
 export const timeStringValidator = registerFormatter(new TimeStringFormat());
+export const timeFunctions = [isTimeString_ISO_TZ, isTimeString_ISO, isTimeString_HHmmss, isTimeString_HHmm, isTimeString_mmss];

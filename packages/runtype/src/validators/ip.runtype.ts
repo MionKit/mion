@@ -40,9 +40,9 @@ export class IPFormat extends JitRunTypeFormatter<IpValidatorParams> {
     name = IPFormat.id;
     _compileIsType(comp: JitCompiler, rt: BaseRunType): string {
         const params = this.getParams(rt);
-        if (params.version === 4) return compilePureFunctionCall(comp, rt, isIPV4, params);
-        if (params.version === 6) return compilePureFunctionCall(comp, rt, isIPV6, params);
-        return `${compilePureFunctionCall(comp, rt, isIPV4, params)} || ${compilePureFunctionCall(comp, rt, isIPV6, params)}`;
+        if (params.version === 4) return compilePureFunctionCall(comp, rt, this, isIPV4).callCode;
+        if (params.version === 6) return compilePureFunctionCall(comp, rt, this, isIPV6).callCode;
+        return `${compilePureFunctionCall(comp, rt, this, isIPV4).callCode} || ${compilePureFunctionCall(comp, rt, this, isIPV6).callCode}`;
     }
     _mock(mockContext: MockOperation, rt: BaseRunType) {
         const params = this.getParams(rt);
@@ -51,8 +51,7 @@ export class IPFormat extends JitRunTypeFormatter<IpValidatorParams> {
         return Math.random() > 0.5 ? mockIpV4(params) : mockIpV6(params);
     }
     _compileTypeErrors(comp: JitErrorsCompiler, rt: BaseRunType): string {
-        const params = this.getParams(rt);
-        return compileErrorsPureFunctionCall(comp, rt, getIPErrors, params, this.name);
+        return compileErrorsPureFunctionCall(comp, rt, this, getIPErrors).callCode;
     }
     _compileFormat(comp: JitCompiler) {
         return `${comp.vλl}.toLowerCase()`; // transform to lowercase in case it is localhost

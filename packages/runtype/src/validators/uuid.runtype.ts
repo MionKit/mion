@@ -12,11 +12,11 @@ import {ReflectionKind} from '@deepkit/type';
 import {GenericPureFunction, MockOperation} from '../types';
 import {TypeFormat} from '../lib/formats.runtype'; // !Important: TypeFormat cant be imported as type for all runType functionality to work
 
-export type UUID_Params = {version: 4 | 7};
+export type UUID_Params = {version: '4' | '7'};
 
 // IDs
-export type UUID_V4 = TypeFormat<string, typeof UUID_Format.id, {version: 4}>;
-export type UUID_V7 = TypeFormat<string, typeof UUID_Format.id, {version: 7}>;
+export type UUID_V4 = TypeFormat<string, typeof UUID_Format.id, {version: '4'}>;
+export type UUID_V7 = TypeFormat<string, typeof UUID_Format.id, {version: '7'}>;
 
 // UUID validator
 export class UUID_Format extends JitRunTypeFormatter<UUID_Params> {
@@ -24,9 +24,8 @@ export class UUID_Format extends JitRunTypeFormatter<UUID_Params> {
     readonly kind = ReflectionKind.string;
     readonly name = UUID_Format.id;
     _compileIsType(comp: JitCompiler, rt: BaseRunType): string {
-        const params = this.getParams(rt);
         // version must be set as a string to call pure function isUUID, this is so no transform is needed when comparing with uuid charat
-        return compilePureFunctionCall(comp, rt, isUUID, {...params, version: String(params.version)});
+        return compilePureFunctionCall(comp, rt, this, isUUID).callCode;
     }
     _compileTypeErrors(comp: JitErrorsCompiler, rt: BaseRunType): string {
         const params = this.getParams(rt);
@@ -38,10 +37,10 @@ export class UUID_Format extends JitRunTypeFormatter<UUID_Params> {
     }
     _mock(mockContext: MockOperation, rt: BaseRunType) {
         const params = this.getParams(rt);
-        return params.version === 4 ? crypto.randomUUID() : mockUuidV7();
+        return params.version === '4' ? crypto.randomUUID() : mockUuidV7();
     }
     validateParams(rt: BaseRunType, params: UUID_Params) {
-        if (params.version !== 4 && params.version !== 7) {
+        if (params.version !== '4' && params.version !== '7') {
             throw new Error(`Invalid UUID version: ${params.version}, must be either 4 or 7`);
         }
     }

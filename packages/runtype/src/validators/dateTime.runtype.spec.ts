@@ -62,6 +62,7 @@ it('get datetime errors for format ISO', async () => {
     expect(typeErrors('2023-01-01')).toEqual([dateTimeInvalidError]);
     expect(typeErrors('2023-01-01T00:00')).toEqual([timeInvalidError]);
 });
+
 it('mock datetime with format ISO', async () => {
     const mockType = mockTypeFn<ISODateTime>();
     const isType = await isTypeFn<ISODateTime>();

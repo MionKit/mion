@@ -32,23 +32,8 @@ export class DateStringValidator extends JitRunTypeFormatter<DateStringParams> {
     name = DateStringValidator.id;
     _compileIsType(comp: JitCompiler, rt: BaseRunType): string {
         const params = this.getParams(rt);
-        switch (params.format) {
-            case 'ISO':
-            case 'YYYY-MM-DD':
-                return compilePureFunctionCall(comp, rt, isDateString_YMD, params);
-            case 'DD-MM-YYYY':
-                return compilePureFunctionCall(comp, rt, isDateString_DMY, params);
-            case 'MM-DD-YYYY':
-                return compilePureFunctionCall(comp, rt, isDateString_MDY, params);
-            case 'YYYY-MM':
-                return compilePureFunctionCall(comp, rt, isDateString_YM, params);
-            case 'MM-DD':
-                return compilePureFunctionCall(comp, rt, isDateString_MD, params);
-            case 'DD-MM':
-                return compilePureFunctionCall(comp, rt, isDateString_DM, params);
-            default:
-                throw new Error(`Invalid date format: ${params.format}`);
-        }
+        const formatFn = this.getFormatPureFn(params.format);
+        return compilePureFunctionCall(comp, rt, this, formatFn).callCode;
     }
     _compileTypeErrors(comp: JitErrorsCompiler, rt: BaseRunType): string {
         const isTypeCode = this._compileIsType(comp, rt);
@@ -81,6 +66,25 @@ export class DateStringValidator extends JitRunTypeFormatter<DateStringParams> {
         }
     }
     _compileFormat?; // no format needed
+    getFormatPureFn(format) {
+        switch (format) {
+            case 'ISO':
+            case 'YYYY-MM-DD':
+                return isDateString_YMD;
+            case 'DD-MM-YYYY':
+                return isDateString_DMY;
+            case 'MM-DD-YYYY':
+                return isDateString_MDY;
+            case 'YYYY-MM':
+                return isDateString_YM;
+            case 'MM-DD':
+                return isDateString_MD;
+            case 'DD-MM':
+                return isDateString_DM;
+            default:
+                throw new Error(`Invalid date format: ${format}`);
+        }
+    }
 }
 
 /** @reflection never */
@@ -178,3 +182,12 @@ registerPureFunctionWithCtx(isDateString_YM, [isDateString]);
 registerPureFunctionWithCtx(isDateString_MD, [isDateString]);
 registerPureFunctionWithCtx(isDateString_DM, [isDateString]);
 export const dateStringValidator = registerFormatter(new DateStringValidator());
+export const dateFunctions = [
+    isDateString,
+    isDateString_YMD,
+    isDateString_DMY,
+    isDateString_MDY,
+    isDateString_YM,
+    isDateString_MD,
+    isDateString_DM,
+];
