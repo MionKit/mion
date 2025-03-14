@@ -148,7 +148,7 @@ export class BaseCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extends 
         const key = typeof fn === 'string' ? fn : fn.name;
         if (!jitUtils.hasPureFn(key))
             throw new Error(
-                `Pure function with name ${key} can not be added as jit dependency, be sure to add it by calling jitUtils.addPureFn()`
+                `Pure function with name ${key} can not be added as jit dependency, be sure to register the pure function first by calling jitUtils.addPureFn()`
             );
         this.pureFnDependencies.add(key);
     }

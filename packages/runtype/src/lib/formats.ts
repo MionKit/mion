@@ -21,6 +21,8 @@ import {JitRunTypeFormatter} from './jitFormatters';
 import {jitUtils} from './jitUtils';
 import {isSafePropName, toLiteral} from './utils';
 
+// ################# REGISTER FORMATTERS & PURE FUNCTIONS  #################
+
 const typeAnnotationsCache = new Map<string, JitRunTypeFormatter>();
 const formatterPrefix = 'f';
 
@@ -119,6 +121,8 @@ export function getFormatAnnotations(rt: BaseRunType): FormatAnnotation[] {
     return typeAnnotation.getAnnotations(rt.src) as any as FormatAnnotation[];
 }
 
+// ################# ANNOTATIONS  #################
+
 /**
  * Reads deepkit annotations and augment them with the associated formatters.
  * @param rt
@@ -156,118 +160,6 @@ export function getFormatterParams<P extends TypeFormatParams>(rt: BaseRunType, 
         return getAnnotationParams(annotation, rt) as P;
     }
     throw new Error(`Type Formatter ${name} not found for ${rt.getTypeName()}`);
-}
-
-export function typeParamsToLiteral(params: TypeFormatValue, ignoreProps?: string[]): string {
-    switch (true) {
-        case typeof params === 'string':
-            return toLiteral(params);
-        case typeof params === 'number':
-            return `${params}`;
-        case typeof params === 'boolean':
-            return params ? 'true' : 'false';
-        case params instanceof RegExp:
-            return params.toString();
-        case Array.isArray(params):
-            return `[${params.map((v) => typeParamsToLiteral(v)).join(', ')}]`;
-        case typeof params === 'object': {
-            const entriesLiterals = Object.entries(params)
-                .filter((ent) => ent[1] !== undefined && (!ignoreProps || !ignoreProps.includes(ent[0])))
-                .map(([k, v]) => {
-                    const propName = isSafePropName(k) ? k : toLiteral(k);
-                    return `${propName}: ${typeParamsToLiteral(v)}`;
-                });
-            return `{${entriesLiterals.join(', ')}}`;
-        }
-        default:
-            throw new Error(`Unsupported type format params ${params}`);
-    }
-}
-
-/**
- * Adds an existing pure function to the context and return code calling it.
- * The function must have a name, be pure, have no side effects and no dependencies, otherwise compiled code will not work.
- * The pure function is transformed into code simply by calling toString() on it.
- * All parameters must be passed as a single params object.
- */
-export function compilePureFunctionCall(
-    comp: JitCompiler,
-    rt: BaseRunType,
-    pureFn: PureFunctionWithContext<any>,
-    params: TypeFormatParams | string[],
-    ignoreProps?: string[]
-): string {
-    const {fnName, paramsName} = compilePureFunctionContext(comp, rt, pureFn, params, ignoreProps);
-    // call the pure function, passing value, jitUtils and params (pure function arguments)
-    return `${fnName}(${comp.vλl},${paramsName})`;
-}
-
-export function compileMultiplePureFunctionCall(
-    comp: JitCompiler,
-    rt: BaseRunType,
-    params: TypeFormatParams | string[],
-    pureFnList: {fn: PureFunctionWithContext<any>; paramsPath: string; vλl: string}[],
-    ignoreProps?: string[]
-): string[] {
-    // call the pure function, passing value, jitUtils and params (pure function arguments)
-    return pureFnList.map((fnArgs) => {
-        const {fn, paramsPath, vλl} = fnArgs;
-        const {fnName, paramsName} = compilePureFunctionContext(comp, rt, fn, params, ignoreProps);
-        return `${fnName}(${vλl},${paramsName}.${paramsPath})`;
-    });
-}
-
-export function compileErrorsPureFunctionCall(
-    comp: JitErrorsCompiler,
-    rt: BaseRunType,
-    pureFn: PureFunctionWithContext<any>,
-    params: TypeFormatParams | string[],
-    formatName: string,
-    ignoreProps?: string[]
-): string {
-    const {fnName: varName, paramsName} = compilePureFunctionContext(comp, rt, pureFn, params, ignoreProps);
-    const errVarName = `${varName}Err`;
-    const pathItems = comp.getStackStaticPathArgs();
-    const expectLiteral = toLiteral(rt.getKindName());
-
-    // call the pure function, passing value, jitUtils and params (pure function arguments)
-    const errorPureFnCall = `const ${errVarName} = ${varName}(${comp.vλl},${paramsName},${comp.args.εrr})`;
-    const infoCode = `{name:${toLiteral(formatName)},invalid:${errVarName}}`;
-    const callJitErr = `if (${errVarName}) utl.err(${comp.args.εrr},${comp.args.pλth},[${pathItems}],${expectLiteral},${infoCode});`;
-    return `${errorPureFnCall};${callJitErr}`;
-}
-
-export function compilePureFunctionContext(
-    comp: JitCompiler | JitErrorsCompiler,
-    rt: BaseRunType,
-    pureFn: PureFunctionWithContext<any>,
-    params: TypeFormatParams | string[],
-    ignoreProps?: string[]
-): {fnName: string; paramsName: string} {
-    const name = pureFn.name;
-    if (!name) throw new Error('Pure function must have a name');
-    registerPureFunctionWithCtx(pureFn); // will throw if there is a different pure function with the same name
-    comp.addPureFnDependency(pureFn);
-    // Add context code for the pure function and params
-    const fnName = `${name}${rt.getNestLevel()}`;
-    const pureFunctionCode = `const ${fnName} = utl.getPureFn(${toLiteral(name)})`;
-    comp.contextCodeItems.set(fnName, pureFunctionCode);
-    const {paramsName} = compileAddParamsToCtx(comp, rt, params, ignoreProps);
-    return {fnName, paramsName};
-}
-
-export function compileAddParamsToCtx(
-    comp: JitCompiler | JitErrorsCompiler,
-    rt: BaseRunType,
-    params: TypeFormatParams | string[],
-    ignoreProps?: string[]
-): {paramsName: string} {
-    if (Array.isArray(params)) return {paramsName: params.map((p) => toLiteral(p)).join('.')};
-    const paramsName = `args${rt.getNestLevel()}`; //TODO: we might need to add a name based on the type formatter
-    if (comp.contextCodeItems.has(paramsName)) return {paramsName};
-    const paramsCode = `const ${paramsName} = ${typeParamsToLiteral(params, ignoreProps)}`;
-    comp.contextCodeItems.set(paramsName, paramsCode);
-    return {paramsName};
 }
 
 function parsePureFunctionWithCtx(fnWithContext: PureFunctionWithContext<any>): CompiledPureFunction {
@@ -308,4 +200,138 @@ function parsePureFunctionWithCtx(fnWithContext: PureFunctionWithContext<any>): 
         dependencies: new Set<string>(),
     };
     return compiled;
+}
+
+// ################# COMPILING  #################
+
+/**
+ * Adds an existing pure function to the context and return code calling it.
+ * The function must have a name, be pure, have no side effects and no dependencies, otherwise compiled code will not work.
+ * The pure function is transformed into code simply by calling toString() on it.
+ * All parameters must be passed as a single params object.
+ */
+export function compilePureFunctionCall(
+    comp: JitCompiler,
+    rt: BaseRunType,
+    ft: JitRunTypeFormatter,
+    pureFn: PureFunctionWithContext<any>,
+    overrideParams?: TypeFormatValue
+): {callCode: string; fnName: string; paramsName: string} {
+    const {fnName, paramsName} = compilePureFunctionContext(comp, rt, ft, pureFn, overrideParams);
+    // call the pure function, passing value, jitUtils and params (pure function arguments)
+    return {callCode: `${fnName}(${comp.vλl},${paramsName})`, fnName, paramsName};
+}
+
+export function compileErrorsPureFunctionCall(
+    comp: JitErrorsCompiler,
+    rt: BaseRunType,
+    ft: JitRunTypeFormatter,
+    pureFn: PureFunctionWithContext<any>,
+    overrideParams?: TypeFormatValue
+): {callCode: string; fnName: string; paramsName: string} {
+    const {fnName, paramsName} = compilePureFunctionContext(comp, rt, ft, pureFn, overrideParams);
+    const errVarName = `${fnName}Err`;
+    const pathItems = comp.getStackStaticPathArgs();
+    const expectLiteral = toLiteral(rt.getKindName());
+
+    // call the pure function, passing value, jitUtils and params (pure function arguments)
+    const errorPureFnCall = `const ${errVarName} = ${fnName}(${comp.vλl},${paramsName},${comp.args.εrr})`;
+    const infoCode = `{name:${toLiteral(ft.name)},invalid:${errVarName}}`;
+    const callJitErr = `if (${errVarName}) utl.err(${comp.args.εrr},${comp.args.pλth},[${pathItems}],${expectLiteral},${infoCode});`;
+    return {callCode: `${errorPureFnCall};${callJitErr}`, fnName, paramsName};
+}
+
+export function compilePureFunctionContext(
+    comp: JitCompiler | JitErrorsCompiler,
+    rt: BaseRunType,
+    ft: JitRunTypeFormatter,
+    pureFn: PureFunctionWithContext<any>,
+    overrideParams?: TypeFormatValue
+): {fnName: string; paramsName: string} {
+    const name = pureFn.name;
+    if (!name) throw new Error('Pure function must have a name');
+    registerPureFunctionWithCtx(pureFn); // will throw if there is a different pure function with the same name
+    comp.addPureFnDependency(pureFn);
+    // Add context code for the pure function and params
+    const fnName = getPureFnName(name, rt.getNestLevel());
+    const pureFunctionCode = `const ${fnName} = utl.getPureFn(${toLiteral(name)})`;
+    comp.contextCodeItems.set(fnName, pureFunctionCode);
+    const {paramsName} = compileAddParamsToCtx(comp, rt, ft, overrideParams);
+    return {fnName, paramsName};
+}
+
+function getPureFnName(name: string, nestLevel: number): string {
+    return `${name}${nestLevel}`;
+}
+
+export function compileAddParamsToCtx(
+    comp: JitCompiler | JitErrorsCompiler,
+    rt: BaseRunType,
+    ft: JitRunTypeFormatter,
+    overrideParams?: TypeFormatValue
+): {paramsName: string} {
+    if (ft.parentPath?.length) return {paramsName: ft.parentPath.map((p) => toLiteral(p)).join('.')};
+    const params = overrideParams || ft.getParams(rt);
+    const paramsName = `args${rt.getNestLevel()}`; //TODO: we might need to add a name based on the type formatter
+    if (comp.contextCodeItems.has(paramsName)) return {paramsName};
+    const paramsCode = `const ${paramsName} = ${typeParamsToLiteral(comp, params, ft.ignoreJitParams)}`;
+    comp.contextCodeItems.set(paramsName, paramsCode);
+    return {paramsName};
+}
+
+function typeParamsToLiteral(comp: JitCompiler | JitErrorsCompiler, params: TypeFormatValue, ignoreProps?: string[]): string {
+    switch (true) {
+        case typeof params === 'string':
+            return toLiteral(params);
+        case typeof params === 'number':
+            return `${params}`;
+        case typeof params === 'boolean':
+            return params ? 'true' : 'false';
+        case params instanceof RegExp:
+            return params.toString();
+        case Array.isArray(params):
+            return `[${params.map((v) => typeParamsToLiteral(comp, v)).join(', ')}]`;
+        case typeof params === 'object': {
+            const entriesLiterals = Object.entries(params)
+                .filter((ent) => ent[1] !== undefined && (!ignoreProps || !ignoreProps.includes(ent[0])))
+                .map(([k, v]) => {
+                    if (isPureFunctionCallLiteral(k)) {
+                        if (typeof v !== 'string')
+                            throw new Error(
+                                `Params pure functions must have the function's name as value, ie {'isUUIDFn()': 'isUUID'}`
+                            );
+                        return compileParamPureFunctionCall(comp, k, v);
+                    }
+                    const propName = isSafePropName(k) ? k : toLiteral(k);
+                    return `${propName}: ${typeParamsToLiteral(comp, v)}`;
+                });
+            return `{${entriesLiterals.join(', ')}}`;
+        }
+        default:
+            throw new Error(`Unsupported type format params ${params}`);
+    }
+}
+
+/**
+ * Some params might be calls to load a jit utils pure function instead of literal values.
+ * This is so pure function can be passed as params to other pure functions.
+ * To define a param that is a pure function load, the propName must end with '()', and the value is the name of the pure function.
+ * ie: params = {'isUUIDFn()': 'isUUID'} will be compiled as {isUUIDFn: utl.getPureFn('isUUID')}
+ * So later it can be called as params.isUUIDFn(value, params)
+ * The property value is the name of the pure function.
+ * A bit hacky but it works 😜
+ * @param propName
+ * @returns
+ */
+function compileParamPureFunctionCall(comp: JitCompiler | JitErrorsCompiler, propName: string, fnName: string): string {
+    comp.addPureFnDependency(fnName);
+    return `${trimPureFnNameAsParam(propName)}: utl.getPureFn(${toLiteral(fnName)})`;
+}
+
+function isPureFunctionCallLiteral(propName: string): boolean {
+    return propName.endsWith('()');
+}
+
+function trimPureFnNameAsParam(propName: string): string {
+    return propName.replace('()', '');
 }

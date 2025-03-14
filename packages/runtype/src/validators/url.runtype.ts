@@ -43,8 +43,7 @@ export class URLValidator extends JitRunTypeFormatter<UrlParams> {
     readonly kind = ReflectionKind.string;
     readonly name = URLValidator.id;
     _compileIsType(comp: JitCompiler, rt: BaseRunType): string {
-        const params = this.getParams(rt);
-        return compilePureFunctionCall(comp, rt, isURL, params);
+        return compilePureFunctionCall(comp, rt, this, isURL).callCode;
     }
     _mock(mockContext: MockOperation, rt: BaseRunType) {
         // TODO
