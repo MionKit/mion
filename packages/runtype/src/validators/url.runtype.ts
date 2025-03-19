@@ -8,8 +8,8 @@
  * ######## */
 import type {BaseRunType} from '../lib/baseRunTypes';
 import type {JitCompiler, JitErrorsCompiler} from '../lib/jitCompiler';
-import {compilePureFunctionCall, registerFormatter, registerPureFunctionWithCtx} from '../lib/formats';
-import {JitRunTypeFormatter} from '../lib/jitFormatters';
+import {compilePureFunctionCall, registerFormatter, registerPureFnClosure} from '../lib/formats';
+import {JitRunTypeFormatter} from '../lib/baseFormatter';
 import {ReflectionKind} from '@deepkit/type';
 import {Domain} from './domain.runtype';
 import {TypeFormat} from '../lib/formats.runtype';
@@ -84,5 +84,5 @@ function isURL() {
     };
 }
 
-registerPureFunctionWithCtx(isURL);
+registerPureFnClosure(isURL);
 registerFormatter(new URLValidator());

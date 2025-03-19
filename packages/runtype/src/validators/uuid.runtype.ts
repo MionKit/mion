@@ -6,10 +6,10 @@
  * ######## */
 import type {BaseRunType} from '../lib/baseRunTypes';
 import type {JitCompiler, JitErrorsCompiler} from '../lib/jitCompiler';
-import {registerFormatter, compilePureFunctionCall, registerPureFunctionWithCtx} from '../lib/formats';
-import {JitRunTypeFormatter} from '../lib/jitFormatters';
+import {registerFormatter, compilePureFunctionCall, registerPureFnClosure} from '../lib/formats';
+import {JitRunTypeFormatter} from '../lib/baseFormatter';
 import {ReflectionKind} from '@deepkit/type';
-import {GenericPureFunction, MockOperation} from '../types';
+import {GenericPureFunction, MockOperation, TypeFormatError} from '../types';
 import {TypeFormat} from '../lib/formats.runtype'; // !Important: TypeFormat cant be imported as type for all runType functionality to work
 
 export type UUID_Params = {version: '4' | '7'};
@@ -31,8 +31,8 @@ export class UUID_Format extends JitRunTypeFormatter<UUID_Params> {
         const params = this.getParams(rt);
         const isTypeCode = this._compileIsType(comp, rt);
         if (!isTypeCode) return '';
-
-        const formatError = {name: this.name, invalid: {version: params.version}};
+        const path = this.getNewPath('version');
+        const formatError: TypeFormatError = {name: this.name, formatPath: path, val: params.version};
         return `if (!(${isTypeCode})) ${comp.callJitErr(rt, formatError)}`;
     }
     _mock(mockContext: MockOperation, rt: BaseRunType) {
@@ -79,5 +79,5 @@ export function isUUID() {
 
 // ############### Register runtypes ###############
 
-registerPureFunctionWithCtx(isUUID);
+registerPureFnClosure(isUUID);
 export const uuidValidator = registerFormatter(new UUID_Format());

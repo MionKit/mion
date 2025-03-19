@@ -17,7 +17,7 @@ const jitConstants: JitConfig = {
 };
 
 export class SymbolRunType extends AtomicRunType<TypeSymbol> {
-    _getJitConfig = () => jitConstants;
+    getJitConfig = () => jitConstants;
     _compileIsType(comp: JitCompiler): string {
         return `typeof ${comp.vλl} === 'symbol'`;
     }

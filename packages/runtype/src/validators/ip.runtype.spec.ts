@@ -6,6 +6,7 @@
  * ######## */
 
 import {isTypeFn, mockTypeFn, typeErrorsFn} from '../functions';
+import {RunTypeError} from '../types';
 import {IP, IPV4, IPV4WithPort, IPV6, IPV6WithPort} from './ip.runtype';
 
 it('should validate IPV4 values', async () => {
@@ -40,21 +41,19 @@ it('should validate IPV4 values with port', async () => {
 
 it('should return IPV4 errors', async () => {
     const typeErrors = await typeErrorsFn<IPV4>();
-    const err = {expected: 'string', path: [], format: {name: 'ip'}};
+    const err: RunTypeError = {expected: 'string', path: [], format: {name: 'ip', formatPath: ['version'], val: 4}};
     // Valid cases
     expect(typeErrors('192.168.0.1')).toEqual([]);
     expect(typeErrors('localHost')).toEqual([]);
     expect(typeErrors('127.0.0.1')).toEqual([]);
     expect(typeErrors('255.255.255.255')).toEqual([]);
     // Invalid cases
-    expect(typeErrors('256.256.256.256')).toEqual([{...err, format: {name: 'ip', invalid: {version: 4}}}]);
-    expect(typeErrors('192.168.0')).toEqual([{...err, format: {name: 'ip', invalid: {version: 4}}}]);
-    expect(typeErrors('192.168.0.1:8080')).toEqual([{...err, format: {name: 'ip', invalid: {version: 4}}}]);
+    expect(typeErrors('256.256.256.256')).toEqual([err]);
+    expect(typeErrors('192.168.0')).toEqual([err]);
+    expect(typeErrors('192.168.0.1:8080')).toEqual([err]);
     // Invalid version
-    expect(typeErrors('::1')).toEqual([{...err, format: {name: 'ip', invalid: {version: 4}}}]);
-    expect(typeErrors('2001:0db8:85a3:0000:0000:8a2e:0370:7334')).toEqual([
-        {...err, format: {name: 'ip', invalid: {version: 4}}},
-    ]);
+    expect(typeErrors('::1')).toEqual([err]);
+    expect(typeErrors('2001:0db8:85a3:0000:0000:8a2e:0370:7334')).toEqual([err]);
 });
 
 it('should mock IPV4 values', async () => {
@@ -95,15 +94,13 @@ it('should validate IPV6 values with port', async () => {
 
 it('should return IPV6 errors', async () => {
     const typeErrors = await typeErrorsFn<IPV6>();
-    const err = {expected: 'string', path: [], format: {name: 'ip'}};
+    const err: RunTypeError = {expected: 'string', path: [], format: {name: 'ip', formatPath: ['version'], val: 6}};
     // Valid cases
     expect(typeErrors('::1')).toEqual([]);
     // Invalid cases
-    expect(typeErrors('2001:0db8:85a3:0000:0000:8a2e:0370:7334:1234')).toEqual([
-        {...err, format: {name: 'ip', invalid: {version: 6}}},
-    ]);
-    expect(typeErrors('2001:db8::85a3::8a2e:370:7334')).toEqual([{...err, format: {name: 'ip', invalid: {version: 6}}}]);
-    expect(typeErrors('[2001:db8::85a3]:8080')).toEqual([{...err, format: {name: 'ip', invalid: {version: 6}}}]);
+    expect(typeErrors('2001:0db8:85a3:0000:0000:8a2e:0370:7334:1234')).toEqual([err]);
+    expect(typeErrors('2001:db8::85a3::8a2e:370:7334')).toEqual([err]);
+    expect(typeErrors('[2001:db8::85a3]:8080')).toEqual([err]);
 });
 
 it('should mock IPV6 values', async () => {
@@ -129,15 +126,13 @@ it('should validate IP values', async () => {
 
 it('should return IP errors', async () => {
     const typeErrors = await typeErrorsFn<IP>();
-    const err = {expected: 'string', path: [], format: {name: 'ip'}};
+    const err: RunTypeError = {expected: 'string', path: [], format: {name: 'ip', formatPath: ['version'], val: 'any'}};
     // Valid cases
     expect(typeErrors('192.168.0.1')).toEqual([]);
     // Invalid cases
-    expect(typeErrors('256.256.256.256')).toEqual([{...err, format: {name: 'ip', invalid: {version: 'any'}}}]);
-    expect(typeErrors('2001:0db8:85a3:0000:0000:8a2e:0370:7334:1234')).toEqual([
-        {...err, format: {name: 'ip', invalid: {version: 'any'}}},
-    ]);
-    expect(typeErrors('192.168.0.1:8080')).toEqual([{...err, format: {name: 'ip', invalid: {version: 'any'}}}]);
+    expect(typeErrors('256.256.256.256')).toEqual([err]);
+    expect(typeErrors('2001:0db8:85a3:0000:0000:8a2e:0370:7334:1234')).toEqual([err]);
+    expect(typeErrors('192.168.0.1:8080')).toEqual([err]);
 });
 
 it('should mock IP values', async () => {

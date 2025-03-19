@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-const jitHashes = new Map<string, string>();
+const hashes = new Map<string, string>();
 const hashChars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
 const hashIncrement = 1;
 const maxHashCollisions = 22;
@@ -29,28 +29,28 @@ export function quickHash(input: string, length = hashDefaultLength, prevResult?
     return result.slice(0, length);
 }
 
-export function createJitIDHash(jitId: string, length = hashDefaultLength): string {
-    let id = quickHash(jitId, length);
+export function createUniqueHash(id: string, length = hashDefaultLength): string {
+    let hash = quickHash(id, length);
     let counter = 1;
-    let existing = jitHashes.get(id);
+    let existing = hashes.get(hash);
     // Check if ID already exists and corresponds to the same input
-    while (existing && existing !== jitId) {
+    while (existing && existing !== id) {
         length += counter * hashIncrement;
         // generates a longer hash if there are collisions
         // this would allow trying to get all possible hashes for a given input just by increasing the length
-        const newId = quickHash(jitId, length, id);
+        const newId = quickHash(id, length, hash);
         if (process.env.DEBUG_JIT)
             console.warn(
-                `Collision for jitId: ${jitId} with extended hash: ${newId}, and existing jitId: ${existing} with hash: ${id}`
+                `Collision for jitId: ${id} with extended hash: ${newId}, and existing jitId: ${existing} with hash: ${hash}`
             );
-        id = newId;
+        hash = newId;
         counter++;
-        existing = jitHashes.get(id);
-        if (counter > maxHashCollisions) throw new Error(`Cannot generate unique hash for jitId: ${jitId} too many collisions.`);
+        existing = hashes.get(hash);
+        if (counter > maxHashCollisions) throw new Error(`Cannot generate unique hash for jitId: ${id} too many collisions.`);
     }
 
     // Store the unique ID with its original input string
-    jitHashes.set(id, jitId);
+    hashes.set(hash, id);
     // console.log(`Jit ID: ${jitId} with hash: ${id}`);
-    return id;
+    return hash;
 }

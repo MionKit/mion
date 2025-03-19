@@ -9,7 +9,7 @@
 import type {RunType, Mutable, SrcType} from './types';
 import type {BaseRunType} from './lib/baseRunTypes';
 import type {TypeClass, Type} from '@deepkit/type';
-import {ReflectionKind, resolveReceiveType, ReceiveType, reflect, typeAnnotation} from '@deepkit/type';
+import {ReflectionKind, resolveReceiveType, ReceiveType, reflect, typeAnnotation, stringifyType} from '@deepkit/type';
 import {StringRunType} from './runtypes/atomic/string';
 import {DateRunType} from './runtypes/atomic/date';
 import {NumberRunType} from './runtypes/atomic/number';
@@ -63,8 +63,16 @@ import {
 import {NonSerializableRunType} from './runtypes/native/nonSerializable';
 
 export function runType<T>(type?: ReceiveType<T>): RunType {
+    const start = Date.now();
     const src = resolveReceiveType(type) as SrcType;
+    const took0 = Date.now() - start;
     createRunTypes(src);
+    const took1 = Date.now() - start;
+    const diff = took1 - took0;
+    if (diff > 40) {
+        // max RunType overhead 30 ms
+        console.warn(`RunType overhead is very long: ${diff}ms for ${stringifyType(src)}`);
+    }
     return src._rt;
 }
 

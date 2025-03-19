@@ -69,6 +69,8 @@ export const jitArgs = {vλl: 'v'} as const;
 export const jitDefaultArgs = {vλl: null} as const;
 export const jitErrorArgs = {vλl: 'v', pλth: 'pth', εrr: 'er'} as const;
 export const jitDefaultErrorArgs = {vλl: null, pλth: '[]', εrr: '[]'} as const;
+export const jitFormatErrorArgs = {vλl: 'v', pλth: 'pth', εrr: 'er', formatPλth: 'fmt'} as const;
+export const jitDefaultFormatErrorArgs = {vλl: null, pλth: '[]', εrr: '[]', formatPλth: '[]'} as const;
 
 // native javascript objects that are not serializable
 export const nonSerializableClasses = [

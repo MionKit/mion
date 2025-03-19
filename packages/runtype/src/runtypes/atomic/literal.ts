@@ -17,9 +17,9 @@ import {AnyKindName} from '../../constants.kind';
 
 export class LiteralRunType extends AtomicRunType<TypeLiteral> {
     get jitConstants() {
-        return this._getJitConfig();
+        return this.getJitConfig();
     }
-    _getJitConfig = memorize((): JitConfig => {
+    getJitConfig = memorize((): JitConfig => {
         switch (true) {
             case typeof this.src.literal === 'bigint':
                 return getJitConstantsForBigint(this.src.kind, this.src.literal);

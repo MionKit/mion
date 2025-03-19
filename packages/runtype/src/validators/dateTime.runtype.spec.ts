@@ -6,6 +6,7 @@
  * ######## */
 
 import {isTypeFn, mockTypeFn, typeErrorsFn} from '../functions';
+import {RunTypeError} from '../types';
 import {DateTimeString} from './dateTime.runtype';
 
 // ####### DateTime format ISO #######
@@ -34,33 +35,32 @@ it('validate datetime with format ISO', async () => {
 
 it('get datetime errors for format ISO', async () => {
     const typeErrors = await typeErrorsFn<ISODateTime>();
-    const dateTimeError = {
+    const dateError: RunTypeError = {
         expected: 'string',
         path: [],
-        format: {name: 'dateTime', invalid: {}},
+        format: {name: 'dateTime', formatPath: ['date', 'format'], val: 'ISO'},
     };
-    const dateTimeInvalidError = JSON.parse(JSON.stringify(dateTimeError));
-    dateTimeInvalidError.format.invalid = {date: {format: 'ISO'}, time: {format: 'ISO'}};
-    const dateInvalidError = JSON.parse(JSON.stringify(dateTimeError));
-    dateInvalidError.format.invalid = {date: {format: 'ISO'}};
-    const timeInvalidError = JSON.parse(JSON.stringify(dateTimeError));
-    timeInvalidError.format.invalid = {time: {format: 'ISO'}};
+    const timeError: RunTypeError = {
+        expected: 'string',
+        path: [],
+        format: {name: 'dateTime', formatPath: ['time', 'format'], val: 'ISO'},
+    };
     // valid datetime
     expect(typeErrors('2023-01-01T00:00:00Z')).toEqual([]);
     expect(typeErrors('0000-12-31T23:59:59Z')).toEqual([]);
     expect(typeErrors('2023-01-01T00:00:00+00:00')).toEqual([]);
     expect(typeErrors('2023-01-01T00:00:00-00:00')).toEqual([]);
     // invalid datetime
-    expect(typeErrors('2023-13-01T00:00:00Z')).toEqual([dateInvalidError]);
-    expect(typeErrors('2023-01-32T00:00:00Z')).toEqual([dateInvalidError]);
-    expect(typeErrors('2023-01-01T24:00:00Z')).toEqual([timeInvalidError]);
-    expect(typeErrors('2023-01-01T00:60:00Z')).toEqual([timeInvalidError]);
-    expect(typeErrors('2023-01-01T00:00:60Z')).toEqual([timeInvalidError]);
+    expect(typeErrors('2023-13-01T00:00:00Z')).toEqual([dateError]);
+    expect(typeErrors('2023-01-32T00:00:00Z')).toEqual([dateError]);
+    expect(typeErrors('2023-01-01T24:00:00Z')).toEqual([timeError]);
+    expect(typeErrors('2023-01-01T00:60:00Z')).toEqual([timeError]);
+    expect(typeErrors('2023-01-01T00:00:60Z')).toEqual([timeError]);
     // invalid characters
-    expect(typeErrors('2023-01-01T00:00:00!Z')).toEqual([timeInvalidError]);
+    expect(typeErrors('2023-01-01T00:00:00!Z')).toEqual([timeError]);
     // wrong length
-    expect(typeErrors('2023-01-01')).toEqual([dateTimeInvalidError]);
-    expect(typeErrors('2023-01-01T00:00')).toEqual([timeInvalidError]);
+    expect(typeErrors('2023-01-01')).toEqual([dateError, timeError]);
+    expect(typeErrors('2023-01-01T00:00')).toEqual([timeError]);
 });
 
 it('mock datetime with format ISO', async () => {
@@ -92,17 +92,20 @@ it('validate datetime with format MM-DDTHH', async () => {
     expect(isType('01-01')).toBe(false);
     expect(isType('01-01T00:00')).toBe(false);
 });
+
 it('get datetime errors for format MM-DDTHH', async () => {
     const typeErrors = await typeErrorsFn<MMDDTHH>();
-    const dateTimeError = {
+    const dateError: RunTypeError = {
         expected: 'string',
         path: [],
-        format: {name: 'dateTime', invalid: {date: {format: 'MM-DD'}, time: {format: 'HH'}}},
+        format: {name: 'dateTime', formatPath: ['date', 'format'], val: 'MM-DD'},
     };
-    const dateError = JSON.parse(JSON.stringify(dateTimeError));
-    dateError.format.invalid = {date: {format: 'MM-DD'}};
-    const timeError = JSON.parse(JSON.stringify(dateTimeError));
-    timeError.format.invalid = {time: {format: 'HH'}};
+    const timeError: RunTypeError = {
+        expected: 'string',
+        path: [],
+        format: {name: 'dateTime', formatPath: ['time', 'format'], val: 'HH'},
+    };
+
     // valid datetime
     expect(typeErrors('01-01T00')).toEqual([]);
     expect(typeErrors('12-31T23')).toEqual([]);
@@ -114,9 +117,10 @@ it('get datetime errors for format MM-DDTHH', async () => {
     // invalid characters
     expect(typeErrors('01-01T0!')).toEqual([timeError]);
     // wrong length
-    expect(typeErrors('01-01')).toEqual([dateTimeError]);
+    expect(typeErrors('01-01')).toEqual([dateError, timeError]);
     expect(typeErrors('01-01T00:00')).toEqual([timeError]);
 });
+
 it('mock datetime with format MM-DDTHH', async () => {
     const mockType = mockTypeFn<MMDDTHH>();
     const isType = await isTypeFn<MMDDTHH>();

@@ -18,7 +18,7 @@ const jitConstants: JitConfig = {
 };
 
 export class EnumRunType extends AtomicRunType<TypeEnum> {
-    _getJitConfig = () => jitConstants;
+    getJitConfig = () => jitConstants;
     _compileIsType(comp: JitCompiler): string {
         return this.src.values.map((v) => `${comp.vλl} === ${toLiteral(v)}`).join(' || ');
     }
