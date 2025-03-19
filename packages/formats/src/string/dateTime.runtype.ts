@@ -6,22 +6,27 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
-import type {BaseRunType} from '../lib/baseRunTypes';
-import type {JitCompiler, JitErrorsCompiler} from '../lib/jitCompiler';
-import {JitRunTypeFormatter} from '../lib/baseFormatter';
+import type {BaseRunType} from '@mionkit/runtype/src/lib/baseRunTypes';
+import type {JitCompiler, JitErrorsCompiler} from '@mionkit/runtype/src/lib/jitCompiler';
+import {JitRunTypeFormatter} from '@mionkit/runtype/src/lib/baseFormatter';
 import {ReflectionKind} from '@deepkit/type';
-import {TypeFormat} from '../lib/formats.runtype'; // !Important: TypeFormat cant be imported as type for all runType functionality to work
+import {TypeFormat} from '@mionkit/runtype/src/lib/formats.runtype'; // !Important: TypeFormat cant be imported as type for all runType functionality to work
 import {
     ErrorsPureFunctionWithDeps,
     GenericPureFunction,
     GenericPureFunctionWithDeps,
     MockOperation,
     TypeFormatError,
-} from '../types';
+} from '@mionkit/runtype/src/types';
 import {dateFunctions, DateStringParams, dateStringValidator, DefaultDateParams} from './date.runtype';
 import {DefaultTimeParams, timeFunctions, TimeStringParams, timeStringValidator} from './time.runtype';
-import {compileErrorsPureFunctionCall, compilePureFunctionCall, registerFormatter, registerPureFnClosure} from '../lib/formats';
-import {toLiteral} from '../lib/utils';
+import {
+    compileErrorsPureFunctionCall,
+    compilePureFunctionCall,
+    registerFormatter,
+    registerPureFnClosure,
+} from '@mionkit/runtype/src/lib/formats';
+import {toLiteral} from '@mionkit/runtype/src/lib/utils';
 
 export type StringDateTimeParams = {
     date: DateStringParams;

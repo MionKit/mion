@@ -4,6 +4,12 @@
     "outDir": ".dist/cjs"
   },
   "reflection": true,
-  "include": ["."],
+  "include": [, ", "../formats/src/string/domain.runtype.ts", "../formats/src/string/email.runtype.ts", "../formats/src/string/ip.runtype.spec.ts", "../formats/src/string/ip.runtype.ts", "../formats/src/string/string.runtype.spec.ts", "../formats/src/string/string.runtype.ts", "../formats/src/string/time.runtype.spec.ts", "../formats/src/string/time.runtype.ts", "../formats/src/string/timeDiff.runtype.ts", "../formats/src/string/url.runtype.ts"../formats/src/string/defaultStringFormats.run, "../formats/src/string/uuid.runtype.spec.ts", "../formats/src/string/uuid.runtype.ts"type.spec.ts", "../formats/src/string/defaultStringFormats.runtype.ts", "../formats/src/string/domain.runtype.spec.ts"
+    ".",
+    "../formats/src/string/date.runtype.ts",
+    "../formats/src/string/dateTime.runtype.spec.ts",
+    "../formats/src/string/dateTime.runtype.ts",
+    "../formats/src/string/date.runtype.spec.ts"
+, "../formats/src/number/number.ts", "../formats/src/validators.ts"  ],
   "exclude": ["node_modules", ".dist"]
 }

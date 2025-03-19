@@ -5,8 +5,8 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {isTypeFn, mockTypeFn, typeErrorsFn} from '../functions';
-import {RunTypeError} from '../types';
+import {isTypeFn, mockTypeFn, typeErrorsFn} from '../../../runtype/src/functions';
+import {RunTypeError} from '../../../runtype/src/types';
 import {IP, IPV4, IPV4WithPort, IPV6, IPV6WithPort} from './ip.runtype';
 
 it('should validate IPV4 values', async () => {

@@ -6,8 +6,8 @@
  * ######## */
 /* eslint-disable @typescript-eslint/no-unused-vars */
 
-import {jitUtils, type JITUtils} from '../lib/jitUtils';
-import {JitCompiled} from '../types';
+import {jitUtils, type JITUtils} from '../../runtype/src/lib/jitUtils';
+import {JitCompiled} from '../../runtype/src/types';
 
 export const validatorNames = {
     isDate: 'vf_isDate',

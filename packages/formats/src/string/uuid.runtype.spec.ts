@@ -5,8 +5,8 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {isTypeFn, mockTypeFn, typeErrorsFn} from '../functions';
-import {RunTypeError} from '../types';
+import {isTypeFn, mockTypeFn, typeErrorsFn} from '../../../runtype/src/functions';
+import {RunTypeError} from '../../../runtype/src/types';
 import {UUID_V4, UUID_V7, mockUuidV7} from './uuid.runtype';
 
 // ####### UUID v4 #######

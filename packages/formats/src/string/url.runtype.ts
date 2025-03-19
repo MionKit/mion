@@ -6,14 +6,14 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
-import type {BaseRunType} from '../lib/baseRunTypes';
-import type {JitCompiler, JitErrorsCompiler} from '../lib/jitCompiler';
-import {compilePureFunctionCall, registerFormatter, registerPureFnClosure} from '../lib/formats';
-import {JitRunTypeFormatter} from '../lib/baseFormatter';
+import type {BaseRunType} from '../../../runtype/src/lib/baseRunTypes';
+import type {JitCompiler, JitErrorsCompiler} from '../../../runtype/src/lib/jitCompiler';
+import {compilePureFunctionCall, registerFormatter, registerPureFnClosure} from '../../../runtype/src/lib/formats';
+import {JitRunTypeFormatter} from '../../../runtype/src/lib/baseFormatter';
 import {ReflectionKind} from '@deepkit/type';
 import {Domain} from './domain.runtype';
-import {TypeFormat} from '../lib/formats.runtype';
-import {MockOperation} from '../types';
+import {TypeFormat} from '../../../runtype/src/lib/formats.runtype';
+import {MockOperation} from '../../../runtype/src/types';
 
 export type DefaultUrlParams = {
     maxLength: 2048;

@@ -5,17 +5,22 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
-import type {BaseRunType} from '../lib/baseRunTypes';
-import type {JitCompiler, JitErrorsCompiler} from '../lib/jitCompiler';
-import {JitRunTypeFormatter} from '../lib/baseFormatter';
+import type {BaseRunType} from '../../../runtype/src/lib/baseRunTypes';
+import type {JitCompiler, JitErrorsCompiler} from '../../../runtype/src/lib/jitCompiler';
+import {JitRunTypeFormatter} from '../../../runtype/src/lib/baseFormatter';
 import {DeepPartial, ReflectionKind} from '@deepkit/type';
-import {ErrorsPureFunction, GenericPureFunctionWithDeps, MockOperation, TypeFormatError} from '../types';
-import {TypeFormat} from '../lib/formats.runtype'; // !Important: TypeFormat cant be imported as type for all runType functionality to work
+import {ErrorsPureFunction, GenericPureFunctionWithDeps, MockOperation, TypeFormatError} from '../../../runtype/src/types';
+import {TypeFormat} from '../../../runtype/src/lib/formats.runtype'; // !Important: TypeFormat cant be imported as type for all runType functionality to work
 import {stringFormatErrors, stringFormatter, StringValidatorsParams} from './string.runtype';
-import {compileErrorsPureFunctionCall, compilePureFunctionCall, registerFormatter, registerPureFnClosure} from '../lib/formats';
-import {random, randomItem} from '../lib/mock';
-import {JitFunctions} from '../constants';
-import {JITUtils} from '../lib/jitUtils';
+import {
+    compileErrorsPureFunctionCall,
+    compilePureFunctionCall,
+    registerFormatter,
+    registerPureFnClosure,
+} from '../../../runtype/src/lib/formats';
+import {random, randomItem} from '../../../runtype/src/lib/mock';
+import {JitFunctions} from '../../../runtype/src/constants';
+import {JITUtils} from '../../../runtype/src/lib/jitUtils';
 
 export const DOMAIN_ALLOWED_CHARS = /^[a-zA-Z0-9-]+$/;
 export const TLD_ALLOWED_CHARS = /^[a-zA-Z]+(\.[a-zA-Z]+)?$/;
