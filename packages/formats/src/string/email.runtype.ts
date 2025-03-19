@@ -5,19 +5,24 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
-import type {BaseRunType} from '../lib/baseRunTypes';
-import type {JitCompiler, JitErrorsCompiler} from '../lib/jitCompiler';
-import {JitRunTypeFormatter} from '../lib/baseFormatter';
+import type {BaseRunType} from '@mionkit/runtype/src/lib/baseRunTypes';
+import type {JitCompiler, JitErrorsCompiler} from '@mionkit/runtype/src/lib/jitCompiler';
+import {JitRunTypeFormatter} from '@mionkit/runtype/src/lib/baseFormatter';
 import {ReflectionKind} from '@deepkit/type';
 import {DefaultDomainParams, DomainParams} from './domain.runtype';
-import {TypeFormat} from '../lib/formats.runtype';
-import {MockOperation} from '../types';
+import {TypeFormat} from '@mionkit/runtype/src/lib/formats.runtype';
+import {MockOperation} from '@mionkit/runtype/src/types';
 import {StringValidatorsParams} from './string.runtype';
 import {stringFormatter, isStringFormat, stringFormatErrors} from './string.runtype';
 import {domainFormatter, isDomain, domainErrors} from './domain.runtype';
-import {compilePureFunctionCall, compileErrorsPureFunctionCall, registerFormatter, registerPureFnClosure} from '../lib/formats';
-import {JITUtils} from '../lib/jitUtils';
-import type {DeepRequired, GenericPureFunction, InvalidFormatParams} from '../types';
+import {
+    compilePureFunctionCall,
+    compileErrorsPureFunctionCall,
+    registerFormatter,
+    registerPureFnClosure,
+} from '@mionkit/runtype/src/lib/formats';
+import {JITUtils} from '@mionkit/runtype/src/lib/jitUtils';
+import type {DeepRequired, GenericPureFunction, InvalidFormatParams} from '@mionkit/runtype/src/types';
 
 export type EmailOnlyParams = {
     maxLength: 254;

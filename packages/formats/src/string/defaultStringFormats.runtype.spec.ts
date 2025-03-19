@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {isTypeFn, mockTypeFn, typeErrorsFn} from '../functions';
+import {isTypeFn, mockTypeFn, typeErrorsFn} from '../../../runtype/src/functions';
 import {StringFormat} from './string.runtype';
 import {
     AlphaNumericString,
@@ -15,7 +15,7 @@ import {
     NumericString,
     UpperString,
 } from './defaultStringFormats.runtype';
-import {RunTypeError, TypeFormatError} from '../types';
+import {RunTypeError, TypeFormatError} from '../../../runtype/src/types';
 
 // #### AlphaString type ####
 it('validate string alpha', async () => {

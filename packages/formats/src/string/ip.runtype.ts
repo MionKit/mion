@@ -9,15 +9,15 @@
 /*
 
 */
-import type {BaseRunType} from '../lib/baseRunTypes';
-import type {JitCompiler, JitErrorsCompiler} from '../lib/jitCompiler';
-import type {ErrorsPureFunction, GenericPureFunction, MockOperation, TypeFormatError} from '../types';
-import type {JITUtils} from '../lib/jitUtils';
-import {JitRunTypeFormatter} from '../lib/baseFormatter';
+import type {BaseRunType} from '@mionkit/runtype/src/lib/baseRunTypes';
+import type {JitCompiler, JitErrorsCompiler} from '@mionkit/runtype/src/lib/jitCompiler';
+import type {ErrorsPureFunction, GenericPureFunction, MockOperation, TypeFormatError} from '@mionkit/runtype/src/types';
+import type {JITUtils} from '@mionkit/runtype/src/lib/jitUtils';
+import {JitRunTypeFormatter} from '@mionkit/runtype/src/lib/baseFormatter';
 import {ReflectionKind} from '@deepkit/type';
-import {TypeFormat} from '../lib/formats.runtype';
-import {compileErrorsPureFunctionCall, compilePureFunctionCall} from '../lib/formats';
-import {registerFormatter, registerPureFnClosure} from '../lib/formats';
+import {TypeFormat} from '@mionkit/runtype/src/lib/formats.runtype';
+import {compileErrorsPureFunctionCall, compilePureFunctionCall} from '@mionkit/runtype/src/lib/formats';
+import {registerFormatter, registerPureFnClosure} from '@mionkit/runtype/src/lib/formats';
 
 export type IpValidatorParams = {
     version?: 4 | 6 | 'any';

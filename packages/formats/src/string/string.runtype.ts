@@ -5,15 +5,20 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
-import type {BaseRunType} from '../lib/baseRunTypes';
-import type {JitCompiler, JitErrorsCompiler} from '../lib/jitCompiler';
-import {TypeFormat} from '../lib/formats.runtype'; // !Important: TypeFormat cant be imported as type for all runType functionality to work
-import {compileAddParamsToCtx, compileErrorsPureFunctionCall, registerFormatter, registerPureFnClosure} from '../lib/formats';
-import {JitRunTypeFormatter} from '../lib/baseFormatter';
+import type {BaseRunType} from '@mionkit/runtype/src/lib/baseRunTypes';
+import type {JitCompiler, JitErrorsCompiler} from '@mionkit/runtype/src/lib/jitCompiler';
+import {TypeFormat} from '@mionkit/runtype/src/lib/formats.runtype'; // !Important: TypeFormat cant be imported as type for all runType functionality to work
+import {
+    compileAddParamsToCtx,
+    compileErrorsPureFunctionCall,
+    registerFormatter,
+    registerPureFnClosure,
+} from '@mionkit/runtype/src/lib/formats';
+import {JitRunTypeFormatter} from '@mionkit/runtype/src/lib/baseFormatter';
 import {ReflectionKind} from '@deepkit/type';
-import {ErrorsPureFunction, MockOperation, TypeFormatError, TypeFormatParams} from '../types';
-import {mockString, random, randomItem} from '../lib/mock';
-import {regexpEscape} from '../lib/utils';
+import {ErrorsPureFunction, MockOperation, TypeFormatError, TypeFormatParams} from '@mionkit/runtype/src/types';
+import {mockString, random, randomItem} from '@mionkit/runtype/src/lib/mock';
+import {regexpEscape} from '@mionkit/runtype/src/lib/utils';
 
 // ############### String Format Params ###############
 export type PatternParam =

@@ -4,14 +4,14 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
-import type {BaseRunType} from '../lib/baseRunTypes';
-import type {JitCompiler, JitErrorsCompiler} from '../lib/jitCompiler';
-import {JitRunTypeFormatter} from '../lib/baseFormatter';
 import {ReflectionKind} from '@deepkit/type';
-import {TypeFormat} from '../lib/formats.runtype'; // !Important: TypeFormat cant be imported as type for all runType functionality to work
-import {GenericPureFunction, MockOperation, TypeFormatError} from '../types';
-import {compilePureFunctionCall, registerFormatter, registerPureFnClosure} from '../lib/formats';
-import {JITUtils} from '../lib/jitUtils';
+import type {JITUtils} from '@mionkit/runtype/src/lib/jitUtils';
+import type {JitCompiler, JitErrorsCompiler} from '@mionkit/runtype/src/lib/jitCompiler';
+import type {BaseRunType} from '@mionkit/runtype/src/lib/baseRunTypes';
+import type {GenericPureFunction, MockOperation, TypeFormatError} from '@mionkit/runtype/src/types';
+import {JitRunTypeFormatter} from '@mionkit/runtype/src/lib/baseFormatter';
+import {compilePureFunctionCall, registerFormatter, registerPureFnClosure} from '@mionkit/runtype/src/lib/formats';
+import {TypeFormat} from '@mionkit/runtype/src/lib/formats.runtype'; // !Important: TypeFormat cant be imported as type for all runType functionality to work
 
 export type DateStringParams = {
     format: 'ISO' | 'YYYY-MM-DD' | 'DD-MM-YYYY' | 'MM-DD-YYYY' | 'MM-DD' | 'DD-MM' | 'YYYY-MM';
