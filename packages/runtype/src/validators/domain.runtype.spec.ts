@@ -6,6 +6,7 @@
  * ######## */
 
 import {isTypeFn, mockTypeFn, typeErrorsFn} from '../functions';
+import {RunTypeError} from '../types';
 import {Domain} from './domain.runtype';
 
 it('should validate domain values', async () => {
@@ -28,29 +29,29 @@ it('should validate domain values', async () => {
 
 it('should return domain errors', async () => {
     const typeErrors = await typeErrorsFn<Domain>();
-    const err = {expected: 'string', path: [], format: {name: 'domain'}};
+    const err: RunTypeError = {expected: 'string', path: [], format: {name: 'domain'}};
+    const domainErrMessage = 'domain names can only contain letters, numbers and hyphens';
+    const tldErrMessage = 'top level domain can only contain letters and dots';
+    const longErr: RunTypeError = {...err, format: {name: 'domain', formatPath: ['maxLength'], val: 253}};
+    const minPartsErr: RunTypeError = {...err, format: {name: 'domain', formatPath: ['minParts'], val: 2}};
+    const minLengthErr: RunTypeError = {...err, format: {name: 'domain', formatPath: ['names', 1, 'minLength'], val: 2}};
+    const tldErrPattern: RunTypeError = {...err, format: {name: 'domain', formatPath: ['tld', 'pattern'], val: tldErrMessage}};
+    const namesErrPattern: RunTypeError = {
+        ...err,
+        format: {name: 'domain', formatPath: ['names', 0, 'pattern'], val: domainErrMessage},
+    };
     // Valid cases
     expect(typeErrors('example.com')).toEqual([]);
     // Invalid length
     const longDomain = 'a'.repeat(254) + '.com';
-    expect(typeErrors(longDomain)).toEqual([
-        {...err, format: {name: 'domain', invalid: {maxLength: 253, names: {maxLength: 63, index: 0}}}},
-    ]);
+    expect(typeErrors(longDomain)).toEqual([longErr]);
     // Invalid parts
-    expect(typeErrors('example')).toEqual([{...err, format: {name: 'domain', invalid: {minParts: 2}}}]);
-    expect(typeErrors('example..com')).toEqual([
-        {...err, format: {name: 'domain', invalid: {names: {index: 1, minLength: 2, pattern: '/^[a-zA-Z0-9-]+$/'}}}},
-    ]);
+    expect(typeErrors('example')).toEqual([minPartsErr]);
+    expect(typeErrors('example..com')).toEqual([minLengthErr]);
     // Invalid characters
-    expect(typeErrors('exa!mple.com')).toEqual([
-        {...err, format: {name: 'domain', invalid: {names: {index: 0, pattern: '/^[a-zA-Z0-9-]+$/'}}}},
-    ]);
-    expect(typeErrors('example.c@m')).toEqual([
-        {...err, format: {name: 'domain', invalid: {tld: {pattern: '/^[a-zA-Z]+(\\.[a-zA-Z]+)?$/'}}}},
-    ]);
-    expect(typeErrors('example.c-om')).toEqual([
-        {...err, format: {name: 'domain', invalid: {tld: {pattern: '/^[a-zA-Z]+(\\.[a-zA-Z]+)?$/'}}}},
-    ]);
+    expect(typeErrors('exa!mple.com')).toEqual([namesErrPattern]);
+    expect(typeErrors('example.c@m')).toEqual([tldErrPattern]);
+    expect(typeErrors('example.c-om')).toEqual([tldErrPattern]);
 });
 
 it('should mock domain values', async () => {
@@ -65,9 +66,12 @@ it('should mock domain values', async () => {
 // ######## OVERRIDE DEFAULTS ########
 
 it('should validate domain with custom params', async () => {
-    type CustomName = {maxLength: 8; samples: ['dom1', 'ggle', 'fcbook', 'mion']};
-    type CustomTld = {maxLength: 2; samples: ['co', 'uk', 'br']};
-    type CustomDomain = Domain<{maxLength: 20}, CustomTld, CustomName>;
+    type CustomParams = {
+        maxLength: 20;
+        names: {maxLength: 8};
+        tld: {maxLength: 2};
+    };
+    type CustomDomain = Domain<CustomParams>;
     const isType = await isTypeFn<CustomDomain>();
     const isTypeDefault = await isTypeFn<Domain>();
     // Valid cases

@@ -6,6 +6,7 @@
  * ######## */
 
 import {isTypeFn, mockTypeFn, typeErrorsFn} from '../functions';
+import {RunTypeError, TypeFormatError} from '../types';
 import {StringFormat} from './string.runtype';
 
 // #### maxLength ####
@@ -21,8 +22,8 @@ it('validate string max length 2', async () => {
 it('get max length errors', async () => {
     type Max5 = StringFormat<{maxLength: 5}>;
     const typeErrors = await typeErrorsFn<Max5>();
-    const format = {name: 'string', invalid: {maxLength: 5}};
-    const expectedError = {expected: 'string', path: [], format};
+    const format: TypeFormatError = {name: 'strFormat', val: 5, formatPath: ['maxLength']};
+    const expectedError: RunTypeError = {expected: 'string', path: [], format};
     expect(typeErrors('aaaa')).toEqual([]);
     expect(typeErrors('aaaaa')).toEqual([]);
     expect(typeErrors('aaaaaa')).toEqual([expectedError]);
@@ -51,8 +52,8 @@ it('validate string min length', async () => {
 it('get min length errors', async () => {
     type Min5 = StringFormat<{minLength: 5}>;
     const typeErrors = await typeErrorsFn<Min5>();
-    const format = {name: 'string', invalid: {minLength: 5}};
-    const expectedError = {expected: 'string', path: [], format};
+    const format: TypeFormatError = {name: 'strFormat', val: 5, formatPath: ['minLength']};
+    const expectedError: RunTypeError = {expected: 'string', path: [], format};
     expect(typeErrors('aaaa')).toEqual([expectedError]);
     expect(typeErrors('aaaaa')).toEqual([]);
     expect(typeErrors('aaaaaa')).toEqual([]);
@@ -81,8 +82,8 @@ it('validate string length', async () => {
 it('get length errors', async () => {
     type Length5 = StringFormat<{length: 5}>;
     const typeErrors = await typeErrorsFn<Length5>();
-    const format = {name: 'string', invalid: {length: 5}};
-    const expectedError = {expected: 'string', path: [], format};
+    const format: TypeFormatError = {name: 'strFormat', val: 5, formatPath: ['length']};
+    const expectedError: RunTypeError = {expected: 'string', path: [], format};
     expect(typeErrors('aaaa')).toEqual([expectedError]);
     expect(typeErrors('aaaaa')).toEqual([]);
     expect(typeErrors('aaaaaa')).toEqual([expectedError]);
@@ -102,7 +103,9 @@ it('mock length', async () => {
 
 it('validate string pattern', async () => {
     const regex = /^[a-zA-Z]+$/;
-    type AlphaPattern = StringFormat<{pattern: typeof regex; sampleChars: 'abcdefgABCDEFG'}>;
+    type AlphaPattern = StringFormat<{
+        pattern: {regexp: typeof regex; sampleChars: 'abcdefgABCDEFG'; message: 'only letters allowed'};
+    }>;
     const isType = await isTypeFn<AlphaPattern>();
     expect(isType('aaaa')).toBe(true);
     expect(isType('aaaa1')).toBe(false);
@@ -110,9 +113,11 @@ it('validate string pattern', async () => {
 
 it('get pattern errors', async () => {
     const regex = /^[a-zA-Z]+$/;
-    type AlphaPattern = StringFormat<{pattern: typeof regex; sampleChars: 'abcdefgABCDEFG'}>;
-    const format = {name: 'string', invalid: {pattern: regex.toString()}};
-    const expectedError = {expected: 'string', path: [], format};
+    type AlphaPattern = StringFormat<{
+        pattern: {regexp: typeof regex; sampleChars: 'abcdefgABCDEFG'; message: 'only letters allowed'};
+    }>;
+    const format: TypeFormatError = {name: 'strFormat', val: 'only letters allowed', formatPath: ['pattern']};
+    const expectedError: RunTypeError = {expected: 'string', path: [], format};
     const typeErrors = await typeErrorsFn<AlphaPattern>();
     expect(typeErrors('aaaa')).toEqual([]);
     expect(typeErrors('aaaa1')).toEqual([expectedError]);
@@ -122,7 +127,9 @@ it('mock pattern and samples', async () => {
     const regex = /^[a-zA-Z]+$/;
     const samples = ['aaaanckjs', 'aaaXdKol'];
     // is not possible to automatically generate a string that matches the pattern so we need to provide samples manually
-    type AlphaPattern = StringFormat<{pattern: typeof regex; samples: ['aaaanckjs', 'aaaXdKol']}>;
+    type AlphaPattern = StringFormat<{
+        pattern: {regexp: typeof regex; samples: ['aaaanckjs', 'aaaXdKol']; message: 'only letters allowed'};
+    }>;
     const mockType = mockTypeFn<AlphaPattern>();
     expect(mockType()).toMatch(/^[a-zA-Z]+$/);
     expect(mockType()).toMatch(/^[a-zA-Z]+$/);
@@ -137,22 +144,14 @@ it('mock pattern and samples', async () => {
 it('mock pattern and sampleChars', async () => {
     const regex = /^[a-zA-Z]+$/;
     // is not possible to automatically generate a string that matches the pattern so we need to provide a list of valid characters manually
-    type AlphaPattern = StringFormat<{pattern: typeof regex; sampleChars: 'abcdefgABCDEFG'}>;
+    type AlphaPattern = StringFormat<{
+        pattern: {regexp: typeof regex; sampleChars: 'abcdefgABCDEFG'; message: 'only letters allowed'};
+    }>;
     const mockType = mockTypeFn<AlphaPattern>();
     expect(mockType()).toMatch(/^[a-zA-Z]+$/);
     expect(mockType()).toMatch(/^[a-zA-Z]+$/);
     expect(mockType()).toMatch(/^[a-zA-Z]+$/);
     expect(mockType()).toMatch(/^[a-zA-Z]+$/);
-});
-
-it('pattern should throw if no samples or sampleChars are provided', async () => {
-    const regex = /^[a-zA-Z]+$/;
-    type AlphaPattern = StringFormat<{pattern: typeof regex}>;
-    const mockType = mockTypeFn<AlphaPattern>();
-    const error = "'samples' or 'sampleChars' must be provided when 'pattern' is defined for type AlphaPattern";
-    await expect(() => isTypeFn<AlphaPattern>()).rejects.toThrow(error);
-    await expect(() => typeErrorsFn<AlphaPattern>()).rejects.toThrow(error);
-    expect(() => mockType()).toThrow(error);
 });
 
 // #### allowedChars ####
@@ -195,8 +194,8 @@ it('validate string allowedChars that include characters that needs to be escape
 it('get allowedChars errors', async () => {
     type AllowedChars = StringFormat<{allowedChars: 'abc'}>;
     const typeErrors = await typeErrorsFn<AllowedChars>();
-    const format = {name: 'string', invalid: {allowedChars: 'abc'}};
-    const expectedError = {expected: 'string', path: [], format};
+    const format: TypeFormatError = {name: 'strFormat', val: 'abc', formatPath: ['allowedChars']};
+    const expectedError: RunTypeError = {expected: 'string', path: [], format};
     expect(typeErrors('a')).toEqual([]);
     expect(typeErrors('b')).toEqual([]);
     expect(typeErrors('c')).toEqual([]);
@@ -259,8 +258,8 @@ it('validate string disallowedChars that include characters that needs to be esc
 it('get disallowedChars errors', async () => {
     type DisallowedChars = StringFormat<{disallowedChars: 'abc'}>;
     const typeErrors = await typeErrorsFn<DisallowedChars>();
-    const format = {name: 'string', invalid: {disallowedChars: 'abc'}};
-    const expectedError = {expected: 'string', path: [], format};
+    const format: TypeFormatError = {name: 'strFormat', val: 'abc', formatPath: ['disallowedChars']};
+    const expectedError: RunTypeError = {expected: 'string', path: [], format};
     expect(typeErrors('a')).toEqual([expectedError]);
     expect(typeErrors('b')).toEqual([expectedError]);
     expect(typeErrors('c')).toEqual([expectedError]);
@@ -287,7 +286,11 @@ it('mock disallowedChars', async () => {
 
 it('validate string with multiple params', async () => {
     const regex = /^[a-zA-Z]+$/;
-    type Multi = StringFormat<{pattern: typeof regex; sampleChars: 'abcdefgABCDEFG'; minLength: 5; maxLength: 8}>;
+    type Multi = StringFormat<{
+        pattern: {regexp: typeof regex; sampleChars: 'abcdefgABCDEFG'; message: 'only letters allowed'};
+        minLength: 5;
+        maxLength: 8;
+    }>;
     const isType = await isTypeFn<Multi>();
     expect(isType('aaaaa1')).toBe(false); // length ok but not AlphaPattern
     expect(isType('aaaa')).toBe(false); // not min length
@@ -299,27 +302,34 @@ it('validate string with multiple params', async () => {
 
 it('get multiple params errors', async () => {
     const regex = /^[a-zA-Z]+$/;
-    type Multi = StringFormat<{pattern: typeof regex; sampleChars: 'abcdefgABCDEFG'; minLength: 5; maxLength: 8}>;
+    type Multi = StringFormat<{
+        pattern: {regexp: typeof regex; sampleChars: 'abcdefgABCDEFG'; message: 'only letters allowed'};
+        minLength: 5;
+        maxLength: 8;
+    }>;
     const typeErrors = await typeErrorsFn<Multi>();
-    const format = {name: 'string'};
-    const expectedError = {expected: 'string', path: [], format};
-    expect(typeErrors('aaaaa1')).toEqual([{...expectedError, format: {...format, invalid: {pattern: regex.toString()}}}]);
-    expect(typeErrors('aaaa')).toEqual([{...expectedError, format: {...format, invalid: {minLength: 5}}}]);
+    const format: TypeFormatError = {name: 'strFormat', formatPath: []};
+    const expectedError: RunTypeError = {expected: 'string', path: [], format};
+    const alphaError: RunTypeError = {
+        ...expectedError,
+        format: {...format, formatPath: ['pattern'], val: 'only letters allowed'},
+    };
+    const minLengthError: RunTypeError = {...expectedError, format: {...format, formatPath: ['minLength'], val: 5}};
+    const maxLengthError: RunTypeError = {...expectedError, format: {...format, formatPath: ['maxLength'], val: 8}};
+    expect(typeErrors('aaaaa1')).toEqual([alphaError]);
+    expect(typeErrors('aaaa')).toEqual([minLengthError]);
     expect(typeErrors('aaaaa')).toEqual([]);
     expect(typeErrors('aaaaaa')).toEqual([]);
-    expect(typeErrors('aaaaaaa8')).toEqual([{...expectedError, format: {...format, invalid: {pattern: regex.toString()}}}]);
-    expect(typeErrors('aaaaaaaabmaj2')).toEqual([
-        {...expectedError, format: {...format, invalid: {pattern: regex.toString(), maxLength: 8}}},
-    ]);
+    expect(typeErrors('aaaaaaa8')).toEqual([alphaError]);
+    expect(typeErrors('aaaaaaaabmaj2')).toEqual([maxLengthError]);
 });
 
 it('mock multiple params', async () => {
     const regex = /^[a-zA-Z]+$/;
     type Multi = StringFormat<{
-        pattern: typeof regex;
+        pattern: {regexp: typeof regex; samples: ['aaaaa', 'aaaBCaaa', 'DEaaac', 'aaabaaaC']; message: 'only letters allowed'};
         minLength: 5;
         maxLength: 8;
-        samples: ['aaaaa', 'aaaBCaaa', 'DEaaac', 'aaabaaaC'];
     }>;
     const mockType = mockTypeFn<Multi>();
     expect(mockType()).toMatch(/^[a-zA-Z]+$/);
@@ -339,12 +349,10 @@ it('mock multiple params', async () => {
 it('provided sample must match all constrains', async () => {
     const regex = /^[a-zA-Z]+$/;
     type Multi = StringFormat<{
-        pattern: typeof regex;
+        pattern: {regexp: typeof regex; samples: ['abcd']; message: 'only letters allowed'};
         minLength: 5;
         maxLength: 8;
-        // provided sample match pattern but not min length or max length, so mock will throw error
-        samples: ['abcd'];
     }>;
     const mockType = mockTypeFn<Multi>();
-    expect(() => mockType()).toThrow('provided sample [abcd] does not satisfies constraint {"minLength":5} for type Multi');
+    expect(() => mockType()).toThrow('sample "abcd" fails constraints in type Multi');
 });

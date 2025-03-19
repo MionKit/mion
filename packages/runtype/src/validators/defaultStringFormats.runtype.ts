@@ -15,16 +15,21 @@ export const ALPHA_REGEX = /^[\p{L}]+$/u;
 export const NUMERIC_REGEX = /^[\p{N}]+$/u;
 
 type DefaultAlphaNumericParams = {
-    pattern: typeof ALPHANUMERIC_REGEX;
-    sampleChars: 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    pattern: {
+        regexp: typeof ALPHANUMERIC_REGEX;
+        sampleChars: 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+        message: 'only alphanumeric values are allowed';
+    };
 };
 type DefaultAlphaParams = {
-    pattern: typeof ALPHA_REGEX;
-    sampleChars: 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    pattern: {
+        regexp: typeof ALPHA_REGEX;
+        sampleChars: 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
+        message: 'only alphabetic values are allowed';
+    };
 };
 type DefaultNumericParams = {
-    pattern: typeof NUMERIC_REGEX;
-    sampleChars: '0123456789';
+    pattern: {regexp: typeof NUMERIC_REGEX; sampleChars: '0123456789'; message: 'only numeric values are allowed'};
 };
 
 export type AlphaNumericString<P extends StringFormatParams = {}> = StringFormat<P & DefaultAlphaNumericParams>;

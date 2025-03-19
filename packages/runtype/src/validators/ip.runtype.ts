@@ -11,13 +11,13 @@
 */
 import type {BaseRunType} from '../lib/baseRunTypes';
 import type {JitCompiler, JitErrorsCompiler} from '../lib/jitCompiler';
-import {JitRunTypeFormatter} from '../lib/jitFormatters';
+import type {ErrorsPureFunction, GenericPureFunction, MockOperation, TypeFormatError} from '../types';
+import type {JITUtils} from '../lib/jitUtils';
+import {JitRunTypeFormatter} from '../lib/baseFormatter';
 import {ReflectionKind} from '@deepkit/type';
 import {TypeFormat} from '../lib/formats.runtype';
-import {InvalidFormatParams, MockOperation, PureFunction} from '../types';
-import {JITUtils} from '../lib/jitUtils';
 import {compileErrorsPureFunctionCall, compilePureFunctionCall} from '../lib/formats';
-import {registerFormatter, registerPureFunctionWithCtx} from '../lib/formats';
+import {registerFormatter, registerPureFnClosure} from '../lib/formats';
 
 export type IpValidatorParams = {
     version?: 4 | 6 | 'any';
@@ -60,12 +60,12 @@ export class IPFormat extends JitRunTypeFormatter<IpValidatorParams> {
 
 /** @reflection never */
 export function isLocalHost() {
-    const localhostRegexp = /^localhost$/i;
+    const lhr = /^localhost$/i;
     return function is_local_host(ip: string, p: IpValidatorParams): boolean {
-        if (p.version === 4) return localhostRegexp.test(ip) || ip === '127:0:0:1';
+        if (p.version === 4) return lhr.test(ip) || ip === '127:0:0:1';
         if (p.version === 6) return ip === '::1' || ip === '0:0:0:0:0:0:0:1';
-        return localhostRegexp.test(ip) || ip === '127:0:0:1' || ip === '::1' || ip === '0:0:0:0:0:0:0:1';
-    } as PureFunction<any>;
+        return lhr.test(ip) || ip === '127:0:0:1' || ip === '::1' || ip === '0:0:0:0:0:0:0:1';
+    } as GenericPureFunction<IpValidatorParams>;
 }
 
 /** @reflection never */
@@ -94,7 +94,7 @@ export function isIPV4(utl: JITUtils) {
             if (isNaN(num) || num < 0 || num > 255) return false;
         }
         return true;
-    } as PureFunction<IpValidatorParams>;
+    } as GenericPureFunction<IpValidatorParams>;
 }
 
 /** @reflection never */
@@ -132,19 +132,26 @@ export function isIPV6(utl: JITUtils) {
             if (isNaN(num) || num < 0 || num > 0xffff) return false;
         }
         return true;
-    } as PureFunction<IpValidatorParams>;
+    } as GenericPureFunction<IpValidatorParams>;
 }
 
 /** @reflection never */
 export function getIPErrors(utl: JITUtils) {
     const is_ip_v4 = utl.getPureFn('isIPV4') as ReturnType<typeof isIPV4>;
     const is_ip_v6 = utl.getPureFn('isIPV6') as ReturnType<typeof isIPV6>;
-    return function get_ip_errors(ip: string, p: IpValidatorParams): InvalidFormatParams | undefined {
-        if (p.version === 4 && !is_ip_v4(ip, p)) return {version: 4};
-        if (p.version === 6 && !is_ip_v6(ip, p)) return {version: 6};
+    return function get_ip_errors(
+        ip: string,
+        p: IpValidatorParams,
+        fPath: (string | number)[],
+        fErrs: TypeFormatError[],
+        name = 'ip'
+    ): TypeFormatError[] {
+        if (p.version === 4 && !is_ip_v4(ip, p)) return fErrs.push({name, formatPath: [...fPath, 'version'], val: 4}), fErrs;
+        if (p.version === 6 && !is_ip_v6(ip, p)) return fErrs.push({name, formatPath: [...fPath, 'version'], val: 6}), fErrs;
         const isIP = is_ip_v4(ip, p) || is_ip_v6(ip, p);
-        if (!isIP) return {version: 'any'};
-    } as PureFunction<IpValidatorParams>;
+        if (!isIP) fErrs.push({name, formatPath: ['version'], val: 'any'});
+        return fErrs;
+    } as ErrorsPureFunction<IpValidatorParams>;
 }
 
 export function mockIpV4(p: IpValidatorParams): string {
@@ -161,10 +168,10 @@ export function mockIpV6(p: IpValidatorParams): string {
 // ############### Register runtypes ###############
 
 // register pure functions so they can be used in the jit compiler
-registerPureFunctionWithCtx(isLocalHost);
-registerPureFunctionWithCtx(isIPV4, [isLocalHost]);
-registerPureFunctionWithCtx(isIPV6, [isLocalHost]);
-registerPureFunctionWithCtx(getIPErrors, [isIPV4, isIPV6]);
+registerPureFnClosure(isLocalHost);
+registerPureFnClosure(isIPV4, [isLocalHost]);
+registerPureFnClosure(isIPV6, [isLocalHost]);
+registerPureFnClosure(getIPErrors, [isIPV4, isIPV6]);
 
 // register Validator operations so they can be used in the jit compiler
 export const ipFormatter = registerFormatter(new IPFormat());

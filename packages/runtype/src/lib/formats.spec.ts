@@ -6,18 +6,29 @@
  * ######## */
 // ###################### Types FORMATS #####################
 
+import {ReflectionKind} from '@deepkit/type';
 import {runType} from '../runType';
 import {GenericPureFunction} from '../types';
+import {JitRunTypeFormatter} from './baseFormatter';
 import {BaseRunType} from './baseRunTypes';
-import {getCompiledPureFn, getPureFn, registerPureFunctionGroupWithCtx, registerPureFunctionWithCtx} from './formats';
+import {getCompiledPureFn, getPureFn, registerPureFnClosuresGroup, registerPureFnClosure, registerFormatter} from './formats';
 import {TypeFormat} from './formats.runtype';
 import {JITUtils} from './jitUtils';
 
 it('TypeFormat should have a different jit id', async () => {
-    type Max5 = TypeFormat<string, 'max', {maxLength: 5}>;
+    type Max5 = TypeFormat<string, 'max5', {maxLength: 5}>;
+    class Max5Formatter extends JitRunTypeFormatter<any> {
+        kind = ReflectionKind.string;
+        name = 'max5';
+        _mock() {}
+        _compileIsType(): undefined {}
+        _compileTypeErrors(): undefined {}
+        _compileFormat?(): undefined {}
+    }
+    registerFormatter(new Max5Formatter());
     const rtMax5 = runType<Max5>() as BaseRunType;
     const rt = runType<string>() as BaseRunType;
-    expect(rtMax5.getJitId()).toBe('5&30{maxLength:13:5}');
+    expect(rtMax5.getJitId()).toBe('5<{maxLength:5}>');
     expect(rt.getJitId()).toBe(5);
 });
 
@@ -36,7 +47,7 @@ it('register and get pure function', async () => {
             return true;
         } as GenericPureFunction<StringParams>;
     }
-    registerPureFunctionWithCtx(stringPureFn);
+    registerPureFnClosure(stringPureFn);
     const restoredFn = getPureFn('stringPureFn') as GenericPureFunction<StringParams>;
     expect(restoredFn).toBeDefined();
     expect(restoredFn).toBeInstanceOf(Function);
@@ -67,7 +78,7 @@ it('register a group of pure functions so all declared as dependencies', async (
             return isAResult;
         } as GenericPureFunction<Params>;
     }
-    registerPureFunctionGroupWithCtx([pureFunctionA, pureFunctionB]);
+    registerPureFnClosuresGroup([pureFunctionA, pureFunctionB]);
     const compiledIsA = getCompiledPureFn('pureFunctionA');
     const compiledIsB = getCompiledPureFn('pureFunctionB');
     expect(compiledIsA).toBeDefined();

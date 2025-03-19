@@ -34,7 +34,7 @@ import {getPropIndex, memorize, toLiteral} from './utils';
 import {JitErrorsCompiler, JitCompiler, getJITFnHash, createJitCompiler} from './jitCompiler';
 import {type AnyKindName, getReflectionName} from '../constants.kind';
 import {jitUtils} from './jitUtils';
-import {createJitIDHash} from './quickHash';
+import {createUniqueHash} from './quickHash';
 import {isMockContext} from './guards';
 import {defaultMockOptions} from '../constants.mock';
 import {
@@ -43,8 +43,10 @@ import {
     getTypeFormats,
     getRunTypeFormatter,
     getRunTypeTransformers,
+    typeParamsToLiteral,
+    defaultIgnoreFormatProps,
 } from './formats';
-import {JitRunTypeFormatter} from './jitFormatters';
+import {JitRunTypeFormatter} from './baseFormatter';
 
 export abstract class BaseRunType<T extends Type = Type> implements RunType {
     isCircular?: boolean;
@@ -56,8 +58,18 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
     getKindName = memorize((): AnyKindName => getReflectionName(this));
     getTypeName = (): string => this.src.typeName || this.getKindName();
     getFormatAnnotations = (): FormatAnnotation[] => getFormatAnnotations(this);
-    getJitId = () => this.getJitConfig().jitId;
-    getJitHash = memorize((): string => createJitIDHash(this.getJitId().toString()));
+    getFormatterJitId = memorize((): string | undefined => {
+        const formatter = getRunTypeFormatter(this);
+        if (!formatter) return;
+        return `<${typeParamsToLiteral(undefined, formatter.getParams(this), defaultIgnoreFormatProps)}>`;
+    });
+    getJitId = (): string | number => {
+        const jitId = this.getJitConfig().jitId;
+        const getFormatterJitId = this.getFormatterJitId();
+        if (!getFormatterJitId) return jitId;
+        return `${jitId}${getFormatterJitId}`;
+    };
+    getJitHash = memorize((): string => createUniqueHash(this.getJitId().toString()));
     getParent = (): BaseRunType | undefined => (this.src.parent as SrcType)?._rt as BaseRunType;
     getNestLevel = memorize((): number => {
         if (this.isCircular) return 0; // circular references start a new context
@@ -77,7 +89,10 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
             };
         }
     }
-    /** method that should be called Immediately after the RunType gets created to link the SrcType and RunType */
+    /**
+     * Method that should be called Immediately after the RunType gets created to link the SrcType and RunType.
+     * This is more flexible than passing params to the constructor helps to avoid circular dependencies, etc.
+     * */
     onCreated(src: SrcType<any>): void {
         (this as Mutable<RunType>).src = src;
         (src as Mutable<SrcType>)._rt = this;
@@ -408,7 +423,6 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
  * ie: string, number, boolean, any, null, undefined, void, never, bigint, etc.
  * */
 export abstract class AtomicRunType<T extends Type> extends BaseRunType<T> {
-    abstract _getJitConfig(stack?: RunType[]): JitConfig;
     getFamily(): 'A' {
         return 'A';
     }
@@ -447,23 +461,6 @@ export abstract class AtomicRunType<T extends Type> extends BaseRunType<T> {
                 return super.jitFnIsExpression(fnId);
         }
     }
-    private annotationsConfig?: JitConfig;
-    getJitConfig = (stack: BaseRunType[] = []): JitConfig => {
-        if (this.annotationsConfig) return this.annotationsConfig;
-        const annotations = this.getFormatAnnotations();
-        if (!annotations.length) return this._getJitConfig(stack);
-        const annotationRunTypes = annotations.map((a) => a.options._rt) as BaseRunType[];
-        const annotationJitIds: (string | number)[] = [];
-        for (const rt of annotationRunTypes) {
-            const aConf = rt.getJitConfig(stack);
-            annotationJitIds.push(aConf.jitId);
-        }
-        // important to clone the config as we are going to modify it
-        const config = {...this._getJitConfig(stack)} as Mutable<JitConfig>;
-        config.jitId += `&${annotationJitIds.join(',')}`;
-        this.annotationsConfig = config;
-        return config;
-    };
 }
 
 /**

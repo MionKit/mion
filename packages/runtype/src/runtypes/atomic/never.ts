@@ -15,7 +15,7 @@ const jitConstants: JitConfig = {
     jitId: ReflectionKind.never,
 };
 export class NeverRunType extends AtomicRunType<TypeNever> {
-    _getJitConfig = () => jitConstants;
+    getJitConfig = () => jitConstants;
     _compileIsType(): string {
         return 'false';
     }

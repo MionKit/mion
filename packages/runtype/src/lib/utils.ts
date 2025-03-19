@@ -85,6 +85,11 @@ export function isSafePropName(name: string | number | symbol): boolean {
     return (typeof name === 'string' && validPropertyNameRegExp.test(name)) || typeof name === 'number';
 }
 
+export function sanitizePropName(name: string | number | symbol): string {
+    const sName = typeof name === 'string' ? name : String(name);
+    return sName.replace(/[^a-zA-Z0-9_$]/g, '_');
+}
+
 export function getPropVarName(name: string | number | symbol): string | number {
     if (typeof name === 'symbol') return name.toString();
     return name;

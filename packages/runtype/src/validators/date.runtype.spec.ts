@@ -6,6 +6,7 @@
  * ######## */
 
 import {isTypeFn, mockTypeFn, typeErrorsFn} from '../functions';
+import {RunTypeError} from '../types';
 import {DateString} from './date.runtype';
 
 // ####### Date format YYYY-MM-DD #######
@@ -42,10 +43,10 @@ it('validate date with format YYYY-MM-DD', async () => {
 });
 it('get date errors for format YYYY-MM-DD', async () => {
     const typeErrors = await typeErrorsFn<YYYYMMDD>();
-    const dateError = {
+    const dateError: RunTypeError = {
         expected: 'string',
         path: [],
-        format: {name: 'date', invalid: {format: 'YYYY-MM-DD'}},
+        format: {name: 'date', formatPath: ['format'], val: 'YYYY-MM-DD'},
     };
     // valid date
     expect(typeErrors('2023-01-01')).toEqual([]);
@@ -92,10 +93,10 @@ it('validate date with format DD-MM-YYYY', async () => {
 });
 it('get date errors for format DD-MM-YYYY', async () => {
     const typeErrors = await typeErrorsFn<DDMMYYYY>();
-    const dateError = {
+    const dateError: RunTypeError = {
         expected: 'string',
         path: [],
-        format: {name: 'date', invalid: {format: 'DD-MM-YYYY'}},
+        format: {name: 'date', formatPath: ['format'], val: 'DD-MM-YYYY'},
     };
     // valid date
     expect(typeErrors('01-01-2023')).toEqual([]);
@@ -142,10 +143,10 @@ it('validate date with format MM-DD-YYYY', async () => {
 });
 it('get date errors for format MM-DD-YYYY', async () => {
     const typeErrors = await typeErrorsFn<MMDDYYYY>();
-    const dateError = {
+    const dateError: RunTypeError = {
         expected: 'string',
         path: [],
-        format: {name: 'date', invalid: {format: 'MM-DD-YYYY'}},
+        format: {name: 'date', formatPath: ['format'], val: 'MM-DD-YYYY'},
     };
     // valid date
     expect(typeErrors('01-01-2023')).toEqual([]);
@@ -191,7 +192,11 @@ it('validate date with format YYYY-MM', async () => {
 });
 it('get date errors for format YYYY-MM', async () => {
     const typeErrors = await typeErrorsFn<YYYYMM>();
-    const dateError = {expected: 'string', path: [], format: {name: 'date', invalid: {format: 'YYYY-MM'}}};
+    const dateError: RunTypeError = {
+        expected: 'string',
+        path: [],
+        format: {name: 'date', formatPath: ['format'], val: 'YYYY-MM'},
+    };
     // valid date
     expect(typeErrors('2023-01')).toEqual([]);
     expect(typeErrors('0000-12')).toEqual([]);
@@ -236,7 +241,7 @@ it('validate date with format MM-DD', async () => {
 });
 it('get date errors for format MM-DD', async () => {
     const typeErrors = await typeErrorsFn<MMDD>();
-    const dateError = {expected: 'string', path: [], format: {name: 'date', invalid: {format: 'MM-DD'}}};
+    const dateError: RunTypeError = {expected: 'string', path: [], format: {name: 'date', formatPath: ['format'], val: 'MM-DD'}};
     // valid date
     expect(typeErrors('01-01')).toEqual([]);
     expect(typeErrors('12-31')).toEqual([]);
@@ -282,7 +287,7 @@ it('validate date with format DD-MM', async () => {
 });
 it('get date errors for format DD-MM', async () => {
     const typeErrors = await typeErrorsFn<DDMM>();
-    const dateError = {expected: 'string', path: [], format: {name: 'date', invalid: {format: 'DD-MM'}}};
+    const dateError: RunTypeError = {expected: 'string', path: [], format: {name: 'date', formatPath: ['format'], val: 'DD-MM'}};
     // valid date
     expect(typeErrors('01-01')).toEqual([]);
     expect(typeErrors('31-12')).toEqual([]);

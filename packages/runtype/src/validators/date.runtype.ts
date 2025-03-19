@@ -6,11 +6,11 @@
  * ######## */
 import type {BaseRunType} from '../lib/baseRunTypes';
 import type {JitCompiler, JitErrorsCompiler} from '../lib/jitCompiler';
-import {JitRunTypeFormatter} from '../lib/jitFormatters';
+import {JitRunTypeFormatter} from '../lib/baseFormatter';
 import {ReflectionKind} from '@deepkit/type';
 import {TypeFormat} from '../lib/formats.runtype'; // !Important: TypeFormat cant be imported as type for all runType functionality to work
-import {GenericPureFunction, MockOperation} from '../types';
-import {compilePureFunctionCall, registerFormatter, registerPureFunctionWithCtx} from '../lib/formats';
+import {GenericPureFunction, MockOperation, TypeFormatError} from '../types';
+import {compilePureFunctionCall, registerFormatter, registerPureFnClosure} from '../lib/formats';
 import {JITUtils} from '../lib/jitUtils';
 
 export type DateStringParams = {
@@ -39,7 +39,7 @@ export class DateStringValidator extends JitRunTypeFormatter<DateStringParams> {
         const isTypeCode = this._compileIsType(comp, rt);
         if (!isTypeCode) return '';
         const params = this.getParams(rt);
-        const formatError = {name: this.name, invalid: {format: params.format}};
+        const formatError: TypeFormatError = {name: this.name, formatPath: ['format'], val: params.format};
         return `if (!(${isTypeCode})) ${comp.callJitErr(rt, formatError)}`;
     }
     _mock(mockContext: MockOperation, rt: BaseRunType) {
@@ -120,8 +120,8 @@ export function isDateString() {
 }
 
 /** @reflection never */
-export function isDateString_YMD(utl: JITUtils) {
-    const isDate = utl.getPureFn('isDateString') as any as ReturnType<typeof isDateString>;
+export function isDateString_YMD(jUtil: JITUtils) {
+    const isDate = jUtil.getPureFn('isDateString') as any as ReturnType<typeof isDateString>;
     return function is_date(value: string): boolean {
         const parts = value.split('-');
         return parts.length === 3 && isDate(parts[0], parts[1], parts[2]);
@@ -129,8 +129,8 @@ export function isDateString_YMD(utl: JITUtils) {
 }
 
 /** @reflection never */
-export function isDateString_DMY(utl: JITUtils) {
-    const isDate = utl.getPureFn('isDateString') as any as ReturnType<typeof isDateString>;
+export function isDateString_DMY(jUtil: JITUtils) {
+    const isDate = jUtil.getPureFn('isDateString') as any as ReturnType<typeof isDateString>;
     return function is_date(value: string): boolean {
         const parts = value.split('-');
         return parts.length === 3 && isDate(parts[2], parts[1], parts[0]);
@@ -138,8 +138,8 @@ export function isDateString_DMY(utl: JITUtils) {
 }
 
 /** @reflection never */
-export function isDateString_MDY(utl: JITUtils) {
-    const isDate = utl.getPureFn('isDateString') as any as ReturnType<typeof isDateString>;
+export function isDateString_MDY(jUtil: JITUtils) {
+    const isDate = jUtil.getPureFn('isDateString') as any as ReturnType<typeof isDateString>;
     return function is_date(value: string): boolean {
         const parts = value.split('-');
         return parts.length === 3 && isDate(parts[2], parts[0], parts[1]);
@@ -147,8 +147,8 @@ export function isDateString_MDY(utl: JITUtils) {
 }
 
 /** @reflection never */
-export function isDateString_YM(utl: JITUtils) {
-    const isDate = utl.getPureFn('isDateString') as any as ReturnType<typeof isDateString>;
+export function isDateString_YM(jUtil: JITUtils) {
+    const isDate = jUtil.getPureFn('isDateString') as any as ReturnType<typeof isDateString>;
     return function is_date(value: string): boolean {
         const parts = value.split('-');
         return parts.length === 2 && isDate(parts[0], parts[1]);
@@ -156,8 +156,8 @@ export function isDateString_YM(utl: JITUtils) {
 }
 
 /** @reflection never */
-export function isDateString_MD(utl: JITUtils) {
-    const isDate = utl.getPureFn('isDateString') as any as ReturnType<typeof isDateString>;
+export function isDateString_MD(jUtil: JITUtils) {
+    const isDate = jUtil.getPureFn('isDateString') as any as ReturnType<typeof isDateString>;
     return function is_date(value: string): boolean {
         const parts = value.split('-');
         return parts.length === 2 && isDate(undefined, parts[0], parts[1]);
@@ -165,8 +165,8 @@ export function isDateString_MD(utl: JITUtils) {
 }
 
 /** @reflection never */
-export function isDateString_DM(utl: JITUtils) {
-    const isDate = utl.getPureFn('isDateString') as any as ReturnType<typeof isDateString>;
+export function isDateString_DM(jUtil: JITUtils) {
+    const isDate = jUtil.getPureFn('isDateString') as any as ReturnType<typeof isDateString>;
     return function is_date(value: string): boolean {
         const parts = value.split('-');
         return parts.length === 2 && isDate(undefined, parts[1], parts[0]);
@@ -174,13 +174,13 @@ export function isDateString_DM(utl: JITUtils) {
 }
 
 // ######### Registering the date validator #########
-registerPureFunctionWithCtx(isDateString);
-registerPureFunctionWithCtx(isDateString_YMD, [isDateString]);
-registerPureFunctionWithCtx(isDateString_DMY, [isDateString]);
-registerPureFunctionWithCtx(isDateString_MDY, [isDateString]);
-registerPureFunctionWithCtx(isDateString_YM, [isDateString]);
-registerPureFunctionWithCtx(isDateString_MD, [isDateString]);
-registerPureFunctionWithCtx(isDateString_DM, [isDateString]);
+registerPureFnClosure(isDateString);
+registerPureFnClosure(isDateString_YMD, [isDateString]);
+registerPureFnClosure(isDateString_DMY, [isDateString]);
+registerPureFnClosure(isDateString_MDY, [isDateString]);
+registerPureFnClosure(isDateString_YM, [isDateString]);
+registerPureFnClosure(isDateString_MD, [isDateString]);
+registerPureFnClosure(isDateString_DM, [isDateString]);
 export const dateStringValidator = registerFormatter(new DateStringValidator());
 export const dateFunctions = [
     isDateString,

@@ -6,7 +6,7 @@
  * ######## */
 import {maxStackDepth, maxUnknownKeys} from '../constants';
 import type {CompiledPureFunction, JitCompiled, PureFunction, RunTypeError, TypeFormatError, TypeFormatParams} from '../types';
-import type {BaseCompiler} from './jitCompiler';
+import {type BaseCompiler} from './jitCompiler';
 
 export type JITUtils = typeof jitUtils;
 
@@ -132,14 +132,14 @@ export const jitUtils = {
     // !!! DO NOT MODIFY METHOD WITHOUT REVIEWING JIT CODE INVOCATIONS!!!
     err(
         err: RunTypeError[],
-        path: (string | number)[],
-        pathItems: (string | number)[],
+        staticPath: (string | number)[],
+        currentPath: (string | number)[],
         expected: string,
         format?: TypeFormatError
     ) {
         const runTypeErr: RunTypeError = {
             expected,
-            path: path.length ? [...path, ...pathItems] : pathItems,
+            path: staticPath.length ? [...staticPath, ...currentPath] : currentPath,
         };
         if (format) runTypeErr.format = format;
         err.push(runTypeErr);
@@ -201,9 +201,9 @@ function initPureFunction(compiled: CompiledPureFunction): asserts compiled is R
             compiled.fn = newWithCtx(jitUtils) as PureFunction<any>;
             return;
         } catch (error: any) {
-            console.warn(`Pure ${compiled.name} can not be deserialized. Function code:\n${compiled.originFnWithCtx.toString()}`);
+            console.warn(`Pure ${compiled.name} can not be deserialized. Function code:\n${compiled.originClosureFn.toString()}`);
             throw new Error(`Pure function ${compiled.name} can not be deserialized: ${error?.message}`);
         }
     }
-    compiled.fn = compiled.originFnWithCtx(jitUtils);
+    compiled.fn = compiled.originClosureFn(jitUtils);
 }

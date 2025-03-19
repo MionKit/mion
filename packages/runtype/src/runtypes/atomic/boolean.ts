@@ -16,7 +16,7 @@ const jitConstants: JitConfig = {
     jitId: ReflectionKind.boolean,
 };
 export class BooleanRunType extends AtomicRunType<TypeBoolean> {
-    _getJitConfig = () => jitConstants;
+    getJitConfig = () => jitConstants;
     _compileIsType(comp: JitCompiler): string {
         return `typeof ${comp.vλl} === 'boolean'`;
     }

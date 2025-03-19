@@ -42,10 +42,12 @@ export class BaseCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extends 
         /** when creating the function it might have default values */
         public readonly defaultParamValues: Record<keyof FnArgsNames, any>,
         public readonly returnName: string,
-        public readonly parentLength: number = 0
+        public readonly parentLength: number = 0,
+        jitFnHash?: string,
+        jitId?: string | number
     ) {
-        this.jitFnHash = getJITFnHash(this.fnId, this.rootType);
-        this.jitId = this.rootType.getJitId();
+        this.jitFnHash = jitFnHash || getJITFnHash(this.fnId, this.rootType);
+        this.jitId = jitId || this.rootType.getJitId();
         this.vλl = this.args.vλl;
         jitUtils.addToJitCache(this.jitFnHash, this);
     }
@@ -103,14 +105,18 @@ export class BaseCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extends 
         this.vλl = item?.vλl || this.args.vλl;
         if (isJitErrorsCompiler(this)) this._stackStaticPath = item?.staticPath || [];
         if (this.stack.length === 0) {
-            try {
-                this.setIsNoop();
-                return compileFunction(this); // add the compiled function to jit cache
-            } catch (e: any) {
-                const fnCode = ` Code:\nfunction ${this.fnId}(){${this.code}}`;
-                const name = `(${this.rootType.getKindName()}:${this.rootType.getJitId()})`;
-                throw new Error(`Error building ${this.fnId} JIT function for type ${name}: ${e?.message} \n${fnCode}`);
-            }
+            return this.compile();
+        }
+    }
+    compile(overrideCode?: string): (...args: any[]) => any {
+        try {
+            if (overrideCode) (this as Mutable<BaseCompiler>).code = overrideCode;
+            this.setIsNoop();
+            return compileFunction(this); // add the compiled function to jit cache
+        } catch (e: any) {
+            const fnCode = ` Code:\nfunction ${this.fnId}(){${this.code}}`;
+            const name = `(${this.rootType.getKindName()}:${this.rootType.getJitId()})`;
+            throw new Error(`Error building ${this.fnId} JIT function for type ${name}: ${e?.message} \n${fnCode}`);
         }
     }
     getStackStaticPathArgs(): string {
@@ -197,38 +203,33 @@ export class BaseCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extends 
 // ################### Compile Operations ###################
 
 export class JitCompiler<ID extends JitFnID = any> extends BaseCompiler<typeof jitArgs, ID> {
-    constructor(rt: BaseRunType, id: ID, parentLength: number = 0) {
-        super(rt, id, {...jitArgs}, {...jitDefaultArgs}, 'v', parentLength);
-    }
-}
-
-export class JitIsTypeCompiler<ID extends JitFnID = any> extends JitCompiler<ID> {
-    constructor(rt: BaseRunType, id: ID, parentLength: number = 0) {
-        super(rt, id, parentLength);
+    constructor(rt: BaseRunType, id: ID, parentLength: number = 0, jitFnHash?: string, jitId?: string | number) {
+        super(rt, id, {...jitArgs}, {...jitDefaultArgs}, 'v', parentLength, jitFnHash, jitId);
     }
 }
 
 export class JitErrorsCompiler<ID extends JitFnID = any> extends BaseCompiler<typeof jitErrorArgs, ID> {
-    constructor(rt: BaseRunType, id: ID, parentLength: number = 0) {
+    constructor(rt: BaseRunType, id: ID, parentLength: number = 0, jitFnHash?: string, jitId?: string | number) {
         const args = {...jitErrorArgs};
         const defaultValues = {...jitDefaultErrorArgs};
-        super(rt, id, args, defaultValues, 'er', parentLength);
+        super(rt, id, args, defaultValues, 'er', parentLength, jitFnHash, jitId);
     }
-    callJitErr(expected: AnyKindName | BaseRunType<any>, info?: TypeFormatError): string {
+    callJitErr(expected: AnyKindName | BaseRunType<any>, expectedFormat?: TypeFormatError): string {
         const expectLiteral = typeof expected === 'string' ? toLiteral(expected) : toLiteral(expected.getKindName());
         const pathItems = this.getStackStaticPathArgs();
-        return this._callJitErr(this.args.εrr, this.args.pλth, pathItems, expectLiteral, info);
+        return this._callJitErr(this.args.εrr, this.args.pλth, pathItems, expectLiteral, expectedFormat);
     }
-    callJitErrWithPath(expected: AnyKindName, extraPathLiteral?: string | number, info?: TypeFormatError): string {
+    callJitErrWithPath(expected: AnyKindName, extraPathLiteral?: string | number, expectedFormat?: TypeFormatError): string {
         const expectLiteral = toLiteral(expected);
         const extraPath = extraPathLiteral ? `${extraPathLiteral}` : '';
         const pathItems = [this.getStackStaticPathArgs(), extraPath].filter(Boolean).join(',');
-        return this._callJitErr(this.args.εrr, this.args.pλth, pathItems, expectLiteral, info);
+        return this._callJitErr(this.args.εrr, this.args.pλth, pathItems, expectLiteral, expectedFormat);
     }
-    private _callJitErr(εrr: string, pλth: string, pathItems: string, expected: string, info?: TypeFormatError) {
+    private _callJitErr(εrr: string, pλth: string, pathItems: string, expected: string, expectedFormat?: TypeFormatError) {
         const optionals: string[] = [];
-        if (info) {
-            const infoCode = info ? JSON.stringify(info) : 'undefined';
+        if (expectedFormat) {
+            const sanitized = Object.entries(expectedFormat).filter(([, v]) => v !== undefined);
+            const infoCode = JSON.stringify(Object.fromEntries(sanitized));
             optionals.push(infoCode);
         }
         const optionalsCode = optionals.length ? `,${optionals.join(',')}` : '';
@@ -238,7 +239,13 @@ export class JitErrorsCompiler<ID extends JitFnID = any> extends BaseCompiler<ty
 
 // ################### Compiler Creation ###################
 
-export function createJitCompiler(rt: BaseRunType, fnId: JitFnID, parent?: BaseCompiler): BaseCompiler {
+export function createJitCompiler(
+    rt: BaseRunType,
+    fnId: JitFnID,
+    parent?: BaseCompiler,
+    jitFnHash?: string,
+    jitId?: string | number
+): BaseCompiler {
     switch (fnId) {
         case JitFunctions.isType.id:
         case JitFunctions.toJsonVal.id:
@@ -248,10 +255,10 @@ export function createJitCompiler(rt: BaseRunType, fnId: JitFnID, parent?: BaseC
         case JitFunctions.stripUnknownKeys.id:
         case JitFunctions.unknownKeysToUndefined.id:
         case JitFunctions.format.id:
-            return new JitCompiler(rt, fnId, parent?.totalLength);
+            return new JitCompiler(rt, fnId, parent?.totalLength, jitFnHash, jitId);
         case JitFunctions.typeErrors.id:
         case JitFunctions.unknownKeyErrors.id:
-            return new JitErrorsCompiler(rt, fnId, parent?.totalLength);
+            return new JitErrorsCompiler(rt, fnId, parent?.totalLength, jitFnHash, jitId);
         default:
             throw new Error(`Unknown compile operation: ${fnId}`);
     }
