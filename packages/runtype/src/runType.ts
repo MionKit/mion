@@ -69,10 +69,8 @@ export function runType<T>(type?: ReceiveType<T>): RunType {
     createRunTypes(src);
     const took1 = Date.now() - start;
     const diff = took1 - took0;
-    if (diff > 40) {
-        // max RunType overhead 30 ms
-        console.warn(`RunType overhead is very long: ${diff}ms for ${stringifyType(src)}`);
-    }
+    // max RunType overhead 60 ms
+    if (diff > 60) console.warn(`RunType overhead is very long: ${diff}ms for ${stringifyType(src)}`);
     return src._rt;
 }
 

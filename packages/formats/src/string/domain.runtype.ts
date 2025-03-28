@@ -9,17 +9,20 @@ import type {BaseRunType} from '../../../runtype/src/lib/baseRunTypes';
 import type {JitCompiler, JitErrorsCompiler} from '../../../runtype/src/lib/jitCompiler';
 import {JitRunTypeFormatter} from '../../../runtype/src/lib/baseFormatter';
 import {DeepPartial, ReflectionKind} from '@deepkit/type';
-import {ErrorsPureFunction, GenericPureFunctionWithDeps, MockOperation, TypeFormatError} from '../../../runtype/src/types';
-import {TypeFormat} from '../../../runtype/src/lib/formats.runtype'; // !Important: TypeFormat cant be imported as type for all runType functionality to work
-import {stringFormatErrors, stringFormatter, StringValidatorsParams} from './string.runtype';
 import {
-    compileErrorsPureFunctionCall,
-    compilePureFunctionCall,
-    registerFormatter,
-    registerPureFnClosure,
-} from '../../../runtype/src/lib/formats';
+    ErrorsPureFunction,
+    MockOperation,
+    type GenericPureFunction,
+    type JitFnID,
+    type JitTypeErrorsFn,
+    type RunTypeError,
+    type StrNumber,
+} from '../../../runtype/src/types';
+import {TypeFormat} from '../../../runtype/src/lib/formats.runtype'; // !Important: TypeFormat cant be imported as type for all runType functionality to work
+import {stringFormatter, StringValidatorsParams} from './stringFormat.runtype';
+import {registerFormatter, registerPureFnClosure} from '../../../runtype/src/lib/formats';
 import {random, randomItem} from '../../../runtype/src/lib/mock';
-import {JitFunctions} from '../../../runtype/src/constants';
+import {jitErrorArgs, JitFunctions} from '../../../runtype/src/constants';
 import {JITUtils} from '../../../runtype/src/lib/jitUtils';
 
 export const DOMAIN_ALLOWED_CHARS = /^[a-zA-Z0-9-]+$/;
@@ -68,21 +71,44 @@ export class DomainFormatter extends JitRunTypeFormatter<DomainParams> {
     static id = 'domain' as const;
     kind = ReflectionKind.string;
     name = DomainFormatter.id;
+    jitFnInlined(fnId: JitFnID, rt: BaseRunType): boolean {
+        if (fnId === JitFunctions.typeErrors.id) return false; // too much logic to inline
+        return super.jitFnInlined(fnId, rt);
+    }
     getIsDomainDeps(comp: JitCompiler, rt: BaseRunType, params: DomainParams) {
-        const isTldFn = stringFormatter._compile(JitFunctions.isType.id, comp, rt, params.tld, this.getNewPath('tld'));
-        const isNameFn = stringFormatter._compile(JitFunctions.isType.id, comp, rt, params.names, this.getNewPath('names'));
-        return {isTldFn: `function(${comp.vλl}){return ${isTldFn}}`, isNameFn: `function(${comp.vλl}){return ${isNameFn}}`};
+        const fnId = JitFunctions.isType.id;
+        const formatName = this.rootFormatName || this.name;
+        const tldPath = this.getFormatPath('tld');
+        const namesPath = this.getFormatPath('names');
+        const isTldFn = stringFormatter._compile(fnId, comp, rt, params.tld, tldPath, comp.vλl, formatName);
+        const isNameFn = stringFormatter._compile(fnId, comp, rt, params.names, namesPath, comp.vλl, formatName);
+        return {
+            isTldFn: `function(${comp.vλl}){return ${isTldFn}}`,
+            isNameFn: `function(${comp.vλl}){return ${isNameFn}}`,
+        };
+    }
+    getDomaineErrorsDeps(comp: JitErrorsCompiler, rt: BaseRunType, params: DomainParams) {
+        const fnId = JitFunctions.typeErrors.id;
+        const formatName = this.rootFormatName || this.name;
+        const path = this.getFormatPath('tld');
+        const isTldFn = stringFormatter._compile(fnId, comp, rt, params.tld, path, comp.vλl, formatName);
+        const isNameFn = stringFormatter._compile(fnId, comp, rt, params.names, path, comp.vλl, formatName);
+        const args = [comp.vλl, Object.values(jitErrorArgs).slice(1)].join(',');
+        return {
+            tldErrorFn: `function(${args}){console.log('tld', v);${isTldFn}}`,
+            nameErrorsFn: `function(${args}){console.log('name', v);${isNameFn}}`,
+        };
     }
     _compileIsType(comp: JitCompiler, rt: BaseRunType): string {
         const params = this.getParams(rt);
         const deps = this.getIsDomainDeps(comp, rt, params);
-        const domainOnlyParams = {...params, names: undefined, tld: undefined};
-        const result = compilePureFunctionCall(comp, rt, this, isDomain, domainOnlyParams, deps);
+        const result = this.compilePureFunctionCall(comp, rt, isDomain, params, deps);
         return result.callCode;
     }
     _compileTypeErrors(comp: JitErrorsCompiler, rt: BaseRunType): string {
         const params = this.getParams(rt);
-        return compileErrorsPureFunctionCall(comp, rt, this, domainErrors, params).callCode;
+        const deps = this.getDomaineErrorsDeps(comp, rt, params);
+        return this.compileErrorsPureFunctionCall(comp, rt, domainErrors, params, deps).callCode;
     }
     _mock(mockContext: MockOperation, rt: BaseRunType): string {
         const params = this.getParams(rt);
@@ -127,7 +153,7 @@ export class DomainFormatter extends JitRunTypeFormatter<DomainParams> {
     }
 }
 
-type isDomainDeps = {
+export type isDomainDeps = {
     isTldFn: (d: string) => boolean;
     isNameFn: (d: string) => boolean;
 };
@@ -148,88 +174,53 @@ export function isDomain() {
             if (parts[i].startsWith('-') || parts[i].endsWith('-')) return false;
         }
         return true;
-    } as GenericPureFunctionWithDeps<DomainParams>;
+    } as GenericPureFunction<DomainParams>;
 }
+
+export type DomainErrorsDeps = {
+    tldErrorFn: JitTypeErrorsFn;
+    nameErrorsFn: JitTypeErrorsFn;
+};
 
 /** @reflection never */
 export function domainErrors(utl: JITUtils) {
-    const strFormatErr = utl.getPureFn('stringFormatErrors') as ReturnType<typeof stringFormatErrors>;
     return function domain_errors(
-        d: string,
+        d: any,
+        err: RunTypeError[],
+        stPath: StrNumber[],
+        path: StrNumber[],
+        exp: string,
         p: DomainParams,
-        fPath: (string | number)[],
-        fErr: TypeFormatError[] = [],
-        name = 'domain'
-    ): TypeFormatError[] {
-        if (d.length > p.maxLength) return fErr.push({name, formatPath: [...fPath, 'maxLength'], val: p.maxLength}), fErr;
+        fName: string,
+        fPath: StrNumber[],
+        deps: DomainErrorsDeps
+    ): RunTypeError[] {
+        if (d.length > p.maxLength) return utl.formatErr(err, stPath, path, exp, fName, 'maxLength', p.maxLength, fPath), err;
         const parts = d.split('.');
-        if (parts.length < p.minParts) fErr.push({name, formatPath: [...fPath, 'minParts'], val: p.minParts});
-        if (parts.length > p.maxParts) fErr.push({name, formatPath: [...fPath, 'maxParts'], val: p.maxParts});
+        if (parts.length < p.minParts) utl.formatErr(err, stPath, path, exp, fName, 'minParts', p.minParts, fPath);
+        if (parts.length > p.maxParts) utl.formatErr(err, stPath, path, exp, fName, 'maxParts', p.maxParts, fPath);
         const l = parts.length - 1;
         const tld = parts[l];
-        if (tld.startsWith('-') || tld.endsWith('-')) fErr.push({name, formatPath: [...fPath, 'tld', 'hyphen']});
-        strFormatErr(tld, p.tld, [...fPath, 'tld'], fErr, name);
+        if (tld.startsWith('-') || tld.endsWith('-'))
+            return utl.formatErr(err, stPath, path, exp, fName, 'hyphen', p.tld, [...fPath, 'tld']), err;
+        deps.tldErrorFn(tld, path, err);
+        console.log('name', parts);
+        console.log('l', l);
         for (let i = 0; i < l; i++) {
-            if (parts[i].startsWith('-') || parts[i].endsWith('-')) fErr.push({name, formatPath: [...fPath, i, 'hyphen']});
-            strFormatErr(parts[i], p.names, [...fPath, 'names', i], fErr, name);
+            if (parts[i].startsWith('-') || parts[i].endsWith('-'))
+                return utl.formatErr(err, stPath, path, exp, fName, 'hyphen', p.names, [...fPath, 'names', i]), err;
+            console.log('name', i, parts[i]);
+            deps.nameErrorsFn(parts[i], path, err);
         }
-        return fErr;
+        return err;
     } as ErrorsPureFunction<DomainParams>;
 }
-
-// export function domainErrorsSubstr(utl: JITUtils) {
-//     const strFormatErr = utl.getPureFn('stringFormatErrors') as ReturnType<typeof stringFormatErrors>;
-//     return function domain_errors(
-//         d: string,
-//         p: DomainParams,
-//         fPath: (string | number)[],
-//         errs: TypeFormatError[] = []
-//     ): TypeFormatError[] | undefined {
-//         if (d.length > p.maxLength) errs.push({name, path: [...fPath, 'maxLength'], val: p.maxLength});
-//         let partCount = 0;
-//         let lastDot = d.lastIndexOf('.');
-//         if (lastDot === -1) {
-//             errs.push({name, path: [...fPath, 'minParts'], val: p.minParts});
-//             errs.push({name, path: [...fPath, 'maxParts'], val: p.maxParts});
-//             return errs;
-//         }
-//         let prevDot = d.length;
-//         while (lastDot !== -1) {
-//             partCount++;
-//             const label = d.substring(lastDot + 1, prevDot);
-//             if (label.startsWith('-') || label.endsWith('-'))
-//                 errs.push({name, path: [...fPath, partCount - 1, 'hyphen']});
-//             const params = partCount === 1 ? p.tld : p.names;
-//             strFormatErr(label, params, [...fPath, partCount - 1], errs);
-//             prevDot = lastDot;
-//             lastDot = d.lastIndexOf('.', lastDot - 1);
-//         }
-
-//         // Process first segment (before the first dot)
-//         const firstLabel = d.substring(0, prevDot);
-//         if (firstLabel.length === 0) {
-//             errs.push({name, path: [...fPath, partCount, 'empty']});
-//         } else {
-//             if (firstLabel.startsWith('-') || firstLabel.endsWith('-')) {
-//                 errs.push({name, path: [...fPath, partCount, 'hyphen']});
-//             }
-//             strFormatErr(firstLabel, p.names, [...fPath, partCount], errs);
-//         }
-//         partCount++;
-
-//         // Check min/max parts
-//         if (partCount < p.minParts) errs.push({name, path: [...fPath, 'minParts'], val: p.minParts});
-//         if (partCount > p.maxParts) errs.push({name, path: [...fPath, 'maxParts'], val: p.maxParts});
-
-//         return errs;
-//     } as ErrorsPureFunction<DomainParams>;
-// }
 
 // ############### Register runtypes ###############
 
 // register pure functions so they can be used in the jit compiler
 registerPureFnClosure(isDomain);
-registerPureFnClosure(domainErrors, [stringFormatErrors]);
+registerPureFnClosure(domainErrors);
 
 // register Validator operations so they can be used in the jit compiler
 export const domainFormatter = registerFormatter(new DomainFormatter());

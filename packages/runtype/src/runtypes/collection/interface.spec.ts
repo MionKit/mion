@@ -194,10 +194,10 @@ describe('Interface', () => {
 
         const rtNoop = runType<NoJsonENCDECRequired>() as BaseRunType;
         const rtEncRequired = runType<sonENCDECRequired>() as BaseRunType;
-        expect(rtNoop.getJitCompiledFunction(JitFunctions.toJsonVal.id).isNoop).toBe(true);
-        expect(rtNoop.getJitCompiledFunction(JitFunctions.fromJsonVal.id).isNoop).toBe(true);
-        expect(rtEncRequired.getJitCompiledFunction(JitFunctions.toJsonVal.id).isNoop).toBe(false);
-        expect(rtEncRequired.getJitCompiledFunction(JitFunctions.fromJsonVal.id).isNoop).toBe(false);
+        expect(rtNoop.createJitCompiledFunction(JitFunctions.toJsonVal.id).isNoop).toBe(true);
+        expect(rtNoop.createJitCompiledFunction(JitFunctions.fromJsonVal.id).isNoop).toBe(true);
+        expect(rtEncRequired.createJitCompiledFunction(JitFunctions.toJsonVal.id).isNoop).toBe(false);
+        expect(rtEncRequired.createJitCompiledFunction(JitFunctions.fromJsonVal.id).isNoop).toBe(false);
     });
 
     it('json stringify', () => {

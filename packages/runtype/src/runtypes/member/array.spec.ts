@@ -31,7 +31,7 @@ describe('Array', () => {
         const toJsonVal = rt.createJitFunction(JitFunctions.toJsonVal);
         const typeValue = ['hello', 'world'];
         expect(toJsonVal(typeValue)).toEqual(typeValue);
-        expect((rt as BaseRunType).getJitCompiledFunction(JitFunctions.toJsonVal.id).isNoop).toBe(true);
+        expect((rt as BaseRunType).createJitCompiledFunction(JitFunctions.toJsonVal.id).isNoop).toBe(true);
     });
 
     it('decode from json', () => {
@@ -39,14 +39,14 @@ describe('Array', () => {
         const typeValue = ['hello', 'world'];
         const json = JSON.parse(JSON.stringify(typeValue));
         expect(fromJsonVal(json)).toEqual(typeValue);
-        expect((rt as BaseRunType).getJitCompiledFunction(JitFunctions.fromJsonVal.id).isNoop).toBe(true);
+        expect((rt as BaseRunType).createJitCompiledFunction(JitFunctions.fromJsonVal.id).isNoop).toBe(true);
     });
 
     it('encode to json date', () => {
         const toJsonVal = rD.createJitFunction(JitFunctions.toJsonVal);
         const typeValue = [new Date(), new Date()];
         expect(toJsonVal(typeValue)).toBe(typeValue);
-        expect((rD as BaseRunType).getJitCompiledFunction(JitFunctions.toJsonVal.id).isNoop).toBe(true);
+        expect((rD as BaseRunType).createJitCompiledFunction(JitFunctions.toJsonVal.id).isNoop).toBe(true);
     });
 
     it('decode from json date', () => {
@@ -54,7 +54,7 @@ describe('Array', () => {
         const typeValue = [new Date(), new Date()];
         const json = JSON.parse(JSON.stringify(typeValue));
         expect(fromJsonVal(json)).toEqual(typeValue);
-        expect((rD as BaseRunType).getJitCompiledFunction(JitFunctions.fromJsonVal.id).isNoop).toBe(false);
+        expect((rD as BaseRunType).createJitCompiledFunction(JitFunctions.fromJsonVal.id).isNoop).toBe(false);
     });
 
     it('json stringify', () => {
@@ -413,9 +413,7 @@ describe('Array circular ref', () => {
     it('validate CircularArray + errors', () => {
         const valWithErrors = rt.createJitFunction(JitFunctions.typeErrors);
         const arr: CircularArray = [];
-        arr.push([]);
-        arr[0].push([]);
-        arr[0][0].push([]);
+        arr.push([[[]]]);
         expect(valWithErrors(arr)).toEqual([]);
 
         arr.push('A' as any);

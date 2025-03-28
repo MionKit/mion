@@ -43,9 +43,9 @@ import {
     getTypeFormats,
     getRunTypeFormatter,
     getRunTypeTransformers,
-    typeParamsToLiteral,
     defaultIgnoreFormatProps,
 } from './formats';
+import {typeParamsToString} from './utils';
 import {JitRunTypeFormatter} from './baseFormatter';
 
 export abstract class BaseRunType<T extends Type = Type> implements RunType {
@@ -61,7 +61,7 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
     getFormatterJitId = memorize((): string | undefined => {
         const formatter = getRunTypeFormatter(this);
         if (!formatter) return;
-        return `<${typeParamsToLiteral(undefined, formatter.getParams(this), defaultIgnoreFormatProps)}>`;
+        return `<${typeParamsToString(formatter.getParams(this), defaultIgnoreFormatProps)}>`;
     });
     getJitId = (): string | number => {
         const jitId = this.getJitConfig().jitId;
@@ -122,13 +122,13 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
         // Just one type validator allowed per type, and is responsible to mock the value,
         // ie: email and uuid should contain the logic to generate a valid value
         const typeValidator = getRunTypeFormatter(this);
-        let mocked = typeValidator ? typeValidator._mock(updatedContext, this) : this._mock(updatedContext);
+        let mocked = typeValidator ? typeValidator.mock(updatedContext, this) : this._mock(updatedContext);
         // once mocked multiple type transformers can be applied to the mocked value
         const typeTransformers = getRunTypeTransformers(this);
         if (typeTransformers.length) {
             const compiledFormatters = typeTransformers
                 .filter((t) => !!t._compileFormat)
-                .map((t) => this.getJitCompiledFunction(JitFunctions.format.id));
+                .map((t) => this.createJitCompiledFunction(JitFunctions.format.id));
             const formatters = compiledFormatters.filter((c) => !c.isNoop).map((c) => c.fn);
             mocked = formatters.reduce((acc, format) => format(acc), mocked);
         }
@@ -179,10 +179,10 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
     // ########## Create Jit Functions ##########
 
     createJitFunction = (jitFn: JitFn): ((...args: any[]) => any) => {
-        return this.getJitCompiledFunction(jitFn.id).fn;
+        return this.createJitCompiledFunction(jitFn.id).fn;
     };
 
-    getJitCompiledFunction(fnId: JitFnID, parentCop?: JitCompiler): JitCompiled {
+    createJitCompiledFunction(fnId: JitFnID, parentCop?: JitCompiler): JitCompiled {
         const jitCompiled = jitUtils.getJIT(getJITFnHash(fnId, this));
         if (jitCompiled) {
             if (process.env.DEBUG_JIT) console.log(`\x1b[32m Using cached function: ${jitCompiled.jitFnHash} \x1b[0m`);
@@ -255,55 +255,34 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
     private compile(comp: JitCompiler, fnId: JitFnID) {
         let code: string | undefined;
         comp.pushStack(this);
-        const typeFormatters = getTypeFormats(this);
         if (comp.shouldCallDependency()) {
-            const compiledOp = this.getJitCompiledFunction(fnId, comp);
+            const compiledOp = this.createJitCompiledFunction(fnId, comp);
             code = this.callDependency(comp, compiledOp);
             comp.updateDependencies(compiledOp);
         } else {
             // prettier-ignore
             switch (fnId) {
-                case JitFunctions.isType.id: {
-                    code = this._compileIsType(comp);
-                    const validationCode = typeFormatters?.map((v) => v._compileIsType(comp, this)).filter(Boolean).join(' && ') || undefined;
-                    if (code && validationCode) code += ' && ' + validationCode;
-                    else if (validationCode) code = validationCode;
+                case JitFunctions.isType.id: 
+                    code = this.compileFormatter(comp, fnId, ' && ', this._compileIsType(comp));
                     break;
-                }
-                case JitFunctions.typeErrors.id: {
-                    code = this._compileTypeErrors(comp as JitErrorsCompiler);
-                    const validationCode = typeFormatters?.map((v) => v._compileTypeErrors(comp as JitErrorsCompiler, this)).filter(Boolean).join(';') || undefined;
-                    if (code && validationCode) code += ';' + validationCode;
-                    else if (validationCode) code = validationCode;
+                case JitFunctions.typeErrors.id: 
+                    code = this.compileFormatter(comp, fnId, ';', this._compileTypeErrors(comp as JitErrorsCompiler));
                     break;
-                }
-                case JitFunctions.toJsonVal.id: {
-                    code = this._compileToJsonVal(comp); 
-                    const transformers = typeFormatters?.filter((t) => !!(t as JitRunTypeFormatter)._compileToJsonVal) as JitRunTypeFormatter[];
-                    // apply the output of one transformer as the input to the next ie: finalCode = transformer2(transformer1(code))
-                    if (transformers.length) code = this.applyTransformers(code, comp, transformers, fnId);
+                case JitFunctions.toJsonVal.id: 
+                    code = this._compileToJsonVal(comp);
                     break;
-                }
-                case JitFunctions.fromJsonVal.id:  {
+                case JitFunctions.fromJsonVal.id:  
                     code =this._compileFromJsonVal(comp);
-                    const transformers = typeFormatters?.filter((t) => !!(t as JitRunTypeFormatter)._compileFromJsonVal) as JitRunTypeFormatter[];
-                    if (transformers.length) code = this.applyTransformers(code, comp, transformers, fnId);
                     break;
-                }
-                case JitFunctions.jsonStringify.id: {
+                case JitFunctions.jsonStringify.id: 
                     code = this._compileJsonStringify(comp);
-                    const transformers = typeFormatters?.filter((t) => !!(t as JitRunTypeFormatter)._compileJsonStringify) as JitRunTypeFormatter[];
-                    if (transformers.length) code = this.applyTransformers(code, comp, transformers, fnId);
                     break;
-                }
                 case JitFunctions.unknownKeyErrors.id: code = this._compileUnknownKeyErrors(comp as JitErrorsCompiler); break;
                 case JitFunctions.hasUnknownKeys.id: code = this._compileHasUnknownKeys(comp); break;
                 case JitFunctions.stripUnknownKeys.id: code = this._compileStripUnknownKeys(comp); break;
                 case JitFunctions.unknownKeysToUndefined.id: code = this._compileUnknownKeysToUndefined(comp); break;
                 case JitFunctions.format.id: {
                     if (this.src.kind !== ReflectionKind.string && this.src.kind !== ReflectionKind.number) throw new Error('Format can only be applied to string and number types');
-                    const transformers = typeFormatters?.filter((t) => !!(t as JitRunTypeFormatter)._compileFormat) as JitRunTypeFormatter[];
-                    if (transformers.length) code = this.applyTransformers(code, comp, transformers, fnId);
                     break;
                 }
                 default: throw new Error(`Unknown compile operation: ${fnId}`);
@@ -314,45 +293,25 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
         return code;
     }
 
-    private applyTransformers(
-        code: string | undefined,
-        comp: JitCompiler,
-        transformers: JitRunTypeFormatter[],
-        fnId: JitFnID
-    ): string | undefined {
-        if (!transformers.length) return code;
-        const vλl = comp.vλl;
-        code = transformers.reduce((acc, t) => {
-            comp.vλl = acc;
-            let result: string | undefined;
-            switch (fnId) {
-                case JitFunctions.toJsonVal.id:
-                    result = t._compileToJsonVal(comp, this);
-                    break;
-                case JitFunctions.fromJsonVal.id:
-                    result = t._compileFromJsonVal(comp, this);
-                    break;
-                case JitFunctions.jsonStringify.id:
-                    result = t._compileJsonStringify(comp, this);
-                    break;
-                case JitFunctions.format.id:
-                    if (!t._compileFormat)
-                        throw new Error(
-                            `Type Formatter ${t.name} does not implement _compileFormat method for ${this.getTypeName()}`
-                        );
-                    result = t._compileFormat(comp, this);
-                    break;
-                default:
-                    throw new Error(`Unknown transformer operation: ${fnId}`);
-            }
-            if (!result) return acc;
-            return result;
-        }, code || vλl);
-        comp.vλl = vλl;
-        return code;
+    private compileFormatter(comp: JitCompiler, fnId: JitFnID, separator: string, code?: string): string | undefined {
+        if (this.src.kind !== ReflectionKind.string && this.src.kind !== ReflectionKind.number) return code;
+        const typeFormatters = getTypeFormats(this);
+        if (!typeFormatters.length) return code;
+        const formattersCode = typeFormatters
+            .map((f) => {
+                if (f.jitFnInlined(fnId, this)) return f._compile(fnId, comp, this);
+                const compiled = f.createJitCompiledFormatter(fnId, comp, this);
+                if (compiled.isNoop) return;
+                comp.updateDependencies(compiled);
+                return this.callDependency(comp, compiled, true);
+            })
+            .filter(Boolean) as string[];
+        if (!formattersCode.length) return code;
+        if (code) return code + separator + formattersCode.join(separator);
+        return formattersCode.join(separator);
     }
 
-    callDependency(currentCop: JitCompiler, comp: JitCompiled): string {
+    callDependency(currentCop: JitCompiler, comp: JitCompiled, isFormatter = false): string {
         const stackItem = currentCop.getCurrentStackItem();
         const isErrorCall = comp.fnId === JitFunctions.typeErrors.id || comp.fnId === JitFunctions.unknownKeyErrors.id;
         const args = isErrorCall ? jitErrorArgs : jitArgs;
@@ -368,8 +327,9 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
         const callCode = isSelf ? `${varName}(${argsCode})` : `${varName}.fn(${argsCode})`;
         if (!isSelf) currentCop.contextCodeItems.set(varName, `const ${varName} = utl.getJIT(${toLiteral(varName)})`);
         if (isErrorCall) {
-            const pathArgs = currentCop.getStackStaticPathArgs();
-            const pathLength = currentCop.getStaticPathLength();
+            const pathArgs = currentCop.getAccessPathArgs();
+            const pathLength = currentCop.getAccessPathLength();
+            if (isFormatter) return callCode;
             // increase and decrease the static path before and after calling the circular function
             return `${jitErrorArgs.pλth}.push(${pathArgs}); ${callCode}; ${jitErrorArgs.pλth}.splice(-${pathLength});`;
         }

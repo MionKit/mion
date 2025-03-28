@@ -9,13 +9,8 @@ import type {JitCompiler, JitErrorsCompiler} from '@mionkit/runtype/src/lib/jitC
 import {JitRunTypeFormatter} from '@mionkit/runtype/src/lib/baseFormatter';
 import {ReflectionKind} from '@deepkit/type';
 import {TypeFormat} from '@mionkit/runtype/src/lib/formats.runtype'; // !Important: TypeFormat cant be imported as type for all runType functionality to work
-import {GenericPureFunction, MockOperation, TypeFormatError} from '@mionkit/runtype/src/types';
-import {
-    compilePureFunctionCall,
-    registerFormatter,
-    registerPureFnClosuresGroup,
-    registerPureFnClosure,
-} from '@mionkit/runtype/src/lib/formats';
+import {GenericPureFunction, MockOperation} from '@mionkit/runtype/src/types';
+import {registerFormatter, registerPureFnClosuresGroup, registerPureFnClosure} from '@mionkit/runtype/src/lib/formats';
 import {JITUtils} from '@mionkit/runtype/src/lib/jitUtils';
 
 export type DefaultTimeParams = {format: 'ISO'};
@@ -33,15 +28,14 @@ export class TimeStringFormat extends JitRunTypeFormatter<TimeStringParams> {
     _compileIsType(comp: JitCompiler, rt: BaseRunType): string {
         const params = this.getParams(rt);
         const formatFn = this.getFormatPureFn(params.format);
-        return compilePureFunctionCall(comp, rt, this, formatFn).callCode;
+        return this.compilePureFunctionCall(comp, rt, formatFn).callCode;
     }
     _compileTypeErrors(comp: JitErrorsCompiler, rt: BaseRunType): string {
         const isTypeCode = this._compileIsType(comp, rt);
         if (!isTypeCode) return '';
         const params = this.getParams(rt);
-        const path = this.getNewPath('format');
-        const formatError: TypeFormatError = {name: this.name, formatPath: path, val: params.format};
-        return `if (!(${isTypeCode})) ${comp.callJitErr(rt, formatError)}`;
+        const errFn = comp.getCallJitFormatErr(rt, this);
+        return `if (!(${isTypeCode})) ${errFn('format', params.format)}`;
     }
     _mock(mockContext: MockOperation, rt: BaseRunType) {
         const params = this.getParams(rt);

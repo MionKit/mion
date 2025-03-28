@@ -5,12 +5,13 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import type {AnyClass, JitFnID, RunType} from '../types';
+import type {AnyClass, JitFnID, PureFunctionWithClosure, RunType, TypeFormatValue} from '../types';
 import {ReflectionKind, Type, TypeFunction, TypeParameter, TypeTuple, TypeTupleMember} from '@deepkit/type';
 import {jitUtils} from './jitUtils';
 import {validPropertyNameRegExp} from '../constants';
 import {BaseRunType} from './baseRunTypes';
-import type {JitCompiler} from './jitCompiler';
+import type {JitCompiler, JitErrorsCompiler} from './jitCompiler';
+import {createHashLiteral} from './quickHash';
 
 export function toLiteral(value: number | string | boolean | undefined | null | bigint | RegExp | symbol): string {
     switch (typeof value) {
@@ -130,4 +131,124 @@ export function childIsExpression(fnId: JitFnID, child: BaseRunType): boolean {
  */
 export function regexpEscape(val: string): string {
     return val.replace(/[/\-\\^$*+?.()|[\]{}]/g, '\\$&');
+}
+
+// ######### To literal with context ########
+
+const maxStringLength = 10;
+
+/**
+ * Transforms values into a literal string to be used in JIT code.
+ * ie: {total: 5, name: 'hello'} gets transformed into teh string '{total: 5, name: "hello"}' that can be used as JIT code.
+ * Some literals are automatically added to the context to reduce code size. in this case the reference to the context variable is returned.
+ * Otherwise the literal is returned.
+ *
+ * Important this is intended for actual immutable literals, if two empty arrays are passed they will be transformed into the same reference.
+ * so those object or arrays should never be modified in jit code. //TODO: investigate using object.freeze
+ *
+ * @param comp
+ * @param params
+ * @param ignoreProps
+ * @param isDependencies
+ * @returns
+ */
+export function toLiteralInContext(
+    // if compiled is passed it is assumed that the params are dependencies and will be transformed into code
+    comp: JitCompiler | JitErrorsCompiler,
+    params: TypeFormatValue | Record<string, string | PureFunctionWithClosure>,
+    ignoreProps: string[] = [],
+    isDependencies = false
+): string {
+    switch (true) {
+        case typeof params === 'string': {
+            const literal = toLiteral(params);
+            // if string is longer than 10 chars we add it as a new variable in the context to reduce code size
+            if (params.length > maxStringLength) {
+                const hash = createHashLiteral(params);
+                const strName = hash;
+                if (!comp.contextCodeItems.has(strName)) comp.contextCodeItems.set(strName, `const ${strName} = ${literal}`);
+                return strName;
+            }
+            return literal;
+        }
+        case typeof params === 'number':
+            return `${params}`;
+        case typeof params === 'boolean':
+            return params ? 'true' : 'false';
+        case params instanceof RegExp: {
+            // if param is a regexp we add it as a new variable in the context (so we are not creating a new regexp on each call)
+            const regCode = params.toString();
+            const hash = createHashLiteral(regCode);
+            const regName = hash;
+            if (!comp.contextCodeItems.has(regName)) comp.contextCodeItems.set(regName, `const ${regName} = ${regCode}`);
+            return regName;
+        }
+        case Array.isArray(params): {
+            // arrays are added to the context as a new variable
+            const arrCode = `[${params.map((v) => toLiteralInContext(comp, v, ignoreProps, isDependencies)).join(', ')}]`;
+            const hash = createHashLiteral(arrCode);
+            const arrName = hash;
+            if (!comp.contextCodeItems.has(arrName)) comp.contextCodeItems.set(arrName, `const ${arrName} = ${arrCode}`);
+
+            return arrName;
+        }
+        case typeof params === 'object': {
+            // objects are added to the context as a new variable
+            const entriesLiterals = Object.entries(params).map(([k, v]) => {
+                if (ignoreProps.includes(k) || typeof v === 'undefined') return undefined;
+                const propName = isSafePropName(k) ? k : toLiteral(k);
+                if (!isDependencies) return `${propName}:${toLiteralInContext(comp, v, ignoreProps, isDependencies)}`;
+                return `${propName}:${dependencyValueToLiteral(comp, v)}`;
+            });
+            const objCode = `{${entriesLiterals.filter(Boolean).join(',')}}`;
+            const hash = createHashLiteral(objCode);
+            const objName = hash;
+            if (!comp.contextCodeItems.has(objName)) comp.contextCodeItems.set(objName, `const ${objName} = ${objCode}`);
+            return objName;
+        }
+        default:
+            throw new Error(`Unsupported type format params ${params}`);
+    }
+}
+
+export function dependencyValueToLiteral(comp: JitCompiler | JitErrorsCompiler | undefined, propVal: any): string {
+    if (typeof propVal === 'function') {
+        if (!comp) throw new Error('Dependencies must be pure functions or code');
+        comp.addPureFnDependency(propVal);
+        return `utl.getPureFn(${toLiteral(propVal.name)})`;
+    }
+    if (typeof propVal === 'string') return propVal;
+    throw new Error('Dependencies must be pure functions or code');
+}
+
+export function typeParamsToString(
+    params: TypeFormatValue | Record<string, string | PureFunctionWithClosure>,
+    ignoreProps: string[]
+): string {
+    switch (true) {
+        case typeof params === 'string':
+            return toLiteral(params);
+        case typeof params === 'number':
+            return `${params}`;
+        case typeof params === 'boolean':
+            return params ? 'true' : 'false';
+        case params instanceof RegExp:
+            return params.toString();
+        case Array.isArray(params):
+            return `[${params.map((v) => typeParamsToString(v, ignoreProps)).join(', ')}]`;
+        case typeof params === 'object': {
+            const entriesLiterals = Object.entries(params).map(([k, v]) => {
+                if (ignoreProps.includes(k) || typeof v === 'undefined') return undefined;
+                return `${k}:${typeParamsToString(v, ignoreProps)}`;
+            });
+            return `{${entriesLiterals.filter(Boolean).join(',')}}`;
+        }
+        default:
+            throw new Error(`Unsupported type format params ${params}`);
+    }
+}
+export function getFormatterHash(rt: BaseRunType): string {
+    const literal = rt.getFormatterJitId();
+    if (!literal) throw new Error('Formatter JIT ID not found');
+    return createHashLiteral(literal);
 }

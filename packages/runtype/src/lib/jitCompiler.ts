@@ -4,7 +4,7 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
-import type {JitFnArgs, Mutable, JitCompiled, JitFnID, TypeFormatError, PureFunction} from '../types';
+import type {JitFnArgs, Mutable, JitCompiled, JitFnID, PureFunction, StrNumber} from '../types';
 import type {BaseRunType} from './baseRunTypes';
 import type {AnyKindName} from '../constants.kind';
 import {
@@ -18,7 +18,8 @@ import {
 } from '../constants';
 import {isChildAccessorType, isJitErrorsCompiler} from './guards';
 import {jitUtils} from './jitUtils';
-import {toLiteral} from './utils';
+import {toLiteral, toLiteralInContext} from './utils';
+import type {JitRunTypeFormatter} from './baseFormatter';
 
 export type StackItem = {
     /** current compile stack full variable accessor */
@@ -27,7 +28,7 @@ export type StackItem = {
     rt: BaseRunType;
     /** if should call a dependency instead inline code, then this would contain the id of the dependency to call */
     dependencyId?: string;
-    staticPath?: (string | number)[];
+    staticPath?: StrNumber[];
 };
 
 export type JitCompilerLike = BaseCompiler | JitCompiled;
@@ -44,14 +45,14 @@ export class BaseCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extends 
         public readonly returnName: string,
         public readonly parentLength: number = 0,
         jitFnHash?: string,
-        jitId?: string | number
+        jitId?: StrNumber
     ) {
         this.jitFnHash = jitFnHash || getJITFnHash(this.fnId, this.rootType);
         this.jitId = jitId || this.rootType.getJitId();
         this.vλl = this.args.vλl;
         jitUtils.addToJitCache(this.jitFnHash, this);
     }
-    readonly jitId: string | number;
+    readonly jitId: StrNumber;
     readonly jitFnHash: string;
     // !!! DO NOT MODIFY METHOD WITHOUT REVIEWING JIT CODE INVOCATIONS!!!
     /** The Jit Generated function once the compilation is finished */
@@ -83,7 +84,15 @@ export class BaseCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extends 
         return this.stack.length + this.parentLength;
     }
     vλl: string = '';
-    private _stackStaticPath: (string | number)[] = [];
+    /**
+     * The path to the current item in the stack,
+     * This path can contain prop names array indexes or event literal variable values, ie: if parsing an array the path item would be the name if the index variable.
+     * This is used to generate the correct code to access the value at runtime of the current item in the stack.
+     * ie: if parsing the tuple ['A','B','C'] and the current item is 'B', the path would [1] as is the index of the item in the stack.
+     * ie: if parsing the object {a: {b: {c: 'C'}}} and the current item is 'b', the path would ['a','b'] as is the path to the item in the stack.
+     * At runtime this path gets combined with the runtime pλth variable to generate the correct path to access the value
+     * */
+    private _accessPathLiterals: StrNumber[] = [];
     /** push new item to the stack, returns true if new child is already in the stack (is circular type) */
     pushStack(newChild: BaseRunType): void {
         const totalLength = this.stack.length + this.totalLength;
@@ -94,8 +103,8 @@ export class BaseCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extends 
         }
         this.vλl = getStackVλl(this);
         // static path must be called before pushing the new item
-        if (isJitErrorsCompiler(this)) this._stackStaticPath = getStackStaticPath(this);
-        const newStackItem: StackItem = {vλl: this.vλl, rt: newChild, staticPath: this._stackStaticPath};
+        if (isJitErrorsCompiler(this)) this._accessPathLiterals = getAccessPath(this);
+        const newStackItem: StackItem = {vλl: this.vλl, rt: newChild, staticPath: this._accessPathLiterals};
         this.stack.push(newStackItem);
     }
     popStack(resultCode: string | undefined): void | ((...args: any[]) => any) {
@@ -103,7 +112,7 @@ export class BaseCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extends 
         this.popItem = this.stack.pop();
         const item = this.stack[this.stack.length - 1];
         this.vλl = item?.vλl || this.args.vλl;
-        if (isJitErrorsCompiler(this)) this._stackStaticPath = item?.staticPath || [];
+        if (isJitErrorsCompiler(this)) this._accessPathLiterals = item?.staticPath || [];
         if (this.stack.length === 0) {
             return this.compile();
         }
@@ -119,14 +128,19 @@ export class BaseCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extends 
             throw new Error(`Error building ${this.fnId} JIT function for type ${name}: ${e?.message} \n${fnCode}`);
         }
     }
-    getStackStaticPathArgs(): string {
-        return this._stackStaticPath.join(',');
+    /** Returns a copy of the access pat for current stack item */
+    getAccessPath(): StrNumber[] {
+        return [...this._accessPathLiterals];
     }
-    getStaticPathLength(): number {
-        return this._stackStaticPath.length;
+
+    getAccessPathArgs(): string {
+        return this._accessPathLiterals.join(',');
     }
-    getStaticPathArgsForFnCall(): {args: string; length: number} {
-        return {args: this.getStackStaticPathArgs(), length: this.getStaticPathLength()};
+    getAccessPathLength(): number {
+        return this._accessPathLiterals.length;
+    }
+    getAccessPathArgsForFnCall(): {args: string; length: number} {
+        return {args: this.getAccessPathArgs(), length: this.getAccessPathLength()};
     }
     getCurrentStackItem(): StackItem {
         const item = this.stack[this.stack.length - 1];
@@ -149,7 +163,7 @@ export class BaseCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extends 
         this.dependenciesSet.add(childCop.jitFnHash);
         childCop.dependenciesSet.forEach((dep) => this.dependenciesSet.add(dep));
     }
-    addPureFnDependency(fn: PureFunction<any> | string): void {
+    addPureFnDependency(fn: PureFunction | string): void {
         if (typeof fn === 'function' && !fn.name) throw new Error('Pure function must have a name');
         const key = typeof fn === 'string' ? fn : fn.name;
         if (!jitUtils.hasPureFn(key))
@@ -203,37 +217,95 @@ export class BaseCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extends 
 // ################### Compile Operations ###################
 
 export class JitCompiler<ID extends JitFnID = any> extends BaseCompiler<typeof jitArgs, ID> {
-    constructor(rt: BaseRunType, id: ID, parentLength: number = 0, jitFnHash?: string, jitId?: string | number) {
+    constructor(rt: BaseRunType, id: ID, parentLength: number = 0, jitFnHash?: string, jitId?: StrNumber) {
         super(rt, id, {...jitArgs}, {...jitDefaultArgs}, 'v', parentLength, jitFnHash, jitId);
     }
 }
 
 export class JitErrorsCompiler<ID extends JitFnID = any> extends BaseCompiler<typeof jitErrorArgs, ID> {
-    constructor(rt: BaseRunType, id: ID, parentLength: number = 0, jitFnHash?: string, jitId?: string | number) {
+    constructor(rt: BaseRunType, id: ID, parentLength: number = 0, jitFnHash?: string, jitId?: StrNumber) {
         const args = {...jitErrorArgs};
         const defaultValues = {...jitDefaultErrorArgs};
         super(rt, id, args, defaultValues, 'er', parentLength, jitFnHash, jitId);
     }
-    callJitErr(expected: AnyKindName | BaseRunType<any>, expectedFormat?: TypeFormatError): string {
-        const expectLiteral = typeof expected === 'string' ? toLiteral(expected) : toLiteral(expected.getKindName());
-        const pathItems = this.getStackStaticPathArgs();
-        return this._callJitErr(this.args.εrr, this.args.pλth, pathItems, expectLiteral, expectedFormat);
+    callJitErr(expected: AnyKindName | BaseRunType<any>): string {
+        // TODO: most of the time jit path is an empty array, so a new array is created every time
+        // this can be optimized by adding it to the compiler context, or maybe make the param optional in jitUtils.err
+        return this.callJitErrWithPath(expected);
     }
-    callJitErrWithPath(expected: AnyKindName, extraPathLiteral?: string | number, expectedFormat?: TypeFormatError): string {
-        const expectLiteral = toLiteral(expected);
-        const extraPath = extraPathLiteral ? `${extraPathLiteral}` : '';
-        const pathItems = [this.getStackStaticPathArgs(), extraPath].filter(Boolean).join(',');
-        return this._callJitErr(this.args.εrr, this.args.pλth, pathItems, expectLiteral, expectedFormat);
+    callJitErrWithPath(exp: AnyKindName | BaseRunType<any>, extraPathLiteral?: StrNumber): string {
+        const args = this._getJitErrorArgs(exp);
+        const accessPath = this.getAccessPathLiteral(extraPathLiteral);
+        if (accessPath) args.push(accessPath);
+        return `utl.err(${args.join(',')})`;
     }
-    private _callJitErr(εrr: string, pλth: string, pathItems: string, expected: string, expectedFormat?: TypeFormatError) {
-        const optionals: string[] = [];
-        if (expectedFormat) {
-            const sanitized = Object.entries(expectedFormat).filter(([, v]) => v !== undefined);
-            const infoCode = JSON.stringify(Object.fromEntries(sanitized));
-            optionals.push(infoCode);
-        }
-        const optionalsCode = optionals.length ? `,${optionals.join(',')}` : '';
-        return `utl.err(${εrr},${pλth},[${pathItems}],${expected}${optionalsCode})`;
+    callJitFormatErr(
+        expected: AnyKindName | BaseRunType<any>,
+        formatter: JitRunTypeFormatter<any>,
+        paramName: string,
+        paramValue: StrNumber,
+        extraPathLiteral?: StrNumber,
+        formatExtraPathLiteral?: StrNumber
+    ): string {
+        // jitUtil.formatErr args:
+        // pλth: StrNumber[],
+        // εrr: RunTypeError[],
+        // expected: string,
+
+        // fmtName: string,
+        // paramName: string,
+        // paramVal: StrNumber,
+        // fmtPath: StrNumber[],
+        // accessPath?: StrNumber[],
+        // fmtAccessPath?: StrNumber[]
+
+        const typeErrArgs = this._getJitErrorArgs(expected);
+        const fmtName = toLiteralInContext(this, formatter.getFormatName());
+        const pName = toLiteralInContext(this, paramName);
+        const pVal = toLiteralInContext(this, paramValue);
+        const fmtPath = toLiteralInContext(this, formatter.getFormatPath());
+        const formatArgs = [fmtName, pName, pVal, fmtPath];
+        const optionalArgs: string[] = [];
+        const accessPath = this.getAccessPathLiteral(extraPathLiteral);
+        const formatAccessPath = this.getFormatAccessPathLiteral(formatter, formatExtraPathLiteral);
+        if (!accessPath && formatAccessPath) optionalArgs.push('undefined');
+        if (accessPath) optionalArgs.push(accessPath);
+        if (formatAccessPath) optionalArgs.push(formatAccessPath);
+        return `utl.formatErr(${[...typeErrArgs, ...formatArgs, ...optionalArgs].join(',')})`;
+    }
+    getCallJitFormatErr(
+        expected: AnyKindName | BaseRunType<any>,
+        formatter: JitRunTypeFormatter<any>,
+        extraPathLiteral?: StrNumber,
+        formatExtraPathLiteral?: StrNumber
+    ) {
+        return (paramName: string, paramValue: StrNumber) =>
+            this.callJitFormatErr(expected, formatter, paramName, paramValue, extraPathLiteral, formatExtraPathLiteral);
+    }
+
+    private _getJitErrorArgs(exp: AnyKindName | BaseRunType<any>): string[] {
+        // TODO: most of the time jit path is an empty array, so a new array is created every time
+        // this can be optimized by adding it to the compiler context, or maybe make the param optional in jitUtils.err
+        // jitUtil.err args:
+        // pλth: StrNumber[],
+        // εrr: RunTypeError[],
+        // expected: string,
+        const path = this.args.pλth;
+        const err = this.args.εrr;
+        const expected = typeof exp === 'string' ? toLiteral(exp) : toLiteral(exp.getKindName());
+        return [path, err, expected];
+    }
+
+    private getAccessPathLiteral(extraPathLiteral?: StrNumber): string {
+        const accessPath = this.getAccessPath();
+        if (extraPathLiteral) accessPath.push(extraPathLiteral);
+        return accessPath.length ? `[${accessPath.join(',')}]` : '';
+    }
+
+    private getFormatAccessPathLiteral(formatter: JitRunTypeFormatter<any>, formatExtraPathLiteral?: StrNumber): string {
+        const accessPath = formatter.getFormatPath();
+        if (formatExtraPathLiteral) accessPath.push(formatExtraPathLiteral);
+        return accessPath.length ? `[${accessPath.join(',')}]` : '';
     }
 }
 
@@ -244,7 +316,7 @@ export function createJitCompiler(
     fnId: JitFnID,
     parent?: BaseCompiler,
     jitFnHash?: string,
-    jitId?: string | number
+    jitId?: StrNumber
 ): BaseCompiler {
     switch (fnId) {
         case JitFunctions.isType.id:
@@ -346,8 +418,8 @@ function getStackVλl(comp: BaseCompiler): string {
     }
     return vλl;
 }
-function getStackStaticPath(comp: BaseCompiler): (string | number)[] {
-    const path: (string | number)[] = [];
+function getAccessPath(comp: BaseCompiler): StrNumber[] {
+    const path: StrNumber[] = [];
     const rtName: any = [];
     for (let i = 0; i < comp.stack.length; i++) {
         const rt = comp.stack[i].rt;

@@ -12,7 +12,7 @@ import type {JitFunctions} from './constants';
 import type {ReflectionSubKind} from './constants.kind';
 import type {JitRunTypeFormatter} from './lib/baseFormatter';
 
-type stringNumber = string | number;
+export type StrNumber = string | number;
 
 // ###################### RunTypes ######################
 /**
@@ -25,12 +25,12 @@ export interface RunType {
     mock: (options?: Partial<MockOptions>) => any;
 
     // ######## JIT functions ########
-    getJitId(): stringNumber;
+    getJitId(): StrNumber;
     getJitHash: () => string;
     createJitFunction(jitFn: JitFn): (...args: any[]) => any;
 }
 
-export type JSONValue = stringNumber | boolean | null | {[key: string]: JSONValue} | Array<JSONValue>;
+export type JSONValue = StrNumber | boolean | null | {[key: string]: JSONValue} | Array<JSONValue>;
 export type JSONString = string;
 
 export type SubKind = (typeof ReflectionSubKind)[keyof typeof ReflectionSubKind];
@@ -63,12 +63,12 @@ export interface RunTypeChildAccessor extends RunType {
      * ie: for an object property, it should return the property name
      * ie: for an array member, it should return the index variable name
      */
-    getChildVarName(): stringNumber;
+    getChildVarName(): StrNumber;
     /** Returns the static member name or literal as it should be inserted in source code.
      * ie: for an object property, it should return the property name as a string encapsulated in quotes, ie: prop => 'prop'
      * ie: for an array member, it should return the varName as is a dynamic value, ie: index => index
      */
-    getChildLiteral(): stringNumber;
+    getChildLiteral(): StrNumber;
     /** Returns true if the property name is safe to use as a property accessor in source code
      * ie: return false if a property can be accessed using the dot notation, ie: obj.prop, for properties that are numbers return false
      * ie: for an array member return true as it should be accessed using the array accessor, ie: obj[index]
@@ -83,7 +83,7 @@ export interface RunTypeChildAccessor extends RunType {
 
 export interface JitConfig {
     readonly skipJit: boolean;
-    readonly jitId: stringNumber;
+    readonly jitId: StrNumber;
 }
 
 export interface CustomVλl {
@@ -103,7 +103,7 @@ export type JitFn = (typeof JitFunctions)[keyof typeof JitFunctions];
 
 // one of the existing jit functions ids
 export type JitFnID = JitFn['id'];
-
+export type JitTypeErrorsFn = (v: any, path: StrNumber[], err: RunTypeError[]) => RunTypeError[];
 export type AnyFn = (...args: any[]) => any;
 export interface JitFnData<Fn extends AnyFn> {
     argNames: string[];
@@ -118,7 +118,7 @@ export interface RunTypeError {
      * Path the the property that failed validation if the validated item was an object class, etc..
      * Index if item that failed validation was in an array.
      * null if validated item was a single property */
-    path: stringNumber[];
+    path: StrNumber[];
     /** the type of the expected data */
     expected: string;
     format?: TypeFormatError;
@@ -210,8 +210,8 @@ export interface MockOptions {
      * bigger values have bigger probability of generate the optional property */
     optionalProbability: number;
     /** probability to generate an specific property of an object, number between 0 and 1 */
-    optionalPropertyProbability?: Record<stringNumber, number>; // TODO change to a record of MockOptions
-    parentObj?: Record<stringNumber | symbol, any>;
+    optionalPropertyProbability?: Record<StrNumber, number>; // TODO change to a record of MockOptions
+    parentObj?: Record<StrNumber | symbol, any>;
     /** the index of the object to mock withing the union */
     unionIndex?: number;
     tupleOptions?: MockOptions[];
@@ -241,16 +241,16 @@ export type TypeFormatError = {
     /** The name of the format that failed */
     name: string; // the name of the format that failed
     /** Expected value, for larger Values like regexp and others */
-    val?: stringNumber | boolean | (stringNumber | boolean)[];
+    val: StrNumber | boolean | (StrNumber | boolean)[];
     /**
      * The path to the section of the format that failed.
      * ie: for an email that failed the TLD part, the path should be ['domain', 'tld']
      * ie: for an email that has character not allowed in the local part, the path should be ['localPart']
      * */
-    formatPath?: stringNumber[];
+    formatPath: StrNumber[];
 };
 
-type ParamLiteral = stringNumber | boolean | RegExp | undefined;
+type ParamLiteral = StrNumber | boolean | RegExp | undefined;
 export type TypeFormatValue = ParamLiteral | TypeFormatValue[] | {[key: string]: TypeFormatValue};
 export type TypeFormatParams = Record<string, TypeFormatValue>;
 export type TypeFormatParsedParams = {__jitId: string; [key: string]: TypeFormatValue};
@@ -261,39 +261,30 @@ export type TypeFormatParsedParams = {__jitId: string; [key: string]: TypeFormat
  * These function can be correctly serialized/deserialized using function.toString() method.
  * These function can not be anonym and must have an unique name.
  */
-export type PureFunctionDeps = Record<string, PureFunction<any>>;
+export type PureFunctionDeps = Record<string, PureFunction>;
+export type GenericPureFunction<P extends TypeFormatValue> = (val: any, formatParams: P, deps: PureFunctionDeps) => any;
 export type ErrorsPureFunction<P extends TypeFormatValue> = (
     val: any,
+    path: StrNumber[],
+    err: RunTypeError[],
+    expected: string,
     formatParams: P,
-    formatPath: stringNumber[],
-    formatErrs: TypeFormatError[] | undefined,
-    formatName: string
-) => TypeFormatError[];
-export type ErrorsPureFunctionWithDeps<P extends TypeFormatValue> = (
-    val: any,
-    formatParams: P,
-    formatPath: stringNumber[],
-    formatErrs: TypeFormatError[] | undefined,
     formatName: string,
-    deps: PureFunctionDeps
-) => TypeFormatError[];
-export type GenericPureFunction<P extends TypeFormatValue> = (val: any, params: P) => any;
-export type GenericPureFunctionWithDeps<P extends TypeFormatValue> = (val: any, params: P, deps: PureFunctionDeps) => any;
-export type PureFunction<P extends TypeFormatValue> =
-    | GenericPureFunction<P>
-    | ErrorsPureFunction<P>
-    | GenericPureFunctionWithDeps<P>
-    | ErrorsPureFunctionWithDeps<P>;
+    formatPath: StrNumber[],
+    deps: PureFunctionDeps,
+    jitPath?: StrNumber[]
+) => RunTypeError[];
+export type PureFunction = (...args: any[]) => any;
 
 /**
  * Pure function that return an array with a list of invalid format properties.
  * ie: if a string should be maxLength = 5 and that string is 6 characters long, the function should return {invalid:['maxLength']}
  */
-export type PureFunctionWithClosure<P extends TypeFormatParams> = (jitUtils: JITUtils) => PureFunction<P>;
+export type PureFunctionWithClosure = (jitUtils: JITUtils) => PureFunction;
 
 export type CompiledPureFunction = {
-    originClosureFn: PureFunctionWithClosure<any>;
-    fn?: PureFunction<any>;
+    originClosureFn: PureFunctionWithClosure;
+    fn?: PureFunction;
     paramNames: string[];
     body: string;
     name: string;

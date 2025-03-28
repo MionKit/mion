@@ -29,7 +29,7 @@ it('should validate domain values', async () => {
 
 it('should return domain errors', async () => {
     const typeErrors = await typeErrorsFn<Domain>();
-    const err: RunTypeError = {expected: 'string', path: [], format: {name: 'domain'}};
+    const err: RunTypeError = {expected: 'string', path: [], format: {name: 'domain', formatPath: [], val: ''}};
     const domainErrMessage = 'domain names can only contain letters, numbers and hyphens';
     const tldErrMessage = 'top level domain can only contain letters and dots';
     const longErr: RunTypeError = {...err, format: {name: 'domain', formatPath: ['maxLength'], val: 253}};

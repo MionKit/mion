@@ -45,10 +45,10 @@ it('register and get pure function', async () => {
             if (p.isLowercase && s !== s.toLowerCase()) return false;
             if (p.isNumeric && !isNumericRegexp.test(s)) return false;
             return true;
-        } as GenericPureFunction<StringParams>;
+        };
     }
     registerPureFnClosure(stringPureFn);
-    const restoredFn = getPureFn('stringPureFn') as GenericPureFunction<StringParams>;
+    const restoredFn = getPureFn('stringPureFn') as ReturnType<typeof stringPureFn>;
     expect(restoredFn).toBeDefined();
     expect(restoredFn).toBeInstanceOf(Function);
     expect(restoredFn?.('a', {isLowercase: true})).toBe(true);
@@ -66,12 +66,12 @@ it('register a group of pure functions so all declared as dependencies', async (
         return function is_a(s: string, p: Params): boolean {
             if (p.isA) return s.includes('a');
             return true;
-        } as GenericPureFunction<Params>;
+        };
     }
     // reflection never tag is required so pure function do not include any artifacts from @deepkit/compiler
     /** @reflection never */
     function pureFunctionB(jitUtils: JITUtils) {
-        const isA = jitUtils.getPureFn('pureFunctionA') as GenericPureFunction<Params>;
+        const isA = jitUtils.getPureFn('pureFunctionA') as ReturnType<typeof pureFunctionA>;
         return function is_b(s: string, p: Params): boolean {
             const isAResult = isA(s, p);
             if (p.isB) return isAResult && s.includes('b');
