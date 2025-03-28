@@ -7,56 +7,62 @@
  * ######## */
 import type {BaseRunType} from '@mionkit/runtype/src/lib/baseRunTypes';
 import type {JitCompiler, JitErrorsCompiler} from '@mionkit/runtype/src/lib/jitCompiler';
+import type {DeepPartial, GenericPureFunction, TypeFormatError} from '@mionkit/runtype/src/types';
 import {JitRunTypeFormatter} from '@mionkit/runtype/src/lib/baseFormatter';
 import {ReflectionKind} from '@deepkit/type';
-import {DefaultDomainParams, DomainParams} from './domain.runtype';
+import {DefaultDomainParams, DomainParams, type isDomainDeps} from './domain.runtype';
 import {TypeFormat} from '@mionkit/runtype/src/lib/formats.runtype';
 import {MockOperation} from '@mionkit/runtype/src/types';
-import {StringValidatorsParams} from './string.runtype';
-import {stringFormatter, isStringFormat, stringFormatErrors} from './string.runtype';
+import {StringValidatorsParams} from './stringFormat.runtype';
+import {stringFormatter} from './stringFormat.runtype';
 import {domainFormatter, isDomain, domainErrors} from './domain.runtype';
-import {
-    compilePureFunctionCall,
-    compileErrorsPureFunctionCall,
-    registerFormatter,
-    registerPureFnClosure,
-} from '@mionkit/runtype/src/lib/formats';
+import {registerFormatter, registerPureFnClosure} from '@mionkit/runtype/src/lib/formats';
 import {JITUtils} from '@mionkit/runtype/src/lib/jitUtils';
-import type {DeepRequired, GenericPureFunction, InvalidFormatParams} from '@mionkit/runtype/src/types';
+import {JitFunctions} from '@mionkit/runtype/src/constants';
 
-export type EmailOnlyParams = {
+export type DefaultEmailParams = {
     maxLength: 254;
-};
-export type DefaultLocalPart = {
-    maxLength: 64;
-    minLength: 3;
-    /** Disallows non typical email chars
-     * avoiding the character + prevents aliasing used in goggle and other providers
-     * characters . and @ are allowed as are typically used
-     * */
-    disallowedChars: `()<>[]:;\\,+ `; //
-};
-export type DefaultEmailParams = EmailOnlyParams & {
+    localPart: {
+        maxLength: 64;
+        minLength: 3;
+        /** Disallows non typical email chars
+         * avoiding the character + prevents aliasing used in goggle and other providers
+         * characters . and @ are allowed as are typically used
+         * */
+        disallowedChars: `()<>[]:;\\,+ `;
+    };
     domain: DefaultDomainParams;
-    localPart: DefaultLocalPart;
 };
-export type EmailParams = StringValidatorsParams & {
-    localPart?: StringValidatorsParams;
-    domain?: DomainParams;
+export type EmailParams = {
+    maxLength: number;
+    localPart: StringValidatorsParams & {allow};
+    domain: DomainParams;
 };
 
-export type Email<E extends EmailParams = {}> = TypeFormat<string, 'email', DefaultEmailParams & E>;
+export type Email<E extends DeepPartial<EmailParams> = {}> = TypeFormat<string, 'email', DefaultEmailParams & E>;
 
 // Email validator
 export class EmailFormat extends JitRunTypeFormatter<EmailParams> {
     static id = 'email';
     kind = ReflectionKind.string;
     name = EmailFormat.id;
+    getIsDomainDeps(comp: JitCompiler, rt: BaseRunType, params: EmailParams) {
+        const fnId = JitFunctions.isType.id;
+        const isLocalPartFn = stringFormatter._compile(fnId, comp, rt, params.localPart, this.getFormatPath('localPart'));
+        return {
+            isDomainFn: isDomain,
+            isLocalPartFn: `function(${comp.vλl}){return ${isLocalPartFn}}`,
+            ...domainFormatter.getIsDomainDeps(comp, rt, params.domain),
+        };
+    }
     _compileIsType(comp: JitCompiler, rt: BaseRunType): string {
-        return compilePureFunctionCall(comp, rt, this, isEmail).callCode;
+        const params = this.getParams(rt);
+        const deps = this.getIsDomainDeps(comp, rt, params);
+        const result = this.compilePureFunctionCall(comp, rt, isEmail, params, deps);
+        return result.callCode;
     }
     _compileTypeErrors(comp: JitErrorsCompiler, rt: BaseRunType): string {
-        return compileErrorsPureFunctionCall(comp, rt, this, emailErrors).callCode;
+        return this.compileErrorsPureFunctionCall(comp, rt, emailErrors).callCode;
     }
     _mock(mockContext: MockOperation, rt: BaseRunType) {
         const params = this.getParams(rt);
@@ -69,40 +75,52 @@ export class EmailFormat extends JitRunTypeFormatter<EmailParams> {
     }
 }
 
+export type IsEmailDeps = {
+    isDomainFn: ReturnType<typeof isDomain>;
+    isLocalPartFn: GenericPureFunction<StringValidatorsParams>;
+} & isDomainDeps;
+
 /** @reflection never */
-export function isEmail(utl: JITUtils) {
-    const isStr = utl.getPureFn('isStringFormat') as ReturnType<typeof isStringFormat>;
-    const isDom = utl.getPureFn('isDomain') as ReturnType<typeof isDomain>;
-    return function is_email(email: string, p: DeepRequired<EmailParams>): boolean {
-        if (email.length > 254) return false;
+export function isEmail() {
+    return function is_email(email: string, p: EmailParams, deps: IsEmailDeps): boolean {
+        if (email.length > p.maxLength) return false;
         const parts = email.split('@');
         if (parts.length !== 2) return false;
         const [local, domainStr] = parts;
-        if (!isStr(local, p.localPart)) return false;
-        if (!isDom(domainStr, p.domain)) return false;
-        return true;
-    } as GenericPureFunction<EmailParams>;
+        if (!deps.isLocalPartFn(local, p.localPart)) return false;
+        return deps.isDomainFn(domainStr, p.domain, deps);
+    } as GenericPureFunctionWithDeps<EmailParams>;
 }
+
+type EmailErrorsDeps = {
+    domainErrorsFn: ReturnType<typeof domainErrors>;
+};
 
 /** @reflection never */
 export function emailErrors(utl: JITUtils) {
-    const strErr = utl.getPureFn('stringFormatErrors') as ReturnType<typeof stringFormatErrors>;
-    const domErr = utl.getPureFn('domainErrors') as ReturnType<typeof domainErrors>;
-    return function email_errors(email: string, p: EmailParams): InvalidFormatParams | undefined {
-        if (email.length > 254) invalid.maxLength = 254;
-        const parts = email.split('@');
-        const invalid: Record<string, any> = {};
-        if (parts.length !== 2) return {email: 'invalid format'};
+    const strFormatErr = utl.getPureFn('stringFormatErrors') as ReturnType<typeof stringFormatErrors>;
+    return function email_errors(
+        d: string,
+        p: EmailParams,
+        fPath: (string | number)[],
+        fErr: TypeFormatError[] = [],
+        name = 'email',
+        deps: EmailErrorsDeps
+    ): TypeFormatError[] {
+        if (d.length > p.maxLength) fErr.push({name, formatPath: [...fPath], val: d});
+        const parts = d.split('@');
+        if (parts.length !== 2) {
+            fErr.push({name, formatPath: [...fPath], val: d});
+            return fErr;
+        }
         const [local, domainStr] = parts;
-        const localErr = strErr(local, p.localPart);
-        const domainErrVal = domErr(domainStr, p.domain);
-        if (localErr) invalid.localPart = localErr;
-        if (domainErrVal) invalid.domain = domainErrVal;
-        return Object.keys(invalid).length ? invalid : undefined;
-    } as GenericPureFunction<EmailParams>;
+        strFormatErr(local, p.localPart, [...fPath, 'tld'], fErr, name);
+        deps.domainErrorsFn(domainStr, p.domain, [...fPath, 'domain'], fErr, name);
+        return fErr;
+    } as ErrorsPureFunctionWithDeps<EmailParams>;
 }
 
 // ######### Registering validator and pure functions ########
-registerPureFnClosure(isEmail, [isStringFormat, isDomain]);
+registerPureFnClosure(isEmail, [isDomain]);
 registerPureFnClosure(emailErrors, [stringFormatErrors, domainErrors]);
 export const emailFormatter = registerFormatter(new EmailFormat());

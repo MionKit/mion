@@ -5,10 +5,11 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 import {maxStackDepth, maxUnknownKeys} from '../constants';
-import type {CompiledPureFunction, JitCompiled, PureFunction, RunTypeError, TypeFormatError, TypeFormatParams} from '../types';
-import {type BaseCompiler} from './jitCompiler';
+import type {CompiledPureFunction, JitCompiled, PureFunction, RunTypeError, TypeFormatError} from '../types';
+import type {BaseCompiler} from './jitCompiler';
 
 export type JITUtils = typeof jitUtils;
+type StrNumber = string | number;
 
 // eslint-disable-next-line no-control-regex
 const STR_ESCAPE = /[\u0000-\u001f\u0022\u005c\ud800-\udfff]/;
@@ -81,8 +82,8 @@ export const jitUtils = {
         return !!jitTypesCache.get(key)?.fn;
     },
     // !!! DO NOT MODIFY METHOD WITHOUT REVIEWING JIT CODE INVOCATIONS!!!
-    getUnknownKeysFromSet(obj: Record<string | number, any>, keys: Set<string | number>): (string | number)[] {
-        const unknownKeys: (string | number)[] = [];
+    getUnknownKeysFromSet(obj: Record<StrNumber, any>, keys: Set<StrNumber>): StrNumber[] {
+        const unknownKeys: StrNumber[] = [];
         for (const prop in obj) {
             if (!keys.has(prop)) {
                 unknownKeys.push(prop);
@@ -91,8 +92,8 @@ export const jitUtils = {
         }
         return unknownKeys;
     },
-    getUnknownKeysFromArray(obj: Record<string | number, any>, keys: (string | number)[]): (string | number)[] {
-        const unknownKeys: (string | number)[] = [];
+    getUnknownKeysFromArray(obj: Record<StrNumber, any>, keys: StrNumber[]): StrNumber[] {
+        const unknownKeys: StrNumber[] = [];
         for (const prop in obj) {
             let found = false;
             for (let j = 0; j < keys.length; j++) {
@@ -109,7 +110,7 @@ export const jitUtils = {
         return unknownKeys;
     },
     // !!! DO NOT MODIFY METHOD WITHOUT REVIEWING JIT CODE INVOCATIONS!!!
-    hasUnknownKeysFromArray(obj: Record<string | number, any>, keys: (string | number)[]): boolean {
+    hasUnknownKeysFromArray(obj: Record<StrNumber, any>, keys: StrNumber[]): boolean {
         for (const prop in obj) {
             // iterates over the object keys and if not found prop adds to unknownKeys
             let found = false;
@@ -123,26 +124,34 @@ export const jitUtils = {
         }
         return false;
     },
-    hasUnknownKeysFromSet(obj: Record<string | number, any>, keys: Set<string | number>): boolean {
+    hasUnknownKeysFromSet(obj: Record<StrNumber, any>, keys: Set<StrNumber>): boolean {
         for (const prop in obj) {
             if (!keys.has(prop)) return true;
         }
         return false;
     },
     // !!! DO NOT MODIFY METHOD WITHOUT REVIEWING JIT CODE INVOCATIONS!!!
-    err(
-        err: RunTypeError[],
-        staticPath: (string | number)[],
-        currentPath: (string | number)[],
+    err(pλth: readonly StrNumber[], εrr: RunTypeError[], expected: string, accessPath?: readonly StrNumber[]) {
+        const path = accessPath?.length ? [...pλth, ...accessPath] : [...pλth];
+        const runTypeErr: RunTypeError = {expected, path};
+        εrr.push(runTypeErr);
+    },
+    formatErr(
+        pλth: StrNumber[],
+        εrr: RunTypeError[],
         expected: string,
-        format?: TypeFormatError
+        fmtName: string,
+        paramName: string,
+        paramVal: StrNumber,
+        fmtPath: StrNumber[],
+        accessPath?: StrNumber[],
+        fmtAccessPath?: StrNumber[]
     ) {
-        const runTypeErr: RunTypeError = {
-            expected,
-            path: staticPath.length ? [...staticPath, ...currentPath] : currentPath,
-        };
-        if (format) runTypeErr.format = format;
-        err.push(runTypeErr);
+        const path = accessPath?.length ? [...pλth, ...accessPath] : pλth;
+        const formatPath = fmtAccessPath?.length ? [...fmtAccessPath, ...fmtPath, paramName] : [...fmtPath, paramName];
+        const format: TypeFormatError = {name: fmtName, formatPath: formatPath, val: paramVal};
+        const runTypeErr: Required<RunTypeError> = {expected, path, format};
+        εrr.push(runTypeErr);
     },
     // !!! DO NOT MODIFY METHOD WITHOUT REVIEWING JIT CODE INVOCATIONS!!!
     safeKey(value: any): any {
@@ -155,13 +164,13 @@ export const jitUtils = {
         if (existing) return existing;
         pureFnsCache.set(compiledFn.name, compiledFn);
     },
-    usePureFn(name: string): PureFunction<TypeFormatParams> {
+    usePureFn(name: string): PureFunction {
         const compiled = pureFnsCache.get(name);
         if (!compiled) throw new Error(`Pure function with name ${name} not found`);
         initPureFunction(compiled);
         return compiled.fn;
     },
-    getPureFn(name: string): PureFunction<TypeFormatParams> | undefined {
+    getPureFn(name: string): PureFunction | undefined {
         const compiled = pureFnsCache.get(name);
         if (!compiled) return;
         initPureFunction(compiled);
@@ -198,7 +207,7 @@ function initPureFunction(compiled: CompiledPureFunction): asserts compiled is R
             // this is to ensure that the deserialization process is working correctly
             // this process is not needed in production as the original function is used
             const newWithCtx = paramNames.length ? new Function(...paramNames, body) : new Function(body);
-            compiled.fn = newWithCtx(jitUtils) as PureFunction<any>;
+            compiled.fn = newWithCtx(jitUtils) as PureFunction;
             return;
         } catch (error: any) {
             console.warn(`Pure ${compiled.name} can not be deserialized. Function code:\n${compiled.originClosureFn.toString()}`);

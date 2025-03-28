@@ -6,26 +6,23 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
+// !Important: TypeFormat cant be imported as type for the runType functionality to work
+import {TypeFormat} from '@mionkit/runtype/src/lib/formats.runtype';
+import {
+    GenericPureFunction,
+    MockOperation,
+    type ErrorsPureFunction,
+    type RunTypeError,
+    type StrNumber,
+} from '@mionkit/runtype/src/types';
 import type {BaseRunType} from '@mionkit/runtype/src/lib/baseRunTypes';
 import type {JitCompiler, JitErrorsCompiler} from '@mionkit/runtype/src/lib/jitCompiler';
+import type {JITUtils} from '@mionkit/runtype/src/lib/jitUtils';
 import {JitRunTypeFormatter} from '@mionkit/runtype/src/lib/baseFormatter';
 import {ReflectionKind} from '@deepkit/type';
-import {TypeFormat} from '@mionkit/runtype/src/lib/formats.runtype'; // !Important: TypeFormat cant be imported as type for all runType functionality to work
-import {
-    ErrorsPureFunctionWithDeps,
-    GenericPureFunction,
-    GenericPureFunctionWithDeps,
-    MockOperation,
-    TypeFormatError,
-} from '@mionkit/runtype/src/types';
 import {dateFunctions, DateStringParams, dateStringValidator, DefaultDateParams} from './date.runtype';
 import {DefaultTimeParams, timeFunctions, TimeStringParams, timeStringValidator} from './time.runtype';
-import {
-    compileErrorsPureFunctionCall,
-    compilePureFunctionCall,
-    registerFormatter,
-    registerPureFnClosure,
-} from '@mionkit/runtype/src/lib/formats';
+import {registerFormatter, registerPureFnClosure} from '@mionkit/runtype/src/lib/formats';
 import {toLiteral} from '@mionkit/runtype/src/lib/utils';
 
 export type StringDateTimeParams = {
@@ -62,12 +59,12 @@ export class DateTimeFormat extends JitRunTypeFormatter<StringDateTimeParams> {
     _compileIsType(comp: JitCompiler, rt: BaseRunType): string {
         const params = this.getParams(rt);
         const dependencies = this.getIsDateTimeDependencies(params);
-        return compilePureFunctionCall(comp, rt, this, isDateTime, params, dependencies).callCode;
+        return this.compilePureFunctionCall(comp, rt, isDateTime, params, dependencies).callCode;
     }
     _compileTypeErrors(comp: JitErrorsCompiler, rt: BaseRunType): string {
         const params = this.getParams(rt);
         const dependencies = this.getIsDateTimeDependencies(params);
-        return compileErrorsPureFunctionCall(comp, rt, this, dateTimeErrors, params, dependencies).callCode;
+        return this.compileErrorsPureFunctionCall(comp, rt, dateTimeErrors, params, dependencies).callCode;
     }
     _mock(mockContext: MockOperation, rt: BaseRunType) {
         const params = this.getParams(rt);
@@ -90,30 +87,36 @@ function isDateTime() {
     return function is_date_time(dt: string, p: StringDateTimeParams, deps: DateTimeDeps): boolean {
         const parts = dt.split(p.splitChar);
         if (parts.length !== 2) return false;
-        return deps.isDateFn(parts[0], p.date) && deps.isTimeFn(parts[1], p.time);
-    } as GenericPureFunctionWithDeps<StringDateTimeParams>;
+        return deps.isDateFn(parts[0], p.date, deps) && deps.isTimeFn(parts[1], p.time, deps);
+    } as GenericPureFunction<StringDateTimeParams>;
 }
 
 /** @reflection never */
-export function dateTimeErrors() {
+export function dateTimeErrors(utl: JITUtils) {
     return function date_time_errors(
-        dt: string,
+        dt: any,
+        err: RunTypeError[],
+        stPath: StrNumber[],
+        path: StrNumber[],
+        exp: string,
         p: StringDateTimeParams,
-        fPath: (string | number)[],
-        errs: TypeFormatError[] = [],
-        name: string = 'dateTime',
+        fName: string,
+        fPath: StrNumber[],
         deps: DateTimeDeps
-    ): TypeFormatError[] {
-        const parts = dt.split(p.splitChar);
-        if (parts.length === 2) {
-            if (!deps.isDateFn(parts[0], p.date)) errs.push({name, formatPath: [...fPath, 'date', 'format'], val: p.date.format});
-            if (!deps.isTimeFn(parts[1], p.time)) errs.push({name, formatPath: [...fPath, 'time', 'format'], val: p.time.format});
-        } else {
-            errs.push({name, formatPath: [...fPath, 'date', 'format'], val: p.date.format});
-            errs.push({name, formatPath: [...fPath, 'time', 'format'], val: p.time.format});
+    ): RunTypeError[] {
+        const index = dt.indexOf(p.splitChar);
+        if (index === -1) {
+            utl.formatErr(err, stPath, path, exp, fName, 'splitChar', p.splitChar, fPath);
+            return err;
         }
-        return errs;
-    } as ErrorsPureFunctionWithDeps<StringDateTimeParams>;
+        const datePart = dt.substring(0, index);
+        const timePart = dt.substring(index + p.splitChar.length);
+        if (!deps.isDateFn(datePart, p.date, deps))
+            utl.formatErr(err, stPath, path, exp, fName, 'format', p.date.format, [...fPath, 'date']);
+        if (!deps.isTimeFn(timePart, p.time, deps))
+            utl.formatErr(err, stPath, path, exp, fName, 'format', p.time.format, [...fPath, 'time']);
+        return err;
+    } as ErrorsPureFunction<StringDateTimeParams>;
 }
 
 // ######### Registering validator and pure functions ########

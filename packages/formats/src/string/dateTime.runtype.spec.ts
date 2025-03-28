@@ -45,6 +45,12 @@ it('get datetime errors for format ISO', async () => {
         path: [],
         format: {name: 'dateTime', formatPath: ['time', 'format'], val: 'ISO'},
     };
+    const splitCharError: RunTypeError = {
+        expected: 'string',
+        path: [],
+        format: {name: 'dateTime', formatPath: ['splitChar'], val: 'T'},
+    };
+
     // valid datetime
     expect(typeErrors('2023-01-01T00:00:00Z')).toEqual([]);
     expect(typeErrors('0000-12-31T23:59:59Z')).toEqual([]);
@@ -58,8 +64,9 @@ it('get datetime errors for format ISO', async () => {
     expect(typeErrors('2023-01-01T00:00:60Z')).toEqual([timeError]);
     // invalid characters
     expect(typeErrors('2023-01-01T00:00:00!Z')).toEqual([timeError]);
+    // missing splitChar
+    expect(typeErrors('2023-01-01')).toEqual([splitCharError]);
     // wrong length
-    expect(typeErrors('2023-01-01')).toEqual([dateError, timeError]);
     expect(typeErrors('2023-01-01T00:00')).toEqual([timeError]);
 });
 
@@ -105,7 +112,11 @@ it('get datetime errors for format MM-DDTHH', async () => {
         path: [],
         format: {name: 'dateTime', formatPath: ['time', 'format'], val: 'HH'},
     };
-
+    const splitCharError: RunTypeError = {
+        expected: 'string',
+        path: [],
+        format: {name: 'dateTime', formatPath: ['splitChar'], val: 'T'},
+    };
     // valid datetime
     expect(typeErrors('01-01T00')).toEqual([]);
     expect(typeErrors('12-31T23')).toEqual([]);
@@ -117,7 +128,7 @@ it('get datetime errors for format MM-DDTHH', async () => {
     // invalid characters
     expect(typeErrors('01-01T0!')).toEqual([timeError]);
     // wrong length
-    expect(typeErrors('01-01')).toEqual([dateError, timeError]);
+    expect(typeErrors('01-01')).toEqual([splitCharError]);
     expect(typeErrors('01-01T00:00')).toEqual([timeError]);
 });
 

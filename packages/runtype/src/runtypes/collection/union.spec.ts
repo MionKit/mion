@@ -120,10 +120,10 @@ describe('Atomic Union', () => {
 
         const rtNoop = runType<atomicNoEncRequired>() as BaseRunType;
         const rtEncRequired = runType<atomicEncRequired>() as BaseRunType;
-        expect(rtNoop.getJitCompiledFunction(JitFunctions.toJsonVal.id).isNoop).toBe(false);
-        expect(rtNoop.getJitCompiledFunction(JitFunctions.fromJsonVal.id).isNoop).toBe(false);
-        expect(rtEncRequired.getJitCompiledFunction(JitFunctions.toJsonVal.id).isNoop).toBe(false);
-        expect(rtEncRequired.getJitCompiledFunction(JitFunctions.fromJsonVal.id).isNoop).toBe(false);
+        expect(rtNoop.createJitCompiledFunction(JitFunctions.toJsonVal.id).isNoop).toBe(false);
+        expect(rtNoop.createJitCompiledFunction(JitFunctions.fromJsonVal.id).isNoop).toBe(false);
+        expect(rtEncRequired.createJitCompiledFunction(JitFunctions.toJsonVal.id).isNoop).toBe(false);
+        expect(rtEncRequired.createJitCompiledFunction(JitFunctions.fromJsonVal.id).isNoop).toBe(false);
     });
 });
 

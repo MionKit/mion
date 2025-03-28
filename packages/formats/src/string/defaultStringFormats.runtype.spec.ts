@@ -6,7 +6,7 @@
  * ######## */
 
 import {isTypeFn, mockTypeFn, typeErrorsFn} from '@mionkit/runtype/src/functions';
-import {StringFormat} from './string.runtype';
+import {StringFormat} from './stringFormat.runtype';
 import {
     AlphaNumericString,
     AlphaString,
@@ -25,7 +25,7 @@ it('validate string alpha', async () => {
 });
 it('get alpha string errors', async () => {
     const typeErrors = await typeErrorsFn<AlphaString<{minLength: 3}>>();
-    const format: TypeFormatError = {name: 'strFormat'};
+    const format: TypeFormatError = {name: 'strFormat', formatPath: [], val: ''};
     const expectedError: RunTypeError = {expected: 'string', path: [], format};
     expect(typeErrors('abcdef')).toEqual([]);
     expect(typeErrors('ab')).toEqual([{...expectedError, format: {...format, formatPath: ['minLength'], val: 3}}]);
@@ -56,7 +56,7 @@ it('validate string alpha numeric', async () => {
 });
 it('get alpha numeric string errors', async () => {
     const typeErrors = await typeErrorsFn<AlphaNumericString<{minLength: 3}>>();
-    const format: TypeFormatError = {name: 'strFormat'};
+    const format: TypeFormatError = {name: 'strFormat', formatPath: [], val: ''};
     const expectedError: RunTypeError = {expected: 'string', path: [], format};
     expect(typeErrors('abcd2891')).toEqual([]);
     expect(typeErrors('12342891')).toEqual([]);
@@ -92,7 +92,7 @@ it('validate string numeric', async () => {
 });
 it('get numeric string errors', async () => {
     const typeErrors = await typeErrorsFn<NumericString<{minLength: 3; maxLength: 5}>>();
-    const format: TypeFormatError = {name: 'strFormat'};
+    const format: TypeFormatError = {name: 'strFormat', formatPath: [], val: ''};
     const expectedError: RunTypeError = {expected: 'string', path: [], format};
     const numericError: TypeFormatError = {name: 'strFormat', formatPath: ['pattern'], val: 'only numeric values are allowed'};
     expect(typeErrors('1234')).toEqual([]);

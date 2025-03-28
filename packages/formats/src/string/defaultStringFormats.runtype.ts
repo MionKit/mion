@@ -6,7 +6,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {StringFormat, StringFormatParams} from './string.runtype';
+import {StringFormat, StringFormatParams} from './stringFormat.runtype';
 
 // ############### Default String Formats ###############
 

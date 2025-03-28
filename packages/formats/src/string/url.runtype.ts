@@ -8,7 +8,7 @@
  * ######## */
 import type {BaseRunType} from '../../../runtype/src/lib/baseRunTypes';
 import type {JitCompiler, JitErrorsCompiler} from '../../../runtype/src/lib/jitCompiler';
-import {compilePureFunctionCall, registerFormatter, registerPureFnClosure} from '../../../runtype/src/lib/formats';
+import {registerFormatter, registerPureFnClosure} from '../../../runtype/src/lib/formats';
 import {JitRunTypeFormatter} from '../../../runtype/src/lib/baseFormatter';
 import {ReflectionKind} from '@deepkit/type';
 import {Domain} from './domain.runtype';
@@ -43,7 +43,7 @@ export class URLValidator extends JitRunTypeFormatter<UrlParams> {
     readonly kind = ReflectionKind.string;
     readonly name = URLValidator.id;
     _compileIsType(comp: JitCompiler, rt: BaseRunType): string {
-        return compilePureFunctionCall(comp, rt, this, isURL).callCode;
+        return this.compilePureFunctionCall(comp, rt, isURL).callCode;
     }
     _mock(mockContext: MockOperation, rt: BaseRunType) {
         // TODO

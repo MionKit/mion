@@ -65,18 +65,19 @@
     "ts-jest": "^29.1.1"
   },
   "workspaces": [
+    "packages/aws",
+    "packages/bun",
+    "packages/client",
+    "packages/codegen",
+    "packages/common",
     "packages/core",
     "packages/eslint-plugin",
-    "packages/runtype",
-    "packages/router",
-    "packages/aws",
+    "packages/formats",
     "packages/gcloud",
-    "packages/bun",
-    "packages/common",
-    "packages/quick-start",
     "packages/http",
-    "packages/client",
-    "packages/codegen"
+    "packages/quick-start",
+    "packages/router",
+    "packages/runtype"
   ],
   "dependencies": {
     "typescript": "^5.3.3"

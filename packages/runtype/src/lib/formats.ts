@@ -16,18 +16,15 @@ import type {
 } from '../types';
 import {typeAnnotation, ReflectionKind} from '@deepkit/type';
 import type {BaseRunType} from './baseRunTypes';
-import {JitErrorsCompiler, type JitCompiler} from './jitCompiler';
-import {JitRunTypeFormatter} from './baseFormatter';
+import type {JitErrorsCompiler, JitCompiler} from './jitCompiler';
+import type {JitRunTypeFormatter} from './baseFormatter';
 import {jitUtils} from './jitUtils';
-import {isSafePropName, toLiteral} from './utils';
-import {createUniqueHash} from './quickHash';
+import {toLiteral, toLiteralInContext} from './utils';
 
 // ################# REGISTER FORMATTERS & PURE FUNCTIONS  #################
 
 const typeAnnotationsCache = new Map<string, JitRunTypeFormatter>();
 const formatterPrefix = 'f';
-// small has size to reduce var names length, as collisions are managed by createUniqueHash thats is ok
-const hashSize = 6;
 
 /** Adds a TypeFormatter or TypeValidator to the formatters cache */
 export function registerFormatter<T extends JitRunTypeFormatter>(operation: T, shouldThrow = false): T {
@@ -43,8 +40,8 @@ export function registerFormatter<T extends JitRunTypeFormatter>(operation: T, s
 }
 
 export function registerPureFnClosure(
-    fnWithCtx: PureFunctionWithClosure<any>,
-    dependencies?: PureFunctionWithClosure<any>[]
+    fnWithCtx: PureFunctionWithClosure,
+    dependencies?: PureFunctionWithClosure[]
 ): CompiledPureFunction {
     const existing = jitUtils.getCompiledPureFn(fnWithCtx.name);
     if (existing && existing.originClosureFn && existing.originClosureFn !== fnWithCtx)
@@ -59,7 +56,7 @@ export function registerPureFnClosure(
     return compiled;
 }
 
-export function registerPureFnClosuresGroup(fnsWithCtx: PureFunctionWithClosure<any>[]): CompiledPureFunction[] {
+export function registerPureFnClosuresGroup(fnsWithCtx: PureFunctionWithClosure[]): CompiledPureFunction[] {
     const compiledFns = fnsWithCtx.map((fn) => registerPureFnClosure(fn));
     compiledFns.forEach((cfn) => {
         compiledFns.forEach((cf) => {
@@ -70,14 +67,14 @@ export function registerPureFnClosuresGroup(fnsWithCtx: PureFunctionWithClosure<
     return compiledFns;
 }
 
-export function getPureFn(fnOrName: string | PureFunctionWithClosure<any>): PureFunction<TypeFormatParams> | undefined {
+export function getPureFn(fnOrName: string | PureFunctionWithClosure): PureFunction | undefined {
     if (typeof fnOrName === 'string') return jitUtils.getPureFn(fnOrName);
     const name = fnOrName.name;
     if (!name) throw new Error('Pure Functions must have a name');
     return jitUtils.getPureFn(name);
 }
 
-export function getCompiledPureFn(fnOrName: string | PureFunctionWithClosure<any>): CompiledPureFunction | undefined {
+export function getCompiledPureFn(fnOrName: string | PureFunctionWithClosure): CompiledPureFunction | undefined {
     if (typeof fnOrName === 'string') return jitUtils.getCompiledPureFn(fnOrName);
     const name = fnOrName.name;
     if (!name) throw new Error('Pure Functions must have a name');
@@ -165,7 +162,7 @@ export function getFormatterParams<P extends TypeFormatParams>(rt: BaseRunType, 
     throw new Error(`Type Formatter ${name} not found for ${rt.getTypeName()}`);
 }
 
-function parsePureFunctionWithCtx(closureFn: PureFunctionWithClosure<any>): CompiledPureFunction {
+function parsePureFunctionWithCtx(closureFn: PureFunctionWithClosure): CompiledPureFunction {
     if (!closureFn.name) throw new Error('Pure Functions must have a name');
 
     const fnString = closureFn.toString();
@@ -207,59 +204,7 @@ function parsePureFunctionWithCtx(closureFn: PureFunctionWithClosure<any>): Comp
 
 // ################# COMPILING  #################
 
-/**
- * Adds an existing pure function to the context and return code calling it.
- * The function must have a name, be pure, have no side effects and no dependencies, otherwise compiled code will not work.
- * The pure function is transformed into code simply by calling toString() on it.
- * All parameters must be passed as a single params object.
- */
-export function compilePureFunctionCall(
-    comp: JitCompiler,
-    rt: BaseRunType,
-    ft: JitRunTypeFormatter,
-    pureFn: PureFunctionWithClosure<any>,
-    params?: TypeFormatValue,
-    dependenciesParams?: Record<string, string>
-): {callCode: string; fnName: string; paramsName: string; dependenciesName?: string} {
-    const fnName = compilePureFunctionContext(comp, pureFn);
-    const {paramsName, dependenciesName} = compileAddParamsToCtx(
-        comp,
-        params || ft.getParams(rt),
-        ft.ignoreJitParams,
-        dependenciesParams
-    );
-    // call the pure function, passing value, jitUtils and params (pure function arguments)
-    const depsCode = dependenciesName ? `,${dependenciesName}` : '';
-    return {callCode: `${fnName}(${comp.vλl},${paramsName}${depsCode})`, fnName, paramsName, dependenciesName};
-}
-
-export function compileErrorsPureFunctionCall(
-    comp: JitErrorsCompiler,
-    rt: BaseRunType,
-    ft: JitRunTypeFormatter,
-    pureFn: PureFunctionWithClosure<any>,
-    params?: TypeFormatValue,
-    dependenciesParams?: Record<string, string | PureFunctionWithClosure<any>>
-): {callCode: string; fnName: string; paramsName: string; dependenciesName?: string} {
-    const fnName = compilePureFunctionContext(comp, pureFn);
-    const {paramsName, dependenciesName, formatPathName} = compileAddParamsToCtx(
-        comp,
-        params || ft.getParams(rt),
-        ft.ignoreJitParams,
-        dependenciesParams,
-        ft.parentPath || []
-    );
-    const pathItems = comp.getStackStaticPathArgs();
-    const expectLiteral = toLiteral(rt.getKindName());
-    // call the pure function, passing value, jitUtils and params (pure function arguments)
-    const pureFnParams = [comp.vλl, paramsName, formatPathName, '[]', toLiteral(ft.name)]; // ErrorsPureFunction params [value, params, path, formatPath, formatName]
-    if (dependenciesName) pureFnParams.push(dependenciesName);
-    const errParams = [comp.args.εrr, comp.args.pλth, `[${pathItems}]`, expectLiteral]; // jitUtils.err parameters
-    const callJitErr = `${fnName}(${pureFnParams.join(',')}).forEach((fmtErr) => utl.err(${errParams.join()},fmtErr));`;
-    return {callCode: callJitErr, fnName, paramsName, dependenciesName};
-}
-
-export function compilePureFunctionContext(comp: JitCompiler | JitErrorsCompiler, pureFn: PureFunctionWithClosure<any>): string {
+export function compileAddPureFunctionContext(comp: JitCompiler | JitErrorsCompiler, pureFn: PureFunctionWithClosure): string {
     const fnName = pureFn.name;
     if (!fnName) throw new Error('Pure function must have a name');
     registerPureFnClosure(pureFn); // will throw if there is a different pure function with the same name
@@ -271,115 +216,41 @@ export function compilePureFunctionContext(comp: JitCompiler | JitErrorsCompiler
     return fnName;
 }
 
-export function compileAddParamsToCtx(
-    comp: JitCompiler | JitErrorsCompiler,
-    params: TypeFormatValue,
-    ignoreJitParams?: string[],
-    dependenciesParams?: Record<string, string | PureFunctionWithClosure<any>>,
-    path?: (string | number)[]
-): {paramsName: string; dependenciesName?: string; formatPathName?: string} {
-    const literal = typeParamsToLiteral(comp, params, ignoreJitParams || []);
-    const hash = createUniqueHash('ar-' + literal, hashSize);
-    const paramsName = `ar${hash}`; //TODO: we might need to add a name based on the type formatter;
-    let dependenciesName: string | undefined = undefined;
-    let formatPathName: string | undefined = undefined;
-
-    if (!comp.contextCodeItems.has(paramsName)) {
-        const paramsCode = `const ${paramsName} = ${literal}`;
-        comp.contextCodeItems.set(paramsName, paramsCode);
-    }
-    if (dependenciesParams) {
-        const dependenciesLiteral = objectToLiteral(comp, dependenciesParams, [], 'dc');
-        dependenciesName = `de${createUniqueHash(('de-' + dependenciesLiteral) as string, hashSize)}`;
-        if (!comp.contextCodeItems.has(dependenciesName)) {
-            const dependenciesCode = `const ${dependenciesName} = ${dependenciesLiteral}`;
-            comp.contextCodeItems.set(dependenciesName, dependenciesCode);
-        }
-    }
-    if (path) {
-        const pathLiteral = typeParamsToLiteral(comp, path, []);
-        formatPathName = `pa${createUniqueHash('pa-' + pathLiteral, hashSize)}`;
-        if (!comp.contextCodeItems.has(formatPathName)) {
-            const pathCode = `const ${formatPathName} = ${pathLiteral}`;
-            comp.contextCodeItems.set(formatPathName, pathCode);
-        }
-    }
-    return {paramsName, dependenciesName, formatPathName};
-}
-
-export function getParamsHash(
-    comp: JitCompiler | JitErrorsCompiler | undefined,
-    params: TypeFormatValue,
-    ignoreProps?: string[]
-): string {
-    const literal = typeParamsToLiteral(comp, params, ignoreProps || []);
-    return createUniqueHash(literal, hashSize);
-}
-
 // TODO, read ignoreProps from multiple formatters, rather than a constant here
 export const defaultIgnoreFormatProps = ['samples', 'sampleChars'];
 
 /**
  * Transforms a params object into a literal string to be used in JIT code.
- * // TODO: we might want to cache the generated jit code for the params
+ * ie: {total: 5, name: 'hello'} gets transformed into teh string '{total: 5, name: "hello"}' that can be used as JIT code.
+ * Some literals are automatically added to the context to reduce code size. in this case the reference to the context variable is returned.
+ *
+ * @param comp
  * @param params
  * @param ignoreProps
  * @returns
  */
-export function typeParamsToLiteral(
-    comp: JitCompiler | JitErrorsCompiler | undefined,
-    params: TypeFormatValue,
-    ignoreProps: string[]
-): string {
-    switch (true) {
-        case typeof params === 'string':
-            return toLiteral(params);
-        case typeof params === 'number':
-            return `${params}`;
-        case typeof params === 'boolean':
-            return params ? 'true' : 'false';
-        case params instanceof RegExp:
-            return params.toString();
-        case Array.isArray(params):
-            return `[${params.map((v) => typeParamsToLiteral(comp, v, ignoreProps)).join(', ')}]`;
-        case typeof params === 'object': {
-            return objectToLiteral(comp, params, ignoreProps, 'l');
-        }
-        default:
-            throw new Error(`Unsupported type format params ${params}`);
-    }
+export function paramsToLiteral(comp: JitCompiler | JitErrorsCompiler, params: TypeFormatValue, ignoreProps: string[] = []) {
+    return toLiteralInContext(comp, params, ignoreProps, false);
 }
 
-function objectToLiteral(
-    comp: JitCompiler | JitErrorsCompiler | undefined,
-    obj: Record<string, any>,
-    ignoreProps: string[],
-    propType: 'l' | 'dc'
-): string {
-    const entriesLiterals = Object.entries(obj).map(([k, v]) => {
-        if (ignoreProps.includes(k) || typeof v === 'undefined') return undefined;
-        const propName = isSafePropName(k) ? k : toLiteral(k);
-        return `${propName}:${propValueToLiteral(comp, v, ignoreProps, propType)}`;
-    });
-    return `{${entriesLiterals.filter(Boolean).join(',')}}`;
+export function getToLiteralFn(comp: JitCompiler | JitErrorsCompiler, ignoreProps: string[] = []) {
+    return (params: TypeFormatValue) => paramsToLiteral(comp, params, ignoreProps);
 }
 
-function propValueToLiteral(
-    comp: JitCompiler | JitErrorsCompiler | undefined,
-    propVal: any,
-    ignoreProps: string[],
-    propType: 'l' | 'dc'
-): string {
-    switch (propType) {
-        case 'l':
-            return typeParamsToLiteral(comp, propVal, ignoreProps);
-        case 'dc':
-            if (typeof propVal === 'function') {
-                if (!comp) throw new Error('Dependencies must be pure functions or code');
-                comp.addPureFnDependency(propVal);
-                return `utl.getPureFn(${toLiteral(propVal.name)})`;
-            }
-            if (typeof propVal === 'string') return propVal;
-            throw new Error('Dependencies must be pure functions or code');
-    }
+/**
+ * Transforms a dependencies object into a string literal that can be used as JIT code.
+ * Dependencies object can contain pure functions or code.
+ * Pure functions will be load as dependency using jitUtils.getPureFn, and code will be left as is.
+ * ie: {helloFn: function hello(){}, code: 'v + 2'} gets transformed into the string '{helloFn: utl.getPureFn("hello"), code: v + 2}'
+ * @param comp
+ * @param params
+ * @param ignoreProps
+ * @returns
+ */
+export function dependenciesToLiteral(
+    comp: JitCompiler | JitErrorsCompiler,
+    params: Record<string, string | PureFunctionWithClosure>,
+    ignoreProps: string[] = []
+) {
+    return toLiteralInContext(comp, params, ignoreProps, true);
 }
