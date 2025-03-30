@@ -265,14 +265,15 @@ export type PureFunctionDeps = Record<string, PureFunction>;
 export type GenericPureFunction<P extends TypeFormatValue> = (val: any, formatParams: P, deps: PureFunctionDeps) => any;
 export type ErrorsPureFunction<P extends TypeFormatValue> = (
     val: any,
-    path: StrNumber[],
-    err: RunTypeError[],
+    pλth: StrNumber[],
+    εrr: RunTypeError[],
     expected: string,
-    formatParams: P,
     formatName: string,
+    formatParams: P,
     formatPath: StrNumber[],
     deps: PureFunctionDeps,
-    jitPath?: StrNumber[]
+    accessPath?: StrNumber[],
+    fmtAccessPath?: StrNumber[]
 ) => RunTypeError[];
 export type PureFunction = (...args: any[]) => any;
 

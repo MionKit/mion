@@ -32,7 +32,7 @@ export class UUID_Format extends JitRunTypeFormatter<UUID_Params> {
         const params = this.getParams(rt);
         const isTypeCode = this._compileIsType(comp, rt);
         if (!isTypeCode) return '';
-        const errFn = comp.getCallJitFormatErr(rt, this);
+        const errFn = this.getCallJitFormatErr(comp, rt, this);
         return `if (!(${isTypeCode})) ${errFn('version', params.version)}`;
     }
     _mock(mockContext: MockOperation, rt: BaseRunType) {

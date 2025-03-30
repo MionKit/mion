@@ -52,14 +52,16 @@ const defaultMessages = {
     disallowedValues: 'Invalid value',
     pattern: 'Invalid pattern',
 };
-const ignoreJitParams = ['samples', 'sampleChars'];
+export const stringIgnoreProps = ['samples', 'sampleChars'];
 
 // ############### Validator ###############
 class StringFormatter extends JitRunTypeFormatter<StringFormatParams> {
     static readonly id = 'strFormat' as const;
     readonly kind = ReflectionKind.string;
     readonly name = StringFormatter.id;
-    readonly ignoreJitParams = ignoreJitParams;
+    getIgnoredProps(): string[] | undefined {
+        return stringIgnoreProps;
+    }
     _compileFormat(comp: JitCompiler, rt: BaseRunType): string | undefined {
         const operations: ((v) => string)[] = [];
         const p = this.getParams(rt);
@@ -77,7 +79,7 @@ class StringFormatter extends JitRunTypeFormatter<StringFormatParams> {
         const conditions: string[] = [];
         const p = this.getParams(rt);
         const vλl = comp.vλl;
-        const literalFn = getToLiteralFn(comp, this.ignoreJitParams);
+        const literalFn = getToLiteralFn(comp, this.getIgnoredProps());
         if (p.maxLength !== undefined) conditions.push(`${vλl}.length <= ${literalFn(p.maxLength)}`);
         if (p.minLength !== undefined) conditions.push(`${vλl}.length >= ${literalFn(p.minLength)}`);
         if (p.length !== undefined) conditions.push(`${vλl}.length === ${literalFn(p.length)}`);
@@ -98,8 +100,8 @@ class StringFormatter extends JitRunTypeFormatter<StringFormatParams> {
         const conditions: string[] = [];
         const p = this.getParams(rt);
         const vλl = comp.vλl;
-        const literalFn = getToLiteralFn(comp, this.ignoreJitParams);
-        const errFn = comp.getCallJitFormatErr(rt, this);
+        const literalFn = getToLiteralFn(comp, this.getIgnoredProps());
+        const errFn = this.getCallJitFormatErr(comp, rt, this, true);
         if (p.maxLength !== undefined) {
             const errCode = errFn('maxLength', p.maxLength);
             conditions.push(`if (${vλl}.length > ${literalFn(p.maxLength)}) ${errCode}`);
@@ -139,23 +141,25 @@ class StringFormatter extends JitRunTypeFormatter<StringFormatParams> {
     }
     _mock(mockContext: MockOperation, rt: BaseRunType, params?: StringFormatParams): string {
         const p = params || this.getParams(rt);
-        if (p.pattern?.samples) {
-            return randomItem(p.pattern.samples);
-        }
-        if (p.allowedValues) {
-            return randomItem(p.allowedValues.allowed);
-        }
-        if (p.pattern?.sampleChars) {
-            const newAllowedChars = p.allowedChars ? p.allowedChars.allowed + p.pattern.sampleChars : p.pattern.sampleChars;
+        if (p.allowedValues) return randomItem(p.allowedValues.allowed);
+
+        const samples = p.pattern?.samples || p.disallowedChars?.samples || p.disallowedValues?.samples;
+        if (samples) return randomItem(samples);
+
+        const sampleChars = p.pattern?.sampleChars;
+        if (sampleChars) {
+            const newAllowedChars = p.allowedChars ? p.allowedChars.allowed + sampleChars : sampleChars;
             const newMinLength = p.minLength ? p.minLength : 1; // patterns will fail if generated string length is 0
+            const message = p.allowedChars?.message || p.disallowedChars?.message || p.pattern?.message;
             const newParams = {
                 ...p,
                 pattern: undefined,
-                allowedChars: {allowed: newAllowedChars, message: p.pattern.message},
+                allowedChars: {allowed: newAllowedChars, message},
                 minLength: newMinLength,
             };
             return this._mock(mockContext, rt, newParams);
         }
+
         switch (true) {
             case p.length !== undefined:
                 return mockString(p.length, p.allowedChars?.allowed, p.disallowedChars?.disallowed);

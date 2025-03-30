@@ -77,7 +77,7 @@ export class DateTimeFormat extends JitRunTypeFormatter<StringDateTimeParams> {
 
 // ######### Pure functions ########
 
-type DateTimeDeps = {
+export type DateTimeDeps = {
     isDateFn: GenericPureFunction<DateStringParams>;
     isTimeFn: GenericPureFunction<TimeStringParams>;
 };
@@ -85,37 +85,36 @@ type DateTimeDeps = {
 /** @reflection never */
 function isDateTime() {
     return function is_date_time(dt: string, p: StringDateTimeParams, deps: DateTimeDeps): boolean {
-        const parts = dt.split(p.splitChar);
-        if (parts.length !== 2) return false;
-        return deps.isDateFn(parts[0], p.date, deps) && deps.isTimeFn(parts[1], p.time, deps);
+        const index = dt.indexOf(p.splitChar);
+        if (index === -1) return false;
+        const datePart = dt.substring(0, index);
+        const timePart = dt.substring(index + p.splitChar.length);
+        return deps.isDateFn(datePart, p.date, deps) && deps.isTimeFn(timePart, p.time, deps);
     } as GenericPureFunction<StringDateTimeParams>;
 }
 
 /** @reflection never */
 export function dateTimeErrors(utl: JITUtils) {
     return function date_time_errors(
-        dt: any,
-        err: RunTypeError[],
-        stPath: StrNumber[],
+        val: string,
         path: StrNumber[],
+        ers: RunTypeError[],
         exp: string,
+        fmtName: string,
         p: StringDateTimeParams,
-        fName: string,
-        fPath: StrNumber[],
-        deps: DateTimeDeps
+        fmtPath: StrNumber[],
+        deps: DateTimeDeps,
+        accessPath?: StrNumber[]
     ): RunTypeError[] {
-        const index = dt.indexOf(p.splitChar);
-        if (index === -1) {
-            utl.formatErr(err, stPath, path, exp, fName, 'splitChar', p.splitChar, fPath);
-            return err;
-        }
-        const datePart = dt.substring(0, index);
-        const timePart = dt.substring(index + p.splitChar.length);
+        const index = val.indexOf(p.splitChar);
+        if (index === -1) return utl.formatErr(path, ers, exp, fmtName, 'splitChar', p.splitChar, fmtPath, accessPath), ers;
+        const datePart = val.substring(0, index);
+        const timePart = val.substring(index + p.splitChar.length);
         if (!deps.isDateFn(datePart, p.date, deps))
-            utl.formatErr(err, stPath, path, exp, fName, 'format', p.date.format, [...fPath, 'date']);
+            utl.formatErr(path, ers, exp, fmtName, 'format', p.date.format, [...fmtPath, 'date'], accessPath);
         if (!deps.isTimeFn(timePart, p.time, deps))
-            utl.formatErr(err, stPath, path, exp, fName, 'format', p.time.format, [...fPath, 'time']);
-        return err;
+            utl.formatErr(path, ers, exp, fmtName, 'format', p.time.format, [...fmtPath, 'time'], accessPath);
+        return ers;
     } as ErrorsPureFunction<StringDateTimeParams>;
 }
 

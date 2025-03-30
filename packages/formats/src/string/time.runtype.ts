@@ -34,7 +34,7 @@ export class TimeStringFormat extends JitRunTypeFormatter<TimeStringParams> {
         const isTypeCode = this._compileIsType(comp, rt);
         if (!isTypeCode) return '';
         const params = this.getParams(rt);
-        const errFn = comp.getCallJitFormatErr(rt, this);
+        const errFn = this.getCallJitFormatErr(comp, rt, this);
         return `if (!(${isTypeCode})) ${errFn('format', params.format)}`;
     }
     _mock(mockContext: MockOperation, rt: BaseRunType) {

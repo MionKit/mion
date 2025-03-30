@@ -53,7 +53,7 @@ export class IPFormat extends JitRunTypeFormatter<IpValidatorParams> {
         const isTypeCode = this._compileIsType(comp, rt);
         if (!isTypeCode) return '';
         const params = this.getParams(rt);
-        const errFn = comp.getCallJitFormatErr(rt, this);
+        const errFn = this.getCallJitFormatErr(comp, rt, this);
         return `if (!(${isTypeCode})) ${errFn('version', params.version)}`;
     }
     _compileFormat(comp: JitCompiler) {

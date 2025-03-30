@@ -8,7 +8,6 @@
 import {isTypeFn, mockTypeFn, typeErrorsFn} from '@mionkit/runtype/src/functions';
 import {RunTypeError, TypeFormatError} from '@mionkit/runtype/src/types';
 import {StringFormat} from './stringFormat.runtype';
-import type {JITUtils} from '@mionkit/runtype/src/lib/jitUtils';
 
 // #### maxLength ####
 
@@ -406,7 +405,26 @@ it('get multiple params errors', async () => {
     expect(typeErrors('aaaaa')).toEqual([]);
     expect(typeErrors('aaaaaa')).toEqual([]);
     expect(typeErrors('aaaaaaa8')).toEqual([alphaError]);
-    expect(typeErrors('aaaaaaaabmaj2')).toEqual([maxLengthError, alphaError]);
+    expect(typeErrors('aaaaaaaabmaj2')).toEqual([maxLengthError]);
+});
+
+it('only only one error is returned by string format', async () => {
+    const regex = /^[a-zA-Z]+$/;
+    type Multi = StringFormat<{
+        pattern: {regexp: typeof regex; sampleChars: 'abcdefgABCDEFG'; message: 'only letters allowed'};
+        minLength: 5;
+        maxLength: 8;
+    }>;
+    const typeErrors = await typeErrorsFn<Multi>();
+    const format: TypeFormatError = {name: 'strFormat', formatPath: [], val: ''};
+    const expectedError: RunTypeError = {expected: 'string', path: [], format};
+    const alphaError: RunTypeError = {
+        ...expectedError,
+        format: {...format, formatPath: ['pattern'], val: 'only letters allowed'},
+    };
+    const maxLengthError: RunTypeError = {...expectedError, format: {...format, formatPath: ['maxLength'], val: 8}};
+    // ensures only one error is thrown by format
+    expect(typeErrors('aaaaaaaabmaj2')).not.toEqual([maxLengthError, alphaError]);
 });
 
 it('mock multiple params', async () => {
