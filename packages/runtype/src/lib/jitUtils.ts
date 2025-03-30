@@ -131,11 +131,22 @@ export const jitUtils = {
         return false;
     },
     // !!! DO NOT MODIFY METHOD WITHOUT REVIEWING JIT CODE INVOCATIONS!!!
+    /**
+     * Creates an new RunTypeError and adds it to the errors array
+     * Note that all paths are copied when creating the new RunTypeError
+     * so they can't be modified after the error is created
+     */
     err(pλth: readonly StrNumber[], εrr: RunTypeError[], expected: string, accessPath?: readonly StrNumber[]) {
         const path = accessPath?.length ? [...pλth, ...accessPath] : [...pλth];
         const runTypeErr: RunTypeError = {expected, path};
         εrr.push(runTypeErr);
     },
+    // !!! DO NOT MODIFY METHOD WITHOUT REVIEWING JIT CODE INVOCATIONS!!!
+    /**
+     * Creates an new RunTypeError with a TypeFormatError and adds it to the errors array
+     * Note that all paths are copied when creating the new RunTypeError
+     * so they can't be modified after the error is created
+     */
     formatErr(
         pλth: StrNumber[],
         εrr: RunTypeError[],
@@ -147,8 +158,8 @@ export const jitUtils = {
         accessPath?: StrNumber[],
         fmtAccessPath?: StrNumber[]
     ) {
-        const path = accessPath?.length ? [...pλth, ...accessPath] : pλth;
-        const formatPath = fmtAccessPath?.length ? [...fmtAccessPath, ...fmtPath, paramName] : [...fmtPath, paramName];
+        const path = accessPath?.length ? [...pλth, ...accessPath] : [...pλth];
+        const formatPath = fmtAccessPath?.length ? [...fmtPath, ...fmtAccessPath, paramName] : [...fmtPath, paramName];
         const format: TypeFormatError = {name: fmtName, formatPath: formatPath, val: paramVal};
         const runTypeErr: Required<RunTypeError> = {expected, path, format};
         εrr.push(runTypeErr);

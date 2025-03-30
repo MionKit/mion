@@ -156,6 +156,7 @@ export function toLiteralInContext(
     // if compiled is passed it is assumed that the params are dependencies and will be transformed into code
     comp: JitCompiler | JitErrorsCompiler,
     params: TypeFormatValue | Record<string, string | PureFunctionWithClosure>,
+    // TODO: somewhere the ignoreProps are not passed and we still outputting 'samples' and 'sampleChars' to jit code were is not needed
     ignoreProps: string[] = [],
     isDependencies = false
 ): string {
@@ -185,7 +186,7 @@ export function toLiteralInContext(
         }
         case Array.isArray(params): {
             // arrays are added to the context as a new variable
-            const arrCode = `[${params.map((v) => toLiteralInContext(comp, v, ignoreProps, isDependencies)).join(', ')}]`;
+            const arrCode = `[${params.map((v) => toLiteralInContext(comp, v, ignoreProps, isDependencies)).join(',')}]`;
             const hash = createHashLiteral(arrCode);
             const arrName = hash;
             if (!comp.contextCodeItems.has(arrName)) comp.contextCodeItems.set(arrName, `const ${arrName} = ${arrCode}`);

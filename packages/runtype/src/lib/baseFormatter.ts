@@ -13,15 +13,15 @@ import type {
     MockOperation,
     Mutable,
     JitCompiled,
-    JitFn,
     PureFunctionWithClosure,
     TypeFormatValue,
+    StrNumber,
 } from '../types';
 import {jitFnHasReturn, jitFnIsExpression, JitFunctions} from '../constants';
 import {ReflectionKind} from '@deepkit/type';
 import {compileAddPureFunctionContext, dependenciesToLiteral, getFormatterParams, paramsToLiteral} from './formats';
 import {jitUtils} from './jitUtils';
-import {arrayToLiteral, getFormatterHash} from './utils';
+import {getFormatterHash} from './utils';
 
 type jitCode = string | undefined;
 
@@ -51,7 +51,7 @@ export abstract class JitRunTypeFormatter<P extends TypeFormatParams = any> {
      */
     readonly parentPath?: (string | number)[];
     /** List of params that will be excluded from jit code */
-    readonly ignoreJitParams?: string[];
+    readonly extraPathLiteral?: StrNumber;
 
     private pushContext(paramsFromParent?: P, parentPath?: (string | number)[]) {
         (this as Mutable<JitRunTypeFormatter>).paramsFromParent = paramsFromParent;
@@ -77,6 +77,14 @@ export abstract class JitRunTypeFormatter<P extends TypeFormatParams = any> {
     getFormatPath(paramName?: string | number): (string | number)[] {
         if (!paramName) return this.parentPath || [];
         return this.parentPath ? [...this.parentPath, paramName] : [paramName];
+    }
+
+    getFormatExtraPathLiteral(): StrNumber | undefined {
+        return this.extraPathLiteral;
+    }
+
+    getIgnoredProps(): string[] | undefined {
+        return undefined;
     }
 
     mock(mockContext: MockOperation, rt: BaseRunType, params?: P, parentPath?: string[]): any {
@@ -129,9 +137,11 @@ export abstract class JitRunTypeFormatter<P extends TypeFormatParams = any> {
         params?: P,
         parentPath?: (string | number)[],
         vλl?: string,
-        formatName?: string
+        formatName?: string,
+        extraPathLiteral?: StrNumber
     ) {
         if (this.validateParams) this.validateParams(rt, params || this.getParams(rt));
+        (this as Mutable<JitRunTypeFormatter>).extraPathLiteral = extraPathLiteral;
         const v = comp.vλl;
         comp.vλl = vλl || v;
         this.rootFormatName = formatName || this.name;
@@ -152,6 +162,7 @@ export abstract class JitRunTypeFormatter<P extends TypeFormatParams = any> {
         }
         this.popContext();
         this.rootFormatName = this.name;
+        (this as Mutable<JitRunTypeFormatter>).extraPathLiteral = undefined;
         comp.vλl = v;
         return result;
     }
@@ -189,12 +200,14 @@ export abstract class JitRunTypeFormatter<P extends TypeFormatParams = any> {
         params?: TypeFormatValue,
         dependenciesParams?: Record<string, string | PureFunctionWithClosure>
     ): {callCode: string; fnName: string; paramsName: string; dependenciesName?: string} {
-        // PureFunction arguments:
+        // PureFunction arguments =>
+
         // val: any
         // formatParams: TypeFormatValue,
         // deps: PureFunctionDeps
+
         const val = comp.vλl;
-        const paramsName = paramsToLiteral(comp, params || this.getParams(rt), this.ignoreJitParams);
+        const paramsName = paramsToLiteral(comp, params || this.getParams(rt), this.getIgnoredProps());
         const dependenciesName = dependenciesToLiteral(comp, dependenciesParams || {});
         const callParams = [val, paramsName, dependenciesName];
         const fnName = compileAddPureFunctionContext(comp, pureFn);
@@ -207,30 +220,52 @@ export abstract class JitRunTypeFormatter<P extends TypeFormatParams = any> {
         rt: BaseRunType,
         pureFn: PureFunctionWithClosure,
         params: TypeFormatValue,
-        dependenciesParams?: Record<string, string | PureFunctionWithClosure>
+        dependenciesParams?: Record<string, string | PureFunctionWithClosure>,
+        extraPathLiteral?: StrNumber // TODO: this might not be needed
     ): {callCode: string; fnName: string; paramsName: string; dependenciesName?: string} {
-        // ErrorsPureFunction arguments:
+        // ErrorsPureFunction arguments =>
+
         // val: any,
-        // err: RunTypeError[],
-        // stPath: StrNumber[],
-        // path: StrNumber[],
-        // exp: string,
-        // formatParams: StringDateTimeParams,
+        // pλth: StrNumber[],
+        // εrr: RunTypeError[],
+        // expected: string,
+
         // formatName: string,
+        // formatParams: P,
         // formatPath: StrNumber[],
-        // formatDeps: DateTimeDeps
+        // deps: PureFunctionDeps,
+        // accessPath?: StrNumber[]
+
         const val = comp.vλl;
-        const err = comp.args.εrr;
-        const staticPath = arrayToLiteral(comp.getAccessPath());
         const path = comp.args.pλth;
+        const err = comp.args.εrr;
         const expected = paramsToLiteral(comp, rt.getKindName());
-        const paramsName = paramsToLiteral(comp, params, this.ignoreJitParams);
+
         const formatName = paramsToLiteral(comp, this.getFormatName());
+        const formatParams = paramsToLiteral(comp, params, this.getIgnoredProps());
         const formatPath = paramsToLiteral(comp, this.getFormatPath());
-        const dependenciesName = dependenciesToLiteral(comp, dependenciesParams || {});
-        const callParams = [val, err, staticPath, path, expected, paramsName, formatName, formatPath, dependenciesName];
+        const deps = dependenciesToLiteral(comp, dependenciesParams || {});
+        const accessPath = comp.getAccessPathLiteral(extraPathLiteral);
+
+        const callParams = [val, path, err, expected, formatName, formatParams, formatPath, deps];
+        if (accessPath) callParams.push(accessPath);
+
         const fnName = compileAddPureFunctionContext(comp, pureFn);
         const callCode = `${fnName}(${callParams.join(',')})`;
-        return {callCode, fnName, paramsName, dependenciesName};
+        return {callCode, fnName, paramsName: formatParams, dependenciesName: deps};
+    }
+
+    getCallJitFormatErr(
+        comp: JitErrorsCompiler,
+        expected: BaseRunType<any>,
+        formatter: JitRunTypeFormatter<any>,
+        shouldReturn = false,
+        extraPathLiteral?: StrNumber
+    ) {
+        return (paramName: string, paramValue: StrNumber) => {
+            const callCode = comp.callJitFormatErr(expected, formatter, paramName, paramValue, extraPathLiteral);
+            if (shouldReturn) return `return ${callCode}, ${comp.args.εrr}`;
+            return callCode;
+        };
     }
 }

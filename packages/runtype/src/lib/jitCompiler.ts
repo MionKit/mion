@@ -244,10 +244,10 @@ export class JitErrorsCompiler<ID extends JitFnID = any> extends BaseCompiler<ty
         formatter: JitRunTypeFormatter<any>,
         paramName: string,
         paramValue: StrNumber,
-        extraPathLiteral?: StrNumber,
-        formatExtraPathLiteral?: StrNumber
+        extraPathLiteral?: StrNumber
     ): string {
-        // jitUtil.formatErr args:
+        // jitUtil.formatErr function arguments =>
+
         // pλth: StrNumber[],
         // εrr: RunTypeError[],
         // expected: string,
@@ -267,26 +267,15 @@ export class JitErrorsCompiler<ID extends JitFnID = any> extends BaseCompiler<ty
         const formatArgs = [fmtName, pName, pVal, fmtPath];
         const optionalArgs: string[] = [];
         const accessPath = this.getAccessPathLiteral(extraPathLiteral);
-        const formatAccessPath = this.getFormatAccessPathLiteral(formatter, formatExtraPathLiteral);
+        const formatAccessPath = this.getFormatAccessPathLiteral(formatter);
         if (!accessPath && formatAccessPath) optionalArgs.push('undefined');
         if (accessPath) optionalArgs.push(accessPath);
         if (formatAccessPath) optionalArgs.push(formatAccessPath);
         return `utl.formatErr(${[...typeErrArgs, ...formatArgs, ...optionalArgs].join(',')})`;
     }
-    getCallJitFormatErr(
-        expected: AnyKindName | BaseRunType<any>,
-        formatter: JitRunTypeFormatter<any>,
-        extraPathLiteral?: StrNumber,
-        formatExtraPathLiteral?: StrNumber
-    ) {
-        return (paramName: string, paramValue: StrNumber) =>
-            this.callJitFormatErr(expected, formatter, paramName, paramValue, extraPathLiteral, formatExtraPathLiteral);
-    }
 
     private _getJitErrorArgs(exp: AnyKindName | BaseRunType<any>): string[] {
-        // TODO: most of the time jit path is an empty array, so a new array is created every time
-        // this can be optimized by adding it to the compiler context, or maybe make the param optional in jitUtils.err
-        // jitUtil.err args:
+        // jitUtil.err function arguments =>
         // pλth: StrNumber[],
         // εrr: RunTypeError[],
         // expected: string,
@@ -296,16 +285,15 @@ export class JitErrorsCompiler<ID extends JitFnID = any> extends BaseCompiler<ty
         return [path, err, expected];
     }
 
-    private getAccessPathLiteral(extraPathLiteral?: StrNumber): string {
+    getAccessPathLiteral(extraPathLiteral?: StrNumber): string {
         const accessPath = this.getAccessPath();
         if (extraPathLiteral) accessPath.push(extraPathLiteral);
         return accessPath.length ? `[${accessPath.join(',')}]` : '';
     }
 
-    private getFormatAccessPathLiteral(formatter: JitRunTypeFormatter<any>, formatExtraPathLiteral?: StrNumber): string {
-        const accessPath = formatter.getFormatPath();
-        if (formatExtraPathLiteral) accessPath.push(formatExtraPathLiteral);
-        return accessPath.length ? `[${accessPath.join(',')}]` : '';
+    getFormatAccessPathLiteral(formatter: JitRunTypeFormatter<any>): string {
+        const formatExtraPathLiteral = formatter.getFormatExtraPathLiteral();
+        return formatExtraPathLiteral ? `[${formatExtraPathLiteral}]` : '';
     }
 }
 

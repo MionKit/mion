@@ -303,7 +303,7 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
                 const compiled = f.createJitCompiledFormatter(fnId, comp, this);
                 if (compiled.isNoop) return;
                 comp.updateDependencies(compiled);
-                return this.callDependency(comp, compiled, true);
+                return this.callDependency(comp, compiled);
             })
             .filter(Boolean) as string[];
         if (!formattersCode.length) return code;
@@ -311,7 +311,7 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
         return formattersCode.join(separator);
     }
 
-    callDependency(currentCop: JitCompiler, comp: JitCompiled, isFormatter = false): string {
+    callDependency(currentCop: JitCompiler, comp: JitCompiled): string {
         const stackItem = currentCop.getCurrentStackItem();
         const isErrorCall = comp.fnId === JitFunctions.typeErrors.id || comp.fnId === JitFunctions.unknownKeyErrors.id;
         const args = isErrorCall ? jitErrorArgs : jitArgs;
@@ -329,8 +329,9 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
         if (isErrorCall) {
             const pathArgs = currentCop.getAccessPathArgs();
             const pathLength = currentCop.getAccessPathLength();
-            if (isFormatter) return callCode;
-            // increase and decrease the static path before and after calling the circular function
+            if (!pathLength) return callCode;
+            // increase and decrease the static path before and after calling the dependency function
+            // TODO, maybe we can improve performance by using something else than push and splice
             return `${jitErrorArgs.pλth}.push(${pathArgs}); ${callCode}; ${jitErrorArgs.pλth}.splice(-${pathLength});`;
         }
         return callCode;

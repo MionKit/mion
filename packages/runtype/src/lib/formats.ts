@@ -229,11 +229,11 @@ export const defaultIgnoreFormatProps = ['samples', 'sampleChars'];
  * @param ignoreProps
  * @returns
  */
-export function paramsToLiteral(comp: JitCompiler | JitErrorsCompiler, params: TypeFormatValue, ignoreProps: string[] = []) {
+export function paramsToLiteral(comp: JitCompiler | JitErrorsCompiler, params: TypeFormatValue, ignoreProps?: string[]) {
     return toLiteralInContext(comp, params, ignoreProps, false);
 }
 
-export function getToLiteralFn(comp: JitCompiler | JitErrorsCompiler, ignoreProps: string[] = []) {
+export function getToLiteralFn(comp: JitCompiler | JitErrorsCompiler, ignoreProps?: string[]) {
     return (params: TypeFormatValue) => paramsToLiteral(comp, params, ignoreProps);
 }
 

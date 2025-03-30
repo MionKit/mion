@@ -14,6 +14,7 @@ import {ReflectionKind} from '@deepkit/type';
 import {Domain} from './domain.runtype';
 import {TypeFormat} from '../../../runtype/src/lib/formats.runtype';
 import {MockOperation} from '../../../runtype/src/types';
+import {stringIgnoreProps} from './stringFormat.runtype';
 
 export type DefaultUrlParams = {
     maxLength: 2048;
@@ -42,6 +43,9 @@ export class URLValidator extends JitRunTypeFormatter<UrlParams> {
     static readonly id = 'url';
     readonly kind = ReflectionKind.string;
     readonly name = URLValidator.id;
+    getIgnoredProps(): string[] | undefined {
+        return stringIgnoreProps;
+    }
     _compileIsType(comp: JitCompiler, rt: BaseRunType): string {
         return this.compilePureFunctionCall(comp, rt, isURL).callCode;
     }
