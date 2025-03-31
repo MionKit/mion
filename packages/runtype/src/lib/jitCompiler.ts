@@ -4,7 +4,7 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
-import type {JitFnArgs, Mutable, JitCompiled, JitFnID, PureFunction, StrNumber} from '../types';
+import type {JitFnArgs, Mutable, JitCompiled, JitFnID, PureFunction, StrNumber, jitCode} from '../types';
 import type {BaseRunType} from './baseRunTypes';
 import type {AnyKindName} from '../constants.kind';
 import {
@@ -107,7 +107,7 @@ export class BaseCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extends 
         const newStackItem: StackItem = {vλl: this.vλl, rt: newChild, staticPath: this._accessPathLiterals};
         this.stack.push(newStackItem);
     }
-    popStack(resultCode: string | undefined): void | ((...args: any[]) => any) {
+    popStack(resultCode: jitCode): void | ((...args: any[]) => any) {
         if (resultCode) (this as Mutable<BaseCompiler>).code = resultCode;
         this.popItem = this.stack.pop();
         const item = this.stack[this.stack.length - 1];

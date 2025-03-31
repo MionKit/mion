@@ -16,14 +16,13 @@ import type {
     PureFunctionWithClosure,
     TypeFormatValue,
     StrNumber,
+    jitCode,
 } from '../types';
 import {jitFnHasReturn, jitFnIsExpression, JitFunctions} from '../constants';
 import {ReflectionKind} from '@deepkit/type';
 import {compileAddPureFunctionContext, dependenciesToLiteral, getFormatterParams, paramsToLiteral} from './formats';
 import {jitUtils} from './jitUtils';
 import {getFormatterHash} from './utils';
-
-type jitCode = string | undefined;
 
 export abstract class JitRunTypeFormatter<P extends TypeFormatParams = any> {
     abstract kind: ReflectionKind;

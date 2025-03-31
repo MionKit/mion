@@ -13,6 +13,7 @@ import type {ReflectionSubKind} from './constants.kind';
 import type {JitRunTypeFormatter} from './lib/baseFormatter';
 
 export type StrNumber = string | number;
+export type jitCode = string | undefined;
 
 // ###################### RunTypes ######################
 /**
