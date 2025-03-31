@@ -6,7 +6,7 @@
  * ######## */
 
 import type {Type, TypeArray} from '@deepkit/type';
-import type {JitFnID, MockOperation} from '../../types';
+import type {jitCode, JitFnID, MockOperation} from '../../types';
 import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
 import {random} from '../../lib/mock';
 import {MemberRunType} from '../../lib/baseRunTypes';
@@ -130,7 +130,7 @@ export class ArrayRunType<T extends Type = TypeArray> extends MemberRunType<T> {
         return this.traverseCode(comp, memberCode);
     }
 
-    traverseCode(comp: JitCompiler, memberCode: string | undefined): string | undefined {
+    traverseCode(comp: JitCompiler, memberCode: jitCode): jitCode {
         if (!memberCode) return undefined;
         const index = this.getChildVarName();
         return `for (let ${index} = ${this.startIndex()}; ${index} < ${comp.vλl}.length; ${index}++) {${memberCode}}`;

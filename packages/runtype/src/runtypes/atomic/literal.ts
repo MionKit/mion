@@ -6,7 +6,7 @@
  * ######## */
 
 import type {TypeLiteral} from '@deepkit/type';
-import type {JitConfig} from '../../types';
+import type {jitCode, JitConfig} from '../../types';
 import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
 import {memorize, toLiteral} from '../../lib/utils';
 import {AtomicRunType} from '../../lib/baseRunTypes';
@@ -54,10 +54,10 @@ export class LiteralRunType extends AtomicRunType<TypeLiteral> {
         else if (this.src.literal instanceof RegExp) return compileTypeErrorsRegExp(comp, this.src.literal, this.getKindName());
         return compileTypeErrorsLiteral(comp, this.src.literal, this.getKindName());
     }
-    _compileToJsonVal(comp: JitCompiler): string | undefined {
+    _compileToJsonVal(comp: JitCompiler): jitCode {
         return this.getValidator()._compileToJsonVal(comp);
     }
-    _compileFromJsonVal(comp: JitCompiler): string | undefined {
+    _compileFromJsonVal(comp: JitCompiler): jitCode {
         return this.getValidator()._compileFromJsonVal(comp);
     }
     _compileJsonStringify(comp: JitCompiler): string {

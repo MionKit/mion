@@ -1,6 +1,6 @@
 import {ReflectionKind, TypeIndexSignature} from '@deepkit/type';
 import {BaseRunType, MemberRunType} from '../../lib/baseRunTypes';
-import {JitConfig, JitFnID, MockOperation, Mutable} from '../../types';
+import {JitConfig, JitFnID, MockOperation, Mutable, type jitCode} from '../../types';
 import {JitFunctions} from '../../constants';
 import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
 import {InterfaceRunType} from '../collection/interface';
@@ -144,7 +144,7 @@ export class IndexSignatureRunType extends MemberRunType<TypeIndexSignature> {
         }
         return parentObj;
     }
-    private traverseCode(comp: JitCompiler, memberCode: string | undefined): string | undefined {
+    private traverseCode(comp: JitCompiler, memberCode: jitCode): jitCode {
         if (!memberCode) return undefined;
         const prop = this.getChildVarName();
         return `for (const ${prop} in ${comp.vλl}) {${memberCode}}`;

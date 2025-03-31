@@ -19,6 +19,7 @@ import type {
     CustomVλl,
     JitFn,
     FormatAnnotation,
+    jitCode,
 } from '../types';
 import {
     jitArgs,
@@ -58,7 +59,7 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
     getKindName = memorize((): AnyKindName => getReflectionName(this));
     getTypeName = (): string => this.src.typeName || this.getKindName();
     getFormatAnnotations = (): FormatAnnotation[] => getFormatAnnotations(this);
-    getFormatterJitId = memorize((): string | undefined => {
+    getFormatterJitId = memorize((): jitCode => {
         const formatter = getRunTypeFormatter(this);
         if (!formatter) return;
         return `<${typeParamsToString(formatter.getParams(this), defaultIgnoreFormatProps)}>`;
@@ -204,43 +205,43 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
 
     /* BaseRunType compileX method is in charge of handling circular refs, return values, create subprograms, etc.
      * While the child _compileX must only contain the logic to generate the code. */
-    abstract _compileIsType(comp: JitCompiler): string | undefined;
-    abstract _compileTypeErrors(comp: JitErrorsCompiler): string | undefined;
-    abstract _compileToJsonVal(comp: JitCompiler): string | undefined;
-    abstract _compileFromJsonVal(comp: JitCompiler): string | undefined;
-    abstract _compileJsonStringify(comp: JitCompiler): string | undefined;
-    abstract _compileHasUnknownKeys(comp: JitCompiler): string | undefined;
-    abstract _compileUnknownKeyErrors(comp: JitErrorsCompiler): string | undefined;
-    abstract _compileStripUnknownKeys(comp: JitCompiler): string | undefined;
-    abstract _compileUnknownKeysToUndefined(comp: JitCompiler): string | undefined;
+    abstract _compileIsType(comp: JitCompiler): jitCode;
+    abstract _compileTypeErrors(comp: JitErrorsCompiler): jitCode;
+    abstract _compileToJsonVal(comp: JitCompiler): jitCode;
+    abstract _compileFromJsonVal(comp: JitCompiler): jitCode;
+    abstract _compileJsonStringify(comp: JitCompiler): jitCode;
+    abstract _compileHasUnknownKeys(comp: JitCompiler): jitCode;
+    abstract _compileUnknownKeyErrors(comp: JitErrorsCompiler): jitCode;
+    abstract _compileStripUnknownKeys(comp: JitCompiler): jitCode;
+    abstract _compileUnknownKeysToUndefined(comp: JitCompiler): jitCode;
 
     // ########## Compile Methods ##########
 
-    compileIsType(comp: JitCompiler): string | undefined {
+    compileIsType(comp: JitCompiler): jitCode {
         return this.compile(comp, JitFunctions.isType.id);
     }
-    compileTypeErrors(comp: JitErrorsCompiler): string | undefined {
+    compileTypeErrors(comp: JitErrorsCompiler): jitCode {
         return this.compile(comp, JitFunctions.typeErrors.id);
     }
-    compileToJsonVal(comp: JitCompiler): string | undefined {
+    compileToJsonVal(comp: JitCompiler): jitCode {
         return this.compile(comp, JitFunctions.toJsonVal.id);
     }
-    compileFromJsonVal(comp: JitCompiler): string | undefined {
+    compileFromJsonVal(comp: JitCompiler): jitCode {
         return this.compile(comp, JitFunctions.fromJsonVal.id);
     }
-    compileJsonStringify(comp: JitCompiler): string | undefined {
+    compileJsonStringify(comp: JitCompiler): jitCode {
         return this.compile(comp, JitFunctions.jsonStringify.id);
     }
-    compileUnknownKeyErrors(comp: JitErrorsCompiler): string | undefined {
+    compileUnknownKeyErrors(comp: JitErrorsCompiler): jitCode {
         return this.compile(comp, JitFunctions.unknownKeyErrors.id);
     }
-    compileHasUnknownKeys(comp: JitCompiler): string | undefined {
+    compileHasUnknownKeys(comp: JitCompiler): jitCode {
         return this.compile(comp, JitFunctions.hasUnknownKeys.id);
     }
-    compileStripUnknownKeys(comp: JitCompiler): string | undefined {
+    compileStripUnknownKeys(comp: JitCompiler): jitCode {
         return this.compile(comp, JitFunctions.stripUnknownKeys.id);
     }
-    compileUnknownKeysToUndefined(comp: JitCompiler): string | undefined {
+    compileUnknownKeysToUndefined(comp: JitCompiler): jitCode {
         return this.compile(comp, JitFunctions.unknownKeysToUndefined.id);
     }
     /**
@@ -253,7 +254,7 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
      * @returns
      */
     private compile(comp: JitCompiler, fnId: JitFnID) {
-        let code: string | undefined;
+        let code: jitCode;
         comp.pushStack(this);
         if (comp.shouldCallDependency()) {
             const compiledOp = this.createJitCompiledFunction(fnId, comp);
@@ -293,7 +294,7 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
         return code;
     }
 
-    private compileFormatter(comp: JitCompiler, fnId: JitFnID, separator: string, code?: string): string | undefined {
+    private compileFormatter(comp: JitCompiler, fnId: JitFnID, separator: string, code?: string): jitCode {
         if (this.src.kind !== ReflectionKind.string && this.src.kind !== ReflectionKind.number) return code;
         const typeFormatters = getTypeFormats(this);
         if (!typeFormatters.length) return code;
@@ -387,25 +388,25 @@ export abstract class AtomicRunType<T extends Type> extends BaseRunType<T> {
     getFamily(): 'A' {
         return 'A';
     }
-    _compileToJsonVal(comp: JitCompiler): string | undefined {
+    _compileToJsonVal(comp: JitCompiler): jitCode {
         return undefined;
     }
-    _compileFromJsonVal(comp: JitCompiler): string | undefined {
+    _compileFromJsonVal(comp: JitCompiler): jitCode {
         return undefined;
     }
-    _compileJsonStringify(comp: JitCompiler): string | undefined {
+    _compileJsonStringify(comp: JitCompiler): jitCode {
         return comp.vλl;
     }
-    _compileHasUnknownKeys(comp: JitCompiler): string | undefined {
+    _compileHasUnknownKeys(comp: JitCompiler): jitCode {
         return undefined;
     }
-    _compileUnknownKeyErrors(comp: JitCompiler): string | undefined {
+    _compileUnknownKeyErrors(comp: JitCompiler): jitCode {
         return undefined;
     }
-    _compileStripUnknownKeys(comp: JitCompiler): string | undefined {
+    _compileStripUnknownKeys(comp: JitCompiler): jitCode {
         return undefined;
     }
-    _compileUnknownKeysToUndefined(comp: JitCompiler): string | undefined {
+    _compileUnknownKeysToUndefined(comp: JitCompiler): jitCode {
         return undefined;
     }
     jitFnIsExpression(fnId: JitFnID): boolean {
@@ -531,23 +532,23 @@ export abstract class MemberRunType<T extends Type> extends BaseRunType<T> imple
     getJitConfig(stack: BaseRunType[] = []): JitConfig {
         return this._getJitConfig(stack);
     }
-    _compileHasUnknownKeys(comp: JitCompiler): string | undefined {
+    _compileHasUnknownKeys(comp: JitCompiler): jitCode {
         const code = this.getJitChild()?.compileHasUnknownKeys(comp);
         if (!code) return undefined;
         const childName = comp.getChildVλl();
         return this.isOptional() ? `(${childName} !== undefined && ${code})` : code;
     }
-    _compileUnknownKeyErrors(comp: JitErrorsCompiler): string | undefined {
+    _compileUnknownKeyErrors(comp: JitErrorsCompiler): jitCode {
         const code = this.getJitChild()?.compileUnknownKeyErrors(comp);
         if (!code) return undefined;
         return this.isOptional() ? `if (${comp.getChildVλl()} !== undefined) {${code}}` : code;
     }
-    _compileStripUnknownKeys(comp: JitCompiler): string | undefined {
+    _compileStripUnknownKeys(comp: JitCompiler): jitCode {
         const code = this.getJitChild()?.compileStripUnknownKeys(comp);
         if (!code) return undefined;
         return this.isOptional() ? `if (${comp.getChildVλl()} !== undefined) {${code}}` : code;
     }
-    _compileUnknownKeysToUndefined(comp: JitCompiler): string | undefined {
+    _compileUnknownKeysToUndefined(comp: JitCompiler): jitCode {
         const code = this.getJitChild()?.compileUnknownKeysToUndefined(comp);
         if (!code) return undefined;
         return this.isOptional() ? `if (${comp.getChildVλl()} !== undefined) {${code}}` : code;
