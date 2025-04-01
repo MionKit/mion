@@ -47,7 +47,6 @@ import {
     defaultIgnoreFormatProps,
 } from './formats';
 import {typeParamsToString} from './utils';
-import {JitRunTypeFormatter} from './baseFormatter';
 
 export abstract class BaseRunType<T extends Type = Type> implements RunType {
     isCircular?: boolean;
