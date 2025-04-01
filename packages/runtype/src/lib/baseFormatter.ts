@@ -28,10 +28,10 @@ export abstract class JitRunTypeFormatter<P extends TypeFormatParams = any> {
     abstract kind: ReflectionKind;
     abstract name: string;
     rootFormatName: string = '';
-    jitFnHasReturn(fnId: JitFnID) {
+    jitFnHasReturn(fnId: JitFnID, rt: BaseRunType) {
         return jitFnHasReturn(fnId);
     }
-    jitFnIsExpression(fnId: JitFnID) {
+    jitFnIsExpression(fnId: JitFnID, rt: BaseRunType) {
         return jitFnIsExpression(fnId);
     }
     jitFnInlined(fnId: JitFnID, rt: BaseRunType): boolean {
@@ -48,11 +48,11 @@ export abstract class JitRunTypeFormatter<P extends TypeFormatParams = any> {
      * When set this is the path to the params in the parent's params object.
      * ie: if dateTime is the parent of the current formatter and params are {date: {format: 'ISO'}} then the child path will be ['date']
      */
-    readonly parentPath?: (string | number)[];
+    readonly parentPath?: StrNumber[];
     /** List of params that will be excluded from jit code */
     readonly extraPathLiteral?: StrNumber;
 
-    private pushContext(paramsFromParent?: P, parentPath?: (string | number)[]) {
+    private pushContext(paramsFromParent?: P, parentPath?: StrNumber[]) {
         (this as Mutable<JitRunTypeFormatter>).paramsFromParent = paramsFromParent;
         (this as Mutable<JitRunTypeFormatter>).parentPath = parentPath;
     }
@@ -73,8 +73,9 @@ export abstract class JitRunTypeFormatter<P extends TypeFormatParams = any> {
     }
 
     /** Returns the path to the params in the parent's params object */
-    getFormatPath(paramName?: string | number): (string | number)[] {
-        if (!paramName) return this.parentPath || [];
+    getFormatPath(paramName?: StrNumber): StrNumber[] {
+        if (!paramName && this.parentPath) return [...this.parentPath];
+        if (!paramName) return [];
         return this.parentPath ? [...this.parentPath, paramName] : [paramName];
     }
 
@@ -99,7 +100,7 @@ export abstract class JitRunTypeFormatter<P extends TypeFormatParams = any> {
         comp: JitCompiler,
         rt: BaseRunType,
         params?: P,
-        parentPath?: (string | number)[],
+        parentPath?: StrNumber[],
         vλl?: string,
         formatName?: string
     ): JitCompiled {
@@ -116,7 +117,7 @@ export abstract class JitRunTypeFormatter<P extends TypeFormatParams = any> {
         const newJitCompiler: JitCompiler = createJitCompiler(rt, fnId, undefined, jitFnHash, hash) as JitCompiler;
         try {
             const formatterCode = this._compile(fnId, newJitCompiler, rt, params, parentPath, vλl, formatName);
-            const withReturn = this.handleReturnValues(newJitCompiler, fnId, formatterCode || '');
+            const withReturn = this.handleReturnValues(rt, newJitCompiler, fnId, formatterCode || '');
             newJitCompiler.compile(withReturn);
             comp.updateDependencies(newJitCompiler as JitCompiled);
         } catch (e) {
@@ -134,7 +135,7 @@ export abstract class JitRunTypeFormatter<P extends TypeFormatParams = any> {
         comp: JitCompiler,
         rt: BaseRunType,
         params?: P,
-        parentPath?: (string | number)[],
+        parentPath?: StrNumber[],
         vλl?: string,
         formatName?: string,
         extraPathLiteral?: StrNumber
@@ -166,9 +167,9 @@ export abstract class JitRunTypeFormatter<P extends TypeFormatParams = any> {
         return result;
     }
 
-    handleReturnValues(comp: JitCompiler, currentOpId: JitFnID, code: string): string {
-        const codeHasReturn: boolean = this.jitFnHasReturn(currentOpId);
-        const isExpression: boolean = this.jitFnIsExpression(currentOpId);
+    handleReturnValues(rt: BaseRunType, comp: JitCompiler, currentOpId: JitFnID, code: string): string {
+        const codeHasReturn: boolean = this.jitFnHasReturn(currentOpId, rt);
+        const isExpression: boolean = this.jitFnIsExpression(currentOpId, rt);
         if (isExpression) {
             return codeHasReturn ? code : `return ${code}`;
         }

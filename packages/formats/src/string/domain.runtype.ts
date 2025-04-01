@@ -9,88 +9,37 @@ import type {BaseRunType} from '../../../runtype/src/lib/baseRunTypes';
 import type {JitCompiler, JitErrorsCompiler} from '../../../runtype/src/lib/jitCompiler';
 import {JitRunTypeFormatter} from '../../../runtype/src/lib/baseFormatter';
 import {DeepPartial, ReflectionKind} from '@deepkit/type';
-import {
-    ErrorsPureFunction,
-    MockOperation,
-    type GenericPureFunction,
-    type JitFnID,
-    type JitTypeErrorsFn,
-    type RunTypeError,
-    type StrNumber,
-} from '../../../runtype/src/types';
+import {MockOperation, type jitCode, type JitFnID} from '../../../runtype/src/types';
 import {TypeFormat} from '../../../runtype/src/lib/formats.runtype'; // !Important: TypeFormat cant be imported as type for all runType functionality to work
-import {stringFormatter, stringIgnoreProps, StringValidatorsParams} from './stringFormat.runtype';
-import {registerFormatter, registerPureFnClosure} from '../../../runtype/src/lib/formats';
+import {stringFormatter, stringIgnoreProps, StringValidatorsParams, type PatternParam} from './stringFormat.runtype';
+import {registerFormatter} from '../../../runtype/src/lib/formats';
 import {random, randomItem} from '../../../runtype/src/lib/mock';
 import {jitErrorArgs, JitFunctions} from '../../../runtype/src/constants';
-import {JITUtils} from '../../../runtype/src/lib/jitUtils';
 
+export const DOMAIN_PATTERN = /^(?:[a-zA-Z0-9-]{1,63}\.)*[a-zA-Z0-9-]{2,63}(\.[a-zA-Z]{2,12})+$/;
 export const DOMAIN_ALLOWED_CHARS = /^[a-zA-Z0-9-]+$/;
 export const TLD_ALLOWED_CHARS = /^[a-zA-Z]+(\.[a-zA-Z]+)?$/;
-
-export type DefaultDomainParams = {
-    // officially max subdomains is 127, but practically there is never more than 4 or 5, so better default to something smaller
-    maxParts: 6;
-    minParts: 2;
-    names: {
-        maxLength: 63;
-        minLength: 2;
-        pattern: {
-            regexp: typeof DOMAIN_ALLOWED_CHARS;
-            samples: ['domain1', 'ggle', 'fcbook', 'mion', 'domain-1-2', 'my-domain', 'hello', 'world', 'example'];
-            message: 'domain names can only contain letters, numbers and hyphens';
-        };
-    };
-    tld: {
-        maxLength: 12; // technical TLD max length is 63, but rarely is more than 12, as single words are the most common
-        minLength: 2;
-        pattern: {
-            regexp: typeof TLD_ALLOWED_CHARS;
-            samples: ['com', 'org', 'net', 'io', 'app', 'co', 'dev', 'tech', 'ai', 'mion', 'co.uk', 'com.au', 'com.br'];
-            message: 'top level domain can only contain letters and dots';
-        };
-    };
-    maxLength: 253;
-    minLength: 5; // name 2 + tld 2 + 1 dot
-};
-
-export type DomainNameParams = Omit<StringValidatorsParams, 'length' | 'allowedChars' | 'disallowedChars'>;
-export type TldParams = Omit<StringValidatorsParams, 'length' | 'allowedChars' | 'disallowedChars'>;
-
-export type DomainParams = {
-    maxLength: number;
-    minLength: number;
-    maxParts: number;
-    minParts: number;
-    names: DomainNameParams;
-    tld: TldParams;
-};
-
-export type Domain<D extends DeepPartial<DomainParams> = {}> = TypeFormat<string, 'domain', DefaultDomainParams & D>;
+export const tldSamples = ['com', 'org', 'net', 'co.uk', 'io'];
+export const domainPartSamples = ['mion', 'ggle', 'fbook', 'mionkit', 'domain1', 'mydomain'];
 
 // Domain validator
 export class DomainFormatter extends JitRunTypeFormatter<DomainParams> {
     static id = 'domain' as const;
     kind = ReflectionKind.string;
     name = DomainFormatter.id;
+    jitFnHasReturn(fnId: JitFnID, rt: BaseRunType): boolean {
+        const params = this.getParams(rt);
+        if (fnId === JitFunctions.isType.id) return !params.pattern;
+        return super.jitFnHasReturn(fnId, rt);
+    }
     jitFnInlined(fnId: JitFnID, rt: BaseRunType): boolean {
-        if (fnId === JitFunctions.typeErrors.id) return false; // too much logic to inline
+        const params = this.getParams(rt);
+        if (fnId === JitFunctions.isType.id) return !!params.pattern;
+        if (fnId === JitFunctions.typeErrors.id) return !!params.pattern;
         return super.jitFnInlined(fnId, rt);
     }
     getIgnoredProps(): string[] | undefined {
         return stringIgnoreProps;
-    }
-    getIsDomainDeps(comp: JitCompiler, rt: BaseRunType, params: DomainParams) {
-        const fnId = JitFunctions.isType.id;
-        const formatName = this.getFormatName();
-        const tldPath = this.getFormatPath('tld');
-        const namesPath = this.getFormatPath('names');
-        const isTldFn = stringFormatter._compile(fnId, comp, rt, params.tld, tldPath, comp.vλl, formatName);
-        const isNameFn = stringFormatter._compile(fnId, comp, rt, params.names, namesPath, comp.vλl, formatName);
-        return {
-            isTldFn: `(${comp.vλl})=>{return ${isTldFn}}`,
-            isNameFn: `(${comp.vλl})=>{return ${isNameFn}}`,
-        };
     }
     getDomaineErrorsDeps(comp: JitErrorsCompiler, rt: BaseRunType, params: DomainParams) {
         const fnId = JitFunctions.typeErrors.id;
@@ -108,24 +57,89 @@ export class DomainFormatter extends JitRunTypeFormatter<DomainParams> {
             nameErrorsFn: `(${nameArgs})=>{${isNameFn}}`,
         };
     }
-    _compileIsType(comp: JitCompiler, rt: BaseRunType): string {
+    _compileIsType(comp: JitCompiler, rt: BaseRunType): jitCode {
         const params = this.getParams(rt);
-        const deps = this.getIsDomainDeps(comp, rt, params);
-        const result = this.compilePureFunctionCall(comp, rt, isDomain, params, deps);
-        return result.callCode;
+        const fnId = JitFunctions.isType.id;
+        const fmtName = this.getFormatName();
+        const domainPath = this.getFormatPath();
+        if (params.pattern) return stringFormatter._compile(fnId, comp, rt, params, domainPath, comp.vλl, fmtName);
+
+        const vλl = comp.vλl;
+        const vName = 'name'; // must match var name in code
+        const vTld = 'tld'; // must match var name in code
+        const vCount = 'count'; // must match var name in code
+        const tldPath = this.getFormatPath('tld');
+        const namePath = this.getFormatPath('names');
+        const rootCode = stringFormatter._compile(fnId, comp, rt, params, domainPath, vλl, fmtName);
+        const nameCode = stringFormatter._compile(fnId, comp, rt, params.names, namePath, vName, fmtName);
+        const tldCode = stringFormatter._compile(fnId, comp, rt, params.tld, tldPath, vTld, fmtName);
+        const maxPartsCode = params.maxParts ? `if (${vCount} > ${params.maxParts}) return false;` : '';
+        const minPartsCode = params.minParts ? `if (${vCount} < ${params.minParts}) return false;` : '';
+        const code = `
+            if (!(${rootCode})) return false;
+            let count = 1; let start = 0; let pos; let name;
+            while ((pos = ${vλl}.indexOf('.', start)) !== -1) {
+                name = ${vλl}.substring(start, pos);
+                if (name.startsWith('-') || name.endsWith('-')) return false;
+                if (!(${nameCode})) return false;
+                start = pos + 1;
+                count++;
+            }
+            ${maxPartsCode}${minPartsCode}
+            const tld = ${vλl}.substring(start);
+            if (!(${tldCode})) return false;
+            return true;
+        `;
+        return code;
     }
-    _compileTypeErrors(comp: JitErrorsCompiler, rt: BaseRunType): string {
+    _compileTypeErrors(comp: JitErrorsCompiler, rt: BaseRunType): jitCode {
         const params = this.getParams(rt);
-        const deps = this.getDomaineErrorsDeps(comp, rt, params);
-        return this.compileErrorsPureFunctionCall(comp, rt, domainErrors, params, deps).callCode;
+        const fnId = JitFunctions.typeErrors.id;
+        const fmtName = this.getFormatName();
+        const domainPath = this.getFormatPath();
+        if (params.pattern) return stringFormatter._compile(fnId, comp, rt, params, domainPath, comp.vλl, fmtName);
+        const errFn = this.getCallJitFormatErr(comp, rt, this, true);
+        const vλl = comp.vλl;
+        const vName = 'name'; // must match var name in code
+        const vTld = 'tld'; // must match var name in code
+        const vCount = 'count'; // must match var name in code
+        const tldPath = this.getFormatPath('tld');
+        const namePath = this.getFormatPath('names');
+        const rootCode = stringFormatter._compile(fnId, comp, rt, params, domainPath, vλl, fmtName);
+        const nameCode = stringFormatter._compile(fnId, comp, rt, params.names, namePath, vName, fmtName, vCount);
+        const tldCode = stringFormatter._compile(fnId, comp, rt, params.tld, tldPath, vTld, fmtName);
+        const maxPartsCode = params.maxParts ? `if (${vCount} > ${params.maxParts}) ${errFn('maxParts', params.maxParts)};` : '';
+        const minPartsCode = params.minParts ? `if (${vCount} < ${params.minParts}) ${errFn('minParts', params.minParts)};` : '';
+        const code = `
+            ${rootCode};
+            let count = 0; let start = 0; let pos; let name;
+            while ((pos = ${vλl}.indexOf('.', start)) !== -1) {
+                name = ${vλl}.substring(start, pos);
+                if (name.startsWith('-') || name.endsWith('-')) ${errFn('hyphen', 'name')};
+                ${nameCode};
+                start = pos + 1;
+                count++;
+            }
+            count++;
+            ${maxPartsCode}
+            ${minPartsCode}
+            const tld = ${vλl}.substring(start);
+            ${tldCode};
+        `;
+        return code;
     }
     _mock(mockContext: MockOperation, rt: BaseRunType): string {
         const params = this.getParams(rt);
-        const tldSamples = params.tld?.pattern?.samples || ['com', 'org', 'net', 'co.uk'];
-        const tld = randomItem(tldSamples);
+        if (params.pattern) return stringFormatter.mock(mockContext, rt, params);
+
+        const tSamples = params.tld?.pattern?.samples || tldSamples;
+        const tld = randomItem(tSamples);
         const tldParts = tld.split('.');
-        const maxP = (params.maxParts || 127) - tldParts.length;
-        const minP = (params.minParts || 3) - tldParts.length;
+        // force generating only one domain name more often
+        const singleNameMax = tldParts.length + 1;
+        const noNormalMax = Math.random() < 0.25 ? params.maxParts || 6 : singleNameMax;
+        const maxP = noNormalMax - tldParts.length;
+        const minP = (params.minParts || 2) - tldParts.length;
         const maxParts = random(minP, maxP);
         const parts: string[] = [];
         for (let i = 0; i < maxParts; i++) parts.push(this.randomSubdomain(params));
@@ -137,8 +151,11 @@ export class DomainFormatter extends JitRunTypeFormatter<DomainParams> {
     }
     private randomSubdomain(params: DomainParams): string {
         const totalSUbparts = random(1, 3);
-        const samples = params.names?.pattern?.samples || ['ggle', 'fcbook', 'mion', 'domain-1', 'my-domain'];
-        return Array.from({length: totalSUbparts}, () => randomItem(samples)).join('-');
+        const samples = params.names?.pattern?.samples || domainPartSamples;
+        const nameSet = new Set<string>();
+        for (let i = 0; i < totalSUbparts; i++) nameSet.add(randomItem(samples));
+        const joinChar = Math.random() < 0.5 ? '-' : ''; // 50% chance to use hyphen
+        return Array.from(nameSet).join(joinChar);
     }
     _compileFormat(comp: JitCompiler): string {
         return `${comp.vλl}.toLowerCase()`; // all domain are lower case
@@ -147,15 +164,25 @@ export class DomainFormatter extends JitRunTypeFormatter<DomainParams> {
         return val.toLowerCase();
     }
     validateParams(rt: BaseRunType, params: DomainParams) {
-        if (params.maxLength > 253) throw new Error(`Domain maxLength cannot be greater than 253 in type ${rt.getTypeName()}`);
-        if (params.minLength < 3) throw new Error(`Domain minLength cannot be less than 3 in type ${rt.getTypeName()}`);
-        if (params.minParts < 2) throw new Error(`Domain minParts cannot be less than 2 in type ${rt.getTypeName()}`);
-        if (params.maxParts < 2) throw new Error(`Domain maxParts cannot be less than 2 in type ${rt.getTypeName()}`);
-        if (params.tld.minLength && params.tld.minLength < 2)
+        if (params.maxLength && params.maxLength > 253)
+            throw new Error(`Domain maxLength cannot be greater than 253 in type ${rt.getTypeName()}`);
+        if (params.minLength && params.minLength < 3)
+            throw new Error(`Domain minLength cannot be less than 3 in type ${rt.getTypeName()}`);
+        if (params.minParts && params.minParts < 2)
+            throw new Error(`Domain minParts cannot be less than 2 in type ${rt.getTypeName()}`);
+        if (params.maxParts && params.maxParts < 2)
+            throw new Error(`Domain maxParts cannot be less than 2 in type ${rt.getTypeName()}`);
+
+        if (params.pattern && (params.names || params.tld))
+            throw new Error(`Domain pattern cannot be used with names or tld in type ${rt.getTypeName()}`);
+        if ((params.names && !params.tld) || (!params.names && params.tld))
+            throw new Error(`Domain names and tld must be used together in type ${rt.getTypeName()}`);
+
+        if (params.tld && params.tld.minLength && params.tld.minLength < 2)
             throw new Error(`Domain tld.minLength cannot be less than 2 in type ${rt.getTypeName()}`);
-        if (params.tld.maxLength && params.tld.maxLength > 63)
+        if (params.tld && params.tld.maxLength && params.tld.maxLength > 63)
             throw new Error(`Domain tld.maxLength cannot be greater than 63 in type ${rt.getTypeName()}`);
-        if (params.names.maxLength && params.names.maxLength > 63)
+        if (params.names && params.names.maxLength && params.names.maxLength > 63)
             throw new Error(`Domain names.maxLength cannot be greater than 63 in type ${rt.getTypeName()}`);
         stringFormatter.validateParams(rt, params);
         if (params.names) stringFormatter.validateParams(rt, params.names);
@@ -163,97 +190,60 @@ export class DomainFormatter extends JitRunTypeFormatter<DomainParams> {
     }
 }
 
-export type isDomainDeps = {
-    isTldFn: (d: string) => boolean;
-    isNameFn: (d: string) => boolean;
-};
-
-/** @reflection never */
-export function isDomain() {
-    return function is_domain(d: string, p: DomainParams, deps: isDomainDeps): boolean {
-        if (d.length > p.maxLength) return false;
-        if (d.length < p.minLength) return false;
-        let partsCount = 0;
-        let start = 0;
-        let pos: number;
-        let part: string;
-        while ((pos = d.indexOf('.', start)) !== -1) {
-            partsCount++;
-            part = d.substring(start, pos);
-            if (!deps.isNameFn(part)) return false;
-            if (part.startsWith('-') || part.endsWith('-')) return false;
-            start = pos + 1;
-        }
-        partsCount++; // Count the TLD part
-        if (partsCount < p.minParts || partsCount > p.maxParts) return false;
-        part = d.substring(start);
-        if (!deps.isTldFn(part)) return false;
-        if (part.startsWith('-') || part.endsWith('-')) return false;
-        return true;
-    } as GenericPureFunction<DomainParams>;
-}
-
-export type DomainErrorsDeps = {
-    tldErrorFn: JitTypeErrorsFn;
-    nameErrorsFn: (v: any, path: StrNumber[], err: RunTypeError[], idx: number) => RunTypeError[];
-};
-
-/* eslint-disable no-constant-condition */
-/** @reflection never */
-export function domainErrors(utl: JITUtils) {
-    return function domain_errors(
-        val: string,
-        path: StrNumber[],
-        ers: RunTypeError[],
-        exp: string,
-        fmtName: string,
-        p: DomainParams,
-        fmtPath: StrNumber[],
-        deps: DomainErrorsDeps,
-        accessPath?: StrNumber[]
-    ): RunTypeError[] {
-        // Validate total length
-        if (val.length > p.maxLength)
-            return utl.formatErr(path, ers, exp, fmtName, 'maxLength', p.maxLength, fmtPath, accessPath), ers;
-        if (val.length < p.minLength)
-            return utl.formatErr(path, ers, exp, fmtName, 'minLength', p.minLength, fmtPath, accessPath), ers;
-        // Validate each part using substring and index positions
-        let partIndex = 0;
-        let start = 0;
-        while (true) {
-            const pos = val.indexOf('.', start);
-            if (pos === -1) {
-                // last part -> TLD
-                const tld = val.substring(start);
-                if (tld.startsWith('-') || tld.endsWith('-'))
-                    return utl.formatErr(path, ers, exp, fmtName, 'hyphen', tld, [...fmtPath, 'tld'], accessPath), ers;
-                deps.tldErrorFn(tld, path, ers);
-                break;
-            } else {
-                const part = val.substring(start, pos);
-                if (part.startsWith('-') || part.endsWith('-'))
-                    return (
-                        utl.formatErr(path, ers, exp, fmtName, 'hyphen', part, [...fmtPath, 'names', partIndex], accessPath), ers
-                    );
-                deps.nameErrorsFn(part, path, ers, partIndex);
-                partIndex++;
-                start = pos + 1;
-            }
-        }
-        partIndex++; // Count the TLD part
-        if (partIndex < p.minParts)
-            return utl.formatErr(path, ers, exp, fmtName, 'minParts', p.minParts, fmtPath, accessPath), ers;
-        if (partIndex > p.maxParts)
-            return utl.formatErr(path, ers, exp, fmtName, 'maxParts', p.maxParts, fmtPath, accessPath), ers;
-        return ers;
-    } as ErrorsPureFunction<DomainParams>;
-}
-
 // ############### Register runtypes ###############
-
-// register pure functions so they can be used in the jit compiler
-registerPureFnClosure(isDomain);
-registerPureFnClosure(domainErrors);
 
 // register Validator operations so they can be used in the jit compiler
 export const domainFormatter = registerFormatter(new DomainFormatter());
+
+// ############### Type Params ###############
+
+export type DefaultDomainParams = {
+    maxLength: 253;
+    pattern: {
+        regexp: typeof DOMAIN_PATTERN;
+        message: 'invalid domain';
+        samples: ['ggle.com', 'mion.io', 'mionkit.io', 'yahuu.net', 'fbook.com'];
+    };
+};
+export type DefaultStrictDomainParams = {
+    // officially max subdomains is 127, but practically there is never more than 4 or 5, so better default to something smaller
+    maxParts: 6;
+    minParts: 2;
+    names: {
+        maxLength: 63;
+        minLength: 2;
+        pattern: {
+            regexp: typeof DOMAIN_ALLOWED_CHARS;
+            samples: ['domain', 'ggle', 'fbook', 'mion', 'prot', 'yahuu', 'hello', 'world', 'example', 'mionkit'];
+            message: 'domain names can only contain letters, numbers and hyphens';
+        };
+    };
+    tld: {
+        maxLength: 12; // technical TLD max length is 63, but rarely is more than 12, as single words are the most common
+        minLength: 2;
+        pattern: {
+            regexp: typeof TLD_ALLOWED_CHARS;
+            samples: ['com', 'org', 'net', 'io', 'app', 'co', 'dev', 'tech', 'ai', 'mion', 'co.uk', 'com.au', 'com.br'];
+            message: 'top level domain can only contain letters and dots';
+        };
+    };
+    maxLength: 253;
+    minLength: 5; // name 2 + tld 2 + 1 dot
+};
+export type DomainNameParams = Omit<StringValidatorsParams, 'length' | 'allowedChars' | 'disallowedChars'>;
+export type TldParams = Omit<StringValidatorsParams, 'length' | 'allowedChars' | 'disallowedChars'>;
+
+export type DomainCoreParams =
+    | {names: DomainNameParams; tld: TldParams; pattern?: never}
+    | {names?: never; tld?: never; pattern: PatternParam};
+export type DomainParams = {
+    maxLength?: number;
+    minLength?: number;
+    maxParts?: number;
+    minParts?: number;
+} & DomainCoreParams;
+
+// ############### Run Types ###############
+
+export type Domain<D extends DeepPartial<DomainParams> = {}> = TypeFormat<string, 'domain', DefaultDomainParams & D>;
+export type StrictDomain<D extends DeepPartial<DomainParams> = {}> = TypeFormat<string, 'domain', DefaultStrictDomainParams & D>;
