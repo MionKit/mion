@@ -5,13 +5,22 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import type {AnyClass, JitFnID, PureFunctionWithClosure, RunType, TypeFormatValue} from '../types';
+import type {
+    AnyClass,
+    FormatParam,
+    FormatParamLiteral,
+    JitFnID,
+    PureFunctionWithClosure,
+    RunType,
+    TypeFormatValue,
+} from '../types';
 import {ReflectionKind, Type, TypeFunction, TypeParameter, TypeTuple, TypeTupleMember} from '@deepkit/type';
 import {jitUtils} from './jitUtils';
 import {validPropertyNameRegExp} from '../constants';
 import {BaseRunType} from './baseRunTypes';
 import type {JitCompiler, JitErrorsCompiler} from './jitCompiler';
 import {createHashLiteral} from './quickHash';
+import {isFormatParamMeta} from './guards';
 
 export function toLiteral(value: number | string | boolean | undefined | null | bigint | RegExp | symbol): string {
     switch (typeof value) {
@@ -252,4 +261,9 @@ export function getFormatterHash(rt: BaseRunType): string {
     const literal = rt.getFormatterJitId();
     if (!literal) throw new Error('Formatter JIT ID not found');
     return createHashLiteral(literal);
+}
+
+/** Returns the literal value of a FormatParam */
+export function fpVal<L extends FormatParamLiteral>(p: FormatParam<L>): L {
+    return isFormatParamMeta(p) ? p.val : p;
 }

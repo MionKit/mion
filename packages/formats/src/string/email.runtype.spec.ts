@@ -7,10 +7,10 @@
 
 import {isTypeFn, mockTypeFn, typeErrorsFn} from '@mionkit/runtype/src/functions';
 import {RunTypeError} from '@mionkit/runtype/src/types';
-import {Email} from './email.runtype';
+import {EmailFormat} from './email.runtype';
 
 it('should validate email values', async () => {
-    const isType = await isTypeFn<Email>();
+    const isType = await isTypeFn<EmailFormat>();
     // Valid cases
     expect(isType('user@example.com')).toBe(true);
     expect(isType('user.name@sub.example.com')).toBe(true);
@@ -30,7 +30,7 @@ it('should validate email values', async () => {
 });
 
 it('should return email errors', async () => {
-    const typeErrors = await typeErrorsFn<Email>();
+    const typeErrors = await typeErrorsFn<EmailFormat>();
     const err: RunTypeError = {expected: 'string', path: [], format: {name: 'email', formatPath: [], val: ''}};
     const localPartErr: RunTypeError = {
         ...err,
@@ -61,12 +61,99 @@ it('should return email errors', async () => {
 });
 
 it('should mock email values', async () => {
-    const mockType = mockTypeFn<Email>();
-    const isType = await isTypeFn<Email>();
-    const typeErrors = await typeErrorsFn<Email>();
+    const mockType = mockTypeFn<EmailFormat>();
+    const isType = await isTypeFn<EmailFormat>();
+    const typeErrors = await typeErrorsFn<EmailFormat>();
     const mockedItems = Array.from({length: 20}, () => mockType());
     for (const item of mockedItems) {
         expect(typeErrors(item)).toEqual([]);
         expect(isType(item)).toBe(true);
+    }
+});
+
+// ########## QUick Email ##########
+
+it('should validate quick email values', async () => {
+    const isType = await isTypeFn<EmailFormat<{quick: true}>>();
+    // Valid cases
+    expect(isType('user@example.com')).toBe(true);
+    expect(isType('user.name@sub.example.com')).toBe(true);
+    expect(isType('r@ho.co')).toBe(true); // min local part and min domain
+    // allow multiple @
+    expect(isType('user@name@sub.example.com')).toBe(true);
+    // Invalid maxLength
+    const longEmail = 'a'.repeat(65) + '@example.com';
+    expect(isType(longEmail)).toBe(false);
+    // Missing parts
+    expect(isType('userexample.com')).toBe(false);
+    expect(isType('@example.com')).toBe(false);
+    expect(isType('user@')).toBe(false);
+    // Disallowed characters (quick email does not validate special characters)
+    expect(isType('user+name@example.com')).toBe(true);
+    expect(isType('user(name)@example.com')).toBe(true);
+    expect(isType('user,name@example.com')).toBe(true);
+});
+
+it('should return quick email errors', async () => {
+    const typeErrors = await typeErrorsFn<EmailFormat<{quick: true}>>();
+    const err: RunTypeError = {expected: 'string', path: [], format: {name: 'email', formatPath: [], val: ''}};
+    const maxLengthErr: RunTypeError = {...err, format: {name: 'email', formatPath: ['maxLength'], val: 254}};
+    const localMaxLengthErr: RunTypeError = {...err, format: {name: 'email', formatPath: ['localPart', 'maxLength'], val: 64}};
+    const localMinlengthErr: RunTypeError = {...err, format: {name: 'email', formatPath: ['localPart', 'minLength'], val: 1}};
+    const domainMinLengthErr: RunTypeError = {...err, format: {name: 'email', formatPath: ['domain', 'minLength'], val: 5}};
+    const missingPartsErr: RunTypeError = {...err, format: {name: 'email', formatPath: ['@'], val: 'Missing @ symbol'}};
+    // Valid cases
+    expect(typeErrors('user@example.com')).toEqual([]);
+    expect(typeErrors('user@name@example.com')).toEqual([]);
+    expect(typeErrors('r@ho.co')).toEqual([]); // min local part and min do
+    // invalid max length
+    const longEmail = 'a'.repeat(255) + '@example.com';
+    expect(typeErrors(longEmail)).toEqual([maxLengthErr]);
+    // Invalid local maxLength
+    const longLocalPart = 'a'.repeat(65) + '@example.com';
+    expect(typeErrors(longLocalPart)).toEqual([localMaxLengthErr]);
+    // Missing parts
+    expect(typeErrors('userexample.com')).toEqual([missingPartsErr]);
+    expect(typeErrors('@example.com')).toEqual([localMinlengthErr]);
+    expect(typeErrors('user@')).toEqual([domainMinLengthErr]);
+    // Disallowed characters (quick email does not validate special characters)
+    expect(typeErrors('user+name@example.com')).toEqual([]);
+    expect(typeErrors('user(name)@example.com')).toEqual([]);
+    expect(typeErrors('user,name@example.com')).toEqual([]);
+});
+
+it('quick email validation should be faster than normal email', async () => {
+    const isType = await isTypeFn<EmailFormat>();
+    const isTypeQuick = await isTypeFn<EmailFormat<{quick: true}>>();
+    // TODO: regexp seems to be a bit faster than quick email so maybe we should use it
+    const emailregexp = /.+@.+\.[a-zA-Z]{2,}/;
+    const isEmailRegexp = (email: string) => emailregexp.test(email);
+    const mockType = mockTypeFn<EmailFormat>();
+    const mockedItems = Array.from({length: 20}, () => mockType());
+    const start = performance.now();
+    for (const item of mockedItems) {
+        isType(item);
+    }
+    const end = performance.now();
+    const startQuick = performance.now();
+    for (const item of mockedItems) {
+        isTypeQuick(item);
+    }
+    const endQuick = performance.now();
+    const startRegexp = performance.now();
+    for (const item of mockedItems) {
+        isEmailRegexp(item);
+    }
+    const endRegexp = performance.now();
+    const regexpTime = Math.round(((endRegexp - startRegexp) * 1000) / mockedItems.length);
+    const normalTime = Math.round(((end - start) * 1000) / mockedItems.length);
+    const quickTime = Math.round(((endQuick - startQuick) * 1000) / mockedItems.length);
+    console.log(`Normal email (${normalTime}ms) | Quick email (${quickTime}ms) | Regexp (${regexpTime}ms)`);
+    expect(quickTime).toBeLessThan(normalTime);
+
+    for (const item of mockedItems) {
+        expect(isType(item)).toBe(true);
+        expect(isTypeQuick(item)).toBe(true);
+        expect(isEmailRegexp(item)).toBe(true);
     }
 });

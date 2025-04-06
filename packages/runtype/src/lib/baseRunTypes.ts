@@ -262,19 +262,19 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
         } else {
             // prettier-ignore
             switch (fnId) {
-                case JitFunctions.isType.id: 
+                case JitFunctions.isType.id:
                     code = this.compileFormatter(comp, fnId, ' && ', this._compileIsType(comp));
                     break;
-                case JitFunctions.typeErrors.id: 
+                case JitFunctions.typeErrors.id:
                     code = this.compileFormatter(comp, fnId, ';', this._compileTypeErrors(comp as JitErrorsCompiler));
                     break;
-                case JitFunctions.toJsonVal.id: 
+                case JitFunctions.toJsonVal.id:
                     code = this._compileToJsonVal(comp);
                     break;
-                case JitFunctions.fromJsonVal.id:  
+                case JitFunctions.fromJsonVal.id:
                     code =this._compileFromJsonVal(comp);
                     break;
-                case JitFunctions.jsonStringify.id: 
+                case JitFunctions.jsonStringify.id:
                     code = this._compileJsonStringify(comp);
                     break;
                 case JitFunctions.unknownKeyErrors.id: code = this._compileUnknownKeyErrors(comp as JitErrorsCompiler); break;
@@ -299,7 +299,20 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
         if (!typeFormatters.length) return code;
         const formattersCode = typeFormatters
             .map((f) => {
-                if (f.jitFnInlined(fnId, this)) return f._compile(fnId, comp, this);
+                // Check if the formatter code can be embedded AND is compatible with the function ID
+                const canEmbed = f.canEmbedFormatterCode(fnId, this);
+                const hasReturn = f.jitFnHasReturn(fnId, this);
+                const isExpression = f.jitFnIsExpression(fnId, this);
+
+                // For isType and similar functions that are expressions, we need to ensure
+                // the formatter code is also an expression or has a return statement
+                const isCompatible = !this.jitFnIsExpression(fnId) || isExpression || hasReturn;
+
+                if (canEmbed && isCompatible) {
+                    return f._compile(fnId, comp, this);
+                }
+
+                // Otherwise, create a separate function
                 const compiled = f.createJitCompiledFormatter(fnId, comp, this);
                 if (compiled.isNoop) return;
                 comp.updateDependencies(compiled);

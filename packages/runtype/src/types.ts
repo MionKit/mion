@@ -10,7 +10,7 @@ import type {BaseCompiler} from './lib/jitCompiler';
 import type {JITUtils} from './lib/jitUtils';
 import type {JitFunctions} from './constants';
 import type {ReflectionSubKind} from './constants.kind';
-import type {JitRunTypeFormatter} from './lib/baseFormatter';
+import type {BaseRunTypeFormat} from './lib/baseRunTypeFormat';
 
 export type StrNumber = string | number;
 export type jitCode = string | undefined;
@@ -235,13 +235,13 @@ export type DKAnnotation = {
 
 export type FormatAnnotation = DKAnnotation & {
     params?: TypeFormatParams;
-    formatter: JitRunTypeFormatter;
+    formatter: BaseRunTypeFormat;
 };
 
 export type TypeFormatError = {
     /** The name of the format that failed */
     name: string; // the name of the format that failed
-    /** Expected value, for larger Values like regexp and others */
+    /** Expected value, for larger Values, regexp and others the error reason is returned instead */
     val: StrNumber | boolean | (StrNumber | boolean)[];
     /**
      * The path to the section of the format that failed.
@@ -251,9 +251,18 @@ export type TypeFormatError = {
     formatPath: StrNumber[];
 };
 
-type ParamLiteral = StrNumber | boolean | RegExp | undefined;
-export type TypeFormatValue = ParamLiteral | TypeFormatValue[] | {[key: string]: TypeFormatValue};
-export type TypeFormatParams = Record<string, TypeFormatValue>;
+export type FormatParamLiteral = string | number | boolean | RegExp | bigint;
+export type TypeFormatValue = FormatParamLiteral | TypeFormatValue[] | {[key: string]: TypeFormatValue | undefined | never}; // undefined is used to allow optional properties
+export type FormatParamMeta<L extends TypeFormatValue = TypeFormatValue> = {
+    /** Value of the format param, can ONLY be a Literal Value */
+    val: L;
+    /** Error reason in case validation fails due to this value, should be a unique reason  */
+    reason: string;
+    /**  Description of the format param, can be used to generate documentation */
+    desc?: string;
+};
+export type FormatParam<L extends TypeFormatValue> = L | FormatParamMeta<L>;
+export type TypeFormatParams = Record<string, TypeFormatValue | undefined | never>;
 export type TypeFormatParsedParams = {__jitId: string; [key: string]: TypeFormatValue};
 
 /**

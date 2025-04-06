@@ -8,31 +8,20 @@ import {ReflectionKind} from '@deepkit/type';
 import type {JITUtils} from '@mionkit/runtype/src/lib/jitUtils';
 import type {JitCompiler, JitErrorsCompiler} from '@mionkit/runtype/src/lib/jitCompiler';
 import type {BaseRunType} from '@mionkit/runtype/src/lib/baseRunTypes';
-import type {GenericPureFunction, MockOperation} from '@mionkit/runtype/src/types';
-import {JitRunTypeFormatter} from '@mionkit/runtype/src/lib/baseFormatter';
+import type {FormatParam, GenericPureFunction, MockOperation} from '@mionkit/runtype/src/types';
+import {BaseRunTypeFormat} from '@mionkit/runtype/src/lib/baseRunTypeFormat';
 import {registerFormatter, registerPureFnClosure} from '@mionkit/runtype/src/lib/formats';
 import {TypeFormat} from '@mionkit/runtype/src/lib/formats.runtype'; // !Important: TypeFormat cant be imported as type for all runType functionality to work
-
-export type DateStringParams = {
-    format: 'ISO' | 'YYYY-MM-DD' | 'DD-MM-YYYY' | 'MM-DD-YYYY' | 'MM-DD' | 'DD-MM' | 'YYYY-MM';
-};
-
-export type DefaultDateParams = {format: 'ISO'};
-
-export type DateString<P extends Partial<DateStringParams> = DefaultDateParams> = TypeFormat<
-    string,
-    typeof DateStringValidator.id,
-    P
->;
+import {fpVal} from '@mionkit/runtype/src/lib/utils';
 
 // Date validator
-export class DateStringValidator extends JitRunTypeFormatter<DateStringParams> {
+export class DateStringRunTypeFormat extends BaseRunTypeFormat<FormatParams_Date> {
     static id = 'date' as const;
     kind = ReflectionKind.string;
-    name = DateStringValidator.id;
+    name = DateStringRunTypeFormat.id;
     _compileIsType(comp: JitCompiler, rt: BaseRunType): string {
         const params = this.getParams(rt);
-        const formatFn = this.getFormatPureFn(params.format);
+        const formatFn = this.getFormatPureFn(fpVal(params.format));
         return this.compilePureFunctionCall(comp, rt, formatFn).callCode;
     }
     _compileTypeErrors(comp: JitErrorsCompiler, rt: BaseRunType): string {
@@ -40,14 +29,17 @@ export class DateStringValidator extends JitRunTypeFormatter<DateStringParams> {
         if (!isTypeCode) return '';
         const params = this.getParams(rt);
         const errFn = this.getCallJitFormatErr(comp, rt, this);
-        return `if (!(${isTypeCode})) ${errFn('format', params.format)}`;
+        return `if (!(${isTypeCode})) ${errFn('format', fpVal(params.format))}`;
     }
     _mock(mockContext: MockOperation, rt: BaseRunType) {
         const params = this.getParams(rt);
-        const year = String(Math.floor(Math.random() * 10000)).padStart(4, '0');
-        const month = String(Math.floor(Math.random() * 12) + 1).padStart(2, '0');
-        const day = String(Math.floor(Math.random() * 28) + 1).padStart(2, '0');
-        switch (params.format) {
+        const yy = Math.floor(Math.random() * 10000);
+        const mm = Math.floor(Math.random() * 12) + 1;
+        const dd = Math.floor(Math.random() * getMaxDaysInMonth(yy, mm)) + 1;
+        const year = String(yy).padStart(4, '0');
+        const month = String(mm).padStart(2, '0');
+        const day = String(dd).padStart(2, '0');
+        switch (fpVal(params.format)) {
             case 'ISO':
             case 'YYYY-MM-DD':
                 return `${year}-${month}-${day}`;
@@ -62,11 +54,10 @@ export class DateStringValidator extends JitRunTypeFormatter<DateStringParams> {
             case 'DD-MM':
                 return `${day}-${month}`;
             default:
-                throw new Error(`Invalid date format: ${params.format}`);
+                throw new Error(`Invalid date format: ${fpVal(params.format)}`);
         }
     }
-    _compileFormat?; // no format needed
-    getFormatPureFn(format) {
+    getFormatPureFn(format: DateFmt) {
         switch (format) {
             case 'ISO':
             case 'YYYY-MM-DD':
@@ -85,6 +76,17 @@ export class DateStringValidator extends JitRunTypeFormatter<DateStringParams> {
                 throw new Error(`Invalid date format: ${format}`);
         }
     }
+}
+
+/** return the max days in a month taking into account leap years */
+function getMaxDaysInMonth(year: number, month: number): number {
+    if (month === 2) {
+        // check for leap years
+        if (year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0)) return 29;
+        return 28;
+    }
+    if (month === 4 || month === 6 || month === 9 || month === 11) return 30;
+    return 31;
 }
 
 /** @reflection never */
@@ -125,7 +127,7 @@ export function isDateString_YMD(jUtil: JITUtils) {
     return function is_date(value: string): boolean {
         const parts = value.split('-');
         return parts.length === 3 && isDate(parts[0], parts[1], parts[2]);
-    } satisfies GenericPureFunction<DateStringParams>;
+    } satisfies GenericPureFunction<FormatParams_Date>;
 }
 
 /** @reflection never */
@@ -134,7 +136,7 @@ export function isDateString_DMY(jUtil: JITUtils) {
     return function is_date(value: string): boolean {
         const parts = value.split('-');
         return parts.length === 3 && isDate(parts[2], parts[1], parts[0]);
-    } satisfies GenericPureFunction<DateStringParams>;
+    } satisfies GenericPureFunction<FormatParams_Date>;
 }
 
 /** @reflection never */
@@ -143,7 +145,7 @@ export function isDateString_MDY(jUtil: JITUtils) {
     return function is_date(value: string): boolean {
         const parts = value.split('-');
         return parts.length === 3 && isDate(parts[2], parts[0], parts[1]);
-    } satisfies GenericPureFunction<DateStringParams>;
+    } satisfies GenericPureFunction<FormatParams_Date>;
 }
 
 /** @reflection never */
@@ -152,7 +154,7 @@ export function isDateString_YM(jUtil: JITUtils) {
     return function is_date(value: string): boolean {
         const parts = value.split('-');
         return parts.length === 2 && isDate(parts[0], parts[1]);
-    } satisfies GenericPureFunction<DateStringParams>;
+    } satisfies GenericPureFunction<FormatParams_Date>;
 }
 
 /** @reflection never */
@@ -161,7 +163,7 @@ export function isDateString_MD(jUtil: JITUtils) {
     return function is_date(value: string): boolean {
         const parts = value.split('-');
         return parts.length === 2 && isDate(undefined, parts[0], parts[1]);
-    } satisfies GenericPureFunction<DateStringParams>;
+    } satisfies GenericPureFunction<FormatParams_Date>;
 }
 
 /** @reflection never */
@@ -170,18 +172,11 @@ export function isDateString_DM(jUtil: JITUtils) {
     return function is_date(value: string): boolean {
         const parts = value.split('-');
         return parts.length === 2 && isDate(undefined, parts[1], parts[0]);
-    } satisfies GenericPureFunction<DateStringParams>;
+    } satisfies GenericPureFunction<FormatParams_Date>;
 }
 
 // ######### Registering the date validator #########
-registerPureFnClosure(isDateString);
-registerPureFnClosure(isDateString_YMD, [isDateString]);
-registerPureFnClosure(isDateString_DMY, [isDateString]);
-registerPureFnClosure(isDateString_MDY, [isDateString]);
-registerPureFnClosure(isDateString_YM, [isDateString]);
-registerPureFnClosure(isDateString_MD, [isDateString]);
-registerPureFnClosure(isDateString_DM, [isDateString]);
-export const dateStringValidator = registerFormatter(new DateStringValidator());
+
 export const dateFunctions = [
     isDateString,
     isDateString_YMD,
@@ -191,3 +186,37 @@ export const dateFunctions = [
     isDateString_MD,
     isDateString_DM,
 ];
+registerPureFnClosure(isDateString);
+registerPureFnClosure(isDateString_YMD, [isDateString]);
+registerPureFnClosure(isDateString_DMY, [isDateString]);
+registerPureFnClosure(isDateString_MDY, [isDateString]);
+registerPureFnClosure(isDateString_YM, [isDateString]);
+registerPureFnClosure(isDateString_MD, [isDateString]);
+registerPureFnClosure(isDateString_DM, [isDateString]);
+
+export const DATE_RUN_TYPE_FORMATTER = registerFormatter(new DateStringRunTypeFormat());
+
+// ############### Run Types ###############
+
+export type DEFAULT_DATE_PARAMS = {format: 'ISO'};
+export type DateFmt = 'ISO' | 'YYYY-MM-DD' | 'DD-MM-YYYY' | 'MM-DD-YYYY' | 'MM-DD' | 'DD-MM' | 'YYYY-MM';
+export type FormatParams_Date = {
+    format: FormatParam<DateFmt>;
+    // TODO:
+    // splitChar: string = '-';
+    // minYear?: number = 1900;
+    // maxYear?: number = 2100;
+    // year?: number;
+    // minMonth?: number;
+    // maxMonth?: number;
+    // month?: number;
+    // minDay?: number;
+    // maxDay?: number;
+    // day?: number;
+};
+
+export type DateFormat<P extends Partial<FormatParams_Date> = DEFAULT_DATE_PARAMS> = TypeFormat<
+    string,
+    typeof DateStringRunTypeFormat.id,
+    P
+>;
