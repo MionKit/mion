@@ -11,7 +11,7 @@ import {isType, ReflectionKind} from '@deepkit/type';
 import {ReflectionSubKind} from '../constants.kind';
 import {JitFunctions, nativeUtilityStringTypes, nonSerializableClasses, nonSerializableGlobals} from '../constants';
 /* IMPORTANT: import classes as type only to prevent js circular imports */
-import type {MockOperation, MockOptions, RunType, RunTypeChildAccessor} from '../types';
+import type {FormatParamMeta, MockOperation, MockOptions, RunType, RunTypeChildAccessor, TypeFormatValue} from '../types';
 import type {StringRunType} from '../runtypes/atomic/string';
 import type {DateRunType} from '../runtypes/atomic/date';
 import type {NumberRunType} from '../runtypes/atomic/number';
@@ -278,4 +278,8 @@ export function hasMembers(src: any): src is {members: InterfaceMember[]} {
 
 export function hasImplements(src: any): src is {implements: Type[]} {
     return Array.isArray(src?.implements) && isType(src);
+}
+
+export function isFormatParamMeta(src: TypeFormatValue): src is FormatParamMeta {
+    return (src as FormatParamMeta)?.val !== undefined;
 }

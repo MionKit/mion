@@ -8,85 +8,232 @@
  * ######## */
 import type {BaseRunType} from '../../../runtype/src/lib/baseRunTypes';
 import type {JitCompiler, JitErrorsCompiler} from '../../../runtype/src/lib/jitCompiler';
-import {registerFormatter, registerPureFnClosure} from '../../../runtype/src/lib/formats';
-import {JitRunTypeFormatter} from '../../../runtype/src/lib/baseFormatter';
+import {registerFormatter} from '../../../runtype/src/lib/formats';
+import {BaseRunTypeFormat} from '../../../runtype/src/lib/baseRunTypeFormat';
 import {ReflectionKind} from '@deepkit/type';
-import {Domain} from './domain.runtype';
 import {TypeFormat} from '../../../runtype/src/lib/formats.runtype';
-import {MockOperation} from '../../../runtype/src/types';
-import {stringIgnoreProps} from './stringFormat.runtype';
+import {MockOperation, type jitCode, type JitFnID, type StrNumber} from '../../../runtype/src/types';
+import {StringRunTypeFormat, stringIgnoreProps, FormatParams_String} from '../stringFormat.runtype';
+import {DomainRunTypeFormat, FormatParams_Domain} from './domain.runtype';
+import {JitFunctions} from '@mionkit/runtype/src/constants';
+import {IPRunTypeFormat, FormatParams_IP} from './ip.runtype';
+import {fpVal} from '@mionkit/runtype/src/lib/utils';
+import {randomItem} from '@mionkit/runtype/src/lib/mock';
+import {FILE_URL_SAMPLES, HTTP_URL_SAMPLES, SOCIAL_MEDIA_URL_SAMPLES, URL_SAMPLES} from '../constants.mock';
 
-export type DefaultUrlParams = {
-    maxLength: 2048;
-    allowedProtocols: ['http://', 'https://', 'ftp://', 'ftps://', 'ws://', 'wss://', 'file://'];
-    disallowedChars: '\t\n\r ';
-    allowIPs: true;
-};
-
-export type UrlParams = {
-    maxLength?: number;
-    allowedProtocols?: string[];
-    disallowedChars?: string;
-    allowIPs?: boolean;
-    domain?: Domain;
-    samples?: string[];
-};
-
-export type StringURL<P extends UrlParams = {}, D extends Domain | undefined = undefined> = TypeFormat<
-    string,
-    'url',
-    DefaultUrlParams & P & {domain?: D}
->;
+export const URL_REGEXP = /^(?:https?|ftps?|wss?):\/\/[^\s/$.?#-][^\s]*$/i;
+export const URL_FILE_REGEXP = /^file:\/\/\/?(?:[a-zA-Z]:)?[^\s/$.?#-][^\s]*$/i;
+export const URL_HTTP_REGEXP = /^https?:\/\/[^\s/$.?#-][^\s]*$/i;
+const protocols = ['http', 'https', 'ftp', 'ftps', 'ws', 'wss', 'file'];
 
 // URL validator
-export class URLValidator extends JitRunTypeFormatter<UrlParams> {
+export class URLRunTypeFormat extends BaseRunTypeFormat<FormatParams_Url> {
     static readonly id = 'url';
     readonly kind = ReflectionKind.string;
-    readonly name = URLValidator.id;
+    readonly name = URLRunTypeFormat.id;
+
+    // Formatter instances as class variables
+    private urlFormatter: StringRunTypeFormat;
+    private domainFormatter: DomainRunTypeFormat;
+    private ipFormatter: IPRunTypeFormat;
+
+    constructor(parentPath?: StrNumber[]) {
+        super(parentPath);
+
+        // Initialize formatters in the constructor
+        const urlPath = this.getFormatPath();
+        const domainPath = this.getFormatPath('domain');
+        const ipPath = this.getFormatPath('ip');
+
+        this.urlFormatter = new StringRunTypeFormat(urlPath);
+        this.domainFormatter = new DomainRunTypeFormat(domainPath);
+        this.ipFormatter = new IPRunTypeFormat(ipPath);
+    }
+    jitFnIsExpression(fnId: JitFnID, rt: BaseRunType, p?: FormatParams_Url): boolean {
+        const params = p || this.getParams(rt);
+        if (fnId === JitFunctions.isType.id) return !params.domain && !params.ip;
+        return super.jitFnIsExpression(fnId, rt, params);
+    }
+    jitFnHasReturn(fnId: JitFnID, rt: BaseRunType, p?: FormatParams_Domain) {
+        if (fnId === JitFunctions.isType.id) return !this.jitFnIsExpression(fnId, rt, p);
+        return super.jitFnHasReturn(fnId, rt);
+    }
     getIgnoredProps(): string[] | undefined {
         return stringIgnoreProps;
     }
-    _compileIsType(comp: JitCompiler, rt: BaseRunType): string {
-        return this.compilePureFunctionCall(comp, rt, isURL).callCode;
-    }
-    _mock(mockContext: MockOperation, rt: BaseRunType) {
-        // TODO
-        return {value: rt.getKindName()};
-    }
-    _compileTypeErrors(comp: JitErrorsCompiler, rt: BaseRunType): string {
-        throw new Error('Method not implemented.');
-    }
-    _formatMockedValue(mockContext: MockOperation, rt: BaseRunType, val: any): string {
-        throw new Error('Method not implemented.');
-    }
-    _compileFormat?; // no format needed
-}
+    _compileIsType(comp: JitCompiler, rt: BaseRunType): jitCode {
+        const params = this.getParams(rt);
+        const fnId = comp.fnId;
+        const fmtName = this.getFormatName();
 
-/**
- * Validates if a string is a URL.
- * - Checks the the url starts by a valid protocol
- * - Checks the length of the URL
- * - Checks the characters not allowed in the URL
- * @param value
- * @param maxLength maximum length of the URL
- * @param allowedProtocols array of allowed protocols
- * @param disallowedChars string of allowed characters
- * @reflection never
- */
-function isURL() {
-    return function is_url(url: string, p: Required<UrlParams>): boolean {
-        if (url.length > p.maxLength) return false;
-        let matchesProtocol = false;
-        for (const protocol of p.allowedProtocols) {
-            if (url.startsWith(protocol)) {
-                matchesProtocol = true;
-                break;
-            }
+        const urlCode = this.urlFormatter!._compile(fnId, comp, rt, params, comp.vλl, fmtName);
+        if (!params.domain && !params.ip) return urlCode;
+
+        const vDomain = 'domain';
+        const dmnCode = params?.domain ? this.domainFormatter._compile(fnId, comp, rt, params.domain, vDomain, fmtName) : '';
+        const ipCode = params.ip ? `${this.ipFormatter._compile(fnId, comp, rt, params.ip, vDomain, fmtName)}` : '';
+        // Remove debug logs
+        const safeUrlCode = urlCode ? `if(!(${urlCode})) return false;` : '';
+
+        const dIsExpression = this.domainFormatter.jitFnIsExpression(fnId, rt, params.domain);
+        const ipExpression = this.ipFormatter.jitFnIsExpression(fnId, rt, params.ip);
+        const domainSafeCode = dIsExpression && dmnCode ? `if(!(${dmnCode})) return false;` : dmnCode;
+        const ipSafeCode = ipExpression && ipCode ? `if(${ipCode}) return false;` : ipCode;
+        const returnCode = this.isRoot() ? `return true;` : '';
+
+        const code = `
+            ${safeUrlCode}
+            const start = ${comp.vλl}.indexOf('://') + 3;
+            const end = ${comp.vλl}.indexOf('/', start);
+            const endIdx = end === -1 ? ${comp.vλl}.length : end;
+            const domain = ${comp.vλl}.substring(start, endIdx);
+            ${domainSafeCode}
+            ${ipSafeCode}
+            ${returnCode}
+        `;
+        return code;
+    }
+    _compileTypeErrors(comp: JitErrorsCompiler, rt: BaseRunType): jitCode {
+        const params = this.getParams(rt);
+        const fnId = comp.fnId;
+        const fmtName = this.getFormatName();
+
+        const urlCode = this.urlFormatter!._compile(fnId, comp, rt, params, comp.vλl, fmtName);
+        if (!params.domain && !params.ip) return urlCode;
+
+        const vDomain = 'domain' + this.getNestLevel(); // must match var name in code
+        const dmnCode = params?.domain ? this.domainFormatter._compile(fnId, comp, rt, params.domain, vDomain, fmtName) : '';
+        const iPCode = params.ip ? `${this.ipFormatter._compile(fnId, comp, rt, params.ip, vDomain, fmtName)}` : '';
+        const checks = [urlCode, dmnCode, iPCode].filter(Boolean);
+
+        const vStart = 'start' + this.getNestLevel(); // must match var name in code
+        const vEnd = 'end' + this.getNestLevel(); // must match var name in code
+        const vEndIdx = 'endIdx' + this.getNestLevel(); // must match var name in code
+
+        const code = `
+            const ${vStart} = ${comp.vλl}.indexOf('://') + 3;
+            const ${vEnd} = ${comp.vλl}.indexOf('/', ${vStart});
+            const ${vEndIdx} = ${vEnd} === -1 ? ${comp.vλl}.length : ${vEnd};
+            const ${vDomain} = ${comp.vλl}.substring(${vStart}, ${vEndIdx});
+            ${checks.join(';')};
+        `;
+        return code;
+    }
+    _mock(mockContext: MockOperation, rt: BaseRunType): string {
+        const params = this.getParams(rt);
+
+        console.log(params);
+        let url = this.urlFormatter.mock(mockContext, rt, params);
+        console.log('url =====>', url);
+        const hasProtocol = url.indexOf('://') !== -1;
+        if (!hasProtocol) url = randomItem(protocols) + url;
+
+        if (params.domain) {
+            const domain = this.domainFormatter.mock(mockContext, rt, params.domain);
+            console.log('domain =====>', domain);
+            return replaceDomain(url, domain);
         }
-        if (!matchesProtocol) return false;
-        return true;
-    };
+        if (params.ip) return replaceDomain(url, this.ipFormatter.mock(mockContext, rt, params.ip));
+        return url;
+    }
+    validateParams(rt: BaseRunType, params: FormatParams_Url): void {
+        if (params.maxLength && fpVal(params.maxLength) > 2048) throw new Error('URL maxLength cannot be greater than 2048');
+        if (params.minLength && fpVal(params.minLength) < 5) throw new Error('URL minLength cannot be less than 5');
+
+        this.urlFormatter.validateParams(rt, params);
+
+        const {ip, domain} = params;
+        if (ip && domain) throw new Error('URL validator cannot have both IP and domain validators');
+
+        if (domain) {
+            this.domainFormatter.validateParams(rt, domain);
+        }
+    }
+    _compileFormat(comp: JitCompiler, rt: BaseRunType): jitCode {
+        const params = this.getParams(rt);
+        if (!params.domain) return;
+        const vDomain = 'domain' + this.getNestLevel(); // must match var name in code
+        const fnId = JitFunctions.format.id;
+        const fmtName = this.getFormatName();
+
+        const domainCode = this.domainFormatter!._compile(fnId, comp, rt, params.domain, vDomain, fmtName);
+        const vStart = 'start' + this.getNestLevel(); // must match var name in code
+        const vEnd = 'end' + this.getNestLevel(); // must match var name in code
+        const vEndIdx = 'endIdx' + this.getNestLevel(); // must match var name in code
+
+        const code = `
+            const ${vStart} = ${comp.vλl}.indexOf('://') + 3;
+            const ${vEnd} = ${comp.vλl}.indexOf('/', ${vStart});
+            const ${vEndIdx} = ${vEnd} === -1 ? ${comp.vλl}.length : ${vEnd};
+            const ${vDomain} = ${comp.vλl}.substring(${vStart}, ${vEndIdx});
+            return ${domainCode};
+        `;
+        return code;
+    }
 }
 
-registerPureFnClosure(isURL);
-registerFormatter(new URLValidator());
+function replaceDomain(url: string, domain: string): string {
+    const start = url.indexOf('://') + 3;
+    const end = url.indexOf('/', start);
+    const endIdx = end === -1 ? url.length : end;
+    return url.substring(0, start) + domain + url.substring(endIdx);
+}
+
+// ############### Register runtypes ###############
+
+export const URL_RUN_TYPE_FORMATTER = registerFormatter(new URLRunTypeFormat());
+
+// ############### Type  ###############
+
+export type DEFAULT_URL_PARAMS = {
+    maxLength: 2048;
+    pattern: {val: typeof URL_REGEXP; reason: 'invalid URL format'; samples: URL_SAMPLES};
+};
+export type DEFAULT_URL_FILE_PARAMS = {
+    maxLength: 2048;
+    pattern: {val: typeof URL_FILE_REGEXP; reason: 'invalid file URL format'; samples: FILE_URL_SAMPLES};
+};
+export type DEFAULT_URL_HTTP_PARAMS = {
+    maxLength: 2048;
+    pattern: {val: typeof URL_HTTP_REGEXP; reason: 'invalid Http URL format'; samples: HTTP_URL_SAMPLES};
+};
+export type DEFAULT_URL_SOCIAL_MEDIA_PARAMS = {
+    maxLength: 2048;
+    pattern: {val: typeof URL_HTTP_REGEXP; reason: 'invalid social media URL format'; samples: SOCIAL_MEDIA_URL_SAMPLES};
+    domain: {
+        names: {
+            allowedValues: {
+                val: [
+                    'facebook',
+                    'twitter',
+                    'instagram',
+                    'linkedin',
+                    'tiktok',
+                    'youtube',
+                    'snapchat',
+                    'pinterest',
+                    'reddit',
+                    'whatsapp',
+                ];
+                reason: 'Only social media domains are allowed';
+            };
+        };
+        tld: {
+            allowedValues: {
+                val: ['com'];
+                reason: 'Only com TLDs are allowed';
+            };
+        };
+    };
+};
+
+export type FormatParams_UrlPattern = Omit<
+    FormatParams_String,
+    'allowedChars' | 'disallowedChars' | 'allowedValues' | 'disallowedValues'
+>;
+export type FormatParams_Url = FormatParams_UrlPattern & {ip?: FormatParams_IP; domain?: FormatParams_Domain};
+
+export type UrlFormat<P extends FormatParams_Url = {}> = TypeFormat<string, 'url', DEFAULT_URL_PARAMS & P>;
+export type UrlFormatFile<P extends FormatParams_Url = {}> = TypeFormat<string, 'url', DEFAULT_URL_FILE_PARAMS & P>;
+export type UrlFormatHttp<P extends FormatParams_Url = {}> = TypeFormat<string, 'url', DEFAULT_URL_HTTP_PARAMS & P>;
+export type UrlFormatSocialMedia<> = UrlFormat<DEFAULT_URL_SOCIAL_MEDIA_PARAMS>;

@@ -17,17 +17,17 @@ import type {
 import {typeAnnotation, ReflectionKind} from '@deepkit/type';
 import type {BaseRunType} from './baseRunTypes';
 import type {JitErrorsCompiler, JitCompiler} from './jitCompiler';
-import type {JitRunTypeFormatter} from './baseFormatter';
+import type {BaseRunTypeFormat} from './baseRunTypeFormat';
 import {jitUtils} from './jitUtils';
 import {toLiteral, toLiteralInContext} from './utils';
 
 // ################# REGISTER FORMATTERS & PURE FUNCTIONS  #################
 
-const typeAnnotationsCache = new Map<string, JitRunTypeFormatter>();
+const typeAnnotationsCache = new Map<string, BaseRunTypeFormat>();
 const formatterPrefix = 'f';
 
 /** Adds a TypeFormatter or TypeValidator to the formatters cache */
-export function registerFormatter<T extends JitRunTypeFormatter>(operation: T, shouldThrow = false): T {
+export function registerFormatter<T extends BaseRunTypeFormat>(operation: T, shouldThrow = false): T {
     const id = getFormatterKey(formatterPrefix, operation.kind, operation.name);
     const exiting = typeAnnotationsCache.get(id);
     if (exiting && exiting !== operation) {
@@ -86,7 +86,7 @@ export function getFormatterFromCache(
     typeKind: ReflectionKind,
     name: string,
     shouldThrow = false
-): JitRunTypeFormatter | undefined {
+): BaseRunTypeFormat | undefined {
     const formatter = typeAnnotationsCache.get(getFormatterKey(formatterPrefix, typeKind, name));
     if (!formatter) {
         if (shouldThrow) throw new Error(`Annotation type ${name} not found for ${ReflectionKindName[typeKind]}`);
@@ -99,13 +99,13 @@ export function getFormatterKey(prefix: string, kind: string | number, name: str
     return `${prefix}:${kind}:${name}`;
 }
 
-export function getTypeFormats(rt: BaseRunType): JitRunTypeFormatter[] {
+export function getTypeFormats(rt: BaseRunType): BaseRunTypeFormat[] {
     const parsedAnnotations = typeAnnotation.getAnnotations(rt.src) as any as FormatAnnotation[];
     return parsedAnnotations.map((a) => a.formatter).flat();
 }
 
 /** Returns the validator for a given type. ATM only one validator is allowed for each type */
-export function getRunTypeFormatter(rt: BaseRunType): JitRunTypeFormatter | undefined {
+export function getRunTypeFormatter(rt: BaseRunType): BaseRunTypeFormat | undefined {
     const parsedAnnotations = typeAnnotation.getAnnotations(rt.src) as any as FormatAnnotation[];
     for (const annotation of parsedAnnotations) {
         return annotation.formatter;
@@ -113,8 +113,8 @@ export function getRunTypeFormatter(rt: BaseRunType): JitRunTypeFormatter | unde
     return undefined;
 }
 
-export function getRunTypeTransformers(rt: BaseRunType): JitRunTypeFormatter[] {
-    return getTypeFormats(rt).filter((f) => !!f._compileFormat) as JitRunTypeFormatter[];
+export function getRunTypeTransformers(rt: BaseRunType): BaseRunTypeFormat[] {
+    return getTypeFormats(rt).filter((f) => !!f._compileFormat) as BaseRunTypeFormat[];
 }
 
 export function getFormatAnnotations(rt: BaseRunType): FormatAnnotation[] {
@@ -152,14 +152,14 @@ export function getAnnotationParams(annotation: FormatAnnotation, rt: BaseRunTyp
 }
 
 /** Returns the params for a given type formatter */
-export function getFormatterParams<P extends TypeFormatParams>(rt: BaseRunType, name: string): P {
-    const annotations = rt.getFormatAnnotations().filter((a) => a.name === name);
+export function getFormatterParams<P extends TypeFormatParams>(rt: BaseRunType, fmtName: string): P {
+    const annotations = rt.getFormatAnnotations().filter((a) => a.name === fmtName);
     for (const annotation of annotations) {
         const formatter = annotation.formatter;
         if (!formatter) continue;
         return getAnnotationParams(annotation, rt) as P;
     }
-    throw new Error(`Type Formatter ${name} not found for ${rt.getTypeName()}`);
+    throw new Error(`Type Formatter ${fmtName} not found for ${rt.getTypeName()}`);
 }
 
 function parsePureFunctionWithCtx(closureFn: PureFunctionWithClosure): CompiledPureFunction {

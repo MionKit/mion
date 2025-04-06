@@ -19,7 +19,7 @@ import {
 import {isChildAccessorType, isJitErrorsCompiler} from './guards';
 import {jitUtils} from './jitUtils';
 import {toLiteral, toLiteralInContext} from './utils';
-import type {JitRunTypeFormatter} from './baseFormatter';
+import type {BaseRunTypeFormat} from './baseRunTypeFormat';
 
 export type StackItem = {
     /** current compile stack full variable accessor */
@@ -241,7 +241,7 @@ export class JitErrorsCompiler<ID extends JitFnID = any> extends BaseCompiler<ty
     }
     callJitFormatErr(
         expected: AnyKindName | BaseRunType<any>,
-        formatter: JitRunTypeFormatter<any>,
+        formatter: BaseRunTypeFormat<any>,
         paramName: string,
         paramValue: StrNumber,
         extraPathLiteral?: StrNumber
@@ -291,7 +291,7 @@ export class JitErrorsCompiler<ID extends JitFnID = any> extends BaseCompiler<ty
         return accessPath.length ? `[${accessPath.join(',')}]` : '';
     }
 
-    getFormatAccessPathLiteral(formatter: JitRunTypeFormatter<any>): string {
+    getFormatAccessPathLiteral(formatter: BaseRunTypeFormat<any>): string {
         const formatExtraPathLiteral = formatter.getFormatExtraPathLiteral();
         return formatExtraPathLiteral ? `[${formatExtraPathLiteral}]` : '';
     }

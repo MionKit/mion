@@ -7,6 +7,7 @@
  * ######## */
 import type {BaseRunType} from './baseRunTypes';
 import {createJitCompiler, type JitCompiler, type JitErrorsCompiler} from './jitCompiler';
+
 import type {
     TypeFormatParams,
     JitFnID,
@@ -24,22 +25,34 @@ import {compileAddPureFunctionContext, dependenciesToLiteral, getFormatterParams
 import {jitUtils} from './jitUtils';
 import {getFormatterHash} from './utils';
 
-export abstract class JitRunTypeFormatter<P extends TypeFormatParams = any> {
+/**
+ * Base class for all RunType formatters.
+ * A type format is a type that satisfies some extra constrains, like emails, alphanumeric, uuids etc...
+ * All those are formats of string.
+ * At the moment only formats for string and numbers are supported.
+ * Jit formatters receive some params and generate JIT code depending on these params.
+ */
+export abstract class BaseRunTypeFormat<P extends TypeFormatParams = any> {
     abstract kind: ReflectionKind;
     abstract name: string;
     rootFormatName: string = '';
-    jitFnHasReturn(fnId: JitFnID, rt: BaseRunType) {
+    jitFnHasReturn(fnId: JitFnID, _rt: BaseRunType, _params?: P): boolean {
         return jitFnHasReturn(fnId);
     }
-    jitFnIsExpression(fnId: JitFnID, rt: BaseRunType) {
+    jitFnIsExpression(fnId: JitFnID, _rt: BaseRunType, _params?: P) {
         return jitFnIsExpression(fnId);
     }
-    jitFnInlined(fnId: JitFnID, rt: BaseRunType): boolean {
+    /**
+     * The jit code for the formatter can be embedded together with the jit code for the type itself.
+     * but sometimes is better to create a separate function for code to be reused.
+     * This method is used to determine if the formatter code can be embedded or not.
+     */
+    canEmbedFormatterCode(_fnId: JitFnID, rt: BaseRunType, _params?: P): boolean {
         // getFormatterJitId is similar to convert params to string
         const paramsToString = rt.getFormatterJitId() || '';
         // if there are many params, is better to not inline the formatter so the formatter function can be reused
-        // in the future we could optimize this logic, to decide if a formatter should be inlined or not
-        return paramsToString.length < 200;
+        // in the future we could optimize this logic, to decide if a formatter should be embedded or not
+        return paramsToString.length < 300;
     }
 
     /** Params from parent formatter */
@@ -52,14 +65,24 @@ export abstract class JitRunTypeFormatter<P extends TypeFormatParams = any> {
     /** List of params that will be excluded from jit code */
     readonly extraPathLiteral?: StrNumber;
 
-    private pushContext(paramsFromParent?: P, parentPath?: StrNumber[]) {
-        (this as Mutable<JitRunTypeFormatter>).paramsFromParent = paramsFromParent;
-        (this as Mutable<JitRunTypeFormatter>).parentPath = parentPath;
+    constructor(parentPath?: StrNumber[]) {
+        this.parentPath = parentPath;
+    }
+
+    private pushContext(paramsFromParent?: P) {
+        (this as Mutable<BaseRunTypeFormat>).paramsFromParent = paramsFromParent;
     }
 
     private popContext() {
-        (this as Mutable<JitRunTypeFormatter>).paramsFromParent = undefined;
-        (this as Mutable<JitRunTypeFormatter>).parentPath = undefined;
+        (this as Mutable<BaseRunTypeFormat>).paramsFromParent = undefined;
+    }
+
+    isRoot() {
+        return !this.parentPath?.length;
+    }
+
+    getNestLevel() {
+        return this.parentPath?.length || 0;
     }
 
     getParams(rt: BaseRunType): NonNullable<P> {
@@ -87,9 +110,9 @@ export abstract class JitRunTypeFormatter<P extends TypeFormatParams = any> {
         return undefined;
     }
 
-    mock(mockContext: MockOperation, rt: BaseRunType, params?: P, parentPath?: string[]): any {
+    mock(mockContext: MockOperation, rt: BaseRunType, params?: P): any {
         if (this.validateParams) this.validateParams(rt, params || this.getParams(rt));
-        this.pushContext(params, parentPath);
+        this.pushContext(params);
         const result = this._mock(mockContext, rt);
         this.popContext();
         return result;
@@ -100,7 +123,6 @@ export abstract class JitRunTypeFormatter<P extends TypeFormatParams = any> {
         comp: JitCompiler,
         rt: BaseRunType,
         params?: P,
-        parentPath?: StrNumber[],
         vλl?: string,
         formatName?: string
     ): JitCompiled {
@@ -116,7 +138,7 @@ export abstract class JitRunTypeFormatter<P extends TypeFormatParams = any> {
         // TODO: decide if we should add parent compiler or not as parent to createJitCompiler
         const newJitCompiler: JitCompiler = createJitCompiler(rt, fnId, undefined, jitFnHash, hash) as JitCompiler;
         try {
-            const formatterCode = this._compile(fnId, newJitCompiler, rt, params, parentPath, vλl, formatName);
+            const formatterCode = this._compile(fnId, newJitCompiler, rt, params, vλl, formatName);
             const withReturn = this.handleReturnValues(rt, newJitCompiler, fnId, formatterCode || '');
             newJitCompiler.compile(withReturn);
             comp.updateDependencies(newJitCompiler as JitCompiled);
@@ -135,17 +157,16 @@ export abstract class JitRunTypeFormatter<P extends TypeFormatParams = any> {
         comp: JitCompiler,
         rt: BaseRunType,
         params?: P,
-        parentPath?: StrNumber[],
         vλl?: string,
         formatName?: string,
         extraPathLiteral?: StrNumber
     ) {
         if (this.validateParams) this.validateParams(rt, params || this.getParams(rt));
-        (this as Mutable<JitRunTypeFormatter>).extraPathLiteral = extraPathLiteral;
+        (this as Mutable<BaseRunTypeFormat>).extraPathLiteral = extraPathLiteral;
         const v = comp.vλl;
         comp.vλl = vλl || v;
         this.rootFormatName = formatName || this.name;
-        this.pushContext(params, parentPath);
+        this.pushContext(params);
         let result: jitCode;
         switch (fnId) {
             case JitFunctions.isType.id:
@@ -162,7 +183,7 @@ export abstract class JitRunTypeFormatter<P extends TypeFormatParams = any> {
         }
         this.popContext();
         this.rootFormatName = this.name;
-        (this as Mutable<JitRunTypeFormatter>).extraPathLiteral = undefined;
+        (this as Mutable<BaseRunTypeFormat>).extraPathLiteral = undefined;
         comp.vλl = v;
         return result;
     }
@@ -170,13 +191,11 @@ export abstract class JitRunTypeFormatter<P extends TypeFormatParams = any> {
     handleReturnValues(rt: BaseRunType, comp: JitCompiler, currentOpId: JitFnID, code: string): string {
         const codeHasReturn: boolean = this.jitFnHasReturn(currentOpId, rt);
         const isExpression: boolean = this.jitFnIsExpression(currentOpId, rt);
-        if (isExpression) {
-            return codeHasReturn ? code : `return ${code}`;
-        }
-        if (codeHasReturn) {
-            return code;
-        }
-        // if code is a block and does not have return, we need to make sure
+
+        if (isExpression) return codeHasReturn ? code : `return ${code}`;
+        if (codeHasReturn) return code;
+        // For non-expressions, add a return statement with the default return value
+        // if the code doesn't already have a return statement
         const lastChar = code.length - 1;
         const hasFullStop = code.lastIndexOf(';') === lastChar || code.lastIndexOf('}') === lastChar;
         const stopChar = hasFullStop ? '' : ';';
@@ -186,9 +205,11 @@ export abstract class JitRunTypeFormatter<P extends TypeFormatParams = any> {
     abstract _mock(mockContext: MockOperation, rt: BaseRunType): any;
     abstract _compileIsType(comp: JitCompiler, rt: BaseRunType): jitCode;
     abstract _compileTypeErrors(comp: JitErrorsCompiler, rt: BaseRunType): jitCode;
-    abstract _compileFormat?(comp: JitCompiler, rt: BaseRunType): jitCode;
 
     // ###### optional methods for type formatters ########
+
+    /** Optional method to compile the formatter function that transforms/sanitize a value */
+    _compileFormat?(comp: JitCompiler, rt: BaseRunType): jitCode;
 
     /** Throws an error if params are not valid */
     validateParams?(rt: BaseRunType, params: P): void;
@@ -258,7 +279,7 @@ export abstract class JitRunTypeFormatter<P extends TypeFormatParams = any> {
     getCallJitFormatErr(
         comp: JitErrorsCompiler,
         expected: BaseRunType<any>,
-        formatter: JitRunTypeFormatter<any>,
+        formatter: BaseRunTypeFormat<any>,
         shouldReturn = false,
         extraPathLiteral?: StrNumber
     ) {
@@ -267,5 +288,9 @@ export abstract class JitRunTypeFormatter<P extends TypeFormatParams = any> {
             if (shouldReturn) return `return ${callCode}, ${comp.args.εrr}`;
             return callCode;
         };
+    }
+
+    printPath(rt: BaseRunType, paramName?: string): string {
+        return [rt.getTypeName(), ...this.getFormatPath(paramName)].join('.');
     }
 }

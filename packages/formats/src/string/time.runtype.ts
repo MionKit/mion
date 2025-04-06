@@ -6,28 +6,22 @@
  * ######## */
 import type {BaseRunType} from '@mionkit/runtype/src/lib/baseRunTypes';
 import type {JitCompiler, JitErrorsCompiler} from '@mionkit/runtype/src/lib/jitCompiler';
-import {JitRunTypeFormatter} from '@mionkit/runtype/src/lib/baseFormatter';
+import {BaseRunTypeFormat} from '@mionkit/runtype/src/lib/baseRunTypeFormat';
 import {ReflectionKind} from '@deepkit/type';
 import {TypeFormat} from '@mionkit/runtype/src/lib/formats.runtype'; // !Important: TypeFormat cant be imported as type for all runType functionality to work
-import {GenericPureFunction, MockOperation} from '@mionkit/runtype/src/types';
+import {GenericPureFunction, MockOperation, type FormatParam} from '@mionkit/runtype/src/types';
 import {registerFormatter, registerPureFnClosuresGroup, registerPureFnClosure} from '@mionkit/runtype/src/lib/formats';
 import {JITUtils} from '@mionkit/runtype/src/lib/jitUtils';
-
-export type DefaultTimeParams = {format: 'ISO'};
-export type TimeStringParams = {
-    format: 'ISO' | 'HH:mm:ss[.mmm]TZ' | 'HH:mm:ss[.mmm]' | 'HH:mm:ss' | 'HH:mm' | 'mm:ss' | 'HH' | 'mm' | 'ss';
-};
-
-export type TimeString<P extends TimeStringParams = DefaultTimeParams> = TypeFormat<string, typeof TimeStringFormat.id, P>;
+import {fpVal} from '@mionkit/runtype/src/lib/utils';
 
 // Time validator
-export class TimeStringFormat extends JitRunTypeFormatter<TimeStringParams> {
+export class TimeStringRunTypeFormat extends BaseRunTypeFormat<FormatParams_Time> {
     static id = 'time' as const;
     kind = ReflectionKind.string;
-    name = TimeStringFormat.id;
+    name = TimeStringRunTypeFormat.id;
     _compileIsType(comp: JitCompiler, rt: BaseRunType): string {
         const params = this.getParams(rt);
-        const formatFn = this.getFormatPureFn(params.format);
+        const formatFn = this.getFormatPureFn(fpVal(params.format));
         return this.compilePureFunctionCall(comp, rt, formatFn).callCode;
     }
     _compileTypeErrors(comp: JitErrorsCompiler, rt: BaseRunType): string {
@@ -35,14 +29,14 @@ export class TimeStringFormat extends JitRunTypeFormatter<TimeStringParams> {
         if (!isTypeCode) return '';
         const params = this.getParams(rt);
         const errFn = this.getCallJitFormatErr(comp, rt, this);
-        return `if (!(${isTypeCode})) ${errFn('format', params.format)}`;
+        return `if (!(${isTypeCode})) ${errFn('format', fpVal(params.format))}`;
     }
     _mock(mockContext: MockOperation, rt: BaseRunType) {
         const params = this.getParams(rt);
         const hours = String(Math.floor(Math.random() * 24)).padStart(2, '0');
         const minutes = String(Math.floor(Math.random() * 60)).padStart(2, '0');
         const seconds = String(Math.floor(Math.random() * 60)).padStart(2, '0');
-        switch (params.format) {
+        switch (fpVal(params.format)) {
             case 'ISO': // ISO
             case 'HH:mm:ss[.mmm]TZ': // 'HH:mm:ss[.mmm]TZ'
                 return `${hours}:${minutes}:${seconds}${mockMilliseconds()}${mockTimeZone()}`;
@@ -61,10 +55,10 @@ export class TimeStringFormat extends JitRunTypeFormatter<TimeStringParams> {
             case 'ss': // 'ss'
                 return seconds;
             default:
-                throw new Error(`Invalid time format: ${params.format}`);
+                throw new Error(`Invalid time format: ${fpVal(params.format)}`);
         }
     }
-    getFormatPureFn(format) {
+    getFormatPureFn(format: TimeFormat) {
         switch (format) {
             case 'ISO':
             case 'HH:mm:ss[.mmm]TZ':
@@ -87,7 +81,6 @@ export class TimeStringFormat extends JitRunTypeFormatter<TimeStringParams> {
                 throw new Error(`Invalid time format: ${format}`);
         }
     }
-    _compileFormat?; // no format needed
 }
 
 // ######### Mocking functions #########
@@ -120,7 +113,7 @@ export function isTimeZone(jUtil: JITUtils) {
         const hours = tzParts[0];
         const minutes = tzParts[1];
         return isH(hours) && isM(minutes);
-    } satisfies GenericPureFunction<TimeStringParams>;
+    } satisfies GenericPureFunction<FormatParams_Time>;
 }
 
 /** @reflection never */
@@ -130,7 +123,7 @@ export function isHours() {
         const numberHours = Number(hours);
         if (isNaN(numberHours)) return false;
         return numberHours >= 0 && numberHours <= 23;
-    } satisfies GenericPureFunction<TimeStringParams>;
+    } satisfies GenericPureFunction<FormatParams_Time>;
 }
 
 /** @reflection never */
@@ -140,7 +133,7 @@ export function isMinutes() {
         const numberMinutes = Number(mins);
         if (isNaN(numberMinutes)) return false;
         return numberMinutes >= 0 && numberMinutes <= 59;
-    } satisfies GenericPureFunction<TimeStringParams>;
+    } satisfies GenericPureFunction<FormatParams_Time>;
 }
 
 /** @reflection never */
@@ -150,7 +143,7 @@ export function isSeconds() {
         const numberSeconds = Number(secs);
         if (isNaN(numberSeconds)) return false;
         return numberSeconds >= 0 && numberSeconds <= 59;
-    } satisfies GenericPureFunction<TimeStringParams>;
+    } satisfies GenericPureFunction<FormatParams_Time>;
 }
 
 /** @reflection never */
@@ -169,7 +162,7 @@ export function isSecondsWithMs(jUtil: JITUtils) {
             if (millisNumber < 0 || millisNumber > 999) return false;
         }
         return true;
-    } satisfies GenericPureFunction<TimeStringParams>;
+    } satisfies GenericPureFunction<FormatParams_Time>;
 }
 
 /** @reflection never */
@@ -189,7 +182,7 @@ export function isTimeString_ISO_TZ(jUtil: JITUtils) {
         const time = timeAndTz[0];
         const tz = timeAndTz[1];
         return isTWms(time) && isTZ(tz);
-    } satisfies GenericPureFunction<TimeStringParams>;
+    } satisfies GenericPureFunction<FormatParams_Time>;
 }
 
 /** @reflection never */
@@ -200,7 +193,7 @@ export function isTimeString_ISO(jUtil: JITUtils) {
     return function is_iso_time(value: string): boolean {
         const parts = value.split(':');
         return parts.length === 3 && isH(parts[0]) && isM(parts[1]) && isSWithMls(parts[2]);
-    } satisfies GenericPureFunction<TimeStringParams>;
+    } satisfies GenericPureFunction<FormatParams_Time>;
 }
 
 /** @reflection never */
@@ -211,7 +204,7 @@ export function isTimeString_HHmmss(jUtil: JITUtils) {
     return function is_iso_time(value: string): boolean {
         const parts = value.split(':');
         return parts.length === 3 && isH(parts[0]) && isM(parts[1]) && isS(parts[2]);
-    } satisfies GenericPureFunction<TimeStringParams>;
+    } satisfies GenericPureFunction<FormatParams_Time>;
 }
 
 /** @reflection never */
@@ -221,7 +214,7 @@ export function isTimeString_HHmm(jUtil: JITUtils) {
     return function is_iso_time(value: string): boolean {
         const parts = value.split(':');
         return parts.length === 2 && isH(parts[0]) && isM(parts[1]);
-    } satisfies GenericPureFunction<TimeStringParams>;
+    } satisfies GenericPureFunction<FormatParams_Time>;
 }
 
 /** @reflection never */
@@ -231,17 +224,31 @@ export function isTimeString_mmss(jUtil: JITUtils) {
     return function is_iso_time(value: string): boolean {
         const parts = value.split(':');
         return parts.length === 2 && isM(parts[0]) && isS(parts[1]);
-    } satisfies GenericPureFunction<TimeStringParams>;
+    } satisfies GenericPureFunction<FormatParams_Time>;
 }
 
 // ######### Registering the time validator #########
+
 // must be register in correct order so dependencies are available
-const pureTimeFns = [isTimeZone, isHours, isMinutes, isSeconds, isSecondsWithMs];
+export const pureTimeFns = [isTimeZone, isHours, isMinutes, isSeconds, isSecondsWithMs];
+export const timeFunctions = [isTimeString_ISO_TZ, isTimeString_ISO, isTimeString_HHmmss, isTimeString_HHmm, isTimeString_mmss];
 registerPureFnClosuresGroup(pureTimeFns);
 registerPureFnClosure(isTimeString_ISO_TZ, pureTimeFns);
 registerPureFnClosure(isTimeString_ISO, pureTimeFns);
 registerPureFnClosure(isTimeString_HHmmss, pureTimeFns);
 registerPureFnClosure(isTimeString_HHmm, pureTimeFns);
 registerPureFnClosure(isTimeString_mmss, pureTimeFns);
-export const timeStringValidator = registerFormatter(new TimeStringFormat());
-export const timeFunctions = [isTimeString_ISO_TZ, isTimeString_ISO, isTimeString_HHmmss, isTimeString_HHmm, isTimeString_mmss];
+
+export const TIME_RUN_TYPE_FORMATTER = registerFormatter(new TimeStringRunTypeFormat());
+
+// ############### Type  ###############
+
+export type DEFAULT_TIME_FORMAT_PARAMS = {format: 'ISO'};
+
+type TimeFmt = 'ISO' | 'HH:mm:ss[.mmm]TZ' | 'HH:mm:ss[.mmm]' | 'HH:mm:ss' | 'HH:mm' | 'mm:ss' | 'HH' | 'mm' | 'ss';
+export type FormatParams_Time = {format: FormatParam<TimeFmt>};
+export type TimeFormat<P extends FormatParams_Time = DEFAULT_TIME_FORMAT_PARAMS> = TypeFormat<
+    string,
+    typeof TimeStringRunTypeFormat.id,
+    P
+>;

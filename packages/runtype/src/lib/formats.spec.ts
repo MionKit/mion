@@ -9,7 +9,7 @@
 import {ReflectionKind} from '@deepkit/type';
 import {runType} from '../runType';
 import {GenericPureFunction} from '../types';
-import {JitRunTypeFormatter} from './baseFormatter';
+import {BaseRunTypeFormat} from './baseRunTypeFormat';
 import {BaseRunType} from './baseRunTypes';
 import {getCompiledPureFn, getPureFn, registerPureFnClosuresGroup, registerPureFnClosure, registerFormatter} from './formats';
 import {TypeFormat} from './formats.runtype';
@@ -17,7 +17,7 @@ import {JITUtils} from './jitUtils';
 
 it('TypeFormat should have a different jit id', async () => {
     type Max5 = TypeFormat<string, 'max5', {maxLength: 5}>;
-    class Max5Formatter extends JitRunTypeFormatter<any> {
+    class Max5Formatter extends BaseRunTypeFormat<any> {
         kind = ReflectionKind.string;
         name = 'max5';
         _mock() {}
