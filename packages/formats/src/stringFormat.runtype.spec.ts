@@ -32,11 +32,10 @@ it('get max length errors', async () => {
 it('mock max length', async () => {
     type Max5 = StringFormat<{maxLength: 5}>;
     const mockType = mockTypeFn<Max5>();
-    expect(mockType().length).toBeLessThanOrEqual(5);
-    expect(mockType().length).toBeLessThanOrEqual(5);
-    expect(mockType().length).toBeLessThanOrEqual(5);
-    expect(mockType().length).toBeLessThanOrEqual(5);
-    expect(mockType().length).toBeLessThanOrEqual(5);
+    const mockedItems = Array.from({length: 20}, () => mockType());
+    for (const item of mockedItems) {
+        expect(item.length).toBeLessThanOrEqual(5);
+    }
 });
 
 // #### minLength ####
@@ -62,11 +61,10 @@ it('get min length errors', async () => {
 it('mock min length', async () => {
     type Min5 = StringFormat<{minLength: 5}>;
     const mockType = mockTypeFn<Min5>();
-    expect(mockType().length).toBeGreaterThanOrEqual(5);
-    expect(mockType().length).toBeGreaterThanOrEqual(5);
-    expect(mockType().length).toBeGreaterThanOrEqual(5);
-    expect(mockType().length).toBeGreaterThanOrEqual(5);
-    expect(mockType().length).toBeGreaterThanOrEqual(5);
+    const mockedItems = Array.from({length: 20}, () => mockType());
+    for (const item of mockedItems) {
+        expect(item.length).toBeGreaterThanOrEqual(5);
+    }
 });
 
 // #### length ####
@@ -92,11 +90,10 @@ it('get length errors', async () => {
 it('mock length', async () => {
     type Length5 = StringFormat<{length: 5}>;
     const mockType = mockTypeFn<Length5>();
-    expect(mockType().length).toBe(5);
-    expect(mockType().length).toBe(5);
-    expect(mockType().length).toBe(5);
-    expect(mockType().length).toBe(5);
-    expect(mockType().length).toBe(5);
+    const mockedItems = Array.from({length: 20}, () => mockType());
+    for (const item of mockedItems) {
+        expect(item.length).toBe(5);
+    }
 });
 
 // #### pattern ####
@@ -127,32 +124,34 @@ it('mock pattern and samples', async () => {
     const regex = /^[a-zA-Z]+$/;
     // is not possible to automatically generate a string that matches the pattern so we need to provide a list of valid characters manually
     type AlphaPattern = StringFormat<{
+        minLength: 1;
         pattern: {val: typeof regex; mockSamples: 'abcdefgABCDEFG'; reason: 'only letters allowed'};
     }>;
     const mockType = mockTypeFn<AlphaPattern>();
-    expect(mockType()).toMatch(/^[a-zA-Z]+$/);
-    expect(mockType()).toMatch(/^[a-zA-Z]+$/);
-    expect(mockType()).toMatch(/^[a-zA-Z]+$/);
-    expect(mockType()).toMatch(/^[a-zA-Z]+$/);
+    const mockedItems = Array.from({length: 20}, () => mockType());
+    for (const item of mockedItems) {
+        expect(item).toMatch(/^[a-zA-Z]+$/);
+    }
 });
 
 it('mock pattern and samples as list of chars', async () => {
     const regex = /^[a-zA-Z]+$/;
     // is not possible to automatically generate a string that matches the pattern so we need to provide a list of valid characters manually
     type AlphaPattern = StringFormat<{
+        minLength: 1;
         pattern: {val: typeof regex; mockSamples: 'abcdefgABCDEFG'; reason: 'only letters allowed'};
     }>;
     const mockType = mockTypeFn<AlphaPattern>();
-    expect(mockType()).toMatch(/^[a-zA-Z]+$/);
-    expect(mockType()).toMatch(/^[a-zA-Z]+$/);
-    expect(mockType()).toMatch(/^[a-zA-Z]+$/);
-    expect(mockType()).toMatch(/^[a-zA-Z]+$/);
+    const mockedItems = Array.from({length: 20}, () => mockType());
+    for (const item of mockedItems) {
+        expect(item).toMatch(/^[a-zA-Z]+$/);
+    }
 });
 
 // #### allowedValues ####
 
 it('validate string allowedValues', async () => {
-    type AllowedValues = StringFormat<{allowedValues: {val: ['a', 'b', 'c']; reason: 'only a, b or c allowed'}}>;
+    type AllowedValues = StringFormat<{minLength: 1; allowedValues: {val: ['a', 'b', 'c']; reason: 'only a, b or c allowed'}}>;
     const isType = await isTypeFn<AllowedValues>();
     expect(isType('a')).toBe(true);
     expect(isType('b')).toBe(true);
@@ -162,7 +161,7 @@ it('validate string allowedValues', async () => {
 });
 
 it('get allowedValues errors', async () => {
-    type AllowedValues = StringFormat<{allowedValues: {val: ['a', 'b', 'c']; reason: 'only a, b or c allowed'}}>;
+    type AllowedValues = StringFormat<{minLength: 1; allowedValues: {val: ['a', 'b', 'c']; reason: 'only a, b or c allowed'}}>;
     const typeErrors = await typeErrorsFn<AllowedValues>();
     const format: TypeFormatError = {name: 'strFormat', val: 'only a, b or c allowed', formatPath: ['allowedValues']};
     const expectedError: RunTypeError = {expected: 'string', path: [], format};
@@ -174,12 +173,12 @@ it('get allowedValues errors', async () => {
 });
 
 it('mock allowedValues', async () => {
-    type AllowedValues = StringFormat<{allowedValues: {val: ['a', 'b', 'c']; reason: 'only a, b or c allowed'}}>;
+    type AllowedValues = StringFormat<{minLength: 1; allowedValues: {val: ['a', 'b', 'c']; reason: 'only a, b or c allowed'}}>;
     const mockType = mockTypeFn<AllowedValues>();
-    expect(mockType()).toMatch(/^(a|b|c)$/);
-    expect(mockType()).toMatch(/^(a|b|c)$/);
-    expect(mockType()).toMatch(/^(a|b|c)$/);
-    expect(mockType()).toMatch(/^(a|b|c)$/);
+    const mockedItems = Array.from({length: 20}, () => mockType());
+    for (const item of mockedItems) {
+        expect(item).toMatch(/^(a|b|c)$/);
+    }
 });
 
 it('validate string allowedValues with ignoreCase', async () => {
@@ -216,15 +215,16 @@ it('get allowedValues errors with ignoreCase', async () => {
 
 it('mock allowedValues with ignoreCase', async () => {
     type AllowedValuesIgnoreCase = StringFormat<{
+        minLength: 1;
         allowedValues: {val: ['a', 'b', 'c']; reason: 'only a, b or c allowed'; ignoreCase: true};
     }>;
     const mockType = mockTypeFn<AllowedValuesIgnoreCase>();
     // Since we're using ignoreCase, the mock might return uppercase or lowercase
     // We'll check that it matches the pattern regardless of case
-    expect(mockType().toLowerCase()).toMatch(/^(a|b|c)$/);
-    expect(mockType().toLowerCase()).toMatch(/^(a|b|c)$/);
-    expect(mockType().toLowerCase()).toMatch(/^(a|b|c)$/);
-    expect(mockType().toLowerCase()).toMatch(/^(a|b|c)$/);
+    const mockedItems = Array.from({length: 20}, () => mockType());
+    for (const item of mockedItems) {
+        expect(item.toLowerCase()).toMatch(/^(a|b|c)$/);
+    }
 });
 
 // #### disallowedValues ####
@@ -257,13 +257,14 @@ it('get disallowedValues errors', async () => {
 
 it('mock disallowedValues', async () => {
     type DisallowedValues = StringFormat<{
+        minLength: 1;
         disallowedValues: {val: ['a', 'b', 'c']; reason: 'a, b or c not allowed'; mockSamples: 'dfgthplk98765l'};
     }>;
     const mockType = mockTypeFn<DisallowedValues>();
-    expect(mockType()).not.toMatch(/^(a|b|c)$/);
-    expect(mockType()).not.toMatch(/^(a|b|c)$/);
-    expect(mockType()).not.toMatch(/^(a|b|c)$/);
-    expect(mockType()).not.toMatch(/^(a|b|c)$/);
+    const mockedItems = Array.from({length: 20}, () => mockType());
+    for (const item of mockedItems) {
+        expect(item).not.toMatch(/^(a|b|c)$/);
+    }
 });
 
 it('validate string disallowedValues with ignoreCase', async () => {
@@ -310,6 +311,7 @@ it('get disallowedValues errors with ignoreCase', async () => {
 
 it('mock disallowedValues with ignoreCase', async () => {
     type DisallowedValuesIgnoreCase = StringFormat<{
+        minLength: 1;
         disallowedValues: {
             val: ['a', 'b', 'c'];
             reason: 'a, b or c not allowed';
@@ -319,10 +321,10 @@ it('mock disallowedValues with ignoreCase', async () => {
     }>;
     const mockType = mockTypeFn<DisallowedValuesIgnoreCase>();
     // Since we're using ignoreCase, we need to check that it doesn't match regardless of case
-    expect(mockType().toLowerCase()).not.toMatch(/^(a|b|c)$/);
-    expect(mockType().toLowerCase()).not.toMatch(/^(a|b|c)$/);
-    expect(mockType().toLowerCase()).not.toMatch(/^(a|b|c)$/);
-    expect(mockType().toLowerCase()).not.toMatch(/^(a|b|c)$/);
+    const mockedItems = Array.from({length: 20}, () => mockType());
+    for (const item of mockedItems) {
+        expect(item.toLowerCase()).not.toMatch(/^(a|b|c)$/);
+    }
 });
 
 // #### allowedChars ####
@@ -380,11 +382,10 @@ it('get allowedChars errors', async () => {
 it('mock allowedChars', async () => {
     type AllowedChars = StringFormat<{allowedChars: {val: 'abc'; reason: 'only a, b or c allowed'}}>;
     const mockType = mockTypeFn<AllowedChars>();
-    expect(mockType()).toMatch(/^[abc]*$/);
-    expect(mockType()).toMatch(/^[abc]*$/);
-    expect(mockType()).toMatch(/^[abc]*$/);
-    expect(mockType()).toMatch(/^[abc]*$/);
-    expect(mockType()).toMatch(/^[abc]*$/);
+    const mockedItems = Array.from({length: 20}, () => mockType());
+    for (const item of mockedItems) {
+        expect(item).toMatch(/^[abc]*$/);
+    }
 });
 
 it('validate string allowedChars with ignoreCase', async () => {
@@ -426,15 +427,17 @@ it('get allowedChars errors with ignoreCase', async () => {
 });
 
 it('mock allowedChars with ignoreCase', async () => {
-    type AllowedCharsIgnoreCase = StringFormat<{allowedChars: {val: 'abc'; reason: 'only a, b or c allowed'; ignoreCase: true}}>;
+    type AllowedCharsIgnoreCase = StringFormat<{
+        minLength: 1;
+        allowedChars: {val: 'abc'; reason: 'only a, b or c allowed'; ignoreCase: true};
+    }>;
     const mockType = mockTypeFn<AllowedCharsIgnoreCase>();
     // Since we're using ignoreCase, the mock might return uppercase or lowercase
     // We'll check that it matches the pattern regardless of case
-    expect(mockType().toLowerCase()).toMatch(/^[abc]*$/);
-    expect(mockType().toLowerCase()).toMatch(/^[abc]*$/);
-    expect(mockType().toLowerCase()).toMatch(/^[abc]*$/);
-    expect(mockType().toLowerCase()).toMatch(/^[abc]*$/);
-    expect(mockType().toLowerCase()).toMatch(/^[abc]*$/);
+    const mockedItems = Array.from({length: 20}, () => mockType());
+    for (const item of mockedItems) {
+        expect(item.toLowerCase()).toMatch(/^[abc]*$/);
+    }
 });
 
 // #### disallowedChars ####
@@ -505,14 +508,14 @@ it('get disallowedChars errors', async () => {
 
 it('mock disallowedChars', async () => {
     type DisallowedChars = StringFormat<{
+        minLength: 1;
         disallowedChars: {val: 'abc'; reason: 'a, b or c not allowed'; mockSamples: 'dfgthplk98765l'};
     }>;
     const mockType = mockTypeFn<DisallowedChars>();
-    expect(mockType()).not.toMatch(/[abc]+/);
-    expect(mockType()).not.toMatch(/[abc]+/);
-    expect(mockType()).not.toMatch(/[abc]+/);
-    expect(mockType()).not.toMatch(/[abc]+/);
-    expect(mockType()).not.toMatch(/[abc]+/);
+    const mockedItems = Array.from({length: 20}, () => mockType());
+    for (const item of mockedItems) {
+        expect(item).not.toMatch(/[abc]+/);
+    }
 });
 
 it('validate string disallowedChars with ignoreCase', async () => {
@@ -569,11 +572,10 @@ it('mock disallowedChars with ignoreCase', async () => {
     }>;
     const mockType = mockTypeFn<DisallowedCharsIgnoreCase>();
     // Since we're using ignoreCase, we need to check that it doesn't match regardless of case
-    expect(mockType().toLowerCase()).not.toMatch(/[abc]+/i);
-    expect(mockType().toLowerCase()).not.toMatch(/[abc]+/i);
-    expect(mockType().toLowerCase()).not.toMatch(/[abc]+/i);
-    expect(mockType().toLowerCase()).not.toMatch(/[abc]+/i);
-    expect(mockType().toLowerCase()).not.toMatch(/[abc]+/i);
+    const mockedItems = Array.from({length: 20}, () => mockType());
+    for (const item of mockedItems) {
+        expect(item.toLowerCase()).not.toMatch(/[abc]+/i);
+    }
 });
 
 // #### multiple params ####
@@ -645,18 +647,12 @@ it('mock multiple params', async () => {
         maxLength: 8;
     }>;
     const mockType = mockTypeFn<Multi>();
-    expect(mockType()).toMatch(/^[a-zA-Z]+$/);
-    expect(mockType().length).toBeGreaterThanOrEqual(5);
-    expect(mockType().length).toBeLessThanOrEqual(8);
-    expect(mockType()).toMatch(/^[a-zA-Z]+$/);
-    expect(mockType().length).toBeGreaterThanOrEqual(5);
-    expect(mockType().length).toBeLessThanOrEqual(8);
-    expect(mockType()).toMatch(/^[a-zA-Z]+$/);
-    expect(mockType().length).toBeGreaterThanOrEqual(5);
-    expect(mockType().length).toBeLessThanOrEqual(8);
-    expect(mockType()).toMatch(/^[a-zA-Z]+$/);
-    expect(mockType().length).toBeGreaterThanOrEqual(5);
-    expect(mockType().length).toBeLessThanOrEqual(8);
+    const mockedItems = Array.from({length: 20}, () => mockType());
+    for (const item of mockedItems) {
+        expect(item).toMatch(/^[a-zA-Z]+$/);
+        expect(item.length).toBeGreaterThanOrEqual(5);
+        expect(item.length).toBeLessThanOrEqual(8);
+    }
 });
 
 it('provided sample must match all constrains', async () => {
