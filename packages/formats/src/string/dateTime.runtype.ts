@@ -8,104 +8,107 @@
  * ######## */
 // !Important: TypeFormat cant be imported as type for the runType functionality to work
 import {TypeFormat} from '@mionkit/runtype/src/lib/formats.runtype';
-import {
-    GenericPureFunction,
-    MockOperation,
-    type ErrorsPureFunction,
-    type FormatParam,
-    type RunTypeError,
-    type StrNumber,
-} from '@mionkit/runtype/src/types';
+import {JitFnID, MockOperation, type FormatParam, type jitCode} from '@mionkit/runtype/src/types';
 import type {BaseRunType} from '@mionkit/runtype/src/lib/baseRunTypes';
 import type {JitCompiler, JitErrorsCompiler} from '@mionkit/runtype/src/lib/jitCompiler';
-import type {JITUtils} from '@mionkit/runtype/src/lib/jitUtils';
 import {BaseRunTypeFormat} from '@mionkit/runtype/src/lib/baseRunTypeFormat';
 import {ReflectionKind} from '@deepkit/type';
-import {dateFunctions, FormatParams_Date, DATE_RUN_TYPE_FORMATTER, DEFAULT_DATE_PARAMS} from './date.runtype';
-import {DEFAULT_TIME_FORMAT_PARAMS, timeFunctions, FormatParams_Time, TIME_RUN_TYPE_FORMATTER} from './time.runtype';
-import {registerFormatter, registerPureFnClosure} from '@mionkit/runtype/src/lib/formats';
-import {fpVal, toLiteral} from '@mionkit/runtype/src/lib/utils';
+import {FormatParams_Date, DEFAULT_DATE_PARAMS, DateStringRunTypeFormat} from './date.runtype';
+import {DEFAULT_TIME_FORMAT_PARAMS, FormatParams_Time, TimeStringRunTypeFormat} from './time.runtype';
+import {registerFormatter} from '@mionkit/runtype/src/lib/formats';
+import {fpVal} from '@mionkit/runtype/src/lib/utils';
+import {stringIgnoreProps} from '../stringFormat.runtype';
+import {JitFunctions} from '@mionkit/runtype/src/constants';
 
 // DateTime validator
 export class DateTimeRunTypeFormat extends BaseRunTypeFormat<FormatParams_DateTime> {
     static id = 'dateTime' as const;
     kind = ReflectionKind.string;
     name = DateTimeRunTypeFormat.id;
-    getIsDateTimeDependencies(params: FormatParams_DateTime) {
-        const isDateFn = DATE_RUN_TYPE_FORMATTER.getFormatPureFn(fpVal(params.date.format));
-        const isTimeFn = TIME_RUN_TYPE_FORMATTER.getFormatPureFn(fpVal(params.time.format));
-        return {
-            isDateFn: `utl.getPureFn(${toLiteral(isDateFn.name)})`,
-            isTimeFn: `utl.getPureFn(${toLiteral(isTimeFn.name)})`,
-        };
+    dateFormatter: DateStringRunTypeFormat;
+    timeFormatter: TimeStringRunTypeFormat;
+
+    constructor(parentPath?: string[]) {
+        super(parentPath);
+        this.dateFormatter = new DateStringRunTypeFormat(this.getFormatPath('date'));
+        this.timeFormatter = new TimeStringRunTypeFormat(this.getFormatPath('time'));
     }
-    _compileIsType(comp: JitCompiler, rt: BaseRunType): string {
+    getIgnoredProps(): string[] | undefined {
+        return stringIgnoreProps;
+    }
+    jitFnIsExpression(fnId: JitFnID, rt: BaseRunType): boolean {
+        if (fnId === JitFunctions.isType.id) return false;
+        return super.jitFnIsExpression(fnId, rt);
+    }
+    _compileIsType(comp: JitCompiler, rt: BaseRunType): jitCode {
         const params = this.getParams(rt);
-        const dependencies = this.getIsDateTimeDependencies(params);
-        return this.compilePureFunctionCall(comp, rt, isDateTime, params, dependencies).callCode;
+        const fnId = comp.fnId;
+        const fmtName = this.getFormatName();
+        const vλl = comp.vλl;
+        const splitChar = fpVal(params.splitChar);
+        const vDatePart = 'datePart' + this.getNestLevel(); // Variable for date part
+        const vTimePart = 'timePart' + this.getNestLevel(); // Variable for time part
+        const vSplitPos = 'splitPos' + this.getNestLevel(); // Position of split character
+
+        // Compile code for root, date part, and time part validation
+        const dateCode = this.dateFormatter._compile(fnId, comp, rt, params.date, vDatePart, fmtName);
+        const timeCode = this.timeFormatter._compile(fnId, comp, rt, params.time, vTimePart, fmtName);
+
+        // If rootCode is empty, we don't need to emit jit code for it
+        const returnCode = this.isRoot() ? `return true;` : '';
+
+        const code = `
+            const ${vSplitPos} = ${vλl}.indexOf('${splitChar}');
+            if (${vSplitPos} === -1) return false;
+            const ${vDatePart} = ${vλl}.substring(0, ${vSplitPos});
+            const ${vTimePart} = ${vλl}.substring(${vSplitPos} + 1);
+            if (!(${dateCode})) return false;
+            if (!(${timeCode})) return false;
+            ${returnCode}
+        `;
+        return code;
     }
-    _compileTypeErrors(comp: JitErrorsCompiler, rt: BaseRunType): string {
+    _compileTypeErrors(comp: JitErrorsCompiler, rt: BaseRunType): jitCode {
         const params = this.getParams(rt);
-        const dependencies = this.getIsDateTimeDependencies(params);
-        return this.compileErrorsPureFunctionCall(comp, rt, dateTimeErrors, params, dependencies).callCode;
+        const fnId = comp.fnId;
+        const fmtName = this.getFormatName();
+        const splitChar = fpVal(params.splitChar);
+        const errFn = this.getCallJitFormatErr(comp, rt, this, true);
+        const vλl = comp.vλl;
+        const vDatePart = 'datePart'; // Variable for date part
+        const vTimePart = 'timePart'; // Variable for time part
+        const vSplitPos = 'splitPos'; // Position of split character
+
+        // Compile code for root, date part, and time part validation
+        const dateCode = this.dateFormatter._compile(fnId, comp, rt, params.date, vDatePart, fmtName);
+        const timeCode = this.timeFormatter._compile(fnId, comp, rt, params.time, vTimePart, fmtName);
+
+        const code = `
+            const ${vSplitPos} = ${vλl}.indexOf('${splitChar}');
+            if (${vSplitPos} === -1) ${errFn('splitChar', splitChar)};
+            const ${vDatePart} = ${vλl}.substring(0, ${vSplitPos});
+            const ${vTimePart} = ${vλl}.substring(${vSplitPos} + 1);
+            ${dateCode ? `${dateCode};` : ''}
+            ${timeCode ? `${timeCode};` : ''}
+        `;
+        return code;
     }
-    _mock(mockContext: MockOperation, rt: BaseRunType) {
+    _mock(mockContext: MockOperation, rt: BaseRunType): string {
         const params = this.getParams(rt);
-        const mockedDate = DATE_RUN_TYPE_FORMATTER.mock(mockContext, rt, params.date);
-        const mockTimeString = TIME_RUN_TYPE_FORMATTER.mock(mockContext, rt, params.time);
-        return `${mockedDate}${params.splitChar}${mockTimeString}`;
+        const splitChar = fpVal(params.splitChar);
+
+        // Generate date part
+        const datePart = this.dateFormatter.mock(mockContext, rt, params.date);
+
+        // Generate time part
+        const timePart = this.timeFormatter.mock(mockContext, rt, params.time);
+
+        // Combine to form datetime
+        return `${datePart}${splitChar}${timePart}`;
     }
-}
-
-// ######### Pure functions ########
-
-export type DateTimeDeps = {
-    isDateFn: GenericPureFunction<FormatParams_Date>;
-    isTimeFn: GenericPureFunction<FormatParams_Time>;
-};
-
-/** @reflection never */
-function isDateTime() {
-    return function is_date_time(dt: string, p: FormatParams_DateTime, deps: DateTimeDeps): boolean {
-        const index = dt.indexOf(fpVal(p.splitChar));
-        if (index === -1) return false;
-        const datePart = dt.substring(0, index);
-        const timePart = dt.substring(index + fpVal(p.splitChar).length);
-        return deps.isDateFn(datePart, p.date, deps) && deps.isTimeFn(timePart, p.time, deps);
-    } as GenericPureFunction<FormatParams_DateTime>;
-}
-
-/** @reflection never */
-export function dateTimeErrors(utl: JITUtils) {
-    return function date_time_errors(
-        val: string,
-        path: StrNumber[],
-        ers: RunTypeError[],
-        exp: string,
-        fmtName: string,
-        p: FormatParams_DateTime,
-        fmtPath: StrNumber[],
-        deps: DateTimeDeps,
-        accessPath?: StrNumber[]
-    ): RunTypeError[] {
-        const index = val.indexOf(fpVal(p.splitChar));
-        if (index === -1)
-            return utl.formatErr(path, ers, exp, fmtName, 'splitChar', fpVal(p.splitChar), fmtPath, accessPath), ers;
-        const datePart = val.substring(0, index);
-        const timePart = val.substring(index + fpVal(p.splitChar).length);
-        if (!deps.isDateFn(datePart, p.date, deps))
-            utl.formatErr(path, ers, exp, fmtName, 'format', fpVal(p.date.format), [...fmtPath, 'date'], accessPath);
-        if (!deps.isTimeFn(timePart, p.time, deps))
-            utl.formatErr(path, ers, exp, fmtName, 'format', fpVal(p.time.format), [...fmtPath, 'time'], accessPath);
-        return ers;
-    } as ErrorsPureFunction<FormatParams_DateTime>;
 }
 
 // ######### Registering validator and pure functions ########
-
-registerPureFnClosure(isDateTime, [...dateFunctions, ...timeFunctions]);
-registerPureFnClosure(dateTimeErrors, [...dateFunctions, ...timeFunctions]);
-
 export const DATE_TIME_RUN_TYPE_FORMATTER = registerFormatter(new DateTimeRunTypeFormat());
 
 // ############### Run Types ###############

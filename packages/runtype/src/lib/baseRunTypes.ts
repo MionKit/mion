@@ -185,7 +185,8 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
     createJitCompiledFunction(fnId: JitFnID, parentCop?: JitCompiler): JitCompiled {
         const jitCompiled = jitUtils.getJIT(getJITFnHash(fnId, this));
         if (jitCompiled) {
-            if (process.env.DEBUG_JIT) console.log(`\x1b[32m Using cached function: ${jitCompiled.jitFnHash} \x1b[0m`);
+            if (process.env.DEBUG_JIT === 'VERBOSE')
+                console.log(`\x1b[32m Using cached function: ${jitCompiled.jitFnHash} \x1b[0m`);
             return jitCompiled;
         }
         const newJitCompiler: JitCompiler = createJitCompiler(this, fnId, parentCop) as JitCompiler;
@@ -313,7 +314,7 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
                 }
 
                 // Otherwise, create a separate function
-                const compiled = f.createJitCompiledFormatter(fnId, comp, this);
+                const compiled = f.createJitCompiledFormatter(fnId, this, comp);
                 if (compiled.isNoop) return;
                 comp.updateDependencies(compiled);
                 return this.callDependency(comp, compiled);

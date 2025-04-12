@@ -16,23 +16,23 @@ export const NUMERIC_REGEX = /^[\p{N}]+$/u;
 
 type DEFAULT_ALPHA_NUM_PARAMS = {
     pattern: {
-        regexp: typeof ALPHANUMERIC_REGEX;
-        sampleChars: 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-        message: 'only alphanumeric values are allowed';
+        val: typeof ALPHANUMERIC_REGEX;
+        mockSamples: 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+        reason: 'only alphanumeric values are allowed';
     };
 };
 type DEFAULT_ALPHA_PARAMS = {
     pattern: {
-        regexp: typeof ALPHA_REGEX;
-        sampleChars: 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
-        message: 'only alphabetic values are allowed';
+        val: typeof ALPHA_REGEX;
+        mockSamples: 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
+        reason: 'only alphabetic values are allowed';
     };
 };
 type DEFAULT_NUMERIC_PARAMS = {
     pattern: {
-        regexp: typeof NUMERIC_REGEX;
-        sampleChars: '0123456789';
-        message: 'only numeric values are allowed';
+        val: typeof NUMERIC_REGEX;
+        mockSamples: '0123456789';
+        reason: 'only numeric values are allowed';
     };
 };
 
