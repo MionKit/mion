@@ -11,7 +11,7 @@ import {TypeFormat} from '@mionkit/runtype/src/lib/formats.runtype'; // !Importa
 import {registerFormatter, getToLiteralFn} from '@mionkit/runtype/src/lib/formats';
 import {BaseRunTypeFormat} from '@mionkit/runtype/src/lib/baseRunTypeFormat';
 import {ReflectionKind} from '@deepkit/type';
-import {MockOperation, type JitFnID, type StrNumber} from '@mionkit/runtype/src/types';
+import {MockOperation} from '@mionkit/runtype/src/types';
 import {mockString, random, randomItem} from '@mionkit/runtype/src/lib/mock';
 import {fpVal, regexpEscape} from '@mionkit/runtype/src/lib/utils';
 
@@ -39,18 +39,6 @@ export class StringRunTypeFormat extends BaseRunTypeFormat<FormatParams_String> 
 
     getIgnoredProps(): string[] | undefined {
         return stringIgnoreProps;
-    }
-    compileFormat(
-        fnId: JitFnID,
-        comp: JitCompiler,
-        rt: BaseRunType,
-        params?: FormatParams_String | FormatParam_Pattern,
-        vλl?: string,
-        formatName?: string,
-        extraPathLiteral?: StrNumber
-    ) {
-        const newParams = isPatternParam(params) ? patternParamsToStrParams(params) : params;
-        return this._compile(fnId, comp, rt, newParams, vλl, formatName, extraPathLiteral);
     }
     _compileFormat(comp: JitCompiler, rt: BaseRunType): string | undefined {
         const operations: ((v) => string)[] = [];
