@@ -217,7 +217,7 @@ export function compileAddPureFunctionContext(comp: JitCompiler | JitErrorsCompi
 }
 
 // TODO, read ignoreProps from multiple formatters, rather than a constant here
-export const defaultIgnoreFormatProps = ['samples', 'sampleChars'];
+export const defaultIgnoreFormatProps = ['mockSamples'];
 
 /**
  * Transforms a params object into a literal string to be used in JIT code.

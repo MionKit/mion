@@ -252,7 +252,10 @@ export type TypeFormatError = {
 };
 
 export type FormatParamLiteral = string | number | boolean | RegExp | bigint;
-export type TypeFormatValue = FormatParamLiteral | TypeFormatValue[] | {[key: string]: TypeFormatValue | undefined | never}; // undefined is used to allow optional properties
+export type TypeFormatValue =
+    | FormatParamLiteral
+    | readonly TypeFormatValue[]
+    | {[key: string]: TypeFormatValue | undefined | never}; // undefined is used to allow optional properties
 export type FormatParamMeta<L extends TypeFormatValue = TypeFormatValue> = {
     /** Value of the format param, can ONLY be a Literal Value */
     val: L;

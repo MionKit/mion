@@ -11,14 +11,7 @@ import {TypeFormat} from '@mionkit/runtype/src/lib/formats.runtype'; // !Importa
 import {registerFormatter, getToLiteralFn} from '@mionkit/runtype/src/lib/formats';
 import {BaseRunTypeFormat} from '@mionkit/runtype/src/lib/baseRunTypeFormat';
 import {ReflectionKind} from '@deepkit/type';
-import {
-    MockOperation,
-    type FormatParam,
-    type FormatParamMeta,
-    type JitFnID,
-    type StrNumber,
-    type TypeFormatValue,
-} from '@mionkit/runtype/src/types';
+import {MockOperation, type JitFnID, type StrNumber} from '@mionkit/runtype/src/types';
 import {mockString, random, randomItem} from '@mionkit/runtype/src/lib/mock';
 import {fpVal, regexpEscape} from '@mionkit/runtype/src/lib/utils';
 
@@ -146,32 +139,28 @@ export class StringRunTypeFormat extends BaseRunTypeFormat<FormatParams_String> 
     }
     _mock(mockContext: MockOperation, rt: BaseRunType, params?: FormatParams_String): string {
         const p = params || this.getParams(rt);
-        if (p.allowedValues) return randomItem(p.allowedValues.val);
+        if (p.allowedValues) return randomItem(p.allowedValues.val as string[]);
 
-        const samples = p.pattern?.samples || p.disallowedChars?.samples || p.disallowedValues?.samples;
-        if (samples) {
+        const samples = p.pattern?.mockSamples || p.disallowedChars?.mockSamples || p.disallowedValues?.mockSamples;
+
+        // if samples is an array we mock a value from one of the samples
+        if (samples && typeof samples !== 'string' && Array.isArray(samples)) {
             const ignoreCase = p.disallowedChars?.ignoreCase || p.disallowedValues?.ignoreCase;
             const samplesAllCases = ignoreCase ? valuesAllCases(samples) : samples;
             return randomItem(samplesAllCases);
         }
 
-        const sampleChars = p.pattern?.sampleChars;
-        if (sampleChars) {
-            const newAllowedChars = p.allowedChars ? p.allowedChars.val + sampleChars : sampleChars;
-            const newMinLength = p.minLength ? p.minLength : 1; // patterns will fail if generated string length is 0
-            const reason = p.allowedChars?.reason || p.disallowedChars?.reason || p.pattern?.reason;
-            const newParams: TypeFormatValue = {
-                ...p,
-                allowedChars: {val: newAllowedChars, reason},
-                minLength: newMinLength,
-            };
-            if (p.pattern) delete newParams.pattern;
-            return this._mock(mockContext, rt, newParams);
+        // if samples is a string we mock a random string using the samples as allowedChars
+        if (samples && typeof samples === 'string') {
+            return this.mockString(p, samples, undefined);
         }
 
         const allowedChars = p.allowedChars?.ignoreCase ? charsAllCases(p.allowedChars.val) : p.allowedChars?.val;
         const disallowedChars = p.disallowedChars?.ignoreCase ? charsAllCases(p.disallowedChars.val) : p.disallowedChars?.val;
 
+        return this.mockString(p, allowedChars, disallowedChars);
+    }
+    private mockString(p: FormatParams_String, allowedChars: string | undefined, disallowedChars: string | undefined): string {
         switch (true) {
             case p.length !== undefined:
                 return mockString(fpVal(p.length), allowedChars, disallowedChars);
@@ -187,16 +176,8 @@ export class StringRunTypeFormat extends BaseRunTypeFormat<FormatParams_String> 
                 return mockString(undefined, allowedChars, disallowedChars);
         }
     }
-    _formatMockedValue(mockContext: MockOperation, rt: BaseRunType, val: any): string {
-        const params = this.getParams(rt);
-        if (params.lowercase) return val.toLowerCase();
-        if (params.uppercase) return val.toUpperCase();
-        if (params.capitalize) return val.charAt(0).toUpperCase() + val.slice(1);
-        return val;
-    }
     validateParams(rt: BaseRunType, p: FormatParams_String): void {
-        const throwIfInvalid = (v: any, name: string, subName: 'samples' | 'sampleChars' | 'val') => {
-            const skipLengthChecks = subName === 'sampleChars';
+        const throwIfInvalid = (v: any, name: string, subName: 'mockSamples' | 'val', skipLengthChecks = false) => {
             const err = getParamError(v, p, skipLengthChecks);
             if (err)
                 throw new Error(
@@ -215,37 +196,37 @@ export class StringRunTypeFormat extends BaseRunTypeFormat<FormatParams_String> 
             throw new Error(`disallowedValues can not have more than 100 values in ${this.printPath(rt, 'disallowedValues')}`);
 
         const complexParams = [
-            {name: 'pattern', param: p.pattern},
-            {name: 'allowedChars', param: p.allowedChars},
-            {name: 'disallowedChars', param: p.disallowedChars},
-            {name: 'allowedValues', param: p.allowedValues},
-            {name: 'disallowedValues', param: p.disallowedValues},
-        ].filter((p) => p.param !== undefined) as {name: string; param: FormatParam_WithOptSamples<string | string[] | RegExp>}[];
+            {name: 'pattern', param: p.pattern as NonNullable<FormatParams_String['pattern']>},
+            {name: 'allowedChars', param: p.allowedChars as NonNullable<FormatParams_String['allowedChars']>},
+            {name: 'disallowedChars', param: p.disallowedChars as NonNullable<FormatParams_String['disallowedChars']>},
+            {name: 'allowedValues', param: p.allowedValues as NonNullable<FormatParams_String['allowedValues']>},
+            {name: 'disallowedValues', param: p.disallowedValues as NonNullable<FormatParams_String['disallowedValues']>},
+        ].filter((p) => p.param !== undefined);
 
         if (complexParams.length > 1) {
             throw new Error(
-                `Only one of the parameters [pattern, allowedChars, disallowedChars, allowedValues, disallowedValues] pattern can be used at once in ${this.printPath(rt)}`
+                `Only one of the parameters [pattern, allowedChars, disallowedChars, allowedValues, disallowedValues] can be used at once in ${this.printPath(rt)}`
             );
         }
 
         complexParams.forEach((c) => {
-            const {samples, sampleChars} = c.param;
+            const {mockSamples} = c.param;
             const requireSamples = propsWithRequiredSamples.includes(c.name);
-            if (requireSamples && !samples && !sampleChars)
+            if (requireSamples && !mockSamples)
                 throw new Error(
-                    `When ${c.name} is defined it is also required to provide samples or sampleChars in ${this.printPath(rt, c.name)}`
+                    `When ${c.name} is defined it is also required to provide samples in ${this.printPath(rt, c.name)}`
                 );
-            if (samples && sampleChars)
-                throw new Error(`${c.name}.samples and ${c.name}.sampleChars can not be used together in ${this.printPath(rt)}`);
-            if (samples && samples.length === 0)
-                throw new Error(`${c.name}.samples can not be an empty array in ${this.printPath(rt, 'samples')}`);
-            if (sampleChars && sampleChars.length === 0)
-                throw new Error(`${c.name}.sampleChars can not be an empty string in ${this.printPath(rt, 'sampleChars')}`);
-            samples?.forEach((sample) => throwIfInvalid(sample, c.name, 'samples'));
-            if (sampleChars) sampleChars.split('').forEach((char) => throwIfInvalid(char, c.name, 'sampleChars'));
+            if (Array.isArray(mockSamples) && mockSamples.length === 0)
+                throw new Error(`${c.name}.mockSamples can not be an empty array in ${this.printPath(rt, 'mockSamples')}`);
+            if (typeof mockSamples === 'string' && mockSamples.length === 0)
+                throw new Error(`${c.name}.mockSamples can not be an empty string in ${this.printPath(rt, 'mockSamples')}`);
+
+            if (Array.isArray(mockSamples)) mockSamples.forEach((sample) => throwIfInvalid(sample, c.name, 'mockSamples'));
+            if (typeof mockSamples === 'string')
+                mockSamples.split('').forEach((char) => throwIfInvalid(char, c.name, 'mockSamples', true));
         });
 
-        if (p.allowedChars?.val) throwIfInvalid(p.allowedChars?.val, 'allowedChars', 'val');
+        if (p.allowedChars?.val) throwIfInvalid(p.allowedChars?.val, 'allowedChars', 'val', true);
         p.allowedValues?.val.forEach((v) => throwIfInvalid(v, 'allowedValues', 'val'));
 
         // TODO: Bellow checks might cause problems
@@ -306,11 +287,11 @@ function getDisallowedCharsRegexp(disallowedChars: string, ignoreCase?: boolean)
     const flags = ignoreCase ? 'i' : '';
     return new RegExp(`[${regexpEscape(disallowedChars)}]`, flags);
 }
-function getAllowedValuesRegexp(allowedValues: string[], ignoreCase?: boolean): RegExp {
+function getAllowedValuesRegexp(allowedValues: readonly string[], ignoreCase?: boolean): RegExp {
     const flags = ignoreCase ? 'i' : '';
     return new RegExp(`^(?:${allowedValues.map((v) => regexpEscape(v)).join('|')})$`, flags);
 }
-function getDisallowedValuesRegexp(disallowedValues: string[], ignoreCase?: boolean): RegExp {
+function getDisallowedValuesRegexp(disallowedValues: readonly string[], ignoreCase?: boolean): RegExp {
     const flags = ignoreCase ? 'i' : '';
     return new RegExp(`^(?:${disallowedValues.map((v) => regexpEscape(v)).join('|')})$`, flags);
 }
@@ -335,23 +316,19 @@ export const STRING_RUN_TYPE_FORMATTER = registerFormatter(new StringRunTypeForm
 
 // ############### String Format Params ###############
 
-export type RequiredSample = {samples: string[]; sampleChars?: never} | {sampleChars: string; samples?: never};
-export type FormatParam_WithSamples<T extends TypeFormatValue> = FormatParamMeta<T> & RequiredSample;
-export type FormatParam_WithOptSamples<T extends TypeFormatValue> = FormatParamMeta<T> & Partial<RequiredSample>;
-export type FormatParam_Pattern = FormatParam_WithSamples<RegExp>;
+export type FormatParam_Pattern = FormatParams_StringValidators['pattern'];
+export type Samples = string | readonly string[];
 
 export type FormatParams_StringValidators = {
     // validators
-    maxLength?: FormatParam<number>;
-    minLength?: FormatParam<number>;
-    length?: FormatParam<number>;
-    // properties that requires some samples to generate mocking values
-    disallowedChars?: FormatParam_WithSamples<string> & {ignoreCase?: boolean};
-    disallowedValues?: FormatParam_WithSamples<string[]> & {ignoreCase?: boolean};
-    pattern?: FormatParam_WithSamples<RegExp>;
-    // properties that can be used without samples as can be derived from the value
-    allowedChars?: FormatParam_WithOptSamples<string> & {ignoreCase?: boolean};
-    allowedValues?: FormatParam_WithOptSamples<string[]> & {ignoreCase?: boolean};
+    maxLength?: number | {val: number; reason: string; desc?: string};
+    minLength?: number | {val: number; reason: string; desc?: string};
+    length?: number | {val: number; reason: string; desc?: string};
+    disallowedChars?: {val: string; reason: string; desc?: string; ignoreCase?: boolean; mockSamples: string};
+    disallowedValues?: {val: readonly string[]; reason: string; desc?: string; ignoreCase?: boolean; mockSamples: Samples};
+    pattern?: {val: RegExp; reason: string; desc?: string; ignoreCase?: boolean; mockSamples: Samples};
+    allowedChars?: {val: string; reason: string; desc?: string; ignoreCase?: boolean; mockSamples?: Samples};
+    allowedValues?: {val: readonly string[]; reason: string; desc?: string; ignoreCase?: boolean; mockSamples?: Samples};
 };
 export type FormatParams_StringTransformers = {
     // formatters

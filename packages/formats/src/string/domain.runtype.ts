@@ -5,26 +5,32 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
-import type {BaseRunType} from '../../../runtype/src/lib/baseRunTypes';
-import type {JitCompiler, JitErrorsCompiler} from '../../../runtype/src/lib/jitCompiler';
-import {BaseRunTypeFormat} from '../../../runtype/src/lib/baseRunTypeFormat';
+import type {BaseRunType} from '@mionkit/runtype/src/lib/baseRunTypes';
+import type {JitCompiler, JitErrorsCompiler} from '@mionkit/runtype/src/lib/jitCompiler';
+import {BaseRunTypeFormat} from '@mionkit/runtype/src/lib/baseRunTypeFormat';
 import {DeepPartial, ReflectionKind} from '@deepkit/type';
-import {MockOperation, type FormatParam, type jitCode, type JitFnID, type StrNumber} from '../../../runtype/src/types';
-import {TypeFormat} from '../../../runtype/src/lib/formats.runtype'; // !Important: TypeFormat cant be imported as type for all runType functionality to work
+import {MockOperation, type FormatParam, type jitCode, type JitFnID, type StrNumber} from '@mionkit/runtype/src/types';
+import {TypeFormat} from '@mionkit/runtype/src/lib/formats.runtype'; // !Important: TypeFormat cant be imported as type for all runType functionality to work
 import {
     StringRunTypeFormat,
     stringIgnoreProps,
     FormatParams_StringValidators,
     FormatParam_Pattern,
     type FormatParams_String,
+    Samples,
 } from '../stringFormat.runtype';
-import {registerFormatter} from '../../../runtype/src/lib/formats';
-import {random, randomItem} from '../../../runtype/src/lib/mock';
-import {JitFunctions} from '../../../runtype/src/constants';
+import {registerFormatter} from '@mionkit/runtype/src/lib/formats';
+import {random, randomItem} from '@mionkit/runtype/src/lib/mock';
+import {JitFunctions} from '@mionkit/runtype/src/constants';
 import {fpVal} from '@mionkit/runtype/src/lib/utils';
 import {NAME_CHARS, NAME_SAMPLES, TLD_CHARS, TLD_SAMPLES} from '../constants.mock';
 
-export const DOMAIN_PATTERN = /^(?:[a-zA-Z0-9-]{1,63}\.)*[a-zA-Z0-9-]{2,63}(\.[a-zA-Z]{2,12})+$/;
+// latin domain names each domain part must be 61 chars max, tld only supports latin chars
+export const DOMAIN_PATTERN = /^(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,63}$/;
+// unicode domain names each domain part must be 61 chars max, tld only supports latin chars
+export const DOMAIN_PATTERN_UNICODE = /^(?:[\p{L}\p{N}](?:[\p{L}\p{N}-]{0,61}[\p{L}\p{N}])?\.)+[a-zA-Z]{2,63}$/u;
+// punycode domain names each domain part must be 61 chars max, tld supports latin, number and hyphens
+export const DOMAIN_PATTERN_PUNYCODE = /^(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z0-9-]{2,63}$/;
 export const DOMAIN_ALLOWED_CHARS_PATTERN = /^[a-zA-Z0-9-]+$/;
 export const TLD_ALLOWED_CHARS_PATTERN = /^[a-zA-Z]+(\.[a-zA-Z]+)?$/;
 
@@ -128,9 +134,9 @@ export class DomainRunTypeFormat extends BaseRunTypeFormat<FormatParams_Domain> 
 
         const errFn = this.getCallJitFormatErr(comp, rt, this, true);
         const vλl = comp.vλl;
-        const vName = 'name'; // must match var name in code
-        const vTld = 'tld'; // must match var name in code
-        const vCount = 'count'; // must match var name in code
+        const vName = 'name' + this.getNestLevel(); // must match var name in code
+        const vTld = 'tld' + this.getNestLevel(); // must match var name in code
+        const vCount = 'count' + this.getNestLevel(); // must match var name in code
         const vStart = 'start' + this.getNestLevel(); // must match var name in code
         const vPos = 'pos' + this.getNestLevel(); // must match var name in code
 
@@ -171,7 +177,7 @@ export class DomainRunTypeFormat extends BaseRunTypeFormat<FormatParams_Domain> 
         const minParts = fpVal(params.minParts || 2);
         const maxLength = fpVal(params.maxLength || 253);
         const minLength = fpVal(params.minLength || 3);
-        let tld = this.mockTld(mockContext, rt, params.tld);
+        let tld = this.mockTld(mockContext, rt, params.tld as FormatParams_Tld);
         const tldParts = tld.split('.');
         // ensure tld is not too long
         while (tldParts.length > 1 && tldParts.length >= maxParts) tldParts.shift();
@@ -186,11 +192,13 @@ export class DomainRunTypeFormat extends BaseRunTypeFormat<FormatParams_Domain> 
         const maxRandomParts = random(minRandom, maxRandom);
         const parts: string[] = [];
 
-        parts.push(this.mockName(mockContext, rt, params.names));
+        parts.push(this.mockName(mockContext, rt, params.names as FormatParams_DomainName));
         let name = parts[0];
         let domain = `${name}.${tld}`;
+
+        // keep adding names until we reach maxRandom or maxes are reached
         while ((domain.length < maxLength && parts.length < maxRandomParts) || domain.length < minLength) {
-            parts.push(this.mockName(mockContext, rt, params.names));
+            parts.push(this.mockName(mockContext, rt, params.names as FormatParams_DomainName));
             name = parts.join('.');
             domain = `${name}.${tld}`;
         }
@@ -203,14 +211,30 @@ export class DomainRunTypeFormat extends BaseRunTypeFormat<FormatParams_Domain> 
     private mockName(mockContext: MockOperation, rt: BaseRunType, params: FormatParams_DomainName): string {
         const hasParams = !!Object.keys(params).length;
         if (!hasParams) return randomItem(NAME_SAMPLES);
-        const sanitizedParams = this.hasNoConstrains(params) ? {...params, allowedChars: namesAllowedChars} : params;
-        return this.nameFormatter.mock(mockContext, rt, sanitizedParams);
+        const defaultParams = {
+            ...params,
+            maxLength: params.maxLength ?? 63,
+            minLength: params.minLength ?? 2,
+            pattern: params.pattern,
+            allowedValues: params.allowedValues,
+            disallowedValues: params.disallowedValues,
+            allowedChars: this.hasNoConstrains(params) ? namesAllowedChars : undefined,
+        };
+        return this.nameFormatter.mock(mockContext, rt, defaultParams);
     }
     private mockTld(mockContext: MockOperation, rt: BaseRunType, params: FormatParams_Tld): string {
         const hasParams = !!Object.keys(params).length;
         if (!hasParams) return randomItem(TLD_SAMPLES);
-        const sanitizedParams = this.hasNoConstrains(params) ? {...params, allowedChars: tldAllowedChars} : params;
-        return this.tldFormatter.mock(mockContext, rt, sanitizedParams);
+        const defaultParams = {
+            ...params,
+            maxLength: params.maxLength ?? 12,
+            minLength: params.minLength ?? 2,
+            pattern: params.pattern,
+            allowedValues: params.allowedValues,
+            disallowedValues: params.disallowedValues,
+            allowedChars: this.hasNoConstrains(params) ? tldAllowedChars : undefined,
+        };
+        return this.tldFormatter.mock(mockContext, rt, defaultParams);
     }
     _compileFormat(comp: JitCompiler): string {
         return `${comp.vλl}.toLowerCase()`; // all domain are lower case
@@ -240,7 +264,7 @@ export class DomainRunTypeFormat extends BaseRunTypeFormat<FormatParams_Domain> 
             throw new Error(`Domain names.maxLength cannot be greater than 63 in type ${this.printPath(rt, 'names.maxLength')}`);
 
         this.rootFormatter.validateParams(rt, params);
-        if (params.names) this.nameFormatter.validateParams(rt, params.names);
+
         if (params.names?.allowedValues)
             params.names?.allowedValues.val.forEach((val) => {
                 if (val.startsWith('-') || val.endsWith('-'))
@@ -248,7 +272,16 @@ export class DomainRunTypeFormat extends BaseRunTypeFormat<FormatParams_Domain> 
                         `allowedValues[${val}] can not start or end with a hyphen in type ${this.printPath(rt, 'names.allowedValues')}`
                     );
             });
-        if (params.tld) this.tldFormatter.validateParams(rt, params.tld);
+        if (params.names) {
+            if (Object.values(params.names).length === 0)
+                throw new Error(`Domain names must have at least one validator in type ${this.printPath(rt, 'names')}`);
+            this.nameFormatter.validateParams(rt, params.names);
+        }
+        if (params.tld) {
+            if (Object.values(params.tld).length === 0)
+                throw new Error(`Domain tld must have at least one validator in type ${this.printPath(rt, 'tld')}`);
+            this.tldFormatter.validateParams(rt, params.tld);
+        }
     }
 }
 
@@ -259,33 +292,43 @@ export const DOMAIN_RUN_TYPE_FORMATTER = registerFormatter(new DomainRunTypeForm
 
 // ############### Type Params ###############
 
-export type DEFAULT_DOMAIN_PARAMS = {
+export type DEFAULT_DOMAIN_PARAMS<
+    P extends RegExp = typeof DOMAIN_PATTERN,
+    S extends Samples = ['ggle.com', 'mion.io', 'mionkit.io', 'yahuu.net', 'fbook.com', 'wiki.org', 'ms.net'],
+> = {
     maxLength: 253;
+    minLength: 5; // name 2 + tld 2 + 1 dot
     pattern: {
-        val: typeof DOMAIN_PATTERN;
-        samples: ['ggle.com', 'mion.io', 'mionkit.io', 'yahuu.net', 'fbook.com', 'wiki.org', 'ms.net'];
+        val: P;
+        mockSamples: S;
         reason: 'invalid domain';
     };
 };
-export type DEFAULT_DMM_TLD_PARAMS = {
+export type DEFAULT_DMM_TLD_PARAMS<
+    P extends RegExp = typeof TLD_ALLOWED_CHARS_PATTERN,
+    S extends Samples = ['com', 'org', 'net', 'io', 'app', 'co', 'dev', 'tech', 'ai', 'mion', 'co.uk', 'com.au', 'com.br'],
+> = {
     maxLength: 12; // technical TLD max length is 63, but rarely is more than 12, as single words are the most common
     minLength: 2;
     pattern: {
-        val: typeof TLD_ALLOWED_CHARS_PATTERN;
-        samples: ['com', 'org', 'net', 'io', 'app', 'co', 'dev', 'tech', 'ai', 'mion', 'co.uk', 'com.au', 'com.br'];
+        val: P;
+        mockSamples: S;
         reason: 'top level domain can only contain letters and dots';
     };
 };
-export type DEFAULT_DOM_NAME_PARAMS = {
+export type DEFAULT_DOM_NAME_PARAMS<
+    P extends RegExp = typeof DOMAIN_ALLOWED_CHARS_PATTERN,
+    S extends Samples = ['domain', 'ggle', 'fbook', 'mion', 'prot', 'yahuu', 'hello', 'world', 'example', 'wiki', 'mionkit'],
+> = {
     maxLength: 63;
     minLength: 2;
     pattern: {
-        val: typeof DOMAIN_ALLOWED_CHARS_PATTERN;
-        samples: ['domain', 'ggle', 'fbook', 'mion', 'prot', 'yahuu', 'hello', 'world', 'example', 'wiki', 'mionkit'];
+        val: P;
+        mockSamples: S;
         reason: 'domain names can only contain letters, numbers and hyphens';
     };
 };
-export type DEFAULT_FULL_DOMAIN_PARAMS = {
+export type DEFAULT_STRICT_DOMAIN_PARAMS = {
     // officially max subdomains is 127, but practically there is never more than 4 or 5, so better default to something smaller
     maxParts: 6;
     minParts: 2;
@@ -312,4 +355,4 @@ export type FormatParams_Domain = {
 /** Domain based on a pattern */
 export type DomainFormat<D extends FormatParams_Domain = DEFAULT_DOMAIN_PARAMS> = TypeFormat<string, 'domain', D>;
 /** Domain with customizable names and tld */
-export type DomainFormat_Parts<D extends DeepPartial<FormatParams_Domain> = {}> = DomainFormat<DEFAULT_FULL_DOMAIN_PARAMS & D>;
+export type DomainFormat_Strict<D extends DeepPartial<FormatParams_Domain> = {}> = DomainFormat<DEFAULT_STRICT_DOMAIN_PARAMS & D>;

@@ -6,25 +6,31 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
-import type {BaseRunType} from '../../../runtype/src/lib/baseRunTypes';
-import type {JitCompiler, JitErrorsCompiler} from '../../../runtype/src/lib/jitCompiler';
-import {registerFormatter} from '../../../runtype/src/lib/formats';
-import {BaseRunTypeFormat} from '../../../runtype/src/lib/baseRunTypeFormat';
+import type {BaseRunType} from '@mionkit/runtype/src/lib/baseRunTypes';
+import type {JitCompiler, JitErrorsCompiler} from '@mionkit/runtype/src/lib/jitCompiler';
+import {registerFormatter} from '@mionkit/runtype/src/lib/formats';
+import {BaseRunTypeFormat} from '@mionkit/runtype/src/lib/baseRunTypeFormat';
 import {ReflectionKind} from '@deepkit/type';
-import {TypeFormat} from '../../../runtype/src/lib/formats.runtype';
-import {MockOperation, type jitCode, type JitFnID, type StrNumber} from '../../../runtype/src/types';
+import {TypeFormat} from '@mionkit/runtype/src/lib/formats.runtype';
+import {MockOperation, type jitCode, type JitFnID, type StrNumber} from '@mionkit/runtype/src/types';
 import {StringRunTypeFormat, stringIgnoreProps, FormatParams_String} from '../stringFormat.runtype';
 import {DomainRunTypeFormat, FormatParams_Domain} from './domain.runtype';
 import {JitFunctions} from '@mionkit/runtype/src/constants';
 import {IPRunTypeFormat, FormatParams_IP} from './ip.runtype';
 import {fpVal} from '@mionkit/runtype/src/lib/utils';
 import {randomItem} from '@mionkit/runtype/src/lib/mock';
-import {FILE_URL_SAMPLES, HTTP_URL_SAMPLES, SOCIAL_MEDIA_URL_SAMPLES, URL_SAMPLES} from '../constants.mock';
+import {
+    FILE_URL_SAMPLES,
+    HTTP_URL_SAMPLES,
+    SOCIAL_MEDIA_URL_SAMPLES,
+    URL_SAMPLES,
+    SOCIAL_MEDIA_DOMAINS_SAMPLES,
+    INTERNET_PROTOCOLS,
+} from '../constants.mock'; // do not import using type
 
 export const URL_REGEXP = /^(?:https?|ftps?|wss?):\/\/[^\s/$.?#-][^\s]*$/i;
 export const URL_FILE_REGEXP = /^file:\/\/\/?(?:[a-zA-Z]:)?[^\s/$.?#-][^\s]*$/i;
 export const URL_HTTP_REGEXP = /^https?:\/\/[^\s/$.?#-][^\s]*$/i;
-const protocols = ['http', 'https', 'ftp', 'ftps', 'ws', 'wss', 'file'];
 
 // URL validator
 export class URLRunTypeFormat extends BaseRunTypeFormat<FormatParams_Url> {
@@ -65,7 +71,6 @@ export class URLRunTypeFormat extends BaseRunTypeFormat<FormatParams_Url> {
         const params = this.getParams(rt);
         const fnId = comp.fnId;
         const fmtName = this.getFormatName();
-
         const urlCode = this.urlFormatter!._compile(fnId, comp, rt, params, comp.vλl, fmtName);
         if (!params.domain && !params.ip) return urlCode;
 
@@ -121,16 +126,11 @@ export class URLRunTypeFormat extends BaseRunTypeFormat<FormatParams_Url> {
     }
     _mock(mockContext: MockOperation, rt: BaseRunType): string {
         const params = this.getParams(rt);
-
-        console.log(params);
         let url = this.urlFormatter.mock(mockContext, rt, params);
-        console.log('url =====>', url);
         const hasProtocol = url.indexOf('://') !== -1;
-        if (!hasProtocol) url = randomItem(protocols) + url;
-
+        if (!hasProtocol) url = randomItem(INTERNET_PROTOCOLS) + url;
         if (params.domain) {
             const domain = this.domainFormatter.mock(mockContext, rt, params.domain);
-            console.log('domain =====>', domain);
             return replaceDomain(url, domain);
         }
         if (params.ip) return replaceDomain(url, this.ipFormatter.mock(mockContext, rt, params.ip));
@@ -187,34 +187,23 @@ export const URL_RUN_TYPE_FORMATTER = registerFormatter(new URLRunTypeFormat());
 
 export type DEFAULT_URL_PARAMS = {
     maxLength: 2048;
-    pattern: {val: typeof URL_REGEXP; reason: 'invalid URL format'; samples: URL_SAMPLES};
+    pattern: {val: typeof URL_REGEXP; reason: 'invalid URL format'; mockSamples: URL_SAMPLES};
 };
 export type DEFAULT_URL_FILE_PARAMS = {
     maxLength: 2048;
-    pattern: {val: typeof URL_FILE_REGEXP; reason: 'invalid file URL format'; samples: FILE_URL_SAMPLES};
+    pattern: {val: typeof URL_FILE_REGEXP; reason: 'invalid file URL format'; mockSamples: FILE_URL_SAMPLES};
 };
 export type DEFAULT_URL_HTTP_PARAMS = {
     maxLength: 2048;
-    pattern: {val: typeof URL_HTTP_REGEXP; reason: 'invalid Http URL format'; samples: HTTP_URL_SAMPLES};
+    pattern: {val: typeof URL_HTTP_REGEXP; reason: 'invalid Http URL format'; mockSamples: HTTP_URL_SAMPLES};
 };
-export type DEFAULT_URL_SOCIAL_MEDIA_PARAMS = {
+export type DEFAULT_URL_SOCIAL_MEDIA_PARAMS<DomainLIst extends readonly string[] = SOCIAL_MEDIA_DOMAINS_SAMPLES> = {
     maxLength: 2048;
-    pattern: {val: typeof URL_HTTP_REGEXP; reason: 'invalid social media URL format'; samples: SOCIAL_MEDIA_URL_SAMPLES};
+    pattern: {val: typeof URL_HTTP_REGEXP; reason: 'invalid social media URL format'; mockSamples: SOCIAL_MEDIA_URL_SAMPLES};
     domain: {
         names: {
             allowedValues: {
-                val: [
-                    'facebook',
-                    'twitter',
-                    'instagram',
-                    'linkedin',
-                    'tiktok',
-                    'youtube',
-                    'snapchat',
-                    'pinterest',
-                    'reddit',
-                    'whatsapp',
-                ];
+                val: DomainLIst;
                 reason: 'Only social media domains are allowed';
             };
         };
@@ -234,6 +223,8 @@ export type FormatParams_UrlPattern = Omit<
 export type FormatParams_Url = FormatParams_UrlPattern & {ip?: FormatParams_IP; domain?: FormatParams_Domain};
 
 export type UrlFormat<P extends FormatParams_Url = {}> = TypeFormat<string, 'url', DEFAULT_URL_PARAMS & P>;
-export type UrlFormatFile<P extends FormatParams_Url = {}> = TypeFormat<string, 'url', DEFAULT_URL_FILE_PARAMS & P>;
-export type UrlFormatHttp<P extends FormatParams_Url = {}> = TypeFormat<string, 'url', DEFAULT_URL_HTTP_PARAMS & P>;
-export type UrlFormatSocialMedia<> = UrlFormat<DEFAULT_URL_SOCIAL_MEDIA_PARAMS>;
+export type UrlFormat_File<P extends FormatParams_Url = {}> = TypeFormat<string, 'url', DEFAULT_URL_FILE_PARAMS & P>;
+export type UrlFormat_Http<P extends FormatParams_Url = {}> = TypeFormat<string, 'url', DEFAULT_URL_HTTP_PARAMS & P>;
+export type UrlFormat_SocialMedia<DomainLIst extends readonly string[] = SOCIAL_MEDIA_DOMAINS_SAMPLES> = UrlFormat<
+    DEFAULT_URL_SOCIAL_MEDIA_PARAMS<DomainLIst>
+>;

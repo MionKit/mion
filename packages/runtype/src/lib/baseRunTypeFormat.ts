@@ -115,13 +115,15 @@ export abstract class BaseRunTypeFormat<P extends TypeFormatParams = any> {
         this.pushContext(params);
         const result = this._mock(mockContext, rt);
         this.popContext();
-        return result;
+        const formatter = this.createJitCompiledFormatter(JitFunctions.format.id, rt, undefined, params);
+        if (formatter.isNoop) return result;
+        return formatter.fn(result);
     }
 
     createJitCompiledFormatter(
         fnId: JitFnID,
-        comp: JitCompiler,
         rt: BaseRunType,
+        comp?: JitCompiler,
         params?: P,
         vλl?: string,
         formatName?: string
@@ -132,7 +134,9 @@ export abstract class BaseRunTypeFormat<P extends TypeFormatParams = any> {
         const jitFnHash = `${JitFunctions.aux.id}_${fnId}_${hash}`;
         const jitCompiled = jitUtils.getJIT(jitFnHash);
         if (jitCompiled) {
-            if (process.env.DEBUG_JIT) console.log(`\x1b[32m Using cached function: ${jitCompiled.jitFnHash} \x1b[0m`);
+            if (process.env.DEBUG_JIT === 'VERBOSE')
+                console.log(`\x1b[32m Using cached function: ${jitCompiled.jitFnHash} \x1b[0m`);
+            comp?.updateDependencies(jitCompiled);
             return jitCompiled;
         }
         // TODO: decide if we should add parent compiler or not as parent to createJitCompiler
@@ -141,7 +145,7 @@ export abstract class BaseRunTypeFormat<P extends TypeFormatParams = any> {
             const formatterCode = this._compile(fnId, newJitCompiler, rt, params, vλl, formatName);
             const withReturn = this.handleReturnValues(rt, newJitCompiler, fnId, formatterCode || '');
             newJitCompiler.compile(withReturn);
-            comp.updateDependencies(newJitCompiler as JitCompiled);
+            comp?.updateDependencies(newJitCompiler as JitCompiled);
         } catch (e) {
             // if something goes wrong during compilation we want to remove the compiler from
             // the cache as this is automatically added to jitUtils cache during compilation
@@ -188,7 +192,8 @@ export abstract class BaseRunTypeFormat<P extends TypeFormatParams = any> {
         return result;
     }
 
-    handleReturnValues(rt: BaseRunType, comp: JitCompiler, currentOpId: JitFnID, code: string): string {
+    handleReturnValues(rt: BaseRunType, comp: JitCompiler, currentOpId: JitFnID, code: jitCode): string {
+        if (!code) return '';
         const codeHasReturn: boolean = this.jitFnHasReturn(currentOpId, rt);
         const isExpression: boolean = this.jitFnIsExpression(currentOpId, rt);
 

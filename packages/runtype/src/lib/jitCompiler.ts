@@ -182,7 +182,7 @@ export class BaseCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extends 
      */
     private setIsNoop(): void {
         let isNoop = false;
-        let code = this.code.trim(); // todo: investigate removing all white spaces from the code
+        let code = this.code.trim();
         switch (this.fnId) {
             case JitFunctions.isType.id:
                 isNoop = !this.code || this.code === 'true' || this.code === 'return true';
@@ -196,7 +196,7 @@ export class BaseCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extends 
             case JitFunctions.fromJsonVal.id:
             case JitFunctions.stripUnknownKeys.id:
             case JitFunctions.unknownKeysToUndefined.id:
-                isNoop = !this.code || this.code === this.args.vλ || this.code === `return ${this.args.vλl}`;
+                isNoop = !this.code || this.code === this.args.vλl || this.code === `return ${this.args.vλl}`;
                 if (isNoop) code = `return ${this.args.vλl}`; // if code is a noop, we need to return the value
                 break;
             case JitFunctions.typeErrors.id:
@@ -205,7 +205,7 @@ export class BaseCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extends 
                 if (isNoop) code = `return ${this.args.εrr}`; // if code is a noop, we need to return the error array
                 break;
             case JitFunctions.format.id:
-                isNoop = !this.code || this.code === this.args.vλ || this.code === `return ${this.args.vλl}`;
+                isNoop = !this.code || this.code === this.args.vλl || this.code === `return ${this.args.vλl}`;
                 if (isNoop) code = `return ${this.args.vλl}`; // if code is a noop, we need to return the value
                 break;
         }
