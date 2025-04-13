@@ -153,7 +153,7 @@ export const jitUtils = {
         expected: string,
         fmtName: string,
         paramName: string,
-        paramVal: StrNumber,
+        paramVal: string | number | boolean | bigint,
         fmtPath: StrNumber[],
         accessPath?: StrNumber[],
         fmtAccessPath?: StrNumber[]

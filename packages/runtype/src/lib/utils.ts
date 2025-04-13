@@ -216,6 +216,8 @@ export function toLiteralInContext(
             if (!comp.contextCodeItems.has(objName)) comp.contextCodeItems.set(objName, `const ${objName} = ${objCode}`);
             return objName;
         }
+        case typeof params === 'bigint':
+            return toLiteral(params);
         default:
             throw new Error(`Unsupported type format params ${params}`);
     }
@@ -253,6 +255,8 @@ export function typeParamsToString(
             });
             return `{${entriesLiterals.filter(Boolean).join(',')}}`;
         }
+        case typeof params === 'bigint':
+            return `${params}n`;
         default:
             throw new Error(`Unsupported type format params ${params}`);
     }
