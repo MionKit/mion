@@ -34,7 +34,7 @@ it('validate bigint max + errors', async () => {
 
 it('mock bigint max', async () => {
     type Max10 = BigIntFormat<{max: 10n}>;
-    const mockType = mockTypeFn<Max10>();
+    const mockType = await mockTypeFn<Max10>();
     const mockedItems = Array.from({length: 20}, () => mockType());
     for (const item of mockedItems) {
         expect(item).toBeLessThanOrEqual(10n);
@@ -65,7 +65,7 @@ it('validate bigint min + errors', async () => {
 
 it('mock bigint min', async () => {
     type Min10 = BigIntFormat<{min: 10n}>;
-    const mockType = mockTypeFn<Min10>();
+    const mockType = await mockTypeFn<Min10>();
     const mockedItems = Array.from({length: 20}, () => mockType());
     for (const item of mockedItems) {
         expect(item).toBeGreaterThanOrEqual(10n);
@@ -96,7 +96,7 @@ it('validate bigint lt + errors', async () => {
 
 it('mock bigint lt', async () => {
     type Lt10 = BigIntFormat<{lt: 10n}>;
-    const mockType = mockTypeFn<Lt10>();
+    const mockType = await mockTypeFn<Lt10>();
     const mockedItems = Array.from({length: 20}, () => mockType());
     for (const item of mockedItems) {
         expect(item).toBeLessThan(10n);
@@ -127,7 +127,7 @@ it('validate bigint gt + errors', async () => {
 
 it('mock bigint gt', async () => {
     type Gt10 = BigIntFormat<{gt: 10n}>;
-    const mockType = mockTypeFn<Gt10>();
+    const mockType = await mockTypeFn<Gt10>();
     const mockedItems = Array.from({length: 20}, () => mockType());
     for (const item of mockedItems) {
         expect(item).toBeGreaterThan(10n);
@@ -170,7 +170,7 @@ it('validate bigint multipleOf + errors', async () => {
 
 it('mock bigint multipleOf', async () => {
     type MultipleOf5 = BigIntFormat<{multipleOf: 5n}>;
-    const mockType = mockTypeFn<MultipleOf5>();
+    const mockType = await mockTypeFn<MultipleOf5>();
     const mockedItems = Array.from({length: 20}, () => mockType());
     for (const item of mockedItems) {
         expect(item % 5n).toBe(0n);
@@ -215,7 +215,7 @@ it('validate combined constraints + errors', async () => {
 
 it('mock combined constraints', async () => {
     type Combined = BigIntFormat<{min: 0n; max: 100n; multipleOf: 5n}>;
-    const mockType = mockTypeFn<Combined>();
+    const mockType = await mockTypeFn<Combined>();
     const mockedItems = Array.from({length: 20}, () => mockType());
     for (const item of mockedItems) {
         expect(item).toBeGreaterThanOrEqual(0n);

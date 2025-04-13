@@ -57,7 +57,7 @@ it('should return IPV4 errors', async () => {
 });
 
 it('should mock IPV4 values', async () => {
-    const mockType = mockTypeFn<IPV4_Format>();
+    const mockType = await mockTypeFn<IPV4_Format>();
     const isType = await isTypeFn<IPV4_Format>();
     const mockedItems = Array.from({length: 20}, () => mockType());
     for (const item of mockedItems) {
@@ -104,7 +104,7 @@ it('should return IPV6 errors', async () => {
 });
 
 it('should mock IPV6 values', async () => {
-    const mockType = mockTypeFn<IPV6_Format>();
+    const mockType = await mockTypeFn<IPV6_Format>();
     const isType = await isTypeFn<IPV6_Format>();
     const mockedItems = Array.from({length: 20}, () => mockType());
     for (const item of mockedItems) {
@@ -136,7 +136,7 @@ it('should return IP errors', async () => {
 });
 
 it('should mock IP values', async () => {
-    const mockType = mockTypeFn<IP_Format>();
+    const mockType = await mockTypeFn<IP_Format>();
     const isType = await isTypeFn<IP_Format>();
     const mockedItems = Array.from({length: 20}, () => mockType());
     for (const item of mockedItems) {

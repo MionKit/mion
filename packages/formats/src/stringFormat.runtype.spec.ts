@@ -31,7 +31,7 @@ it('get max length errors', async () => {
 
 it('mock max length', async () => {
     type Max5 = StringFormat<{maxLength: 5}>;
-    const mockType = mockTypeFn<Max5>();
+    const mockType = await mockTypeFn<Max5>();
     const mockedItems = Array.from({length: 20}, () => mockType());
     for (const item of mockedItems) {
         expect(item.length).toBeLessThanOrEqual(5);
@@ -60,7 +60,7 @@ it('get min length errors', async () => {
 
 it('mock min length', async () => {
     type Min5 = StringFormat<{minLength: 5}>;
-    const mockType = mockTypeFn<Min5>();
+    const mockType = await mockTypeFn<Min5>();
     const mockedItems = Array.from({length: 20}, () => mockType());
     for (const item of mockedItems) {
         expect(item.length).toBeGreaterThanOrEqual(5);
@@ -89,7 +89,7 @@ it('get length errors', async () => {
 
 it('mock length', async () => {
     type Length5 = StringFormat<{length: 5}>;
-    const mockType = mockTypeFn<Length5>();
+    const mockType = await mockTypeFn<Length5>();
     const mockedItems = Array.from({length: 20}, () => mockType());
     for (const item of mockedItems) {
         expect(item.length).toBe(5);
@@ -127,7 +127,7 @@ it('mock pattern and samples', async () => {
         minLength: 1;
         pattern: {val: typeof regex; mockSamples: 'abcdefgABCDEFG'; reason: 'only letters allowed'};
     }>;
-    const mockType = mockTypeFn<AlphaPattern>();
+    const mockType = await mockTypeFn<AlphaPattern>();
     const mockedItems = Array.from({length: 20}, () => mockType());
     for (const item of mockedItems) {
         expect(item).toMatch(/^[a-zA-Z]+$/);
@@ -141,7 +141,7 @@ it('mock pattern and samples as list of chars', async () => {
         minLength: 1;
         pattern: {val: typeof regex; mockSamples: 'abcdefgABCDEFG'; reason: 'only letters allowed'};
     }>;
-    const mockType = mockTypeFn<AlphaPattern>();
+    const mockType = await mockTypeFn<AlphaPattern>();
     const mockedItems = Array.from({length: 20}, () => mockType());
     for (const item of mockedItems) {
         expect(item).toMatch(/^[a-zA-Z]+$/);
@@ -174,7 +174,7 @@ it('get allowedValues errors', async () => {
 
 it('mock allowedValues', async () => {
     type AllowedValues = StringFormat<{minLength: 1; allowedValues: {val: ['a', 'b', 'c']; reason: 'only a, b or c allowed'}}>;
-    const mockType = mockTypeFn<AllowedValues>();
+    const mockType = await mockTypeFn<AllowedValues>();
     const mockedItems = Array.from({length: 20}, () => mockType());
     for (const item of mockedItems) {
         expect(item).toMatch(/^(a|b|c)$/);
@@ -218,7 +218,7 @@ it('mock allowedValues with ignoreCase', async () => {
         minLength: 1;
         allowedValues: {val: ['a', 'b', 'c']; reason: 'only a, b or c allowed'; ignoreCase: true};
     }>;
-    const mockType = mockTypeFn<AllowedValuesIgnoreCase>();
+    const mockType = await mockTypeFn<AllowedValuesIgnoreCase>();
     // Since we're using ignoreCase, the mock might return uppercase or lowercase
     // We'll check that it matches the pattern regardless of case
     const mockedItems = Array.from({length: 20}, () => mockType());
@@ -260,7 +260,7 @@ it('mock disallowedValues', async () => {
         minLength: 1;
         disallowedValues: {val: ['a', 'b', 'c']; reason: 'a, b or c not allowed'; mockSamples: 'dfgthplk98765l'};
     }>;
-    const mockType = mockTypeFn<DisallowedValues>();
+    const mockType = await mockTypeFn<DisallowedValues>();
     const mockedItems = Array.from({length: 20}, () => mockType());
     for (const item of mockedItems) {
         expect(item).not.toMatch(/^(a|b|c)$/);
@@ -319,7 +319,7 @@ it('mock disallowedValues with ignoreCase', async () => {
             ignoreCase: true;
         };
     }>;
-    const mockType = mockTypeFn<DisallowedValuesIgnoreCase>();
+    const mockType = await mockTypeFn<DisallowedValuesIgnoreCase>();
     // Since we're using ignoreCase, we need to check that it doesn't match regardless of case
     const mockedItems = Array.from({length: 20}, () => mockType());
     for (const item of mockedItems) {
@@ -381,7 +381,7 @@ it('get allowedChars errors', async () => {
 
 it('mock allowedChars', async () => {
     type AllowedChars = StringFormat<{allowedChars: {val: 'abc'; reason: 'only a, b or c allowed'}}>;
-    const mockType = mockTypeFn<AllowedChars>();
+    const mockType = await mockTypeFn<AllowedChars>();
     const mockedItems = Array.from({length: 20}, () => mockType());
     for (const item of mockedItems) {
         expect(item).toMatch(/^[abc]*$/);
@@ -431,7 +431,7 @@ it('mock allowedChars with ignoreCase', async () => {
         minLength: 1;
         allowedChars: {val: 'abc'; reason: 'only a, b or c allowed'; ignoreCase: true};
     }>;
-    const mockType = mockTypeFn<AllowedCharsIgnoreCase>();
+    const mockType = await mockTypeFn<AllowedCharsIgnoreCase>();
     // Since we're using ignoreCase, the mock might return uppercase or lowercase
     // We'll check that it matches the pattern regardless of case
     const mockedItems = Array.from({length: 20}, () => mockType());
@@ -511,7 +511,7 @@ it('mock disallowedChars', async () => {
         minLength: 1;
         disallowedChars: {val: 'abc'; reason: 'a, b or c not allowed'; mockSamples: 'dfgthplk98765l'};
     }>;
-    const mockType = mockTypeFn<DisallowedChars>();
+    const mockType = await mockTypeFn<DisallowedChars>();
     const mockedItems = Array.from({length: 20}, () => mockType());
     for (const item of mockedItems) {
         expect(item).not.toMatch(/[abc]+/);
@@ -570,7 +570,7 @@ it('mock disallowedChars with ignoreCase', async () => {
     type DisallowedCharsIgnoreCase = StringFormat<{
         disallowedChars: {val: 'abc'; reason: 'a, b or c not allowed'; mockSamples: 'dfgthplk98765l'; ignoreCase: true};
     }>;
-    const mockType = mockTypeFn<DisallowedCharsIgnoreCase>();
+    const mockType = await mockTypeFn<DisallowedCharsIgnoreCase>();
     // Since we're using ignoreCase, we need to check that it doesn't match regardless of case
     const mockedItems = Array.from({length: 20}, () => mockType());
     for (const item of mockedItems) {
@@ -646,7 +646,7 @@ it('mock multiple params', async () => {
         minLength: 5;
         maxLength: 8;
     }>;
-    const mockType = mockTypeFn<Multi>();
+    const mockType = await mockTypeFn<Multi>();
     const mockedItems = Array.from({length: 20}, () => mockType());
     for (const item of mockedItems) {
         expect(item).toMatch(/^[a-zA-Z]+$/);
@@ -662,7 +662,7 @@ it('provided sample must match all constrains', async () => {
         minLength: 5;
         maxLength: 8;
     }>;
-    const mockType = mockTypeFn<Multi>();
+    const mockType = await mockTypeFn<Multi>();
     expect(() => mockType()).toThrow(
         'Parameter pattern.mockSamples "abcd" does not satisfies "minLength" in type Multi.mockSamples'
     );

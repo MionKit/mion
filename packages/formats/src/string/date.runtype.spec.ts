@@ -62,7 +62,7 @@ it('get date errors for format YYYY-MM-DD', async () => {
     expect(typeErrors('2023-01-01-01')).toEqual([dateError]);
 });
 it('mock date with format YYYY-MM-DD', async () => {
-    const mockType = mockTypeFn<YYYYMMDD>();
+    const mockType = await mockTypeFn<YYYYMMDD>();
     const isType = await isTypeFn<YYYYMMDD>();
     const matchRegex = /^\d{4}-\d{2}-\d{2}$/;
     const mockedItems = Array.from({length: 20}, () => mockType());
@@ -112,7 +112,7 @@ it('get date errors for format DD-MM-YYYY', async () => {
     expect(typeErrors('01-01-2023-01')).toEqual([dateError]);
 });
 it('mock date with format DD-MM-YYYY', async () => {
-    const mockType = mockTypeFn<DDMMYYYY>();
+    const mockType = await mockTypeFn<DDMMYYYY>();
     const isType = await isTypeFn<DDMMYYYY>();
     const matchRegex = /^\d{2}-\d{2}-\d{4}$/;
     const mockedItems = Array.from({length: 20}, () => mockType());
@@ -162,7 +162,7 @@ it('get date errors for format MM-DD-YYYY', async () => {
     expect(typeErrors('01-01-2023-01')).toEqual([dateError]);
 });
 it('mock date with format MM-DD-YYYY', async () => {
-    const mockType = mockTypeFn<MMDDYYYY>();
+    const mockType = await mockTypeFn<MMDDYYYY>();
     const isType = await isTypeFn<MMDDYYYY>();
     const matchRegex = /^\d{2}-\d{2}-\d{4}$/;
     const mockedItems = Array.from({length: 20}, () => mockType());
@@ -210,7 +210,7 @@ it('get date errors for format YYYY-MM', async () => {
     expect(typeErrors('2023-01-01')).toEqual([dateError]);
 });
 it('mock date with format YYYY-MM', async () => {
-    const mockType = mockTypeFn<YYYYMM>();
+    const mockType = await mockTypeFn<YYYYMM>();
     const isType = await isTypeFn<YYYYMM>();
     const matchRegex = /^\d{4}-\d{2}$/;
     const mockedItems = Array.from({length: 20}, () => mockType());
@@ -256,7 +256,7 @@ it('get date errors for format MM-DD', async () => {
     expect(typeErrors('01-01-01')).toEqual([dateError]);
 });
 it('mock date with format MM-DD', async () => {
-    const mockType = mockTypeFn<MMDD>();
+    const mockType = await mockTypeFn<MMDD>();
     const isType = await isTypeFn<MMDD>();
     const matchRegex = /^\d{2}-\d{2}$/;
     const mockedItems = Array.from({length: 20}, () => mockType());
@@ -302,7 +302,7 @@ it('get date errors for format DD-MM', async () => {
     expect(typeErrors('01-01-01')).toEqual([dateError]);
 });
 it('mock date with format DD-MM', async () => {
-    const mockType = mockTypeFn<DDMM>();
+    const mockType = await mockTypeFn<DDMM>();
     const isType = await isTypeFn<DDMM>();
     const matchRegex = /^\d{2}-\d{2}$/;
     const mockedItems = Array.from({length: 20}, () => mockType());

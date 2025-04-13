@@ -71,7 +71,7 @@ it('get datetime errors for format ISO', async () => {
 });
 
 it('mock datetime with format ISO', async () => {
-    const mockType = mockTypeFn<ISODateTime>();
+    const mockType = await mockTypeFn<ISODateTime>();
     const isType = await isTypeFn<ISODateTime>();
     const mockedItems = Array.from({length: 20}, () => mockType());
     for (const item of mockedItems) {
@@ -133,7 +133,7 @@ it('get datetime errors for format MM-DDTHH', async () => {
 });
 
 it('mock datetime with format MM-DDTHH', async () => {
-    const mockType = mockTypeFn<MMDDTHH>();
+    const mockType = await mockTypeFn<MMDDTHH>();
     const isType = await isTypeFn<MMDDTHH>();
     const matchRegex = /^\d{2}-\d{2}T\d{2}$/;
     const mockedItems = Array.from({length: 20}, () => mockType());

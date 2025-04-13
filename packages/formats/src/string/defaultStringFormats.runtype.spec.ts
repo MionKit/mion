@@ -35,7 +35,7 @@ it('get alpha string errors', async () => {
 });
 it('mock alpha string', async () => {
     type AlphaString3 = String_Alpha<{minLength: 3}>;
-    const mockType = mockTypeFn<AlphaString3>();
+    const mockType = await mockTypeFn<AlphaString3>();
     expect(mockType()).toMatch(/^[a-zA-Z]+$/);
     expect(mockType().length).toBeGreaterThanOrEqual(3);
     expect(mockType()).toMatch(/^[a-zA-Z]+$/);
@@ -68,7 +68,7 @@ it('get alpha numeric string errors', async () => {
 });
 it('mock alpha numeric string', async () => {
     type AlphaNumericString3 = String_Alphanumeric<{minLength: 3}>;
-    const mockType = mockTypeFn<AlphaNumericString3>();
+    const mockType = await mockTypeFn<AlphaNumericString3>();
     expect(mockType()).toMatch(/^[a-zA-Z0-9]+$/);
     expect(mockType().length).toBeGreaterThanOrEqual(3);
     expect(mockType()).toMatch(/^[a-zA-Z0-9]+$/);
@@ -105,7 +105,7 @@ it('get numeric string errors', async () => {
 });
 it('mock numeric string', async () => {
     type NumericString3to5 = String_Numeric<{minLength: 3; maxLength: 5}>;
-    const mockType = mockTypeFn<NumericString3to5>();
+    const mockType = await mockTypeFn<NumericString3to5>();
     expect(mockType()).toMatch(/^[0-9]+$/);
     expect(mockType().length).toBeGreaterThanOrEqual(3);
     expect(mockType().length).toBeLessThanOrEqual(5);
@@ -144,7 +144,7 @@ it('get lowercase string errors', async () => {
 });
 it('mock lowercase string', async () => {
     type LowerString3 = String_Lowercase<{minLength: 3}>;
-    const mockType = mockTypeFn<LowerString3>();
+    const mockType = await mockTypeFn<LowerString3>();
     const l1 = mockType();
     const l2 = mockType();
     const l3 = mockType();
@@ -185,7 +185,7 @@ it('get uppercase string errors', async () => {
 });
 it('mock uppercase string', async () => {
     type UpperString3 = String_Uppercase<{minLength: 3}>;
-    const mockType = mockTypeFn<UpperString3>();
+    const mockType = await mockTypeFn<UpperString3>();
     const u1 = mockType();
     const u2 = mockType();
     const u3 = mockType();
@@ -227,7 +227,7 @@ it('get capital string errors', async () => {
 });
 it('mock capital string', async () => {
     type CapitalString = StringFormat<{capitalize: true}>;
-    const mockType = mockTypeFn<CapitalString>();
+    const mockType = await mockTypeFn<CapitalString>();
     const c1 = mockType();
     const c2 = mockType();
     const c3 = mockType();

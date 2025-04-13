@@ -217,25 +217,25 @@ it('get Social media errors', async () => {
 
 // URL mock
 it('mock URL', async () => {
-    const mockType = mockTypeFn<UrlFormat>();
+    const mockType = await mockTypeFn<UrlFormat>();
     const isType = await isTypeFn<UrlFormat>();
     const someUrls = Array.from({length: 20}, () => mockType());
     for (const url of someUrls) expect(isType(url)).toBe(true);
 });
 it('mock FILE URL', async () => {
-    const mockType = mockTypeFn<UrlFormat_File>();
+    const mockType = await mockTypeFn<UrlFormat_File>();
     const isType = await isTypeFn<UrlFormat_File>();
     const someUrls = Array.from({length: 20}, () => mockType());
     for (const url of someUrls) expect(isType(url)).toBe(true);
 });
 it('mock Http URL', async () => {
-    const mockType = mockTypeFn<UrlFormat_Http>();
+    const mockType = await mockTypeFn<UrlFormat_Http>();
     const isType = await isTypeFn<UrlFormat_Http>();
     const someUrls = Array.from({length: 20}, () => mockType());
     for (const url of someUrls) expect(isType(url)).toBe(true);
 });
 it('mock Social media URL', async () => {
-    const mockType = mockTypeFn<UrlFormat_SocialMedia>();
+    const mockType = await mockTypeFn<UrlFormat_SocialMedia>();
     const isType = await isTypeFn<UrlFormat_SocialMedia>();
     const someUrls = Array.from({length: 20}, () => mockType());
     for (const url of someUrls) expect(isType(url)).toBe(true);

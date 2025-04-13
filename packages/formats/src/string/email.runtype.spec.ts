@@ -66,7 +66,7 @@ it('should return strict email errors', async () => {
 });
 
 it('should mock strict email values', async () => {
-    const mockType = mockTypeFn<EmailFormat_Strict>();
+    const mockType = await mockTypeFn<EmailFormat_Strict>();
     const isType = await isTypeFn<EmailFormat_Strict>();
     const typeErrors = await typeErrorsFn<EmailFormat_Strict>();
     const mockedItems = Array.from({length: 20}, () => mockType());
@@ -127,7 +127,7 @@ it('should return quick email errors', async () => {
 });
 
 it('should mock quick email values', async () => {
-    const mockType = mockTypeFn<EmailFormat>();
+    const mockType = await mockTypeFn<EmailFormat>();
     const isType = await isTypeFn<EmailFormat>();
     const typeErrors = await typeErrorsFn<EmailFormat>();
     const mockedItems = Array.from({length: 20}, () => mockType());
@@ -140,7 +140,7 @@ it('should mock quick email values', async () => {
 it('quick email validation should be faster than normal email', async () => {
     const isType = await isTypeFn<EmailFormat_Strict>();
     const isTypeQuick = await isTypeFn<EmailFormat>();
-    const mockType = mockTypeFn<EmailFormat_Strict>();
+    const mockType = await mockTypeFn<EmailFormat_Strict>();
     const mockedItems = Array.from({length: 50}, () => mockType());
     const start = performance.now();
     for (const item of mockedItems) {
@@ -220,7 +220,7 @@ it('should return punycode email errors', async () => {
 });
 
 it('should mock punycode email values', async () => {
-    const mockType = mockTypeFn<EmailFormat_Punycode>();
+    const mockType = await mockTypeFn<EmailFormat_Punycode>();
     const isType = await isTypeFn<EmailFormat_Punycode>();
     const typeErrors = await typeErrorsFn<EmailFormat_Punycode>();
     const mockedItems = Array.from({length: 20}, () => mockType());
