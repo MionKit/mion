@@ -22,7 +22,7 @@ import {
 import type {PublicApi} from '@mionkit/router';
 import {RpcError, getRouterItemId} from '@mionkit/core';
 import {MionRequest} from './request';
-import type {RunTypeValidationError} from '@mionkit/runtype';
+import type {RunTypeValidationError} from '@mionkit/run-types';
 
 export function initClient<RM extends PublicApi<any>>(
     options: InitOptions

@@ -77,7 +77,7 @@
     "packages/http",
     "packages/quick-start",
     "packages/router",
-    "packages/runtype"
+    "packages/run-types"
   ],
   "dependencies": {
     "typescript": "^5.3.3"

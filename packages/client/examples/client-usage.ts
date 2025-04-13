@@ -2,7 +2,7 @@ import {initClient} from '@mionkit/client';
 
 // importing only the RemoteApi type from server
 import type {MyApi} from './server.routes';
-import type {RunTypeValidationError} from '@mionkit/runtype';
+import type {RunTypeValidationError} from '@mionkit/run-types';
 
 const {routes, hooks} = initClient<MyApi>({baseURL: 'http://localhost:3000'});
 

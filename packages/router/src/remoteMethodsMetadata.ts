@@ -19,7 +19,7 @@ import {
     isPrivateDefinition,
     shouldFullGenerateSpec,
 } from './router';
-import {getSerializableJitCompiler} from '@mionkit/runtype';
+import {getSerializableJitCompiler} from '@mionkit/run-types';
 import {AnyObject, getRoutePath, getRouterItemId} from '@mionkit/core';
 
 // ############# PRIVATE STATE #############

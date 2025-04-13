@@ -7,18 +7,18 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 // !Important: TypeFormat cant be imported as type for the runType functionality to work
-import {TypeFormat} from '@mionkit/runtype/src/lib/formats.runtype';
-import {JitFnID, MockOperation, type FormatParam, type jitCode} from '@mionkit/runtype/src/types';
-import type {BaseRunType} from '@mionkit/runtype/src/lib/baseRunTypes';
-import type {JitCompiler, JitErrorsCompiler} from '@mionkit/runtype/src/lib/jitCompiler';
-import {BaseRunTypeFormat} from '@mionkit/runtype/src/lib/baseRunTypeFormat';
+import {TypeFormat} from '@mionkit/run-types/src/lib/formats.runtype';
+import {JitFnID, MockOperation, type FormatParam, type jitCode} from '@mionkit/run-types/src/types';
+import type {BaseRunType} from '@mionkit/run-types/src/lib/baseRunTypes';
+import type {JitCompiler, JitErrorsCompiler} from '@mionkit/run-types/src/lib/jitCompiler';
+import {BaseRunTypeFormat} from '@mionkit/run-types/src/lib/baseRunTypeFormat';
 import {ReflectionKind} from '@deepkit/type';
 import {FormatParams_Date, DEFAULT_DATE_PARAMS, DateStringRunTypeFormat} from './date.runtype';
 import {DEFAULT_TIME_FORMAT_PARAMS, FormatParams_Time, TimeStringRunTypeFormat} from './time.runtype';
-import {registerFormatter} from '@mionkit/runtype/src/lib/formats';
-import {fpVal} from '@mionkit/runtype/src/lib/utils';
+import {registerFormatter} from '@mionkit/run-types/src/lib/formats';
+import {fpVal} from '@mionkit/run-types/src/lib/utils';
 import {stringIgnoreProps} from '../stringFormat.runtype';
-import {JitFunctions} from '@mionkit/runtype/src/constants';
+import {JitFunctions} from '@mionkit/run-types/src/constants';
 
 // DateTime validator
 export class DateTimeRunTypeFormat extends BaseRunTypeFormat<FormatParams_DateTime> {

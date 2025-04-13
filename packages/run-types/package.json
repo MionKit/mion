@@ -1,7 +1,7 @@
 {
-  "name": "@mionkit/runtype",
+  "name": "@mionkit/run-types",
   "version": "0.7.2",
-  "description": "Runtime type system based on @deepkit/type",
+  "description": "Run time functionality directly from typescript types",
   "keywords": [
     "typescript",
     "API",

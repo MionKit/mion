@@ -7,7 +7,7 @@
 
 import fs from 'fs';
 import path from 'path';
-import {codifyJitFunctions, restoreCodifiedJitFunctions, toLiteral, toLiteralArray} from '@mionkit/runtype';
+import {codifyJitFunctions, restoreCodifiedJitFunctions, toLiteral, toLiteralArray} from '@mionkit/run-types';
 import {NonRawProcedure, ProcedureOptions} from './types/procedures';
 import {AnyHandler} from './types/handlers';
 import {IS_TEST_ENV} from './constants';

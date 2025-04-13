@@ -9,19 +9,10 @@
   <strong>Common RunTypes.
   </strong>
 </p>
-<p align=center>
-  <img src="https://img.shields.io/badge/code_style-prettier-ff69b4.svg?style=flat-square&maxAge=99999999" alt="npm"  style="max-width:100%;">
-  <img src="https://img.shields.io/badge/license-MIT-97ca00.svg?style=flat-square&maxAge=99999999" alt="npm"  style="max-width:100%;">
-</p>
 
-# `@mionkit/runtype`
+# DEPRECATED
 
-Runtime Types support for mion apps!
-
-## Description
-
-This library provides support for runtime types based on [@deepkit/type].  
-Having runtime types enables a full new set of features when using typescript/javascript.
+This package has been deprecated in favor of [@mionkit/run-types](https://www.npmjs.com/package/@mionkit/run-types)
 
 ## Check Out The [Website And Documentation](http://mion.io) 📚
 

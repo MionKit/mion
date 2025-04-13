@@ -5,21 +5,21 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
-import type {BaseRunType} from '@mionkit/runtype/src/lib/baseRunTypes';
-import type {JitCompiler, JitErrorsCompiler} from '@mionkit/runtype/src/lib/jitCompiler';
-import type {StrNumber, JitFnID, jitCode, DeepPartial} from '@mionkit/runtype/src/types';
-import {BaseRunTypeFormat} from '@mionkit/runtype/src/lib/baseRunTypeFormat';
+import type {BaseRunType} from '@mionkit/run-types/src/lib/baseRunTypes';
+import type {JitCompiler, JitErrorsCompiler} from '@mionkit/run-types/src/lib/jitCompiler';
+import type {StrNumber, JitFnID, jitCode, DeepPartial} from '@mionkit/run-types/src/types';
+import {BaseRunTypeFormat} from '@mionkit/run-types/src/lib/baseRunTypeFormat';
 import {ReflectionKind} from '@deepkit/type';
 import {DEFAULT_STRICT_DOMAIN_PARAMS, FormatParams_Domain} from './domain.runtype';
-import {TypeFormat} from '@mionkit/runtype/src/lib/formats.runtype';
-import {MockOperation} from '@mionkit/runtype/src/types';
+import {TypeFormat} from '@mionkit/run-types/src/lib/formats.runtype';
+import {MockOperation} from '@mionkit/run-types/src/types';
 import {StringRunTypeFormat, stringIgnoreProps, FormatParams_StringValidators, Samples} from '../stringFormat.runtype';
 import {DomainRunTypeFormat} from './domain.runtype';
-import {registerFormatter} from '@mionkit/runtype/src/lib/formats';
+import {registerFormatter} from '@mionkit/run-types/src/lib/formats';
 import {EMAIL_NAME_SAMPLES_ARRAY, EMAIL_NAME_SAMPLES, EMAIL_SAMPLES, EMAIL_SAMPLES_PUNYCODE} from '../constants.mock'; // do not import using type
-import {JitFunctions} from '@mionkit/runtype/src/constants';
-import {randomItem} from '@mionkit/runtype/src/lib/mock';
-import {fpVal} from '@mionkit/runtype/src/lib/utils';
+import {JitFunctions} from '@mionkit/run-types/src/constants';
+import {randomItem} from '@mionkit/run-types/src/lib/mock';
+import {fpVal} from '@mionkit/run-types/src/lib/utils';
 
 // Email pattern, allows punycode domains
 export const EMAIL_PATTERN = /^[^\s@]{1,64}@(?:[a-zA-Z0-9-]{1,63}\.)+[a-zA-Z]{2,63}$/;
