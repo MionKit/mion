@@ -1,6 +1,6 @@
 // ####### Executables #######
 
-import type {JITFunctions, SerializableJITFunctions} from '@mionkit/runtype';
+import type {JITFunctions, SerializableJITFunctions} from '@mionkit/run-types';
 import type {AnyHandler, Handler, HeaderHandler, RawHookHandler} from './handlers';
 
 export enum ProcedureType {

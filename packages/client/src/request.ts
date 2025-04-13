@@ -17,7 +17,7 @@ import {
     RouteSubRequest,
     RequestErrors,
 } from './types';
-import type {RunTypeValidationError} from '@mionkit/runtype';
+import type {RunTypeValidationError} from '@mionkit/run-types';
 import {RpcError, StatusCodes, getRoutePath, isRpcError} from '@mionkit/core';
 import {STORAGE_KEY} from './constants';
 import {fetchRemoteMethodsMetadata} from './clientMethodsMetadata';

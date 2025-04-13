@@ -17,7 +17,7 @@ import type {Procedure} from './types/procedures';
 import {ProcedureType} from './types/procedures';
 import type {PublicApi, PrivateDef, HooksCollection} from './types/publicProcedures';
 import type {HeaderHookDef, HookDef, RawHookDef} from './types/definitions';
-import {FunctionRunType, JITFunctions, reflectFunction} from '@mionkit/runtype';
+import {FunctionRunType, JITFunctions, reflectFunction} from '@mionkit/run-types';
 import {bodyParserHooks} from './jsonBodyParser.routes';
 import {getRouterItemId, setErrorOptions, getRoutePath} from '@mionkit/core';
 import {getRemoteMethodsMetadata, resetRemoteMethodsMetadata} from './remoteMethodsMetadata';

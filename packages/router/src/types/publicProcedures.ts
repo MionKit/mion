@@ -6,7 +6,7 @@
  * ######## */
 
 import type {RpcError} from '@mionkit/core';
-import type {SerializableJITFunctions} from '@mionkit/runtype';
+import type {SerializableJITFunctions} from '@mionkit/run-types';
 import type {CallContext} from './context';
 import type {Routes} from './general';
 import type {ProcedureType} from './procedures';

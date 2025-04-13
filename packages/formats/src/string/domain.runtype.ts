@@ -5,12 +5,12 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
-import type {BaseRunType} from '@mionkit/runtype/src/lib/baseRunTypes';
-import type {JitCompiler, JitErrorsCompiler} from '@mionkit/runtype/src/lib/jitCompiler';
-import {BaseRunTypeFormat} from '@mionkit/runtype/src/lib/baseRunTypeFormat';
+import type {BaseRunType} from '@mionkit/run-types/src/lib/baseRunTypes';
+import type {JitCompiler, JitErrorsCompiler} from '@mionkit/run-types/src/lib/jitCompiler';
+import {BaseRunTypeFormat} from '@mionkit/run-types/src/lib/baseRunTypeFormat';
 import {DeepPartial, ReflectionKind} from '@deepkit/type';
-import {MockOperation, type FormatParam, type jitCode, type JitFnID, type StrNumber} from '@mionkit/runtype/src/types';
-import {TypeFormat} from '@mionkit/runtype/src/lib/formats.runtype'; // !Important: TypeFormat cant be imported as type for all runType functionality to work
+import {MockOperation, type FormatParam, type jitCode, type JitFnID, type StrNumber} from '@mionkit/run-types/src/types';
+import {TypeFormat} from '@mionkit/run-types/src/lib/formats.runtype'; // !Important: TypeFormat cant be imported as type for all runType functionality to work
 import {
     StringRunTypeFormat,
     stringIgnoreProps,
@@ -19,10 +19,10 @@ import {
     type FormatParams_String,
     Samples,
 } from '../stringFormat.runtype';
-import {registerFormatter} from '@mionkit/runtype/src/lib/formats';
-import {random, randomItem} from '@mionkit/runtype/src/lib/mock';
-import {JitFunctions} from '@mionkit/runtype/src/constants';
-import {fpVal} from '@mionkit/runtype/src/lib/utils';
+import {registerFormatter} from '@mionkit/run-types/src/lib/formats';
+import {random, randomItem} from '@mionkit/run-types/src/lib/mock';
+import {JitFunctions} from '@mionkit/run-types/src/constants';
+import {fpVal} from '@mionkit/run-types/src/lib/utils';
 import {NAME_CHARS, NAME_SAMPLES, TLD_CHARS, TLD_SAMPLES} from '../constants.mock';
 
 // latin domain names each domain part must be 61 chars max, tld only supports latin chars

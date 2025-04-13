@@ -5,17 +5,17 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
-import type {BaseRunType} from '@mionkit/runtype/src/lib/baseRunTypes';
-import type {JitCompiler, JitErrorsCompiler} from '@mionkit/runtype/src/lib/jitCompiler';
+import type {BaseRunType} from '@mionkit/run-types/src/lib/baseRunTypes';
+import type {JitCompiler, JitErrorsCompiler} from '@mionkit/run-types/src/lib/jitCompiler';
 // TypeFormat is needed for type definitions even though it's not directly used in this file
 // !Important: TypeFormat cant be imported as type for all runType functionality to work
-import {TypeFormat} from '@mionkit/runtype/src/lib/formats.runtype';
-import {registerFormatter} from '@mionkit/runtype/src/lib/formats';
-import {BaseRunTypeFormat} from '@mionkit/runtype/src/lib/baseRunTypeFormat';
+import {TypeFormat} from '@mionkit/run-types/src/lib/formats.runtype';
+import {registerFormatter} from '@mionkit/run-types/src/lib/formats';
+import {BaseRunTypeFormat} from '@mionkit/run-types/src/lib/baseRunTypeFormat';
 import {ReflectionKind} from '@deepkit/type';
-import {MockOperation} from '@mionkit/runtype/src/types';
-import {random} from '@mionkit/runtype/src/lib/mock';
-import {fpVal} from '@mionkit/runtype/src/lib/utils';
+import {MockOperation} from '@mionkit/run-types/src/types';
+import {random} from '@mionkit/run-types/src/lib/mock';
+import {fpVal} from '@mionkit/run-types/src/lib/utils';
 
 // ############### Number Format ###############
 

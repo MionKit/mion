@@ -6,7 +6,7 @@
  * ######## */
 
 import {RpcError} from '@mionkit/core';
-import type {JITFunctions, RunTypeValidationError} from '@mionkit/runtype';
+import type {JITFunctions, RunTypeValidationError} from '@mionkit/run-types';
 import type {
     JsonParser,
     PublicHeaderProcedure,

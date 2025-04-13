@@ -36,9 +36,9 @@ type DEFAULT_NUMERIC_PARAMS = {
     };
 };
 
-export type StringFormat_Alphanumeric<P extends FormatParams_String = {}> = StringFormat<P & DEFAULT_ALPHA_NUM_PARAMS>;
-export type StringFormat_Alpha<P extends FormatParams_String = {}> = StringFormat<P & DEFAULT_ALPHA_PARAMS>;
-export type StringFormat_Numeric<P extends FormatParams_String = {}> = StringFormat<P & DEFAULT_NUMERIC_PARAMS>;
-export type StringFormat_Lowercase<P extends FormatParams_String = {}> = StringFormat<P & {lowercase: true}>;
-export type StringFormat_Uppercase<P extends FormatParams_String = {}> = StringFormat<P & {uppercase: true}>;
-export type StringFormat_Capitalize<P extends FormatParams_String = {}> = StringFormat<P & {capitalize: true}>;
+export type String_Alphanumeric<P extends FormatParams_String = {}> = StringFormat<P & DEFAULT_ALPHA_NUM_PARAMS>;
+export type String_Alpha<P extends FormatParams_String = {}> = StringFormat<P & DEFAULT_ALPHA_PARAMS>;
+export type String_Numeric<P extends FormatParams_String = {}> = StringFormat<P & DEFAULT_NUMERIC_PARAMS>;
+export type String_Lowercase<P extends FormatParams_String = {}> = StringFormat<P & {lowercase: true}>;
+export type String_Uppercase<P extends FormatParams_String = {}> = StringFormat<P & {uppercase: true}>;
+export type String_Capitalize<P extends FormatParams_String = {}> = StringFormat<P & {capitalize: true}>;

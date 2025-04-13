@@ -8,7 +8,7 @@
 import {GET_REMOTE_METHODS_BY_ID, RpcError, isRpcError} from '@mionkit/core';
 import {ClientOptions, JitFunctionsById, RemoteMethodJIT, RequestBody} from './types';
 import {PublicProcedure} from '@mionkit/router';
-import type {JitFn, SerializableJITFunctions, SerializableJitFn} from '@mionkit/runtype';
+import type {JitFn, SerializableJITFunctions, SerializableJitFn} from '@mionkit/run-types';
 import {STORAGE_KEY} from './constants';
 
 /**  Manually calls mionGetRemoteMethodsInfoById to get Remote Api Metadata */

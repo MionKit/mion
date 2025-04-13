@@ -101,7 +101,7 @@ Below is a list of available formats parsed from the spec files:
 The `DateTimeString` format allows you to validate date-time strings with customizable date and time formats. Below is an example of how to use it with the `isType` function:
 
 ```typescript
-import {isTypeFn} from '@mionkit/runtype';
+import {isTypeFn} from '@mionkit/run-types';
 import {DateTimeString} from '@mionkit/formats';
 
 // Customizing DateTimeString to include only year, month, and time (HH:mm:ss)

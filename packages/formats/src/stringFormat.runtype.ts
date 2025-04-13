@@ -5,15 +5,15 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
-import type {BaseRunType} from '@mionkit/runtype/src/lib/baseRunTypes';
-import type {JitCompiler, JitErrorsCompiler} from '@mionkit/runtype/src/lib/jitCompiler';
-import {TypeFormat} from '@mionkit/runtype/src/lib/formats.runtype'; // !Important: TypeFormat cant be imported as type for all runType functionality to work
-import {registerFormatter, getToLiteralFn} from '@mionkit/runtype/src/lib/formats';
-import {BaseRunTypeFormat} from '@mionkit/runtype/src/lib/baseRunTypeFormat';
+import type {BaseRunType} from '@mionkit/run-types/src/lib/baseRunTypes';
+import type {JitCompiler, JitErrorsCompiler} from '@mionkit/run-types/src/lib/jitCompiler';
+import {TypeFormat} from '@mionkit/run-types/src/lib/formats.runtype'; // !Important: TypeFormat cant be imported as type for all runType functionality to work
+import {registerFormatter, getToLiteralFn} from '@mionkit/run-types/src/lib/formats';
+import {BaseRunTypeFormat} from '@mionkit/run-types/src/lib/baseRunTypeFormat';
 import {ReflectionKind} from '@deepkit/type';
-import {MockOperation} from '@mionkit/runtype/src/types';
-import {mockString, random, randomItem} from '@mionkit/runtype/src/lib/mock';
-import {fpVal, regexpEscape} from '@mionkit/runtype/src/lib/utils';
+import {MockOperation} from '@mionkit/run-types/src/types';
+import {mockString, random, randomItem} from '@mionkit/run-types/src/lib/mock';
+import {fpVal, regexpEscape} from '@mionkit/run-types/src/lib/utils';
 
 const defaultMessages = {
     allowedChars: 'Invalid characters',
