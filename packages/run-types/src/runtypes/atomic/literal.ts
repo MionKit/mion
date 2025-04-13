@@ -43,13 +43,13 @@ export class LiteralRunType extends AtomicRunType<TypeLiteral> {
                 return noEncoder;
         }
     }
-    _compileIsType(comp: JitCompiler): string {
+    _compileIsType(comp: JitCompiler): jitCode {
         if (typeof this.src.literal === 'symbol') return compileIsSymbol(comp, this.src.literal);
         else if (this.src.literal instanceof RegExp) return compileIsRegExp(comp, this.src.literal);
         else if (typeof this.src.literal === 'bigint') return compileIsBigInt(comp, this.src.literal);
         else return compileIsLiteral(comp, this.src.literal);
     }
-    _compileTypeErrors(comp: JitErrorsCompiler): string {
+    _compileTypeErrors(comp: JitErrorsCompiler): jitCode {
         if (typeof this.src.literal === 'symbol') return compileTypeErrorsSymbol(comp, this.src.literal, this.getKindName());
         else if (this.src.literal instanceof RegExp) return compileTypeErrorsRegExp(comp, this.src.literal, this.getKindName());
         return compileTypeErrorsLiteral(comp, this.src.literal, this.getKindName());
@@ -60,7 +60,7 @@ export class LiteralRunType extends AtomicRunType<TypeLiteral> {
     _compileFromJsonVal(comp: JitCompiler): jitCode {
         return this.getValidator()._compileFromJsonVal(comp);
     }
-    _compileJsonStringify(comp: JitCompiler): string {
+    _compileJsonStringify(comp: JitCompiler): jitCode {
         return this.getValidator()._compileJsonStringify(comp);
     }
     _mock(): symbol | string | number | boolean | bigint | RegExp {

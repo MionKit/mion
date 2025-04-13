@@ -6,7 +6,7 @@
  * ######## */
 
 import {ReflectionKind, type TypeRegexp} from '@deepkit/type';
-import type {MockOperation, JitConfig} from '../../types';
+import type {MockOperation, JitConfig, jitCode} from '../../types';
 import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
 import {mockRegExp} from '../../lib/mock';
 import {AtomicRunType} from '../../lib/baseRunTypes';
@@ -18,19 +18,19 @@ const jitConstants: JitConfig = {
 
 export class RegexpRunType extends AtomicRunType<TypeRegexp> {
     getJitConfig = () => jitConstants;
-    _compileIsType(comp: JitCompiler): string {
+    _compileIsType(comp: JitCompiler): jitCode {
         return `(${comp.vλl} instanceof RegExp)`;
     }
-    _compileTypeErrors(comp: JitErrorsCompiler): string {
+    _compileTypeErrors(comp: JitErrorsCompiler): jitCode {
         return `if (!(${comp.vλl} instanceof RegExp)) ${comp.callJitErr(this)}`;
     }
-    _compileToJsonVal(comp: JitCompiler) {
+    _compileToJsonVal(comp: JitCompiler): jitCode {
         return regexpTransformer._compileToJsonVal(comp);
     }
-    _compileFromJsonVal(comp: JitCompiler) {
+    _compileFromJsonVal(comp: JitCompiler): jitCode {
         return regexpTransformer._compileFromJsonVal(comp);
     }
-    _compileJsonStringify(comp: JitCompiler) {
+    _compileJsonStringify(comp: JitCompiler): jitCode {
         return regexpTransformer._compileJsonStringify(comp);
     }
     _mock(ctx: Pick<MockOperation, 'regexpList'>): RegExp {
@@ -40,13 +40,13 @@ export class RegexpRunType extends AtomicRunType<TypeRegexp> {
 
 // regexpTransformer (used internally only so no need to register in JitUtils)
 export const regexpTransformer = {
-    _compileFromJsonVal(comp: JitCompiler): string {
+    _compileFromJsonVal(comp: JitCompiler): jitCode {
         return `(function(){const parts = ${comp.vλl}.match(/\\/(.*)\\/(.*)?/) ;return new RegExp(parts[1], parts[2] || '')})()`;
     },
-    _compileToJsonVal(comp: JitCompiler): string {
+    _compileToJsonVal(comp: JitCompiler): jitCode {
         return `${comp.vλl}.toString()`;
     },
-    _compileJsonStringify(comp: JitCompiler): string {
+    _compileJsonStringify(comp: JitCompiler): jitCode {
         return `JSON.stringify(${comp.vλl}.toString())`;
     },
 };

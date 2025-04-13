@@ -7,7 +7,7 @@
 
 import {ReflectionKind, type TypeBigInt} from '@deepkit/type';
 import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
-import type {MockOperation, JitConfig} from '../../types';
+import type {MockOperation, JitConfig, jitCode} from '../../types';
 import {mockBigInt} from '../../lib/mock';
 import {AtomicRunType} from '../../lib/baseRunTypes';
 
@@ -18,19 +18,19 @@ const jitConstants: JitConfig = {
 
 export class BigIntRunType extends AtomicRunType<TypeBigInt> {
     getJitConfig = () => jitConstants;
-    _compileIsType(comp: JitCompiler): string {
+    _compileIsType(comp: JitCompiler): jitCode {
         return `typeof ${comp.vλl} === 'bigint'`;
     }
-    _compileTypeErrors(comp: JitErrorsCompiler): string {
+    _compileTypeErrors(comp: JitErrorsCompiler): jitCode {
         return `if (typeof ${comp.vλl} !== 'bigint') ${comp.callJitErr(this)}`;
     }
-    _compileToJsonVal(comp: JitCompiler) {
+    _compileToJsonVal(comp: JitCompiler): jitCode {
         return bigIntTransformer._compileToJsonVal(comp);
     }
-    _compileFromJsonVal(comp: JitCompiler) {
+    _compileFromJsonVal(comp: JitCompiler): jitCode {
         return bigIntTransformer._compileFromJsonVal(comp);
     }
-    _compileJsonStringify(comp: JitCompiler) {
+    _compileJsonStringify(comp: JitCompiler): jitCode {
         return bigIntTransformer._compileJsonStringify(comp);
     }
     /** mocks a regular number and transforms into a bigint.
@@ -43,13 +43,13 @@ export class BigIntRunType extends AtomicRunType<TypeBigInt> {
 // bigintTransformer (used internally only so no need to register in JitUtils)
 
 export const bigIntTransformer = {
-    _compileFromJsonVal(comp: JitCompiler): string {
+    _compileFromJsonVal(comp: JitCompiler): jitCode {
         return `BigInt(${comp.vλl})`;
     },
-    _compileToJsonVal(comp: JitCompiler): string {
+    _compileToJsonVal(comp: JitCompiler): jitCode {
         return `${comp.vλl}.toString()`;
     },
-    _compileJsonStringify(comp: JitCompiler): string {
+    _compileJsonStringify(comp: JitCompiler): jitCode {
         return `'"'+${comp.vλl}.toString()+'"'`;
     },
 };

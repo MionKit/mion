@@ -8,7 +8,7 @@
 import {ReflectionKind, TypeTupleMember, type TypeParameter} from '@deepkit/type';
 import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
 import {MemberRunType} from '../../lib/baseRunTypes';
-import {MockOperation} from '../../types';
+import {MockOperation, jitCode} from '../../types';
 import {JitFunctions} from '../../constants';
 import {childIsExpression, getParamIndex} from '../../lib/utils';
 
@@ -38,20 +38,20 @@ export class ParameterRunType<T extends ParamT = TypeParameter> extends MemberRu
     hasDefaultValue(): boolean {
         return !!(this.src as TypeParameter).default;
     }
-    _compileIsType(comp: JitCompiler) {
+    _compileIsType(comp: JitCompiler): jitCode {
         const childCode = this.getJitChild()?.compileIsType(comp);
         if (!childCode) return `${comp.getChildVλl()} === undefined`; // non serializable types must be undefined
         if (this.isRest()) return childCode;
         return this.isOptional() ? `${comp.getChildVλl()} === undefined || (${childCode})` : childCode;
     }
-    _compileTypeErrors(comp: JitErrorsCompiler) {
+    _compileTypeErrors(comp: JitErrorsCompiler): jitCode {
         const childCode = this.getJitChild()?.compileTypeErrors(comp);
         if (!childCode)
             return `if (${comp.getChildVλl()} !== undefined) ${comp.callJitErrWithPath('undefined', this.getChildIndex())}`; // non serializable types must be undefined
         if (this.isRest()) return childCode;
         return this.isOptional() ? `if (${comp.getChildVλl()} !== undefined) {${childCode}}` : childCode;
     }
-    _compileToJsonVal(comp: JitCompiler) {
+    _compileToJsonVal(comp: JitCompiler): jitCode {
         const child = this.getJitChild();
         const childCode = child?.compileToJsonVal(comp);
         const optionalCode = `if (${comp.getChildVλl()} === undefined ) {if (${comp.vλl}.length > ${this.getChildIndex()}) ${comp.getChildVλl()} = null}`;
@@ -60,7 +60,7 @@ export class ParameterRunType<T extends ParamT = TypeParameter> extends MemberRu
         const code = isExpression ? `${comp.getChildVλl()} = ${childCode};` : childCode;
         return this.isOptional() ? `${optionalCode} else {${code}}` : code;
     }
-    _compileFromJsonVal(comp: JitCompiler) {
+    _compileFromJsonVal(comp: JitCompiler): jitCode {
         if (!this.getJitChild()) return `${comp.getChildVλl()} = undefined;`; // non serializable are restored to undefined
         const child = this.getJitChild();
         const childCode = child?.compileFromJsonVal(comp);
@@ -70,7 +70,7 @@ export class ParameterRunType<T extends ParamT = TypeParameter> extends MemberRu
         const code = isExpression ? `${comp.getChildVλl()} = ${childCode};` : childCode;
         return this.isOptional() ? `${optionalCOde} else if (${comp.getChildVλl()} !== undefined) {${code}}` : code;
     }
-    _compileJsonStringify(comp: JitCompiler) {
+    _compileJsonStringify(comp: JitCompiler): jitCode {
         let childCode = this.getJitChild()?.compileJsonStringify(comp);
         if (!childCode) childCode = `null`; // non serializable types are set to null
         if (this.isRest()) return childCode;

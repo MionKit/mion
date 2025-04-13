@@ -6,7 +6,7 @@
  * ######## */
 
 import {type TypeClass} from '@deepkit/type';
-import type {MockOperation, JitConfig} from '../../types';
+import type {MockOperation, JitConfig, jitCode} from '../../types';
 import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
 import {mockDate} from '../../lib/mock';
 import {AtomicRunType} from '../../lib/baseRunTypes';
@@ -19,19 +19,19 @@ const jitConstants: JitConfig = {
 
 export class DateRunType extends AtomicRunType<TypeClass> {
     getJitConfig = () => jitConstants;
-    _compileIsType(comp: JitCompiler): string {
+    _compileIsType(comp: JitCompiler): jitCode {
         return `(${comp.vλl} instanceof Date && !isNaN(${comp.vλl}.getTime()))`;
     }
-    _compileTypeErrors(comp: JitErrorsCompiler): string {
+    _compileTypeErrors(comp: JitErrorsCompiler): jitCode {
         return `if (!(${this._compileIsType(comp)})) ${comp.callJitErr(this)}`;
     }
-    _compileToJsonVal() {
+    _compileToJsonVal(): jitCode {
         return undefined;
     }
-    _compileFromJsonVal(comp: JitCompiler) {
+    _compileFromJsonVal(comp: JitCompiler): jitCode {
         return `new Date(${comp.vλl})`;
     }
-    _compileJsonStringify(comp: JitCompiler) {
+    _compileJsonStringify(comp: JitCompiler): jitCode {
         return `'"'+${comp.vλl}.toJSON()+'"'`;
     }
     _mock(ctx: Pick<MockOperation, 'minDate' | 'maxDate'>): Date {

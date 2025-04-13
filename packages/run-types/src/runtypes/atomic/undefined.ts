@@ -7,7 +7,7 @@
 
 import {ReflectionKind, type TypeUndefined} from '@deepkit/type';
 import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
-import type {JitConfig} from '../../types';
+import type {JitConfig, jitCode} from '../../types';
 import {AtomicRunType} from '../../lib/baseRunTypes';
 
 const jitConstants: JitConfig = {
@@ -19,19 +19,19 @@ const jitConstants: JitConfig = {
 
 export class UndefinedRunType extends AtomicRunType<TypeUndefined> {
     getJitConfig = () => jitConstants;
-    _compileIsType(comp: JitCompiler): string {
+    _compileIsType(comp: JitCompiler): jitCode {
         return `typeof ${comp.vλl} === 'undefined'`;
     }
-    _compileTypeErrors(comp: JitErrorsCompiler): string {
+    _compileTypeErrors(comp: JitErrorsCompiler): jitCode {
         return `if (typeof ${comp.vλl} !== 'undefined') ${comp.callJitErr(this)}`;
     }
-    _compileToJsonVal(comp: JitCompiler) {
+    _compileToJsonVal(comp: JitCompiler): jitCode {
         return `${comp.vλl} = null`;
     }
-    _compileFromJsonVal(comp: JitCompiler) {
+    _compileFromJsonVal(comp: JitCompiler): jitCode {
         return `${comp.vλl} = undefined`;
     }
-    _compileJsonStringify(): string {
+    _compileJsonStringify(): jitCode {
         return `null`;
     }
     _mock(): undefined {

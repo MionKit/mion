@@ -7,7 +7,7 @@
 
 import type {TypeUnion} from '@deepkit/type';
 import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
-import {JitConfig, JitFnID, MockOperation, Mutable, RunType} from '../../types';
+import {JitConfig, JitFnID, MockOperation, Mutable, RunType, jitCode} from '../../types';
 import {random} from '../../lib/mock';
 import {BaseRunType, CollectionRunType} from '../../lib/baseRunTypes';
 import {childIsExpression, memorize} from '../../lib/utils';
@@ -51,7 +51,7 @@ export class UnionRunType extends CollectionRunType<TypeUnion> {
     }
 
     // #### collection's jit code ####
-    _compileIsType(comp: JitCompiler): string {
+    _compileIsType(comp: JitCompiler): jitCode {
         // TODO: enforce strictTypes to ensure no extra properties of the union go unchecked
         const children = this.getJitChildren();
         const code = children.map((rt) => this.getChildStrictIsType(rt, comp)).join(' || ');
@@ -60,7 +60,7 @@ export class UnionRunType extends CollectionRunType<TypeUnion> {
 
     // this version just heck if has error and return an single error in the root of the union.
     // if all types we cant know one the user was trying to use.
-    _compileTypeErrors(comp: JitErrorsCompiler): string {
+    _compileTypeErrors(comp: JitErrorsCompiler): jitCode {
         // TODO: enforce strictTypes to ensure no extra properties of the union go unchecked
         const isType = this.compileIsType(comp);
         const code = `if (!${isType}) ${comp.callJitErr(this)};`;
@@ -73,7 +73,7 @@ export class UnionRunType extends CollectionRunType<TypeUnion> {
      * the second element is the encoded value of the type.
      * ie: type union = string | number | bigint;  var v1: union = 123n;  v1 is encoded as [2, "123n"]
      */
-    _compileToJsonVal(comp: JitCompiler): string {
+    _compileToJsonVal(comp: JitCompiler): jitCode {
         // TODO: enforce strictTypes to ensure no extra properties of the union go unchecked
         const childrenCode = this.getJitChildren()
             .map((child, i) => {
@@ -101,7 +101,7 @@ export class UnionRunType extends CollectionRunType<TypeUnion> {
      * the second element is the encoded value of the type.
      * ie: type union = string | number | bigint;  var v1: union = 123n;  v1 is encoded as [2, "123n"]
      */
-    _compileFromJsonVal(comp: JitCompiler): string {
+    _compileFromJsonVal(comp: JitCompiler): jitCode {
         // TODO: enforce strictTypes to ensure no extra properties of the union go unchecked
         const decVar = `dεc${this.getNestLevel()}`;
         const children = this.getJitChildren();
@@ -122,7 +122,7 @@ export class UnionRunType extends CollectionRunType<TypeUnion> {
                 else { throw new Error('Can not decode json to union: expected one of <${this.getUnionTypeNames()}> but got ' + ${comp.vλl}?.constructor?.name || typeof ${comp.vλl}) }            `;
         return code;
     }
-    _compileJsonStringify(comp: JitCompiler): string {
+    _compileJsonStringify(comp: JitCompiler): jitCode {
         // TODO: enforce strictTypes to ensure no extra properties of the union go unchecked
         const childrenCode = this.getJitChildren()
             .map((rt, i) => {
@@ -157,7 +157,7 @@ export class UnionRunType extends CollectionRunType<TypeUnion> {
 
     /** TODO: this uses getMergedJitChildren that merged all properties of interfaces, classes and object literals in the union.
      * This version checks all properties but would allow for Partial or empty objects to be valid. */
-    private _compileTypeErrorsTODO(comp: JitErrorsCompiler): string {
+    private _compileTypeErrorsTODO(comp: JitErrorsCompiler): jitCode {
         const children = this.getMergedJitChildren();
 
         const countVar = `εrrCount${this.getNestLevel()}`;

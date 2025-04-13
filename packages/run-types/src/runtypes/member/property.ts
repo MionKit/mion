@@ -7,7 +7,7 @@
 
 import type {TypeProperty, TypePropertySignature} from '@deepkit/type';
 import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
-import {JitConfig, MockOperation, Mutable} from '../../types';
+import {JitConfig, MockOperation, Mutable, jitCode} from '../../types';
 import {
     childIsExpression,
     getPropIndex,
@@ -40,17 +40,17 @@ export class PropertyRunType extends MemberRunType<TypePropertySignature | TypeP
 
     // #### jit code ####
 
-    _compileIsType(comp: JitCompiler) {
+    _compileIsType(comp: JitCompiler): jitCode {
         const itemCode = this.getJitChild()?.compileIsType(comp);
         if (!itemCode) return undefined;
         return this.src.optional ? `(${comp.getChildVλl()} === undefined || ${itemCode})` : itemCode;
     }
-    _compileTypeErrors(comp: JitErrorsCompiler) {
+    _compileTypeErrors(comp: JitErrorsCompiler): jitCode {
         const itemCode = this.getJitChild()?.compileTypeErrors(comp);
         if (!itemCode) return undefined;
         return this.src.optional ? `if (${comp.getChildVλl()} !== undefined) {${itemCode}}` : itemCode;
     }
-    _compileToJsonVal(comp: JitCompiler) {
+    _compileToJsonVal(comp: JitCompiler): jitCode {
         const child = this.getJitChild();
         const childCode = child?.compileToJsonVal(comp);
         if (!child || !childCode) return undefined;
@@ -59,7 +59,7 @@ export class PropertyRunType extends MemberRunType<TypePropertySignature | TypeP
         if (this.src.optional) return `if (${comp.getChildVλl()} !== undefined) {${code}}`;
         return code;
     }
-    _compileFromJsonVal(comp: JitCompiler) {
+    _compileFromJsonVal(comp: JitCompiler): jitCode {
         const child = this.getJitChild();
         const childCode = child?.compileFromJsonVal(comp);
         if (!child || !childCode) return undefined;
@@ -68,7 +68,7 @@ export class PropertyRunType extends MemberRunType<TypePropertySignature | TypeP
         if (this.src.optional) return `if (${comp.getChildVλl()} !== undefined) {${code}}`;
         return code;
     }
-    _compileJsonStringify(comp: JitCompiler) {
+    _compileJsonStringify(comp: JitCompiler): jitCode {
         const child = this.getJitChild();
         const propCode = child?.compileJsonStringify(comp);
         if (!child || !propCode) return undefined;

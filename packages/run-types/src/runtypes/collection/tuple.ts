@@ -7,7 +7,7 @@
 
 import type {TypeTuple} from '@deepkit/type';
 import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
-import type {AnyParameterListRunType, MockOperation, SrcType} from '../../types';
+import type {AnyParameterListRunType, MockOperation, SrcType, jitCode} from '../../types';
 import {ParameterRunType} from '../member/param';
 import {ReflectionKind} from '@deepkit/type';
 import {CollectionRunType} from '../../lib/baseRunTypes';
@@ -31,14 +31,14 @@ export class TupleRunType<ParamList extends AnyParameterListRunType = TypeTuple>
     }
     // ####### params #######
 
-    _compileIsType(comp: JitCompiler) {
+    _compileIsType(comp: JitCompiler): jitCode {
         const children = this.getChildRunTypes();
         if (children.length === 0) return `Array.isArray(${comp.vλl}) && ${comp.vλl}.length === 0`;
         const lengthCode = this.hasRestParameter() ? '' : `&& ${comp.vλl}.length <= ${this.getChildRunTypes().length}`;
         const paramsCode = children.map((p) => `(${p.compileIsType(comp)})`).join(' && ');
         return `(Array.isArray(${comp.vλl})${lengthCode} && ${paramsCode})`;
     }
-    _compileTypeErrors(comp: JitErrorsCompiler) {
+    _compileTypeErrors(comp: JitErrorsCompiler): jitCode {
         const children = this.getChildRunTypes();
         if (children.length === 0)
             return `if (!Array.isArray(${comp.vλl}) || && ${comp.vλl}.length === 0) ${comp.callJitErr(this)}`;
@@ -46,7 +46,7 @@ export class TupleRunType<ParamList extends AnyParameterListRunType = TypeTuple>
         const paramsCode = children.map((p) => p.compileTypeErrors(comp)).join(';');
         return `if (!Array.isArray(${comp.vλl})${lengthCode}) ${comp.callJitErr(this)}; else {${paramsCode}}`;
     }
-    _compileToJsonVal(comp: JitCompiler) {
+    _compileToJsonVal(comp: JitCompiler): jitCode {
         const children = this.getChildRunTypes();
         if (!children.length) return undefined;
         const code = children
@@ -55,7 +55,7 @@ export class TupleRunType<ParamList extends AnyParameterListRunType = TypeTuple>
             .join(';');
         return code || undefined;
     }
-    _compileFromJsonVal(comp: JitCompiler) {
+    _compileFromJsonVal(comp: JitCompiler): jitCode {
         const children = this.getChildRunTypes();
         if (!children.length) return undefined;
         return (
@@ -65,7 +65,7 @@ export class TupleRunType<ParamList extends AnyParameterListRunType = TypeTuple>
                 .join(';') || undefined
         );
     }
-    _compileJsonStringify(comp: JitCompiler) {
+    _compileJsonStringify(comp: JitCompiler): jitCode {
         const skip = this.getJitConfig().skipJit;
         if (skip) return '';
         if (this.getChildRunTypes().length === 0) return `[]`;
