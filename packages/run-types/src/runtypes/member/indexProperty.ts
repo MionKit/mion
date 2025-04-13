@@ -1,7 +1,7 @@
 import {ReflectionKind, TypeIndexSignature} from '@deepkit/type';
 import {BaseRunType, MemberRunType} from '../../lib/baseRunTypes';
 import {JitConfig, JitFnID, MockOperation, Mutable, type jitCode} from '../../types';
-import {JitFunctions} from '../../constants';
+import {CodeType, JitFunctions} from '../../constants';
 import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
 import {InterfaceRunType} from '../collection/interface';
 import {childIsExpression} from '../../lib/utils';
@@ -35,14 +35,14 @@ export class IndexSignatureRunType extends MemberRunType<TypeIndexSignature> {
         }
         return jc;
     }
-    jitFnHasReturn(fnId: JitFnID): boolean {
+    getCodeType(fnId: JitFnID): CodeType {
         switch (fnId) {
             case JitFunctions.isType.id:
             case JitFunctions.jsonStringify.id:
             case JitFunctions.hasUnknownKeys.id:
-                return true;
+                return 'RB';
             default:
-                return super.jitFnHasReturn(fnId);
+                return super.getCodeType(fnId);
         }
     }
     // #### jit code ####

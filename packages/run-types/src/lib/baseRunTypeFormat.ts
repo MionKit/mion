@@ -19,7 +19,7 @@ import type {
     StrNumber,
     jitCode,
 } from '../types';
-import {jitFnHasReturn, jitFnIsExpression, JitFunctions} from '../constants';
+import {CodeType, getCodeType, JitFunctions} from '../constants';
 import {ReflectionKind} from '@deepkit/type';
 import {compileAddPureFunctionContext, dependenciesToLiteral, getFormatterParams, paramsToLiteral} from './formats';
 import {jitUtils} from './jitUtils';
@@ -36,11 +36,8 @@ export abstract class BaseRunTypeFormat<P extends TypeFormatParams = any> {
     abstract kind: ReflectionKind;
     abstract name: string;
     rootFormatName: string = '';
-    jitFnHasReturn(fnId: JitFnID, _rt: BaseRunType, _params?: P): boolean {
-        return jitFnHasReturn(fnId);
-    }
-    jitFnIsExpression(fnId: JitFnID, _rt: BaseRunType, _params?: P) {
-        return jitFnIsExpression(fnId);
+    getCodeType(fnId: JitFnID, _rt: BaseRunType, _params?: P): CodeType {
+        return getCodeType(fnId);
     }
     /**
      * The jit code for the formatter can be embedded together with the jit code for the type itself.
@@ -193,19 +190,27 @@ export abstract class BaseRunTypeFormat<P extends TypeFormatParams = any> {
         return result;
     }
 
+    /**
+     * Adds return statements if needed
+     * Unlike handleReturnValues in BaseRunType this one is only called in the root of the formatter
+     */
     handleReturnValues(rt: BaseRunType, comp: JitCompiler, currentOpId: JitFnID, code: jitCode): string {
         if (!code) return '';
-        const codeHasReturn: boolean = this.jitFnHasReturn(currentOpId, rt);
-        const isExpression: boolean = this.jitFnIsExpression(currentOpId, rt);
-
-        if (isExpression) return codeHasReturn ? code : `return ${code}`;
-        if (codeHasReturn) return code;
-        // For non-expressions, add a return statement with the default return value
-        // if the code doesn't already have a return statement
-        const lastChar = code.length - 1;
-        const hasFullStop = code.lastIndexOf(';') === lastChar || code.lastIndexOf('}') === lastChar;
-        const stopChar = hasFullStop ? '' : ';';
-        return `${code}${stopChar} return ${comp.returnName}`;
+        const codeType = this.getCodeType(currentOpId, rt);
+        switch (codeType) {
+            case 'E':
+                return `return ${code}`;
+            case 'RB':
+                return code;
+            case 'S': {
+                // For non-expressions, add a return statement with the default return value
+                // if the code doesn't already have a return statement
+                const lastChar = code.length - 1;
+                const hasFullStop = code.lastIndexOf(';') === lastChar || code.lastIndexOf('}') === lastChar;
+                const stopChar = hasFullStop ? '' : ';';
+                return `${code}${stopChar} return ${comp.returnName}`;
+            }
+        }
     }
 
     abstract _mock(mockContext: MockOperation, rt: BaseRunType): any;

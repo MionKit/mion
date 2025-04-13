@@ -21,7 +21,7 @@ import {
 } from '../stringFormat.runtype';
 import {registerFormatter} from '@mionkit/run-types/src/lib/formats';
 import {random, randomItem} from '@mionkit/run-types/src/lib/mock';
-import {JitFunctions} from '@mionkit/run-types/src/constants';
+import {CodeType, JitFunctions} from '@mionkit/run-types/src/constants';
 import {fpVal} from '@mionkit/run-types/src/lib/utils';
 import {NAME_CHARS, NAME_SAMPLES, TLD_CHARS, TLD_SAMPLES} from '../constants.mock';
 
@@ -66,14 +66,10 @@ export class DomainRunTypeFormat extends BaseRunTypeFormat<FormatParams_Domain> 
         this.nameFormatter = new StringRunTypeFormat(namePath);
         this.tldFormatter = new StringRunTypeFormat(tldPath);
     }
-    jitFnIsExpression(fnId: JitFnID, rt: BaseRunType, p?: FormatParams_Domain): boolean {
+    getCodeType(fnId: JitFnID, rt: BaseRunType, p?: FormatParams_Domain): CodeType {
         const params = p || this.getParams(rt);
-        if (fnId === JitFunctions.isType.id) return !!params.pattern;
-        return super.jitFnIsExpression(fnId, rt);
-    }
-    jitFnHasReturn(fnId: JitFnID, rt: BaseRunType, p?: FormatParams_Domain) {
-        if (fnId === JitFunctions.isType.id) return !this.jitFnIsExpression(fnId, rt, p);
-        return super.jitFnHasReturn(fnId, rt);
+        if (fnId === JitFunctions.isType.id) return params.pattern ? 'E' : 'S';
+        return super.getCodeType(fnId, rt, params);
     }
     canEmbedFormatterCode(fnId: JitFnID, rt: BaseRunType, p?: FormatParams_Domain): boolean {
         const params = p || this.getParams(rt);

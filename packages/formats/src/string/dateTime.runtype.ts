@@ -18,7 +18,7 @@ import {DEFAULT_TIME_FORMAT_PARAMS, FormatParams_Time, TimeStringRunTypeFormat} 
 import {registerFormatter} from '@mionkit/run-types/src/lib/formats';
 import {fpVal} from '@mionkit/run-types/src/lib/utils';
 import {stringIgnoreProps} from '../stringFormat.runtype';
-import {JitFunctions} from '@mionkit/run-types/src/constants';
+import {CodeType, JitFunctions} from '@mionkit/run-types/src/constants';
 
 // DateTime validator
 export class DateTimeRunTypeFormat extends BaseRunTypeFormat<FormatParams_DateTime> {
@@ -36,9 +36,9 @@ export class DateTimeRunTypeFormat extends BaseRunTypeFormat<FormatParams_DateTi
     getIgnoredProps(): string[] | undefined {
         return stringIgnoreProps;
     }
-    jitFnIsExpression(fnId: JitFnID, rt: BaseRunType): boolean {
-        if (fnId === JitFunctions.isType.id) return false;
-        return super.jitFnIsExpression(fnId, rt);
+    getCodeType(fnId: JitFnID, rt: BaseRunType): CodeType {
+        if (fnId === JitFunctions.isType.id) return 'S';
+        return super.getCodeType(fnId, rt);
     }
     _compileIsType(comp: JitCompiler, rt: BaseRunType): jitCode {
         const params = this.getParams(rt);

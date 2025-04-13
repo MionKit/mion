@@ -7,60 +7,60 @@
 
 import {JitFnID} from './types';
 
+export const CodeTypes = {
+    expression: 'E', // single expression, that could be concatenated using js operators like + - * && || etc...
+    statement: 'S', // one or multiple statements, that could be concatenated using ; to ensure correct syntax
+    returnBlock: 'RB', // code block, it can not be concatenated with other code, it has an explicit return statement and needs to be wrapped in a function
+} as const;
+
+export type CodeType = (typeof CodeTypes)[keyof typeof CodeTypes];
+
 export interface JitFnSetting {
     id: string;
     name: string;
-    hasReturn: boolean;
-    isExpression: boolean;
+    type: CodeType;
 }
 
 // list of available jit functions
 // ######## !IMPORTANT: all functions id must be unique ########
 
 export const jitValidationFunctions = {
-    isType: {id: 'is', name: 'isType', hasReturn: false, isExpression: true},
-    typeErrors: {id: 'te', name: 'typeErrors', hasReturn: false, isExpression: false},
-    // not yet implemented, this will check a type bug ignore sll type formats, ie, lowercase, uppercase, etc
-    // this will be used for better performance once ensured that a tye has been already formatted
-    isTypeIgnoreFormat: {id: 'isNF', name: 'isTypeIgnoreFormat', hasReturn: false, isExpression: true},
+    isType: {id: 'is', name: 'isType', type: CodeTypes.expression},
+    typeErrors: {id: 'te', name: 'typeErrors', type: CodeTypes.statement},
+    // not yet implemented, this will check and include type formats, ie, lowercase, uppercase, etc
+    isTypeStrict: {id: 'isNF', name: 'isTypeIgnoreFormat', type: CodeTypes.expression},
 } as const satisfies {[key: string]: JitFnSetting};
 
 export const jitSerializationFunctions = {
-    toJsonVal: {id: 'tj', name: 'toJsonVal', hasReturn: false, isExpression: false},
-    fromJsonVal: {id: 'fj', name: 'fromJsonVal', hasReturn: false, isExpression: false},
-    jsonStringify: {id: 'js', name: 'jsonStringify', hasReturn: false, isExpression: true},
+    toJsonVal: {id: 'tj', name: 'toJsonVal', type: CodeTypes.statement},
+    fromJsonVal: {id: 'fj', name: 'fromJsonVal', type: CodeTypes.statement},
+    jsonStringify: {id: 'js', name: 'jsonStringify', type: CodeTypes.expression},
     // not yet implemented
-    toBinary: {id: 'tb', name: 'toJsonVal', hasReturn: false, isExpression: false},
-    fromBinary: {id: 'fb', name: 'fromJsonVal', hasReturn: false, isExpression: false},
-    toString: {id: 'ts', name: 'jsonStringify', hasReturn: false, isExpression: true},
-    fromString: {id: 'fs', name: 'jsonParse', hasReturn: false, isExpression: true},
+    toBinary: {id: 'tb', name: 'toJsonVal', type: CodeTypes.statement},
+    fromBinary: {id: 'fb', name: 'fromJsonVal', type: CodeTypes.statement},
+    toString: {id: 'ts', name: 'jsonStringify', type: CodeTypes.expression},
+    fromString: {id: 'fs', name: 'jsonParse', type: CodeTypes.expression},
     // apply type formatters, ie: lowercase, uppercase, trim, etc
-    format: {id: 'fmt', name: 'format', hasReturn: false, isExpression: true},
+    format: {id: 'fmt', name: 'format', type: CodeTypes.expression},
 } as const satisfies {[key: string]: JitFnSetting};
 
 export const JitFunctions = {
     ...jitValidationFunctions,
     ...jitSerializationFunctions,
-    unknownKeyErrors: {id: 'uk', name: 'unknownKeyErrors', hasReturn: false, isExpression: false},
-    hasUnknownKeys: {id: 'hk', name: 'hasUnknownKeys', hasReturn: false, isExpression: true},
-    stripUnknownKeys: {id: 'sk', name: 'stripUnknownKeys', hasReturn: false, isExpression: false},
-    unknownKeysToUndefined: {id: 'ku', name: 'unknownKeysToUndefined', hasReturn: false, isExpression: false},
-    aux: {id: 'aux', name: 'aux', hasReturn: true, isExpression: false},
+    unknownKeyErrors: {id: 'uk', name: 'unknownKeyErrors', type: CodeTypes.statement},
+    hasUnknownKeys: {id: 'hk', name: 'hasUnknownKeys', type: CodeTypes.expression},
+    stripUnknownKeys: {id: 'sk', name: 'stripUnknownKeys', type: CodeTypes.statement},
+    unknownKeysToUndefined: {id: 'ku', name: 'unknownKeysToUndefined', type: CodeTypes.statement},
+    aux: {id: 'aux', name: 'aux', type: CodeTypes.returnBlock},
 } as const satisfies {[key: string]: JitFnSetting};
 
 export const jitFunctionList = Object.values(JitFunctions);
 export const jitFunctionsById = Object.fromEntries(jitFunctionList.map((f) => [f.id, f]));
 
-export function jitFnHasReturn(fnId: JitFnID): boolean {
+export function getCodeType(fnId: JitFnID): CodeType {
     const fnConfig = jitFunctionsById[fnId];
     if (fnConfig === undefined) throw new Error(`Unknown jit function id: ${fnId}`);
-    return fnConfig.hasReturn;
-}
-
-export function jitFnIsExpression(fnId: JitFnID): boolean {
-    const fnConfig = jitFunctionsById[fnId];
-    if (fnConfig === undefined) throw new Error(`Unknown jit function id: ${fnId}`);
-    return fnConfig.isExpression;
+    return fnConfig.type;
 }
 
 // variable names used in jit functions

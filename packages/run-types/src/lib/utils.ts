@@ -129,7 +129,7 @@ export function getParamIndex(src: TypeParameter | TypeTupleMember): number {
 }
 
 export function childIsExpression(fnId: JitFnID, child: BaseRunType): boolean {
-    return child.jitFnIsExpression(fnId) || !child.isJitInlined();
+    return child.getCodeType(fnId) === 'E' || !child.isJitInlined();
 }
 
 /**

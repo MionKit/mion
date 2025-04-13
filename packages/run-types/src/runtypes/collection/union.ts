@@ -14,7 +14,7 @@ import {childIsExpression, memorize} from '../../lib/utils';
 import {InterfaceRunType} from './interface';
 import {ClassRunType} from './class';
 import {IntersectionRunType} from './intersection';
-import {JitFunctions} from '../../constants';
+import {CodeType, JitFunctions} from '../../constants';
 import {isClassRunType, isInterfaceRunType, isIntersectionRunType, isObjectLiteralRunType} from '../../lib/guards';
 import {UnionInterfaceRunType} from '../other/unionInterface';
 
@@ -32,15 +32,14 @@ export class UnionRunType extends CollectionRunType<TypeUnion> {
             skipJit: false,
         };
     }
-    jitFnHasReturn(fnId: JitFnID): boolean {
+    getCodeType(fnId: JitFnID): CodeType {
         switch (fnId) {
             case JitFunctions.jsonStringify.id:
-                return true;
+                return 'RB';
             default:
-                return super.jitFnHasReturn(fnId);
+                return super.getCodeType(fnId);
         }
     }
-
     private getChildStrictIsType(rt: BaseRunType, comp: JitCompiler) {
         const isTypeCode = rt.compileIsType(comp);
         const isTypeWithProperties =

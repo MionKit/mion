@@ -17,7 +17,7 @@ import {StringRunTypeFormat, stringIgnoreProps, FormatParams_StringValidators, S
 import {DomainRunTypeFormat} from './domain.runtype';
 import {registerFormatter} from '@mionkit/run-types/src/lib/formats';
 import {EMAIL_NAME_SAMPLES_ARRAY, EMAIL_NAME_SAMPLES, EMAIL_SAMPLES, EMAIL_SAMPLES_PUNYCODE} from '../constants.mock'; // do not import using type
-import {JitFunctions} from '@mionkit/run-types/src/constants';
+import {CodeType, JitFunctions} from '@mionkit/run-types/src/constants';
 import {randomItem} from '@mionkit/run-types/src/lib/mock';
 import {fpVal} from '@mionkit/run-types/src/lib/utils';
 
@@ -45,14 +45,10 @@ export class EmailRunTypeFormat extends BaseRunTypeFormat<FormatParams_Email> {
     getIgnoredProps(): string[] | undefined {
         return stringIgnoreProps;
     }
-    jitFnIsExpression(fnId: JitFnID, rt: BaseRunType, p?: FormatParams_Email): boolean {
+    getCodeType(fnId: JitFnID, rt: BaseRunType, p?: FormatParams_Email): CodeType {
         const params = p || this.getParams(rt);
-        if (fnId === JitFunctions.isType.id) return !!params.pattern;
-        return super.jitFnIsExpression(fnId, rt);
-    }
-    jitFnHasReturn(fnId: JitFnID, rt: BaseRunType, p?: FormatParams_Email) {
-        if (fnId === JitFunctions.isType.id) return !this.jitFnIsExpression(fnId, rt, p);
-        return super.jitFnHasReturn(fnId, rt);
+        if (fnId === JitFunctions.isType.id) return params.pattern ? 'E' : 'S';
+        return super.getCodeType(fnId, rt, params);
     }
     canEmbedFormatterCode(fnId: JitFnID, rt: BaseRunType, p?: FormatParams_Email): boolean {
         const params = p || this.getParams(rt);
@@ -84,7 +80,7 @@ export class EmailRunTypeFormat extends BaseRunTypeFormat<FormatParams_Email> {
         // If rootCode is empty, we don't need to emit jit code for it
         const rootSafeCode = rootCode ? `if (!(${rootCode})) return false;` : '';
         const returnCode = this.isRoot() ? `return true;` : '';
-        const domainIsExpression = this.domainFormatter.jitFnIsExpression(fnId, rt, params.domain);
+        const domainIsExpression = this.domainFormatter.getCodeType(fnId, rt, params.domain) === 'E';
         const domainSafeCode = domainCode && domainIsExpression ? `if (!(${domainCode})) return false;` : domainCode;
 
         const code = `
