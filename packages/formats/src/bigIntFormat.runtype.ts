@@ -75,25 +75,25 @@ export class BigIntRunTypeFormat extends BaseRunTypeFormat<FormatParams_BigIntVa
         // Check range constraints
         if (params.max !== undefined) {
             const maxVal = fpVal(params.max);
-            conditions.push(`if (${v} > ${maxVal}n) ${errFn('max', String(maxVal))}`);
+            conditions.push(`if (${v} > ${maxVal}n) ${errFn('max', maxVal)}`);
         }
         if (params.min !== undefined) {
             const minVal = fpVal(params.min);
-            conditions.push(`if (${v} < ${minVal}n) ${errFn('min', String(minVal))}`);
+            conditions.push(`if (${v} < ${minVal}n) ${errFn('min', minVal)}`);
         }
         if (params.lt !== undefined) {
             const ltVal = fpVal(params.lt);
-            conditions.push(`if (${v} >= ${ltVal}n) ${errFn('lt', String(ltVal))}`);
+            conditions.push(`if (${v} >= ${ltVal}n) ${errFn('lt', ltVal)}`);
         }
         if (params.gt !== undefined) {
             const gtVal = fpVal(params.gt);
-            conditions.push(`if (${v} <= ${gtVal}n) ${errFn('gt', String(gtVal))}`);
+            conditions.push(`if (${v} <= ${gtVal}n) ${errFn('gt', gtVal)}`);
         }
 
         // Check multipleOf constraint
         if (params.multipleOf !== undefined) {
             const multipleOfVal = fpVal(params.multipleOf);
-            conditions.push(`if ((${v} % ${multipleOfVal}n !== 0n)) ${errFn('multipleOf', String(multipleOfVal))}`);
+            conditions.push(`if ((${v} % ${multipleOfVal}n !== 0n)) ${errFn('multipleOf', multipleOfVal)}`);
         }
 
         // Join all error conditions with newlines

@@ -282,10 +282,7 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
                 case JitFunctions.hasUnknownKeys.id: code = this._compileHasUnknownKeys(comp); break;
                 case JitFunctions.stripUnknownKeys.id: code = this._compileStripUnknownKeys(comp); break;
                 case JitFunctions.unknownKeysToUndefined.id: code = this._compileUnknownKeysToUndefined(comp); break;
-                case JitFunctions.format.id: {
-                    if (this.src.kind !== ReflectionKind.string && this.src.kind !== ReflectionKind.number) throw new Error('Format can only be applied to string and number types');
-                    break;
-                }
+                case JitFunctions.format.id:  break;
                 default: throw new Error(`Unknown compile operation: ${fnId}`);
             }
             if (code) code = this.handleReturnValues(comp, fnId, code);
