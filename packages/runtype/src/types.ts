@@ -242,7 +242,7 @@ export type TypeFormatError = {
     /** The name of the format that failed */
     name: string; // the name of the format that failed
     /** Expected value, for larger Values, regexp and others the error reason is returned instead */
-    val: StrNumber | boolean | (StrNumber | boolean)[];
+    val: StrNumber | boolean | bigint | (StrNumber | boolean | bigint)[];
     /**
      * The path to the section of the format that failed.
      * ie: for an email that failed the TLD part, the path should be ['domain', 'tld']

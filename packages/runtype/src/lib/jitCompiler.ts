@@ -243,7 +243,7 @@ export class JitErrorsCompiler<ID extends JitFnID = any> extends BaseCompiler<ty
         expected: AnyKindName | BaseRunType<any>,
         formatter: BaseRunTypeFormat<any>,
         paramName: string,
-        paramValue: string | number | boolean,
+        paramValue: string | number | boolean | bigint,
         extraPathLiteral?: StrNumber
     ): string {
         // jitUtil.formatErr function arguments =>
