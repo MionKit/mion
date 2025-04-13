@@ -15,7 +15,7 @@ import {TypeFormat} from '@mionkit/run-types/src/lib/formats.runtype';
 import {MockOperation, type jitCode, type JitFnID, type StrNumber} from '@mionkit/run-types/src/types';
 import {StringRunTypeFormat, stringIgnoreProps, FormatParams_String} from '../stringFormat.runtype';
 import {DomainRunTypeFormat, FormatParams_Domain} from './domain.runtype';
-import {JitFunctions} from '@mionkit/run-types/src/constants';
+import {CodeType, JitFunctions} from '@mionkit/run-types/src/constants';
 import {IPRunTypeFormat, FormatParams_IP} from './ip.runtype';
 import {fpVal} from '@mionkit/run-types/src/lib/utils';
 import {randomItem} from '@mionkit/run-types/src/lib/mock';
@@ -55,14 +55,10 @@ export class URLRunTypeFormat extends BaseRunTypeFormat<FormatParams_Url> {
         this.domainFormatter = new DomainRunTypeFormat(domainPath);
         this.ipFormatter = new IPRunTypeFormat(ipPath);
     }
-    jitFnIsExpression(fnId: JitFnID, rt: BaseRunType, p?: FormatParams_Url): boolean {
+    getCodeType(fnId: JitFnID, rt: BaseRunType, p?: FormatParams_Url): CodeType {
         const params = p || this.getParams(rt);
-        if (fnId === JitFunctions.isType.id) return !params.domain && !params.ip;
-        return super.jitFnIsExpression(fnId, rt, params);
-    }
-    jitFnHasReturn(fnId: JitFnID, rt: BaseRunType, p?: FormatParams_Domain) {
-        if (fnId === JitFunctions.isType.id) return !this.jitFnIsExpression(fnId, rt, p);
-        return super.jitFnHasReturn(fnId, rt);
+        if (fnId === JitFunctions.isType.id) return !params.domain && !params.ip ? 'E' : 'S';
+        return super.getCodeType(fnId, rt, params);
     }
     getIgnoredProps(): string[] | undefined {
         return stringIgnoreProps;
@@ -80,8 +76,8 @@ export class URLRunTypeFormat extends BaseRunTypeFormat<FormatParams_Url> {
         // Remove debug logs
         const safeUrlCode = urlCode ? `if(!(${urlCode})) return false;` : '';
 
-        const dIsExpression = this.domainFormatter.jitFnIsExpression(fnId, rt, params.domain);
-        const ipExpression = this.ipFormatter.jitFnIsExpression(fnId, rt, params.ip);
+        const dIsExpression = this.domainFormatter.getCodeType(fnId, rt, params.domain) === 'E';
+        const ipExpression = this.ipFormatter.getCodeType(fnId, rt, params.ip) === 'E';
         const domainSafeCode = dIsExpression && dmnCode ? `if(!(${dmnCode})) return false;` : dmnCode;
         const ipSafeCode = ipExpression && ipCode ? `if(${ipCode}) return false;` : ipCode;
         const returnCode = this.isRoot() ? `return true;` : '';

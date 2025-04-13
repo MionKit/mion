@@ -11,7 +11,7 @@ import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
 import {random} from '../../lib/mock';
 import {MemberRunType} from '../../lib/baseRunTypes';
 import {childIsExpression} from '../../lib/utils';
-import {JitFunctions} from '../../constants';
+import {CodeType, JitFunctions} from '../../constants';
 
 export class ArrayRunType<T extends Type = TypeArray> extends MemberRunType<T> {
     isJitInlined = () => false;
@@ -30,17 +30,16 @@ export class ArrayRunType<T extends Type = TypeArray> extends MemberRunType<T> {
     isOptional(): boolean {
         return false;
     }
-    jitFnHasReturn(fnId: JitFnID): boolean {
+    getCodeType(fnId: JitFnID): CodeType {
         switch (fnId) {
             case JitFunctions.isType.id:
             case JitFunctions.jsonStringify.id:
             case JitFunctions.hasUnknownKeys.id:
-                return true;
+                return 'RB';
             default:
-                return super.jitFnHasReturn(fnId);
+                return super.getCodeType(fnId);
         }
     }
-
     // #### jit code ####
     _compileIsType(comp: JitCompiler): jitCode {
         const resultVal = `res${this.getNestLevel()}`;

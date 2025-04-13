@@ -21,15 +21,7 @@ import type {
     FormatAnnotation,
     jitCode,
 } from '../types';
-import {
-    jitArgs,
-    jitErrorArgs,
-    JitFunctions,
-    jitFnHasReturn,
-    jitFnIsExpression,
-    maxStackDepth,
-    maxStackErrorMessage,
-} from '../constants';
+import {jitArgs, jitErrorArgs, JitFunctions, maxStackDepth, maxStackErrorMessage, CodeType, getCodeType} from '../constants';
 import {ReflectionKind, type TypeIndexSignature, type TypeProperty, type Type} from '@deepkit/type';
 import {getPropIndex, memorize, toLiteral} from './utils';
 import {JitErrorsCompiler, JitCompiler, getJITFnHash, createJitCompiler} from './jitCompiler';
@@ -88,6 +80,13 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
                 jitId: '$' + this.src.kind + `_${inStackIndex}` + name, // ensures different circular types have different jitId
             };
         }
+    }
+    /** Code Type flag
+     * Any child with different settings should override these methods
+     * these flags are used to determine if the compiled code should be wrapped in a self invoking function or not
+     * or if the compiled code should contain a return statement or not */
+    getCodeType(fnId: JitFnID): CodeType {
+        return getCodeType(fnId);
     }
     /**
      * Method that should be called Immediately after the RunType gets created to link the SrcType and RunType.
@@ -298,14 +297,14 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
             .map((f) => {
                 // Check if the formatter code can be embedded AND is compatible with the function ID
                 const canEmbed = f.canEmbedFormatterCode(fnId, this);
-                const hasReturn = f.jitFnHasReturn(fnId, this);
-                const isExpression = f.jitFnIsExpression(fnId, this);
+                const codeType = f.getCodeType(fnId, this);
+                const codeHasReturn = codeType === 'RB';
 
                 // For isType and similar functions that are expressions, we need to ensure
                 // the formatter code is also an expression or has a return statement
-                const isCompatible = !this.jitFnIsExpression(fnId) || isExpression || hasReturn;
+                const isCompatible = this.getCodeType(fnId) === codeType;
 
-                if (canEmbed && isCompatible) {
+                if (canEmbed && isCompatible && !codeHasReturn) {
                     return f._compile(fnId, comp, this);
                 }
 
@@ -348,44 +347,77 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
     }
 
     handleReturnValues(comp: JitCompiler, currentOpId: JitFnID, code: string, isCallDependency?: true): jitCode {
-        const codeHasReturn: boolean = isCallDependency ?? this.jitFnHasReturn(currentOpId);
-        const isExpression: boolean = this.jitFnIsExpression(currentOpId);
+        const codeType = isCallDependency ? 'E' : this.getCodeType(currentOpId);
         const isRoot = comp.length === 1;
-        if (isRoot && isExpression) {
-            return codeHasReturn ? code : `return ${code}`;
+        if (isRoot) {
+            // root code must ensure values are returned
+            switch (codeType) {
+                case 'E':
+                    return `return ${code}`;
+                case 'S': {
+                    const lastChar = code.length - 1;
+                    const hasFullStop = code.lastIndexOf(';') === lastChar;
+                    const stopChar = hasFullStop ? '' : ';';
+                    return `${code}${stopChar} return ${comp.returnName}`;
+                }
+                case 'RB': {
+                    // if code is a block and does not have return, we need to make sure
+                    const lastChar = code.length - 1;
+                    const hasFullStop = code.lastIndexOf(';') === lastChar || code.lastIndexOf('}') === lastChar;
+                    const stopChar = hasFullStop ? '' : ';';
+                    return `${code}${stopChar} return ${comp.returnName}`;
+                }
+            }
         }
-        if (isRoot && codeHasReturn) {
-            return code;
-        } else if (isRoot && !codeHasReturn) {
-            // if code is a block and does not have return, we need to make sure
-            const lastChar = code.length - 1;
-            const hasFullStop = code.lastIndexOf(';') === lastChar || code.lastIndexOf('}') === lastChar;
-            const stopChar = hasFullStop ? '' : ';';
-            return `${code}${stopChar} return ${comp.returnName}`;
-        }
-        if (isExpression) {
-            // if code should be an expression, but code has return a statement, we need to wrap it in a self invoking function to avoid syntax errors
-            // VERY IMPORTANT TODO, WE CAN IMPROVE PERF QUITE A BIT BY CREATING A NEW FUNCTION IN CONTEXT INSTEAD SELF INVOkING
-            // TODO: we could create a new function and cache instead a self invoking function a performance is same but code is not repeated
-            // IE: comp.selfInvoke(code), this will create a new function in context and call that function instead of self invoking
-            // specially for atomic types as we can be sure there are no references to children types inside the code
-            return codeHasReturn ? `(function(){${code}})()` : code;
-        }
-        // if code is an statement or block we don't need to do anything as code can be inlined as it is
-        return code;
-    }
 
-    // ########## Return flags ##########
-    // any child with different settings should override these methods
-    // these flags are used to determine if the compiled code should be wrapped in a self invoking function or not
-    // or if the compiled code should contain a return statement or not
-    // all atomic types should have these same flags (code should never have a return statement)
-    jitFnHasReturn(fnId: JitFnID): boolean {
-        return jitFnHasReturn(fnId);
+        const expType = getCodeType(currentOpId);
+        switch (true) {
+            case expType === 'E' && codeType === 'E':
+                return code;
+            case expType === 'E' && codeType === 'S':
+                return this.callSelfInvokingFunction(code, true);
+            case expType === 'E' && codeType === 'RB':
+                return this.callSelfInvokingFunction(code);
+            case expType === 'S' && codeType === 'E':
+                // some nodes might return expressions that will be used by the parent statement
+                return code;
+            case expType === 'S' && codeType === 'S': {
+                const lastChar = code.length - 1;
+                const hasFullStop = code.lastIndexOf(';') === lastChar;
+                const stopChar = hasFullStop ? '' : '; ';
+                return `${stopChar}${code}`;
+            }
+            case expType === 'S' && codeType === 'RB':
+                return this.callSelfInvokingFunction(code);
+            case expType === 'RB' && codeType === 'E':
+                throw new Error('Expected an block code but got an expression, this should not happen as would be useless code.');
+            case expType === 'RB' && codeType === 'S': {
+                const lastChar = code.length - 1;
+                const hasFullStop = code.lastIndexOf(';') === lastChar;
+                const stopChar = hasFullStop ? '' : '; ';
+                return `${stopChar}${code}`;
+            }
+            case expType === 'RB' && codeType === 'RB': {
+                // if code is a block and does not have return, we need to make sure
+                const lastChar = code.length - 1;
+                const hasFullStop = code.lastIndexOf(';') === lastChar || code.lastIndexOf('}') === lastChar;
+                const stopChar = hasFullStop ? '' : ';';
+                return `${code}${stopChar} return ${comp.returnName}`;
+            }
+            default:
+                throw new Error(`Unexpected code type (expected: ${expType}, got: ${codeType})`);
+        }
     }
-
-    jitFnIsExpression(fnId: JitFnID): boolean {
-        return jitFnIsExpression(fnId);
+    /**
+     * If code should be an expression, but code has return a statement, we need to wrap it in a self invoking function to avoid syntax errors
+     * IMPORTANT TODO, WE CAN IMPROVE PERF QUITE A BIT BY CREATING A NEW FUNCTION IN CONTEXT INSTEAD SELF INVOkING
+     * TODO: we could create a new function and cache instead a self invoking function a performance is same but code is not repeated
+     * IE: comp.selfInvoke(code), this will create a new function in context and call that function instead of self invoking
+     * this is specially for atomic types as we can be sure there are no references to children types inside the code block
+     */
+    callSelfInvokingFunction(code: string, addReturn = false): jitCode {
+        const returnCode = addReturn ? `return ` : '';
+        return `(function(){${returnCode}${code}})()`;
     }
 }
 
@@ -418,18 +450,15 @@ export abstract class AtomicRunType<T extends Type> extends BaseRunType<T> {
     _compileUnknownKeysToUndefined(comp: JitCompiler): jitCode {
         return undefined;
     }
-    jitFnIsExpression(fnId: JitFnID): boolean {
+    getCodeType(fnId: JitFnID): CodeType {
         switch (fnId) {
             case JitFunctions.isType.id:
-                return true;
             case JitFunctions.toJsonVal.id:
-                return true;
             case JitFunctions.fromJsonVal.id:
-                return true;
             case JitFunctions.jsonStringify.id:
-                return true;
+                return 'E';
             default:
-                return super.jitFnIsExpression(fnId);
+                return super.getCodeType(fnId);
         }
     }
 }

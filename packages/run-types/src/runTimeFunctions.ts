@@ -19,9 +19,9 @@ export async function typeErrorsFn<T>(type?: ReceiveType<T>): Promise<TypeErrors
 }
 
 /** Returns a function that checks if the given value is of the specified type, but ignore type transformations like uppercase, lowercase etc */
-export async function isTypeIgnoreFormatFn<T>(type: ReceiveType<T>): Promise<IsTypeFn> {
+export async function isTyStrictFn<T>(type: ReceiveType<T>): Promise<IsTypeFn> {
     const rt = runType(type);
-    return rt.createJitFunction(JitFunctions.isTypeIgnoreFormat);
+    return rt.createJitFunction(JitFunctions.isTypeStrict);
 }
 
 /** Returns a function that mocks a value of the specified type. */
