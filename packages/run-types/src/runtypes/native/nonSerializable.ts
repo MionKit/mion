@@ -47,6 +47,6 @@ export class NonSerializableRunType extends InterfaceRunType<TypeObjectLiteral |
         throw new Error(`Jit compilation disabled for Non Serializable types.`);
     }
     _mock(): any {
-        throw new Error(`Mock is disabled for Non Serializable types.`);
+        
     }
 }

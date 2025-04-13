@@ -19,6 +19,7 @@ export interface JitFnSetting {
     id: string;
     name: string;
     type: CodeType;
+    import?: () => Promise<(...args: any[]) => any>;
 }
 
 // list of available jit functions
@@ -52,6 +53,12 @@ export const JitFunctions = {
     stripUnknownKeys: {id: 'sk', name: 'stripUnknownKeys', type: CodeTypes.statement},
     unknownKeysToUndefined: {id: 'ku', name: 'unknownKeysToUndefined', type: CodeTypes.statement},
     aux: {id: 'aux', name: 'aux', type: CodeTypes.returnBlock},
+    mock: {
+        id: 'mock',
+        name: 'mockType',
+        type: CodeTypes.returnBlock,
+        import: () => import('./mock/mockType').then((m) => m.mock),
+    },
 } as const satisfies {[key: string]: JitFnSetting};
 
 export const jitFunctionList = Object.values(JitFunctions);

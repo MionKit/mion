@@ -29,3 +29,9 @@ export async function mockTypeFn<T>(type?: ReceiveType<T>): Promise<(opts?: Part
     const rt = runType(type);
     return (opts?: Partial<MockOptions>) => rt.mock(opts);
 }
+
+/** Returns a function that mocks a value of the specified type using the async implementation. */
+export async function mockTypeFnAsync<T>(type?: ReceiveType<T>): Promise<(opts?: Partial<MockOptions>) => Promise<T>> {
+    const rt = runType(type);
+    return (opts?: Partial<MockOptions>) => rt.mockAsync(opts);
+}

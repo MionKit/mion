@@ -21,26 +21,36 @@ import type {
     FormatAnnotation,
     jitCode,
 } from '../types';
-import {jitArgs, jitErrorArgs, JitFunctions, maxStackDepth, maxStackErrorMessage, CodeType, getCodeType} from '../constants';
+import {
+    jitArgs,
+    jitErrorArgs,
+    JitFunctions,
+    maxStackDepth,
+    maxStackErrorMessage,
+    CodeType,
+    getCodeType,
+    JitFnSetting,
+} from '../constants';
 import {ReflectionKind, type TypeIndexSignature, type TypeProperty, type Type} from '@deepkit/type';
 import {getPropIndex, memorize, toLiteral} from './utils';
 import {JitErrorsCompiler, JitCompiler, getJITFnHash, createJitCompiler} from './jitCompiler';
 import {type AnyKindName, getReflectionName} from '../constants.kind';
 import {jitUtils} from './jitUtils';
 import {createUniqueHash} from './quickHash';
-import {isMockContext} from './guards';
-import {defaultMockOptions} from '../constants.mock';
 import {
     initFormatAnnotations,
     getFormatAnnotations,
     getTypeFormats,
     getRunTypeFormatter,
-    getRunTypeTransformers,
     defaultIgnoreFormatProps,
 } from './formats';
 import {typeParamsToString} from './utils';
 
+const functionRegistry: Map<JitFnSetting, (...args: any[]) => any> = new Map();
+
 export abstract class BaseRunType<T extends Type = Type> implements RunType {
+    // Registry for dynamically loaded functions
+
     isCircular?: boolean;
     readonly src: SrcType<T> = null as any; // real value will be set after construction by the createRunType function
     abstract getFamily(): 'A' | 'C' | 'M' | 'F'; // Atomic, Collection, Member, Function
@@ -113,67 +123,76 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
 
     // ########## Mock ##########
 
-    mock(k?: Partial<MockOptions>): any {
-        const ctx = this.initMockOptions(k);
-        ctx.stack.push(this);
-        const recursionLevel = ctx.stack.filter((rt) => rt === this).length;
-        const updatedContext = recursionLevel ? this.onCircularMock(ctx, recursionLevel) : ctx;
-        // Just one type validator allowed per type, and is responsible to mock the value,
-        // ie: email and uuid should contain the logic to generate a valid value
-        const typeValidator = getRunTypeFormatter(this);
-        let mocked = typeValidator ? typeValidator.mock(updatedContext, this) : this._mock(updatedContext);
-        // once mocked multiple type transformers can be applied to the mocked value
-        const typeTransformers = getRunTypeTransformers(this);
-        if (typeTransformers.length) {
-            const compiledFormatters = typeTransformers
-                .filter((t) => !!t._compileFormat)
-                .map((t) => this.createJitCompiledFunction(JitFunctions.format.id));
-            const formatters = compiledFormatters.filter((c) => !c.isNoop).map((c) => c.fn);
-            mocked = formatters.reduce((acc, format) => format(acc), mocked);
-        }
-        ctx.stack.pop();
-        return mocked;
+    async mock(k?: Partial<MockOptions>): Promise<any> {
+        const mockFn = functionRegistry.get(JitFunctions.mock);
+        if (mockFn) return mockFn;
+        const newLoadedMockFn = await JitFunctions.mock.import();
+        functionRegistry.set(JitFunctions.mock, newLoadedMockFn);
+        return newLoadedMockFn(this, k);
     }
 
-    // reduces all probabilities within the MockOptions to prevent infinite loops
-    // each time mocking is a level deeper, the probabilities to generate an optional property should be reduced
-    // this does not prevent infinite loops on types with circular references that are non optional,
-    // we probably should throw an error in this case but these kind of types are technically not possible in real world so we can ignore them for now
-    private onCircularMock(ctx: MockOperation, recursionLevel): MockOperation {
-        const maxDepth = ctx.maxMockRecursion;
-        const divisor = recursionLevel;
-        const {optionalProbability, maxRandomItemsLength: maxRandomArrayLength, optionalPropertyProbability, arrayLength} = ctx;
-        const newProv = recursionLevel >= maxDepth ? 0 : optionalProbability / divisor;
-        const newMaxLength = recursionLevel >= maxDepth ? 0 : Math.round(maxRandomArrayLength / divisor);
-        // console.log(`divisor: ${divisor} | newMaxLength: ${newMaxLength} | newProv: ${newProv}`);
-        const ret: MockOperation = {
-            ...ctx,
-            optionalProbability: newProv,
-            maxRandomItemsLength: newMaxLength,
-        };
-        if (optionalPropertyProbability) {
-            const entries = Object.entries(optionalPropertyProbability).map(([key, value]) => {
-                const newProv = recursionLevel > maxDepth ? 0 : value / divisor;
-                return [key, value / newProv];
-            });
-            ret.optionalPropertyProbability = Object.fromEntries(entries);
-        }
-        if (arrayLength) {
-            const newLength = recursionLevel >= maxDepth ? 0 : Math.round(arrayLength / divisor);
-            ret.arrayLength = newLength;
-        }
-        if (ret.parentObj) ret.parentObj = {}; // prevents mocking objects with circular references
-        return ret;
-    }
+    // // Keep the synchronous version for backward compatibility
+    // mock(k?: Partial<MockOptions>): any {
+    //     const ctx = this.initMockOptions(k);
+    //     ctx.stack.push(this);
+    //     const recursionLevel = ctx.stack.filter((rt) => rt === this).length;
+    //     const updatedContext = recursionLevel ? this.onCircularMock(ctx, recursionLevel) : ctx;
+    //     // Just one type validator allowed per type, and is responsible to mock the value,
+    //     // ie: email and uuid should contain the logic to generate a valid value
+    //     const typeValidator = getRunTypeFormatter(this);
+    //     let mocked = typeValidator ? typeValidator.mock(updatedContext, this) : this._mock(updatedContext);
+    //     // once mocked multiple type transformers can be applied to the mocked value
+    //     const typeTransformers = getRunTypeTransformers(this);
+    //     if (typeTransformers.length) {
+    //         const compiledFormatters = typeTransformers
+    //             .filter((t) => !!t._compileFormat)
+    //             .map((t) => this.createJitCompiledFunction(JitFunctions.format.id));
+    //         const formatters = compiledFormatters.filter((c) => !c.isNoop).map((c) => c.fn);
+    //         mocked = formatters.reduce((acc, format) => format(acc), mocked);
+    //     }
+    //     ctx.stack.pop();
+    //     return mocked;
+    // }
 
-    private initMockOptions(k?: Partial<MockOptions>): MockOperation {
-        if (k && isMockContext(k)) return k;
-        return {
-            ...defaultMockOptions,
-            ...(k || {}),
-            stack: [],
-        };
-    }
+    // // reduces all probabilities within the MockOptions to prevent infinite loops
+    // // each time mocking is a level deeper, the probabilities to generate an optional property should be reduced
+    // // this does not prevent infinite loops on types with circular references that are non optional,
+    // // we probably should throw an error in this case but these kind of types are technically not possible in real world so we can ignore them for now
+    // private onCircularMock(ctx: MockOperation, recursionLevel): MockOperation {
+    //     const maxDepth = ctx.maxMockRecursion;
+    //     const divisor = recursionLevel;
+    //     const {optionalProbability, maxRandomItemsLength: maxRandomArrayLength, optionalPropertyProbability, arrayLength} = ctx;
+    //     const newProv = recursionLevel >= maxDepth ? 0 : optionalProbability / divisor;
+    //     const newMaxLength = recursionLevel >= maxDepth ? 0 : Math.round(maxRandomArrayLength / divisor);
+    //     // console.log(`divisor: ${divisor} | newMaxLength: ${newMaxLength} | newProv: ${newProv}`);
+    //     const ret: MockOperation = {
+    //         ...ctx,
+    //         optionalProbability: newProv,
+    //         maxRandomItemsLength: newMaxLength,
+    //     };
+    //     if (optionalPropertyProbability) {
+    //         const entries = Object.entries(optionalPropertyProbability).map(([key, value]) => {
+    //             const newProv = recursionLevel > maxDepth ? 0 : value / divisor;
+    //             return [key, value / newProv];
+    //         });
+    //         ret.optionalPropertyProbability = Object.fromEntries(entries);
+    //     }
+    //     if (arrayLength) {
+    //         const newLength = recursionLevel >= maxDepth ? 0 : Math.round(arrayLength / divisor);
+    //         ret.arrayLength = newLength;
+    //     }
+    //     if (ret.parentObj) ret.parentObj = {}; // prevents mocking objects with circular references
+    //     return ret;
+    // }
+
+    // private initMockOptions(k?: Partial<MockOptions>): MockOperation {
+    //     if (k && isMockContext(k)) return k;
+    //     return {
+    //         ...defaultMockOptions,
+    //         ...(k || {}),
+    //         stack: [],
+    //     };
+    // }
 
     // ########## Create Jit Functions ##########
 
