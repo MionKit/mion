@@ -295,7 +295,6 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
     }
 
     private compileFormatter(comp: JitCompiler, fnId: JitFnID, separator: string, code?: string): jitCode {
-        if (this.src.kind !== ReflectionKind.string && this.src.kind !== ReflectionKind.number) return code;
         const typeFormatters = getTypeFormats(this);
         if (!typeFormatters.length) return code;
         const formattersCode = typeFormatters

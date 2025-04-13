@@ -16,5 +16,5 @@ import type {TypeFormatParams} from '../types';
  *
  * TypeFormat is the equivalent ot TypeAnnotation in DK but with slight modifications @deepkit/type<TypeAnnotation>
  * */
-export type TypeFormat<BaseType extends string | number, Name extends string, P extends TypeFormatParams> = BaseType &
+export type TypeFormat<BaseType extends string | number | bigint, Name extends string, P extends TypeFormatParams> = BaseType &
     TypeAnnotation<Name, P>;

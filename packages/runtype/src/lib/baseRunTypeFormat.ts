@@ -289,7 +289,7 @@ export abstract class BaseRunTypeFormat<P extends TypeFormatParams = any> {
         shouldReturn = false,
         extraPathLiteral?: StrNumber
     ) {
-        return (paramName: string, paramValue: string | number | boolean) => {
+        return (paramName: string, paramValue: string | number | boolean | bigint) => {
             const callCode = comp.callJitFormatErr(expected, formatter, paramName, paramValue, extraPathLiteral);
             if (shouldReturn) return `return ${callCode}, ${comp.args.εrr}`;
             return callCode;
