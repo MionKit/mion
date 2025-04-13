@@ -48,6 +48,7 @@ export abstract class BaseRunTypeFormat<P extends TypeFormatParams = any> {
      * This method is used to determine if the formatter code can be embedded or not.
      */
     canEmbedFormatterCode(_fnId: JitFnID, rt: BaseRunType, _params?: P): boolean {
+        if (rt.src.kind === ReflectionKind.number) return true;
         // getFormatterJitId is similar to convert params to string
         const paramsToString = rt.getFormatterJitId() || '';
         // if there are many params, is better to not inline the formatter so the formatter function can be reused
@@ -288,7 +289,7 @@ export abstract class BaseRunTypeFormat<P extends TypeFormatParams = any> {
         shouldReturn = false,
         extraPathLiteral?: StrNumber
     ) {
-        return (paramName: string, paramValue: StrNumber) => {
+        return (paramName: string, paramValue: string | number | boolean) => {
             const callCode = comp.callJitFormatErr(expected, formatter, paramName, paramValue, extraPathLiteral);
             if (shouldReturn) return `return ${callCode}, ${comp.args.εrr}`;
             return callCode;
