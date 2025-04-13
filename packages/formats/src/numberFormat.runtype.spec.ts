@@ -40,7 +40,7 @@ it('get max errors', async () => {
 
 it('mock max', async () => {
     type Max10 = NumberFormat<{max: 10}>;
-    const mockType = mockTypeFn<Max10>();
+    const mockType = await mockTypeFn<Max10>();
     const mockedItems = Array.from({length: 20}, () => mockType());
     for (const item of mockedItems) {
         expect(item).toBeLessThanOrEqual(10);
@@ -77,7 +77,7 @@ it('get min errors', async () => {
 
 it('mock min', async () => {
     type Min10 = NumberFormat<{min: 10}>;
-    const mockType = mockTypeFn<Min10>();
+    const mockType = await mockTypeFn<Min10>();
     const mockedItems = Array.from({length: 20}, () => mockType());
     for (const item of mockedItems) {
         expect(item).toBeGreaterThanOrEqual(10);
@@ -114,7 +114,7 @@ it('get lt errors', async () => {
 
 it('mock lt', async () => {
     type Lt10 = NumberFormat<{lt: 10}>;
-    const mockType = mockTypeFn<Lt10>();
+    const mockType = await mockTypeFn<Lt10>();
     const mockedItems = Array.from({length: 20}, () => mockType());
     for (const item of mockedItems) {
         expect(item).toBeLessThan(10);
@@ -151,7 +151,7 @@ it('get gt errors', async () => {
 
 it('mock gt', async () => {
     type Gt10 = NumberFormat<{gt: 10}>;
-    const mockType = mockTypeFn<Gt10>();
+    const mockType = await mockTypeFn<Gt10>();
     const mockedItems = Array.from({length: 20}, () => mockType());
     for (const item of mockedItems) {
         expect(item).toBeGreaterThan(10);
@@ -184,7 +184,7 @@ it('get integer errors', async () => {
 
 it('mock integer', async () => {
     type IntegerNumber = NumberFormat<{integer: true}>;
-    const mockType = mockTypeFn<IntegerNumber>();
+    const mockType = await mockTypeFn<IntegerNumber>();
     const mockedItems = Array.from({length: 20}, () => mockType());
     for (const item of mockedItems) {
         expect(Number.isInteger(item)).toBe(true);
@@ -217,7 +217,7 @@ it('get float errors', async () => {
 
 it('mock float', async () => {
     type FloatNumber = NumberFormat<{float: true}>;
-    const mockType = mockTypeFn<FloatNumber>();
+    const mockType = await mockTypeFn<FloatNumber>();
     const mockedItems = Array.from({length: 20}, () => mockType());
     for (const item of mockedItems) {
         expect(Number.isInteger(item)).toBe(false);
@@ -278,7 +278,7 @@ it('get multipleOf errors', async () => {
 
 it('mock multipleOf', async () => {
     type MultipleOf5 = NumberFormat<{multipleOf: 5}>;
-    const mockType = mockTypeFn<MultipleOf5>();
+    const mockType = await mockTypeFn<MultipleOf5>();
     const mockedItems = Array.from({length: 20}, () => mockType());
     for (const item of mockedItems) {
         expect(Math.abs(item % 5)).toBe(0);
@@ -332,7 +332,7 @@ it('get combined constraints errors', async () => {
 
 it('mock combined constraints', async () => {
     type Combined = NumberFormat<{min: 0; max: 100; integer: true; multipleOf: 5}>;
-    const mockType = mockTypeFn<Combined>();
+    const mockType = await mockTypeFn<Combined>();
     const mockedItems = Array.from({length: 20}, () => mockType());
     for (const item of mockedItems) {
         expect(item).toBeGreaterThanOrEqual(0);

@@ -52,7 +52,7 @@ it('get uuid v4 errors', async () => {
 
 // uuid v4 mock
 it('mock uuid v4', async () => {
-    const mockType = mockTypeFn<UUIDFormat_V4>();
+    const mockType = await mockTypeFn<UUIDFormat_V4>();
     const isType = await isTypeFn<UUIDFormat_V4>();
     const someIds = Array.from({length: 20}, () => mockType());
     for (const uuid of someIds) expect(isType(uuid)).toBe(true);
@@ -99,7 +99,7 @@ it('get uuid v7 errors', async () => {
 
 // uuid v7 mock
 it('mock uuid v7', async () => {
-    const mockType = mockTypeFn<UUIDFormat_V7>();
+    const mockType = await mockTypeFn<UUIDFormat_V7>();
     const isType = await isTypeFn<UUIDFormat_V7>();
     const someIds = Array.from({length: 20}, () => mockType());
     for (const uuid of someIds) expect(isType(uuid)).toBe(true);

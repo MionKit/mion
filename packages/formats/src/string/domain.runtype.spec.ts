@@ -286,7 +286,7 @@ it('should return domain errors inside recursive data', async () => {
 });
 
 it('should mock custom domain values', async () => {
-    const mockType = mockTypeFn<DomainFormat_Strict>();
+    const mockType = await mockTypeFn<DomainFormat_Strict>();
     const isType = await isTypeFn<DomainFormat_Strict>();
     const typeErrors = await typeErrorsFn<DomainFormat_Strict>();
     const mockedItems = Array.from({length: 20}, () => mockType());
@@ -297,7 +297,7 @@ it('should mock custom domain values', async () => {
 });
 
 it('should mock domain values', async () => {
-    const mockType = mockTypeFn<DomainFormat>();
+    const mockType = await mockTypeFn<DomainFormat>();
     const isType = await isTypeFn<DomainFormat>();
     const typeErrors = await typeErrorsFn<DomainFormat>();
     const mockedItems = Array.from({length: 20}, () => mockType());
@@ -339,7 +339,7 @@ it('domain should be faster than strict domain', async () => {
     const isTypeQuick = await isTypeFn<DomainFormat>();
     // TODO: regexp seems to be a bit faster than quick email so maybe we should use it
 
-    const mockType = mockTypeFn<DomainFormat_Strict>();
+    const mockType = await mockTypeFn<DomainFormat_Strict>();
     const mockedItems = Array.from({length: 50}, () => mockType());
     const start = performance.now();
     for (const item of mockedItems) {
@@ -394,7 +394,7 @@ it('mock allowedValues', async () => {
         };
     }>;
     const isType = await isTypeFn<SocialNames>();
-    const mockType = mockTypeFn<SocialNames>();
+    const mockType = await mockTypeFn<SocialNames>();
     const mockedItems = Array.from({length: 20}, () => mockType());
     for (const item of mockedItems) {
         expect(isType(item)).toBe(true);

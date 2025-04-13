@@ -42,7 +42,7 @@ it('get Number_Integer errors', async () => {
 });
 
 it('mock Number_Integer', async () => {
-    const mockType = mockTypeFn<Number_Integer>();
+    const mockType = await mockTypeFn<Number_Integer>();
     const mockedItems = Array.from({length: 20}, () => mockType());
     for (const item of mockedItems) {
         expect(Number.isInteger(item)).toBe(true);
@@ -72,7 +72,7 @@ it('get Number_Float errors', async () => {
 });
 
 it('mock Number_Float', async () => {
-    const mockType = mockTypeFn<Number_Float>();
+    const mockType = await mockTypeFn<Number_Float>();
     const mockedItems = Array.from({length: 20}, () => mockType());
     for (const item of mockedItems) {
         expect(Number.isInteger(item)).toBe(false);
@@ -102,7 +102,7 @@ it('get Number_Positive errors', async () => {
 });
 
 it('mock Number_Positive', async () => {
-    const mockType = mockTypeFn<Number_Positive>();
+    const mockType = await mockTypeFn<Number_Positive>();
     const mockedItems = Array.from({length: 20}, () => mockType());
     for (const item of mockedItems) {
         expect(item).toBeGreaterThanOrEqual(0);
@@ -132,7 +132,7 @@ it('get Number_Negative errors', async () => {
 });
 
 it('mock Number_Negative', async () => {
-    const mockType = mockTypeFn<Number_Negative>();
+    const mockType = await mockTypeFn<Number_Negative>();
     const mockedItems = Array.from({length: 20}, () => mockType());
     for (const item of mockedItems) {
         expect(item).toBeLessThanOrEqual(0);
@@ -169,7 +169,7 @@ it('get Number_PositiveInteger errors', async () => {
 });
 
 it('mock Number_PositiveInteger', async () => {
-    const mockType = mockTypeFn<Number_PositiveInteger>();
+    const mockType = await mockTypeFn<Number_PositiveInteger>();
     const mockedItems = Array.from({length: 20}, () => mockType());
     for (const item of mockedItems) {
         expect(Number.isInteger(item)).toBe(true);
@@ -207,7 +207,7 @@ it('get Number_NegativeInteger errors', async () => {
 });
 
 it('mock Number_NegativeInteger', async () => {
-    const mockType = mockTypeFn<Number_NegativeInteger>();
+    const mockType = await mockTypeFn<Number_NegativeInteger>();
     const mockedItems = Array.from({length: 20}, () => mockType());
     for (const item of mockedItems) {
         expect(Number.isInteger(item)).toBe(true);
@@ -251,7 +251,7 @@ it('get Number_Int32 errors', async () => {
 });
 
 it('mock Number_Int32', async () => {
-    const mockType = mockTypeFn<Number_Int32>();
+    const mockType = await mockTypeFn<Number_Int32>();
     const mockedItems = Array.from({length: 20}, () => mockType());
     for (const item of mockedItems) {
         expect(Number.isInteger(item)).toBe(true);
@@ -294,7 +294,7 @@ it('get Number_Uint32 errors', async () => {
 });
 
 it('mock Number_Uint32', async () => {
-    const mockType = mockTypeFn<Number_Uint32>();
+    const mockType = await mockTypeFn<Number_Uint32>();
     const mockedItems = Array.from({length: 20}, () => mockType());
     for (const item of mockedItems) {
         expect(Number.isInteger(item)).toBe(true);
@@ -337,7 +337,7 @@ it('get Number_Int64 errors', async () => {
 });
 
 it('mock Number_Int64', async () => {
-    const mockType = mockTypeFn<Number_Int64>();
+    const mockType = await mockTypeFn<Number_Int64>();
     const mockedItems = Array.from({length: 20}, () => mockType());
     for (const item of mockedItems) {
         expect(Number.isInteger(item)).toBe(true);
