@@ -25,7 +25,7 @@ it('validate string alpha', async () => {
 });
 it('get alpha string errors', async () => {
     const typeErrors = await typeErrorsFn<StringFormat_Alpha<{minLength: 3}>>();
-    const format: TypeFormatError = {name: 'strFormat', formatPath: [], val: ''};
+    const format: TypeFormatError = {name: 'stringFormat', formatPath: [], val: ''};
     const expectedError: RunTypeError = {expected: 'string', path: [], format};
     expect(typeErrors('abcdef')).toEqual([]);
     expect(typeErrors('ab')).toEqual([{...expectedError, format: {...format, formatPath: ['minLength'], val: 3}}]);
@@ -56,7 +56,7 @@ it('validate string alpha numeric', async () => {
 });
 it('get alpha numeric string errors', async () => {
     const typeErrors = await typeErrorsFn<StringFormat_Alphanumeric<{minLength: 3}>>();
-    const format: TypeFormatError = {name: 'strFormat', formatPath: [], val: ''};
+    const format: TypeFormatError = {name: 'stringFormat', formatPath: [], val: ''};
     const expectedError: RunTypeError = {expected: 'string', path: [], format};
     expect(typeErrors('abcd2891')).toEqual([]);
     expect(typeErrors('12342891')).toEqual([]);
@@ -92,9 +92,9 @@ it('validate string numeric', async () => {
 });
 it('get numeric string errors', async () => {
     const typeErrors = await typeErrorsFn<StringFormat_Numeric<{minLength: 3; maxLength: 5}>>();
-    const format: TypeFormatError = {name: 'strFormat', formatPath: [], val: ''};
+    const format: TypeFormatError = {name: 'stringFormat', formatPath: [], val: ''};
     const expectedError: RunTypeError = {expected: 'string', path: [], format};
-    const numericError: TypeFormatError = {name: 'strFormat', formatPath: ['pattern'], val: 'only numeric values are allowed'};
+    const numericError: TypeFormatError = {name: 'stringFormat', formatPath: ['pattern'], val: 'only numeric values are allowed'};
     expect(typeErrors('1234')).toEqual([]);
     expect(typeErrors('12345')).toEqual([]);
     expect(typeErrors('1.23')).toEqual([{...expectedError, format: numericError}]);
@@ -130,9 +130,9 @@ it('validate lowercase string', async () => {
 });
 it('get lowercase string errors', async () => {
     const typeErrors = await typeErrorsFn<StringFormat_Lowercase<{minLength: 3}>>();
-    const format1: TypeFormatError = {name: 'strFormat', formatPath: ['lowercase'], val: true};
+    const format1: TypeFormatError = {name: 'stringFormat', formatPath: ['lowercase'], val: true};
     const lowercaseError: RunTypeError = {expected: 'string', path: [], format: format1};
-    const format2: TypeFormatError = {name: 'strFormat', formatPath: ['minLength'], val: 3};
+    const format2: TypeFormatError = {name: 'stringFormat', formatPath: ['minLength'], val: 3};
     const minLengthError: RunTypeError = {expected: 'string', path: [], format: format2};
     expect(typeErrors('abcd')).toEqual([]);
     // failing test disabled as we are not enforcing lowercase for now
@@ -170,8 +170,8 @@ it('validate uppercase string', async () => {
 });
 it('get uppercase string errors', async () => {
     const typeErrors = await typeErrorsFn<StringFormat_Uppercase<{minLength: 3}>>();
-    const format1: TypeFormatError = {name: 'strFormat', formatPath: ['uppercase'], val: true};
-    const format2: TypeFormatError = {name: 'strFormat', formatPath: ['minLength'], val: 3};
+    const format1: TypeFormatError = {name: 'stringFormat', formatPath: ['uppercase'], val: true};
+    const format2: TypeFormatError = {name: 'stringFormat', formatPath: ['minLength'], val: 3};
     const uppercaseError: RunTypeError = {expected: 'string', path: [], format: format1};
     const minLengthError: RunTypeError = {expected: 'string', path: [], format: format2};
     // failing test disabled as we are not enforcing uppercase for now
@@ -213,7 +213,7 @@ it('validate capital string', async () => {
 it('get capital string errors', async () => {
     type CapitalString = StringFormat<{capitalize: true}>;
     const typeErrors = await typeErrorsFn<CapitalString>();
-    const format1: TypeFormatError = {name: 'strFormat', formatPath: ['capitalize'], val: true};
+    const format1: TypeFormatError = {name: 'stringFormat', formatPath: ['capitalize'], val: true};
     const capitalizeError: RunTypeError = {expected: 'string', path: [], format: format1};
     // failing test disabled as we are not enforcing capitalization for now
     // expect(typeErrors('abcd')).toEqual([capitalizeError]);
