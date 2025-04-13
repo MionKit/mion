@@ -72,7 +72,7 @@ describe('function', () => {
         expect(() => rt.createJitFunction(JitFunctions.jsonStringify)).toThrow(
             `Compile function JsonStringify not supported, call compileParams or compileReturn instead.`
         );
-        expect(() => rt.mock()).toThrow('Function Mock is not allowed, call mockParams or mockReturn instead.');
+        expect(() => rt.mock()).toThrow('Mock is not allowed, call mockParams or mockReturn instead.');
     });
 });
 

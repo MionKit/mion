@@ -142,28 +142,16 @@ function createRunType(deepkitType: Mutable<SrcType>): RunType {
     let rt: BaseRunType;
 
     switch (deepkitType.kind) {
-        // All types with metadata are resolved as kind = 0
-        case ReflectionKind.never:
-            // TODO add the string format feature
-            rt = isNativeUtilityStringTypes(deepkitType) ? new StringRunType() : new NeverRunType();
-            break;
+        // ###################### ATOMIC RUNTYPES ######################
+        // Primitive types and other atomic types that don't contain other types
         case ReflectionKind.any:
             rt = new AnyRunType();
-            break;
-        case ReflectionKind.array:
-            rt = new ArrayRunType();
             break;
         case ReflectionKind.bigint:
             rt = new BigIntRunType();
             break;
         case ReflectionKind.boolean:
             rt = new BooleanRunType();
-            break;
-        case ReflectionKind.callSignature:
-            rt = new CallSignatureRunType();
-            break;
-        case ReflectionKind.class:
-            rt = initClassRunType(deepkitType);
             break;
         case ReflectionKind.enum:
             rt = new EnumRunType();
@@ -172,29 +160,12 @@ function createRunType(deepkitType: Mutable<SrcType>): RunType {
             // enum members are resolved by the enum type, so this is not expected to be called
             rt = new EnumMemberRunType();
             break;
-        case ReflectionKind.function:
-            const frt = new FunctionRunType();
-            (frt.parameterRunTypes as Mutable<RunType>).src = deepkitType;
-            rt = frt;
-            break;
-        case ReflectionKind.indexSignature:
-            rt = new IndexSignatureRunType();
-            break;
-        case ReflectionKind.infer:
-            throw new Error(
-                'Infer type not supported, ie: type MyType =Type<T> = T extends (...args: any[]) => infer R ? R : any; https://www.typescriptlang.org/docs/handbook/2/conditional-types.html'
-            );
-        case ReflectionKind.intersection:
-            rt = new IntersectionRunType();
-            break;
         case ReflectionKind.literal:
             rt = new LiteralRunType();
             break;
-        case ReflectionKind.method:
-            rt = new MethodRunType();
-            break;
-        case ReflectionKind.methodSignature:
-            rt = new MethodSignatureRunType();
+        case ReflectionKind.never:
+            // TODO add the string format feature
+            rt = isNativeUtilityStringTypes(deepkitType) ? new StringRunType() : new NeverRunType();
             break;
         case ReflectionKind.null:
             rt = new NullRunType();
@@ -205,28 +176,8 @@ function createRunType(deepkitType: Mutable<SrcType>): RunType {
         case ReflectionKind.object:
             rt = new ObjectRunType();
             break;
-        case ReflectionKind.objectLiteral:
-            if (isNonSerializableObject(deepkitType)) {
-                rt = new NonSerializableRunType();
-            } else {
-                rt = new InterfaceRunType();
-            }
-            break;
-        case ReflectionKind.parameter:
-            rt = new ParameterRunType();
-            break;
-        case ReflectionKind.promise:
-            rt = new PromiseRunType();
-            break;
-        case ReflectionKind.property:
-        case ReflectionKind.propertySignature:
-            rt = new PropertyRunType();
-            break;
         case ReflectionKind.regexp:
             rt = new RegexpRunType();
-            break;
-        case ReflectionKind.rest:
-            rt = new RestParamsRunType();
             break;
         case ReflectionKind.string:
             rt = new StringRunType();
@@ -241,28 +192,84 @@ function createRunType(deepkitType: Mutable<SrcType>): RunType {
             throw new Error(
                 'Template Literals are resolved by the compiler to Literals ie: const tl = `${string}World`. Template literal types are not supported. ie type TL = `${string}World`'
             );
-            break;
-        case ReflectionKind.tuple:
-            rt = new TupleRunType();
-            break;
-        case ReflectionKind.tupleMember:
-            rt = new TupleMemberRunType();
-            break;
-        case ReflectionKind.typeParameter:
-            throw new Error('not implemented');
-            // rType = resolveTypeParameter(deepkitType, opts, mapper);
-            break;
         case ReflectionKind.undefined:
             rt = new UndefinedRunType();
-            break;
-        case ReflectionKind.union:
-            rt = new UnionRunType();
             break;
         case ReflectionKind.unknown:
             rt = new UnknownRunType();
             break;
         case ReflectionKind.void:
             rt = new VoidRunType();
+            break;
+
+        // ###################### MEMBER RUNTYPES ######################
+        // Types that represent members of collections or other structures
+        case ReflectionKind.array:
+            rt = new ArrayRunType();
+            break;
+        case ReflectionKind.callSignature:
+            rt = new CallSignatureRunType();
+            break;
+        case ReflectionKind.function:
+            const frt = new FunctionRunType();
+            (frt.parameterRunTypes as Mutable<RunType>).src = deepkitType;
+            rt = frt;
+            break;
+        case ReflectionKind.indexSignature:
+            rt = new IndexSignatureRunType();
+            break;
+        case ReflectionKind.method:
+            rt = new MethodRunType();
+            break;
+        case ReflectionKind.methodSignature:
+            rt = new MethodSignatureRunType();
+            break;
+        case ReflectionKind.parameter:
+            rt = new ParameterRunType();
+            break;
+        case ReflectionKind.property:
+        case ReflectionKind.propertySignature:
+            rt = new PropertyRunType();
+            break;
+        case ReflectionKind.rest:
+            rt = new RestParamsRunType();
+            break;
+        case ReflectionKind.tupleMember:
+            rt = new TupleMemberRunType();
+            break;
+        case ReflectionKind.promise:
+            rt = new PromiseRunType();
+            break;
+
+        // ###################### COLLECTION RUNTYPES ######################
+        case ReflectionKind.objectLiteral:
+            if (isNonSerializableObject(deepkitType)) {
+                rt = new NonSerializableRunType();
+            } else {
+                rt = new InterfaceRunType();
+            }
+            break;
+        case ReflectionKind.class:
+            rt = initClassRunType(deepkitType);
+            break;
+        // Types that contain other types as members
+        case ReflectionKind.infer:
+            throw new Error(
+                'Infer type not supported, ie: type MyType =Type<T> = T extends (...args: any[]) => infer R ? R : any; https://www.typescriptlang.org/docs/handbook/2/conditional-types.html'
+            );
+
+        case ReflectionKind.intersection:
+            rt = new IntersectionRunType();
+            break;
+
+        case ReflectionKind.tuple:
+            rt = new TupleRunType();
+            break;
+        case ReflectionKind.typeParameter:
+            throw new Error('not implemented');
+        // rType = resolveTypeParameter(deepkitType, opts, mapper);
+        case ReflectionKind.union:
+            rt = new UnionRunType();
             break;
         default:
             rt = new AnyRunType();

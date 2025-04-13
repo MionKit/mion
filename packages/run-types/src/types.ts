@@ -23,7 +23,7 @@ export interface RunType {
     readonly src: SrcType<any>;
     getKindName(): string;
     getFamily(): 'A' | 'C' | 'M' | 'F'; // Atomic, Collection, Member, Function
-    mock: (options?: Partial<MockOptions>) => any;
+    mock: (options?: Partial<MockOptions>) => Promise<any>;
 
     // ######## JIT functions ########
     getJitId(): StrNumber;

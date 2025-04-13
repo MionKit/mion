@@ -128,7 +128,7 @@ export class FunctionRunType<CallType extends AnyFunction = TypeFunction> extend
         return isPromiseRunType(this.getReturnType());
     }
     _mock(): any[] {
-        throw new Error('Function Mock is not allowed, call mockParams or mockReturn instead.');
+        throw new Error('Mock is not allowed, call mockParams or mockReturn instead.');
     }
     mockReturn(ctx?: MockOperation): any {
         return this.getReturnType().mock(ctx);
