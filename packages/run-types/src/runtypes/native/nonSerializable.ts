@@ -7,7 +7,7 @@
 
 import type {TypeClass, TypeObjectLiteral} from '@deepkit/type';
 import {BaseRunType} from '../../lib/baseRunTypes';
-import {JitConfig} from '../../types';
+import {JitConfig, jitCode} from '../../types';
 import {InterfaceRunType} from '../collection/interface';
 
 // Non serializable types might not be Atomic but will be skipped so it doesn't matter
@@ -19,31 +19,31 @@ export class NonSerializableRunType extends InterfaceRunType<TypeObjectLiteral |
             skipJit: false,
         };
     }
-    _compileIsType(): string {
+    _compileIsType(): jitCode {
         throw new Error(`Jit compilation disabled for Non Serializable types.`);
     }
-    _compileTypeErrors(): string {
+    _compileTypeErrors(): jitCode {
         throw new Error(`Jit compilation disabled for Non Serializable types.`);
     }
-    _compileToJsonVal(): string {
+    _compileToJsonVal(): jitCode {
         throw new Error(`Jit compilation disabled for Non Serializable types.`);
     }
-    _compileFromJsonVal(): string {
+    _compileFromJsonVal(): jitCode {
         throw new Error(`Jit compilation disabled for Non Serializable types.`);
     }
-    _compileJsonStringify(): string {
+    _compileJsonStringify(): jitCode {
         throw new Error(`Jit compilation disabled for Non Serializable types.`);
     }
-    _compileHasUnknownKeys(): string {
+    _compileHasUnknownKeys(): jitCode {
         throw new Error(`Jit compilation disabled for Non Serializable types.`);
     }
-    _compileUnknownKeyErrors(): string {
+    _compileUnknownKeyErrors(): jitCode {
         throw new Error(`Jit compilation disabled for Non Serializable types.`);
     }
-    _compileStripUnknownKeys(): string {
+    _compileStripUnknownKeys(): jitCode {
         throw new Error(`Jit compilation disabled for Non Serializable types.`);
     }
-    _compileUnknownKeysToUndefined(): string {
+    _compileUnknownKeysToUndefined(): jitCode {
         throw new Error(`Jit compilation disabled for Non Serializable types.`);
     }
     _mock(): any {

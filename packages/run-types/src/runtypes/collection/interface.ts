@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 import {TypeObjectLiteral, TypeClass, TypeIntersection, TypeProperty, ReflectionKind} from '@deepkit/type';
-import {MockOperation, RunType} from '../../types';
+import {MockOperation, RunType, jitCode} from '../../types';
 import {memorize, arrayToLiteral} from '../../lib/utils';
 import {PropertyRunType} from '../member/property';
 import {CollectionRunType, MemberRunType} from '../../lib/baseRunTypes';
@@ -42,7 +42,7 @@ export class InterfaceRunType<
 
     // #### collection's jit code ####
 
-    _compileIsType(comp: JitCompiler): string {
+    _compileIsType(comp: JitCompiler): jitCode {
         const varName = comp.vλl;
         const children = this.getJitChildren();
         const childrenCode = children.length ? `&& ${children.map((prop) => prop.compileIsType(comp)).join(' && ')}` : '';
@@ -50,7 +50,7 @@ export class InterfaceRunType<
         const arrayCheck = this.getArrayCheck(comp);
         return `(typeof ${varName} === 'object' && ${varName} !== null ${childrenCode} ${arrayCheck})`;
     }
-    _compileTypeErrors(comp: JitErrorsCompiler): string {
+    _compileTypeErrors(comp: JitErrorsCompiler): jitCode {
         const varName = comp.vλl;
         const children = this.getJitChildren();
         const childrenCode = children.length ? children.map((prop) => prop.compileTypeErrors(comp)).join(';') : '';
@@ -66,7 +66,7 @@ export class InterfaceRunType<
             }
         `;
     }
-    _compileToJsonVal(comp: JitCompiler) {
+    _compileToJsonVal(comp: JitCompiler): jitCode {
         if (this.isCallable()) return this.getCallSignature()!._compileToJsonVal();
         const children = this.getJitChildren();
         const childrenCode = children
@@ -75,7 +75,7 @@ export class InterfaceRunType<
             .join(';');
         return childrenCode || undefined;
     }
-    _compileFromJsonVal(comp: JitCompiler) {
+    _compileFromJsonVal(comp: JitCompiler): jitCode {
         if (this.isCallable()) return this.getCallSignature()!._compileFromJsonVal();
         const children = this.getJitChildren();
         const childrenCode = children
@@ -84,7 +84,7 @@ export class InterfaceRunType<
             .join(';');
         return childrenCode || undefined;
     }
-    _compileJsonStringify(comp: JitCompiler): string {
+    _compileJsonStringify(comp: JitCompiler): jitCode {
         if (this.isCallable()) return this.getCallSignature()!._compileJsonStringify();
         const children = this.getJsonStringifyChildren();
         if (children.length === 0) return `''`;
@@ -102,7 +102,7 @@ export class InterfaceRunType<
             .join('+');
         return `'{'+${childrenCode}+'}'`;
     }
-    private _compileJsonStringifyIntoArray(comp: JitCompiler, children: MemberRunType<any>[]): string {
+    private _compileJsonStringifyIntoArray(comp: JitCompiler, children: MemberRunType<any>[]): jitCode {
         const arrName = `ns${this.getNestLevel()}`;
         const childrenCode = children
             .map((prop) => {
@@ -118,13 +118,13 @@ export class InterfaceRunType<
 
         return `(function(){const ${arrName} = [];${childrenCode};return '{'+${arrName}.join(',')+'}'})()`;
     }
-    _compileHasUnknownKeys(comp: JitCompiler): string {
+    _compileHasUnknownKeys(comp: JitCompiler): jitCode {
         const allJitChildren = this.getJitChildren();
         const parentCode = this.callCheckUnknownProperties(comp, allJitChildren, false);
         const childrenCode = super._compileHasUnknownKeys(comp);
         return childrenCode ? `${parentCode} || ${childrenCode}` : parentCode;
     }
-    _compileUnknownKeyErrors(comp: JitErrorsCompiler): string {
+    _compileUnknownKeyErrors(comp: JitErrorsCompiler): jitCode {
         const allJitChildren = this.getJitChildren();
         const unknownVar = `unk${this.getNestLevel()}`;
         const keyVar = `ky${this.getNestLevel()}`;
@@ -135,7 +135,7 @@ export class InterfaceRunType<
         const childrenCode = super._compileUnknownKeyErrors(comp);
         return childrenCode ? `${parentCode}\n${childrenCode}` : parentCode;
     }
-    _compileStripUnknownKeys(comp: JitCompiler): string {
+    _compileStripUnknownKeys(comp: JitCompiler): jitCode {
         const allJitChildren = this.getJitChildren();
         const unknownVar = `unk${this.getNestLevel()}`;
         const keyVar = `ky${this.getNestLevel()}`;
@@ -146,7 +146,7 @@ export class InterfaceRunType<
         const childrenCode = super._compileStripUnknownKeys(comp);
         return childrenCode ? `${parentCode}\n${childrenCode}` : parentCode;
     }
-    _compileUnknownKeysToUndefined(comp: JitCompiler): string {
+    _compileUnknownKeysToUndefined(comp: JitCompiler): jitCode {
         const allJitChildren = this.getJitChildren();
         const unknownVar = `unk${this.getNestLevel()}`;
         const keyVar = `ky${this.getNestLevel()}`;

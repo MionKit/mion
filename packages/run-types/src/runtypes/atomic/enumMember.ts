@@ -7,7 +7,7 @@
 
 import {ReflectionKind, type TypeEnum} from '@deepkit/type';
 import {AtomicRunType} from '../../lib/baseRunTypes';
-import {JitConfig} from '../../types';
+import {JitConfig, jitCode} from '../../types';
 
 const jitConstants: JitConfig = {
     skipJit: true,
@@ -17,19 +17,19 @@ const jitConstants: JitConfig = {
 // TODO: not sure when run type will be generated but doesn't seem to be used when using reflection on enums
 export class EnumMemberRunType extends AtomicRunType<TypeEnum> {
     getJitConfig = () => jitConstants;
-    _compileIsType(): string {
+    _compileIsType(): jitCode {
         throw new Error('Enum member operations are not supported');
     }
-    _compileTypeErrors(): string {
+    _compileTypeErrors(): jitCode {
         throw new Error('Enum member operations are not supported');
     }
-    _compileToJsonVal(): string {
+    _compileToJsonVal(): jitCode {
         throw new Error('Enum member operations are not supported');
     }
-    _compileFromJsonVal(): string {
+    _compileFromJsonVal(): jitCode {
         throw new Error('Enum member operations are not supported');
     }
-    _compileJsonStringify(): string {
+    _compileJsonStringify(): jitCode {
         throw new Error('Enum member operations are not supported');
     }
     _mock() {

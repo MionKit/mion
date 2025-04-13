@@ -6,7 +6,7 @@
  * ######## */
 
 import {ReflectionKind, TypeEnum} from '@deepkit/type';
-import type {MockOperation, JitConfig} from '../../types';
+import type {MockOperation, JitConfig, jitCode} from '../../types';
 import {toLiteral} from '../../lib/utils';
 import {random} from '../../lib/mock';
 import {AtomicRunType} from '../../lib/baseRunTypes';
@@ -19,13 +19,13 @@ const jitConstants: JitConfig = {
 
 export class EnumRunType extends AtomicRunType<TypeEnum> {
     getJitConfig = () => jitConstants;
-    _compileIsType(comp: JitCompiler): string {
+    _compileIsType(comp: JitCompiler): jitCode {
         return this.src.values.map((v) => `${comp.vλl} === ${toLiteral(v)}`).join(' || ');
     }
-    _compileTypeErrors(comp: JitErrorsCompiler): string {
+    _compileTypeErrors(comp: JitErrorsCompiler): jitCode {
         return `if (!(${this._compileIsType(comp)})) ${comp.callJitErr(this)}`;
     }
-    _compileJsonStringify(comp: JitCompiler): string {
+    _compileJsonStringify(comp: JitCompiler): jitCode {
         if (this.src.indexType.kind === ReflectionKind.number) return comp.vλl;
         return `JSON.stringify(${comp.vλl})`;
     }

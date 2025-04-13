@@ -4,7 +4,7 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
-import type {MockOperation, JitConfig, AnyFunction, SrcType, JitFn} from '../../types';
+import type {MockOperation, JitConfig, AnyFunction, SrcType, JitFn, jitCode} from '../../types';
 import {ReflectionKind, TypeFunction} from '@deepkit/type';
 import {BaseRunType} from '../../lib/baseRunTypes';
 import {isAnyFunctionRunType, isFunctionRunType, isPromiseRunType} from '../../lib/guards';
@@ -64,7 +64,7 @@ export class FunctionRunType<CallType extends AnyFunction = TypeFunction> extend
     // ######## JIT functions (all throw error) ########
 
     // can't know the types of the runtype function parameters, neither the return type, so only compare function name and length
-    _compileIsType(comp: JitCompiler): string {
+    _compileIsType(comp: JitCompiler): jitCode {
         const minLength = this.parameterRunTypes.totalRequiredParams();
         const totalParams = this.parameterRunTypes.getChildRunTypes().length;
         const hasOptional = totalParams > minLength;
@@ -72,31 +72,31 @@ export class FunctionRunType<CallType extends AnyFunction = TypeFunction> extend
             this.parameterRunTypes.hasRestParameter() || !hasOptional ? '' : ` && ${comp.vλl}.length <= ${totalParams}`;
         return `(typeof ${comp.vλl} === 'function' && ${comp.vλl}.length >= ${minLength} ${maxLength})`;
     }
-    _compileTypeErrors(comp: JitErrorsCompiler): string {
+    _compileTypeErrors(comp: JitErrorsCompiler): jitCode {
         return `if (!(${this._compileIsType(comp)})) ${comp.callJitErr(this)};`;
     }
     /**
      * json encode a function
      */
-    _compileToJsonVal(): string {
+    _compileToJsonVal(): jitCode {
         throw new Error(`Compile function ToJsonVal not supported, call compileParams or compileReturn instead.`);
     }
-    _compileFromJsonVal(): string {
+    _compileFromJsonVal(): jitCode {
         throw new Error(`Compile function FromJsonVal not supported, call compileParams or compileReturn instead.`);
     }
-    _compileJsonStringify(): string {
+    _compileJsonStringify(): jitCode {
         throw new Error(`Compile function JsonStringify not supported, call compileParams or compileReturn instead.`);
     }
-    _compileHasUnknownKeys(): string {
+    _compileHasUnknownKeys(): jitCode {
         return '';
     }
-    _compileUnknownKeyErrors(): string {
+    _compileUnknownKeyErrors(): jitCode {
         return '';
     }
-    _compileStripUnknownKeys(): string {
+    _compileStripUnknownKeys(): jitCode {
         return '';
     }
-    _compileUnknownKeysToUndefined(): string {
+    _compileUnknownKeysToUndefined(): jitCode {
         return '';
     }
 

@@ -6,7 +6,7 @@
  * ######## */
 
 import {ReflectionKind, type TypeString} from '@deepkit/type';
-import type {MockOperation, JitConfig} from '../../types';
+import type {MockOperation, JitConfig, jitCode} from '../../types';
 import {mockString, random} from '../../lib/mock';
 import {AtomicRunType} from '../../lib/baseRunTypes';
 import {stringCharSet} from '../../constants.mock';
@@ -19,14 +19,14 @@ const jitConstants: JitConfig = {
 
 export class StringRunType extends AtomicRunType<TypeString> {
     getJitConfig = () => jitConstants;
-    _compileIsType(comp: JitCompiler): string {
+    _compileIsType(comp: JitCompiler): jitCode {
         return `typeof ${comp.vλl} === 'string'`;
     }
-    _compileTypeErrors(comp: JitErrorsCompiler): string {
+    _compileTypeErrors(comp: JitErrorsCompiler): jitCode {
         return `if (typeof ${comp.vλl} !== 'string') ${comp.callJitErr(this)}`;
     }
 
-    _compileJsonStringify(comp: JitCompiler): string {
+    _compileJsonStringify(comp: JitCompiler): jitCode {
         return `utl.asJSONString(${comp.vλl})`;
     }
     _mock(ctx: MockOperation): string {

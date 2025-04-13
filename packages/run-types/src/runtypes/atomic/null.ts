@@ -7,7 +7,7 @@
 
 import {ReflectionKind, type TypeNull} from '@deepkit/type';
 import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
-import type {JitConfig} from '../../types';
+import type {JitConfig, jitCode} from '../../types';
 import {AtomicRunType} from '../../lib/baseRunTypes';
 
 const jitConstants: JitConfig = {
@@ -17,19 +17,19 @@ const jitConstants: JitConfig = {
 
 export class NullRunType extends AtomicRunType<TypeNull> {
     getJitConfig = () => jitConstants;
-    _compileIsType(comp: JitCompiler): string {
+    _compileIsType(comp: JitCompiler): jitCode {
         return `${comp.vλl} === null`;
     }
-    _compileTypeErrors(comp: JitErrorsCompiler): string {
+    _compileTypeErrors(comp: JitErrorsCompiler): jitCode {
         return `if (${comp.vλl} !== null) ${comp.callJitErr(this)}`;
     }
-    _compileToJsonVal() {
+    _compileToJsonVal(): jitCode {
         return undefined;
     }
-    _compileFromJsonVal() {
+    _compileFromJsonVal(): jitCode {
         return undefined;
     }
-    _compileJsonStringify(comp: JitCompiler) {
+    _compileJsonStringify(comp: JitCompiler): jitCode {
         return comp.vλl;
     }
     _mock(): null {

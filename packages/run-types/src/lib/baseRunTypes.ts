@@ -58,7 +58,7 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
     getKindName = memorize((): AnyKindName => getReflectionName(this));
     getTypeName = (): string => this.src.typeName || this.getKindName();
     getFormatAnnotations = (): FormatAnnotation[] => getFormatAnnotations(this);
-    getFormatterJitId = memorize((): jitCode => {
+    getFormatterJitId = memorize((): string | undefined => {
         const formatter = getRunTypeFormatter(this);
         if (!formatter) return;
         return `<${typeParamsToString(formatter.getParams(this), defaultIgnoreFormatProps)}>`;
@@ -253,7 +253,7 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
      * @param fnId operation id
      * @returns
      */
-    private compile(comp: JitCompiler, fnId: JitFnID) {
+    private compile(comp: JitCompiler, fnId: JitFnID): jitCode {
         let code: jitCode;
         comp.pushStack(this);
         if (comp.shouldCallDependency()) {
@@ -321,7 +321,7 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
         return formattersCode.join(separator);
     }
 
-    callDependency(currentCop: JitCompiler, comp: JitCompiled): string {
+    callDependency(currentCop: JitCompiler, comp: JitCompiled): jitCode {
         const stackItem = currentCop.getCurrentStackItem();
         const isErrorCall = comp.fnId === JitFunctions.typeErrors.id || comp.fnId === JitFunctions.unknownKeyErrors.id;
         const args = isErrorCall ? jitErrorArgs : jitArgs;
@@ -347,7 +347,7 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
         return callCode;
     }
 
-    handleReturnValues(comp: JitCompiler, currentOpId: JitFnID, code: string, isCallDependency?: true): string {
+    handleReturnValues(comp: JitCompiler, currentOpId: JitFnID, code: string, isCallDependency?: true): jitCode {
         const codeHasReturn: boolean = isCallDependency ?? this.jitFnHasReturn(currentOpId);
         const isExpression: boolean = this.jitFnIsExpression(currentOpId);
         const isRoot = comp.length === 1;
@@ -461,25 +461,25 @@ export abstract class CollectionRunType<T extends Type> extends BaseRunType<T> {
     getJitConfig(stack: BaseRunType[] = []): JitConfig {
         return this._getJitConfig(stack);
     }
-    _compileHasUnknownKeys(comp: JitCompiler): string {
+    _compileHasUnknownKeys(comp: JitCompiler): jitCode {
         return this.getJitChildren()
             .map((c) => c.compileHasUnknownKeys(comp))
             .filter((code) => !!code)
             .join(' || ');
     }
-    _compileUnknownKeyErrors(comp: JitErrorsCompiler): string {
+    _compileUnknownKeyErrors(comp: JitErrorsCompiler): jitCode {
         return this.getJitChildren()
             .map((c) => c.compileUnknownKeyErrors(comp))
             .filter((code) => !!code)
             .join(';');
     }
-    _compileStripUnknownKeys(comp: JitCompiler): string {
+    _compileStripUnknownKeys(comp: JitCompiler): jitCode {
         return this.getJitChildren()
             .map((c) => c.compileStripUnknownKeys(comp))
             .filter((code) => !!code)
             .join(';');
     }
-    _compileUnknownKeysToUndefined(comp: JitCompiler): string {
+    _compileUnknownKeysToUndefined(comp: JitCompiler): jitCode {
         return this.getJitChildren()
             .map((c) => c.compileUnknownKeysToUndefined(comp))
             .filter((code) => !!code)
