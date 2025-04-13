@@ -33,7 +33,7 @@ export const stringIgnoreProps = ['samples', 'sampleChars'];
  * Jit code will be generated for each one of the StringFormat parameters.
  */
 export class StringRunTypeFormat extends BaseRunTypeFormat<FormatParams_String> {
-    static readonly id = 'strFormat' as const;
+    static readonly id = 'stringFormat' as const;
     readonly kind = ReflectionKind.string;
     readonly name = StringRunTypeFormat.id;
 
@@ -87,17 +87,20 @@ export class StringRunTypeFormat extends BaseRunTypeFormat<FormatParams_String> 
         const literalFn = getToLiteralFn(comp, this.getIgnoredProps());
         const errFn = this.getCallJitFormatErr(comp, rt, this, true);
         if (p.maxLength !== undefined) {
-            const errCode = errFn('maxLength', fpVal(p.maxLength));
-            conditions.push(`if (${vλl}.length > ${literalFn(p.maxLength)}) ${errCode}`);
+            const maxL = fpVal(p.maxLength);
+            const errCode = errFn('maxLength', maxL);
+            conditions.push(`if (${vλl}.length > ${maxL}) ${errCode}`);
         }
 
         if (p.minLength !== undefined) {
-            const errCode = errFn('minLength', fpVal(p.minLength));
-            conditions.push(`if (${vλl}.length < ${literalFn(p.minLength)}) ${errCode}`);
+            const minL = fpVal(p.minLength);
+            const errCode = errFn('minLength', minL);
+            conditions.push(`if (${vλl}.length < ${minL}) ${errCode}`);
         }
         if (p.length !== undefined) {
-            const errCode = errFn('length', fpVal(p.length));
-            conditions.push(`if (${vλl}.length !== ${literalFn(p.length)}) ${errCode}`);
+            const length = fpVal(p.length);
+            const errCode = errFn('length', length);
+            conditions.push(`if (${vλl}.length !== ${length}) ${errCode}`);
         }
         if (p.pattern !== undefined) {
             const errCode = errFn('pattern', getDefaultMessage('pattern', p));

@@ -22,7 +22,7 @@ it('validate string max length 2', async () => {
 it('get max length errors', async () => {
     type Max5 = StringFormat<{maxLength: 5}>;
     const typeErrors = await typeErrorsFn<Max5>();
-    const format: TypeFormatError = {name: 'strFormat', val: 5, formatPath: ['maxLength']};
+    const format: TypeFormatError = {name: 'stringFormat', val: 5, formatPath: ['maxLength']};
     const expectedError: RunTypeError = {expected: 'string', path: [], format};
     expect(typeErrors('aaaa')).toEqual([]);
     expect(typeErrors('aaaaa')).toEqual([]);
@@ -51,7 +51,7 @@ it('validate string min length', async () => {
 it('get min length errors', async () => {
     type Min5 = StringFormat<{minLength: 5}>;
     const typeErrors = await typeErrorsFn<Min5>();
-    const format: TypeFormatError = {name: 'strFormat', val: 5, formatPath: ['minLength']};
+    const format: TypeFormatError = {name: 'stringFormat', val: 5, formatPath: ['minLength']};
     const expectedError: RunTypeError = {expected: 'string', path: [], format};
     expect(typeErrors('aaaa')).toEqual([expectedError]);
     expect(typeErrors('aaaaa')).toEqual([]);
@@ -80,7 +80,7 @@ it('validate string length', async () => {
 it('get length errors', async () => {
     type Length5 = StringFormat<{length: 5}>;
     const typeErrors = await typeErrorsFn<Length5>();
-    const format: TypeFormatError = {name: 'strFormat', val: 5, formatPath: ['length']};
+    const format: TypeFormatError = {name: 'stringFormat', val: 5, formatPath: ['length']};
     const expectedError: RunTypeError = {expected: 'string', path: [], format};
     expect(typeErrors('aaaa')).toEqual([expectedError]);
     expect(typeErrors('aaaaa')).toEqual([]);
@@ -113,7 +113,7 @@ it('get pattern errors', async () => {
     type AlphaPattern = StringFormat<{
         pattern: {val: typeof regex; mockSamples: 'abcdefgABCDEFG'; reason: 'only letters allowed'};
     }>;
-    const format: TypeFormatError = {name: 'strFormat', val: 'only letters allowed', formatPath: ['pattern']};
+    const format: TypeFormatError = {name: 'stringFormat', val: 'only letters allowed', formatPath: ['pattern']};
     const expectedError: RunTypeError = {expected: 'string', path: [], format};
     const typeErrors = await typeErrorsFn<AlphaPattern>();
     expect(typeErrors('aaaa')).toEqual([]);
@@ -163,7 +163,7 @@ it('validate string allowedValues', async () => {
 it('get allowedValues errors', async () => {
     type AllowedValues = StringFormat<{minLength: 1; allowedValues: {val: ['a', 'b', 'c']; reason: 'only a, b or c allowed'}}>;
     const typeErrors = await typeErrorsFn<AllowedValues>();
-    const format: TypeFormatError = {name: 'strFormat', val: 'only a, b or c allowed', formatPath: ['allowedValues']};
+    const format: TypeFormatError = {name: 'stringFormat', val: 'only a, b or c allowed', formatPath: ['allowedValues']};
     const expectedError: RunTypeError = {expected: 'string', path: [], format};
     expect(typeErrors('a')).toEqual([]);
     expect(typeErrors('b')).toEqual([]);
@@ -201,7 +201,7 @@ it('get allowedValues errors with ignoreCase', async () => {
         allowedValues: {val: ['a', 'b', 'c']; reason: 'only a, b or c allowed'; ignoreCase: true};
     }>;
     const typeErrors = await typeErrorsFn<AllowedValuesIgnoreCase>();
-    const format: TypeFormatError = {name: 'strFormat', val: 'only a, b or c allowed', formatPath: ['allowedValues']};
+    const format: TypeFormatError = {name: 'stringFormat', val: 'only a, b or c allowed', formatPath: ['allowedValues']};
     const expectedError: RunTypeError = {expected: 'string', path: [], format};
     expect(typeErrors('a')).toEqual([]);
     expect(typeErrors('A')).toEqual([]); // Should not have errors due to ignoreCase
@@ -246,7 +246,7 @@ it('get disallowedValues errors', async () => {
         disallowedValues: {val: ['a', 'b', 'c']; reason: 'a, b or c not allowed'; mockSamples: 'dfgthplk98765l'};
     }>;
     const typeErrors = await typeErrorsFn<DisallowedValues>();
-    const format: TypeFormatError = {name: 'strFormat', val: 'a, b or c not allowed', formatPath: ['disallowedValues']};
+    const format: TypeFormatError = {name: 'stringFormat', val: 'a, b or c not allowed', formatPath: ['disallowedValues']};
     const expectedError: RunTypeError = {expected: 'string', path: [], format};
     expect(typeErrors('a')).toEqual([expectedError]);
     expect(typeErrors('b')).toEqual([expectedError]);
@@ -297,7 +297,7 @@ it('get disallowedValues errors with ignoreCase', async () => {
         };
     }>;
     const typeErrors = await typeErrorsFn<DisallowedValuesIgnoreCase>();
-    const format: TypeFormatError = {name: 'strFormat', val: 'a, b or c not allowed', formatPath: ['disallowedValues']};
+    const format: TypeFormatError = {name: 'stringFormat', val: 'a, b or c not allowed', formatPath: ['disallowedValues']};
     const expectedError: RunTypeError = {expected: 'string', path: [], format};
     expect(typeErrors('a')).toEqual([expectedError]);
     expect(typeErrors('A')).toEqual([expectedError]); // Should have errors due to ignoreCase
@@ -367,7 +367,7 @@ it('validate string allowedChars that include characters that needs to be escape
 it('get allowedChars errors', async () => {
     type AllowedChars = StringFormat<{allowedChars: {val: 'abc'; reason: 'only a, b or c allowed'}}>;
     const typeErrors = await typeErrorsFn<AllowedChars>();
-    const format: TypeFormatError = {name: 'strFormat', val: 'only a, b or c allowed', formatPath: ['allowedChars']};
+    const format: TypeFormatError = {name: 'stringFormat', val: 'only a, b or c allowed', formatPath: ['allowedChars']};
     const expectedError: RunTypeError = {expected: 'string', path: [], format};
     expect(typeErrors('a')).toEqual([]);
     expect(typeErrors('b')).toEqual([]);
@@ -409,7 +409,7 @@ it('validate string allowedChars with ignoreCase', async () => {
 it('get allowedChars errors with ignoreCase', async () => {
     type AllowedCharsIgnoreCase = StringFormat<{allowedChars: {val: 'abc'; reason: 'only a, b or c allowed'; ignoreCase: true}}>;
     const typeErrors = await typeErrorsFn<AllowedCharsIgnoreCase>();
-    const format: TypeFormatError = {name: 'strFormat', val: 'only a, b or c allowed', formatPath: ['allowedChars']};
+    const format: TypeFormatError = {name: 'stringFormat', val: 'only a, b or c allowed', formatPath: ['allowedChars']};
     const expectedError: RunTypeError = {expected: 'string', path: [], format};
     expect(typeErrors('a')).toEqual([]);
     expect(typeErrors('A')).toEqual([]); // Should not have errors due to ignoreCase
@@ -492,7 +492,7 @@ it('get disallowedChars errors', async () => {
         disallowedChars: {val: 'abc'; reason: 'a, b or c not allowed'; mockSamples: 'dfgthplk98765l'};
     }>;
     const typeErrors = await typeErrorsFn<DisallowedChars>();
-    const format: TypeFormatError = {name: 'strFormat', val: 'a, b or c not allowed', formatPath: ['disallowedChars']};
+    const format: TypeFormatError = {name: 'stringFormat', val: 'a, b or c not allowed', formatPath: ['disallowedChars']};
     const expectedError: RunTypeError = {expected: 'string', path: [], format};
     expect(typeErrors('a')).toEqual([expectedError]);
     expect(typeErrors('b')).toEqual([expectedError]);
@@ -546,7 +546,7 @@ it('get disallowedChars errors with ignoreCase', async () => {
         disallowedChars: {val: 'abc'; reason: 'a, b or c not allowed'; mockSamples: 'dfgthplk98765l'; ignoreCase: true};
     }>;
     const typeErrors = await typeErrorsFn<DisallowedCharsIgnoreCase>();
-    const format: TypeFormatError = {name: 'strFormat', val: 'a, b or c not allowed', formatPath: ['disallowedChars']};
+    const format: TypeFormatError = {name: 'stringFormat', val: 'a, b or c not allowed', formatPath: ['disallowedChars']};
     const expectedError: RunTypeError = {expected: 'string', path: [], format};
     expect(typeErrors('a')).toEqual([expectedError]);
     expect(typeErrors('A')).toEqual([expectedError]); // Should have errors due to ignoreCase
@@ -604,7 +604,7 @@ it('get multiple params errors', async () => {
         maxLength: 8;
     }>;
     const typeErrors = await typeErrorsFn<Multi>();
-    const format: TypeFormatError = {name: 'strFormat', formatPath: [], val: ''};
+    const format: TypeFormatError = {name: 'stringFormat', formatPath: [], val: ''};
     const expectedError: RunTypeError = {expected: 'string', path: [], format};
     const alphaError: RunTypeError = {
         ...expectedError,
@@ -628,7 +628,7 @@ it('only only one error is returned by string format', async () => {
         maxLength: 8;
     }>;
     const typeErrors = await typeErrorsFn<Multi>();
-    const format: TypeFormatError = {name: 'strFormat', formatPath: [], val: ''};
+    const format: TypeFormatError = {name: 'stringFormat', formatPath: [], val: ''};
     const expectedError: RunTypeError = {expected: 'string', path: [], format};
     const alphaError: RunTypeError = {
         ...expectedError,
@@ -677,7 +677,7 @@ it('Generated regexp should be scaped for allowedValues', async () => {
     const err: RunTypeError = {
         expected: 'string',
         path: [],
-        format: {name: 'strFormat', formatPath: ['allowedValues'], val: 'values not allowed'},
+        format: {name: 'stringFormat', formatPath: ['allowedValues'], val: 'values not allowed'},
     };
     // allowed vals
     expect(isType('hello/.+?>^[a-z-A-Z]')).toBe(true);
@@ -711,7 +711,7 @@ it('Generated regexp should be scaped for disallowedValues', async () => {
     const err: RunTypeError = {
         expected: 'string',
         path: [],
-        format: {name: 'strFormat', formatPath: ['disallowedValues'], val: 'values not allowed'},
+        format: {name: 'stringFormat', formatPath: ['disallowedValues'], val: 'values not allowed'},
     };
     // not allowed vals
     expect(isType('hello/.+?>^[a-z-A-Z]')).not.toBe(true);
@@ -741,7 +741,7 @@ it('Generated regexp should be scaped for allowedChars', async () => {
     const err: RunTypeError = {
         expected: 'string',
         path: [],
-        format: {name: 'strFormat', formatPath: ['allowedChars'], val: 'only special chars allowed'},
+        format: {name: 'stringFormat', formatPath: ['allowedChars'], val: 'only special chars allowed'},
     };
     expect(isType('!')).toBe(true);
     expect(isType('\\')).toBe(true);
@@ -793,7 +793,7 @@ it('Generated regexp should be scaped for disallowedChars', async () => {
     const err: RunTypeError = {
         expected: 'string',
         path: [],
-        format: {name: 'strFormat', formatPath: ['disallowedChars'], val: 'only special chars allowed'},
+        format: {name: 'stringFormat', formatPath: ['disallowedChars'], val: 'only special chars allowed'},
     };
     expect(isType('!')).not.toBe(true);
     expect(isType('\\')).not.toBe(true);
