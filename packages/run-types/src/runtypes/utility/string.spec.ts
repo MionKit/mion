@@ -47,8 +47,8 @@ describe.skip('Uppercase typescript utility type', () => {
         expect(decoded).toEqual(upperString);
     });
 
-    it('mock', () => {
-        const mocked = rt.mock();
+    it('mock', async () => {
+        const mocked = await rt.mock();
         const isType = rt.createJitFunction(JitFunctions.isType);
         expect(isType(mocked)).toEqual(true);
         expect(mocked.c instanceof Date).toBe(true);

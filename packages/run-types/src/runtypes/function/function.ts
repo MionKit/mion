@@ -21,9 +21,12 @@ const functionJitConstants: JitConfig = {
 export class FunctionRunType<CallType extends AnyFunction = TypeFunction> extends BaseRunType<CallType> {
     // parameterRunTypes.src must be set after FunctionRunType creation
     parameterRunTypes: TupleRunType = new TupleRunType();
+
     onCreated(deepkitType: SrcType): void {
+        // here we are mapping parameters from TypeParameter[] to TypeTuple as TupleRunType() is the same functionality as ParameterRunType[]
         super.onCreated(deepkitType);
-        this.parameterRunTypes.onCreated({...deepkitType, subKind: ReflectionSubKind.params});
+        // todo the deepkit type is a
+        this.parameterRunTypes.onCreated({...deepkitType, kind: ReflectionKind.tuple, subKind: ReflectionSubKind.params});
     }
     getJitConfig = (): JitConfig => functionJitConstants;
     getFamily(): 'F' {
@@ -128,12 +131,12 @@ export class FunctionRunType<CallType extends AnyFunction = TypeFunction> extend
         return isPromiseRunType(this.getReturnType());
     }
     _mock(): any[] {
-        throw new Error('Mock is not allowed, call mockParams or mockReturn instead.');
+        throw new Error('Function Mock is not allowed, call mockParams or mockReturn instead.');
     }
     mockReturn(ctx?: MockOperation): any {
-        return this.getReturnType().mock(ctx);
+        return this.getReturnType().mockType(ctx);
     }
     mockParams(ctx?: MockOperation): any[] {
-        return this.parameterRunTypes.mock(ctx);
+        return this.parameterRunTypes.mockType(ctx);
     }
 }

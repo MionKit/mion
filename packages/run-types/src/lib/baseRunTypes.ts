@@ -45,6 +45,7 @@ import {
     defaultIgnoreFormatProps,
 } from './formats';
 import {typeParamsToString} from './utils';
+import type {mock} from '../mock/mockType';
 
 const functionRegistry: Map<JitFnSetting, (...args: any[]) => any> = new Map();
 
@@ -124,75 +125,36 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
     // ########## Mock ##########
 
     async mock(k?: Partial<MockOptions>): Promise<any> {
-        const mockFn = functionRegistry.get(JitFunctions.mock);
-        if (mockFn) return mockFn;
-        const newLoadedMockFn = await JitFunctions.mock.import();
-        functionRegistry.set(JitFunctions.mock, newLoadedMockFn);
-        return newLoadedMockFn(this, k);
+        // although the mock function is not jit, it is also stored in the registry
+        const mockFn = (await this.loadRegisteredFunction(JitFunctions.mock)) as typeof mock;
+        return mockFn(this, k);
     }
 
-    // // Keep the synchronous version for backward compatibility
-    // mock(k?: Partial<MockOptions>): any {
-    //     const ctx = this.initMockOptions(k);
-    //     ctx.stack.push(this);
-    //     const recursionLevel = ctx.stack.filter((rt) => rt === this).length;
-    //     const updatedContext = recursionLevel ? this.onCircularMock(ctx, recursionLevel) : ctx;
-    //     // Just one type validator allowed per type, and is responsible to mock the value,
-    //     // ie: email and uuid should contain the logic to generate a valid value
-    //     const typeValidator = getRunTypeFormatter(this);
-    //     let mocked = typeValidator ? typeValidator.mock(updatedContext, this) : this._mock(updatedContext);
-    //     // once mocked multiple type transformers can be applied to the mocked value
-    //     const typeTransformers = getRunTypeTransformers(this);
-    //     if (typeTransformers.length) {
-    //         const compiledFormatters = typeTransformers
-    //             .filter((t) => !!t._compileFormat)
-    //             .map((t) => this.createJitCompiledFunction(JitFunctions.format.id));
-    //         const formatters = compiledFormatters.filter((c) => !c.isNoop).map((c) => c.fn);
-    //         mocked = formatters.reduce((acc, format) => format(acc), mocked);
-    //     }
-    //     ctx.stack.pop();
-    //     return mocked;
-    // }
+    /** synchronous version of mock, throws an error if the mock function has not been loaded */
+    mockType(k?: Partial<MockOptions>): any {
+        const mockFn = this.getRegisteredFunction(JitFunctions.mock) as typeof mock;
+        return mockFn(this, k);
+    }
 
-    // // reduces all probabilities within the MockOptions to prevent infinite loops
-    // // each time mocking is a level deeper, the probabilities to generate an optional property should be reduced
-    // // this does not prevent infinite loops on types with circular references that are non optional,
-    // // we probably should throw an error in this case but these kind of types are technically not possible in real world so we can ignore them for now
-    // private onCircularMock(ctx: MockOperation, recursionLevel): MockOperation {
-    //     const maxDepth = ctx.maxMockRecursion;
-    //     const divisor = recursionLevel;
-    //     const {optionalProbability, maxRandomItemsLength: maxRandomArrayLength, optionalPropertyProbability, arrayLength} = ctx;
-    //     const newProv = recursionLevel >= maxDepth ? 0 : optionalProbability / divisor;
-    //     const newMaxLength = recursionLevel >= maxDepth ? 0 : Math.round(maxRandomArrayLength / divisor);
-    //     // console.log(`divisor: ${divisor} | newMaxLength: ${newMaxLength} | newProv: ${newProv}`);
-    //     const ret: MockOperation = {
-    //         ...ctx,
-    //         optionalProbability: newProv,
-    //         maxRandomItemsLength: newMaxLength,
-    //     };
-    //     if (optionalPropertyProbability) {
-    //         const entries = Object.entries(optionalPropertyProbability).map(([key, value]) => {
-    //             const newProv = recursionLevel > maxDepth ? 0 : value / divisor;
-    //             return [key, value / newProv];
-    //         });
-    //         ret.optionalPropertyProbability = Object.fromEntries(entries);
-    //     }
-    //     if (arrayLength) {
-    //         const newLength = recursionLevel >= maxDepth ? 0 : Math.round(arrayLength / divisor);
-    //         ret.arrayLength = newLength;
-    //     }
-    //     if (ret.parentObj) ret.parentObj = {}; // prevents mocking objects with circular references
-    //     return ret;
-    // }
+    // ########## Load Composable Functions ##########
+    loadRegisteredFunction = async (jitFn: JitFnSetting): Promise<(...args: any[]) => any> => {
+        const fn = functionRegistry.get(jitFn);
+        if (fn) return fn;
+        if (!jitFn.import) throw new Error(`Jit function ${jitFn.name} has no import function`);
+        functionRegistry.forEach((_v, k) => {
+            if (k.id === jitFn.id) throw new Error('A function with the same id already exists in the functions registry');
+        });
+        const newFn = await jitFn.import();
+        functionRegistry.set(JitFunctions.mock, newFn);
+        return newFn;
+    };
 
-    // private initMockOptions(k?: Partial<MockOptions>): MockOperation {
-    //     if (k && isMockContext(k)) return k;
-    //     return {
-    //         ...defaultMockOptions,
-    //         ...(k || {}),
-    //         stack: [],
-    //     };
-    // }
+    /** synchronous version of loadRegisteredFunction, throws an error if the function has not been loaded */
+    getRegisteredFunction = (jitFn: JitFnSetting): ((...args: any[]) => any) => {
+        const fn = functionRegistry.get(jitFn);
+        if (fn) return fn;
+        throw new Error(`Function ${jitFn.name} has not been loaded.`);
+    };
 
     // ########## Create Jit Functions ##########
 

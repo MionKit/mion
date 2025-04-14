@@ -35,8 +35,8 @@ export class ClassRunType extends InterfaceRunType<TypeClass> {
         // only properties that are used in jit operations are mocked, there properties should be initialized in the constructor
         this.getJitChildren().forEach((prop) => {
             const name = (prop as PropertyRunType).getChildVarName();
-            if (prop instanceof IndexSignatureRunType) prop.mock(ctx);
-            else instance[name] = prop.mock(ctx as MockOperation);
+            if (prop instanceof IndexSignatureRunType) prop.mockType(ctx);
+            else instance[name] = prop.mockType(ctx as MockOperation);
         });
         return instance;
     }

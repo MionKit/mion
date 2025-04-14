@@ -69,10 +69,11 @@ describe('Array', () => {
         expect(roundTrip2).toEqual(typeValue2);
     });
 
-    it('mock', () => {
-        expect(rt.mock() instanceof Array).toBe(true);
+    it('mock', async () => {
+        const mocked = await rt.mock();
+        expect(mocked instanceof Array).toBe(true);
         const validate = rt.createJitFunction(JitFunctions.isType);
-        expect(validate(rt.mock())).toBe(true);
+        expect(validate(mocked)).toBe(true);
     });
 });
 
@@ -138,10 +139,11 @@ describe('Array with multiple dimensions', () => {
         expect(roundTrip2).toEqual(typeValue2);
     });
 
-    it('mock', () => {
+    it('mock', async () => {
         const validate = rt.createJitFunction(JitFunctions.isType);
-        expect(rt.mock() instanceof Array).toBe(true);
-        expect(validate(rt.mock())).toBe(true);
+        const mocked = await rt.mock();
+        expect(mocked instanceof Array).toBe(true);
+        expect(validate(mocked)).toBe(true);
     });
 });
 
@@ -458,9 +460,10 @@ describe('Array circular ref', () => {
         expect(roundTrip2).toEqual(arr2);
     });
 
-    it('mock CircularArray', () => {
+    it('mock CircularArray', async () => {
         const validate = rt.createJitFunction(JitFunctions.isType);
-        expect(rt.mock() instanceof Array).toBe(true);
-        expect(validate(rt.mock())).toBe(true);
+        const mocked = await rt.mock();
+        expect(mocked instanceof Array).toBe(true);
+        expect(validate(mocked)).toBe(true);
     });
 });

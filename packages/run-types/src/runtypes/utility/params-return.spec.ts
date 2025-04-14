@@ -65,9 +65,9 @@ describe('Parameters & ReturnType typescript utility type', () => {
         expect(decodeReturn(JSON.parse(stringifyReturn(returnVal)))).toEqual(returnVal);
     });
 
-    it('mock', () => {
-        const mocked = rt.mock();
-        const mockedReturn = rtReturn.mock();
+    it('mock', async () => {
+        const mocked = await rt.mock();
+        const mockedReturn = await rtReturn.mock();
         const isType = rt.createJitFunction(JitFunctions.isType);
         const isTypeReturn = rtReturn.createJitFunction(JitFunctions.isType);
 
@@ -120,8 +120,8 @@ describe('ConstructorParameter typescript utility type', () => {
         expect(decode(JSON.parse(stringify(params1)))).toEqual(params);
     });
 
-    it('mock', () => {
-        const mocked = rt.mock();
+    it('mock', async () => {
+        const mocked = await rt.mock();
         const isType = rt.createJitFunction(JitFunctions.isType);
 
         expect(typeof mocked[0] === 'string').toBe(true);

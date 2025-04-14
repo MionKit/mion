@@ -54,7 +54,7 @@ export function mock(runType: BaseRunType, k?: Partial<MockOptions>): any {
 // each time mocking is a level deeper, the probabilities to generate an optional property should be reduced
 // this does not prevent infinite loops on types with circular references that are non optional,
 // we probably should throw an error in this case but these kind of types are technically not possible in real world so we can ignore them for now
-function onCircularMock(ctx: MockOperation, recursionLevel): MockOperation {
+function onCircularMock(ctx: MockOperation, recursionLevel: number): MockOperation {
     const maxDepth = ctx.maxMockRecursion;
     const divisor = recursionLevel;
     const {optionalProbability, maxRandomItemsLength: maxRandomArrayLength, optionalPropertyProbability, arrayLength} = ctx;
@@ -102,7 +102,7 @@ function _mock(runType: BaseRunType, ctx: MockOperation): any {
 
     switch (kind) {
         case ReflectionKind.never:
-            throw new Error('Cannot mock never type');
+            throw new Error('Cannot mock never type.');
         case ReflectionKind.any:
         case ReflectionKind.unknown:
             return mockAny(ctx.anyValuesList);
@@ -135,17 +135,17 @@ function _mock(runType: BaseRunType, ctx: MockOperation): any {
             return rt.src.values[i];
         }
         case ReflectionKind.enumMember:
-            throw new Error('Mock enum member is not supported');
+            throw new Error('Mock enum member is not supported.');
         // Collection types
         case ReflectionKind.array: {
             const length = ctx.arrayLength ?? random(0, ctx.maxRandomItemsLength);
-            return Array.from({length}, () => (runType as any).getMemberType().mock(ctx));
+            return Array.from({length}, () => mock((runType as any).getMemberType(), ctx));
         }
 
         case ReflectionKind.tuple: {
             const rt = runType as TupleRunType;
             const options = ctx.tupleOptions;
-            const params = rt.getChildRunTypes().map((p, i) => p.mock(options?.[i] || ctx));
+            const params = rt.getChildRunTypes().map((p, i) => mock(p, options?.[i] || ctx));
             if (rt.hasRestParameter()) {
                 return [...params.slice(0, -1), ...params[params.length - 1]];
             }
@@ -157,12 +157,12 @@ function _mock(runType: BaseRunType, ctx: MockOperation): any {
                 throw new Error(`Mock is disabled for Non Serializable types.`);
             } else {
                 const rt = runType as InterfaceRunType;
-                if (rt.isCallable()) return rt.getCallSignature()!.mock(ctx as MockOperation);
+                if (rt.isCallable()) return mock(rt.getCallSignature()!, ctx as MockOperation);
                 let obj: Record<string | number, any> = ctx.parentObj || {};
                 rt.getChildRunTypes().forEach((prop) => {
                     const name = (prop as PropertyRunType).getChildVarName();
-                    if (prop instanceof IndexSignatureRunType) obj = {...obj, ...prop.mock(ctx as MockOperation)};
-                    else obj[name] = prop.mock(ctx as MockOperation);
+                    if (prop instanceof IndexSignatureRunType) obj = {...obj, ...mock(prop, ctx as MockOperation)};
+                    else obj[name] = mock(prop, ctx as MockOperation);
                 });
                 return obj;
             }
@@ -172,10 +172,10 @@ function _mock(runType: BaseRunType, ctx: MockOperation): any {
         case ReflectionKind.union: {
             const rt = runType as UnionRunType;
             if (ctx.unionIndex && (ctx.unionIndex < 0 || ctx.unionIndex >= rt.getChildRunTypes().length)) {
-                throw new Error('unionIndex must be between 0 and the number of types in the union');
+                throw new Error('unionIndex must be between 0 and the number of types in the union.');
             }
             const index = ctx?.unionIndex ?? random(0, rt.getChildRunTypes().length - 1);
-            return rt.getChildRunTypes()[index].mock(ctx);
+            return mock(rt.getChildRunTypes()[index], ctx);
         }
 
         case ReflectionKind.function:
@@ -191,12 +191,12 @@ function _mock(runType: BaseRunType, ctx: MockOperation): any {
                 if (timeOut > 0) {
                     setTimeout(() => {
                         if (ctx.promiseReject) reject(ctx.promiseReject);
-                        else resolve(rt.getMemberType().mock(ctx));
+                        else resolve(mock(rt.getMemberType(), ctx));
                     }, timeOut);
                     return;
                 }
                 if (ctx.promiseReject) reject(ctx.promiseReject);
-                else resolve(rt.getMemberType().mock(ctx));
+                else resolve(mock(rt.getMemberType(), ctx));
             });
         }
         // Member types
@@ -211,7 +211,7 @@ function _mock(runType: BaseRunType, ctx: MockOperation): any {
                     return undefined;
                 }
             }
-            return rt.getMemberType().mock(ctx);
+            return mock(rt.getMemberType(), ctx);
         }
         case ReflectionKind.propertySignature:
         case ReflectionKind.property: {
@@ -219,7 +219,7 @@ function _mock(runType: BaseRunType, ctx: MockOperation): any {
             const probability = ctx.optionalPropertyProbability?.[rt.getChildVarName()] ?? ctx.optionalProbability;
             if (probability < 0 || probability > 1) throw new Error('optionalProbability must be between 0 and 1');
             if (rt.src.optional && Math.random() > probability) return undefined;
-            return rt.getMemberType().mock(ctx);
+            return mock(rt.getMemberType(), ctx);
         }
 
         case ReflectionKind.rest: {
@@ -227,7 +227,7 @@ function _mock(runType: BaseRunType, ctx: MockOperation): any {
             const length = random(0, ctx.maxRandomItemsLength);
             const items: any[] = [];
             for (let i = 0; i < length; i++) {
-                items.push(rt.getMemberType().mock(ctx));
+                items.push(mock(rt.getMemberType(), ctx));
             }
             return items;
         }
@@ -248,9 +248,9 @@ function _mock(runType: BaseRunType, ctx: MockOperation): any {
                         propName = Symbol.for(`key${i}`);
                         break;
                     default:
-                        throw new Error('Invalid index signature type');
+                        throw new Error('Invalid index signature type.');
                 }
-                parentObj[propName] = rt.getMemberType().mock(ctx);
+                parentObj[propName] = mock(rt.getMemberType(), ctx);
             }
             return parentObj;
         }
@@ -272,8 +272,8 @@ function _mockClass(runType: BaseRunType, ctx: MockOperation) {
             const mockMap = new Map();
             const length = ctx.arrayLength ?? random(0, ctx.maxRandomItemsLength);
             for (let i = 0; i < length; i++) {
-                const keyType = rt.keyRT.mock(ctx);
-                const valueType = rt.valueRT.mock(ctx);
+                const keyType = mock(rt.keyRT, ctx);
+                const valueType = mock(rt.valueRT, ctx);
                 mockMap.set(keyType, valueType);
             }
             return mockMap;
@@ -283,7 +283,7 @@ function _mockClass(runType: BaseRunType, ctx: MockOperation) {
             const mockSet = new Set();
             const length = ctx.arrayLength ?? random(0, ctx.maxRandomItemsLength);
             for (let i = 0; i < length; i++) {
-                const value = rt.keyRT.mock(ctx);
+                const value = mock(rt.keyRT, ctx);
                 mockSet.add(value);
             }
             return mockSet;
@@ -305,8 +305,8 @@ function _mockClass(runType: BaseRunType, ctx: MockOperation) {
             // only properties that are used in jit operations are mocked, there properties should be initialized in the constructor
             rt.getJitChildren().forEach((prop) => {
                 const name = (prop as PropertyRunType).getChildVarName();
-                if (prop instanceof IndexSignatureRunType) prop.mock(ctx);
-                else instance[name] = prop.mock(ctx as MockOperation);
+                if (prop instanceof IndexSignatureRunType) mock(prop, ctx);
+                else instance[name] = mock(prop, ctx as MockOperation);
             });
             return instance;
         }

@@ -126,8 +126,8 @@ describe('MapRunType with simple key and values Map<string, number>', () => {
         expect(unknownKeyErrors(mapWithUnknownKeys)).toEqual([]);
     });
 
-    it('mock Map<string, number>', () => {
-        const mock = rt.mock();
+    it('mock Map<string, number>', async () => {
+        const mock = await rt.mock();
         const validate = rt.createJitFunction(JitFunctions.isType);
         expect(mock instanceof Map).toBeTruthy();
         expect(validate(mock)).toBe(true);
@@ -257,8 +257,8 @@ describe('MapRunType with simple key and complex objects Map<string, SmallObject
         });
     });
 
-    it('mock Map<string, SmallObject>', () => {
-        const mock = rtStringSmallObject.mock();
+    it('mock Map<string, SmallObject>', async () => {
+        const mock = await rtStringSmallObject.mock();
         const validate = rtStringSmallObject.createJitFunction(JitFunctions.isType);
         expect(mock instanceof Map).toBeTruthy();
         expect(validate(mock)).toBe(true);
@@ -381,8 +381,8 @@ describe('MapRunType with complex key and simple values Map<SmallObject, number>
         expect(entry).toEqual({prop1: 'value1', prop2: 1, prop3: true, unknownProp: undefined});
     });
 
-    it('mock Map<SmallObject, number>', () => {
-        const mock = rtSmallObjectNumber.mock();
+    it('mock Map<SmallObject, number>', async () => {
+        const mock = await rtSmallObjectNumber.mock();
         const validate = rtSmallObjectNumber.createJitFunction(JitFunctions.isType);
         expect(mock instanceof Map).toBeTruthy();
         expect(validate(mock)).toBe(true);
@@ -559,8 +559,8 @@ describe('MapRunType with nested maps', () => {
         });
     });
 
-    it('mock objects with nested maps', () => {
-        const mock = rtDeepWithMap.mock();
+    it('mock objects with nested maps', async () => {
+        const mock = await rtDeepWithMap.mock();
         const validate = rtDeepWithMap.createJitFunction(JitFunctions.isType);
         expect(mock.b instanceof Map).toBeTruthy();
         expect(validate(mock)).toBe(true);

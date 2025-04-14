@@ -101,8 +101,8 @@ describe('Atomic Union', () => {
         );
     });
 
-    it('mock', () => {
-        const mocked = rt.mock();
+    it('mock', async () => {
+        const mocked = await rt.mock();
         expect(
             typeof mocked === 'string' ||
                 typeof mocked === 'number' ||
@@ -111,7 +111,7 @@ describe('Atomic Union', () => {
                 mocked === null
         ).toBe(true);
         const validate = rt.createJitFunction(JitFunctions.isType);
-        expect(validate(rt.mock())).toBe(true);
+        expect(validate(mocked)).toBe(true);
     });
 
     it('json encode/decode should never be marked as noop as encoding/decoding is always required', () => {
@@ -205,11 +205,11 @@ describe('Union Arr', () => {
         );
     });
 
-    it('mock', () => {
-        const mocked = rt.mock();
+    it('mock', async () => {
+        const mocked = await rt.mock();
         expect(Array.isArray(mocked)).toBe(true);
         const validate = rt.createJitFunction(JitFunctions.isType);
-        expect(validate(rt.mock())).toBe(true);
+        expect(validate(mocked)).toBe(true);
     });
 });
 
@@ -291,11 +291,11 @@ describe('Union Obj', () => {
         );
     });
 
-    it('mock', () => {
-        const mocked = rt.mock();
+    it('mock', async () => {
+        const mocked = await rt.mock();
         expect(typeof mocked === 'object').toBe(true);
         const validate = rt.createJitFunction(JitFunctions.isType);
-        expect(validate(rt.mock())).toBe(true);
+        expect(validate(mocked)).toBe(true);
     });
 });
 
@@ -406,11 +406,11 @@ describe('Union Mixed', () => {
         );
     });
 
-    it('mock', () => {
-        const mocked = rt.mock();
+    it('mock', async () => {
+        const mocked = await rt.mock();
         expect(typeof mocked === 'object').toBe(true);
         const validate = rt.createJitFunction(JitFunctions.isType);
-        expect(validate(rt.mock())).toBe(true);
+        expect(validate(mocked)).toBe(true);
     });
 });
 

@@ -145,8 +145,8 @@ describe('TupleRunType', () => {
         expect(roundTrip2).toEqual([3]);
     });
 
-    it('mock', () => {
-        const mocked = rt.mock();
+    it('mock', async () => {
+        const mocked = await rt.mock();
         expect(mocked).toHaveLength(6);
         expect(mocked[0]).toBeInstanceOf(Date);
         expect(typeof mocked[1]).toBe('number');
@@ -155,11 +155,11 @@ describe('TupleRunType', () => {
         expect(Array.isArray(mocked[4])).toBe(true);
         expect(typeof mocked[5]).toBe('bigint');
         const validate = rt.createJitFunction(JitFunctions.isType);
-        expect(validate(rt.mock())).toBe(true);
+        expect(validate(mocked)).toBe(true);
     });
 
-    it('mock  tuple with optional params', () => {
-        const mocked = runType<TupleWithOptionals>().mock();
+    it('mock  tuple with optional params', async () => {
+        const mocked = await runType<TupleWithOptionals>().mock();
         expect(mocked.length).toBeLessThanOrEqual(4);
         expect(typeof mocked[0]).toBe('number');
         expect(typeof mocked[1] === 'bigint' || typeof mocked[1] === 'undefined').toBeTruthy();
@@ -228,8 +228,8 @@ describe('TupleRunType with circular type definitions', () => {
         expect(roundTrip).toEqual(typeValue);
     });
 
-    it('mock', () => {
-        const mocked = rt.mock();
+    it('mock', async () => {
+        const mocked = await rt.mock();
         const expectMocked = (mocked: TupleCircular) => {
             expect(mocked.length).toBeLessThanOrEqual(7);
             expect(mocked.length).toBeGreaterThanOrEqual(6);
@@ -289,8 +289,8 @@ describe('TupleRunType with rest parameter', () => {
         expect(roundTrip).toEqual(typeValue);
     });
 
-    it('mock', () => {
-        const mocked = rt.mock();
+    it('mock', async () => {
+        const mocked = await rt.mock();
         expect(mocked.length >= 1).toBe(true);
         expect(typeof mocked[0]).toBe('number');
         for (let i = 1; i < mocked.length; i++) {

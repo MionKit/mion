@@ -60,9 +60,9 @@ describe('Extract typescript utility type, extract atomic elements from an union
         expect(decodeExtract(JSON.parse(stringifyExtract(excludeAge)))).toEqual(excludeAge);
     });
 
-    it('mock', () => {
-        const mocked = rt.mock();
-        const mockedExtract = rtExtract.mock();
+    it('mock', async () => {
+        const mocked = await rt.mock();
+        const mockedExtract = await rtExtract.mock();
         const isType = rt.createJitFunction(JitFunctions.isType);
         const isTypeExtract = rtExtract.createJitFunction(JitFunctions.isType);
 
@@ -127,9 +127,9 @@ describe('Extract typescript utility type, extract items from objects union', ()
         expect(decodeExtract(JSON.parse(stringifyExtract(excludeShape)))).toEqual(excludeShape);
     });
 
-    it('mock', () => {
-        const mocked = rt.mock();
-        const mockedExtract = rtExtract.mock();
+    it('mock', async () => {
+        const mocked = await rt.mock();
+        const mockedExtract = await rtExtract.mock();
         const isType = rt.createJitFunction(JitFunctions.isType);
         const isTypeExtract = rtExtract.createJitFunction(JitFunctions.isType);
 

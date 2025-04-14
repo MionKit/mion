@@ -88,6 +88,6 @@ export class ParameterRunType<T extends ParamT = TypeParameter> extends MemberRu
                 return undefined;
             }
         }
-        return this.getMemberType().mock(ctx);
+        return this.getMemberType().mockType(ctx);
     }
 }

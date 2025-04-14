@@ -48,7 +48,7 @@ describe('call signature', () => {
         expect(getTypeErrors({})).toEqual([{expected: 'callSignature', path: []}]);
     });
 
-    it('throw errors for json encode/decode, jsonStringify and mock', () => {
+    it('throw errors for json encode/decode, jsonStringify and mock', async () => {
         expect(() => rt.createJitFunction(JitFunctions.isType)).not.toThrow();
         expect(() => rt.createJitFunction(JitFunctions.typeErrors)).not.toThrow();
 
@@ -62,7 +62,7 @@ describe('call signature', () => {
         expect(() => rt.createJitFunction(JitFunctions.jsonStringify)).toThrow(
             `Compile function JsonStringify not supported, call compileParams or compileReturn instead.`
         );
-        expect(() => rt.mock()).toThrow('Mock is not allowed, call mockParams or mockReturn instead.');
+        await expect(() => rt.mock()).rejects.toThrow('Mock is not allowed, call mockParams or mockReturn instead.');
     });
 });
 

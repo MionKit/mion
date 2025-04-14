@@ -60,9 +60,9 @@ describe('NonNull typescript utility type, exclude atomic elements from an union
         expect(decodeNonNull(JSON.parse(stringifyNonNull(nonNullable)))).toEqual(nonNullable);
     });
 
-    it('mock', () => {
-        const mocked = rt.mock();
-        const mockedNonNull = rtNonNull.mock();
+    it('mock', async () => {
+        const mocked = await rt.mock();
+        const mockedNonNull = await rtNonNull.mock();
         const isType = rt.createJitFunction(JitFunctions.isType);
         const isTypeNonNull = rtNonNull.createJitFunction(JitFunctions.isType);
 

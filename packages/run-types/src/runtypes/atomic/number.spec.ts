@@ -44,8 +44,9 @@ it('json stringify', () => {
     expect(roundTrip).toEqual(typeValue);
 });
 
-it('mock', () => {
-    expect(typeof rt.mock()).toBe('number');
+it('mock', async () => {
+    const mocked = await rt.mock();
+    expect(typeof mocked).toBe('number');
     const validate = rt.createJitFunction(JitFunctions.isType);
-    expect(validate(rt.mock())).toBe(true);
+    expect(validate(mocked)).toBe(true);
 });

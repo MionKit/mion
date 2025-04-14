@@ -295,8 +295,8 @@ describe('Interface', () => {
         expect(roundTrip).toEqual(typeValue);
     });
 
-    it('mock', () => {
-        const mocked = rt.mock();
+    it('mock', async () => {
+        const mocked = await rt.mock();
         expect(mocked).toHaveProperty('startDate');
         expect(mocked).toHaveProperty('quantity');
         expect(mocked).toHaveProperty('name');
@@ -305,7 +305,7 @@ describe('Interface', () => {
         expect(mocked).toHaveProperty('bigInt');
         expect(mocked).toHaveProperty("weird prop name \n?>'\\\t\r");
         const validate = rt.createJitFunction(JitFunctions.isType);
-        expect(validate(rt.mock())).toBe(true);
+        expect(validate(mocked)).toBe(true);
     });
 });
 
@@ -575,12 +575,12 @@ describe('Interface with circular ref properties', () => {
         expect(roundTrip).toEqual(obj);
     });
 
-    it('mock', () => {
-        const mocked = rt.mock();
+    it('mock', async () => {
+        const mocked = await rt.mock();
         expect(mocked).toHaveProperty('name');
         expect(typeof mocked.parent === 'undefined' || typeof mocked.parent === 'object').toBe(true);
         const validate = rt.createJitFunction(JitFunctions.isType);
-        expect(validate(rt.mock())).toBe(true);
+        expect(validate(mocked)).toBe(true);
     });
 });
 
@@ -645,12 +645,12 @@ describe('Interface with circular ref type array', () => {
 
     // todo: max comp size exceeded, this is because we are generating a full array with all recursive items with more array with recursive items.
     // so the fix would be ti reduce the probability of generating an optional property the deeper we go.
-    it('mock', () => {
-        const mocked = rt.mock();
+    it('mock', async () => {
+        const mocked = await rt.mock();
         expect(mocked).toHaveProperty('name');
         expect(typeof mocked.parents === 'undefined' || Array.isArray(mocked.parents)).toBe(true);
         const validate = rt.createJitFunction(JitFunctions.isType);
-        expect(validate(rt.mock())).toBe(true);
+        expect(validate(mocked)).toBe(true);
     });
 });
 
@@ -725,13 +725,13 @@ describe('Interface with nested circular type', () => {
         expect(roundTrip2).toEqual(obj2);
     });
 
-    it('mock', () => {
-        const mocked = rt.mock();
+    it('mock', async () => {
+        const mocked = await rt.mock();
         expect(mocked).toHaveProperty('name');
         expect(mocked).toHaveProperty('embedded');
         expect(typeof mocked.embedded.child === 'undefined' || typeof mocked.embedded.child === 'object').toBe(true);
         const validate = rt.createJitFunction(JitFunctions.isType);
-        expect(validate(rt.mock())).toBe(true);
+        expect(validate(mocked)).toBe(true);
     });
 });
 
@@ -853,13 +853,13 @@ describe('Interface with nested circular type where root is not the circular ref
         expect(roundTrip2).toEqual(obj2);
     });
 
-    it('mock', () => {
-        const mocked = rt.mock();
+    it('mock', async () => {
+        const mocked = await rt.mock();
         expect(mocked).toHaveProperty('isRoot');
         expect(mocked).toHaveProperty('ciChild');
         expect(typeof mocked.ciChild.child === 'undefined' || typeof mocked.ciChild.child === 'object').toBe(true);
         const validate = rt.createJitFunction(JitFunctions.isType);
-        expect(validate(rt.mock())).toBe(true);
+        expect(validate(mocked)).toBe(true);
     });
 });
 
@@ -1017,13 +1017,13 @@ describe('Interface with nested circular + multiple circular', () => {
         expect(roundTrip2).toEqual(obj2);
     });
 
-    it('mock', () => {
-        const mocked = rt.mock();
+    it('mock', async () => {
+        const mocked = await rt.mock();
         expect(mocked).toHaveProperty('isRoot');
         expect(mocked).toHaveProperty('ciChild');
         expect(typeof mocked.ciChild.child === 'undefined' || typeof mocked.ciChild.child === 'object').toBe(true);
         const validate = rt.createJitFunction(JitFunctions.isType);
-        expect(validate(rt.mock())).toBe(true);
+        expect(validate(mocked)).toBe(true);
     });
 });
 
@@ -1084,11 +1084,11 @@ describe('Interface with circular ref tuple', () => {
         expect(roundTrip2).toEqual(obj2);
     });
 
-    it('mock', () => {
-        const mocked = rt.mock();
+    it('mock', async () => {
+        const mocked = await rt.mock();
         expect(mocked).toHaveProperty('name');
         expect(typeof mocked.parent === 'undefined' || Array.isArray(mocked.parent)).toBe(true);
         const validate = rt.createJitFunction(JitFunctions.isType);
-        expect(validate(rt.mock())).toBe(true);
+        expect(validate(mocked)).toBe(true);
     });
 });

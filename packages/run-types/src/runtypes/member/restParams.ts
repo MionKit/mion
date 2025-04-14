@@ -43,7 +43,7 @@ export class RestParamsRunType extends ArrayRunType<TypeRest> {
         const length = random(0, ctx.maxRandomItemsLength);
         const items: any[] = [];
         for (let i = 0; i < length; i++) {
-            items.push(this.getMemberType().mock(ctx));
+            items.push(this.getMemberType().mockType(ctx));
         }
         return items;
     }

@@ -68,6 +68,6 @@ export class GenericMemberRunType<T extends SrcMember> extends MemberRunType<T> 
         return `${sep}${argCode}`;
     }
     _mock(ctx: MockOperation): any {
-        return this.getMemberType().mock(ctx);
+        return this.getMemberType().mockType(ctx);
     }
 }

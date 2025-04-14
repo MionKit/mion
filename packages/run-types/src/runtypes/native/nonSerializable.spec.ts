@@ -32,7 +32,7 @@ describe('non serializable general behavior', () => {
         expect(jitUtils.getJIT(getJITFnHash(JitFunctions.isType.id, rt as any))).toBe(undefined);
     });
 
-    function failOnCreateJitFunction(rt: RunType) {
+    async function failOnCreateJitFunction(rt: RunType) {
         const errorMessage = `Jit compilation disabled for Non Serializable types.`;
         expect(() => rt.createJitFunction(JitFunctions.isType)).toThrow(errorMessage);
         expect(() => rt.createJitFunction(JitFunctions.typeErrors)).toThrow(errorMessage);
@@ -43,42 +43,42 @@ describe('non serializable general behavior', () => {
         expect(() => rt.createJitFunction(JitFunctions.stripUnknownKeys)).toThrow(errorMessage);
         expect(() => rt.createJitFunction(JitFunctions.unknownKeyErrors)).toThrow(errorMessage);
         expect(() => rt.createJitFunction(JitFunctions.unknownKeysToUndefined)).toThrow(errorMessage);
-        expect(() => rt.mock()).toThrow(`Mock is disabled for Non Serializable types.`);
+        await expect(() => rt.mock()).rejects.toThrow(`Mock is disabled for Non Serializable types.`);
     }
 
-    it('NonSerializableRunType should throw when creating a jit function', () => {
+    it('NonSerializableRunType should throw when creating a jit function', async () => {
         const rt = runType<Int8Array>();
-        failOnCreateJitFunction(rt);
+        await failOnCreateJitFunction(rt);
     });
 
-    it('interface with non serializable type should throw when compiling jit', () => {
+    it('interface with non serializable type should throw when compiling jit', async () => {
         const rt = runType<{a: Int8Array}>();
-        failOnCreateJitFunction(rt);
+        await failOnCreateJitFunction(rt);
     });
 
-    it('array with non serializable type should throw when compiling jit', () => {
+    it('array with non serializable type should throw when compiling jit', async () => {
         const rt = runType<Int8Array[]>();
-        failOnCreateJitFunction(rt);
+        await failOnCreateJitFunction(rt);
     });
 
-    it('tuple with non serializable type should throw when compiling jit', () => {
+    it('tuple with non serializable type should throw when compiling jit', async () => {
         const rt = runType<[Int8Array]>();
-        failOnCreateJitFunction(rt);
+        await failOnCreateJitFunction(rt);
     });
 
-    it('function params with non serializable type should throw when compiling jit', () => {
+    it('function params with non serializable type should throw when compiling jit', async () => {
         const rt = runType<(a: Int8Array) => void>() as FunctionRunType;
-        failOnCreateJitFunction(rt.getParameters());
+        await failOnCreateJitFunction(rt.getParameters());
     });
 
-    it('function return with non serializable type should throw when compiling jit', () => {
+    it('function return with non serializable type should throw when compiling jit', async () => {
         const rt = runType<() => Int8Array>() as FunctionRunType;
-        failOnCreateJitFunction(rt.getReturnType());
+        await failOnCreateJitFunction(rt.getReturnType());
     });
 
-    it('union with non serializable type should throw when compiling jit', () => {
+    it('union with non serializable type should throw when compiling jit', async () => {
         const rt = runType<Int8Array | Uint8Array>();
-        failOnCreateJitFunction(rt);
+        await failOnCreateJitFunction(rt);
     });
 });
 

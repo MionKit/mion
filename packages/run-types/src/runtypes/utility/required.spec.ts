@@ -68,9 +68,9 @@ describe('Required typescript utility type makes all properties required', () =>
         expect(decodeMaybe(JSON.parse(stringifyMaybe(maybePerson)))).toEqual({createdAt});
     });
 
-    it('mock', () => {
-        const mocked = rt.mock();
-        const mockedMaybe = rtRequired.mock();
+    it('mock', async () => {
+        const mocked = await rt.mock();
+        const mockedMaybe = await rtRequired.mock();
         const isType = rt.createJitFunction(JitFunctions.isType);
         const isTypeMaybe = rtRequired.createJitFunction(JitFunctions.isType);
 

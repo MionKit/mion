@@ -86,8 +86,8 @@ describe('SerRunType with simple keys Set<string>', () => {
         expect(unknownKeyErrors(validSet)).toEqual([]);
     });
 
-    it('mock Set<string>', () => {
-        const mock = rt.mock();
+    it('mock Set<string>', async () => {
+        const mock = await rt.mock();
         const validate = rt.createJitFunction(JitFunctions.isType);
         expect(mock instanceof Set).toBeTruthy();
         expect(validate(mock)).toBe(true);
@@ -209,8 +209,8 @@ describe('SerRunType with complex objects keys Set<SmallObject>', () => {
         });
     });
 
-    it('mock Set<SmallObject>', () => {
-        const mock = rtSmallObject.mock();
+    it('mock Set<SmallObject>', async () => {
+        const mock = await rtSmallObject.mock();
         const validate = rtSmallObject.createJitFunction(JitFunctions.isType);
         expect(mock instanceof Set).toBeTruthy();
         expect(validate(mock)).toBe(true);
@@ -392,8 +392,8 @@ describe('SerRunType with nested sets', () => {
         });
     });
 
-    it('mock objects with nested sets', () => {
-        const mock = rtDeepWithSet.mock();
+    it('mock objects with nested sets', async () => {
+        const mock = await rtDeepWithSet.mock();
         const validate = rtDeepWithSet.createJitFunction(JitFunctions.isType);
         expect(mock.b instanceof Set).toBeTruthy();
         expect(validate(mock)).toBe(true);

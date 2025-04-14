@@ -94,9 +94,9 @@ describe('Pick typescript utility type only pick selected properties', () => {
         expect(decodePick(JSON.parse(stringifyPick(person)))).toEqual(pickedPerson);
     });
 
-    it('mock', () => {
-        const mocked = rt.mock();
-        const mockedPick = rtPick.mock();
+    it('mock', async () => {
+        const mocked = await rt.mock();
+        const mockedPick = await rtPick.mock();
         const isType = rt.createJitFunction(JitFunctions.isType);
         const isTypePick = rtPick.createJitFunction(JitFunctions.isType);
 

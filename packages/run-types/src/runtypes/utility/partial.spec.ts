@@ -68,9 +68,9 @@ describe('Partial typescript utility type makes all properties optional', () => 
         expect(decodePartial(JSON.parse(stringifyPartial(partialPerson)))).toEqual({createdAt});
     });
 
-    it('mock', () => {
-        const mocked = rt.mock();
-        const mockedPartial = rtPartial.mock();
+    it('mock', async () => {
+        const mocked = await rt.mock();
+        const mockedPartial = await rtPartial.mock();
         const isType = rt.createJitFunction(JitFunctions.isType);
         const isTypePartial = rtPartial.createJitFunction(JitFunctions.isType);
 

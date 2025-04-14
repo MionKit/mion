@@ -122,16 +122,18 @@ describe('IndexType', () => {
         expect(roundTrip).toEqual(typeValue);
     });
 
-    it('mock', () => {
-        expect(rt.mock() instanceof Object).toBe(true);
+    it('mock', async () => {
+        const mocked = await rt.mock();
+        expect(mocked instanceof Object).toBe(true);
         const validate = rt.createJitFunction(JitFunctions.isType);
-        expect(validate(rt.mock())).toBe(true);
+        expect(validate(mocked)).toBe(true);
     });
 
-    it('mock IndexWithExtraProps', () => {
-        expect(rtExtra.mock() instanceof Object).toBe(true);
+    it('mock IndexWithExtraProps', async () => {
+        const mocked = await rtExtra.mock();
+        expect(mocked instanceof Object).toBe(true);
         const validate = rtExtra.createJitFunction(JitFunctions.isType);
-        expect(validate(rtExtra.mock())).toBe(true);
+        expect(validate(mocked)).toBe(true);
     });
 
     it('multiple index properties', () => {
@@ -232,9 +234,11 @@ describe('IndexType nested', () => {
         expect(roundTrip).toEqual(obj);
     });
 
-    it('mock', () => {
-        expect(rtNested.mock() instanceof Object).toBe(true);
+    it('mock', async () => {
+        const mocked = await rtNested.mock();
+        expect(mocked instanceof Object).toBe(true);
+        expect(mocked instanceof Object).toBe(true);
         const validate = rtNested.createJitFunction(JitFunctions.isType);
-        expect(validate(rtNested.mock())).toBe(true);
+        expect(validate(mocked)).toBe(true);
     });
 });
