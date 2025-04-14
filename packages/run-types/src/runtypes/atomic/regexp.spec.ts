@@ -6,7 +6,7 @@
  * ######## */
 import {runType} from '../../runType';
 import {JitFunctions} from '../../constants';
-import {mockRegExpsList} from '../../mock/constants.mock';
+import {mockRegExpsList} from '../../mocking/constants.mock';
 
 const rt = runType<RegExp>();
 

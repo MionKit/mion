@@ -18,7 +18,7 @@ import {DomainRunTypeFormat, FormatParams_Domain} from './domain.runtype';
 import {CodeType, JitFunctions} from '@mionkit/run-types/src/constants';
 import {IPRunTypeFormat, FormatParams_IP} from './ip.runtype';
 import {fpVal} from '@mionkit/run-types/src/lib/utils';
-import {randomItem} from '@mionkit/run-types/src/lib/mock';
+import {randomItem} from '@mionkit/run-types/src/mocking/mockUtils';
 import {
     FILE_URL_SAMPLES,
     HTTP_URL_SAMPLES,

@@ -6,7 +6,6 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 import type {
-    MockOperation,
     RunType,
     JitConfig,
     Mutable,
@@ -33,7 +32,7 @@ import {
 } from '../constants';
 import {ReflectionKind, type TypeIndexSignature, type TypeProperty, type Type} from '@deepkit/type';
 import {getPropIndex, memorize, toLiteral} from './utils';
-import {JitErrorsCompiler, JitCompiler, getJITFnHash, createJitCompiler} from './jitCompiler';
+import {JitErrorsCompiler, JitCompiler, getJITFnHash, createJitCompiler, getJitFnCode} from './jitCompiler';
 import {type AnyKindName, getReflectionName} from '../constants.kind';
 import {jitUtils} from './jitUtils';
 import {createUniqueHash} from './quickHash';
@@ -45,13 +44,12 @@ import {
     defaultIgnoreFormatProps,
 } from './formats';
 import {typeParamsToString} from './utils';
-import type {mock} from '../mock/mockType';
+import type {mock} from '../mocking/mockType';
 
 const functionRegistry: Map<JitFnSetting, (...args: any[]) => any> = new Map();
 
 export abstract class BaseRunType<T extends Type = Type> implements RunType {
     // Registry for dynamically loaded functions
-
     isCircular?: boolean;
     readonly src: SrcType<T> = null as any; // real value will be set after construction by the createRunType function
     abstract getFamily(): 'A' | 'C' | 'M' | 'F'; // Atomic, Collection, Member, Function
@@ -125,35 +123,15 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
 
     async mock(k?: Partial<MockOptions>): Promise<any> {
         // although the mock function is not jit, it is also stored in the registry
-        const mockFn = (await this.loadRegisteredFunction(JitFunctions.mock)) as typeof mock;
+        const mockFn = (await loadComposableFunction(JitFunctions.mock)) as typeof mock;
         return mockFn(this, k);
     }
 
     /** synchronous version of mock, throws an error if the mock function has not been loaded */
     mockType(k?: Partial<MockOptions>): any {
-        const mockFn = this.getRegisteredFunction(JitFunctions.mock) as typeof mock;
+        const mockFn = getComposableFunction(JitFunctions.mock) as typeof mock;
         return mockFn(this, k);
     }
-
-    // ########## Load Composable Functions ##########
-    loadRegisteredFunction = async (jitFn: JitFnSetting): Promise<(...args: any[]) => any> => {
-        const fn = functionRegistry.get(jitFn);
-        if (fn) return fn;
-        if (!jitFn.import) throw new Error(`Jit function ${jitFn.name} has no import function`);
-        functionRegistry.forEach((_v, k) => {
-            if (k.id === jitFn.id) throw new Error('A function with the same id already exists in the functions registry');
-        });
-        const newFn = await jitFn.import();
-        functionRegistry.set(JitFunctions.mock, newFn);
-        return newFn;
-    };
-
-    /** synchronous version of loadRegisteredFunction, throws an error if the function has not been loaded */
-    getRegisteredFunction = (jitFn: JitFnSetting): ((...args: any[]) => any) => {
-        const fn = functionRegistry.get(jitFn);
-        if (fn) return fn;
-        throw new Error(`Function ${jitFn.name} has not been loaded.`);
-    };
 
     // ########## Create Jit Functions ##########
 
@@ -341,11 +319,7 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
                     return `${code}${stopChar} return ${comp.returnName}`;
                 }
                 case 'RB': {
-                    // if code is a block and does not have return, we need to make sure
-                    const lastChar = code.length - 1;
-                    const hasFullStop = code.lastIndexOf(';') === lastChar || code.lastIndexOf('}') === lastChar;
-                    const stopChar = hasFullStop ? '' : ';';
-                    return `${code}${stopChar} return ${comp.returnName}`;
+                    return code;
                 }
             }
         }
@@ -593,4 +567,25 @@ export abstract class MemberRunType<T extends Type> extends BaseRunType<T> imple
         stack.pop();
         return jitCts;
     });
+}
+
+// ########## Load Composable Functions ##########
+
+export async function loadComposableFunction(jitFn: JitFnSetting): Promise<(...args: any[]) => any> {
+    const fn = functionRegistry.get(jitFn);
+    if (fn) return fn;
+    if (!jitFn.import) throw new Error(`Jit function ${jitFn.name} has no import function`);
+    functionRegistry.forEach((_v, k) => {
+        if (k.id === jitFn.id) throw new Error('A function with the same id already exists in the functions registry');
+    });
+    const newFn = await jitFn.import();
+    functionRegistry.set(JitFunctions.mock, newFn);
+    return newFn;
+}
+
+/** synchronous version of loadRegisteredFunction, throws an error if the function has not been loaded */
+export function getComposableFunction(jitFn: JitFnSetting): (...args: any[]) => any {
+    const fn = functionRegistry.get(jitFn);
+    if (fn) return fn;
+    throw new Error(`Function ${jitFn.name} has not been loaded.`);
 }
