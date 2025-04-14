@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 import {ReflectionKind, type TypePromise} from '@deepkit/type';
-import type {MockOperation, JitConfig, jitCode} from '../../types';
+import type {JitConfig, jitCode} from '../../types';
 import {MemberRunType} from '../../lib/baseRunTypes';
 
 const jitConstants: JitConfig = {
@@ -44,19 +44,5 @@ export class PromiseRunType extends MemberRunType<TypePromise> {
     }
     useArrayAccessor(): boolean {
         return false;
-    }
-    _mock(ctx: Pick<MockOperation, 'promiseReject' | 'promiseTimeOut'>): Promise<any> {
-        const timeOut = ctx.promiseTimeOut || 1;
-        return new Promise((resolve, reject) => {
-            if (timeOut > 0) {
-                setTimeout(() => {
-                    if (ctx.promiseReject) reject(ctx.promiseReject);
-                    else resolve(this.getMemberType().mockType(ctx));
-                }, timeOut);
-                return;
-            }
-            if (ctx.promiseReject) reject(ctx.promiseReject);
-            else resolve(this.getMemberType().mockType(ctx));
-        });
     }
 }

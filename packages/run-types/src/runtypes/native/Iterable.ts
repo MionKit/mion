@@ -4,7 +4,7 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
-import type {JitFnID, MockOperation} from '../../types';
+import type {JitFnID} from '../../types';
 import {ClassRunType} from '../collection/class';
 import {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
 import {BaseRunType} from '../../lib/baseRunTypes';
@@ -14,7 +14,6 @@ import {CodeType, JitFunctions} from '../../constants';
 export abstract class IterableRunType extends ClassRunType {
     abstract children: BaseRunType[];
     abstract instance: string;
-    abstract _mock(ctx: MockOperation): any;
     getIndexVarName(): string {
         return `e${this.getNestLevel()}`;
     }
@@ -96,7 +95,7 @@ export abstract class IterableRunType extends ClassRunType {
         `;
     }
 
-    // TODO: Implement the following methods, shoild just call same compile method for children, look into to array run type
+    // TODO: Implement the following methods, should just call same compile method for children, look into to array run type
 
     _compileHasUnknownKeys(comp: JitCompiler): string {
         const childrenCode = this.getJitChildren()

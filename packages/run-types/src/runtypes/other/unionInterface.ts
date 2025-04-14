@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 import {TypeObjectLiteral, TypeClass, TypeIntersection, ReflectionKind, TypeUnion, TypeProperty} from '@deepkit/type';
-import type {MockOperation, Mutable, RunTypeChildAccessor, SrcType} from '../../types';
+import type {Mutable, RunTypeChildAccessor, SrcType} from '../../types';
 import {toLiteral, arrayToArgumentsLiteral} from '../../lib/utils';
 import {PropertyRunType} from '../member/property';
 import {IndexSignatureRunType} from '../member/indexProperty';
@@ -132,9 +132,9 @@ export class UnionInterfaceRunType extends InterfaceRunType<anySrcInterface> {
         `;
     }
     _compileToJsonVal(comp: JitCompiler): string {
-        const toJsonValdMergedList = this.mergedInterfaces.filter((c) => !c.getJitConfig().skipJit);
-        return toJsonValdMergedList.length
-            ? toJsonValdMergedList
+        const toJsonValMergedList = this.mergedInterfaces.filter((c) => !c.getJitConfig().skipJit);
+        return toJsonValMergedList.length
+            ? toJsonValMergedList
                   .map((rt, i) => {
                       const childIsType = this._compileIsTypeMergedChildren(comp, rt, true);
                       const childCode = rt.compileToJsonVal(comp);
@@ -145,9 +145,9 @@ export class UnionInterfaceRunType extends InterfaceRunType<anySrcInterface> {
             : '';
     }
     _compileFromJsonVal(comp: JitCompiler): string {
-        const fromJsonValdMergedList = this.mergedInterfaces.filter((c) => !c.getJitConfig().skipJit);
-        return fromJsonValdMergedList.length
-            ? fromJsonValdMergedList
+        const fromJsonValMergedList = this.mergedInterfaces.filter((c) => !c.getJitConfig().skipJit);
+        return fromJsonValMergedList.length
+            ? fromJsonValMergedList
                   .map((rt, i) => {
                       const childIsType = this._compileIsTypeMergedChildren(comp, rt, true);
                       const childCode = rt.compileFromJsonVal(comp);
@@ -162,11 +162,11 @@ export class UnionInterfaceRunType extends InterfaceRunType<anySrcInterface> {
         const childrenCode = children.map((prop) => prop.compileJsonStringify(comp)).join('+');
         return `'{'+${childrenCode}+'}'`;
 
-        // const toJsonValdMergedList = this.mergedInterfaces.filter(
+        // const toJsonValMergedList = this.mergedInterfaces.filter(
         //     (c) => !c.getJitConstants().skipJit
         // );
-        // return toJsonValdMergedList.length
-        //     ? toJsonValdMergedList
+        // return toJsonValMergedList.length
+        //     ? toJsonValMergedList
         //           .map((rt, i) => {
         //               const childIsType = this._compileIsTypeMergedChildren(comp, rt, true);
         //               const childCode = rt.compileToJsonVal(comp);
@@ -175,15 +175,5 @@ export class UnionInterfaceRunType extends InterfaceRunType<anySrcInterface> {
         //           })
         //           .join('\n')
         //     : '';
-    }
-
-    _mock(ctx: Pick<MockOperation, 'parentObj'>): Record<string | number, any> {
-        const obj: Record<string | number, any> = ctx?.parentObj || {};
-        this.getChildRunTypes().forEach((prop) => {
-            const name = (prop as PropertyRunType).getChildVarName();
-            if (prop instanceof IndexSignatureRunType) prop.mockType(ctx);
-            else obj[name] = prop.mockType(ctx as MockOperation);
-        });
-        return obj;
     }
 }

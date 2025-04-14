@@ -6,9 +6,8 @@
  * ######## */
 
 import {ReflectionKind, type TypeNumber} from '@deepkit/type';
-import type {MockOperation, JitConfig, jitCode} from '../../types';
+import type {JitConfig, jitCode} from '../../types';
 import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
-import {mockNumber} from '../../lib/mock';
 import {AtomicRunType} from '../../lib/baseRunTypes';
 
 const jitConstants: JitConfig = {
@@ -32,8 +31,5 @@ export class NumberRunType extends AtomicRunType<TypeNumber> {
     }
     _compileJsonStringify(comp: JitCompiler): jitCode {
         return comp.vλl;
-    }
-    _mock(ctx: Pick<MockOperation, 'minNumber' | 'maxNumber'>): number {
-        return mockNumber(ctx.minNumber, ctx.maxNumber);
     }
 }

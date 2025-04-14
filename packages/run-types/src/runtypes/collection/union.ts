@@ -7,8 +7,7 @@
 
 import type {TypeUnion} from '@deepkit/type';
 import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
-import {JitConfig, JitFnID, MockOperation, Mutable, RunType, jitCode} from '../../types';
-import {random} from '../../lib/mock';
+import {JitConfig, JitFnID, Mutable, RunType, jitCode} from '../../types';
 import {BaseRunType, CollectionRunType} from '../../lib/baseRunTypes';
 import {childIsExpression, memorize} from '../../lib/utils';
 import {InterfaceRunType} from './interface';
@@ -140,13 +139,6 @@ export class UnionRunType extends CollectionRunType<TypeUnion> {
             else { throw new Error('Can not stringify union: expected one of <${this.getUnionTypeNames()}> but got ' + ${comp.vλl}?.constructor?.name || typeof ${comp.vλl}) }
         `;
         return code;
-    }
-    _mock(ctx: Pick<MockOperation, 'unionIndex'>): any {
-        if (ctx.unionIndex && (ctx.unionIndex < 0 || ctx.unionIndex >= this.getChildRunTypes().length)) {
-            throw new Error('unionIndex must be between 0 and the number of types in the union');
-        }
-        const index = ctx?.unionIndex ?? random(0, this.getChildRunTypes().length - 1);
-        return this.getChildRunTypes()[index].mockType(ctx);
     }
     getUnionTypeNames(): string {
         return this.getChildRunTypes()

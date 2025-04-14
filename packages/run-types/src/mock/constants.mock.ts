@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {MockOptions} from './types';
+import {MockOptions} from '../types';
 
 export const mockRegExpsList = [
     /abc/, // Matches the string 'abc'

@@ -8,8 +8,8 @@
 import {ReflectionKind} from '@deepkit/type';
 import type {MockOperation, MockOptions} from '../types';
 import type {BaseRunType} from '../lib/baseRunTypes';
-import {mockString, mockNumber, mockBoolean, mockBigInt, mockDate, mockAny, random, mockRegExp, mockSymbol} from '../lib/mock';
-import {defaultMockOptions, stringCharSet} from '../constants.mock';
+import {mockString, mockNumber, mockBoolean, mockBigInt, mockDate, mockAny, random, mockRegExp, mockSymbol} from './mockUtils';
+import {defaultMockOptions, stringCharSet} from './constants.mock';
 import {ClassRunType} from '../runtypes/collection/class';
 import type {PropertyRunType} from '../runtypes/member/property';
 import type {MapRunType} from '../runtypes/native/map';

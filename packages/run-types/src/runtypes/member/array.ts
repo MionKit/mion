@@ -6,9 +6,8 @@
  * ######## */
 
 import type {Type, TypeArray} from '@deepkit/type';
-import type {jitCode, JitFnID, MockOperation} from '../../types';
+import type {jitCode, JitFnID} from '../../types';
 import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
-import {random} from '../../lib/mock';
 import {MemberRunType} from '../../lib/baseRunTypes';
 import {childIsExpression} from '../../lib/utils';
 import {CodeType, JitFunctions} from '../../constants';
@@ -133,10 +132,5 @@ export class ArrayRunType<T extends Type = TypeArray> extends MemberRunType<T> {
         if (!memberCode) return undefined;
         const index = this.getChildVarName();
         return `for (let ${index} = ${this.startIndex()}; ${index} < ${comp.vλl}.length; ${index}++) {${memberCode}}`;
-    }
-
-    _mock(ctx: MockOperation): any[] {
-        const length = ctx.arrayLength ?? random(0, ctx.maxRandomItemsLength);
-        return Array.from({length}, () => this.getMemberType().mockType(ctx));
     }
 }

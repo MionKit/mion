@@ -33,5 +33,4 @@ export class VoidRunType extends AtomicRunType<TypeVoid> {
     _compileJsonStringify(): jitCode {
         return 'undefined';
     }
-    _mock(): void {}
 }

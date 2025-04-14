@@ -56,7 +56,6 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
     readonly src: SrcType<T> = null as any; // real value will be set after construction by the createRunType function
     abstract getFamily(): 'A' | 'C' | 'M' | 'F'; // Atomic, Collection, Member, Function
     abstract getJitConfig(stack?: RunType[]): JitConfig;
-    abstract _mock(mockContext: MockOperation): any;
     isJitInlined = () => !(this.isCircular || (this.src.typeName && this.getFamily() === 'C'));
     getKindName = memorize((): AnyKindName => getReflectionName(this));
     getTypeName = (): string => this.src.typeName || this.getKindName();

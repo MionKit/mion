@@ -6,7 +6,7 @@
  * ######## */
 import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
 import {MemberRunType} from '../../lib/baseRunTypes';
-import {MockOperation, SrcMember} from '../../types';
+import {SrcMember} from '../../types';
 import {childIsExpression} from '../../lib/utils';
 import {JitFunctions} from '../../constants';
 
@@ -66,8 +66,5 @@ export class GenericMemberRunType<T extends SrcMember> extends MemberRunType<T> 
         const sep = isFirst ? '' : `','+`;
         if (this.isOptional()) return `(${comp.getChildVλl()} === undefined ? '': ${sep}${argCode})`;
         return `${sep}${argCode}`;
-    }
-    _mock(ctx: MockOperation): any {
-        return this.getMemberType().mockType(ctx);
     }
 }

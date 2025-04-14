@@ -6,9 +6,8 @@
  * ######## */
 
 import {type TypeClass} from '@deepkit/type';
-import type {MockOperation, JitConfig, jitCode} from '../../types';
+import type {JitConfig, jitCode} from '../../types';
 import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
-import {mockDate} from '../../lib/mock';
 import {AtomicRunType} from '../../lib/baseRunTypes';
 import {ReflectionSubKind} from '../../constants.kind';
 
@@ -33,8 +32,5 @@ export class DateRunType extends AtomicRunType<TypeClass> {
     }
     _compileJsonStringify(comp: JitCompiler): jitCode {
         return `'"'+${comp.vλl}.toJSON()+'"'`;
-    }
-    _mock(ctx: Pick<MockOperation, 'minDate' | 'maxDate'>): Date {
-        return mockDate(ctx.minDate, ctx.maxDate);
     }
 }

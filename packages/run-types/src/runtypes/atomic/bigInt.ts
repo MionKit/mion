@@ -7,8 +7,7 @@
 
 import {ReflectionKind, type TypeBigInt} from '@deepkit/type';
 import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
-import type {MockOperation, JitConfig, jitCode} from '../../types';
-import {mockBigInt} from '../../lib/mock';
+import type {JitConfig, jitCode} from '../../types';
 import {AtomicRunType} from '../../lib/baseRunTypes';
 
 const jitConstants: JitConfig = {
@@ -32,12 +31,6 @@ export class BigIntRunType extends AtomicRunType<TypeBigInt> {
     }
     _compileJsonStringify(comp: JitCompiler): jitCode {
         return bigIntTransformer._compileJsonStringify(comp);
-    }
-    /** mocks a regular number and transforms into a bigint.
-     * this means range is limited to Number.MAX_SAFE_INTEGER
-     */
-    _mock(ctx: Pick<MockOperation, 'minNumber' | 'maxNumber'>): bigint {
-        return mockBigInt(ctx.minNumber, ctx.maxNumber);
     }
 }
 // bigintTransformer (used internally only so no need to register in JitUtils)

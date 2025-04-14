@@ -6,9 +6,8 @@
  * ######## */
 
 import {ReflectionKind, type TypeSymbol} from '@deepkit/type';
-import type {MockOperation, JitConfig, jitCode} from '../../types';
+import type {JitConfig, jitCode} from '../../types';
 import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
-import {mockSymbol} from '../../lib/mock';
 import {AtomicRunType} from '../../lib/baseRunTypes';
 
 const jitConstants: JitConfig = {
@@ -32,9 +31,6 @@ export class SymbolRunType extends AtomicRunType<TypeSymbol> {
     }
     _compileJsonStringify(comp: JitCompiler): jitCode {
         return symbolTransformer._compileJsonStringify(comp);
-    }
-    _mock(ctx: MockOperation): symbol {
-        return mockSymbol(ctx.symbolName, ctx.symbolLength, ctx.symbolCharSet);
     }
 }
 
