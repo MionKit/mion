@@ -4,11 +4,9 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
-import {maxStackDepth, maxUnknownKeys} from '../constants';
-import type {CompiledPureFunction, JitCompiled, PureFunction, RunTypeError, TypeFormatError} from '../types';
-import type {BaseCompiler} from './jitCompiler';
+import type {JitCompilerMeta, CompiledPureFunction, JitCompiled, PureFunction, RunTypeError, TypeFormatError} from './types';
+import {MAX_STACK_DEPTH, MAX_UNKNOWN_KEYS} from './constants';
 
-export type JITUtils = typeof jitUtils;
 type StrNumber = string | number;
 
 // eslint-disable-next-line no-control-regex
@@ -61,7 +59,7 @@ export const jitUtils = {
         }
     },
     // !!! DO NOT MODIFY METHOD WITHOUT REVIEWING JIT CODE INVOCATIONS!!!
-    addToJitCache(key: string, comp: BaseCompiler) {
+    addToJitCache(key: string, comp: JitCompilerMeta) {
         jitTypesCache.set(key, comp as JitCompiled);
     },
     removeFromJitCache(key: string) {
@@ -87,7 +85,7 @@ export const jitUtils = {
         for (const prop in obj) {
             if (!keys.has(prop)) {
                 unknownKeys.push(prop);
-                if (unknownKeys.length >= maxUnknownKeys) throw new Error('Too many unknown keys');
+                if (unknownKeys.length >= MAX_UNKNOWN_KEYS) throw new Error('Too many unknown keys');
             }
         }
         return unknownKeys;
@@ -104,7 +102,7 @@ export const jitUtils = {
             }
             if (!found) {
                 unknownKeys.push(prop as string);
-                if (unknownKeys.length >= maxUnknownKeys) throw new Error('Too many unknown keys');
+                if (unknownKeys.length >= MAX_UNKNOWN_KEYS) throw new Error('Too many unknown keys');
             }
         }
         return unknownKeys;
@@ -201,7 +199,7 @@ export const jitUtils = {
  * ie: if a map entry is an object, the object can not be serialized/deserialized and wont work as the same key for entry map as they are not same memory ref.
  *  */
 export function isSafeMapKeyValue(value: any, depth = 0): boolean {
-    if (depth > maxStackDepth) return false;
+    if (depth > MAX_STACK_DEPTH) return false;
     if (value === undefined) return true;
     if (value === null) return true;
     const type = typeof value;

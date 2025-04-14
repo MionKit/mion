@@ -6,7 +6,7 @@
  * ######## */
 
 import {isTypeFn, mockTypeFn, typeErrorsFn} from '@mionkit/run-types/src/runTimeFunctions';
-import {RunTypeError, TypeFormatError} from '@mionkit/run-types/src/types';
+import {RunTypeError, TypeFormatError} from '@mionkit/core/src/types';
 import {StringFormat} from './stringFormat.runtype';
 
 // #### maxLength ####

@@ -6,7 +6,7 @@
  * ######## */
 
 import {isTypeFn, mockTypeFn, typeErrorsFn} from '@mionkit/run-types/src/runTimeFunctions';
-import {RunTypeError} from '@mionkit/run-types/src/types';
+import {RunTypeError} from '@mionkit/core/src/types';
 import {UUIDFormat_V4, UUIDFormat_V7, mockUuidV7} from './uuid.runtype';
 
 // ####### UUID v4 #######

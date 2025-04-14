@@ -4,12 +4,13 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
+import type {GenericPureFunction, FormatParam} from '@mionkit/core/src/types';
 import type {BaseRunType} from '@mionkit/run-types/src/lib/baseRunTypes';
 import type {JitCompiler, JitErrorsCompiler} from '@mionkit/run-types/src/lib/jitCompiler';
 import {registerFormatter, registerPureFnClosure} from '@mionkit/run-types/src/lib/formats';
 import {BaseRunTypeFormat} from '@mionkit/run-types/src/lib/baseRunTypeFormat';
 import {ReflectionKind} from '@deepkit/type';
-import {GenericPureFunction, MockOperation, type FormatParam} from '@mionkit/run-types/src/types';
+import {MockOperation} from '@mionkit/run-types/src/types';
 import {TypeFormat} from '@mionkit/run-types/src/lib/formats.runtype'; // !Important: TypeFormat cant be imported as type for all runType functionality to work
 import {fpVal} from '@mionkit/run-types/src/lib/utils';
 

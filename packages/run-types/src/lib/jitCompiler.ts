@@ -4,20 +4,14 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
-import type {JitFnArgs, Mutable, JitCompiled, JitFnID, PureFunction, StrNumber, jitCode} from '../types';
+import type {JitCompilerMeta, JitFnArgs, PureFunction} from '@mionkit/core/src/types';
+import {MAX_STACK_DEPTH} from '@mionkit/core/src/constants';
+import type {Mutable, JitFnID, StrNumber, jitCode} from '../types';
 import type {BaseRunType} from './baseRunTypes';
 import type {AnyKindName} from '../constants.kind';
-import {
-    jitArgs,
-    jitDefaultArgs,
-    jitDefaultErrorArgs,
-    jitErrorArgs,
-    JitFunctions,
-    maxStackDepth,
-    maxStackErrorMessage,
-} from '../constants';
+import {jitArgs, jitDefaultArgs, jitDefaultErrorArgs, jitErrorArgs, JitFunctions, maxStackErrorMessage} from '../constants';
 import {isChildAccessorType, isJitErrorsCompiler} from './guards';
-import {jitUtils} from './jitUtils';
+import {jitUtils} from '../../../core/src/jitUtils';
 import {toLiteral, toLiteralInContext} from './utils';
 import type {BaseRunTypeFormat} from './baseRunTypeFormat';
 
@@ -31,10 +25,10 @@ export type StackItem = {
     staticPath?: StrNumber[];
 };
 
-export type JitCompilerLike = BaseCompiler | JitCompiled;
+export type JitCompilerLike = BaseCompiler | JitCompilerMeta;
 export type JitDependencies = Set<string>;
 
-export class BaseCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extends JitFnID = any> {
+export class BaseCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extends JitFnID = any> implements JitCompilerMeta {
     constructor(
         public readonly rootType: BaseRunType,
         // the id of the function to be compiled (isType, typeErrors, toJsonVal, fromJsonVal, etc)
@@ -96,7 +90,7 @@ export class BaseCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extends 
     /** push new item to the stack, returns true if new child is already in the stack (is circular type) */
     pushStack(newChild: BaseRunType): void {
         const totalLength = this.stack.length + this.totalLength;
-        if (totalLength > maxStackDepth) throw new Error(maxStackErrorMessage);
+        if (totalLength > MAX_STACK_DEPTH) throw new Error(maxStackErrorMessage);
         if (this.stack.length === 0) {
             if (newChild !== this.rootType) throw new Error('rootType should be the first item in the stack');
             newChild.getJitConfig(); // ensures the constants are generated in correct order
@@ -159,7 +153,7 @@ export class BaseCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extends 
         const stackItem = this.getCurrentStackItem();
         return !stackItem.rt.isJitInlined() && this.stack.length > 1;
     }
-    updateDependencies(childCop: JitCompiled): void {
+    updateDependencies(childCop: JitCompilerMeta): void {
         this.dependenciesSet.add(childCop.jitFnHash);
         childCop.dependenciesSet.forEach((dep) => this.dependenciesSet.add(dep));
     }

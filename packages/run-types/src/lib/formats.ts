@@ -5,20 +5,20 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {ReflectionKindName} from '../constants.kind';
-import type {
-    CompiledPureFunction,
-    FormatAnnotation,
-    PureFunction,
+import {
     PureFunctionWithClosure,
+    CompiledPureFunction,
+    PureFunction,
     TypeFormatParams,
     TypeFormatValue,
-} from '../types';
+} from '@mionkit/core/src/types';
+import {ReflectionKindName} from '../constants.kind';
+import type {FormatAnnotation} from '../types';
 import {typeAnnotation, ReflectionKind} from '@deepkit/type';
 import type {BaseRunType} from './baseRunTypes';
 import type {JitErrorsCompiler, JitCompiler} from './jitCompiler';
 import type {BaseRunTypeFormat} from './baseRunTypeFormat';
-import {jitUtils} from './jitUtils';
+import {jitUtils} from '../../../core/src/jitUtils';
 import {toLiteral, toLiteralInContext} from './utils';
 
 // ################# REGISTER FORMATTERS & PURE FUNCTIONS  #################

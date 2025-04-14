@@ -5,11 +5,12 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
+import type {FormatParam} from '@mionkit/core/src/types';
 import type {BaseRunType} from '@mionkit/run-types/src/lib/baseRunTypes';
 import type {JitCompiler, JitErrorsCompiler} from '@mionkit/run-types/src/lib/jitCompiler';
 import {BaseRunTypeFormat} from '@mionkit/run-types/src/lib/baseRunTypeFormat';
 import {DeepPartial, ReflectionKind} from '@deepkit/type';
-import {MockOperation, type FormatParam, type jitCode, type JitFnID, type StrNumber} from '@mionkit/run-types/src/types';
+import {MockOperation, type jitCode, type JitFnID, type StrNumber} from '@mionkit/run-types/src/types';
 import {TypeFormat} from '@mionkit/run-types/src/lib/formats.runtype'; // !Important: TypeFormat cant be imported as type for all runType functionality to work
 import {
     StringRunTypeFormat,
