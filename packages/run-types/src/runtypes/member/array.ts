@@ -137,6 +137,6 @@ export class ArrayRunType<T extends Type = TypeArray> extends MemberRunType<T> {
 
     _mock(ctx: MockOperation): any[] {
         const length = ctx.arrayLength ?? random(0, ctx.maxRandomItemsLength);
-        return Array.from({length}, () => this.getMemberType().mock(ctx));
+        return Array.from({length}, () => this.getMemberType().mockType(ctx));
     }
 }

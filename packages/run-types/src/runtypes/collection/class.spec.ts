@@ -89,8 +89,8 @@ it('classes can not be decoded', () => {
     expect(() => rtNonS.createJitFunction(JitFunctions.fromJsonVal)).toThrow(`Classes can not be deserialized.`);
 });
 
-it('mock class', () => {
-    const mock = rt.mock();
+it('mock class', async () => {
+    const mock = await rt.mock();
     const validate = rt.createJitFunction(JitFunctions.isType);
     expect(mock instanceof SerializableClass).toBeTruthy();
     expect(validate(mock)).toBe(true);
@@ -143,8 +143,8 @@ describe('Classes that extend other classes', () => {
         });
     });
 
-    it('mock extended class', () => {
-        const mock = rtExtended.mock();
+    it('mock extended class', async () => {
+        const mock = await rtExtended.mock();
         const validate = rtExtended.createJitFunction(JitFunctions.isType);
         expect(mock instanceof ExtendedClass).toBeTruthy();
         expect(validate(mock)).toBe(true);

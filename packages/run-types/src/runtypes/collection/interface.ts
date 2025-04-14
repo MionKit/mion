@@ -159,12 +159,12 @@ export class InterfaceRunType<
     }
 
     _mock(ctx: MockOperation): Record<string | number, any> {
-        if (this.isCallable()) return this.getCallSignature()!.mock(ctx as MockOperation);
+        if (this.isCallable()) return this.getCallSignature()!.mockType(ctx as MockOperation);
         let obj: Record<string | number, any> = ctx.parentObj || {};
         this.getChildRunTypes().forEach((prop) => {
             const name = (prop as PropertyRunType).getChildVarName();
-            if (prop instanceof IndexSignatureRunType) obj = {...obj, ...prop.mock(ctx as MockOperation)};
-            else obj[name] = prop.mock(ctx as MockOperation);
+            if (prop instanceof IndexSignatureRunType) obj = {...obj, ...prop.mockType(ctx as MockOperation)};
+            else obj[name] = prop.mockType(ctx as MockOperation);
         });
         return obj;
     }

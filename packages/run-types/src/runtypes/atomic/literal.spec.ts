@@ -139,11 +139,18 @@ it('json stringify', () => {
     expect(roundTripSym.toString()).toEqual(typeValueSym.toString());
 });
 
-it('mock', () => {
-    expect(rt2.mock()).toEqual(2);
-    expect(rtA.mock()).toEqual('a');
-    expect(rtReg.mock()).toEqual(/abc/i);
-    expect(rtTrue.mock()).toEqual(true);
-    expect(rtBig.mock()).toEqual(1n);
-    expect(rtSym.mock().toString()).toEqual(sym.toString());
+it('mock', async () => {
+    const mocked2 = await rt2.mock();
+    const mockedA = await rtA.mock();
+    const mockedReg = await rtReg.mock();
+    const mockedTrue = await rtTrue.mock();
+    const mockedBig = await rtBig.mock();
+    const mockedSym = await rtSym.mock();
+
+    expect(mocked2).toEqual(2);
+    expect(mockedA).toEqual('a');
+    expect(mockedReg).toEqual(/abc/i);
+    expect(mockedTrue).toEqual(true);
+    expect(mockedBig).toEqual(1n);
+    expect(mockedSym.toString()).toEqual(sym.toString());
 });

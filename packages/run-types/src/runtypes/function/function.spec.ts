@@ -58,7 +58,7 @@ describe('function', () => {
         expect(validate(function sum(s, b, c) {})).toBe(true);
     });
 
-    it('throw errors for json encode/decode, jsonStringify and mock', () => {
+    it('throw errors for json encode/decode, jsonStringify and mock', async () => {
         expect(() => rt.createJitFunction(JitFunctions.isType)).not.toThrow();
         expect(() => rt.createJitFunction(JitFunctions.typeErrors)).not.toThrow();
 
@@ -72,7 +72,7 @@ describe('function', () => {
         expect(() => rt.createJitFunction(JitFunctions.jsonStringify)).toThrow(
             `Compile function JsonStringify not supported, call compileParams or compileReturn instead.`
         );
-        expect(() => rt.mock()).toThrow('Mock is not allowed, call mockParams or mockReturn instead.');
+        await expect(() => rt.mock()).rejects.toThrow('Mock is not allowed, call mockParams or mockReturn instead.');
     });
 });
 
@@ -148,12 +148,13 @@ describe('function parameters', () => {
         expect(roundTrip2).toEqual(typeValue2);
     });
 
-    it('mock parameters', () => {
-        const mocked = rt.mockParams();
+    it('mock parameters', async () => {
+        const mocked = await rt.mockParams();
         expect(Array.isArray(mocked)).toBe(true);
         expect(mocked.length >= 2 && mocked.length <= 3).toBe(true);
         const validate = rt.createJitParamsFunction(JitFunctions.isType);
-        expect(validate(rt.mockParams())).toBe(true);
+        const mockedParams = await rt.mockParams();
+        expect(validate(mockedParams)).toBe(true);
     });
 });
 
@@ -193,12 +194,13 @@ describe('non serializable parameters', () => {
         expect(roundTrip2).toEqual([3, true, undefined]);
     });
 
-    it('mock non serializable types', () => {
-        const mocked = rtWithFN.mockParams();
+    it('mock non serializable types', async () => {
+        const mocked = await rtWithFN.mockParams();
         expect(Array.isArray(mocked)).toBe(true);
         expect(mocked.length >= 2 && mocked.length <= 3).toBe(true);
         const validate = rtWithFN.createJitParamsFunction(JitFunctions.isType);
-        expect(validate(rtWithFN.mockParams())).toBe(true);
+        const mockedParams = await rtWithFN.mockParams();
+        expect(validate(mockedParams)).toBe(true);
     });
 });
 
@@ -246,11 +248,12 @@ describe('function return', () => {
         expect(roundTrip).toEqual(returnValue);
     });
 
-    it('mock function return', () => {
-        const mocked = rt.mockReturn();
+    it('mock function return', async () => {
+        const mocked = await rt.mockReturn();
         expect(mocked instanceof Date).toBe(true);
         const validate = rt.createJitReturnFunction(JitFunctions.isType);
-        expect(validate(rt.mockReturn())).toBe(true);
+        const mockedReturn = await rt.mockReturn();
+        expect(validate(mockedReturn)).toBe(true);
     });
 
     it(`if function's return type is a promise then return type should be the promise's resolvedType`, () => {

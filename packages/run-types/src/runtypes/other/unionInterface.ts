@@ -181,8 +181,8 @@ export class UnionInterfaceRunType extends InterfaceRunType<anySrcInterface> {
         const obj: Record<string | number, any> = ctx?.parentObj || {};
         this.getChildRunTypes().forEach((prop) => {
             const name = (prop as PropertyRunType).getChildVarName();
-            if (prop instanceof IndexSignatureRunType) prop.mock(ctx);
-            else obj[name] = prop.mock(ctx as MockOperation);
+            if (prop instanceof IndexSignatureRunType) prop.mockType(ctx);
+            else obj[name] = prop.mockType(ctx as MockOperation);
         });
         return obj;
     }

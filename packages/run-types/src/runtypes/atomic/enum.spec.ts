@@ -60,9 +60,9 @@ it('json stringify', () => {
     expect(roundTripG).toEqual(typeValueG);
 });
 
-it('mock', () => {
-    const mocked = rt.mock();
+it('mock', async () => {
+    const mocked = await rt.mock();
     expect(mocked === 0 || mocked === 'green' || mocked === 2).toBe(true);
     const validate = rt.createJitFunction(JitFunctions.isType);
-    expect(validate(rt.mock())).toBe(true);
+    expect(validate(mocked)).toBe(true);
 });

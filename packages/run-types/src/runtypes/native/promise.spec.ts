@@ -19,16 +19,15 @@ it('all jit compile function should throw and error', () => {
 });
 
 it('mock', async () => {
-    const mock = rt.mock();
-    const result = await mock;
-    expect(mock instanceof Promise).toBe(true);
+    // when promises are returned they are automatically resolved
+    const result = await rt.mock();
     expect(typeof result).toBe('string');
 });
 
 it('mock with reject', async () => {
     try {
-        const mock = rt.mock({promiseTimeOut: 1, promiseReject: new Error('rejected')});
-        await mock;
+        // when promises are returned they are automatically resolved/rejected
+        await rt.mock({promiseTimeOut: 1, promiseReject: new Error('rejected')});
         throw new Error('promise not rejected');
     } catch (error: any) {
         // eslint-disable-next-line jest/no-conditional-expect

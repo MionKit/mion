@@ -5,20 +5,22 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import type {TypeTuple} from '@deepkit/type';
+import type {TypeFunction, TypeTuple} from '@deepkit/type';
 import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
 import type {AnyParameterListRunType, MockOperation, SrcType, jitCode} from '../../types';
 import {ParameterRunType} from '../member/param';
 import {ReflectionKind} from '@deepkit/type';
 import {CollectionRunType} from '../../lib/baseRunTypes';
 import {TupleMemberRunType} from '../member/tupleMember';
+import {ReflectionSubKind} from '../../constants.kind';
 
 type AnyParamRunType = ParameterRunType | TupleMemberRunType;
 
 export class TupleRunType<ParamList extends AnyParameterListRunType = TypeTuple> extends CollectionRunType<ParamList> {
     getSrcParamList(): SrcType[] {
+        if (this.src.subKind === ReflectionSubKind.params) return ((this.src as TypeFunction).parameters as SrcType[]) || [];
         if (this.src.kind === ReflectionKind.tuple) return this.src.types as SrcType[];
-        return (this.src.parameters as SrcType[]) || [];
+        throw new Error('Invalid TupleRunType');
     }
     getChildRunTypes = (): AnyParamRunType[] => {
         return this.getSrcParamList().map((t) => t._rt as AnyParamRunType);
@@ -77,7 +79,7 @@ export class TupleRunType<ParamList extends AnyParameterListRunType = TypeTuple>
 
     _mock(ctx: MockOperation) {
         const options = this.src.kind === ReflectionKind.tuple ? ctx.tupleOptions : ctx.paramsOptions;
-        const params = this.getChildRunTypes().map((p, i) => p.mock(options?.[i] || ctx));
+        const params = this.getChildRunTypes().map((p, i) => p.mockType(options?.[i] || ctx));
         if (this.hasRestParameter()) {
             return [...params.slice(0, -1), ...params[params.length - 1]];
         }

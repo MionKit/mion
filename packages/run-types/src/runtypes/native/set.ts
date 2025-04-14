@@ -52,7 +52,7 @@ export class SetRunType extends IterableRunType {
         const mockSet = new Set();
         const length = ctx.arrayLength ?? random(0, ctx.maxRandomItemsLength);
         for (let i = 0; i < length; i++) {
-            const value = this.keyRT.mock(ctx);
+            const value = this.keyRT.mockType(ctx);
             mockSet.add(value);
         }
         return mockSet;

@@ -94,9 +94,9 @@ describe('Omit typescript utility type only pick selected properties', () => {
         expect(decodeOmit(JSON.parse(stringifyOmit(person)))).toEqual(omitPerson);
     });
 
-    it('mock', () => {
-        const mocked = rt.mock();
-        const mockedOmit = rtOmit.mock();
+    it('mock', async () => {
+        const mocked = await rt.mock();
+        const mockedOmit = await rtOmit.mock();
         const isType = rt.createJitFunction(JitFunctions.isType);
         const isTypeOmit = rtOmit.createJitFunction(JitFunctions.isType);
 

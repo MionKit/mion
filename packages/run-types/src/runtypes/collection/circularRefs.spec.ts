@@ -152,10 +152,11 @@ describe('Circular array + union', () => {
         expect(fromJsonVal(JSON.parse(jsonStringify(copy3))).length).toEqual(cu3.length);
     });
 
-    it('mock CircularUnion array', () => {
+    it('mock CircularUnion array', async () => {
+        const mocked = await rt.mock();
         const validate = rt.createJitFunction(JitFunctions.isType);
-        expect(rt.mock() instanceof Array).toBe(true);
-        expect(validate(rt.mock())).toBe(true);
+        expect(mocked instanceof Array).toBe(true);
+        expect(validate(mocked)).toBe(true);
     });
 });
 
@@ -231,10 +232,11 @@ describe('Circular object with tuple', () => {
         expect(fromJsonVal(JSON.parse(jsonStringify(copy3)))).toEqual(c3);
     });
 
-    it('mock CircularTuple object', () => {
+    it('mock CircularTuple object', async () => {
+        const mocked = await rt.mock();
         const validate = rt.createJitFunction(JitFunctions.isType);
-        expect(rt.mock() instanceof Object).toBe(true);
-        expect(validate(rt.mock())).toBe(true);
+        expect(mocked instanceof Object).toBe(true);
+        expect(validate(mocked)).toBe(true);
     });
 });
 
@@ -307,9 +309,9 @@ describe('Circular Object with index property', () => {
         expect(fromJsonVal(JSON.parse(jsonStringify(copy3)))).toEqual(c3);
     });
 
-    it('mock CircularIndex object', () => {
+    it('mock CircularIndex object', async () => {
         const validate = rt.createJitFunction(JitFunctions.isType);
-        const mocked = rt.mock();
+        const mocked = await rt.mock();
         expect(mocked instanceof Object).toBe(true);
         expect(validate(mocked)).toBe(true);
     });
@@ -384,9 +386,10 @@ describe('Circular Object with deep nested properties', () => {
         expect(fromJsonVal(JSON.parse(jsonStringify(copy2)))).toEqual(c2);
     });
 
-    it('mock CircularDeep object', () => {
+    it('mock CircularDeep object', async () => {
+        const mocked = await rt.mock();
         const validate = rt.createJitFunction(JitFunctions.isType);
-        expect(rt.mock() instanceof Object).toBe(true);
-        expect(validate(rt.mock())).toBe(true);
+        expect(mocked instanceof Object).toBe(true);
+        expect(validate(mocked)).toBe(true);
     });
 });

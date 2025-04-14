@@ -47,8 +47,8 @@ export class MapRunType extends IterableRunType {
         const mockMap = new Map();
         const length = ctx.arrayLength ?? random(0, ctx.maxRandomItemsLength);
         for (let i = 0; i < length; i++) {
-            const keyType = this.keyRT.mock(ctx);
-            const valueType = this.valueRT.mock(ctx);
+            const keyType = this.keyRT.mockType(ctx);
+            const valueType = this.valueRT.mockType(ctx);
             mockMap.set(keyType, valueType);
         }
         return mockMap;

@@ -40,6 +40,6 @@ it('json stringify', () => {
     expect(() => rt.createJitFunction(JitFunctions.jsonStringify)).toThrow('Never type cannot be stringified.');
 });
 
-it('mock', () => {
-    expect(() => rt.mock()).toThrow('Never type cannot be mocked.');
+it('mock', async () => {
+    await expect(() => rt.mock()).rejects.toThrow('Cannot mock never type.');
 });

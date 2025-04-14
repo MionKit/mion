@@ -90,6 +90,6 @@ export class PropertyRunType extends MemberRunType<TypePropertySignature | TypeP
         const probability = ctx.optionalPropertyProbability?.[this.getChildVarName()] ?? ctx.optionalProbability;
         if (probability < 0 || probability > 1) throw new Error('optionalProbability must be between 0 and 1');
         if (this.src.optional && Math.random() > probability) return undefined;
-        return this.getMemberType().mock(ctx);
+        return this.getMemberType().mockType(ctx);
     }
 }

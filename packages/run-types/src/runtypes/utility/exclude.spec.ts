@@ -60,9 +60,9 @@ describe('Exclude typescript utility type, exclude atomic elements from an union
         expect(decodeExclude(JSON.parse(stringifyExclude(excludeAge)))).toEqual(excludeAge);
     });
 
-    it('mock', () => {
-        const mocked = rt.mock();
-        const mockedExclude = rtExclude.mock();
+    it('mock', async () => {
+        const mocked = await rt.mock();
+        const mockedExclude = await rtExclude.mock();
         const isType = rt.createJitFunction(JitFunctions.isType);
         const isTypeExclude = rtExclude.createJitFunction(JitFunctions.isType);
 
@@ -123,9 +123,9 @@ describe('Exclude typescript utility type, exclude items from objects union', ()
         expect(decodeExclude(JSON.parse(stringifyExclude(excludeShape)))).toEqual(excludeShape);
     });
 
-    it('mock', () => {
-        const mocked = rt.mock();
-        const mockedExclude = rtExclude.mock();
+    it('mock', async () => {
+        const mocked = await rt.mock();
+        const mockedExclude = await rtExclude.mock();
         const isType = rt.createJitFunction(JitFunctions.isType);
         const isTypeExclude = rtExclude.createJitFunction(JitFunctions.isType);
 

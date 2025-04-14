@@ -140,7 +140,7 @@ export class IndexSignatureRunType extends MemberRunType<TypeIndexSignature> {
                 default:
                     throw new Error('Invalid index signature type');
             }
-            parentObj[propName] = this.getMemberType().mock(ctx);
+            parentObj[propName] = this.getMemberType().mockType(ctx);
         }
         return parentObj;
     }

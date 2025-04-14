@@ -51,12 +51,12 @@ export class PromiseRunType extends MemberRunType<TypePromise> {
             if (timeOut > 0) {
                 setTimeout(() => {
                     if (ctx.promiseReject) reject(ctx.promiseReject);
-                    else resolve(this.getMemberType().mock(ctx));
+                    else resolve(this.getMemberType().mockType(ctx));
                 }, timeOut);
                 return;
             }
             if (ctx.promiseReject) reject(ctx.promiseReject);
-            else resolve(this.getMemberType().mock(ctx));
+            else resolve(this.getMemberType().mockType(ctx));
         });
     }
 }

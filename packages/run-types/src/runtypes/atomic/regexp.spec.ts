@@ -45,8 +45,9 @@ it('json stringify', () => {
     });
 });
 
-it('mock', () => {
-    expect(rt.mock() instanceof RegExp).toBe(true);
+it('mock', async () => {
+    const mocked = await rt.mock();
+    expect(mocked instanceof RegExp).toBe(true);
     const validate = rt.createJitFunction(JitFunctions.isType);
-    expect(validate(rt.mock())).toBe(true);
+    expect(validate(mocked)).toBe(true);
 });

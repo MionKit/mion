@@ -42,8 +42,9 @@ it('json stringify should return undefined', () => {
     expect(stringify(undefined)).toBe(undefined);
 });
 
-it('mock', () => {
-    expect(rt.mock()).toBeUndefined();
+it('mock', async () => {
+    const mocked = await rt.mock();
+    expect(mocked).toBeUndefined();
     const validate = rt.createJitFunction(JitFunctions.isType);
-    expect(validate(rt.mock())).toBe(true);
+    expect(validate(mocked)).toBe(true);
 });

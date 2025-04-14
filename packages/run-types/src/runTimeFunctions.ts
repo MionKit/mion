@@ -2,6 +2,7 @@ import {JitFunctions} from './constants';
 import {ReceiveType} from '@deepkit/type';
 import {runType} from './runType';
 import {IsTypeFn, MockOptions, TypeErrorsFn} from './types';
+import {BaseRunType} from './lib/baseRunTypes';
 
 // all these functions are async because they might need to compile the jit function first
 // at the moment they are compiled synchronously, but in the future they might be async
@@ -26,12 +27,7 @@ export async function isTyStrictFn<T>(type: ReceiveType<T>): Promise<IsTypeFn> {
 
 /** Returns a function that mocks a value of the specified type. */
 export async function mockTypeFn<T>(type?: ReceiveType<T>): Promise<(opts?: Partial<MockOptions>) => T> {
-    const rt = runType(type);
-    return (opts?: Partial<MockOptions>) => rt.mock(opts);
-}
-
-/** Returns a function that mocks a value of the specified type using the async implementation. */
-export async function mockTypeFnAsync<T>(type?: ReceiveType<T>): Promise<(opts?: Partial<MockOptions>) => Promise<T>> {
-    const rt = runType(type);
-    return (opts?: Partial<MockOptions>) => rt.mockAsync(opts);
+    const rt = runType(type) as BaseRunType;
+    await rt.loadRegisteredFunction(JitFunctions.mock);
+    return (opts?: Partial<MockOptions>) => rt.mockType(opts) as T;
 }
