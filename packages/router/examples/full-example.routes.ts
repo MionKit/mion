@@ -1,4 +1,5 @@
-import {RpcError, StatusCodes} from '@mionkit/core';
+import {RpcError} from '@mionkit/core/src/errors';
+import {StatusCodes} from '@mionkit/core/src/status-codes';
 import {initMionRouter, route} from '@mionkit/router';
 import {headersHook, rawHook, hook, Routes} from '@mionkit/router';
 import {Context, NewUser, getSharedData, myApp} from './full-example.app';

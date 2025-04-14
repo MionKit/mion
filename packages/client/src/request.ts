@@ -18,7 +18,9 @@ import {
     RequestErrors,
 } from './types';
 import type {RunTypeValidationError} from '@mionkit/run-types';
-import {RpcError, StatusCodes, getRoutePath, isRpcError} from '@mionkit/core';
+import {RpcError, isRpcError} from '@mionkit/core/src/errors';
+import {getRoutePath} from '@mionkit/core/src/core';
+import {StatusCodes} from '@mionkit/core/src/status-codes';
 import {STORAGE_KEY} from './constants';
 import {fetchRemoteMethodsMetadata} from './clientMethodsMetadata';
 import {deserializeResponseBody, serializeSubRequests, validateSubRequests} from './reflection';

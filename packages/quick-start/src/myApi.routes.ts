@@ -1,4 +1,4 @@
-import {RpcError} from '@mionkit/core';
+import {RpcError} from '@mionkit/core/src/errors';
 import {RouterOptions, initMionRouter, headersHook, hook, route} from '@mionkit/router';
 
 export type User = {id: string; name: string; surname: string};

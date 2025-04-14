@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {RpcError} from '@mionkit/core';
+import {RpcError} from '@mionkit/core/src/errors';
 import {dispatchRoute, getResponseFromError, headersFromRecord, resetRouter} from '@mionkit/router';
 import type {MionResponse, MionHeaders, SingleHeaderValue} from '@mionkit/router';
 import type {Context as AwsContext, APIGatewayProxyResult, APIGatewayEvent} from 'aws-lambda';

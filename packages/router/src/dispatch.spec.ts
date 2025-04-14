@@ -9,7 +9,8 @@ import {registerRoutes, resetRouter, initRouter} from './router';
 import {dispatchRoute} from './dispatch';
 import {CallContext, MionHeaders} from './types/context';
 import {Routes} from './types/general';
-import {PublicRpcError, StatusCodes} from '@mionkit/core';
+import {PublicRpcError} from '@mionkit/core/src/types';
+import {StatusCodes} from '@mionkit/core/src/status-codes';
 import {headersHook, hook, route} from './initFunctions';
 import {headersFromRecord} from './headers';
 

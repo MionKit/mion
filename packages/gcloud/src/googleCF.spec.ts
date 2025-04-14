@@ -8,7 +8,7 @@
 import {initRouter, registerRoutes, route} from '@mionkit/router';
 import {googleCFHandler, resetGoogleCFOpts, setGoogleCFOpts} from './googleCF';
 import type {CallContext, Route} from '@mionkit/router';
-import {PublicRpcError} from '@mionkit/core';
+import {PublicRpcError} from '@mionkit/core/src/types';
 import {Server} from 'http';
 import {getTestServer} from '@google-cloud/functions-framework/testing';
 import * as functions from '@google-cloud/functions-framework';

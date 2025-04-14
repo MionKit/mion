@@ -8,7 +8,7 @@ import {expect, test, beforeAll, afterAll, describe} from 'bun:test';
 import {initRouter, registerRoutes, route} from '@mionkit/router';
 import {setBunHttpOpts, resetBunHttpOpts, startBunServer} from './bunHttp';
 import type {CallContext} from '@mionkit/router';
-import {PublicRpcError} from '@mionkit/core';
+import {PublicRpcError} from '@mionkit/core/src/types';
 // In theory node 18 supports fetch but not working fine with jest, we should update to jest 29
 // update to jest 29 gonna take some changes as all globals must be imported from @jest/globals
 // also the types for fetch are not available in node 18, fix here: https://stackoverflow.com/questions/71294230/how-can-i-use-native-fetch-with-node-in-typescript-node-v17-6#answer-75676044

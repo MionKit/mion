@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {RpcError} from '@mionkit/core';
+import {RpcError} from '@mionkit/core/src/errors';
 import {dispatchRoute, getResponseFromError, resetRouter} from '@mionkit/router';
 import type {MionResponse} from '@mionkit/router';
 import {Request, Response} from 'express';

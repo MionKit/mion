@@ -12,8 +12,10 @@ import {ProcedureType} from './types/procedures';
 import {isNotFoundExecutable} from './types/guards';
 import {getRouteExecutionPath, getRouterOptions} from './router';
 import {getNotFoundExecutionPath} from './notFound';
-import {Mutable, AnyObject, RpcError, StatusCodes} from '@mionkit/core';
+import {Mutable, AnyObject} from '@mionkit/core/src/types';
 import {handleRpcErrors} from './errors';
+import {RpcError} from '@mionkit/core/src/errors';
+import {StatusCodes} from '@mionkit/core/src/status-codes';
 
 // ############# PUBLIC METHODS #############
 

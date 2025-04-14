@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {RpcError} from '@mionkit/core';
+import {RpcError} from '@mionkit/core/src/errors';
 import type {JITFunctions, RunTypeValidationError} from '@mionkit/run-types';
 import type {
     JsonParser,

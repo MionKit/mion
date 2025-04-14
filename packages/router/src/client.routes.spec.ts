@@ -7,7 +7,8 @@
 
 import {MionHeaders} from './types/context';
 import {registerRoutes, initRouter, resetRouter} from './router';
-import {GET_REMOTE_METHODS_BY_ID, GET_REMOTE_METHODS_BY_PATH, getRoutePath} from '@mionkit/core';
+import {getRoutePath} from '@mionkit/core/src/core';
+import {GET_REMOTE_METHODS_BY_ID, GET_REMOTE_METHODS_BY_PATH} from '@mionkit/core/src/constants';
 import {hook, rawHook, route} from './initFunctions';
 import {Routes} from './types/general';
 import {ProcedureType} from './types/procedures';
