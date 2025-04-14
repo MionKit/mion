@@ -53,11 +53,12 @@ export const JitFunctions = {
     stripUnknownKeys: {id: 'sk', name: 'stripUnknownKeys', type: CodeTypes.statement},
     unknownKeysToUndefined: {id: 'ku', name: 'unknownKeysToUndefined', type: CodeTypes.statement},
     aux: {id: 'aux', name: 'aux', type: CodeTypes.returnBlock},
+    // mock is not really a jit function but is used in a similar way, main difference is that it is not compiled
     mock: {
         id: 'mock',
         name: 'mockType',
         type: CodeTypes.returnBlock,
-        import: () => import('./mock/mockType').then((m) => m.mock),
+        import: () => import('./mocking/mockType').then((m) => m.mock),
     },
 } as const satisfies {[key: string]: JitFnSetting};
 

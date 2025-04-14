@@ -12,7 +12,7 @@ import {registerFormatter, getToLiteralFn} from '@mionkit/run-types/src/lib/form
 import {BaseRunTypeFormat} from '@mionkit/run-types/src/lib/baseRunTypeFormat';
 import {ReflectionKind} from '@deepkit/type';
 import {MockOperation} from '@mionkit/run-types/src/types';
-import {mockString, random, randomItem} from '@mionkit/run-types/src/lib/mock';
+import {mockString, random, randomItem} from '@mionkit/run-types/src/mocking/mockUtils';
 import {fpVal, regexpEscape} from '@mionkit/run-types/src/lib/utils';
 
 const defaultMessages = {

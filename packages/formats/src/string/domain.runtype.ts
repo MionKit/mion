@@ -20,7 +20,7 @@ import {
     Samples,
 } from '../stringFormat.runtype';
 import {registerFormatter} from '@mionkit/run-types/src/lib/formats';
-import {random, randomItem} from '@mionkit/run-types/src/lib/mock';
+import {random, randomItem} from '@mionkit/run-types/src/mocking/mockUtils';
 import {CodeType, JitFunctions} from '@mionkit/run-types/src/constants';
 import {fpVal} from '@mionkit/run-types/src/lib/utils';
 import {NAME_CHARS, NAME_SAMPLES, TLD_CHARS, TLD_SAMPLES} from '../constants.mock';

@@ -18,7 +18,7 @@ import {DomainRunTypeFormat} from './domain.runtype';
 import {registerFormatter} from '@mionkit/run-types/src/lib/formats';
 import {EMAIL_NAME_SAMPLES_ARRAY, EMAIL_NAME_SAMPLES, EMAIL_SAMPLES, EMAIL_SAMPLES_PUNYCODE} from '../constants.mock'; // do not import using type
 import {CodeType, JitFunctions} from '@mionkit/run-types/src/constants';
-import {randomItem} from '@mionkit/run-types/src/lib/mock';
+import {randomItem} from '@mionkit/run-types/src/mocking/mockUtils';
 import {fpVal} from '@mionkit/run-types/src/lib/utils';
 
 // Email pattern, allows punycode domains
