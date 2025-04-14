@@ -153,7 +153,5 @@ export const nativeUtilityStringTypes = ['Uppercase', 'Lowercase', 'Capitalize',
 // other constants
 export const validPropertyNameRegExp = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
 export const minKeysForSet = 30;
-export const maxUnknownKeys = 10;
-export const maxStackDepth = 50;
 export const maxStackErrorMessage =
     'Max compilation nested level reached, either you have a very deeply nested type or there is an error related to circular references un the types.';

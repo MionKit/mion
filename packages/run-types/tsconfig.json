@@ -4,6 +4,6 @@
     "outDir": ".dist/cjs"
   },
   "reflection": true,
-  "include": ["."],
+  "include": [".", "../core/src/jitUtils.ts"],
   "exclude": ["node_modules", ".dist"]
 }

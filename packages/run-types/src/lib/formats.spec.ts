@@ -6,14 +6,13 @@
  * ######## */
 // ###################### Types FORMATS #####################
 
+import type {GenericPureFunction, JITUtils} from '@mionkit/core/src/types';
 import {ReflectionKind} from '@deepkit/type';
 import {runType} from '../runType';
-import {GenericPureFunction} from '../types';
 import {BaseRunTypeFormat} from './baseRunTypeFormat';
 import {BaseRunType} from './baseRunTypes';
 import {getCompiledPureFn, getPureFn, registerPureFnClosuresGroup, registerPureFnClosure, registerFormatter} from './formats';
 import {TypeFormat} from './formats.runtype';
-import {JITUtils} from './jitUtils';
 
 it('TypeFormat should have a different jit id', async () => {
     type Max5 = TypeFormat<string, 'max5', {maxLength: 5}>;

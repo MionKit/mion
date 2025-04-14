@@ -5,24 +5,14 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
+import type {TypeFormatParams, PureFunctionWithClosure, TypeFormatValue, JitCompiled} from '@mionkit/core/src/types';
 import type {BaseRunType} from './baseRunTypes';
 import {createJitCompiler, type JitCompiler, type JitErrorsCompiler} from './jitCompiler';
-
-import type {
-    TypeFormatParams,
-    JitFnID,
-    MockOperation,
-    Mutable,
-    JitCompiled,
-    PureFunctionWithClosure,
-    TypeFormatValue,
-    StrNumber,
-    jitCode,
-} from '../types';
+import type {JitFnID, MockOperation, Mutable, StrNumber, jitCode} from '../types';
 import {CodeType, getCodeType, JitFunctions} from '../constants';
 import {ReflectionKind} from '@deepkit/type';
 import {compileAddPureFunctionContext, dependenciesToLiteral, getFormatterParams, paramsToLiteral} from './formats';
-import {jitUtils} from './jitUtils';
+import {jitUtils} from '../../../core/src/jitUtils';
 import {getFormatterHash} from './utils';
 
 /**

@@ -1,14 +1,14 @@
 /* eslint-disable @typescript-eslint/ban-types */
-
 /* ########
  * 2025 mion
  * Author: Ma-jerez
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
+import type {FormatParam} from '@mionkit/core/src/types';
 // !Important: TypeFormat cant be imported as type for the runType functionality to work
 import {TypeFormat} from '@mionkit/run-types/src/lib/formats.runtype';
-import {JitFnID, MockOperation, type FormatParam, type jitCode} from '@mionkit/run-types/src/types';
+import {JitFnID, MockOperation, type jitCode} from '@mionkit/run-types/src/types';
 import type {BaseRunType} from '@mionkit/run-types/src/lib/baseRunTypes';
 import type {JitCompiler, JitErrorsCompiler} from '@mionkit/run-types/src/lib/jitCompiler';
 import {BaseRunTypeFormat} from '@mionkit/run-types/src/lib/baseRunTypeFormat';

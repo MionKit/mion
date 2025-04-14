@@ -5,13 +5,13 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
+import {MAX_STACK_DEPTH} from '@mionkit/core/src/constants';
 import type {
     RunType,
     JitConfig,
     Mutable,
     RunTypeChildAccessor,
     JitFnID,
-    JitCompiled,
     MockOptions,
     SrcType,
     SrcCollection,
@@ -21,12 +21,12 @@ import type {
     jitCode,
 } from '../types';
 import type {mock} from '../mocking/mockType';
-import {jitArgs, jitErrorArgs, JitFunctions, maxStackDepth, maxStackErrorMessage, CodeType, getCodeType} from '../constants';
+import {jitArgs, jitErrorArgs, JitFunctions, maxStackErrorMessage, CodeType, getCodeType} from '../constants';
 import {ReflectionKind, type TypeIndexSignature, type TypeProperty, type Type} from '@deepkit/type';
 import {getPropIndex, memorize, toLiteral} from './utils';
 import {JitErrorsCompiler, JitCompiler, getJITFnHash, createJitCompiler} from './jitCompiler';
 import {type AnyKindName, getReflectionName} from '../constants.kind';
-import {jitUtils} from './jitUtils';
+import {jitUtils} from '../../../core/src/jitUtils';
 import {createUniqueHash} from './quickHash';
 import {
     initFormatAnnotations,
@@ -38,6 +38,7 @@ import {
 import {typeParamsToString} from './utils';
 import {_compileJsonStringify} from '@mionkit/run-types/src/jitCompilers/jsonStringify';
 import {getComposableFunction, loadComposableFunction} from '@mionkit/run-types/src/lib/composableFunctions';
+import {JitCompiled} from '@mionkit/core/src/types';
 
 export abstract class BaseRunType<T extends Type = Type> implements RunType {
     // Registry for dynamically loaded functions
@@ -454,7 +455,7 @@ export abstract class CollectionRunType<T extends Type> extends BaseRunType<T> {
             .join(';');
     }
     private _getJitConfig = memorize((stack: BaseRunType<any>[] = []): JitConfig => {
-        if (stack.length > maxStackDepth) throw new Error(maxStackErrorMessage);
+        if (stack.length > MAX_STACK_DEPTH) throw new Error(maxStackErrorMessage);
         const circularJitConf = this.getCircularJitConfig(stack);
         if (circularJitConf) return circularJitConf;
         stack.push(this);
@@ -531,7 +532,7 @@ export abstract class MemberRunType<T extends Type> extends BaseRunType<T> imple
         return this.isOptional() ? `if (${comp.getChildVλl()} !== undefined) {${code}}` : code;
     }
     private _getJitConfig = memorize((stack: BaseRunType<any>[] = []): JitConfig => {
-        if (stack.length > maxStackDepth) throw new Error(maxStackErrorMessage);
+        if (stack.length > MAX_STACK_DEPTH) throw new Error(maxStackErrorMessage);
         const circularJitConf = this.getCircularJitConfig(stack);
         if (circularJitConf) return circularJitConf;
         // TODO: some properties could be skipped from the JIT ID. so we could implement a mechanism to mark them to be skipped

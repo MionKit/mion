@@ -5,22 +5,16 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import type {
-    AnyClass,
-    FormatParam,
-    FormatParamLiteral,
-    JitFnID,
-    PureFunctionWithClosure,
-    RunType,
-    TypeFormatValue,
-} from '../types';
-import {ReflectionKind, Type, TypeFunction, TypeParameter, TypeTuple, TypeTupleMember} from '@deepkit/type';
-import {jitUtils} from './jitUtils';
+import {ReflectionKind} from '@deepkit/type';
+import type {Type, TypeFunction, TypeParameter, TypeTuple, TypeTupleMember} from '@deepkit/type';
+import type {FormatParam, FormatParamLiteral, PureFunctionWithClosure, TypeFormatValue} from '@mionkit/core/src/types';
+import {jitUtils} from '../../../core/src/jitUtils';
 import {validPropertyNameRegExp} from '../constants';
+import type {AnyClass, JitFnID, RunType} from '../types';
 import {BaseRunType} from './baseRunTypes';
+import {isFormatParamMeta} from './guards';
 import type {JitCompiler, JitErrorsCompiler} from './jitCompiler';
 import {createHashLiteral} from './quickHash';
-import {isFormatParamMeta} from './guards';
 
 export function toLiteral(value: number | string | boolean | undefined | null | bigint | RegExp | symbol): string {
     switch (typeof value) {

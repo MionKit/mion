@@ -10,7 +10,6 @@ import {ReflectionSubKind} from '../constants.kind';
 import {JitFunctions} from '@mionkit/run-types/src/constants';
 import {JitCompiler} from '@mionkit/run-types/src/lib/jitCompiler';
 import {isSafePropName} from '@mionkit/run-types/src/lib/utils';
-import {jitUtils} from '@mionkit/run-types/src/lib/jitUtils';
 import type {IndexSignatureRunType} from '../runtypes/member/indexProperty';
 import type {jitCode} from '../types';
 import type {BaseRunType} from '../lib/baseRunTypes';
@@ -154,7 +153,7 @@ export function _compileJsonStringify(runType: BaseRunType, comp: JitCompiler): 
             // when prop is not safe we need to double encode double quotes and escape characters
             const propDef = isSafePropName(rt.src.name)
                 ? `'"${rt.getChildVarName()}":'`
-                : `${jitUtils.asJSONString(rt.getChildLiteral() as string)}+':'`;
+                : `${JSON.stringify(rt.getChildLiteral() as string)}+':'`;
             if (rt.src.optional) {
                 rt.tempChildVλl = comp.getChildVλl();
                 // TODO: check if json for an object with first property undefined is valid (maybe the comma must be dynamic too)

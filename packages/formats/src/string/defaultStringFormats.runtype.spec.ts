@@ -4,7 +4,7 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
-
+import type {TypeFormatError, RunTypeError} from '@mionkit/core/src/types';
 import {isTypeFn, mockTypeFn, typeErrorsFn} from '@mionkit/run-types/src/runTimeFunctions';
 import {StringFormat} from '../stringFormat.runtype';
 import {
@@ -15,7 +15,6 @@ import {
     String_Numeric,
     String_Uppercase,
 } from './defaultStringFormats.runtype';
-import {RunTypeError, TypeFormatError} from '@mionkit/run-types/src/types';
 
 // #### AlphaString type ####
 it('validate string alpha', async () => {

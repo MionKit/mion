@@ -6,8 +6,7 @@
  * ######## */
 // ###### !IMPORTANT: all imports should be types only to prevent circular dependencies ######
 import type {Type, TypeCallSignature, TypeFunction, TypeMethod, TypeMethodSignature, TypeTuple} from '@deepkit/type';
-import type {BaseCompiler} from './lib/jitCompiler';
-import type {JITUtils} from './lib/jitUtils';
+import type {RunTypeError, TypeFormatParams, JITUtils, JitCompiled} from '@mionkit/core/src/types';
 import type {JitFunctions} from './constants';
 import type {ReflectionSubKind} from './constants.kind';
 import type {BaseRunTypeFormat} from './lib/baseRunTypeFormat';
@@ -16,6 +15,11 @@ export type StrNumber = string | number;
 export type jitCode = string | undefined;
 
 // ###################### RunTypes ######################
+export type SrcType<T extends Type = Type> = T & {
+    readonly _rt: RunType;
+    readonly subKind?: SubKind;
+};
+
 /**
  * Runtime Metadata for a typescript types.
  */
@@ -36,23 +40,8 @@ export type JSONString = string;
 
 export type SubKind = (typeof ReflectionSubKind)[keyof typeof ReflectionSubKind];
 export type RunTypeVisitor = (deepkitType: Type, parents: RunType[], opts: RunTypeOptions) => RunType;
-export type SrcType<T extends Type = Type> = T & {
-    readonly _rt: RunType;
-    readonly subKind?: SubKind;
-};
 export type SrcCollection = Type & {types: Type[]};
 export type SrcMember = Type & {type: Type};
-
-/**
- * The argument names of the function to be compiled. The order of properties is important as must the same as the function args.
- * ie: {vλl: 'val', arg1: 'arg1', error: 'err'} for the function (vλl, arg1, eArr) => any
- */
-export type JitFnArgs = {
-    /** The name of the value of to be */
-    vλl: string;
-    /** Other argument names */
-    [key: string]: string;
-};
 
 export interface RunTypeChildAccessor extends RunType {
     /**
@@ -114,18 +103,6 @@ export interface JitFnData<Fn extends AnyFn> {
 
 export type SerializableJitFn<Fn extends AnyFn> = Omit<JitFnData<Fn>, 'fn'>;
 
-export interface RunTypeError {
-    /**
-     * Path the the property that failed validation if the validated item was an object class, etc..
-     * Index if item that failed validation was in an array.
-     * null if validated item was a single property */
-    path: StrNumber[];
-    /** the type of the expected data */
-    expected: string;
-    format?: TypeFormatError;
-    // typeName?: string; // tyeName can not be included as two types could Have the same jitId and different names
-}
-
 export type IsTypeFn = (value: any) => boolean;
 export type TypeErrorsFn = (value: any) => RunTypeError[];
 export type ToJsonValFn = (value: any) => JSONValue;
@@ -158,22 +135,6 @@ export interface UnwrappedJITFunctions {
     toJsonVal: JitFnData<unwrappedToJsonValFn>;
     fromJsonVal: JitFnData<unwrappedFromJsonValFn>;
     jsonStringify: JitFnData<unwrappedJsonStringifyFn>;
-}
-
-export interface JitCompiled
-    extends Pick<
-        BaseCompiler,
-        | 'fnId'
-        | 'args'
-        | 'defaultParamValues'
-        | 'code'
-        | 'jitFnHash'
-        | 'jitId'
-        | 'dependenciesSet'
-        | 'pureFnDependencies'
-        | 'isNoop'
-    > {
-    fn: (...args: any[]) => any;
 }
 
 export interface SerializableJit extends Omit<JitCompiled, 'fnId' | 'dependenciesSet'> {
@@ -226,8 +187,6 @@ export interface MockOperation extends MockOptions {
     stack: RunType[];
 }
 
-// ###################### TYPE FORMATS #####################
-
 export type DKAnnotation = {
     name: string;
     options: SrcType;
@@ -236,73 +195,6 @@ export type DKAnnotation = {
 export type FormatAnnotation = DKAnnotation & {
     params?: TypeFormatParams;
     formatter: BaseRunTypeFormat;
-};
-
-export type TypeFormatError = {
-    /** The name of the format that failed */
-    name: string; // the name of the format that failed
-    /** Expected value, for larger Values, regexp and others the error reason is returned instead */
-    val: StrNumber | boolean | bigint | (StrNumber | boolean | bigint)[];
-    /**
-     * The path to the section of the format that failed.
-     * ie: for an email that failed the TLD part, the path should be ['domain', 'tld']
-     * ie: for an email that has character not allowed in the local part, the path should be ['localPart']
-     * */
-    formatPath: StrNumber[];
-};
-
-export type FormatParamLiteral = string | number | boolean | RegExp | bigint;
-export type TypeFormatValue =
-    | FormatParamLiteral
-    | readonly TypeFormatValue[]
-    | {[key: string]: TypeFormatValue | undefined | never}; // undefined is used to allow optional properties
-export type FormatParamMeta<L extends TypeFormatValue = TypeFormatValue> = {
-    /** Value of the format param, can ONLY be a Literal Value */
-    val: L;
-    /** Error reason in case validation fails due to this value, should be a unique reason  */
-    reason: string;
-    /**  Description of the format param, can be used to generate documentation */
-    desc?: string;
-};
-export type FormatParam<L extends TypeFormatValue> = L | FormatParamMeta<L>;
-export type TypeFormatParams = Record<string, TypeFormatValue | undefined | never>;
-export type TypeFormatParsedParams = {__jitId: string; [key: string]: TypeFormatValue};
-
-/**
- * Functions that can be used by jitCode.
- * These function must not have external dependencies, use variables from outside the function scope, do not have side effects, etc.
- * These function can be correctly serialized/deserialized using function.toString() method.
- * These function can not be anonym and must have an unique name.
- */
-export type PureFunctionDeps = Record<string, PureFunction>;
-export type GenericPureFunction<P extends TypeFormatValue> = (val: any, formatParams: P, deps: PureFunctionDeps) => any;
-export type ErrorsPureFunction<P extends TypeFormatValue> = (
-    val: any,
-    pλth: StrNumber[],
-    εrr: RunTypeError[],
-    expected: string,
-    formatName: string,
-    formatParams: P,
-    formatPath: StrNumber[],
-    deps: PureFunctionDeps,
-    accessPath?: StrNumber[],
-    fmtAccessPath?: StrNumber[]
-) => RunTypeError[];
-export type PureFunction = (...args: any[]) => any;
-
-/**
- * Pure function that return an array with a list of invalid format properties.
- * ie: if a string should be maxLength = 5 and that string is 6 characters long, the function should return {invalid:['maxLength']}
- */
-export type PureFunctionWithClosure = (jitUtils: JITUtils) => PureFunction;
-
-export type CompiledPureFunction = {
-    originClosureFn: PureFunctionWithClosure;
-    fn?: PureFunction;
-    paramNames: string[];
-    body: string;
-    name: string;
-    dependencies: Set<string>;
 };
 
 // ###################### OTHERS #####################

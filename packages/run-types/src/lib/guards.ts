@@ -7,11 +7,12 @@
  * ######## */
 
 import type {Type, TypeClass, TypeMethod, TypeObjectLiteral, TypeParameter} from '@deepkit/type';
+import type {FormatParamMeta, TypeFormatValue} from '@mionkit/core/src/types';
 import {isType, ReflectionKind} from '@deepkit/type';
 import {ReflectionSubKind} from '../constants.kind';
 import {JitFunctions, nativeUtilityStringTypes, nonSerializableClasses, nonSerializableGlobals} from '../constants';
 /* IMPORTANT: import classes as type only to prevent js circular imports */
-import type {FormatParamMeta, MockOperation, MockOptions, RunType, RunTypeChildAccessor, TypeFormatValue} from '../types';
+import type {MockOperation, MockOptions, RunType, RunTypeChildAccessor} from '../types';
 import type {StringRunType} from '../runtypes/atomic/string';
 import type {DateRunType} from '../runtypes/atomic/date';
 import type {NumberRunType} from '../runtypes/atomic/number';

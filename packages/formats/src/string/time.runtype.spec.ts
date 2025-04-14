@@ -6,7 +6,7 @@
  * ######## */
 
 import {isTypeFn, mockTypeFn, typeErrorsFn} from '@mionkit/run-types/src/runTimeFunctions';
-import {RunTypeError} from '@mionkit/run-types/src/types';
+import {RunTypeError} from '@mionkit/core/src/types';
 import {TimeFormat} from './time.runtype';
 
 // ####### Time format HH:mm:ss #######
