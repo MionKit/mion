@@ -87,9 +87,6 @@ export class FunctionRunType<CallType extends AnyFunction = TypeFunction> extend
     _compileFromJsonVal(): jitCode {
         throw new Error(`Compile function FromJsonVal not supported, call compileParams or compileReturn instead.`);
     }
-    _compileJsonStringify(): jitCode {
-        throw new Error(`Compile function JsonStringify not supported, call compileParams or compileReturn instead.`);
-    }
     _compileHasUnknownKeys(): jitCode {
         return '';
     }

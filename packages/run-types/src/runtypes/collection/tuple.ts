@@ -67,13 +67,4 @@ export class TupleRunType<ParamList extends AnyParameterListRunType = TypeTuple>
                 .join(';') || undefined
         );
     }
-    _compileJsonStringify(comp: JitCompiler): jitCode {
-        const skip = this.getJitConfig().skipJit;
-        if (skip) return '';
-        if (this.getChildRunTypes().length === 0) return `[]`;
-        const paramsCode = this.getChildRunTypes()
-            .map((p) => p.compileJsonStringify(comp))
-            .join('+');
-        return `'['+${paramsCode}+']'`;
-    }
 }

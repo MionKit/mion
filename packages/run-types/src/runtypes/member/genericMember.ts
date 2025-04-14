@@ -58,13 +58,4 @@ export class GenericMemberRunType<T extends SrcMember> extends MemberRunType<T> 
         if (this.isOptional()) return `if (${comp.getChildVλl()} !== undefined) {${code}}`;
         return code;
     }
-    _compileJsonStringify(comp: JitCompiler) {
-        const child = this.getJitChild();
-        const argCode = child?.compileJsonStringify(comp);
-        if (!argCode) return undefined;
-        const isFirst = this.getChildIndex() === 0;
-        const sep = isFirst ? '' : `','+`;
-        if (this.isOptional()) return `(${comp.getChildVλl()} === undefined ? '': ${sep}${argCode})`;
-        return `${sep}${argCode}`;
-    }
 }

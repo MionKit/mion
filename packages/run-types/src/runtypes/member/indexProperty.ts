@@ -79,24 +79,6 @@ export class IndexSignatureRunType extends MemberRunType<TypeIndexSignature> {
         const code = isExpression ? `${comp.getChildVλl()} = ${childCode};` : childCode;
         return `for (const ${prop} in ${varName}){${skipCode} ${code}}`;
     }
-    _compileJsonStringify(comp: JitCompiler): jitCode {
-        const child = this.getJitChild();
-        const jsonVal = child?.compileJsonStringify(comp);
-        if (!child || !jsonVal) return undefined;
-        const varName = comp.vλl;
-        const prop = this.getChildVarName();
-        const arrName = `ls${this.getNestLevel()}`;
-        const sep = this.skipCommas ? '' : '+","';
-        const skipCode = this.getSkipCode(prop);
-        return `
-            const ${arrName} = [];
-            for (const ${prop} in ${varName}) {
-                ${skipCode}
-                if (${prop} !== undefined) ${arrName}.push(utl.asJSONString(${prop}) + ':' + ${jsonVal});
-            }
-            return ${arrName}.join(',')${sep};
-        `;
-    }
     _compileHasUnknownKeys(comp: JitCompiler): jitCode {
         if (this.getMemberType().getFamily() === 'A') return undefined;
         const memberCode = this.getJitChild()?.compileHasUnknownKeys(comp);
@@ -121,12 +103,12 @@ export class IndexSignatureRunType extends MemberRunType<TypeIndexSignature> {
         const memberCode = this.getJitChild()?.compileUnknownKeysToUndefined(comp);
         return this.traverseCode(comp, memberCode);
     }
-    private traverseCode(comp: JitCompiler, memberCode: jitCode): jitCode {
+    traverseCode(comp: JitCompiler, memberCode: jitCode): jitCode {
         if (!memberCode) return undefined;
         const prop = this.getChildVarName();
         return `for (const ${prop} in ${comp.vλl}) {${memberCode}}`;
     }
-    private getSkipCode(prop: string): string {
+    getSkipCode(prop: string): string {
         const namedChildren = (this.getParent() as InterfaceRunType).getNamedChildren();
         const skipNames = namedChildren.length
             ? namedChildren.map((child) => `${child.getChildLiteral()} === ${prop}`).join(' || ')

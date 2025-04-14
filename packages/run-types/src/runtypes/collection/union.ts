@@ -39,7 +39,7 @@ export class UnionRunType extends CollectionRunType<TypeUnion> {
                 return super.getCodeType(fnId);
         }
     }
-    private getChildStrictIsType(rt: BaseRunType, comp: JitCompiler) {
+    getChildStrictIsType(rt: BaseRunType, comp: JitCompiler) {
         const isTypeCode = rt.compileIsType(comp);
         const isTypeWithProperties =
             isInterfaceRunType(rt) || isClassRunType(rt) || isObjectLiteralRunType(rt) || isIntersectionRunType(rt);
@@ -118,26 +118,6 @@ export class UnionRunType extends CollectionRunType<TypeUnion> {
                 const ${decVar} = ${comp.vλl}[0];
                 ${childrenCode}
                 else { throw new Error('Can not decode json to union: expected one of <${this.getUnionTypeNames()}> but got ' + ${comp.vλl}?.constructor?.name || typeof ${comp.vλl}) }            `;
-        return code;
-    }
-    _compileJsonStringify(comp: JitCompiler): jitCode {
-        // TODO: enforce strictTypes to ensure no extra properties of the union go unchecked
-        const childrenCode = this.getJitChildren()
-            .map((rt, i) => {
-                const itemIsType = this.getChildStrictIsType(rt, comp);
-                const childCode = rt.compileJsonStringify(comp);
-                const skipDecode = !childCode || childCode === comp.vλl;
-                const stringifyCode = skipDecode ? comp.vλl : `${childCode}`;
-                const code = `'[${i},' + ${stringifyCode} + ']'`;
-                const itemCode = rt.getFamily() === 'A' ? `(${code})` : code;
-                return `if (${itemIsType}) {return ${itemCode}}`;
-            })
-            .filter(Boolean)
-            .join('');
-        const code = `
-            ${childrenCode}
-            else { throw new Error('Can not stringify union: expected one of <${this.getUnionTypeNames()}> but got ' + ${comp.vλl}?.constructor?.name || typeof ${comp.vλl}) }
-        `;
         return code;
     }
     getUnionTypeNames(): string {

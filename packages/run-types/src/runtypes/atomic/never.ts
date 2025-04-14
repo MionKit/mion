@@ -28,7 +28,4 @@ export class NeverRunType extends AtomicRunType<TypeNever> {
     _compileFromJsonVal(): jitCode {
         throw new Error('Never type cannot be decoded from JSON.');
     }
-    _compileJsonStringify(): jitCode {
-        throw new Error('Never type cannot be stringified.');
-    }
 }

@@ -29,9 +29,6 @@ export class RegexpRunType extends AtomicRunType<TypeRegexp> {
     _compileFromJsonVal(comp: JitCompiler): jitCode {
         return regexpTransformer._compileFromJsonVal(comp);
     }
-    _compileJsonStringify(comp: JitCompiler): jitCode {
-        return regexpTransformer._compileJsonStringify(comp);
-    }
 }
 
 // regexpTransformer (used internally only so no need to register in JitUtils)
@@ -41,8 +38,5 @@ export const regexpTransformer = {
     },
     _compileToJsonVal(comp: JitCompiler): jitCode {
         return `${comp.vλl}.toString()`;
-    },
-    _compileJsonStringify(comp: JitCompiler): jitCode {
-        return `JSON.stringify(${comp.vλl}.toString())`;
     },
 };

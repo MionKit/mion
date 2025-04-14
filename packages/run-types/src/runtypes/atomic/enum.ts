@@ -24,8 +24,4 @@ export class EnumRunType extends AtomicRunType<TypeEnum> {
     _compileTypeErrors(comp: JitErrorsCompiler): jitCode {
         return `if (!(${this._compileIsType(comp)})) ${comp.callJitErr(this)}`;
     }
-    _compileJsonStringify(comp: JitCompiler): jitCode {
-        if (this.src.indexType.kind === ReflectionKind.number) return comp.vλl;
-        return `JSON.stringify(${comp.vλl})`;
-    }
 }
