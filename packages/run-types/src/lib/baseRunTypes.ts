@@ -20,19 +20,11 @@ import type {
     FormatAnnotation,
     jitCode,
 } from '../types';
-import {
-    jitArgs,
-    jitErrorArgs,
-    JitFunctions,
-    maxStackDepth,
-    maxStackErrorMessage,
-    CodeType,
-    getCodeType,
-    JitFnSetting,
-} from '../constants';
+import type {mock} from '../mocking/mockType';
+import {jitArgs, jitErrorArgs, JitFunctions, maxStackDepth, maxStackErrorMessage, CodeType, getCodeType} from '../constants';
 import {ReflectionKind, type TypeIndexSignature, type TypeProperty, type Type} from '@deepkit/type';
 import {getPropIndex, memorize, toLiteral} from './utils';
-import {JitErrorsCompiler, JitCompiler, getJITFnHash, createJitCompiler, getJitFnCode} from './jitCompiler';
+import {JitErrorsCompiler, JitCompiler, getJITFnHash, createJitCompiler} from './jitCompiler';
 import {type AnyKindName, getReflectionName} from '../constants.kind';
 import {jitUtils} from './jitUtils';
 import {createUniqueHash} from './quickHash';
@@ -44,9 +36,8 @@ import {
     defaultIgnoreFormatProps,
 } from './formats';
 import {typeParamsToString} from './utils';
-import type {mock} from '../mocking/mockType';
-
-const functionRegistry: Map<JitFnSetting, (...args: any[]) => any> = new Map();
+import {_compileJsonStringify} from '@mionkit/run-types/src/jitCompilers/jsonStringify';
+import {getComposableFunction, loadComposableFunction} from '@mionkit/run-types/src/lib/composableFunctions';
 
 export abstract class BaseRunType<T extends Type = Type> implements RunType {
     // Registry for dynamically loaded functions
@@ -166,7 +157,6 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
     abstract _compileTypeErrors(comp: JitErrorsCompiler): jitCode;
     abstract _compileToJsonVal(comp: JitCompiler): jitCode;
     abstract _compileFromJsonVal(comp: JitCompiler): jitCode;
-    abstract _compileJsonStringify(comp: JitCompiler): jitCode;
     abstract _compileHasUnknownKeys(comp: JitCompiler): jitCode;
     abstract _compileUnknownKeyErrors(comp: JitErrorsCompiler): jitCode;
     abstract _compileStripUnknownKeys(comp: JitCompiler): jitCode;
@@ -185,9 +175,6 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
     }
     compileFromJsonVal(comp: JitCompiler): jitCode {
         return this.compile(comp, JitFunctions.fromJsonVal.id);
-    }
-    compileJsonStringify(comp: JitCompiler): jitCode {
-        return this.compile(comp, JitFunctions.jsonStringify.id);
     }
     compileUnknownKeyErrors(comp: JitErrorsCompiler): jitCode {
         return this.compile(comp, JitFunctions.unknownKeyErrors.id);
@@ -210,7 +197,7 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
      * @param fnId operation id
      * @returns
      */
-    private compile(comp: JitCompiler, fnId: JitFnID): jitCode {
+    compile(comp: JitCompiler, fnId: JitFnID): jitCode {
         let code: jitCode;
         comp.pushStack(this);
         if (comp.shouldCallDependency()) {
@@ -233,14 +220,15 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
                     code =this._compileFromJsonVal(comp);
                     break;
                 case JitFunctions.jsonStringify.id:
-                    code = this._compileJsonStringify(comp);
+                    code = _compileJsonStringify(this, comp);
                     break;
                 case JitFunctions.unknownKeyErrors.id: code = this._compileUnknownKeyErrors(comp as JitErrorsCompiler); break;
                 case JitFunctions.hasUnknownKeys.id: code = this._compileHasUnknownKeys(comp); break;
                 case JitFunctions.stripUnknownKeys.id: code = this._compileStripUnknownKeys(comp); break;
                 case JitFunctions.unknownKeysToUndefined.id: code = this._compileUnknownKeysToUndefined(comp); break;
                 case JitFunctions.format.id:  break;
-                default: throw new Error(`Unknown compile operation: ${fnId}`);
+                default:
+                    throw new Error(`Unknown compile operation: ${fnId}`);
             }
             if (code) code = this.handleReturnValues(comp, fnId, code);
         }
@@ -388,9 +376,6 @@ export abstract class AtomicRunType<T extends Type> extends BaseRunType<T> {
     }
     _compileFromJsonVal(comp: JitCompiler): jitCode {
         return undefined;
-    }
-    _compileJsonStringify(comp: JitCompiler): jitCode {
-        return comp.vλl;
     }
     _compileHasUnknownKeys(comp: JitCompiler): jitCode {
         return undefined;
@@ -570,22 +555,3 @@ export abstract class MemberRunType<T extends Type> extends BaseRunType<T> imple
 }
 
 // ########## Load Composable Functions ##########
-
-export async function loadComposableFunction(jitFn: JitFnSetting): Promise<(...args: any[]) => any> {
-    const fn = functionRegistry.get(jitFn);
-    if (fn) return fn;
-    if (!jitFn.import) throw new Error(`Jit function ${jitFn.name} has no import function`);
-    functionRegistry.forEach((_v, k) => {
-        if (k.id === jitFn.id) throw new Error('A function with the same id already exists in the functions registry');
-    });
-    const newFn = await jitFn.import();
-    functionRegistry.set(JitFunctions.mock, newFn);
-    return newFn;
-}
-
-/** synchronous version of loadRegisteredFunction, throws an error if the function has not been loaded */
-export function getComposableFunction(jitFn: JitFnSetting): (...args: any[]) => any {
-    const fn = functionRegistry.get(jitFn);
-    if (fn) return fn;
-    throw new Error(`Function ${jitFn.name} has not been loaded.`);
-}

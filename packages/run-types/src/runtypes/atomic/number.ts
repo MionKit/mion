@@ -29,7 +29,4 @@ export class NumberRunType extends AtomicRunType<TypeNumber> {
     _compileFromJsonVal(): jitCode {
         return undefined;
     }
-    _compileJsonStringify(comp: JitCompiler): jitCode {
-        return comp.vλl;
-    }
 }

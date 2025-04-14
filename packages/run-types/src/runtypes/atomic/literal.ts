@@ -60,9 +60,6 @@ export class LiteralRunType extends AtomicRunType<TypeLiteral> {
     _compileFromJsonVal(comp: JitCompiler): jitCode {
         return this.getValidator()._compileFromJsonVal(comp);
     }
-    _compileJsonStringify(comp: JitCompiler): jitCode {
-        return this.getValidator()._compileJsonStringify(comp);
-    }
 }
 
 const noEncoder = {
@@ -71,9 +68,6 @@ const noEncoder = {
     },
     _compileToJsonVal(): undefined {
         return undefined;
-    },
-    _compileJsonStringify(comp: JitCompiler) {
-        return `JSON.stringify(${comp.vλl})`;
     },
 };
 

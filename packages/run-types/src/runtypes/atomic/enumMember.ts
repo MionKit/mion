@@ -29,7 +29,4 @@ export class EnumMemberRunType extends AtomicRunType<TypeEnum> {
     _compileFromJsonVal(): jitCode {
         throw new Error('Enum member operations are not supported');
     }
-    _compileJsonStringify(): jitCode {
-        throw new Error('Enum member operations are not supported');
-    }
 }

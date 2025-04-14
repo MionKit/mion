@@ -29,7 +29,4 @@ export class NullRunType extends AtomicRunType<TypeNull> {
     _compileFromJsonVal(): jitCode {
         return undefined;
     }
-    _compileJsonStringify(comp: JitCompiler): jitCode {
-        return comp.vλl;
-    }
 }

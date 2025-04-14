@@ -26,7 +26,4 @@ export class IntersectionRunType extends InterfaceRunType<TypeIntersection> {
     compileFromJsonVal(): string {
         throw new Error('Intersection serialization not supported, should be resolve to other RunTypes');
     }
-    compileJsonStringify(): string {
-        throw new Error('Intersection serialization not supported, should be resolve to other RunTypes');
-    }
 }

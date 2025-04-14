@@ -29,9 +29,6 @@ export class BigIntRunType extends AtomicRunType<TypeBigInt> {
     _compileFromJsonVal(comp: JitCompiler): jitCode {
         return bigIntTransformer._compileFromJsonVal(comp);
     }
-    _compileJsonStringify(comp: JitCompiler): jitCode {
-        return bigIntTransformer._compileJsonStringify(comp);
-    }
 }
 // bigintTransformer (used internally only so no need to register in JitUtils)
 
@@ -41,8 +38,5 @@ export const bigIntTransformer = {
     },
     _compileToJsonVal(comp: JitCompiler): jitCode {
         return `${comp.vλl}.toString()`;
-    },
-    _compileJsonStringify(comp: JitCompiler): jitCode {
-        return `'"'+${comp.vλl}.toString()+'"'`;
     },
 };

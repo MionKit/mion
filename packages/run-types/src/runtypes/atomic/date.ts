@@ -30,7 +30,4 @@ export class DateRunType extends AtomicRunType<TypeClass> {
     _compileFromJsonVal(comp: JitCompiler): jitCode {
         return `new Date(${comp.vλl})`;
     }
-    _compileJsonStringify(comp: JitCompiler): jitCode {
-        return `'"'+${comp.vλl}.toJSON()+'"'`;
-    }
 }

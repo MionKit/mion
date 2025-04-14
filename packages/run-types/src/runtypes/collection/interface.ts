@@ -84,40 +84,6 @@ export class InterfaceRunType<
             .join(';');
         return childrenCode || undefined;
     }
-    _compileJsonStringify(comp: JitCompiler): jitCode {
-        if (this.isCallable()) return this.getCallSignature()!._compileJsonStringify();
-        const children = this.getJsonStringifyChildren();
-        if (children.length === 0) return `''`;
-        const allOptional = children.every((prop) => (prop as MemberRunType<any>).isOptional());
-        // if all properties are optional,  we can not optimize and use JSON.stringify
-        if (allOptional) return this._compileJsonStringifyIntoArray(comp, children);
-        const childrenCode = children
-            .map((prop, i) => {
-                const nexChild = children[i + 1];
-                const isLast = !nexChild;
-                prop.skipCommas = isLast;
-                return prop.compileJsonStringify(comp);
-            })
-            .filter(Boolean)
-            .join('+');
-        return `'{'+${childrenCode}+'}'`;
-    }
-    private _compileJsonStringifyIntoArray(comp: JitCompiler, children: MemberRunType<any>[]): jitCode {
-        const arrName = `ns${this.getNestLevel()}`;
-        const childrenCode = children
-            .map((prop) => {
-                prop.skipCommas = true;
-                const childCode = prop.compileJsonStringify(comp);
-                if (!childCode) return '';
-                const code = `${arrName}.push(${childCode})`;
-                // makes an extra check to avoid pushing empty strings to the array (childCode also makes the same check but is better than having to filter the array after)
-                return prop.isOptional() ? `if (${prop.tempChildVλl} !== undefined){${code}}` : `${code};`;
-            })
-            .filter(Boolean)
-            .join('');
-
-        return `(function(){const ${arrName} = [];${childrenCode};return '{'+${arrName}.join(',')+'}'})()`;
-    }
     _compileHasUnknownKeys(comp: JitCompiler): jitCode {
         const allJitChildren = this.getJitChildren();
         const parentCode = this.callCheckUnknownProperties(comp, allJitChildren, false);

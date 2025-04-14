@@ -26,10 +26,6 @@ export class PromiseRunType extends MemberRunType<TypePromise> {
     _compileFromJsonVal(): jitCode {
         throw new Error(`Jit compilation disabled for Non Serializable types.`);
     }
-    _compileJsonStringify(): jitCode {
-        throw new Error(`Jit compilation disabled for Non Serializable types.`);
-    }
-
     getJitConfig() {
         return jitConstants;
     }

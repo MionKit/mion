@@ -13,12 +13,10 @@ import {
     getPropIndex,
     getPropLiteral,
     getPropVarName,
-    isSafePropName,
     memorize,
     useArrayAccessorForProp,
 } from '../../lib/utils';
 import {BaseRunType, MemberRunType} from '../../lib/baseRunTypes';
-import {jitUtils} from '../../lib/jitUtils';
 import {InterfaceRunType} from '../collection/interface';
 import {JitFunctions} from '../../constants';
 
@@ -67,23 +65,5 @@ export class PropertyRunType extends MemberRunType<TypePropertySignature | TypeP
         const code = isExpression ? `${comp.getChildVλl()} = ${childCode};` : childCode;
         if (this.src.optional) return `if (${comp.getChildVλl()} !== undefined) {${code}}`;
         return code;
-    }
-    _compileJsonStringify(comp: JitCompiler): jitCode {
-        const child = this.getJitChild();
-        const propCode = child?.compileJsonStringify(comp);
-        if (!child || !propCode) return undefined;
-        // this can´t be processed in the parent as we need to handle the empty string case when value is undefined
-        const sep = this.skipCommas ? '' : '+","';
-        // encoding safe property with ':' inside the string saves a little processing
-        // when prop is not safe we need to double encode double quotes and escape characters
-        const propDef = isSafePropName(this.src.name)
-            ? `'"${this.getChildVarName()}":'`
-            : `${jitUtils.asJSONString(this.getChildLiteral() as string)}+':'`;
-        if (this.src.optional) {
-            this.tempChildVλl = comp.getChildVλl();
-            // TODO: check if json for an object with first property undefined is valid (maybe the comma must be dynamic too)
-            return `(${this.tempChildVλl} === undefined ? '' : ${propDef}+${propCode}${sep})`;
-        }
-        return `${propDef}+${propCode}${sep}`;
     }
 }

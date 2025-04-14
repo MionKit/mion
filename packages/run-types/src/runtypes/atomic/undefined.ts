@@ -31,7 +31,4 @@ export class UndefinedRunType extends AtomicRunType<TypeUndefined> {
     _compileFromJsonVal(comp: JitCompiler): jitCode {
         return `${comp.vλl} = undefined`;
     }
-    _compileJsonStringify(): jitCode {
-        return `null`;
-    }
 }

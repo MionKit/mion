@@ -28,7 +28,4 @@ export class BooleanRunType extends AtomicRunType<TypeBoolean> {
     _compileFromJsonVal(): jitCode {
         return undefined;
     }
-    _compileJsonStringify(comp: JitCompiler): jitCode {
-        return `(${comp.vλl} ? 'true' : 'false')`;
-    }
 }

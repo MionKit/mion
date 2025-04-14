@@ -31,9 +31,6 @@ export class NonSerializableRunType extends InterfaceRunType<TypeObjectLiteral |
     _compileFromJsonVal(): jitCode {
         throw new Error(`Jit compilation disabled for Non Serializable types.`);
     }
-    _compileJsonStringify(): jitCode {
-        throw new Error(`Jit compilation disabled for Non Serializable types.`);
-    }
     _compileHasUnknownKeys(): jitCode {
         throw new Error(`Jit compilation disabled for Non Serializable types.`);
     }

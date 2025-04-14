@@ -70,13 +70,4 @@ export class ParameterRunType<T extends ParamT = TypeParameter> extends MemberRu
         const code = isExpression ? `${comp.getChildVλl()} = ${childCode};` : childCode;
         return this.isOptional() ? `${optionalCOde} else if (${comp.getChildVλl()} !== undefined) {${code}}` : code;
     }
-    _compileJsonStringify(comp: JitCompiler): jitCode {
-        let childCode = this.getJitChild()?.compileJsonStringify(comp);
-        if (!childCode) childCode = `null`; // non serializable types are set to null
-        if (this.isRest()) return childCode;
-        const isFirst = this.getChildIndex() === 0;
-        const sep = isFirst ? '' : `','+`;
-        if (this.isOptional()) return `(${comp.getChildVλl()} === undefined ? ${sep}'null' : ${sep}${childCode})`;
-        return `${sep}${childCode}`;
-    }
 }

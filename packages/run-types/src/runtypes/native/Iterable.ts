@@ -78,22 +78,6 @@ export abstract class IterableRunType extends ClassRunType {
             ${comp.vλl} = new ${this.instance}(${comp.vλl})
         `;
     }
-    _compileJsonStringify(comp: JitCompiler): string {
-        const entry = this.getCustomVλl(comp)?.vλl || comp.vλl;
-        const jitChildren = this.getJitChildren();
-        const childrenCode = jitChildren.map((c) => c.compileJsonStringify(comp)).join('+');
-        const jsonItems = `ls${this.getNestLevel()}`;
-        const resultVal = `res${this.getNestLevel()}`;
-        const childrenResult = jitChildren.length > 1 ? `'['+${childrenCode}+']'` : childrenCode;
-        return `
-            const ${jsonItems} = [];
-            for (const ${entry} of ${comp.vλl}) {
-                const ${resultVal} = ${childrenResult};
-                ${jsonItems}.push(${resultVal});
-            }
-            return '[' + ${jsonItems}.join(',') + ']';
-        `;
-    }
 
     // TODO: Implement the following methods, should just call same compile method for children, look into to array run type
 

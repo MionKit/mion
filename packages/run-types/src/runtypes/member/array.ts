@@ -81,21 +81,6 @@ export class ArrayRunType<T extends Type = TypeArray> extends MemberRunType<T> {
         const code = isExpression ? `${comp.getChildVλl()} = ${childCode};` : childCode;
         return `for (let ${index} = ${this.startIndex()}; ${index} < ${comp.vλl}.length; ${index}++) {${code}}`;
     }
-    _compileJsonStringify(comp: JitCompiler): jitCode {
-        const memberCode = this.getJitChild()?.compileJsonStringify(comp);
-        if (!memberCode) return `JSON.stringify(${comp.vλl})`;
-        const jsonItems = `ls${this.getNestLevel()}`;
-        const resultVal = `res${this.getNestLevel()}`;
-        const index = this.getChildVarName();
-        return `
-            const ${jsonItems} = [];
-            for (let ${index} = ${this.startIndex()}; ${index} < ${comp.vλl}.length; ${index}++) {
-                const ${resultVal} = ${memberCode};
-                ${jsonItems}.push(${resultVal});
-            }
-            return '[' + ${jsonItems}.join(',') + ']';
-        `;
-    }
     _compileHasUnknownKeys(comp: JitCompiler): jitCode {
         if (this.getMemberType().getFamily() === 'A') return undefined;
         const memberCode = this.getJitChild()?.compileHasUnknownKeys(comp);

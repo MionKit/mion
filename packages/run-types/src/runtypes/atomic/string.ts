@@ -23,7 +23,4 @@ export class StringRunType extends AtomicRunType<TypeString> {
     _compileTypeErrors(comp: JitErrorsCompiler): jitCode {
         return `if (typeof ${comp.vλl} !== 'string') ${comp.callJitErr(this)}`;
     }
-    _compileJsonStringify(comp: JitCompiler): jitCode {
-        return `utl.asJSONString(${comp.vλl})`;
-    }
 }

@@ -24,8 +24,4 @@ export class ObjectRunType extends AtomicRunType<TypeAny | TypeUnknown> {
     _compileTypeErrors(comp: JitErrorsCompiler): jitCode {
         return `if (!(${this._compileIsType(comp)})) ${comp.callJitErr(this)}`;
     }
-
-    _compileJsonStringify(comp: JitCompiler): jitCode {
-        return `JSON.stringify(${comp.vλl})`;
-    }
 }

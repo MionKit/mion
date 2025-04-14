@@ -8,7 +8,6 @@
 import {ReflectionKind, type TypeAny, type TypeUnknown} from '@deepkit/type';
 import type {JitConfig, jitCode} from '../../types';
 import {AtomicRunType} from '../../lib/baseRunTypes';
-import type {JitCompiler} from '../../lib/jitCompiler';
 
 const jitConstants: JitConfig = {
     skipJit: false,
@@ -22,8 +21,5 @@ export class AnyRunType extends AtomicRunType<TypeAny | TypeUnknown> {
     }
     _compileTypeErrors(): jitCode {
         return undefined;
-    }
-    _compileJsonStringify(comp: JitCompiler): jitCode {
-        return `JSON.stringify(${comp.vλl})`;
     }
 }

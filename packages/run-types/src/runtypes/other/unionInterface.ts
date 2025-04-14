@@ -157,23 +157,4 @@ export class UnionInterfaceRunType extends InterfaceRunType<anySrcInterface> {
                   .join('\n')
             : '';
     }
-    _compileJsonStringify(comp: JitCompiler): string {
-        const children = this.getJitChildren();
-        const childrenCode = children.map((prop) => prop.compileJsonStringify(comp)).join('+');
-        return `'{'+${childrenCode}+'}'`;
-
-        // const toJsonValMergedList = this.mergedInterfaces.filter(
-        //     (c) => !c.getJitConstants().skipJit
-        // );
-        // return toJsonValMergedList.length
-        //     ? toJsonValMergedList
-        //           .map((rt, i) => {
-        //               const childIsType = this._compileIsTypeMergedChildren(comp, rt, true);
-        //               const childCode = rt.compileToJsonVal(comp);
-        //               const iF = i === 0 ? 'if' : 'else if';
-        //               return `${iF} (${childIsType}) {${childCode}}`;
-        //           })
-        //           .join('\n')
-        //     : '';
-    }
 }

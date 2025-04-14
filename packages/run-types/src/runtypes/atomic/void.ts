@@ -30,7 +30,4 @@ export class VoidRunType extends AtomicRunType<TypeVoid> {
     _compileFromJsonVal(comp: JitCompiler): jitCode {
         return `${comp.vλl} = undefined`;
     }
-    _compileJsonStringify(): jitCode {
-        return 'undefined';
-    }
 }

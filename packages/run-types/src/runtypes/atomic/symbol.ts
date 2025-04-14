@@ -29,9 +29,6 @@ export class SymbolRunType extends AtomicRunType<TypeSymbol> {
     _compileFromJsonVal(comp: JitCompiler): jitCode {
         return symbolTransformer._compileFromJsonVal(comp);
     }
-    _compileJsonStringify(comp: JitCompiler): jitCode {
-        return symbolTransformer._compileJsonStringify(comp);
-    }
 }
 
 // symbolTransformer (used internally only so no need to register in JitUtils)
@@ -43,8 +40,5 @@ export const symbolTransformer = {
     },
     _compileToJsonVal(comp: JitCompiler): jitCode {
         return `'Symbol:' + (${comp.vλl}.description || '')`;
-    },
-    _compileJsonStringify(comp: JitCompiler): jitCode {
-        return `JSON.stringify('Symbol:' + (${comp.vλl}.description || ''))`;
     },
 };
