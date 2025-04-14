@@ -46,7 +46,4 @@ export class NonSerializableRunType extends InterfaceRunType<TypeObjectLiteral |
     _compileUnknownKeysToUndefined(): jitCode {
         throw new Error(`Jit compilation disabled for Non Serializable types.`);
     }
-    _mock(): any {
-        
-    }
 }

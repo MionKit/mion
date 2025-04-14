@@ -8,7 +8,6 @@
 import {ReflectionKind, type TypeBoolean} from '@deepkit/type';
 import type {JitConfig, jitCode} from '../../types';
 import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
-import {mockBoolean} from '../../lib/mock';
 import {AtomicRunType} from '../../lib/baseRunTypes';
 
 const jitConstants: JitConfig = {
@@ -31,8 +30,5 @@ export class BooleanRunType extends AtomicRunType<TypeBoolean> {
     }
     _compileJsonStringify(comp: JitCompiler): jitCode {
         return `(${comp.vλl} ? 'true' : 'false')`;
-    }
-    _mock(): boolean {
-        return mockBoolean();
     }
 }

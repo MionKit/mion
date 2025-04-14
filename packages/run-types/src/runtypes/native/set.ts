@@ -4,10 +4,9 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
-import type {MockOperation, SrcType} from '../../types';
+import type {SrcType} from '../../types';
 import {ReflectionSubKind} from '../../constants.kind';
 import {ReflectionKind, type TypeClass} from '@deepkit/type';
-import {random} from '../../lib/mock';
 import {GenericMemberRunType} from '../member/genericMember';
 import {IterableRunType} from './Iterable';
 import {JitCompiler} from '../../lib/jitCompiler';
@@ -46,15 +45,5 @@ export class SetRunType extends IterableRunType {
             return {vλl: `it${this.getNestLevel()}`, isStandalone: false, useArrayAccessor: true};
         // other operations use an special case for vλl where all parents are skipped
         return {vλl: `it${this.getNestLevel()}`, isStandalone: true};
-    }
-
-    _mock(ctx: MockOperation): Set<any> {
-        const mockSet = new Set();
-        const length = ctx.arrayLength ?? random(0, ctx.maxRandomItemsLength);
-        for (let i = 0; i < length; i++) {
-            const value = this.keyRT.mockType(ctx);
-            mockSet.add(value);
-        }
-        return mockSet;
     }
 }

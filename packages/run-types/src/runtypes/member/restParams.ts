@@ -7,11 +7,9 @@
 
 import type {TypeRest} from '@deepkit/type';
 import type {JitCompiler} from '../../lib/jitCompiler';
-import type {MockOperation} from '../../types';
 import type {ParameterRunType} from './param';
 import type {TupleMemberRunType} from './tupleMember';
 import {ArrayRunType} from './array';
-import {random} from '../../lib/mock';
 
 export class RestParamsRunType extends ArrayRunType<TypeRest> {
     getChildIndex(): number {
@@ -38,13 +36,5 @@ export class RestParamsRunType extends ArrayRunType<TypeRest> {
             if (!${arrName}.length) {return '';}
             else {return ${sep}${arrName}.join(',')}
         `;
-    }
-    _mock(ctx: MockOperation) {
-        const length = random(0, ctx.maxRandomItemsLength);
-        const items: any[] = [];
-        for (let i = 0; i < length; i++) {
-            items.push(this.getMemberType().mockType(ctx));
-        }
-        return items;
     }
 }

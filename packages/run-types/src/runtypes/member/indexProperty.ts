@@ -1,11 +1,10 @@
 import {ReflectionKind, TypeIndexSignature} from '@deepkit/type';
 import {BaseRunType, MemberRunType} from '../../lib/baseRunTypes';
-import {JitConfig, JitFnID, MockOperation, Mutable, type jitCode} from '../../types';
+import {JitConfig, JitFnID, Mutable, type jitCode} from '../../types';
 import {CodeType, JitFunctions} from '../../constants';
 import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
 import {InterfaceRunType} from '../collection/interface';
 import {childIsExpression} from '../../lib/utils';
-import {random} from '../../lib/mock';
 
 /* ########
  * 2024 mion
@@ -121,28 +120,6 @@ export class IndexSignatureRunType extends MemberRunType<TypeIndexSignature> {
         if (this.getMemberType().getFamily() === 'A') return undefined;
         const memberCode = this.getJitChild()?.compileUnknownKeysToUndefined(comp);
         return this.traverseCode(comp, memberCode);
-    }
-    _mock(ctx: MockOperation): any {
-        const length = random(0, ctx.maxRandomItemsLength);
-        const parentObj = ctx.parentObj || {};
-        for (let i = 0; i < length; i++) {
-            let propName: number | string | symbol;
-            switch (true) {
-                case !!(this.src.index.kind === ReflectionKind.number):
-                    propName = i;
-                    break;
-                case !!(this.src.index.kind === ReflectionKind.string):
-                    propName = `key${i}`;
-                    break;
-                case !!(this.src.index.kind === ReflectionKind.symbol):
-                    propName = Symbol.for(`key${i}`);
-                    break;
-                default:
-                    throw new Error('Invalid index signature type');
-            }
-            parentObj[propName] = this.getMemberType().mockType(ctx);
-        }
-        return parentObj;
     }
     private traverseCode(comp: JitCompiler, memberCode: jitCode): jitCode {
         if (!memberCode) return undefined;

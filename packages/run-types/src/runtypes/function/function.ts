@@ -66,7 +66,7 @@ export class FunctionRunType<CallType extends AnyFunction = TypeFunction> extend
 
     // ######## JIT functions (all throw error) ########
 
-    // can't know the types of the runtype function parameters, neither the return type, so only compare function name and length
+    // can't know the types of the run type function parameters, neither the return type, so only compare function name and length
     _compileIsType(comp: JitCompiler): jitCode {
         const minLength = this.parameterRunTypes.totalRequiredParams();
         const totalParams = this.parameterRunTypes.getChildRunTypes().length;
@@ -129,9 +129,6 @@ export class FunctionRunType<CallType extends AnyFunction = TypeFunction> extend
     }
     returnIsPromise(): boolean {
         return isPromiseRunType(this.getReturnType());
-    }
-    _mock(): any[] {
-        throw new Error('Function Mock is not allowed, call mockParams or mockReturn instead.');
     }
     mockReturn(ctx?: MockOperation): any {
         return this.getReturnType().mockType(ctx);

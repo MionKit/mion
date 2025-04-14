@@ -8,7 +8,7 @@
 import {ReflectionKind, TypeTupleMember, type TypeParameter} from '@deepkit/type';
 import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
 import {MemberRunType} from '../../lib/baseRunTypes';
-import {MockOperation, jitCode} from '../../types';
+import {jitCode} from '../../types';
 import {JitFunctions} from '../../constants';
 import {childIsExpression, getParamIndex} from '../../lib/utils';
 
@@ -78,16 +78,5 @@ export class ParameterRunType<T extends ParamT = TypeParameter> extends MemberRu
         const sep = isFirst ? '' : `','+`;
         if (this.isOptional()) return `(${comp.getChildVλl()} === undefined ? ${sep}'null' : ${sep}${childCode})`;
         return `${sep}${childCode}`;
-    }
-    _mock(ctx: MockOperation): any {
-        if (!this.getJitChild()) return undefined; // non serializable types are set to undefined
-        if (this.isOptional() && !this.isRest()) {
-            const probability = ctx.optionalProbability;
-            if (probability < 0 || probability > 1) throw new Error('optionalProbability must be between 0 and 1');
-            if (Math.random() > probability) {
-                return undefined;
-            }
-        }
-        return this.getMemberType().mockType(ctx);
     }
 }

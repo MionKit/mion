@@ -7,7 +7,7 @@
 
 import type {TypeFunction, TypeTuple} from '@deepkit/type';
 import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
-import type {AnyParameterListRunType, MockOperation, SrcType, jitCode} from '../../types';
+import type {AnyParameterListRunType, SrcType, jitCode} from '../../types';
 import {ParameterRunType} from '../member/param';
 import {ReflectionKind} from '@deepkit/type';
 import {CollectionRunType} from '../../lib/baseRunTypes';
@@ -75,14 +75,5 @@ export class TupleRunType<ParamList extends AnyParameterListRunType = TypeTuple>
             .map((p) => p.compileJsonStringify(comp))
             .join('+');
         return `'['+${paramsCode}+']'`;
-    }
-
-    _mock(ctx: MockOperation) {
-        const options = this.src.kind === ReflectionKind.tuple ? ctx.tupleOptions : ctx.paramsOptions;
-        const params = this.getChildRunTypes().map((p, i) => p.mockType(options?.[i] || ctx));
-        if (this.hasRestParameter()) {
-            return [...params.slice(0, -1), ...params[params.length - 1]];
-        }
-        return params;
     }
 }

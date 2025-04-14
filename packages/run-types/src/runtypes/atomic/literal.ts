@@ -63,9 +63,6 @@ export class LiteralRunType extends AtomicRunType<TypeLiteral> {
     _compileJsonStringify(comp: JitCompiler): jitCode {
         return this.getValidator()._compileJsonStringify(comp);
     }
-    _mock(): symbol | string | number | boolean | bigint | RegExp {
-        return this.src.literal;
-    }
 }
 
 const noEncoder = {

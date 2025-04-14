@@ -32,7 +32,4 @@ export class NullRunType extends AtomicRunType<TypeNull> {
     _compileJsonStringify(comp: JitCompiler): jitCode {
         return comp.vλl;
     }
-    _mock(): null {
-        return null;
-    }
 }

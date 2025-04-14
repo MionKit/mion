@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 import {TypeObjectLiteral, TypeClass, TypeIntersection, TypeProperty, ReflectionKind} from '@deepkit/type';
-import {MockOperation, RunType, jitCode} from '../../types';
+import {RunType, jitCode} from '../../types';
 import {memorize, arrayToLiteral} from '../../lib/utils';
 import {PropertyRunType} from '../member/property';
 import {CollectionRunType, MemberRunType} from '../../lib/baseRunTypes';
@@ -156,17 +156,6 @@ export class InterfaceRunType<
         `;
         const childrenCode = super._compileUnknownKeysToUndefined(comp);
         return childrenCode ? `${parentCode}\n${childrenCode}` : parentCode;
-    }
-
-    _mock(ctx: MockOperation): Record<string | number, any> {
-        if (this.isCallable()) return this.getCallSignature()!.mockType(ctx as MockOperation);
-        let obj: Record<string | number, any> = ctx.parentObj || {};
-        this.getChildRunTypes().forEach((prop) => {
-            const name = (prop as PropertyRunType).getChildVarName();
-            if (prop instanceof IndexSignatureRunType) obj = {...obj, ...prop.mockType(ctx as MockOperation)};
-            else obj[name] = prop.mockType(ctx as MockOperation);
-        });
-        return obj;
     }
 
     // In order to json stringify to work properly optional properties must come first
