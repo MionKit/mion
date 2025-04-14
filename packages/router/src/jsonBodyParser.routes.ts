@@ -8,11 +8,13 @@
 import type {MionResponse, MionRequest, CallContext} from './types/context';
 import type {RouterOptions} from './types/general';
 import type {HooksCollection, ErrorReturn} from './types/publicProcedures';
-import {RpcError, StatusCodes, AnyObject, Mutable} from '@mionkit/core';
+import {AnyObject, Mutable} from '@mionkit/core/src/types';
 import {handleRpcErrors} from './errors';
 import {rawHook} from './initFunctions';
 import {jitBodyStringify} from './jsonBodyStringify';
 import {getRouteExecutableFromPath} from './router';
+import {RpcError} from '@mionkit/core/src/errors';
+import {StatusCodes} from '@mionkit/core/src/status-codes';
 
 // ############# PUBLIC METHODS #############
 

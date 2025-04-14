@@ -7,7 +7,8 @@
 
 import type {PublicProcedure, PublicResponses} from '@mionkit/router';
 import type {JITFunctions, JSONValue} from '@mionkit/run-types';
-import {RpcError, StatusCodes, isRpcError} from '@mionkit/core';
+import {RpcError, isRpcError} from '@mionkit/core/src/errors';
+import {StatusCodes} from '@mionkit/core/src/status-codes';
 import {RequestErrors, SubRequest, ValidationRequest} from './types';
 
 // ############# VALIDATION SERIALIZATION #############

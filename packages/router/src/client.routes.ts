@@ -5,7 +5,9 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {GET_REMOTE_METHODS_BY_ID, GET_REMOTE_METHODS_BY_PATH, AnyObject, RpcError} from '@mionkit/core';
+import {AnyObject} from '@mionkit/core/src/types';
+import {RpcError} from '@mionkit/core/src/errors';
+import {GET_REMOTE_METHODS_BY_ID, GET_REMOTE_METHODS_BY_PATH} from '@mionkit/core/src/constants';
 import {
     getHookExecutable,
     getRouteExecutable,

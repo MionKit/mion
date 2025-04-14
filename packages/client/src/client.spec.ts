@@ -10,7 +10,7 @@ import {initClient} from './client';
 import {HookSubRequest, RouteSubRequest} from './types';
 import {setNodeHttpOpts, startNodeServer} from '@mionkit/http';
 import {Server} from 'http';
-import {RpcError} from '@mionkit/core';
+import {RpcError} from '@mionkit/core/src/errors';
 
 // TODO move this into global jest config file if it is required by more tests
 // eslint-disable-next-line @typescript-eslint/no-var-requires

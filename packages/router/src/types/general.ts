@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {CoreOptions} from '@mionkit/core';
+import {CoreOptions} from '@mionkit/core/src/types';
 import {SharedDataFactory} from './context';
 import {HeaderHookDef, HookDef, RawHookDef, RouteDef} from './definitions';
 import type {RunTypeOptions} from '@mionkit/run-types';

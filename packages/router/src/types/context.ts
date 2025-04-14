@@ -5,8 +5,9 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {AnyObject, RpcError} from '@mionkit/core';
-import {PublicResponses} from './publicProcedures';
+import type {AnyObject} from '@mionkit/core/src/types';
+import type {PublicResponses} from './publicProcedures';
+import type {RpcError} from '@mionkit/core/src/errors';
 
 // ####### Call Context #######
 

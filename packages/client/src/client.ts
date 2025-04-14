@@ -20,7 +20,8 @@ import {
     ClientHooks,
 } from './types';
 import type {PublicApi} from '@mionkit/router';
-import {RpcError, getRouterItemId} from '@mionkit/core';
+import {RpcError} from '@mionkit/core/src/errors';
+import {getRouterItemId} from '@mionkit/core/src/core';
 import {MionRequest} from './request';
 import type {RunTypeValidationError} from '@mionkit/run-types';
 

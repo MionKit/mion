@@ -20,7 +20,8 @@ import {
     shouldFullGenerateSpec,
 } from './router';
 import {getSerializableJitCompiler} from '@mionkit/run-types';
-import {AnyObject, getRoutePath, getRouterItemId} from '@mionkit/core';
+import type {AnyObject} from '@mionkit/core/src/types';
+import {getRoutePath, getRouterItemId} from '@mionkit/core/src/core';
 
 // ############# PRIVATE STATE #############
 const metadataById: Map<string, PublicProcedure> = new Map();
