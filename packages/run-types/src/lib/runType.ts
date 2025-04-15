@@ -76,8 +76,8 @@ export function runType<T>(type?: ReceiveType<T>): RunType {
 
 export function reflectFunction<Fn extends (...args: any[]) => any>(fn: Fn): FunctionRunType {
     const src = reflect(fn) as SrcType;
-    createRunTypes(src);
-    return src._rt as any as FunctionRunType;
+    runType(src);
+    return src._rt as FunctionRunType;
 }
 
 // We need to traverse all child nodes to create all the runTypes

@@ -5,7 +5,7 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
-import type {TypeFormatParams, PureFunctionWithClosure, TypeFormatValue, JitCompiled} from '@mionkit/core/src/types';
+import type {TypeFormatParams, PureFunctionWithClosure, TypeFormatValue, JitCompiledFn} from '@mionkit/core/src/types';
 import type {BaseRunType} from './baseRunTypes';
 import {createJitCompiler, type JitCompiler, type JitErrorsCompiler} from './jitCompiler';
 import type {JitFnID, MockOperation, Mutable, StrNumber, jitCode} from '../types';
@@ -115,7 +115,7 @@ export abstract class BaseRunTypeFormat<P extends TypeFormatParams = any> {
         params?: P,
         vλl?: string,
         formatName?: string
-    ): JitCompiled {
+    ): JitCompiledFn {
         const hash = getFormatterHash(rt);
         // created function will be an aux function prefixed with the original function id
         // this is because the new jit function itself is a standalone function  and we don't want it colliding with any other jit function
@@ -133,7 +133,7 @@ export abstract class BaseRunTypeFormat<P extends TypeFormatParams = any> {
             const formatterCode = this._compile(fnId, newJitCompiler, rt, params, vλl, formatName);
             const withReturn = this.handleReturnValues(rt, newJitCompiler, fnId, formatterCode || '');
             newJitCompiler.compile(withReturn);
-            comp?.updateDependencies(newJitCompiler as JitCompiled);
+            comp?.updateDependencies(newJitCompiler as JitCompiledFn);
         } catch (e) {
             // if something goes wrong during compilation we want to remove the compiler from
             // the cache as this is automatically added to jitUtils cache during compilation
@@ -141,7 +141,7 @@ export abstract class BaseRunTypeFormat<P extends TypeFormatParams = any> {
             throw e;
         }
 
-        return newJitCompiler as JitCompiled;
+        return newJitCompiler as JitCompiledFn;
     }
 
     _compile(

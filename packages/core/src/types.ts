@@ -154,6 +154,7 @@ export type CompiledPureFunction = {
 
 // ########################################### COMPILER ##########################################
 
+export type AnyFn = (...args: any[]) => any;
 /**
  * The argument names of the function to be compiled. The order of properties is important as must the same as the function args.
  * ie: {vλl: 'val', arg1: 'arg1', error: 'err'} for the function (vλl, arg1, eArr) => any
@@ -165,28 +166,29 @@ export type JitFnArgs = {
     [key: string]: string;
 };
 
-export interface JitCompilerMeta {
-    // the id of the function to be compiled (isType, typeErrors, toJsonVal, fromJsonVal, etc)
+export interface JitCompiledFnMeta {
+    /** The id of the function (operation) to be compiled (isType, typeErrors, toJsonVal, fromJsonVal, etc) */
     readonly fnId: string;
-    readonly args: JitFnArgs;
-    /** when creating the function it might have default values */
-    readonly defaultParamValues: Record<keyof JitFnArgs, any>;
-    readonly returnName: string;
-    readonly jitId: StrNumber;
+    /** Unique id of the function */
     readonly jitFnHash: string;
-    /** Code for the jit function. after the operation has been compiled */
-    readonly code: string;
+    readonly args: JitFnArgs;
     /**
      * This flag is set to true when the result of a jit compilation is a no operation (empty function).
-     * Some jit compiled functions could execute no operations (ie: string, boolean and numbers does not require toJsonVal/fromJsonVal)
+     * if this flag is set to true, the function should not be called as it will not do anything.
      */
     readonly isNoop?: boolean;
+    /** When creating the function it might have default values */
+    readonly defaultParamValues: Record<keyof JitFnArgs, any>;
+    /** Code for the jit function. after the operation has been compiled */
+    readonly code: string;
     /** The list of all jit functions that are used by this function and it's children. */
     readonly dependenciesSet: Set<string>;
     readonly pureFnDependencies: Set<string>;
+
+    paramNames?: string[];
 }
 
-export interface JitCompiled extends JitCompilerMeta {
+export interface JitCompiledFn<Fn extends AnyFn = AnyFn> extends JitCompiledFnMeta {
     /** The Jit Generated function once the compilation is finished */
-    readonly fn: (...args: any[]) => any;
+    readonly fn: Fn;
 }
