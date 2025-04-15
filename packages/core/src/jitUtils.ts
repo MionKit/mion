@@ -4,7 +4,7 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
-import type {JitCompilerMeta, CompiledPureFunction, JitCompiled, PureFunction, RunTypeError, TypeFormatError} from './types';
+import type {CompiledPureFunction, JitCompiledFn, PureFunction, RunTypeError, TypeFormatError} from './types';
 import {MAX_STACK_DEPTH, MAX_UNKNOWN_KEYS} from './constants';
 
 type StrNumber = string | number;
@@ -12,7 +12,7 @@ type StrNumber = string | number;
 // eslint-disable-next-line no-control-regex
 const STR_ESCAPE = /[\u0000-\u001f\u0022\u005c\ud800-\udfff]/;
 const MAX_SCAPE_TEST_LENGTH = 1000; // possible to tweak after benchmarking
-const jitTypesCache = new Map<string, JitCompiled>();
+const jitTypesCache = new Map<string, JitCompiledFn>();
 const pureFnsCache = new Map<string, CompiledPureFunction>();
 
 /**
@@ -59,14 +59,14 @@ export const jitUtils = {
         }
     },
     // !!! DO NOT MODIFY METHOD WITHOUT REVIEWING JIT CODE INVOCATIONS!!!
-    addToJitCache(key: string, comp: JitCompilerMeta) {
-        jitTypesCache.set(key, comp as JitCompiled);
+    addToJitCache(comp: JitCompiledFn) {
+        jitTypesCache.set(comp.jitFnHash, comp);
     },
-    removeFromJitCache(key: string) {
-        jitTypesCache.delete(key);
+    removeFromJitCache(comp: JitCompiledFn) {
+        jitTypesCache.delete(comp.jitFnHash);
     },
     // !!! DO NOT MODIFY METHOD WITHOUT REVIEWING JIT CODE INVOCATIONS!!!
-    getJIT(key: string): JitCompiled | undefined {
+    getJIT(key: string): JitCompiledFn | undefined {
         return jitTypesCache.get(key);
     },
     // !!! DO NOT MODIFY METHOD WITHOUT REVIEWING JIT CODE INVOCATIONS!!!

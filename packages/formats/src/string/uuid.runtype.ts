@@ -13,6 +13,7 @@ import {ReflectionKind} from '@deepkit/type';
 import {MockOperation} from '@mionkit/run-types/src/types';
 import {TypeFormat} from '@mionkit/run-types/src/lib/formats.runtype'; // !Important: TypeFormat cant be imported as type for all runType functionality to work
 import {fpVal} from '@mionkit/run-types/src/lib/utils';
+import {randomUUID_V7} from '@mionkit/core/src/utils';
 
 // UUID validator
 export class UUIDRunTypeFormat extends BaseRunTypeFormat<FormatParams_UUID> {
@@ -33,7 +34,7 @@ export class UUIDRunTypeFormat extends BaseRunTypeFormat<FormatParams_UUID> {
     }
     _mock(mockContext: MockOperation, rt: BaseRunType) {
         const params = this.getParams(rt);
-        return params.version === '4' ? crypto.randomUUID() : mockUuidV7();
+        return params.version === '4' ? crypto.randomUUID() : randomUUID_V7();
     }
     validateParams(_rt: BaseRunType, params: FormatParams_UUID) {
         if (params.version !== '4' && params.version !== '7') {
@@ -44,14 +45,6 @@ export class UUIDRunTypeFormat extends BaseRunTypeFormat<FormatParams_UUID> {
 }
 
 // ############### Pure Functions ###############
-
-/** Generates a random UUID V7, no hyphens are included in the uuid */
-export function mockUuidV7(): string {
-    const uuid = crypto.randomUUID();
-    const timestamp = BigInt(Date.now());
-    const tHex = timestamp.toString(16).padStart(12, '0');
-    return `${tHex.substring(0, 8)}-${tHex.substring(8)}-7${uuid.substring(15)}`;
-}
 
 /** @reflection never */
 export function isUUID() {

@@ -37,8 +37,8 @@ import {
 } from './formats';
 import {typeParamsToString} from './utils';
 import {_compileJsonStringify} from '@mionkit/run-types/src/jitCompilers/jsonStringify';
-import {getComposableFunction, loadComposableFunction} from '@mionkit/run-types/src/lib/composableFunctions';
-import {JitCompiled} from '@mionkit/core/src/types';
+import {getComposableFunction, loadComposableFunction} from '@mionkit/run-types/src/lib/composableJitFunctions';
+import {JitCompiledFn} from '@mionkit/core/src/types';
 
 export abstract class BaseRunType<T extends Type = Type> implements RunType {
     // Registry for dynamically loaded functions
@@ -131,7 +131,7 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
         return this.createJitCompiledFunction(jitFn.id).fn;
     };
 
-    createJitCompiledFunction(fnId: JitFnID, parentCop?: JitCompiler): JitCompiled {
+    createJitCompiledFunction(fnId: JitFnID, parentCop?: JitCompiler): JitCompiledFn {
         const jitCompiled = jitUtils.getJIT(getJITFnHash(fnId, this));
         if (jitCompiled) {
             if (process.env.DEBUG_JIT === 'VERBOSE')
@@ -147,7 +147,7 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
             newJitCompiler.removeFromJitCache();
             throw e;
         }
-        return newJitCompiler as JitCompiled;
+        return newJitCompiler as JitCompiledFn;
     }
 
     // ########## Child _compile Methods ##########
@@ -267,7 +267,7 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
         return formattersCode.join(separator);
     }
 
-    callDependency(currentCop: JitCompiler, comp: JitCompiled): jitCode {
+    callDependency(currentCop: JitCompiler, comp: JitCompiledFn): jitCode {
         const stackItem = currentCop.getCurrentStackItem();
         const isErrorCall = comp.fnId === JitFunctions.typeErrors.id || comp.fnId === JitFunctions.unknownKeyErrors.id;
         const args = isErrorCall ? jitErrorArgs : jitArgs;

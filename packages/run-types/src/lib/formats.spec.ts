@@ -8,7 +8,7 @@
 
 import type {GenericPureFunction, JITUtils} from '@mionkit/core/src/types';
 import {ReflectionKind} from '@deepkit/type';
-import {runType} from '../runType';
+import {runType} from './runType';
 import {BaseRunTypeFormat} from './baseRunTypeFormat';
 import {BaseRunType} from './baseRunTypes';
 import {getCompiledPureFn, getPureFn, registerPureFnClosuresGroup, registerPureFnClosure, registerFormatter} from './formats';

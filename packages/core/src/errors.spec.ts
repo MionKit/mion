@@ -13,7 +13,7 @@ describe('Route errors should', () => {
         const error = new RpcError({statusCode: 400, publicMessage: 'error'});
 
         expect(typeof error.id).toEqual('string');
-        expect((error.id as string).length).toEqual(61);
+        expect((error.id as string).length).toEqual(36);
 
         setErrorOptions({autoGenerateErrorId: false});
         const error2 = new RpcError({statusCode: 400, publicMessage: 'error'});

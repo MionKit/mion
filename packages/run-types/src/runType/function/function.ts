@@ -115,6 +115,9 @@ export class FunctionRunType<CallType extends AnyFunction = TypeFunction> extend
     getParameters(): TupleRunType {
         return this.parameterRunTypes;
     }
+    getParameterNames(): string[] {
+        return this.src.parameters.map((p) => p.name);
+    }
     hasReturnData(): boolean {
         const returnKind = this.getReturnType().src.kind;
         return (

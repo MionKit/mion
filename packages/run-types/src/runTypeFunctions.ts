@@ -3,7 +3,7 @@ import {ReceiveType} from '@deepkit/type';
 import {runType} from './lib/runType';
 import {IsTypeFn, MockOptions, TypeErrorsFn} from './types';
 import {BaseRunType} from './lib/baseRunTypes';
-import {loadComposableFunction} from '@mionkit/run-types/src/lib/jitFnsRegistry';
+import {loadComposableFunction} from './lib/jitFnsRegistry';
 
 // all these functions are async because they might need to compile the jit function first
 // at the moment they are compiled synchronously, but in the future they might be async

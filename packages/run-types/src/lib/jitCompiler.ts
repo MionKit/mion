@@ -4,7 +4,7 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
-import type {JitCompilerMeta, JitFnArgs, PureFunction} from '@mionkit/core/src/types';
+import type {JitCompiledFn, JitCompiledFnMeta, JitFnArgs, PureFunction} from '@mionkit/core/src/types';
 import {MAX_STACK_DEPTH} from '@mionkit/core/src/constants';
 import type {Mutable, JitFnID, StrNumber, jitCode} from '../types';
 import type {BaseRunType} from './baseRunTypes';
@@ -25,10 +25,10 @@ export type StackItem = {
     staticPath?: StrNumber[];
 };
 
-export type JitCompilerLike = BaseCompiler | JitCompilerMeta;
+export type JitCompilerLike = BaseCompiler | JitCompiledFnMeta;
 export type JitDependencies = Set<string>;
 
-export class BaseCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extends JitFnID = any> implements JitCompilerMeta {
+export class BaseCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extends JitFnID = any> implements JitCompiledFnMeta {
     constructor(
         public readonly rootType: BaseRunType,
         // the id of the function to be compiled (isType, typeErrors, toJsonVal, fromJsonVal, etc)
@@ -44,7 +44,9 @@ export class BaseCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extends 
         this.jitFnHash = jitFnHash || getJITFnHash(this.fnId, this.rootType);
         this.jitId = jitId || this.rootType.getJitId();
         this.vλl = this.args.vλl;
-        jitUtils.addToJitCache(this.jitFnHash, this);
+        // At the time of adding this compiler to the jit cache, the fn is undefined which is technically not allowed
+        // but this prevents issues with circular types and loading order of jit dependencies
+        jitUtils.addToJitCache(this as JitCompiledFn);
     }
     readonly jitId: StrNumber;
     readonly jitFnHash: string;
@@ -153,7 +155,7 @@ export class BaseCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extends 
         const stackItem = this.getCurrentStackItem();
         return !stackItem.rt.isJitInlined() && this.stack.length > 1;
     }
-    updateDependencies(childCop: JitCompilerMeta): void {
+    updateDependencies(childCop: JitCompiledFnMeta): void {
         this.dependenciesSet.add(childCop.jitFnHash);
         childCop.dependenciesSet.forEach((dep) => this.dependenciesSet.add(dep));
     }
@@ -167,7 +169,7 @@ export class BaseCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extends 
         this.pureFnDependencies.add(key);
     }
     removeFromJitCache(): void {
-        jitUtils.removeFromJitCache(this.jitFnHash);
+        jitUtils.removeFromJitCache(this as JitCompiledFn);
     }
     /**
      * Set the isNoop flag based on the code of the operation.

@@ -5,9 +5,10 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {isTypeFn, mockTypeFn, typeErrorsFn} from '@mionkit/run-types/src/runTimeFunctions';
+import {isTypeFn, mockTypeFn, typeErrorsFn} from '@mionkit/run-types/src/runTypeFunctions';
 import {RunTypeError} from '@mionkit/core/src/types';
-import {UUIDFormat_V4, UUIDFormat_V7, mockUuidV7} from './uuid.runtype';
+import {randomUUID_V7} from '@mionkit/core/src/utils';
+import {UUIDFormat_V4, UUIDFormat_V7} from './uuid.runtype';
 
 // ####### UUID v4 #######
 
@@ -74,7 +75,7 @@ it('validate uuid v7', async () => {
     // wrong length
     expect(isType('f47ac10b-58cc-7372-a567-')).toBe(false);
 
-    const someIds = Array.from({length: 20}, () => mockUuidV7());
+    const someIds = Array.from({length: 20}, () => randomUUID_V7());
     for (const uuid of someIds) expect(isType(uuid)).toBe(true);
 });
 
@@ -93,7 +94,7 @@ it('get uuid v7 errors', async () => {
     // wrong length
     expect(typeErrors('f47ac10b-58cc-7372-a567-')).toEqual([expectedError]);
 
-    const someIds = Array.from({length: 20}, () => mockUuidV7());
+    const someIds = Array.from({length: 20}, () => randomUUID_V7());
     for (const uuid of someIds) expect(typeErrors(uuid)).toEqual([]);
 });
 

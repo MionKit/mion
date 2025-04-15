@@ -5,10 +5,10 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {randomUUID} from 'crypto';
 import {statusCodeToReasonPhrase} from './status-codes';
 import {CoreOptions, AnyErrorParams, PublicRpcError} from './types';
 import {DEFAULT_CORE_OPTIONS} from './constants';
+import {randomUUID_V7} from '@mionkit/core/src/utils';
 
 let options: CoreOptions = {...DEFAULT_CORE_OPTIONS};
 
@@ -31,7 +31,7 @@ export class RpcError extends Error {
         super.name = name || statusCodeToReasonPhrase[statusCode] || 'UnknownError';
         if (originalError?.stack) super.stack = originalError?.stack;
         const {autoGenerateErrorId} = options;
-        this.id = id || autoGenerateErrorId ? `${new Date().toISOString()}@${randomUUID()}` : undefined;
+        this.id = id || autoGenerateErrorId ? randomUUID_V7() : undefined;
         this.statusCode = statusCode;
         this.publicMessage = publicMessage || '';
         this.errorData = errorData as Readonly<unknown>;

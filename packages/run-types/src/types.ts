@@ -6,7 +6,7 @@
  * ######## */
 // ###### !IMPORTANT: all imports should be types only to prevent circular dependencies ######
 import type {Type, TypeCallSignature, TypeFunction, TypeMethod, TypeMethodSignature, TypeTuple} from '@deepkit/type';
-import type {RunTypeError, TypeFormatParams, JITUtils, JitCompiled} from '@mionkit/core/src/types';
+import type {RunTypeError, TypeFormatParams, JitCompiledFn, JitCompiledFnMeta} from '@mionkit/core/src/types';
 import type {JitFunctions} from './constants';
 import type {ReflectionSubKind} from './constants.kind';
 import type {BaseRunTypeFormat} from './lib/baseRunTypeFormat';
@@ -14,7 +14,8 @@ import type {BaseRunTypeFormat} from './lib/baseRunTypeFormat';
 export type StrNumber = string | number;
 export type jitCode = string | undefined;
 
-// ###################### RunTypes ######################
+// ############################################ RunTypes ############################################
+
 export type SrcType<T extends Type = Type> = T & {
     readonly _rt: RunType;
     readonly subKind?: SubKind;
@@ -87,21 +88,12 @@ export interface RunTypeOptions {
     paramsSlice?: {start?: number; end?: number};
 }
 
-// ###################### JIT FUNCTIONS ######################
+// ############################################ JIT FUNCTIONS ############################################
 
 export type JitFn = (typeof JitFunctions)[keyof typeof JitFunctions];
 
 // one of the existing jit functions ids
 export type JitFnID = JitFn['id'];
-export type JitTypeErrorsFn = (v: any, path: StrNumber[], err: RunTypeError[]) => RunTypeError[];
-export type AnyFn = (...args: any[]) => any;
-export interface JitFnData<Fn extends AnyFn> {
-    argNames: string[];
-    code: string;
-    fn: Fn;
-}
-
-export type SerializableJitFn<Fn extends AnyFn> = Omit<JitFnData<Fn>, 'fn'>;
 
 export type IsTypeFn = (value: any) => boolean;
 export type TypeErrorsFn = (value: any) => RunTypeError[];
@@ -110,44 +102,25 @@ export type FromJsonValFn = (value: JSONValue) => any;
 export type JsonStringifyFn = (value: any) => JSONString;
 
 export interface JITCompiledFunctions {
-    isType: JitFnData<IsTypeFn>;
-    typeErrors: JitFnData<TypeErrorsFn>;
-    toJsonVal: JitFnData<ToJsonValFn>;
-    fromJsonVal: JitFnData<FromJsonValFn>;
-    jsonStringify: JitFnData<JsonStringifyFn>;
+    isType: JitCompiledFn<IsTypeFn>;
+    typeErrors: JitCompiledFn<TypeErrorsFn>;
+    toJsonVal: JitCompiledFn<ToJsonValFn>;
+    fromJsonVal: JitCompiledFn<FromJsonValFn>;
+    jsonStringify: JitCompiledFn<JsonStringifyFn>;
 }
 
 export interface SerializableJITFunctions {
-    isType: SerializableJitFn<IsTypeFn>;
-    typeErrors: SerializableJitFn<TypeErrorsFn>;
-    toJsonVal: SerializableJitFn<ToJsonValFn>;
-    fromJsonVal: SerializableJitFn<FromJsonValFn>;
-    jsonStringify: SerializableJitFn<JsonStringifyFn>;
+    isType: JitCompiledFnMeta;
+    typeErrors: JitCompiledFnMeta;
+    toJsonVal: JitCompiledFnMeta;
+    fromJsonVal: JitCompiledFnMeta;
+    jsonStringify: JitCompiledFnMeta;
 }
-
-export type unwrappedToJsonValFn = (utils: JITUtils, value: any) => JSONValue;
-export type unwrappedFromJsonValFn = (utils: JITUtils, value: JSONValue) => any;
-export type unwrappedJsonStringifyFn = (utils: JITUtils, value: any) => JSONString;
-
-export interface UnwrappedJITFunctions {
-    isType: JitFnData<IsTypeFn>;
-    typeErrors: JitFnData<TypeErrorsFn>;
-    toJsonVal: JitFnData<unwrappedToJsonValFn>;
-    fromJsonVal: JitFnData<unwrappedFromJsonValFn>;
-    jsonStringify: JitFnData<unwrappedJsonStringifyFn>;
-}
-
-export interface SerializableJit extends Omit<JitCompiled, 'fnId' | 'dependenciesSet'> {
-    // dependency list is serialized as a string array
-    dependencies: string[];
-}
-
-export type SerializedOperations = Record<string, SerializableJit>;
 
 export type AnyFunction = TypeMethodSignature | TypeCallSignature | TypeFunction | TypeMethod;
 export type AnyParameterListRunType = AnyFunction | TypeTuple;
 
-// ###################### MOCK #####################
+// ############################################ MOCKING ############################################
 
 export interface MockOptions {
     anyValuesList: any[];
@@ -197,7 +170,7 @@ export type FormatAnnotation = DKAnnotation & {
     formatter: BaseRunTypeFormat;
 };
 
-// ###################### OTHERS #####################
+// ############################################ OTHERS ############################################
 
 /** Any Class */
 export interface AnyClass<T = any> {

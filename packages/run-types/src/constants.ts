@@ -15,10 +15,13 @@ export const CodeTypes = {
 
 export type CodeType = (typeof CodeTypes)[keyof typeof CodeTypes];
 
-export interface JitFnSetting {
+export interface JitFnSettings {
     id: string;
     name: string;
     type: CodeType;
+    /** dynamically imports a single compiler function that is capable of compiling any node
+     * @see {@link ./jitCompilers/jsonStringify.ts#_compileJsonStringify} as example of compiler function
+     */
     import?: () => Promise<(...args: any[]) => any>;
 }
 
@@ -30,7 +33,7 @@ export const jitValidationFunctions = {
     typeErrors: {id: 'te', name: 'typeErrors', type: CodeTypes.statement},
     // not yet implemented, this will check and include type formats, ie, lowercase, uppercase, etc
     isTypeStrict: {id: 'isNF', name: 'isTypeIgnoreFormat', type: CodeTypes.expression},
-} as const satisfies {[key: string]: JitFnSetting};
+} as const satisfies {[key: string]: JitFnSettings};
 
 export const jitSerializationFunctions = {
     toJsonVal: {id: 'tj', name: 'toJsonVal', type: CodeTypes.statement},
@@ -43,7 +46,7 @@ export const jitSerializationFunctions = {
     fromString: {id: 'fs', name: 'jsonParse', type: CodeTypes.expression},
     // apply type formatters, ie: lowercase, uppercase, trim, etc
     format: {id: 'fmt', name: 'format', type: CodeTypes.expression},
-} as const satisfies {[key: string]: JitFnSetting};
+} as const satisfies {[key: string]: JitFnSettings};
 
 export const JitFunctions = {
     ...jitValidationFunctions,
@@ -60,7 +63,7 @@ export const JitFunctions = {
         type: CodeTypes.returnBlock,
         import: () => import('./mocking/mockType').then((m) => m.mock),
     },
-} as const satisfies {[key: string]: JitFnSetting};
+} as const satisfies {[key: string]: JitFnSettings};
 
 export const jitFunctionList = Object.values(JitFunctions);
 export const jitFunctionsById = Object.fromEntries(jitFunctionList.map((f) => [f.id, f]));

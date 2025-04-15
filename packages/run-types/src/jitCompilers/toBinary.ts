@@ -7,19 +7,19 @@
 
 import {ReflectionKind} from '@deepkit/type';
 import type {BaseRunType} from '../lib/baseRunTypes';
-import type {PropertyRunType} from '../runtypes/member/property';
-import type {MapRunType} from '../runtypes/native/map';
-import type {SetRunType} from '../runtypes/native/set';
-import type {InterfaceRunType} from '../runtypes/collection/interface';
-import type {TupleRunType} from '../runtypes/collection/tuple';
-import type {UnionRunType} from '../runtypes/collection/union';
-import type {EnumRunType} from '../runtypes/atomic/enum';
-import type {ParameterRunType} from '../runtypes/member/param';
-import type {RestParamsRunType} from '../runtypes/member/restParams';
+import type {PropertyRunType} from '../runType/member/property';
+import type {MapRunType} from '../runType/native/map';
+import type {SetRunType} from '../runType/native/set';
+import type {InterfaceRunType} from '../runType/collection/interface';
+import type {TupleRunType} from '../runType/collection/tuple';
+import type {UnionRunType} from '../runType/collection/union';
+import type {EnumRunType} from '../runType/atomic/enum';
+import type {ParameterRunType} from '../runType/member/param';
+import type {RestParamsRunType} from '../runType/member/restParams';
 import {ReflectionSubKind} from '../constants.kind';
-import {NonSerializableRunType} from '../runtypes/native/nonSerializable';
-import {IndexSignatureRunType} from '../runtypes/member/indexProperty';
-import {ClassRunType} from '../runtypes/collection/class';
+import {NonSerializableRunType} from '../runType/native/nonSerializable';
+import {IndexSignatureRunType} from '../runType/member/indexProperty';
+import {ClassRunType} from '../runType/collection/class';
 import {JitFunctions} from '../constants';
 
 // Binary format type markers
