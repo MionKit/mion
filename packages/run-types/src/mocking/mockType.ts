@@ -8,7 +8,7 @@
 import {ReflectionKind} from '@deepkit/type';
 import type {MockOperation, MockOptions} from '../types';
 import type {BaseRunType} from '../lib/baseRunTypes';
-import {mockString, mockNumber, mockBoolean, mockBigInt, mockDate, mockAny, random, mockRegExp, mockSymbol} from './mockUtils';
+import {mockString, mockNumber, mockBoolean, mockBigInt, mockDate, random, mockRegExp, mockSymbol} from './mockUtils';
 import {defaultMockOptions, stringCharSet} from './constants.mock';
 import {ClassRunType} from '../runType/collection/class';
 import type {PropertyRunType} from '../runType/member/property';
@@ -16,6 +16,7 @@ import type {MapRunType} from '../runType/native/map';
 import type {SetRunType} from '../runType/native/set';
 import type {InterfaceRunType} from '../runType/collection/interface';
 import type {TupleRunType} from '../runType/collection/tuple';
+import type {FunctionParamsRunType} from '../runType/collection/functionParams';
 import type {UnionRunType} from '../runType/collection/union';
 import type {EnumRunType} from '../runType/atomic/enum';
 import type {PromiseRunType} from '../runType/native/promise';
@@ -104,8 +105,9 @@ function _mock(runType: BaseRunType, ctx: MockOperation): any {
         case ReflectionKind.never:
             throw new Error('Cannot mock never type.');
         case ReflectionKind.any:
+            throw new Error('Cannot mock any type.');
         case ReflectionKind.unknown:
-            return mockAny(ctx.anyValuesList);
+            throw new Error('Cannot mock unknown type.');
         // Atomic types
         case ReflectionKind.string:
             return mockString(ctx.stringLength || random(1, ctx.maxRandomStringLength), ctx.stringCharSet || stringCharSet);
@@ -182,8 +184,17 @@ function _mock(runType: BaseRunType, ctx: MockOperation): any {
         case ReflectionKind.callSignature:
         case ReflectionKind.method:
         case ReflectionKind.methodSignature:
-            throw new Error('Mock is not allowed, call mockParams or mockReturn instead.');
-
+            if (runType.src.subKind === ReflectionSubKind.params) {
+                const rt = runType as FunctionParamsRunType;
+                const options = ctx.tupleOptions;
+                const params = rt.getChildRunTypes().map((p, i) => mock(p, options?.[i] || ctx));
+                if (rt.hasRestParameter()) {
+                    return [...params.slice(0, -1), ...params[params.length - 1]];
+                }
+                return params;
+            } else {
+                throw new Error('Mock is not allowed, call mockParams or mockReturn instead.');
+            }
         case ReflectionKind.promise: {
             const rt = runType as PromiseRunType;
             const timeOut = ctx.promiseTimeOut || 1;

@@ -6,7 +6,7 @@
  * ######## */
 import type {JitCompiledFn, JitCompiledFnMeta, JitFnArgs, PureFunction} from '@mionkit/core/src/types';
 import {MAX_STACK_DEPTH} from '@mionkit/core/src/constants';
-import type {Mutable, JitFnID, StrNumber, jitCode} from '../types';
+import type {Mutable, JitFnID, StrNumber, jitCode, RunTypeOptions} from '../types';
 import type {BaseRunType} from './baseRunTypes';
 import type {AnyKindName} from '../constants.kind';
 import {jitArgs, jitDefaultArgs, jitDefaultErrorArgs, jitErrorArgs, JitFunctions, maxStackErrorMessage} from '../constants';
@@ -14,6 +14,7 @@ import {isChildAccessorType, isJitErrorsCompiler} from './guards';
 import {jitUtils} from '../../../core/src/jitUtils';
 import {toLiteral, toLiteralInContext} from './utils';
 import type {BaseRunTypeFormat} from './baseRunTypeFormat';
+import {createUniqueHash} from '@mionkit/run-types/src/lib/quickHash';
 
 export type StackItem = {
     /** current compile stack full variable accessor */
@@ -39,14 +40,16 @@ export class BaseCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extends 
         public readonly returnName: string,
         public readonly parentLength: number = 0,
         jitFnHash?: string,
-        jitId?: StrNumber
+        jitId?: StrNumber,
+        public readonly opts: RunTypeOptions = {}
     ) {
-        this.jitFnHash = jitFnHash || getJITFnHash(this.fnId, this.rootType);
+        this.jitFnHash = jitFnHash || getJITFnHash(this.fnId, this.rootType, opts);
         this.jitId = jitId || this.rootType.getJitId();
         this.vλl = this.args.vλl;
         // At the time of adding this compiler to the jit cache, the fn is undefined which is technically not allowed
         // but this prevents issues with circular types and loading order of jit dependencies
         jitUtils.addToJitCache(this as JitCompiledFn);
+        validateCompilerOptions(opts);
     }
     readonly jitId: StrNumber;
     readonly jitFnHash: string;
@@ -149,7 +152,12 @@ export class BaseCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extends 
         const rt = parent.rt;
         if (!isChildAccessorType(rt)) throw new Error(`cant get child var name from ${rt.getKindName()}`);
         if (rt.skipSettingAccessor?.()) return parent.vλl;
-        return parent.vλl + (rt.useArrayAccessor() ? `[${rt.getChildLiteral()}]` : `.${rt.getChildVarName()}`);
+        return (
+            parent.vλl +
+            (rt.useArrayAccessor()
+                ? `[${rt.getChildLiteral(this as JitCompiler)}]`
+                : `.${rt.getChildVarName(this as JitCompiler)}`)
+        );
     }
     shouldCallDependency(): boolean {
         const stackItem = this.getCurrentStackItem();
@@ -213,16 +221,30 @@ export class BaseCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extends 
 // ################### Compile Operations ###################
 
 export class JitCompiler<ID extends JitFnID = any> extends BaseCompiler<typeof jitArgs, ID> {
-    constructor(rt: BaseRunType, id: ID, parentLength: number = 0, jitFnHash?: string, jitId?: StrNumber) {
-        super(rt, id, {...jitArgs}, {...jitDefaultArgs}, 'v', parentLength, jitFnHash, jitId);
+    constructor(
+        rt: BaseRunType,
+        id: ID,
+        parentLength: number = 0,
+        jitFnHash?: string,
+        jitId?: StrNumber,
+        opts: RunTypeOptions = {}
+    ) {
+        super(rt, id, {...jitArgs}, {...jitDefaultArgs}, 'v', parentLength, jitFnHash, jitId, opts);
     }
 }
 
 export class JitErrorsCompiler<ID extends JitFnID = any> extends BaseCompiler<typeof jitErrorArgs, ID> {
-    constructor(rt: BaseRunType, id: ID, parentLength: number = 0, jitFnHash?: string, jitId?: StrNumber) {
+    constructor(
+        rt: BaseRunType,
+        id: ID,
+        parentLength: number = 0,
+        jitFnHash?: string,
+        jitId?: StrNumber,
+        opts: RunTypeOptions = {}
+    ) {
         const args = {...jitErrorArgs};
         const defaultValues = {...jitDefaultErrorArgs};
-        super(rt, id, args, defaultValues, 'er', parentLength, jitFnHash, jitId);
+        super(rt, id, args, defaultValues, 'er', parentLength, jitFnHash, jitId, opts);
     }
     callJitErr(expected: AnyKindName | BaseRunType<any>): string {
         // TODO: most of the time jit path is an empty array, so a new array is created every time
@@ -300,7 +322,8 @@ export function createJitCompiler(
     fnId: JitFnID,
     parent?: BaseCompiler,
     jitFnHash?: string,
-    jitId?: StrNumber
+    jitId?: StrNumber,
+    opts: RunTypeOptions = {}
 ): BaseCompiler {
     switch (fnId) {
         case JitFunctions.isType.id:
@@ -311,10 +334,10 @@ export function createJitCompiler(
         case JitFunctions.stripUnknownKeys.id:
         case JitFunctions.unknownKeysToUndefined.id:
         case JitFunctions.format.id:
-            return new JitCompiler(rt, fnId, parent?.totalLength, jitFnHash, jitId);
+            return new JitCompiler(rt, fnId, parent?.totalLength, jitFnHash, jitId, opts);
         case JitFunctions.typeErrors.id:
         case JitFunctions.unknownKeyErrors.id:
-            return new JitErrorsCompiler(rt, fnId, parent?.totalLength, jitFnHash, jitId);
+            return new JitErrorsCompiler(rt, fnId, parent?.totalLength, jitFnHash, jitId, opts);
         default:
             throw new Error(`Unknown compile operation: ${fnId}`);
     }
@@ -328,7 +351,12 @@ export function createJitCompiler(
  * @param rt
  * @returns
  */
-export function getJITFnHash(id: JitFnID, rt: BaseRunType): string {
+export function getJITFnHash(id: JitFnID, rt: BaseRunType, opts: RunTypeOptions): string {
+    if (Object.keys(opts).length) {
+        // 4 characters is enough for options hash as we do not expect many different options
+        const optsHash = createUniqueHash(JSON.stringify(opts), 3);
+        return `${id}_${rt.getJitHash()}_${optsHash}`;
+    }
     return `${id}_${rt.getJitHash()}`;
 }
 
@@ -397,7 +425,9 @@ function getStackVλl(comp: BaseCompiler): string {
         } else if (custom) {
             vλl += custom.useArrayAccessor ? `[${custom.vλl}]` : `.${custom.vλl}`;
         } else if (isChildAccessorType(rt) && !rt.skipSettingAccessor?.()) {
-            vλl += rt.useArrayAccessor() ? `[${rt.getChildLiteral()}]` : `.${rt.getChildVarName()}`;
+            vλl += rt.useArrayAccessor()
+                ? `[${rt.getChildLiteral(comp as JitCompiler)}]`
+                : `.${rt.getChildVarName(comp as JitCompiler)}`;
         }
     }
     return vλl;
@@ -411,9 +441,25 @@ function getAccessPath(comp: BaseCompiler): StrNumber[] {
         if (pathItem) {
             path.push(pathItem);
         } else if (isChildAccessorType(rt) && !rt.skipSettingAccessor?.()) {
-            path.push(rt.getChildLiteral());
+            path.push(rt.getChildLiteral(comp as JitCompiler));
         }
         rtName.push({path: [...path], name: rt.constructor.name});
     }
     return path;
+}
+
+function validateCompilerOptions(opts: RunTypeOptions): void {
+    if (opts.paramsSlice) {
+        const start = opts.paramsSlice?.start;
+        const end = opts.paramsSlice?.end;
+        if (start && start < 0) {
+            throw new Error(`paramsSlice.start must be greater than 0`);
+        }
+        if (end && end < 0) {
+            throw new Error(`paramsSlice.end must be greater than 0`);
+        }
+        if (end && start && end <= start) {
+            throw new Error(`paramsSlice.end must be greater than paramsSlice.start`);
+        }
+    }
 }

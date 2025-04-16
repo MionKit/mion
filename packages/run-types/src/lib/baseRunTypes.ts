@@ -19,6 +19,7 @@ import type {
     JitFn,
     FormatAnnotation,
     jitCode,
+    RunTypeOptions,
 } from '../types';
 import type {mock} from '../mocking/mockType';
 import {jitArgs, jitErrorArgs, JitFunctions, maxStackErrorMessage, CodeType, getCodeType} from '../constants';
@@ -127,18 +128,18 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
 
     // ########## Create Jit Functions ##########
 
-    createJitFunction = (jitFn: JitFn): ((...args: any[]) => any) => {
-        return this.createJitCompiledFunction(jitFn.id).fn;
+    createJitFunction = (jitFn: JitFn, opts: RunTypeOptions = {}): ((...args: any[]) => any) => {
+        return this.createJitCompiledFunction(jitFn.id, undefined, opts).fn;
     };
 
-    createJitCompiledFunction(fnId: JitFnID, parentCop?: JitCompiler): JitCompiledFn {
-        const jitCompiled = jitUtils.getJIT(getJITFnHash(fnId, this));
+    createJitCompiledFunction(fnId: JitFnID, parentCop?: JitCompiler, opts: RunTypeOptions = {}): JitCompiledFn {
+        const jitCompiled = jitUtils.getJIT(getJITFnHash(fnId, this, opts));
         if (jitCompiled) {
             if (process.env.DEBUG_JIT === 'VERBOSE')
                 console.log(`\x1b[32m Using cached function: ${jitCompiled.jitFnHash} \x1b[0m`);
             return jitCompiled;
         }
-        const newJitCompiler: JitCompiler = createJitCompiler(this, fnId, parentCop) as JitCompiler;
+        const newJitCompiler: JitCompiler = createJitCompiler(this, fnId, parentCop, undefined, undefined, opts) as JitCompiler;
         try {
             this.compile(newJitCompiler, fnId);
         } catch (e) {
@@ -202,7 +203,7 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
         let code: jitCode;
         comp.pushStack(this);
         if (comp.shouldCallDependency()) {
-            const compiledOp = this.createJitCompiledFunction(fnId, comp);
+            const compiledOp = this.createJitCompiledFunction(fnId, comp, comp.opts);
             code = this.callDependency(comp, compiledOp);
             comp.updateDependencies(compiledOp);
         } else {
@@ -256,7 +257,7 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
                 }
 
                 // Otherwise, create a separate function
-                const compiled = f.createJitCompiledFormatter(fnId, this, comp);
+                const compiled = f.createJitCompiledFormatter(fnId, this, comp, undefined, undefined, undefined, comp.opts);
                 if (compiled.isNoop) return;
                 comp.updateDependencies(compiled);
                 return this.callDependency(comp, compiled);
@@ -413,13 +414,13 @@ export abstract class CollectionRunType<T extends Type> extends BaseRunType<T> {
     getFamily(): 'C' {
         return 'C';
     }
-    getChildRunTypes = (): BaseRunType[] => {
+    getChildRunTypes = (_comp?: JitCompiler): BaseRunType[] => {
         const childTypes = ((this.src as SrcCollection).types as SrcType[]) || []; // deepkit stores child types in the types property
         return childTypes.map((t) => t._rt as BaseRunType);
     };
-    getJitChildren(): BaseRunType[] {
+    getJitChildren(_comp?: JitCompiler): BaseRunType[] {
         let skipIndex = false; // if there are multiple index signatures, only the first one will be used as they must be same type just different keys
-        return this.getChildRunTypes().filter((c) => {
+        return this.getChildRunTypes(_comp).filter((c) => {
             if (c.getJitConfig().skipJit) return false;
             const isIndex = c.src.kind === ReflectionKind.indexSignature;
             if (isIndex && skipIndex) return false;
@@ -431,25 +432,25 @@ export abstract class CollectionRunType<T extends Type> extends BaseRunType<T> {
         return this._getJitConfig(stack);
     }
     _compileHasUnknownKeys(comp: JitCompiler): jitCode {
-        return this.getJitChildren()
+        return this.getJitChildren(comp)
             .map((c) => c.compileHasUnknownKeys(comp))
             .filter((code) => !!code)
             .join(' || ');
     }
     _compileUnknownKeyErrors(comp: JitErrorsCompiler): jitCode {
-        return this.getJitChildren()
+        return this.getJitChildren(comp)
             .map((c) => c.compileUnknownKeyErrors(comp))
             .filter((code) => !!code)
             .join(';');
     }
     _compileStripUnknownKeys(comp: JitCompiler): jitCode {
-        return this.getJitChildren()
+        return this.getJitChildren(comp)
             .map((c) => c.compileStripUnknownKeys(comp))
             .filter((code) => !!code)
             .join(';');
     }
     _compileUnknownKeysToUndefined(comp: JitCompiler): jitCode {
-        return this.getJitChildren()
+        return this.getJitChildren(comp)
             .map((c) => c.compileUnknownKeysToUndefined(comp))
             .filter((code) => !!code)
             .join(';');
@@ -486,7 +487,7 @@ export abstract class CollectionRunType<T extends Type> extends BaseRunType<T> {
 export abstract class MemberRunType<T extends Type> extends BaseRunType<T> implements RunTypeChildAccessor {
     abstract isOptional(): boolean;
     abstract getChildVarName(): string | number;
-    abstract getChildLiteral(): string | number;
+    abstract getChildLiteral(comp?: JitCompiler): string | number;
     abstract useArrayAccessor(): boolean;
     /** used to compile json stringify */
     skipCommas?: boolean;
@@ -499,7 +500,9 @@ export abstract class MemberRunType<T extends Type> extends BaseRunType<T> imple
         const memberType = (this.src as any).type as SrcType; // deepkit stores member types in the type property
         return memberType._rt as BaseRunType;
     };
-    getChildIndex(): number {
+    getChildIndex(comp?: JitCompiler) {
+        const start = comp?.opts?.paramsSlice?.start;
+        if (start) return getPropIndex(this.src) - start;
         return getPropIndex(this.src);
     }
     getJitChild(): BaseRunType | undefined {

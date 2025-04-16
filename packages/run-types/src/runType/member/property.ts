@@ -8,20 +8,12 @@
 import type {TypeProperty, TypePropertySignature} from '@deepkit/type';
 import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
 import {JitConfig, Mutable, jitCode} from '../../types';
-import {
-    childIsExpression,
-    getPropIndex,
-    getPropLiteral,
-    getPropVarName,
-    memorize,
-    useArrayAccessorForProp,
-} from '../../lib/utils';
+import {childIsExpression, getPropLiteral, getPropVarName, memorize, useArrayAccessorForProp} from '../../lib/utils';
 import {BaseRunType, MemberRunType} from '../../lib/baseRunTypes';
 import {InterfaceRunType} from '../collection/interface';
 import {JitFunctions} from '../../constants';
 
 export class PropertyRunType extends MemberRunType<TypePropertySignature | TypeProperty> {
-    getChildIndex = memorize(() => getPropIndex(this.src));
     getChildVarName = memorize(() => getPropVarName(this.src.name));
     getChildLiteral = memorize(() => getPropLiteral(this.getChildVarName()));
     useArrayAccessor = memorize(() => useArrayAccessorForProp(this.src.name));

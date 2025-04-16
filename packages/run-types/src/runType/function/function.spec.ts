@@ -359,35 +359,105 @@ describe('function with rest parameters', () => {
     });
 });
 
-it('should get runType from a function using reflectFunction', () => {
-    const fn = (a: number, b: boolean, c?: string): Date => new Date();
-    const reflectedType = reflectFunction(fn);
-    expect(reflectedType instanceof FunctionRunType).toBe(true);
+describe('function run type general', () => {
+    it('should get runType from a function using reflectFunction', () => {
+        const fn = (a: number, b: boolean, c?: string): Date => new Date();
+        const reflectedType = reflectFunction(fn);
+        expect(reflectedType instanceof FunctionRunType).toBe(true);
 
-    const validate = reflectedType.createJitParamsFunction(JitFunctions.isType);
-    const typeErrors = reflectedType.createJitParamsFunction(JitFunctions.typeErrors);
-    const toJsonVal = reflectedType.createJitParamsFunction(JitFunctions.toJsonVal);
-    const fromJsonVal = reflectedType.createJitParamsFunction(JitFunctions.fromJsonVal);
-    const jsonStringify = reflectedType.createJitParamsFunction(JitFunctions.jsonStringify);
-    const paramsValues = [3, true, 'hello'];
-    expect(validate(paramsValues)).toBe(true);
-    expect(typeErrors(paramsValues)).toEqual([]);
-    expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal([3, true, 'hello']))))).toEqual(paramsValues);
-    expect(fromJsonVal(JSON.parse(jsonStringify([3, true, 'hello'])))).toEqual(paramsValues);
+        const validate = reflectedType.createJitParamsFunction(JitFunctions.isType);
+        const typeErrors = reflectedType.createJitParamsFunction(JitFunctions.typeErrors);
+        const toJsonVal = reflectedType.createJitParamsFunction(JitFunctions.toJsonVal);
+        const fromJsonVal = reflectedType.createJitParamsFunction(JitFunctions.fromJsonVal);
+        const jsonStringify = reflectedType.createJitParamsFunction(JitFunctions.jsonStringify);
+        const paramsValues = [3, true, 'hello'];
+        expect(validate(paramsValues)).toBe(true);
+        expect(typeErrors(paramsValues)).toEqual([]);
+        expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal([3, true, 'hello']))))).toEqual(paramsValues);
+        expect(fromJsonVal(JSON.parse(jsonStringify([3, true, 'hello'])))).toEqual(paramsValues);
 
-    const validateReturn = reflectedType.createJitReturnFunction(JitFunctions.isType);
-    const typeErrorsReturn = reflectedType.createJitReturnFunction(JitFunctions.typeErrors);
-    const toJsonReturn = reflectedType.createJitReturnFunction(JitFunctions.toJsonVal);
-    const fromJsonReturn = reflectedType.createJitReturnFunction(JitFunctions.fromJsonVal);
-    const jsonStringifyReturn = reflectedType.createJitReturnFunction(JitFunctions.jsonStringify);
-    const returnValue = new Date();
-    expect(validateReturn(returnValue)).toBe(true);
-    expect(typeErrorsReturn(returnValue)).toEqual([]);
-    expect(fromJsonReturn(toJsonReturn(returnValue))).toEqual(returnValue);
-    expect(fromJsonReturn(JSON.parse(jsonStringifyReturn(returnValue)))).toEqual(returnValue);
+        const validateReturn = reflectedType.createJitReturnFunction(JitFunctions.isType);
+        const typeErrorsReturn = reflectedType.createJitReturnFunction(JitFunctions.typeErrors);
+        const toJsonReturn = reflectedType.createJitReturnFunction(JitFunctions.toJsonVal);
+        const fromJsonReturn = reflectedType.createJitReturnFunction(JitFunctions.fromJsonVal);
+        const jsonStringifyReturn = reflectedType.createJitReturnFunction(JitFunctions.jsonStringify);
+        const returnValue = new Date();
+        expect(validateReturn(returnValue)).toBe(true);
+        expect(typeErrorsReturn(returnValue)).toEqual([]);
+        expect(fromJsonReturn(toJsonReturn(returnValue))).toEqual(returnValue);
+        expect(fromJsonReturn(JSON.parse(jsonStringifyReturn(returnValue)))).toEqual(returnValue);
+    });
+
+    it('jitFnHash should be different in functions compiled with different options', () => {
+        const fn = (a: number, b: boolean, c?: string): Date => new Date();
+        const reflectedType = reflectFunction(fn);
+
+        const compiled1 = reflectedType
+            .getParameters()
+            .createJitCompiledFunction(JitFunctions.isType.id, undefined, {paramsSlice: {start: 1}});
+        const compiled2 = reflectedType
+            .getParameters()
+            .createJitCompiledFunction(JitFunctions.isType.id, undefined, {paramsSlice: {start: 2}});
+        expect(compiled1.jitFnHash).not.toEqual(compiled2.jitFnHash);
+    });
+
+    it('createJitParamsFunction should accept a parameter slice option that allows to create a function that only validates a subset of the parameters', () => {
+        // Test with FunctionType: (a: number, b: boolean, c?: string) => Date
+
+        // Test with invalid indices
+        expect(() => {
+            rt.createJitParamsFunction(JitFunctions.isType, {paramsSlice: {start: 1, end: 4}});
+        }).toThrow('Invalid paramsSlice'); // end > length
+
+        expect(() => {
+            rt.createJitParamsFunction(JitFunctions.isType, {paramsSlice: {start: 2, end: 2}});
+        }).toThrow('Invalid paramsSlice'); // end <= start
+
+        expect(() => {
+            rt.createJitParamsFunction(JitFunctions.isType, {paramsSlice: {start: -1, end: 2}});
+        }).toThrow('Invalid paramsSlice'); // start < 0
+
+        // Test with valid indices - middle slice (b and c)
+        const validateMiddleSlice = rt.createJitParamsFunction(JitFunctions.isType, {paramsSlice: {start: 1}});
+
+        // Should only validate parameters b and c (boolean and string)
+        expect(validateMiddleSlice([true, 'hello'])).toBe(true);
+        expect(validateMiddleSlice([false])).toBe(true);
+        expect(validateMiddleSlice([123])).toBe(false); // Wrong type for first parameter (should be boolean)
+        expect(validateMiddleSlice([true, 123])).toBe(false); // Wrong type for second parameter (should be string)
+        expect(validateMiddleSlice([true, 'hello', 'extra'])).toBe(false); // Too many parameters
+
+        // Test with typeErrors for middle slice
+        const errorsMiddleSlice = rt.createJitParamsFunction(JitFunctions.typeErrors, {paramsSlice: {start: 1}});
+        expect(errorsMiddleSlice([true, 'hello'])).toEqual([]);
+        expect(errorsMiddleSlice([false])).toEqual([]);
+        expect(errorsMiddleSlice([123])).toEqual([{expected: 'boolean', path: [0]}]); // Wrong type for first parameter
+        expect(errorsMiddleSlice([true, 123])).toEqual([{expected: 'string', path: [1]}]); // Wrong type for second parameter
+
+        // Test with single parameter (a: number) - start: 0, end: 1
+        const validateFirstParam = rt.createJitParamsFunction(JitFunctions.isType, {paramsSlice: {start: 0, end: 1}});
+        expect(validateFirstParam([42])).toBe(true);
+        expect(validateFirstParam(['string'])).toBe(false); // Wrong type
+        expect(validateFirstParam([42, true])).toBe(false); // Too many parameters
+
+        // Test with typeErrors for first parameter
+        const errorsFirstParam = rt.createJitParamsFunction(JitFunctions.typeErrors, {paramsSlice: {start: 0, end: 1}});
+        expect(errorsFirstParam([42])).toEqual([]);
+        expect(errorsFirstParam(['string'])).toEqual([{expected: 'number', path: [0]}]);
+
+        // Test with optional parameter only (c?: string) - start: 2
+        const validateOptionalParam = rt.createJitParamsFunction(JitFunctions.isType, {paramsSlice: {start: 2}});
+        expect(validateOptionalParam(['hello'])).toBe(true);
+        expect(validateOptionalParam([])).toBe(true); // Optional parameter can be omitted
+        expect(validateOptionalParam([42])).toBe(false); // Wrong type
+        expect(validateOptionalParam(['hello', 'extra'])).toBe(false); // Too many parameters
+
+        // Test with typeErrors for optional parameter
+        const errorsOptionalParam = rt.createJitParamsFunction(JitFunctions.typeErrors, {paramsSlice: {start: 2}});
+        expect(errorsOptionalParam(['hello'])).toEqual([]);
+        expect(errorsOptionalParam([])).toEqual([]);
+        expect(errorsOptionalParam([42])).toEqual([{expected: 'string', path: [0]}]);
+    });
 });
 
-it.todo(
-    'createJitParamsFunction should accept a parameter slice option that allows to create a function that only validates a subset of the parameters'
-);
 it.todo('createJitParamsFunction should accept a parameter index options that only validates one of the parameters');

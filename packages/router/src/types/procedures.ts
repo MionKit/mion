@@ -29,7 +29,7 @@ export interface Procedure<H extends AnyHandler = any> {
     pointer: string[];
     nestLevel: number;
     handler: H;
-    paramsJitFns?: JITCompiledFunctions[];
+    paramsJitFns?: JITCompiledFunctions;
     returnJitFns?: JITCompiledFunctions;
     paramNames?: string[];
     headerNames?: string[];
@@ -38,14 +38,14 @@ export interface Procedure<H extends AnyHandler = any> {
 }
 
 export interface NonRawProcedure<H extends Handler = any> extends Procedure<H> {
-    paramsJitFns: JITCompiledFunctions[];
+    paramsJitFns: JITCompiledFunctions;
     returnJitFns: JITCompiledFunctions;
     paramNames: string[];
 }
 export interface RouteProcedure<H extends Handler = any> extends Procedure<H> {
     type: ProcedureType.route;
     handler: H;
-    paramsJitFns: JITCompiledFunctions[];
+    paramsJitFns: JITCompiledFunctions;
     returnJitFns: JITCompiledFunctions;
     paramNames: string[];
     options: ProcedureOptions & {runOnError: false};
@@ -53,7 +53,7 @@ export interface RouteProcedure<H extends Handler = any> extends Procedure<H> {
 export interface HookProcedure<H extends Handler = any> extends Procedure<H> {
     type: ProcedureType.hook;
     handler: H;
-    paramsJitFns: JITCompiledFunctions[];
+    paramsJitFns: JITCompiledFunctions;
     returnJitFns: JITCompiledFunctions;
     paramNames: string[];
 }
@@ -61,7 +61,7 @@ export interface HeaderProcedure<H extends HeaderHandler = any> extends Procedur
     type: ProcedureType.headerHook;
     handler: H;
     headerNames: string[];
-    paramsJitFns: JITCompiledFunctions[];
+    paramsJitFns: JITCompiledFunctions;
     returnJitFns: JITCompiledFunctions;
     paramNames: string[];
 }

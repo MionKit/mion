@@ -10,6 +10,7 @@ import type {TypeFormatParams} from '@mionkit/core/src/types';
 import type {JitFunctions} from './constants';
 import type {ReflectionSubKind} from './constants.kind';
 import type {BaseRunTypeFormat} from './lib/baseRunTypeFormat';
+import type {BaseCompiler} from '@mionkit/run-types/src/lib/jitCompiler';
 
 export type StrNumber = string | number;
 export type jitCode = string | undefined;
@@ -48,18 +49,18 @@ export interface RunTypeChildAccessor extends RunType {
     /**
      * Returns the position of the child within the parent type.
      */
-    getChildIndex(): number;
+    getChildIndex(_comp?: BaseCompiler): number;
     /**
      * Returns the variable name for the compiled child
      * ie: for an object property, it should return the property name
      * ie: for an array member, it should return the index variable name
      */
-    getChildVarName(): StrNumber;
+    getChildVarName(_comp?: BaseCompiler): StrNumber;
     /** Returns the static member name or literal as it should be inserted in source code.
      * ie: for an object property, it should return the property name as a string encapsulated in quotes, ie: prop => 'prop'
      * ie: for an array member, it should return the varName as is a dynamic value, ie: index => index
      */
-    getChildLiteral(): StrNumber;
+    getChildLiteral(_comp?: BaseCompiler): StrNumber;
     /** Returns true if the property name is safe to use as a property accessor in source code
      * ie: return false if a property can be accessed using the dot notation, ie: obj.prop, for properties that are numbers return false
      * ie: for an array member return true as it should be accessed using the array accessor, ie: obj[index]

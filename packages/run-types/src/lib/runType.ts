@@ -28,6 +28,7 @@ import {EnumRunType} from '../runType/atomic/enum';
 import {EnumMemberRunType} from '../runType/atomic/enumMember';
 import {UnionRunType} from '../runType/collection/union';
 import {TupleRunType} from '../runType/collection/tuple';
+import {FunctionParamsRunType} from '../runType/collection/functionParams';
 import {TupleMemberRunType} from '../runType/member/tupleMember';
 import {InterfaceRunType} from '../runType/collection/interface';
 import {PropertyRunType} from '../runType/member/property';
@@ -211,12 +212,16 @@ function createRunType(deepkitType: Mutable<SrcType>): RunType {
             rt = new CallSignatureRunType();
             break;
         case ReflectionKind.function:
-            const frt = new FunctionRunType();
-            // TODO review an change how we compile function parameters and return type
-            // those should also be jit functions, no need to check for array
-            // and maybe add option to target individual parameters
-            (frt.parameterRunTypes as Mutable<RunType>).src = deepkitType;
-            rt = frt;
+            if (deepkitType.subKind === ReflectionSubKind.params) {
+                rt = new FunctionParamsRunType();
+            } else {
+                const frt = new FunctionRunType();
+                // TODO review an change how we compile function parameters and return type
+                // those should also be jit functions, no need to check for array
+                // and maybe add option to target individual parameters
+                (frt.parameterRunTypes as Mutable<RunType>).src = deepkitType;
+                rt = frt;
+            }
             break;
         case ReflectionKind.indexSignature:
             rt = new IndexSignatureRunType();

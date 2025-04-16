@@ -114,8 +114,8 @@ describe('Public Methods should', () => {
         const api = registerRoutes(testR);
         const serializedFnParams = api.addMilliseconds.paramsJitFns;
         const isType = new Function(...serializedFnParams.isType.varNames, serializedFnParams.isType.code);
-        const jsonDecode = new Function(...serializedFnParams.jsonDecode.varNames, serializedFnParams.jsonDecode.code);
-        const jsonEncode = new Function(...serializedFnParams.jsonEncode.varNames, serializedFnParams.jsonEncode.code);
+        const jsonDecode = new Function(...serializedFnParams.fromJsonVal.varNames, serializedFnParams.fromJsonVal.code);
+        const jsonEncode = new Function(...serializedFnParams.toJsonVal.varNames, serializedFnParams.toJsonVal.code);
         const date = new Date('2022-12-19T00:24:00.00');
 
         // ###### Validation ######

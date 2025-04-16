@@ -4,14 +4,15 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
-import type {MockOperation, JitConfig, AnyFunction, SrcType, JitFn, jitCode} from '../../types';
+import type {MockOperation, JitConfig, AnyFunction, SrcType, JitFn, jitCode, RunTypeOptions} from '../../types';
 import {ReflectionKind, TypeFunction} from '@deepkit/type';
 import {BaseRunType} from '../../lib/baseRunTypes';
 import {isAnyFunctionRunType, isFunctionRunType, isPromiseRunType} from '../../lib/guards';
 import {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
 import {PromiseRunType} from '../native/promise';
 import {ReflectionSubKind} from '../../constants.kind';
-import {TupleRunType} from '../collection/tuple';
+import {FunctionParamsRunType} from '../collection/functionParams';
+import {JitCompiledFn} from '@mionkit/core/src/types';
 
 const functionJitConstants: JitConfig = {
     skipJit: true,
@@ -20,13 +21,13 @@ const functionJitConstants: JitConfig = {
 
 export class FunctionRunType<CallType extends AnyFunction = TypeFunction> extends BaseRunType<CallType> {
     // parameterRunTypes.src must be set after FunctionRunType creation
-    parameterRunTypes: TupleRunType = new TupleRunType();
+    parameterRunTypes: FunctionParamsRunType = new FunctionParamsRunType();
 
     onCreated(deepkitType: SrcType): void {
         // here we are mapping parameters from TypeParameter[] to TypeTuple as TupleRunType() is the same functionality as ParameterRunType[]
         super.onCreated(deepkitType);
         // todo the deepkit type is a
-        this.parameterRunTypes.onCreated({...deepkitType, kind: ReflectionKind.tuple, subKind: ReflectionSubKind.params});
+        this.parameterRunTypes.onCreated({...deepkitType, subKind: ReflectionSubKind.params});
     }
     getJitConfig = (): JitConfig => functionJitConstants;
     getFamily(): 'F' {
@@ -38,14 +39,24 @@ export class FunctionRunType<CallType extends AnyFunction = TypeFunction> extend
         if (typeof name === 'symbol') return name.toString();
         return name;
     }
-
-    createJitParamsFunction(jitFn: JitFn): (...args: any[]) => any {
-        return this.parameterRunTypes.createJitFunction(jitFn);
+    createJitParamsFunction(jitFn: JitFn, opts?: RunTypeOptions): (...args: any[]) => any {
+        return this.createJitCompiledParamsFunction(jitFn, opts).fn;
     }
-    createJitIndividualParamsFunction(jitFn: JitFn): ((...args: any[]) => any)[] {
-        return this.parameterRunTypes.getChildRunTypes().map((pRt) => pRt.createJitFunction(jitFn)) as any[];
+    createJitCompiledParamsFunction(jitFn: JitFn, opts?: RunTypeOptions): JitCompiledFn {
+        const start = opts?.paramsSlice?.start;
+        const end = opts?.paramsSlice?.end;
+        if (start && end) {
+            if (start < 0 || end > this.parameterRunTypes.getChildRunTypes().length)
+                throw new Error(`Invalid paramsSlice, start: ${start}, end: ${end}.`);
+            if (end <= start) throw new Error(`Invalid paramsSlice, start: ${start}, end: ${end}`);
+        }
+        return this.parameterRunTypes.createJitCompiledFunction(jitFn.id, undefined, opts);
     }
     createJitReturnFunction(jitFn: JitFn): (...args: any[]) => any {
+        return this.createJitCompiledReturnFunction(jitFn).fn;
+    }
+
+    createJitCompiledReturnFunction(jitFn: JitFn, opts?: RunTypeOptions): JitCompiledFn {
         let currentType: PromiseRunType | FunctionRunType<any> = this; // eslint-disable-line @typescript-eslint/no-this-alias
         // iterate over the return type chain until we reach a non-function non-promise type
         // eslint-disable-next-line no-constant-condition
@@ -56,14 +67,14 @@ export class FunctionRunType<CallType extends AnyFunction = TypeFunction> extend
                     currentType = returnType;
                     continue;
                 }
-                return returnType.createJitFunction(jitFn);
+                return returnType.createJitCompiledFunction(jitFn.id, undefined, opts);
             }
             const memberType = currentType.getMemberType();
             if (isPromiseRunType(memberType) || isFunctionRunType(memberType)) {
                 currentType = memberType;
                 continue;
             }
-            return memberType.createJitFunction(jitFn);
+            return memberType.createJitCompiledFunction(jitFn.id, undefined, opts);
         }
     }
 
@@ -112,7 +123,7 @@ export class FunctionRunType<CallType extends AnyFunction = TypeFunction> extend
     getReturnType(): BaseRunType {
         return (this.src.return as SrcType)._rt as BaseRunType;
     }
-    getParameters(): TupleRunType {
+    getParameters(): FunctionParamsRunType {
         return this.parameterRunTypes;
     }
     getParameterNames(): string[] {

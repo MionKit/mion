@@ -9,45 +9,26 @@ import {runType} from '../../lib/runType';
 
 const rt = runType<any>();
 
-it('validate any', () => {
-    const validate = rt.createJitFunction(JitFunctions.isType);
-    expect(validate(null)).toBe(true);
-    expect(validate(undefined)).toBe(true);
-    expect(validate(42)).toBe(true);
-    expect(validate('hello')).toBe(true);
+it('validate any should throw error', () => {
+    expect(() => rt.createJitFunction(JitFunctions.isType)).toThrow('Cannot compile isType for any type.');
 });
 
-it('validate any + errors', () => {
-    const valWithErrors = rt.createJitFunction(JitFunctions.typeErrors);
-    expect(valWithErrors(null)).toEqual([]);
-    expect(valWithErrors(undefined)).toEqual([]);
-    expect(valWithErrors(42)).toEqual([]);
-    expect(valWithErrors('hello')).toEqual([]);
+it('validate any + errors should throw error', () => {
+    expect(() => rt.createJitFunction(JitFunctions.typeErrors)).toThrow('Cannot compile typeErrors for any type.');
 });
 
-it('encode to json', () => {
-    const toJsonVal = rt.createJitFunction(JitFunctions.toJsonVal);
-    const typeValue = null;
-    expect(toJsonVal(typeValue)).toEqual(typeValue);
+it('encode to json should throw error', () => {
+    expect(() => rt.createJitFunction(JitFunctions.toJsonVal)).toThrow('Cannot compile toJsonVal for any type.');
 });
 
-it('decode from json', () => {
-    const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
-    const typeValue = null;
-    const jsonValue = JSON.parse(JSON.stringify(typeValue));
-    expect(fromJsonVal(jsonValue)).toEqual(typeValue);
+it('decode from json should throw error', () => {
+    expect(() => rt.createJitFunction(JitFunctions.fromJsonVal)).toThrow('Cannot compile fromJsonVal for any type.');
 });
 
-it('json stringify', () => {
-    const jsonStringify = rt.createJitFunction(JitFunctions.jsonStringify);
-    const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
-    const typeValue = {a: 42, b: 'hello'};
-    const roundTrip = fromJsonVal(JSON.parse(jsonStringify(typeValue)));
-    expect(roundTrip).toEqual(typeValue);
+it('json stringify should throw error', () => {
+    expect(() => rt.createJitFunction(JitFunctions.jsonStringify)).toThrow('Cannot compile jsonStringify for any type.');
 });
 
-it('mock', async () => {
-    const mocked = await rt.mock();
-    const validate = rt.createJitFunction(JitFunctions.isType);
-    expect(validate(mocked)).toBe(true);
+it('mock should throw error', async () => {
+    await expect(rt.mock()).rejects.toThrow('Cannot mock any type.');
 });
