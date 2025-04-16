@@ -29,7 +29,7 @@ export const DEFAULT_ROUTE_OPTIONS = {
     /** Default run type compiling options for routes and hooks, can't be configured by the user as would break functionality  */
     runTypeOptions: {
         /** Removes unknown properties when parsing parameters from json */
-        strictJSON: false,
+        // strictJSON: false,
 
         /** skip first parameter (Context) from route/hook handlers */
         paramsSlice: {start: ROUTE_DEFAULT_PARAMS.length},

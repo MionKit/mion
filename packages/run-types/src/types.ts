@@ -6,7 +6,7 @@
  * ######## */
 // ###### !IMPORTANT: all imports should be types only to prevent circular dependencies ######
 import type {Type, TypeCallSignature, TypeFunction, TypeMethod, TypeMethodSignature, TypeTuple} from '@deepkit/type';
-import type {RunTypeError, TypeFormatParams, JitCompiledFn, JitCompiledFnMeta} from '@mionkit/core/src/types';
+import type {TypeFormatParams} from '@mionkit/core/src/types';
 import type {JitFunctions} from './constants';
 import type {ReflectionSubKind} from './constants.kind';
 import type {BaseRunTypeFormat} from './lib/baseRunTypeFormat';
@@ -94,28 +94,6 @@ export type JitFn = (typeof JitFunctions)[keyof typeof JitFunctions];
 
 // one of the existing jit functions ids
 export type JitFnID = JitFn['id'];
-
-export type IsTypeFn = (value: any) => boolean;
-export type TypeErrorsFn = (value: any) => RunTypeError[];
-export type ToJsonValFn = (value: any) => JSONValue;
-export type FromJsonValFn = (value: JSONValue) => any;
-export type JsonStringifyFn = (value: any) => JSONString;
-
-export interface JITCompiledFunctions {
-    isType: JitCompiledFn<IsTypeFn>;
-    typeErrors: JitCompiledFn<TypeErrorsFn>;
-    toJsonVal: JitCompiledFn<ToJsonValFn>;
-    fromJsonVal: JitCompiledFn<FromJsonValFn>;
-    jsonStringify: JitCompiledFn<JsonStringifyFn>;
-}
-
-export interface SerializableJITFunctions {
-    isType: JitCompiledFnMeta;
-    typeErrors: JitCompiledFnMeta;
-    toJsonVal: JitCompiledFnMeta;
-    fromJsonVal: JitCompiledFnMeta;
-    jsonStringify: JitCompiledFnMeta;
-}
 
 export type AnyFunction = TypeMethodSignature | TypeCallSignature | TypeFunction | TypeMethod;
 export type AnyParameterListRunType = AnyFunction | TypeTuple;

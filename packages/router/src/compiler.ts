@@ -7,7 +7,7 @@
 
 import fs from 'fs';
 import path from 'path';
-import {codifyJitFunctions, restoreCodifiedJitFunctions, toLiteral, toLiteralArray} from '@mionkit/run-types';
+import {codifyJitFunctions, restoreCodifiedJitFunctions, toLiteral, arrayToLiteral} from '@mionkit/run-types/src/lib/utils';
 import {NonRawProcedure, ProcedureOptions} from './types/procedures';
 import {AnyHandler} from './types/handlers';
 import {IS_TEST_ENV} from './constants';
@@ -106,10 +106,10 @@ function codifyProcedureOptions(ops: ProcedureOptions): string {
 function codifyProcedure(pcd: NonRawProcedure): string {
     const type = `type:${toLiteral(pcd.type)},`;
     const id = `id:${toLiteral(pcd.id)},`;
-    const pointer = `pointer:${toLiteralArray(pcd.pointer)},`;
+    const pointer = `pointer:${arrayToLiteral(pcd.pointer)},`;
     const nestLevel = `nestLevel:${pcd.nestLevel},`;
-    const paramNames = pcd.paramNames ? `paramNames:${toLiteralArray(pcd.paramNames)},` : '';
-    const headerNames = pcd.headerNames ? `headerNames:${toLiteralArray(pcd.headerNames)},` : '';
+    const paramNames = pcd.paramNames ? `paramNames:${arrayToLiteral(pcd.paramNames)},` : '';
+    const headerNames = pcd.headerNames ? `headerNames:${arrayToLiteral(pcd.headerNames)},` : '';
     const paramsJitFns = `paramsJitFns:${codifyJitFunctions(pcd.paramsJitFns)},`;
     const returnJitFns = `returnJitFns:${codifyJitFunctions(pcd.returnJitFns)},`;
     const options = `options:${codifyProcedureOptions(pcd.options)}`; // no trailing comma

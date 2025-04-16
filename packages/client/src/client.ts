@@ -23,7 +23,7 @@ import type {PublicApi} from '@mionkit/router';
 import {RpcError} from '@mionkit/core/src/errors';
 import {getRouterItemId} from '@mionkit/core/src/core';
 import {MionRequest} from './request';
-import type {RunTypeValidationError} from '@mionkit/run-types';
+import type {RunTypeError} from '@mionkit/core/src/types';
 
 export function initClient<RM extends PublicApi<any>>(
     options: InitOptions
@@ -68,7 +68,7 @@ class MionClient {
             );
     }
 
-    validate<List extends SubRequest<any>[]>(...subRequest: List): Promise<RunTypeValidationError[][]> {
+    validate<List extends SubRequest<any>[]>(...subRequest: List): Promise<RunTypeError[]> {
         const request = new MionRequest(this.clientOptions, this.metadataById, this.jitFunctionsById);
         return request.validateParams(subRequest);
     }
@@ -109,7 +109,7 @@ class MethodProxy {
                         .then(() => subRequest.return)
                         .catch((errors) => Promise.reject(findError(subRequest, errors)));
                 },
-                validate: (): Promise<RunTypeValidationError[]> => {
+                validate: (): Promise<RunTypeError[]> => {
                     return this.client
                         .validate(subRequest)
                         .then((responses) => responses[0])

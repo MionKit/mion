@@ -212,6 +212,9 @@ function createRunType(deepkitType: Mutable<SrcType>): RunType {
             break;
         case ReflectionKind.function:
             const frt = new FunctionRunType();
+            // TODO review an change how we compile function parameters and return type
+            // those should also be jit functions, no need to check for array
+            // and maybe add option to target individual parameters
             (frt.parameterRunTypes as Mutable<RunType>).src = deepkitType;
             rt = frt;
             break;

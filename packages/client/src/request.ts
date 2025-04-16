@@ -17,7 +17,7 @@ import {
     RouteSubRequest,
     RequestErrors,
 } from './types';
-import type {RunTypeValidationError} from '@mionkit/run-types';
+import type {RunTypeError} from '@mionkit/core/src/types';
 import {RpcError, isRpcError} from '@mionkit/core/src/errors';
 import {getRoutePath} from '@mionkit/core/src/core';
 import {StatusCodes} from '@mionkit/core/src/status-codes';
@@ -114,7 +114,7 @@ export class MionRequest<RR extends RouteSubRequest<any>, HookRequestsList exten
     }
 
     /**  Validate params. If can't run validation then throws a RequestErrors Map */
-    async validateParams(subReqList?: SubRequest<any>[]): Promise<RunTypeValidationError[][]> {
+    async validateParams(subReqList?: SubRequest<any>[]): Promise<RunTypeError[]> {
         if (subReqList) subReqList.forEach((subRequest) => this.addSubRequest(subRequest));
         const errors: RequestErrors = new Map();
         try {

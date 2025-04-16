@@ -81,7 +81,6 @@ export function getEmptyCallContext(
 
 // ############# PRIVATE METHODS #############
 // runs the execution path of a route
-// Optimized for performance
 async function runExecutionPath(
     context: CallContext,
     rawRequest: unknown,

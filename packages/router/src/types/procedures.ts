@@ -1,6 +1,6 @@
 // ####### Executables #######
 
-import type {JITFunctions, SerializableJITFunctions} from '@mionkit/run-types';
+import type {JITCompiledFunctions, SerializableJITFunctions} from '@mionkit/core/src/types';
 import type {AnyHandler, Handler, HeaderHandler, RawHookHandler} from './handlers';
 
 export enum ProcedureType {
@@ -29,8 +29,8 @@ export interface Procedure<H extends AnyHandler = any> {
     pointer: string[];
     nestLevel: number;
     handler: H;
-    paramsJitFns?: JITFunctions;
-    returnJitFns?: JITFunctions;
+    paramsJitFns?: JITCompiledFunctions[];
+    returnJitFns?: JITCompiledFunctions;
     paramNames?: string[];
     headerNames?: string[];
     options: ProcedureOptions;
@@ -38,31 +38,31 @@ export interface Procedure<H extends AnyHandler = any> {
 }
 
 export interface NonRawProcedure<H extends Handler = any> extends Procedure<H> {
-    paramsJitFns: JITFunctions;
-    returnJitFns: JITFunctions;
+    paramsJitFns: JITCompiledFunctions[];
+    returnJitFns: JITCompiledFunctions;
     paramNames: string[];
 }
 export interface RouteProcedure<H extends Handler = any> extends Procedure<H> {
     type: ProcedureType.route;
     handler: H;
-    paramsJitFns: JITFunctions;
-    returnJitFns: JITFunctions;
+    paramsJitFns: JITCompiledFunctions[];
+    returnJitFns: JITCompiledFunctions;
     paramNames: string[];
     options: ProcedureOptions & {runOnError: false};
 }
 export interface HookProcedure<H extends Handler = any> extends Procedure<H> {
     type: ProcedureType.hook;
     handler: H;
-    paramsJitFns: JITFunctions;
-    returnJitFns: JITFunctions;
+    paramsJitFns: JITCompiledFunctions[];
+    returnJitFns: JITCompiledFunctions;
     paramNames: string[];
 }
 export interface HeaderProcedure<H extends HeaderHandler = any> extends Procedure<H> {
     type: ProcedureType.headerHook;
     handler: H;
     headerNames: string[];
-    paramsJitFns: JITFunctions;
-    returnJitFns: JITFunctions;
+    paramsJitFns: JITCompiledFunctions[];
+    returnJitFns: JITCompiledFunctions;
     paramNames: string[];
 }
 export interface RawProcedure<H extends RawHookHandler = any> extends Procedure<H> {

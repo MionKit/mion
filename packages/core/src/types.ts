@@ -6,6 +6,7 @@
  * ############### */
 
 import type {jitUtils} from '@mionkit/core/src/jitUtils';
+import {JSONString, JSONValue} from '@mionkit/run-types/src/types';
 
 type StrNumber = string | number;
 export type JITUtils = typeof jitUtils;
@@ -188,7 +189,28 @@ export interface JitCompiledFnMeta {
     paramNames?: string[];
 }
 
+// ########################################### JIT FUNCTIONS ###########################################
+
 export interface JitCompiledFn<Fn extends AnyFn = AnyFn> extends JitCompiledFnMeta {
     /** The Jit Generated function once the compilation is finished */
     readonly fn: Fn;
 }
+export interface JITCompiledFunctions {
+    isType: JitCompiledFn<IsTypeFn>;
+    typeErrors: JitCompiledFn<TypeErrorsFn>;
+    toJsonVal: JitCompiledFn<ToJsonValFn>;
+    fromJsonVal: JitCompiledFn<FromJsonValFn>;
+    jsonStringify: JitCompiledFn<JsonStringifyFn>;
+}
+export interface SerializableJITFunctions {
+    isType: JitCompiledFnMeta;
+    typeErrors: JitCompiledFnMeta;
+    toJsonVal: JitCompiledFnMeta;
+    fromJsonVal: JitCompiledFnMeta;
+    jsonStringify: JitCompiledFnMeta;
+}
+export type JsonStringifyFn = (value: any) => JSONString;
+export type FromJsonValFn = (value: JSONValue) => any;
+export type ToJsonValFn = (value: any) => JSONValue;
+export type TypeErrorsFn = (value: any) => RunTypeError[];
+export type IsTypeFn = (value: any) => boolean;

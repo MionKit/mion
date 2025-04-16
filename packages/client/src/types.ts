@@ -6,7 +6,8 @@
  * ######## */
 
 import {RpcError} from '@mionkit/core/src/errors';
-import type {JITFunctions, RunTypeValidationError} from '@mionkit/run-types';
+import type {RunTypeError} from '@mionkit/core/src/types';
+import type {JITCompiledFunctions} from '@mionkit/core/src/types';
 import type {
     JsonParser,
     PublicHeaderProcedure,
@@ -47,7 +48,7 @@ export type MetadataById = Map<string, PublicProcedure>;
 export type JitFunctionsById = Map<string, RemoteMethodJIT>;
 export type RequestHeaders = {[key: string]: string};
 export type RequestBody = {[key: string]: any[]};
-export type PublicMethodReflection = {paramsJit: JITFunctions};
+export type PublicMethodReflection = {paramsJit: JITCompiledFunctions};
 export type HandlerResponse<RM extends PublicProcedure> = Awaited<ReturnType<RM['handler']>>;
 export type HandlerSuccessResponse<RM extends PublicProcedure> = Exclude<HandlerResponse<RM>, RpcError | Error>;
 export type HandlerFailResponse<RM extends PublicProcedure> = Extract<HandlerResponse<RM>, RpcError | Error>;
@@ -80,7 +81,7 @@ export interface RouteSubRequest<RR extends PublicRouteProcedure> extends SubReq
      * Validates Route's parameters. Throws RpcError if validation fails.
      * @returns {hasErrors: false, totalErrors: 0, errors: []}
      */
-    validate: () => Promise<RunTypeValidationError[]>;
+    validate: () => Promise<RunTypeError[]>;
     /**
      * Calls a remote route.
      * Validates route and required hooks request parameters locally before calling the remote route.
@@ -99,7 +100,7 @@ export interface HookSubRequest<RH extends PublicHookProcedure | PublicHeaderPro
      * Validates Hooks's parameters. Throws RpcError if validation fails.
      * @returns {hasErrors: false, totalErrors: 0, errors: []}
      */
-    validate: () => Promise<RunTypeValidationError[]>;
+    validate: () => Promise<RunTypeError[]>;
     /**
      * Prefills Hook's parameters for any future request. Parameters are also persisted in local storage for future requests.
      * Validates and Serializes parameters before storing in local storage.
@@ -160,8 +161,8 @@ export type SuccessClientResponse<RR extends RouteSubRequest<any>, RHList extend
 export type ValidationRequest = Pick<MionRequest<any, any>, 'metadataById' | 'jitFunctionsById' | 'options' | 'subRequests'>;
 
 export type RemoteMethodJIT = {
-    return: JITFunctions;
-    params: JITFunctions;
+    return: JITCompiledFunctions;
+    params: JITCompiledFunctions;
 };
 
 // ############# STRONG PROMISE  (reject error is strongly typed) #############
