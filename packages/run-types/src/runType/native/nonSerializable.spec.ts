@@ -29,7 +29,7 @@ describe('non serializable general behavior', () => {
     it('Ensure compiler operations are not stored in jit cache when an error is thrown', () => {
         const rt = runType<Int8Array>();
         expect(() => rt.createJitFunction(JitFunctions.isType)).toThrow('Jit compilation disabled for Non Serializable types.');
-        expect(jitUtils.getJIT(getJITFnHash(JitFunctions.isType.id, rt as any))).toBe(undefined);
+        expect(jitUtils.getJIT(getJITFnHash(JitFunctions.isType.id, rt as any, {}))).toBe(undefined);
     });
 
     async function failOnCreateJitFunction(rt: RunType) {

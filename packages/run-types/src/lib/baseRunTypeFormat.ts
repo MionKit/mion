@@ -8,7 +8,7 @@
 import type {TypeFormatParams, PureFunctionWithClosure, TypeFormatValue, JitCompiledFn} from '@mionkit/core/src/types';
 import type {BaseRunType} from './baseRunTypes';
 import {createJitCompiler, type JitCompiler, type JitErrorsCompiler} from './jitCompiler';
-import type {JitFnID, MockOperation, Mutable, StrNumber, jitCode} from '../types';
+import type {JitFnID, MockOperation, Mutable, StrNumber, jitCode, RunTypeOptions} from '../types';
 import {CodeType, getCodeType, JitFunctions} from '../constants';
 import {ReflectionKind} from '@deepkit/type';
 import {compileAddPureFunctionContext, dependenciesToLiteral, getFormatterParams, paramsToLiteral} from './formats';
@@ -114,7 +114,8 @@ export abstract class BaseRunTypeFormat<P extends TypeFormatParams = any> {
         comp?: JitCompiler,
         params?: P,
         vλl?: string,
-        formatName?: string
+        formatName?: string,
+        opts: RunTypeOptions = {}
     ): JitCompiledFn {
         const hash = getFormatterHash(rt);
         // created function will be an aux function prefixed with the original function id
@@ -128,7 +129,7 @@ export abstract class BaseRunTypeFormat<P extends TypeFormatParams = any> {
             return jitCompiled;
         }
         // TODO: decide if we should add parent compiler or not as parent to createJitCompiler
-        const newJitCompiler: JitCompiler = createJitCompiler(rt, fnId, undefined, jitFnHash, hash) as JitCompiler;
+        const newJitCompiler: JitCompiler = createJitCompiler(rt, fnId, undefined, jitFnHash, hash, opts) as JitCompiler;
         try {
             const formatterCode = this._compile(fnId, newJitCompiler, rt, params, vλl, formatName);
             const withReturn = this.handleReturnValues(rt, newJitCompiler, fnId, formatterCode || '');

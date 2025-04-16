@@ -9,35 +9,29 @@ import {AnyFn} from '@mionkit/core/src/types';
 import {JITCompiledFunctions} from '@mionkit/core/src/types';
 import {reflectFunction} from './lib/runType';
 import {JitFunctions} from './constants';
+import {RunTypeOptions} from '@mionkit/run-types/src/types';
 
-export function getParamsJitFns<Fn extends AnyFn>(fn: Fn): JITCompiledFunctions[] {
+export function getParamsJitFns<Fn extends AnyFn>(fn: Fn, opts?: RunTypeOptions): JITCompiledFunctions {
     const rt = reflectFunction(fn);
-
-    const paramsIndividualFns = rt
-        .getParameters()
-        .getChildRunTypes()
-        .map((p) => {
-            const paramFunctions: JITCompiledFunctions = {
-                isType: p.createJitCompiledFunction(JitFunctions.isType.id),
-                typeErrors: p.createJitCompiledFunction(JitFunctions.typeErrors.id),
-                toJsonVal: p.createJitCompiledFunction(JitFunctions.toJsonVal.id),
-                fromJsonVal: p.createJitCompiledFunction(JitFunctions.fromJsonVal.id),
-                jsonStringify: p.createJitCompiledFunction(JitFunctions.jsonStringify.id),
-            };
-            return paramFunctions;
-        });
-    return paramsIndividualFns;
+    const paramFunctions: JITCompiledFunctions = {
+        isType: rt.createJitCompiledParamsFunction(JitFunctions.isType, opts),
+        typeErrors: rt.createJitCompiledParamsFunction(JitFunctions.typeErrors, opts),
+        toJsonVal: rt.createJitCompiledParamsFunction(JitFunctions.toJsonVal, opts),
+        fromJsonVal: rt.createJitCompiledParamsFunction(JitFunctions.fromJsonVal, opts),
+        jsonStringify: rt.createJitCompiledParamsFunction(JitFunctions.jsonStringify, opts),
+    };
+    return paramFunctions;
 }
 
-export function getReturnJitFns<Fn extends AnyFn>(fn: Fn): JITCompiledFunctions {
+export function getReturnJitFns<Fn extends AnyFn>(fn: Fn, opts?: RunTypeOptions): JITCompiledFunctions {
     const rt = reflectFunction(fn);
 
-    const routerFunctions: JITCompiledFunctions = {
-        isType: rt.createJitCompiledFunction(JitFunctions.isType.id),
-        typeErrors: rt.createJitCompiledFunction(JitFunctions.typeErrors.id),
-        toJsonVal: rt.createJitCompiledFunction(JitFunctions.toJsonVal.id),
-        fromJsonVal: rt.createJitCompiledFunction(JitFunctions.fromJsonVal.id),
-        jsonStringify: rt.createJitCompiledFunction(JitFunctions.jsonStringify.id),
+    const returnFunctions: JITCompiledFunctions = {
+        isType: rt.createJitCompiledReturnFunction(JitFunctions.isType, opts),
+        typeErrors: rt.createJitCompiledReturnFunction(JitFunctions.typeErrors, opts),
+        toJsonVal: rt.createJitCompiledReturnFunction(JitFunctions.toJsonVal, opts),
+        fromJsonVal: rt.createJitCompiledReturnFunction(JitFunctions.fromJsonVal, opts),
+        jsonStringify: rt.createJitCompiledReturnFunction(JitFunctions.jsonStringify, opts),
     };
-    return routerFunctions;
+    return returnFunctions;
 }

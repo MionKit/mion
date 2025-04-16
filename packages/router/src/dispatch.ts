@@ -154,7 +154,7 @@ export async function runRouteOrHook(
 
     if (executable.options.hasReturnData && result !== undefined) {
         (response.body as Mutable<AnyObject>)[executable.id] = executable.options.serializeReturn
-            ? (executable as NonRawProcedure).returnJitFns.jsonEncode.fn(result)
+            ? (executable as NonRawProcedure).returnJitFns.toJsonVal.fn(result)
             : result;
     }
 }
@@ -175,7 +175,7 @@ function deserializeBodyParams(request: MionRequest, executable: NonRawProcedure
     const params: any[] = (request.body[executable.id] as any[]) || [];
     if (!executable.options.deserializeParams) return params;
     try {
-        (request.body as Mutable<MionRequest['body']>)[executable.id] = executable.paramsJitFns.jsonDecode.fn(params);
+        (request.body as Mutable<MionRequest['body']>)[executable.id] = executable.paramsJitFns.fromJsonVal.fn(params);
         return request.body[executable.id] as any[];
     } catch (e: any) {
         throw new RpcError({

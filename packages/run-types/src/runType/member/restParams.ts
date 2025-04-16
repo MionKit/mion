@@ -9,11 +9,12 @@ import type {TypeRest} from '@deepkit/type';
 import type {ParameterRunType} from './param';
 import type {TupleMemberRunType} from './tupleMember';
 import {ArrayRunType} from './array';
+import {JitCompiler} from '@mionkit/run-types/src/lib/jitCompiler';
 
 export class RestParamsRunType extends ArrayRunType<TypeRest> {
-    getChildIndex(): number {
+    getChildIndex(comp?: JitCompiler): number {
         const parent = this.getParent() as ParameterRunType | TupleMemberRunType;
-        return parent.getChildIndex();
+        return parent.getChildIndex(comp);
     }
     startIndex(): number {
         return this.getChildIndex();

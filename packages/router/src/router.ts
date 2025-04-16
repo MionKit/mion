@@ -339,7 +339,7 @@ export function getExecutableFromHook(
         executable = compiledProcedure as MixedExecutable;
     } else {
         const {handlerRunType, paramsJitFns, returnJitFns, paramNames} = getHandlerReflection(hook.handler, hookId);
-        const skipParamsDecode = paramsJitFns.every((p) => p.fromJsonVal.isNoop);
+        const skipParamsDecode = paramsJitFns.fromJsonVal.isNoop;
         const skipReturnEncode = returnJitFns.toJsonVal.isNoop;
         executable = {
             id: hookId,
@@ -409,7 +409,7 @@ export function getExecutableFromRoute(route: Route, routePointer: string[], nes
         executable = compiledProcedure as RouteProcedure;
     } else {
         const {handlerRunType, paramsJitFns, returnJitFns, paramNames} = getHandlerReflection(route.handler, routeId);
-        const skipParamsDecode = paramsJitFns.every((p) => p.fromJsonVal.isNoop);
+        const skipParamsDecode = paramsJitFns.fromJsonVal.isNoop;
         const skipReturnEncode = returnJitFns.toJsonVal.isNoop;
         executable = {
             type: ProcedureType.route,
@@ -471,7 +471,7 @@ function getExecutablesFromHooksCollection(hooksDef: HooksCollection): (RawProce
 
 interface ProcedureReflectionItems {
     handlerRunType: FunctionRunType;
-    paramsJitFns: JITCompiledFunctions[];
+    paramsJitFns: JITCompiledFunctions;
     returnJitFns: JITCompiledFunctions;
     paramNames: string[];
 }
@@ -491,7 +491,7 @@ function getHandlerReflection(handler: Handler, routeId: string): ProcedureRefle
 
     try {
         // paramsJitFns is a  get prop accessor that compiles the when the property is first accessed
-        reflectionItems.paramsJitFns = getParamsJitFns(handler);
+        reflectionItems.paramsJitFns = getParamsJitFns(handler, routerOptions.runTypeOptions);
         reflectionItems.paramNames = handlerRunType.getParameterNames();
     } catch (error: any) {
         throw new Error(`Can not compile Jit Functions for Parameters of route/hook ${routeId}. Error: ${error?.message}`);

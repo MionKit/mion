@@ -19,6 +19,7 @@ import type {MapRunType} from '../runType/native/map';
 import type {SetRunType} from '../runType/native/set';
 import type {InterfaceRunType} from '../runType/collection/interface';
 import type {TupleRunType} from '../runType/collection/tuple';
+import type {FunctionParamsRunType} from '../runType/collection/functionParams';
 import type {UnionRunType} from '../runType/collection/union';
 import type {ParameterRunType} from '../runType/member/param';
 import type {RestParamsRunType} from '../runType/member/restParams';
@@ -38,8 +39,9 @@ export function _compileJsonStringify(runType: BaseRunType, comp: JitCompiler): 
         // ###################### ATOMIC RUNTYPES ######################
         // Primitive types and other atomic types that don't contain other types
         case ReflectionKind.unknown:
+            throw new Error('Cannot compile jsonStringify for unknown type.');
         case ReflectionKind.any:
-            return `JSON.stringify(${comp.vλl})`;
+            throw new Error('Cannot compile jsonStringify for any type.');
         case ReflectionKind.bigint:
             return `'"'+${comp.vλl}.toString()+'"'`;
         case ReflectionKind.boolean:
@@ -126,6 +128,19 @@ export function _compileJsonStringify(runType: BaseRunType, comp: JitCompiler): 
             `;
         }
         case ReflectionKind.function:
+            if (runType.src.subKind === ReflectionSubKind.params) {
+                const rt = runType as FunctionParamsRunType;
+                const skip = rt.getJitConfig().skipJit;
+                if (skip) return '';
+                if (rt.getChildRunTypes().length === 0) return `'[]'`;
+                const paramsCode = rt
+                    .getChildRunTypes()
+                    .map((p) => p.compile(comp, fnId))
+                    .join('+');
+                return `'['+${paramsCode}+']'`;
+            } else {
+                throw new Error('Compile function JsonStringify not supported, call compileParams or compileReturn instead.');
+            }
         case ReflectionKind.method:
         case ReflectionKind.methodSignature:
         case ReflectionKind.callSignature:
@@ -168,11 +183,11 @@ export function _compileJsonStringify(runType: BaseRunType, comp: JitCompiler): 
             const arrName = `res${rt.getNestLevel()}`;
             const itemName = `its${rt.getNestLevel()}`;
             const index = rt.getChildVarName();
-            const isFist = rt.getChildIndex() === 0;
+            const isFist = rt.getChildIndex(comp) === 0;
             const sep = isFist ? '' : `','+`;
             return `
                 const ${arrName} = [];
-                for (let ${index} = ${rt.getChildIndex()}; ${index} < ${comp.vλl}.length; ${index}++) {
+                for (let ${index} = ${rt.getChildIndex(comp)}; ${index} < ${comp.vλl}.length; ${index}++) {
                     const ${itemName} = ${itemCode};
                     if(${itemName}) ${arrName}.push(${itemName});
                 }
@@ -185,7 +200,7 @@ export function _compileJsonStringify(runType: BaseRunType, comp: JitCompiler): 
             let childCode = rt.getJitChild()?.compile(comp, fnId);
             if (!childCode) childCode = `null`; // non serializable types are set to null
             if (rt.isRest()) return childCode;
-            const isFirst = rt.getChildIndex() === 0;
+            const isFirst = rt.getChildIndex(comp) === 0;
             const sep = isFirst ? '' : `','+`;
             if (rt.isOptional()) return `(${comp.getChildVλl()} === undefined ? ${sep}'null' : ${sep}${childCode})`;
             return `${sep}${childCode}`;
@@ -251,7 +266,7 @@ function _compileJsonStringifyParameter(rt: ParameterRunType, comp: JitCompiler)
     let childCode = rt.getJitChild()?.compile(comp, fnId);
     if (!childCode) childCode = `null`; // non serializable types are set to null
     if (rt.isRest()) return childCode;
-    const isFirst = rt.getChildIndex() === 0;
+    const isFirst = rt.getChildIndex(comp) === 0;
     const sep = isFirst ? '' : `','+`;
     if (rt.isOptional()) return `(${comp.getChildVλl()} === undefined ? ${sep}'null' : ${sep}${childCode})`;
     return `${sep}${childCode}`;
@@ -261,7 +276,7 @@ function _compileJsonStringifyGenericMember(rt: ParameterRunType, comp: JitCompi
     const child = rt.getJitChild();
     const argCode = child?.compile(comp, fnId);
     if (!argCode) return undefined;
-    const isFirst = rt.getChildIndex() === 0;
+    const isFirst = rt.getChildIndex(comp) === 0;
     const sep = isFirst ? '' : `','+`;
     if (rt.isOptional()) return `(${comp.getChildVλl()} === undefined ? '': ${sep}${argCode})`;
     return `${sep}${argCode}`;
