@@ -5,7 +5,6 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {DEFAULT_ROUTE_OPTIONS} from './constants';
 import {getRemoteMethodsMetadata} from './remoteMethodsMetadata';
 import {registerRoutes, initRouter, resetRouter} from './router';
 import {CallContext} from './types/context';

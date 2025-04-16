@@ -1,7 +1,9 @@
 import {JitFunctions} from './constants';
 import {ReceiveType} from '@deepkit/type';
 import {runType} from './lib/runType';
-import {IsTypeFn, MockOptions, TypeErrorsFn} from './types';
+import {MockOptions} from './types';
+import {IsTypeFn} from '@mionkit/core/src/types';
+import {TypeErrorsFn} from '@mionkit/core/src/types';
 import {BaseRunType} from './lib/baseRunTypes';
 import {loadComposableFunction} from './lib/jitFnsRegistry';
 

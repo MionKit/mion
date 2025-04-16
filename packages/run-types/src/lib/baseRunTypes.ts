@@ -37,7 +37,7 @@ import {
 } from './formats';
 import {typeParamsToString} from './utils';
 import {_compileJsonStringify} from '@mionkit/run-types/src/jitCompilers/jsonStringify';
-import {getComposableFunction, loadComposableFunction} from '@mionkit/run-types/src/lib/composableJitFunctions';
+import {getComposableFunction, loadComposableFunction} from './jitFnsRegistry';
 import {JitCompiledFn} from '@mionkit/core/src/types';
 
 export abstract class BaseRunType<T extends Type = Type> implements RunType {
