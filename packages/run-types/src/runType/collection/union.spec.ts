@@ -94,7 +94,9 @@ describe('Atomic Union', () => {
         const toJsonVal = rtU.createJitFunction(JitFunctions.toJsonVal);
         const typeValue = new Date();
 
-        expect(() => jsonStringify(typeValue)).toThrow('Can not stringify union: expected one of <string | number> but got Date');
+        expect(() => jsonStringify(typeValue)).toThrow(
+            'Can not JsonStringify union: expected one of <string | number> but got Date'
+        );
         expect(() => fromJsonVal(123)).toThrow('Can not decode json to union: expected one of <string | number> but got Number');
         expect(() => toJsonVal(typeValue)).toThrow(
             'Can not encode json to union: expected one of <string | number> but got Date'
@@ -195,7 +197,7 @@ describe('Union Arr', () => {
         const typeValue = new Date();
 
         expect(() => jsonStringify(typeValue)).toThrow(
-            'Can not stringify union: expected one of <array | array | array> but got Date'
+            'Can not JsonStringify union: expected one of <array | array | array> but got Date'
         );
         expect(() => fromJsonVal(123)).toThrow(
             'Can not decode json to union: expected one of <array | array | array> but got Number'
@@ -281,7 +283,7 @@ describe('Union Obj', () => {
         const typeValue = new Date();
 
         expect(() => jsonStringify(typeValue)).toThrow(
-            'Can not stringify union: expected one of <object | object | object> but got Date'
+            'Can not JsonStringify union: expected one of <object | object | object> but got Date'
         );
         expect(() => fromJsonVal(123)).toThrow(
             'Can not decode json to union: expected one of <object | object | object> but got Number'
@@ -396,7 +398,7 @@ describe('Union Mixed', () => {
         const typeValue = new Date();
 
         expect(() => jsonStringify(typeValue)).toThrow(
-            'Can not stringify union: expected one of <array | array | array | object | object | object> but got Date'
+            'Can not JsonStringify union: expected one of <array | array | array | object | object | object> but got Date'
         );
         expect(() => fromJsonVal(123)).toThrow(
             'Can not decode json to union: expected one of <array | array | array | object | object | object> but got Number'

@@ -7,16 +7,14 @@
 
 import {ReflectionKind, type TypeEnum} from '@deepkit/type';
 import {AtomicRunType} from '../../lib/baseRunTypes';
-import {JitConfig, jitCode} from '../../types';
-
-const jitConstants: JitConfig = {
-    skipJit: true,
-    jitId: ReflectionKind.enumMember,
-};
+import {jitCode} from '../../types';
 
 // TODO: not sure when run type will be generated but doesn't seem to be used when using reflection on enums
 export class EnumMemberRunType extends AtomicRunType<TypeEnum> {
-    getJitConfig = () => jitConstants;
+    getTypeID = () => ReflectionKind.enumMember;
+    skipJit() {
+        return true;
+    }
     _compileIsType(): jitCode {
         throw new Error('Enum member operations are not supported');
     }

@@ -25,6 +25,7 @@ export abstract class IterableRunType extends ClassRunType {
             case JitFunctions.isType.id:
             case JitFunctions.jsonStringify.id:
             case JitFunctions.hasUnknownKeys.id:
+            case JitFunctions.toCode.id:
                 return 'RB';
             default:
                 return super.getCodeType(fnId);

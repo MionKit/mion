@@ -98,7 +98,7 @@ export class BaseCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extends 
         if (totalLength > MAX_STACK_DEPTH) throw new Error(maxStackErrorMessage);
         if (this.stack.length === 0) {
             if (newChild !== this.rootType) throw new Error('rootType should be the first item in the stack');
-            newChild.getJitConfig(); // ensures the constants are generated in correct order
+            newChild.getTypeID(); // ensures the constants are generated in correct order
         }
         this.vλl = getStackVλl(this);
         // static path must be called before pushing the new item
@@ -334,6 +334,7 @@ export function createJitCompiler(
         case JitFunctions.stripUnknownKeys.id:
         case JitFunctions.unknownKeysToUndefined.id:
         case JitFunctions.format.id:
+        case JitFunctions.toCode.id:
             return new JitCompiler(rt, fnId, parent?.totalLength, jitFnHash, jitId, opts);
         case JitFunctions.typeErrors.id:
         case JitFunctions.unknownKeyErrors.id:

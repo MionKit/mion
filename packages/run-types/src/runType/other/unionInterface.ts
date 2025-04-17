@@ -132,7 +132,7 @@ export class UnionInterfaceRunType extends InterfaceRunType<anySrcInterface> {
         `;
     }
     _compileToJsonVal(comp: JitCompiler): string {
-        const toJsonValMergedList = this.mergedInterfaces.filter((c) => !c.getJitConfig().skipJit);
+        const toJsonValMergedList = this.mergedInterfaces.filter((c) => !c.skipJit(comp));
         return toJsonValMergedList.length
             ? toJsonValMergedList
                   .map((rt, i) => {
@@ -145,7 +145,7 @@ export class UnionInterfaceRunType extends InterfaceRunType<anySrcInterface> {
             : '';
     }
     _compileFromJsonVal(comp: JitCompiler): string {
-        const fromJsonValMergedList = this.mergedInterfaces.filter((c) => !c.getJitConfig().skipJit);
+        const fromJsonValMergedList = this.mergedInterfaces.filter((c) => !c.skipJit(comp));
         return fromJsonValMergedList.length
             ? fromJsonValMergedList
                   .map((rt, i) => {

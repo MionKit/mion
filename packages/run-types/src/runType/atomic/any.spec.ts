@@ -26,7 +26,7 @@ it('decode from json should throw error', () => {
 });
 
 it('json stringify should throw error', () => {
-    expect(() => rt.createJitFunction(JitFunctions.jsonStringify)).toThrow('Cannot compile jsonStringify for any type.');
+    expect(() => rt.createJitFunction(JitFunctions.jsonStringify)).toThrow('Cannot compile JsonStringify for any type.');
 });
 
 it('mock should throw error', async () => {

@@ -6,16 +6,12 @@
  * ######## */
 
 import {ReflectionKind, type TypeBoolean} from '@deepkit/type';
-import type {JitConfig, jitCode} from '../../types';
+import type {jitCode} from '../../types';
 import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
 import {AtomicRunType} from '../../lib/baseRunTypes';
 
-const jitConstants: JitConfig = {
-    skipJit: false,
-    jitId: ReflectionKind.boolean,
-};
 export class BooleanRunType extends AtomicRunType<TypeBoolean> {
-    getJitConfig = () => jitConstants;
+    getTypeID = () => ReflectionKind.boolean;
     _compileIsType(comp: JitCompiler): jitCode {
         return `typeof ${comp.vλl} === 'boolean'`;
     }

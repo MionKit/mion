@@ -49,18 +49,18 @@ export interface RunTypeChildAccessor extends RunType {
     /**
      * Returns the position of the child within the parent type.
      */
-    getChildIndex(_comp?: BaseCompiler): number;
+    getChildIndex(comp?: BaseCompiler): number;
     /**
      * Returns the variable name for the compiled child
      * ie: for an object property, it should return the property name
      * ie: for an array member, it should return the index variable name
      */
-    getChildVarName(_comp?: BaseCompiler): StrNumber;
+    getChildVarName(comp?: BaseCompiler): StrNumber;
     /** Returns the static member name or literal as it should be inserted in source code.
      * ie: for an object property, it should return the property name as a string encapsulated in quotes, ie: prop => 'prop'
      * ie: for an array member, it should return the varName as is a dynamic value, ie: index => index
      */
-    getChildLiteral(_comp?: BaseCompiler): StrNumber;
+    getChildLiteral(comp?: BaseCompiler): StrNumber;
     /** Returns true if the property name is safe to use as a property accessor in source code
      * ie: return false if a property can be accessed using the dot notation, ie: obj.prop, for properties that are numbers return false
      * ie: for an array member return true as it should be accessed using the array accessor, ie: obj[index]
@@ -72,12 +72,6 @@ export interface RunTypeChildAccessor extends RunType {
      * so we want to skip setting the accessor in the parent.  */
     skipSettingAccessor?(): boolean;
 }
-
-export interface JitConfig {
-    readonly skipJit: boolean;
-    readonly jitId: StrNumber;
-}
-
 export interface CustomVλl {
     vλl: string;
     isStandalone?: boolean;

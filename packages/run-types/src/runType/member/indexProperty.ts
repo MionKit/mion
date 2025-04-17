@@ -1,6 +1,6 @@
 import {ReflectionKind, TypeIndexSignature} from '@deepkit/type';
-import {BaseRunType, MemberRunType} from '../../lib/baseRunTypes';
-import {JitConfig, JitFnID, Mutable, type jitCode} from '../../types';
+import {MemberRunType} from '../../lib/baseRunTypes';
+import {JitFnID, type jitCode} from '../../types';
 import {CodeType, JitFunctions} from '../../constants';
 import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
 import {InterfaceRunType} from '../collection/interface';
@@ -26,19 +26,19 @@ export class IndexSignatureRunType extends MemberRunType<TypeIndexSignature> {
     useArrayAccessor(): true {
         return true;
     }
-    getJitConfig(stack: BaseRunType[] = []): JitConfig {
-        const jc = super.getJitConfig(stack) as Mutable<JitConfig>;
+    skipJit(comp?: JitCompiler): boolean {
         const index = (this.src as TypeIndexSignature).index?.kind || undefined;
         if (index === ReflectionKind.symbol) {
-            jc.skipJit = true;
+            return comp?.fnId !== JitFunctions.toCode.id;
         }
-        return jc;
+        return false;
     }
     getCodeType(fnId: JitFnID): CodeType {
         switch (fnId) {
             case JitFunctions.isType.id:
             case JitFunctions.jsonStringify.id:
             case JitFunctions.hasUnknownKeys.id:
+            case JitFunctions.toCode.id:
                 return 'RB';
             default:
                 return super.getCodeType(fnId);
@@ -46,17 +46,17 @@ export class IndexSignatureRunType extends MemberRunType<TypeIndexSignature> {
     }
     // #### jit code ####
     _compileIsType(comp: JitCompiler): jitCode {
-        const childCode = this.getJitChild()?.compileIsType(comp);
+        const childCode = this.getJitChild(comp)?.compileIsType(comp);
         if (!childCode) return undefined;
         return `for (const ${this.getChildVarName()} in ${comp.vλl}){if (!(${childCode})) return false;} return true;`;
     }
     _compileTypeErrors(comp: JitErrorsCompiler): jitCode {
-        const childCode = this.getJitChild()?.compileTypeErrors(comp);
+        const childCode = this.getJitChild(comp)?.compileTypeErrors(comp);
         if (!childCode) return undefined;
         return `for (const ${this.getChildVarName()} in ${comp.vλl}) {${childCode}}`;
     }
     _compileToJsonVal(comp: JitCompiler): jitCode {
-        const child = this.getJitChild();
+        const child = this.getJitChild(comp);
         const childCode = child?.compileToJsonVal(comp);
         if (!child || !childCode) return undefined;
         const varName = comp.vλl;
@@ -68,7 +68,7 @@ export class IndexSignatureRunType extends MemberRunType<TypeIndexSignature> {
         return `for (const ${prop} in ${varName}){${skipCode} ${code}}`;
     }
     _compileFromJsonVal(comp: JitCompiler): jitCode {
-        const child = this.getJitChild();
+        const child = this.getJitChild(comp);
         const childCode = child?.compileFromJsonVal(comp);
         if (!child || !childCode) return undefined;
         const varName = comp.vλl;
@@ -81,7 +81,7 @@ export class IndexSignatureRunType extends MemberRunType<TypeIndexSignature> {
     }
     _compileHasUnknownKeys(comp: JitCompiler): jitCode {
         if (this.getMemberType().getFamily() === 'A') return undefined;
-        const memberCode = this.getJitChild()?.compileHasUnknownKeys(comp);
+        const memberCode = this.getJitChild(comp)?.compileHasUnknownKeys(comp);
         if (!memberCode) return '';
         const varName = comp.vλl;
         const prop = this.getChildVarName();
@@ -90,17 +90,17 @@ export class IndexSignatureRunType extends MemberRunType<TypeIndexSignature> {
     }
     _compileUnknownKeyErrors(comp: JitErrorsCompiler): jitCode {
         if (this.getMemberType().getFamily() === 'A') return undefined;
-        const memberCode = this.getJitChild()?.compileUnknownKeyErrors(comp);
+        const memberCode = this.getJitChild(comp)?.compileUnknownKeyErrors(comp);
         return this.traverseCode(comp, memberCode);
     }
     _compileStripUnknownKeys(comp: JitCompiler): jitCode {
         if (this.getMemberType().getFamily() === 'A') return undefined;
-        const memberCode = this.getJitChild()?.compileStripUnknownKeys(comp);
+        const memberCode = this.getJitChild(comp)?.compileStripUnknownKeys(comp);
         return this.traverseCode(comp, memberCode);
     }
     _compileUnknownKeysToUndefined(comp: JitCompiler): jitCode {
         if (this.getMemberType().getFamily() === 'A') return undefined;
-        const memberCode = this.getJitChild()?.compileUnknownKeysToUndefined(comp);
+        const memberCode = this.getJitChild(comp)?.compileUnknownKeysToUndefined(comp);
         return this.traverseCode(comp, memberCode);
     }
     traverseCode(comp: JitCompiler, memberCode: jitCode): jitCode {

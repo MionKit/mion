@@ -6,18 +6,14 @@
  * ######## */
 
 import type {TypeClass, TypeObjectLiteral} from '@deepkit/type';
-import {BaseRunType} from '../../lib/baseRunTypes';
-import {JitConfig, jitCode} from '../../types';
+import {jitCode} from '../../types';
 import {InterfaceRunType} from '../collection/interface';
 
 // Non serializable types might not be Atomic but will be skipped so it doesn't matter
 export class NonSerializableRunType extends InterfaceRunType<TypeObjectLiteral | TypeClass> {
-    getJitConfig(stack?: BaseRunType[]): JitConfig {
+    skipJit() {
         // skip return false so we ensure the compile functions will throw when a NonSerializable type is used
-        return {
-            ...super.getJitConfig(stack),
-            skipJit: false,
-        };
+        return false;
     }
     _compileIsType(): jitCode {
         throw new Error(`Jit compilation disabled for Non Serializable types.`);

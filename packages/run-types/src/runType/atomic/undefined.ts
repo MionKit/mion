@@ -7,18 +7,11 @@
 
 import {ReflectionKind, type TypeUndefined} from '@deepkit/type';
 import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
-import type {JitConfig, jitCode} from '../../types';
+import type {jitCode} from '../../types';
 import {AtomicRunType} from '../../lib/baseRunTypes';
 
-const jitConstants: JitConfig = {
-    skipJit: false,
-    jitId: ReflectionKind.undefined,
-};
-
-// TODO: json stringify removes undefined values, so we might wat to do the same here
-
 export class UndefinedRunType extends AtomicRunType<TypeUndefined> {
-    getJitConfig = () => jitConstants;
+    getTypeID = () => ReflectionKind.undefined;
     _compileIsType(comp: JitCompiler): jitCode {
         return `typeof ${comp.vλl} === 'undefined'`;
     }

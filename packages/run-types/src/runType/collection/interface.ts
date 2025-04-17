@@ -135,6 +135,25 @@ export class InterfaceRunType<
         }) as MemberRunType<any>[];
     }
 
+    getToCodeChildren(comp?: JitCompiler): MemberRunType<any>[] {
+        let skipIndex = false; // if there are multiple index signatures, only the first one will be used as they must be same type just different keys
+        return this.getChildRunTypes(comp)
+            .filter((c) => {
+                // we don not skip nodes that would be traditionally skipped for serialisation
+                const isIndex = c.src.kind === ReflectionKind.indexSignature;
+                if (isIndex && skipIndex) return false;
+                if (isIndex) skipIndex = true;
+                return true;
+            })
+            .sort((a, b) => {
+                const aOptional = a instanceof MemberRunType && a.isOptional();
+                const bOptional = b instanceof MemberRunType && b.isOptional();
+                if (aOptional && !bOptional) return -1;
+                if (!aOptional && bOptional) return 1;
+                return 0;
+            }) as MemberRunType<any>[];
+    }
+
     private callCheckUnknownProperties(comp: JitCompiler, childrenRunTypes: RunType[], returnKeys: boolean): string {
         const childrenNames = childrenRunTypes.filter((prop) => !!(prop.src as any).name).map((prop) => (prop.src as any).name);
         if (childrenNames.length === 0) return '';

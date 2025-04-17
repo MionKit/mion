@@ -6,16 +6,11 @@
  * ######## */
 
 import {ReflectionKind, type TypeAny, type TypeUnknown} from '@deepkit/type';
-import type {JitConfig, jitCode} from '../../types';
+import type {jitCode} from '../../types';
 import {AtomicRunType} from '../../lib/baseRunTypes';
 
-const jitConstants: JitConfig = {
-    skipJit: false,
-    jitId: ReflectionKind.any,
-};
-
 export class AnyRunType extends AtomicRunType<TypeAny | TypeUnknown> {
-    getJitConfig = () => jitConstants;
+    getTypeID = () => ReflectionKind.any;
 
     private getTypeKindName(): string {
         return this.src.kind === ReflectionKind.any ? 'any' : 'unknown';
@@ -38,7 +33,7 @@ export class AnyRunType extends AtomicRunType<TypeAny | TypeUnknown> {
     }
 
     _compileJsonStringify(): jitCode {
-        throw new Error(`Cannot compile jsonStringify for ${this.getTypeKindName()} type.`);
+        throw new Error(`Cannot compile JsonStringify for ${this.getTypeKindName()} type.`);
     }
 
     _compileHasUnknownKeys(): jitCode {

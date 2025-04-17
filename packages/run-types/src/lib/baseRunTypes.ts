@@ -8,7 +8,6 @@
 import {MAX_STACK_DEPTH} from '@mionkit/core/src/constants';
 import type {
     RunType,
-    JitConfig,
     Mutable,
     RunTypeChildAccessor,
     JitFnID,
@@ -20,6 +19,7 @@ import type {
     FormatAnnotation,
     jitCode,
     RunTypeOptions,
+    StrNumber,
 } from '../types';
 import type {mock} from '../mocking/mockType';
 import {jitArgs, jitErrorArgs, JitFunctions, maxStackErrorMessage, CodeType, getCodeType} from '../constants';
@@ -40,24 +40,28 @@ import {typeParamsToString} from './utils';
 import {_compileJsonStringify} from '@mionkit/run-types/src/jitCompilers/jsonStringify';
 import {getComposableFunction, loadComposableFunction} from './jitFnsRegistry';
 import {JitCompiledFn} from '@mionkit/core/src/types';
+import {_compileToCode} from '@mionkit/run-types/src/jitCompilers/toCode';
 
 export abstract class BaseRunType<T extends Type = Type> implements RunType {
     // Registry for dynamically loaded functions
     isCircular?: boolean;
     readonly src: SrcType<T> = null as any; // real value will be set after construction by the createRunType function
     abstract getFamily(): 'A' | 'C' | 'M' | 'F'; // Atomic, Collection, Member, Function
-    abstract getJitConfig(stack?: RunType[]): JitConfig;
+    abstract getTypeID(stack?: RunType[]): StrNumber;
     isJitInlined = () => !(this.isCircular || (this.src.typeName && this.getFamily() === 'C'));
     getKindName = memorize((): AnyKindName => getReflectionName(this));
     getTypeName = (): string => this.src.typeName || this.getKindName();
     getFormatAnnotations = (): FormatAnnotation[] => getFormatAnnotations(this);
+    skipJit(comp?: JitCompiler): boolean {
+        return false;
+    }
     getFormatterJitId = memorize((): string | undefined => {
         const formatter = getRunTypeFormatter(this);
         if (!formatter) return;
         return `<${typeParamsToString(formatter.getParams(this), defaultIgnoreFormatProps)}>`;
     });
     getJitId = (): string | number => {
-        const jitId = this.getJitConfig().jitId;
+        const jitId = this.getTypeID();
         const getFormatterJitId = this.getFormatterJitId();
         if (!getFormatterJitId) return jitId;
         return `${jitId}${getFormatterJitId}`;
@@ -70,16 +74,13 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
         if (!parent) return 0;
         return parent.getNestLevel() + 1;
     });
-    getCircularJitConfig(stack: RunType[] = []): JitConfig | undefined {
+    getCircularTypeID(stack: RunType[] = []): StrNumber | undefined {
         const inStackIndex = stack.findIndex((rt) => rt === this); // cant use isSameJitType because it uses getJitId and would loop forever
         const isInStack = inStackIndex >= 0; // recursive reference
         if (isInStack) {
             this.isCircular = true;
             const name = this.src.typeName || ''; // todo: not sure if all the circular references will have a name
-            return {
-                skipJit: false, // circular types requires custom logic so can't be skipped
-                jitId: '$' + this.src.kind + `_${inStackIndex}` + name, // ensures different circular types have different jitId
-            };
+            return '$' + this.src.kind + `_${inStackIndex}` + name; // ensures different circular types have different jitId
         }
     }
     /** Code Type flag
@@ -224,6 +225,9 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
                 case JitFunctions.jsonStringify.id:
                     code = _compileJsonStringify(this, comp);
                     break;
+                case JitFunctions.toCode.id:
+                        code = _compileToCode(this, comp);
+                        break;
                 case JitFunctions.unknownKeyErrors.id: code = this._compileUnknownKeyErrors(comp as JitErrorsCompiler); break;
                 case JitFunctions.hasUnknownKeys.id: code = this._compileHasUnknownKeys(comp); break;
                 case JitFunctions.stripUnknownKeys.id: code = this._compileStripUnknownKeys(comp); break;
@@ -397,6 +401,7 @@ export abstract class AtomicRunType<T extends Type> extends BaseRunType<T> {
             case JitFunctions.toJsonVal.id:
             case JitFunctions.fromJsonVal.id:
             case JitFunctions.jsonStringify.id:
+            case JitFunctions.toCode.id:
                 return 'E';
             default:
                 return super.getCodeType(fnId);
@@ -414,22 +419,22 @@ export abstract class CollectionRunType<T extends Type> extends BaseRunType<T> {
     getFamily(): 'C' {
         return 'C';
     }
-    getChildRunTypes = (_comp?: JitCompiler): BaseRunType[] => {
+    getChildRunTypes = (comp?: JitCompiler): BaseRunType[] => {
         const childTypes = ((this.src as SrcCollection).types as SrcType[]) || []; // deepkit stores child types in the types property
         return childTypes.map((t) => t._rt as BaseRunType);
     };
-    getJitChildren(_comp?: JitCompiler): BaseRunType[] {
+    getJitChildren(comp?: JitCompiler): BaseRunType[] {
         let skipIndex = false; // if there are multiple index signatures, only the first one will be used as they must be same type just different keys
-        return this.getChildRunTypes(_comp).filter((c) => {
-            if (c.getJitConfig().skipJit) return false;
+        return this.getChildRunTypes(comp).filter((c) => {
+            if (c.skipJit(comp)) return false;
             const isIndex = c.src.kind === ReflectionKind.indexSignature;
             if (isIndex && skipIndex) return false;
             if (isIndex) skipIndex = true;
             return true;
         });
     }
-    getJitConfig(stack: BaseRunType[] = []): JitConfig {
-        return this._getJitConfig(stack);
+    getTypeID(stack: BaseRunType[] = []): StrNumber {
+        return this._getTypeID(stack);
     }
     _compileHasUnknownKeys(comp: JitCompiler): jitCode {
         return this.getJitChildren(comp)
@@ -455,28 +460,22 @@ export abstract class CollectionRunType<T extends Type> extends BaseRunType<T> {
             .filter((code) => !!code)
             .join(';');
     }
-    private _getJitConfig = memorize((stack: BaseRunType<any>[] = []): JitConfig => {
+    private _getTypeID = memorize((stack: BaseRunType<any>[] = []): StrNumber => {
         if (stack.length > MAX_STACK_DEPTH) throw new Error(maxStackErrorMessage);
-        const circularJitConf = this.getCircularJitConfig(stack);
+        const circularJitConf = this.getCircularTypeID(stack);
         if (circularJitConf) return circularJitConf;
         stack.push(this);
         const childrenJitIds: (string | number)[] = [];
         const children = this.getChildRunTypes();
-        const jitCts: Mutable<JitConfig> = {
-            skipJit: true,
-            jitId: ``,
-        };
         for (const child of children) {
-            const childConf = child.getJitConfig(stack);
-            jitCts.skipJit &&= childConf.skipJit;
+            const childConf = child.getTypeID(stack);
             childrenJitIds.push(child.getJitId());
         }
         const isArray = this.src.kind === ReflectionKind.tuple || this.src.kind === ReflectionKind.array;
         const groupID = isArray ? `[${childrenJitIds.join(',')}]` : `{${childrenJitIds.join(',')}}`;
         const kind = this.src.subKind || this.src.kind;
-        jitCts.jitId = `${kind}${groupID}`;
         stack.pop();
-        return jitCts;
+        return `${kind}${groupID}`;
     });
 }
 
@@ -505,56 +504,53 @@ export abstract class MemberRunType<T extends Type> extends BaseRunType<T> imple
         if (start) return getPropIndex(this.src) - start;
         return getPropIndex(this.src);
     }
-    getJitChild(): BaseRunType | undefined {
+    getJitChild(comp?: JitCompiler): BaseRunType | undefined {
         const member: BaseRunType = this.getMemberType();
-        if (member.getJitConfig().skipJit) return undefined;
+        if (member.skipJit(comp)) return undefined;
         return member;
     }
-    getJitConfig(stack: BaseRunType[] = []): JitConfig {
-        return this._getJitConfig(stack);
+    getTypeID(stack: BaseRunType[] = []): StrNumber {
+        return this._getTypeID(stack);
     }
     _compileHasUnknownKeys(comp: JitCompiler): jitCode {
-        const code = this.getJitChild()?.compileHasUnknownKeys(comp);
+        const code = this.getJitChild(comp)?.compileHasUnknownKeys(comp);
         if (!code) return undefined;
         const childName = comp.getChildVλl();
         return this.isOptional() ? `(${childName} !== undefined && ${code})` : code;
     }
     _compileUnknownKeyErrors(comp: JitErrorsCompiler): jitCode {
-        const code = this.getJitChild()?.compileUnknownKeyErrors(comp);
+        const code = this.getJitChild(comp)?.compileUnknownKeyErrors(comp);
         if (!code) return undefined;
         return this.isOptional() ? `if (${comp.getChildVλl()} !== undefined) {${code}}` : code;
     }
     _compileStripUnknownKeys(comp: JitCompiler): jitCode {
-        const code = this.getJitChild()?.compileStripUnknownKeys(comp);
+        const code = this.getJitChild(comp)?.compileStripUnknownKeys(comp);
         if (!code) return undefined;
         return this.isOptional() ? `if (${comp.getChildVλl()} !== undefined) {${code}}` : code;
     }
     _compileUnknownKeysToUndefined(comp: JitCompiler): jitCode {
-        const code = this.getJitChild()?.compileUnknownKeysToUndefined(comp);
+        const code = this.getJitChild(comp)?.compileUnknownKeysToUndefined(comp);
         if (!code) return undefined;
         return this.isOptional() ? `if (${comp.getChildVλl()} !== undefined) {${code}}` : code;
     }
-    private _getJitConfig = memorize((stack: BaseRunType<any>[] = []): JitConfig => {
+    private _getTypeID = memorize((stack: BaseRunType<any>[] = []): StrNumber => {
         if (stack.length > MAX_STACK_DEPTH) throw new Error(maxStackErrorMessage);
-        const circularJitConf = this.getCircularJitConfig(stack);
+        const circularJitConf = this.getCircularTypeID(stack);
         if (circularJitConf) return circularJitConf;
         // TODO: some properties could be skipped from the JIT ID. so we could implement a mechanism to mark them to be skipped
         // ie: sample and sampleChars from StringFormat are too large but they do not affect jit code generation as those properties are only used during mocking
         stack.push(this);
         const member = this.getMemberType();
-        const memberConfig = member.getJitConfig(stack);
+        const memberTypeID = member.getTypeID(stack);
         const optional = this.isOptional() ? '?' : '';
         const kind =
             (this.src as TypeProperty).name?.toString() ||
             (this.src as TypeIndexSignature).index?.kind ||
             this.src.subKind ||
             this.src.kind;
-        const jitCts: Mutable<JitConfig> = {
-            ...memberConfig,
-            jitId: `${kind}${optional}:${member.getJitId()}`,
-        };
+        const typeID = `${kind}${optional}:${memberTypeID}`;
         stack.pop();
-        return jitCts;
+        return typeID;
     });
 }
 
