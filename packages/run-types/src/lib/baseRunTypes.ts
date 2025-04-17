@@ -20,6 +20,7 @@ import type {
     jitCode,
     RunTypeOptions,
     StrNumber,
+    DeepPartial,
 } from '../types';
 import type {mock} from '../mocking/mockType';
 import {jitArgs, jitErrorArgs, JitFunctions, maxStackErrorMessage, CodeType, getCodeType} from '../constants';
@@ -41,6 +42,8 @@ import {_compileJsonStringify} from '@mionkit/run-types/src/jitCompilers/jsonStr
 import {getComposableFunction, loadComposableFunction} from './jitFnsRegistry';
 import {JitCompiledFn} from '@mionkit/core/src/types';
 import {_compileToCode} from '@mionkit/run-types/src/jitCompilers/toCode';
+import {getMockCompiler, setMockCompiler} from '@mionkit/run-types/src/mocking/mockRegistry';
+import {defaultMockOptions} from '@mionkit/run-types/src/mocking/constants.mock';
 
 export abstract class BaseRunType<T extends Type = Type> implements RunType {
     // Registry for dynamically loaded functions
@@ -52,7 +55,7 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
     getKindName = memorize((): AnyKindName => getReflectionName(this));
     getTypeName = (): string => this.src.typeName || this.getKindName();
     getFormatAnnotations = (): FormatAnnotation[] => getFormatAnnotations(this);
-    skipJit(comp?: JitCompiler): boolean {
+    skipJit(comp: JitCompiler): boolean {
         return false;
     }
     getFormatterJitId = memorize((): string | undefined => {
@@ -115,16 +118,25 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
 
     // ########## Mock ##########
 
-    async mock(k?: Partial<MockOptions>): Promise<any> {
+    async mock(opts?: DeepPartial<RunTypeOptions>): Promise<any> {
         // although the mock function is not jit, it is also stored in the registry
-        const mockFn = (await loadComposableFunction(JitFunctions.mock)) as typeof mock;
-        return mockFn(this, k);
+        await loadComposableFunction(JitFunctions.mock);
+        return this.mockType(opts);
     }
 
     /** synchronous version of mock, throws an error if the mock function has not been loaded */
-    mockType(k?: Partial<MockOptions>): any {
+    mockType(opts?: DeepPartial<RunTypeOptions>): any {
         const mockFn = getComposableFunction(JitFunctions.mock) as typeof mock;
-        return mockFn(this, k);
+        const fnId = JitFunctions.mock.id;
+        // options sent to the compiler will be set to empty as mock options are handled separately from the compiler
+        const hash = getJITFnHash(fnId, this);
+        let comp = getMockCompiler(hash);
+        if (!comp) {
+            comp = createJitCompiler(this, fnId) as JitCompiler;
+            setMockCompiler(hash, comp);
+        }
+        const mockOpts = {mock: {...defaultMockOptions, ...(opts?.mock || {})}} as RunTypeOptions;
+        return mockFn(this, comp, mockOpts);
     }
 
     // ########## Create Jit Functions ##########
@@ -419,13 +431,13 @@ export abstract class CollectionRunType<T extends Type> extends BaseRunType<T> {
     getFamily(): 'C' {
         return 'C';
     }
-    getChildRunTypes = (comp?: JitCompiler): BaseRunType[] => {
+    getChildRunTypes = (): BaseRunType[] => {
         const childTypes = ((this.src as SrcCollection).types as SrcType[]) || []; // deepkit stores child types in the types property
         return childTypes.map((t) => t._rt as BaseRunType);
     };
-    getJitChildren(comp?: JitCompiler): BaseRunType[] {
+    getJitChildren(comp: JitCompiler): BaseRunType[] {
         let skipIndex = false; // if there are multiple index signatures, only the first one will be used as they must be same type just different keys
-        return this.getChildRunTypes(comp).filter((c) => {
+        return this.getChildRunTypes().filter((c) => {
             if (c.skipJit(comp)) return false;
             const isIndex = c.src.kind === ReflectionKind.indexSignature;
             if (isIndex && skipIndex) return false;
@@ -504,7 +516,7 @@ export abstract class MemberRunType<T extends Type> extends BaseRunType<T> imple
         if (start) return getPropIndex(this.src) - start;
         return getPropIndex(this.src);
     }
-    getJitChild(comp?: JitCompiler): BaseRunType | undefined {
+    getJitChild(comp: JitCompiler): BaseRunType | undefined {
         const member: BaseRunType = this.getMemberType();
         if (member.skipJit(comp)) return undefined;
         return member;

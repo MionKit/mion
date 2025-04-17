@@ -7,15 +7,11 @@
 
 import type {TypeUnion} from '@deepkit/type';
 import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
-import {JitFnID, RunType, jitCode} from '../../types';
+import type {JitFnID, jitCode} from '../../types';
 import {BaseRunType, CollectionRunType} from '../../lib/baseRunTypes';
-import {childIsExpression, memorize} from '../../lib/utils';
-import {InterfaceRunType} from './interface';
-import {ClassRunType} from './class';
-import {IntersectionRunType} from './intersection';
+import {childIsExpression} from '../../lib/utils';
 import {CodeType, JitFunctions} from '../../constants';
 import {isClassRunType, isInterfaceRunType, isIntersectionRunType, isObjectLiteralRunType} from '../../lib/guards';
-import {UnionInterfaceRunType} from '../other/unionInterface';
 
 /**
  * Unions get encoded into an array where arr[0] is the discriminator and arr[1] is the value.
@@ -46,7 +42,7 @@ export class UnionRunType extends CollectionRunType<TypeUnion> {
     // #### collection's jit code ####
     _compileIsType(comp: JitCompiler): jitCode {
         // TODO: enforce strictTypes to ensure no extra properties of the union go unchecked
-        const children = this.getJitChildren();
+        const children = this.getJitChildren(comp);
         const code = children.map((rt) => this.getChildStrictIsType(rt, comp)).join(' || ');
         return `(${code})`;
     }
@@ -68,7 +64,7 @@ export class UnionRunType extends CollectionRunType<TypeUnion> {
      */
     _compileToJsonVal(comp: JitCompiler): jitCode {
         // TODO: enforce strictTypes to ensure no extra properties of the union go unchecked
-        const childrenCode = this.getJitChildren()
+        const childrenCode = this.getJitChildren(comp)
             .map((child, i) => {
                 const iF = i === 0 ? 'if' : 'else if';
                 const childCode = child.compileToJsonVal(comp) || '';
@@ -97,7 +93,7 @@ export class UnionRunType extends CollectionRunType<TypeUnion> {
     _compileFromJsonVal(comp: JitCompiler): jitCode {
         // TODO: enforce strictTypes to ensure no extra properties of the union go unchecked
         const decVar = `dεc${this.getNestLevel()}`;
-        const children = this.getJitChildren();
+        const children = this.getJitChildren(comp);
         const childrenCode = children
             .map((child, i) => {
                 const iF = i === 0 ? 'if' : 'else if';
@@ -119,53 +115,5 @@ export class UnionRunType extends CollectionRunType<TypeUnion> {
         return this.getChildRunTypes()
             .map((rt) => rt.getKindName())
             .join(' | ');
-    }
-
-    /** TODO: this uses getMergedJitChildren that merged all properties of interfaces, classes and object literals in the union.
-     * This version checks all properties but would allow for Partial or empty objects to be valid. */
-    private _compileTypeErrorsTODO(comp: JitErrorsCompiler): jitCode {
-        const children = this.getMergedJitChildren();
-
-        const countVar = `εrrCount${this.getNestLevel()}`;
-        const startVar = `εrrStart${this.getNestLevel()}`;
-        const indexVar = `uε${this.getNestLevel()}`;
-
-        return `
-            const ${startVar} = ${comp.args.εrr}.length;
-            for (let ${indexVar} = 0; ${indexVar} < ${children.length}; ${indexVar}++) {
-                const ${countVar} = ${comp.args.εrr}.length;
-                switch (${indexVar}) {
-                    ${children.map((rt, i) => `case ${i}: {${rt.compileTypeErrors(comp)}; break;}`).join('\n')}
-                }
-                // if no errors were added, means that the type is valid, we clear previous errors and return
-                if (${countVar} === ${comp.args.εrr}.length) {
-                    ${comp.args.εrr}.splice(${startVar} - ${comp.args.εrr}.length);
-                    break;
-                }
-            }
-        `;
-    }
-
-    // typescript merge all properties of interfaces, classes and object literals in the union.
-    private getMergedJitChildren = memorize((): BaseRunType[] => {
-        let mergedInterface: UnionInterfaceRunType | undefined;
-        const children = this.getJitChildren();
-        const nonInterfaceChildren: BaseRunType[] = [];
-        for (const rt of children) {
-            const shouldMerge = rt instanceof InterfaceRunType || rt instanceof ClassRunType || rt instanceof IntersectionRunType;
-            if (shouldMerge) {
-                mergedInterface = this.initMergedInterface(mergedInterface, rt);
-            } else {
-                nonInterfaceChildren.push(rt);
-            }
-        }
-        if (mergedInterface) nonInterfaceChildren.push(mergedInterface);
-        return nonInterfaceChildren;
-    });
-
-    private initMergedInterface(mergedInterface: UnionInterfaceRunType | undefined, rt: RunType) {
-        if (!mergedInterface) mergedInterface = new UnionInterfaceRunType();
-        mergedInterface.mergeInterface(rt as InterfaceRunType);
-        return mergedInterface;
     }
 }

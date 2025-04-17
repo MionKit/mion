@@ -26,7 +26,7 @@ export function getCompiledProcedure(id: string, handler: AnyHandler): NonRawPro
     return restoreCodifiedProcedure(procedure, handler);
 }
 
-export function restoreCodifiedProcedure(procedure: NonRawProcedure, handler: AnyHandler): NonRawProcedure {
+function restoreCodifiedProcedure(procedure: NonRawProcedure, handler: AnyHandler): NonRawProcedure {
     if ((procedure as any).restored) return procedure;
     (procedure as any).restored = true;
     procedure.handler = handler;
@@ -76,7 +76,7 @@ export function setCompiledProcedures(mock: Record<string, NonRawProcedure>) {
 }
 
 let _shouldCompile: boolean | undefined = undefined;
-export function shouldCompile(): boolean {
+function shouldCompile(): boolean {
     if (_shouldCompile === undefined) {
         _shouldCompile = process.env.MION_COMPILE === 'true';
         return _shouldCompile;
@@ -120,6 +120,10 @@ function codifyCompiledProcedures(dic: Record<string, NonRawProcedure>): string 
     const keys = Object.keys(dic);
     const procedures = keys.map((k) => `\n${toLiteral(k)}:\n\n${codifyProcedure(dic[k])}`).join(',\n');
     return `{${procedures}}`;
+}
+
+export function compileRouter() {
+    writeCompiledProcedures();
 }
 
 // export function deserializeProcedure(procedure: SerializableProcedure, handler: AnyHandler): Procedure {

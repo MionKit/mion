@@ -100,7 +100,7 @@ export class UnionInterfaceRunType extends InterfaceRunType<anySrcInterface> {
     }
 
     private _compileIsTypeMergedChildren(comp: JitCompiler, rt: InterfaceRunType, skipExtraKeysCheck = false): string {
-        const children = rt.getJitChildren();
+        const children = rt.getJitChildren(comp);
         if (!children.length) return '';
         const hasIndexProp = children.some((prop) => prop instanceof IndexSignatureRunType);
         const skip = hasIndexProp || skipExtraKeysCheck;

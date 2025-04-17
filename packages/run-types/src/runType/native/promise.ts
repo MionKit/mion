@@ -14,7 +14,7 @@ export class PromiseRunType extends MemberRunType<TypePromise> {
     getTypeID() {
         return ReflectionKind.promise;
     }
-    skipJit(comp?: JitCompiler): boolean {
+    skipJit(comp: JitCompiler): boolean {
         return comp?.fnId !== JitFunctions.toCode.id;
     }
     _compileIsType(): jitCode {

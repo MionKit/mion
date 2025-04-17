@@ -116,6 +116,13 @@ export class BaseCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extends 
             return this.compile();
         }
     }
+    siplePushStack(newChild: BaseRunType): void {
+        const newStackItem: StackItem = {vλl: this.vλl, rt: newChild, staticPath: this._accessPathLiterals};
+        this.stack.push(newStackItem);
+    }
+    simplePopStack(): void {
+        this.popItem = this.stack.pop();
+    }
     compile(overrideCode?: string): (...args: any[]) => any {
         try {
             if (overrideCode) (this as Mutable<BaseCompiler>).code = overrideCode;
@@ -335,6 +342,7 @@ export function createJitCompiler(
         case JitFunctions.unknownKeysToUndefined.id:
         case JitFunctions.format.id:
         case JitFunctions.toCode.id:
+        case JitFunctions.mock.id:
             return new JitCompiler(rt, fnId, parent?.totalLength, jitFnHash, jitId, opts);
         case JitFunctions.typeErrors.id:
         case JitFunctions.unknownKeyErrors.id:
@@ -352,9 +360,10 @@ export function createJitCompiler(
  * @param rt
  * @returns
  */
-export function getJITFnHash(id: JitFnID, rt: BaseRunType, opts: RunTypeOptions): string {
-    if (Object.keys(opts).length) {
+export function getJITFnHash(id: JitFnID, rt: BaseRunType, opts?: RunTypeOptions): string {
+    if (opts && Object.keys(opts).length) {
         // 4 characters is enough for options hash as we do not expect many different options
+        console.log('opts', opts);
         const optsHash = createUniqueHash(JSON.stringify(opts), 3);
         return `${id}_${rt.getJitHash()}_${optsHash}`;
     }

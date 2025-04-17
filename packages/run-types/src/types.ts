@@ -29,12 +29,12 @@ export interface RunType {
     readonly src: SrcType<any>;
     getKindName(): string;
     getFamily(): 'A' | 'C' | 'M' | 'F'; // Atomic, Collection, Member, Function
-    mock: (options?: Partial<MockOptions>) => Promise<any>;
+    mock: (options?: DeepPartial<RunTypeOptions>) => Promise<any>;
 
     // ######## JIT functions ########
     getJitId(): StrNumber;
     getJitHash: () => string;
-    createJitFunction(jitFn: JitFn): (...args: any[]) => any;
+    createJitFunction(jitFn: JitFn, opts?: RunTypeOptions): (...args: any[]) => any;
 }
 
 export type JSONValue = StrNumber | boolean | null | {[key: string]: JSONValue} | Array<JSONValue>;
@@ -81,7 +81,10 @@ export interface CustomVλl {
 export interface RunTypeOptions {
     /** slice parameters when parsing functions */
     paramsSlice?: {start?: number; end?: number};
+    mock?: MockOptions;
 }
+
+export type PartialRunTypeOptions = DeepPartial<RunTypeOptions>;
 
 // ############################################ JIT FUNCTIONS ############################################
 
@@ -131,6 +134,7 @@ export interface MockOptions {
 export interface MockOperation extends MockOptions {
     /** Used for mocking object with circular references */
     stack: RunType[];
+    fnId: JitFnID;
 }
 
 export type DKAnnotation = {
@@ -154,10 +158,14 @@ export type Mutable<T> = {
     -readonly [K in keyof T]: T[K];
 };
 
-export type DeepRequired<T> = {
-    [K in keyof T]-?: T[K] extends object ? DeepRequired<T[K]> : T[K];
-};
+export type DeepRequired<T> = T extends object
+    ? {
+          [P in keyof T]?: DeepRequired<T[P]>;
+      }
+    : T;
 
-export type DeepPartial<T> = {
-    [K in keyof T]?: T[K] extends object ? DeepPartial<T[K]> : T[K];
-};
+export type DeepPartial<T> = T extends object
+    ? {
+          [P in keyof T]?: DeepPartial<T[P]>;
+      }
+    : T;

@@ -13,7 +13,7 @@ import {JitFunctions} from '@mionkit/run-types/src/constants';
 
 export class SymbolRunType extends AtomicRunType<TypeSymbol> {
     getTypeID = () => ReflectionKind.symbol;
-    skipJit(comp?: JitCompiler): boolean {
+    skipJit(comp: JitCompiler): boolean {
         if (!comp) return true;
         return comp.fnId !== JitFunctions.toCode.id;
     }

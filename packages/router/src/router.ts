@@ -26,7 +26,7 @@ import {getRemoteMethodsMetadata, resetRemoteMethodsMetadata} from './remoteMeth
 import {clientRoutes} from './client.routes';
 import {Handler} from './types/handlers';
 import {getNotFoundExecutionPath} from './notFound';
-import {compileProcedure, getCompiledProcedure, writeCompiledProcedures} from './compiler';
+import {compileProcedure, getCompiledProcedure} from './compiler';
 import {FunctionRunType} from '@mionkit/run-types/src/runType/function/function';
 import {reflectFunction} from '@mionkit/run-types/src/lib/runType';
 
@@ -178,10 +178,6 @@ export function shouldFullGenerateSpec(): boolean {
 export function getRouteExecutableFromPath(path: string): RouteProcedure {
     const executionPath = flatRouter.get(path) || getNotFoundExecutionPath();
     return executionPath.procedures[executionPath.routeIndex] as RouteProcedure;
-}
-
-export function compileRouter() {
-    writeCompiledProcedures();
 }
 
 // ############# PRIVATE METHODS #############
