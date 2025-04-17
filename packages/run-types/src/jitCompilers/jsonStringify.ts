@@ -121,7 +121,7 @@ export function _compileJsonStringify(
             const prop = rt.getChildVarName();
             const arrName = `ls${rt.getNestLevel()}`;
             const sep = rt.skipCommas ? '' : '+","';
-            const skipCode = rt.getSkipCode(prop);
+            const skipCode = rt.getSkipCode(comp, prop);
             return `
                 const ${arrName} = [];
                 for (const ${prop} in ${varName}) {
@@ -246,7 +246,7 @@ export function _compileJsonStringify(
             const urt = runType as UnionRunType;
             // TODO: enforce strictTypes to ensure no extra properties of the union go unchecked
             const childrenCode = urt
-                .getJitChildren()
+                .getJitChildren(comp)
                 .map((rt, i) => {
                     const itemIsType = urt.getChildStrictIsType(rt, comp);
                     const childCode = rt.compile(comp, fnId);
@@ -303,14 +303,9 @@ function _compileJsonStringifyGenericMember(rt: ParameterRunType, comp: JitCompi
     return `${sep}${argCode}`;
 }
 
-function getOperationChildren(rt: InterfaceRunType | ClassRunType, comp: JitCompiler, fnId: JitFnID) {
-    if (fnId === JitFunctions.toCode.id) return rt.getToCodeChildren(comp);
-    return rt.getJsonStringifyChildren();
-}
-
 function _compileJsonStringifyInterface(rt: InterfaceRunType, comp: JitCompiler, fnId: JitFnID): jitCode {
     if (rt.isCallable()) return rt.getCallSignature()!.compile(comp, fnId);
-    const children = getOperationChildren(rt, comp, fnId);
+    const children = rt.getJsonStringifyChildren(comp);
     if (children.length === 0) return `''`;
     const allOptional = children.every((prop) => (prop as MemberRunType<any>).isOptional());
     // if all properties are optional,  we can not optimize and use JSON.stringify
@@ -369,7 +364,7 @@ function _compileJsonStringifyClass(runType: BaseRunType, comp: JitCompiler, fnI
                 const callSignature = rt.getCallSignature();
                 if (callSignature) return callSignature.compile(comp, fnId);
             }
-            const children = getOperationChildren(rt, comp, fnId);
+            const children = rt.getJsonStringifyChildren(comp);
             if (children.length === 0) return `''`;
             const childrenCode = children
                 .map((prop, i) => {
@@ -387,7 +382,7 @@ function _compileJsonStringifyClass(runType: BaseRunType, comp: JitCompiler, fnI
 
 function _compileJsonStringifyIterable(rt: IterableRunType, comp: JitCompiler, fnId: JitFnID): string {
     const entry = rt.getCustomVλl(comp)?.vλl || comp.vλl;
-    const jitChildren = rt.getJitChildren();
+    const jitChildren = rt.getJitChildren(comp);
     const childrenCode = jitChildren.map((c) => c.compile(comp, fnId)).join('+');
     const jsonItems = `ls${rt.getNestLevel()}`;
     const resultVal = `res${rt.getNestLevel()}`;

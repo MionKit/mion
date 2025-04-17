@@ -12,7 +12,7 @@ import {isType, ReflectionKind} from '@deepkit/type';
 import {ReflectionSubKind} from '../constants.kind';
 import {JitFunctions, nativeUtilityStringTypes, nonSerializableClasses, nonSerializableGlobals} from '../constants';
 /* IMPORTANT: import classes as type only to prevent js circular imports */
-import type {MockOperation, MockOptions, RunType, RunTypeChildAccessor} from '../types';
+import type {RunType, RunTypeChildAccessor} from '../types';
 import type {StringRunType} from '../runType/atomic/string';
 import type {DateRunType} from '../runType/atomic/date';
 import type {NumberRunType} from '../runType/atomic/number';
@@ -213,10 +213,6 @@ export function isRunType(value: any): value is RunType {
 
 export function isJitErrorsCompiler(value: BaseCompiler): value is JitErrorsCompiler {
     return value.fnId === JitFunctions.typeErrors.id || value.fnId === JitFunctions.unknownKeyErrors.id;
-}
-
-export function isMockContext(k: Partial<MockOptions>): k is MockOperation {
-    return (k as MockOperation).stack !== undefined;
 }
 
 export function isNonSerializableClass(src: TypeClass): boolean {

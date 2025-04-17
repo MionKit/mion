@@ -17,9 +17,9 @@ export class PropertyRunType extends MemberRunType<TypePropertySignature | TypeP
     getChildVarName = memorize(() => getPropVarName(this.src.name));
     getChildLiteral = memorize(() => getPropLiteral(this.getChildVarName()));
     useArrayAccessor = memorize(() => useArrayAccessorForProp(this.src.name));
-    getJitChildIndex = () => (this.getParent() as InterfaceRunType).getJitChildren().indexOf(this);
+    getJitChildIndex = (comp: JitCompiler) => (this.getParent() as InterfaceRunType).getJitChildren(comp).indexOf(this);
     isOptional = () => !!this.src.optional;
-    skipJit(comp?: JitCompiler): boolean {
+    skipJit(comp: JitCompiler): boolean {
         const name = (this.src as TypeProperty).name;
         if (typeof name === 'symbol') {
             return comp?.fnId !== JitFunctions.toCode.id;

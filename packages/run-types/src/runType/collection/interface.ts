@@ -28,8 +28,8 @@ export class InterfaceRunType<
 > extends CollectionRunType<T> {
     areAllChildrenOptional?: boolean;
 
-    getNamedChildren(): InterfaceMember[] {
-        return this.getJitChildren().filter((prop) => !!(prop.src as any).name) as InterfaceMember[];
+    getNamedChildren(comp: JitCompiler): InterfaceMember[] {
+        return this.getJitChildren(comp).filter((prop) => !!(prop.src as any).name) as InterfaceMember[];
     }
 
     isCallable(): boolean {
@@ -44,7 +44,7 @@ export class InterfaceRunType<
 
     _compileIsType(comp: JitCompiler): jitCode {
         const varName = comp.vλl;
-        const children = this.getJitChildren();
+        const children = this.getJitChildren(comp);
         const childrenCode = children.length ? `&& ${children.map((prop) => prop.compileIsType(comp)).join(' && ')}` : '';
         if (this.isCallable()) return `${this.getCallSignature()!._compileIsType(comp)} ${childrenCode}`;
         const arrayCheck = this.getArrayCheck(comp);
@@ -52,7 +52,7 @@ export class InterfaceRunType<
     }
     _compileTypeErrors(comp: JitErrorsCompiler): jitCode {
         const varName = comp.vλl;
-        const children = this.getJitChildren();
+        const children = this.getJitChildren(comp);
         const childrenCode = children.length ? children.map((prop) => prop.compileTypeErrors(comp)).join(';') : '';
         const arrayCheck = this.getArrayCheck(comp);
         if (this.isCallable()) {
@@ -68,7 +68,7 @@ export class InterfaceRunType<
     }
     _compileToJsonVal(comp: JitCompiler): jitCode {
         if (this.isCallable()) return this.getCallSignature()!._compileToJsonVal();
-        const children = this.getJitChildren();
+        const children = this.getJitChildren(comp);
         const childrenCode = children
             .map((prop) => prop.compileToJsonVal(comp))
             .filter(Boolean)
@@ -77,7 +77,7 @@ export class InterfaceRunType<
     }
     _compileFromJsonVal(comp: JitCompiler): jitCode {
         if (this.isCallable()) return this.getCallSignature()!._compileFromJsonVal();
-        const children = this.getJitChildren();
+        const children = this.getJitChildren(comp);
         const childrenCode = children
             .map((prop) => prop.compileFromJsonVal(comp))
             .filter(Boolean)
@@ -85,13 +85,13 @@ export class InterfaceRunType<
         return childrenCode || undefined;
     }
     _compileHasUnknownKeys(comp: JitCompiler): jitCode {
-        const allJitChildren = this.getJitChildren();
+        const allJitChildren = this.getJitChildren(comp);
         const parentCode = this.callCheckUnknownProperties(comp, allJitChildren, false);
         const childrenCode = super._compileHasUnknownKeys(comp);
         return childrenCode ? `${parentCode} || ${childrenCode}` : parentCode;
     }
     _compileUnknownKeyErrors(comp: JitErrorsCompiler): jitCode {
-        const allJitChildren = this.getJitChildren();
+        const allJitChildren = this.getJitChildren(comp);
         const unknownVar = `unk${this.getNestLevel()}`;
         const keyVar = `ky${this.getNestLevel()}`;
         const parentCode = `
@@ -102,7 +102,7 @@ export class InterfaceRunType<
         return childrenCode ? `${parentCode}\n${childrenCode}` : parentCode;
     }
     _compileStripUnknownKeys(comp: JitCompiler): jitCode {
-        const allJitChildren = this.getJitChildren();
+        const allJitChildren = this.getJitChildren(comp);
         const unknownVar = `unk${this.getNestLevel()}`;
         const keyVar = `ky${this.getNestLevel()}`;
         const parentCode = `
@@ -113,7 +113,7 @@ export class InterfaceRunType<
         return childrenCode ? `${parentCode}\n${childrenCode}` : parentCode;
     }
     _compileUnknownKeysToUndefined(comp: JitCompiler): jitCode {
-        const allJitChildren = this.getJitChildren();
+        const allJitChildren = this.getJitChildren(comp);
         const unknownVar = `unk${this.getNestLevel()}`;
         const keyVar = `ky${this.getNestLevel()}`;
         const parentCode = `
@@ -125,33 +125,14 @@ export class InterfaceRunType<
     }
 
     // In order to json stringify to work properly optional properties must come first
-    getJsonStringifyChildren(): MemberRunType<any>[] {
-        return this.getJitChildren().sort((a, b) => {
+    getJsonStringifyChildren(comp: JitCompiler): MemberRunType<any>[] {
+        return this.getJitChildren(comp).sort((a, b) => {
             const aOptional = a instanceof MemberRunType && a.isOptional();
             const bOptional = b instanceof MemberRunType && b.isOptional();
             if (aOptional && !bOptional) return -1;
             if (!aOptional && bOptional) return 1;
             return 0;
         }) as MemberRunType<any>[];
-    }
-
-    getToCodeChildren(comp?: JitCompiler): MemberRunType<any>[] {
-        let skipIndex = false; // if there are multiple index signatures, only the first one will be used as they must be same type just different keys
-        return this.getChildRunTypes(comp)
-            .filter((c) => {
-                // we don not skip nodes that would be traditionally skipped for serialisation
-                const isIndex = c.src.kind === ReflectionKind.indexSignature;
-                if (isIndex && skipIndex) return false;
-                if (isIndex) skipIndex = true;
-                return true;
-            })
-            .sort((a, b) => {
-                const aOptional = a instanceof MemberRunType && a.isOptional();
-                const bOptional = b instanceof MemberRunType && b.isOptional();
-                if (aOptional && !bOptional) return -1;
-                if (!aOptional && bOptional) return 1;
-                return 0;
-            }) as MemberRunType<any>[];
     }
 
     private callCheckUnknownProperties(comp: JitCompiler, childrenRunTypes: RunType[], returnKeys: boolean): string {
@@ -172,7 +153,7 @@ export class InterfaceRunType<
     // when this check is disabled empty array will pass as object but fail when checking for properties
     private getArrayCheck(comp: JitCompiler): string {
         if (this.areAllChildrenOptional === undefined) {
-            this.areAllChildrenOptional = this.getJitChildren().every(
+            this.areAllChildrenOptional = this.getJitChildren(comp).every(
                 (prop) =>
                     (prop as MemberRunType<any>)?.isOptional() ||
                     (prop.src as TypeProperty)?.optional ||

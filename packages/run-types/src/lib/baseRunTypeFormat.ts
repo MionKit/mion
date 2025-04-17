@@ -8,7 +8,7 @@
 import type {TypeFormatParams, PureFunctionWithClosure, TypeFormatValue, JitCompiledFn} from '@mionkit/core/src/types';
 import type {BaseRunType} from './baseRunTypes';
 import {createJitCompiler, type JitCompiler, type JitErrorsCompiler} from './jitCompiler';
-import type {JitFnID, MockOperation, Mutable, StrNumber, jitCode, RunTypeOptions} from '../types';
+import type {JitFnID, Mutable, StrNumber, jitCode, RunTypeOptions} from '../types';
 import {CodeType, getCodeType, JitFunctions} from '../constants';
 import {ReflectionKind} from '@deepkit/type';
 import {compileAddPureFunctionContext, dependenciesToLiteral, getFormatterParams, paramsToLiteral} from './formats';
@@ -98,10 +98,10 @@ export abstract class BaseRunTypeFormat<P extends TypeFormatParams = any> {
         return undefined;
     }
 
-    mock(mockContext: MockOperation, rt: BaseRunType, params?: P): any {
+    mock(opts: RunTypeOptions, rt: BaseRunType, params?: P): any {
         if (this.validateParams) this.validateParams(rt, params || this.getParams(rt));
         this.pushContext(params);
-        const result = this._mock(mockContext, rt);
+        const result = this._mock(opts, rt);
         this.popContext();
         const formatter = this.createJitCompiledFormatter(JitFunctions.format.id, rt, undefined, params);
         if (formatter.isNoop) return result;
@@ -204,7 +204,7 @@ export abstract class BaseRunTypeFormat<P extends TypeFormatParams = any> {
         }
     }
 
-    abstract _mock(mockContext: MockOperation, rt: BaseRunType): any;
+    abstract _mock(opts: RunTypeOptions, rt: BaseRunType): any;
     abstract _compileIsType(comp: JitCompiler, rt: BaseRunType): jitCode;
     abstract _compileTypeErrors(comp: JitErrorsCompiler, rt: BaseRunType): jitCode;
 

@@ -26,7 +26,7 @@ export class IndexSignatureRunType extends MemberRunType<TypeIndexSignature> {
     useArrayAccessor(): true {
         return true;
     }
-    skipJit(comp?: JitCompiler): boolean {
+    skipJit(comp: JitCompiler): boolean {
         const index = (this.src as TypeIndexSignature).index?.kind || undefined;
         if (index === ReflectionKind.symbol) {
             return comp?.fnId !== JitFunctions.toCode.id;
@@ -61,7 +61,7 @@ export class IndexSignatureRunType extends MemberRunType<TypeIndexSignature> {
         if (!child || !childCode) return undefined;
         const varName = comp.vλl;
         const prop = this.getChildVarName();
-        const skipCode = this.getSkipCode(prop);
+        const skipCode = this.getSkipCode(comp, prop);
 
         const isExpression = childIsExpression(JitFunctions.toJsonVal.id, child);
         const code = isExpression ? `${comp.getChildVλl()} = ${childCode};` : childCode;
@@ -73,7 +73,7 @@ export class IndexSignatureRunType extends MemberRunType<TypeIndexSignature> {
         if (!child || !childCode) return undefined;
         const varName = comp.vλl;
         const prop = this.getChildVarName();
-        const skipCode = this.getSkipCode(prop);
+        const skipCode = this.getSkipCode(comp, prop);
 
         const isExpression = childIsExpression(JitFunctions.fromJsonVal.id, child);
         const code = isExpression ? `${comp.getChildVλl()} = ${childCode};` : childCode;
@@ -108,8 +108,8 @@ export class IndexSignatureRunType extends MemberRunType<TypeIndexSignature> {
         const prop = this.getChildVarName();
         return `for (const ${prop} in ${comp.vλl}) {${memberCode}}`;
     }
-    getSkipCode(prop: string): string {
-        const namedChildren = (this.getParent() as InterfaceRunType).getNamedChildren();
+    getSkipCode(comp: JitCompiler, prop: string): string {
+        const namedChildren = (this.getParent() as InterfaceRunType).getNamedChildren(comp);
         const skipNames = namedChildren.length
             ? namedChildren.map((child) => `${child.getChildLiteral()} === ${prop}`).join(' || ')
             : '';

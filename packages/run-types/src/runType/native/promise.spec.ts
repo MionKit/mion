@@ -27,7 +27,7 @@ it('mock', async () => {
 it('mock with reject', async () => {
     try {
         // when promises are returned they are automatically resolved/rejected
-        await rt.mock({promiseTimeOut: 1, promiseReject: new Error('rejected')});
+        await rt.mock({mock: {promiseTimeOut: 1, promiseReject: new Error('rejected')}});
         throw new Error('promise not rejected');
     } catch (error: any) {
         // eslint-disable-next-line jest/no-conditional-expect
