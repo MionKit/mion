@@ -128,8 +128,8 @@ describe('call signature parameters', () => {
         expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(params))))).toEqual(params);
     });
 
-    it('should mock parameters correctly', () => {
-        const mocked = rt.getCallSignature()!.mockParams();
+    it('should mock parameters correctly', async () => {
+        const mocked = await rt.getCallSignature()!.mockParams();
         expect(Array.isArray(mocked)).toBe(true);
         expect(mocked.length).toBe(2);
         const validate = rt.getCallSignature()!.createJitParamsFunction(JitFunctions.isType);
@@ -167,10 +167,10 @@ describe('call signature return', () => {
         expect(roundTrip).toEqual(returnValue);
     });
 
-    it('mock call signature return', () => {
-        const mocked = rt.getCallSignature()!.mockReturn();
+    it('mock call signature return', async () => {
+        const mocked = await rt.getCallSignature()!.mockReturn();
         expect(typeof mocked).toBe('string');
         const validateReturn = rt.getCallSignature()!.createJitReturnFunction(JitFunctions.isType);
-        expect(validateReturn(rt.getCallSignature()!.mockReturn())).toBe(true);
+        expect(validateReturn(mocked)).toBe(true);
     });
 });

@@ -6,7 +6,7 @@
  * ######## */
 
 import type {TypeLiteral} from '@deepkit/type';
-import type {jitCode, JitConfig} from '../../types';
+import type {jitCode} from '../../types';
 import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
 import {memorize, toLiteral} from '../../lib/utils';
 import {AtomicRunType} from '../../lib/baseRunTypes';
@@ -16,21 +16,7 @@ import {symbolTransformer} from './symbol';
 import {AnyKindName} from '../../constants.kind';
 
 export class LiteralRunType extends AtomicRunType<TypeLiteral> {
-    get jitConstants() {
-        return this.getJitConfig();
-    }
-    getJitConfig = memorize((): JitConfig => {
-        switch (true) {
-            case typeof this.src.literal === 'bigint':
-                return getJitConstantsForBigint(this.src.kind, this.src.literal);
-            case typeof this.src.literal === 'symbol':
-                return getJitConstantsForSymbol(this.src.kind, this.src.literal);
-            case this.src.literal instanceof RegExp:
-                return getJitConstantsForRegExp(this.src.kind, this.src.literal);
-            default:
-                return getDefaultJitConstants(this.src.kind, this.src.literal);
-        }
-    });
+    getTypeID = memorize(() => `${this.src.kind}:${String(this.src.literal)}`);
     getValidator() {
         switch (true) {
             case typeof this.src.literal === 'bigint':
@@ -101,29 +87,4 @@ function compileTypeErrorsLiteral(
     name: AnyKindName
 ): string {
     return `if (${comp.vλl} !== ${toLiteral(lit)}) ${comp.callJitErr(name)}`;
-}
-
-function getJitConstantsForBigint(kind: number, literal: bigint): JitConfig {
-    return {
-        skipJit: false,
-        jitId: `${kind}:${String(literal)}`,
-    };
-}
-function getJitConstantsForSymbol(kind: number, literal: symbol): JitConfig {
-    return {
-        skipJit: true,
-        jitId: `${kind}:${String(literal)}`,
-    };
-}
-function getJitConstantsForRegExp(kind: number, literal: RegExp): JitConfig {
-    return {
-        skipJit: false,
-        jitId: `${kind}:${String(literal)}`,
-    };
-}
-function getDefaultJitConstants(kind: number, literal: string | number | boolean): JitConfig {
-    return {
-        skipJit: false,
-        jitId: `${kind}:${literal}`,
-    };
 }

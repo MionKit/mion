@@ -34,6 +34,7 @@ export class ArrayRunType<T extends Type = TypeArray> extends MemberRunType<T> {
             case JitFunctions.isType.id:
             case JitFunctions.jsonStringify.id:
             case JitFunctions.hasUnknownKeys.id:
+            case JitFunctions.toCode.id:
                 return 'RB';
             default:
                 return super.getCodeType(fnId);
@@ -43,7 +44,7 @@ export class ArrayRunType<T extends Type = TypeArray> extends MemberRunType<T> {
     _compileIsType(comp: JitCompiler): jitCode {
         const resultVal = `res${this.getNestLevel()}`;
         const index = this.getChildVarName();
-        const memberCode = this.getJitChild()?.compileIsType(comp);
+        const memberCode = this.getJitChild(comp)?.compileIsType(comp);
         if (!memberCode) return `Array.isArray(${comp.vλl})`;
         return `
             if (!Array.isArray(${comp.vλl})) return false;
@@ -56,7 +57,7 @@ export class ArrayRunType<T extends Type = TypeArray> extends MemberRunType<T> {
     }
     _compileTypeErrors(comp: JitErrorsCompiler): jitCode {
         const index = this.getChildVarName();
-        const memberCode = this.getJitChild()?.compileTypeErrors(comp);
+        const memberCode = this.getJitChild(comp)?.compileTypeErrors(comp);
         if (!memberCode) return `if (!Array.isArray(${comp.vλl})) ${comp.callJitErr(this)};`;
         return `
             if (!Array.isArray(${comp.vλl})) ${comp.callJitErr(this)};
@@ -65,7 +66,7 @@ export class ArrayRunType<T extends Type = TypeArray> extends MemberRunType<T> {
     }
     _compileToJsonVal(comp: JitCompiler): jitCode {
         const index = this.getChildVarName();
-        const child = this.getJitChild();
+        const child = this.getJitChild(comp);
         const childCode = child?.compileToJsonVal(comp);
         if (!childCode || !child) return undefined;
         const isExpression = childIsExpression(JitFunctions.toJsonVal.id, child);
@@ -74,7 +75,7 @@ export class ArrayRunType<T extends Type = TypeArray> extends MemberRunType<T> {
     }
     _compileFromJsonVal(comp: JitCompiler): jitCode {
         const index = this.getChildVarName();
-        const child = this.getJitChild();
+        const child = this.getJitChild(comp);
         const childCode = child?.compileFromJsonVal(comp);
         if (!childCode || !child) return undefined;
         const isExpression = childIsExpression(JitFunctions.fromJsonVal.id, child);
@@ -83,7 +84,7 @@ export class ArrayRunType<T extends Type = TypeArray> extends MemberRunType<T> {
     }
     _compileHasUnknownKeys(comp: JitCompiler): jitCode {
         if (this.getMemberType().getFamily() === 'A') return undefined;
-        const memberCode = this.getJitChild()?.compileHasUnknownKeys(comp);
+        const memberCode = this.getJitChild(comp)?.compileHasUnknownKeys(comp);
         if (!memberCode) return undefined;
         const resultVal = `res${this.getNestLevel()}`;
         const index = this.getChildVarName();
@@ -99,17 +100,17 @@ export class ArrayRunType<T extends Type = TypeArray> extends MemberRunType<T> {
     }
     _compileUnknownKeyErrors(comp: JitErrorsCompiler): jitCode {
         if (this.getMemberType().getFamily() === 'A') return '';
-        const memberCode = this.getJitChild()?.compileUnknownKeyErrors(comp);
+        const memberCode = this.getJitChild(comp)?.compileUnknownKeyErrors(comp);
         return this.traverseCode(comp, memberCode);
     }
     _compileStripUnknownKeys(comp: JitCompiler): jitCode {
         if (this.getMemberType().getFamily() === 'A') return '';
-        const memberCode = this.getJitChild()?.compileStripUnknownKeys(comp);
+        const memberCode = this.getJitChild(comp)?.compileStripUnknownKeys(comp);
         return this.traverseCode(comp, memberCode);
     }
     _compileUnknownKeysToUndefined(comp: JitCompiler): jitCode {
         if (this.getMemberType().getFamily() === 'A') return '';
-        const memberCode = this.getJitChild()?.compileUnknownKeysToUndefined(comp);
+        const memberCode = this.getJitChild(comp)?.compileUnknownKeysToUndefined(comp);
         return this.traverseCode(comp, memberCode);
     }
 

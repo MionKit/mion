@@ -5,15 +5,18 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 import {ReflectionKind, type TypePromise} from '@deepkit/type';
-import type {JitConfig, jitCode} from '../../types';
+import type {jitCode} from '../../types';
 import {MemberRunType} from '../../lib/baseRunTypes';
-
-const jitConstants: JitConfig = {
-    skipJit: true,
-    jitId: ReflectionKind.promise,
-};
+import {JitFunctions} from '@mionkit/run-types/src/constants';
+import {JitCompiler} from '@mionkit/run-types/src/lib/jitCompiler';
 
 export class PromiseRunType extends MemberRunType<TypePromise> {
+    getTypeID() {
+        return ReflectionKind.promise;
+    }
+    skipJit(comp?: JitCompiler): boolean {
+        return comp?.fnId !== JitFunctions.toCode.id;
+    }
     _compileIsType(): jitCode {
         throw new Error(`Jit compilation disabled for Non Serializable types.`);
     }
@@ -25,9 +28,6 @@ export class PromiseRunType extends MemberRunType<TypePromise> {
     }
     _compileFromJsonVal(): jitCode {
         throw new Error(`Jit compilation disabled for Non Serializable types.`);
-    }
-    getJitConfig() {
-        return jitConstants;
     }
     isOptional(): boolean {
         return false;

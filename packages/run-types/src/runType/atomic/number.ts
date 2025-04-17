@@ -6,17 +6,12 @@
  * ######## */
 
 import {ReflectionKind, type TypeNumber} from '@deepkit/type';
-import type {JitConfig, jitCode} from '../../types';
+import type {jitCode} from '../../types';
 import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
 import {AtomicRunType} from '../../lib/baseRunTypes';
 
-const jitConstants: JitConfig = {
-    skipJit: false,
-    jitId: ReflectionKind.number,
-};
-
 export class NumberRunType extends AtomicRunType<TypeNumber> {
-    getJitConfig = () => jitConstants;
+    getTypeID = () => ReflectionKind.number;
     _compileIsType(comp: JitCompiler): jitCode {
         return `Number.isFinite(${comp.vλl})`;
     }

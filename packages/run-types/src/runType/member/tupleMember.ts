@@ -6,18 +6,9 @@
  * ######## */
 
 import type {TypeTupleMember} from '@deepkit/type';
-import type {BaseRunType} from '../../lib/baseRunTypes';
-import {JitConfig, Mutable} from '../../types';
 import {ParameterRunType} from './param';
 
 export class TupleMemberRunType extends ParameterRunType<TypeTupleMember> {
-    getJitConfig(stack: BaseRunType[] = []): JitConfig {
-        const constants = super.getJitConfig(stack) as Mutable<JitConfig>;
-        if (this.isOptional()) {
-            constants.skipJit = false;
-        }
-        return constants;
-    }
     getChildVarName(): number {
         return this.src.parent.types.indexOf(this.src);
     }

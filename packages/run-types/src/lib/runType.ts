@@ -189,7 +189,7 @@ function createRunType(deepkitType: Mutable<SrcType>): RunType {
         case ReflectionKind.templateLiteral:
             // deepkit automatically resolves template literals unions to literals
             // this is only called when you define the type of a template literal i.e: type T = `foo${string}`;
-            // this is not expected to be validated or serialized so not supported
+            // this is not supported at the moment but would be useful for type safe urls etc
             throw new Error(
                 'Template Literals are resolved by the compiler to Literals ie: const tl = `${string}World`. Template literal types are not supported. ie type TL = `${string}World`'
             );

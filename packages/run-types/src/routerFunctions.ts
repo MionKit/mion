@@ -5,8 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {AnyFn} from '@mionkit/core/src/types';
-import {JITCompiledFunctions} from '@mionkit/core/src/types';
+import type {AnyFn, toCodeFn, JITCompiledFunctions} from '@mionkit/core/src/types';
 import {reflectFunction} from './lib/runType';
 import {JitFunctions} from './constants';
 import {RunTypeOptions} from '@mionkit/run-types/src/types';
@@ -34,4 +33,9 @@ export function getReturnJitFns<Fn extends AnyFn>(fn: Fn, opts?: RunTypeOptions)
         jsonStringify: rt.createJitCompiledReturnFunction(JitFunctions.jsonStringify, opts),
     };
     return returnFunctions;
+}
+
+export function toCodeFn<Fn extends AnyFn>(fn: Fn, opts?: RunTypeOptions): toCodeFn {
+    const rt = reflectFunction(fn);
+    return rt.createJitCompiledFunction(JitFunctions.toCode.id, undefined, opts).fn;
 }

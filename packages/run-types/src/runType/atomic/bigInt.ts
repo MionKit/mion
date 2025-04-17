@@ -7,16 +7,11 @@
 
 import {ReflectionKind, type TypeBigInt} from '@deepkit/type';
 import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
-import type {JitConfig, jitCode} from '../../types';
+import type {jitCode} from '../../types';
 import {AtomicRunType} from '../../lib/baseRunTypes';
 
-const jitConstants: JitConfig = {
-    skipJit: false,
-    jitId: ReflectionKind.bigint,
-};
-
 export class BigIntRunType extends AtomicRunType<TypeBigInt> {
-    getJitConfig = () => jitConstants;
+    getTypeID = () => ReflectionKind.bigint;
     _compileIsType(comp: JitCompiler): jitCode {
         return `typeof ${comp.vλl} === 'bigint'`;
     }

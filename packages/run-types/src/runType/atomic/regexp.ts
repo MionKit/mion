@@ -6,17 +6,12 @@
  * ######## */
 
 import {ReflectionKind, type TypeRegexp} from '@deepkit/type';
-import type {JitConfig, jitCode} from '../../types';
+import type {jitCode} from '../../types';
 import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
 import {AtomicRunType} from '../../lib/baseRunTypes';
 
-const jitConstants: JitConfig = {
-    skipJit: false,
-    jitId: ReflectionKind.regexp,
-};
-
 export class RegexpRunType extends AtomicRunType<TypeRegexp> {
-    getJitConfig = () => jitConstants;
+    getTypeID = () => ReflectionKind.regexp;
     _compileIsType(comp: JitCompiler): jitCode {
         return `(${comp.vλl} instanceof RegExp)`;
     }

@@ -6,18 +6,13 @@
  * ######## */
 
 import {ReflectionKind, TypeEnum} from '@deepkit/type';
-import type {JitConfig, jitCode} from '../../types';
+import type {jitCode} from '../../types';
 import {toLiteral} from '../../lib/utils';
 import {AtomicRunType} from '../../lib/baseRunTypes';
 import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
 
-const jitConstants: JitConfig = {
-    skipJit: false,
-    jitId: ReflectionKind.enum,
-};
-
 export class EnumRunType extends AtomicRunType<TypeEnum> {
-    getJitConfig = () => jitConstants;
+    getTypeID = () => ReflectionKind.enum;
     _compileIsType(comp: JitCompiler): jitCode {
         return this.src.values.map((v) => `${comp.vλl} === ${toLiteral(v)}`).join(' || ');
     }

@@ -7,7 +7,7 @@
 
 import type {TypeUnion} from '@deepkit/type';
 import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
-import {JitConfig, JitFnID, Mutable, RunType, jitCode} from '../../types';
+import {JitFnID, RunType, jitCode} from '../../types';
 import {BaseRunType, CollectionRunType} from '../../lib/baseRunTypes';
 import {childIsExpression, memorize} from '../../lib/utils';
 import {InterfaceRunType} from './interface';
@@ -25,15 +25,10 @@ import {UnionInterfaceRunType} from '../other/unionInterface';
  * So [0, "123n"] is interpreted as a string and [1, "123n"] is interpreted as a bigint.
  * */
 export class UnionRunType extends CollectionRunType<TypeUnion> {
-    getJitConfig(stack: BaseRunType[] = []): JitConfig {
-        return {
-            ...(super.getJitConfig(stack) as Mutable<JitConfig>),
-            skipJit: false,
-        };
-    }
     getCodeType(fnId: JitFnID): CodeType {
         switch (fnId) {
             case JitFunctions.jsonStringify.id:
+            case JitFunctions.toCode.id:
                 return 'RB';
             default:
                 return super.getCodeType(fnId);

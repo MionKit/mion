@@ -6,18 +6,13 @@
  * ######## */
 
 import {type TypeClass} from '@deepkit/type';
-import type {JitConfig, jitCode} from '../../types';
+import type {jitCode} from '../../types';
 import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
 import {AtomicRunType} from '../../lib/baseRunTypes';
 import {ReflectionSubKind} from '../../constants.kind';
 
-const jitConstants: JitConfig = {
-    skipJit: false,
-    jitId: ReflectionSubKind.date,
-};
-
 export class DateRunType extends AtomicRunType<TypeClass> {
-    getJitConfig = () => jitConstants;
+    getTypeID = () => ReflectionSubKind.date;
     _compileIsType(comp: JitCompiler): jitCode {
         return `(${comp.vλl} instanceof Date && !isNaN(${comp.vλl}.getTime()))`;
     }

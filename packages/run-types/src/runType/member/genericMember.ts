@@ -29,19 +29,19 @@ export class GenericMemberRunType<T extends SrcMember> extends MemberRunType<T> 
         return false;
     }
     _compileIsType(comp: JitCompiler) {
-        const childCode = this.getJitChild()?.compileIsType(comp);
+        const childCode = this.getJitChild(comp)?.compileIsType(comp);
         if (!childCode) return undefined;
         if (this.isOptional()) return `${comp.getChildVλl()} === undefined || (${childCode})`;
         return childCode;
     }
     _compileTypeErrors(comp: JitErrorsCompiler) {
-        const childCode = this.getJitChild()?.compileTypeErrors(comp);
+        const childCode = this.getJitChild(comp)?.compileTypeErrors(comp);
         if (!childCode) return undefined;
         if (this.isOptional()) return `if (${comp.getChildVλl()} !== undefined) {${childCode}}`;
         return childCode;
     }
     _compileToJsonVal(comp: JitCompiler) {
-        const child = this.getJitChild();
+        const child = this.getJitChild(comp);
         const childCode = child?.compileToJsonVal(comp);
         if (!childCode || !child) return undefined;
         const isExpression = childIsExpression(JitFunctions.toJsonVal.id, child); // expressions must be assigned to a variable
@@ -50,7 +50,7 @@ export class GenericMemberRunType<T extends SrcMember> extends MemberRunType<T> 
         return code;
     }
     _compileFromJsonVal(comp: JitCompiler) {
-        const child = this.getJitChild();
+        const child = this.getJitChild(comp);
         const childCode = child?.compileFromJsonVal(comp);
         if (!childCode || !child) return undefined;
         const isExpression = childIsExpression(JitFunctions.fromJsonVal.id, child);
