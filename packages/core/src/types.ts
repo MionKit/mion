@@ -214,3 +214,4 @@ export type FromJsonValFn = (value: JSONValue) => any;
 export type ToJsonValFn = (value: any) => JSONValue;
 export type TypeErrorsFn = (value: any) => RunTypeError[];
 export type IsTypeFn = (value: any) => boolean;
+export type toCodeFn = (value: any) => string;

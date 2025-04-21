@@ -13,7 +13,7 @@ import {TypeFormat} from '@mionkit/run-types/src/lib/formats.runtype';
 import {registerFormatter} from '@mionkit/run-types/src/lib/formats';
 import {BaseRunTypeFormat} from '@mionkit/run-types/src/lib/baseRunTypeFormat';
 import {ReflectionKind} from '@deepkit/type';
-import {MockOperation} from '@mionkit/run-types/src/types';
+import {RunTypeOptions} from '@mionkit/run-types/src/types';
 import {random} from '@mionkit/run-types/src/mocking/mockUtils';
 import {fpVal} from '@mionkit/run-types/src/lib/utils';
 
@@ -120,7 +120,7 @@ export class NumberRunTypeFormat extends BaseRunTypeFormat<FormatParams_NumberVa
         return undefined;
     }
 
-    _mock(_mockContext: MockOperation, rt: BaseRunType): number {
+    _mock(opts: RunTypeOptions, rt: BaseRunType): number {
         const params = this.getParams(rt);
         let min = params.min !== undefined ? fpVal(params.min) : -99999;
         let max = params.max !== undefined ? fpVal(params.max) : 99999;

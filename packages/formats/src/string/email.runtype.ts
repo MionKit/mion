@@ -7,12 +7,12 @@
  * ######## */
 import type {BaseRunType} from '@mionkit/run-types/src/lib/baseRunTypes';
 import type {JitCompiler, JitErrorsCompiler} from '@mionkit/run-types/src/lib/jitCompiler';
-import type {StrNumber, JitFnID, jitCode, DeepPartial} from '@mionkit/run-types/src/types';
+import type {StrNumber, JitFnID, jitCode} from '@mionkit/run-types/src/types';
 import {BaseRunTypeFormat} from '@mionkit/run-types/src/lib/baseRunTypeFormat';
 import {ReflectionKind} from '@deepkit/type';
 import {DEFAULT_STRICT_DOMAIN_PARAMS, FormatParams_Domain} from './domain.runtype';
 import {TypeFormat} from '@mionkit/run-types/src/lib/formats.runtype';
-import {MockOperation} from '@mionkit/run-types/src/types';
+import {RunTypeOptions} from '@mionkit/run-types/src/types';
 import {StringRunTypeFormat, stringIgnoreProps, FormatParams_StringValidators, Samples} from '../stringFormat.runtype';
 import {DomainRunTypeFormat} from './domain.runtype';
 import {registerFormatter} from '@mionkit/run-types/src/lib/formats';
@@ -125,23 +125,23 @@ export class EmailRunTypeFormat extends BaseRunTypeFormat<FormatParams_Email> {
         `;
         return code;
     }
-    _mock(mockContext: MockOperation, rt: BaseRunType): string {
+    _mock(opts: RunTypeOptions, rt: BaseRunType): string {
         const params = this.getParams(rt);
 
         // If pattern is provided, use the root formatter
-        if (params.pattern) return this.rootFormatter.mock(mockContext, rt, params);
+        if (params.pattern) return this.rootFormatter.mock(opts, rt, params);
 
         // Generate local part
-        const localPart = this.mockLocalPart(mockContext, rt, params.localPart as FormatParams_StringValidators);
+        const localPart = this.mockLocalPart(opts, rt, params.localPart as FormatParams_StringValidators);
 
         // Generate domain
-        const domain = this.domainFormatter.mock(mockContext, rt, params.domain);
+        const domain = this.domainFormatter.mock(opts, rt, params.domain);
 
         // Combine to form email
         return `${localPart}@${domain}`;
     }
 
-    private mockLocalPart(mockContext: MockOperation, rt: BaseRunType, params: FormatParams_StringValidators): string {
+    private mockLocalPart(opts: RunTypeOptions, rt: BaseRunType, params: FormatParams_StringValidators): string {
         const hasParams = !!Object.keys(params).length;
         if (!hasParams) return randomItem(EMAIL_NAME_SAMPLES_ARRAY);
 
@@ -151,7 +151,7 @@ export class EmailRunTypeFormat extends BaseRunTypeFormat<FormatParams_Email> {
             minLength: params.minLength ?? 1,
         };
 
-        return this.localPartFormatter.mock(mockContext, rt, defaultParams);
+        return this.localPartFormatter.mock(opts, rt, defaultParams);
     }
     _compileFormat(comp: JitCompiler): string {
         return `${comp.vλl}.toLowerCase()`;
@@ -243,7 +243,7 @@ export type FormatParams_Email = FormatParams_EmailPattern & {
 };
 
 export type EmailFormat<EP extends FormatParams_Email = DEFAULT_EMAIL_PARAMS> = TypeFormat<string, 'email', EP>;
-export type EmailFormat_Strict<E extends DeepPartial<FormatParams_Email> = {}> = EmailFormat<DEFAULT_STRICT_EMAIL_PARAMS & E>;
+export type EmailFormat_Strict<E extends Partial<FormatParams_Email> = {}> = EmailFormat<DEFAULT_STRICT_EMAIL_PARAMS & E>;
 export type EmailFormat_Pattern<EmailPattern extends RegExp, MockSamples extends Samples> = EmailFormat<
     DEFAULT_EMAIL_PARAMS<EmailPattern, MockSamples>
 >;

@@ -9,8 +9,8 @@ import type {FormatParam} from '@mionkit/core/src/types';
 import type {BaseRunType} from '@mionkit/run-types/src/lib/baseRunTypes';
 import type {JitCompiler, JitErrorsCompiler} from '@mionkit/run-types/src/lib/jitCompiler';
 import {BaseRunTypeFormat} from '@mionkit/run-types/src/lib/baseRunTypeFormat';
-import {DeepPartial, ReflectionKind} from '@deepkit/type';
-import {MockOperation, type jitCode, type JitFnID, type StrNumber} from '@mionkit/run-types/src/types';
+import {ReflectionKind} from '@deepkit/type';
+import {RunTypeOptions, type jitCode, type JitFnID, type StrNumber} from '@mionkit/run-types/src/types';
 import {TypeFormat} from '@mionkit/run-types/src/lib/formats.runtype'; // !Important: TypeFormat cant be imported as type for all runType functionality to work
 import {
     StringRunTypeFormat,
@@ -166,15 +166,15 @@ export class DomainRunTypeFormat extends BaseRunTypeFormat<FormatParams_Domain> 
         `;
         return code;
     }
-    _mock(mockContext: MockOperation, rt: BaseRunType): string {
+    _mock(opts: RunTypeOptions, rt: BaseRunType): string {
         const params = this.getParams(rt);
-        if (params.pattern) return this.rootFormatter.mock(mockContext, rt, params);
+        if (params.pattern) return this.rootFormatter.mock(opts, rt, params);
 
         const maxParts = fpVal(params.maxParts || 6);
         const minParts = fpVal(params.minParts || 2);
         const maxLength = fpVal(params.maxLength || 253);
         const minLength = fpVal(params.minLength || 3);
-        let tld = this.mockTld(mockContext, rt, params.tld as FormatParams_Tld);
+        let tld = this.mockTld(opts, rt, params.tld as FormatParams_Tld);
         const tldParts = tld.split('.');
         // ensure tld is not too long
         while (tldParts.length > 1 && tldParts.length >= maxParts) tldParts.shift();
@@ -189,13 +189,13 @@ export class DomainRunTypeFormat extends BaseRunTypeFormat<FormatParams_Domain> 
         const maxRandomParts = random(minRandom, maxRandom);
         const parts: string[] = [];
 
-        parts.push(this.mockName(mockContext, rt, params.names as FormatParams_DomainName));
+        parts.push(this.mockName(opts, rt, params.names as FormatParams_DomainName));
         let name = parts[0];
         let domain = `${name}.${tld}`;
 
         // keep adding names until we reach maxRandom or maxes are reached
         while ((domain.length < maxLength && parts.length < maxRandomParts) || domain.length < minLength) {
-            parts.push(this.mockName(mockContext, rt, params.names as FormatParams_DomainName));
+            parts.push(this.mockName(opts, rt, params.names as FormatParams_DomainName));
             name = parts.join('.');
             domain = `${name}.${tld}`;
         }
@@ -205,7 +205,7 @@ export class DomainRunTypeFormat extends BaseRunTypeFormat<FormatParams_Domain> 
     private hasNoConstrains(params: FormatParams_String): boolean {
         return !params.allowedChars && !params.disallowedChars && !params.pattern && !params.allowedValues;
     }
-    private mockName(mockContext: MockOperation, rt: BaseRunType, params: FormatParams_DomainName): string {
+    private mockName(opts: RunTypeOptions, rt: BaseRunType, params: FormatParams_DomainName): string {
         const hasParams = !!Object.keys(params).length;
         if (!hasParams) return randomItem(NAME_SAMPLES);
         const defaultParams = {
@@ -217,9 +217,9 @@ export class DomainRunTypeFormat extends BaseRunTypeFormat<FormatParams_Domain> 
             disallowedValues: params.disallowedValues,
             allowedChars: this.hasNoConstrains(params) ? namesAllowedChars : undefined,
         };
-        return this.nameFormatter.mock(mockContext, rt, defaultParams);
+        return this.nameFormatter.mock(opts, rt, defaultParams);
     }
-    private mockTld(mockContext: MockOperation, rt: BaseRunType, params: FormatParams_Tld): string {
+    private mockTld(opts: RunTypeOptions, rt: BaseRunType, params: FormatParams_Tld): string {
         const hasParams = !!Object.keys(params).length;
         if (!hasParams) return randomItem(TLD_SAMPLES);
         const defaultParams = {
@@ -231,12 +231,12 @@ export class DomainRunTypeFormat extends BaseRunTypeFormat<FormatParams_Domain> 
             disallowedValues: params.disallowedValues,
             allowedChars: this.hasNoConstrains(params) ? tldAllowedChars : undefined,
         };
-        return this.tldFormatter.mock(mockContext, rt, defaultParams);
+        return this.tldFormatter.mock(opts, rt, defaultParams);
     }
     _compileFormat(comp: JitCompiler): string {
         return `${comp.vλl}.toLowerCase()`; // all domain are lower case
     }
-    _formatMockedValue(_mockContext: MockOperation, _rt: BaseRunType, val: any): string {
+    _formatMockedValue(opts: RunTypeOptions, _rt: BaseRunType, val: any): string {
         return val.toLowerCase();
     }
     validateParams(rt: BaseRunType, params: FormatParams_Domain) {
@@ -352,4 +352,4 @@ export type FormatParams_Domain = {
 /** Domain based on a pattern */
 export type DomainFormat<D extends FormatParams_Domain = DEFAULT_DOMAIN_PARAMS> = TypeFormat<string, 'domain', D>;
 /** Domain with customizable names and tld */
-export type DomainFormat_Strict<D extends DeepPartial<FormatParams_Domain> = {}> = DomainFormat<DEFAULT_STRICT_DOMAIN_PARAMS & D>;
+export type DomainFormat_Strict<D extends Partial<FormatParams_Domain> = {}> = DomainFormat<DEFAULT_STRICT_DOMAIN_PARAMS & D>;

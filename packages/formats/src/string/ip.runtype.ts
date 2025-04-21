@@ -9,7 +9,7 @@
 import type {JITUtils, GenericPureFunction, TypeFormatError, FormatParam} from '@mionkit/core/src/types';
 import type {BaseRunType} from '@mionkit/run-types/src/lib/baseRunTypes';
 import type {JitCompiler, JitErrorsCompiler} from '@mionkit/run-types/src/lib/jitCompiler';
-import type {MockOperation} from '@mionkit/run-types/src/types';
+import type {RunTypeOptions} from '@mionkit/run-types/src/types';
 import {BaseRunTypeFormat} from '@mionkit/run-types/src/lib/baseRunTypeFormat';
 import {ReflectionKind} from '@deepkit/type';
 import {TypeFormat} from '@mionkit/run-types/src/lib/formats.runtype';
@@ -27,7 +27,7 @@ export class IPRunTypeFormat extends BaseRunTypeFormat<FormatParams_IP> {
         if (params.version === 6) return this.compilePureFunctionCall(comp, rt, isIPV6).callCode;
         return `${this.compilePureFunctionCall(comp, rt, isIPV4).callCode} || ${this.compilePureFunctionCall(comp, rt, isIPV6).callCode}`;
     }
-    _mock(mockContext: MockOperation, rt: BaseRunType) {
+    _mock(opts: RunTypeOptions, rt: BaseRunType) {
         const params = this.getParams(rt);
         if (params.version === 4) return mockIpV4(params);
         if (params.version === 6) return mockIpV6(params);
