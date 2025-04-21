@@ -10,7 +10,7 @@ import type {JitCompiler, JitErrorsCompiler} from '@mionkit/run-types/src/lib/ji
 import {BaseRunTypeFormat} from '@mionkit/run-types/src/lib/baseRunTypeFormat';
 import {ReflectionKind} from '@deepkit/type';
 import {TypeFormat} from '@mionkit/run-types/src/lib/formats.runtype'; // !Important: TypeFormat cant be imported as type for all runType functionality to work
-import {MockOperation} from '@mionkit/run-types/src/types';
+import {RunTypeOptions} from '@mionkit/run-types/src/types';
 import {registerFormatter, registerPureFnClosuresGroup, registerPureFnClosure} from '@mionkit/run-types/src/lib/formats';
 import {fpVal} from '@mionkit/run-types/src/lib/utils';
 
@@ -31,7 +31,7 @@ export class TimeStringRunTypeFormat extends BaseRunTypeFormat<FormatParams_Time
         const errFn = this.getCallJitFormatErr(comp, rt, this);
         return `if (!(${isTypeCode})) ${errFn('format', fpVal(params.format))}`;
     }
-    _mock(mockContext: MockOperation, rt: BaseRunType) {
+    _mock(opts: RunTypeOptions, rt: BaseRunType) {
         const params = this.getParams(rt);
         const hours = String(Math.floor(Math.random() * 24)).padStart(2, '0');
         const minutes = String(Math.floor(Math.random() * 60)).padStart(2, '0');

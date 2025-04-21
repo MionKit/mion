@@ -12,7 +12,7 @@ import {registerFormatter} from '@mionkit/run-types/src/lib/formats';
 import {BaseRunTypeFormat} from '@mionkit/run-types/src/lib/baseRunTypeFormat';
 import {ReflectionKind} from '@deepkit/type';
 import {TypeFormat} from '@mionkit/run-types/src/lib/formats.runtype';
-import {MockOperation, type jitCode, type JitFnID, type StrNumber} from '@mionkit/run-types/src/types';
+import {RunTypeOptions, type jitCode, type JitFnID, type StrNumber} from '@mionkit/run-types/src/types';
 import {StringRunTypeFormat, stringIgnoreProps, FormatParams_String} from '../stringFormat.runtype';
 import {DomainRunTypeFormat, FormatParams_Domain} from './domain.runtype';
 import {CodeType, JitFunctions} from '@mionkit/run-types/src/constants';
@@ -120,16 +120,16 @@ export class URLRunTypeFormat extends BaseRunTypeFormat<FormatParams_Url> {
         `;
         return code;
     }
-    _mock(mockContext: MockOperation, rt: BaseRunType): string {
+    _mock(opts: RunTypeOptions, rt: BaseRunType): string {
         const params = this.getParams(rt);
-        let url = this.urlFormatter.mock(mockContext, rt, params);
+        let url = this.urlFormatter.mock(opts, rt, params);
         const hasProtocol = url.indexOf('://') !== -1;
         if (!hasProtocol) url = randomItem(INTERNET_PROTOCOLS) + url;
         if (params.domain) {
-            const domain = this.domainFormatter.mock(mockContext, rt, params.domain);
+            const domain = this.domainFormatter.mock(opts, rt, params.domain);
             return replaceDomain(url, domain);
         }
-        if (params.ip) return replaceDomain(url, this.ipFormatter.mock(mockContext, rt, params.ip));
+        if (params.ip) return replaceDomain(url, this.ipFormatter.mock(opts, rt, params.ip));
         return url;
     }
     validateParams(rt: BaseRunType, params: FormatParams_Url): void {

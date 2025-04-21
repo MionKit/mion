@@ -13,7 +13,7 @@ import {TypeFormat} from '@mionkit/run-types/src/lib/formats.runtype';
 import {registerFormatter} from '@mionkit/run-types/src/lib/formats';
 import {BaseRunTypeFormat} from '@mionkit/run-types/src/lib/baseRunTypeFormat';
 import {ReflectionKind} from '@deepkit/type';
-import {MockOperation} from '@mionkit/run-types/src/types';
+import {RunTypeOptions} from '@mionkit/run-types/src/types';
 import {random} from '@mionkit/run-types/src/mocking/mockUtils';
 import {fpVal} from '@mionkit/run-types/src/lib/utils';
 
@@ -106,7 +106,7 @@ export class BigIntRunTypeFormat extends BaseRunTypeFormat<FormatParams_BigIntVa
         return undefined;
     }
 
-    _mock(_mockContext: MockOperation, rt: BaseRunType): bigint {
+    _mock(opts: RunTypeOptions, rt: BaseRunType): bigint {
         const params = this.getParams(rt);
         let min = params.min !== undefined ? (fpVal(params.min) as bigint) : -99999n;
         let max = params.max !== undefined ? (fpVal(params.max) as bigint) : 99999n;

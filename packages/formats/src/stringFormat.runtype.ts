@@ -11,7 +11,7 @@ import {TypeFormat} from '@mionkit/run-types/src/lib/formats.runtype'; // !Impor
 import {registerFormatter, getToLiteralFn} from '@mionkit/run-types/src/lib/formats';
 import {BaseRunTypeFormat} from '@mionkit/run-types/src/lib/baseRunTypeFormat';
 import {ReflectionKind} from '@deepkit/type';
-import {MockOperation} from '@mionkit/run-types/src/types';
+import {RunTypeOptions} from '@mionkit/run-types/src/types';
 import {mockString, random, randomItem} from '@mionkit/run-types/src/mocking/mockUtils';
 import {fpVal, regexpEscape} from '@mionkit/run-types/src/lib/utils';
 
@@ -128,7 +128,7 @@ export class StringRunTypeFormat extends BaseRunTypeFormat<FormatParams_String> 
         }
         return conditions.join(';');
     }
-    _mock(mockContext: MockOperation, rt: BaseRunType, params?: FormatParams_String): string {
+    _mock(opts: RunTypeOptions, rt: BaseRunType, params?: FormatParams_String): string {
         const p = params || this.getParams(rt);
         if (p.allowedValues) return randomItem(p.allowedValues.val as string[]);
 

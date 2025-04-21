@@ -10,7 +10,7 @@ import type {JitCompiler, JitErrorsCompiler} from '@mionkit/run-types/src/lib/ji
 import {registerFormatter, registerPureFnClosure} from '@mionkit/run-types/src/lib/formats';
 import {BaseRunTypeFormat} from '@mionkit/run-types/src/lib/baseRunTypeFormat';
 import {ReflectionKind} from '@deepkit/type';
-import {MockOperation} from '@mionkit/run-types/src/types';
+import {RunTypeOptions} from '@mionkit/run-types/src/types';
 import {TypeFormat} from '@mionkit/run-types/src/lib/formats.runtype'; // !Important: TypeFormat cant be imported as type for all runType functionality to work
 import {fpVal} from '@mionkit/run-types/src/lib/utils';
 import {randomUUID_V7} from '@mionkit/core/src/utils';
@@ -32,7 +32,7 @@ export class UUIDRunTypeFormat extends BaseRunTypeFormat<FormatParams_UUID> {
         const errFn = this.getCallJitFormatErr(comp, rt, this);
         return `if (!(${isTypeCode})) ${errFn('version', fpVal(params.version))}`;
     }
-    _mock(mockContext: MockOperation, rt: BaseRunType) {
+    _mock(opts: RunTypeOptions, rt: BaseRunType) {
         const params = this.getParams(rt);
         return params.version === '4' ? crypto.randomUUID() : randomUUID_V7();
     }

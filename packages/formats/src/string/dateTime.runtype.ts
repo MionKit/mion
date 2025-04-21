@@ -8,7 +8,7 @@
 import type {FormatParam} from '@mionkit/core/src/types';
 // !Important: TypeFormat cant be imported as type for the runType functionality to work
 import {TypeFormat} from '@mionkit/run-types/src/lib/formats.runtype';
-import {JitFnID, MockOperation, type jitCode} from '@mionkit/run-types/src/types';
+import {JitFnID, RunTypeOptions, type jitCode} from '@mionkit/run-types/src/types';
 import type {BaseRunType} from '@mionkit/run-types/src/lib/baseRunTypes';
 import type {JitCompiler, JitErrorsCompiler} from '@mionkit/run-types/src/lib/jitCompiler';
 import {BaseRunTypeFormat} from '@mionkit/run-types/src/lib/baseRunTypeFormat';
@@ -93,15 +93,15 @@ export class DateTimeRunTypeFormat extends BaseRunTypeFormat<FormatParams_DateTi
         `;
         return code;
     }
-    _mock(mockContext: MockOperation, rt: BaseRunType): string {
+    _mock(opts: RunTypeOptions, rt: BaseRunType): string {
         const params = this.getParams(rt);
         const splitChar = fpVal(params.splitChar);
 
         // Generate date part
-        const datePart = this.dateFormatter.mock(mockContext, rt, params.date);
+        const datePart = this.dateFormatter.mock(opts, rt, params.date);
 
         // Generate time part
-        const timePart = this.timeFormatter.mock(mockContext, rt, params.time);
+        const timePart = this.timeFormatter.mock(opts, rt, params.time);
 
         // Combine to form datetime
         return `${datePart}${splitChar}${timePart}`;

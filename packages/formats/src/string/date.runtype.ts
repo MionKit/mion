@@ -8,7 +8,7 @@ import type {JITUtils, GenericPureFunction, FormatParam} from '@mionkit/core/src
 import {ReflectionKind} from '@deepkit/type';
 import type {JitCompiler, JitErrorsCompiler} from '@mionkit/run-types/src/lib/jitCompiler';
 import type {BaseRunType} from '@mionkit/run-types/src/lib/baseRunTypes';
-import type {MockOperation} from '@mionkit/run-types/src/types';
+import type {RunTypeOptions} from '@mionkit/run-types/src/types';
 import {BaseRunTypeFormat} from '@mionkit/run-types/src/lib/baseRunTypeFormat';
 import {registerFormatter, registerPureFnClosure} from '@mionkit/run-types/src/lib/formats';
 import {TypeFormat} from '@mionkit/run-types/src/lib/formats.runtype'; // !Important: TypeFormat cant be imported as type for all runType functionality to work
@@ -30,7 +30,7 @@ export class DateStringRunTypeFormat extends BaseRunTypeFormat<FormatParams_Date
         const errFn = this.getCallJitFormatErr(comp, rt, this);
         return `if (!(${isTypeCode})) ${errFn('format', fpVal(params.format))}`;
     }
-    _mock(mockContext: MockOperation, rt: BaseRunType) {
+    _mock(opts: RunTypeOptions, rt: BaseRunType) {
         const params = this.getParams(rt);
         const yy = Math.floor(Math.random() * 10000);
         const mm = Math.floor(Math.random() * 12) + 1;
