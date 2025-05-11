@@ -11,7 +11,7 @@ import {AtomicRunType} from '../../lib/baseRunTypes';
 import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
 
 export class VoidRunType extends AtomicRunType<TypeVoid> {
-    getTypeID = () => ReflectionKind.void;
+    _getTypeID = () => ReflectionKind.void;
     _compileIsType(comp: JitCompiler): jitCode {
         return `${comp.vλl} === undefined`;
     }

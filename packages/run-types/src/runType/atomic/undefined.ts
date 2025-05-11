@@ -11,7 +11,7 @@ import type {jitCode} from '../../types';
 import {AtomicRunType} from '../../lib/baseRunTypes';
 
 export class UndefinedRunType extends AtomicRunType<TypeUndefined> {
-    getTypeID = () => ReflectionKind.undefined;
+    _getTypeID = () => ReflectionKind.undefined;
     _compileIsType(comp: JitCompiler): jitCode {
         return `typeof ${comp.vλl} === 'undefined'`;
     }

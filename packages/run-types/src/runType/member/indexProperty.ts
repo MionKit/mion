@@ -1,6 +1,6 @@
 import {ReflectionKind, TypeIndexSignature} from '@deepkit/type';
 import {MemberRunType} from '../../lib/baseRunTypes';
-import {JitFnID, type jitCode} from '../../types';
+import {JitCompilerOpts, JitFnID, type jitCode} from '../../types';
 import {CodeType, JitFunctions} from '../../constants';
 import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
 import {InterfaceRunType} from '../collection/interface';
@@ -26,7 +26,7 @@ export class IndexSignatureRunType extends MemberRunType<TypeIndexSignature> {
     useArrayAccessor(): true {
         return true;
     }
-    skipJit(comp: JitCompiler): boolean {
+    skipJit(comp: JitCompilerOpts): boolean {
         const index = (this.src as TypeIndexSignature).index?.kind || undefined;
         if (index === ReflectionKind.symbol) {
             return comp?.fnId !== JitFunctions.toCode.id;

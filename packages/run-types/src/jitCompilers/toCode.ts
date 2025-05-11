@@ -19,8 +19,6 @@ export function _compileToCode(runType: BaseRunType, comp: JitCompiler, fnId = J
     const src = runType.src;
     const kind = src.kind;
 
-    console.log('here', kind, fnId);
-
     switch (kind) {
         // ###################### ATOMIC RUNTYPES ######################
         case ReflectionKind.symbol:

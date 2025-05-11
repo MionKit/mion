@@ -11,7 +11,7 @@ import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
 import {AtomicRunType} from '../../lib/baseRunTypes';
 
 export class RegexpRunType extends AtomicRunType<TypeRegexp> {
-    getTypeID = () => ReflectionKind.regexp;
+    _getTypeID = () => ReflectionKind.regexp;
     _compileIsType(comp: JitCompiler): jitCode {
         return `(${comp.vλl} instanceof RegExp)`;
     }

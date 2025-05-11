@@ -6,14 +6,14 @@
  * ######## */
 
 import {ReflectionKind, type TypeSymbol} from '@deepkit/type';
-import type {jitCode} from '../../types';
+import type {jitCode, JitCompilerOpts} from '../../types';
 import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
 import {AtomicRunType} from '../../lib/baseRunTypes';
 import {JitFunctions} from '@mionkit/run-types/src/constants';
 
 export class SymbolRunType extends AtomicRunType<TypeSymbol> {
-    getTypeID = () => ReflectionKind.symbol;
-    skipJit(comp: JitCompiler): boolean {
+    _getTypeID = () => ReflectionKind.symbol;
+    skipJit(comp: JitCompilerOpts): boolean {
         if (!comp) return true;
         return comp.fnId !== JitFunctions.toCode.id;
     }

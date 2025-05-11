@@ -11,7 +11,7 @@ import {JitErrorsCompiler} from '../../lib/jitCompiler';
 import {jitCode} from '../../types';
 
 export class NeverRunType extends AtomicRunType<TypeNever> {
-    getTypeID = () => ReflectionKind.never;
+    _getTypeID = () => ReflectionKind.never;
     _compileIsType(): jitCode {
         return 'false';
     }

@@ -11,7 +11,7 @@ import type {jitCode} from '../../types';
 import {AtomicRunType} from '../../lib/baseRunTypes';
 
 export class BigIntRunType extends AtomicRunType<TypeBigInt> {
-    getTypeID = () => ReflectionKind.bigint;
+    _getTypeID = () => ReflectionKind.bigint;
     _compileIsType(comp: JitCompiler): jitCode {
         return `typeof ${comp.vλl} === 'bigint'`;
     }

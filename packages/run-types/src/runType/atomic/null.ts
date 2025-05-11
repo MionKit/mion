@@ -11,7 +11,7 @@ import type {jitCode} from '../../types';
 import {AtomicRunType} from '../../lib/baseRunTypes';
 
 export class NullRunType extends AtomicRunType<TypeNull> {
-    getTypeID = () => ReflectionKind.null;
+    _getTypeID = () => ReflectionKind.null;
     _compileIsType(comp: JitCompiler): jitCode {
         return `${comp.vλl} === null`;
     }

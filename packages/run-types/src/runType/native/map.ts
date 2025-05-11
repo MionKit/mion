@@ -4,12 +4,11 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
-import type {SrcType} from '../../types';
+import type {JitCompilerOpts, SrcType} from '../../types';
 import {GenericMemberRunType} from '../member/genericMember';
 import {ReflectionSubKind} from '../../constants.kind';
 import {ReflectionKind, TypeClass} from '@deepkit/type';
 import {IterableRunType} from './Iterable';
-import {JitCompiler} from '../../lib/jitCompiler';
 import {JitFunctions} from '../../constants';
 
 export class MapRunType extends IterableRunType {
@@ -34,7 +33,7 @@ export class MapRunType extends IterableRunType {
             subKind: ReflectionSubKind.mapValue,
         });
     }
-    getCustomVλl(comp: JitCompiler) {
+    getCustomVλl(comp: JitCompilerOpts) {
         // fromJsonVal is decoding a regular array so no need to use an special case for vλl as other operations
         if (comp.fnId === JitFunctions.fromJsonVal.id)
             return {vλl: `it${this.getNestLevel()}`, isStandalone: false, useArrayAccessor: true};
@@ -45,7 +44,7 @@ export class MapRunType extends IterableRunType {
 
 class MapKeyRunType extends GenericMemberRunType<any> {
     index = 0;
-    getStaticPathLiteral(comp: JitCompiler): string | number {
+    getStaticPathLiteral(comp: JitCompilerOpts): string | number {
         const parent = this.getParent()! as MapRunType;
         const custom = parent.getCustomVλl(comp)!;
         return `{key:utl.safeKey(${custom.vλl}[0]),index:${parent.getIndexVarName()},failed:'mapKey'}`;
@@ -54,7 +53,7 @@ class MapKeyRunType extends GenericMemberRunType<any> {
 
 class MapValueRunType extends GenericMemberRunType<any> {
     index = 1;
-    getStaticPathLiteral(comp: JitCompiler): string | number {
+    getStaticPathLiteral(comp: JitCompilerOpts): string | number {
         const parent = this.getParent()! as MapRunType;
         const custom = parent.getCustomVλl(comp)!;
         return `{key:utl.safeKey(${custom.vλl}[0]),index:${parent.getIndexVarName()},failed:'mapVal'}`;

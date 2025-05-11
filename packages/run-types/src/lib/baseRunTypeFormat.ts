@@ -37,7 +37,7 @@ export abstract class BaseRunTypeFormat<P extends TypeFormatParams = any> {
     canEmbedFormatterCode(_fnId: JitFnID, rt: BaseRunType, _params?: P): boolean {
         if (rt.src.kind === ReflectionKind.number) return true;
         // getFormatterJitId is similar to convert params to string
-        const paramsToString = rt.getFormatterJitId() || '';
+        const paramsToString = rt.getFormatTypeID() || '';
         // if there are many params, is better to not inline the formatter so the formatter function can be reused
         // in the future we could optimize this logic, to decide if a formatter should be embedded or not
         return paramsToString.length < 300;

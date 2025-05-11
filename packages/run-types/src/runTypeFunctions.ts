@@ -5,7 +5,7 @@ import {RunTypeOptions} from './types';
 import {IsTypeFn} from '@mionkit/core/src/types';
 import {TypeErrorsFn} from '@mionkit/core/src/types';
 import {BaseRunType} from './lib/baseRunTypes';
-import {loadComposableFunction} from './lib/jitFnsRegistry';
+import {loadJitCompilerFunction} from './lib/jitFnsRegistry';
 
 // all these functions are async because they might need to compile the jit function first
 // at the moment they are compiled synchronously, but in the future they might be async
@@ -31,6 +31,6 @@ export async function isStrictTypeFn<T>(type: ReceiveType<T>, opts?: RunTypeOpti
 /** Returns a function that mocks a value of the specified type. */
 export async function mockTypeFn<T>(type?: ReceiveType<T>): Promise<(opts?: Partial<RunTypeOptions>) => T> {
     const rt = runType(type) as BaseRunType;
-    await loadComposableFunction(JitFunctions.mock);
+    await loadJitCompilerFunction(JitFunctions.mock);
     return (opts?: Partial<RunTypeOptions>) => rt.mockType(opts) as T;
 }
