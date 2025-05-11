@@ -15,7 +15,7 @@ import {isSafePropName} from '@mionkit/run-types/src/lib/utils';
 import {_compileJsonStringify} from '@mionkit/run-types/src/jitCompilers/jsonStringify';
 
 /** Centralized compile jit function with a switch statement that handles all node types. */
-export function _compileToCode(runType: BaseRunType, comp: JitCompiler, fnId = JitFunctions.toCode.id): jitCode {
+export function _compileToCode(runType: BaseRunType, comp: JitCompiler, fnID = JitFunctions.toCode.id): jitCode {
     const src = runType.src;
     const kind = src.kind;
 
@@ -32,7 +32,7 @@ export function _compileToCode(runType: BaseRunType, comp: JitCompiler, fnId = J
             const safeName = isSafe ? name : JSON.stringify(name);
             const accessorCode: string = isSafe ? `.${safeName}` : `[${safeName}]`;
             if (runType.src.subKind === ReflectionSubKind.params) {
-                const paramsCode = _compileJsonStringify(runType, comp, fnId);
+                const paramsCode = _compileJsonStringify(runType, comp, fnID);
                 return `'${safeName}:'+${paramsCode}`;
             } else {
                 const fnCode = `${comp.vλl}${accessorCode}.toString()`;
@@ -43,13 +43,13 @@ export function _compileToCode(runType: BaseRunType, comp: JitCompiler, fnId = J
         case ReflectionKind.method:
         case ReflectionKind.callSignature:
             if (runType.src.subKind === ReflectionSubKind.params) {
-                return _compileJsonStringify(runType, comp, fnId);
+                return _compileJsonStringify(runType, comp, fnID);
             } else {
                 return `${comp.vλl}.toString()`;
             }
         // ###################### COLLECTION RUNTYPES ######################
         case ReflectionKind.class: {
-            const result = _compileJsonStringify(runType, comp, fnId);
+            const result = _compileJsonStringify(runType, comp, fnID);
             switch (runType.src.subKind) {
                 case ReflectionSubKind.date:
                     return `'new Date('+${result}+')'`;
@@ -69,6 +69,6 @@ export function _compileToCode(runType: BaseRunType, comp: JitCompiler, fnId = J
         }
 
         default:
-            return _compileJsonStringify(runType, comp, fnId);
+            return _compileJsonStringify(runType, comp, fnID);
     }
 }

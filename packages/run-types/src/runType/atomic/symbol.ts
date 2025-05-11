@@ -15,7 +15,7 @@ export class SymbolRunType extends AtomicRunType<TypeSymbol> {
     _getTypeID = () => ReflectionKind.symbol;
     skipJit(comp: JitCompilerOpts): boolean {
         if (!comp) return true;
-        return comp.fnId !== JitFunctions.toCode.id;
+        return comp.fnID !== JitFunctions.toCode.id;
     }
     _compileIsType(comp: JitCompiler): jitCode {
         return `typeof ${comp.vλl} === 'symbol'`;

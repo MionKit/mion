@@ -14,7 +14,7 @@ import {BaseRunType} from './baseRunTypes';
 import {getCompiledPureFn, getPureFn, registerPureFnClosuresGroup, registerPureFnClosure, registerFormatter} from './formats';
 import {TypeFormat} from './formats.runtype';
 
-it('TypeFormat should have a different jit id', async () => {
+it('TypeFormat should have a different type id', async () => {
     type Max5 = TypeFormat<string, 'max5', {maxLength: 5}>;
     class Max5Formatter extends BaseRunTypeFormat<any> {
         kind = ReflectionKind.string;
@@ -27,11 +27,11 @@ it('TypeFormat should have a different jit id', async () => {
     registerFormatter(new Max5Formatter());
     const rtMax5 = runType<Max5>() as BaseRunType;
     const rt = runType<string>() as BaseRunType;
-    expect(rtMax5.getJitId()).toBe('5<{maxLength:5}>');
-    expect(rt.getJitId()).toBe(5);
+    expect(rtMax5.getTypeID()).toBe('5<{maxLength:5}>');
+    expect(rt.getTypeID()).toBe(5);
 });
 
-it('Type should have a different jit id if format is not in root Type', async () => {
+it('Type should have a different type id if format is not in root Type', async () => {
     type Max5 = TypeFormat<string, 'max5', {maxLength: 5}>;
     class Max5Formatter extends BaseRunTypeFormat<any> {
         kind = ReflectionKind.string;
@@ -44,12 +44,12 @@ it('Type should have a different jit id if format is not in root Type', async ()
     registerFormatter(new Max5Formatter());
     const rtMax5List = runType<Max5[]>() as BaseRunType; // root type is array
     const rtList = runType<string[]>() as BaseRunType; // root type is array
-    expect(rtMax5List.getJitId()).toBe('25:5<{maxLength:5}>');
-    expect(rtList.getJitId()).toBe('25:5');
+    expect(rtMax5List.getTypeID()).toBe('25:5<{maxLength:5}>');
+    expect(rtList.getTypeID()).toBe('25:5');
     const rtMaxObj = runType<{a: Max5}>();
     const rtObj = runType<{a: string}>();
-    expect(rtMaxObj.getJitId()).toBe('30{a:5<{maxLength:5}>}');
-    expect(rtObj.getJitId()).toBe('30{a:5}');
+    expect(rtMaxObj.getTypeID()).toBe('30{a:5<{maxLength:5}>}');
+    expect(rtObj.getTypeID()).toBe('30{a:5}');
 });
 
 it('register and get pure function', async () => {

@@ -70,11 +70,11 @@ export function isClass(cls: AnyClass | any): cls is AnyClass {
 export function isSameJitType(a: RunType, b: RunType): boolean {
     if (a === b) return true;
     if (a.src.kind !== b.src.kind) return false;
-    return a.getJitId() === b.getJitId();
+    return a.getTypeID() === b.getTypeID();
 }
 
 export function isSameJitCompiler(a: JitCompiler, b: JitCompiler): boolean {
-    return a.fnId === b.fnId && isSameJitType(a.rootType, b.rootType);
+    return a.fnID === b.fnID && isSameJitType(a.rootType, b.rootType);
 }
 
 export function memorize<Fn extends (...args: any[]) => any>(fn: Fn): Fn {
@@ -122,8 +122,8 @@ export function getParamIndex(src: TypeParameter | TypeTupleMember): number {
     return 0;
 }
 
-export function childIsExpression(fnId: JitFnID, child: BaseRunType): boolean {
-    return child.getCodeType(fnId) === 'E' || !child.isJitInlined();
+export function childIsExpression(fnID: JitFnID, child: BaseRunType): boolean {
+    return child.getCodeType(fnID) === 'E' || !child.isJitInlined();
 }
 
 /**

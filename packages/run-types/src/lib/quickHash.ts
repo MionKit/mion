@@ -48,17 +48,17 @@ export function createUniqueHash(id: string, length = hashDefaultLength, isLiter
         const newId = quickHash(id, length, hash);
         if (process.env.DEBUG_JIT)
             console.warn(
-                `Collision for jitId: ${id} with extended hash: ${newId}, and existing jitId: ${existing} with hash: ${hash}`
+                `Collision for typeID: ${id} with extended hash: ${newId}, and existing typeID: ${existing} with hash: ${hash}`
             );
         hash = newId;
         counter++;
         existing = hashDict.get(hash);
-        if (counter > maxHashCollisions) throw new Error(`Cannot generate unique hash for jitId: ${id} too many collisions.`);
+        if (counter > maxHashCollisions) throw new Error(`Cannot generate unique hash for typeID: ${id} too many collisions.`);
     }
 
     // Store the unique ID with its original input string
     hashDict.set(hash, id);
-    // console.log(`Jit ID: ${jitId} with hash: ${id}`);
+    // console.log(`Jit ID: ${typeID} with hash: ${id}`);
     return hash;
 }
 

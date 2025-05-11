@@ -44,7 +44,7 @@ export class UnionInterfaceRunType extends InterfaceRunType<anySrcInterface> {
         const existingProp = this.mergedProperties.get(name);
         if (!existingProp) {
             this.mergedProperties.set(name, prop);
-        } else if (existingProp.getJitId() === prop.getJitId()) {
+        } else if (existingProp.getTypeID() === prop.getTypeID()) {
             this.mergedProperties.set(name, existingProp);
         } else if (existingProp.src.isMergedProp) {
             const mergedUnion: TypeUnion = existingProp.src.type;

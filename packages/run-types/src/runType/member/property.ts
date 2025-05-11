@@ -22,7 +22,7 @@ export class PropertyRunType extends MemberRunType<TypePropertySignature | TypeP
     skipJit(comp: JitCompilerOpts): boolean {
         const name = (this.src as TypeProperty).name;
         if (typeof name === 'symbol') {
-            return comp?.fnId !== JitFunctions.toCode.id;
+            return comp?.fnID !== JitFunctions.toCode.id;
         }
         return false;
     }

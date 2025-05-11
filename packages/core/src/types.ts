@@ -71,7 +71,7 @@ export interface RunTypeError {
     /** the type of the expected data */
     expected: string;
     format?: TypeFormatError;
-    // typeName?: string; // tyeName can not be included as two types could Have the same jitId and different names
+    // typeName?: string; // tyeName can not be included as two types could Have the same typeID and different names
 }
 
 // ###########################################  Others ##########################################
@@ -169,7 +169,7 @@ export type JitFnArgs = {
 
 export interface JitCompiledFnMeta {
     /** The id of the function (operation) to be compiled (isType, typeErrors, toJsonVal, fromJsonVal, etc) */
-    readonly fnId: string;
+    readonly fnID: string;
     /** Unique id of the function */
     readonly jitFnHash: string;
     readonly args: JitFnArgs;

@@ -70,9 +70,9 @@ export const JitFunctions = {
 export const jitFunctionList = Object.values(JitFunctions);
 export const jitFunctionsById = Object.fromEntries(jitFunctionList.map((f) => [f.id, f]));
 
-export function getCodeType(fnId: JitFnID): CodeType {
-    const fnConfig = jitFunctionsById[fnId];
-    if (fnConfig === undefined) throw new Error(`Unknown jit function id: ${fnId}`);
+export function getCodeType(fnID: JitFnID): CodeType {
+    const fnConfig = jitFunctionsById[fnID];
+    if (fnConfig === undefined) throw new Error(`Unknown jit function id: ${fnID}`);
     return fnConfig.type;
 }
 
