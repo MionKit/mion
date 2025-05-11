@@ -13,6 +13,7 @@ import {JitFunctions} from '@mionkit/run-types/src/constants';
 import {JitCompiler} from '@mionkit/run-types/src/lib/jitCompiler';
 import {isSafePropName} from '@mionkit/run-types/src/lib/utils';
 import {_compileJsonStringify} from '@mionkit/run-types/src/jitCompilers/jsonStringify';
+import type {MethodSignatureRunType} from '@mionkit/run-types/src/runType/member/methodSignature';
 
 /** Centralized compile jit function with a switch statement that handles all node types. */
 export function _compileToCode(runType: BaseRunType, comp: JitCompiler, fnID = JitFunctions.toCode.id): jitCode {
@@ -25,18 +26,20 @@ export function _compileToCode(runType: BaseRunType, comp: JitCompiler, fnID = J
             return `'Symbol('+'"'+${comp.vλl}.description+'"'+')'`;
         // ###################### MEMBER RUNTYPES ######################
         case ReflectionKind.methodSignature: {
+            const rt = runType as MethodSignatureRunType;
             const srcMS = src as TypeMethodSignature;
             const accessor = srcMS.name;
             const name = String(accessor);
             const isSafe = isSafePropName(accessor);
             const safeName = isSafe ? name : JSON.stringify(name);
             const accessorCode: string = isSafe ? `.${safeName}` : `[${safeName}]`;
-            if (runType.src.subKind === ReflectionSubKind.params) {
-                const paramsCode = _compileJsonStringify(runType, comp, fnID);
-                return `'${safeName}:'+${paramsCode}`;
+            const sep = rt.skipCommas ? '' : '+","';
+            if (rt.src.subKind === ReflectionSubKind.params) {
+                const paramsCode = _compileJsonStringify(rt, comp, fnID);
+                return `'${safeName}:'+${paramsCode}${sep}`;
             } else {
                 const fnCode = `${comp.vλl}${accessorCode}.toString()`;
-                return `'${safeName}:'+${fnCode}`;
+                return `'${safeName}:'+${fnCode}${sep}`;
             }
         }
         case ReflectionKind.function:

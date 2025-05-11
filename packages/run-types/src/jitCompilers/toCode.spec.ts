@@ -83,18 +83,16 @@ it('toCode should handle complex objects similar to jsonStringify', () => {
     expect(parsedObj.date).toEqual(testDate);
 });
 
-const x = {arrowFn: (x) => x * 2};
-
 it('toCode should handle arrow functions', () => {
     // Create a type with an arrow function
-    type TestType = {arrowFn: (x: number) => number};
+    const arrowFnObj = {arrowFn: (x): number => x * 2};
+    type TestType = typeof arrowFnObj;
     const rt = runType<TestType>();
     const toCode = rt.createJitFunction(JitFunctions.toCode);
     // Create an object with an arrow function
     const testObj: TestType = {arrowFn: (x) => x * 2};
     // Get the code representation
     const code = toCode(testObj);
-    console.log(code);
     // Parse the code back to an object
     const parsedObj = eval(`(${code})`);
     // Verify the function was properly transformed to code

@@ -29,7 +29,16 @@ export class FunctionRunType<CallType extends AnyFunction = TypeFunction> extend
         // todo the deepkit type is a
         this.parameterRunTypes.onCreated({...deepkitType, subKind: ReflectionSubKind.params});
     }
-    _getTypeID = () => ReflectionKind.function;
+    _getTypeID() {
+        // Only include the name if this function is a property in an object/interface/class
+        // We can check the parent to determine this
+        const parent = this.src.parent;
+        const name = (this.src as TypeFunction)?.name;
+        if (name && parent && (parent.kind === ReflectionKind.objectLiteral || parent.kind === ReflectionKind.class)) {
+            return `${ReflectionKind.function}${String(name)}`;
+        }
+        return ReflectionKind.function;
+    }
     getFamily(): 'F' {
         return 'F';
     }
