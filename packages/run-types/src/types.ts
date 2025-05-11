@@ -31,8 +31,8 @@ export interface RunType {
     mock: (options?: DeepPartial<RunTypeOptions>) => Promise<any>;
 
     // ######## JIT functions ########
-    /** Returns a unique id for the type. it can be a long string similar to the typescript type itself */
-    getJitId(): StrNumber;
+    /** Returns a unique id for the type. it can be a long string similar to the typescript type itself but as shorter as possible */
+    getTypeID(): StrNumber;
     getJitHash: () => string;
     createJitFunction(jitFn: JitFn, opts?: RunTypeOptions): (...args: any[]) => any;
 }
@@ -46,8 +46,8 @@ export type SrcCollection = Type & {types: Type[]};
 export type SrcMember = Type & {type: Type};
 
 export interface JitCompilerOpts {
-    readonly fnId: string;
-    readonly jitId: StrNumber;
+    readonly fnID: string;
+    readonly typeID: StrNumber;
     readonly jitFnHash: string;
     readonly opts: RunTypeOptions;
 }
@@ -141,7 +141,7 @@ export interface MockOptions {
 export interface MockOperation extends MockOptions {
     /** Used for mocking object with circular references */
     stack: RunType[];
-    fnId: JitFnID;
+    fnID: JitFnID;
 }
 
 export type DKAnnotation = {

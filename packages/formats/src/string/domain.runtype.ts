@@ -67,26 +67,26 @@ export class DomainRunTypeFormat extends BaseRunTypeFormat<FormatParams_Domain> 
         this.nameFormatter = new StringRunTypeFormat(namePath);
         this.tldFormatter = new StringRunTypeFormat(tldPath);
     }
-    getCodeType(fnId: JitFnID, rt: BaseRunType, p?: FormatParams_Domain): CodeType {
+    getCodeType(fnID: JitFnID, rt: BaseRunType, p?: FormatParams_Domain): CodeType {
         const params = p || this.getParams(rt);
-        if (fnId === JitFunctions.isType.id) return params.pattern ? 'E' : 'S';
-        return super.getCodeType(fnId, rt, params);
+        if (fnID === JitFunctions.isType.id) return params.pattern ? 'E' : 'S';
+        return super.getCodeType(fnID, rt, params);
     }
-    canEmbedFormatterCode(fnId: JitFnID, rt: BaseRunType, p?: FormatParams_Domain): boolean {
+    canEmbedFormatterCode(fnID: JitFnID, rt: BaseRunType, p?: FormatParams_Domain): boolean {
         const params = p || this.getParams(rt);
-        if (fnId === JitFunctions.isType.id || fnId === JitFunctions.typeErrors.id)
-            return super.canEmbedFormatterCode(fnId, rt) && !!params.pattern;
-        return super.canEmbedFormatterCode(fnId, rt);
+        if (fnID === JitFunctions.isType.id || fnID === JitFunctions.typeErrors.id)
+            return super.canEmbedFormatterCode(fnID, rt) && !!params.pattern;
+        return super.canEmbedFormatterCode(fnID, rt);
     }
     getIgnoredProps(): string[] | undefined {
         return stringIgnoreProps;
     }
     _compileIsType(comp: JitCompiler, rt: BaseRunType): jitCode {
         const params = this.getParams(rt);
-        const fnId = comp.fnId;
+        const fnID = comp.fnID;
         const fmtName = this.getFormatName();
 
-        if (params.pattern) return this.rootFormatter._compile(fnId, comp, rt, params, comp.vλl, fmtName);
+        if (params.pattern) return this.rootFormatter._compile(fnID, comp, rt, params, comp.vλl, fmtName);
 
         const vλl = comp.vλl;
         const vName = 'name' + this.getNestLevel(); // must match var name in code
@@ -95,9 +95,9 @@ export class DomainRunTypeFormat extends BaseRunTypeFormat<FormatParams_Domain> 
         const vStart = 'start' + this.getNestLevel(); // must match var name in code
         const vPos = 'pos' + this.getNestLevel(); // must match var name in code
 
-        const rootCode = this.rootFormatter._compile(fnId, comp, rt, params, vλl, fmtName);
-        const nameCode = this.nameFormatter._compile(fnId, comp, rt, params.names, vName, fmtName);
-        const tldCode = this.tldFormatter._compile(fnId, comp, rt, params.tld, vTld, fmtName);
+        const rootCode = this.rootFormatter._compile(fnID, comp, rt, params, vλl, fmtName);
+        const nameCode = this.nameFormatter._compile(fnID, comp, rt, params.names, vName, fmtName);
+        const tldCode = this.tldFormatter._compile(fnID, comp, rt, params.tld, vTld, fmtName);
         const maxPartsCode = params.maxParts ? `if (${vCount} > ${params.maxParts}) return false;` : '';
         const minPartsCode = params.minParts ? `if (${vCount} < ${params.minParts}) return false;` : '';
         // if rootCode is empty, we don't need to emit jit code for it
@@ -124,10 +124,10 @@ export class DomainRunTypeFormat extends BaseRunTypeFormat<FormatParams_Domain> 
     }
     _compileTypeErrors(comp: JitErrorsCompiler, rt: BaseRunType): jitCode {
         const params = this.getParams(rt);
-        const fnId = comp.fnId;
+        const fnID = comp.fnID;
         const fmtName = this.getFormatName();
 
-        if (params.pattern) return this.rootFormatter._compile(fnId, comp, rt, params, comp.vλl, fmtName);
+        if (params.pattern) return this.rootFormatter._compile(fnID, comp, rt, params, comp.vλl, fmtName);
 
         const errFn = this.getCallJitFormatErr(comp, rt, this, true);
         const vλl = comp.vλl;
@@ -137,9 +137,9 @@ export class DomainRunTypeFormat extends BaseRunTypeFormat<FormatParams_Domain> 
         const vStart = 'start' + this.getNestLevel(); // must match var name in code
         const vPos = 'pos' + this.getNestLevel(); // must match var name in code
 
-        const rootCode = this.rootFormatter._compile(fnId, comp, rt, params, vλl, fmtName);
-        const nameCode = this.nameFormatter._compile(fnId, comp, rt, params.names, vName, fmtName, vCount);
-        const tldCode = this.tldFormatter._compile(fnId, comp, rt, params.tld, vTld, fmtName);
+        const rootCode = this.rootFormatter._compile(fnID, comp, rt, params, vλl, fmtName);
+        const nameCode = this.nameFormatter._compile(fnID, comp, rt, params.names, vName, fmtName, vCount);
+        const tldCode = this.tldFormatter._compile(fnID, comp, rt, params.tld, vTld, fmtName);
         const maxPartsCode = params.maxParts
             ? `if (${vCount} > ${params.maxParts}) ${errFn('maxParts', fpVal(params.maxParts))};`
             : '';

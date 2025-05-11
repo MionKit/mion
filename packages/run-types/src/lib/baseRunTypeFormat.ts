@@ -26,8 +26,8 @@ export abstract class BaseRunTypeFormat<P extends TypeFormatParams = any> {
     abstract kind: ReflectionKind;
     abstract name: string;
     rootFormatName: string = '';
-    getCodeType(fnId: JitFnID, _rt: BaseRunType, _params?: P): CodeType {
-        return getCodeType(fnId);
+    getCodeType(fnID: JitFnID, _rt: BaseRunType, _params?: P): CodeType {
+        return getCodeType(fnID);
     }
     /**
      * The jit code for the formatter can be embedded together with the jit code for the type itself.
@@ -109,7 +109,7 @@ export abstract class BaseRunTypeFormat<P extends TypeFormatParams = any> {
     }
 
     createJitCompiledFormatter(
-        fnId: JitFnID,
+        fnID: JitFnID,
         rt: BaseRunType,
         comp?: JitCompiler,
         params?: P,
@@ -120,7 +120,7 @@ export abstract class BaseRunTypeFormat<P extends TypeFormatParams = any> {
         const hash = getFormatterHash(rt);
         // created function will be an aux function prefixed with the original function id
         // this is because the new jit function itself is a standalone function  and we don't want it colliding with any other jit function
-        const jitFnHash = `${JitFunctions.aux.id}_${fnId}_${hash}`;
+        const jitFnHash = `${JitFunctions.aux.id}_${fnID}_${hash}`;
         const jitCompiled = jitUtils.getJIT(jitFnHash);
         if (jitCompiled) {
             if (process.env.DEBUG_JIT === 'VERBOSE')
@@ -129,10 +129,10 @@ export abstract class BaseRunTypeFormat<P extends TypeFormatParams = any> {
             return jitCompiled;
         }
         // TODO: decide if we should add parent compiler or not as parent to createJitCompiler
-        const newJitCompiler: JitCompiler = createJitCompiler(rt, fnId, undefined, jitFnHash, hash, opts) as JitCompiler;
+        const newJitCompiler: JitCompiler = createJitCompiler(rt, fnID, undefined, jitFnHash, hash, opts) as JitCompiler;
         try {
-            const formatterCode = this._compile(fnId, newJitCompiler, rt, params, vλl, formatName);
-            const withReturn = this.handleReturnValues(rt, newJitCompiler, fnId, formatterCode || '');
+            const formatterCode = this._compile(fnID, newJitCompiler, rt, params, vλl, formatName);
+            const withReturn = this.handleReturnValues(rt, newJitCompiler, fnID, formatterCode || '');
             newJitCompiler.compile(withReturn);
             comp?.updateDependencies(newJitCompiler as JitCompiledFn);
         } catch (e) {
@@ -146,7 +146,7 @@ export abstract class BaseRunTypeFormat<P extends TypeFormatParams = any> {
     }
 
     _compile(
-        fnId: JitFnID,
+        fnID: JitFnID,
         comp: JitCompiler,
         rt: BaseRunType,
         params?: P,
@@ -161,7 +161,7 @@ export abstract class BaseRunTypeFormat<P extends TypeFormatParams = any> {
         this.rootFormatName = formatName || this.name;
         this.pushContext(params);
         let result: jitCode;
-        switch (fnId) {
+        switch (fnID) {
             case JitFunctions.isType.id:
                 result = this._compileIsType(comp, rt);
                 break;
@@ -172,7 +172,7 @@ export abstract class BaseRunTypeFormat<P extends TypeFormatParams = any> {
                 result = this._compileFormat ? this._compileFormat(comp, rt) : undefined;
                 break;
             default:
-                throw new Error(`Method not implemented: ${fnId}`);
+                throw new Error(`Method not implemented: ${fnID}`);
         }
         this.popContext();
         this.rootFormatName = this.name;

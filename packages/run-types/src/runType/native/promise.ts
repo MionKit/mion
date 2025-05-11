@@ -14,7 +14,7 @@ export class PromiseRunType extends MemberRunType<TypePromise> {
         return ReflectionKind.promise;
     }
     skipJit(comp: JitCompilerOpts): boolean {
-        return comp?.fnId !== JitFunctions.toCode.id;
+        return comp?.fnID !== JitFunctions.toCode.id;
     }
     _compileIsType(): jitCode {
         throw new Error(`Jit compilation disabled for Non Serializable types.`);

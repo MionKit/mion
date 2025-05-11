@@ -69,7 +69,7 @@ export function isCallSignatureRunType(rt: RunType): rt is CallSignatureRunType 
 }
 
 export function isDateRunType(rt: RunType): rt is DateRunType {
-    return rt.getJitId() === ReflectionSubKind.date;
+    return rt.getTypeID() === ReflectionSubKind.date;
 }
 
 export function isEnumRunType(rt: RunType): rt is EnumRunType {
@@ -208,11 +208,11 @@ export function isMemberRunType(rt: RunType): rt is MemberRunType<any> {
 }
 
 export function isRunType(value: any): value is RunType {
-    return typeof value?.src?.kind === 'number' && typeof value?.getJitId === 'function';
+    return typeof value?.src?.kind === 'number' && typeof value?.getTypeID === 'function';
 }
 
 export function isJitErrorsCompiler(value: BaseCompiler): value is JitErrorsCompiler {
-    return value.fnId === JitFunctions.typeErrors.id || value.fnId === JitFunctions.unknownKeyErrors.id;
+    return value.fnID === JitFunctions.typeErrors.id || value.fnID === JitFunctions.unknownKeyErrors.id;
 }
 
 export function isNonSerializableClass(src: TypeClass): boolean {

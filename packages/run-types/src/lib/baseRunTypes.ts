@@ -62,15 +62,12 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
         if (!formatter) return;
         return `<${typeParamsToString(formatter.getParams(this), defaultIgnoreFormatProps)}>`;
     });
-    getTypeID(stack: BaseRunType[] = []) {
+    getTypeID(stack: BaseRunType[] = []): StrNumber {
         const formatID = this.getFormatTypeID();
         if (!formatID) return this._getTypeID(stack);
         return this._getTypeID(stack) + formatID;
     }
-    getJitId = (): string | number => {
-        return this.getTypeID();
-    };
-    getJitHash = memorize((): string => createUniqueHash(this.getJitId().toString()));
+    getJitHash = memorize((): string => createUniqueHash(this.getTypeID().toString()));
     getParent = (): BaseRunType | undefined => (this.src.parent as SrcType)?._rt as BaseRunType;
     getNestLevel = memorize((): number => {
         if (this.isCircular) return 0; // circular references start a new context
@@ -79,20 +76,20 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
         return parent.getNestLevel() + 1;
     });
     getCircularTypeID(stack: RunType[] = []): StrNumber | undefined {
-        const inStackIndex = stack.findIndex((rt) => rt === this); // cant use isSameJitType because it uses getJitId and would loop forever
+        const inStackIndex = stack.findIndex((rt) => rt === this); // cant use isSameJitType because it uses getTypeID and would loop forever
         const isInStack = inStackIndex >= 0; // recursive reference
         if (isInStack) {
             this.isCircular = true;
             const name = this.src.typeName || ''; // todo: not sure if all the circular references will have a name
-            return '$' + this.src.kind + `_${inStackIndex}` + name; // ensures different circular types have different jitId
+            return '$' + this.src.kind + `_${inStackIndex}` + name; // ensures different circular types have different typeID
         }
     }
     /** Code Type flag
      * Any child with different settings should override these methods
      * these flags are used to determine if the compiled code should be wrapped in a self invoking function or not
      * or if the compiled code should contain a return statement or not */
-    getCodeType(fnId: JitFnID): CodeType {
-        return getCodeType(fnId);
+    getCodeType(fnID: JitFnID): CodeType {
+        return getCodeType(fnID);
     }
     /**
      * Method that should be called Immediately after the RunType gets created to link the SrcType and RunType.
@@ -128,13 +125,13 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
     /** synchronous version of mock, throws an error if the mock function has not been loaded */
     mockType(opts: DeepPartial<RunTypeOptions> = {}): any {
         const mockFn = getJitCompilerFunction(JitFunctions.mock) as typeof mock;
-        const fnId = JitFunctions.mock.id;
+        const fnID = JitFunctions.mock.id;
         // options sent to the compiler will be set to empty as mock options are handled separately from the compiler
         const mockingOpts = {...opts, mock: {...defaultMockOptions, ...(opts.mock || {})}} as RunTypeOptions;
-        const hash = getJITFnHash(fnId, this, mockingOpts);
+        const hash = getJITFnHash(fnID, this, mockingOpts);
         const comp: JitCompilerOpts = {
-            fnId,
-            jitId: this.getJitId(),
+            fnID,
+            typeID: this.getTypeID(),
             jitFnHash: hash,
             opts: mockingOpts,
         };
@@ -147,16 +144,16 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
         return this.createJitCompiledFunction(jitFn.id, undefined, opts).fn;
     };
 
-    createJitCompiledFunction(fnId: JitFnID, parentCop?: JitCompiler, opts: RunTypeOptions = {}): JitCompiledFn {
-        const jitCompiled = jitUtils.getJIT(getJITFnHash(fnId, this, opts));
+    createJitCompiledFunction(fnID: JitFnID, parentCop?: JitCompiler, opts: RunTypeOptions = {}): JitCompiledFn {
+        const jitCompiled = jitUtils.getJIT(getJITFnHash(fnID, this, opts));
         if (jitCompiled) {
             if (process.env.DEBUG_JIT === 'VERBOSE')
                 console.log(`\x1b[32m Using cached function: ${jitCompiled.jitFnHash} \x1b[0m`);
             return jitCompiled;
         }
-        const newJitCompiler: JitCompiler = createJitCompiler(this, fnId, parentCop, undefined, undefined, opts) as JitCompiler;
+        const newJitCompiler: JitCompiler = createJitCompiler(this, fnID, parentCop, undefined, undefined, opts) as JitCompiler;
         try {
-            this.compile(newJitCompiler, fnId);
+            this.compile(newJitCompiler, fnID);
         } catch (e) {
             // if something goes wrong during compilation we want to remove the compiler from
             // the cache as this is automatically added to jitUtils cache during compilation
@@ -211,24 +208,24 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
      * Note current JitCompiler operation might be different from the passed operation id.
      * ie: typeErrors might want to compile isType to generate the part of the code that checks for the type.
      * @param comp current jit compiler operation
-     * @param fnId operation id
+     * @param fnID operation id
      * @returns
      */
-    compile(comp: JitCompiler, fnId: JitFnID): jitCode {
+    compile(comp: JitCompiler, fnID: JitFnID): jitCode {
         let code: jitCode;
         comp.pushStack(this);
         if (comp.shouldCallDependency()) {
-            const compiledOp = this.createJitCompiledFunction(fnId, comp, comp.opts);
+            const compiledOp = this.createJitCompiledFunction(fnID, comp, comp.opts);
             code = this.callDependency(comp, compiledOp);
             comp.updateDependencies(compiledOp);
         } else {
             // prettier-ignore
-            switch (fnId) {
+            switch (fnID) {
                 case JitFunctions.isType.id:
-                    code = this.compileFormatter(comp, fnId, ' && ', this._compileIsType(comp));
+                    code = this.compileFormatter(comp, fnID, ' && ', this._compileIsType(comp));
                     break;
                 case JitFunctions.typeErrors.id:
-                    code = this.compileFormatter(comp, fnId, ';', this._compileTypeErrors(comp as JitErrorsCompiler));
+                    code = this.compileFormatter(comp, fnID, ';', this._compileTypeErrors(comp as JitErrorsCompiler));
                     break;
                 case JitFunctions.toJsonVal.id:
                     code = this._compileToJsonVal(comp);
@@ -248,34 +245,34 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
                 case JitFunctions.unknownKeysToUndefined.id: code = this._compileUnknownKeysToUndefined(comp); break;
                 case JitFunctions.format.id:  break;
                 default:
-                    throw new Error(`Unknown compile operation: ${fnId}`);
+                    throw new Error(`Unknown compile operation: ${fnID}`);
             }
-            if (code) code = this.handleReturnValues(comp, fnId, code);
+            if (code) code = this.handleReturnValues(comp, fnID, code);
         }
         comp.popStack(code);
         return code;
     }
 
-    private compileFormatter(comp: JitCompiler, fnId: JitFnID, separator: string, code?: string): jitCode {
+    private compileFormatter(comp: JitCompiler, fnID: JitFnID, separator: string, code?: string): jitCode {
         const typeFormatters = getTypeFormats(this);
         if (!typeFormatters.length) return code;
         const formattersCode = typeFormatters
             .map((f) => {
                 // Check if the formatter code can be embedded AND is compatible with the function ID
-                const canEmbed = f.canEmbedFormatterCode(fnId, this);
-                const codeType = f.getCodeType(fnId, this);
+                const canEmbed = f.canEmbedFormatterCode(fnID, this);
+                const codeType = f.getCodeType(fnID, this);
                 const codeHasReturn = codeType === 'RB';
 
                 // For isType and similar functions that are expressions, we need to ensure
                 // the formatter code is also an expression or has a return statement
-                const isCompatible = this.getCodeType(fnId) === codeType;
+                const isCompatible = this.getCodeType(fnID) === codeType;
 
                 if (canEmbed && isCompatible && !codeHasReturn) {
-                    return f._compile(fnId, comp, this);
+                    return f._compile(fnID, comp, this);
                 }
 
                 // Otherwise, create a separate function
-                const compiled = f.createJitCompiledFormatter(fnId, this, comp, undefined, undefined, undefined, comp.opts);
+                const compiled = f.createJitCompiledFormatter(fnID, this, comp, undefined, undefined, undefined, comp.opts);
                 if (compiled.isNoop) return;
                 comp.updateDependencies(compiled);
                 return this.callDependency(comp, compiled);
@@ -288,7 +285,7 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
 
     callDependency(currentCop: JitCompiler, comp: JitCompiledFn): jitCode {
         const stackItem = currentCop.getCurrentStackItem();
-        const isErrorCall = comp.fnId === JitFunctions.typeErrors.id || comp.fnId === JitFunctions.unknownKeyErrors.id;
+        const isErrorCall = comp.fnID === JitFunctions.typeErrors.id || comp.fnID === JitFunctions.unknownKeyErrors.id;
         const args = isErrorCall ? jitErrorArgs : jitArgs;
         const argsCode = Object.entries(args)
             .map(([key, name]) => (key === 'vλl' ? stackItem.vλl : name))
@@ -409,8 +406,8 @@ export abstract class AtomicRunType<T extends Type> extends BaseRunType<T> {
     _compileUnknownKeysToUndefined(comp: JitCompiler): jitCode {
         return undefined;
     }
-    getCodeType(fnId: JitFnID): CodeType {
-        switch (fnId) {
+    getCodeType(fnID: JitFnID): CodeType {
+        switch (fnID) {
             case JitFunctions.isType.id:
             case JitFunctions.toJsonVal.id:
             case JitFunctions.fromJsonVal.id:
@@ -418,7 +415,7 @@ export abstract class AtomicRunType<T extends Type> extends BaseRunType<T> {
             case JitFunctions.toCode.id:
                 return 'E';
             default:
-                return super.getCodeType(fnId);
+                return super.getCodeType(fnID);
         }
     }
 }

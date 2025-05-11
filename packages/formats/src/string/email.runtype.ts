@@ -45,27 +45,27 @@ export class EmailRunTypeFormat extends BaseRunTypeFormat<FormatParams_Email> {
     getIgnoredProps(): string[] | undefined {
         return stringIgnoreProps;
     }
-    getCodeType(fnId: JitFnID, rt: BaseRunType, p?: FormatParams_Email): CodeType {
+    getCodeType(fnID: JitFnID, rt: BaseRunType, p?: FormatParams_Email): CodeType {
         const params = p || this.getParams(rt);
-        if (fnId === JitFunctions.isType.id) return params.pattern ? 'E' : 'S';
-        return super.getCodeType(fnId, rt, params);
+        if (fnID === JitFunctions.isType.id) return params.pattern ? 'E' : 'S';
+        return super.getCodeType(fnID, rt, params);
     }
-    canEmbedFormatterCode(fnId: JitFnID, rt: BaseRunType, p?: FormatParams_Email): boolean {
+    canEmbedFormatterCode(fnID: JitFnID, rt: BaseRunType, p?: FormatParams_Email): boolean {
         const params = p || this.getParams(rt);
-        if (fnId === JitFunctions.isType.id || fnId === JitFunctions.typeErrors.id) {
-            const superResult = super.canEmbedFormatterCode(fnId, rt);
-            const domainResult = params.domain ? this.domainFormatter.canEmbedFormatterCode(fnId, rt, params.domain) : false;
+        if (fnID === JitFunctions.isType.id || fnID === JitFunctions.typeErrors.id) {
+            const superResult = super.canEmbedFormatterCode(fnID, rt);
+            const domainResult = params.domain ? this.domainFormatter.canEmbedFormatterCode(fnID, rt, params.domain) : false;
             return superResult && (!!params.pattern || domainResult);
         }
-        return super.canEmbedFormatterCode(fnId, rt);
+        return super.canEmbedFormatterCode(fnID, rt);
     }
     _compileIsType(comp: JitCompiler, rt: BaseRunType): jitCode {
         const params = this.getParams(rt);
-        const fnId = comp.fnId;
+        const fnID = comp.fnID;
         const fmtName = this.getFormatName();
 
         // If pattern is provided, use the root formatter
-        if (params.pattern) return this.rootFormatter._compile(fnId, comp, rt, params, comp.vλl, fmtName);
+        if (params.pattern) return this.rootFormatter._compile(fnID, comp, rt, params, comp.vλl, fmtName);
 
         const vλl = comp.vλl;
         const vLocalPart = 'localPart' + this.getNestLevel(); // Variable for local part
@@ -73,14 +73,14 @@ export class EmailRunTypeFormat extends BaseRunTypeFormat<FormatParams_Email> {
         const vAtPos = 'atPos' + this.getNestLevel(); // Position of @ symbol
 
         // Compile code for root, local part, and domain validation
-        const rootCode = this.rootFormatter._compile(fnId, comp, rt, params, vλl, fmtName);
-        const localPartCode = this.localPartFormatter._compile(fnId, comp, rt, params.localPart, vLocalPart, fmtName);
-        const domainCode = this.domainFormatter._compile(fnId, comp, rt, params.domain, vDomain, fmtName);
+        const rootCode = this.rootFormatter._compile(fnID, comp, rt, params, vλl, fmtName);
+        const localPartCode = this.localPartFormatter._compile(fnID, comp, rt, params.localPart, vLocalPart, fmtName);
+        const domainCode = this.domainFormatter._compile(fnID, comp, rt, params.domain, vDomain, fmtName);
 
         // If rootCode is empty, we don't need to emit jit code for it
         const rootSafeCode = rootCode ? `if (!(${rootCode})) return false;` : '';
         const returnCode = this.isRoot() ? `return true;` : '';
-        const domainIsExpression = this.domainFormatter.getCodeType(fnId, rt, params.domain) === 'E';
+        const domainIsExpression = this.domainFormatter.getCodeType(fnID, rt, params.domain) === 'E';
         const domainSafeCode = domainCode && domainIsExpression ? `if (!(${domainCode})) return false;` : domainCode;
 
         const code = `
@@ -97,11 +97,11 @@ export class EmailRunTypeFormat extends BaseRunTypeFormat<FormatParams_Email> {
     }
     _compileTypeErrors(comp: JitErrorsCompiler, rt: BaseRunType): jitCode {
         const params = this.getParams(rt);
-        const fnId = comp.fnId;
+        const fnID = comp.fnID;
         const fmtName = this.getFormatName();
 
         // If pattern is provided, use the root formatter
-        if (params.pattern) return this.rootFormatter._compile(fnId, comp, rt, params, comp.vλl, fmtName);
+        if (params.pattern) return this.rootFormatter._compile(fnID, comp, rt, params, comp.vλl, fmtName);
 
         const errFn = this.getCallJitFormatErr(comp, rt, this, true);
         const vλl = comp.vλl;
@@ -110,9 +110,9 @@ export class EmailRunTypeFormat extends BaseRunTypeFormat<FormatParams_Email> {
         const vAtPos = 'atPos'; // Position of @ symbol
 
         // Compile code for root, local part, and domain validation
-        const rootCode = this.rootFormatter._compile(fnId, comp, rt, params, vλl, fmtName);
-        const localPartCode = this.localPartFormatter._compile(fnId, comp, rt, params.localPart, vLocalPart, fmtName);
-        const domainCode = this.domainFormatter._compile(fnId, comp, rt, params.domain, vDomain, fmtName);
+        const rootCode = this.rootFormatter._compile(fnID, comp, rt, params, vλl, fmtName);
+        const localPartCode = this.localPartFormatter._compile(fnID, comp, rt, params.localPart, vLocalPart, fmtName);
+        const domainCode = this.domainFormatter._compile(fnID, comp, rt, params.domain, vDomain, fmtName);
 
         const code = `
             ${rootCode ? `${rootCode};` : ''}

@@ -40,7 +40,7 @@ export class SetRunType extends IterableRunType {
     }
     getCustomVλl(comp: JitCompilerOpts) {
         // fromJsonVal is decoding a regular array so no need to use an special case for vλl as other operations
-        if (comp.fnId === JitFunctions.fromJsonVal.id)
+        if (comp.fnID === JitFunctions.fromJsonVal.id)
             return {vλl: `it${this.getNestLevel()}`, isStandalone: false, useArrayAccessor: true};
         // other operations use an special case for vλl where all parents are skipped
         return {vλl: `it${this.getNestLevel()}`, isStandalone: true};

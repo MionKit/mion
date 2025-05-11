@@ -36,13 +36,13 @@ export class DateTimeRunTypeFormat extends BaseRunTypeFormat<FormatParams_DateTi
     getIgnoredProps(): string[] | undefined {
         return stringIgnoreProps;
     }
-    getCodeType(fnId: JitFnID, rt: BaseRunType): CodeType {
-        if (fnId === JitFunctions.isType.id) return 'S';
-        return super.getCodeType(fnId, rt);
+    getCodeType(fnID: JitFnID, rt: BaseRunType): CodeType {
+        if (fnID === JitFunctions.isType.id) return 'S';
+        return super.getCodeType(fnID, rt);
     }
     _compileIsType(comp: JitCompiler, rt: BaseRunType): jitCode {
         const params = this.getParams(rt);
-        const fnId = comp.fnId;
+        const fnID = comp.fnID;
         const fmtName = this.getFormatName();
         const vλl = comp.vλl;
         const splitChar = fpVal(params.splitChar);
@@ -51,8 +51,8 @@ export class DateTimeRunTypeFormat extends BaseRunTypeFormat<FormatParams_DateTi
         const vSplitPos = 'splitPos' + this.getNestLevel(); // Position of split character
 
         // Compile code for root, date part, and time part validation
-        const dateCode = this.dateFormatter._compile(fnId, comp, rt, params.date, vDatePart, fmtName);
-        const timeCode = this.timeFormatter._compile(fnId, comp, rt, params.time, vTimePart, fmtName);
+        const dateCode = this.dateFormatter._compile(fnID, comp, rt, params.date, vDatePart, fmtName);
+        const timeCode = this.timeFormatter._compile(fnID, comp, rt, params.time, vTimePart, fmtName);
 
         // If rootCode is empty, we don't need to emit jit code for it
         const returnCode = this.isRoot() ? `return true;` : '';
@@ -70,7 +70,7 @@ export class DateTimeRunTypeFormat extends BaseRunTypeFormat<FormatParams_DateTi
     }
     _compileTypeErrors(comp: JitErrorsCompiler, rt: BaseRunType): jitCode {
         const params = this.getParams(rt);
-        const fnId = comp.fnId;
+        const fnID = comp.fnID;
         const fmtName = this.getFormatName();
         const splitChar = fpVal(params.splitChar);
         const errFn = this.getCallJitFormatErr(comp, rt, this, true);
@@ -80,8 +80,8 @@ export class DateTimeRunTypeFormat extends BaseRunTypeFormat<FormatParams_DateTi
         const vSplitPos = 'splitPos'; // Position of split character
 
         // Compile code for root, date part, and time part validation
-        const dateCode = this.dateFormatter._compile(fnId, comp, rt, params.date, vDatePart, fmtName);
-        const timeCode = this.timeFormatter._compile(fnId, comp, rt, params.time, vTimePart, fmtName);
+        const dateCode = this.dateFormatter._compile(fnID, comp, rt, params.date, vDatePart, fmtName);
+        const timeCode = this.timeFormatter._compile(fnID, comp, rt, params.time, vTimePart, fmtName);
 
         const code = `
             const ${vSplitPos} = ${vλl}.indexOf('${splitChar}');

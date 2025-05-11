@@ -21,13 +21,13 @@ import {isClassRunType, isInterfaceRunType, isIntersectionRunType, isObjectLiter
  * So [0, "123n"] is interpreted as a string and [1, "123n"] is interpreted as a bigint.
  * */
 export class UnionRunType extends CollectionRunType<TypeUnion> {
-    getCodeType(fnId: JitFnID): CodeType {
-        switch (fnId) {
+    getCodeType(fnID: JitFnID): CodeType {
+        switch (fnID) {
             case JitFunctions.jsonStringify.id:
             case JitFunctions.toCode.id:
                 return 'RB';
             default:
-                return super.getCodeType(fnId);
+                return super.getCodeType(fnID);
         }
     }
     getChildStrictIsType(rt: BaseRunType, comp: JitCompiler) {
