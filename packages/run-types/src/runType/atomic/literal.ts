@@ -16,7 +16,7 @@ import {symbolTransformer} from './symbol';
 import {AnyKindName} from '../../constants.kind';
 
 export class LiteralRunType extends AtomicRunType<TypeLiteral> {
-    getTypeID = memorize(() => `${this.src.kind}:${String(this.src.literal)}`);
+    _getTypeID = memorize(() => `${this.src.kind}:${String(this.src.literal)}`);
     getValidator() {
         switch (true) {
             case typeof this.src.literal === 'bigint':

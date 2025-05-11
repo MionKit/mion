@@ -12,7 +12,7 @@ import {AtomicRunType} from '../../lib/baseRunTypes';
 import {ReflectionSubKind} from '../../constants.kind';
 
 export class DateRunType extends AtomicRunType<TypeClass> {
-    getTypeID = () => ReflectionSubKind.date;
+    _getTypeID = () => ReflectionSubKind.date;
     _compileIsType(comp: JitCompiler): jitCode {
         return `(${comp.vλl} instanceof Date && !isNaN(${comp.vλl}.getTime()))`;
     }

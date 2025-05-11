@@ -10,7 +10,6 @@ import type {TypeFormatParams} from '@mionkit/core/src/types';
 import type {JitFunctions} from './constants';
 import type {ReflectionSubKind} from './constants.kind';
 import type {BaseRunTypeFormat} from './lib/baseRunTypeFormat';
-import type {BaseCompiler} from '@mionkit/run-types/src/lib/jitCompiler';
 
 export type StrNumber = string | number;
 export type jitCode = string | undefined;
@@ -32,6 +31,7 @@ export interface RunType {
     mock: (options?: DeepPartial<RunTypeOptions>) => Promise<any>;
 
     // ######## JIT functions ########
+    /** Returns a unique id for the type. it can be a long string similar to the typescript type itself */
     getJitId(): StrNumber;
     getJitHash: () => string;
     createJitFunction(jitFn: JitFn, opts?: RunTypeOptions): (...args: any[]) => any;
@@ -45,22 +45,29 @@ export type RunTypeVisitor = (deepkitType: Type, parents: RunType[], opts: RunTy
 export type SrcCollection = Type & {types: Type[]};
 export type SrcMember = Type & {type: Type};
 
+export interface JitCompilerOpts {
+    readonly fnId: string;
+    readonly jitId: StrNumber;
+    readonly jitFnHash: string;
+    readonly opts: RunTypeOptions;
+}
+
 export interface RunTypeChildAccessor extends RunType {
     /**
      * Returns the position of the child within the parent type.
      */
-    getChildIndex(comp?: BaseCompiler): number;
+    getChildIndex(comp?: JitCompilerOpts): number;
     /**
      * Returns the variable name for the compiled child
      * ie: for an object property, it should return the property name
      * ie: for an array member, it should return the index variable name
      */
-    getChildVarName(comp?: BaseCompiler): StrNumber;
+    getChildVarName(comp?: JitCompilerOpts): StrNumber;
     /** Returns the static member name or literal as it should be inserted in source code.
      * ie: for an object property, it should return the property name as a string encapsulated in quotes, ie: prop => 'prop'
      * ie: for an array member, it should return the varName as is a dynamic value, ie: index => index
      */
-    getChildLiteral(comp?: BaseCompiler): StrNumber;
+    getChildLiteral(comp?: JitCompilerOpts): StrNumber;
     /** Returns true if the property name is safe to use as a property accessor in source code
      * ie: return false if a property can be accessed using the dot notation, ie: obj.prop, for properties that are numbers return false
      * ie: for an array member return true as it should be accessed using the array accessor, ie: obj[index]

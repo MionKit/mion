@@ -4,7 +4,7 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
-import type {AnyFunction, SrcType, JitFn, jitCode, RunTypeOptions} from '../../types';
+import type {AnyFunction, SrcType, JitFn, jitCode, RunTypeOptions, JitCompilerOpts} from '../../types';
 import {ReflectionKind, TypeFunction} from '@deepkit/type';
 import {BaseRunType} from '../../lib/baseRunTypes';
 import {isAnyFunctionRunType, isFunctionRunType, isPromiseRunType} from '../../lib/guards';
@@ -13,13 +13,13 @@ import {PromiseRunType} from '../native/promise';
 import {ReflectionSubKind} from '../../constants.kind';
 import {FunctionParamsRunType} from '../collection/functionParams';
 import {JitCompiledFn} from '@mionkit/core/src/types';
-import {loadComposableFunction} from '@mionkit/run-types/src/lib/jitFnsRegistry';
+import {loadJitCompilerFunction} from '@mionkit/run-types/src/lib/jitFnsRegistry';
 import {JitFunctions} from '@mionkit/run-types/src/constants';
 
 export class FunctionRunType<CallType extends AnyFunction = TypeFunction> extends BaseRunType<CallType> {
     // parameterRunTypes.src must be set after FunctionRunType creation
     parameterRunTypes: FunctionParamsRunType = new FunctionParamsRunType();
-    skipJit(comp: JitCompiler): boolean {
+    skipJit(comp: JitCompilerOpts): boolean {
         if (!comp) return true;
         return comp.fnId !== JitFunctions.toCode.id;
     }
@@ -29,7 +29,7 @@ export class FunctionRunType<CallType extends AnyFunction = TypeFunction> extend
         // todo the deepkit type is a
         this.parameterRunTypes.onCreated({...deepkitType, subKind: ReflectionSubKind.params});
     }
-    getTypeID = () => ReflectionKind.function;
+    _getTypeID = () => ReflectionKind.function;
     getFamily(): 'F' {
         return 'F';
     }
@@ -145,11 +145,11 @@ export class FunctionRunType<CallType extends AnyFunction = TypeFunction> extend
         return isPromiseRunType(this.getReturnType());
     }
     async mockReturn(ctx?: RunTypeOptions): Promise<any> {
-        await loadComposableFunction(JitFunctions.mock);
+        await loadJitCompilerFunction(JitFunctions.mock);
         return this.getReturnType().mockType(ctx);
     }
     async mockParams(ctx?: RunTypeOptions): Promise<any[]> {
-        await loadComposableFunction(JitFunctions.mock);
+        await loadJitCompilerFunction(JitFunctions.mock);
         return this.parameterRunTypes.mockType(ctx);
     }
 }

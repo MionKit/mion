@@ -11,7 +11,7 @@ import {AtomicRunType} from '../../lib/baseRunTypes';
 import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
 
 export class StringRunType extends AtomicRunType<TypeString> {
-    getTypeID = () => ReflectionKind.string;
+    _getTypeID = () => ReflectionKind.string;
     _compileIsType(comp: JitCompiler): jitCode {
         return `typeof ${comp.vλl} === 'string'`;
     }

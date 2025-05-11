@@ -10,7 +10,7 @@ import type {jitCode} from '../../types';
 import {AtomicRunType} from '../../lib/baseRunTypes';
 
 export class AnyRunType extends AtomicRunType<TypeAny | TypeUnknown> {
-    getTypeID = () => ReflectionKind.any;
+    _getTypeID = () => ReflectionKind.any;
 
     private getTypeKindName(): string {
         return this.src.kind === ReflectionKind.any ? 'any' : 'unknown';

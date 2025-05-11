@@ -31,6 +31,27 @@ it('TypeFormat should have a different jit id', async () => {
     expect(rt.getJitId()).toBe(5);
 });
 
+it('Type should have a different jit id if format is not in root Type', async () => {
+    type Max5 = TypeFormat<string, 'max5', {maxLength: 5}>;
+    class Max5Formatter extends BaseRunTypeFormat<any> {
+        kind = ReflectionKind.string;
+        name = 'max5';
+        _mock() {}
+        _compileIsType(): undefined {}
+        _compileTypeErrors(): undefined {}
+        _compileFormat?(): undefined {}
+    }
+    registerFormatter(new Max5Formatter());
+    const rtMax5List = runType<Max5[]>() as BaseRunType; // root type is array
+    const rtList = runType<string[]>() as BaseRunType; // root type is array
+    expect(rtMax5List.getJitId()).toBe('25:5<{maxLength:5}>');
+    expect(rtList.getJitId()).toBe('25:5');
+    const rtMaxObj = runType<{a: Max5}>();
+    const rtObj = runType<{a: string}>();
+    expect(rtMaxObj.getJitId()).toBe('30{a:5<{maxLength:5}>}');
+    expect(rtObj.getJitId()).toBe('30{a:5}');
+});
+
 it('register and get pure function', async () => {
     type StringParams = {
         isLowercase?: boolean;

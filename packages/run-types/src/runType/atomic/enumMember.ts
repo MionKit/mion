@@ -11,7 +11,7 @@ import {jitCode} from '../../types';
 
 // TODO: not sure when run type will be generated but doesn't seem to be used when using reflection on enums
 export class EnumMemberRunType extends AtomicRunType<TypeEnum> {
-    getTypeID = () => ReflectionKind.enumMember;
+    _getTypeID = () => ReflectionKind.enumMember;
     skipJit() {
         return true;
     }

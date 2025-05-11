@@ -6,12 +6,11 @@
  * ######## */
 import {TypeMethod} from '@deepkit/type';
 import {FunctionRunType} from '../function/function';
-import {RunTypeChildAccessor} from '../../types';
+import {JitCompilerOpts, RunTypeChildAccessor} from '../../types';
 import {getPropIndex, getPropLiteral, getPropVarName, memorize, useArrayAccessorForProp} from '../../lib/utils';
-import {JitCompiler} from '@mionkit/run-types/src/lib/jitCompiler';
 
 export class MethodRunType extends FunctionRunType<TypeMethod> implements RunTypeChildAccessor {
-    getChildIndex = (comp?: JitCompiler) => {
+    getChildIndex = (comp?: JitCompilerOpts) => {
         const start = comp?.opts?.paramsSlice?.start;
         if (start) return getPropIndex(this.src) - start;
         return getPropIndex(this.src);

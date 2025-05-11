@@ -6,7 +6,7 @@
  * ######## */
 import type {JitCompiledFn, JitCompiledFnMeta, JitFnArgs, PureFunction} from '@mionkit/core/src/types';
 import {MAX_STACK_DEPTH} from '@mionkit/core/src/constants';
-import type {Mutable, JitFnID, StrNumber, jitCode, RunTypeOptions} from '../types';
+import type {Mutable, JitFnID, StrNumber, jitCode, RunTypeOptions, JitCompilerOpts} from '../types';
 import type {BaseRunType} from './baseRunTypes';
 import type {AnyKindName} from '../constants.kind';
 import {jitArgs, jitDefaultArgs, jitDefaultErrorArgs, jitErrorArgs, JitFunctions, maxStackErrorMessage} from '../constants';
@@ -29,7 +29,9 @@ export type StackItem = {
 export type JitCompilerLike = BaseCompiler | JitCompiledFnMeta;
 export type JitDependencies = Set<string>;
 
-export class BaseCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extends JitFnID = any> implements JitCompiledFnMeta {
+export class BaseCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extends JitFnID = any>
+    implements JitCompiledFnMeta, JitCompilerOpts
+{
     constructor(
         public readonly rootType: BaseRunType,
         // the id of the function to be compiled (isType, typeErrors, toJsonVal, fromJsonVal, etc)
@@ -159,12 +161,7 @@ export class BaseCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extends 
         const rt = parent.rt;
         if (!isChildAccessorType(rt)) throw new Error(`cant get child var name from ${rt.getKindName()}`);
         if (rt.skipSettingAccessor?.()) return parent.vλl;
-        return (
-            parent.vλl +
-            (rt.useArrayAccessor()
-                ? `[${rt.getChildLiteral(this as JitCompiler)}]`
-                : `.${rt.getChildVarName(this as JitCompiler)}`)
-        );
+        return parent.vλl + (rt.useArrayAccessor() ? `[${rt.getChildLiteral(this)}]` : `.${rt.getChildVarName(this)}`);
     }
     shouldCallDependency(): boolean {
         const stackItem = this.getCurrentStackItem();
@@ -342,7 +339,6 @@ export function createJitCompiler(
         case JitFunctions.unknownKeysToUndefined.id:
         case JitFunctions.format.id:
         case JitFunctions.toCode.id:
-        case JitFunctions.mock.id:
             return new JitCompiler(rt, fnId, parent?.totalLength, jitFnHash, jitId, opts);
         case JitFunctions.typeErrors.id:
         case JitFunctions.unknownKeyErrors.id:
@@ -362,9 +358,12 @@ export function createJitCompiler(
  */
 export function getJITFnHash(id: JitFnID, rt: BaseRunType, opts?: RunTypeOptions): string {
     if (opts && Object.keys(opts).length) {
+        // removing mock options as not relevant for jit functionality
+        const optsCopy = {...opts};
+        if (optsCopy.mock) delete optsCopy.mock;
+        if (!Object.keys(optsCopy).length) return `${id}_${rt.getJitHash()}`;
         // 4 characters is enough for options hash as we do not expect many different options
-        console.log('opts', opts);
-        const optsHash = createUniqueHash(JSON.stringify(opts), 3);
+        const optsHash = createUniqueHash(JSON.stringify(opts), 4);
         return `${id}_${rt.getJitHash()}_${optsHash}`;
     }
     return `${id}_${rt.getJitHash()}`;
@@ -429,15 +428,13 @@ function getStackVλl(comp: BaseCompiler): string {
     let vλl: string = comp.args.vλl;
     for (let i = 0; i < comp.stack.length; i++) {
         const rt = comp.stack[i].rt;
-        const custom = rt.getCustomVλl(comp as JitCompiler);
+        const custom = rt.getCustomVλl(comp);
         if (custom && custom.isStandalone) {
             vλl = custom.vλl;
         } else if (custom) {
             vλl += custom.useArrayAccessor ? `[${custom.vλl}]` : `.${custom.vλl}`;
         } else if (isChildAccessorType(rt) && !rt.skipSettingAccessor?.()) {
-            vλl += rt.useArrayAccessor()
-                ? `[${rt.getChildLiteral(comp as JitCompiler)}]`
-                : `.${rt.getChildVarName(comp as JitCompiler)}`;
+            vλl += rt.useArrayAccessor() ? `[${rt.getChildLiteral(comp)}]` : `.${rt.getChildVarName(comp)}`;
         }
     }
     return vλl;
@@ -447,11 +444,11 @@ function getAccessPath(comp: BaseCompiler): StrNumber[] {
     const rtName: any = [];
     for (let i = 0; i < comp.stack.length; i++) {
         const rt = comp.stack[i].rt;
-        const pathItem = rt.getStaticPathLiteral(comp as JitCompiler);
+        const pathItem = rt.getStaticPathLiteral(comp);
         if (pathItem) {
             path.push(pathItem);
         } else if (isChildAccessorType(rt) && !rt.skipSettingAccessor?.()) {
-            path.push(rt.getChildLiteral(comp as JitCompiler));
+            path.push(rt.getChildLiteral(comp));
         }
         rtName.push({path: [...path], name: rt.constructor.name});
     }

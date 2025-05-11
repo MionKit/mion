@@ -12,7 +12,7 @@ import {AtomicRunType} from '../../lib/baseRunTypes';
 import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
 
 export class EnumRunType extends AtomicRunType<TypeEnum> {
-    getTypeID = () => ReflectionKind.enum;
+    _getTypeID = () => ReflectionKind.enum;
     _compileIsType(comp: JitCompiler): jitCode {
         return this.src.values.map((v) => `${comp.vλl} === ${toLiteral(v)}`).join(' || ');
     }

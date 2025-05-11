@@ -5,16 +5,15 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 import {ReflectionKind, type TypePromise} from '@deepkit/type';
-import type {jitCode} from '../../types';
+import type {jitCode, JitCompilerOpts} from '../../types';
 import {MemberRunType} from '../../lib/baseRunTypes';
 import {JitFunctions} from '@mionkit/run-types/src/constants';
-import {JitCompiler} from '@mionkit/run-types/src/lib/jitCompiler';
 
 export class PromiseRunType extends MemberRunType<TypePromise> {
-    getTypeID() {
+    _getTypeID() {
         return ReflectionKind.promise;
     }
-    skipJit(comp: JitCompiler): boolean {
+    skipJit(comp: JitCompilerOpts): boolean {
         return comp?.fnId !== JitFunctions.toCode.id;
     }
     _compileIsType(): jitCode {

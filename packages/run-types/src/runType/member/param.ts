@@ -8,7 +8,7 @@
 import {ReflectionKind, TypeTupleMember, type TypeParameter} from '@deepkit/type';
 import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
 import {MemberRunType} from '../../lib/baseRunTypes';
-import {jitCode} from '../../types';
+import {jitCode, JitCompilerOpts} from '../../types';
 import {JitFunctions} from '../../constants';
 import {childIsExpression, getParamIndex} from '../../lib/utils';
 
@@ -17,15 +17,15 @@ export class ParameterRunType<T extends ParamT = TypeParameter> extends MemberRu
     isOptional(): boolean {
         return !!this.src.optional || this.isRest() || this.hasDefaultValue();
     }
-    getChildIndex(comp?: JitCompiler): number {
+    getChildIndex(comp?: JitCompilerOpts): number {
         const start = comp?.opts?.paramsSlice?.start;
         if (start) return getParamIndex(this.src as TypeParameter) - start;
         return getParamIndex(this.src as TypeParameter);
     }
-    getChildVarName(comp?: JitCompiler): number {
+    getChildVarName(comp?: JitCompilerOpts): number {
         return this.getChildIndex(comp);
     }
-    getChildLiteral(comp?: JitCompiler): number {
+    getChildLiteral(comp?: JitCompilerOpts): number {
         return this.getChildIndex(comp);
     }
     useArrayAccessor(): true {

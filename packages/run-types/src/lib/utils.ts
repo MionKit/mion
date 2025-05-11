@@ -256,7 +256,7 @@ export function typeParamsToString(
     }
 }
 export function getFormatterHash(rt: BaseRunType): string {
-    const literal = rt.getFormatterJitId();
+    const literal = rt.getFormatTypeID();
     if (!literal) throw new Error('Formatter JIT ID not found');
     return createHashLiteral(literal);
 }

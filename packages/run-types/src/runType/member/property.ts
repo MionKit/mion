@@ -7,7 +7,7 @@
 
 import type {TypeProperty, TypePropertySignature} from '@deepkit/type';
 import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
-import {jitCode} from '../../types';
+import {jitCode, JitCompilerOpts} from '../../types';
 import {childIsExpression, getPropLiteral, getPropVarName, memorize, useArrayAccessorForProp} from '../../lib/utils';
 import {MemberRunType} from '../../lib/baseRunTypes';
 import {InterfaceRunType} from '../collection/interface';
@@ -19,7 +19,7 @@ export class PropertyRunType extends MemberRunType<TypePropertySignature | TypeP
     useArrayAccessor = memorize(() => useArrayAccessorForProp(this.src.name));
     getJitChildIndex = (comp: JitCompiler) => (this.getParent() as InterfaceRunType).getJitChildren(comp).indexOf(this);
     isOptional = () => !!this.src.optional;
-    skipJit(comp: JitCompiler): boolean {
+    skipJit(comp: JitCompilerOpts): boolean {
         const name = (this.src as TypeProperty).name;
         if (typeof name === 'symbol') {
             return comp?.fnId !== JitFunctions.toCode.id;

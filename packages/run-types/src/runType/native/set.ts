@@ -4,12 +4,11 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
-import type {SrcType} from '../../types';
+import type {JitCompilerOpts, SrcType} from '../../types';
 import {ReflectionSubKind} from '../../constants.kind';
 import {ReflectionKind, type TypeClass} from '@deepkit/type';
 import {GenericMemberRunType} from '../member/genericMember';
 import {IterableRunType} from './Iterable';
-import {JitCompiler} from '../../lib/jitCompiler';
 import {JitFunctions} from '../../constants';
 
 class SetKeyRunType extends GenericMemberRunType<any> {
@@ -17,7 +16,7 @@ class SetKeyRunType extends GenericMemberRunType<any> {
     skipSettingAccessor() {
         return true;
     }
-    getStaticPathLiteral(comp: JitCompiler): string {
+    getStaticPathLiteral(comp: JitCompilerOpts): string {
         const parent = this.getParent()! as SetRunType;
         const custom = parent.getCustomVλl(comp)!;
         return `{key:utl.safeKey(${custom.vλl}),index:${parent.getIndexVarName()}}`;
@@ -39,7 +38,7 @@ export class SetRunType extends IterableRunType {
             subKind: ReflectionSubKind.setItem,
         });
     }
-    getCustomVλl(comp: JitCompiler) {
+    getCustomVλl(comp: JitCompilerOpts) {
         // fromJsonVal is decoding a regular array so no need to use an special case for vλl as other operations
         if (comp.fnId === JitFunctions.fromJsonVal.id)
             return {vλl: `it${this.getNestLevel()}`, isStandalone: false, useArrayAccessor: true};

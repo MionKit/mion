@@ -11,7 +11,7 @@ import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
 import {AtomicRunType} from '../../lib/baseRunTypes';
 
 export class NumberRunType extends AtomicRunType<TypeNumber> {
-    getTypeID = () => ReflectionKind.number;
+    _getTypeID = () => ReflectionKind.number;
     _compileIsType(comp: JitCompiler): jitCode {
         return `Number.isFinite(${comp.vλl})`;
     }
