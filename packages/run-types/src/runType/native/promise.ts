@@ -10,9 +10,7 @@ import {MemberRunType} from '../../lib/baseRunTypes';
 import {JitFunctions} from '@mionkit/run-types/src/constants';
 
 export class PromiseRunType extends MemberRunType<TypePromise> {
-    _getTypeID() {
-        return ReflectionKind.promise;
-    }
+    _getTypeID = () => ReflectionKind.promise;
     skipJit(comp: JitCompilerOpts): boolean {
         return comp?.fnID !== JitFunctions.toCode.id;
     }

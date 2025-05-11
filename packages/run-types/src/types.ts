@@ -78,6 +78,8 @@ export interface RunTypeChildAccessor extends RunType {
     /** In Some situation (rest params) the access logic might be set in the child node instead the parent
      * so we want to skip setting the accessor in the parent.  */
     skipSettingAccessor?(): boolean;
+    /** used to compile json stringify, items with the flag set will omit outputting comma after the item */
+    skipCommas?: boolean;
 }
 export interface CustomVλl {
     vλl: string;
