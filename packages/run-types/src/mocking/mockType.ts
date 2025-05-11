@@ -29,14 +29,14 @@ import {getRunTypeFormatter, getRunTypeTransformers} from '../lib/formats';
 import {JitFunctions} from '../constants';
 import type {ArrayRunType} from '@mionkit/run-types/src/runType/member/array';
 
-export function mock(runType: BaseRunType, comp: JitCompilerOpts, stack: BaseRunType[] = []): any {
+export function mockType(runType: BaseRunType, comp: JitCompilerOpts, stack: BaseRunType[] = []): any {
     stack.push(runType);
     const recursionLevel = stack.filter((rt) => rt === runType).length;
     const updatedOps = recursionLevel ? onCircularMock(comp.opts, recursionLevel) : comp.opts;
     // Just one type validator allowed per type, and is responsible to mock the value,
     // ie: email and uuid should contain the logic to generate a valid value
     const typeValidator = getRunTypeFormatter(runType);
-    let mocked = typeValidator ? typeValidator.mock(updatedOps, runType) : _mock(runType, {...comp, opts: updatedOps}, stack);
+    let mocked = typeValidator ? typeValidator.mock(updatedOps, runType) : _mockType(runType, {...comp, opts: updatedOps}, stack);
     // once mocked multiple type transformers can be applied to the mocked value
     const typeTransformers = getRunTypeTransformers(runType);
     if (typeTransformers.length) {
@@ -88,7 +88,7 @@ function onCircularMock(opts: RunTypeOptions, recursionLevel: number): RunTypeOp
  * Centralized mock function with a giant switch statement that handles all node types.
  * This function is similar to createRunType in runType.ts but for mocking.
  */
-function _mock(runType: BaseRunType, comp: JitCompilerOpts, stack: BaseRunType[]): any {
+function _mockType(runType: BaseRunType, comp: JitCompilerOpts, stack: BaseRunType[]): any {
     // Handle circular references
     const mOps = comp.opts.mock as MockOptions;
     const recursionLevel = stack.filter((rt) => rt === runType).length;
@@ -137,13 +137,13 @@ function _mock(runType: BaseRunType, comp: JitCompilerOpts, stack: BaseRunType[]
         case ReflectionKind.array: {
             const rt = runType as ArrayRunType;
             const length = mOps.arrayLength ?? random(0, mOps.maxRandomItemsLength);
-            return Array.from({length}, () => mock(rt.getMemberType(), comp, stack));
+            return Array.from({length}, () => mockType(rt.getMemberType(), comp, stack));
         }
 
         case ReflectionKind.tuple: {
             const rt = runType as TupleRunType;
             const options = mOps.tupleOptions;
-            const params = rt.getChildRunTypes().map((p, i) => mock(p, getChildOpts(comp, options?.[i]), stack));
+            const params = rt.getChildRunTypes().map((p, i) => mockType(p, getChildOpts(comp, options?.[i]), stack));
             if (rt.hasRestParameter()) {
                 return [...params.slice(0, -1), ...params[params.length - 1]];
             }
@@ -155,12 +155,12 @@ function _mock(runType: BaseRunType, comp: JitCompilerOpts, stack: BaseRunType[]
                 throw new Error(`Mock is disabled for Non Serializable types.`);
             } else {
                 const rt = runType as InterfaceRunType;
-                if (rt.isCallable()) return mock(rt.getCallSignature()!, comp, stack);
+                if (rt.isCallable()) return mockType(rt.getCallSignature()!, comp, stack);
                 let obj: Record<string | number, any> = mOps.parentObj || {};
                 rt.getChildRunTypes().forEach((prop) => {
                     const name = (prop as PropertyRunType).getChildVarName();
-                    if (prop instanceof IndexSignatureRunType) obj = {...obj, ...mock(prop, comp, stack)};
-                    else obj[name] = mock(prop, comp, stack);
+                    if (prop instanceof IndexSignatureRunType) obj = {...obj, ...mockType(prop, comp, stack)};
+                    else obj[name] = mockType(prop, comp, stack);
                 });
                 return obj;
             }
@@ -173,7 +173,7 @@ function _mock(runType: BaseRunType, comp: JitCompilerOpts, stack: BaseRunType[]
                 throw new Error('unionIndex must be between 0 and the number of types in the union.');
             }
             const index = mOps?.unionIndex ?? random(0, rt.getChildRunTypes().length - 1);
-            return mock(rt.getChildRunTypes()[index], comp, stack);
+            return mockType(rt.getChildRunTypes()[index], comp, stack);
         }
 
         case ReflectionKind.function:
@@ -183,7 +183,7 @@ function _mock(runType: BaseRunType, comp: JitCompilerOpts, stack: BaseRunType[]
             if (runType.src.subKind === ReflectionSubKind.params) {
                 const rt = runType as FunctionParamsRunType;
                 const options = mOps.tupleOptions;
-                const params = rt.getChildRunTypes().map((p, i) => mock(p, getChildOpts(comp, options?.[i]), stack));
+                const params = rt.getChildRunTypes().map((p, i) => mockType(p, getChildOpts(comp, options?.[i]), stack));
                 if (rt.hasRestParameter()) {
                     return [...params.slice(0, -1), ...params[params.length - 1]];
                 }
@@ -198,12 +198,12 @@ function _mock(runType: BaseRunType, comp: JitCompilerOpts, stack: BaseRunType[]
                 if (timeOut > 0) {
                     setTimeout(() => {
                         if (mOps.promiseReject) reject(mOps.promiseReject);
-                        else resolve(mock(rt.getMemberType(), comp, stack));
+                        else resolve(mockType(rt.getMemberType(), comp, stack));
                     }, timeOut);
                     return;
                 }
                 if (mOps.promiseReject) reject(mOps.promiseReject);
-                else resolve(mock(rt.getMemberType(), comp, stack));
+                else resolve(mockType(rt.getMemberType(), comp, stack));
             });
         }
         // Member types
@@ -218,7 +218,7 @@ function _mock(runType: BaseRunType, comp: JitCompilerOpts, stack: BaseRunType[]
                     return undefined;
                 }
             }
-            return mock(rt.getMemberType(), comp, stack);
+            return mockType(rt.getMemberType(), comp, stack);
         }
         case ReflectionKind.propertySignature:
         case ReflectionKind.property: {
@@ -226,7 +226,7 @@ function _mock(runType: BaseRunType, comp: JitCompilerOpts, stack: BaseRunType[]
             const probability = mOps.optionalPropertyProbability?.[rt.getChildVarName()] ?? mOps.optionalProbability;
             if (probability < 0 || probability > 1) throw new Error('optionalProbability must be between 0 and 1');
             if (rt.src.optional && Math.random() > probability) return undefined;
-            return mock(rt.getMemberType(), comp, stack);
+            return mockType(rt.getMemberType(), comp, stack);
         }
 
         case ReflectionKind.rest: {
@@ -234,7 +234,7 @@ function _mock(runType: BaseRunType, comp: JitCompilerOpts, stack: BaseRunType[]
             const length = random(0, mOps.maxRandomItemsLength);
             const items: any[] = [];
             for (let i = 0; i < length; i++) {
-                items.push(mock(rt.getMemberType(), comp, stack));
+                items.push(mockType(rt.getMemberType(), comp, stack));
             }
             return items;
         }
@@ -257,7 +257,7 @@ function _mock(runType: BaseRunType, comp: JitCompilerOpts, stack: BaseRunType[]
                     default:
                         throw new Error('Invalid index signature type.');
                 }
-                parentObj[propName] = mock(rt.getMemberType(), comp, stack);
+                parentObj[propName] = mockType(rt.getMemberType(), comp, stack);
             }
             return parentObj;
         }
@@ -280,8 +280,8 @@ function _mockClass(runType: BaseRunType, comp: JitCompilerOpts, stack: BaseRunT
             const mockMap = new Map();
             const length = mOps.arrayLength ?? random(0, mOps.maxRandomItemsLength);
             for (let i = 0; i < length; i++) {
-                const keyType = mock(rt.keyRT, comp, stack);
-                const valueType = mock(rt.valueRT, comp, stack);
+                const keyType = mockType(rt.keyRT, comp, stack);
+                const valueType = mockType(rt.valueRT, comp, stack);
                 mockMap.set(keyType, valueType);
             }
             return mockMap;
@@ -291,7 +291,7 @@ function _mockClass(runType: BaseRunType, comp: JitCompilerOpts, stack: BaseRunT
             const mockSet = new Set();
             const length = mOps.arrayLength ?? random(0, mOps.maxRandomItemsLength);
             for (let i = 0; i < length; i++) {
-                const value = mock(rt.keyRT, comp, stack);
+                const value = mockType(rt.keyRT, comp, stack);
                 mockSet.add(value);
             }
             return mockSet;
@@ -313,8 +313,8 @@ function _mockClass(runType: BaseRunType, comp: JitCompilerOpts, stack: BaseRunT
             // only properties that are used in jit operations are mocked, there properties should be initialized in the constructor
             rt.getJitChildren(comp).forEach((prop) => {
                 const name = (prop as PropertyRunType).getChildVarName();
-                if (prop instanceof IndexSignatureRunType) mock(prop, comp, stack);
-                else instance[name] = mock(prop, comp, stack);
+                if (prop instanceof IndexSignatureRunType) mockType(prop, comp, stack);
+                else instance[name] = mockType(prop, comp, stack);
             });
             return instance;
         }
