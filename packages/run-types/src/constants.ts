@@ -61,7 +61,7 @@ export const JitFunctions = {
         id: 'mock',
         name: 'mockType',
         type: CodeTypes.returnBlock,
-        import: () => import('./mocking/mockType').then((m) => m.mock),
+        import: () => import('./mocking/mockType').then((m) => m.mockType),
     },
     // similar to json stringify but outputs js code, including pure functions
     toCode: {id: 'tc', name: 'toCode', type: CodeTypes.expression},

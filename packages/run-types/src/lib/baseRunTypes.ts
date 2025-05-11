@@ -22,7 +22,7 @@ import type {
     DeepPartial,
     JitCompilerOpts,
 } from '../types';
-import type {mock} from '../mocking/mockType';
+import type {mockType} from '../mocking/mockType';
 import {jitArgs, jitErrorArgs, JitFunctions, maxStackErrorMessage, CodeType, getCodeType} from '../constants';
 import {ReflectionKind, type TypeIndexSignature, type TypeProperty, type Type} from '@deepkit/type';
 import {getPropIndex, memorize, toLiteral} from './utils';
@@ -124,7 +124,11 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
 
     /** synchronous version of mock, throws an error if the mock function has not been loaded */
     mockType(opts: DeepPartial<RunTypeOptions> = {}): any {
-        const mockFn = getJitCompilerFunction(JitFunctions.mock) as typeof mock;
+        const mockFn = getJitCompilerFunction(JitFunctions.mock) as typeof mockType;
+        if (!mockFn)
+            throw new Error(
+                `Function ${JitFunctions.mock.name} has not been loaded. make sure you have called loadJitCompilerFunction(JitFunctions.mock) before calling mockType.`
+            );
         const fnID = JitFunctions.mock.id;
         // options sent to the compiler will be set to empty as mock options are handled separately from the compiler
         const mockingOpts = {...opts, mock: {...defaultMockOptions, ...(opts.mock || {})}} as RunTypeOptions;
