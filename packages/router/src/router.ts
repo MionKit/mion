@@ -6,8 +6,6 @@
  * ######## */
 
 import {join} from 'path';
-import type {JITCompiledFunctions} from '@mionkit/core/src/types';
-import {getParamsJitFns, getReturnJitFns} from '@mionkit/run-types/src/routerFunctions';
 import {DEFAULT_ROUTE_OPTIONS, MAX_ROUTE_NESTING} from './constants';
 import {isRawHookDef, isHeaderHookDef, isExecutable, isHookDef, isRoute, isRoutes, isAnyHookDef} from './types/guards';
 import type {Route, RouterOptions, Routes, RouterEntry} from './types/general';
@@ -19,16 +17,14 @@ import type {Procedure} from './types/procedures';
 import {ProcedureType} from './types/procedures';
 import type {PublicApi, PrivateDef, HooksCollection} from './types/publicProcedures';
 import type {HeaderHookDef, HookDef, RawHookDef} from './types/definitions';
+import {getHandlerReflection} from './runTypes';
 import {bodyParserHooks} from './jsonBodyParser.routes';
 import {getRouterItemId, getRoutePath} from '@mionkit/core/src/core';
 import {setErrorOptions} from '@mionkit/core/src/errors';
 import {getRemoteMethodsMetadata, resetRemoteMethodsMetadata} from './remoteMethodsMetadata';
 import {clientRoutes} from './client.routes';
-import {Handler} from './types/handlers';
 import {getNotFoundExecutionPath} from './notFound';
 import {compileProcedure, getCompiledProcedure} from './compiler';
-import {FunctionRunType} from '@mionkit/run-types/src/runType/function/function';
-import {reflectFunction} from '@mionkit/run-types/src/lib/runType';
 
 type RouterKeyEntryList = [string, RouterEntry][];
 type RoutesWithId = {
@@ -334,7 +330,11 @@ export function getExecutableFromHook(
     if (compiledProcedure) {
         executable = compiledProcedure as MixedExecutable;
     } else {
-        const {handlerRunType, paramsJitFns, returnJitFns, paramNames} = getHandlerReflection(hook.handler, hookId);
+        const {handlerRunType, paramsJitFns, returnJitFns, paramNames} = getHandlerReflection(
+            hook.handler,
+            hookId,
+            routerOptions
+        );
         const skipParamsDecode = paramsJitFns.fromJsonVal.isNoop;
         const skipReturnEncode = returnJitFns.toJsonVal.isNoop;
         executable = {
@@ -404,7 +404,11 @@ export function getExecutableFromRoute(route: Route, routePointer: string[], nes
     if (compiledProcedure) {
         executable = compiledProcedure as RouteProcedure;
     } else {
-        const {handlerRunType, paramsJitFns, returnJitFns, paramNames} = getHandlerReflection(route.handler, routeId);
+        const {handlerRunType, paramsJitFns, returnJitFns, paramNames} = getHandlerReflection(
+            route.handler,
+            routeId,
+            routerOptions
+        );
         const skipParamsDecode = paramsJitFns.fromJsonVal.isNoop;
         const skipReturnEncode = returnJitFns.toJsonVal.isNoop;
         executable = {
@@ -463,42 +467,4 @@ function getExecutablesFromHooksCollection(hooksDef: HooksCollection): (RawProce
         if (isHeaderHookDef(hook) || isHookDef(hook)) return getExecutableFromHook(hook, [key], 0);
         throw new Error(`Invalid hook: ${key}. Invalid hook definition`);
     });
-}
-
-interface ProcedureReflectionItems {
-    handlerRunType: FunctionRunType;
-    paramsJitFns: JITCompiledFunctions;
-    returnJitFns: JITCompiledFunctions;
-    paramNames: string[];
-}
-
-// TODO: we do not want to use runtypes directly but compiled functions so we can take advantage
-// of precompiled functions without having to generate JIT functions
-// this way we also do not need to use new Function which is not allowed in some environments
-function getHandlerReflection(handler: Handler, routeId: string): ProcedureReflectionItems {
-    const reflectionItems: Partial<ProcedureReflectionItems> = {};
-    let handlerRunType: FunctionRunType;
-    try {
-        handlerRunType = reflectFunction(handler);
-        reflectionItems.handlerRunType = handlerRunType;
-    } catch (error: any) {
-        throw new Error(`Can not get RunType of handler for route/hook ${routeId}. Error: ${error?.message}`);
-    }
-
-    try {
-        // paramsJitFns is a  get prop accessor that compiles the when the property is first accessed
-        reflectionItems.paramsJitFns = getParamsJitFns(handler, routerOptions.runTypeOptions);
-        reflectionItems.paramNames = handlerRunType.getParameterNames();
-    } catch (error: any) {
-        throw new Error(`Can not compile Jit Functions for Parameters of route/hook ${routeId}. Error: ${error?.message}`);
-    }
-
-    try {
-        // returnJitFns is a  get prop accessor that compiles the when the property is first accessed
-        reflectionItems.returnJitFns = getReturnJitFns(handler);
-    } catch (error: any) {
-        throw new Error(`Can not get Jit Functions for Return of route/hook ${routeId}. Error: ${error?.message}`);
-    }
-
-    return reflectionItems as ProcedureReflectionItems;
 }
