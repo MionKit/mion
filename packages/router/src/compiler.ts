@@ -36,7 +36,7 @@ function restoreCodifiedProcedure(procedure: NonRawProcedure, handler: AnyHandle
 }
 
 export function writeCompiledProcedures(writeFile = true) {
-    if (!shouldCompile) return;
+    if (!shouldCompile()) return;
     if (!IS_TEST_ENV) console.log('Writing compiled procedures...');
 
     let fileName: string | undefined;
@@ -116,6 +116,7 @@ function codifyProcedure(pcd: NonRawProcedure): string {
     return `{${type}${id}${pointer}${nestLevel}${paramNames}${headerNames}\n${paramsJitFns}\n${returnJitFns}\n${options}}`;
 }
 
+// TODO: this could be replaced with const toCode = toCodeFn<string, NonRawProcedure>(); but would imply using
 function codifyCompiledProcedures(dic: Record<string, NonRawProcedure>): string {
     const keys = Object.keys(dic);
     const procedures = keys.map((k) => `\n${toLiteral(k)}:\n\n${codifyProcedure(dic[k])}`).join(',\n');

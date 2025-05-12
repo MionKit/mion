@@ -189,6 +189,11 @@ export interface JitCompiledFnMeta {
     paramNames?: string[];
 }
 
+export type SerializableJitCompiledFnMeta = Omit<JitCompiledFnMeta, 'dependenciesSet' | 'pureFnDependencies'> & {
+    dependenciesSet: string[];
+    pureFnDependencies: string[];
+};
+
 // ########################################### JIT FUNCTIONS ###########################################
 
 export interface JitCompiledFn<Fn extends AnyFn = AnyFn> extends JitCompiledFnMeta {
@@ -203,11 +208,11 @@ export interface JITCompiledFunctions {
     jsonStringify: JitCompiledFn<JsonStringifyFn>;
 }
 export interface SerializableJITFunctions {
-    isType: JitCompiledFnMeta;
-    typeErrors: JitCompiledFnMeta;
-    toJsonVal: JitCompiledFnMeta;
-    fromJsonVal: JitCompiledFnMeta;
-    jsonStringify: JitCompiledFnMeta;
+    isType: SerializableJitCompiledFnMeta;
+    typeErrors: SerializableJitCompiledFnMeta;
+    toJsonVal: SerializableJitCompiledFnMeta;
+    fromJsonVal: SerializableJitCompiledFnMeta;
+    jsonStringify: SerializableJitCompiledFnMeta;
 }
 export type JsonStringifyFn = (value: any) => JSONString;
 export type FromJsonValFn = (value: JSONValue) => any;

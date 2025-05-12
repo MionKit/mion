@@ -4,7 +4,13 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
-import type {JitCompiledFn, JitCompiledFnMeta, JitFnArgs, PureFunction} from '@mionkit/core/src/types';
+import type {
+    JitCompiledFn,
+    JitCompiledFnMeta,
+    JitFnArgs,
+    PureFunction,
+    SerializableJitCompiledFnMeta,
+} from '@mionkit/core/src/types';
 import {MAX_STACK_DEPTH} from '@mionkit/core/src/constants';
 import type {Mutable, JitFnID, StrNumber, jitCode, RunTypeOptions, JitCompilerOpts} from '../types';
 import type {BaseRunType} from './baseRunTypes';
@@ -346,6 +352,20 @@ export function createJitCompiler(
         default:
             throw new Error(`Unknown compile operation: ${fnID}`);
     }
+}
+
+export function getSerializableJitCompiler(comp: JitCompiledFn): SerializableJitCompiledFnMeta {
+    return {
+        fnID: comp.fnID,
+        jitFnHash: comp.jitFnHash,
+        args: structuredClone(comp.args),
+        isNoop: comp.isNoop,
+        defaultParamValues: structuredClone(comp.defaultParamValues),
+        code: comp.code,
+        dependenciesSet: Array.from(comp.dependenciesSet),
+        pureFnDependencies: Array.from(comp.pureFnDependencies),
+        paramNames: structuredClone(comp.paramNames),
+    };
 }
 
 // ################### Other Compiler functions ###################

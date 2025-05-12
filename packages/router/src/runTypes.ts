@@ -1,0 +1,88 @@
+/* ########
+ * 2024 mion
+ * Author: Ma-jerez
+ * License: MIT
+ * The software is provided "as is", without warranty of any kind.
+ * ######## */
+
+import type {AnyFn, JITCompiledFunctions, SerializableJITFunctions} from '@mionkit/core/src/types';
+import {JitFunctions} from '../../run-types/src/constants';
+import {RunTypeOptions} from '@mionkit/run-types/src/types';
+import {reflectFunction} from '@mionkit/run-types/src/lib/runType';
+import {getSerializableJitCompiler} from '@mionkit/run-types/src/lib/jitCompiler';
+import {type FunctionRunType} from '@mionkit/run-types/src/runType/function/function';
+import {Handler} from '@mionkit/router/src/types/handlers';
+import {RouterOptions} from '@mionkit/router/src/types/general';
+
+export function getParamsJitFns<Fn extends AnyFn>(fn: Fn, opts?: RunTypeOptions): JITCompiledFunctions {
+    const rt = reflectFunction(fn);
+    const paramFunctions: JITCompiledFunctions = {
+        isType: rt.createJitCompiledParamsFunction(JitFunctions.isType, opts),
+        typeErrors: rt.createJitCompiledParamsFunction(JitFunctions.typeErrors, opts),
+        toJsonVal: rt.createJitCompiledParamsFunction(JitFunctions.toJsonVal, opts),
+        fromJsonVal: rt.createJitCompiledParamsFunction(JitFunctions.fromJsonVal, opts),
+        jsonStringify: rt.createJitCompiledParamsFunction(JitFunctions.jsonStringify, opts),
+    };
+    return paramFunctions;
+}
+
+export function getReturnJitFns<Fn extends AnyFn>(fn: Fn, opts?: RunTypeOptions): JITCompiledFunctions {
+    const rt = reflectFunction(fn);
+
+    const returnFunctions: JITCompiledFunctions = {
+        isType: rt.createJitCompiledReturnFunction(JitFunctions.isType, opts),
+        typeErrors: rt.createJitCompiledReturnFunction(JitFunctions.typeErrors, opts),
+        toJsonVal: rt.createJitCompiledReturnFunction(JitFunctions.toJsonVal, opts),
+        fromJsonVal: rt.createJitCompiledReturnFunction(JitFunctions.fromJsonVal, opts),
+        jsonStringify: rt.createJitCompiledReturnFunction(JitFunctions.jsonStringify, opts),
+    };
+    return returnFunctions;
+}
+
+export function getSerializableJitFunctions(jitCompFns: JITCompiledFunctions): SerializableJITFunctions {
+    return {
+        isType: getSerializableJitCompiler(jitCompFns.isType),
+        typeErrors: getSerializableJitCompiler(jitCompFns.typeErrors),
+        toJsonVal: getSerializableJitCompiler(jitCompFns.toJsonVal),
+        fromJsonVal: getSerializableJitCompiler(jitCompFns.fromJsonVal),
+        jsonStringify: getSerializableJitCompiler(jitCompFns.jsonStringify),
+    };
+}
+
+interface ProcedureReflectionItems {
+    handlerRunType: FunctionRunType;
+    paramsJitFns: JITCompiledFunctions;
+    returnJitFns: JITCompiledFunctions;
+    paramNames: string[];
+}
+
+// TODO: we do not want to use runtypes directly but compiled functions so we can take advantage
+// of precompiled functions without having to generate JIT functions
+// this way we also do not need to use new Function which is not allowed in some environments
+export function getHandlerReflection(handler: Handler, routeId: string, routerOptions: RouterOptions): ProcedureReflectionItems {
+    const reflectionItems: Partial<ProcedureReflectionItems> = {};
+    let handlerRunType: FunctionRunType;
+    try {
+        handlerRunType = reflectFunction(handler);
+        reflectionItems.handlerRunType = handlerRunType;
+    } catch (error: any) {
+        throw new Error(`Can not get RunType of handler for route/hook ${routeId}. Error: ${error?.message}`);
+    }
+
+    try {
+        // paramsJitFns is a  get prop accessor that compiles the when the property is first accessed
+        reflectionItems.paramsJitFns = getParamsJitFns(handler, routerOptions.runTypeOptions);
+        reflectionItems.paramNames = handlerRunType.getParameterNames();
+    } catch (error: any) {
+        throw new Error(`Can not compile Jit Functions for Parameters of route/hook ${routeId}. Error: ${error?.message}`);
+    }
+
+    try {
+        // returnJitFns is a  get prop accessor that compiles the when the property is first accessed
+        reflectionItems.returnJitFns = getReturnJitFns(handler);
+    } catch (error: any) {
+        throw new Error(`Can not get Jit Functions for Return of route/hook ${routeId}. Error: ${error?.message}`);
+    }
+
+    return reflectionItems as ProcedureReflectionItems;
+}

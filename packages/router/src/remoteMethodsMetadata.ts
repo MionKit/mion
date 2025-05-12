@@ -19,9 +19,9 @@ import {
     isPrivateDefinition,
     shouldFullGenerateSpec,
 } from './router';
-import {getSerializableJitCompiler} from '@mionkit/run-types';
 import type {AnyObject} from '@mionkit/core/src/types';
 import {getRoutePath, getRouterItemId} from '@mionkit/core/src/core';
+import {getSerializableJitFunctions} from '@mionkit/router/src/runTypes';
 
 // ############# PRIVATE STATE #############
 const metadataById: Map<string, PublicProcedure> = new Map();
@@ -77,8 +77,8 @@ export function getMethodMetadataFromExecutable<H extends Handler>(executable: N
         // handler is included just for static typing purposes and should never be called directly.
         // It's value during run type is a string with the pointer to the handler
         handler: getHandlerSrcCodePointer(executable) as any as PublicHandler<H>,
-        paramsJitFns: getSerializableJitCompiler(executable.paramsJitFns),
-        returnJitFns: getSerializableJitCompiler(executable.returnJitFns),
+        paramsJitFns: getSerializableJitFunctions(executable.paramsJitFns),
+        returnJitFns: getSerializableJitFunctions(executable.returnJitFns),
         paramNames: executable.paramNames,
     };
 
