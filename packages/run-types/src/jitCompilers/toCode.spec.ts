@@ -125,3 +125,72 @@ it('toCode should handle objects with methods', () => {
     expect(parsedObj.value).toBe(6);
     expect(parsedObj.getValue()).toBe(6);
 });
+
+it('toCode should handle native Sets', () => {
+    // Create a type with a Set
+    type TestType = {set: Set<number>};
+    const rt = runType<TestType>();
+    const toCode = rt.createJitFunction(JitFunctions.toCode);
+    // Create an object with a Set
+    const testObj: TestType = {set: new Set([1, 2, 3])};
+    // Get the code representation
+    const code = toCode(testObj);
+    // Parse the code back to an object
+    const parsedObj = eval(`(${code})`);
+    // Verify the Set was properly transformed
+    expect(Array.from(parsedObj.set.values())).toEqual([1, 2, 3]);
+});
+
+it('toCode should handle native Maps', () => {
+    // Create a type with a Map
+    type TestType = {map: Map<string, number>};
+    const rt = runType<TestType>();
+    const toCode = rt.createJitFunction(JitFunctions.toCode);
+    // Create an object with a Map
+    const testObj: TestType = {
+        map: new Map([
+            ['one', 1],
+            ['two', 2],
+            ['three', 3],
+        ]),
+    };
+    // Get the code representation
+    const code = toCode(testObj);
+    // Parse the code back to an object
+    const parsedObj = eval(`(${code})`);
+    // Verify the Map was properly transformed
+    expect(Array.from(parsedObj.map.entries())).toEqual([
+        ['one', 1],
+        ['two', 2],
+        ['three', 3],
+    ]);
+});
+
+it('toCode should handle native Dates', () => {
+    // Create a type with a Date
+    type TestType = {date: Date};
+    const rt = runType<TestType>();
+    const toCode = rt.createJitFunction(JitFunctions.toCode);
+    // Create an object with a Date
+    const testObj: TestType = {date: new Date('2023-01-01')};
+    // Get the code representation
+    const code = toCode(testObj);
+    // Parse the code back to an object
+    const parsedObj = eval(`(${code})`);
+    // Verify the Date was properly transformed
+    expect(parsedObj.date).toEqual(testObj.date);
+});
+
+it('toCode should throw when trying to handle classes', () => {
+    // Create a type with a class
+    class TestClass {
+        constructor(
+            public name: string,
+            public age: number
+        ) {}
+    }
+    type TestType = {obj: TestClass};
+    const rt = runType<TestType>();
+    // throw when trying to compile toCode
+    expect(() => rt.createJitFunction(JitFunctions.toCode)).toThrow(`Can not generate code for classes. Class: TestClass`);
+});
