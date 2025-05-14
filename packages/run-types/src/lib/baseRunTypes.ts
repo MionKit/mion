@@ -162,6 +162,9 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
             // if something goes wrong during compilation we want to remove the compiler from
             // the cache as this is automatically added to jitUtils cache during compilation
             newJitCompiler.removeFromJitCache();
+            // TODO: we need to print the full path to the type that is causing the error
+            // for this ideally we should add a parent Compiler and print the trace only from the root
+            // console.warn('Error compiling jit function:', newJitCompiler.getStackTrace());
             throw e;
         }
         return newJitCompiler as JitCompiledFn;

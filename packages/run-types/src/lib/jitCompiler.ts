@@ -44,7 +44,7 @@ export class BaseCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extends 
         public readonly fnID: ID,
         public readonly args: FnArgsNames,
         /** when creating the function it might have default values */
-        public readonly defaultParamValues: Record<keyof FnArgsNames, any>,
+        public readonly defaultParamValues: JitFnArgs,
         public readonly returnName: string,
         public readonly parentLength: number = 0,
         jitFnHash?: string,
@@ -53,7 +53,7 @@ export class BaseCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extends 
     ) {
         this.jitFnHash = jitFnHash || getJITFnHash(this.fnID, this.rootType, opts);
         this.typeID = typeID || this.rootType.getTypeID();
-        this.vλl = this.args.vλl;
+        if (this.args.vλl) this.vλl = this.args.vλl;
         // At the time of adding this compiler to the jit cache, the fn is undefined which is technically not allowed
         // but this prevents issues with circular types and loading order of jit dependencies
         jitUtils.addToJitCache(this as JitCompiledFn);
@@ -225,6 +225,9 @@ export class BaseCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extends 
         }
         (this as Mutable<BaseCompiler>).isNoop = isNoop;
         (this as Mutable<BaseCompiler>).code = code;
+    }
+    getStackTrace(): string {
+        return this.stack.map((item) => `${item.rt.getTypeName()}|${item.rt.getTypeID()}`).join(' -> ');
     }
 }
 
