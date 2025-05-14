@@ -108,8 +108,15 @@ export class IndexSignatureRunType extends MemberRunType<TypeIndexSignature> {
         const prop = this.getChildVarName();
         return `for (const ${prop} in ${comp.vλl}) {${memberCode}}`;
     }
+    /**
+     * if index property should be skipped then it output some code to skip it,
+     * this happen when an object/interface has an index property but also has named properties
+     * that might collide with the index property. ie {[key: string]: string, a: string}
+     * when executing the logic for the index property we need to skip the named properties.
+     */
     getSkipCode(comp: JitCompiler, prop: string): string {
-        const namedChildren = (this.getParent() as InterfaceRunType).getNamedChildren(comp);
+        const parent = this.getParent() as InterfaceRunType;
+        const namedChildren = parent.getNamedChildren(comp);
         const skipNames = namedChildren.length
             ? namedChildren.map((child) => `${child.getChildLiteral()} === ${prop}`).join(' || ')
             : '';

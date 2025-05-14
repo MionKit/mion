@@ -81,7 +81,7 @@ export function reflectFunction<Fn extends (...args: any[]) => any>(fn: Fn): Fun
     return src._rt as FunctionRunType;
 }
 
-// We need to traverse all child nodes to create all the runTypes
+// We need to traverse all possible associated nodes to create all the runTypes
 function createRunTypes(src: SrcType): void {
     const stack: Type[] = [src];
 
@@ -119,6 +119,9 @@ function createRunTypes(src: SrcType): void {
         current.originTypes?.forEach((ot) => {
             if (ot.typeArguments) pushToStack(ot.typeArguments, stack);
         });
+
+        // sometimes parent is an orphan so we need to explicitly add it to the stack
+        if (current.parent && !(current.parent as SrcType)?._rt) stack.push(current.parent);
     }
 }
 

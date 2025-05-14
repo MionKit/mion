@@ -7,13 +7,16 @@
 
 import type {jitCode} from '../types';
 import type {BaseRunType} from '../lib/baseRunTypes';
+import type {MapRunType} from '@mionkit/run-types/src/runType/native/map';
+import type {SetRunType} from '@mionkit/run-types/src/runType/native/set';
+import type {ClassRunType} from '@mionkit/run-types/src/runType/collection/class';
+import type {MethodSignatureRunType} from '@mionkit/run-types/src/runType/member/methodSignature';
 import {ReflectionKind, TypeMethodSignature} from '@deepkit/type';
 import {ReflectionSubKind} from '../constants.kind';
 import {JitFunctions} from '@mionkit/run-types/src/constants';
 import {JitCompiler} from '@mionkit/run-types/src/lib/jitCompiler';
 import {isSafePropName} from '@mionkit/run-types/src/lib/utils';
-import {_compileJsonStringify} from '@mionkit/run-types/src/jitCompilers/jsonStringify';
-import type {MethodSignatureRunType} from '@mionkit/run-types/src/runType/member/methodSignature';
+import {_compileJsonStringify, _compileJsonStringifyIterable} from '@mionkit/run-types/src/jitCompilers/jsonStringify';
 
 /** Centralized compile jit function with a switch statement that handles all node types. */
 export function _compileToCode(runType: BaseRunType, comp: JitCompiler, fnID = JitFunctions.toCode.id): jitCode {
@@ -52,25 +55,23 @@ export function _compileToCode(runType: BaseRunType, comp: JitCompiler, fnID = J
             }
         // ###################### COLLECTION RUNTYPES ######################
         case ReflectionKind.class: {
-            const result = _compileJsonStringify(runType, comp, fnID);
             switch (runType.src.subKind) {
                 case ReflectionSubKind.date:
-                    return `'new Date('+${result}+')'`;
+                    return `'new Date('+${_compileJsonStringify(runType, comp, fnID)}+')'`;
                 case ReflectionSubKind.map: {
-                    return `'new Map('+${result}+')'`;
+                    return _compileJsonStringifyIterable(runType as MapRunType, comp, fnID, 'new Map(', ')');
                 }
                 case ReflectionSubKind.set: {
-                    return `'new Set('+${result}+')'`;
+                    return _compileJsonStringifyIterable(runType as SetRunType, comp, fnID, 'new Set(', ')');
                 }
                 case ReflectionSubKind.nonSerializable:
-                    throw new Error(`Jit compilation disabled for Non Serializable types.`);
+                    throw new Error(`Can not generate code for Non Serializable types.`);
                 default: {
-                    // classes are serialized as objects rather that the class itself
-                    return;
+                    const rt = runType as ClassRunType;
+                    throw new Error(`Can not generate code for classes. Class: ${rt.getClassName()}`);
                 }
             }
         }
-
         default:
             return _compileJsonStringify(runType, comp, fnID);
     }

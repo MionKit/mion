@@ -217,7 +217,6 @@ export function _compileJsonStringify(
         case ReflectionKind.objectLiteral:
         case ReflectionKind.intersection: {
             if (runType.src.subKind === ReflectionSubKind.nonSerializable) {
-                console.log('hereeeeee => ');
                 throw new Error(`${getOperationName(fnID)} is disabled for Non Serializable types.`);
             } else {
                 const rt = runType as InterfaceRunType;
@@ -380,7 +379,13 @@ function _compileJsonStringifyClass(runType: BaseRunType, comp: JitCompiler, fnI
     }
 }
 
-function _compileJsonStringifyIterable(rt: IterableRunType, comp: JitCompiler, fnID: JitFnID): string {
+export function _compileJsonStringifyIterable(
+    rt: IterableRunType,
+    comp: JitCompiler,
+    fnID: JitFnID,
+    prefix?: string,
+    suffix?: string
+): string {
     const entry = rt.getCustomVλl(comp)?.vλl || comp.vλl;
     const jitChildren = rt.getJitChildren(comp);
     const childrenCode = jitChildren.map((c) => c.compile(comp, fnID)).join('+');
@@ -393,6 +398,6 @@ function _compileJsonStringifyIterable(rt: IterableRunType, comp: JitCompiler, f
             const ${resultVal} = ${childrenResult};
             ${jsonItems}.push(${resultVal});
         }
-        return '[' + ${jsonItems}.join(',') + ']';
+        return '${prefix || ''}[' + ${jsonItems}.join(',') + ']${suffix || ''}';
     `;
 }

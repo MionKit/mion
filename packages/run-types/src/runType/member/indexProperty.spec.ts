@@ -242,3 +242,63 @@ describe('IndexType nested', () => {
         expect(validate(mocked)).toBe(true);
     });
 });
+
+describe('IndexType non root', () => {
+    interface Obj1 {
+        a: string;
+        [key: string]: string;
+    }
+
+    interface Obj2 {
+        b: string;
+        c: Obj1;
+    }
+
+    it('validate', () => {
+        const rt = runType<Obj2>();
+        const validate = rt.createJitFunction(JitFunctions.isType);
+        expect(validate({b: 'hello', c: {a: 'world', c: 'world'}})).toBe(true);
+        expect(validate({b: 'hello', c: {a: 'world', c: 123}})).toBe(false);
+    });
+
+    it('validate errors', () => {
+        const rt = runType<Obj2>();
+        const valWithErrors = rt.createJitFunction(JitFunctions.typeErrors);
+        expect(valWithErrors({b: 'hello', c: {a: 'world', c: 'world'}})).toEqual([]);
+        expect(valWithErrors({b: 'hello', c: {a: 'world', c: 123}})).toEqual([{path: ['c', 'c'], expected: 'string'}]);
+    });
+
+    it('encode to json', () => {
+        const rt = runType<Obj2>();
+        const toJsonVal = rt.createJitFunction(JitFunctions.toJsonVal);
+        const obj = {b: 'hello', c: {a: 'world', c: 'world'}};
+        expect(toJsonVal(obj)).toEqual(obj);
+    });
+
+    it('decode from json', () => {
+        const rt = runType<Obj2>();
+        const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
+        const obj = {b: 'hello', c: {a: 'world', c: 'world'}};
+        const jsonString = JSON.stringify(obj);
+        expect(fromJsonVal(JSON.parse(jsonString))).toEqual(obj);
+    });
+
+    it('json stringify', () => {
+        const rt = runType<Obj2>();
+        const jsonStringify = rt.createJitFunction(JitFunctions.jsonStringify);
+        const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
+        const obj = {b: 'hello', c: {a: 'world', c: 'world'}};
+        const roundTrip = fromJsonVal(JSON.parse(jsonStringify(obj)));
+        expect(roundTrip).toEqual(obj);
+    });
+
+    it('mock', async () => {
+        const rt = runType<Obj2>();
+        const mocked = await rt.mock();
+        expect(mocked).toHaveProperty('b');
+        expect(mocked).toHaveProperty('c');
+        expect(typeof mocked.c.a).toBe('string');
+        const validate = rt.createJitFunction(JitFunctions.isType);
+        expect(validate(mocked)).toBe(true);
+    });
+});
