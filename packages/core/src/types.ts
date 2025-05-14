@@ -179,7 +179,7 @@ export interface JitCompiledFnMeta {
      */
     readonly isNoop?: boolean;
     /** When creating the function it might have default values */
-    readonly defaultParamValues: Record<keyof JitFnArgs, any>;
+    readonly defaultParamValues: JitFnArgs;
     /** Code for the jit function. after the operation has been compiled */
     readonly code: string;
     /** The list of all jit functions that are used by this function and it's children. */

@@ -79,9 +79,9 @@ export function getCodeType(fnID: JitFnID): CodeType {
 // variable names used in jit functions
 // JitUtils is passed with the name 'utl'. it is hardcoded in all jit code to avoid string interpolation
 export const jitArgs = {vλl: 'v'} as const;
-export const jitDefaultArgs = {vλl: null} as const;
+export const jitDefaultArgs = {vλl: ''} as const;
 export const jitErrorArgs = {vλl: 'v', pλth: 'pth', εrr: 'er'} as const;
-export const jitDefaultErrorArgs = {vλl: null, pλth: '[]', εrr: '[]'} as const;
+export const jitDefaultErrorArgs = {vλl: '', pλth: '[]', εrr: '[]'} as const;
 
 // native javascript objects that are not serializable
 export const nonSerializableClasses = [
