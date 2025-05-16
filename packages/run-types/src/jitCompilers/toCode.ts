@@ -17,6 +17,7 @@ import {JitFunctions} from '@mionkit/run-types/src/constants';
 import {JitCompiler} from '@mionkit/run-types/src/lib/jitCompiler';
 import {isSafePropName} from '@mionkit/run-types/src/lib/utils';
 import {_compileJsonStringify, _compileJsonStringifyIterable} from '@mionkit/run-types/src/jitCompilers/jsonStringify';
+import {runType} from '@mionkit/run-types/src/lib/runType';
 
 /** Centralized compile jit function with a switch statement that handles all node types. */
 export function _compileToCode(runType: BaseRunType, comp: JitCompiler, fnID = JitFunctions.toCode.id): jitCode {
@@ -39,9 +40,12 @@ export function _compileToCode(runType: BaseRunType, comp: JitCompiler, fnID = J
             const sep = rt.skipCommas ? '' : '+","';
             if (rt.src.subKind === ReflectionSubKind.params) {
                 const paramsCode = _compileJsonStringify(rt, comp, fnID);
+                if (rt.isOptional()) return `(${comp.getChildVλl()} === undefined ? "" : '${safeName}:'+${paramsCode}${sep})`;
                 return `'${safeName}:'+${paramsCode}${sep}`;
             } else {
                 const fnCode = `${comp.vλl}${accessorCode}.toString()`;
+
+                if (rt.isOptional()) return `(${comp.getChildVλl()} === undefined ? "" : '${safeName}:'+${fnCode}${sep})`;
                 return `'${safeName}:'+${fnCode}${sep}`;
             }
         }
@@ -75,4 +79,12 @@ export function _compileToCode(runType: BaseRunType, comp: JitCompiler, fnID = J
         default:
             return _compileJsonStringify(runType, comp, fnID);
     }
+}
+
+export function testType() {
+    type TestType = {value: number; increment?: () => void; getValue(): number};
+    type TestTypeOptional = {value: number; increment?: () => void; getValue(): number};
+    const rt = runType<TestType>();
+    const rtOptional = runType<TestTypeOptional>();
+    return {rt, rtOptional};
 }

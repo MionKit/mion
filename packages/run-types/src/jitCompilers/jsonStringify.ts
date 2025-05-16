@@ -139,11 +139,9 @@ export function _compileJsonStringify(
                 const rt = runType as FunctionParamsRunType;
                 const skip = rt.skipJit(comp);
                 if (skip) return '';
-                if (rt.getChildRunTypes().length === 0) return `'[]'`;
-                const paramsCode = rt
-                    .getChildRunTypes()
-                    .map((p) => p.compile(comp, fnID))
-                    .join('+');
+                const params = rt.getParamRunTypes(comp);
+                if (params.length === 0) return `'[]'`;
+                const paramsCode = params.map((p) => p.compile(comp, fnID)).join('+');
                 return `'['+${paramsCode}+']'`;
             } else {
                 throw new Error(

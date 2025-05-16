@@ -126,6 +126,49 @@ it('toCode should handle objects with methods', () => {
     expect(parsedObj.getValue()).toBe(6);
 });
 
+it('toCode should handle optional methods', () => {
+    // Create a type with an optional method
+    type TestType = {value: number; increment?: () => void; getValue(): number};
+    const rt = runType<TestType>();
+    const toCode = rt.createJitFunction(JitFunctions.toCode);
+    // Create an object with an optional method
+    const testObj: TestType = {
+        value: 5,
+        getValue() {
+            return this.value;
+        },
+    };
+    // Get the code representation
+    const code = toCode(testObj);
+    // Parse the code back to an object
+    const parsedObj = eval(`(${code})`);
+    // Verify the methods were properly transformed
+    expect(parsedObj.value).toBe(5);
+    expect(parsedObj.getValue()).toBe(5);
+
+    type TestType2 = {value: number; increment2?(): void; getValue(): number};
+    const rt2 = runType<TestType2>();
+    const toCode2 = rt2.createJitFunction(JitFunctions.toCode);
+    // Create an object with an optional method
+    const testObj2: TestType2 = {
+        value: 5,
+        getValue() {
+            return this.value;
+        },
+    };
+    // TODO this is failing due to a Deepkit bug, so should fail once Deepkit fixes it
+    // PR here https://github.com/deepkit/deepkit-framework/pull/649
+    expect(() => {
+        // Get the code representation
+        const code2 = toCode2(testObj2);
+        // Parse the code back to an object
+        const parsedObj2 = eval(`(${code2})`);
+        // Verify the methods were properly transformed
+        expect(parsedObj2.value).toBe(5);
+        expect(parsedObj2.getValue()).toBe(5);
+    }).toThrow();
+});
+
 it('toCode should handle native Sets', () => {
     // Create a type with a Set
     type TestType = {set: Set<number>};

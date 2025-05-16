@@ -458,6 +458,18 @@ describe('function run type general', () => {
         expect(errorsOptionalParam([])).toEqual([]);
         expect(errorsOptionalParam([42])).toEqual([{expected: 'string', path: [0]}]);
     });
-});
 
-it.todo('createJitParamsFunction should accept a parameter index options that only validates one of the parameters');
+    it('createJitParamsFunction encode/decode to json', () => {
+        const toJsonVal = rt.createJitParamsFunction(JitFunctions.toJsonVal, {paramsSlice: {start: 1}});
+        const fromJsonVal = rt.createJitParamsFunction(JitFunctions.fromJsonVal, {paramsSlice: {start: 1}});
+        const paramsValues = [true, 'hello'];
+        expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(paramsValues))))).toEqual(paramsValues);
+    });
+
+    it('createJitParamsFunction json stringify', () => {
+        const jsonStringify = rt.createJitParamsFunction(JitFunctions.jsonStringify, {paramsSlice: {start: 1}});
+        const fromJsonVal = rt.createJitParamsFunction(JitFunctions.fromJsonVal, {paramsSlice: {start: 1}});
+        const paramsValues = [true, 'hello'];
+        expect(fromJsonVal(JSON.parse(jsonStringify(paramsValues)))).toEqual(paramsValues);
+    });
+});

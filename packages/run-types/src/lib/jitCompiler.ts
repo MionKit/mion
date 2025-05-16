@@ -4,13 +4,7 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
-import type {
-    JitCompiledFn,
-    JitCompiledFnMeta,
-    JitFnArgs,
-    PureFunction,
-    SerializableJitCompiledFnMeta,
-} from '@mionkit/core/src/types';
+import type {JitCompiledFn, JitCompiledFnMeta, JitFnArgs, PureFunction} from '@mionkit/core/src/types';
 import {MAX_STACK_DEPTH} from '@mionkit/core/src/constants';
 import type {Mutable, JitFnID, StrNumber, jitCode, RunTypeOptions, JitCompilerOpts} from '../types';
 import type {BaseRunType} from './baseRunTypes';
@@ -357,7 +351,7 @@ export function createJitCompiler(
     }
 }
 
-export function getSerializableJitCompiler(comp: JitCompiledFn): SerializableJitCompiledFnMeta {
+export function getSerializableJitCompiler(comp: JitCompiledFn): JitCompiledFnMeta {
     return {
         fnID: comp.fnID,
         jitFnHash: comp.jitFnHash,
@@ -365,8 +359,8 @@ export function getSerializableJitCompiler(comp: JitCompiledFn): SerializableJit
         isNoop: comp.isNoop,
         defaultParamValues: structuredClone(comp.defaultParamValues),
         code: comp.code,
-        dependenciesSet: Array.from(comp.dependenciesSet),
-        pureFnDependencies: Array.from(comp.pureFnDependencies),
+        dependenciesSet: new Set(comp.dependenciesSet),
+        pureFnDependencies: new Set(comp.pureFnDependencies),
         paramNames: structuredClone(comp.paramNames),
     };
 }
