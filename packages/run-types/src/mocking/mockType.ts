@@ -144,7 +144,7 @@ function _mockType(runType: BaseRunType, comp: JitCompilerOpts, stack: BaseRunTy
             const rt = runType as TupleRunType;
             const options = mOps.tupleOptions;
             const params = rt.getChildRunTypes().map((p, i) => mockType(p, getChildOpts(comp, options?.[i]), stack));
-            if (rt.hasRestParameter()) {
+            if (rt.hasRestParameter(comp)) {
                 return [...params.slice(0, -1), ...params[params.length - 1]];
             }
             return params;
@@ -183,8 +183,8 @@ function _mockType(runType: BaseRunType, comp: JitCompilerOpts, stack: BaseRunTy
             if (runType.src.subKind === ReflectionSubKind.params) {
                 const rt = runType as FunctionParamsRunType;
                 const options = mOps.tupleOptions;
-                const params = rt.getChildRunTypes().map((p, i) => mockType(p, getChildOpts(comp, options?.[i]), stack));
-                if (rt.hasRestParameter()) {
+                const params = rt.getParamRunTypes(comp).map((p, i) => mockType(p, getChildOpts(comp, options?.[i]), stack));
+                if (rt.hasRestParameter(comp)) {
                     return [...params.slice(0, -1), ...params[params.length - 1]];
                 }
                 return params;

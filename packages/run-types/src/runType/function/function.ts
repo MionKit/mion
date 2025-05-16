@@ -91,11 +91,11 @@ export class FunctionRunType<CallType extends AnyFunction = TypeFunction> extend
 
     // can't know the types of the run type function parameters, neither the return type, so only compare function name and length
     _compileIsType(comp: JitCompiler): jitCode {
-        const minLength = this.parameterRunTypes.totalRequiredParams();
-        const totalParams = this.parameterRunTypes.getChildRunTypes().length;
+        const minLength = this.parameterRunTypes.totalRequiredParams(comp);
+        const totalParams = this.parameterRunTypes.getParamRunTypes(comp).length;
         const hasOptional = totalParams > minLength;
         const maxLength =
-            this.parameterRunTypes.hasRestParameter() || !hasOptional ? '' : ` && ${comp.vλl}.length <= ${totalParams}`;
+            this.parameterRunTypes.hasRestParameter(comp) || !hasOptional ? '' : ` && ${comp.vλl}.length <= ${totalParams}`;
         return `(typeof ${comp.vλl} === 'function' && ${comp.vλl}.length >= ${minLength} ${maxLength})`;
     }
     _compileTypeErrors(comp: JitErrorsCompiler): jitCode {
