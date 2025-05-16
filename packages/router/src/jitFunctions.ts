@@ -8,14 +8,16 @@
 import type {AnyFn, JITCompiledFunctions, SerializableJITFunctions} from '@mionkit/core/src/types';
 import {JitFunctions} from '../../run-types/src/constants';
 import {RunTypeOptions} from '@mionkit/run-types/src/types';
-import {reflectFunction} from '@mionkit/run-types/src/lib/runType';
+import {reflectFunction, runType} from '@mionkit/run-types/src/lib/runType';
 import {getSerializableJitCompiler} from '@mionkit/run-types/src/lib/jitCompiler';
 import {type FunctionRunType} from '@mionkit/run-types/src/runType/function/function';
 import {Handler} from '@mionkit/router/src/types/handlers';
 import {RouterOptions} from '@mionkit/router/src/types/general';
+import {CompiledProcedure} from '@mionkit/router/src/types/procedures'; // do not import type only
 
 export function getParamsJitFns<Fn extends AnyFn>(fn: Fn, opts?: RunTypeOptions): JITCompiledFunctions {
     const rt = reflectFunction(fn);
+    console.log('getParamsJitFns', opts);
     const paramFunctions: JITCompiledFunctions = {
         isType: rt.createJitCompiledParamsFunction(JitFunctions.isType, opts),
         typeErrors: rt.createJitCompiledParamsFunction(JitFunctions.typeErrors, opts),
@@ -71,6 +73,7 @@ export function getHandlerReflection(handler: Handler, routeId: string, routerOp
 
     try {
         // paramsJitFns is a  get prop accessor that compiles the when the property is first accessed
+        console.log('getHandlerReflection =====>', routeId);
         reflectionItems.paramsJitFns = getParamsJitFns(handler, routerOptions.runTypeOptions);
         reflectionItems.paramNames = handlerRunType.getParameterNames();
     } catch (error: any) {
@@ -85,4 +88,9 @@ export function getHandlerReflection(handler: Handler, routeId: string, routerOp
     }
 
     return reflectionItems as ProcedureReflectionItems;
+}
+
+export function getProceduresToCodeFn() {
+    const rt = runType<Record<string, CompiledProcedure>>();
+    return rt.createJitFunction(JitFunctions.toCode);
 }

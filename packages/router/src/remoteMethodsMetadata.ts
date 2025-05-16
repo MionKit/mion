@@ -21,7 +21,7 @@ import {
 } from './router';
 import type {AnyObject} from '@mionkit/core/src/types';
 import {getRoutePath, getRouterItemId} from '@mionkit/core/src/core';
-import {getSerializableJitFunctions} from '@mionkit/router/src/runTypes';
+import {getSerializableJitFunctions} from '@mionkit/router/src/jitFunctions';
 
 // ############# PRIVATE STATE #############
 const metadataById: Map<string, PublicProcedure> = new Map();
