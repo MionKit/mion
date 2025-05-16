@@ -14,14 +14,16 @@ import {setCompiledProcedures, writeCompiledProcedures} from './compiler';
 import {dispatchRoute} from './dispatch';
 import {headersFromRecord} from './headers';
 import {MionHeaders} from './types/context';
-import {cΦmpλlεd} from './_compiled';
+import {rΦutεs} from './_compiled/routes';
+import {getProceduresToCodeFn} from '@mionkit/router/src/jitFunctions';
+import {NonRawProcedure} from '@mionkit/router/src/types/procedures';
 
 type RawRequest = {
     headers: MionHeaders;
     body: string;
 };
 
-const originalFile = `// ###### DO NOT MODIFY MANUALLY: THIS FILE WILL BE OVERRIDDEN WHEN COMPILING ROUTER\nexport const cΦmpλlεd = {};\n`;
+const originalFile = `// ###### DO NOT MODIFY MANUALLY: THIS FILE IS GENERATED AUTOMATICALLY\nexport const rΦutεs = {};\n`;
 process.env.MION_COMPILE = 'true';
 
 describe('compiler', () => {
@@ -53,9 +55,9 @@ describe('compiler', () => {
         const currentContent = fs.readFileSync(path.join(__dirname, '_compiled.ts'), 'utf8');
         expect(currentContent).toEqual(originalFile);
 
-        expect(cΦmpλlεd['users-updateUser']).toEqual(serializedUpdateUser);
-        expect(cΦmpλlεd['sayHello']).toEqual(serializedSayHello);
-        expect(cΦmpλlεd['logs']).toEqual(restoredLogs);
+        expect(rΦutεs['users-updateUser']).toEqual(serializedUpdateUser);
+        expect(rΦutεs['sayHello']).toEqual(serializedSayHello);
+        expect(rΦutεs['logs']).toEqual(restoredLogs);
 
         const compiledCode = writeCompiledProcedures(false);
         const restoredCompiled = new Function('return ' + compiledCode)();
@@ -81,6 +83,20 @@ describe('compiler', () => {
             {}
         );
         expect(response.body['users-updateUser']).toEqual({name: 'Leo', age: 33, lastActivity});
+    });
+
+    it('should crete a function to write compiled procedures', () => {
+        const proceduresToCode = getProceduresToCodeFn();
+        initMionRouter(routes);
+
+        const code = proceduresToCode(rΦutεs);
+        console.log('code', code);
+        expect(code).toEqual(expect.any(String));
+
+        // console.log(rΦutεs);
+        // const codeAfter = proceduresToCode(rΦutεs);
+        // console.log('codeAfter', codeAfter);
+        // expect(codeAfter).toEqual(expect.any(String));
     });
 });
 

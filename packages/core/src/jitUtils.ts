@@ -66,18 +66,18 @@ export const jitUtils = {
         jitTypesCache.delete(comp.jitFnHash);
     },
     // !!! DO NOT MODIFY METHOD WITHOUT REVIEWING JIT CODE INVOCATIONS!!!
-    getJIT(key: string): JitCompiledFn | undefined {
-        return jitTypesCache.get(key);
+    getJIT(jitFnHash: string): JitCompiledFn | undefined {
+        return jitTypesCache.get(jitFnHash);
     },
     // !!! DO NOT MODIFY METHOD WITHOUT REVIEWING JIT CODE INVOCATIONS!!!
-    getJitFn(key: string): (...args: any[]) => any {
-        const comp = jitTypesCache.get(key);
-        if (!comp) throw new Error(`Jit function not found for key ${key}`);
+    getJitFn(jitFnHash: string): (...args: any[]) => any {
+        const comp = jitTypesCache.get(jitFnHash);
+        if (!comp) throw new Error(`Jit function not found for jitFnHash ${jitFnHash}`);
         return comp.fn;
     },
     // !!! DO NOT MODIFY METHOD WITHOUT REVIEWING JIT CODE INVOCATIONS!!!
-    hasJitFn(key: string) {
-        return !!jitTypesCache.get(key)?.fn;
+    hasJitFn(jitFnHash: string) {
+        return !!jitTypesCache.get(jitFnHash)?.fn;
     },
     // !!! DO NOT MODIFY METHOD WITHOUT REVIEWING JIT CODE INVOCATIONS!!!
     getUnknownKeysFromSet(obj: Record<StrNumber, any>, keys: Set<StrNumber>): StrNumber[] {

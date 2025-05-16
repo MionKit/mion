@@ -1,7 +1,7 @@
 // ####### Executables #######
 
-import type {JITCompiledFunctions, SerializableJITFunctions} from '@mionkit/core/src/types';
-import type {AnyHandler, Handler, HeaderHandler, RawHookHandler} from './handlers';
+import {JITCompiledFunctions, SerializableJITFunctions} from '@mionkit/core/src/types'; // do not import type only
+import {AnyHandler, Handler, HeaderHandler, RawHookHandler} from './handlers'; // do not import type only
 
 export enum ProcedureType {
     route = 1,
@@ -22,7 +22,7 @@ export interface ProcedureOptions {
 }
 
 /** Contains the data of each hook or route, Used to generate the execution path for each route. */
-export interface Procedure<H extends AnyHandler = any> {
+export interface Procedure<H extends AnyHandler = AnyHandler> {
     type: ProcedureType;
     id: string;
     // pointer to the src Hook or Route definition within the original Routers object, ie: ['users','getUser']
@@ -37,7 +37,7 @@ export interface Procedure<H extends AnyHandler = any> {
     procedureCaller?: (...args: any[]) => void;
 }
 
-export interface NonRawProcedure<H extends Handler = any> extends Procedure<H> {
+export interface NonRawProcedure<H extends Handler = Handler> extends Procedure<H> {
     paramsJitFns: JITCompiledFunctions;
     returnJitFns: JITCompiledFunctions;
     paramNames: string[];
@@ -83,7 +83,7 @@ export interface NotFoundProcedure extends Procedure {
     is404: true;
 }
 
-export type SerializableProcedure = Omit<Procedure, 'handler' | 'paramsJitFns' | 'returnJitFns' | 'procedureCaller'> & {
+export type CompiledProcedure = Omit<Procedure, 'handler' | 'procedureCaller'> & {
     paramsJitFns: SerializableJITFunctions;
     returnJitFns: SerializableJITFunctions;
 };

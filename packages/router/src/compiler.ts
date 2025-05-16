@@ -7,21 +7,24 @@
 
 import fs from 'fs';
 import path from 'path';
-import {codifyJitFunctions, restoreCodifiedJitFunctions, toLiteral, arrayToLiteral} from '@mionkit/run-types/src/lib/utils';
+// import {codifyJitFunctions, restoreCodifiedJitFunctions, toLiteral, arrayToLiteral} from '@mionkit/run-types/src/lib/utils';
+import {toLiteral, arrayToLiteral} from '@mionkit/run-types/src/lib/utils';
+
 import {NonRawProcedure, ProcedureOptions} from './types/procedures';
 import {AnyHandler} from './types/handlers';
 import {IS_TEST_ENV} from './constants';
-import {cΦmpλlεd} from './_compiled'; // inception 🔁
+import {rΦutεs} from './_compiled/routes'; // inception 🔁
+import {getProceduresToCodeFn} from '@mionkit/router/src/jitFunctions';
 
 // ############# PUBLIC METHODS #############
 
 export function compileProcedure(id: string, procedure: NonRawProcedure) {
-    if (!shouldCompile() || !!cΦmpλlεd[id]) return;
-    cΦmpλlεd[id] = procedure;
+    if (!shouldCompile() || !!rΦutεs[id]) return;
+    rΦutεs[id] = procedure;
 }
 
 export function getCompiledProcedure(id: string, handler: AnyHandler): NonRawProcedure | undefined {
-    const procedure = compiled?.[id] || cΦmpλlεd[id];
+    const procedure = compiled?.[id] || rΦutεs[id];
     if (!procedure) return;
     return restoreCodifiedProcedure(procedure, handler);
 }
@@ -30,8 +33,8 @@ function restoreCodifiedProcedure(procedure: NonRawProcedure, handler: AnyHandle
     if ((procedure as any).restored) return procedure;
     (procedure as any).restored = true;
     procedure.handler = handler;
-    restoreCodifiedJitFunctions(procedure.paramsJitFns);
-    restoreCodifiedJitFunctions(procedure.returnJitFns);
+    // restoreCodifiedJitFunctions(procedure.paramsJitFns);
+    // restoreCodifiedJitFunctions(procedure.returnJitFns);
     return procedure;
 }
 
@@ -51,18 +54,18 @@ export function writeCompiledProcedures(writeFile = true) {
         const errorFname = path.join(__dirname, `_compiled.{js,mjs,ts,cjs,jsx,tsx}`);
         throw new Error(`Can't find file to save compiledProcedures. It should be ${errorFname}`);
     }
-    const compiledOriginal = 'cΦmpλlεd = {}';
+    const compiledOriginal = 'rΦutεs = {}';
     const currentContent = fs.readFileSync(fileName, 'utf8');
     const found = currentContent.includes(compiledOriginal);
     if (!found) {
         throw new Error(`Can't replace compiled code in ${fileName}. Most probably is already compiled.`);
     }
 
-    const codified = codifyCompiledProcedures(cΦmpλlεd);
+    const codified = codifyCompiledProcedures(rΦutεs);
     if (writeFile) {
         const compiledCode = currentContent
             .replace('//# sourceMappingURL=_compiled.js.map', '')
-            .replace(compiledOriginal, `cΦmpλlεd = ${codified}`);
+            .replace(compiledOriginal, `rΦutεs = ${codified}`);
         fs.writeFileSync(fileName, compiledCode, 'utf8');
         if (!IS_TEST_ENV) console.log(`Compiled procedures written to ${fileName}.`);
     } else {
@@ -98,6 +101,10 @@ function codifyProcedureOptions(ops: ProcedureOptions): string {
     return `{${runOnError},${hasReturnData},${validateParams},${deserializeParams},${validateReturn},${serializeReturn},${description},${isAsync}}`;
 }
 
+function codifyJitFunctions(item: any) {
+    return String(item);
+}
+
 /**
  * Returns a string with the procedure to be used as js src code
  * jsonStringify are compiled as (value, asJSONString) => {code} instead of (value) => {code}
@@ -127,28 +134,8 @@ export function compileRouter() {
     writeCompiledProcedures();
 }
 
-// export function deserializeProcedure(procedure: SerializableProcedure, handler: AnyHandler): Procedure {
-//     const restored = procedure as Procedure;
-//     restored.handler = handler;
-//     restored.paramsJitFns = restoreJitFunctions(procedure.paramsJitFns);
-//     restored.returnJitFns = restoreJitFunctions(procedure.returnJitFns);
-//     if (shouldCompile()) (restored as any).fromCompiled = true; // flag to know if it was compiled
-//     return restored;
-// }
-
-// export function serializeProcedure(procedure: NonRawProcedure): SerializableProcedure {
-//     const serialized: SerializableProcedure = {
-//         id: procedure.id,
-//         type: procedure.type,
-//         nestLevel: procedure.nestLevel,
-//         paramsJitFns: getSerializableJitCompiler(procedure.paramsJitFns),
-//         returnJitFns: getSerializableJitCompiler(procedure.returnJitFns),
-//         paramNames: procedure.paramNames,
-//         pointer: procedure.pointer,
-//         headerNames: procedure.headerNames,
-//         options: {
-//             ...procedure.options,
-//         },
-//     };
-//     return serialized;
-// }
+export function compileUtils(dic: Record<string, NonRawProcedure>) {
+    const proceduresToCode = getProceduresToCodeFn();
+    const code = proceduresToCode(dic);
+    console.log(code);
+}
