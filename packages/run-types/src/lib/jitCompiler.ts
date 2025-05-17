@@ -29,7 +29,7 @@ export type StackItem = {
 export type JitCompilerLike = BaseCompiler | JitCompiledFnMeta;
 export type JitDependencies = Set<string>;
 
-const STACK_TRACE_ROOT = 'runType pointer => ';
+const STACK_TRACE_ROOT = 'runType JIT compiler error pointer => ';
 
 export class BaseCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extends JitFnID = any>
     implements JitCompiledFnMeta, JitCompilerOpts
