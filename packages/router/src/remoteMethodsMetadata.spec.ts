@@ -109,13 +109,17 @@ describe('Public Methods should', () => {
     it('be able to convert serialized handler types to json, deserialize and use them for validation', () => {
         initRouter({sharedDataFactory: getSharedData, getPublicRoutesData: true});
         const testR = {
-            addMilliseconds: route((ctx, ms: number, date: Date) => date.setMilliseconds(date.getMilliseconds() + ms)),
+            addMilliseconds: route((ctx, ms: number, date: Date): number => date.setMilliseconds(date.getMilliseconds() + ms)),
         };
         const api = registerRoutes(testR);
         const serializedFnParams = api.addMilliseconds.paramsJitFns;
-        const isType = new Function(...serializedFnParams.isType.varNames, serializedFnParams.isType.code);
-        const jsonDecode = new Function(...serializedFnParams.fromJsonVal.varNames, serializedFnParams.fromJsonVal.code);
-        const jsonEncode = new Function(...serializedFnParams.toJsonVal.varNames, serializedFnParams.toJsonVal.code);
+        console.log(serializedFnParams.isType);
+        const isTypeParams = serializedFnParams.isType.paramNames || [];
+        const jsonDecodeParams = serializedFnParams.fromJsonVal.paramNames || [];
+        const jsonEncodeParams = serializedFnParams.toJsonVal.paramNames || [];
+        const isType = new Function(...isTypeParams, serializedFnParams.isType.code);
+        const jsonDecode = new Function(...jsonDecodeParams, serializedFnParams.fromJsonVal.code);
+        const jsonEncode = new Function(...jsonEncodeParams, serializedFnParams.toJsonVal.code);
         const date = new Date('2022-12-19T00:24:00.00');
 
         // ###### Validation ######

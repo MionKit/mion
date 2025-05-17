@@ -12,6 +12,8 @@ describe('Route errors should', () => {
         setErrorOptions({autoGenerateErrorId: true});
         const error = new RpcError({statusCode: 400, publicMessage: 'error'});
 
+        console.log('error.id', error.id);
+        console.log('error.message', String(error.id).length);
         expect(typeof error.id).toEqual('string');
         expect((error.id as string).length).toEqual(36);
 
