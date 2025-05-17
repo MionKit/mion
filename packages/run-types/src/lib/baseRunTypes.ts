@@ -24,7 +24,8 @@ import type {
 } from '../types';
 import type {mockType} from '../mocking/mockType';
 import {jitArgs, jitErrorArgs, JitFunctions, maxStackErrorMessage, CodeType, getCodeType} from '../constants';
-import {ReflectionKind, type TypeIndexSignature, type TypeProperty, type Type} from '@deepkit/type';
+import {ReflectionKind} from '@deepkit/type';
+import type {TypeIndexSignature, TypeProperty, Type, TypeParameter, TypeFunction} from '@deepkit/type';
 import {getPropIndex, memorize, toLiteral} from './utils';
 import {JitErrorsCompiler, JitCompiler, getJITFnHash, createJitCompiler} from './jitCompiler';
 import {type AnyKindName, getReflectionName} from '../constants.kind';
@@ -158,13 +159,14 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
         const newJitCompiler: JitCompiler = createJitCompiler(this, fnID, parentCop, undefined, undefined, opts) as JitCompiler;
         try {
             this.compile(newJitCompiler, fnID);
-        } catch (e) {
+        } catch (e: any) {
             // if something goes wrong during compilation we want to remove the compiler from
             // the cache as this is automatically added to jitUtils cache during compilation
             newJitCompiler.removeFromJitCache();
             // TODO: we need to print the full path to the type that is causing the error
             // for this ideally we should add a parent Compiler and print the trace only from the root
-            // console.warn('Error compiling jit function:', newJitCompiler.getStackTrace());
+            if (typeof e?.message === 'string' && !newJitCompiler.hasStackTrace(e.message))
+                e.message += '\n' + newJitCompiler.getStackTrace();
             throw e;
         }
         return newJitCompiler as JitCompiledFn;
@@ -384,6 +386,13 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
     callSelfInvokingFunction(code: string, addReturn = false): jitCode {
         const returnCode = addReturn ? `return ` : '';
         return `(function(){${returnCode}${code}})()`;
+    }
+
+    getTypeTraceInfo(): string {
+        if (this.getFamily() === 'C') return this.src.typeName || getReflectionName(this);
+        if (this.getFamily() === 'F') return String((this.src as TypeFunction).name) || getReflectionName(this);
+        if (this.getFamily() === 'M') return (this as any).getChildVarName?.() || getReflectionName(this);
+        return getReflectionName(this);
     }
 }
 

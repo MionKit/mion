@@ -29,6 +29,8 @@ export type StackItem = {
 export type JitCompilerLike = BaseCompiler | JitCompiledFnMeta;
 export type JitDependencies = Set<string>;
 
+const STACK_TRACE_ROOT = 'runType pointer => ';
+
 export class BaseCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extends JitFnID = any>
     implements JitCompiledFnMeta, JitCompilerOpts
 {
@@ -40,7 +42,7 @@ export class BaseCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extends 
         /** when creating the function it might have default values */
         public readonly defaultParamValues: JitFnArgs,
         public readonly returnName: string,
-        public readonly parentLength: number = 0,
+        public readonly parentCompiler?: BaseCompiler,
         jitFnHash?: string,
         typeID?: StrNumber,
         public readonly opts: RunTypeOptions = {}
@@ -82,7 +84,8 @@ export class BaseCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extends 
         return this.stack.length;
     }
     get totalLength() {
-        return this.stack.length + this.parentLength;
+        if (this.parentCompiler) return this.stack.length + this.parentCompiler.totalLength;
+        return this.stack.length;
     }
     vλl: string = '';
     /**
@@ -221,7 +224,14 @@ export class BaseCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extends 
         (this as Mutable<BaseCompiler>).code = code;
     }
     getStackTrace(): string {
-        return this.stack.map((item) => `${item.rt.getTypeName()}|${item.rt.getTypeID()}`).join(' -> ');
+        const separator = '.';
+        const parentTrace = this.parentCompiler ? this.parentCompiler.getStackTrace() + separator : STACK_TRACE_ROOT;
+        const lastParentItem = this.parentCompiler?.getCurrentStackItem();
+        const filteredStack = lastParentItem ? this.stack.filter((item) => item.rt !== lastParentItem?.rt) : this.stack;
+        return parentTrace + filteredStack.map((item) => item.rt.getTypeTraceInfo()).join(separator);
+    }
+    hasStackTrace(errorMessage: string) {
+        return errorMessage.includes(STACK_TRACE_ROOT);
     }
 }
 
@@ -231,12 +241,12 @@ export class JitCompiler<ID extends JitFnID = any> extends BaseCompiler<typeof j
     constructor(
         rt: BaseRunType,
         fnID: ID,
-        parentLength: number = 0,
+        parentCompiler?: BaseCompiler,
         jitFnHash?: string,
         typeID?: StrNumber,
         opts: RunTypeOptions = {}
     ) {
-        super(rt, fnID, {...jitArgs}, {...jitDefaultArgs}, 'v', parentLength, jitFnHash, typeID, opts);
+        super(rt, fnID, {...jitArgs}, {...jitDefaultArgs}, 'v', parentCompiler, jitFnHash, typeID, opts);
     }
 }
 
@@ -244,14 +254,14 @@ export class JitErrorsCompiler<ID extends JitFnID = any> extends BaseCompiler<ty
     constructor(
         rt: BaseRunType,
         dnId: ID,
-        parentLength: number = 0,
+        parentCompiler?: BaseCompiler,
         jitFnHash?: string,
         typeID?: StrNumber,
         opts: RunTypeOptions = {}
     ) {
         const args = {...jitErrorArgs};
         const defaultValues = {...jitDefaultErrorArgs};
-        super(rt, dnId, args, defaultValues, 'er', parentLength, jitFnHash, typeID, opts);
+        super(rt, dnId, args, defaultValues, 'er', parentCompiler, jitFnHash, typeID, opts);
     }
     callJitErr(expected: AnyKindName | BaseRunType<any>): string {
         // TODO: most of the time jit path is an empty array, so a new array is created every time
@@ -342,10 +352,10 @@ export function createJitCompiler(
         case JitFunctions.unknownKeysToUndefined.id:
         case JitFunctions.format.id:
         case JitFunctions.toCode.id:
-            return new JitCompiler(rt, fnID, parent?.totalLength, jitFnHash, typeID, opts);
+            return new JitCompiler(rt, fnID, parent, jitFnHash, typeID, opts);
         case JitFunctions.typeErrors.id:
         case JitFunctions.unknownKeyErrors.id:
-            return new JitErrorsCompiler(rt, fnID, parent?.totalLength, jitFnHash, typeID, opts);
+            return new JitErrorsCompiler(rt, fnID, parent, jitFnHash, typeID, opts);
         default:
             throw new Error(`Unknown compile operation: ${fnID}`);
     }
