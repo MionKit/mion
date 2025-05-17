@@ -49,7 +49,7 @@ describe('Dispatch routes', () => {
         return data;
     });
 
-    const auth = headersHook(['Authorization'], (ctx, token: string) => {
+    const auth = headersHook(['Authorization'], (ctx, token: string): void => {
         if (token !== '1234') throw {statusCode: StatusCodes.FORBIDDEN, message: 'invalid auth token'};
     });
 
@@ -149,7 +149,7 @@ describe('Dispatch routes', () => {
 
         it('if there are no params input field can be omitted', async () => {
             initRouter({sharedDataFactory: getSharedData});
-            registerRoutes({sayHello: route(() => 'hello')});
+            registerRoutes({sayHello: route((): string => 'hello')});
 
             const path = '/sayHello';
             const id = 'sayHello';
@@ -184,7 +184,7 @@ describe('Dispatch routes', () => {
             };
             initRouter(options);
             registerRoutes({
-                getHello: route(() => 'hello'), // GET api/v1/Hello
+                getHello: route((): string => 'hello'), // GET api/v1/Hello
             });
 
             const response = await dispatchRoute(publicPath, request.body, request.headers, headersFromRecord({}), request, {});
@@ -403,7 +403,7 @@ describe('Dispatch routes', () => {
         it('return an unknown error if a route fails with a generic error', async () => {
             initRouter({sharedDataFactory: getSharedData});
 
-            const routeFail = route(() => {
+            const routeFail = route((): void => {
                 throw new Error('this is a generic error');
             });
             registerRoutes({routeFail});

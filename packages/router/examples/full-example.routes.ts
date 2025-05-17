@@ -30,7 +30,7 @@ const auth = headersHook('Authorization', (ctx: Context, token: string): void =>
     ctx.shared.me = myApp.auth.getIdentity(token) as User;
 });
 
-const log = rawHook((context): void => console.log('rawHook', context.path));
+const log = rawHook((context: Context): void => console.log('rawHook', context.path));
 
 const routes = {
     private: hook((): null => null),

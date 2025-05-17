@@ -16,12 +16,12 @@ describe('Public Methods should', () => {
     const privateHook = hook((ctx): void => undefined);
     const publicHook = hook((ctx): null => null);
     const paramsHook = hook((ctx, s: string): void => undefined);
-    const route1 = route(() => 'route1');
-    const route2 = route(() => 'route2');
+    const route1 = route((ctx): string => 'route1');
+    const route2 = route((ctx): string => 'route2');
 
     const routes = {
         first: paramsHook, // is public as has params
-        parse: rawHook((ctx, req, resp, opts): void => undefined), // private
+        parse: rawHook((ctx, req: unknown, resp: unknown, opts: unknown): void => undefined), // private
         users: {
             userBefore: privateHook, // private
             getUser: route1, // public

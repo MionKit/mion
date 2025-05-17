@@ -22,7 +22,7 @@ describe('route & hooks init functions', () => {
     const routes = {
         auth: headersHook(['Authorization'], (ctx, auth: string): string[] => [`auth: ${auth}`]),
         timestamp: hook((ctx, time: number): string => `time: ${time}`),
-        nothing: rawHook((ctx, req, resp): void => undefined),
+        nothing: rawHook((ctx, req: unknown, resp: unknown): void => undefined),
         print: route((ctx, name: string): string => `name: ${name}`),
     } satisfies Routes;
 
