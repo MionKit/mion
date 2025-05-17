@@ -17,7 +17,6 @@ import {CompiledProcedure} from '@mionkit/router/src/types/procedures'; // do no
 
 export function getParamsJitFns<Fn extends AnyFn>(fn: Fn, opts?: RunTypeOptions): JITCompiledFunctions {
     const rt = reflectFunction(fn);
-    console.log('getParamsJitFns', opts);
     const paramFunctions: JITCompiledFunctions = {
         isType: rt.createJitCompiledParamsFunction(JitFunctions.isType, opts),
         typeErrors: rt.createJitCompiledParamsFunction(JitFunctions.typeErrors, opts),
@@ -72,8 +71,7 @@ export function getHandlerReflection(handler: Handler, routeId: string, routerOp
     }
 
     try {
-        // paramsJitFns is a  get prop accessor that compiles the when the property is first accessed
-        console.log('getHandlerReflection =====>', routeId);
+        // paramsJitFns contains all run type functionality for the parameters, it compiles the when the property is first accessed
         reflectionItems.paramsJitFns = getParamsJitFns(handler, routerOptions.runTypeOptions);
         reflectionItems.paramNames = handlerRunType.getParameterNames();
     } catch (error: any) {
@@ -81,7 +79,7 @@ export function getHandlerReflection(handler: Handler, routeId: string, routerOp
     }
 
     try {
-        // returnJitFns is a  get prop accessor that compiles the when the property is first accessed
+        // returnJitFns contains all run type functionality for the return value, it compiles the when the property is first accessed
         reflectionItems.returnJitFns = getReturnJitFns(handler);
     } catch (error: any) {
         throw new Error(`Can not get Jit Functions for Return of route/hook ${routeId}. Error: ${error?.message}`);

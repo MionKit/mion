@@ -31,7 +31,7 @@ describe('getStringifyFnForExecutionPath', () => {
     }
 
     const routes = {
-        auth: headersHook(['auth'], (ctx, token: string) => {}),
+        auth: headersHook(['auth'], (ctx, token: string): void => {}),
         users: {
             updateUser: route((ctx, user: User): User => ({...user, lastActivity})),
         },

@@ -90,8 +90,8 @@ describe('compiler', () => {
         initMionRouter(routes);
 
         const code = proceduresToCode(rΦutεs);
-        console.log('code', code);
         expect(code).toEqual(expect.any(String));
+        // TODO finish functionality
 
         // console.log(rΦutεs);
         // const codeAfter = proceduresToCode(rΦutεs);
