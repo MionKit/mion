@@ -11,7 +11,7 @@ let notFoundExecutionPath: ProceduresExecutionList | undefined;
 // TODO: make this configurable so uses can override behavior
 const notFoundRoute = {
     type: ProcedureType.route,
-    handler: () => new RpcError({statusCode: StatusCodes.NOT_FOUND, publicMessage: `Route not found`}),
+    handler: (): RpcError => new RpcError({statusCode: StatusCodes.NOT_FOUND, publicMessage: `Route not found`}),
 } satisfies RouteDef;
 
 export function getNotFoundExecutionPath(): ProceduresExecutionList {
