@@ -8,7 +8,7 @@
 import type {Handler} from './types/handlers';
 import {type RouterEntry, type Routes} from './types/general';
 import {NonRawProcedure, type Procedure} from './types/procedures';
-import {ProcedureType} from './types/procedures';
+import {HandlerType} from './types/procedures';
 import type {PublicApi, PublicHandler, PublicProcedure} from './types/publicProcedures';
 import {isRoute, isHeaderHookDef, isHookDef, isPublicExecutable} from './types/guards';
 import {
@@ -85,7 +85,7 @@ export function getMethodMetadataFromExecutable<H extends Handler>(executable: N
     // initialized separately so the property `headerName` is not included in the object in case is undefined
     if (executable.headerNames) newRemoteMethod.headerNames = executable.headerNames;
 
-    if (executable.type === ProcedureType.route) {
+    if (executable.type === HandlerType.route) {
         const path = getRoutePath(executable.pointer, getRouterOptions());
         const pathPointers =
             getRouteExecutionPath(path)

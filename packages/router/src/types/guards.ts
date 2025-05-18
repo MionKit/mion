@@ -12,24 +12,24 @@ import {RawProcedure} from './procedures';
 import {HeaderProcedure} from './procedures';
 import {RouteProcedure} from './procedures';
 import {Procedure} from './procedures';
-import {ProcedureType} from './procedures';
+import {HandlerType} from './procedures';
 
 // #######  type guards #######
 
 export function isRouteDef(entry: RouterEntry): entry is RouteDef {
-    return entry.type === ProcedureType.route;
+    return entry.type === HandlerType.route;
 }
 
 export function isHookDef(entry: RouterEntry): entry is HookDef {
-    return entry.type === ProcedureType.hook;
+    return entry.type === HandlerType.hook;
 }
 
 export function isRawHookDef(entry: RouterEntry): entry is RawHookDef {
-    return entry.type === ProcedureType.rawHook;
+    return entry.type === HandlerType.rawHook;
 }
 
 export function isHeaderHookDef(entry: RouterEntry): entry is HeaderHookDef {
-    return entry.type === ProcedureType.headerHook;
+    return entry.type === HandlerType.headerHook;
 }
 
 export function isAnyHookDef(entry: RouterEntry): entry is HeaderHookDef | HookDef | RawHookDef {
@@ -37,7 +37,7 @@ export function isAnyHookDef(entry: RouterEntry): entry is HeaderHookDef | HookD
 }
 
 export function isRoute(entry: RouterEntry): entry is Route {
-    return entry.type === ProcedureType.route;
+    return entry.type === HandlerType.route;
 }
 
 export function isRoutes(entry: RouterEntry | Routes): entry is Route {
@@ -51,11 +51,11 @@ export function isExecutable(entry: Procedure | {pathPointer: string[]}): entry 
     );
 }
 export function isRawExecutable(entry: Procedure): entry is RawProcedure {
-    return entry.type === ProcedureType.rawHook;
+    return entry.type === HandlerType.rawHook;
 }
 
 export function isPublicExecutable(entry: Procedure): entry is Procedure {
-    return entry.options.hasReturnData || entry.type === ProcedureType.route || !!entry.paramNames?.length;
+    return entry.options.hasReturnData || entry.type === HandlerType.route || !!entry.paramNames?.length;
 }
 
 export function isNotFoundExecutable(entry: Procedure): entry is NotFoundProcedure {
@@ -63,9 +63,9 @@ export function isNotFoundExecutable(entry: Procedure): entry is NotFoundProcedu
 }
 
 export function isHeaderExecutable(entry: Procedure): entry is HeaderProcedure {
-    return entry.type === ProcedureType.headerHook;
+    return entry.type === HandlerType.headerHook;
 }
 
 export function isRouteExecutable(entry: Procedure): entry is RouteProcedure {
-    return entry.type === ProcedureType.route;
+    return entry.type === HandlerType.route;
 }

@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {HeaderHookOptions, HookOptions, ProcedureType, RawHookOptions, RouteOptions} from './types/procedures';
+import {HeaderHookOptions, HookOptions, HandlerType, RawHookOptions, RouteOptions} from './types/procedures';
 import {Handler, HeaderHandler, RawHookHandler} from './types/handlers';
 import {HeaderHookDef, HookDef, RawHookDef, RouteDef} from './types/definitions';
 
@@ -14,7 +14,7 @@ import {HeaderHookDef, HookDef, RawHookDef, RouteDef} from './types/definitions'
 
 export function route<H extends Handler>(handler: H, opts?: RouteOptions) {
     const procedure = {
-        type: ProcedureType.route,
+        type: HandlerType.route,
         handler,
         options: opts,
     } satisfies RouteDef<H>;
@@ -23,7 +23,7 @@ export function route<H extends Handler>(handler: H, opts?: RouteOptions) {
 
 export function hook<H extends Handler>(handler: H, opts?: HookOptions) {
     const procedure = {
-        type: ProcedureType.hook,
+        type: HandlerType.hook,
         handler,
         options: opts,
     } satisfies HookDef<H>;
@@ -34,7 +34,7 @@ export function headersHook<S extends string[], H extends HeaderHandler>(headerN
     if (headerNames.length !== handler.length - 1)
         throw new Error('Header Names must match the number of handler parameters minus the context parameter.');
     const procedure = {
-        type: ProcedureType.headerHook,
+        type: HandlerType.headerHook,
         headerNames,
         handler,
         options: opts,
@@ -44,7 +44,7 @@ export function headersHook<S extends string[], H extends HeaderHandler>(headerN
 
 export function rawHook<H extends RawHookHandler>(handler: H, opts?: RawHookOptions) {
     const procedure = {
-        type: ProcedureType.rawHook,
+        type: HandlerType.rawHook,
         handler,
         options: opts,
     } satisfies RawHookDef<H>;

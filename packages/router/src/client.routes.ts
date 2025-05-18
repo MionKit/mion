@@ -25,7 +25,7 @@ import {RouterOptions, Routes} from './types/general';
 import {getMethodMetadataFromExecutable} from './remoteMethodsMetadata';
 import {NonRawProcedure, Procedure} from './types/procedures';
 
-export type RemoteMethodsDictionary = {[key: string]: PublicProcedure};
+export type PublicProcedures = Record<string, PublicProcedure>;
 export interface ClientRouteOptions extends RouterOptions {
     getAllRemoteMethodsMaxNumber?: number;
 }
@@ -34,7 +34,7 @@ export const defaultClientRouteOptions = {
     getAllRemoteMethodsMaxNumber: 100,
 };
 
-function addRequiredRemoteMethodsToResponse(id: string, resp: RemoteMethodsDictionary, errorData: AnyObject): void {
+function addRequiredRemoteMethodsToResponse(id: string, resp: PublicProcedures, errorData: AnyObject): void {
     if (resp[id]) return;
     const executable = getHookExecutable(id) || getRouteExecutable(id);
     if (!executable) {
@@ -47,8 +47,8 @@ function addRequiredRemoteMethodsToResponse(id: string, resp: RemoteMethodsDicti
     resp[id].hookIds?.forEach((hookId) => addRequiredRemoteMethodsToResponse(hookId, resp, errorData));
 }
 
-const getRemoteMethods = (ctx, methodsIds: string[], getAllRemoteMethods?: boolean): RemoteMethodsDictionary | RpcError => {
-    const resp: RemoteMethodsDictionary = {};
+const getRemoteMethods = (ctx, methodsIds: string[], getAllRemoteMethods?: boolean): PublicProcedures | RpcError => {
+    const resp: PublicProcedures = {};
     const errorData = {};
     const maxMethods =
         getRouterOptions<ClientRouteOptions>().getAllRemoteMethodsMaxNumber ||
@@ -74,7 +74,7 @@ const getRemoteMethods = (ctx, methodsIds: string[], getAllRemoteMethods?: boole
     return resp;
 };
 
-const getRouteRemoteMethods = (ctx, path: string, getAllRemoteMethods?: boolean): RemoteMethodsDictionary | RpcError => {
+const getRouteRemoteMethods = (ctx, path: string, getAllRemoteMethods?: boolean): PublicProcedures | RpcError => {
     const executables = getRouteExecutionPath(path);
     if (!executables)
         return new RpcError({

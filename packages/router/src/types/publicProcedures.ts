@@ -9,7 +9,7 @@ import type {RpcError} from '@mionkit/core/src/errors';
 import type {SerializableJITFunctions} from '@mionkit/core/src/types';
 import type {CallContext} from './context';
 import type {Routes} from './general';
-import type {ProcedureType} from './procedures';
+import type {HandlerType} from './procedures';
 import type {Handler} from './handlers';
 import type {HeaderHookDef, HookDef, RawHookDef, RouteDef} from './definitions';
 
@@ -63,7 +63,7 @@ export type PublicApi<Type extends Routes> = {
 // quite similar to Executable but omits some server only properties
 export interface PublicProcedure<H extends Handler = any> {
     id: string;
-    type: ProcedureType;
+    type: HandlerType;
     /** Type reference to the route handler, it's runtime value is actually null, just used statically by typescript. */
     handler: PublicHandler<H>;
     /** data and code required to build the functions to serialize and validate handler parameters  */
@@ -78,19 +78,19 @@ export interface PublicProcedure<H extends Handler = any> {
 
 /** Public map from Routes, handler type is the same as router's handler but does not include the context  */
 export interface PublicRouteProcedure<H extends Handler = any> extends PublicProcedure<H> {
-    type: ProcedureType.route;
+    type: HandlerType.route;
     hookIds: string[];
     headerNames: undefined;
 }
 
 /** Public map from Hooks, handler type is the same as hooks's handler but does not include the context  */
 export interface PublicHookProcedure<H extends Handler = any> extends PublicProcedure<H> {
-    type: ProcedureType.hook;
+    type: HandlerType.hook;
     pathPointers: undefined;
 }
 
 export interface PublicHeaderProcedure<H extends Handler = any> extends PublicProcedure<H> {
-    type: ProcedureType.headerHook;
+    type: HandlerType.headerHook;
     headerNames: string[];
 }
 

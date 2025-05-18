@@ -3,7 +3,7 @@
 import {JITCompiledFunctions, SerializableJITFunctions} from '@mionkit/core/src/types'; // do not import type only
 import {AnyHandler, Handler, HeaderHandler, RawHookHandler} from './handlers'; // do not import type only
 
-export enum ProcedureType {
+export enum HandlerType {
     route = 1,
     hook = 2,
     headerHook = 3,
@@ -23,7 +23,7 @@ export interface ProcedureOptions {
 
 /** Contains the data of each hook or route, Used to generate the execution path for each route. */
 export interface Procedure<H extends AnyHandler = AnyHandler> {
-    type: ProcedureType;
+    type: HandlerType;
     id: string;
     // pointer to the src Hook or Route definition within the original Routers object, ie: ['users','getUser']
     pointer: string[];
@@ -43,7 +43,7 @@ export interface NonRawProcedure<H extends Handler = Handler> extends Procedure<
     paramNames: string[];
 }
 export interface RouteProcedure<H extends Handler = any> extends Procedure<H> {
-    type: ProcedureType.route;
+    type: HandlerType.route;
     handler: H;
     paramsJitFns: JITCompiledFunctions;
     returnJitFns: JITCompiledFunctions;
@@ -51,14 +51,14 @@ export interface RouteProcedure<H extends Handler = any> extends Procedure<H> {
     options: ProcedureOptions & {runOnError: false};
 }
 export interface HookProcedure<H extends Handler = any> extends Procedure<H> {
-    type: ProcedureType.hook;
+    type: HandlerType.hook;
     handler: H;
     paramsJitFns: JITCompiledFunctions;
     returnJitFns: JITCompiledFunctions;
     paramNames: string[];
 }
 export interface HeaderProcedure<H extends HeaderHandler = any> extends Procedure<H> {
-    type: ProcedureType.headerHook;
+    type: HandlerType.headerHook;
     handler: H;
     headerNames: string[];
     paramsJitFns: JITCompiledFunctions;
@@ -66,7 +66,7 @@ export interface HeaderProcedure<H extends HeaderHandler = any> extends Procedur
     paramNames: string[];
 }
 export interface RawProcedure<H extends RawHookHandler = any> extends Procedure<H> {
-    type: ProcedureType.rawHook;
+    type: HandlerType.rawHook;
     handler: H;
     paramsJitFns: undefined;
     returnJitFns: undefined;

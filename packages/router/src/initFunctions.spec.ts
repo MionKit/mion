@@ -11,7 +11,7 @@ import {dispatchRoute} from './dispatch';
 import {route, headersHook, hook, rawHook} from './initFunctions';
 import {MionHeaders} from './types/context';
 import {headersFromRecord} from './headers';
-import {ProcedureType} from './types/procedures';
+import {HandlerType} from './types/procedures';
 
 describe('route & hooks init functions', () => {
     type RawRequest = {
@@ -28,7 +28,7 @@ describe('route & hooks init functions', () => {
 
     it('should initialize a header hook object', () => {
         expect(routes.auth).toEqual({
-            type: ProcedureType.headerHook,
+            type: HandlerType.headerHook,
             headerNames: ['Authorization'],
             handler: expect.any(Function),
         });
@@ -36,21 +36,21 @@ describe('route & hooks init functions', () => {
 
     it('should initialize a hook object', () => {
         expect(routes.timestamp).toEqual({
-            type: ProcedureType.hook,
+            type: HandlerType.hook,
             handler: expect.any(Function),
         });
     });
 
     it('should initialize a rawHook object', () => {
         expect(routes.nothing).toEqual({
-            type: ProcedureType.rawHook,
+            type: HandlerType.rawHook,
             handler: expect.any(Function),
         });
     });
 
     it('should initialize a route object', () => {
         expect(routes.print).toEqual({
-            type: ProcedureType.route,
+            type: HandlerType.route,
             handler: expect.any(Function),
         });
     });
