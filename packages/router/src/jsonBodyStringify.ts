@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {NonRawProcedure, Procedure, ProcedureType} from './types/procedures';
+import {NonRawProcedure, Procedure, HandlerType} from './types/procedures';
 import {getRouteExecutionPath} from './router';
 import {getNotFoundExecutionPath} from './notFound';
 
@@ -26,7 +26,7 @@ export function getStringifyFnForExecutionPath(path: string): (body: any) => str
 
 function _getExecutionPathStringifyFn(executionPath: Procedure[]): (body: any) => string {
     const returnProcedures = executionPath.filter(
-        (p) => p.options.hasReturnData && p.type !== ProcedureType.headerHook
+        (p) => p.options.hasReturnData && p.type !== HandlerType.headerHook
     ) as NonRawProcedure[];
     return (body: any): string => {
         const props: string[] = [];

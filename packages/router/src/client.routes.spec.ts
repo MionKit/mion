@@ -11,10 +11,15 @@ import {getRoutePath} from '@mionkit/core/src/core';
 import {GET_REMOTE_METHODS_BY_ID, GET_REMOTE_METHODS_BY_PATH} from '@mionkit/core/src/constants';
 import {hook, rawHook, route} from './initFunctions';
 import {Routes} from './types/general';
-import {ProcedureType} from './types/procedures';
+import {HandlerType} from './types/procedures';
 import {clientRoutes} from './client.routes';
 import {headersFromRecord} from './headers';
 import {dispatchRoute} from './dispatch';
+import {runType} from '@mionkit/run-types/src/lib/runType';
+import {PublicProcedure} from '@mionkit/router/src/types/publicProcedures'; // do not import type only
+import {JitFunctions} from '@mionkit/run-types/src/constants';
+import {getHandlerReflection} from '@mionkit/router/src/jitFunctions';
+import {DEFAULT_ROUTE_OPTIONS} from '@mionkit/router/src/constants';
 
 type RawRequest = {
     headers: MionHeaders;
@@ -52,7 +57,7 @@ describe('Client Routes should', () => {
 
     const methodsMetadata = {
         'users-getUser': {
-            type: ProcedureType.route,
+            type: HandlerType.route,
             id: 'users-getUser',
             handler: 'users.getUser',
             serializedTypes: [{kind: 17, parameters: [], return: 1}, {kind: 1}],
@@ -62,7 +67,7 @@ describe('Client Routes should', () => {
             hookIds: ['auth', 'last'],
         },
         'users-setUser': {
-            type: ProcedureType.route,
+            type: HandlerType.route,
             id: 'users-setUser',
             handler: 'users.setUser',
             serializedTypes: [{kind: 17, parameters: [], return: 1}, {kind: 1}],
@@ -72,7 +77,7 @@ describe('Client Routes should', () => {
             hookIds: ['auth', 'last'],
         },
         'users-pets-getUserPet': {
-            type: ProcedureType.route,
+            type: HandlerType.route,
             id: 'users-pets-getUserPet',
             handler: 'users.pets.getUserPet',
             serializedTypes: [{kind: 17, parameters: [], return: 1}, {kind: 1}],
@@ -82,7 +87,7 @@ describe('Client Routes should', () => {
             hookIds: ['auth', 'last'],
         },
         'pets-getPet': {
-            type: ProcedureType.route,
+            type: HandlerType.route,
             id: 'pets-getPet',
             handler: 'pets.getPet',
             serializedTypes: [{kind: 17, parameters: [], return: 1}, {kind: 1}],
@@ -92,7 +97,7 @@ describe('Client Routes should', () => {
             hookIds: ['auth', 'last'],
         },
         'pets-setPet': {
-            type: ProcedureType.route,
+            type: HandlerType.route,
             id: 'pets-setPet',
             handler: 'pets.setPet',
             serializedTypes: [{kind: 17, parameters: [], return: 1}, {kind: 1}],
@@ -102,7 +107,7 @@ describe('Client Routes should', () => {
             hookIds: ['auth', 'last'],
         },
         auth: {
-            type: ProcedureType.hook,
+            type: HandlerType.hook,
             id: 'auth',
             handler: 'auth',
             serializedTypes: [{kind: 17, parameters: [{kind: 18, name: 'token', type: 1}], return: 2}, {kind: 5}, {kind: 3}],
@@ -111,7 +116,7 @@ describe('Client Routes should', () => {
             params: ['token'],
         },
         last: {
-            type: ProcedureType.hook,
+            type: HandlerType.hook,
             id: 'last',
             handler: 'last',
             serializedTypes: [{kind: 17, parameters: [], return: 1}, {kind: 10}],

@@ -1,5 +1,5 @@
 import type {NotFoundProcedure, ProceduresExecutionList} from './types/procedures';
-import {ProcedureType} from './types/procedures';
+import {HandlerType} from './types/procedures';
 import type {RouteDef} from './types/definitions';
 import {RpcError} from '@mionkit/core/src/errors';
 import {StatusCodes} from '@mionkit/core/src/status-codes';
@@ -10,7 +10,7 @@ let notFoundExecutionPath: ProceduresExecutionList | undefined;
 
 // TODO: make this configurable so uses can override behavior
 const notFoundRoute = {
-    type: ProcedureType.route,
+    type: HandlerType.route,
     handler: (): RpcError => new RpcError({statusCode: StatusCodes.NOT_FOUND, publicMessage: `Route not found`}),
 } satisfies RouteDef;
 

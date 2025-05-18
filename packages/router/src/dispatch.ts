@@ -8,7 +8,7 @@
 import type {CallContext, MionResponse, MionRequest, MionHeaders} from './types/context';
 import {type RouterOptions} from './types/general';
 import {HeaderProcedure, NonRawProcedure, RawProcedure, type Procedure} from './types/procedures';
-import {ProcedureType} from './types/procedures';
+import {HandlerType} from './types/procedures';
 import {isNotFoundExecutable} from './types/guards';
 import {getRouteExecutionPath, getRouterOptions} from './router';
 import {getNotFoundExecutionPath} from './notFound';
@@ -161,9 +161,9 @@ export async function runRouteOrHook(
 
 function getProcedureCaller(executable: Procedure) {
     if (executable.procedureCaller) return executable.procedureCaller;
-    if (executable.type === ProcedureType.rawHook) {
+    if (executable.type === HandlerType.rawHook) {
         executable.procedureCaller = runRawHook;
-    } else if (executable.type === ProcedureType.headerHook) {
+    } else if (executable.type === HandlerType.headerHook) {
         executable.procedureCaller = runHeaderHook;
     } else {
         executable.procedureCaller = runRouteOrHook;

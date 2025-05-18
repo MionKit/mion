@@ -14,7 +14,7 @@ import type {HeaderProcedure} from './types/procedures';
 import type {HookProcedure} from './types/procedures';
 import type {RouteProcedure} from './types/procedures';
 import type {Procedure} from './types/procedures';
-import {ProcedureType} from './types/procedures';
+import {HandlerType} from './types/procedures';
 import type {PublicApi, PrivateDef, HooksCollection} from './types/publicProcedures';
 import type {HeaderHookDef, HookDef, RawHookDef} from './types/definitions';
 import {getHandlerReflection} from './jitFunctions';
@@ -151,8 +151,8 @@ export function isPrivateDefinition(entry: RouterEntry, id: string): entry is Pr
 }
 
 export function isPrivateExecutable(executable: Procedure): boolean {
-    if (executable.type === ProcedureType.rawHook) return true;
-    if (executable.type === ProcedureType.route) return false;
+    if (executable.type === HandlerType.rawHook) return true;
+    if (executable.type === HandlerType.route) return false;
     const hasPublicParams = !!executable.paramNames?.length;
     return !hasPublicParams && !executable.options.hasReturnData;
 }
@@ -322,7 +322,7 @@ export function getExecutableFromHook(
     if (existing) return existing as HookProcedure;
 
     type MixedExecutable = (Omit<HookProcedure, 'type'> | Omit<HeaderProcedure, 'type'>) & {
-        type: ProcedureType.hook | ProcedureType.headerHook;
+        type: HandlerType.hook | HandlerType.headerHook;
     };
 
     const compiledProcedure = getCompiledProcedure(hookId, hook.handler);
@@ -339,7 +339,7 @@ export function getExecutableFromHook(
         const skipReturnEncode = returnJitFns.toJsonVal.isNoop;
         executable = {
             id: hookId,
-            type: inHeader ? ProcedureType.headerHook : ProcedureType.hook,
+            type: inHeader ? HandlerType.headerHook : HandlerType.hook,
             nestLevel,
             handler: hook.handler,
             paramsJitFns,
@@ -371,7 +371,7 @@ export function getExecutableFromRawHook(hook: RawHookDef, hookPointer: string[]
     if (existing) return existing as RawProcedure;
 
     const executable: RawProcedure = {
-        type: ProcedureType.rawHook,
+        type: HandlerType.rawHook,
         id: hookId,
         nestLevel,
         handler: hook.handler,
@@ -412,7 +412,7 @@ export function getExecutableFromRoute(route: Route, routePointer: string[], nes
         const skipParamsDecode = paramsJitFns.fromJsonVal.isNoop;
         const skipReturnEncode = returnJitFns.toJsonVal.isNoop;
         executable = {
-            type: ProcedureType.route,
+            type: HandlerType.route,
             id: routeId,
             nestLevel,
             handler: route.handler,
@@ -447,7 +447,7 @@ function getRouteEntryProperties(
     plus1: RouterEntry | undefined
 ) {
     const minus1IsRoute = minus1 && isRoute(minus1);
-    const zeroIsRoute = (zero as Procedure).type === ProcedureType.route;
+    const zeroIsRoute = (zero as Procedure).type === HandlerType.route;
     const plus1IsRoute = plus1 && isRoute(plus1);
 
     const isExec = !!(zero as Procedure).handler;

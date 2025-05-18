@@ -9,7 +9,7 @@ import {getRemoteMethodsMetadata} from './remoteMethodsMetadata';
 import {registerRoutes, initRouter, resetRouter} from './router';
 import {CallContext} from './types/context';
 import {Routes} from './types/general';
-import {ProcedureType} from './types/procedures';
+import {HandlerType} from './types/procedures';
 import {hook, rawHook, route} from './initFunctions';
 
 describe('Public Methods should', () => {
@@ -62,7 +62,7 @@ describe('Public Methods should', () => {
 
         expect(api).toEqual({
             auth: expect.objectContaining({
-                type: ProcedureType.hook,
+                type: HandlerType.hook,
                 handler: 'auth', // to be used by codegen so need to be a valid js syntax
                 id: 'auth',
                 paramsJitFns: {
@@ -83,7 +83,7 @@ describe('Public Methods should', () => {
             }),
             routes: {
                 route1: expect.objectContaining({
-                    type: ProcedureType.route,
+                    type: HandlerType.route,
                     handler: 'routes.route1', // to be used by codegen so need to be a valid js syntax
                     id: 'routes-route1',
                     paramsJitFns: {
@@ -113,7 +113,6 @@ describe('Public Methods should', () => {
         };
         const api = registerRoutes(testR);
         const serializedFnParams = api.addMilliseconds.paramsJitFns;
-        console.log(serializedFnParams.isType);
         const isTypeParams = serializedFnParams.isType.paramNames || [];
         const jsonDecodeParams = serializedFnParams.fromJsonVal.paramNames || [];
         const jsonEncodeParams = serializedFnParams.toJsonVal.paramNames || [];
@@ -147,11 +146,11 @@ describe('Public Methods should', () => {
 
         expect(api).toEqual({
             auth: expect.objectContaining({
-                type: ProcedureType.hook,
+                type: HandlerType.hook,
                 id: 'auth',
             }),
             route1: expect.objectContaining({
-                type: ProcedureType.route,
+                type: HandlerType.route,
                 id: 'route1',
             }),
         });
@@ -163,23 +162,23 @@ describe('Public Methods should', () => {
 
         expect(publicExecutables).toEqual({
             first: expect.objectContaining({
-                type: ProcedureType.hook,
+                type: HandlerType.hook,
                 id: 'first',
             }),
             parse: null,
             users: {
                 userBefore: null,
                 getUser: expect.objectContaining({
-                    type: ProcedureType.route,
+                    type: HandlerType.route,
                     id: 'users-getUser',
                 }),
                 setUser: expect.objectContaining({
-                    type: ProcedureType.route,
+                    type: HandlerType.route,
                     id: 'users-setUser',
                 }),
                 pets: {
                     getUserPet: expect.objectContaining({
-                        type: ProcedureType.route,
+                        type: HandlerType.route,
                         id: 'users-pets-getUserPet',
                     }),
                 },
@@ -187,16 +186,16 @@ describe('Public Methods should', () => {
             },
             pets: {
                 getPet: expect.objectContaining({
-                    type: ProcedureType.route,
+                    type: HandlerType.route,
                     id: 'pets-getPet',
                 }),
                 setPet: expect.objectContaining({
-                    type: ProcedureType.route,
+                    type: HandlerType.route,
                     id: 'pets-setPet',
                 }),
             },
             last: expect.objectContaining({
-                type: ProcedureType.hook,
+                type: HandlerType.hook,
                 id: 'last',
             }),
         });

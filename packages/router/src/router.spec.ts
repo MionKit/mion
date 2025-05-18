@@ -20,7 +20,7 @@ import {
 } from './router';
 import {type Routes} from './types/general';
 import {hook, route, rawHook} from './initFunctions';
-import {ProcedureType} from './types/procedures';
+import {HandlerType} from './types/procedures';
 
 describe('Create routes should', () => {
     const hook1 = hook((): void => undefined);
@@ -49,49 +49,49 @@ describe('Create routes should', () => {
     const hookExecutables = {
         first: {
             id: 'first',
-            type: ProcedureType.hook,
+            type: HandlerType.hook,
         },
         userBefore: {
             id: 'users-userBefore',
-            type: ProcedureType.hook,
+            type: HandlerType.hook,
         },
         userAfter: {
             id: 'users-userAfter',
-            type: ProcedureType.hook,
+            type: HandlerType.hook,
         },
         userPetsAfter: {
             id: 'users-pets-userPetsAfter',
-            type: ProcedureType.hook,
+            type: HandlerType.hook,
         },
         last: {
             id: 'last',
-            type: ProcedureType.hook,
+            type: HandlerType.hook,
         },
     };
 
     const routeExecutables = {
         usersGetUser: {
             id: 'users-getUser',
-            type: ProcedureType.route,
+            type: HandlerType.route,
         },
         usersPetsGetUserPet: {
             id: 'users-pets-getUserPet',
-            type: ProcedureType.route,
+            type: HandlerType.route,
         },
         petsGetPet: {
             id: 'pets-getPet',
-            type: ProcedureType.route,
+            type: HandlerType.route,
         },
     };
 
     const defaultExecutables = {
         mionParseJsonRequestBody: {
             id: 'mionParseJsonRequestBody',
-            type: ProcedureType.rawHook,
+            type: HandlerType.rawHook,
         },
         mionStringifyJsonResponseBody: {
             id: 'mionStringifyJsonResponseBody',
-            type: ProcedureType.rawHook,
+            type: HandlerType.rawHook,
         },
     };
 
@@ -154,7 +154,7 @@ describe('Create routes should', () => {
             expect.objectContaining({
                 id: 'first',
                 nestLevel: 0,
-                type: ProcedureType.hook,
+                type: HandlerType.hook,
                 options: expect.objectContaining({
                     runOnError: false,
                     hasReturnData: false,
@@ -166,7 +166,7 @@ describe('Create routes should', () => {
             expect.objectContaining({
                 id: 'second',
                 nestLevel: 0,
-                type: ProcedureType.hook,
+                type: HandlerType.hook,
                 options: expect.objectContaining({
                     runOnError: false,
                     hasReturnData: true,
@@ -184,7 +184,7 @@ describe('Create routes should', () => {
             expect.objectContaining({
                 id: 'sayHello',
                 nestLevel: 0,
-                type: ProcedureType.route,
+                type: HandlerType.route,
                 options: expect.objectContaining({
                     runOnError: false,
                     hasReturnData: true,
@@ -330,13 +330,13 @@ describe('Create routes should', () => {
         registerRoutes(routes);
 
         const expectedExecutionPath = addDefaultExecutables([
-            expect.objectContaining({id: 'p1', type: ProcedureType.rawHook}),
-            expect.objectContaining({id: 'p2', type: ProcedureType.rawHook}),
-            expect.objectContaining({id: 'first', type: ProcedureType.hook}),
-            expect.objectContaining({id: 'pets-getPet', type: ProcedureType.route}),
-            expect.objectContaining({id: 'last', type: ProcedureType.hook}),
-            expect.objectContaining({id: 'a1', type: ProcedureType.rawHook}),
-            expect.objectContaining({id: 'a2', type: ProcedureType.rawHook}),
+            expect.objectContaining({id: 'p1', type: HandlerType.rawHook}),
+            expect.objectContaining({id: 'p2', type: HandlerType.rawHook}),
+            expect.objectContaining({id: 'first', type: HandlerType.hook}),
+            expect.objectContaining({id: 'pets-getPet', type: HandlerType.route}),
+            expect.objectContaining({id: 'last', type: HandlerType.hook}),
+            expect.objectContaining({id: 'a1', type: HandlerType.rawHook}),
+            expect.objectContaining({id: 'a2', type: HandlerType.rawHook}),
         ]);
 
         expect(getRouteExecutionPath('/pets-getPet')?.procedures).toEqual(expectedExecutionPath);
