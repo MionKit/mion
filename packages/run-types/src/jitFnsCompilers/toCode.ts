@@ -14,7 +14,7 @@ import type {MethodSignatureRunType} from '@mionkit/run-types/src/runType/member
 import {ReflectionKind, type TypeMethodSignature, type TypePropertySignature} from '@deepkit/type';
 import {ReflectionSubKind} from '../constants.kind';
 import {JitFunctions} from '@mionkit/run-types/src/constants';
-import {compileAddPureFunctionContext, JitCompiler} from '@mionkit/run-types/src/lib/jitCompiler';
+import {compileAddPureFunctionWithClosure, JitCompiler} from '@mionkit/run-types/src/lib/jitCompiler';
 import {isSafePropName} from '@mionkit/run-types/src/lib/utils';
 import {_compileJsonStringify, _compileJsonStringifyIterable} from '@mionkit/run-types/src/jitFnsCompilers/jsonStringify';
 import {registerPureFnClosure} from '@mionkit/run-types/src/lib/formats';
@@ -27,7 +27,7 @@ export function _compileToCode(runType: BaseRunType, comp: JitCompiler, fnID = J
     switch (kind) {
         // ###################### ATOMIC RUNTYPES ######################
         case ReflectionKind.undefined:
-            return `undefined`;
+            return `'undefined'`;
         case ReflectionKind.symbol:
             return `'Symbol('+'"'+${comp.vλl}.description+'"'+')'`;
         // ###################### MEMBER RUNTYPES ######################
@@ -44,10 +44,8 @@ export function _compileToCode(runType: BaseRunType, comp: JitCompiler, fnID = J
                 if (rt.isOptional()) return `(${comp.getChildVλl()} === undefined ? "" : '${safeName}:'+${paramsCode}${sep})`;
                 return `'${safeName}:'+${paramsCode}${sep}`;
             } else {
-                const fnName = compileAddPureFunctionContext(comp, sanitizeCompiledFn);
+                const fnName = compileAddPureFunctionWithClosure(comp, sanitizeCompiledFn);
                 const parent = srcMS.parent as any as TypePropertySignature;
-                console.log('comp.vλl ===>', comp.vλl);
-                console.log('methodSignature ===>', srcMS);
 
                 // in some scenarios the parent is a propertySignature instead the Expected TypeObjectLiteral so we have to handle that
                 // this seems to be a deepkit bug when using omit and then redefining the property @see SrcCodeJitCompiledFn type
