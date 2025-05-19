@@ -39,10 +39,10 @@ import {
     defaultIgnoreFormatProps,
 } from './formats';
 import {typeParamsToString} from './utils';
-import {_compileJsonStringify} from '@mionkit/run-types/src/jitCompilers/jsonStringify';
+import {_compileJsonStringify} from '@mionkit/run-types/src/jitFnsCompilers/jsonStringify';
 import {getJitCompilerFunction, loadJitCompilerFunction} from './jitFnsRegistry';
 import {JitCompiledFn} from '@mionkit/core/src/types';
-import {_compileToCode} from '@mionkit/run-types/src/jitCompilers/toCode';
+import {_compileToCode} from '@mionkit/run-types/src/jitFnsCompilers/toCode';
 import {defaultMockOptions} from '@mionkit/run-types/src/mocking/constants.mock';
 
 export abstract class BaseRunType<T extends Type = Type> implements RunType {

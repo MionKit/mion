@@ -6,7 +6,7 @@
  * ######## */
 
 import {
-    PureFunctionWithClosure,
+    PureFunctionClosure,
     CompiledPureFunction,
     PureFunction,
     TypeFormatParams,
@@ -19,7 +19,7 @@ import type {BaseRunType} from './baseRunTypes';
 import type {JitErrorsCompiler, JitCompiler} from './jitCompiler';
 import type {BaseRunTypeFormat} from './baseRunTypeFormat';
 import {jitUtils} from '../../../core/src/jitUtils';
-import {toLiteral, toLiteralInContext} from './utils';
+import {toLiteralInContext} from './utils';
 
 // ################# REGISTER FORMATTERS & PURE FUNCTIONS  #################
 
@@ -40,11 +40,11 @@ export function registerFormatter<T extends BaseRunTypeFormat>(operation: T, sho
 }
 
 export function registerPureFnClosure(
-    fnWithCtx: PureFunctionWithClosure,
-    dependencies?: PureFunctionWithClosure[]
+    fnWithCtx: PureFunctionClosure,
+    dependencies?: PureFunctionClosure[]
 ): CompiledPureFunction {
     const existing = jitUtils.getCompiledPureFn(fnWithCtx.name);
-    if (existing && existing.originClosureFn && existing.originClosureFn !== fnWithCtx)
+    if (existing && existing.closureFn && existing.closureFn !== fnWithCtx)
         throw new Error(`Pure function with name ${fnWithCtx.name} already exists`);
     if (existing) return existing;
     const compiled = parsePureFunctionWithCtx(fnWithCtx);
@@ -56,7 +56,7 @@ export function registerPureFnClosure(
     return compiled;
 }
 
-export function registerPureFnClosuresGroup(fnsWithCtx: PureFunctionWithClosure[]): CompiledPureFunction[] {
+export function registerPureFnClosuresGroup(fnsWithCtx: PureFunctionClosure[]): CompiledPureFunction[] {
     const compiledFns = fnsWithCtx.map((fn) => registerPureFnClosure(fn));
     compiledFns.forEach((cfn) => {
         compiledFns.forEach((cf) => {
@@ -67,14 +67,14 @@ export function registerPureFnClosuresGroup(fnsWithCtx: PureFunctionWithClosure[
     return compiledFns;
 }
 
-export function getPureFn(fnOrName: string | PureFunctionWithClosure): PureFunction | undefined {
+export function getPureFn(fnOrName: string | PureFunctionClosure): PureFunction | undefined {
     if (typeof fnOrName === 'string') return jitUtils.getPureFn(fnOrName);
     const name = fnOrName.name;
     if (!name) throw new Error('Pure Functions must have a name');
     return jitUtils.getPureFn(name);
 }
 
-export function getCompiledPureFn(fnOrName: string | PureFunctionWithClosure): CompiledPureFunction | undefined {
+export function getCompiledPureFn(fnOrName: string | PureFunctionClosure): CompiledPureFunction | undefined {
     if (typeof fnOrName === 'string') return jitUtils.getCompiledPureFn(fnOrName);
     const name = fnOrName.name;
     if (!name) throw new Error('Pure Functions must have a name');
@@ -162,7 +162,7 @@ export function getFormatterParams<P extends TypeFormatParams>(rt: BaseRunType, 
     throw new Error(`Type Formatter ${fmtName} not found for ${rt.getTypeName()}`);
 }
 
-function parsePureFunctionWithCtx(closureFn: PureFunctionWithClosure): CompiledPureFunction {
+function parsePureFunctionWithCtx(closureFn: PureFunctionClosure): CompiledPureFunction {
     if (!closureFn.name) throw new Error('Pure Functions must have a name');
 
     const fnString = closureFn.toString();
@@ -192,7 +192,7 @@ function parsePureFunctionWithCtx(closureFn: PureFunctionWithClosure): CompiledP
 
     const body = fnString.substring(bodyStart + 1, bodyEnd);
     const compiled: CompiledPureFunction = {
-        originClosureFn: closureFn,
+        closureFn: closureFn,
         fn: null as any, // will be set later so all possible dependencies are resolved
         name: closureFn.name,
         paramNames,
@@ -203,18 +203,6 @@ function parsePureFunctionWithCtx(closureFn: PureFunctionWithClosure): CompiledP
 }
 
 // ################# COMPILING  #################
-
-export function compileAddPureFunctionContext(comp: JitCompiler | JitErrorsCompiler, pureFn: PureFunctionWithClosure): string {
-    const fnName = pureFn.name;
-    if (!fnName) throw new Error('Pure function must have a name');
-    registerPureFnClosure(pureFn); // will throw if there is a different pure function with the same name
-    if (comp.contextCodeItems.has(fnName)) return fnName;
-    comp.addPureFnDependency(pureFn);
-    // Add context code for the pure function and params
-    const pureFunctionCode = `const ${fnName} = utl.getPureFn(${toLiteral(fnName)})`;
-    comp.contextCodeItems.set(fnName, pureFunctionCode);
-    return fnName;
-}
 
 // TODO, read ignoreProps from multiple formatters, rather than a constant here
 export const defaultIgnoreFormatProps = ['mockSamples'];
@@ -249,7 +237,7 @@ export function getToLiteralFn(comp: JitCompiler | JitErrorsCompiler, ignoreProp
  */
 export function dependenciesToLiteral(
     comp: JitCompiler | JitErrorsCompiler,
-    params: Record<string, string | PureFunctionWithClosure>,
+    params: Record<string, string | PureFunctionClosure>,
     ignoreProps: string[] = []
 ) {
     return toLiteralInContext(comp, params, ignoreProps, true);

@@ -7,7 +7,7 @@
 
 import {ReflectionKind} from '@deepkit/type';
 import type {Type, TypeFunction, TypeParameter, TypeTuple, TypeTupleMember} from '@deepkit/type';
-import type {FormatParam, FormatParamLiteral, PureFunctionWithClosure, TypeFormatValue} from '@mionkit/core/src/types';
+import type {FormatParam, FormatParamLiteral, PureFunctionClosure, TypeFormatValue} from '@mionkit/core/src/types';
 import {jitUtils} from '../../../core/src/jitUtils';
 import {validPropertyNameRegExp} from '../constants';
 import type {AnyClass, JitFnID, RunType} from '../types';
@@ -158,7 +158,7 @@ const maxStringLength = 10;
 export function toLiteralInContext(
     // if compiled is passed it is assumed that the params are dependencies and will be transformed into code
     comp: JitCompiler | JitErrorsCompiler,
-    params: TypeFormatValue | Record<string, string | PureFunctionWithClosure>,
+    params: TypeFormatValue | Record<string, string | PureFunctionClosure>,
     // TODO: somewhere the ignoreProps are not passed and we still outputting 'samples' and 'sampleChars' to jit code were is not needed
     ignoreProps: string[] = [],
     isDependencies = false
@@ -228,7 +228,7 @@ export function dependencyValueToLiteral(comp: JitCompiler | JitErrorsCompiler |
 }
 
 export function typeParamsToString(
-    params: TypeFormatValue | Record<string, string | PureFunctionWithClosure>,
+    params: TypeFormatValue | Record<string, string | PureFunctionClosure>,
     ignoreProps: string[]
 ): string {
     switch (true) {

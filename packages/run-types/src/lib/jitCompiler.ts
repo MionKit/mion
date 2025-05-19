@@ -4,7 +4,14 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
-import type {JitCompiledFn, JitCompiledFnMeta, JitFnArgs, PureFunction} from '@mionkit/core/src/types';
+import type {
+    JitCompiledFn,
+    JitCompiledFnMeta,
+    JitFnArgs,
+    JITUtils,
+    PureFunction,
+    PureFunctionClosure,
+} from '@mionkit/core/src/types';
 import {MAX_STACK_DEPTH} from '@mionkit/core/src/constants';
 import type {Mutable, JitFnID, StrNumber, jitCode, RunTypeOptions, JitCompilerOpts} from '../types';
 import type {BaseRunType} from './baseRunTypes';
@@ -15,6 +22,7 @@ import {jitUtils} from '../../../core/src/jitUtils';
 import {toLiteral, toLiteralInContext} from './utils';
 import type {BaseRunTypeFormat} from './baseRunTypeFormat';
 import {createUniqueHash} from '@mionkit/run-types/src/lib/quickHash';
+import {registerPureFnClosure} from '@mionkit/run-types/src/lib/formats';
 
 export type StackItem = {
     /** current compile stack full variable accessor */
@@ -60,6 +68,7 @@ export class BaseCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extends 
     // !!! DO NOT MODIFY METHOD WITHOUT REVIEWING JIT CODE INVOCATIONS!!!
     /** The Jit Generated function once the compilation is finished */
     readonly fn: ((...args: any[]) => any) | undefined;
+    readonly closureFn: ((utl: JITUtils) => (...args: any[]) => any) | undefined;
 
     /** Code for the jit function. after the operation has been compiled */
     readonly code: string = '';
@@ -375,6 +384,18 @@ export function getSerializableJitCompiler(comp: JitCompiledFn): JitCompiledFnMe
     };
 }
 
+export function compileAddPureFunctionContext(comp: JitCompiler | JitErrorsCompiler, pureFn: PureFunctionClosure): string {
+    const fnName = pureFn.name;
+    if (!fnName) throw new Error('Pure function must have a name');
+    registerPureFnClosure(pureFn); // will throw if there is a different pure function with the same name
+    if (comp.contextCodeItems.has(fnName)) return fnName;
+    comp.addPureFnDependency(pureFn);
+    // Add context code for the pure function and params
+    const pureFunctionCode = `const ${fnName} = utl.getPureFn(${toLiteral(fnName)})`;
+    comp.contextCodeItems.set(fnName, pureFunctionCode);
+    return fnName;
+}
+
 // ################### Other Compiler functions ###################
 /**
  * Creates a function name based on the jitHash of the runType and the id of the function.
@@ -401,9 +422,10 @@ function compileFunction(comp: BaseCompiler): (...args: any[]) => any {
     if (comp.stack.length !== 0) throw new Error('Can not get compiled function before the compile operation is finished');
     if (jitUtils.hasJitFn(comp.jitFnHash)) return jitUtils.getJitFn(comp.jitFnHash);
     const {fnCode, fnName, contextCode} = getJitFnCode(comp);
-    const {fn, code} = createJitFnWithContext(fnName, fnCode, contextCode);
+    const {closureFn, fn, code} = createJitFnWithContext(fnName, fnCode, contextCode);
     (comp as Mutable<BaseCompiler>).code = code;
     (comp as Mutable<BaseCompiler>).fn = fn;
+    (comp as Mutable<BaseCompiler>).closureFn = closureFn;
     return fn;
 }
 
@@ -426,9 +448,9 @@ function createJitFnWithContext(fnName: string, fnCode: string, contextCode?: st
     const context = contextCode ? `${contextCode};` : '';
     const fnWithContext = `${context} ${fnCode} return ${fnName};`;
     try {
-        const wrapperWithContext = new Function('utl', fnWithContext);
+        const wrapperWithContext = new Function('utl', fnWithContext) as (utl: JITUtils) => (...args: any[]) => any;
         if (process.env.DEBUG_JIT) console.log(printFn(fnWithContext, fnCode, fnName, contextCode));
-        return {fn: wrapperWithContext(jitUtils), code: fnWithContext}; // returns the jit internal function with the context
+        return {closureFn: wrapperWithContext, fn: wrapperWithContext(jitUtils), code: fnWithContext}; // returns the jit internal function with the context
     } catch (e: any) {
         if (process.env.DEBUG_JIT) {
             console.warn('Error creating jit function with context code:\n', printFn(fnWithContext, fnCode, fnName, contextCode));

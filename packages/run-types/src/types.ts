@@ -37,8 +37,7 @@ export interface RunType {
     createJitFunction(jitFn: JitFn, opts?: RunTypeOptions): (...args: any[]) => any;
 }
 
-export type JSONValue = StrNumber | boolean | null | {[key: string]: JSONValue} | Array<JSONValue>;
-export type JSONString = string;
+
 
 export type SubKind = (typeof ReflectionSubKind)[keyof typeof ReflectionSubKind];
 export type RunTypeVisitor = (deepkitType: Type, parents: RunType[], opts: RunTypeOptions) => RunType;
