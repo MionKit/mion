@@ -8,7 +8,7 @@
 import {Routes} from './types/general';
 import {registerRoutes, initRouter} from './router';
 import {dispatchRoute} from './dispatch';
-import {route, headersHook, hook, rawHook} from './initFunctions';
+import {route, headersHook, hook, rawHook} from './handlers';
 import {MionHeaders} from './types/context';
 import {headersFromRecord} from './headers';
 import {HandlerType} from './types/procedures';

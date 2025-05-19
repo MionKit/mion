@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {headersHook, hook, route} from './initFunctions';
+import {headersHook, hook, route} from './handlers';
 import {getStringifyFnForExecutionPath} from './jsonBodyStringify';
 import {initMionRouter, resetRouter} from './router';
 import {Routes} from './types/general';

@@ -10,7 +10,7 @@ import type {RouterOptions} from './types/general';
 import type {HooksCollection, ErrorReturn} from './types/publicProcedures';
 import {AnyObject, Mutable} from '@mionkit/core/src/types';
 import {handleRpcErrors} from './errors';
-import {rawHook} from './initFunctions';
+import {rawHook} from './handlers';
 import {jitBodyStringify} from './jsonBodyStringify';
 import {getRouteExecutableFromPath} from './router';
 import {RpcError} from '@mionkit/core/src/errors';

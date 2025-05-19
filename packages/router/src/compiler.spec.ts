@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {hook, route} from './initFunctions';
+import {hook, route} from './handlers';
 import {getHookExecutable, getRouteExecutable, initMionRouter, resetRouter} from './router';
 import {Routes} from './types/general';
 import fs from 'fs';
