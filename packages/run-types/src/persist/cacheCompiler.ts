@@ -13,8 +13,8 @@ import {JitFunctions} from '../constants';
 import {runType} from '../lib/runType';
 
 export const compilerConstants = {
-    autoGenMessage: `// ###### DO NOT MODIFY MANUALLY: THIS FILE IS GENERATED AUTOMATICALLY\n// NOTE exported constant name must be 'cΦmpilεd' and file can not contain any other code\n`,
-    exportName: 'cΦmpilεd',
+    autoGenMessage: `// ###### DO NOT MODIFY MANUALLY: THIS FILE IS GENERATED AUTOMATICALLY\n// NOTE exported constant name must be 'cΦmpilεdCachε' and file can not contain any other code\n`,
+    exportName: 'cΦmpilεdCachε',
     corePackageName: '@mionkit/core',
     jitFunctionsFiles: [`./dist/cjs/_autogen/jitFunctionsCache`, `./dist/esm/_autogen/jitFunctionsCache`],
     pureFunctionsFiles: [`./dist/cjs/_autogen/pureFunctionsCache`, `./dist/esm/_autogen/pureFunctionsCache`],
