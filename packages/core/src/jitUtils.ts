@@ -4,22 +4,35 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
-import type {CompiledPureFunction, JitCompiledFn, PureFunction, RunTypeError, TypeFormatError} from './types';
+import type {
+    CompiledPureFunction,
+    JitCompiledFn,
+    JitFunctionsCache,
+    JITUtils,
+    Mutable,
+    PureFunction,
+    PureFunctionsCache,
+    RunTypeError,
+    TypeFormatError,
+} from './types';
 import {MAX_STACK_DEPTH, MAX_UNKNOWN_KEYS} from './constants';
+import {cΦmpilεd as tCache} from './compiled/jitFunctionsCache';
+import {cΦmpilεd as pCache} from './compiled/pureFunctionsCache';
 
 type StrNumber = string | number;
 
 // eslint-disable-next-line no-control-regex
 const STR_ESCAPE = /[\u0000-\u001f\u0022\u005c\ud800-\udfff]/;
 const MAX_SCAPE_TEST_LENGTH = 1000; // possible to tweak after benchmarking
-const jitTypesCache = new Map<string, JitCompiledFn>();
-const pureFnsCache = new Map<string, CompiledPureFunction>();
+// initial map to store jit functions, file gest recompiled 🔁 and overridden when
+const jitTypesCache: JitFunctionsCache = tCache;
+const pureFnsCache: PureFunctionsCache = pCache;
 
 /**
  * Object that wraps all utilities that are used by the jit generated functions for encode, decode, stringify etc..
  * !!! DO NOT MODIFY METHOD NAMES OF PROPERTY OR METHODS AS THESE ARE HARDCODED IN THE JIT GENERATED CODE !!!
  */
-export const jitUtils = {
+export const jitUtils: JITUtils = {
     // !!! DO NOT MODIFY METHOD WITHOUT REVIEWING JIT CODE INVOCATIONS!!!
     /** optimized function to convert an string into a json string wrapped in double quotes */
     asJSONString(str: string) {
@@ -60,24 +73,25 @@ export const jitUtils = {
     },
     // !!! DO NOT MODIFY METHOD WITHOUT REVIEWING JIT CODE INVOCATIONS!!!
     addToJitCache(comp: JitCompiledFn) {
-        jitTypesCache.set(comp.jitFnHash, comp);
+        jitTypesCache[comp.jitFnHash] = comp;
     },
     removeFromJitCache(comp: JitCompiledFn) {
-        jitTypesCache.delete(comp.jitFnHash);
+        if (!jitTypesCache[comp.jitFnHash]) return;
+        (jitTypesCache[comp.jitFnHash] as any) = undefined;
     },
     // !!! DO NOT MODIFY METHOD WITHOUT REVIEWING JIT CODE INVOCATIONS!!!
     getJIT(jitFnHash: string): JitCompiledFn | undefined {
-        return jitTypesCache.get(jitFnHash);
+        return jitTypesCache[jitFnHash];
     },
     // !!! DO NOT MODIFY METHOD WITHOUT REVIEWING JIT CODE INVOCATIONS!!!
     getJitFn(jitFnHash: string): (...args: any[]) => any {
-        const comp = jitTypesCache.get(jitFnHash);
+        const comp = jitTypesCache[jitFnHash];
         if (!comp) throw new Error(`Jit function not found for jitFnHash ${jitFnHash}`);
         return comp.fn;
     },
     // !!! DO NOT MODIFY METHOD WITHOUT REVIEWING JIT CODE INVOCATIONS!!!
     hasJitFn(jitFnHash: string) {
-        return !!jitTypesCache.get(jitFnHash)?.fn;
+        return !!jitTypesCache[jitFnHash]?.fn;
     },
     // !!! DO NOT MODIFY METHOD WITHOUT REVIEWING JIT CODE INVOCATIONS!!!
     getUnknownKeysFromSet(obj: Record<StrNumber, any>, keys: Set<StrNumber>): StrNumber[] {
@@ -169,27 +183,27 @@ export const jitUtils = {
     },
     addPureFn(compiledFn: CompiledPureFunction) {
         if (!compiledFn.name) throw new Error('Pure function must have a name and must be unique');
-        const existing = pureFnsCache.get(compiledFn.name);
+        const existing = pureFnsCache[compiledFn.name];
         if (existing) return existing;
-        pureFnsCache.set(compiledFn.name, compiledFn);
+        pureFnsCache[compiledFn.name] = compiledFn;
     },
     usePureFn(name: string): PureFunction {
-        const compiled = pureFnsCache.get(name);
+        const compiled = pureFnsCache[name];
         if (!compiled) throw new Error(`Pure function with name ${name} not found`);
         initPureFunction(compiled);
         return compiled.fn;
     },
     getPureFn(name: string): PureFunction | undefined {
-        const compiled = pureFnsCache.get(name);
+        const compiled = pureFnsCache[name];
         if (!compiled) return;
         initPureFunction(compiled);
         return compiled.fn;
     },
     getCompiledPureFn(name: string): CompiledPureFunction | undefined {
-        return pureFnsCache.get(name);
+        return pureFnsCache[name];
     },
     hasPureFn(name: string): boolean {
-        return !!pureFnsCache.get(name);
+        return !!pureFnsCache[name];
     },
 };
 
@@ -219,9 +233,45 @@ function initPureFunction(compiled: CompiledPureFunction): asserts compiled is R
             compiled.fn = newWithCtx(jitUtils) as PureFunction;
             return;
         } catch (error: any) {
-            console.warn(`Pure ${compiled.name} can not be deserialized. Function code:\n${compiled.originClosureFn.toString()}`);
+            console.warn(`Pure ${compiled.name} can not be deserialized. Function code:\n${compiled.closureFn.toString()}`);
             throw new Error(`Pure function ${compiled.name} can not be deserialized: ${error?.message}`);
         }
     }
-    compiled.fn = compiled.originClosureFn(jitUtils);
+    compiled.fn = compiled.closureFn(jitUtils);
 }
+
+function restoreCompiledJitFn(jitCache: JitFunctionsCache, pureCache: PureFunctionsCache, fnHash: string) {
+    const jitCompiled = jitCache[fnHash];
+    if (!jitCompiled) throw new Error(`Jit function ${fnHash} not found`);
+    if ((jitCompiled as any).fn) return;
+
+    const pureDependencies = jitCompiled.pureFnDependencies;
+    pureDependencies.forEach((depName) => restoreCompiledPureFn(pureCache, depName));
+
+    const dependencies = jitCompiled.dependenciesSet;
+    dependencies.forEach((dep) => restoreCompiledJitFn(jitCache, pureCache, dep));
+    (jitCompiled as Mutable<JitCompiledFn>).fn = jitCompiled.closureFn(jitUtils);
+}
+
+function restoreCompiledPureFn(pureCache: PureFunctionsCache, fnName: string) {
+    const pureCompiled = pureCache[fnName];
+    if (!pureCompiled) throw new Error(`Pure function ${fnName} not found`);
+    if (pureCompiled.fn) return;
+    const dependencies = pureCompiled.dependencies;
+    dependencies.forEach((depName) => restoreCompiledPureFn(pureCache, depName));
+    pureCompiled.fn = pureCompiled.closureFn(jitUtils);
+}
+
+/**
+ * Restores the full state of a compiled jit functions cache,
+ * The JIT fn itself can't be compiled to code as it contains references to context code and jitUtils.
+ * So we need to restore it manually by invoking the closure function.
+ * */
+export function restoreCompiledJitFnsCache(jitCache: JitFunctionsCache, pureCache: PureFunctionsCache) {
+    const keysPureFns = Object.keys(pureCache);
+    keysPureFns.forEach((key) => restoreCompiledPureFn(pureCache, key));
+    const keysJitFns = Object.keys(jitCache);
+    keysJitFns.forEach((key) => restoreCompiledJitFn(jitCache, pureCache, key));
+}
+
+restoreCompiledJitFnsCache(jitTypesCache, pureFnsCache);

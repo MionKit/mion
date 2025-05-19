@@ -60,6 +60,14 @@ export const anyValuesList = [
     NaN,
     new Date(),
     /abc/,
+    new Map([
+        ['zero', 0],
+        ['one', 1],
+        ['two', 2],
+        ['three', 3],
+        ['four', 4],
+    ]),
+    new Set(['zero', 1, 2, 3, 'four']),
 ];
 
 export const mockObjectList = [{}, {a: 1}, {b: 2}, {a: 1, b: 'hello'}, {a: 1, b: 2, c: 3}, {a: 'hello', b: 2, c: 'wold', d: 4}];

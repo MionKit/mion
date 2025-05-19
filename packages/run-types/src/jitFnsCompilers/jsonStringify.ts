@@ -43,9 +43,8 @@ export function _compileJsonStringify(
         // ###################### ATOMIC RUNTYPES ######################
         // Primitive types and other atomic types that don't contain other types
         case ReflectionKind.unknown:
-            throw new Error(`Cannot compile ${getOperationName(fnID)} for unknown type.`);
         case ReflectionKind.any:
-            throw new Error(`Cannot compile ${getOperationName(fnID)} for any type.`);
+            return `JSON.stringify(${comp.vλl})`;
         case ReflectionKind.bigint:
             return `'"'+${comp.vλl}.toString()+'"'`;
         case ReflectionKind.boolean:
@@ -381,8 +380,10 @@ export function _compileJsonStringifyIterable(
     rt: IterableRunType,
     comp: JitCompiler,
     fnID: JitFnID,
-    prefix?: string,
-    suffix?: string
+    /** prefix characters to add before the generated array, used when generating code instead json */
+    codePrefix: string = '',
+    /** suffix characters to add after the generated array, used when generating code instead json */
+    codeSuffix: string = ''
 ): string {
     const entry = rt.getCustomVλl(comp)?.vλl || comp.vλl;
     const jitChildren = rt.getJitChildren(comp);
@@ -390,12 +391,13 @@ export function _compileJsonStringifyIterable(
     const jsonItems = `ls${rt.getNestLevel()}`;
     const resultVal = `res${rt.getNestLevel()}`;
     const childrenResult = jitChildren.length > 1 ? `'['+${childrenCode}+']'` : childrenCode;
+    const earlyReturn = codePrefix && codeSuffix ? `if (!${jsonItems}.length) return '${codePrefix}${codeSuffix}';` : '';
     return `
         const ${jsonItems} = [];
         for (const ${entry} of ${comp.vλl}) {
             const ${resultVal} = ${childrenResult};
             ${jsonItems}.push(${resultVal});
         }
-        return '${prefix || ''}[' + ${jsonItems}.join(',') + ']${suffix || ''}';
+        ${earlyReturn}return '${codePrefix}[' + ${jsonItems}.join(',') + ']${codeSuffix}'
     `;
 }

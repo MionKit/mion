@@ -5,13 +5,13 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
-import type {TypeFormatParams, PureFunctionWithClosure, TypeFormatValue, JitCompiledFn} from '@mionkit/core/src/types';
+import type {TypeFormatParams, PureFunctionClosure, TypeFormatValue, JitCompiledFn} from '@mionkit/core/src/types';
 import type {BaseRunType} from './baseRunTypes';
-import {createJitCompiler, type JitCompiler, type JitErrorsCompiler} from './jitCompiler';
+import {compileAddPureFunctionContext, createJitCompiler, type JitCompiler, type JitErrorsCompiler} from './jitCompiler';
 import type {JitFnID, Mutable, StrNumber, jitCode, RunTypeOptions} from '../types';
 import {CodeType, getCodeType, JitFunctions} from '../constants';
 import {ReflectionKind} from '@deepkit/type';
-import {compileAddPureFunctionContext, dependenciesToLiteral, getFormatterParams, paramsToLiteral} from './formats';
+import {dependenciesToLiteral, getFormatterParams, paramsToLiteral} from './formats';
 import {jitUtils} from '../../../core/src/jitUtils';
 import {getFormatterHash} from './utils';
 
@@ -219,9 +219,9 @@ export abstract class BaseRunTypeFormat<P extends TypeFormatParams = any> {
     compilePureFunctionCall(
         comp: JitCompiler,
         rt: BaseRunType,
-        pureFn: PureFunctionWithClosure,
+        pureFn: PureFunctionClosure,
         params?: TypeFormatValue,
-        dependenciesParams?: Record<string, string | PureFunctionWithClosure>
+        dependenciesParams?: Record<string, string | PureFunctionClosure>
     ): {callCode: string; fnName: string; paramsName: string; dependenciesName?: string} {
         // PureFunction arguments =>
 
@@ -241,9 +241,9 @@ export abstract class BaseRunTypeFormat<P extends TypeFormatParams = any> {
     compileErrorsPureFunctionCall(
         comp: JitErrorsCompiler,
         rt: BaseRunType,
-        pureFn: PureFunctionWithClosure,
+        pureFn: PureFunctionClosure,
         params: TypeFormatValue,
-        dependenciesParams?: Record<string, string | PureFunctionWithClosure>,
+        dependenciesParams?: Record<string, string | PureFunctionClosure>,
         extraPathLiteral?: StrNumber // TODO: this might not be needed
     ): {callCode: string; fnName: string; paramsName: string; dependenciesName?: string} {
         // ErrorsPureFunction arguments =>

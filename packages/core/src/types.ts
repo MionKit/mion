@@ -4,12 +4,57 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ############### */
+export type StrNumber = string | number;
 
-import type {jitUtils} from '@mionkit/core/src/jitUtils';
-import {JSONString, JSONValue} from '@mionkit/run-types/src/types';
+export interface JITUtils {
+    /** Optimized function to convert a string into a JSON string wrapped in double quotes */
+    asJSONString(str: string): string;
+    /** Adds a compiled JIT function to the cache */
+    addToJitCache(comp: JitCompiledFn): void;
+    /** Removes a compiled JIT function from the cache */
+    removeFromJitCache(comp: JitCompiledFn): void;
+    /** Gets a compiled JIT function from the cache by its hash */
+    getJIT(jitFnHash: string): JitCompiledFn | undefined;
+    /** Gets a JIT function from the cache by its hash */
+    getJitFn(jitFnHash: string): (...args: any[]) => any;
+    /** Checks if a JIT function exists in the cache */
+    hasJitFn(jitFnHash: string): boolean;
+    /** Gets unknown keys from an object using a Set of known keys */
+    getUnknownKeysFromSet(obj: Record<StrNumber, any>, keys: Set<StrNumber>): StrNumber[];
+    /** Gets unknown keys from an object using an array of known keys */
+    getUnknownKeysFromArray(obj: Record<StrNumber, any>, keys: StrNumber[]): StrNumber[];
 
-type StrNumber = string | number;
-export type JITUtils = typeof jitUtils;
+    /** Checks if an object has unknown keys using an array of known keys */
+    hasUnknownKeysFromArray(obj: Record<StrNumber, any>, keys: StrNumber[]): boolean;
+    /** Checks if an object has unknown keys using a Set of known keys */
+    hasUnknownKeysFromSet(obj: Record<StrNumber, any>, keys: Set<StrNumber>): boolean;
+    /** Creates a new RunTypeError and adds it to the errors array */
+    err(pλth: readonly StrNumber[], εrr: RunTypeError[], expected: string, accessPath?: readonly StrNumber[]): void;
+    /** Creates a new RunTypeError with a TypeFormatError and adds it to the errors array */
+    formatErr(
+        pλth: StrNumber[],
+        εrr: RunTypeError[],
+        expected: string,
+        fmtName: string,
+        paramName: string,
+        paramVal: string | number | boolean | bigint,
+        fmtPath: StrNumber[],
+        accessPath?: StrNumber[],
+        fmtAccessPath?: StrNumber[]
+    ): void;
+    /** Checks if a value can be safely used as a Map key */
+    safeKey(value: any): any;
+    /** Adds a compiled pure function to the cache */
+    addPureFn(compiledFn: CompiledPureFunction): void;
+    /** Gets a pure function from the cache by its name */
+    usePureFn(name: string): PureFunction;
+    /** Gets a pure function from the cache by its name, returns undefined if not found */
+    getPureFn(name: string): PureFunction | undefined;
+    /** Gets a compiled pure function from the cache by its name */
+    getCompiledPureFn(name: string): CompiledPureFunction | undefined;
+    /** Checks if a pure function exists in the cache */
+    hasPureFn(name: string): boolean;
+}
 
 // ########################################## Options ##########################################
 
@@ -74,16 +119,6 @@ export interface RunTypeError {
     // typeName?: string; // tyeName can not be included as two types could Have the same typeID and different names
 }
 
-// ###########################################  Others ##########################################
-
-export type AnyObject = {
-    [key: string]: unknown;
-};
-
-export type Mutable<T> = {
-    -readonly [P in keyof T]: T[P];
-};
-
 // ########################################### TYPE FORMATS ##########################################
 
 export type TypeFormatError = {
@@ -142,10 +177,10 @@ export type PureFunction = (...args: any[]) => any;
  * Pure function that return an array with a list of invalid format properties.
  * ie: if a string should be maxLength = 5 and that string is 6 characters long, the function should return {invalid:['maxLength']}
  */
-export type PureFunctionWithClosure = (jitUtils: JITUtils) => PureFunction;
+export type PureFunctionClosure = (jitUtils: JITUtils) => PureFunction;
 
 export type CompiledPureFunction = {
-    originClosureFn: PureFunctionWithClosure;
+    closureFn: PureFunctionClosure;
     fn?: PureFunction;
     paramNames: string[];
     body: string;
@@ -192,9 +227,12 @@ export interface JitCompiledFnMeta {
 // ########################################### JIT FUNCTIONS ###########################################
 
 export interface JitCompiledFn<Fn extends AnyFn = AnyFn> extends JitCompiledFnMeta {
+    /** The closure function that contains the jit function, this one contains the context code */
+    readonly closureFn: (utl: JITUtils) => Fn;
     /** The Jit Generated function once the compilation is finished */
     readonly fn: Fn;
 }
+
 export interface JITCompiledFunctions {
     isType: JitCompiledFn<IsTypeFn>;
     typeErrors: JitCompiledFn<TypeErrorsFn>;
@@ -215,3 +253,33 @@ export type ToJsonValFn = (value: any) => JSONValue;
 export type TypeErrorsFn = (value: any) => RunTypeError[];
 export type IsTypeFn = (value: any) => boolean;
 export type toCodeFn = (value: any) => string;
+
+export type JitFunctionsCache = Record<string, JitCompiledFn>;
+export type PureFunctionsCache = Record<string, CompiledPureFunction>;
+
+// ########################################### JIT SRC CODE ####################################
+
+export type SrcCodeJitCompiledFn = Omit<JitCompiledFn, 'fn'> & {
+    // jit fn can not be compiled to code as contains references to context code and jitUtils
+    readonly fn: undefined;
+}
+export type SrcCodeCompiledPureFunction = Omit<CompiledPureFunction, 'fn'> & {
+    // pure fn can not be compiled to code as contains references to context code and jitUtils
+    readonly fn: undefined;
+}
+export type SrcCodeJITCompiledFnsCache = Record<string, SrcCodeJitCompiledFn>;
+export type SrcCodePureFunctionsCache = Record<string, SrcCodeCompiledPureFunction>;
+
+// ########################################## other #########################################
+
+export type AnyObject = {
+    [key: string]: unknown;
+};
+
+export type Mutable<T> = {
+    -readonly [P in keyof T]: T[P];
+};
+
+// StrNumber is already defined at the top of the file
+export type JSONValue = StrNumber | boolean | null | {[key: string]: JSONValue} | Array<JSONValue>;
+export type JSONString = string;

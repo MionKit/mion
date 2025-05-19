@@ -8,7 +8,7 @@
 import {ReflectionKind} from '@deepkit/type';
 import type {JitCompilerOpts, MockOptions, RunTypeOptions} from '../types';
 import type {BaseRunType} from '../lib/baseRunTypes';
-import {mockString, mockNumber, mockBoolean, mockBigInt, mockDate, random, mockRegExp, mockSymbol} from './mockUtils';
+import {mockString, mockNumber, mockBoolean, mockBigInt, mockDate, random, mockRegExp, mockSymbol, mockAny} from './mockUtils';
 import {stringCharSet} from './constants.mock';
 import {ClassRunType} from '../runType/collection/class';
 import type {PropertyRunType} from '../runType/member/property';
@@ -100,9 +100,8 @@ function _mockType(runType: BaseRunType, comp: JitCompilerOpts, stack: BaseRunTy
         case ReflectionKind.never:
             throw new Error('Cannot mock never type.');
         case ReflectionKind.any:
-            throw new Error('Cannot mock any type.');
         case ReflectionKind.unknown:
-            throw new Error('Cannot mock unknown type.');
+            return mockAny(mOps.anyValuesList);
         // Atomic types
         case ReflectionKind.string:
             return mockString(mOps.stringLength || random(1, mOps.maxRandomStringLength), mOps.stringCharSet || stringCharSet);
