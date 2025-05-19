@@ -13,8 +13,8 @@ import {
     SrcCodePureFunctionsCache,
 } from '@mionkit/core/src/types';
 import {JitFunctions} from '../constants';
-import {cΦmpilεd as jitFnsCache} from '@mionkit/core/src/_autogen/jitFunctionsCache';
-import {cΦmpilεd as pureFnsCache} from '@mionkit/core/src/_autogen/pureFunctionsCache';
+import {cΦmpilεdCachε as jitFnsCache} from '@mionkit/core/src/_autogen/jitFunctionsCache';
+import {cΦmpilεdCachε as pureFnsCache} from '@mionkit/core/src/_autogen/pureFunctionsCache';
 import {jitUtils} from '@mionkit/core/src/jitUtils';
 import {existsSync, mkdirSync, unlinkSync, writeFileSync} from 'fs';
 import {join} from 'path';
@@ -96,7 +96,7 @@ it('should compile pure functions cache to code', () => {
 function createDirAndWriteFile(dir: string, file: string) {
     if (!existsSync(dir)) mkdirSync(dir, {recursive: true});
     const filePath = join(dir, file);
-    writeFileSync(filePath, 'export const cΦmpilεd = {};\n', 'utf8');
+    writeFileSync(filePath, 'export const cΦmpilεdCachε = {};\n', 'utf8');
 }
 
 function deleteFile(dir: string, file: string) {

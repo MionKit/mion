@@ -82,6 +82,7 @@ export function getHandlerReflection(handler: Handler, routeId: string, routerOp
         // returnJitFns contains all run type functionality for the return value, it compiles the when the property is first accessed
         reflectionItems.returnJitFns = getReturnJitFns(handler);
     } catch (error: any) {
+        console.error(error);
         throw new Error(`Can not get Jit Functions for Return of route/hook ${routeId}. Error: ${error?.message}`);
     }
 

@@ -16,8 +16,8 @@ import type {
     TypeFormatError,
 } from './types';
 import {MAX_STACK_DEPTH, MAX_UNKNOWN_KEYS} from './constants';
-import {cΦmpilεd as tCache} from './_autogen/jitFunctionsCache';
-import {cΦmpilεd as pCache} from './_autogen/pureFunctionsCache';
+import {cΦmpilεdCachε as tCache} from './_autogen/jitFunctionsCache';
+import {cΦmpilεdCachε as pCache} from './_autogen/pureFunctionsCache';
 
 type StrNumber = string | number;
 
