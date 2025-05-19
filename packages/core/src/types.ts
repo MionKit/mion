@@ -179,14 +179,17 @@ export type PureFunction = (...args: any[]) => any;
  */
 export type PureFunctionClosure = (jitUtils: JITUtils) => PureFunction;
 
-export type CompiledPureFunction = {
-    closureFn: PureFunctionClosure;
-    fn?: PureFunction;
+export interface PureFunctionProps {
     paramNames: string[];
     body: string;
     name: string;
     dependencies: Set<string>;
-};
+}
+
+export interface CompiledPureFunction extends PureFunctionProps {
+    closureFn: PureFunctionClosure;
+    fn?: PureFunction;
+}
 
 // ########################################### COMPILER ##########################################
 
@@ -202,7 +205,7 @@ export type JitFnArgs = {
     [key: string]: string;
 };
 
-export interface JitCompiledFnMeta {
+export interface JitCompiledFnProps {
     /** The id of the function (operation) to be compiled (isType, typeErrors, toJsonVal, fromJsonVal, etc) */
     readonly fnID: string;
     /** Unique id of the function */
@@ -226,7 +229,7 @@ export interface JitCompiledFnMeta {
 
 // ########################################### JIT FUNCTIONS ###########################################
 
-export interface JitCompiledFn<Fn extends AnyFn = AnyFn> extends JitCompiledFnMeta {
+export interface JitCompiledFn<Fn extends AnyFn = AnyFn> extends JitCompiledFnProps {
     /** The closure function that contains the jit function, this one contains the context code */
     readonly closureFn: (utl: JITUtils) => Fn;
     /** The Jit Generated function once the compilation is finished */
@@ -241,11 +244,11 @@ export interface JITCompiledFunctions {
     jsonStringify: JitCompiledFn<JsonStringifyFn>;
 }
 export interface SerializableJITFunctions {
-    isType: JitCompiledFnMeta;
-    typeErrors: JitCompiledFnMeta;
-    toJsonVal: JitCompiledFnMeta;
-    fromJsonVal: JitCompiledFnMeta;
-    jsonStringify: JitCompiledFnMeta;
+    isType: JitCompiledFnProps;
+    typeErrors: JitCompiledFnProps;
+    toJsonVal: JitCompiledFnProps;
+    fromJsonVal: JitCompiledFnProps;
+    jsonStringify: JitCompiledFnProps;
 }
 export type JsonStringifyFn = (value: any) => JSONString;
 export type FromJsonValFn = (value: JSONValue) => any;
@@ -259,12 +262,26 @@ export type PureFunctionsCache = Record<string, CompiledPureFunction>;
 
 // ########################################### JIT SRC CODE ####################################
 
-export type SrcCodeJitCompiledFn = Omit<JitCompiledFn, 'fn'> & {
-    // jit fn can not be compiled to code as contains references to context code and jitUtils
+// TODO: bellow way of declaring thing by using omit and and redeclaring the fn property have a bug in deepkit type compiler, so we need to find another way to do it
+// export type SrcCodeJitCompiledFn = Omit<JitCompiledFn, 'fn'> & {
+//     // jit fn can not be compiled to code as contains references to context code and jitUtils
+//     readonly fn: undefined;
+// }
+// export type SrcCodeCompiledPureFunction = Omit<CompiledPureFunction, 'fn'> & {
+//     // pure fn can not be compiled to code as contains references to context code and jitUtils
+//     readonly fn: undefined;
+// }
+
+export interface SrcCodeJitCompiledFn extends JitCompiledFnProps {
+    /** The closure function that contains the jit function, this one contains the context code */
+    readonly closureFn: (utl: JITUtils) => AnyFn;
+    /** The Jit Generated function once the compilation is finished */
     readonly fn: undefined;
 }
-export type SrcCodeCompiledPureFunction = Omit<CompiledPureFunction, 'fn'> & {
-    // pure fn can not be compiled to code as contains references to context code and jitUtils
+export interface SrcCodeCompiledPureFunction extends PureFunctionProps {
+    /** The closure function that contains the jit function, this one contains the context code */
+    readonly closureFn: (utl: JITUtils) => AnyFn;
+    /** The Jit Generated function once the compilation is finished */
     readonly fn: undefined;
 }
 export type SrcCodeJITCompiledFnsCache = Record<string, SrcCodeJitCompiledFn>;

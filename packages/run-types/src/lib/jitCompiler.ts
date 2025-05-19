@@ -6,7 +6,7 @@
  * ######## */
 import type {
     JitCompiledFn,
-    JitCompiledFnMeta,
+    JitCompiledFnProps,
     JitFnArgs,
     JITUtils,
     PureFunction,
@@ -34,13 +34,13 @@ export type StackItem = {
     staticPath?: StrNumber[];
 };
 
-export type JitCompilerLike = BaseCompiler | JitCompiledFnMeta;
+export type JitCompilerLike = BaseCompiler | JitCompiledFnProps;
 export type JitDependencies = Set<string>;
 
 const STACK_TRACE_ROOT = 'runType JIT compiler error pointer => ';
 
 export class BaseCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extends JitFnID = any>
-    implements JitCompiledFnMeta, JitCompilerOpts
+    implements JitCompiledFnProps, JitCompilerOpts
 {
     constructor(
         public readonly rootType: BaseRunType,
@@ -179,7 +179,7 @@ export class BaseCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extends 
         const stackItem = this.getCurrentStackItem();
         return !stackItem.rt.isJitInlined() && this.stack.length > 1;
     }
-    updateDependencies(childCop: JitCompiledFnMeta): void {
+    updateDependencies(childCop: JitCompiledFnProps): void {
         this.dependenciesSet.add(childCop.jitFnHash);
         childCop.dependenciesSet.forEach((dep) => this.dependenciesSet.add(dep));
     }
@@ -370,7 +370,7 @@ export function createJitCompiler(
     }
 }
 
-export function getSerializableJitCompiler(comp: JitCompiledFn): JitCompiledFnMeta {
+export function getSerializableJitCompiler(comp: JitCompiledFn): JitCompiledFnProps {
     return {
         fnID: comp.fnID,
         jitFnHash: comp.jitFnHash,
@@ -384,7 +384,7 @@ export function getSerializableJitCompiler(comp: JitCompiledFn): JitCompiledFnMe
     };
 }
 
-export function compileAddPureFunctionContext(comp: JitCompiler | JitErrorsCompiler, pureFn: PureFunctionClosure): string {
+export function compileAddPureFunctionWithClosure(comp: JitCompiler | JitErrorsCompiler, pureFn: PureFunctionClosure): string {
     const fnName = pureFn.name;
     if (!fnName) throw new Error('Pure function must have a name');
     registerPureFnClosure(pureFn); // will throw if there is a different pure function with the same name

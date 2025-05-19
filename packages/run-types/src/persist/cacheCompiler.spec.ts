@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {compileTypeToJs, compilerConstants, findJSFile} from './compiler';
+import {compileTypeToJs, compilerConstants, findJSFile} from './cacheCompiler';
 import {
     JitCompiledFn,
     CompiledPureFunction,
@@ -13,9 +13,11 @@ import {
     SrcCodePureFunctionsCache,
 } from '@mionkit/core/src/types';
 import {JitFunctions} from '../constants';
-import {cΦmpilεd as jitFnsCache} from '@mionkit/core/src/compiled/jitFunctionsCache';
-import {cΦmpilεd as pureFnsCache} from '@mionkit/core/src/compiled/pureFunctionsCache';
+import {cΦmpilεd as jitFnsCache} from '@mionkit/core/src/_autogen/jitFunctionsCache';
+import {cΦmpilεd as pureFnsCache} from '@mionkit/core/src/_autogen/pureFunctionsCache';
 import {jitUtils} from '@mionkit/core/src/jitUtils';
+import {existsSync, mkdirSync, unlinkSync, writeFileSync} from 'fs';
+import {join} from 'path';
 
 it('should compile JIT functions cache to code', () => {
     // Create a mock JitFunctionsCache
@@ -91,9 +93,40 @@ it('should compile pure functions cache to code', () => {
     expect(() => eval(`(${realEvalCode})`)).not.toThrow();
 });
 
+function createDirAndWriteFile(dir: string, file: string) {
+    if (!existsSync(dir)) mkdirSync(dir, {recursive: true});
+    const filePath = join(dir, file);
+    writeFileSync(filePath, 'export const cΦmpilεd = {};\n', 'utf8');
+}
+
+function deleteFile(dir: string, file: string) {
+    const filePath = join(dir, file);
+    if (existsSync(filePath)) {
+        unlinkSync(filePath);
+    }
+}
+
 it('should find .dist files in @mionkit/core package', () => {
-    const fullFileNames = compilerConstants.jitFunctionsFiles.map((file) =>
-        findJSFile(compilerConstants.corePackageName, file)
-    ) as string[];
+    // compileAndWriteJitFunctions and compileAndWritePureFunctions work only after code gets compiled
+    // for testing lets find fe files in the core package as test
+    const dirCjs = join(__dirname, '../../../core/dist/cjs/_autogen');
+    const dirEsm = join(__dirname, '../../../core/dist/esm/_autogen');
+    const filesCjs = ['jitFunctionsCache.js', 'pureFunctionsCache.js'];
+    const filesEsm = ['jitFunctionsCache.mjs', 'pureFunctionsCache.mjs'];
+
+    filesCjs.forEach((file) => createDirAndWriteFile(dirCjs, file));
+    filesEsm.forEach((file) => createDirAndWriteFile(dirEsm, file));
+
+    const packageName = '@mionkit/core';
+    const files = [
+        './dist/cjs/_autogen/jitFunctionsCache',
+        './dist/cjs/_autogen/pureFunctionsCache',
+        './dist/esm/_autogen/jitFunctionsCache',
+        './dist/esm/_autogen/pureFunctionsCache',
+    ];
+    const fullFileNames = files.map((file) => findJSFile(packageName, file)) as string[];
     expect(fullFileNames.every(Boolean)).toBe(true);
+
+    filesCjs.forEach((file) => deleteFile(dirCjs, file));
+    filesEsm.forEach((file) => deleteFile(dirEsm, file));
 });
