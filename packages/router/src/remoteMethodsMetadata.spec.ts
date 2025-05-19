@@ -10,7 +10,7 @@ import {registerRoutes, initRouter, resetRouter} from './router';
 import {CallContext} from './types/context';
 import {Routes} from './types/general';
 import {HandlerType} from './types/procedures';
-import {hook, rawHook, route} from './initFunctions';
+import {hook, rawHook, route} from './handlers';
 
 describe('Public Methods should', () => {
     const privateHook = hook((ctx): void => undefined);

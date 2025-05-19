@@ -19,7 +19,7 @@ import {
     getAnyExecutable,
 } from './router';
 // TODO: investigate why compilation fails if route gets imported from @mionkit/router rather that relative import
-import {route} from './initFunctions';
+import {route} from './handlers';
 import {PublicProcedure} from './types/publicProcedures';
 import {RouterOptions, Routes} from './types/general';
 import {getMethodMetadataFromExecutable} from './remoteMethodsMetadata';

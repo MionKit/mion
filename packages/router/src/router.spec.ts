@@ -19,7 +19,7 @@ import {
     addEndHooks,
 } from './router';
 import {type Routes} from './types/general';
-import {hook, route, rawHook} from './initFunctions';
+import {hook, route, rawHook} from './handlers';
 import {HandlerType} from './types/procedures';
 
 describe('Create routes should', () => {
@@ -289,28 +289,16 @@ describe('Create routes should', () => {
                 });
                 return hello;
             }),
+            noReturnType: route(() => null),
         };
         registerRoutes(defaultRouteValues);
 
         expect(getRouteExecutable('sayHello')?.options.isAsync).toEqual(false);
         expect(getRouteExecutable('asyncSayHello')?.options.isAsync).toEqual(true);
-    });
 
-    it('route failing co compile if there is no type, or is type any', () => {
-        initRouter();
-        const routes1 = {
-            noType: route(() => null),
-        };
-        const routes2 = {
-            anyReturn: route((ctx): any => null),
-        };
-        const routes3 = {
-            anyParam: route((ctx, p1: any): null => null),
-        };
-
-        expect(() => registerRoutes(routes1)).toThrow('Can not get Jit Functions for Return of route/hook noType');
-        expect(() => registerRoutes(routes2)).toThrow('Can not get Jit Functions for Return of route/hook anyReturn');
-        expect(() => registerRoutes(routes3)).toThrow('Can not compile Jit Functions for Parameters of route/hook anyParam');
+        // when there is no return type we assume the function is async.
+        // this is done so await is enforced in case we don't know the return type
+        expect(getRouteExecutable('noReturnType')?.options.isAsync).toEqual(true);
     });
 
     it('add start and end global hooks', () => {
