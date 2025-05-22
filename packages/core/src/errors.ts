@@ -6,9 +6,10 @@
  * ######## */
 
 import {statusCodeToReasonPhrase} from './status-codes';
-import {CoreOptions, AnyErrorParams, PublicRpcError} from './types';
+import {CoreOptions, AnyErrorParams, PublicRpcError, PlainObject, StrNumber} from './types';
 import {DEFAULT_CORE_OPTIONS} from './constants';
 import {randomUUID_V7} from '@mionkit/core/src/utils';
+import {jitUtils} from '@mionkit/core/src/jitUtils';
 
 let options: CoreOptions = {...DEFAULT_CORE_OPTIONS};
 
@@ -16,25 +17,40 @@ export function setErrorOptions(opts: CoreOptions) {
     options = opts;
 }
 
-export class RpcError extends Error {
-    /** id of the error, if RouterOptions.autoGenerateErrorId is set to true and id with timestamp+uuid will be generated */
+export class RpcError<ErrType extends StrNumber = any, ErrData = any> extends Error {
+    /** Error type, can be used as discriminator in union types switch, etc*/
+    public readonly type: ErrType;
+    /**
+     * id of the error, ideally each error should unique identifiable
+     * * if RouterOptions.autoGenerateErrorId is set to true and id with timestamp+uuid will be generated
+     * */
     public readonly id?: number | string;
     /** response status code */
     public readonly statusCode: number;
     /** the message that will be returned in the response */
     public readonly publicMessage: string;
     /** options data related to the error, ie validation data */
-    public readonly errorData?: Readonly<unknown>;
+    public readonly errorData?: Readonly<ErrData>;
 
-    constructor({statusCode, message, publicMessage, originalError, errorData, name, id}: AnyErrorParams) {
+    constructor({
+        statusCode,
+        message,
+        publicMessage,
+        originalError,
+        errorData,
+        name,
+        id,
+        type,
+    }: AnyErrorParams<ErrType, ErrData>) {
         super(message || originalError?.message || publicMessage);
         super.name = name || statusCodeToReasonPhrase[statusCode] || 'UnknownError';
         if (originalError?.stack) super.stack = originalError?.stack;
         const {autoGenerateErrorId} = options;
+        this.type = type || ('unknown' as any);
         this.id = id || autoGenerateErrorId ? randomUUID_V7() : undefined;
         this.statusCode = statusCode;
         this.publicMessage = publicMessage || '';
-        this.errorData = errorData as Readonly<unknown>;
+        this.errorData = errorData;
         Object.setPrototypeOf(this, RpcError.prototype);
         // sets proper json serialization for message
         Object.defineProperty(this, 'message', {enumerable: true});
@@ -55,9 +71,9 @@ export class RpcError extends Error {
 
 // #######  Error Type Guards #######
 
-const hasUnknownKeys = (knownKeys, error) => {
-    if (typeof error !== 'object') return true;
-    const unknownKeys = Object.keys(error);
+const hasUnknownKeys = (knownKeys: string[], error: unknown): boolean => {
+    if (typeof error !== 'object' || error === null) return true;
+    const unknownKeys = Object.keys(error as object);
     return unknownKeys.some((ukn) => !knownKeys.includes(ukn));
 };
 
@@ -74,3 +90,7 @@ export function isRpcError(error: any): error is RpcError {
         !hasUnknownKeys(['id', 'statusCode', 'message', 'publicMessage', 'name', 'errorData'], error)
     );
 }
+
+jitUtils.setDeserializeFn(RpcError, (serializedItem: PlainObject<RpcError>) => {
+    return new RpcError(serializedItem);
+});

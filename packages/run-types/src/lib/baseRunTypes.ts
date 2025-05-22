@@ -292,19 +292,21 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
         return formattersCode.join(separator);
     }
 
-    callDependency(currentCop: JitCompiler, comp: JitCompiledFn): jitCode {
+    callDependency(currentCop: JitCompiler, depComp: JitCompiledFn): jitCode {
         const stackItem = currentCop.getCurrentStackItem();
-        const isErrorCall = comp.fnID === JitFunctions.typeErrors.id || comp.fnID === JitFunctions.unknownKeyErrors.id;
+        const isErrorCall = depComp.fnID === JitFunctions.typeErrors.id || depComp.fnID === JitFunctions.unknownKeyErrors.id;
         const args = isErrorCall ? jitErrorArgs : jitArgs;
         const argsCode = Object.entries(args)
             .map(([key, name]) => (key === 'vλl' ? stackItem.vλl : name))
             .join(',');
-        const isSelf = currentCop.jitFnHash === comp.jitFnHash;
-        const varName = comp.jitFnHash;
+        const isSelf = currentCop.jitFnHash === depComp.jitFnHash;
+        const varName = depComp.jitFnHash;
         // call local variable instead directly calling jitUtils to avoid lookups.
         // ie function context (local variable created when compiling the function): const abc = jitUtils.getJIT('abc);
         // ie calling context variable: abc.fn();
         // if operation is the same as the current operation we can call the function directly
+
+        // TODO: if depComp is a noop, then we could avoid calling it
         const callCode = isSelf ? `${varName}(${argsCode})` : `${varName}.fn(${argsCode})`;
         if (!isSelf) currentCop.contextCodeItems.set(varName, `const ${varName} = utl.getJIT(${toLiteral(varName)})`);
         if (isErrorCall) {

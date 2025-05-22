@@ -8,12 +8,14 @@ import type {
     CompiledPureFunction,
     JitCompiledFn,
     JitFunctionsCache,
-    JITUtils,
     Mutable,
     PureFunction,
     PureFunctionsCache,
     RunTypeError,
     TypeFormatError,
+    DeserializeClassFn,
+    AnyClass,
+    SerializableClass,
 } from './types';
 import {MAX_STACK_DEPTH, MAX_UNKNOWN_KEYS} from './constants';
 import {cΦmpilεdCachε as tCache} from './_autogen/jitFunctionsCache';
@@ -27,13 +29,15 @@ const MAX_SCAPE_TEST_LENGTH = 1000; // possible to tweak after benchmarking
 // initial map to store jit functions, file gest recompiled 🔁 and overridden when
 const jitTypesCache: JitFunctionsCache = tCache;
 const pureFnsCache: PureFunctionsCache = pCache;
+// serializable classes registry, serializable classes can be automatically deserialized if they are registered here
+const deserializeFnsRegistry = new Map<string, DeserializeClassFn<any>>();
+const serializableClassRegistry = new Map<string, SerializableClass>();
 
 /**
  * Object that wraps all utilities that are used by the jit generated functions for encode, decode, stringify etc..
  * !!! DO NOT MODIFY METHOD NAMES OF PROPERTY OR METHODS AS THESE ARE HARDCODED IN THE JIT GENERATED CODE !!!
  */
-export const jitUtils: JITUtils = {
-    // !!! DO NOT MODIFY METHOD WITHOUT REVIEWING JIT CODE INVOCATIONS!!!
+export const jitUtils = {
     /** optimized function to convert an string into a json string wrapped in double quotes */
     asJSONString(str: string) {
         // Bellow code for 'asJSONString' is copied from from https://github.com/fastify/fast-json-stringify/blob/master/lib/serializer.js
@@ -71,7 +75,6 @@ export const jitUtils: JITUtils = {
             return JSON.stringify(str);
         }
     },
-    // !!! DO NOT MODIFY METHOD WITHOUT REVIEWING JIT CODE INVOCATIONS!!!
     addToJitCache(comp: JitCompiledFn) {
         jitTypesCache[comp.jitFnHash] = comp;
     },
@@ -79,21 +82,17 @@ export const jitUtils: JITUtils = {
         if (!jitTypesCache[comp.jitFnHash]) return;
         (jitTypesCache[comp.jitFnHash] as any) = undefined;
     },
-    // !!! DO NOT MODIFY METHOD WITHOUT REVIEWING JIT CODE INVOCATIONS!!!
     getJIT(jitFnHash: string): JitCompiledFn | undefined {
         return jitTypesCache[jitFnHash];
     },
-    // !!! DO NOT MODIFY METHOD WITHOUT REVIEWING JIT CODE INVOCATIONS!!!
     getJitFn(jitFnHash: string): (...args: any[]) => any {
         const comp = jitTypesCache[jitFnHash];
         if (!comp) throw new Error(`Jit function not found for jitFnHash ${jitFnHash}`);
         return comp.fn;
     },
-    // !!! DO NOT MODIFY METHOD WITHOUT REVIEWING JIT CODE INVOCATIONS!!!
     hasJitFn(jitFnHash: string) {
         return !!jitTypesCache[jitFnHash]?.fn;
     },
-    // !!! DO NOT MODIFY METHOD WITHOUT REVIEWING JIT CODE INVOCATIONS!!!
     getUnknownKeysFromSet(obj: Record<StrNumber, any>, keys: Set<StrNumber>): StrNumber[] {
         const unknownKeys: StrNumber[] = [];
         for (const prop in obj) {
@@ -121,7 +120,6 @@ export const jitUtils: JITUtils = {
         }
         return unknownKeys;
     },
-    // !!! DO NOT MODIFY METHOD WITHOUT REVIEWING JIT CODE INVOCATIONS!!!
     hasUnknownKeysFromArray(obj: Record<StrNumber, any>, keys: StrNumber[]): boolean {
         for (const prop in obj) {
             // iterates over the object keys and if not found prop adds to unknownKeys
@@ -142,7 +140,6 @@ export const jitUtils: JITUtils = {
         }
         return false;
     },
-    // !!! DO NOT MODIFY METHOD WITHOUT REVIEWING JIT CODE INVOCATIONS!!!
     /**
      * Creates an new RunTypeError and adds it to the errors array
      * Note that all paths are copied when creating the new RunTypeError
@@ -153,7 +150,6 @@ export const jitUtils: JITUtils = {
         const runTypeErr: RunTypeError = {expected, path};
         εrr.push(runTypeErr);
     },
-    // !!! DO NOT MODIFY METHOD WITHOUT REVIEWING JIT CODE INVOCATIONS!!!
     /**
      * Creates an new RunTypeError with a TypeFormatError and adds it to the errors array
      * Note that all paths are copied when creating the new RunTypeError
@@ -176,7 +172,6 @@ export const jitUtils: JITUtils = {
         const runTypeErr: Required<RunTypeError> = {expected, path, format};
         εrr.push(runTypeErr);
     },
-    // !!! DO NOT MODIFY METHOD WITHOUT REVIEWING JIT CODE INVOCATIONS!!!
     safeKey(value: any): any {
         if (isSafeMapKeyValue(value)) return value;
         return null;
@@ -204,6 +199,35 @@ export const jitUtils: JITUtils = {
     },
     hasPureFn(name: string): boolean {
         return !!pureFnsCache[name];
+    },
+    setSerializableClass<C extends SerializableClass>(cls: C) {
+        const className = cls.name;
+        const existingClass = serializableClassRegistry.get(className);
+        if (existingClass && existingClass !== cls) throw new Error(`Deserializable Class ${className} already registered`);
+        serializableClassRegistry.set(className, cls);
+    },
+    useSerializeClass(className: string): SerializableClass {
+        const cls = serializableClassRegistry.get(className);
+        if (!cls) throw new Error(`Serializable class with name ${className} not found, be sure to register it first`);
+        return cls;
+    },
+    getSerializeClass(className: string): SerializableClass | undefined {
+        return serializableClassRegistry.get(className);
+    },
+    setDeserializeFn<C extends AnyClass>(cls: C, deserializeFn: DeserializeClassFn<InstanceType<C>>) {
+        const className = cls.name;
+        const fn = deserializeFnsRegistry.get(className);
+        if (fn && fn !== deserializeFn) throw new Error(`Deserialize function for class ${className} already exists`);
+        if (fn) return;
+        deserializeFnsRegistry.set(className, deserializeFn);
+    },
+    useDeserializeFn(className: string): DeserializeClassFn<any> {
+        const fn = deserializeFnsRegistry.get(className);
+        if (!fn) throw new Error(`Deserialize function for class ${className} not found, be sure to register it first`);
+        return fn;
+    },
+    getDeserializeFn(className: string): DeserializeClassFn<any> | undefined {
+        return deserializeFnsRegistry.get(className);
     },
 };
 

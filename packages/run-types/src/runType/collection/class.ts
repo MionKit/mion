@@ -5,20 +5,41 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 import {TypeClass} from '@deepkit/type';
-import {InterfaceRunType, InterfaceMember} from './interface';
-import {isConstructor} from '../../lib/guards';
+import {InterfaceMember, InterfaceRunType} from './interface';
 import {JitCompiler} from '../../lib/jitCompiler';
+import {jitUtils} from '@mionkit/core/src/jitUtils';
+import {toLiteral} from '@mionkit/run-types/src/lib/utils';
+import {isConstructor} from '@mionkit/run-types/src/lib/guards';
 
 export class ClassRunType extends InterfaceRunType<TypeClass> {
     getClassName(): string {
         return this.src.classType.name;
     }
-    isSerializableClass(): boolean {
+    isClassWithEmptyConstructor(): boolean {
         const children = this.getChildRunTypes() as InterfaceMember[];
-        return children.every((prop) => !isConstructor(prop) || prop.getParameters().getChildRunTypes().length === 0);
+        const isEmpty = children.every((prop) => !isConstructor(prop) || prop.getParameters().getChildRunTypes().length === 0);
+        return isEmpty;
     }
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    _compileFromJsonVal(comp: JitCompiler): string {
-        throw new Error(`Classes can not be deserialized.`);
+    _compileFromJsonVal(comp: JitCompiler) {
+        const deserializeFn = jitUtils.getDeserializeFn(this.getClassName());
+        const serializableClass = jitUtils.getSerializeClass(this.getClassName());
+
+        if (deserializeFn) {
+            const plainObjCode = super._compileFromJsonVal(comp);
+            const classCode = `${comp.vλl} = utl.${jitUtils.useDeserializeFn.name}(${toLiteral(this.getClassName())})(${comp.vλl})`;
+            if (plainObjCode) return `${plainObjCode} ${classCode}`;
+            return classCode;
+        }
+        if (serializableClass) {
+            const plainObjCode = super._compileFromJsonVal(comp);
+            const classCode = `${comp.vλl} = new (utl.${jitUtils.useSerializeClass.name}(${toLiteral(this.getClassName())}))(${comp.vλl})`;
+            if (plainObjCode) return `${plainObjCode} ${classCode}`;
+            return classCode;
+        }
+
+        throw new Error(
+            `Class ${this.getClassName()} can not be deserialized. Be sure to register a deserialize function first with jiUtils.${jitUtils.setDeserializeFn.name}`
+        );
     }
 }
