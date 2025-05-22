@@ -6,10 +6,11 @@
  * ######## */
 import {runType} from '../../lib/runType';
 import {JitFunctions} from '../../constants';
-import exp from 'constants';
-import {info} from 'console';
+import {jitUtils} from '@mionkit/core/src/jitUtils';
+import {PlainObject} from '@mionkit/core/src/types';
+import {RpcError} from '@mionkit/core/src/errors';
 
-class SerializableClass {
+class MySerializableClass {
     name: string;
     surname: string;
     id: number;
@@ -19,6 +20,10 @@ class SerializableClass {
         this.surname = 'Doe';
         this.id = 0;
         this.startDate = new Date();
+    }
+
+    getConstructorParams(): [] {
+        return [];
     }
 
     getFullName() {
@@ -39,9 +44,9 @@ class NonSerializableClass {
     }
 }
 
-const serializable = new SerializableClass();
+const serializable = new MySerializableClass();
 
-const rt = runType<SerializableClass>();
+const rt = runType<MySerializableClass>();
 const rtNonS = runType<NonSerializableClass>();
 
 it('validate class', () => {
@@ -51,7 +56,7 @@ it('validate class', () => {
 
 it('validate empty class', () => {
     const validate = rt.createJitFunction(JitFunctions.isType);
-    expect(validate(new SerializableClass())).toBe(true);
+    expect(validate(new MySerializableClass())).toBe(true);
 });
 
 it('validate class + errors', () => {
@@ -85,14 +90,56 @@ it('json stringify class', () => {
     });
 });
 
-it('classes can not be decoded', () => {
-    expect(() => rtNonS.createJitFunction(JitFunctions.fromJsonVal)).toThrow(`Classes can not be deserialized.`);
+it('non serializable classes can not be decoded', () => {
+    expect(() => rtNonS.createJitFunction(JitFunctions.fromJsonVal)).toThrow(
+        `Class NonSerializableClass can not be deserialized.`
+    );
+});
+
+it('serializable class can be restored after they are registered', async () => {
+    const jsonStringify = rt.createJitFunction(JitFunctions.jsonStringify);
+    expect(() => rt.createJitFunction(JitFunctions.fromJsonVal)).toThrow();
+    jitUtils.setSerializableClass(MySerializableClass);
+    const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
+    const restored = fromJsonVal(JSON.parse(jsonStringify(serializable)));
+    expect(restored instanceof MySerializableClass).toBeTruthy();
+});
+
+it('classes can be deserialized suing a deserialize function', () => {
+    const jsonStringify = rtNonS.createJitFunction(JitFunctions.jsonStringify);
+    expect(() => rtNonS.createJitFunction(JitFunctions.fromJsonVal)).toThrow();
+    jitUtils.setDeserializeFn(NonSerializableClass, (deserialized: PlainObject<NonSerializableClass>) => {
+        const instance = new NonSerializableClass(
+            deserialized.name,
+            deserialized.surname,
+            deserialized.id,
+            deserialized.startDate
+        );
+        return instance;
+    });
+    const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
+    const restored = fromJsonVal(JSON.parse(jsonStringify(serializable)));
+    expect(restored instanceof MySerializableClass).toBeTruthy();
+});
+
+it('can serialize/deserialize RpcError class', () => {
+    const rt = runType<RpcError>();
+    const jsonStringify = rt.createJitFunction(JitFunctions.jsonStringify);
+    const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
+    const error = new RpcError({
+        statusCode: 400,
+        publicMessage: 'error',
+        message: 'error',
+    });
+    const restored = fromJsonVal(JSON.parse(jsonStringify(error)));
+    expect(restored instanceof RpcError).toBeTruthy();
+    expect(restored).toEqual(error);
 });
 
 it('mock class', async () => {
     const mock = await rt.mock();
     const validate = rt.createJitFunction(JitFunctions.isType);
-    expect(mock instanceof SerializableClass).toBeTruthy();
+    expect(mock instanceof MySerializableClass).toBeTruthy();
     expect(validate(mock)).toBe(true);
 });
 

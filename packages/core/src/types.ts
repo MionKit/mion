@@ -4,57 +4,10 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ############### */
+import {jitUtils} from './jitUtils';
+
 export type StrNumber = string | number;
-
-export interface JITUtils {
-    /** Optimized function to convert a string into a JSON string wrapped in double quotes */
-    asJSONString(str: string): string;
-    /** Adds a compiled JIT function to the cache */
-    addToJitCache(comp: JitCompiledFn): void;
-    /** Removes a compiled JIT function from the cache */
-    removeFromJitCache(comp: JitCompiledFn): void;
-    /** Gets a compiled JIT function from the cache by its hash */
-    getJIT(jitFnHash: string): JitCompiledFn | undefined;
-    /** Gets a JIT function from the cache by its hash */
-    getJitFn(jitFnHash: string): (...args: any[]) => any;
-    /** Checks if a JIT function exists in the cache */
-    hasJitFn(jitFnHash: string): boolean;
-    /** Gets unknown keys from an object using a Set of known keys */
-    getUnknownKeysFromSet(obj: Record<StrNumber, any>, keys: Set<StrNumber>): StrNumber[];
-    /** Gets unknown keys from an object using an array of known keys */
-    getUnknownKeysFromArray(obj: Record<StrNumber, any>, keys: StrNumber[]): StrNumber[];
-
-    /** Checks if an object has unknown keys using an array of known keys */
-    hasUnknownKeysFromArray(obj: Record<StrNumber, any>, keys: StrNumber[]): boolean;
-    /** Checks if an object has unknown keys using a Set of known keys */
-    hasUnknownKeysFromSet(obj: Record<StrNumber, any>, keys: Set<StrNumber>): boolean;
-    /** Creates a new RunTypeError and adds it to the errors array */
-    err(pλth: readonly StrNumber[], εrr: RunTypeError[], expected: string, accessPath?: readonly StrNumber[]): void;
-    /** Creates a new RunTypeError with a TypeFormatError and adds it to the errors array */
-    formatErr(
-        pλth: StrNumber[],
-        εrr: RunTypeError[],
-        expected: string,
-        fmtName: string,
-        paramName: string,
-        paramVal: string | number | boolean | bigint,
-        fmtPath: StrNumber[],
-        accessPath?: StrNumber[],
-        fmtAccessPath?: StrNumber[]
-    ): void;
-    /** Checks if a value can be safely used as a Map key */
-    safeKey(value: any): any;
-    /** Adds a compiled pure function to the cache */
-    addPureFn(compiledFn: CompiledPureFunction): void;
-    /** Gets a pure function from the cache by its name */
-    usePureFn(name: string): PureFunction;
-    /** Gets a pure function from the cache by its name, returns undefined if not found */
-    getPureFn(name: string): PureFunction | undefined;
-    /** Gets a compiled pure function from the cache by its name */
-    getCompiledPureFn(name: string): CompiledPureFunction | undefined;
-    /** Checks if a pure function exists in the cache */
-    hasPureFn(name: string): boolean;
-}
+export type JITUtils = typeof jitUtils;
 
 // ########################################## Options ##########################################
 
@@ -66,7 +19,9 @@ export type CoreOptions = {
 // ##########################################  Errors ##########################################
 
 /** Any error triggered by hooks or routes must follow this interface, returned errors in the body also follows this interface */
-export interface RpcErrorParams {
+export interface RpcErrorParams<ErrType extends StrNumber = any, ErrData = any> {
+    /** Error type, can be used as discriminator in union types switch, etc*/
+    type?: ErrType;
     /** id of the error. */
     id?: number | string;
     /** response status code */
@@ -79,18 +34,18 @@ export interface RpcErrorParams {
      */
     message?: string;
     /** options data related to the error, ie validation data */
-    errorData?: unknown;
+    errorData?: ErrData;
     /** original error used to create the RpcError */
     originalError?: Error;
     /** name of the error, if not defined it is assigned from status code */
     name?: string;
 }
 
-export interface RpcErrorWithPublic extends RpcErrorParams {
+export interface RpcErrorWithPublic<ErrType extends StrNumber = any, ErrData = any> extends RpcErrorParams<ErrType, ErrData> {
     publicMessage: string;
 }
 
-export interface RpcErrorWithPrivate extends RpcErrorParams {
+export interface RpcErrorWithPrivate<ErrType extends StrNumber = any, ErrData = any> extends RpcErrorParams<ErrType, ErrData> {
     message: string;
 }
 
@@ -105,7 +60,9 @@ export interface PublicRpcError extends Omit<RpcErrorParams, 'publicMessage' | '
     name: string;
 }
 
-export type AnyErrorParams = RpcErrorWithPublic | RpcErrorWithPrivate;
+export type AnyErrorParams<ErrType extends StrNumber = any, ErrData = any> =
+    | RpcErrorWithPublic<ErrType, ErrData>
+    | RpcErrorWithPrivate<ErrType, ErrData>;
 
 export interface RunTypeError {
     /**
@@ -289,9 +246,17 @@ export type SrcCodePureFunctionsCache = Record<string, SrcCodeCompiledPureFuncti
 
 // ########################################## other #########################################
 
-export type AnyObject = {
-    [key: string]: unknown;
-};
+export type AnyObject = Record<string, unknown>;
+
+export interface AnyClass<T = any> {
+    new (...args: any[]): T;
+}
+
+export interface SerializableClass<T = any> {
+    new (): T;
+}
+
+export type DeserializeClassFn<C extends InstanceType<AnyClass>> = (deserialized: PlainObject<C>) => C;
 
 export type Mutable<T> = {
     -readonly [P in keyof T]: T[P];
@@ -300,3 +265,58 @@ export type Mutable<T> = {
 // StrNumber is already defined at the top of the file
 export type JSONValue = StrNumber | boolean | null | {[key: string]: JSONValue} | Array<JSONValue>;
 export type JSONString = string;
+
+// prettier-ignore
+type Native = Date | RegExp | URL | URLSearchParams | Blob | File | FileList | FormData | ArrayBuffer | SharedArrayBuffer | DataView | Int8Array | Uint8Array | Uint8ClampedArray | Int16Array | Uint16Array | Int32Array | Uint32Array | Float32Array | Float64Array | BigInt64Array | BigUint64Array;
+
+/** Typescript mapping type that stripes methods and only keep properties.
+ * it takes into account, dates, objects, classes, arrays, maps and sets.
+ */
+export type PlainObject<T> = T extends object
+    ? T extends Native
+        ? T
+        : // eslint-disable-next-line @typescript-eslint/ban-types
+          T extends Function
+          ? never
+          : T extends new (...args: any[]) => any
+            ? never
+            : T extends Array<infer U>
+              ? Array<PlainObject<U>>
+              : T extends Map<infer K, infer V>
+                ? Map<PlainObject<K>, PlainObject<V>>
+                : T extends Set<infer U>
+                  ? Set<PlainObject<U>>
+                  : // eslint-disable-next-line @typescript-eslint/ban-types
+                    {[K in keyof T as T[K] extends Function ? never : K]: PlainObject<T[K]>}
+    : T;
+
+// TEST TYPES FOR PlainObject
+
+// class A {
+//     n1?: number;
+//     s?: string;
+//     d?: Date;
+//     map?: Map<string, RegExp>;
+//     set?: Set<URL>;
+//     arr?: A[];
+//     method() {
+//         return 'hello';
+//     }
+//     arrow = () => 'hello';
+// }
+
+// type PlainInterface = PlainObject<{
+//     n1: number;
+//     s: string;
+//     d: Date;
+//     a: A;
+//     map: Map<string, A>;
+//     set: Set<A>;
+//     arr: A[];
+//     method(): string;
+//     arrow: () => string;
+// }>;
+
+// type PlainClass = PlainObject<A>;
+// type PlainSet = PlainObject<Set<A>>;
+// type PlainMap = PlainObject<Map<string, A>>;

@@ -28,6 +28,7 @@ import {IndexSignatureRunType} from '../runType/member/indexProperty';
 import {getRunTypeFormatter, getRunTypeTransformers} from '../lib/formats';
 import {JitFunctions} from '../constants';
 import type {ArrayRunType} from '@mionkit/run-types/src/runType/member/array';
+import {jitUtils} from '@mionkit/core/src/jitUtils';
 
 export function mockType(runType: BaseRunType, comp: JitCompilerOpts, stack: BaseRunType[] = []): any {
     stack.push(runType);
@@ -302,20 +303,25 @@ function _mockClass(runType: BaseRunType, comp: JitCompilerOpts, stack: BaseRunT
                 throw new Error(`Cant mock Unsupported RunType: ${runType.getTypeName()}`);
             }
             const rt = runType as ClassRunType;
-            const isSerializable = rt.isSerializableClass();
-            if (!isSerializable) {
+            const isSerializable = rt.isClassWithEmptyConstructor();
+            const deserializeFn = jitUtils.getDeserializeFn(rt.getClassName());
+            if (!deserializeFn && !isSerializable) {
                 throw new Error(
-                    `Class ${rt.getClassName()} can not be mocked. Only classes with and empty constructor can be mocked.`
+                    `Class ${rt.getClassName()} can not be mocked. Be sure to register a deserialize function first with jiUtils.${jitUtils.setDeserializeFn.name}`
                 );
             }
-            const instance = new rt.src.classType();
+            const instance = deserializeFn ? {} : new rt.src.classType();
             // only properties that are used in jit operations are mocked, there properties should be initialized in the constructor
             rt.getJitChildren(comp).forEach((prop) => {
                 const name = (prop as PropertyRunType).getChildVarName();
                 if (prop instanceof IndexSignatureRunType) mockType(prop, comp, stack);
-                else instance[name] = mockType(prop, comp, stack);
+                const mocked = mockType(prop, comp, stack);
+                if ((prop as PropertyRunType).src.optional && mocked === undefined) return;
+                instance[name] = mockType(prop, comp, stack);
             });
-            return instance;
+            if (deserializeFn) return deserializeFn(instance);
+            if (isSerializable) return instance;
+            throw new Error(`Class ${rt.getClassName()} can not be mocked.`);
         }
     }
 }
