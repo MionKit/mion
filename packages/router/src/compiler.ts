@@ -123,7 +123,7 @@ function codifyProcedure(pcd: NonRawProcedure): string {
     return `{${type}${id}${pointer}${nestLevel}${paramNames}${headerNames}\n${paramsJitFns}\n${returnJitFns}\n${options}}`;
 }
 
-// TODO: this could be replaced with const toCode = toCodeFn<string, NonRawProcedure>(); but would imply using
+// TODO: this could be replaced with const toCode = ToCodeFn<string, NonRawProcedure>(); but would imply using
 function codifyCompiledProcedures(dic: Record<string, NonRawProcedure>): string {
     const keys = Object.keys(dic);
     const procedures = keys.map((k) => `\n${toLiteral(k)}:\n\n${codifyProcedure(dic[k])}`).join(',\n');

@@ -16,12 +16,12 @@ import type {
     DeserializeClassFn,
     AnyClass,
     SerializableClass,
+    JITUtils,
+    StrNumber,
 } from './types';
 import {MAX_STACK_DEPTH, MAX_UNKNOWN_KEYS} from './constants';
 import {cΦmpilεdCachε as tCache} from './_autogen/jitFunctionsCache';
 import {cΦmpilεdCachε as pCache} from './_autogen/pureFunctionsCache';
-
-type StrNumber = string | number;
 
 // eslint-disable-next-line no-control-regex
 const STR_ESCAPE = /[\u0000-\u001f\u0022\u005c\ud800-\udfff]/;
@@ -37,7 +37,7 @@ const serializableClassRegistry = new Map<string, SerializableClass>();
  * Object that wraps all utilities that are used by the jit generated functions for encode, decode, stringify etc..
  * !!! DO NOT MODIFY METHOD NAMES OF PROPERTY OR METHODS AS THESE ARE HARDCODED IN THE JIT GENERATED CODE !!!
  */
-export const jitUtils = {
+export const jitUtils: JITUtils = {
     /** optimized function to convert an string into a json string wrapped in double quotes */
     asJSONString(str: string) {
         // Bellow code for 'asJSONString' is copied from from https://github.com/fastify/fast-json-stringify/blob/master/lib/serializer.js
@@ -93,6 +93,66 @@ export const jitUtils = {
     hasJitFn(jitFnHash: string) {
         return !!jitTypesCache[jitFnHash]?.fn;
     },
+    safeKey(value: any): any {
+        if (isSafeMapKeyValue(value)) return value;
+        return null;
+    },
+    addPureFn(compiledFn: CompiledPureFunction) {
+        if (!compiledFn.name) throw new Error('Pure function must have a name and must be unique');
+        const existing = pureFnsCache[compiledFn.name];
+        if (existing) return existing;
+        pureFnsCache[compiledFn.name] = compiledFn;
+    },
+    usePureFn(name: string): PureFunction {
+        const compiled = pureFnsCache[name];
+        if (!compiled) throw new Error(`Pure function with name ${name} not found`);
+        initPureFunction(compiled);
+        return compiled.fn;
+    },
+    getPureFn(name: string): PureFunction | undefined {
+        const compiled = pureFnsCache[name];
+        if (!compiled) return;
+        initPureFunction(compiled);
+        return compiled.fn;
+    },
+    getCompiledPureFn(name: string): CompiledPureFunction | undefined {
+        return pureFnsCache[name];
+    },
+    hasPureFn(name: string): boolean {
+        return !!pureFnsCache[name];
+    },
+    setSerializableClass<C extends SerializableClass>(cls: C) {
+        const className = cls.name;
+        const existingClass = serializableClassRegistry.get(className);
+        if (existingClass && existingClass !== cls) throw new Error(`Deserializable Class ${className} already registered`);
+        serializableClassRegistry.set(className, cls);
+    },
+    useSerializeClass(className: string): SerializableClass {
+        const cls = serializableClassRegistry.get(className);
+        if (!cls) throw new Error(`Serializable class with name ${className} not found, be sure to register it first`);
+        return cls;
+    },
+    getSerializeClass(className: string): SerializableClass | undefined {
+        return serializableClassRegistry.get(className);
+    },
+    setDeserializeFn<C extends AnyClass>(cls: C, deserializeFn: DeserializeClassFn<InstanceType<C>>) {
+        const className = cls.name;
+        const fn = deserializeFnsRegistry.get(className);
+        if (fn && fn !== deserializeFn) throw new Error(`Deserialize function for class ${className} already exists`);
+        if (fn) return;
+        deserializeFnsRegistry.set(className, deserializeFn);
+    },
+    useDeserializeFn(className: string): DeserializeClassFn<any> {
+        const fn = deserializeFnsRegistry.get(className);
+        if (!fn) throw new Error(`Deserialize function for class ${className} not found, be sure to register it first`);
+        return fn;
+    },
+    getDeserializeFn(className: string): DeserializeClassFn<any> | undefined {
+        return deserializeFnsRegistry.get(className);
+    },
+
+    // TODO: all functions bellow could be moved to pure functions instead being part of jitUtils
+
     getUnknownKeysFromSet(obj: Record<StrNumber, any>, keys: Set<StrNumber>): StrNumber[] {
         const unknownKeys: StrNumber[] = [];
         for (const prop in obj) {
@@ -171,63 +231,6 @@ export const jitUtils = {
         const format: TypeFormatError = {name: fmtName, formatPath: formatPath, val: paramVal};
         const runTypeErr: Required<RunTypeError> = {expected, path, format};
         εrr.push(runTypeErr);
-    },
-    safeKey(value: any): any {
-        if (isSafeMapKeyValue(value)) return value;
-        return null;
-    },
-    addPureFn(compiledFn: CompiledPureFunction) {
-        if (!compiledFn.name) throw new Error('Pure function must have a name and must be unique');
-        const existing = pureFnsCache[compiledFn.name];
-        if (existing) return existing;
-        pureFnsCache[compiledFn.name] = compiledFn;
-    },
-    usePureFn(name: string): PureFunction {
-        const compiled = pureFnsCache[name];
-        if (!compiled) throw new Error(`Pure function with name ${name} not found`);
-        initPureFunction(compiled);
-        return compiled.fn;
-    },
-    getPureFn(name: string): PureFunction | undefined {
-        const compiled = pureFnsCache[name];
-        if (!compiled) return;
-        initPureFunction(compiled);
-        return compiled.fn;
-    },
-    getCompiledPureFn(name: string): CompiledPureFunction | undefined {
-        return pureFnsCache[name];
-    },
-    hasPureFn(name: string): boolean {
-        return !!pureFnsCache[name];
-    },
-    setSerializableClass<C extends SerializableClass>(cls: C) {
-        const className = cls.name;
-        const existingClass = serializableClassRegistry.get(className);
-        if (existingClass && existingClass !== cls) throw new Error(`Deserializable Class ${className} already registered`);
-        serializableClassRegistry.set(className, cls);
-    },
-    useSerializeClass(className: string): SerializableClass {
-        const cls = serializableClassRegistry.get(className);
-        if (!cls) throw new Error(`Serializable class with name ${className} not found, be sure to register it first`);
-        return cls;
-    },
-    getSerializeClass(className: string): SerializableClass | undefined {
-        return serializableClassRegistry.get(className);
-    },
-    setDeserializeFn<C extends AnyClass>(cls: C, deserializeFn: DeserializeClassFn<InstanceType<C>>) {
-        const className = cls.name;
-        const fn = deserializeFnsRegistry.get(className);
-        if (fn && fn !== deserializeFn) throw new Error(`Deserialize function for class ${className} already exists`);
-        if (fn) return;
-        deserializeFnsRegistry.set(className, deserializeFn);
-    },
-    useDeserializeFn(className: string): DeserializeClassFn<any> {
-        const fn = deserializeFnsRegistry.get(className);
-        if (!fn) throw new Error(`Deserialize function for class ${className} not found, be sure to register it first`);
-        return fn;
-    },
-    getDeserializeFn(className: string): DeserializeClassFn<any> | undefined {
-        return deserializeFnsRegistry.get(className);
     },
 };
 
