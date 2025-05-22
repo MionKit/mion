@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 import type {TypeFormatError, RunTypeError} from '@mionkit/core/src/types';
-import {isTypeFn, mockTypeFn, typeErrorsFn} from '@mionkit/run-types/src/runTypeFunctions';
+import {isTypeFn, mockTypeFn, typeErrorsFn} from '@mionkit/run-types/src/jitFunctions';
 import {StringFormat} from '../stringFormat.runtype';
 import {
     String_Alphanumeric,
