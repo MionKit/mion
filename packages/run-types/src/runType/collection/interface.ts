@@ -138,7 +138,7 @@ export class InterfaceRunType<
     private callCheckUnknownProperties(comp: JitCompiler, childrenRunTypes: RunType[], returnKeys: boolean): string {
         const childrenNames = childrenRunTypes.filter((prop) => !!(prop.src as any).name).map((prop) => (prop.src as any).name);
         if (childrenNames.length === 0) return '';
-        const keysName = `k_${this.getJitHash()}`;
+        const keysName = `k_${this.getJitHash(comp.opts)}`;
         if (childrenNames.length > minKeysForSet) {
             comp.contextCodeItems.set(keysName, `const ${keysName} = new Set(${arrayToLiteral(childrenNames)})`);
             if (returnKeys) return `utl.getUnknownKeysFromSet(${comp.vλl}, ${keysName})`;

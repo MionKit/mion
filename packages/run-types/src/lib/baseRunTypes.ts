@@ -68,7 +68,12 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
         if (!formatID) return this._getTypeID(stack);
         return this._getTypeID(stack) + formatID;
     }
-    getJitHash = memorize((): string => createUniqueHash(this.getTypeID().toString()));
+    getJitHash(opts: RunTypeOptions): string {
+        const optsCopy = {...opts};
+        // remove mock options as not relevant for jit functionality
+        if (optsCopy.mock) delete optsCopy.mock;
+        return createUniqueHash(this.getTypeID().toString() + JSON.stringify(optsCopy));
+    }
     getParent = (): BaseRunType | undefined => (this.src.parent as SrcType)?._rt as BaseRunType;
     getNestLevel = memorize((): number => {
         if (this.isCircular) return 0; // circular references start a new context
@@ -150,7 +155,8 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
     };
 
     createJitCompiledFunction(fnID: JitFnID, parentCop?: JitCompiler, opts: RunTypeOptions = {}): JitCompiledFn {
-        const jitCompiled = jitUtils.getJIT(getJITFnHash(fnID, this, opts));
+        const fnHash = getJITFnHash(fnID, this, opts);
+        const jitCompiled = jitUtils.getJIT(fnHash);
         if (jitCompiled) {
             if (process.env.DEBUG_JIT === 'VERBOSE')
                 console.log(`\x1b[32m Using cached function: ${jitCompiled.jitFnHash} \x1b[0m`);

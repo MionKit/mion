@@ -21,7 +21,6 @@ import {isChildAccessorType, isJitErrorsCompiler} from './guards';
 import {jitUtils} from '../../../core/src/jitUtils';
 import {toLiteral, toLiteralInContext} from './utils';
 import type {BaseRunTypeFormat} from './baseRunTypeFormat';
-import {createUniqueHash} from '@mionkit/run-types/src/lib/quickHash';
 import {registerPureFnClosure} from '@mionkit/run-types/src/lib/formats';
 
 export type StackItem = {
@@ -405,16 +404,8 @@ export function compileAddPureFunctionWithClosure(comp: JitCompiler | JitErrorsC
  * @returns
  */
 export function getJITFnHash(id: JitFnID, rt: BaseRunType, opts?: RunTypeOptions): string {
-    if (opts && Object.keys(opts).length) {
-        // removing mock options as not relevant for jit functionality
-        const optsCopy = {...opts};
-        if (optsCopy.mock) delete optsCopy.mock;
-        if (!Object.keys(optsCopy).length) return `${id}_${rt.getJitHash()}`;
-        // 4 characters is enough for options hash as we do not expect many different options
-        const optsHash = createUniqueHash(JSON.stringify(opts), 4);
-        return `${id}_${rt.getJitHash()}_${optsHash}`;
-    }
-    return `${id}_${rt.getJitHash()}`;
+    if (opts) return `${id}_${rt.getJitHash(opts)}`;
+    return `${id}_${rt.getJitHash({})}`;
 }
 
 function compileFunction(comp: BaseCompiler): (...args: any[]) => any {
