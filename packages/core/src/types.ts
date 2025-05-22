@@ -4,10 +4,50 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ############### */
-import {jitUtils} from './jitUtils';
-
 export type StrNumber = string | number;
-export type JITUtils = typeof jitUtils;
+
+/**
+ * Interface defining the shape of jitUtils
+ */
+export interface JITUtils {
+    /** optimized function to convert an string into a json string wrapped in double quotes */
+    asJSONString(str: string): string;
+    addToJitCache(comp: JitCompiledFn): void;
+    removeFromJitCache(comp: JitCompiledFn): void;
+    getJIT(jitFnHash: string): JitCompiledFn | undefined;
+    getJitFn(jitFnHash: string): (...args: any[]) => any;
+    hasJitFn(jitFnHash: string): boolean;
+    addPureFn(compiledFn: CompiledPureFunction): void;
+    usePureFn(name: string): PureFunction;
+    getPureFn(name: string): PureFunction | undefined;
+    getCompiledPureFn(name: string): CompiledPureFunction | undefined;
+    hasPureFn(name: string): boolean;
+    setSerializableClass<C extends SerializableClass>(cls: C): void;
+    useSerializeClass(className: string): SerializableClass;
+    getSerializeClass(className: string): SerializableClass | undefined;
+    setDeserializeFn<C extends AnyClass>(cls: C, deserializeFn: DeserializeClassFn<InstanceType<C>>): void;
+    useDeserializeFn(className: string): DeserializeClassFn<any>;
+    getDeserializeFn(className: string): DeserializeClassFn<any> | undefined;
+
+    // TODO: all functions bellow could be moved to pure functions instead being part of jitUtils
+    getUnknownKeysFromSet(obj: Record<StrNumber, any>, keys: Set<StrNumber>): StrNumber[];
+    getUnknownKeysFromArray(obj: Record<StrNumber, any>, keys: StrNumber[]): StrNumber[];
+    hasUnknownKeysFromArray(obj: Record<StrNumber, any>, keys: StrNumber[]): boolean;
+    hasUnknownKeysFromSet(obj: Record<StrNumber, any>, keys: Set<StrNumber>): boolean;
+    err(pλth: readonly StrNumber[], εrr: RunTypeError[], expected: string, accessPath?: readonly StrNumber[]): void;
+    formatErr(
+        pλth: StrNumber[],
+        εrr: RunTypeError[],
+        expected: string,
+        fmtName: string,
+        paramName: string,
+        paramVal: string | number | boolean | bigint,
+        fmtPath: StrNumber[],
+        accessPath?: StrNumber[],
+        fmtAccessPath?: StrNumber[]
+    ): void;
+    safeKey(value: any): any;
+}
 
 // ########################################## Options ##########################################
 
@@ -212,7 +252,7 @@ export type FromJsonValFn = (value: JSONValue) => any;
 export type ToJsonValFn = (value: any) => JSONValue;
 export type TypeErrorsFn = (value: any) => RunTypeError[];
 export type IsTypeFn = (value: any) => boolean;
-export type toCodeFn = (value: any) => string;
+export type ToCodeFn = (value: any) => string;
 
 export type JitFunctionsCache = Record<string, JitCompiledFn>;
 export type PureFunctionsCache = Record<string, CompiledPureFunction>;

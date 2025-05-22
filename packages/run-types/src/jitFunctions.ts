@@ -2,8 +2,7 @@ import {JitFunctions} from './constants';
 import {ReceiveType} from '@deepkit/type';
 import {runType} from './lib/runType';
 import {RunTypeOptions} from './types';
-import {IsTypeFn, toCodeFn} from '@mionkit/core/src/types';
-import {TypeErrorsFn} from '@mionkit/core/src/types';
+import {IsTypeFn, ToCodeFn, TypeErrorsFn} from '@mionkit/core/src/types';
 import {BaseRunType} from './lib/baseRunTypes';
 import {loadJitCompilerFunction} from './lib/jitFnsRegistry';
 
@@ -36,7 +35,7 @@ export async function mockTypeFn<T>(type?: ReceiveType<T>): Promise<(opts?: Part
 }
 
 /** Returns a function that mocks a value of the specified type. */
-export function toCodeFn<T>(opts?: RunTypeOptions, type?: ReceiveType<T>): toCodeFn {
+export function toCodeFn<T>(opts?: RunTypeOptions, type?: ReceiveType<T>): ToCodeFn {
     const rt = runType(type) as BaseRunType;
     return rt.createJitFunction(JitFunctions.toCode, opts);
 }
