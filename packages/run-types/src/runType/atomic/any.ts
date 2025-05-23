@@ -11,10 +11,6 @@ import {AtomicRunType} from '../../lib/baseRunTypes';
 export class AnyRunType extends AtomicRunType<TypeAny | TypeUnknown> {
     _getTypeID = () => ReflectionKind.any;
 
-    private getTypeKindName(): string {
-        return this.src.kind === ReflectionKind.any ? 'any' : 'unknown';
-    }
-
     _compileIsType(): undefined {
         return undefined;
     }

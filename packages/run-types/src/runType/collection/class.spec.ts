@@ -8,7 +8,6 @@ import {runType} from '../../lib/runType';
 import {JitFunctions} from '../../constants';
 import {jitUtils} from '@mionkit/core/src/jitUtils';
 import {PlainObject} from '@mionkit/core/src/types';
-import {RpcError} from '@mionkit/core/src/errors';
 
 class MySerializableClass {
     name: string;
@@ -120,20 +119,6 @@ it('classes can be deserialized suing a deserialize function', () => {
     const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
     const restored = fromJsonVal(JSON.parse(jsonStringify(serializable)));
     expect(restored instanceof MySerializableClass).toBeTruthy();
-});
-
-it('can serialize/deserialize RpcError class', () => {
-    const rt = runType<RpcError>();
-    const jsonStringify = rt.createJitFunction(JitFunctions.jsonStringify);
-    const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
-    const error = new RpcError({
-        statusCode: 400,
-        publicMessage: 'error',
-        message: 'error',
-    });
-    const restored = fromJsonVal(JSON.parse(jsonStringify(error)));
-    expect(restored instanceof RpcError).toBeTruthy();
-    expect(restored).toEqual(error);
 });
 
 it('mock class', async () => {

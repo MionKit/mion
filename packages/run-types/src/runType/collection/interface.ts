@@ -8,7 +8,7 @@ import {TypeObjectLiteral, TypeClass, TypeIntersection, TypeProperty, Reflection
 import {RunType, jitCode} from '../../types';
 import {memorize, arrayToLiteral} from '../../lib/utils';
 import {PropertyRunType} from '../member/property';
-import {CollectionRunType, MemberRunType} from '../../lib/baseRunTypes';
+import {BaseRunType, CollectionRunType, MemberRunType} from '../../lib/baseRunTypes';
 import {MethodSignatureRunType} from '../member/methodSignature';
 import {IndexSignatureRunType} from '../member/indexProperty';
 import {MethodRunType} from '../member/method';
@@ -26,7 +26,14 @@ export type InterfaceMember =
 export class InterfaceRunType<
     T extends TypeObjectLiteral | TypeClass | TypeIntersection = TypeObjectLiteral,
 > extends CollectionRunType<T> {
-    areAllChildrenOptional?: boolean;
+    areAllChildrenOptional = (children: BaseRunType[]) => {
+        return children.every(
+            (prop) =>
+                (prop as MemberRunType<any>)?.isOptional() ||
+                (prop.src as TypeProperty)?.optional ||
+                prop.src.kind === ReflectionKind.indexSignature
+        );
+    };
 
     getNamedChildren(comp: JitCompiler): InterfaceMember[] {
         return this.getJitChildren(comp).filter((prop) => !!(prop.src as any).name) as InterfaceMember[];
@@ -45,21 +52,31 @@ export class InterfaceRunType<
     _compileIsType(comp: JitCompiler): jitCode {
         const varName = comp.vλl;
         const children = this.getJitChildren(comp);
-        const childrenCode = children.length ? `&& ${children.map((prop) => prop.compileIsType(comp)).join(' && ')}` : '';
-        if (this.isCallable()) return `${this.getCallSignature()!._compileIsType(comp)} ${childrenCode}`;
-        const arrayCheck = this.getArrayCheck(comp);
-        return `(typeof ${varName} === 'object' && ${varName} !== null ${childrenCode} ${arrayCheck})`;
+        const childrenCode = children
+            .map((prop) => prop.compileIsType(comp))
+            .filter(Boolean)
+            .join(' && ');
+        if (this.isCallable()) return [this.getCallSignature()!._compileIsType(comp), childrenCode].filter(Boolean).join(' && ');
+        const itemsCode = [`typeof ${varName} === 'object' && ${varName} !== null`, this.isNotArrayCode(comp), childrenCode]
+            .filter(Boolean)
+            .join(' && ');
+        return `(${itemsCode})`;
     }
     _compileTypeErrors(comp: JitErrorsCompiler): jitCode {
         const varName = comp.vλl;
         const children = this.getJitChildren(comp);
-        const childrenCode = children.length ? children.map((prop) => prop.compileTypeErrors(comp)).join(';') : '';
-        const arrayCheck = this.getArrayCheck(comp);
+        const childrenCode = children
+            .map((prop) => prop.compileTypeErrors(comp))
+            .filter(Boolean)
+            .join(';');
         if (this.isCallable()) {
             return `${this.getCallSignature()!._compileTypeErrors(comp)} else {${childrenCode}}`;
         }
+        const isObjectCode = [`typeof ${varName} === 'object' && ${varName} !== null`, this.isNotArrayCode(comp)]
+            .filter(Boolean)
+            .join(' && ');
         return `
-            if (typeof ${varName} !== 'object' || ${varName} === null ${arrayCheck}) {
+            if (!(${isObjectCode})) {
                 ${comp.callJitErr(this)};
             } else {
                 ${childrenCode}
@@ -151,16 +168,9 @@ export class InterfaceRunType<
 
     // extra check to prevent empty array passing as object where all properties are optional
     // when this check is disabled empty array will pass as object but fail when checking for properties
-    private getArrayCheck(comp: JitCompiler): string {
-        if (this.areAllChildrenOptional === undefined) {
-            this.areAllChildrenOptional = this.getJitChildren(comp).every(
-                (prop) =>
-                    (prop as MemberRunType<any>)?.isOptional() ||
-                    (prop.src as TypeProperty)?.optional ||
-                    prop.src.kind === ReflectionKind.indexSignature
-            );
-        }
-        if (!this.areAllChildrenOptional) return '';
-        return ` && !Array.isArray(${comp.vλl})`;
+    private isNotArrayCode(comp: JitCompiler): string {
+        const children = this.getJitChildren(comp);
+        if (children.length !== 0 && !this.areAllChildrenOptional(children)) return '';
+        return `!Array.isArray(${comp.vλl})`;
     }
 }
