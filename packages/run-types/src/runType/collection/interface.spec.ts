@@ -538,6 +538,58 @@ describe('Interface with unknown props', () => {
     });
 });
 
+describe('Callable Interface', () => {
+    type CallableInterface = {
+        (a: number, b: boolean): string;
+        extraProp1: string;
+        extraProp2: number;
+    };
+
+    const rt = runType<CallableInterface>();
+
+    it('validate callable interface', () => {
+        const validate = rt.createJitFunction(JitFunctions.isType);
+        const obj: CallableInterface = Object.assign((a: number, b: boolean) => 'hello', {
+            extraProp1: 'value1',
+            extraProp2: 42,
+        });
+
+        expect(validate(obj)).toBe(true);
+
+        expect(obj.extraProp1).toBe('value1');
+        expect(obj.extraProp2).toBe(42);
+    });
+
+    it('validate callable interface + errors', () => {
+        const valWithErrors = rt.createJitFunction(JitFunctions.typeErrors);
+        const obj: CallableInterface = Object.assign((a: number, b: boolean) => 'hello', {
+            extraProp1: 'value1',
+            extraProp2: 42,
+        });
+
+        expect(valWithErrors(obj)).toEqual([]);
+    });
+
+    it('encode/decode to json should throw an error', () => {
+        expect(() => rt.createJitFunction(JitFunctions.toJsonVal)).toThrow(
+            'Compile function ToJsonVal not supported, call compileParams or compileReturn instead.'
+        );
+        expect(() => rt.createJitFunction(JitFunctions.fromJsonVal)).toThrow(
+            'Compile function FromJsonVal not supported, call compileParams or compileReturn instead.'
+        );
+    });
+
+    it('json stringify should trhrow an error', () => {
+        expect(() => rt.createJitFunction(JitFunctions.jsonStringify)).toThrow(
+            'Compile function JsonStringify not supported, call compileParams or compileReturn instead.'
+        );
+    });
+
+    it('mock should throw an error', async () => {
+        await expect(() => rt.mock()).rejects.toThrow('Mock is not allowed, call mockParams or mockReturn instead.');
+    });
+});
+
 describe('Interface with circular ref properties', () => {
     interface ICircular {
         name: string;

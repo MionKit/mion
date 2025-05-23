@@ -1,0 +1,57 @@
+/* ########
+ * 2025 mion
+ * Author: Ma-jerez
+ * License: MIT
+ * The software is provided "as is", without warranty of any kind.
+ * ######## */
+
+// RpcError is a class shared across most packages so we need to ensure jit functions work correctly
+// we test here as core does not have access to run-types
+
+import {RpcError} from '@mionkit/core/src/errors';
+import {JitFunctions} from '@mionkit/run-types/src/constants';
+import {runType} from '@mionkit/run-types/src/lib/runType';
+
+it('can validate RpcError class', () => {
+    const rt = runType<RpcError>();
+    const validate = rt.createJitFunction(JitFunctions.isType);
+    const error = new RpcError({
+        statusCode: 400,
+        publicMessage: 'error',
+        message: 'error',
+    });
+    expect(validate(error)).toBe(true);
+});
+
+it('can validate RpcError class + errors', () => {
+    const rt = runType<RpcError>();
+    const valWithErrors = rt.createJitFunction(JitFunctions.typeErrors);
+    const error = new RpcError({
+        statusCode: 400,
+        publicMessage: 'error',
+        message: 'error',
+    });
+    expect(valWithErrors(error)).toEqual([]);
+});
+
+it('can serialize/deserialize RpcError class', () => {
+    const rt = runType<RpcError>();
+    const jsonStringify = rt.createJitFunction(JitFunctions.jsonStringify);
+    const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
+    const error = new RpcError({
+        statusCode: 400,
+        publicMessage: 'error',
+        message: 'error',
+    });
+    const restored = fromJsonVal(JSON.parse(jsonStringify(error)));
+    expect(restored instanceof RpcError).toBeTruthy();
+    expect(restored).toEqual(error);
+});
+
+it('can mock RpcError class', async () => {
+    const rt = runType<RpcError>();
+    const mock = await rt.mock();
+    const validate = rt.createJitFunction(JitFunctions.isType);
+    expect(mock instanceof RpcError).toBeTruthy();
+    expect(validate(mock)).toBe(true);
+});
