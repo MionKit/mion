@@ -14,7 +14,8 @@ import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
 export class EnumRunType extends AtomicRunType<TypeEnum> {
     _getTypeID = () => ReflectionKind.enum;
     _compileIsType(comp: JitCompiler): jitCode {
-        return this.src.values.map((v) => `${comp.vλl} === ${toLiteral(v)}`).join(' || ');
+        const items = this.src.values.map((v) => `${comp.vλl} === ${toLiteral(v)}`);
+        return `(${items.join(' || ')})`;
     }
     _compileTypeErrors(comp: JitErrorsCompiler): jitCode {
         return `if (!(${this._compileIsType(comp)})) ${comp.callJitErr(this)}`;

@@ -4,6 +4,7 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
+import {UnionRunType} from '@mionkit/run-types/src/runType/collection/union';
 import {JitFunctions} from '../../constants';
 import {BaseRunType} from '../../lib/baseRunTypes';
 import {runType} from '../../lib/runType';
@@ -92,15 +93,11 @@ describe('Atomic Union', () => {
         const jsonStringify = rtU.createJitFunction(JitFunctions.jsonStringify);
         const fromJsonVal = rtU.createJitFunction(JitFunctions.fromJsonVal);
         const toJsonVal = rtU.createJitFunction(JitFunctions.toJsonVal);
-        const typeValue = new Date();
+        const wrongUnionItem = [0, true];
 
-        expect(() => jsonStringify(typeValue)).toThrow(
-            'Can not JsonStringify union: expected one of <string | number> but got Date'
-        );
-        expect(() => fromJsonVal(123)).toThrow('Can not decode json to union: expected one of <string | number> but got Number');
-        expect(() => toJsonVal(typeValue)).toThrow(
-            'Can not encode json to union: expected one of <string | number> but got Date'
-        );
+        expect(() => jsonStringify(wrongUnionItem)).toThrow('Can not JsonStringify union: expected one of <string | number>');
+        expect(() => fromJsonVal(123)).toThrow('Can not decode union from json: expected format [discriminator, value]');
+        expect(() => toJsonVal(wrongUnionItem)).toThrow('Can not encode json to union: expected one of <string | number>');
     });
 
     it('mock', async () => {
@@ -196,15 +193,9 @@ describe('Union Arr', () => {
         const toJsonVal = rt.createJitFunction(JitFunctions.toJsonVal);
         const typeValue = new Date();
 
-        expect(() => jsonStringify(typeValue)).toThrow(
-            'Can not JsonStringify union: expected one of <array | array | array> but got Date'
-        );
-        expect(() => fromJsonVal(123)).toThrow(
-            'Can not decode json to union: expected one of <array | array | array> but got Number'
-        );
-        expect(() => toJsonVal(typeValue)).toThrow(
-            'Can not encode json to union: expected one of <array | array | array> but got Date'
-        );
+        expect(() => jsonStringify(typeValue)).toThrow('Can not JsonStringify union: expected one of <array | array | array>');
+        expect(() => fromJsonVal(123)).toThrow('Can not decode union from json: expected format [discriminator, value]');
+        expect(() => toJsonVal(typeValue)).toThrow('Can not encode json to union: expected one of <array | array | array>');
     });
 
     it('mock', async () => {
@@ -216,41 +207,72 @@ describe('Union Arr', () => {
 });
 
 describe('Union Obj', () => {
-    type UnionObj = {a: string} | {b: number} | {c: bigint};
+    type UnionObj = {a: string; aa: boolean} | {b: number} | {c: bigint} | {d?: string};
 
-    const objA: UnionObj = {a: 'hello', b: 123, c: 1n}; // mion does not allow mix of properties in the union
-    const objB: UnionObj = {a: 'world'};
+    const objA: UnionObj = {a: 'hello', b: 123, c: 1n}; // mion  allow mix of properties in the union following typescript behavior
+    const objB: UnionObj = {a: 'world', aa: true};
     const objC: UnionObj = {c: 1n};
-    const notA = {}; // union of object must have at least one of the properties of the union
-    const notB = {a: 123}; // properties of the union must be of the correct type
-
-    // disabled as we are not yet checking strictness of the object
-    // const notC = {a: 'hello', d: 'extra'}; // extra properties are not allowed in the union
+    const objD: UnionObj = {d: 'hello'};
+    const objE: UnionObj = {};
+    const notA = {a: 'hello'}; // missing aa property
+    const notB = {b: 'hello'}; // properties of the union must be of the correct type
+    const notC = {a: 'hello', d: 'extra'}; // extra properties are not allowed in the union
+    const notD = {d: 123}; // properties of the union must be of the correct type
 
     const rt = runType<UnionObj>();
 
     it('validate union', () => {
         const validate = rt.createJitFunction(JitFunctions.isType);
 
-        expect(validate(objA)).toBe(false);
+        expect(validate(objA)).toBe(true);
         expect(validate(objB)).toBe(true);
         expect(validate(objC)).toBe(true);
+        expect(validate(objD)).toBe(true);
+        expect(validate(objE)).toBe(true);
 
         expect(validate(notA)).toBe(false);
         expect(validate(notB)).toBe(false);
-        // expect(validate(notC)).toBe(false);
+        expect(validate(notC)).toBe(false);
+        expect(validate(notD)).toBe(false);
+        expect(validate([])).toBe(false);
+    });
+
+    it('validate an union with index property', () => {
+        type UnionObj = {a: string; aa: boolean} | {b: number} | {c: bigint; [key: string]: bigint};
+
+        const rt = runType<UnionObj>();
+        const validate = rt.createJitFunction(JitFunctions.isType);
+        // const validate = closure_is_yeMSsEUAQC(jitUtils);
+
+        const obj1: UnionObj = {a: 'hello', aa: true};
+        const obj2: UnionObj = {b: 123};
+        const obj3: UnionObj = {c: 1n, d: 2n};
+
+        expect(validate(obj1)).toBe(true);
+        expect(validate(obj2)).toBe(true);
+        expect(validate(obj3)).toBe(true);
+
+        const not1 = {a: 'hello'}; // missing aa property
+        const not2 = {b: 'hello'}; // properties of the union must be of the correct type
+        const not3 = {a: 'hello', d: 'extra'}; // extra properties are not allowed in the union
+        const not4 = {c: 1n, d: 'hello'}; // properties of the union must be of the correct type
+
+        expect(validate(not1)).toBe(false);
+        expect(validate(not2)).toBe(false);
+        expect(validate(not3)).toBe(false);
+        expect(validate(not4)).toBe(false);
     });
 
     it('validate union + errors', () => {
         const valWithErrors = rt.createJitFunction(JitFunctions.typeErrors);
 
-        expect(valWithErrors(objA)).toEqual([{path: [], expected: 'union'}]);
+        expect(valWithErrors(objA)).toEqual([]);
         expect(valWithErrors(objB)).toEqual([]);
         expect(valWithErrors(objC)).toEqual([]);
 
         expect(valWithErrors(notA)).toEqual([{path: [], expected: 'union'}]);
         expect(valWithErrors(notB)).toEqual([{path: [], expected: 'union'}]);
-        // expect(valWithErrors(notC)).toEqual([{path: [], expected: 'union'}]);
+        expect(valWithErrors(notC)).toEqual([{path: [], expected: 'union'}]);
     });
 
     it('encode/decode to json', () => {
@@ -261,7 +283,8 @@ describe('Union Obj', () => {
         const copyB = structuredClone(objB);
         const copyC = structuredClone(objC);
 
-        expect(() => toJsonVal(copyA)).toThrow(); // mion throws an error for mixed properties in the union
+        console.log(toJsonVal(copyA));
+        expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(copyA))))).toEqual(objA);
         expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(copyB))))).toEqual(objB);
         expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(copyC))))).toEqual(objC);
     });
@@ -282,15 +305,9 @@ describe('Union Obj', () => {
         const toJsonVal = rt.createJitFunction(JitFunctions.toJsonVal);
         const typeValue = new Date();
 
-        expect(() => jsonStringify(typeValue)).toThrow(
-            'Can not JsonStringify union: expected one of <object | object | object> but got Date'
-        );
-        expect(() => fromJsonVal(123)).toThrow(
-            'Can not decode json to union: expected one of <object | object | object> but got Number'
-        );
-        expect(() => toJsonVal(typeValue)).toThrow(
-            'Can not encode json to union: expected one of <object | object | object> but got Date'
-        );
+        expect(() => jsonStringify(typeValue)).toThrow('Can not JsonStringify union: expected one of <object | object | object>');
+        expect(() => fromJsonVal(123)).toThrow('Can not decode union from json: expected one of <object | object | object>');
+        expect(() => toJsonVal(typeValue)).toThrow('Can not encode json to union: expected one of <object | object | object>');
     });
 
     it('mock', async () => {
@@ -301,24 +318,193 @@ describe('Union Obj', () => {
     });
 });
 
+describe('Union with discriminator property', () => {
+    // type is a discriminator property because it is present in all the types of the union and has different types
+    // be sure discriminator is not declared as the first property so we test behavior correctly
+    type UnionDisc =
+        | {otherProp: boolean; type: 'a'}
+        | {otherProp: number; type: 'b'}
+        | {otherProp: string; type: 'c'; time: Date}
+        | {type: boolean; otherProp: string};
+
+    function closure_is_BdVjrLHLhT(utl) {
+        const k_BdVjrLHLhT = ['type', 'otherProp', 'time'];
+        function is_BdVjrLHLhT(v) {
+            if (!(typeof v === 'object' && v !== null)) return false;
+            let prp0_0 = false,
+                prp0_1 = false,
+                prp0_2 = false,
+                prp0_3 = false,
+                prp0_4 = false,
+                prp0_5 = false,
+                prp0_6 = false,
+                prp0_7 = false;
+            if (v.type === 'a') prp0_0 = true;
+            else if (v.type === 'b') prp0_1 = true;
+            else if (v.type === 'c') prp0_2 = true;
+            else if (typeof v.type === 'boolean') prp0_3 = true;
+            else return false;
+            if (typeof v.otherProp === 'boolean') prp0_4 = true;
+            if (Number.isFinite(v.otherProp)) prp0_5 = true;
+            if (typeof v.otherProp === 'string') prp0_6 = true;
+            if (v.time instanceof Date && !isNaN(v.time.getTime())) prp0_7 = true;
+            if (typeof v.otherProp === 'string') prp0_6 = true;
+            if (
+                ((prp0_0 && prp0_4) || (prp0_1 && prp0_5) || (prp0_2 && prp0_6 && prp0_7) || (prp0_3 && prp0_6)) &&
+                !utl.hasUnknownKeysFromArray(v, k_BdVjrLHLhT)
+            )
+                return true;
+            return false;
+        }
+        return is_BdVjrLHLhT;
+    }
+
+    const objA: UnionDisc = {type: 'a', otherProp: true};
+    const objB: UnionDisc = {type: 'b', otherProp: 123};
+    const objC: UnionDisc = {type: 'c', otherProp: 'hello', time: new Date()};
+    const objD: UnionDisc = {type: true, otherProp: 'typeD'};
+    const notA = {type: 'a', otherProp: 'hello'};
+    const notB = {type: 'b', otherProp: true};
+    const notC = {type: 'c', otherProp: 'hello', time: 'world'};
+    const notD = {type: true, otherProp: 123};
+    const notKnown = {type: 'a', hello: 'world'};
+
+    const rt = runType<UnionDisc>() as UnionRunType;
+
+    it('validate union', () => {
+        const validate = rt.createJitFunction(JitFunctions.isType);
+        const fnCode = validate.toString();
+
+        // ensure discriminator property is checked first
+        // there might be more optimal way to check that discriminator code is generated but this can make it for now
+        expect(fnCode).toContain('if (v.type === "a") prp0_0 = true;');
+        expect(fnCode).toContain('else if (v.type === "b") prp0_1 = true;');
+        expect(fnCode).toContain('else if (v.type === "c") prp0_2 = true;');
+        expect(fnCode).toContain(`else if (typeof v.type === 'boolean') prp0_3 = true;`);
+        expect(fnCode).toContain('else return false;');
+
+        expect(validate(objA)).toBe(true);
+        expect(validate(objB)).toBe(true);
+        expect(validate(objC)).toBe(true);
+        expect(validate(objD)).toBe(true);
+
+        expect(validate(notA)).toBe(false);
+        expect(validate(notB)).toBe(false);
+        expect(validate(notC)).toBe(false);
+        expect(validate(notD)).toBe(false);
+        expect(validate(notKnown)).toBe(false);
+    });
+
+    it('validate union same prop with different types', () => {
+        type UnionSameProp = {type: 'a'; prop: boolean} | {type: 'b'; prop: number} | {type: 'c'; prop: string};
+
+        const rt = runType<UnionSameProp>();
+        const validate = rt.createJitFunction(JitFunctions.isType);
+
+        expect(validate({type: 'a', prop: true})).toBe(true);
+        expect(validate({type: 'b', prop: 123})).toBe(true);
+        expect(validate({type: 'c', prop: 'hello'})).toBe(true);
+
+        expect(validate({type: 'a', prop: 123})).toBe(false);
+        expect(validate({type: 'b', prop: 'hello'})).toBe(false);
+        expect(validate({type: 'c', prop: true})).toBe(false);
+    });
+
+    it('should use the discriminator that have less complexity', () => {
+        type UnionDisc2 =
+            | {obj: {a: string}; type: 'a'; prop: boolean}
+            | {obj: {a: number}; type: 'b'; prop: number}
+            | {obj: {a: boolean}; type: 'c'; prop: string}
+            | {obj: {a: null}; type: boolean; prop: string};
+
+        const rt = runType<UnionDisc2>();
+        const validate = rt.createJitFunction(JitFunctions.isType);
+        const fnCode = validate.toString();
+
+        expect(fnCode).toContain('if (v.type === "a") prp0_0 = true;');
+        expect(fnCode).toContain('else if (v.type === "b") prp0_1 = true;');
+        expect(fnCode).toContain('else if (v.type === "c") prp0_2 = true;');
+        expect(fnCode).toContain(`else if (typeof v.type === 'boolean') prp0_3 = true;`);
+        expect(fnCode).toContain('else return false;');
+
+        const obj1: UnionDisc2 = {type: 'a', obj: {a: 'hello'}, prop: true};
+        const obj2: UnionDisc2 = {type: 'b', obj: {a: 123}, prop: 123};
+        const obj3: UnionDisc2 = {type: 'c', obj: {a: true}, prop: 'hello'};
+        const obj4: UnionDisc2 = {type: true, obj: {a: null}, prop: 'hello'};
+
+        expect(validate(obj1)).toBe(true);
+        expect(validate(obj2)).toBe(true);
+        expect(validate(obj3)).toBe(true);
+        expect(validate(obj4)).toBe(true);
+
+        const not1 = {type: 'a', obj: {a: 123}, prop: true};
+        const not2 = {type: 'b', obj: {a: 'hello'}, prop: 123};
+        const not3 = {type: 'c', obj: {a: 123}, prop: 'hello'};
+
+        expect(validate(not1)).toBe(false);
+        expect(validate(not2)).toBe(false);
+        expect(validate(not3)).toBe(false);
+    });
+
+    it('validate union + errors', () => {
+        const valWithErrors = rt.createJitFunction(JitFunctions.typeErrors);
+
+        expect(valWithErrors(objA)).toEqual([]);
+        expect(valWithErrors(objB)).toEqual([]);
+        expect(valWithErrors(objC)).toEqual([]);
+        expect(valWithErrors(objD)).toEqual([]);
+
+        expect(valWithErrors(notA)).toEqual([{path: [], expected: 'union'}]);
+        expect(valWithErrors(notB)).toEqual([{path: [], expected: 'union'}]);
+        expect(valWithErrors(notC)).toEqual([{path: [], expected: 'union'}]);
+        expect(valWithErrors(notD)).toEqual([{path: [], expected: 'union'}]);
+        expect(valWithErrors(notKnown)).toEqual([{path: [], expected: 'union'}]);
+    });
+
+    it('encode/decode to json', () => {
+        const toJsonVal = rt.createJitFunction(JitFunctions.toJsonVal);
+        const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
+
+        const copyA = structuredClone(objA);
+        const copyB = structuredClone(objB);
+        const copyC = structuredClone(objC);
+        const copyD = structuredClone(objD);
+
+        expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(copyA))))).toEqual(objA);
+        expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(copyB))))).toEqual(objB);
+        expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(copyC))))).toEqual(objC);
+        expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(copyD))))).toEqual(objD);
+    });
+
+    it('json stringify with discriminator', () => {
+        // this should be serialized as [discriminatorIndex, value]
+        const jsonStringify = rt.createJitFunction(JitFunctions.jsonStringify);
+        const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
+
+        const copyA = structuredClone(objA);
+        const copyB = structuredClone(objB);
+        const copyC = structuredClone(objC);
+        const copyD = structuredClone(objD);
+
+        expect(fromJsonVal(JSON.parse(jsonStringify(copyA)))).toEqual(objA);
+        expect(fromJsonVal(JSON.parse(jsonStringify(copyB)))).toEqual(objB);
+        expect(fromJsonVal(JSON.parse(jsonStringify(copyC)))).toEqual(objC);
+        expect(fromJsonVal(JSON.parse(jsonStringify(copyD)))).toEqual(objD);
+    });
+});
+
 describe('Union Mixed', () => {
-    /**
-     * Union of mixed types
-     * Mion's run time union validation is slightly different from typescript union algorithm.
-     * typescript allows for mixing of properties of objects in the union, mion does not.
-     * Look mixD object bellow, it has mixed properties of the objects in the union, typescript allows this but mion validation fails.
-     */
     class D {
         public d: Date = new Date();
     }
     type UnionMix = string[] | number[] | boolean[] | {a: string; aa: boolean} | {b: number} | {c: bigint; aa: 'string'};
     type UnMix2 = {a: boolean} | {a: number};
+    type UnMixD = UnionMix | D; // ensures unions get flattened
 
     const mixA: UnionMix = ['a', 'b', 'c'];
     const mixB: UnionMix = {a: 'hello', aa: true};
-    // TODO: class disabled until we decide how to handle serialization of classes
-    // const mixC: UnionMix = {d: new Date()}; // although is not a class instance, it has the same properties so is true
-    const mixD: UnionMix = {b: 123, c: 123n}; // typescript allow mixed properties of objects, but mion runType validation does not
+    const mixC: UnionMix = {b: 123, c: 123n}; // typescript allow mixed properties of objects
+    const mixD: UnMixD = {d: new Date()}; // although is not a class instance, it has the same properties so is true
     const notMixA = [1, 'b'];
     const notMixB = {};
     const notMixC = {a: 'hello', aa: true, j: 'extra'}; // union uses strict assertion that checks for extra properties
@@ -331,16 +517,15 @@ describe('Union Mixed', () => {
 
     const rt = runType<UnionMix>();
     const rt2 = runType<UnMix2>();
+    const rtD = runType<UnMixD>();
 
     it('validate union', () => {
-        const validate = rt.createJitFunction(JitFunctions.isType);
+        const validate = rtD.createJitFunction(JitFunctions.isType);
 
         expect(validate(mixA)).toBe(true);
         expect(validate(mixB)).toBe(true);
-        // TODO: class disabled until we decide how to handle serialization of classes
-        // expect(validate(mixC)).toBe(true);
-
-        expect(validate(mixD)).toBe(false); // mion does not allow mixed properties in objects
+        expect(validate(mixC)).toBe(true);
+        expect(validate(mixD)).toBe(true);
 
         expect(validate(notMixA)).toBe(false);
         expect(validate(notMixB)).toBe(false);
@@ -398,13 +583,11 @@ describe('Union Mixed', () => {
         const typeValue = new Date();
 
         expect(() => jsonStringify(typeValue)).toThrow(
-            'Can not JsonStringify union: expected one of <array | array | array | object | object | object> but got Date'
+            'Can not JsonStringify union: expected one of <array | array | array | object | object | object>'
         );
-        expect(() => fromJsonVal(123)).toThrow(
-            'Can not decode json to union: expected one of <array | array | array | object | object | object> but got Number'
-        );
+        expect(() => fromJsonVal(123)).toThrow('Can not decode union from json: expected format [discriminator, value]');
         expect(() => toJsonVal(typeValue)).toThrow(
-            'Can not encode json to union: expected one of <array | array | array | object | object | object> but got Date'
+            'Can not encode json to union: expected one of <array | array | array | object | object | object>'
         );
     });
 

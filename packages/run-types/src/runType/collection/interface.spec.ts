@@ -267,6 +267,31 @@ describe('Interface', () => {
         const json2 = jsonStringify(typeValue2);
         expect(json2).toEqual(`{"a":"helloA"}`);
         expect(fromJsonVal(JSON.parse(json2))).toEqual(typeValue2);
+
+        const typeValue3: Obj2 = {};
+        const json3 = jsonStringify(typeValue3);
+        expect(json3).toEqual(`{}`);
+        expect(fromJsonVal(JSON.parse(json3))).toEqual(typeValue3);
+    });
+
+    it('json stringify interfaces with a single property and index properties', () => {
+        type Obj1 = {
+            a: string;
+            [key: string]: string;
+        };
+        const rtObj1 = runType<Obj1>();
+        const jsonStringify = rtObj1.createJitFunction(JitFunctions.jsonStringify);
+        const fromJsonVal = rtObj1.createJitFunction(JitFunctions.fromJsonVal);
+
+        const typeValue: Obj1 = {a: 'helloA'};
+        const json = jsonStringify(typeValue);
+        expect(json).toEqual(`{"a":"helloA"}`);
+        expect(fromJsonVal(JSON.parse(json))).toEqual(typeValue);
+
+        const typeValue2: Obj1 = {a: 'helloA', b: 'helloB'};
+        const json2 = jsonStringify(typeValue2);
+        expect(json2).toEqual(`{"b":"helloB","a":"helloA"}`); // properties are reordered for json stringify to work properly
+        expect(fromJsonVal(JSON.parse(json2))).toEqual(typeValue2);
     });
 
     it('object with repeated property types', () => {
