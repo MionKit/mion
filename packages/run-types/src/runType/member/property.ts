@@ -14,6 +14,7 @@ import {InterfaceRunType} from '../collection/interface';
 import {JitFunctions} from '../../constants';
 
 export class PropertyRunType extends MemberRunType<TypePropertySignature | TypeProperty> {
+    isUnionDiscriminator = false;
     getChildVarName = memorize(() => getPropVarName(this.src.name));
     getChildLiteral = memorize(() => getPropLiteral(this.getChildVarName()));
     useArrayAccessor = memorize(() => useArrayAccessorForProp(this.src.name));

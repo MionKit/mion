@@ -4,9 +4,9 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
-import {TypeObjectLiteral, TypeClass, TypeIntersection, TypeProperty, ReflectionKind} from '@deepkit/type';
-import {RunType, jitCode} from '../../types';
-import {memorize, arrayToLiteral} from '../../lib/utils';
+import {TypeObjectLiteral, TypeClass, TypeIntersection, ReflectionKind} from '@deepkit/type';
+import {jitCode} from '../../types';
+import {callCheckUnknownProperties, memorize, sortRunTypeByComplexity} from '../../lib/utils';
 import {PropertyRunType} from '../member/property';
 import {BaseRunType, CollectionRunType, MemberRunType} from '../../lib/baseRunTypes';
 import {MethodSignatureRunType} from '../member/methodSignature';
@@ -14,7 +14,6 @@ import {IndexSignatureRunType} from '../member/indexProperty';
 import {MethodRunType} from '../member/method';
 import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
 import {CallSignatureRunType} from '../member/callSignature';
-import {minKeysForSet} from '../../constants';
 
 export type InterfaceMember =
     | PropertyRunType
@@ -26,15 +25,6 @@ export type InterfaceMember =
 export class InterfaceRunType<
     T extends TypeObjectLiteral | TypeClass | TypeIntersection = TypeObjectLiteral,
 > extends CollectionRunType<T> {
-    areAllChildrenOptional = (children: BaseRunType[]) => {
-        return children.every(
-            (prop) =>
-                (prop as MemberRunType<any>)?.isOptional() ||
-                (prop.src as TypeProperty)?.optional ||
-                prop.src.kind === ReflectionKind.indexSignature
-        );
-    };
-
     getNamedChildren(comp: JitCompiler): InterfaceMember[] {
         return this.getJitChildren(comp).filter((prop) => !!(prop.src as any).name) as InterfaceMember[];
     }
@@ -47,6 +37,16 @@ export class InterfaceRunType<
         return this.getChildRunTypes().find((prop) => prop.src.kind === ReflectionKind.callSignature) as CallSignatureRunType;
     });
 
+    /**
+     * Sort children by complexity, this way less complex code is executed first.
+     * ie: less complex check for atomic types is checked before checking for complex types like arrays or other objects.
+     * in theory this should help to fail faster, but this depends on the data being validated.
+     * as this can be counter producing we better not use it as default, maybe as compiler option in the future
+     */
+    getSortedJitChildren(comp: JitCompiler): InterfaceMember[] {
+        return this.getJitChildren(comp).toSorted((a, b) => sortRunTypeByComplexity(comp, a, b)) as InterfaceMember[];
+    }
+
     // #### collection's jit code ####
 
     _compileIsType(comp: JitCompiler): jitCode {
@@ -57,9 +57,9 @@ export class InterfaceRunType<
             .filter(Boolean)
             .join(' && ');
         if (this.isCallable()) return [this.getCallSignature()!._compileIsType(comp), childrenCode].filter(Boolean).join(' && ');
-        const itemsCode = [`typeof ${varName} === 'object' && ${varName} !== null`, this.isNotArrayCode(comp), childrenCode]
-            .filter(Boolean)
-            .join(' && ');
+        const isPartOfUnion = this.getParent()?.src.kind === ReflectionKind.union;
+        const objectCheck = isPartOfUnion ? '' : `typeof ${varName} === 'object' && ${varName} !== null`;
+        const itemsCode = [objectCheck, this.isNotArrayCode(comp), childrenCode].filter(Boolean).join(' && ');
         return `(${itemsCode})`;
     }
     _compileTypeErrors(comp: JitErrorsCompiler): jitCode {
@@ -72,9 +72,9 @@ export class InterfaceRunType<
         if (this.isCallable()) {
             return `${this.getCallSignature()!._compileTypeErrors(comp)} else {${childrenCode}}`;
         }
-        const isObjectCode = [`typeof ${varName} === 'object' && ${varName} !== null`, this.isNotArrayCode(comp)]
-            .filter(Boolean)
-            .join(' && ');
+        const isPartOfUnion = this.getParent()?.src.kind === ReflectionKind.union;
+        const objectCheck = isPartOfUnion ? '' : `typeof ${varName} === 'object' && ${varName} !== null`;
+        const isObjectCode = [objectCheck, this.isNotArrayCode(comp)].filter(Boolean).join(' && ');
         return `
             if (!(${isObjectCode})) {
                 ${comp.callJitErr(this)};
@@ -101,49 +101,52 @@ export class InterfaceRunType<
             .join(';');
         return childrenCode || undefined;
     }
-    _compileHasUnknownKeys(comp: JitCompiler): jitCode {
-        const allJitChildren = this.getJitChildren(comp);
-        const parentCode = this.callCheckUnknownProperties(comp, allJitChildren, false);
+    _compileHasUnknownKeys(comp: JitCompiler, children?: BaseRunType[]): jitCode {
+        const allJitChildren = children || this.getJitChildren(comp);
+        const parentCode = callCheckUnknownProperties(this, comp, allJitChildren, false);
         const childrenCode = super._compileHasUnknownKeys(comp);
-        return childrenCode ? `${parentCode} || ${childrenCode}` : parentCode;
+        return [parentCode, childrenCode].filter(Boolean).join(' || ');
     }
     _compileUnknownKeyErrors(comp: JitErrorsCompiler): jitCode {
         const allJitChildren = this.getJitChildren(comp);
         const unknownVar = `unk${this.getNestLevel()}`;
         const keyVar = `ky${this.getNestLevel()}`;
+        const unknownValue = callCheckUnknownProperties(this, comp, allJitChildren, true);
         const parentCode = `
-            const ${unknownVar} = ${this.callCheckUnknownProperties(comp, allJitChildren, true)};
+            const ${unknownVar} = ${unknownValue};
             if (${unknownVar}) {for (const ${keyVar} of ${unknownVar}) {${comp.callJitErrWithPath('never', keyVar)}}}
         `;
         const childrenCode = super._compileUnknownKeyErrors(comp);
-        return childrenCode ? `${parentCode}\n${childrenCode}` : parentCode;
+        return [unknownValue ? parentCode : '', childrenCode].filter(Boolean).join('\n');
     }
     _compileStripUnknownKeys(comp: JitCompiler): jitCode {
         const allJitChildren = this.getJitChildren(comp);
         const unknownVar = `unk${this.getNestLevel()}`;
         const keyVar = `ky${this.getNestLevel()}`;
+        const unknownValue = callCheckUnknownProperties(this, comp, allJitChildren, true);
         const parentCode = `
-            const ${unknownVar} = ${this.callCheckUnknownProperties(comp, allJitChildren, true)};
+            const ${unknownVar} = ${unknownValue};
             if (${unknownVar}) {for (const ${keyVar} of ${unknownVar}){delete ${comp.vλl}[${keyVar}]}}
         `;
         const childrenCode = super._compileStripUnknownKeys(comp);
-        return childrenCode ? `${parentCode}\n${childrenCode}` : parentCode;
+        return [unknownValue ? parentCode : '', childrenCode].filter(Boolean).join('\n');
     }
     _compileUnknownKeysToUndefined(comp: JitCompiler): jitCode {
         const allJitChildren = this.getJitChildren(comp);
         const unknownVar = `unk${this.getNestLevel()}`;
         const keyVar = `ky${this.getNestLevel()}`;
+        const unknownValue = callCheckUnknownProperties(this, comp, allJitChildren, true);
         const parentCode = `
-            const ${unknownVar} = ${this.callCheckUnknownProperties(comp, allJitChildren, true)};
+            const ${unknownVar} = ${unknownValue};
             if (${unknownVar}) {for (const ${keyVar} of ${unknownVar}){${comp.vλl}[${keyVar}] = undefined}}
         `;
         const childrenCode = super._compileUnknownKeysToUndefined(comp);
-        return childrenCode ? `${parentCode}\n${childrenCode}` : parentCode;
+        return [unknownValue ? parentCode : '', childrenCode].filter(Boolean).join('\n');
     }
 
     // In order to json stringify to work properly optional properties must come first
-    getJsonStringifyChildren(comp: JitCompiler): MemberRunType<any>[] {
-        return this.getJitChildren(comp).sort((a, b) => {
+    getJsonStringifySortedChildren(comp: JitCompiler): MemberRunType<any>[] {
+        return this.getJitChildren(comp).toSorted((a, b) => {
             const aOptional = a instanceof MemberRunType && a.isOptional();
             const bOptional = b instanceof MemberRunType && b.isOptional();
             if (aOptional && !bOptional) return -1;
@@ -152,23 +155,9 @@ export class InterfaceRunType<
         }) as MemberRunType<any>[];
     }
 
-    private callCheckUnknownProperties(comp: JitCompiler, childrenRunTypes: RunType[], returnKeys: boolean): string {
-        const childrenNames = childrenRunTypes.filter((prop) => !!(prop.src as any).name).map((prop) => (prop.src as any).name);
-        if (childrenNames.length === 0) return '';
-        const keysName = `k_${this.getJitHash(comp.opts)}`;
-        if (childrenNames.length > minKeysForSet) {
-            comp.contextCodeItems.set(keysName, `const ${keysName} = new Set(${arrayToLiteral(childrenNames)})`);
-            if (returnKeys) return `utl.getUnknownKeysFromSet(${comp.vλl}, ${keysName})`;
-            return `(typeof ${comp.vλl} === 'object' && ${comp.vλl} !== null && utl.hasUnknownKeysFromSet(${comp.vλl}, ${keysName}))`;
-        }
-        comp.contextCodeItems.set(keysName, `const ${keysName} = ${arrayToLiteral(childrenNames)}`);
-        if (returnKeys) return `utl.getUnknownKeysFromArray(${comp.vλl}, ${keysName})`;
-        return `(typeof ${comp.vλl} === 'object' && ${comp.vλl} !== null && utl.hasUnknownKeysFromArray(${comp.vλl}, ${keysName}))`;
-    }
-
     // extra check to prevent empty array passing as object where all properties are optional
     // when this check is disabled empty array will pass as object but fail when checking for properties
-    private isNotArrayCode(comp: JitCompiler): string {
+    isNotArrayCode(comp: JitCompiler): string {
         const children = this.getJitChildren(comp);
         if (children.length !== 0 && !this.areAllChildrenOptional(children)) return '';
         return `!Array.isArray(${comp.vλl})`;

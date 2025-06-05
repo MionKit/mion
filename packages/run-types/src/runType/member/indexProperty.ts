@@ -15,7 +15,7 @@ import {childIsExpression} from '../../lib/utils';
 
 export class IndexSignatureRunType extends MemberRunType<TypeIndexSignature> {
     isOptional(): boolean {
-        return false;
+        return true;
     }
     getChildVarName(): string {
         return `p${this.getNestLevel()}`;
