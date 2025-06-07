@@ -6,7 +6,7 @@
  * ######## */
 import type {
     JitCompiledFn,
-    JitCompiledFnProps,
+    JitCompiledFnData,
     JitFnArgs,
     JITUtils,
     PureFunction,
@@ -16,7 +16,16 @@ import {MAX_STACK_DEPTH} from '@mionkit/core/src/constants';
 import type {Mutable, JitFnID, StrNumber, jitCode, RunTypeOptions, JitCompilerOpts} from '../types';
 import type {BaseRunType} from './baseRunTypes';
 import type {AnyKindName} from '../constants.kind';
-import {jitArgs, jitDefaultArgs, jitDefaultErrorArgs, jitErrorArgs, JitFunctions, maxStackErrorMessage} from '../constants';
+import {
+    getJITFnName,
+    jitArgs,
+    jitDefaultArgs,
+    jitDefaultErrorArgs,
+    jitErrorArgs,
+    JitFunctions,
+    maxStackErrorMessage,
+    JIT_STACK_TRACE_MESSAGE,
+} from '../constants';
 import {isChildAccessorType, isJitErrorsCompiler} from './guards';
 import {jitUtils} from '../../../core/src/jitUtils';
 import {toLiteral, toLiteralInContext} from './utils';
@@ -33,13 +42,11 @@ export type StackItem = {
     staticPath?: StrNumber[];
 };
 
-export type JitCompilerLike = BaseCompiler | JitCompiledFnProps;
+export type JitCompilerLike = BaseCompiler | JitCompiledFnData;
 export type JitDependencies = Set<string>;
 
-const STACK_TRACE_ROOT = 'runType JIT compiler error pointer => ';
-
 export class BaseCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extends JitFnID = any>
-    implements JitCompiledFnProps, JitCompilerOpts
+    implements JitCompiledFnData, JitCompilerOpts
 {
     constructor(
         public readonly rootType: BaseRunType,
@@ -142,9 +149,10 @@ export class BaseCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extends 
             this.setIsNoop();
             return compileFunction(this); // add the compiled function to jit cache
         } catch (e: any) {
-            const fnCode = ` Code:\nfunction ${this.fnID}(){${this.code}}`;
-            const name = `(${this.rootType.getKindName()}:${this.rootType.getTypeID()})`;
-            throw new Error(`Error building ${this.fnID} JIT function for type ${name}: ${e?.message} \n${fnCode}`);
+            const fnName = getJITFnName(this.fnID);
+            const fnCode = ` Code:\nfunction ${fnName}(){${this.code}}`;
+            const name = `(${this.rootType.getTypeName()}:${this.rootType.getTypeID()})`;
+            throw new Error(`Error building ${fnName} JIT function for type ${name}: ${e?.message} \n${fnCode}`);
         }
     }
     /** Returns a copy of the access pat for current stack item */
@@ -178,7 +186,7 @@ export class BaseCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extends 
         const stackItem = this.getCurrentStackItem();
         return !stackItem.rt.isJitInlined() && this.stack.length > 1;
     }
-    updateDependencies(childCop: JitCompiledFnProps): void {
+    updateDependencies(childCop: JitCompiledFnData): void {
         this.dependenciesSet.add(childCop.jitFnHash);
         childCop.dependenciesSet.forEach((dep) => this.dependenciesSet.add(dep));
     }
@@ -233,13 +241,13 @@ export class BaseCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extends 
     }
     getStackTrace(): string {
         const separator = '.';
-        const parentTrace = this.parentCompiler ? this.parentCompiler.getStackTrace() + separator : STACK_TRACE_ROOT;
+        const parentTrace = this.parentCompiler ? this.parentCompiler.getStackTrace() + separator : JIT_STACK_TRACE_MESSAGE;
         const lastParentItem = this.parentCompiler?.getCurrentStackItem();
         const filteredStack = lastParentItem ? this.stack.filter((item) => item.rt !== lastParentItem?.rt) : this.stack;
         return parentTrace + filteredStack.map((item) => item.rt.getTypeTraceInfo()).join(separator);
     }
     hasStackTrace(errorMessage: string) {
-        return errorMessage.includes(STACK_TRACE_ROOT);
+        return errorMessage.includes(JIT_STACK_TRACE_MESSAGE);
     }
 }
 
@@ -369,7 +377,7 @@ export function createJitCompiler(
     }
 }
 
-export function getSerializableJitCompiler(comp: JitCompiledFn): JitCompiledFnProps {
+export function getSerializableJitCompiler(comp: JitCompiledFn): JitCompiledFnData {
     return {
         fnID: comp.fnID,
         jitFnHash: comp.jitFnHash,
@@ -440,18 +448,18 @@ function createJitFnWithContext(fnName: string, fnCode: string, contextCode?: st
     const fnWithContext = `${context} ${fnCode} return ${fnName};`;
     try {
         const wrapperWithContext = new Function('utl', fnWithContext) as (utl: JITUtils) => (...args: any[]) => any;
-        if (process.env.DEBUG_JIT) console.log(printFn(fnWithContext, fnCode, fnName, contextCode));
+        if (process.env.DEBUG_JIT) console.log(printClosure(fnWithContext, fnName));
         return {closureFn: wrapperWithContext, fn: wrapperWithContext(jitUtils), code: fnWithContext}; // returns the jit internal function with the context
     } catch (e: any) {
         if (process.env.DEBUG_JIT) {
-            console.warn('Error creating jit function with context code:\n', printFn(fnWithContext, fnCode, fnName, contextCode));
+            console.warn('Error creating jit function with context code:\n', printClosure(fnWithContext, fnName));
         }
         throw e;
     }
 }
 
-function printFn(fnWithContext: string, code: string, functionName: string, contextCode?: string): string {
-    return contextCode ? `function context_${functionName}(){${fnWithContext}}` : code;
+function printClosure(fnWithContext: string, functionName: string): string {
+    return `function closure_${functionName}(utl){${fnWithContext}}`;
 }
 
 function getJitFnArgs(comp: JitCompilerLike): string {

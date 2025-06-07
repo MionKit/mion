@@ -13,9 +13,14 @@ export async function loadJitCompilerFunction(jitFn: JitFnSettings): Promise<(..
     const fn = jitFunctionsRegistry.get(jitFn.id);
     if (fn) return fn;
     if (!jitFn.import) throw new Error(`Jit function ${jitFn.name} has no import function`);
-    const newFn = await jitFn.import();
-    jitFunctionsRegistry.set(jitFn.id, newFn);
-    return newFn;
+    try {
+        const newFn = await jitFn.import();
+        jitFunctionsRegistry.set(jitFn.id, newFn);
+        return newFn;
+    } catch (e: any) {
+        console.warn(e);
+        throw new Error(`Error loading jit function ${jitFn.name}: ${e?.message}`);
+    }
 }
 
 /** synchronous version of loadRegisteredFunction, throws an error if the function has not been loaded */

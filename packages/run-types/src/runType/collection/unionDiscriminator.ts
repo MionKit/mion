@@ -32,21 +32,53 @@ export type SplitUnionTypes = {
     /** The flattened properties of all the items in the union, props are individually checked */
     flattened: FlattenedItem | undefined;
 };
-type PropUnionItemPair = {prop: PropertyRunType; unionItem: CollectionRunType<any>};
+
+/**
+ * Split the union types in two groups: interface types and simple types
+ * interface types are types that have properties, simple types are the rest (atomic types, tuples, etc)
+ */
+export function splitUnionTypes(
+    comp: JitCompiler,
+    urt: UnionRunType,
+    unionChildren?: BaseRunType[]
+): {regularTypes: BaseRunType[]; objectTypes: CollectionRunType<any>[]} {
+    const unionItems = unionChildren || urt.getJitChildren(comp);
+    const objectTypes: CollectionRunType<any>[] = [];
+    const regularTypes: BaseRunType[] = [];
+    unionItems.forEach((unionItem) => {
+        const isObj = urt.isTypeWithProperties(unionItem);
+        if (!isObj || unionItem.getFamily() !== 'C') return regularTypes.push(unionItem);
+        return objectTypes.push(unionItem as CollectionRunType<any>);
+    });
+
+    return {regularTypes, objectTypes};
+}
 
 /**
  * Mark discriminator properties so they can be sorted and validate union more efficiently.
  * @param comp
  * @param urt
  */
-export function markDiscriminators(comp: JitCompiler, urt: UnionRunType, children: BaseRunType[]) {
+export function markDiscriminators(comp: JitCompiler, urt: UnionRunType, unionItems: BaseRunType[]) {
     if (urt.hasDiscriminators !== undefined && urt.hasObjectTypes !== undefined) return;
-    const objectTypes = children.filter((item) => urt.isTypeWithProperties(item)) as CollectionRunType<any>[];
+    const objectTypes = unionItems.filter((item) => urt.isTypeWithProperties(item)) as CollectionRunType<any>[];
     const namedDiscriminators = getDiscriminatorProperties(comp, urt, objectTypes, initGetCompiledName());
     const uniqueDiscriminators = getUniqueDiscriminatorProperties(comp, urt, objectTypes, initGetCompiledName());
     urt.hasObjectTypes = !!objectTypes.length;
     urt.hasDiscriminators = !!namedDiscriminators.length || !!uniqueDiscriminators.length;
 }
+
+export function sortObjectTypesLast(urt: UnionRunType, unionItems: BaseRunType[]) {
+    return unionItems.toSorted((a, b) => {
+        const aIsObj = urt.isTypeWithProperties(a);
+        const bIsObj = urt.isTypeWithProperties(b);
+        if (aIsObj && !bIsObj) return 1;
+        if (!aIsObj && bIsObj) return -1;
+        return 0;
+    });
+}
+
+type PropUnionItemPair = {prop: PropertyRunType; unionItem: CollectionRunType<any>};
 
 /**
  * Find a property with the same name in all the types of the union and that has different types.

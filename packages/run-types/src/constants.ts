@@ -40,10 +40,8 @@ export const jitSerializationFunctions = {
     fromJsonVal: {id: 'fj', name: 'fromJsonVal', type: CodeTypes.statement},
     jsonStringify: {id: 'js', name: 'jsonStringify', type: CodeTypes.expression},
     // not yet implemented
-    toBinary: {id: 'tb', name: 'toJsonVal', type: CodeTypes.statement},
-    fromBinary: {id: 'fb', name: 'fromJsonVal', type: CodeTypes.statement},
-    toString: {id: 'ts', name: 'jsonStringify', type: CodeTypes.expression},
-    fromString: {id: 'fs', name: 'jsonParse', type: CodeTypes.expression},
+    toBinary: {id: 'tb', name: 'toBinary', type: CodeTypes.statement},
+    fromBinary: {id: 'fb', name: 'fromBinary', type: CodeTypes.statement},
     // apply type formatters, ie: lowercase, uppercase, trim, etc
     format: {id: 'fmt', name: 'format', type: CodeTypes.expression},
 } as const satisfies {[key: string]: JitFnSettings};
@@ -74,6 +72,12 @@ export function getCodeType(fnID: JitFnID): CodeType {
     const fnConfig = jitFunctionsById[fnID];
     if (fnConfig === undefined) throw new Error(`Unknown jit function id: ${fnID}`);
     return fnConfig.type;
+}
+
+export function getJITFnName(fnID: JitFnID): string {
+    const fnConfig = jitFunctionsById[fnID];
+    if (fnConfig === undefined) throw new Error(`Unknown jit function id: ${fnID}`);
+    return fnConfig.name;
 }
 
 // variable names used in jit functions
@@ -160,3 +164,4 @@ export const validPropertyNameRegExp = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
 export const minKeysForSet = 30;
 export const maxStackErrorMessage =
     'Max compilation nested level reached, either you have a very deeply nested type or there is an error related to circular references un the types.';
+export const JIT_STACK_TRACE_MESSAGE = '\nJIT runType trace => ';
