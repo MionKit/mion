@@ -84,11 +84,21 @@ describe('Interface', () => {
     });
 
     it('validate empty object for ObjectAllOptional type', () => {
+        class AllOpt {
+            public a?: string;
+            public b?: number;
+        }
         const validate = rtOpt.createJitFunction(JitFunctions.isType);
         expect(validate({})).toBe(true);
+        expect(validate(new AllOpt())).toBe(true);
+
         // there is extra JIT code generated when all properties are optional
         // empty arrays also have typeof 'object' so we need to differentiate between them
         expect(validate([])).toBe(false);
+        // we need to make sure native objects are not accepted
+        expect(validate(new Date())).toBe(false);
+        expect(validate(new Map())).toBe(false);
+        expect(validate(new Set())).toBe(false);
     });
 
     it('validate object + errors', () => {

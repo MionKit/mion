@@ -117,7 +117,7 @@ export function isObjectLiteralRunType(rt: RunType): rt is InterfaceRunType {
 }
 
 export function isClassRunType(rt: RunType): rt is ClassRunType {
-    return rt.src.kind === ReflectionKind.class;
+    return rt.src.kind === ReflectionKind.class && rt.src.subKind !== ReflectionSubKind.date;
 }
 
 export function isIntersectionRunType(rt: RunType): rt is IntersectionRunType {

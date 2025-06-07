@@ -19,13 +19,15 @@
   "author": "ma jerez <jerez.m82@gmail.com>",
   "homepage": "https://mion.io/",
   "license": "MIT",
-  "main": ".dist/cjs/index.js",
-  "module": ".dist/esm/index.js",
-  "types": ".dist/types/index.d.ts",
+  "main": ".dist/cjs/run-types/src/index.js",
+  "module": ".dist/esm/run-types/src/index.js",
+  "types": ".dist/types/run-types/src/index.d.ts",
   "exports": {
+    "./jitFunctions": "./.dist/esm/run-types/src/jitFunctions.js",
+    "./lib/runType": "./.dist/esm/run-types/src/lib/runType.js",
     ".": {
-      "require": "./.dist/cjs/index.js",
-      "default": "./.dist/esm/index.js"
+      "require": "./.dist/cjs/run-types/src/",
+      "default": "./.dist/esm/run-types/src/"
     }
   },
   "directories": {

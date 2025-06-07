@@ -21,6 +21,7 @@ import type {
     StrNumber,
     DeepPartial,
     JitCompilerOpts,
+    RunTypeFamily,
 } from '../types';
 import type {mockType} from '../mocking/mockType';
 import {jitArgs, jitErrorArgs, JitFunctions, maxStackErrorMessage, CodeType, getCodeType} from '../constants';
@@ -49,7 +50,7 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
     // Registry for dynamically loaded functions
     isCircular?: boolean;
     readonly src: SrcType<T> = null as any; // real value will be set after construction by the createRunType function
-    abstract getFamily(): 'A' | 'C' | 'M' | 'F'; // Atomic, Collection, Member, Function
+    abstract getFamily(): RunTypeFamily; // Atomic, Collection, Member, Function
     abstract _getTypeID(stack?: RunType[]): StrNumber;
     isJitInlined = () => !(this.isCircular || (this.src.typeName && this.getFamily() === 'C'));
     getKindName = memorize((): AnyKindName => getReflectionName(this));
@@ -93,7 +94,13 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
     /** Code Type flag
      * Any child with different settings should override these methods
      * these flags are used to determine if the compiled code should be wrapped in a self invoking function or not
-     * or if the compiled code should contain a return statement or not */
+     * or if the compiled code should contain a return statement or not
+     * CodeTypes = {
+     *   expression: 'E', // single expression, that could be concatenated using js operators like + - * && || etc...
+     *   statement: 'S', // one or multiple statements, that could be concatenated using ; to ensure correct syntax
+     *   returnBlock: 'RB', // code block, it can not be concatenated with other code, it has an explicit return statement and needs to be wrapped in a function
+     * };
+     * */
     getCodeType(fnID: JitFnID): CodeType {
         return getCodeType(fnID);
     }
@@ -172,7 +179,7 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
             // TODO: we need to print the full path to the type that is causing the error
             // for this ideally we should add a parent Compiler and print the trace only from the root
             if (typeof e?.message === 'string' && !newJitCompiler.hasStackTrace(e.message))
-                e.message += '\n' + newJitCompiler.getStackTrace();
+                e.message += newJitCompiler.getStackTrace();
             throw e;
         }
         return newJitCompiler as JitCompiledFn;
@@ -467,6 +474,14 @@ export abstract class CollectionRunType<T extends Type> extends BaseRunType<T> {
             if (isIndex) skipIndex = true;
             return true;
         });
+    }
+    areAllChildrenOptional(children: BaseRunType[]) {
+        return children.every(
+            (prop) =>
+                (prop as MemberRunType<any>)?.isOptional() ||
+                (prop.src as TypeProperty)?.optional ||
+                prop.src.kind === ReflectionKind.indexSignature
+        );
     }
     _compileHasUnknownKeys(comp: JitCompiler): jitCode {
         return this.getJitChildren(comp)

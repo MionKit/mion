@@ -127,6 +127,7 @@ export function _compileJsonStringify(
                     ${skipCode}
                     if (${prop} !== undefined) ${arrName}.push(utl.asJSONString(${prop}) + ':' + ${jsonVal});
                 }
+                if (!${arrName}.length) return '';
                 return ${arrName}.join(',')${sep};
             `;
         }
@@ -240,21 +241,35 @@ export function _compileJsonStringify(
             throw new Error('Type parameter not implemented.');
         case ReflectionKind.union: {
             const urt = runType as UnionRunType;
-            // TODO: enforce strictTypes to ensure no extra properties of the union go unchecked
-            const childrenCode = urt
-                .getJitChildren(comp)
-                .map((rt, i) => {
-                    const itemIsType = urt.getChildStrictIsType(rt, comp);
-                    const childCode = rt.compile(comp, fnID);
+            const {regularTypes, objectTypes} = urt.getUnionChildren(comp);
+            const errVarName = `uErr${urt.getNestLevel()}`;
+            const fail = `throw new Error(${errVarName});`;
+            comp.contextCodeItems.set(
+                errVarName,
+                `const ${errVarName} = "Can not ${getOperationName(fnID)} union: expected one of <${urt.getUnionTypeNames()}>"`
+            );
+            let isFirst = true;
+            const onUnionTypes = (items: BaseRunType[]) => {
+                return items.map((child) => {
+                    const itemIsType = urt.getChildStrictIsType(child, comp);
+                    const childCode = child.compile(comp, fnID);
                     const skipDecode = !childCode || childCode === comp.vλl;
                     const stringifyCode = skipDecode ? comp.vλl : `${childCode}`;
-                    const code = `'[${i},' + ${stringifyCode} + ']'`;
-                    const itemCode = rt.getFamily() === 'A' ? `(${code})` : code;
-                    return `if (${itemIsType}) {return ${itemCode}}`;
-                })
-                .filter(Boolean)
-                .join('');
-            const code = `${childrenCode} else { throw new Error('Can not ${getOperationName(fnID)} union: expected one of <${urt.getUnionTypeNames()}> but got ' + ${comp.vλl}?.constructor?.name || typeof ${comp.vλl}) }`;
+                    const index = urt.getUnionItemIndex(comp, child);
+                    const code = `'[${index},' + ${stringifyCode} + ']'`;
+                    const itemCode = child.getFamily() === 'A' ? `(${code})` : code;
+                    const IF = isFirst ? 'if' : 'else if';
+                    isFirst = false;
+                    return `${IF} (${itemIsType}) {return ${itemCode}}`;
+                });
+            };
+
+            const itemsCode = onUnionTypes(regularTypes);
+            if (!objectTypes.length) return `${itemsCode.join('')} else {${fail}}`;
+            const checkObjs = `${isFirst ? 'if' : 'else if'} (!(typeof ${comp.vλl} === 'object' && ${comp.vλl} !== null)) {${fail}}`;
+            const objItemsCode = onUnionTypes(objectTypes);
+            const childrenCode = [...itemsCode, checkObjs, ...objItemsCode].filter(Boolean).join('');
+            const code = ` ${childrenCode} else {${fail}} `;
             return code;
         }
         default:
@@ -301,7 +316,7 @@ function _compileJsonStringifyGenericMember(rt: ParameterRunType, comp: JitCompi
 
 function _compileJsonStringifyInterface(rt: InterfaceRunType, comp: JitCompiler, fnID: JitFnID): jitCode {
     if (rt.isCallable()) return rt.getCallSignature()!.compile(comp, fnID);
-    const children = rt.getJsonStringifyChildren(comp);
+    const children = rt.getJsonStringifySortedChildren(comp);
     if (children.length === 0) return `''`;
     const allOptional = children.every((prop) => (prop as MemberRunType<any>).isOptional());
     // if all properties are optional,  we can not optimize and use JSON.stringify
@@ -332,7 +347,7 @@ function _compileInterfaceIntoArray(
             if (!childCode) return '';
             const code = `${arrName}.push(${childCode})`;
             // makes an extra check to avoid pushing empty strings to the array (childCode also makes the same check but is better than having to filter the array after)
-            return prop.isOptional() ? `if (${prop.tempChildVλl} !== undefined){${code}}` : `${code};`;
+            return prop.isOptional() && prop.tempChildVλl ? `if (${prop.tempChildVλl} !== undefined){${code}}` : `${code};`;
         })
         .filter(Boolean)
         .join('');
@@ -360,7 +375,11 @@ function _compileJsonStringifyClass(runType: BaseRunType, comp: JitCompiler, fnI
                 const callSignature = rt.getCallSignature();
                 if (callSignature) return callSignature.compile(comp, fnID);
             }
-            const children = rt.getJsonStringifyChildren(comp);
+            // optional and index properties must be compiled first to prevent trailing commas
+            // this is because the last trailing comma is calculated statically
+            // maybe we need to move that trailing comma compilation to be dynamic
+            // but we would need to create a self invoking function for that
+            const children = rt.getJsonStringifySortedChildren(comp);
             if (children.length === 0) return `''`;
             const childrenCode = children
                 .map((prop, i) => {

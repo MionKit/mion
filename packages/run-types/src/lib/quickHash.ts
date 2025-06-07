@@ -11,10 +11,10 @@ const hashChars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ012345678
 const alphaChars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
 const hashIncrement = 1;
 const maxHashCollisions = 22;
-const PRIME = 37; // Prime number to mix hash more robustly
-// TODO: investigate if this is a good default length, we want short hashes for small code size but long enough to avoid collisions
+const PRIME = 37; // Prime number to mix hash robustly, but quick
+// TODO: investigate if this is a good default length, we want short hashes for small code size but long enough to avoid to many collisions
 // variable hash length avoids collisions, so there shouldn't be any problems. but better to keep an eye on it
-export const hashDefaultLength = 10;
+export const hashDefaultLength = 6;
 export const defaultLiteralLength = 5;
 
 export function quickHash(input: string, length = hashDefaultLength, prevResult?: string): string {
@@ -36,28 +36,28 @@ export function quickHash(input: string, length = hashDefaultLength, prevResult?
 }
 
 export function createUniqueHash(id: string, length = hashDefaultLength, isLiteral = false): string {
-    const hashDict = isLiteral ? literalHashes : hashes;
+    const dictionary = isLiteral ? literalHashes : hashes;
     let hash = quickHash(id, length);
     let counter = 1;
-    let existing = hashDict.get(hash);
+    let existingId = dictionary.get(hash);
     // Check if ID already exists and corresponds to the same input
-    while (existing && existing !== id) {
+    while (existingId && existingId !== id) {
         length += counter * hashIncrement;
         // generates a longer hash if there are collisions
         // this would allow trying to get all possible hashes for a given input just by increasing the length
         const newId = quickHash(id, length, hash);
         if (process.env.DEBUG_JIT)
             console.warn(
-                `Collision for typeID: ${id} with extended hash: ${newId}, and existing typeID: ${existing} with hash: ${hash}`
+                `Collision for typeID: ${id} with extended hash: ${newId}, and existing typeID: ${existingId} with hash: ${hash}`
             );
         hash = newId;
         counter++;
-        existing = hashDict.get(hash);
+        existingId = dictionary.get(hash);
         if (counter > maxHashCollisions) throw new Error(`Cannot generate unique hash for typeID: ${id} too many collisions.`);
     }
 
     // Store the unique ID with its original input string
-    hashDict.set(hash, id);
+    dictionary.set(hash, id);
     // console.log(`Jit ID: ${typeID} with hash: ${id}`);
     return hash;
 }

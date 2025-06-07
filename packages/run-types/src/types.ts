@@ -21,13 +21,15 @@ export type SrcType<T extends Type = Type> = T & {
     readonly subKind?: SubKind;
 };
 
+export type RunTypeFamily = 'A' | 'C' | 'M' | 'F'; // Atomic, Collection, Member, Function
+
 /**
  * Runtime Metadata for a typescript types.
  */
 export interface RunType {
     readonly src: SrcType<any>;
     getKindName(): string;
-    getFamily(): 'A' | 'C' | 'M' | 'F'; // Atomic, Collection, Member, Function
+    getFamily(): RunTypeFamily; // Atomic, Collection, Member, Function
     mock: (options?: DeepPartial<RunTypeOptions>) => Promise<any>;
 
     // ######## JIT functions ########

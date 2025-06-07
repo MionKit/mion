@@ -26,7 +26,7 @@ import {ReflectionSubKind} from '../constants.kind';
 import {NonSerializableRunType} from '../runType/native/nonSerializable';
 import {IndexSignatureRunType} from '../runType/member/indexProperty';
 import {getRunTypeFormatter, getRunTypeTransformers} from '../lib/formats';
-import {JitFunctions} from '../constants';
+import {JIT_STACK_TRACE_MESSAGE, JitFunctions} from '../constants';
 import type {ArrayRunType} from '@mionkit/run-types/src/runType/member/array';
 import {jitUtils} from '@mionkit/core/src/jitUtils';
 
@@ -99,7 +99,7 @@ function _mockType(runType: BaseRunType, comp: JitCompilerOpts, stack: BaseRunTy
 
     switch (kind) {
         case ReflectionKind.never:
-            throw new Error('Cannot mock never type.');
+            throw new Error('Cannot mock never type.' + printStackTrace(stack));
         case ReflectionKind.any:
         case ReflectionKind.unknown:
             return mockAny(mOps.anyValuesList);
@@ -132,7 +132,7 @@ function _mockType(runType: BaseRunType, comp: JitCompilerOpts, stack: BaseRunTy
             return rt.src.values[i];
         }
         case ReflectionKind.enumMember:
-            throw new Error('Mock enum member is not supported.');
+            throw new Error('Mock enum member is not supported.' + printStackTrace(stack));
         // Collection types
         case ReflectionKind.array: {
             const rt = runType as ArrayRunType;
@@ -152,7 +152,7 @@ function _mockType(runType: BaseRunType, comp: JitCompilerOpts, stack: BaseRunTy
         case ReflectionKind.intersection:
         case ReflectionKind.objectLiteral: {
             if (runType instanceof NonSerializableRunType) {
-                throw new Error(`Mock is disabled for Non Serializable types.`);
+                throw new Error(`Mock is disabled for Non Serializable types.` + printStackTrace(stack));
             } else {
                 const rt = runType as InterfaceRunType;
                 if (rt.isCallable()) return mockType(rt.getCallSignature()!, comp, stack);
@@ -170,7 +170,7 @@ function _mockType(runType: BaseRunType, comp: JitCompilerOpts, stack: BaseRunTy
         case ReflectionKind.union: {
             const rt = runType as UnionRunType;
             if (mOps.unionIndex && (mOps.unionIndex < 0 || mOps.unionIndex >= rt.getChildRunTypes().length)) {
-                throw new Error('unionIndex must be between 0 and the number of types in the union.');
+                throw new Error('unionIndex must be between 0 and the number of types in the union.' + printStackTrace(stack));
             }
             const index = mOps?.unionIndex ?? random(0, rt.getChildRunTypes().length - 1);
             return mockType(rt.getChildRunTypes()[index], comp, stack);
@@ -189,7 +189,7 @@ function _mockType(runType: BaseRunType, comp: JitCompilerOpts, stack: BaseRunTy
                 }
                 return params;
             } else {
-                throw new Error('Mock is not allowed, call mockParams or mockReturn instead.');
+                throw new Error('Mock is not allowed, call mockParams or mockReturn instead.' + printStackTrace(stack));
             }
         case ReflectionKind.promise: {
             const rt = runType as PromiseRunType;
@@ -213,7 +213,8 @@ function _mockType(runType: BaseRunType, comp: JitCompilerOpts, stack: BaseRunTy
             if (!rt.getJitChild(comp)) return undefined; // non serializable types are set to undefined
             if (rt.isOptional() && !rt.isRest()) {
                 const probability = mOps.optionalProbability;
-                if (probability < 0 || probability > 1) throw new Error('optionalProbability must be between 0 and 1');
+                if (probability < 0 || probability > 1)
+                    throw new Error('optionalProbability must be between 0 and 1' + printStackTrace(stack));
                 if (Math.random() > probability) {
                     return undefined;
                 }
@@ -224,7 +225,8 @@ function _mockType(runType: BaseRunType, comp: JitCompilerOpts, stack: BaseRunTy
         case ReflectionKind.property: {
             const rt = runType as PropertyRunType;
             const probability = mOps.optionalPropertyProbability?.[rt.getChildVarName()] ?? mOps.optionalProbability;
-            if (probability < 0 || probability > 1) throw new Error('optionalProbability must be between 0 and 1');
+            if (probability < 0 || probability > 1)
+                throw new Error('optionalProbability must be between 0 and 1' + printStackTrace(stack));
             if (rt.src.optional && Math.random() > probability) return undefined;
             return mockType(rt.getMemberType(), comp, stack);
         }
@@ -266,7 +268,7 @@ function _mockType(runType: BaseRunType, comp: JitCompilerOpts, stack: BaseRunTy
         case ReflectionKind.templateLiteral:
         case ReflectionKind.typeParameter:
         default:
-            throw new Error(`Cant mock Unsupported RunType: ${runType.getTypeName()}`);
+            throw new Error(`Cant mock Unsupported RunType: ${runType.getTypeName()}` + printStackTrace(stack));
     }
 }
 
@@ -297,17 +299,18 @@ function _mockClass(runType: BaseRunType, comp: JitCompilerOpts, stack: BaseRunT
             return mockSet;
         }
         case ReflectionSubKind.nonSerializable:
-            throw new Error(`Mock is disabled for Non Serializable types.`);
+            throw new Error(`Mock is disabled for Non Serializable types.` + printStackTrace(stack));
         default: {
             if (!(runType instanceof ClassRunType)) {
-                throw new Error(`Cant mock Unsupported RunType: ${runType.getTypeName()}`);
+                throw new Error(`Cant mock Unsupported RunType: ${runType.getTypeName()}` + printStackTrace(stack));
             }
             const rt = runType as ClassRunType;
             const isSerializable = rt.isClassWithEmptyConstructor();
             const deserializeFn = jitUtils.getDeserializeFn(rt.getClassName());
             if (!deserializeFn && !isSerializable) {
                 throw new Error(
-                    `Class ${rt.getClassName()} can not be mocked. Be sure to register a deserialize function first with jiUtils.${jitUtils.setDeserializeFn.name}`
+                    `Class ${rt.getClassName()} can not be mocked. Be sure to register a deserialize function first with jiUtils.${jitUtils.setDeserializeFn.name}` +
+                        printStackTrace(stack)
                 );
             }
             const instance = deserializeFn ? {} : new rt.src.classType();
@@ -321,7 +324,7 @@ function _mockClass(runType: BaseRunType, comp: JitCompilerOpts, stack: BaseRunT
             });
             if (deserializeFn) return deserializeFn(instance);
             if (isSerializable) return instance;
-            throw new Error(`Class ${rt.getClassName()} can not be mocked.`);
+            throw new Error(`Class ${rt.getClassName()} can not be mocked.` + printStackTrace(stack));
         }
     }
 }
@@ -335,4 +338,9 @@ function getChildOpts(comp: JitCompilerOpts, mockOpts?: MockOptions): JitCompile
             mock: mockOpts,
         },
     };
+}
+
+function printStackTrace(stack: BaseRunType[]) {
+    const separator = '.';
+    return JIT_STACK_TRACE_MESSAGE + stack.map((rt) => rt.getTypeTraceInfo()).join(separator);
 }

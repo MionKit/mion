@@ -8,13 +8,15 @@
 import {ReflectionKind} from '@deepkit/type';
 import type {Type, TypeFunction, TypeParameter, TypeTuple, TypeTupleMember} from '@deepkit/type';
 import type {FormatParam, FormatParamLiteral, PureFunctionClosure, TypeFormatValue} from '@mionkit/core/src/types';
-import {jitUtils} from '../../../core/src/jitUtils';
-import {validPropertyNameRegExp} from '../constants';
 import type {AnyClass, JitFnID, RunType} from '../types';
-import {BaseRunType} from './baseRunTypes';
-import {isFormatParamMeta} from './guards';
+import type {BaseRunType, CollectionRunType, MemberRunType} from './baseRunTypes';
 import type {JitCompiler, JitErrorsCompiler} from './jitCompiler';
+import type {PropertyRunType} from '@mionkit/run-types/src/runType/member/property';
+import {jitUtils} from '../../../core/src/jitUtils';
+import {minKeysForSet, validPropertyNameRegExp} from '../constants';
+import {isFormatParamMeta} from './guards';
 import {createHashLiteral} from './quickHash';
+import {ReflectionSubKind} from '@mionkit/run-types/src/constants.kind';
 
 export function toLiteral(value: number | string | boolean | undefined | null | bigint | RegExp | symbol): string {
     switch (typeof value) {
@@ -264,4 +266,113 @@ export function getFormatterHash(rt: BaseRunType): string {
 /** Returns the literal value of a FormatParam */
 export function fpVal<L extends FormatParamLiteral>(p: FormatParam<L>): L {
     return isFormatParamMeta(p) ? p.val : p;
+}
+
+/** Complexity of each type family, we can add more types and weights here if we want to optimize further */
+const familyComplexity = {
+    A: 2,
+    M: 20, // member usually involves iteration
+    C: 10, // collection usually involves calling and extra jit function
+    F: 10_000_000,
+}; // function should go always last
+const typesComplexity = {
+    [ReflectionKind.indexSignature]: 20, // index involves traversing all object keys
+    [ReflectionKind.array]: 30, // array involves iterating all items
+    [ReflectionKind.property]: 0, // property involves just checking a single property
+    [ReflectionKind.propertySignature]: 0, // property involves just checking a single property
+    [ReflectionKind.boolean]: 1, // boolean is fast to check
+    [ReflectionKind.null]: 1, // null is fast to check
+    [ReflectionKind.undefined]: 1, // undefined is fast to check
+    [ReflectionKind.enum]: 20, // enum can involve checking multiple values
+};
+const subTypesComplexity = {
+    [ReflectionSubKind.date]: 3,
+};
+
+/**
+ * Returns an arbitrary complexity number for a runType, this depends on the type family and the complexity of all children.
+ * There might be better options to get the type complexity, as this also depends on the runtime operation and the compiled operation.
+ * but this is an initial approximation.
+ */
+export function getTotalComplexity(comp: JitCompiler, rt: BaseRunType, stack: BaseRunType[] = []): number {
+    if (!rt) return 0;
+    if (stack.includes(rt)) return 0;
+    stack.push(rt);
+    let result = 0;
+    const subKindC = rt.src.subKind ? subTypesComplexity[rt.src.subKind] : undefined;
+    const typeC = subKindC || typesComplexity[rt.src.kind];
+    const familyC = rt.getFamily();
+    if (familyC === 'A') result = typeC || familyComplexity.A;
+    else if (familyC === 'M') {
+        const childRT = (rt as MemberRunType<any>).getJitChild(comp);
+        if (!childRT) return typeC ?? familyComplexity.M;
+        const childC = getTotalComplexity(comp, childRT, stack);
+        result = (typeC ?? familyComplexity.M) + childC;
+    } else if (familyC === 'C') {
+        const childrenC = (rt as CollectionRunType<any>)
+            .getJitChildren(comp)
+            .map((child) => getTotalComplexity(comp, child, stack));
+        const totalChildrenC = childrenC.reduce((acc, childC) => acc + childC, 0);
+        result = (typeC ?? familyComplexity.C) + totalChildrenC;
+    } else {
+        result = typeC ?? familyComplexity.F;
+    }
+    stack.pop();
+    return result;
+}
+
+/**
+ * Sort runTypes by complexity, ascending. this way less complex code can be executed first.
+ * This could help to fail fast and avoid unnecessary checks.
+ */
+export function sortRunTypeByComplexity(comp: JitCompiler, a: BaseRunType, b: BaseRunType): number {
+    if (a.getFamily() === 'M' && b.getFamily() === 'M') {
+        const aIsDiscriminator = (a as PropertyRunType).isUnionDiscriminator;
+        const bIsDiscriminator = (b as PropertyRunType).isUnionDiscriminator;
+        if (aIsDiscriminator && !bIsDiscriminator) return -1;
+        if (!aIsDiscriminator && bIsDiscriminator) return 1;
+    }
+    if (b.getFamily() === 'M' && (b as PropertyRunType).isUnionDiscriminator) return 1;
+    const aTotal = getTotalComplexity(comp, a);
+    const bTotal = getTotalComplexity(comp, b);
+    return aTotal - bTotal;
+}
+
+export function sortDiscriminatorsFirst(a: BaseRunType, b: BaseRunType): number {
+    if (a.getFamily() === 'M' && b.getFamily() === 'M') {
+        const aIsDiscriminator = (a as PropertyRunType).isUnionDiscriminator;
+        const bIsDiscriminator = (b as PropertyRunType).isUnionDiscriminator;
+        if (aIsDiscriminator && !bIsDiscriminator) return -1;
+        if (!aIsDiscriminator && bIsDiscriminator) return 1;
+    }
+    return 0;
+}
+
+// TODO: not sure this is the best place for this function, maybe interface runType but want to avoid possible circular dependencies
+export function callCheckUnknownProperties(
+    rt: CollectionRunType<any>,
+    comp: JitCompiler,
+    childrenRunTypes: RunType[],
+    returnKeys: boolean,
+    checkObject = true
+): string {
+    const arrNames = childrenRunTypes.filter((prop) => !!(prop.src as any).name).map((prop) => (prop.src as any).name);
+    const childrenNames = Array.from(new Set(arrNames));
+    if (childrenNames.length === 0) return '';
+    const keysName = `k_${rt.getJitHash(comp.opts)}`;
+    const objectCheckCode = checkObject ? [`typeof ${comp.vλl} === 'object'`, `${comp.vλl} !== null`] : [];
+    if (childrenNames.length > minKeysForSet) {
+        comp.contextCodeItems.set(keysName, `const ${keysName} = new Set(${arrayToLiteral(childrenNames)})`);
+        if (returnKeys) return `utl.getUnknownKeysFromSet(${comp.vλl}, ${keysName})`;
+        objectCheckCode.push(`utl.hasUnknownKeysFromSet(${comp.vλl}, ${keysName})`);
+        const filtered = objectCheckCode.filter(Boolean);
+        if (filtered.length > 1) return `(${filtered.join(' && ')})`;
+        return filtered[0];
+    }
+    comp.contextCodeItems.set(keysName, `const ${keysName} = ${arrayToLiteral(childrenNames)}`);
+    if (returnKeys) return `utl.getUnknownKeysFromArray(${comp.vλl}, ${keysName})`;
+    objectCheckCode.push(`utl.hasUnknownKeysFromArray(${comp.vλl}, ${keysName})`);
+    const filtered = objectCheckCode.filter(Boolean);
+    if (filtered.length > 1) return `(${filtered.join(' && ')})`;
+    return filtered[0];
 }
