@@ -90,7 +90,9 @@ export interface RpcErrorWithPrivate<ErrType extends StrNumber = any, ErrData = 
 }
 
 /** Error data returned to the clients  */
-export interface PublicRpcError extends Omit<RpcErrorParams, 'publicMessage' | 'originalError'> {
+export interface PublicRpcError<ErrType extends StrNumber = any, ErrData = any>
+    extends Omit<RpcErrorParams, 'publicMessage' | 'originalError'> {
+    type: ErrType;
     /**
      * When a RpcError gets anonymized the publicMessage becomes the message.
      * RpcError.publicMessage => PublicRpcError.message
@@ -98,6 +100,7 @@ export interface PublicRpcError extends Omit<RpcErrorParams, 'publicMessage' | '
     message: string;
     statusCode: number;
     name: string;
+    errorData?: ErrData;
 }
 
 export type AnyErrorParams<ErrType extends StrNumber = any, ErrData = any> =
@@ -178,8 +181,8 @@ export type PureFunctionClosure = (jitUtils: JITUtils) => PureFunction;
 
 export interface PureFunctionProps {
     paramNames: string[];
-    body: string;
-    name: string;
+    code: string;
+    fnHash: string;
     dependencies: Set<string>;
 }
 
@@ -202,31 +205,32 @@ export type JitFnArgs = {
     [key: string]: string;
 };
 
-export interface JitCompiledFnProps {
+export interface JitCompiledFnData {
     /** The id of the function (operation) to be compiled (isType, typeErrors, toJsonVal, fromJsonVal, etc) */
     readonly fnID: string;
     /** Unique id of the function */
     readonly jitFnHash: string;
+    /** The names of the arguments of the function */
     readonly args: JitFnArgs;
+    /** Default values for the arguments */
+    readonly defaultParamValues: JitFnArgs;
     /**
      * This flag is set to true when the result of a jit compilation is a no operation (empty function).
      * if this flag is set to true, the function should not be called as it will not do anything.
      */
     readonly isNoop?: boolean;
-    /** When creating the function it might have default values */
-    readonly defaultParamValues: JitFnArgs;
     /** Code for the jit function. after the operation has been compiled */
     readonly code: string;
     /** The list of all jit functions that are used by this function and it's children. */
     readonly dependenciesSet: Set<string>;
     readonly pureFnDependencies: Set<string>;
-
+    /** function param names if the compiled type is function params */
     paramNames?: string[];
 }
 
 // ########################################### JIT FUNCTIONS ###########################################
 
-export interface JitCompiledFn<Fn extends AnyFn = AnyFn> extends JitCompiledFnProps {
+export interface JitCompiledFn<Fn extends AnyFn = AnyFn> extends JitCompiledFnData {
     /** The closure function that contains the jit function, this one contains the context code */
     readonly closureFn: (utl: JITUtils) => Fn;
     /** The Jit Generated function once the compilation is finished */
@@ -241,11 +245,11 @@ export interface JITCompiledFunctions {
     jsonStringify: JitCompiledFn<JsonStringifyFn>;
 }
 export interface SerializableJITFunctions {
-    isType: JitCompiledFnProps;
-    typeErrors: JitCompiledFnProps;
-    toJsonVal: JitCompiledFnProps;
-    fromJsonVal: JitCompiledFnProps;
-    jsonStringify: JitCompiledFnProps;
+    isType: JitCompiledFnData;
+    typeErrors: JitCompiledFnData;
+    toJsonVal: JitCompiledFnData;
+    fromJsonVal: JitCompiledFnData;
+    jsonStringify: JitCompiledFnData;
 }
 export type JsonStringifyFn = (value: any) => JSONString;
 export type FromJsonValFn = (value: JSONValue) => any;
@@ -256,6 +260,8 @@ export type ToCodeFn = (value: any) => string;
 
 export type JitFunctionsCache = Record<string, JitCompiledFn>;
 export type PureFunctionsCache = Record<string, CompiledPureFunction>;
+export type JitSerializableFunctionsCache = Record<string, JitCompiledFnData>;
+export type PureSerializableFunctionsCache = Record<string, PureFunctionProps>;
 
 // ########################################### JIT SRC CODE ####################################
 
@@ -269,7 +275,7 @@ export type PureFunctionsCache = Record<string, CompiledPureFunction>;
 //     readonly fn: undefined;
 // }
 
-export interface SrcCodeJitCompiledFn extends JitCompiledFnProps {
+export interface SrcCodeJitCompiledFn extends JitCompiledFnData {
     /** The closure function that contains the jit function, this one contains the context code */
     readonly closureFn: (utl: JITUtils) => AnyFn;
     /** The Jit Generated function once the compilation is finished */

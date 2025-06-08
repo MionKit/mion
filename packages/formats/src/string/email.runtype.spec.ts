@@ -154,7 +154,7 @@ it('quick email validation should be faster than normal email', async () => {
     const endQuick = performance.now();
     const normalTime = Math.round((end - start) * 1000);
     const quickTime = Math.round((endQuick - startQuick) * 1000);
-    console.log(`Normal email (${normalTime}ms) | Quick email (${quickTime}ms)`);
+    // console.log(`Normal email (${normalTime}ms) | Quick email (${quickTime}ms)`);
     expect(quickTime).toBeLessThan(normalTime);
 
     for (const item of mockedItems) {

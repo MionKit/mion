@@ -354,7 +354,7 @@ it('domain should be faster than strict domain', async () => {
 
     const normalTime = Math.round((end - start) * 1000);
     const quickTime = Math.round((endQuick - startQuick) * 1000);
-    console.log(`Strict Domain (${normalTime}ms) | Domain (${quickTime}ms)`);
+    // console.log(`Strict Domain (${normalTime}ms) | Domain (${quickTime}ms)`);
     expect(quickTime).toBeLessThan(normalTime);
 
     for (const item of mockedItems) {

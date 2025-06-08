@@ -20,6 +20,7 @@ import type {JitErrorsCompiler, JitCompiler} from './jitCompiler';
 import type {BaseRunTypeFormat} from './baseRunTypeFormat';
 import {jitUtils} from '../../../core/src/jitUtils';
 import {toLiteralInContext} from './utils';
+import {JitFunctions} from '@mionkit/run-types/src/constants';
 
 // ################# REGISTER FORMATTERS & PURE FUNCTIONS  #################
 
@@ -43,14 +44,15 @@ export function registerPureFnClosure(
     fnWithCtx: PureFunctionClosure,
     dependencies?: PureFunctionClosure[]
 ): CompiledPureFunction {
-    const existing = jitUtils.getCompiledPureFn(fnWithCtx.name);
+    const key = getPureFunctionKey(fnWithCtx);
+    const existing = jitUtils.getCompiledPureFn(key);
     if (existing && existing.closureFn && existing.closureFn !== fnWithCtx)
-        throw new Error(`Pure function with name ${fnWithCtx.name} already exists`);
+        throw new Error(`Pure function with name ${key} already exists`);
     if (existing) return existing;
     const compiled = parsePureFunctionWithCtx(fnWithCtx);
     if (dependencies) {
         dependencies.forEach((d) => registerPureFnClosure(d));
-        dependencies.forEach((d) => compiled.dependencies.add(d.name));
+        dependencies.forEach((d) => compiled.dependencies.add(getPureFunctionKey(d.name)));
     }
     jitUtils.addPureFn(compiled);
     return compiled;
@@ -60,25 +62,21 @@ export function registerPureFnClosuresGroup(fnsWithCtx: PureFunctionClosure[]): 
     const compiledFns = fnsWithCtx.map((fn) => registerPureFnClosure(fn));
     compiledFns.forEach((cfn) => {
         compiledFns.forEach((cf) => {
-            if (cfn.name === cf.name) return;
-            cf.dependencies.add(cfn.name);
+            if (cfn.fnHash === cf.fnHash) return;
+            cf.dependencies.add(cfn.fnHash);
         });
     });
     return compiledFns;
 }
 
 export function getPureFn(fnOrName: string | PureFunctionClosure): PureFunction | undefined {
-    if (typeof fnOrName === 'string') return jitUtils.getPureFn(fnOrName);
-    const name = fnOrName.name;
-    if (!name) throw new Error('Pure Functions must have a name');
-    return jitUtils.getPureFn(name);
+    const key = getPureFunctionKey(fnOrName);
+    return jitUtils.getPureFn(key);
 }
 
 export function getCompiledPureFn(fnOrName: string | PureFunctionClosure): CompiledPureFunction | undefined {
-    if (typeof fnOrName === 'string') return jitUtils.getCompiledPureFn(fnOrName);
-    const name = fnOrName.name;
-    if (!name) throw new Error('Pure Functions must have a name');
-    return jitUtils.getCompiledPureFn(name);
+    const key = getPureFunctionKey(fnOrName);
+    return jitUtils.getCompiledPureFn(key);
 }
 
 /** Gets a TypeFormatter or TypeValidator to the formatters cache */
@@ -97,6 +95,12 @@ export function getFormatterFromCache(
 
 export function getFormatterKey(prefix: string, kind: string | number, name: string | number): string {
     return `${prefix}:${kind}:${name}`;
+}
+
+export function getPureFunctionKey(fnOrName: string | PureFunctionClosure): string {
+    const name = typeof fnOrName === 'string' ? fnOrName : fnOrName.name;
+    if (!name) throw new Error('Pure Functions must have a name');
+    return `${JitFunctions.pureFunction.id}_${name}`;
 }
 
 export function getTypeFormats(rt: BaseRunType): BaseRunTypeFormat[] {
@@ -194,9 +198,9 @@ function parsePureFunctionWithCtx(closureFn: PureFunctionClosure): CompiledPureF
     const compiled: CompiledPureFunction = {
         closureFn: closureFn,
         fn: null as any, // will be set later so all possible dependencies are resolved
-        name: closureFn.name,
+        fnHash: getPureFunctionKey(closureFn.name),
         paramNames,
-        body,
+        code: body,
         dependencies: new Set<string>(),
     };
     return compiled;

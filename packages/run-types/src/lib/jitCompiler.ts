@@ -30,7 +30,7 @@ import {isChildAccessorType, isJitErrorsCompiler} from './guards';
 import {jitUtils} from '../../../core/src/jitUtils';
 import {toLiteral, toLiteralInContext} from './utils';
 import type {BaseRunTypeFormat} from './baseRunTypeFormat';
-import {registerPureFnClosure} from '@mionkit/run-types/src/lib/formats';
+import {getPureFunctionKey, registerPureFnClosure} from '@mionkit/run-types/src/lib/formats';
 
 export type StackItem = {
     /** current compile stack full variable accessor */
@@ -191,13 +191,12 @@ export class BaseCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extends 
         childCop.dependenciesSet.forEach((dep) => this.dependenciesSet.add(dep));
     }
     addPureFnDependency(fn: PureFunction | string): void {
-        if (typeof fn === 'function' && !fn.name) throw new Error('Pure function must have a name');
-        const key = typeof fn === 'string' ? fn : fn.name;
-        if (!jitUtils.hasPureFn(key))
+        const fnHash = getPureFunctionKey(fn);
+        if (!jitUtils.hasPureFn(fnHash))
             throw new Error(
-                `Pure function with name ${key} can not be added as jit dependency, be sure to register the pure function first by calling jitUtils.addPureFn()`
+                `Pure function with name ${fnHash} can not be added as jit dependency, be sure to register the pure function first by calling jitUtils.addPureFn()`
             );
-        this.pureFnDependencies.add(key);
+        this.pureFnDependencies.add(fnHash);
     }
     removeFromJitCache(): void {
         jitUtils.removeFromJitCache(this as JitCompiledFn);
@@ -387,20 +386,19 @@ export function getSerializableJitCompiler(comp: JitCompiledFn): JitCompiledFnDa
         code: comp.code,
         dependenciesSet: new Set(comp.dependenciesSet),
         pureFnDependencies: new Set(comp.pureFnDependencies),
-        paramNames: structuredClone(comp.paramNames),
+        ...(comp.paramNames ? {paramNames: structuredClone(comp.paramNames)} : {}),
     };
 }
 
 export function compileAddPureFunctionWithClosure(comp: JitCompiler | JitErrorsCompiler, pureFn: PureFunctionClosure): string {
-    const fnName = pureFn.name;
-    if (!fnName) throw new Error('Pure function must have a name');
+    const fnHash = getPureFunctionKey(pureFn.name);
     registerPureFnClosure(pureFn); // will throw if there is a different pure function with the same name
-    if (comp.contextCodeItems.has(fnName)) return fnName;
+    if (comp.contextCodeItems.has(fnHash)) return fnHash;
     comp.addPureFnDependency(pureFn);
     // Add context code for the pure function and params
-    const pureFunctionCode = `const ${fnName} = utl.getPureFn(${toLiteral(fnName)})`;
-    comp.contextCodeItems.set(fnName, pureFunctionCode);
-    return fnName;
+    const pureFunctionCode = `const ${fnHash} = utl.getPureFn(${toLiteral(fnHash)})`;
+    comp.contextCodeItems.set(fnHash, pureFunctionCode);
+    return fnHash;
 }
 
 // ################### Other Compiler functions ###################

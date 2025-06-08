@@ -105,8 +105,8 @@ it('register a group of pure functions so all declared as dependencies', async (
     expect(compiledIsB).toBeDefined();
     expect(compiledIsA?.fn).toBeDefined();
     expect(compiledIsB?.fn).toBeDefined();
-    expect(compiledIsA?.dependencies.has('pureFunctionB')).toBeTruthy();
-    expect(compiledIsB?.dependencies.has('pureFunctionA')).toBeTruthy();
-    expect(compiledIsA?.dependencies.has('pureFunctionA')).toBeFalsy();
-    expect(compiledIsB?.dependencies.has('pureFunctionB')).toBeFalsy();
+    expect(compiledIsA?.dependencies.has('pf_pureFunctionB')).toBeTruthy();
+    expect(compiledIsB?.dependencies.has('pf_pureFunctionA')).toBeTruthy();
+    expect(compiledIsA?.dependencies.has('pf_pureFunctionA')).toBeFalsy();
+    expect(compiledIsB?.dependencies.has('pf_pureFunctionB')).toBeFalsy();
 });

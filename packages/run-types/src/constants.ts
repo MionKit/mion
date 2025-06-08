@@ -63,6 +63,8 @@ export const JitFunctions = {
     },
     // similar to json stringify but outputs js code, including pure functions, already imported as size is quite small
     toCode: {id: 'tc', name: 'toCode', type: CodeTypes.expression},
+    // pure function are not jit compiled but we ensure we reserve a prefix to avoid collisions
+    pureFunction: {id: 'pf', name: 'pureFunction', type: CodeTypes.statement},
 } as const satisfies {[key: string]: JitFnSettings};
 
 export const jitFunctionList = Object.values(JitFunctions);
