@@ -135,7 +135,12 @@ export class FunctionRunType<CallType extends AnyFunction = TypeFunction> extend
     getParameters(): FunctionParamsRunType {
         return this.parameterRunTypes;
     }
-    getParameterNames(): string[] {
+    getParameterNames(opts?: RunTypeOptions): string[] {
+        const start = opts?.paramsSlice?.start;
+        const end = opts?.paramsSlice?.end;
+        if (start || end) {
+            return this.src.parameters.slice(start, end).map((p) => p.name);
+        }
         return this.src.parameters.map((p) => p.name);
     }
     hasReturnData(): boolean {

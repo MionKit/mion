@@ -23,9 +23,9 @@ export class IPRunTypeFormat extends BaseRunTypeFormat<FormatParams_IP> {
     name = IPRunTypeFormat.id;
     _compileIsType(comp: JitCompiler, rt: BaseRunType): string {
         const params = this.getParams(rt);
-        if (params.version === 4) return this.compilePureFunctionCall(comp, rt, isIPV4).callCode;
-        if (params.version === 6) return this.compilePureFunctionCall(comp, rt, isIPV6).callCode;
-        return `${this.compilePureFunctionCall(comp, rt, isIPV4).callCode} || ${this.compilePureFunctionCall(comp, rt, isIPV6).callCode}`;
+        if (params.version === 4) return this.compilePureFunctionCall(comp, rt, mionIsIPV4).callCode;
+        if (params.version === 6) return this.compilePureFunctionCall(comp, rt, mionIsIPV6).callCode;
+        return `${this.compilePureFunctionCall(comp, rt, mionIsIPV4).callCode} || ${this.compilePureFunctionCall(comp, rt, mionIsIPV6).callCode}`;
     }
     _mock(opts: RunTypeOptions, rt: BaseRunType) {
         const params = this.getParams(rt);
@@ -48,7 +48,7 @@ export class IPRunTypeFormat extends BaseRunTypeFormat<FormatParams_IP> {
 // ############### Pure Functions ###############
 
 /** @reflection never */
-export function isLocalHost() {
+export function mionIsLocalHost() {
     const lhr = /^localhost$/i;
     return function is_local_host(ip: string, p: FormatParams_IP): boolean {
         if (p.version === 4) return lhr.test(ip) || ip === '127:0:0:1';
@@ -58,8 +58,8 @@ export function isLocalHost() {
 }
 
 /** @reflection never */
-export function isIPV4(utl: JITUtils) {
-    const is_Localhost = utl.getPureFn('isLocalHost') as ReturnType<typeof isLocalHost>;
+export function mionIsIPV4(utl: JITUtils) {
+    const is_Localhost = utl.getPureFn('pf_mionIsLocalHost') as ReturnType<typeof mionIsLocalHost>;
     function get_address(ip: string, p: FormatParams_IP): false | string {
         if (!p.allowPort) return ip;
         const parts = ip.split(':');
@@ -87,8 +87,8 @@ export function isIPV4(utl: JITUtils) {
 }
 
 /** @reflection never */
-export function isIPV6(utl: JITUtils) {
-    const is_Localhost = utl.getPureFn('isLocalHost') as ReturnType<typeof isLocalHost>;
+export function mionIsIPV6(utl: JITUtils) {
+    const is_Localhost = utl.getPureFn('pf_mionIsLocalHost') as ReturnType<typeof mionIsLocalHost>;
     const ipv6PortRegexp = /^\[([^\]]+)\](?::(\d+))?$/;
     function get_address(ip: string, p: FormatParams_IP): false | string {
         if (!p.allowPort) return ip;
@@ -127,9 +127,9 @@ export function isIPV6(utl: JITUtils) {
 // ############### Pure Functions ###############
 
 /** @reflection never */
-export function getIPErrors(utl: JITUtils) {
-    const is_ip_v4 = utl.getPureFn('isIPV4') as ReturnType<typeof isIPV4>;
-    const is_ip_v6 = utl.getPureFn('isIPV6') as ReturnType<typeof isIPV6>;
+export function mionGetIPErrors(utl: JITUtils) {
+    const is_ip_v4 = utl.getPureFn('pf_mionIsIPV4') as ReturnType<typeof mionIsIPV4>;
+    const is_ip_v6 = utl.getPureFn('pf_mionIsIPV6') as ReturnType<typeof mionIsIPV6>;
     const noopDeps = {};
     return function get_ip_errors(
         ip: string,
@@ -162,9 +162,9 @@ export function mockIpV6(p: FormatParams_IP): string {
 // ############### Register runtypes ###############
 
 // register pure functions so they can be used in the jit compiler
-registerPureFnClosure(isLocalHost);
-registerPureFnClosure(isIPV4, [isLocalHost]);
-registerPureFnClosure(isIPV6, [isLocalHost]);
+registerPureFnClosure(mionIsLocalHost);
+registerPureFnClosure(mionIsIPV4, [mionIsLocalHost]);
+registerPureFnClosure(mionIsIPV6, [mionIsLocalHost]);
 
 // register Validator operations so they can be used in the jit compiler
 export const IP_RUN_TYPE_FORMATTER = registerFormatter(new IPRunTypeFormat());

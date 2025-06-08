@@ -23,7 +23,7 @@ export class UUIDRunTypeFormat extends BaseRunTypeFormat<FormatParams_UUID> {
     _compileIsType(comp: JitCompiler, rt: BaseRunType): string {
         const params = this.getParams(rt);
         // version must be set as a string to call pure function isUUID, this is so no transform is needed when comparing with uuid charat
-        return this.compilePureFunctionCall(comp, rt, isUUID, params).callCode;
+        return this.compilePureFunctionCall(comp, rt, mionIsUUID, params).callCode;
     }
     _compileTypeErrors(comp: JitErrorsCompiler, rt: BaseRunType): string {
         const params = this.getParams(rt);
@@ -47,7 +47,7 @@ export class UUIDRunTypeFormat extends BaseRunTypeFormat<FormatParams_UUID> {
 // ############### Pure Functions ###############
 
 /** @reflection never */
-export function isUUID() {
+export function mionIsUUID() {
     return function is_uuid(value: string, p: FormatParams_UUID) {
         if (value.length !== 36) return false;
         for (let i = 0; i < 36; i++) {
@@ -69,7 +69,7 @@ export function isUUID() {
 
 // ############### Register runtypes ###############
 
-registerPureFnClosure(isUUID);
+registerPureFnClosure(mionIsUUID);
 export const UUID_RUN_TYPE_FORMATTER = registerFormatter(new UUIDRunTypeFormat());
 
 // ############### Type  ###############

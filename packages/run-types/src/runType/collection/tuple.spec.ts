@@ -12,7 +12,7 @@ describe('TupleRunType', () => {
     type TupleType = [Date, number, string, null, string[], bigint];
     type TupleWithOptionals = [number, bigint?, boolean?, number?];
 
-    const rt = runType<TupleType>();
+    const rt = runType<TupleType>() as BaseRunType;
 
     it('validate tuple', () => {
         const validate = rt.createJitFunction(JitFunctions.isType);

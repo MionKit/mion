@@ -98,28 +98,29 @@ export const jitUtils: JITUtils = {
         return null;
     },
     addPureFn(compiledFn: CompiledPureFunction) {
-        if (!compiledFn.name) throw new Error('Pure function must have a name and must be unique');
-        const existing = pureFnsCache[compiledFn.name];
+        const fnHash = compiledFn.fnHash;
+        if (!fnHash) throw new Error('Pure function must have a name and must be unique');
+        const existing = pureFnsCache[fnHash];
         if (existing) return existing;
-        pureFnsCache[compiledFn.name] = compiledFn;
+        pureFnsCache[fnHash] = compiledFn;
     },
-    usePureFn(name: string): PureFunction {
-        const compiled = pureFnsCache[name];
-        if (!compiled) throw new Error(`Pure function with name ${name} not found`);
+    usePureFn(fnHash: string): PureFunction {
+        const compiled = pureFnsCache[fnHash];
+        if (!compiled) throw new Error(`Pure function with name ${fnHash} not found`);
         initPureFunction(compiled);
         return compiled.fn;
     },
-    getPureFn(name: string): PureFunction | undefined {
-        const compiled = pureFnsCache[name];
+    getPureFn(fnHash: string): PureFunction | undefined {
+        const compiled = pureFnsCache[fnHash];
         if (!compiled) return;
         initPureFunction(compiled);
         return compiled.fn;
     },
-    getCompiledPureFn(name: string): CompiledPureFunction | undefined {
-        return pureFnsCache[name];
+    getCompiledPureFn(fnHash: string): CompiledPureFunction | undefined {
+        return pureFnsCache[fnHash];
     },
-    hasPureFn(name: string): boolean {
-        return !!pureFnsCache[name];
+    hasPureFn(fnHash: string): boolean {
+        return !!pureFnsCache[fnHash];
     },
     setSerializableClass<C extends SerializableClass>(cls: C) {
         const className = cls.name;
@@ -251,7 +252,7 @@ export function isSafeMapKeyValue(value: any, depth = 0): boolean {
 function initPureFunction(compiled: CompiledPureFunction): asserts compiled is Required<CompiledPureFunction> {
     if (compiled.fn) return;
     if (process.env.MION_COMPILE === 'true' || process.env.JEST_WORKER_ID !== undefined) {
-        const {paramNames, body} = compiled;
+        const {paramNames, code: body} = compiled;
         try {
             // when testing we immediately add the deserialized function to ensure test are working with deserialized functions
             // this is to ensure that the deserialization process is working correctly
@@ -260,8 +261,8 @@ function initPureFunction(compiled: CompiledPureFunction): asserts compiled is R
             compiled.fn = newWithCtx(jitUtils) as PureFunction;
             return;
         } catch (error: any) {
-            console.warn(`Pure ${compiled.name} can not be deserialized. Function code:\n${compiled.closureFn.toString()}`);
-            throw new Error(`Pure function ${compiled.name} can not be deserialized: ${error?.message}`);
+            console.warn(`Pure ${compiled.fnHash} can not be deserialized. Function code:\n${compiled.closureFn.toString()}`);
+            throw new Error(`Pure function ${compiled.fnHash} can not be deserialized: ${error?.message}`);
         }
     }
     compiled.fn = compiled.closureFn(jitUtils);

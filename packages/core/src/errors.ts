@@ -32,6 +32,12 @@ export class RpcError<ErrType extends StrNumber = any, ErrData = any> extends Er
     /** options data related to the error, ie validation data */
     public readonly errorData?: Readonly<ErrData>;
 
+    // name and message are properties from Native Error but must be added for run-types to work correctly
+    /** original error used to create the RpcError */
+    public readonly name: string;
+    /** the error message, it is private and wont be returned in the response. */
+    public readonly message: string;
+
     constructor({
         statusCode,
         message,
@@ -42,8 +48,10 @@ export class RpcError<ErrType extends StrNumber = any, ErrData = any> extends Er
         id,
         type,
     }: AnyErrorParams<ErrType, ErrData>) {
-        super(message || originalError?.message || publicMessage);
-        super.name = name || statusCodeToReasonPhrase[statusCode] || 'UnknownError';
+        const originalMessage = message || originalError?.message || publicMessage || '';
+        super(originalMessage);
+        this.message = originalMessage;
+        this.name = name || statusCodeToReasonPhrase[statusCode] || 'UnknownError';
         if (originalError?.stack) super.stack = originalError?.stack;
         const {autoGenerateErrorId} = options;
         this.type = type || ('unknown' as any);
@@ -57,8 +65,9 @@ export class RpcError<ErrType extends StrNumber = any, ErrData = any> extends Er
     }
 
     /** returns an error without stack trace an massage is swapped by public message */
-    toPublicError(): PublicRpcError {
-        const err: PublicRpcError = {
+    toPublicError(): PublicRpcError<ErrType, ErrData> {
+        const err: PublicRpcError<ErrType, ErrData> = {
+            type: this.type,
             ...(this.id ? {id: this.id} : {}),
             name: this.name,
             statusCode: this.statusCode,

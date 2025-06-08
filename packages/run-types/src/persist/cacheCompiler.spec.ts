@@ -65,8 +65,8 @@ it('should compile pure functions cache to code', () => {
         closureFn: (jitUtils) => (a: number, b: number) => a + b,
         fn: (a: number, b: number) => a + b,
         paramNames: ['a', 'b'],
-        body: 'return a + b;',
-        name: 'addNumbers',
+        code: 'return a + b;',
+        fnHash: 'addNumbers',
         dependencies: new Set<string>(),
     };
     mockCache['addNumbers'] = mockPureFn;
