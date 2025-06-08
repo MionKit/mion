@@ -462,10 +462,10 @@ function printClosure(fnWithContext: string, functionName: string): string {
     return `function closure_${functionName}(utl){${fnWithContext}}`;
 }
 
-function getJitFnArgs(comp: JitCompilerLike): string {
+export function getJitFnArgs(comp: JitCompilerLike, defaultValues = true): string {
     return Object.entries(comp.args)
         .map(([key, name]) => {
-            if (!comp.defaultParamValues[key]) return name;
+            if (!comp.defaultParamValues[key] || !defaultValues) return name;
             const value = comp.defaultParamValues[key];
             return `${name}=${value}`;
         })
