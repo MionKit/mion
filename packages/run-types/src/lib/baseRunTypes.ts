@@ -26,7 +26,7 @@ import type {
 import type {mockType} from '../mocking/mockType';
 import {jitArgs, jitErrorArgs, JitFunctions, maxStackErrorMessage, CodeType, getCodeType} from '../constants';
 import {ReflectionKind} from '@deepkit/type';
-import type {TypeIndexSignature, TypeProperty, Type, TypeParameter, TypeFunction} from '@deepkit/type';
+import type {TypeIndexSignature, TypeProperty, Type, TypeFunction} from '@deepkit/type';
 import {getPropIndex, memorize, toLiteral} from './utils';
 import {JitErrorsCompiler, JitCompiler, getJITFnHash, createJitCompiler} from './jitCompiler';
 import {type AnyKindName, getReflectionName} from '../constants.kind';
@@ -306,6 +306,7 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
     }
 
     callDependency(currentCop: JitCompiler, depComp: JitCompiledFn): jitCode {
+        if (depComp.isNoop) return ''; // we don't need to call noop functions
         const stackItem = currentCop.getCurrentStackItem();
         const isErrorCall = depComp.fnID === JitFunctions.typeErrors.id || depComp.fnID === JitFunctions.unknownKeyErrors.id;
         const args = isErrorCall ? jitErrorArgs : jitArgs;
@@ -319,7 +320,6 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
         // ie calling context variable: abc.fn();
         // if operation is the same as the current operation we can call the function directly
 
-        // TODO: if depComp is a noop, then we could avoid calling it
         const callCode = isSelf ? `${varName}(${argsCode})` : `${varName}.fn(${argsCode})`;
         if (!isSelf) currentCop.contextCodeItems.set(varName, `const ${varName} = utl.getJIT(${toLiteral(varName)})`);
         if (isErrorCall) {
