@@ -17,11 +17,11 @@ import type {Procedure} from './types/procedures';
 import {HandlerType} from './types/procedures';
 import type {PublicApi, PrivateDef, HooksCollection} from './types/publicProcedures';
 import type {HeaderHookDef, HookDef, RawHookDef} from './types/definitions';
-import {getHandlerReflection} from './jitFunctions';
+import {getHandlerReflection} from './reflection';
 import {bodyParserHooks} from './jsonBodyParser.routes';
 import {getRouterItemId, getRoutePath} from '@mionkit/core/src/core';
 import {setErrorOptions} from '@mionkit/core/src/errors';
-import {getRemoteMethodsMetadata, resetRemoteMethodsMetadata} from './remoteMethodsMetadata';
+import {getPublicApi, resetRemoteMethodsMetadata} from './remoteMethodsMetadata';
 import {clientRoutes} from './client.routes';
 import {getNotFoundExecutionPath} from './notFound';
 import {compileProcedure, getCompiledProcedure} from './compiler';
@@ -112,7 +112,7 @@ export function registerRoutes<R extends Routes>(routes: R): PublicApi<R> {
     endHooks = getExecutablesFromHooksCollection(endHooksDef);
     recursiveFlatRoutes(routes);
     // we only want to get information about the routes when creating api spec
-    if (shouldFullGenerateSpec()) return getRemoteMethodsMetadata(routes);
+    if (shouldFullGenerateSpec()) return getPublicApi(routes);
     return {} as PublicApi<R>;
 }
 
@@ -321,14 +321,14 @@ export function getExecutableFromHook(
     const existing = hooksById.get(hookId);
     if (existing) return existing as HookProcedure;
 
-    type MixedExecutable = (Omit<HookProcedure, 'type'> | Omit<HeaderProcedure, 'type'>) & {
+    type MixedHook = (Omit<HookProcedure, 'type'> | Omit<HeaderProcedure, 'type'>) & {
         type: HandlerType.hook | HandlerType.headerHook;
     };
 
     const compiledProcedure = getCompiledProcedure(hookId, hook.handler);
-    let executable: MixedExecutable;
+    let executable: MixedHook;
     if (compiledProcedure) {
-        executable = compiledProcedure as MixedExecutable;
+        executable = compiledProcedure as MixedHook;
     } else {
         const {handlerRunType, paramsJitFns, returnJitFns, paramNames} = getHandlerReflection(
             hook.handler,

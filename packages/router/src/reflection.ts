@@ -73,7 +73,7 @@ export function getHandlerReflection(handler: Handler, routeId: string, routerOp
     try {
         // paramsJitFns contains all run type functionality for the parameters, it compiles the when the property is first accessed
         reflectionItems.paramsJitFns = getParamsJitFns(handler, routerOptions.runTypeOptions);
-        reflectionItems.paramNames = handlerRunType.getParameterNames();
+        reflectionItems.paramNames = handlerRunType.getParameterNames(routerOptions.runTypeOptions);
     } catch (error: any) {
         throw new Error(`Can not compile Jit Functions for Parameters of route/hook ${routeId}. Error: ${error?.message}`);
     }

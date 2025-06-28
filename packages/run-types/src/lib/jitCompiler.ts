@@ -419,7 +419,7 @@ function compileFunction(comp: BaseCompiler): (...args: any[]) => any {
     if (comp.stack.length !== 0) throw new Error('Can not get compiled function before the compile operation is finished');
     if (jitUtils.hasJitFn(comp.jitFnHash)) return jitUtils.getJitFn(comp.jitFnHash);
     const {fnCode, fnName, contextCode} = getJitFnCode(comp);
-    const {closureFn, fn, code} = createJitFnWithContext(fnName, fnCode, contextCode);
+    const {closureFn, fn, code} = createJitFnWithContext(comp, fnName, fnCode, contextCode);
     (comp as Mutable<BaseCompiler>).code = code;
     (comp as Mutable<BaseCompiler>).fn = fn;
     (comp as Mutable<BaseCompiler>).closureFn = closureFn;
@@ -440,10 +440,20 @@ function getJitFnCode(comp: BaseCompiler): {fnName: string; fnCode: string; cont
  * @param fnCode
  * @returns
  */
-function createJitFnWithContext(fnName: string, fnCode: string, contextCode?: string) {
+function createJitFnWithContext(comp: BaseCompiler, fnName: string, fnCode: string, contextCode?: string) {
     // this function will have jitUtils as context as is an argument of the enclosing function
     const context = contextCode ? `${contextCode};` : '';
-    const fnWithContext = `${context} ${fnCode} return ${fnName};`;
+    let fnWithContext = `${context} ${fnCode} return ${fnName};`;
+    if (process.env.DEBUG_RUN_TIME) {
+        const fnArgs = getJitFnArgs(comp);
+        const argsCall = getJitFnArgs(comp, false);
+        const debugWrapper = `function debug_${fnName}(${fnArgs}){
+            const resp = ${fnName}(${argsCall});
+            console.log('${fnName} ${getJITFnName(comp.fnID)} ${comp.rootType.getTypeName()}', 'result:', resp, ' value:', ${argsCall});
+            return resp;
+        }`;
+        fnWithContext = `${context} ${fnCode} ${debugWrapper} return debug_${fnName};`;
+    }
     try {
         const wrapperWithContext = new Function('utl', fnWithContext) as (utl: JITUtils) => (...args: any[]) => any;
         if (process.env.DEBUG_JIT) console.log(printClosure(fnWithContext, fnName));

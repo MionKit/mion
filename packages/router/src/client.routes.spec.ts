@@ -6,25 +6,127 @@
  * ######## */
 
 import {MionHeaders} from './types/context';
-import {registerRoutes, initRouter, resetRouter} from './router';
+import {registerRoutes, initRouter, resetRouter, getRouteExecutable} from './router';
 import {getRoutePath} from '@mionkit/core/src/core';
 import {GET_REMOTE_METHODS_BY_ID, GET_REMOTE_METHODS_BY_PATH} from '@mionkit/core/src/constants';
 import {hook, rawHook, route} from './handlers';
 import {Routes} from './types/general';
 import {HandlerType} from './types/procedures';
-import {clientRoutes} from './client.routes';
+import {ProceduresData, clientRoutes} from './client.routes';
 import {headersFromRecord} from './headers';
 import {dispatchRoute} from './dispatch';
 import {runType} from '@mionkit/run-types/src/lib/runType';
 import {PublicProcedure} from '@mionkit/router/src/types/publicProcedures'; // do not import type only
 import {JitFunctions} from '@mionkit/run-types/src/constants';
-import {getHandlerReflection} from '@mionkit/router/src/jitFunctions';
-import {DEFAULT_ROUTE_OPTIONS} from '@mionkit/router/src/constants';
+import {getSerializableProcedure} from '@mionkit/router/src/remoteMethodsMetadata';
+import {RpcError} from '@mionkit/core/src/errors';
+import {jitUtils} from '@mionkit/core/src/jitUtils';
 
 type RawRequest = {
     headers: MionHeaders;
     body: string;
 };
+
+describe('PublicProcedures run type functionality', () => {
+    const route1 = route((ctx): string => 'something');
+    const routes = {route1} satisfies Routes;
+
+    type ClientReturn = ProceduresData | RpcError;
+
+    afterEach(() => resetRouter());
+
+    it('can validate PublicProcedure', () => {
+        initRouter();
+        registerRoutes(routes);
+        const executable = getRouteExecutable('route1')!;
+        const publicProcedure = getSerializableProcedure(executable!);
+        const rt = runType<PublicProcedure>();
+        const validate = rt.createJitFunction(JitFunctions.isType);
+        expect(validate(publicProcedure)).toBe(true);
+    });
+
+    it('can validate PublicProcedure  + errors', () => {
+        initRouter();
+        registerRoutes(routes);
+        const executable = getRouteExecutable('route1')!;
+        const publicProcedure = getSerializableProcedure(executable!);
+        const rt = runType<PublicProcedure>();
+        const typeErrors = rt.createJitFunction(JitFunctions.typeErrors);
+        expect(typeErrors(publicProcedure)).toEqual([]);
+    });
+
+    it('can serialize/deserialize PublicProcedure', () => {
+        initRouter();
+        registerRoutes(routes);
+        const executable = getRouteExecutable('route1')!;
+        const publicProcedure = getSerializableProcedure(executable!);
+        const rt = runType<PublicProcedure>();
+        const jsonStringify = rt.createJitFunction(JitFunctions.jsonStringify);
+        const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
+        const roundTrip = fromJsonVal(JSON.parse(jsonStringify(publicProcedure)));
+        // handler procedure does not match it's type, so we need to replace it when comparing deserialized values
+        roundTrip.handler = () => 'something';
+        expect(roundTrip).toEqual({
+            ...publicProcedure,
+            handler: expect.any(Function),
+        });
+    });
+
+    it('can mot mock PublicProcedure because it contains functions', async () => {
+        const rt = runType<PublicProcedure>();
+        await expect(() => rt.mock()).rejects.toThrow();
+    });
+
+    it('can validate return type ClientReturn', () => {
+        const rt = runType<ClientReturn>();
+        const validate = rt.createJitFunction(JitFunctions.isType);
+        expect(validate(new RpcError({statusCode: 400, publicMessage: 'error', message: 'error'}))).toBe(true);
+    });
+
+    it('can validate return type ClientReturn + errors', () => {
+        initRouter();
+        registerRoutes(routes);
+        const executable = getRouteExecutable('route1')!;
+        const publicProcedure = getSerializableProcedure(executable!);
+        const response: ProceduresData = {
+            procedures: {[publicProcedure.id]: publicProcedure},
+            deps: {},
+            purFnDeps: {},
+        };
+        const rt = runType<ClientReturn>();
+        const typeErrors = rt.createJitFunction(JitFunctions.typeErrors);
+        const removeUnknownKeys = rt.createJitFunction(JitFunctions.stripUnknownKeys);
+
+        console.log('response', response);
+        const sanitized = removeUnknownKeys(response);
+        console.log('sanitized', sanitized);
+
+        expect(typeErrors(response)).toEqual([]);
+        expect(typeErrors(new RpcError({statusCode: 400, publicMessage: 'error', message: 'error'}))).toEqual([]);
+    });
+
+    it('can serialize/deserialize return type PublicProcedures | RpcError>', () => {
+        initRouter();
+        registerRoutes(routes);
+        const executable = getRouteExecutable('route1')!;
+        const publicProcedure = getSerializableProcedure(executable!);
+        const response: ProceduresData = {
+            procedures: {[publicProcedure.id]: publicProcedure},
+            deps: {},
+            purFnDeps: {},
+        };
+        const rt = runType<ClientReturn>();
+        const jsonStringify = rt.createJitFunction(JitFunctions.jsonStringify);
+        const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
+        const error = new RpcError({statusCode: 400, publicMessage: 'error', message: 'error'});
+        const roundTrip = fromJsonVal(JSON.parse(jsonStringify(error)));
+        expect(roundTrip instanceof RpcError).toBeTruthy();
+        expect(roundTrip).toEqual(error);
+
+        const roundTrip2 = fromJsonVal(JSON.parse(jsonStringify(response)));
+        expect(roundTrip2).toEqual(response);
+    });
+});
 
 describe('Client Routes should', () => {
     const privateHook = hook((ctx): void => undefined);
@@ -147,6 +249,7 @@ describe('Client Routes should', () => {
             }),
         };
         const response = await dispatchRoute(methodsPath, request.body, request.headers, headersFromRecord({}), request, {});
+        console.log(response.body);
         const expectedResponse = {
             auth: methodsMetadata.auth,
             last: methodsMetadata['last'],

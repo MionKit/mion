@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {AnyObject} from '@mionkit/core/src/types';
+import {AnyObject, JitCompiledFnData, PureFunctionData} from '@mionkit/core/src/types';
 import {RpcError} from '@mionkit/core/src/errors';
 import {GET_REMOTE_METHODS_BY_ID, GET_REMOTE_METHODS_BY_PATH} from '@mionkit/core/src/constants';
 import {
@@ -22,7 +22,7 @@ import {
 import {route} from './handlers';
 import {PublicProcedure} from './types/publicProcedures';
 import {RouterOptions, Routes} from './types/general';
-import {getMethodMetadataFromExecutable} from './remoteMethodsMetadata';
+import {getSerializableProcedure, serializeProcedureDeps} from './remoteMethodsMetadata';
 import {NonRawProcedure, Procedure} from './types/procedures';
 
 export type PublicProcedures = Record<string, PublicProcedure>;
@@ -30,12 +30,19 @@ export interface ClientRouteOptions extends RouterOptions {
     getAllRemoteMethodsMaxNumber?: number;
 }
 
+export interface ProceduresData {
+    procedures: PublicProcedures;
+    deps: Record<string, JitCompiledFnData>;
+    purFnDeps: Record<string, PureFunctionData>;
+}
+
 export const defaultClientRouteOptions = {
     getAllRemoteMethodsMaxNumber: 100,
 };
 
-function addRequiredRemoteMethodsToResponse(id: string, resp: PublicProcedures, errorData: AnyObject): void {
-    if (resp[id]) return;
+function addRequiredRemoteMethodsToResponse(id: string, resp: ProceduresData, errorData: AnyObject): void {
+    const {procedures, deps, purFnDeps} = resp;
+    if (procedures[id]) return;
     const executable = getHookExecutable(id) || getRouteExecutable(id);
     if (!executable) {
         errorData[id] = `Remote Method ${id} not found`;
@@ -43,12 +50,18 @@ function addRequiredRemoteMethodsToResponse(id: string, resp: PublicProcedures, 
     }
     if (isPrivateExecutable(executable)) return;
 
-    resp[id] = getMethodMetadataFromExecutable(executable as NonRawProcedure);
-    resp[id].hookIds?.forEach((hookId) => addRequiredRemoteMethodsToResponse(hookId, resp, errorData));
+    const procedure = getSerializableProcedure(executable as NonRawProcedure);
+    procedures[id] = procedure;
+    procedure.hookIds?.forEach((hookId) => addRequiredRemoteMethodsToResponse(hookId, resp, errorData));
+    serializeProcedureDeps(procedure, deps, purFnDeps);
 }
 
-const getRemoteMethods = (ctx, methodsIds: string[], getAllRemoteMethods?: boolean): PublicProcedures | RpcError => {
-    const resp: PublicProcedures = {};
+const getRemoteMethods = (ctx, methodsIds: string[], getAllRemoteMethods?: boolean): ProceduresData | RpcError => {
+    const resp: ProceduresData = {
+        procedures: {},
+        deps: {},
+        purFnDeps: {},
+    };
     const errorData = {};
     const maxMethods =
         getRouterOptions<ClientRouteOptions>().getAllRemoteMethodsMaxNumber ||
@@ -74,7 +87,7 @@ const getRemoteMethods = (ctx, methodsIds: string[], getAllRemoteMethods?: boole
     return resp;
 };
 
-const getRouteRemoteMethods = (ctx, path: string, getAllRemoteMethods?: boolean): PublicProcedures | RpcError => {
+const getRouteRemoteMethods = (ctx, path: string, getAllRemoteMethods?: boolean): ProceduresData | RpcError => {
     const executables = getRouteExecutionPath(path);
     if (!executables)
         return new RpcError({

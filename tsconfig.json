@@ -10,7 +10,7 @@
     "emitDecoratorMetadata": true,
     "experimentalDecorators": true,
     "target": "es2020",
-    "lib": ["es6", "ES2021"],
+    "lib": ["es6", "ES2023"],
     "outDir": ".dist/cjs",
     "composite": false,
     "declaration": false,
@@ -18,9 +18,9 @@
     "incremental": true,
     "sourceMap": true,
     "paths": {
-      "@mionkit/*": ["packages/*"],
-    },
+      "@mionkit/*": ["packages/*"]
+    }
   },
   "exclude": ["node_modules", ".dist"],
-  "reflection": true,
+  "reflection": true
 }
