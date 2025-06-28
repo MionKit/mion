@@ -208,14 +208,14 @@ describe('Union Arr', () => {
 describe('Union Obj', () => {
     type UnionObj = {a: string; aa: boolean} | {b: number} | {c: bigint} | {d?: string};
 
-    const objA: UnionObj = {a: 'hello', b: 123, c: 1n}; // unlike typescript we don't allow mix of properties in the union
+    const objA: UnionObj = {a: 'hello', b: 123, c: 1n}; // now valid - matches {d?: string} with extra properties
     const objB: UnionObj = {a: 'world', aa: true};
     const objC: UnionObj = {c: 1n};
     const objD: UnionObj = {d: 'hello'};
     const objE: UnionObj = {};
     const notA = {a: 'hello'}; // missing aa property
     const notB = {b: 'hello'}; // properties of the union must be of the correct type
-    const notC = {a: 'hello', d: 'extra'}; // extra properties are not allowed in the union
+    const objWithExtra = {a: 'hello', d: 'extra'}; // now valid - missing aa but has extra property d
     const notD = {d: 123}; // properties of the union must be of the correct type
 
     const rt = runType<UnionObj>();
@@ -223,7 +223,7 @@ describe('Union Obj', () => {
     it('validate union', () => {
         const validate = rt.createJitFunction(JitFunctions.isType);
 
-        expect(validate(objA)).toBe(false); // mix of properties is not allowed in the union
+        expect(validate(objA)).toBe(true); // now valid - matches {d?: string} with extra properties
         expect(validate(objB)).toBe(true);
         expect(validate(objC)).toBe(true);
         expect(validate(objD)).toBe(true);
@@ -231,7 +231,7 @@ describe('Union Obj', () => {
 
         expect(validate(notA)).toBe(false);
         expect(validate(notB)).toBe(false);
-        expect(validate(notC)).toBe(false);
+        expect(validate(objWithExtra)).toBe(true); // now valid - extra properties are ignored
         expect(validate(notD)).toBe(false);
         expect(validate([])).toBe(false);
     });
@@ -252,19 +252,19 @@ describe('Union Obj', () => {
 
         const not1 = {a: 'hello'}; // missing aa property
         const not2 = {b: 'hello'}; // properties of the union must be of the correct type
-        const not3 = {a: 'hello', d: 'extra'}; // extra properties are not allowed in the union
+        const objWithExtra = {a: 'hello', d: 'extra'}; // now valid - extra properties are ignored
         const not4 = {c: 1n, d: 'hello'}; // properties of the union must be of the correct type
 
         expect(validate(not1)).toBe(false);
         expect(validate(not2)).toBe(false);
-        expect(validate(not3)).toBe(false);
+        expect(validate(objWithExtra)).toBe(true); // now valid - extra properties are ignored
         expect(validate(not4)).toBe(false);
     });
 
     it('validate union + errors', () => {
         const valWithErrors = rt.createJitFunction(JitFunctions.typeErrors);
 
-        expect(valWithErrors(objA)).toEqual([{path: [], expected: 'union'}]); // mix of properties is not allowed in the union
+        expect(valWithErrors(objA)).toEqual([]); // now valid - matches {d?: string} with extra properties
         expect(valWithErrors(objB)).toEqual([]);
         expect(valWithErrors(objC)).toEqual([]);
         expect(valWithErrors(objD)).toEqual([]);
@@ -272,7 +272,7 @@ describe('Union Obj', () => {
 
         expect(valWithErrors(notA)).toEqual([{path: [], expected: 'union'}]);
         expect(valWithErrors(notB)).toEqual([{path: [], expected: 'union'}]);
-        expect(valWithErrors(notC)).toEqual([{path: [], expected: 'union'}]);
+        expect(valWithErrors(objWithExtra)).toEqual([]); // now valid - extra properties are ignored
         expect(valWithErrors(notD)).toEqual([{path: [], expected: 'union'}]);
     });
 
@@ -476,11 +476,11 @@ describe('Union Mixed', () => {
 
     const mixA: UnionMix = ['a', 'b', 'c'];
     const mixB: UnionMix = {a: 'hello', aa: true};
-    const mixC: UnionMix = {b: 123, c: 123n}; // typescript allow mixed properties of objects, but we don't
+    const mixC: UnionMix = {b: 123, c: 123n}; // now valid - matches {b: number} with extra properties
     const mixD: UnMixD = {d: new Date()}; // although is not a class instance, it has the same properties so is true
     const notMixA = [1, 'b'];
     const notMixB = {};
-    const notMixC = {a: 'hello', aa: true, j: 'extra'}; // union uses strict assertion that checks for extra properties
+    const objWithExtra = {a: 'hello', aa: true, j: 'extra'}; // now valid - extra properties are ignored
     const notMixD = {a: 'hello', d: 'world'}; // expect aa property
 
     const mix2A: UnMix2 = {a: true};
@@ -497,14 +497,14 @@ describe('Union Mixed', () => {
 
         expect(validate(mixA)).toBe(true);
         expect(validate(mixB)).toBe(true);
-        expect(validate(mixC)).toBe(false); // we don't allow mixed properties in the union
+        expect(validate(mixC)).toBe(true); // now valid - matches {b: number} with extra properties
         expect(validate(mixD)).toBe(true);
 
         expect(validate(notMixA)).toBe(false);
         expect(validate(notMixB)).toBe(false);
         expect(validate(notMixD)).toBe(false);
 
-        expect(validate(notMixC)).toBe(false); // union type does check for extra properties so object with extra properties are not valid
+        expect(validate(objWithExtra)).toBe(true); // now valid - extra properties are ignored
     });
 
     // for UnMix2 the 'a' property is merged into a single union prop, so 'a' accepts both boolean and number
@@ -527,7 +527,7 @@ describe('Union Mixed', () => {
 
         expect(valWithErrors(notMixA)).toEqual([{path: [], expected: 'union'}]);
         expect(valWithErrors(notMixB)).toEqual([{path: [], expected: 'union'}]);
-        expect(valWithErrors(notMixC)).toEqual([{path: [], expected: 'union'}]);
+        expect(valWithErrors(objWithExtra)).toEqual([]); // now valid - extra properties are ignored
     });
 
     it('encode/decode to json', () => {
@@ -590,7 +590,7 @@ describe('Union circular', () => {
         const arrRec2: UnionC = [[123], 3, [3, 'hello']];
 
         const notA = true;
-        const notB = {c: 'hello'}; // note existing properties are not allowed in the union
+        const notB = {c: 'hello'}; // now valid - extra properties are ignored, matches {a?: UnionC; b?: string}
         const notC = {a: true}; // properties of the union must be of the correct type
         return {d, n, s, recA, o1, a, a2, arrRec0, arrRec1, arrRec2, notA, notB, notC};
     }
@@ -613,7 +613,7 @@ describe('Union circular', () => {
         expect(validate(arrRec2)).toBe(true);
 
         expect(validate(notA)).toBe(false);
-        expect(validate(notB)).toBe(false);
+        expect(validate(notB)).toBe(true); // now valid - extra properties are ignored
         expect(validate(notC)).toBe(false);
     });
 
@@ -633,7 +633,7 @@ describe('Union circular', () => {
 
         // union errors return empty path always, as we can't know which type of the union the user was trying to use.
         expect(valWithErrors(notA)).toEqual([{path: [], expected: 'union'}]);
-        expect(valWithErrors(notB)).toEqual([{path: [], expected: 'union'}]);
+        expect(valWithErrors(notB)).toEqual([]); // now valid - extra properties are ignored
         expect(valWithErrors(notC)).toEqual([{path: [], expected: 'union'}]);
     });
 

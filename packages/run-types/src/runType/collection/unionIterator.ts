@@ -95,10 +95,8 @@ export function iterateAndCompileUnionEncode(
         const entries = Array.from(propsByUnionItem.entries());
         const checkObjectsCode = entries.map(([objItem, props]) => {
             const IF = !flatObjsIf ? 'if' : 'else if';
-            const children = objItem.getJitChildren(comp);
             const checkAllProps = props.map((propItem) => propItem.compiledName);
-            // if all properties are optional we need to check that there are no properties from other types
-            if (objItem.areAllChildrenOptional(children)) checkAllProps.push('!' + unknownPropCode);
+            // For union types, we ignore extra properties and only check required properties
             const checkCode = checkAllProps.filter(Boolean).join(' && ');
             const cbCode = encodeUnionType({rt: objItem, unionIndex: uRT.getUnionItemIndex(comp, objItem)});
             if (!checkCode || !cbCode) return '';
@@ -208,10 +206,8 @@ export function iterateAndCompileUnionDecode(
         const entries = Array.from(propsByUnionItem.entries());
         const checkObjectsCode = entries.map(([objItem, props]) => {
             const IF = !flatObjsIf ? 'if' : 'else if';
-            const children = objItem.getJitChildren(comp);
             const checkAllProps = props.map((propItem) => propItem.compiledName);
-            // if all properties are optional we need to check that there are no properties from other types
-            if (objItem.areAllChildrenOptional(children)) checkAllProps.push('!' + unknownPropCode);
+            // For union types, we ignore extra properties and only check required properties
             const checkCode = checkAllProps.filter(Boolean).join(' && ');
             const cbCode = decodeUnionType({rt: objItem, unionIndex: uRT.getUnionItemIndex(comp, objItem)});
             if (!checkCode || !cbCode) return '';
@@ -303,18 +299,15 @@ export function compileIsTypeUnion(comp: JitCompiler, uRT: UnionRunType): string
         const entries = Array.from(propsByUnionItem.entries());
         const unionItemsCheck = entries
             .map(([objItem, propItems]) => {
-                const children = propItems.map((item) => item.prop);
                 const checkAllProps = propItems.map((item) => item.compiledName);
-                // if all properties are optional we need to check that there are no properties from other types
-                if (objItem.areAllChildrenOptional(children))
-                    checkAllProps.push('!' + callCheckUnknownProperties(objItem, comp, children, false, false));
+                // For union types, we ignore extra properties and only check required properties
                 const checkCode = checkAllProps.filter(Boolean).join(' && ');
                 if (!checkCode) return '';
                 return checkCode;
             })
             .filter(Boolean)
             .join(' || ');
-        return `if ((${unionItemsCheck}) && !${unknownPropCode}) return true;`;
+        return `if (${unionItemsCheck}) return true;`;
     };
 
     const onIsTypeIndexItems = (items: PlainItem[]) => {

@@ -54,24 +54,12 @@ export class UnionRunType extends CollectionRunType<TypeUnion> {
         return index;
     }
 
-    getChildStrictIsType(rt: BaseRunType, comp: JitCompiler) {
-        const isTypeCode = rt.compileIsType(comp);
-        const isTypeWithProperties =
-            isInterfaceRunType(rt) || isClassRunType(rt) || isObjectLiteralRunType(rt) || isIntersectionRunType(rt);
-        if (!isTypeWithProperties || rt.getFamily() !== 'C') return isTypeCode;
-        const props = rt.getJitChildren(comp);
-        const hasIndexProperty = props.some((prop) => prop.src.kind === ReflectionKind.indexSignature);
-        if (hasIndexProperty) return isTypeCode;
-        const codeHasUnknown = rt.compileHasUnknownKeys(comp);
-        return codeHasUnknown ? `(${isTypeCode} && !${codeHasUnknown})` : `${isTypeCode}`;
-    }
-
     _compileIsType(comp: JitCompiler): jitCode {
         const {regularTypes, objectTypes} = this.getUnionChildren(comp);
-        const items = regularTypes.map((rt) => this.getChildStrictIsType(rt, comp));
+        const items = regularTypes.map((rt) => rt.compileIsType(comp));
         const checkItems = items.filter(Boolean).join(' || ');
         if (!objectTypes.length) return `(${checkItems})`;
-        const objItems = objectTypes.map((rt) => this.getChildStrictIsType(rt, comp));
+        const objItems = objectTypes.map((rt) => rt.compileIsType(comp));
         const objCode = objItems.filter(Boolean).join(' || ');
         const checkObjs = `(typeof ${comp.vλl} === 'object' && ${comp.vλl} !== null && (${objCode}))`;
         return `(${[checkItems, checkObjs].filter(Boolean).join(' || ')})`;
@@ -105,7 +93,7 @@ export class UnionRunType extends CollectionRunType<TypeUnion> {
                 const childCode = child.compileToJsonVal(comp) || '';
                 const isExpression = childIsExpression(JitFunctions.toJsonVal.id, child);
                 const encodeCode = isExpression && childCode ? `${comp.vλl} = ${childCode};` : childCode;
-                const itemIsType = this.getChildStrictIsType(child, comp);
+                const itemIsType = child.compileIsType(comp);
                 // item encoded before reassigning varName to [i, item]
                 const index = this.getUnionItemIndex(comp, child);
                 return `${iF} (${itemIsType}) {${encodeCode} ${comp.vλl} = [${index}, ${comp.vλl}]}`;
