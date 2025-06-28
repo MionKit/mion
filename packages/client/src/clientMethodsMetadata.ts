@@ -92,15 +92,15 @@ function getFunctionReflection(paramsFns: SerializableJITFunctions, responseFns:
     const jitParams = {
         isType: restoreJitFunction(paramsFns.isType),
         typeErrors: restoreJitFunction(paramsFns.typeErrors),
-        jsonEncode: restoreJitFunction(paramsFns.jsonEncode),
-        jsonDecode: restoreJitFunction(paramsFns.jsonDecode),
+        toJsonVal: restoreJitFunction(paramsFns.toJsonVal),
+        fromJsonVal: restoreJitFunction(paramsFns.fromJsonVal),
         jsonStringify: restoreJitFunction(paramsFns.jsonStringify),
     };
     const jitResponse = {
         isType: restoreJitFunction(responseFns.isType),
         typeErrors: restoreJitFunction(responseFns.typeErrors),
-        jsonEncode: restoreJitFunction(responseFns.jsonEncode),
-        jsonDecode: restoreJitFunction(responseFns.jsonDecode),
+        toJsonVal: restoreJitFunction(responseFns.toJsonVal),
+        fromJsonVal: restoreJitFunction(responseFns.fromJsonVal),
         jsonStringify: restoreJitFunction(responseFns.jsonStringify),
     };
     return {

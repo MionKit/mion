@@ -62,8 +62,8 @@ export function registerPureFnClosuresGroup(fnsWithCtx: PureFunctionClosure[]): 
     const compiledFns = fnsWithCtx.map((fn) => registerPureFnClosure(fn));
     compiledFns.forEach((cfn) => {
         compiledFns.forEach((cf) => {
-            if (cfn.fnHash === cf.fnHash) return;
-            cf.dependencies.add(cfn.fnHash);
+            if (cfn.pureFnHash === cf.pureFnHash) return;
+            cf.dependencies.add(cfn.pureFnHash);
         });
     });
     return compiledFns;
@@ -198,7 +198,7 @@ function parsePureFunctionWithCtx(closureFn: PureFunctionClosure): CompiledPureF
     const compiled: CompiledPureFunction = {
         closureFn: closureFn,
         fn: null as any, // will be set later so all possible dependencies are resolved
-        fnHash: getPureFunctionKey(closureFn.name),
+        pureFnHash: getPureFunctionKey(closureFn.name),
         paramNames,
         code: body,
         dependencies: new Set<string>(),

@@ -5,13 +5,12 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import type {RpcError} from '@mionkit/core/src/errors';
-import type {SerializableJITFunctions} from '@mionkit/core/src/types';
-import type {CallContext} from './context';
-import type {Routes} from './general';
-import type {HandlerType} from './procedures';
-import type {Handler} from './handlers';
-import type {HeaderHookDef, HookDef, RawHookDef, RouteDef} from './definitions';
+import {RpcError} from '@mionkit/core/src/errors';
+import {CallContext} from './context';
+import {Routes} from './general';
+import {HandlerType, Procedure} from './procedures';
+import {Handler} from './handlers';
+import {HeaderHookDef, HookDef, RawHookDef, RouteDef} from './definitions';
 
 // ####### Raw Hooks #######
 
@@ -60,31 +59,36 @@ export type PublicApi<Type extends Routes> = {
     //         : never;
 };
 
-// quite similar to Executable but omits some server only properties
-export interface PublicProcedure<H extends Handler = any> {
-    id: string;
-    type: HandlerType;
+export type SerializableJitHashes = {
+    isType: string;
+    typeErrors: string;
+    toJsonVal: string;
+    fromJsonVal: string;
+    jsonStringify: string;
+};
+
+// quite similar to PublicProcedure but omits some server only properties
+export interface PublicProcedure<H extends Handler = any>
+    extends Pick<Procedure<H>, 'type' | 'id' | 'headerNames' | 'paramNames'> {
     /** Type reference to the route handler, it's runtime value is actually null, just used statically by typescript. */
     handler: PublicHandler<H>;
-    /** data and code required to build the functions to serialize and validate handler parameters  */
-    paramsJitFns: SerializableJITFunctions;
-    /** data and code required to build the functions to serialize and validate handler return  */
-    returnJitFns: SerializableJITFunctions;
+    /** ids of the jit functions used by the params of the handler */
+    paramsJitHashes: SerializableJitHashes;
+    /** ids of the jit functions used by the return of the handler */
+    returnJitHashes: SerializableJitHashes;
     hookIds?: string[];
     pathPointers?: string[][];
-    headerNames?: string[];
-    paramNames: string[];
 }
 
 /** Public map from Routes, handler type is the same as router's handler but does not include the context  */
-export interface PublicRouteProcedure<H extends Handler = any> extends PublicProcedure<H> {
+export interface PublicHookProcedure<H extends Handler = any> extends PublicProcedure<H> {
     type: HandlerType.route;
     hookIds: string[];
     headerNames: undefined;
 }
 
 /** Public map from Hooks, handler type is the same as hooks's handler but does not include the context  */
-export interface PublicHookProcedure<H extends Handler = any> extends PublicProcedure<H> {
+export interface PublicRouteProcedure<H extends Handler = any> extends PublicProcedure<H> {
     type: HandlerType.hook;
     pathPointers: undefined;
 }

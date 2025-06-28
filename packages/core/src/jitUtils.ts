@@ -98,7 +98,7 @@ export const jitUtils: JITUtils = {
         return null;
     },
     addPureFn(compiledFn: CompiledPureFunction) {
-        const fnHash = compiledFn.fnHash;
+        const fnHash = compiledFn.pureFnHash;
         if (!fnHash) throw new Error('Pure function must have a name and must be unique');
         const existing = pureFnsCache[fnHash];
         if (existing) return existing;
@@ -261,8 +261,8 @@ function initPureFunction(compiled: CompiledPureFunction): asserts compiled is R
             compiled.fn = newWithCtx(jitUtils) as PureFunction;
             return;
         } catch (error: any) {
-            console.warn(`Pure ${compiled.fnHash} can not be deserialized. Function code:\n${compiled.closureFn.toString()}`);
-            throw new Error(`Pure function ${compiled.fnHash} can not be deserialized: ${error?.message}`);
+            console.warn(`Pure ${compiled.pureFnHash} can not be deserialized. Function code:\n${compiled.closureFn.toString()}`);
+            throw new Error(`Pure function ${compiled.pureFnHash} can not be deserialized: ${error?.message}`);
         }
     }
     compiled.fn = compiled.closureFn(jitUtils);

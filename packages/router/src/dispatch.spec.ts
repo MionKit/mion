@@ -228,6 +228,7 @@ describe('Dispatch routes', () => {
             // not found returns a different element in body as regular hooks or routes
             const error = response.body['/abcd'];
             expect(error).toEqual({
+                type: 'unknown',
                 statusCode: 404,
                 name: 'Not Found',
                 message: 'Route not found',
@@ -250,6 +251,7 @@ describe('Dispatch routes', () => {
             );
             const error = response.body?.auth;
             expect(error).toEqual({
+                type: 'unknown',
                 statusCode: 400,
                 name: 'Validation Error',
                 message: `Invalid params in 'auth', validation failed.`,
@@ -276,10 +278,11 @@ describe('Dispatch routes', () => {
             );
             const error = response.body['mionParseJsonRequestBody'];
             expect(error).toEqual({
+                type: 'unknown',
                 statusCode: 400,
                 name: 'Invalid Request Body',
                 message: 'Wrong request body. Expecting an json body containing the route name and parameters.',
-            });
+            } satisfies PublicRpcError);
 
             const request2: RawRequest = {
                 headers: headersFromRecord({}),
@@ -296,6 +299,7 @@ describe('Dispatch routes', () => {
             );
             const errorResp = response2.body['mionParseJsonRequestBody'];
             expect(errorResp).toEqual({
+                type: 'unknown',
                 statusCode: 422,
                 name: 'Parsing Request Body Error',
                 message: expect.stringContaining('Invalid request body:'), // Nodejs error is slightly different depending on node version
@@ -318,10 +322,11 @@ describe('Dispatch routes', () => {
             );
             const error = response.body['changeUserName'];
             expect(error).toEqual({
+                type: 'unknown',
                 statusCode: 400,
                 name: `Validation Error`,
                 message: `Invalid params in 'changeUserName', validation failed.`,
-                errorData: [{expected: '[user:object<name:string, surname:string>]', path: ''}],
+                errorData: [{expected: 'object', path: [0]}],
             } satisfies PublicRpcError);
         });
 
@@ -341,6 +346,7 @@ describe('Dispatch routes', () => {
             );
             const error = response.body['getSameDate'];
             expect(error).toEqual({
+                type: 'unknown',
                 statusCode: 400,
                 name: 'Serialization Error',
                 message: `Invalid params 'getSameDate', can not deserialize. Parameters might be of the wrong type.`,
@@ -364,10 +370,11 @@ describe('Dispatch routes', () => {
                 {}
             );
             const expected: PublicRpcError = {
+                type: 'unknown',
                 name: 'Validation Error',
                 statusCode: 400,
                 message: `Invalid params in 'changeUserName', validation failed.`,
-                errorData: [{expected: 'string', path: '/user/name'}],
+                errorData: [{expected: 'string', path: [0, 'name']}],
             };
             const error = response.body['changeUserName'];
             expect(error).toEqual(expected);
@@ -388,12 +395,13 @@ describe('Dispatch routes', () => {
                 {}
             );
             const expected: PublicRpcError = {
+                type: 'unknown',
                 name: 'Validation Error',
                 statusCode: 400,
                 message: `Invalid params in 'changeUserName', validation failed.`,
                 errorData: [
-                    {expected: 'string', path: '/user/name'},
-                    {expected: 'string', path: '/user/surname'},
+                    {expected: 'string', path: [0, 'name']},
+                    {expected: 'string', path: [0, 'surname']},
                 ],
             };
             const error = response.body['changeUserName'];
@@ -413,6 +421,7 @@ describe('Dispatch routes', () => {
             const response = await dispatchRoute('/routeFail', request.body, request.headers, headersFromRecord({}), request, {});
             const error = response.body['routeFail'];
             expect(error).toEqual({
+                type: 'unknown',
                 statusCode: 500,
                 name: 'Unknown Error',
                 message: 'Unknown error in step 1 of route execution path.',
@@ -437,6 +446,7 @@ describe('Dispatch routes', () => {
             );
             const error = response.body['getSameDate'];
             expect(error).toEqual({
+                type: 'unknown',
                 statusCode: 400,
                 message: `Invalid params 'getSameDate', can not validate parameters.`,
                 name: 'Validation Error',

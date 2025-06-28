@@ -121,7 +121,7 @@ function serializeParameters(params: any[], method: PublicProcedure, paramsJit?:
     if (!paramsJit) return params;
     if (params.length && method.deserializeParams) {
         try {
-            params = paramsJit.jsonEncode.fn(params) as JSONValue[];
+            params = paramsJit.toJsonVal.fn(params) as JSONValue[];
         } catch (e: any | Error) {
             return new RpcError({
                 statusCode: StatusCodes.BAD_REQUEST,
@@ -160,7 +160,7 @@ function deSerializeReturn(response: any | RpcError, method: PublicProcedure, re
     try {
         if (response instanceof RpcError) return response;
         if (isRpcError(response)) return new RpcError(response);
-        const ret = returnJit.jsonDecode.fn(response);
+        const ret = returnJit.fromJsonVal.fn(response);
         return ret;
     } catch (e: any) {
         return new RpcError({

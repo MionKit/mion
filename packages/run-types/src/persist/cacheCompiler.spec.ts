@@ -66,7 +66,7 @@ it('should compile pure functions cache to code', () => {
         fn: (a: number, b: number) => a + b,
         paramNames: ['a', 'b'],
         code: 'return a + b;',
-        fnHash: 'addNumbers',
+        pureFnHash: 'addNumbers',
         dependencies: new Set<string>(),
     };
     mockCache['addNumbers'] = mockPureFn;

@@ -5,12 +5,23 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {getRemoteMethodsMetadata} from './remoteMethodsMetadata';
+import {getPublicApi} from './remoteMethodsMetadata';
 import {registerRoutes, initRouter, resetRouter} from './router';
 import {CallContext} from './types/context';
 import {Routes} from './types/general';
 import {HandlerType} from './types/procedures';
 import {hook, rawHook, route} from './handlers';
+import {jitUtils} from '@mionkit/core/src/jitUtils';
+
+function hasSerializableHashes(paramNames?: string[]) {
+    return {
+        isType: expect.any(String),
+        typeErrors: expect.any(String),
+        toJsonVal: expect.any(String),
+        fromJsonVal: expect.any(String),
+        jsonStringify: expect.any(String),
+    };
+}
 
 describe('Public Methods should', () => {
     const privateHook = hook((ctx): void => undefined);
@@ -60,50 +71,27 @@ describe('Public Methods should', () => {
         };
         const api = registerRoutes(testR);
 
-        expect(api).toEqual({
-            auth: expect.objectContaining({
+        expect(api.auth).toEqual(
+            expect.objectContaining({
                 type: HandlerType.hook,
                 handler: 'auth', // to be used by codegen so need to be a valid js syntax
                 id: 'auth',
-                paramsJitFns: {
-                    isType: {varNames: expect.any(Array), code: expect.any(String)},
-                    typeErrors: {varNames: expect.any(Array), code: expect.any(String)},
-                    jsonDecode: {varNames: expect.any(Array), code: expect.any(String)},
-                    jsonEncode: {varNames: expect.any(Array), code: expect.any(String)},
-                    jsonStringify: {varNames: expect.any(Array), code: expect.any(String)},
-                },
-                returnJitFns: {
-                    isType: {varNames: expect.any(Array), code: expect.any(String)},
-                    typeErrors: {varNames: expect.any(Array), code: expect.any(String)},
-                    jsonDecode: {varNames: expect.any(Array), code: expect.any(String)},
-                    jsonEncode: {varNames: expect.any(Array), code: expect.any(String)},
-                    jsonStringify: {varNames: expect.any(Array), code: expect.any(String)},
-                },
+                paramsJitHashes: hasSerializableHashes(['s']),
+                returnJitHashes: hasSerializableHashes(),
                 paramNames: ['s'],
-            }),
-            routes: {
-                route1: expect.objectContaining({
-                    type: HandlerType.route,
-                    handler: 'routes.route1', // to be used by codegen so need to be a valid js syntax
-                    id: 'routes-route1',
-                    paramsJitFns: {
-                        isType: {varNames: expect.any(Array), code: expect.any(String)},
-                        typeErrors: {varNames: expect.any(Array), code: expect.any(String)},
-                        jsonDecode: {varNames: expect.any(Array), code: expect.any(String)},
-                        jsonEncode: {varNames: expect.any(Array), code: expect.any(String)},
-                        jsonStringify: {varNames: expect.any(Array), code: expect.any(String)},
-                    },
-                    returnJitFns: {
-                        isType: {varNames: expect.any(Array), code: expect.any(String)},
-                        typeErrors: {varNames: expect.any(Array), code: expect.any(String)},
-                        jsonDecode: {varNames: expect.any(Array), code: expect.any(String)},
-                        jsonEncode: {varNames: expect.any(Array), code: expect.any(String)},
-                        jsonStringify: {varNames: expect.any(Array), code: expect.any(String)},
-                    },
-                    paramNames: [],
-                }),
-            },
-        });
+            })
+        );
+
+        expect(api.routes.route1).toEqual(
+            expect.objectContaining({
+                type: HandlerType.route,
+                handler: 'routes.route1', // to be used by codegen so need to be a valid js syntax
+                id: 'routes-route1',
+                paramsJitHashes: hasSerializableHashes([]),
+                returnJitHashes: hasSerializableHashes(),
+                paramNames: [],
+            })
+        );
     });
 
     it('be able to convert serialized handler types to json, deserialize and use them for validation', () => {
@@ -112,13 +100,19 @@ describe('Public Methods should', () => {
             addMilliseconds: route((ctx, ms: number, date: Date): number => date.setMilliseconds(date.getMilliseconds() + ms)),
         };
         const api = registerRoutes(testR);
-        const serializedFnParams = api.addMilliseconds.paramsJitFns;
-        const isTypeParams = serializedFnParams.isType.paramNames || [];
-        const jsonDecodeParams = serializedFnParams.fromJsonVal.paramNames || [];
-        const jsonEncodeParams = serializedFnParams.toJsonVal.paramNames || [];
-        const isType = new Function(...isTypeParams, serializedFnParams.isType.code);
-        const jsonDecode = new Function(...jsonDecodeParams, serializedFnParams.fromJsonVal.code);
-        const jsonEncode = new Function(...jsonEncodeParams, serializedFnParams.toJsonVal.code);
+
+        const compiledIsType = jitUtils.getJIT(api.addMilliseconds.paramsJitHashes.isType)!;
+        const compiledFromJsonVal = jitUtils.getJIT(api.addMilliseconds.paramsJitHashes.fromJsonVal)!;
+        const compiledToJsonVal = jitUtils.getJIT(api.addMilliseconds.paramsJitHashes.toJsonVal)!;
+
+        const isTypeClosure = new Function('utl', compiledIsType.code);
+        const fromJsonValClosure = new Function('utl', compiledFromJsonVal.code);
+        const toJsonValClosure = new Function('utl', compiledToJsonVal.code);
+
+        const isType = isTypeClosure(jitUtils);
+        const fromJsonVal = fromJsonValClosure(jitUtils);
+        const toJsonVal = toJsonValClosure(jitUtils);
+
         const date = new Date('2022-12-19T00:24:00.00');
 
         // ###### Validation ######
@@ -128,11 +122,11 @@ describe('Public Methods should', () => {
         expect(isType(['noNumber', new Date('noDate')])).toEqual(false);
 
         // ###### Serialization ######
-        const deserialized = jsonDecode([123, '2022-12-19T00:24:00.00']);
+        const deserialized = fromJsonVal([123, '2022-12-19T00:24:00.00']);
         expect(deserialized).toEqual([123, date]);
 
         // ###### Deserialization ######
-        const serialized = jsonEncode([123, date]);
+        const serialized = toJsonVal([123, date]);
         expect(serialized).toEqual([123, date]);
     });
 
@@ -204,10 +198,10 @@ describe('Public Methods should', () => {
     it('should throw an error when route or hook is not already created in the router', () => {
         const testR1 = {route1};
         const testR2 = {hook1: paramsHook};
-        expect(() => getRemoteMethodsMetadata(testR1)).toThrow(
+        expect(() => getPublicApi(testR1)).toThrow(
             `Route or Hook route1 not found. Please check you have called router.registerRoutes first.`
         );
-        expect(() => getRemoteMethodsMetadata(testR2)).toThrow(
+        expect(() => getPublicApi(testR2)).toThrow(
             `Route or Hook hook1 not found. Please check you have called router.registerRoutes first.`
         );
     });
@@ -218,6 +212,6 @@ describe('Public Methods should', () => {
             sayHello: route((ctx: CallContext, name: string): string => `Hello ${name}`),
         };
         const api = registerRoutes(routes);
-        expect(api.sayHello.paramNames.length).toEqual(1);
+        expect(api.sayHello.paramNames?.length).toEqual(1);
     });
 });

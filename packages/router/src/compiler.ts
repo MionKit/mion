@@ -14,7 +14,7 @@ import {NonRawProcedure, ProcedureOptions} from './types/procedures';
 import {AnyHandler} from './types/handlers';
 import {IS_TEST_ENV} from './constants';
 import {rΦutεs} from './_compiled/routes'; // inception 🔁
-import {getProceduresToCodeFn} from '@mionkit/router/src/jitFunctions';
+import {getProceduresToCodeFn} from '@mionkit/router/src/reflection';
 
 // ############# PUBLIC METHODS #############
 

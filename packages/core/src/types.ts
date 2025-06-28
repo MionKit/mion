@@ -179,14 +179,19 @@ export type PureFunction = (...args: any[]) => any;
  */
 export type PureFunctionClosure = (jitUtils: JITUtils) => PureFunction;
 
-export interface PureFunctionProps {
-    paramNames: string[];
-    code: string;
-    fnHash: string;
-    dependencies: Set<string>;
+/** Data for a pure function that can be serialized and deserialized. */
+export interface PureFunctionData {
+    /** The names of the arguments of the function */
+    readonly paramNames: string[];
+    /** The code of the function closure */
+    readonly code: string;
+    /** Unique id of the function */
+    readonly pureFnHash: string;
+    /** The list of all pure functions that are used by this function and it's children. */
+    readonly dependencies: Set<string>;
 }
 
-export interface CompiledPureFunction extends PureFunctionProps {
+export interface CompiledPureFunction extends PureFunctionData {
     closureFn: PureFunctionClosure;
     fn?: PureFunction;
 }
@@ -260,8 +265,6 @@ export type ToCodeFn = (value: any) => string;
 
 export type JitFunctionsCache = Record<string, JitCompiledFn>;
 export type PureFunctionsCache = Record<string, CompiledPureFunction>;
-export type JitSerializableFunctionsCache = Record<string, JitCompiledFnData>;
-export type PureSerializableFunctionsCache = Record<string, PureFunctionProps>;
 
 // ########################################### JIT SRC CODE ####################################
 
@@ -281,7 +284,7 @@ export interface SrcCodeJitCompiledFn extends JitCompiledFnData {
     /** The Jit Generated function once the compilation is finished */
     readonly fn: undefined;
 }
-export interface SrcCodeCompiledPureFunction extends PureFunctionProps {
+export interface SrcCodeCompiledPureFunction extends PureFunctionData {
     /** The closure function that contains the jit function, this one contains the context code */
     readonly closureFn: (utl: JITUtils) => AnyFn;
     /** The Jit Generated function once the compilation is finished */

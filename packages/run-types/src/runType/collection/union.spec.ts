@@ -8,7 +8,6 @@ import {UnionRunType} from '@mionkit/run-types/src/runType/collection/union';
 import {JitFunctions} from '../../constants';
 import {BaseRunType} from '../../lib/baseRunTypes';
 import {runType} from '../../lib/runType';
-import {jitUtils} from '@mionkit/core/src/jitUtils';
 
 describe('Atomic Union', () => {
     type AtomicUnion = Date | number | string | null | bigint;

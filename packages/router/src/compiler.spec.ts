@@ -15,7 +15,7 @@ import {dispatchRoute} from './dispatch';
 import {headersFromRecord} from './headers';
 import {MionHeaders} from './types/context';
 import {rΦutεs} from './_compiled/routes';
-import {getProceduresToCodeFn} from '@mionkit/router/src/jitFunctions';
+import {getProceduresToCodeFn} from '@mionkit/router/src/reflection';
 import {NonRawProcedure} from '@mionkit/router/src/types/procedures';
 
 type RawRequest = {
@@ -116,12 +116,12 @@ const restoredLogs = {
             code: expect.any(String),
             fn: expect.any(Function),
         },
-        jsonEncode: {
+        toJsonVal: {
             varNames: ['vλluε0'],
             code: expect.any(String),
             fn: expect.any(Function),
         },
-        jsonDecode: {
+        fromJsonVal: {
             varNames: ['vλluε0'],
             code: expect.any(String),
             fn: expect.any(Function),
@@ -143,12 +143,12 @@ const restoredLogs = {
             code: expect.any(String),
             fn: expect.any(Function),
         },
-        jsonEncode: {
+        toJsonVal: {
             varNames: ['vλluε0'],
             code: expect.any(String),
             fn: expect.any(Function),
         },
-        jsonDecode: {
+        fromJsonVal: {
             varNames: ['vλluε0'],
             code: expect.any(String),
             fn: expect.any(Function),
@@ -190,12 +190,12 @@ const serializedSayHello = {
             code: expect.any(String),
             fn: expect.any(Function),
         },
-        jsonEncode: {
+        toJsonVal: {
             varNames: ['vλluε0'],
             code: expect.any(String),
             fn: expect.any(Function),
         },
-        jsonDecode: {
+        fromJsonVal: {
             varNames: ['vλluε0'],
             code: expect.any(String),
             fn: expect.any(Function),
@@ -217,12 +217,12 @@ const serializedSayHello = {
             code: expect.any(String),
             fn: expect.any(Function),
         },
-        jsonEncode: {
+        toJsonVal: {
             varNames: ['vλluε0'],
             code: expect.any(String),
             fn: expect.any(Function),
         },
-        jsonDecode: {
+        fromJsonVal: {
             varNames: ['vλluε0'],
             code: expect.any(String),
             fn: expect.any(Function),
@@ -263,12 +263,12 @@ const serializedUpdateUser = {
             code: expect.any(String),
             fn: expect.any(Function),
         },
-        jsonEncode: {
+        toJsonVal: {
             varNames: ['vλluε0'],
             code: expect.any(String),
             fn: expect.any(Function),
         },
-        jsonDecode: {
+        fromJsonVal: {
             varNames: ['vλluε0'],
             code: expect.any(String),
             fn: expect.any(Function),
@@ -290,12 +290,12 @@ const serializedUpdateUser = {
             code: expect.any(String),
             fn: expect.any(Function),
         },
-        jsonEncode: {
+        toJsonVal: {
             varNames: ['vλluε0'],
             code: expect.any(String),
             fn: expect.any(Function),
         },
-        jsonDecode: {
+        fromJsonVal: {
             varNames: ['vλluε0'],
             code: expect.any(String),
             fn: expect.any(Function),
