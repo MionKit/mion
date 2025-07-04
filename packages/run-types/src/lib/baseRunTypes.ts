@@ -548,6 +548,10 @@ export abstract class MemberRunType<T extends Type> extends BaseRunType<T> imple
         const memberType = (this.src as any).type as SrcType; // deepkit stores member types in the type property
         return memberType._rt as BaseRunType;
     };
+    // TODO: we are extensively using comp.getChildVλl() across the code, we need to investigate if using this method could be better
+    getMemberVλl(parentVλl: string, comp?: JitCompilerOpts) {
+        return parentVλl + (this.useArrayAccessor() ? `[${this.getChildLiteral(comp)}]` : `.${this.getChildVarName()}`);
+    }
     getChildIndex(comp?: JitCompilerOpts) {
         const start = comp?.opts?.paramsSlice?.start;
         if (start) return getPropIndex(this.src) - start;

@@ -2,252 +2,223 @@ import type {BaseRunType, CollectionRunType} from '@mionkit/run-types/src/lib/ba
 import type {JitCompiler} from '@mionkit/run-types/src/lib/jitCompiler';
 import type {UnionRunType} from '@mionkit/run-types/src/runType/collection/union';
 import type {PropertyRunType} from '@mionkit/run-types/src/runType/member/property';
+import type {jitCode} from '@mionkit/run-types/src/types';
 import {
-    FlattenedItem,
+    UnionFlattenedProps,
+    UnionPropsByName,
     getDiscriminatorProperties,
     getUniqueDiscriminatorProperties,
-    initGetCompiledName,
-    type FlattenedProp,
-    type PlainItem,
+    getFlatPropCompiledName,
+    type FlattenedUnionProp,
+    type SimpleUnionItem,
     type SplitUnionTypes,
 } from '@mionkit/run-types/src/runType/collection/unionDiscriminator';
 import {callCheckUnknownProperties} from '@mionkit/run-types/src/lib/utils';
 import {ReflectionKind} from '@deepkit/type';
 
-/**  !!!!!!!!!!!!!!!!!!!!!!!! IMPORTANT: THIS CODE WONT BE USED FOR NOW, MAYBE IN THE FUTURE WITH EXTRA COMPILATION FLAG !!!!!!!!!!!!!!!!!!!!!!!!
- * We couldn't make the union behave exactly as typescript does when mixing objects and non objects in the union.
- * We can make the validation and encoding work correctly but then the decoding might work,
- * there might be props that does not belong to the discriminated object of the union.
- * Without the discriminator info we would not be able to restore to the correct type.
- * ie: type MyUnion = {type: 'a', b: number} | {type: 'b', x: string, } | {a: 'c', x: bigint};
- * const v1: MyUnion = {a: 'hello', b: 3, x: 'hello'};  this is valid typescript as it matches first type of the union and also includes x
- * when we encode, we save the discriminator as 1 as is the index of the type in the union, be we would't know how to decode it correctly,
- * we would know if x is a string or a bigint.
- * we would have to save a discriminator per property to be able to decode it correctly and this is not performant
- * */
-
-// ############################## ############################## ##############################
-// ############################## ITERATE & COMPILE UNION ENCODE ##############################
-// ############################## ############################## ##############################
+export const UNION_FLATTENED_OBJECT_INDEX = -1; // when encoded item is a flattened object index is always -1
 
 /**
- * iterate over the union types and call the callbacks to generate code for each type or flat property
- * @param comp
- * @param uRT
- * @param onUnionType
- * @param onFlattenedProp
- * @param onFailed
- * @returns
+ * Iterators for unions
+ * */
+
+// ############################## ##################################### ##############################
+// ############################## ITERATE & COMPILE UNION ENCODE/DECODE ##############################
+// ############################## ##################################### ##############################
+
+/**
+ * Iterate over the union types and call the different callbacks to generate encoding code.
+ * Objects in the union are merged into a single object and encoded as [-1, value], any other type is encoded as [unioItemIndex, value]
+ * If there are any prop with the same it also gets encoded as [unionItemIndex, propValue]
  */
 export function iterateAndCompileUnionEncode(
     comp: JitCompiler,
     uRT: UnionRunType,
-    encodeUnionType: (item: PlainItem) => string,
-    encodeFlattenedProp: (prop: FlattenedProp) => string,
-    onFailed: () => string
+    onStart: () => jitCode,
+    encodeUnionType: (item: SimpleUnionItem) => jitCode,
+    encodeFlattenedProp: (prop: FlattenedUnionProp) => jitCode,
+    encodeFlattenedObject: (index: number) => jitCode,
+    onFailed: () => jitCode
 ): string {
-    const failedCode = onFailed();
-    let onObjectIf = false;
-    const onUnionTypes = (items: PlainItem[]) => {
-        const itemsCode = items.map((item) => {
-            const code = item.rt.compileIsType(comp);
-            const IF = !onObjectIf ? 'if' : 'else if';
-            const cbCode = encodeUnionType(item);
-            if (!cbCode || !code) return '';
-            onObjectIf = true;
-            return `${IF} (${code}){${cbCode}}`;
-        });
-        return toCode(itemsCode);
-    };
-
-    // initialize variables for flattened properties
-    const onFlattenedObjStart = (props: FlattenedProp[], isNotObjectCode: string, propsInitCode: string) => {
-        return `if (${isNotObjectCode}) {${failedCode};}${propsInitCode}`;
-    };
-
-    // check all properties individually
-    const onDiscriminatorProp = (item: FlattenedProp) => {
-        const varName = item.compiledName;
-        const propCode = item.prop.compileIsType(comp);
-        const cbCode = encodeFlattenedProp(item);
-        // we still need to check if the property type even if there is no callback logic
-        if (!propCode) return '';
-        const code = `if (${propCode}) {${varName} = true;${cbCode}}`;
-        return code;
-    };
-    const onRegularProp = (item: FlattenedProp) => {
-        const varName = item.compiledName;
-        const propCode = item.prop.compileIsType(comp);
-        const cbCode = encodeFlattenedProp(item);
-        // we still need to check if the property type even if there is no callback logic
-        if (!propCode) return '';
-        return `if (${propCode}) {${varName} = true;${cbCode}}`;
-    };
-    const onFlattenedProps = (discriminators: FlattenedProp[], regularProps: FlattenedProp[]) => {
-        const discriminatorsCode = toCode(discriminators.map((item) => onDiscriminatorProp(item)));
-        const regularPropsCode = toCode(regularProps.map((item) => onRegularProp(item)));
-        return `${discriminatorsCode}\n${regularPropsCode}`;
-    };
-
-    // check all boolean variables of each union item so at least one is true
-    let flatObjsIf = false;
-    const onFlattenedPropsEnd = (propsByUnionItem: Map<CollectionRunType<any>, FlattenedProp[]>, unknownPropCode: string) => {
-        const entries = Array.from(propsByUnionItem.entries());
-        const checkObjectsCode = entries.map(([objItem, props]) => {
-            const IF = !flatObjsIf ? 'if' : 'else if';
-            const children = objItem.getJitChildren(comp);
-            const checkAllProps = props.map((propItem) => propItem.compiledName);
-            // if all properties are optional we need to check that there are no properties from other types
-            if (objItem.areAllChildrenOptional(children)) checkAllProps.push('!' + unknownPropCode);
-            const checkCode = checkAllProps.filter(Boolean).join(' && ');
-            const cbCode = encodeUnionType({rt: objItem, unionIndex: uRT.getUnionItemIndex(comp, objItem)});
-            if (!checkCode || !cbCode) return '';
-            flatObjsIf = true;
-            const code = `${IF} (${checkCode}) {${cbCode}}`;
-            return code;
-        });
-        return toCode(checkObjectsCode);
-    };
-
-    // index types, ie: {[k: string]: any}
-    let indexIf = false;
-    const onIndexTypes = (items: PlainItem[]) => {
-        const itemsCode = toCode(
-            items.map((item) => {
-                const code = item.rt.compileIsType(comp);
-                const IF = !indexIf ? 'if' : 'else if';
-                const cbCode = encodeUnionType(item);
-                if (!cbCode || !code) return '';
-                indexIf = true;
-                return `${IF} (${code}){${cbCode}}`;
-            })
-        );
-        return itemsCode;
-    };
-    return iterateUnionCompiler(
-        comp,
-        uRT,
-        () => '',
-        onUnionTypes,
-        onFlattenedObjStart,
-        onFlattenedProps,
-        onFlattenedPropsEnd,
-        onIndexTypes,
-        () => failedCode
-    );
+    return iterateUnionEncodeDecode(comp, uRT, onStart, encodeUnionType, encodeFlattenedProp, encodeFlattenedObject, onFailed);
 }
 
-// ############################## ############################## ##############################
-// ############################## ITERATE & COMPILE UNION DECODE ##############################
-// ############################## ############################## ##############################
-
 /**
- * iterate over the union types and call the callbacks to generate code for each type or flat property
- * @param comp
- * @param uRT
- * @param onUnionType
- * @param onFlattenedProp
- * @param onFailed
- * @returns
- */
+ * Iterate over the union types and call the different callbacks to generate decoding code.
+ * Items are decoded using the discriminator index: [index, value]
+ * Objects index is always -1
+ * */
 export function iterateAndCompileUnionDecode(
     comp: JitCompiler,
     uRT: UnionRunType,
-    decVarName: string,
-    onStart: () => string,
-    decodeUnionType: (item: PlainItem) => string,
-    decodeFlattenedProp: (prop: FlattenedProp) => string,
-    onFailed: () => string
+    onStart: () => jitCode,
+    decodeUnionType: (item: SimpleUnionItem) => jitCode,
+    decodeFlattenedProp: (prop: FlattenedUnionProp) => jitCode,
+    onFailed: () => jitCode,
+    decodeIndexVarName: string
 ): string {
+    return iterateUnionEncodeDecode(
+        comp,
+        uRT,
+        onStart,
+        decodeUnionType,
+        decodeFlattenedProp,
+        () => '',
+        onFailed,
+        decodeIndexVarName
+    );
+}
+
+function iterateUnionEncodeDecode(
+    comp: JitCompiler,
+    uRT: UnionRunType,
+    onStart: () => jitCode,
+    encDecUnionType: (item: SimpleUnionItem) => jitCode,
+    encDecFlattenedProp: (prop: FlattenedUnionProp) => jitCode,
+    encDecFlattenedObject: (index: number) => jitCode,
+    onFailed: () => jitCode,
+    /** if passed the iterator will emit decoding src code */
+    decodeIndexVarName?: string
+): string {
+    const isEncode = !decodeIndexVarName;
+    const noCode = () => '';
     const failedCode = onFailed();
+
     let onObjectIf = false;
-    const onUnionTypes = (items: PlainItem[]) => {
+    const IF = () => {
+        const IF = !onObjectIf ? 'if' : 'else if';
+        onObjectIf = true;
+        return IF;
+    };
+
+    const onUnionSimpleTypes = (items: SimpleUnionItem[]) => {
         const itemsCode = items.map((item) => {
-            const code = item.rt.compileIsType(comp);
-            const IF = !onObjectIf ? 'if' : 'else if';
-            const cbCode = decodeUnionType(item);
-            if (!cbCode || !code) return '';
-            onObjectIf = true;
-            return `${IF} (${code}){${cbCode}}`;
+            const checkType = isEncode ? item.rt.compileIsType(comp) : `${decodeIndexVarName} === ${item.unionIndex}`;
+            const cbCode = encDecUnionType(item);
+            if (!cbCode || !checkType) return '';
+            return `${IF()} (${checkType}){${cbCode}}`;
         });
-        return toCode(itemsCode);
+        return sanitizeCode(itemsCode);
+    };
+
+    // index types behave as normal types for now
+    const onIndexTypes = onUnionSimpleTypes;
+
+    const onUnionSimpleTypesEnd = (items: SimpleUnionItem[], unionData: UnionIteratorData) => {
+        if (unionData.hasFlattenedProps) return '';
+        if (!isEncode) return '';
+        return `else {${failedCode}}`; // if encoding and there are no flattened props we need to fail as item does not belong to the union
+    };
+
+    const onFlattenedPropsByName = (props: FlattenedUnionProp[]) => {
+        if (!props.length) throw new Error('Cant encode union: no properties');
+
+        if (props.length === 1) {
+            // single props do not need to be encoded with a discriminator
+            const prop0 = props[0];
+            const encDec = encDecFlattenedProp(prop0) || '';
+            if (!encDec) return '';
+            if (isEncode) return `if (${prop0.prop.compileIsType(comp)}) {${encDec}}`;
+            if (prop0.prop.isOptional()) return encDec; // optional props already include an undefined check
+            const accessor = prop0.prop.getMemberVλl(comp.vλl, comp);
+            return `if (${accessor} !== undefined) {${encDec}}`;
+        }
+
+        let encDecMultiNamedProps: jitCode[] = [];
+        if (isEncode) {
+            // properties in multiple object need to be encoded with a discriminator prop = [index, prop || encodedProp]
+            encDecMultiNamedProps = props.map((item, i) => {
+                const encDec = encDecFlattenedProp(item) || '';
+                const propIsType = item.prop.compileIsType(comp);
+                const accessor = item.prop.getMemberVλl(comp.vλl, comp);
+                const PROP_IF = i === 0 ? 'if' : 'else if';
+                return `${PROP_IF} (${propIsType}) {${encDec}; ${accessor} = [${item.unionIndex}, ${accessor}]}`;
+            });
+        } else {
+            const decodeItems: {item: FlattenedUnionProp; encDec: jitCode}[] = props.map((item) => {
+                const encDec = encDecFlattenedProp(item);
+                return {item, encDec};
+            });
+
+            const decodeNotRequired = decodeItems.every((el) => !el.encDec);
+            if (decodeNotRequired) {
+                const prop0 = props[0];
+                const accessor = prop0.prop.getMemberVλl(comp.vλl, comp);
+                return `if (typeof ${accessor}?.[0] === 'number') {${accessor} = ${accessor}[1]}`;
+            }
+
+            // when decoding we need to check the discriminator index
+            encDecMultiNamedProps = props.map((item, i) => {
+                const accessor = item.prop.getMemberVλl(comp.vλl, comp);
+                // TODO: we might want to check accessor is an array [index, value] and throw error if not
+                const checkPropIndex = `${accessor} !== undefined && ${accessor}[0] === ${item.unionIndex}`;
+                const encDec = encDecFlattenedProp(item) || '';
+                const PROP_IF = i === 0 ? 'if' : 'else if';
+                return `${PROP_IF} (${checkPropIndex}) {${accessor} = ${accessor}[1]; ${encDec}}`;
+            });
+        }
+
+        return sanitizeCode(encDecMultiNamedProps);
     };
 
     // initialize variables for flattened properties
-    const onFlattenedObjStart = (props: FlattenedProp[], isNotObjectCode: string, propsInitCode: string) => {
-        return `if (${isNotObjectCode}) {${failedCode};}${propsInitCode}`;
+    const onFlattenedPropsStart = (props: FlattenedUnionProp[], unionData: UnionIteratorData) => {
+        if (isEncode) {
+            const {isObjectCheck} = unionData;
+            return `${IF()} (!(${isObjectCheck})) {${failedCode}}`;
+        }
+        return '';
     };
 
-    // check all properties individually
-    const onDiscriminatorProp = (item: FlattenedProp) => {
-        const varName = item.compiledName;
-        const propCode = item.prop.compileIsType(comp);
-        const cbCode = decodeFlattenedProp(item);
-        // we still need to check if the property type even if there is no callback logic
-        if (!propCode) return '';
-        const code = `if (${propCode}) {${varName} = true;${cbCode}}`;
-        return code;
-    };
-    const onRegularProp = (item: FlattenedProp) => {
-        const varName = item.compiledName;
-        const propCode = item.prop.compileIsType(comp);
-        const cbCode = decodeFlattenedProp(item);
-        // we still need to check if the property type even if there is no callback logic
-        if (!propCode) return '';
-        return `if (${propCode}) {${varName} = true;${cbCode}}`;
-    };
-    const onFlattenedProps = (discriminators: FlattenedProp[], regularProps: FlattenedProp[]) => {
-        const discriminatorsCode = toCode(discriminators.map((item) => onDiscriminatorProp(item)));
-        const regularPropsCode = toCode(regularProps.map((item) => onRegularProp(item)));
-        return `${discriminatorsCode}\n${regularPropsCode}`;
+    const onFlattenedProps = (flattenedProps: UnionFlattenedProps, propsByName: UnionPropsByName) => {
+        const {discriminatorProps, otherProps} = propsByName;
+        const discriminatorsEntries = Array.from(discriminatorProps.entries());
+        const otherEntries = Array.from(otherProps.entries());
+        const allEntries = [...discriminatorsEntries, ...otherEntries];
+        const propsCode = sanitizeCode(allEntries.map((ent) => onFlattenedPropsByName(ent[1])));
+        const ELSE = isEncode ? 'else' : `if (${decodeIndexVarName} === ${UNION_FLATTENED_OBJECT_INDEX})`;
+        return `${ELSE} {${propsCode};${encDecFlattenedObject(UNION_FLATTENED_OBJECT_INDEX)}}`;
     };
 
-    // check all boolean variables of each union item so at least one is true
-    let flatObjsIf = false;
-    const onFlattenedPropsEnd = (propsByUnionItem: Map<CollectionRunType<any>, FlattenedProp[]>, unknownPropCode: string) => {
-        const entries = Array.from(propsByUnionItem.entries());
-        const checkObjectsCode = entries.map(([objItem, props]) => {
-            const IF = !flatObjsIf ? 'if' : 'else if';
-            const children = objItem.getJitChildren(comp);
-            const checkAllProps = props.map((propItem) => propItem.compiledName);
-            // if all properties are optional we need to check that there are no properties from other types
-            if (objItem.areAllChildrenOptional(children)) checkAllProps.push('!' + unknownPropCode);
-            const checkCode = checkAllProps.filter(Boolean).join(' && ');
-            const cbCode = decodeUnionType({rt: objItem, unionIndex: uRT.getUnionItemIndex(comp, objItem)});
-            if (!checkCode || !cbCode) return '';
-            flatObjsIf = true;
-            const code = `${IF} (${checkCode}) {${cbCode}}`;
-            return code;
-        });
-        return toCode(checkObjectsCode);
-    };
+    // making this undefined prevents emitting code for unknown props
+    const onFlattenedPropsEnd = undefined;
 
-    // index types, ie: {[k: string]: any}
-    let indexIf = false;
-    const onIndexTypes = (items: PlainItem[]) => {
-        const itemsCode = toCode(
-            items.map((item) => {
-                const code = item.rt.compileIsType(comp);
-                const IF = !indexIf ? 'if' : 'else if';
-                const cbCode = decodeUnionType(item);
-                if (!cbCode || !code) return '';
-                indexIf = true;
-                return `${IF} (${code}){${cbCode}}`;
-            })
-        );
-        return itemsCode;
-    };
-    return iterateUnionCompiler(
+    const onEnd = noCode;
+    const [
+        startCode,
+        nonObjectCode,
+        nonObjectEndCode,
+        flattenedObjStartCode,
+        flattenedCode,
+        flattenedPropsEndCode,
+        indexCode,
+        endCode,
+    ] = iterateUnionCompiler(
         comp,
         uRT,
-        () => '',
-        onUnionTypes,
-        onFlattenedObjStart,
+        onStart,
+        onUnionSimpleTypes,
+        onUnionSimpleTypesEnd,
+        onFlattenedPropsStart,
         onFlattenedProps,
         onFlattenedPropsEnd,
         onIndexTypes,
-        () => failedCode
+        onEnd
     );
+    const reordered = [
+        startCode,
+        nonObjectCode,
+        // moving index code here as is behaving as normal types wen encoding decoding
+        // so index types are fully checked and using their own index (basically index types behaves like XOR)
+        // this is pretty difficult to optimize and typescript behavior is also weird so not a priority
+        indexCode,
+        nonObjectEndCode,
+        flattenedObjStartCode,
+        flattenedCode,
+        flattenedPropsEndCode,
+        endCode,
+    ];
+    return sanitizeCode(reordered, '\n');
 }
 
 // ############################## ############################### ##############################
@@ -261,45 +232,57 @@ export function iterateAndCompileUnionDecode(
  * @returns string
  */
 export function compileIsTypeUnion(comp: JitCompiler, uRT: UnionRunType): string {
-    const onIsTypeUnionItems = (items: PlainItem[]) => {
+    const onIsTypeUnionItems = (items: SimpleUnionItem[]) => {
         const itemsCode = items.map((item) => item.rt.compileIsType(comp));
-        const code = toCode(itemsCode, ' || ');
+        const code = sanitizeCode(itemsCode, ' || ');
         if (!code) return '';
         return `if (${code}) return true;`;
     };
 
-    const onFlattenedObjStart = (props: FlattenedProp[], isNotObjectCode: string, propsInitCode: string) => {
-        return `if (${isNotObjectCode}) return false;${propsInitCode}`;
+    const onFlattenedPropsStart = (props: FlattenedUnionProp[], unionData: UnionIteratorData) => {
+        const {isObjectCheck, propsInitCode} = unionData;
+        return `if (!(${isObjectCheck})) return false;${propsInitCode}`;
     };
 
     // check discriminator properties
-    const onIsTypeDiscriminator = (item: FlattenedProp, i: number, isLast: boolean, hasIndexTypes: boolean) => {
+    const onIsTypeDiscriminator = (item: FlattenedUnionProp, i: number, isLast: boolean, hasIndexItems: boolean) => {
         const varName = item.compiledName;
         const propCode = item.prop.compileIsType(comp);
         const IF = i === 0 ? 'if' : 'else if';
         const code = `${IF} (${propCode}) ${varName} = true;`;
-        const isEarlyReturn = isLast && !hasIndexTypes;
+        const isEarlyReturn = isLast && !hasIndexItems;
         // if we don't find a discriminator we can return early
         return isEarlyReturn ? code + 'else return false;' : code;
     };
 
     // check other properties
-    const onIsTypeRegularProp = (item: FlattenedProp) => {
+    const onIsTypeRegularProp = (item: FlattenedUnionProp) => {
         const varName = item.compiledName;
         const propCode = item.prop.compileIsType(comp);
         if (!propCode) return '';
         return `if (${propCode}) ${varName} = true;`;
     };
-    const onFlattenedProps = (discriminators: FlattenedProp[], regularProps: FlattenedProp[], hasIndexTypes: boolean) => {
-        const discriminatorsCode = toCode(
-            discriminators.map((item, i) => onIsTypeDiscriminator(item, i, isLast(i, discriminators), hasIndexTypes))
+    const onFlattenedProps = (
+        flattenedProps: UnionFlattenedProps,
+        propsByName: UnionPropsByName,
+        unionData: UnionIteratorData
+    ) => {
+        const {discriminatorProps, otherProps} = flattenedProps;
+        const discriminatorsCode = sanitizeCode(
+            discriminatorProps.map((item, i) =>
+                onIsTypeDiscriminator(item, i, isLast(i, discriminatorProps), unionData.hasIndexItems)
+            )
         );
-        const regularPropsCode = toCode(regularProps.map((item) => onIsTypeRegularProp(item)));
+        const regularPropsCode = sanitizeCode(otherProps.map((item) => onIsTypeRegularProp(item)));
         return `${discriminatorsCode}\n${regularPropsCode}`;
     };
 
     // check all boolean variables of each union item so at least one is true
-    const onFlattenedPropsEnd = (propsByUnionItem: Map<CollectionRunType<any>, FlattenedProp[]>, unknownPropCode: string) => {
+    const onFlattenedPropsEnd = (
+        propsByUnionItem: Map<CollectionRunType<any>, FlattenedUnionProp[]>,
+        unionData: UnionIteratorData
+    ) => {
+        const {unknownPropCode} = unionData;
         const entries = Array.from(propsByUnionItem.entries());
         const unionItemsCheck = entries
             .map(([objItem, propItems]) => {
@@ -317,25 +300,33 @@ export function compileIsTypeUnion(comp: JitCompiler, uRT: UnionRunType): string
         return `if ((${unionItemsCheck}) && !${unknownPropCode}) return true;`;
     };
 
-    const onIsTypeIndexItems = (items: PlainItem[]) => {
-        const itemsCode = items.map((item) => item.rt.compileIsType(comp));
-        const code = toCode(itemsCode, ' || ');
-        if (!code) return '';
-        return `if (${code}) return true;`;
-    };
+    const onIsTypeIndexItems = onIsTypeUnionItems;
     const onEnd = () => 'return false;';
-    const code = iterateUnionCompiler(
+    const noCode = () => '';
+    const onStart = noCode;
+    const onUnionSimpleTypesEnd = noCode;
+    const codeChunks = iterateUnionCompiler(
         comp,
         uRT,
-        () => '',
+        onStart,
         onIsTypeUnionItems,
-        onFlattenedObjStart,
+        onUnionSimpleTypesEnd,
+        onFlattenedPropsStart,
         onFlattenedProps,
         onFlattenedPropsEnd,
         onIsTypeIndexItems,
         onEnd
     );
-    return code;
+    return sanitizeCode(codeChunks, '\n');
+}
+
+function setPropsByName(item: FlattenedUnionProp, propsMap: Map<string | number, FlattenedUnionProp[]>) {
+    const propName = item.prop.getChildVarName();
+    const existingList = propsMap.get(propName) || [];
+    const isSameTypeID = existingList.some((existing) => existing.typeID === item.typeID);
+    // ensured we don't have duplicated entries with same type if as will generate same code
+    if (!isSameTypeID) existingList.push(item);
+    propsMap.set(propName, existingList);
 }
 
 /**
@@ -344,11 +335,20 @@ export function compileIsTypeUnion(comp: JitCompiler, uRT: UnionRunType): string
  * @return SplitUnionTypes if there are objects in the union, they are flattened into the last item.
  */
 export function getUnionSplitItems(comp: JitCompiler, urt: UnionRunType): SplitUnionTypes {
-    const {objectTypes, regularTypes, indexTypes} = splitUnionTypes(comp, urt);
+    const {objectTypes, simpleTypes, indexTypes} = splitUnionTypes(comp, urt);
+    const flattened = getFlattenedObjectItem(comp, urt, objectTypes, getFlatPropCompiledName());
+    const propsByName: UnionPropsByName | undefined = flattened
+        ? {discriminatorProps: new Map(), otherProps: new Map()}
+        : undefined;
+    if (propsByName && flattened) {
+        flattened.discriminatorProps.forEach((item) => setPropsByName(item, propsByName.discriminatorProps));
+        flattened.otherProps.forEach((item) => setPropsByName(item, propsByName.otherProps));
+    }
     return {
-        regularTypes: getUnionPlainItems(regularTypes, 0),
+        simpleTypes: getUnionPlainItems(simpleTypes, 0),
         indexTypes: getUnionPlainItems(indexTypes, 0),
-        flattened: getFlattenedObjectItem(comp, urt, objectTypes, initGetCompiledName()),
+        flattened,
+        propsByName,
     };
 }
 
@@ -359,14 +359,14 @@ export function getUnionSplitItems(comp: JitCompiler, urt: UnionRunType): SplitU
 function splitUnionTypes(
     comp: JitCompiler,
     urt: UnionRunType
-): {objectTypes: CollectionRunType<any>[]; regularTypes: BaseRunType[]; indexTypes: CollectionRunType<any>[]} {
+): {objectTypes: CollectionRunType<any>[]; simpleTypes: BaseRunType[]; indexTypes: CollectionRunType<any>[]} {
     const unionItems = urt.getJitChildren(comp);
     const objectTypes: CollectionRunType<any>[] = [];
-    const regularTypes: BaseRunType[] = [];
+    const simpleTypes: BaseRunType[] = [];
     const indexTypes: CollectionRunType<any>[] = [];
     unionItems.forEach((unionItem) => {
         const isObj = urt.isTypeWithProperties(unionItem);
-        if (!isObj) return regularTypes.push(unionItem);
+        if (!isObj) return simpleTypes.push(unionItem);
         const objItem = unionItem as CollectionRunType<any>;
         // Object with index properties can not be flattened and need to be fully checked
         const hasIndexProperty = objItem.getJitChildren?.(comp).some((prop) => prop.src.kind === ReflectionKind.indexSignature);
@@ -374,7 +374,7 @@ function splitUnionTypes(
         return objectTypes.push(objItem);
     });
 
-    return {objectTypes, regularTypes, indexTypes};
+    return {objectTypes, simpleTypes, indexTypes};
 }
 
 export function isFlattenedItem(comp: JitCompiler, urt: UnionRunType, unionItem: BaseRunType) {
@@ -386,7 +386,7 @@ export function isFlattenedItem(comp: JitCompiler, urt: UnionRunType, unionItem:
     );
 }
 
-function getUnionPlainItems(unionTypes: BaseRunType[], startIndex = 0): PlainItem[] {
+function getUnionPlainItems(unionTypes: BaseRunType[], startIndex = 0): SimpleUnionItem[] {
     if (!unionTypes.length) return [];
     return unionTypes.map((rt, i) => ({rt, unionIndex: startIndex + i}));
 }
@@ -397,13 +397,13 @@ function getFlattenedObjectItem(
     urt: UnionRunType,
     objectTypes: CollectionRunType<any>[],
     getCompiledName: (urt: UnionRunType, propTypeID: string | number) => string
-): FlattenedItem | undefined {
+): UnionFlattenedProps | undefined {
     let discriminatorProps = getDiscriminatorProperties(comp, urt, objectTypes, getCompiledName);
     if (!discriminatorProps.length) {
         discriminatorProps = getUniqueDiscriminatorProperties(comp, urt, objectTypes, getCompiledName);
         if (!discriminatorProps.length) return;
     }
-    const otherProps: FlattenedProp[] = objectTypes
+    const otherProps: FlattenedUnionProp[] = objectTypes
         .map((rt) => {
             const children = rt.getJitChildren(comp) as PropertyRunType[];
             const unionIndex = urt.getUnionItemIndex(comp, rt);
@@ -427,11 +427,20 @@ function getFlattenedObjectItem(
 // ############################## PURE UNION ITERATOR WITH NO LOGIC ##############################
 // ############################## ################################# ##############################
 
+type UnionIteratorData = {
+    hasSimpleItems: boolean;
+    hasFlattenedProps: boolean;
+    hasIndexItems: boolean;
+    isObjectCheck: string;
+    propsInitCode: string;
+    unknownPropCode: string;
+};
+
 /**
  * iterate over the union types to compile code
  * union type should be compiled following an order to follow typescript behavior
  * 1 : compile atomic or simple types that does not have properties, if type is any of this one we can return early
- * --- onFlattenedObjStart : here we can check if type is an object, if not we can return early
+ * --- onFlattenedPropsStart : here we can check if type is an object, if not we can return early
  * 2 : compile discriminator properties, if non of the discriminator props match that means item is not in the union so can return early
  * 3 : compile regular properties, we need to parse all of them no matter what
  * --- onFlattenedPropsEnd : here we can check the result of the discriminator and regular properties to know what object in the union
@@ -440,25 +449,31 @@ function getFlattenedObjectItem(
 export function iterateUnionCompiler(
     comp: JitCompiler,
     uRT: UnionRunType,
-    onStart: () => string,
-    onUnionTypes: (items: PlainItem[]) => string,
+    onStart: () => jitCode,
+    onUnionSimpleTypes: (items: SimpleUnionItem[], unionData: UnionIteratorData) => jitCode,
+    /** Should be used to check if type is an object, if not we can return early */
+    onUnionSimpleTypesEnd: (items: SimpleUnionItem[], unionData: UnionIteratorData) => jitCode,
     /** Should be used to initialize variables, etc. */
-    onFlattenedObjStart: (allProps: FlattenedProp[], isNotObjectCode: string, propsInitCode: string) => string,
+    onFlattenedPropsStart: (allProps: FlattenedUnionProp[], unionData: UnionIteratorData) => jitCode,
     /** Should be used to check the properties individually first discriminators then regular properties. */
-    onFlattenedProps: (discriminators: FlattenedProp[], regularProps: FlattenedProp[], hasIndexTypes: boolean) => string,
+    onFlattenedProps: (
+        flattenedProps: UnionFlattenedProps,
+        propsByName: UnionPropsByName,
+        unionData: UnionIteratorData
+    ) => jitCode,
     /** Should be used to check full object types depending on onFlattenedProp variables */
-    onFlattenedPropsEnd: (propsByUnionItem: Map<CollectionRunType<any>, FlattenedProp[]>, unknownPropCode: string) => string,
-    onIndexType: (items: PlainItem[]) => string,
-    onEnd: () => string
-): string {
-    const {regularTypes, flattened, indexTypes} = getUnionSplitItems(comp, uRT);
+    onFlattenedPropsEnd:
+        | undefined
+        | ((propsByUnionItem: Map<CollectionRunType<any>, FlattenedUnionProp[]>, unionData: UnionIteratorData) => jitCode),
+    onIndexType: (items: SimpleUnionItem[], unionData: UnionIteratorData) => jitCode,
+    onEnd: (unionData: UnionIteratorData) => jitCode
+): jitCode[] {
+    const {simpleTypes, flattened, indexTypes, propsByName} = getUnionSplitItems(comp, uRT);
     const {discriminatorProps, otherProps} = flattened || {};
     const allFlattenedItems = [...(discriminatorProps || []), ...(otherProps || [])];
     const allProps = allFlattenedItems.map((item) => item.prop);
     const allCompiledPropNames = Array.from(new Set(allFlattenedItems.map((item) => item.compiledName)));
-    const isFlattened = allFlattenedItems.length;
-    const hasIndexItems = indexTypes.length;
-    const propsByUnionItem = new Map<CollectionRunType<any>, FlattenedProp[]>();
+    const propsByUnionItem = new Map<CollectionRunType<any>, FlattenedUnionProp[]>();
     allFlattenedItems.forEach((item) => {
         const existing = propsByUnionItem.get(item.unionItem) || [];
         propsByUnionItem.set(item.unionItem, [...existing, item]);
@@ -466,55 +481,70 @@ export function iterateUnionCompiler(
 
     // precalculated code
     const hasAllOptional = Array.from(propsByUnionItem.keys()).some((rt) => rt.areAllChildrenOptional(rt.getJitChildren(comp)));
-    const arrayCheck = hasAllOptional ? `Array.isArray(${comp.vλl})` : '';
-    const isNotObjectCode = toCode([`!(typeof ${comp.vλl} === 'object' && ${comp.vλl} !== null)`, arrayCheck], ' || ');
+    const isNotArray = hasAllOptional ? `!Array.isArray(${comp.vλl})` : '';
+    const isObjectCheck = sanitizeCode([`typeof ${comp.vλl} === 'object' && ${comp.vλl} !== null`, isNotArray], ' && ');
     const propsInitCode = `let ${allCompiledPropNames.map((name) => `${name} = false`).join(',')};`;
-    const unknownPropCode = callCheckUnknownProperties(uRT, comp, allProps, false, false);
+    const unknownPropCode = onFlattenedPropsEnd ? callCheckUnknownProperties(uRT, comp, allProps, false, false) : '';
 
-    // generate code
+    // unionData
+    const hasSimpleItems = !!simpleTypes.length;
+    const hasFlattenedProps = !!(flattened && propsByName);
+    const hasIndexItems = !!indexTypes.length;
+    const unionData: UnionIteratorData = {
+        hasSimpleItems,
+        hasFlattenedProps,
+        hasIndexItems,
+        isObjectCheck,
+        propsInitCode,
+        unknownPropCode,
+    };
+
+    // simple union items
     const startCode = onStart();
-    const nonObjectCode = onUnionTypes(regularTypes);
-
-    // if there are no flattened items, we return iterating only on non object types and index types
-    if (!isFlattened) {
-        const objectItems: string[] = [];
-        if (hasIndexItems) {
-            const flattenedObjStartCode = onFlattenedObjStart(allFlattenedItems, isNotObjectCode, propsInitCode) || '';
-            const indexCode = onIndexType(indexTypes) || '';
-            objectItems.push(flattenedObjStartCode, indexCode);
-        }
-        const endCode = onEnd();
-        const code = toCode([startCode, nonObjectCode, ...objectItems, endCode]);
-        return code;
+    let nonObjectCode: jitCode = '';
+    let nonObjectEndCode: jitCode = '';
+    if (hasSimpleItems) {
+        nonObjectCode = onUnionSimpleTypes(simpleTypes, unionData);
+        nonObjectEndCode = onUnionSimpleTypesEnd(simpleTypes, unionData);
     }
 
     // flattened properties
-    const flattenedObjStartCode = isFlattened ? onFlattenedObjStart(allFlattenedItems, isNotObjectCode, propsInitCode) : '';
-    const flattenedCode = onFlattenedProps(discriminatorProps || [], otherProps || [], !!indexTypes.length);
-    // const discriminatorPropsCode = toCode(
-    //     discriminatorProps?.map((item, i) => onDiscriminatorProp(item, i, isLast(i, discriminatorProps), indexTypes.length))
-    // );
-    // const regularPropsCode = toCode(otherProps?.map((item, i) => onRegularProp(item, i, isLast(i, otherProps))));
-    const flattenedPropsEndCode = isFlattened ? onFlattenedPropsEnd(propsByUnionItem, unknownPropCode) : '';
-    const indexCode = onIndexType(indexTypes);
-    const endCode = onEnd();
+    let flattenedObjStartCode: jitCode = '';
+    let flattenedCode: jitCode = '';
+    let flattenedPropsEndCode: jitCode = '';
+    if (hasFlattenedProps) {
+        flattenedObjStartCode = onFlattenedPropsStart(allFlattenedItems, unionData);
+        flattenedCode = onFlattenedProps(flattened, propsByName, unionData);
+        flattenedPropsEndCode = onFlattenedPropsEnd?.(propsByUnionItem, unionData);
+    }
+
+    // index types behaves like simple types for now as need to be fully checked
+    // TODO index types can not run same encoding as other defined props in the union,
+    // so when there are index types we need to exclude those props name to run in the index logic
+    let indexCode: jitCode = '';
+    if (hasIndexItems) {
+        indexCode = onIndexType(indexTypes, unionData);
+    }
+
+    const endCode = onEnd(unionData);
     const codeChunks = [
         startCode,
         nonObjectCode,
+        nonObjectEndCode,
         flattenedObjStartCode,
         flattenedCode,
         flattenedPropsEndCode,
         indexCode,
         endCode,
     ];
-    return toCode(codeChunks, '\n');
+    return codeChunks;
 }
 
 function isLast(i: number, arr: any[]) {
     return i === arr.length - 1;
 }
 
-function toCode(chunks: (string | undefined)[] | undefined, join?: string) {
+function sanitizeCode(chunks: (string | undefined)[] | undefined, join: string = '') {
     if (!chunks) return '';
-    return chunks.filter(Boolean).join(join || '');
+    return chunks.filter(Boolean).join(join);
 }

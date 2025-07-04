@@ -4,11 +4,11 @@ import type {UnionRunType} from '@mionkit/run-types/src/runType/collection/union
 import type {PropertyRunType} from '@mionkit/run-types/src/runType/member/property';
 import {getTotalComplexity, sortRunTypeByComplexity} from '@mionkit/run-types/src/lib/utils';
 
-export type PlainItem = {
+export type SimpleUnionItem = {
     rt: BaseRunType;
     unionIndex: number;
 };
-export type FlattenedProp = {
+export type FlattenedUnionProp = {
     /** union item, parent of the property */
     unionItem: CollectionRunType<any>;
     /** index of the union item in the union */
@@ -20,39 +20,34 @@ export type FlattenedProp = {
     /** name of the property as it should be used in the code */
     compiledName: string;
 };
-export type FlattenedItem = {
-    discriminatorProps: FlattenedProp[];
-    otherProps: FlattenedProp[];
+export type UnionFlattenedProps = {
+    /** List of properties that are used to discriminate the union.
+     * If non of the discriminator props match that means item is not in the union
+     * and should skip processing the rest of the properties */
+    discriminatorProps: FlattenedUnionProp[];
+    /** List of properties that are not used to discriminate the union.
+     * If we can't use the discriminators to know the type of the object we need to check all of these properties. */
+    otherProps: FlattenedUnionProp[];
+};
+export type UnionPropsByName = {
+    /** Map of properties by name that are used to discriminate the union.
+     * If non of the discriminator props match that means item is not in the union
+     * and should skip processing the rest of the properties */
+    discriminatorProps: Map<string | number, FlattenedUnionProp[]>;
+    /** Map of properties by name that are not used to discriminate the union.
+     * If we can't use the discriminators to know the type of the object we need to check all of these properties. */
+    otherProps: Map<string | number, FlattenedUnionProp[]>;
 };
 export type SplitUnionTypes = {
     /** items in the union that are not objects, will have to be fully checked */
-    regularTypes: PlainItem[];
+    simpleTypes: SimpleUnionItem[];
     /** items in the union that are objects but have index properties, will have to be fully checked */
-    indexTypes: PlainItem[];
+    indexTypes: SimpleUnionItem[];
     /** The flattened properties of all the items in the union, props are individually checked */
-    flattened: FlattenedItem | undefined;
+    flattened: UnionFlattenedProps | undefined;
+    /** Map of all the properties by name */
+    propsByName: UnionPropsByName | undefined;
 };
-
-/**
- * Split the union types in two groups: interface types and simple types
- * interface types are types that have properties, simple types are the rest (atomic types, tuples, etc)
- */
-export function splitUnionTypes(
-    comp: JitCompiler,
-    urt: UnionRunType,
-    unionChildren?: BaseRunType[]
-): {regularTypes: BaseRunType[]; objectTypes: CollectionRunType<any>[]} {
-    const unionItems = unionChildren || urt.getJitChildren(comp);
-    const objectTypes: CollectionRunType<any>[] = [];
-    const regularTypes: BaseRunType[] = [];
-    unionItems.forEach((unionItem) => {
-        const isObj = urt.isTypeWithProperties(unionItem);
-        if (!isObj || unionItem.getFamily() !== 'C') return regularTypes.push(unionItem);
-        return objectTypes.push(unionItem as CollectionRunType<any>);
-    });
-
-    return {regularTypes, objectTypes};
-}
 
 /**
  * Mark discriminator properties so they can be sorted and validate union more efficiently.
@@ -62,8 +57,8 @@ export function splitUnionTypes(
 export function markDiscriminators(comp: JitCompiler, urt: UnionRunType, unionItems: BaseRunType[]) {
     if (urt.hasDiscriminators !== undefined && urt.hasObjectTypes !== undefined) return;
     const objectTypes = unionItems.filter((item) => urt.isTypeWithProperties(item)) as CollectionRunType<any>[];
-    const namedDiscriminators = getDiscriminatorProperties(comp, urt, objectTypes, initGetCompiledName());
-    const uniqueDiscriminators = getUniqueDiscriminatorProperties(comp, urt, objectTypes, initGetCompiledName());
+    const namedDiscriminators = getDiscriminatorProperties(comp, urt, objectTypes, getFlatPropCompiledName());
+    const uniqueDiscriminators = getUniqueDiscriminatorProperties(comp, urt, objectTypes, getFlatPropCompiledName());
     urt.hasObjectTypes = !!objectTypes.length;
     urt.hasDiscriminators = !!namedDiscriminators.length || !!uniqueDiscriminators.length;
 }
@@ -89,7 +84,7 @@ export function getDiscriminatorProperties(
     urt: UnionRunType,
     unionTypes: CollectionRunType<any>[],
     getCompiledName: (urt: UnionRunType, propTypeID: string | number) => string
-): FlattenedProp[] {
+): FlattenedUnionProp[] {
     if (!unionTypes.length) return [];
     const propByName = new Map<string | number, PropUnionItemPair[]>();
     unionTypes.forEach((unionItem) => {
@@ -145,7 +140,7 @@ export function getUniqueDiscriminatorProperties(
     urt: UnionRunType,
     unionTypes: CollectionRunType<any>[],
     getCompiledName: (urt: UnionRunType, propTypeID: string | number) => string
-): FlattenedProp[] {
+): FlattenedUnionProp[] {
     if (!unionTypes.length) return [];
     const uniquePropByUnionItem = new Map<CollectionRunType<any>, PropUnionItemPair>();
     unionTypes.forEach((unionItem) => {
@@ -188,13 +183,13 @@ export function getUniqueDiscriminatorProperties(
     });
 }
 
-export function initGetCompiledName() {
+export function getFlatPropCompiledName() {
     const typeIDs = new Map<string | number, number>();
     return function getCompiledName(urt: UnionRunType, typeID: string | number): string {
         const existingIndex = typeIDs.get(typeID);
-        if (existingIndex) return `prp${urt.getNestLevel()}_${existingIndex}`;
+        if (existingIndex) return `fp${urt.getNestLevel()}_${existingIndex}`;
         const newIndex = typeIDs.size;
         typeIDs.set(typeID, newIndex);
-        return `prp${urt.getNestLevel()}_${newIndex}`;
+        return `fp${urt.getNestLevel()}_${newIndex}`;
     };
 }

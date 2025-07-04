@@ -12,7 +12,17 @@ import {BaseRunType, CollectionRunType} from '../../lib/baseRunTypes';
 import {childIsExpression} from '../../lib/utils';
 import {CodeType, JitFunctions} from '../../constants';
 import {isClassRunType, isInterfaceRunType, isIntersectionRunType, isObjectLiteralRunType} from '../../lib/guards';
-import {markDiscriminators, splitUnionTypes} from '@mionkit/run-types/src/runType/collection/unionDiscriminator';
+import {
+    FlattenedUnionProp,
+    markDiscriminators,
+    SimpleUnionItem,
+} from '@mionkit/run-types/src/runType/collection/unionDiscriminator';
+import {
+    compileIsTypeUnion,
+    iterateAndCompileUnionEncode,
+    iterateAndCompileUnionDecode,
+    UNION_FLATTENED_OBJECT_INDEX,
+} from '@mionkit/run-types/src/runType/collection/unionIterator';
 
 /**
  * Unions get encoded into an array where arr[0] is the discriminator and arr[1] is the value.
@@ -28,6 +38,7 @@ export class UnionRunType extends CollectionRunType<TypeUnion> {
         switch (fnID) {
             case JitFunctions.jsonStringify.id:
             case JitFunctions.toCode.id:
+            case JitFunctions.isType.id:
                 return 'RB';
             default:
                 return super.getCodeType(fnID);
@@ -44,7 +55,17 @@ export class UnionRunType extends CollectionRunType<TypeUnion> {
     getUnionChildren(comp: JitCompiler) {
         const children = this.getJitChildren(comp);
         markDiscriminators(comp, this, children);
-        return splitUnionTypes(comp, this, children);
+        // Simple split for backward compatibility
+        const simpleTypes: BaseRunType[] = [];
+        const objectTypes: BaseRunType[] = [];
+        children.forEach((child) => {
+            if (this.isTypeWithProperties(child)) {
+                objectTypes.push(child);
+            } else {
+                simpleTypes.push(child);
+            }
+        });
+        return {simpleTypes, objectTypes};
     }
 
     getUnionItemIndex(comp: JitCompiler, unionItem: BaseRunType): number {
@@ -67,14 +88,7 @@ export class UnionRunType extends CollectionRunType<TypeUnion> {
     }
 
     _compileIsType(comp: JitCompiler): jitCode {
-        const {regularTypes, objectTypes} = this.getUnionChildren(comp);
-        const items = regularTypes.map((rt) => this.getChildStrictIsType(rt, comp));
-        const checkItems = items.filter(Boolean).join(' || ');
-        if (!objectTypes.length) return `(${checkItems})`;
-        const objItems = objectTypes.map((rt) => this.getChildStrictIsType(rt, comp));
-        const objCode = objItems.filter(Boolean).join(' || ');
-        const checkObjs = `(typeof ${comp.vλl} === 'object' && ${comp.vλl} !== null && (${objCode}))`;
-        return `(${[checkItems, checkObjs].filter(Boolean).join(' || ')})`;
+        return compileIsTypeUnion(comp, this);
     }
 
     _compileTypeErrors(comp: JitErrorsCompiler): jitCode {
@@ -90,35 +104,42 @@ export class UnionRunType extends CollectionRunType<TypeUnion> {
      * ie: type union = string | number | bigint;  var v1: union = 123n;  v1 is encoded as [2, "123n"]
      */
     _compileToJsonVal(comp: JitCompiler): jitCode {
-        const {regularTypes, objectTypes} = this.getUnionChildren(comp);
         const errVarName = `uErr${this.getNestLevel()}`;
-        const fail = `throw new Error(${errVarName});`;
         comp.contextCodeItems.set(
             errVarName,
-            `const ${errVarName} = "Can not encode json to union: expected one of <${this.getUnionTypeNames()}>"`
+            `const ${errVarName} = "Can not encode union to json, item does not belong to the union"`
         );
-        let isFirst = true;
-        const onUnionTypes = (items: BaseRunType[]) => {
-            return items.map((child) => {
-                const iF = isFirst ? 'if' : 'else if';
-                isFirst = false;
-                const childCode = child.compileToJsonVal(comp) || '';
-                const isExpression = childIsExpression(JitFunctions.toJsonVal.id, child);
-                const encodeCode = isExpression && childCode ? `${comp.vλl} = ${childCode};` : childCode;
-                const itemIsType = this.getChildStrictIsType(child, comp);
-                // item encoded before reassigning varName to [i, item]
-                const index = this.getUnionItemIndex(comp, child);
-                return `${iF} (${itemIsType}) {${encodeCode} ${comp.vλl} = [${index}, ${comp.vλl}]}`;
-            });
+
+        const onStart = () => '';
+
+        const encodeUnionSimpleType = (item: SimpleUnionItem) => {
+            const childCode = item.rt.compileToJsonVal(comp) || '';
+            const isExpression = childIsExpression(JitFunctions.toJsonVal.id, item.rt);
+            const encodeCode = isExpression && childCode ? `${comp.vλl} = ${childCode}` : childCode;
+            // item encoded before reassigning varName to [i, item]
+            return `${encodeCode}; ${comp.vλl} = [${item.unionIndex}, ${comp.vλl}]`;
         };
 
-        const itemsCode = onUnionTypes(regularTypes);
-        if (!objectTypes.length) return `${itemsCode.join('')} else {${fail}}`;
-        const checkObjs = `${isFirst ? 'if' : 'else if'} (!(typeof ${comp.vλl} === 'object' && ${comp.vλl} !== null)) {${fail}}`;
-        const objItemsCode = onUnionTypes(objectTypes);
-        const childrenCode = [...itemsCode, checkObjs, ...objItemsCode].filter(Boolean).join('');
-        const code = ` ${childrenCode} else {${fail}} `;
-        return code;
+        const encodeFlattenedProp = (flatProp: FlattenedUnionProp) => {
+            // For flattened properties, encode each individual property
+            return flatProp.prop.compileToJsonVal(comp);
+        };
+
+        const encodeFlattenedObject = (index: number) => {
+            return `${comp.vλl} = [${index}, ${comp.vλl}]`;
+        };
+
+        const onFailed = () => `throw new Error(${errVarName})`;
+
+        return iterateAndCompileUnionEncode(
+            comp,
+            this,
+            onStart,
+            encodeUnionSimpleType,
+            encodeFlattenedProp,
+            encodeFlattenedObject,
+            onFailed
+        );
     }
 
     /**
@@ -130,29 +151,41 @@ export class UnionRunType extends CollectionRunType<TypeUnion> {
     _compileFromJsonVal(comp: JitCompiler): jitCode {
         const decVar = `dεc${this.getNestLevel()}`;
         const children = this.getJitChildren(comp);
-        const childrenItems = children
-            .map((child, i) => {
-                const iF = i === 0 ? 'if' : 'else if';
-                const childCode = child.compileFromJsonVal(comp) || '';
-                const isExpression = childIsExpression(JitFunctions.fromJsonVal.id, child);
-                const code = isExpression && childCode && childCode !== comp.vλl ? `${comp.vλl} = ${childCode}` : childCode;
-                if (!code) return '';
-                // item is decoded before being extracted from the array
-                const index = this.getUnionItemIndex(comp, child);
-                return `${iF} (${decVar} === ${index}) {${code}}`;
-            })
-            .filter(Boolean);
-        const childrenCode = childrenItems.join('');
-        const checkIndex = childrenCode
-            ? `if (${decVar} < 0 || ${decVar} > ${children.length}) { throw new Error('Can not decode union from json: expected index between 0 and ${children.length}') }`
-            : '';
-        const code = `
-            if (!Array.isArray(${comp.vλl}) || ${comp.vλl}.length !== 2) { throw new Error('Can not decode union from json: expected format [index, value]') }
-            const ${decVar} = ${comp.vλl}[0]; ${comp.vλl} = ${comp.vλl}[1];
-            ${checkIndex}
-            ${childrenCode}
-        `;
-        return code;
+
+        const errVarNameFormat = `uErrF${this.getNestLevel()}`;
+        const errVarNameIndex = `uErrI${this.getNestLevel()}`;
+        comp.contextCodeItems.set(
+            errVarNameFormat,
+            `const ${errVarNameFormat} = "Can not decode union from json: expected format [index, value]"`
+        );
+        comp.contextCodeItems.set(
+            errVarNameIndex,
+            `const ${errVarNameIndex} = "Can not decode union from json: expected index between ${UNION_FLATTENED_OBJECT_INDEX} and ${children.length - 1}"`
+        );
+
+        const onStart = () => {
+            return `
+                if (!Array.isArray(${comp.vλl}) || ${comp.vλl}.length !== 2) { throw new Error(${errVarNameFormat}) }
+                const ${decVar} = ${comp.vλl}[0]; ${comp.vλl} = ${comp.vλl}[1];
+                if (${decVar} < ${UNION_FLATTENED_OBJECT_INDEX} || ${decVar} >= ${children.length}) { throw new Error(${errVarNameIndex}) }
+            `;
+        };
+
+        const decodeUnionSimpleType = (item: SimpleUnionItem) => {
+            const childDecode = item.rt.compileFromJsonVal(comp) || '';
+            const isExpression = childIsExpression(JitFunctions.fromJsonVal.id, item.rt);
+            const code = isExpression && childDecode && childDecode !== comp.vλl ? `${comp.vλl} = ${childDecode}` : childDecode;
+            return code;
+        };
+
+        const decodeFlattenedProp = (flatProp: FlattenedUnionProp) => {
+            // For flattened properties, decode each individual property
+            return flatProp.prop.compileFromJsonVal(comp);
+        };
+
+        const onFailed = () => `throw new Error('Can not decode union from json: unexpected discriminator index')`;
+
+        return iterateAndCompileUnionDecode(comp, this, onStart, decodeUnionSimpleType, decodeFlattenedProp, onFailed, decVar);
     }
 
     getUnionTypeNames(): string {

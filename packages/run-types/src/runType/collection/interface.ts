@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 import {TypeObjectLiteral, TypeClass, TypeIntersection, ReflectionKind} from '@deepkit/type';
-import {jitCode, JitCompilerOpts} from '../../types';
+import type {jitCode} from '../../types';
 import {callCheckUnknownProperties, memorize, sortDiscriminatorsFirst} from '../../lib/utils';
 import {PropertyRunType} from '../member/property';
 import {BaseRunType, CollectionRunType, MemberRunType} from '../../lib/baseRunTypes';
@@ -37,9 +37,14 @@ export class InterfaceRunType<
         return this.getChildRunTypes().find((prop) => prop.src.kind === ReflectionKind.callSignature) as CallSignatureRunType;
     });
 
-    getJitChildren(comp: JitCompilerOpts): InterfaceMember[] {
-        const children = super.getJitChildren(comp) as InterfaceMember[];
-        return children.toSorted((a, b) => sortDiscriminatorsFirst(a, b)) as InterfaceMember[];
+    /**
+     * Returns the children sorted with prop discriminators first.
+     * This is used to compile the type checks, and checks fail faster.
+     * @param comp
+     * @returns
+     */
+    getSortedJitChildren(comp: JitCompiler): InterfaceMember[] {
+        return this.getJitChildren(comp).toSorted((a, b) => sortDiscriminatorsFirst(a, b)) as InterfaceMember[];
     }
     isPartOfUnion(): boolean {
         return this.getParent()?.src.kind === ReflectionKind.union;
@@ -49,7 +54,7 @@ export class InterfaceRunType<
 
     _compileIsType(comp: JitCompiler): jitCode {
         const varName = comp.vλl;
-        const children = this.getJitChildren(comp);
+        const children = this.getSortedJitChildren(comp);
         const childrenCode = children
             .map((prop) => prop.compileIsType(comp))
             .filter(Boolean)
@@ -62,7 +67,7 @@ export class InterfaceRunType<
 
     _compileTypeErrors(comp: JitErrorsCompiler): jitCode {
         const varName = comp.vλl;
-        const children = this.getJitChildren(comp);
+        const children = this.getSortedJitChildren(comp);
         const childrenCode = children
             .map((prop) => prop.compileTypeErrors(comp))
             .filter(Boolean)
