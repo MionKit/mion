@@ -94,7 +94,7 @@ describe('Atomic Union', () => {
         const toJsonVal = rtU.createJitFunction(JitFunctions.toJsonVal);
         const wrongUnionItem = [0, true];
 
-        expect(() => jsonStringify(wrongUnionItem)).toThrow('Can not encode union to json, item does not belong to the union');
+        expect(() => jsonStringify(wrongUnionItem)).toThrow('Can not JsonStringify union, item does not belong to the union');
         expect(() => fromJsonVal(123)).toThrow('Can not decode union from json: expected format [index, value]');
         expect(() => toJsonVal(wrongUnionItem)).toThrow('Can not encode union to json, item does not belong to the union');
     });
@@ -192,7 +192,7 @@ describe('Union Arr', () => {
         const toJsonVal = rt.createJitFunction(JitFunctions.toJsonVal);
         const typeValue = new Date();
 
-        expect(() => jsonStringify(typeValue)).toThrow('Can not encode union to json, item does not belong to the union');
+        expect(() => jsonStringify(typeValue)).toThrow('Can not JsonStringify union, item does not belong to the union');
         expect(() => fromJsonVal(123)).toThrow('Can not decode union from json: expected format [index, value]');
         expect(() => toJsonVal(typeValue)).toThrow('Can not encode union to json, item does not belong to the union');
     });
@@ -305,7 +305,7 @@ describe('Union Obj', () => {
         const toJsonVal = rt.createJitFunction(JitFunctions.toJsonVal);
         const typeValue = new Date();
 
-        expect(() => jsonStringify(typeValue)).toThrow('Can not encode union to json, item does not belong to the union');
+        expect(() => jsonStringify(typeValue)).toThrow('Can not JsonStringify union, item does not belong to the union');
         expect(() => fromJsonVal(123)).toThrow('Can not decode union from json: expected format [index, value]');
         expect(() => toJsonVal(typeValue)).toThrow('Can not encode union to json, item does not belong to the union');
     });
@@ -557,7 +557,7 @@ describe('Union Mixed', () => {
         const toJsonVal = rt.createJitFunction(JitFunctions.toJsonVal);
         const typeValue = new Date();
 
-        expect(() => jsonStringify(typeValue)).toThrow('Can not encode union to json, item does not belong to the union');
+        expect(() => jsonStringify(typeValue)).toThrow('Can not JsonStringify union, item does not belong to the union');
         expect(() => fromJsonVal(123)).toThrow('Can not decode union from json: expected format [index, value]');
         expect(() => toJsonVal(typeValue)).toThrow('Can not encode union to json, item does not belong to the union');
     });
@@ -567,6 +567,120 @@ describe('Union Mixed', () => {
         expect(typeof mocked === 'object').toBe(true);
         const validate = rt.createJitFunction(JitFunctions.isType);
         expect(validate(mocked)).toBe(true);
+    });
+});
+
+// So looks like when index type is present, we need to add and || or check to every property with the index type
+// also when traversing the object we need to add an exception to the propName if properTy was already checked
+describe('Union with index type', () => {
+    type MixWithIndex = {a: string; aa: boolean} | {b: number} | {[key: string]: string; b: string};
+
+    const objA: MixWithIndex = {a: 'hello', aa: true};
+    const objB: MixWithIndex = {b: 3};
+    const objC: MixWithIndex = {foo: 'world', b: 'hello'}; // 3rd item of the union with index type
+    const objD: MixWithIndex = {foo: 'world', bar: 'test', b: 'hello'}; // multiple index properties
+    const notObjA = {a: 'hello'}; // missing aa property
+    const notObjB = {c: 'hello'}; // doesn't match any union type - no 'b' for index type, no 'aa' for first type
+    const notObjC = {foo: 'world', aa: true}; // doesn't meet index condition as not all string, but also doesn't meet 1st type conditions
+    const notObjD = {b: true}; // b should be number or string, not boolean
+    const notObjE = {foo: 123, b: 'hello'}; // index type requires string values
+
+    const rt = runType<MixWithIndex>();
+
+    it('validate union', () => {
+        const validate = rt.createJitFunction(JitFunctions.isType);
+
+        expect(validate(objA)).toBe(true);
+        expect(validate(objB)).toBe(true);
+        expect(validate(objC)).toBe(true);
+        expect(validate(objD)).toBe(true);
+
+        expect(validate(notObjA)).toBe(false);
+        expect(validate(notObjB)).toBe(false);
+        expect(validate(notObjC)).toBe(false);
+        expect(validate(notObjD)).toBe(false);
+        expect(validate(notObjE)).toBe(false);
+        expect(validate([])).toBe(false);
+    });
+
+    // validation for Unions does not return info about the path as we can't know which type of the union the user was trying to use.
+    it('validate union + errors', () => {
+        const valWithErrors = rt.createJitFunction(JitFunctions.typeErrors);
+
+        expect(valWithErrors(objA)).toEqual([]);
+        expect(valWithErrors(objB)).toEqual([]);
+        expect(valWithErrors(objC)).toEqual([]);
+        expect(valWithErrors(objD)).toEqual([]);
+
+        expect(valWithErrors(notObjA)).toEqual([{path: [], expected: 'union'}]);
+        expect(valWithErrors(notObjB)).toEqual([{path: [], expected: 'union'}]);
+        expect(valWithErrors(notObjC)).toEqual([{path: [], expected: 'union'}]);
+        expect(valWithErrors(notObjD)).toEqual([{path: [], expected: 'union'}]);
+        expect(valWithErrors(notObjE)).toEqual([{path: [], expected: 'union'}]);
+    });
+
+    it('encode/decode to json', () => {
+        const toJsonVal = rt.createJitFunction(JitFunctions.toJsonVal);
+        const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
+
+        const copyA = structuredClone(objA);
+        const copyB = structuredClone(objB);
+        const copyC = structuredClone(objC);
+        const copyD = structuredClone(objD);
+
+        expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(copyA))))).toEqual(objA);
+        expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(copyB))))).toEqual(objB);
+        expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(copyC))))).toEqual(objC);
+        expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(copyD))))).toEqual(objD);
+    });
+
+    it('json stringify with discriminator', () => {
+        // this should be serialized as [discriminatorIndex, value]
+        const jsonStringify = rt.createJitFunction(JitFunctions.jsonStringify);
+        const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
+
+        expect(fromJsonVal(JSON.parse(jsonStringify(objA)))).toEqual(objA);
+        expect(fromJsonVal(JSON.parse(jsonStringify(objB)))).toEqual(objB);
+        expect(fromJsonVal(JSON.parse(jsonStringify(objC)))).toEqual(objC);
+        expect(fromJsonVal(JSON.parse(jsonStringify(objD)))).toEqual(objD);
+    });
+
+    it('throw errors when serializing deserializing object not belonging to the union', () => {
+        const jsonStringify = rt.createJitFunction(JitFunctions.jsonStringify);
+        const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
+        const toJsonVal = rt.createJitFunction(JitFunctions.toJsonVal);
+        const typeValue = new Date();
+
+        expect(() => jsonStringify(typeValue)).toThrow('Can not JsonStringify union, item does not belong to the union');
+        expect(() => fromJsonVal(123)).toThrow('Can not decode union from json: expected format [index, value]');
+        expect(() => toJsonVal(typeValue)).toThrow('Can not encode union to json, item does not belong to the union');
+    });
+
+    it('mock', async () => {
+        const mocked = await rt.mock();
+        expect(typeof mocked === 'object').toBe(true);
+        const validate = rt.createJitFunction(JitFunctions.isType);
+        expect(validate(mocked)).toBe(true);
+    });
+
+    it('encode/decode mixed with index type to json', () => {
+        type MixIndex = {a: string; aa: boolean} | {b: number} | {[key: string]: string; b: string};
+        const rtMI = runType<MixIndex>();
+        const toJsonVal = rtMI.createJitFunction(JitFunctions.toJsonVal);
+        const fromJsonVal = rtMI.createJitFunction(JitFunctions.fromJsonVal);
+
+        const mixIndexA: MixIndex = {a: 'hello', aa: true}; // 1st item of the union
+        // mix of 1st and 2nd item of the union (works because meets index condition and also one of the conditions for b)
+        const mixIndexB: MixIndex = {foo: 'world', b: 3};
+        const mixIndexC: MixIndex = {foo: 'world', b: 'hello'}; // 3rd item of the union
+
+        const copyA = structuredClone(mixIndexA);
+        const copyB = structuredClone(mixIndexB);
+        const copyC = structuredClone(mixIndexC);
+
+        expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(copyA))))).toEqual(mixIndexA);
+        expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(copyB))))).toEqual(mixIndexB);
+        expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(copyC))))).toEqual(mixIndexC);
     });
 });
 

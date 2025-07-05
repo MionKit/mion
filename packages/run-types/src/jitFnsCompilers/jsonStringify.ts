@@ -27,6 +27,8 @@ import type {ArrayRunType} from '@mionkit/run-types/src/runType/member/array';
 import type {MemberRunType} from '../lib/baseRunTypes';
 import type {LiteralRunType} from '@mionkit/run-types/src/runType/atomic/literal';
 import type {IterableRunType} from '@mionkit/run-types/src/runType/native/Iterable';
+import type {FlattenedUnionProp, SimpleUnionItem} from '@mionkit/run-types/src/runType/collection/unionDiscriminator';
+import {iterateAndCompileUnionEncode} from '@mionkit/run-types/src/runType/collection/unionIterator';
 
 type Operation = typeof JitFunctions.jsonStringify.id | typeof JitFunctions.toCode.id;
 
@@ -241,15 +243,16 @@ export function _compileJsonStringify(
             throw new Error('Type parameter not implemented.');
         case ReflectionKind.union: {
             const urt = runType as UnionRunType;
-            const {regularTypes, objectTypes} = urt.getUnionChildren(comp);
+            return _compileJsonStringifyUnion(urt, comp, fnID);
+            const {simpleTypes, objectTypes} = urt.getUnionChildren(comp);
             const errVarName = `uErr${urt.getNestLevel()}`;
             const fail = `throw new Error(${errVarName});`;
             comp.contextCodeItems.set(
                 errVarName,
-                `const ${errVarName} = "Can not ${getOperationName(fnID)} union: expected one of <${urt.getUnionTypeNames()}>"`
+                `const ${errVarName} = "Can not ${getOperationName(fnID)} union, item does not belong to the union"`
             );
             let isFirst = true;
-            const onUnionTypes = (items: BaseRunType[]) => {
+            const onUnionSimpleTypes = (items: BaseRunType[]) => {
                 return items.map((child) => {
                     const itemIsType = urt.getChildStrictIsType(child, comp);
                     const childCode = child.compile(comp, fnID);
@@ -264,10 +267,10 @@ export function _compileJsonStringify(
                 });
             };
 
-            const itemsCode = onUnionTypes(regularTypes);
+            const itemsCode = onUnionSimpleTypes(simpleTypes);
             if (!objectTypes.length) return `${itemsCode.join('')} else {${fail}}`;
             const checkObjs = `${isFirst ? 'if' : 'else if'} (!(typeof ${comp.vλl} === 'object' && ${comp.vλl} !== null)) {${fail}}`;
-            const objItemsCode = onUnionTypes(objectTypes);
+            const objItemsCode = onUnionSimpleTypes(objectTypes);
             const childrenCode = [...itemsCode, checkObjs, ...objItemsCode].filter(Boolean).join('');
             const code = ` ${childrenCode} else {${fail}} `;
             return code;
@@ -419,4 +422,22 @@ export function _compileJsonStringifyIterable(
         }
         ${earlyReturn}return '${codePrefix}[' + ${jsonItems}.join(',') + ']${codeSuffix}'
     `;
+}
+
+function _compileJsonStringifyUnion(urt: UnionRunType, comp: JitCompiler, fnID: Operation): jitCode {
+    const onStart = () => '';
+    const encodeUnionSimpleType = (item: SimpleUnionItem) => {
+        const child = item.rt;
+        const childCode = child.compile(comp, fnID);
+        const skipDecode = !childCode || childCode === comp.vλl;
+        const stringifyCode = skipDecode ? comp.vλl : `${childCode}`;
+        const index = urt.getUnionItemIndex(comp, child);
+        const code = `'[${index},' + ${stringifyCode} + ']'`;
+        const itemCode = child.getFamily() === 'A' ? `(${code})` : code;
+        return itemCode;
+    };
+    // For flattened properties, encode each individual property
+    const encodeFlattenedProp = (flatProp: FlattenedUnionProp) => flatProp.prop.compile(comp, fnID);
+    const encodeFlattenedObject = (index: number) => `${comp.vλl} = '[${index},' + ${comp.vλl} + ']'`;
+    return iterateAndCompileUnionEncode(comp, urt, onStart, encodeUnionSimpleType, encodeFlattenedProp, encodeFlattenedObject);
 }
