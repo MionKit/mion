@@ -27,6 +27,11 @@ export class PropertyRunType extends MemberRunType<TypePropertySignature | TypeP
         }
         return false;
     }
+    getPropNameLiteral(useQuotes: boolean): string {
+        if (useQuotes) return `"${this.getChildVarName()}"`;
+        return `${this.getChildVarName()}`;
+    }
+
     // #### jit code ####
 
     _compileIsType(comp: JitCompiler): jitCode {

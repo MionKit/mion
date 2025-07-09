@@ -7,8 +7,8 @@
 import {TypeObjectLiteral, TypeClass, TypeIntersection, ReflectionKind} from '@deepkit/type';
 import type {jitCode} from '../../types';
 import {callCheckUnknownProperties, memorize, sortDiscriminatorsFirst} from '../../lib/utils';
-import {PropertyRunType} from '../member/property';
-import {BaseRunType, CollectionRunType, MemberRunType} from '../../lib/baseRunTypes';
+import type {PropertyRunType} from '../member/property';
+import {type BaseRunType, CollectionRunType, MemberRunType} from '../../lib/baseRunTypes';
 import {MethodSignatureRunType} from '../member/methodSignature';
 import {IndexSignatureRunType} from '../member/indexProperty';
 import {MethodRunType} from '../member/method';

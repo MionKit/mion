@@ -15,7 +15,8 @@ import {isClassRunType, isInterfaceRunType, isIntersectionRunType, isObjectLiter
 import {
     FlattenedUnionProp,
     markDiscriminators,
-    SimpleUnionItem,
+    type SimpleUnionItem,
+    type SplitUnionItems,
 } from '@mionkit/run-types/src/runType/collection/unionDiscriminator';
 import {
     compileIsTypeUnion,
@@ -33,6 +34,7 @@ import {
 export class UnionRunType extends CollectionRunType<TypeUnion> {
     hasDiscriminators: boolean | undefined = undefined;
     hasObjectTypes: boolean | undefined = undefined;
+    splitUnionItems: SplitUnionItems | undefined = undefined;
     getCodeType(fnID: JitFnID): CodeType {
         switch (fnID) {
             case JitFunctions.jsonStringify.id:

@@ -1,9 +1,10 @@
-import {ReflectionKind, TypeIndexSignature} from '@deepkit/type';
+import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
+import type {SplitUnionItems} from '@mionkit/run-types/src/runType/collection/unionDiscriminator';
+import type {InterfaceRunType} from '../collection/interface';
+import {ReflectionKind, type TypeIndexSignature} from '@deepkit/type';
 import {MemberRunType} from '../../lib/baseRunTypes';
 import {JitCompilerOpts, JitFnID, type jitCode} from '../../types';
 import {CodeType, JitFunctions} from '../../constants';
-import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
-import {InterfaceRunType} from '../collection/interface';
 import {childIsExpression} from '../../lib/utils';
 
 /* ########
@@ -14,6 +15,7 @@ import {childIsExpression} from '../../lib/utils';
  * ######## */
 
 export class IndexSignatureRunType extends MemberRunType<TypeIndexSignature> {
+    tempUnionData: {indexFlagsVarName: string; splitUnionItems: SplitUnionItems} | undefined;
     isOptional(): boolean {
         return true;
     }
@@ -46,9 +48,20 @@ export class IndexSignatureRunType extends MemberRunType<TypeIndexSignature> {
     }
     // #### jit code ####
     _compileIsType(comp: JitCompiler): jitCode {
+        if (this.tempUnionData) return this._compileIsTypeFromUnion(comp);
         const childCode = this.getJitChild(comp)?.compileIsType(comp);
         if (!childCode) return undefined;
         return `for (const ${this.getChildVarName()} in ${comp.vλl}){if (!(${childCode})) return false;} return true;`;
+    }
+
+    private _compileIsTypeFromUnion(comp: JitCompiler): jitCode {
+        if (!this.tempUnionData) throw new Error('tempUnionData not set');
+        const childCode = this.getJitChild(comp)?.compileIsType(comp);
+        if (!childCode) return undefined;
+        const {indexFlagsVarName} = this.tempUnionData;
+        const propName = this.getChildVarName();
+        const flagCheck = `${indexFlagsVarName}[${propName}]`;
+        return `for (const ${propName} in ${comp.vλl}){if(${flagCheck}) continue;if (!(${childCode})) return false;} return true;`;
     }
     _compileTypeErrors(comp: JitErrorsCompiler): jitCode {
         const childCode = this.getJitChild(comp)?.compileTypeErrors(comp);

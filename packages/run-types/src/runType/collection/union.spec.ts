@@ -234,17 +234,28 @@ describe('Union Obj', () => {
         expect(validate(notC)).toBe(false);
         expect(validate(notD)).toBe(false);
         expect(validate([])).toBe(false);
+
+        const fnCode = validate.toString();
+        // ensure code for index is present
+        // not the best strategy for testing but good enough
+        expect(fnCode).not.toContain('uIdx0');
+        expect(fnCode).not.toContain(`uIdx0["a"] = true;`);
+        expect(fnCode).not.toContain(`uIdx0["aa"] = true;`);
+        expect(fnCode).not.toContain(`uIdx0["b"] = true;`);
+        expect(fnCode).not.toContain(`uIdx0["c hello\\nworld"] = true;`);
+        expect(fnCode).not.toContain(`if(uIdx0[p2]) continue;`); // code inside the index prop log to continue if prop was already checked
     });
 
     it('validate an union with index property', () => {
-        type UnionObj = {a: string; aa: boolean} | {b: number} | {c: bigint; [key: string]: bigint};
+        // ensuring using weird property names does not break the code
+        type UnionObj = {a: string; aa: boolean} | {b: number} | {'c hello\nworld': bigint; [key: string]: bigint};
 
         const rt = runType<UnionObj>();
         const validate = rt.createJitFunction(JitFunctions.isType);
 
         const obj1: UnionObj = {a: 'hello', aa: true};
         const obj2: UnionObj = {b: 123};
-        const obj3: UnionObj = {c: 1n, d: 2n};
+        const obj3: UnionObj = {'c hello\nworld': 1n, d: 2n};
 
         expect(validate(obj1)).toBe(true);
         expect(validate(obj2)).toBe(true);
@@ -259,6 +270,16 @@ describe('Union Obj', () => {
         expect(validate(not2)).toBe(false);
         expect(validate(not3)).toBe(false);
         expect(validate(not4)).toBe(false);
+
+        const fnCode = validate.toString();
+        // ensure code for index is present
+        // not the best strategy for testing but good enough
+        expect(fnCode).toContain('uIdx0');
+        expect(fnCode).toContain(`uIdx0["a"] = true;`);
+        expect(fnCode).toContain(`uIdx0["aa"] = true;`);
+        expect(fnCode).toContain(`uIdx0["b"] = true;`);
+        expect(fnCode).toContain(`uIdx0["c hello\\nworld"] = true;`);
+        expect(fnCode).toContain(`if(uIdx0[p2]) continue;`);
     });
 
     it('validate union + errors', () => {
@@ -315,6 +336,47 @@ describe('Union Obj', () => {
         expect(typeof mocked === 'object').toBe(true);
         const validate = rt.createJitFunction(JitFunctions.isType);
         expect(validate(mocked)).toBe(true);
+    });
+});
+
+describe('Union Obj with two same type with extra properties', () => {
+    type UnionObj = {a: string} | {a: string; b: number};
+
+    const rt = runType<UnionObj>();
+
+    const obj1: UnionObj = {a: 'hello'};
+    const obj2: UnionObj = {a: 'hello', b: 123};
+
+    const notObj1 = {a: 'hello', b: 'world'};
+
+    function closure_is_DJnNnj(utl) {
+        const k_DJnNnj = ['b', 'a'];
+        function is_DJnNnj(v) {
+            if (!(typeof v === 'object' && v !== null)) return false;
+            let u0P0 = false,
+                u0P1 = false;
+            // TODO: b property treated as discriminator, but it is not
+            if (Number.isFinite(v.b)) {
+                u0P0 = true;
+            } else return false;
+            if (typeof v.a === 'string') {
+                u0P1 = true;
+            }
+            if (typeof v.a === 'string') {
+                u0P1 = true;
+            }
+            if (((u0P0 && u0P1) || u0P1) && !utl.hasUnknownKeysFromArray(v, k_DJnNnj)) return true;
+            return false;
+        }
+        return is_DJnNnj;
+    }
+
+    it('validate union', () => {
+        const validate = rt.createJitFunction(JitFunctions.isType);
+        expect(validate(obj1)).toBe(true);
+        expect(validate(obj2)).toBe(true);
+
+        expect(validate(notObj1)).toBe(false);
     });
 });
 
@@ -570,8 +632,6 @@ describe('Union Mixed', () => {
     });
 });
 
-// So looks like when index type is present, we need to add and || or check to every property with the index type
-// also when traversing the object we need to add an exception to the propName if properTy was already checked
 describe('Union with index type', () => {
     type MixWithIndex = {a: string; aa: boolean} | {b: number} | {[key: string]: string; b: string};
 
@@ -682,6 +742,17 @@ describe('Union with index type', () => {
         expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(copyB))))).toEqual(mixIndexB);
         expect(fromJsonVal(JSON.parse(JSON.stringify(toJsonVal(copyC))))).toEqual(mixIndexC);
     });
+});
+
+describe('Union with two different index types', () => {
+    type MixWithIndex = {[key: string]: string; b: string} | {[key: string]: number; b: number};
+
+    const objA: MixWithIndex = {a: 'hello', b: 'world'};
+    const objB: MixWithIndex = {a: 123, b: 3};
+
+    const notObjA = {a: 'hello'}; // doesn't match any union type - no 'b' for index type
+    const notObjB = {a: 123}; // doesn't match any union type - no 'b' for index type
+    const notObjC = {a: 'hello', b: 3}; // types from both index are not allowed
 });
 
 describe('Union circular', () => {

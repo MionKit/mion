@@ -291,13 +291,14 @@ function getOperationName(fnID: Operation) {
     }
 }
 
-function getPropName(rt: PropertyRunType, fnID: JitFnID): string {
+function getPropName(rt: PropertyRunType, fnID: Operation): string {
     if (!isSafePropName(rt.src.name)) return `${JSON.stringify(rt.getChildLiteral() as string)}+':'`;
-    if (fnID === JitFunctions.toCode.id) return `'${rt.getChildVarName()}:'`;
-    return `'"${rt.getChildVarName()}":'`;
+    const useQuotes = fnID === JitFunctions.jsonStringify.id;
+    const propNameLiteral = rt.getPropNameLiteral(useQuotes);
+    return `'${propNameLiteral}:'`;
 }
 
-function _compileJsonStringifyParameter(rt: ParameterRunType, comp: JitCompiler, fnID: JitFnID): jitCode {
+function _compileJsonStringifyParameter(rt: ParameterRunType, comp: JitCompiler, fnID: Operation): jitCode {
     let childCode = rt.getJitChild(comp)?.compile(comp, fnID);
     if (!childCode) childCode = `null`; // non serializable types are set to null
     if (rt.isRest()) return childCode;
@@ -307,7 +308,7 @@ function _compileJsonStringifyParameter(rt: ParameterRunType, comp: JitCompiler,
     return `${sep}${childCode}`;
 }
 
-function _compileJsonStringifyGenericMember(rt: ParameterRunType, comp: JitCompiler, fnID: JitFnID): jitCode {
+function _compileJsonStringifyGenericMember(rt: ParameterRunType, comp: JitCompiler, fnID: Operation): jitCode {
     const child = rt.getJitChild(comp);
     const argCode = child?.compile(comp, fnID);
     if (!argCode) return undefined;
@@ -317,7 +318,7 @@ function _compileJsonStringifyGenericMember(rt: ParameterRunType, comp: JitCompi
     return `${sep}${argCode}`;
 }
 
-function _compileJsonStringifyInterface(rt: InterfaceRunType, comp: JitCompiler, fnID: JitFnID): jitCode {
+function _compileJsonStringifyInterface(rt: InterfaceRunType, comp: JitCompiler, fnID: Operation): jitCode {
     if (rt.isCallable()) return rt.getCallSignature()!.compile(comp, fnID);
     const children = rt.getJsonStringifySortedChildren(comp);
     if (children.length === 0) return `''`;
@@ -358,7 +359,7 @@ function _compileInterfaceIntoArray(
     return `(function(){const ${arrName} = [];${childrenCode};return '{'+${arrName}.join(',')+'}'})()`;
 }
 
-function _compileJsonStringifyClass(runType: BaseRunType, comp: JitCompiler, fnID: JitFnID): jitCode {
+function _compileJsonStringifyClass(runType: BaseRunType, comp: JitCompiler, fnID: Operation): jitCode {
     switch (runType.src.subKind) {
         case ReflectionSubKind.date:
             return `'"'+${comp.vλl}.toJSON()+'"'`;
