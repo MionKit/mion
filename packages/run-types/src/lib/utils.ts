@@ -376,3 +376,13 @@ export function callCheckUnknownProperties(
     if (filtered.length > 1) return `(${filtered.join(' && ')})`;
     return filtered[0];
 }
+
+export function createIfElseFn(): (isEnd?: boolean) => string {
+    let isFirst = true;
+    return (end = false) => {
+        const elseIf = end ? 'else' : 'else if';
+        const iF = isFirst ? 'if' : elseIf;
+        isFirst = false;
+        return iF;
+    };
+}

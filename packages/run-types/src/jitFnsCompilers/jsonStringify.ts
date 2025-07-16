@@ -9,7 +9,7 @@ import {ReflectionKind} from '@deepkit/type';
 import {ReflectionSubKind} from '../constants.kind';
 import {JitFunctions} from '@mionkit/run-types/src/constants';
 import {JitCompiler} from '@mionkit/run-types/src/lib/jitCompiler';
-import {isSafePropName} from '@mionkit/run-types/src/lib/utils';
+import {createIfElseFn, isSafePropName} from '@mionkit/run-types/src/lib/utils';
 import type {IndexSignatureRunType} from '../runType/member/indexProperty';
 import type {jitCode, JitFnID} from '../types';
 import type {BaseRunType} from '../lib/baseRunTypes';
@@ -241,36 +241,43 @@ export function _compileJsonStringify(
             throw new Error('Type parameter not implemented.');
         case ReflectionKind.union: {
             const urt = runType as UnionRunType;
-            const {regularTypes, objectTypes} = urt.getUnionChildren(comp);
-            const errVarName = `uErr${urt.getNestLevel()}`;
-            const fail = `throw new Error(${errVarName});`;
+            const {simpleItems, objectTypes} = urt.getUnionChildren(comp);
+            const errName = `uErr${urt.getNestLevel()}`;
+            const fail = `throw new Error(${errName});`;
             comp.contextCodeItems.set(
-                errVarName,
-                `const ${errVarName} = "Can not ${getOperationName(fnID)} union: expected one of <${urt.getUnionTypeNames()}>"`
+                errName,
+                `const ${errName} = "Can not ${getOperationName(fnID)} union: item does not belong to the union"`
             );
-            let isFirst = true;
+
+            const isType = (unionItem) => urt.getChildStrictIsType(unionItem, comp);
+            const ifElse = createIfElseFn();
             const onUnionTypes = (items: BaseRunType[]) => {
-                return items.map((child) => {
-                    const itemIsType = urt.getChildStrictIsType(child, comp);
-                    const childCode = child.compile(comp, fnID);
-                    const skipDecode = !childCode || childCode === comp.vλl;
-                    const stringifyCode = skipDecode ? comp.vλl : `${childCode}`;
-                    const index = urt.getUnionItemIndex(comp, child);
-                    const code = `'[${index},' + ${stringifyCode} + ']'`;
-                    const itemCode = child.getFamily() === 'A' ? `(${code})` : code;
-                    const IF = isFirst ? 'if' : 'else if';
-                    isFirst = false;
-                    return `${IF} (${itemIsType}) {return ${itemCode}}`;
+                const result = items.map((unionItem) => {
+                    const childCode = unionItem.compile(comp, fnID);
+                    // TODO: calling full encode/decode could be expensive and we calling it only to know if it needs encoding.
+                    // we might want to optimize this
+                    const encCode = unionItem.compileToJsonVal(comp);
+                    const decCode = unionItem.compileFromJsonVal(comp);
+                    const needsTupleEncoding = !!encCode || !!decCode;
+                    const skiEncode = !childCode || childCode === comp.vλl;
+                    const stringifyCode = skiEncode ? comp.vλl : `${childCode}`;
+                    const index = urt.getUnionItemIndex(comp, unionItem);
+                    const toTuple = `'[${index},' + ${stringifyCode} + ']'`;
+                    const tupleCode = unionItem.getFamily() === 'A' ? `(${toTuple})` : toTuple;
+                    if (needsTupleEncoding) return `${ifElse()} (${isType(unionItem)}) {return ${tupleCode}}`;
+                    return `${ifElse()} (${isType(unionItem)}) {return ${stringifyCode}}`;
                 });
+                return result.filter(Boolean);
             };
 
-            const itemsCode = onUnionTypes(regularTypes);
+            const itemsCode = onUnionTypes(simpleItems);
             if (!objectTypes.length) return `${itemsCode.join('')} else {${fail}}`;
-            const checkObjs = `${isFirst ? 'if' : 'else if'} (!(typeof ${comp.vλl} === 'object' && ${comp.vλl} !== null)) {${fail}}`;
+            // these need to be in correct order for else if to work properly
+            const nonObjectFail = `${ifElse()} (!(typeof ${comp.vλl} === 'object' && ${comp.vλl} !== null)) {${fail}}`;
             const objItemsCode = onUnionTypes(objectTypes);
-            const childrenCode = [...itemsCode, checkObjs, ...objItemsCode].filter(Boolean).join('');
-            const code = ` ${childrenCode} else {${fail}} `;
-            return code;
+            const allFail = `${ifElse(true)} {${fail}}`;
+            const childrenCode = [...itemsCode, nonObjectFail, ...objItemsCode, allFail].join('');
+            return childrenCode;
         }
         default:
             throw new Error(`Cant ${getOperationName(fnID)} for unsupported RunType: ${runType.getTypeName()}`);
