@@ -7,7 +7,7 @@
 
 import {CallContext, SingleHeaderValue} from './context';
 import {RouterOptions} from './general';
-import {ErrorReturn} from './publicProcedures';
+import {ErrorReturn} from './publicMethods';
 
 // #######  Route Handlers #######
 

@@ -13,7 +13,7 @@ import {getSerializableJitCompiler} from '@mionkit/run-types/src/lib/jitCompiler
 import {type FunctionRunType} from '@mionkit/run-types/src/runType/function/function';
 import {Handler} from '@mionkit/router/src/types/handlers';
 import {RouterOptions} from '@mionkit/router/src/types/general';
-import {CompiledProcedure} from '@mionkit/router/src/types/procedures'; // do not import type only
+import {CompiledMethod} from '@mionkit/router/src/types/remoteMethods'; // do not import type only
 
 export function getParamsJitFns<Fn extends AnyFn>(fn: Fn, opts?: RunTypeOptions): JITCompiledFunctions {
     const rt = reflectFunction(fn);
@@ -50,7 +50,7 @@ export function getSerializableJitFunctions(jitCompFns: JITCompiledFunctions): S
     };
 }
 
-interface ProcedureReflectionItems {
+interface MethodReflectionItems {
     handlerRunType: FunctionRunType;
     paramsJitFns: JITCompiledFunctions;
     returnJitFns: JITCompiledFunctions;
@@ -60,8 +60,8 @@ interface ProcedureReflectionItems {
 // TODO: we do not want to use runtypes directly but compiled functions so we can take advantage
 // of precompiled functions without having to generate JIT functions
 // this way we also do not need to use new Function which is not allowed in some environments
-export function getHandlerReflection(handler: Handler, routeId: string, routerOptions: RouterOptions): ProcedureReflectionItems {
-    const reflectionItems: Partial<ProcedureReflectionItems> = {};
+export function getHandlerReflection(handler: Handler, routeId: string, routerOptions: RouterOptions): MethodReflectionItems {
+    const reflectionItems: Partial<MethodReflectionItems> = {};
     let handlerRunType: FunctionRunType;
     try {
         handlerRunType = reflectFunction(handler);
@@ -86,10 +86,10 @@ export function getHandlerReflection(handler: Handler, routeId: string, routerOp
         throw new Error(`Can not get Jit Functions for Return of route/hook ${routeId}. Error: ${error?.message}`);
     }
 
-    return reflectionItems as ProcedureReflectionItems;
+    return reflectionItems as MethodReflectionItems;
 }
 
-export function getProceduresToCodeFn() {
-    const rt = runType<Record<string, CompiledProcedure>>();
+export function getMethodsToCodeFn() {
+    const rt = runType<Record<string, CompiledMethod>>();
     return rt.createJitFunction(JitFunctions.toCode);
 }

@@ -8,7 +8,7 @@
 import {RpcError} from '@mionkit/core/src/errors';
 import {CallContext} from './context';
 import {Routes} from './general';
-import {HandlerType, Procedure} from './procedures';
+import {HandlerType, Method} from './remoteMethods';
 import {Handler} from './handlers';
 import {HeaderHookDef, HookDef, RawHookDef, RouteDef} from './definitions';
 
@@ -42,18 +42,18 @@ export type PrivateDef = PrivateHookDef | PrivateHeaderDef | PrivateRawDef;
 export type PublicApi<Type extends Routes> = {
     [Property in keyof Type as Type[Property] extends PrivateDef ? never : Property]
     : Type[Property] extends HookDef
-    ? PublicHookProcedure<Type[Property]['handler']>
+    ? PublicHookMethod<Type[Property]['handler']>
     : Type[Property] extends HeaderHookDef
-    ? PublicHeaderProcedure<Type[Property]['handler']>
+    ? PublicHeaderMethod<Type[Property]['handler']>
     : Type[Property] extends RouteDef // Routes
-    ? PublicRouteProcedure<Type[Property]['handler']>
+    ? PublicRouteMethod<Type[Property]['handler']>
         : Type[Property] extends Routes // Routes & PureRoutes (recursion)
         ? PublicApi<Type[Property]>
         : never;
 
     // [Property in keyof Type as Type[Property] extends PrivateDef ? never : Property]
-    //     : Type[Property] extends Procedure 
-    //     ? Procedure<Type[Property]['handler']>
+    //     : Type[Property] extends Method 
+    //     ? Method<Type[Property]['handler']>
     //         : Type[Property] extends Routes // Routes (recursion)
     //         ? PublicApi<Type[Property]>
     //         : never;
@@ -67,9 +67,8 @@ export type SerializableJitHashes = {
     jsonStringify: string;
 };
 
-// quite similar to PublicProcedure but omits some server only properties
-export interface PublicProcedure<H extends Handler = any>
-    extends Pick<Procedure<H>, 'type' | 'id' | 'headerNames' | 'paramNames'> {
+// quite similar to PublicMethod but omits some server only properties
+export interface PublicMethod<H extends Handler = any> extends Pick<Method<H>, 'type' | 'id' | 'headerNames' | 'paramNames'> {
     /** Type reference to the route handler, it's runtime value is actually null, just used statically by typescript. */
     handler: PublicHandler<H>;
     /** ids of the jit functions used by the params of the handler */
@@ -81,19 +80,19 @@ export interface PublicProcedure<H extends Handler = any>
 }
 
 /** Public map from Routes, handler type is the same as router's handler but does not include the context  */
-export interface PublicHookProcedure<H extends Handler = any> extends PublicProcedure<H> {
+export interface PublicHookMethod<H extends Handler = any> extends PublicMethod<H> {
     type: HandlerType.route;
     hookIds: string[];
     headerNames: undefined;
 }
 
 /** Public map from Hooks, handler type is the same as hooks's handler but does not include the context  */
-export interface PublicRouteProcedure<H extends Handler = any> extends PublicProcedure<H> {
+export interface PublicRouteMethod<H extends Handler = any> extends PublicMethod<H> {
     type: HandlerType.hook;
     pathPointers: undefined;
 }
 
-export interface PublicHeaderProcedure<H extends Handler = any> extends PublicProcedure<H> {
+export interface PublicHeaderMethod<H extends Handler = any> extends PublicMethod<H> {
     type: HandlerType.headerHook;
     headerNames: string[];
 }
@@ -105,7 +104,7 @@ export type PublicHandler<H extends Handler> =
     : never;
 
 export type PublicHandlers<RMS extends PublicApi<any>> = {
-    [Property in keyof RMS]: RMS[Property] extends PublicRouteProcedure | PublicHookProcedure | PublicHeaderProcedure
+    [Property in keyof RMS]: RMS[Property] extends PublicRouteMethod | PublicHookMethod | PublicHeaderMethod
         ? RMS[Property]['handler']
         : never;
 };

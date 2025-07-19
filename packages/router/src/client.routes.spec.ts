@@ -11,14 +11,14 @@ import {getRoutePath} from '@mionkit/core/src/core';
 import {GET_REMOTE_METHODS_BY_ID, GET_REMOTE_METHODS_BY_PATH} from '@mionkit/core/src/constants';
 import {hook, rawHook, route} from './handlers';
 import {Routes} from './types/general';
-import {HandlerType} from './types/procedures';
-import {ProceduresData, clientRoutes} from './client.routes';
+import {HandlerType} from './types/remoteMethods';
+import {MethodsData, clientRoutes} from './client.routes';
 import {headersFromRecord} from './headers';
 import {dispatchRoute} from './dispatch';
 import {runType} from '@mionkit/run-types/src/lib/runType';
-import {PublicProcedure} from '@mionkit/router/src/types/publicProcedures'; // do not import type only
+import {PublicMethod} from '@mionkit/router/src/types/publicMethods'; // do not import type only
 import {JitFunctions} from '@mionkit/run-types/src/constants';
-import {getSerializableProcedure} from '@mionkit/router/src/remoteMethodsMetadata';
+import {getSerializableMethod} from '@mionkit/router/src/remoteMethodsMetadata';
 import {RpcError} from '@mionkit/core/src/errors';
 import {jitUtils} from '@mionkit/core/src/jitUtils';
 
@@ -27,53 +27,53 @@ type RawRequest = {
     body: string;
 };
 
-describe('PublicProcedures run type functionality', () => {
+describe('PublicMethods run type functionality', () => {
     const route1 = route((ctx): string => 'something');
     const routes = {route1} satisfies Routes;
 
-    type ClientReturn = ProceduresData | RpcError;
+    type ClientReturn = MethodsData | RpcError;
 
     afterEach(() => resetRouter());
 
-    it('can validate PublicProcedure', () => {
+    it('can validate PublicMethod', () => {
         initRouter();
         registerRoutes(routes);
         const executable = getRouteExecutable('route1')!;
-        const publicProcedure = getSerializableProcedure(executable!);
-        const rt = runType<PublicProcedure>();
+        const publicMethod = getSerializableMethod(executable!);
+        const rt = runType<PublicMethod>();
         const validate = rt.createJitFunction(JitFunctions.isType);
-        expect(validate(publicProcedure)).toBe(true);
+        expect(validate(publicMethod)).toBe(true);
     });
 
-    it('can validate PublicProcedure  + errors', () => {
+    it('can validate PublicMethod  + errors', () => {
         initRouter();
         registerRoutes(routes);
         const executable = getRouteExecutable('route1')!;
-        const publicProcedure = getSerializableProcedure(executable!);
-        const rt = runType<PublicProcedure>();
+        const publicMethod = getSerializableMethod(executable!);
+        const rt = runType<PublicMethod>();
         const typeErrors = rt.createJitFunction(JitFunctions.typeErrors);
-        expect(typeErrors(publicProcedure)).toEqual([]);
+        expect(typeErrors(publicMethod)).toEqual([]);
     });
 
-    it('can serialize/deserialize PublicProcedure', () => {
+    it('can serialize/deserialize PublicMethod', () => {
         initRouter();
         registerRoutes(routes);
         const executable = getRouteExecutable('route1')!;
-        const publicProcedure = getSerializableProcedure(executable!);
-        const rt = runType<PublicProcedure>();
+        const publicMethod = getSerializableMethod(executable!);
+        const rt = runType<PublicMethod>();
         const jsonStringify = rt.createJitFunction(JitFunctions.jsonStringify);
         const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
-        const roundTrip = fromJsonVal(JSON.parse(jsonStringify(publicProcedure)));
-        // handler procedure does not match it's type, so we need to replace it when comparing deserialized values
+        const roundTrip = fromJsonVal(JSON.parse(jsonStringify(publicMethod)));
+        // handler method does not match it's type, so we need to replace it when comparing deserialized values
         roundTrip.handler = () => 'something';
         expect(roundTrip).toEqual({
-            ...publicProcedure,
+            ...publicMethod,
             handler: expect.any(Function),
         });
     });
 
-    it('can mot mock PublicProcedure because it contains functions', async () => {
-        const rt = runType<PublicProcedure>();
+    it('can mot mock PublicMethod because it contains functions', async () => {
+        const rt = runType<PublicMethod>();
         await expect(() => rt.mock()).rejects.toThrow();
     });
 
@@ -87,9 +87,9 @@ describe('PublicProcedures run type functionality', () => {
         initRouter();
         registerRoutes(routes);
         const executable = getRouteExecutable('route1')!;
-        const publicProcedure = getSerializableProcedure(executable!);
-        const response: ProceduresData = {
-            procedures: {[publicProcedure.id]: publicProcedure},
+        const publicMethod = getSerializableMethod(executable!);
+        const response: MethodsData = {
+            methods: {[publicMethod.id]: publicMethod},
             deps: {},
             purFnDeps: {},
         };
@@ -105,13 +105,13 @@ describe('PublicProcedures run type functionality', () => {
         expect(typeErrors(new RpcError({statusCode: 400, publicMessage: 'error', message: 'error'}))).toEqual([]);
     });
 
-    it('can serialize/deserialize return type PublicProcedures | RpcError>', () => {
+    it('can serialize/deserialize return type PublicMethods | RpcError>', () => {
         initRouter();
         registerRoutes(routes);
         const executable = getRouteExecutable('route1')!;
-        const publicProcedure = getSerializableProcedure(executable!);
-        const response: ProceduresData = {
-            procedures: {[publicProcedure.id]: publicProcedure},
+        const publicMethod = getSerializableMethod(executable!);
+        const response: MethodsData = {
+            methods: {[publicMethod.id]: publicMethod},
             deps: {},
             purFnDeps: {},
         };

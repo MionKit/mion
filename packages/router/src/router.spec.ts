@@ -20,7 +20,7 @@ import {
 } from './router';
 import {type Routes} from './types/general';
 import {hook, route, rawHook} from './handlers';
-import {HandlerType} from './types/procedures';
+import {HandlerType} from './types/remoteMethods';
 
 describe('Create routes should', () => {
     const hook1 = hook((): void => undefined);
@@ -112,7 +112,7 @@ describe('Create routes should', () => {
         expect(geRoutesSize()).toEqual(5);
         expect(geHooksSize()).toEqual(5);
 
-        expect(getRouteExecutionPath('/users-getUser')?.procedures).toEqual(
+        expect(getRouteExecutionPath('/users-getUser')?.methods).toEqual(
             addDefaultExecutables([
                 expect.objectContaining({...hookExecutables.first}),
                 expect.objectContaining({...hookExecutables.userBefore}),
@@ -122,7 +122,7 @@ describe('Create routes should', () => {
             ])
         );
         expect(getRouteExecutionPath('/users-setUser')).toBeTruthy();
-        expect(getRouteExecutionPath('/users-pets-getUserPet')?.procedures).toEqual(
+        expect(getRouteExecutionPath('/users-pets-getUserPet')?.methods).toEqual(
             addDefaultExecutables([
                 expect.objectContaining({...hookExecutables.first}),
                 expect.objectContaining({...hookExecutables.userBefore}),
@@ -132,7 +132,7 @@ describe('Create routes should', () => {
                 expect.objectContaining({...hookExecutables.last}),
             ])
         );
-        expect(getRouteExecutionPath('/pets-getPet')?.procedures).toEqual(
+        expect(getRouteExecutionPath('/pets-getPet')?.methods).toEqual(
             addDefaultExecutables([
                 expect.objectContaining({...hookExecutables.first}),
                 expect.objectContaining({...routeExecutables.petsGetPet}),
@@ -327,7 +327,7 @@ describe('Create routes should', () => {
             expect.objectContaining({id: 'a2', type: HandlerType.rawHook}),
         ]);
 
-        expect(getRouteExecutionPath('/pets-getPet')?.procedures).toEqual(expectedExecutionPath);
+        expect(getRouteExecutionPath('/pets-getPet')?.methods).toEqual(expectedExecutionPath);
         expect(() => addStartHooks(prependHooks)).toThrow('Can not add start hooks after the router has been initialized');
         expect(() => addEndHooks(appendHooks)).toThrow('Can not add end hooks after the router has been initialized');
     });

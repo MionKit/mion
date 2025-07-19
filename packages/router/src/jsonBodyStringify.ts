@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {NonRawProcedure, Procedure, HandlerType} from './types/procedures';
+import {NonRawMethod, Method, HandlerType} from './types/remoteMethods';
 import {getRouteExecutionPath} from './router';
 import {getNotFoundExecutionPath} from './notFound';
 
@@ -18,25 +18,25 @@ export function jitBodyStringify(body: any, path: string): string {
 export function getStringifyFnForExecutionPath(path: string): (body: any) => string {
     const executionPath = getRouteExecutionPath(path) || getNotFoundExecutionPath();
     if (executionPath?.bodyStringify) return executionPath.bodyStringify;
-    executionPath.bodyStringify = _getExecutionPathStringifyFn(executionPath.procedures);
+    executionPath.bodyStringify = _getExecutionPathStringifyFn(executionPath.methods);
     return executionPath.bodyStringify;
 }
 
 // ############# PRIVATE METHODS #############
 
-function _getExecutionPathStringifyFn(executionPath: Procedure[]): (body: any) => string {
-    const returnProcedures = executionPath.filter(
+function _getExecutionPathStringifyFn(executionPath: Method[]): (body: any) => string {
+    const returnMethods = executionPath.filter(
         (p) => p.options.hasReturnData && p.type !== HandlerType.headerHook
-    ) as NonRawProcedure[];
+    ) as NonRawMethod[];
     return (body: any): string => {
         const props: string[] = [];
-        for (let i = 0; i < returnProcedures.length; i++) {
-            const procedure = returnProcedures[i];
-            const isLast = i === returnProcedures.length - 1;
-            const returnValue = body[procedure.id];
+        for (let i = 0; i < returnMethods.length; i++) {
+            const method = returnMethods[i];
+            const isLast = i === returnMethods.length - 1;
+            const returnValue = body[method.id];
             if (!returnValue) continue;
             const coma = isLast ? '' : ',';
-            props.push(`${JSON.stringify(procedure.id)}:${procedure.returnJitFns.jsonStringify.fn(returnValue)}${coma}`);
+            props.push(`${JSON.stringify(method.id)}:${method.returnJitFns.jsonStringify.fn(returnValue)}${coma}`);
         }
         return `{${props.join('')}}`;
     };
