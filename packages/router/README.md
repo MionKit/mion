@@ -19,7 +19,7 @@
 
 🚀 Lightweight and fast HTTP router with automatic validation and serialization out of the box.
 
-Thanks to it's **Remote Procedure Call** routing style is quite performant as there is no need to parse URLs or match regular expressions when finding a route. Just a direct mapping from url to the route handler.
+Thanks to it's **Remote Method Call** routing style is quite performant as there is no need to parse URLs or match regular expressions when finding a route. Just a direct mapping from url to the route handler.
 
 mion's is lightweight and fast. Unlike traditional routers. The Http method is not relevant, there are no parameters in the Url and data is sent and received in JSON format via the request body or headers. mion's router leverages a simple in-memory map for route lookup, making it extremely fast.
 

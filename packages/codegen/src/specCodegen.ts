@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {ProcedureType, PublicApi, PublicProcedure} from '@mionkit/router';
+import {MethodType, PublicApi, PublicMethod} from '@mionkit/router';
 import {dirname, parse, relative} from 'path';
 import {hasChildRoutes, type CodegenOptions, type ExportedRoutesMap, type PublicMethodsSpec, type RoutesSpec} from './types';
 import {DEFAULT_PRETTIER_OPTIONS, PUBLIC_METHODS_SPEC_EXPORT_NAME, ROUTES_SPEC_EXPORT_NAME} from './constants';
@@ -64,7 +64,7 @@ function recursiveSetHandlerTypeAndCreateRouteExecutables(
         if (hasChildRoutes(item)) {
             newRoutes[key] = recursiveSetHandlerTypeAndCreateRouteExecutables(item, exportName, newPointer, routeExecutables);
         } else {
-            if (item.type === ProcedureType.route) {
+            if (item.type === MethodType.route) {
                 setRemoteMethods(item, newPointer, exportName, routeExecutables);
             }
             newRoutes[key] = {
@@ -92,7 +92,7 @@ function serializeRoutes(routes: RoutesSpec) {
     );
 }
 
-function setRemoteMethods(method: PublicProcedure, currentPointer: string[], exportName: string, routeExecutables: AnyObject) {
+function setRemoteMethods(method: PublicMethod, currentPointer: string[], exportName: string, routeExecutables: AnyObject) {
     const MethodPointers = method.pathPointers?.map((pointer) =>
         setCodeAsJsonString(`${PUBLIC_METHODS_SPEC_EXPORT_NAME}.${exportName}.${getHandlerSrcCodePointer(pointer)}`)
     );

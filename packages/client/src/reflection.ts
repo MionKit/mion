@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import type {PublicProcedure, PublicResponses} from '@mionkit/router';
+import type {PublicMethod, PublicResponses} from '@mionkit/router';
 import type {JITCompiledFunctions, JSONValue} from '@mionkit/core/src/types';
 import {RpcError, isRpcError} from '@mionkit/core/src/errors';
 import {StatusCodes} from '@mionkit/core/src/status-codes';
@@ -110,14 +110,14 @@ export function deserializeResponseBody(responseBody: PublicResponses, req: Vali
 function getSerializationRequiredData(
     id: string,
     req: ValidationRequest
-): {methodMeta: PublicProcedure; subRequest?: SubRequest<any>} {
+): {methodMeta: PublicMethod; subRequest?: SubRequest<any>} {
     const methodMeta = req.metadataById.get(id);
     const subRequest = req.subRequests[id];
     if (!methodMeta) throw new Error(`Metadata for remote method ${id} not found.`);
     return {methodMeta, subRequest};
 }
 
-function serializeParameters(params: any[], method: PublicProcedure, paramsJit?: JITCompiledFunctions): any[] | RpcError {
+function serializeParameters(params: any[], method: PublicMethod, paramsJit?: JITCompiledFunctions): any[] | RpcError {
     if (!paramsJit) return params;
     if (params.length && method.deserializeParams) {
         try {
@@ -134,7 +134,7 @@ function serializeParameters(params: any[], method: PublicProcedure, paramsJit?:
     return params;
 }
 
-function validateParameters(params: any[], method: PublicProcedure, paramsJit?: JITCompiledFunctions): void | RpcError {
+function validateParameters(params: any[], method: PublicMethod, paramsJit?: JITCompiledFunctions): void | RpcError {
     if (!paramsJit || !method.validateParams) return;
     try {
         const validationsResponse = paramsJit.typeErrors.fn(params);
@@ -155,7 +155,7 @@ function validateParameters(params: any[], method: PublicProcedure, paramsJit?: 
     }
 }
 
-function deSerializeReturn(response: any | RpcError, method: PublicProcedure, returnJit?: JITCompiledFunctions): any | RpcError {
+function deSerializeReturn(response: any | RpcError, method: PublicMethod, returnJit?: JITCompiledFunctions): any | RpcError {
     if (!returnJit || !method.deserializeParams || !response) return response;
     try {
         if (response instanceof RpcError) return response;
