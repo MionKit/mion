@@ -8,29 +8,29 @@
 import {Handler, HeaderHandler, RawHookHandler} from './handlers';
 import {
     HeaderHookOptions,
-    HeaderProcedure,
+    HeaderMethod,
     HookOptions,
-    HookProcedure,
+    HookMethod,
     RawHookOptions,
-    RawProcedure,
+    RawMethod,
     RouteOptions,
-    RouteProcedure,
-} from './procedures';
+    RouteMethod,
+} from './remoteMethods';
 
 // #######  Routes Definitions #######
 
 /** Route definition */
-export type RouteDef<H extends Handler = any> = Pick<RouteProcedure<H>, 'type' | 'handler'> & {
+export type RouteDef<H extends Handler = any> = Pick<RouteMethod<H>, 'type' | 'handler'> & {
     options?: RouteOptions;
 };
 
 /** Hook definition, a function that hooks into the execution path */
-export type HookDef<H extends Handler = any> = Pick<HookProcedure<H>, 'type' | 'handler'> & {
+export type HookDef<H extends Handler = any> = Pick<HookMethod<H>, 'type' | 'handler'> & {
     options?: HookOptions;
 };
 
 /** Header Hook definition, used to handle header params */
-export type HeaderHookDef<H extends HeaderHandler = any> = Pick<HeaderProcedure<H>, 'type' | 'handler' | 'headerNames'> & {
+export type HeaderHookDef<H extends HeaderHandler = any> = Pick<HeaderMethod<H>, 'type' | 'handler' | 'headerNames'> & {
     options?: HeaderHookOptions;
 };
 
@@ -38,6 +38,6 @@ export type HeaderHookDef<H extends HeaderHandler = any> = Pick<HeaderProcedure<
  * Raw hook, used only to access raw request/response and modify the call context.
  * Can not declare extra parameters.
  */
-export type RawHookDef<H extends RawHookHandler = any> = Pick<RawProcedure<H>, 'type' | 'handler'> & {
+export type RawHookDef<H extends RawHookHandler = any> = Pick<RawMethod<H>, 'type' | 'handler'> & {
     options?: RawHookOptions;
 };

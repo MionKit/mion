@@ -11,7 +11,7 @@ import {dispatchRoute} from './dispatch';
 import {route, headersHook, hook, rawHook} from './handlers';
 import {MionHeaders} from './types/context';
 import {headersFromRecord} from './headers';
-import {HandlerType} from './types/procedures';
+import {HandlerType} from './types/remoteMethods';
 
 describe('route & hooks init functions', () => {
     type RawRequest = {

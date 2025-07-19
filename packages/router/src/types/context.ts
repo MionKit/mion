@@ -6,7 +6,7 @@
  * ######## */
 
 import type {AnyObject} from '@mionkit/core/src/types';
-import type {PublicResponses} from './publicProcedures';
+import type {PublicResponses} from './publicMethods';
 import type {RpcError} from '@mionkit/core/src/errors';
 
 // ####### Call Context #######

@@ -7,9 +7,9 @@
 
 import type {Handler} from './types/handlers';
 import {type RouterEntry, type Routes} from './types/general';
-import {NonRawProcedure, type Procedure} from './types/procedures';
-import {HandlerType} from './types/procedures';
-import type {PublicApi, PublicHandler, PublicProcedure, SerializableJitHashes} from './types/publicProcedures';
+import {NonRawMethod, type Method} from './types/remoteMethods';
+import {HandlerType} from './types/remoteMethods';
+import type {PublicApi, PublicHandler, PublicMethod, SerializableJitHashes} from './types/publicMethods';
 import {isRoute, isHeaderHookDef, isHookDef, isPublicExecutable} from './types/guards';
 import {
     getHookExecutable,
@@ -25,7 +25,7 @@ import {jitUtils} from '@mionkit/core/src/jitUtils';
 import {getSerializableJitCompiler} from '@mionkit/run-types/src/lib/jitCompiler';
 
 // ############# PRIVATE STATE #############
-const publicMethods: Map<string, PublicProcedure> = new Map();
+const publicMethods: Map<string, PublicMethod> = new Map();
 
 // ############# PUBLIC METHODS #############
 export function resetRemoteMethodsMetadata() {
@@ -58,7 +58,7 @@ function recursiveGetSerializableRoutes<R extends Routes>(
             const executable = getHookExecutable(id) || getRouteExecutable(id);
             if (!executable)
                 throw new Error(`Route or Hook ${id} not found. Please check you have called router.registerRoutes first.`);
-            publicData[key] = getSerializableProcedure(executable as NonRawProcedure);
+            publicData[key] = getSerializableMethod(executable as NonRawMethod);
         } else {
             const subRoutes: Routes = routes[key] as Routes;
             publicData[key] = recursiveGetSerializableRoutes(subRoutes, itemPointer);
@@ -68,11 +68,11 @@ function recursiveGetSerializableRoutes<R extends Routes>(
     return publicData;
 }
 
-export function getSerializableProcedure<H extends Handler>(executable: NonRawProcedure): PublicProcedure<H> {
+export function getSerializableMethod<H extends Handler>(executable: NonRawMethod): PublicMethod<H> {
     const existing = publicMethods.get(executable.id);
-    if (existing) return existing as PublicProcedure<H>;
+    if (existing) return existing as PublicMethod<H>;
 
-    const newRemoteMethod: PublicProcedure = {
+    const newRemoteMethod: PublicMethod = {
         type: executable.type,
         id: executable.id,
         // handler is included just for static typing purposes and should never be called directly.
@@ -90,7 +90,7 @@ export function getSerializableProcedure<H extends Handler>(executable: NonRawPr
         const path = getRoutePath(executable.pointer, getRouterOptions());
         const pathPointers =
             getRouteExecutionPath(path)
-                ?.procedures.filter((exec) => isPublicExecutable(exec))
+                ?.methods.filter((exec) => isPublicExecutable(exec))
                 .map((exec) => exec.pointer) || [];
         newRemoteMethod.hookIds = pathPointers
             .map((pointer) => getRouterItemId(pointer))
@@ -102,7 +102,7 @@ export function getSerializableProcedure<H extends Handler>(executable: NonRawPr
         if (shouldFullGenerateSpec()) newRemoteMethod.pathPointers = pathPointers;
     }
     publicMethods.set(executable.id, newRemoteMethod);
-    return newRemoteMethod as PublicProcedure<H>;
+    return newRemoteMethod as PublicMethod<H>;
 }
 
 export function serializePureDeps(depHash: string, purFnDeps: Record<string, PureFunctionData>, depth = 0) {
@@ -136,18 +136,18 @@ export function serializeJitFn(
     jitFn.pureFnDependencies.forEach((h) => serializePureDeps(h, purFnDeps));
 }
 
-export function serializeProcedureDeps(
-    procedure: PublicProcedure,
+export function serializeMethodDeps(
+    method: PublicMethod,
     deps: Record<string, JitCompiledFnData>,
     purFnDeps: Record<string, PureFunctionData>
 ) {
-    const {paramsJitHashes, returnJitHashes} = procedure;
+    const {paramsJitHashes, returnJitHashes} = method;
     for (const k in paramsJitHashes) serializeJitFn(paramsJitHashes[k], deps, purFnDeps);
     for (const k in returnJitHashes) serializeJitFn(returnJitHashes[k], deps, purFnDeps);
 }
 
 /** Returns the original route/hook paths as a string to eb used in codegen, ie: path= users/getUser => 'users.getUser'  */
-function getHandlerSrcCodePointer(executable: Procedure) {
+function getHandlerSrcCodePointer(executable: Method) {
     return executable.pointer.join('.');
 }
 

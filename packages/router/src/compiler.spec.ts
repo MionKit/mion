@@ -10,13 +10,13 @@ import {getHookExecutable, getRouteExecutable, initMionRouter, resetRouter} from
 import {Routes} from './types/general';
 import fs from 'fs';
 import path from 'path';
-import {setCompiledProcedures, writeCompiledProcedures} from './compiler';
+import {setCompiledMethods, writeCompiledMethods} from './compiler';
 import {dispatchRoute} from './dispatch';
 import {headersFromRecord} from './headers';
 import {MionHeaders} from './types/context';
 import {rΦutεs} from './_compiled/routes';
-import {getProceduresToCodeFn} from '@mionkit/router/src/reflection';
-import {NonRawProcedure} from '@mionkit/router/src/types/procedures';
+import {getMethodsToCodeFn} from '@mionkit/router/src/reflection';
+import {NonRawMethod} from '@mionkit/router/src/types/remoteMethods';
 
 type RawRequest = {
     headers: MionHeaders;
@@ -59,20 +59,20 @@ describe('compiler', () => {
         expect(rΦutεs['sayHello']).toEqual(serializedSayHello);
         expect(rΦutεs['logs']).toEqual(restoredLogs);
 
-        const compiledCode = writeCompiledProcedures(false);
+        const compiledCode = writeCompiledMethods(false);
         const restoredCompiled = new Function('return ' + compiledCode)();
 
         resetRouter();
-        setCompiledProcedures(restoredCompiled); // set mock compiled procedures
+        setCompiledMethods(restoredCompiled); // set mock compiled methods
         initMionRouter(routes);
-        const updateUserProcedure = getRouteExecutable('users-updateUser') as any;
-        const sayHelloProcedure = getRouteExecutable('sayHello') as any;
-        const logsProcedure = getHookExecutable('logs') as any;
-        expect(updateUserProcedure.restored).toEqual(true);
-        expect(sayHelloProcedure.restored).toEqual(true);
-        expect(logsProcedure.restored).toEqual(true);
+        const updateUserMethod = getRouteExecutable('users-updateUser') as any;
+        const sayHelloMethod = getRouteExecutable('sayHello') as any;
+        const logsMethod = getHookExecutable('logs') as any;
+        expect(updateUserMethod.restored).toEqual(true);
+        expect(sayHelloMethod.restored).toEqual(true);
+        expect(logsMethod.restored).toEqual(true);
 
-        // should work properly after restore procedures from compiled
+        // should work properly after restore methods from compiled
         const request = getDefaultRequest('users-updateUser', [{name: 'Leo', age: 33, lastActivity}]);
         const response = await dispatchRoute(
             '/users-updateUser',
@@ -85,16 +85,16 @@ describe('compiler', () => {
         expect(response.body['users-updateUser']).toEqual({name: 'Leo', age: 33, lastActivity});
     });
 
-    it('should crete a function to write compiled procedures', () => {
-        const proceduresToCode = getProceduresToCodeFn();
+    it('should crete a function to write compiled methods', () => {
+        const methodsToCode = getMethodsToCodeFn();
         initMionRouter(routes);
 
-        const code = proceduresToCode(rΦutεs);
+        const code = methodsToCode(rΦutεs);
         expect(code).toEqual(expect.any(String));
         // TODO finish functionality
 
         // console.log(rΦutεs);
-        // const codeAfter = proceduresToCode(rΦutεs);
+        // const codeAfter = methodsToCode(rΦutεs);
         // console.log('codeAfter', codeAfter);
         // expect(codeAfter).toEqual(expect.any(String));
     });

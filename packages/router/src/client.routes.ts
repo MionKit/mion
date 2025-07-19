@@ -20,18 +20,18 @@ import {
 } from './router';
 // TODO: investigate why compilation fails if route gets imported from @mionkit/router rather that relative import
 import {route} from './handlers';
-import {PublicProcedure} from './types/publicProcedures';
+import {PublicMethod} from './types/publicMethods';
 import {RouterOptions, Routes} from './types/general';
-import {getSerializableProcedure, serializeProcedureDeps} from './remoteMethodsMetadata';
-import {NonRawProcedure, Procedure} from './types/procedures';
+import {getSerializableMethod, serializeMethodDeps} from './remoteMethodsMetadata';
+import {NonRawMethod, Method} from './types/remoteMethods';
 
-export type PublicProcedures = Record<string, PublicProcedure>;
+export type PublicMethods = Record<string, PublicMethod>;
 export interface ClientRouteOptions extends RouterOptions {
     getAllRemoteMethodsMaxNumber?: number;
 }
 
-export interface ProceduresData {
-    procedures: PublicProcedures;
+export interface MethodsData {
+    methods: PublicMethods;
     deps: Record<string, JitCompiledFnData>;
     purFnDeps: Record<string, PureFunctionData>;
 }
@@ -40,9 +40,9 @@ export const defaultClientRouteOptions = {
     getAllRemoteMethodsMaxNumber: 100,
 };
 
-function addRequiredRemoteMethodsToResponse(id: string, resp: ProceduresData, errorData: AnyObject): void {
-    const {procedures, deps, purFnDeps} = resp;
-    if (procedures[id]) return;
+function addRequiredRemoteMethodsToResponse(id: string, resp: MethodsData, errorData: AnyObject): void {
+    const {methods, deps, purFnDeps} = resp;
+    if (methods[id]) return;
     const executable = getHookExecutable(id) || getRouteExecutable(id);
     if (!executable) {
         errorData[id] = `Remote Method ${id} not found`;
@@ -50,15 +50,15 @@ function addRequiredRemoteMethodsToResponse(id: string, resp: ProceduresData, er
     }
     if (isPrivateExecutable(executable)) return;
 
-    const procedure = getSerializableProcedure(executable as NonRawProcedure);
-    procedures[id] = procedure;
-    procedure.hookIds?.forEach((hookId) => addRequiredRemoteMethodsToResponse(hookId, resp, errorData));
-    serializeProcedureDeps(procedure, deps, purFnDeps);
+    const method = getSerializableMethod(executable as NonRawMethod);
+    methods[id] = method;
+    method.hookIds?.forEach((hookId) => addRequiredRemoteMethodsToResponse(hookId, resp, errorData));
+    serializeMethodDeps(method, deps, purFnDeps);
 }
 
-const getRemoteMethods = (ctx, methodsIds: string[], getAllRemoteMethods?: boolean): ProceduresData | RpcError => {
-    const resp: ProceduresData = {
-        procedures: {},
+const getRemoteMethods = (ctx, methodsIds: string[], getAllRemoteMethods?: boolean): MethodsData | RpcError => {
+    const resp: MethodsData = {
+        methods: {},
         deps: {},
         purFnDeps: {},
     };
@@ -72,7 +72,7 @@ const getRemoteMethods = (ctx, methodsIds: string[], getAllRemoteMethods?: boole
               (id) =>
                   id !== GET_REMOTE_METHODS_BY_ID &&
                   id !== GET_REMOTE_METHODS_BY_PATH &&
-                  !isPrivateExecutable(getAnyExecutable(id) as Procedure)
+                  !isPrivateExecutable(getAnyExecutable(id) as Method)
           )
         : methodsIds;
     idsToReturn.forEach((id) => addRequiredRemoteMethodsToResponse(id, resp, errorData));
@@ -87,7 +87,7 @@ const getRemoteMethods = (ctx, methodsIds: string[], getAllRemoteMethods?: boole
     return resp;
 };
 
-const getRouteRemoteMethods = (ctx, path: string, getAllRemoteMethods?: boolean): ProceduresData | RpcError => {
+const getRouteRemoteMethods = (ctx, path: string, getAllRemoteMethods?: boolean): MethodsData | RpcError => {
     const executables = getRouteExecutionPath(path);
     if (!executables)
         return new RpcError({
@@ -95,7 +95,7 @@ const getRouteRemoteMethods = (ctx, path: string, getAllRemoteMethods?: boolean)
             name: 'Invalid Metadata Request',
             publicMessage: `Route ${path} not found`,
         });
-    const privateExecutables = executables.procedures.filter((e) => !isPrivateExecutable(e));
+    const privateExecutables = executables.methods.filter((e) => !isPrivateExecutable(e));
     return getRemoteMethods(
         ctx,
         privateExecutables.map((e) => e.id),

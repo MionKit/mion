@@ -10,7 +10,7 @@ export enum HandlerType {
     rawHook = 4,
 }
 
-export interface ProcedureOptions {
+export interface MethodOptions {
     runOnError?: boolean;
     hasReturnData?: boolean;
     validateParams?: boolean;
@@ -22,7 +22,7 @@ export interface ProcedureOptions {
 }
 
 /** Contains the data of each hook or route, Used to generate the execution path for each route. */
-export interface Procedure<H extends AnyHandler = AnyHandler> {
+export interface Method<H extends AnyHandler = AnyHandler> {
     type: HandlerType;
     id: string;
     // pointer to the src Hook or Route definition within the original Routers object, ie: ['users','getUser']
@@ -33,31 +33,31 @@ export interface Procedure<H extends AnyHandler = AnyHandler> {
     returnJitFns?: JITCompiledFunctions;
     paramNames?: string[];
     headerNames?: string[];
-    options: ProcedureOptions;
-    procedureCaller?: (...args: any[]) => void;
+    options: MethodOptions;
+    methodCaller?: (...args: any[]) => void;
 }
 
-export interface NonRawProcedure<H extends Handler = Handler> extends Procedure<H> {
+export interface NonRawMethod<H extends Handler = Handler> extends Method<H> {
     paramsJitFns: JITCompiledFunctions;
     returnJitFns: JITCompiledFunctions;
     paramNames: string[];
 }
-export interface RouteProcedure<H extends Handler = any> extends Procedure<H> {
+export interface RouteMethod<H extends Handler = any> extends Method<H> {
     type: HandlerType.route;
     handler: H;
     paramsJitFns: JITCompiledFunctions;
     returnJitFns: JITCompiledFunctions;
     paramNames: string[];
-    options: ProcedureOptions & {runOnError: false};
+    options: MethodOptions & {runOnError: false};
 }
-export interface HookProcedure<H extends Handler = any> extends Procedure<H> {
+export interface HookMethod<H extends Handler = any> extends Method<H> {
     type: HandlerType.hook;
     handler: H;
     paramsJitFns: JITCompiledFunctions;
     returnJitFns: JITCompiledFunctions;
     paramNames: string[];
 }
-export interface HeaderProcedure<H extends HeaderHandler = any> extends Procedure<H> {
+export interface HeaderMethod<H extends HeaderHandler = any> extends Method<H> {
     type: HandlerType.headerHook;
     handler: H;
     headerNames: string[];
@@ -65,13 +65,13 @@ export interface HeaderProcedure<H extends HeaderHandler = any> extends Procedur
     returnJitFns: JITCompiledFunctions;
     paramNames: string[];
 }
-export interface RawProcedure<H extends RawHookHandler = any> extends Procedure<H> {
+export interface RawMethod<H extends RawHookHandler = any> extends Method<H> {
     type: HandlerType.rawHook;
     handler: H;
     paramsJitFns: undefined;
     returnJitFns: undefined;
     paramNames: undefined;
-    options: ProcedureOptions & {
+    options: MethodOptions & {
         hasReturnData: false;
         validateParams: false;
         deserializeParams: false;
@@ -79,37 +79,37 @@ export interface RawProcedure<H extends RawHookHandler = any> extends Procedure<
         serializeReturn?: false;
     };
 }
-export interface NotFoundProcedure extends Procedure {
+export interface NotFoundMethod extends Method {
     is404: true;
 }
 
-export type CompiledProcedure = Omit<Procedure, 'handler' | 'procedureCaller'> & {
+export type CompiledMethod = Omit<Method, 'handler' | 'methodCaller'> & {
     paramsJitFns: SerializableJITFunctions;
     returnJitFns: SerializableJITFunctions;
 };
 
 export type RouteOptions = Partial<
     Pick<
-        RouteProcedure['options'],
+        RouteMethod['options'],
         'description' | 'validateParams' | 'deserializeParams' | 'validateReturn' | 'serializeReturn' | 'isAsync'
     >
 >;
 export type HookOptions = Partial<
     Pick<
-        HookProcedure['options'],
+        HookMethod['options'],
         'description' | 'validateParams' | 'deserializeParams' | 'validateReturn' | 'serializeReturn' | 'runOnError' | 'isAsync'
     >
 >;
 export type HeaderHookOptions = Partial<
     Pick<
-        HeaderProcedure['options'],
+        HeaderMethod['options'],
         'description' | 'validateParams' | 'deserializeParams' | 'runOnError' | 'validateReturn' | 'serializeReturn' | 'isAsync'
     >
 >;
-export type RawHookOptions = Partial<Pick<RawProcedure['options'], 'description' | 'runOnError' | 'isAsync'>>;
+export type RawHookOptions = Partial<Pick<RawMethod['options'], 'description' | 'runOnError' | 'isAsync'>>;
 
-export interface ProceduresExecutionList {
+export interface MethodsExecutionList {
     routeIndex: number;
-    procedures: Procedure[];
+    methods: Method[];
     bodyStringify?: (body: any) => string;
 }

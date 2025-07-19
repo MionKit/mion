@@ -7,8 +7,8 @@
 
 import type {CallContext, MionResponse, MionRequest, MionHeaders} from './types/context';
 import {type RouterOptions} from './types/general';
-import {HeaderProcedure, NonRawProcedure, RawProcedure, type Procedure} from './types/procedures';
-import {HandlerType} from './types/procedures';
+import {HeaderMethod, NonRawMethod, RawMethod, type Method} from './types/remoteMethods';
+import {HandlerType} from './types/remoteMethods';
 import {isNotFoundExecutable} from './types/guards';
 import {getRouteExecutionPath, getRouterOptions} from './router';
 import {getNotFoundExecutionPath} from './notFound';
@@ -42,7 +42,7 @@ export async function dispatchRoute<Req, Resp>(
         const context = getEmptyCallContext(path, opts, reqRawBody, rawRequest, reqHeaders, respHeaders);
 
         const executionPath = getRouteExecutionPath(context.path) || getNotFoundExecutionPath();
-        await runExecutionPath(context, rawRequest, rawResponse, executionPath.procedures, opts);
+        await runExecutionPath(context, rawRequest, rawResponse, executionPath.methods, opts);
 
         return context.response;
     } catch (err: any | RpcError | Error) {
@@ -85,7 +85,7 @@ async function runExecutionPath(
     context: CallContext,
     rawRequest: unknown,
     rawResponse: unknown,
-    executables: Procedure[],
+    executables: Method[],
     opts: RouterOptions
 ): Promise<MionResponse> {
     const {response, request} = context;
@@ -95,10 +95,10 @@ async function runExecutionPath(
         if (response.hasErrors && !executable.options.runOnError) continue;
 
         try {
-            const procedureCaller = getProcedureCaller(executable);
-            // procedure caller is not type safe so we need to be sure we always passing correct parameters
+            const methodCaller = getMethodCaller(executable);
+            // method caller is not type safe so we need to be sure we always passing correct parameters
             // runRawHook , runHeaderHook & runRouteOrHook must always accept the same parameters in the same order
-            await procedureCaller(context, executable, request, response, opts, rawRequest, rawResponse);
+            await methodCaller(context, executable, request, response, opts, rawRequest, rawResponse);
         } catch (err: any | RpcError | Error) {
             const path = isNotFoundExecutable(executable) ? context.path : executable.id;
             handleRpcErrors(path, request, response, err, i);
@@ -109,7 +109,7 @@ async function runExecutionPath(
 
 export async function runRawHook(
     context: CallContext,
-    executable: RawProcedure,
+    executable: RawMethod,
     request: MionRequest,
     response: MionResponse,
     opts: RouterOptions,
@@ -122,18 +122,18 @@ export async function runRawHook(
 
 export async function runHeaderHook(
     context: CallContext,
-    executable: HeaderProcedure,
+    executable: HeaderMethod,
     request: MionRequest,
     response: MionResponse
 ) {
-    const params = (executable as HeaderProcedure).headerNames.map((name) => request.headers.get(name));
-    if (executable.options.validateParams) validateParametersOrThrow(params, executable as HeaderProcedure);
+    const params = (executable as HeaderMethod).headerNames.map((name) => request.headers.get(name));
+    if (executable.options.validateParams) validateParametersOrThrow(params, executable as HeaderMethod);
 
     const result = await executable.handler(context, ...params);
     if (result instanceof Error || result instanceof RpcError) throw result;
 
     if (result !== undefined) {
-        (executable as HeaderProcedure).headerNames.forEach((name, i) => {
+        (executable as HeaderMethod).headerNames.forEach((name, i) => {
             if (!result[i]) return;
             response.headers.set(name, result[i]);
         });
@@ -142,36 +142,36 @@ export async function runHeaderHook(
 
 export async function runRouteOrHook(
     context: CallContext,
-    executable: HeaderProcedure,
+    executable: HeaderMethod,
     request: MionRequest,
     response: MionResponse
 ) {
-    const params = deserializeBodyParams(request, executable as NonRawProcedure);
-    if (executable.options.validateParams) validateParametersOrThrow(params, executable as NonRawProcedure);
+    const params = deserializeBodyParams(request, executable as NonRawMethod);
+    if (executable.options.validateParams) validateParametersOrThrow(params, executable as NonRawMethod);
 
     const result = await executable.handler(context, ...params);
     if (result instanceof Error || result instanceof RpcError) throw result;
 
     if (executable.options.hasReturnData && result !== undefined) {
         (response.body as Mutable<AnyObject>)[executable.id] = executable.options.serializeReturn
-            ? (executable as NonRawProcedure).returnJitFns.toJsonVal.fn(result)
+            ? (executable as NonRawMethod).returnJitFns.toJsonVal.fn(result)
             : result;
     }
 }
 
-function getProcedureCaller(executable: Procedure) {
-    if (executable.procedureCaller) return executable.procedureCaller;
+function getMethodCaller(executable: Method) {
+    if (executable.methodCaller) return executable.methodCaller;
     if (executable.type === HandlerType.rawHook) {
-        executable.procedureCaller = runRawHook;
+        executable.methodCaller = runRawHook;
     } else if (executable.type === HandlerType.headerHook) {
-        executable.procedureCaller = runHeaderHook;
+        executable.methodCaller = runHeaderHook;
     } else {
-        executable.procedureCaller = runRouteOrHook;
+        executable.methodCaller = runRouteOrHook;
     }
-    return executable.procedureCaller;
+    return executable.methodCaller;
 }
 
-function deserializeBodyParams(request: MionRequest, executable: NonRawProcedure): any[] {
+function deserializeBodyParams(request: MionRequest, executable: NonRawMethod): any[] {
     const params: any[] = (request.body[executable.id] as any[]) || [];
     if (!executable.options.deserializeParams) return params;
     try {
@@ -188,7 +188,7 @@ function deserializeBodyParams(request: MionRequest, executable: NonRawProcedure
     }
 }
 
-function validateParametersOrThrow(params: any[], executable: NonRawProcedure): void {
+function validateParametersOrThrow(params: any[], executable: NonRawMethod): void {
     if (!executable.paramsJitFns.isType.fn(params)) {
         throw new RpcError({
             statusCode: StatusCodes.BAD_REQUEST,

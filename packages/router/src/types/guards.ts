@@ -7,12 +7,12 @@
 
 import {HeaderHookDef, HookDef, RawHookDef, RouteDef} from './definitions';
 import {Route, RouterEntry, Routes} from './general';
-import {NotFoundProcedure} from './procedures';
-import {RawProcedure} from './procedures';
-import {HeaderProcedure} from './procedures';
-import {RouteProcedure} from './procedures';
-import {Procedure} from './procedures';
-import {HandlerType} from './procedures';
+import {NotFoundMethod} from './remoteMethods';
+import {RawMethod} from './remoteMethods';
+import {HeaderMethod} from './remoteMethods';
+import {RouteMethod} from './remoteMethods';
+import {Method} from './remoteMethods';
+import {HandlerType} from './remoteMethods';
 
 // #######  type guards #######
 
@@ -44,28 +44,28 @@ export function isRoutes(entry: RouterEntry | Routes): entry is Route {
     return typeof entry === 'object';
 }
 
-export function isExecutable(entry: Procedure | {pathPointer: string[]}): entry is Procedure {
+export function isExecutable(entry: Method | {pathPointer: string[]}): entry is Method {
     return (
-        typeof (entry as Procedure)?.id === 'string' &&
-        ((entry as any).routes === 'undefined' || typeof (entry as Procedure).handler === 'function')
+        typeof (entry as Method)?.id === 'string' &&
+        ((entry as any).routes === 'undefined' || typeof (entry as Method).handler === 'function')
     );
 }
-export function isRawExecutable(entry: Procedure): entry is RawProcedure {
+export function isRawExecutable(entry: Method): entry is RawMethod {
     return entry.type === HandlerType.rawHook;
 }
 
-export function isPublicExecutable(entry: Procedure): entry is Procedure {
+export function isPublicExecutable(entry: Method): entry is Method {
     return entry.options.hasReturnData || entry.type === HandlerType.route || !!entry.paramNames?.length;
 }
 
-export function isNotFoundExecutable(entry: Procedure): entry is NotFoundProcedure {
-    return (entry as NotFoundProcedure).is404;
+export function isNotFoundExecutable(entry: Method): entry is NotFoundMethod {
+    return (entry as NotFoundMethod).is404;
 }
 
-export function isHeaderExecutable(entry: Procedure): entry is HeaderProcedure {
+export function isHeaderExecutable(entry: Method): entry is HeaderMethod {
     return entry.type === HandlerType.headerHook;
 }
 
-export function isRouteExecutable(entry: Procedure): entry is RouteProcedure {
+export function isRouteExecutable(entry: Method): entry is RouteMethod {
     return entry.type === HandlerType.route;
 }
