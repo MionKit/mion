@@ -21,10 +21,10 @@ import {getHandlerReflection} from './reflection';
 import {bodyParserHooks} from './jsonBodyParser.routes';
 import {getRouterItemId, getRoutePath} from '@mionkit/core/src/core';
 import {setErrorOptions} from '@mionkit/core/src/errors';
-import {getPublicApi, resetRemoteMethodsMetadata} from './remoteMethodsMetadata';
+import {getPublicApi, resetRemoteMethodsMetadata} from './remoteMethods';
 import {clientRoutes} from './client.routes';
 import {getNotFoundExecutionPath} from './notFound';
-import {compileMethod, getCompiledMethod} from './compiler';
+import {addToCompiledMethods, getCompiledMethod} from './remoteMethodsCompiler';
 
 type RouterKeyEntryList = [string, RouterEntry][];
 type RoutesWithId = {
@@ -358,10 +358,10 @@ export function getExecutableFromHook(
                 isAsync: !!hook.options?.isAsync || handlerRunType.isAsync(),
             },
         };
+        addToCompiledMethods(hookId, executable);
     }
 
     hooksById.set(hookId, executable as any);
-    compileMethod(hookId, executable);
     return executable as any;
 }
 
@@ -431,9 +431,9 @@ export function getExecutableFromRoute(route: Route, routePointer: string[], nes
                 isAsync: !!route.options?.isAsync || handlerRunType.isAsync(),
             },
         };
+        addToCompiledMethods(routeId, executable);
     }
     routesById.set(routeId, executable);
-    compileMethod(routeId, executable);
     return executable;
 }
 

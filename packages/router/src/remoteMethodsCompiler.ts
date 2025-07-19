@@ -7,9 +7,8 @@
 
 import fs from 'fs';
 import path from 'path';
-// import {codifyJitFunctions, restoreCodifiedJitFunctions, toLiteral, arrayToLiteral} from '@mionkit/run-types/src/lib/utils';
+import {codifyJitFunctions, restoreCodifiedJitFunctions, toLiteral, arrayToLiteral} from '@mionkit/run-types/src/lib/utils';
 import {toLiteral, arrayToLiteral} from '@mionkit/run-types/src/lib/utils';
-
 import {NonRawMethod, MethodOptions} from './types/remoteMethods';
 import {AnyHandler} from './types/handlers';
 import {IS_TEST_ENV} from './constants';
@@ -18,7 +17,7 @@ import {getMethodsToCodeFn} from '@mionkit/router/src/reflection';
 
 // ############# PUBLIC METHODS #############
 
-export function compileMethod(id: string, method: NonRawMethod) {
+export function addToCompiledMethods(id: string, method: NonRawMethod) {
     if (!shouldCompile() || !!rΦutεs[id]) return;
     rΦutεs[id] = method;
 }
@@ -33,8 +32,8 @@ function restoreCodifiedMethod(method: NonRawMethod, handler: AnyHandler): NonRa
     if ((method as any).restored) return method;
     (method as any).restored = true;
     method.handler = handler;
-    // restoreCodifiedJitFunctions(method.paramsJitFns);
-    // restoreCodifiedJitFunctions(method.returnJitFns);
+    restoreCodifiedJitFunctions(method.paramsJitFns);
+    restoreCodifiedJitFunctions(method.returnJitFns);
     return method;
 }
 
