@@ -208,7 +208,8 @@ export class BaseCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extends 
      */
     private setIsNoop(): void {
         let isNoop = false;
-        let code = this.code.trim();
+        // trims code and transforms multiple whitespaces into a single one, does not affect new lines as those can be significant
+        let code = this.code.trim().replace(/[ \t]+/g, ' ');
         switch (this.fnID) {
             case JitFunctions.isType.id:
                 isNoop = !this.code || this.code === 'true' || this.code === 'return true';

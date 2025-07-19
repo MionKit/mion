@@ -166,6 +166,13 @@ export function getFormatterParams<P extends TypeFormatParams>(rt: BaseRunType, 
     throw new Error(`Type Formatter ${fmtName} not found for ${rt.getTypeName()}`);
 }
 
+/**
+ * Parses a pure function and returns it's data.
+ * We are using toString() to get the function code, this might not work in all environments.
+ * Also using regexp to parse the function code, a proper AST could be better bu this is working for now and is simpler.
+ * @param closureFn
+ * @returns
+ */
 function parsePureFunctionWithCtx(closureFn: PureFunctionClosure): CompiledPureFunction {
     if (!closureFn.name) throw new Error('Pure Functions must have a name');
 
@@ -194,7 +201,10 @@ function parsePureFunctionWithCtx(closureFn: PureFunctionClosure): CompiledPureF
             );
     }
 
-    const body = fnString.substring(bodyStart + 1, bodyEnd);
+    const body = fnString
+        .substring(bodyStart + 1, bodyEnd)
+        .trim()
+        .replace(/[ \t]+/g, ' ');
     const compiled: CompiledPureFunction = {
         closureFn: closureFn,
         fn: null as any, // will be set later so all possible dependencies are resolved

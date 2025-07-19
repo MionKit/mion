@@ -39,7 +39,16 @@ export function _compileToCode(runType: BaseRunType, comp: JitCompiler, fnID = J
             const isSafe = isSafePropName(accessor);
             const safeName = isSafe ? name : JSON.stringify(name);
             const sep = rt.skipCommas ? '' : '+","';
-            if (rt.src.subKind === ReflectionSubKind.params) {
+            if (isCompilingJitFn(rt, comp)) {
+                // special case for JitFunctions that we know should return undefined for fn param
+                return `'undefined'`;
+            } else if (isCompilingClosureJitFn(rt, comp)) {
+                // This is an special case for JitFunctions where we want to generate the fn from the JitCompiledFnData instead of fn.toString();
+                const fnName = comp.opts.isPureFnCode ? `${comp.vλl}.pureFnHash` : `${comp.vλl}.jitFnHash`;
+                const fnCode = `${comp.vλl}.code`;
+                const closureCode = `'function closure_'+${fnName}+'(utl){'+${fnCode}+'}'`;
+                return `'${safeName}:'+${closureCode}${sep}`;
+            } else if (rt.src.subKind === ReflectionSubKind.params) {
                 const paramsCode = _compileJsonStringify(rt, comp, fnID);
                 if (rt.isOptional()) return `(${comp.getChildVλl()} === undefined ? "" : '${safeName}:'+${paramsCode}${sep})`;
                 return `'${safeName}:'+${paramsCode}${sep}`;
@@ -63,6 +72,7 @@ export function _compileToCode(runType: BaseRunType, comp: JitCompiler, fnID = J
             if (runType.src.subKind === ReflectionSubKind.params) {
                 return _compileJsonStringify(runType, comp, fnID);
             } else {
+                // TODO: we are relying in fn.toString() to generate code, this might not work properly in all js engines
                 return `${comp.vλl}.toString()`;
             }
         // ###################### COLLECTION RUNTYPES ######################
@@ -87,6 +97,18 @@ export function _compileToCode(runType: BaseRunType, comp: JitCompiler, fnID = J
         default:
             return _compileJsonStringify(runType, comp, fnID);
     }
+}
+
+function isCompilingClosureJitFn(runType: MethodSignatureRunType, comp: JitCompiler) {
+    if (!comp.opts.isJitFnCode && !comp.opts.isPureFnCode) return false;
+    const isClosure = runType.getChildVarName() === 'closureFn';
+    return isClosure;
+}
+
+function isCompilingJitFn(runType: MethodSignatureRunType, comp: JitCompiler) {
+    if (!comp.opts.isJitFnCode && !comp.opts.isPureFnCode) return false;
+    const isFn = runType.getChildVarName() === 'fn';
+    return isFn;
 }
 
 /** @reflection never */
