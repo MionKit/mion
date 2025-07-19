@@ -11,6 +11,7 @@ import {join} from 'path';
 import {JitFunctionsCache, PureFunctionsCache} from '@mionkit/core/src/types';
 import {JitFunctions} from '../constants';
 import {runType} from '../lib/runType';
+import {RunTypeOptions} from '@mionkit/run-types/src/types';
 
 export const compilerConstants = {
     autoGenMessage: `// ###### DO NOT MODIFY MANUALLY: THIS FILE IS GENERATED AUTOMATICALLY\n// NOTE exported constant name must be 'cΦmpilεdCachε' and file can not contain any other code\n`,
@@ -19,7 +20,7 @@ export const compilerConstants = {
     jitFunctionsFiles: [`./dist/cjs/_autogen/jitFunctionsCache`, `./dist/esm/_autogen/jitFunctionsCache`],
     pureFunctionsFiles: [`./dist/cjs/_autogen/pureFunctionsCache`, `./dist/esm/_autogen/pureFunctionsCache`],
     jsFilesExtensions: ['.js', '.mjs', '.cjs', '.jsx'],
-};
+} as const;
 
 /** Checks if the given directory is a root directory */
 function isRootDir(dir: string): boolean {
@@ -77,7 +78,7 @@ export function compileAndWriteJitFunctions(cache: JitFunctionsCache) {
         const missingFiles = fullFileNames.filter((file) => !file);
         throw new Error(`Can't find files to save compiled JIT functions: ${missingFiles.join(',')}`);
     }
-    const fileCode = compileTypeToJs<JitFunctionsCache>(cache);
+    const fileCode = compileTypeToJs<JitFunctionsCache>(cache, {isJitFnCode: true});
     fullFileNames.forEach((fullFileName: string) => writeFileSync(fullFileName, fileCode, 'utf8'));
     return fileCode;
 }
@@ -91,22 +92,27 @@ export function compileAndWritePureFunctions(cache: PureFunctionsCache) {
         const missingFiles = fullFileNames.filter((file) => !file);
         throw new Error(`Can't find files to save compiled JIT functions: ${missingFiles.join(',')}`);
     }
-    const fileCode = compileTypeToJs<PureFunctionsCache>(cache);
+    const fileCode = compileTypeToJs<PureFunctionsCache>(cache, {isPureFnCode: true});
     fullFileNames.forEach((fullFileName: string) => writeFileSync(fullFileName, fileCode, 'utf8'));
     return fileCode;
 }
 
 /** generates code to save any type into a js file and writes the file, file will be fully overwritten */
-export function compileAndSaveTypeToJs<T>(instance: T, fullFileName: string, type?: ReceiveType<T>): string {
-    const fileCode = compileTypeToJs(instance, type);
+export function compileAndSaveTypeToJs<T>(
+    instance: T,
+    fullFileName: string,
+    opts: RunTypeOptions = {},
+    type?: ReceiveType<T>
+): string {
+    const fileCode = compileTypeToJs(instance, opts, type);
     writeFileSync(fullFileName, fileCode, 'utf8');
     return fileCode;
 }
 
 /** generates code to save any type into a js file */
-export function compileTypeToJs<T>(instance: T, type?: ReceiveType<T>): string {
+export function compileTypeToJs<T>(instance: T, opts: RunTypeOptions = {}, type?: ReceiveType<T>): string {
     const rt = runType(type);
-    const toCode = rt.createJitFunction(JitFunctions.toCode);
+    const toCode = rt.createJitFunction(JitFunctions.toCode, opts);
     const code = toCode(instance);
     const fileCode = `${compilerConstants.autoGenMessage}export const ${compilerConstants.exportName} = ${code}\n`;
     return fileCode;

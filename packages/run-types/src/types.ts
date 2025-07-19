@@ -89,6 +89,8 @@ export interface CustomVλl {
 export interface RunTypeOptions {
     /** slice parameters when parsing functions */
     paramsSlice?: {start?: number; end?: number};
+    isJitFnCode?: boolean;
+    isPureFnCode?: boolean;
     mock?: MockOptions;
 }
 
