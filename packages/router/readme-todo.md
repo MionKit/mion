@@ -21,7 +21,7 @@
 
 Thanks to it's RPC routing style is quite performant as there is no need to parse URLs or match regular expressions when finding a route. Just a direct mapping from url to the route handler.
 
-mion Router uses a **Remote Procedure Call** style routing, unlike traditional routers it does not rely on `GET`, `PUT`, `POST`, or any other http method to to identify the route. The router only supports sending/receiving data as json in the body or in http headers. No query params support or any other xml or data formats other than json.
+mion Router uses a **Remote Method Call** style routing, unlike traditional routers it does not rely on `GET`, `PUT`, `POST`, or any other http method to to identify the route. The router only supports sending/receiving data as json in the body or in http headers. No query params support or any other xml or data formats other than json.
 
 These architectural limitations make it suitable for modern APIs and grants some advantages over other routers that need to support many more features.
 

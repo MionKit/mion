@@ -8,14 +8,7 @@
 import {RpcError} from '@mionkit/core/src/errors';
 import type {RunTypeError} from '@mionkit/core/src/types';
 import type {JITCompiledFunctions} from '@mionkit/core/src/types';
-import type {
-    JsonParser,
-    PublicHeaderProcedure,
-    PublicHookProcedure,
-    PublicProcedure,
-    PublicApi,
-    PublicRouteProcedure,
-} from '@mionkit/router';
+import type {JsonParser, PublicHeaderMethod, PublicHookMethod, PublicMethod, PublicApi, PublicRouteMethod} from '@mionkit/router';
 import type {MionRequest} from './request';
 
 export type StorageType = 'localStorage' | 'sessionStorage';
@@ -44,14 +37,14 @@ export type ClientOptions = {
 };
 
 export type InitOptions = Partial<ClientOptions> & {baseURL: string};
-export type MetadataById = Map<string, PublicProcedure>;
+export type MetadataById = Map<string, PublicMethod>;
 export type JitFunctionsById = Map<string, RemoteMethodJIT>;
 export type RequestHeaders = {[key: string]: string};
 export type RequestBody = {[key: string]: any[]};
 export type PublicMethodReflection = {paramsJit: JITCompiledFunctions};
-export type HandlerResponse<RM extends PublicProcedure> = Awaited<ReturnType<RM['handler']>>;
-export type HandlerSuccessResponse<RM extends PublicProcedure> = Exclude<HandlerResponse<RM>, RpcError | Error>;
-export type HandlerFailResponse<RM extends PublicProcedure> = Extract<HandlerResponse<RM>, RpcError | Error>;
+export type HandlerResponse<RM extends PublicMethod> = Awaited<ReturnType<RM['handler']>>;
+export type HandlerSuccessResponse<RM extends PublicMethod> = Exclude<HandlerResponse<RM>, RpcError | Error>;
+export type HandlerFailResponse<RM extends PublicMethod> = Extract<HandlerResponse<RM>, RpcError | Error>;
 export type SuccessResponse<MR extends SubRequest<any>> = Required<MR>['return'];
 export type SuccessResponses<List extends SubRequest<any>[]> = {[P in keyof List]: SuccessResponse<List[P]>};
 export type FailResponse<MR extends SubRequest<any>> = Required<MR>['error'];
@@ -62,7 +55,7 @@ export type RequestErrors = Map<string, RpcError>;
 
 /** Represents a remote method (sub request).
  * A route request can contains multiple subRequest to the route itself and any required hook*/
-export interface SubRequest<RM extends PublicProcedure> {
+export interface SubRequest<RM extends PublicMethod> {
     pointer: string[];
     id: RM['id'];
     isResolved: boolean;
@@ -76,7 +69,7 @@ export interface SubRequest<RM extends PublicProcedure> {
 /** structure returned from the proxy, containing info of the remote route to execute
  * Note routePointer is using as differentiating key from hookPointer in HookInfo, so types can't overlap.
  */
-export interface RouteSubRequest<RR extends PublicRouteProcedure> extends SubRequest<RR> {
+export interface RouteSubRequest<RR extends PublicRouteMethod> extends SubRequest<RR> {
     /**
      * Validates Route's parameters. Throws RpcError if validation fails.
      * @returns {hasErrors: false, totalErrors: 0, errors: []}
@@ -95,7 +88,7 @@ export interface RouteSubRequest<RR extends PublicRouteProcedure> extends SubReq
 /** structure returned from the proxy, containing info of the remote hook to execute
  * Note hookPointer is using as differentiating key from routePointer in RouteInfo, so types can't overlap.
  */
-export interface HookSubRequest<RH extends PublicHookProcedure | PublicHeaderProcedure> extends SubRequest<RH> {
+export interface HookSubRequest<RH extends PublicHookMethod | PublicHeaderMethod> extends SubRequest<RH> {
     /**
      * Validates Hooks's parameters. Throws RpcError if validation fails.
      * @returns {hasErrors: false, totalErrors: 0, errors: []}
@@ -117,32 +110,32 @@ export interface HookSubRequest<RH extends PublicHookProcedure | PublicHeaderPro
     removePrefill: () => Promise<void>;
 }
 
-export interface SuccessSubRequest<RM extends PublicProcedure> extends SubRequest<RM> {
+export interface SuccessSubRequest<RM extends PublicMethod> extends SubRequest<RM> {
     return: HandlerSuccessResponse<RM>;
     error: undefined;
 }
 
-export type HookCall<RH extends PublicHookProcedure | PublicHeaderProcedure> = (
+export type HookCall<RH extends PublicHookMethod | PublicHeaderMethod> = (
     ...params: Parameters<RH['handler']>
 ) => HookSubRequest<RH>;
-export type RouteCall<RR extends PublicRouteProcedure> = (...params: Parameters<RR['handler']>) => RouteSubRequest<RR>;
+export type RouteCall<RR extends PublicRouteMethod> = (...params: Parameters<RR['handler']>) => RouteSubRequest<RR>;
 
-export type NonClientRoute = never | PublicHookProcedure | PublicHeaderProcedure;
+export type NonClientRoute = never | PublicHookMethod | PublicHeaderMethod;
 
 export type ClientRoutes<RMS extends PublicApi<any>> = {
-    [Property in keyof RMS as RMS[Property] extends NonClientRoute ? never : Property]: RMS[Property] extends PublicRouteProcedure
+    [Property in keyof RMS as RMS[Property] extends NonClientRoute ? never : Property]: RMS[Property] extends PublicRouteMethod
         ? RouteCall<RMS[Property]>
         : RMS[Property] extends PublicApi<any>
           ? ClientRoutes<RMS[Property]>
           : never;
 };
 
-export type NonClientHook = never | PublicRouteProcedure | {[key: string]: PublicRouteProcedure};
+export type NonClientHook = never | PublicRouteMethod | {[key: string]: PublicRouteMethod};
 
 export type ClientHooks<RMS extends PublicApi<any>> = {
     [Property in keyof RMS as RMS[Property] extends NonClientHook ? never : Property]: RMS[Property] extends
-        | PublicHookProcedure
-        | PublicHeaderProcedure
+        | PublicHookMethod
+        | PublicHeaderMethod
         ? HookCall<RMS[Property]>
         : RMS[Property] extends PublicApi<any>
           ? ClientHooks<RMS[Property]>

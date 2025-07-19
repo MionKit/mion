@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {PublicProcedure, PublicApi} from '@mionkit/router';
+import {PublicMethod, PublicApi} from '@mionkit/router';
 import {Options as PrettierOptions} from 'prettier';
 
 export type CodegenOptions = {
@@ -31,12 +31,12 @@ export type PublicMethodsSpec = {
 };
 
 export type RoutesSpec = {
-    [key: string]: RoutesSpec | PublicProcedure[];
+    [key: string]: RoutesSpec | PublicMethod[];
 };
 
 // #######  guards #######
 
-export const hasChildRoutes = (entry: PublicProcedure | PublicApi<any> | null): entry is PublicApi<any> => {
+export const hasChildRoutes = (entry: PublicMethod | PublicApi<any> | null): entry is PublicApi<any> => {
     if (!entry) return false;
     return typeof entry.handler !== 'function' && typeof entry.handler !== 'string'; // string is the real value
 };

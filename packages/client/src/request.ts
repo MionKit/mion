@@ -26,7 +26,7 @@ import {fetchRemoteMethodsMetadata} from './clientMethodsMetadata';
 import {deserializeResponseBody, serializeSubRequests, validateSubRequests} from './reflection';
 
 // we need to keep in sync with the one in @mionkit/router
-enum ProcedureType {
+enum MethodType {
     route = 1,
     hook = 2,
     headerHook = 3,
@@ -193,7 +193,7 @@ export class MionRequest<RR extends RouteSubRequest<any>, HookRequestsList exten
             const methodMeta = this.metadataById.get(subRequest.id);
             if (!subRequest.serializedParams) throw new Error(`SubRequest ${subRequest.id} is not serialized.`);
             if (!methodMeta) throw new Error(`Metadata for remote method ${subRequest.id} not found.`);
-            if (methodMeta.type === ProcedureType.headerHook && methodMeta.headerName) {
+            if (methodMeta.type === MethodType.headerHook && methodMeta.headerName) {
                 // TODO: check if we using soft serialization in the client
                 headers[methodMeta.headerName] = subRequest.serializedParams[0];
             } else {
@@ -205,7 +205,7 @@ export class MionRequest<RR extends RouteSubRequest<any>, HookRequestsList exten
 
     private getResponseValueFromBodyOrHeader(id: string, respBody: PublicResponses, headers: Headers): any {
         const methodMeta = this.metadataById.get(id);
-        if (methodMeta && methodMeta.type === ProcedureType.headerHook && methodMeta.headerName) {
+        if (methodMeta && methodMeta.type === MethodType.headerHook && methodMeta.headerName) {
             return headers.get(methodMeta.headerName);
         }
         return respBody[id];
@@ -255,7 +255,7 @@ export class MionRequest<RR extends RouteSubRequest<any>, HookRequestsList exten
             const subRequest = this.subRequests[id];
             const methodMeta = this.metadataById.get(id);
             if (!methodMeta) throw new Error(`Remote method ${id} not found.`);
-            if (methodMeta.type === ProcedureType.route) {
+            if (methodMeta.type === MethodType.route) {
                 errors[id] = new RpcError({
                     statusCode: StatusCodes.BAD_REQUEST,
                     name: 'Persist Error',

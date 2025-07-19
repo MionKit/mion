@@ -1,11 +1,11 @@
 /* ######## EXPECTED GENERATED API from ./myApi.routes.ts ######## */
 
-import {ProcedureType} from '@mionkit/router';
+import {MethodType} from '@mionkit/router';
 
 export const PUBLIC_METHODS = {
     myApi: {
         auth: {
-            type: ProcedureType.headerHook,
+            type: MethodType.headerHook,
             id: 'auth',
             handler: expect.any(Function),
             serializedTypes: expect.any(Object),
@@ -16,7 +16,7 @@ export const PUBLIC_METHODS = {
         },
         users: {
             getUser: {
-                type: ProcedureType.route,
+                type: MethodType.route,
                 id: 'users-getUser',
                 handler: expect.any(Function),
                 serializedTypes: expect.any(Object),
@@ -27,7 +27,7 @@ export const PUBLIC_METHODS = {
                 hookIds: ['auth', 'users-totalUsers'],
             },
             setUser: {
-                type: ProcedureType.route,
+                type: MethodType.route,
                 id: 'users-setUser',
                 handler: expect.any(Function),
                 serializedTypes: expect.any(Object),
@@ -38,7 +38,7 @@ export const PUBLIC_METHODS = {
                 hookIds: ['auth', 'users-totalUsers'],
             },
             totalUsers: {
-                type: ProcedureType.hook,
+                type: MethodType.hook,
                 id: 'users-totalUsers',
                 handler: expect.any(Function),
                 serializedTypes: expect.any(Object),
@@ -49,7 +49,7 @@ export const PUBLIC_METHODS = {
         },
         pets: {
             getPet: {
-                type: ProcedureType.route,
+                type: MethodType.route,
                 id: 'pets-getPet',
                 handler: expect.any(Function),
                 serializedTypes: expect.any(Object),
@@ -60,7 +60,7 @@ export const PUBLIC_METHODS = {
                 hookIds: ['auth'],
             },
             setPet: {
-                type: ProcedureType.route,
+                type: MethodType.route,
                 id: 'pets-setPet',
                 handler: expect.any(Function),
                 serializedTypes: expect.any(Object),
@@ -73,7 +73,7 @@ export const PUBLIC_METHODS = {
         },
         utils: {
             getNumber: {
-                type: ProcedureType.route,
+                type: MethodType.route,
                 id: 'utils-getNumber',
                 handler: expect.any(Function),
                 serializedTypes: expect.any(Object),
@@ -85,7 +85,7 @@ export const PUBLIC_METHODS = {
             },
         },
         getItem: {
-            type: ProcedureType.route,
+            type: MethodType.route,
             id: 'getItem',
             handler: expect.any(Function),
             serializedTypes: expect.any(Object),
@@ -96,7 +96,7 @@ export const PUBLIC_METHODS = {
             hookIds: ['auth'],
         },
         getPetOrUser: {
-            type: ProcedureType.route,
+            type: MethodType.route,
             id: 'getPetOrUser',
             handler: expect.any(Function),
             serializedTypes: expect.any(Object),
@@ -109,7 +109,7 @@ export const PUBLIC_METHODS = {
     },
     authApi: {
         login: {
-            type: ProcedureType.route,
+            type: MethodType.route,
             id: 'login',
             handler: expect.any(Function),
             serializedTypes: expect.any(Object),
