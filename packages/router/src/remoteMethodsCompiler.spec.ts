@@ -10,7 +10,7 @@ import {getHookExecutable, getRouteExecutable, initMionRouter, resetRouter} from
 import {Routes} from './types/general';
 import fs from 'fs';
 import path from 'path';
-import {setCompiledMethods, writeCompiledMethods} from './compiler';
+import {setCompiledMethods, writeCompiledMethods} from './remoteMethodsCompiler';
 import {dispatchRoute} from './dispatch';
 import {headersFromRecord} from './headers';
 import {MionHeaders} from './types/context';

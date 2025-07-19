@@ -22,7 +22,7 @@ import {
 import {route} from './handlers';
 import {PublicMethod} from './types/publicMethods';
 import {RouterOptions, Routes} from './types/general';
-import {getSerializableMethod, serializeMethodDeps} from './remoteMethodsMetadata';
+import {getSerializableMethod, serializeMethodDeps} from './remoteMethods';
 import {NonRawMethod, Method} from './types/remoteMethods';
 
 export type PublicMethods = Record<string, PublicMethod>;
