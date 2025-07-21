@@ -7,8 +7,10 @@
     "outDir": ".dist/cjs",
     "types": ["bun-types"],
     "module": "ESNext",
+    "composite": true
   },
+  "references": [{"path": "../core"}, {"path": "../router"}],
   "reflection": true,
   "include": ["."],
-  "exclude": ["node_modules", "examples", "loader", ".dist"],
+  "exclude": ["node_modules", "examples", "loader", ".dist"]
 }
