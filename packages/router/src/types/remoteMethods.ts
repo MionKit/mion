@@ -1,6 +1,6 @@
 // ####### Executables #######
 
-import {JITCompiledFunctions, SerializableJITFunctions} from '@mionkit/core/src/types'; // do not import type only
+import {JitCompiledFunctions, JitFunctionsHashes, SerializableJITFunctions} from '@mionkit/core/src/types'; // do not import type only
 import {AnyHandler, Handler, HeaderHandler, RawHookHandler} from './handlers'; // do not import type only
 
 export enum HandlerType {
@@ -21,48 +21,53 @@ export interface MethodOptions {
     isAsync?: boolean;
 }
 
-/** Contains the data of each hook or route, Used to generate the execution path for each route. */
-export interface Method<H extends AnyHandler = AnyHandler> {
+export interface MethodData {
     type: HandlerType;
     id: string;
     // pointer to the src Hook or Route definition within the original Routers object, ie: ['users','getUser']
     pointer: string[];
     nestLevel: number;
-    handler: H;
-    paramsJitFns?: JITCompiledFunctions;
-    returnJitFns?: JITCompiledFunctions;
     paramNames?: string[];
     headerNames?: string[];
     options: MethodOptions;
+    paramsJitHashes: JitFunctionsHashes;
+    returnJitHashes: JitFunctionsHashes;
+}
+
+/** Contains the data of each hook or route, Used to generate the execution path for each route. */
+export interface Method<H extends AnyHandler = AnyHandler> extends MethodData {
+    paramsJitFns?: JitCompiledFunctions;
+    returnJitFns?: JitCompiledFunctions;
+    handler: H;
     methodCaller?: (...args: any[]) => void;
 }
 
 export interface NonRawMethod<H extends Handler = Handler> extends Method<H> {
-    paramsJitFns: JITCompiledFunctions;
-    returnJitFns: JITCompiledFunctions;
+    paramsJitFns: JitCompiledFunctions;
+    returnJitFns: JitCompiledFunctions;
     paramNames: string[];
 }
 export interface RouteMethod<H extends Handler = any> extends Method<H> {
     type: HandlerType.route;
     handler: H;
-    paramsJitFns: JITCompiledFunctions;
-    returnJitFns: JITCompiledFunctions;
+    paramsJitFns: JitCompiledFunctions;
+    returnJitFns: JitCompiledFunctions;
     paramNames: string[];
     options: MethodOptions & {runOnError: false};
 }
 export interface HookMethod<H extends Handler = any> extends Method<H> {
     type: HandlerType.hook;
     handler: H;
-    paramsJitFns: JITCompiledFunctions;
-    returnJitFns: JITCompiledFunctions;
+    paramsJitFns: JitCompiledFunctions;
+    returnJitFns: JitCompiledFunctions;
     paramNames: string[];
 }
 export interface HeaderMethod<H extends HeaderHandler = any> extends Method<H> {
     type: HandlerType.headerHook;
     handler: H;
     headerNames: string[];
-    paramsJitFns: JITCompiledFunctions;
-    returnJitFns: JITCompiledFunctions;
+    paramsJitFns: JitCompiledFunctions;
+    returnJitFns: JitCompiledFunctions;
     paramNames: string[];
 }
 export interface RawMethod<H extends RawHookHandler = any> extends Method<H> {

@@ -242,7 +242,7 @@ export interface JitCompiledFn<Fn extends AnyFn = AnyFn> extends JitCompiledFnDa
     readonly fn: Fn;
 }
 
-export interface JITCompiledFunctions {
+export interface JitCompiledFunctions {
     isType: JitCompiledFn<IsTypeFn>;
     typeErrors: JitCompiledFn<TypeErrorsFn>;
     toJsonVal: JitCompiledFn<ToJsonValFn>;
@@ -255,6 +255,13 @@ export interface SerializableJITFunctions {
     toJsonVal: JitCompiledFnData;
     fromJsonVal: JitCompiledFnData;
     jsonStringify: JitCompiledFnData;
+}
+export interface JitFunctionsHashes {
+    isType: string;
+    typeErrors: string;
+    toJsonVal: string;
+    fromJsonVal: string;
+    jsonStringify: string;
 }
 export type JsonStringifyFn = (value: any) => JSONString;
 export type FromJsonValFn = (value: JSONValue) => any;

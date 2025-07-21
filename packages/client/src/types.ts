@@ -7,7 +7,7 @@
 
 import {RpcError} from '@mionkit/core/src/errors';
 import type {RunTypeError} from '@mionkit/core/src/types';
-import type {JITCompiledFunctions} from '@mionkit/core/src/types';
+import type {JitCompiledFunctions} from '@mionkit/core/src/types';
 import type {JsonParser, PublicHeaderMethod, PublicHookMethod, PublicMethod, PublicApi, PublicRouteMethod} from '@mionkit/router';
 import type {MionRequest} from './request';
 
@@ -41,7 +41,7 @@ export type MetadataById = Map<string, PublicMethod>;
 export type JitFunctionsById = Map<string, RemoteMethodJIT>;
 export type RequestHeaders = {[key: string]: string};
 export type RequestBody = {[key: string]: any[]};
-export type PublicMethodReflection = {paramsJit: JITCompiledFunctions};
+export type PublicMethodReflection = {paramsJit: JitCompiledFunctions};
 export type HandlerResponse<RM extends PublicMethod> = Awaited<ReturnType<RM['handler']>>;
 export type HandlerSuccessResponse<RM extends PublicMethod> = Exclude<HandlerResponse<RM>, RpcError | Error>;
 export type HandlerFailResponse<RM extends PublicMethod> = Extract<HandlerResponse<RM>, RpcError | Error>;
@@ -154,8 +154,8 @@ export type SuccessClientResponse<RR extends RouteSubRequest<any>, RHList extend
 export type ValidationRequest = Pick<MionRequest<any, any>, 'metadataById' | 'jitFunctionsById' | 'options' | 'subRequests'>;
 
 export type RemoteMethodJIT = {
-    return: JITCompiledFunctions;
-    params: JITCompiledFunctions;
+    return: JitCompiledFunctions;
+    params: JitCompiledFunctions;
 };
 
 // ############# STRONG PROMISE  (reject error is strongly typed) #############

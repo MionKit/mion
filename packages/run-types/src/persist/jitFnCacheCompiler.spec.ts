@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {compileTypeToJs, compilerConstants, findJSFile} from './jitFnCacheCompiler';
+import {SrcCodeCompilerConstants, compileTypeToJs, runTypeCompilerConstants, findJSFile} from './jitFnCacheCompiler';
 import {
     JitCompiledFn,
     CompiledPureFunction,
@@ -24,6 +24,12 @@ it('should compile JIT functions cache to code', () => {
 
     // Create a mock JitFunctionsCache
     const mockCache = {};
+    const compOpts = {
+        ...runTypeCompilerConstants,
+        typeName: 'Pure functions',
+        files: runTypeCompilerConstants.jitFunctionsFiles,
+        opts: {isJitFnCode: true},
+    } satisfies SrcCodeCompilerConstants;
 
     // Add a mock JIT function to the cache
     const mockJitFn: JitCompiledFn = {
@@ -42,22 +48,19 @@ it('should compile JIT functions cache to code', () => {
     mockCache['sayHello'] = mockJitFn;
 
     // Call the function under test
-    const compiledMock = compileTypeToJs<SrcCodeJITCompiledFnsCache>(mockCache, {isJitFnCode: true});
-    compiledMock.replace(compilerConstants.autoGenMessage, ''); // removes unnecessary comments
+    const compiledMock = compileTypeToJs<SrcCodeJITCompiledFnsCache>(mockCache, compOpts);
     // Check that the file code contains the export statement with the correct export name
-    expect(compiledMock).toContain(`export const ${compilerConstants.exportName} =`);
-    const evalCode = compiledMock.replace(`export const ${compilerConstants.exportName} =`, '');
+    expect(compiledMock).toContain(`export const ${compOpts.exportName} =`);
+    const evalCode = compiledMock.replace(`export const ${compOpts.exportName} =`, '');
     const evalResult = eval(`(${evalCode})`);
     evalResult['sayHello'].fn = evalResult['sayHello'].closureFn(jitUtils);
     expect(evalResult['sayHello'].fn('Karol')).toBe('Hello Karol');
 
     // guarantees cache in core package can be compiled
     // this contains any jit functions that are used by core package or mion packages
-    const compiledCorePackage = compileTypeToJs<SrcCodeJITCompiledFnsCache>(jitFnsCache, {isJitFnCode: true});
-    compiledCorePackage.replace(compilerConstants.autoGenMessage, ''); // removes unnecessary comment
-
-    expect(compiledCorePackage).toContain(`export const ${compilerConstants.exportName} =`);
-    const realEvalCode = compiledCorePackage.replace(`export const ${compilerConstants.exportName} =`, '');
+    const compiledCorePackage = compileTypeToJs<SrcCodeJITCompiledFnsCache>(jitFnsCache, compOpts);
+    expect(compiledCorePackage).toContain(`export const ${compOpts.exportName} =`);
+    const realEvalCode = compiledCorePackage.replace(`export const ${compOpts.exportName} =`, '');
     expect(() => eval(`(${realEvalCode})`)).not.toThrow();
 
     // console.log('compiledMock:', compiledMock);
@@ -69,6 +72,12 @@ it('should compile pure functions cache to code', () => {
 
     // Create a mock PureFunctionsCache
     const mockCache = {};
+    const compOpts = {
+        ...runTypeCompilerConstants,
+        typeName: 'Pure functions',
+        files: runTypeCompilerConstants.pureFunctionsFiles,
+        opts: {isPureFnCode: true},
+    } satisfies SrcCodeCompilerConstants;
 
     // Add a mock pure function to the cache
     const mockPureFn: CompiledPureFunction = {
@@ -82,25 +91,21 @@ it('should compile pure functions cache to code', () => {
     mockCache['addNumbers'] = mockPureFn;
 
     // Call the function under test
-    const compiledMock = compileTypeToJs<SrcCodePureFunctionsCache>(mockCache, {isPureFnCode: true});
-    compiledMock.replace(compilerConstants.autoGenMessage, ''); // removes unnecessary comment
-
+    const compiledMock = compileTypeToJs<SrcCodePureFunctionsCache>(mockCache, compOpts);
     // Check that the file code contains the export statement with the correct export name
-    expect(compiledMock).toContain(`export const ${compilerConstants.exportName} =`);
+    expect(compiledMock).toContain(`export const ${compOpts.exportName} =`);
 
     // Verify the code can be evaluated and contains our mock cache
-    const evalCode = compiledMock.replace(`export const ${compilerConstants.exportName} =`, '');
+    const evalCode = compiledMock.replace(`export const ${compOpts.exportName} =`, '');
     const evalResult = eval(`(${evalCode})`);
     evalResult['addNumbers'].fn = evalResult['addNumbers'].closureFn(jitUtils);
     expect(evalResult.addNumbers.fn(1, 2)).toBe(3);
 
     // guarantees (real cache) in core package can be compiled
     // this contains any pure functions that are used by core package or mion packages
-    const compiledCorePackage = compileTypeToJs<SrcCodePureFunctionsCache>(pureFnsCache, {isPureFnCode: true});
-    compiledCorePackage.replace(compilerConstants.autoGenMessage, ''); // removes unnecessary comment
-
-    expect(compiledCorePackage).toContain(`export const ${compilerConstants.exportName} =`);
-    const realEvalCode = compiledCorePackage.replace(`export const ${compilerConstants.exportName} =`, '');
+    const compiledCorePackage = compileTypeToJs<SrcCodePureFunctionsCache>(pureFnsCache, compOpts);
+    expect(compiledCorePackage).toContain(`export const ${compOpts.exportName} =`);
+    const realEvalCode = compiledCorePackage.replace(`export const ${compOpts.exportName} =`, '');
     expect(() => eval(`(${realEvalCode})`)).not.toThrow();
 
     // console.log('compiledMock:', compiledMock);

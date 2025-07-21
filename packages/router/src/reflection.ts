@@ -5,19 +5,18 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import type {AnyFn, JITCompiledFunctions, SerializableJITFunctions} from '@mionkit/core/src/types';
+import type {AnyFn, JitCompiledFunctions, JitFunctionsHashes, SerializableJITFunctions} from '@mionkit/core/src/types';
 import {JitFunctions} from '../../run-types/src/constants';
 import {RunTypeOptions} from '@mionkit/run-types/src/types';
-import {reflectFunction, runType} from '@mionkit/run-types/src/lib/runType';
+import {reflectFunction} from '@mionkit/run-types/src/lib/runType';
 import {getSerializableJitCompiler} from '@mionkit/run-types/src/lib/jitCompiler';
 import {type FunctionRunType} from '@mionkit/run-types/src/runType/function/function';
 import {Handler} from '@mionkit/router/src/types/handlers';
 import {RouterOptions} from '@mionkit/router/src/types/general';
-import {CompiledMethod} from '@mionkit/router/src/types/remoteMethods'; // do not import type only
 
-export function getParamsJitFns<Fn extends AnyFn>(fn: Fn, opts?: RunTypeOptions): JITCompiledFunctions {
+export function getParamsJitFns<Fn extends AnyFn>(fn: Fn, opts?: RunTypeOptions): JitCompiledFunctions {
     const rt = reflectFunction(fn);
-    const paramFunctions: JITCompiledFunctions = {
+    const paramFunctions: JitCompiledFunctions = {
         isType: rt.createJitCompiledParamsFunction(JitFunctions.isType, opts),
         typeErrors: rt.createJitCompiledParamsFunction(JitFunctions.typeErrors, opts),
         toJsonVal: rt.createJitCompiledParamsFunction(JitFunctions.toJsonVal, opts),
@@ -27,10 +26,10 @@ export function getParamsJitFns<Fn extends AnyFn>(fn: Fn, opts?: RunTypeOptions)
     return paramFunctions;
 }
 
-export function getReturnJitFns<Fn extends AnyFn>(fn: Fn, opts?: RunTypeOptions): JITCompiledFunctions {
+export function getReturnJitFns<Fn extends AnyFn>(fn: Fn, opts?: RunTypeOptions): JitCompiledFunctions {
     const rt = reflectFunction(fn);
 
-    const returnFunctions: JITCompiledFunctions = {
+    const returnFunctions: JitCompiledFunctions = {
         isType: rt.createJitCompiledReturnFunction(JitFunctions.isType, opts),
         typeErrors: rt.createJitCompiledReturnFunction(JitFunctions.typeErrors, opts),
         toJsonVal: rt.createJitCompiledReturnFunction(JitFunctions.toJsonVal, opts),
@@ -40,7 +39,7 @@ export function getReturnJitFns<Fn extends AnyFn>(fn: Fn, opts?: RunTypeOptions)
     return returnFunctions;
 }
 
-export function getSerializableJitFunctions(jitCompFns: JITCompiledFunctions): SerializableJITFunctions {
+export function getSerializableJitFunctions(jitCompFns: JitCompiledFunctions): SerializableJITFunctions {
     return {
         isType: getSerializableJitCompiler(jitCompFns.isType),
         typeErrors: getSerializableJitCompiler(jitCompFns.typeErrors),
@@ -51,10 +50,22 @@ export function getSerializableJitFunctions(jitCompFns: JITCompiledFunctions): S
 }
 
 interface MethodReflectionItems {
+    paramsJitHashes: JitFunctionsHashes;
+    returnJitHashes: JitFunctionsHashes;
     handlerRunType: FunctionRunType;
-    paramsJitFns: JITCompiledFunctions;
-    returnJitFns: JITCompiledFunctions;
+    paramsJitFns: JitCompiledFunctions;
+    returnJitFns: JitCompiledFunctions;
     paramNames: string[];
+}
+
+export function getJitHashes(jitFns: JitCompiledFunctions): JitFunctionsHashes {
+    return {
+        isType: jitFns.isType.jitFnHash,
+        typeErrors: jitFns.typeErrors.jitFnHash,
+        toJsonVal: jitFns.toJsonVal.jitFnHash,
+        fromJsonVal: jitFns.fromJsonVal.jitFnHash,
+        jsonStringify: jitFns.jsonStringify.jitFnHash,
+    };
 }
 
 // TODO: we do not want to use runtypes directly but compiled functions so we can take advantage
@@ -85,11 +96,7 @@ export function getHandlerReflection(handler: Handler, routeId: string, routerOp
         console.error(error);
         throw new Error(`Can not get Jit Functions for Return of route/hook ${routeId}. Error: ${error?.message}`);
     }
-
+    reflectionItems.paramsJitHashes = getJitHashes(reflectionItems.paramsJitFns);
+    reflectionItems.returnJitHashes = getJitHashes(reflectionItems.returnJitFns);
     return reflectionItems as MethodReflectionItems;
-}
-
-export function getMethodsToCodeFn() {
-    const rt = runType<Record<string, CompiledMethod>>();
-    return rt.createJitFunction(JitFunctions.toCode);
 }
