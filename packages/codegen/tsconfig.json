@@ -1,8 +1,10 @@
 {
   "extends": "../../tsconfig.json",
   "compilerOptions": {
-    "outDir": ".dist/cjs"
+    "outDir": ".dist/cjs",
+    "composite": true
   },
+  "references": [{"path": "../core"}, {"path": "../client"}, {"path": "../router"}],
   "reflection": true,
   "include": [".", "src/test/.spec/result-spec-api.ts"],
   "exclude": ["examples", ".dist", "src/test/.spec"]

@@ -12,15 +12,32 @@
     "target": "es2020",
     "lib": ["es6", "ES2023"],
     "outDir": ".dist/cjs",
-    "composite": false,
-    "declaration": false,
-    "declarationMap": false,
+    "composite": true,
+    "declaration": true,
+    "declarationMap": true,
     "incremental": true,
     "sourceMap": true,
     "paths": {
       "@mionkit/*": ["packages/*"]
     }
   },
+  "references": [
+    {"path": "./packages/core"},
+    {"path": "./packages/common"},
+    {"path": "./packages/run-types"},
+    {"path": "./packages/formats"},
+    {"path": "./packages/router"},
+    {"path": "./packages/client"},
+    {"path": "./packages/http"},
+    {"path": "./packages/aws"},
+    {"path": "./packages/gcloud"},
+    {"path": "./packages/bun"},
+    {"path": "./packages/cli"},
+    {"path": "./packages/codegen"},
+    {"path": "./packages/eslint-plugin"},
+    {"path": "./packages/quick-start"}
+  ],
+  "files": [],
   "exclude": ["node_modules", ".dist"],
   "reflection": true
 }

@@ -3,8 +3,10 @@
   "compilerOptions": {
     "outDir": ".dist/cjs",
     "skipLibCheck": true,
+    "composite": true
   },
+  "references": [{"path": "../core"}, {"path": "../router"}, {"path": "../http"}],
   "reflection": true,
   "include": ["."],
-  "exclude": ["node_modules", "examples", ".dist"],
+  "exclude": ["node_modules", "examples", ".dist"]
 }

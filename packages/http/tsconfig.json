@@ -1,8 +1,10 @@
 {
   "extends": "../../tsconfig.json",
   "compilerOptions": {
-    "outDir": ".dist/cjs"
+    "outDir": ".dist/cjs",
+    "composite": true
   },
+  "references": [{"path": "../core"}, {"path": "../router"}],
   "reflection": true,
   "include": ["."],
   "exclude": ["node_modules", "examples", ".dist"]
