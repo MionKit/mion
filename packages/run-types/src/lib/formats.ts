@@ -20,7 +20,7 @@ import type {JitErrorsCompiler, JitCompiler} from './jitCompiler';
 import type {BaseRunTypeFormat} from './baseRunTypeFormat';
 import {jitUtils} from '../../../core/src/jitUtils';
 import {toLiteralInContext} from './utils';
-import {JitFunctions} from '@mionkit/run-types/src/constants';
+import {JitFunctions} from '../constants.functions';
 
 // ################# REGISTER FORMATTERS & PURE FUNCTIONS  #################
 

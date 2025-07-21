@@ -13,8 +13,8 @@ import {PromiseRunType} from '../native/promise';
 import {ReflectionSubKind} from '../../constants.kind';
 import {FunctionParamsRunType} from '../collection/functionParams';
 import {JitCompiledFn} from '@mionkit/core/src/types';
-import {loadJitCompilerFunction} from '@mionkit/run-types/src/lib/jitFnsRegistry';
-import {JitFunctions} from '@mionkit/run-types/src/constants';
+import {registerJitFunctionCompiler} from '@mionkit/run-types/src/lib/jitFnsRegistry';
+import {JitFunctions} from '../../constants.functions';
 
 export class FunctionRunType<CallType extends AnyFunction = TypeFunction> extends BaseRunType<CallType> {
     // parameterRunTypes.src must be set after FunctionRunType creation
@@ -159,11 +159,11 @@ export class FunctionRunType<CallType extends AnyFunction = TypeFunction> extend
         return isPromiseRunType(this.getReturnType());
     }
     async mockReturn(ctx?: RunTypeOptions): Promise<any> {
-        await loadJitCompilerFunction(JitFunctions.mock);
+        await registerJitFunctionCompiler(JitFunctions.mock);
         return this.getReturnType().mockType(ctx);
     }
     async mockParams(ctx?: RunTypeOptions): Promise<any[]> {
-        await loadJitCompilerFunction(JitFunctions.mock);
+        await registerJitFunctionCompiler(JitFunctions.mock);
         return this.parameterRunTypes.mockType(ctx);
     }
 }

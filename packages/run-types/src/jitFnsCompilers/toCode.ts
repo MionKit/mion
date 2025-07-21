@@ -13,7 +13,7 @@ import type {ClassRunType} from '@mionkit/run-types/src/runType/collection/class
 import type {MethodSignatureRunType} from '@mionkit/run-types/src/runType/member/methodSignature';
 import {ReflectionKind, type TypeMethodSignature, type TypePropertySignature} from '@deepkit/type';
 import {ReflectionSubKind} from '../constants.kind';
-import {JitFunctions} from '@mionkit/run-types/src/constants';
+import {JitFunctions} from '../constants.functions';
 import {compileAddPureFunctionWithClosure, JitCompiler} from '@mionkit/run-types/src/lib/jitCompiler';
 import {isSafePropName} from '@mionkit/run-types/src/lib/utils';
 import {_compileJsonStringify, _compileJsonStringifyIterable} from '@mionkit/run-types/src/jitFnsCompilers/jsonStringify';

@@ -16,16 +16,10 @@ import {MAX_STACK_DEPTH} from '@mionkit/core/src/constants';
 import type {Mutable, JitFnID, StrNumber, jitCode, RunTypeOptions, JitCompilerOpts} from '../types';
 import type {BaseRunType} from './baseRunTypes';
 import type {AnyKindName} from '../constants.kind';
-import {
-    getJITFnName,
-    jitArgs,
-    jitDefaultArgs,
-    jitDefaultErrorArgs,
-    jitErrorArgs,
-    JitFunctions,
-    maxStackErrorMessage,
-    JIT_STACK_TRACE_MESSAGE,
-} from '../constants';
+import {maxStackErrorMessage, JIT_STACK_TRACE_MESSAGE} from '../constants';
+import {jitArgs, jitDefaultArgs, jitDefaultErrorArgs, jitErrorArgs} from '../constants.functions';
+import {getJITFnName} from '../constants.functions';
+import {JitFunctions} from '../constants.functions';
 import {isChildAccessorType, isJitErrorsCompiler} from './guards';
 import {jitUtils} from '../../../core/src/jitUtils';
 import {toLiteral, toLiteralInContext} from './utils';

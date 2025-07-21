@@ -9,7 +9,7 @@ import {ReflectionSubKind} from '../../constants.kind';
 import {ReflectionKind, type TypeClass} from '@deepkit/type';
 import {GenericMemberRunType} from '../member/genericMember';
 import {IterableRunType} from './Iterable';
-import {JitFunctions} from '../../constants';
+import {JitFunctions} from '../../constants.functions';
 
 class SetKeyRunType extends GenericMemberRunType<any> {
     index = 0;

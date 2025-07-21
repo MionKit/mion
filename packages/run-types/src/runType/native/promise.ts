@@ -7,7 +7,7 @@
 import {ReflectionKind, type TypePromise} from '@deepkit/type';
 import type {jitCode, JitCompilerOpts} from '../../types';
 import {MemberRunType} from '../../lib/baseRunTypes';
-import {JitFunctions} from '@mionkit/run-types/src/constants';
+import {JitFunctions} from '../../constants.functions';
 
 export class PromiseRunType extends MemberRunType<TypePromise> {
     _getTypeID = () => ReflectionKind.promise;

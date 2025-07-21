@@ -11,7 +11,7 @@ import {jitCode, JitCompilerOpts} from '../../types';
 import {childIsExpression, getPropLiteral, getPropVarName, memorize, useArrayAccessorForProp} from '../../lib/utils';
 import {MemberRunType} from '../../lib/baseRunTypes';
 import {InterfaceRunType} from '../collection/interface';
-import {JitFunctions} from '../../constants';
+import {JitFunctions} from '../../constants.functions';
 
 export class PropertyRunType extends MemberRunType<TypePropertySignature | TypeProperty> {
     isUnionDiscriminator = false;

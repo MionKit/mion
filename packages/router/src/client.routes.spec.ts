@@ -17,7 +17,7 @@ import {headersFromRecord} from './headers';
 import {dispatchRoute} from './dispatch';
 import {runType} from '@mionkit/run-types/src/lib/runType';
 import {PublicMethod} from '@mionkit/router/src/types/publicMethods'; // do not import type only
-import {JitFunctions} from '@mionkit/run-types/src/constants';
+import {JitFunctions} from '@mionkit/run-types/src/constants.functions';
 import {getSerializableMethod} from '@mionkit/router/src/remoteMethods';
 import {RpcError} from '@mionkit/core/src/errors';
 import {jitUtils} from '@mionkit/core/src/jitUtils';

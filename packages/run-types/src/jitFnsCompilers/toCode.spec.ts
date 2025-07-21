@@ -6,7 +6,7 @@
  * ######## */
 
 import {runType} from '@mionkit/run-types/src/lib/runType';
-import {JitFunctions} from '@mionkit/run-types/src/constants';
+import {JitFunctions} from '../constants.functions';
 
 it('toCode should transform functions to code using toString()', () => {
     // Create a type with a function

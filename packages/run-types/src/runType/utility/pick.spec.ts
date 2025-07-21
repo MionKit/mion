@@ -6,7 +6,7 @@
  * ######## */
 
 import {runType} from '../../lib/runType';
-import {JitFunctions} from '../../constants';
+import {JitFunctions} from '../../constants.functions';
 
 // Deepkit already implements all logic for Pick
 

@@ -9,7 +9,7 @@ import {ReceiveType} from '@deepkit/type';
 import {existsSync, writeFileSync} from 'fs';
 import {join} from 'path';
 import {JitFunctionsCache, PureFunctionsCache} from '@mionkit/core/src/types';
-import {JitFunctions} from '../constants';
+import {JitFunctions} from '../constants.functions';
 import {runType} from '../lib/runType';
 import {RunTypeOptions} from '@mionkit/run-types/src/types';
 

@@ -9,7 +9,7 @@ import {ReflectionKind, TypeTupleMember, type TypeParameter} from '@deepkit/type
 import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
 import {MemberRunType} from '../../lib/baseRunTypes';
 import {jitCode, JitCompilerOpts} from '../../types';
-import {JitFunctions} from '../../constants';
+import {JitFunctions} from '../../constants.functions';
 import {childIsExpression, getParamIndex} from '../../lib/utils';
 
 type ParamT = TypeParameter | TypeTupleMember;

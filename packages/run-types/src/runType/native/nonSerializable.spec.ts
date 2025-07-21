@@ -6,7 +6,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 import {runType} from '../../lib/runType';
-import {JitFunctions} from '../../constants';
+import {JitFunctions} from '../../constants.functions';
 import {getJITFnHash} from '../../lib/jitCompiler';
 import {jitUtils} from '../../../../core/src/jitUtils';
 import {NonSerializableRunType} from './nonSerializable';

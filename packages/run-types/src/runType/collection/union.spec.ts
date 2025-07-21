@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 import {UnionRunType} from '@mionkit/run-types/src/runType/collection/union';
-import {JitFunctions} from '../../constants';
+import {JitFunctions} from '../../constants.functions';
 import {BaseRunType} from '../../lib/baseRunTypes';
 import {runType} from '../../lib/runType';
 

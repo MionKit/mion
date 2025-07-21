@@ -26,7 +26,8 @@ import {ReflectionSubKind} from '../constants.kind';
 import {NonSerializableRunType} from '../runType/native/nonSerializable';
 import {IndexSignatureRunType} from '../runType/member/indexProperty';
 import {getRunTypeFormatter, getRunTypeTransformers} from '../lib/formats';
-import {JIT_STACK_TRACE_MESSAGE, JitFunctions} from '../constants';
+import {JIT_STACK_TRACE_MESSAGE} from '../constants';
+import {JitFunctions} from '../constants.functions';
 import type {ArrayRunType} from '@mionkit/run-types/src/runType/member/array';
 import {jitUtils} from '@mionkit/core/src/jitUtils';
 
