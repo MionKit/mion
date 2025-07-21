@@ -5,7 +5,8 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {JitFnSettings, jitFunctionList} from '../constants.functions';
+import type {JitFnID} from '@mionkit/run-types/src/types';
+import {CodeType, JitFnSettings, jitFunctionList, jitFunctionsById} from '../constants.functions';
 
 type resolvedCompiler = {
     jitFnSettings: JitFnSettings;
@@ -39,4 +40,17 @@ export function getJitFunctionCompiler(jitFnSettings: JitFnSettings): (...args: 
     const existing = jitFunctionsRegistry.get(jitFnSettings.id);
     if (existing) return existing.compiler;
     throw new Error(`Function ${jitFnSettings.name} has not been loaded.`);
+}
+
+export function getJitFnSettings(fnID: JitFnID): JitFnSettings {
+    const fnConfig = jitFunctionsById[fnID] || jitFunctionsRegistry.get(fnID)?.jitFnSettings;
+    if (fnConfig === undefined) throw new Error(`Unknown jit function id: ${fnID}`);
+    return fnConfig;
+}
+
+export function getCodeType(fnID: JitFnID): CodeType {
+    return getJitFnSettings(fnID).type;
+}
+export function getJITFnName(fnID: JitFnID): string {
+    return getJitFnSettings(fnID).name;
 }

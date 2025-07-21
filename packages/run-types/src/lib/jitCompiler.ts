@@ -17,8 +17,8 @@ import type {Mutable, JitFnID, StrNumber, jitCode, RunTypeOptions, JitCompilerOp
 import type {BaseRunType} from './baseRunTypes';
 import type {AnyKindName} from '../constants.kind';
 import {maxStackErrorMessage, JIT_STACK_TRACE_MESSAGE} from '../constants';
-import {jitArgs, jitDefaultArgs, jitDefaultErrorArgs, jitErrorArgs} from '../constants.functions';
-import {getJITFnName} from '../constants.functions';
+import {jitErrorArgs} from '../constants.functions';
+import {getJITFnName, getJitFnSettings} from './jitFnsRegistry';
 import {JitFunctions} from '../constants.functions';
 import {isChildAccessorType, isJitErrorsCompiler} from './guards';
 import {jitUtils} from '../../../core/src/jitUtils';
@@ -247,7 +247,7 @@ export class BaseCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extends 
 
 // ################### Compile Operations ###################
 
-export class JitCompiler<ID extends JitFnID = any> extends BaseCompiler<typeof jitArgs, ID> {
+export class JitCompiler<ID extends JitFnID = any> extends BaseCompiler<JitFnArgs, ID> {
     constructor(
         rt: BaseRunType,
         fnID: ID,
@@ -256,22 +256,26 @@ export class JitCompiler<ID extends JitFnID = any> extends BaseCompiler<typeof j
         typeID?: StrNumber,
         opts: RunTypeOptions = {}
     ) {
-        super(rt, fnID, {...jitArgs}, {...jitDefaultArgs}, 'v', parentCompiler, jitFnHash, typeID, opts);
+        const fnSettings = getJitFnSettings(fnID);
+        const args = {...fnSettings.jitArgs};
+        const defaultValues = {...fnSettings.jitDefaultArgs};
+        super(rt, fnID, args, defaultValues, 'v', parentCompiler, jitFnHash, typeID, opts);
     }
 }
 
 export class JitErrorsCompiler<ID extends JitFnID = any> extends BaseCompiler<typeof jitErrorArgs, ID> {
     constructor(
         rt: BaseRunType,
-        dnId: ID,
+        fnID: ID,
         parentCompiler?: BaseCompiler,
         jitFnHash?: string,
         typeID?: StrNumber,
         opts: RunTypeOptions = {}
     ) {
-        const args = {...jitErrorArgs};
-        const defaultValues = {...jitDefaultErrorArgs};
-        super(rt, dnId, args, defaultValues, 'er', parentCompiler, jitFnHash, typeID, opts);
+        const fnSettings = getJitFnSettings(fnID);
+        const args = {...fnSettings.jitArgs} as typeof jitErrorArgs;
+        const defaultValues = {...fnSettings.jitDefaultArgs};
+        super(rt, fnID, args, defaultValues, 'er', parentCompiler, jitFnHash, typeID, opts);
     }
     callJitErr(expected: AnyKindName | BaseRunType<any>): string {
         // TODO: most of the time jit path is an empty array, so a new array is created every time
