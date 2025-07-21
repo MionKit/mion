@@ -6,7 +6,6 @@
  * ######## */
 
 import type {JitFnArgs} from '@mionkit/core/src/types';
-import type {JitFnID} from '@mionkit/run-types/src/types';
 
 export const CodeTypes = {
     expression: 'E', // single expression, that could be concatenated using js operators like + - * && || etc...
@@ -177,14 +176,3 @@ export const JitFunctions = {
 
 export const jitFunctionList: JitFnSettings[] = Object.values(JitFunctions);
 export const jitFunctionsById = Object.fromEntries(jitFunctionList.map((f) => [f.id, f]));
-
-export function getCodeType(fnID: JitFnID): CodeType {
-    const fnConfig = jitFunctionsById[fnID];
-    if (fnConfig === undefined) throw new Error(`Unknown jit function id: ${fnID}`);
-    return fnConfig.type;
-}
-export function getJITFnName(fnID: JitFnID): string {
-    const fnConfig = jitFunctionsById[fnID];
-    if (fnConfig === undefined) throw new Error(`Unknown jit function id: ${fnID}`);
-    return fnConfig.name;
-}

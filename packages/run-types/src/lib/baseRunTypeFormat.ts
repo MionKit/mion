@@ -9,7 +9,7 @@ import type {TypeFormatParams, PureFunctionClosure, TypeFormatValue, JitCompiled
 import type {BaseRunType} from './baseRunTypes';
 import {compileAddPureFunctionWithClosure, createJitCompiler, type JitCompiler, type JitErrorsCompiler} from './jitCompiler';
 import type {JitFnID, Mutable, StrNumber, jitCode, RunTypeOptions} from '../types';
-import {getCodeType} from '../constants.functions';
+import {getCodeType} from './jitFnsRegistry';
 import {CodeType} from '../constants.functions';
 import {JitFunctions} from '../constants.functions';
 import {ReflectionKind} from '@deepkit/type';

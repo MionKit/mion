@@ -25,8 +25,8 @@ import type {
 } from '../types';
 import type {mockType} from '../mocking/mockType';
 import {maxStackErrorMessage} from '../constants';
-import {jitArgs, jitErrorArgs} from '../constants.functions';
-import {getCodeType} from '../constants.functions';
+import {jitErrorArgs} from '../constants.functions';
+import {getCodeType, getJitFnSettings} from './jitFnsRegistry';
 import {CodeType} from '../constants.functions';
 import {JitFunctions} from '../constants.functions';
 import {ReflectionKind} from '@deepkit/type';
@@ -314,7 +314,7 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
         if (depComp.isNoop) return ''; // we don't need to call noop functions
         const stackItem = currentCop.getCurrentStackItem();
         const isErrorCall = depComp.fnID === JitFunctions.typeErrors.id || depComp.fnID === JitFunctions.unknownKeyErrors.id;
-        const args = isErrorCall ? jitErrorArgs : jitArgs;
+        const args = getJitFnSettings(currentCop.fnID).jitArgs;
         const argsCode = Object.entries(args)
             .map(([key, name]) => (key === 'vλl' ? stackItem.vλl : name))
             .join(',');
@@ -328,6 +328,7 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
         const callCode = isSelf ? `${varName}(${argsCode})` : `${varName}.fn(${argsCode})`;
         if (!isSelf) currentCop.contextCodeItems.set(varName, `const ${varName} = utl.getJIT(${toLiteral(varName)})`);
         if (isErrorCall) {
+            
             const pathArgs = currentCop.getAccessPathArgs();
             const pathLength = currentCop.getAccessPathLength();
             if (!pathLength) return callCode;
