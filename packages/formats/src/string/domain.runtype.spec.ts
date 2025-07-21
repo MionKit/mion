@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {isTypeFn, mockTypeFn, typeErrorsFn} from '@mionkit/run-types/src/jitFunctions';
+import {isTypeFn, mockTypeFn, typeErrorsFn} from '@mionkit/run-types/src/runTypeFunctions';
 import {RunTypeError} from '@mionkit/core/src/types';
 import {DomainFormat_Strict, DomainFormat} from './domain.runtype';
 
