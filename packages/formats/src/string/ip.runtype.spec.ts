@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {isTypeFn, mockTypeFn, typeErrorsFn} from '@mionkit/run-types/src/jitFunctions';
+import {isTypeFn, mockTypeFn, typeErrorsFn} from '@mionkit/run-types/src/runTypeFunctions';
 import {RunTypeError} from '@mionkit/core/src/types';
 import {IP_Format, IPV4_Format, IPV4WithPort_Format, IPV6_Format, IPV6WithPort_Format} from './ip.runtype';
 
