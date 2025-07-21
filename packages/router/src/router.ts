@@ -24,7 +24,8 @@ import {setErrorOptions} from '@mionkit/core/src/errors';
 import {getPublicApi, resetRemoteMethodsMetadata} from './remoteMethods';
 import {clientRoutes} from './client.routes';
 import {getNotFoundExecutionPath} from './notFound';
-import {addToCompiledMethods, getCompiledMethod} from './remoteMethodsCompiler';
+import {addToPersistedMethods, getPersistedMethod, resetPersistedMethods} from './persistedMethods';
+import {JitFunctionsHashes} from '@mionkit/core/src/types';
 
 type RouterKeyEntryList = [string, RouterEntry][];
 type RoutesWithId = {
@@ -81,6 +82,7 @@ export const resetRouter = () => {
     isRouterInitialized = false;
     allExecutablesIds = undefined;
     resetRemoteMethodsMetadata();
+    resetPersistedMethods();
 };
 
 // simpler router initialization
@@ -325,12 +327,12 @@ export function getExecutableFromHook(
         type: HandlerType.hook | HandlerType.headerHook;
     };
 
-    const compiledMethod = getCompiledMethod(hookId, hook.handler);
+    const compiledMethod = getPersistedMethod(hookId, hook.handler);
     let executable: MixedHook;
     if (compiledMethod) {
         executable = compiledMethod as MixedHook;
     } else {
-        const {handlerRunType, paramsJitFns, returnJitFns, paramNames} = getHandlerReflection(
+        const {handlerRunType, paramsJitFns, returnJitFns, paramNames, paramsJitHashes, returnJitHashes} = getHandlerReflection(
             hook.handler,
             hookId,
             routerOptions
@@ -342,6 +344,8 @@ export function getExecutableFromHook(
             type: inHeader ? HandlerType.headerHook : HandlerType.hook,
             nestLevel,
             handler: hook.handler,
+            paramsJitHashes,
+            returnJitHashes,
             paramsJitFns,
             returnJitFns,
             paramNames,
@@ -358,7 +362,7 @@ export function getExecutableFromHook(
                 isAsync: !!hook.options?.isAsync || handlerRunType.isAsync(),
             },
         };
-        addToCompiledMethods(hookId, executable);
+        addToPersistedMethods(hookId, executable);
     }
 
     hooksById.set(hookId, executable as any);
@@ -369,12 +373,14 @@ export function getExecutableFromRawHook(hook: RawHookDef, hookPointer: string[]
     const hookId = getRouterItemId(hookPointer);
     const existing = rawHooksById.get(hookId);
     if (existing) return existing as RawMethod;
-
+    const nullJitHashes: JitFunctionsHashes = {isType: '', typeErrors: '', toJsonVal: '', fromJsonVal: '', jsonStringify: ''};
     const executable: RawMethod = {
         type: HandlerType.rawHook,
         id: hookId,
         nestLevel,
         handler: hook.handler,
+        paramsJitHashes: nullJitHashes,
+        returnJitHashes: nullJitHashes,
         paramsJitFns: undefined,
         returnJitFns: undefined,
         paramNames: undefined,
@@ -399,12 +405,12 @@ export function getExecutableFromRoute(route: Route, routePointer: string[], nes
     const existing = routesById.get(routeId);
     if (existing) return existing as RouteMethod;
 
-    const compiledMethod = getCompiledMethod(routeId, route.handler);
+    const compiledMethod = getPersistedMethod(routeId, route.handler);
     let executable: RouteMethod;
     if (compiledMethod) {
         executable = compiledMethod as RouteMethod;
     } else {
-        const {handlerRunType, paramsJitFns, returnJitFns, paramNames} = getHandlerReflection(
+        const {handlerRunType, paramsJitFns, returnJitFns, paramNames, paramsJitHashes, returnJitHashes} = getHandlerReflection(
             route.handler,
             routeId,
             routerOptions
@@ -416,6 +422,8 @@ export function getExecutableFromRoute(route: Route, routePointer: string[], nes
             id: routeId,
             nestLevel,
             handler: route.handler,
+            paramsJitHashes,
+            returnJitHashes,
             paramsJitFns,
             returnJitFns,
             paramNames,
@@ -431,7 +439,7 @@ export function getExecutableFromRoute(route: Route, routePointer: string[], nes
                 isAsync: !!route.options?.isAsync || handlerRunType.isAsync(),
             },
         };
-        addToCompiledMethods(routeId, executable);
+        addToPersistedMethods(routeId, executable);
     }
     routesById.set(routeId, executable);
     return executable;

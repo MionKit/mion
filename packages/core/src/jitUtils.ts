@@ -27,7 +27,7 @@ import {cΦmpilεdCachε as pCache} from './_autogen/pureFunctionsCache';
 const STR_ESCAPE = /[\u0000-\u001f\u0022\u005c\ud800-\udfff]/;
 const MAX_SCAPE_TEST_LENGTH = 1000; // possible to tweak after benchmarking
 // initial map to store jit functions, file gest recompiled 🔁 and overridden when
-const jitTypesCache: JitFunctionsCache = tCache;
+const jitFnsCache: JitFunctionsCache = tCache;
 const pureFnsCache: PureFunctionsCache = pCache;
 // serializable classes registry, serializable classes can be automatically deserialized if they are registered here
 const deserializeFnsRegistry = new Map<string, DeserializeClassFn<any>>();
@@ -76,22 +76,22 @@ export const jitUtils: JITUtils = {
         }
     },
     addToJitCache(comp: JitCompiledFn) {
-        jitTypesCache[comp.jitFnHash] = comp;
+        jitFnsCache[comp.jitFnHash] = comp;
     },
     removeFromJitCache(comp: JitCompiledFn) {
-        if (!jitTypesCache[comp.jitFnHash]) return;
-        (jitTypesCache[comp.jitFnHash] as any) = undefined;
+        if (!jitFnsCache[comp.jitFnHash]) return;
+        (jitFnsCache[comp.jitFnHash] as any) = undefined;
     },
     getJIT(jitFnHash: string): JitCompiledFn | undefined {
-        return jitTypesCache[jitFnHash];
+        return jitFnsCache[jitFnHash];
     },
     getJitFn(jitFnHash: string): (...args: any[]) => any {
-        const comp = jitTypesCache[jitFnHash];
+        const comp = jitFnsCache[jitFnHash];
         if (!comp) throw new Error(`Jit function not found for jitFnHash ${jitFnHash}`);
         return comp.fn;
     },
     hasJitFn(jitFnHash: string) {
-        return !!jitTypesCache[jitFnHash]?.fn;
+        return !!jitFnsCache[jitFnHash]?.fn;
     },
     safeKey(value: any): any {
         if (isSafeMapKeyValue(value)) return value;
@@ -302,4 +302,16 @@ export function restoreCompiledJitFnsCache(jitCache: JitFunctionsCache, pureCach
     keysJitFns.forEach((key) => restoreCompiledJitFn(jitCache, pureCache, key));
 }
 
-restoreCompiledJitFnsCache(jitTypesCache, pureFnsCache);
+/**
+ * Returns the jit and pure functions caches.
+ * DO NOT MODIFY THE RETURNED OBJECTS AS THEY ARE THE ORIGINAL ONES USED BY THE JIT FUNCTIONS
+ * @returns
+ */
+export function getFnCaches() {
+    return {
+        jitFnsCache: jitFnsCache as Readonly<JitFunctionsCache>,
+        pureFnsCache: pureFnsCache as Readonly<PureFunctionsCache>,
+    };
+}
+
+restoreCompiledJitFnsCache(jitFnsCache, pureFnsCache);

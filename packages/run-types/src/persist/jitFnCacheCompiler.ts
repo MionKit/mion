@@ -13,14 +13,24 @@ import {JitFunctions} from '../constants';
 import {runType} from '../lib/runType';
 import {RunTypeOptions} from '@mionkit/run-types/src/types';
 
-export const compilerConstants = {
+export type SrcCodeCompilerConstants = Readonly<{
+    autoGenMessage: string;
+    exportName: string;
+    packageName: string;
+    files: string[];
+    jsFilesExtensions: string[];
+    typeName: string;
+    opts?: RunTypeOptions;
+}>;
+
+export const runTypeCompilerConstants = {
     autoGenMessage: `// ###### DO NOT MODIFY MANUALLY: THIS FILE IS GENERATED AUTOMATICALLY\n// NOTE exported constant name must be 'cΦmpilεdCachε' and file can not contain any other code\n`,
     exportName: 'cΦmpilεdCachε',
-    corePackageName: '@mionkit/core',
+    packageName: '@mionkit/core',
     jitFunctionsFiles: [`./dist/cjs/_autogen/jitFunctionsCache`, `./dist/esm/_autogen/jitFunctionsCache`],
     pureFunctionsFiles: [`./dist/cjs/_autogen/pureFunctionsCache`, `./dist/esm/_autogen/pureFunctionsCache`],
     jsFilesExtensions: ['.js', '.mjs', '.cjs', '.jsx'],
-} as const;
+};
 
 /** Checks if the given directory is a root directory */
 function isRootDir(dir: string): boolean {
@@ -33,7 +43,7 @@ function isRootDir(dir: string): boolean {
 }
 
 function findFile(packageDir: string, fileNameNoExt: string): string | undefined {
-    for (const ext of compilerConstants.jsFilesExtensions) {
+    for (const ext of runTypeCompilerConstants.jsFilesExtensions) {
         const filePath = join(packageDir, `${fileNameNoExt}${ext}`);
         if (existsSync(filePath)) return filePath;
     }
@@ -71,49 +81,46 @@ export function findJSFile(packageName: string, fileNameNoExt: string): string |
 
 /** Saves jit compiled functions to a dist file in the core package, this should be run after typescript has been compiled */
 export function compileAndWriteJitFunctions(cache: JitFunctionsCache) {
-    const fullFileNames = compilerConstants.jitFunctionsFiles.map((file) =>
-        findJSFile(compilerConstants.corePackageName, file)
-    ) as string[];
-    if (!fullFileNames.every(Boolean)) {
-        const missingFiles = fullFileNames.filter((file) => !file);
-        throw new Error(`Can't find files to save compiled JIT functions: ${missingFiles.join(',')}`);
-    }
-    const fileCode = compileTypeToJs<JitFunctionsCache>(cache, {isJitFnCode: true});
-    fullFileNames.forEach((fullFileName: string) => writeFileSync(fullFileName, fileCode, 'utf8'));
-    return fileCode;
+    const compOpts = {
+        ...runTypeCompilerConstants,
+        typeName: 'JIT functions',
+        files: runTypeCompilerConstants.jitFunctionsFiles,
+        opts: {isJitFnCode: true},
+    } satisfies SrcCodeCompilerConstants;
+
+    return compileAndWriteRunType<JitFunctionsCache>(cache, compOpts);
 }
 
 /** Saves pure functions to a dist file in the core package, this should be run after typescript has been compiled */
 export function compileAndWritePureFunctions(cache: PureFunctionsCache) {
-    const fullFileNames = compilerConstants.pureFunctionsFiles.map((file) =>
-        findJSFile(compilerConstants.corePackageName, file)
-    ) as string[];
+    const compOpts = {
+        ...runTypeCompilerConstants,
+        typeName: 'Pure functions',
+        files: runTypeCompilerConstants.pureFunctionsFiles,
+        opts: {isPureFnCode: true},
+    } satisfies SrcCodeCompilerConstants;
+
+    return compileAndWriteRunType<PureFunctionsCache>(cache, compOpts);
+}
+
+/** generates code to save any type into a js file and writes the file, file will be fully overwritten */
+export function compileAndWriteRunType<T>(instance: T, constants: SrcCodeCompilerConstants, type?: ReceiveType<T>) {
+    const fullFileNames = constants.files.map((file) => findJSFile(constants.packageName, file)) as string[];
     if (!fullFileNames.every(Boolean)) {
         const missingFiles = fullFileNames.filter((file) => !file);
-        throw new Error(`Can't find files to save compiled JIT functions: ${missingFiles.join(',')}`);
+        throw new Error(`Can't find files to save compiled ${constants.typeName}: ${missingFiles.join(',')}`);
     }
-    const fileCode = compileTypeToJs<PureFunctionsCache>(cache, {isPureFnCode: true});
+    const fileCode = compileTypeToJs(instance, constants, type);
     fullFileNames.forEach((fullFileName: string) => writeFileSync(fullFileName, fileCode, 'utf8'));
     return fileCode;
 }
 
-/** generates code to save any type into a js file and writes the file, file will be fully overwritten */
-export function compileAndSaveTypeToJs<T>(
-    instance: T,
-    fullFileName: string,
-    opts: RunTypeOptions = {},
-    type?: ReceiveType<T>
-): string {
-    const fileCode = compileTypeToJs(instance, opts, type);
-    writeFileSync(fullFileName, fileCode, 'utf8');
-    return fileCode;
-}
-
 /** generates code to save any type into a js file */
-export function compileTypeToJs<T>(instance: T, opts: RunTypeOptions = {}, type?: ReceiveType<T>): string {
+export function compileTypeToJs<T>(instance: T, constants: SrcCodeCompilerConstants, type?: ReceiveType<T>): string {
+    const opts = constants.opts || {};
     const rt = runType(type);
     const toCode = rt.createJitFunction(JitFunctions.toCode, opts);
     const code = toCode(instance);
-    const fileCode = `${compilerConstants.autoGenMessage}export const ${compilerConstants.exportName} = ${code}\n`;
+    const fileCode = `${constants.autoGenMessage}export const ${constants.exportName} = ${code}\n`;
     return fileCode;
 }

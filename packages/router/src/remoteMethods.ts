@@ -19,7 +19,7 @@ import {
     isPrivateDefinition,
     shouldFullGenerateSpec,
 } from './router';
-import type {AnyObject, JitCompiledFnData, JITCompiledFunctions, PureFunctionData} from '@mionkit/core/src/types';
+import type {AnyObject, JitCompiledFnData, JitCompiledFunctions, PureFunctionData} from '@mionkit/core/src/types';
 import {getRoutePath, getRouterItemId} from '@mionkit/core/src/core';
 import {jitUtils} from '@mionkit/core/src/jitUtils';
 import {getSerializableJitCompiler} from '@mionkit/run-types/src/lib/jitCompiler';
@@ -151,7 +151,7 @@ function getHandlerSrcCodePointer(executable: Method) {
     return executable.pointer.join('.');
 }
 
-function getSerializableJitHashes(jitFns: JITCompiledFunctions): SerializableJitHashes {
+function getSerializableJitHashes(jitFns: JitCompiledFunctions): SerializableJitHashes {
     return {
         isType: jitFns.isType.jitFnHash,
         typeErrors: jitFns.typeErrors.jitFnHash,

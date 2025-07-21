@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {JITCompiledFunctions} from './types';
+import {JitCompiledFunctions} from './types';
 import {PATH_SEPARATOR, ROUTER_ITEM_SEPARATOR_CHAR, ROUTE_PATH_ROOT} from './constants';
 
 /**
@@ -36,7 +36,7 @@ export function getRoutePath(pathPointer: string[], routerOptions: {prefix: stri
     return routerOptions.suffix ? routePath + routerOptions.suffix : routePath;
 }
 
-export function isTypeParams(params: any[], paramsJitFns: JITCompiledFunctions[]): boolean {
+export function isTypeParams(params: any[], paramsJitFns: JitCompiledFunctions[]): boolean {
     for (let i = 0; i < paramsJitFns.length; i++) {
         const paramJitFn = paramsJitFns[i];
         if (paramJitFn.isType.isNoop) continue;

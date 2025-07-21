@@ -12,7 +12,7 @@ import {GET_REMOTE_METHODS_BY_ID, GET_REMOTE_METHODS_BY_PATH} from '@mionkit/cor
 import {hook, rawHook, route} from './handlers';
 import {Routes} from './types/general';
 import {HandlerType} from './types/remoteMethods';
-import {MethodsData, clientRoutes} from './client.routes';
+import {MethodsData, PublicMethods, clientRoutes} from './client.routes';
 import {headersFromRecord} from './headers';
 import {dispatchRoute} from './dispatch';
 import {runType} from '@mionkit/run-types/src/lib/runType';
@@ -83,24 +83,142 @@ describe('PublicMethods run type functionality', () => {
         expect(validate(new RpcError({statusCode: 400, publicMessage: 'error', message: 'error'}))).toBe(true);
     });
 
+    function closure_hk_o6uso4(utl) {
+        // OK the type publicMethod, has a handler property that is a function and is omitted from jit
+        // but the instance at runtime has the function so maybe we should include in the union check as the valid keys
+        // in the other hand allowing those extra keys could be a security risk
+        const k_o6uso4 = [
+            'type',
+            'id',
+            'headerNames',
+            'paramNames',
+            'paramsJitHashes',
+            'returnJitHashes',
+            'hookIds',
+            'pathPointers',
+        ];
+        const hk_v9DDhL = utl.getJIT('hk_v9DDhL');
+        function hk_o6uso4(v) {
+            return (
+                (typeof v === 'object' && v !== null && utl.hasUnknownKeysFromArray(v, k_o6uso4)) ||
+                hk_v9DDhL.fn(v.paramsJitHashes) ||
+                hk_v9DDhL.fn(v.returnJitHashes)
+            );
+        }
+        return hk_o6uso4;
+    }
+
+    function closure_hk_BD5bRJ(utl) {
+        const hk_o6uso4 = utl.getJIT('hk_o6uso4');
+        function hk_BD5bRJ(v) {
+            return (function () {
+                for (const p1 in v) {
+                    const res1 = hk_o6uso4.fn(v[p1]);
+                    if (res1) return true;
+                }
+                return false;
+            })();
+        }
+        return hk_BD5bRJ;
+    }
+
+    function closure_hk_ht19rF(utl) {
+        const k_ht19rF = ['purFnDeps', 'methods', 'deps'];
+        const hk_tP7Vvb = utl.getJIT('hk_tP7Vvb');
+        const hk_BD5bRJ = utl.getJIT('hk_BD5bRJ');
+        const hk_v1tNFj = utl.getJIT('hk_v1tNFj');
+        function hk_ht19rF(v) {
+            const hasExtraKeys = utl.hasUnknownKeysFromArray(v, k_ht19rF);
+            const purFnDepsHasExtraKeys = hk_tP7Vvb.fn(v.purFnDeps);
+            const methodsHasExtraKeys = hk_BD5bRJ.fn(v.methods);
+            const depsHasExtraKeys = hk_v1tNFj.fn(v.deps);
+
+            console.log('hasExtraKeys >>>', hasExtraKeys);
+            console.log('purFnDepsHasExtraKeys >>>', purFnDepsHasExtraKeys);
+            console.log('methodsHasExtraKeys >>>', methodsHasExtraKeys); // this seems to be the one failing
+            console.log('depsHasExtraKeys >>>', depsHasExtraKeys);
+
+            return (
+                utl.hasUnknownKeysFromArray(v, k_ht19rF) ||
+                hk_tP7Vvb.fn(v.purFnDeps) ||
+                hk_BD5bRJ.fn(v.methods) ||
+                hk_v1tNFj.fn(v.deps)
+            );
+        }
+        return hk_ht19rF;
+    }
+
+    function closure_is_cKgeuU(utl) {
+        const is_ht19rF = utl.getJIT('is_ht19rF');
+        const hk_ht19rF = {fn: closure_hk_ht19rF(utl)};
+        const is_ou6gGW = utl.getJIT('is_ou6gGW');
+        const hk_ou6gGW = utl.getJIT('hk_ou6gGW');
+        function is_cKgeuU(v) {
+            const isMethodsData = is_ht19rF.fn(v);
+            const hasExtraMethodsKeys = hk_ht19rF.fn(v);
+            const isRpcError = is_ou6gGW.fn(v);
+            const hasExtraRpcErrorKeys = hk_ou6gGW.fn(v);
+            console.log('isMethodsData >>>', isMethodsData);
+            console.log('hasExtraMethodsKeys >>>', hasExtraMethodsKeys); // this seems to be the one failing
+            console.log('isRpcError >>>', isRpcError);
+            console.log('hasExtraRpcErrorKeys >>>', hasExtraRpcErrorKeys);
+
+            const result =
+                typeof v === 'object' &&
+                v !== null &&
+                ((isMethodsData && !hasExtraMethodsKeys) || (isRpcError && !hasExtraRpcErrorKeys));
+            //((is_ht19rF.fn(v) && !hk_ht19rF.fn(v)) || (is_ou6gGW.fn(v) && !hk_ou6gGW.fn(v)))
+
+            console.log('is union result >>>', result);
+            return result;
+        }
+        return is_cKgeuU;
+    }
+
+    function closure_te_cKgeuU(utl) {
+        const is_cKgeuU = {fn: closure_is_cKgeuU(utl)};
+        function te_cKgeuU(v, pth = [], er = []) {
+            if (!is_cKgeuU.fn(v)) utl.err(pth, er, 'union');
+            return er;
+        }
+        return te_cKgeuU;
+    }
+
     it('can validate return type ClientReturn + errors', () => {
         initRouter();
         registerRoutes(routes);
         const executable = getRouteExecutable('route1')!;
         const publicMethod = getSerializableMethod(executable!);
+
         const response: MethodsData = {
             methods: {[publicMethod.id]: publicMethod},
             deps: {},
             purFnDeps: {},
         };
+
         const rt = runType<ClientReturn>();
-        const typeErrors = rt.createJitFunction(JitFunctions.typeErrors);
-        const removeUnknownKeys = rt.createJitFunction(JitFunctions.stripUnknownKeys);
+        const rtMethodsData = runType<MethodsData>();
+        const rtPublicMethod = runType<PublicMethod>();
+        const rtPublicMethods = runType<PublicMethods>();
+        const typeErrorsMethodsData = rtMethodsData.createJitFunction(JitFunctions.typeErrors);
+        const typeErrorsPublicMethod = rtPublicMethod.createJitFunction(JitFunctions.typeErrors);
+        const typeErrorsPublicMethods = rtPublicMethods.createJitFunction(JitFunctions.typeErrors);
+        const typeErrorsN = rt.createJitFunction(JitFunctions.typeErrors);
+        const typeErrors = closure_te_cKgeuU(jitUtils);
 
-        console.log('response', response);
-        const sanitized = removeUnknownKeys(response);
-        console.log('sanitized', sanitized);
+        // TODO: remove unknow keys should either combine the keys of the object or check first which kind of object is
+        // const removeUnknownKeys = rt.createJitFunction(JitFunctions.stripUnknownKeys);
 
+        // console.log('response', response);
+        // const sanitized = removeUnknownKeys(response);
+        // console.log('sanitized', sanitized);
+
+        console.log('publicMethod', publicMethod);
+
+        expect(typeErrorsPublicMethod(publicMethod)).toEqual([]);
+        expect(typeErrorsPublicMethods({hello: publicMethod})).toEqual([]);
+        expect(typeErrorsMethodsData(response)).toEqual([]); // seems this is working but not the union type so we need to review runType Union errors
+        // also only returning the Error a Union is not usefull, maybe if we detect is one of the types in the union we should return the errors of that type
         expect(typeErrors(response)).toEqual([]);
         expect(typeErrors(new RpcError({statusCode: 400, publicMessage: 'error', message: 'error'}))).toEqual([]);
     });
