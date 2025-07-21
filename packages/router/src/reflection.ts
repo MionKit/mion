@@ -6,7 +6,7 @@
  * ######## */
 
 import type {AnyFn, JitCompiledFunctions, JitFunctionsHashes, SerializableJITFunctions} from '@mionkit/core/src/types';
-import {JitFunctions} from '../../run-types/src/constants';
+import {JitFunctions} from '../../run-types/src/constants.functions';
 import {RunTypeOptions} from '@mionkit/run-types/src/types';
 import {reflectFunction} from '@mionkit/run-types/src/lib/runType';
 import {getSerializableJitCompiler} from '@mionkit/run-types/src/lib/jitCompiler';

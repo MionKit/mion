@@ -10,7 +10,8 @@ import type {Type, TypeClass, TypeMethod, TypeObjectLiteral, TypeParameter} from
 import type {FormatParamMeta, TypeFormatValue} from '@mionkit/core/src/types';
 import {isType, ReflectionKind} from '@deepkit/type';
 import {ReflectionSubKind} from '../constants.kind';
-import {JitFunctions, nativeUtilityStringTypes, nonSerializableClasses, nonSerializableGlobals} from '../constants';
+import {nativeUtilityStringTypes, nonSerializableClasses, nonSerializableGlobals} from '../constants';
+import {JitFunctions} from '../constants.functions';
 /* IMPORTANT: import classes as type only to prevent js circular imports */
 import type {RunType, RunTypeChildAccessor} from '../types';
 import type {StringRunType} from '../runType/atomic/string';

@@ -10,7 +10,7 @@
 
 import {RpcError} from '@mionkit/core/src/errors';
 import {PlainObject} from '@mionkit/core/src/types';
-import {JitFunctions} from '@mionkit/run-types/src/constants';
+import {JitFunctions} from '../../constants.functions';
 import {runType} from '@mionkit/run-types/src/lib/runType';
 
 it('can validate RpcError class', () => {

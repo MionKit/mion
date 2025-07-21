@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 import {reflectFunction, runType} from '../../lib/runType';
-import {JitFunctions} from '../../constants';
+import {JitFunctions} from '../../constants.functions';
 import {FunctionRunType} from './function';
 
 type FunctionType = (a: number, b: boolean, c?: string) => Date;

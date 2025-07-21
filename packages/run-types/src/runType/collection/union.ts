@@ -10,7 +10,8 @@ import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
 import type {JitFnID, jitCode} from '../../types';
 import {BaseRunType, CollectionRunType} from '../../lib/baseRunTypes';
 import {childIsExpression, createIfElseFn} from '../../lib/utils';
-import {CodeType, JitFunctions} from '../../constants';
+import {CodeType} from '../../constants.functions';
+import {JitFunctions} from '../../constants.functions';
 import {isClassRunType, isInterfaceRunType, isIntersectionRunType, isObjectLiteralRunType} from '../../lib/guards';
 import {markDiscriminators, splitUnionItems} from '@mionkit/run-types/src/runType/collection/unionDiscriminator';
 

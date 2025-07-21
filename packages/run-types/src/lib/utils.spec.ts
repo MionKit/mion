@@ -7,7 +7,7 @@
  * ######## */
 
 import {randomUUID_V7} from '@mionkit/core/src/utils';
-import {JitFunctions} from '@mionkit/run-types/src/constants';
+import {JitFunctions} from '../constants.functions';
 import type {BaseRunType, CollectionRunType} from '@mionkit/run-types/src/lib/baseRunTypes';
 import {JitCompiler} from '@mionkit/run-types/src/lib/jitCompiler';
 import {createUniqueHash} from '@mionkit/run-types/src/lib/quickHash';

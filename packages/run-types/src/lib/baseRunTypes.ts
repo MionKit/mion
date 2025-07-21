@@ -24,7 +24,11 @@ import type {
     RunTypeFamily,
 } from '../types';
 import type {mockType} from '../mocking/mockType';
-import {jitArgs, jitErrorArgs, JitFunctions, maxStackErrorMessage, CodeType, getCodeType} from '../constants';
+import {maxStackErrorMessage} from '../constants';
+import {jitArgs, jitErrorArgs} from '../constants.functions';
+import {getCodeType} from '../constants.functions';
+import {CodeType} from '../constants.functions';
+import {JitFunctions} from '../constants.functions';
 import {ReflectionKind} from '@deepkit/type';
 import type {TypeIndexSignature, TypeProperty, Type, TypeFunction} from '@deepkit/type';
 import {getPropIndex, memorize, toLiteral} from './utils';
@@ -41,7 +45,7 @@ import {
 } from './formats';
 import {typeParamsToString} from './utils';
 import {_compileJsonStringify} from '@mionkit/run-types/src/jitFnsCompilers/jsonStringify';
-import {getJitCompilerFunction, loadJitCompilerFunction} from './jitFnsRegistry';
+import {getJitFunctionCompiler, registerJitFunctionCompiler} from './jitFnsRegistry';
 import {JitCompiledFn} from '@mionkit/core/src/types';
 import {_compileToCode} from '@mionkit/run-types/src/jitFnsCompilers/toCode';
 import {defaultMockOptions} from '@mionkit/run-types/src/mocking/constants.mock';
@@ -131,13 +135,14 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
 
     async mock(opts?: DeepPartial<RunTypeOptions>): Promise<any> {
         // although the mock function is not jit, it is also stored in the registry
-        await loadJitCompilerFunction(JitFunctions.mock);
+        // this is because we don't want to load mock related functionality if not needed
+        await registerJitFunctionCompiler(JitFunctions.mock);
         return this.mockType(opts);
     }
 
     /** synchronous version of mock, throws an error if the mock function has not been loaded */
     mockType(opts: DeepPartial<RunTypeOptions> = {}): any {
-        const mockFn = getJitCompilerFunction(JitFunctions.mock) as typeof mockType;
+        const mockFn = getJitFunctionCompiler(JitFunctions.mock) as typeof mockType;
         if (!mockFn)
             throw new Error(
                 `Function ${JitFunctions.mock.name} has not been loaded. make sure you have called loadJitCompilerFunction(JitFunctions.mock) before calling mockType.`

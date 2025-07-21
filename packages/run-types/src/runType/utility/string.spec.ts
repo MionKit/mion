@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {JitFunctions} from '../../constants';
+import {JitFunctions} from '../../constants.functions';
 import {runType} from '../../lib/runType';
 
 // Intrinsic String Manipulation Types: these are typescript native utility types but require a runtime implementation

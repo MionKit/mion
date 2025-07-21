@@ -8,7 +8,7 @@ import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
 import {MemberRunType} from '../../lib/baseRunTypes';
 import {SrcMember} from '../../types';
 import {childIsExpression} from '../../lib/utils';
-import {JitFunctions} from '../../constants';
+import {JitFunctions} from '../../constants.functions';
 
 // TODO: investigate is other member types cloud extend this class instead of MemberRunType
 export class GenericMemberRunType<T extends SrcMember> extends MemberRunType<T> {

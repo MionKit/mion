@@ -10,7 +10,8 @@ import type {jitCode, JitFnID} from '../../types';
 import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
 import {MemberRunType} from '../../lib/baseRunTypes';
 import {childIsExpression} from '../../lib/utils';
-import {CodeType, JitFunctions} from '../../constants';
+import {CodeType} from '../../constants.functions';
+import {JitFunctions} from '../../constants.functions';
 
 export class ArrayRunType<T extends Type = TypeArray> extends MemberRunType<T> {
     isJitInlined = () => false;

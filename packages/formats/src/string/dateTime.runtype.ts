@@ -18,7 +18,8 @@ import {DEFAULT_TIME_FORMAT_PARAMS, FormatParams_Time, TimeStringRunTypeFormat} 
 import {registerFormatter} from '@mionkit/run-types/src/lib/formats';
 import {fpVal} from '@mionkit/run-types/src/lib/utils';
 import {stringIgnoreProps} from '../stringFormat.runtype';
-import {CodeType, JitFunctions} from '@mionkit/run-types/src/constants';
+import {CodeType} from '@mionkit/run-types/src/constants.functions';
+import {JitFunctions} from '@mionkit/run-types/src/constants.functions';
 
 // DateTime validator
 export class DateTimeRunTypeFormat extends BaseRunTypeFormat<FormatParams_DateTime> {

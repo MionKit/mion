@@ -8,7 +8,8 @@ import type {JitFnID} from '../../types';
 import {ClassRunType} from '../collection/class';
 import {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
 import {BaseRunType} from '../../lib/baseRunTypes';
-import {CodeType, JitFunctions} from '../../constants';
+import {CodeType} from '../../constants.functions';
+import {JitFunctions} from '../../constants.functions';
 
 // This is the base class for all iterable run types, like SetRunType and MapRunType
 export abstract class IterableRunType extends ClassRunType {

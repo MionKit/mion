@@ -7,7 +7,7 @@
 
 import {ReflectionKind} from '@deepkit/type';
 import {ReflectionSubKind} from '../constants.kind';
-import {JitFunctions} from '@mionkit/run-types/src/constants';
+import {JitFunctions} from '../constants.functions';
 import {JitCompiler} from '@mionkit/run-types/src/lib/jitCompiler';
 import {createIfElseFn, isSafePropName} from '@mionkit/run-types/src/lib/utils';
 import type {IndexSignatureRunType} from '../runType/member/indexProperty';

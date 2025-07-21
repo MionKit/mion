@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 import {runType} from '../../lib/runType';
-import {JitFunctions} from '../../constants';
+import {JitFunctions} from '../../constants.functions';
 
 const reg = /abc/i;
 const reg2 = /['"]\/ \\ \//; // regexp with characters that can be problematic in jit code if not correctly scaped

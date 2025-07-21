@@ -1,10 +1,10 @@
-import {JitFunctions} from './constants';
+import {JitFunctions} from './constants.functions';
 import {ReceiveType} from '@deepkit/type';
 import {runType} from './lib/runType';
 import {RunTypeOptions} from './types';
 import {IsTypeFn, ToCodeFn, TypeErrorsFn} from '@mionkit/core/src/types';
 import {BaseRunType} from './lib/baseRunTypes';
-import {loadJitCompilerFunction} from './lib/jitFnsRegistry';
+import {registerJitFunctionCompiler} from './lib/jitFnsRegistry';
 
 // all these functions are async because they might need to compile the jit function first
 // at the moment they are compiled synchronously, but in the future they might be async
@@ -30,7 +30,7 @@ export async function isStrictTypeFn<T>(opts?: RunTypeOptions, type?: ReceiveTyp
 /** Returns a function that mocks a value of the specified type. */
 export async function mockTypeFn<T>(type?: ReceiveType<T>): Promise<(opts?: Partial<RunTypeOptions>) => T> {
     const rt = runType(type) as BaseRunType;
-    await loadJitCompilerFunction(JitFunctions.mock);
+    await registerJitFunctionCompiler(JitFunctions.mock);
     return (opts?: Partial<RunTypeOptions>) => rt.mockType(opts) as T;
 }
 

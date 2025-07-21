@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 import {runType} from '../../lib/runType';
-import {JitFunctions} from '../../constants';
+import {JitFunctions} from '../../constants.functions';
 import {InterfaceRunType} from '../collection/interface';
 
 // deepkit generates a FunctionRunType not a CallSignatureRunType
