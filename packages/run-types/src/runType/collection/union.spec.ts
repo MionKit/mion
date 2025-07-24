@@ -857,3 +857,137 @@ describe('Union circular', () => {
         expect(fromJsonVal(JSON.parse(jsonStringify(copy.arrRec2)))).toEqual(arrRec2);
     });
 });
+
+describe('Union with objects containing methods', () => {
+    // unions use strict check to identify the objects in the union,
+    // but we want to ignore methods an other non serializable properties, so those does not make the object invalid
+
+    // Test union with objects that have methods - methods should be ignored during validation
+    type UnionWithMethods =
+        | {name: string; getName(): string}
+        | {age: number; getAge(): number}
+        | {active: boolean; isActive(): boolean};
+
+    // Create test objects with methods - cast to specific types to avoid TypeScript errors
+    const objWithName = {
+        name: 'John',
+        getName() {
+            return 'John';
+        },
+    } as {name: string; getName(): string};
+
+    const objWithAge = {
+        age: 25,
+        getAge() {
+            return 25;
+        },
+    } as {age: number; getAge(): number};
+
+    const objWithActive = {
+        active: true,
+        isActive() {
+            return true;
+        },
+    } as {active: boolean; isActive(): boolean};
+
+    // Objects with extra properties that are not methods (should fail)
+    const objWithExtraData = {
+        name: 'John',
+        getName() {
+            return 'John';
+        },
+        extraProp: 'should fail',
+    };
+
+    // Objects with mixed properties from different union types (should fail)
+    const objWithMixedProps = {
+        name: 'John',
+        age: 25,
+        getName() {
+            return 'John';
+        },
+        getAge() {
+            return 25;
+        },
+    };
+
+    const rt = runType<UnionWithMethods>();
+
+    it('validate union with methods - methods should be ignored', () => {
+        const validate = rt.createJitFunction(JitFunctions.isType);
+
+        // Objects with methods should be valid
+        expect(validate(objWithName)).toBe(true);
+        expect(validate(objWithAge)).toBe(true);
+        expect(validate(objWithActive)).toBe(true);
+
+        // Objects with extra non-method properties should fail
+        expect(validate(objWithExtraData)).toBe(false);
+
+        // Objects with mixed properties should fail
+        expect(validate(objWithMixedProps)).toBe(false);
+    });
+
+    it('validate union with methods + errors', () => {
+        const valWithErrors = rt.createJitFunction(JitFunctions.typeErrors);
+
+        // Valid objects should have no errors
+        expect(valWithErrors(objWithName)).toEqual([]);
+        expect(valWithErrors(objWithAge)).toEqual([]);
+        expect(valWithErrors(objWithActive)).toEqual([]);
+
+        // Invalid objects should have union errors
+        expect(valWithErrors(objWithExtraData)).toEqual([{path: [], expected: 'union'}]);
+        expect(valWithErrors(objWithMixedProps)).toEqual([{path: [], expected: 'union'}]);
+    });
+
+    it('encode/decode union with methods to json - methods should be excluded', () => {
+        const toJsonVal = rt.createJitFunction(JitFunctions.toJsonVal);
+        const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
+
+        // Methods should be excluded during serialization
+        const encodedName = toJsonVal(objWithName);
+        const encodedAge = toJsonVal(objWithAge);
+        const encodedActive = toJsonVal(objWithActive);
+
+        const decodedName = fromJsonVal(JSON.parse(JSON.stringify(encodedName)));
+        const decodedAge = fromJsonVal(JSON.parse(JSON.stringify(encodedAge)));
+        const decodedActive = fromJsonVal(JSON.parse(JSON.stringify(encodedActive)));
+
+        // Decoded objects should only have data properties, not methods
+        expect(decodedName).toEqual({name: 'John'});
+        expect(decodedAge).toEqual({age: 25});
+        expect(decodedActive).toEqual({active: true});
+
+        // Methods should not be present in decoded objects
+        expect(typeof (decodedName as any).getName).toBe('undefined');
+        expect(typeof (decodedAge as any).getAge).toBe('undefined');
+        expect(typeof (decodedActive as any).isActive).toBe('undefined');
+    });
+
+    it('json stringify union with methods - methods should be excluded', () => {
+        const jsonStringify = rt.createJitFunction(JitFunctions.jsonStringify);
+        const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
+
+        const stringifiedName = jsonStringify(objWithName);
+        const stringifiedAge = jsonStringify(objWithAge);
+        const stringifiedActive = jsonStringify(objWithActive);
+
+        const parsedName = fromJsonVal(JSON.parse(stringifiedName));
+        const parsedAge = fromJsonVal(JSON.parse(stringifiedAge));
+        const parsedActive = fromJsonVal(JSON.parse(stringifiedActive));
+
+        // Parsed objects should only have data properties, not methods
+        expect(parsedName).toEqual({name: 'John'});
+        expect(parsedAge).toEqual({age: 25});
+        expect(parsedActive).toEqual({active: true});
+    });
+
+    it('mock union with methods', async () => {
+        // methods are ignored during mock
+        const mocked = await rt.mock();
+        expect(typeof mocked === 'object').toBe(true);
+        const validate = rt.createJitFunction(JitFunctions.isType);
+        expect(validate(mocked)).toBe(true);
+    });
+});

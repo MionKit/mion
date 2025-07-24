@@ -342,6 +342,14 @@ describe('Interface', () => {
         const validate = rt.createJitFunction(JitFunctions.isType);
         expect(validate(mocked)).toBe(true);
     });
+
+    it('mock should mock data only and skip methods', async () => {
+        const mocked = await rtSkip.mock();
+        expect(mocked).toHaveProperty('name');
+        expect(mocked).not.toHaveProperty('methodProp');
+        const validate = rtSkip.createJitFunction(JitFunctions.isType);
+        expect(validate(mocked)).toBe(true);
+    });
 });
 
 describe('Interface with unknown props', () => {
@@ -570,6 +578,94 @@ describe('Interface with unknown props', () => {
                 b: 123,
             },
         });
+    });
+});
+
+describe('Interface with unknown props and opts run time param', () => {
+    type ObjectType = {
+        startDate: Date;
+        quantity: number;
+        name: string;
+        nullValue: null;
+        stringArray: string[];
+        bigInt: bigint;
+        optionalString?: string;
+        "weird prop name \n?>'\\\t\r": string;
+        deep?: {
+            a: string;
+            b: number;
+        };
+    };
+
+    const rt = runType<ObjectType>();
+
+    it('hasUnknownKeys function accepts options parameter', () => {
+        const hasUnknownKeys = rt.createJitFunction(JitFunctions.hasUnknownKeys);
+
+        const validObject = {
+            startDate: new Date(),
+            quantity: 123,
+            name: 'hello',
+            nullValue: null,
+            stringArray: ['a', 'b', 'c'],
+            bigInt: BigInt(123),
+            "weird prop name \n?>'\\\t\r": 'hello2',
+            deep: {
+                a: 'hello',
+                b: 123,
+            },
+        };
+        const objectWithUnknownKeys = {
+            startDate: new Date(),
+            quantity: 123,
+            name: 'hello',
+            nullValue: null,
+            stringArray: ['a', 'b', 'c'],
+            bigInt: BigInt(123),
+            "weird prop name \n?>'\\\t\r": 'hello2',
+            deep: {
+                a: 'hello',
+                b: 123,
+            },
+            extra: 'value',
+        };
+
+        // Test with default options (empty object)
+        expect(hasUnknownKeys(validObject, {})).toBe(false);
+        expect(hasUnknownKeys(objectWithUnknownKeys, {})).toBe(true);
+
+        // Test with custom options
+        expect(hasUnknownKeys(validObject, {strict: true})).toBe(false);
+        expect(hasUnknownKeys(objectWithUnknownKeys, {strict: true})).toBe(true);
+
+        // Test with undefined options (should use default)
+        expect(hasUnknownKeys(validObject)).toBe(false);
+        expect(hasUnknownKeys(objectWithUnknownKeys)).toBe(true);
+    });
+
+    it('hasUnknownKeys function works with different option values', () => {
+        const hasUnknownKeys = rt.createJitFunction(JitFunctions.hasUnknownKeys);
+
+        const objectWithUnknownKeys = {
+            startDate: new Date(),
+            quantity: 123,
+            name: 'hello',
+            nullValue: null,
+            stringArray: ['a', 'b', 'c'],
+            bigInt: BigInt(123),
+            "weird prop name \n?>'\\\t\r": 'hello2',
+            deep: {
+                a: 'hello',
+                b: 123,
+            },
+            extra: 'value',
+            another: 'test',
+        };
+
+        // Test with various option objects
+        expect(hasUnknownKeys(objectWithUnknownKeys, {mode: 'strict'})).toBe(true);
+        expect(hasUnknownKeys(objectWithUnknownKeys, {allowExtra: false})).toBe(true);
+        expect(hasUnknownKeys(objectWithUnknownKeys, {customFlag: true, nested: {value: 42}})).toBe(true);
     });
 });
 

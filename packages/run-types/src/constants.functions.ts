@@ -24,6 +24,7 @@ export interface JitFnSettings {
     import?: () => Promise<(...args: any[]) => any>;
     jitArgs: JitFnArgs;
     jitDefaultArgs: JitFnArgs;
+    runTimeOptions?: Record<string, {keyName: string; type: 'boolean' | 'number' | 'string'; defaultValue: any}>;
 } // list of available jit functions
 
 // variable names used in jit functions
@@ -32,6 +33,8 @@ export const jitArgs = {vλl: 'v'} as const;
 export const jitDefaultArgs = {vλl: ''} as const;
 export const jitErrorArgs = {vλl: 'v', pλth: 'pth', εrr: 'er'} as const;
 export const jitDefaultErrorArgs = {vλl: '', pλth: '[]', εrr: '[]'} as const;
+export const jitArgsWithOptions = {vλl: 'v', θpts: 'opts'} as const;
+export const jitDefaultArgsWithOptions = {vλl: '', θpts: '{}'} as const;
 
 // ######## !IMPORTANT: ALL JIT FUNCTIONS IDs MUST BE UNIQUE and short ########
 
@@ -123,8 +126,9 @@ export const JitFunctions = {
         id: 'hk',
         name: 'hasUnknownKeys',
         type: CodeTypes.expression,
-        jitArgs,
-        jitDefaultArgs,
+        jitArgs: jitArgsWithOptions,
+        jitDefaultArgs: jitDefaultArgsWithOptions,
+        runTimeOptions: {checkNonJitProps: {keyName: 'checkNonJitProps', type: 'boolean', defaultValue: false}},
     },
     stripUnknownKeys: {
         id: 'sk',

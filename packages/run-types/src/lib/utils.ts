@@ -13,10 +13,11 @@ import type {BaseRunType, CollectionRunType, MemberRunType} from './baseRunTypes
 import type {JitCompiler, JitErrorsCompiler} from './jitCompiler';
 import type {PropertyRunType} from '@mionkit/run-types/src/runType/member/property';
 import {jitUtils} from '../../../core/src/jitUtils';
-import {minKeysForSet, validPropertyNameRegExp} from '../constants';
+import {validPropertyNameRegExp} from '../constants';
 import {isFormatParamMeta} from './guards';
 import {createHashLiteral} from './quickHash';
 import {ReflectionSubKind} from '@mionkit/run-types/src/constants.kind';
+import {getJitFnSettings} from '@mionkit/run-types/src/lib/jitFnsRegistry';
 
 export function toLiteral(value: number | string | boolean | undefined | null | bigint | RegExp | symbol): string {
     switch (typeof value) {
@@ -172,7 +173,7 @@ export function toLiteralInContext(
             if (params.length > maxStringLength) {
                 const hash = createHashLiteral(params);
                 const strName = hash;
-                if (!comp.contextCodeItems.has(strName)) comp.contextCodeItems.set(strName, `const ${strName} = ${literal}`);
+                if (!comp.hasContextItem(strName)) comp.setContextItem(strName, `const ${strName} = ${literal}`);
                 return strName;
             }
             return literal;
@@ -186,7 +187,7 @@ export function toLiteralInContext(
             const regCode = params.toString();
             const hash = createHashLiteral(regCode);
             const regName = hash;
-            if (!comp.contextCodeItems.has(regName)) comp.contextCodeItems.set(regName, `const ${regName} = ${regCode}`);
+            if (!comp.hasContextItem(regName)) comp.setContextItem(regName, `const ${regName} = ${regCode}`);
             return regName;
         }
         case Array.isArray(params): {
@@ -194,7 +195,7 @@ export function toLiteralInContext(
             const arrCode = `[${params.map((v) => toLiteralInContext(comp, v, ignoreProps, isDependencies)).join(',')}]`;
             const hash = createHashLiteral(arrCode);
             const arrName = hash;
-            if (!comp.contextCodeItems.has(arrName)) comp.contextCodeItems.set(arrName, `const ${arrName} = ${arrCode}`);
+            if (!comp.hasContextItem(arrName)) comp.setContextItem(arrName, `const ${arrName} = ${arrCode}`);
 
             return arrName;
         }
@@ -209,7 +210,7 @@ export function toLiteralInContext(
             const objCode = `{${entriesLiterals.filter(Boolean).join(',')}}`;
             const hash = createHashLiteral(objCode);
             const objName = hash;
-            if (!comp.contextCodeItems.has(objName)) comp.contextCodeItems.set(objName, `const ${objName} = ${objCode}`);
+            if (!comp.hasContextItem(objName)) comp.setContextItem(objName, `const ${objName} = ${objCode}`);
             return objName;
         }
         case typeof params === 'bigint':
@@ -348,35 +349,6 @@ export function sortDiscriminatorsFirst(a: BaseRunType, b: BaseRunType): number 
     return 0;
 }
 
-// TODO: not sure this is the best place for this function, maybe interface runType but want to avoid possible circular dependencies
-export function callCheckUnknownProperties(
-    rt: CollectionRunType<any>,
-    comp: JitCompiler,
-    childrenRunTypes: RunType[],
-    returnKeys: boolean,
-    checkObject = true
-): string {
-    const arrNames = childrenRunTypes.filter((prop) => !!(prop.src as any).name).map((prop) => (prop.src as any).name);
-    const childrenNames = Array.from(new Set(arrNames));
-    if (childrenNames.length === 0) return '';
-    const keysName = `k_${rt.getJitHash(comp.opts)}`;
-    const objectCheckCode = checkObject ? [`typeof ${comp.vλl} === 'object'`, `${comp.vλl} !== null`] : [];
-    if (childrenNames.length > minKeysForSet) {
-        comp.contextCodeItems.set(keysName, `const ${keysName} = new Set(${arrayToLiteral(childrenNames)})`);
-        if (returnKeys) return `utl.getUnknownKeysFromSet(${comp.vλl}, ${keysName})`;
-        objectCheckCode.push(`utl.hasUnknownKeysFromSet(${comp.vλl}, ${keysName})`);
-        const filtered = objectCheckCode.filter(Boolean);
-        if (filtered.length > 1) return `(${filtered.join(' && ')})`;
-        return filtered[0];
-    }
-    comp.contextCodeItems.set(keysName, `const ${keysName} = ${arrayToLiteral(childrenNames)}`);
-    if (returnKeys) return `utl.getUnknownKeysFromArray(${comp.vλl}, ${keysName})`;
-    objectCheckCode.push(`utl.hasUnknownKeysFromArray(${comp.vλl}, ${keysName})`);
-    const filtered = objectCheckCode.filter(Boolean);
-    if (filtered.length > 1) return `(${filtered.join(' && ')})`;
-    return filtered[0];
-}
-
 export function createIfElseFn(): (isEnd?: boolean) => string {
     let isFirst = true;
     return (end = false) => {
@@ -385,4 +357,29 @@ export function createIfElseFn(): (isEnd?: boolean) => string {
         isFirst = false;
         return iF;
     };
+}
+
+export function getJitFnArgCallVarName(parentComp: JitCompiler, rt: BaseRunType, idFnToCall: JitFnID, argKey: string): string {
+    // vλl is a special case because it is the only arg that changes based on the stack
+    if (argKey === 'vλl') return parentComp.getCurrentStackItem().vλl;
+    // first check if the arg is provided by the context
+    const varNameFromContext = parentComp.getChildrenCallArgs(idFnToCall)?.[argKey];
+    if (varNameFromContext) return varNameFromContext;
+    // then check if the arg is provided by the parent function
+    const parenArgs = getJitFnSettings(parentComp.fnID).jitArgs;
+    const varNameFromParent = parenArgs?.[argKey];
+    if (varNameFromParent) return varNameFromParent;
+    // if neither the parent nor the context has the arg, we create a new default value in the context
+    const fnConfig = getJitFnSettings(idFnToCall);
+    const defaultArgVal = fnConfig.jitDefaultArgs[argKey];
+    // if there is no default value, we can't call the function
+    if (!defaultArgVal)
+        throw new Error(
+            `Can not call jit function ${idFnToCall} because it requires argument ${argKey} but it is not provided,
+            neither in the parent function nor in the function context and there is no default value for it.`
+        );
+    const defaultName = fnConfig.jitArgs[argKey];
+    const optsVarName = `${defaultName}_${idFnToCall}0`; // we don't need to use nestLevel as value is the same for all calls
+    parentComp.setContextItem(optsVarName, `const ${optsVarName} = ${defaultArgVal}`);
+    return optsVarName;
 }

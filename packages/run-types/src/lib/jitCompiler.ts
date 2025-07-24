@@ -65,6 +65,9 @@ export class BaseCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extends 
     }
     readonly typeID: StrNumber;
     readonly jitFnHash: string;
+
+    /** Alternative arguments to use when calling a child function */
+    readonly childrenCallArgs: Partial<Record<JitFnID, Partial<JitFnArgs>>> = {};
     // !!! DO NOT MODIFY METHOD WITHOUT REVIEWING JIT CODE INVOCATIONS!!!
     /** The Jit Generated function once the compilation is finished */
     readonly fn: ((...args: any[]) => any) | undefined;
@@ -243,6 +246,34 @@ export class BaseCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extends 
     hasStackTrace(errorMessage: string) {
         return errorMessage.includes(JIT_STACK_TRACE_MESSAGE);
     }
+
+    /** Set a context code item */
+    setContextItem(key: string, value: string): void {
+        this.contextCodeItems.set(key, value);
+    }
+
+    /** Get a context code item */
+    getContextItem(key: string): string | undefined {
+        return this.contextCodeItems.get(key);
+    }
+
+    /** Check if a context code item exists */
+    hasContextItem(key: string): boolean {
+        return this.contextCodeItems.has(key);
+    }
+
+    /** Get all context code items values */
+    getContextItemValues(): string[] {
+        return Array.from(this.contextCodeItems.values());
+    }
+
+    setChildrenCallArgs(fnID: string, args: Partial<FnArgsNames>): void {
+        this.childrenCallArgs[fnID] = args;
+    }
+
+    getChildrenCallArgs(fnID: string): Partial<FnArgsNames> | undefined {
+        return this.childrenCallArgs[fnID];
+    }
 }
 
 // ################### Compile Operations ###################
@@ -392,11 +423,11 @@ export function getSerializableJitCompiler(comp: JitCompiledFn): JitCompiledFnDa
 export function compileAddPureFunctionWithClosure(comp: JitCompiler | JitErrorsCompiler, pureFn: PureFunctionClosure): string {
     const fnHash = getPureFunctionKey(pureFn.name);
     registerPureFnClosure(pureFn); // will throw if there is a different pure function with the same name
-    if (comp.contextCodeItems.has(fnHash)) return fnHash;
+    if (comp.hasContextItem(fnHash)) return fnHash;
     comp.addPureFnDependency(pureFn);
     // Add context code for the pure function and params
     const pureFunctionCode = `const ${fnHash} = utl.getPureFn(${toLiteral(fnHash)})`;
-    comp.contextCodeItems.set(fnHash, pureFunctionCode);
+    comp.setContextItem(fnHash, pureFunctionCode);
     return fnHash;
 }
 
@@ -429,7 +460,7 @@ function getJitFnCode(comp: BaseCompiler): {fnName: string; fnCode: string; cont
     const fnName = comp.jitFnHash;
     const fnArgs = getJitFnArgs(comp); // function arguments with default values ie: 'vλl, pλth=[], εrr=[]'
     const fnCode = `function ${fnName}(${fnArgs}){${comp.code}}`;
-    return {fnName, fnCode, contextCode: Array.from(comp.contextCodeItems.values()).join(';\n')};
+    return {fnName, fnCode, contextCode: comp.getContextItemValues().join(';\n')};
 }
 
 /**
@@ -466,7 +497,7 @@ function createJitFnWithContext(comp: BaseCompiler, fnName: string, fnCode: stri
 }
 
 function printClosure(fnWithContext: string, functionName: string): string {
-    return `function closure_${functionName}(utl){${fnWithContext}}`;
+    return `function get_${functionName}(utl){${fnWithContext}}`;
 }
 
 export function getJitFnArgs(comp: JitCompilerLike, defaultValues = true): string {
