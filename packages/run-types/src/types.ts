@@ -87,9 +87,17 @@ export interface CustomVλl {
 }
 
 export interface RunTypeOptions {
-    /** slice parameters when parsing functions */
+    /** Slice parameters when parsing functions, so some parameter can be omitted from jit generation */
     paramsSlice?: {start?: number; end?: number};
+    /**
+     * Set to when compiling objects that contain jit functions,
+     * this will generate the function's code from JitCompiler instead of calling function.toString()
+     */
     isJitFnCode?: boolean;
+    /**
+     * Set to when compiling objects that contain pure functions,
+     * this will generate the function's code from JitCompiler instead of calling function.toString()
+     */
     isPureFnCode?: boolean;
     mock?: MockOptions;
 }

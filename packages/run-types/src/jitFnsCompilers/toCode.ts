@@ -46,7 +46,7 @@ export function _compileToCode(runType: BaseRunType, comp: JitCompiler, fnID = J
                 // This is an special case for JitFunctions where we want to generate the fn from the JitCompiledFnData instead of fn.toString();
                 const fnName = comp.opts.isPureFnCode ? `${comp.vλl}.pureFnHash` : `${comp.vλl}.jitFnHash`;
                 const fnCode = `${comp.vλl}.code`;
-                const closureCode = `'function closure_'+${fnName}+'(utl){'+${fnCode}+'}'`;
+                const closureCode = `'function get_'+${fnName}+'(utl){'+${fnCode}+'}'`;
                 return `'${safeName}:'+${closureCode}${sep}`;
             } else if (rt.src.subKind === ReflectionSubKind.params) {
                 const paramsCode = _compileJsonStringify(rt, comp, fnID);

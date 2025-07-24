@@ -5,15 +5,16 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 import {TypeObjectLiteral, TypeClass, TypeIntersection, ReflectionKind} from '@deepkit/type';
-import {jitCode, JitCompilerOpts} from '../../types';
-import {callCheckUnknownProperties, memorize, sortDiscriminatorsFirst} from '../../lib/utils';
+import type {jitCode, JitCompilerOpts} from '../../types';
+import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
+import {arrayToLiteral, getJitFnArgCallVarName, memorize, sortDiscriminatorsFirst} from '../../lib/utils';
 import {PropertyRunType} from '../member/property';
 import {BaseRunType, CollectionRunType, MemberRunType} from '../../lib/baseRunTypes';
 import {MethodSignatureRunType} from '../member/methodSignature';
 import {IndexSignatureRunType} from '../member/indexProperty';
 import {MethodRunType} from '../member/method';
-import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
 import {CallSignatureRunType} from '../member/callSignature';
+import {JitFunctions} from '@mionkit/run-types/src/constants.functions';
 
 export type InterfaceMember =
     | PropertyRunType
@@ -99,16 +100,18 @@ export class InterfaceRunType<
         return childrenCode || undefined;
     }
     _compileHasUnknownKeys(comp: JitCompiler, children?: BaseRunType[]): jitCode {
-        const allJitChildren = children || this.getJitChildren(comp);
-        const parentCode = callCheckUnknownProperties(this, comp, allJitChildren, false, !this.isPartOfUnion());
+        const jitChildren = children || this.getJitChildren(comp);
+        const allChildren = this.getChildRunTypes().filter((prop) => prop.src.kind !== ReflectionKind.indexSignature);
+        const parentCode = callCheckUnknownProperties(this, comp, jitChildren, false, !this.isPartOfUnion(), allChildren);
         const childrenCode = super._compileHasUnknownKeys(comp);
         return [parentCode, childrenCode].filter(Boolean).join(' || ');
     }
     _compileUnknownKeyErrors(comp: JitErrorsCompiler): jitCode {
-        const allJitChildren = this.getJitChildren(comp);
+        const jitChildren = this.getJitChildren(comp);
+        const allChildren = this.getChildRunTypes().filter((prop) => prop.src.kind !== ReflectionKind.indexSignature);
         const unknownVar = `unk${this.getNestLevel()}`;
         const keyVar = `ky${this.getNestLevel()}`;
-        const unknownValue = callCheckUnknownProperties(this, comp, allJitChildren, true, !this.isPartOfUnion());
+        const unknownValue = callCheckUnknownProperties(this, comp, jitChildren, true, !this.isPartOfUnion(), allChildren);
         const parentCode = `
             const ${unknownVar} = ${unknownValue};
             if (${unknownVar}) {for (const ${keyVar} of ${unknownVar}) {${comp.callJitErrWithPath('never', keyVar)}}}
@@ -117,10 +120,10 @@ export class InterfaceRunType<
         return [unknownValue ? parentCode : '', childrenCode].filter(Boolean).join('\n');
     }
     _compileStripUnknownKeys(comp: JitCompiler): jitCode {
-        const allJitChildren = this.getJitChildren(comp);
+        const jitChildren = this.getJitChildren(comp);
         const unknownVar = `unk${this.getNestLevel()}`;
         const keyVar = `ky${this.getNestLevel()}`;
-        const unknownValue = callCheckUnknownProperties(this, comp, allJitChildren, true, !this.isPartOfUnion());
+        const unknownValue = callCheckUnknownProperties(this, comp, jitChildren, true, !this.isPartOfUnion());
         const parentCode = `
             const ${unknownVar} = ${unknownValue};
             if (${unknownVar}) {for (const ${keyVar} of ${unknownVar}){delete ${comp.vλl}[${keyVar}]}}
@@ -129,10 +132,10 @@ export class InterfaceRunType<
         return [unknownValue ? parentCode : '', childrenCode].filter(Boolean).join('\n');
     }
     _compileUnknownKeysToUndefined(comp: JitCompiler): jitCode {
-        const allJitChildren = this.getJitChildren(comp);
+        const jitChildren = this.getJitChildren(comp);
         const unknownVar = `unk${this.getNestLevel()}`;
         const keyVar = `ky${this.getNestLevel()}`;
-        const unknownValue = callCheckUnknownProperties(this, comp, allJitChildren, true, !this.isPartOfUnion());
+        const unknownValue = callCheckUnknownProperties(this, comp, jitChildren, true, !this.isPartOfUnion());
         const parentCode = `
             const ${unknownVar} = ${unknownValue};
             if (${unknownVar}) {for (const ${keyVar} of ${unknownVar}){${comp.vλl}[${keyVar}] = undefined}}
@@ -161,4 +164,39 @@ export class InterfaceRunType<
         const ifNoNative = `Object.prototype.toString.call(${comp.vλl}) === '[object Object]'`;
         return `(${isNotArray} && ${ifNoNative})`;
     }
+}
+
+export function callCheckUnknownProperties(
+    rt: InterfaceRunType<any>,
+    comp: JitCompiler,
+    jitChildrenRunTypes: BaseRunType[],
+    returnKeys: boolean,
+    checkObject = true,
+    allChildrenRuntypes?: BaseRunType[]
+): string {
+    const jitArrNames = jitChildrenRunTypes.filter((prop) => !!(prop.src as any).name).map((prop) => (prop.src as any).name);
+    const AllArrNames = allChildrenRuntypes?.filter((prop) => !!(prop.src as any).name).map((prop) => (prop.src as any).name);
+    const jitChildrenNames = Array.from(new Set(jitArrNames));
+    const allChildrenNames = Array.from(new Set(AllArrNames));
+    const isSameLength = jitChildrenNames.length === allChildrenNames.length;
+    const isSameSet = isSameLength && jitChildrenNames.every((v) => allChildrenNames.includes(v));
+    const hasNonJitChildren = !(isSameLength && isSameSet);
+    if (jitChildrenNames.length === 0 && allChildrenNames.length === 0) return '';
+    const keysName = `k_${rt.getJitHash(comp.opts)}`;
+    const allKeysName = `kA_${rt.getJitHash(comp.opts)}`;
+    const objectCheckCode = checkObject ? [`typeof ${comp.vλl} === 'object'`, `${comp.vλl} !== null`] : [];
+
+    comp.setContextItem(keysName, `const ${keysName} = ${arrayToLiteral(jitChildrenNames)}`);
+    if (hasNonJitChildren) comp.setContextItem(allKeysName, `const ${allKeysName} = ${arrayToLiteral(allChildrenNames)}`);
+    const checkPropName = JitFunctions.hasUnknownKeys.runTimeOptions.checkNonJitProps.keyName;
+    const optsVarName = getJitFnArgCallVarName(comp, rt, JitFunctions.hasUnknownKeys.id, 'θpts');
+    const conditional =
+        allChildrenRuntypes?.length && hasNonJitChildren
+            ? `${optsVarName}.${checkPropName} ? ${allKeysName} : ${keysName}`
+            : keysName;
+    if (returnKeys) return `utl.getUnknownKeysFromArray(${comp.vλl}, ${conditional})`;
+    objectCheckCode.push(`utl.hasUnknownKeysFromArray(${comp.vλl}, ${conditional})`);
+    const filtered = objectCheckCode.filter(Boolean);
+    if (filtered.length > 1) return `(${filtered.join(' && ')})`;
+    return filtered[0];
 }

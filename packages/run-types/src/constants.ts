@@ -5,8 +5,6 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-
-
 // native javascript objects that are not serializable
 export const nonSerializableClasses = [
     // TODO: decide what to do with native errors, they should be easily serializable
@@ -81,7 +79,6 @@ export const nativeUtilityStringTypes = ['Uppercase', 'Lowercase', 'Capitalize',
 
 // other constants
 export const validPropertyNameRegExp = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
-export const minKeysForSet = 30;
 export const maxStackErrorMessage =
     'Max compilation nested level reached, either you have a very deeply nested type or there is an error related to circular references un the types.';
 export const JIT_STACK_TRACE_MESSAGE = '\nJIT runType trace => ';

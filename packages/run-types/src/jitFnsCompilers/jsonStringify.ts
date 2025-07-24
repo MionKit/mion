@@ -244,7 +244,7 @@ export function _compileJsonStringify(
             const {simpleItems, objectTypes} = urt.getUnionChildren(comp);
             const errName = `uErr${urt.getNestLevel()}`;
             const fail = `throw new Error(${errName});`;
-            comp.contextCodeItems.set(
+            comp.setContextItem(
                 errName,
                 `const ${errName} = "Can not ${getOperationName(fnID)} union: item does not belong to the union"`
             );

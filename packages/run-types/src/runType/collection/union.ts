@@ -63,6 +63,11 @@ export class UnionRunType extends CollectionRunType<TypeUnion> {
         const props = rt.getJitChildren(comp);
         const hasIndexProperty = props.some((prop) => prop.src.kind === ReflectionKind.indexSignature);
         if (hasIndexProperty) return isTypeCode;
+        const hasUnknownKeysOptsVarName = `uKOpts${this.getNestLevel()}`;
+        const checkPropName = JitFunctions.hasUnknownKeys.runTimeOptions.checkNonJitProps.keyName;
+        comp.setContextItem(hasUnknownKeysOptsVarName, `const ${hasUnknownKeysOptsVarName} = {${checkPropName}: true}`);
+        // forces to call hasUnknownKeys with hasUnknownKeysOptsVarName options
+        comp.setChildrenCallArgs(JitFunctions.hasUnknownKeys.id, {θpts: hasUnknownKeysOptsVarName});
         const codeHasUnknown = rt.compileHasUnknownKeys(comp);
         return codeHasUnknown ? `(${isTypeCode} && !${codeHasUnknown})` : `${isTypeCode}`;
     }
@@ -94,7 +99,7 @@ export class UnionRunType extends CollectionRunType<TypeUnion> {
         const {simpleItems, objectTypes} = this.getUnionChildren(comp);
         const errName = `uErr${this.getNestLevel()}`;
         const fail = `throw new Error(${errName});`;
-        comp.contextCodeItems.set(errName, `const ${errName} = "Can not json encode union: item does not belong to the union"`);
+        comp.setContextItem(errName, `const ${errName} = "Can not json encode union: item does not belong to the union"`);
 
         const ifElse = createIfElseFn();
         const onUnionItems = (items: BaseRunType[]) => {
@@ -133,7 +138,7 @@ export class UnionRunType extends CollectionRunType<TypeUnion> {
     _compileFromJsonVal(comp: JitCompiler): jitCode {
         const decVar = `dεc${this.getNestLevel()}`;
         const errVarName = `uErr${this.getNestLevel()}`;
-        comp.contextCodeItems.set(errVarName, `const ${errVarName} = "Can not json decode union: invalid union index"`);
+        comp.setContextItem(errVarName, `const ${errVarName} = "Can not json decode union: invalid union index"`);
         const children = this.getJitChildren(comp);
         const ifElse = createIfElseFn();
         const itemsCode = children

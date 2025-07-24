@@ -31,7 +31,7 @@ import {CodeType} from '../constants.functions';
 import {JitFunctions} from '../constants.functions';
 import {ReflectionKind} from '@deepkit/type';
 import type {TypeIndexSignature, TypeProperty, Type, TypeFunction} from '@deepkit/type';
-import {getPropIndex, memorize, toLiteral} from './utils';
+import {getJitFnArgCallVarName, getPropIndex, memorize, toLiteral} from './utils';
 import {JitErrorsCompiler, JitCompiler, getJITFnHash, createJitCompiler} from './jitCompiler';
 import {type AnyKindName, getReflectionName} from '../constants.kind';
 import {jitUtils} from '../../../core/src/jitUtils';
@@ -310,27 +310,28 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
         return formattersCode.join(separator);
     }
 
-    callDependency(currentCop: JitCompiler, depComp: JitCompiledFn): jitCode {
-        if (depComp.isNoop) return ''; // we don't need to call noop functions
-        const stackItem = currentCop.getCurrentStackItem();
-        const isErrorCall = depComp.fnID === JitFunctions.typeErrors.id || depComp.fnID === JitFunctions.unknownKeyErrors.id;
-        const args = getJitFnSettings(currentCop.fnID).jitArgs;
-        const argsCode = Object.entries(args)
-            .map(([key, name]) => (key === 'vλl' ? stackItem.vλl : name))
+    callDependency(currentComp: JitCompiler, dependencyComp: JitCompiledFn): jitCode {
+        if (dependencyComp.isNoop) return ''; // we don't need to call noop functions
+        const isErrorCall =
+            dependencyComp.fnID === JitFunctions.typeErrors.id || dependencyComp.fnID === JitFunctions.unknownKeyErrors.id;
+
+        // Use the dependency's args, not the current compiler's args
+        const depArgs = getJitFnSettings(dependencyComp.fnID as JitFnID).jitArgs;
+        const callArgsCode = Object.keys(depArgs)
+            .map((key) => getJitFnArgCallVarName(currentComp, this, dependencyComp.fnID as JitFnID, key))
             .join(',');
-        const isSelf = currentCop.jitFnHash === depComp.jitFnHash;
-        const varName = depComp.jitFnHash;
+        const isSelf = currentComp.jitFnHash === dependencyComp.jitFnHash;
+        const varName = dependencyComp.jitFnHash;
         // call local variable instead directly calling jitUtils to avoid lookups.
         // ie function context (local variable created when compiling the function): const abc = jitUtils.getJIT('abc);
         // ie calling context variable: abc.fn();
         // if operation is the same as the current operation we can call the function directly
 
-        const callCode = isSelf ? `${varName}(${argsCode})` : `${varName}.fn(${argsCode})`;
-        if (!isSelf) currentCop.contextCodeItems.set(varName, `const ${varName} = utl.getJIT(${toLiteral(varName)})`);
+        const callCode = isSelf ? `${varName}(${callArgsCode})` : `${varName}.fn(${callArgsCode})`;
+        if (!isSelf) currentComp.setContextItem(varName, `const ${varName} = utl.getJIT(${toLiteral(varName)})`);
         if (isErrorCall) {
-            
-            const pathArgs = currentCop.getAccessPathArgs();
-            const pathLength = currentCop.getAccessPathLength();
+            const pathArgs = currentComp.getAccessPathArgs();
+            const pathLength = currentComp.getAccessPathLength();
             if (!pathLength) return callCode;
             // increase and decrease the static path before and after calling the dependency function
             // TODO, maybe we can improve performance by using something else than push and splice
