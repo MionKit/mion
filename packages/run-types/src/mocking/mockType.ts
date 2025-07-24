@@ -160,8 +160,13 @@ function _mockType(runType: BaseRunType, comp: JitCompilerOpts, stack: BaseRunTy
                 let obj: Record<string | number, any> = mOps.parentObj || {};
                 rt.getChildRunTypes().forEach((prop) => {
                     const name = (prop as PropertyRunType).getChildVarName();
-                    if (prop instanceof IndexSignatureRunType) obj = {...obj, ...mockType(prop, comp, stack)};
-                    else obj[name] = mockType(prop, comp, stack);
+                    if (prop instanceof IndexSignatureRunType) {
+                        obj = {...obj, ...mockType(prop, comp, stack)};
+                        return;
+                    }
+                    const isMethod = prop.src.kind === ReflectionKind.method || prop.src.kind === ReflectionKind.methodSignature;
+                    if (isMethod) return; // skip mocking methods
+                    obj[name] = mockType(prop, comp, stack);
                 });
                 return obj;
             }
@@ -189,6 +194,8 @@ function _mockType(runType: BaseRunType, comp: JitCompilerOpts, stack: BaseRunTy
                     return [...params.slice(0, -1), ...params[params.length - 1]];
                 }
                 return params;
+            } else if (runType.src.kind === ReflectionKind.method || runType.src.kind === ReflectionKind.methodSignature) {
+                return undefined; // Skip methods silently
             } else {
                 throw new Error('Mock is not allowed, call mockParams or mockReturn instead.' + printStackTrace(stack));
             }
