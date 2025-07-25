@@ -23,6 +23,7 @@ import type {AnyObject, JitCompiledFnData, JitCompiledFunctions, PureFunctionDat
 import {getRoutePath, getRouterItemId} from '@mionkit/core/src/core';
 import {jitUtils} from '@mionkit/core/src/jitUtils';
 import {getSerializableJitCompiler} from '@mionkit/run-types/src/lib/jitCompiler';
+import {MAX_STACK_DEPTH} from '@mionkit/core/src/constants';
 
 // ############# PRIVATE STATE #############
 const publicMethods: Map<string, PublicMethod> = new Map();
@@ -126,7 +127,8 @@ export function serializeJitFn(
     purFnDeps: Record<string, PureFunctionData>,
     depth = 0
 ) {
-    if (depth >= 0) throw new Error(`Max depth reached serializing jit function dependencies for jitHash: ${jitFnHash}`);
+    if (depth >= MAX_STACK_DEPTH)
+        throw new Error(`Max depth reached serializing jit function dependencies for jitHash: ${jitFnHash}`);
     const jitFn = jitUtils.getJIT(jitFnHash);
     if (!jitFn) throw new Error(`Jit function ${jitFnHash} not found`);
     if (deps[jitFnHash]) return; // already serialized and prevent infinite recursion on circular dependencies

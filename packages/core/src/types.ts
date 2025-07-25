@@ -211,6 +211,7 @@ export type JitFnArgs = {
 };
 
 export interface JitCompiledFnData {
+    readonly typeName: string;
     /** The id of the function (operation) to be compiled (isType, typeErrors, toJsonVal, fromJsonVal, etc) */
     readonly fnID: string;
     /** Unique id of the function */

@@ -56,7 +56,7 @@ function addRequiredRemoteMethodsToResponse(id: string, resp: MethodsData, error
     serializeMethodDeps(method, deps, purFnDeps);
 }
 
-const getRemoteMethods = (ctx, methodsIds: string[], getAllRemoteMethods?: boolean): MethodsData | RpcError => {
+const mionGetRemoteMethodsInfoById = (ctx, methodsIds: string[], getAllRemoteMethods?: boolean): MethodsData | RpcError => {
     const resp: MethodsData = {
         methods: {},
         deps: {},
@@ -87,7 +87,7 @@ const getRemoteMethods = (ctx, methodsIds: string[], getAllRemoteMethods?: boole
     return resp;
 };
 
-const getRouteRemoteMethods = (ctx, path: string, getAllRemoteMethods?: boolean): MethodsData | RpcError => {
+const mionGetRemoteMethodsInfoByPath = (ctx, path: string, getAllRemoteMethods?: boolean): MethodsData | RpcError => {
     const executables = getRouteExecutionPath(path);
     if (!executables)
         return new RpcError({
@@ -96,7 +96,7 @@ const getRouteRemoteMethods = (ctx, path: string, getAllRemoteMethods?: boolean)
             publicMessage: `Route ${path} not found`,
         });
     const privateExecutables = executables.methods.filter((e) => !isPrivateExecutable(e));
-    return getRemoteMethods(
+    return mionGetRemoteMethodsInfoById(
         ctx,
         privateExecutables.map((e) => e.id),
         getAllRemoteMethods
@@ -106,6 +106,8 @@ const getRouteRemoteMethods = (ctx, path: string, getAllRemoteMethods?: boolean)
 // disable serialization as deserializer seems to ignore serializedTypes
 const routerOpts = {deserializeParams: false};
 export const clientRoutes = {
-    [GET_REMOTE_METHODS_BY_ID]: route(getRemoteMethods, routerOpts),
-    [GET_REMOTE_METHODS_BY_PATH]: route(getRouteRemoteMethods, routerOpts),
+    // name must match GET_REMOTE_METHODS_BY_ID
+    mionGetRemoteMethodsInfoById: route(mionGetRemoteMethodsInfoById, routerOpts),
+    // name must match GET_REMOTE_METHODS_BY_PATH
+    mionGetRemoteMethodsInfoByPath: route(mionGetRemoteMethodsInfoByPath, routerOpts),
 } satisfies Routes;
