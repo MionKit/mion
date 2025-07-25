@@ -36,7 +36,9 @@ function _getExecutionPathStringifyFn(executionPath: Method[]): (body: any) => s
             const returnValue = body[method.id];
             if (!returnValue) continue;
             const coma = isLast ? '' : ',';
-            props.push(`${JSON.stringify(method.id)}:${method.returnJitFns.jsonStringify.fn(returnValue)}${coma}`);
+            const jsonStringify = method.returnJitFns.jsonStringify.fn;
+            const jsonValue = jsonStringify(returnValue);
+            props.push(`${JSON.stringify(method.id)}:${jsonValue}${coma}`);
         }
         return `{${props.join('')}}`;
     };

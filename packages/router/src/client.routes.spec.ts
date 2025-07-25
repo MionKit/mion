@@ -20,7 +20,6 @@ import {PublicMethod} from '@mionkit/router/src/types/publicMethods'; // do not 
 import {JitFunctions} from '@mionkit/run-types/src/constants.functions';
 import {getSerializableMethod} from '@mionkit/router/src/remoteMethods';
 import {RpcError} from '@mionkit/core/src/errors';
-import {jitUtils} from '@mionkit/core/src/jitUtils';
 
 type RawRequest = {
     headers: MionHeaders;
@@ -72,9 +71,11 @@ describe('PublicMethods run type functionality', () => {
         });
     });
 
-    it('can mot mock PublicMethod because it contains functions', async () => {
+    it('can mock PublicMethod ignoring handler', async () => {
         const rt = runType<PublicMethod>();
-        await expect(() => rt.mock()).rejects.toThrow();
+        const isType = rt.createJitFunction(JitFunctions.isType);
+        const mock = await rt.mock();
+        expect(isType(mock)).toEqual(true);
     });
 
     it('can validate return type ClientReturn', () => {
@@ -82,107 +83,6 @@ describe('PublicMethods run type functionality', () => {
         const validate = rt.createJitFunction(JitFunctions.isType);
         expect(validate(new RpcError({statusCode: 400, publicMessage: 'error', message: 'error'}))).toBe(true);
     });
-
-    function closure_hk_o6uso4(utl) {
-        // OK the type publicMethod, has a handler property that is a function and is omitted from jit
-        // but the instance at runtime has the function so maybe we should include in the union check as the valid keys
-        // in the other hand allowing those extra keys could be a security risk
-        const k_o6uso4 = [
-            'type',
-            'id',
-            'headerNames',
-            'paramNames',
-            'paramsJitHashes',
-            'returnJitHashes',
-            'hookIds',
-            'pathPointers',
-        ];
-        const hk_v9DDhL = utl.getJIT('hk_v9DDhL');
-        function hk_o6uso4(v) {
-            return (
-                (typeof v === 'object' && v !== null && utl.hasUnknownKeysFromArray(v, k_o6uso4)) ||
-                hk_v9DDhL.fn(v.paramsJitHashes) ||
-                hk_v9DDhL.fn(v.returnJitHashes)
-            );
-        }
-        return hk_o6uso4;
-    }
-
-    function closure_hk_BD5bRJ(utl) {
-        const hk_o6uso4 = utl.getJIT('hk_o6uso4');
-        function hk_BD5bRJ(v) {
-            return (function () {
-                for (const p1 in v) {
-                    const res1 = hk_o6uso4.fn(v[p1]);
-                    if (res1) return true;
-                }
-                return false;
-            })();
-        }
-        return hk_BD5bRJ;
-    }
-
-    function closure_hk_ht19rF(utl) {
-        const k_ht19rF = ['purFnDeps', 'methods', 'deps'];
-        const hk_tP7Vvb = utl.getJIT('hk_tP7Vvb');
-        const hk_BD5bRJ = utl.getJIT('hk_BD5bRJ');
-        const hk_v1tNFj = utl.getJIT('hk_v1tNFj');
-        function hk_ht19rF(v) {
-            const hasExtraKeys = utl.hasUnknownKeysFromArray(v, k_ht19rF);
-            const purFnDepsHasExtraKeys = hk_tP7Vvb.fn(v.purFnDeps);
-            const methodsHasExtraKeys = hk_BD5bRJ.fn(v.methods);
-            const depsHasExtraKeys = hk_v1tNFj.fn(v.deps);
-
-            console.log('hasExtraKeys >>>', hasExtraKeys);
-            console.log('purFnDepsHasExtraKeys >>>', purFnDepsHasExtraKeys);
-            console.log('methodsHasExtraKeys >>>', methodsHasExtraKeys); // this seems to be the one failing
-            console.log('depsHasExtraKeys >>>', depsHasExtraKeys);
-
-            return (
-                utl.hasUnknownKeysFromArray(v, k_ht19rF) ||
-                hk_tP7Vvb.fn(v.purFnDeps) ||
-                hk_BD5bRJ.fn(v.methods) ||
-                hk_v1tNFj.fn(v.deps)
-            );
-        }
-        return hk_ht19rF;
-    }
-
-    function closure_is_cKgeuU(utl) {
-        const is_ht19rF = utl.getJIT('is_ht19rF');
-        const hk_ht19rF = {fn: closure_hk_ht19rF(utl)};
-        const is_ou6gGW = utl.getJIT('is_ou6gGW');
-        const hk_ou6gGW = utl.getJIT('hk_ou6gGW');
-        function is_cKgeuU(v) {
-            const isMethodsData = is_ht19rF.fn(v);
-            const hasExtraMethodsKeys = hk_ht19rF.fn(v);
-            const isRpcError = is_ou6gGW.fn(v);
-            const hasExtraRpcErrorKeys = hk_ou6gGW.fn(v);
-            console.log('isMethodsData >>>', isMethodsData);
-            console.log('hasExtraMethodsKeys >>>', hasExtraMethodsKeys); // this seems to be the one failing
-            console.log('isRpcError >>>', isRpcError);
-            console.log('hasExtraRpcErrorKeys >>>', hasExtraRpcErrorKeys);
-
-            const result =
-                typeof v === 'object' &&
-                v !== null &&
-                ((isMethodsData && !hasExtraMethodsKeys) || (isRpcError && !hasExtraRpcErrorKeys));
-            //((is_ht19rF.fn(v) && !hk_ht19rF.fn(v)) || (is_ou6gGW.fn(v) && !hk_ou6gGW.fn(v)))
-
-            console.log('is union result >>>', result);
-            return result;
-        }
-        return is_cKgeuU;
-    }
-
-    function closure_te_cKgeuU(utl) {
-        const is_cKgeuU = {fn: closure_is_cKgeuU(utl)};
-        function te_cKgeuU(v, pth = [], er = []) {
-            if (!is_cKgeuU.fn(v)) utl.err(pth, er, 'union');
-            return er;
-        }
-        return te_cKgeuU;
-    }
 
     it('can validate return type ClientReturn + errors', () => {
         initRouter();
@@ -203,17 +103,7 @@ describe('PublicMethods run type functionality', () => {
         const typeErrorsMethodsData = rtMethodsData.createJitFunction(JitFunctions.typeErrors);
         const typeErrorsPublicMethod = rtPublicMethod.createJitFunction(JitFunctions.typeErrors);
         const typeErrorsPublicMethods = rtPublicMethods.createJitFunction(JitFunctions.typeErrors);
-        const typeErrorsN = rt.createJitFunction(JitFunctions.typeErrors);
-        const typeErrors = closure_te_cKgeuU(jitUtils);
-
-        // TODO: remove unknow keys should either combine the keys of the object or check first which kind of object is
-        // const removeUnknownKeys = rt.createJitFunction(JitFunctions.stripUnknownKeys);
-
-        // console.log('response', response);
-        // const sanitized = removeUnknownKeys(response);
-        // console.log('sanitized', sanitized);
-
-        console.log('publicMethod', publicMethod);
+        const typeErrors = rt.createJitFunction(JitFunctions.typeErrors);
 
         expect(typeErrorsPublicMethod(publicMethod)).toEqual([]);
         expect(typeErrorsPublicMethods({hello: publicMethod})).toEqual([]);
@@ -237,11 +127,22 @@ describe('PublicMethods run type functionality', () => {
         const jsonStringify = rt.createJitFunction(JitFunctions.jsonStringify);
         const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
         const error = new RpcError({statusCode: 400, publicMessage: 'error', message: 'error'});
-        const roundTrip = fromJsonVal(JSON.parse(jsonStringify(error)));
+        const errorClone = new RpcError({statusCode: 400, publicMessage: 'error', message: 'error'});
+        // operations modify the original object so we need to clone it before serializing
+        const roundTrip = fromJsonVal(JSON.parse(jsonStringify(errorClone)));
         expect(roundTrip instanceof RpcError).toBeTruthy();
         expect(roundTrip).toEqual(error);
 
-        const roundTrip2 = fromJsonVal(JSON.parse(jsonStringify(response)));
+        // operations modify the original object so we need to clone it before serializing
+        const responseClone: MethodsData = {
+            methods: {[publicMethod.id]: publicMethod},
+            deps: {},
+            purFnDeps: {},
+        };
+        const jsonStr = jsonStringify(responseClone);
+        const roundTrip2 = fromJsonVal(JSON.parse(jsonStr));
+        // we need to remove the function handler before comparing and is not restored after round trip
+        delete (publicMethod as any).handler;
         expect(roundTrip2).toEqual(response);
     });
 });
@@ -279,72 +180,149 @@ describe('Client Routes should', () => {
         'users-getUser': {
             type: HandlerType.route,
             id: 'users-getUser',
-            handler: 'users.getUser',
-            serializedTypes: [{kind: 17, parameters: [], return: 1}, {kind: 1}],
-            validateParams: true,
-            deserializeParams: true,
-            params: [],
+            handler: 'users.getUser' as any,
+            paramsJitHashes: {
+                isType: expect.any(String),
+                typeErrors: expect.any(String),
+                toJsonVal: expect.any(String),
+                fromJsonVal: expect.any(String),
+                jsonStringify: expect.any(String),
+            },
+            returnJitHashes: {
+                isType: expect.any(String),
+                typeErrors: expect.any(String),
+                toJsonVal: expect.any(String),
+                fromJsonVal: expect.any(String),
+                jsonStringify: expect.any(String),
+            },
+            paramNames: [],
             hookIds: ['auth', 'last'],
         },
         'users-setUser': {
             type: HandlerType.route,
             id: 'users-setUser',
-            handler: 'users.setUser',
-            serializedTypes: [{kind: 17, parameters: [], return: 1}, {kind: 1}],
-            validateParams: true,
-            deserializeParams: true,
-            params: [],
+            handler: 'users.setUser' as any,
+            paramsJitHashes: {
+                isType: expect.any(String),
+                typeErrors: expect.any(String),
+                toJsonVal: expect.any(String),
+                fromJsonVal: expect.any(String),
+                jsonStringify: expect.any(String),
+            },
+            returnJitHashes: {
+                isType: expect.any(String),
+                typeErrors: expect.any(String),
+                toJsonVal: expect.any(String),
+                fromJsonVal: expect.any(String),
+                jsonStringify: expect.any(String),
+            },
+            paramNames: [],
             hookIds: ['auth', 'last'],
         },
         'users-pets-getUserPet': {
             type: HandlerType.route,
             id: 'users-pets-getUserPet',
-            handler: 'users.pets.getUserPet',
-            serializedTypes: [{kind: 17, parameters: [], return: 1}, {kind: 1}],
-            validateParams: true,
-            deserializeParams: true,
-            params: [],
+            handler: 'users.pets.getUserPet' as any,
+            paramsJitHashes: {
+                isType: expect.any(String),
+                typeErrors: expect.any(String),
+                toJsonVal: expect.any(String),
+                fromJsonVal: expect.any(String),
+                jsonStringify: expect.any(String),
+            },
+            returnJitHashes: {
+                isType: expect.any(String),
+                typeErrors: expect.any(String),
+                toJsonVal: expect.any(String),
+                fromJsonVal: expect.any(String),
+                jsonStringify: expect.any(String),
+            },
+            paramNames: [],
             hookIds: ['auth', 'last'],
         },
         'pets-getPet': {
             type: HandlerType.route,
             id: 'pets-getPet',
-            handler: 'pets.getPet',
-            serializedTypes: [{kind: 17, parameters: [], return: 1}, {kind: 1}],
-            validateParams: true,
-            deserializeParams: true,
-            params: [],
+            handler: 'pets.getPet' as any,
+            paramsJitHashes: {
+                isType: expect.any(String),
+                typeErrors: expect.any(String),
+                toJsonVal: expect.any(String),
+                fromJsonVal: expect.any(String),
+                jsonStringify: expect.any(String),
+            },
+            returnJitHashes: {
+                isType: expect.any(String),
+                typeErrors: expect.any(String),
+                toJsonVal: expect.any(String),
+                fromJsonVal: expect.any(String),
+                jsonStringify: expect.any(String),
+            },
+            paramNames: [],
             hookIds: ['auth', 'last'],
         },
         'pets-setPet': {
             type: HandlerType.route,
             id: 'pets-setPet',
-            handler: 'pets.setPet',
-            serializedTypes: [{kind: 17, parameters: [], return: 1}, {kind: 1}],
-            validateParams: true,
-            deserializeParams: true,
-            params: [],
+            handler: 'pets.setPet' as any,
+            paramsJitHashes: {
+                isType: expect.any(String),
+                typeErrors: expect.any(String),
+                toJsonVal: expect.any(String),
+                fromJsonVal: expect.any(String),
+                jsonStringify: expect.any(String),
+            },
+            returnJitHashes: {
+                isType: expect.any(String),
+                typeErrors: expect.any(String),
+                toJsonVal: expect.any(String),
+                fromJsonVal: expect.any(String),
+                jsonStringify: expect.any(String),
+            },
+            paramNames: [],
             hookIds: ['auth', 'last'],
         },
         auth: {
             type: HandlerType.hook,
             id: 'auth',
-            handler: 'auth',
-            serializedTypes: [{kind: 17, parameters: [{kind: 18, name: 'token', type: 1}], return: 2}, {kind: 5}, {kind: 3}],
-            validateParams: true,
-            deserializeParams: true,
-            params: ['token'],
+            handler: 'auth' as any,
+            paramsJitHashes: {
+                isType: expect.any(String),
+                typeErrors: expect.any(String),
+                toJsonVal: expect.any(String),
+                fromJsonVal: expect.any(String),
+                jsonStringify: expect.any(String),
+            },
+            returnJitHashes: {
+                isType: expect.any(String),
+                typeErrors: expect.any(String),
+                toJsonVal: expect.any(String),
+                fromJsonVal: expect.any(String),
+                jsonStringify: expect.any(String),
+            },
+            paramNames: ['token'],
         },
         last: {
             type: HandlerType.hook,
             id: 'last',
-            handler: 'last',
-            serializedTypes: [{kind: 17, parameters: [], return: 1}, {kind: 10}],
-            validateParams: true,
-            deserializeParams: true,
-            params: [],
+            handler: 'last' as any,
+            paramsJitHashes: {
+                isType: expect.any(String),
+                typeErrors: expect.any(String),
+                toJsonVal: expect.any(String),
+                fromJsonVal: expect.any(String),
+                jsonStringify: expect.any(String),
+            },
+            returnJitHashes: {
+                isType: expect.any(String),
+                typeErrors: expect.any(String),
+                toJsonVal: expect.any(String),
+                fromJsonVal: expect.any(String),
+                jsonStringify: expect.any(String),
+            },
+            paramNames: [],
         },
-    };
+    } satisfies PublicMethods;
 
     const methodsId = GET_REMOTE_METHODS_BY_ID;
     const routeMethodsId = GET_REMOTE_METHODS_BY_PATH;
@@ -367,7 +345,6 @@ describe('Client Routes should', () => {
             }),
         };
         const response = await dispatchRoute(methodsPath, request.body, request.headers, headersFromRecord({}), request, {});
-        console.log(response.body);
         const expectedResponse = {
             auth: methodsMetadata.auth,
             last: methodsMetadata['last'],

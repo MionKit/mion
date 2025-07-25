@@ -33,6 +33,7 @@ it('should compile JIT functions cache to code', () => {
 
     // Add a mock JIT function to the cache
     const mockJitFn: JitCompiledFn = {
+        typeName: 'compiledTypeName',
         fnID: JitFunctions.isType.id,
         jitFnHash: 'sayHello',
         args: {vλl: 'v'},

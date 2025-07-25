@@ -55,6 +55,7 @@ export class BaseCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extends 
         typeID?: StrNumber,
         public readonly opts: RunTypeOptions = {}
     ) {
+        this.typeName = this.rootType.getTypeName();
         this.jitFnHash = jitFnHash || getJITFnHash(this.fnID, this.rootType, opts);
         this.typeID = typeID || this.rootType.getTypeID();
         if (this.args.vλl) this.vλl = this.args.vλl;
@@ -63,6 +64,7 @@ export class BaseCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extends 
         jitUtils.addToJitCache(this as JitCompiledFn);
         validateCompilerOptions(opts);
     }
+    readonly typeName: string;
     readonly typeID: StrNumber;
     readonly jitFnHash: string;
 
@@ -408,6 +410,7 @@ export function createJitCompiler(
 
 export function getSerializableJitCompiler(comp: JitCompiledFn): JitCompiledFnData {
     return {
+        typeName: comp.typeName,
         fnID: comp.fnID,
         jitFnHash: comp.jitFnHash,
         args: structuredClone(comp.args),
