@@ -233,6 +233,72 @@ export const jitUtils: JITUtils = {
         const runTypeErr: Required<RunTypeError> = {expected, path, format};
         εrr.push(runTypeErr);
     },
+    /**
+     * Gets all errors from a union groups them by path and returns the ones with deepest path as is the most specific error,
+     * if there are multiple items with the same specific path, all of them are returned.
+     *
+     * #### example 1 : 1 item with the most specific path ####
+     * ie: input:
+     * [
+     *  [{path: 'a', expected: 'string'}, {path: ['b', 'c'], expected: 'number'}], // this item has the most specific path ['b', 'c'], so will be returned
+     *  [{path: 'c', expected: 'boolean'}], // this item wont be returned as path 'c' is less specific than ['b', 'c']
+     *  [path: '', expected: 'object'], // errors from third union item, this one will be ignored as path is less specific
+     * ]
+     * ie: output:
+     * [{path: 'a', expected: 'string'}, {path: 'b', expected: 'number'}, {path: 'c', expected: 'boolean'}], // errors from first union item
+     *
+     * #### example 2 : 2 items with the most specific path ####
+     * ie: input:
+     * [
+     *  [{path: 'a', expected: 'string'}, {path: ['b', 'c'], expected: 'number'}], // this item has the most specific path ['b', 'c'], so will be returned
+     *  [{path: 'c', expected: 'boolean'}], // this item wont be returned as path 'c' is less specific than ['b', 'c']
+     *  [{path: ['b', 'c'], expected: 'string'}], // this item has the same most specific path ['b', 'c'], so will be returned
+     *  [path: '', expected: 'object'], // errors from third union item, this one will be ignored as path is less specific
+     * ]
+     * ie: output:
+     * [{path: 'a', expected: 'string'}, {path: ['b', 'c'], expected: 'number'}, {path: ['b', 'c'], expected: 'string'}], // errors from first union item and third union item
+     *
+     * @param εrr - array of errors grouped by union item
+     */
+    getUnionErrors(εrr: RunTypeError[][]): RunTypeError[] {
+        console.log('getUnionErrors εrr', εrr);
+        const maxSpecificPath: number[] = [];
+        for (const itemErrs of εrr) {
+            const maxSpecificPathForItem = itemErrs.reduce((max, err) => Math.max(max, err.path.length), 0);
+            maxSpecificPath.push(maxSpecificPathForItem);
+        }
+        const maxSpecificPathForUnion = Math.max(...maxSpecificPath);
+        const itemsWithMaxSpecificPath = εrr.filter((itemErrs) =>
+            itemErrs.some((err) => err.path.length === maxSpecificPathForUnion)
+        );
+        const errs = itemsWithMaxSpecificPath.flat().filter(Boolean);
+        if (!errs.length) return errs;
+        // group errors by path
+        const errsGroupedByPath = new Map<string, RunTypeError>();
+        for (const err of errs) {
+            const path = err.path.join('.');
+            const item = errsGroupedByPath.get(path);
+            if (!item) {
+                errsGroupedByPath.set(path, err);
+                continue;
+            }
+            const expectLis: string[] = Array.isArray(item.expected) ? item.expected : [item.expected];
+            if (Array.isArray(err.expected)) expectLis.push(...err.expected);
+            else expectLis.push(err.expected);
+            item.expected = expectLis;
+            if (err.format) {
+                const itemFormat = item.format || [];
+                const formatList: TypeFormatError[] = Array.isArray(itemFormat) ? itemFormat : [itemFormat];
+                if (Array.isArray(err.format)) formatList.push(...err.format);
+                else formatList.push(err.format);
+                err.format = formatList;
+            }
+            errsGroupedByPath.set(path, err);
+        }
+        const groupedErrs = Array.from(errsGroupedByPath.values()).flat();
+        console.log('getUnionErrors groupedErrs', groupedErrs);
+        return groupedErrs;
+    },
 };
 
 /**

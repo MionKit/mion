@@ -46,6 +46,7 @@ export interface JITUtils {
         accessPath?: StrNumber[],
         fmtAccessPath?: StrNumber[]
     ): void;
+    getUnionErrors(εrr: RunTypeError[][]): RunTypeError[];
     safeKey(value: any): any;
 }
 
@@ -113,9 +114,9 @@ export interface RunTypeError {
      * Index if item that failed validation was in an array.
      * null if validated item was a single property */
     path: StrNumber[];
-    /** the type of the expected data */
-    expected: string;
-    format?: TypeFormatError;
+    /** the type of the expected data, an array for union types */
+    expected: string | string[];
+    format?: TypeFormatError | TypeFormatError[];
     // typeName?: string; // tyeName can not be included as two types could Have the same typeID and different names
 }
 

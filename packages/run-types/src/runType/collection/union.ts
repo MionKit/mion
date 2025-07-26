@@ -9,11 +9,12 @@ import {ReflectionKind, type TypeUnion} from '@deepkit/type';
 import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
 import type {JitFnID, jitCode} from '../../types';
 import {BaseRunType, CollectionRunType} from '../../lib/baseRunTypes';
-import {childIsExpression, createIfElseFn} from '../../lib/utils';
+import {childIsExpression, createIfElseFn, toLiteral} from '../../lib/utils';
 import {CodeType} from '../../constants.functions';
 import {JitFunctions} from '../../constants.functions';
 import {isClassRunType, isInterfaceRunType, isIntersectionRunType, isObjectLiteralRunType} from '../../lib/guards';
 import {markDiscriminators, splitUnionItems} from '@mionkit/run-types/src/runType/collection/unionDiscriminator';
+import {JitFnArgs} from '@mionkit/core/src/types';
 
 /**
  * Unions get encoded into an array where arr[0] is the discriminator and arr[1] is the value.
@@ -55,12 +56,15 @@ export class UnionRunType extends CollectionRunType<TypeUnion> {
         return index;
     }
 
-    getChildStrictIsType(rt: BaseRunType, comp: JitCompiler) {
-        const isTypeCode = rt.compileIsType(comp);
+    getChildIsTypeStrict(childRt: BaseRunType, comp: JitCompiler) {
+        const isTypeCode = childRt.compileIsType(comp);
         const isTypeWithProperties =
-            isInterfaceRunType(rt) || isClassRunType(rt) || isObjectLiteralRunType(rt) || isIntersectionRunType(rt);
-        if (!isTypeWithProperties || rt.getFamily() !== 'C') return isTypeCode;
-        const props = rt.getJitChildren(comp);
+            isInterfaceRunType(childRt) ||
+            isClassRunType(childRt) ||
+            isObjectLiteralRunType(childRt) ||
+            isIntersectionRunType(childRt);
+        if (!isTypeWithProperties || childRt.getFamily() !== 'C') return isTypeCode;
+        const props = childRt.getJitChildren(comp);
         const hasIndexProperty = props.some((prop) => prop.src.kind === ReflectionKind.indexSignature);
         if (hasIndexProperty) return isTypeCode;
         const hasUnknownKeysOptsVarName = `uKOpts${this.getNestLevel()}`;
@@ -68,25 +72,81 @@ export class UnionRunType extends CollectionRunType<TypeUnion> {
         comp.setContextItem(hasUnknownKeysOptsVarName, `const ${hasUnknownKeysOptsVarName} = {${checkPropName}: true}`);
         // forces to call hasUnknownKeys with hasUnknownKeysOptsVarName options
         comp.setChildrenCallArgs(JitFunctions.hasUnknownKeys.id, {θpts: hasUnknownKeysOptsVarName});
-        const codeHasUnknown = rt.compileHasUnknownKeys(comp);
+        const codeHasUnknown = childRt.compileHasUnknownKeys(comp);
         return codeHasUnknown ? `(${isTypeCode} && !${codeHasUnknown})` : `${isTypeCode}`;
     }
 
     _compileIsType(comp: JitCompiler): jitCode {
         const {simpleItems, objectTypes} = this.getUnionChildren(comp);
-        const items = simpleItems.map((rt) => this.getChildStrictIsType(rt, comp));
+        const items = simpleItems.map((rt) => this.getChildIsTypeStrict(rt, comp));
         const checkItems = items.filter(Boolean).join(' || ');
         if (!objectTypes.length) return `(${checkItems})`;
-        const objItems = objectTypes.map((rt) => this.getChildStrictIsType(rt, comp));
+        const objItems = objectTypes.map((rt) => this.getChildIsTypeStrict(rt, comp));
         const objCode = objItems.filter(Boolean).join(' || ');
         const checkObjs = `(typeof ${comp.vλl} === 'object' && ${comp.vλl} !== null && (${objCode}))`;
         return `(${[checkItems, checkObjs].filter(Boolean).join(' || ')})`;
     }
 
-    _compileTypeErrors(comp: JitErrorsCompiler): jitCode {
+    getChildTypeErrorsStrict(childRt: BaseRunType, comp: JitErrorsCompiler, unionErrVarname: string, index) {
+        // TODO: should work the same as getChildIsTypeStrict but callingJitErr if there is an error
+        const ItemErrVarName = `${unionErrVarname}[${index}]`;
+        const originalErrArg = comp.args.εrr;
+        (comp.args as JitFnArgs).εrr = ItemErrVarName; // use variable for union errors
+        const typeErrsCode = childRt.compileTypeErrors(comp);
+        // console.log('typeErrsCode', typeErrsCode);
+        const hash = toLiteral(childRt.getJitHash(comp.opts));
+        const itemCode = `${comp.args.pλth}.push(${hash});${typeErrsCode};${comp.args.pλth}.pop()`;
+        (comp.args as JitFnArgs).εrr = originalErrArg;
+        const isTypeWithProperties =
+            isInterfaceRunType(childRt) ||
+            isClassRunType(childRt) ||
+            isObjectLiteralRunType(childRt) ||
+            isIntersectionRunType(childRt);
+        if (!isTypeWithProperties || childRt.getFamily() !== 'C') return itemCode;
+        else {
+            const props = childRt.getJitChildren(comp);
+            const hasIndexProperty = props.some((prop) => prop.src.kind === ReflectionKind.indexSignature);
+            if (hasIndexProperty) return itemCode;
+            const hasUnknownKeysOptsVarName = `uKOpts${this.getNestLevel()}`;
+            const checkPropName = JitFunctions.hasUnknownKeys.runTimeOptions.checkNonJitProps.keyName;
+            comp.setContextItem(hasUnknownKeysOptsVarName, `const ${hasUnknownKeysOptsVarName} = {${checkPropName}: true}`);
+            // forces to call hasUnknownKeys with hasUnknownKeysOptsVarName options
+            comp.setChildrenCallArgs(JitFunctions.hasUnknownKeys.id, {θpts: hasUnknownKeysOptsVarName});
+            const codeHasUnknown = childRt.compileHasUnknownKeys(comp);
+            if (!codeHasUnknown) return itemCode;
+            const getUnknownKeysCode = childRt.compileUnknownKeyErrors(comp);
+            // TODO: finish this scenario
+            return `${getUnknownKeysCode}`;
+        }
+    }
+
+    _compileTypeErrorsOld(comp: JitErrorsCompiler): jitCode {
         const isType = this.compileIsType(comp);
         const code = `if (!${isType}) ${comp.callJitErr(this)};`;
         return code;
+    }
+
+    _compileTypeErrors(comp: JitErrorsCompiler): jitCode {
+        const unionErrVarname = `uErr${this.getNestLevel()}`;
+        const parsedErrorsVarName = `upErr${this.getNestLevel()}`;
+        const originalErrArg = comp.args.εrr;
+        (comp.args as JitFnArgs).εrr = unionErrVarname; // use variable for union errors
+        const {simpleItems, objectTypes} = this.getUnionChildren(comp);
+        let index = 0;
+        const items = simpleItems.map((rt) => this.getChildTypeErrorsStrict(rt, comp, unionErrVarname, index++));
+        const simpleItemsErrorsCode = items.filter(Boolean).join(';');
+        let unionItemsCode: string;
+        if (!objectTypes.length) unionItemsCode = simpleItemsErrorsCode;
+        else {
+            const objItemsCode = objectTypes.map((rt) => this.getChildTypeErrorsStrict(rt, comp, unionErrVarname, index++));
+            const objCode = objItemsCode.filter(Boolean).join(';');
+            const objectItemsErrorsCode = `if (typeof ${comp.vλl} === 'object' && ${comp.vλl} !== null) {${objCode}} else {${comp.callJitErr(this)};}`;
+            unionItemsCode = [simpleItemsErrorsCode, objectItemsErrorsCode].filter(Boolean).join(';');
+        }
+        (comp.args as JitFnArgs).εrr = originalErrArg;
+        const initUnionErrors = `const ${unionErrVarname} = Array.from(Array(${index}),() => [])`;
+        const getUnionErrCode = `if (${unionErrVarname}.every((err) => err.length !== 0)) {const ${parsedErrorsVarName} = utl.getUnionErrors(${unionErrVarname});if (${parsedErrorsVarName}.length) ${originalErrArg}.push(...${parsedErrorsVarName})}`;
+        return [initUnionErrors, unionItemsCode, getUnionErrCode].filter(Boolean).join(';');
     }
 
     /**
@@ -114,7 +174,7 @@ export class UnionRunType extends CollectionRunType<TypeUnion> {
                 // item encoded before reassigning varName to [i, item]
                 const index = this.getUnionItemIndex(comp, unionItem);
                 const tupleEncode = needsTupleEncoding ? `${comp.vλl} = [${index}, ${comp.vλl}]` : '/*noop*/';
-                const isTypeCode = this.getChildStrictIsType(unionItem, comp);
+                const isTypeCode = this.getChildIsTypeStrict(unionItem, comp);
                 return `${ifElse()} (${isTypeCode}) {${encodeCode} ${tupleEncode}}`;
             });
             return result.filter(Boolean);

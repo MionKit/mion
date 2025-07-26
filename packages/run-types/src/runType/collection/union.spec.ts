@@ -59,9 +59,9 @@ describe('Atomic Union', () => {
         expect(valWithErrors(d)).toEqual([]);
         expect(valWithErrors(e)).toEqual([]);
 
-        expect(valWithErrors(notA)).toEqual([{path: [], expected: 'union'}]);
-        expect(valWithErrors(notB)).toEqual([{path: [], expected: 'union'}]);
-        expect(valWithErrors(notC)).toEqual([{path: [], expected: 'union'}]);
+        expect(valWithErrors(notA)).toEqual({path: [2], expected: 'union'});
+        expect(valWithErrors(notB)).toEqual({path: [2], expected: 'union'});
+        expect(valWithErrors(notC)).toEqual({path: [2], expected: 'union'});
     });
 
     it('encode/decode to json', () => {

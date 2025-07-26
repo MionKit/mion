@@ -249,7 +249,7 @@ export function _compileJsonStringify(
                 `const ${errName} = "Can not ${getOperationName(fnID)} union: item does not belong to the union"`
             );
 
-            const isType = (unionItem) => urt.getChildStrictIsType(unionItem, comp);
+            const isType = (unionItem) => urt.getChildIsTypeStrict(unionItem, comp);
             const ifElse = createIfElseFn();
             const onUnionTypes = (items: BaseRunType[]) => {
                 const result = items.map((unionItem) => {
