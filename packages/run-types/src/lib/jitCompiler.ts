@@ -269,11 +269,11 @@ export class BaseCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extends 
         return Array.from(this.contextCodeItems.values());
     }
 
-    setChildrenCallArgs(fnID: string, args: Partial<FnArgsNames>): void {
+    setChildrenCallArgs(fnID: string, args: Partial<JitFnArgs>): void {
         this.childrenCallArgs[fnID] = args;
     }
 
-    getChildrenCallArgs(fnID: string): Partial<FnArgsNames> | undefined {
+    getChildrenCallArgs(fnID: string): Partial<JitFnArgs> | undefined {
         return this.childrenCallArgs[fnID];
     }
 }
@@ -315,6 +315,14 @@ export class JitErrorsCompiler<ID extends JitFnID = any> extends BaseCompiler<ty
         // this can be optimized by adding it to the compiler context, or maybe make the param optional in jitUtils.err
         return this.callJitErrWithPath(expected);
     }
+    /**
+     * This is used when we add an extra item to the path,
+     * for extra info, ie union items, maps keys, etc...
+     * This is because we don't want the item int the real path as it is not part of the runtime path of an object.
+     * but we still want to add that info to process the error.
+     * ie: type  AorBList = ({a: string} | {b: string})[];
+     * we want the error to contain the info if it is union item a or b, but the path to the the doesn't have that info is just list[index]
+     * */
     callJitErrWithPath(exp: AnyKindName | BaseRunType<any>, extraPathLiteral?: StrNumber): string {
         const args = this._getJitErrorArgs(exp);
         const accessPath = this.getAccessPathLiteral(extraPathLiteral);
