@@ -366,8 +366,7 @@ export function getJitFnArgCallVarName(parentComp: JitCompiler, rt: BaseRunType,
     const varNameFromContext = parentComp.getChildrenCallArgs(idFnToCall)?.[argKey];
     if (varNameFromContext) return varNameFromContext;
     // then check if the arg is provided by the parent function
-    const parenArgs = getJitFnSettings(parentComp.fnID).jitArgs;
-    const varNameFromParent = parenArgs?.[argKey];
+    const varNameFromParent = parentComp.args[argKey];
     if (varNameFromParent) return varNameFromParent;
     // if neither the parent nor the context has the arg, we create a new default value in the context
     const fnConfig = getJitFnSettings(idFnToCall);
