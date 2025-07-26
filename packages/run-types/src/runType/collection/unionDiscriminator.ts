@@ -47,7 +47,7 @@ export function splitUnionItems(
     const simpleItems: BaseRunType[] = [];
     unionItems.forEach((unionItem) => {
         const isObj = urt.isTypeWithProperties(unionItem);
-        if (!isObj || unionItem.getFamily() !== 'C') return simpleItems.push(unionItem);
+        if (!isObj) return simpleItems.push(unionItem);
         return objectTypes.push(unionItem as CollectionRunType<any>);
     });
 
