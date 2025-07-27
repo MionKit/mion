@@ -78,14 +78,14 @@ function getDiscriminatorProperties(
     comp: JitCompiler,
     urt: UnionRunType,
     unionTypes: CollectionRunType<any>[],
-    getCompiledName: (urt: UnionRunType, propTypeID: string | number) => string
+    getCompiledName: (comp: JitCompiler, urt: UnionRunType, propTypeID: string | number) => string
 ): FlattenedProp[] {
     if (!unionTypes.length) return [];
     const propByName = new Map<string | number, PropUnionItemPair[]>();
     unionTypes.forEach((unionItem) => {
         const props = unionItem.getJitChildren(comp) as PropertyRunType[];
         props.forEach((prop) => {
-            const name = prop.getChildVarName();
+            const name = prop.getChildVarName(comp);
             const existing = propByName.get(name) || [];
             // index no needed now
             propByName.set(name, [...existing, {prop, unionItem}]);
@@ -120,7 +120,7 @@ function getDiscriminatorProperties(
             unionIndex,
             prop: item.prop,
             typeID,
-            compiledName: getCompiledName(urt, typeID),
+            compiledName: getCompiledName(comp, urt, typeID),
         };
     });
 }
@@ -134,7 +134,7 @@ function getUniqueDiscriminatorProperties(
     comp: JitCompiler,
     urt: UnionRunType,
     unionTypes: CollectionRunType<any>[],
-    getCompiledName: (urt: UnionRunType, propTypeID: string | number) => string
+    getCompiledName: (comp: JitCompiler, urt: UnionRunType, propTypeID: string | number) => string
 ): FlattenedProp[] {
     if (!unionTypes.length) return [];
     const uniquePropByUnionItem = new Map<CollectionRunType<any>, PropUnionItemPair>();
@@ -173,18 +173,18 @@ function getUniqueDiscriminatorProperties(
             unionIndex,
             prop: item.prop,
             typeID,
-            compiledName: getCompiledName(urt, typeID),
+            compiledName: getCompiledName(comp, urt, typeID),
         };
     });
 }
 
 function initGetCompiledName() {
     const typeIDs = new Map<string | number, number>();
-    return function getCompiledName(urt: UnionRunType, typeID: string | number): string {
+    return function getCompiledName(comp: JitCompiler, urt: UnionRunType, typeID: string | number): string {
         const existingIndex = typeIDs.get(typeID);
-        if (existingIndex) return `prp${urt.getNestLevel()}_${existingIndex}`;
+        if (existingIndex) return `prp${comp.getNestLevel(urt)}_${existingIndex}`;
         const newIndex = typeIDs.size;
         typeIDs.set(typeID, newIndex);
-        return `prp${urt.getNestLevel()}_${newIndex}`;
+        return `prp${comp.getNestLevel(urt)}_${newIndex}`;
     };
 }

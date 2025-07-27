@@ -4,12 +4,13 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
-import type {JitCompilerOpts, SrcType} from '../../types';
+import type {SrcType} from '../../types';
 import {GenericMemberRunType} from '../member/genericMember';
 import {ReflectionSubKind} from '../../constants.kind';
 import {ReflectionKind, TypeClass} from '@deepkit/type';
 import {IterableRunType} from './Iterable';
 import {JitFunctions} from '../../constants.functions';
+import type {JitCompiler} from '@mionkit/run-types/src/lib/jitCompiler';
 
 export class MapRunType extends IterableRunType {
     keyRT = new MapKeyRunType();
@@ -33,29 +34,29 @@ export class MapRunType extends IterableRunType {
             subKind: ReflectionSubKind.mapValue,
         });
     }
-    getCustomVλl(comp: JitCompilerOpts) {
+    getCustomVλl(comp: JitCompiler) {
         // fromJsonVal is decoding a regular array so no need to use an special case for vλl as other operations
         if (comp.fnID === JitFunctions.fromJsonVal.id)
-            return {vλl: `it${this.getNestLevel()}`, isStandalone: false, useArrayAccessor: true};
+            return {vλl: `it${comp.getNestLevel(this)}`, isStandalone: false, useArrayAccessor: true};
         // other operations use an special case for vλl where all parents are skipped
-        return {vλl: `it${this.getNestLevel()}`, isStandalone: true};
+        return {vλl: `it${comp.getNestLevel(this)}`, isStandalone: true};
     }
 }
 
 class MapKeyRunType extends GenericMemberRunType<any> {
     index = 0;
-    getStaticPathLiteral(comp: JitCompilerOpts): string | number {
+    getStaticPathLiteral(comp: JitCompiler): string | number {
         const parent = this.getParent()! as MapRunType;
         const custom = parent.getCustomVλl(comp)!;
-        return `{key:utl.safeKey(${custom.vλl}[0]),index:${parent.getIndexVarName()},failed:'mapKey'}`;
+        return `{key:utl.safeKey(${custom.vλl}[0]),index:${parent.getIndexVarName(comp)},failed:'mapKey'}`;
     }
 }
 
 class MapValueRunType extends GenericMemberRunType<any> {
     index = 1;
-    getStaticPathLiteral(comp: JitCompilerOpts): string | number {
+    getStaticPathLiteral(comp: JitCompiler): string | number {
         const parent = this.getParent()! as MapRunType;
         const custom = parent.getCustomVλl(comp)!;
-        return `{key:utl.safeKey(${custom.vλl}[0]),index:${parent.getIndexVarName()},failed:'mapVal'}`;
+        return `{key:utl.safeKey(${custom.vλl}[0]),index:${parent.getIndexVarName(comp)},failed:'mapVal'}`;
     }
 }

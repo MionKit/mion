@@ -4,22 +4,23 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
-import type {JitCompilerOpts, SrcType} from '../../types';
+import type {SrcType} from '../../types';
 import {ReflectionSubKind} from '../../constants.kind';
 import {ReflectionKind, type TypeClass} from '@deepkit/type';
 import {GenericMemberRunType} from '../member/genericMember';
 import {IterableRunType} from './Iterable';
 import {JitFunctions} from '../../constants.functions';
+import type {JitCompiler} from '@mionkit/run-types/src/lib/jitCompiler';
 
 class SetKeyRunType extends GenericMemberRunType<any> {
     index = 0;
     skipSettingAccessor() {
         return true;
     }
-    getStaticPathLiteral(comp: JitCompilerOpts): string {
+    getStaticPathLiteral(comp: JitCompiler): string {
         const parent = this.getParent()! as SetRunType;
         const custom = parent.getCustomVλl(comp)!;
-        return `{key:utl.safeKey(${custom.vλl}),index:${parent.getIndexVarName()}}`;
+        return `{key:utl.safeKey(${custom.vλl}),index:${parent.getIndexVarName(comp)}}`;
     }
 }
 
@@ -38,11 +39,11 @@ export class SetRunType extends IterableRunType {
             subKind: ReflectionSubKind.setItem,
         });
     }
-    getCustomVλl(comp: JitCompilerOpts) {
+    getCustomVλl(comp: JitCompiler) {
         // fromJsonVal is decoding a regular array so no need to use an special case for vλl as other operations
         if (comp.fnID === JitFunctions.fromJsonVal.id)
-            return {vλl: `it${this.getNestLevel()}`, isStandalone: false, useArrayAccessor: true};
+            return {vλl: `it${comp.getNestLevel(this)}`, isStandalone: false, useArrayAccessor: true};
         // other operations use an special case for vλl where all parents are skipped
-        return {vλl: `it${this.getNestLevel()}`, isStandalone: true};
+        return {vλl: `it${comp.getNestLevel(this)}`, isStandalone: true};
     }
 }

@@ -6,14 +6,14 @@
  * ######## */
 
 import {ReflectionKind, type TypeSymbol} from '@deepkit/type';
-import type {jitCode, JitCompilerOpts} from '../../types';
+import type {jitCode} from '../../types';
 import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
 import {AtomicRunType} from '../../lib/baseRunTypes';
 import {JitFunctions} from '../../constants.functions';
 
 export class SymbolRunType extends AtomicRunType<TypeSymbol> {
     _getTypeID = () => ReflectionKind.symbol;
-    skipJit(comp: JitCompilerOpts): boolean {
+    skipJit(comp: JitCompiler): boolean {
         if (!comp) return true;
         return comp.fnID !== JitFunctions.toCode.id;
     }

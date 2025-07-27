@@ -14,15 +14,15 @@ import {CodeType} from '../../constants.functions';
 import {JitFunctions} from '../../constants.functions';
 
 export class ArrayRunType<T extends Type = TypeArray> extends MemberRunType<T> {
-    isJitInlined = () => false;
-    getChildVarName(): string {
-        return `i${this.getNestLevel()}`;
-    }
-    startIndex(): number {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    startIndex(comp: JitCompiler): number {
         return 0;
     }
-    getChildLiteral(): string {
-        return this.getChildVarName();
+    getChildVarName(comp: JitCompiler): string {
+        return `i${comp.getNestLevel(this)}`;
+    }
+    getChildLiteral(comp: JitCompiler): string {
+        return this.getChildVarName(comp);
     }
     useArrayAccessor(): true {
         return true;
@@ -43,13 +43,13 @@ export class ArrayRunType<T extends Type = TypeArray> extends MemberRunType<T> {
     }
     // #### jit code ####
     _compileIsType(comp: JitCompiler): jitCode {
-        const resultVal = `res${this.getNestLevel()}`;
-        const index = this.getChildVarName();
+        const resultVal = `res${comp.getNestLevel(this)}`;
+        const index = this.getChildVarName(comp);
         const memberCode = this.getJitChild(comp)?.compileIsType(comp);
         if (!memberCode) return `Array.isArray(${comp.vλl})`;
         return `
             if (!Array.isArray(${comp.vλl})) return false;
-            for (let ${index} = ${this.startIndex()}; ${index} < ${comp.vλl}.length; ${index}++) {
+            for (let ${index} = ${this.startIndex(comp)}; ${index} < ${comp.vλl}.length; ${index}++) {
                 const ${resultVal} = ${memberCode};
                 if (!(${resultVal})) return false;
             }
@@ -57,42 +57,42 @@ export class ArrayRunType<T extends Type = TypeArray> extends MemberRunType<T> {
         `;
     }
     _compileTypeErrors(comp: JitErrorsCompiler): jitCode {
-        const index = this.getChildVarName();
+        const index = this.getChildVarName(comp);
         const memberCode = this.getJitChild(comp)?.compileTypeErrors(comp);
         if (!memberCode) return `if (!Array.isArray(${comp.vλl})) ${comp.callJitErr(this)};`;
         return `
             if (!Array.isArray(${comp.vλl})) ${comp.callJitErr(this)};
-            else {for (let ${index} = ${this.startIndex()}; ${index} < ${comp.vλl}.length; ${index}++) {${memberCode}}}
+            else {for (let ${index} = ${this.startIndex(comp)}; ${index} < ${comp.vλl}.length; ${index}++) {${memberCode}}}
         `;
     }
     _compileToJsonVal(comp: JitCompiler): jitCode {
-        const index = this.getChildVarName();
+        const index = this.getChildVarName(comp);
         const child = this.getJitChild(comp);
         const childCode = child?.compileToJsonVal(comp);
         if (!childCode || !child) return undefined;
         const isExpression = childIsExpression(JitFunctions.toJsonVal.id, child);
         const code = isExpression ? `${comp.getChildVλl()} = ${childCode};` : childCode;
-        return `for (let ${index} = ${this.startIndex()}; ${index} < ${comp.vλl}.length; ${index}++) {${code}}`;
+        return `for (let ${index} = ${this.startIndex(comp)}; ${index} < ${comp.vλl}.length; ${index}++) {${code}}`;
     }
     _compileFromJsonVal(comp: JitCompiler): jitCode {
-        const index = this.getChildVarName();
+        const index = this.getChildVarName(comp);
         const child = this.getJitChild(comp);
         const childCode = child?.compileFromJsonVal(comp);
         if (!childCode || !child) return undefined;
         const isExpression = childIsExpression(JitFunctions.fromJsonVal.id, child);
         const code = isExpression ? `${comp.getChildVλl()} = ${childCode};` : childCode;
-        return `for (let ${index} = ${this.startIndex()}; ${index} < ${comp.vλl}.length; ${index}++) {${code}}`;
+        return `for (let ${index} = ${this.startIndex(comp)}; ${index} < ${comp.vλl}.length; ${index}++) {${code}}`;
     }
     _compileHasUnknownKeys(comp: JitCompiler): jitCode {
         if (this.getMemberType().getFamily() === 'A') return undefined;
         const memberCode = this.getJitChild(comp)?.compileHasUnknownKeys(comp);
         if (!memberCode) return undefined;
-        const resultVal = `res${this.getNestLevel()}`;
-        const index = this.getChildVarName();
+        const resultVal = `res${comp.getNestLevel(this)}`;
+        const index = this.getChildVarName(comp);
 
         return `
             if (!Array.isArray(${comp.vλl})) return false;
-            for (let ${index} = ${this.startIndex()}; ${index} < ${comp.vλl}.length; ${index}++) {
+            for (let ${index} = ${this.startIndex(comp)}; ${index} < ${comp.vλl}.length; ${index}++) {
                 const ${resultVal} = ${memberCode};
                 if (${resultVal}) return true;
             }
@@ -117,7 +117,7 @@ export class ArrayRunType<T extends Type = TypeArray> extends MemberRunType<T> {
 
     traverseCode(comp: JitCompiler, memberCode: jitCode): jitCode {
         if (!memberCode) return undefined;
-        const index = this.getChildVarName();
-        return `for (let ${index} = ${this.startIndex()}; ${index} < ${comp.vλl}.length; ${index}++) {${memberCode}}`;
+        const index = this.getChildVarName(comp);
+        return `for (let ${index} = ${this.startIndex(comp)}; ${index} < ${comp.vλl}.length; ${index}++) {${memberCode}}`;
     }
 }

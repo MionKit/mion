@@ -16,11 +16,12 @@ export class GenericMemberRunType<T extends SrcMember> extends MemberRunType<T> 
     getChildIndex() {
         return this.index;
     }
-    getChildVarName(): string | number {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    getChildVarName(comp: JitCompiler): string | number {
         return this.index;
     }
-    getChildLiteral() {
-        return this.getChildVarName();
+    getChildLiteral(comp: JitCompiler) {
+        return this.getChildVarName(comp);
     }
     useArrayAccessor() {
         return true;

@@ -7,7 +7,7 @@
 import {runType} from '../../lib/runType';
 import {JitFunctions} from '../../constants.functions';
 import {jitUtils} from '@mionkit/core/src/jitUtils';
-import {PlainObject} from '@mionkit/core/src/types';
+import {DataOnly} from '@mionkit/core/src/types';
 
 class MySerializableClass {
     name: string;
@@ -107,7 +107,7 @@ it('serializable class can be restored after they are registered', async () => {
 it('classes can be deserialized suing a deserialize function', () => {
     const jsonStringify = rtNonS.createJitFunction(JitFunctions.jsonStringify);
     expect(() => rtNonS.createJitFunction(JitFunctions.fromJsonVal)).toThrow();
-    jitUtils.setDeserializeFn(NonSerializableClass, (deserialized: PlainObject<NonSerializableClass>) => {
+    jitUtils.setDeserializeFn(NonSerializableClass, (deserialized: DataOnly<NonSerializableClass>) => {
         const instance = new NonSerializableClass(
             deserialized.name,
             deserialized.surname,

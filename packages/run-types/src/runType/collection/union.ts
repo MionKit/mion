@@ -63,7 +63,7 @@ export class UnionRunType extends CollectionRunType<TypeUnion> {
         const props = rt.getJitChildren(comp);
         const hasIndexProperty = props.some((prop) => prop.src.kind === ReflectionKind.indexSignature);
         if (hasIndexProperty) return isTypeCode;
-        const hasUnknownKeysOptsVarName = `uKOpts${this.getNestLevel()}`;
+        const hasUnknownKeysOptsVarName = `uKOpts${comp.getNestLevel(this)}`;
         const checkPropName = JitFunctions.hasUnknownKeys.runTimeOptions.checkNonJitProps.keyName;
         comp.setContextItem(hasUnknownKeysOptsVarName, `const ${hasUnknownKeysOptsVarName} = {${checkPropName}: true}`);
         // forces to call hasUnknownKeys with hasUnknownKeysOptsVarName options
@@ -97,7 +97,7 @@ export class UnionRunType extends CollectionRunType<TypeUnion> {
      */
     _compileToJsonVal(comp: JitCompiler): jitCode {
         const {simpleItems, objectTypes} = this.getUnionChildren(comp);
-        const errName = `uErr${this.getNestLevel()}`;
+        const errName = `uErr${comp.getNestLevel(this)}`;
         const fail = `throw new Error(${errName});`;
         comp.setContextItem(errName, `const ${errName} = "Can not json encode union: item does not belong to the union"`);
 
@@ -136,8 +136,8 @@ export class UnionRunType extends CollectionRunType<TypeUnion> {
      * ie: type union = string | number | bigint;  var v1: union = 123n;  v1 is encoded as [2, "123n"]
      */
     _compileFromJsonVal(comp: JitCompiler): jitCode {
-        const decVar = `dεc${this.getNestLevel()}`;
-        const errVarName = `uErr${this.getNestLevel()}`;
+        const decVar = `dεc${comp.getNestLevel(this)}`;
+        const errVarName = `uErr${comp.getNestLevel(this)}`;
         comp.setContextItem(errVarName, `const ${errVarName} = "Can not json decode union: invalid union index"`);
         const children = this.getJitChildren(comp);
         const ifElse = createIfElseFn();

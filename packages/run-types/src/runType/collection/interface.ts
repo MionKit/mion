@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 import {TypeObjectLiteral, TypeClass, TypeIntersection, ReflectionKind} from '@deepkit/type';
-import type {jitCode, JitCompilerOpts} from '../../types';
+import type {jitCode} from '../../types';
 import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
 import {arrayToLiteral, getJitFnArgCallVarName, memorize, sortDiscriminatorsFirst} from '../../lib/utils';
 import {PropertyRunType} from '../member/property';
@@ -38,7 +38,7 @@ export class InterfaceRunType<
         return this.getChildRunTypes().find((prop) => prop.src.kind === ReflectionKind.callSignature) as CallSignatureRunType;
     });
 
-    getJitChildren(comp: JitCompilerOpts): InterfaceMember[] {
+    getJitChildren(comp: JitCompiler): InterfaceMember[] {
         const children = super.getJitChildren(comp) as InterfaceMember[];
         return children.toSorted((a, b) => sortDiscriminatorsFirst(a, b)) as InterfaceMember[];
     }
@@ -109,8 +109,8 @@ export class InterfaceRunType<
     _compileUnknownKeyErrors(comp: JitErrorsCompiler): jitCode {
         const jitChildren = this.getJitChildren(comp);
         const allChildren = this.getChildRunTypes().filter((prop) => prop.src.kind !== ReflectionKind.indexSignature);
-        const unknownVar = `unk${this.getNestLevel()}`;
-        const keyVar = `ky${this.getNestLevel()}`;
+        const unknownVar = `unk${comp.getNestLevel(this)}`;
+        const keyVar = `ky${comp.getNestLevel(this)}`;
         const unknownValue = callCheckUnknownProperties(this, comp, jitChildren, true, !this.isPartOfUnion(), allChildren);
         const parentCode = `
             const ${unknownVar} = ${unknownValue};
@@ -121,8 +121,8 @@ export class InterfaceRunType<
     }
     _compileStripUnknownKeys(comp: JitCompiler): jitCode {
         const jitChildren = this.getJitChildren(comp);
-        const unknownVar = `unk${this.getNestLevel()}`;
-        const keyVar = `ky${this.getNestLevel()}`;
+        const unknownVar = `unk${comp.getNestLevel(this)}`;
+        const keyVar = `ky${comp.getNestLevel(this)}`;
         const unknownValue = callCheckUnknownProperties(this, comp, jitChildren, true, !this.isPartOfUnion());
         const parentCode = `
             const ${unknownVar} = ${unknownValue};
@@ -133,8 +133,8 @@ export class InterfaceRunType<
     }
     _compileUnknownKeysToUndefined(comp: JitCompiler): jitCode {
         const jitChildren = this.getJitChildren(comp);
-        const unknownVar = `unk${this.getNestLevel()}`;
-        const keyVar = `ky${this.getNestLevel()}`;
+        const unknownVar = `unk${comp.getNestLevel(this)}`;
+        const keyVar = `ky${comp.getNestLevel(this)}`;
         const unknownValue = callCheckUnknownProperties(this, comp, jitChildren, true, !this.isPartOfUnion());
         const parentCode = `
             const ${unknownVar} = ${unknownValue};

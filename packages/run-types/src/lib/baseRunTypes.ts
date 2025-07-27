@@ -32,7 +32,7 @@ import {JitFunctions} from '../constants.functions';
 import {ReflectionKind} from '@deepkit/type';
 import type {TypeIndexSignature, TypeProperty, Type, TypeFunction} from '@deepkit/type';
 import {getJitFnArgCallVarName, getPropIndex, memorize, toLiteral} from './utils';
-import {JitErrorsCompiler, JitCompiler, getJITFnHash, createJitCompiler} from './jitCompiler';
+import {JitErrorsCompiler, JitCompiler, getJITFnHash, createJitCompiler, MockJitCompiler} from './jitCompiler';
 import {type AnyKindName, getReflectionName} from '../constants.kind';
 import {jitUtils} from '../../../core/src/jitUtils';
 import {createUniqueHash} from './quickHash';
@@ -56,11 +56,23 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
     readonly src: SrcType<T> = null as any; // real value will be set after construction by the createRunType function
     abstract getFamily(): RunTypeFamily; // Atomic, Collection, Member, Function
     abstract _getTypeID(stack?: RunType[]): StrNumber;
-    isJitInlined = () => !(this.isCircular || (this.src.typeName && this.getFamily() === 'C'));
+    // isJitInlined = () => !this.isCircular; // makes all jit to compile into a single function
+    /**
+     * This single functions controls whether or not the code for a type should be inlined into the parent function
+     * or should create a separate jit function for it, add as a dependency and call it.
+     * @returns
+     */
+    isJitInlined = (): boolean => {
+        if (this.isCircular) return false;
+        if (this.src.kind === ReflectionKind.array) return false;
+        if (this.src.typeName) return false;
+        if (this.getFamily() === 'C') return false;
+        return true;
+    };
     getKindName = memorize((): AnyKindName => getReflectionName(this));
     getTypeName = (): string => this.src.typeName || this.getKindName();
     getFormatAnnotations = (): FormatAnnotation[] => getFormatAnnotations(this);
-    skipJit(comp: JitCompilerOpts): boolean {
+    skipJit(comp: JitCompiler): boolean {
         return false;
     }
     getFormatTypeID = memorize((): string | undefined => {
@@ -80,12 +92,6 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
         return createUniqueHash(this.getTypeID().toString() + JSON.stringify(optsCopy));
     }
     getParent = (): BaseRunType | undefined => (this.src.parent as SrcType)?._rt as BaseRunType;
-    getNestLevel = memorize((): number => {
-        if (this.isCircular) return 0; // circular references start a new context
-        const parent = this.getParent() as BaseRunType<T>;
-        if (!parent) return 0;
-        return parent.getNestLevel() + 1;
-    });
     getCircularTypeID(stack: RunType[] = []): StrNumber | undefined {
         const inStackIndex = stack.findIndex((rt) => rt === this); // cant use isSameJitType because it uses getTypeID and would loop forever
         const isInStack = inStackIndex >= 0; // recursive reference
@@ -120,14 +126,14 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
     /**
      * Some elements might need a standalone name variable that ignores the vλl value of the parents.
      * returns a variable that is being compiled, ignores the parents variable names */
-    getCustomVλl(comp: JitCompilerOpts): CustomVλl | undefined {
+    getCustomVλl(comp: JitCompiler): CustomVλl | undefined {
         return undefined;
     }
     /**
      * Some elements might need a custom static path to be able to reference the source of an error.
      * ie: when validating a Map we need to differentiate if the value that failed is the  key or the value of a map's entry.
      */
-    getStaticPathLiteral(comp: JitCompilerOpts): string | number | undefined {
+    getStaticPathLiteral(comp: JitCompiler): string | number | undefined {
         return undefined;
     }
 
@@ -151,12 +157,7 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
         // options sent to the compiler will be set to empty as mock options are handled separately from the compiler
         const mockingOpts = {...opts, mock: {...defaultMockOptions, ...(opts.mock || {})}} as RunTypeOptions;
         const hash = getJITFnHash(fnID, this, mockingOpts);
-        const comp: JitCompilerOpts = {
-            fnID,
-            typeID: this.getTypeID(),
-            jitFnHash: hash,
-            opts: mockingOpts,
-        };
+        const comp = new MockJitCompiler(this, mockingOpts, undefined, hash, this.getTypeID());
         return mockFn(this, comp);
     }
 
@@ -410,10 +411,15 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
         return `(function(){${returnCode}${code}})()`;
     }
 
-    getTypeTraceInfo(): string {
+    getTypeTraceInfo(comp: JitCompiler): string {
         if (this.getFamily() === 'C') return this.src.typeName || getReflectionName(this);
         if (this.getFamily() === 'F') return String((this.src as TypeFunction).name) || getReflectionName(this);
-        if (this.getFamily() === 'M') return (this as any).getChildVarName?.() || getReflectionName(this);
+        if (this.getFamily() === 'M') {
+            const rtChild = this as any as RunTypeChildAccessor;
+            const isRunTypeChildAccessor = !!rtChild.getChildVarName;
+            if (!isRunTypeChildAccessor) return getReflectionName(this);
+            return String(rtChild.getChildVarName(comp));
+        }
         return getReflectionName(this);
     }
 }
@@ -472,7 +478,7 @@ export abstract class CollectionRunType<T extends Type> extends BaseRunType<T> {
         const childTypes = ((this.src as SrcCollection).types as SrcType[]) || []; // deepkit stores child types in the types property
         return childTypes.map((t) => t._rt as BaseRunType);
     };
-    getJitChildren(comp: JitCompilerOpts): BaseRunType[] {
+    getJitChildren(comp: JitCompiler): BaseRunType[] {
         let skipIndex = false; // if there are multiple index signatures, only the first one will be used as they must be same type just different keys
         return this.getChildRunTypes().filter((c) => {
             if (c.skipJit(comp)) return false;
@@ -541,8 +547,8 @@ export abstract class CollectionRunType<T extends Type> extends BaseRunType<T> {
  */
 export abstract class MemberRunType<T extends Type> extends BaseRunType<T> implements RunTypeChildAccessor {
     abstract isOptional(): boolean;
-    abstract getChildVarName(): string | number;
-    abstract getChildLiteral(comp?: JitCompilerOpts): string | number;
+    abstract getChildVarName(comp: JitCompiler): string | number;
+    abstract getChildLiteral(comp: JitCompiler): string | number;
     abstract useArrayAccessor(): boolean;
     /** used to compile json stringify */
     skipCommas?: boolean;
@@ -551,16 +557,16 @@ export abstract class MemberRunType<T extends Type> extends BaseRunType<T> imple
     getFamily(): 'M' {
         return 'M';
     }
-    getMemberType = (): BaseRunType => {
+    getMemberType(): BaseRunType {
         const memberType = (this.src as any).type as SrcType; // deepkit stores member types in the type property
         return memberType._rt as BaseRunType;
-    };
-    getChildIndex(comp?: JitCompilerOpts) {
+    }
+    getChildIndex(comp: JitCompiler) {
         const start = comp?.opts?.paramsSlice?.start;
         if (start) return getPropIndex(this.src) - start;
         return getPropIndex(this.src);
     }
-    getJitChild(comp: JitCompilerOpts): BaseRunType | undefined {
+    getJitChild(comp: JitCompiler): BaseRunType | undefined {
         const member: BaseRunType = this.getMemberType();
         if (member.skipJit(comp)) return undefined;
         return member;

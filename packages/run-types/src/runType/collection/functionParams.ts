@@ -7,7 +7,7 @@
 
 import type {TypeFunction, TypeTuple} from '@deepkit/type';
 import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
-import type {AnyParameterListRunType, JitCompilerOpts, SrcType, jitCode} from '../../types';
+import type {AnyParameterListRunType, SrcType, jitCode} from '../../types';
 import {ParameterRunType} from '../member/param';
 import {CollectionRunType} from '../../lib/baseRunTypes';
 import {TupleMemberRunType} from '../member/tupleMember';
@@ -21,7 +21,7 @@ export class FunctionParamsRunType<
         const childTypes = ((this.src as TypeFunction).parameters || (this.src as TypeTuple).types || []) as SrcType[];
         return childTypes.map((t) => t._rt as AnyParamRunType);
     };
-    getParamRunTypes(comp: JitCompilerOpts): AnyParamRunType[] {
+    getParamRunTypes(comp: JitCompiler): AnyParamRunType[] {
         const start = comp.opts?.paramsSlice?.start;
         const end = comp.opts?.paramsSlice?.end;
         const children = this.getChildRunTypes();
@@ -29,12 +29,12 @@ export class FunctionParamsRunType<
         // Get all child run types first without using comp to avoid recursion
         return children.slice(start, end);
     }
-    hasRestParameter(comp: JitCompilerOpts): boolean {
+    hasRestParameter(comp: JitCompiler): boolean {
         return (
             !!this.getParamRunTypes(comp).length && this.getParamRunTypes(comp)[this.getParamRunTypes(comp).length - 1].isRest()
         );
     }
-    totalRequiredParams(comp: JitCompilerOpts): number {
+    totalRequiredParams(comp: JitCompiler): number {
         return this.getParamRunTypes(comp).filter((p) => !p.isOptional() && !p.isRest()).length;
     }
     // ####### params #######

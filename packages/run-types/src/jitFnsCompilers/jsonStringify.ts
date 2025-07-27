@@ -99,12 +99,12 @@ export function _compileJsonStringify(
             const rt = runType as ArrayRunType;
             const memberCode = rt.getJitChild(comp)?.compile(comp, fnID);
             if (!memberCode) return `JSON.stringify(${comp.vλl})`;
-            const jsonItems = `ls${rt.getNestLevel()}`;
-            const resultVal = `res${rt.getNestLevel()}`;
-            const index = rt.getChildVarName();
+            const jsonItems = `ls${comp.getNestLevel(rt)}`;
+            const resultVal = `res${comp.getNestLevel(rt)}`;
+            const index = rt.getChildVarName(comp);
             return `
                 const ${jsonItems} = [];
-                for (let ${index} = ${rt.startIndex()}; ${index} < ${comp.vλl}.length; ${index}++) {
+                for (let ${index} = ${rt.startIndex(comp)}; ${index} < ${comp.vλl}.length; ${index}++) {
                     const ${resultVal} = ${memberCode};
                     ${jsonItems}.push(${resultVal});
                 }
@@ -117,8 +117,8 @@ export function _compileJsonStringify(
             const jsonVal = child?.compile(comp, fnID);
             if (!child || !jsonVal) return undefined;
             const varName = comp.vλl;
-            const prop = rt.getChildVarName();
-            const arrName = `ls${rt.getNestLevel()}`;
+            const prop = rt.getChildVarName(comp);
+            const arrName = `ls${comp.getNestLevel(rt)}`;
             const sep = rt.skipCommas ? '' : '+","';
             const skipCode = rt.getSkipCode(comp, prop);
             return `
@@ -169,7 +169,7 @@ export function _compileJsonStringify(
             const sep = rt.skipCommas ? '' : '+","';
             // encoding safe property with ':' inside the string saves a little processing
             // when prop is not safe we need to double encode double quotes and escape characters
-            const propDef = getPropName(rt, fnID);
+            const propDef = getPropName(rt, comp, fnID);
             if (rt.src.optional) {
                 rt.tempChildVλl = comp.getChildVλl();
                 // TODO: check if json for an object with first property undefined is valid (maybe the comma must be dynamic too)
@@ -181,9 +181,9 @@ export function _compileJsonStringify(
             const rt = runType as RestParamsRunType;
             let itemCode = rt.getJitChild(comp)?.compile(comp, fnID);
             if (!itemCode) itemCode = 'JSON.stringify(' + comp.getChildVλl() + ')';
-            const arrName = `res${rt.getNestLevel()}`;
-            const itemName = `its${rt.getNestLevel()}`;
-            const index = rt.getChildVarName();
+            const arrName = `res${comp.getNestLevel(rt)}`;
+            const itemName = `its${comp.getNestLevel(rt)}`;
+            const index = rt.getChildVarName(comp);
             const isFist = rt.getChildIndex(comp) === 0;
             const sep = isFist ? '' : `','+`;
             return `
@@ -242,7 +242,7 @@ export function _compileJsonStringify(
         case ReflectionKind.union: {
             const urt = runType as UnionRunType;
             const {simpleItems, objectTypes} = urt.getUnionChildren(comp);
-            const errName = `uErr${urt.getNestLevel()}`;
+            const errName = `uErr${comp.getNestLevel(urt)}`;
             const fail = `throw new Error(${errName});`;
             comp.setContextItem(
                 errName,
@@ -295,10 +295,10 @@ function getOperationName(fnID: Operation) {
     }
 }
 
-function getPropName(rt: PropertyRunType, fnID: JitFnID): string {
-    if (!isSafePropName(rt.src.name)) return `${JSON.stringify(rt.getChildLiteral() as string)}+':'`;
-    if (fnID === JitFunctions.toCode.id) return `'${rt.getChildVarName()}:'`;
-    return `'"${rt.getChildVarName()}":'`;
+function getPropName(rt: PropertyRunType, comp: JitCompiler, fnID: JitFnID): string {
+    if (!isSafePropName(rt.src.name)) return `${JSON.stringify(rt.getChildLiteral(comp) as string)}+':'`;
+    if (fnID === JitFunctions.toCode.id) return `'${rt.getChildVarName(comp)}:'`;
+    return `'"${rt.getChildVarName(comp)}":'`;
 }
 
 function _compileJsonStringifyParameter(rt: ParameterRunType, comp: JitCompiler, fnID: JitFnID): jitCode {
@@ -346,7 +346,7 @@ function _compileInterfaceIntoArray(
     children: MemberRunType<any>[],
     fnID: JitFnID
 ): jitCode {
-    const arrName = `ns${rt.getNestLevel()}`;
+    const arrName = `ns${comp.getNestLevel(rt)}`;
     const childrenCode = children
         .map((prop) => {
             prop.skipCommas = true;
@@ -414,8 +414,8 @@ export function _compileJsonStringifyIterable(
     const entry = rt.getCustomVλl(comp)?.vλl || comp.vλl;
     const jitChildren = rt.getJitChildren(comp);
     const childrenCode = jitChildren.map((c) => c.compile(comp, fnID)).join('+');
-    const jsonItems = `ls${rt.getNestLevel()}`;
-    const resultVal = `res${rt.getNestLevel()}`;
+    const jsonItems = `ls${comp.getNestLevel(rt)}`;
+    const resultVal = `res${comp.getNestLevel(rt)}`;
     const childrenResult = jitChildren.length > 1 ? `'['+${childrenCode}+']'` : childrenCode;
     const earlyReturn = codePrefix && codeSuffix ? `if (!${jsonItems}.length) return '${codePrefix}${codeSuffix}';` : '';
     return `

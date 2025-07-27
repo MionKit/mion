@@ -15,8 +15,8 @@ import {JitFunctions} from '../../constants.functions';
 export abstract class IterableRunType extends ClassRunType {
     abstract children: BaseRunType[];
     abstract instance: string;
-    getIndexVarName(): string {
-        return `e${this.getNestLevel()}`;
+    getIndexVarName(comp: JitCompiler): string {
+        return `e${comp.getNestLevel(this)}`;
     }
     getChildRunTypes = (): BaseRunType[] => {
         return this.children;
@@ -47,7 +47,7 @@ export abstract class IterableRunType extends ClassRunType {
         const childrenCode = this.getJitChildren(comp)
             .map((c) => c.compileTypeErrors(comp))
             .join(';');
-        const index = this.getIndexVarName();
+        const index = this.getIndexVarName(comp);
         return `
             if (!(${comp.vλl} instanceof ${this.instance})){${comp.callJitErr(this)}}
             else {let ${index} = 0;for (const ${entry} of ${comp.vλl}) {${childrenCode}; ${index}++}}
@@ -55,7 +55,7 @@ export abstract class IterableRunType extends ClassRunType {
     }
     _compileToJsonVal(comp: JitCompiler): string {
         const entry = this.getCustomVλl(comp)?.vλl || comp.vλl;
-        const resName = `ml${this.getNestLevel()}`;
+        const resName = `ml${comp.getNestLevel(this)}`;
         const childrenCode = this.getJitChildren(comp)
             .map((c) => c.compileToJsonVal(comp))
             .filter((c) => c)
@@ -107,7 +107,7 @@ export abstract class IterableRunType extends ClassRunType {
             .join(';');
         if (!childrenCodes) return '';
         const entry = this.getCustomVλl(comp)?.vλl || comp.vλl;
-        const index = this.getIndexVarName();
+        const index = this.getIndexVarName(comp);
         return `
             if (!(${comp.vλl} instanceof ${this.instance})) return;
             let ${index} = 0; for (const ${entry} of ${comp.vλl}) {${childrenCodes}; ${index}++}

@@ -5,9 +5,10 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 import {TypeCallSignature} from '@deepkit/type';
-import {JitCompilerOpts, RunTypeChildAccessor} from '../../types';
+import {RunTypeChildAccessor} from '../../types';
 import {getPropIndex} from '../../lib/utils';
 import {FunctionRunType} from '../function/function';
+import type {JitCompiler} from '@mionkit/run-types/src/lib/jitCompiler';
 
 /**
  * Represents a call signature.
@@ -21,7 +22,7 @@ import {FunctionRunType} from '../function/function';
  * So when a call signature is present the parent object literal or interface is considered a function.
  */
 export class CallSignatureRunType extends FunctionRunType<TypeCallSignature> implements RunTypeChildAccessor {
-    getChildIndex = (comp?: JitCompilerOpts) => {
+    getChildIndex = (comp: JitCompiler) => {
         const start = comp?.opts?.paramsSlice?.start;
         if (start) return getPropIndex(this.src) - start;
         return getPropIndex(this.src);

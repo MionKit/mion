@@ -101,13 +101,13 @@ export function _compileToCode(runType: BaseRunType, comp: JitCompiler, fnID = J
 
 function isCompilingClosureJitFn(runType: MethodSignatureRunType, comp: JitCompiler) {
     if (!comp.opts.isJitFnCode && !comp.opts.isPureFnCode) return false;
-    const isClosure = runType.getChildVarName() === 'closureFn';
+    const isClosure = runType.getChildVarName(comp) === 'closureFn';
     return isClosure;
 }
 
 function isCompilingJitFn(runType: MethodSignatureRunType, comp: JitCompiler) {
     if (!comp.opts.isJitFnCode && !comp.opts.isPureFnCode) return false;
-    const isFn = runType.getChildVarName() === 'fn';
+    const isFn = runType.getChildVarName(comp) === 'fn';
     return isFn;
 }
 

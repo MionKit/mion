@@ -4,7 +4,7 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
-import type {AnyFunction, SrcType, JitFn, jitCode, RunTypeOptions, JitCompilerOpts} from '../../types';
+import type {AnyFunction, SrcType, JitFn, jitCode, RunTypeOptions} from '../../types';
 import {ReflectionKind, TypeFunction} from '@deepkit/type';
 import {BaseRunType} from '../../lib/baseRunTypes';
 import {isAnyFunctionRunType, isFunctionRunType, isPromiseRunType} from '../../lib/guards';
@@ -19,7 +19,7 @@ import {JitFunctions} from '../../constants.functions';
 export class FunctionRunType<CallType extends AnyFunction = TypeFunction> extends BaseRunType<CallType> {
     // parameterRunTypes.src must be set after FunctionRunType creation
     parameterRunTypes: FunctionParamsRunType = new FunctionParamsRunType();
-    skipJit(comp: JitCompilerOpts): boolean {
+    skipJit(comp: JitCompiler): boolean {
         if (!comp) return true;
         return comp.fnID !== JitFunctions.toCode.id;
     }
