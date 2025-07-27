@@ -1,6 +1,6 @@
 import {ReflectionKind, TypeIndexSignature} from '@deepkit/type';
 import {MemberRunType} from '../../lib/baseRunTypes';
-import {JitCompilerOpts, JitFnID, type jitCode} from '../../types';
+import {JitFnID, type jitCode} from '../../types';
 import {CodeType} from '../../constants.functions';
 import {JitFunctions} from '../../constants.functions';
 import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
@@ -18,16 +18,16 @@ export class IndexSignatureRunType extends MemberRunType<TypeIndexSignature> {
     isOptional(): boolean {
         return true;
     }
-    getChildVarName(): string {
-        return `p${this.getNestLevel()}`;
+    getChildVarName(comp: JitCompiler): string {
+        return `p${comp.getNestLevel(this)}`;
     }
-    getChildLiteral(): string {
-        return this.getChildVarName();
+    getChildLiteral(comp: JitCompiler): string {
+        return this.getChildVarName(comp);
     }
     useArrayAccessor(): true {
         return true;
     }
-    skipJit(comp: JitCompilerOpts): boolean {
+    skipJit(comp: JitCompiler): boolean {
         const index = (this.src as TypeIndexSignature).index?.kind || undefined;
         if (index === ReflectionKind.symbol) {
             return comp?.fnID !== JitFunctions.toCode.id;
@@ -49,19 +49,19 @@ export class IndexSignatureRunType extends MemberRunType<TypeIndexSignature> {
     _compileIsType(comp: JitCompiler): jitCode {
         const childCode = this.getJitChild(comp)?.compileIsType(comp);
         if (!childCode) return undefined;
-        return `for (const ${this.getChildVarName()} in ${comp.vλl}){if (!(${childCode})) return false;} return true;`;
+        return `for (const ${this.getChildVarName(comp)} in ${comp.vλl}){if (!(${childCode})) return false;} return true;`;
     }
     _compileTypeErrors(comp: JitErrorsCompiler): jitCode {
         const childCode = this.getJitChild(comp)?.compileTypeErrors(comp);
         if (!childCode) return undefined;
-        return `for (const ${this.getChildVarName()} in ${comp.vλl}) {${childCode}}`;
+        return `for (const ${this.getChildVarName(comp)} in ${comp.vλl}) {${childCode}}`;
     }
     _compileToJsonVal(comp: JitCompiler): jitCode {
         const child = this.getJitChild(comp);
         const childCode = child?.compileToJsonVal(comp);
         if (!child || !childCode) return undefined;
         const varName = comp.vλl;
-        const prop = this.getChildVarName();
+        const prop = this.getChildVarName(comp);
         const skipCode = this.getSkipCode(comp, prop);
 
         const isExpression = childIsExpression(JitFunctions.toJsonVal.id, child);
@@ -73,7 +73,7 @@ export class IndexSignatureRunType extends MemberRunType<TypeIndexSignature> {
         const childCode = child?.compileFromJsonVal(comp);
         if (!child || !childCode) return undefined;
         const varName = comp.vλl;
-        const prop = this.getChildVarName();
+        const prop = this.getChildVarName(comp);
         const skipCode = this.getSkipCode(comp, prop);
 
         const isExpression = childIsExpression(JitFunctions.fromJsonVal.id, child);
@@ -85,8 +85,8 @@ export class IndexSignatureRunType extends MemberRunType<TypeIndexSignature> {
         const memberCode = this.getJitChild(comp)?.compileHasUnknownKeys(comp);
         if (!memberCode) return '';
         const varName = comp.vλl;
-        const prop = this.getChildVarName();
-        const resultVal = `res${this.getNestLevel()}`;
+        const prop = this.getChildVarName(comp);
+        const resultVal = `res${comp.getNestLevel(this)}`;
         return `for (const ${prop} in ${varName}) {const ${resultVal} = ${memberCode};if (${resultVal}) return true;}return false;`;
     }
     _compileUnknownKeyErrors(comp: JitErrorsCompiler): jitCode {
@@ -106,7 +106,7 @@ export class IndexSignatureRunType extends MemberRunType<TypeIndexSignature> {
     }
     traverseCode(comp: JitCompiler, memberCode: jitCode): jitCode {
         if (!memberCode) return undefined;
-        const prop = this.getChildVarName();
+        const prop = this.getChildVarName(comp);
         return `for (const ${prop} in ${comp.vλl}) {${memberCode}}`;
     }
     /**
@@ -119,7 +119,7 @@ export class IndexSignatureRunType extends MemberRunType<TypeIndexSignature> {
         const parent = this.getParent() as InterfaceRunType;
         const namedChildren = parent.getNamedChildren(comp);
         const skipNames = namedChildren.length
-            ? namedChildren.map((child) => `${child.getChildLiteral()} === ${prop}`).join(' || ')
+            ? namedChildren.map((child) => `${child.getChildLiteral(comp)} === ${prop}`).join(' || ')
             : '';
         return namedChildren.length ? `if (${skipNames}) continue;` : '';
     }

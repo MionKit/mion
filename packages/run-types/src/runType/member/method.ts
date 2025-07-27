@@ -6,17 +6,25 @@
  * ######## */
 import {TypeMethod} from '@deepkit/type';
 import {FunctionRunType} from '../function/function';
-import {JitCompilerOpts, RunTypeChildAccessor} from '../../types';
-import {getPropIndex, getPropLiteral, getPropVarName, memorize, useArrayAccessorForProp} from '../../lib/utils';
+import {RunTypeChildAccessor} from '../../types';
+import {getPropIndex, getPropLiteral, getPropVarName, useArrayAccessorForProp} from '../../lib/utils';
+import type {JitCompiler} from '@mionkit/run-types/src/lib/jitCompiler';
 
 export class MethodRunType extends FunctionRunType<TypeMethod> implements RunTypeChildAccessor {
-    getChildIndex = (comp?: JitCompilerOpts) => {
+    getChildIndex = (comp: JitCompiler) => {
         const start = comp?.opts?.paramsSlice?.start;
         if (start) return getPropIndex(this.src) - start;
         return getPropIndex(this.src);
     };
-    getChildVarName = memorize(() => getPropVarName(this.src.name));
-    getChildLiteral = memorize(() => getPropLiteral(this.getChildVarName()));
-    useArrayAccessor = memorize(() => useArrayAccessorForProp(this.src.name));
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    getChildVarName(comp: JitCompiler) {
+        return getPropVarName(this.src.name);
+    }
+    getChildLiteral(comp: JitCompiler) {
+        return getPropLiteral(this.getChildVarName(comp));
+    }
+    useArrayAccessor() {
+        return useArrayAccessorForProp(this.src.name);
+    }
     isOptional = () => !!this.src.optional;
 }

@@ -48,13 +48,17 @@ export abstract class BaseRunTypeFormat<P extends TypeFormatParams = any> {
     /** Params from parent formatter */
     readonly paramsFromParent?: P;
     /**
-     * When set this is the path to the params in the parent's params object.
+     * When set this in the path to the params in the parent's params object.
      * ie: if dateTime is the parent of the current formatter and params are {date: {format: 'ISO'}} then the child path will be ['date']
      */
     readonly parentPath?: StrNumber[];
     /** List of params that will be excluded from jit code */
     readonly extraPathLiteral?: StrNumber;
 
+    /**
+     * The parentPath is the path to the params in the parent's params Formatter.
+     * ie: if dateTime is the parent of the current formatter and params are {date: {format: 'ISO'}} then the child path will be ['date']
+     */
     constructor(parentPath?: StrNumber[]) {
         this.parentPath = parentPath;
     }
@@ -67,11 +71,11 @@ export abstract class BaseRunTypeFormat<P extends TypeFormatParams = any> {
         (this as Mutable<BaseRunTypeFormat>).paramsFromParent = undefined;
     }
 
-    isRoot() {
+    isRootFormat() {
         return !this.parentPath?.length;
     }
 
-    getNestLevel() {
+    getFormatNestLevel() {
         return this.parentPath?.length || 0;
     }
 

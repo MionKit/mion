@@ -115,7 +115,7 @@ it('discriminator property should be sorted first', () => {
     unionItem3[0].isUnionDiscriminator = true;
 
     function getSortedPropsNames(children: PropertyRunType[]) {
-        return children.toSorted((a, b) => sortRunTypeByComplexity(comp, a, b)).map((prop) => prop.getChildVarName());
+        return children.toSorted((a, b) => sortRunTypeByComplexity(comp, a, b)).map((prop) => prop.getChildVarName(comp));
     }
 
     expect(getSortedPropsNames(propsItem0)).toEqual(['type', 'otherProp']);
@@ -133,7 +133,7 @@ it('should sort discriminators first', () => {
     propsItem1[1].isUnionDiscriminator = true;
 
     function getSortedPropsNames(children: PropertyRunType[]) {
-        return children.toSorted((a, b) => sortDiscriminatorsFirst(a, b)).map((prop) => prop.getChildVarName());
+        return children.toSorted((a, b) => sortDiscriminatorsFirst(a, b)).map((prop) => prop.getChildVarName(comp));
     }
 
     expect(getSortedPropsNames(propsItem0)).toEqual(['type', 'otherProp1']);

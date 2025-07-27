@@ -6,7 +6,7 @@
  * ######## */
 
 import {ReflectionKind} from '@deepkit/type';
-import type {JitCompilerOpts, MockOptions, RunTypeOptions} from '../types';
+import type {MockOptions, Mutable, RunTypeOptions} from '../types';
 import type {BaseRunType} from '../lib/baseRunTypes';
 import {mockString, mockNumber, mockBoolean, mockBigInt, mockDate, random, mockRegExp, mockSymbol, mockAny} from './mockUtils';
 import {stringCharSet} from './constants.mock';
@@ -30,15 +30,20 @@ import {JIT_STACK_TRACE_MESSAGE} from '../constants';
 import {JitFunctions} from '../constants.functions';
 import type {ArrayRunType} from '@mionkit/run-types/src/runType/member/array';
 import {jitUtils} from '@mionkit/core/src/jitUtils';
+import {MockJitCompiler, type JitCompiler} from '@mionkit/run-types/src/lib/jitCompiler';
 
-export function mockType(runType: BaseRunType, comp: JitCompilerOpts, stack: BaseRunType[] = []): any {
+export function mockType(runType: BaseRunType, comp: JitCompiler, stack: BaseRunType[] = []): any {
+    // TODO: we could use JitCompiler functionality here to controls the stack etc
     stack.push(runType);
-    const recursionLevel = stack.filter((rt) => rt === runType).length;
-    const updatedOps = recursionLevel ? onCircularMock(comp.opts, recursionLevel) : comp.opts;
+    const mockNestLevel = stack.filter((rt) => rt === runType).length;
+    const rtOpts = comp.opts;
+    const updatedOps = mockNestLevel ? getMockOptionsForNestedElements(rtOpts, mockNestLevel) : comp.opts;
+    (comp as Mutable<JitCompiler>).opts = updatedOps;
     // Just one type validator allowed per type, and is responsible to mock the value,
     // ie: email and uuid should contain the logic to generate a valid value
     const typeValidator = getRunTypeFormatter(runType);
-    let mocked = typeValidator ? typeValidator.mock(updatedOps, runType) : _mockType(runType, {...comp, opts: updatedOps}, stack);
+    let mocked = typeValidator ? typeValidator.mock(updatedOps, runType) : _mockType(runType, comp, stack);
+    (comp as Mutable<JitCompiler>).opts = rtOpts;
     // once mocked multiple type transformers can be applied to the mocked value
     const typeTransformers = getRunTypeTransformers(runType);
     if (typeTransformers.length) {
@@ -56,13 +61,13 @@ export function mockType(runType: BaseRunType, comp: JitCompilerOpts, stack: Bas
 // each time mocking is a level deeper, the probabilities to generate an optional property should be reduced
 // this does not prevent infinite loops on types with circular references that are non optional,
 // we probably should throw an error in this case but these kind of types are technically not possible in real world so we can ignore them for now
-function onCircularMock(opts: RunTypeOptions, recursionLevel: number): RunTypeOptions {
+function getMockOptionsForNestedElements(opts: RunTypeOptions, nestLevel: number): RunTypeOptions {
     const mOps = opts.mock as MockOptions;
     const maxDepth = mOps.maxMockRecursion;
-    const divisor = recursionLevel;
+    const divisor = nestLevel;
     const {optionalProbability, maxRandomItemsLength: maxRandomArrayLength, optionalPropertyProbability, arrayLength} = mOps;
-    const newProv = recursionLevel >= maxDepth ? 0 : optionalProbability / divisor;
-    const newMaxLength = recursionLevel >= maxDepth ? 0 : Math.round(maxRandomArrayLength / divisor);
+    const newProv = nestLevel >= maxDepth ? 0 : optionalProbability / divisor;
+    const newMaxLength = nestLevel >= maxDepth ? 0 : Math.round(maxRandomArrayLength / divisor);
     // console.log(`divisor: ${divisor} | newMaxLength: ${newMaxLength} | newProv: ${newProv}`);
     const ret = {
         mock: {
@@ -73,13 +78,13 @@ function onCircularMock(opts: RunTypeOptions, recursionLevel: number): RunTypeOp
     } satisfies RunTypeOptions;
     if (optionalPropertyProbability) {
         const entries = Object.entries(optionalPropertyProbability).map(([key, value]) => {
-            const newProv = recursionLevel > maxDepth ? 0 : value / divisor;
+            const newProv = nestLevel > maxDepth ? 0 : value / divisor;
             return [key, value / newProv];
         });
         ret.mock.optionalPropertyProbability = Object.fromEntries(entries);
     }
     if (arrayLength) {
-        const newLength = recursionLevel >= maxDepth ? 0 : Math.round(arrayLength / divisor);
+        const newLength = nestLevel >= maxDepth ? 0 : Math.round(arrayLength / divisor);
         ret.mock.arrayLength = newLength;
     }
     if (ret.mock.parentObj) ret.mock.parentObj = {}; // prevents mocking objects with circular references
@@ -90,7 +95,7 @@ function onCircularMock(opts: RunTypeOptions, recursionLevel: number): RunTypeOp
  * Centralized mock function with a giant switch statement that handles all node types.
  * This function is similar to createRunType in runType.ts but for mocking.
  */
-function _mockType(runType: BaseRunType, comp: JitCompilerOpts, stack: BaseRunType[]): any {
+function _mockType(runType: BaseRunType, comp: JitCompiler, stack: BaseRunType[]): any {
     // Handle circular references
     const mOps = comp.opts.mock as MockOptions;
     const recursionLevel = stack.filter((rt) => rt === runType).length;
@@ -100,7 +105,7 @@ function _mockType(runType: BaseRunType, comp: JitCompilerOpts, stack: BaseRunTy
 
     switch (kind) {
         case ReflectionKind.never:
-            throw new Error('Cannot mock never type.' + printStackTrace(stack));
+            throw new Error('Cannot mock never type.' + printStackTrace(comp, stack));
         case ReflectionKind.any:
         case ReflectionKind.unknown:
             return mockAny(mOps.anyValuesList);
@@ -133,11 +138,12 @@ function _mockType(runType: BaseRunType, comp: JitCompilerOpts, stack: BaseRunTy
             return rt.src.values[i];
         }
         case ReflectionKind.enumMember:
-            throw new Error('Mock enum member is not supported.' + printStackTrace(stack));
+            throw new Error('Mock enum member is not supported.' + printStackTrace(comp, stack));
         // Collection types
         case ReflectionKind.array: {
             const rt = runType as ArrayRunType;
             const length = mOps.arrayLength ?? random(0, mOps.maxRandomItemsLength);
+            if (length === 0) return [];
             return Array.from({length}, () => mockType(rt.getMemberType(), comp, stack));
         }
 
@@ -153,17 +159,17 @@ function _mockType(runType: BaseRunType, comp: JitCompilerOpts, stack: BaseRunTy
         case ReflectionKind.intersection:
         case ReflectionKind.objectLiteral: {
             if (runType instanceof NonSerializableRunType) {
-                throw new Error(`Mock is disabled for Non Serializable types.` + printStackTrace(stack));
+                throw new Error(`Mock is disabled for Non Serializable types.` + printStackTrace(comp, stack));
             } else {
                 const rt = runType as InterfaceRunType;
                 if (rt.isCallable()) return mockType(rt.getCallSignature()!, comp, stack);
                 let obj: Record<string | number, any> = mOps.parentObj || {};
                 rt.getChildRunTypes().forEach((prop) => {
-                    const name = (prop as PropertyRunType).getChildVarName();
                     if (prop instanceof IndexSignatureRunType) {
                         obj = {...obj, ...mockType(prop, comp, stack)};
                         return;
                     }
+                    const name = (prop as PropertyRunType).getChildVarName(comp);
                     const isMethod = prop.src.kind === ReflectionKind.method || prop.src.kind === ReflectionKind.methodSignature;
                     if (isMethod) return; // skip mocking methods
                     obj[name] = mockType(prop, comp, stack);
@@ -176,7 +182,9 @@ function _mockType(runType: BaseRunType, comp: JitCompilerOpts, stack: BaseRunTy
         case ReflectionKind.union: {
             const rt = runType as UnionRunType;
             if (mOps.unionIndex && (mOps.unionIndex < 0 || mOps.unionIndex >= rt.getChildRunTypes().length)) {
-                throw new Error('unionIndex must be between 0 and the number of types in the union.' + printStackTrace(stack));
+                throw new Error(
+                    'unionIndex must be between 0 and the number of types in the union.' + printStackTrace(comp, stack)
+                );
             }
             const index = mOps?.unionIndex ?? random(0, rt.getChildRunTypes().length - 1);
             return mockType(rt.getChildRunTypes()[index], comp, stack);
@@ -197,7 +205,7 @@ function _mockType(runType: BaseRunType, comp: JitCompilerOpts, stack: BaseRunTy
             } else if (runType.src.kind === ReflectionKind.method || runType.src.kind === ReflectionKind.methodSignature) {
                 return undefined; // Skip methods silently
             } else {
-                throw new Error('Mock is not allowed, call mockParams or mockReturn instead.' + printStackTrace(stack));
+                throw new Error('Mock is not allowed, call mockParams or mockReturn instead.' + printStackTrace(comp, stack));
             }
         case ReflectionKind.promise: {
             const rt = runType as PromiseRunType;
@@ -222,7 +230,7 @@ function _mockType(runType: BaseRunType, comp: JitCompilerOpts, stack: BaseRunTy
             if (rt.isOptional() && !rt.isRest()) {
                 const probability = mOps.optionalProbability;
                 if (probability < 0 || probability > 1)
-                    throw new Error('optionalProbability must be between 0 and 1' + printStackTrace(stack));
+                    throw new Error('optionalProbability must be between 0 and 1' + printStackTrace(comp, stack));
                 if (Math.random() > probability) {
                     return undefined;
                 }
@@ -232,9 +240,9 @@ function _mockType(runType: BaseRunType, comp: JitCompilerOpts, stack: BaseRunTy
         case ReflectionKind.propertySignature:
         case ReflectionKind.property: {
             const rt = runType as PropertyRunType;
-            const probability = mOps.optionalPropertyProbability?.[rt.getChildVarName()] ?? mOps.optionalProbability;
+            const probability = mOps.optionalPropertyProbability?.[rt.getChildVarName(comp)] ?? mOps.optionalProbability;
             if (probability < 0 || probability > 1)
-                throw new Error('optionalProbability must be between 0 and 1' + printStackTrace(stack));
+                throw new Error('optionalProbability must be between 0 and 1' + printStackTrace(comp, stack));
             if (rt.src.optional && Math.random() > probability) return undefined;
             return mockType(rt.getMemberType(), comp, stack);
         }
@@ -276,11 +284,11 @@ function _mockType(runType: BaseRunType, comp: JitCompilerOpts, stack: BaseRunTy
         case ReflectionKind.templateLiteral:
         case ReflectionKind.typeParameter:
         default:
-            throw new Error(`Cant mock Unsupported RunType: ${runType.getTypeName()}` + printStackTrace(stack));
+            throw new Error(`Cant mock Unsupported RunType: ${runType.getTypeName()}` + printStackTrace(comp, stack));
     }
 }
 
-function _mockClass(runType: BaseRunType, comp: JitCompilerOpts, stack: BaseRunType[]) {
+function _mockClass(runType: BaseRunType, comp: JitCompiler, stack: BaseRunType[]) {
     const mOps = comp.opts.mock as MockOptions;
     switch (runType.src.subKind) {
         case ReflectionSubKind.date:
@@ -307,10 +315,10 @@ function _mockClass(runType: BaseRunType, comp: JitCompilerOpts, stack: BaseRunT
             return mockSet;
         }
         case ReflectionSubKind.nonSerializable:
-            throw new Error(`Mock is disabled for Non Serializable types.` + printStackTrace(stack));
+            throw new Error(`Mock is disabled for Non Serializable types.` + printStackTrace(comp, stack));
         default: {
             if (!(runType instanceof ClassRunType)) {
-                throw new Error(`Cant mock Unsupported RunType: ${runType.getTypeName()}` + printStackTrace(stack));
+                throw new Error(`Cant mock Unsupported RunType: ${runType.getTypeName()}` + printStackTrace(comp, stack));
             }
             const rt = runType as ClassRunType;
             const isSerializable = rt.isClassWithEmptyConstructor();
@@ -318,13 +326,13 @@ function _mockClass(runType: BaseRunType, comp: JitCompilerOpts, stack: BaseRunT
             if (!deserializeFn && !isSerializable) {
                 throw new Error(
                     `Class ${rt.getClassName()} can not be mocked. Be sure to register a deserialize function first with jiUtils.${jitUtils.setDeserializeFn.name}` +
-                        printStackTrace(stack)
+                        printStackTrace(comp, stack)
                 );
             }
             const instance = deserializeFn ? {} : new rt.src.classType();
             // only properties that are used in jit operations are mocked, there properties should be initialized in the constructor
             rt.getJitChildren(comp).forEach((prop) => {
-                const name = (prop as PropertyRunType).getChildVarName();
+                const name = (prop as PropertyRunType).getChildVarName(comp);
                 if (prop instanceof IndexSignatureRunType) mockType(prop, comp, stack);
                 const mocked = mockType(prop, comp, stack);
                 if ((prop as PropertyRunType).src.optional && mocked === undefined) return;
@@ -332,23 +340,18 @@ function _mockClass(runType: BaseRunType, comp: JitCompilerOpts, stack: BaseRunT
             });
             if (deserializeFn) return deserializeFn(instance);
             if (isSerializable) return instance;
-            throw new Error(`Class ${rt.getClassName()} can not be mocked.` + printStackTrace(stack));
+            throw new Error(`Class ${rt.getClassName()} can not be mocked.` + printStackTrace(comp, stack));
         }
     }
 }
 
-function getChildOpts(comp: JitCompilerOpts, mockOpts?: MockOptions): JitCompilerOpts {
+function getChildOpts(comp: JitCompiler, mockOpts?: MockOptions): JitCompiler {
     if (!mockOpts) return comp;
-    return {
-        ...comp,
-        opts: {
-            ...comp.opts,
-            mock: mockOpts,
-        },
-    };
+    const newOpts = {...comp.opts, mock: mockOpts};
+    return new MockJitCompiler(comp.rootType, newOpts, comp, comp.jitFnHash, comp.typeID);
 }
 
-function printStackTrace(stack: BaseRunType[]) {
+function printStackTrace(comp: JitCompiler, stack: BaseRunType[]) {
     const separator = '.';
-    return JIT_STACK_TRACE_MESSAGE + stack.map((rt) => rt.getTypeTraceInfo()).join(separator);
+    return JIT_STACK_TRACE_MESSAGE + stack.map((rt) => rt.getTypeTraceInfo(comp)).join(separator);
 }

@@ -4,6 +4,7 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
+
 import type {
     JitCompiledFn,
     JitCompiledFnData,
@@ -102,6 +103,16 @@ export class BaseCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extends 
         return this.stack.length;
     }
     vλl: string = '';
+    getNestLevel(rt: BaseRunType<any>) {
+        let index = -1;
+        this.stack.forEach((item, i) => {
+            if (item.rt === rt) index = i;
+        });
+        if (index !== -1) return index;
+        const fomParent = this.parentCompiler?.getNestLevel(rt);
+        if (fomParent !== -1) return fomParent;
+        throw new Error(`Type ${rt.getTypeName()} not found in stack, so can't get nest level`);
+    }
     /**
      * The path to the current item in the stack,
      * This path can contain prop names array indexes or event literal variable values, ie: if parsing an array the path item would be the name if the index variable.
@@ -243,7 +254,7 @@ export class BaseCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extends 
         const parentTrace = this.parentCompiler ? this.parentCompiler.getStackTrace() + separator : JIT_STACK_TRACE_MESSAGE;
         const lastParentItem = this.parentCompiler?.getCurrentStackItem();
         const filteredStack = lastParentItem ? this.stack.filter((item) => item.rt !== lastParentItem?.rt) : this.stack;
-        return parentTrace + filteredStack.map((item) => item.rt.getTypeTraceInfo()).join(separator);
+        return parentTrace + filteredStack.map((item) => item.rt.getTypeTraceInfo(this)).join(separator);
     }
     hasStackTrace(errorMessage: string) {
         return errorMessage.includes(JIT_STACK_TRACE_MESSAGE);
@@ -387,6 +398,16 @@ export class JitErrorsCompiler<ID extends JitFnID = any> extends BaseCompiler<ty
     }
 }
 
+/**
+ * This is an special compiler for mock Function as mock is not technically a jit compiled function
+ * but still needs to be created to reuse all jit functionality.
+ */
+export class MockJitCompiler extends BaseCompiler<JitFnArgs, 'mock'> {
+    constructor(rt: BaseRunType, opts: RunTypeOptions, parentCompiler?: BaseCompiler, jitFnHash?: string, typeID?: StrNumber) {
+        super(rt, JitFunctions.mock.id, {vλl: 'v'}, {vλl: ''}, 'v', parentCompiler, jitFnHash, typeID, opts);
+    }
+}
+
 // ################### Compiler Creation ###################
 
 export function createJitCompiler(
@@ -411,6 +432,8 @@ export function createJitCompiler(
         case JitFunctions.typeErrors.id:
         case JitFunctions.unknownKeyErrors.id:
             return new JitErrorsCompiler(rt, fnID, parent, jitFnHash, typeID, opts);
+        case JitFunctions.mock.id:
+            return new MockJitCompiler(rt, opts, parent, jitFnHash, typeID);
         default:
             throw new Error(`Unknown compile operation: ${fnID}`);
     }

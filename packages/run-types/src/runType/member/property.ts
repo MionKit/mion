@@ -7,20 +7,27 @@
 
 import type {TypeProperty, TypePropertySignature} from '@deepkit/type';
 import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
-import {jitCode, JitCompilerOpts} from '../../types';
-import {childIsExpression, getPropLiteral, getPropVarName, memorize, useArrayAccessorForProp} from '../../lib/utils';
+import {jitCode} from '../../types';
+import {childIsExpression, getPropLiteral, getPropVarName, useArrayAccessorForProp} from '../../lib/utils';
 import {MemberRunType} from '../../lib/baseRunTypes';
 import {InterfaceRunType} from '../collection/interface';
 import {JitFunctions} from '../../constants.functions';
 
 export class PropertyRunType extends MemberRunType<TypePropertySignature | TypeProperty> {
     isUnionDiscriminator = false;
-    getChildVarName = memorize(() => getPropVarName(this.src.name));
-    getChildLiteral = memorize(() => getPropLiteral(this.getChildVarName()));
-    useArrayAccessor = memorize(() => useArrayAccessorForProp(this.src.name));
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    getChildVarName(comp: JitCompiler) {
+        return getPropVarName(this.src.name);
+    }
+    getChildLiteral(comp: JitCompiler) {
+        return getPropLiteral(this.getChildVarName(comp));
+    }
+    useArrayAccessor() {
+        return useArrayAccessorForProp(this.src.name);
+    }
     getJitChildIndex = (comp: JitCompiler) => (this.getParent() as InterfaceRunType).getJitChildren(comp).indexOf(this);
     isOptional = () => !!this.src.optional;
-    skipJit(comp: JitCompilerOpts): boolean {
+    skipJit(comp: JitCompiler): boolean {
         const name = (this.src as TypeProperty).name;
         if (typeof name === 'symbol') {
             return comp?.fnID !== JitFunctions.toCode.id;
