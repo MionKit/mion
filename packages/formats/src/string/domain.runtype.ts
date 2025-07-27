@@ -90,11 +90,11 @@ export class DomainRunTypeFormat extends BaseRunTypeFormat<FormatParams_Domain> 
         if (params.pattern) return this.rootFormatter._compile(fnID, comp, rt, params, comp.vλl, fmtName);
 
         const vλl = comp.vλl;
-        const vName = 'name' + this.getNestLevel(); // must match var name in code
-        const vTld = 'tld' + this.getNestLevel(); // must match var name in code
-        const vCount = 'count' + this.getNestLevel(); // must match var name in code
-        const vStart = 'start' + this.getNestLevel(); // must match var name in code
-        const vPos = 'pos' + this.getNestLevel(); // must match var name in code
+        const vName = 'name' + this.getFormatNestLevel(); // must match var name in code
+        const vTld = 'tld' + this.getFormatNestLevel(); // must match var name in code
+        const vCount = 'count' + this.getFormatNestLevel(); // must match var name in code
+        const vStart = 'start' + this.getFormatNestLevel(); // must match var name in code
+        const vPos = 'pos' + this.getFormatNestLevel(); // must match var name in code
 
         const rootCode = this.rootFormatter._compile(fnID, comp, rt, params, vλl, fmtName);
         const nameCode = this.nameFormatter._compile(fnID, comp, rt, params.names, vName, fmtName);
@@ -104,7 +104,7 @@ export class DomainRunTypeFormat extends BaseRunTypeFormat<FormatParams_Domain> 
         // if rootCode is empty, we don't need to emit jit code for it
         const rootSafeCode = rootCode ? `if (!(${rootCode})) return false;` : '';
         const tldSafeCode = tldCode ? `const ${vTld} = ${vλl}.substring(${vStart}); if (!(${tldCode})) return false;` : '';
-        const returnCode = this.isRoot() ? `return true;` : '';
+        const returnCode = this.isRootFormat() ? `return true;` : '';
         const skipCount = !maxPartsCode && !minPartsCode && !tldCode;
         const code = `
             ${rootSafeCode}
@@ -132,11 +132,11 @@ export class DomainRunTypeFormat extends BaseRunTypeFormat<FormatParams_Domain> 
 
         const errFn = this.getCallJitFormatErr(comp, rt, this, true);
         const vλl = comp.vλl;
-        const vName = 'name' + this.getNestLevel(); // must match var name in code
-        const vTld = 'tld' + this.getNestLevel(); // must match var name in code
-        const vCount = 'count' + this.getNestLevel(); // must match var name in code
-        const vStart = 'start' + this.getNestLevel(); // must match var name in code
-        const vPos = 'pos' + this.getNestLevel(); // must match var name in code
+        const vName = 'name' + this.getFormatNestLevel(); // must match var name in code
+        const vTld = 'tld' + this.getFormatNestLevel(); // must match var name in code
+        const vCount = 'count' + this.getFormatNestLevel(); // must match var name in code
+        const vStart = 'start' + this.getFormatNestLevel(); // must match var name in code
+        const vPos = 'pos' + this.getFormatNestLevel(); // must match var name in code
 
         const rootCode = this.rootFormatter._compile(fnID, comp, rt, params, vλl, fmtName);
         const nameCode = this.nameFormatter._compile(fnID, comp, rt, params.names, vName, fmtName, vCount);

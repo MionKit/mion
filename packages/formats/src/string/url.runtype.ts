@@ -81,7 +81,7 @@ export class URLRunTypeFormat extends BaseRunTypeFormat<FormatParams_Url> {
         const ipExpression = this.ipFormatter.getCodeType(fnID, rt, params.ip) === 'E';
         const domainSafeCode = dIsExpression && dmnCode ? `if(!(${dmnCode})) return false;` : dmnCode;
         const ipSafeCode = ipExpression && ipCode ? `if(${ipCode}) return false;` : ipCode;
-        const returnCode = this.isRoot() ? `return true;` : '';
+        const returnCode = this.isRootFormat() ? `return true;` : '';
 
         const code = `
             ${safeUrlCode}
@@ -103,14 +103,14 @@ export class URLRunTypeFormat extends BaseRunTypeFormat<FormatParams_Url> {
         const urlCode = this.urlFormatter!._compile(fnID, comp, rt, params, comp.vλl, fmtName);
         if (!params.domain && !params.ip) return urlCode;
 
-        const vDomain = 'domain' + this.getNestLevel(); // must match var name in code
+        const vDomain = 'domain' + this.getFormatNestLevel(); // must match var name in code
         const dmnCode = params?.domain ? this.domainFormatter._compile(fnID, comp, rt, params.domain, vDomain, fmtName) : '';
         const iPCode = params.ip ? `${this.ipFormatter._compile(fnID, comp, rt, params.ip, vDomain, fmtName)}` : '';
         const checks = [urlCode, dmnCode, iPCode].filter(Boolean);
 
-        const vStart = 'start' + this.getNestLevel(); // must match var name in code
-        const vEnd = 'end' + this.getNestLevel(); // must match var name in code
-        const vEndIdx = 'endIdx' + this.getNestLevel(); // must match var name in code
+        const vStart = 'start' + this.getFormatNestLevel(); // must match var name in code
+        const vEnd = 'end' + this.getFormatNestLevel(); // must match var name in code
+        const vEndIdx = 'endIdx' + this.getFormatNestLevel(); // must match var name in code
 
         const code = `
             const ${vStart} = ${comp.vλl}.indexOf('://') + 3;
@@ -149,14 +149,14 @@ export class URLRunTypeFormat extends BaseRunTypeFormat<FormatParams_Url> {
     _compileFormat(comp: JitCompiler, rt: BaseRunType): jitCode {
         const params = this.getParams(rt);
         if (!params.domain) return;
-        const vDomain = 'domain' + this.getNestLevel(); // must match var name in code
+        const vDomain = 'domain' + this.getFormatNestLevel(); // must match var name in code
         const fnID = JitFunctions.format.id;
         const fmtName = this.getFormatName();
 
         const domainCode = this.domainFormatter!._compile(fnID, comp, rt, params.domain, vDomain, fmtName);
-        const vStart = 'start' + this.getNestLevel(); // must match var name in code
-        const vEnd = 'end' + this.getNestLevel(); // must match var name in code
-        const vEndIdx = 'endIdx' + this.getNestLevel(); // must match var name in code
+        const vStart = 'start' + this.getFormatNestLevel(); // must match var name in code
+        const vEnd = 'end' + this.getFormatNestLevel(); // must match var name in code
+        const vEndIdx = 'endIdx' + this.getFormatNestLevel(); // must match var name in code
 
         const code = `
             const ${vStart} = ${comp.vλl}.indexOf('://') + 3;

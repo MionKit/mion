@@ -47,7 +47,7 @@ describe('getStringifyFnForExecutionPath', () => {
         const body = {'users-updateUser': {name: 'John', age: 30, lastActivity}};
         const expectedString =
             '{"users-updateUser":{"name":"John","age":30,"lastActivity":"' + lastActivity.toISOString() + '"}}';
-        expect(bodyStringify(body)).toEqual(expectedString);
+        expect(bodyStringify(body).body).toEqual(expectedString);
     });
 
     it('should return the stringify function for the execution path of "sayHello" route', () => {
@@ -55,7 +55,7 @@ describe('getStringifyFnForExecutionPath', () => {
         const bodyStringify = getStringifyFnForExecutionPath('/sayHello');
         const body = {sayHello: 'Hello, Jack!'};
         const expectedString = '{"sayHello":"Hello, Jack!"}';
-        expect(bodyStringify(body)).toEqual(expectedString);
+        expect(bodyStringify(body).body).toEqual(expectedString);
     });
 
     it('should be faster than JSON.stringify', () => {
@@ -90,6 +90,7 @@ describe('getStringifyFnForExecutionPath', () => {
         const jsonStringifyTime = jsonStringifyEnd - jsonStringifyStart;
 
         // console.log(`stringifyTime: ${bodyStringifyTime}, JSON.stringify: ${jsonStringifyTime}`);
+        // console.log(`bodyStringify is ${jsonStringifyTime / bodyStringifyTime} times faster than JSON.stringify`);
 
         // Assert that bodyStringify.stringify is faster than JSON.stringify
         // TODO sometimes test fails so disabling it for now

@@ -8,14 +8,21 @@
 import {NonRawMethod, Method, HandlerType} from './types/remoteMethods';
 import {getRouteExecutionPath} from './router';
 import {getNotFoundExecutionPath} from './notFound';
+import {RpcError} from '@mionkit/core/src/errors';
+import type {PublicResponses} from '@mionkit/router/src/types/publicMethods';
 
 // ############# PUBLIC METHODS #############
 
-export function jitBodyStringify(body: any, path: string): string {
-    return getStringifyFnForExecutionPath(path)(body);
+export function jitStringifyResponseBody(
+    respBody: PublicResponses,
+    path: string
+): {body: string; stringifyErrors: Record<string, RpcError>} {
+    return getStringifyFnForExecutionPath(path)(respBody);
 }
 
-export function getStringifyFnForExecutionPath(path: string): (body: any) => string {
+export function getStringifyFnForExecutionPath(
+    path: string
+): (respBody: PublicResponses) => {body: string; stringifyErrors: Record<string, RpcError>} {
     const executionPath = getRouteExecutionPath(path) || getNotFoundExecutionPath();
     if (executionPath?.bodyStringify) return executionPath.bodyStringify;
     executionPath.bodyStringify = _getExecutionPathStringifyFn(executionPath.methods);
@@ -24,22 +31,34 @@ export function getStringifyFnForExecutionPath(path: string): (body: any) => str
 
 // ############# PRIVATE METHODS #############
 
-function _getExecutionPathStringifyFn(executionPath: Method[]): (body: any) => string {
+function _getExecutionPathStringifyFn(
+    executionPath: Method[]
+): (respBody: PublicResponses) => {body: string; stringifyErrors: Record<string, RpcError>} {
     const returnMethods = executionPath.filter(
         (p) => p.options.hasReturnData && p.type !== HandlerType.headerHook
     ) as NonRawMethod[];
-    return (body: any): string => {
+    return (respBody: PublicResponses): {body: string; stringifyErrors: Record<string, RpcError>} => {
         const props: string[] = [];
+        const stringifyErrors: Record<string, RpcError> = {};
         for (let i = 0; i < returnMethods.length; i++) {
             const method = returnMethods[i];
             const isLast = i === returnMethods.length - 1;
-            const returnValue = body[method.id];
+            const returnValue = respBody[method.id];
             if (!returnValue) continue;
             const coma = isLast ? '' : ',';
-            const jsonStringify = method.returnJitFns.jsonStringify.fn;
-            const jsonValue = jsonStringify(returnValue);
-            props.push(`${JSON.stringify(method.id)}:${jsonValue}${coma}`);
+            const jitJsonStringify = method.returnJitFns.jsonStringify.fn;
+            try {
+                const jsonValue = jitJsonStringify(returnValue);
+                props.push(`${JSON.stringify(method.id)}:${jsonValue}${coma}`);
+            } catch (e: any) {
+                const err = new RpcError({
+                    statusCode: 500,
+                    name: 'Stringify Response Error',
+                    publicMessage: `Failed to stringify return value for handler ${method.id}, expected response type: ${method.returnJitFns.jsonStringify.typeName}`,
+                });
+                stringifyErrors[method.id] = err;
+            }
         }
-        return `{${props.join('')}}`;
+        return {body: `{${props.join('')}}`, stringifyErrors};
     };
 }

@@ -2,6 +2,8 @@
 
 import {JitCompiledFunctions, JitFunctionsHashes, SerializableJITFunctions} from '@mionkit/core/src/types'; // do not import type only
 import {AnyHandler, Handler, HeaderHandler, RawHookHandler} from './handlers'; // do not import type only
+import type {RpcError} from '@mionkit/core/src/errors';
+import {PublicResponses} from '@mionkit/router/src/types/publicMethods';
 
 export enum HandlerType {
     route = 1,
@@ -116,5 +118,5 @@ export type RawHookOptions = Partial<Pick<RawMethod['options'], 'description' | 
 export interface MethodsExecutionList {
     routeIndex: number;
     methods: Method[];
-    bodyStringify?: (body: any) => string;
+    bodyStringify?: (respBody: PublicResponses) => {body: string; stringifyErrors: Record<string, RpcError>};
 }

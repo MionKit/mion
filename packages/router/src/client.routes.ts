@@ -77,6 +77,8 @@ const mionGetRemoteMethodsInfoById = (ctx, methodsIds: string[], getAllRemoteMet
         : methodsIds;
     idsToReturn.forEach((id) => addRequiredRemoteMethodsToResponse(id, resp, errorData));
 
+    console.log('mionGetRemoteMethodsInfoById', resp);
+
     if (Object.keys(errorData).length)
         return new RpcError({
             statusCode: 404,
