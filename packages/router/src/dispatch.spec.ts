@@ -228,6 +228,7 @@ describe('Dispatch routes', () => {
             // not found returns a different element in body as regular hooks or routes
             const error = response.body['/abcd'];
             expect(error).toEqual({
+                isΣrrθr: true,
                 type: 'unknown',
                 statusCode: 404,
                 name: 'Not Found',
@@ -251,6 +252,7 @@ describe('Dispatch routes', () => {
             );
             const error = response.body?.auth;
             expect(error).toEqual({
+                isΣrrθr: true,
                 type: 'unknown',
                 statusCode: 400,
                 name: 'Validation Error',
@@ -278,6 +280,7 @@ describe('Dispatch routes', () => {
             );
             const error = response.body['mionParseJsonRequestBody'];
             expect(error).toEqual({
+                isΣrrθr: true,
                 type: 'unknown',
                 statusCode: 400,
                 name: 'Invalid Request Body',
@@ -299,6 +302,7 @@ describe('Dispatch routes', () => {
             );
             const errorResp = response2.body['mionParseJsonRequestBody'];
             expect(errorResp).toEqual({
+                isΣrrθr: true,
                 type: 'unknown',
                 statusCode: 422,
                 name: 'Parsing Request Body Error',
@@ -322,6 +326,7 @@ describe('Dispatch routes', () => {
             );
             const error = response.body['changeUserName'];
             expect(error).toEqual({
+                isΣrrθr: true,
                 type: 'unknown',
                 statusCode: 400,
                 name: `Validation Error`,
@@ -346,6 +351,7 @@ describe('Dispatch routes', () => {
             );
             const error = response.body['getSameDate'];
             expect(error).toEqual({
+                isΣrrθr: true,
                 type: 'unknown',
                 statusCode: 400,
                 name: 'Serialization Error',
@@ -370,6 +376,7 @@ describe('Dispatch routes', () => {
                 {}
             );
             const expected: PublicRpcError = {
+                isΣrrθr: true,
                 type: 'unknown',
                 name: 'Validation Error',
                 statusCode: 400,
@@ -395,6 +402,7 @@ describe('Dispatch routes', () => {
                 {}
             );
             const expected: PublicRpcError = {
+                isΣrrθr: true,
                 type: 'unknown',
                 name: 'Validation Error',
                 statusCode: 400,
@@ -421,6 +429,7 @@ describe('Dispatch routes', () => {
             const response = await dispatchRoute('/routeFail', request.body, request.headers, headersFromRecord({}), request, {});
             const error = response.body['routeFail'];
             expect(error).toEqual({
+                isΣrrθr: true,
                 type: 'unknown',
                 statusCode: 500,
                 name: 'Unknown Error',
@@ -446,6 +455,7 @@ describe('Dispatch routes', () => {
             );
             const error = response.body['getSameDate'];
             expect(error).toEqual({
+                isΣrrθr: true,
                 type: 'unknown',
                 statusCode: 400,
                 message: `Invalid params 'getSameDate', can not validate parameters.`,

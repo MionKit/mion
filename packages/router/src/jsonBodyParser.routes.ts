@@ -11,7 +11,7 @@ import type {HooksCollection, ErrorReturn} from './types/publicMethods';
 import {AnyObject, Mutable} from '@mionkit/core/src/types';
 import {handleRpcErrors} from './errors';
 import {rawHook} from './handlers';
-import {jitBodyStringify} from './jsonBodyStringify';
+import {jitStringifyResponseBody} from './jsonBodyStringify';
 import {getRouteExecutableFromPath} from './router';
 import {RpcError} from '@mionkit/core/src/errors';
 import {StatusCodes} from '@mionkit/core/src/status-codes';
@@ -62,12 +62,16 @@ export function stringifyResponseBody(
     const respBody: AnyObject = response.body;
     response.headers.set('content-type', 'application/json; charset=utf-8');
     try {
-        // TODO: we might want to optimize using jitStringify when there are errors
-        // especially when we support multiple route call at once or if the route declare the error type as return type
-        response.rawBody =
-            opts.useJitStringify && !context.response.hasErrors
-                ? jitBodyStringify(respBody, context.path)
-                : opts.bodyParser.stringify(respBody);
+        // TODO: we might need to handle error on a per method basis rather than the whole response
+        if (opts.useJitStringify && !context.response.hasErrors) {
+            const {body, stringifyErrors} = jitStringifyResponseBody(respBody, context.path);
+            response.rawBody = body;
+            Object.entries(stringifyErrors).forEach(([id, err]) => {
+                handleRpcErrors(id, context.request, context.response, err, id);
+            });
+        } else {
+            response.rawBody = opts.bodyParser.stringify(respBody);
+        }
     } catch (err: any) {
         const rpcError = new RpcError({
             statusCode: StatusCodes.INTERNAL_SERVER_ERROR,
@@ -75,6 +79,7 @@ export function stringifyResponseBody(
             publicMessage: `Invalid response body: ${err?.message || 'unknown parsing error.'}`,
             originalError: err,
         });
+        response.hasErrors = true;
         response.body = {}; // reset the body as it was not possible to stringify it
         handleRpcErrors(context.path, context.request, context.response, rpcError, 'stringifyResponseBody');
         response.rawBody = opts.bodyParser.stringify(response.body);

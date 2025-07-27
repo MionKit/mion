@@ -47,16 +47,16 @@ export class DateTimeRunTypeFormat extends BaseRunTypeFormat<FormatParams_DateTi
         const fmtName = this.getFormatName();
         const vλl = comp.vλl;
         const splitChar = fpVal(params.splitChar);
-        const vDatePart = 'datePart' + this.getNestLevel(); // Variable for date part
-        const vTimePart = 'timePart' + this.getNestLevel(); // Variable for time part
-        const vSplitPos = 'splitPos' + this.getNestLevel(); // Position of split character
+        const vDatePart = 'datePart' + this.getFormatNestLevel(); // Variable for date part
+        const vTimePart = 'timePart' + this.getFormatNestLevel(); // Variable for time part
+        const vSplitPos = 'splitPos' + this.getFormatNestLevel(); // Position of split character
 
         // Compile code for root, date part, and time part validation
         const dateCode = this.dateFormatter._compile(fnID, comp, rt, params.date, vDatePart, fmtName);
         const timeCode = this.timeFormatter._compile(fnID, comp, rt, params.time, vTimePart, fmtName);
 
         // If rootCode is empty, we don't need to emit jit code for it
-        const returnCode = this.isRoot() ? `return true;` : '';
+        const returnCode = this.isRootFormat() ? `return true;` : '';
 
         const code = `
             const ${vSplitPos} = ${vλl}.indexOf('${splitChar}');
