@@ -6,7 +6,7 @@
  * ######## */
 
 import {statusCodeToReasonPhrase} from './status-codes';
-import {CoreOptions, AnyErrorParams, PublicRpcError, PlainObject, StrNumber} from './types';
+import {CoreOptions, AnyErrorParams, PublicRpcError, DataOnly, StrNumber} from './types';
 import {DEFAULT_CORE_OPTIONS} from './constants';
 import {randomUUID_V7} from '@mionkit/core/src/utils';
 import {jitUtils} from '@mionkit/core/src/jitUtils';
@@ -18,6 +18,7 @@ export function setErrorOptions(opts: CoreOptions) {
 }
 
 export class RpcError<ErrType extends StrNumber = any, ErrData = any> extends Error {
+    public readonly isΣrrθr = true;
     /** Error type, can be used as discriminator in union types switch, etc*/
     public readonly type: ErrType;
     /**
@@ -67,6 +68,7 @@ export class RpcError<ErrType extends StrNumber = any, ErrData = any> extends Er
     /** returns an error without stack trace an massage is swapped by public message */
     toPublicError(): PublicRpcError<ErrType, ErrData> {
         const err: PublicRpcError<ErrType, ErrData> = {
+            isΣrrθr: true,
             type: this.type,
             ...(this.id ? {id: this.id} : {}),
             name: this.name,
@@ -100,6 +102,6 @@ export function isRpcError(error: any): error is RpcError {
     );
 }
 
-jitUtils.setDeserializeFn(RpcError, (serializedItem: PlainObject<RpcError>) => {
+jitUtils.setDeserializeFn(RpcError, (serializedItem: DataOnly<RpcError>) => {
     return new RpcError(serializedItem);
 });

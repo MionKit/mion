@@ -30,10 +30,8 @@ export interface JITUtils {
     getDeserializeFn(className: string): DeserializeClassFn<any> | undefined;
 
     // TODO: all functions bellow could be moved to pure functions instead being part of jitUtils
-    getUnknownKeysFromSet(obj: Record<StrNumber, any>, keys: Set<StrNumber>): StrNumber[];
     getUnknownKeysFromArray(obj: Record<StrNumber, any>, keys: StrNumber[]): StrNumber[];
     hasUnknownKeysFromArray(obj: Record<StrNumber, any>, keys: StrNumber[]): boolean;
-    hasUnknownKeysFromSet(obj: Record<StrNumber, any>, keys: Set<StrNumber>): boolean;
     err(pλth: readonly StrNumber[], εrr: RunTypeError[], expected: string, accessPath?: readonly StrNumber[]): void;
     formatErr(
         pλth: StrNumber[],
@@ -92,6 +90,7 @@ export interface RpcErrorWithPrivate<ErrType extends StrNumber = any, ErrData = 
 /** Error data returned to the clients  */
 export interface PublicRpcError<ErrType extends StrNumber = any, ErrData = any>
     extends Omit<RpcErrorParams, 'publicMessage' | 'originalError'> {
+    isΣrrθr: true;
     type: ErrType;
     /**
      * When a RpcError gets anonymized the publicMessage becomes the message.
@@ -313,7 +312,7 @@ export interface SerializableClass<T = any> {
     new (): T;
 }
 
-export type DeserializeClassFn<C extends InstanceType<AnyClass>> = (deserialized: PlainObject<C>) => C;
+export type DeserializeClassFn<C extends InstanceType<AnyClass>> = (deserialized: DataOnly<C>) => C;
 
 export type Mutable<T> = {
     -readonly [P in keyof T]: T[P];
@@ -329,7 +328,7 @@ type Native = Date | RegExp | URL | URLSearchParams | Blob | File | FileList | F
 /** Typescript mapping type that stripes methods and only keep properties.
  * it takes into account, dates, objects, classes, arrays, maps and sets.
  */
-export type PlainObject<T> = T extends object
+export type DataOnly<T> = T extends object
     ? T extends Native
         ? T
         : // eslint-disable-next-line @typescript-eslint/ban-types
@@ -338,13 +337,13 @@ export type PlainObject<T> = T extends object
           : T extends new (...args: any[]) => any
             ? never
             : T extends Array<infer U>
-              ? Array<PlainObject<U>>
+              ? Array<DataOnly<U>>
               : T extends Map<infer K, infer V>
-                ? Map<PlainObject<K>, PlainObject<V>>
+                ? Map<DataOnly<K>, DataOnly<V>>
                 : T extends Set<infer U>
-                  ? Set<PlainObject<U>>
+                  ? Set<DataOnly<U>>
                   : // eslint-disable-next-line @typescript-eslint/ban-types
-                    {[K in keyof T as T[K] extends Function ? never : K]: PlainObject<T[K]>}
+                    {[K in keyof T as T[K] extends Function ? never : K]: DataOnly<T[K]>}
     : T;
 
 // TEST TYPES FOR PlainObject

@@ -153,17 +153,6 @@ export const jitUtils: JITUtils = {
     },
 
     // TODO: all functions bellow could be moved to pure functions instead being part of jitUtils
-
-    getUnknownKeysFromSet(obj: Record<StrNumber, any>, keys: Set<StrNumber>): StrNumber[] {
-        const unknownKeys: StrNumber[] = [];
-        for (const prop in obj) {
-            if (!keys.has(prop)) {
-                unknownKeys.push(prop);
-                if (unknownKeys.length >= MAX_UNKNOWN_KEYS) throw new Error('Too many unknown keys');
-            }
-        }
-        return unknownKeys;
-    },
     getUnknownKeysFromArray(obj: Record<StrNumber, any>, keys: StrNumber[]): StrNumber[] {
         const unknownKeys: StrNumber[] = [];
         for (const prop in obj) {
@@ -179,6 +168,7 @@ export const jitUtils: JITUtils = {
                 if (unknownKeys.length >= MAX_UNKNOWN_KEYS) throw new Error('Too many unknown keys');
             }
         }
+        // console.log('getUnknownKeysFromArray: ', false, unknownKeys);
         return unknownKeys;
     },
     hasUnknownKeysFromArray(obj: Record<StrNumber, any>, keys: StrNumber[]): boolean {
@@ -191,14 +181,14 @@ export const jitUtils: JITUtils = {
                     break;
                 }
             }
-            if (!found) return true;
+            if (!found) {
+                // looks like this method is being called for JitCompiledFnData.args, that is an index type so that is not correct,
+                // index types should not check for extra keys
+                // console.log('hasUnknownKeysFromArray: ', true, prop, obj);
+                return true;
+            }
         }
-        return false;
-    },
-    hasUnknownKeysFromSet(obj: Record<StrNumber, any>, keys: Set<StrNumber>): boolean {
-        for (const prop in obj) {
-            if (!keys.has(prop)) return true;
-        }
+
         return false;
     },
     /**
