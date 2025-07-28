@@ -56,17 +56,19 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
     readonly src: SrcType<T> = null as any; // real value will be set after construction by the createRunType function
     abstract getFamily(): RunTypeFamily; // Atomic, Collection, Member, Function
     abstract _getTypeID(stack?: RunType[]): StrNumber;
-    // isJitInlined = () => !this.isCircular; // makes all jit to compile into a single function
     /**
      * This single functions controls whether or not the code for a type should be inlined into the parent function
      * or should create a separate jit function for it, add as a dependency and call it.
      * @returns
      */
     isJitInlined = (): boolean => {
+        // if is circular, always create a separate jit function as need to self invoke
         if (this.isCircular) return false;
+        if (process.env.DEBUG_JIT === 'INLINED') return true;
+        // all array  are self invoked for isType and are usually repeated type like string[] or number[] so worth deduplicating
         if (this.src.kind === ReflectionKind.array) return false;
-        if (this.src.typeName) return false;
-        if (this.getFamily() === 'C') return false;
+        // collection with name might be used in different places so worth deduplicating
+        if (this.src.typeName && this.getFamily() === 'C') return false;
         return true;
     };
     getKindName = memorize((): AnyKindName => getReflectionName(this));

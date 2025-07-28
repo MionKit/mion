@@ -302,3 +302,114 @@ describe('IndexType non root', () => {
         expect(validate(mocked)).toBe(true);
     });
 });
+
+describe('index has unknown keys', () => {
+    type ObjWithDeepIndex = {
+        a: string;
+        b: number;
+        c: {
+            c1: string;
+            c2: number;
+            cIndex: {
+                hello: string;
+                [key: string]: string;
+            };
+        };
+    };
+
+    it('has unknown keys', () => {
+        const rt = runType<ObjWithDeepIndex>();
+        const hasUnknownKeys = rt.createJitFunction(JitFunctions.hasUnknownKeys);
+        const obj: ObjWithDeepIndex = {
+            a: 'hello',
+            b: 123,
+            c: {
+                c1: 'world',
+                c2: 456,
+                cIndex: {
+                    hello: 'world',
+                    world: 'hello',
+                },
+            },
+        };
+        expect(hasUnknownKeys(obj)).toBe(false);
+    });
+
+    it('unknown key errors', () => {
+        const rt = runType<ObjWithDeepIndex>();
+        const getUnknownKeys = rt.createJitFunction(JitFunctions.unknownKeyErrors);
+        const obj: ObjWithDeepIndex = {
+            a: 'hello',
+            b: 123,
+            c: {
+                c1: 'world',
+                c2: 456,
+                cIndex: {
+                    hello: 'world',
+                    world: 'hello',
+                },
+            },
+        };
+        expect(getUnknownKeys(obj)).toEqual([]);
+    });
+
+    it('strip unknown keys', () => {
+        const rt = runType<ObjWithDeepIndex>();
+        const stripUnknownKeys = rt.createJitFunction(JitFunctions.stripUnknownKeys);
+        const obj: ObjWithDeepIndex = {
+            a: 'hello',
+            b: 123,
+            c: {
+                c1: 'world',
+                c2: 456,
+                cIndex: {
+                    hello: 'world',
+                    world: 'hello',
+                },
+            },
+        };
+        stripUnknownKeys(obj);
+        expect(obj).toEqual({
+            a: 'hello',
+            b: 123,
+            c: {
+                c1: 'world',
+                c2: 456,
+                cIndex: {
+                    hello: 'world',
+                    world: 'hello',
+                },
+            },
+        });
+    });
+
+    it('unknown keys to undefined', () => {
+        const rt = runType<ObjWithDeepIndex>();
+        const unknownKeysToUndefined = rt.createJitFunction(JitFunctions.unknownKeysToUndefined);
+        const obj: ObjWithDeepIndex = {
+            a: 'hello',
+            b: 123,
+            c: {
+                c1: 'world',
+                c2: 456,
+                cIndex: {
+                    hello: 'world',
+                    world: 'hello',
+                },
+            },
+        };
+        unknownKeysToUndefined(obj);
+        expect(obj).toEqual({
+            a: 'hello',
+            b: 123,
+            c: {
+                c1: 'world',
+                c2: 456,
+                cIndex: {
+                    hello: 'world',
+                    world: 'hello',
+                },
+            },
+        });
+    });
+});
