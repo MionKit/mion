@@ -181,14 +181,8 @@ export const jitUtils: JITUtils = {
                     break;
                 }
             }
-            if (!found) {
-                // looks like this method is being called for JitCompiledFnData.args, that is an index type so that is not correct,
-                // index types should not check for extra keys
-                // console.log('hasUnknownKeysFromArray: ', true, prop, obj);
-                return true;
-            }
+            if (!found) return true;
         }
-
         return false;
     },
     /**

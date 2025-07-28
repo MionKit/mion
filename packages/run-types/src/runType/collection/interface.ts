@@ -102,16 +102,22 @@ export class InterfaceRunType<
     _compileHasUnknownKeys(comp: JitCompiler, children?: BaseRunType[]): jitCode {
         const jitChildren = children || this.getJitChildren(comp);
         const allChildren = this.getChildRunTypes().filter((prop) => prop.src.kind !== ReflectionKind.indexSignature);
-        const parentCode = callCheckUnknownProperties(this, comp, jitChildren, false, !this.isPartOfUnion(), allChildren);
+        const hasIndexProp = jitChildren.some((prop) => prop.src.kind === ReflectionKind.indexSignature);
+        const parentCode = hasIndexProp
+            ? ''
+            : callCheckUnknownProperties(this, comp, jitChildren, false, !this.isPartOfUnion(), allChildren);
         const childrenCode = super._compileHasUnknownKeys(comp);
         return [parentCode, childrenCode].filter(Boolean).join(' || ');
     }
     _compileUnknownKeyErrors(comp: JitErrorsCompiler): jitCode {
         const jitChildren = this.getJitChildren(comp);
         const allChildren = this.getChildRunTypes().filter((prop) => prop.src.kind !== ReflectionKind.indexSignature);
+        const hasIndexProp = jitChildren.some((prop) => prop.src.kind === ReflectionKind.indexSignature);
         const unknownVar = `unk${comp.getNestLevel(this)}`;
         const keyVar = `ky${comp.getNestLevel(this)}`;
-        const unknownValue = callCheckUnknownProperties(this, comp, jitChildren, true, !this.isPartOfUnion(), allChildren);
+        const unknownValue = hasIndexProp
+            ? undefined
+            : callCheckUnknownProperties(this, comp, jitChildren, true, !this.isPartOfUnion(), allChildren);
         const parentCode = `
             const ${unknownVar} = ${unknownValue};
             if (${unknownVar}) {for (const ${keyVar} of ${unknownVar}) {${comp.callJitErrWithPath('never', keyVar)}}}
@@ -123,7 +129,10 @@ export class InterfaceRunType<
         const jitChildren = this.getJitChildren(comp);
         const unknownVar = `unk${comp.getNestLevel(this)}`;
         const keyVar = `ky${comp.getNestLevel(this)}`;
-        const unknownValue = callCheckUnknownProperties(this, comp, jitChildren, true, !this.isPartOfUnion());
+        const hasIndexProp = jitChildren.some((prop) => prop.src.kind === ReflectionKind.indexSignature);
+        const unknownValue = hasIndexProp
+            ? undefined
+            : callCheckUnknownProperties(this, comp, jitChildren, true, !this.isPartOfUnion());
         const parentCode = `
             const ${unknownVar} = ${unknownValue};
             if (${unknownVar}) {for (const ${keyVar} of ${unknownVar}){delete ${comp.vλl}[${keyVar}]}}
@@ -135,7 +144,10 @@ export class InterfaceRunType<
         const jitChildren = this.getJitChildren(comp);
         const unknownVar = `unk${comp.getNestLevel(this)}`;
         const keyVar = `ky${comp.getNestLevel(this)}`;
-        const unknownValue = callCheckUnknownProperties(this, comp, jitChildren, true, !this.isPartOfUnion());
+        const hasIndexProp = jitChildren.some((prop) => prop.src.kind === ReflectionKind.indexSignature);
+        const unknownValue = hasIndexProp
+            ? undefined
+            : callCheckUnknownProperties(this, comp, jitChildren, true, !this.isPartOfUnion());
         const parentCode = `
             const ${unknownVar} = ${unknownValue};
             if (${unknownVar}) {for (const ${keyVar} of ${unknownVar}){${comp.vλl}[${keyVar}] = undefined}}
@@ -166,6 +178,7 @@ export class InterfaceRunType<
     }
 }
 
+// TODO: look like some of this logic should be moved to index prop ?
 export function callCheckUnknownProperties(
     rt: InterfaceRunType<any>,
     comp: JitCompiler,
