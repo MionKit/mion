@@ -20,6 +20,7 @@ import {PublicMethod} from '@mionkit/router/src/types/publicMethods'; // do not 
 import {JitFunctions} from '@mionkit/run-types/src/constants.functions';
 import {getSerializableMethod} from '@mionkit/router/src/remoteMethods';
 import {RpcError} from '@mionkit/core/src/errors';
+import {JitCompiledFnData} from '@mionkit/core/src/types';
 
 type RawRequest = {
     headers: MionHeaders;
@@ -328,6 +329,8 @@ describe('Client Routes should', () => {
     const routeMethodsId = GET_REMOTE_METHODS_BY_PATH;
     const methodsPath = getRoutePath([methodsId], {prefix: '', suffix: ''});
     const routeMethodsPath = getRoutePath([routeMethodsId], {prefix: '', suffix: ''});
+    const jitFnRt = runType<JitCompiledFnData>();
+    const isJitCompiledFn = jitFnRt.createJitFunction(JitFunctions.isType);
 
     afterEach(() => resetRouter());
 
@@ -345,11 +348,16 @@ describe('Client Routes should', () => {
             }),
         };
         const response = await dispatchRoute(methodsPath, request.body, request.headers, headersFromRecord({}), request, {});
-        const expectedResponse = {
+        const expectedMethods = {
             auth: methodsMetadata.auth,
             last: methodsMetadata['last'],
         };
-        expect(response.body[methodsId]).toEqual(expectedResponse);
+        const methodsData = response.body[methodsId] as MethodsData; // serializable data for remote methods
+        const dependencies = methodsData.deps; // serializable data for jit functions that are used by the remote methods
+        expect(methodsData.methods).toEqual(expectedMethods);
+        Object.values(dependencies).forEach((dep) => {
+            expect(isJitCompiledFn(dep)).toBe(true);
+        });
     });
 
     it('get Remote Route info from id, it should also return the hooks from the execution path', async () => {
@@ -366,12 +374,17 @@ describe('Client Routes should', () => {
             }),
         };
         const response = await dispatchRoute(methodsPath, request.body, request.headers, headersFromRecord({}), request, {});
-        const expectedResponse = {
+        const expectedMethods = {
             auth: methodsMetadata.auth,
             'users-getUser': methodsMetadata['users-getUser'],
             last: methodsMetadata['last'],
         };
-        expect(response.body[methodsId]).toEqual(expectedResponse);
+        const methodsData = response.body[methodsId] as MethodsData; // serializable data for remote methods
+        const dependencies = methodsData.deps; // serializable data for jit functions that are used by the remote methods
+        expect(methodsData.methods).toEqual(expectedMethods);
+        Object.values(dependencies).forEach((dep) => {
+            expect(isJitCompiledFn(dep)).toBe(true);
+        });
     });
 
     it('get All Remote Methods info when getAllRemoteMethods is true', async () => {
@@ -389,8 +402,13 @@ describe('Client Routes should', () => {
             }),
         };
         const response = await dispatchRoute(methodsPath, request.body, request.headers, headersFromRecord({}), request, {});
-        const expectedResponse = methodsMetadata;
-        expect(response.body[methodsId]).toEqual(expectedResponse);
+        const expectedMethods = methodsMetadata;
+        const methodsData = response.body[methodsId] as MethodsData; // serializable data for remote methods
+        const dependencies = methodsData.deps; // serializable data for jit functions that are used by the remote methods
+        expect(methodsData.methods).toEqual(expectedMethods);
+        Object.values(dependencies).forEach((dep) => {
+            expect(isJitCompiledFn(dep)).toBe(true);
+        });
     });
 
     it('get Remote Methods info from route path', async () => {
@@ -406,12 +424,17 @@ describe('Client Routes should', () => {
             }),
         };
         const response = await dispatchRoute(routeMethodsPath, request.body, request.headers, headersFromRecord({}), request, {});
-        const expectedResponse = {
+        const expectedMethods = {
             auth: methodsMetadata.auth,
             'users-getUser': methodsMetadata['users-getUser'],
             last: methodsMetadata.last,
         };
-        expect(response.body[routeMethodsId]).toEqual(expectedResponse);
+        const methodsData = response.body[routeMethodsId] as MethodsData; // serializable data for remote methods
+        const dependencies = methodsData.deps; // serializable data for jit functions that are used by the remote methods
+        expect(methodsData.methods).toEqual(expectedMethods);
+        Object.values(dependencies).forEach((dep) => {
+            expect(isJitCompiledFn(dep)).toBe(true);
+        });
     });
 
     it('fail when remote method is private or not defined', async () => {
@@ -429,6 +452,8 @@ describe('Client Routes should', () => {
         };
         const response = await dispatchRoute(methodsPath, request.body, request.headers, headersFromRecord({}), request, {});
         const expectedResponse = {
+            isΣrrθr: true,
+            type: 'not found',
             statusCode: 404,
             name: 'Invalid Metadata Request',
             message: 'Errors getting Remote Methods Metadata',
@@ -454,6 +479,8 @@ describe('Client Routes should', () => {
         };
         const response = await dispatchRoute(routeMethodsPath, request.body, request.headers, headersFromRecord({}), request, {});
         const expectedResponse = {
+            isΣrrθr: true,
+            type: 'not found',
             statusCode: 404,
             name: 'Invalid Metadata Request',
             message: 'Route /abcd not found',

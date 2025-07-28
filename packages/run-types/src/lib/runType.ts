@@ -46,7 +46,6 @@ import {ClassRunType} from '../runType/collection/class';
 import {MapRunType} from '../runType/native/map';
 import {ReflectionSubKind} from '../constants.kind';
 import {SetRunType} from '../runType/native/set';
-import {JitFunctions} from '../constants.functions';
 import {SymbolRunType} from '../runType/atomic/symbol';
 import {
     hasArguments,
@@ -309,9 +308,4 @@ function initClassRunType(src: TypeClass & {subKind?: number}): BaseRunType {
             }
             return new ClassRunType();
     }
-}
-
-export function createIsTypeFunction<T>(type?: ReceiveType<T>): (value: any) => boolean {
-    const rt = runType(type);
-    return rt.createJitFunction(JitFunctions.isType);
 }
