@@ -77,10 +77,9 @@ const mionGetRemoteMethodsInfoById = (ctx, methodsIds: string[], getAllRemoteMet
         : methodsIds;
     idsToReturn.forEach((id) => addRequiredRemoteMethodsToResponse(id, resp, errorData));
 
-    console.log('mionGetRemoteMethodsInfoById', resp);
-
     if (Object.keys(errorData).length)
         return new RpcError({
+            type: 'not found',
             statusCode: 404,
             name: 'Invalid Metadata Request',
             publicMessage: 'Errors getting Remote Methods Metadata',
@@ -93,6 +92,7 @@ const mionGetRemoteMethodsInfoByPath = (ctx, path: string, getAllRemoteMethods?:
     const executables = getRouteExecutionPath(path);
     if (!executables)
         return new RpcError({
+            type: 'not found',
             statusCode: 404,
             name: 'Invalid Metadata Request',
             publicMessage: `Route ${path} not found`,

@@ -16,7 +16,6 @@ import {Mutable, AnyObject} from '@mionkit/core/src/types';
 import {handleRpcErrors} from './errors';
 import {RpcError} from '@mionkit/core/src/errors';
 import {StatusCodes} from '@mionkit/core/src/status-codes';
-import {IS_TEST_ENV} from '@mionkit/router/src/constants';
 
 // ############# PUBLIC METHODS #############
 
@@ -44,9 +43,7 @@ export async function dispatchRoute<Req, Resp>(
 
         const executionPath = getRouteExecutionPath(context.path) || getNotFoundExecutionPath();
         await runExecutionPath(context, rawRequest, rawResponse, executionPath.methods, opts);
-        if (IS_TEST_ENV && context.request.internalErrors.length) {
-            console.log('dispatchRoute errors', context.request.internalErrors);
-        }
+        // console.log('dispatchRoute errors', context.request.internalErrors);
         return context.response;
     } catch (err: any | RpcError | Error) {
         // this should never happen, exceptions should be handled inside runExecutionPath
