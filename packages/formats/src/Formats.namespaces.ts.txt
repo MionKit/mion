@@ -1,0 +1,129 @@
+/* eslint-disable @typescript-eslint/no-namespace */
+/* ########
+ * 2025 mion
+ * Author: Ma-jerez
+ * License: MIT
+ * The software is provided "as is", without warranty of any kind.
+ * ######## */
+
+// Import all format types with aliases to avoid naming conflicts
+import type {StringFormat as StringFormatType} from './string/stringFormat.runtype';
+import type {DateFormat as DateFormatType} from './string/date.runtype';
+import type {DateTimeFormat as DateTimeFormatType} from './string/dateTime.runtype';
+import type {TimeFormat as TimeFormatType} from './string/time.runtype';
+import type {
+  EmailFormat as EmailFormatType,
+  EmailFormat_Strict as EmailFormat_StrictType,
+  EmailFormat_Pattern as EmailFormat_PatternType,
+  EmailFormat_Punycode as EmailFormat_PunycodeType,
+} from './string/email.runtype';
+import type {DomainFormat as DomainFormatType, DomainFormat_Strict as DomainFormat_StrictType} from './string/domain.runtype';
+import type {
+  UrlFormat as UrlFormatType,
+  UrlFormat_Http as UrlFormat_HttpType,
+  UrlFormat_File as UrlFormat_FileType,
+  UrlFormat_SocialMedia as UrlFormat_SocialMediaType,
+} from './string/url.runtype';
+import type {
+  IP_Format as IP_FormatType,
+  IPV4_Format as IPV4_FormatType,
+  IPV6_Format as IPV6_FormatType,
+  IPWithPort_Format as IPWithPort_FormatType,
+  IPV4WithPort_Format as IPV4WithPort_FormatType,
+  IPV6WithPort_Format as IPV6WithPort_FormatType,
+} from './string/ip.runtype';
+import type {UUIDFormat_V4 as UUIDFormat_V4Type, UUIDFormat_V7 as UUIDFormat_V7Type} from './string/uuid.runtype';
+import type {
+  String_Alphanumeric as String_AlphanumericType,
+  String_Alpha as String_AlphaType,
+  String_Numeric as String_NumericType,
+  String_Lowercase as String_LowercaseType,
+  String_Uppercase as String_UppercaseType,
+  String_Capitalize as String_CapitalizeType,
+} from './string/defaultStringFormats.runtype';
+
+import type {NumberFormat as NumberFormatType} from './number/numberFormnat.runtype';
+import type {
+  Number_Integer as Number_IntegerType,
+  Number_Float as Number_FloatType,
+  Number_Positive as Number_PositiveType,
+  Number_Negative as Number_NegativeType,
+  Number_PositiveInteger as Number_PositiveIntegerType,
+  Number_NegativeInteger as Number_NegativeIntegerType,
+  Number_Int32 as Number_Int32Type,
+  Number_Uint32 as Number_Uint32Type,
+  Number_Int64 as Number_Int64Type,
+} from './number/defaultNumberFormats';
+
+import type {BigIntFormat as BigIntFormatType} from './bigint/bigIntFormat.runtype';
+
+// ############### String Formats Namespace ###############
+
+export namespace SFormat {
+  // Main StringFormat export
+  export type StringFormat = StringFormatType;
+
+  // Date/Time formats
+  export type Date = DateFormatType;
+  export type DateTime = DateTimeFormatType;
+  export type Time = TimeFormatType;
+
+  // Network/Web formats
+  export type Email = EmailFormatType;
+  export type EmailStrict = EmailFormat_StrictType;
+  export type EmailPattern = EmailFormat_PatternType<RegExp, any>;
+  export type EmailPunycode = EmailFormat_PunycodeType;
+
+  export type Domain = DomainFormatType;
+  export type DomainStrict = DomainFormat_StrictType;
+
+  export type Url = UrlFormatType;
+  export type UrlHttp = UrlFormat_HttpType;
+  export type UrlFile = UrlFormat_FileType;
+  export type UrlSocialMedia = UrlFormat_SocialMediaType;
+
+  export type IP = IP_FormatType;
+  export type IPV4 = IPV4_FormatType;
+  export type IPV6 = IPV6_FormatType;
+  export type IPWithPort = IPWithPort_FormatType;
+  export type IPV4WithPort = IPV4WithPort_FormatType;
+  export type IPV6WithPort = IPV6WithPort_FormatType;
+
+  // Identifier formats
+  export type UUID = UUIDFormat_V4Type; // default to V4
+  export type UUID_V4 = UUIDFormat_V4Type;
+  export type UUID_V7 = UUIDFormat_V7Type;
+
+  // Default string formats
+  export type AlphaNumeric = String_AlphanumericType;
+  export type Alpha = String_AlphaType;
+  export type Numeric = String_NumericType;
+  export type Lowercase = String_LowercaseType;
+  export type Uppercase = String_UppercaseType;
+  export type Capitalize = String_CapitalizeType;
+}
+
+// ############### Number Formats Namespace ###############
+
+export namespace NFormat {
+  // Main NumberFormat export
+  export type NumberFormat = NumberFormatType;
+
+  // Default number formats
+  export type Integer = Number_IntegerType;
+  export type Float = Number_FloatType;
+  export type Positive = Number_PositiveType;
+  export type Negative = Number_NegativeType;
+  export type PositiveInteger = Number_PositiveIntegerType;
+  export type NegativeInteger = Number_NegativeIntegerType;
+  export type Int32 = Number_Int32Type;
+  export type Uint32 = Number_Uint32Type;
+  export type Int64 = Number_Int64Type;
+}
+
+// ############### BigInt Formats Namespace ###############
+
+export namespace BIFormat {
+  // Main BigIntFormat export
+  export type BigIntFormat = BigIntFormatType;
+}

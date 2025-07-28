@@ -24,7 +24,7 @@ import type {IP_Format} from '../string/ip.runtype';
 // ============= NUMBER FORMATS =============
 
 // Import number format types directly
-import type {NumberFormat} from '../numberFormnat.runtype';
+import type {NumberFormat} from '../number/numberFormnat.runtype';
 
 // Import predefined number formats
 import type {

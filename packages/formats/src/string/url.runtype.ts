@@ -13,7 +13,7 @@ import {BaseRunTypeFormat} from '@mionkit/run-types/src/lib/baseRunTypeFormat';
 import {ReflectionKind} from '@deepkit/type';
 import {TypeFormat} from '@mionkit/run-types/src/lib/formats.runtype';
 import {RunTypeOptions, type jitCode, type JitFnID, type StrNumber} from '@mionkit/run-types/src/types';
-import {StringRunTypeFormat, stringIgnoreProps, FormatParams_String} from '../stringFormat.runtype';
+import {StringRunTypeFormat, stringIgnoreProps, FormatParams_String} from './stringFormat.runtype';
 import {DomainRunTypeFormat, FormatParams_Domain} from './domain.runtype';
 import {CodeType} from '@mionkit/run-types/src/constants.functions';
 import {JitFunctions} from '@mionkit/run-types/src/constants.functions';

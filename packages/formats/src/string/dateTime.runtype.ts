@@ -17,7 +17,7 @@ import {FormatParams_Date, DEFAULT_DATE_PARAMS, DateStringRunTypeFormat} from '.
 import {DEFAULT_TIME_FORMAT_PARAMS, FormatParams_Time, TimeStringRunTypeFormat} from './time.runtype';
 import {registerFormatter} from '@mionkit/run-types/src/lib/formats';
 import {fpVal} from '@mionkit/run-types/src/lib/utils';
-import {stringIgnoreProps} from '../stringFormat.runtype';
+import {stringIgnoreProps} from './stringFormat.runtype';
 import {CodeType} from '@mionkit/run-types/src/constants.functions';
 import {JitFunctions} from '@mionkit/run-types/src/constants.functions';
 

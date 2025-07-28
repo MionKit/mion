@@ -6,7 +6,7 @@
  * ######## */
 import type {TypeFormatError, RunTypeError} from '@mionkit/core/src/types';
 import {isTypeFn, mockTypeFn, typeErrorsFn} from '@mionkit/run-types/src/runTypeFunctions';
-import {StringFormat} from '../stringFormat.runtype';
+import {StringFormat} from './stringFormat.runtype';
 import {
     String_Alphanumeric,
     String_Alpha,
