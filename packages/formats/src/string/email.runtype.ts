@@ -13,7 +13,7 @@ import {ReflectionKind} from '@deepkit/type';
 import {DEFAULT_STRICT_DOMAIN_PARAMS, FormatParams_Domain} from './domain.runtype';
 import {TypeFormat} from '@mionkit/run-types/src/lib/formats.runtype';
 import {RunTypeOptions} from '@mionkit/run-types/src/types';
-import {StringRunTypeFormat, stringIgnoreProps, FormatParams_StringValidators, Samples} from '../stringFormat.runtype';
+import {StringRunTypeFormat, stringIgnoreProps, FormatParams_StringValidators, Samples} from './stringFormat.runtype';
 import {DomainRunTypeFormat} from './domain.runtype';
 import {registerFormatter} from '@mionkit/run-types/src/lib/formats';
 import {EMAIL_NAME_SAMPLES_ARRAY, EMAIL_NAME_SAMPLES, EMAIL_SAMPLES, EMAIL_SAMPLES_PUNYCODE} from '../constants.mock'; // do not import using type

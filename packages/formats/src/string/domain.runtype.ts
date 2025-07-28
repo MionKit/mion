@@ -19,7 +19,7 @@ import {
     FormatParam_Pattern,
     type FormatParams_String,
     Samples,
-} from '../stringFormat.runtype';
+} from './stringFormat.runtype';
 import {registerFormatter} from '@mionkit/run-types/src/lib/formats';
 import {random, randomItem} from '@mionkit/run-types/src/mocking/mockUtils';
 import {CodeType} from '@mionkit/run-types/src/constants.functions';
