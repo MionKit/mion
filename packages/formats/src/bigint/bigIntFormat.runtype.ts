@@ -180,7 +180,7 @@ export const BIGINT_RUN_TYPE_FORMATTER = registerFormatter(new BigIntRunTypeForm
 // ############### BigInt Format Params ###############
 
 // Define the type for bigint format
-export type BigIntFormat<P extends Partial<FormatParams_BigIntValidators> = {}> = TypeFormat<
+export type FormatBigInt<P extends Partial<FormatParams_BigIntValidators> = {}> = TypeFormat<
     bigint,
     typeof BigIntRunTypeFormat.id,
     P

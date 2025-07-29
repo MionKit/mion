@@ -351,6 +351,6 @@ export type FormatParams_Domain = {
 // ############### Run Types ###############
 
 /** Domain based on a pattern */
-export type DomainFormat<DP extends FormatParams_Domain = DEFAULT_DOMAIN_PARAMS> = TypeFormat<string, 'domain', DP>;
+export type FormatDomain<DP extends FormatParams_Domain = DEFAULT_DOMAIN_PARAMS> = TypeFormat<string, 'domain', DP>;
 /** Domain with customizable names and tld */
-export type DomainFormat_Strict<D extends Partial<FormatParams_Domain> = {}> = DomainFormat<DEFAULT_STRICT_DOMAIN_PARAMS & D>;
+export type FormatDomainStrict<D extends Partial<FormatParams_Domain> = {}> = FormatDomain<DEFAULT_STRICT_DOMAIN_PARAMS & D>;

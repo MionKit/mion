@@ -7,10 +7,10 @@
 
 import {isTypeFn, mockTypeFn, typeErrorsFn} from '@mionkit/run-types/src/runTypeFunctions';
 import {RunTypeError} from '@mionkit/core/src/types';
-import {EmailFormat, EmailFormat_Strict, EmailFormat_Punycode} from './email.runtype';
+import {FormatEmail, FormatEmailStrict, FormatEmailPunycode} from './email.runtype';
 
 it('should validate strict email values', async () => {
-    const isType = await isTypeFn<EmailFormat_Strict>();
+    const isType = await isTypeFn<FormatEmailStrict>();
     // Valid cases
     expect(isType('user@example.com')).toBe(true);
     expect(isType('user.name@sub.example.com')).toBe(true);
@@ -30,7 +30,7 @@ it('should validate strict email values', async () => {
 });
 
 it('should return strict email errors', async () => {
-    const typeErrors = await typeErrorsFn<EmailFormat_Strict>();
+    const typeErrors = await typeErrorsFn<FormatEmailStrict>();
     const err: RunTypeError = {expected: 'string', path: [], format: {name: 'email', formatPath: [], val: ''}};
     const localPartErr: RunTypeError = {
         ...err,
@@ -66,9 +66,9 @@ it('should return strict email errors', async () => {
 });
 
 it('should mock strict email values', async () => {
-    const mockType = await mockTypeFn<EmailFormat_Strict>();
-    const isType = await isTypeFn<EmailFormat_Strict>();
-    const typeErrors = await typeErrorsFn<EmailFormat_Strict>();
+    const mockType = await mockTypeFn<FormatEmailStrict>();
+    const isType = await isTypeFn<FormatEmailStrict>();
+    const typeErrors = await typeErrorsFn<FormatEmailStrict>();
     const mockedItems = Array.from({length: 20}, () => mockType());
     for (const item of mockedItems) {
         expect(typeErrors(item)).toEqual([]);
@@ -79,7 +79,7 @@ it('should mock strict email values', async () => {
 // ########## QUick Email ##########
 
 it('should validate quick email values', async () => {
-    const isType = await isTypeFn<EmailFormat>();
+    const isType = await isTypeFn<FormatEmail>();
     // Valid cases
     expect(isType('user@example.com')).toBe(true);
     expect(isType('user.name@sub.example.com')).toBe(true);
@@ -100,7 +100,7 @@ it('should validate quick email values', async () => {
 });
 
 it('should return quick email errors', async () => {
-    const typeErrors = await typeErrorsFn<EmailFormat>();
+    const typeErrors = await typeErrorsFn<FormatEmail>();
     const err: RunTypeError = {expected: 'string', path: [], format: {name: 'email', formatPath: [], val: ''}};
     const maxLengthErr: RunTypeError = {...err, format: {name: 'email', formatPath: ['maxLength'], val: 254}};
     const patternErr: RunTypeError = {...err, format: {name: 'email', formatPath: ['pattern'], val: 'Invalid email format'}};
@@ -127,9 +127,9 @@ it('should return quick email errors', async () => {
 });
 
 it('should mock quick email values', async () => {
-    const mockType = await mockTypeFn<EmailFormat>();
-    const isType = await isTypeFn<EmailFormat>();
-    const typeErrors = await typeErrorsFn<EmailFormat>();
+    const mockType = await mockTypeFn<FormatEmail>();
+    const isType = await isTypeFn<FormatEmail>();
+    const typeErrors = await typeErrorsFn<FormatEmail>();
     const mockedItems = Array.from({length: 20}, () => mockType());
     for (const item of mockedItems) {
         expect(typeErrors(item)).toEqual([]);
@@ -138,9 +138,9 @@ it('should mock quick email values', async () => {
 });
 
 it('quick email validation should be faster than normal email', async () => {
-    const isType = await isTypeFn<EmailFormat_Strict>();
-    const isTypeQuick = await isTypeFn<EmailFormat>();
-    const mockType = await mockTypeFn<EmailFormat_Strict>();
+    const isType = await isTypeFn<FormatEmailStrict>();
+    const isTypeQuick = await isTypeFn<FormatEmail>();
+    const mockType = await mockTypeFn<FormatEmailStrict>();
     const mockedItems = Array.from({length: 50}, () => mockType());
     const start = performance.now();
     for (const item of mockedItems) {
@@ -166,7 +166,7 @@ it('quick email validation should be faster than normal email', async () => {
 // ########## Punycode Email ##########
 
 it('should validate punycode email values', async () => {
-    const isType = await isTypeFn<EmailFormat_Punycode>();
+    const isType = await isTypeFn<FormatEmailPunycode>();
     // Valid cases
     expect(isType('user@example.com')).toBe(true);
     expect(isType('user.name@sub.example.com')).toBe(true);
@@ -190,7 +190,7 @@ it('should validate punycode email values', async () => {
 });
 
 it('should return punycode email errors', async () => {
-    const typeErrors = await typeErrorsFn<EmailFormat_Punycode>();
+    const typeErrors = await typeErrorsFn<FormatEmailPunycode>();
     const err: RunTypeError = {expected: 'string', path: [], format: {name: 'email', formatPath: [], val: ''}};
     const maxLengthErr: RunTypeError = {...err, format: {name: 'email', formatPath: ['maxLength'], val: 254}};
     const patternErr: RunTypeError = {...err, format: {name: 'email', formatPath: ['pattern'], val: 'Invalid email format'}};
@@ -220,9 +220,9 @@ it('should return punycode email errors', async () => {
 });
 
 it('should mock punycode email values', async () => {
-    const mockType = await mockTypeFn<EmailFormat_Punycode>();
-    const isType = await isTypeFn<EmailFormat_Punycode>();
-    const typeErrors = await typeErrorsFn<EmailFormat_Punycode>();
+    const mockType = await mockTypeFn<FormatEmailPunycode>();
+    const isType = await isTypeFn<FormatEmailPunycode>();
+    const typeErrors = await typeErrorsFn<FormatEmailPunycode>();
     const mockedItems = Array.from({length: 20}, () => mockType());
     for (const item of mockedItems) {
         expect(typeErrors(item)).toEqual([]);

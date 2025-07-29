@@ -7,11 +7,11 @@
 
 import {isTypeFn, mockTypeFn, typeErrorsFn} from '@mionkit/run-types/src/runTypeFunctions';
 import {RunTypeError} from '@mionkit/core/src/types';
-import {TimeFormat} from './time.runtype';
+import {FormatTime} from './time.runtype';
 
 // ####### Time format HH:mm:ss #######
 
-type HHmmss = TimeFormat<{format: 'HH:mm:ss'}>;
+type HHmmss = FormatTime<{format: 'HH:mm:ss'}>;
 
 it('validate time with format HH:mm:ss', async () => {
     const isType = await isTypeFn<HHmmss>();
@@ -75,7 +75,7 @@ it('mock time with format HH:mm:ss', async () => {
 
 // ####### Time format HH:mm ######
 
-type HHmm = TimeFormat<{format: 'HH:mm'}>;
+type HHmm = FormatTime<{format: 'HH:mm'}>;
 
 it('validate time with format HH:mm', async () => {
     const isType = await isTypeFn<HHmm>();
@@ -121,7 +121,7 @@ it('mock time with format HH:mm', async () => {
 
 // ####### Time format mm:ss ########
 
-type mmss = TimeFormat<{format: 'mm:ss'}>;
+type mmss = FormatTime<{format: 'mm:ss'}>;
 
 it('validate time with format mm:ss', async () => {
     const isType = await isTypeFn<mmss>();
@@ -167,7 +167,7 @@ it('mock time with format mm:ss', async () => {
 
 // ####### Time format HH ########
 
-type HH = TimeFormat<{format: 'HH'}>;
+type HH = FormatTime<{format: 'HH'}>;
 
 it('validate time with format HH', async () => {
     const isType = await isTypeFn<HH>();
@@ -207,7 +207,7 @@ it('mock time with format HH', async () => {
 
 // ####### Time format mm ########
 
-type mm = TimeFormat<{format: 'mm'}>;
+type mm = FormatTime<{format: 'mm'}>;
 
 it('validate time with format mm', async () => {
     const isType = await isTypeFn<mm>();
@@ -247,7 +247,7 @@ it('mock time with format mm', async () => {
 
 // ####### Time format ss ########
 
-type ss = TimeFormat<{format: 'ss'}>;
+type ss = FormatTime<{format: 'ss'}>;
 
 it('validate time with format ss', async () => {
     const isType = await isTypeFn<ss>();
@@ -288,7 +288,7 @@ it('mock time with format ss', async () => {
 // ####### Time format HH:mm:ss[.mmm]TZ ########
 
 // must include timezone but milliseconds are optional
-type ISOtime = TimeFormat<{format: 'ISO'}>; // same as StringTime<{format: 'HH:mm:ss[.mmm]TZ'}>
+type ISOtime = FormatTime<{format: 'ISO'}>; // same as StringTime<{format: 'HH:mm:ss[.mmm]TZ'}>
 
 it('validate time with format HH:mm:ss[.mmm]TZ', async () => {
     // must include timezone but milliseconds are optiona

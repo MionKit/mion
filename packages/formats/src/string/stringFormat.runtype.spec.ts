@@ -7,12 +7,12 @@
 
 import {isTypeFn, mockTypeFn, typeErrorsFn} from '@mionkit/run-types/src/runTypeFunctions';
 import {RunTypeError, TypeFormatError} from '@mionkit/core/src/types';
-import {StringFormat} from './stringFormat.runtype';
+import {FormatString} from './stringFormat.runtype';
 
 // #### maxLength ####
 
 it('validate string max length 2', async () => {
-    type Max5 = StringFormat<{maxLength: 5}>;
+    type Max5 = FormatString<{maxLength: 5}>;
     const isType = await isTypeFn<Max5>();
     expect(isType('aaaa')).toBe(true);
     expect(isType('aaaaa')).toBe(true);
@@ -20,7 +20,7 @@ it('validate string max length 2', async () => {
 });
 
 it('get max length errors', async () => {
-    type Max5 = StringFormat<{maxLength: 5}>;
+    type Max5 = FormatString<{maxLength: 5}>;
     const typeErrors = await typeErrorsFn<Max5>();
     const format: TypeFormatError = {name: 'stringFormat', val: 5, formatPath: ['maxLength']};
     const expectedError: RunTypeError = {expected: 'string', path: [], format};
@@ -30,7 +30,7 @@ it('get max length errors', async () => {
 });
 
 it('mock max length', async () => {
-    type Max5 = StringFormat<{maxLength: 5}>;
+    type Max5 = FormatString<{maxLength: 5}>;
     const mockType = await mockTypeFn<Max5>();
     const mockedItems = Array.from({length: 20}, () => mockType());
     for (const item of mockedItems) {
@@ -41,7 +41,7 @@ it('mock max length', async () => {
 // #### minLength ####
 
 it('validate string min length', async () => {
-    type Min5 = StringFormat<{minLength: 5}>;
+    type Min5 = FormatString<{minLength: 5}>;
     const isType = await isTypeFn<Min5>();
     expect(isType('aaaa')).toBe(false);
     expect(isType('aaaaa')).toBe(true);
@@ -49,7 +49,7 @@ it('validate string min length', async () => {
 });
 
 it('get min length errors', async () => {
-    type Min5 = StringFormat<{minLength: 5}>;
+    type Min5 = FormatString<{minLength: 5}>;
     const typeErrors = await typeErrorsFn<Min5>();
     const format: TypeFormatError = {name: 'stringFormat', val: 5, formatPath: ['minLength']};
     const expectedError: RunTypeError = {expected: 'string', path: [], format};
@@ -59,7 +59,7 @@ it('get min length errors', async () => {
 });
 
 it('mock min length', async () => {
-    type Min5 = StringFormat<{minLength: 5}>;
+    type Min5 = FormatString<{minLength: 5}>;
     const mockType = await mockTypeFn<Min5>();
     const mockedItems = Array.from({length: 20}, () => mockType());
     for (const item of mockedItems) {
@@ -70,7 +70,7 @@ it('mock min length', async () => {
 // #### length ####
 
 it('validate string length', async () => {
-    type Length5 = StringFormat<{length: 5}>;
+    type Length5 = FormatString<{length: 5}>;
     const isType = await isTypeFn<Length5>();
     expect(isType('aaaa')).toBe(false);
     expect(isType('aaaaa')).toBe(true);
@@ -78,7 +78,7 @@ it('validate string length', async () => {
 });
 
 it('get length errors', async () => {
-    type Length5 = StringFormat<{length: 5}>;
+    type Length5 = FormatString<{length: 5}>;
     const typeErrors = await typeErrorsFn<Length5>();
     const format: TypeFormatError = {name: 'stringFormat', val: 5, formatPath: ['length']};
     const expectedError: RunTypeError = {expected: 'string', path: [], format};
@@ -88,7 +88,7 @@ it('get length errors', async () => {
 });
 
 it('mock length', async () => {
-    type Length5 = StringFormat<{length: 5}>;
+    type Length5 = FormatString<{length: 5}>;
     const mockType = await mockTypeFn<Length5>();
     const mockedItems = Array.from({length: 20}, () => mockType());
     for (const item of mockedItems) {
@@ -100,7 +100,7 @@ it('mock length', async () => {
 
 it('validate string pattern', async () => {
     const regex = /^[a-zA-Z]+$/;
-    type AlphaPattern = StringFormat<{
+    type AlphaPattern = FormatString<{
         pattern: {val: typeof regex; mockSamples: 'abcdefgABCDEFG'; reason: 'only letters allowed'};
     }>;
     const isType = await isTypeFn<AlphaPattern>();
@@ -110,7 +110,7 @@ it('validate string pattern', async () => {
 
 it('get pattern errors', async () => {
     const regex = /^[a-zA-Z]+$/;
-    type AlphaPattern = StringFormat<{
+    type AlphaPattern = FormatString<{
         pattern: {val: typeof regex; mockSamples: 'abcdefgABCDEFG'; reason: 'only letters allowed'};
     }>;
     const format: TypeFormatError = {name: 'stringFormat', val: 'only letters allowed', formatPath: ['pattern']};
@@ -123,7 +123,7 @@ it('get pattern errors', async () => {
 it('mock pattern and samples', async () => {
     const regex = /^[a-zA-Z]+$/;
     // is not possible to automatically generate a string that matches the pattern so we need to provide a list of valid characters manually
-    type AlphaPattern = StringFormat<{
+    type AlphaPattern = FormatString<{
         minLength: 1;
         pattern: {val: typeof regex; mockSamples: 'abcdefgABCDEFG'; reason: 'only letters allowed'};
     }>;
@@ -137,7 +137,7 @@ it('mock pattern and samples', async () => {
 it('mock pattern and samples as list of chars', async () => {
     const regex = /^[a-zA-Z]+$/;
     // is not possible to automatically generate a string that matches the pattern so we need to provide a list of valid characters manually
-    type AlphaPattern = StringFormat<{
+    type AlphaPattern = FormatString<{
         minLength: 1;
         pattern: {val: typeof regex; mockSamples: 'abcdefgABCDEFG'; reason: 'only letters allowed'};
     }>;
@@ -151,7 +151,7 @@ it('mock pattern and samples as list of chars', async () => {
 // #### allowedValues ####
 
 it('validate string allowedValues', async () => {
-    type AllowedValues = StringFormat<{minLength: 1; allowedValues: {val: ['a', 'b', 'c']; reason: 'only a, b or c allowed'}}>;
+    type AllowedValues = FormatString<{minLength: 1; allowedValues: {val: ['a', 'b', 'c']; reason: 'only a, b or c allowed'}}>;
     const isType = await isTypeFn<AllowedValues>();
     expect(isType('a')).toBe(true);
     expect(isType('b')).toBe(true);
@@ -161,7 +161,7 @@ it('validate string allowedValues', async () => {
 });
 
 it('get allowedValues errors', async () => {
-    type AllowedValues = StringFormat<{minLength: 1; allowedValues: {val: ['a', 'b', 'c']; reason: 'only a, b or c allowed'}}>;
+    type AllowedValues = FormatString<{minLength: 1; allowedValues: {val: ['a', 'b', 'c']; reason: 'only a, b or c allowed'}}>;
     const typeErrors = await typeErrorsFn<AllowedValues>();
     const format: TypeFormatError = {name: 'stringFormat', val: 'only a, b or c allowed', formatPath: ['allowedValues']};
     const expectedError: RunTypeError = {expected: 'string', path: [], format};
@@ -173,7 +173,7 @@ it('get allowedValues errors', async () => {
 });
 
 it('mock allowedValues', async () => {
-    type AllowedValues = StringFormat<{minLength: 1; allowedValues: {val: ['a', 'b', 'c']; reason: 'only a, b or c allowed'}}>;
+    type AllowedValues = FormatString<{minLength: 1; allowedValues: {val: ['a', 'b', 'c']; reason: 'only a, b or c allowed'}}>;
     const mockType = await mockTypeFn<AllowedValues>();
     const mockedItems = Array.from({length: 20}, () => mockType());
     for (const item of mockedItems) {
@@ -182,7 +182,7 @@ it('mock allowedValues', async () => {
 });
 
 it('validate string allowedValues with ignoreCase', async () => {
-    type AllowedValuesIgnoreCase = StringFormat<{
+    type AllowedValuesIgnoreCase = FormatString<{
         allowedValues: {val: ['a', 'b', 'c']; reason: 'only a, b or c allowed'; ignoreCase: true};
     }>;
     const isType = await isTypeFn<AllowedValuesIgnoreCase>();
@@ -197,7 +197,7 @@ it('validate string allowedValues with ignoreCase', async () => {
 });
 
 it('get allowedValues errors with ignoreCase', async () => {
-    type AllowedValuesIgnoreCase = StringFormat<{
+    type AllowedValuesIgnoreCase = FormatString<{
         allowedValues: {val: ['a', 'b', 'c']; reason: 'only a, b or c allowed'; ignoreCase: true};
     }>;
     const typeErrors = await typeErrorsFn<AllowedValuesIgnoreCase>();
@@ -214,7 +214,7 @@ it('get allowedValues errors with ignoreCase', async () => {
 });
 
 it('mock allowedValues with ignoreCase', async () => {
-    type AllowedValuesIgnoreCase = StringFormat<{
+    type AllowedValuesIgnoreCase = FormatString<{
         minLength: 1;
         allowedValues: {val: ['a', 'b', 'c']; reason: 'only a, b or c allowed'; ignoreCase: true};
     }>;
@@ -230,7 +230,7 @@ it('mock allowedValues with ignoreCase', async () => {
 // #### disallowedValues ####
 
 it('validate string disallowedValues', async () => {
-    type DisallowedValues = StringFormat<{
+    type DisallowedValues = FormatString<{
         disallowedValues: {val: ['a', 'b', 'c']; reason: 'a, b or c not allowed'; mockSamples: 'dfgthplk98765l'};
     }>;
     const isType = await isTypeFn<DisallowedValues>();
@@ -242,7 +242,7 @@ it('validate string disallowedValues', async () => {
 });
 
 it('get disallowedValues errors', async () => {
-    type DisallowedValues = StringFormat<{
+    type DisallowedValues = FormatString<{
         disallowedValues: {val: ['a', 'b', 'c']; reason: 'a, b or c not allowed'; mockSamples: 'dfgthplk98765l'};
     }>;
     const typeErrors = await typeErrorsFn<DisallowedValues>();
@@ -256,7 +256,7 @@ it('get disallowedValues errors', async () => {
 });
 
 it('mock disallowedValues', async () => {
-    type DisallowedValues = StringFormat<{
+    type DisallowedValues = FormatString<{
         minLength: 1;
         disallowedValues: {val: ['a', 'b', 'c']; reason: 'a, b or c not allowed'; mockSamples: 'dfgthplk98765l'};
     }>;
@@ -268,7 +268,7 @@ it('mock disallowedValues', async () => {
 });
 
 it('validate string disallowedValues with ignoreCase', async () => {
-    type DisallowedValuesIgnoreCase = StringFormat<{
+    type DisallowedValuesIgnoreCase = FormatString<{
         disallowedValues: {
             val: ['a', 'b', 'c'];
             reason: 'a, b or c not allowed';
@@ -288,7 +288,7 @@ it('validate string disallowedValues with ignoreCase', async () => {
 });
 
 it('get disallowedValues errors with ignoreCase', async () => {
-    type DisallowedValuesIgnoreCase = StringFormat<{
+    type DisallowedValuesIgnoreCase = FormatString<{
         disallowedValues: {
             val: ['a', 'b', 'c'];
             reason: 'a, b or c not allowed';
@@ -310,7 +310,7 @@ it('get disallowedValues errors with ignoreCase', async () => {
 });
 
 it('mock disallowedValues with ignoreCase', async () => {
-    type DisallowedValuesIgnoreCase = StringFormat<{
+    type DisallowedValuesIgnoreCase = FormatString<{
         minLength: 1;
         disallowedValues: {
             val: ['a', 'b', 'c'];
@@ -330,7 +330,7 @@ it('mock disallowedValues with ignoreCase', async () => {
 // #### allowedChars ####
 
 it('validate string allowedChars', async () => {
-    type AllowedChars = StringFormat<{allowedChars: {val: 'abc'; reason: 'only a, b or c allowed'}}>;
+    type AllowedChars = FormatString<{allowedChars: {val: 'abc'; reason: 'only a, b or c allowed'}}>;
     const isType = await isTypeFn<AllowedChars>();
     expect(isType('a')).toBe(true);
     expect(isType('b')).toBe(true);
@@ -343,7 +343,7 @@ it('validate string allowedChars', async () => {
 });
 
 it('validate string allowedChars that include characters that needs to be escaped in regexp', async () => {
-    type AllowedChars = StringFormat<{allowedChars: {val: '!\\/.*{}[]()^$?+'; reason: 'only special chars allowed'}}>;
+    type AllowedChars = FormatString<{allowedChars: {val: '!\\/.*{}[]()^$?+'; reason: 'only special chars allowed'}}>;
     const isType = await isTypeFn<AllowedChars>();
     expect(isType('!')).toBe(true);
     expect(isType('\\')).toBe(true);
@@ -365,7 +365,7 @@ it('validate string allowedChars that include characters that needs to be escape
 });
 
 it('get allowedChars errors', async () => {
-    type AllowedChars = StringFormat<{allowedChars: {val: 'abc'; reason: 'only a, b or c allowed'}}>;
+    type AllowedChars = FormatString<{allowedChars: {val: 'abc'; reason: 'only a, b or c allowed'}}>;
     const typeErrors = await typeErrorsFn<AllowedChars>();
     const format: TypeFormatError = {name: 'stringFormat', val: 'only a, b or c allowed', formatPath: ['allowedChars']};
     const expectedError: RunTypeError = {expected: 'string', path: [], format};
@@ -380,7 +380,7 @@ it('get allowedChars errors', async () => {
 });
 
 it('mock allowedChars', async () => {
-    type AllowedChars = StringFormat<{allowedChars: {val: 'abc'; reason: 'only a, b or c allowed'}}>;
+    type AllowedChars = FormatString<{allowedChars: {val: 'abc'; reason: 'only a, b or c allowed'}}>;
     const mockType = await mockTypeFn<AllowedChars>();
     const mockedItems = Array.from({length: 20}, () => mockType());
     for (const item of mockedItems) {
@@ -389,7 +389,7 @@ it('mock allowedChars', async () => {
 });
 
 it('validate string allowedChars with ignoreCase', async () => {
-    type AllowedCharsIgnoreCase = StringFormat<{allowedChars: {val: 'abc'; reason: 'only a, b or c allowed'; ignoreCase: true}}>;
+    type AllowedCharsIgnoreCase = FormatString<{allowedChars: {val: 'abc'; reason: 'only a, b or c allowed'; ignoreCase: true}}>;
     const isType = await isTypeFn<AllowedCharsIgnoreCase>();
     expect(isType('a')).toBe(true);
     expect(isType('b')).toBe(true);
@@ -407,7 +407,7 @@ it('validate string allowedChars with ignoreCase', async () => {
 });
 
 it('get allowedChars errors with ignoreCase', async () => {
-    type AllowedCharsIgnoreCase = StringFormat<{allowedChars: {val: 'abc'; reason: 'only a, b or c allowed'; ignoreCase: true}}>;
+    type AllowedCharsIgnoreCase = FormatString<{allowedChars: {val: 'abc'; reason: 'only a, b or c allowed'; ignoreCase: true}}>;
     const typeErrors = await typeErrorsFn<AllowedCharsIgnoreCase>();
     const format: TypeFormatError = {name: 'stringFormat', val: 'only a, b or c allowed', formatPath: ['allowedChars']};
     const expectedError: RunTypeError = {expected: 'string', path: [], format};
@@ -427,7 +427,7 @@ it('get allowedChars errors with ignoreCase', async () => {
 });
 
 it('mock allowedChars with ignoreCase', async () => {
-    type AllowedCharsIgnoreCase = StringFormat<{
+    type AllowedCharsIgnoreCase = FormatString<{
         minLength: 1;
         allowedChars: {val: 'abc'; reason: 'only a, b or c allowed'; ignoreCase: true};
     }>;
@@ -443,7 +443,7 @@ it('mock allowedChars with ignoreCase', async () => {
 // #### disallowedChars ####
 
 it('validate string disallowedChars', async () => {
-    type DisallowedChars = StringFormat<{
+    type DisallowedChars = FormatString<{
         disallowedChars: {val: 'abc'; reason: 'a, b or c not allowed'; mockSamples: 'dfgthplk98765l'};
     }>;
     const isType = await isTypeFn<DisallowedChars>();
@@ -460,7 +460,7 @@ it('validate string disallowedChars', async () => {
 });
 
 it('validate string disallowedChars that include characters that needs to be escaped in regexp', async () => {
-    type DisallowedChars = StringFormat<{
+    type DisallowedChars = FormatString<{
         disallowedChars: {
             val: '!\\/.*{}[]()^$?+';
             reason: 'special chars not allowed';
@@ -488,7 +488,7 @@ it('validate string disallowedChars that include characters that needs to be esc
 });
 
 it('get disallowedChars errors', async () => {
-    type DisallowedChars = StringFormat<{
+    type DisallowedChars = FormatString<{
         disallowedChars: {val: 'abc'; reason: 'a, b or c not allowed'; mockSamples: 'dfgthplk98765l'};
     }>;
     const typeErrors = await typeErrorsFn<DisallowedChars>();
@@ -507,7 +507,7 @@ it('get disallowedChars errors', async () => {
 });
 
 it('mock disallowedChars', async () => {
-    type DisallowedChars = StringFormat<{
+    type DisallowedChars = FormatString<{
         minLength: 1;
         disallowedChars: {val: 'abc'; reason: 'a, b or c not allowed'; mockSamples: 'dfgthplk98765l'};
     }>;
@@ -519,7 +519,7 @@ it('mock disallowedChars', async () => {
 });
 
 it('validate string disallowedChars with ignoreCase', async () => {
-    type DisallowedCharsIgnoreCase = StringFormat<{
+    type DisallowedCharsIgnoreCase = FormatString<{
         disallowedChars: {val: 'abc'; reason: 'a, b or c not allowed'; mockSamples: 'dfgthplk98765l'; ignoreCase: true};
     }>;
     const isType = await isTypeFn<DisallowedCharsIgnoreCase>();
@@ -542,7 +542,7 @@ it('validate string disallowedChars with ignoreCase', async () => {
 });
 
 it('get disallowedChars errors with ignoreCase', async () => {
-    type DisallowedCharsIgnoreCase = StringFormat<{
+    type DisallowedCharsIgnoreCase = FormatString<{
         disallowedChars: {val: 'abc'; reason: 'a, b or c not allowed'; mockSamples: 'dfgthplk98765l'; ignoreCase: true};
     }>;
     const typeErrors = await typeErrorsFn<DisallowedCharsIgnoreCase>();
@@ -567,7 +567,7 @@ it('get disallowedChars errors with ignoreCase', async () => {
 });
 
 it('mock disallowedChars with ignoreCase', async () => {
-    type DisallowedCharsIgnoreCase = StringFormat<{
+    type DisallowedCharsIgnoreCase = FormatString<{
         disallowedChars: {val: 'abc'; reason: 'a, b or c not allowed'; mockSamples: 'dfgthplk98765l'; ignoreCase: true};
     }>;
     const mockType = await mockTypeFn<DisallowedCharsIgnoreCase>();
@@ -587,7 +587,7 @@ it('validate string with multiple params', async () => {
         minLength: 5;
         maxLength: 8;
     };
-    const isType = await isTypeFn<StringFormat<AlphaParams>>();
+    const isType = await isTypeFn<FormatString<AlphaParams>>();
     expect(isType('aaaaa1')).toBe(false); // length ok but not AlphaPattern
     expect(isType('aaaa')).toBe(false); // not min length
     expect(isType('aaaaa')).toBe(true);
@@ -598,7 +598,7 @@ it('validate string with multiple params', async () => {
 
 it('get multiple params errors', async () => {
     const regex = /^[a-zA-Z]+$/;
-    type Multi = StringFormat<{
+    type Multi = FormatString<{
         pattern: {val: typeof regex; mockSamples: 'abcdefgABCDEFG'; reason: 'only letters allowed'};
         minLength: 5;
         maxLength: 8;
@@ -622,7 +622,7 @@ it('get multiple params errors', async () => {
 
 it('only only one error is returned by string format', async () => {
     const regex = /^[a-zA-Z]+$/;
-    type Multi = StringFormat<{
+    type Multi = FormatString<{
         pattern: {val: typeof regex; mockSamples: 'abcdefgABCDEFG'; reason: 'only letters allowed'};
         minLength: 5;
         maxLength: 8;
@@ -641,7 +641,7 @@ it('only only one error is returned by string format', async () => {
 
 it('mock multiple params', async () => {
     const regex = /^[a-zA-Z]+$/;
-    type Multi = StringFormat<{
+    type Multi = FormatString<{
         pattern: {val: typeof regex; mockSamples: ['aaaaa', 'aaaBCaaa', 'DEaaac', 'aaabaaaC']; reason: 'only letters allowed'};
         minLength: 5;
         maxLength: 8;
@@ -657,7 +657,7 @@ it('mock multiple params', async () => {
 
 it('provided sample must match all constrains', async () => {
     const regex = /^[a-zA-Z]+$/;
-    type Multi = StringFormat<{
+    type Multi = FormatString<{
         pattern: {val: typeof regex; mockSamples: ['abcd']; reason: 'only letters allowed'};
         minLength: 5;
         maxLength: 8;
@@ -669,7 +669,7 @@ it('provided sample must match all constrains', async () => {
 });
 
 it('Generated regexp should be scaped for allowedValues', async () => {
-    type AllowedVals = StringFormat<{
+    type AllowedVals = FormatString<{
         allowedValues: {val: ['hello/.+?>^[a-z-A-Z]', 'a.b.c', '^(?:rome|paris)$']; reason: 'values not allowed'};
     }>;
     const isType = await isTypeFn<AllowedVals>();
@@ -699,7 +699,7 @@ it('Generated regexp should be scaped for allowedValues', async () => {
 });
 
 it('Generated regexp should be scaped for disallowedValues', async () => {
-    type DisAllowedVals = StringFormat<{
+    type DisAllowedVals = FormatString<{
         disallowedValues: {
             val: ['hello/.+?>^[a-z-A-Z]', 'a.b.c', '^(?:rome|paris)$'];
             reason: 'values not allowed';
@@ -733,7 +733,7 @@ it('Generated regexp should be scaped for disallowedValues', async () => {
 });
 
 it('Generated regexp should be scaped for allowedChars', async () => {
-    type AllowedChars = StringFormat<{
+    type AllowedChars = FormatString<{
         allowedChars: {val: '!\\/.*{}[]()^$?+'; reason: 'only special chars allowed'; mockSamples: '!\\/.*{}[]()^$?+'};
     }>;
     const isType = await isTypeFn<AllowedChars>();
@@ -785,7 +785,7 @@ it('Generated regexp should be scaped for allowedChars', async () => {
 });
 
 it('Generated regexp should be scaped for disallowedChars', async () => {
-    type DisAllowedChars = StringFormat<{
+    type DisAllowedChars = FormatString<{
         disallowedChars: {val: '!\\/.*{}[]()^$?+'; reason: 'only special chars allowed'; mockSamples: 'dfgthplk98765l'};
     }>;
     const isType = await isTypeFn<DisAllowedChars>();

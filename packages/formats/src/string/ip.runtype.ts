@@ -183,9 +183,9 @@ export type FormatParams_IP = {
     // TODO: allow port
     allowPort?: FormatParam<boolean>;
 };
-export type IP_Format<P extends FormatParams_IP = DEFAULT_IP_PARAMS> = TypeFormat<string, 'ip', P>;
-export type IPV4_Format = IP_Format<{version: 4; allowLocalHost: true}>;
-export type IPV6_Format = IP_Format<{version: 6; allowLocalHost: true}>;
-export type IPWithPort_Format = IP_Format<{version: 'any'; allowLocalHost: true; allowPort: true}>;
-export type IPV4WithPort_Format = IP_Format<{version: 4; allowLocalHost: true; allowPort: true}>;
-export type IPV6WithPort_Format = IP_Format<{version: 6; allowLocalHost: true; allowPort: true}>;
+export type FormatIP<P extends FormatParams_IP = DEFAULT_IP_PARAMS> = TypeFormat<string, 'ip', P>;
+export type FormatIPV4 = FormatIP<{version: 4; allowLocalHost: true}>;
+export type FormatIPV6 = FormatIP<{version: 6; allowLocalHost: true}>;
+export type FormatIPWithPort = FormatIP<{version: 'any'; allowLocalHost: true; allowPort: true}>;
+export type FormatIPV4WithPort = FormatIP<{version: 4; allowLocalHost: true; allowPort: true}>;
+export type FormatIPV6WithPort = FormatIP<{version: 6; allowLocalHost: true; allowPort: true}>;

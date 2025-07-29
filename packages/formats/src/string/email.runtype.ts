@@ -243,9 +243,9 @@ export type FormatParams_Email = FormatParams_EmailPattern & {
     domain?: FormatParams_Domain;
 };
 
-export type EmailFormat<EP extends FormatParams_Email = DEFAULT_EMAIL_PARAMS> = TypeFormat<string, 'email', EP>;
-export type EmailFormat_Strict<E extends Partial<FormatParams_Email> = {}> = EmailFormat<DEFAULT_STRICT_EMAIL_PARAMS & E>;
-export type EmailFormat_Pattern<EmailPattern extends RegExp, MockSamples extends Samples> = EmailFormat<
+export type FormatEmail<EP extends FormatParams_Email = DEFAULT_EMAIL_PARAMS> = TypeFormat<string, 'email', EP>;
+export type FormatEmailStrict<E extends Partial<FormatParams_Email> = {}> = FormatEmail<DEFAULT_STRICT_EMAIL_PARAMS & E>;
+export type FormatEmailPattern<EmailPattern extends RegExp, MockSamples extends Samples> = FormatEmail<
     DEFAULT_EMAIL_PARAMS<EmailPattern, MockSamples>
 >;
-export type EmailFormat_Punycode = EmailFormat_Pattern<typeof EMAIL_PATTERN_PUNYCODE, EMAIL_SAMPLES_PUNYCODE>;
+export type FormatEmailPunycode = FormatEmailPattern<typeof EMAIL_PATTERN_PUNYCODE, EMAIL_SAMPLES_PUNYCODE>;
