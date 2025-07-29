@@ -219,9 +219,9 @@ export type FormatParams_UrlPattern = Omit<
 >;
 export type FormatParams_Url = FormatParams_UrlPattern & {ip?: FormatParams_IP; domain?: FormatParams_Domain};
 
-export type UrlFormat<P extends FormatParams_Url = {}> = TypeFormat<string, 'url', DEFAULT_URL_PARAMS & P>;
-export type UrlFormat_File<P extends FormatParams_Url = {}> = TypeFormat<string, 'url', DEFAULT_URL_FILE_PARAMS & P>;
-export type UrlFormat_Http<P extends FormatParams_Url = {}> = TypeFormat<string, 'url', DEFAULT_URL_HTTP_PARAMS & P>;
-export type UrlFormat_SocialMedia<DomainLIst extends readonly string[] = SOCIAL_MEDIA_DOMAINS_SAMPLES> = UrlFormat<
+export type FormatUrl<P extends FormatParams_Url = {}> = TypeFormat<string, 'url', DEFAULT_URL_PARAMS & P>;
+export type FormatUrlFile<P extends FormatParams_Url = {}> = TypeFormat<string, 'url', DEFAULT_URL_FILE_PARAMS & P>;
+export type FormatUrlHttp<P extends FormatParams_Url = {}> = TypeFormat<string, 'url', DEFAULT_URL_HTTP_PARAMS & P>;
+export type FormatUrlSocialMedia<DomainLIst extends readonly string[] = SOCIAL_MEDIA_DOMAINS_SAMPLES> = FormatUrl<
     DEFAULT_URL_SOCIAL_MEDIA_PARAMS<DomainLIst>
 >;

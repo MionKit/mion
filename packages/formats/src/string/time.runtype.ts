@@ -58,7 +58,7 @@ export class TimeStringRunTypeFormat extends BaseRunTypeFormat<FormatParams_Time
                 throw new Error(`Invalid time format: ${fpVal(params.format)}`);
         }
     }
-    getFormatPureFn(format: TimeFormat) {
+    getFormatPureFn(format: FormatTime) {
         switch (format) {
             case 'ISO':
             case 'HH:mm:ss[.mmm]TZ':
@@ -253,7 +253,7 @@ export type DEFAULT_TIME_FORMAT_PARAMS = {format: 'ISO'};
 
 type TimeFmt = 'ISO' | 'HH:mm:ss[.mmm]TZ' | 'HH:mm:ss[.mmm]' | 'HH:mm:ss' | 'HH:mm' | 'mm:ss' | 'HH' | 'mm' | 'ss';
 export type FormatParams_Time = {format: FormatParam<TimeFmt>};
-export type TimeFormat<P extends FormatParams_Time = DEFAULT_TIME_FORMAT_PARAMS> = TypeFormat<
+export type FormatTime<P extends FormatParams_Time = DEFAULT_TIME_FORMAT_PARAMS> = TypeFormat<
     string,
     typeof TimeStringRunTypeFormat.id,
     P

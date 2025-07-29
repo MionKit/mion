@@ -334,4 +334,4 @@ export type FormatParams_String = FormatParams_StringValidators & FormatParams_S
 
 // ############### Base String Format ###############
 
-export type StringFormat<P extends FormatParams_String = {}> = TypeFormat<string, typeof StringRunTypeFormat.id, P>;
+export type FormatString<P extends FormatParams_String = {}> = TypeFormat<string, typeof StringRunTypeFormat.id, P>;

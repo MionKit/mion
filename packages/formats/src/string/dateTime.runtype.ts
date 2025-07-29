@@ -126,7 +126,7 @@ export type FormatParams_DateTime = {
     splitChar: FormatParam<string>;
 };
 
-export type DateTimeFormat<P extends Partial<FormatParams_DateTime> = {}> = TypeFormat<
+export type FormatDateTime<P extends Partial<FormatParams_DateTime> = {}> = TypeFormat<
     string,
     typeof DateTimeRunTypeFormat.id,
     DEFAULT_DATE_TIME_PARAMS & P

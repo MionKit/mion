@@ -7,13 +7,13 @@
 
 import {isTypeFn, mockTypeFn, typeErrorsFn} from '@mionkit/run-types/src/runTypeFunctions';
 import {RunTypeError} from '@mionkit/core/src/types';
-import {UrlFormat, UrlFormat_File, UrlFormat_Http, UrlFormat_SocialMedia} from './url.runtype';
+import {FormatUrl, FormatUrlFile, FormatUrlHttp, FormatUrlSocialMedia} from './url.runtype';
 
 // ####### URL isType #######
 
 // URL format is a string that starts with a valid protocol and has a valid domain
 it('validate URL', async () => {
-    const isType = await isTypeFn<UrlFormat>();
+    const isType = await isTypeFn<FormatUrl>();
     // valid URLs
     expect(isType('http://example.com')).toBe(true);
     expect(isType('https://example.com')).toBe(true);
@@ -52,7 +52,7 @@ it('validate URL', async () => {
 });
 
 it('validate FILE URL', async () => {
-    const isType = await isTypeFn<UrlFormat_File>();
+    const isType = await isTypeFn<FormatUrlFile>();
     // valid URLs
     expect(isType('file://hello.png')).toBe(true);
     expect(isType('file:///c:/lorem/ipsum.jpeg')).toBe(true);
@@ -73,7 +73,7 @@ it('validate FILE URL', async () => {
 });
 
 it('validate Http only URL', async () => {
-    const isType = await isTypeFn<UrlFormat_Http>();
+    const isType = await isTypeFn<FormatUrlHttp>();
     // valid URLs
     expect(isType('http://example.com')).toBe(true);
     expect(isType('https://example.com')).toBe(true);
@@ -87,7 +87,7 @@ it('validate Http only URL', async () => {
 });
 
 it('validate Social media URL', async () => {
-    const isType = await isTypeFn<UrlFormat_SocialMedia>();
+    const isType = await isTypeFn<FormatUrlSocialMedia>();
     // valid URLs
     expect(isType('http://facebook.com')).toBe(true);
     expect(isType('https://twitter.com')).toBe(true);
@@ -108,7 +108,7 @@ it('validate Social media URL', async () => {
 
 // URL typeErrors
 it('get URL errors', async () => {
-    const typeErrors = await typeErrorsFn<UrlFormat>();
+    const typeErrors = await typeErrorsFn<FormatUrl>();
     const maxLengthError: RunTypeError = {
         expected: 'string',
         path: [],
@@ -143,7 +143,7 @@ it('get URL errors', async () => {
 });
 
 it('get FILE URL errors', async () => {
-    const typeErrors = await typeErrorsFn<UrlFormat_File>();
+    const typeErrors = await typeErrorsFn<FormatUrlFile>();
     const formatError: RunTypeError = {
         expected: 'string',
         path: [],
@@ -169,7 +169,7 @@ it('get FILE URL errors', async () => {
 });
 
 it('get Http only URL errors', async () => {
-    const typeErrors = await typeErrorsFn<UrlFormat_Http>();
+    const typeErrors = await typeErrorsFn<FormatUrlHttp>();
     // Valid Http URL cases
     expect(typeErrors('http://example.com')).toEqual([]);
     expect(typeErrors('https://example.com')).toEqual([]);
@@ -189,7 +189,7 @@ it('get Http only URL errors', async () => {
 });
 
 it('get Social media errors', async () => {
-    const typeErrors = await typeErrorsFn<UrlFormat_SocialMedia>();
+    const typeErrors = await typeErrorsFn<FormatUrlSocialMedia>();
     // Valid Social Media URL cases
     expect(typeErrors('http://facebook.com')).toEqual([]);
     expect(typeErrors('https://twitter.com')).toEqual([]);
@@ -217,26 +217,26 @@ it('get Social media errors', async () => {
 
 // URL mock
 it('mock URL', async () => {
-    const mockType = await mockTypeFn<UrlFormat>();
-    const isType = await isTypeFn<UrlFormat>();
+    const mockType = await mockTypeFn<FormatUrl>();
+    const isType = await isTypeFn<FormatUrl>();
     const someUrls = Array.from({length: 20}, () => mockType());
     for (const url of someUrls) expect(isType(url)).toBe(true);
 });
 it('mock FILE URL', async () => {
-    const mockType = await mockTypeFn<UrlFormat_File>();
-    const isType = await isTypeFn<UrlFormat_File>();
+    const mockType = await mockTypeFn<FormatUrlFile>();
+    const isType = await isTypeFn<FormatUrlFile>();
     const someUrls = Array.from({length: 20}, () => mockType());
     for (const url of someUrls) expect(isType(url)).toBe(true);
 });
 it('mock Http URL', async () => {
-    const mockType = await mockTypeFn<UrlFormat_Http>();
-    const isType = await isTypeFn<UrlFormat_Http>();
+    const mockType = await mockTypeFn<FormatUrlHttp>();
+    const isType = await isTypeFn<FormatUrlHttp>();
     const someUrls = Array.from({length: 20}, () => mockType());
     for (const url of someUrls) expect(isType(url)).toBe(true);
 });
 it('mock Social media URL', async () => {
-    const mockType = await mockTypeFn<UrlFormat_SocialMedia>();
-    const isType = await isTypeFn<UrlFormat_SocialMedia>();
+    const mockType = await mockTypeFn<FormatUrlSocialMedia>();
+    const isType = await isTypeFn<FormatUrlSocialMedia>();
     const someUrls = Array.from({length: 20}, () => mockType());
     for (const url of someUrls) expect(isType(url)).toBe(true);
 });

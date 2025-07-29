@@ -215,7 +215,7 @@ export const NUMBER_RUN_TYPE_FORMATTER = registerFormatter(new NumberRunTypeForm
 // ############### Number Format Params ###############
 
 // Define the type for number format
-export type NumberFormat<P extends Partial<FormatParams_NumberValidators> = {}> = TypeFormat<
+export type FormatNumber<P extends Partial<FormatParams_NumberValidators> = {}> = TypeFormat<
     number,
     typeof NumberRunTypeFormat.id,
     P

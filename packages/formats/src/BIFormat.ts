@@ -8,4 +8,4 @@
 // ############### Main BigIntFormat Export ###############
 
 // Re-export the main BigIntFormat type
-export { BigIntFormat } from './bigint/bigIntFormat.runtype';
+export {FormatBigInt} from './bigint/bigIntFormat.runtype';

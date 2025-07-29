@@ -6,7 +6,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {StringFormat, FormatParams_String} from './stringFormat.runtype';
+import {FormatString, FormatParams_String} from './stringFormat.runtype';
 
 // ############### Default String Formats ###############
 
@@ -36,9 +36,9 @@ type DEFAULT_NUMERIC_PARAMS = {
     };
 };
 
-export type String_Alphanumeric<P extends FormatParams_String = {}> = StringFormat<P & DEFAULT_ALPHA_NUM_PARAMS>;
-export type String_Alpha<P extends FormatParams_String = {}> = StringFormat<P & DEFAULT_ALPHA_PARAMS>;
-export type String_Numeric<P extends FormatParams_String = {}> = StringFormat<P & DEFAULT_NUMERIC_PARAMS>;
-export type String_Lowercase<P extends FormatParams_String = {}> = StringFormat<P & {lowercase: true}>;
-export type String_Uppercase<P extends FormatParams_String = {}> = StringFormat<P & {uppercase: true}>;
-export type String_Capitalize<P extends FormatParams_String = {}> = StringFormat<P & {capitalize: true}>;
+export type FormatAlphaNumeric<P extends FormatParams_String = {}> = FormatString<P & DEFAULT_ALPHA_NUM_PARAMS>;
+export type FormatAlpha<P extends FormatParams_String = {}> = FormatString<P & DEFAULT_ALPHA_PARAMS>;
+export type FormatNumeric<P extends FormatParams_String = {}> = FormatString<P & DEFAULT_NUMERIC_PARAMS>;
+export type FormatLowercase<P extends FormatParams_String = {}> = FormatString<P & {lowercase: true}>;
+export type FormatUppercase<P extends FormatParams_String = {}> = FormatString<P & {uppercase: true}>;
+export type FormatCapitalize<P extends FormatParams_String = {}> = FormatString<P & {capitalize: true}>;

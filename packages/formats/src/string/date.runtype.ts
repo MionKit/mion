@@ -214,7 +214,7 @@ export type FormatParams_Date = {
     // day?: number;
 };
 
-export type DateFormat<P extends Partial<FormatParams_Date> = DEFAULT_DATE_PARAMS> = TypeFormat<
+export type FormatDate<P extends Partial<FormatParams_Date> = DEFAULT_DATE_PARAMS> = TypeFormat<
     string,
     typeof DateStringRunTypeFormat.id,
     P
