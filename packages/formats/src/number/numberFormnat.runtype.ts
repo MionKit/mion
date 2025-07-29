@@ -222,18 +222,18 @@ export type FormatNumber<P extends Partial<FormatParams_NumberValidators> = {}> 
 >;
 
 type NumberMax =
-    | {max?: number | {val: number; reason: string; desc?: string}; gt?: never}
-    | {max?: never; gt?: number | {val: number; reason: string; desc?: string}};
+    | {max?: number | {val: number; errorMessage: string; desc?: string}; gt?: never}
+    | {max?: never; gt?: number | {val: number; errorMessage: string; desc?: string}};
 type NumberMin =
-    | {min?: number | {val: number; reason: string; desc?: string}; lt?: never}
-    | {min?: never; lt?: number | {val: number; reason: string; desc?: string}};
+    | {min?: number | {val: number; errorMessage: string; desc?: string}; lt?: never}
+    | {min?: never; lt?: number | {val: number; errorMessage: string; desc?: string}};
 type NumberType =
-    | {integer?: boolean | {val: boolean; reason: string; desc?: string}; float?: never}
-    | {integer?: never; float?: boolean | {val: boolean; reason: string; desc?: string}};
+    | {integer?: boolean | {val: boolean; errorMessage: string; desc?: string}; float?: never}
+    | {integer?: never; float?: boolean | {val: boolean; errorMessage: string; desc?: string}};
 
 // Define the type for number format parameters
 export type FormatParams_NumberValidators = NumberMax &
     NumberMin &
     NumberType & {
-        multipleOf?: number | {val: number; reason: string; desc?: string};
+        multipleOf?: number | {val: number; errorMessage: string; desc?: string};
     };

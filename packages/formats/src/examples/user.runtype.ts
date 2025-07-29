@@ -134,16 +134,9 @@ export type User = {
 
     // Preferences
     preferences?: {
-        theme: SFormat.FormatString<{
-            allowedValues: ThemeValues;
-        }>;
-        language: SFormat.FormatString<{
-            pattern: LanguageCodePattern;
-            lowercase: true;
-        }>;
-        timezone: SFormat.FormatString<{
-            pattern: TimezonePattern;
-        }>;
+        theme: SFormat.FormatString<{allowedValues: ThemeValues}>;
+        language: SFormat.FormatString<{pattern: LanguageCodePattern; lowercase: true}>;
+        timezone: SFormat.FormatString<{pattern: TimezonePattern}>;
     };
 };
 
@@ -311,54 +304,54 @@ const timezonePattern = /^[A-Za-z_]+\/[A-Za-z_]+$/;
 
 export type NamePattern = {
     val: typeof internationalNamePattern;
-    reason: 'Name must contain only letters, spaces, hyphens, and apostrophes (supports Unicode)';
+    errorMessage: 'Name must contain only letters, spaces, hyphens, and apostrophes (supports Unicode)';
     mockSamples: ['John', 'María', 'Jean-Pierre', "O'Connor", 'Александр', '田中', 'محمد'];
 };
 
 type UsernamePattern = {
     val: typeof usernamePattern;
-    reason: 'Username can only contain letters, numbers, underscores, and hyphens';
+    errorMessage: 'Username can only contain letters, numbers, underscores, and hyphens';
     mockSamples: ['john_doe', 'user123', 'cool-user', 'alpha_beta'];
 };
 
 type PhonePattern = {
     val: typeof phonePattern;
-    reason: 'Phone number must be in international format (+1234567890)';
+    errorMessage: 'Phone number must be in international format (+1234567890)';
     mockSamples: ['+1234567890', '+447700900123', '+33123456789', '+81312345678'];
 };
 
 type CityPattern = {
     val: typeof cityPattern;
-    reason: 'City name must contain only letters, spaces, hyphens, and apostrophes';
+    errorMessage: 'City name must contain only letters, spaces, hyphens, and apostrophes';
     mockSamples: ['New York', 'São Paulo', 'München', 'Москва', '東京', 'القاهرة'];
 };
 
 type PostalCodePattern = {
     val: typeof postalCodePattern;
-    reason: 'Invalid postal code format';
+    errorMessage: 'Invalid postal code format';
     mockSamples: ['12345', '10001', 'SW1A 1AA', 'K1A 0A6', '75001'];
 };
 
 type CountryCodePattern = {
     val: typeof countryCodePattern;
-    reason: 'Country code must be 2 uppercase letters (ISO 3166-1 alpha-2)';
+    errorMessage: 'Country code must be 2 uppercase letters (ISO 3166-1 alpha-2)';
     mockSamples: ['US', 'CA', 'GB', 'DE', 'FR', 'JP', 'AU'];
 };
 
 type LanguageCodePattern = {
     val: typeof languageCodePattern;
-    reason: 'Language code must be in format "en" or "en-US"';
+    errorMessage: 'Language code must be in format "en" or "en-US"';
     mockSamples: ['en', 'es', 'fr', 'de', 'ja', 'en-US', 'es-ES', 'fr-CA'];
 };
 
 type TimezonePattern = {
     val: typeof timezonePattern;
-    reason: 'Timezone must be in IANA format (e.g., America/New_York)';
+    errorMessage: 'Timezone must be in IANA format (e.g., America/New_York)';
     mockSamples: ['America/New_York', 'Europe/London', 'Asia/Tokyo', 'Australia/Sydney'];
 };
 
 type ThemeValues = {
     val: ['light', 'dark', 'auto'];
-    reason: 'Theme must be light, dark, or auto';
+    errorMessage: 'Theme must be light, dark, or auto';
     mockSamples: ['light', 'dark', 'auto'];
 };

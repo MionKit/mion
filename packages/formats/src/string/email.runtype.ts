@@ -213,7 +213,7 @@ export type DEFAULT_STRICT_EMAIL_PARAMS = {
          * */
         disallowedChars: {
             val: ` ()<>[]:;\\,{}|+@`;
-            reason: 'Invalid characters in email local part';
+            errorMessage: 'Invalid characters in email local part';
             mockSamples: EMAIL_NAME_SAMPLES;
         };
     };
@@ -229,7 +229,7 @@ export type DEFAULT_EMAIL_PARAMS<
     pattern: {
         val: EmailPattern;
         mockSamples: MockSamples;
-        reason: 'Invalid email format';
+        errorMessage: 'Invalid email format';
     };
 };
 

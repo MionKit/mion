@@ -184,30 +184,34 @@ export const URL_RUN_TYPE_FORMATTER = registerFormatter(new URLRunTypeFormat());
 
 export type DEFAULT_URL_PARAMS = {
     maxLength: 2048;
-    pattern: {val: typeof URL_REGEXP; reason: 'invalid URL format'; mockSamples: URL_SAMPLES};
+    pattern: {val: typeof URL_REGEXP; errorMessage: 'invalid URL format'; mockSamples: URL_SAMPLES};
 };
 export type DEFAULT_URL_FILE_PARAMS = {
     maxLength: 2048;
-    pattern: {val: typeof URL_FILE_REGEXP; reason: 'invalid file URL format'; mockSamples: FILE_URL_SAMPLES};
+    pattern: {val: typeof URL_FILE_REGEXP; errorMessage: 'invalid file URL format'; mockSamples: FILE_URL_SAMPLES};
 };
 export type DEFAULT_URL_HTTP_PARAMS = {
     maxLength: 2048;
-    pattern: {val: typeof URL_HTTP_REGEXP; reason: 'invalid Http URL format'; mockSamples: HTTP_URL_SAMPLES};
+    pattern: {val: typeof URL_HTTP_REGEXP; errorMessage: 'invalid Http URL format'; mockSamples: HTTP_URL_SAMPLES};
 };
 export type DEFAULT_URL_SOCIAL_MEDIA_PARAMS<DomainLIst extends readonly string[] = SOCIAL_MEDIA_DOMAINS_SAMPLES> = {
     maxLength: 2048;
-    pattern: {val: typeof URL_HTTP_REGEXP; reason: 'invalid social media URL format'; mockSamples: SOCIAL_MEDIA_URL_SAMPLES};
+    pattern: {
+        val: typeof URL_HTTP_REGEXP;
+        errorMessage: 'invalid social media URL format';
+        mockSamples: SOCIAL_MEDIA_URL_SAMPLES;
+    };
     domain: {
         names: {
             allowedValues: {
                 val: DomainLIst;
-                reason: 'Only social media domains are allowed';
+                errorMessage: 'Only social media domains are allowed';
             };
         };
         tld: {
             allowedValues: {
                 val: ['com'];
-                reason: 'Only com TLDs are allowed';
+                errorMessage: 'Only com TLDs are allowed';
             };
         };
     };

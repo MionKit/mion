@@ -383,13 +383,13 @@ it('mock allowedValues', async () => {
                     'snapchat',
                     'pinterest',
                 ];
-                reason: 'Only social media domains are allowed';
+                errorMessage: 'Only social media domains are allowed';
             };
         };
         tld: {
             allowedValues: {
                 val: ['com'];
-                reason: 'Only com and io TLDs are allowed';
+                errorMessage: 'Only com and io TLDs are allowed';
             };
         };
     }>;
