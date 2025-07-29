@@ -141,8 +141,8 @@ export type TypeFormatValue =
 export type FormatParamMeta<L extends TypeFormatValue = TypeFormatValue> = {
     /** Value of the format param, can ONLY be a Literal Value */
     val: L;
-    /** Error reason in case validation fails due to this value, should be a unique reason  */
-    reason: string;
+    /** Error message in case validation fails due to this value, should be a unique reason  */
+    errorMessage: string;
     /**  Description of the format param, can be used to generate documentation */
     desc?: string;
 };

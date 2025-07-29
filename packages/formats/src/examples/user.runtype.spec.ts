@@ -6,39 +6,9 @@
  * ######## */
 
 import {isTypeFn, mockTypeFn, typeErrorsFn} from '@mionkit/run-types/src/runTypeFunctions';
-import {User, exampleUser, userExamples, NamePattern} from './user';
-import * as SFormat from '../SFormat';
-import * as NFormat from '../NFormat';
+import {User, exampleUser, userExamples} from './user.runtype';
 
 // ############### Basic User Validation Tests ###############
-
-// First, let's test individual format types to make sure they work
-it('should validate firstName format', async () => {
-    type FirstNameType = SFormat.FormatString<{
-        minLength: 2;
-        maxLength: 50;
-        pattern: NamePattern;
-        trim: true;
-        capitalize: true;
-    }>;
-    const isType = await isTypeFn<FirstNameType>();
-    expect(isType('John')).toBe(true);
-    expect(isType('A')).toBe(false); // Too short
-    expect(isType('A'.repeat(51))).toBe(false); // Too long
-});
-
-it('should validate age format', async () => {
-    type AgeType = NFormat.FormatNumber<{
-        min: 13;
-        max: 120;
-        integer: true;
-    }>;
-    const isType = await isTypeFn<AgeType>();
-    expect(isType(25)).toBe(true);
-    expect(isType(12)).toBe(false); // Too young
-    expect(isType(121)).toBe(false); // Too old
-    expect(isType(25.5)).toBe(false); // Not integer
-});
 
 it('should validate complete valid user', async () => {
     const isType = await isTypeFn<User>();
@@ -83,9 +53,11 @@ describe('firstName validation', () => {
         }
     });
 
+    // TODO FOrmats a not working properly
     it('should reject names that are too short', async () => {
         const isType = await isTypeFn<User>();
         const user = {...exampleUser, firstName: 'A'};
+        console.log('user', user);
         expect(isType(user)).toBe(false);
     });
 

@@ -18,21 +18,21 @@ type DEFAULT_ALPHA_NUM_PARAMS = {
     pattern: {
         val: typeof ALPHANUMERIC_REGEX;
         mockSamples: 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-        reason: 'only alphanumeric values are allowed';
+        errorMessage: 'only alphanumeric values are allowed';
     };
 };
 type DEFAULT_ALPHA_PARAMS = {
     pattern: {
         val: typeof ALPHA_REGEX;
         mockSamples: 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
-        reason: 'only alphabetic values are allowed';
+        errorMessage: 'only alphabetic values are allowed';
     };
 };
 type DEFAULT_NUMERIC_PARAMS = {
     pattern: {
         val: typeof NUMERIC_REGEX;
         mockSamples: '0123456789';
-        reason: 'only numeric values are allowed';
+        errorMessage: 'only numeric values are allowed';
     };
 };
 

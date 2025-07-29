@@ -38,11 +38,11 @@ export const TLD_ALLOWED_CHARS_PATTERN = /^[a-zA-Z]+(\.[a-zA-Z]+)?$/;
 
 const tldAllowedChars: FormatParams_StringValidators['allowedChars'] = {
     val: TLD_CHARS,
-    reason: 'only alphabetical characters allowed',
+    errorMessage: 'only alphabetical characters allowed',
 };
 const namesAllowedChars: FormatParams_StringValidators['allowedChars'] = {
     val: NAME_CHARS,
-    reason: 'only alphabetical characters and hyphens allowed',
+    errorMessage: 'only alphabetical characters and hyphens allowed',
 };
 
 // Domain validator
@@ -299,7 +299,7 @@ export type DEFAULT_DOMAIN_PARAMS<
     pattern: {
         val: P;
         mockSamples: S;
-        reason: 'invalid domain';
+        errorMessage: 'invalid domain';
     };
 };
 export type DEFAULT_DMM_TLD_PARAMS<
@@ -311,7 +311,7 @@ export type DEFAULT_DMM_TLD_PARAMS<
     pattern: {
         val: P;
         mockSamples: S;
-        reason: 'top level domain can only contain letters and dots';
+        errorMessage: 'top level domain can only contain letters and dots';
     };
 };
 export type DEFAULT_DOM_NAME_PARAMS<
@@ -323,7 +323,7 @@ export type DEFAULT_DOM_NAME_PARAMS<
     pattern: {
         val: P;
         mockSamples: S;
-        reason: 'domain names can only contain letters, numbers and hyphens';
+        errorMessage: 'domain names can only contain letters, numbers and hyphens';
     };
 };
 export type DEFAULT_STRICT_DOMAIN_PARAMS = {

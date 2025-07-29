@@ -187,14 +187,14 @@ export type FormatBigInt<P extends Partial<FormatParams_BigIntValidators> = {}> 
 >;
 
 type BigIntMax =
-    | {max?: bigint | {val: bigint; reason: string; desc?: string}; gt?: never}
-    | {max?: never; gt?: bigint | {val: bigint; reason: string; desc?: string}};
+    | {max?: bigint | {val: bigint; errorMessage: string; desc?: string}; gt?: never}
+    | {max?: never; gt?: bigint | {val: bigint; errorMessage: string; desc?: string}};
 type BigIntMin =
-    | {min?: bigint | {val: bigint; reason: string; desc?: string}; lt?: never}
-    | {min?: never; lt?: bigint | {val: bigint; reason: string; desc?: string}};
+    | {min?: bigint | {val: bigint; errorMessage: string; desc?: string}; lt?: never}
+    | {min?: never; lt?: bigint | {val: bigint; errorMessage: string; desc?: string}};
 
 // Define the type for bigint format parameters
 export type FormatParams_BigIntValidators = BigIntMax &
     BigIntMin & {
-        multipleOf?: bigint | {val: bigint; reason: string; desc?: string};
+        multipleOf?: bigint | {val: bigint; errorMessage: string; desc?: string};
     };

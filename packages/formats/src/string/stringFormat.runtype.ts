@@ -267,7 +267,7 @@ function getParamError(v: any, p: FormatParams_String, skipLengthChecks = false)
 }
 
 function getDefaultMessage(name: keyof typeof defaultMessages, p: FormatParams_String): string {
-    return p[name]?.reason || defaultMessages[name];
+    return p[name]?.errorMessage || defaultMessages[name];
 }
 
 function getAllowedCharsRegexp(allowedChars: string, ignoreCase?: boolean): RegExp {
@@ -312,14 +312,14 @@ export type Samples = string | readonly string[];
 
 export type FormatParams_StringValidators = {
     // validators
-    maxLength?: number | {val: number; reason: string; desc?: string};
-    minLength?: number | {val: number; reason: string; desc?: string};
-    length?: number | {val: number; reason: string; desc?: string};
-    disallowedChars?: {val: string; reason: string; desc?: string; ignoreCase?: boolean; mockSamples: string};
-    disallowedValues?: {val: readonly string[]; reason: string; desc?: string; ignoreCase?: boolean; mockSamples: Samples};
-    pattern?: {val: RegExp; reason: string; desc?: string; ignoreCase?: boolean; mockSamples: Samples};
-    allowedChars?: {val: string; reason: string; desc?: string; ignoreCase?: boolean; mockSamples?: Samples};
-    allowedValues?: {val: readonly string[]; reason: string; desc?: string; ignoreCase?: boolean; mockSamples?: Samples};
+    maxLength?: number | {val: number; errorMessage: string; desc?: string};
+    minLength?: number | {val: number; errorMessage: string; desc?: string};
+    length?: number | {val: number; errorMessage: string; desc?: string};
+    disallowedChars?: {val: string; errorMessage: string; desc?: string; ignoreCase?: boolean; mockSamples: string};
+    disallowedValues?: {val: readonly string[]; errorMessage: string; desc?: string; ignoreCase?: boolean; mockSamples: Samples};
+    pattern?: {val: RegExp; errorMessage: string; desc?: string; ignoreCase?: boolean; mockSamples: Samples};
+    allowedChars?: {val: string; errorMessage: string; desc?: string; ignoreCase?: boolean; mockSamples?: Samples};
+    allowedValues?: {val: readonly string[]; errorMessage: string; desc?: string; ignoreCase?: boolean; mockSamples?: Samples};
 };
 export type FormatParams_StringTransformers = {
     // formatters
