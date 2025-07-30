@@ -220,27 +220,7 @@ export function parseJsonFalse(str: string, startIndex: number = 0): ParseResult
     throw new Error(`Expected false at position ${startIndex}, found '${remaining.substring(0, 5)}'`);
 }
 
-/**
- * Parse JSON literal: null, true, or false (kept for backward compatibility)
- * @deprecated Use parseJsonNull(), parseJsonTrue(), or parseJsonFalse() instead
- */
-export function parseJsonLiteral(str: string, startIndex: number = 0): ParseResult<null | boolean> {
-    const remaining = str.substring(startIndex);
 
-    if (remaining.startsWith('null')) {
-        return {value: null, nextPos: startIndex + 4};
-    }
-
-    if (remaining.startsWith('true')) {
-        return {value: true, nextPos: startIndex + 4};
-    }
-
-    if (remaining.startsWith('false')) {
-        return {value: false, nextPos: startIndex + 5};
-    }
-
-    throw new Error(`Expected null, true, or false at position ${startIndex}, found '${remaining.substring(0, 5)}'`);
-}
 
 /**
  * Skip whitespace characters and return the number of characters skipped

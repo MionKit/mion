@@ -11,7 +11,6 @@ import {
     parseJsonNull,
     parseJsonTrue,
     parseJsonFalse,
-    parseJsonLiteral,
     parseStartArray,
     parseEndArray,
     parseStartObject,
@@ -170,37 +169,7 @@ describe('JSON Basic Types Tokenizer', () => {
         });
     });
 
-    describe('parseJsonLiteral (deprecated)', () => {
-        it('should parse null', () => {
-            expect(parseJsonLiteral('null')).toEqual({value: null, nextPos: 4});
-            expect(parseJsonLiteral('null,')).toEqual({value: null, nextPos: 4});
-        });
 
-        it('should parse true', () => {
-            expect(parseJsonLiteral('true')).toEqual({value: true, nextPos: 4});
-            expect(parseJsonLiteral('true]')).toEqual({value: true, nextPos: 4});
-        });
-
-        it('should parse false', () => {
-            expect(parseJsonLiteral('false')).toEqual({value: false, nextPos: 5});
-            expect(parseJsonLiteral('false}')).toEqual({value: false, nextPos: 5});
-        });
-
-        it('should parse literals at specific positions', () => {
-            expect(parseJsonLiteral('abcnulldef', 3)).toEqual({value: null, nextPos: 7});
-            expect(parseJsonLiteral('  true  ', 2)).toEqual({value: true, nextPos: 6});
-        });
-
-        it('should throw on invalid literals', () => {
-            expect(() => parseJsonLiteral('nul')).toThrow();
-            expect(() => parseJsonLiteral('tru')).toThrow();
-            expect(() => parseJsonLiteral('fals')).toThrow();
-            expect(() => parseJsonLiteral('NULL')).toThrow(); // Case sensitive
-            expect(() => parseJsonLiteral('True')).toThrow(); // Case sensitive
-            expect(() => parseJsonLiteral('False')).toThrow(); // Case sensitive
-            expect(() => parseJsonLiteral('abc')).toThrow();
-        });
-    });
 
     describe('skipWhitespace', () => {
         it('should skip various whitespace characters', () => {
