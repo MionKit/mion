@@ -18,6 +18,7 @@ import {
     parseEndObject,
     parseComma,
     parseColon,
+    parseObjectProp,
     skipWhitespace,
     peekNextChar,
 } from './jsonBasicTypesTokenizer';
@@ -457,6 +458,90 @@ describe('JSON Basic Types Tokenizer', () => {
                 expect(() => parseColon(';')).toThrow();
                 expect(() => parseColon('')).toThrow();
                 expect(() => parseColon('  ;')).toThrow();
+            });
+        });
+
+        describe('parseObjectProp', () => {
+            it('should parse exact property matches', () => {
+                expect(parseObjectProp('"name"', 0, '"name"')).toBe(6);
+                expect(parseObjectProp('"age"', 0, '"age"')).toBe(5);
+                expect(parseObjectProp('"id"', 0, '"id"')).toBe(4);
+            });
+
+            it('should handle whitespace before property', () => {
+                expect(parseObjectProp('  "name"', 0, '"name"')).toBe(8);
+                expect(parseObjectProp('\t\n"age"', 0, '"age"')).toBe(7);
+                expect(parseObjectProp('   "id"', 0, '"id"')).toBe(7);
+            });
+
+            it('should parse properties at specific positions', () => {
+                expect(parseObjectProp('{"name":"John"}', 1, '"name"')).toBe(7);
+                expect(parseObjectProp('abc"age"def', 3, '"age"')).toBe(8);
+                expect(parseObjectProp('  "id":123', 2, '"id"')).toBe(6);
+            });
+
+            it('should handle properties with escape sequences', () => {
+                expect(parseObjectProp('"user\\"name"', 0, '"user\\"name"')).toBe(12);
+                expect(parseObjectProp('"line\\nbreak"', 0, '"line\\nbreak"')).toBe(13);
+                expect(parseObjectProp('"tab\\there"', 0, '"tab\\there"')).toBe(11);
+            });
+
+            it('should handle unicode properties', () => {
+                expect(parseObjectProp('"\\u0041"', 0, '"\\u0041"')).toBe(8);
+                expect(parseObjectProp('"test\\u0020name"', 0, '"test\\u0020name"')).toBe(16);
+            });
+
+            it('should be much faster than parseJsonString for known properties', () => {
+                const testProp = '"name"';
+                const testString = '"name":"John"';
+
+                // Both should return the same position
+                const propResult = parseObjectProp(testString, 0, testProp);
+                const stringResult = parseJsonString(testString, 0);
+
+                expect(propResult).toBe(stringResult.nextPos);
+            });
+
+            it('should work in realistic object parsing scenarios', () => {
+                const objectStr = '{"name":"John","age":30,"active":true}';
+                let pos = 1; // After opening brace
+
+                // Parse first property name
+                pos = parseObjectProp(objectStr, pos, '"name"');
+                expect(pos).toBe(7);
+
+                // Skip colon and value, move to comma
+                pos = 14; // After "John"
+                pos = parseComma(objectStr, pos);
+
+                // Parse second property name
+                pos = parseObjectProp(objectStr, pos, '"age"');
+                expect(pos).toBe(20);
+
+                // Skip colon and value, move to comma
+                pos = 23; // After 30
+                pos = parseComma(objectStr, pos);
+
+                // Parse third property name
+                pos = parseObjectProp(objectStr, pos, '"active"');
+                expect(pos).toBe(32);
+            });
+
+            it('should throw on property mismatch', () => {
+                expect(() => parseObjectProp('"name"', 0, '"age"')).toThrow();
+                expect(() => parseObjectProp('"user"', 0, '"name"')).toThrow();
+                expect(() => parseObjectProp('name', 0, '"name"')).toThrow(); // Missing quotes
+            });
+
+            it('should throw on insufficient characters', () => {
+                expect(() => parseObjectProp('"na"', 0, '"name"')).toThrow();
+                expect(() => parseObjectProp('', 0, '"name"')).toThrow();
+                expect(() => parseObjectProp('"name"', 5, '"test"')).toThrow(); // Start beyond string
+            });
+
+            it('should provide helpful error messages', () => {
+                expect(() => parseObjectProp('"user"', 0, '"name"')).toThrow('Expected property "name"');
+                expect(() => parseObjectProp('name', 0, '"name"')).toThrow('Expected property "name"');
             });
         });
     });

@@ -377,6 +377,35 @@ export function parseColon(str: string, startIndex: number = 0): number {
     return actualStart + 1; // Return position after ':'
 }
 
+/**
+ * Parse a known object property name by direct string comparison
+ * Much faster than full JSON string parsing when we know the expected property name
+ *
+ * @param str - The JSON string being parsed
+ * @param startIndex - Position to start parsing from
+ * @param expectedProp - The expected property name including quotes (e.g., '"name"')
+ * @returns The position after the matched property name
+ */
+export function parseObjectProp(str: string, startIndex: number, expectedProp: string): number {
+    // Skip leading whitespace
+    const whitespaceSkipped = skipWhitespace(str, startIndex);
+    const actualStart = startIndex + whitespaceSkipped;
+
+    // Check if we have enough characters left
+    if (actualStart + expectedProp.length > str.length) {
+        throw new Error(`Expected property ${expectedProp} at position ${actualStart}, but not enough characters remaining`);
+    }
+
+    // Direct string comparison - much faster than parsing
+    if (str.substring(actualStart, actualStart + expectedProp.length) === expectedProp) {
+        return actualStart + expectedProp.length;
+    }
+
+    // Extract what we actually found for better error message
+    const actualFound = str.substring(actualStart, Math.min(actualStart + expectedProp.length + 5, str.length));
+    throw new Error(`Expected property ${expectedProp} at position ${actualStart}, found '${actualFound}'`);
+}
+
 // Helper functions
 function isDigit(char: string): boolean {
     return char >= '0' && char <= '9';

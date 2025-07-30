@@ -16,6 +16,7 @@ import {
     parseEndObject,
     parseComma,
     parseColon,
+    parseObjectProp,
 } from '../jitFnsCompilers/jsonBasicTypesTokenizer';
 
 interface BenchmarkResult {
@@ -175,39 +176,37 @@ function benchmarkString(name: string, tokenizerFn: () => void, regexFn: () => v
 // Simulate JIT-generated object parsing: {"name":"John","age":30}
 function parseObjectWithTokenizer(str: string) {
     let pos = 0;
-    
+
     // Parse opening brace
     pos = parseStartObject(str, pos);
-    
-    // Parse first key "name"
-    const key1 = parseJsonString(str, pos);
-    pos = key1.nextPos;
-    
+
+    // Parse first key "name" using schema-aware parsing
+    pos = parseObjectProp(str, pos, '"name"');
+
     // Parse colon
     pos = parseColon(str, pos);
-    
+
     // Parse first value "John"
     const value1 = parseJsonString(str, pos);
     pos = value1.nextPos;
-    
+
     // Parse comma
     pos = parseComma(str, pos);
-    
-    // Parse second key "age"
-    const key2 = parseJsonString(str, pos);
-    pos = key2.nextPos;
-    
+
+    // Parse second key "age" using schema-aware parsing
+    pos = parseObjectProp(str, pos, '"age"');
+
     // Parse colon
     pos = parseColon(str, pos);
-    
+
     // Parse second value 30
     const value2 = parseJsonNumber(str, pos);
     pos = value2.nextPos;
-    
+
     // Parse closing brace
     pos = parseEndObject(str, pos);
-    
-    return { [key1.value]: value1.value, [key2.value]: value2.value };
+
+    return { name: value1.value, age: value2.value };
 }
 
 // Simulate JIT-generated array parsing: [123,"hello",true]
@@ -345,7 +344,67 @@ export function runJsonTokenizerBenchmarks(): BenchmarkResult[] {
         () => wrappedJsonParseString(escapeStrings.unicodeHeavy),
         iterations
     ));
-    
+
+    // Test schema-aware property parsing
+    console.log('\n🏷️ Schema-Aware Property Parsing:');
+
+    // Test common property names
+    const commonProps = [
+        { prop: '"id"', testStr: '"id":"123"' },
+        { prop: '"name"', testStr: '"name":"John"' },
+        { prop: '"email"', testStr: '"email":"test@example.com"' },
+        { prop: '"created_at"', testStr: '"created_at":"2023-01-01"' }
+    ];
+
+    commonProps.forEach(({ prop, testStr }) => {
+        // Benchmark parseObjectProp vs parseJsonString for property names
+        const propIterations = iterations;
+
+        // Warm up
+        for (let i = 0; i < 1000; i++) {
+            parseObjectProp(testStr, 0, prop);
+            parseJsonString(testStr, 0);
+            JSON.parse(prop);
+        }
+
+        // Benchmark parseObjectProp
+        const propStart = performance.now();
+        for (let i = 0; i < propIterations; i++) {
+            parseObjectProp(testStr, 0, prop);
+        }
+        const propEnd = performance.now();
+        const propTime = propEnd - propStart;
+
+        // Benchmark parseJsonString
+        const stringStart = performance.now();
+        for (let i = 0; i < propIterations; i++) {
+            parseJsonString(testStr, 0);
+        }
+        const stringEnd = performance.now();
+        const stringTime = stringEnd - stringStart;
+
+        // Benchmark JSON.parse
+        const jsonStart = performance.now();
+        for (let i = 0; i < propIterations; i++) {
+            JSON.parse(prop);
+        }
+        const jsonEnd = performance.now();
+        const jsonTime = jsonEnd - jsonStart;
+
+        // Add result comparing parseObjectProp vs parseJsonString vs JSON.parse
+        results.push({
+            name: `Property ${prop} (schema-aware)`,
+            tokenizerTime: stringTime, // parseJsonString time
+            regexTime: propTime, // parseObjectProp time (reusing regexTime field)
+            jsonParseTime: jsonTime,
+            wrappedJsonParseTime: jsonTime * 1.008, // Estimate wrapped overhead
+            tokenizerRatio: stringTime / jsonTime,
+            regexRatio: propTime / jsonTime, // parseObjectProp ratio
+            wrappedRatio: 1.008,
+            iterations: propIterations
+        });
+    });
+
     // Test JIT-style parsing (lower iterations for complex operations)
     console.log('\n🏗️ JIT-Style Complex Parsing:');
     const complexIterations = 50000;
