@@ -8,6 +8,7 @@
 import {
     parseJsonNumber,
     parseJsonString,
+    parseJsonStringRegex,
     parseJsonNull,
     parseJsonTrue,
     parseJsonFalse,
@@ -166,6 +167,117 @@ describe('JSON Basic Types Tokenizer', () => {
             expect(() => parseJsonString('"\\x"')).toThrow(); // Invalid escape
             expect(() => parseJsonString('"\\u123"')).toThrow(); // Incomplete unicode
             expect(() => parseJsonString('"\\uGHIJ"')).toThrow(); // Invalid unicode
+        });
+    });
+
+    describe('parseJsonStringRegex', () => {
+        it('should parse simple strings', () => {
+            expect(parseJsonStringRegex('"hello"')).toEqual({value: 'hello', nextPos: 7});
+            expect(parseJsonStringRegex('""')).toEqual({value: '', nextPos: 2});
+            expect(parseJsonStringRegex('"world"')).toEqual({value: 'world', nextPos: 7});
+        });
+
+        it('should parse simple strings exactly like JSON.parse', () => {
+            expect(parseJsonStringRegex('"hello"').value).toBe(JSON.parse('"hello"'));
+            expect(parseJsonStringRegex('""').value).toBe(JSON.parse('""'));
+            expect(parseJsonStringRegex('"world"').value).toBe(JSON.parse('"world"'));
+        });
+
+        it('should parse strings with escape sequences', () => {
+            expect(parseJsonStringRegex('"hello \\"world\\""')).toEqual({
+                value: 'hello "world"',
+                nextPos: 17,
+            });
+            expect(parseJsonStringRegex('"line1\\nline2"')).toEqual({
+                value: 'line1\nline2',
+                nextPos: 14,
+            });
+            expect(parseJsonStringRegex('"tab\\there"')).toEqual({
+                value: 'tab\there',
+                nextPos: 11,
+            });
+            expect(parseJsonStringRegex('"back\\\\slash"')).toEqual({
+                value: 'back\\slash',
+                nextPos: 13,
+            });
+        });
+
+        it('should parse strings with escape sequences exactly like JSON.parse', () => {
+            expect(parseJsonStringRegex('"hello \\"world\\""').value).toBe(JSON.parse('"hello \\"world\\""'));
+            expect(parseJsonStringRegex('"line1\\nline2"').value).toBe(JSON.parse('"line1\\nline2"'));
+            expect(parseJsonStringRegex('"tab\\there"').value).toBe(JSON.parse('"tab\\there"'));
+            expect(parseJsonStringRegex('"back\\\\slash"').value).toBe(JSON.parse('"back\\\\slash"'));
+        });
+
+        it('should parse strings with unicode escapes', () => {
+            expect(parseJsonStringRegex('"\\u0041"')).toEqual({value: 'A', nextPos: 8});
+            expect(parseJsonStringRegex('"\\u0048\\u0065\\u006C\\u006C\\u006F"')).toEqual({
+                value: 'Hello',
+                nextPos: 32,
+            });
+        });
+
+        it('should parse strings with unicode escapes exactly like JSON.parse', () => {
+            expect(parseJsonStringRegex('"\\u0041"').value).toBe(JSON.parse('"\\u0041"'));
+            expect(parseJsonStringRegex('"\\u0048\\u0065\\u006C\\u006C\\u006F"').value).toBe(JSON.parse('"\\u0048\\u0065\\u006C\\u006C\\u006F"'));
+        });
+
+        it('should parse strings at specific positions', () => {
+            expect(parseJsonStringRegex('abc"hello"def', 3)).toEqual({
+                value: 'hello',
+                nextPos: 10,
+            });
+        });
+
+        it('should handle all valid escape sequences', () => {
+            const testCases = [
+                '"\\"quote\\""',      // \"
+                '"\\\\"',             // \\
+                '"\\/"',              // \/
+                '"\\b"',              // \b
+                '"\\f"',              // \f
+                '"\\n"',              // \n
+                '"\\r"',              // \r
+                '"\\t"',              // \t
+                '"\\u0020"',          // \u0020 (space)
+                '"\\u00A9"',          // \u00A9 (copyright)
+            ];
+
+            testCases.forEach(testCase => {
+                const regexResult = parseJsonStringRegex(testCase);
+                const jsonParseResult = JSON.parse(testCase);
+                expect(regexResult.value).toBe(jsonParseResult);
+            });
+        });
+
+        it('should throw on invalid strings', () => {
+            expect(() => parseJsonStringRegex('hello')).toThrow(); // No quotes
+            expect(() => parseJsonStringRegex('"unterminated')).toThrow(); // Unterminated
+            expect(() => parseJsonStringRegex('"invalid\\escape"')).toThrow(); // Invalid escape
+            expect(() => parseJsonStringRegex('"\\u123"')).toThrow(); // Invalid unicode (too short)
+            expect(() => parseJsonStringRegex('"\\uGHIJ"')).toThrow(); // Invalid unicode (non-hex)
+        });
+
+        it('should match original parseJsonString results for valid inputs', () => {
+            const testCases = [
+                '"hello"',
+                '""',
+                '"world"',
+                '"hello \\"world\\""',
+                '"line1\\nline2"',
+                '"tab\\there"',
+                '"back\\\\slash"',
+                '"\\u0041"',
+                '"\\u0048\\u0065\\u006C\\u006C\\u006F"',
+            ];
+
+            testCases.forEach(testCase => {
+                const originalResult = parseJsonString(testCase);
+                const regexResult = parseJsonStringRegex(testCase);
+
+                expect(regexResult.value).toBe(originalResult.value);
+                expect(regexResult.nextPos).toBe(originalResult.nextPos);
+            });
         });
     });
 

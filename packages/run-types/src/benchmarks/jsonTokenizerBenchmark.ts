@@ -6,6 +6,7 @@
 import {
     parseJsonNumber,
     parseJsonString,
+    parseJsonStringRegex,
     parseJsonNull,
     parseJsonTrue,
     parseJsonFalse,
@@ -20,9 +21,11 @@ import {
 interface BenchmarkResult {
     name: string;
     tokenizerTime: number;
+    regexTime?: number; // Optional - only for string tests
     jsonParseTime: number;
     wrappedJsonParseTime: number;
     tokenizerRatio: number; // tokenizerTime / jsonParseTime
+    regexRatio?: number; // regexTime / jsonParseTime (optional)
     wrappedRatio: number; // wrappedJsonParseTime / jsonParseTime
     iterations: number;
 }
@@ -109,6 +112,61 @@ function benchmark(name: string, tokenizerFn: () => void, jsonParseFn: () => voi
         jsonParseTime,
         wrappedJsonParseTime,
         tokenizerRatio: tokenizerTime / jsonParseTime,
+        wrappedRatio: wrappedJsonParseTime / jsonParseTime,
+        iterations
+    };
+}
+
+// Special benchmark function for string parsing that includes regex version
+function benchmarkString(name: string, tokenizerFn: () => void, regexFn: () => void, jsonParseFn: () => void, wrappedJsonParseFn: () => void, iterations: number = 100000): BenchmarkResult {
+    // Warm up
+    for (let i = 0; i < 1000; i++) {
+        tokenizerFn();
+        regexFn();
+        jsonParseFn();
+        wrappedJsonParseFn();
+    }
+
+    // Benchmark our tokenizer
+    const tokenizerStart = performance.now();
+    for (let i = 0; i < iterations; i++) {
+        tokenizerFn();
+    }
+    const tokenizerEnd = performance.now();
+    const tokenizerTime = tokenizerEnd - tokenizerStart;
+
+    // Benchmark regex version
+    const regexStart = performance.now();
+    for (let i = 0; i < iterations; i++) {
+        regexFn();
+    }
+    const regexEnd = performance.now();
+    const regexTime = regexEnd - regexStart;
+
+    // Benchmark direct JSON.parse
+    const jsonParseStart = performance.now();
+    for (let i = 0; i < iterations; i++) {
+        jsonParseFn();
+    }
+    const jsonParseEnd = performance.now();
+    const jsonParseTime = jsonParseEnd - jsonParseStart;
+
+    // Benchmark wrapped JSON.parse
+    const wrappedJsonParseStart = performance.now();
+    for (let i = 0; i < iterations; i++) {
+        wrappedJsonParseFn();
+    }
+    const wrappedJsonParseEnd = performance.now();
+    const wrappedJsonParseTime = wrappedJsonParseEnd - wrappedJsonParseStart;
+
+    return {
+        name,
+        tokenizerTime,
+        regexTime,
+        jsonParseTime,
+        wrappedJsonParseTime,
+        tokenizerRatio: tokenizerTime / jsonParseTime,
+        regexRatio: regexTime / jsonParseTime,
         wrappedRatio: wrappedJsonParseTime / jsonParseTime,
         iterations
     };
@@ -220,26 +278,29 @@ export function runJsonTokenizerBenchmarks(): BenchmarkResult[] {
     // Test string lengths
     console.log('\n📏 String Length Tests:');
     const strings = generateTestStrings();
-    
-    results.push(benchmark(
+
+    results.push(benchmarkString(
         'Short string (7 chars)',
         () => parseJsonString(strings.short),
+        () => parseJsonStringRegex(strings.short),
         () => JSON.parse(strings.short),
         () => wrappedJsonParseString(strings.short),
         iterations
     ));
 
-    results.push(benchmark(
+    results.push(benchmarkString(
         'Medium string (~80 chars)',
         () => parseJsonString(strings.medium),
+        () => parseJsonStringRegex(strings.medium),
         () => JSON.parse(strings.medium),
         () => wrappedJsonParseString(strings.medium),
         iterations
     ));
 
-    results.push(benchmark(
+    results.push(benchmarkString(
         'Long string (~1000 chars)',
         () => parseJsonString(strings.long),
+        () => parseJsonStringRegex(strings.long),
         () => JSON.parse(strings.long),
         () => wrappedJsonParseString(strings.long),
         iterations
@@ -248,34 +309,38 @@ export function runJsonTokenizerBenchmarks(): BenchmarkResult[] {
     // Test escape densities
     console.log('\n🔤 Escape Character Tests:');
     const escapeStrings = generateEscapeTestStrings();
-    
-    results.push(benchmark(
+
+    results.push(benchmarkString(
         'No escapes',
         () => parseJsonString(escapeStrings.noEscapes),
+        () => parseJsonStringRegex(escapeStrings.noEscapes),
         () => JSON.parse(escapeStrings.noEscapes),
         () => wrappedJsonParseString(escapeStrings.noEscapes),
         iterations
     ));
 
-    results.push(benchmark(
+    results.push(benchmarkString(
         'Light escapes',
         () => parseJsonString(escapeStrings.lightEscapes),
+        () => parseJsonStringRegex(escapeStrings.lightEscapes),
         () => JSON.parse(escapeStrings.lightEscapes),
         () => wrappedJsonParseString(escapeStrings.lightEscapes),
         iterations
     ));
 
-    results.push(benchmark(
+    results.push(benchmarkString(
         'Heavy escapes',
         () => parseJsonString(escapeStrings.heavyEscapes),
+        () => parseJsonStringRegex(escapeStrings.heavyEscapes),
         () => JSON.parse(escapeStrings.heavyEscapes),
         () => wrappedJsonParseString(escapeStrings.heavyEscapes),
         iterations
     ));
 
-    results.push(benchmark(
+    results.push(benchmarkString(
         'Unicode heavy',
         () => parseJsonString(escapeStrings.unicodeHeavy),
+        () => parseJsonStringRegex(escapeStrings.unicodeHeavy),
         () => JSON.parse(escapeStrings.unicodeHeavy),
         () => wrappedJsonParseString(escapeStrings.unicodeHeavy),
         iterations
@@ -309,45 +374,79 @@ export function runJsonTokenizerBenchmarks(): BenchmarkResult[] {
 // Display results
 export function displayBenchmarkResults(results: BenchmarkResult[]) {
     console.log('\n📈 Benchmark Results:');
-    console.log('=' .repeat(120));
-    console.log('Test Name'.padEnd(30) + 'Tokenizer(ms)'.padEnd(15) + 'JSON.parse(ms)'.padEnd(15) + 'Wrapped(ms)'.padEnd(15) + 'T/J Ratio'.padEnd(12) + 'W/J Ratio'.padEnd(12) + 'Performance');
-    console.log('-'.repeat(120));
+    console.log('=' .repeat(150));
+    console.log('Test Name'.padEnd(30) + 'Tokenizer(ms)'.padEnd(15) + 'Regex(ms)'.padEnd(12) + 'JSON.parse(ms)'.padEnd(15) + 'Wrapped(ms)'.padEnd(15) + 'T/J'.padEnd(8) + 'R/J'.padEnd(8) + 'W/J'.padEnd(8) + 'Best Performance');
+    console.log('-'.repeat(150));
 
     results.forEach(result => {
         const tokenizerMs = result.tokenizerTime.toFixed(2);
+        const regexMs = result.regexTime ? result.regexTime.toFixed(2) : 'N/A';
         const jsonParseMs = result.jsonParseTime.toFixed(2);
         const wrappedMs = result.wrappedJsonParseTime.toFixed(2);
         const tokenizerRatio = result.tokenizerRatio.toFixed(2);
+        const regexRatio = result.regexRatio ? result.regexRatio.toFixed(2) : 'N/A';
         const wrappedRatio = result.wrappedRatio.toFixed(2);
 
         let performance = '';
-        if (result.tokenizerRatio < 0.8) {
-            performance = '🚀 Tokenizer wins';
-        } else if (result.tokenizerRatio < 1.2) {
-            performance = '⚖️ Similar to direct';
-        } else if (result.tokenizerRatio < 2.0) {
-            performance = '🐌 Slower than direct';
+        const hasRegex = result.regexRatio !== undefined;
+
+        if (hasRegex) {
+            // For string tests, compare all three
+            const minRatio = Math.min(result.tokenizerRatio, result.regexRatio!, 1.0);
+            if (result.regexRatio! < 0.8 && result.regexRatio! <= result.tokenizerRatio) {
+                performance = '🚀 Regex wins';
+            } else if (result.tokenizerRatio < 0.8 && result.tokenizerRatio <= result.regexRatio!) {
+                performance = '🚀 Tokenizer wins';
+            } else if (minRatio >= 1.0 && minRatio < 1.2) {
+                performance = '⚖️ JSON.parse wins (close)';
+            } else if (minRatio >= 1.0) {
+                performance = '🏆 JSON.parse wins';
+            } else {
+                performance = '⚖️ Mixed results';
+            }
         } else {
-            performance = '🐢 Much slower';
+            // For non-string tests, use original logic
+            if (result.tokenizerRatio < 0.8) {
+                performance = '🚀 Tokenizer wins';
+            } else if (result.tokenizerRatio < 1.2) {
+                performance = '⚖️ Similar to direct';
+            } else if (result.tokenizerRatio < 2.0) {
+                performance = '🐌 Slower than direct';
+            } else {
+                performance = '🐢 Much slower';
+            }
         }
 
         console.log(
             result.name.padEnd(30) +
             tokenizerMs.padEnd(15) +
+            regexMs.padEnd(12) +
             jsonParseMs.padEnd(15) +
             wrappedMs.padEnd(15) +
-            tokenizerRatio.padEnd(12) +
-            wrappedRatio.padEnd(12) +
+            tokenizerRatio.padEnd(8) +
+            regexRatio.padEnd(8) +
+            wrappedRatio.padEnd(8) +
             performance
         );
     });
 
-    console.log('-'.repeat(120));
+    console.log('-'.repeat(150));
     console.log(`Iterations per test: ${results[0]?.iterations.toLocaleString()}`);
-    console.log('T/J Ratio: Tokenizer time / JSON.parse time (lower is better)');
-    console.log('W/J Ratio: Wrapped JSON.parse time / JSON.parse time (shows function call overhead)');
+    console.log('T/J: Tokenizer/JSON.parse ratio | R/J: Regex/JSON.parse ratio | W/J: Wrapped/JSON.parse ratio');
+    console.log('Lower ratios are better (closer to native JSON.parse performance)');
 
     // Calculate average function call overhead
     const avgWrappedOverhead = results.reduce((sum, r) => sum + r.wrappedRatio, 0) / results.length;
-    console.log(`\n💡 Average function call overhead: ${(avgWrappedOverhead - 1) * 100}% (${avgWrappedOverhead.toFixed(3)}x)`);
+    console.log(`\n💡 Average function call overhead: ${((avgWrappedOverhead - 1) * 100).toFixed(2)}% (${avgWrappedOverhead.toFixed(3)}x)`);
+
+    // Calculate regex performance summary for string tests
+    const stringResults = results.filter(r => r.regexRatio !== undefined);
+    if (stringResults.length > 0) {
+        const avgRegexRatio = stringResults.reduce((sum, r) => sum + r.regexRatio!, 0) / stringResults.length;
+        const avgTokenizerRatio = stringResults.reduce((sum, r) => sum + r.tokenizerRatio, 0) / stringResults.length;
+        console.log(`\n🔤 String parsing summary:`);
+        console.log(`   Average Tokenizer ratio: ${avgTokenizerRatio.toFixed(2)}x`);
+        console.log(`   Average Regex ratio: ${avgRegexRatio.toFixed(2)}x`);
+        console.log(`   Regex improvement: ${((avgTokenizerRatio - avgRegexRatio) / avgTokenizerRatio * 100).toFixed(1)}% faster than tokenizer`);
+    }
 }

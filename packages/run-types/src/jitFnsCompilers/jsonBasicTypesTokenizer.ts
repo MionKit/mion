@@ -182,6 +182,47 @@ export function parseJsonString(str: string, startIndex: number = 0): ParseResul
 }
 
 /**
+ * Parse JSON string using regex pattern matching (alternative implementation)
+ * Uses regex to find the string boundaries and JSON.parse for unescaping
+ */
+export function parseJsonStringRegex(str: string, startIndex: number = 0): ParseResult<string> {
+    // JSON string regex pattern that handles all valid escape sequences
+    // Matches: "content" where content can contain:
+    // - Any character except " and \
+    // - Escaped characters: \" \\ \/ \b \f \n \r \t
+    // - Unicode escapes: \uXXXX (4 hex digits)
+    const jsonStringRegex = /"((?:[^"\\]|\\(?:["\\/bfnrt]|u[0-9a-fA-F]{4}))*)"/;
+
+    // Extract substring from startIndex to avoid matching earlier in the string
+    const remaining = str.substring(startIndex);
+
+    // Try to match the JSON string pattern
+    const match = remaining.match(jsonStringRegex);
+
+    if (!match || match.index !== 0) {
+        // No match or match doesn't start at the beginning
+        throw new Error(`Expected JSON string at position ${startIndex}, found '${remaining.substring(0, 10)}...'`);
+    }
+
+    // The full matched string (including quotes)
+    const fullMatch = match[0];
+
+    // Use JSON.parse to handle the unescaping (it's optimized for this)
+    let value: string;
+    try {
+        value = JSON.parse(fullMatch);
+    } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        throw new Error(`Invalid JSON string at position ${startIndex}: ${errorMessage}`);
+    }
+
+    return {
+        value,
+        nextPos: startIndex + fullMatch.length
+    };
+}
+
+/**
  * Parse JSON null literal
  */
 export function parseJsonNull(str: string, startIndex: number = 0): ParseResult<null> {
