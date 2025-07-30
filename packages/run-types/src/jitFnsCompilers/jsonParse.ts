@@ -348,7 +348,7 @@ export function _compileJsonParseIterable(rt: IterableRunType, comp: JitCompiler
     const entry = rt.getCustomVλl(comp)?.vλl || comp.vλl;
     const jitChildren = rt.getJitChildren(comp);
     const childrenCode = jitChildren.map((c) => c.compile(comp, fnID)).join(';');
-    if (!childrenCode) return undefined;
+    if (!childrenCode) return '';
 
     // For Map and Set, we need to reconstruct them from the parsed array
     const isMap = rt.src.subKind === ReflectionSubKind.map;
