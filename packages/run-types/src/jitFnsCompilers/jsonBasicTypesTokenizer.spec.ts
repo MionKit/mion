@@ -29,10 +29,22 @@ describe('JSON Basic Types Tokenizer', () => {
             expect(parseJsonNumber('42')).toEqual({value: 42, nextPos: 2});
         });
 
+        it('should parse positive integers exactly like JSON.parse', () => {
+            expect(parseJsonNumber('123').value).toBe(JSON.parse('123'));
+            expect(parseJsonNumber('0').value).toBe(JSON.parse('0'));
+            expect(parseJsonNumber('42').value).toBe(JSON.parse('42'));
+        });
+
         it('should parse negative integers', () => {
             expect(parseJsonNumber('-123')).toEqual({value: -123, nextPos: 4});
             expect(parseJsonNumber('-0')).toEqual({value: -0, nextPos: 2});
             expect(parseJsonNumber('-42')).toEqual({value: -42, nextPos: 3});
+        });
+
+        it('should parse negative integers exactly like JSON.parse', () => {
+            expect(parseJsonNumber('-123').value).toBe(JSON.parse('-123'));
+            expect(parseJsonNumber('-0').value).toBe(JSON.parse('-0'));
+            expect(parseJsonNumber('-42').value).toBe(JSON.parse('-42'));
         });
 
         it('should parse decimal numbers', () => {
@@ -42,12 +54,27 @@ describe('JSON Basic Types Tokenizer', () => {
             expect(parseJsonNumber('-0.5')).toEqual({value: -0.5, nextPos: 4});
         });
 
+        it('should parse decimal numbers exactly like JSON.parse', () => {
+            expect(parseJsonNumber('123.45').value).toBe(JSON.parse('123.45'));
+            expect(parseJsonNumber('-123.45').value).toBe(JSON.parse('-123.45'));
+            expect(parseJsonNumber('0.5').value).toBe(JSON.parse('0.5'));
+            expect(parseJsonNumber('-0.5').value).toBe(JSON.parse('-0.5'));
+        });
+
         it('should parse scientific notation', () => {
             expect(parseJsonNumber('1e5')).toEqual({value: 100000, nextPos: 3});
             expect(parseJsonNumber('1E5')).toEqual({value: 100000, nextPos: 3});
             expect(parseJsonNumber('1e+5')).toEqual({value: 100000, nextPos: 4});
             expect(parseJsonNumber('1e-5')).toEqual({value: 0.00001, nextPos: 4});
             expect(parseJsonNumber('-2.3e-4')).toEqual({value: -0.00023, nextPos: 7});
+        });
+
+        it('should parse scientific notation exactly like JSON.parse', () => {
+            expect(parseJsonNumber('1e5').value).toBe(JSON.parse('1e5'));
+            expect(parseJsonNumber('1E5').value).toBe(JSON.parse('1E5'));
+            expect(parseJsonNumber('1e+5').value).toBe(JSON.parse('1e+5'));
+            expect(parseJsonNumber('1e-5').value).toBe(JSON.parse('1e-5'));
+            expect(parseJsonNumber('-2.3e-4').value).toBe(JSON.parse('-2.3e-4'));
         });
 
         it('should parse numbers with following characters', () => {
@@ -80,6 +107,12 @@ describe('JSON Basic Types Tokenizer', () => {
             expect(parseJsonString('"world"')).toEqual({value: 'world', nextPos: 7});
         });
 
+        it('should parse simple strings exactly like JSON.parse', () => {
+            expect(parseJsonString('"hello"').value).toBe(JSON.parse('"hello"'));
+            expect(parseJsonString('""').value).toBe(JSON.parse('""'));
+            expect(parseJsonString('"world"').value).toBe(JSON.parse('"world"'));
+        });
+
         it('should parse strings with escape sequences', () => {
             expect(parseJsonString('"hello \\"world\\""')).toEqual({
                 value: 'hello "world"',
@@ -99,12 +132,24 @@ describe('JSON Basic Types Tokenizer', () => {
             });
         });
 
+        it('should parse strings with escape sequences exactly like JSON.parse', () => {
+            expect(parseJsonString('"hello \\"world\\""').value).toBe(JSON.parse('"hello \\"world\\""'));
+            expect(parseJsonString('"line1\\nline2"').value).toBe(JSON.parse('"line1\\nline2"'));
+            expect(parseJsonString('"tab\\there"').value).toBe(JSON.parse('"tab\\there"'));
+            expect(parseJsonString('"back\\\\slash"').value).toBe(JSON.parse('"back\\\\slash"'));
+        });
+
         it('should parse strings with unicode escapes', () => {
             expect(parseJsonString('"\\u0041"')).toEqual({value: 'A', nextPos: 8});
             expect(parseJsonString('"\\u0048\\u0065\\u006C\\u006C\\u006F"')).toEqual({
                 value: 'Hello',
                 nextPos: 32,
             });
+        });
+
+        it('should parse strings with unicode escapes exactly like JSON.parse', () => {
+            expect(parseJsonString('"\\u0041"').value).toBe(JSON.parse('"\\u0041"'));
+            expect(parseJsonString('"\\u0048\\u0065\\u006C\\u006C\\u006F"').value).toBe(JSON.parse('"\\u0048\\u0065\\u006C\\u006C\\u006F"'));
         });
 
         it('should parse strings at specific positions', () => {
@@ -131,6 +176,10 @@ describe('JSON Basic Types Tokenizer', () => {
             expect(parseJsonNull('abcnulldef', 3)).toEqual({value: null, nextPos: 7});
         });
 
+        it('should parse null exactly like JSON.parse', () => {
+            expect(parseJsonNull('null').value).toBe(JSON.parse('null'));
+        });
+
         it('should throw on invalid input', () => {
             expect(() => parseJsonNull('nul')).toThrow();
             expect(() => parseJsonNull('NULL')).toThrow(); // Case sensitive
@@ -146,6 +195,10 @@ describe('JSON Basic Types Tokenizer', () => {
             expect(parseJsonTrue('  true  ', 2)).toEqual({value: true, nextPos: 6});
         });
 
+        it('should parse true exactly like JSON.parse', () => {
+            expect(parseJsonTrue('true').value).toBe(JSON.parse('true'));
+        });
+
         it('should throw on invalid input', () => {
             expect(() => parseJsonTrue('tru')).toThrow();
             expect(() => parseJsonTrue('True')).toThrow(); // Case sensitive
@@ -159,6 +212,10 @@ describe('JSON Basic Types Tokenizer', () => {
             expect(parseJsonFalse('false')).toEqual({value: false, nextPos: 5});
             expect(parseJsonFalse('false}')).toEqual({value: false, nextPos: 5});
             expect(parseJsonFalse('abcfalsedef', 3)).toEqual({value: false, nextPos: 8});
+        });
+
+        it('should parse false exactly like JSON.parse', () => {
+            expect(parseJsonFalse('false').value).toBe(JSON.parse('false'));
         });
 
         it('should throw on invalid input', () => {
