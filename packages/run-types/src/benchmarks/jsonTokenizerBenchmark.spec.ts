@@ -22,19 +22,25 @@ describe('JSON Tokenizer Benchmarks', () => {
                 expect(result).toHaveProperty('name');
                 expect(result).toHaveProperty('tokenizerTime');
                 expect(result).toHaveProperty('jsonParseTime');
-                expect(result).toHaveProperty('ratio');
+                expect(result).toHaveProperty('wrappedJsonParseTime');
+                expect(result).toHaveProperty('tokenizerRatio');
+                expect(result).toHaveProperty('wrappedRatio');
                 expect(result).toHaveProperty('iterations');
-                
+
                 expect(typeof result.name).toBe('string');
                 expect(typeof result.tokenizerTime).toBe('number');
                 expect(typeof result.jsonParseTime).toBe('number');
-                expect(typeof result.ratio).toBe('number');
+                expect(typeof result.wrappedJsonParseTime).toBe('number');
+                expect(typeof result.tokenizerRatio).toBe('number');
+                expect(typeof result.wrappedRatio).toBe('number');
                 expect(typeof result.iterations).toBe('number');
-                
+
                 // Times should be positive
                 expect(result.tokenizerTime).toBeGreaterThan(0);
                 expect(result.jsonParseTime).toBeGreaterThan(0);
-                expect(result.ratio).toBeGreaterThan(0);
+                expect(result.wrappedJsonParseTime).toBeGreaterThan(0);
+                expect(result.tokenizerRatio).toBeGreaterThan(0);
+                expect(result.wrappedRatio).toBeGreaterThan(0);
                 expect(result.iterations).toBeGreaterThan(0);
             });
             
