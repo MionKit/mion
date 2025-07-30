@@ -6,6 +6,105 @@
 import { runType } from '../lib/runType';
 import { JitFunctions } from '../constants.functions';
 
+// Define explicit types for JIT compilation
+interface SimpleObject {
+    id: number;
+    name: string;
+    active: boolean;
+    score: null;
+}
+
+interface UserProfile {
+    age: number;
+    location: string;
+    bio: string;
+    skills: string[];
+}
+
+interface UserSettings {
+    notifications: {
+        email: boolean;
+        push: boolean;
+        sms: boolean;
+    };
+    privacy: {
+        profileVisible: boolean;
+        emailVisible: boolean;
+    };
+}
+
+interface User {
+    id: number;
+    name: string;
+    email: string;
+    roles: string[];
+    profile: UserProfile;
+    settings: UserSettings;
+}
+
+interface Pagination {
+    page: number;
+    limit: number;
+    total: number;
+    hasNext: boolean;
+    hasPrev: boolean;
+}
+
+interface DateRange {
+    start: Date;
+    end: Date;
+}
+
+interface Filters {
+    active: boolean;
+    roles: string[];
+    dateRange: DateRange;
+}
+
+interface ComplexObject {
+    users: User[];
+    pagination: Pagination;
+    filters: Filters;
+}
+
+interface UserPreferences {
+    theme: string;
+    notifications: boolean;
+    language: string;
+}
+
+interface UserData {
+    id: number;
+    name: string;
+    email: string;
+    active: boolean;
+    lastLogin: Date;
+    preferences: UserPreferences;
+}
+
+interface Metadata {
+    created: Date;
+    updated: Date;
+    version: number;
+}
+
+interface MediumObject {
+    user: UserData;
+    metadata: Metadata;
+}
+
+interface LargeArrayItem {
+    id: number;
+    name: string;
+    value: number;
+    active: boolean;
+    tags: string[];
+}
+
+interface WideObject {
+    [key: string]: string;
+}
+
 interface BenchmarkResult {
     name: string;
     jitTime: number;
@@ -244,7 +343,7 @@ export function runJsonStringifyBenchmarks(): BenchmarkResult[] {
     const rtSimpleArray = runType<(number | string | boolean | null)[]>();
     const stringifySimpleArray = rtSimpleArray.createJitFunction(JitFunctions.jsonStringify);
 
-    const rtLargeArray = runType<typeof testData.largeArray>();
+    const rtLargeArray = runType<LargeArrayItem[]>();
     const stringifyLargeArray = rtLargeArray.createJitFunction(JitFunctions.jsonStringify);
 
     results.push(benchmark(
@@ -265,16 +364,16 @@ export function runJsonStringifyBenchmarks(): BenchmarkResult[] {
     console.log('\n🏗️ Objects:');
 
     // Create object-specific JIT functions
-    const rtSimpleObject = runType<typeof testData.simpleObject>();
+    const rtSimpleObject = runType<SimpleObject>();
     const stringifySimpleObject = rtSimpleObject.createJitFunction(JitFunctions.jsonStringify);
 
-    const rtMediumObject = runType<typeof testData.mediumObject>();
+    const rtMediumObject = runType<MediumObject>();
     const stringifyMediumObject = rtMediumObject.createJitFunction(JitFunctions.jsonStringify);
 
-    const rtComplexObject = runType<typeof testData.complexObject>();
+    const rtComplexObject = runType<ComplexObject>();
     const stringifyComplexObject = rtComplexObject.createJitFunction(JitFunctions.jsonStringify);
 
-    const rtWideObject = runType<typeof testData.wideObject>();
+    const rtWideObject = runType<WideObject>();
     const stringifyWideObject = rtWideObject.createJitFunction(JitFunctions.jsonStringify);
 
     results.push(benchmark(

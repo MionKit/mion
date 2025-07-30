@@ -5,6 +5,14 @@
 import { runType } from '../lib/runType';
 import { JitFunctions } from '../constants.functions';
 
+// Define explicit types for JIT compilation
+interface SimpleTestObject {
+    id: number;
+    name: string;
+    active: boolean;
+    score: null;
+}
+
 describe('Simple JSON Stringify Test', () => {
     it('should test JIT stringify vs native and show performance', () => {
         console.log('🧪 Testing JIT JSON Stringify vs Native JSON.stringify\n');
@@ -44,7 +52,7 @@ describe('Simple JSON Stringify Test', () => {
             score: null
         };
         
-        const rtObject = runType<typeof testObject>();
+        const rtObject = runType<SimpleTestObject>();
         const stringifyObject = rtObject.createJitFunction(JitFunctions.jsonStringify);
         
         const jitResult3 = stringifyObject(testObject);
@@ -58,7 +66,7 @@ describe('Simple JSON Stringify Test', () => {
         console.log('📋 Test 4: Simple Array');
         const testArray = [1, "hello", true, null];
         
-        const rtArray = runType<typeof testArray>();
+        const rtArray = runType<(number | string | boolean | null)[]>();
         const stringifyArray = rtArray.createJitFunction(JitFunctions.jsonStringify);
         
         const jitResult4 = stringifyArray(testArray);
