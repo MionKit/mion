@@ -31,11 +31,7 @@ import type {IterableRunType} from '@mionkit/run-types/src/runType/native/Iterab
 type Operation = typeof JitFunctions.jsonParse.id;
 
 /** Centralized compile jit function with a switch statement that handles all node types. */
-export function _compileJsonParse(
-    runType: BaseRunType,
-    comp: JitCompiler,
-    fnID: Operation = JitFunctions.jsonParse.id
-): jitCode {
+export function _compileJsonParse(runType: BaseRunType, comp: JitCompiler, fnID: Operation = JitFunctions.jsonParse.id): jitCode {
     const src = runType.src;
     const kind = src.kind;
 
@@ -128,7 +124,10 @@ export function _compileJsonParse(
                 if (skip) return undefined;
                 const params = rt.getParamRunTypes(comp);
                 if (params.length === 0) return undefined;
-                const paramsCode = params.map((p) => p.compile(comp, fnID)).filter(Boolean).join(';');
+                const paramsCode = params
+                    .map((p) => p.compile(comp, fnID))
+                    .filter(Boolean)
+                    .join(';');
                 return paramsCode;
             } else {
                 throw new Error(
@@ -345,11 +344,7 @@ function _compileJsonParseClass(runType: BaseRunType, comp: JitCompiler, fnID: J
     }
 }
 
-export function _compileJsonParseIterable(
-    rt: IterableRunType,
-    comp: JitCompiler,
-    fnID: JitFnID
-): string {
+export function _compileJsonParseIterable(rt: IterableRunType, comp: JitCompiler, fnID: JitFnID): string {
     const entry = rt.getCustomVλl(comp)?.vλl || comp.vλl;
     const jitChildren = rt.getJitChildren(comp);
     const childrenCode = jitChildren.map((c) => c.compile(comp, fnID)).join(';');

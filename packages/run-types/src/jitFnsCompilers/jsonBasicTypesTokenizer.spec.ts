@@ -8,53 +8,59 @@
 import {
     parseJsonNumber,
     parseJsonString,
+    parseJsonNull,
+    parseJsonTrue,
+    parseJsonFalse,
     parseJsonLiteral,
-    parseJsonArray,
-    parseJsonObject,
-    parseJsonValue,
+    parseStartArray,
+    parseEndArray,
+    parseStartObject,
+    parseEndObject,
+    parseComma,
+    parseColon,
     skipWhitespace,
-    peekNextChar
+    peekNextChar,
 } from './jsonBasicTypesTokenizer';
 
 describe('JSON Basic Types Tokenizer', () => {
     describe('parseJsonNumber', () => {
         it('should parse positive integers', () => {
-            expect(parseJsonNumber('123')).toEqual({ value: 123, length: 3 });
-            expect(parseJsonNumber('0')).toEqual({ value: 0, length: 1 });
-            expect(parseJsonNumber('42')).toEqual({ value: 42, length: 2 });
+            expect(parseJsonNumber('123')).toEqual({value: 123, nextPos: 3});
+            expect(parseJsonNumber('0')).toEqual({value: 0, nextPos: 1});
+            expect(parseJsonNumber('42')).toEqual({value: 42, nextPos: 2});
         });
 
         it('should parse negative integers', () => {
-            expect(parseJsonNumber('-123')).toEqual({ value: -123, length: 4 });
-            expect(parseJsonNumber('-0')).toEqual({ value: -0, length: 2 });
-            expect(parseJsonNumber('-42')).toEqual({ value: -42, length: 3 });
+            expect(parseJsonNumber('-123')).toEqual({value: -123, nextPos: 4});
+            expect(parseJsonNumber('-0')).toEqual({value: -0, nextPos: 2});
+            expect(parseJsonNumber('-42')).toEqual({value: -42, nextPos: 3});
         });
 
         it('should parse decimal numbers', () => {
-            expect(parseJsonNumber('123.45')).toEqual({ value: 123.45, length: 6 });
-            expect(parseJsonNumber('-123.45')).toEqual({ value: -123.45, length: 7 });
-            expect(parseJsonNumber('0.5')).toEqual({ value: 0.5, length: 3 });
-            expect(parseJsonNumber('-0.5')).toEqual({ value: -0.5, length: 4 });
+            expect(parseJsonNumber('123.45')).toEqual({value: 123.45, nextPos: 6});
+            expect(parseJsonNumber('-123.45')).toEqual({value: -123.45, nextPos: 7});
+            expect(parseJsonNumber('0.5')).toEqual({value: 0.5, nextPos: 3});
+            expect(parseJsonNumber('-0.5')).toEqual({value: -0.5, nextPos: 4});
         });
 
         it('should parse scientific notation', () => {
-            expect(parseJsonNumber('1e5')).toEqual({ value: 100000, length: 3 });
-            expect(parseJsonNumber('1E5')).toEqual({ value: 100000, length: 3 });
-            expect(parseJsonNumber('1e+5')).toEqual({ value: 100000, length: 4 });
-            expect(parseJsonNumber('1e-5')).toEqual({ value: 0.00001, length: 4 });
-            expect(parseJsonNumber('-2.3e-4')).toEqual({ value: -0.00023, length: 7 });
+            expect(parseJsonNumber('1e5')).toEqual({value: 100000, nextPos: 3});
+            expect(parseJsonNumber('1E5')).toEqual({value: 100000, nextPos: 3});
+            expect(parseJsonNumber('1e+5')).toEqual({value: 100000, nextPos: 4});
+            expect(parseJsonNumber('1e-5')).toEqual({value: 0.00001, nextPos: 4});
+            expect(parseJsonNumber('-2.3e-4')).toEqual({value: -0.00023, nextPos: 7});
         });
 
         it('should parse numbers with following characters', () => {
-            expect(parseJsonNumber('123,')).toEqual({ value: 123, length: 3 });
-            expect(parseJsonNumber('123]')).toEqual({ value: 123, length: 3 });
-            expect(parseJsonNumber('123}')).toEqual({ value: 123, length: 3 });
-            expect(parseJsonNumber('123 ')).toEqual({ value: 123, length: 3 });
+            expect(parseJsonNumber('123,')).toEqual({value: 123, nextPos: 3});
+            expect(parseJsonNumber('123]')).toEqual({value: 123, nextPos: 3});
+            expect(parseJsonNumber('123}')).toEqual({value: 123, nextPos: 3});
+            expect(parseJsonNumber('123 ')).toEqual({value: 123, nextPos: 3});
         });
 
         it('should parse numbers at specific positions', () => {
-            expect(parseJsonNumber('abc123def', 3)).toEqual({ value: 123, length: 3 });
-            expect(parseJsonNumber('  -45.6  ', 2)).toEqual({ value: -45.6, length: 5 });
+            expect(parseJsonNumber('abc123def', 3)).toEqual({value: 123, nextPos: 6});
+            expect(parseJsonNumber('  -45.6  ', 2)).toEqual({value: -45.6, nextPos: 7});
         });
 
         it('should throw on invalid numbers', () => {
@@ -70,42 +76,42 @@ describe('JSON Basic Types Tokenizer', () => {
 
     describe('parseJsonString', () => {
         it('should parse simple strings', () => {
-            expect(parseJsonString('"hello"')).toEqual({ value: 'hello', length: 7 });
-            expect(parseJsonString('""')).toEqual({ value: '', length: 2 });
-            expect(parseJsonString('"world"')).toEqual({ value: 'world', length: 7 });
+            expect(parseJsonString('"hello"')).toEqual({value: 'hello', nextPos: 7});
+            expect(parseJsonString('""')).toEqual({value: '', nextPos: 2});
+            expect(parseJsonString('"world"')).toEqual({value: 'world', nextPos: 7});
         });
 
         it('should parse strings with escape sequences', () => {
-            expect(parseJsonString('"hello \\"world\\""')).toEqual({ 
-                value: 'hello "world"', 
-                length: 17 
+            expect(parseJsonString('"hello \\"world\\""')).toEqual({
+                value: 'hello "world"',
+                nextPos: 17,
             });
-            expect(parseJsonString('"line1\\nline2"')).toEqual({ 
-                value: 'line1\nline2', 
-                length: 14 
+            expect(parseJsonString('"line1\\nline2"')).toEqual({
+                value: 'line1\nline2',
+                nextPos: 14,
             });
-            expect(parseJsonString('"tab\\there"')).toEqual({ 
-                value: 'tab\there', 
-                length: 11 
+            expect(parseJsonString('"tab\\there"')).toEqual({
+                value: 'tab\there',
+                nextPos: 11,
             });
-            expect(parseJsonString('"back\\\\slash"')).toEqual({ 
-                value: 'back\\slash', 
-                length: 14 
+            expect(parseJsonString('"back\\\\slash"')).toEqual({
+                value: 'back\\slash',
+                nextPos: 13,
             });
         });
 
         it('should parse strings with unicode escapes', () => {
-            expect(parseJsonString('"\\u0041"')).toEqual({ value: 'A', length: 8 });
-            expect(parseJsonString('"\\u0048\\u0065\\u006C\\u006C\\u006F"')).toEqual({ 
-                value: 'Hello', 
-                length: 32 
+            expect(parseJsonString('"\\u0041"')).toEqual({value: 'A', nextPos: 8});
+            expect(parseJsonString('"\\u0048\\u0065\\u006C\\u006C\\u006F"')).toEqual({
+                value: 'Hello',
+                nextPos: 32,
             });
         });
 
         it('should parse strings at specific positions', () => {
-            expect(parseJsonString('abc"hello"def', 3)).toEqual({ 
-                value: 'hello', 
-                length: 7 
+            expect(parseJsonString('abc"hello"def', 3)).toEqual({
+                value: 'hello',
+                nextPos: 10,
             });
         });
 
@@ -119,25 +125,70 @@ describe('JSON Basic Types Tokenizer', () => {
         });
     });
 
-    describe('parseJsonLiteral', () => {
+    describe('parseJsonNull', () => {
         it('should parse null', () => {
-            expect(parseJsonLiteral('null')).toEqual({ value: null, length: 4 });
-            expect(parseJsonLiteral('null,')).toEqual({ value: null, length: 4 });
+            expect(parseJsonNull('null')).toEqual({value: null, nextPos: 4});
+            expect(parseJsonNull('null,')).toEqual({value: null, nextPos: 4});
+            expect(parseJsonNull('abcnulldef', 3)).toEqual({value: null, nextPos: 7});
+        });
+
+        it('should throw on invalid input', () => {
+            expect(() => parseJsonNull('nul')).toThrow();
+            expect(() => parseJsonNull('NULL')).toThrow(); // Case sensitive
+            expect(() => parseJsonNull('true')).toThrow();
+            expect(() => parseJsonNull('abc')).toThrow();
+        });
+    });
+
+    describe('parseJsonTrue', () => {
+        it('should parse true', () => {
+            expect(parseJsonTrue('true')).toEqual({value: true, nextPos: 4});
+            expect(parseJsonTrue('true]')).toEqual({value: true, nextPos: 4});
+            expect(parseJsonTrue('  true  ', 2)).toEqual({value: true, nextPos: 6});
+        });
+
+        it('should throw on invalid input', () => {
+            expect(() => parseJsonTrue('tru')).toThrow();
+            expect(() => parseJsonTrue('True')).toThrow(); // Case sensitive
+            expect(() => parseJsonTrue('false')).toThrow();
+            expect(() => parseJsonTrue('abc')).toThrow();
+        });
+    });
+
+    describe('parseJsonFalse', () => {
+        it('should parse false', () => {
+            expect(parseJsonFalse('false')).toEqual({value: false, nextPos: 5});
+            expect(parseJsonFalse('false}')).toEqual({value: false, nextPos: 5});
+            expect(parseJsonFalse('abcfalsedef', 3)).toEqual({value: false, nextPos: 8});
+        });
+
+        it('should throw on invalid input', () => {
+            expect(() => parseJsonFalse('fals')).toThrow();
+            expect(() => parseJsonFalse('False')).toThrow(); // Case sensitive
+            expect(() => parseJsonFalse('true')).toThrow();
+            expect(() => parseJsonFalse('abc')).toThrow();
+        });
+    });
+
+    describe('parseJsonLiteral (deprecated)', () => {
+        it('should parse null', () => {
+            expect(parseJsonLiteral('null')).toEqual({value: null, nextPos: 4});
+            expect(parseJsonLiteral('null,')).toEqual({value: null, nextPos: 4});
         });
 
         it('should parse true', () => {
-            expect(parseJsonLiteral('true')).toEqual({ value: true, length: 4 });
-            expect(parseJsonLiteral('true]')).toEqual({ value: true, length: 4 });
+            expect(parseJsonLiteral('true')).toEqual({value: true, nextPos: 4});
+            expect(parseJsonLiteral('true]')).toEqual({value: true, nextPos: 4});
         });
 
         it('should parse false', () => {
-            expect(parseJsonLiteral('false')).toEqual({ value: false, length: 5 });
-            expect(parseJsonLiteral('false}')).toEqual({ value: false, length: 5 });
+            expect(parseJsonLiteral('false')).toEqual({value: false, nextPos: 5});
+            expect(parseJsonLiteral('false}')).toEqual({value: false, nextPos: 5});
         });
 
         it('should parse literals at specific positions', () => {
-            expect(parseJsonLiteral('abcnulldef', 3)).toEqual({ value: null, length: 4 });
-            expect(parseJsonLiteral('  true  ', 2)).toEqual({ value: true, length: 4 });
+            expect(parseJsonLiteral('abcnulldef', 3)).toEqual({value: null, nextPos: 7});
+            expect(parseJsonLiteral('  true  ', 2)).toEqual({value: true, nextPos: 6});
         });
 
         it('should throw on invalid literals', () => {
@@ -180,176 +231,199 @@ describe('JSON Basic Types Tokenizer', () => {
         });
     });
 
-    describe('parseJsonValue', () => {
-        it('should parse any JSON value type', () => {
-            expect(parseJsonValue('123')).toEqual({ value: 123, length: 3 });
-            expect(parseJsonValue('"hello"')).toEqual({ value: 'hello', length: 7 });
-            expect(parseJsonValue('true')).toEqual({ value: true, length: 4 });
-            expect(parseJsonValue('false')).toEqual({ value: false, length: 5 });
-            expect(parseJsonValue('null')).toEqual({ value: null, length: 4 });
-            expect(parseJsonValue('[1,2,3]')).toEqual({ value: [1, 2, 3], length: 7 });
-            expect(parseJsonValue('{"key":"value"}')).toEqual({ value: { key: 'value' }, length: 15 });
-        });
+    describe('Token Parsers', () => {
+        describe('parseStartArray', () => {
+            it('should parse opening array bracket', () => {
+                expect(parseStartArray('[')).toBe(1);
+                expect(parseStartArray('  [')).toBe(3);
+                expect(parseStartArray('\t\n[')).toBe(3);
+                expect(parseStartArray('[123]', 0)).toBe(1);
+            });
 
-        it('should handle leading whitespace', () => {
-            expect(parseJsonValue('   123')).toEqual({ value: 123, length: 6 });
-            expect(parseJsonValue('\t\n"hello"')).toEqual({ value: 'hello', length: 10 });
-            expect(parseJsonValue('  true')).toEqual({ value: true, length: 6 });
-        });
-
-        it('should parse values at specific positions', () => {
-            expect(parseJsonValue('abc123def', 3)).toEqual({ value: 123, length: 3 });
-            expect(parseJsonValue('  "test"  ', 2)).toEqual({ value: 'test', length: 6 });
-        });
-
-        it('should throw on invalid values', () => {
-            expect(() => parseJsonValue('undefined')).toThrow(); // Not valid JSON
-            expect(() => parseJsonValue('')).toThrow(); // Empty string
-            expect(() => parseJsonValue('   ')).toThrow(); // Only whitespace
-        });
-    });
-
-    describe('parseJsonArray', () => {
-        it('should parse empty arrays', () => {
-            expect(parseJsonArray('[]')).toEqual({ value: [], length: 2 });
-            expect(parseJsonArray('[ ]')).toEqual({ value: [], length: 3 });
-            expect(parseJsonArray('[\t\n]')).toEqual({ value: [], length: 4 });
-        });
-
-        it('should parse arrays with single elements', () => {
-            expect(parseJsonArray('[123]')).toEqual({ value: [123], length: 5 });
-            expect(parseJsonArray('["hello"]')).toEqual({ value: ['hello'], length: 9 });
-            expect(parseJsonArray('[true]')).toEqual({ value: [true], length: 6 });
-            expect(parseJsonArray('[null]')).toEqual({ value: [null], length: 6 });
-        });
-
-        it('should parse arrays with multiple elements', () => {
-            expect(parseJsonArray('[1,2,3]')).toEqual({ value: [1, 2, 3], length: 7 });
-            expect(parseJsonArray('["a","b","c"]')).toEqual({ value: ['a', 'b', 'c'], length: 13 });
-            expect(parseJsonArray('[1,"hello",true,null]')).toEqual({
-                value: [1, 'hello', true, null],
-                length: 21
+            it('should throw on invalid input', () => {
+                expect(() => parseStartArray('{')).toThrow();
+                expect(() => parseStartArray('')).toThrow();
+                expect(() => parseStartArray('  {')).toThrow();
             });
         });
 
-        it('should handle whitespace in arrays', () => {
-            expect(parseJsonArray('[ 1 , 2 , 3 ]')).toEqual({ value: [1, 2, 3], length: 13 });
-            expect(parseJsonArray('[\n\t1,\n\t2\n]')).toEqual({ value: [1, 2], length: 11 });
-        });
-
-        it('should parse nested arrays', () => {
-            expect(parseJsonArray('[[1,2],[3,4]]')).toEqual({
-                value: [[1, 2], [3, 4]],
-                length: 13
+        describe('parseEndArray', () => {
+            it('should parse closing array bracket', () => {
+                expect(parseEndArray(']')).toBe(1);
+                expect(parseEndArray('  ]')).toBe(3);
+                expect(parseEndArray('\t\n]')).toBe(3);
+                expect(parseEndArray('123]', 3)).toBe(4);
             });
-            expect(parseJsonArray('[[], [1], [1,2]]')).toEqual({
-                value: [[], [1], [1, 2]],
-                length: 16
-            });
-        });
 
-        it('should throw on invalid arrays', () => {
-            expect(() => parseJsonArray('[')).toThrow(); // Unterminated
-            expect(() => parseJsonArray('[1')).toThrow(); // Unterminated
-            expect(() => parseJsonArray('[1,]')).toThrow(); // Trailing comma
-            expect(() => parseJsonArray('[1 2]')).toThrow(); // Missing comma
-            expect(() => parseJsonArray('1,2,3]')).toThrow(); // Missing opening bracket
-        });
-    });
-
-    describe('parseJsonObject', () => {
-        it('should parse empty objects', () => {
-            expect(parseJsonObject('{}')).toEqual({ value: {}, length: 2 });
-            expect(parseJsonObject('{ }')).toEqual({ value: {}, length: 3 });
-            expect(parseJsonObject('{\t\n}')).toEqual({ value: {}, length: 4 });
-        });
-
-        it('should parse objects with single properties', () => {
-            expect(parseJsonObject('{"key":"value"}')).toEqual({
-                value: { key: 'value' },
-                length: 15
-            });
-            expect(parseJsonObject('{"num":123}')).toEqual({
-                value: { num: 123 },
-                length: 11
-            });
-            expect(parseJsonObject('{"bool":true}')).toEqual({
-                value: { bool: true },
-                length: 13
+            it('should throw on invalid input', () => {
+                expect(() => parseEndArray('}')).toThrow();
+                expect(() => parseEndArray('')).toThrow();
+                expect(() => parseEndArray('  }')).toThrow();
             });
         });
 
-        it('should parse objects with multiple properties', () => {
-            expect(parseJsonObject('{"a":1,"b":2,"c":3}')).toEqual({
-                value: { a: 1, b: 2, c: 3 },
-                length: 19
+        describe('parseStartObject', () => {
+            it('should parse opening object brace', () => {
+                expect(parseStartObject('{')).toBe(1);
+                expect(parseStartObject('  {')).toBe(3);
+                expect(parseStartObject('\t\n{')).toBe(3);
+                expect(parseStartObject('{"key"', 0)).toBe(1);
             });
-            expect(parseJsonObject('{"name":"John","age":30,"active":true}')).toEqual({
-                value: { name: 'John', age: 30, active: true },
-                length: 38
+
+            it('should throw on invalid input', () => {
+                expect(() => parseStartObject('[')).toThrow();
+                expect(() => parseStartObject('')).toThrow();
+                expect(() => parseStartObject('  [')).toThrow();
             });
         });
 
-        it('should handle whitespace in objects', () => {
-            expect(parseJsonObject('{ "a" : 1 , "b" : 2 }')).toEqual({
-                value: { a: 1, b: 2 },
-                length: 21
+        describe('parseEndObject', () => {
+            it('should parse closing object brace', () => {
+                expect(parseEndObject('}')).toBe(1);
+                expect(parseEndObject('  }')).toBe(3);
+                expect(parseEndObject('\t\n}')).toBe(3);
+                expect(parseEndObject('"value"}', 7)).toBe(8);
             });
-            expect(parseJsonObject('{\n\t"key":\n\t"value"\n}')).toEqual({
-                value: { key: 'value' },
-                length: 21
+
+            it('should throw on invalid input', () => {
+                expect(() => parseEndObject(']')).toThrow();
+                expect(() => parseEndObject('')).toThrow();
+                expect(() => parseEndObject('  ]')).toThrow();
             });
         });
 
-        it('should parse nested objects', () => {
-            expect(parseJsonObject('{"user":{"name":"John","age":30}}')).toEqual({
-                value: { user: { name: 'John', age: 30 } },
-                length: 33
+        describe('parseComma', () => {
+            it('should parse comma separator', () => {
+                expect(parseComma(',')).toBe(1);
+                expect(parseComma('  ,')).toBe(3);
+                expect(parseComma('\t\n,')).toBe(3);
+                expect(parseComma('123,456', 3)).toBe(4);
             });
-            expect(parseJsonObject('{"a":{},"b":{"c":1}}')).toEqual({
-                value: { a: {}, b: { c: 1 } },
-                length: 20
+
+            it('should throw on invalid input', () => {
+                expect(() => parseComma(';')).toThrow();
+                expect(() => parseComma('')).toThrow();
+                expect(() => parseComma('  ;')).toThrow();
             });
         });
 
-        it('should throw on invalid objects', () => {
-            expect(() => parseJsonObject('{')).toThrow(); // Unterminated
-            expect(() => parseJsonObject('{"key"')).toThrow(); // Unterminated
-            expect(() => parseJsonObject('{"key":}')).toThrow(); // Missing value
-            expect(() => parseJsonObject('{key:"value"}')).toThrow(); // Unquoted key
-            expect(() => parseJsonObject('{"key""value"}')).toThrow(); // Missing colon
-            expect(() => parseJsonObject('{"a":1,}')).toThrow(); // Trailing comma
+        describe('parseColon', () => {
+            it('should parse colon separator', () => {
+                expect(parseColon(':')).toBe(1);
+                expect(parseColon('  :')).toBe(3);
+                expect(parseColon('\t\n:')).toBe(3);
+                expect(parseColon('"key":"value"', 5)).toBe(6);
+            });
+
+            it('should throw on invalid input', () => {
+                expect(() => parseColon(';')).toThrow();
+                expect(() => parseColon('')).toThrow();
+                expect(() => parseColon('  ;')).toThrow();
+            });
         });
     });
 
     describe('Complex parsing scenarios', () => {
-        it('should handle consecutive parsing', () => {
+        it('should handle consecutive parsing with token parsers', () => {
             const str = '123,"hello",true,null';
             let pos = 0;
-            
+
             const num = parseJsonNumber(str, pos);
-            expect(num).toEqual({ value: 123, length: 3 });
-            pos += num.length;
-            
-            expect(str[pos]).toBe(',');
-            pos++; // skip comma
-            
+            expect(num).toEqual({value: 123, nextPos: 3});
+            pos = num.nextPos;
+
+            pos = parseComma(str, pos);
+
             const strVal = parseJsonString(str, pos);
-            expect(strVal).toEqual({ value: 'hello', length: 7 });
-            pos += strVal.length;
-            
-            expect(str[pos]).toBe(',');
-            pos++; // skip comma
-            
-            const boolVal = parseJsonLiteral(str, pos);
-            expect(boolVal).toEqual({ value: true, length: 4 });
-            pos += boolVal.length;
-            
-            expect(str[pos]).toBe(',');
-            pos++; // skip comma
-            
-            const nullVal = parseJsonLiteral(str, pos);
-            expect(nullVal).toEqual({ value: null, length: 4 });
+            expect(strVal).toEqual({value: 'hello', nextPos: 11});
+            pos = strVal.nextPos;
+
+            pos = parseComma(str, pos);
+
+            const boolVal = parseJsonTrue(str, pos);
+            expect(boolVal).toEqual({value: true, nextPos: 16});
+            pos = boolVal.nextPos;
+
+            pos = parseComma(str, pos);
+
+            const nullVal = parseJsonNull(str, pos);
+            expect(nullVal).toEqual({value: null, nextPos: 21});
+        });
+
+        it('should parse object structure with token parsers', () => {
+            const str = '{"name":"John","age":30}';
+            let pos = 0;
+
+            // Parse opening brace
+            pos = parseStartObject(str, pos);
+
+            // Parse first key
+            const key1 = parseJsonString(str, pos);
+            expect(key1).toEqual({value: 'name', nextPos: 7});
+            pos = key1.nextPos;
+
+            // Parse colon
+            pos = parseColon(str, pos);
+
+            // Parse first value
+            const value1 = parseJsonString(str, pos);
+            expect(value1).toEqual({value: 'John', nextPos: 14});
+            pos = value1.nextPos;
+
+            // Parse comma
+            pos = parseComma(str, pos);
+
+            // Parse second key
+            const key2 = parseJsonString(str, pos);
+            expect(key2).toEqual({value: 'age', nextPos: 20});
+            pos = key2.nextPos;
+
+            // Parse colon
+            pos = parseColon(str, pos);
+
+            // Parse second value
+            const value2 = parseJsonNumber(str, pos);
+            expect(value2).toEqual({value: 30, nextPos: 23});
+            pos = value2.nextPos;
+
+            // Parse closing brace
+            pos = parseEndObject(str, pos);
+
+            expect(pos).toBe(str.length);
+        });
+
+        it('should parse array structure with token parsers', () => {
+            const str = '[123,"hello",true]';
+            let pos = 0;
+
+            // Parse opening bracket
+            pos = parseStartArray(str, pos);
+
+            // Parse first element
+            const elem1 = parseJsonNumber(str, pos);
+            expect(elem1).toEqual({value: 123, nextPos: 4});
+            pos = elem1.nextPos;
+
+            // Parse comma
+            pos = parseComma(str, pos);
+
+            // Parse second element
+            const elem2 = parseJsonString(str, pos);
+            expect(elem2).toEqual({value: 'hello', nextPos: 12});
+            pos = elem2.nextPos;
+
+            // Parse comma
+            pos = parseComma(str, pos);
+
+            // Parse third element
+            const elem3 = parseJsonTrue(str, pos);
+            expect(elem3).toEqual({value: true, nextPos: 17});
+            pos = elem3.nextPos;
+
+            // Parse closing bracket
+            pos = parseEndArray(str, pos);
+
+            expect(pos).toBe(str.length);
         });
     });
 });

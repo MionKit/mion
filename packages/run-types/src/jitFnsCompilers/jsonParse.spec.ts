@@ -15,12 +15,12 @@ describe('jsonParse', () => {
             const rt = runType<TestType>();
             const jsonParse = rt.createJitFunction(JitFunctions.jsonParse);
             const jsonStringify = rt.createJitFunction(JitFunctions.jsonStringify);
-            
+
             const testValue = 'hello world';
             const jsonString = jsonStringify(testValue);
             const parsed = JSON.parse(jsonString);
             const result = jsonParse(parsed);
-            
+
             expect(result).toBe(testValue);
         });
 
@@ -29,12 +29,12 @@ describe('jsonParse', () => {
             const rt = runType<TestType>();
             const jsonParse = rt.createJitFunction(JitFunctions.jsonParse);
             const jsonStringify = rt.createJitFunction(JitFunctions.jsonStringify);
-            
+
             const testValue = 42.5;
             const jsonString = jsonStringify(testValue);
             const parsed = JSON.parse(jsonString);
             const result = jsonParse(parsed);
-            
+
             expect(result).toBe(testValue);
         });
 
@@ -43,12 +43,12 @@ describe('jsonParse', () => {
             const rt = runType<TestType>();
             const jsonParse = rt.createJitFunction(JitFunctions.jsonParse);
             const jsonStringify = rt.createJitFunction(JitFunctions.jsonStringify);
-            
+
             const testValue = true;
             const jsonString = jsonStringify(testValue);
             const parsed = JSON.parse(jsonString);
             const result = jsonParse(parsed);
-            
+
             expect(result).toBe(testValue);
         });
 
@@ -57,12 +57,12 @@ describe('jsonParse', () => {
             const rt = runType<TestType>();
             const jsonParse = rt.createJitFunction(JitFunctions.jsonParse);
             const jsonStringify = rt.createJitFunction(JitFunctions.jsonStringify);
-            
+
             const testValue = null;
             const jsonString = jsonStringify(testValue);
             const parsed = JSON.parse(jsonString);
             const result = jsonParse(parsed);
-            
+
             expect(result).toBe(testValue);
         });
 
@@ -71,12 +71,12 @@ describe('jsonParse', () => {
             const rt = runType<TestType>();
             const jsonParse = rt.createJitFunction(JitFunctions.jsonParse);
             const jsonStringify = rt.createJitFunction(JitFunctions.jsonStringify);
-            
+
             const testValue = 123456789012345678901234567890n;
             const jsonString = jsonStringify(testValue);
             const parsed = JSON.parse(jsonString);
             const result = jsonParse(parsed);
-            
+
             expect(result).toBe(testValue);
         });
 
@@ -85,12 +85,12 @@ describe('jsonParse', () => {
             const rt = runType<TestType>();
             const jsonParse = rt.createJitFunction(JitFunctions.jsonParse);
             const jsonStringify = rt.createJitFunction(JitFunctions.jsonStringify);
-            
+
             const testValue = new Date('2023-01-01T00:00:00.000Z');
             const jsonString = jsonStringify(testValue);
             const parsed = JSON.parse(jsonString);
             const result = jsonParse(parsed);
-            
+
             expect(result).toEqual(testValue);
         });
 
@@ -99,12 +99,12 @@ describe('jsonParse', () => {
             const rt = runType<TestType>();
             const jsonParse = rt.createJitFunction(JitFunctions.jsonParse);
             const jsonStringify = rt.createJitFunction(JitFunctions.jsonStringify);
-            
+
             const testValue = /test[0-9]+/gi;
             const jsonString = jsonStringify(testValue);
             const parsed = JSON.parse(jsonString);
             const result = jsonParse(parsed);
-            
+
             expect(result).toEqual(testValue);
         });
     });
@@ -115,12 +115,12 @@ describe('jsonParse', () => {
             const rt = runType<TestType>();
             const jsonParse = rt.createJitFunction(JitFunctions.jsonParse);
             const jsonStringify = rt.createJitFunction(JitFunctions.jsonStringify);
-            
+
             const testValue = [1, 2, 3, 4, 5];
             const jsonString = jsonStringify(testValue);
             const parsed = JSON.parse(jsonString);
             const result = jsonParse(parsed);
-            
+
             expect(result).toEqual(testValue);
         });
 
@@ -129,12 +129,16 @@ describe('jsonParse', () => {
             const rt = runType<TestType>();
             const jsonParse = rt.createJitFunction(JitFunctions.jsonParse);
             const jsonStringify = rt.createJitFunction(JitFunctions.jsonStringify);
-            
-            const testValue = [[1, 2], [3, 4], [5, 6]];
+
+            const testValue = [
+                [1, 2],
+                [3, 4],
+                [5, 6],
+            ];
             const jsonString = jsonStringify(testValue);
             const parsed = JSON.parse(jsonString);
             const result = jsonParse(parsed);
-            
+
             expect(result).toEqual(testValue);
         });
 
@@ -143,15 +147,15 @@ describe('jsonParse', () => {
             const rt = runType<TestType>();
             const jsonParse = rt.createJitFunction(JitFunctions.jsonParse);
             const jsonStringify = rt.createJitFunction(JitFunctions.jsonStringify);
-            
+
             const testValue = [
                 {name: 'John', age: 30},
-                {name: 'Jane', age: 25}
+                {name: 'Jane', age: 25},
             ];
             const jsonString = jsonStringify(testValue);
             const parsed = JSON.parse(jsonString);
             const result = jsonParse(parsed);
-            
+
             expect(result).toEqual(testValue);
         });
     });
@@ -162,12 +166,12 @@ describe('jsonParse', () => {
             const rt = runType<TestType>();
             const jsonParse = rt.createJitFunction(JitFunctions.jsonParse);
             const jsonStringify = rt.createJitFunction(JitFunctions.jsonStringify);
-            
+
             const testValue = {name: 'John', age: 30};
             const jsonString = jsonStringify(testValue);
             const parsed = JSON.parse(jsonString);
             const result = jsonParse(parsed);
-            
+
             expect(result).toEqual(testValue);
         });
 
@@ -176,12 +180,12 @@ describe('jsonParse', () => {
             const rt = runType<TestType>();
             const jsonParse = rt.createJitFunction(JitFunctions.jsonParse);
             const jsonStringify = rt.createJitFunction(JitFunctions.jsonStringify);
-            
+
             const testValue1 = {name: 'John', age: 30};
             const testValue2 = {name: 'Jane', email: 'jane@example.com'};
             const testValue3 = {name: 'Bob'};
-            
-            [testValue1, testValue2, testValue3].forEach(testValue => {
+
+            [testValue1, testValue2, testValue3].forEach((testValue) => {
                 const jsonString = jsonStringify(testValue);
                 const parsed = JSON.parse(jsonString);
                 const result = jsonParse(parsed);
@@ -197,15 +201,15 @@ describe('jsonParse', () => {
             const rt = runType<TestType>();
             const jsonParse = rt.createJitFunction(JitFunctions.jsonParse);
             const jsonStringify = rt.createJitFunction(JitFunctions.jsonStringify);
-            
+
             const testValue = {
                 user: {name: 'John', age: 30},
-                settings: {theme: 'dark', notifications: true}
+                settings: {theme: 'dark', notifications: true},
             };
             const jsonString = jsonStringify(testValue);
             const parsed = JSON.parse(jsonString);
             const result = jsonParse(parsed);
-            
+
             expect(result).toEqual(testValue);
         });
     });
@@ -216,12 +220,12 @@ describe('jsonParse', () => {
             const rt = runType<TestType>();
             const jsonParse = rt.createJitFunction(JitFunctions.jsonParse);
             const jsonStringify = rt.createJitFunction(JitFunctions.jsonStringify);
-            
+
             const testValue: TestType = ['hello', 42, true];
             const jsonString = jsonStringify(testValue);
             const parsed = JSON.parse(jsonString);
             const result = jsonParse(parsed);
-            
+
             expect(result).toEqual(testValue);
         });
 
@@ -230,12 +234,12 @@ describe('jsonParse', () => {
             const rt = runType<TestType>();
             const jsonParse = rt.createJitFunction(JitFunctions.jsonParse);
             const jsonStringify = rt.createJitFunction(JitFunctions.jsonStringify);
-            
+
             const testValue1: TestType = ['hello', 42, true];
             const testValue2: TestType = ['hello', 42];
             const testValue3: TestType = ['hello'];
-            
-            [testValue1, testValue2, testValue3].forEach(testValue => {
+
+            [testValue1, testValue2, testValue3].forEach((testValue) => {
                 const jsonString = jsonStringify(testValue);
                 const parsed = JSON.parse(jsonString);
                 const result = jsonParse(parsed);
@@ -250,10 +254,10 @@ describe('jsonParse', () => {
             const rt = runType<TestType>();
             const jsonParse = rt.createJitFunction(JitFunctions.jsonParse);
             const jsonStringify = rt.createJitFunction(JitFunctions.jsonStringify);
-            
+
             const testValues: TestType[] = ['hello', 42, true];
-            
-            testValues.forEach(testValue => {
+
+            testValues.forEach((testValue) => {
                 const jsonString = jsonStringify(testValue);
                 const parsed = JSON.parse(jsonString);
                 const result = jsonParse(parsed);
@@ -266,11 +270,11 @@ describe('jsonParse', () => {
             const rt = runType<TestType>();
             const jsonParse = rt.createJitFunction(JitFunctions.jsonParse);
             const jsonStringify = rt.createJitFunction(JitFunctions.jsonStringify);
-            
+
             const testValue1: TestType = {type: 'user', name: 'John'};
             const testValue2: TestType = {type: 'admin', permissions: ['read', 'write']};
-            
-            [testValue1, testValue2].forEach(testValue => {
+
+            [testValue1, testValue2].forEach((testValue) => {
                 const jsonString = jsonStringify(testValue);
                 const parsed = JSON.parse(jsonString);
                 const result = jsonParse(parsed);
@@ -285,12 +289,16 @@ describe('jsonParse', () => {
             const rt = runType<TestType>();
             const jsonParse = rt.createJitFunction(JitFunctions.jsonParse);
             const jsonStringify = rt.createJitFunction(JitFunctions.jsonStringify);
-            
-            const testValue = new Map([['a', 1], ['b', 2], ['c', 3]]);
+
+            const testValue = new Map([
+                ['a', 1],
+                ['b', 2],
+                ['c', 3],
+            ]);
             const jsonString = jsonStringify(testValue);
             const parsed = JSON.parse(jsonString);
             const result = jsonParse(parsed);
-            
+
             expect(result).toEqual(testValue);
         });
 
@@ -299,12 +307,12 @@ describe('jsonParse', () => {
             const rt = runType<TestType>();
             const jsonParse = rt.createJitFunction(JitFunctions.jsonParse);
             const jsonStringify = rt.createJitFunction(JitFunctions.jsonStringify);
-            
+
             const testValue = new Set([1, 2, 3, 4, 5]);
             const jsonString = jsonStringify(testValue);
             const parsed = JSON.parse(jsonString);
             const result = jsonParse(parsed);
-            
+
             expect(result).toEqual(testValue);
         });
     });
@@ -318,7 +326,7 @@ describe('jsonParse', () => {
 
             const testValues: TestType[] = ['hello', 'world'];
 
-            testValues.forEach(testValue => {
+            testValues.forEach((testValue) => {
                 const jsonString = jsonStringify(testValue);
                 const parsed = JSON.parse(jsonString);
                 const result = jsonParse(parsed);
@@ -334,7 +342,7 @@ describe('jsonParse', () => {
 
             const testValues: TestType[] = [1, 2, 3];
 
-            testValues.forEach(testValue => {
+            testValues.forEach((testValue) => {
                 const jsonString = jsonStringify(testValue);
                 const parsed = JSON.parse(jsonString);
                 const result = jsonParse(parsed);
@@ -348,7 +356,7 @@ describe('jsonParse', () => {
             enum StringEnum {
                 A = 'valueA',
                 B = 'valueB',
-                C = 'valueC'
+                C = 'valueC',
             }
             type TestType = StringEnum;
             const rt = runType<TestType>();
@@ -357,7 +365,7 @@ describe('jsonParse', () => {
 
             const testValues = [StringEnum.A, StringEnum.B, StringEnum.C];
 
-            testValues.forEach(testValue => {
+            testValues.forEach((testValue) => {
                 const jsonString = jsonStringify(testValue);
                 const parsed = JSON.parse(jsonString);
                 const result = jsonParse(parsed);
@@ -369,7 +377,7 @@ describe('jsonParse', () => {
             enum NumberEnum {
                 A,
                 B,
-                C
+                C,
             }
             type TestType = NumberEnum;
             const rt = runType<TestType>();
@@ -378,7 +386,7 @@ describe('jsonParse', () => {
 
             const testValues = [NumberEnum.A, NumberEnum.B, NumberEnum.C];
 
-            testValues.forEach(testValue => {
+            testValues.forEach((testValue) => {
                 const jsonString = jsonStringify(testValue);
                 const parsed = JSON.parse(jsonString);
                 const result = jsonParse(parsed);
@@ -450,19 +458,19 @@ describe('jsonParse', () => {
                             settings: {
                                 theme: 'dark',
                                 notifications: true,
-                                preferences: {lang: 'en', timezone: 'UTC'}
-                            }
+                                preferences: {lang: 'en', timezone: 'UTC'},
+                            },
                         },
                         posts: [
                             {title: 'Hello World', tags: ['intro', 'welcome']},
-                            {title: 'TypeScript Tips', tags: ['typescript', 'tips']}
-                        ]
-                    }
+                            {title: 'TypeScript Tips', tags: ['typescript', 'tips']},
+                        ],
+                    },
                 ],
                 metadata: {
                     version: '1.0.0',
-                    lastUpdated: new Date('2023-01-01')
-                }
+                    lastUpdated: new Date('2023-01-01'),
+                },
             };
 
             const jsonString = jsonStringify(testValue);
