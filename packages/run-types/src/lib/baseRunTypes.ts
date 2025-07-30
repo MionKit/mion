@@ -45,6 +45,7 @@ import {
 } from './formats';
 import {typeParamsToString} from './utils';
 import {_compileJsonStringify} from '@mionkit/run-types/src/jitFnsCompilers/jsonStringify';
+import {_compileJsonParse} from '@mionkit/run-types/src/jitFnsCompilers/jsonParse';
 import {getJitFunctionCompiler, registerJitFunctionCompiler} from './jitFnsRegistry';
 import {JitCompiledFn} from '@mionkit/core/src/types';
 import {_compileToCode} from '@mionkit/run-types/src/jitFnsCompilers/toCode';
@@ -265,6 +266,9 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
                     break;
                 case JitFunctions.jsonStringify.id:
                     code = _compileJsonStringify(this, comp);
+                    break;
+                case JitFunctions.jsonParse.id:
+                    code = _compileJsonParse(this, comp);
                     break;
                 case JitFunctions.toCode.id:
                         code = _compileToCode(this, comp);

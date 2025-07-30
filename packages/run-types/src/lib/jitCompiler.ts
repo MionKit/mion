@@ -423,6 +423,7 @@ export function createJitCompiler(
         case JitFunctions.toJsonVal.id:
         case JitFunctions.fromJsonVal.id:
         case JitFunctions.jsonStringify.id:
+        case JitFunctions.jsonParse.id:
         case JitFunctions.hasUnknownKeys.id:
         case JitFunctions.stripUnknownKeys.id:
         case JitFunctions.unknownKeysToUndefined.id:

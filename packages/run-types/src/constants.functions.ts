@@ -87,6 +87,13 @@ export const jitSerializationFunctions = {
         jitArgs,
         jitDefaultArgs,
     },
+    jsonParse: {
+        id: 'jp',
+        name: 'jsonParse',
+        type: CodeTypes.statement,
+        jitArgs,
+        jitDefaultArgs,
+    },
     // not yet implemented
     toBinary: {
         id: 'tb',
