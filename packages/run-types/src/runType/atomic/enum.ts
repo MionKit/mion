@@ -15,9 +15,18 @@ export class EnumRunType extends AtomicRunType<TypeEnum> {
     _getTypeID = () => ReflectionKind.enum;
     _compileIsType(comp: JitCompiler): jitCode {
         const items = this.src.values.map((v) => `${comp.vλl} === ${toLiteral(v)}`);
-        return `(${items.join(' || ')})`;
+        return {
+            code: `(${items.join(' || ')})`,
+            codeType: 'E',
+            skipJit: false
+        };
     }
     _compileTypeErrors(comp: JitErrorsCompiler): jitCode {
-        return `if (!(${this._compileIsType(comp)})) ${comp.callJitErr(this)}`;
+        const isTypeCode = this._compileIsType(comp);
+        return {
+            code: `if (!(${isTypeCode?.code})) ${comp.callJitErr(this)}`,
+            codeType: 'S',
+            skipJit: false
+        };
     }
 }

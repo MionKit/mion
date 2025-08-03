@@ -41,40 +41,87 @@ export class FunctionParamsRunType<
 
     _compileIsType(comp: JitCompiler): jitCode {
         const children = this.getParamRunTypes(comp);
-        if (children.length === 0) return `${comp.vλl}.length === 0`;
+        if (children.length === 0) {
+            return {
+                code: `${comp.vλl}.length === 0`,
+                codeType: 'E',
+                skipJit: false
+            };
+        }
         const lengthCode = this.hasRestParameter(comp) ? '' : `${comp.vλl}.length <= ${children.length}`;
         // Only include parameters that require validation
-        const paramsCode = children.map((p) => p.compileIsType(comp)).filter(Boolean);
-        if (paramsCode.length === 0) return lengthCode ? `(${lengthCode})` : undefined;
-        return lengthCode ? `(${lengthCode} && ${paramsCode.join(' && ')})` : `(${paramsCode.join(' && ')})`;
+        const childJitCodes = children.map((p) => p.compileIsType(comp)).filter(Boolean);
+        const paramsCode = childJitCodes.map(c => c!.code);
+        if (paramsCode.length === 0) {
+            return lengthCode ? {
+                code: `(${lengthCode})`,
+                codeType: 'E',
+                skipJit: false
+            } : undefined;
+        }
+        return {
+            code: lengthCode ? `(${lengthCode} && ${paramsCode.join(' && ')})` : `(${paramsCode.join(' && ')})`,
+            codeType: 'E',
+            skipJit: false,
+            children: childJitCodes
+        };
     }
     _compileTypeErrors(comp: JitErrorsCompiler): jitCode {
         const children = this.getParamRunTypes(comp);
-        if (children.length === 0) return `if (${comp.vλl}.length !== 0) ${comp.callJitErr(this)}`;
+        if (children.length === 0) {
+            return {
+                code: `if (${comp.vλl}.length !== 0) ${comp.callJitErr(this)}`,
+                codeType: 'S',
+                skipJit: false
+            };
+        }
         const lengthCode = this.hasRestParameter(comp) ? '' : `${comp.vλl}.length > ${children.length}`;
 
         // Only include parameters that require validation
-        const paramsCode = children.map((p) => p.compileTypeErrors(comp)).filter(Boolean);
-        if (paramsCode.length === 0) return lengthCode ? `if (${lengthCode}) ${comp.callJitErr(this)}` : undefined;
-        return lengthCode ? `if (${lengthCode}) ${comp.callJitErr(this)}; else {${paramsCode.join(';')}}` : paramsCode.join(';');
+        const childJitCodes = children.map((p) => p.compileTypeErrors(comp)).filter(Boolean);
+        const paramsCode = childJitCodes.map(c => c!.code);
+        if (paramsCode.length === 0) {
+            return lengthCode ? {
+                code: `if (${lengthCode}) ${comp.callJitErr(this)}`,
+                codeType: 'S',
+                skipJit: false
+            } : undefined;
+        }
+        return {
+            code: lengthCode ? `if (${lengthCode}) ${comp.callJitErr(this)}; else {${paramsCode.join(';')}}` : paramsCode.join(';'),
+            codeType: 'S',
+            skipJit: false,
+            children: childJitCodes
+        };
     }
     _compileToJsonVal(comp: JitCompiler): jitCode {
         const children = this.getParamRunTypes(comp);
         if (!children.length) return undefined;
-        const code = children
+        const childJitCodes = children
             .map((p) => p.compileToJsonVal(comp))
-            .filter(Boolean)
-            .join(';');
-        return code || undefined;
+            .filter(Boolean);
+        const code = childJitCodes.map(c => c!.code).join(';');
+        if (!code) return undefined;
+        return {
+            code,
+            codeType: 'S',
+            skipJit: false,
+            children: childJitCodes
+        };
     }
     _compileFromJsonVal(comp: JitCompiler): jitCode {
         const children = this.getParamRunTypes(comp);
         if (!children.length) return undefined;
-        return (
-            children
-                .map((p) => p.compileFromJsonVal(comp))
-                .filter(Boolean)
-                .join(';') || undefined
-        );
+        const childJitCodes = children
+            .map((p) => p.compileFromJsonVal(comp))
+            .filter(Boolean);
+        const code = childJitCodes.map(c => c!.code).join(';');
+        if (!code) return undefined;
+        return {
+            code,
+            codeType: 'S',
+            skipJit: false,
+            children: childJitCodes
+        };
     }
 }

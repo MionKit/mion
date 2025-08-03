@@ -12,19 +12,32 @@ import {jitCode} from '../../types';
 // TODO: not sure when run type will be generated but doesn't seem to be used when using reflection on enums
 export class EnumMemberRunType extends AtomicRunType<TypeEnum> {
     _getTypeID = () => ReflectionKind.enumMember;
-    skipJit() {
-        return true;
-    }
     _compileIsType(): jitCode {
-        throw new Error('Enum member operations are not supported');
+        return {
+            code: '',
+            codeType: 'E',
+            skipJit: true
+        };
     }
     _compileTypeErrors(): jitCode {
-        throw new Error('Enum member operations are not supported');
+        return {
+            code: '',
+            codeType: 'S',
+            skipJit: true
+        };
     }
     _compileToJsonVal(): jitCode {
-        throw new Error('Enum member operations are not supported');
+        return {
+            code: '',
+            codeType: 'S',
+            skipJit: true
+        };
     }
     _compileFromJsonVal(): jitCode {
-        throw new Error('Enum member operations are not supported');
+        return {
+            code: '',
+            codeType: 'S',
+            skipJit: true
+        };
     }
 }

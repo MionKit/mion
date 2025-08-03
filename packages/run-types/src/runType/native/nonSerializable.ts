@@ -11,10 +11,7 @@ import {InterfaceRunType} from '../collection/interface';
 
 // Non serializable types might not be Atomic but will be skipped so it doesn't matter
 export class NonSerializableRunType extends InterfaceRunType<TypeObjectLiteral | TypeClass> {
-    skipJit() {
-        // skip return false so we ensure the compile functions will throw when a NonSerializable type is used
-        return false;
-    }
+    // NonSerializableRunType throws errors for all operations
     _compileIsType(): jitCode {
         throw new Error(`Jit compilation disabled for Non Serializable types.`);
     }

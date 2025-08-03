@@ -137,8 +137,8 @@ export abstract class BaseRunTypeFormat<P extends TypeFormatParams = any> {
         // TODO: decide if we should add parent compiler or not as parent to createJitCompiler
         const newJitCompiler: JitCompiler = createJitCompiler(rt, fnID, undefined, jitFnHash, hash, opts) as JitCompiler;
         try {
-            const formatterCode = this._compile(fnID, newJitCompiler, rt, params, vλl, formatName);
-            const withReturn = this.handleReturnValues(rt, newJitCompiler, fnID, formatterCode || '');
+            const formatterJitCode = this._compile(fnID, newJitCompiler, rt, params, vλl, formatName);
+            const withReturn = this.handleReturnValues(rt, newJitCompiler, fnID, formatterJitCode);
             newJitCompiler.compile(withReturn);
             comp?.updateDependencies(newJitCompiler as JitCompiledFn);
         } catch (e) {
@@ -193,19 +193,20 @@ export abstract class BaseRunTypeFormat<P extends TypeFormatParams = any> {
      */
     handleReturnValues(rt: BaseRunType, comp: JitCompiler, currentOpId: JitFnID, code: jitCode): string {
         if (!code) return '';
+        const codeString = code.code;
         const codeType = this.getCodeType(currentOpId, rt);
         switch (codeType) {
             case 'E':
-                return `return ${code}`;
+                return `return ${codeString}`;
             case 'RB':
-                return code;
+                return codeString;
             case 'S': {
                 // For non-expressions, add a return statement with the default return value
                 // if the code doesn't already have a return statement
-                const lastChar = code.length - 1;
-                const hasFullStop = code.lastIndexOf(';') === lastChar || code.lastIndexOf('}') === lastChar;
+                const lastChar = codeString.length - 1;
+                const hasFullStop = codeString.lastIndexOf(';') === lastChar || codeString.lastIndexOf('}') === lastChar;
                 const stopChar = hasFullStop ? '' : ';';
-                return `${code}${stopChar} return ${comp.returnName}`;
+                return `${codeString}${stopChar} return ${comp.returnName}`;
             }
         }
     }

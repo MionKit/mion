@@ -9,13 +9,22 @@ import {ReflectionKind, type TypeString} from '@deepkit/type';
 import type {jitCode} from '../../types';
 import {AtomicRunType} from '../../lib/baseRunTypes';
 import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
+import {JitFunctions} from '../../constants.functions';
 
 export class StringRunType extends AtomicRunType<TypeString> {
     _getTypeID = () => ReflectionKind.string;
     _compileIsType(comp: JitCompiler): jitCode {
-        return `typeof ${comp.vλl} === 'string'`;
+        return {
+            code: `typeof ${comp.vλl} === 'string'`,
+            codeType: 'E',
+            skipJit: false
+        };
     }
     _compileTypeErrors(comp: JitErrorsCompiler): jitCode {
-        return `if (typeof ${comp.vλl} !== 'string') ${comp.callJitErr(this)}`;
+        return {
+            code: `if (typeof ${comp.vλl} !== 'string') ${comp.callJitErr(this)}`,
+            codeType: 'S',
+            skipJit: false
+        };
     }
 }

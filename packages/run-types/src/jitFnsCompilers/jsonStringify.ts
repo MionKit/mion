@@ -30,12 +30,17 @@ import type {IterableRunType} from '@mionkit/run-types/src/runType/native/Iterab
 
 type Operation = typeof JitFunctions.jsonStringify.id | typeof JitFunctions.toCode.id;
 
+// Helper function to extract code from jitCode objects (temporary for legacy compilers)
+function extractCode(jitCode: jitCode): string | undefined {
+    return jitCode?.code;
+}
+
 /** Centralized compile jit function with a switch statement that handles all node types. */
 export function _compileJsonStringify(
     runType: BaseRunType,
     comp: JitCompiler,
     fnID: Operation = JitFunctions.jsonStringify.id
-): jitCode {
+): string {
     const src = runType.src;
     const kind = src.kind;
 
@@ -97,7 +102,7 @@ export function _compileJsonStringify(
         // Types that represent members of collections or other structures
         case ReflectionKind.array: {
             const rt = runType as ArrayRunType;
-            const memberCode = rt.getJitChild(comp)?.compile(comp, fnID);
+            const memberCode = extractCode(rt.getJitChild(comp)?.compile(comp, fnID));
             if (!memberCode) return `JSON.stringify(${comp.vλl})`;
             const jsonItems = `ls${comp.getNestLevel(rt)}`;
             const resultVal = `res${comp.getNestLevel(rt)}`;
@@ -114,8 +119,8 @@ export function _compileJsonStringify(
         case ReflectionKind.indexSignature: {
             const rt = runType as IndexSignatureRunType;
             const child = rt.getJitChild(comp);
-            const jsonVal = child?.compile(comp, fnID);
-            if (!child || !jsonVal) return undefined;
+            const jsonVal = extractCode(child?.compile(comp, fnID));
+            if (!child || !jsonVal) return '';
             const varName = comp.vλl;
             const prop = rt.getChildVarName(comp);
             const arrName = `ls${comp.getNestLevel(rt)}`;
@@ -137,11 +142,14 @@ export function _compileJsonStringify(
         case ReflectionKind.callSignature:
             if (runType.src.subKind === ReflectionSubKind.params) {
                 const rt = runType as FunctionParamsRunType;
-                const skip = rt.skipJit(comp);
-                if (skip) return '';
+                // Legacy skipJit check - removed in refactor
+                // if (skip) return '';
                 const params = rt.getParamRunTypes(comp);
                 if (params.length === 0) return `'[]'`;
-                const paramsCode = params.map((p) => p.compile(comp, fnID)).join('+');
+                const paramsCode = params
+                    .map((p) => extractCode(p.compile(comp, fnID)))
+                    .filter(Boolean)
+                    .join('+');
                 return `'['+${paramsCode}+']'`;
             } else {
                 throw new Error(
@@ -154,7 +162,7 @@ export function _compileJsonStringify(
                 case ReflectionSubKind.mapKey:
                 case ReflectionSubKind.mapValue:
                 case ReflectionSubKind.setItem:
-                    return _compileJsonStringifyGenericMember(rt, comp, fnID);
+                    return _compileJsonStringifyGenericMember(rt, comp, fnID) || '';
                 default:
                     return _compileJsonStringifyParameter(rt, comp, fnID);
             }
@@ -163,8 +171,8 @@ export function _compileJsonStringify(
         case ReflectionKind.propertySignature: {
             const rt = runType as PropertyRunType;
             const child = rt.getJitChild(comp);
-            const propCode = child?.compile(comp, fnID);
-            if (!child || !propCode) return undefined;
+            const propCode = extractCode(child?.compile(comp, fnID));
+            if (!child || !propCode) return '';
             // this can´t be processed in the parent as we need to handle the empty string case when value is undefined
             const sep = rt.skipCommas ? '' : '+","';
             // encoding safe property with ':' inside the string saves a little processing
@@ -179,7 +187,7 @@ export function _compileJsonStringify(
         }
         case ReflectionKind.rest: {
             const rt = runType as RestParamsRunType;
-            let itemCode = rt.getJitChild(comp)?.compile(comp, fnID);
+            let itemCode = extractCode(rt.getJitChild(comp)?.compile(comp, fnID));
             if (!itemCode) itemCode = 'JSON.stringify(' + comp.getChildVλl() + ')';
             const arrName = `res${comp.getNestLevel(rt)}`;
             const itemName = `its${comp.getNestLevel(rt)}`;
@@ -198,7 +206,7 @@ export function _compileJsonStringify(
         }
         case ReflectionKind.tupleMember: {
             const rt = runType as ParameterRunType;
-            let childCode = rt.getJitChild(comp)?.compile(comp, fnID);
+            let childCode = extractCode(rt.getJitChild(comp)?.compile(comp, fnID));
             if (!childCode) childCode = `null`; // non serializable types are set to null
             if (rt.isRest()) return childCode;
             const isFirst = rt.getChildIndex(comp) === 0;
@@ -227,12 +235,13 @@ export function _compileJsonStringify(
             throw new Error('Infer is not supported.');
         case ReflectionKind.tuple: {
             const rt = runType as TupleRunType;
-            const skip = rt.skipJit(comp);
-            if (skip) return '';
+            // Legacy skipJit check - removed in refactor
+            // if (skip) return '';
             if (rt.getChildRunTypes().length === 0) return `'[]'`;
             const paramsCode = rt
                 .getChildRunTypes()
-                .map((p) => p.compile(comp, fnID))
+                .map((p) => extractCode(p.compile(comp, fnID)))
+                .filter(Boolean)
                 .join('+');
             return `'['+${paramsCode}+']'`;
         }
@@ -253,7 +262,8 @@ export function _compileJsonStringify(
             const ifElse = createIfElseFn();
             const onUnionTypes = (items: BaseRunType[]) => {
                 const result = items.map((unionItem) => {
-                    const childCode = unionItem.compile(comp, fnID);
+                    const childJitCode = unionItem.compile(comp, fnID);
+                    const childCode = childJitCode?.code;
                     // TODO: calling full encode/decode could be expensive and we calling it only to know if it needs encoding.
                     // we might want to optimize this
                     const encCode = unionItem.compileToJsonVal(comp);
@@ -301,8 +311,8 @@ function getPropName(rt: PropertyRunType, comp: JitCompiler, fnID: JitFnID): str
     return `'"${rt.getChildVarName(comp)}":'`;
 }
 
-function _compileJsonStringifyParameter(rt: ParameterRunType, comp: JitCompiler, fnID: JitFnID): jitCode {
-    let childCode = rt.getJitChild(comp)?.compile(comp, fnID);
+function _compileJsonStringifyParameter(rt: ParameterRunType, comp: JitCompiler, fnID: JitFnID): string {
+    let childCode = extractCode(rt.getJitChild(comp)?.compile(comp, fnID));
     if (!childCode) childCode = `null`; // non serializable types are set to null
     if (rt.isRest()) return childCode;
     const isFirst = rt.getChildIndex(comp) === 0;
@@ -311,9 +321,9 @@ function _compileJsonStringifyParameter(rt: ParameterRunType, comp: JitCompiler,
     return `${sep}${childCode}`;
 }
 
-function _compileJsonStringifyGenericMember(rt: ParameterRunType, comp: JitCompiler, fnID: JitFnID): jitCode {
+function _compileJsonStringifyGenericMember(rt: ParameterRunType, comp: JitCompiler, fnID: JitFnID): string | undefined {
     const child = rt.getJitChild(comp);
-    const argCode = child?.compile(comp, fnID);
+    const argCode = extractCode(child?.compile(comp, fnID));
     if (!argCode) return undefined;
     const isFirst = rt.getChildIndex(comp) === 0;
     const sep = isFirst ? '' : `','+`;
@@ -321,8 +331,8 @@ function _compileJsonStringifyGenericMember(rt: ParameterRunType, comp: JitCompi
     return `${sep}${argCode}`;
 }
 
-function _compileJsonStringifyInterface(rt: InterfaceRunType, comp: JitCompiler, fnID: JitFnID): jitCode {
-    if (rt.isCallable()) return rt.getCallSignature()!.compile(comp, fnID);
+function _compileJsonStringifyInterface(rt: InterfaceRunType, comp: JitCompiler, fnID: JitFnID): string {
+    if (rt.isCallable()) return extractCode(rt.getCallSignature()!.compile(comp, fnID)) || '';
     const children = rt.getJsonStringifySortedChildren(comp);
     if (children.length === 0) return `''`;
     const allOptional = children.every((prop) => (prop as MemberRunType<any>).isOptional());
@@ -333,7 +343,7 @@ function _compileJsonStringifyInterface(rt: InterfaceRunType, comp: JitCompiler,
             const nexChild = children[i + 1];
             const isLast = !nexChild;
             prop.skipCommas = isLast;
-            return prop.compile(comp, fnID);
+            return extractCode(prop.compile(comp, fnID));
         })
         .filter(Boolean)
         .join('+');
@@ -345,12 +355,12 @@ function _compileInterfaceIntoArray(
     comp: JitCompiler,
     children: MemberRunType<any>[],
     fnID: JitFnID
-): jitCode {
+): string {
     const arrName = `ns${comp.getNestLevel(rt)}`;
     const childrenCode = children
         .map((prop) => {
             prop.skipCommas = true;
-            const childCode = prop.compile(comp, fnID);
+            const childCode = extractCode(prop.compile(comp, fnID));
             if (!childCode) return '';
             const code = `${arrName}.push(${childCode})`;
             // makes an extra check to avoid pushing empty strings to the array (childCode also makes the same check but is better than having to filter the array after)
@@ -362,7 +372,7 @@ function _compileInterfaceIntoArray(
     return `(function(){const ${arrName} = [];${childrenCode};return '{'+${arrName}.join(',')+'}'})()`;
 }
 
-function _compileJsonStringifyClass(runType: BaseRunType, comp: JitCompiler, fnID: JitFnID): jitCode {
+function _compileJsonStringifyClass(runType: BaseRunType, comp: JitCompiler, fnID: JitFnID): string {
     switch (runType.src.subKind) {
         case ReflectionSubKind.date:
             return `'"'+${comp.vλl}.toJSON()+'"'`;
@@ -380,7 +390,7 @@ function _compileJsonStringifyClass(runType: BaseRunType, comp: JitCompiler, fnI
             const rt = runType as ClassRunType;
             if (rt.isCallable()) {
                 const callSignature = rt.getCallSignature();
-                if (callSignature) return callSignature.compile(comp, fnID);
+                if (callSignature) return extractCode(callSignature.compile(comp, fnID)) || '';
             }
             // optional and index properties must be compiled first to prevent trailing commas
             // this is because the last trailing comma is calculated statically
@@ -393,7 +403,7 @@ function _compileJsonStringifyClass(runType: BaseRunType, comp: JitCompiler, fnI
                     const nexChild = children[i + 1];
                     const isLast = !nexChild;
                     prop.skipCommas = isLast;
-                    return prop.compile(comp, fnID);
+                    return extractCode(prop.compile(comp, fnID));
                 })
                 .filter(Boolean)
                 .join('+');
@@ -413,7 +423,10 @@ export function _compileJsonStringifyIterable(
 ): string {
     const entry = rt.getCustomVλl(comp)?.vλl || comp.vλl;
     const jitChildren = rt.getJitChildren(comp);
-    const childrenCode = jitChildren.map((c) => c.compile(comp, fnID)).join('+');
+    const childrenCode = jitChildren
+        .map((c) => extractCode(c.compile(comp, fnID)))
+        .filter(Boolean)
+        .join('+');
     const jsonItems = `ls${comp.getNestLevel(rt)}`;
     const resultVal = `res${comp.getNestLevel(rt)}`;
     const childrenResult = jitChildren.length > 1 ? `'['+${childrenCode}+']'` : childrenCode;

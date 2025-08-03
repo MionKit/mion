@@ -25,15 +25,7 @@ import {markDiscriminators, splitUnionItems} from '@mionkit/run-types/src/runTyp
 export class UnionRunType extends CollectionRunType<TypeUnion> {
     hasDiscriminators: boolean | undefined = undefined;
     hasObjectTypes: boolean | undefined = undefined;
-    getCodeType(fnID: JitFnID): CodeType {
-        switch (fnID) {
-            case JitFunctions.jsonStringify.id:
-            case JitFunctions.toCode.id:
-                return 'RB';
-            default:
-                return super.getCodeType(fnID);
-        }
-    }
+    // UnionRunType uses 'RB' (return block) code type for jsonStringify and toCode
 
     isTypeWithProperties(rt: BaseRunType) {
         return (
@@ -76,17 +68,32 @@ export class UnionRunType extends CollectionRunType<TypeUnion> {
         const {simpleItems, objectTypes} = this.getUnionChildren(comp);
         const items = simpleItems.map((rt) => this.getChildStrictIsType(rt, comp));
         const checkItems = items.filter(Boolean).join(' || ');
-        if (!objectTypes.length) return `(${checkItems})`;
+        if (!objectTypes.length) {
+            return {
+                code: `(${checkItems})`,
+                codeType: 'E',
+                skipJit: false
+            };
+        }
         const objItems = objectTypes.map((rt) => this.getChildStrictIsType(rt, comp));
         const objCode = objItems.filter(Boolean).join(' || ');
         const checkObjs = `(typeof ${comp.vλl} === 'object' && ${comp.vλl} !== null && (${objCode}))`;
-        return `(${[checkItems, checkObjs].filter(Boolean).join(' || ')})`;
+        return {
+            code: `(${[checkItems, checkObjs].filter(Boolean).join(' || ')})`,
+            codeType: 'E',
+            skipJit: false
+        };
     }
 
     _compileTypeErrors(comp: JitErrorsCompiler): jitCode {
         const isType = this.compileIsType(comp);
-        const code = `if (!${isType}) ${comp.callJitErr(this)};`;
-        return code;
+        const code = `if (!${isType?.code}) ${comp.callJitErr(this)};`;
+        return {
+            code,
+            codeType: 'S',
+            skipJit: false,
+            children: isType ? [isType] : []
+        };
     }
 
     /**
@@ -104,13 +111,13 @@ export class UnionRunType extends CollectionRunType<TypeUnion> {
         const ifElse = createIfElseFn();
         const onUnionItems = (items: BaseRunType[]) => {
             const result = items.map((unionItem) => {
-                const childCode = unionItem.compileToJsonVal(comp) || '';
+                const childCode = unionItem.compileToJsonVal(comp);
                 // TODO: calling full decode could be expensive and we calling it only to know if it needs encoding.
                 // we might want to optimize this, call to decode is also being added to the context and should be removed
                 const decCode = unionItem.compileFromJsonVal(comp);
                 const needsTupleEncoding = !!childCode || !!decCode;
                 const isExpression = childIsExpression(JitFunctions.toJsonVal.id, unionItem);
-                const encodeCode = isExpression && childCode ? `${comp.vλl} = ${childCode};` : childCode;
+                const encodeCode = isExpression && childCode ? `${comp.vλl} = ${childCode.code};` : childCode?.code || '';
                 // item encoded before reassigning varName to [i, item]
                 const index = this.getUnionItemIndex(comp, unionItem);
                 const tupleEncode = needsTupleEncoding ? `${comp.vλl} = [${index}, ${comp.vλl}]` : '/*noop*/';
@@ -121,12 +128,22 @@ export class UnionRunType extends CollectionRunType<TypeUnion> {
         };
 
         const itemsCode = onUnionItems(simpleItems);
-        if (!objectTypes.length) return `${itemsCode.join('')} else {${fail}}`;
+        if (!objectTypes.length) {
+            return {
+                code: `${itemsCode.join('')} else {${fail}}`,
+                codeType: 'RB',
+                skipJit: false
+            };
+        }
         // these need to be in correct order for else if to work properly
         const nonObjectFail = `${ifElse()} (!(typeof ${comp.vλl} === 'object' && ${comp.vλl} !== null)) {${fail}}`;
         const objItemsCode = onUnionItems(objectTypes);
         const allFail = `${ifElse(true)} {${fail}}`;
-        return [...itemsCode, nonObjectFail, ...objItemsCode, allFail].join('');
+        return {
+            code: [...itemsCode, nonObjectFail, ...objItemsCode, allFail].join(''),
+            codeType: 'RB',
+            skipJit: false
+        };
     }
 
     /**
@@ -143,9 +160,9 @@ export class UnionRunType extends CollectionRunType<TypeUnion> {
         const ifElse = createIfElseFn();
         const itemsCode = children
             .map((unionItem) => {
-                const childCode = unionItem.compileFromJsonVal(comp) || '';
+                const childCode = unionItem.compileFromJsonVal(comp);
                 const isExpression = childIsExpression(JitFunctions.fromJsonVal.id, unionItem);
-                const code = isExpression && childCode && childCode !== comp.vλl ? `${comp.vλl} = ${childCode}` : childCode;
+                const code = isExpression && childCode && childCode.code !== comp.vλl ? `${comp.vλl} = ${childCode.code}` : childCode?.code || '';
                 // item is decoded before being extracted from the array
                 const index = this.getUnionItemIndex(comp, unionItem);
                 return `${ifElse()} (${decVar} === ${index}) {${code || '/*noop*/'}}`;
@@ -160,7 +177,11 @@ export class UnionRunType extends CollectionRunType<TypeUnion> {
                 ${failCode}
             }
         `;
-        return code;
+        return {
+            code,
+            codeType: 'S',
+            skipJit: false
+        };
     }
 
     getUnionTypeNames(): string {

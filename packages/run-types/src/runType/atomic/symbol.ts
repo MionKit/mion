@@ -13,15 +13,20 @@ import {JitFunctions} from '../../constants.functions';
 
 export class SymbolRunType extends AtomicRunType<TypeSymbol> {
     _getTypeID = () => ReflectionKind.symbol;
-    skipJit(comp: JitCompiler): boolean {
-        if (!comp) return true;
-        return comp.fnID !== JitFunctions.toCode.id;
-    }
+    // SymbolRunType handles skipJit logic for certain operations
     _compileIsType(comp: JitCompiler): jitCode {
-        return `typeof ${comp.vλl} === 'symbol'`;
+        return {
+            code: `typeof ${comp.vλl} === 'symbol'`,
+            codeType: 'E',
+            skipJit: false
+        };
     }
     _compileTypeErrors(comp: JitErrorsCompiler): jitCode {
-        return `if (typeof ${comp.vλl} !== 'symbol') ${comp.callJitErr(this)}`;
+        return {
+            code: `if (typeof ${comp.vλl} !== 'symbol') ${comp.callJitErr(this)}`,
+            codeType: 'S',
+            skipJit: false
+        };
     }
     _compileToJsonVal(comp: JitCompiler): jitCode {
         return symbolTransformer._compileToJsonVal(comp);
@@ -36,9 +41,17 @@ export class SymbolRunType extends AtomicRunType<TypeSymbol> {
 export const symbolTransformer = {
     // TODO: transformers might need only one function
     _compileFromJsonVal(comp: JitCompiler): jitCode {
-        return `Symbol(${comp.vλl}.substring(7))`;
+        return {
+            code: `Symbol(${comp.vλl}.substring(7))`,
+            codeType: 'S',
+            skipJit: false
+        };
     },
     _compileToJsonVal(comp: JitCompiler): jitCode {
-        return `'Symbol:' + (${comp.vλl}.description || '')`;
+        return {
+            code: `'Symbol:' + (${comp.vλl}.description || '')`,
+            codeType: 'S',
+            skipJit: false
+        };
     },
 };

@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 import {TypeObjectLiteral, TypeClass, TypeIntersection, ReflectionKind, TypeUnion, TypeProperty} from '@deepkit/type';
-import type {Mutable, RunTypeChildAccessor, SrcType} from '../../types';
+import type {Mutable, RunTypeChildAccessor, SrcType, jitCode} from '../../types';
 import {toLiteral, arrayToArgumentsLiteral} from '../../lib/utils';
 import {PropertyRunType} from '../member/property';
 import {IndexSignatureRunType} from '../member/indexProperty';
@@ -109,52 +109,71 @@ export class UnionInterfaceRunType extends InterfaceRunType<anySrcInterface> {
         const noExtraKeys = skip
             ? ''
             : ` && !utl.objectHasExtraKeys(${keysID}, ${comp.vλl}, ${arrayToArgumentsLiteral(childrenNames)})`;
-        return `(${children.map((prop) => prop.compileIsType(comp)).join(' && ')}${noExtraKeys})`;
+        const childJitCodes = children.map((prop) => prop.compileIsType(comp)).filter(Boolean);
+        return `(${childJitCodes.map(c => c!.code).join(' && ')}${noExtraKeys})`;
     }
 
     // #### collection's jit code ####
-    _compileIsType(comp: JitCompiler): string {
+    _compileIsType(comp: JitCompiler): jitCode {
         const varName = comp.vλl;
         const childCode = this.mergedInterfaces.length
             ? ` && (${this.mergedInterfaces.map((rt) => this._compileIsTypeMergedChildren(comp, rt)).join(' || ')})`
             : '';
-        return `(typeof ${varName} === 'object' && ${varName} !== null${childCode})`;
+        return {
+            code: `(typeof ${varName} === 'object' && ${varName} !== null${childCode})`,
+            codeType: 'E',
+            skipJit: false
+        };
     }
-    _compileTypeErrors(comp: JitErrorsCompiler): string {
+    _compileTypeErrors(comp: JitErrorsCompiler): jitCode {
         const varName = comp.vλl;
-        const childrenCode = this.mergedInterfaces.length ? `if (!${this.compileIsType(comp)}) ${comp.callJitErr(this)};` : '';
-        return `
-            if (typeof ${varName} !== 'object' && ${varName} !== null) {
-                ${comp.callJitErr(this)};
-            } else {
-                ${childrenCode}
-            }
-        `;
+        const isTypeCode = this.compileIsType(comp);
+        const childrenCode = this.mergedInterfaces.length ? `if (!${isTypeCode?.code}) ${comp.callJitErr(this)};` : '';
+        return {
+            code: `
+                if (typeof ${varName} !== 'object' && ${varName} !== null) {
+                    ${comp.callJitErr(this)};
+                } else {
+                    ${childrenCode}
+                }
+            `,
+            codeType: 'S',
+            skipJit: false,
+            children: isTypeCode ? [isTypeCode] : []
+        };
     }
-    _compileToJsonVal(comp: JitCompiler): string {
-        const toJsonValMergedList = this.mergedInterfaces.filter((c) => !c.skipJit(comp));
-        return toJsonValMergedList.length
-            ? toJsonValMergedList
-                  .map((rt, i) => {
-                      const childIsType = this._compileIsTypeMergedChildren(comp, rt, true);
-                      const childCode = rt.compileToJsonVal(comp);
-                      const iF = i === 0 ? 'if' : 'else if';
-                      return `${iF} (${childIsType}) {${childCode}}`;
-                  })
-                  .join('\n')
-            : '';
+    _compileToJsonVal(comp: JitCompiler): jitCode {
+        const toJsonValMergedList = this.mergedInterfaces.filter((c) => c.compileToJsonVal(comp));
+        if (!toJsonValMergedList.length) return undefined;
+        const code = toJsonValMergedList
+            .map((rt, i) => {
+                const childIsType = this._compileIsTypeMergedChildren(comp, rt, true);
+                const childCode = rt.compileToJsonVal(comp);
+                const iF = i === 0 ? 'if' : 'else if';
+                return `${iF} (${childIsType}) {${childCode?.code}}`;
+            })
+            .join('\n');
+        return {
+            code,
+            codeType: 'S',
+            skipJit: false
+        };
     }
-    _compileFromJsonVal(comp: JitCompiler): string {
-        const fromJsonValMergedList = this.mergedInterfaces.filter((c) => !c.skipJit(comp));
-        return fromJsonValMergedList.length
-            ? fromJsonValMergedList
-                  .map((rt, i) => {
-                      const childIsType = this._compileIsTypeMergedChildren(comp, rt, true);
-                      const childCode = rt.compileFromJsonVal(comp);
-                      const iF = i === 0 ? 'if' : 'else if';
-                      return `${iF} (${childIsType}) {${childCode}}`;
-                  })
-                  .join('\n')
-            : '';
+    _compileFromJsonVal(comp: JitCompiler): jitCode {
+        const fromJsonValMergedList = this.mergedInterfaces.filter((c) => c.compileFromJsonVal(comp));
+        if (!fromJsonValMergedList.length) return undefined;
+        const code = fromJsonValMergedList
+            .map((rt, i) => {
+                const childIsType = this._compileIsTypeMergedChildren(comp, rt, true);
+                const childCode = rt.compileFromJsonVal(comp);
+                const iF = i === 0 ? 'if' : 'else if';
+                return `${iF} (${childIsType}) {${childCode?.code}}`;
+            })
+            .join('\n');
+        return {
+            code,
+            codeType: 'S',
+            skipJit: false
+        };
     }
 }

@@ -12,9 +12,7 @@ import type {JitCompiler} from '@mionkit/run-types/src/lib/jitCompiler';
 
 export class PromiseRunType extends MemberRunType<TypePromise> {
     _getTypeID = () => ReflectionKind.promise;
-    skipJit(comp: JitCompiler): boolean {
-        return comp?.fnID !== JitFunctions.toCode.id;
-    }
+    // PromiseRunType is non-serializable and throws errors for most operations
     _compileIsType(): jitCode {
         throw new Error(`Jit compilation disabled for Non Serializable types.`);
     }

@@ -27,41 +27,53 @@ export class PropertyRunType extends MemberRunType<TypePropertySignature | TypeP
     }
     getJitChildIndex = (comp: JitCompiler) => (this.getParent() as InterfaceRunType).getJitChildren(comp).indexOf(this);
     isOptional = () => !!this.src.optional;
-    skipJit(comp: JitCompiler): boolean {
-        const name = (this.src as TypeProperty).name;
-        if (typeof name === 'symbol') {
-            return comp?.fnID !== JitFunctions.toCode.id;
-        }
-        return false;
-    }
+    // PropertyRunType handles symbol properties by skipping certain operations
     // #### jit code ####
 
     _compileIsType(comp: JitCompiler): jitCode {
         const itemCode = this.getJitChild(comp)?.compileIsType(comp);
         if (!itemCode) return undefined;
-        return this.src.optional ? `(${comp.getChildVλl()} === undefined || ${itemCode})` : itemCode;
+        return {
+            code: this.src.optional ? `(${comp.getChildVλl()} === undefined || ${itemCode.code})` : itemCode.code,
+            codeType: 'E',
+            skipJit: false,
+            children: [itemCode]
+        };
     }
     _compileTypeErrors(comp: JitErrorsCompiler): jitCode {
         const itemCode = this.getJitChild(comp)?.compileTypeErrors(comp);
         if (!itemCode) return undefined;
-        return this.src.optional ? `if (${comp.getChildVλl()} !== undefined) {${itemCode}}` : itemCode;
+        return {
+            code: this.src.optional ? `if (${comp.getChildVλl()} !== undefined) {${itemCode.code}}` : itemCode.code,
+            codeType: 'S',
+            skipJit: false,
+            children: [itemCode]
+        };
     }
     _compileToJsonVal(comp: JitCompiler): jitCode {
         const child = this.getJitChild(comp);
         const childCode = child?.compileToJsonVal(comp);
         if (!child || !childCode) return undefined;
         const isExpression = childIsExpression(JitFunctions.toJsonVal.id, child);
-        const code = isExpression ? `${comp.getChildVλl()} = ${childCode};` : childCode;
-        if (this.src.optional) return `if (${comp.getChildVλl()} !== undefined) {${code}}`;
-        return code;
+        const code = isExpression ? `${comp.getChildVλl()} = ${childCode.code};` : childCode.code;
+        return {
+            code: this.src.optional ? `if (${comp.getChildVλl()} !== undefined) {${code}}` : code,
+            codeType: 'S',
+            skipJit: false,
+            children: [childCode]
+        };
     }
     _compileFromJsonVal(comp: JitCompiler): jitCode {
         const child = this.getJitChild(comp);
         const childCode = child?.compileFromJsonVal(comp);
         if (!child || !childCode) return undefined;
         const isExpression = childIsExpression(JitFunctions.fromJsonVal.id, child);
-        const code = isExpression ? `${comp.getChildVλl()} = ${childCode};` : childCode;
-        if (this.src.optional) return `if (${comp.getChildVλl()} !== undefined) {${code}}`;
-        return code;
+        const code = isExpression ? `${comp.getChildVλl()} = ${childCode.code};` : childCode.code;
+        return {
+            code: this.src.optional ? `if (${comp.getChildVλl()} !== undefined) {${code}}` : code,
+            codeType: 'S',
+            skipJit: false,
+            children: [childCode]
+        };
     }
 }

@@ -6,6 +6,11 @@
  * ######## */
 
 import type {jitCode} from '../types';
+
+// Helper function to extract code from jitCode objects (temporary for legacy compilers)
+function extractCode(jitCode: jitCode): string | undefined {
+    return jitCode?.code;
+}
 import type {BaseRunType} from '../lib/baseRunTypes';
 import type {MapRunType} from '@mionkit/run-types/src/runType/native/map';
 import type {SetRunType} from '@mionkit/run-types/src/runType/native/set';
@@ -20,7 +25,7 @@ import {_compileJsonStringify, _compileJsonStringifyIterable} from '@mionkit/run
 import {registerPureFnClosure} from '@mionkit/run-types/src/lib/formats';
 
 /** Centralized compile jit function with a switch statement that handles all node types. */
-export function _compileToCode(runType: BaseRunType, comp: JitCompiler, fnID = JitFunctions.toCode.id): jitCode {
+export function _compileToCode(runType: BaseRunType, comp: JitCompiler, fnID = JitFunctions.toCode.id): string {
     const src = runType.src;
     const kind = src.kind;
 

@@ -19,10 +19,7 @@ import {JitFunctions} from '../../constants.functions';
 export class FunctionRunType<CallType extends AnyFunction = TypeFunction> extends BaseRunType<CallType> {
     // parameterRunTypes.src must be set after FunctionRunType creation
     parameterRunTypes: FunctionParamsRunType = new FunctionParamsRunType();
-    skipJit(comp: JitCompiler): boolean {
-        if (!comp) return true;
-        return comp.fnID !== JitFunctions.toCode.id;
-    }
+    // FunctionRunType handles skipJit logic for certain operations
     onCreated(deepkitType: SrcType): void {
         // here we are mapping parameters from TypeParameter[] to TypeTuple as TupleRunType() is the same functionality as ParameterRunType[]
         super.onCreated(deepkitType);
@@ -96,10 +93,20 @@ export class FunctionRunType<CallType extends AnyFunction = TypeFunction> extend
         const hasOptional = totalParams > minLength;
         const maxLength =
             this.parameterRunTypes.hasRestParameter(comp) || !hasOptional ? '' : ` && ${comp.vλl}.length <= ${totalParams}`;
-        return `(typeof ${comp.vλl} === 'function' && ${comp.vλl}.length >= ${minLength} ${maxLength})`;
+        return {
+            code: `(typeof ${comp.vλl} === 'function' && ${comp.vλl}.length >= ${minLength} ${maxLength})`,
+            codeType: 'E',
+            skipJit: false
+        };
     }
     _compileTypeErrors(comp: JitErrorsCompiler): jitCode {
-        return `if (!(${this._compileIsType(comp)})) ${comp.callJitErr(this)};`;
+        const isTypeCode = this._compileIsType(comp);
+        return {
+            code: `if (!(${isTypeCode?.code})) ${comp.callJitErr(this)};`,
+            codeType: 'S',
+            skipJit: false,
+            children: [isTypeCode]
+        };
     }
     /**
      * json encode a function
@@ -111,16 +118,16 @@ export class FunctionRunType<CallType extends AnyFunction = TypeFunction> extend
         throw new Error(`Compile function FromJsonVal not supported, call compileParams or compileReturn instead.`);
     }
     _compileHasUnknownKeys(): jitCode {
-        return '';
+        return undefined;
     }
     _compileUnknownKeyErrors(): jitCode {
-        return '';
+        return undefined;
     }
     _compileStripUnknownKeys(): jitCode {
-        return '';
+        return undefined;
     }
     _compileUnknownKeysToUndefined(): jitCode {
-        return '';
+        return undefined;
     }
 
     // TODO: paramsSlice has been removed as options are not jet passed when building the run type. maybe we can pass it to the JitCompileOperation instead

@@ -13,25 +13,49 @@ import {AtomicRunType} from '../../lib/baseRunTypes';
 export class RegexpRunType extends AtomicRunType<TypeRegexp> {
     _getTypeID = () => ReflectionKind.regexp;
     _compileIsType(comp: JitCompiler): jitCode {
-        return `(${comp.vλl} instanceof RegExp)`;
+        return {
+            code: `(${comp.vλl} instanceof RegExp)`,
+            codeType: 'E',
+            skipJit: false
+        };
     }
     _compileTypeErrors(comp: JitErrorsCompiler): jitCode {
-        return `if (!(${comp.vλl} instanceof RegExp)) ${comp.callJitErr(this)}`;
+        return {
+            code: `if (!(${comp.vλl} instanceof RegExp)) ${comp.callJitErr(this)}`,
+            codeType: 'S',
+            skipJit: false
+        };
     }
     _compileToJsonVal(comp: JitCompiler): jitCode {
-        return regexpTransformer._compileToJsonVal(comp);
+        return {
+            code: `${comp.vλl}.toString()`,
+            codeType: 'S',
+            skipJit: false
+        };
     }
     _compileFromJsonVal(comp: JitCompiler): jitCode {
-        return regexpTransformer._compileFromJsonVal(comp);
+        return {
+            code: `new RegExp(${comp.vλl})`,
+            codeType: 'S',
+            skipJit: false
+        };
     }
 }
 
 // regexpTransformer (used internally only so no need to register in JitUtils)
 export const regexpTransformer = {
     _compileFromJsonVal(comp: JitCompiler): jitCode {
-        return `(function(){const parts = ${comp.vλl}.match(/\\/(.*)\\/(.*)?/) ;return new RegExp(parts[1], parts[2] || '')})()`;
+        return {
+            code: `(function(){const parts = ${comp.vλl}.match(/\\/(.*)\\/(.*)?/) ;return new RegExp(parts[1], parts[2] || '')})()`,
+            codeType: 'S',
+            skipJit: false
+        };
     },
     _compileToJsonVal(comp: JitCompiler): jitCode {
-        return `${comp.vλl}.toString()`;
+        return {
+            code: `${comp.vλl}.toString()`,
+            codeType: 'S',
+            skipJit: false
+        };
     },
 };

@@ -30,15 +30,29 @@ export class LiteralRunType extends AtomicRunType<TypeLiteral> {
         }
     }
     _compileIsType(comp: JitCompiler): jitCode {
-        if (typeof this.src.literal === 'symbol') return compileIsSymbol(comp, this.src.literal);
-        else if (this.src.literal instanceof RegExp) return compileIsRegExp(comp, this.src.literal);
-        else if (typeof this.src.literal === 'bigint') return compileIsBigInt(comp, this.src.literal);
-        else return compileIsLiteral(comp, this.src.literal);
+        let code: string;
+        if (typeof this.src.literal === 'symbol') code = compileIsSymbol(comp, this.src.literal);
+        else if (this.src.literal instanceof RegExp) code = compileIsRegExp(comp, this.src.literal);
+        else if (typeof this.src.literal === 'bigint') code = compileIsBigInt(comp, this.src.literal);
+        else code = compileIsLiteral(comp, this.src.literal);
+
+        return {
+            code,
+            codeType: 'E',
+            skipJit: false
+        };
     }
     _compileTypeErrors(comp: JitErrorsCompiler): jitCode {
-        if (typeof this.src.literal === 'symbol') return compileTypeErrorsSymbol(comp, this.src.literal, this.getKindName());
-        else if (this.src.literal instanceof RegExp) return compileTypeErrorsRegExp(comp, this.src.literal, this.getKindName());
-        return compileTypeErrorsLiteral(comp, this.src.literal, this.getKindName());
+        let code: string;
+        if (typeof this.src.literal === 'symbol') code = compileTypeErrorsSymbol(comp, this.src.literal, this.getKindName());
+        else if (this.src.literal instanceof RegExp) code = compileTypeErrorsRegExp(comp, this.src.literal, this.getKindName());
+        else code = compileTypeErrorsLiteral(comp, this.src.literal, this.getKindName());
+
+        return {
+            code,
+            codeType: 'S',
+            skipJit: false
+        };
     }
     _compileToJsonVal(comp: JitCompiler): jitCode {
         return this.getValidator()._compileToJsonVal(comp);

@@ -15,6 +15,7 @@ import type {
 } from '@mionkit/core/src/types';
 import {MAX_STACK_DEPTH} from '@mionkit/core/src/constants';
 import type {Mutable, JitFnID, StrNumber, jitCode, RunTypeOptions, JitCompilerOpts} from '../types';
+import type {CodeType} from '../constants.functions';
 import type {BaseRunType} from './baseRunTypes';
 import type {AnyKindName} from '../constants.kind';
 import {maxStackErrorMessage, JIT_STACK_TRACE_MESSAGE} from '../constants';
@@ -136,7 +137,7 @@ export class BaseCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extends 
         const newStackItem: StackItem = {vλl: this.vλl, rt: newChild, staticPath: this._accessPathLiterals};
         this.stack.push(newStackItem);
     }
-    popStack(resultCode: jitCode): void | ((...args: any[]) => any) {
+    popStack(resultCode?: string): void | ((...args: any[]) => any) {
         if (resultCode) (this as Mutable<BaseCompiler>).code = resultCode;
         this.popItem = this.stack.pop();
         const item = this.stack[this.stack.length - 1];
@@ -286,6 +287,39 @@ export class BaseCompiler<FnArgsNames extends JitFnArgs = JitFnArgs, ID extends 
 
     getChildrenCallArgs(fnID: string): Partial<JitFnArgs> | undefined {
         return this.childrenCallArgs[fnID];
+    }
+
+    /**
+     * Concatenates jitCode tree into a single code string
+     * This method handles return values similar to the original handleReturnValues method
+     */
+    concatCode(jitCodeTree: jitCode): string {
+        if (!jitCodeTree) return '';
+
+        const {code, codeType, skipJit} = jitCodeTree;
+
+        if (skipJit) return '';
+        if (!code) return '';
+
+        // Handle return values based on whether this is the root call
+        const isRoot = this.length === 0;
+        if (isRoot) {
+            // Root code must ensure values are returned
+            switch (codeType) {
+                case 'E':
+                    return `return ${code}`;
+                case 'S': {
+                    const lastChar = code.length - 1;
+                    const hasFullStop = code.lastIndexOf(';') === lastChar || code.lastIndexOf('}') === lastChar;
+                    const stopChar = hasFullStop ? '' : ';';
+                    return `${code}${stopChar} return ${this.returnName}`;
+                }
+                case 'RB':
+                    return code;
+            }
+        }
+
+        return code;
     }
 }
 

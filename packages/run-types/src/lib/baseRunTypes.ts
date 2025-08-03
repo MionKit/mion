@@ -74,9 +74,7 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
     getKindName = memorize((): AnyKindName => getReflectionName(this));
     getTypeName = (): string => this.src.typeName || this.getKindName();
     getFormatAnnotations = (): FormatAnnotation[] => getFormatAnnotations(this);
-    skipJit(comp: JitCompiler): boolean {
-        return false;
-    }
+
     getFormatTypeID = memorize((): string | undefined => {
         const formatter = getRunTypeFormatter(this);
         if (!formatter) return;
@@ -103,19 +101,7 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
             return '$' + this.src.kind + `_${inStackIndex}` + name; // ensures different circular types have different typeID
         }
     }
-    /** Code Type flag
-     * Any child with different settings should override these methods
-     * these flags are used to determine if the compiled code should be wrapped in a self invoking function or not
-     * or if the compiled code should contain a return statement or not
-     * CodeTypes = {
-     *   expression: 'E', // single expression, that could be concatenated using js operators like + - * && || etc...
-     *   statement: 'S', // one or multiple statements, that could be concatenated using ; to ensure correct syntax
-     *   returnBlock: 'RB', // code block, it can not be concatenated with other code, it has an explicit return statement and needs to be wrapped in a function
-     * };
-     * */
-    getCodeType(fnID: JitFnID): CodeType {
-        return getCodeType(fnID);
-    }
+
     /**
      * Method that should be called Immediately after the RunType gets created to link the SrcType and RunType.
      * This is more flexible than passing params to the constructor helps to avoid circular dependencies, etc.
@@ -179,7 +165,9 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
         }
         const newJitCompiler: JitCompiler = createJitCompiler(this, fnID, parentCop, undefined, undefined, opts) as JitCompiler;
         try {
-            this.compile(newJitCompiler, fnID);
+            const jitCodeTree = this.compile(newJitCompiler, fnID);
+            const finalCode = newJitCompiler.concatCode(jitCodeTree);
+            newJitCompiler.compile(finalCode);
         } catch (e: any) {
             // if something goes wrong during compilation we want to remove the compiler from
             // the cache as this is automatically added to jitUtils cache during compilation
@@ -242,50 +230,57 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
      * @returns
      */
     compile(comp: JitCompiler, fnID: JitFnID): jitCode {
-        let code: jitCode;
+        let result: jitCode;
         comp.pushStack(this);
         if (comp.shouldCallDependency()) {
             const compiledOp = this.createJitCompiledFunction(fnID, comp, comp.opts);
-            code = this.callDependency(comp, compiledOp);
+            const callCode = this.callDependency(comp, compiledOp);
+            result = {
+                code: callCode,
+                codeType: getCodeType(fnID),
+                skipJit: false,
+            };
             comp.updateDependencies(compiledOp);
         } else {
             // prettier-ignore
             switch (fnID) {
                 case JitFunctions.isType.id:
-                    code = this.compileFormatter(comp, fnID, ' && ', this._compileIsType(comp));
+                    result = this.compileFormatterWithJitCode(comp, fnID, ' && ', this._compileIsType(comp));
                     break;
                 case JitFunctions.typeErrors.id:
-                    code = this.compileFormatter(comp, fnID, ';', this._compileTypeErrors(comp as JitErrorsCompiler));
+                    result = this.compileFormatterWithJitCode(comp, fnID, ';', this._compileTypeErrors(comp as JitErrorsCompiler));
                     break;
                 case JitFunctions.toJsonVal.id:
-                    code = this._compileToJsonVal(comp);
+                    result = this._compileToJsonVal(comp);
                     break;
                 case JitFunctions.fromJsonVal.id:
-                    code =this._compileFromJsonVal(comp);
+                    result = this._compileFromJsonVal(comp);
                     break;
                 case JitFunctions.jsonStringify.id:
-                    code = _compileJsonStringify(this, comp);
+                    // Use legacy string-based compiler temporarily
+                    result = this.compileLegacyStringFunction(comp, fnID);
                     break;
                 case JitFunctions.toCode.id:
-                        code = _compileToCode(this, comp);
-                        break;
-                case JitFunctions.unknownKeyErrors.id: code = this._compileUnknownKeyErrors(comp as JitErrorsCompiler); break;
-                case JitFunctions.hasUnknownKeys.id: code = this._compileHasUnknownKeys(comp); break;
-                case JitFunctions.stripUnknownKeys.id: code = this._compileStripUnknownKeys(comp); break;
-                case JitFunctions.unknownKeysToUndefined.id: code = this._compileUnknownKeysToUndefined(comp); break;
+                    // Use legacy string-based compiler temporarily
+                    result = this.compileLegacyStringFunction(comp, fnID);
+                    break;
+                case JitFunctions.unknownKeyErrors.id: result = this._compileUnknownKeyErrors(comp as JitErrorsCompiler); break;
+                case JitFunctions.hasUnknownKeys.id: result = this._compileHasUnknownKeys(comp); break;
+                case JitFunctions.stripUnknownKeys.id: result = this._compileStripUnknownKeys(comp); break;
+                case JitFunctions.unknownKeysToUndefined.id: result = this._compileUnknownKeysToUndefined(comp); break;
                 case JitFunctions.format.id:  break;
                 default:
                     throw new Error(`Unknown compile operation: ${fnID}`);
             }
-            if (code) code = this.handleReturnValues(comp, fnID, code);
         }
-        comp.popStack(code);
-        return code;
+        comp.popStack(result?.code);
+        return result;
     }
 
-    private compileFormatter(comp: JitCompiler, fnID: JitFnID, separator: string, code?: string): jitCode {
+    private compileFormatterWithJitCode(comp: JitCompiler, fnID: JitFnID, separator: string, baseJitCode?: jitCode): jitCode {
         const typeFormatters = getTypeFormats(this);
-        if (!typeFormatters.length) return code;
+        if (!typeFormatters.length) return baseJitCode;
+
         const formattersCode = typeFormatters
             .map((f) => {
                 // Check if the formatter code can be embedded AND is compatible with the function ID
@@ -295,7 +290,7 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
 
                 // For isType and similar functions that are expressions, we need to ensure
                 // the formatter code is also an expression or has a return statement
-                const isCompatible = this.getCodeType(fnID) === codeType;
+                const isCompatible = getCodeType(fnID) === codeType;
 
                 if (canEmbed && isCompatible && !codeHasReturn) {
                     return f._compile(fnID, comp, this);
@@ -308,12 +303,21 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
                 return this.callDependency(comp, compiled);
             })
             .filter(Boolean) as string[];
-        if (!formattersCode.length) return code;
-        if (code) return code + separator + formattersCode.join(separator);
-        return formattersCode.join(separator);
+
+        if (!formattersCode.length) return baseJitCode;
+
+        const baseCode = baseJitCode?.code || '';
+        const combinedCode = baseCode ? baseCode + separator + formattersCode.join(separator) : formattersCode.join(separator);
+
+        return {
+            code: combinedCode,
+            codeType: getCodeType(fnID),
+            skipJit: false,
+            children: baseJitCode ? [baseJitCode] : [],
+        };
     }
 
-    callDependency(currentComp: JitCompiler, dependencyComp: JitCompiledFn): jitCode {
+    callDependency(currentComp: JitCompiler, dependencyComp: JitCompiledFn): string {
         if (dependencyComp.isNoop) return ''; // we don't need to call noop functions
         const isErrorCall =
             dependencyComp.fnID === JitFunctions.typeErrors.id || dependencyComp.fnID === JitFunctions.unknownKeyErrors.id;
@@ -343,62 +347,33 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
         return callCode;
     }
 
-    handleReturnValues(comp: JitCompiler, currentOpId: JitFnID, code: string, isCallDependency?: true): jitCode {
-        const codeType = isCallDependency ? 'E' : this.getCodeType(currentOpId);
-        const isRoot = comp.length === 1;
-        if (isRoot) {
-            // root code must ensure values are returned
-            switch (codeType) {
-                case 'E':
-                    return `return ${code}`;
-                case 'S': {
-                    const lastChar = code.length - 1;
-                    const hasFullStop = code.lastIndexOf(';') === lastChar;
-                    const stopChar = hasFullStop ? '' : ';';
-                    return `${code}${stopChar} return ${comp.returnName}`;
-                }
-                case 'RB': {
-                    return code;
-                }
-            }
-        }
+    // handleReturnValues logic moved to JitCompiler.concatCode method
 
-        const expectedType = getCodeType(currentOpId);
-        switch (true) {
-            case expectedType === 'E' && codeType === 'E':
-                return code;
-            case expectedType === 'E' && codeType === 'S':
-                return this.callSelfInvokingFunction(code, true);
-            case expectedType === 'E' && codeType === 'RB':
-                return this.callSelfInvokingFunction(code);
-            case expectedType === 'S' && codeType === 'E':
-                // some nodes might return expressions that will be used by the parent statement
-                return code;
-            case expectedType === 'S' && codeType === 'S': {
-                const lastChar = code.length - 1;
-                const hasFullStop = code.lastIndexOf(';') === lastChar;
-                const stopChar = hasFullStop ? '' : '; ';
-                return `${stopChar}${code}`;
+    /**
+     * Temporary method to handle legacy string-based jitFnsCompilers
+     * This will be removed once all jitFnsCompilers are updated to return jitCode objects
+     */
+    private compileLegacyStringFunction(comp: JitCompiler, fnID: JitFnID): jitCode {
+        let stringCode: string;
+        try {
+            if (fnID === JitFunctions.jsonStringify.id) {
+                stringCode = _compileJsonStringify(this, comp, fnID);
+            } else if (fnID === JitFunctions.toCode.id) {
+                stringCode = _compileToCode(this, comp, fnID);
+            } else {
+                throw new Error(`Unknown legacy function: ${fnID}`);
             }
-            case expectedType === 'S' && codeType === 'RB':
-                return this.callSelfInvokingFunction(code);
-            case expectedType === 'RB' && codeType === 'E':
-                throw new Error('Expected an block code but got an expression, this should not happen as would be useless code.');
-            case expectedType === 'RB' && codeType === 'S': {
-                const lastChar = code.length - 1;
-                const hasFullStop = code.lastIndexOf(';') === lastChar;
-                const stopChar = hasFullStop ? '' : '; ';
-                return `${stopChar}${code}`;
-            }
-            case expectedType === 'RB' && codeType === 'RB': {
-                // if code is a block and does not have return, we need to make sure
-                const lastChar = code.length - 1;
-                const hasFullStop = code.lastIndexOf(';') === lastChar || code.lastIndexOf('}') === lastChar;
-                const stopChar = hasFullStop ? '' : ';';
-                return `${code}${stopChar} return ${comp.returnName}`;
-            }
-            default:
-                throw new Error(`Unexpected code type (expected: ${expectedType}, got: ${codeType})`);
+
+            if (!stringCode) return undefined;
+
+            return {
+                code: stringCode,
+                codeType: getCodeType(fnID),
+                skipJit: false,
+            };
+        } catch (error) {
+            // If the legacy compiler fails, return undefined
+            return undefined;
         }
     }
     /**
@@ -408,7 +383,7 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
      * IE: comp.selfInvoke(code), this will create a new function in context and call that function instead of self invoking
      * this is specially for atomic types as we can be sure there are no references to children types inside the code block
      */
-    callSelfInvokingFunction(code: string, addReturn = false): jitCode {
+    callSelfInvokingFunction(code: string, addReturn = false): string {
         const returnCode = addReturn ? `return ` : '';
         return `(function(){${returnCode}${code}})()`;
     }
@@ -452,18 +427,6 @@ export abstract class AtomicRunType<T extends Type> extends BaseRunType<T> {
     _compileUnknownKeysToUndefined(comp: JitCompiler): jitCode {
         return undefined;
     }
-    getCodeType(fnID: JitFnID): CodeType {
-        switch (fnID) {
-            case JitFunctions.isType.id:
-            case JitFunctions.toJsonVal.id:
-            case JitFunctions.fromJsonVal.id:
-            case JitFunctions.jsonStringify.id:
-            case JitFunctions.toCode.id:
-                return 'E';
-            default:
-                return super.getCodeType(fnID);
-        }
-    }
 }
 
 /**
@@ -483,7 +446,6 @@ export abstract class CollectionRunType<T extends Type> extends BaseRunType<T> {
     getJitChildren(comp: JitCompiler): BaseRunType[] {
         let skipIndex = false; // if there are multiple index signatures, only the first one will be used as they must be same type just different keys
         return this.getChildRunTypes().filter((c) => {
-            if (c.skipJit(comp)) return false;
             const isIndex = c.src.kind === ReflectionKind.indexSignature;
             if (isIndex && skipIndex) return false;
             if (isIndex) skipIndex = true;
@@ -499,28 +461,56 @@ export abstract class CollectionRunType<T extends Type> extends BaseRunType<T> {
         );
     }
     _compileHasUnknownKeys(comp: JitCompiler): jitCode {
-        return this.getJitChildren(comp)
+        const children = this.getJitChildren(comp)
             .map((c) => c.compileHasUnknownKeys(comp))
-            .filter((code) => !!code)
-            .join(' || ');
+            .filter((code) => !!code);
+        if (children.length === 0) return undefined;
+        const code = children.map((c) => c!.code).join(' || ');
+        return {
+            code,
+            codeType: 'E',
+            skipJit: false,
+            children,
+        };
     }
     _compileUnknownKeyErrors(comp: JitErrorsCompiler): jitCode {
-        return this.getJitChildren(comp)
+        const children = this.getJitChildren(comp)
             .map((c) => c.compileUnknownKeyErrors(comp))
-            .filter((code) => !!code)
-            .join(';');
+            .filter((code) => !!code);
+        if (children.length === 0) return undefined;
+        const code = children.map((c) => c!.code).join(';');
+        return {
+            code,
+            codeType: 'S',
+            skipJit: false,
+            children,
+        };
     }
     _compileStripUnknownKeys(comp: JitCompiler): jitCode {
-        return this.getJitChildren(comp)
+        const children = this.getJitChildren(comp)
             .map((c) => c.compileStripUnknownKeys(comp))
-            .filter((code) => !!code)
-            .join(';');
+            .filter((code) => !!code);
+        if (children.length === 0) return undefined;
+        const code = children.map((c) => c!.code).join(';');
+        return {
+            code,
+            codeType: 'S',
+            skipJit: false,
+            children,
+        };
     }
     _compileUnknownKeysToUndefined(comp: JitCompiler): jitCode {
-        return this.getJitChildren(comp)
+        const children = this.getJitChildren(comp)
             .map((c) => c.compileUnknownKeysToUndefined(comp))
-            .filter((code) => !!code)
-            .join(';');
+            .filter((code) => !!code);
+        if (children.length === 0) return undefined;
+        const code = children.map((c) => c!.code).join(';');
+        return {
+            code,
+            codeType: 'S',
+            skipJit: false,
+            children,
+        };
     }
     _getTypeID(stack: BaseRunType[] = []): StrNumber {
         return this.getChildrenTypeID(stack);
@@ -570,29 +560,52 @@ export abstract class MemberRunType<T extends Type> extends BaseRunType<T> imple
     }
     getJitChild(comp: JitCompiler): BaseRunType | undefined {
         const member: BaseRunType = this.getMemberType();
-        if (member.skipJit(comp)) return undefined;
         return member;
     }
     _compileHasUnknownKeys(comp: JitCompiler): jitCode {
-        const code = this.getJitChild(comp)?.compileHasUnknownKeys(comp);
-        if (!code) return undefined;
+        const childJitCode = this.getJitChild(comp)?.compileHasUnknownKeys(comp);
+        if (!childJitCode) return undefined;
         const childName = comp.getChildVλl();
-        return this.isOptional() ? `(${childName} !== undefined && ${code})` : code;
+        const code = this.isOptional() ? `(${childName} !== undefined && ${childJitCode.code})` : childJitCode.code;
+        return {
+            code,
+            codeType: 'E',
+            skipJit: false,
+            children: [childJitCode],
+        };
     }
     _compileUnknownKeyErrors(comp: JitErrorsCompiler): jitCode {
-        const code = this.getJitChild(comp)?.compileUnknownKeyErrors(comp);
-        if (!code) return undefined;
-        return this.isOptional() ? `if (${comp.getChildVλl()} !== undefined) {${code}}` : code;
+        const childJitCode = this.getJitChild(comp)?.compileUnknownKeyErrors(comp);
+        if (!childJitCode) return undefined;
+        const code = this.isOptional() ? `if (${comp.getChildVλl()} !== undefined) {${childJitCode.code}}` : childJitCode.code;
+        return {
+            code,
+            codeType: 'S',
+            skipJit: false,
+            children: [childJitCode],
+        };
     }
     _compileStripUnknownKeys(comp: JitCompiler): jitCode {
-        const code = this.getJitChild(comp)?.compileStripUnknownKeys(comp);
-        if (!code) return undefined;
-        return this.isOptional() ? `if (${comp.getChildVλl()} !== undefined) {${code}}` : code;
+        const childJitCode = this.getJitChild(comp)?.compileStripUnknownKeys(comp);
+        if (!childJitCode) return undefined;
+        const code = this.isOptional() ? `if (${comp.getChildVλl()} !== undefined) {${childJitCode.code}}` : childJitCode.code;
+        return {
+            code,
+            codeType: 'S',
+            skipJit: false,
+            children: [childJitCode],
+        };
     }
     _compileUnknownKeysToUndefined(comp: JitCompiler): jitCode {
-        const code = this.getJitChild(comp)?.compileUnknownKeysToUndefined(comp);
-        if (!code) return undefined;
-        return this.isOptional() ? `if (${comp.getChildVλl()} !== undefined) {${code}}` : code;
+        const childJitCode = this.getJitChild(comp)?.compileUnknownKeysToUndefined(comp);
+        if (!childJitCode) return undefined;
+        const code = this.isOptional() ? `if (${comp.getChildVλl()} !== undefined) {${childJitCode.code}}` : childJitCode.code;
+        return {
+            code,
+            codeType: 'S',
+            skipJit: false,
+            children: [childJitCode],
+        };
     }
     _getTypeID(stack: BaseRunType[] = []): StrNumber {
         return this.getMemberTypeID(stack);

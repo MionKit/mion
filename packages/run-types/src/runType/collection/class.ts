@@ -10,6 +10,8 @@ import {JitCompiler} from '../../lib/jitCompiler';
 import {jitUtils} from '@mionkit/core/src/jitUtils';
 import {toLiteral} from '@mionkit/run-types/src/lib/utils';
 import {isConstructor} from '@mionkit/run-types/src/lib/guards';
+import type {jitCode} from '../../types';
+import {JitFunctions} from '../../constants.functions';
 
 export class ClassRunType extends InterfaceRunType<TypeClass> {
     getClassName(): string {
@@ -21,21 +23,45 @@ export class ClassRunType extends InterfaceRunType<TypeClass> {
         return isEmpty;
     }
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    _compileFromJsonVal(comp: JitCompiler) {
+    _compileFromJsonVal(comp: JitCompiler): jitCode {
         const deserializeFn = jitUtils.getDeserializeFn(this.getClassName());
         const serializableClass = jitUtils.getSerializeClass(this.getClassName());
 
         if (deserializeFn) {
-            const plainObjCode = super._compileFromJsonVal(comp);
+            const plainObjJitCode = super._compileFromJsonVal(comp);
             const classCode = `${comp.vλl} = utl.${jitUtils.useDeserializeFn.name}(${toLiteral(this.getClassName())})(${comp.vλl})`;
-            if (plainObjCode) return `${plainObjCode} ${classCode}`;
-            return classCode;
+            if (plainObjJitCode) {
+                const combinedCode = `${plainObjJitCode.code} ${classCode}`;
+                return {
+                    code: combinedCode,
+                    codeType: 'S',
+                    skipJit: false,
+                    children: [plainObjJitCode]
+                };
+            }
+            return {
+                code: classCode,
+                codeType: 'S',
+                skipJit: false
+            };
         }
         if (serializableClass) {
-            const plainObjCode = super._compileFromJsonVal(comp);
+            const plainObjJitCode = super._compileFromJsonVal(comp);
             const classCode = `${comp.vλl} = new (utl.${jitUtils.useSerializeClass.name}(${toLiteral(this.getClassName())}))(${comp.vλl})`;
-            if (plainObjCode) return `${plainObjCode} ${classCode}`;
-            return classCode;
+            if (plainObjJitCode) {
+                const combinedCode = `${plainObjJitCode.code} ${classCode}`;
+                return {
+                    code: combinedCode,
+                    codeType: 'S',
+                    skipJit: false,
+                    children: [plainObjJitCode]
+                };
+            }
+            return {
+                code: classCode,
+                codeType: 'S',
+                skipJit: false
+            };
         }
 
         throw new Error(

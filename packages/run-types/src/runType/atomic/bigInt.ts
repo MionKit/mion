@@ -13,25 +13,49 @@ import {AtomicRunType} from '../../lib/baseRunTypes';
 export class BigIntRunType extends AtomicRunType<TypeBigInt> {
     _getTypeID = () => ReflectionKind.bigint;
     _compileIsType(comp: JitCompiler): jitCode {
-        return `typeof ${comp.vλl} === 'bigint'`;
+        return {
+            code: `typeof ${comp.vλl} === 'bigint'`,
+            codeType: 'E',
+            skipJit: false
+        };
     }
     _compileTypeErrors(comp: JitErrorsCompiler): jitCode {
-        return `if (typeof ${comp.vλl} !== 'bigint') ${comp.callJitErr(this)}`;
+        return {
+            code: `if (typeof ${comp.vλl} !== 'bigint') ${comp.callJitErr(this)}`,
+            codeType: 'S',
+            skipJit: false
+        };
     }
     _compileToJsonVal(comp: JitCompiler): jitCode {
-        return bigIntTransformer._compileToJsonVal(comp);
+        return {
+            code: `${comp.vλl}.toString()`,
+            codeType: 'S',
+            skipJit: false
+        };
     }
     _compileFromJsonVal(comp: JitCompiler): jitCode {
-        return bigIntTransformer._compileFromJsonVal(comp);
+        return {
+            code: `BigInt(${comp.vλl})`,
+            codeType: 'S',
+            skipJit: false
+        };
     }
 }
 // bigintTransformer (used internally only so no need to register in JitUtils)
 
 export const bigIntTransformer = {
     _compileFromJsonVal(comp: JitCompiler): jitCode {
-        return `BigInt(${comp.vλl})`;
+        return {
+            code: `BigInt(${comp.vλl})`,
+            codeType: 'S',
+            skipJit: false
+        };
     },
     _compileToJsonVal(comp: JitCompiler): jitCode {
-        return `${comp.vλl}.toString()`;
+        return {
+            code: `${comp.vλl}.toString()`,
+            codeType: 'S',
+            skipJit: false
+        };
     },
 };

@@ -17,7 +17,7 @@ import {validPropertyNameRegExp} from '../constants';
 import {isFormatParamMeta} from './guards';
 import {createHashLiteral} from './quickHash';
 import {ReflectionSubKind} from '@mionkit/run-types/src/constants.kind';
-import {getJitFnSettings} from '@mionkit/run-types/src/lib/jitFnsRegistry';
+import {getJitFnSettings, getCodeType} from '@mionkit/run-types/src/lib/jitFnsRegistry';
 
 export function toLiteral(value: number | string | boolean | undefined | null | bigint | RegExp | symbol): string {
     switch (typeof value) {
@@ -126,7 +126,7 @@ export function getParamIndex(src: TypeParameter | TypeTupleMember): number {
 }
 
 export function childIsExpression(fnID: JitFnID, child: BaseRunType): boolean {
-    return child.getCodeType(fnID) === 'E' || !child.isJitInlined();
+    return getCodeType(fnID) === 'E' || !child.isJitInlined();
 }
 
 /**

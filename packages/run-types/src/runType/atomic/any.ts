@@ -7,14 +7,15 @@
 
 import {ReflectionKind, type TypeAny, type TypeUnknown} from '@deepkit/type';
 import {AtomicRunType} from '../../lib/baseRunTypes';
+import type {jitCode} from '../../types';
 
 export class AnyRunType extends AtomicRunType<TypeAny | TypeUnknown> {
     _getTypeID = () => ReflectionKind.any;
 
-    _compileIsType(): undefined {
+    _compileIsType(): jitCode {
         return undefined;
     }
-    _compileTypeErrors(): undefined {
+    _compileTypeErrors(): jitCode {
         return undefined;
     }
 }
