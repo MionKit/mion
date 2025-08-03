@@ -100,15 +100,26 @@ export function _compileJsonStringify(
             const memberCode = rt.getJitChild(comp)?.compile(comp, fnID);
             if (!memberCode) return `JSON.stringify(${comp.vλl})`;
             const jsonItems = `ls${comp.getNestLevel(rt)}`;
+            const jsonStr = `str${comp.getNestLevel(rt)}`;
             const resultVal = `res${comp.getNestLevel(rt)}`;
             const index = rt.getChildVarName(comp);
             return `
-                const ${jsonItems} = [];
-                for (let ${index} = ${rt.startIndex(comp)}; ${index} < ${comp.vλl}.length; ${index}++) {
-                    const ${resultVal} = ${memberCode};
-                    ${jsonItems}.push(${resultVal});
+                if (${comp.vλl}.length > 100) {
+                    const ${jsonItems} = [];
+                    for (let ${index} = ${rt.startIndex(comp)}; ${index} < ${comp.vλl}.length; ${index}++) {
+                        const ${resultVal} = ${memberCode};
+                        ${jsonItems}.push(${resultVal});
+                    }
+                    return '[' + ${jsonItems}.join(',') + ']';
+                } else {
+                    let ${jsonStr} = '[';
+                    for (let ${index} = ${rt.startIndex(comp)}; ${index} < ${comp.vλl}.length; ${index}++) {
+                        if (${index} > 0) ${jsonStr} += ',';
+                        const ${resultVal} = ${memberCode};
+                        ${jsonStr} += ${resultVal};
+                    }
+                    return ${jsonStr} + ']';
                 }
-                return '[' + ${jsonItems}.join(',') + ']';
             `;
         }
         case ReflectionKind.indexSignature: {

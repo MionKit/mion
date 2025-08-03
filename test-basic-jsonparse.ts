@@ -8,18 +8,17 @@ try {
     const stringRt = runType<StringType>();
     const jsonParse = stringRt.createJitFunction(JitFunctions.jsonParse);
     const jsonStringify = stringRt.createJitFunction(JitFunctions.jsonStringify);
-    
+
     const testValue = 'hello world';
     const jsonString = jsonStringify(testValue);
     const parsed = JSON.parse(jsonString);
     const result = jsonParse(parsed);
-    
+
     console.log('Original:', testValue);
     console.log('JSON string:', jsonString);
     console.log('Parsed JSON:', parsed);
     console.log('Final result:', result);
     console.log('Round trip successful:', result === testValue);
-    
 } catch (error) {
     console.error('Test failed:', error.message);
     console.error(error.stack);

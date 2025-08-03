@@ -151,7 +151,9 @@ describe('JSON Basic Types Tokenizer', () => {
 
         it('should parse strings with unicode escapes exactly like JSON.parse', () => {
             expect(parseJsonString('"\\u0041"').value).toBe(JSON.parse('"\\u0041"'));
-            expect(parseJsonString('"\\u0048\\u0065\\u006C\\u006C\\u006F"').value).toBe(JSON.parse('"\\u0048\\u0065\\u006C\\u006C\\u006F"'));
+            expect(parseJsonString('"\\u0048\\u0065\\u006C\\u006C\\u006F"').value).toBe(
+                JSON.parse('"\\u0048\\u0065\\u006C\\u006C\\u006F"')
+            );
         });
 
         it('should parse strings at specific positions', () => {
@@ -220,7 +222,9 @@ describe('JSON Basic Types Tokenizer', () => {
 
         it('should parse strings with unicode escapes exactly like JSON.parse', () => {
             expect(parseJsonStringRegex('"\\u0041"').value).toBe(JSON.parse('"\\u0041"'));
-            expect(parseJsonStringRegex('"\\u0048\\u0065\\u006C\\u006C\\u006F"').value).toBe(JSON.parse('"\\u0048\\u0065\\u006C\\u006C\\u006F"'));
+            expect(parseJsonStringRegex('"\\u0048\\u0065\\u006C\\u006C\\u006F"').value).toBe(
+                JSON.parse('"\\u0048\\u0065\\u006C\\u006C\\u006F"')
+            );
         });
 
         it('should parse strings at specific positions', () => {
@@ -232,19 +236,19 @@ describe('JSON Basic Types Tokenizer', () => {
 
         it('should handle all valid escape sequences', () => {
             const testCases = [
-                '"\\"quote\\""',      // \"
-                '"\\\\"',             // \\
-                '"\\/"',              // \/
-                '"\\b"',              // \b
-                '"\\f"',              // \f
-                '"\\n"',              // \n
-                '"\\r"',              // \r
-                '"\\t"',              // \t
-                '"\\u0020"',          // \u0020 (space)
-                '"\\u00A9"',          // \u00A9 (copyright)
+                '"\\"quote\\""', // \"
+                '"\\\\"', // \\
+                '"\\/"', // \/
+                '"\\b"', // \b
+                '"\\f"', // \f
+                '"\\n"', // \n
+                '"\\r"', // \r
+                '"\\t"', // \t
+                '"\\u0020"', // \u0020 (space)
+                '"\\u00A9"', // \u00A9 (copyright)
             ];
 
-            testCases.forEach(testCase => {
+            testCases.forEach((testCase) => {
                 const regexResult = parseJsonStringRegex(testCase);
                 const jsonParseResult = JSON.parse(testCase);
                 expect(regexResult.value).toBe(jsonParseResult);
@@ -272,7 +276,7 @@ describe('JSON Basic Types Tokenizer', () => {
                 '"\\u0048\\u0065\\u006C\\u006C\\u006F"',
             ];
 
-            testCases.forEach(testCase => {
+            testCases.forEach((testCase) => {
                 const originalResult = parseJsonString(testCase);
                 const regexResult = parseJsonStringRegex(testCase);
 
@@ -338,8 +342,6 @@ describe('JSON Basic Types Tokenizer', () => {
             expect(() => parseJsonFalse('abc')).toThrow();
         });
     });
-
-
 
     describe('skipWhitespace', () => {
         it('should skip various whitespace characters', () => {

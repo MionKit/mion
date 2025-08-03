@@ -151,7 +151,7 @@ export function parseJsonString(str: string, startIndex: number = 0): ParseResul
                 case 't':
                     result += '\t';
                     break;
-                case 'u':
+                case 'u': {
                     // Unicode escape sequence \uXXXX
                     if (i + 4 >= len) {
                         throw new Error(`Incomplete unicode escape sequence at position ${i}`);
@@ -163,6 +163,8 @@ export function parseJsonString(str: string, startIndex: number = 0): ParseResul
                     result += String.fromCharCode(parseInt(hexCode, 16));
                     i += 5; // consume 'u' + 4 hex digits
                     break;
+                }
+
                 default:
                     throw new Error(`Invalid escape sequence \\${escaped} at position ${i}`);
             }
@@ -218,7 +220,7 @@ export function parseJsonStringRegex(str: string, startIndex: number = 0): Parse
 
     return {
         value,
-        nextPos: startIndex + fullMatch.length
+        nextPos: startIndex + fullMatch.length,
     };
 }
 
@@ -260,8 +262,6 @@ export function parseJsonFalse(str: string, startIndex: number = 0): ParseResult
 
     throw new Error(`Expected false at position ${startIndex}, found '${remaining.substring(0, 5)}'`);
 }
-
-
 
 /**
  * Skip whitespace characters and return the number of characters skipped

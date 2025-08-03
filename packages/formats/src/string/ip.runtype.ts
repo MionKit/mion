@@ -139,9 +139,9 @@ export function mionGetIPErrors(utl: JITUtils) {
         name = 'ip'
     ): TypeFormatError[] {
         if (p.version === 4 && !is_ip_v4(ip, p, noopDeps))
-            return fErrs.push({name, formatPath: [...fPath, 'version'], val: 4}), fErrs;
+            return (fErrs.push({name, formatPath: [...fPath, 'version'], val: 4}), fErrs);
         if (p.version === 6 && !is_ip_v6(ip, p, noopDeps))
-            return fErrs.push({name, formatPath: [...fPath, 'version'], val: 6}), fErrs;
+            return (fErrs.push({name, formatPath: [...fPath, 'version'], val: 6}), fErrs);
         const isIP = is_ip_v4(ip, p, noopDeps) || is_ip_v6(ip, p, noopDeps);
         if (!isIP) fErrs.push({name, formatPath: ['version'], val: 'any'});
         return fErrs;

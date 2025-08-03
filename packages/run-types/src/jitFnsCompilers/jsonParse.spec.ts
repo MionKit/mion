@@ -483,6 +483,7 @@ describe('jsonParse', () => {
 
     describe('Performance and Edge Cases', () => {
         it('should handle empty objects', () => {
+            // eslint-disable-next-line @typescript-eslint/ban-types
             type TestType = {};
             const rt = runType<TestType>();
             const jsonParse = rt.createJitFunction(JitFunctions.jsonParse);

@@ -9,7 +9,7 @@ import {ReflectionKind} from '@deepkit/type';
 import {ReflectionSubKind} from '../constants.kind';
 import {JitFunctions} from '../constants.functions';
 import {JitCompiler} from '@mionkit/run-types/src/lib/jitCompiler';
-import {createIfElseFn, isSafePropName, childIsExpression} from '@mionkit/run-types/src/lib/utils';
+import {createIfElseFn, childIsExpression} from '@mionkit/run-types/src/lib/utils';
 import type {IndexSignatureRunType} from '../runType/member/indexProperty';
 import type {jitCode, JitFnID} from '../types';
 import type {BaseRunType} from '../lib/baseRunTypes';
@@ -24,7 +24,6 @@ import type {UnionRunType} from '../runType/collection/union';
 import type {ParameterRunType} from '../runType/member/param';
 import type {RestParamsRunType} from '../runType/member/restParams';
 import type {ArrayRunType} from '@mionkit/run-types/src/runType/member/array';
-import type {MemberRunType} from '../lib/baseRunTypes';
 import type {LiteralRunType} from '@mionkit/run-types/src/runType/atomic/literal';
 import type {IterableRunType} from '@mionkit/run-types/src/runType/native/Iterable';
 
@@ -269,11 +268,6 @@ function getOperationName(fnID: Operation) {
         default:
             throw new Error(`Unknown operation: ${fnID}`);
     }
-}
-
-function getPropName(rt: PropertyRunType, comp: JitCompiler): string {
-    if (!isSafePropName(rt.src.name)) return JSON.stringify(rt.getChildLiteral(comp) as string);
-    return JSON.stringify(rt.getChildVarName(comp));
 }
 
 function _compileJsonParseParameter(rt: ParameterRunType, comp: JitCompiler, fnID: JitFnID): jitCode {
