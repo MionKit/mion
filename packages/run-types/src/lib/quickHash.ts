@@ -5,6 +5,8 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
+import {getENV} from '@mionkit/core/src/utils';
+
 const hashes = new Map<string, string>();
 const literalHashes = new Map<string, string>();
 const hashChars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
@@ -46,7 +48,7 @@ export function createUniqueHash(id: string, length = hashDefaultLength, isLiter
         // generates a longer hash if there are collisions
         // this would allow trying to get all possible hashes for a given input just by increasing the length
         const newId = quickHash(id, length, hash);
-        if (process.env.DEBUG_JIT)
+        if (getENV('DEBUG_JIT'))
             console.warn(
                 `Collision for typeID: ${id} with extended hash: ${newId}, and existing typeID: ${existingId} with hash: ${hash}`
             );
