@@ -5,6 +5,28 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
+// ############### Import modules to execute side effects (registerFormatter calls) ###############
+
+// Import main string format module to register the formatter
+import './string/stringFormat.runtype';
+
+// Import date/time format modules to register formatters
+import './string/date.runtype';
+import './string/dateTime.runtype';
+import './string/time.runtype';
+
+// Import network/web format modules to register formatters
+import './string/email.runtype';
+import './string/domain.runtype';
+import './string/url.runtype';
+import './string/ip.runtype';
+
+// Import identifier format modules to register formatters
+import './string/uuid.runtype';
+
+// Import default string format modules to register formatters
+import './string/defaultStringFormats.runtype';
+
 // ############### Main StringFormat Export ###############
 export {StrFormat} from './string/stringFormat.runtype';
 

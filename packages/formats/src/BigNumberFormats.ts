@@ -5,6 +5,14 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
+// ############### Import modules to execute side effects (registerFormatter calls) ###############
+
+// Import main bigint format module to register the formatter
+import './bigint/bigIntFormat.runtype';
+
+// Import default bigint format modules to register formatters
+import './bigint/defaultBigNumberFormats';
+
 // ############### Main BigIntFormat Export ###############
 
 // Re-export the main BigIntFormat type
