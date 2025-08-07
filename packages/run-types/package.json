@@ -19,6 +19,9 @@
   "author": "ma jerez <jerez.m82@gmail.com>",
   "homepage": "https://mion.io/",
   "license": "MIT",
+  "browser": {
+    "./persist/jitFnCacheCompiler": false
+  },
   "exports": {
     "./constants.functions": {
       "types": "./.dist/types/constants.functions.d.ts",
