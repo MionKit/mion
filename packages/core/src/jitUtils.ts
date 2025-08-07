@@ -22,6 +22,7 @@ import type {
 import {MAX_STACK_DEPTH, MAX_UNKNOWN_KEYS} from './constants';
 import {cΦmpilεdCachε as tCache} from './_autogen/jitFunctionsCache';
 import {cΦmpilεdCachε as pCache} from './_autogen/pureFunctionsCache';
+import {getENV} from './utils';
 
 // eslint-disable-next-line no-control-regex
 const STR_ESCAPE = /[\u0000-\u001f\u0022\u005c\ud800-\udfff]/;
@@ -235,7 +236,7 @@ export function isSafeMapKeyValue(value: any, depth = 0): boolean {
 
 function initPureFunction(compiled: CompiledPureFunction): asserts compiled is Required<CompiledPureFunction> {
     if (compiled.fn) return;
-    if (process.env.MION_COMPILE === 'true' || process.env.JEST_WORKER_ID !== undefined) {
+    if (getENV('MION_COMPILE') === 'true' || getENV('JEST_WORKER_ID') !== undefined) {
         const {paramNames, code: body} = compiled;
         try {
             // when testing we immediately add the deserialized function to ensure test are working with deserialized functions
