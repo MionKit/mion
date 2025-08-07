@@ -48,6 +48,7 @@ import {getJitFunctionCompiler, registerJitFunctionCompiler} from './jitFnsRegis
 import {JitCompiledFn} from '@mionkit/core/types';
 import {_compileToCode} from '../jitFnsCompilers/toCode';
 import {defaultMockOptions} from '../mocking/constants.mock';
+import {getENV} from '@mionkit/core/src/utils';
 
 export abstract class BaseRunType<T extends Type = Type> implements RunType {
     // Registry for dynamically loaded functions
@@ -63,7 +64,7 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
     isJitInlined = (): boolean => {
         // if is circular, always create a separate jit function as need to self invoke
         if (this.isCircular) return false;
-        if (process.env.DEBUG_JIT === 'INLINED') return true;
+        if (getENV('DEBUG_JIT') === 'INLINED') return true;
         // all array  are self invoked for isType and are usually repeated type like string[] or number[] so worth deduplicating
         if (this.src.kind === ReflectionKind.array) return false;
         // collection with name might be used in different places so worth deduplicating
@@ -172,7 +173,7 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
         const fnHash = getJITFnHash(fnID, this, opts);
         const jitCompiled = jitUtils.getJIT(fnHash);
         if (jitCompiled) {
-            if (process.env.DEBUG_JIT === 'VERBOSE')
+            if (getENV('DEBUG_JIT') === 'VERBOSE')
                 console.log(`\x1b[32m Using cached function: ${jitCompiled.jitFnHash} \x1b[0m`);
             return jitCompiled;
         }

@@ -16,6 +16,7 @@ import {ReflectionKind} from '@deepkit/type';
 import {dependenciesToLiteral, getFormatterParams, paramsToLiteral} from './formats';
 import {jitUtils} from '@mionkit/core/jitUtils';
 import {getFormatterHash} from './utils';
+import {getENV} from '@mionkit/core/src/utils';
 
 /**
  * Base class for all RunType formatters.
@@ -129,7 +130,7 @@ export abstract class BaseRunTypeFormat<P extends TypeFormatParams = any> {
         const jitFnHash = `${JitFunctions.aux.id}_${fnID}_${hash}`;
         const jitCompiled = jitUtils.getJIT(jitFnHash);
         if (jitCompiled) {
-            if (process.env.DEBUG_JIT === 'VERBOSE')
+            if (getENV('DEBUG_JIT') === 'VERBOSE')
                 console.log(`\x1b[32m Using cached function: ${jitCompiled.jitFnHash} \x1b[0m`);
             comp?.updateDependencies(jitCompiled);
             return jitCompiled;

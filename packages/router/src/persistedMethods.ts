@@ -19,6 +19,7 @@ import {NonRawMethod, MethodData} from './types/remoteMethods';
 import {AnyHandler} from './types/handlers';
 import {IS_TEST_ENV} from './constants';
 import {getFnCaches, jitUtils} from '@mionkit/core/src/jitUtils';
+import {getENV} from '@mionkit/core/src/utils';
 import {rΦutεs} from './_autogen/routes'; // inception 🔁
 
 export type PersistedMethods = Record<string, MethodData>;
@@ -87,8 +88,10 @@ function restorePersistedJitFunctions(jitFns: JitFunctionsHashes): JitCompiledFu
 }
 
 export function compileRouter() {
-    const aux = process.env.MION_COMPILE;
-    process.env.MION_COMPILE = 'true';
+    const aux = getENV('MION_COMPILE');
+    if (typeof process !== 'undefined' && process.env) {
+        process.env.MION_COMPILE = 'true';
+    }
     if (!IS_TEST_ENV) console.log('Writing compiled methods...');
     compileAndWriteRunType<PersistedMethods>(persistedMethods, routerCompilerConstants);
     if (!IS_TEST_ENV) console.log(`Compiled methods written to ${routerCompilerConstants.files}.`);
@@ -97,7 +100,9 @@ export function compileRouter() {
     if (!IS_TEST_ENV) console.log(`Compiled JIT functions written to ${runTypeCompilerConstants.jitFunctionsFiles}.`);
     compileAndWritePureFunctions(pureFnsCache);
     if (!IS_TEST_ENV) console.log(`Compiled pure functions written to ${runTypeCompilerConstants.pureFunctionsFiles}.`);
-    process.env.MION_COMPILE = aux;
+    if (typeof process !== 'undefined' && process.env) {
+        process.env.MION_COMPILE = aux;
+    }
 }
 
-const shouldCompile = memorize(() => process.env.MION_COMPILE === 'true');
+const shouldCompile = memorize(() => getENV('MION_COMPILE') === 'true');

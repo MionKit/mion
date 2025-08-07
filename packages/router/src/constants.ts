@@ -6,8 +6,9 @@
  * ######## */
 
 import {RouterOptions} from './types/general';
+import {getENV} from '@mionkit/core/src/utils';
 
-export const IS_TEST_ENV = process.env.JEST_WORKER_ID !== undefined || process.env.NODE_ENV === 'test';
+export const IS_TEST_ENV = getENV('JEST_WORKER_ID') !== undefined || getENV('NODE_ENV') === 'test';
 
 export const ROUTE_DEFAULT_PARAMS = ['context'];
 
