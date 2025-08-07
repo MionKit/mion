@@ -13,7 +13,7 @@ import {BaseRunTypeFormat} from '@mionkit/run-types/src/lib/baseRunTypeFormat';
 import {ReflectionKind} from '@deepkit/type';
 import {TypeFormat} from '@mionkit/run-types/src/lib/formats.runtype';
 import {RunTypeOptions, type jitCode, type JitFnID, type StrNumber} from '@mionkit/run-types/src/types';
-import {StringRunTypeFormat, stringIgnoreProps, FormatParams_String} from './stringFormat.runtype';
+import {StringRunTypeFormat, stringIgnoreProps, StringParams} from './stringFormat.runtype';
 import {DomainRunTypeFormat, FormatParams_Domain} from './domain.runtype';
 import {CodeType} from '@mionkit/run-types/src/constants.functions';
 import {JitFunctions} from '@mionkit/run-types/src/constants.functions';
@@ -68,12 +68,12 @@ export class URLRunTypeFormat extends BaseRunTypeFormat<FormatParams_Url> {
         const params = this.getParams(rt);
         const fnID = comp.fnID;
         const fmtName = this.getFormatName();
-        const urlCode = this.urlFormatter!._compile(fnID, comp, rt, params, comp.vλl, fmtName);
+        const urlCode = this.urlFormatter!.compileFormat(fnID, comp, rt, params, comp.vλl, fmtName);
         if (!params.domain && !params.ip) return urlCode;
 
         const vDomain = 'domain';
-        const dmnCode = params?.domain ? this.domainFormatter._compile(fnID, comp, rt, params.domain, vDomain, fmtName) : '';
-        const ipCode = params.ip ? `${this.ipFormatter._compile(fnID, comp, rt, params.ip, vDomain, fmtName)}` : '';
+        const dmnCode = params?.domain ? this.domainFormatter.compileFormat(fnID, comp, rt, params.domain, vDomain, fmtName) : '';
+        const ipCode = params.ip ? `${this.ipFormatter.compileFormat(fnID, comp, rt, params.ip, vDomain, fmtName)}` : '';
         // Remove debug logs
         const safeUrlCode = urlCode ? `if(!(${urlCode})) return false;` : '';
 
@@ -100,12 +100,12 @@ export class URLRunTypeFormat extends BaseRunTypeFormat<FormatParams_Url> {
         const fnID = comp.fnID;
         const fmtName = this.getFormatName();
 
-        const urlCode = this.urlFormatter!._compile(fnID, comp, rt, params, comp.vλl, fmtName);
+        const urlCode = this.urlFormatter!.compileFormat(fnID, comp, rt, params, comp.vλl, fmtName);
         if (!params.domain && !params.ip) return urlCode;
 
         const vDomain = 'domain' + this.getFormatNestLevel(); // must match var name in code
-        const dmnCode = params?.domain ? this.domainFormatter._compile(fnID, comp, rt, params.domain, vDomain, fmtName) : '';
-        const iPCode = params.ip ? `${this.ipFormatter._compile(fnID, comp, rt, params.ip, vDomain, fmtName)}` : '';
+        const dmnCode = params?.domain ? this.domainFormatter.compileFormat(fnID, comp, rt, params.domain, vDomain, fmtName) : '';
+        const iPCode = params.ip ? `${this.ipFormatter.compileFormat(fnID, comp, rt, params.ip, vDomain, fmtName)}` : '';
         const checks = [urlCode, dmnCode, iPCode].filter(Boolean);
 
         const vStart = 'start' + this.getFormatNestLevel(); // must match var name in code
@@ -153,7 +153,7 @@ export class URLRunTypeFormat extends BaseRunTypeFormat<FormatParams_Url> {
         const fnID = JitFunctions.format.id;
         const fmtName = this.getFormatName();
 
-        const domainCode = this.domainFormatter!._compile(fnID, comp, rt, params.domain, vDomain, fmtName);
+        const domainCode = this.domainFormatter!.compileFormat(fnID, comp, rt, params.domain, vDomain, fmtName);
         const vStart = 'start' + this.getFormatNestLevel(); // must match var name in code
         const vEnd = 'end' + this.getFormatNestLevel(); // must match var name in code
         const vEndIdx = 'endIdx' + this.getFormatNestLevel(); // must match var name in code
@@ -218,14 +218,14 @@ export type DEFAULT_URL_SOCIAL_MEDIA_PARAMS<DomainLIst extends readonly string[]
 };
 
 export type FormatParams_UrlPattern = Omit<
-    FormatParams_String,
+    StringParams,
     'allowedChars' | 'disallowedChars' | 'allowedValues' | 'disallowedValues'
 >;
 export type FormatParams_Url = FormatParams_UrlPattern & {ip?: FormatParams_IP; domain?: FormatParams_Domain};
 
-export type FormatUrl<P extends FormatParams_Url = {}> = TypeFormat<string, 'url', DEFAULT_URL_PARAMS & P>;
-export type FormatUrlFile<P extends FormatParams_Url = {}> = TypeFormat<string, 'url', DEFAULT_URL_FILE_PARAMS & P>;
-export type FormatUrlHttp<P extends FormatParams_Url = {}> = TypeFormat<string, 'url', DEFAULT_URL_HTTP_PARAMS & P>;
-export type FormatUrlSocialMedia<DomainLIst extends readonly string[] = SOCIAL_MEDIA_DOMAINS_SAMPLES> = FormatUrl<
+export type StrUrl<P extends FormatParams_Url = {}> = TypeFormat<string, 'url', DEFAULT_URL_PARAMS & P>;
+export type StrUrlFile<P extends FormatParams_Url = {}> = TypeFormat<string, 'url', DEFAULT_URL_FILE_PARAMS & P>;
+export type StrUrlHttp<P extends FormatParams_Url = {}> = TypeFormat<string, 'url', DEFAULT_URL_HTTP_PARAMS & P>;
+export type StrUrlSocialMedia<DomainLIst extends readonly string[] = SOCIAL_MEDIA_DOMAINS_SAMPLES> = StrUrl<
     DEFAULT_URL_SOCIAL_MEDIA_PARAMS<DomainLIst>
 >;

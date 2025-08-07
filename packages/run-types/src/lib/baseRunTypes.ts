@@ -20,7 +20,6 @@ import type {
     RunTypeOptions,
     StrNumber,
     DeepPartial,
-    JitCompilerOpts,
     RunTypeFamily,
 } from '../types';
 import type {mockType} from '../mocking/mockType';
@@ -285,6 +284,7 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
 
     private compileFormatter(comp: JitCompiler, fnID: JitFnID, separator: string, code?: string): jitCode {
         const typeFormatters = getTypeFormats(this);
+        console.log('compileFormatter', typeFormatters);
         if (!typeFormatters.length) return code;
         const formattersCode = typeFormatters
             .map((f) => {
@@ -297,8 +297,12 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
                 // the formatter code is also an expression or has a return statement
                 const isCompatible = this.getCodeType(fnID) === codeType;
 
+                console.log('compileFormatter', {name: f.name, canEmbed, codeType, codeHasReturn, isCompatible});
+
                 if (canEmbed && isCompatible && !codeHasReturn) {
-                    return f._compile(fnID, comp, this);
+                    const formatterCode = f.compileFormat(fnID, comp, this);
+                    console.log('compileFormatter', {name: f.name, formatterCode});
+                    return formatterCode;
                 }
 
                 // Otherwise, create a separate function

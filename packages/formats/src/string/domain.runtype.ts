@@ -15,9 +15,9 @@ import {TypeFormat} from '@mionkit/run-types/src/lib/formats.runtype'; // !Impor
 import {
     StringRunTypeFormat,
     stringIgnoreProps,
-    FormatParams_StringValidators,
+    StringValidators,
     FormatParam_Pattern,
-    type FormatParams_String,
+    type StringParams,
     Samples,
 } from './stringFormat.runtype';
 import {registerFormatter} from '@mionkit/run-types/src/lib/formats';
@@ -36,11 +36,11 @@ export const DOMAIN_PATTERN_PUNYCODE = /^(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-z
 export const DOMAIN_ALLOWED_CHARS_PATTERN = /^[a-zA-Z0-9-]+$/;
 export const TLD_ALLOWED_CHARS_PATTERN = /^[a-zA-Z]+(\.[a-zA-Z]+)?$/;
 
-const tldAllowedChars: FormatParams_StringValidators['allowedChars'] = {
+const tldAllowedChars: StringValidators['allowedChars'] = {
     val: TLD_CHARS,
     errorMessage: 'only alphabetical characters allowed',
 };
-const namesAllowedChars: FormatParams_StringValidators['allowedChars'] = {
+const namesAllowedChars: StringValidators['allowedChars'] = {
     val: NAME_CHARS,
     errorMessage: 'only alphabetical characters and hyphens allowed',
 };
@@ -87,7 +87,7 @@ export class DomainRunTypeFormat extends BaseRunTypeFormat<FormatParams_Domain> 
         const fnID = comp.fnID;
         const fmtName = this.getFormatName();
 
-        if (params.pattern) return this.rootFormatter._compile(fnID, comp, rt, params, comp.vλl, fmtName);
+        if (params.pattern) return this.rootFormatter.compileFormat(fnID, comp, rt, params, comp.vλl, fmtName);
 
         const vλl = comp.vλl;
         const vName = 'name' + this.getFormatNestLevel(); // must match var name in code
@@ -96,9 +96,9 @@ export class DomainRunTypeFormat extends BaseRunTypeFormat<FormatParams_Domain> 
         const vStart = 'start' + this.getFormatNestLevel(); // must match var name in code
         const vPos = 'pos' + this.getFormatNestLevel(); // must match var name in code
 
-        const rootCode = this.rootFormatter._compile(fnID, comp, rt, params, vλl, fmtName);
-        const nameCode = this.nameFormatter._compile(fnID, comp, rt, params.names, vName, fmtName);
-        const tldCode = this.tldFormatter._compile(fnID, comp, rt, params.tld, vTld, fmtName);
+        const rootCode = this.rootFormatter.compileFormat(fnID, comp, rt, params, vλl, fmtName);
+        const nameCode = this.nameFormatter.compileFormat(fnID, comp, rt, params.names, vName, fmtName);
+        const tldCode = this.tldFormatter.compileFormat(fnID, comp, rt, params.tld, vTld, fmtName);
         const maxPartsCode = params.maxParts ? `if (${vCount} > ${params.maxParts}) return false;` : '';
         const minPartsCode = params.minParts ? `if (${vCount} < ${params.minParts}) return false;` : '';
         // if rootCode is empty, we don't need to emit jit code for it
@@ -128,7 +128,7 @@ export class DomainRunTypeFormat extends BaseRunTypeFormat<FormatParams_Domain> 
         const fnID = comp.fnID;
         const fmtName = this.getFormatName();
 
-        if (params.pattern) return this.rootFormatter._compile(fnID, comp, rt, params, comp.vλl, fmtName);
+        if (params.pattern) return this.rootFormatter.compileFormat(fnID, comp, rt, params, comp.vλl, fmtName);
 
         const errFn = this.getCallJitFormatErr(comp, rt, this, true);
         const vλl = comp.vλl;
@@ -138,9 +138,9 @@ export class DomainRunTypeFormat extends BaseRunTypeFormat<FormatParams_Domain> 
         const vStart = 'start' + this.getFormatNestLevel(); // must match var name in code
         const vPos = 'pos' + this.getFormatNestLevel(); // must match var name in code
 
-        const rootCode = this.rootFormatter._compile(fnID, comp, rt, params, vλl, fmtName);
-        const nameCode = this.nameFormatter._compile(fnID, comp, rt, params.names, vName, fmtName, vCount);
-        const tldCode = this.tldFormatter._compile(fnID, comp, rt, params.tld, vTld, fmtName);
+        const rootCode = this.rootFormatter.compileFormat(fnID, comp, rt, params, vλl, fmtName);
+        const nameCode = this.nameFormatter.compileFormat(fnID, comp, rt, params.names, vName, fmtName, vCount);
+        const tldCode = this.tldFormatter.compileFormat(fnID, comp, rt, params.tld, vTld, fmtName);
         const maxPartsCode = params.maxParts
             ? `if (${vCount} > ${params.maxParts}) ${errFn('maxParts', fpVal(params.maxParts))};`
             : '';
@@ -203,7 +203,7 @@ export class DomainRunTypeFormat extends BaseRunTypeFormat<FormatParams_Domain> 
 
         return domain;
     }
-    private hasNoConstrains(params: FormatParams_String): boolean {
+    private hasNoConstrains(params: StringParams): boolean {
         return !params.allowedChars && !params.disallowedChars && !params.pattern && !params.allowedValues;
     }
     private mockName(opts: RunTypeOptions, rt: BaseRunType, params: FormatParams_DomainName): string {
@@ -335,8 +335,8 @@ export type DEFAULT_STRICT_DOMAIN_PARAMS = {
     maxLength: 253;
     minLength: 5; // name 2 + tld 2 + 1 dot
 };
-export type FormatParams_DomainName = Omit<FormatParams_StringValidators, 'length' | 'allowedChars' | 'disallowedChars'>;
-export type FormatParams_Tld = Omit<FormatParams_StringValidators, 'length' | 'allowedChars' | 'disallowedChars'>;
+export type FormatParams_DomainName = Omit<StringValidators, 'length' | 'allowedChars' | 'disallowedChars'>;
+export type FormatParams_Tld = Omit<StringValidators, 'length' | 'allowedChars' | 'disallowedChars'>;
 
 export type FormatParams_DomainCore =
     | {names?: never; tld?: never; pattern: FormatParam_Pattern}
@@ -351,6 +351,6 @@ export type FormatParams_Domain = {
 // ############### Run Types ###############
 
 /** Domain based on a pattern */
-export type FormatDomain<DP extends FormatParams_Domain = DEFAULT_DOMAIN_PARAMS> = TypeFormat<string, 'domain', DP>;
+export type StrDomain<DP extends FormatParams_Domain = DEFAULT_DOMAIN_PARAMS> = TypeFormat<string, 'domain', DP>;
 /** Domain with customizable names and tld */
-export type FormatDomainStrict<D extends Partial<FormatParams_Domain> = {}> = FormatDomain<DEFAULT_STRICT_DOMAIN_PARAMS & D>;
+export type StrDomainStrict<D extends Partial<FormatParams_Domain> = {}> = StrDomain<DEFAULT_STRICT_DOMAIN_PARAMS & D>;

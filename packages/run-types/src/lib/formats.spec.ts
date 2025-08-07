@@ -13,18 +13,27 @@ import {BaseRunTypeFormat} from './baseRunTypeFormat';
 import {BaseRunType} from './baseRunTypes';
 import {getCompiledPureFn, getPureFn, registerPureFnClosuresGroup, registerPureFnClosure, registerFormatter} from './formats';
 import {TypeFormat} from './formats.runtype';
+import {JitFunctions} from '../constants.functions';
+import {JitCompiler, JitErrorsCompiler} from './jitCompiler';
+
+type Max5 = TypeFormat<string, 'max5', {maxLength: 5}>;
+class Max5Formatter extends BaseRunTypeFormat<any> {
+    kind = ReflectionKind.string;
+    name = 'max5';
+    _mock() {}
+    _compileIsType(comp: JitCompiler, rt: BaseRunType) {
+        const p = this.getParams(rt);
+        return `${comp.vλl}.length <= ${p.maxLength}`;
+    }
+    _compileTypeErrors(comp: JitErrorsCompiler, rt: BaseRunType) {
+        const p = this.getParams(rt);
+        const errFn = this.getCallJitFormatErr(comp, rt, this);
+        return `if (${comp.vλl}.length > ${p.maxLength}) ${errFn('maxLength', p.maxLength)}`;
+    }
+}
+registerFormatter(new Max5Formatter());
 
 it('TypeFormat should have a different type id', async () => {
-    type Max5 = TypeFormat<string, 'max5', {maxLength: 5}>;
-    class Max5Formatter extends BaseRunTypeFormat<any> {
-        kind = ReflectionKind.string;
-        name = 'max5';
-        _mock() {}
-        _compileIsType(): undefined {}
-        _compileTypeErrors(): undefined {}
-        _compileFormat?(): undefined {}
-    }
-    registerFormatter(new Max5Formatter());
     const rtMax5 = runType<Max5>() as BaseRunType;
     const rt = runType<string>() as BaseRunType;
     expect(rtMax5.getTypeID()).toBe('5<{maxLength:5}>');
@@ -32,16 +41,6 @@ it('TypeFormat should have a different type id', async () => {
 });
 
 it('Type should have a different type id if format is not in root Type', async () => {
-    type Max5 = TypeFormat<string, 'max5', {maxLength: 5}>;
-    class Max5Formatter extends BaseRunTypeFormat<any> {
-        kind = ReflectionKind.string;
-        name = 'max5';
-        _mock() {}
-        _compileIsType(): undefined {}
-        _compileTypeErrors(): undefined {}
-        _compileFormat?(): undefined {}
-    }
-    registerFormatter(new Max5Formatter());
     const rtMax5List = runType<Max5[]>() as BaseRunType; // root type is array
     const rtList = runType<string[]>() as BaseRunType; // root type is array
     expect(rtMax5List.getTypeID()).toBe('25:5<{maxLength:5}>');
@@ -109,4 +108,28 @@ it('register a group of pure functions so all declared as dependencies', async (
     expect(compiledIsB?.dependencies.has('pf_pureFunctionA')).toBeTruthy();
     expect(compiledIsA?.dependencies.has('pf_pureFunctionA')).toBeFalsy();
     expect(compiledIsB?.dependencies.has('pf_pureFunctionB')).toBeFalsy();
+});
+
+it('isType Formats string', () => {
+    const rtMax5 = runType<Max5>() as BaseRunType;
+    const isTypeMax5 = rtMax5.createJitFunction(JitFunctions.isType);
+    expect(isTypeMax5('a')).toBe(true);
+    expect(isTypeMax5('aaaaa')).toBe(true);
+    expect(isTypeMax5('aaaaaa')).toBe(false);
+});
+
+it('isType Formats object', () => {
+    const rtObjectMax5 = runType<{a: Max5}>() as BaseRunType;
+    const isTypeObjectMax5 = rtObjectMax5.createJitFunction(JitFunctions.isType);
+    expect(isTypeObjectMax5({a: 'a'})).toBe(true);
+    expect(isTypeObjectMax5({a: 'aaaaa'})).toBe(true);
+    expect(isTypeObjectMax5({a: 'aaaaaa'})).toBe(false);
+});
+
+it('isType Formats list', () => {
+    const rtListMax5 = runType<Max5[]>() as BaseRunType;
+    const isTypeListMax5 = rtListMax5.createJitFunction(JitFunctions.isType);
+    expect(isTypeListMax5(['a'])).toBe(true);
+    expect(isTypeListMax5(['aaaaa'])).toBe(true);
+    expect(isTypeListMax5(['aaaaaa'])).toBe(false);
 });

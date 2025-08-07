@@ -139,9 +139,9 @@ export function mionGetIPErrors(utl: JITUtils) {
         name = 'ip'
     ): TypeFormatError[] {
         if (p.version === 4 && !is_ip_v4(ip, p, noopDeps))
-            return fErrs.push({name, formatPath: [...fPath, 'version'], val: 4}), fErrs;
+            return (fErrs.push({name, formatPath: [...fPath, 'version'], val: 4}), fErrs);
         if (p.version === 6 && !is_ip_v6(ip, p, noopDeps))
-            return fErrs.push({name, formatPath: [...fPath, 'version'], val: 6}), fErrs;
+            return (fErrs.push({name, formatPath: [...fPath, 'version'], val: 6}), fErrs);
         const isIP = is_ip_v4(ip, p, noopDeps) || is_ip_v6(ip, p, noopDeps);
         if (!isIP) fErrs.push({name, formatPath: ['version'], val: 'any'});
         return fErrs;
@@ -183,9 +183,9 @@ export type FormatParams_IP = {
     // TODO: allow port
     allowPort?: FormatParam<boolean>;
 };
-export type FormatIP<P extends FormatParams_IP = DEFAULT_IP_PARAMS> = TypeFormat<string, 'ip', P>;
-export type FormatIPV4 = FormatIP<{version: 4; allowLocalHost: true}>;
-export type FormatIPV6 = FormatIP<{version: 6; allowLocalHost: true}>;
-export type FormatIPWithPort = FormatIP<{version: 'any'; allowLocalHost: true; allowPort: true}>;
-export type FormatIPV4WithPort = FormatIP<{version: 4; allowLocalHost: true; allowPort: true}>;
-export type FormatIPV6WithPort = FormatIP<{version: 6; allowLocalHost: true; allowPort: true}>;
+export type StrIP<P extends FormatParams_IP = DEFAULT_IP_PARAMS> = TypeFormat<string, 'ip', P>;
+export type StrIPv4 = StrIP<{version: 4; allowLocalHost: true}>;
+export type StrIPv6 = StrIP<{version: 6; allowLocalHost: true}>;
+export type StrIPWithPort = StrIP<{version: 'any'; allowLocalHost: true; allowPort: true}>;
+export type StrIPv4WithPort = StrIP<{version: 4; allowLocalHost: true; allowPort: true}>;
+export type StrIPv6WithPort = StrIP<{version: 6; allowLocalHost: true; allowPort: true}>;

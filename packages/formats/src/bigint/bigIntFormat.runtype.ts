@@ -179,13 +179,6 @@ export const BIGINT_RUN_TYPE_FORMATTER = registerFormatter(new BigIntRunTypeForm
 
 // ############### BigInt Format Params ###############
 
-// Define the type for bigint format
-export type FormatBigInt<P extends Partial<FormatParams_BigIntValidators> = {}> = TypeFormat<
-    bigint,
-    typeof BigIntRunTypeFormat.id,
-    P
->;
-
 type BigIntMax =
     | {max?: bigint | {val: bigint; errorMessage: string; desc?: string}; gt?: never}
     | {max?: never; gt?: bigint | {val: bigint; errorMessage: string; desc?: string}};
@@ -198,3 +191,10 @@ export type FormatParams_BigIntValidators = BigIntMax &
     BigIntMin & {
         multipleOf?: bigint | {val: bigint; errorMessage: string; desc?: string};
     };
+
+// Define the type for bigint format
+export type BigNumFormat<P extends Partial<FormatParams_BigIntValidators> = {}> = TypeFormat<
+    bigint,
+    typeof BigIntRunTypeFormat.id,
+    P
+>;
