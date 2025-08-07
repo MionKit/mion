@@ -8,21 +8,20 @@
 import {isTypeFn, mockTypeFn, typeErrorsFn} from '@mionkit/run-types/src/runTypeFunctions';
 import {RunTypeError, TypeFormatError} from '@mionkit/core/src/types';
 import {
-    FormatInteger,
-    FormatFloat,
-    FormatPositive,
-    FormatNegative,
-    FormatPositiveInteger,
-    FormatNegativeInteger,
-    FormatInt32,
-    FormatUint32,
-    FormatInt64,
+    NumInteger,
+    NumFloat,
+    NumPositive,
+    NumNegative,
+    NumPositiveInt,
+    NumNegativeInt,
+    NumInt32,
+    NumUInt32,
 } from './defaultNumberFormats';
 
 // #### Integer ####
 
-it('validate FormatInteger', async () => {
-    const isType = await isTypeFn<FormatInteger>();
+it('validate NumInteger', async () => {
+    const isType = await isTypeFn<NumInteger>();
     expect(isType(10)).toBe(true);
     expect(isType(-5)).toBe(true);
     expect(isType(0)).toBe(true);
@@ -30,8 +29,8 @@ it('validate FormatInteger', async () => {
     expect(isType(-5.5)).toBe(false);
 });
 
-it('get FormatInteger errors', async () => {
-    const typeErrors = await typeErrorsFn<FormatInteger>();
+it('get NumInteger errors', async () => {
+    const typeErrors = await typeErrorsFn<NumInteger>();
     const format: TypeFormatError = {name: 'numberFormat', val: true, formatPath: ['integer']};
     const expectedError: RunTypeError = {expected: 'number', path: [], format};
     expect(typeErrors(10)).toEqual([]);
@@ -41,8 +40,8 @@ it('get FormatInteger errors', async () => {
     expect(typeErrors(-5.5)).toEqual([expectedError]);
 });
 
-it('mock FormatInteger', async () => {
-    const mockType = await mockTypeFn<FormatInteger>();
+it('mock NumInteger', async () => {
+    const mockType = await mockTypeFn<NumInteger>();
     const mockedItems = Array.from({length: 20}, () => mockType());
     for (const item of mockedItems) {
         expect(Number.isInteger(item)).toBe(true);
@@ -51,8 +50,8 @@ it('mock FormatInteger', async () => {
 
 // #### Float ####
 
-it('validate FormatFloat', async () => {
-    const isType = await isTypeFn<FormatFloat>();
+it('validate NumFloat', async () => {
+    const isType = await isTypeFn<NumFloat>();
     expect(isType(10)).toBe(false);
     expect(isType(-5)).toBe(false);
     expect(isType(0)).toBe(false);
@@ -60,8 +59,8 @@ it('validate FormatFloat', async () => {
     expect(isType(-5.5)).toBe(true);
 });
 
-it('get FormatFloat errors', async () => {
-    const typeErrors = await typeErrorsFn<FormatFloat>();
+it('get NumFloat errors', async () => {
+    const typeErrors = await typeErrorsFn<NumFloat>();
     const format: TypeFormatError = {name: 'numberFormat', val: true, formatPath: ['float']};
     const expectedError: RunTypeError = {expected: 'number', path: [], format};
     expect(typeErrors(10)).toEqual([expectedError]);
@@ -71,8 +70,8 @@ it('get FormatFloat errors', async () => {
     expect(typeErrors(-5.5)).toEqual([]);
 });
 
-it('mock FormatFloat', async () => {
-    const mockType = await mockTypeFn<FormatFloat>();
+it('mock NumFloat', async () => {
+    const mockType = await mockTypeFn<NumFloat>();
     const mockedItems = Array.from({length: 20}, () => mockType());
     for (const item of mockedItems) {
         expect(Number.isInteger(item)).toBe(false);
@@ -81,8 +80,8 @@ it('mock FormatFloat', async () => {
 
 // #### Positive ####
 
-it('validate FormatPositive', async () => {
-    const isType = await isTypeFn<FormatPositive>();
+it('validate NumPositive', async () => {
+    const isType = await isTypeFn<NumPositive>();
     expect(isType(10)).toBe(true);
     expect(isType(0)).toBe(true);
     expect(isType(-5)).toBe(false);
@@ -90,8 +89,8 @@ it('validate FormatPositive', async () => {
     expect(isType(-5.5)).toBe(false);
 });
 
-it('get FormatPositive errors', async () => {
-    const typeErrors = await typeErrorsFn<FormatPositive>();
+it('get NumPositive errors', async () => {
+    const typeErrors = await typeErrorsFn<NumPositive>();
     const format: TypeFormatError = {name: 'numberFormat', val: 0, formatPath: ['min']};
     const expectedError: RunTypeError = {expected: 'number', path: [], format};
     expect(typeErrors(10)).toEqual([]);
@@ -101,8 +100,8 @@ it('get FormatPositive errors', async () => {
     expect(typeErrors(-5.5)).toEqual([expectedError]);
 });
 
-it('mock FormatPositive', async () => {
-    const mockType = await mockTypeFn<FormatPositive>();
+it('mock NumPositive', async () => {
+    const mockType = await mockTypeFn<NumPositive>();
     const mockedItems = Array.from({length: 20}, () => mockType());
     for (const item of mockedItems) {
         expect(item).toBeGreaterThanOrEqual(0);
@@ -111,8 +110,8 @@ it('mock FormatPositive', async () => {
 
 // #### Negative ####
 
-it('validate FormatNegative', async () => {
-    const isType = await isTypeFn<FormatNegative>();
+it('validate NumNegative', async () => {
+    const isType = await isTypeFn<NumNegative>();
     expect(isType(-10)).toBe(true);
     expect(isType(0)).toBe(true);
     expect(isType(5)).toBe(false);
@@ -120,8 +119,8 @@ it('validate FormatNegative', async () => {
     expect(isType(5.5)).toBe(false);
 });
 
-it('get FormatNegative errors', async () => {
-    const typeErrors = await typeErrorsFn<FormatNegative>();
+it('get NumNegative errors', async () => {
+    const typeErrors = await typeErrorsFn<NumNegative>();
     const format: TypeFormatError = {name: 'numberFormat', val: 0, formatPath: ['max']};
     const expectedError: RunTypeError = {expected: 'number', path: [], format};
     expect(typeErrors(-10)).toEqual([]);
@@ -131,8 +130,8 @@ it('get FormatNegative errors', async () => {
     expect(typeErrors(5.5)).toEqual([expectedError]);
 });
 
-it('mock FormatNegative', async () => {
-    const mockType = await mockTypeFn<FormatNegative>();
+it('mock NumNegative', async () => {
+    const mockType = await mockTypeFn<NumNegative>();
     const mockedItems = Array.from({length: 20}, () => mockType());
     for (const item of mockedItems) {
         expect(item).toBeLessThanOrEqual(0);
@@ -141,8 +140,8 @@ it('mock FormatNegative', async () => {
 
 // #### PositiveInteger ####
 
-it('validate FormatPositiveInteger', async () => {
-    const isType = await isTypeFn<FormatPositiveInteger>();
+it('validate NumPositiveInteger', async () => {
+    const isType = await isTypeFn<NumPositiveInt>();
     expect(isType(10)).toBe(true);
     expect(isType(0)).toBe(true);
     expect(isType(-5)).toBe(false);
@@ -150,8 +149,8 @@ it('validate FormatPositiveInteger', async () => {
     expect(isType(-5.5)).toBe(false);
 });
 
-it('get FormatPositiveInteger errors', async () => {
-    const typeErrors = await typeErrorsFn<FormatPositiveInteger>();
+it('get NumPositiveInteger errors', async () => {
+    const typeErrors = await typeErrorsFn<NumPositiveInt>();
 
     // Min error
     const minFormat: TypeFormatError = {name: 'numberFormat', val: 0, formatPath: ['min']};
@@ -168,8 +167,8 @@ it('get FormatPositiveInteger errors', async () => {
     expect(typeErrors(-5.5)).toEqual([integerError]); // Only reports first error
 });
 
-it('mock FormatPositiveInteger', async () => {
-    const mockType = await mockTypeFn<FormatPositiveInteger>();
+it('mock NumPositiveInteger', async () => {
+    const mockType = await mockTypeFn<NumPositiveInt>();
     const mockedItems = Array.from({length: 20}, () => mockType());
     for (const item of mockedItems) {
         expect(Number.isInteger(item)).toBe(true);
@@ -179,8 +178,8 @@ it('mock FormatPositiveInteger', async () => {
 
 // #### NegativeInteger ####
 
-it('validate FormatNegativeInteger', async () => {
-    const isType = await isTypeFn<FormatNegativeInteger>();
+it('validate NumNegativeInteger', async () => {
+    const isType = await isTypeFn<NumNegativeInt>();
     expect(isType(-10)).toBe(true);
     expect(isType(0)).toBe(true);
     expect(isType(5)).toBe(false);
@@ -188,8 +187,8 @@ it('validate FormatNegativeInteger', async () => {
     expect(isType(5.5)).toBe(false);
 });
 
-it('get FormatNegativeInteger errors', async () => {
-    const typeErrors = await typeErrorsFn<FormatNegativeInteger>();
+it('get NumNegativeInteger errors', async () => {
+    const typeErrors = await typeErrorsFn<NumNegativeInt>();
 
     // Max error
     const maxFormat: TypeFormatError = {name: 'numberFormat', val: 0, formatPath: ['max']};
@@ -206,8 +205,8 @@ it('get FormatNegativeInteger errors', async () => {
     expect(typeErrors(5.5)).toEqual([integerError]); // Only reports first error
 });
 
-it('mock FormatNegativeInteger', async () => {
-    const mockType = await mockTypeFn<FormatNegativeInteger>();
+it('mock NumNegativeInteger', async () => {
+    const mockType = await mockTypeFn<NumNegativeInt>();
     const mockedItems = Array.from({length: 20}, () => mockType());
     for (const item of mockedItems) {
         expect(Number.isInteger(item)).toBe(true);
@@ -217,8 +216,8 @@ it('mock FormatNegativeInteger', async () => {
 
 // #### Int32 ####
 
-it('validate FormatInt32', async () => {
-    const isType = await isTypeFn<FormatInt32>();
+it('validate NumInt32', async () => {
+    const isType = await isTypeFn<NumInt32>();
     expect(isType(0)).toBe(true);
     expect(isType(2147483647)).toBe(true);
     expect(isType(-2147483648)).toBe(true);
@@ -227,8 +226,8 @@ it('validate FormatInt32', async () => {
     expect(isType(10.5)).toBe(false);
 });
 
-it('get FormatInt32 errors', async () => {
-    const typeErrors = await typeErrorsFn<FormatInt32>();
+it('get NumInt32 errors', async () => {
+    const typeErrors = await typeErrorsFn<NumInt32>();
 
     // Min error
     const minFormat: TypeFormatError = {name: 'numberFormat', val: -2147483648, formatPath: ['min']};
@@ -250,8 +249,8 @@ it('get FormatInt32 errors', async () => {
     expect(typeErrors(10.5)).toEqual([integerError]);
 });
 
-it('mock FormatInt32', async () => {
-    const mockType = await mockTypeFn<FormatInt32>();
+it('mock NumInt32', async () => {
+    const mockType = await mockTypeFn<NumInt32>();
     const mockedItems = Array.from({length: 20}, () => mockType());
     for (const item of mockedItems) {
         expect(Number.isInteger(item)).toBe(true);
@@ -262,8 +261,8 @@ it('mock FormatInt32', async () => {
 
 // #### Uint32 ####
 
-it('validate FormatUint32', async () => {
-    const isType = await isTypeFn<FormatUint32>();
+it('validate NumUint32', async () => {
+    const isType = await isTypeFn<NumUInt32>();
     expect(isType(0)).toBe(true);
     expect(isType(4294967295)).toBe(true);
     expect(isType(-1)).toBe(false);
@@ -271,8 +270,8 @@ it('validate FormatUint32', async () => {
     expect(isType(10.5)).toBe(false);
 });
 
-it('get FormatUint32 errors', async () => {
-    const typeErrors = await typeErrorsFn<FormatUint32>();
+it('get NumUint32 errors', async () => {
+    const typeErrors = await typeErrorsFn<NumUInt32>();
 
     // Min error
     const minFormat: TypeFormatError = {name: 'numberFormat', val: 0, formatPath: ['min']};
@@ -293,55 +292,12 @@ it('get FormatUint32 errors', async () => {
     expect(typeErrors(10.5)).toEqual([integerError]);
 });
 
-it('mock FormatUint32', async () => {
-    const mockType = await mockTypeFn<FormatUint32>();
+it('mock NumUint32', async () => {
+    const mockType = await mockTypeFn<NumUInt32>();
     const mockedItems = Array.from({length: 20}, () => mockType());
     for (const item of mockedItems) {
         expect(Number.isInteger(item)).toBe(true);
         expect(item).toBeGreaterThanOrEqual(0);
         expect(item).toBeLessThanOrEqual(4294967295);
-    }
-});
-
-// #### Int64 ####
-
-it('validate FormatInt64', async () => {
-    const isType = await isTypeFn<FormatInt64>();
-    expect(isType(0)).toBe(true);
-    expect(isType(Number.MAX_SAFE_INTEGER)).toBe(true);
-    expect(isType(-9223372036854775808)).toBe(true);
-    expect(isType(Number.MAX_SAFE_INTEGER + 1)).toBe(false); // Exceeds max
-    expect(isType(10.5)).toBe(false); // Not an integer
-});
-
-it('get FormatInt64 errors', async () => {
-    const typeErrors = await typeErrorsFn<FormatInt64>();
-
-    // Min error
-    const minFormat: TypeFormatError = {name: 'numberFormat', val: -9223372036854775808, formatPath: ['min']};
-    const minError: RunTypeError = {expected: 'number', path: [], format: minFormat};
-
-    // Max error
-    const maxFormat: TypeFormatError = {name: 'numberFormat', val: Number.MAX_SAFE_INTEGER, formatPath: ['max']};
-    const maxError: RunTypeError = {expected: 'number', path: [], format: maxFormat};
-
-    // Integer error
-    const integerFormat: TypeFormatError = {name: 'numberFormat', val: true, formatPath: ['integer']};
-    const integerError: RunTypeError = {expected: 'number', path: [], format: integerFormat};
-
-    expect(typeErrors(0)).toEqual([]);
-    expect(typeErrors(Number.MAX_SAFE_INTEGER)).toEqual([]);
-    expect(typeErrors(-9223372036854775808)).toEqual([]);
-    expect(typeErrors(Number.MAX_SAFE_INTEGER + 1)).toEqual([maxError]);
-    expect(typeErrors(10.5)).toEqual([integerError]);
-});
-
-it('mock FormatInt64', async () => {
-    const mockType = await mockTypeFn<FormatInt64>();
-    const mockedItems = Array.from({length: 20}, () => mockType());
-    for (const item of mockedItems) {
-        expect(Number.isInteger(item)).toBe(true);
-        expect(item).toBeGreaterThanOrEqual(-9223372036854775808);
-        expect(item).toBeLessThanOrEqual(Number.MAX_SAFE_INTEGER);
     }
 });

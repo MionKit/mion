@@ -24,7 +24,7 @@ import {fpVal} from '@mionkit/run-types/src/lib/utils';
  * It is used to define the number format and its parameters.
  * Jit code will be generated for each one of the NumberFormat parameters.
  */
-export class NumberRunTypeFormat extends BaseRunTypeFormat<FormatParams_NumberValidators> {
+export class NumberRunTypeFormat extends BaseRunTypeFormat<NumberValidators> {
     static readonly id = 'numberFormat' as const;
     readonly kind = ReflectionKind.number;
     readonly name = NumberRunTypeFormat.id;
@@ -161,7 +161,7 @@ export class NumberRunTypeFormat extends BaseRunTypeFormat<FormatParams_NumberVa
         return result;
     }
 
-    validateParams(rt: BaseRunType, params: FormatParams_NumberValidators): void {
+    validateParams(rt: BaseRunType, params: NumberValidators): void {
         // Check for conflicting parameters
         if (params.integer && params.float) {
             throw new Error(`Cannot specify both integer and float in ${this.printPath(rt)}`);
@@ -214,13 +214,6 @@ export const NUMBER_RUN_TYPE_FORMATTER = registerFormatter(new NumberRunTypeForm
 
 // ############### Number Format Params ###############
 
-// Define the type for number format
-export type FormatNumber<P extends Partial<FormatParams_NumberValidators> = {}> = TypeFormat<
-    number,
-    typeof NumberRunTypeFormat.id,
-    P
->;
-
 type NumberMax =
     | {max?: number | {val: number; errorMessage: string; desc?: string}; gt?: never}
     | {max?: never; gt?: number | {val: number; errorMessage: string; desc?: string}};
@@ -232,8 +225,11 @@ type NumberType =
     | {integer?: never; float?: boolean | {val: boolean; errorMessage: string; desc?: string}};
 
 // Define the type for number format parameters
-export type FormatParams_NumberValidators = NumberMax &
+export type NumberValidators = NumberMax &
     NumberMin &
     NumberType & {
         multipleOf?: number | {val: number; errorMessage: string; desc?: string};
     };
+
+// Define the type for number format
+export type NumFormat<P extends Partial<NumberValidators>> = TypeFormat<number, typeof NumberRunTypeFormat.id, P>;

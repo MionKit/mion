@@ -52,8 +52,8 @@ export class DateTimeRunTypeFormat extends BaseRunTypeFormat<FormatParams_DateTi
         const vSplitPos = 'splitPos' + this.getFormatNestLevel(); // Position of split character
 
         // Compile code for root, date part, and time part validation
-        const dateCode = this.dateFormatter._compile(fnID, comp, rt, params.date, vDatePart, fmtName);
-        const timeCode = this.timeFormatter._compile(fnID, comp, rt, params.time, vTimePart, fmtName);
+        const dateCode = this.dateFormatter.compileFormat(fnID, comp, rt, params.date, vDatePart, fmtName);
+        const timeCode = this.timeFormatter.compileFormat(fnID, comp, rt, params.time, vTimePart, fmtName);
 
         // If rootCode is empty, we don't need to emit jit code for it
         const returnCode = this.isRootFormat() ? `return true;` : '';
@@ -81,8 +81,8 @@ export class DateTimeRunTypeFormat extends BaseRunTypeFormat<FormatParams_DateTi
         const vSplitPos = 'splitPos'; // Position of split character
 
         // Compile code for root, date part, and time part validation
-        const dateCode = this.dateFormatter._compile(fnID, comp, rt, params.date, vDatePart, fmtName);
-        const timeCode = this.timeFormatter._compile(fnID, comp, rt, params.time, vTimePart, fmtName);
+        const dateCode = this.dateFormatter.compileFormat(fnID, comp, rt, params.date, vDatePart, fmtName);
+        const timeCode = this.timeFormatter.compileFormat(fnID, comp, rt, params.time, vTimePart, fmtName);
 
         const code = `
             const ${vSplitPos} = ${vλl}.indexOf('${splitChar}');
@@ -126,7 +126,7 @@ export type FormatParams_DateTime = {
     splitChar: FormatParam<string>;
 };
 
-export type FormatDateTime<P extends Partial<FormatParams_DateTime> = {}> = TypeFormat<
+export type StrDateTime<P extends Partial<FormatParams_DateTime> = {}> = TypeFormat<
     string,
     typeof DateTimeRunTypeFormat.id,
     DEFAULT_DATE_TIME_PARAMS & P

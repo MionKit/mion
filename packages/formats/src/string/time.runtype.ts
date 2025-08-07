@@ -253,7 +253,7 @@ export type DEFAULT_TIME_FORMAT_PARAMS = {format: 'ISO'};
 
 type TimeFmt = 'ISO' | 'HH:mm:ss[.mmm]TZ' | 'HH:mm:ss[.mmm]' | 'HH:mm:ss' | 'HH:mm' | 'mm:ss' | 'HH' | 'mm' | 'ss';
 export type FormatParams_Time = {format: FormatParam<TimeFmt>};
-export type FormatTime<P extends FormatParams_Time = DEFAULT_TIME_FORMAT_PARAMS> = TypeFormat<
+export type StrTime<P extends FormatParams_Time = DEFAULT_TIME_FORMAT_PARAMS> = TypeFormat<
     string,
     typeof TimeStringRunTypeFormat.id,
     P

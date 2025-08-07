@@ -75,5 +75,5 @@ export const UUID_RUN_TYPE_FORMATTER = registerFormatter(new UUIDRunTypeFormat()
 // ############### Type  ###############
 
 type FormatParams_UUID = {version: FormatParam<'4' | '7'>};
-export type FormatUUIDV4 = TypeFormat<string, typeof UUIDRunTypeFormat.id, {version: '4'}>;
-export type FormatUUIDV7 = TypeFormat<string, typeof UUIDRunTypeFormat.id, {version: '7'}>;
+export type StrUUIDv4 = TypeFormat<string, typeof UUIDRunTypeFormat.id, {version: '4'}>;
+export type StrUUIDv7 = TypeFormat<string, typeof UUIDRunTypeFormat.id, {version: '7'}>;

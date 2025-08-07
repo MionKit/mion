@@ -137,7 +137,7 @@ export abstract class BaseRunTypeFormat<P extends TypeFormatParams = any> {
         // TODO: decide if we should add parent compiler or not as parent to createJitCompiler
         const newJitCompiler: JitCompiler = createJitCompiler(rt, fnID, undefined, jitFnHash, hash, opts) as JitCompiler;
         try {
-            const formatterCode = this._compile(fnID, newJitCompiler, rt, params, vλl, formatName);
+            const formatterCode = this.compileFormat(fnID, newJitCompiler, rt, params, vλl, formatName);
             const withReturn = this.handleReturnValues(rt, newJitCompiler, fnID, formatterCode || '');
             newJitCompiler.compile(withReturn);
             comp?.updateDependencies(newJitCompiler as JitCompiledFn);
@@ -151,7 +151,7 @@ export abstract class BaseRunTypeFormat<P extends TypeFormatParams = any> {
         return newJitCompiler as JitCompiledFn;
     }
 
-    _compile(
+    compileFormat(
         fnID: JitFnID,
         comp: JitCompiler,
         rt: BaseRunType,

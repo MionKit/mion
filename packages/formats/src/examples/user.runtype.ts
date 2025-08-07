@@ -6,9 +6,9 @@
  * ######## */
 
 // Import string formats types
-import * as SFormat from '../SFormat';
+import {StrFormat, StrUUIDv4, StrEmail, StrUrl, StrDate, StrDateTime} from '@mionkit/formats/src/StringFormats';
 // Import number formats types
-import * as NFormat from '../NFormat';
+import {NumFormat, NumPositiveInt, NumPositive} from '@mionkit/formats/src/NumberFormats';
 
 /**
  * Example User object demonstrating various Runtype Formats
@@ -21,28 +21,26 @@ import * as NFormat from '../NFormat';
 
 export type User = {
     // Basic identification
-    id: SFormat.UUID; // UUID v4 format
-    email: SFormat.Email; // Email validation
+    id: StrUUIDv4; // UUID v4 format
+    email: StrEmail; // Email validation
 
     // Personal information with string constraints
-    firstName: SFormat.FormatString<{
+    firstName: StrFormat<{
         minLength: 2;
         maxLength: 50;
         pattern: NamePattern;
         trim: true;
-        capitalize: true;
     }>;
 
-    lastName: SFormat.FormatString<{
+    lastName: StrFormat<{
         minLength: 2;
         maxLength: 50;
         pattern: NamePattern;
         trim: true;
-        capitalize: true;
     }>;
 
     // Username with specific constraints
-    username: SFormat.FormatString<{
+    username: StrFormat<{
         minLength: 3;
         maxLength: 20;
         pattern: UsernamePattern;
@@ -51,15 +49,15 @@ export type User = {
     }>;
 
     // Phone number with international format
-    phoneNumber: SFormat.FormatString<{
+    phoneNumber: StrFormat<{
         pattern: PhonePattern;
     }>;
 
     // Website URL (optional)
-    website?: SFormat.Url;
+    website?: StrUrl;
 
     // Bio with length constraints
-    bio?: SFormat.FormatString<{
+    bio?: StrFormat<{
         maxLength: 500;
         trim: true;
     }>;
@@ -67,64 +65,64 @@ export type User = {
     // ############### Number Format Examples ###############
 
     // Age with realistic constraints
-    age: NFormat.FormatNumber<{
+    age: NumFormat<{
         min: 13; // Minimum age for most platforms
         max: 120; // Realistic maximum age
         integer: true;
     }>;
 
     // Account balance (can be negative for overdrafts)
-    accountBalance: NFormat.FormatNumber<{
+    accountBalance: NumFormat<{
         min: -10000; // Maximum overdraft
         max: 1000000; // Maximum balance
         multipleOf: 0.01; // Precision to cents
     }>;
 
     // Credit score
-    creditScore: NFormat.FormatNumber<{
+    creditScore: NumFormat<{
         min: 300;
         max: 850;
         integer: true;
     }>;
 
     // Rating (1-5 stars)
-    rating?: NFormat.FormatNumber<{
+    rating?: NumFormat<{
         min: 1;
         max: 5;
         multipleOf: 0.5; // Allow half stars
     }>;
 
     // Number of followers (positive integer)
-    followersCount: NFormat.PositiveInteger;
+    followersCount: NumPositiveInt;
 
     // Monthly income (positive number)
-    monthlyIncome?: NFormat.Positive;
+    monthlyIncome?: NumPositive;
 
     // ############### Additional Examples ###############
 
     // Date formats
-    birthDate: SFormat.Date;
-    lastLoginAt?: SFormat.DateTime;
+    birthDate: StrDate;
+    lastLoginAt?: StrDateTime;
 
     // Address components
     address?: {
-        street: SFormat.FormatString<{
+        street: StrFormat<{
             minLength: 5;
             maxLength: 100;
             trim: true;
         }>;
-        city: SFormat.FormatString<{
+        city: StrFormat<{
             minLength: 2;
             maxLength: 50;
             pattern: CityPattern;
             trim: true;
         }>;
-        zipCode: SFormat.FormatString<{
+        zipCode: StrFormat<{
             pattern: PostalCodePattern;
             uppercase: true;
             trim: true;
         }>;
-        country: SFormat.FormatString<{
+        country: StrFormat<{
             minLength: 2;
             maxLength: 2;
             pattern: CountryCodePattern;
@@ -134,9 +132,9 @@ export type User = {
 
     // Preferences
     preferences?: {
-        theme: SFormat.FormatString<{allowedValues: ThemeValues}>;
-        language: SFormat.FormatString<{pattern: LanguageCodePattern; lowercase: true}>;
-        timezone: SFormat.FormatString<{pattern: TimezonePattern}>;
+        theme: StrFormat<{allowedValues: ThemeValues}>;
+        language: StrFormat<{pattern: LanguageCodePattern; lowercase: true}>;
+        timezone: StrFormat<{pattern: TimezonePattern}>;
     };
 };
 

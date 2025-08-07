@@ -5,14 +5,13 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {FormatNumber} from './numberFormnat.runtype';
+import {NumFormat} from './numberFormnat.runtype';
 
-export type FormatInteger = FormatNumber<{integer: true}>;
-export type FormatFloat = FormatNumber<{float: true}>;
-export type FormatPositive = FormatNumber<{min: 0}>;
-export type FormatNegative = FormatNumber<{max: 0}>;
-export type FormatPositiveInteger = FormatNumber<{min: 0; integer: true}>;
-export type FormatNegativeInteger = FormatNumber<{max: 0; integer: true}>;
-export type FormatInt32 = FormatNumber<{integer: true; min: -2147483648; max: 2147483647}>;
-export type FormatUint32 = FormatNumber<{integer: true; min: 0; max: 4294967295}>;
-export type FormatInt64 = FormatNumber<{integer: true; min: -9223372036854775808; max: typeof Number.MAX_SAFE_INTEGER}>;
+export type NumInteger = NumFormat<{integer: true}>;
+export type NumFloat = NumFormat<{float: true}>;
+export type NumPositive = NumFormat<{min: 0}>;
+export type NumNegative = NumFormat<{max: 0}>;
+export type NumPositiveInt = NumFormat<{min: 0; integer: true}>;
+export type NumNegativeInt = NumFormat<{max: 0; integer: true}>;
+export type NumInt32 = NumFormat<{integer: true; min: -2147483648; max: 2147483647}>;
+export type NumUInt32 = NumFormat<{integer: true; min: 0; max: 4294967295}>;

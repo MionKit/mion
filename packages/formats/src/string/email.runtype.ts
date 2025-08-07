@@ -13,7 +13,7 @@ import {ReflectionKind} from '@deepkit/type';
 import {DEFAULT_STRICT_DOMAIN_PARAMS, FormatParams_Domain} from './domain.runtype';
 import {TypeFormat} from '@mionkit/run-types/src/lib/formats.runtype';
 import {RunTypeOptions} from '@mionkit/run-types/src/types';
-import {StringRunTypeFormat, stringIgnoreProps, FormatParams_StringValidators, Samples} from './stringFormat.runtype';
+import {StringRunTypeFormat, stringIgnoreProps, StringValidators, Samples} from './stringFormat.runtype';
 import {DomainRunTypeFormat} from './domain.runtype';
 import {registerFormatter} from '@mionkit/run-types/src/lib/formats';
 import {EMAIL_NAME_SAMPLES_ARRAY, EMAIL_NAME_SAMPLES, EMAIL_SAMPLES, EMAIL_SAMPLES_PUNYCODE} from '../constants.mock'; // do not import using type
@@ -66,7 +66,7 @@ export class EmailRunTypeFormat extends BaseRunTypeFormat<FormatParams_Email> {
         const fmtName = this.getFormatName();
 
         // If pattern is provided, use the root formatter
-        if (params.pattern) return this.rootFormatter._compile(fnID, comp, rt, params, comp.vλl, fmtName);
+        if (params.pattern) return this.rootFormatter.compileFormat(fnID, comp, rt, params, comp.vλl, fmtName);
 
         const vλl = comp.vλl;
         const vLocalPart = 'localPart' + this.getFormatNestLevel(); // Variable for local part
@@ -74,9 +74,9 @@ export class EmailRunTypeFormat extends BaseRunTypeFormat<FormatParams_Email> {
         const vAtPos = 'atPos' + this.getFormatNestLevel(); // Position of @ symbol
 
         // Compile code for root, local part, and domain validation
-        const rootCode = this.rootFormatter._compile(fnID, comp, rt, params, vλl, fmtName);
-        const localPartCode = this.localPartFormatter._compile(fnID, comp, rt, params.localPart, vLocalPart, fmtName);
-        const domainCode = this.domainFormatter._compile(fnID, comp, rt, params.domain, vDomain, fmtName);
+        const rootCode = this.rootFormatter.compileFormat(fnID, comp, rt, params, vλl, fmtName);
+        const localPartCode = this.localPartFormatter.compileFormat(fnID, comp, rt, params.localPart, vLocalPart, fmtName);
+        const domainCode = this.domainFormatter.compileFormat(fnID, comp, rt, params.domain, vDomain, fmtName);
 
         // If rootCode is empty, we don't need to emit jit code for it
         const rootSafeCode = rootCode ? `if (!(${rootCode})) return false;` : '';
@@ -102,7 +102,7 @@ export class EmailRunTypeFormat extends BaseRunTypeFormat<FormatParams_Email> {
         const fmtName = this.getFormatName();
 
         // If pattern is provided, use the root formatter
-        if (params.pattern) return this.rootFormatter._compile(fnID, comp, rt, params, comp.vλl, fmtName);
+        if (params.pattern) return this.rootFormatter.compileFormat(fnID, comp, rt, params, comp.vλl, fmtName);
 
         const errFn = this.getCallJitFormatErr(comp, rt, this, true);
         const vλl = comp.vλl;
@@ -111,9 +111,9 @@ export class EmailRunTypeFormat extends BaseRunTypeFormat<FormatParams_Email> {
         const vAtPos = 'atPos'; // Position of @ symbol
 
         // Compile code for root, local part, and domain validation
-        const rootCode = this.rootFormatter._compile(fnID, comp, rt, params, vλl, fmtName);
-        const localPartCode = this.localPartFormatter._compile(fnID, comp, rt, params.localPart, vLocalPart, fmtName);
-        const domainCode = this.domainFormatter._compile(fnID, comp, rt, params.domain, vDomain, fmtName);
+        const rootCode = this.rootFormatter.compileFormat(fnID, comp, rt, params, vλl, fmtName);
+        const localPartCode = this.localPartFormatter.compileFormat(fnID, comp, rt, params.localPart, vLocalPart, fmtName);
+        const domainCode = this.domainFormatter.compileFormat(fnID, comp, rt, params.domain, vDomain, fmtName);
 
         const code = `
             ${rootCode ? `${rootCode};` : ''}
@@ -133,7 +133,7 @@ export class EmailRunTypeFormat extends BaseRunTypeFormat<FormatParams_Email> {
         if (params.pattern) return this.rootFormatter.mock(opts, rt, params);
 
         // Generate local part
-        const localPart = this.mockLocalPart(opts, rt, params.localPart as FormatParams_StringValidators);
+        const localPart = this.mockLocalPart(opts, rt, params.localPart as StringValidators);
 
         // Generate domain
         const domain = this.domainFormatter.mock(opts, rt, params.domain);
@@ -142,7 +142,7 @@ export class EmailRunTypeFormat extends BaseRunTypeFormat<FormatParams_Email> {
         return `${localPart}@${domain}`;
     }
 
-    private mockLocalPart(opts: RunTypeOptions, rt: BaseRunType, params: FormatParams_StringValidators): string {
+    private mockLocalPart(opts: RunTypeOptions, rt: BaseRunType, params: StringValidators): string {
         const hasParams = !!Object.keys(params).length;
         if (!hasParams) return randomItem(EMAIL_NAME_SAMPLES_ARRAY);
 
@@ -233,19 +233,16 @@ export type DEFAULT_EMAIL_PARAMS<
     };
 };
 
-export type FormatParams_EmailPattern = Omit<
-    FormatParams_StringValidators,
-    'length' | 'allowedChars' | 'disallowedChars' | 'allowedValues'
->;
+export type FormatParams_EmailPattern = Omit<StringValidators, 'length' | 'allowedChars' | 'disallowedChars' | 'allowedValues'>;
 
 export type FormatParams_Email = FormatParams_EmailPattern & {
-    localPart?: FormatParams_StringValidators;
+    localPart?: StringValidators;
     domain?: FormatParams_Domain;
 };
 
-export type FormatEmail<EP extends FormatParams_Email = DEFAULT_EMAIL_PARAMS> = TypeFormat<string, 'email', EP>;
-export type FormatEmailStrict<E extends Partial<FormatParams_Email> = {}> = FormatEmail<DEFAULT_STRICT_EMAIL_PARAMS & E>;
-export type FormatEmailPattern<EmailPattern extends RegExp, MockSamples extends Samples> = FormatEmail<
+export type StrEmail<EP extends FormatParams_Email = DEFAULT_EMAIL_PARAMS> = TypeFormat<string, 'email', EP>;
+export type StrEmailStrict<E extends Partial<FormatParams_Email> = {}> = StrEmail<DEFAULT_STRICT_EMAIL_PARAMS & E>;
+export type StrEmailPattern<EmailPattern extends RegExp, MockSamples extends Samples> = StrEmail<
     DEFAULT_EMAIL_PARAMS<EmailPattern, MockSamples>
 >;
-export type FormatEmailPunycode = FormatEmailPattern<typeof EMAIL_PATTERN_PUNYCODE, EMAIL_SAMPLES_PUNYCODE>;
+export type StrEmailPunycode = StrEmailPattern<typeof EMAIL_PATTERN_PUNYCODE, EMAIL_SAMPLES_PUNYCODE>;

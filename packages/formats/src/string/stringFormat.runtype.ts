@@ -32,7 +32,7 @@ export const stringIgnoreProps = ['samples', 'sampleChars'];
  * It is used to define the string format and its parameters.
  * Jit code will be generated for each one of the StringFormat parameters.
  */
-export class StringRunTypeFormat extends BaseRunTypeFormat<FormatParams_String> {
+export class StringRunTypeFormat extends BaseRunTypeFormat<StringParams> {
     static readonly id = 'stringFormat' as const;
     readonly kind = ReflectionKind.string;
     readonly name = StringRunTypeFormat.id;
@@ -128,7 +128,7 @@ export class StringRunTypeFormat extends BaseRunTypeFormat<FormatParams_String> 
         }
         return conditions.join(';');
     }
-    _mock(opts: RunTypeOptions, rt: BaseRunType, params?: FormatParams_String): string {
+    _mock(opts: RunTypeOptions, rt: BaseRunType, params?: StringParams): string {
         const p = params || this.getParams(rt);
         if (p.allowedValues) return randomItem(p.allowedValues.val as string[]);
 
@@ -151,7 +151,7 @@ export class StringRunTypeFormat extends BaseRunTypeFormat<FormatParams_String> 
 
         return this.mockString(p, allowedChars, disallowedChars);
     }
-    private mockString(p: FormatParams_String, allowedChars: string | undefined, disallowedChars: string | undefined): string {
+    private mockString(p: StringParams, allowedChars: string | undefined, disallowedChars: string | undefined): string {
         switch (true) {
             case p.length !== undefined:
                 return mockString(fpVal(p.length), allowedChars, disallowedChars);
@@ -167,7 +167,7 @@ export class StringRunTypeFormat extends BaseRunTypeFormat<FormatParams_String> 
                 return mockString(undefined, allowedChars, disallowedChars);
         }
     }
-    validateParams(rt: BaseRunType, p: FormatParams_String): void {
+    validateParams(rt: BaseRunType, p: StringParams): void {
         const throwIfInvalid = (v: any, name: string, subName: 'mockSamples' | 'val', skipLengthChecks = false) => {
             const err = getParamError(v, p, skipLengthChecks);
             if (err)
@@ -187,11 +187,11 @@ export class StringRunTypeFormat extends BaseRunTypeFormat<FormatParams_String> 
             throw new Error(`disallowedValues can not have more than 100 values in ${this.printPath(rt, 'disallowedValues')}`);
 
         const complexParams = [
-            {name: 'pattern', param: p.pattern as NonNullable<FormatParams_String['pattern']>},
-            {name: 'allowedChars', param: p.allowedChars as NonNullable<FormatParams_String['allowedChars']>},
-            {name: 'disallowedChars', param: p.disallowedChars as NonNullable<FormatParams_String['disallowedChars']>},
-            {name: 'allowedValues', param: p.allowedValues as NonNullable<FormatParams_String['allowedValues']>},
-            {name: 'disallowedValues', param: p.disallowedValues as NonNullable<FormatParams_String['disallowedValues']>},
+            {name: 'pattern', param: p.pattern as NonNullable<StringParams['pattern']>},
+            {name: 'allowedChars', param: p.allowedChars as NonNullable<StringParams['allowedChars']>},
+            {name: 'disallowedChars', param: p.disallowedChars as NonNullable<StringParams['disallowedChars']>},
+            {name: 'allowedValues', param: p.allowedValues as NonNullable<StringParams['allowedValues']>},
+            {name: 'disallowedValues', param: p.disallowedValues as NonNullable<StringParams['disallowedValues']>},
         ].filter((p) => p.param !== undefined);
 
         if (complexParams.length > 1) {
@@ -249,11 +249,11 @@ export function isPatternParam(p: any): p is FormatParam_Pattern {
     return isMessage && hasSamples && isSamples && isSampleChars && isRegexpObj;
 }
 
-export function patternParamsToStrParams(p: FormatParam_Pattern): FormatParams_String {
+export function patternParamsToStrParams(p: FormatParam_Pattern): StringParams {
     return {pattern: p};
 }
 
-function getParamError(v: any, p: FormatParams_String, skipLengthChecks = false): string | undefined {
+function getParamError(v: any, p: StringParams, skipLengthChecks = false): string | undefined {
     if (!skipLengthChecks) {
         if (p.maxLength !== undefined && v.length > p.maxLength) return 'maxLength';
         if (p.minLength !== undefined && v.length < p.minLength) return 'minLength';
@@ -266,7 +266,7 @@ function getParamError(v: any, p: FormatParams_String, skipLengthChecks = false)
     if (p.disallowedValues && p.disallowedValues.val.includes(v)) return 'disallowedValues';
 }
 
-function getDefaultMessage(name: keyof typeof defaultMessages, p: FormatParams_String): string {
+function getDefaultMessage(name: keyof typeof defaultMessages, p: StringParams): string {
     return p[name]?.errorMessage || defaultMessages[name];
 }
 
@@ -304,13 +304,14 @@ function valuesAllCases(stringList: string[]): string[] {
 
 // register Validator operations so they can be used in the jit compiler
 export const STRING_RUN_TYPE_FORMATTER = registerFormatter(new StringRunTypeFormat());
+console.log('STRING_RUN_TYPE_FORMATTER', STRING_RUN_TYPE_FORMATTER);
 
 // ############### String Format Params ###############
 
-export type FormatParam_Pattern = FormatParams_StringValidators['pattern'];
+export type FormatParam_Pattern = StringValidators['pattern'];
 export type Samples = string | readonly string[];
 
-export type FormatParams_StringValidators = {
+export type StringValidators = {
     // validators
     maxLength?: number | {val: number; errorMessage: string; desc?: string};
     minLength?: number | {val: number; errorMessage: string; desc?: string};
@@ -321,7 +322,7 @@ export type FormatParams_StringValidators = {
     allowedChars?: {val: string; errorMessage: string; desc?: string; ignoreCase?: boolean; mockSamples?: Samples};
     allowedValues?: {val: readonly string[]; errorMessage: string; desc?: string; ignoreCase?: boolean; mockSamples?: Samples};
 };
-export type FormatParams_StringTransformers = {
+export type StringTransformers = {
     // formatters
     lowercase?: boolean;
     uppercase?: boolean;
@@ -330,8 +331,8 @@ export type FormatParams_StringTransformers = {
     replace?: {searchValue: string; replaceValue: string};
     replaceAll?: {searchValue: string; replaceValue: string};
 };
-export type FormatParams_String = FormatParams_StringValidators & FormatParams_StringTransformers;
+export type StringParams = StringValidators & StringTransformers;
 
 // ############### Base String Format ###############
 
-export type FormatString<P extends FormatParams_String = {}> = TypeFormat<string, typeof StringRunTypeFormat.id, P>;
+export type StrFormat<P extends StringParams> = TypeFormat<string, typeof StringRunTypeFormat.id, P>;
