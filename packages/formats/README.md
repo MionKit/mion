@@ -30,11 +30,8 @@ Below is a list of available formats parsed from the spec files:
 ### String Formats
 
 - **Base String Format**
-
   - `StringFormat`: The base format for all string-related validations and transformations. It provides a set of customizable parameters that can be reused to create any custom string format. Below are the available parameters:
-
     - **Validators**:
-
       - `maxLength`: Maximum length of the string.
       - `minLength`: Minimum length of the string.
       - `length`: Exact length of the string.
@@ -53,24 +50,19 @@ Below is a list of available formats parsed from the spec files:
       - `replaceAll`: Replaces all occurrences of a substring with another value.
 
 - **UUID Formats**
-
   - `UUID_V4`: Validates UUID version 4.
   - `UUID_V7`: Validates UUID version 7.
 
 - **Time Formats**
-
   - `TimeString`: Supports formats like `ISO`, `HH:mm:ss[.mmm]TZ`, `HH:mm:ss`, `HH:mm`, `mm:ss`, `HH`, `mm`, `ss`.
 
 - **Date Formats**
-
   - `DateString`: Supports formats like `ISO`, `YYYY-MM-DD`, `DD-MM-YYYY`, `MM-DD-YYYY`, `MM-DD`, `DD-MM`, `YYYY-MM`.
 
 - **DateTime Formats**
-
   - `DateTimeString`: Combines date and time formats in a customizable way. Most common format is ISO, i.e., `YYYY-MM-DDTHH:mm:ssTZ`.
 
 - **String Validation Formats**
-
   - `AlphaString`: Validates strings containing only alphabetic characters.
   - `AlphaNumericString`: Validates strings containing only alphanumeric characters.
   - `NumericString`: Validates strings containing only numeric characters.
@@ -79,19 +71,15 @@ Below is a list of available formats parsed from the spec files:
   - `CapitalString`: Validates strings with the first letter capitalized.
 
 - **Domain Formats**
-
   - `Domain`: Validates domain names with customizable parameters for subdomains, TLDs, and length.
 
 - **Email Formats**
-
   - `Email`: Validates email addresses with customizable parameters for local parts and domains.
 
 - **IP Formats**
-
   - `IP`: Validates IP addresses (IPv4, IPv6, or both) with options for localhost and port inclusion.
 
 - **URL Formats**
-
   - `URL`: Validates URLs with customizable parameters for protocols, length, and allowed/disallowed characters.
 
 ## Example Usage
