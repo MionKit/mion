@@ -12,8 +12,8 @@ import {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
 import {PromiseRunType} from '../native/promise';
 import {ReflectionSubKind} from '../../constants.kind';
 import {FunctionParamsRunType} from '../collection/functionParams';
-import {JitCompiledFn} from '@mionkit/core/src/types';
-import {registerJitFunctionCompiler} from '@mionkit/run-types/src/lib/jitFnsRegistry';
+import {JitCompiledFn} from '@mionkit/core/types';
+import {registerJitFunctionCompiler} from '../../lib/jitFnsRegistry';
 import {JitFunctions} from '../../constants.functions';
 
 export class FunctionRunType<CallType extends AnyFunction = TypeFunction> extends BaseRunType<CallType> {

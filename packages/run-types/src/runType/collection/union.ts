@@ -13,7 +13,7 @@ import {childIsExpression, createIfElseFn} from '../../lib/utils';
 import {CodeType} from '../../constants.functions';
 import {JitFunctions} from '../../constants.functions';
 import {isClassRunType, isInterfaceRunType, isIntersectionRunType, isObjectLiteralRunType} from '../../lib/guards';
-import {markDiscriminators, splitUnionItems} from '@mionkit/run-types/src/runType/collection/unionDiscriminator';
+import {markDiscriminators, splitUnionItems} from './unionDiscriminator';
 
 /**
  * Unions get encoded into an array where arr[0] is the discriminator and arr[1] is the value.

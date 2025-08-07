@@ -24,14 +24,6 @@ export type User = {
     id: StrUUIDv4; // UUID v4 format
     email: StrEmail; // Email validation
 
-    // Personal information with string constraints
-    firstName: StrFormat<{
-        minLength: 2;
-        maxLength: 50;
-        pattern: NamePattern;
-        trim: true;
-    }>;
-
     lastName: StrFormat<{
         minLength: 2;
         maxLength: 50;
@@ -136,6 +128,14 @@ export type User = {
         language: StrFormat<{pattern: LanguageCodePattern; lowercase: true}>;
         timezone: StrFormat<{pattern: TimezonePattern}>;
     };
+
+    // Personal information with string constraints
+    firstName: StrFormat<{
+        minLength: 2;
+        maxLength: 50;
+        pattern: NamePattern;
+        trim: true;
+    }>;
 };
 
 // ############### Example Usage ###############

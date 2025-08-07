@@ -8,8 +8,8 @@
 import {ReflectionKind} from '@deepkit/type';
 import {ReflectionSubKind} from '../constants.kind';
 import {JitFunctions} from '../constants.functions';
-import {JitCompiler} from '@mionkit/run-types/src/lib/jitCompiler';
-import {createIfElseFn, isSafePropName} from '@mionkit/run-types/src/lib/utils';
+import {JitCompiler} from '../lib/jitCompiler';
+import {createIfElseFn, isSafePropName} from '../lib/utils';
 import type {IndexSignatureRunType} from '../runType/member/indexProperty';
 import type {jitCode, JitFnID} from '../types';
 import type {BaseRunType} from '../lib/baseRunTypes';
@@ -23,10 +23,10 @@ import type {FunctionParamsRunType} from '../runType/collection/functionParams';
 import type {UnionRunType} from '../runType/collection/union';
 import type {ParameterRunType} from '../runType/member/param';
 import type {RestParamsRunType} from '../runType/member/restParams';
-import type {ArrayRunType} from '@mionkit/run-types/src/runType/member/array';
+import type {ArrayRunType} from '../runType/member/array';
 import type {MemberRunType} from '../lib/baseRunTypes';
-import type {LiteralRunType} from '@mionkit/run-types/src/runType/atomic/literal';
-import type {IterableRunType} from '@mionkit/run-types/src/runType/native/Iterable';
+import type {LiteralRunType} from '../runType/atomic/literal';
+import type {IterableRunType} from '../runType/native/Iterable';
 
 type Operation = typeof JitFunctions.jsonStringify.id | typeof JitFunctions.toCode.id;
 

@@ -7,9 +7,9 @@
 import {TypeClass} from '@deepkit/type';
 import {InterfaceMember, InterfaceRunType} from './interface';
 import {JitCompiler} from '../../lib/jitCompiler';
-import {jitUtils} from '@mionkit/core/src/jitUtils';
-import {toLiteral} from '@mionkit/run-types/src/lib/utils';
-import {isConstructor} from '@mionkit/run-types/src/lib/guards';
+import {jitUtils} from '@mionkit/core/jitUtils';
+import {toLiteral} from '../../lib/utils';
+import {isConstructor} from '../../lib/guards';
 
 export class ClassRunType extends InterfaceRunType<TypeClass> {
     getClassName(): string {

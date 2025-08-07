@@ -5,20 +5,14 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {
-    PureFunctionClosure,
-    CompiledPureFunction,
-    PureFunction,
-    TypeFormatParams,
-    TypeFormatValue,
-} from '@mionkit/core/src/types';
+import {PureFunctionClosure, CompiledPureFunction, PureFunction, TypeFormatParams, TypeFormatValue} from '@mionkit/core/types';
 import {ReflectionKindName} from '../constants.kind';
 import type {FormatAnnotation} from '../types';
 import {typeAnnotation, ReflectionKind} from '@deepkit/type';
 import type {BaseRunType} from './baseRunTypes';
 import type {JitErrorsCompiler, JitCompiler} from './jitCompiler';
 import type {BaseRunTypeFormat} from './baseRunTypeFormat';
-import {jitUtils} from '../../../core/src/jitUtils';
+import {jitUtils} from '@mionkit/core/jitUtils';
 import {toLiteralInContext} from './utils';
 import {JitFunctions} from '../constants.functions';
 

@@ -8,7 +8,7 @@
 import type {TypeTuple} from '@deepkit/type';
 import type {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
 import type {AnyParameterListRunType, jitCode} from '../../types';
-import {FunctionParamsRunType} from '@mionkit/run-types/src/runType/collection/functionParams';
+import {FunctionParamsRunType} from './functionParams';
 
 export class TupleRunType<ParamList extends AnyParameterListRunType = TypeTuple> extends FunctionParamsRunType<ParamList> {
     _compileIsType(comp: JitCompiler): jitCode {
