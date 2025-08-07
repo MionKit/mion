@@ -2,9 +2,10 @@
   "extends": "../../tsconfig.json",
   "compilerOptions": {
     "outDir": ".dist/cjs",
-    "rootDir": "./src",
-    "paths": {}
+    "composite": true,
+    "rootDir": "./src"
   },
+  "references": [{"path": "../core"}],
   "reflection": true,
   "include": ["./src/**/*"],
   "exclude": ["node_modules", "**/*.spec.ts", "**/*.test.ts", "examples", ".dist"]

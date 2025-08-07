@@ -1,9 +1,12 @@
 {
   "extends": "../../tsconfig.json",
   "compilerOptions": {
-    "outDir": ".dist/cjs"
+    "outDir": ".dist/cjs",
+    "composite": true,
+    "rootDir": "."
   },
+  "references": [{"path": "../core"}, {"path": "../run-types"}, {"path": "../common"}],
   "reflection": ["src/**/*.routes.ts"],
-  "include": ["."],
+  "include": ["./src/**/*", "./index.ts"],
   "exclude": ["node_modules", "**/*.spec.ts", "**/*.test.ts", "examples", ".dist"]
 }
