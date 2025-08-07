@@ -19,6 +19,7 @@
   "author": "ma jerez <jerez.m82@gmail.com>",
   "homepage": "https://mion.io/",
   "license": "MIT",
+  "browser": {},
   "exports": {
     "./constants": {
       "types": "./.dist/types/constants.d.ts",
