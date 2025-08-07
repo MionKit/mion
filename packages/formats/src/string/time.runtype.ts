@@ -58,7 +58,7 @@ export class TimeStringRunTypeFormat extends BaseRunTypeFormat<FormatParams_Time
                 throw new Error(`Invalid time format: ${fpVal(params.format)}`);
         }
     }
-    getFormatPureFn(format: FormatTime) {
+    getFormatPureFn(format: StrTime) {
         switch (format) {
             case 'ISO':
             case 'HH:mm:ss[.mmm]TZ':

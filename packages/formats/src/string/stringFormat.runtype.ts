@@ -304,7 +304,6 @@ function valuesAllCases(stringList: string[]): string[] {
 
 // register Validator operations so they can be used in the jit compiler
 export const STRING_RUN_TYPE_FORMATTER = registerFormatter(new StringRunTypeFormat());
-console.log('STRING_RUN_TYPE_FORMATTER', STRING_RUN_TYPE_FORMATTER);
 
 // ############### String Format Params ###############
 
