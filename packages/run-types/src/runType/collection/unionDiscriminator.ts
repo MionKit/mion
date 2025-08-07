@@ -1,8 +1,8 @@
-import type {BaseRunType, CollectionRunType, MemberRunType} from '@mionkit/run-types/src/lib/baseRunTypes';
-import type {JitCompiler} from '@mionkit/run-types/src/lib/jitCompiler';
-import type {UnionRunType} from '@mionkit/run-types/src/runType/collection/union';
-import type {PropertyRunType} from '@mionkit/run-types/src/runType/member/property';
-import {getTotalComplexity, sortRunTypeByComplexity} from '@mionkit/run-types/src/lib/utils';
+import type {BaseRunType, CollectionRunType, MemberRunType} from '../../lib/baseRunTypes';
+import type {JitCompiler} from '../../lib/jitCompiler';
+import type {UnionRunType} from './union';
+import type {PropertyRunType} from '../member/property';
+import {getTotalComplexity, sortRunTypeByComplexity} from '../../lib/utils';
 
 export type PlainItem = {
     rt: BaseRunType;

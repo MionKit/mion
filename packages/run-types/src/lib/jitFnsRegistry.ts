@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import type {JitFnID} from '@mionkit/run-types/src/types';
+import type {JitFnID} from '../types';
 import {CodeType, JitFnSettings, jitFunctionList, jitFunctionsById} from '../constants.functions';
 
 type resolvedCompiler = {

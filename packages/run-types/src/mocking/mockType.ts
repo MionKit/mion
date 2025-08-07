@@ -28,9 +28,9 @@ import {IndexSignatureRunType} from '../runType/member/indexProperty';
 import {getRunTypeFormatter, getRunTypeTransformers} from '../lib/formats';
 import {JIT_STACK_TRACE_MESSAGE} from '../constants';
 import {JitFunctions} from '../constants.functions';
-import type {ArrayRunType} from '@mionkit/run-types/src/runType/member/array';
-import {jitUtils} from '@mionkit/core/src/jitUtils';
-import {MockJitCompiler, type JitCompiler} from '@mionkit/run-types/src/lib/jitCompiler';
+import type {ArrayRunType} from '../runType/member/array';
+import {jitUtils} from '@mionkit/core/jitUtils';
+import {MockJitCompiler, type JitCompiler} from '../lib/jitCompiler';
 
 export function mockType(runType: BaseRunType, comp: JitCompiler, stack: BaseRunType[] = []): any {
     // TODO: we could use JitCompiler functionality here to controls the stack etc

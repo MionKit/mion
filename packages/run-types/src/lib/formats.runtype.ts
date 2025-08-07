@@ -7,7 +7,7 @@
 // ###################### Types FORMATS #####################
 
 import {TypeAnnotation} from '@deepkit/core';
-import type {TypeFormatParams} from '@mionkit/core/src/types';
+import type {TypeFormatParams} from '@mionkit/core/types';
 
 /**
  * A base type that satisfies some extra constrains. (at the moment only Branded types of strings and numbers are supported)

@@ -5,7 +5,7 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
-import {MAX_STACK_DEPTH} from '@mionkit/core/src/constants';
+import {MAX_STACK_DEPTH} from '@mionkit/core/constants';
 import type {
     RunType,
     Mutable,
@@ -33,7 +33,7 @@ import type {TypeIndexSignature, TypeProperty, Type, TypeFunction} from '@deepki
 import {getJitFnArgCallVarName, getPropIndex, memorize, toLiteral} from './utils';
 import {JitErrorsCompiler, JitCompiler, getJITFnHash, createJitCompiler, MockJitCompiler} from './jitCompiler';
 import {type AnyKindName, getReflectionName} from '../constants.kind';
-import {jitUtils} from '../../../core/src/jitUtils';
+import {jitUtils} from '@mionkit/core/jitUtils';
 import {createUniqueHash} from './quickHash';
 import {
     initFormatAnnotations,
@@ -43,11 +43,11 @@ import {
     defaultIgnoreFormatProps,
 } from './formats';
 import {typeParamsToString} from './utils';
-import {_compileJsonStringify} from '@mionkit/run-types/src/jitFnsCompilers/jsonStringify';
+import {_compileJsonStringify} from '../jitFnsCompilers/jsonStringify';
 import {getJitFunctionCompiler, registerJitFunctionCompiler} from './jitFnsRegistry';
-import {JitCompiledFn} from '@mionkit/core/src/types';
-import {_compileToCode} from '@mionkit/run-types/src/jitFnsCompilers/toCode';
-import {defaultMockOptions} from '@mionkit/run-types/src/mocking/constants.mock';
+import {JitCompiledFn} from '@mionkit/core/types';
+import {_compileToCode} from '../jitFnsCompilers/toCode';
+import {defaultMockOptions} from '../mocking/constants.mock';
 
 export abstract class BaseRunType<T extends Type = Type> implements RunType {
     // Registry for dynamically loaded functions
@@ -285,6 +285,7 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
     private compileFormatter(comp: JitCompiler, fnID: JitFnID, separator: string, code?: string): jitCode {
         const typeFormatters = getTypeFormats(this);
         console.log('compileFormatter', typeFormatters);
+        console.log('runtype', this);
         if (!typeFormatters.length) return code;
         const formattersCode = typeFormatters
             .map((f) => {

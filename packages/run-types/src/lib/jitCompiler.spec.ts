@@ -5,10 +5,10 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {RpcError} from '@mionkit/core/src/errors';
+import {RpcError} from '@mionkit/core/errors';
 import {JitFunctions} from '../constants.functions';
 import {runType} from './runType';
-import {JitCompiledFnData, PureFunctionData} from '@mionkit/core/src/types';
+import {JitCompiledFnData, PureFunctionData} from '@mionkit/core/types';
 
 interface PublicMethod {
     id: string;

@@ -14,7 +14,7 @@ import {MethodSignatureRunType} from '../member/methodSignature';
 import {IndexSignatureRunType} from '../member/indexProperty';
 import {MethodRunType} from '../member/method';
 import {CallSignatureRunType} from '../member/callSignature';
-import {JitFunctions} from '@mionkit/run-types/src/constants.functions';
+import {JitFunctions} from '../../constants.functions';
 
 export type InterfaceMember =
     | PropertyRunType

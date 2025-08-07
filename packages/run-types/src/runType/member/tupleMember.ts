@@ -7,7 +7,7 @@
 
 import type {TypeTupleMember} from '@deepkit/type';
 import {ParameterRunType} from './param';
-import {JitCompiler} from '@mionkit/run-types/src/lib/jitCompiler';
+import {JitCompiler} from '../../lib/jitCompiler';
 
 export class TupleMemberRunType extends ParameterRunType<TypeTupleMember> {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars

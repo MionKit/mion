@@ -6,15 +6,15 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {randomUUID_V7} from '@mionkit/core/src/utils';
+import {randomUUID_V7} from '@mionkit/core/utils';
 import {JitFunctions} from '../constants.functions';
-import type {BaseRunType, CollectionRunType} from '@mionkit/run-types/src/lib/baseRunTypes';
-import {JitCompiler} from '@mionkit/run-types/src/lib/jitCompiler';
-import {createUniqueHash} from '@mionkit/run-types/src/lib/quickHash';
-import {runType} from '@mionkit/run-types/src/lib/runType';
-import {getTotalComplexity, sortDiscriminatorsFirst, sortRunTypeByComplexity} from '@mionkit/run-types/src/lib/utils';
-import {mockNumber} from '@mionkit/run-types/src/mocking/mockUtils';
-import type {PropertyRunType} from '@mionkit/run-types/src/runType/member/property';
+import type {BaseRunType, CollectionRunType} from './baseRunTypes';
+import {JitCompiler} from './jitCompiler';
+import {createUniqueHash} from './quickHash';
+import {runType} from './runType';
+import {getTotalComplexity, sortDiscriminatorsFirst, sortRunTypeByComplexity} from './utils';
+import {mockNumber} from '../mocking/mockUtils';
+import type {PropertyRunType} from '../runType/member/property';
 
 const anyRT = runType<any>() as BaseRunType;
 // the compiled is just requires to get compiler opts, so we can use same compiler for all tests

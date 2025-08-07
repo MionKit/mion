@@ -7,17 +7,17 @@
 
 import {ReflectionKind} from '@deepkit/type';
 import type {Type, TypeFunction, TypeParameter, TypeTuple, TypeTupleMember} from '@deepkit/type';
-import type {FormatParam, FormatParamLiteral, PureFunctionClosure, TypeFormatValue} from '@mionkit/core/src/types';
+import type {FormatParam, FormatParamLiteral, PureFunctionClosure, TypeFormatValue} from '@mionkit/core/types';
 import type {AnyClass, JitFnID, RunType} from '../types';
 import type {BaseRunType, CollectionRunType, MemberRunType} from './baseRunTypes';
 import type {JitCompiler, JitErrorsCompiler} from './jitCompiler';
-import type {PropertyRunType} from '@mionkit/run-types/src/runType/member/property';
-import {jitUtils} from '../../../core/src/jitUtils';
+import type {PropertyRunType} from '../runType/member/property';
+import {jitUtils} from '@mionkit/core/jitUtils';
 import {validPropertyNameRegExp} from '../constants';
 import {isFormatParamMeta} from './guards';
 import {createHashLiteral} from './quickHash';
-import {ReflectionSubKind} from '@mionkit/run-types/src/constants.kind';
-import {getJitFnSettings} from '@mionkit/run-types/src/lib/jitFnsRegistry';
+import {ReflectionSubKind} from '../constants.kind';
+import {getJitFnSettings} from './jitFnsRegistry';
 
 export function toLiteral(value: number | string | boolean | undefined | null | bigint | RegExp | symbol): string {
     switch (typeof value) {

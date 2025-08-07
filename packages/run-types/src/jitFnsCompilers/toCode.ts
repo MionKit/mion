@@ -7,17 +7,17 @@
 
 import type {jitCode} from '../types';
 import type {BaseRunType} from '../lib/baseRunTypes';
-import type {MapRunType} from '@mionkit/run-types/src/runType/native/map';
-import type {SetRunType} from '@mionkit/run-types/src/runType/native/set';
-import type {ClassRunType} from '@mionkit/run-types/src/runType/collection/class';
-import type {MethodSignatureRunType} from '@mionkit/run-types/src/runType/member/methodSignature';
+import type {MapRunType} from '../runType/native/map';
+import type {SetRunType} from '../runType/native/set';
+import type {ClassRunType} from '../runType/collection/class';
+import type {MethodSignatureRunType} from '../runType/member/methodSignature';
 import {ReflectionKind, type TypeMethodSignature, type TypePropertySignature} from '@deepkit/type';
 import {ReflectionSubKind} from '../constants.kind';
 import {JitFunctions} from '../constants.functions';
-import {compileAddPureFunctionWithClosure, JitCompiler} from '@mionkit/run-types/src/lib/jitCompiler';
-import {isSafePropName} from '@mionkit/run-types/src/lib/utils';
-import {_compileJsonStringify, _compileJsonStringifyIterable} from '@mionkit/run-types/src/jitFnsCompilers/jsonStringify';
-import {registerPureFnClosure} from '@mionkit/run-types/src/lib/formats';
+import {compileAddPureFunctionWithClosure, JitCompiler} from '../lib/jitCompiler';
+import {isSafePropName} from '../lib/utils';
+import {_compileJsonStringify, _compileJsonStringifyIterable} from './jsonStringify';
+import {registerPureFnClosure} from '../lib/formats';
 
 /** Centralized compile jit function with a switch statement that handles all node types. */
 export function _compileToCode(runType: BaseRunType, comp: JitCompiler, fnID = JitFunctions.toCode.id): jitCode {

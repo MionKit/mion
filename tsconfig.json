@@ -2,6 +2,7 @@
   "compilerOptions": {
     "baseUrl": ".",
     "module": "CommonJS",
+    "moduleResolution": "node",
     "esModuleInterop": true,
     "noImplicitAny": false,
     "removeComments": true,
@@ -18,6 +19,10 @@
     "incremental": true,
     "sourceMap": true,
     "paths": {
+      "@mionkit/core/*": ["packages/core/src/*"],
+      "@mionkit/run-types/*": ["packages/run-types/src/*"],
+      "@mionkit/formats/*": ["packages/formats/src/*"],
+      "@mionkit/router/*": ["packages/router/src/*"],
       "@mionkit/*": ["packages/*"]
     }
   },
