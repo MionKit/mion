@@ -210,7 +210,7 @@ export const userExamples = {
             birthDate: '1979-11-08',
             rating: 5.0,
         },
-    ],
+    ] as User[],
 
     // Examples that would fail validation
     invalidExamples: {
@@ -233,7 +233,7 @@ export const userExamples = {
 
         // Credit score out of range
         invalidCreditScore: 900, // Max is 850
-    },
+    } as Partial<User>,
 };
 
 // ############### Regex Patterns ###############
