@@ -28,7 +28,6 @@
   },
   "references": [
     {"path": "./packages/core"},
-    {"path": "./packages/common"},
     {"path": "./packages/run-types"},
     {"path": "./packages/formats"},
     {"path": "./packages/router"},

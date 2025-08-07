@@ -69,7 +69,6 @@
     "packages/bun",
     "packages/client",
     "packages/codegen",
-    "packages/common",
     "packages/core",
     "packages/eslint-plugin",
     "packages/formats",
