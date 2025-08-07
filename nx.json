@@ -3,7 +3,7 @@
     "default": {
       "runner": "nx/tasks-runners/default",
       "options": {
-        "cacheableOperations": ["test", "lint", "format", "build"]
+        "cacheableOperations": ["test", "lint", "format", "build", "build:cjs", "build:esm", "build:types"]
       }
     }
   },
@@ -15,9 +15,21 @@
       "dependsOn": [],
       "outputs": ["{workspaceRoot}/.coverage"]
     },
+    "build:cjs": {
+      "dependsOn": ["^build:cjs"],
+      "outputs": ["{projectRoot}/.dist/cjs"]
+    },
+    "build:esm": {
+      "dependsOn": ["^build:esm"],
+      "outputs": ["{projectRoot}/.dist/esm"]
+    },
+    "build:types": {
+      "dependsOn": ["^build:types"],
+      "outputs": ["{projectRoot}/.dist/types"]
+    },
     "build": {
-      "dependsOn": ["lint", "^build"],
-      "outputs": ["{workspaceRoot}/.dist"]
+      "dependsOn": ["lint", "build:cjs", "build:esm", "build:types"],
+      "outputs": ["{projectRoot}/.dist"]
     },
     "auto-readme": {
       "dependsOn": [],
