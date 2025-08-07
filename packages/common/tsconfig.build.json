@@ -1,9 +1,11 @@
 {
   "extends": "../../tsconfig.json",
   "compilerOptions": {
-    "outDir": ".dist/cjs"
+    "outDir": ".dist/cjs",
+    "composite": true,
+    "rootDir": "."
   },
   "reflection": true,
-  "include": ["."],
+  "include": ["./src/**/*", "./index.ts"],
   "exclude": ["node_modules", "**/*.spec.ts", "**/*.test.ts", ".dist"]
 }
