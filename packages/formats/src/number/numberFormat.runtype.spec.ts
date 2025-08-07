@@ -8,7 +8,7 @@
 
 import {isTypeFn, mockTypeFn, typeErrorsFn} from '@mionkit/run-types/src/runTypeFunctions';
 import {RunTypeError, TypeFormatError} from '@mionkit/core/src/types';
-import {NumFormat} from './numberFormnat.runtype';
+import {NumFormat} from './numberFormat.runtype';
 
 // #### max ####
 

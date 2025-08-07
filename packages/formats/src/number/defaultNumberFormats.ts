@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {NumFormat} from './numberFormnat.runtype';
+import {NumFormat} from './numberFormat.runtype';
 
 export type NumInteger = NumFormat<{integer: true}>;
 export type NumFloat = NumFormat<{float: true}>;
