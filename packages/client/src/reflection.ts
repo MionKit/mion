@@ -6,7 +6,8 @@
  * ######## */
 
 import type {PublicMethod, PublicResponses} from '@mionkit/router';
-import type {JitCompiledFunctions, JSONValue} from '@mionkit/core/types';
+import type {JitCompiledFunctions} from '@mionkit/run-types/types';
+import type {JSONValue} from '@mionkit/core/types';
 import {RpcError, isRpcError} from '@mionkit/core/errors';
 import {StatusCodes} from '@mionkit/core/status-codes';
 import {RequestErrors, SubRequest, ValidationRequest} from './types';
