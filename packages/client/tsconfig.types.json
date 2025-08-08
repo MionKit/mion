@@ -9,5 +9,5 @@
   "references": [{"path": "../core"}, {"path": "../run-types"}],
   "reflection": true,
   "include": ["./src/**/*", "./index.ts"],
-  "exclude": ["node_modules", "examples", ".dist"]
+  "exclude": ["node_modules", "**/*.spec.ts", "**/*.test.ts", "examples", ".dist"]
 }

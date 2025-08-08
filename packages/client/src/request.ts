@@ -17,7 +17,7 @@ import {
     RouteSubRequest,
     RequestErrors,
 } from './types';
-import type {RunTypeError} from '@mionkit/core/types';
+import type {RunTypeError} from '@mionkit/run-types/types';
 import {RpcError, isRpcError} from '@mionkit/core/errors';
 import {getRoutePath} from '@mionkit/core/core';
 import {StatusCodes} from '@mionkit/core/status-codes';
