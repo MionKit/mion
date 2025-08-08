@@ -56,7 +56,6 @@ it('should accept valid international names', async () => {
 it('should reject names that are too short', async () => {
     const isType = await isTypeFn<User>();
     const user = {...exampleUser, firstName: 'A'};
-    console.log('user', user);
     expect(isType(exampleUser)).toBe(true);
     expect(isType(user)).toBe(false);
 });
