@@ -5,8 +5,8 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {RpcError, isRpcError} from '@mionkit/core/src/errors';
-import {GET_REMOTE_METHODS_BY_ID} from '@mionkit/core/src/constants';
+import {RpcError, isRpcError} from '@mionkit/core/errors';
+import {GET_REMOTE_METHODS_BY_ID} from '@mionkit/core/constants';
 import {ClientOptions, JitFunctionsById, RemoteMethodJIT, RequestBody} from './types';
 import {PublicMethod} from '@mionkit/router';
 import type {JitFn, SerializableJITFunctions, SerializableJitFn} from '@mionkit/run-types';

@@ -5,21 +5,21 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
-import type {FormatParam} from '@mionkit/core/src/types';
+import type {FormatParam} from '@mionkit/core/types';
 // !Important: TypeFormat cant be imported as type for the runType functionality to work
-import {TypeFormat} from '@mionkit/run-types/src/lib/formats.runtype';
-import {JitFnID, RunTypeOptions, type jitCode} from '@mionkit/run-types/src/types';
-import type {BaseRunType} from '@mionkit/run-types/src/lib/baseRunTypes';
-import type {JitCompiler, JitErrorsCompiler} from '@mionkit/run-types/src/lib/jitCompiler';
-import {BaseRunTypeFormat} from '@mionkit/run-types/src/lib/baseRunTypeFormat';
+import {TypeFormat} from '@mionkit/run-types/lib/formats.runtype';
+import {JitFnID, RunTypeOptions, type jitCode} from '@mionkit/run-types/types';
+import type {BaseRunType} from '@mionkit/run-types/lib/baseRunTypes';
+import type {JitCompiler, JitErrorsCompiler} from '@mionkit/run-types/lib/jitCompiler';
+import {BaseRunTypeFormat} from '@mionkit/run-types/lib/baseRunTypeFormat';
 import {ReflectionKind} from '@deepkit/type';
 import {FormatParams_Date, DEFAULT_DATE_PARAMS, DateStringRunTypeFormat} from './date.runtype';
 import {DEFAULT_TIME_FORMAT_PARAMS, FormatParams_Time, TimeStringRunTypeFormat} from './time.runtype';
-import {registerFormatter} from '@mionkit/run-types/src/lib/formats';
-import {fpVal} from '@mionkit/run-types/src/lib/utils';
+import {registerFormatter} from '@mionkit/run-types/lib/formats';
+import {fpVal} from '@mionkit/run-types/lib/utils';
 import {stringIgnoreProps} from './stringFormat.runtype';
-import {CodeType} from '@mionkit/run-types/src/constants.functions';
-import {JitFunctions} from '@mionkit/run-types/src/constants.functions';
+import {CodeType} from '@mionkit/run-types/constants.functions';
+import {JitFunctions} from '@mionkit/run-types/constants.functions';
 
 // DateTime validator
 export class DateTimeRunTypeFormat extends BaseRunTypeFormat<FormatParams_DateTime> {

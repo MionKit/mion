@@ -7,20 +7,20 @@
 
 import {MionHeaders} from './types/context';
 import {registerRoutes, initRouter, resetRouter, getRouteExecutable} from './router';
-import {getRoutePath} from '@mionkit/core/src/core';
-import {GET_REMOTE_METHODS_BY_ID, GET_REMOTE_METHODS_BY_PATH} from '@mionkit/core/src/constants';
+import {getRoutePath} from '@mionkit/core/core';
+import {GET_REMOTE_METHODS_BY_ID, GET_REMOTE_METHODS_BY_PATH} from '@mionkit/core/constants';
 import {hook, rawHook, route} from './handlers';
 import {Routes} from './types/general';
 import {HandlerType} from './types/remoteMethods';
 import {MethodsData, PublicMethods, clientRoutes} from './client.routes';
 import {headersFromRecord} from './headers';
 import {dispatchRoute} from './dispatch';
-import {runType} from '@mionkit/run-types/src/lib/runType';
-import {PublicMethod} from '@mionkit/router/src/types/publicMethods'; // do not import type only
-import {JitFunctions} from '@mionkit/run-types/src/constants.functions';
-import {getSerializableMethod} from '@mionkit/router/src/remoteMethods';
-import {RpcError} from '@mionkit/core/src/errors';
-import {JitCompiledFnData} from '@mionkit/core/src/types';
+import {runType} from '@mionkit/run-types/lib/runType';
+import {PublicMethod} from '@mionkit/router/types/publicMethods'; // do not import type only
+import {JitFunctions} from '@mionkit/run-types/constants.functions';
+import {getSerializableMethod} from '@mionkit/router/remoteMethods';
+import {RpcError} from '@mionkit/core/errors';
+import {JitCompiledFnData} from '@mionkit/core/types';
 
 type RawRequest = {
     headers: MionHeaders;

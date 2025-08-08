@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {getENV} from '@mionkit/core/src/utils';
+import {getENV} from '@mionkit/core/utils';
 
 const hashes = new Map<string, string>();
 const literalHashes = new Map<string, string>();

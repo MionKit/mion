@@ -8,8 +8,8 @@
 import {NonRawMethod, Method, HandlerType} from './types/remoteMethods';
 import {getRouteExecutionPath} from './router';
 import {getNotFoundExecutionPath} from './notFound';
-import {RpcError} from '@mionkit/core/src/errors';
-import type {PublicResponses} from '@mionkit/router/src/types/publicMethods';
+import {RpcError} from '@mionkit/core/errors';
+import type {PublicResponses} from '@mionkit/router/types/publicMethods';
 
 // ############# PUBLIC METHODS #############
 

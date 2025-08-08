@@ -10,7 +10,7 @@ import {awsLambdaHandler, resetAwsLambdaOpts, setAwsLambdaOpts} from './awsLambd
 import createEvent from '@serverless/event-mocks';
 import type {CallContext, Route} from '@mionkit/router';
 import type {APIGatewayProxyEventHeaders} from 'aws-lambda';
-import {PublicRpcError} from '@mionkit/core/src/types';
+import {PublicRpcError} from '@mionkit/core/types';
 
 describe('serverless router should', () => {
     // Router.forceConsoleLogs();

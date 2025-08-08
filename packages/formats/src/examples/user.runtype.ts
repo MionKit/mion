@@ -6,9 +6,9 @@
  * ######## */
 
 // Import string formats types
-import {StrFormat, StrUUIDv4, StrEmail, StrUrl, StrDate, StrDateTime} from '@mionkit/formats/src/StringFormats';
+import {StrFormat, StrUUIDv4, StrEmail, StrUrl, StrDate, StrDateTime} from '@mionkit/formats/StringFormats';
 // Import number formats types
-import {NumFormat, NumPositiveInt, NumPositive} from '@mionkit/formats/src/NumberFormats';
+import {NumFormat, NumPositiveInt, NumPositive} from '@mionkit/formats/NumberFormats';
 
 /**
  * Example User object demonstrating various Runtype Formats

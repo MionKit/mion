@@ -7,7 +7,7 @@ const config = {
   // jest only runs .spec.ts files, test.ts are reserved for bun test
   testMatch: ['**/?(*.)+(spec).ts?(x)'],
   // @see https://kulshekhar.github.io/ts-jest/docs/getting-started/paths-mapping/
-  moduleNameMapper: {'^@mionkit/(.*)$': '<rootDir>/packages/$1'},
+  moduleNameMapper: {'^@mionkit/([^/]+)/(.*)$': '<rootDir>/packages/$1/src/$2'},
 };
 
 module.exports = config;

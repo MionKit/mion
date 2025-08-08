@@ -11,7 +11,7 @@ import {CallContext} from './types/context';
 import {Routes} from './types/general';
 import {HandlerType} from './types/remoteMethods';
 import {hook, rawHook, route} from './handlers';
-import {jitUtils} from '@mionkit/core/src/jitUtils';
+import {jitUtils} from '@mionkit/core/jitUtils';
 
 function hasSerializableHashes(paramNames?: string[]) {
     return {

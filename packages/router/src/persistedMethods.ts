@@ -5,8 +5,8 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {JitCompiledFunctions, JitFunctionsHashes} from '@mionkit/core/src/types';
-import {memorize} from '@mionkit/run-types/src/lib/utils';
+import {JitCompiledFunctions, JitFunctionsHashes} from '@mionkit/core/types';
+import {memorize} from '@mionkit/run-types/lib/utils';
 import {
     compileAndWriteJitFunctions,
     compileAndWritePureFunctions,
@@ -14,12 +14,12 @@ import {
     SrcCodeCompilerConstants,
     runTypeCompilerConstants,
     compileTypeToJs,
-} from '@mionkit/run-types/src/persist/jitFnCacheCompiler';
+} from '@mionkit/run-types/persist/jitFnCacheCompiler';
 import {NonRawMethod, MethodData} from './types/remoteMethods';
 import {AnyHandler} from './types/handlers';
 import {IS_TEST_ENV} from './constants';
-import {getFnCaches, jitUtils} from '@mionkit/core/src/jitUtils';
-import {getENV} from '@mionkit/core/src/utils';
+import {getFnCaches, jitUtils} from '@mionkit/core/jitUtils';
+import {getENV} from '@mionkit/core/utils';
 import {rΦutεs} from './_autogen/routes'; // inception 🔁
 
 export type PersistedMethods = Record<string, MethodData>;

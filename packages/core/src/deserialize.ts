@@ -5,8 +5,8 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {jitUtils} from '@mionkit/core/src/jitUtils';
-import type {JitCompiledFn, JitCompiledFnData, JITUtils} from '@mionkit/core/src/types';
+import {jitUtils} from '@mionkit/core/jitUtils';
+import type {JitCompiledFn, JitCompiledFnData, JITUtils} from '@mionkit/core/types';
 
 const jitUtilsParamName = 'utl'; // must match the jitUtils param name in run-types
 

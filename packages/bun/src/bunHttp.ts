@@ -8,8 +8,8 @@
 import {dispatchRoute, getResponseFromError, resetRouter, MionResponse as MionResponse} from '@mionkit/router';
 import {DEFAULT_BUN_HTTP_OPTIONS} from './constants';
 import type {BunHttpOptions} from './types';
-import {StatusCodes} from '@mionkit/core/src/status-codes';
-import {RpcError} from '@mionkit/core/src/errors';
+import {StatusCodes} from '@mionkit/core/status-codes';
+import {RpcError} from '@mionkit/core/errors';
 import {Server} from 'bun';
 import {compileRouter} from '@mionkit/router/index';
 

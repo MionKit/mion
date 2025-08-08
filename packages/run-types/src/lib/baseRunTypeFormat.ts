@@ -16,7 +16,7 @@ import {ReflectionKind} from '@deepkit/type';
 import {dependenciesToLiteral, getFormatterParams, paramsToLiteral} from './formats';
 import {jitUtils} from '@mionkit/core/jitUtils';
 import {getFormatterHash} from './utils';
-import {getENV} from '@mionkit/core/src/utils';
+import {getENV} from '@mionkit/core/utils';
 
 /**
  * Base class for all RunType formatters.

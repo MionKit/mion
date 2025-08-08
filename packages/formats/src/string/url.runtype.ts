@@ -6,20 +6,20 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
-import type {BaseRunType} from '@mionkit/run-types/src/lib/baseRunTypes';
-import type {JitCompiler, JitErrorsCompiler} from '@mionkit/run-types/src/lib/jitCompiler';
-import {registerFormatter} from '@mionkit/run-types/src/lib/formats';
-import {BaseRunTypeFormat} from '@mionkit/run-types/src/lib/baseRunTypeFormat';
+import type {BaseRunType} from '@mionkit/run-types/lib/baseRunTypes';
+import type {JitCompiler, JitErrorsCompiler} from '@mionkit/run-types/lib/jitCompiler';
+import {registerFormatter} from '@mionkit/run-types/lib/formats';
+import {BaseRunTypeFormat} from '@mionkit/run-types/lib/baseRunTypeFormat';
 import {ReflectionKind} from '@deepkit/type';
-import {TypeFormat} from '@mionkit/run-types/src/lib/formats.runtype';
-import {RunTypeOptions, type jitCode, type JitFnID, type StrNumber} from '@mionkit/run-types/src/types';
+import {TypeFormat} from '@mionkit/run-types/lib/formats.runtype';
+import {RunTypeOptions, type jitCode, type JitFnID, type StrNumber} from '@mionkit/run-types/types';
 import {StringRunTypeFormat, stringIgnoreProps, StringParams} from './stringFormat.runtype';
 import {DomainRunTypeFormat, FormatParams_Domain} from './domain.runtype';
-import {CodeType} from '@mionkit/run-types/src/constants.functions';
-import {JitFunctions} from '@mionkit/run-types/src/constants.functions';
+import {CodeType} from '@mionkit/run-types/constants.functions';
+import {JitFunctions} from '@mionkit/run-types/constants.functions';
 import {IPRunTypeFormat, FormatParams_IP} from './ip.runtype';
-import {fpVal} from '@mionkit/run-types/src/lib/utils';
-import {randomItem} from '@mionkit/run-types/src/mocking/mockUtils';
+import {fpVal} from '@mionkit/run-types/lib/utils';
+import {randomItem} from '@mionkit/run-types/mocking/mockUtils';
 import {
     FILE_URL_SAMPLES,
     HTTP_URL_SAMPLES,

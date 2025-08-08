@@ -17,10 +17,10 @@ import {
     RouteSubRequest,
     RequestErrors,
 } from './types';
-import type {RunTypeError} from '@mionkit/core/src/types';
-import {RpcError, isRpcError} from '@mionkit/core/src/errors';
-import {getRoutePath} from '@mionkit/core/src/core';
-import {StatusCodes} from '@mionkit/core/src/status-codes';
+import type {RunTypeError} from '@mionkit/core/types';
+import {RpcError, isRpcError} from '@mionkit/core/errors';
+import {getRoutePath} from '@mionkit/core/core';
+import {StatusCodes} from '@mionkit/core/status-codes';
 import {STORAGE_KEY} from './constants';
 import {fetchRemoteMethodsMetadata} from './clientMethodsMetadata';
 import {deserializeResponseBody, serializeSubRequests, validateSubRequests} from './reflection';

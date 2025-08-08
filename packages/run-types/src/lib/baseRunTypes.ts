@@ -48,7 +48,7 @@ import {getJitFunctionCompiler, registerJitFunctionCompiler} from './jitFnsRegis
 import {JitCompiledFn} from '@mionkit/core/types';
 import {_compileToCode} from '../jitFnsCompilers/toCode';
 import {defaultMockOptions} from '../mocking/constants.mock';
-import {getENV} from '@mionkit/core/src/utils';
+import {getENV} from '@mionkit/core/utils';
 
 export abstract class BaseRunType<T extends Type = Type> implements RunType {
     // Registry for dynamically loaded functions
@@ -285,8 +285,6 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
 
     private compileFormatter(comp: JitCompiler, fnID: JitFnID, separator: string, code?: string): jitCode {
         const typeFormatters = getTypeFormats(this);
-        console.log('compileFormatter', typeFormatters);
-        console.log('runtype', this);
         if (!typeFormatters.length) return code;
         const formattersCode = typeFormatters
             .map((f) => {
@@ -299,11 +297,8 @@ export abstract class BaseRunType<T extends Type = Type> implements RunType {
                 // the formatter code is also an expression or has a return statement
                 const isCompatible = this.getCodeType(fnID) === codeType;
 
-                console.log('compileFormatter', {name: f.name, canEmbed, codeType, codeHasReturn, isCompatible});
-
                 if (canEmbed && isCompatible && !codeHasReturn) {
                     const formatterCode = f.compileFormat(fnID, comp, this);
-                    console.log('compileFormatter', {name: f.name, formatterCode});
                     return formatterCode;
                 }
 
