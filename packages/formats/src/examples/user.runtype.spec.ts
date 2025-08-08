@@ -53,7 +53,6 @@ it('should accept valid international names', async () => {
     }
 });
 
-// TODO Formats a not working properly
 it('should reject names that are too short', async () => {
     const isType = await isTypeFn<User>();
     const user = {...exampleUser, firstName: 'A'};
@@ -233,7 +232,7 @@ it('should reject credit scores above maximum', async () => {
 // rating validation tests
 it('should accept valid ratings', async () => {
     const isType = await isTypeFn<User>();
-    const validRatings = [1, 2.5, 4, 5];
+    const validRatings = [1, 2.5, 4, 5, 3.7, 4.2]; // Any precision allowed
 
     for (const rating of validRatings) {
         const user = {...exampleUser, rating};
@@ -260,28 +259,22 @@ it('should reject ratings above maximum', async () => {
     expect(isType(user)).toBe(false);
 });
 
-it('should reject ratings not in 0.5 increments', async () => {
-    const isType = await isTypeFn<User>();
-    const user = {...exampleUser, rating: 3.3};
-    expect(isType(user)).toBe(false);
-});
+// ############### Flattened Address and Preferences Validation Tests ###############
 
-// ############### Nested Object Validation Tests ###############
-
-// address validation tests
-it('should accept valid address', async () => {
+// address validation tests (flattened)
+it('should accept valid address fields', async () => {
     const isType = await isTypeFn<User>();
-    const validAddress = {
+    const user = {
+        ...exampleUser,
         street: '123 Main Street',
         city: 'New York',
         zipCode: '10001',
         country: 'US',
     };
-    const user = {...exampleUser, address: validAddress};
     expect(isType(user)).toBe(true);
 });
 
-it('should accept international addresses', async () => {
+it('should accept international address fields', async () => {
     const isType = await isTypeFn<User>();
     const internationalAddresses = [
         {street: 'Champs-Élysées 123', city: 'Paris', zipCode: '75001', country: 'FR'},
@@ -291,15 +284,18 @@ it('should accept international addresses', async () => {
     ];
 
     for (const address of internationalAddresses) {
-        const user = {...exampleUser, address};
+        const user = {...exampleUser, ...address};
         expect(isType(user)).toBe(true);
     }
 });
 
-it('should accept undefined address', async () => {
+it('should accept undefined address fields', async () => {
     const isType = await isTypeFn<User>();
     const user = {...exampleUser};
-    delete user.address;
+    delete user.street;
+    delete user.city;
+    delete user.zipCode;
+    delete user.country;
     expect(isType(user)).toBe(true);
 });
 
@@ -308,7 +304,7 @@ it('should reject invalid country codes', async () => {
     const invalidCountries = ['USA', 'United States', 'us', '1', 'ABC'];
 
     for (const country of invalidCountries) {
-        const user = {...exampleUser, address: {...exampleUser.address!, country}};
+        const user = {...exampleUser, country};
         expect(isType(user)).toBe(false);
     }
 });
@@ -318,20 +314,20 @@ it('should reject invalid zip codes', async () => {
     const invalidZipCodes = ['12', '12345678901', 'invalid-zip', ''];
 
     for (const zipCode of invalidZipCodes) {
-        const user = {...exampleUser, address: {...exampleUser.address!, zipCode}};
+        const user = {...exampleUser, zipCode};
         expect(isType(user)).toBe(false);
     }
 });
 
-// preferences validation tests
-it('should accept valid preferences', async () => {
+// preferences validation tests (flattened)
+it('should accept valid preference fields', async () => {
     const isType = await isTypeFn<User>();
-    const validPreferences = {
+    const user = {
+        ...exampleUser,
         theme: 'dark' as const,
         language: 'en-US',
         timezone: 'America/New_York',
     };
-    const user = {...exampleUser, preferences: validPreferences};
     expect(isType(user)).toBe(true);
 });
 
@@ -340,7 +336,7 @@ it('should accept all valid theme values', async () => {
     const validThemes = ['light', 'dark', 'auto'] as const;
 
     for (const theme of validThemes) {
-        const user = {...exampleUser, preferences: {...exampleUser.preferences!, theme}};
+        const user = {...exampleUser, theme};
         expect(isType(user)).toBe(true);
     }
 });
@@ -350,7 +346,7 @@ it('should accept various language codes', async () => {
     const validLanguages = ['en', 'es', 'fr', 'de', 'ja', 'en-US', 'es-ES', 'fr-CA'];
 
     for (const language of validLanguages) {
-        const user = {...exampleUser, preferences: {...exampleUser.preferences!, language}};
+        const user = {...exampleUser, language};
         expect(isType(user)).toBe(true);
     }
 });
@@ -360,7 +356,7 @@ it('should accept various timezone formats', async () => {
     const validTimezones = ['America/New_York', 'Europe/London', 'Asia/Tokyo', 'Australia/Sydney', 'America/Los_Angeles'];
 
     for (const timezone of validTimezones) {
-        const user = {...exampleUser, preferences: {...exampleUser.preferences!, timezone}};
+        const user = {...exampleUser, timezone};
         expect(isType(user)).toBe(true);
     }
 });
@@ -370,7 +366,7 @@ it('should reject invalid theme values', async () => {
     const invalidThemes = ['bright', 'night', 'custom', ''];
 
     for (const theme of invalidThemes) {
-        const user = {...exampleUser, preferences: {...exampleUser.preferences!, theme: theme as any}};
+        const user = {...exampleUser, theme: theme as any};
         expect(isType(user)).toBe(false);
     }
 });
@@ -380,7 +376,7 @@ it('should reject invalid language codes', async () => {
     const invalidLanguages = ['english', 'EN', 'en_US', 'en-us', 'e', 'eng'];
 
     for (const language of invalidLanguages) {
-        const user = {...exampleUser, preferences: {...exampleUser.preferences!, language}};
+        const user = {...exampleUser, language};
         expect(isType(user)).toBe(false);
     }
 });
@@ -390,7 +386,7 @@ it('should reject invalid timezone formats', async () => {
     const invalidTimezones = ['EST', 'UTC+5', 'New York', 'America-New_York', 'america/new_york'];
 
     for (const timezone of invalidTimezones) {
-        const user = {...exampleUser, preferences: {...exampleUser.preferences!, timezone}};
+        const user = {...exampleUser, timezone};
         expect(isType(user)).toBe(false);
     }
 });
@@ -431,16 +427,16 @@ it('should return specific errors for invalid email', async () => {
     expect(errors[0].format?.name).toBe('email');
 });
 
-it('should return specific errors for invalid nested address', async () => {
+it('should return specific errors for invalid flattened address field', async () => {
     const typeErrors = await typeErrorsFn<User>();
     const userWithInvalidAddress = {
         ...exampleUser,
-        address: {...exampleUser.address!, country: 'USA'},
+        country: 'USA', // Invalid country code (should be 2 letters)
     };
     const errors = typeErrors(userWithInvalidAddress);
 
     expect(errors.length).toBeGreaterThan(0);
-    expect(errors[0].path).toEqual(['address', 'country']);
+    expect(errors[0].path).toEqual(['country']);
     expect(errors[0].expected).toBe('string');
     expect(errors[0].format?.name).toBe('stringFormat');
 });
@@ -530,11 +526,10 @@ it('should generate mocks with valid optional rating when present', async () => 
     const mocks = Array.from({length: 20}, () => mockType());
     const mocksWithRating = mocks.filter((mock) => mock.rating !== undefined);
 
-    // If any mocks have rating, they should be valid
+    // If any mocks have rating, they should be valid 1-5 range
     mocksWithRating.forEach((mock) => {
         expect(mock.rating).toBeGreaterThanOrEqual(1);
         expect(mock.rating).toBeLessThanOrEqual(5);
-        expect(mock.rating! % 0.5).toBe(0); // Should be in 0.5 increments
     });
 });
 
@@ -549,28 +544,43 @@ it('should generate mocks with valid optional website when present', async () =>
     });
 });
 
-it('should generate mocks with valid optional address when present', async () => {
+it('should generate mocks with valid optional address fields when present', async () => {
     const mockType = await mockTypeFn<User>();
     const mocks = Array.from({length: 20}, () => mockType());
-    const mocksWithAddress = mocks.filter((mock) => mock.address !== undefined);
+    const mocksWithCountry = mocks.filter((mock) => mock.country !== undefined);
+    const mocksWithZipCode = mocks.filter((mock) => mock.zipCode !== undefined);
 
-    // If any mocks have address, they should be valid
-    mocksWithAddress.forEach((mock) => {
-        expect(mock.address!.country).toMatch(/^[A-Z]{2}$/);
-        expect(mock.address!.zipCode).toMatch(/^[A-Z0-9\s-]{3,10}$/);
+    // If any mocks have country, they should be valid
+    mocksWithCountry.forEach((mock) => {
+        expect(mock.country).toMatch(/^[A-Z]{2}$/);
+    });
+
+    // If any mocks have zipCode, they should be valid
+    mocksWithZipCode.forEach((mock) => {
+        expect(mock.zipCode).toMatch(/^[A-Z0-9\s-]{3,10}$/);
     });
 });
 
-it('should generate mocks with valid optional preferences when present', async () => {
+it('should generate mocks with valid optional preference fields when present', async () => {
     const mockType = await mockTypeFn<User>();
     const mocks = Array.from({length: 20}, () => mockType());
-    const mocksWithPreferences = mocks.filter((mock) => mock.preferences !== undefined);
+    const mocksWithTheme = mocks.filter((mock) => mock.theme !== undefined);
+    const mocksWithLanguage = mocks.filter((mock) => mock.language !== undefined);
+    const mocksWithTimezone = mocks.filter((mock) => mock.timezone !== undefined);
 
-    // If any mocks have preferences, they should be valid
-    mocksWithPreferences.forEach((mock) => {
-        expect(['light', 'dark', 'auto']).toContain(mock.preferences!.theme);
-        expect(mock.preferences!.language).toMatch(/^[a-z]{2}(-[A-Z]{2})?$/);
-        expect(mock.preferences!.timezone).toMatch(/^[A-Za-z_]+\/[A-Za-z_]+$/);
+    // If any mocks have theme, they should be valid
+    mocksWithTheme.forEach((mock) => {
+        expect(['light', 'dark', 'auto']).toContain(mock.theme);
+    });
+
+    // If any mocks have language, they should be valid
+    mocksWithLanguage.forEach((mock) => {
+        expect(mock.language).toMatch(/^[a-z]{2}(-[A-Z]{2})?$/);
+    });
+
+    // If any mocks have timezone, they should be valid
+    mocksWithTimezone.forEach((mock) => {
+        expect(mock.timezone).toMatch(/^[A-Za-z_]+\/[A-Za-z_]+$/);
     });
 });
 

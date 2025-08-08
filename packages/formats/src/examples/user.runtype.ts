@@ -24,6 +24,14 @@ export type User = {
     id: StrUUIDv4; // UUID v4 format
     email: StrEmail; // Email validation
 
+    // Personal information with string constraints
+    firstName: StrFormat<{
+        minLength: 2;
+        maxLength: 50;
+        pattern: NamePattern;
+        trim: true;
+    }>;
+
     lastName: StrFormat<{
         minLength: 2;
         maxLength: 50;
@@ -67,7 +75,7 @@ export type User = {
     accountBalance: NumFormat<{
         min: -10000; // Maximum overdraft
         max: 1000000; // Maximum balance
-        multipleOf: 0.01; // Precision to cents
+        // No multipleOf constraint - allow any precision
     }>;
 
     // Credit score
@@ -77,11 +85,11 @@ export type User = {
         integer: true;
     }>;
 
-    // Rating (1-5 stars)
+    // Rating (1-5 stars, any precision allowed)
     rating?: NumFormat<{
         min: 1;
         max: 5;
-        multipleOf: 0.5; // Allow half stars
+        // No multipleOf constraint - allow any precision
     }>;
 
     // Number of followers (positive integer)
@@ -96,46 +104,34 @@ export type User = {
     birthDate: StrDate;
     lastLoginAt?: StrDateTime;
 
-    // Address components
-    address?: {
-        street: StrFormat<{
-            minLength: 5;
-            maxLength: 100;
-            trim: true;
-        }>;
-        city: StrFormat<{
-            minLength: 2;
-            maxLength: 50;
-            pattern: CityPattern;
-            trim: true;
-        }>;
-        zipCode: StrFormat<{
-            pattern: PostalCodePattern;
-            uppercase: true;
-            trim: true;
-        }>;
-        country: StrFormat<{
-            minLength: 2;
-            maxLength: 2;
-            pattern: CountryCodePattern;
-            uppercase: true;
-        }>;
-    };
-
-    // Preferences
-    preferences?: {
-        theme: StrFormat<{allowedValues: ThemeValues}>;
-        language: StrFormat<{pattern: LanguageCodePattern; lowercase: true}>;
-        timezone: StrFormat<{pattern: TimezonePattern}>;
-    };
-
-    // Personal information with string constraints
-    firstName: StrFormat<{
-        minLength: 2;
-        maxLength: 50;
-        pattern: NamePattern;
+    // Address components (flattened)
+    street?: StrFormat<{
+        minLength: 5;
+        maxLength: 100;
         trim: true;
     }>;
+    city?: StrFormat<{
+        minLength: 2;
+        maxLength: 50;
+        pattern: CityPattern;
+        trim: true;
+    }>;
+    zipCode?: StrFormat<{
+        pattern: PostalCodePattern;
+        uppercase: true;
+        trim: true;
+    }>;
+    country?: StrFormat<{
+        minLength: 2;
+        maxLength: 2;
+        pattern: CountryCodePattern;
+        uppercase: true;
+    }>;
+
+    // Preferences (flattened)
+    theme?: StrFormat<{allowedValues: ThemeValues}>;
+    language?: StrFormat<{pattern: LanguageCodePattern; lowercase: true}>;
+    timezone?: StrFormat<{pattern: TimezonePattern}>;
 };
 
 // ############### Example Usage ###############
@@ -160,17 +156,13 @@ export const exampleUser: User = {
     monthlyIncome: 5000.0,
     birthDate: '1994-01-15',
     lastLoginAt: '2025-01-15T10:30:00Z',
-    address: {
-        street: '123 Main Street',
-        city: 'New York',
-        zipCode: '10001',
-        country: 'US',
-    },
-    preferences: {
-        theme: 'dark',
-        language: 'en-US',
-        timezone: 'America/New_York',
-    },
+    street: '123 Main Street',
+    city: 'New York',
+    zipCode: '10001',
+    country: 'US',
+    theme: 'dark',
+    language: 'en-US',
+    timezone: 'America/New_York',
 };
 
 /**

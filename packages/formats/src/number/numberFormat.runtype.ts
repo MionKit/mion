@@ -64,6 +64,7 @@ export class NumberRunTypeFormat extends BaseRunTypeFormat<NumberValidators> {
         // Check multipleOf constraint
         if (params.multipleOf !== undefined) {
             const multipleOfVal = fpVal(params.multipleOf);
+            // multipleOf is enforced to be an integer in validateParams, so we can use simple modulo
             conditions.push(`(${v} % ${multipleOfVal} === 0)`);
         }
 
@@ -107,6 +108,7 @@ export class NumberRunTypeFormat extends BaseRunTypeFormat<NumberValidators> {
         // Check multipleOf constraint
         if (params.multipleOf !== undefined) {
             const multipleOfVal = fpVal(params.multipleOf);
+            // multipleOf is enforced to be an integer in validateParams, so we can use simple modulo
             conditions.push(`if ((${v} % ${multipleOfVal} !== 0)) ${errFn('multipleOf', multipleOfVal)}`);
         }
 
@@ -188,7 +190,7 @@ export class NumberRunTypeFormat extends BaseRunTypeFormat<NumberValidators> {
             throw new Error(`gt cannot be greater than or equal to lt in ${this.printPath(rt)}`);
         }
 
-        // Check for multipleOf > 0
+        // Check for multipleOf > 0 and must be integer
         if (params.multipleOf !== undefined) {
             const multipleOfVal = fpVal(params.multipleOf);
 
@@ -196,13 +198,18 @@ export class NumberRunTypeFormat extends BaseRunTypeFormat<NumberValidators> {
                 throw new Error(`multipleOf must be greater than 0 in ${this.printPath(rt)}`);
             }
 
-            // Check consistency with integer/float parameters
-            if (params.integer && !Number.isInteger(multipleOfVal)) {
-                throw new Error(`When integer is true, multipleOf must be an integer in ${this.printPath(rt)}`);
+            // Enforce that multipleOf must always be an integer to avoid floating-point precision issues
+            if (!Number.isInteger(multipleOfVal)) {
+                throw new Error(
+                    `multipleOf must be an integer to avoid floating-point precision issues in ${this.printPath(rt)}`
+                );
             }
 
-            if (params.float && Number.isInteger(multipleOfVal)) {
-                throw new Error(`When float is true, multipleOf must be a float in ${this.printPath(rt)}`);
+            // Check consistency with float parameter
+            if (params.float) {
+                throw new Error(
+                    `multipleOf cannot be used with float constraint as multipleOf must be an integer in ${this.printPath(rt)}`
+                );
             }
         }
     }

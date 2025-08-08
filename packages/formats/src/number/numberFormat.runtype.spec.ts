@@ -369,12 +369,59 @@ it('throws error when multipleOf <= 0', async () => {
     await expect(isTypeFn<InvalidType>()).rejects.toThrow();
 });
 
-it('throws error when integer is true but multipleOf is a float', async () => {
-    type InvalidType = NumFormat<{integer: true; multipleOf: 1.5}>;
-    await expect(isTypeFn<InvalidType>()).rejects.toThrow(/When integer is true, multipleOf must be an integer/);
+it('throws error when multipleOf is not an integer', async () => {
+    type InvalidType = NumFormat<{multipleOf: 1.5}>;
+    await expect(isTypeFn<InvalidType>()).rejects.toThrow(
+        /multipleOf must be an integer to avoid floating-point precision issues/
+    );
 });
 
-it('throws error when float is true but multipleOf is an integer', async () => {
+it('throws error when float is true and multipleOf is used', async () => {
     type InvalidType = NumFormat<{float: true; multipleOf: 2}>;
-    await expect(isTypeFn<InvalidType>()).rejects.toThrow(/When float is true, multipleOf must be a float/);
+    await expect(isTypeFn<InvalidType>()).rejects.toThrow(
+        /multipleOf cannot be used with float constraint as multipleOf must be an integer/
+    );
+});
+
+it('validate integer multipleOf works correctly', async () => {
+    // Test with integer multipleOf values - these should work fine
+    type MultipleOf5 = NumFormat<{multipleOf: 5}>;
+    const isType = await isTypeFn<MultipleOf5>();
+
+    // Valid integer multiples
+    expect(isType(0)).toBe(true);
+    expect(isType(5)).toBe(true);
+    expect(isType(10)).toBe(true);
+    expect(isType(-5)).toBe(true);
+    expect(isType(-10)).toBe(true);
+
+    // Invalid values
+    expect(isType(1)).toBe(false);
+    expect(isType(6)).toBe(false);
+    expect(isType(4.5)).toBe(false); // Non-integer values should fail
+    expect(isType(5.1)).toBe(false); // Non-integer values should fail
+});
+
+it('demonstrates solution for account balance in cents', async () => {
+    // For account balances, store values in cents (integers) instead of dollars (decimals)
+    // This avoids floating-point precision issues entirely
+
+    // Account balance in cents (e.g., 123 cents = $1.23)
+    type AccountBalanceInCents = NumFormat<{multipleOf: 1; min: 0}>; // Positive integers only
+    const isValidBalance = await isTypeFn<AccountBalanceInCents>();
+
+    // Valid balances in cents
+    expect(isValidBalance(0)).toBe(true); // $0.00
+    expect(isValidBalance(1)).toBe(true); // $0.01
+    expect(isValidBalance(123)).toBe(true); // $1.23
+    expect(isValidBalance(9999)).toBe(true); // $99.99
+
+    // Invalid balances
+    expect(isValidBalance(-1)).toBe(false); // Negative balance
+    expect(isValidBalance(1.5)).toBe(false); // Fractional cents
+
+    // The original problematic case: exampleUser.accountBalance % 0.01 === 0
+    // Now becomes: exampleUser.accountBalanceInCents % 1 === 0 (always true for integers)
+    const exampleUserBalanceInCents = 123; // $1.23 stored as 123 cents
+    expect(isValidBalance(exampleUserBalanceInCents)).toBe(true);
 });
