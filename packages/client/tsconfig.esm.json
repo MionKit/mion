@@ -3,7 +3,7 @@
   "compilerOptions": {
     "module": "ES2022",
     "outDir": ".dist/esm",
-    "lib": ["es6", "ES2021", "DOM"],
+    "lib": ["es6", "ES2023", "DOM"],
     "composite": true,
     "rootDir": "."
   },
