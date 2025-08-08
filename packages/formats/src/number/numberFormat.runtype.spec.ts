@@ -327,7 +327,7 @@ it('get combined constraints errors', async () => {
     // Not an integer error
     const integerFormat: TypeFormatError = {name: 'numberFormat', val: true, formatPath: ['integer']};
     const integerError: RunTypeError = {expected: 'number', path: [], format: integerFormat};
-    expect(typeErrors(5.5)).toEqual([integerError]);
+    expect(typeErrors(5.5)).toEqual([integerError, multipleOfError]);
 });
 
 it('mock combined constraints', async () => {

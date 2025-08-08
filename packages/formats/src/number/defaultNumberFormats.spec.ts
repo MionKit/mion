@@ -164,7 +164,7 @@ it('get NumPositiveInteger errors', async () => {
     expect(typeErrors(0)).toEqual([]);
     expect(typeErrors(-5)).toEqual([minError]);
     expect(typeErrors(10.5)).toEqual([integerError]);
-    expect(typeErrors(-5.5)).toEqual([minError, integerError]); // Now reports multiple errors
+    expect(typeErrors(-5.5)).toEqual([integerError, minError]); // Now reports multiple errors
 });
 
 it('mock NumPositiveInteger', async () => {
@@ -202,7 +202,7 @@ it('get NumNegativeInteger errors', async () => {
     expect(typeErrors(0)).toEqual([]);
     expect(typeErrors(5)).toEqual([maxError]);
     expect(typeErrors(-10.5)).toEqual([integerError]);
-    expect(typeErrors(5.5)).toEqual([integerError]); // Only reports first error
+    expect(typeErrors(5.5)).toEqual([integerError, maxError]); // Now reports multiple errors
 });
 
 it('mock NumNegativeInteger', async () => {
