@@ -6,7 +6,7 @@
  * ######## */
 
 import {statusCodeToReasonPhrase} from './status-codes';
-import {CoreOptions, AnyErrorParams, PublicRpcError, DataOnly, StrNumber} from './types';
+import {CoreOptions, AnyErrorParams, PublicRpcError, DataOnly, StrNumber, TypedErrorParams} from './types';
 import {DEFAULT_CORE_OPTIONS} from './constants';
 import {randomUUID_V7} from '@mionkit/core/utils';
 import {jitUtils} from '@mionkit/core/jitUtils';
@@ -17,10 +17,50 @@ export function setErrorOptions(opts: CoreOptions) {
     options = opts;
 }
 
-export class RpcError<ErrType extends StrNumber = any, ErrData = any> extends Error {
+/**
+ * Generic strongly typed error class that can be used outside RPC context.
+ * Contains the core error properties: isΣrrθr, type, name, and message.
+ */
+export class TypedError<ErrType extends StrNumber> extends Error {
     public readonly isΣrrθr = true;
     /** Error type, can be used as discriminator in union types switch, etc*/
     public readonly type: ErrType;
+    /** name of the error */
+    public readonly name: string;
+    /** the error message */
+    public readonly message: string;
+
+    constructor({message, originalError, name, type}: TypedErrorParams<ErrType>) {
+        const errorMessage = message || originalError?.message || '';
+        super(errorMessage);
+        this.message = errorMessage;
+        this.name = name || 'TypedError';
+        this.type = type || ('unknown' as any);
+
+        if (originalError?.stack) {
+            try {
+                this.stack = originalError.stack;
+            } catch {
+                // Fallback to defineProperty if direct assignment fails
+                try {
+                    Object.defineProperty(this, 'stack', {
+                        value: originalError.stack,
+                        writable: true,
+                        configurable: true,
+                    });
+                } catch {
+                    // If both methods fail, the error will use its own generated stack
+                }
+            }
+        }
+
+        Object.setPrototypeOf(this, TypedError.prototype);
+        // sets proper json serialization for message
+        Object.defineProperty(this, 'message', {enumerable: true});
+    }
+}
+
+export class RpcError<ErrType extends StrNumber = any, ErrData = any> extends TypedError<ErrType> {
     /**
      * id of the error, ideally each error should unique identifiable
      * * if RouterOptions.autoGenerateErrorId is set to true and id with timestamp+uuid will be generated
@@ -33,12 +73,6 @@ export class RpcError<ErrType extends StrNumber = any, ErrData = any> extends Er
     /** options data related to the error, ie validation data */
     public readonly errorData?: Readonly<ErrData>;
 
-    // name and message are properties from Native Error but must be added for run-types to work correctly
-    /** original error used to create the RpcError */
-    public readonly name: string;
-    /** the error message, it is private and wont be returned in the response. */
-    public readonly message: string;
-
     constructor({
         statusCode,
         message,
@@ -50,19 +84,22 @@ export class RpcError<ErrType extends StrNumber = any, ErrData = any> extends Er
         type,
     }: AnyErrorParams<ErrType, ErrData>) {
         const originalMessage = message || originalError?.message || publicMessage || '';
-        super(originalMessage);
-        this.message = originalMessage;
-        this.name = name || statusCodeToReasonPhrase[statusCode] || 'UnknownError';
-        if (originalError?.stack) super.stack = originalError?.stack;
+        const errorName = name || statusCodeToReasonPhrase[statusCode] || 'UnknownError';
+
+        // Call parent TypedError constructor
+        super({
+            message: originalMessage,
+            originalError,
+            name: errorName,
+            type,
+        });
+
         const {autoGenerateErrorId} = options;
-        this.type = type || ('unknown' as any);
         this.id = id || autoGenerateErrorId ? randomUUID_V7() : undefined;
         this.statusCode = statusCode;
         this.publicMessage = publicMessage || '';
         this.errorData = errorData;
         Object.setPrototypeOf(this, RpcError.prototype);
-        // sets proper json serialization for message
-        Object.defineProperty(this, 'message', {enumerable: true});
     }
 
     /** returns an error without stack trace an massage is swapped by public message */
@@ -88,12 +125,27 @@ const hasUnknownKeys = (knownKeys: string[], error: unknown): boolean => {
     return unknownKeys.some((ukn) => !knownKeys.includes(ukn));
 };
 
+/** Returns true if the error is a TypedError or has the same structure. */
+export function isTypedError(error: any): error is TypedError<any> {
+    if (!error) return false;
+    if (error instanceof TypedError) return true;
+    return (
+        error &&
+        error.isΣrrθr === true &&
+        typeof error.name === 'string' &&
+        typeof error.message === 'string' &&
+        (typeof error.type === 'string' || typeof error.type === 'number') &&
+        !hasUnknownKeys(['isΣrrθr', 'type', 'name', 'message'], error)
+    );
+}
+
 /** Returns true if the error is a RpcError or has the same structure. */
 export function isRpcError(error: any): error is RpcError {
     if (!error) return false;
     if (error instanceof RpcError) return true;
     return (
         error &&
+        error.isΣrrθr === true &&
         typeof error.statusCode === 'number' &&
         typeof error.name === 'string' &&
         (typeof error.message === 'string' || typeof error.publicMessage === 'string') &&
