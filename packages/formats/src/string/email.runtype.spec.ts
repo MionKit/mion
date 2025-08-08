@@ -49,16 +49,41 @@ it('should return strict email errors', async () => {
     expect(typeErrors('user@example.com')).toEqual([]);
     // do not allow multiple @
     expect(typeErrors('user@name@example.com')).toEqual([localDisallowedCharsErr]);
-    // invalid max length
+    // invalid max length - now returns multiple errors
     const longEmail = 'a'.repeat(255) + '@example.com';
-    expect(typeErrors(longEmail)).toEqual([maxLengthErr]);
+    const localMaxLengthErr2: RunTypeError = {
+        ...err,
+        format: {name: 'email', formatPath: ['localPart', 'maxLength'], val: 64},
+    };
+    expect(typeErrors(longEmail)).toEqual([maxLengthErr, localMaxLengthErr2]);
     // Invalid local maxLength
     const longLocalPart = 'a'.repeat(65) + '@example.com';
     expect(typeErrors(longLocalPart)).toEqual([localMaxLengthErr]);
-    // Missing parts
-    expect(typeErrors('userexample.com')).toEqual([missingPartsErr]);
+    // Missing parts - now returns multiple errors
+    const localMinLengthErr2: RunTypeError = {
+        ...err,
+        format: {name: 'email', formatPath: ['localPart', 'minLength'], val: 1},
+    };
+    expect(typeErrors('userexample.com')).toEqual([missingPartsErr, localMinLengthErr2]);
     expect(typeErrors('@example.com')).toEqual([localMinlengthErr]);
-    expect(typeErrors('user@')).toEqual([domainMinLengthErr]);
+    // Missing domain - now returns multiple errors
+    const domainMinPartsErr: RunTypeError = {
+        ...err,
+        format: {name: 'email', formatPath: ['domain', 'minParts'], val: 2},
+    };
+    const domainTldMinLengthErr: RunTypeError = {
+        ...err,
+        format: {name: 'email', formatPath: ['domain', 'tld', 'minLength'], val: 2},
+    };
+    const domainTldPatternErr: RunTypeError = {
+        ...err,
+        format: {
+            name: 'email',
+            formatPath: ['domain', 'tld', 'pattern'],
+            val: 'top level domain can only contain letters and dots',
+        },
+    };
+    expect(typeErrors('user@')).toEqual([domainMinLengthErr, domainMinPartsErr, domainTldMinLengthErr, domainTldPatternErr]);
     // Disallowed characters
     expect(typeErrors('user+name@example.com')).toEqual([localPartErr]);
     expect(typeErrors('user(name)@example.com')).toEqual([localPartErr]);
@@ -110,16 +135,25 @@ it('should return quick email errors', async () => {
     // do not allow multiple @
     expect(typeErrors('user@name@example.com')).toEqual([patternErr]);
     expect(typeErrors('r@ho.co')).toEqual([]); // min local part and min do
-    // invalid max length
+    // invalid max length - now returns multiple errors
     const longEmail = 'a'.repeat(255) + '@example.com';
-    expect(typeErrors(longEmail)).toEqual([maxLengthErr]);
+    const patternErr2: RunTypeError = {
+        ...err,
+        format: {name: 'email', formatPath: ['pattern'], val: 'Invalid email format'},
+    };
+    expect(typeErrors(longEmail)).toEqual([maxLengthErr, patternErr2]);
     // Invalid local maxLength
     const longLocalPart = 'a'.repeat(65) + '@example.com';
     expect(typeErrors(longLocalPart)).toEqual([patternErr]);
     // Missing parts
     expect(typeErrors('userexample.com')).toEqual([patternErr]);
     expect(typeErrors('@example.com')).toEqual([patternErr]);
-    expect(typeErrors('user@')).toEqual([minlengthErr]);
+    // Missing domain - now returns multiple errors
+    const patternErr4: RunTypeError = {
+        ...err,
+        format: {name: 'email', formatPath: ['pattern'], val: 'Invalid email format'},
+    };
+    expect(typeErrors('user@')).toEqual([minlengthErr, patternErr4]);
     // Disallowed characters (quick email does not validate special characters)
     expect(typeErrors('user+name@example.com')).toEqual([]);
     expect(typeErrors('user(name)@example.com')).toEqual([]);
@@ -203,16 +237,25 @@ it('should return punycode email errors', async () => {
     // do not allow multiple @
     expect(typeErrors('user@name@example.com')).toEqual([patternErr]);
     expect(typeErrors('r@ho.co')).toEqual([]); // min local part and min domain
-    // invalid max length
+    // invalid max length - now returns multiple errors
     const longEmail = 'a'.repeat(255) + '@example.com';
-    expect(typeErrors(longEmail)).toEqual([maxLengthErr]);
+    const patternErr3: RunTypeError = {
+        ...err,
+        format: {name: 'email', formatPath: ['pattern'], val: 'Invalid email format'},
+    };
+    expect(typeErrors(longEmail)).toEqual([maxLengthErr, patternErr3]);
     // Invalid local maxLength
     const longLocalPart = 'a'.repeat(65) + '@example.com';
     expect(typeErrors(longLocalPart)).toEqual([patternErr]);
     // Missing parts
     expect(typeErrors('userexample.com')).toEqual([patternErr]);
     expect(typeErrors('@example.com')).toEqual([patternErr]);
-    expect(typeErrors('user@')).toEqual([minlengthErr]);
+    // Missing domain - now returns multiple errors
+    const patternErr5: RunTypeError = {
+        ...err,
+        format: {name: 'email', formatPath: ['pattern'], val: 'Invalid email format'},
+    };
+    expect(typeErrors('user@')).toEqual([minlengthErr, patternErr5]);
     // Special characters in local part (allowed in pattern-based validation)
     expect(typeErrors('user+name@example.com')).toEqual([]);
     expect(typeErrors('user(name)@example.com')).toEqual([]);

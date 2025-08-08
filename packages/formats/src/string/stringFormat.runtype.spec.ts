@@ -630,7 +630,7 @@ it('get multiple params errors', async () => {
     expect(typeErrors('aaaaa')).toEqual([]);
     expect(typeErrors('aaaaaa')).toEqual([]);
     expect(typeErrors('aaaaaaa8')).toEqual([alphaError]);
-    expect(typeErrors('aaaaaaaabmaj2')).toEqual([maxLengthError]);
+    expect(typeErrors('aaaaaaaabmaj2')).toEqual([maxLengthError, alphaError]);
 });
 
 it('should return multiple errors for string format violations', async () => {
@@ -669,11 +669,13 @@ it('should demonstrate early return behavior preventing multiple errors', async 
     // 'ab1' violates both minLength (< 5) and pattern (contains number)
     const errors = typeErrors('ab1');
 
-    // Currently returns only 1 error due to early return behavior
-    expect(errors.length).toBe(1);
+    // Now returns multiple errors with shouldReturn=false
+    expect(errors.length).toBe(2);
 
-    // The first error should be minLength since it's checked first for this case
-    expect(errors[0].format?.formatPath).toEqual(['minLength']);
+    // Should get both minLength and pattern errors
+    const errorPaths = errors.map((e) => e.format?.formatPath?.[0]);
+    expect(errorPaths).toContain('minLength');
+    expect(errorPaths).toContain('pattern');
 
     // This test demonstrates that we're not getting all validation errors
     // If we wanted multiple errors, we would expect something like:

@@ -68,13 +68,31 @@ it('should return custom domain errors', async () => {
     const typeErrors = await typeErrorsFn<StrDomainStrict>();
     // Valid cases
     expect(typeErrors('example.com')).toEqual([]);
-    // Invalid length
+    // Invalid length - now returns multiple errors
     const longDomain = 'a'.repeat(254) + '.com';
-    expect(typeErrors(longDomain)).toEqual([maxLengthErr]);
-    expect(typeErrors('a.co')).toEqual([minLengthErr]);
+    const nameMaxLengthErr: RunTypeError = {
+        ...err,
+        format: {name: 'domain', formatPath: ['names', 0, 'maxLength'], val: 63},
+    };
+    expect(typeErrors(longDomain)).toEqual([maxLengthErr, nameMaxLengthErr]);
+    // Short domain - now returns multiple errors
+    const nameMinLengthErr2: RunTypeError = {
+        ...err,
+        format: {name: 'domain', formatPath: ['names', 0, 'minLength'], val: 2},
+    };
+    expect(typeErrors('a.co')).toEqual([minLengthErr, nameMinLengthErr2]);
     // Invalid parts
     expect(typeErrors('example')).toEqual([minPartsErr]);
-    expect(typeErrors('example..com')).toEqual([minNameLengthErr]);
+    // Invalid domain with double dots - now returns multiple errors
+    const namePatternErr: RunTypeError = {
+        ...err,
+        format: {
+            name: 'domain',
+            formatPath: ['names', 1, 'pattern'],
+            val: 'domain names can only contain letters, numbers and hyphens',
+        },
+    };
+    expect(typeErrors('example..com')).toEqual([minNameLengthErr, namePatternErr]);
     // Invalid characters
     expect(typeErrors('exa!mple.com')).toEqual([namesErrPattern]);
     expect(typeErrors('example.c@m')).toEqual([tldErrPattern]);
@@ -86,9 +104,10 @@ it('should return domain errors', async () => {
     const typeErrors = await typeErrorsFn<StrDomain>();
     // Valid cases
     expect(typeErrors('example.com')).toEqual([]);
-    // Invalid length
+    // Invalid length - now returns multiple errors
     const longDomain = 'a'.repeat(254) + '.com';
-    expect(typeErrors(longDomain)).toEqual([maxLengthErr]);
+    const patternErr: RunTypeError = {...err, format: {name: 'domain', formatPath: ['pattern'], val: 'invalid domain'}};
+    expect(typeErrors(longDomain)).toEqual([maxLengthErr, patternErr]);
     expect(typeErrors('a.co')).toEqual([minLengthErr]);
     // Invalid parts
     expect(typeErrors('example')).toEqual([domainErrPattern]);
@@ -139,7 +158,15 @@ it('should return custom domain errors inside an array', async () => {
         format: {formatPath: ['names', 1, 'minLength'], name: 'domain', val: 2},
         path: [1], // this is the index of the array
     };
-    expect(typeErrors(['example.com', 'example..com'])).toEqual([err]);
+    const patternErr2: RunTypeError = {
+        ...err,
+        format: {
+            name: 'domain',
+            formatPath: ['names', 1, 'pattern'],
+            val: 'domain names can only contain letters, numbers and hyphens',
+        },
+    };
+    expect(typeErrors(['example.com', 'example..com'])).toEqual([err, patternErr2]);
 });
 
 it('should return domain errors inside an array', async () => {
@@ -228,7 +255,15 @@ it('should return custom domain errors inside recursive data', async () => {
         format: {formatPath: ['names', 1, 'minLength'], name: 'domain', val: 2},
         path: ['domains', 0], // this is the index of the array
     };
-    expect(typeErrors({name: 'item1', domains: ['example..com']})).toEqual([err]);
+    const patternErr3: RunTypeError = {
+        ...err,
+        format: {
+            name: 'domain',
+            formatPath: ['names', 1, 'pattern'],
+            val: 'domain names can only contain letters, numbers and hyphens',
+        },
+    };
+    expect(typeErrors({name: 'item1', domains: ['example..com']})).toEqual([err, patternErr3]);
 
     // Invalid whit children
     const dRec1: StrictDomainRecursive = {
@@ -244,7 +279,16 @@ it('should return custom domain errors inside recursive data', async () => {
         format: {formatPath: ['names', 1, 'minLength'], name: 'domain', val: 2},
         path: ['children', 1, 'domains', 2],
     };
-    expect(typeErrors(dRec1)).toEqual([err1]);
+    // Recursive domain validation - now returns multiple errors
+    const patternErr4: RunTypeError = {
+        ...err1,
+        format: {
+            name: 'domain',
+            formatPath: ['names', 1, 'pattern'],
+            val: 'domain names can only contain letters, numbers and hyphens',
+        },
+    };
+    expect(typeErrors(dRec1)).toEqual([err1, patternErr4]);
 });
 
 it('should return domain errors inside recursive data', async () => {

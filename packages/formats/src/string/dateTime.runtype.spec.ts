@@ -64,8 +64,8 @@ it('get datetime errors for format ISO', async () => {
     expect(typeErrors('2023-01-01T00:00:60Z')).toEqual([timeError]);
     // invalid characters
     expect(typeErrors('2023-01-01T00:00:00!Z')).toEqual([timeError]);
-    // missing splitChar
-    expect(typeErrors('2023-01-01')).toEqual([splitCharError]);
+    // missing splitChar - now returns multiple errors
+    expect(typeErrors('2023-01-01')).toEqual([splitCharError, dateError, timeError]);
     // wrong length
     expect(typeErrors('2023-01-01T00:00')).toEqual([timeError]);
 });
@@ -127,8 +127,8 @@ it('get datetime errors for format MM-DDTHH', async () => {
     expect(typeErrors('01-01T24')).toEqual([timeError]);
     // invalid characters
     expect(typeErrors('01-01T0!')).toEqual([timeError]);
-    // wrong length
-    expect(typeErrors('01-01')).toEqual([splitCharError]);
+    // wrong length - now returns multiple errors
+    expect(typeErrors('01-01')).toEqual([splitCharError, dateError, timeError]);
     expect(typeErrors('01-01T00:00')).toEqual([timeError]);
 });
 
