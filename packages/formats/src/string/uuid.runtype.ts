@@ -4,16 +4,16 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
-import type {GenericPureFunction, FormatParam} from '@mionkit/core/src/types';
-import type {BaseRunType} from '@mionkit/run-types/src/lib/baseRunTypes';
-import type {JitCompiler, JitErrorsCompiler} from '@mionkit/run-types/src/lib/jitCompiler';
-import {registerFormatter, registerPureFnClosure} from '@mionkit/run-types/src/lib/formats';
-import {BaseRunTypeFormat} from '@mionkit/run-types/src/lib/baseRunTypeFormat';
+import type {GenericPureFunction, FormatParam} from '@mionkit/core/types';
+import type {BaseRunType} from '@mionkit/run-types/lib/baseRunTypes';
+import type {JitCompiler, JitErrorsCompiler} from '@mionkit/run-types/lib/jitCompiler';
+import {registerFormatter, registerPureFnClosure} from '@mionkit/run-types/lib/formats';
+import {BaseRunTypeFormat} from '@mionkit/run-types/lib/baseRunTypeFormat';
 import {ReflectionKind} from '@deepkit/type';
-import {RunTypeOptions} from '@mionkit/run-types/src/types';
-import {TypeFormat} from '@mionkit/run-types/src/lib/formats.runtype'; // !Important: TypeFormat cant be imported as type for all runType functionality to work
-import {fpVal} from '@mionkit/run-types/src/lib/utils';
-import {randomUUID_V7} from '@mionkit/core/src/utils';
+import {RunTypeOptions} from '@mionkit/run-types/types';
+import {TypeFormat} from '@mionkit/run-types/lib/formats.runtype'; // !Important: TypeFormat cant be imported as type for all runType functionality to work
+import {fpVal} from '@mionkit/run-types/lib/utils';
+import {randomUUID_V7} from '@mionkit/core/utils';
 
 // UUID validator
 export class UUIDRunTypeFormat extends BaseRunTypeFormat<FormatParams_UUID> {

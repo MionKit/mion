@@ -5,8 +5,8 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {isTypeFn, mockTypeFn, typeErrorsFn} from '@mionkit/run-types/src/runTypeFunctions';
-import {RunTypeError} from '@mionkit/core/src/types';
+import {isTypeFn, mockTypeFn, typeErrorsFn} from '@mionkit/run-types/runTypeFunctions';
+import {RunTypeError} from '@mionkit/core/types';
 import {StrUrl, StrUrlFile, StrUrlHttp, StrUrlSocialMedia} from './url.runtype';
 
 // ####### URL isType #######

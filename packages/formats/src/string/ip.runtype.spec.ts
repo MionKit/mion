@@ -5,12 +5,12 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {isTypeFn, mockTypeFn, typeErrorsFn} from '@mionkit/run-types/src/runTypeFunctions';
-import {RunTypeError} from '@mionkit/core/src/types';
-import {StrIP, StrIPV4, StrIPV4WithPort, StrIPV6, StrIPV6WithPort} from './ip.runtype';
+import {isTypeFn, mockTypeFn, typeErrorsFn} from '@mionkit/run-types/runTypeFunctions';
+import {RunTypeError} from '@mionkit/core/types';
+import {StrIP, StrIPv4, StrIPv4WithPort, StrIPv6, StrIPv6WithPort} from './ip.runtype';
 
 it('should validate IPV4 values', async () => {
-    const isType = await isTypeFn<StrIPV4>();
+    const isType = await isTypeFn<StrIPv4>();
     // Valid cases
     expect(isType('192.168.0.1')).toBe(true);
     expect(isType('localHost')).toBe(true);
@@ -26,7 +26,7 @@ it('should validate IPV4 values', async () => {
 });
 
 it('should validate IPV4 values with port', async () => {
-    const isType = await isTypeFn<StrIPV4WithPort>();
+    const isType = await isTypeFn<StrIPv4WithPort>();
     // Valid cases
     expect(isType('192.168.0.1:80')).toBe(true);
     expect(isType('localHost:80')).toBe(true);
@@ -40,7 +40,7 @@ it('should validate IPV4 values with port', async () => {
 });
 
 it('should return IPV4 errors', async () => {
-    const typeErrors = await typeErrorsFn<StrIPV4>();
+    const typeErrors = await typeErrorsFn<StrIPv4>();
     const err: RunTypeError = {expected: 'string', path: [], format: {name: 'ip', formatPath: ['version'], val: 4}};
     // Valid cases
     expect(typeErrors('192.168.0.1')).toEqual([]);
@@ -57,8 +57,8 @@ it('should return IPV4 errors', async () => {
 });
 
 it('should mock IPV4 values', async () => {
-    const mockType = await mockTypeFn<StrIPV4>();
-    const isType = await isTypeFn<StrIPV4>();
+    const mockType = await mockTypeFn<StrIPv4>();
+    const isType = await isTypeFn<StrIPv4>();
     const mockedItems = Array.from({length: 20}, () => mockType());
     for (const item of mockedItems) {
         expect(isType(item)).toBe(true);
@@ -66,7 +66,7 @@ it('should mock IPV4 values', async () => {
 });
 
 it('should validate IPV6 values', async () => {
-    const isType = await isTypeFn<StrIPV6>();
+    const isType = await isTypeFn<StrIPv6>();
     // Valid cases
     expect(isType('::1')).toBe(true);
     expect(isType('2001:0db8:85a3:0000:0000:8a2e:0370:7334')).toBe(true);
@@ -79,7 +79,7 @@ it('should validate IPV6 values', async () => {
 });
 
 it('should validate IPV6 values with port', async () => {
-    const isType = await isTypeFn<StrIPV6WithPort>();
+    const isType = await isTypeFn<StrIPv6WithPort>();
     // Valid cases
     expect(isType('[::1]:80')).toBe(true);
     expect(isType('[2001:0db8:85a3:0000:0000:8a2e:0370:7334]:3060')).toBe(true);
@@ -93,7 +93,7 @@ it('should validate IPV6 values with port', async () => {
 });
 
 it('should return IPV6 errors', async () => {
-    const typeErrors = await typeErrorsFn<StrIPV6>();
+    const typeErrors = await typeErrorsFn<StrIPv6>();
     const err: RunTypeError = {expected: 'string', path: [], format: {name: 'ip', formatPath: ['version'], val: 6}};
     // Valid cases
     expect(typeErrors('::1')).toEqual([]);
@@ -104,8 +104,8 @@ it('should return IPV6 errors', async () => {
 });
 
 it('should mock IPV6 values', async () => {
-    const mockType = await mockTypeFn<StrIPV6>();
-    const isType = await isTypeFn<StrIPV6>();
+    const mockType = await mockTypeFn<StrIPv6>();
+    const isType = await isTypeFn<StrIPv6>();
     const mockedItems = Array.from({length: 20}, () => mockType());
     for (const item of mockedItems) {
         expect(isType(item)).toBe(true);

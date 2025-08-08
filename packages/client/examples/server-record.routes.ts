@@ -1,4 +1,4 @@
-import {RpcError} from '@mionkit/core/src/errors';
+import {RpcError} from '@mionkit/core/errors';
 import {Routes, headersHook, hook, initMionRouter, route} from '@mionkit/router';
 
 const routes = {

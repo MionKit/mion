@@ -19,13 +19,13 @@ import type {PublicApi, PrivateDef, HooksCollection} from './types/publicMethods
 import type {HeaderHookDef, HookDef, RawHookDef} from './types/definitions';
 import {getHandlerReflection} from './reflection';
 import {bodyParserHooks} from './jsonBodyParser.routes';
-import {getRouterItemId, getRoutePath} from '@mionkit/core/src/core';
-import {setErrorOptions} from '@mionkit/core/src/errors';
+import {getRouterItemId, getRoutePath} from '@mionkit/core/core';
+import {setErrorOptions} from '@mionkit/core/errors';
 import {getPublicApi, resetRemoteMethodsMetadata} from './remoteMethods';
 import {clientRoutes} from './client.routes';
 import {getNotFoundExecutionPath} from './notFound';
 import {addToPersistedMethods, getPersistedMethod, resetPersistedMethods} from './persistedMethods';
-import {JitFunctionsHashes} from '@mionkit/core/src/types';
+import {JitFunctionsHashes} from '@mionkit/core/types';
 
 type RouterKeyEntryList = [string, RouterEntry][];
 type RoutesWithId = {

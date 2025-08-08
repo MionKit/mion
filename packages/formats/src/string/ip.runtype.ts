@@ -6,15 +6,15 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import type {JITUtils, GenericPureFunction, TypeFormatError, FormatParam} from '@mionkit/core/src/types';
-import type {BaseRunType} from '@mionkit/run-types/src/lib/baseRunTypes';
-import type {JitCompiler, JitErrorsCompiler} from '@mionkit/run-types/src/lib/jitCompiler';
-import type {RunTypeOptions} from '@mionkit/run-types/src/types';
-import {BaseRunTypeFormat} from '@mionkit/run-types/src/lib/baseRunTypeFormat';
+import type {JITUtils, GenericPureFunction, TypeFormatError, FormatParam} from '@mionkit/core/types';
+import type {BaseRunType} from '@mionkit/run-types/lib/baseRunTypes';
+import type {JitCompiler, JitErrorsCompiler} from '@mionkit/run-types/lib/jitCompiler';
+import type {RunTypeOptions} from '@mionkit/run-types/types';
+import {BaseRunTypeFormat} from '@mionkit/run-types/lib/baseRunTypeFormat';
 import {ReflectionKind} from '@deepkit/type';
-import {TypeFormat} from '@mionkit/run-types/src/lib/formats.runtype';
-import {registerFormatter, registerPureFnClosure} from '@mionkit/run-types/src/lib/formats';
-import {fpVal} from '@mionkit/run-types/src/lib/utils';
+import {TypeFormat} from '@mionkit/run-types/lib/formats.runtype';
+import {registerFormatter, registerPureFnClosure} from '@mionkit/run-types/lib/formats';
+import {fpVal} from '@mionkit/run-types/lib/utils';
 
 // IP validator
 export class IPRunTypeFormat extends BaseRunTypeFormat<FormatParams_IP> {

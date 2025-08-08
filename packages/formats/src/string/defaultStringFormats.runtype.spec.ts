@@ -4,8 +4,8 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
-import type {TypeFormatError, RunTypeError} from '@mionkit/core/src/types';
-import {isTypeFn, mockTypeFn, typeErrorsFn} from '@mionkit/run-types/src/runTypeFunctions';
+import type {TypeFormatError, RunTypeError} from '@mionkit/core/types';
+import {isTypeFn, mockTypeFn, typeErrorsFn} from '@mionkit/run-types/runTypeFunctions';
 import {StrFormat} from './stringFormat.runtype';
 import {StrAlpha, StrAlphaNumeric, StrCapitalize, StrLowercase, StrNumeric, StrUppercase} from './defaultStringFormats.runtype';
 

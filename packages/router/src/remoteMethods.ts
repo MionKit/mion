@@ -19,11 +19,11 @@ import {
     isPrivateDefinition,
     shouldFullGenerateSpec,
 } from './router';
-import type {AnyObject, JitCompiledFnData, JitCompiledFunctions, PureFunctionData} from '@mionkit/core/src/types';
-import {getRoutePath, getRouterItemId} from '@mionkit/core/src/core';
-import {jitUtils} from '@mionkit/core/src/jitUtils';
-import {getSerializableJitCompiler} from '@mionkit/run-types/src/lib/jitCompiler';
-import {MAX_STACK_DEPTH} from '@mionkit/core/src/constants';
+import type {AnyObject, JitCompiledFnData, JitCompiledFunctions, PureFunctionData} from '@mionkit/core/types';
+import {getRoutePath, getRouterItemId} from '@mionkit/core/core';
+import {jitUtils} from '@mionkit/core/jitUtils';
+import {getSerializableJitCompiler} from '@mionkit/run-types/lib/jitCompiler';
+import {MAX_STACK_DEPTH} from '@mionkit/core/constants';
 
 // ############# PRIVATE STATE #############
 const publicMethods: Map<string, PublicMethod> = new Map();

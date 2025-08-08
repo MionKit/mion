@@ -6,7 +6,7 @@
  * ######## */
 
 import {RouterOptions} from './types/general';
-import {getENV} from '@mionkit/core/src/utils';
+import {getENV} from '@mionkit/core/utils';
 
 export const IS_TEST_ENV = getENV('JEST_WORKER_ID') !== undefined || getENV('NODE_ENV') === 'test';
 

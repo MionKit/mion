@@ -1,5 +1,5 @@
-import {AnyObject} from '@mionkit/core/src/types';
-import {RpcError} from '@mionkit/core/src/errors';
+import {AnyObject} from '@mionkit/core/types';
+import {RpcError} from '@mionkit/core/errors';
 import {initMionRouter, Routes, CallContext, route, headersHook, rawHook, hook} from '@mionkit/router';
 import {IncomingMessage} from 'http';
 

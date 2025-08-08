@@ -5,22 +5,22 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
-import type {BaseRunType} from '@mionkit/run-types/src/lib/baseRunTypes';
-import type {JitCompiler, JitErrorsCompiler} from '@mionkit/run-types/src/lib/jitCompiler';
-import type {StrNumber, JitFnID, jitCode} from '@mionkit/run-types/src/types';
-import {BaseRunTypeFormat} from '@mionkit/run-types/src/lib/baseRunTypeFormat';
+import type {BaseRunType} from '@mionkit/run-types/lib/baseRunTypes';
+import type {JitCompiler, JitErrorsCompiler} from '@mionkit/run-types/lib/jitCompiler';
+import type {StrNumber, JitFnID, jitCode} from '@mionkit/run-types/types';
+import {BaseRunTypeFormat} from '@mionkit/run-types/lib/baseRunTypeFormat';
 import {ReflectionKind} from '@deepkit/type';
 import {DEFAULT_STRICT_DOMAIN_PARAMS, FormatParams_Domain} from './domain.runtype';
-import {TypeFormat} from '@mionkit/run-types/src/lib/formats.runtype';
-import {RunTypeOptions} from '@mionkit/run-types/src/types';
+import {TypeFormat} from '@mionkit/run-types/lib/formats.runtype';
+import {RunTypeOptions} from '@mionkit/run-types/types';
 import {StringRunTypeFormat, stringIgnoreProps, StringValidators, Samples} from './stringFormat.runtype';
 import {DomainRunTypeFormat} from './domain.runtype';
-import {registerFormatter} from '@mionkit/run-types/src/lib/formats';
+import {registerFormatter} from '@mionkit/run-types/lib/formats';
 import {EMAIL_NAME_SAMPLES_ARRAY, EMAIL_NAME_SAMPLES, EMAIL_SAMPLES, EMAIL_SAMPLES_PUNYCODE} from '../constants.mock'; // do not import using type
-import {CodeType} from '@mionkit/run-types/src/constants.functions';
-import {JitFunctions} from '@mionkit/run-types/src/constants.functions';
-import {randomItem} from '@mionkit/run-types/src/mocking/mockUtils';
-import {fpVal} from '@mionkit/run-types/src/lib/utils';
+import {CodeType} from '@mionkit/run-types/constants.functions';
+import {JitFunctions} from '@mionkit/run-types/constants.functions';
+import {randomItem} from '@mionkit/run-types/mocking/mockUtils';
+import {fpVal} from '@mionkit/run-types/lib/utils';
 
 // Email pattern, allows punycode domains
 export const EMAIL_PATTERN = /^[^\s@]{1,64}@(?:[a-zA-Z0-9-]{1,63}\.)+[a-zA-Z]{2,63}$/;

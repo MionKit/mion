@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {RpcError} from '@mionkit/core/src/errors';
+import {RpcError} from '@mionkit/core/errors';
 import {CallContext} from './context';
 import {Routes} from './general';
 import {HandlerType, Method} from './remoteMethods';

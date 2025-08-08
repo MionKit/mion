@@ -5,13 +5,13 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
-import type {FormatParam} from '@mionkit/core/src/types';
-import type {BaseRunType} from '@mionkit/run-types/src/lib/baseRunTypes';
-import type {JitCompiler, JitErrorsCompiler} from '@mionkit/run-types/src/lib/jitCompiler';
-import {BaseRunTypeFormat} from '@mionkit/run-types/src/lib/baseRunTypeFormat';
+import type {FormatParam} from '@mionkit/core/types';
+import type {BaseRunType} from '@mionkit/run-types/lib/baseRunTypes';
+import type {JitCompiler, JitErrorsCompiler} from '@mionkit/run-types/lib/jitCompiler';
+import {BaseRunTypeFormat} from '@mionkit/run-types/lib/baseRunTypeFormat';
 import {ReflectionKind} from '@deepkit/type';
-import {RunTypeOptions, type jitCode, type JitFnID, type StrNumber} from '@mionkit/run-types/src/types';
-import {TypeFormat} from '@mionkit/run-types/src/lib/formats.runtype'; // !Important: TypeFormat cant be imported as type for all runType functionality to work
+import {RunTypeOptions, type jitCode, type JitFnID, type StrNumber} from '@mionkit/run-types/types';
+import {TypeFormat} from '@mionkit/run-types/lib/formats.runtype'; // !Important: TypeFormat cant be imported as type for all runType functionality to work
 import {
     StringRunTypeFormat,
     stringIgnoreProps,
@@ -20,11 +20,11 @@ import {
     type StringParams,
     Samples,
 } from './stringFormat.runtype';
-import {registerFormatter} from '@mionkit/run-types/src/lib/formats';
-import {random, randomItem} from '@mionkit/run-types/src/mocking/mockUtils';
-import {CodeType} from '@mionkit/run-types/src/constants.functions';
-import {JitFunctions} from '@mionkit/run-types/src/constants.functions';
-import {fpVal} from '@mionkit/run-types/src/lib/utils';
+import {registerFormatter} from '@mionkit/run-types/lib/formats';
+import {random, randomItem} from '@mionkit/run-types/mocking/mockUtils';
+import {CodeType} from '@mionkit/run-types/constants.functions';
+import {JitFunctions} from '@mionkit/run-types/constants.functions';
+import {fpVal} from '@mionkit/run-types/lib/utils';
 import {NAME_CHARS, NAME_SAMPLES, TLD_CHARS, TLD_SAMPLES} from '../constants.mock';
 
 // latin domain names each domain part must be 61 chars max, tld only supports latin chars

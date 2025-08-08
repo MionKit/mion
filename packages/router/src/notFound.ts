@@ -1,8 +1,8 @@
 import type {NotFoundMethod, MethodsExecutionList} from './types/remoteMethods';
 import {HandlerType} from './types/remoteMethods';
 import type {RouteDef} from './types/definitions';
-import {RpcError} from '@mionkit/core/src/errors';
-import {StatusCodes} from '@mionkit/core/src/status-codes';
+import {RpcError} from '@mionkit/core/errors';
+import {StatusCodes} from '@mionkit/core/status-codes';
 import {startHooks, endHooks, getExecutableFromRoute} from './router';
 import {NOT_FOUND_HOOK_NAME} from './constants';
 
