@@ -45,9 +45,9 @@
     "dev:test": "jest --watch",
     "lint": "eslint src --ext .ts",
     "format": "prettier --write src/**/*.ts",
-    "build:cjs": "tsc --project tsconfig.build.json --module CommonJS --outDir .dist/cjs",
-    "build:esm": "tsc --project tsconfig.build.json --module NodeNext --outDir .dist/esm",
-    "build:types": "tsc --project tsconfig.build.json --emitDeclarationOnly --declaration --outDir .dist/types",
+    "build:cjs": "tsc --project tsconfig.cjs.json",
+    "build:esm": "tsc --project tsconfig.esm.json",
+    "build:types": "tsc --project tsconfig.types.json --emitDeclarationOnly --declaration --outDir .dist/types",
     "build": "npm run build:cjs && npm run build:esm && npm run build:types",
     "auto-readme": "embedme **/*.md && prettier --write **/*.md",
     "clean": "rimraf .dist & rimraf .coverage"

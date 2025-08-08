@@ -6,8 +6,8 @@
  * ######## */
 
 import {RpcError} from '@mionkit/core/errors';
-import type {RunTypeError} from '@mionkit/core/types';
-import type {JitCompiledFunctions} from '@mionkit/core/types';
+import type {RunTypeError} from '@mionkit/run-types/types';
+import type {JitCompiledFunctions} from '@mionkit/run-types/types';
 import type {JsonParser, PublicHeaderMethod, PublicHookMethod, PublicMethod, PublicApi, PublicRouteMethod} from '@mionkit/router';
 import type {MionRequest} from './request';
 

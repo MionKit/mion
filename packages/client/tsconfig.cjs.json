@@ -1,0 +1,14 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "module": "CommonJS",
+    "outDir": ".dist/cjs",
+    "lib": ["es6", "ES2021", "DOM"],
+    "composite": true,
+    "rootDir": "."
+  },
+  "references": [{"path": "../core/tsconfig.cjs.json"}, {"path": "../run-types/tsconfig.cjs.json"}],
+  "reflection": ["src/**/*.routes.ts"],
+  "include": ["./src/**/*", "./index.ts"],
+  "exclude": ["node_modules", "**/*.spec.ts", "**/*.test.ts", "examples", ".dist"]
+}
