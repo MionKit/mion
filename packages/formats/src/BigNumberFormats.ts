@@ -15,13 +15,22 @@ import './bigint/defaultBigNumberFormats';
 
 // ############### Main BigIntFormat Export ###############
 
-// Re-export the main BigIntFormat type
-export {BigNumFormat as FormatBigInt} from './bigint/bigIntFormat.runtype';
+// TEMPORARY WORKAROUND: Using export * instead of named exports due to metadata compilation issue
+// See: https://github.com/deepkit/deepkit-framework/issues/634
+// TODO: Revert to named exports once the issue is fixed
 
-// ############### Default BigInt Formats ###############
+// Re-export everything from bigint format modules
+export * from './bigint/bigIntFormat.runtype';
+export * from './bigint/defaultBigNumberFormats';
 
-export {BigNumPositive} from './bigint/defaultBigNumberFormats';
-export {BigNumNegative} from './bigint/defaultBigNumberFormats';
-export {BigNumPositiveInt} from './bigint/defaultBigNumberFormats';
-export {BigNumNegativeInt} from './bigint/defaultBigNumberFormats';
-export {BigNumInt64} from './bigint/defaultBigNumberFormats';
+// COMMENTED OUT - Original named exports (to be restored after issue is fixed):
+// // Re-export the main BigIntFormat type
+// export {BigNumFormat as FormatBigInt} from './bigint/bigIntFormat.runtype';
+//
+// // ############### Default BigInt Formats ###############
+//
+// export {BigNumPositive} from './bigint/defaultBigNumberFormats';
+// export {BigNumNegative} from './bigint/defaultBigNumberFormats';
+// export {BigNumPositiveInt} from './bigint/defaultBigNumberFormats';
+// export {BigNumNegativeInt} from './bigint/defaultBigNumberFormats';
+// export {BigNumInt64} from './bigint/defaultBigNumberFormats';
