@@ -85,7 +85,7 @@ export class StringRunTypeFormat extends BaseRunTypeFormat<StringParams> {
         const p = this.getParams(rt);
         const vλl = comp.vλl;
         const literalFn = getToLiteralFn(comp, this.getIgnoredProps());
-        const errFn = this.getCallJitFormatErr(comp, rt, this, true);
+        const errFn = this.getCallJitFormatErr(comp, rt, this, false);
         if (p.maxLength !== undefined) {
             const maxL = fpVal(p.maxLength);
             const errCode = errFn('maxLength', maxL);

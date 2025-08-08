@@ -130,7 +130,7 @@ export class DomainRunTypeFormat extends BaseRunTypeFormat<FormatParams_Domain> 
 
         if (params.pattern) return this.rootFormatter.compileFormat(fnID, comp, rt, params, comp.vλl, fmtName);
 
-        const errFn = this.getCallJitFormatErr(comp, rt, this, true);
+        const errFn = this.getCallJitFormatErr(comp, rt, this, false);
         const vλl = comp.vλl;
         const vName = 'name' + this.getFormatNestLevel(); // must match var name in code
         const vTld = 'tld' + this.getFormatNestLevel(); // must match var name in code
