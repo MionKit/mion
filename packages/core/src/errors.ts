@@ -102,28 +102,22 @@ export class RpcError<ErrType extends StrNumber = any, ErrData = any> extends Ty
         Object.setPrototypeOf(this, RpcError.prototype);
     }
 
-    /** returns an error without stack trace an massage is swapped by public message */
+    /** returns an error without stack trace and message is swapped by public message */
     toPublicError(): PublicRpcError<ErrType, ErrData> {
-        const err: PublicRpcError<ErrType, ErrData> = {
-            isΣrrθr: true,
-            type: this.type,
-            ...(this.id ? {id: this.id} : {}),
-            name: this.name,
-            statusCode: this.statusCode,
-            message: this.publicMessage,
-            ...(this.errorData ? {errorData: this.errorData} : {}),
+        const {isΣrrθr, type, name, statusCode, id, errorData, publicMessage} = this;
+        return {
+            isΣrrθr,
+            type,
+            name,
+            statusCode,
+            message: publicMessage,
+            ...(id && {id}),
+            ...(errorData && {errorData}),
         };
-        return err;
     }
 }
 
 // #######  Error Type Guards #######
-
-const hasUnknownKeys = (knownKeys: string[], error: unknown): boolean => {
-    if (typeof error !== 'object' || error === null) return true;
-    const unknownKeys = Object.keys(error as object);
-    return unknownKeys.some((ukn) => !knownKeys.includes(ukn));
-};
 
 /** Returns true if the error is a TypedError or has the same structure. */
 export function isTypedError(error: any): error is TypedError<any> {
@@ -135,7 +129,7 @@ export function isTypedError(error: any): error is TypedError<any> {
         typeof error.name === 'string' &&
         typeof error.message === 'string' &&
         (typeof error.type === 'string' || typeof error.type === 'number') &&
-        !hasUnknownKeys(['isΣrrθr', 'type', 'name', 'message'], error)
+        !jitUtils.hasUnknownKeysFromArray(error, ['isΣrrθr', 'type', 'name', 'message'])
     );
 }
 
@@ -150,9 +144,13 @@ export function isRpcError(error: any): error is RpcError {
         typeof error.name === 'string' &&
         (typeof error.message === 'string' || typeof error.publicMessage === 'string') &&
         (typeof error.id === 'string' || typeof error.id === 'number' || error.id === undefined) &&
-        !hasUnknownKeys(['id', 'statusCode', 'message', 'publicMessage', 'name', 'errorData'], error)
+        !jitUtils.hasUnknownKeysFromArray(error, ['isΣrrθr', 'id', 'statusCode', 'message', 'publicMessage', 'name', 'errorData'])
     );
 }
+
+jitUtils.setDeserializeFn(TypedError, (serializedItem: DataOnly<TypedError<any>>) => {
+    return new TypedError(serializedItem);
+});
 
 jitUtils.setDeserializeFn(RpcError, (serializedItem: DataOnly<RpcError>) => {
     return new RpcError(serializedItem);
