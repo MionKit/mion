@@ -633,7 +633,7 @@ it('get multiple params errors', async () => {
     expect(typeErrors('aaaaaaaabmaj2')).toEqual([maxLengthError]);
 });
 
-it('should return multiple errors for string format violations', async () => {
+it('should return first error for string format violations (early return)', async () => {
     const regex = /^[a-zA-Z]+$/;
     type Multi = StrFormat<{
         pattern: {val: typeof regex; mockSamples: 'abcdefgABCDEFG'; errorMessage: 'only letters allowed'};
@@ -643,17 +643,13 @@ it('should return multiple errors for string format violations', async () => {
     const typeErrors = await typeErrorsFn<Multi>();
     const format: TypeFormatError = {name: 'stringFormat', formatPath: [], val: ''};
     const expectedError: RunTypeError = {expected: 'string', path: [], format};
-    const alphaError: RunTypeError = {
-        ...expectedError,
-        format: {...format, formatPath: ['pattern'], val: 'only letters allowed'},
-    };
     const maxLengthError: RunTypeError = {...expectedError, format: {...format, formatPath: ['maxLength'], val: 8}};
 
     // Test string that violates both maxLength and pattern: 'aaaaaaaabmaj2' (length=13 > 8, contains numbers)
+    // With early return behavior, only the first error (maxLength) should be returned
     const errors = typeErrors('aaaaaaaabmaj2');
-    expect(errors.length).toBe(2); // Should now return multiple errors
+    expect(errors.length).toBe(1); // Early return behavior: only first error
     expect(errors).toContainEqual(maxLengthError);
-    expect(errors).toContainEqual(alphaError);
 });
 
 it('should demonstrate early return behavior preventing multiple errors', async () => {
@@ -682,8 +678,8 @@ it('should demonstrate early return behavior preventing multiple errors', async 
     // expect(errors.map(e => e.format?.formatPath)).toContain(['pattern']);
 });
 
-it('should return multiple errors with shouldReturn=false', async () => {
-    // This test demonstrates the new behavior with shouldReturn=false
+it('should return first error with early return behavior', async () => {
+    // This test demonstrates the early return behavior
     const regex = /^[a-zA-Z]+$/;
     type Multi = StrFormat<{
         pattern: {val: typeof regex; mockSamples: 'abcdefgABCDEFG'; errorMessage: 'only letters allowed'};
@@ -696,13 +692,11 @@ it('should return multiple errors with shouldReturn=false', async () => {
     // 'ab1' violates both minLength (< 5) and pattern (contains number)
     const errors = typeErrors('ab1');
 
-    // With shouldReturn=false, we now expect multiple errors
-    expect(errors.length).toBe(2); // New behavior: multiple errors
+    // With early return behavior, we expect only the first error
+    expect(errors.length).toBe(1); // Early return behavior: only first error
 
-    // Check that we get both expected errors
-    const errorPaths = errors.map((e) => e.format?.formatPath?.[0]);
-    expect(errorPaths).toContain('minLength');
-    expect(errorPaths).toContain('pattern');
+    // The first error should be minLength since it's checked first
+    expect(errors[0].format?.formatPath).toEqual(['minLength']);
 });
 
 it('mock multiple params', async () => {

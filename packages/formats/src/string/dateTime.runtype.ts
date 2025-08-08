@@ -74,7 +74,7 @@ export class DateTimeRunTypeFormat extends BaseRunTypeFormat<FormatParams_DateTi
         const fnID = comp.fnID;
         const fmtName = this.getFormatName();
         const splitChar = fpVal(params.splitChar);
-        const errFn = this.getCallJitFormatErr(comp, rt, this, false);
+        const errFn = this.getCallJitFormatErr(comp, rt, this, true); // Use shouldReturn = true for early returns
         const vλl = comp.vλl;
         const vDatePart = 'datePart'; // Variable for date part
         const vTimePart = 'timePart'; // Variable for time part

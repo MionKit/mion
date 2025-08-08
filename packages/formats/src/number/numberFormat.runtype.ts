@@ -75,7 +75,7 @@ export class NumberRunTypeFormat extends BaseRunTypeFormat<NumberValidators> {
     _compileTypeErrors(comp: JitErrorsCompiler, rt: BaseRunType): string {
         const params = this.getParams(rt);
         const v = comp.vλl;
-        const errFn = this.getCallJitFormatErr(comp, rt, this, false);
+        const errFn = this.getCallJitFormatErr(comp, rt, this, true); // Use shouldReturn = true for early returns
 
         // Create an array to hold all error conditions
         const conditions: string[] = [];

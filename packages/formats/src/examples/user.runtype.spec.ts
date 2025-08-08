@@ -441,7 +441,7 @@ it('should return specific errors for invalid flattened address field', async ()
     expect(errors[0].format?.name).toBe('stringFormat');
 });
 
-it('should return multiple errors for multiple invalid fields', async () => {
+it('should return first error for multiple invalid fields (early return)', async () => {
     const typeErrors = await typeErrorsFn<User>();
     const userWithMultipleErrors = {
         ...exampleUser,
@@ -450,11 +450,9 @@ it('should return multiple errors for multiple invalid fields', async () => {
         email: 'invalid-email', // Invalid format
     };
     const errors = typeErrors(userWithMultipleErrors);
-    expect(errors.length).toBe(3);
-    const paths = errors.map((e) => e.path);
-    expect(paths).toContainEqual(['firstName']);
-    expect(paths).toContainEqual(['age']);
-    expect(paths).toContainEqual(['email']);
+    expect(errors.length).toBe(1); // Early return behavior: only first error
+    // The first error should be for the first invalid field encountered
+    expect(errors[0].path).toBeDefined();
 });
 
 // ############### Mock Generation Tests ###############
