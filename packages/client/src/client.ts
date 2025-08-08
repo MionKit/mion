@@ -23,7 +23,7 @@ import type {PublicApi} from '@mionkit/router';
 import {RpcError} from '@mionkit/core/errors';
 import {getRouterItemId} from '@mionkit/core/core';
 import {MionRequest} from './request';
-import type {RunTypeError} from '@mionkit/run-types/types';
+import type {RunTypeError} from '@mionkit/core/types';
 
 export function initClient<RM extends PublicApi<any>>(
     options: InitOptions
@@ -110,10 +110,7 @@ class MethodProxy {
                         .catch((errors) => Promise.reject(findError(subRequest, errors)));
                 },
                 validate: (): Promise<RunTypeError[]> => {
-                    return this.client
-                        .validate(subRequest)
-                        .then((responses) => responses[0])
-                        .catch((errors) => Promise.reject(findError(subRequest, errors)));
+                    return this.client.validate(subRequest).catch((errors) => Promise.reject(findError(subRequest, errors)));
                 },
             };
             return subRequest;
@@ -141,5 +138,16 @@ class MethodProxy {
 }
 
 function findError(req: SubRequest<any>, errors: RequestErrors): RpcError {
-    return errors.get(req.id) || errors.values().next().value;
+    const specificError = errors.get(req.id);
+    if (specificError) return specificError;
+
+    const firstError = errors.values().next().value;
+    if (firstError) return firstError;
+
+    // Fallback error if no errors found (shouldn't happen)
+    return new RpcError({
+        statusCode: 500,
+        name: 'Unknown Error',
+        message: 'An unknown error occurred',
+    });
 }

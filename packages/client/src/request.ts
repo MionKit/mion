@@ -17,7 +17,7 @@ import {
     RouteSubRequest,
     RequestErrors,
 } from './types';
-import type {RunTypeError} from '@mionkit/run-types/types';
+import type {RunTypeError} from '@mionkit/core/types';
 import {RpcError, isRpcError} from '@mionkit/core/errors';
 import {getRoutePath} from '@mionkit/core/core';
 import {StatusCodes} from '@mionkit/core/status-codes';
@@ -25,13 +25,7 @@ import {STORAGE_KEY} from './constants';
 import {fetchRemoteMethodsMetadata} from './clientMethodsMetadata';
 import {deserializeResponseBody, serializeSubRequests, validateSubRequests} from './reflection';
 
-// we need to keep in sync with the one in @mionkit/router
-enum MethodType {
-    route = 1,
-    hook = 2,
-    headerHook = 3,
-    rawHook = 4,
-}
+import {HandlerType} from '@mionkit/router';
 
 export class MionRequest<RR extends RouteSubRequest<any>, HookRequestsList extends HookSubRequest<any>[]> {
     readonly path: string;
@@ -193,9 +187,9 @@ export class MionRequest<RR extends RouteSubRequest<any>, HookRequestsList exten
             const methodMeta = this.metadataById.get(subRequest.id);
             if (!subRequest.serializedParams) throw new Error(`SubRequest ${subRequest.id} is not serialized.`);
             if (!methodMeta) throw new Error(`Metadata for remote method ${subRequest.id} not found.`);
-            if (methodMeta.type === MethodType.headerHook && methodMeta.headerName) {
+            if (methodMeta.type === HandlerType.headerHook && methodMeta.headerNames && methodMeta.headerNames.length > 0) {
                 // TODO: check if we using soft serialization in the client
-                headers[methodMeta.headerName] = subRequest.serializedParams[0];
+                headers[methodMeta.headerNames[0]] = subRequest.serializedParams[0];
             } else {
                 body[subRequest.id] = subRequest.serializedParams;
             }
@@ -205,8 +199,13 @@ export class MionRequest<RR extends RouteSubRequest<any>, HookRequestsList exten
 
     private getResponseValueFromBodyOrHeader(id: string, respBody: PublicResponses, headers: Headers): any {
         const methodMeta = this.metadataById.get(id);
-        if (methodMeta && methodMeta.type === MethodType.headerHook && methodMeta.headerName) {
-            return headers.get(methodMeta.headerName);
+        if (
+            methodMeta &&
+            methodMeta.type === HandlerType.headerHook &&
+            methodMeta.headerNames &&
+            methodMeta.headerNames.length > 0
+        ) {
+            return headers.get(methodMeta.headerNames[0]);
         }
         return respBody[id];
     }
@@ -255,7 +254,7 @@ export class MionRequest<RR extends RouteSubRequest<any>, HookRequestsList exten
             const subRequest = this.subRequests[id];
             const methodMeta = this.metadataById.get(id);
             if (!methodMeta) throw new Error(`Remote method ${id} not found.`);
-            if (methodMeta.type === MethodType.route) {
+            if (methodMeta.type === HandlerType.route) {
                 errors[id] = new RpcError({
                     statusCode: StatusCodes.BAD_REQUEST,
                     name: 'Persist Error',
