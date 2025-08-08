@@ -633,7 +633,7 @@ it('get multiple params errors', async () => {
     expect(typeErrors('aaaaaaaabmaj2')).toEqual([maxLengthError]);
 });
 
-it('only only one error is returned by string format', async () => {
+it('should return multiple errors for string format violations', async () => {
     const regex = /^[a-zA-Z]+$/;
     type Multi = StrFormat<{
         pattern: {val: typeof regex; mockSamples: 'abcdefgABCDEFG'; errorMessage: 'only letters allowed'};
@@ -648,8 +648,61 @@ it('only only one error is returned by string format', async () => {
         format: {...format, formatPath: ['pattern'], val: 'only letters allowed'},
     };
     const maxLengthError: RunTypeError = {...expectedError, format: {...format, formatPath: ['maxLength'], val: 8}};
-    // ensures only one error is thrown by format
-    expect(typeErrors('aaaaaaaabmaj2')).not.toEqual([maxLengthError, alphaError]);
+
+    // Test string that violates both maxLength and pattern: 'aaaaaaaabmaj2' (length=13 > 8, contains numbers)
+    const errors = typeErrors('aaaaaaaabmaj2');
+    expect(errors.length).toBe(2); // Should now return multiple errors
+    expect(errors).toContainEqual(maxLengthError);
+    expect(errors).toContainEqual(alphaError);
+});
+
+it('should demonstrate early return behavior preventing multiple errors', async () => {
+    const regex = /^[a-zA-Z]+$/;
+    type Multi = StrFormat<{
+        pattern: {val: typeof regex; mockSamples: 'abcdefgABCDEFG'; errorMessage: 'only letters allowed'};
+        minLength: 5;
+        maxLength: 8;
+    }>;
+    const typeErrors = await typeErrorsFn<Multi>();
+
+    // Test case: string that violates multiple constraints
+    // 'ab1' violates both minLength (< 5) and pattern (contains number)
+    const errors = typeErrors('ab1');
+
+    // Currently returns only 1 error due to early return behavior
+    expect(errors.length).toBe(1);
+
+    // The first error should be minLength since it's checked first for this case
+    expect(errors[0].format?.formatPath).toEqual(['minLength']);
+
+    // This test demonstrates that we're not getting all validation errors
+    // If we wanted multiple errors, we would expect something like:
+    // expect(errors.length).toBe(2);
+    // expect(errors.map(e => e.format?.formatPath)).toContain(['minLength']);
+    // expect(errors.map(e => e.format?.formatPath)).toContain(['pattern']);
+});
+
+it('should return multiple errors with shouldReturn=false', async () => {
+    // This test demonstrates the new behavior with shouldReturn=false
+    const regex = /^[a-zA-Z]+$/;
+    type Multi = StrFormat<{
+        pattern: {val: typeof regex; mockSamples: 'abcdefgABCDEFG'; errorMessage: 'only letters allowed'};
+        minLength: 5;
+        maxLength: 8;
+    }>;
+    const typeErrors = await typeErrorsFn<Multi>();
+
+    // Test case: string that violates multiple constraints
+    // 'ab1' violates both minLength (< 5) and pattern (contains number)
+    const errors = typeErrors('ab1');
+
+    // With shouldReturn=false, we now expect multiple errors
+    expect(errors.length).toBe(2); // New behavior: multiple errors
+
+    // Check that we get both expected errors
+    const errorPaths = errors.map((e) => e.format?.formatPath?.[0]);
+    expect(errorPaths).toContain('minLength');
+    expect(errorPaths).toContain('pattern');
 });
 
 it('mock multiple params', async () => {

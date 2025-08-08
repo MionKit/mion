@@ -104,7 +104,7 @@ export class EmailRunTypeFormat extends BaseRunTypeFormat<FormatParams_Email> {
         // If pattern is provided, use the root formatter
         if (params.pattern) return this.rootFormatter.compileFormat(fnID, comp, rt, params, comp.vλl, fmtName);
 
-        const errFn = this.getCallJitFormatErr(comp, rt, this, true);
+        const errFn = this.getCallJitFormatErr(comp, rt, this, false);
         const vλl = comp.vλl;
         const vLocalPart = 'localPart'; // Variable for local part
         const vDomain = 'domain'; // Variable for domain

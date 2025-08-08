@@ -6,7 +6,7 @@
  * ######## */
 
 // Import string formats types
-import {StrFormat, StrUUIDv4, StrEmail, StrUrl, StrDate, StrDateTime} from '@mionkit/formats/StringFormats';
+import {StrFormat, StrUUIDv4, StrEmail, StrUrlHttp, StrDate, StrDateTime} from '@mionkit/formats/StringFormats';
 // Import number formats types
 import {NumFormat, NumPositiveInt, NumPositive} from '@mionkit/formats/NumberFormats';
 
@@ -51,10 +51,12 @@ export type User = {
     // Phone number with international format
     phoneNumber: StrFormat<{
         pattern: PhonePattern;
+        minLength: 7; // Minimum E.164 format: +1234567 (country code + 6 digits)
+        maxLength: 15; // Maximum E.164 format: +123456789012345 (15 digits total)
     }>;
 
-    // Website URL (optional)
-    website?: StrUrl;
+    // Website URL (optional) - HTTP/HTTPS only
+    website?: StrUrlHttp;
 
     // Bio with length constraints
     bio?: StrFormat<{
@@ -130,7 +132,7 @@ export type User = {
 
     // Preferences (flattened)
     theme?: StrFormat<{allowedValues: ThemeValues}>;
-    language?: StrFormat<{pattern: LanguageCodePattern; lowercase: true}>;
+    language?: StrFormat<{pattern: LanguageCodePattern}>;
     timezone?: StrFormat<{pattern: TimezonePattern}>;
 };
 
@@ -286,9 +288,9 @@ const languageCodePattern = /^[a-z]{2}(-[A-Z]{2})?$/;
 /**
  * Pattern for timezone in IANA format
  * Format: "Continent/City" like "America/New_York", "Europe/London"
- * Allows letters and underscores, separated by a forward slash
+ * Strict IANA format: Capital first letter, then lowercase/underscores/capitals for compound names
  */
-const timezonePattern = /^[A-Za-z_]+\/[A-Za-z_]+$/;
+const timezonePattern = /^[A-Z][a-zA-Z_]*\/[A-Z][a-zA-Z_]*$/;
 
 // ############### Pattern Types ###############
 

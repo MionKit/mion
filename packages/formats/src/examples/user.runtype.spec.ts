@@ -450,7 +450,6 @@ it('should return multiple errors for multiple invalid fields', async () => {
         email: 'invalid-email', // Invalid format
     };
     const errors = typeErrors(userWithMultipleErrors);
-
     expect(errors.length).toBe(3);
     const paths = errors.map((e) => e.path);
     expect(paths).toContainEqual(['firstName']);
