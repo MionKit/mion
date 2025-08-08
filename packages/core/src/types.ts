@@ -56,6 +56,18 @@ export type CoreOptions = {
 
 // ##########################################  Errors ##########################################
 
+/** Base parameters for TypedError */
+export interface TypedErrorParams<ErrType extends StrNumber = any> {
+    /** Error type, can be used as discriminator in union types switch, etc*/
+    type?: ErrType;
+    /** the error message */
+    message?: string;
+    /** original error used to create the TypedError */
+    originalError?: Error;
+    /** name of the error */
+    name?: string;
+}
+
 /** Any error triggered by hooks or routes must follow this interface, returned errors in the body also follows this interface */
 export interface RpcErrorParams<ErrType extends StrNumber = any, ErrData = any> {
     /** Error type, can be used as discriminator in union types switch, etc*/
