@@ -12,33 +12,33 @@
 // TODO: Revert to named exports once the issue is fixed
 
 // Import date/time format modules to register formatters
-import './string/date.runtype';
-import './string/dateTime.runtype';
-import './string/time.runtype';
+import './src/string/date.runtype';
+import './src/string/dateTime.runtype';
+import './src/string/time.runtype';
 
 // Import network/web format modules to register formatters
-import './string/email.runtype';
-import './string/domain.runtype';
-import './string/url.runtype';
-import './string/ip.runtype';
+import './src/string/email.runtype';
+import './src/string/domain.runtype';
+import './src/string/url.runtype';
+import './src/string/ip.runtype';
 
 // Import identifier format modules to register formatters
-import './string/uuid.runtype';
+import './src/string/uuid.runtype';
 
 // Import default string format modules to register formatters
-import './string/defaultStringFormats.runtype';
+import './src/string/defaultStringFormats.runtype';
 
 // Re-export everything from string format modules
-export * from './string/stringFormat.runtype';
-export * from './string/date.runtype';
-export * from './string/dateTime.runtype';
-export * from './string/time.runtype';
-export * from './string/email.runtype';
-export * from './string/domain.runtype';
-export * from './string/url.runtype';
-export * from './string/ip.runtype';
-export * from './string/uuid.runtype';
-export * from './string/defaultStringFormats.runtype';
+export * from './src/string/stringFormat.runtype';
+export * from './src/string/date.runtype';
+export * from './src/string/dateTime.runtype';
+export * from './src/string/time.runtype';
+export * from './src/string/email.runtype';
+export * from './src/string/domain.runtype';
+export * from './src/string/url.runtype';
+export * from './src/string/ip.runtype';
+export * from './src/string/uuid.runtype';
+export * from './src/string/defaultStringFormats.runtype';
 
 // COMMENTED OUT - Original named exports (to be restored after issue is fixed):
 // // ############### Main StringFormat Export ###############

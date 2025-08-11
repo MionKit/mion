@@ -1,17 +1,23 @@
-/* eslint-disable @typescript-eslint/ban-types */
 /* ########
  * 2025 mion
  * Author: Ma-jerez
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
-import type {FormatParam} from '@mionkit/core/types';
-import type {BaseRunType} from '@mionkit/run-types/lib/baseRunTypes';
-import type {JitCompiler, JitErrorsCompiler} from '@mionkit/run-types/lib/jitCompiler';
-import {BaseRunTypeFormat} from '@mionkit/run-types/lib/baseRunTypeFormat';
+import type {FormatParam} from '@mionkit/core';
+import type {BaseRunType, JitCompiler, JitErrorsCompiler, jitCode, JitFnID, StrNumber} from '@mionkit/run-types';
+import {
+    BaseRunTypeFormat,
+    RunTypeOptions,
+    TypeFormat,
+    registerFormatter,
+    random,
+    randomItem,
+    CodeType,
+    JitFunctions,
+    fpVal,
+} from '@mionkit/run-types'; // !Important: TypeFormat cant be imported as type for all runType functionality to work
 import {ReflectionKind} from '@deepkit/type';
-import {RunTypeOptions, type jitCode, type JitFnID, type StrNumber} from '@mionkit/run-types/types';
-import {TypeFormat} from '@mionkit/run-types/lib/formats.runtype'; // !Important: TypeFormat cant be imported as type for all runType functionality to work
 import {
     StringRunTypeFormat,
     stringIgnoreProps,
@@ -20,11 +26,6 @@ import {
     type StringParams,
     Samples,
 } from './stringFormat.runtype';
-import {registerFormatter} from '@mionkit/run-types/lib/formats';
-import {random, randomItem} from '@mionkit/run-types/mocking/mockUtils';
-import {CodeType} from '@mionkit/run-types/constants.functions';
-import {JitFunctions} from '@mionkit/run-types/constants.functions';
-import {fpVal} from '@mionkit/run-types/lib/utils';
 import {NAME_CHARS, NAME_SAMPLES, TLD_CHARS, TLD_SAMPLES} from '../constants.mock';
 
 // latin domain names each domain part must be 61 chars max, tld only supports latin chars
@@ -353,4 +354,5 @@ export type FormatParams_Domain = {
 /** Domain based on a pattern */
 export type StrDomain<DP extends FormatParams_Domain = DEFAULT_DOMAIN_PARAMS> = TypeFormat<string, 'domain', DP>;
 /** Domain with customizable names and tld */
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export type StrDomainStrict<D extends Partial<FormatParams_Domain> = {}> = StrDomain<DEFAULT_STRICT_DOMAIN_PARAMS & D>;

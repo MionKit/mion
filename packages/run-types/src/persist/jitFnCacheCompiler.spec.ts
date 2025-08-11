@@ -6,11 +6,11 @@
  * ######## */
 
 import {SrcCodeCompilerConstants, compileTypeToJs, runTypeCompilerConstants, findJSFile} from './jitFnCacheCompiler';
-import {JitCompiledFn, CompiledPureFunction, SrcCodeJITCompiledFnsCache, SrcCodePureFunctionsCache} from '@mionkit/core/types';
+import {JitCompiledFn, CompiledPureFunction, SrcCodeJITCompiledFnsCache, SrcCodePureFunctionsCache} from '@mionkit/core';
 import {JitFunctions} from '../constants.functions';
-import {cΦmpilεdCachε as jitFnsCache} from '@mionkit/core/_autogen/jitFunctionsCache';
-import {cΦmpilεdCachε as pureFnsCache} from '@mionkit/core/_autogen/pureFunctionsCache';
-import {jitUtils} from '@mionkit/core/jitUtils';
+import {cΦmpilεdCachε as jitFnsCache} from '@mionkit/core';
+import {cΦmpilεdCachε as pureFnsCache} from '@mionkit/core';
+import {jitUtils} from '@mionkit/core';
 import {existsSync, mkdirSync, unlinkSync, writeFileSync} from 'fs';
 import {join} from 'path';
 

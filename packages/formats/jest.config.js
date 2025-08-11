@@ -7,5 +7,5 @@ module.exports = {
   coverageDirectory: '.coverage',
   collectCoverageFrom: ['src/**'],
   testMatch: ['**/?(*.)+(spec).ts?(x)'],
-  moduleNameMapper: {'^@mionkit/([^/]+)/(.*)$': '<rootDir>/../$1/src/$2'},
+  moduleNameMapper: {'^@mionkit/(.*)$': '<rootDir>/../$1'},
 };

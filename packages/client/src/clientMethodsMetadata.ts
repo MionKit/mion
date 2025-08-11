@@ -5,12 +5,12 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {RpcError, isRpcError} from '@mionkit/core/errors';
-import {GET_REMOTE_METHODS_BY_ID} from '@mionkit/core/constants';
+import {RpcError, isRpcError} from '@mionkit/core';
+import {GET_REMOTE_METHODS_BY_ID} from '@mionkit/core';
 import {ClientOptions, JitFunctionsById, RemoteMethodJIT, RequestBody} from './types';
 import {PublicMethod, MethodsData} from '@mionkit/router';
-import type {JitCompiledFnData} from '@mionkit/core/types';
-import {jitUtils} from '@mionkit/core/jitUtils';
+import type {JitCompiledFnData} from '@mionkit/core';
+import {jitUtils} from '@mionkit/core';
 import {STORAGE_KEY} from './constants';
 
 /**  Manually calls mionGetRemoteMethodsInfoById to get Remote Api Metadata */
@@ -42,7 +42,7 @@ export async function fetchRemoteMethodsMetadata(
         if (!resp) throw new Error('No remote methods found in response');
 
         // Store JIT function dependencies in the cache
-        Object.entries(resp.deps).forEach(([hash, jitFnData]) => {
+        Object.entries(resp.deps).forEach(([, jitFnData]) => {
             jitUtils.addToJitCache({
                 ...jitFnData,
                 closureFn: () => () => true, // Placeholder closure
@@ -76,7 +76,8 @@ function restoreMetadataFromLocalStorage(
             setRemoteMethodMetadata(id, methodMeta, options, metadataById, jitFunctionsById, undefined, false);
             if (methodMeta.hookIds?.length)
                 restoreMetadataFromLocalStorage(methodMeta.hookIds, options, metadataById, jitFunctionsById);
-        } catch (e) {
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        } catch (error: any) {
             localStorage.removeItem(storageKey);
             return;
         }

@@ -13,8 +13,8 @@ import type {NodeHttpOptions} from './types';
 import type {IncomingMessage, Server as HttpServer, ServerResponse} from 'http';
 import type {Server as HttpsServer} from 'https';
 import type {MionResponse} from '@mionkit/router';
-import {StatusCodes} from '@mionkit/core/status-codes';
-import {RpcError} from '@mionkit/core/errors';
+import {StatusCodes} from '@mionkit/core';
+import {RpcError} from '@mionkit/core';
 import {headersFromIncomingMessage, headersFromServerResponse} from './headers';
 
 // ############# PRIVATE STATE #############

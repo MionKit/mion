@@ -1,19 +1,13 @@
-/* eslint-disable @typescript-eslint/ban-types */
 /* ########
  * 2025 mion
  * Author: Ma-jerez
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
-import type {BaseRunType} from '@mionkit/run-types/lib/baseRunTypes';
-import type {JitCompiler, JitErrorsCompiler} from '@mionkit/run-types/lib/jitCompiler';
-import {TypeFormat} from '@mionkit/run-types/lib/formats.runtype'; // !Important: TypeFormat cant be imported as type for all runType functionality to work
-import {registerFormatter, getToLiteralFn} from '@mionkit/run-types/lib/formats';
-import {BaseRunTypeFormat} from '@mionkit/run-types/lib/baseRunTypeFormat';
+import type {BaseRunType, JitCompiler, JitErrorsCompiler} from '@mionkit/run-types';
+import {TypeFormat, registerFormatter, getToLiteralFn, BaseRunTypeFormat, RunTypeOptions} from '@mionkit/run-types'; // !Important: TypeFormat cant be imported as type for all runType functionality to work
 import {ReflectionKind} from '@deepkit/type';
-import {RunTypeOptions} from '@mionkit/run-types/types';
-import {mockString, random, randomItem} from '@mionkit/run-types/mocking/mockUtils';
-import {fpVal, regexpEscape} from '@mionkit/run-types/lib/utils';
+import {mockString, random, randomItem, fpVal, regexpEscape} from '@mionkit/run-types';
 
 const defaultMessages = {
     allowedChars: 'Invalid characters',

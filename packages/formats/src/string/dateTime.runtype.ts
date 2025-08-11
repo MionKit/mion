@@ -1,25 +1,26 @@
-/* eslint-disable @typescript-eslint/ban-types */
 /* ########
  * 2025 mion
  * Author: Ma-jerez
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
-import type {FormatParam} from '@mionkit/core/types';
+import type {FormatParam} from '@mionkit/core';
 // !Important: TypeFormat cant be imported as type for the runType functionality to work
-import {TypeFormat} from '@mionkit/run-types/lib/formats.runtype';
-import {JitFnID, RunTypeOptions, type jitCode} from '@mionkit/run-types/types';
-import type {BaseRunType} from '@mionkit/run-types/lib/baseRunTypes';
-import type {JitCompiler, JitErrorsCompiler} from '@mionkit/run-types/lib/jitCompiler';
-import {BaseRunTypeFormat} from '@mionkit/run-types/lib/baseRunTypeFormat';
+import type {BaseRunType, JitCompiler, JitErrorsCompiler, jitCode} from '@mionkit/run-types';
+import {
+    TypeFormat,
+    JitFnID,
+    RunTypeOptions,
+    BaseRunTypeFormat,
+    registerFormatter,
+    fpVal,
+    CodeType,
+    JitFunctions,
+} from '@mionkit/run-types';
 import {ReflectionKind} from '@deepkit/type';
 import {FormatParams_Date, DEFAULT_DATE_PARAMS, DateStringRunTypeFormat} from './date.runtype';
 import {DEFAULT_TIME_FORMAT_PARAMS, FormatParams_Time, TimeStringRunTypeFormat} from './time.runtype';
-import {registerFormatter} from '@mionkit/run-types/lib/formats';
-import {fpVal} from '@mionkit/run-types/lib/utils';
 import {stringIgnoreProps} from './stringFormat.runtype';
-import {CodeType} from '@mionkit/run-types/constants.functions';
-import {JitFunctions} from '@mionkit/run-types/constants.functions';
 
 // DateTime validator
 export class DateTimeRunTypeFormat extends BaseRunTypeFormat<FormatParams_DateTime> {
@@ -126,6 +127,7 @@ export type FormatParams_DateTime = {
     splitChar: FormatParam<string>;
 };
 
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export type StrDateTime<P extends Partial<FormatParams_DateTime> = {}> = TypeFormat<
     string,
     typeof DateTimeRunTypeFormat.id,

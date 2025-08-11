@@ -1,12 +1,15 @@
 {
   "extends": "../../tsconfig.json",
   "compilerOptions": {
-    "outDir": ".dist/cjs",
+    "outDir": ".dist/types",
     "composite": true,
-    "rootDir": "./src"
+    "rootDir": ".",
+    "emitDeclarationOnly": true,
+    "declaration": true,
+    "declarationMap": true
   },
   "references": [{"path": "../core"}, {"path": "../run-types"}],
   "reflection": true,
-  "include": ["./src/**/*"],
+  "include": ["."],
   "exclude": ["node_modules", "**/*.spec.ts", "**/*.test.ts", ".dist"]
 }

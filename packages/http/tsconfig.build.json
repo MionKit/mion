@@ -1,9 +1,0 @@
-{
-  "extends": "../../tsconfig.json",
-  "compilerOptions": {
-    "outDir": ".dist/cjs"
-  },
-  "reflection": ["src/**/*.routes.ts"],
-  "include": ["."],
-  "exclude": ["node_modules", "**/*.spec.ts", "**/*.test.ts", "examples", ".dist"]
-}

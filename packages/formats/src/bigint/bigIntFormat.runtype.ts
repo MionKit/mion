@@ -1,21 +1,14 @@
-/* eslint-disable @typescript-eslint/ban-types */
 /* ########
  * 2025 mion
  * Author: Ma-jerez
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
-import type {BaseRunType} from '@mionkit/run-types/lib/baseRunTypes';
-import type {JitCompiler, JitErrorsCompiler} from '@mionkit/run-types/lib/jitCompiler';
+import type {BaseRunType, JitCompiler, JitErrorsCompiler} from '@mionkit/run-types';
 // TypeFormat is needed for type definitions even though it's not directly used in this file
 // !Important: TypeFormat cant be imported as type for all runType functionality to work
-import {TypeFormat} from '@mionkit/run-types/lib/formats.runtype';
-import {registerFormatter} from '@mionkit/run-types/lib/formats';
-import {BaseRunTypeFormat} from '@mionkit/run-types/lib/baseRunTypeFormat';
+import {TypeFormat, registerFormatter, BaseRunTypeFormat, RunTypeOptions, random, fpVal} from '@mionkit/run-types';
 import {ReflectionKind} from '@deepkit/type';
-import {RunTypeOptions} from '@mionkit/run-types/types';
-import {random} from '@mionkit/run-types/mocking/mockUtils';
-import {fpVal} from '@mionkit/run-types/lib/utils';
 
 // ############### BigInt Format ###############
 
@@ -193,6 +186,7 @@ export type FormatParams_BigIntValidators = BigIntMax &
     };
 
 // Define the type for bigint format
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export type BigNumFormat<P extends Partial<FormatParams_BigIntValidators> = {}> = TypeFormat<
     bigint,
     typeof BigIntRunTypeFormat.id,

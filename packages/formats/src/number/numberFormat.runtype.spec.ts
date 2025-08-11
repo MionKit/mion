@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/ban-types */
 /* ########
  * 2025 mion
  * Author: Ma-jerez
@@ -6,8 +5,8 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {isTypeFn, mockTypeFn, typeErrorsFn} from '@mionkit/run-types/runTypeFunctions';
-import {RunTypeError, TypeFormatError} from '@mionkit/core/types';
+import {isTypeFn, mockTypeFn, typeErrorsFn} from '@mionkit/run-types';
+import {RunTypeError, TypeFormatError} from '@mionkit/core';
 import {NumFormat} from './numberFormat.runtype';
 
 // #### max ####

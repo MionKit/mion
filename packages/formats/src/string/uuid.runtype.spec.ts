@@ -5,9 +5,9 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {isTypeFn, mockTypeFn, typeErrorsFn} from '@mionkit/run-types/runTypeFunctions';
-import {RunTypeError} from '@mionkit/core/types';
-import {randomUUID_V7} from '@mionkit/core/utils';
+import {isTypeFn, mockTypeFn, typeErrorsFn} from '@mionkit/run-types';
+import {RunTypeError} from '@mionkit/core';
+import {randomUUID_V7} from '@mionkit/core';
 import {StrUUIDv4, StrUUIDv7} from './uuid.runtype';
 
 // ####### UUID v4 #######

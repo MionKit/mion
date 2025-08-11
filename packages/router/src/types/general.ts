@@ -5,10 +5,10 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {CoreOptions} from '@mionkit/core/types';
+import {CoreOptions} from '@mionkit/core';
 import {SharedDataFactory} from './context';
 import {HeaderHookDef, HookDef, RawHookDef, RouteDef} from './definitions';
-import type {RunTypeOptions} from '@mionkit/run-types/types';
+import type {RunTypeOptions} from '@mionkit/run-types';
 // #######  Router Object #######
 
 /** A route can be a full route definition or just the handler */

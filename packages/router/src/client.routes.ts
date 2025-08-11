@@ -5,9 +5,9 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {AnyObject, JitCompiledFnData, PureFunctionData} from '@mionkit/core/types';
-import {RpcError} from '@mionkit/core/errors';
-import {GET_REMOTE_METHODS_BY_ID, GET_REMOTE_METHODS_BY_PATH} from '@mionkit/core/constants';
+import {AnyObject, JitCompiledFnData, PureFunctionData} from '@mionkit/core';
+import {RpcError} from '@mionkit/core';
+import {GET_REMOTE_METHODS_BY_ID, GET_REMOTE_METHODS_BY_PATH} from '@mionkit/core';
 import {
     getHookExecutable,
     getRouteExecutable,

@@ -8,8 +8,8 @@
 import {NonRawMethod, Method, HandlerType} from './types/remoteMethods';
 import {getRouteExecutionPath} from './router';
 import {getNotFoundExecutionPath} from './notFound';
-import {RpcError} from '@mionkit/core/errors';
-import type {PublicResponses} from '@mionkit/router/types/publicMethods';
+import {RpcError} from '@mionkit/core';
+import type {PublicResponses} from './types/publicMethods';
 
 // ############# PUBLIC METHODS #############
 
@@ -50,7 +50,8 @@ function _getExecutionPathStringifyFn(
             try {
                 const jsonValue = jitJsonStringify(returnValue);
                 props.push(`${JSON.stringify(method.id)}:${jsonValue}${coma}`);
-            } catch (e: any) {
+                // eslint-disable-next-line @typescript-eslint/no-unused-vars
+            } catch (err: any) {
                 const err = new RpcError({
                     statusCode: 500,
                     name: 'Stringify Response Error',

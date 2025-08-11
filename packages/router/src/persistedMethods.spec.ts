@@ -12,7 +12,7 @@ import {codifyMethods, getPersistedMethods, routerCompilerConstants, setPersiste
 import {dispatchRoute} from './dispatch';
 import {headersFromRecord} from './headers';
 import {MionHeaders} from './types/context';
-import {MethodData} from '@mionkit/router/types/remoteMethods';
+import {MethodData} from './types/remoteMethods';
 
 type RawRequest = {
     headers: MionHeaders;

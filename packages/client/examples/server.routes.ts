@@ -1,4 +1,4 @@
-import {RpcError} from '@mionkit/core/errors';
+import {RpcError} from '@mionkit/core';
 import {Routes, headersHook, hook, initMionRouter, route} from '@mionkit/router';
 import {Logger} from 'Logger';
 

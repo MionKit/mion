@@ -1,26 +1,25 @@
-/* eslint-disable @typescript-eslint/ban-types */
 /* ########
  * 2025 mion
  * Author: Ma-jerez
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
-import type {BaseRunType} from '@mionkit/run-types/lib/baseRunTypes';
-import type {JitCompiler, JitErrorsCompiler} from '@mionkit/run-types/lib/jitCompiler';
-import type {StrNumber, JitFnID, jitCode} from '@mionkit/run-types/types';
-import {BaseRunTypeFormat} from '@mionkit/run-types/lib/baseRunTypeFormat';
+import type {BaseRunType, JitCompiler, JitErrorsCompiler, StrNumber, JitFnID, jitCode} from '@mionkit/run-types';
+import {
+    BaseRunTypeFormat,
+    TypeFormat,
+    RunTypeOptions,
+    registerFormatter,
+    CodeType,
+    JitFunctions,
+    randomItem,
+    fpVal,
+} from '@mionkit/run-types';
 import {ReflectionKind} from '@deepkit/type';
 import {DEFAULT_STRICT_DOMAIN_PARAMS, FormatParams_Domain} from './domain.runtype';
-import {TypeFormat} from '@mionkit/run-types/lib/formats.runtype';
-import {RunTypeOptions} from '@mionkit/run-types/types';
 import {StringRunTypeFormat, stringIgnoreProps, StringValidators, Samples} from './stringFormat.runtype';
 import {DomainRunTypeFormat} from './domain.runtype';
-import {registerFormatter} from '@mionkit/run-types/lib/formats';
 import {EMAIL_NAME_SAMPLES_ARRAY, EMAIL_NAME_SAMPLES, EMAIL_SAMPLES, EMAIL_SAMPLES_PUNYCODE} from '../constants.mock'; // do not import using type
-import {CodeType} from '@mionkit/run-types/constants.functions';
-import {JitFunctions} from '@mionkit/run-types/constants.functions';
-import {randomItem} from '@mionkit/run-types/mocking/mockUtils';
-import {fpVal} from '@mionkit/run-types/lib/utils';
 
 // Email pattern, allows punycode domains
 export const EMAIL_PATTERN = /^[^\s@]{1,64}@(?:[a-zA-Z0-9-]{1,63}\.)+[a-zA-Z]{2,63}$/;
@@ -241,6 +240,7 @@ export type FormatParams_Email = FormatParams_EmailPattern & {
 };
 
 export type StrEmail<EP extends FormatParams_Email = DEFAULT_EMAIL_PARAMS> = TypeFormat<string, 'email', EP>;
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export type StrEmailStrict<E extends Partial<FormatParams_Email> = {}> = StrEmail<DEFAULT_STRICT_EMAIL_PARAMS & E>;
 export type StrEmailPattern<EmailPattern extends RegExp, MockSamples extends Samples> = StrEmail<
     DEFAULT_EMAIL_PARAMS<EmailPattern, MockSamples>

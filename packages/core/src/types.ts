@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-function-type */
 /* ###############
  * 2022 mion
  * Author: Ma-jerez
@@ -343,8 +344,7 @@ type Native = Date | RegExp | URL | URLSearchParams | Blob | File | FileList | F
 export type DataOnly<T> = T extends object
     ? T extends Native
         ? T
-        : // eslint-disable-next-line @typescript-eslint/ban-types
-          T extends Function
+        : T extends Function
           ? never
           : T extends new (...args: any[]) => any
             ? never
@@ -354,8 +354,7 @@ export type DataOnly<T> = T extends object
                 ? Map<DataOnly<K>, DataOnly<V>>
                 : T extends Set<infer U>
                   ? Set<DataOnly<U>>
-                  : // eslint-disable-next-line @typescript-eslint/ban-types
-                    {[K in keyof T as T[K] extends Function ? never : K]: DataOnly<T[K]>}
+                  : {[K in keyof T as T[K] extends Function ? never : K]: DataOnly<T[K]>}
     : T;
 
 // TEST TYPES FOR PlainObject

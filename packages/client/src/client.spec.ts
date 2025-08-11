@@ -10,10 +10,10 @@ import {initClient} from './client';
 import {HookSubRequest, RouteSubRequest} from './types';
 import {setNodeHttpOpts, startNodeServer} from '@mionkit/http';
 import {Server} from 'http';
-import {RpcError} from '@mionkit/core/errors';
+import {RpcError} from '@mionkit/core';
 
 // TODO move this into global jest config file if it is required by more tests
-// eslint-disable-next-line @typescript-eslint/no-var-requires
+// eslint-disable-next-line @typescript-eslint/no-var-requires, @typescript-eslint/no-require-imports
 const Storage = require('dom-storage');
 global.localStorage = new Storage(null, {strict: true});
 global.sessionStorage = new Storage(null, {strict: true});

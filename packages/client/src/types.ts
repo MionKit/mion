@@ -5,9 +5,9 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {RpcError} from '@mionkit/core/errors';
-import type {RunTypeError} from '@mionkit/core/types';
-import type {JitCompiledFunctions} from '@mionkit/core/types';
+import {RpcError} from '@mionkit/core';
+import type {RunTypeError} from '@mionkit/core';
+import type {JitCompiledFunctions} from '@mionkit/core';
 import type {JsonParser, PublicHeaderMethod, PublicHookMethod, PublicMethod, PublicApi, PublicRouteMethod} from '@mionkit/router';
 import type {MionRequest} from './request';
 

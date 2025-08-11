@@ -4,15 +4,10 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
-import type {JITUtils, GenericPureFunction, FormatParam} from '@mionkit/core/types';
+import type {JITUtils, GenericPureFunction, FormatParam} from '@mionkit/core';
 import {ReflectionKind} from '@deepkit/type';
-import type {JitCompiler, JitErrorsCompiler} from '@mionkit/run-types/lib/jitCompiler';
-import type {BaseRunType} from '@mionkit/run-types/lib/baseRunTypes';
-import type {RunTypeOptions} from '@mionkit/run-types/types';
-import {BaseRunTypeFormat} from '@mionkit/run-types/lib/baseRunTypeFormat';
-import {registerFormatter, registerPureFnClosure} from '@mionkit/run-types/lib/formats';
-import {TypeFormat} from '@mionkit/run-types/lib/formats.runtype'; // !Important: TypeFormat cant be imported as type for all runType functionality to work
-import {fpVal} from '@mionkit/run-types/lib/utils';
+import type {JitCompiler, JitErrorsCompiler, BaseRunType, RunTypeOptions} from '@mionkit/run-types';
+import {BaseRunTypeFormat, registerFormatter, registerPureFnClosure, TypeFormat, fpVal} from '@mionkit/run-types'; // !Important: TypeFormat cant be imported as type for all runType functionality to work
 // Date validator
 export class DateStringRunTypeFormat extends BaseRunTypeFormat<FormatParams_Date> {
     static id = 'date' as const;

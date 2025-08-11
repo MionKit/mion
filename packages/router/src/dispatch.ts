@@ -12,10 +12,10 @@ import {HandlerType} from './types/remoteMethods';
 import {isNotFoundExecutable} from './types/guards';
 import {getRouteExecutionPath, getRouterOptions} from './router';
 import {getNotFoundExecutionPath} from './notFound';
-import {Mutable, AnyObject} from '@mionkit/core/types';
+import {Mutable, AnyObject} from '@mionkit/core';
 import {handleRpcErrors} from './errors';
-import {RpcError} from '@mionkit/core/errors';
-import {StatusCodes} from '@mionkit/core/status-codes';
+import {RpcError} from '@mionkit/core';
+import {StatusCodes} from '@mionkit/core';
 
 // ############# PUBLIC METHODS #############
 

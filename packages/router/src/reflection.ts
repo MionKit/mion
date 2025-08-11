@@ -5,14 +5,16 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import type {AnyFn, JitCompiledFunctions, JitFunctionsHashes, SerializableJITFunctions} from '@mionkit/core/types';
-import {JitFunctions} from '../../run-types/src/constants.functions';
-import {RunTypeOptions} from '@mionkit/run-types/types';
-import {reflectFunction} from '@mionkit/run-types/lib/runType';
-import {getSerializableJitCompiler} from '@mionkit/run-types/lib/jitCompiler';
-import {type FunctionRunType} from '@mionkit/run-types/runType/function/function';
-import {Handler} from '@mionkit/router/types/handlers';
-import {RouterOptions} from '@mionkit/router/types/general';
+import type {AnyFn, JitCompiledFunctions, JitFunctionsHashes, SerializableJITFunctions} from '@mionkit/core';
+import {
+    JitFunctions,
+    RunTypeOptions,
+    reflectFunction,
+    getSerializableJitCompiler,
+    type FunctionRunType,
+} from '@mionkit/run-types';
+import {Handler} from './types/handlers';
+import {RouterOptions} from './types/general';
 
 export function getParamsJitFns<Fn extends AnyFn>(fn: Fn, opts?: RunTypeOptions): JitCompiledFunctions {
     const rt = reflectFunction(fn);

@@ -1,4 +1,4 @@
-import {RpcError} from '@mionkit/core/errors';
+import {RpcError} from '@mionkit/core';
 import {Routes, initMionRouter, headersHook, route} from '@mionkit/router';
 import {getAuthUser, isAuthorized} from 'MyAuth';
 

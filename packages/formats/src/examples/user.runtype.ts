@@ -254,6 +254,7 @@ const internationalNamePattern =
  * Pattern for usernames - simple alphanumeric with underscore and hyphen
  * Examples: john_doe, user123, cool-user, alpha_beta
  */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const usernamePattern = /^[a-zA-Z0-9_-]+$/;
 
 /**
@@ -261,9 +262,11 @@ const usernamePattern = /^[a-zA-Z0-9_-]+$/;
  * Must start with + followed by country code (1-9) and 1-14 more digits
  * Examples: +1234567890, +447700900123, +33123456789
  */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const phonePattern = /^\+[1-9]\d{1,14}$/;
 
 // City names use the same pattern as personal names
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const cityPattern = internationalNamePattern;
 
 /**
@@ -271,18 +274,21 @@ const cityPattern = internationalNamePattern;
  * Supports various formats: 12345, 10001, SW1A 1AA, K1A 0A6, 75001
  * Allows: uppercase letters, numbers, spaces, and hyphens (3-10 characters)
  */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const postalCodePattern = /^[A-Z0-9\s-]{3,10}$/;
 
 /**
  * Pattern for country codes (ISO 3166-1 alpha-2)
  * Exactly 2 uppercase letters: US, CA, GB, DE, FR, JP, AU, etc.
  */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const countryCodePattern = /^[A-Z]{2}$/;
 
 /**
  * Pattern for language codes (ISO 639-1 with optional country)
  * Format: "en" or "en-US" (language code optionally followed by country)
  */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const languageCodePattern = /^[a-z]{2}(-[A-Z]{2})?$/;
 
 /**
@@ -290,6 +296,7 @@ const languageCodePattern = /^[a-z]{2}(-[A-Z]{2})?$/;
  * Format: "Continent/City" like "America/New_York", "Europe/London"
  * Strict IANA format: Capital first letter, then lowercase/underscores/capitals for compound names
  */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const timezonePattern = /^[A-Z][a-zA-Z_]*\/[A-Z][a-zA-Z_]*$/;
 
 // ############### Pattern Types ###############

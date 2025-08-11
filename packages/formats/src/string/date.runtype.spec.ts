@@ -5,8 +5,8 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {isTypeFn, mockTypeFn, typeErrorsFn} from '@mionkit/run-types/runTypeFunctions';
-import {RunTypeError} from '@mionkit/core/types';
+import {isTypeFn, mockTypeFn, typeErrorsFn} from '@mionkit/run-types';
+import {RunTypeError} from '@mionkit/core';
 import {StrDate} from './date.runtype';
 
 // ####### Date format YYYY-MM-DD #######

@@ -1,0 +1,17 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "lib": [],
+    "outDir": ".dist/types",
+    "types": ["bun-types"],
+    "composite": true,
+    "emitDeclarationOnly": true,
+    "declaration": true,
+    "declarationMap": true
+  },
+  "reflection": true,
+  "include": ["."],
+  "exclude": ["node_modules", "loader", "**/*.spec.ts", "**/*.test.ts", ".dist"]
+}

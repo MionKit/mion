@@ -115,7 +115,7 @@ describe('spec reflection should', () => {
         type objN = {n: number};
         type objB = {b: boolean};
         const handler = (a: objS & objN & objB): void => {
-            a;
+            // noop
         };
 
         expect(parametersToSrcCode('', handler)).toEqual({

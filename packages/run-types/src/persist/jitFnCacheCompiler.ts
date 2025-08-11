@@ -8,7 +8,7 @@
 import {ReceiveType} from '@deepkit/type';
 import {existsSync, writeFileSync} from 'fs';
 import {join} from 'path';
-import {JitFunctionsCache, PureFunctionsCache} from '@mionkit/core/types';
+import {JitFunctionsCache, PureFunctionsCache} from '@mionkit/core';
 import {JitFunctions} from '../constants.functions';
 import {runType} from '../lib/runType';
 import {RunTypeOptions} from '../types';

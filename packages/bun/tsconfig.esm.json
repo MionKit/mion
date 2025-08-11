@@ -1,0 +1,16 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "lib": [],
+    "module": "ES2022",
+    "moduleResolution": "node",
+    "outDir": ".dist/esm",
+    "types": ["bun-types"],
+    "composite": true
+  },
+  "reflection": true,
+  "include": ["."],
+  "exclude": ["node_modules", "loader", "**/*.spec.ts", "**/*.test.ts", ".dist"]
+}

@@ -2,7 +2,7 @@ import {JitFunctions} from './constants.functions';
 import {ReceiveType} from '@deepkit/type';
 import {runType} from './lib/runType';
 import {RunTypeOptions} from './types';
-import {IsTypeFn, ToCodeFn, TypeErrorsFn} from '@mionkit/core/types';
+import {IsTypeFn, ToCodeFn, TypeErrorsFn} from '@mionkit/core';
 import {BaseRunType} from './lib/baseRunTypes';
 import {registerJitFunctionCompiler} from './lib/jitFnsRegistry';
 

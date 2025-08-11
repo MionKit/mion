@@ -5,8 +5,8 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {isTypeFn, mockTypeFn, typeErrorsFn} from '@mionkit/run-types/runTypeFunctions';
-import {RunTypeError} from '@mionkit/core/types';
+import {isTypeFn, mockTypeFn, typeErrorsFn} from '@mionkit/run-types';
+import {RunTypeError} from '@mionkit/core';
 import {StrIP, StrIPv4, StrIPv4WithPort, StrIPv6, StrIPv6WithPort} from './ip.runtype';
 
 it('should validate IPV4 values', async () => {

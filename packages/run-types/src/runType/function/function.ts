@@ -12,7 +12,7 @@ import {JitCompiler, JitErrorsCompiler} from '../../lib/jitCompiler';
 import {PromiseRunType} from '../native/promise';
 import {ReflectionSubKind} from '../../constants.kind';
 import {FunctionParamsRunType} from '../collection/functionParams';
-import {JitCompiledFn} from '@mionkit/core/types';
+import {JitCompiledFn} from '@mionkit/core';
 import {registerJitFunctionCompiler} from '../../lib/jitFnsRegistry';
 import {JitFunctions} from '../../constants.functions';
 

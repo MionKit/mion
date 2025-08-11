@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {RpcError} from '@mionkit/core/errors';
+import {RpcError} from '@mionkit/core';
 import {initRouter, resetRouter} from './router';
 
 describe('Route errors should', () => {

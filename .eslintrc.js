@@ -5,7 +5,7 @@ module.exports = {
   plugins: ['@typescript-eslint', 'jest'],
   extends: ['eslint:recommended', 'plugin:@typescript-eslint/recommended', 'plugin:jest/recommended'],
   parserOptions: {
-    project: ['./tsconfig.json', './packages/*/tsconfig.json'],
+    project: ['./packages/*/tsconfig.json'],
   },
   rules: {
     'no-empty-function': 'off',
@@ -23,7 +23,7 @@ module.exports = {
       },
     },
     {
-      files: ['**/*.spec.ts'],
+      files: ['**/*.spec.ts', '**/*.test.ts'],
       rules: {
         '@typescript-eslint/no-unused-vars': ['warn', {args: 'none'}],
         'no-unused-vars': ['warn', {args: 'none'}],
