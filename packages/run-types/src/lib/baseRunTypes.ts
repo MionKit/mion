@@ -5,7 +5,7 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
-import {MAX_STACK_DEPTH} from '@mionkit/core/constants';
+import {MAX_STACK_DEPTH} from '@mionkit/core';
 import type {
     RunType,
     Mutable,
@@ -33,7 +33,7 @@ import type {TypeIndexSignature, TypeProperty, Type, TypeFunction} from '@deepki
 import {getJitFnArgCallVarName, getPropIndex, memorize, toLiteral} from './utils';
 import {JitErrorsCompiler, JitCompiler, getJITFnHash, createJitCompiler, MockJitCompiler} from './jitCompiler';
 import {type AnyKindName, getReflectionName} from '../constants.kind';
-import {jitUtils} from '@mionkit/core/jitUtils';
+import {jitUtils} from '@mionkit/core';
 import {createUniqueHash} from './quickHash';
 import {
     initFormatAnnotations,
@@ -45,10 +45,10 @@ import {
 import {typeParamsToString} from './utils';
 import {_compileJsonStringify} from '../jitFnsCompilers/jsonStringify';
 import {getJitFunctionCompiler, registerJitFunctionCompiler} from './jitFnsRegistry';
-import {JitCompiledFn} from '@mionkit/core/types';
+import {JitCompiledFn} from '@mionkit/core';
 import {_compileToCode} from '../jitFnsCompilers/toCode';
 import {defaultMockOptions} from '../mocking/constants.mock';
-import {getENV} from '@mionkit/core/utils';
+import {getENV} from '@mionkit/core';
 
 export abstract class BaseRunType<T extends Type = Type> implements RunType {
     // Registry for dynamically loaded functions

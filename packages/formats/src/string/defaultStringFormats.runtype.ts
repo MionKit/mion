@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/ban-types */
 /* ########
  * 2025 mion
  * Author: Ma-jerez
@@ -36,6 +35,7 @@ type DEFAULT_NUMERIC_PARAMS = {
     };
 };
 
+/* eslint-disable @typescript-eslint/no-empty-object-type */
 export type StrAlphaNumeric<P extends StringParams = {}> = StrFormat<P & DEFAULT_ALPHA_NUM_PARAMS>;
 export type StrAlpha<P extends StringParams = {}> = StrFormat<P & DEFAULT_ALPHA_PARAMS>;
 export type StrNumeric<P extends StringParams = {}> = StrFormat<P & DEFAULT_NUMERIC_PARAMS>;

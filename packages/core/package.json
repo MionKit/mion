@@ -21,55 +21,10 @@
   "license": "MIT",
   "browser": {},
   "exports": {
-    "./constants": {
-      "types": "./.dist/types/constants.d.ts",
-      "require": "./.dist/cjs/constants.js",
-      "default": "./.dist/esm/constants.js"
-    },
-    "./core": {
-      "types": "./.dist/types/core.d.ts",
-      "require": "./.dist/cjs/core.js",
-      "default": "./.dist/esm/core.js"
-    },
-    "./deserialize": {
-      "types": "./.dist/types/deserialize.d.ts",
-      "require": "./.dist/cjs/deserialize.js",
-      "default": "./.dist/esm/deserialize.js"
-    },
-    "./errors": {
-      "types": "./.dist/types/errors.d.ts",
-      "require": "./.dist/cjs/errors.js",
-      "default": "./.dist/esm/errors.js"
-    },
-    "./jitUtils": {
-      "types": "./.dist/types/jitUtils.d.ts",
-      "require": "./.dist/cjs/jitUtils.js",
-      "default": "./.dist/esm/jitUtils.js"
-    },
-    "./status-codes": {
-      "types": "./.dist/types/status-codes.d.ts",
-      "require": "./.dist/cjs/status-codes.js",
-      "default": "./.dist/esm/status-codes.js"
-    },
-    "./types": {
-      "types": "./.dist/types/types.d.ts",
-      "require": "./.dist/cjs/types.js",
-      "default": "./.dist/esm/types.js"
-    },
-    "./utils": {
-      "types": "./.dist/types/utils.d.ts",
-      "require": "./.dist/cjs/utils.js",
-      "default": "./.dist/esm/utils.js"
-    },
-    "./_autogen/jitFunctionsCache": {
-      "types": "./.dist/types/_autogen/jitFunctionsCache.d.ts",
-      "require": "./.dist/cjs/_autogen/jitFunctionsCache.js",
-      "default": "./.dist/esm/_autogen/jitFunctionsCache.js"
-    },
-    "./_autogen/pureFunctionsCache": {
-      "types": "./.dist/types/_autogen/pureFunctionsCache.d.ts",
-      "require": "./.dist/cjs/_autogen/pureFunctionsCache.js",
-      "default": "./.dist/esm/_autogen/pureFunctionsCache.js"
+    ".": {
+      "types": "./.dist/types/index.d.ts",
+      "require": "./.dist/cjs/index.js",
+      "default": "./.dist/esm/index.js"
     }
   },
   "directories": {
@@ -93,7 +48,7 @@
     "format": "prettier --write src/**/*.ts",
     "build:cjs": "tsc --project tsconfig.cjs.json",
     "build:esm": "tsc --project tsconfig.esm.json",
-    "build:types": "tsc --project tsconfig.types.json --emitDeclarationOnly --declaration --outDir .dist/types --rootDir ./src",
+    "build:types": "tsc --project tsconfig.types.json",
     "build": "npm run build:cjs && npm run build:esm && npm run build:types",
     "auto-readme": "embedme **/*.md && prettier --write **/*.md",
     "clean": "rimraf .dist & rimraf .coverage",

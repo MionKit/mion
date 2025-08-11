@@ -18,11 +18,9 @@
   "homepage": "https://mion.io/",
   "license": "MIT",
   "browser": {},
-  "main": ".dist/cjs/index.js",
-  "module": ".dist/esm/index.js",
-  "types": ".dist/types/index.d.ts",
   "exports": {
     ".": {
+      "types": "./.dist/types/index.d.ts",
       "require": "./.dist/cjs/index.js",
       "default": "./.dist/esm/index.js"
     }
@@ -48,7 +46,7 @@
     "format": "prettier --write src/**/*.ts",
     "build:cjs": "tsc --project tsconfig.cjs.json",
     "build:esm": "tsc --project tsconfig.esm.json",
-    "build:types": "tsc --project tsconfig.types.json --emitDeclarationOnly --declaration --outDir .dist/types",
+    "build:types": "tsc --project tsconfig.types.json",
     "build": "npm run build:cjs && npm run build:esm && npm run build:types",
     "auto-readme": "embedme **/*.md && prettier --write **/*.md",
     "clean": "rimraf .dist & rimraf .coverage"

@@ -1,9 +1,9 @@
 // ####### Executables #######
 
-import {JitCompiledFunctions, JitFunctionsHashes, SerializableJITFunctions} from '@mionkit/core/types'; // do not import type only
+import {JitCompiledFunctions, JitFunctionsHashes, SerializableJITFunctions} from '@mionkit/core'; // do not import type only
 import {AnyHandler, Handler, HeaderHandler, RawHookHandler} from './handlers'; // do not import type only
-import type {RpcError} from '@mionkit/core/errors';
-import {PublicResponses} from '@mionkit/router/types/publicMethods';
+import type {RpcError} from '@mionkit/core';
+import {PublicResponses} from './publicMethods';
 
 export enum HandlerType {
     route = 1,

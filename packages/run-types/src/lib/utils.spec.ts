@@ -6,7 +6,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {randomUUID_V7} from '@mionkit/core/utils';
+import {randomUUID_V7} from '@mionkit/core';
 import {JitFunctions} from '../constants.functions';
 import type {BaseRunType, CollectionRunType} from './baseRunTypes';
 import {JitCompiler} from './jitCompiler';

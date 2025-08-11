@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import type {JitFnArgs} from '@mionkit/core/types';
+import type {JitFnArgs} from '@mionkit/core';
 
 export const CodeTypes = {
     expression: 'E', // single expression, that could be concatenated using js operators like + - * && || etc...

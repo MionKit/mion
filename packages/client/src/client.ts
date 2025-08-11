@@ -20,10 +20,10 @@ import {
     ClientHooks,
 } from './types';
 import type {PublicApi} from '@mionkit/router';
-import {RpcError} from '@mionkit/core/errors';
-import {getRouterItemId} from '@mionkit/core/core';
+import {RpcError} from '@mionkit/core';
+import {getRouterItemId} from '@mionkit/core';
 import {MionRequest} from './request';
-import type {RunTypeError} from '@mionkit/core/types';
+import type {RunTypeError} from '@mionkit/core';
 
 export function initClient<RM extends PublicApi<any>>(
     options: InitOptions

@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/ban-types */
 /* ########
  * 2024 mion
  * Author: Ma-jerez
@@ -8,7 +7,7 @@
 import {runType} from '../../lib/runType';
 import {JitFunctions} from '../../constants.functions';
 import {getJITFnHash} from '../../lib/jitCompiler';
-import {jitUtils} from '@mionkit/core/jitUtils';
+import {jitUtils} from '@mionkit/core';
 import {NonSerializableRunType} from './nonSerializable';
 import {FunctionRunType} from '../function/function';
 import {RunType} from '../../types';

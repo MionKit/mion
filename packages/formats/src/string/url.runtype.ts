@@ -1,25 +1,24 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable @typescript-eslint/ban-types */
 /* ########
  * 2025 mion
  * Author: Ma-jerez
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
-import type {BaseRunType} from '@mionkit/run-types/lib/baseRunTypes';
-import type {JitCompiler, JitErrorsCompiler} from '@mionkit/run-types/lib/jitCompiler';
-import {registerFormatter} from '@mionkit/run-types/lib/formats';
-import {BaseRunTypeFormat} from '@mionkit/run-types/lib/baseRunTypeFormat';
+import type {BaseRunType, JitCompiler, JitErrorsCompiler, jitCode, JitFnID, StrNumber} from '@mionkit/run-types';
+import {
+    registerFormatter,
+    BaseRunTypeFormat,
+    TypeFormat,
+    RunTypeOptions,
+    CodeType,
+    JitFunctions,
+    fpVal,
+    randomItem,
+} from '@mionkit/run-types';
 import {ReflectionKind} from '@deepkit/type';
-import {TypeFormat} from '@mionkit/run-types/lib/formats.runtype';
-import {RunTypeOptions, type jitCode, type JitFnID, type StrNumber} from '@mionkit/run-types/types';
 import {StringRunTypeFormat, stringIgnoreProps, StringParams} from './stringFormat.runtype';
 import {DomainRunTypeFormat, FormatParams_Domain} from './domain.runtype';
-import {CodeType} from '@mionkit/run-types/constants.functions';
-import {JitFunctions} from '@mionkit/run-types/constants.functions';
 import {IPRunTypeFormat, FormatParams_IP} from './ip.runtype';
-import {fpVal} from '@mionkit/run-types/lib/utils';
-import {randomItem} from '@mionkit/run-types/mocking/mockUtils';
 import {
     FILE_URL_SAMPLES,
     HTTP_URL_SAMPLES,
@@ -223,6 +222,7 @@ export type FormatParams_UrlPattern = Omit<
 >;
 export type FormatParams_Url = FormatParams_UrlPattern & {ip?: FormatParams_IP; domain?: FormatParams_Domain};
 
+/* eslint-disable @typescript-eslint/no-empty-object-type */
 export type StrUrl<P extends FormatParams_Url = {}> = TypeFormat<string, 'url', DEFAULT_URL_PARAMS & P>;
 export type StrUrlFile<P extends FormatParams_Url = {}> = TypeFormat<string, 'url', DEFAULT_URL_FILE_PARAMS & P>;
 export type StrUrlHttp<P extends FormatParams_Url = {}> = TypeFormat<string, 'url', DEFAULT_URL_HTTP_PARAMS & P>;

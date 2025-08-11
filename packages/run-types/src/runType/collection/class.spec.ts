@@ -6,8 +6,8 @@
  * ######## */
 import {runType} from '../../lib/runType';
 import {JitFunctions} from '../../constants.functions';
-import {jitUtils} from '@mionkit/core/jitUtils';
-import {DataOnly} from '@mionkit/core/types';
+import {jitUtils} from '@mionkit/core';
+import {DataOnly} from '@mionkit/core';
 
 class MySerializableClass {
     name: string;

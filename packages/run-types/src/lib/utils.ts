@@ -7,12 +7,12 @@
 
 import {ReflectionKind} from '@deepkit/type';
 import type {Type, TypeFunction, TypeParameter, TypeTuple, TypeTupleMember} from '@deepkit/type';
-import type {FormatParam, FormatParamLiteral, PureFunctionClosure, TypeFormatValue} from '@mionkit/core/types';
+import type {FormatParam, FormatParamLiteral, PureFunctionClosure, TypeFormatValue} from '@mionkit/core';
 import type {AnyClass, JitFnID, RunType} from '../types';
 import type {BaseRunType, CollectionRunType, MemberRunType} from './baseRunTypes';
 import type {JitCompiler, JitErrorsCompiler} from './jitCompiler';
 import type {PropertyRunType} from '../runType/member/property';
-import {jitUtils} from '@mionkit/core/jitUtils';
+import {jitUtils} from '@mionkit/core';
 import {validPropertyNameRegExp} from '../constants';
 import {isFormatParamMeta} from './guards';
 import {createHashLiteral} from './quickHash';

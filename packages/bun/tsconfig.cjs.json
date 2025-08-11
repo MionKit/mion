@@ -4,11 +4,13 @@
     "esModuleInterop": true,
     "skipLibCheck": true,
     "lib": [],
+    "module": "CommonJS",
+    "moduleResolution": "node",
     "outDir": ".dist/cjs",
     "types": ["bun-types"],
-    "module": "CommonJS"
+    "composite": true
   },
-  "reflection": ["src/**/*.routes.ts"],
+  "reflection": true,
   "include": ["."],
-  "exclude": ["node_modules", "examples", "loader", "**/*.spec.ts", "**/*.test.ts", ".dist"]
+  "exclude": ["node_modules", "loader", "**/*.spec.ts", "**/*.test.ts", ".dist"]
 }

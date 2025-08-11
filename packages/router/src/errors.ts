@@ -8,9 +8,9 @@
 import {MionHeaders, MionRequest, MionResponse} from './types/context';
 import {stringifyResponseBody} from './jsonBodyParser.routes';
 import {getRouterOptions} from './router';
-import {AnyObject, Mutable} from '@mionkit/core/types';
-import {RpcError} from '@mionkit/core/errors';
-import {StatusCodes} from '@mionkit/core/status-codes';
+import {AnyObject, Mutable} from '@mionkit/core';
+import {RpcError} from '@mionkit/core';
+import {StatusCodes} from '@mionkit/core';
 import {getEmptyCallContext} from './dispatch';
 
 export function getResponseFromError(

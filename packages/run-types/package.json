@@ -23,160 +23,10 @@
     "./persist/jitFnCacheCompiler": false
   },
   "exports": {
-    "./constants.functions": {
-      "types": "./.dist/types/constants.functions.d.ts",
-      "require": "./.dist/cjs/constants.functions.js",
-      "default": "./.dist/esm/constants.functions.js"
-    },
-    "./constants.kind": {
-      "types": "./.dist/types/constants.kind.d.ts",
-      "require": "./.dist/cjs/constants.kind.js",
-      "default": "./.dist/esm/constants.kind.js"
-    },
-    "./constants": {
-      "types": "./.dist/types/constants.d.ts",
-      "require": "./.dist/cjs/constants.js",
-      "default": "./.dist/esm/constants.js"
-    },
-    "./runTypeFunctions": {
-      "types": "./.dist/types/runTypeFunctions.d.ts",
-      "require": "./.dist/cjs/runTypeFunctions.js",
-      "default": "./.dist/esm/runTypeFunctions.js"
-    },
-    "./types": {
-      "types": "./.dist/types/types.d.ts",
-      "require": "./.dist/cjs/types.js",
-      "default": "./.dist/esm/types.js"
-    },
-    "./lib/baseRunTypeFormat": {
-      "types": "./.dist/types/lib/baseRunTypeFormat.d.ts",
-      "require": "./.dist/cjs/lib/baseRunTypeFormat.js",
-      "default": "./.dist/esm/lib/baseRunTypeFormat.js"
-    },
-    "./lib/baseRunTypes": {
-      "types": "./.dist/types/lib/baseRunTypes.d.ts",
-      "require": "./.dist/cjs/lib/baseRunTypes.js",
-      "default": "./.dist/esm/lib/baseRunTypes.js"
-    },
-    "./lib/formats.runtype": {
-      "types": "./.dist/types/lib/formats.runtype.d.ts",
-      "require": "./.dist/cjs/lib/formats.runtype.js",
-      "default": "./.dist/esm/lib/formats.runtype.js"
-    },
-    "./lib/formats": {
-      "types": "./.dist/types/lib/formats.d.ts",
-      "require": "./.dist/cjs/lib/formats.js",
-      "default": "./.dist/esm/lib/formats.js"
-    },
-    "./lib/guards": {
-      "types": "./.dist/types/lib/guards.d.ts",
-      "require": "./.dist/cjs/lib/guards.js",
-      "default": "./.dist/esm/lib/guards.js"
-    },
-    "./lib/jitCompiler": {
-      "types": "./.dist/types/lib/jitCompiler.d.ts",
-      "require": "./.dist/cjs/lib/jitCompiler.js",
-      "default": "./.dist/esm/lib/jitCompiler.js"
-    },
-    "./lib/jitFnsRegistry": {
-      "types": "./.dist/types/lib/jitFnsRegistry.d.ts",
-      "require": "./.dist/cjs/lib/jitFnsRegistry.js",
-      "default": "./.dist/esm/lib/jitFnsRegistry.js"
-    },
-    "./lib/quickHash": {
-      "types": "./.dist/types/lib/quickHash.d.ts",
-      "require": "./.dist/cjs/lib/quickHash.js",
-      "default": "./.dist/esm/lib/quickHash.js"
-    },
-    "./lib/runType": {
-      "types": "./.dist/types/lib/runType.d.ts",
-      "require": "./.dist/cjs/lib/runType.js",
-      "default": "./.dist/esm/lib/runType.js"
-    },
-    "./lib/utils": {
-      "types": "./.dist/types/lib/utils.d.ts",
-      "require": "./.dist/cjs/lib/utils.js",
-      "default": "./.dist/esm/lib/utils.js"
-    },
-    "./mocking/constants.mock": {
-      "types": "./.dist/types/mocking/constants.mock.d.ts",
-      "require": "./.dist/cjs/mocking/constants.mock.js",
-      "default": "./.dist/esm/mocking/constants.mock.js"
-    },
-    "./mocking/mockRegistry": {
-      "types": "./.dist/types/mocking/mockRegistry.d.ts",
-      "require": "./.dist/cjs/mocking/mockRegistry.js",
-      "default": "./.dist/esm/mocking/mockRegistry.js"
-    },
-    "./mocking/mockType": {
-      "types": "./.dist/types/mocking/mockType.d.ts",
-      "require": "./.dist/cjs/mocking/mockType.js",
-      "default": "./.dist/esm/mocking/mockType.js"
-    },
-    "./mocking/mockUtils": {
-      "types": "./.dist/types/mocking/mockUtils.d.ts",
-      "require": "./.dist/cjs/mocking/mockUtils.js",
-      "default": "./.dist/esm/mocking/mockUtils.js"
-    },
-    "./persist/jitFnCacheCompiler": {
-      "types": "./.dist/types/persist/jitFnCacheCompiler.d.ts",
-      "require": "./.dist/cjs/persist/jitFnCacheCompiler.js",
-      "default": "./.dist/esm/persist/jitFnCacheCompiler.js"
-    },
-    "./runType/function/function": {
-      "types": "./.dist/types/runType/function/function.d.ts",
-      "require": "./.dist/cjs/runType/function/function.js",
-      "default": "./.dist/esm/runType/function/function.js"
-    },
-    "./jitFnsCompilers/jsonStringify": {
-      "types": "./.dist/types/jitFnsCompilers/jsonStringify.d.ts",
-      "require": "./.dist/cjs/jitFnsCompilers/jsonStringify.js",
-      "default": "./.dist/esm/jitFnsCompilers/jsonStringify.js"
-    },
-    "./jitFnsCompilers/toCode": {
-      "types": "./.dist/types/jitFnsCompilers/toCode.d.ts",
-      "require": "./.dist/cjs/jitFnsCompilers/toCode.js",
-      "default": "./.dist/esm/jitFnsCompilers/toCode.js"
-    },
-    "./runType/member/array": {
-      "types": "./.dist/types/runType/member/array.d.ts",
-      "require": "./.dist/cjs/runType/member/array.js",
-      "default": "./.dist/esm/runType/member/array.js"
-    },
-    "./runType/member/property": {
-      "types": "./.dist/types/runType/member/property.d.ts",
-      "require": "./.dist/cjs/runType/member/property.js",
-      "default": "./.dist/esm/runType/member/property.js"
-    },
-    "./runType/atomic/literal": {
-      "types": "./.dist/types/runType/atomic/literal.d.ts",
-      "require": "./.dist/cjs/runType/atomic/literal.js",
-      "default": "./.dist/esm/runType/atomic/literal.js"
-    },
-    "./runType/native/Iterable": {
-      "types": "./.dist/types/runType/native/Iterable.d.ts",
-      "require": "./.dist/cjs/runType/native/Iterable.js",
-      "default": "./.dist/esm/runType/native/Iterable.js"
-    },
-    "./runType/collection/union": {
-      "types": "./.dist/types/runType/collection/union.d.ts",
-      "require": "./.dist/cjs/runType/collection/union.js",
-      "default": "./.dist/esm/runType/collection/union.js"
-    },
-    "./runType/collection/class": {
-      "types": "./.dist/types/runType/collection/class.d.ts",
-      "require": "./.dist/cjs/runType/collection/class.js",
-      "default": "./.dist/esm/runType/collection/class.js"
-    },
-    "./runType/collection/interface": {
-      "types": "./.dist/types/runType/collection/interface.d.ts",
-      "require": "./.dist/cjs/runType/collection/interface.js",
-      "default": "./.dist/esm/runType/collection/interface.js"
-    },
-    "./runType/member/methodSignature": {
-      "types": "./.dist/types/runType/member/methodSignature.d.ts",
-      "require": "./.dist/cjs/runType/member/methodSignature.js",
-      "default": "./.dist/esm/runType/member/methodSignature.js"
+    ".": {
+      "types": "./.dist/types/index.d.ts",
+      "require": "./.dist/cjs/index.js",
+      "default": "./.dist/esm/index.js"
     }
   },
   "directories": {
@@ -200,7 +50,7 @@
     "format": "prettier --write src/**/*.ts",
     "build:cjs": "tsc --project tsconfig.cjs.json",
     "build:esm": "tsc --project tsconfig.esm.json",
-    "build:types": "tsc --project tsconfig.types.json --emitDeclarationOnly --declaration --outDir .dist/types --rootDir ./src",
+    "build:types": "tsc --project tsconfig.types.json",
     "build": "npm run build:cjs && npm run build:esm && npm run build:types",
     "auto-readme": "embedme **/*.md && prettier --write **/*.md",
     "clean": "rimraf .dist & rimraf .coverage"

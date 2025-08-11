@@ -8,8 +8,8 @@
 import {statusCodeToReasonPhrase} from './status-codes';
 import {CoreOptions, AnyErrorParams, PublicRpcError, DataOnly, StrNumber, TypedErrorParams} from './types';
 import {DEFAULT_CORE_OPTIONS} from './constants';
-import {randomUUID_V7} from '@mionkit/core/utils';
-import {jitUtils} from '@mionkit/core/jitUtils';
+import {randomUUID_V7} from './utils';
+import {jitUtils} from './jitUtils';
 
 let options: CoreOptions = {...DEFAULT_CORE_OPTIONS};
 

@@ -17,10 +17,10 @@ import {
     RouteSubRequest,
     RequestErrors,
 } from './types';
-import type {RunTypeError} from '@mionkit/core/types';
-import {RpcError, isRpcError} from '@mionkit/core/errors';
-import {getRoutePath} from '@mionkit/core/core';
-import {StatusCodes} from '@mionkit/core/status-codes';
+import type {RunTypeError} from '@mionkit/core';
+import {RpcError, isRpcError} from '@mionkit/core';
+import {getRoutePath} from '@mionkit/core';
+import {StatusCodes} from '@mionkit/core';
 import {STORAGE_KEY} from './constants';
 import {fetchRemoteMethodsMetadata} from './clientMethodsMetadata';
 import {deserializeResponseBody, serializeSubRequests, validateSubRequests} from './reflection';
@@ -266,6 +266,7 @@ export class MionRequest<RR extends RouteSubRequest<any>, HookRequestsList exten
             try {
                 const jsonSubRequest = JSON.stringify(subRequest);
                 localStorage.setItem(storageKey, jsonSubRequest);
+                // eslint-disable-next-line @typescript-eslint/no-unused-vars
             } catch (e) {
                 localStorage.removeItem(storageKey);
                 errors.set(
@@ -286,6 +287,7 @@ export class MionRequest<RR extends RouteSubRequest<any>, HookRequestsList exten
             try {
                 const storageKey = this.getSubRequestStorageKey(id);
                 localStorage.removeItem(storageKey);
+                // eslint-disable-next-line @typescript-eslint/no-unused-vars
             } catch (e) {
                 errors.set(
                     id,

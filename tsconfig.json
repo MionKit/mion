@@ -18,11 +18,8 @@
     "declarationMap": true,
     "incremental": true,
     "sourceMap": true,
+    "isolatedModules": true,
     "paths": {
-      "@mionkit/core/*": ["packages/core/src/*"],
-      "@mionkit/run-types/*": ["packages/run-types/src/*"],
-      "@mionkit/formats/*": ["packages/formats/src/*"],
-      "@mionkit/router/*": ["packages/router/src/*"],
       "@mionkit/*": ["packages/*"]
     }
   },

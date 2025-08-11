@@ -1,5 +1,5 @@
-import {RpcError} from '@mionkit/core/errors';
-import {StatusCodes} from '@mionkit/core/status-codes';
+import {RpcError} from '@mionkit/core';
+import {StatusCodes} from '@mionkit/core';
 import {Route, route} from '@mionkit/router';
 import type {Pet} from './myModels';
 import {myApp} from './myApp';

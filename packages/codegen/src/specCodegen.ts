@@ -13,7 +13,7 @@ import {format, Options as PrettierOptions} from 'prettier';
 // @ypes/cross-spawn is not updated,, once it gets updated we could use normal es6 import
 import * as spawn from 'cross-spawn';
 import {randomUUID} from 'crypto';
-import type {AnyObject} from '@mionkit/core/types';
+import type {AnyObject} from '@mionkit/core';
 
 // TODO: we could use https://ts-morph.com/manipulation/ instead string based code generation but better done than perfect!
 

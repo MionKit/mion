@@ -1,4 +1,4 @@
-import {AnyObject} from '@mionkit/core/types';
+import {AnyObject} from '@mionkit/core';
 import {initMionRouter, Routes, CallContext, registerRoutes, route, headersHook} from '@mionkit/router';
 import {IncomingMessage} from 'http';
 

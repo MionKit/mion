@@ -8,10 +8,10 @@
 // ############### Import modules to execute side effects (registerFormatter calls) ###############
 
 // Import main number format module to register the formatter
-import './number/numberFormat.runtype';
+import './src/number/numberFormat.runtype';
 
 // Import default number format modules to register formatters
-import './number/defaultNumberFormats';
+import './src/number/defaultNumberFormats';
 
 // ############### Main NumberFormat Export ###############
 
@@ -20,8 +20,8 @@ import './number/defaultNumberFormats';
 // TODO: Revert to named exports once the issue is fixed
 
 // Re-export everything from number format modules
-export * from './number/numberFormat.runtype';
-export * from './number/defaultNumberFormats';
+export * from './src/number/numberFormat.runtype';
+export * from './src/number/defaultNumberFormats';
 
 // COMMENTED OUT - Original named exports (to be restored after issue is fixed):
 // // Re-export the main NumberFormat type

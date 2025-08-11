@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/ban-types */
 /* ########
  * 2025 mion
  * Author: Ma-jerez
@@ -6,15 +5,10 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import type {JITUtils, GenericPureFunction, TypeFormatError, FormatParam} from '@mionkit/core/types';
-import type {BaseRunType} from '@mionkit/run-types/lib/baseRunTypes';
-import type {JitCompiler, JitErrorsCompiler} from '@mionkit/run-types/lib/jitCompiler';
-import type {RunTypeOptions} from '@mionkit/run-types/types';
-import {BaseRunTypeFormat} from '@mionkit/run-types/lib/baseRunTypeFormat';
+import type {JITUtils, GenericPureFunction, TypeFormatError, FormatParam} from '@mionkit/core';
+import type {BaseRunType, JitCompiler, JitErrorsCompiler, RunTypeOptions} from '@mionkit/run-types';
+import {BaseRunTypeFormat, TypeFormat, registerFormatter, registerPureFnClosure, fpVal} from '@mionkit/run-types';
 import {ReflectionKind} from '@deepkit/type';
-import {TypeFormat} from '@mionkit/run-types/lib/formats.runtype';
-import {registerFormatter, registerPureFnClosure} from '@mionkit/run-types/lib/formats';
-import {fpVal} from '@mionkit/run-types/lib/utils';
 
 // IP validator
 export class IPRunTypeFormat extends BaseRunTypeFormat<FormatParams_IP> {

@@ -1,0 +1,12 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "module": "ES2022",
+    "moduleResolution": "node",
+    "outDir": ".dist/esm",
+    "composite": true
+  },
+  "reflection": true,
+  "include": ["."],
+  "exclude": ["node_modules", "**/*.spec.ts", "**/*.test.ts", ".dist"]
+}

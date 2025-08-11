@@ -8,10 +8,10 @@
 // ############### Import modules to execute side effects (registerFormatter calls) ###############
 
 // Import main bigint format module to register the formatter
-import './bigint/bigIntFormat.runtype';
+import './src/bigint/bigIntFormat.runtype';
 
 // Import default bigint format modules to register formatters
-import './bigint/defaultBigNumberFormats';
+import './src/bigint/defaultBigNumberFormats';
 
 // ############### Main BigIntFormat Export ###############
 
@@ -20,8 +20,8 @@ import './bigint/defaultBigNumberFormats';
 // TODO: Revert to named exports once the issue is fixed
 
 // Re-export everything from bigint format modules
-export * from './bigint/bigIntFormat.runtype';
-export * from './bigint/defaultBigNumberFormats';
+export * from './src/bigint/bigIntFormat.runtype';
+export * from './src/bigint/defaultBigNumberFormats';
 
 // COMMENTED OUT - Original named exports (to be restored after issue is fixed):
 // // Re-export the main BigIntFormat type
