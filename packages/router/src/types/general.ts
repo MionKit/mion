@@ -25,7 +25,7 @@ export interface Routes {
 // ####### Router Options #######
 
 /** Global Router Options */
-export interface RouterOptions<Req = any, SharedData = any> extends CoreOptions {
+export interface RouterOptions<Req = any, SharedData extends Record<string, any> = any> extends CoreOptions {
     /** prefix for all routes, i.e: api/v1.
      * path separator is added between the prefix and the route */
     prefix: string;

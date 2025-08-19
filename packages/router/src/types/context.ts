@@ -76,4 +76,4 @@ export type SingleHeaderValue = string;
 export type MultiHeaderValue = SingleHeaderValue | SingleHeaderValue[];
 
 /** Function used to create the shared data object on each route call  */
-export type SharedDataFactory<SharedData> = () => SharedData;
+export type SharedDataFactory<SharedData extends Record<string, any>> = () => SharedData;

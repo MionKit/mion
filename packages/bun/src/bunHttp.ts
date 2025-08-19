@@ -8,7 +8,7 @@
 import {dispatchRoute, getResponseFromError, resetRouter, MionResponse as MionResponse} from '@mionkit/router';
 import {DEFAULT_BUN_HTTP_OPTIONS} from './constants';
 import type {BunHttpOptions} from './types';
-import {StatusCodes} from '@mionkit/core';
+import {getENV, StatusCodes} from '@mionkit/core';
 import {RpcError} from '@mionkit/core';
 import {Server} from 'bun';
 import {compileRouter} from '@mionkit/router/index';
@@ -31,8 +31,8 @@ export function setBunHttpOpts(options?: Partial<BunHttpOptions>) {
 let httpOptions: Readonly<BunHttpOptions> = {...DEFAULT_BUN_HTTP_OPTIONS};
 
 export async function startBunServer(options?: Partial<BunHttpOptions>): Promise<Server> {
-    const isTest = process.env.NODE_ENV === 'test';
-    const isCompiling = process.env.MION_COMPILE === 'true';
+    const isTest = getENV('NODE_ENV') === 'test';
+    const isCompiling = getENV('MION_COMPILE') === 'true';
 
     if (options) setBunHttpOpts(options);
 

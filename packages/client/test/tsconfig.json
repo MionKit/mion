@@ -1,0 +1,31 @@
+{
+  "extends": "../../../tsconfig.json",
+  "compilerOptions": {
+    "outDir": ".dist/cjs",
+    "lib": ["es6", "ES2023"],
+    "composite": true,
+    "rootDir": ".",
+    "baseUrl": "../../../",
+    "paths": {
+      "@mionkit/*": ["packages/*"]
+    }
+  },
+  "references": [
+    {"path": "../../../packages/core"},
+    {"path": "../../../packages/run-types"},
+    {"path": "../../../packages/formats"},
+    {"path": "../../../packages/router"},
+    {"path": "../../../packages/client"},
+    {"path": "../../../packages/http"},
+    {"path": "../../../packages/aws"},
+    {"path": "../../../packages/gcloud"},
+    {"path": "../../../packages/bun"},
+    {"path": "../../../packages/cli"},
+    {"path": "../../../packages/codegen"},
+    {"path": "../../../packages/eslint-plugin"},
+    {"path": "../../../packages/quick-start"}
+  ],
+  "reflection": true,
+  "include": ["."],
+  "exclude": ["node_modules", ".dist"]
+}

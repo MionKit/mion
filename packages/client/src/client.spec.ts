@@ -5,12 +5,12 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {PublicApi, Routes, initRouter, registerRoutes, route, headersHook, hook} from '@mionkit/router';
 import {initClient} from './client';
 import {HookSubRequest, RouteSubRequest} from './types';
-import {setNodeHttpOpts, startNodeServer} from '@mionkit/http';
-import {Server} from 'http';
 import {RpcError} from '@mionkit/core';
+import {TestServerApi} from '../test/test-server';
+import {spawn, ChildProcess} from 'child_process';
+import {join} from 'path';
 
 // TODO move this into global jest config file if it is required by more tests
 // eslint-disable-next-line @typescript-eslint/no-var-requires, @typescript-eslint/no-require-imports
@@ -20,45 +20,70 @@ global.sessionStorage = new Storage(null, {strict: true});
 
 // TODO: test & write client
 describe('client', () => {
-    type User = {name: string; surname: string};
-
-    const routes = {
-        auth: headersHook(['Authorization'], (ctx, token: string): void => {
-            ctx.shared.user = {name: 'John', surname: 'Doe'};
-        }),
-        sayHello: route((ctx, user: User): string | RpcError => `Hello ${user.name} ${user.surname}`),
-        alwaysFails: route((ctx, user: User): User | RpcError => {
-            return new RpcError({statusCode: 500, publicMessage: 'Something fails', name: 'UnknownError'});
-        }),
-        utils: {
-            sumTwo: route((ctx, a: number): number => a + 2),
-        },
-        log: hook((ctx): void => undefined, {runOnError: true}),
-    } satisfies Routes;
-
     const someUser = {name: 'John', surname: 'Doe'};
-    let myApi: PublicApi<typeof routes>;
-    type MyApi = typeof myApi;
+    type MyApi = TestServerApi;
 
     const port = 8076;
     const baseURL = `http://localhost:${port}`;
-    let server: Server;
+    let serverProcess: ChildProcess;
+
     beforeAll(async () => {
-        initRouter({sharedDataFactory: () => {}, skipClientRoutes: false});
-        myApi = registerRoutes(routes);
-        setNodeHttpOpts({port});
-        server = await startNodeServer();
+        // Start the server in a separate process using ts-node
+        const serverPath = join(__dirname, 'test-server.ts');
+        serverProcess = spawn('npx', ['ts-node', serverPath, port.toString()], {
+            stdio: ['pipe', 'pipe', 'pipe'],
+            cwd: join(__dirname, '..', '..'), // Go to client package root
+        });
+
+        // Wait for server to start
+        await new Promise<void>((resolve, reject) => {
+            const timeout = setTimeout(() => {
+                reject(new Error('Server startup timeout'));
+            }, 10000);
+
+            serverProcess.stdout?.on('data', (data) => {
+                const output = data.toString();
+                if (output.includes('Test server started')) {
+                    clearTimeout(timeout);
+                    resolve();
+                }
+            });
+
+            serverProcess.stderr?.on('data', (data) => {
+                console.error('Server stderr:', data.toString());
+            });
+
+            serverProcess.on('error', (error) => {
+                clearTimeout(timeout);
+                reject(error);
+            });
+
+            serverProcess.on('exit', (code) => {
+                if (code !== 0) {
+                    clearTimeout(timeout);
+                    reject(new Error(`Server process exited with code ${code}`));
+                }
+            });
+        });
     });
 
-    afterAll(
-        async () =>
-            new Promise<void>((resolve, reject) => {
-                server.close((err) => {
-                    if (err) reject();
-                    else resolve();
-                });
-            })
-    );
+    afterAll(async () => {
+        if (serverProcess) {
+            serverProcess.kill('SIGTERM');
+
+            // Wait for process to exit
+            await new Promise<void>((resolve) => {
+                serverProcess.on('exit', () => resolve());
+                // Force kill after 5 seconds if it doesn't exit gracefully
+                setTimeout(() => {
+                    if (!serverProcess.killed) {
+                        serverProcess.kill('SIGKILL');
+                    }
+                    resolve();
+                }, 5000);
+            });
+        }
+    });
 
     it('proxy to trap remote methods calls and return MethodRequest data', () => {
         const {routes, hooks} = initClient<MyApi>({baseURL});
@@ -126,7 +151,7 @@ describe('client', () => {
     it('throw error if a route call fails', async () => {
         const {routes, hooks} = initClient<MyApi>({baseURL});
 
-        let error;
+        let error: any;
         const expectedError = new RpcError({
             message: 'Something fails',
             name: 'UnknownError',
@@ -134,8 +159,10 @@ describe('client', () => {
         });
 
         try {
-            await routes.alwaysFails(someUser).call(hooks.auth('XWYZ-TOKEN'));
+            const user = await routes.alwaysFails(someUser).call(hooks.auth('XWYZ-TOKEN'));
+            console.log(user);
         } catch (e) {
+            console.log(e);
             error = e;
         }
 
@@ -144,9 +171,9 @@ describe('client', () => {
     });
 
     it('throw error if a route is missing hook data', async () => {
-        const {routes, hooks} = initClient<MyApi>({baseURL});
+        const {routes} = initClient<MyApi>({baseURL});
 
-        let error;
+        let error: any;
         const expectedError = new RpcError({
             message: `Invalid params for Route or Hook 'auth', validation failed.`,
             name: 'Validation Error',
@@ -154,7 +181,7 @@ describe('client', () => {
         });
 
         try {
-            const resp = await routes.sayHello(someUser).call();
+            await routes.sayHello(someUser).call();
         } catch (e) {
             error = e;
         }
@@ -164,7 +191,7 @@ describe('client', () => {
     });
 
     it('validate parameters', async () => {
-        const {routes, hooks} = initClient<MyApi>({baseURL});
+        const {routes} = initClient<MyApi>({baseURL});
 
         const responseOk = await routes.sayHello(someUser).validate();
 
@@ -174,7 +201,7 @@ describe('client', () => {
             totalErrors: 0,
         });
 
-        let error;
+        let error: any;
         const expectedError = new RpcError({
             message: `Invalid params for Route or Hook 'sayHello', validation failed.`,
             name: 'Validation Error',
@@ -187,7 +214,7 @@ describe('client', () => {
         });
 
         try {
-            const resp = await routes.sayHello('invalid-param' as any).validate();
+            await routes.sayHello('invalid-param' as any).validate();
         } catch (e) {
             error = e;
         }
@@ -203,7 +230,7 @@ describe('client', () => {
         await request.prefill();
         // note auth has been prefilled and is not required to be sent in the call
 
-        let response;
+        let response: any;
         try {
             response = await routes.sayHello(someUser).call();
         } catch (e) {
@@ -215,7 +242,7 @@ describe('client', () => {
 
         request.removePrefill();
 
-        let error;
+        let error: any;
         const expectedError = new RpcError({
             message: `Invalid params for Route or Hook 'auth', validation failed.`,
             name: 'Validation Error',

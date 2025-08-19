@@ -6,7 +6,7 @@
  * ######## */
 
 import type {JitCompiledFn, JitCompiledFnData, JitFnArgs, JITUtils, PureFunction, PureFunctionClosure} from '@mionkit/core';
-import {MAX_STACK_DEPTH, jitUtils} from '@mionkit/core';
+import {MAX_STACK_DEPTH, getENV, jitUtils} from '@mionkit/core';
 import type {Mutable, JitFnID, StrNumber, jitCode, RunTypeOptions, JitCompilerOpts} from '../types';
 import type {BaseRunType} from './baseRunTypes';
 import type {AnyKindName} from '../constants.kind';
@@ -500,7 +500,7 @@ function createJitFnWithContext(comp: BaseCompiler, fnName: string, fnCode: stri
     // this function will have jitUtils as context as is an argument of the enclosing function
     const context = contextCode ? `${contextCode};` : '';
     let fnWithContext = `${context} ${fnCode} return ${fnName};`;
-    if (process.env.DEBUG_RUN_TIME) {
+    if (getENV('DEBUG_RUN_TIME')) {
         const fnArgs = getJitFnArgs(comp);
         const argsCall = getJitFnArgs(comp, false);
         const debugWrapper = `function debug_${fnName}(${fnArgs}){
@@ -512,10 +512,10 @@ function createJitFnWithContext(comp: BaseCompiler, fnName: string, fnCode: stri
     }
     try {
         const wrapperWithContext = new Function('utl', fnWithContext) as (utl: JITUtils) => (...args: any[]) => any;
-        if (process.env.DEBUG_JIT) console.log(printClosure(fnWithContext, fnName));
+        if (getENV('DEBUG_JIT')) console.log(printClosure(fnWithContext, fnName));
         return {closureFn: wrapperWithContext, fn: wrapperWithContext(jitUtils), code: fnWithContext}; // returns the jit internal function with the context
     } catch (e: any) {
-        if (process.env.DEBUG_JIT) {
+        if (getENV('DEBUG_JIT')) {
             console.warn('Error creating jit function with context code:\n', printClosure(fnWithContext, fnName));
         }
         throw e;

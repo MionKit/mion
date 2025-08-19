@@ -5,10 +5,10 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {RpcError} from '@mionkit/core';
+import {RpcError, SerializablePublicMethod} from '@mionkit/core';
 import {CallContext} from './context';
 import {Routes} from './general';
-import {HandlerType, Method} from './remoteMethods';
+import {HandlerType} from './remoteMethods';
 import {Handler} from './handlers';
 import {HeaderHookDef, HookDef, RawHookDef, RouteDef} from './definitions';
 
@@ -59,24 +59,10 @@ export type PublicApi<Type extends Routes> = {
     //         : never;
 };
 
-export type SerializableJitHashes = {
-    isType: string;
-    typeErrors: string;
-    toJsonVal: string;
-    fromJsonVal: string;
-    jsonStringify: string;
-};
-
 // quite similar to PublicMethod but omits some server only properties
-export interface PublicMethod<H extends Handler = any> extends Pick<Method<H>, 'type' | 'id' | 'headerNames' | 'paramNames'> {
+export interface PublicMethod<H extends Handler = any> extends SerializablePublicMethod {
     /** Type reference to the route handler, it's runtime value is actually null, just used statically by typescript. */
     handler: PublicHandler<H>;
-    /** ids of the jit functions used by the params of the handler */
-    paramsJitHashes: SerializableJitHashes;
-    /** ids of the jit functions used by the return of the handler */
-    returnJitHashes: SerializableJitHashes;
-    hookIds?: string[];
-    pathPointers?: string[][];
 }
 
 /** Public map from Routes, handler type is the same as router's handler but does not include the context  */
