@@ -48,7 +48,8 @@
     "build:types": "tsc --project tsconfig.types.json",
     "build": "npm run build:cjs && npm run build:esm && npm run build:types",
     "auto-readme": "embedme **/*.md && prettier --write **/*.md",
-    "clean": "rimraf .dist & rimraf .coverage"
+    "clean": "rimraf .dist & rimraf .coverage",
+    "run-test-server": "ts-node --project test/tsconfig.json test/test-server.ts"
   },
   "bugs": {
     "url": "https://github.com/MionKit/mion/issues"
@@ -59,6 +60,7 @@
     "@mionkit/router": "^0.7.2",
     "@mionkit/run-types": "^0.7.2",
     "dom-storage": "^2.1.0",
-    "jest-environment-jsdom": "^29.6.2"
+    "jest-environment-jsdom": "^29.6.2",
+    "ts-node": "^10.9.2"
   }
 }

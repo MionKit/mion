@@ -51,7 +51,7 @@ function _getExecutionPathStringifyFn(
                 const jsonValue = jitJsonStringify(returnValue);
                 props.push(`${JSON.stringify(method.id)}:${jsonValue}${coma}`);
                 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-            } catch (err: any) {
+            } catch (e: any) {
                 const err = new RpcError({
                     statusCode: 500,
                     name: 'Stringify Response Error',

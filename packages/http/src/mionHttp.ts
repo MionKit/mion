@@ -13,7 +13,7 @@ import type {NodeHttpOptions} from './types';
 import type {IncomingMessage, Server as HttpServer, ServerResponse} from 'http';
 import type {Server as HttpsServer} from 'https';
 import type {MionResponse} from '@mionkit/router';
-import {StatusCodes} from '@mionkit/core';
+import {getENV, StatusCodes} from '@mionkit/core';
 import {RpcError} from '@mionkit/core';
 import {headersFromIncomingMessage, headersFromServerResponse} from './headers';
 
@@ -38,8 +38,8 @@ export function setNodeHttpOpts(options?: Partial<NodeHttpOptions>) {
 }
 
 export async function startNodeServer(options?: Partial<NodeHttpOptions>): Promise<HttpServer | HttpsServer> {
-    const isTest = process.env.NODE_ENV === 'test';
-    const isCompiling = process.env.MION_COMPILE === 'true';
+    const isTest = getENV('NODE_ENV') === 'test';
+    const isCompiling = getENV('MION_COMPILE') === 'true';
 
     if (options) setNodeHttpOpts(options);
     const port = httpOptions.port !== 80 ? `:${httpOptions.port}` : '';
@@ -143,6 +143,6 @@ function httpRequestHandler(httpReq: IncomingMessage, httpResponse: ServerRespon
 function reply(httpResponse: ServerResponse, rawBody: string, statusCode: number, statusMessage?: string) {
     if (statusMessage) httpResponse.statusMessage = statusMessage;
     httpResponse.statusCode = statusCode;
-    httpResponse.setHeader('content-length', rawBody.length);
+    httpResponse.setHeader('content-length', Buffer.byteLength(rawBody, 'utf8'));
     httpResponse.end(rawBody);
 }

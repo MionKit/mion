@@ -18,13 +18,13 @@ import {
     getAllExecutablesIds,
     getAnyExecutable,
 } from './router';
-// TODO: investigate why compilation fails if route gets imported from @mionkit/router rather that relative import
 import {route} from './handlers';
 import {PublicMethod} from './types/publicMethods';
 import {RouterOptions, Routes} from './types/general';
 import {getSerializableMethod, serializeMethodDeps} from './remoteMethods';
 import {NonRawMethod, Method} from './types/remoteMethods';
 
+// TODO, investigate if we can use SharedPublicMethod that do not include the handler instead of PublicMethod
 export type PublicMethods = Record<string, PublicMethod>;
 export interface ClientRouteOptions extends RouterOptions {
     getAllRemoteMethodsMaxNumber?: number;

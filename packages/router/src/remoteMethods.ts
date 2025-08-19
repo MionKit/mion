@@ -9,7 +9,7 @@ import type {Handler} from './types/handlers';
 import {type RouterEntry, type Routes} from './types/general';
 import {NonRawMethod, type Method} from './types/remoteMethods';
 import {HandlerType} from './types/remoteMethods';
-import type {PublicApi, PublicHandler, PublicMethod, SerializableJitHashes} from './types/publicMethods';
+import type {PublicApi, PublicHandler, PublicMethod} from './types/publicMethods';
 import {isRoute, isHeaderHookDef, isHookDef, isPublicExecutable} from './types/guards';
 import {
     getHookExecutable,
@@ -19,7 +19,7 @@ import {
     isPrivateDefinition,
     shouldFullGenerateSpec,
 } from './router';
-import type {AnyObject, JitCompiledFnData, JitCompiledFunctions, PureFunctionData} from '@mionkit/core';
+import type {AnyObject, JitCompiledFnData, JitCompiledFunctions, PureFunctionData, SerializableJitHashes} from '@mionkit/core';
 import {getRoutePath, getRouterItemId} from '@mionkit/core';
 import {jitUtils} from '@mionkit/core';
 import {getSerializableJitCompiler} from '@mionkit/run-types';

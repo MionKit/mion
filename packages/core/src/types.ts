@@ -313,6 +313,43 @@ export interface SrcCodeCompiledPureFunction extends PureFunctionData {
 export type SrcCodeJITCompiledFnsCache = Record<string, SrcCodeJitCompiledFn>;
 export type SrcCodePureFunctionsCache = Record<string, SrcCodeCompiledPureFunction>;
 
+// ########################################## PUBLIC METHOD ##########################################
+
+/** Serializable JIT hashes type for sharing between client and server */
+export type SerializableJitHashes = {
+    isType: string;
+    typeErrors: string;
+    toJsonVal: string;
+    fromJsonVal: string;
+    jsonStringify: string;
+};
+
+/** Shared interface for PublicMethod that can be used between client and server without handler dependencies */
+export interface SerializablePublicMethod {
+    /** Method type identifier */
+    type: number;
+    /** Unique identifier for the method */
+    id: string;
+    /** Names of header parameters if this is a header method */
+    headerNames?: string[];
+    /** Names of method parameters */
+    paramNames?: string[];
+    /** Hashes of JIT functions used by the method parameters */
+    paramsJitHashes: SerializableJitHashes;
+    /** Hashes of JIT functions used by the method return value */
+    returnJitHashes: SerializableJitHashes;
+    /** Array of hook IDs associated with this method */
+    hookIds?: string[];
+    /** Path pointers for nested route structures */
+    pathPointers?: string[][];
+}
+
+export interface SerializableMethodsData {
+    methods: Record<string, SerializablePublicMethod>;
+    deps: Record<string, JitCompiledFnData>;
+    purFnDeps: Record<string, PureFunctionData>;
+}
+
 // ########################################## other #########################################
 
 export type AnyObject = Record<string, unknown>;

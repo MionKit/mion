@@ -62,6 +62,6 @@ export async function googleCFHandler(rawRequest: Request, rawResponse: Response
 // ############# PRIVATE METHODS #############
 
 function reply(routeResponse: MionResponse, resp: Response): void {
-    resp.set('content-length', `${routeResponse.rawBody.length}`);
+    resp.set('content-length', `${Buffer.byteLength(routeResponse.rawBody, 'utf8')}`);
     resp.status(routeResponse.statusCode).end(routeResponse.rawBody);
 }

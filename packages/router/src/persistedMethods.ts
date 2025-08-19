@@ -92,14 +92,21 @@ export function compileRouter() {
     if (typeof process !== 'undefined' && process.env) {
         process.env.MION_COMPILE = 'true';
     }
-    if (!IS_TEST_ENV) console.log('Writing compiled methods...');
-    compileAndWriteRunType<PersistedMethods>(persistedMethods, routerCompilerConstants);
-    if (!IS_TEST_ENV) console.log(`Compiled methods written to ${routerCompilerConstants.files}.`);
-    const {jitFnsCache, pureFnsCache} = getFnCaches();
-    compileAndWriteJitFunctions(jitFnsCache);
-    if (!IS_TEST_ENV) console.log(`Compiled JIT functions written to ${runTypeCompilerConstants.jitFunctionsFiles}.`);
-    compileAndWritePureFunctions(pureFnsCache);
-    if (!IS_TEST_ENV) console.log(`Compiled pure functions written to ${runTypeCompilerConstants.pureFunctionsFiles}.`);
+    if (!IS_TEST_ENV) {
+        console.log('Writing compiled methods...');
+        compileAndWriteRunType<PersistedMethods>(persistedMethods, routerCompilerConstants);
+        console.log(`Compiled methods written to ${routerCompilerConstants.files}.`);
+        const {jitFnsCache, pureFnsCache} = getFnCaches();
+        compileAndWriteJitFunctions(jitFnsCache);
+        console.log(`Compiled JIT functions written to ${runTypeCompilerConstants.jitFunctionsFiles}.`);
+        compileAndWritePureFunctions(pureFnsCache);
+        console.log(`Compiled pure functions written to ${runTypeCompilerConstants.pureFunctionsFiles}.`);
+    } else {
+        compileAndWriteRunType<PersistedMethods>(persistedMethods, routerCompilerConstants);
+        const {jitFnsCache, pureFnsCache} = getFnCaches();
+        compileAndWriteJitFunctions(jitFnsCache);
+        compileAndWritePureFunctions(pureFnsCache);
+    }
     if (typeof process !== 'undefined' && process.env) {
         process.env.MION_COMPILE = aux;
     }

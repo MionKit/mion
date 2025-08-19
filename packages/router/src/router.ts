@@ -19,7 +19,7 @@ import type {PublicApi, PrivateDef, HooksCollection} from './types/publicMethods
 import type {HeaderHookDef, HookDef, RawHookDef} from './types/definitions';
 import {getHandlerReflection} from './reflection';
 import {bodyParserHooks} from './jsonBodyParser.routes';
-import {getRouterItemId, getRoutePath} from '@mionkit/core';
+import {getRouterItemId, getRoutePath, getENV} from '@mionkit/core';
 import {setErrorOptions} from '@mionkit/core';
 import {getPublicApi, resetRemoteMethodsMetadata} from './remoteMethods';
 import {clientRoutes} from './client.routes';
@@ -101,6 +101,7 @@ export function initMionRouter<R extends Routes>(routes: R, opts?: Partial<Route
 export function initRouter(opts?: Partial<RouterOptions>): Readonly<RouterOptions> {
     if (isRouterInitialized) throw new Error('Router has already been initialized');
     routerOptions = {...routerOptions, ...opts};
+    validateSharedDataFactory(routerOptions);
     Object.freeze(routerOptions);
     setErrorOptions(routerOptions);
     isRouterInitialized = true;
@@ -170,7 +171,7 @@ export function getAllExecutablesIds(): string[] {
 }
 
 export function shouldFullGenerateSpec(): boolean {
-    return routerOptions.getPublicRoutesData || process.env.GENERATE_ROUTER_SPEC === 'true';
+    return routerOptions.getPublicRoutesData || getENV('GENERATE_ROUTER_SPEC') === 'true';
 }
 
 export function getRouteExecutableFromPath(path: string): RouteMethod {
@@ -471,4 +472,22 @@ function getExecutablesFromHooksCollection(hooksDef: HooksCollection): (RawMetho
         if (isHeaderHookDef(hook) || isHookDef(hook)) return getExecutableFromHook(hook, [key], 0);
         throw new Error(`Invalid hook: ${key}. Invalid hook definition`);
     });
+}
+
+/**
+ * Validates that a sharedDataFactory returns a valid shared data object.
+ * @param sharedDataFactory The factory function to validate
+ * @throws Error if the factory doesn't return a plain object with at least one property
+ */
+function validateSharedDataFactory(opts?: Partial<RouterOptions>): void {
+    if (!opts?.sharedDataFactory) return;
+    const testSharedData = opts.sharedDataFactory();
+    if (
+        typeof testSharedData !== 'object' ||
+        Array.isArray(testSharedData) ||
+        testSharedData === null ||
+        Object.keys(testSharedData).length === 0
+    ) {
+        throw new Error('sharedDataFactory must return a plain object with at least one property');
+    }
 }

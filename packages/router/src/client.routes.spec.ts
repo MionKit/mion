@@ -89,6 +89,7 @@ describe('PublicMethods run type functionality', () => {
         registerRoutes(routes);
         const executable = getRouteExecutable('route1')!;
         const publicMethod = getSerializableMethod(executable!);
+        console.log(publicMethod);
 
         const response: MethodsData = {
             methods: {[publicMethod.id]: publicMethod},
@@ -485,5 +486,40 @@ describe('Client Routes should', () => {
             message: 'Route /abcd not found',
         };
         expect(response.body[routeMethodsId]).toEqual(expectedResponse);
+    });
+});
+
+describe('Restore Client Routes jit functions', () => {
+    type User = {
+        id: string;
+        name: string;
+        surname: string;
+        others: string[];
+    };
+
+    const routes = {
+        users: {
+            getUser: route((ctx, id: string): User => ({id, name: 'John', surname: 'Smith', others: []})),
+        },
+    } satisfies Routes;
+
+    const routeMethodsId = GET_REMOTE_METHODS_BY_PATH;
+    const routeMethodsPath = getRoutePath([routeMethodsId], {prefix: '', suffix: ''});
+
+    afterEach(() => resetRouter());
+
+    it('should restore jit functions', async () => {
+        initRouter();
+        registerRoutes(routes);
+        registerRoutes(clientRoutes);
+
+        const request: RawRequest = {
+            headers: headersFromRecord({}),
+            body: JSON.stringify({
+                [routeMethodsId]: ['/users-getUser'],
+            }),
+        };
+        const response = await dispatchRoute(routeMethodsPath, request.body, request.headers, headersFromRecord({}), request, {});
+        const methodsData = response.body[routeMethodsId] as MethodsData; // serializable data for remote methods
     });
 });
