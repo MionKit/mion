@@ -17,6 +17,7 @@ import type {
     SerializableClass,
     JITUtils,
     StrNumber,
+    CompiledCacheFile,
 } from './types';
 import {MAX_UNKNOWN_KEYS} from './constants';
 import {cΦmpilεdCachε as tCache} from './_autogen/jitFunctionsCache';
@@ -220,6 +221,37 @@ export const jitUtils: JITUtils = {
         εrr.push(runTypeErr);
     },
 };
+
+/**
+ * Loads compiled JIT and pure functions from external files.
+ * This function dynamically imports the compiled cache files and merges them into the existing caches.
+ * @param files - Array of file objects containing jit and pure function cache files with their paths and module types
+ */
+export async function loadCompiledCaches(files: CompiledCacheFile[]) {
+    try {
+        for (const fileSet of files) {
+            // Load JIT functions cache
+            if (fileSet.jit.path) {
+                const jitModule = await import(fileSet.jit.path);
+                const compiledJitCache = jitModule.cΦmpilεdCachε;
+                if (compiledJitCache) {
+                    Object.assign(jitFnsCache, compiledJitCache);
+                }
+            }
+
+            // Load pure functions cache
+            if (fileSet.pure.path) {
+                const pureModule = await import(fileSet.pure.path);
+                const compiledPureCache = pureModule.cΦmpilεdCachε;
+                if (compiledPureCache) {
+                    Object.assign(pureFnsCache, compiledPureCache);
+                }
+            }
+        }
+    } catch (error) {
+        console.warn('Failed to load compiled caches:', error);
+    }
+}
 
 /**
  * Returns the jit and pure functions caches.

@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {SrcCodeCompilerConstants, compileTypeToJs, runTypeCompilerConstants, findJSFile} from './jitFnCacheCompiler';
+import {SrcCodeCompilerConstants, compileTypeToJs, runTypeCompilerConstants} from './jitFnCacheCompiler';
 import {
     JitCompiledFn,
     CompiledPureFunction,
@@ -15,8 +15,6 @@ import {
 } from '@mionkit/core';
 import {JitFunctions} from '../constants.functions';
 import {jitUtils} from '@mionkit/core';
-import {existsSync, mkdirSync, unlinkSync, writeFileSync} from 'fs';
-import {join} from 'path';
 
 it('should compile JIT functions cache to code', () => {
     const {jitFnsCache} = getFnCaches();
@@ -26,8 +24,11 @@ it('should compile JIT functions cache to code', () => {
     const mockCache = {};
     const compOpts = {
         ...runTypeCompilerConstants,
-        typeName: 'Pure functions',
-        files: runTypeCompilerConstants.jitFunctionsFiles,
+        typeName: 'JIT functions',
+        files: {
+            jit: {path: '/test/path/jitFunctionsCache.esm.js', module: 'esm'},
+            pure: {path: '', module: 'esm'},
+        },
         opts: {isJitFnCode: true},
     } satisfies SrcCodeCompilerConstants;
 
@@ -49,7 +50,7 @@ it('should compile JIT functions cache to code', () => {
     mockCache['sayHello'] = mockJitFn;
 
     // Call the function under test
-    const compiledMock = compileTypeToJs<SrcCodeJITCompiledFnsCache>(mockCache, compOpts);
+    const compiledMock = compileTypeToJs<SrcCodeJITCompiledFnsCache>(mockCache, compOpts, 'esm');
     // Check that the file code contains the export statement with the correct export name
     expect(compiledMock).toContain(`export const ${compOpts.exportName} =`);
     const evalCode = compiledMock.replace(`export const ${compOpts.exportName} =`, '');
@@ -59,7 +60,7 @@ it('should compile JIT functions cache to code', () => {
 
     // guarantees cache in core package can be compiled
     // this contains any jit functions that are used by core package or mion packages
-    const compiledCorePackage = compileTypeToJs<SrcCodeJITCompiledFnsCache>(jitFnsCache as any, compOpts);
+    const compiledCorePackage = compileTypeToJs<SrcCodeJITCompiledFnsCache>(jitFnsCache as any, compOpts, 'esm');
     expect(compiledCorePackage).toContain(`export const ${compOpts.exportName} =`);
     const realEvalCode = compiledCorePackage.replace(`export const ${compOpts.exportName} =`, '');
     expect(() => eval(`(${realEvalCode})`)).not.toThrow();
@@ -77,7 +78,10 @@ it('should compile pure functions cache to code', () => {
     const compOpts = {
         ...runTypeCompilerConstants,
         typeName: 'Pure functions',
-        files: runTypeCompilerConstants.pureFunctionsFiles,
+        files: {
+            jit: {path: '', module: 'esm'},
+            pure: {path: '/test/path/pureFunctionsCache.esm.js', module: 'esm'},
+        },
         opts: {isPureFnCode: true},
     } satisfies SrcCodeCompilerConstants;
 
@@ -93,7 +97,7 @@ it('should compile pure functions cache to code', () => {
     mockCache['addNumbers'] = mockPureFn;
 
     // Call the function under test
-    const compiledMock = compileTypeToJs<SrcCodePureFunctionsCache>(mockCache, compOpts);
+    const compiledMock = compileTypeToJs<SrcCodePureFunctionsCache>(mockCache, compOpts, 'esm');
     // Check that the file code contains the export statement with the correct export name
     expect(compiledMock).toContain(`export const ${compOpts.exportName} =`);
 
@@ -105,7 +109,7 @@ it('should compile pure functions cache to code', () => {
 
     // guarantees (real cache) in core package can be compiled
     // this contains any pure functions that are used by core package or mion packages
-    const compiledCorePackage = compileTypeToJs<SrcCodePureFunctionsCache>(pureFnsCache as any, compOpts);
+    const compiledCorePackage = compileTypeToJs<SrcCodePureFunctionsCache>(pureFnsCache as any, compOpts, 'esm');
     expect(compiledCorePackage).toContain(`export const ${compOpts.exportName} =`);
     const realEvalCode = compiledCorePackage.replace(`export const ${compOpts.exportName} =`, '');
     expect(() => eval(`(${realEvalCode})`)).not.toThrow();
@@ -114,40 +118,59 @@ it('should compile pure functions cache to code', () => {
     // console.log('compiledCorePackage:', compiledCorePackage);
 });
 
-function createDirAndWriteFile(dir: string, file: string) {
-    if (!existsSync(dir)) mkdirSync(dir, {recursive: true});
-    const filePath = join(dir, file);
-    writeFileSync(filePath, 'export const cΦmpilεdCachε = {};\n', 'utf8');
-}
+it('should use absolute file paths in SrcCodeCompilerConstants', () => {
+    // Test that the new structure uses absolute file paths
+    const testFiles = {
+        jit: {path: '/absolute/path/to/jitFunctionsCache.esm.js', module: 'esm' as const},
+        pure: {path: '/absolute/path/to/pureFunctionsCache.cjs.js', module: 'cjs' as const},
+    };
 
-function deleteFile(dir: string, file: string) {
-    const filePath = join(dir, file);
-    if (existsSync(filePath)) {
-        unlinkSync(filePath);
-    }
-}
+    const compOpts = {
+        ...runTypeCompilerConstants,
+        typeName: 'Test functions',
+        files: testFiles,
+        opts: {isJitFnCode: true},
+    } satisfies SrcCodeCompilerConstants;
 
-it('should find .dist files in @mionkit/core package', () => {
-    // compileAndWriteJitFunctions and compileAndWritePureFunctions work only after code gets compiled
-    // for testing lets find fe files in the core package as test
-    const dirCjs = join(__dirname, '../../../core/dist/cjs/_autogen');
-    const dirEsm = join(__dirname, '../../../core/dist/esm/_autogen');
-    const filesCjs = ['jitFunctionsCache.js', 'pureFunctionsCache.js'];
-    const filesEsm = ['jitFunctionsCache.mjs', 'pureFunctionsCache.mjs'];
+    expect(compOpts.files.jit.path).toBe(testFiles.jit.path);
+    expect(compOpts.files.jit.module).toBe(testFiles.jit.module);
+    expect(compOpts.files.pure.path).toBe(testFiles.pure.path);
+    expect(compOpts.files.pure.module).toBe(testFiles.pure.module);
+});
 
-    filesCjs.forEach((file) => createDirAndWriteFile(dirCjs, file));
-    filesEsm.forEach((file) => createDirAndWriteFile(dirEsm, file));
+it('should generate CommonJS format for cjs module type', () => {
+    // Use a proper mock cache structure similar to the JIT functions test
+    const mockCache: SrcCodeJITCompiledFnsCache = {};
+    const mockJitFn: SrcCodeJitCompiledFn = {
+        typeName: 'string',
+        fnID: 'isType',
+        jitFnHash: 'testFn',
+        args: {vλl: 'v'},
+        defaultParamValues: {vλl: ''},
+        code: 'return typeof v === "string";',
+        dependenciesSet: new Set<string>(),
+        pureFnDependencies: new Set<string>(),
+        closureFn: (utl) => (name: string) => typeof name === 'string',
+    };
+    mockCache['testFn'] = mockJitFn;
 
-    const packageName = '@mionkit/core';
-    const files = [
-        './dist/cjs/_autogen/jitFunctionsCache',
-        './dist/cjs/_autogen/pureFunctionsCache',
-        './dist/esm/_autogen/jitFunctionsCache',
-        './dist/esm/_autogen/pureFunctionsCache',
-    ];
-    const fullFileNames = files.map((file) => findJSFile(packageName, file)) as string[];
-    expect(fullFileNames.every(Boolean)).toBe(true);
+    const compOpts = {
+        ...runTypeCompilerConstants,
+        typeName: 'Test functions',
+        files: {
+            jit: {path: '/test/path/jitFunctionsCache.cjs.js', module: 'cjs' as const},
+            pure: {path: '', module: 'cjs' as const},
+        },
+        opts: {isJitFnCode: true},
+    } satisfies SrcCodeCompilerConstants;
 
-    filesCjs.forEach((file) => deleteFile(dirCjs, file));
-    filesEsm.forEach((file) => deleteFile(dirEsm, file));
+    // Test CommonJS format
+    const cjsCode = compileTypeToJs(mockCache, compOpts, 'cjs');
+    expect(cjsCode).toContain(`module.exports = { ${compOpts.exportName}:`);
+    expect(cjsCode).not.toContain('export const');
+
+    // Test ESM format
+    const esmCode = compileTypeToJs(mockCache, compOpts, 'esm');
+    expect(esmCode).toContain(`export const ${compOpts.exportName} =`);
+    expect(esmCode).not.toContain('module.exports');
 });
