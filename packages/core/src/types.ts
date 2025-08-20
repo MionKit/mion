@@ -424,3 +424,8 @@ export type DataOnly<T> = T extends object
 // type PlainClass = PlainObject<A>;
 // type PlainSet = PlainObject<Set<A>>;
 // type PlainMap = PlainObject<Map<string, A>>;
+
+export type CompiledCacheFile = {
+    jit: {path: string; module: 'cjs' | 'esm'};
+    pure: {path: string; module: 'cjs' | 'esm'};
+};

@@ -181,22 +181,27 @@ describe('node http router should', () => {
     });
 
     it('compile routes metadata and skip server initialization', async () => {
-        process.env.MION_COMPILE = 'true';
-        const routerOpts = {
-            sharedDataFactory: getSharedData,
-            prefix: 'api/',
-        };
-        const httpOpts = {
-            port: 8080,
-            maxBodySize: 1,
-            defaultResponseHeaders: {'x-app-name': 'MyApp', 'x-instance-id': '3089'},
-        };
-        resetNodeHttpOpts();
-        setNodeHttpOpts(httpOpts);
-        initRouter(routerOpts);
-        registerRoutes({changeUserName, getDate, updateHeaders});
-        const smallServer = await startNodeServer();
-        expect(smallServer.listening).toBe(false);
-        await closeServer(smallServer);
+        try {
+            process.env.MION_COMPILE = 'true';
+            const routerOpts = {
+                sharedDataFactory: getSharedData,
+                prefix: 'api/',
+            };
+            const httpOpts = {
+                port: 8080,
+                maxBodySize: 1,
+                defaultResponseHeaders: {'x-app-name': 'MyApp', 'x-instance-id': '3089'},
+            };
+            resetNodeHttpOpts();
+            setNodeHttpOpts(httpOpts);
+            initRouter(routerOpts);
+            registerRoutes({changeUserName, getDate, updateHeaders});
+            const smallServer = await startNodeServer();
+            expect(smallServer.listening).toBe(false);
+            await closeServer(smallServer);
+        } catch (error) {
+            console.error('Test error:', error);
+            throw error;
+        }
     });
 });
