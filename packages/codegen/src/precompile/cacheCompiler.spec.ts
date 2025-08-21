@@ -12,9 +12,9 @@ import {
     SrcCodeJITCompiledFnsCache,
     SrcCodePureFunctionsCache,
     getFnCaches,
+    jitUtils,
 } from '@mionkit/core';
-import {JitFunctions} from '../constants.functions';
-import {jitUtils} from '@mionkit/core';
+import {JitFunctions} from '@mionkit/run-types';
 
 it('should compile JIT functions cache to code', () => {
     const {jitFnsCache} = getFnCaches();

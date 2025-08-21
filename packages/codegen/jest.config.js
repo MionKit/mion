@@ -6,6 +6,6 @@ module.exports = {
   coverageReporters: ['text', 'lcov', 'html'],
   testMatch: ['**/*.spec.ts', '**/*.test.ts'],
   moduleNameMapper: {
-    '^@mionkit/(.*)': '<rootDir>/../$1/src',
+    '^@mionkit/(.*)$': '<rootDir>/../$1',
   },
 };

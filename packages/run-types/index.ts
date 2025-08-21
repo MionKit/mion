@@ -25,7 +25,6 @@ export * from './src/mocking/constants.mock';
 export * from './src/mocking/mockRegistry';
 export * from './src/mocking/mockType';
 export * from './src/mocking/mockUtils';
-export * from './src/precompile/cacheCompiler';
 export * from './src/runType/function/function';
 export * from './src/jitFns/jsonStringify';
 export * from './src/jitFns/toCode';

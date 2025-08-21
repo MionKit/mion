@@ -9,9 +9,7 @@ import {ReceiveType} from '@deepkit/type';
 import {existsSync, writeFileSync, mkdirSync} from 'fs';
 import {dirname} from 'path';
 import {JitFunctionsCache, PureFunctionsCache, CompiledCacheFile} from '@mionkit/core';
-import {JitFunctions} from '../constants.functions';
-import {runType} from '../lib/runType';
-import {RunTypeOptions} from '../types';
+import {JitFunctions, runType, RunTypeOptions} from '@mionkit/run-types';
 
 export type SrcCodeCompilerConstants = Readonly<{
     autoGenMessage: string;
