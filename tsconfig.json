@@ -34,7 +34,6 @@
     {"path": "./packages/gcloud"},
     {"path": "./packages/bun"},
     {"path": "./packages/cli"},
-    {"path": "./packages/codegen"},
     {"path": "./packages/eslint-plugin"},
     {"path": "./packages/quick-start"}
   ],

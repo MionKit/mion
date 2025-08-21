@@ -12,15 +12,14 @@ import {
     compileAndWritePureFunctions,
     compileAndWriteRunType,
     SrcCodeCompilerConstants,
-    runTypeCompilerConstants,
     compileTypeToJs,
 } from '@mionkit/run-types';
-import {NonRawMethod, MethodData} from './types/remoteMethods';
-import {AnyHandler} from './types/handlers';
-import {IS_TEST_ENV} from './constants';
+import {NonRawMethod, MethodData} from '../types/remoteMethods';
+import {AnyHandler} from '../types/handlers';
+import {IS_TEST_ENV} from '../constants';
 import {getFnCaches, jitUtils} from '@mionkit/core';
 import {getENV} from '@mionkit/core';
-import {rΦutεs} from './_autogen/routes'; // inception 🔁
+import {rΦutεs} from '../_autogen/routes'; // inception 🔁
 
 export type PersistedMethods = Record<string, MethodData>;
 let persistedMethods: PersistedMethods = rΦutεs;
@@ -28,11 +27,8 @@ let persistedMethods: PersistedMethods = rΦutεs;
 export const routerCompilerConstants = {
     autoGenMessage: `// ###### DO NOT MODIFY MANUALLY: THIS FILE IS GENERATED AUTOMATICALLY\n// NOTE exported constant name must be 'rΦutεs' and file can not contain any other code\n`,
     exportName: 'rΦutεs',
-    packageName: '@mionkit/router',
-    files: [`./dist/cjs/_autogen/routes`, `./dist/esm/_autogen/routes`],
-    jsFilesExtensions: ['.js', '.mjs', '.cjs', '.jsx'],
     typeName: 'Routes',
-} as const satisfies SrcCodeCompilerConstants;
+} as const;
 
 // ############# PUBLIC METHODS #############
 
@@ -47,8 +43,15 @@ export function getPersistedMethod(id: string, handler: AnyHandler): NonRawMetho
     return restorePersistedMethod(method, handler);
 }
 
-export function codifyMethods(compiled: PersistedMethods = persistedMethods, constants = routerCompilerConstants): string {
-    const code = compileTypeToJs<PersistedMethods>(compiled, constants);
+export function codifyMethods(compiled: PersistedMethods = persistedMethods, moduleType: 'cjs' | 'esm' = 'esm'): string {
+    const constants = {
+        ...routerCompilerConstants,
+        files: {
+            jit: {path: '', module: moduleType},
+            pure: {path: '', module: moduleType},
+        },
+    } satisfies SrcCodeCompilerConstants;
+    const code = compileTypeToJs<PersistedMethods>(compiled, constants, moduleType);
     return code;
 }
 
@@ -92,21 +95,69 @@ export function compileRouter() {
     if (typeof process !== 'undefined' && process.env) {
         process.env.MION_COMPILE = 'true';
     }
+
+    // Define file paths for compilation
+    const routesCjsFile = './dist/cjs/_autogen/routes.js';
+    const routesEsmFile = './dist/esm/_autogen/routes.mjs';
+    const jitCjsFile = './dist/cjs/_autogen/jitFunctionsCache.js';
+    const jitEsmFile = './dist/esm/_autogen/jitFunctionsCache.mjs';
+    const pureCjsFile = './dist/cjs/_autogen/pureFunctionsCache.js';
+    const pureEsmFile = './dist/esm/_autogen/pureFunctionsCache.mjs';
+
     if (!IS_TEST_ENV) {
         console.log('Writing compiled methods...');
-        compileAndWriteRunType<PersistedMethods>(persistedMethods, routerCompilerConstants);
-        console.log(`Compiled methods written to ${routerCompilerConstants.files}.`);
+
+        // Compile routes to both CJS and ESM
+        compileAndWriteRunType<PersistedMethods>(persistedMethods, {
+            ...routerCompilerConstants,
+            files: {jit: {path: routesCjsFile, module: 'cjs'}, pure: {path: '', module: 'cjs'}},
+        });
+        compileAndWriteRunType<PersistedMethods>(persistedMethods, {
+            ...routerCompilerConstants,
+            files: {jit: {path: routesEsmFile, module: 'esm'}, pure: {path: '', module: 'esm'}},
+        });
+        console.log(`Compiled methods written to ${routesCjsFile} and ${routesEsmFile}.`);
+
         const {jitFnsCache, pureFnsCache} = getFnCaches();
-        compileAndWriteJitFunctions(jitFnsCache);
-        console.log(`Compiled JIT functions written to ${runTypeCompilerConstants.jitFunctionsFiles}.`);
-        compileAndWritePureFunctions(pureFnsCache);
-        console.log(`Compiled pure functions written to ${runTypeCompilerConstants.pureFunctionsFiles}.`);
+
+        // Compile JIT functions to both CJS and ESM
+        compileAndWriteJitFunctions(jitFnsCache, {
+            jit: {path: jitCjsFile, module: 'cjs'},
+            pure: {path: '', module: 'cjs'},
+        });
+        compileAndWriteJitFunctions(jitFnsCache, {
+            jit: {path: jitEsmFile, module: 'esm'},
+            pure: {path: '', module: 'esm'},
+        });
+        console.log(`Compiled JIT functions written to ${jitCjsFile} and ${jitEsmFile}.`);
+
+        // Compile pure functions to both CJS and ESM
+        compileAndWritePureFunctions(pureFnsCache, {
+            jit: {path: '', module: 'cjs'},
+            pure: {path: pureCjsFile, module: 'cjs'},
+        });
+        compileAndWritePureFunctions(pureFnsCache, {
+            jit: {path: '', module: 'esm'},
+            pure: {path: pureEsmFile, module: 'esm'},
+        });
+        console.log(`Compiled pure functions written to ${pureCjsFile} and ${pureEsmFile}.`);
     } else {
-        compileAndWriteRunType<PersistedMethods>(persistedMethods, routerCompilerConstants);
+        // For tests, just compile to ESM format
+        compileAndWriteRunType<PersistedMethods>(persistedMethods, {
+            ...routerCompilerConstants,
+            files: {jit: {path: routesEsmFile, module: 'esm'}, pure: {path: '', module: 'esm'}},
+        });
         const {jitFnsCache, pureFnsCache} = getFnCaches();
-        compileAndWriteJitFunctions(jitFnsCache);
-        compileAndWritePureFunctions(pureFnsCache);
+        compileAndWriteJitFunctions(jitFnsCache, {
+            jit: {path: jitEsmFile, module: 'esm'},
+            pure: {path: '', module: 'esm'},
+        });
+        compileAndWritePureFunctions(pureFnsCache, {
+            jit: {path: '', module: 'esm'},
+            pure: {path: pureEsmFile, module: 'esm'},
+        });
     }
+
     if (typeof process !== 'undefined' && process.env) {
         process.env.MION_COMPILE = aux;
     }
