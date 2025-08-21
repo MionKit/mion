@@ -8,7 +8,8 @@
 import {hook, route} from '../handlers';
 import {getRouteExecutable, initMionRouter, resetRouter} from '../router';
 import {Routes} from '../types/general';
-import {codifyMethods, getPersistedMethods, routerCompilerConstants, setPersistedMethods} from './precompileMethods';
+import {getPersistedMethods, routerCompilerConstants, setPersistedMethods} from '../methodsCache';
+import {codifyMethods} from './precompileRoutes';
 import {dispatchRoute} from '../dispatch';
 import {headersFromRecord} from '../headers';
 import {MionHeaders} from '../types/context';
