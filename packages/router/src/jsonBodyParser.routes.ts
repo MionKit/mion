@@ -26,10 +26,10 @@ export function parseRequestBody(
     rawResponse: unknown,
     opts: RouterOptions
 ): ErrorReturn {
-    if (!context.request.rawBody) return;
+    if (!context.request.rawBody && !context.request.parsedBody) return;
     const request = context.request as Mutable<MionRequest>;
     try {
-        const parsedBody = opts.bodyParser.parse(context.request.rawBody);
+        const parsedBody = context.request.parsedBody || opts.bodyParser.parse(context.request.rawBody);
         if (Array.isArray(parsedBody)) {
             // when the body is an array we assume it's a single route call and we have to reconstruct the body
             // http://my-api.com/route1 [p1, p2, p3] => {route1: [p1, p2, p3]}

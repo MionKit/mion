@@ -8,7 +8,6 @@ import type {
     CompiledPureFunction,
     JitCompiledFn,
     JitFunctionsCache,
-    Mutable,
     PureFunction,
     PureFunctionsCache,
     RunTypeError,
@@ -19,10 +18,11 @@ import type {
     JITUtils,
     StrNumber,
 } from './types';
-import {MAX_STACK_DEPTH, MAX_UNKNOWN_KEYS} from './constants';
+import {MAX_UNKNOWN_KEYS} from './constants';
 import {cΦmpilεdCachε as tCache} from './_autogen/jitFunctionsCache';
 import {cΦmpilεdCachε as pCache} from './_autogen/pureFunctionsCache';
-import {getENV} from './utils';
+import {isSafeMapKeyValue, initPureFunction} from './utils';
+import {restoreCompiledJitFns} from './jitRestoreCode';
 
 // eslint-disable-next-line no-control-regex
 const STR_ESCAPE = /[\u0000-\u001f\u0022\u005c\ud800-\udfff]/;
@@ -222,73 +222,6 @@ export const jitUtils: JITUtils = {
 };
 
 /**
- * Checks if key map can be serialized/deserialized with json and still works as a key for a map.
- * ie: if a map key is an string, it can be serialized to json and deserialized back an still will identify the correct map entry.
- * ie: if a map entry is an object, the object can not be serialized/deserialized and wont work as the same key for entry map as they are not same memory ref.
- *  */
-export function isSafeMapKeyValue(value: any, depth = 0): boolean {
-    if (depth > MAX_STACK_DEPTH) return false;
-    if (value === undefined) return true;
-    if (value === null) return true;
-    const type = typeof value;
-    if (type === 'number' || type === 'string' || type === 'boolean') return true;
-    return false;
-}
-
-function initPureFunction(compiled: CompiledPureFunction): asserts compiled is Required<CompiledPureFunction> {
-    if (compiled.fn) return;
-    if (getENV('MION_COMPILE') === 'true' || getENV('JEST_WORKER_ID') !== undefined) {
-        const {paramNames, code: body} = compiled;
-        try {
-            // when testing we immediately add the deserialized function to ensure test are working with deserialized functions
-            // this is to ensure that the deserialization process is working correctly
-            // this process is not needed in production as the original function is used
-            const newWithCtx = paramNames.length ? new Function(...paramNames, body) : new Function(body);
-            compiled.fn = newWithCtx(jitUtils) as PureFunction;
-            return;
-        } catch (error: any) {
-            console.warn(`Pure ${compiled.pureFnHash} can not be deserialized. Function code:\n${compiled.closureFn.toString()}`);
-            throw new Error(`Pure function ${compiled.pureFnHash} can not be deserialized: ${error?.message}`);
-        }
-    }
-    compiled.fn = compiled.closureFn(jitUtils);
-}
-
-function restoreCompiledJitFn(jitCache: JitFunctionsCache, pureCache: PureFunctionsCache, fnHash: string) {
-    const jitCompiled = jitCache[fnHash];
-    if (!jitCompiled) throw new Error(`Jit function ${fnHash} not found`);
-    if ((jitCompiled as any).fn) return;
-
-    const pureDependencies = jitCompiled.pureFnDependencies;
-    pureDependencies.forEach((depName) => restoreCompiledPureFn(pureCache, depName));
-
-    const dependencies = jitCompiled.dependenciesSet;
-    dependencies.forEach((dep) => restoreCompiledJitFn(jitCache, pureCache, dep));
-    (jitCompiled as Mutable<JitCompiledFn>).fn = jitCompiled.closureFn(jitUtils);
-}
-
-function restoreCompiledPureFn(pureCache: PureFunctionsCache, fnName: string) {
-    const pureCompiled = pureCache[fnName];
-    if (!pureCompiled) throw new Error(`Pure function ${fnName} not found`);
-    if (pureCompiled.fn) return;
-    const dependencies = pureCompiled.dependencies;
-    dependencies.forEach((depName) => restoreCompiledPureFn(pureCache, depName));
-    pureCompiled.fn = pureCompiled.closureFn(jitUtils);
-}
-
-/**
- * Restores the full state of a compiled jit functions cache,
- * The JIT fn itself can't be compiled to code as it contains references to context code and jitUtils.
- * So we need to restore it manually by invoking the closure function.
- * */
-export function restoreCompiledJitFnsCache(jitCache: JitFunctionsCache, pureCache: PureFunctionsCache) {
-    const keysPureFns = Object.keys(pureCache);
-    keysPureFns.forEach((key) => restoreCompiledPureFn(pureCache, key));
-    const keysJitFns = Object.keys(jitCache);
-    keysJitFns.forEach((key) => restoreCompiledJitFn(jitCache, pureCache, key));
-}
-
-/**
  * Returns the jit and pure functions caches.
  * DO NOT MODIFY THE RETURNED OBJECTS AS THEY ARE THE ORIGINAL ONES USED BY THE JIT FUNCTIONS
  * @returns
@@ -300,4 +233,4 @@ export function getFnCaches() {
     };
 }
 
-restoreCompiledJitFnsCache(jitFnsCache, pureFnsCache);
+restoreCompiledJitFns(jitFnsCache, pureFnsCache);

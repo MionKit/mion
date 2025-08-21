@@ -33,13 +33,14 @@ export async function dispatchRoute<Req, Resp>(
     reqHeaders: MionHeaders,
     respHeaders: MionHeaders,
     rawRequest: Req,
-    rawResponse?: Resp
+    rawResponse?: Resp,
+    parsedBody?: any
 ): Promise<MionResponse> {
     try {
         const opts = getRouterOptions();
         // this is the call context that will be passed to all handlers
         // we should keep it as small as possible
-        const context = getEmptyCallContext(path, opts, reqRawBody, rawRequest, reqHeaders, respHeaders);
+        const context = getEmptyCallContext(path, opts, reqRawBody, rawRequest, reqHeaders, respHeaders, parsedBody);
 
         const executionPath = getRouteExecutionPath(context.path) || getNotFoundExecutionPath();
         await runExecutionPath(context, rawRequest, rawResponse, executionPath.methods, opts);
@@ -57,7 +58,8 @@ export function getEmptyCallContext(
     reqRawBody: string,
     rawRequest: unknown,
     reqHeaders: MionHeaders,
-    respHeaders: MionHeaders
+    respHeaders: MionHeaders,
+    parsedBody?: any
 ): CallContext {
     const transformedPath = opts.pathTransform ? opts.pathTransform(rawRequest, path) : path;
     return {
@@ -66,6 +68,7 @@ export function getEmptyCallContext(
             headers: reqHeaders,
             rawBody: reqRawBody,
             body: {},
+            parsedBody,
             internalErrors: [],
         },
         response: {

@@ -141,10 +141,20 @@ export function isRpcError(error: any): error is RpcError {
         error &&
         error.isΣrrθr === true &&
         typeof error.statusCode === 'number' &&
+        (typeof error.type === 'string' || typeof error.type === 'number') &&
         typeof error.name === 'string' &&
         (typeof error.message === 'string' || typeof error.publicMessage === 'string') &&
         (typeof error.id === 'string' || typeof error.id === 'number' || error.id === undefined) &&
-        !jitUtils.hasUnknownKeysFromArray(error, ['isΣrrθr', 'id', 'statusCode', 'message', 'publicMessage', 'name', 'errorData'])
+        !jitUtils.hasUnknownKeysFromArray(error, [
+            'isΣrrθr',
+            'id',
+            'statusCode',
+            'message',
+            'publicMessage',
+            'name',
+            'errorData',
+            'type',
+        ])
     );
 }
 

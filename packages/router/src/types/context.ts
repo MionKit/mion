@@ -36,6 +36,8 @@ export interface MionRequest {
     readonly rawBody: string;
     /** parsed request body */
     readonly body: Readonly<AnyObject>;
+    /** pre-parsed body from platforms like Google Cloud Functions where Express auto-parses JSON */
+    readonly parsedBody?: Readonly<AnyObject>;
     /** All errors thrown during the call are stored here so they can bee logged or handler by a some error handler hook */
     readonly internalErrors: Readonly<RpcError[]>;
 }

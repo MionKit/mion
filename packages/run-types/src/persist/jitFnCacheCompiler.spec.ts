@@ -6,15 +6,20 @@
  * ######## */
 
 import {SrcCodeCompilerConstants, compileTypeToJs, runTypeCompilerConstants, findJSFile} from './jitFnCacheCompiler';
-import {JitCompiledFn, CompiledPureFunction, SrcCodeJITCompiledFnsCache, SrcCodePureFunctionsCache} from '@mionkit/core';
+import {
+    JitCompiledFn,
+    CompiledPureFunction,
+    SrcCodeJITCompiledFnsCache,
+    SrcCodePureFunctionsCache,
+    getFnCaches,
+} from '@mionkit/core';
 import {JitFunctions} from '../constants.functions';
-import {cΦmpilεdCachε as jitFnsCache} from '@mionkit/core';
-import {cΦmpilεdCachε as pureFnsCache} from '@mionkit/core';
 import {jitUtils} from '@mionkit/core';
 import {existsSync, mkdirSync, unlinkSync, writeFileSync} from 'fs';
 import {join} from 'path';
 
 it('should compile JIT functions cache to code', () => {
+    const {jitFnsCache} = getFnCaches();
     // a real scenario would use compileAndWriteJitFunctions instead compileTypeToJs to persis to fileSystem
 
     // Create a mock JitFunctionsCache
@@ -54,7 +59,7 @@ it('should compile JIT functions cache to code', () => {
 
     // guarantees cache in core package can be compiled
     // this contains any jit functions that are used by core package or mion packages
-    const compiledCorePackage = compileTypeToJs<SrcCodeJITCompiledFnsCache>(jitFnsCache, compOpts);
+    const compiledCorePackage = compileTypeToJs<SrcCodeJITCompiledFnsCache>(jitFnsCache as any, compOpts);
     expect(compiledCorePackage).toContain(`export const ${compOpts.exportName} =`);
     const realEvalCode = compiledCorePackage.replace(`export const ${compOpts.exportName} =`, '');
     expect(() => eval(`(${realEvalCode})`)).not.toThrow();
@@ -64,6 +69,7 @@ it('should compile JIT functions cache to code', () => {
 });
 
 it('should compile pure functions cache to code', () => {
+    const {pureFnsCache} = getFnCaches();
     // a real scenario would use compileAndSaveTypeToJs instead compileTypeToJs to persis to fileSystem
 
     // Create a mock PureFunctionsCache
@@ -99,7 +105,7 @@ it('should compile pure functions cache to code', () => {
 
     // guarantees (real cache) in core package can be compiled
     // this contains any pure functions that are used by core package or mion packages
-    const compiledCorePackage = compileTypeToJs<SrcCodePureFunctionsCache>(pureFnsCache, compOpts);
+    const compiledCorePackage = compileTypeToJs<SrcCodePureFunctionsCache>(pureFnsCache as any, compOpts);
     expect(compiledCorePackage).toContain(`export const ${compOpts.exportName} =`);
     const realEvalCode = compiledCorePackage.replace(`export const ${compOpts.exportName} =`, '');
     expect(() => eval(`(${realEvalCode})`)).not.toThrow();

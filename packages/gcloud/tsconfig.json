@@ -2,8 +2,12 @@
   "extends": "../../tsconfig.json",
   "compilerOptions": {
     "outDir": ".dist/cjs",
-    "composite": true
+    "composite": true,
+    "rootDir": ".",
+    "module": "nodeNext",
+    "moduleResolution": "nodeNext"
   },
+  "references": [{"path": "../core"}, {"path": "../router"}],
   "reflection": true,
   "include": ["."],
   "exclude": ["node_modules", ".dist"]
