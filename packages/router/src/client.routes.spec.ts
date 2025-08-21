@@ -89,7 +89,6 @@ describe('PublicMethods run type functionality', () => {
         registerRoutes(routes);
         const executable = getRouteExecutable('route1')!;
         const publicMethod = getSerializableMethod(executable!);
-        console.log(publicMethod);
 
         const response: MethodsData = {
             methods: {[publicMethod.id]: publicMethod},

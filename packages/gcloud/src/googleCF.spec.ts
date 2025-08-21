@@ -122,8 +122,10 @@ describe('serverless router should', () => {
         const headers = Object.fromEntries(response.headers.entries());
 
         const expectedError: PublicRpcError = {
-            message: `Invalid params 'getDate', can not deserialize. Parameters might be of the wrong type.`,
-            name: 'Serialization Error',
+            isΣrrθr: true,
+            type: 'unknown',
+            message: `Invalid params in 'getDate', validation failed.`,
+            name: 'Validation Error',
             statusCode: 400,
             errorData: expect.anything(),
         };
@@ -133,7 +135,7 @@ describe('serverless router should', () => {
         // TODO: seems that deepkit error type are slightly different when running on bun and node so length is different
         // bun: getDate.errorData.message = 'Cannot convert NOT A DATE POINT to UnknownTypeName:() => __\\u{3a9}DataPoint'
         // node: getDate.errorData.message = 'Cannot convert NOT A DATE POINT to DataPoint'
-        expect(headers['content-length']).toEqual('254');
+        expect(headers['content-length']).toEqual('197');
         expect(headers['server']).toEqual('@mionkit/gcf');
     });
 

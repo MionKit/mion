@@ -1,30 +1,36 @@
 {
-  "extends": "../../../tsconfig.json",
+  "ts-node": {
+    "require": ["tsconfig-paths/register"]
+  },
   "compilerOptions": {
-    "outDir": ".dist/cjs",
+    "target": "es2020",
+    "module": "CommonJS",
+    "moduleResolution": "node",
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "strict": true,
+    "noImplicitAny": false,
+    "skipLibCheck": true,
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "isolatedModules": false,
     "lib": ["es6", "ES2023"],
-    "composite": true,
-    "rootDir": ".",
     "baseUrl": "../../../",
     "paths": {
-      "@mionkit/*": ["packages/*"]
+      "@mionkit/router": ["packages/router"],
+      "@mionkit/router/*": ["packages/router/*"],
+      "@mionkit/http": ["packages/http"],
+      "@mionkit/http/*": ["packages/http/*"],
+      "@mionkit/core": ["packages/core"],
+      "@mionkit/core/*": ["packages/core/*"],
+      "@mionkit/run-types": ["packages/run-types"],
+      "@mionkit/run-types/*": ["packages/run-types/*"],
+      "@mionkit/formats": ["packages/formats"],
+      "@mionkit/formats/*": ["packages/formats/*"],
+      "@mionkit/client": ["packages/client"],
+      "@mionkit/client/*": ["packages/client/*"]
     }
   },
-  "references": [
-    {"path": "../../../packages/core"},
-    {"path": "../../../packages/run-types"},
-    {"path": "../../../packages/formats"},
-    {"path": "../../../packages/router"},
-    {"path": "../../../packages/client"},
-    {"path": "../../../packages/http"},
-    {"path": "../../../packages/aws"},
-    {"path": "../../../packages/gcloud"},
-    {"path": "../../../packages/bun"},
-    {"path": "../../../packages/cli"},
-    {"path": "../../../packages/codegen"},
-    {"path": "../../../packages/eslint-plugin"},
-    {"path": "../../../packages/quick-start"}
-  ],
   "reflection": true,
   "include": ["."],
   "exclude": ["node_modules", ".dist"]

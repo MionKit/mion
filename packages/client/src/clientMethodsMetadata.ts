@@ -12,7 +12,7 @@ import {PublicMethod, MethodsData} from '@mionkit/router';
 import type {JitCompiledFnData, SerializableMethodsData, SerializablePublicMethod, PureFunctionData} from '@mionkit/core';
 import {jitUtils} from '@mionkit/core';
 import {STORAGE_KEY} from './constants';
-import {restoreSerializedMethods} from '@mionkit/core/src/serializedJitFn';
+import {deserializeMethods} from '@mionkit/core';
 
 /**  Manually calls mionGetRemoteMethodsInfoById to get Remote Api Metadata */
 export async function fetchRemoteMethodsMetadata(
@@ -83,10 +83,13 @@ export async function fetchRemoteMethodsMetadata(
             purFnDeps: convertedPureFnDeps,
         };
 
-        // Use the new restoration functionality to properly restore all functions
-        restoreSerializedMethods(serializableMethodsData);
-        storeInLocalStorage(serializableMethodsData, options);
-        restoreData(serializableMethodsData, metadataById, jitFunctionsById);
+        // Store dependencies globally for future use
+        storeDependencies(serializableMethodsData.deps, serializableMethodsData.purFnDeps, options);
+        storeMethodsMetadata(serializableMethodsData.methods, options);
+        // Deserialize methods and their dependencies
+        deserializeMethods(serializableMethodsData.deps, serializableMethodsData.purFnDeps);
+        // Assign JIT functions to metadata
+        createRemoteJItFunctions(serializableMethodsData, metadataById, jitFunctionsById);
     } catch (error: any) {
         throw new Error(`Error fetching validation and serialization metadata: ${error?.message}`);
     }
@@ -94,92 +97,33 @@ export async function fetchRemoteMethodsMetadata(
 
 // ############# PRIVATE METHODS #############
 
-function getRemoteMethodLocalStorageKey(id: string, options: ClientOptions) {
-    return `${STORAGE_KEY}:remote-method-info:${options.baseURL}:${id}`;
+function getSerializedMethodDataKey(methodId: string, options: ClientOptions) {
+    return `${STORAGE_KEY}:serialized-method-data:${options.baseURL}:${methodId}`;
 }
 
-function getMethodDepsLocalStorageKey(hash: string, options: ClientOptions) {
-    return `${STORAGE_KEY}:remote-method-deps:${options.baseURL}:${hash}`;
+function getJitCompiledFnKey(jitFnHash: string, options: ClientOptions) {
+    return `${STORAGE_KEY}:jit-compiled-fn:${options.baseURL}:${jitFnHash}`;
 }
 
-function isPureFnDeps(hash: string) {
-    return hash.startsWith('pf_');
+function getJitPureFnKey(pureFnHash: string, options: ClientOptions) {
+    return `${STORAGE_KEY}:jit-pure-fn:${options.baseURL}:${pureFnHash}`;
 }
 
-// restore
-function restoreFromLocalStorage(
-    methodIds: string[],
-    options: ClientOptions,
-    metadataById: Map<string, PublicMethod>,
-    jitFunctionsById: JitFunctionsById
+/**
+ * Stores JIT compiled functions and pure functions globally in localStorage
+ *
+ * @example
+ * // Store dependencies globally (called by fetchRemoteMethodsMetadata)
+ * storeDependencies(deps, pureFnDeps, options);
+ */
+export function storeDependencies(
+    deps: Record<string, JitCompiledFnData>,
+    pureFnDeps: Record<string, PureFunctionData>,
+    options: ClientOptions
 ) {
-    const methods: Record<string, SerializablePublicMethod> = {};
-    const deps: Record<string, JitCompiledFnData> = {};
-    const purFnDeps: Record<string, PureFunctionData> = {};
-    let dependenciesFailed = false;
-
-    methodIds.forEach((id) => {
-        if (metadataById.has(id)) return;
-        const storageKey = getRemoteMethodLocalStorageKey(id, options);
-        const methodMetaJson = localStorage.getItem(storageKey);
-        if (!methodMetaJson) {
-            dependenciesFailed = true;
-            return;
-        }
-        try {
-            const methodMeta: SerializablePublicMethod = JSON.parse(methodMetaJson);
-            methods[id] = methodMeta;
-
-            const paramsJitHashes = Object.values(methodMeta.paramsJitHashes);
-            const returnJitHashes = Object.values(methodMeta.returnJitHashes);
-            const allHashes = [...new Set([...paramsJitHashes, ...returnJitHashes])]; // Remove duplicates
-            allHashes.forEach((h) => {
-                // Skip if already processed
-                if (deps[h] || purFnDeps[h]) return;
-
-                const key = getMethodDepsLocalStorageKey(h, options);
-                const dep = localStorage.getItem(key);
-                if (!dep) throw new Error(`Jit function ${h} not found`);
-                if (isPureFnDeps(h)) {
-                    const parsedPureFn = JSON.parse(dep);
-                    purFnDeps[h] = {
-                        ...parsedPureFn,
-                        dependencies: new Set(parsedPureFn.dependencies || []),
-                    };
-                    return;
-                }
-                const parsedJitFn = JSON.parse(dep);
-                deps[h] = {
-                    ...parsedJitFn,
-                    dependenciesSet: new Set(parsedJitFn.dependenciesSet || []),
-                    pureFnDependencies: new Set(parsedJitFn.pureFnDependencies || []),
-                };
-            });
-            // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        } catch (error: any) {
-            localStorage.removeItem(storageKey);
-            dependenciesFailed = true;
-            return;
-        }
-    });
-
-    if (dependenciesFailed) return;
-
-    const serializableMethodsData: SerializableMethodsData = {
-        methods,
-        deps,
-        purFnDeps,
-    };
-    restoreSerializedMethods(serializableMethodsData);
-    restoreData(serializableMethodsData, metadataById, jitFunctionsById);
-}
-
-function storeInLocalStorage(serializableMethodsData: SerializableMethodsData, options: ClientOptions) {
-    const {methods, deps, purFnDeps} = serializableMethodsData;
-
-    // Store each dependency (JIT functions and pure functions) individually
-    Object.entries(deps).forEach(([hash, jitFnData]) => {
-        const key = getMethodDepsLocalStorageKey(hash, options);
+    // Store JIT compiled functions
+    Object.entries(deps).forEach(([hash, jitFnData]: [string, JitCompiledFnData]) => {
+        const key = getJitCompiledFnKey(hash, options);
         try {
             // Convert Sets to Arrays for JSON serialization since Sets are not JSON serializable
             const serializableJitFnData = {
@@ -189,13 +133,13 @@ function storeInLocalStorage(serializableMethodsData: SerializableMethodsData, o
             };
             localStorage.setItem(key, JSON.stringify(serializableJitFnData));
         } catch (error) {
-            // Handle localStorage quota exceeded or other storage errors
             console.warn(`Failed to store JIT function dependency ${hash}:`, error);
         }
     });
 
-    Object.entries(purFnDeps).forEach(([hash, pureFnData]) => {
-        const key = getMethodDepsLocalStorageKey(hash, options);
+    // Store pure functions
+    Object.entries(pureFnDeps).forEach(([hash, pureFnData]: [string, PureFunctionData]) => {
+        const key = getJitPureFnKey(hash, options);
         try {
             // Convert Set to Array for JSON serialization since Sets are not JSON serializable
             const serializablePureFnData = {
@@ -204,24 +148,132 @@ function storeInLocalStorage(serializableMethodsData: SerializableMethodsData, o
             };
             localStorage.setItem(key, JSON.stringify(serializablePureFnData));
         } catch (error) {
-            // Handle localStorage quota exceeded or other storage errors
             console.warn(`Failed to store pure function dependency ${hash}:`, error);
         }
     });
+}
 
-    // Store each method individually using the same key format that restore expects
-    Object.entries(methods).forEach(([methodId, methodMeta]) => {
-        const storageKey = getRemoteMethodLocalStorageKey(methodId, options);
+/**
+ * Stores method metadata in localStorage using the new storage format
+ *
+ * @example
+ * // Store method metadata (called by fetchRemoteMethodsMetadata)
+ * storeMethodsMetadata(serializableMethodsData.methods, options);
+ */
+export function storeMethodsMetadata(methods: Record<string, SerializablePublicMethod>, options: ClientOptions) {
+    Object.entries(methods).forEach(([methodId, methodData]) => {
+        const key = getSerializedMethodDataKey(methodId, options);
         try {
-            localStorage.setItem(storageKey, JSON.stringify(methodMeta));
+            localStorage.setItem(key, JSON.stringify(methodData));
         } catch (error) {
-            // Handle localStorage quota exceeded or other storage errors
             console.warn(`Failed to store method metadata ${methodId}:`, error);
         }
     });
 }
 
-function restoreData(
+/**
+ * Restores all JIT compiled functions and pure functions from localStorage and deserializes them
+ *
+ * @example
+ * // Call this once at client initialization to restore all dependencies
+ * restoreAllDependencies(options);
+ *
+ * // After this, all JIT functions are available in the cache and methods can be fetched as needed
+ * await fetchRemoteMethodsMetadata(['method1', 'method2'], options, metadataById, jitFunctionsById);
+ */
+export function restoreAllDependencies(options: ClientOptions) {
+    const deps: Record<string, JitCompiledFnData> = {};
+    const pureFnDeps: Record<string, PureFunctionData> = {};
+
+    // Restore JIT compiled functions
+    for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key?.startsWith(`${STORAGE_KEY}:jit-compiled-fn:${options.baseURL}:`)) {
+            try {
+                const data = localStorage.getItem(key);
+                if (data) {
+                    const parsedData = JSON.parse(data);
+                    const jitFnData: JitCompiledFnData = {
+                        ...parsedData,
+                        dependenciesSet: new Set(parsedData.dependenciesSet),
+                        pureFnDependencies: new Set(parsedData.pureFnDependencies),
+                    };
+                    deps[jitFnData.jitFnHash] = jitFnData;
+                }
+            } catch (error) {
+                console.warn(`Failed to restore JIT function from key ${key}:`, error);
+            }
+        }
+    }
+
+    // Restore pure functions
+    for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key?.startsWith(`${STORAGE_KEY}:jit-pure-fn:${options.baseURL}:`)) {
+            try {
+                const data = localStorage.getItem(key);
+                if (data) {
+                    const parsedData = JSON.parse(data);
+                    const pureFnData: PureFunctionData = {
+                        ...parsedData,
+                        dependencies: new Set(parsedData.dependencies),
+                    };
+                    pureFnDeps[pureFnData.pureFnHash] = pureFnData;
+                }
+            } catch (error) {
+                console.warn(`Failed to restore pure function from key ${key}:`, error);
+            }
+        }
+    }
+
+    // Deserialize all dependencies if any were found
+    if (Object.keys(deps).length > 0 || Object.keys(pureFnDeps).length > 0) {
+        deserializeMethods(deps, pureFnDeps);
+    }
+}
+
+/**
+ * Restores method metadata from localStorage using the new storage format
+ * Dependencies are assumed to be already loaded globally via restoreAllDependencies()
+ */
+function restoreFromLocalStorage(
+    methodIds: string[],
+    options: ClientOptions,
+    metadataById: Map<string, PublicMethod>,
+    jitFunctionsById: JitFunctionsById
+) {
+    const methods: Record<string, SerializablePublicMethod> = {};
+    let anyMethodsRestored = false;
+
+    methodIds.forEach((id) => {
+        if (metadataById.has(id)) return;
+        // Try to load method metadata using new storage key format
+        const methodKey = getSerializedMethodDataKey(id, options);
+        const methodMetaJson = localStorage.getItem(methodKey);
+        if (methodMetaJson) {
+            try {
+                const methodMeta: SerializablePublicMethod = JSON.parse(methodMetaJson);
+                methods[id] = methodMeta;
+                anyMethodsRestored = true;
+            } catch (error) {
+                console.warn(`Failed to restore method metadata for ${id}:`, error);
+                localStorage.removeItem(methodKey);
+            }
+        }
+    });
+
+    // If we restored any methods, process them
+    if (anyMethodsRestored) {
+        const serializableMethodsData: SerializableMethodsData = {
+            methods,
+            deps: {}, // Dependencies are already loaded globally
+            purFnDeps: {}, // Dependencies are already loaded globally
+        };
+        createRemoteJItFunctions(serializableMethodsData, metadataById, jitFunctionsById);
+    }
+}
+
+function createRemoteJItFunctions(
     serializableMethodsData: SerializableMethodsData,
     metadataById: Map<string, PublicMethod>,
     jitFunctionsById: JitFunctionsById

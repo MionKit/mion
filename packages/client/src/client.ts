@@ -68,7 +68,7 @@ class MionClient {
             );
     }
 
-    validate<List extends SubRequest<any>[]>(...subRequest: List): Promise<RunTypeError[]> {
+    typeErrors<List extends SubRequest<any>[]>(...subRequest: List): Promise<RunTypeError[]> {
         const request = new MionRequest(this.clientOptions, this.metadataById, this.jitFunctionsById);
         return request.validateParams(subRequest);
     }
@@ -90,6 +90,8 @@ class MethodProxy {
     propsProxies = {};
     handler = {
         apply: (target: any, thisArg: any, argArray?: any): RouteSubRequest<any> & HookSubRequest<any> => {
+            let storedHooks: HookSubRequest<any>[] = [];
+
             const subRequest: RouteSubRequest<any> & HookSubRequest<any> = {
                 pointer: [...this.parentProps],
                 id: getRouterItemId(this.parentProps),
@@ -103,14 +105,18 @@ class MethodProxy {
                 removePrefill: (): Promise<void> => {
                     return this.client.removePrefill(subRequest).catch((errors) => Promise.reject(findError(subRequest, errors)));
                 },
-                call: (...hooks: HookSubRequest<any>[]): Promise<any> => {
+                hooks: (...hooks: HookSubRequest<any>[]): RouteSubRequest<any> & HookSubRequest<any> => {
+                    storedHooks = hooks;
+                    return subRequest;
+                },
+                call: (): Promise<any> => {
                     return this.client
-                        .call(subRequest, ...hooks)
+                        .call(subRequest, ...storedHooks)
                         .then(() => subRequest.return)
                         .catch((errors) => Promise.reject(findError(subRequest, errors)));
                 },
-                validate: (): Promise<RunTypeError[]> => {
-                    return this.client.validate(subRequest).catch((errors) => Promise.reject(findError(subRequest, errors)));
+                typeErrors: (): Promise<RunTypeError[]> => {
+                    return this.client.typeErrors(subRequest).catch((errors) => Promise.reject(findError(subRequest, errors)));
                 },
             };
             return subRequest;

@@ -9,20 +9,41 @@ import {PublicApi, Routes, initRouter, registerRoutes, route, headersHook, hook}
 import {setNodeHttpOpts, startNodeServer} from '@mionkit/http';
 import {RpcError} from '@mionkit/core';
 
-// Define the same routes as in the test
+// Define routes for testing different validation scenarios
 type User = {name: string; surname: string};
+type Product = {id: string; name: string; price: number};
 
 const routes = {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     auth: headersHook(['Authorization'], (ctx, token: string): void => {
         ctx.shared.user = {name: 'John', surname: 'Doe'};
     }),
-    sayHello: route((ctx, user: User): string | RpcError => `Hello ${user.name} ${user.surname}`),
+    sayHello: route((_ctx, user: User): string | RpcError => `Hello ${user.name} ${user.surname}`),
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     alwaysFails: route((ctx, user: User): User | RpcError => {
         return new RpcError({statusCode: 500, publicMessage: 'Something fails', name: 'UnknownError'});
     }),
+
+    // Additional routes for testing different validation types
+    calculateAge: route((_ctx, birthYear: number): number => new Date().getFullYear() - birthYear),
+
+    createProduct: route(
+        (_ctx, product: Product): Product => ({
+            ...product,
+            id: product.id || 'generated-id',
+        })
+    ),
+
+    sumNumbers: route((_ctx, numbers: number[]): number => numbers.reduce((a, b) => a + b, 0)),
+
+    greetUser: route((_ctx, name: string, greeting?: string): string => `${greeting || 'Hello'} ${name}`),
+
     utils: {
         sumTwo: route((ctx, a: number): number => a + 2),
+        multiply: route((ctx, a: number, b: number): number => a * b),
+        processUser: route((ctx, user: User): string => `Processed: ${user.name} ${user.surname}`),
     },
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     log: hook((ctx): void => undefined, {runOnError: true}),
 } satisfies Routes;
 
@@ -35,37 +56,18 @@ async function startServer() {
         initRouter({sharedDataFactory: () => ({user: null}), skipClientRoutes: false});
 
         // Register routes
-        const myApi = registerRoutes(routes);
+        registerRoutes(routes);
 
         // Set HTTP options
         setNodeHttpOpts({port});
 
         // Start server
-        const server = await startNodeServer();
+        await startNodeServer();
 
         console.log(`Test server started on port ${port}`);
 
-        // Handle graceful shutdown
-        process.on('SIGTERM', () => {
-            console.log('Received SIGTERM, shutting down gracefully');
-            server.close(() => {
-                console.log('Server closed');
-                process.exit(0);
-            });
-        });
-
-        process.on('SIGINT', () => {
-            console.log('Received SIGINT, shutting down gracefully');
-            server.close(() => {
-                console.log('Server closed');
-                process.exit(0);
-            });
-        });
-
-        // Keep the process alive
-        process.on('exit', () => {
-            console.log('Test server process exiting');
-        });
+        // Note: Graceful shutdown is already handled by @mionkit/http package
+        // It automatically listens for SIGINT and closes the server gracefully
     } catch (error) {
         console.error('Failed to start test server:', error);
         process.exit(1);

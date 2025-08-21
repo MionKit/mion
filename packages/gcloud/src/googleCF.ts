@@ -33,15 +33,26 @@ export function setGoogleCFOpts(routerOptions?: Partial<GoogleCFOptions>) {
 }
 
 export async function googleCFHandler(rawRequest: Request, rawResponse: Response): Promise<void> {
-    // body is already parsed by express in gfc
-    const rawBody = rawRequest.body || '';
+    // Express in Google Cloud Functions might parse the body automatically when Content-Type is application/json
+    // We handle both cases: string body and already-parsed object body
+    const rawBody = typeof rawRequest.body === 'string' ? rawRequest.body || '' : '';
+    const parsedBody = typeof rawRequest.body === 'object' ? rawRequest.body : undefined;
+
     // TODO use its own express headers wrapper instead headers from record
     rawResponse.setHeader('server', '@mionkit/gcf');
     const reqHeaders = headersFromIncomingMessage(rawRequest);
     const respHeaders = headersFromServerResponse(rawResponse, googleCFOptions.defaultResponseHeaders);
 
     try {
-        const routeResponse = await dispatchRoute(rawRequest.path, rawBody, reqHeaders, respHeaders, rawRequest, rawResponse);
+        const routeResponse = await dispatchRoute(
+            rawRequest.path,
+            rawBody,
+            reqHeaders,
+            respHeaders,
+            rawRequest,
+            rawResponse,
+            parsedBody
+        );
         reply(routeResponse, rawResponse);
     } catch (err) {
         const error = new RpcError({statusCode: 500, publicMessage: 'Internal Error', originalError: err as Error});
@@ -53,7 +64,8 @@ export async function googleCFHandler(rawRequest: Request, rawResponse: Response
             rawResponse,
             error,
             reqHeaders,
-            respHeaders
+            respHeaders,
+            parsedBody
         );
         reply(routeResponse, rawResponse);
     }

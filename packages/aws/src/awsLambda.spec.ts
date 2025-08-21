@@ -102,14 +102,16 @@ describe('serverless router should', () => {
         const headers = awsResponse.headers || {};
 
         const expectedError: PublicRpcError = {
-            message: `Invalid params 'getDate', can not deserialize. Parameters might be of the wrong type.`,
+            isΣrrθr: true,
+            type: 'unknown',
+            message: `Invalid params in 'getDate', validation failed.`,
             statusCode: 400,
-            name: 'Serialization Error',
+            name: 'Validation Error',
             errorData: expect.anything(),
         };
         expect(parsedResponse).toEqual({getDate: expectedError});
         expect(headers['content-type']).toEqual('application/json; charset=utf-8');
-        expect(headers['content-length']).toEqual('254');
+        expect(headers['content-length']).toEqual('197');
         expect(headers['server']).toEqual('@mionkit/aws');
     });
 

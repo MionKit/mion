@@ -3,6 +3,7 @@
   "compilerOptions": {
     "outDir": ".dist/types",
     "composite": true,
+    "rootDir": ".",
     "emitDeclarationOnly": true,
     "declaration": true,
     "declarationMap": true

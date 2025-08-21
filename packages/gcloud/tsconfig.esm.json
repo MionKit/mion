@@ -4,7 +4,8 @@
     "module": "ES2022",
     "moduleResolution": "node",
     "outDir": ".dist/esm",
-    "composite": true
+    "composite": true,
+    "rootDir": "."
   },
   "reflection": true,
   "include": ["."],

@@ -21,7 +21,7 @@ try {
 
 try {
     // Validation throws an error when validation fails
-    const sayHello = await routes.users.sayHello(null as any).validate();
+    const sayHello = await routes.users.sayHello(null as any).typeErrors();
     console.log(sayHello); // Hello John Doe
 } catch (error: RpcError | any) {
     console.log(error); // { statusCode: 400, name: 'Validation Error', message: `Invalid params ...`, errorData : {...}}

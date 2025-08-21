@@ -71,18 +71,23 @@ export interface SubRequest<RM extends PublicMethod> {
  */
 export interface RouteSubRequest<RR extends PublicRouteMethod> extends SubRequest<RR> {
     /**
-     * Validates Route's parameters. Throws RpcError if validation fails.
-     * @returns {hasErrors: false, totalErrors: 0, errors: []}
+     * Validates Route's parameters and returns type errors. Throws RpcError if validation fails.
      */
-    validate: () => Promise<RunTypeError[]>;
+    typeErrors: () => Promise<RunTypeError[]>;
+    /**
+     * Sets hooks to be used for the route call in a chainable manner.
+     * @param hooks HookSubRequests to be used by the route
+     * @returns The same RouteSubRequest for chaining
+     */
+    hooks: <RHList extends HookSubRequest<any>[]>(...hooks: RHList) => RouteSubRequest<RR>;
     /**
      * Calls a remote route.
      * Validates route and required hooks request parameters locally before calling the remote route.
      * Throws RpcError if anything fails during the call (including validation or serialization) or if the remote route returns an error.
-     * @param hooks HookSubRequests requires by the route
+     * Uses hooks set via the hooks() method.
      * @returns
      */
-    call: <RHList extends HookSubRequest<any>[]>(...hooks: RHList) => Promise<HandlerSuccessResponse<RR>>;
+    call: () => Promise<HandlerSuccessResponse<RR>>;
 }
 
 /** structure returned from the proxy, containing info of the remote hook to execute
@@ -90,10 +95,9 @@ export interface RouteSubRequest<RR extends PublicRouteMethod> extends SubReques
  */
 export interface HookSubRequest<RH extends PublicHookMethod | PublicHeaderMethod> extends SubRequest<RH> {
     /**
-     * Validates Hooks's parameters. Throws RpcError if validation fails.
-     * @returns {hasErrors: false, totalErrors: 0, errors: []}
+     * Validates Hook's parameters and returns type errors. Throws RpcError if validation fails.
      */
-    validate: () => Promise<RunTypeError[]>;
+    typeErrors: () => Promise<RunTypeError[]>;
     /**
      * Prefills Hook's parameters for any future request. Parameters are also persisted in local storage for future requests.
      * Validates and Serializes parameters before storing in local storage.

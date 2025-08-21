@@ -21,10 +21,11 @@ export function getResponseFromError(
     rawResponse: any,
     error = new RpcError({statusCode: StatusCodes.INTERNAL_SERVER_ERROR, publicMessage: 'Internal Error'}),
     reqHeaders: MionHeaders,
-    respHeaders: MionHeaders
+    respHeaders: MionHeaders,
+    parsedBody?: any
 ): MionResponse {
     const routerOptions = getRouterOptions();
-    const context = getEmptyCallContext(routePath, routerOptions, reqRawBody, rawRequest, reqHeaders, respHeaders);
+    const context = getEmptyCallContext(routePath, routerOptions, reqRawBody, rawRequest, reqHeaders, respHeaders, parsedBody);
     handleRpcErrors(routePath, context.request, context.response, error, step);
     // stringify does not uses rawRequest or raw response atm but that can change
     stringifyResponseBody(context, rawRequest, rawResponse, routerOptions);

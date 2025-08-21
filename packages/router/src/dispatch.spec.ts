@@ -463,4 +463,109 @@ describe('Dispatch routes', () => {
             } satisfies PublicRpcError);
         });
     });
+
+    describe('parsedBody functionality should', () => {
+        it('use parsedBody when provided instead of parsing rawBody', async () => {
+            initRouter({sharedDataFactory: getSharedData});
+            registerRoutes({changeUserName});
+
+            const id = 'changeUserName';
+            const parsedBody = {[id]: [{name: 'Leo', surname: 'Tungsten'}]};
+            const rawBody = ''; // empty rawBody since body is already parsed
+
+            const response = await dispatchRoute(
+                '/changeUserName',
+                rawBody,
+                headersFromRecord({}),
+                headersFromRecord({}),
+                {headers: headersFromRecord({}), body: parsedBody},
+                {},
+                parsedBody
+            );
+            expect(response.body[id]).toEqual({name: 'LOREM', surname: 'Tungsten'});
+        });
+
+        it('handle parsedBody with Date objects correctly', async () => {
+            initRouter({sharedDataFactory: getSharedData});
+            registerRoutes({getSameDate});
+
+            const id = 'getSameDate';
+            const testDate = new Date('2022-04-22T00:17:00.000Z');
+            const parsedBody = {[id]: [{date: testDate}]};
+            const rawBody = ''; // empty rawBody since body is already parsed
+
+            const response = await dispatchRoute(
+                '/getSameDate',
+                rawBody,
+                headersFromRecord({}),
+                headersFromRecord({}),
+                {headers: headersFromRecord({}), body: parsedBody},
+                {},
+                parsedBody
+            );
+            // When using parsedBody, Date objects are preserved (not serialized to strings)
+            expect(response.body[id]).toEqual({date: testDate});
+        });
+
+        it('handle parsedBody as array for single route calls', async () => {
+            initRouter({sharedDataFactory: getSharedData});
+            registerRoutes({changeUserName});
+
+            const parsedBody = [{name: 'Leo', surname: 'Tungsten'}];
+            const rawBody = ''; // empty rawBody since body is already parsed
+
+            const response = await dispatchRoute(
+                '/changeUserName',
+                rawBody,
+                headersFromRecord({}),
+                headersFromRecord({}),
+                {headers: headersFromRecord({}), body: parsedBody},
+                {},
+                parsedBody
+            );
+            expect(response.body['changeUserName']).toEqual({name: 'LOREM', surname: 'Tungsten'});
+        });
+
+        it('fallback to parsing rawBody when parsedBody is not provided', async () => {
+            initRouter({sharedDataFactory: getSharedData});
+            registerRoutes({changeUserName});
+
+            const id = 'changeUserName';
+            const request = getDefaultRequest(id, [{name: 'Leo', surname: 'Tungsten'}]);
+
+            const response = await dispatchRoute(
+                '/changeUserName',
+                request.body,
+                request.headers,
+                headersFromRecord({}),
+                request,
+                {}
+                // no parsedBody parameter
+            );
+            expect(response.body[id]).toEqual({name: 'LOREM', surname: 'Tungsten'});
+        });
+
+        it('handle empty rawBody and no parsedBody correctly', async () => {
+            initRouter({sharedDataFactory: getSharedData});
+            registerRoutes({changeUserName});
+
+            const response = await dispatchRoute(
+                '/changeUserName',
+                '', // empty rawBody (falsy)
+                headersFromRecord({}),
+                headersFromRecord({}),
+                {headers: headersFromRecord({}), body: ''},
+                {},
+                undefined // explicitly no parsedBody (falsy)
+            );
+            // When rawBody is empty and parsedBody is undefined, parseRequestBody returns early
+            // leaving request.body as empty object, then route fails validation (correct behavior)
+            expect(response.hasErrors).toBeTruthy();
+            expect(response.body.changeUserName).toMatchObject({
+                isΣrrθr: true,
+                name: 'Validation Error',
+                statusCode: 400,
+            });
+        });
+    });
 });

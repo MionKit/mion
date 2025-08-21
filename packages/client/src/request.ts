@@ -49,6 +49,8 @@ export class MionRequest<RR extends RouteSubRequest<any>, HookRequestsList exten
     /**  Calls a remote route. If anythings fails or remote route returns an error then throws a RequestErrors Map */
     async call(): Promise<PublicResponses> {
         const errors: RequestErrors = new Map();
+
+        // prepare and validate full request with the route and all hooks
         try {
             const subRequestIds = Object.keys(this.subRequests);
             await fetchRemoteMethodsMetadata(subRequestIds, this.options, this.metadataById, this.jitFunctionsById);
@@ -66,6 +68,7 @@ export class MionRequest<RR extends RouteSubRequest<any>, HookRequestsList exten
             return Promise.reject(errors);
         }
 
+        // make the request
         try {
             const {headers, body} = this.getRequestData();
             const url = new URL(this.path, this.options.baseURL);
@@ -85,6 +88,7 @@ export class MionRequest<RR extends RouteSubRequest<any>, HookRequestsList exten
             return Promise.reject(errors);
         }
 
+        // deserialize response
         try {
             // if there are any errors they are part of the deserialized body
             const deserialized = deserializeResponseBody(this.rawResponseBody as PublicResponses, this);
@@ -118,7 +122,9 @@ export class MionRequest<RR extends RouteSubRequest<any>, HookRequestsList exten
             validateSubRequests(subRequestIds, this, errors, false);
             if (errors.size) return Promise.reject(errors);
 
-            return Object.values(this.subRequests).map((subRequest) => subRequest.error?.errorData || []);
+            return Object.values(this.subRequests)
+                .map((subRequest) => subRequest.error?.errorData || [])
+                .flat();
         } catch (error: any) {
             this.rpcError(error, 'Error preparing request', errors);
             return Promise.reject(errors);
