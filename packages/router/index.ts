@@ -20,4 +20,4 @@ export * from './src/headers';
 export * from './src/remoteMethods';
 export * from './src/client.routes';
 export * from './src/handlers';
-export * from './src/persistedMethods';
+export * from './src/precompile/precompileMethods';

@@ -5,14 +5,14 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {hook, route} from './handlers';
-import {getRouteExecutable, initMionRouter, resetRouter} from './router';
-import {Routes} from './types/general';
-import {codifyMethods, getPersistedMethods, routerCompilerConstants, setPersistedMethods} from './persistedMethods';
-import {dispatchRoute} from './dispatch';
-import {headersFromRecord} from './headers';
-import {MionHeaders} from './types/context';
-import {MethodData} from './types/remoteMethods';
+import {hook, route} from '../handlers';
+import {getRouteExecutable, initMionRouter, resetRouter} from '../router';
+import {Routes} from '../types/general';
+import {codifyMethods, getPersistedMethods, routerCompilerConstants, setPersistedMethods} from './precompileMethods';
+import {dispatchRoute} from '../dispatch';
+import {headersFromRecord} from '../headers';
+import {MionHeaders} from '../types/context';
+import {MethodData} from '../types/remoteMethods';
 
 type RawRequest = {
     headers: MionHeaders;

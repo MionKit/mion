@@ -24,7 +24,7 @@ import {setErrorOptions} from '@mionkit/core';
 import {getPublicApi, resetRemoteMethodsMetadata} from './remoteMethods';
 import {clientRoutes} from './client.routes';
 import {getNotFoundExecutionPath} from './notFound';
-import {addToPersistedMethods, getPersistedMethod, resetPersistedMethods} from './persistedMethods';
+import {addToPersistedMethods, getPersistedMethod, resetPersistedMethods} from './precompile/precompileMethods';
 import {JitFunctionsHashes} from '@mionkit/core';
 
 type RouterKeyEntryList = [string, RouterEntry][];
