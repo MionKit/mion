@@ -6,43 +6,10 @@
  * ######## */
 
 import {loadCompiledCaches, getFnCaches} from './jitUtils';
-import {writeFileSync, mkdirSync, unlinkSync, rmSync} from 'fs';
-import {join} from 'path';
 
 describe('jitUtils', () => {
-    const testDir = join(__dirname, '../../../temp-test-cache');
-    const jitCjsFile = join(testDir, 'jitFunctionsCache.cjs.js');
-    const jitEsmFile = join(testDir, 'jitFunctionsCache.esm.js');
-    const pureCjsFile = join(testDir, 'pureFunctionsCache.cjs.js');
-    const pureEsmFile = join(testDir, 'pureFunctionsCache.esm.js');
-
-    beforeAll(() => {
-        // Create test directory
-        mkdirSync(testDir, {recursive: true});
-    });
-
-    afterAll(() => {
-        // Clean up test directory
-        try {
-            rmSync(testDir, {recursive: true, force: true});
-        } catch (e) {
-            // Ignore cleanup errors
-        }
-    });
-
-    afterEach(() => {
-        // Clean up test files
-        [jitCjsFile, jitEsmFile, pureCjsFile, pureEsmFile].forEach((file) => {
-            try {
-                unlinkSync(file);
-            } catch (e) {
-                // Ignore if file doesn't exist
-            }
-        });
-    });
-
-    it('should load compiled JIT functions cache from external file', async () => {
-        // Create a test JIT cache file
+    it('should load compiled JIT functions cache from cache data', () => {
+        // Create a test JIT cache data
         const testJitCache = {
             testJitFn: {
                 typeName: 'TestType',
@@ -51,26 +18,19 @@ describe('jitUtils', () => {
                 args: {vλl: 'v'},
                 defaultParamValues: {vλl: ''},
                 code: 'return true;',
-                dependenciesSet: new Set(),
-                pureFnDependencies: new Set(),
+                dependenciesSet: new Set<string>(),
+                pureFnDependencies: new Set<string>(),
                 fn: () => true,
                 closureFn: () => () => true,
             },
         };
-
-        const fileContent = `// ###### DO NOT MODIFY MANUALLY: THIS FILE IS GENERATED AUTOMATICALLY
-// NOTE exported constant name must be 'cΦmpilεdCachε' and file can not contain any other code
-module.exports = { cΦmpilεdCachε: ${JSON.stringify(testJitCache, null, 2)} };
-`;
-
-        writeFileSync(jitCjsFile, fileContent, 'utf8');
 
         // Get initial cache state
         const initialCaches = getFnCaches();
         const initialJitCacheSize = Object.keys(initialCaches.jitFnsCache).length;
 
         // Load the compiled cache
-        await loadCompiledCaches([{jit: {path: jitCjsFile, module: 'cjs'}, pure: {path: '', module: 'cjs'}}]);
+        loadCompiledCaches({jitFnsCache: testJitCache});
 
         // Verify the cache was loaded
         const updatedCaches = getFnCaches();
@@ -80,30 +40,25 @@ module.exports = { cΦmpilεdCachε: ${JSON.stringify(testJitCache, null, 2)} };
         expect(updatedCaches.jitFnsCache).toHaveProperty('testJitFn');
     });
 
-    it('should load compiled pure functions cache from external file', async () => {
-        // Create a test pure functions cache file
+    it('should load compiled pure functions cache from cache data', () => {
+        // Create a test pure functions cache data
         const testPureCache = {
             testPureFn: {
+                paramNames: ['a', 'b'],
                 pureFnHash: 'testPureFn',
                 code: 'return (a, b) => a + b;',
-                dependenciesSet: new Set(),
+                dependencies: new Set<string>(),
+                closureFn: () => (a: number, b: number) => a + b,
                 fn: (a: number, b: number) => a + b,
             },
         };
-
-        const fileContent = `// ###### DO NOT MODIFY MANUALLY: THIS FILE IS GENERATED AUTOMATICALLY
-// NOTE exported constant name must be 'cΦmpilεdCachε' and file can not contain any other code
-module.exports = { cΦmpilεdCachε: ${JSON.stringify(testPureCache, null, 2)} };
-`;
-
-        writeFileSync(pureCjsFile, fileContent, 'utf8');
 
         // Get initial cache state
         const initialCaches = getFnCaches();
         const initialPureCacheSize = Object.keys(initialCaches.pureFnsCache).length;
 
         // Load the compiled cache
-        await loadCompiledCaches([{jit: {path: '', module: 'cjs'}, pure: {path: pureCjsFile, module: 'cjs'}}]);
+        loadCompiledCaches({pureFnsCache: testPureCache});
 
         // Verify the cache was loaded
         const updatedCaches = getFnCaches();
@@ -113,28 +68,73 @@ module.exports = { cΦmpilεdCachε: ${JSON.stringify(testPureCache, null, 2)} }
         expect(updatedCaches.pureFnsCache).toHaveProperty('testPureFn');
     });
 
-    it('should handle missing files gracefully', async () => {
+    it('should handle empty cache data gracefully', () => {
         // This should not throw an error
-        await expect(
-            loadCompiledCaches([{jit: {path: '/nonexistent/file.js', module: 'esm'}, pure: {path: '', module: 'esm'}}])
-        ).resolves.toBeUndefined();
+        expect(() => loadCompiledCaches({})).not.toThrow();
+        expect(() => loadCompiledCaches({jitFnsCache: {}})).not.toThrow();
+        expect(() => loadCompiledCaches({pureFnsCache: {}})).not.toThrow();
     });
 
-    it('should prefer ESM files over CJS files', async () => {
-        const testCache = {testFn: {test: 'esm'}};
-        const esmContent = `module.exports = { cΦmpilεdCachε: ${JSON.stringify(testCache)} };`;
-        const cjsContent = `module.exports = { cΦmpilεdCachε: ${JSON.stringify({testFn: {test: 'cjs'}})} };`;
+    it('should not overwrite existing cache entries', () => {
+        const firstCache = {
+            testFn1: {
+                typeName: 'TestType1',
+                fnID: 'isType',
+                jitFnHash: 'testFn1',
+                args: {vλl: 'v'},
+                defaultParamValues: {vλl: ''},
+                code: 'return true;',
+                dependenciesSet: new Set<string>(),
+                pureFnDependencies: new Set<string>(),
+                fn: () => true,
+                closureFn: () => () => true,
+            },
+        };
 
-        writeFileSync(jitEsmFile, esmContent, 'utf8');
-        writeFileSync(jitCjsFile, cjsContent, 'utf8');
+        const secondCache = {
+            testFn1: {
+                // Same key as first cache - should NOT overwrite
+                typeName: 'TestType2',
+                fnID: 'isType',
+                jitFnHash: 'testFn1',
+                args: {vλl: 'v'},
+                defaultParamValues: {vλl: ''},
+                code: 'return false;',
+                dependenciesSet: new Set<string>(),
+                pureFnDependencies: new Set<string>(),
+                fn: () => false,
+                closureFn: () => () => false,
+            },
+            testFn2: {
+                // New key - should be added
+                typeName: 'TestType2',
+                fnID: 'isType',
+                jitFnHash: 'testFn2',
+                args: {vλl: 'v'},
+                defaultParamValues: {vλl: ''},
+                code: 'return false;',
+                dependenciesSet: new Set<string>(),
+                pureFnDependencies: new Set<string>(),
+                fn: () => false,
+                closureFn: () => () => false,
+            },
+        };
 
-        await loadCompiledCaches([
-            {jit: {path: jitCjsFile, module: 'cjs'}, pure: {path: '', module: 'cjs'}},
-            {jit: {path: jitEsmFile, module: 'esm'}, pure: {path: '', module: 'esm'}},
-        ]);
+        // Load first cache
+        loadCompiledCaches({jitFnsCache: firstCache});
 
-        const caches = getFnCaches();
-        // Should load both files
-        expect(caches.jitFnsCache).toHaveProperty('testFn');
+        const cachesAfterFirst = getFnCaches();
+        expect(cachesAfterFirst.jitFnsCache).toHaveProperty('testFn1');
+        expect(cachesAfterFirst.jitFnsCache.testFn1?.typeName).toBe('TestType1');
+
+        // Load second cache - should not overwrite testFn1 but should add testFn2
+        loadCompiledCaches({jitFnsCache: secondCache});
+
+        const cachesAfterSecond = getFnCaches();
+        expect(cachesAfterSecond.jitFnsCache).toHaveProperty('testFn1');
+        expect(cachesAfterSecond.jitFnsCache).toHaveProperty('testFn2');
+        // testFn1 should still have the original value (not overwritten)
+        expect(cachesAfterSecond.jitFnsCache.testFn1?.typeName).toBe('TestType1');
+        expect(cachesAfterSecond.jitFnsCache.testFn2?.typeName).toBe('TestType2');
     });
 });

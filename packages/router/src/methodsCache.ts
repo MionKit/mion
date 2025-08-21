@@ -12,16 +12,9 @@ import {AnyHandler} from './types/handlers';
 import {IS_TEST_ENV} from './constants';
 import {jitUtils} from '@mionkit/core';
 import {getENV} from '@mionkit/core';
-import {rΦutεs} from './_autogen/routes'; // inception 🔁
 
 export type PersistedMethods = Record<string, MethodData>;
-export let persistedMethods: PersistedMethods = rΦutεs;
-
-export const routerCompilerConstants = {
-    autoGenMessage: `// ###### DO NOT MODIFY MANUALLY: THIS FILE IS GENERATED AUTOMATICALLY\n// NOTE exported constant name must be 'rΦutεs' and file can not contain any other code\n`,
-    exportName: 'rΦutεs',
-    typeName: 'Routes',
-} as const;
+export let persistedMethods: PersistedMethods = {};
 
 // ############# PUBLIC METHODS #############
 
@@ -45,7 +38,7 @@ export function setPersistedMethods(newCompiled: PersistedMethods) {
 }
 
 export function resetPersistedMethods() {
-    persistedMethods = rΦutεs;
+    persistedMethods = {};
 }
 
 function restorePersistedMethod(method: MethodData, handler: AnyHandler): NonRawMethod {
@@ -72,3 +65,16 @@ function restorePersistedJitFunctions(jitFns: JitFunctionsHashes): JitCompiledFu
 }
 
 const shouldCompile = memorize(() => getENV('MION_COMPILE') === 'true');
+
+/**
+ * Loads compiled methods data into the persistedMethods cache.
+ * This function merges the provided methods data into the existing persistedMethods without overwriting existing entries.
+ * @param compiledMethods - Object containing compiled methods data to merge into the cache
+ */
+export function loadCompiledMethods(compiledMethods: PersistedMethods) {
+    for (const [key, value] of Object.entries(compiledMethods)) {
+        if (!(key in persistedMethods)) {
+            persistedMethods[key] = value;
+        }
+    }
+}
