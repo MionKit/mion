@@ -5,9 +5,15 @@ import {
     compileAndWriteRunType,
     compileTypeToJs,
 } from '@mionkit/run-types';
-import {PersistedMethods, persistedMethods, routerCompilerConstants} from '../methodsCache';
+import {PersistedMethods, persistedMethods} from '../methodsCache';
 import {getENV, getFnCaches} from '@mionkit/core';
 import {IS_TEST_ENV} from '../constants';
+
+export const routerCompilerConstants = {
+    autoGenMessage: `// ###### DO NOT MODIFY MANUALLY: THIS FILE IS GENERATED AUTOMATICALLY\n// NOTE exported constant name must be 'rΦutεs' and file can not contain any other code\n`,
+    exportName: 'rΦutεs',
+    typeName: 'Routes',
+} as const;
 
 export function codifyMethods(compiled: PersistedMethods = persistedMethods, moduleType: 'cjs' | 'esm' = 'esm'): string {
     const constants = {

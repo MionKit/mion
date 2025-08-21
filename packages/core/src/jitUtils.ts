@@ -17,11 +17,8 @@ import type {
     SerializableClass,
     JITUtils,
     StrNumber,
-    CompiledCacheFile,
 } from './types';
 import {MAX_UNKNOWN_KEYS} from './constants';
-import {cΦmpilεdCachε as tCache} from './_autogen/jitFunctionsCache';
-import {cΦmpilεdCachε as pCache} from './_autogen/pureFunctionsCache';
 import {isSafeMapKeyValue, initPureFunction} from './utils';
 import {restoreCompiledJitFns} from './jitRestoreCode';
 
@@ -29,8 +26,8 @@ import {restoreCompiledJitFns} from './jitRestoreCode';
 const STR_ESCAPE = /[\u0000-\u001f\u0022\u005c\ud800-\udfff]/;
 const MAX_SCAPE_TEST_LENGTH = 1000; // possible to tweak after benchmarking
 // initial map to store jit functions, file gest recompiled 🔁 and overridden when
-const jitFnsCache: JitFunctionsCache = tCache;
-const pureFnsCache: PureFunctionsCache = pCache;
+const jitFnsCache: JitFunctionsCache = {};
+const pureFnsCache: PureFunctionsCache = {};
 // serializable classes registry, serializable classes can be automatically deserialized if they are registered here
 const deserializeFnsRegistry = new Map<string, DeserializeClassFn<any>>();
 const serializableClassRegistry = new Map<string, SerializableClass>();
@@ -223,33 +220,24 @@ export const jitUtils: JITUtils = {
 };
 
 /**
- * Loads compiled JIT and pure functions from external files.
- * This function dynamically imports the compiled cache files and merges them into the existing caches.
- * @param files - Array of file objects containing jit and pure function cache files with their paths and module types
+ * Loads compiled JIT and pure functions into the respective caches.
+ * This function merges the provided cache data into the existing caches without overwriting existing entries.
+ * @param caches - Object containing JIT and pure function cache data to merge
  */
-export async function loadCompiledCaches(files: CompiledCacheFile[]) {
-    try {
-        for (const fileSet of files) {
-            // Load JIT functions cache
-            if (fileSet.jit.path) {
-                const jitModule = await import(fileSet.jit.path);
-                const compiledJitCache = jitModule.cΦmpilεdCachε;
-                if (compiledJitCache) {
-                    Object.assign(jitFnsCache, compiledJitCache);
-                }
-            }
-
-            // Load pure functions cache
-            if (fileSet.pure.path) {
-                const pureModule = await import(fileSet.pure.path);
-                const compiledPureCache = pureModule.cΦmpilεdCachε;
-                if (compiledPureCache) {
-                    Object.assign(pureFnsCache, compiledPureCache);
-                }
+export function loadCompiledCaches(caches: {jitFnsCache?: JitFunctionsCache; pureFnsCache?: PureFunctionsCache}) {
+    if (caches.jitFnsCache) {
+        for (const [key, value] of Object.entries(caches.jitFnsCache)) {
+            if (!(key in jitFnsCache)) {
+                jitFnsCache[key] = value;
             }
         }
-    } catch (error) {
-        console.warn('Failed to load compiled caches:', error);
+    }
+    if (caches.pureFnsCache) {
+        for (const [key, value] of Object.entries(caches.pureFnsCache)) {
+            if (!(key in pureFnsCache)) {
+                pureFnsCache[key] = value;
+            }
+        }
     }
 }
 

@@ -8,7 +8,8 @@
 import {hook, route} from '../handlers';
 import {getRouteExecutable, initMionRouter, resetRouter} from '../router';
 import {Routes} from '../types/general';
-import {getPersistedMethods, routerCompilerConstants, setPersistedMethods} from '../methodsCache';
+import {getPersistedMethods, setPersistedMethods, resetPersistedMethods} from '../methodsCache';
+import {routerCompilerConstants} from './precompileRoutes';
 import {codifyMethods} from './precompileRoutes';
 import {dispatchRoute} from '../dispatch';
 import {headersFromRecord} from '../headers';
@@ -123,5 +124,41 @@ describe('persistedMethods', () => {
 
         checkMethodData(firstCreatedMethods[userId], restoredMethods[userId]);
         checkMethodData(firstCreatedMethods[sayHelloId], restoredMethods[sayHelloId]);
+    });
+
+    it('should merge compiled methods data into persistedMethods', async () => {
+        // Reset to initial state (now empty)
+        resetPersistedMethods();
+        expect(getPersistedMethods()).toEqual({});
+
+        // Create some test methods data
+        initMionRouter(routes);
+        const originalMethods = getPersistedMethods();
+        const methodsCount = Object.keys(originalMethods).length;
+        expect(methodsCount).toBeGreaterThan(0);
+
+        // Reset and verify back to initial state (empty)
+        resetPersistedMethods();
+        expect(getPersistedMethods()).toEqual({});
+
+        // Create a mock compiled methods file
+        const mockCompiledMethods = originalMethods;
+
+        // Test the function by directly calling setPersistedMethods with the mock data
+        // This simulates what loadCompiledMethods would do after successfully importing
+        setPersistedMethods(mockCompiledMethods);
+
+        // Verify methods were loaded
+        const loadedMethods = getPersistedMethods();
+        const loadedMethodsCount = Object.keys(loadedMethods).length;
+
+        // Should have at least the same number of methods as the original methods
+        // (since we're merging, some keys might overlap)
+        expect(loadedMethodsCount).toBeGreaterThanOrEqual(methodsCount);
+
+        // Verify that the loaded methods contain the original methods
+        for (const [key, value] of Object.entries(mockCompiledMethods)) {
+            expect(loadedMethods[key]).toEqual(value);
+        }
     });
 });
