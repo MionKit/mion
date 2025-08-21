@@ -5,6 +5,7 @@
     "emitDeclarationOnly": true,
     "declaration": true
   },
+  "references": [{"path": "../core"}, {"path": "../run-types"}, {"path": "../router"}],
   "include": ["src", "index.ts"],
   "exclude": ["**/*.spec.ts", "**/*.test.ts"]
 }

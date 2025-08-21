@@ -14,3 +14,4 @@ export * from './src/utils';
 export * from './src/status-codes';
 export * from './src/jitDeserialize';
 export * from './src/jitRestoreCode';
+export * from './src/aotConfig';

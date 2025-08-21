@@ -446,7 +446,7 @@ export function getExecutableFromRoute(route: Route, routePointer: string[], nes
     return executable;
 }
 
-function getEntry(index, keyEntryList: RouterKeyEntryList) {
+function getEntry(index: number, keyEntryList: RouterKeyEntryList) {
     return keyEntryList[index]?.[1];
 }
 

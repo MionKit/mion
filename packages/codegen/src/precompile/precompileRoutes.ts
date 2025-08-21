@@ -4,10 +4,11 @@ import {
     compileAndWritePureFunctions,
     compileAndWriteRunType,
     compileTypeToJs,
-} from '@mionkit/run-types';
-import {PersistedMethods, persistedMethods} from '../methodsCache';
+} from './cacheCompiler';
+import {PersistedMethods, persistedMethods} from '@mionkit/router';
 import {getENV, getFnCaches} from '@mionkit/core';
-import {IS_TEST_ENV} from '../constants';
+
+const IS_TEST_ENV = getENV('NODE_ENV') === 'test';
 
 export const routerCompilerConstants = {
     autoGenMessage: `// ###### DO NOT MODIFY MANUALLY: THIS FILE IS GENERATED AUTOMATICALLY\n// NOTE exported constant name must be 'rΦutεs' and file can not contain any other code\n`,
