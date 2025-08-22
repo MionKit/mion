@@ -7,8 +7,12 @@
     "composite": true,
     "rootDir": "."
   },
-  "references": [{"path": "../core/tsconfig.esm.json"}, {"path": "../run-types/tsconfig.esm.json"}],
-  "reflection": ["src/**/*.routes.ts"],
+  "references": [
+    {"path": "../core/tsconfig.esm.json"},
+    {"path": "../run-types/tsconfig.esm.json"},
+    {"path": "../codegen/tsconfig.esm.json"}
+  ],
+  "reflection": true,
   "include": ["."],
   "exclude": ["node_modules", "**/*.spec.ts", "**/*.test.ts", "examples", ".dist"]
 }
