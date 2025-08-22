@@ -13,6 +13,20 @@ export type {CacheGenerationOptions, CacheGenerationResult} from './src/codegen'
 export {loadRouterCache, loadCoreCache, autoGenerateAOTCaches} from './src/codegen';
 export type {CacheLoadingOptions} from './src/codegen';
 
+// AOT configuration functions
+export {
+    getAOTConfig,
+    shouldLoadAOTCaches,
+    shouldUseVerboseLogging,
+    shouldCompile,
+    getCacheFileExtension,
+    generateCacheFileName,
+    getCacheFileNames,
+    getCacheDirPaths,
+    DEFAULT_AOT_CONFIG,
+} from './src/aotConfig';
+export type {AOTConfig} from './src/aotConfig';
+
 // Precompile utilities (for advanced users)
 export * from './src/precompile/cacheCompiler';
 export * from './src/precompile/precompileRoutes';

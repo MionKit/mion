@@ -6,6 +6,7 @@
     "declaration": true
   },
   "references": [{"path": "../core"}, {"path": "../run-types"}, {"path": "../router"}],
+  "reflection": true,
   "include": ["src", "index.ts"],
   "exclude": ["**/*.spec.ts", "**/*.test.ts"]
 }

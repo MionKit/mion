@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {getENV} from './utils';
+import {getENV} from '@mionkit/core';
 import {join} from 'path';
 
 /**

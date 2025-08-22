@@ -7,7 +7,7 @@
 
 import {existsSync} from 'fs';
 import {join} from 'path';
-import {getAOTConfig, shouldUseVerboseLogging, getCacheFileNames, generateCacheFileName} from '@mionkit/core';
+import {getAOTConfig, shouldUseVerboseLogging, getCacheFileNames, generateCacheFileName} from './aotConfig';
 
 /**
  * Configuration for cache loading

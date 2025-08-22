@@ -26,30 +26,7 @@ import {clientRoutes} from './client.routes';
 import {getNotFoundExecutionPath} from './notFound';
 import {addToPersistedMethods, getPersistedMethod, resetPersistedMethods} from './methodsCache';
 import {JitFunctionsHashes} from '@mionkit/core';
-
-/**
- * Automatically loads AOT caches if available
- * This is called transparently during route registration
- */
-function loadAOTCachesIfAvailable(): void {
-    try {
-        // Use dynamic import to avoid issues if codegen is not available
-        import('@mionkit/codegen')
-            .then(({loadRouterCache, loadCoreCache}) => {
-                // Load caches silently - no need for verbose logging during normal operation
-                Promise.all([loadRouterCache({verbose: false}), loadCoreCache({verbose: false})]).catch(() => {
-                    // Silently ignore cache loading failures
-                    // This ensures router works normally even if caches are corrupted
-                });
-            })
-            .catch(() => {
-                // Silently ignore if codegen package is not available
-                // This should not happen since we added it as a dependency, but just in case
-            });
-    } catch {
-        // Silently ignore any other errors
-    }
-}
+import {loadRouterCache, loadCoreCache} from '@mionkit/codegen';
 
 type RouterKeyEntryList = [string, RouterEntry][];
 type RoutesWithId = {
@@ -518,4 +495,15 @@ function validateSharedDataFactory(opts?: Partial<RouterOptions>): void {
     ) {
         throw new Error('sharedDataFactory must return a plain object with at least one property');
     }
+}
+
+/**
+ * Automatically loads AOT caches if available
+ * This is called transparently during route registration
+ */
+function loadAOTCachesIfAvailable(): void {
+    const loadCaches = [loadRouterCache({verbose: false}), loadCoreCache({verbose: false})];
+    Promise.all(loadCaches).catch(() => {
+        // fails silently if there are no caches to load
+    });
 }

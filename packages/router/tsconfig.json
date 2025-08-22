@@ -5,7 +5,7 @@
     "composite": true,
     "rootDir": "."
   },
-  "references": [{"path": "../core"}, {"path": "../run-types"}],
+  "references": [{"path": "../core"}, {"path": "../run-types"}, {"path": "../codegen"}],
   "reflection": true,
   "include": ["."],
   "exclude": ["node_modules", "examples", ".dist"]

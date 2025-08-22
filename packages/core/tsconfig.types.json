@@ -8,7 +8,7 @@
     "declaration": true,
     "declarationMap": true
   },
-  "reflection": true,
+  "reflection": false,
   "include": ["."],
   "exclude": ["node_modules", "**/*.spec.ts", "**/*.test.ts", ".dist"]
 }

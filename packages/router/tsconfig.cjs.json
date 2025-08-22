@@ -7,8 +7,12 @@
     "composite": true,
     "rootDir": "."
   },
-  "references": [{"path": "../core/tsconfig.cjs.json"}, {"path": "../run-types/tsconfig.cjs.json"}],
-  "reflection": ["src/**/*.routes.ts"],
+  "references": [
+    {"path": "../core/tsconfig.cjs.json"},
+    {"path": "../run-types/tsconfig.cjs.json"},
+    {"path": "../codegen/tsconfig.cjs.json"}
+  ],
+  "reflection": true,
   "include": ["."],
   "exclude": ["node_modules", "**/*.spec.ts", "**/*.test.ts", "examples", ".dist"]
 }
