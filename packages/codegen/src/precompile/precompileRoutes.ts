@@ -98,4 +98,17 @@ export function compileRouter() {
     if (typeof process !== 'undefined' && process.env) {
         process.env.MION_COMPILE = aux;
     }
+
+    // Generate AOT caches if MION_COMPILE=true
+    if (aux === 'true') {
+        // Use dynamic import to avoid circular dependencies
+        import('../codegen')
+            .then(({autoGenerateAOTCaches}) => {
+                return autoGenerateAOTCaches();
+            })
+            .catch((error) => {
+                console.error('[mion-codegen] Failed to generate AOT caches:', error);
+                process.exit(1);
+            });
+    }
 }
