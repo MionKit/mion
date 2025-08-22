@@ -28,8 +28,12 @@
     "lib": ".dist"
   },
   "files": [
-    ".dist"
+    ".dist",
+    "bin"
   ],
+  "bin": {
+    "mion-compile": "./bin/mion-compile.mjs"
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/MionKit/mion.git"

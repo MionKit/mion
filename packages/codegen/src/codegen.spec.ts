@@ -5,53 +5,60 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {loadAOTCaches, generateAOTCaches} from './codegen';
+import {generateAOTCaches} from './codegen';
+// Note: loadRouterCache and loadCoreCache are now internal functions used by router
+// They are tested indirectly through router integration
+import {rmSync, existsSync} from 'fs';
+import {join} from 'path';
 
 describe('AOT Cache System', () => {
-    describe('loadAOTCaches', () => {
-        it('should skip loading when cache directory does not exist', async () => {
-            const result = await loadAOTCaches({
-                baseDir: './non-existent-dir',
-                verbose: false,
-            });
+    const testOutputDir = join(__dirname, '../.dist/test-cache');
 
-            expect(result.skipped).toBe(true);
-            expect(result.loaded).toBe(false);
-            expect(result.skipReason).toContain('Cache directory not found');
-            expect(result.loadedFiles).toHaveLength(0);
-            expect(result.errors).toHaveLength(0);
-        });
+    afterEach(() => {
+        // Skip cleanup if user wants to preserve artifacts for manual inspection
+        if (process.env.PRESERVE_TEST_ARTIFACTS === 'true') {
+            console.log(`[PRESERVE] Test artifacts preserved in: ${testOutputDir}`);
+            return;
+        }
 
-        it('should skip loading when disabled', async () => {
-            const result = await loadAOTCaches({
-                enabled: false,
-                verbose: false,
-            });
-
-            expect(result.skipped).toBe(true);
-            expect(result.loaded).toBe(false);
-            expect(result.skipReason).toBe('Cache loading disabled');
-            expect(result.loadedFiles).toHaveLength(0);
-            expect(result.errors).toHaveLength(0);
-        });
-
-        it('should handle missing cache files gracefully', async () => {
-            const result = await loadAOTCaches({
-                baseDir: './src', // Directory exists but no cache files
-                verbose: false,
-            });
-
-            expect(result.skipped).toBe(false);
-            expect(result.loaded).toBe(false);
-            expect(result.loadedFiles).toHaveLength(0);
-            // Should not have errors, just no files found
-        });
+        // Clean up any generated test files
+        if (existsSync(testOutputDir)) {
+            rmSync(testOutputDir, {recursive: true, force: true});
+        }
     });
+
+    afterAll(() => {
+        // Skip cleanup if user wants to preserve artifacts for manual inspection
+        if (process.env.PRESERVE_TEST_ARTIFACTS === 'true') {
+            console.log('[PRESERVE] All test artifacts preserved - skipping final cleanup');
+            return;
+        }
+
+        // Final cleanup of any stray test artifacts that might have escaped
+        const strayArtifactDirs = [
+            join(__dirname, '../.dist'),
+            join(__dirname, '../../test-cache'),
+            join(__dirname, '../../test-cache-new'),
+            join(__dirname, '../../non-existent-parent'),
+        ];
+
+        for (const dir of strayArtifactDirs) {
+            if (existsSync(dir)) {
+                try {
+                    rmSync(dir, {recursive: true, force: true});
+                } catch {
+                    // Silently ignore cleanup failures
+                }
+            }
+        }
+    });
+    // Note: Cache loading tests are now handled by router integration tests
+    // since loadRouterCache and loadCoreCache are internal functions
 
     describe('generateAOTCaches', () => {
         it('should handle empty caches gracefully', async () => {
             const result = await generateAOTCaches({
-                outputDir: './test-cache',
+                outputDir: testOutputDir,
                 verbose: false,
             });
 
@@ -62,8 +69,9 @@ describe('AOT Cache System', () => {
         });
 
         it('should create output directory if it does not exist', async () => {
+            const testDir = join(__dirname, '../.dist/test-cache-new');
             const result = await generateAOTCaches({
-                outputDir: './test-cache-new',
+                outputDir: testDir,
                 generateRouter: false,
                 generateJitFunctions: false,
                 generatePureFunctions: false,
@@ -72,6 +80,11 @@ describe('AOT Cache System', () => {
 
             expect(result.success).toBe(true);
             expect(result.generatedFiles).toHaveLength(0);
+
+            // Clean up this specific test directory
+            if (existsSync(testDir)) {
+                rmSync(testDir, {recursive: true, force: true});
+            }
         });
     });
 });

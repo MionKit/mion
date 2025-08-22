@@ -80,22 +80,3 @@ export function loadCompiledMethods(compiledMethods: PersistedMethods) {
 }
 
 // ############# AOT CACHE LOADING #############
-
-/**
- * Attempt to load AOT caches when this module is imported
- * This ensures caches are loaded early in the application lifecycle
- */
-function initializeAOTCaches(): void {
-    // Use dynamic import to avoid circular dependencies and ensure AOT module is optional
-    import('./aot')
-        .then(({loadAOTCachesIfAvailable}) => {
-            loadAOTCachesIfAvailable();
-        })
-        .catch(() => {
-            // Silently ignore if AOT module is not available
-            // This ensures the router works normally even without AOT functionality
-        });
-}
-
-// Initialize AOT caches when this module loads
-initializeAOTCaches();

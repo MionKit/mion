@@ -7,224 +7,151 @@
 
 import {existsSync} from 'fs';
 import {join} from 'path';
-import {
-    getAOTConfig,
-    shouldLoadAOTCaches,
-    shouldUseVerboseLogging,
-    getCacheFileNames,
-    generateCacheFileName,
-} from '@mionkit/core';
+import {getAOTConfig, shouldUseVerboseLogging, getCacheFileNames, generateCacheFileName} from '@mionkit/core';
 
 /**
- * Configuration for AOT cache loading
+ * Configuration for cache loading
  */
 export interface CacheLoadingOptions {
     /** Base directory to look for cache files (default: './dist') */
     baseDir?: string;
     /** Cache directory name (default: '.mion-cache') */
     cacheDir?: string;
-    /** Whether to enable cache loading (default: auto-detect based on environment) */
-    enabled?: boolean;
     /** Whether to log cache loading activity */
     verbose?: boolean;
 }
 
 /**
- * Result of cache loading attempt
+ * Loads router cache (compiled methods) if available
+ * Returns the loaded router cache data or null if not found
  */
-export interface CacheLoadingResult {
-    /** Whether any caches were loaded */
-    loaded: boolean;
-    /** Paths of cache files that were found and loaded */
-    loadedFiles: string[];
-    /** Any errors that occurred during loading */
-    errors: string[];
-    /** Whether cache loading was skipped */
-    skipped: boolean;
-    /** Reason for skipping if applicable */
-    skipReason?: string;
-}
-
-/**
- * Attempts to load AOT compiled caches if they exist
- * This function is called automatically during router initialization
- */
-export async function loadAOTCaches(options: CacheLoadingOptions = {}): Promise<CacheLoadingResult> {
+export async function loadRouterCache(options: CacheLoadingOptions = {}): Promise<any | null> {
     const config = getAOTConfig();
     const opts = {
         baseDir: './dist',
         cacheDir: config.cacheDirectoryName,
-        enabled: shouldLoadAOTCaches(),
-        verbose: shouldUseVerboseLogging(),
+        verbose: false,
         ...options,
     };
 
-    const result: CacheLoadingResult = {
-        loaded: false,
-        loadedFiles: [],
-        errors: [],
-        skipped: false,
-    };
-
-    // Check if cache loading is enabled
-    if (!opts.enabled) {
-        result.skipped = true;
-        result.skipReason = 'Cache loading disabled';
-        if (opts.verbose) {
-            console.log('[mion-codegen] AOT cache loading disabled');
-        }
-        return result;
-    }
-
     const cacheBasePath = join(opts.baseDir, opts.cacheDir);
-
-    // Check if cache directory exists
     if (!existsSync(cacheBasePath)) {
-        result.skipped = true;
-        result.skipReason = `Cache directory not found: ${cacheBasePath}`;
         if (opts.verbose) {
-            console.log(`[mion-codegen] Cache directory not found: ${cacheBasePath}`);
+            console.log(`[mion-codegen] Router cache directory not found: ${cacheBasePath}`);
         }
-        return result;
+        return null;
     }
 
-    if (opts.verbose) {
-        console.log(`[mion-codegen] Loading AOT caches from: ${cacheBasePath}`);
-    }
-
-    // Try to load router cache
-    await loadRouterCache(cacheBasePath, result, opts.verbose);
-
-    // Try to load JIT functions cache
-    await loadJitFunctionsCache(cacheBasePath, result, opts.verbose);
-
-    // Try to load pure functions cache
-    await loadPureFunctionsCache(cacheBasePath, result, opts.verbose);
-
-    result.loaded = result.loadedFiles.length > 0;
-
-    if (opts.verbose) {
-        if (result.loaded) {
-            console.log(`[mion-codegen] Successfully loaded ${result.loadedFiles.length} cache file(s)`);
-        } else {
-            console.log('[mion-codegen] No cache files were loaded');
-        }
-    }
-
-    return result;
-}
-
-/**
- * Attempts to load router cache (compiled methods)
- */
-async function loadRouterCache(cacheBasePath: string, result: CacheLoadingResult, verbose: boolean): Promise<void> {
     const routerCacheFileNames = getCacheFileNames('router');
-    const routerCacheFiles = routerCacheFileNames.map((fileName) => join(cacheBasePath, fileName));
 
-    for (const filePath of routerCacheFiles) {
+    for (const fileName of routerCacheFileNames) {
+        const filePath = join(cacheBasePath, fileName);
         if (existsSync(filePath)) {
             try {
                 const cacheModule = await import(filePath);
                 const routerCache = cacheModule.rΦutεs || cacheModule.routerCache || cacheModule.default;
 
                 if (routerCache && typeof routerCache === 'object') {
-                    // Import the loadCompiledMethods function dynamically to avoid circular dependencies
+                    // Load into router's persistedMethods
                     const {loadCompiledMethods} = await import('@mionkit/router');
                     loadCompiledMethods(routerCache);
 
-                    result.loadedFiles.push(filePath);
-                    if (verbose) {
+                    if (opts.verbose) {
                         console.log(`[mion-codegen] Loaded router cache: ${filePath}`);
                     }
-                    return; // Only load the first found cache file
+                    return routerCache;
                 }
             } catch (error) {
-                const errorMsg = `Failed to load router cache from ${filePath}: ${error instanceof Error ? error.message : String(error)}`;
-                result.errors.push(errorMsg);
-                if (verbose) {
-                    console.warn(`[mion-codegen] ${errorMsg}`);
+                if (opts.verbose) {
+                    console.warn(`[mion-codegen] Failed to load router cache from ${filePath}: ${error}`);
                 }
             }
         }
     }
+
+    return null;
 }
 
 /**
- * Attempts to load JIT functions cache
+ * Loads core caches (JIT functions and pure functions) if available
+ * Returns object with loaded cache data or null values if not found
  */
-async function loadJitFunctionsCache(cacheBasePath: string, result: CacheLoadingResult, verbose: boolean): Promise<void> {
-    const jitCacheFiles = [
-        join(cacheBasePath, 'jit.cache.js'),
-        join(cacheBasePath, 'jit.cache.mjs'),
-        join(cacheBasePath, 'jitFunctions.cache.js'),
-        join(cacheBasePath, 'jitFunctions.cache.mjs'),
-    ];
+export async function loadCoreCache(options: CacheLoadingOptions = {}): Promise<{jitCache: any | null; pureCache: any | null}> {
+    const config = getAOTConfig();
+    const opts = {
+        baseDir: './dist',
+        cacheDir: config.cacheDirectoryName,
+        verbose: false,
+        ...options,
+    };
 
-    for (const filePath of jitCacheFiles) {
+    const cacheBasePath = join(opts.baseDir, opts.cacheDir);
+    if (!existsSync(cacheBasePath)) {
+        if (opts.verbose) {
+            console.log(`[mion-codegen] Core cache directory not found: ${cacheBasePath}`);
+        }
+        return {jitCache: null, pureCache: null};
+    }
+
+    const result = {jitCache: null as any, pureCache: null as any};
+
+    // Load JIT functions cache
+    const jitCacheFileNames = getCacheFileNames('jit');
+    for (const fileName of jitCacheFileNames) {
+        const filePath = join(cacheBasePath, fileName);
         if (existsSync(filePath)) {
             try {
                 const cacheModule = await import(filePath);
                 const jitCache = cacheModule.cΦmpilεdCachε || cacheModule.jitCache || cacheModule.default;
 
                 if (jitCache && typeof jitCache === 'object') {
-                    // Import the loadCompiledCaches function dynamically to avoid circular dependencies
+                    // Load into core's JIT cache
                     const {loadCompiledCaches} = await import('@mionkit/core');
                     loadCompiledCaches({jitFnsCache: jitCache});
+                    result.jitCache = jitCache;
 
-                    result.loadedFiles.push(filePath);
-                    if (verbose) {
-                        console.log(`[mion-codegen] Loaded JIT functions cache: ${filePath}`);
+                    if (opts.verbose) {
+                        console.log(`[mion-codegen] Loaded JIT cache: ${filePath}`);
                     }
-                    return; // Only load the first found cache file
+                    break;
                 }
             } catch (error) {
-                const errorMsg = `Failed to load JIT functions cache from ${filePath}: ${error instanceof Error ? error.message : String(error)}`;
-                result.errors.push(errorMsg);
-                if (verbose) {
-                    console.warn(`[mion-codegen] ${errorMsg}`);
+                if (opts.verbose) {
+                    console.warn(`[mion-codegen] Failed to load JIT cache from ${filePath}: ${error}`);
                 }
             }
         }
     }
-}
 
-/**
- * Attempts to load pure functions cache
- */
-async function loadPureFunctionsCache(cacheBasePath: string, result: CacheLoadingResult, verbose: boolean): Promise<void> {
-    const pureCacheFiles = [
-        join(cacheBasePath, 'pure.cache.js'),
-        join(cacheBasePath, 'pure.cache.mjs'),
-        join(cacheBasePath, 'pureFunctions.cache.js'),
-        join(cacheBasePath, 'pureFunctions.cache.mjs'),
-    ];
-
-    for (const filePath of pureCacheFiles) {
+    // Load pure functions cache
+    const pureCacheFileNames = getCacheFileNames('pure');
+    for (const fileName of pureCacheFileNames) {
+        const filePath = join(cacheBasePath, fileName);
         if (existsSync(filePath)) {
             try {
                 const cacheModule = await import(filePath);
                 const pureCache = cacheModule.cΦmpilεdCachε || cacheModule.pureCache || cacheModule.default;
 
                 if (pureCache && typeof pureCache === 'object') {
-                    // Import the loadCompiledCaches function dynamically to avoid circular dependencies
+                    // Load into core's pure functions cache
                     const {loadCompiledCaches} = await import('@mionkit/core');
                     loadCompiledCaches({pureFnsCache: pureCache});
+                    result.pureCache = pureCache;
 
-                    result.loadedFiles.push(filePath);
-                    if (verbose) {
+                    if (opts.verbose) {
                         console.log(`[mion-codegen] Loaded pure functions cache: ${filePath}`);
                     }
-                    return; // Only load the first found cache file
+                    break;
                 }
             } catch (error) {
-                const errorMsg = `Failed to load pure functions cache from ${filePath}: ${error instanceof Error ? error.message : String(error)}`;
-                result.errors.push(errorMsg);
-                if (verbose) {
-                    console.warn(`[mion-codegen] ${errorMsg}`);
+                if (opts.verbose) {
+                    console.warn(`[mion-codegen] Failed to load pure functions cache from ${filePath}: ${error}`);
                 }
             }
         }
     }
+
+    return result;
 }
 
 /**
@@ -324,6 +251,36 @@ export async function generateAOTCaches(options: CacheGenerationOptions = {}): P
     }
 
     return result;
+}
+
+/**
+ * Automatically generates AOT caches when MION_COMPILE=true
+ * This function is called by the router's compileRouter() function
+ * No user intervention required - runtime packages handle this automatically
+ */
+export async function autoGenerateAOTCaches(): Promise<void> {
+    if (process.env.MION_COMPILE !== 'true') {
+        return;
+    }
+
+    try {
+        console.log('[mion-codegen] MION_COMPILE=true detected, generating AOT caches...');
+        const result = await generateAOTCaches({verbose: true});
+
+        if (result.success) {
+            console.log(`[mion-codegen] Successfully generated ${result.generatedFiles.length} cache file(s)`);
+            console.log('[mion-codegen] Compilation complete, exiting...');
+        } else {
+            console.error(`[mion-codegen] Compilation failed with ${result.errors.length} error(s):`);
+            result.errors.forEach((error) => console.error(`  - ${error}`));
+            process.exit(1);
+        }
+    } catch (error) {
+        console.error('[mion-codegen] Compilation failed:', error);
+        process.exit(1);
+    }
+
+    process.exit(0);
 }
 
 /**
