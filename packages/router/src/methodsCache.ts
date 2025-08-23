@@ -7,14 +7,13 @@
 
 import {JitCompiledFunctions, JitFunctionsHashes} from '@mionkit/core';
 import {memorize} from '@mionkit/run-types';
-import {NonRawMethod, MethodData} from './types/remoteMethods';
+import {NonRawMethod, MethodData, MethodsCache} from './types/remoteMethods';
 import {AnyHandler} from './types/handlers';
 import {IS_TEST_ENV} from './constants';
 import {jitUtils} from '@mionkit/core';
 import {getENV} from '@mionkit/core';
 
-export type PersistedMethods = Record<string, MethodData>;
-export let persistedMethods: PersistedMethods = {};
+export let persistedMethods: MethodsCache = {};
 
 // ############# PUBLIC METHODS #############
 
@@ -29,11 +28,11 @@ export function getPersistedMethod(id: string, handler: AnyHandler): NonRawMetho
     return restorePersistedMethod(method, handler);
 }
 
-export function getPersistedMethods(): Readonly<PersistedMethods> {
+export function getPersistedMethods(): Readonly<MethodsCache> {
     return persistedMethods;
 }
 
-export function setPersistedMethods(newCompiled: PersistedMethods) {
+export function setPersistedMethods(newCompiled: MethodsCache) {
     persistedMethods = newCompiled;
 }
 
@@ -71,7 +70,7 @@ const shouldCompile = memorize(() => getENV('MION_COMPILE') === 'true');
  * This function merges the provided methods data into the existing persistedMethods without overwriting existing entries.
  * @param compiledMethods - Object containing compiled methods data to merge into the cache
  */
-export function loadCompiledMethods(compiledMethods: PersistedMethods) {
+export function loadCompiledMethods(compiledMethods: MethodsCache) {
     for (const [key, value] of Object.entries(compiledMethods)) {
         if (!(key in persistedMethods)) {
             persistedMethods[key] = value;

@@ -5,15 +5,18 @@ export function getCompiledPureFn(fnOrName: string | PureFunctionClosure): Compi
     const key = getPureFunctionKey(fnOrName);
     return jitUtils.getCompiledPureFn(key);
 }
+
 export function getPureFunctionKey(fnOrName: string | PureFunctionClosure): string {
     const name = typeof fnOrName === 'string' ? fnOrName : fnOrName.name;
     if (!name) throw new Error('Pure Functions must have a name');
     return `${JitFunctions.pureFunction.id}_${name}`;
 }
+
 export function getPureFn(fnOrName: string | PureFunctionClosure): PureFunction | undefined {
     const key = getPureFunctionKey(fnOrName);
     return jitUtils.getPureFn(key);
 }
+
 export function registerPureFnClosuresGroup(fnsWithCtx: PureFunctionClosure[]): CompiledPureFunction[] {
     const compiledFns = fnsWithCtx.map((fn) => registerPureFnClosure(fn));
     compiledFns.forEach((cfn) => {
@@ -23,6 +26,24 @@ export function registerPureFnClosuresGroup(fnsWithCtx: PureFunctionClosure[]): 
         });
     });
     return compiledFns;
+}
+
+export function registerPureFnClosure(
+    fnWithCtx: PureFunctionClosure,
+    dependencies?: PureFunctionClosure[]
+): CompiledPureFunction {
+    const key = getPureFunctionKey(fnWithCtx);
+    const existing = jitUtils.getCompiledPureFn(key);
+    if (existing && existing.closureFn && existing.closureFn !== fnWithCtx)
+        throw new Error(`Pure function with name ${key} already exists`);
+    if (existing) return existing;
+    const compiled = parsePureFunctionWithCtx(fnWithCtx);
+    if (dependencies) {
+        dependencies.forEach((d) => registerPureFnClosure(d));
+        dependencies.forEach((d) => compiled.dependencies.add(getPureFunctionKey(d.name)));
+    }
+    jitUtils.addPureFn(compiled);
+    return compiled;
 }
 
 /**
@@ -72,22 +93,5 @@ function parsePureFunctionWithCtx(closureFn: PureFunctionClosure): CompiledPureF
         code: body,
         dependencies: new Set<string>(),
     };
-    return compiled;
-}
-export function registerPureFnClosure(
-    fnWithCtx: PureFunctionClosure,
-    dependencies?: PureFunctionClosure[]
-): CompiledPureFunction {
-    const key = getPureFunctionKey(fnWithCtx);
-    const existing = jitUtils.getCompiledPureFn(key);
-    if (existing && existing.closureFn && existing.closureFn !== fnWithCtx)
-        throw new Error(`Pure function with name ${key} already exists`);
-    if (existing) return existing;
-    const compiled = parsePureFunctionWithCtx(fnWithCtx);
-    if (dependencies) {
-        dependencies.forEach((d) => registerPureFnClosure(d));
-        dependencies.forEach((d) => compiled.dependencies.add(getPureFunctionKey(d.name)));
-    }
-    jitUtils.addPureFn(compiled);
     return compiled;
 }

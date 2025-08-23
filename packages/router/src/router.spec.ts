@@ -17,6 +17,7 @@ import {
     initRouter,
     addStartHooks,
     addEndHooks,
+    getRouterOptions,
 } from './router';
 import {type Routes} from './types/general';
 import {hook, route, rawHook} from './handlers';
@@ -347,5 +348,36 @@ describe('Create routes should', () => {
         expect(getRouteExecutionPath('/pets-getPet')?.methods).toEqual(expectedExecutionPath);
         expect(() => addStartHooks(prependHooks)).toThrow('Can not add start hooks after the router has been initialized');
         expect(() => addEndHooks(appendHooks)).toThrow('Can not add end hooks after the router has been initialized');
+    });
+});
+
+describe('AOT Configuration', () => {
+    beforeEach(() => {
+        resetRouter();
+    });
+
+    it('should accept AOT configuration in router options', () => {
+        const aotConfig = {
+            defaultVerbose: true,
+            defaultBaseDir: './custom-dist',
+            cacheDirectoryName: '.custom-cache',
+        };
+
+        initRouter({
+            aot: aotConfig,
+        });
+
+        const routerOptions = getRouterOptions();
+        expect(routerOptions.aot).toEqual(aotConfig);
+    });
+
+    it('should work without AOT configuration (optional)', () => {
+        initRouter({
+            prefix: 'api',
+        });
+
+        const routerOptions = getRouterOptions();
+        expect(routerOptions.aot).toBeUndefined();
+        expect(routerOptions.prefix).toBe('api');
     });
 });

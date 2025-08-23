@@ -500,9 +500,11 @@ function validateSharedDataFactory(opts?: Partial<RouterOptions>): void {
 /**
  * Automatically loads AOT caches if available
  * This is called transparently during route registration
+ * Uses the router's AOT configuration if provided
  */
 function loadAOTCachesIfAvailable(): void {
-    const loadCaches = [loadRouterCache({verbose: false}), loadCoreCache({verbose: false})];
+    const aotConfig = routerOptions.aot || {};
+    const loadCaches = [loadRouterCache(aotConfig), loadCoreCache(aotConfig)];
     Promise.all(loadCaches).catch(() => {
         // fails silently if there are no caches to load
     });
