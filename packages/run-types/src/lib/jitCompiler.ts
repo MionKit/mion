@@ -17,7 +17,8 @@ import {JitFunctions} from '../constants.functions';
 import {isChildAccessorType, isJitErrorsCompiler} from './guards';
 import {toLiteral, toLiteralInContext} from './utils';
 import type {BaseRunTypeFormat} from './baseRunTypeFormat';
-import {getPureFunctionKey, registerPureFnClosure} from './formats';
+import {registerPureFnClosure} from './pureFn';
+import {getPureFunctionKey} from './pureFn';
 
 export type StackItem = {
     /** current compile stack full variable accessor */

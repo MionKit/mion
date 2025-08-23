@@ -5,16 +5,14 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {PureFunctionClosure, CompiledPureFunction, PureFunction, TypeFormatParams, TypeFormatValue} from '@mionkit/core';
+import {PureFunctionClosure, TypeFormatParams, TypeFormatValue} from '@mionkit/core';
 import {ReflectionKindName} from '../constants.kind';
 import type {FormatAnnotation} from '../types';
 import {typeAnnotation, ReflectionKind} from '@deepkit/type';
 import type {BaseRunType} from './baseRunTypes';
 import type {JitErrorsCompiler, JitCompiler} from './jitCompiler';
 import type {BaseRunTypeFormat} from './baseRunTypeFormat';
-import {jitUtils} from '@mionkit/core';
 import {toLiteralInContext} from './utils';
-import {JitFunctions} from '../constants.functions';
 
 // ################# REGISTER FORMATTERS & PURE FUNCTIONS  #################
 
@@ -34,45 +32,6 @@ export function registerFormatter<T extends BaseRunTypeFormat>(operation: T, sho
     return operation;
 }
 
-export function registerPureFnClosure(
-    fnWithCtx: PureFunctionClosure,
-    dependencies?: PureFunctionClosure[]
-): CompiledPureFunction {
-    const key = getPureFunctionKey(fnWithCtx);
-    const existing = jitUtils.getCompiledPureFn(key);
-    if (existing && existing.closureFn && existing.closureFn !== fnWithCtx)
-        throw new Error(`Pure function with name ${key} already exists`);
-    if (existing) return existing;
-    const compiled = parsePureFunctionWithCtx(fnWithCtx);
-    if (dependencies) {
-        dependencies.forEach((d) => registerPureFnClosure(d));
-        dependencies.forEach((d) => compiled.dependencies.add(getPureFunctionKey(d.name)));
-    }
-    jitUtils.addPureFn(compiled);
-    return compiled;
-}
-
-export function registerPureFnClosuresGroup(fnsWithCtx: PureFunctionClosure[]): CompiledPureFunction[] {
-    const compiledFns = fnsWithCtx.map((fn) => registerPureFnClosure(fn));
-    compiledFns.forEach((cfn) => {
-        compiledFns.forEach((cf) => {
-            if (cfn.pureFnHash === cf.pureFnHash) return;
-            cf.dependencies.add(cfn.pureFnHash);
-        });
-    });
-    return compiledFns;
-}
-
-export function getPureFn(fnOrName: string | PureFunctionClosure): PureFunction | undefined {
-    const key = getPureFunctionKey(fnOrName);
-    return jitUtils.getPureFn(key);
-}
-
-export function getCompiledPureFn(fnOrName: string | PureFunctionClosure): CompiledPureFunction | undefined {
-    const key = getPureFunctionKey(fnOrName);
-    return jitUtils.getCompiledPureFn(key);
-}
-
 /** Gets a TypeFormatter or TypeValidator to the formatters cache */
 export function getFormatterFromCache(
     typeKind: ReflectionKind,
@@ -89,12 +48,6 @@ export function getFormatterFromCache(
 
 export function getFormatterKey(prefix: string, kind: string | number, name: string | number): string {
     return `${prefix}:${kind}:${name}`;
-}
-
-export function getPureFunctionKey(fnOrName: string | PureFunctionClosure): string {
-    const name = typeof fnOrName === 'string' ? fnOrName : fnOrName.name;
-    if (!name) throw new Error('Pure Functions must have a name');
-    return `${JitFunctions.pureFunction.id}_${name}`;
 }
 
 export function getTypeFormats(rt: BaseRunType): BaseRunTypeFormat[] {
@@ -158,56 +111,6 @@ export function getFormatterParams<P extends TypeFormatParams>(rt: BaseRunType, 
         return getAnnotationParams(annotation, rt) as P;
     }
     throw new Error(`Type Formatter ${fmtName} not found for ${rt.getTypeName()}`);
-}
-
-/**
- * Parses a pure function and returns it's data.
- * We are using toString() to get the function code, this might not work in all environments.
- * Also using regexp to parse the function code, a proper AST could be better bu this is working for now and is simpler.
- * @param closureFn
- * @returns
- */
-function parsePureFunctionWithCtx(closureFn: PureFunctionClosure): CompiledPureFunction {
-    if (!closureFn.name) throw new Error('Pure Functions must have a name');
-
-    const fnString = closureFn.toString();
-    const bodyStart = fnString.indexOf('{');
-    const bodyEnd = fnString.lastIndexOf('}');
-    if (bodyStart === -1 || bodyEnd === -1 || bodyEnd <= bodyStart) throw new Error("Invalid function, can't parse body");
-
-    const paramsStart = fnString.indexOf('(') + 1;
-    const paramsEnd = fnString.indexOf(')');
-
-    if (paramsStart === 0 || paramsEnd === -1 || paramsEnd < paramsStart) {
-        throw new Error("Invalid function, can't parse parameters");
-    }
-
-    const paramsString = fnString.substring(paramsStart, paramsEnd).trim();
-    const paramNames = paramsString.length > 0 ? paramsString.split(/\s*,\s*/) : [];
-    if (paramNames.length > 1) throw new Error('Pure function with context must have max 1 parameter');
-
-    // Validate parameters
-    const validIdentifier = /^[_$a-zA-Z][_$a-zA-Z0-9]*$/;
-    for (const param of paramNames) {
-        if (!validIdentifier.test(param))
-            throw new Error(
-                `Invalid parameter name: ${param}, pure function parameters must be valid identifiers and do not allow default values.`
-            );
-    }
-
-    const body = fnString
-        .substring(bodyStart + 1, bodyEnd)
-        .trim()
-        .replace(/[ \t]+/g, ' ');
-    const compiled: CompiledPureFunction = {
-        closureFn: closureFn,
-        fn: null as any, // will be set later so all possible dependencies are resolved
-        pureFnHash: getPureFunctionKey(closureFn.name),
-        paramNames,
-        code: body,
-        dependencies: new Set<string>(),
-    };
-    return compiled;
 }
 
 // ################# COMPILING  #################
