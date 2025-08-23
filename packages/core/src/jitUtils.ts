@@ -253,4 +253,15 @@ export function getFnCaches() {
     };
 }
 
+/**
+ * Resets the jit and pure functions caches.
+ * This is useful for testing purposes only.
+ */
+export function resetFnCaches() {
+    for (const k in jitFnsCache) delete jitFnsCache[k];
+    for (const k in pureFnsCache) delete pureFnsCache[k];
+    deserializeFnsRegistry.clear();
+    serializableClassRegistry.clear();
+}
+
 restoreCompiledJitFns(jitFnsCache, pureFnsCache);

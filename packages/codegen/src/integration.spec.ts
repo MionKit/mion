@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {generateAOTCaches} from './codegen';
+import {generateAOTCaches} from './generateAOT';
 import {rmSync, existsSync} from 'fs';
 import {join} from 'path';
 

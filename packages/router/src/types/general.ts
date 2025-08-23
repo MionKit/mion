@@ -9,6 +9,7 @@ import {CoreOptions} from '@mionkit/core';
 import {SharedDataFactory} from './context';
 import {HeaderHookDef, HookDef, RawHookDef, RouteDef} from './definitions';
 import type {RunTypeOptions} from '@mionkit/run-types';
+import type {AOTConfig} from '@mionkit/codegen';
 // #######  Router Object #######
 
 /** A route can be a full route definition or just the handler */
@@ -48,6 +49,8 @@ export interface RouterOptions<Req = any, SharedData extends Record<string, any>
     autoGenerateErrorId: boolean;
     /** client routes are initialized by default */
     skipClientRoutes: boolean;
+    /** AOT (Ahead-of-Time) cache configuration */
+    aot?: Partial<AOTConfig>;
 }
 
 // #######  Others #######

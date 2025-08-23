@@ -1,3 +1,10 @@
+/* ########
+ * 2025 mion
+ * Author: Ma-jerez
+ * License: MIT
+ * The software is provided "as is", without warranty of any kind.
+ * ######## */
+
 import {JitFunctions} from './constants.functions';
 import {ReceiveType} from '@deepkit/type';
 import {runType} from './lib/runType';
@@ -6,8 +13,10 @@ import {IsTypeFn, ToCodeFn, TypeErrorsFn} from '@mionkit/core';
 import {BaseRunType} from './lib/baseRunTypes';
 import {registerJitFunctionCompiler} from './lib/jitFnsRegistry';
 
-// all these functions are async because they might need to compile the jit function first
-// at the moment they are compiled synchronously, but in the future they might be async
+// All these functions are async because they might need to compile the jit function first
+// At the moment they are compiled synchronously, but in the future they might be async
+// Also some the src code to compile or functionality of the JIT functions might be loaded dynamically
+// ie: mocking functionality is loaded only when mockTypeFn is called
 
 /** Returns a function that checks if the given value is of the specified type. */
 export async function isTypeFn<T>(opts?: RunTypeOptions, type?: ReceiveType<T>): Promise<IsTypeFn> {

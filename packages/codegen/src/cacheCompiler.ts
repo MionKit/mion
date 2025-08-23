@@ -10,6 +10,7 @@ import {existsSync, writeFileSync, mkdirSync} from 'fs';
 import {dirname} from 'path';
 import {JitFunctionsCache, PureFunctionsCache, CompiledCacheFile} from '@mionkit/core';
 import {JitFunctions, runType, RunTypeOptions} from '@mionkit/run-types';
+import type {MethodsCache} from '@mionkit/router';
 
 export type SrcCodeCompilerConstants = Readonly<{
     autoGenMessage: string;
@@ -20,9 +21,15 @@ export type SrcCodeCompilerConstants = Readonly<{
 }>;
 
 export const runTypeCompilerConstants = {
-    autoGenMessage: `// ###### DO NOT MODIFY MANUALLY: THIS FILE IS GENERATED AUTOMATICALLY\n// NOTE exported constant name must be 'cΦmpilεdCachε' and file can not contain any other code\n`,
+    autoGenMessage: `// ###### DO NOT MODIFY MANUALLY: THIS FILE IS GENERATED AUTOMATICALLY\n// NOTE exported cache name must be 'cΦmpilεdCachε' and file can not contain any other code\n`,
     exportName: 'cΦmpilεdCachε',
 };
+
+export const routerCompilerConstants = {
+    autoGenMessage: `// ###### DO NOT MODIFY MANUALLY: THIS FILE IS GENERATED AUTOMATICALLY\n// NOTE exported cache name must be 'rΦutεs' and file can not contain any other code\n`,
+    exportName: 'rΦutεs',
+    typeName: 'Routes',
+} as const;
 
 /** Saves jit compiled functions to a dist file in the core package, this should be run after typescript has been compiled */
 export function compileAndWriteJitFunctions(cache: JitFunctionsCache, file: CompiledCacheFile) {
@@ -48,6 +55,31 @@ export function compileAndWritePureFunctions(cache: PureFunctionsCache, file: Co
     return compileAndWriteRunType<PureFunctionsCache>(cache, compOpts);
 }
 
+/** Saves router methods to a dist file, this should be run after typescript has been compiled */
+export function compileAndWriteRouterMethods(cache: MethodsCache, file: CompiledCacheFile) {
+    const compOpts = {
+        ...routerCompilerConstants,
+        files: file,
+        opts: {},
+    } satisfies SrcCodeCompilerConstants;
+
+    return compileAndWriteRunType<MethodsCache>(cache, compOpts);
+}
+
+/** Generates router methods code for testing purposes - avoids deepkit type resolution issues */
+export function codifyMethods(compiled: any, moduleType: 'cjs' | 'esm' = 'esm'): string {
+    const constants = {
+        ...routerCompilerConstants,
+        files: {
+            jit: {path: '', module: moduleType},
+            pure: {path: '', module: moduleType},
+        },
+    } satisfies SrcCodeCompilerConstants;
+
+    // Use compileTypeToJs without type parameter to avoid deepkit issues
+    return compileTypeToJs<MethodsCache>(compiled, constants, moduleType);
+}
+
 /** generates code to save any type into a js file and writes the file, file will be fully overwritten */
 export function compileAndWriteRunType<T>(instance: T, constants: SrcCodeCompilerConstants, type?: ReceiveType<T>) {
     // Determine which file to write based on the function type
@@ -57,6 +89,9 @@ export function compileAndWriteRunType<T>(instance: T, constants: SrcCodeCompile
         fileToWrite = constants.files.jit;
     } else if (constants.opts?.isPureFnCode && constants.files.pure.path) {
         fileToWrite = constants.files.pure;
+    } else if (constants.exportName === 'rΦutεs' && constants.files.jit.path) {
+        // Router methods use the jit file path but with router export name
+        fileToWrite = constants.files.jit;
     }
 
     if (fileToWrite && fileToWrite.path) {

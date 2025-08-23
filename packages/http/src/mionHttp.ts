@@ -5,7 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {compileRouter, dispatchRoute, getResponseFromError, resetRouter} from '@mionkit/router';
+import {dispatchRoute, getResponseFromError, resetRouter} from '@mionkit/router';
 import {createServer as createHttp} from 'http';
 import {createServer as createHttps} from 'https';
 import {DEFAULT_HTTP_OPTIONS} from './constants';

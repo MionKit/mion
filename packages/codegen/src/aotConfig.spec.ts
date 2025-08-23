@@ -5,55 +5,30 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {
-    getAOTConfig,
-    shouldLoadAOTCaches,
-    shouldUseVerboseLogging,
-    shouldCompile,
-    getCacheFileExtension,
-    generateCacheFileName,
-    getCacheFileNames,
-    getCacheDirPaths,
-    DEFAULT_AOT_CONFIG,
-} from './aotConfig';
+import {shouldUseVerboseLogging, getCacheFileExtension, generateCacheFileName, DEFAULT_AOT_CONFIG} from './aotConfig';
 
 describe('AOT Configuration', () => {
     beforeEach(() => {
         // Reset environment variables
-        delete process.env.MION_DISABLE_AOT_CACHE;
         delete process.env.MION_CACHE_VERBOSE;
-        delete process.env.MION_ENABLE_CACHE_IN_TESTS;
         delete process.env.MION_COMPILE;
-        delete process.env.NODE_ENV;
     });
 
-    describe('getAOTConfig', () => {
-        it('should return default configuration', () => {
-            const config = getAOTConfig();
-            expect(config).toEqual(DEFAULT_AOT_CONFIG);
-        });
-    });
-
-    describe('shouldLoadAOTCaches', () => {
-        it('should return false when explicitly disabled', () => {
-            process.env.MION_DISABLE_AOT_CACHE = 'true';
-            expect(shouldLoadAOTCaches()).toBe(false);
-        });
-
-        it('should return false in test environment by default', () => {
-            process.env.NODE_ENV = 'test';
-            expect(shouldLoadAOTCaches()).toBe(false);
-        });
-
-        it('should return true in test environment when explicitly enabled', () => {
-            process.env.NODE_ENV = 'test';
-            process.env.MION_ENABLE_CACHE_IN_TESTS = 'true';
-            expect(shouldLoadAOTCaches()).toBe(true);
-        });
-
-        it('should return true in production environment', () => {
-            process.env.NODE_ENV = 'production';
-            expect(shouldLoadAOTCaches()).toBe(true);
+    describe('DEFAULT_AOT_CONFIG', () => {
+        it('should have expected structure', () => {
+            expect(DEFAULT_AOT_CONFIG).toBeDefined();
+            expect(DEFAULT_AOT_CONFIG.defaultBaseDir).toBe('./dist');
+            expect(DEFAULT_AOT_CONFIG.cacheDirectoryName).toBe('.mion-cache');
+            expect(DEFAULT_AOT_CONFIG.defaultOutputDir).toBe('./dist/.mion-cache');
+            expect(DEFAULT_AOT_CONFIG.defaultModuleFormat).toBe('esm');
+            expect(DEFAULT_AOT_CONFIG.defaultVerbose).toBe(false);
+            expect(DEFAULT_AOT_CONFIG.envVars.verbose).toBe('MION_CACHE_VERBOSE');
+            expect(DEFAULT_AOT_CONFIG.envVars.compile).toBe('MION_COMPILE');
+            // Should not have the removed properties
+            expect(DEFAULT_AOT_CONFIG).not.toHaveProperty('cacheDirs');
+            expect(DEFAULT_AOT_CONFIG).not.toHaveProperty('cacheFiles');
+            expect(DEFAULT_AOT_CONFIG.envVars).not.toHaveProperty('disable');
+            expect(DEFAULT_AOT_CONFIG.envVars).not.toHaveProperty('enableInTests');
         });
     });
 
@@ -65,17 +40,6 @@ describe('AOT Configuration', () => {
         it('should return true when enabled', () => {
             process.env.MION_CACHE_VERBOSE = 'true';
             expect(shouldUseVerboseLogging()).toBe(true);
-        });
-    });
-
-    describe('shouldCompile', () => {
-        it('should return false by default', () => {
-            expect(shouldCompile()).toBe(false);
-        });
-
-        it('should return true when enabled', () => {
-            process.env.MION_COMPILE = 'true';
-            expect(shouldCompile()).toBe(true);
         });
     });
 
@@ -100,41 +64,6 @@ describe('AOT Configuration', () => {
             expect(generateCacheFileName('router', 'cjs')).toBe('router.cache.js');
             expect(generateCacheFileName('jit', 'cjs')).toBe('jit.cache.js');
             expect(generateCacheFileName('pure', 'cjs')).toBe('pure.cache.js');
-        });
-    });
-
-    describe('getCacheFileNames', () => {
-        it('should return all possible router cache file names', () => {
-            const names = getCacheFileNames('router');
-            expect(names).toContain('router.cache.js');
-            expect(names).toContain('router.cache.mjs');
-            expect(names).toContain('routes.cache.js');
-            expect(names).toContain('routes.cache.mjs');
-        });
-
-        it('should return all possible JIT cache file names', () => {
-            const names = getCacheFileNames('jit');
-            expect(names).toContain('jit.cache.js');
-            expect(names).toContain('jit.cache.mjs');
-            expect(names).toContain('jitFunctions.cache.js');
-            expect(names).toContain('jitFunctions.cache.mjs');
-        });
-
-        it('should return all possible pure cache file names', () => {
-            const names = getCacheFileNames('pure');
-            expect(names).toContain('pure.cache.js');
-            expect(names).toContain('pure.cache.mjs');
-            expect(names).toContain('pureFunctions.cache.js');
-            expect(names).toContain('pureFunctions.cache.mjs');
-        });
-    });
-
-    describe('getCacheDirPaths', () => {
-        it('should return cache directory paths relative to app root', () => {
-            const paths = getCacheDirPaths('/app');
-            expect(paths).toContain('/app/dist/.mion-cache');
-            expect(paths).toContain('/app/.mion-cache');
-            expect(paths).toContain('/app/build/.mion-cache');
         });
     });
 });

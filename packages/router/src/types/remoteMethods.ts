@@ -36,6 +36,9 @@ export interface MethodData {
     returnJitHashes: JitFunctionsHashes;
 }
 
+/** Record of all persisted methods */
+export type MethodsCache = Record<string, MethodData>;
+
 /** Contains the data of each hook or route, Used to generate the execution path for each route. */
 export interface Method<H extends AnyHandler = AnyHandler> extends MethodData {
     paramsJitFns?: JitCompiledFunctions;
