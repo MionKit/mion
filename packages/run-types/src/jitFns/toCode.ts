@@ -17,7 +17,7 @@ import {JitFunctions} from '../constants.functions';
 import {compileAddPureFunctionWithClosure, JitCompiler} from '../lib/jitCompiler';
 import {isSafePropName} from '../lib/utils';
 import {_compileJsonStringify, _compileJsonStringifyIterable} from './jsonStringify';
-import {registerPureFnClosure} from '../lib/formats';
+import {registerPureFnClosure} from '../lib/pureFn';
 
 /** Centralized compile jit function with a switch statement that handles all node types. */
 export function _compileToCode(runType: BaseRunType, comp: JitCompiler, fnID = JitFunctions.toCode.id): jitCode {

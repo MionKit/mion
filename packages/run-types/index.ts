@@ -15,6 +15,7 @@ export * from './src/lib/baseRunTypeFormat';
 export * from './src/lib/baseRunTypes';
 export * from './src/lib/formats.runtype';
 export * from './src/lib/formats';
+export * from './src/lib/pureFn';
 export * from './src/lib/guards';
 export * from './src/lib/jitCompiler';
 export * from './src/lib/jitFnsRegistry';
