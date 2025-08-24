@@ -26,7 +26,6 @@ import {clientRoutes} from './client.routes';
 import {getNotFoundExecutionPath} from './notFound';
 import {addToPersistedMethods, getPersistedMethod, resetPersistedMethods} from './methodsCache';
 import {JitFunctionsHashes} from '@mionkit/core';
-import {loadCoreCache, loadRouterCache} from '@mionkit/codegen/src/loadAOT';
 
 type RouterKeyEntryList = [string, RouterEntry][];
 type RoutesWithId = {
@@ -179,11 +178,6 @@ export function shouldFullGenerateSpec(): boolean {
 export function getRouteExecutableFromPath(path: string): RouteMethod {
     const executionPath = flatRouter.get(path) || getNotFoundExecutionPath();
     return executionPath.methods[executionPath.routeIndex] as RouteMethod;
-}
-
-export function loadAOTCaches(jitFnsCache: JitFunctionsCache, pureFnsCache: PureFunctionsCache) {
-    loadCoreCache({jitFnsCache, pureFnsCache});
-    loadRouterCache();
 }
 
 // ############# PRIVATE METHODS #############
