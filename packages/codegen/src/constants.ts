@@ -11,8 +11,6 @@ import type {AOTConfig} from './types';
  * Default AOT configuration shared across all mion packages
  */
 export const DEFAULT_AOT_CONFIG_ESM: AOTConfig = {
-    fileHeader: `// ###### DO NOT MODIFY MANUALLY: THIS FILE IS GENERATED AUTOMATICALLY\n`,
-    outputDir: './dist/esm/mion-cache',
     module: 'esm',
     caches: {
         router: {path: 'router.cache.mjs', exportName: 'routerCache'},
@@ -22,8 +20,6 @@ export const DEFAULT_AOT_CONFIG_ESM: AOTConfig = {
 };
 
 export const DEFAULT_AOT_CONFIG_CJS: AOTConfig = {
-    fileHeader: `// ###### DO NOT MODIFY MANUALLY: THIS FILE IS GENERATED AUTOMATICALLY\n`,
-    outputDir: './dist/cjs/mion-cache',
     module: 'cjs',
     caches: {
         router: {path: 'router.cache.js', exportName: 'routerCache'},

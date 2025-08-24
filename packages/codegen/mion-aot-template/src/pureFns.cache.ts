@@ -1,10 +1,4 @@
-/* ########
- * 2025 mion
- * Author: Ma-jerez
- * License: MIT
- * The software is provided "as is", without warranty of any kind.
- * ######## */
-
+// ###### DO NOT MODIFY MANUALLY: THIS FILE IS GENERATED AUTOMATICALLY
 import type {PureFunctionsCache} from '@mionkit/core';
 
 /**

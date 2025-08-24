@@ -5,7 +5,8 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {SrcCodeCompilerConstants, compileTypeToJs, routerCompilerConstants, runTypeCompilerConstants} from './cacheCompiler';
+import {compileTypeToJs} from './cacheCompiler';
+import {AOTConfig} from './types';
 import {
     JitCompiledFn,
     SrcCodeJITCompiledFnsCache,
@@ -22,16 +23,15 @@ afterEach(() => resetFnCaches());
 it('should compile JIT functions cache to code', () => {
     // a real scenario would use compileAndWriteJitFunctions instead compileTypeToJs to persis to fileSystem
 
-    // Create a mock JitFunctionsCache
-    const compOpts = {
-        ...runTypeCompilerConstants,
-        typeName: 'JIT functions',
-        files: {
-            jit: {path: '/test/path/jitFunctionsCache.esm.js', module: 'esm'},
-            pure: {path: '', module: 'esm'},
+    // Create AOT config for JIT functions
+    const aotConfig: AOTConfig = {
+        module: 'esm',
+        caches: {
+            jit: {path: '/test/path/jitFunctionsCache.esm.js', exportName: 'jitFnsCache'},
+            pure: {path: '/test/path/pureFunctionsCache.esm.js', exportName: 'pureFnsCache'},
+            router: {path: '/test/path/routerCache.esm.js', exportName: 'routerCache'},
         },
-        opts: {isJitFnCode: true},
-    } satisfies SrcCodeCompilerConstants;
+    };
 
     type User = {name: string; age: number};
     const rt = runType<User>() as BaseRunType;
@@ -42,12 +42,12 @@ it('should compile JIT functions cache to code', () => {
 
     function compileCacheESM() {
         // Call the function under test
-        const compiledMock = compileTypeToJs<SrcCodeJITCompiledFnsCache>(mockCache as any, compOpts, 'esm');
+        const compiledMock = compileTypeToJs<SrcCodeJITCompiledFnsCache>(mockCache as any, aotConfig, aotConfig.caches.jit);
 
         // Check that the file code contains the ESM export statement
-        const esmExportPattern = `export const ${compOpts.exportName} =`;
+        const esmExportPattern = `export const ${aotConfig.caches.jit.exportName} =`;
         expect(compiledMock).toContain(esmExportPattern);
-        const evalCode = compiledMock.replace(esmExportPattern, '').trim();
+        const evalCode = compiledMock.replace(esmExportPattern, '').replace(/;\s*$/, '').trim();
         const evalResult = eval(`(${evalCode})`);
         evalResult['isUser'].fn = evalResult['isUser'].closureFn(jitUtils);
         const isUser = evalResult['isUser'].fn;
@@ -56,9 +56,13 @@ it('should compile JIT functions cache to code', () => {
 
         // guarantees cache in core package can be compiled
         // this contains any jit functions that are used by core package or mion packages
-        const compiledCorePackage = compileTypeToJs<SrcCodeJITCompiledFnsCache>(jitFnsCache as any, compOpts, 'esm');
+        const compiledCorePackage = compileTypeToJs<SrcCodeJITCompiledFnsCache>(
+            jitFnsCache as any,
+            aotConfig,
+            aotConfig.caches.jit
+        );
         expect(compiledCorePackage).toContain(esmExportPattern);
-        const realEvalCode = compiledCorePackage.replace(esmExportPattern, '').trim();
+        const realEvalCode = compiledCorePackage.replace(esmExportPattern, '').replace(/;\s*$/, '').trim();
         expect(() => eval(`(${realEvalCode})`)).not.toThrow();
 
         // console.log('compiledMock ESM:', compiledMock);
@@ -66,11 +70,14 @@ it('should compile JIT functions cache to code', () => {
     }
 
     function compileCacheCJS() {
+        // Create CJS config
+        const cjsConfig: AOTConfig = {...aotConfig, module: 'cjs'};
+
         // Call the function under test
-        const compiledMock = compileTypeToJs<SrcCodeJITCompiledFnsCache>(mockCache as any, compOpts, 'cjs');
+        const compiledMock = compileTypeToJs<SrcCodeJITCompiledFnsCache>(mockCache as any, cjsConfig, cjsConfig.caches.jit);
 
         // Check that the file code contains the CJS export statement
-        const cjsExportPattern = `module.exports = { ${compOpts.exportName}:`;
+        const cjsExportPattern = `module.exports = { ${cjsConfig.caches.jit.exportName}:`;
         expect(compiledMock).toContain(cjsExportPattern);
         // Extract the code part from: module.exports = { exportName: <code> };
         const startIndex = compiledMock.indexOf(cjsExportPattern) + cjsExportPattern.length;
@@ -84,7 +91,11 @@ it('should compile JIT functions cache to code', () => {
 
         // guarantees cache in core package can be compiled
         // this contains any jit functions that are used by core package or mion packages
-        const compiledCorePackage = compileTypeToJs<SrcCodeJITCompiledFnsCache>(jitFnsCache as any, compOpts, 'cjs');
+        const compiledCorePackage = compileTypeToJs<SrcCodeJITCompiledFnsCache>(
+            jitFnsCache as any,
+            cjsConfig,
+            cjsConfig.caches.jit
+        );
         expect(compiledCorePackage).toContain(cjsExportPattern);
         const coreStartIndex = compiledCorePackage.indexOf(cjsExportPattern) + cjsExportPattern.length;
         const coreEndIndex = compiledCorePackage.lastIndexOf(' };');
@@ -102,16 +113,15 @@ it('should compile JIT functions cache to code', () => {
 it('should compile pure functions cache to code', () => {
     // a real scenario would use compileAndSaveTypeToJs instead compileTypeToJs to persis to fileSystem
 
-    // Create a mock PureFunctionsCache
-    const compOpts = {
-        ...runTypeCompilerConstants,
-        typeName: 'Pure functions',
-        files: {
-            jit: {path: '', module: 'esm'},
-            pure: {path: '/test/path/pureFunctionsCache.esm.js', module: 'esm'},
+    // Create AOT config for pure functions
+    const aotConfig: AOTConfig = {
+        module: 'esm',
+        caches: {
+            jit: {path: '/test/path/jitFunctionsCache.esm.js', exportName: 'jitFnsCache'},
+            pure: {path: '/test/path/pureFunctionsCache.esm.js', exportName: 'pureFnsCache'},
+            router: {path: '/test/path/routerCache.esm.js', exportName: 'routerCache'},
         },
-        opts: {isPureFnCode: true},
-    } satisfies SrcCodeCompilerConstants;
+    };
 
     /** @reflection never */
     function pureFnWIthContext() {
@@ -126,21 +136,31 @@ it('should compile pure functions cache to code', () => {
 
     function compilePureESM() {
         // Call the function under test
-        const compiledMock = compileTypeToJs<SrcCodePureFunctionsCache>(mockCache as any, compOpts, 'esm');
+        const compiledMock = compileTypeToJs<SrcCodePureFunctionsCache>(mockCache as any, aotConfig, aotConfig.caches.pure);
         // Check that the file code contains the export statement with the correct export name
-        expect(compiledMock).toContain(`export const ${compOpts.exportName} =`);
+        expect(compiledMock).toContain(`export const ${aotConfig.caches.pure.exportName} =`);
 
         // Verify the code can be evaluated and contains our mock cache
-        const evalCode = compiledMock.replace(`export const ${compOpts.exportName} =`, '');
+        const evalCode = compiledMock
+            .replace(`export const ${aotConfig.caches.pure.exportName} =`, '')
+            .replace(/;\s*$/, '')
+            .trim();
         const evalResult = eval(`(${evalCode})`);
         evalResult['addNumbers'].fn = evalResult['addNumbers'].closureFn(jitUtils);
         expect(evalResult.addNumbers.fn(1, 2)).toBe(3);
 
         // guarantees (real cache) in core package can be compiled
         // this contains any pure functions that are used by core package or mion packages
-        const compiledCorePackage = compileTypeToJs<SrcCodePureFunctionsCache>(pureFnsCache as any, compOpts, 'esm');
-        expect(compiledCorePackage).toContain(`export const ${compOpts.exportName} =`);
-        const realEvalCode = compiledCorePackage.replace(`export const ${compOpts.exportName} =`, '');
+        const compiledCorePackage = compileTypeToJs<SrcCodePureFunctionsCache>(
+            pureFnsCache as any,
+            aotConfig,
+            aotConfig.caches.pure
+        );
+        expect(compiledCorePackage).toContain(`export const ${aotConfig.caches.pure.exportName} =`);
+        const realEvalCode = compiledCorePackage
+            .replace(`export const ${aotConfig.caches.pure.exportName} =`, '')
+            .replace(/;\s*$/, '')
+            .trim();
         expect(() => eval(`(${realEvalCode})`)).not.toThrow();
 
         // console.log('compiledMock ESM:', compiledMock);
@@ -148,11 +168,14 @@ it('should compile pure functions cache to code', () => {
     }
 
     function compilePureCJS() {
+        // Create CJS config
+        const cjsConfig: AOTConfig = {...aotConfig, module: 'cjs'};
+
         // Call the function under test
-        const compiledMock = compileTypeToJs<SrcCodePureFunctionsCache>(mockCache as any, compOpts, 'cjs');
+        const compiledMock = compileTypeToJs<SrcCodePureFunctionsCache>(mockCache as any, cjsConfig, cjsConfig.caches.pure);
 
         // Check that the file code contains the CJS export statement
-        const cjsExportPattern = `module.exports = { ${compOpts.exportName}:`;
+        const cjsExportPattern = `module.exports = { ${cjsConfig.caches.pure.exportName}:`;
         expect(compiledMock).toContain(cjsExportPattern);
 
         // Extract the code part from: module.exports = { exportName: <code> };
@@ -164,7 +187,11 @@ it('should compile pure functions cache to code', () => {
         expect(evalResult.addNumbers.fn(1, 2)).toBe(3);
 
         // guarantees (real cache) in core package can be compiled
-        const compiledCorePackage = compileTypeToJs<SrcCodePureFunctionsCache>(pureFnsCache as any, compOpts, 'cjs');
+        const compiledCorePackage = compileTypeToJs<SrcCodePureFunctionsCache>(
+            pureFnsCache as any,
+            cjsConfig,
+            cjsConfig.caches.pure
+        );
         expect(compiledCorePackage).toContain(cjsExportPattern);
         const coreStartIndex = compiledCorePackage.indexOf(cjsExportPattern) + cjsExportPattern.length;
         const coreEndIndex = compiledCorePackage.lastIndexOf(' };');
@@ -186,7 +213,7 @@ it('should compile router methods cache to code', () => {
 
     type User = {name: string; age: number};
     const testRoutes = {
-        getUser: route((ctx, name: string): User => ({name, age: 30})),
+        getUser: route((_ctx: any, name: string): User => ({name, age: 30})),
     } satisfies Routes;
 
     // Initialize router and register routes to create persisted methods
@@ -228,31 +255,32 @@ it('should compile router methods cache to code', () => {
         },
     };
 
-    const compOpts = {
-        ...routerCompilerConstants,
-        files: {
-            jit: {path: '/test/path/routerMethodsCache.esm.js', module: 'esm'},
-            pure: {path: '', module: 'esm'},
+    // Create AOT config for router methods
+    const aotConfig: AOTConfig = {
+        module: 'esm',
+        caches: {
+            jit: {path: '/test/path/jitFunctionsCache.esm.js', exportName: 'jitFnsCache'},
+            pure: {path: '/test/path/pureFunctionsCache.esm.js', exportName: 'pureFnsCache'},
+            router: {path: '/test/path/routerMethodsCache.esm.js', exportName: 'routerCache'},
         },
-        opts: {},
-    } satisfies SrcCodeCompilerConstants;
+    };
 
     function compileRouterESM() {
         // Call the function under test
-        const compiledMock = compileTypeToJs<MethodsCache>(mockCache as any, compOpts, 'esm');
+        const compiledMock = compileTypeToJs<MethodsCache>(mockCache as any, aotConfig, aotConfig.caches.router);
 
         // Check that the file code contains the ESM export statement
-        const esmExportPattern = `export const ${compOpts.exportName} =`;
+        const esmExportPattern = `export const ${aotConfig.caches.router.exportName} =`;
         expect(compiledMock).toContain(esmExportPattern);
-        const evalCode = compiledMock.replace(esmExportPattern, '').trim();
+        const evalCode = compiledMock.replace(esmExportPattern, '').replace(/;\s*$/, '').trim();
         const evalResult = eval(`(${evalCode})`);
         expect(evalResult.getUser).toEqual(expectedMethodData);
 
         // guarantees cache in core package can be compiled
         // this contains any router methods that are used by core package or mion packages
-        const compiledCorePackage = compileTypeToJs<MethodsCache>(persistedMethods as any, compOpts, 'esm');
+        const compiledCorePackage = compileTypeToJs<MethodsCache>(persistedMethods as any, aotConfig, aotConfig.caches.router);
         expect(compiledCorePackage).toContain(esmExportPattern);
-        const realEvalCode = compiledCorePackage.replace(esmExportPattern, '').trim();
+        const realEvalCode = compiledCorePackage.replace(esmExportPattern, '').replace(/;\s*$/, '').trim();
         expect(() => eval(`(${realEvalCode})`)).not.toThrow();
 
         // console.log('compiledMock ESM:', compiledMock);
@@ -260,11 +288,14 @@ it('should compile router methods cache to code', () => {
     }
 
     function compileRouterCJS() {
+        // Create CJS config
+        const cjsConfig: AOTConfig = {...aotConfig, module: 'cjs'};
+
         // Call the function under test
-        const compiledMock = compileTypeToJs<MethodsCache>(mockCache as any, compOpts, 'cjs');
+        const compiledMock = compileTypeToJs<MethodsCache>(mockCache as any, cjsConfig, cjsConfig.caches.router);
 
         // Check that the file code contains the CJS export statement
-        const cjsExportPattern = `module.exports = { ${compOpts.exportName}:`;
+        const cjsExportPattern = `module.exports = { ${cjsConfig.caches.router.exportName}:`;
         expect(compiledMock).toContain(cjsExportPattern);
         // Extract the code part from: module.exports = { exportName: <code> };
         const startIndex = compiledMock.indexOf(cjsExportPattern) + cjsExportPattern.length;
@@ -274,7 +305,7 @@ it('should compile router methods cache to code', () => {
         expect(evalResult.getUser).toEqual(expectedMethodData);
 
         // guarantees cache in core package can be compiled
-        const compiledCorePackage = compileTypeToJs<MethodsCache>(persistedMethods as any, compOpts, 'cjs');
+        const compiledCorePackage = compileTypeToJs<MethodsCache>(persistedMethods as any, cjsConfig, cjsConfig.caches.router);
         expect(compiledCorePackage).toContain(cjsExportPattern);
         const coreStartIndex = compiledCorePackage.indexOf(cjsExportPattern) + cjsExportPattern.length;
         const coreEndIndex = compiledCorePackage.lastIndexOf(' };');

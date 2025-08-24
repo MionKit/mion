@@ -17,10 +17,6 @@ export type compiledCacheConfig = {
  * This ensures consistency between cache generation and loading
  */
 export interface AOTConfig {
-    /** Header added to all generated cache files */
-    fileHeader: string;
-    /** Default output directory for cache generation */
-    outputDir: string;
     /** Default module format for generated files */
     module: 'esm' | 'cjs';
     /** Default run type compiling options for caches */
