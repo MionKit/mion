@@ -5,35 +5,6 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import type {AOTConfig} from './types';
+import {getENV} from '@mionkit/core';
 
-/**
- * Default AOT configuration shared across all mion packages
- */
-export const DEFAULT_AOT_CONFIG_ESM: AOTConfig = {
-    module: 'esm',
-    caches: {
-        router: {path: 'router.cache.mjs', exportName: 'routerCache'},
-        jit: {path: 'jitFns.cache.mjs', exportName: 'jitFnsCache'},
-        pure: {path: 'pureFns.cache.mjs', exportName: 'pureFnsCache'},
-    },
-};
-
-export const DEFAULT_AOT_CONFIG_CJS: AOTConfig = {
-    module: 'cjs',
-    caches: {
-        router: {path: 'router.cache.js', exportName: 'routerCache'},
-        jit: {path: 'jitFns.cache.js', exportName: 'jitFnsCache'},
-        pure: {path: 'pureFns.cache.js', exportName: 'pureFnsCache'},
-    },
-};
-export function getDefaultAOTConfig(config: Partial<AOTConfig>): AOTConfig {
-    const defaultConf = config?.module === 'cjs' ? DEFAULT_AOT_CONFIG_CJS : DEFAULT_AOT_CONFIG_ESM;
-    return {
-        ...defaultConf,
-        caches: {
-            ...defaultConf.caches,
-            ...(config?.caches || {}),
-        },
-    };
-}
+export const isTest = getENV('NODE_ENV') === 'test';
