@@ -38,7 +38,7 @@
     "build:cjs": "tsc --project tsconfig.cjs.json",
     "build:esm": "tsc --project tsconfig.esm.json",
     "build:types": "tsc --project tsconfig.types.json",
-    "build": "npm run build:cjs && npm run build:esm && npm run build:types",
+    "build": "npm run clean && npm run build:cjs && npm run build:esm && npm run build:types",
     "clean": "rimraf build"
   },
   "bugs": {
@@ -46,6 +46,7 @@
   },
   "peerDependencies": {
     "@mionkit/core": "^0.7.2",
-    "@mionkit/router": "^0.7.2"
+    "@mionkit/router": "^0.7.2",
+    "@mionkit/codegen": "^0.7.2"
   }
 }
