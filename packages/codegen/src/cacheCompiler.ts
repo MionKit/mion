@@ -10,8 +10,9 @@ import {existsSync, writeFileSync, mkdirSync} from 'fs';
 import {dirname} from 'path';
 import {JitFunctionsCache, PureFunctionsCache} from '@mionkit/core';
 import {JitFunctions, runType} from '@mionkit/run-types';
-import {MethodsCache, AOTConfig, compiledCacheConfig} from './types';
+import {AOTConfig, compiledCacheConfig} from './types';
 import {getDefaultAOTConfig} from './constants';
+import {MethodsCache} from '@mionkit/router';
 
 /** Saves jit compiled functions to a dist file in the core package, this should be run after typescript has been compiled */
 export function compileAndWriteJitFunctions(cache: JitFunctionsCache, config: Partial<AOTConfig>) {

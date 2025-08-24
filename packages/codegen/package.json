@@ -59,10 +59,10 @@
   },
   "dependencies": {
     "@mionkit/core": "^0.7.2",
+    "@mionkit/router": "^0.7.2",
     "@mionkit/run-types": "^0.7.2"
   },
   "devDependencies": {
-    "typescript": "^5.0.0",
-    "@mionkit/router": "^0.7.2"
+    "typescript": "^5.0.0"
   }
 }
