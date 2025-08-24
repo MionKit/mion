@@ -43,7 +43,6 @@ export function compileAndWriteRunType<T>(
 
     // Generate file code with appropriate format based on module type
     const fileCode = compileTypeToJs(instance, config, fileToWrite, type, originalSrcCode);
-    console.log('fileToWrite:', fileToWrite);
 
     // Ensure directory exists before writing file
     const dir = dirname(fileToWrite.path);

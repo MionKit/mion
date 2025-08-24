@@ -2,6 +2,7 @@
   "name": "@mionkit/aot-template",
   "version": "0.7.2",
   "description": "Template package for mion AOT (Ahead-of-Time) cache generation. This package provides pre-built cache files and loading functionality.",
+  "isMionAOT": true,
   "keywords": [
     "typescript",
     "AOT",

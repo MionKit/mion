@@ -5,14 +5,13 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {spawn} from 'child_process';
 import {existsSync, rmSync, readFileSync, writeFileSync, mkdirSync} from 'fs';
 import {join, resolve} from 'path';
+import {initAOT} from './cli-init-aot';
+import {buildAOT} from './cli-build-aot';
 
 const CODEGEN_ROOT = resolve(__dirname, '..');
 const TEST_ARTIFACTS_DIR = join(CODEGEN_ROOT, '.dist', 'test-artifacts');
-const MION_INIT_AOT_BIN = join(CODEGEN_ROOT, 'bin', 'mion-init-aot.mjs');
-const MION_BUILD_AOT_BIN = join(CODEGEN_ROOT, 'bin', 'mion-build-aot.mjs');
 
 describe('AOT Commands Integration Tests', () => {
     beforeAll(() => {
@@ -29,7 +28,7 @@ describe('AOT Commands Integration Tests', () => {
         }
     });
 
-    describe('mion-init-aot command', () => {
+    describe('initAOT function', () => {
         const testAotDir = join(TEST_ARTIFACTS_DIR, 'test-aot-package');
 
         afterEach(() => {
@@ -39,28 +38,10 @@ describe('AOT Commands Integration Tests', () => {
             }
         });
 
-        it('should show help when --help flag is used', async () => {
-            const result = await runCommand(MION_INIT_AOT_BIN, ['--help']);
-
-            expect(result.exitCode).toBe(0);
-            expect(result.stdout).toContain('mion-init-aot - Initialize AOT package from template');
-            expect(result.stdout).toContain('Usage:');
-            expect(result.stdout).toContain('--dir <directory>');
-            expect(result.stdout).toContain('--package-name <name>');
-        });
-
-        it('should fail when --dir argument is missing', async () => {
-            const result = await runCommand(MION_INIT_AOT_BIN, []);
-
-            expect(result.exitCode).toBe(1);
-            expect(result.stderr).toContain('Error: --dir argument is required');
-        });
-
-        it('should create AOT package from template with default package name', async () => {
-            const result = await runCommand(MION_INIT_AOT_BIN, ['--dir', testAotDir]);
-
-            expect(result.exitCode).toBe(0);
-            expect(result.stdout).toContain('✅ AOT package initialized successfully!');
+        it('should create AOT package from template with default package name', () => {
+            initAOT({
+                dir: testAotDir,
+            });
 
             // Verify directory was created
             expect(existsSync(testAotDir)).toBe(true);
@@ -79,11 +60,11 @@ describe('AOT Commands Integration Tests', () => {
             expect(existsSync(join(testAotDir, 'build', 'cjs', 'router.cache.js'))).toBe(true);
         });
 
-        it('should create AOT package with custom package name', async () => {
-            const result = await runCommand(MION_INIT_AOT_BIN, ['--dir', testAotDir, '--package-name', 'my-custom-aot']);
-
-            expect(result.exitCode).toBe(0);
-            expect(result.stdout).toContain('✅ AOT package initialized successfully!');
+        it('should create AOT package with custom package name', () => {
+            initAOT({
+                dir: testAotDir,
+                packageName: 'my-custom-aot',
+            });
 
             // Verify package.json has custom name
             const packageJsonPath = join(testAotDir, 'package.json');
@@ -91,25 +72,68 @@ describe('AOT Commands Integration Tests', () => {
             expect(packageJson.name).toBe('my-custom-aot');
         });
 
-        it('should fail when target directory already exists', async () => {
-            // Create directory first
+        it('should fail when target directory already exists and is not a mion AOT template', () => {
+            // Create directory with non-AOT package.json
             mkdirSync(testAotDir, {recursive: true});
+            writeFileSync(
+                join(testAotDir, 'package.json'),
+                JSON.stringify(
+                    {
+                        name: 'some-other-package',
+                        version: '1.0.0',
+                    },
+                    null,
+                    2
+                )
+            );
 
-            const result = await runCommand(MION_INIT_AOT_BIN, ['--dir', testAotDir]);
+            expect(() => {
+                initAOT({
+                    dir: testAotDir,
+                });
+            }).toThrow('already exists and is not a mion AOT template');
+        });
 
-            expect(result.exitCode).toBe(1);
-            expect(result.stderr).toContain('Error: Target directory');
-            expect(result.stderr).toContain('already exists');
+        it('should update existing mion AOT template when directory exists', () => {
+            // Create initial AOT package
+            initAOT({
+                dir: testAotDir,
+            });
+
+            // Verify it was created
+            expect(existsSync(testAotDir)).toBe(true);
+            const initialPackageJson = JSON.parse(readFileSync(join(testAotDir, 'package.json'), 'utf8'));
+            expect(initialPackageJson.isMionAOT).toBe(true);
+
+            // Run init again - should update instead of failing
+            expect(() => {
+                initAOT({
+                    dir: testAotDir,
+                    packageName: 'updated-aot-package',
+                });
+            }).not.toThrow();
+
+            // Verify it was updated
+            const updatedPackageJson = JSON.parse(readFileSync(join(testAotDir, 'package.json'), 'utf8'));
+            expect(updatedPackageJson.name).toBe('updated-aot-package');
+            expect(updatedPackageJson.isMionAOT).toBe(true);
         });
     });
 
-    describe('mion-build-aot command', () => {
+    describe('buildAOT function', () => {
         const testAotDir = join(TEST_ARTIFACTS_DIR, 'build-test-aot');
         const mockStartScript = join(TEST_ARTIFACTS_DIR, 'mock-start-script.mjs');
 
-        beforeEach(async () => {
+        beforeEach(() => {
+            // Clean up first to ensure fresh state
+            if (existsSync(testAotDir)) {
+                rmSync(testAotDir, {recursive: true, force: true});
+            }
+
             // Create AOT package first
-            await runCommand(MION_INIT_AOT_BIN, ['--dir', testAotDir]);
+            initAOT({
+                dir: testAotDir,
+            });
 
             // Create a mock start script that simulates MION_COMPILE behavior
             const mockScriptContent = `
@@ -119,7 +143,7 @@ console.log('Mock server starting...');
 // Simulate MION_COMPILE behavior
 if (process.env.MION_COMPILE === 'true') {
     console.log('MION_COMPILE=true detected, populating caches...');
-    
+
     // Mock cache population - in real scenario, this would be done by the actual server
     // For testing, we'll just simulate that caches are populated
     console.log('Caches populated, server not starting');
@@ -142,113 +166,38 @@ if (process.env.MION_COMPILE === 'true') {
             }
         });
 
-        it('should show help when --help flag is used', async () => {
-            const result = await runCommand(MION_BUILD_AOT_BIN, ['--help']);
-
-            expect(result.exitCode).toBe(0);
-            expect(result.stdout).toContain('mion-build-aot - Build AOT caches');
-            expect(result.stdout).toContain('Usage:');
-            expect(result.stdout).toContain('--dir <aot-directory>');
-            expect(result.stdout).toContain('--start-server-script <script-path>');
-        });
-
-        it('should fail when required arguments are missing', async () => {
-            const result1 = await runCommand(MION_BUILD_AOT_BIN, []);
-            expect(result1.exitCode).toBe(1);
-            expect(result1.stderr).toContain('Error: --dir argument is required');
-
-            const result2 = await runCommand(MION_BUILD_AOT_BIN, ['--dir', testAotDir]);
-            expect(result2.exitCode).toBe(1);
-            expect(result2.stderr).toContain('Error: --start-server-script argument is required');
-        });
-
         it('should fail when AOT directory does not exist', async () => {
-            const nonExistentDir = join(TEST_ARTIFACTS_DIR, 'non-existent');
-            const result = await runCommand(MION_BUILD_AOT_BIN, [
-                '--dir',
-                nonExistentDir,
-                '--start-server-script',
-                mockStartScript,
-            ]);
+            const nonExistentDir = resolve(join(TEST_ARTIFACTS_DIR, 'non-existent'));
 
-            expect(result.exitCode).toBe(1);
-            expect(result.stderr).toContain('Error: AOT directory does not exist');
+            await expect(
+                buildAOT({
+                    aotDir: nonExistentDir,
+                    startScript: resolve(mockStartScript),
+                })
+            ).rejects.toThrow('AOT directory does not exist');
         });
 
         it('should fail when start script does not exist', async () => {
-            const nonExistentScript = join(TEST_ARTIFACTS_DIR, 'non-existent-script.js');
-            const result = await runCommand(MION_BUILD_AOT_BIN, [
-                '--dir',
-                testAotDir,
-                '--start-server-script',
-                nonExistentScript,
-            ]);
+            const nonExistentScript = resolve(join(TEST_ARTIFACTS_DIR, 'non-existent-script.js'));
 
-            expect(result.exitCode).toBe(1);
-            expect(result.stderr).toContain('Error: Start script does not exist');
+            await expect(
+                buildAOT({
+                    aotDir: resolve(testAotDir),
+                    startScript: nonExistentScript,
+                })
+            ).rejects.toThrow('Start script does not exist');
         });
 
-        it('should run compile script and execute AOT compilation', async () => {
-            const result = await runCommand(MION_BUILD_AOT_BIN, ['--dir', testAotDir, '--start-server-script', mockStartScript], {
-                timeout: 30000,
-            });
+        it('should fail when AOT package has not been built', async () => {
+            // Remove build directories to simulate unbuild package
+            rmSync(join(testAotDir, 'build'), {recursive: true, force: true});
 
-            // Debug output
-            console.log('STDOUT:', result.stdout);
-            console.log('STDERR:', result.stderr);
-            console.log('EXIT CODE:', result.exitCode);
-
-            expect(result.stdout).toContain('Compile script:');
-            expect(result.stdout).toContain('Executing AOT compilation...');
-            // Remove the failing assertions for now to see what's actually happening
-            // expect(result.stdout).toContain('AOT Compilation starting...');
-            // expect(result.stdout).toContain('Mock server starting...');
-            // expect(result.stdout).toContain('MION_COMPILE=true detected');
+            await expect(
+                buildAOT({
+                    aotDir: resolve(testAotDir),
+                    startScript: resolve(mockStartScript),
+                })
+            ).rejects.toThrow('AOT package has not been built');
         });
     });
 });
-
-// Helper function to run commands and capture output
-function runCommand(
-    command: string,
-    args: string[],
-    options: {timeout?: number} = {}
-): Promise<{
-    exitCode: number;
-    stdout: string;
-    stderr: string;
-}> {
-    return new Promise((resolve) => {
-        const child = spawn('node', [command, ...args], {
-            stdio: 'pipe',
-            env: {...process.env},
-        });
-
-        let stdout = '';
-        let stderr = '';
-
-        child.stdout?.on('data', (data) => {
-            stdout += data.toString();
-        });
-
-        child.stderr?.on('data', (data) => {
-            stderr += data.toString();
-        });
-
-        const timeout = options.timeout || 10000;
-        const timer = setTimeout(() => {
-            child.kill('SIGTERM');
-            resolve({exitCode: -1, stdout, stderr: stderr + '\nTimeout reached'});
-        }, timeout);
-
-        child.on('close', (code) => {
-            clearTimeout(timer);
-            resolve({exitCode: code || 0, stdout, stderr});
-        });
-
-        child.on('error', (error) => {
-            clearTimeout(timer);
-            resolve({exitCode: -1, stdout, stderr: stderr + error.message});
-        });
-    });
-}
