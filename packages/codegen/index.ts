@@ -1,10 +1,11 @@
 /* ########
- * 2022 mion
+ * 2025 mion
  * Author: Ma-jerez
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
+export * from './src/types';
+export * from './src/constants';
 export * from './src/generateAOT';
-export * from './src/loadAOT';
 export * from './src/cacheCompiler';

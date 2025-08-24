@@ -1,5 +1,5 @@
 /* ########
- * 2024 mion
+ * 2025 mion
  * Author: Ma-jerez
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
@@ -14,8 +14,8 @@ import {
     jitUtils,
     resetFnCaches,
 } from '@mionkit/core';
-import {getPersistedMethods, initRouter, MethodsCache, registerRoutes, route, Routes} from '@mionkit/router';
 import {BaseRunType, JitFunctions, registerPureFnClosure, runType} from '@mionkit/run-types';
+import {getPersistedMethods, initRouter, MethodsCache, registerRoutes, route, Routes} from '@mionkit/router';
 
 afterEach(() => resetFnCaches());
 

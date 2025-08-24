@@ -26,7 +26,7 @@ import {clientRoutes} from './client.routes';
 import {getNotFoundExecutionPath} from './notFound';
 import {addToPersistedMethods, getPersistedMethod, resetPersistedMethods} from './methodsCache';
 import {JitFunctionsHashes} from '@mionkit/core';
-import {loadRouterCache, loadCoreCache} from '@mionkit/codegen';
+import {loadCoreCache, loadRouterCache} from '@mionkit/codegen/src/loadAOT';
 
 type RouterKeyEntryList = [string, RouterEntry][];
 type RoutesWithId = {
@@ -113,9 +113,6 @@ export function initRouter(opts?: Partial<RouterOptions>): Readonly<RouterOption
 export function registerRoutes<R extends Routes>(routes: R): PublicApi<R> {
     if (!isRouterInitialized) throw new Error('initRouter should be called first');
 
-    // Automatically load AOT caches if available (transparent to user)
-    loadAOTCachesIfAvailable();
-
     startHooks = getExecutablesFromHooksCollection(startHooksDef);
     endHooks = getExecutablesFromHooksCollection(endHooksDef);
     recursiveFlatRoutes(routes);
@@ -182,6 +179,11 @@ export function shouldFullGenerateSpec(): boolean {
 export function getRouteExecutableFromPath(path: string): RouteMethod {
     const executionPath = flatRouter.get(path) || getNotFoundExecutionPath();
     return executionPath.methods[executionPath.routeIndex] as RouteMethod;
+}
+
+export function loadAOTCaches(jitFnsCache: JitFunctionsCache, pureFnsCache: PureFunctionsCache) {
+    loadCoreCache({jitFnsCache, pureFnsCache});
+    loadRouterCache();
 }
 
 // ############# PRIVATE METHODS #############
@@ -495,17 +497,4 @@ function validateSharedDataFactory(opts?: Partial<RouterOptions>): void {
     ) {
         throw new Error('sharedDataFactory must return a plain object with at least one property');
     }
-}
-
-/**
- * Automatically loads AOT caches if available
- * This is called transparently during route registration
- * Uses the router's AOT configuration if provided
- */
-function loadAOTCachesIfAvailable(): void {
-    const aotConfig = routerOptions.aot || {};
-    const loadCaches = [loadRouterCache(aotConfig), loadCoreCache(aotConfig)];
-    Promise.all(loadCaches).catch(() => {
-        // fails silently if there are no caches to load
-    });
 }
