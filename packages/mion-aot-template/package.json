@@ -1,17 +1,14 @@
 {
-  "name": "@mionkit/codegen",
+  "name": "@mionkit/aot-template",
   "version": "0.7.2",
-  "description": "Ahead-of-time code generation for mion run-types and router caches.",
+  "description": "Template package for mion AOT (Ahead-of-Time) cache generation. This package provides pre-built cache files and loading functionality.",
   "keywords": [
     "typescript",
-    "codegen",
-    "code-generation",
     "AOT",
     "ahead-of-time",
     "compilation",
-    "run-types",
-    "router",
     "cache",
+    "template",
     "mion"
   ],
   "author": "ma jerez <jerez.m82@gmail.com>",
@@ -19,21 +16,17 @@
   "license": "MIT",
   "exports": {
     ".": {
-      "types": "./.dist/types/index.d.ts",
-      "require": "./.dist/cjs/index.js",
-      "default": "./.dist/esm/index.js"
+      "types": "./build/types/index.d.ts",
+      "require": "./build/cjs/index.js",
+      "default": "./build/esm/index.js"
     }
   },
   "directories": {
-    "lib": ".dist"
+    "lib": "build"
   },
   "files": [
-    ".dist",
-    "bin"
+    "build"
   ],
-  "bin": {
-    "mion-compile": "./bin/mion-compile.mjs"
-  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/MionKit/mion.git"
@@ -42,27 +35,17 @@
     "access": "public"
   },
   "scripts": {
-    "test": "jest",
-    "dev": "rimraf .dist && tsc --build tsconfig.json --watch",
-    "dev:test": "jest --watch",
-    "lint": "eslint src --ext .ts",
-    "format": "prettier --write src/**/*.ts",
     "build:cjs": "tsc --project tsconfig.cjs.json",
     "build:esm": "tsc --project tsconfig.esm.json",
     "build:types": "tsc --project tsconfig.types.json",
     "build": "npm run build:cjs && npm run build:esm && npm run build:types",
-    "auto-readme": "embedme **/*.md && prettier --write **/*.md",
-    "clean": "rimraf .dist & rimraf .coverage"
+    "clean": "rimraf build"
   },
   "bugs": {
     "url": "https://github.com/MionKit/mion/issues"
   },
-  "dependencies": {
+  "peerDependencies": {
     "@mionkit/core": "^0.7.2",
-    "@mionkit/run-types": "^0.7.2"
-  },
-  "devDependencies": {
-    "typescript": "^5.0.0",
     "@mionkit/router": "^0.7.2"
   }
 }

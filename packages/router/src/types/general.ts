@@ -9,7 +9,7 @@ import {CoreOptions} from '@mionkit/core';
 import {SharedDataFactory} from './context';
 import {HeaderHookDef, HookDef, RawHookDef, RouteDef} from './definitions';
 import type {RunTypeOptions} from '@mionkit/run-types';
-import type {AOTConfig} from '@mionkit/codegen';
+import type {AOTConfig} from '@mionkit/codegen/src/types';
 // #######  Router Object #######
 
 /** A route can be a full route definition or just the handler */

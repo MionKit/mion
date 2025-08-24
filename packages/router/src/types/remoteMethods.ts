@@ -1,8 +1,9 @@
 // ####### Executables #######
 
-import {JitCompiledFunctions, JitFunctionsHashes, SerializableJITFunctions} from '@mionkit/core'; // do not import type only
+import {JitCompiledFunctions, SerializableJITFunctions} from '@mionkit/core'; // do not import type only
 import {AnyHandler, Handler, HeaderHandler, RawHookHandler} from './handlers'; // do not import type only
-import type {RpcError} from '@mionkit/core';
+import {MethodData, MethodOptions} from '@mionkit/codegen/src/types';
+import {RpcError} from '@mionkit/core';
 import {PublicResponses} from './publicMethods';
 
 export enum HandlerType {
@@ -11,33 +12,6 @@ export enum HandlerType {
     headerHook = 3,
     rawHook = 4,
 }
-
-export interface MethodOptions {
-    runOnError?: boolean;
-    hasReturnData?: boolean;
-    validateParams?: boolean;
-    deserializeParams?: boolean;
-    validateReturn?: boolean;
-    serializeReturn?: boolean;
-    description?: string;
-    isAsync?: boolean;
-}
-
-export interface MethodData {
-    type: HandlerType;
-    id: string;
-    // pointer to the src Hook or Route definition within the original Routers object, ie: ['users','getUser']
-    pointer: string[];
-    nestLevel: number;
-    paramNames?: string[];
-    headerNames?: string[];
-    options: MethodOptions;
-    paramsJitHashes: JitFunctionsHashes;
-    returnJitHashes: JitFunctionsHashes;
-}
-
-/** Record of all persisted methods */
-export type MethodsCache = Record<string, MethodData>;
 
 /** Contains the data of each hook or route, Used to generate the execution path for each route. */
 export interface Method<H extends AnyHandler = AnyHandler> extends MethodData {

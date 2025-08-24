@@ -6,8 +6,9 @@
  * ######## */
 
 import {JitCompiledFunctions, JitFunctionsHashes} from '@mionkit/core';
-import {memorize} from '@mionkit/run-types';
-import {NonRawMethod, MethodData, MethodsCache} from './types/remoteMethods';
+import {NonRawMethod} from './types/remoteMethods';
+import {MethodsCache} from '@mionkit/codegen/src/types';
+import {MethodData} from '@mionkit/codegen/src/types';
 import {AnyHandler} from './types/handlers';
 import {IS_TEST_ENV} from './constants';
 import {jitUtils} from '@mionkit/core';
@@ -63,7 +64,9 @@ function restorePersistedJitFunctions(jitFns: JitFunctionsHashes): JitCompiledFu
     return {isType, typeErrors, toJsonVal, fromJsonVal, jsonStringify};
 }
 
-const shouldCompile = memorize(() => getENV('MION_COMPILE') === 'true');
+function shouldCompile() {
+    return getENV('MION_COMPILE') === 'true';
+}
 
 /**
  * Loads compiled methods data into the persistedMethods cache.

@@ -8,127 +8,66 @@
 import {ReceiveType} from '@deepkit/type';
 import {existsSync, writeFileSync, mkdirSync} from 'fs';
 import {dirname} from 'path';
-import {JitFunctionsCache, PureFunctionsCache, CompiledCacheFile} from '@mionkit/core';
-import {JitFunctions, runType, RunTypeOptions} from '@mionkit/run-types';
-import type {MethodsCache} from '@mionkit/router';
-
-export type SrcCodeCompilerConstants = Readonly<{
-    autoGenMessage: string;
-    exportName: string;
-    files: CompiledCacheFile;
-    typeName: string;
-    opts?: RunTypeOptions;
-}>;
-
-export const runTypeCompilerConstants = {
-    autoGenMessage: `// ###### DO NOT MODIFY MANUALLY: THIS FILE IS GENERATED AUTOMATICALLY\n// NOTE exported cache name must be 'cΦmpilεdCachε' and file can not contain any other code\n`,
-    exportName: 'cΦmpilεdCachε',
-};
-
-export const routerCompilerConstants = {
-    autoGenMessage: `// ###### DO NOT MODIFY MANUALLY: THIS FILE IS GENERATED AUTOMATICALLY\n// NOTE exported cache name must be 'rΦutεs' and file can not contain any other code\n`,
-    exportName: 'rΦutεs',
-    typeName: 'Routes',
-} as const;
+import {JitFunctionsCache, PureFunctionsCache} from '@mionkit/core';
+import {JitFunctions, runType} from '@mionkit/run-types';
+import {MethodsCache, AOTConfig, compiledCacheConfig} from './types';
+import {getDefaultAOTConfig} from './constants';
 
 /** Saves jit compiled functions to a dist file in the core package, this should be run after typescript has been compiled */
-export function compileAndWriteJitFunctions(cache: JitFunctionsCache, file: CompiledCacheFile) {
-    const compOpts = {
-        ...runTypeCompilerConstants,
-        typeName: 'JIT functions',
-        files: file,
-        opts: {isJitFnCode: true},
-    } satisfies SrcCodeCompilerConstants;
-
-    return compileAndWriteRunType<JitFunctionsCache>(cache, compOpts);
+export function compileAndWriteJitFunctions(cache: JitFunctionsCache, config: Partial<AOTConfig>) {
+    const defaultCong = getDefaultAOTConfig(config);
+    return compileAndWriteRunType<JitFunctionsCache>(cache, defaultCong, defaultCong.caches.jit);
 }
 
 /** Saves pure functions to a dist file in the core package, this should be run after typescript has been compiled */
-export function compileAndWritePureFunctions(cache: PureFunctionsCache, file: CompiledCacheFile) {
-    const compOpts = {
-        ...runTypeCompilerConstants,
-        typeName: 'Pure functions',
-        files: file,
-        opts: {isPureFnCode: true},
-    } satisfies SrcCodeCompilerConstants;
-
-    return compileAndWriteRunType<PureFunctionsCache>(cache, compOpts);
+export function compileAndWritePureFunctions(cache: PureFunctionsCache, config: Partial<AOTConfig>) {
+    const defaultCong = getDefaultAOTConfig(config);
+    return compileAndWriteRunType<PureFunctionsCache>(cache, defaultCong, defaultCong.caches.pure);
 }
 
 /** Saves router methods to a dist file, this should be run after typescript has been compiled */
-export function compileAndWriteRouterMethods(cache: MethodsCache, file: CompiledCacheFile) {
-    const compOpts = {
-        ...routerCompilerConstants,
-        files: file,
-        opts: {},
-    } satisfies SrcCodeCompilerConstants;
-
-    return compileAndWriteRunType<MethodsCache>(cache, compOpts);
-}
-
-/** Generates router methods code for testing purposes - avoids deepkit type resolution issues */
-export function codifyMethods(compiled: any, moduleType: 'cjs' | 'esm' = 'esm'): string {
-    const constants = {
-        ...routerCompilerConstants,
-        files: {
-            jit: {path: '', module: moduleType},
-            pure: {path: '', module: moduleType},
-        },
-    } satisfies SrcCodeCompilerConstants;
-
-    // Use compileTypeToJs without type parameter to avoid deepkit issues
-    return compileTypeToJs<MethodsCache>(compiled, constants, moduleType);
+export function compileAndWriteRouterMethods(cache: MethodsCache, config: Partial<AOTConfig>) {
+    const defaultCong = getDefaultAOTConfig(config);
+    return compileAndWriteRunType<MethodsCache>(cache, defaultCong, defaultCong.caches.router);
 }
 
 /** generates code to save any type into a js file and writes the file, file will be fully overwritten */
-export function compileAndWriteRunType<T>(instance: T, constants: SrcCodeCompilerConstants, type?: ReceiveType<T>) {
-    // Determine which file to write based on the function type
-    let fileToWrite: {path: string; module: 'cjs' | 'esm'} | null = null;
+export function compileAndWriteRunType<T>(
+    instance: T,
+    config: AOTConfig,
+    fileToWrite: compiledCacheConfig,
+    type?: ReceiveType<T>
+): string {
+    // Generate file code with appropriate format based on module type
+    const fileCode = compileTypeToJs(instance, config, fileToWrite, type);
+    console.log('fileToWrite:', fileToWrite);
 
-    if (constants.opts?.isJitFnCode && constants.files.jit.path) {
-        fileToWrite = constants.files.jit;
-    } else if (constants.opts?.isPureFnCode && constants.files.pure.path) {
-        fileToWrite = constants.files.pure;
-    } else if (constants.exportName === 'rΦutεs' && constants.files.jit.path) {
-        // Router methods use the jit file path but with router export name
-        fileToWrite = constants.files.jit;
+    // Ensure directory exists before writing file
+    const dir = dirname(fileToWrite.path);
+    if (!existsSync(dir)) {
+        mkdirSync(dir, {recursive: true});
     }
+    writeFileSync(fileToWrite.path, fileCode, 'utf8');
 
-    if (fileToWrite && fileToWrite.path) {
-        // Generate file code with appropriate format based on module type
-        const fileCode = compileTypeToJs(instance, constants, fileToWrite.module, type);
-
-        // Ensure directory exists before writing file
-        const dir = dirname(fileToWrite.path);
-        if (!existsSync(dir)) {
-            mkdirSync(dir, {recursive: true});
-        }
-        writeFileSync(fileToWrite.path, fileCode, 'utf8');
-
-        return fileCode;
-    }
-
-    return '';
+    return fileCode;
 }
 
 /** generates code to save any type into a js file */
 export function compileTypeToJs<T>(
     instance: T,
-    constants: SrcCodeCompilerConstants,
-    moduleType?: 'cjs' | 'esm',
+    config: AOTConfig,
+    fileToWrite: compiledCacheConfig,
     type?: ReceiveType<T>
 ): string {
-    const opts = constants.opts || {};
     const rt = runType(type);
-    const toCode = rt.createJitFunction(JitFunctions.toCode, opts);
+    const toCode = rt.createJitFunction(JitFunctions.toCode, config.runTypeOptions);
     const code = toCode(instance);
 
     // Determine export format based on module type
-    const isCommonJS = moduleType === 'cjs';
+    const isCommonJS = config.module === 'cjs';
     const exportStatement = isCommonJS
-        ? `module.exports = { ${constants.exportName}: ${code} };\n`
-        : `export const ${constants.exportName} = ${code}\n`;
+        ? `module.exports = { ${fileToWrite.exportName}: ${code} };\n`
+        : `export const ${fileToWrite.exportName} = ${code};\n`;
 
-    const fileCode = `${constants.autoGenMessage}${exportStatement}`;
-    return fileCode;
+    return `${config.fileHeader}\n${exportStatement}`;
 }
