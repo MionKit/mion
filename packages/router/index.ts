@@ -21,6 +21,3 @@ export * from './src/remoteMethods';
 export * from './src/client.routes';
 export * from './src/handlers';
 export * from './src/methodsCache';
-export * from '@mionkit/codegen/src/constants';
-export * from '@mionkit/codegen/src/generateAOT';
-export * from '@mionkit/codegen/src/loadAOT';

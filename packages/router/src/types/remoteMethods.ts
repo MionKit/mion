@@ -1,10 +1,36 @@
 // ####### Executables #######
 
-import {JitCompiledFunctions, SerializableJITFunctions} from '@mionkit/core'; // do not import type only
+import {JitCompiledFunctions, SerializableJITFunctions, JitFunctionsHashes} from '@mionkit/core'; // do not import type only
 import {AnyHandler, Handler, HeaderHandler, RawHookHandler} from './handlers'; // do not import type only
-import {MethodData, MethodOptions} from '@mionkit/codegen/src/types';
 import {RpcError} from '@mionkit/core';
 import {PublicResponses} from './publicMethods';
+
+export interface MethodOptions {
+    runOnError?: boolean;
+    hasReturnData?: boolean;
+    validateParams?: boolean;
+    deserializeParams?: boolean;
+    validateReturn?: boolean;
+    serializeReturn?: boolean;
+    description?: string;
+    isAsync?: boolean;
+}
+
+export interface MethodData {
+    type: number;
+    id: string;
+    // pointer to the src Hook or Route definition within the original Routers object, ie: ['users','getUser']
+    pointer: string[];
+    nestLevel: number;
+    paramNames?: string[];
+    headerNames?: string[];
+    options: MethodOptions;
+    paramsJitHashes: JitFunctionsHashes;
+    returnJitHashes: JitFunctionsHashes;
+}
+
+/** Record of all persisted methods */
+export type MethodsCache = Record<string, MethodData>;
 
 export enum HandlerType {
     route = 1,
