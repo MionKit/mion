@@ -5,34 +5,7 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {JitFunctionsHashes} from '@mionkit/core';
 import {RunTypeOptions} from '@mionkit/run-types';
-
-export interface MethodOptions {
-    runOnError?: boolean;
-    hasReturnData?: boolean;
-    validateParams?: boolean;
-    deserializeParams?: boolean;
-    validateReturn?: boolean;
-    serializeReturn?: boolean;
-    description?: string;
-    isAsync?: boolean;
-}
-
-export interface MethodData {
-    type: number;
-    id: string;
-    // pointer to the src Hook or Route definition within the original Routers object, ie: ['users','getUser']
-    pointer: string[];
-    nestLevel: number;
-    paramNames?: string[];
-    headerNames?: string[];
-    options: MethodOptions;
-    paramsJitHashes: JitFunctionsHashes;
-    returnJitHashes: JitFunctionsHashes;
-} /** Record of all persisted methods */
-
-export type MethodsCache = Record<string, MethodData>;
 
 export type compiledCacheConfig = {
     path: string;
