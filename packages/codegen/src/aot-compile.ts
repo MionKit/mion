@@ -17,59 +17,6 @@ export interface CacheData {
     routerCache: Record<string, any>;
 }
 
-/**
- * Write cache data to AOT package files
- * Separated from compileAOT for testing purposes
- */
-export function writeCachesToFiles(cacheData: CacheData, aotDir: string): void {
-    const {jitFnsCache, pureFnsCache, routerCache} = cacheData;
-
-    // Write to both CJS and ESM builds
-    const moduleFormats = ['cjs', 'esm'] as const;
-
-    for (const moduleFormat of moduleFormats) {
-        if (!isTest) {
-            console.log(`Writing ${moduleFormat.toUpperCase()} cache files...`);
-        }
-
-        const buildDir = join(aotDir, 'build', moduleFormat);
-
-        // Create AOT configuration for this module format
-        const aotConfig = {
-            module: moduleFormat,
-            caches: {
-                router: {
-                    path: join(buildDir, 'router.cache.js'),
-                    exportName: 'routerCache',
-                },
-                jit: {
-                    path: join(buildDir, 'jitFns.cache.js'),
-                    exportName: 'jitFnsCache',
-                },
-                pure: {
-                    path: join(buildDir, 'pureFns.cache.js'),
-                    exportName: 'pureFnsCache',
-                },
-            },
-        };
-
-        if (!isTest) {
-            console.log(`Writing JIT functions cache (${moduleFormat})...`);
-        }
-        compileAndWriteJitFunctions(jitFnsCache, aotConfig);
-
-        if (!isTest) {
-            console.log(`Writing pure functions cache (${moduleFormat})...`);
-        }
-        compileAndWritePureFunctions(pureFnsCache, aotConfig);
-
-        if (!isTest) {
-            console.log(`Writing router methods cache (${moduleFormat})...`);
-        }
-        compileAndWriteRouterMethods(routerCache, aotConfig);
-    }
-}
-
 export interface AOTCompileOptions {
     startScriptPath: string;
     aotDir: string;
@@ -128,5 +75,58 @@ Cache files updated in both CJS and ESM formats:
   - ${join(aotDir, 'build', 'cjs', '*.cache.js')}
   - ${join(aotDir, 'build', 'esm', '*.cache.js')}
 `);
+    }
+}
+
+/**
+ * Write cache data to AOT package files
+ * Separated from compileAOT for testing purposes
+ */
+export function writeCachesToFiles(cacheData: CacheData, aotDir: string): void {
+    const {jitFnsCache, pureFnsCache, routerCache} = cacheData;
+
+    // Write to both CJS and ESM builds
+    const moduleFormats = ['cjs', 'esm'] as const;
+
+    for (const moduleFormat of moduleFormats) {
+        if (!isTest) {
+            console.log(`Writing ${moduleFormat.toUpperCase()} cache files...`);
+        }
+
+        const buildDir = join(aotDir, 'build', moduleFormat);
+
+        // Create AOT configuration for this module format
+        const aotConfig = {
+            module: moduleFormat,
+            caches: {
+                router: {
+                    path: join(buildDir, 'router.cache.js'),
+                    exportName: 'routerCache',
+                },
+                jit: {
+                    path: join(buildDir, 'jitFns.cache.js'),
+                    exportName: 'jitFnsCache',
+                },
+                pure: {
+                    path: join(buildDir, 'pureFns.cache.js'),
+                    exportName: 'pureFnsCache',
+                },
+            },
+        };
+
+        if (!isTest) {
+            console.log(`Writing JIT functions cache (${moduleFormat})...`);
+        }
+        compileAndWriteJitFunctions(jitFnsCache, aotConfig);
+
+        if (!isTest) {
+            console.log(`Writing pure functions cache (${moduleFormat})...`);
+        }
+        compileAndWritePureFunctions(pureFnsCache, aotConfig);
+
+        if (!isTest) {
+            console.log(`Writing router methods cache (${moduleFormat})...`);
+        }
+        compileAndWriteRouterMethods(routerCache, aotConfig);
     }
 }

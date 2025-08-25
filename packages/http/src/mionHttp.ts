@@ -54,7 +54,6 @@ export async function startNodeServer(options?: Partial<NodeHttpOptions>): Promi
 
         if (isCompiling) {
             console.log('Compiling routes metadata and skipping mion server initialization...');
-            compileRouter();
             return resolve(server);
         }
 
@@ -66,12 +65,15 @@ export async function startNodeServer(options?: Partial<NodeHttpOptions>): Promi
             resolve(server);
         });
 
-        process.on('SIGINT', function () {
+        const shutdownHandler = function () {
             if (!isTest) console.log(`Shutting down mion server on ${url}`);
             server.close(() => {
                 process.exit(0);
             });
-        });
+        };
+
+        process.on('SIGINT', shutdownHandler);
+        process.on('SIGTERM', shutdownHandler);
     });
 }
 

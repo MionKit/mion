@@ -10,6 +10,7 @@
     "types": ["bun-types"],
     "composite": true
   },
+  "references": [{"path": "../core"}, {"path": "../router"}],
   "reflection": true,
   "include": ["."],
   "exclude": ["node_modules", "loader", "**/*.spec.ts", "**/*.test.ts", ".dist"]

@@ -9,7 +9,7 @@ import {initClient} from './client';
 import {HookSubRequest, RouteSubRequest} from './types';
 import {isRpcError, RpcError} from '@mionkit/core';
 import {TestServerApi} from '../test/test-server';
-import {createTestServerHooks} from '../test/test-server-utils';
+import {createTestServerHooks, TEST_PORT_MAPPING} from '../test/test-server-utils';
 
 // TODO move this into global jest config file if it is required by more tests
 // eslint-disable-next-line @typescript-eslint/no-var-requires, @typescript-eslint/no-require-imports
@@ -22,7 +22,7 @@ describe('client', () => {
     const someUser = {name: 'John', surname: 'Doe'};
     type MyApi = TestServerApi;
 
-    const port = 8076;
+    const port = TEST_PORT_MAPPING.client;
 
     // Create server hooks using the utility
     const serverHooks = createTestServerHooks({port});

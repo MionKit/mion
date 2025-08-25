@@ -11,7 +11,6 @@ import type {BunHttpOptions} from './types';
 import {getENV, StatusCodes} from '@mionkit/core';
 import {RpcError} from '@mionkit/core';
 import {Server} from 'bun';
-import {compileRouter} from '@mionkit/router/index';
 
 export function resetBunHttpOpts() {
     httpOptions = {...DEFAULT_BUN_HTTP_OPTIONS};
@@ -38,7 +37,6 @@ export async function startBunServer(options?: Partial<BunHttpOptions>): Promise
 
     if (isCompiling) {
         console.log('Compiling routes metadata and skipping mion server initialization...');
-        compileRouter();
         return undefined as any;
     }
 
@@ -73,11 +71,14 @@ export async function startBunServer(options?: Partial<BunHttpOptions>): Promise
         },
     });
 
-    process.on('SIGINT', function () {
+    const shutdownHandler = function () {
         if (!isTest) console.log(`Shutting down mion server on ${url}`);
         server.stop(true);
         process.exit(0);
-    });
+    };
+
+    process.on('SIGINT', shutdownHandler);
+    process.on('SIGTERM', shutdownHandler);
 
     return server;
 }

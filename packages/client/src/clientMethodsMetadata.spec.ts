@@ -9,7 +9,7 @@ import {fetchRemoteMethodsMetadata} from './clientMethodsMetadata';
 import {ClientOptions, JitFunctionsById} from './types';
 import {PublicMethod} from '@mionkit/router';
 import {getFnCaches} from '@mionkit/core';
-import {createTestServerHooks} from '../test/test-server-utils';
+import {createTestServerHooks, TEST_PORT_MAPPING} from '../test/test-server-utils';
 
 // Setup real localStorage for testing
 // eslint-disable-next-line @typescript-eslint/no-var-requires, @typescript-eslint/no-require-imports
@@ -18,10 +18,10 @@ global.localStorage = new Storage(null, {strict: true});
 global.sessionStorage = new Storage(null, {strict: true});
 
 describe('fetchRemoteMethodsMetadata', () => {
-    const port = 8077; // Different port from client.spec.ts
+    const port = TEST_PORT_MAPPING.clientMethodsMetadata; // Different port from client.spec.ts
 
-    // Create server hooks using the utility with logging enabled for debugging
-    const serverHooks = createTestServerHooks({port, logOutput: true});
+    // Create server hooks using the utility
+    const serverHooks = createTestServerHooks({port});
     const baseURL = serverHooks.getBaseURL();
 
     let options: ClientOptions;
@@ -50,8 +50,8 @@ describe('fetchRemoteMethodsMetadata', () => {
 
         // Store original cache state
         const caches = getFnCaches();
-        originalJitCache = {...caches.jitFnsCache};
-        originalPureCache = {...caches.pureFnsCache};
+        originalJitCache = {...(caches.jitFnsCache || {})};
+        originalPureCache = {...(caches.pureFnsCache || {})};
 
         // Clear localStorage
         localStorage.clear();
@@ -60,16 +60,20 @@ describe('fetchRemoteMethodsMetadata', () => {
     afterEach(() => {
         // Clean up test functions from caches
         const caches = getFnCaches();
-        Object.keys(caches.jitFnsCache).forEach((key) => {
-            if (!originalJitCache[key]) {
-                delete (caches.jitFnsCache as any)[key];
-            }
-        });
-        Object.keys(caches.pureFnsCache).forEach((key) => {
-            if (!originalPureCache[key]) {
-                delete (caches.pureFnsCache as any)[key];
-            }
-        });
+        if (caches.jitFnsCache && originalJitCache) {
+            Object.keys(caches.jitFnsCache).forEach((key) => {
+                if (!originalJitCache[key]) {
+                    delete (caches.jitFnsCache as any)[key];
+                }
+            });
+        }
+        if (caches.pureFnsCache && originalPureCache) {
+            Object.keys(caches.pureFnsCache).forEach((key) => {
+                if (!originalPureCache[key]) {
+                    delete (caches.pureFnsCache as any)[key];
+                }
+            });
+        }
     });
 
     it('should fetch and restore JIT functions from real server', async () => {

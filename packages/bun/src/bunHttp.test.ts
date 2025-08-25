@@ -7,7 +7,7 @@
 import {expect, test, beforeAll, afterAll, describe} from 'bun:test';
 import {initRouter, registerRoutes, route} from '@mionkit/router';
 import {setBunHttpOpts, resetBunHttpOpts, startBunServer} from './bunHttp';
-import type {CallContext} from '@mionkit/router';
+import {CallContext} from '@mionkit/router';
 import {PublicRpcError} from '@mionkit/core';
 // In theory node 18 supports fetch but not working fine with jest, we should update to jest 29
 // update to jest 29 gonna take some changes as all globals must be imported from @jest/globals
@@ -49,11 +49,11 @@ describe('bun router should', () => {
     let server: Server;
 
     const port = 8079;
-    beforeAll(() => {
+    beforeAll(async () => {
         initRouter({sharedDataFactory: getSharedData, prefix: 'api/'});
         registerRoutes({changeUserName, getDate, updateHeaders});
         setBunHttpOpts({port});
-        server = startBunServer();
+        server = await startBunServer();
     });
 
     afterAll(() => {
@@ -87,18 +87,18 @@ describe('bun router should', () => {
         const headers = Object.fromEntries(response.headers.entries());
 
         const expectedError: PublicRpcError = {
-            message: `Invalid params 'getDate', can not deserialize. Parameters might be of the wrong type.`,
-            name: 'Serialization Error',
+            isΣrrθr: true,
+            type: 'unknown',
+            message: `Invalid params in 'getDate', validation failed.`,
+            name: 'Validation Error',
             statusCode: 400,
             errorData: expect.anything(),
         };
 
         expect(reply).toEqual({getDate: expectedError});
         expect(headers['content-type']).toEqual('application/json; charset=utf-8');
-        // In the past deepkit returned slightly different when running on bun and node so length was different
-        // bun: getDate.errorData.message = 'Cannot convert NOT A DATE POINT to UnknownTypeName:() => __\\u{3a9}DataPoint'
-        // node: getDate.errorData.message = 'Cannot convert NOT A DATE POINT to DataPoint'
-        expect(headers['content-length']).toEqual('254');
+        // Error message changed from serialization to validation error, so content length will be different
+        expect(headers['content-length']).toEqual('197');
         expect(headers['server']).toEqual('@mionkit/http');
     });
 

@@ -11,7 +11,8 @@ import {initAOT} from './cli-init-aot';
 import {buildAOT} from './cli-build-aot';
 
 const CODEGEN_ROOT = resolve(__dirname, '..');
-const TEST_ARTIFACTS_DIR = join(CODEGEN_ROOT, '.dist', 'test-artifacts');
+// ensure artifact dirs is unique and not used by other tests
+const TEST_ARTIFACTS_DIR = join(CODEGEN_ROOT, '.dist', 'test-artifacts-commands');
 
 describe('AOT Commands Integration Tests', () => {
     beforeAll(() => {
@@ -24,7 +25,11 @@ describe('AOT Commands Integration Tests', () => {
     afterAll(() => {
         // Clean up all test artifacts
         if (existsSync(TEST_ARTIFACTS_DIR)) {
-            rmSync(TEST_ARTIFACTS_DIR, {recursive: true, force: true});
+            try {
+                rmSync(TEST_ARTIFACTS_DIR, {recursive: true, force: true});
+            } catch (error) {
+                console.warn('Cleanup failed:', (error as Error).message);
+            }
         }
     });
 
@@ -34,7 +39,11 @@ describe('AOT Commands Integration Tests', () => {
         afterEach(() => {
             // Clean up after each test
             if (existsSync(testAotDir)) {
-                rmSync(testAotDir, {recursive: true, force: true});
+                try {
+                    rmSync(testAotDir, {recursive: true, force: true});
+                } catch (error) {
+                    console.warn('Test cleanup failed:', (error as Error).message);
+                }
             }
         });
 
