@@ -39,6 +39,9 @@
   "publishConfig": {
     "access": "public"
   },
+  "engines": {
+    "bun": ">=1.0.1"
+  },
   "scripts": {
     "test": "bun test",
     "dev": "rimraf .dist && tsc --build tsconfig.json --watch",

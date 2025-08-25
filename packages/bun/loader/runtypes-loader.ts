@@ -31,7 +31,7 @@ function transform(code: string, fileName: string, options) {
             configFilePath: options.tsConfig || cwd() + '/tsconfig.json',
             // neither sourcemaps or inlined source maps working correctly so no point on emitting them
             inlineSourceMap: true,
-            sourceMap: false,
+            sourceMap: true,
             skipLibCheck: true,
         },
         options.compilerOptions || {}

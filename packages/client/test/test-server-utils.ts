@@ -5,16 +5,67 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {spawn, ChildProcess} from 'child_process';
+import {spawn, ChildProcess, exec} from 'child_process';
 import {join, resolve} from 'path';
+import {promisify} from 'util';
+
+const execAsync = promisify(exec);
+
+/**
+ * Check if a port is in use and kill any processes using it
+ */
+async function killProcessOnPort(port: number): Promise<void> {
+    try {
+        // Use lsof to find processes using the port
+        const {stdout} = await execAsync(`lsof -ti :${port}`);
+        const pids = stdout
+            .trim()
+            .split('\n')
+            .filter((pid) => pid);
+
+        if (pids.length > 0) {
+            console.log(`Found ${pids.length} process(es) on port ${port}, killing them...`);
+
+            // Kill each process
+            for (const pid of pids) {
+                try {
+                    // Try SIGTERM first, then SIGKILL if needed
+                    await execAsync(`kill -TERM ${pid}`);
+
+                    // Wait a bit for graceful shutdown
+                    await new Promise((resolve) => setTimeout(resolve, 1000));
+
+                    // Check if process is still running
+                    try {
+                        await execAsync(`kill -0 ${pid}`);
+                        // Process still running, force kill
+                        console.log(`Process ${pid} didn't respond to SIGTERM, using SIGKILL`);
+                        await execAsync(`kill -KILL ${pid}`);
+                    } catch {
+                        // Process already dead, which is what we want
+                    }
+                } catch (error) {
+                    // Process might already be dead or we don't have permission
+                    console.log(`Could not kill process ${pid}:`, error);
+                }
+            }
+
+            // Wait a bit more for port to be released
+            await new Promise((resolve) => setTimeout(resolve, 500));
+        }
+    } catch (error) {
+        // lsof command failed, probably no processes on port (which is good)
+        // or lsof is not available
+    }
+}
 
 /**
  * Port mapping for different test files to avoid conflicts when running in parallel
  * Each test file should use a unique port from this mapping
  */
 export const TEST_PORT_MAPPING = {
-    'client.spec.ts': 8076,
-    'clientMethodsMetadata.spec.ts': 8077,
+    client: 8076,
+    clientMethodsMetadata: 8077,
     // Add more test files here as needed
     // 'anotherTest.spec.ts': 8078,
 } as const;
@@ -52,8 +103,8 @@ export class TestServerManager {
 
     constructor(options: TestServerOptions) {
         this.options = {
-            startupTimeout: 10000,
-            shutdownTimeout: 1000,
+            startupTimeout: 14500,
+            shutdownTimeout: 5000, // Increased from 1000ms to 5000ms for better shutdown handling
             logOutput: false,
             ...options,
         };
@@ -71,6 +122,12 @@ export class TestServerManager {
         // Use the requested port directly (no dynamic port finding)
         // Tests should use unique ports from TEST_PORT_MAPPING to avoid conflicts
         this.availablePort = this.options.port;
+
+        // Kill any existing processes on this port before starting
+        await killProcessOnPort(this.availablePort);
+
+        // Add a small delay to ensure the port is fully released from any previous process
+        await new Promise((resolve) => setTimeout(resolve, 100));
 
         // Get the client package root for the script paths
         const clientPackageRoot = getClientPackageRoot();
@@ -99,7 +156,8 @@ export class TestServerManager {
                 if (this.options.logOutput) {
                     console.log('Server stdout:', output);
                 }
-                if (output.includes('Test server started')) {
+                // Look for either "Test server started" or "mion node server running"
+                if (output.includes('Test server started') || output.includes('mion node server running')) {
                     clearTimeout(timeout);
                     resolve();
                 }
@@ -134,17 +192,28 @@ export class TestServerManager {
             return;
         }
 
-        // Send SIGINT which the HTTP package handles gracefully
-        // Do this BEFORE removing listeners so the server can respond to the signal
-        this.serverProcess.kill('SIGINT');
+        if (this.options.logOutput) {
+            console.log(`Stopping test server on port ${this.availablePort}...`);
+        }
+
+        // Send SIGTERM first (more standard), then SIGINT as fallback
+        // Both signals are now handled by the HTTP package
+        this.serverProcess.kill('SIGTERM');
 
         // Wait for process to exit gracefully
         await new Promise<void>((resolve) => {
             let resolved = false;
+            let forceKillTimeout: NodeJS.Timeout | null = null;
 
             const cleanup = () => {
                 if (!resolved) {
                     resolved = true;
+
+                    // Clear the force kill timeout if it exists
+                    if (forceKillTimeout) {
+                        clearTimeout(forceKillTimeout);
+                        forceKillTimeout = null;
+                    }
 
                     // Clean up resources after the process has exited
                     if (this.serverProcess) {
@@ -176,13 +245,23 @@ export class TestServerManager {
             this.serverProcess!.on('close', cleanup);
 
             // Force kill after timeout if it doesn't exit gracefully
-            setTimeout(() => {
+            forceKillTimeout = setTimeout(() => {
                 if (!resolved && this.serverProcess && !this.serverProcess.killed) {
+                    if (this.options.logOutput) {
+                        console.log(`Force killing test server after ${this.options.shutdownTimeout}ms timeout`);
+                    }
                     this.serverProcess.kill('SIGKILL');
                 }
                 cleanup();
             }, this.options.shutdownTimeout);
         });
+
+        // Add a small delay after stopping to ensure the port is fully released
+        await new Promise((resolve) => setTimeout(resolve, 100));
+
+        if (this.options.logOutput) {
+            console.log(`Test server stopped on port ${this.availablePort}`);
+        }
     }
 
     /**

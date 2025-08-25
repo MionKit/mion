@@ -15,7 +15,8 @@ import {getPersistedMethods} from '@mionkit/router';
 import {hook, route} from '@mionkit/router';
 
 const CODEGEN_ROOT = resolve(__dirname, '..');
-const TEST_ARTIFACTS_DIR = join(CODEGEN_ROOT, '.dist', 'test-artifacts');
+// ensure artifact dirs is unique and not used by other tests
+const TEST_ARTIFACTS_DIR = join(CODEGEN_ROOT, '.dist', 'test-artifacts-compile');
 
 describe('AOT Cache Compilation E2E', () => {
     const testAotDir = join(TEST_ARTIFACTS_DIR, 'e2e-aot-test');
@@ -31,7 +32,11 @@ describe('AOT Cache Compilation E2E', () => {
     beforeEach(() => {
         // Clean up first to ensure fresh state
         if (existsSync(testAotDir)) {
-            rmSync(testAotDir, {recursive: true, force: true});
+            try {
+                rmSync(testAotDir, {recursive: true, force: true});
+            } catch (error) {
+                console.warn('Test setup cleanup failed:', (error as Error).message);
+            }
         }
 
         // Reset router and caches

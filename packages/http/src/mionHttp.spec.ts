@@ -4,7 +4,7 @@
  * License: MIT
  * The software is provided "as is", without warranty of any kind.
  * ######## */
-import {initRouter, registerRoutes, route} from '@mionkit/router';
+import {getPersistedMethods, initRouter, registerRoutes, route} from '@mionkit/router';
 import {setNodeHttpOpts, resetNodeHttpOpts, startNodeServer} from './mionHttp';
 import type {CallContext, Route} from '@mionkit/router';
 import {PublicRpcError} from '@mionkit/core';
@@ -148,60 +148,50 @@ describe('node http router should', () => {
         const smallServer = await startNodeServer();
         expect(smallServer.listening).toBe(true);
 
-        let err;
-        try {
-            const requestData = {getDate: [{date: new Date('2022-04-22T00:17:00.000Z')}]};
-            const response = await fetch(`http://127.0.0.1:${smallPort}/api/getDate`, {
-                method: 'POST',
-                body: JSON.stringify(requestData),
-            });
-            const headers = Object.fromEntries(response.headers.entries());
-            const reply = await response.json();
+        const requestData = {getDate: [{date: new Date('2022-04-22T00:17:00.000Z')}]};
+        const response = await fetch(`http://127.0.0.1:${smallPort}/api/getDate`, {
+            method: 'POST',
+            body: JSON.stringify(requestData),
+        });
+        const headers = Object.fromEntries(response.headers.entries());
+        const reply = await response.json();
 
-            const expectedError: PublicRpcError = {
-                isΣrrθr: true,
-                type: 'unknown',
-                message: `Request Payload Too Large`,
-                statusCode: 413,
-                name: 'Request Payload Too Large',
-            };
-            expect(reply).toEqual({httpRequest: expectedError});
-            expect(headers['x-app-name']).toEqual('MyApp');
-            expect(headers['x-instance-id']).toEqual('3089');
-            expect(headers['connection']).toEqual('close');
-            expect(headers['content-type']).toEqual('application/json; charset=utf-8');
-            expect(headers['content-length']).toEqual('141');
-            expect(headers['server']).toEqual('@mionkit/http');
-        } catch (e) {
-            err = e;
-        }
+        const expectedError: PublicRpcError = {
+            isΣrrθr: true,
+            type: 'unknown',
+            message: `Request Payload Too Large`,
+            statusCode: 413,
+            name: 'Request Payload Too Large',
+        };
+        expect(reply).toEqual({httpRequest: expectedError});
+        expect(headers['x-app-name']).toEqual('MyApp');
+        expect(headers['x-instance-id']).toEqual('3089');
+        expect(headers['connection']).toEqual('close');
+        expect(headers['content-type']).toEqual('application/json; charset=utf-8');
+        expect(headers['content-length']).toEqual('141');
+        expect(headers['server']).toEqual('@mionkit/http');
 
         await closeServer(smallServer);
-        if (err) throw err;
     });
 
-    it('compile routes metadata and skip server initialization', async () => {
-        try {
-            process.env.MION_COMPILE = 'true';
-            const routerOpts = {
-                sharedDataFactory: getSharedData,
-                prefix: 'api/',
-            };
-            const httpOpts = {
-                port: 8080,
-                maxBodySize: 1,
-                defaultResponseHeaders: {'x-app-name': 'MyApp', 'x-instance-id': '3089'},
-            };
-            resetNodeHttpOpts();
-            setNodeHttpOpts(httpOpts);
-            initRouter(routerOpts);
-            registerRoutes({changeUserName, getDate, updateHeaders});
-            const smallServer = await startNodeServer();
-            expect(smallServer.listening).toBe(false);
-            await closeServer(smallServer);
-        } catch (error) {
-            console.error('Test error:', error);
-            throw error;
-        }
+    it('skip server initialization', async () => {
+        process.env.MION_COMPILE = 'true';
+        const routerOpts = {
+            sharedDataFactory: getSharedData,
+            prefix: 'api/',
+        };
+        const httpOpts = {
+            port: 8080,
+            maxBodySize: 1,
+            defaultResponseHeaders: {'x-app-name': 'MyApp', 'x-instance-id': '3089'},
+        };
+        resetNodeHttpOpts();
+        setNodeHttpOpts(httpOpts);
+        initRouter(routerOpts);
+        registerRoutes({changeUserName, getDate, updateHeaders});
+        const smallServer = await startNodeServer();
+        const persistedMethods = getPersistedMethods();
+        expect(smallServer.listening).toBe(false);
+        expect(Object.keys(persistedMethods)).toEqual(['changeUserName', 'getDate', 'updateHeaders']);
     });
 });
