@@ -1,7 +1,6 @@
 module.exports = {
   root: true,
   parser: '@typescript-eslint/parser',
-  // plugins: ['@typescript-eslint', 'jest', '@mionkit/eslint-plugin'], // @mionkit/eslint-plugin is not jet published
   plugins: ['@typescript-eslint', 'jest'],
   extends: ['eslint:recommended', 'plugin:@typescript-eslint/recommended', 'plugin:jest/recommended'],
   parserOptions: {
@@ -12,6 +11,7 @@ module.exports = {
     // 'jest/no-disabled-tests': 'off',
     '@typescript-eslint/no-empty-function': 'off',
     '@typescript-eslint/no-explicit-any': 'off',
+    '@mionkit/eslint-plugin/no-typeof-runtype': 'error',
   },
   overrides: [
     {
