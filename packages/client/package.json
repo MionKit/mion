@@ -49,6 +49,7 @@
     "build": "npm run build:cjs && npm run build:esm && npm run build:types",
     "auto-readme": "embedme **/*.md && prettier --write **/*.md",
     "clean": "rimraf .dist & rimraf .coverage",
+    "fresh-start": "npm run clean && rimraf node_modules",
     "run-test-server": "ts-node --project test/tsconfig.json test/test-server.ts"
   },
   "bugs": {

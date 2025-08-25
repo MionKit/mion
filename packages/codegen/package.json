@@ -55,7 +55,8 @@
     "build": "npm run build:cjs && npm run build:esm && npm run build:types",
     "build:aot-template": "cd mion-aot-template && npm run build",
     "auto-readme": "embedme **/*.md && prettier --write **/*.md",
-    "clean": "rimraf .dist & rimraf .coverage"
+    "clean": "rimraf .dist & rimraf .coverage",
+    "fresh-start": "npm run clean && rimraf node_modules"
   },
   "bugs": {
     "url": "https://github.com/MionKit/mion/issues"

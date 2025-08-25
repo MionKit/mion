@@ -25,7 +25,10 @@
     "type": "git",
     "url": "git+https://github.com/MionKit/mion.git"
   },
-  "scripts": {},
+  "scripts": {
+    "clean": "rimraf .dist",
+    "fresh-start": "npm run clean && rimraf node_modules"
+  },
   "bugs": {
     "url": "https://github.com/MionKit/mion/issues"
   },

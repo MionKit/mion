@@ -32,7 +32,9 @@
     "dev": "rimraf .dist && tsc --build tsconfig.json --watch",
     "lint": "eslint src --ext .ts",
     "format": "prettier --write src/**/*.ts",
-    "build": "echo 'quick-start not meant to be built'"
+    "build": "echo 'quick-start not meant to be built'",
+    "clean": "rimraf .dist",
+    "fresh-start": "npm run clean && rimraf node_modules"
   },
   "bugs": {
     "url": "https://github.com/MionKit/mion/issues"
