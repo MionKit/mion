@@ -5,7 +5,7 @@ module.exports = {
   testEnvironment: 'node',
   collectCoverage: false,
   coverageDirectory: '.coverage',
-  collectCoverageFrom: ['src/**'],
+  collectCoverageFrom: ['lib/**'],
   testMatch: ['**/?(*.)+(spec).ts?(x)'],
   moduleNameMapper: {'^@mionkit/(.*)$': '<rootDir>/../$1'},
 };
