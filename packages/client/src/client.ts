@@ -153,7 +153,7 @@ function findError(req: SubRequest<any>, errors: RequestErrors): RpcError {
     // Fallback error if no errors found (shouldn't happen)
     return new RpcError({
         statusCode: 500,
-        name: 'Unknown Error',
+        type: 'Unknown Error',
         message: 'An unknown error occurred',
     });
 }

@@ -47,7 +47,7 @@ export function handleRpcErrors(
                   statusCode: StatusCodes.INTERNAL_SERVER_ERROR,
                   publicMessage: `Unknown error in step ${step} of route execution path.`,
                   originalError: err,
-                  name: 'Unknown Error',
+                  type: 'Unknown Error',
               });
 
     response.statusCode = rpcError.statusCode;

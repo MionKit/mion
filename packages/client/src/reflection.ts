@@ -125,7 +125,7 @@ function serializeParameters(params: any[], method: PublicMethod, paramsJit?: Ji
         } catch (e: any | Error) {
             return new RpcError({
                 statusCode: StatusCodes.BAD_REQUEST,
-                name: 'Serialization Error',
+                type: 'Serialization Error',
                 message: `Invalid params for Route or Hook '${method.id}', can not serialize params: ${e.message} `,
                 errorData: {deserializeError: e.message},
             });
@@ -141,7 +141,7 @@ function validateParameters(params: any[], method: PublicMethod, paramsJit?: Jit
         if (validationsResponse.length) {
             return new RpcError({
                 statusCode: StatusCodes.BAD_REQUEST,
-                name: 'Validation Error',
+                type: 'Validation Error',
                 message: `Invalid params for Route or Hook '${method.id}', validation failed.`,
                 errorData: validationsResponse,
             });
@@ -149,7 +149,7 @@ function validateParameters(params: any[], method: PublicMethod, paramsJit?: Jit
     } catch (e: any | Error) {
         return new RpcError({
             statusCode: StatusCodes.BAD_REQUEST,
-            name: 'Validation Error',
+            type: 'Validation Error',
             message: `Could not validate params for Route or Hook '${method.id}': ${e.message} `,
         });
     }
@@ -165,7 +165,7 @@ function deSerializeReturn(response: any | RpcError, method: PublicMethod, retur
     } catch (e: any) {
         return new RpcError({
             statusCode: StatusCodes.BAD_REQUEST,
-            name: 'Serialization Error',
+            type: 'Serialization Error',
             message: `Invalid response from Route or Hook '${method.id}', can not deserialize return value: ${e.message}`,
             errorData: e?.errors,
         });
