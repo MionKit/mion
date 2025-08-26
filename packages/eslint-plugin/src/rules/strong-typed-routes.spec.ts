@@ -129,6 +129,65 @@ ruleTester.run('strong-typed-routes', rule, {
                 hook(logHandler);
             `,
         },
+        // Valid with Handler type annotation
+        {
+            code: `
+                import { Handler } from '@mionkit/router';
+                const sayHello: Handler = (ctx, name: string): string => \`hello \${name}\`;
+            `,
+        },
+        // Valid with HeaderHandler type annotation
+        {
+            code: `
+                import { HeaderHandler } from '@mionkit/router';
+                const authHandler: HeaderHandler = (ctx, token: string): void => { console.log(token); };
+            `,
+        },
+        // Valid with Handler satisfies expression
+        {
+            code: `
+                import { Handler } from '@mionkit/router';
+                const sayHello = ((ctx, name: string): string => \`hello \${name}\`) satisfies Handler;
+            `,
+        },
+        // Valid with HeaderHandler satisfies expression
+        {
+            code: `
+                import { HeaderHandler } from '@mionkit/router';
+                const authHandler = ((ctx, token: string): void => { console.log(token); }) satisfies HeaderHandler;
+            `,
+        },
+        // Valid with @mion:route JSDoc tag
+        {
+            code: `
+                /**
+                 * @mion:route
+                 */
+                function sayHello(ctx, name: string): string {
+                    return \`hello \${name}\`;
+                }
+            `,
+        },
+        // Valid with @mion:hook JSDoc tag
+        {
+            code: `
+                /**
+                 * @mion:hook
+                 */
+                const logHandler = (ctx, data: number): void => { console.log(data); };
+            `,
+        },
+        // Valid with @mion:headersHook JSDoc tag
+        {
+            code: `
+                /**
+                 * @mion:headersHook
+                 */
+                function authHandler(ctx, token: string): void {
+                    console.log(token);
+                }
+            `,
+        },
     ],
     invalid: [
         // Missing return type
@@ -301,6 +360,100 @@ ruleTester.run('strong-typed-routes', rule, {
             errors: [
                 {
                     messageId: 'missingBothTypes',
+                },
+            ],
+        },
+        // Handler type annotation missing types
+        {
+            code: `
+                import { Handler } from '@mionkit/router';
+                const sayHello: Handler = (ctx, name) => \`hello \${name}\`;
+            `,
+            errors: [
+                {
+                    messageId: 'missingBothTypes',
+                },
+            ],
+        },
+        // HeaderHandler type annotation missing return type
+        {
+            code: `
+                import { HeaderHandler } from '@mionkit/router';
+                const authHandler: HeaderHandler = (ctx, token: string) => { console.log(token); };
+            `,
+            errors: [
+                {
+                    messageId: 'missingReturnType',
+                },
+            ],
+        },
+        // Handler satisfies expression missing parameter type
+        {
+            code: `
+                import { Handler } from '@mionkit/router';
+                const sayHello = ((ctx, name): string => \`hello \${name}\`) satisfies Handler;
+            `,
+            errors: [
+                {
+                    messageId: 'missingParamTypes',
+                },
+            ],
+        },
+        // HeaderHandler satisfies expression missing both types
+        {
+            code: `
+                import { HeaderHandler } from '@mionkit/router';
+                const authHandler = ((ctx, token) => { console.log(token); }) satisfies HeaderHandler;
+            `,
+            errors: [
+                {
+                    messageId: 'missingBothTypes',
+                },
+            ],
+        },
+        // @mion:route JSDoc tag missing types
+        {
+            code: `
+                /**
+                 * @mion:route
+                 */
+                function sayHello(ctx, name) {
+                    return \`hello \${name}\`;
+                }
+            `,
+            errors: [
+                {
+                    messageId: 'missingBothTypes',
+                },
+            ],
+        },
+        // @mion:hook JSDoc tag missing return type
+        {
+            code: `
+                /**
+                 * @mion:hook
+                 */
+                const logHandler = (ctx, data: number) => { console.log(data); };
+            `,
+            errors: [
+                {
+                    messageId: 'missingReturnType',
+                },
+            ],
+        },
+        // @mion:headersHook JSDoc tag missing parameter type
+        {
+            code: `
+                /**
+                 * @mion:headersHook
+                 */
+                function authHandler(ctx, token): void {
+                    console.log(token);
+                }
+            `,
+            errors: [
+                {
+                    messageId: 'missingParamTypes',
                 },
             ],
         },
