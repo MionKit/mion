@@ -9,7 +9,7 @@ import {initClient} from './client';
 import {HookSubRequest, RouteSubRequest} from './types';
 import {isRpcError, RpcError} from '@mionkit/core';
 import {TestServerApi} from '../test/test-server';
-import {createTestServerHooks, TEST_PORT_MAPPING} from '../test/test-server-utils';
+import {createTestServerHooks, TEST_PORT_MAPPING, JEST_TIMEOUT_CONSTANTS} from '../test/test-server-utils';
 
 // TODO move this into global jest config file if it is required by more tests
 // eslint-disable-next-line @typescript-eslint/no-var-requires, @typescript-eslint/no-require-imports
@@ -28,8 +28,8 @@ describe('client', () => {
     const serverHooks = createTestServerHooks({port});
     const baseURL = serverHooks.getBaseURL();
 
-    beforeAll(serverHooks.beforeAll, 15000); // 15 second timeout for server startup
-    afterAll(serverHooks.afterAll, 10000); // 10 second timeout for server shutdown
+    beforeAll(serverHooks.beforeAll, JEST_TIMEOUT_CONSTANTS.BEFORE_ALL_TIMEOUT);
+    afterAll(serverHooks.afterAll, JEST_TIMEOUT_CONSTANTS.AFTER_ALL_TIMEOUT);
 
     it('proxy to trap remote methods calls and return MethodRequest data', () => {
         const {routes, hooks} = initClient<MyApi>({baseURL});

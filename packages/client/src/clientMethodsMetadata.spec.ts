@@ -9,7 +9,7 @@ import {fetchRemoteMethodsMetadata} from './clientMethodsMetadata';
 import {ClientOptions, JitFunctionsById} from './types';
 import {PublicMethod} from '@mionkit/router';
 import {getFnCaches} from '@mionkit/core';
-import {createTestServerHooks, TEST_PORT_MAPPING} from '../test/test-server-utils';
+import {createTestServerHooks, TEST_PORT_MAPPING, JEST_TIMEOUT_CONSTANTS} from '../test/test-server-utils';
 
 // Setup real localStorage for testing
 // eslint-disable-next-line @typescript-eslint/no-var-requires, @typescript-eslint/no-require-imports
@@ -30,8 +30,8 @@ describe('fetchRemoteMethodsMetadata', () => {
     let originalJitCache: any;
     let originalPureCache: any;
 
-    beforeAll(serverHooks.beforeAll, 15000); // 15 second timeout for server startup
-    afterAll(serverHooks.afterAll, 10000); // 10 second timeout for server shutdown
+    beforeAll(serverHooks.beforeAll, JEST_TIMEOUT_CONSTANTS.BEFORE_ALL_TIMEOUT);
+    afterAll(serverHooks.afterAll, JEST_TIMEOUT_CONSTANTS.AFTER_ALL_TIMEOUT);
 
     beforeEach(() => {
         options = {

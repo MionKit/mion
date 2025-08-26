@@ -15,8 +15,8 @@ import type {
     DeserializeClassFn,
     AnyClass,
     SerializableClass,
-    JITUtils,
     StrNumber,
+    JITUtils,
 } from './types';
 import {MAX_UNKNOWN_KEYS} from './constants';
 import {isSafeMapKeyValue, initPureFunction} from './utils';
