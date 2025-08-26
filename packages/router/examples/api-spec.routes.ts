@@ -12,12 +12,16 @@ const routes = {
     sayHello2: route((c, name: string): string => 'hello' + name),
     sayHello3: route((): string => 'hello'),
     sayHello4: route((): string => 'hello'),
-    sayHelloError: route((): RpcError => new RpcError({statusCode: 400, publicMessage: 'error'})),
-    maybeError: route((): string | RpcError => 'hello'),
+    sayHelloError: route(
+        (): RpcError<'typed-error'> => new RpcError({statusCode: 400, publicMessage: 'error', type: 'typed-error'})
+    ),
+    maybeError: route((): string | RpcError<'typed-error'> => 'hello'),
 } satisfies Routes;
 
 const hooks = {
-    auth: headersHook('Authorization', (c: Context, token: string): null => null),
+    auth: headersHook(['Authorization'], (c: Context, token: string): void => {
+        // do something
+    }),
     parser: rawHook((c: Context, req: HttpRequest, resp, opts): void => undefined),
     parser2: rawHook((): void => undefined),
     hookNoCtx: hook((): void => undefined),

@@ -1,4 +1,3 @@
-/* eslint-disable @mionkit/strong-typed-routes */
 // This file demonstrates the strong-typed-routes ESLint rule
 // The rule is disabled for this file so you can see both valid and invalid examples
 import {route, hook, headersHook, Handler, HeaderHandler} from '@mionkit/router';
@@ -12,7 +11,9 @@ route((ctx, name: string): string => `hello ${name}`);
 hook((ctx, data: number): void => {
     console.log(data);
 });
-headersHook(['auth'], (ctx, token: string): boolean => true);
+headersHook(['auth'], (ctx, token: string): void => {
+    // do something
+});
 
 // 2. Function references with proper types
 function validHandler(ctx, name: string): string {
@@ -60,12 +61,16 @@ function headersHookWithJSDoc(ctx, token: string): void {
 // ❌ INVALID EXAMPLES (these SHOULD trigger ESLint errors when rule is enabled)
 // ========================================
 
+/* eslint-disable @mionkit/strong-typed-routes */
+
 // 1. Direct inline handlers missing types
 route((ctx, name) => `hello ${name}`); // Missing both param type and return type
 hook((ctx, data: number) => {
     console.log(data);
 }); // Missing return type
-headersHook(['auth'], (ctx, token): boolean => true); // Missing param type
+headersHook(['auth'], (ctx, token): void => {
+    // do something
+}); // Missing param type
 
 // 2. Function references missing types
 function invalidHandler(ctx, name) {

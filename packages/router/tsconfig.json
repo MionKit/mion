@@ -8,5 +8,5 @@
   "references": [{"path": "../core"}, {"path": "../run-types"}],
   "reflection": true,
   "include": ["."],
-  "exclude": ["node_modules", "examples", ".dist"]
+  "exclude": ["node_modules", ".dist"]
 }
