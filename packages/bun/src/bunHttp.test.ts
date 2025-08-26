@@ -97,7 +97,7 @@ describe('bun router should', () => {
         expect(reply).toEqual({getDate: expectedError});
         expect(headers['content-type']).toEqual('application/json; charset=utf-8');
         // Error message changed from serialization to validation error, so content length will be different
-        expect(headers['content-length']).toEqual('197');
+        expect(headers['content-length']).toEqual('180');
         expect(headers['server']).toEqual('@mionkit/http');
     });
 
@@ -143,10 +143,11 @@ describe('bun router should', () => {
             const headers = Object.fromEntries(response.headers.entries());
             // const reply = await response.json();
 
-            // const expectedError: AnonymRpcError = {
+            // const expectedError: PublicRpcError<'request-payload-too-large'> = {
+            //     isΣrrθr: true,
             //     message: `request-payload-too-large`,
             //     statusCode: 413,
-            //     name: 'request-payload-too-large',
+            //     type: 'request-payload-too-large',
             // };
             // expect(reply).toEqual({httpRequest: expectedError});
             expect(headers['x-app-name']).toEqual('MyApp');

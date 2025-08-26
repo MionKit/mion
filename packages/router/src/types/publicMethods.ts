@@ -14,7 +14,7 @@ import {HeaderHookDef, HookDef, RawHookDef, RouteDef} from './definitions';
 
 // ####### Raw Hooks #######
 
-export type ErrorReturn = void | RpcError | Promise<RpcError | void>;
+export type ErrorReturn = void | RpcError<any> | Promise<RpcError<any> | void>;
 
 export type HooksCollection = {
     [key: string]: HookDef | HeaderHookDef | RawHookDef;
@@ -84,9 +84,9 @@ export interface PublicHeaderMethod<H extends Handler = any> extends PublicMetho
 }
 
 // prettier-ignore
-export type PublicHandler<H extends Handler> = 
+export type PublicHandler<H extends Handler> =
     H extends (ctx: CallContext, ...rest: infer Req) => infer Resp
-    ? (...rest: Req) => Promise<Exclude<Awaited<Resp>, RpcError | Error> | RpcError>
+    ? (...rest: Req) => Promise<Exclude<Awaited<Resp>, RpcError<string> | Error> | RpcError<string>>
     : never;
 
 export type PublicHandlers<RMS extends PublicApi<any>> = {
@@ -96,5 +96,5 @@ export type PublicHandlers<RMS extends PublicApi<any>> = {
 };
 
 export type PublicResponses = {
-    [key: string]: unknown | RpcError;
+    [key: string]: unknown | RpcError<string>;
 };
