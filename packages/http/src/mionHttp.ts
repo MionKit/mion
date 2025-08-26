@@ -98,10 +98,15 @@ function httpRequestHandler(httpReq: IncomingMessage, httpResponse: ServerRespon
     };
 
     // only called whe there is an htt error or weird unhandled route errors
-    const fail = (e?: Error, statusCode: StatusCodes = StatusCodes.INTERNAL_SERVER_ERROR, message = 'Unknown Error') => {
+    const fail = (
+        e?: Error | RpcError<string>,
+        statusCode: StatusCodes = StatusCodes.INTERNAL_SERVER_ERROR,
+        message = 'Unknown Error',
+        type: string = 'unknown-error'
+    ) => {
         if (replied || httpResponse.writableEnded) return;
         replied = true;
-        const error = new RpcError({statusCode, publicMessage: message, originalError: e});
+        const error = e instanceof RpcError ? e : new RpcError({statusCode, publicMessage: message, originalError: e, type});
         const routeResponse = getResponseFromError(
             'httpRequest',
             'dispatch',
@@ -120,12 +125,12 @@ function httpRequestHandler(httpReq: IncomingMessage, httpResponse: ServerRespon
         const chunkLength = bodyChunks[bodyChunks.length - 1].length;
         size += chunkLength;
         if (size > httpOptions.maxBodySize) {
-            fail(undefined, StatusCodes.REQUEST_TOO_LONG, 'Request Payload Too Large');
+            fail(undefined, StatusCodes.REQUEST_TOO_LONG, 'Payload Too Large', 'request-payload-too-large');
         }
     });
 
     httpReq.on('error', (e) => {
-        fail(e, StatusCodes.BAD_REQUEST, 'Request Connection Error');
+        fail(e, StatusCodes.BAD_REQUEST, 'Connection Error', 'request-connection-error');
     });
 
     httpReq.on('end', () => {
@@ -138,7 +143,7 @@ function httpRequestHandler(httpReq: IncomingMessage, httpResponse: ServerRespon
     });
 
     httpResponse.on('error', (e) => {
-        fail(e, StatusCodes.INTERNAL_SERVER_ERROR, 'Response Connection Error');
+        fail(e, StatusCodes.INTERNAL_SERVER_ERROR, 'Connection Error', 'response-connection-error');
     });
 }
 

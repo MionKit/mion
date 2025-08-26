@@ -55,7 +55,15 @@ export async function googleCFHandler(rawRequest: Request, rawResponse: Response
         );
         reply(routeResponse, rawResponse);
     } catch (err) {
-        const error = new RpcError({statusCode: 500, publicMessage: 'Internal Error', originalError: err as Error});
+        const error =
+            err instanceof RpcError
+                ? err
+                : new RpcError({
+                      statusCode: 500,
+                      publicMessage: 'Internal Error',
+                      originalError: err as Error,
+                      type: 'unknown-error',
+                  });
         const routeResponse = getResponseFromError(
             rawRequest.path,
             'dispatchRoute',

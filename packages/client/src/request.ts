@@ -180,7 +180,7 @@ export class MionRequest<RR extends RouteSubRequest<any>, HookRequestsList exten
             this.requestId,
             new RpcError({
                 statusCode: StatusCodes.BAD_REQUEST,
-                type: error.name || 'Unknown Error',
+                type: error.name || 'unknown-error',
                 message,
             })
         );

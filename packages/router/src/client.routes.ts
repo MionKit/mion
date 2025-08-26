@@ -56,7 +56,11 @@ function addRequiredRemoteMethodsToResponse(id: string, resp: MethodsData, error
     serializeMethodDeps(method, deps, purFnDeps);
 }
 
-const mionGetRemoteMethodsInfoById = (ctx, methodsIds: string[], getAllRemoteMethods?: boolean): MethodsData | RpcError => {
+const mionGetRemoteMethodsInfoById = (
+    ctx,
+    methodsIds: string[],
+    getAllRemoteMethods?: boolean
+): MethodsData | RpcError<'rpc-metadata-not-found'> => {
     const resp: MethodsData = {
         methods: {},
         deps: {},
@@ -79,22 +83,24 @@ const mionGetRemoteMethodsInfoById = (ctx, methodsIds: string[], getAllRemoteMet
 
     if (Object.keys(errorData).length)
         return new RpcError({
-            typeOld: 'not found',
             statusCode: 404,
-            type: 'Invalid Metadata Request',
+            type: 'rpc-metadata-not-found',
             publicMessage: 'Errors getting Remote Methods Metadata',
             errorData,
         });
     return resp;
 };
 
-const mionGetRemoteMethodsInfoByPath = (ctx, path: string, getAllRemoteMethods?: boolean): MethodsData | RpcError => {
+const mionGetRemoteMethodsInfoByPath = (
+    ctx,
+    path: string,
+    getAllRemoteMethods?: boolean
+): MethodsData | RpcError<'rpc-metadata-not-found'> => {
     const executables = getRouteExecutionPath(path);
     if (!executables)
         return new RpcError({
-            typeOld: 'not found',
             statusCode: 404,
-            type: 'Invalid Metadata Request',
+            type: 'rpc-metadata-not-found',
             publicMessage: `Route ${path} not found`,
         });
     const privateExecutables = executables.methods.filter((e) => !isPrivateExecutable(e));

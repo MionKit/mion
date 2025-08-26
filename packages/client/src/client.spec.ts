@@ -181,7 +181,7 @@ describe('client', () => {
         let error: any;
         const expectedError = new RpcError({
             message: `Invalid params for Route or Hook 'auth', validation failed.`,
-            type: 'Validation Error',
+            type: 'validation-error',
             statusCode: 400,
         });
 

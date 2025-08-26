@@ -13,13 +13,19 @@ import {RpcError} from '@mionkit/core';
 import {StatusCodes} from '@mionkit/core';
 import {getEmptyCallContext} from './dispatch';
 
+const defaultError = new RpcError({
+    statusCode: StatusCodes.INTERNAL_SERVER_ERROR,
+    publicMessage: 'Internal Error',
+    type: 'unknown-error',
+});
+
 export function getResponseFromError(
     routePath: string,
     step: string,
     reqRawBody: string,
     rawRequest: unknown,
     rawResponse: any,
-    error = new RpcError({statusCode: StatusCodes.INTERNAL_SERVER_ERROR, publicMessage: 'Internal Error'}),
+    error: RpcError<string> = defaultError,
     reqHeaders: MionHeaders,
     respHeaders: MionHeaders,
     parsedBody?: any
@@ -37,7 +43,7 @@ export function handleRpcErrors(
     path: string,
     request: MionRequest,
     response: Mutable<MionResponse>,
-    err: any | RpcError | Error,
+    err: any | RpcError<string> | Error,
     step: number | string
 ) {
     const rpcError =
@@ -47,7 +53,7 @@ export function handleRpcErrors(
                   statusCode: StatusCodes.INTERNAL_SERVER_ERROR,
                   publicMessage: `Unknown error in step ${step} of route execution path.`,
                   originalError: err,
-                  type: 'Unknown Error',
+                  type: 'unknown-error',
               });
 
     response.statusCode = rpcError.statusCode;

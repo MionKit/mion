@@ -387,7 +387,7 @@ export const statusCodeToReasonPhrase: Record<string, string> = {
     407: 'Proxy Authentication Required',
     431: 'Request Header Fields Too Large',
     408: 'Request Timeout',
-    413: 'Request Payload Too Large',
+    413: 'request-payload-too-large',
     414: 'Request-URI Too Long',
     416: 'Requested Range Not Satisfiable',
     205: 'Reset Content',

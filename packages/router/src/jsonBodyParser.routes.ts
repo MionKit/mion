@@ -39,14 +39,14 @@ export function parseRequestBody(
         if (typeof parsedBody !== 'object')
             return new RpcError({
                 statusCode: StatusCodes.BAD_REQUEST,
-                type: 'Invalid Request Body',
+                type: 'invalid-request-body',
                 publicMessage: 'Wrong request body. Expecting an json body containing the route name and parameters.',
             });
         request.body = parsedBody;
     } catch (err: any) {
         return new RpcError({
             statusCode: StatusCodes.UNPROCESSABLE_ENTITY,
-            type: 'Parsing Request Body Error',
+            type: 'parsing-request-body-error',
             publicMessage: `Invalid request body: ${err?.message || 'unknown parsing error.'}`,
         });
     }

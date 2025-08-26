@@ -86,11 +86,10 @@ describe('bun router should', () => {
         const reply = await response.json();
         const headers = Object.fromEntries(response.headers.entries());
 
-        const expectedError: PublicRpcError = {
+        const expectedError: PublicRpcError<'validation-error'> = {
             isΣrrθr: true,
-            type: 'unknown',
             message: `Invalid params in 'getDate', validation failed.`,
-            name: 'Validation Error',
+            type: 'validation-error',
             statusCode: 400,
             errorData: expect.anything(),
         };
@@ -145,9 +144,9 @@ describe('bun router should', () => {
             // const reply = await response.json();
 
             // const expectedError: AnonymRpcError = {
-            //     message: `Request Payload Too Large`,
+            //     message: `request-payload-too-large`,
             //     statusCode: 413,
-            //     name: 'Request Payload Too Large',
+            //     name: 'request-payload-too-large',
             // };
             // expect(reply).toEqual({httpRequest: expectedError});
             expect(headers['x-app-name']).toEqual('MyApp');

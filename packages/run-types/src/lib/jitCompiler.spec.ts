@@ -29,7 +29,7 @@ interface MethodsData {
     purFnDeps: Record<string, PureFunctionData>;
 }
 
-type MethodsResponse = MethodsData | RpcError;
+type MethodsResponse = MethodsData | RpcError<string>;
 
 const methodsData = mockData();
 const restoredMethodsData = mockData(true);
@@ -73,14 +73,14 @@ describe('JitCompiler on union', () => {
     it('isType', () => {
         const rt = runType<MethodsResponse>();
         const isType = rt.createJitFunction(JitFunctions.isType);
-        expect(isType(new RpcError({statusCode: 400, publicMessage: 'error', message: 'error'}))).toBe(true);
+        expect(isType(new RpcError({type: 'error', statusCode: 400, publicMessage: 'error', message: 'error'}))).toBe(true);
         expect(isType(methodsData)).toBe(true);
     });
 
     it('typeErrors', () => {
         const rt = runType<MethodsResponse>();
         const typeErrors = rt.createJitFunction(JitFunctions.typeErrors);
-        expect(typeErrors(new RpcError({statusCode: 400, publicMessage: 'error', message: 'error'}))).toEqual([]);
+        expect(typeErrors(new RpcError({type: 'error', statusCode: 400, publicMessage: 'error', message: 'error'}))).toEqual([]);
         expect(typeErrors(methodsData)).toEqual([]);
     });
 
@@ -89,8 +89,8 @@ describe('JitCompiler on union', () => {
         const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
         const toJsonVal = rt.createJitFunction(JitFunctions.toJsonVal);
 
-        const rpcError = new RpcError({statusCode: 400, publicMessage: 'error', message: 'error'});
-        const rpcErrorClone = new RpcError({statusCode: 400, publicMessage: 'error', message: 'error'});
+        const rpcError = new RpcError({type: 'error', statusCode: 400, publicMessage: 'error', message: 'error'});
+        const rpcErrorClone = new RpcError({type: 'error', statusCode: 400, publicMessage: 'error', message: 'error'});
         const jsonStringRpcError = JSON.stringify(toJsonVal(rpcErrorClone));
         const restoredRpcError = fromJsonVal(JSON.parse(jsonStringRpcError));
         expect(restoredRpcError).toEqual(rpcError);
@@ -106,8 +106,8 @@ describe('JitCompiler on union', () => {
         const jsonStringify = rt.createJitFunction(JitFunctions.jsonStringify);
         const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
 
-        const rpcError = new RpcError({statusCode: 400, publicMessage: 'error', message: 'error'});
-        const rpcErrorClone = new RpcError({statusCode: 400, publicMessage: 'error', message: 'error'});
+        const rpcError = new RpcError({type: 'error', statusCode: 400, publicMessage: 'error', message: 'error'});
+        const rpcErrorClone = new RpcError({type: 'error', statusCode: 400, publicMessage: 'error', message: 'error'});
         const jsonStringRpcError = jsonStringify(rpcErrorClone);
         const restoredRpcError = fromJsonVal(JSON.parse(jsonStringRpcError));
         expect(restoredRpcError).toEqual(rpcError);
