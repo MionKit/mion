@@ -100,18 +100,17 @@ describe('node http router should', () => {
         const reply = await response.json();
         const headers = Object.fromEntries(response.headers.entries());
 
-        const expectedError: PublicRpcError = {
+        const expectedError: PublicRpcError<'validation-error'> = {
             isΣrrθr: true,
-            type: 'unknown',
             message: `Invalid params in 'getDate', validation failed.`,
-            name: 'Validation Error',
+            type: 'validation-error',
             statusCode: 400,
             errorData: expect.anything(),
         };
         expect(reply).toEqual({getDate: expectedError});
         expect(headers['connection']).toEqual('close');
         expect(headers['content-type']).toEqual('application/json; charset=utf-8');
-        expect(headers['content-length']).toEqual('197');
+        expect(headers['content-length']).toEqual('180');
         expect(headers['server']).toEqual('@mionkit/http');
     });
 
@@ -156,19 +155,18 @@ describe('node http router should', () => {
         const headers = Object.fromEntries(response.headers.entries());
         const reply = await response.json();
 
-        const expectedError: PublicRpcError = {
+        const expectedError: PublicRpcError<'request-payload-too-large'> = {
             isΣrrθr: true,
-            type: 'unknown',
-            message: `Request Payload Too Large`,
+            message: `Payload Too Large`,
             statusCode: 413,
-            name: 'Request Payload Too Large',
+            type: 'request-payload-too-large',
         };
         expect(reply).toEqual({httpRequest: expectedError});
         expect(headers['x-app-name']).toEqual('MyApp');
         expect(headers['x-instance-id']).toEqual('3089');
         expect(headers['connection']).toEqual('close');
         expect(headers['content-type']).toEqual('application/json; charset=utf-8');
-        expect(headers['content-length']).toEqual('141');
+        expect(headers['content-length']).toEqual('116');
         expect(headers['server']).toEqual('@mionkit/http');
 
         await closeServer(smallServer);

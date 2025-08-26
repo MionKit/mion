@@ -14,35 +14,38 @@ import {JitFunctions} from '../../constants.functions';
 import {runType} from '../../lib/runType';
 
 it('can validate RpcError class', () => {
-    const rt = runType<RpcError>();
+    const rt = runType<RpcError<'test-error'>>();
     const validate = rt.createJitFunction(JitFunctions.isType);
     const error = new RpcError({
         statusCode: 400,
         publicMessage: 'error',
         message: 'error',
+        type: 'test-error',
     });
     expect(validate(error)).toBe(true);
 });
 
 it('can validate RpcError class + errors', () => {
-    const rt = runType<RpcError>();
+    const rt = runType<RpcError<'test-error'>>();
     const valWithErrors = rt.createJitFunction(JitFunctions.typeErrors);
     const error = new RpcError({
         statusCode: 400,
         publicMessage: 'error',
         message: 'error',
+        type: 'test-error',
     });
     expect(valWithErrors(error)).toEqual([]);
 });
 
 it('can serialize/deserialize RpcError class', () => {
-    const rt = runType<RpcError>();
+    const rt = runType<RpcError<'test-error'>>();
     const jsonStringify = rt.createJitFunction(JitFunctions.jsonStringify);
     const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
     const error = new RpcError({
         statusCode: 400,
         publicMessage: 'error',
         message: 'error',
+        type: 'test-error',
     });
     const restored = fromJsonVal(JSON.parse(jsonStringify(error)));
     expect(restored instanceof RpcError).toBeTruthy();
@@ -50,7 +53,7 @@ it('can serialize/deserialize RpcError class', () => {
 });
 
 it('can mock RpcError class', async () => {
-    const rt = runType<RpcError>();
+    const rt = runType<RpcError<'test-error'>>();
     const mock = await rt.mock();
     const validate = rt.createJitFunction(JitFunctions.isType);
     expect(mock instanceof RpcError).toBeTruthy();
@@ -58,80 +61,80 @@ it('can mock RpcError class', async () => {
 });
 
 it('check hasUnknownKeys', () => {
-    const rt = runType<RpcError>();
+    const rt = runType<RpcError<'test-error'>>();
     const hasUnknownKeys = rt.createJitFunction(JitFunctions.hasUnknownKeys);
     const error = {
         isΣrrθr: true,
-        typeOld: 'test',
+        type: 'test-error',
         statusCode: 400,
         publicMessage: 'error',
         message: 'error',
-        type: 'error',
-    } satisfies DataOnly<RpcError>;
+        name: 'RpcError',
+    } satisfies DataOnly<RpcError<'test-error'>>;
     expect(hasUnknownKeys(error)).toBe(false);
     (error as any).extra = 'extra';
     expect(hasUnknownKeys(error)).toBe(true);
 });
 
 it('check unknownKeyErrors', () => {
-    const rt = runType<RpcError>();
+    const rt = runType<RpcError<'test-error'>>();
     const unknownKeyErrors = rt.createJitFunction(JitFunctions.unknownKeyErrors);
     const error = {
         isΣrrθr: true,
-        typeOld: 'test',
+        type: 'test-error',
         statusCode: 400,
         publicMessage: 'error',
         message: 'error',
-        type: 'error',
-    } satisfies DataOnly<RpcError>;
+        name: 'RpcError',
+    } satisfies DataOnly<RpcError<'test-error'>>;
     expect(unknownKeyErrors(error)).toEqual([]);
     (error as any).extra = 'extra';
     expect(unknownKeyErrors(error)).toEqual([{path: ['extra'], expected: 'never'}]);
 });
 
 it('check stripUnknownKeys', () => {
-    const rt = runType<RpcError>();
+    const rt = runType<RpcError<'test-error'>>();
     const stripUnknownKeys = rt.createJitFunction(JitFunctions.stripUnknownKeys);
     const error = {
         isΣrrθr: true,
-        typeOld: 'test',
+        type: 'test-error',
         statusCode: 400,
         publicMessage: 'error',
         message: 'error',
-        type: 'error',
-    } satisfies DataOnly<RpcError>;
+        name: 'RpcError',
+    } satisfies DataOnly<RpcError<'test-error'>>;
     (error as any).extra = 'extra';
     stripUnknownKeys(error);
     expect(error).toEqual({
         isΣrrθr: true,
-        type: 'test',
+        type: 'test-error',
         statusCode: 400,
         publicMessage: 'error',
         message: 'error',
-        name: 'error',
+        name: 'RpcError',
     });
 });
 
 it('check unknownKeysToUndefined', () => {
-    const rt = runType<RpcError>();
+    const rt = runType<RpcError<'test-error'>>();
     const unknownKeysToUndefined = rt.createJitFunction(JitFunctions.unknownKeysToUndefined);
     const error = {
         isΣrrθr: true,
-        typeOld: 'test',
+        type: 'test-error',
         statusCode: 400,
         publicMessage: 'error',
         message: 'error',
-        type: 'error',
-    } satisfies DataOnly<RpcError>;
+        name: 'RpcError',
+    } satisfies DataOnly<RpcError<'test-error'>>;
     (error as any).extra = 'extra';
     unknownKeysToUndefined(error);
     expect(error).toEqual({
         isΣrrθr: true,
-        type: 'test',
+        type: 'test-error',
         statusCode: 400,
         publicMessage: 'error',
         message: 'error',
-        name: 'error',
+        name: 'RpcError',
         extra: undefined,
     });
 });

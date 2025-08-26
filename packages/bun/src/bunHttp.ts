@@ -91,11 +91,12 @@ const fail = (
     // responseHeaders: Headers,
     responseHeaders: any,
     requestHeaders: any = new Headers(),
-    e?: Error,
+    e?: Error | RpcError<string>,
     statusCode: StatusCodes = StatusCodes.INTERNAL_SERVER_ERROR,
     message = 'Unknown Error'
 ): Response => {
-    const error = new RpcError({statusCode, publicMessage: message, originalError: e});
+    const error =
+        e instanceof RpcError ? e : new RpcError({statusCode, publicMessage: message, originalError: e, type: 'unknown-error'});
     const routeResponse = getResponseFromError(
         'httpRequest',
         'dispatch',

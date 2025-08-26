@@ -18,7 +18,7 @@ export function setErrorOptions(opts: CoreOptions) {
 
 /**
  * Generic strongly typed error class that can be used outside RPC context.
- * Contains the core error properties: isΣrrθr, type, name, and message.
+ * Contains the core error properties: isΣrrθr, type, and message.
  */
 export class TypedError<ErrType extends StrNumber> extends Error {
     public readonly isΣrrθr = true;
@@ -26,6 +26,7 @@ export class TypedError<ErrType extends StrNumber> extends Error {
     public readonly type: ErrType;
     /** the error message */
     public readonly message: string;
+    public readonly name: string = 'TypedError';
 
     constructor({message, originalError, type}: TypedErrorParams<ErrType>) {
         const errorMessage = message || originalError?.message || '';
@@ -57,6 +58,7 @@ export class TypedError<ErrType extends StrNumber> extends Error {
 }
 
 export class RpcError<ErrType extends StrNumber, ErrData = any> extends TypedError<ErrType> {
+    public readonly name = 'RpcError';
     /**
      * id of the error, ideally each error should unique identifiable
      * * if RouterOptions.autoGenerateErrorId is set to true and id with timestamp+uuid will be generated
@@ -110,10 +112,9 @@ export function isTypedError(error: any): error is TypedError<any> {
     return (
         error &&
         error.isΣrrθr === true &&
-        typeof error.name === 'string' &&
         typeof error.message === 'string' &&
         (typeof error.type === 'string' || typeof error.type === 'number') &&
-        !jitUtils.hasUnknownKeysFromArray(error, ['isΣrrθr', 'type', 'name', 'message'])
+        !jitUtils.hasUnknownKeysFromArray(error, ['isΣrrθr', 'type', 'message'])
     );
 }
 
@@ -126,19 +127,9 @@ export function isRpcError(error: any): error is RpcError<any> {
         error.isΣrrθr === true &&
         typeof error.statusCode === 'number' &&
         (typeof error.type === 'string' || typeof error.type === 'number') &&
-        typeof error.name === 'string' &&
         (typeof error.message === 'string' || typeof error.publicMessage === 'string') &&
         (typeof error.id === 'string' || typeof error.id === 'number' || error.id === undefined) &&
-        !jitUtils.hasUnknownKeysFromArray(error, [
-            'isΣrrθr',
-            'id',
-            'statusCode',
-            'message',
-            'publicMessage',
-            'name',
-            'errorData',
-            'type',
-        ])
+        !jitUtils.hasUnknownKeysFromArray(error, ['isΣrrθr', 'id', 'statusCode', 'message', 'publicMessage', 'errorData', 'type'])
     );
 }
 

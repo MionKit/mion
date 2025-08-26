@@ -11,7 +11,8 @@ let notFoundExecutionPath: MethodsExecutionList | undefined;
 // TODO: make this configurable so uses can override behavior
 const notFoundRoute = {
     type: HandlerType.route,
-    handler: (): RpcError => new RpcError({statusCode: StatusCodes.NOT_FOUND, publicMessage: `Route not found`}),
+    handler: (): RpcError<'route-not-found'> =>
+        new RpcError({statusCode: StatusCodes.NOT_FOUND, publicMessage: `Route not found`, type: 'route-not-found'}),
 } satisfies RouteDef;
 
 export function getNotFoundExecutionPath(): MethodsExecutionList {

@@ -43,7 +43,15 @@ export async function awsLambdaHandler(rawRequest: APIGatewayEvent, awsContext: 
     return dispatchRoute(rawRequest.path, rawBody, reqHeaders, respHeaders, rawRequest, awsContext)
         .then((routeResponse) => reply(routeResponse, respHeaders))
         .catch((err) => {
-            const error = new RpcError({statusCode: 500, publicMessage: 'Internal Error', originalError: err});
+            const error =
+                err instanceof RpcError
+                    ? err
+                    : new RpcError({
+                          statusCode: 500,
+                          publicMessage: 'Internal Error',
+                          originalError: err,
+                          type: 'unknown-error',
+                      });
             return reply(
                 getResponseFromError(
                     rawRequest.path,

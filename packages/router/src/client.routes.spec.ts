@@ -7,7 +7,7 @@
 
 import {MionHeaders} from './types/context';
 import {registerRoutes, initRouter, resetRouter, getRouteExecutable} from './router';
-import {getRoutePath} from '@mionkit/core';
+import {getRoutePath, PublicRpcError} from '@mionkit/core';
 import {GET_REMOTE_METHODS_BY_ID, GET_REMOTE_METHODS_BY_PATH} from '@mionkit/core';
 import {hook, rawHook, route} from './handlers';
 import {Routes} from './types/general';
@@ -30,7 +30,7 @@ describe('PublicMethods run type functionality', () => {
     const route1 = route((ctx): string => 'something');
     const routes = {route1} satisfies Routes;
 
-    type ClientReturn = MethodsData | RpcError;
+    type ClientReturn = MethodsData | RpcError<string>;
 
     afterEach(() => resetRouter());
 
@@ -81,7 +81,9 @@ describe('PublicMethods run type functionality', () => {
     it('can validate return type ClientReturn', () => {
         const rt = runType<ClientReturn>();
         const validate = rt.createJitFunction(JitFunctions.isType);
-        expect(validate(new RpcError({statusCode: 400, publicMessage: 'error', message: 'error'}))).toBe(true);
+        expect(validate(new RpcError({statusCode: 400, publicMessage: 'error', message: 'error', type: 'test-error'}))).toBe(
+            true
+        );
     });
 
     it('can validate return type ClientReturn + errors', () => {
@@ -110,7 +112,9 @@ describe('PublicMethods run type functionality', () => {
         expect(typeErrorsMethodsData(response)).toEqual([]); // seems this is working but not the union type so we need to review runType Union errors
         // also only returning the Error a Union is not usefull, maybe if we detect is one of the types in the union we should return the errors of that type
         expect(typeErrors(response)).toEqual([]);
-        expect(typeErrors(new RpcError({statusCode: 400, publicMessage: 'error', message: 'error'}))).toEqual([]);
+        expect(typeErrors(new RpcError({statusCode: 400, publicMessage: 'error', message: 'error', type: 'test-error'}))).toEqual(
+            []
+        );
     });
 
     it('can serialize/deserialize return type PublicMethods | RpcError>', () => {
@@ -126,8 +130,8 @@ describe('PublicMethods run type functionality', () => {
         const rt = runType<ClientReturn>();
         const jsonStringify = rt.createJitFunction(JitFunctions.jsonStringify);
         const fromJsonVal = rt.createJitFunction(JitFunctions.fromJsonVal);
-        const error = new RpcError({statusCode: 400, publicMessage: 'error', message: 'error'});
-        const errorClone = new RpcError({statusCode: 400, publicMessage: 'error', message: 'error'});
+        const error = new RpcError({statusCode: 400, publicMessage: 'error', message: 'error', type: 'test-error'});
+        const errorClone = new RpcError({statusCode: 400, publicMessage: 'error', message: 'error', type: 'test-error'});
         // operations modify the original object so we need to clone it before serializing
         const roundTrip = fromJsonVal(JSON.parse(jsonStringify(errorClone)));
         expect(roundTrip instanceof RpcError).toBeTruthy();
@@ -450,11 +454,10 @@ describe('Client Routes should', () => {
             }),
         };
         const response = await dispatchRoute(methodsPath, request.body, request.headers, headersFromRecord({}), request, {});
-        const expectedResponse = {
+        const expectedResponse: PublicRpcError<'rpc-metadata-not-found'> = {
             isΣrrθr: true,
-            type: 'not found',
             statusCode: 404,
-            name: 'Invalid Metadata Request',
+            type: 'rpc-metadata-not-found',
             message: 'Errors getting Remote Methods Metadata',
             errorData: {
                 parse: 'Remote Method parse not found',
@@ -477,11 +480,10 @@ describe('Client Routes should', () => {
             }),
         };
         const response = await dispatchRoute(routeMethodsPath, request.body, request.headers, headersFromRecord({}), request, {});
-        const expectedResponse = {
+        const expectedResponse: PublicRpcError<'rpc-metadata-not-found'> = {
             isΣrrθr: true,
-            type: 'not found',
             statusCode: 404,
-            name: 'Invalid Metadata Request',
+            type: 'rpc-metadata-not-found',
             message: 'Route /abcd not found',
         };
         expect(response.body[routeMethodsId]).toEqual(expectedResponse);
