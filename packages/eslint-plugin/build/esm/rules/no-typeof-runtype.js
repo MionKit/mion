@@ -15,21 +15,22 @@ function containsTypeof(typeNode) {
     }
 }
 function isRunTypeFromMionKit(node, context) {
-    if (node.callee.type !== AST_NODE_TYPES.Identifier || node.callee.name !== 'runType') {
+    const runTypeFunctions = ['runType', 'isTypeFn', 'typeErrorsFn', 'isStrictTypeFn', 'mockTypeFn', 'toCodeFn'];
+    if (node.callee.type !== AST_NODE_TYPES.Identifier || !runTypeFunctions.includes(node.callee.name)) {
         return false;
     }
-    const sourceCode = context.getSourceCode();
+    const sourceCode = context.sourceCode;
     const program = sourceCode.ast;
     for (const statement of program.body) {
         if (statement.type === AST_NODE_TYPES.ImportDeclaration) {
             const source = statement.source.value;
             if (source === '@mionkit/run-types' ||
                 source === '@mionkit/run-types/' ||
-                (typeof source === 'string' && source.endsWith('/runType'))) {
+                (typeof source === 'string' && (source.endsWith('/runType') || source.endsWith('/runTypeFunctions')))) {
                 for (const specifier of statement.specifiers) {
                     if (specifier.type === AST_NODE_TYPES.ImportSpecifier &&
                         specifier.imported.type === AST_NODE_TYPES.Identifier &&
-                        specifier.imported.name === 'runType') {
+                        runTypeFunctions.includes(specifier.imported.name)) {
                         return true;
                     }
                 }
@@ -42,10 +43,10 @@ const rule = {
     meta: {
         type: 'problem',
         docs: {
-            description: 'Disallow using `typeof` with the `runType` function from @mionkit/run-types',
+            description: 'Disallow using `typeof` with run-type functions from @mionkit/run-types',
         },
         messages: {
-            noTypeof: 'Do not use `typeof` with the `runType` function. Use explicit type definitions instead.',
+            noTypeof: 'Do not use `typeof` with `{{functionName}}()`. Use explicit type definitions instead.',
         },
         schema: [],
     },
@@ -56,9 +57,13 @@ const rule = {
                 if (isRunTypeFromMionKit(node, context)) {
                     const typeArguments = node.typeArguments || node.typeParameters;
                     if (typeArguments?.params.some(containsTypeof)) {
+                        const functionName = node.callee.name;
                         context.report({
                             node,
                             messageId: 'noTypeof',
+                            data: {
+                                functionName,
+                            },
                         });
                     }
                 }
@@ -67,3 +72,4 @@ const rule = {
     },
 };
 export default rule;
+//# sourceMappingURL=no-typeof-runtype.js.map

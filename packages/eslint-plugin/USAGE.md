@@ -20,10 +20,7 @@ Use the recommended configuration that includes all mionkit rules:
 
 ```javascript
 module.exports = {
-  extends: [
-    'eslint:recommended',
-    'plugin:@mionkit/eslint-plugin/recommended'
-  ],
+  extends: ['eslint:recommended', 'plugin:@mionkit/eslint-plugin/recommended'],
 };
 ```
 
@@ -49,18 +46,18 @@ Disallows using `typeof` with the `runType` function from `@mionkit/run-types`.
 #### ❌ Incorrect
 
 ```typescript
-import { runType } from '@mionkit/run-types';
+import {runType} from '@mionkit/run-types';
 
-const user = { name: 'John', age: 34 };
+const user = {name: 'John', age: 34};
 const rtUser = runType<typeof user>(); // Error: Do not use `typeof` with runType
 ```
 
 #### ✅ Correct
 
 ```typescript
-import { runType } from '@mionkit/run-types';
+import {runType} from '@mionkit/run-types';
 
-type User = { name: string; age: number };
+type User = {name: string; age: number};
 const rtUser = runType<User>(); // OK: Use explicit type definitions
 ```
 

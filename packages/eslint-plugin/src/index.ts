@@ -13,7 +13,7 @@ const plugin = {
     },
     configs: {
         recommended: {
-            plugins: ['@mionkit/eslint-plugin'],
+            extends: [],
             rules: {
                 '@mionkit/no-typeof-runtype': 'error',
             },

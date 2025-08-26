@@ -9,6 +9,7 @@ import {runType} from '../../lib/runType';
 // TODO: ATM we can't correctly identify this types, the generated deepkit type does not have anything to indicate the type is a native type
 // some types could be identified by the typeName property, but not all of them.
 // Most of these types depend on the typescript types library, ie: lib.es5.d.ts, lib.es2015.d.ts, and so on so might differ from one version to another.
+// eslint-disable-next-line jest/no-disabled-tests
 describe.skip('native types that throw when trying to create a RunType', () => {
     /**
      * List of all the types that throw when trying to create a RunType:
@@ -32,23 +33,23 @@ describe.skip('native types that throw when trying to create a RunType', () => {
 
     it('should throw when creating RunType for Reflect', () => {
         // { kind: 30, types: [], annotations: {}, typeName: undefined}
-        expect(() => runType<typeof Reflect>()).toThrow();
+        expect(() => runType<typeof Reflect>()).toThrow(); // eslint-disable-line @mionkit/no-typeof-runtype
     });
 
     it('should throw when creating RunType for Proxy', () => {
-        expect(() => runType<typeof Proxy>()).toThrow();
+        expect(() => runType<typeof Proxy>()).toThrow(); // eslint-disable-line @mionkit/no-typeof-runtype
     });
 
     it('should throw when creating RunType for Intl', () => {
-        expect(() => runType<typeof Intl>()).toThrow();
+        expect(() => runType<typeof Intl>()).toThrow(); // eslint-disable-line @mionkit/no-typeof-runtype
     });
 
     it('should throw when creating RunType for Atomics', () => {
-        expect(() => runType<typeof Atomics>()).toThrow();
+        expect(() => runType<typeof Atomics>()).toThrow(); // eslint-disable-line @mionkit/no-typeof-runtype
     });
 
     it('should throw when creating RunType for WebAssembly', () => {
-        expect(() => runType<typeof WebAssembly>()).toThrow();
+        expect(() => runType<typeof WebAssembly>()).toThrow(); // eslint-disable-line @mionkit/no-typeof-runtype
     });
 
     it('should throw when creating RunType for WebAssembly.Module', () => {
