@@ -1,9 +1,5 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-function __assignType(fn, args) {
-    fn.__type = args;
-    return fn;
-}
 const utils_1 = require("@typescript-eslint/utils");
 function containsTypeof(typeNode) {
     if (!typeNode)
@@ -20,7 +16,6 @@ function containsTypeof(typeNode) {
             return false;
     }
 }
-containsTypeof.__type = ['typeNode', 'containsTypeof', 'PP!,J2!)/"'];
 function isRunTypeFromMionKit(node, context) {
     if (node.callee.type !== utils_1.AST_NODE_TYPES.Identifier || node.callee.name !== 'runType') {
         return false;
@@ -45,7 +40,6 @@ function isRunTypeFromMionKit(node, context) {
     }
     return false;
 }
-isRunTypeFromMionKit.__type = ['node', 'context', 'isRunTypeFromMionKit', 'P!2!!2")/#'];
 const rule = {
     meta: {
         type: 'problem',
@@ -60,7 +54,7 @@ const rule = {
     defaultOptions: [],
     create(context) {
         return {
-            CallExpression: __assignType(function CallExpression(node) {
+            CallExpression(node) {
                 if (isRunTypeFromMionKit(node, context)) {
                     const typeArguments = node.typeArguments || node.typeParameters;
                     if (typeArguments?.params.some(containsTypeof)) {
@@ -70,9 +64,8 @@ const rule = {
                         });
                     }
                 }
-            }, ['node', 'CallExpression', 'P!2!"/"']),
+            },
         };
     },
 };
 exports.default = rule;
-//# sourceMappingURL=no-typeof-runtype.js.map
