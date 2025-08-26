@@ -39,14 +39,14 @@ export function parseRequestBody(
         if (typeof parsedBody !== 'object')
             return new RpcError({
                 statusCode: StatusCodes.BAD_REQUEST,
-                name: 'Invalid Request Body',
+                type: 'Invalid Request Body',
                 publicMessage: 'Wrong request body. Expecting an json body containing the route name and parameters.',
             });
         request.body = parsedBody;
     } catch (err: any) {
         return new RpcError({
             statusCode: StatusCodes.UNPROCESSABLE_ENTITY,
-            name: 'Parsing Request Body Error',
+            type: 'Parsing Request Body Error',
             publicMessage: `Invalid request body: ${err?.message || 'unknown parsing error.'}`,
         });
     }
@@ -75,7 +75,7 @@ export function stringifyResponseBody(
     } catch (err: any) {
         const rpcError = new RpcError({
             statusCode: StatusCodes.INTERNAL_SERVER_ERROR,
-            name: 'Stringify Response Body',
+            type: 'Stringify Response Body',
             publicMessage: `Invalid response body: ${err?.message || 'unknown parsing error.'}`,
             originalError: err,
         });
