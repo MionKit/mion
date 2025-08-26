@@ -186,6 +186,110 @@ function validateParameterTypes(
     };
 }
 
+/**
+ * Checks if a type annotation references Handler or HeaderHandler from @mionkit/router
+ * @param typeAnnotation The type annotation node
+ * @param context The ESLint context
+ * @returns The handler type if it matches, null otherwise
+ */
+function getHandlerTypeFromAnnotation(
+    typeAnnotation: TSESTree.TSTypeAnnotation,
+    context: TSESLint.RuleContext<any, any>
+): 'Handler' | 'HeaderHandler' | null {
+    if (typeAnnotation.typeAnnotation.type === AST_NODE_TYPES.TSTypeReference) {
+        const typeName = typeAnnotation.typeAnnotation.typeName;
+        if (typeName.type === AST_NODE_TYPES.Identifier) {
+            const name = typeName.name;
+            if ((name === 'Handler' || name === 'HeaderHandler') && isImportedFromMionRouter(name, context)) {
+                return name as 'Handler' | 'HeaderHandler';
+            }
+        }
+    }
+    return null;
+}
+
+/**
+ * Checks if a satisfies expression references Handler or HeaderHandler from @mionkit/router
+ * @param satisfiesExpression The satisfies expression node
+ * @param context The ESLint context
+ * @returns The handler type if it matches, null otherwise
+ */
+function getHandlerTypeFromSatisfies(
+    satisfiesExpression: TSESTree.TSSatisfiesExpression,
+    context: TSESLint.RuleContext<any, any>
+): 'Handler' | 'HeaderHandler' | null {
+    if (satisfiesExpression.typeAnnotation.type === AST_NODE_TYPES.TSTypeReference) {
+        const typeName = satisfiesExpression.typeAnnotation.typeName;
+        if (typeName.type === AST_NODE_TYPES.Identifier) {
+            const name = typeName.name;
+            if ((name === 'Handler' || name === 'HeaderHandler') && isImportedFromMionRouter(name, context)) {
+                return name as 'Handler' | 'HeaderHandler';
+            }
+        }
+    }
+    return null;
+}
+
+/**
+ * Checks if a function has JSDoc tags indicating it should be type-checked
+ * @param node The node to check for JSDoc comments
+ * @param context The ESLint context
+ * @returns The handler type if JSDoc tag is found, null otherwise
+ */
+function getHandlerTypeFromJSDoc(
+    node:
+        | TSESTree.ArrowFunctionExpression
+        | TSESTree.FunctionExpression
+        | TSESTree.FunctionDeclaration
+        | TSESTree.VariableDeclaration,
+    context: TSESLint.RuleContext<any, any>
+): 'Handler' | 'HeaderHandler' | null {
+    const sourceCode = context.sourceCode;
+    const comments = sourceCode.getCommentsBefore(node);
+
+    for (const comment of comments) {
+        if (comment.type === 'Block') {
+            const commentText = comment.value;
+            if (commentText.includes('@mion:route') || commentText.includes('@mion:hook')) {
+                return 'Handler';
+            }
+            if (commentText.includes('@mion:headersHook')) {
+                return 'HeaderHandler';
+            }
+        }
+    }
+    return null;
+}
+
+/**
+ * Checks if a name is imported from @mionkit/router
+ * @param name The identifier name to check
+ * @param context The ESLint context
+ * @returns True if imported from @mionkit/router
+ */
+function isImportedFromMionRouter(name: string, context: TSESLint.RuleContext<any, any>): boolean {
+    const sourceCode = context.sourceCode;
+    const program = sourceCode.ast;
+
+    for (const statement of program.body) {
+        if (statement.type === AST_NODE_TYPES.ImportDeclaration) {
+            const source = statement.source.value;
+            if (source === '@mionkit/router' || source === '@mionkit/router/') {
+                for (const specifier of statement.specifiers) {
+                    if (
+                        specifier.type === AST_NODE_TYPES.ImportSpecifier &&
+                        specifier.imported.type === AST_NODE_TYPES.Identifier &&
+                        specifier.imported.name === name
+                    ) {
+                        return true;
+                    }
+                }
+            }
+        }
+    }
+    return false;
+}
+
 const rule: TSESLint.RuleModule<'missingReturnType' | 'missingParamTypes' | 'missingBothTypes', []> = {
     meta: {
         type: 'problem',
@@ -247,8 +351,107 @@ const rule: TSESLint.RuleModule<'missingReturnType' | 'missingParamTypes' | 'mis
                     });
                 }
             },
+            // Check variable declarations with type annotations or JSDoc tags
+            VariableDeclarator(node: TSESTree.VariableDeclarator) {
+                if (node.id.type === AST_NODE_TYPES.Identifier) {
+                    let handlerType: 'Handler' | 'HeaderHandler' | null = null;
+
+                    // Check for type annotation
+                    if (node.id.typeAnnotation) {
+                        handlerType = getHandlerTypeFromAnnotation(node.id.typeAnnotation, context);
+                    }
+
+                    // Check for JSDoc tags on the variable declaration
+                    if (!handlerType && node.parent?.type === AST_NODE_TYPES.VariableDeclaration) {
+                        handlerType = getHandlerTypeFromJSDoc(node.parent, context);
+                    }
+
+                    if (
+                        handlerType &&
+                        (node.init?.type === AST_NODE_TYPES.ArrowFunctionExpression ||
+                            node.init?.type === AST_NODE_TYPES.FunctionExpression)
+                    ) {
+                        checkHandlerFunction(node.init, handlerType, context);
+                    }
+                }
+            },
+            // Check satisfies expressions
+            TSSatisfiesExpression(node: TSESTree.TSSatisfiesExpression) {
+                const handlerType = getHandlerTypeFromSatisfies(node, context);
+                if (
+                    handlerType &&
+                    (node.expression.type === AST_NODE_TYPES.ArrowFunctionExpression ||
+                        node.expression.type === AST_NODE_TYPES.FunctionExpression)
+                ) {
+                    checkHandlerFunction(node.expression, handlerType, context);
+                }
+            },
+            // Check function declarations with JSDoc tags
+            FunctionDeclaration(node: TSESTree.FunctionDeclaration) {
+                const handlerType = getHandlerTypeFromJSDoc(node, context);
+                if (handlerType) {
+                    checkHandlerFunction(node, handlerType, context);
+                }
+            },
+            // Check arrow functions and function expressions with JSDoc tags
+            ArrowFunctionExpression(node: TSESTree.ArrowFunctionExpression) {
+                const handlerType = getHandlerTypeFromJSDoc(node, context);
+                if (handlerType) {
+                    checkHandlerFunction(node, handlerType, context);
+                }
+            },
+            FunctionExpression(node: TSESTree.FunctionExpression) {
+                const handlerType = getHandlerTypeFromJSDoc(node, context);
+                if (handlerType) {
+                    checkHandlerFunction(node, handlerType, context);
+                }
+            },
         };
     },
 };
+
+/**
+ * Helper function to check a handler function for type annotations
+ * @param func The function node to check
+ * @param handlerType The expected handler type
+ * @param context The ESLint context
+ */
+function checkHandlerFunction(
+    func: TSESTree.ArrowFunctionExpression | TSESTree.FunctionExpression | TSESTree.FunctionDeclaration,
+    handlerType: 'Handler' | 'HeaderHandler',
+    context: TSESLint.RuleContext<any, any>
+) {
+    const hasReturnType = hasExplicitReturnType(func);
+    const paramValidation = validateParameterTypes(func);
+
+    // Report errors based on what's missing
+    if (!hasReturnType && !paramValidation.valid) {
+        context.report({
+            node: func,
+            messageId: 'missingBothTypes',
+            data: {
+                functionName: handlerType,
+                params: paramValidation.missingTypeParams.join(', '),
+            },
+        });
+    } else if (!hasReturnType) {
+        context.report({
+            node: func,
+            messageId: 'missingReturnType',
+            data: {
+                functionName: handlerType,
+            },
+        });
+    } else if (!paramValidation.valid) {
+        context.report({
+            node: func,
+            messageId: 'missingParamTypes',
+            data: {
+                functionName: handlerType,
+                params: paramValidation.missingTypeParams.join(', '),
+            },
+        });
+    }
+}
 
 export default rule;
