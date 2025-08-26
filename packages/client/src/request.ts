@@ -180,7 +180,7 @@ export class MionRequest<RR extends RouteSubRequest<any>, HookRequestsList exten
             this.requestId,
             new RpcError({
                 statusCode: StatusCodes.BAD_REQUEST,
-                name: error.name || 'Unknown Error',
+                type: error.name || 'Unknown Error',
                 message,
             })
         );
@@ -224,7 +224,7 @@ export class MionRequest<RR extends RouteSubRequest<any>, HookRequestsList exten
                 this.requestId,
                 new RpcError({
                     statusCode: StatusCodes.BAD_REQUEST,
-                    name: 'Request Error',
+                    type: 'Request Error',
                     message: `Metadata for Route '${this.requestId} not found.'.`,
                 })
             );
@@ -246,7 +246,7 @@ export class MionRequest<RR extends RouteSubRequest<any>, HookRequestsList exten
                     id,
                     new RpcError({
                         statusCode: StatusCodes.BAD_REQUEST,
-                        name: 'Persist Error',
+                        type: 'Persist Error',
                         message: `Error reading persisted request ${id}: ${err?.message}`,
                     })
                 );
@@ -263,7 +263,7 @@ export class MionRequest<RR extends RouteSubRequest<any>, HookRequestsList exten
             if (methodMeta.type === HandlerType.route) {
                 errors[id] = new RpcError({
                     statusCode: StatusCodes.BAD_REQUEST,
-                    name: 'Persist Error',
+                    type: 'Persist Error',
                     message: `Remote method ${id} is a route and can't be persisted.`,
                 });
                 return;
@@ -279,7 +279,7 @@ export class MionRequest<RR extends RouteSubRequest<any>, HookRequestsList exten
                     id,
                     new RpcError({
                         statusCode: StatusCodes.BAD_REQUEST,
-                        name: 'Persist Error',
+                        type: 'Persist Error',
                         message: `Error persisting request ${id}.`,
                     })
                 );
@@ -299,7 +299,7 @@ export class MionRequest<RR extends RouteSubRequest<any>, HookRequestsList exten
                     id,
                     new RpcError({
                         statusCode: StatusCodes.BAD_REQUEST,
-                        name: 'Persist Error',
+                        type: 'Persist Error',
                         message: `Error removing persisted request ${id}.`,
                     })
                 );

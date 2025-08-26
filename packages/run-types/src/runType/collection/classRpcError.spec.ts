@@ -62,11 +62,11 @@ it('check hasUnknownKeys', () => {
     const hasUnknownKeys = rt.createJitFunction(JitFunctions.hasUnknownKeys);
     const error = {
         isΣrrθr: true,
-        type: 'test',
+        typeOld: 'test',
         statusCode: 400,
         publicMessage: 'error',
         message: 'error',
-        name: 'error',
+        type: 'error',
     } satisfies DataOnly<RpcError>;
     expect(hasUnknownKeys(error)).toBe(false);
     (error as any).extra = 'extra';
@@ -78,11 +78,11 @@ it('check unknownKeyErrors', () => {
     const unknownKeyErrors = rt.createJitFunction(JitFunctions.unknownKeyErrors);
     const error = {
         isΣrrθr: true,
-        type: 'test',
+        typeOld: 'test',
         statusCode: 400,
         publicMessage: 'error',
         message: 'error',
-        name: 'error',
+        type: 'error',
     } satisfies DataOnly<RpcError>;
     expect(unknownKeyErrors(error)).toEqual([]);
     (error as any).extra = 'extra';
@@ -94,11 +94,11 @@ it('check stripUnknownKeys', () => {
     const stripUnknownKeys = rt.createJitFunction(JitFunctions.stripUnknownKeys);
     const error = {
         isΣrrθr: true,
-        type: 'test',
+        typeOld: 'test',
         statusCode: 400,
         publicMessage: 'error',
         message: 'error',
-        name: 'error',
+        type: 'error',
     } satisfies DataOnly<RpcError>;
     (error as any).extra = 'extra';
     stripUnknownKeys(error);
@@ -117,11 +117,11 @@ it('check unknownKeysToUndefined', () => {
     const unknownKeysToUndefined = rt.createJitFunction(JitFunctions.unknownKeysToUndefined);
     const error = {
         isΣrrθr: true,
-        type: 'test',
+        typeOld: 'test',
         statusCode: 400,
         publicMessage: 'error',
         message: 'error',
-        name: 'error',
+        type: 'error',
     } satisfies DataOnly<RpcError>;
     (error as any).extra = 'extra';
     unknownKeysToUndefined(error);

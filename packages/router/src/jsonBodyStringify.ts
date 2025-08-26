@@ -54,7 +54,7 @@ function _getExecutionPathStringifyFn(
             } catch (e: any) {
                 const err = new RpcError({
                     statusCode: 500,
-                    name: 'Stringify Response Error',
+                    type: 'Stringify Response Error',
                     publicMessage: `Failed to stringify return value for handler ${method.id}, expected response type: ${method.returnJitFns.jsonStringify.typeName}`,
                 });
                 stringifyErrors[method.id] = err;

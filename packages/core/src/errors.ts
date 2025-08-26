@@ -5,7 +5,6 @@
  * The software is provided "as is", without warranty of any kind.
  * ######## */
 
-import {statusCodeToReasonPhrase} from './status-codes';
 import {CoreOptions, AnyErrorParams, PublicRpcError, DataOnly, StrNumber, TypedErrorParams} from './types';
 import {DEFAULT_CORE_OPTIONS} from './constants';
 import {randomUUID_V7} from './utils';
@@ -25,17 +24,14 @@ export class TypedError<ErrType extends StrNumber> extends Error {
     public readonly isΣrrθr = true;
     /** Error type, can be used as discriminator in union types switch, etc*/
     public readonly type: ErrType;
-    /** name of the error */
-    public readonly name: string;
     /** the error message */
     public readonly message: string;
 
-    constructor({message, originalError, name, type}: TypedErrorParams<ErrType>) {
+    constructor({message, originalError, type}: TypedErrorParams<ErrType>) {
         const errorMessage = message || originalError?.message || '';
         super(errorMessage);
         this.message = errorMessage;
-        this.name = name || 'TypedError';
-        this.type = type || ('unknown' as any);
+        this.type = type;
 
         if (originalError?.stack) {
             try {
@@ -60,7 +56,7 @@ export class TypedError<ErrType extends StrNumber> extends Error {
     }
 }
 
-export class RpcError<ErrType extends StrNumber = any, ErrData = any> extends TypedError<ErrType> {
+export class RpcError<ErrType extends StrNumber, ErrData = any> extends TypedError<ErrType> {
     /**
      * id of the error, ideally each error should unique identifiable
      * * if RouterOptions.autoGenerateErrorId is set to true and id with timestamp+uuid will be generated
@@ -73,24 +69,13 @@ export class RpcError<ErrType extends StrNumber = any, ErrData = any> extends Ty
     /** options data related to the error, ie validation data */
     public readonly errorData?: Readonly<ErrData>;
 
-    constructor({
-        statusCode,
-        message,
-        publicMessage,
-        originalError,
-        errorData,
-        name,
-        id,
-        type,
-    }: AnyErrorParams<ErrType, ErrData>) {
+    constructor({statusCode, message, publicMessage, originalError, errorData, type, id}: AnyErrorParams<ErrType, ErrData>) {
         const originalMessage = message || originalError?.message || publicMessage || '';
-        const errorName = name || statusCodeToReasonPhrase[statusCode] || 'UnknownError';
 
         // Call parent TypedError constructor
         super({
             message: originalMessage,
             originalError,
-            name: errorName,
             type,
         });
 
@@ -104,11 +89,10 @@ export class RpcError<ErrType extends StrNumber = any, ErrData = any> extends Ty
 
     /** returns an error without stack trace and message is swapped by public message */
     toPublicError(): PublicRpcError<ErrType, ErrData> {
-        const {isΣrrθr, type, name, statusCode, id, errorData, publicMessage} = this;
+        const {isΣrrθr, type, statusCode, id, errorData, publicMessage} = this;
         return {
             isΣrrθr,
             type,
-            name,
             statusCode,
             message: publicMessage,
             ...(id && {id}),
@@ -134,7 +118,7 @@ export function isTypedError(error: any): error is TypedError<any> {
 }
 
 /** Returns true if the error is a RpcError or has the same structure. */
-export function isRpcError(error: any): error is RpcError {
+export function isRpcError(error: any): error is RpcError<any> {
     if (!error) return false;
     if (error instanceof RpcError) return true;
     return (
@@ -162,6 +146,6 @@ jitUtils.setDeserializeFn(TypedError, (serializedItem: DataOnly<TypedError<any>>
     return new TypedError(serializedItem);
 });
 
-jitUtils.setDeserializeFn(RpcError, (serializedItem: DataOnly<RpcError>) => {
+jitUtils.setDeserializeFn(RpcError, (serializedItem: DataOnly<RpcError<any>>) => {
     return new RpcError(serializedItem);
 });

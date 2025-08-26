@@ -79,9 +79,9 @@ const mionGetRemoteMethodsInfoById = (ctx, methodsIds: string[], getAllRemoteMet
 
     if (Object.keys(errorData).length)
         return new RpcError({
-            type: 'not found',
+            typeOld: 'not found',
             statusCode: 404,
-            name: 'Invalid Metadata Request',
+            type: 'Invalid Metadata Request',
             publicMessage: 'Errors getting Remote Methods Metadata',
             errorData,
         });
@@ -92,9 +92,9 @@ const mionGetRemoteMethodsInfoByPath = (ctx, path: string, getAllRemoteMethods?:
     const executables = getRouteExecutionPath(path);
     if (!executables)
         return new RpcError({
-            type: 'not found',
+            typeOld: 'not found',
             statusCode: 404,
-            name: 'Invalid Metadata Request',
+            type: 'Invalid Metadata Request',
             publicMessage: `Route ${path} not found`,
         });
     const privateExecutables = executables.methods.filter((e) => !isPrivateExecutable(e));

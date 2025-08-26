@@ -49,15 +49,15 @@ describe('Route errors should', () => {
 describe('TypedError should', () => {
     it('create a basic typed error with core properties', () => {
         const error = new TypedError({
-            type: 'validation',
+            typeOld: 'validation',
             message: 'Invalid input',
-            name: 'ValidationError',
+            type: 'ValidationError',
         });
 
         expect(error.isΣrrθr).toBe(true);
-        expect(error.type).toBe('validation');
+        expect(error.typeOld).toBe('validation');
         expect(error.message).toBe('Invalid input');
-        expect(error.name).toBe('ValidationError');
+        expect(error.type).toBe('ValidationError');
         expect(error instanceof Error).toBe(true);
         expect(error instanceof TypedError).toBe(true);
     });
@@ -65,9 +65,9 @@ describe('TypedError should', () => {
     it('handle original error stack trace', () => {
         const originalError = new Error('Original error');
         const error = new TypedError({
-            type: 'wrapped',
+            typeOld: 'wrapped',
             originalError,
-            name: 'WrappedError',
+            type: 'WrappedError',
         });
 
         expect(error.message).toBe('Original error');
@@ -78,13 +78,13 @@ describe('TypedError should', () => {
         const error = new TypedError({});
 
         expect(error.isΣrrθr).toBe(true);
-        expect(error.type).toBe('unknown');
+        expect(error.typeOld).toBe('unknown');
         expect(error.message).toBe('');
-        expect(error.name).toBe('TypedError');
+        expect(error.type).toBe('TypedError');
     });
 
     it('be identified by type guard', () => {
-        const error = new TypedError({type: 'test'});
+        const error = new TypedError({typeOld: 'test'});
         const plainError = new Error('plain');
         const plainObject = {isΣrrθr: true, type: 'fake', name: 'fake', message: 'fake'};
 
@@ -100,7 +100,7 @@ describe('RpcError inheritance should', () => {
     it('extend TypedError correctly', () => {
         const error = new RpcError({
             statusCode: 400,
-            type: 'validation',
+            typeOld: 'validation',
             message: 'Invalid request',
             publicMessage: 'Bad request',
         });
@@ -108,7 +108,7 @@ describe('RpcError inheritance should', () => {
         expect(error instanceof TypedError).toBe(true);
         expect(error instanceof RpcError).toBe(true);
         expect(error.isΣrrθr).toBe(true);
-        expect(error.type).toBe('validation');
+        expect(error.typeOld).toBe('validation');
         expect(error.message).toBe('Invalid request');
         expect(error.statusCode).toBe(400);
         expect(error.publicMessage).toBe('Bad request');

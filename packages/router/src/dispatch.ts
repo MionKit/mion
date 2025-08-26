@@ -183,7 +183,7 @@ function deserializeBodyParams(request: MionRequest, executable: NonRawMethod): 
     } catch (e: any) {
         throw new RpcError({
             statusCode: StatusCodes.BAD_REQUEST,
-            name: 'Serialization Error',
+            type: 'Serialization Error',
             publicMessage: `Invalid params '${executable.id}', can not deserialize. Parameters might be of the wrong type.`,
             originalError: e,
             errorData: {deserializeError: e.message},
@@ -195,7 +195,7 @@ function validateParametersOrThrow(params: any[], executable: NonRawMethod): voi
     if (!executable.paramsJitFns.isType.fn(params)) {
         throw new RpcError({
             statusCode: StatusCodes.BAD_REQUEST,
-            name: 'Validation Error',
+            type: 'Validation Error',
             publicMessage: `Invalid params in '${executable.id}', validation failed.`,
             errorData: executable.paramsJitFns.typeErrors.fn(params),
         });

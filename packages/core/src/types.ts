@@ -61,21 +61,19 @@ export type CoreOptions = {
 // ##########################################  Errors ##########################################
 
 /** Base parameters for TypedError */
-export interface TypedErrorParams<ErrType extends StrNumber = any> {
+export interface TypedErrorParams<ErrType extends StrNumber> {
     /** Error type, can be used as discriminator in union types switch, etc*/
-    type?: ErrType;
+    type: ErrType;
     /** the error message */
     message?: string;
     /** original error used to create the TypedError */
     originalError?: Error;
-    /** name of the error */
-    name?: string;
 }
 
 /** Any error triggered by hooks or routes must follow this interface, returned errors in the body also follows this interface */
-export interface RpcErrorParams<ErrType extends StrNumber = any, ErrData = any> {
+export interface RpcErrorParams<ErrType extends StrNumber, ErrData = any> {
     /** Error type, can be used as discriminator in union types switch, etc*/
-    type?: ErrType;
+    type: ErrType;
     /** id of the error. */
     id?: number | string;
     /** response status code */
@@ -91,21 +89,19 @@ export interface RpcErrorParams<ErrType extends StrNumber = any, ErrData = any> 
     errorData?: ErrData;
     /** original error used to create the RpcError */
     originalError?: Error;
-    /** name of the error, if not defined it is assigned from status code */
-    name?: string;
 }
 
-export interface RpcErrorWithPublic<ErrType extends StrNumber = any, ErrData = any> extends RpcErrorParams<ErrType, ErrData> {
+export interface RpcErrorWithPublic<ErrType extends StrNumber, ErrData = any> extends RpcErrorParams<ErrType, ErrData> {
     publicMessage: string;
 }
 
-export interface RpcErrorWithPrivate<ErrType extends StrNumber = any, ErrData = any> extends RpcErrorParams<ErrType, ErrData> {
+export interface RpcErrorWithPrivate<ErrType extends StrNumber, ErrData = any> extends RpcErrorParams<ErrType, ErrData> {
     message: string;
 }
 
 /** Error data returned to the clients  */
-export interface PublicRpcError<ErrType extends StrNumber = any, ErrData = any>
-    extends Omit<RpcErrorParams, 'publicMessage' | 'originalError'> {
+export interface PublicRpcError<ErrType extends StrNumber, ErrData = any>
+    extends Omit<RpcErrorParams<ErrType, ErrData>, 'publicMessage' | 'originalError'> {
     isΣrrθr: true;
     type: ErrType;
     /**
@@ -114,11 +110,10 @@ export interface PublicRpcError<ErrType extends StrNumber = any, ErrData = any>
      * */
     message: string;
     statusCode: number;
-    name: string;
     errorData?: ErrData;
 }
 
-export type AnyErrorParams<ErrType extends StrNumber = any, ErrData = any> =
+export type AnyErrorParams<ErrType extends StrNumber, ErrData = any> =
     | RpcErrorWithPublic<ErrType, ErrData>
     | RpcErrorWithPrivate<ErrType, ErrData>;
 
