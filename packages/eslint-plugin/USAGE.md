@@ -4,10 +4,12 @@ This ESLint plugin provides rules for mion projects to ensure proper usage of ru
 
 ## Installation
 
-Install the plugin locally in your project:
+The plugin is automatically available as a devDependency in the root package.json. When you clone the repository and run `npm install`, it will be available.
+
+For manual installation in other projects:
 
 ```bash
-npm install ./packages/eslint-plugin
+npm install @mionkit/eslint-plugin --save-dev
 ```
 
 ## Configuration
@@ -16,9 +18,9 @@ Add the plugin to your `.eslintrc.js`:
 
 ```javascript
 module.exports = {
-  plugins: ['mionkit'],
+  plugins: ['@mionkit/eslint-plugin'],
   rules: {
-    'mionkit/no-typeof-runtype': 'error',
+    '@mionkit/no-typeof-runtype': 'error',
   },
 };
 ```
@@ -61,8 +63,8 @@ When violations are found:
 
 ```
 /path/to/file.ts
-  15:15  error  Do not use `typeof` with the `runType` function. Use explicit type definitions instead  mionkit/no-typeof-runtype
-  16:16  error  Do not use `typeof` with the `runType` function. Use explicit type definitions instead  mionkit/no-typeof-runtype
+  15:15  error  Do not use `typeof` with the `runType` function. Use explicit type definitions instead  @mionkit/no-typeof-runtype
+  16:16  error  Do not use `typeof` with the `runType` function. Use explicit type definitions instead  @mionkit/no-typeof-runtype
 
 ✖ 2 problems (2 errors, 0 warnings)
 ```
