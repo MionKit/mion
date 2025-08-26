@@ -229,11 +229,10 @@ describe('Dispatch routes', () => {
             const error = response.body['/abcd'];
             expect(error).toEqual({
                 isΣrrθr: true,
-                type: 'unknown',
                 statusCode: 404,
-                name: 'Not Found',
+                type: 'route-not-found',
                 message: 'Route not found',
-            } satisfies PublicRpcError);
+            } satisfies PublicRpcError<'route-not-found'>);
         });
 
         it('return an error if data is missing from header', async () => {
@@ -253,12 +252,11 @@ describe('Dispatch routes', () => {
             const error = response.body?.auth;
             expect(error).toEqual({
                 isΣrrθr: true,
-                type: 'unknown',
                 statusCode: 400,
-                name: 'Validation Error',
+                type: 'validation-error',
                 message: `Invalid params in 'auth', validation failed.`,
                 errorData: expect.anything(),
-            } satisfies PublicRpcError);
+            } satisfies PublicRpcError<'validation-error'>);
         });
 
         it('return an error if body is not the correct type', async () => {
@@ -281,11 +279,10 @@ describe('Dispatch routes', () => {
             const error = response.body['mionParseJsonRequestBody'];
             expect(error).toEqual({
                 isΣrrθr: true,
-                type: 'unknown',
                 statusCode: 400,
-                name: 'Invalid Request Body',
+                type: 'invalid-request-body',
                 message: 'Wrong request body. Expecting an json body containing the route name and parameters.',
-            } satisfies PublicRpcError);
+            } satisfies PublicRpcError<'invalid-request-body'>);
 
             const request2: RawRequest = {
                 headers: headersFromRecord({}),
@@ -303,11 +300,10 @@ describe('Dispatch routes', () => {
             const errorResp = response2.body['mionParseJsonRequestBody'];
             expect(errorResp).toEqual({
                 isΣrrθr: true,
-                type: 'unknown',
+                type: 'parsing-request-body-error',
                 statusCode: 422,
-                name: 'Parsing Request Body Error',
                 message: expect.stringContaining('Invalid request body:'), // Nodejs error is slightly different depending on node version
-            } satisfies PublicRpcError);
+            } satisfies PublicRpcError<'parsing-request-body-error'>);
         });
 
         it('return an error if data is missing from body', async () => {
@@ -327,12 +323,11 @@ describe('Dispatch routes', () => {
             const error = response.body['changeUserName'];
             expect(error).toEqual({
                 isΣrrθr: true,
-                type: 'unknown',
                 statusCode: 400,
-                name: `Validation Error`,
+                type: `validation-error`,
                 message: `Invalid params in 'changeUserName', validation failed.`,
                 errorData: [{expected: 'object', path: [0]}],
-            } satisfies PublicRpcError);
+            } satisfies PublicRpcError<'validation-error'>);
         });
 
         it("return an error if can't deserialize", async () => {
@@ -352,12 +347,11 @@ describe('Dispatch routes', () => {
             const error = response.body['getSameDate'];
             expect(error).toEqual({
                 isΣrrθr: true,
-                type: 'unknown',
                 statusCode: 400,
-                name: 'Serialization Error',
+                type: 'serialization-error',
                 message: `Invalid params 'getSameDate', can not deserialize. Parameters might be of the wrong type.`,
                 errorData: {deserializeError: `Cannot read properties of undefined (reading 'date')`},
-            } satisfies PublicRpcError);
+            } satisfies PublicRpcError<'serialization-error'>);
         });
 
         it('return an error if validation fails, incorrect type', async () => {
@@ -375,10 +369,9 @@ describe('Dispatch routes', () => {
                 request,
                 {}
             );
-            const expected: PublicRpcError = {
+            const expected: PublicRpcError<'validation-error'> = {
                 isΣrrθr: true,
-                type: 'unknown',
-                name: 'Validation Error',
+                type: 'validation-error',
                 statusCode: 400,
                 message: `Invalid params in 'changeUserName', validation failed.`,
                 errorData: [{expected: 'string', path: [0, 'name']}],
@@ -401,10 +394,9 @@ describe('Dispatch routes', () => {
                 request,
                 {}
             );
-            const expected: PublicRpcError = {
+            const expected: PublicRpcError<'validation-error'> = {
                 isΣrrθr: true,
-                type: 'unknown',
-                name: 'Validation Error',
+                type: 'validation-error',
                 statusCode: 400,
                 message: `Invalid params in 'changeUserName', validation failed.`,
                 errorData: [
@@ -430,11 +422,10 @@ describe('Dispatch routes', () => {
             const error = response.body['routeFail'];
             expect(error).toEqual({
                 isΣrrθr: true,
-                type: 'unknown',
                 statusCode: 500,
-                name: 'Unknown Error',
+                type: 'unknown-error',
                 message: 'Unknown error in step 1 of route execution path.',
-            } satisfies PublicRpcError);
+            } satisfies PublicRpcError<'unknown-error'>);
         });
 
         // TODO: not sure how to make serialization/validation throw an error
@@ -456,11 +447,10 @@ describe('Dispatch routes', () => {
             const error = response.body['getSameDate'];
             expect(error).toEqual({
                 isΣrrθr: true,
-                type: 'unknown',
                 statusCode: 400,
                 message: `Invalid params 'getSameDate', can not validate parameters.`,
-                name: 'Validation Error',
-            } satisfies PublicRpcError);
+                type: 'validation-error',
+            } satisfies PublicRpcError<'validation-error'>);
         });
     });
 
@@ -563,7 +553,7 @@ describe('Dispatch routes', () => {
             expect(response.hasErrors).toBeTruthy();
             expect(response.body.changeUserName).toMatchObject({
                 isΣrrθr: true,
-                name: 'Validation Error',
+                type: 'validation-error',
                 statusCode: 400,
             });
         });

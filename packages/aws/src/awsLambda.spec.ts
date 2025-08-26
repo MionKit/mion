@@ -101,17 +101,16 @@ describe('serverless router should', () => {
         const parsedResponse = JSON.parse(awsResponse.body);
         const headers = awsResponse.headers || {};
 
-        const expectedError: PublicRpcError = {
+        const expectedError: PublicRpcError<'validation-error'> = {
             isΣrrθr: true,
-            type: 'unknown',
             message: `Invalid params in 'getDate', validation failed.`,
             statusCode: 400,
-            name: 'Validation Error',
+            type: 'validation-error',
             errorData: expect.anything(),
         };
         expect(parsedResponse).toEqual({getDate: expectedError});
         expect(headers['content-type']).toEqual('application/json; charset=utf-8');
-        expect(headers['content-length']).toEqual('197');
+        expect(headers['content-length']).toEqual('180');
         expect(headers['server']).toEqual('@mionkit/aws');
     });
 

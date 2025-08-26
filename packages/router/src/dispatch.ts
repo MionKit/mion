@@ -46,7 +46,7 @@ export async function dispatchRoute<Req, Resp>(
         await runExecutionPath(context, rawRequest, rawResponse, executionPath.methods, opts);
         // console.log('dispatchRoute errors', context.request.internalErrors);
         return context.response;
-    } catch (err: any | RpcError | Error) {
+    } catch (err: any | RpcError<any> | Error) {
         // this should never happen, exceptions should be handled inside runExecutionPath
         return Promise.reject(err);
     }
@@ -102,7 +102,7 @@ async function runExecutionPath(
             // method caller is not type safe so we need to be sure we always passing correct parameters
             // runRawHook , runHeaderHook & runRouteOrHook must always accept the same parameters in the same order
             await methodCaller(context, executable, request, response, opts, rawRequest, rawResponse);
-        } catch (err: any | RpcError | Error) {
+        } catch (err: any | RpcError<any> | Error) {
             const path = isNotFoundExecutable(executable) ? context.path : executable.id;
             handleRpcErrors(path, request, response, err, i);
         }
@@ -183,7 +183,7 @@ function deserializeBodyParams(request: MionRequest, executable: NonRawMethod): 
     } catch (e: any) {
         throw new RpcError({
             statusCode: StatusCodes.BAD_REQUEST,
-            type: 'Serialization Error',
+            type: 'serialization-error',
             publicMessage: `Invalid params '${executable.id}', can not deserialize. Parameters might be of the wrong type.`,
             originalError: e,
             errorData: {deserializeError: e.message},
@@ -195,7 +195,7 @@ function validateParametersOrThrow(params: any[], executable: NonRawMethod): voi
     if (!executable.paramsJitFns.isType.fn(params)) {
         throw new RpcError({
             statusCode: StatusCodes.BAD_REQUEST,
-            type: 'Validation Error',
+            type: 'validation-error',
             publicMessage: `Invalid params in '${executable.id}', validation failed.`,
             errorData: executable.paramsJitFns.typeErrors.fn(params),
         });

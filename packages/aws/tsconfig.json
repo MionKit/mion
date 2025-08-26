@@ -5,6 +5,7 @@
     "composite": true,
     "rootDir": "."
   },
+  "references": [{"path": "../core"}, {"path": "../router"}],
   "reflection": true,
   "include": ["."],
   "exclude": ["node_modules", ".dist"]

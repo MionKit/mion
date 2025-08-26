@@ -89,7 +89,7 @@ describe('route & hooks init functions', () => {
             wrongRequest,
             {}
         );
-        expect(wrongResponse.body.auth).toEqual(expect.objectContaining({name: 'Validation Error', statusCode: 400}));
+        expect(wrongResponse.body.auth).toEqual(expect.objectContaining({type: 'validation-error', statusCode: 400}));
         expect(wrongResponse.headers.get('Authorization')).toEqual(undefined);
     });
 });
