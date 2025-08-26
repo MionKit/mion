@@ -18,7 +18,7 @@ The new AOT architecture eliminates the need for stub file management by providi
 ### Template Files
 
 - `router.cache.ts` - Router methods cache placeholder
-- `jitFns.cache.ts` - JIT functions cache placeholder  
+- `jitFns.cache.ts` - JIT functions cache placeholder
 - `pureFns.cache.ts` - Pure functions cache placeholder
 - `index.ts` - Main entry point with `loadAOTCaches()` function
 
