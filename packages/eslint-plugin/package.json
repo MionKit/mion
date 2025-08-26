@@ -1,5 +1,5 @@
 {
-  "name": "@mionkit/eslint-plugin",
+  "name": "eslint-plugin-mionkit",
   "version": "0.7.2",
   "description": "ESLint rules for mion projects",
   "keywords": [
@@ -12,14 +12,14 @@
   "author": "ma jerez <jerez.m82@gmail.com>",
   "homepage": "https://mion.io/",
   "license": "MIT",
-  "main": ".dist/cjs/index.js",
-  "module": ".dist/esm/index.js",
-  "types": ".dist/types/index.d.ts",
+  "main": "build/cjs/index.js",
+  "module": "build/esm/index.js",
+  "types": "build/types/index.d.ts",
   "directories": {
-    "lib": ".dist"
+    "lib": "build"
   },
   "files": [
-    ".dist"
+    "build"
   ],
   "repository": {
     "type": "git",
@@ -27,16 +27,16 @@
   },
   "scripts": {
     "test": "jest",
-    "dev": "rimraf .dist && tsc --build tsconfig.json --watch",
+    "dev": "rimraf build && tsc --build tsconfig.json --watch",
     "dev:test": "jest --watch",
     "lint": "eslint lib --ext .ts",
     "format": "prettier --write lib/**/*.ts",
-    "build:cjs": "tsc --project tsconfig.build.json --module CommonJS --outDir .dist/cjs",
-    "build:esm": "echo 'Skipping ESM build for now'",
-    "build:types": "tsc --project tsconfig.build.json --emitDeclarationOnly --declaration --outDir .dist/types",
-    "build": "npm run build:cjs && npm run build:esm && npm run build:types",
+    "build:cjs": "tsc --project tsconfig.build.json --module CommonJS --outDir build/cjs",
+    "build:esm": "tsc --project tsconfig.build.json --module ESNext --outDir build/esm",
+    "build:types": "tsc --project tsconfig.build.json --emitDeclarationOnly --declaration --outDir build/types",
+    "build": "npm run clean && npm run build:cjs && npm run build:esm && npm run build:types",
     "auto-readme": "embedme **/*.md && prettier --write **/*.md",
-    "clean": "rimraf .dist & rimraf .coverage",
+    "clean": "rimraf build && rimraf .coverage",
     "fresh-start": "npm run clean && rimraf node_modules"
   },
   "bugs": {
