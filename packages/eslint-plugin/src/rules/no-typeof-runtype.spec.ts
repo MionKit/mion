@@ -66,9 +66,18 @@ ruleTester.run('no-typeof-runtype', rule, {
         // Valid usage with relative import
         {
             code: `
-                import { runType } from '../../lib/runType';
+                import { runType } from '../../src/runType';
                 type User = { name: string; age: number };
                 const rtUser = runType<User>();
+            `,
+        },
+        // Valid usage with other run-type functions
+        {
+            code: `
+                import { isTypeFn, typeErrorsFn } from '@mionkit/run-types';
+                type User = { name: string; age: number };
+                const isUserType = isTypeFn<User>();
+                const getUserErrors = typeErrorsFn<User>();
             `,
         },
     ],
@@ -144,9 +153,48 @@ ruleTester.run('no-typeof-runtype', rule, {
         // Invalid usage with relative import
         {
             code: `
-                import { runType } from '../../lib/runType';
+                import { runType } from '../../src/runType';
                 const user = { name: 'John', age: 34 };
                 const rtUser = runType<typeof user>();
+            `,
+            errors: [
+                {
+                    messageId: 'noTypeof',
+                },
+            ],
+        },
+        // Invalid usage with isTypeFn
+        {
+            code: `
+                import { isTypeFn } from '@mionkit/run-types';
+                const user = { name: 'John', age: 34 };
+                const isUserType = isTypeFn<typeof user>();
+            `,
+            errors: [
+                {
+                    messageId: 'noTypeof',
+                },
+            ],
+        },
+        // Invalid usage with typeErrorsFn
+        {
+            code: `
+                import { typeErrorsFn } from '@mionkit/run-types';
+                const user = { name: 'John', age: 34 };
+                const getUserErrors = typeErrorsFn<typeof user>();
+            `,
+            errors: [
+                {
+                    messageId: 'noTypeof',
+                },
+            ],
+        },
+        // Invalid usage with mockTypeFn
+        {
+            code: `
+                import { mockTypeFn } from '@mionkit/run-types';
+                const user = { name: 'John', age: 34 };
+                const mockUser = mockTypeFn<typeof user>();
             `,
             errors: [
                 {
