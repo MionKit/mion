@@ -88,7 +88,13 @@ function createRunTypes(src: SrcType): void {
         const current = stack.pop();
         if (!current || (current as SrcType)._rt) continue;
 
-        createRunType(current as Mutable<SrcType>);
+        try {
+            createRunType(current as Mutable<SrcType>);
+        } catch (error) {
+            const typesStackMessage = '\nTypes Stack: ' + stack.map((t) => t.typeName || t.kind).join(', ');
+            (error as Error).message += typesStackMessage;
+            throw error;
+        }
 
         // single child type nodes
         if (hasType(current)) stack.push(current.type);
@@ -276,7 +282,11 @@ function createRunType(deepkitType: Mutable<SrcType>): RunType {
             rt = new TupleRunType();
             break;
         case ReflectionKind.typeParameter:
-            throw new Error('not implemented');
+            throw new Error(
+                'TypeParameter not implemented. Type parameters are the generic placeholders in type definitions (e.g., T in Array<T>, ErrType in TypedError<ErrType>). ' +
+                    'Type parameters are typically resolved during type instantiation and should not appear in runtime type checking.' +
+                    'This error is typically caused by a generic type missing type arguments, e.g.: TypedError instead of TypedError<"my-error">.'
+            );
         // rType = resolveTypeParameter(deepkitType, opts, mapper);
         case ReflectionKind.union:
             rt = new UnionRunType();
