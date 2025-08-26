@@ -11,6 +11,8 @@ dist
 tmp
 .coverage
 coverage
+.build
+build
 
 
 ########################

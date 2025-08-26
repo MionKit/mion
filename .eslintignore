@@ -7,3 +7,4 @@ shared-fixtures
 coverage
 __snapshots__
 .dist
+build
