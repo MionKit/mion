@@ -32,7 +32,7 @@ describe('node http router should', () => {
     };
     const getSharedData = () => ({auth: {me: null as any}});
 
-    const changeUserName: Route = route((context: Context, user: SimpleUser) => {
+    const changeUserName: Route = route((context: Context, user: SimpleUser): SimpleUser => {
         return myApp.db.changeUserName(user);
     });
 
