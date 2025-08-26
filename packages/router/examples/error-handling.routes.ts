@@ -4,7 +4,7 @@ import {Route, route} from '@mionkit/router';
 import type {Pet} from './myModels';
 import {myApp} from './myApp';
 
-export const getPet = route(async (ctx, id: string): Promise<Pet | RpcError> => {
+export const getPet = route(async (ctx, id: string): Promise<Pet | RpcError<'pet-not-found'>> => {
     try {
         const pet = await myApp.db.getPet(id);
         if (!pet) {
@@ -12,7 +12,7 @@ export const getPet = route(async (ctx, id: string): Promise<Pet | RpcError> => 
             const statusCode = StatusCodes.BAD_REQUEST;
             const publicMessage = `Pet with id ${id} can't be found`;
             // either return or throw are allowed
-            return new RpcError({statusCode, publicMessage});
+            return new RpcError({statusCode, publicMessage, type: 'pet-not-found'});
         }
         return pet;
     } catch (dbError) {
@@ -24,7 +24,7 @@ export const getPet = route(async (ctx, id: string): Promise<Pet | RpcError> => 
          * Full RpcError containing dbError message and stacktrace will be added
          * to ctx.request.internalErrors, so it can be logged or managed after
          */
-        return new RpcError({statusCode, publicMessage, originalError: dbError as Error});
+        return new RpcError({statusCode, publicMessage, originalError: dbError as Error, type: 'db-error'});
     }
 }) satisfies Route;
 

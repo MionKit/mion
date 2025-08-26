@@ -11,5 +11,5 @@
   "references": [{"path": "../core"}, {"path": "../run-types"}],
   "reflection": true,
   "include": ["."],
-  "exclude": ["node_modules", "**/*.spec.ts", "**/*.test.ts", ".dist"]
+  "exclude": ["node_modules", "**/*.spec.ts", "**/*.test.ts", ".dist", "examples"]
 }

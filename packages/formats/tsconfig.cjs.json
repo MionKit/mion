@@ -10,5 +10,5 @@
   "references": [{"path": "../core/tsconfig.cjs.json"}, {"path": "../run-types/tsconfig.cjs.json"}],
   "reflection": true,
   "include": ["."],
-  "exclude": ["node_modules", "**/*.spec.ts", "**/*.test.ts", ".dist"]
+  "exclude": ["node_modules", "**/*.spec.ts", "**/*.test.ts", ".dist", "examples"]
 }

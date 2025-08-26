@@ -10,7 +10,7 @@ try {
     // calls sayHello route in the server
     const sayHello = await routes.users.sayHello({id: '123', name: 'John', surname: 'Doe'}).call();
     console.log(sayHello); // Hello John Doe
-} catch (error: RpcError | any) {
+} catch (error: RpcError<any> | any) {
     // in this case the request has failed because the authorization hook is missing
     console.log(error); // {statusCode: 400, type: 'validation-error', message: `Invalid params for Route or Hook 'auth'.`}
 
@@ -23,6 +23,6 @@ try {
     // Validation throws an error when validation fails
     const sayHello = await routes.users.sayHello(null as any).typeErrors();
     console.log(sayHello); // Hello John Doe
-} catch (error: RpcError | any) {
+} catch (error: RpcError<any> | any) {
     console.log(error); // { statusCode: 400, type: 'validation-error', message: `Invalid params ...`, errorData : {...}}
 }
