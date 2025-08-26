@@ -1,12 +1,12 @@
 module.exports = {
   root: true,
   parser: '@typescript-eslint/parser',
-  plugins: ['@typescript-eslint', 'jest'],
+  plugins: ['@typescript-eslint', 'jest', '@mionkit'],
   extends: [
     'eslint:recommended',
     'plugin:@typescript-eslint/recommended',
     'plugin:jest/recommended',
-    'plugin:@mionkit/eslint-plugin/recommended'
+    'plugin:@mionkit/recommended',
   ],
   parserOptions: {
     project: ['./packages/*/tsconfig.json'],

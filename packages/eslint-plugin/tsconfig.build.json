@@ -13,10 +13,10 @@
     "target": "es2020",
     "lib": ["es6", "ES2023"],
     "outDir": "build/cjs",
-    "sourceMap": false,
-    "declaration": false,
+    "sourceMap": true,
+    "declaration": true,
     "isolatedModules": true
   },
-  "include": ["lib"],
+  "include": ["src"],
   "exclude": ["node_modules", "**/*.spec.ts"]
 }

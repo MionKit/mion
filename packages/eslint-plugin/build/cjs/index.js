@@ -10,7 +10,7 @@ const plugin = {
     },
     configs: {
         recommended: {
-            plugins: ['@mionkit/eslint-plugin'],
+            extends: [],
             rules: {
                 '@mionkit/no-typeof-runtype': 'error',
             },
@@ -19,3 +19,4 @@ const plugin = {
 };
 module.exports = plugin;
 exports.default = plugin;
+//# sourceMappingURL=index.js.map
