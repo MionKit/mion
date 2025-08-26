@@ -52,15 +52,55 @@ function getRouterFunctionName(node: TSESTree.CallExpression, context: TSESLint.
 }
 
 /**
+ * Finds a function declaration or variable assignment with function expression by name
+ * @param name The function name to search for
+ * @param context The ESLint context
+ * @returns The function node or null
+ */
+function findFunctionByName(
+    name: string,
+    context: TSESLint.RuleContext<any, any>
+): TSESTree.ArrowFunctionExpression | TSESTree.FunctionExpression | TSESTree.FunctionDeclaration | null {
+    const sourceCode = context.sourceCode;
+    const program = sourceCode.ast;
+
+    // Search through all top-level statements
+    for (const statement of program.body) {
+        // Check function declarations
+        if (statement.type === AST_NODE_TYPES.FunctionDeclaration && statement.id?.name === name) {
+            return statement;
+        }
+
+        // Check variable declarations
+        if (statement.type === AST_NODE_TYPES.VariableDeclaration) {
+            for (const declarator of statement.declarations) {
+                if (declarator.id.type === AST_NODE_TYPES.Identifier && declarator.id.name === name) {
+                    if (
+                        declarator.init?.type === AST_NODE_TYPES.ArrowFunctionExpression ||
+                        declarator.init?.type === AST_NODE_TYPES.FunctionExpression
+                    ) {
+                        return declarator.init;
+                    }
+                }
+            }
+        }
+    }
+
+    return null;
+}
+
+/**
  * Gets the handler function from a router function call
  * @param node The call expression node
  * @param functionName The name of the router function
+ * @param context The ESLint context
  * @returns The handler function node or null
  */
 function getHandlerFunction(
     node: TSESTree.CallExpression,
-    functionName: string
-): TSESTree.ArrowFunctionExpression | TSESTree.FunctionExpression | null {
+    functionName: string,
+    context: TSESLint.RuleContext<any, any>
+): TSESTree.ArrowFunctionExpression | TSESTree.FunctionExpression | TSESTree.FunctionDeclaration | null {
     let handlerIndex = 0;
 
     // For headersHook, the handler is the second parameter
@@ -74,8 +114,14 @@ function getHandlerFunction(
 
     const handlerArg = node.arguments[handlerIndex];
 
+    // Handle inline function expressions/arrow functions
     if (handlerArg.type === AST_NODE_TYPES.ArrowFunctionExpression || handlerArg.type === AST_NODE_TYPES.FunctionExpression) {
         return handlerArg;
+    }
+
+    // Handle function references (identifiers)
+    if (handlerArg.type === AST_NODE_TYPES.Identifier) {
+        return findFunctionByName(handlerArg.name, context);
     }
 
     return null;
@@ -86,7 +132,9 @@ function getHandlerFunction(
  * @param func The function node
  * @returns True if it has explicit return type, false otherwise
  */
-function hasExplicitReturnType(func: TSESTree.ArrowFunctionExpression | TSESTree.FunctionExpression): boolean {
+function hasExplicitReturnType(
+    func: TSESTree.ArrowFunctionExpression | TSESTree.FunctionExpression | TSESTree.FunctionDeclaration
+): boolean {
     return func.returnType !== undefined;
 }
 
@@ -95,7 +143,9 @@ function hasExplicitReturnType(func: TSESTree.ArrowFunctionExpression | TSESTree
  * @param func The function node
  * @returns Object with validation results
  */
-function validateParameterTypes(func: TSESTree.ArrowFunctionExpression | TSESTree.FunctionExpression): {
+function validateParameterTypes(
+    func: TSESTree.ArrowFunctionExpression | TSESTree.FunctionExpression | TSESTree.FunctionDeclaration
+): {
     valid: boolean;
     missingTypeParams: string[];
 } {
@@ -160,7 +210,7 @@ const rule: TSESLint.RuleModule<'missingReturnType' | 'missingParamTypes' | 'mis
                     return;
                 }
 
-                const handlerFunc = getHandlerFunction(node, functionName);
+                const handlerFunc = getHandlerFunction(node, functionName, context);
                 if (!handlerFunc) {
                     return;
                 }
