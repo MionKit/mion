@@ -16,8 +16,6 @@ module.exports = {
     // 'jest/no-disabled-tests': 'off',
     '@typescript-eslint/no-empty-function': 'off',
     '@typescript-eslint/no-explicit-any': 'off',
-    // Disable the new strong-typed-routes rule initially to avoid breaking existing codebase
-    '@mionkit/strong-typed-routes': 'off',
   },
   overrides: [
     {
