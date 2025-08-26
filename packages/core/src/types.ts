@@ -9,6 +9,9 @@ export type StrNumber = string | number;
 
 /**
  * Interface defining the shape of jitUtils
+ *
+ * !! Important: this needs to be defined as a type for reflection to work correctly
+ * !! we can not use  typeof jitUtils
  */
 export interface JITUtils {
     /** optimized function to convert an string into a json string wrapped in double quotes */
