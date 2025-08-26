@@ -68,13 +68,13 @@ describe('AOT Cache Compilation E2E', () => {
 
         const testRoutes = {
             users: {
-                getUser: route((id: string) => `User ${id}`),
-                setUser: route((id: string, name: string) => `Set user ${id} to ${name}`),
-                beforeUser: hook(() => null),
+                getUser: route((id: string): string => `User ${id}`),
+                setUser: route((id: string, name: string): string => `Set user ${id} to ${name}`),
+                beforeUser: hook((): null => null),
             },
             pets: {
-                getPet: route((id: string) => `Pet ${id}`),
-                afterPet: hook(() => null),
+                getPet: route((id: string): string => `Pet ${id}`),
+                afterPet: hook((): null => null),
             },
         };
 
