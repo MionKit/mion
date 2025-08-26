@@ -89,6 +89,46 @@ ruleTester.run('strong-typed-routes', rule, {
                 route((ctx, ...args: string[]): void => { console.log(args); });
             `,
         },
+        // Valid with function declaration reference
+        {
+            code: `
+                import { route } from '@mionkit/router';
+                function sayHello(ctx, name: string): string { return \`hello \${name}\`; }
+                route(sayHello);
+            `,
+        },
+        // Valid with arrow function variable reference
+        {
+            code: `
+                import { route } from '@mionkit/router';
+                const sayHello = (ctx, name: string): string => \`hello \${name}\`;
+                route(sayHello);
+            `,
+        },
+        // Valid with function expression variable reference
+        {
+            code: `
+                import { route } from '@mionkit/router';
+                const sayHello = function(ctx, name: string): string { return \`hello \${name}\`; };
+                route(sayHello);
+            `,
+        },
+        // Valid with headersHook function reference
+        {
+            code: `
+                import { headersHook } from '@mionkit/router';
+                const authHandler = (ctx, token: string): void => { console.log(token); };
+                headersHook(['auth'], authHandler);
+            `,
+        },
+        // Valid with hook function reference
+        {
+            code: `
+                import { hook } from '@mionkit/router';
+                function logHandler(ctx, data: number): void { console.log(data); }
+                hook(logHandler);
+            `,
+        },
     ],
     invalid: [
         // Missing return type
@@ -196,6 +236,71 @@ ruleTester.run('strong-typed-routes', rule, {
             errors: [
                 {
                     messageId: 'missingParamTypes',
+                },
+            ],
+        },
+        // Function declaration reference missing types
+        {
+            code: `
+                import { route } from '@mionkit/router';
+                function sayHello(ctx, name) { return \`hello \${name}\`; }
+                route(sayHello);
+            `,
+            errors: [
+                {
+                    messageId: 'missingBothTypes',
+                },
+            ],
+        },
+        // Arrow function variable reference missing types
+        {
+            code: `
+                import { route } from '@mionkit/router';
+                const sayHello = (ctx, name) => \`hello \${name}\`;
+                route(sayHello);
+            `,
+            errors: [
+                {
+                    messageId: 'missingBothTypes',
+                },
+            ],
+        },
+        // Function expression variable reference missing return type
+        {
+            code: `
+                import { route } from '@mionkit/router';
+                const sayHello = function(ctx, name: string) { return \`hello \${name}\`; };
+                route(sayHello);
+            `,
+            errors: [
+                {
+                    messageId: 'missingReturnType',
+                },
+            ],
+        },
+        // Function declaration reference missing parameter type
+        {
+            code: `
+                import { route } from '@mionkit/router';
+                function sayHello(ctx, name): string { return \`hello \${name}\`; }
+                route(sayHello);
+            `,
+            errors: [
+                {
+                    messageId: 'missingParamTypes',
+                },
+            ],
+        },
+        // headersHook function reference missing types
+        {
+            code: `
+                import { headersHook } from '@mionkit/router';
+                const authHandler = (ctx, token) => { console.log(token); };
+                headersHook(['auth'], authHandler);
+            `,
+            errors: [
+                {
+                    messageId: 'missingBothTypes',
                 },
             ],
         },
