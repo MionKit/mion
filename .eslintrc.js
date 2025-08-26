@@ -1,8 +1,13 @@
 module.exports = {
   root: true,
   parser: '@typescript-eslint/parser',
-  plugins: ['@typescript-eslint', 'jest', '@mionkit/eslint-plugin'],
-  extends: ['eslint:recommended', 'plugin:@typescript-eslint/recommended', 'plugin:jest/recommended'],
+  plugins: ['@typescript-eslint', 'jest'],
+  extends: [
+    'eslint:recommended',
+    'plugin:@typescript-eslint/recommended',
+    'plugin:jest/recommended',
+    'plugin:@mionkit/eslint-plugin/recommended'
+  ],
   parserOptions: {
     project: ['./packages/*/tsconfig.json'],
   },
@@ -11,7 +16,6 @@ module.exports = {
     // 'jest/no-disabled-tests': 'off',
     '@typescript-eslint/no-empty-function': 'off',
     '@typescript-eslint/no-explicit-any': 'off',
-    '@mionkit/no-typeof-runtype': 'error',
   },
   overrides: [
     {

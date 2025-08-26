@@ -11,6 +11,14 @@ const plugin = {
     rules: {
         'no-typeof-runtype': noTypeofRunType,
     },
+    configs: {
+        recommended: {
+            plugins: ['@mionkit/eslint-plugin'],
+            rules: {
+                '@mionkit/no-typeof-runtype': 'error',
+            },
+        },
+    },
 };
 
 // CommonJS export

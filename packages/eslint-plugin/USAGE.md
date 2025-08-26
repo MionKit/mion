@@ -14,7 +14,22 @@ npm install @mionkit/eslint-plugin --save-dev
 
 ## Configuration
 
-Add the plugin to your `.eslintrc.js`:
+### Recommended (Easy Setup)
+
+Use the recommended configuration that includes all mionkit rules:
+
+```javascript
+module.exports = {
+  extends: [
+    'eslint:recommended',
+    'plugin:@mionkit/eslint-plugin/recommended'
+  ],
+};
+```
+
+### Manual Configuration
+
+Alternatively, configure individual rules manually:
 
 ```javascript
 module.exports = {
